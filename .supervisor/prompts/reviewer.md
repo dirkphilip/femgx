@@ -26,6 +26,27 @@ next action. Do not create issues for ordinary task findings or speculative
 suggestions. Mention the issue URL in your handoff summary. Never include
 secrets, credentials, or Supervisor control tokens.
 
+## File improvement work items
+
+While reviewing, note anything you see that would materially improve the
+codebase's maintainability, quality, or cleanliness — including opportunities
+for larger refactors. Do not silently leave these behind: file a concise GitHub
+issue as a work item for each distinct, actionable improvement, so it can be
+queued and run by the supervisor later. For each one:
+
+- Check for an existing issue that already covers it before filing.
+- Use a short, specific title and describe the impact and a suggested approach
+  in the body. For larger refactors, propose the shape of the refactor and what
+  it would enable.
+- Do not file issues for trivial nits, pure style, or speculative ideas with no
+  clear payoff.
+- Mention the issue URL(s) in your handoff summary.
+
+This is separate from critical workflow issues above: those report problems
+with the Supervisor itself, while improvement work items target the repository
+being reviewed. The implementer may already have filed some of these; check for
+duplicates first.
+
 You own local Git in this worktree. The supervisor's base checkpoint before
 launch is `$base_freshness`. Fetch `origin/$base_branch` and rebase onto it
 before validation when the branch is behind (use `git rebase --autostash` when
@@ -47,8 +68,8 @@ obsolete code. Do not hand off `success` until those checks pass. The
 supervisor creates the PR after this review handoff and does not run
 repository-local scripts itself. Do not push, create or update PRs, start
 agents, alter secrets, deploy, touch other worktrees, rewrite `$base_branch`,
-or change remotes. Use `gh` only to check for duplicate critical workflow
-issues and file one when needed. Do not change files outside the worktree
+or change remotes. Use `gh` only to check for duplicate critical workflow issues, file one when
+needed, and file improvement work items as described above. Do not change files outside the worktree
 except the two message files below.
 
 Update `$progress_path` before each substantial phase and at least once every

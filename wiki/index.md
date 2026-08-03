@@ -16,6 +16,9 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   initial library structure.
 - [[quality-gate|Quality gate]] — CI, coverage thresholds, and the local gate
   every agent runs before handoff.
+- [[performance-issues|Performance issues and risks]] — known scalability,
+  correctness, renderer, and toolchain gaps.
+- [[todo|Engineering TODO]] — prioritized implementation roadmap.
 - [[supervisor-workflow|Supervisor workflow]] — launching `sv` via `uvx`,
   provider setup, and useful commands.
 

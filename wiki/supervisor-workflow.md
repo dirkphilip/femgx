@@ -8,21 +8,22 @@ Never invoke `sv` from the agent-supervisor venv directly. Always launch it
 through `uvx` so the tool resolves its own environment:
 
 ```sh
-uvx --from agent-supervisor sv run 123
+uvx --from /Users/dirkphilip/workspace/agent-supervisor sv run 123
 ```
 
 For interactive use, alias it:
 
 ```sh
-alias sv='uvx --from agent-supervisor sv'
+alias sv='uvx --from /Users/dirkphilip/workspace/agent-supervisor sv'
 ```
 
 ### Why
 
-- No dependency on the local `agent-supervisor` checkout/venv; `uvx` pulls the
-  published `agent-supervisor` package.
-- Keeps the venv and repo out of the femgx workflow entirely.
-- Always uses the latest published version of the tooling.
+- No dependency on the local venv; `uvx` builds and runs the tool in its own
+  isolated environment.
+- `agent-supervisor` is not published to PyPI, so the checkout path is required:
+  `uvx --from agent-supervisor` fails to resolve, and the standalone wheel in
+  `dist/` is unusable because its `sv-models` dependency is unpublished.
 
 ## Provider
 
@@ -48,3 +49,33 @@ sv stop               # interrupt workers and stop immediately
   rules.
 - Keep `.supervisor/config.local.toml`, `.supervisor/issues.json`, and
   `.supervisor/run/` local and ignored.
+
+## Approval allow-list
+
+`github.auto_pull = true` with `github.allow_labels = ["ready-for-supervisor"]`
+gates automatic intake: only issues carrying that label are auto-pulled. The
+label is added only by the repo owner or a trusted agent, so random or
+agent-filed issues never get pulled in without explicit approval. Approve an
+issue by adding the label:
+
+```sh
+gh issue edit 123 --add-label ready-for-supervisor
+```
+
+Explicit `sv run <issue>` bypasses the auto-pull gate.
+
+## Auto-filed improvement issues
+
+The implementer and reviewer prompts (`prompts/implementer.md`,
+`prompts/reviewer.md`) instruct agents to file a concise GitHub issue as a work
+item whenever they notice something that would materially improve the
+codebase's maintainability, quality, or cleanliness — including larger
+refactors. Agents check for duplicates first, keep issues focused and
+actionable (no trivial nits or pure style), and mention the issue URL in the
+handoff summary. Because auto-pull requires the `ready-for-supervisor` label,
+such agent-filed issues are NOT pulled in automatically — approve them
+explicitly by adding the label.
+
+Known gap: the OpenCode provider's permission rules currently deny every `gh`
+command, so agents cannot actually file those issues yet. Tracked upstream at
+dirkphilip/sv#245.

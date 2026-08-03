@@ -43,7 +43,7 @@ level = "INFO"
 [agent]
 # Shared fallback provider: "cursor", "copilot", "codex", "opencode", "fake", or "custom".
 # Override per user in config.local.toml (for example, provider = "cursor").
-provider = "codex"
+provider = "opencode"
 # Optional shared default model; users may override it locally.
 # model = "..."
 # Codex only: set the model's reasoning effort, for example "xhigh".
@@ -58,7 +58,10 @@ enabled = true
 draft = true
 # Automatically queue open GitHub issues that have no assignee when running.
 # Safer default: queue issues manually, or set allow_labels below for approval.
-auto_pull = false
+# Only issues carrying an approval label below are auto-pulled; this is the
+# allow-list gate. The label must be added by the repo owner (or a trusted
+# agent), never by random contributors.
+auto_pull = true
 # Automatically launch a one-shot PR repair pass when sync detects conflicts,
 # failing checks, or new review activity. Explicit `sv job repair` still works
 # when false. Uses prompts/pr-repair.md (bundled; not a [[stages]] entry).
@@ -72,8 +75,10 @@ in_progress_label = "in-progress"
 ignore_labels = ["ignore"]
 # When non-empty, auto-pull only selects issues with at least one of these
 # labels. Ignore labels still take precedence. Use a full label such as
-# "team:ready" for labels outside the supervisor prefix.
-allow_labels = []
+# "team:ready" for labels outside the supervisor prefix. This is the
+# approval allow-list: only issues labeled by the owner or trusted agents get
+# pulled in automatically.
+allow_labels = ["ready-for-supervisor"]
 # Status labels are prefixed so it is clear they are managed by Agent Supervisor.
 supervisor_label_prefix = "sup:"
 # Add a per-user suffix, such as "-laptop", to distinguish local instances.

@@ -15,7 +15,7 @@ max_issues_per_run = 3
 [agent]
 # Choose the provider installed and authenticated on this machine:
 # "cursor", "copilot", "codex", "opencode", "fake", or "custom".
-provider = "codex"
+provider = "opencode"
 # Optional: pin a provider model for this user.
 # model = "..."
 # Codex only: set the model's reasoning effort, for example "xhigh".
