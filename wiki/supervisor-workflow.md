@@ -90,6 +90,15 @@ issue by adding the label:
 gh issue edit 123 --add-label ready-for-supervisor
 ```
 
+Configured `allow_labels` and `ignore_labels` are matched exactly as written;
+the supervisor does not apply its namespace prefix to them. A bare label such as
+`ready-for-supervisor` matches the GitHub label `ready-for-supervisor`, and a
+fully qualified label such as `team:ready` matches that exact label.
+`ignore_labels` still take precedence, so an issue carrying an ignore label is
+never auto-pulled even when it also carries an allow label. See
+[[supervisor-label-matching|Supervisor label matching]] for the effective
+configuration and the migration behavior.
+
 Explicit `sv run <issue>` bypasses the auto-pull gate.
 
 ## Auto-filed improvement issues
@@ -116,3 +125,12 @@ commands may fail when the local token is expired or network access is blocked.
 Try task-local `UV_CACHE_DIR` and `UV_TOOL_DIR` first. If package downloads are
 offline, use the existing local Supervisor checkout only for safe status checks;
 do not edit Supervisor runtime state by hand.
+
+## Pre-commit gate
+
+The worker contract tells agents to run `uv run pre-commit run --all-files`
+before handoff, but this repository has no Python `.pre-commit-config.yaml`.
+The real pre-commit gate is the husky hook running lint-staged
+(`npm run pre-commit`): ESLint with `--fix`, Prettier, and a merge-conflict
+marker check on staged files. Run the focused checks on changed files yourself;
+CI runs the full quality gate after a PR exists.
