@@ -1,6 +1,6 @@
-import { identity, multiply, type Mat4 } from "../mat4";
-import type { Scene } from "../scene";
-import type { AssemblyId, PartId } from "../types";
+import { identity, multiply, type Mat4 } from "../math/mat4";
+import type { Scene } from "../scene/scene";
+import type { AssemblyId, PartId } from "../scene/types";
 
 /**
  * Packed CPU-side state backing a scene runtime. Every part placement is a

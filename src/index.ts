@@ -4,9 +4,9 @@ export type {
   PartPlacement,
   Placement,
   SubAssemblyPlacement,
-} from "./assembly";
-export { computeBounds, type Bounds, type Geometry, type Part } from "./part";
-export { batchInstancesByPart, type InstanceBatch } from "./batch";
+} from "./scene/assembly";
+export { computeBounds, type Bounds, type Geometry, type Part } from "./geometry/part";
+export { batchInstancesByPart, type InstanceBatch } from "./runtime/batch";
 export {
   createInteractionState,
   resolveInstanceStyle,
@@ -22,9 +22,9 @@ export {
   type InteractionTheme,
   type ResolvedStyle,
   type StyleOverride,
-} from "./interaction";
-export { flattenAssembly, type FlattenOptions } from "./flatten";
-export { compileScene, type CompiledScene } from "./runtime";
+} from "./interaction/interaction";
+export { flattenAssembly, type FlattenOptions } from "./runtime/flatten";
+export { compileScene, type CompiledScene } from "./runtime/compile";
 export { createSceneRuntime, type SceneRuntime } from "./scene-runtime/runtime";
 export type { VisibilityDelta } from "./scene-runtime/visibility";
 export {
@@ -33,12 +33,12 @@ export {
   isSphereVisible,
   type Frustum,
   type FrustumPlane,
-} from "./culling";
+} from "./runtime/culling";
 export {
   createWebGpuRenderer,
   type WebGpuRenderer,
   type WebGpuRendererOptions,
-} from "./gpu-renderer";
+} from "./renderer/gpu-renderer";
 export {
   createCamera,
   orbitCamera,
@@ -53,8 +53,8 @@ export {
   type Camera,
   type ProjectionMode,
   type Vec3,
-} from "./camera";
-export { createScene, type Scene, type SceneBuilder } from "./scene";
+} from "./camera/camera";
+export { createScene, type Scene, type SceneBuilder } from "./scene/scene";
 export {
   identity,
   multiply,
@@ -63,6 +63,6 @@ export {
   transformPoint,
   translation,
   type Mat4,
-} from "./mat4";
-export { instanceToTarget, resolvePick } from "./pick";
-export type { AssemblyId, Instance, InstanceId, PartId, PickTarget } from "./types";
+} from "./math/mat4";
+export { instanceToTarget, resolvePick } from "./picking/pick";
+export type { AssemblyId, Instance, InstanceId, PartId, PickTarget } from "./scene/types";

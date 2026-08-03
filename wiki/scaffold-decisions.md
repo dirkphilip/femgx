@@ -36,12 +36,12 @@ Recorded decisions from the initial toolchain setup.
 
 ## Library structure
 
-- `src/mat4.ts`, `src/types.ts`, `src/part.ts`, `src/assembly.ts`,
-  `src/flatten.ts`, `src/scene.ts`, `src/pick.ts`, `src/index.ts` (public API),
-  with camera, culling, batching, interaction, runtime, and WebGPU modules around
-  that core.
-- `test/` holds CPU-side and mocked-WebGPU unit tests; `demo/` is an interactive
-  canvas fallback that remains usable on browsers without WebGPU.
+- Source and tests are organized by subsystem directories under `src/` and
+  `test/` (math, geometry, scene, runtime, camera, interaction, picking,
+  renderer); see [[source-organization|Source organization]].
+- `src/index.ts` is the single public entry point; the demo app in `demo/` is an
+  interactive canvas fallback that remains usable on browsers without WebGPU.
+- `test/` holds CPU-side and mocked-WebGPU unit tests that mirror `src/`.
 
 ## Intentionally deferred
 

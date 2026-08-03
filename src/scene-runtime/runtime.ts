@@ -1,6 +1,6 @@
-import type { Mat4 } from "../mat4";
-import type { Scene } from "../scene";
-import type { AssemblyId, PartId } from "../types";
+import type { Mat4 } from "../math/mat4";
+import type { Scene } from "../scene/scene";
+import type { AssemblyId, PartId } from "../scene/types";
 import { compileSceneState, type RuntimeState } from "./compile";
 import {
   getDrawList as computeDrawList,

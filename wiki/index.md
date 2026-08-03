@@ -16,6 +16,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   as per-instance GPU attributes.
 - [[scaffold-decisions|Scaffold decisions]] — toolchain, strictness, and the
   initial library structure.
+- [[source-organization|Source organization]] — subsystem directory layout and
+  the public-boundary convention.
 - [[quality-gate|Quality gate]] — CI, coverage thresholds, and the local gate
   every agent runs before handoff.
 - [[performance-issues|Performance issues and risks]] — known scalability,
