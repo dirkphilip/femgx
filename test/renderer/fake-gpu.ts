@@ -14,12 +14,18 @@ export interface DrawCall {
   readonly instanceCount: number;
 }
 
+export interface FakeTexture {
+  destroyed: boolean;
+}
+
 export interface FakeGpu {
   readonly device: GPUDevice;
   readonly writes: readonly RecordedWrite[];
   readonly buffers: readonly FakeBuffer[];
+  readonly textures: readonly FakeTexture[];
   readonly drawCalls: readonly DrawCall[];
   readonly textureCreations: number;
+  readonly bindGroupCreations: number;
 }
 
 /** Defines the WebGPU numeric constants the renderer source references. */
@@ -68,8 +74,9 @@ export function fakeCanvas(width = 800, height = 600): HTMLCanvasElement {
 export function fakeGpuDevice(options: { readonly pickValue?: number } = {}): FakeGpu {
   const writes: RecordedWrite[] = [];
   const buffers: FakeBuffer[] = [];
+  const textures: FakeTexture[] = [];
   const drawCalls: DrawCall[] = [];
-  let textureCreations = 0;
+  let bindGroupCreations = 0;
   const pickValue = options.pickValue ?? 0;
   const device = {
     queue: {
@@ -99,13 +106,22 @@ export function fakeGpuDevice(options: { readonly pickValue?: number } = {}): Fa
       } as unknown as GPUBuffer;
     },
     createBindGroupLayout: () => ({}),
-    createBindGroup: () => ({}),
+    createBindGroup: () => {
+      bindGroupCreations += 1;
+      return {};
+    },
     createPipelineLayout: () => ({}),
     createShaderModule: () => ({}),
     createRenderPipeline: () => ({}),
     createTexture: () => {
-      textureCreations += 1;
-      return { createView: () => ({}), destroy: () => undefined };
+      const record: FakeTexture = { destroyed: false };
+      textures.push(record);
+      return {
+        createView: () => ({}),
+        destroy: () => {
+          record.destroyed = true;
+        },
+      };
     },
     createCommandEncoder: () => ({
       beginRenderPass: () => {
@@ -129,9 +145,13 @@ export function fakeGpuDevice(options: { readonly pickValue?: number } = {}): Fa
     device: device as unknown as GPUDevice,
     writes,
     buffers,
+    textures,
     drawCalls,
     get textureCreations() {
-      return textureCreations;
+      return textures.length;
+    },
+    get bindGroupCreations() {
+      return bindGroupCreations;
     },
   };
 }

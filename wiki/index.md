@@ -22,6 +22,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   every agent runs before handoff.
 - [[performance-issues|Performance issues and risks]] — known scalability,
   correctness, renderer, and toolchain gaps.
+- [[webgpu-resource-reuse|WebGPU resource reuse]] — cached frame resources and
+  the readback-map synchronization constraints.
 - [[todo|Engineering TODO]] — prioritized implementation roadmap.
 - [[supervisor-workflow|Supervisor workflow]] — launching `sv` via `uvx`,
   provider setup, and useful commands.

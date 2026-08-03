@@ -51,14 +51,15 @@ benchmarks, and WebGPU-capable browser coverage.
 
 ### Remaining GPU allocation risks
 
-`gpu-draw.ts` `drawBatches` allocates a new bind group per batch on every frame
-and `render` re-creates a depth texture each frame; these per-frame allocations
-conflict with the instancing performance goal and should be cached/reused (e.g.
-bind groups keyed by batch resource, and a resized depth texture). The pick
-targets are already reused across frames and resized on demand, and per-part
-instance buffers only grow. `readPickPixel` also allocates a fresh readback
-buffer and `mapAsync` per call, which stalls on the queue until mapped; a pooled
-readback buffer would remove that per-pick allocation.
+_Resolved for frame resources_: `drawBatches` now reuses one bind group per
+per-part batch resource across frames and passes, `render` keeps a single depth
+texture that is only resized when the canvas size changes, and pick readback
+reuses a pool of map buffers (see
+[[webgpu-resource-reuse|WebGPU resource reuse]]). Per-part instance buffers only
+grow; a grown-out buffer is replaced without being destroyed immediately, so it
+is only released when the renderer is destroyed — deferred buffer destruction
+for growth is still future work. The pick targets are already reused across
+frames and resized on demand.
 
 ## Toolchain reproducibility
 

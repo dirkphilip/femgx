@@ -8,7 +8,7 @@ import {
   createDrawResources,
   destroyDrawResources,
   beginColorPass,
-  createDepthTexture,
+  ensureDepthTexture,
   drawBatches,
   type DrawCallContext,
   type DrawResources,
@@ -92,8 +92,8 @@ class GpuRenderer implements WebGpuRenderer {
     this.device.queue.writeBuffer(this.resources.cameraBuffer, 0, new Float32Array(viewProjection));
     const encoder = this.device.createCommandEncoder();
     const colorView = this.context.getCurrentTexture().createView();
-    const depthTexture = createDepthTexture(
-      this.device,
+    const depthTexture = ensureDepthTexture(
+      this.draw,
       this.canvas.width,
       this.canvas.height,
       this.depthFormat,
@@ -118,7 +118,6 @@ class GpuRenderer implements WebGpuRenderer {
     drawBatches(pickPass, this.draw, drawContext, compiled.batches, this.resources.pickPipeline);
     pickPass.end();
     this.device.queue.submit([encoder.finish()]);
-    depthTexture.destroy();
   }
 
   public async pick(x: number, y: number): Promise<PickTarget | undefined> {

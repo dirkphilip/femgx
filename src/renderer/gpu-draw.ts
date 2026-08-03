@@ -18,6 +18,9 @@ export interface DrawResources {
   readonly device: GPUDevice;
   readonly parts: Map<PartId, PartResource>;
   readonly batches: Map<PartId, BatchResource>;
+  depthTexture: GPUTexture | undefined;
+  depthWidth: number;
+  depthHeight: number;
 }
 
 /** Per-frame inputs shared by every draw batch of a pass. */
@@ -30,7 +33,14 @@ export interface DrawCallContext {
 
 /** Creates the draw-path resource owner. */
 export function createDrawResources(device: GPUDevice): DrawResources {
-  return { device, parts: new Map(), batches: new Map() };
+  return {
+    device,
+    parts: new Map(),
+    batches: new Map(),
+    depthTexture: undefined,
+    depthWidth: 0,
+    depthHeight: 0,
+  };
 }
 
 /** Returns the cached geometry buffers for a part, uploading them once. */
@@ -50,7 +60,7 @@ export function uploadInstances(
   partId: PartId,
   instances: readonly Instance[],
   interaction: InteractionState,
-): GPUBuffer {
+): BatchResource {
   const existing = draw.batches.get(partId);
   const capacity = existing?.capacity ?? 0;
   const resource =
@@ -72,7 +82,7 @@ export function uploadInstances(
     ids[i * 24 + 20] = instance.index + 1;
   }
   writeChangedBuffer(draw.device, resource, data, instances.length * INSTANCE_STRIDE);
-  return resource.buffer;
+  return resource;
 }
 
 /** Creates a per-part depth attachment sized to the current canvas. */
@@ -87,6 +97,24 @@ export function createDepthTexture(
     format,
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
+}
+
+/** Returns the cached depth texture, recreating it only when the canvas size changes. */
+export function ensureDepthTexture(
+  draw: DrawResources,
+  width: number,
+  height: number,
+  format: GPUTextureFormat,
+): GPUTexture {
+  if (draw.depthTexture !== undefined && draw.depthWidth === width && draw.depthHeight === height) {
+    return draw.depthTexture;
+  }
+  draw.depthTexture?.destroy();
+  const texture = createDepthTexture(draw.device, width, height, format);
+  draw.depthTexture = texture;
+  draw.depthWidth = width;
+  draw.depthHeight = height;
+  return texture;
 }
 
 /** Begins the visible color render pass with a cleared depth attachment. */
@@ -127,30 +155,28 @@ export function drawBatches(
     const part = context.parts.get(batch.partId);
     if (part === undefined) continue;
     const geometry = uploadPart(draw, part);
-    const instanceBuffer = uploadInstances(
-      draw,
-      batch.partId,
-      batch.instances,
-      context.interaction,
-    );
-    const bindGroup = draw.device.createBindGroup({
-      layout: context.instanceLayout,
-      entries: [{ binding: 0, resource: { buffer: instanceBuffer } }],
-    });
-    pass.setBindGroup(1, bindGroup);
+    const resource = uploadInstances(draw, batch.partId, batch.instances, context.interaction);
+    if (resource.bindGroup === undefined) {
+      resource.bindGroup = draw.device.createBindGroup({
+        layout: context.instanceLayout,
+        entries: [{ binding: 0, resource: { buffer: resource.buffer } }],
+      });
+    }
+    pass.setBindGroup(1, resource.bindGroup);
     pass.setVertexBuffer(0, geometry.vertexBuffer);
     pass.setIndexBuffer(geometry.indexBuffer, "uint32");
     pass.drawIndexed(geometry.indexCount, batch.instances.length);
   }
 }
 
-/** Releases every part and batch buffer owned by the draw path. */
+/** Releases every part, batch, and depth resource owned by the draw path. */
 export function destroyDrawResources(draw: DrawResources): void {
   for (const resource of draw.parts.values()) {
     resource.vertexBuffer.destroy();
     resource.indexBuffer.destroy();
   }
   for (const resource of draw.batches.values()) resource.buffer.destroy();
+  draw.depthTexture?.destroy();
 }
 
 /** Creates or grows the per-part instance storage buffer. */
@@ -164,6 +190,7 @@ function createBatchBuffer(draw: DrawResources, partId: PartId, count: number): 
     capacity,
     data: new ArrayBuffer(capacity * INSTANCE_STRIDE),
     initialized: false,
+    bindGroup: undefined,
   };
   draw.batches.set(partId, resource);
   return resource;

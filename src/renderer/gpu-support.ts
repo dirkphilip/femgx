@@ -11,6 +11,7 @@ export interface BatchResource {
   readonly capacity: number;
   data: ArrayBuffer;
   initialized: boolean;
+  bindGroup: GPUBindGroup | undefined;
 }
 
 export const defaultStyle: ResolvedStyle = {

@@ -4,7 +4,9 @@ import { translation } from "../../src/math/mat4";
 import {
   beginColorPass,
   createDrawResources,
+  destroyDrawResources,
   drawBatches,
+  ensureDepthTexture,
   uploadPart,
   uploadInstances,
   type DrawCallContext,
@@ -104,6 +106,85 @@ describe("GPU draw path", () => {
       );
       pass.end();
       expect(gpu.drawCalls).toEqual([{ indexCount: 3, instanceCount: 2 }]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("reuses one bind group per batch across frames", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      const context: DrawCallContext = {
+        cameraBindGroup: {} as GPUBindGroup,
+        instanceLayout: {} as GPUBindGroupLayout,
+        parts: new Map([[part.id, part]]),
+        interaction: createDefaultInteraction(),
+      };
+      const batches = [{ partId: part.id, instances: [instance] }];
+      for (let frame = 0; frame < 3; frame += 1) {
+        const encoder = gpu.device.createCommandEncoder();
+        const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
+        drawBatches(pass, draw, context, batches, {} as GPURenderPipeline);
+        pass.end();
+      }
+      expect(gpu.bindGroupCreations).toBe(1);
+      expect(gpu.drawCalls).toHaveLength(3);
+    } finally {
+      restore();
+    }
+  });
+
+  it("recreates a new bind group when the instance buffer grows", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      const context: DrawCallContext = {
+        cameraBindGroup: {} as GPUBindGroup,
+        instanceLayout: {} as GPUBindGroupLayout,
+        parts: new Map([[part.id, part]]),
+        interaction: createDefaultInteraction(),
+      };
+      const single = { partId: part.id, instances: [instance] };
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
+      drawBatches(pass, draw, context, [single], {} as GPURenderPipeline);
+      pass.end();
+      const grown = {
+        partId: part.id,
+        instances: [
+          instance,
+          { ...instance, index: 1, instanceId: "1/1" },
+          { ...instance, index: 2, instanceId: "1/2" },
+        ],
+      };
+      const encoder2 = gpu.device.createCommandEncoder();
+      const pass2 = beginColorPass(encoder2, {} as GPUTextureView, {} as GPUTextureView);
+      drawBatches(pass2, draw, context, [grown], {} as GPURenderPipeline);
+      pass2.end();
+      expect(gpu.bindGroupCreations).toBe(2);
+    } finally {
+      restore();
+    }
+  });
+
+  it("reuses the depth texture and only resizes when the canvas size changes", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      const first = ensureDepthTexture(draw, 800, 600, "depth24plus");
+      const second = ensureDepthTexture(draw, 800, 600, "depth24plus");
+      expect(second).toBe(first);
+      expect(gpu.textureCreations).toBe(1);
+      const resized = ensureDepthTexture(draw, 400, 300, "depth24plus");
+      expect(resized).not.toBe(first);
+      expect(gpu.textureCreations).toBe(2);
+      expect(gpu.textures[0]?.destroyed).toBe(true);
+      destroyDrawResources(draw);
+      expect(gpu.textures[1]?.destroyed).toBe(true);
     } finally {
       restore();
     }
