@@ -1,6 +1,7 @@
 node_modules
 dist
 coverage
+.husky/_
 *.local.toml
 .supervisor/run
 .DS_Store
