@@ -35,6 +35,8 @@ development workflow.
 - [x] Upload each part's geometry once and issue instanced draws grouped by part.
 - [ ] Add buffer subrange updates for transform and interaction deltas.
 - [x] Add a pick render pass and asynchronous single-pixel readback.
+- [x] Split the renderer into focused modules (pipelines, draw, pick readback)
+      below the 300-line limit (see [[source-organization|Source organization]]).
 
 ## P2 — interaction API
 

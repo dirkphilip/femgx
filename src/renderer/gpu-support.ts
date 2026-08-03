@@ -80,27 +80,3 @@ export function createDefaultInteraction(): InteractionState {
     theme: { highlighted: {}, selected: {}, hovered: {} },
   };
 }
-
-/** Begins the integer render pass used for asynchronous picking. */
-export function beginPickPass(
-  encoder: GPUCommandEncoder,
-  pickTexture: GPUTexture,
-  pickDepthTexture: GPUTexture,
-): GPURenderPassEncoder {
-  return encoder.beginRenderPass({
-    colorAttachments: [
-      {
-        view: pickTexture.createView(),
-        clearValue: { r: 0, g: 0, b: 0, a: 0 },
-        loadOp: "clear",
-        storeOp: "store",
-      },
-    ],
-    depthStencilAttachment: {
-      view: pickDepthTexture.createView(),
-      depthClearValue: 1,
-      depthLoadOp: "clear",
-      depthStoreOp: "store",
-    },
-  });
-}

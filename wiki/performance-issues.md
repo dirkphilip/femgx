@@ -39,15 +39,25 @@ with rotation/scale coverage in `test/mat4.test.ts`.
 
 ## Renderer and validation gaps
 
-The renderer, GPU instance buffers, GPU picking, and resource lifecycle are now
-implemented and mocked in unit tests. Remaining work is GPU subrange delta
-updates wired to the packed runtime's visibility deltas, benchmarks, and
-WebGPU-capable browser coverage.
+The renderer is split into focused modules under `src/renderer/` (see
+[[source-organization|Source organization]]): `gpu-pipelines.ts` owns pipeline and
+resource creation, `gpu-draw.ts` owns per-part geometry/instance buffers and draw
+submission, and `gpu-pick.ts` owns the pick targets and readback, with
+`gpu-renderer.ts` as a thin orchestrator. GPU instance buffers, picking, and
+resource lifecycle are mocked in CPU-only unit tests. Remaining work is GPU
+subrange delta updates wired to the packed runtime's visibility deltas,
+benchmarks, and WebGPU-capable browser coverage.
 
-`GpuRenderer.drawBatches` allocates a new bind group per batch on every frame
+### Remaining GPU allocation risks
+
+`gpu-draw.ts` `drawBatches` allocates a new bind group per batch on every frame
 and `render` re-creates a depth texture each frame; these per-frame allocations
 conflict with the instancing performance goal and should be cached/reused (e.g.
-bind groups keyed by batch resource, and a resized depth texture).
+bind groups keyed by batch resource, and a resized depth texture). The pick
+targets are already reused across frames and resized on demand, and per-part
+instance buffers only grow. `readPickPixel` also allocates a fresh readback
+buffer and `mapAsync` per call, which stalls on the queue until mapped; a pooled
+readback buffer would remove that per-pick allocation.
 
 ## Toolchain reproducibility
 
