@@ -20,6 +20,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   the public-boundary convention.
 - [[quality-gate|Quality gate]] — CI, coverage thresholds, and the local gate
   every agent runs before handoff.
+- [[typescript-toolchain-compatibility|TypeScript toolchain compatibility]] —
+  TypeScript and typescript-eslint peer-version constraints.
 - [[performance-issues|Performance issues and risks]] — known scalability,
   correctness, renderer, and toolchain gaps.
 - [[todo|Engineering TODO]] — prioritized implementation roadmap.
