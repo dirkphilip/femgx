@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+*.local.toml
+.supervisor/run
+.DS_Store
+*.log
+.vite

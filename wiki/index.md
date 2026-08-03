@@ -1,0 +1,23 @@
+# femgx wiki
+
+This wiki is the human- and agent-readable memory of the femgx project. It uses
+Obsidian/Foam-style `[[wiki-link]]` links so notes are navigable as a knowledge
+graph (open the repo as a vault, or follow the index files in a plain editor).
+
+## Index
+
+- [[architecture-overview|Architecture overview]] — scene model, renderer split,
+  and ownership boundaries.
+- [[instancing-strategy|Instancing strategy]] — parts, assemblies, and how
+  geometry is reused via GPU instancing.
+- [[interactive-state|Interactive state]] — highlight, selection, and visibility
+  as per-instance GPU attributes.
+- [[scaffold-decisions|Scaffold decisions]] — toolchain, strictness, and the
+  initial library structure.
+
+## Conventions
+
+- One markdown file per topic in `wiki/`, named `kebab-case`.
+- Link related notes with `[[wiki-link]]`; prefer linking over duplicating.
+- Add every new note to this index.
+- Keep notes concise and current; mark resolved issues as resolved.

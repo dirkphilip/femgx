@@ -1,5 +1,11 @@
 # AGENTS.md
 
+## Experimental Status
+
+This is an **experimental product** (version 0.0.0/0.0.1). There is **no stable API**:
+we do not care about breaking API changes. The only thing that matters is shipping a
+very clean product. Prefer improving the design over preserving backwards compatibility.
+
 ## Project Overview
 
 A modern TypeScript graphics library that renders very large finite element (FE) models
@@ -92,16 +98,23 @@ and reviewable.
   Keep WebGPU code behind thin interfaces so it can be tested/mocked.
 - **Docs**: Document the public API surface (typedoc or JSDoc on exported symbols).
 
-## Commands (to be set up)
+## Commands
 
-Ensure these exist in `package.json` and document exact usage here once scaffolded:
+These exist in `package.json`:
 
 - `npm run dev` — dev server with demo app.
-- `npm run build` — type-check + bundle library.
+- `npm run build` — type-check + bundle library (emits `dist/` with `.d.ts`).
 - `npm run typecheck` — `tsc --noEmit`.
-- `npm run lint` — ESLint on `src/`.
-- `npm run format` — Prettier write.
-- `npm test` — unit tests.
+- `npm run lint` — ESLint on `src/`, `test/`, `demo/` with `--max-warnings 0`.
+- `npm run lint:fix` — ESLint with `--fix`.
+- `npm run format` — Prettier write on the whole repo.
+- `npm run format:check` — Prettier check (agents should use `format`).
+- `npm test` — Vitest unit tests (`test/**/*.test.ts`).
+- `npm run test:watch` — Vitest watch mode.
+- `npm run preview` — preview the built demo.
+
+After any edit, agents must run: `npm run lint`, `npm run typecheck`, `npm test`,
+and `npm run format`, and leave the repo clean.
 
 ## Agent Workflow Rules
 
