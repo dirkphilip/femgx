@@ -37,5 +37,7 @@ packed runtime storage, benchmarks, and WebGPU-capable browser coverage.
 
 ## Toolchain reproducibility
 
-CI and the project declaration now require Node 24; Node 21 is unsupported by
-the current Vite/Rolldown toolchain.
+The repository pins Node 24.18.0 in `.nvmrc`, and the package engine declaration
+uses a full semver lower bound so local tooling and Supervisor can select a
+compatible Node runtime. Node 21 is unsupported by the current Vite/Rolldown
+toolchain.
