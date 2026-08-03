@@ -1,13 +1,12 @@
 # Performance issues and risks
 
-This note records the main risks before the WebGPU renderer is implemented.
+This note records the remaining scalability risks after the first WebGPU renderer.
 
 ## Stable instance identity
 
-`flattenAssembly` assigns `index` from the output array after visibility culling.
-Hiding or showing an earlier placement therefore changes the IDs of later
-instances. GPU picking and incremental per-instance updates need persistent
-instance handles that are independent of the currently visible draw list.
+`flattenAssembly` assigns a compact visible `index` after visibility culling.
+Hiding or showing an earlier placement can change that draw index, so GPU picking
+and incremental per-instance updates use the separate path-derived `instanceId`.
 
 ## Scene update cost
 
@@ -19,28 +18,24 @@ needed for very large assemblies.
 
 ## Flattening cost
 
-Flattening recursively walks the entire hierarchy, allocates a matrix for every
-placement, and creates a new instance object for every visible placement. It
-does not yet cache transforms, propagate dirty subtrees, batch instances by
-part, or perform bounds-based culling. These are renderer prerequisites for
+`flattenAssembly` allocates a matrix for every visited placement and creates a new
+instance object for every visible placement. It now uses an iterative walk,
+deterministic per-part batching, and optional frustum culling; transform caching,
+dirty-subtree propagation, and packed authoring storage remain future work for
 keeping frame work proportional to changed state.
 
 ## Matrix layout correctness
 
-`Mat4` is documented and populated as column-major, but `multiply` indexes its
-inputs as row-major. Translation-only tests pass by coincidence; rotations,
-scales, and general nested transforms can be incorrect.
+Resolved: `Mat4` multiplication and point transforms use column-major indexing,
+with rotation/scale coverage in `test/mat4.test.ts`.
 
 ## Renderer and validation gaps
 
-The WebGPU renderer, GPU instance buffers, GPU picking, resource lifecycle, and
-performance benchmarks are not implemented yet. Assembly construction also does
-not validate missing references or cycles, and recursive traversal can overflow
-on deeply nested input.
+The renderer, GPU instance buffers, GPU picking, and resource lifecycle are now
+implemented and mocked in unit tests. Remaining work is subrange delta updates,
+packed runtime storage, benchmarks, and WebGPU-capable browser coverage.
 
 ## Toolchain reproducibility
 
-CI uses Node 24 while the current local environment is Node 21.7.1. Vitest and
-the Vite/Rolldown toolchain currently fail during startup/build locally with a
-Node `util.styleText` incompatibility. The supported Node version should be
-declared and aligned across `package.json`, CI, and development documentation.
+CI and the project declaration now require Node 24; Node 21 is unsupported by
+the current Vite/Rolldown toolchain.

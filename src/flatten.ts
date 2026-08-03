@@ -13,40 +13,66 @@ export interface FlattenOptions {
   readonly visiblePartIds: ReadonlySet<PartId>;
 }
 
-function walkAssembly(
-  options: FlattenOptions,
-  id: AssemblyId,
-  parentTransform: Mat4,
-  instances: Instance[],
-): void {
-  const assembly = options.assemblies.get(id);
-  if (assembly === undefined || !options.visibleAssemblyIds.has(id)) {
-    return;
-  }
-  for (const placement of assembly.placements) {
-    const worldTransform = multiply(parentTransform, placement.transform);
-    if (placement.kind === "part") {
-      if (!options.visiblePartIds.has(placement.partId)) {
-        continue;
-      }
-      instances.push({
-        index: instances.length,
-        partId: placement.partId,
-        worldTransform,
-      });
-    } else {
-      walkAssembly(options, placement.assemblyId, worldTransform, instances);
-    }
-  }
+interface WalkItem {
+  readonly assemblyId: AssemblyId;
+  readonly parentTransform: Mat4;
+  readonly path: string;
+  nextPlacementIndex: number;
 }
 
 /**
  * Flattens an assembly tree into a deterministic, depth-first instance list.
  * Hidden assemblies and parts are culled at the source so hidden geometry is
- * never drawn and instance indices stay stable frame to frame.
+ * never drawn. Visible draw indices are compacted; `instanceId` keeps the source
+ * placement identity stable when visibility changes.
  */
 export function flattenAssembly(options: FlattenOptions): readonly Instance[] {
   const instances: Instance[] = [];
-  walkAssembly(options, options.assemblyId, identity(), instances);
+  const stack: WalkItem[] = [
+    {
+      assemblyId: options.assemblyId,
+      parentTransform: identity(),
+      path: String(options.assemblyId),
+      nextPlacementIndex: 0,
+    },
+  ];
+  while (stack.length > 0) {
+    const item = stack[stack.length - 1];
+    if (item === undefined) {
+      continue;
+    }
+    const assembly = options.assemblies.get(item.assemblyId);
+    if (assembly === undefined || !options.visibleAssemblyIds.has(item.assemblyId)) {
+      stack.pop();
+      continue;
+    }
+    if (item.nextPlacementIndex >= assembly.placements.length) {
+      stack.pop();
+      continue;
+    }
+    const placementIndex = item.nextPlacementIndex;
+    item.nextPlacementIndex += 1;
+    const placement = assembly.placements[placementIndex];
+    if (placement === undefined) {
+      continue;
+    }
+    const worldTransform = multiply(item.parentTransform, placement.transform);
+    const placementPath = `${item.path}/${placementIndex}`;
+    if (placement.kind === "assembly") {
+      stack.push({
+        assemblyId: placement.assemblyId,
+        parentTransform: worldTransform,
+        path: placementPath,
+        nextPlacementIndex: 0,
+      });
+    } else if (options.visiblePartIds.has(placement.partId)) {
+      instances.push({
+        index: instances.length,
+        instanceId: placementPath,
+        partId: placement.partId,
+        worldTransform,
+      });
+    }
+  }
   return instances;
 }

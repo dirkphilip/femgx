@@ -46,4 +46,41 @@ describe("createScene", () => {
   it("throws when building without a root", () => {
     expect(() => createScene().build()).toThrow("root assembly is not set");
   });
+
+  it("rejects an unregistered root", () => {
+    expect(() => createScene().withRoot(99).build()).toThrow("root assembly 99 is not registered");
+  });
+
+  it("rejects duplicate registrations and missing references", () => {
+    const firstPart = part(1);
+    expect(() => createScene().addPart(firstPart).addPart(firstPart)).toThrow("already registered");
+    expect(() =>
+      createScene()
+        .addAssembly({
+          id: 1,
+          name: "root",
+          placements: [{ kind: "part", partId: 2, transform: new Float32Array(16) }],
+        })
+        .withRoot(1)
+        .build(),
+    ).toThrow("references missing part 2");
+  });
+
+  it("rejects cyclic assembly hierarchies", () => {
+    expect(() =>
+      createScene()
+        .addAssembly({
+          id: 1,
+          name: "one",
+          placements: [{ kind: "assembly", assemblyId: 2, transform: new Float32Array(16) }],
+        })
+        .addAssembly({
+          id: 2,
+          name: "two",
+          placements: [{ kind: "assembly", assemblyId: 1, transform: new Float32Array(16) }],
+        })
+        .withRoot(1)
+        .build(),
+    ).toThrow("contains a cycle");
+  });
 });

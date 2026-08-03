@@ -1,4 +1,4 @@
-import type { Assembly, NamedAssembly } from "./assembly";
+import type { Assembly, NamedAssembly, Placement } from "./assembly";
 import type { Part } from "./part";
 import type { AssemblyId, PartId } from "./types";
 
@@ -40,6 +40,9 @@ function createBuilder(state: SceneState): SceneBuilder {
       return update({ rootAssemblyId });
     },
     addPart(part: Part): SceneBuilder {
+      if (state.parts.has(part.id)) {
+        throw new Error(`Part ${part.id} is already registered`);
+      }
       const parts = new Map(state.parts);
       parts.set(part.id, part);
       const visiblePartIds = new Set(state.visiblePartIds);
@@ -47,6 +50,9 @@ function createBuilder(state: SceneState): SceneBuilder {
       return update({ parts, visiblePartIds });
     },
     addAssembly(assembly: NamedAssembly): SceneBuilder {
+      if (state.assemblies.has(assembly.id)) {
+        throw new Error(`Assembly ${assembly.id} is already registered`);
+      }
       const assemblies = new Map(state.assemblies);
       assemblies.set(assembly.id, assembly);
       const visibleAssemblyIds = new Set(state.visibleAssemblyIds);
@@ -78,9 +84,77 @@ function createBuilder(state: SceneState): SceneBuilder {
       if (rootAssemblyId === undefined) {
         throw new Error("Scene root assembly is not set");
       }
+      validateScene(rootAssemblyId, parts, assemblies);
       return { rootAssemblyId, parts, assemblies, visiblePartIds, visibleAssemblyIds };
     },
   };
+}
+
+function validateScene(
+  rootAssemblyId: AssemblyId,
+  parts: ReadonlyMap<PartId, Part>,
+  assemblies: ReadonlyMap<AssemblyId, Assembly>,
+): void {
+  if (!assemblies.has(rootAssemblyId)) {
+    throw new Error(`Scene root assembly ${rootAssemblyId} is not registered`);
+  }
+  for (const assembly of assemblies.values()) {
+    for (const placement of assembly.placements) {
+      validatePlacement(placement, parts, assemblies, assembly.id);
+    }
+  }
+  validateAcyclic(assemblies);
+}
+
+function validatePlacement(
+  placement: Placement,
+  parts: ReadonlyMap<PartId, Part>,
+  assemblies: ReadonlyMap<AssemblyId, Assembly>,
+  ownerId: AssemblyId,
+): void {
+  if (placement.kind === "part" && !parts.has(placement.partId)) {
+    throw new Error(`Assembly ${ownerId} references missing part ${placement.partId}`);
+  }
+  if (placement.kind === "assembly" && !assemblies.has(placement.assemblyId)) {
+    throw new Error(`Assembly ${ownerId} references missing assembly ${placement.assemblyId}`);
+  }
+}
+
+function validateAcyclic(assemblies: ReadonlyMap<AssemblyId, Assembly>): void {
+  const state = new Map<AssemblyId, "visiting" | "visited">();
+  for (const id of assemblies.keys()) {
+    if (state.has(id)) {
+      continue;
+    }
+    const stack: Array<{ readonly id: AssemblyId; nextIndex: number }> = [{ id, nextIndex: 0 }];
+    state.set(id, "visiting");
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      if (frame === undefined) {
+        continue;
+      }
+      const assembly = assemblies.get(frame.id);
+      if (assembly === undefined || frame.nextIndex >= assembly.placements.length) {
+        state.set(frame.id, "visited");
+        stack.pop();
+        continue;
+      }
+      const placement = assembly.placements[frame.nextIndex];
+      frame.nextIndex += 1;
+      if (placement?.kind !== "assembly") {
+        continue;
+      }
+      const childState = state.get(placement.assemblyId);
+      if (childState === "visiting") {
+        throw new Error(`Assembly hierarchy contains a cycle through ${placement.assemblyId}`);
+      }
+      if (childState === "visited") {
+        continue;
+      }
+      state.set(placement.assemblyId, "visiting");
+      stack.push({ id: placement.assemblyId, nextIndex: 0 });
+    }
+  }
 }
 
 /** Creates an empty scene builder. */

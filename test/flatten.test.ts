@@ -85,4 +85,41 @@ describe("flattenAssembly", () => {
     expect(first.map((i) => i.partId)).toEqual([2, 1]);
     expect(first.map((i) => i.partId)).toEqual(second.map((i) => i.partId));
   });
+
+  it("keeps placement handles stable when an earlier instance is hidden", () => {
+    const assemblies = new Map([
+      [
+        1,
+        assembly(1, [
+          { kind: "part", partId: 1, transform: translation(0, 0, 0) },
+          { kind: "part", partId: 2, transform: translation(0, 0, 0) },
+        ]),
+      ],
+    ]);
+    const visible = flattenAssembly(options({ assemblies }));
+    const hidden = flattenAssembly(options({ assemblies, visiblePartIds: new Set([2]) }));
+    expect(visible[1]?.instanceId).toBe(hidden[0]?.instanceId);
+    expect(hidden[0]?.index).toBe(0);
+  });
+
+  it("walks deeply nested hierarchies without recursion", () => {
+    const assemblies = new Map<number, Assembly>();
+    const depth = 5_000;
+    for (let id = depth; id >= 1; id -= 1) {
+      assemblies.set(
+        id,
+        assembly(
+          id,
+          id === depth
+            ? [{ kind: "part", partId: 1, transform: translation(1, 0, 0) }]
+            : [{ kind: "assembly", assemblyId: id + 1, transform: translation(1, 0, 0) }],
+        ),
+      );
+    }
+    const instances = flattenAssembly(
+      options({ assemblyId: 1, assemblies, visibleAssemblyIds: new Set(assemblies.keys()) }),
+    );
+    expect(instances).toHaveLength(1);
+    expect(instances[0]?.worldTransform[12]).toBe(depth);
+  });
 });

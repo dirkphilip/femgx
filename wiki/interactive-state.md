@@ -25,8 +25,9 @@ material clones.
 - CPU side resolves that id via `resolvePick(instances, pickId)` and maps it to a
   [[architecture-overview|PickTarget]] (part or instance).
 
-## Open question
+## Precedence
 
-Whether selection is stored as part-level or instance-level targets, and how
-highlight interacts with a part that has many instances, is still to be decided
-once the renderer lands.
+`resolveInstanceStyle` applies base style, highlight, hover, selection, explicit
+part override, then explicit instance override. More specific state wins, while
+selection intentionally remains stronger than hover. The resulting complete style
+can be copied directly into a GPU instance attribute without material cloning.
