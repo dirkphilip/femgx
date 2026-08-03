@@ -3,8 +3,8 @@ import { instanceToTarget, resolvePick } from "../src/pick";
 import { identity } from "../src/mat4";
 
 const instances = [
-  { index: 0, partId: 1, worldTransform: identity() },
-  { index: 1, partId: 2, worldTransform: identity() },
+  { index: 0, instanceId: "1/0", partId: 1, worldTransform: identity() },
+  { index: 1, instanceId: "1/1", partId: 2, worldTransform: identity() },
 ];
 
 describe("resolvePick", () => {
@@ -32,6 +32,6 @@ describe("instanceToTarget", () => {
     if (target === undefined) {
       throw new Error("expected instance");
     }
-    expect(instanceToTarget(target, false)).toEqual({ kind: "instance", instanceIndex: 0 });
+    expect(instanceToTarget(target, false)).toEqual({ kind: "instance", instanceId: "1/0" });
   });
 });

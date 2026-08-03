@@ -3,12 +3,12 @@ export type Mat4 = Float32Array;
 
 /** Returns the cell at (row, column) with bounds-safe access. */
 function cell(m: Float32Array, row: number, column: number): number {
-  return m[row * 4 + column] ?? 0;
+  return m[column * 4 + row] ?? 0;
 }
 
 /** Sets the cell at (row, column). */
 function setCell(m: Float32Array, row: number, column: number, value: number): void {
-  m[row * 4 + column] = value;
+  m[column * 4 + row] = value;
 }
 
 /** Creates a fresh identity matrix. */
@@ -19,6 +19,47 @@ export function identity(): Mat4 {
 /** Creates a translation matrix from x, y, z components. */
 export function translation(x: number, y: number, z: number): Mat4 {
   return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1]);
+}
+
+/** Creates a uniform or non-uniform scale matrix. */
+export function scale(x: number, y = x, z = x): Mat4 {
+  return new Float32Array([x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1]);
+}
+
+/** Creates a rotation matrix around the z axis. */
+export function rotationZ(radians: number): Mat4 {
+  const c = Math.cos(radians);
+  const s = Math.sin(radians);
+  return new Float32Array([c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+}
+
+/** Transforms a point by a matrix, including its homogeneous divide. */
+export function transformPoint(
+  matrix: Mat4,
+  x: number,
+  y: number,
+  z: number,
+): readonly [number, number, number] {
+  const w =
+    cell(matrix, 3, 0) * x + cell(matrix, 3, 1) * y + cell(matrix, 3, 2) * z + cell(matrix, 3, 3);
+  const divisor = w === 0 ? 1 : w;
+  return [
+    (cell(matrix, 0, 0) * x +
+      cell(matrix, 0, 1) * y +
+      cell(matrix, 0, 2) * z +
+      cell(matrix, 0, 3)) /
+      divisor,
+    (cell(matrix, 1, 0) * x +
+      cell(matrix, 1, 1) * y +
+      cell(matrix, 1, 2) * z +
+      cell(matrix, 1, 3)) /
+      divisor,
+    (cell(matrix, 2, 0) * x +
+      cell(matrix, 2, 1) * y +
+      cell(matrix, 2, 2) * z +
+      cell(matrix, 2, 3)) /
+      divisor,
+  ];
 }
 
 /** Multiplies two matrices and returns a new matrix (a * b). */

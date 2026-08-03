@@ -15,5 +15,5 @@ export function resolvePick(instances: readonly Instance[], pickId: number): Ins
 export function instanceToTarget(instance: Instance, preferPart: boolean): PickTarget {
   return preferPart
     ? { kind: "part", partId: instance.partId }
-    : { kind: "instance", instanceIndex: instance.index };
+    : { kind: "instance", instanceId: instance.instanceId };
 }

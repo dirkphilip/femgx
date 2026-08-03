@@ -4,9 +4,95 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>femgx demo</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, system-ui, sans-serif;
+        background: #0b1020;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+      }
+      main {
+        width: min(900px, 100vw);
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 12px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: 0.04em;
+      }
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      button {
+        border: 1px solid #334155;
+        border-radius: 6px;
+        padding: 7px 10px;
+        color: #e2e8f0;
+        background: #172033;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #24324c;
+      }
+      #status {
+        color: #94a3b8;
+        font-size: 13px;
+      }
+      .viewport {
+        overflow: hidden;
+        border: 1px solid #263551;
+        border-radius: 10px;
+        box-shadow: 0 20px 60px #0008;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        background: radial-gradient(circle at 50% 45%, #182640, #0d1424 70%);
+        touch-action: none;
+      }
+      .help {
+        color: #64748b;
+        font-size: 12px;
+        margin-top: 10px;
+      }
+    </style>
   </head>
   <body>
-    <canvas id="view" data-testid="view-canvas" width="800" height="600"></canvas>
+    <main>
+      <header>
+        <h1>FEMGX · instanced assembly viewer</h1>
+        <div class="controls">
+          <span id="projection-label" data-testid="projection-label">Perspective</span>
+          <button id="projection-toggle" data-testid="projection-toggle" type="button">
+            Orthographic
+          </button>
+          <button id="reset" data-testid="reset" type="button">Reset</button>
+        </div>
+      </header>
+      <div class="viewport">
+        <canvas id="view" data-testid="view-canvas" width="800" height="600"></canvas>
+      </div>
+      <div id="status" data-testid="status">3 instances · 1 reusable part</div>
+      <div class="help">
+        Drag to orbit · Shift-drag to pan · Scroll to zoom · Click an instance to select
+      </div>
+    </main>
     <script type="module" src="/demo/main.ts"></script>
   </body>
 </html>

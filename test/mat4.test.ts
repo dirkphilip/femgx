@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { identity, multiply, translation } from "../src/mat4";
+import { identity, multiply, rotationZ, scale, transformPoint, translation } from "../src/mat4";
 
 describe("mat4", () => {
   it("returns the identity matrix", () => {
@@ -26,5 +26,16 @@ describe("mat4", () => {
     const m = multiply(a, b);
     expect(m[12]).toBe(1);
     expect(m[13]).toBe(2);
+  });
+
+  it("multiplies general column-major transforms", () => {
+    const m = multiply(translation(10, 0, 0), rotationZ(Math.PI / 2));
+    const point = transformPoint(m, 1, 0, 0);
+    expect(point[0]).toBeCloseTo(10);
+    expect(point[1]).toBeCloseTo(1);
+  });
+
+  it("creates scale matrices", () => {
+    expect(transformPoint(scale(2, 3, 4), 1, 1, 1)).toEqual([2, 3, 4]);
   });
 });

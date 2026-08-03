@@ -22,3 +22,13 @@ test("renders the demo canvas with instanced geometry", async ({ page }) => {
 
   expect(drawn).toBe(true);
 });
+
+test("switches projection and resets camera controls", async ({ page }) => {
+  await page.goto("/");
+  const label = page.getByTestId("projection-label");
+  await expect(label).toHaveText("Perspective");
+  await page.getByTestId("projection-toggle").click();
+  await expect(label).toHaveText("Orthographic");
+  await page.getByTestId("reset").click();
+  await expect(label).toHaveText("Perspective");
+});

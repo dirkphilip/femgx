@@ -79,3 +79,12 @@ explicitly by adding the label.
 Known gap: the OpenCode provider's permission rules currently deny every `gh`
 command, so agents cannot actually file those issues yet. Tracked upstream at
 dirkphilip/sv#245.
+
+## Local sandbox note
+
+In restricted desktop runs, `uvx` may fail before Supervisor starts if its
+default cache/tool directories are outside the writable workspace, and GitHub
+commands may fail when the local token is expired or network access is blocked.
+Try task-local `UV_CACHE_DIR` and `UV_TOOL_DIR` first. If package downloads are
+offline, use the existing local Supervisor checkout only for safe status checks;
+do not edit Supervisor runtime state by hand.

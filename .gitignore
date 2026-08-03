@@ -13,3 +13,4 @@ test-results
 .supervisor/config.local.toml
 .supervisor/issues.json
 .supervisor/run/
+.supervisor/supervisor-ownership.json

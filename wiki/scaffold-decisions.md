@@ -37,11 +37,14 @@ Recorded decisions from the initial toolchain setup.
 ## Library structure
 
 - `src/mat4.ts`, `src/types.ts`, `src/part.ts`, `src/assembly.ts`,
-  `src/flatten.ts`, `src/scene.ts`, `src/pick.ts`, `src/index.ts` (public API).
-- `test/` holds CPU-side unit tests; `demo/` a 2D canvas placeholder until the
-  WebGPU renderer exists.
+  `src/flatten.ts`, `src/scene.ts`, `src/pick.ts`, `src/index.ts` (public API),
+  with camera, culling, batching, interaction, runtime, and WebGPU modules around
+  that core.
+- `test/` holds CPU-side and mocked-WebGPU unit tests; `demo/` is an interactive
+  canvas fallback that remains usable on browsers without WebGPU.
 
 ## Intentionally deferred
 
-- WebGPU renderer, pipelines, buffers, picking GPU path.
-- `@webgpu/types` is installed so renderer work can start anytime.
+- Packed authoring storage, dirty-subtree propagation, benchmark budgets, and
+  WebGPU-capable browser coverage.
+- `@webgpu/types` supplies strict browser-side types for the renderer boundary.
