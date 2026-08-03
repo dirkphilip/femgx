@@ -54,8 +54,8 @@ provider = "opencode"
 
 [github]
 enabled = true
-# When true, created pull requests are drafts.
-draft = true
+# Keep created pull requests ready for review instead of opening them as drafts.
+draft = false
 # Automatically queue open GitHub issues that have no assignee when running.
 # Safer default: queue issues manually, or set allow_labels below for approval.
 # Only issues carrying an approval label below are auto-pulled; this is the
@@ -89,7 +89,7 @@ supervisor_label_prefix = "sup:"
 # How long wait_for_ci (and related PR check waits) may block.
 ci_timeout_seconds = 3600
 
-# Stages are an ordered checklist through draft PR creation. Agent stages write
+# Stages are an ordered checklist through pull request creation. Agent stages write
 # handoff.json with status "success" to advance; supervisor stages perform side
 # effects (comment, submit_pr, wait_for_ci, wait_for_labels). A stage may set
 # when_labels = ["label"] to skip itself when none of those labels are present,

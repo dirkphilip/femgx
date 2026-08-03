@@ -102,7 +102,7 @@ sv job status --json
 ```
 
 Monitor meaningful progress rather than log volume. A healthy job moves from
-implementation to review to draft PR; repeated heartbeats without a changed
+implementation to review to pull request; repeated heartbeats without a changed
 stage, status, or message are not progress. Inspect a stalled or unclear job
 before acting:
 
@@ -135,8 +135,9 @@ token or runtime URL.
 
 ## PR completion and merge
 
-Supervisor creates a draft PR and owns publication/status synchronization. The
-operator owns the final merge decision. For each `awaiting_merge` job:
+Supervisor creates a regular pull request and owns publication/status
+synchronization. The current Supervisor does not auto-merge; the operator owns
+the final merge decision. For each `awaiting_merge` job:
 
 ```sh
 sv job sync ISSUE_NUMBER --json

@@ -1,6 +1,6 @@
 # Supervisor workflow
 
-Local issue-to-draft-PR workflow driven by Agent Supervisor (`sv`).
+Local issue-to-pull-request workflow driven by Agent Supervisor (`sv`).
 
 ## Always launch with uvx
 
@@ -49,6 +49,15 @@ sv stop               # interrupt workers and stop immediately
   rules.
 - Keep `.supervisor/config.local.toml`, `.supervisor/issues.json`, and
   `.supervisor/run/` local and ignored.
+
+## Pull request mode and merge behavior
+
+The shared configuration sets `github.draft = false`, so Supervisor creates
+regular pull requests ready for review. The current Supervisor implementation
+does not provide an `auto_merge` setting or merge stage: after publication it
+tracks the job as `awaiting_merge` and leaves the final merge to the operator.
+GitHub auto-merge can be requested separately with `gh pr merge --auto`, but
+Supervisor does not request or manage that mode itself.
 
 ## Approval allow-list
 
