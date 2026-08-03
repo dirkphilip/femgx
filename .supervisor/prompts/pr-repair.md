@@ -49,10 +49,24 @@ rebase as needed (`git rebase --autostash` when dirty). Commit focused
 non-rebase repairs when needed. Do not ask the supervisor to rebase for you.
 
 Read repository guidance before editing. Do not run the test suite or full
-repository validation; CI runs those. Before handoff, run pre-commit at most
-once:
+repository validation; CI runs those. Before handoff, run the repository's
+pre-commit gate at most once.
 
-`uv run pre-commit run --all-files`
+The quality gate is repository-aware: detect the repository's configured
+quality commands before running them by reading `AGENTS.md` (or equivalent repo
+guidance), the package-manager manifest (`package.json` for npm,
+`pyproject.toml` + `uv.lock` for Python/uv), and the CI workflow config; run
+the commands those files define instead of a fixed list.
+
+For a Python/uv repository that is `uv run pre-commit run --all-files`. For this
+TypeScript/npm repository the npm gate is authoritative — format, lint,
+typecheck, unit tests with coverage, build, and e2e:
+`npm run format`
+`npm run lint`
+`npm run typecheck`
+`npm run test:coverage`
+`npm run build`
+`npm run test:e2e`
 
 Do not push, call `gh`, create or update PRs, start agents, alter secrets,
 deploy, touch other worktrees, rewrite `$base_branch`, or change remotes.
