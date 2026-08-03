@@ -112,3 +112,47 @@ Ensure these exist in `package.json` and document exact usage here once scaffold
 - Follow the existing file/type conventions — do not introduce parallel abstractions.
 - Do not add comments to code unless they explain non-obvious design decisions.
 - Update this file when the architecture or commands materially change.
+
+## Clean Code as a First-Class Duty
+
+The codebase must stay clean, not just correct. This is an explicit, ongoing duty:
+
+- **Seek to simplify**: prefer the simplest design that satisfies the requirements.
+  Delete dead code, remove unused abstractions, and resist speculative complexity.
+- **Refactor when it makes things much cleaner**: if restructuring a function, module, or
+  type meaningfully improves clarity or reduces duplication, do it — even if it touches
+  lines unrelated to the current change. Keep such refactors in their own commit so they
+  stay reviewable.
+- **Avoid parallel abstractions**: if an existing pattern covers a case, extend it; do not
+  introduce a second, overlapping way of doing the same thing.
+- **Leave the campsite cleaner than you found it**: tidy small messes encountered in
+  passing (naming, formatting, obvious dead code) without waiting for a dedicated task.
+
+## Surfacing Issues
+
+Agents must actively report problems, not silently work around them:
+
+- When you find a bug, a design smell, a performance risk, or an inconsistency, **raise it**
+  — don't bury it. Surface it in your response to the user and record it in the wiki
+  (below).
+- Prefer the smallest fix that resolves the issue; if a proper fix is out of scope, record
+  it clearly so it is not lost.
+- Open questions and unresolved trade-offs belong in the wiki, not only in chat.
+
+## Internal Wiki (Knowledge Base)
+
+Maintain an internal, plain-markdown wiki under `wiki/` using Foam/Obsidian-style
+conventions so notes are linkable and navigable. It is written for **both humans and
+future agents**: it is the project's living memory, browseable by anyone reading the repo
+(open it as a Foam/Obsidian vault, or follow the index files in a plain editor):
+
+- **One markdown file per topic** (a design decision, a gotcha, an API note, an issue,
+  a known limitation). Name files with `kebab-case`, e.g. `wiki/instancing-strategy.md`.
+- **Use `[[wiki-link]]` style links** to reference related notes, and prefer cross-linking
+  over duplicating content.
+- **Maintain index files** (e.g. `wiki/index.md`) that list and link the notes by topic
+  area, so the wiki is navigable without a search tool. Add every new note to the index.
+- Keep notes concise and current: update them when the relevant design changes, and mark
+  resolved issues as resolved rather than deleting history silently.
+- Record: architecture decisions and rationale, issues/gotchas found, WebGPU/instancing
+  pitfalls, API design notes, and anything a future agent would otherwise have to rediscover.
