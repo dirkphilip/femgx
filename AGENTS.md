@@ -95,8 +95,14 @@ and reviewable.
   no-explicit-any, consistent-type-imports). Lint must pass before any PR.
 - **Type checking**: `tsc --noEmit` with strict settings must be clean before any PR.
 - **Tests**: Unit tests for the CPU-side scene/assembly/picking logic (no GPU needed).
-  Keep WebGPU code behind thin interfaces so it can be tested/mocked.
+  Keep WebGPU code behind thin interfaces so it can be tested/mocked. Vitest with
+  enforced v8 coverage thresholds (lines/functions 80%, branches 70%). Playwright
+  e2e tests cover the demo app against a local dev server.
 - **Docs**: Document the public API surface (typedoc or JSDoc on exported symbols).
+- **Small modules**: files are capped by ESLint (`max-lines` 300, per-function 60,
+  `max-depth` 4). Split large modules into focused, single-concern files.
+- **CI**: GitHub Actions runs the full quality gate (format, typecheck, lint, unit
+  tests + coverage, build, e2e) on every push/PR. CI must be green before merge.
 
 ## Commands
 
@@ -111,10 +117,14 @@ These exist in `package.json`:
 - `npm run format:check` — Prettier check (agents should use `format`).
 - `npm test` — Vitest unit tests (`test/**/*.test.ts`).
 - `npm run test:watch` — Vitest watch mode.
+- `npm run test:coverage` — unit tests with enforced v8 coverage thresholds.
+- `npm run test:e2e` — Playwright e2e tests (`e2e/`) against a local dev server.
+- `npm run test:e2e:install` — install the Playwright Chromium browser.
 - `npm run preview` — preview the built demo.
 
 After any edit, agents must run: `npm run lint`, `npm run typecheck`, `npm test`,
-and `npm run format`, and leave the repo clean.
+and `npm run format`, and leave the repo clean. CI enforces the same gate
+automatically on every push/PR (see `.github/workflows/ci.yml`).
 
 ## Agent Workflow Rules
 

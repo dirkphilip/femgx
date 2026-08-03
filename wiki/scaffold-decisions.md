@@ -14,7 +14,12 @@ Recorded decisions from the initial toolchain setup.
   `consistent-type-imports`, `no-explicit-any`, `no-non-null-assertion`,
   `no-confusing-void-expression`. `--max-warnings 0`.
 - Prettier (printWidth 100, trailingComma all), `.editorconfig`.
-- Vitest 4 with v8 coverage thresholds (lines/functions 80, branches 70).
+- Vitest 4 with v8 coverage thresholds (lines/functions 80, branches 70),
+  reporters `text`/`html`/`lcov` into `coverage/`.
+- Playwright 1.x e2e tests in `e2e/` (Chromium) against the local Vite dev
+  server (`npm run test:e2e`), with `test:e2e:install` for the browser.
+- GitHub Actions CI (`.github/workflows/ci.yml`): format check, typecheck,
+  lint, unit tests + coverage, build, and a separate Playwright e2e job.
 
 ## Gotchas
 
@@ -24,6 +29,10 @@ Recorded decisions from the initial toolchain setup.
   `positions[i]` yields `number | undefined` and needs a fallback.
 - JSDoc `require-param`/`require-returns` were disabled as redundant with strict
   TS types; `require-jsdoc` stays on for public functions/classes.
+- Size rules (`max-lines`, `max-lines-per-function`) are scoped to `src/` only;
+  tests and the demo can be longer.
+- `process.env` access in config files needs `process.env["KEY"]` form because
+  of `noPropertyAccessFromIndexSignature`.
 
 ## Library structure
 

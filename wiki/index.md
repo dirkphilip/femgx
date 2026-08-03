@@ -14,6 +14,10 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   as per-instance GPU attributes.
 - [[scaffold-decisions|Scaffold decisions]] — toolchain, strictness, and the
   initial library structure.
+- [[quality-gate|Quality gate]] — CI, coverage thresholds, and the local gate
+  every agent runs before handoff.
+- [[supervisor-workflow|Supervisor workflow]] — launching `sv` via `uvx`,
+  provider setup, and useful commands.
 
 ## Conventions
 

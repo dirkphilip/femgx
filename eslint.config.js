@@ -44,6 +44,15 @@ export default tseslint.config(
       "jsdoc/no-defaults": "error",
       "jsdoc/require-param": "off",
       "jsdoc/require-returns": "off",
+      "max-depth": ["error", 4],
+      "max-params": ["error", 5],
+    },
+  },
+  {
+    files: ["src/**/*.ts"],
+    rules: {
+      "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
     },
   },
 );

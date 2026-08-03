@@ -1,0 +1,35 @@
+# Quality gate
+
+Every change must pass the full gate locally before push/handoff; CI
+(`.github/workflows/ci.yml`) enforces the same gate on every push/PR.
+
+## Local gate
+
+```sh
+npm run format
+npm run typecheck
+npm run lint
+npm run test:coverage
+npm run test:e2e
+```
+
+## Coverage
+
+- v8 provider, thresholds enforced: lines/functions 80%, branches 70%.
+- Reporters `text`/`html`/`lcov` write to `coverage/`; CI uploads it as an
+  artifact.
+- Missing coverage is a dead-code audit lead, not a reason to pad tests.
+
+## Playwright e2e
+
+- `e2e/` tests run against the local Vite dev server (see
+  `playwright.config.ts`, `webServer`).
+- One-time browser install: `npm run test:e2e:install` (Chromium).
+- `e2e/demo.spec.ts` verifies the demo canvas renders instanced geometry.
+- CI installs with `--with-deps` and uploads the report on failure.
+
+## Linting (small modules)
+
+ESLint caps source files: `max-lines` 300, per-function 60, `max-depth` 4.
+Rules are scoped to `src/`; tests and demo are exempt. See the
+[[scaffold-decisions|scaffold decisions]] gotchas for why.

@@ -3,4 +3,7 @@ coverage
 node_modules
 package-lock.json
 *.log
+.supervisor
 .supervisor/run
+playwright-report
+test-results
