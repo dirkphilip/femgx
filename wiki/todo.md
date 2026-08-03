@@ -16,12 +16,14 @@ development workflow.
 
 ## P1 — scalable assembly runtime
 
-- [ ] Compile authoring maps into packed typed-array storage for placements,
-      parents, transforms, visibility, and instance metadata.
+- [x] Compile authoring maps into packed typed-array storage for placements,
+      parents, transforms, visibility, and instance metadata (see
+      [[packed-runtime|Packed scene runtime]]).
 - [ ] Add dirty-subtree transform propagation so unchanged branches are not
       re-flattened or re-multiplied.
-- [ ] Make visibility updates delta-based with bitsets or ranges; avoid copying
-      whole maps and sets for each hide/show operation.
+- [x] Make visibility updates delta-based with bitsets or ranges; avoid copying
+      whole maps and sets for each hide/show operation (see
+      [[packed-runtime|Packed scene runtime]]).
 - [x] Batch visible instances by part while preserving stable instance handles.
 - [x] Add bounds-based frustum culling and measure its CPU/GPU trade-offs.
 

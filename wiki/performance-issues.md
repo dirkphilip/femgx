@@ -7,8 +7,15 @@ This note records the remaining scalability risks after the first WebGPU rendere
 `flattenAssembly` assigns a compact visible `index` after visibility culling.
 Hiding or showing an earlier placement can change that draw index, so GPU picking
 and incremental per-instance updates use the separate path-derived `instanceId`.
+The [[packed-runtime|packed scene runtime]] adds a third, fully packed handle: a
+stable numeric instance slot over the whole placement list that never changes
+across visibility updates.
 
 ## Scene update cost
+
+_Resolved for visibility by the [[packed-runtime|packed scene runtime]]_: the
+runtime flips packed visibility bits in place and reports deltas, so hide/show
+cost is proportional to the changed placements instead of the whole model.
 
 `SceneBuilder` copies maps and visibility sets for each builder operation. This
 is convenient for small scenes, but repeated additions or visibility changes
@@ -20,8 +27,9 @@ needed for very large assemblies.
 
 `flattenAssembly` allocates a matrix for every visited placement and creates a new
 instance object for every visible placement. It now uses an iterative walk,
-deterministic per-part batching, and optional frustum culling; transform caching,
-dirty-subtree propagation, and packed authoring storage remain future work for
+deterministic per-part batching, and optional frustum culling; the packed scene
+runtime keeps authoring storage in typed arrays and updates visibility in place,
+but transform caching and dirty-subtree propagation remain future work for
 keeping frame work proportional to changed state.
 
 ## Matrix layout correctness
@@ -32,8 +40,9 @@ with rotation/scale coverage in `test/mat4.test.ts`.
 ## Renderer and validation gaps
 
 The renderer, GPU instance buffers, GPU picking, and resource lifecycle are now
-implemented and mocked in unit tests. Remaining work is subrange delta updates,
-packed runtime storage, benchmarks, and WebGPU-capable browser coverage.
+implemented and mocked in unit tests. Remaining work is GPU subrange delta
+updates wired to the packed runtime's visibility deltas, benchmarks, and
+WebGPU-capable browser coverage.
 
 ## Toolchain reproducibility
 

@@ -14,6 +14,9 @@ scene is authoritative; the renderer syncs deltas from it.
   placement `instanceId` handles.
 - `src/runtime.ts` and `src/batch.ts` — compile visible instances and group them
   into deterministic reusable-part batches for renderer submission.
+- `src/scene-runtime/` — packed scene runtime: `createSceneRuntime(scene)`
+  compiles the scene into typed arrays with delta-oriented visibility updates
+  (see [[packed-runtime|Packed scene runtime]]).
 - `src/culling.ts` — extracts frustum planes and culls transformed part bounds
   before batching while preserving stable placement handles.
 - `src/interaction.ts` — immutable centralized selection, highlight, hover, and
