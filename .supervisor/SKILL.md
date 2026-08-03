@@ -5,6 +5,9 @@ description: Run and control Agent Supervisor, the local issue-to-draft-PR workf
 
 # Agent Supervisor
 
+For the repository’s end-to-end issue → implementation → monitoring → merge →
+re-triage operating loop, follow `../wiki/development-loop.md`.
+
 Use Agent Supervisor to turn an approved GitHub issue into
 a draft pull request through an isolated, resumable coding-agent workflow.
 

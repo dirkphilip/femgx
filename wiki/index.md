@@ -21,6 +21,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
 - [[todo|Engineering TODO]] — prioritized implementation roadmap.
 - [[supervisor-workflow|Supervisor workflow]] — launching `sv` via `uvx`,
   provider setup, and useful commands.
+- [[development-loop|Development loop]] — issue triage, Supervisor monitoring,
+  PR completion, and safe long-running iteration.
 
 ## Conventions
 
