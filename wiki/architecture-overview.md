@@ -15,7 +15,7 @@ scene is authoritative; the renderer syncs deltas from it.
 - `src/runtime/compile.ts` and `src/runtime/batch.ts` — compile visible
   instances and group them into deterministic reusable-part batches for
   renderer submission.
-- `src/runtime/runtime.ts` — packed scene runtime: `createSceneRuntime(scene)`
+- `src/scene-runtime/runtime.ts` — packed scene runtime: `createSceneRuntime(scene)`
   compiles the scene into typed arrays with delta-oriented visibility updates
   (see [[packed-runtime|Packed scene runtime]]).
 - `src/runtime/culling.ts` — extracts frustum planes and culls transformed part
