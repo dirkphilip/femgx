@@ -50,6 +50,25 @@ sv stop               # interrupt workers and stop immediately
 - Keep `.supervisor/config.local.toml`, `.supervisor/issues.json`, and
   `.supervisor/run/` local and ignored.
 
+## Repository-aware quality gate
+
+The worker prompts (`prompts/implementer.md`, `prompts/reviewer.md`,
+`prompts/pr-repair.md`) do not hardcode a single quality gate. They instruct
+agents to detect the repository's configured quality commands before running
+them by reading `AGENTS.md`, the package-manager manifest (`package.json` for
+npm, `pyproject.toml` + `uv.lock` for Python/uv), and the CI workflow config.
+
+- Python/uv repositories keep the generic gate: `uv run pre-commit run --all-files`
+  before implement/repair handoff, plus `uv run pytest --cov=sv --cov-branch
+--cov-report=term-missing` during review.
+- TypeScript/npm repositories (like femgx) use the npm gate: `npm run format`,
+  `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `npm run build`,
+  and `npm run test:e2e`. This mirrors `.github/workflows/ci.yml`.
+
+`test/supervisor/worker-contract.test.ts` locks this behavior: prompts must be
+repository-aware, keep the npm gate authoritative, scope uv/pytest commands to
+Python repositories, and preserve the handoff/progress contract.
+
 ## Pull request mode and merge behavior
 
 The shared configuration sets `github.draft = false`, so Supervisor creates

@@ -56,15 +56,32 @@ run a final safety-net rebase before submission.
 
 Read repo guidance, especially `AGENTS.md`. Check correctness, regressions,
 security, error handling, test coverage, and scope. Fix only clear findings; do
-not redesign the feature. Do not loop on validation. Before handoff, run
-pre-commit once, then the coverage-enabled test suite once:
+not redesign the feature. Do not loop on validation. Before handoff, run the
+repository's quality gate once.
 
+The quality gate is repository-aware: detect the repository's configured
+quality commands before running them by reading `AGENTS.md` (or equivalent repo
+guidance), the package-manager manifest (`package.json` for npm,
+`pyproject.toml` + `uv.lock` for Python/uv), and the CI workflow config; run
+the commands those files define instead of a fixed list.
+
+For a Python/uv repository run pre-commit once, then the coverage-enabled test
+suite once:
 `uv run pre-commit run --all-files`
 `uv run pytest --cov=sv --cov-branch --cov-report=term-missing`
 
+For this TypeScript/npm repository the npm gate is authoritative — format, lint,
+typecheck, unit tests with coverage, build, and e2e:
+`npm run format`
+`npm run lint`
+`npm run typecheck`
+`npm run test:coverage`
+`npm run build`
+`npm run test:e2e`
+
 Treat uncovered lines as leads for dead-code removal when the path is unused;
 do not add tests whose only purpose is to raise the coverage percentage on
-obsolete code. Do not hand off `success` until those checks pass. The
+obsolete code. Do not hand off `success` until the detected gate passes. The
 supervisor creates the PR after this review handoff and does not run
 repository-local scripts itself. Do not push, create or update PRs, start
 agents, alter secrets, deploy, touch other worktrees, rewrite `$base_branch`,
@@ -83,8 +100,8 @@ finished work.
 
 ## Handoff
 
-Write JSON to `$handoff_path`. Record the pre-commit and coverage pytest commands
-you ran in `tests_run`.
+Write JSON to `$handoff_path`. Record the repository's quality-gate commands you
+ran in `tests_run`.
 
 $handoff_contract
 
