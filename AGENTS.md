@@ -26,6 +26,8 @@ An **Assembly** is a hierarchical composition of parts and other assemblies:
 - Each placement is an **instance** of a part → enables GPU instancing.
 - Supports nested/hierarchical transforms (sub-assemblies) so large models can be
   organized the way FE tools organize them (e.g. model → subcase → part → element set).
+- Supports **hide/show** at both part and assembly level; hiding an assembly hides all
+  of its instances/sub-assemblies.
 
 ### Instancing Strategy
 
@@ -46,8 +48,11 @@ The public API must be clean and ergonomic for interactivity:
 - **Hit testing / picking** — GPU-based picking (render instance IDs into a buffer and
   read back on pointer events) with a clean `pick(x, y)`-style API returning the
   part/instance under the cursor.
-- All interactive state (highlight/selection/hover) must be efficient: driven by
-  per-instance attributes in GPU buffers, not by CPU-side material clones.
+- **Hide/show** — toggling visibility on parts or assemblies (with hierarchy inheritance)
+  must be cheap: it should update GPU state or instance counts directly, not rebuild
+  buffers or touch materials.
+- All interactive state (highlight/selection/hover/visibility) must be efficient: driven
+  by per-instance attributes in GPU buffers, not by CPU-side material clones.
 
 ## Architecture Principles
 
@@ -59,19 +64,30 @@ The public API must be clean and ergonomic for interactivity:
   device-queued creation of buffers/pipelines).
 - **Deterministic ordering** of draw calls and instance data to keep frame-to-frame
   stability (important for picking consistency and diffs).
+- **Efficient state management**: interactive state (highlight, selection, hover,
+  visibility) is centralized and managed as deltas against the authoritative scene, not
+  scattered one-off mutations. The scene flattens parts/assemblies into a deterministic
+  instance list once; per-frame state changes only patch the affected instance attributes
+  (color/emissive/pick/visibility) in the GPU buffer, or adjust instance counts, without
+  rebuilding geometry or instance lists. Visibility is resolved bottom-up by hierarchy and
+  culled instances at the source so hidden geometry is never drawn.
 
 ## Engineering Standards
 
 This project is built primarily by AI agents. Setup must make agent-driven changes safe
 and reviewable.
 
-- **Language**: TypeScript with `strict: true` and no `any` where avoidable. Prefer
-  explicit types, `satisfies`, and readonly where appropriate.
+- **Language**: Modern TypeScript with `strict: true`. Prefer explicit types,
+  `satisfies`, readonly, const objects, and definite assignment — no `any` where
+  avoidable. Favor functional style (pure functions, immutable updates) for the CPU-side
+  scene/state model.
 - **Build**: Choose a modern bundler (Vite recommended) with library mode for the
   published API plus a demo/dev app for development.
 - **Formatting**: Use Prettier with a committed config; agents must run it after edits.
-- **Linting**: ESLint with `typescript-eslint` recommended + strict rulesets.
-- **Type checking**: `tsc --noEmit` must be clean before any PR.
+- **Linting**: ESLint flat config with `typescript-eslint` recommended + strict rulesets
+  (`strict-type-checked`), and enforce additional strictness (e.g. no-unused-vars,
+  no-explicit-any, consistent-type-imports). Lint must pass before any PR.
+- **Type checking**: `tsc --noEmit` with strict settings must be clean before any PR.
 - **Tests**: Unit tests for the CPU-side scene/assembly/picking logic (no GPU needed).
   Keep WebGPU code behind thin interfaces so it can be tested/mocked.
 - **Docs**: Document the public API surface (typedoc or JSDoc on exported symbols).
