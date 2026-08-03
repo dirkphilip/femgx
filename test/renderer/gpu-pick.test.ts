@@ -1,0 +1,64 @@
+import { describe, expect, it } from "vitest";
+import {
+  beginPickPass,
+  createPickTargets,
+  destroyPickTargets,
+  ensurePickTargets,
+  pickPixelCoordinates,
+  readPickPixel,
+} from "../../src/renderer/gpu-pick";
+import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
+
+describe("GPU pick targets", () => {
+  it("maps and clamps pick pixels to the canvas bounds", () => {
+    const rect = { width: 100, height: 100 };
+    expect(pickPixelCoordinates(50, 50, rect, 800, 600)).toEqual({ x: 400, y: 300 });
+    expect(pickPixelCoordinates(-10, -10, rect, 800, 600)).toEqual({ x: 0, y: 0 });
+    expect(pickPixelCoordinates(10_000, 10_000, rect, 800, 600)).toEqual({ x: 799, y: 599 });
+  });
+
+  it("creates the pick targets once and clears them on destroy", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const pick = createPickTargets();
+      ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
+      ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
+      expect(gpu.textureCreations).toBe(2);
+      expect(pick.texture).toBeDefined();
+      expect(pick.depthTexture).toBeDefined();
+      destroyPickTargets(pick);
+      expect(pick.texture).toBeUndefined();
+      expect(pick.depthTexture).toBeUndefined();
+    } finally {
+      restore();
+    }
+  });
+
+  it("rejects a pick pass before the targets are created", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const encoder = gpu.device.createCommandEncoder();
+      expect(() => beginPickPass(encoder, createPickTargets())).toThrow(
+        "WebGPU picking targets were not created",
+      );
+    } finally {
+      restore();
+    }
+  });
+
+  it("reads the pick id under the pointer, returning 0 before targets exist", async () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice({ pickValue: 7 });
+      const pick = createPickTargets();
+      const canvas = fakeCanvas();
+      await expect(readPickPixel(gpu.device, canvas, pick, 10, 10)).resolves.toBe(0);
+      ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
+      await expect(readPickPixel(gpu.device, canvas, pick, 10, 10)).resolves.toBe(7);
+    } finally {
+      restore();
+    }
+  });
+});
