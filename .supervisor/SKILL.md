@@ -1,6 +1,6 @@
 ---
 name: agent-supervisor
-description: Run and control Agent Supervisor, the local issue-to-draft-PR workflow. Use this skill when initializing a repository, queueing or running issues, monitoring jobs, controlling active work, or helping an agent work within a Supervisor-managed worktree.
+description: Run and control Agent Supervisor, the local issue-to-pull-request workflow. Use this skill when initializing a repository, queueing or running issues, monitoring jobs, controlling active work, or helping an agent work within a Supervisor-managed worktree.
 ---
 
 # Agent Supervisor
@@ -8,8 +8,8 @@ description: Run and control Agent Supervisor, the local issue-to-draft-PR workf
 For the repository’s end-to-end issue → implementation → monitoring → merge →
 re-triage operating loop, follow `../wiki/development-loop.md`.
 
-Use Agent Supervisor to turn an approved GitHub issue into
-a draft pull request through an isolated, resumable coding-agent workflow.
+Use Agent Supervisor to turn an approved GitHub issue into a pull request
+through an isolated, resumable coding-agent workflow.
 
 ## Initialize a repository
 
@@ -101,8 +101,8 @@ sv stop
 Use `job sync` to refresh recorded PR status without starting repair, and
 `job repair N` to start a one-shot repair pass that injects current PR comments
 and aims to make the PR mergeable. Prefer `--json` on `job` commands for
-scripts and agents. A job remains in `awaiting_merge` after a draft PR is
-created until the PR is merged. Use `sv pause` to drain a live run without
+scripts and agents. A job remains in `awaiting_merge` after a PR is created
+until the PR is merged. Use `sv pause` to drain a live run without
 interrupting agents, `sv continue` to cancel that pause and resume intake, or
 `sv stop` for an immediate verified shutdown of the run process.
 
