@@ -25,6 +25,8 @@ export {
 } from "./interaction";
 export { flattenAssembly, type FlattenOptions } from "./flatten";
 export { compileScene, type CompiledScene } from "./runtime";
+export { createSceneRuntime, type SceneRuntime } from "./scene-runtime/runtime";
+export type { VisibilityDelta } from "./scene-runtime/visibility";
 export {
   cullInstances,
   extractFrustum,
