@@ -1,0 +1,33 @@
+# Copy this file to config.local.toml. Do not commit config.local.toml.
+# It is layered over the shared config.toml automatically.
+# Only the keys below are allowed; unknown sections or keys are rejected.
+
+[repository]
+# Use a personal prefix to make branches distinct between users.
+branch_prefix = "yourname/supervisor-"
+
+[runner]
+# Caps concurrent agent-capable jobs for `sv run` (and auto-pull).
+# A job holds a slot from queue through merge, including open PRs that may
+# still launch a repair pass.
+max_issues_per_run = 3
+
+[agent]
+# Choose the provider installed and authenticated on this machine:
+# "cursor", "copilot", "codex", "opencode", "fake", or "custom".
+provider = "codex"
+# Optional: pin a provider model for this user.
+# model = "..."
+# Codex only: set the model's reasoning effort, for example "xhigh".
+# codex_reasoning_effort = "xhigh"
+# OpenCode models use the provider/model form, for example "openai/gpt-5.2".
+# Required when provider = "custom". Must include a "{prompt}" argument.
+# command = ["my-agent", "--prompt", "{prompt}"]
+
+[github]
+# Set false for a local-only / fake workflow.
+enabled = true
+# Set this to the GitHub login used by this machine.
+username = ""
+# Optional suffix for lifecycle labels from this supervisor instance, for
+# example: supervisor_label_suffix = "-your-machine"
