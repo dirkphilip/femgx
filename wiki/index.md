@@ -25,6 +25,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
 - [[todo|Engineering TODO]] — prioritized implementation roadmap.
 - [[supervisor-workflow|Supervisor workflow]] — launching `sv` via `uvx`,
   provider setup, and useful commands.
+- [[supervisor-label-matching|Supervisor label matching]] — how configured
+  allow/ignore labels match GitHub issue labels, and the migration behavior.
 - [[development-loop|Development loop]] — issue triage, Supervisor monitoring,
   PR completion, and safe long-running iteration.
 
