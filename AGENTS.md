@@ -142,6 +142,9 @@ and reviewable.
 
 These exist in `package.json`:
 
+- `npm run pre-commit` — lint-staged on staged files (installed as a husky
+  `pre-commit` hook via `npm run prepare`); runs eslint `--fix`, prettier, and
+  a leftover merge-conflict-marker check.
 - `npm run dev` — dev server with demo app.
 - `npm run build` — type-check + bundle library (emits `dist/` with `.d.ts`).
 - `npm run typecheck` — `tsc --noEmit`.
