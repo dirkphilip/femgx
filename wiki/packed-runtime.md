@@ -20,7 +20,7 @@ Instance ids are slots over the **full** depth-first placement list, including
 currently hidden placements, so they never change when visibility changes. This
 decouples the stable pick identity from the compacted draw list. This is the
 packed counterpart of `flattenAssembly`'s path-derived `InstanceId` strings
-(`src/runtime.ts` compiles per-frame snapshots; the scene runtime keeps
+(`src/runtime/compile.ts` compiles per-frame snapshots; the scene runtime keeps
 persistent packed state and updates it in place).
 
 ## Visibility deltas

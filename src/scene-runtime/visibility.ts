@@ -1,5 +1,5 @@
-import type { Mat4 } from "../mat4";
-import type { AssemblyId, PartId } from "../types";
+import type { Mat4 } from "../math/mat4";
+import type { AssemblyId, PartId } from "../scene/types";
 import type { RuntimeState } from "./compile";
 
 /** Result of a visibility update: the affected instance slots and counts. */

@@ -78,6 +78,40 @@ The public API must be clean and ergonomic for interactivity:
   rebuilding geometry or instance lists. Visibility is resolved bottom-up by hierarchy and
   culled instances at the source so hidden geometry is never drawn.
 
+## Source Organization
+
+Implementation and tests are organized by subsystem so ownership boundaries are
+obvious. Each subsystem is a directory under `src/` with a mirrored directory
+under `test/`:
+
+- `src/math/` — matrix/vector math (`mat4`).
+- `src/geometry/` — reusable part geometry and computed bounds.
+- `src/scene/` — authoritative CPU model: part/assembly/instance identities,
+  assemblies, and the scene builder.
+- `src/runtime/` — compile pipeline: flattening, frustum culling, per-part
+  batching, and `compileScene`.
+- `src/scene-runtime/` — packed CPU-side scene runtime with delta-oriented
+  visibility updates (`createSceneRuntime`).
+- `src/camera/` — immutable orbit camera and projection math.
+- `src/interaction/` — centralized highlight/selection/hover/override state.
+- `src/picking/` — CPU-side pick-id resolution.
+- `src/renderer/` — WebGPU renderer, shaders, and GPU buffer support.
+
+Conventions:
+
+- New domain code belongs in the owning subsystem directory; keep modules at or
+  below the documented size limits and split oversized modules into focused,
+  single-concern files.
+- The single public entry point is `src/index.ts`; anything it does not
+  re-export is internal. Subsystem directories expose only deliberate public
+  boundaries — do not widen the API surface by exporting internals from a new
+  location.
+- `test/` mirrors source ownership: each source module's suite lives in the
+  matching subsystem directory, so every test has an obvious owner.
+- Prefer intra-subsystem imports; import across subsystems through the public
+  `src/index.ts` boundary or the owning module's exported surface, not by
+  reaching into another subsystem's internals.
+
 ## Engineering Standards
 
 This project is built primarily by AI agents. Setup must make agent-driven changes safe

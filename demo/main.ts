@@ -2,6 +2,7 @@ import {
   computeBounds,
   createCamera,
   createInteractionState,
+  createScene,
   flattenAssembly,
   orbitCamera,
   panCamera,
@@ -17,7 +18,6 @@ import {
   type Camera,
   type InteractionState,
 } from "../src/index";
-import { createScene } from "../src/scene";
 
 const canvasElement = document.querySelector<HTMLCanvasElement>("#view");
 if (canvasElement === null) {
