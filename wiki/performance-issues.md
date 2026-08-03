@@ -44,6 +44,11 @@ implemented and mocked in unit tests. Remaining work is GPU subrange delta
 updates wired to the packed runtime's visibility deltas, benchmarks, and
 WebGPU-capable browser coverage.
 
+`GpuRenderer.drawBatches` allocates a new bind group per batch on every frame
+and `render` re-creates a depth texture each frame; these per-frame allocations
+conflict with the instancing performance goal and should be cached/reused (e.g.
+bind groups keyed by batch resource, and a resized depth texture).
+
 ## Toolchain reproducibility
 
 The repository pins Node 24.18.0 in `.nvmrc`, and the package engine declaration
