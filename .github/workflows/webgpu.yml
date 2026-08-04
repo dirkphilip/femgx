@@ -1,0 +1,38 @@
+name: WebGPU e2e
+
+# Opt-in WebGPU browser coverage. Not part of the default CI gate: the default
+# e2e lane validates the deterministic CPU fallback, while this lane exercises
+# the real WebGPU path in Chromium using software rendering (SwiftShader), so it
+# needs no GPU hardware. Run it manually via workflow_dispatch.
+on:
+  workflow_dispatch:
+
+jobs:
+  webgpu-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUN_WEBGPU: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run WebGPU e2e lane
+        run: npx playwright test --project=chromium-webgpu
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-webgpu
+          path: playwright-report
+          retention-days: 14

@@ -51,10 +51,39 @@ _Resolved_: packed visibility/transform/style deltas are now wired into GPU
 subrange writes (`WebGpuRenderer.updateInstances` patches slot-stable record
 buffers and compacts per-part draw-order buffers; see
 [[renderer-subrange-updates|Renderer subrange updates]]). GPU instance buffers,
-picking, and resource lifecycle are mocked in CPU-only unit tests. Remaining work
-is WebGPU-capable browser coverage (including true frame-time benchmarking; the
-CPU side of performance is covered by [[benchmarks|deterministic benchmarks and
-budgets]]).
+picking, and resource lifecycle are mocked in CPU-only unit tests. An opt-in
+WebGPU-capable browser lane now exercises the real renderer through the demo
+(see [[webgpu-e2e|WebGPU browser e2e lane]]); true WebGPU frame-time
+benchmarking in a browser is still future work. The CPU side of performance is
+covered by [[benchmarks|deterministic benchmarks and budgets]].
+
+### Headless WebGPU pitfalls
+
+Running the WebGPU lane headlessly surfaced three real renderer bugs that the
+mocked device could not catch:
+
+- `GPUQueue.writeBuffer` rejects byte offsets and lengths that are not multiples
+  of 4. `patchInstances`' diffed subrange writes were expanded to 4-byte
+  alignment in `gpu-draw.ts`.
+- Integral user-defined vertex outputs and fragment inputs (the pick `u32`)
+  require the `@interpolate(flat)` attribute in WGSL.
+- On some headless SwiftShader builds the canvas swapchain texture is invalid
+  unless `--enable-gpu` is passed (see [[webgpu-e2e|WebGPU browser e2e lane]]).
+
+The demo probes presentation and picking before committing to WebGPU, so
+broken environments degrade to the CPU renderer instead of failing.
+
+### SwiftShader r32uint picking reliability
+
+In one headless SwiftShader environment the pick texture readback returned
+corrupted values (float bit patterns such as `0x3F800000`) for some instances
+even though the GPU record/draw-order buffers were verified correct and a
+minimal r32uint pipeline rendered cleanly. This looks like a software
+rasterizer quirk rather than a renderer bug, and it is the reason the WebGPU
+lane is capability-gated: environments whose picking is unreliable skip the
+picking test instead of failing. If it reproduces on Linux CI SwiftShader,
+consider rendering pick ids into an `rgba8unorm` texture (or another
+universally reliable format) instead of `r32uint`.
 
 ### Remaining GPU allocation risks
 

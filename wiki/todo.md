@@ -66,8 +66,21 @@ development workflow.
 - [x] Add performance budgets and regression checks to CI (see
       [[benchmarks|Benchmarks]]).
 - [x] Align the supported Node version across `package.json`, CI, and docs.
-- [ ] Add WebGPU-capable browser coverage to the demo/e2e strategy, with a CPU
-      fallback for environments without WebGPU.
+- [x] Add WebGPU-capable browser coverage to the demo/e2e strategy, with a CPU
+      fallback for environments without WebGPU (see
+      [[webgpu-e2e|WebGPU browser e2e lane]]).
+
+## Improvement work items
+
+- [ ] Encode `emissive` into the GPU instance record. Hover and highlight themes
+      are emissive-only today, but `encodeInstanceRecord` drops emissive, so
+      those states have no visual effect on the WebGPU path (the 2D fallback
+      honors them). Pack emissive into the record's unused padding floats and
+      use it in the fragment shader.
+- [ ] If SwiftShader `r32uint` pick rendering proves unreliable in CI, render
+      pick ids into a universally reliable format (for example `rgba8unorm`
+      with the id packed across color channels) instead of `r32uint`; see
+      [[performance-issues|Performance issues and risks]].
 
 Related: [[performance-issues|Performance issues and risks]],
 [[instancing-strategy|Instancing strategy]], and

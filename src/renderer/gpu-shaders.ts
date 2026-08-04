@@ -18,7 +18,7 @@ struct Instance {
 struct VertexOutput {
   @builtin(position) position: vec4<f32>,
   @location(0) color: vec4<f32>,
-  @location(1) pickId: u32,
+  @location(1) @interpolate(flat) pickId: u32,
 };
 
 @vertex
@@ -43,7 +43,7 @@ fn fragmentMain(@location(0) color: vec4<f32>) -> @location(0) vec4<f32> {
 /** Fragment stage for the integer picking pass. */
 export const pickFragmentShader = /* wgsl */ `
 @fragment
-fn fragmentMain(@location(1) pickId: u32) -> @location(0) u32 {
+fn fragmentMain(@location(0) color: vec4<f32>, @location(1) @interpolate(flat) pickId: u32) -> @location(0) u32 {
   return pickId;
 }
 `;

@@ -22,6 +22,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   the public-boundary convention.
 - [[quality-gate|Quality gate]] — CI, coverage thresholds, and the local gate
   every agent runs before handoff.
+- [[webgpu-e2e|WebGPU browser e2e lane]] — opt-in real-WebGPU browser coverage
+  that never makes the default CI lane flaky.
 - [[benchmarks|Benchmarks and performance budgets]] — deterministic CPU
   benchmarks, budget thresholds, and how to run/interpret them.
 - [[performance-issues|Performance issues and risks]] — known scalability,

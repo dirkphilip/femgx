@@ -35,6 +35,10 @@ suite, not part of the gate.
 - One-time browser install: `npm run test:e2e:install` (Chromium).
 - `e2e/demo.spec.ts` verifies the demo canvas renders instanced geometry.
 - CI installs with `--with-deps` and uploads the report on failure.
+- The default lane is deterministic and exercises the CPU fallback only. An
+  opt-in WebGPU-capable lane (`RUN_WEBGPU=1`, `.github/workflows/webgpu.yml`)
+  exercises the real WebGPU path through the demo and skips cleanly when the
+  browser cannot present/pick (see [[webgpu-e2e|WebGPU browser e2e lane]]).
 
 ## Linting (small modules)
 
