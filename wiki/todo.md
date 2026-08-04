@@ -42,6 +42,9 @@ development workflow.
       [[webgpu-resource-reuse|WebGPU resource reuse]]).
 - [x] Split the renderer into focused modules (pipelines, draw, pick readback)
       below the 300-line limit (see [[source-organization|Source organization]]).
+- [x] Encode emissive into the GPU instance record so hover/highlight themes
+      take effect on the WebGPU path, matching the CPU fallback (see
+      [[renderer-subrange-updates|Renderer subrange updates]]).
 
 ## P2 — interaction API
 
@@ -72,11 +75,6 @@ development workflow.
 
 ## Improvement work items
 
-- [ ] Encode `emissive` into the GPU instance record. Hover and highlight themes
-      are emissive-only today, but `encodeInstanceRecord` drops emissive, so
-      those states have no visual effect on the WebGPU path (the 2D fallback
-      honors them). Pack emissive into the record's unused padding floats and
-      use it in the fragment shader.
 - [ ] If SwiftShader `r32uint` pick rendering proves unreliable in CI, render
       pick ids into a universally reliable format (for example `rgba8unorm`
       with the id packed across color channels) instead of `r32uint`; see

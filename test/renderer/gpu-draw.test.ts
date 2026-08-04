@@ -6,6 +6,7 @@ import {
   createDrawResources,
   destroyDrawResources,
   drawBatches,
+  EMISSIVE_BYTE_OFFSET,
   encodeInstanceRecord,
   ensureDepthTexture,
   patchInstances,
@@ -72,10 +73,10 @@ describe("GPU draw path", () => {
     }
   });
 
-  it("encodes transform, style, and stable pick id into a record", () => {
+  it("encodes transform, style, emissive, and stable pick id into a record", () => {
     const data = encodeInstanceRecord(
       translation(1, 2, 3),
-      { color: { r: 1, g: 0.5, b: 0.25, a: 1 }, emissive: 0, opacity: 0.5 },
+      { color: { r: 1, g: 0.5, b: 0.25, a: 1 }, emissive: 0.4, opacity: 0.5 },
       7,
     );
     const floats = new Float32Array(data);
@@ -86,6 +87,7 @@ describe("GPU draw path", () => {
     expect(floats[16]).toBe(1);
     expect(floats[19]).toBeCloseTo(0.5);
     expect(ids[20]).toBe(7);
+    expect(new Float32Array(data, EMISSIVE_BYTE_OFFSET, 1)[0]).toBeCloseTo(0.4);
   });
 
   it("writes only the changed subranges of patched slots", () => {
@@ -113,6 +115,26 @@ describe("GPU draw path", () => {
       const afterInitial = gpu.writes.length;
       patchInstances(draw, part.id, [{ slot: 2, data: record(9) }]);
       expect(writeRanges(gpu, afterInitial)).toEqual([[2 * 96 + 48, 4]]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("patches only the emissive float when only emissive changes", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      const styled = (emissive: number) =>
+        encodeInstanceRecord(
+          translation(1, 0, 0),
+          { color: { r: 0.23, g: 0.51, b: 0.96, a: 1 }, emissive, opacity: 1 },
+          1,
+        );
+      patchInstances(draw, part.id, [{ slot: 0, data: styled(0) }]);
+      const afterInitial = gpu.writes.length;
+      patchInstances(draw, part.id, [{ slot: 0, data: styled(0.5) }]);
+      expect(writeRanges(gpu, afterInitial)).toEqual([[EMISSIVE_BYTE_OFFSET, 4]]);
     } finally {
       restore();
     }

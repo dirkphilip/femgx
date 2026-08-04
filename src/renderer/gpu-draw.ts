@@ -6,6 +6,20 @@ import { createBuffer, type PartResource } from "./gpu-support";
 /** Byte size of one instance record in the per-part storage buffer. */
 const INSTANCE_STRIDE = 96;
 
+/**
+ * Byte offset of the `emissive` scalar within an instance record. The record
+ * layout is mirrored by the `Instance` struct in `gpu-shaders.ts`:
+ *
+ * | offset | size | field |
+ * | ------ | ---- | ----- |
+ * | 0      | 64   | world transform (`mat4x4<f32>`) |
+ * | 64     | 16   | resolved color, opacity folded into alpha (`vec4<f32>`) |
+ * | 80     | 4    | stable pick id (`u32`) |
+ * | 84     | 4    | emissive (`f32`) |
+ * | 88     | 8    | padding (`vec2<u32>`) |
+ */
+export const EMISSIVE_BYTE_OFFSET = 84;
+
 /** One pre-encoded instance record written into a per-part buffer. */
 export interface InstanceUpdate {
   /** Part-local slot index (stable across visibility changes). */
@@ -81,8 +95,8 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
 
 /**
  * Encodes one instance record: column-major world transform, resolved color
- * (with opacity folded into alpha), and a stable pick id derived from the
- * instance slot.
+ * (with opacity folded into alpha), a stable pick id derived from the
+ * instance slot, and the resolved emissive used for hover/highlight glow.
  */
 export function encodeInstanceRecord(
   transform: Float32Array,
@@ -95,6 +109,7 @@ export function encodeInstanceRecord(
   floats.set(transform, 0);
   floats.set([style.color.r, style.color.g, style.color.b, style.color.a * style.opacity], 16);
   ids[20] = pickId;
+  floats[EMISSIVE_BYTE_OFFSET / 4] = style.emissive;
   return data;
 }
 
