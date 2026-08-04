@@ -66,6 +66,14 @@ extract deterministic polygon and line output:
   polygons. Helpers: `canonicalKey` (`keys.ts`) and bounds-checked `at`
   (`indices.ts`), both internal.
 
+### Known edge-order difference vs VTK
+
+The Hex20 mid-edge connectivity slots 18/19 in `shapes.ts` are associated with
+vertical edges `[2,6]`/`[3,7]`, which is the **opposite** of VTK's edge order
+(`{3,7}`/`{2,6}`). Extraction here is internally consistent, but VTK-ordered
+import files would swap those two mid nodes. See
+https://github.com/dirkphilip/femgx/issues/66.
+
 ## Validation
 
 `createElement` throws on:
