@@ -87,10 +87,15 @@ export function startCpuDemo(options: CpuDemoOptions): void {
       context.strokeStyle = style.emissive > 0 ? "#f8fafc" : "#60a5fa";
       context.lineWidth = style.emissive > 0 ? 3 : 1;
       if (partGeometry.primitive === "lines") {
-        context.beginPath();
-        context.moveTo(points[0]?.[0] ?? 0, points[0]?.[1] ?? 0);
-        for (const point of points.slice(1)) context.lineTo(point[0], point[1]);
-        context.stroke();
+        for (let i = 0; i < partGeometry.indices.length; i += 2) {
+          const from = points[partGeometry.indices[i] ?? 0];
+          const to = points[partGeometry.indices[i + 1] ?? 0];
+          if (from === undefined || to === undefined) continue;
+          context.beginPath();
+          context.moveTo(from[0], from[1]);
+          context.lineTo(to[0], to[1]);
+          context.stroke();
+        }
         continue;
       }
       if (partGeometry.primitive === "points") {

@@ -145,7 +145,7 @@ fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) in
   let instance = instances[drawOrder[instanceIndex]];
   let corner = spriteCorner(vertexIndex % 4u);
   let clip = camera.viewProjection * instance.transform * vec4<f32>(position, 1.0);
-  let offset = corner * (camera.pointSize / camera.viewport.y);
+  let offset = (corner * camera.pointSize) / camera.viewport;
   var output: VertexOutput;
   output.position = vec4<f32>(clip.x + offset.x * clip.w, clip.y + offset.y * clip.w, clip.z, clip.w);
   output.color = instance.color;
