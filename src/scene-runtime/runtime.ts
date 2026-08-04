@@ -2,10 +2,10 @@ import type { Mat4 } from "../math/mat4";
 import type { Scene } from "../scene/scene";
 import type { AssemblyId, PartId } from "../scene/types";
 import { compileSceneState, type RuntimeState } from "./compile";
+import { setInstanceTransform, setNodeTransform, type TransformDelta } from "./transforms";
 import {
   getDrawList as computeDrawList,
   setAssemblyVisible,
-  setInstanceTransform,
   setInstanceVisible,
   setPartVisible,
   type VisibilityDelta,
@@ -42,6 +42,10 @@ export interface SceneRuntime {
   readonly nodeVisible: Uint8Array;
   /** Authoring visibility AND every ancestor node. */
   readonly nodeEffectiveVisible: Uint8Array;
+  /** Local placement transform per node (16 floats); root is identity. */
+  readonly nodeLocalTransforms: Float32Array;
+  /** Column-major world transform per node (16 floats). */
+  readonly nodeWorldTransforms: Float32Array;
   readonly instancePartIds: Uint32Array;
   /** Owning node id per instance. */
   readonly instanceOwningNode: Uint32Array;
@@ -51,32 +55,42 @@ export interface SceneRuntime {
   readonly instanceOverrideVisible: Uint8Array;
   /** Effective visibility per instance (override AND part AND hierarchy). */
   readonly instanceVisible: Uint8Array;
+  /** Local placement transform per instance (16 floats). */
+  readonly instanceLocalTransforms: Float32Array;
   /** Column-major world transform per instance (16 floats). */
   readonly instanceWorldTransforms: Float32Array;
   /** Resolves an instance id to its part id. */
   getPartId(instanceId: number): PartId | undefined;
   /** Returns the world transform of an instance as a matrix view. */
   getTransform(instanceId: number): Mat4 | undefined;
+  /** Returns the local placement transform of a node as a matrix view. */
+  getNodeTransform(nodeId: number): Mat4 | undefined;
+  /** Returns the world transform of a node as a matrix view. */
+  getNodeWorldTransform(nodeId: number): Mat4 | undefined;
   isInstanceVisible(instanceId: number): boolean;
   /** Returns visible instance ids in deterministic depth-first order. */
   getDrawList(): Uint32Array;
   setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta;
   setPartVisible(partId: PartId, visible: boolean): VisibilityDelta;
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): VisibilityDelta;
-  /** Returns false when the instance id is out of range. */
-  setInstanceTransform(instanceId: number, transform: Mat4): boolean;
+  /** Sets a part instance's local placement transform and recomputes its world. */
+  setInstanceTransform(instanceId: number, transform: Mat4): TransformDelta;
+  /** Sets an assembly expansion's local transform and recomputes its subtree. */
+  setNodeTransform(nodeId: number, transform: Mat4): TransformDelta;
 }
 
-/** Compiles a scene into a packed runtime with delta-oriented visibility. */
-export function createSceneRuntime(scene: Scene): SceneRuntime {
-  const state: RuntimeState = compileSceneState(scene);
+function matrixView(transforms: Float32Array, count: number, index: number): Mat4 | undefined {
+  if (index < 0 || index >= count) {
+    return undefined;
+  }
+  return transforms.subarray(index * 16, index * 16 + 16);
+}
+
+function runtimeArrays(state: RuntimeState) {
   return {
     rootAssemblyId: state.rootAssemblyId,
     nodeCount: state.nodeCount,
     instanceCount: state.instanceCount,
-    get visibleCount(): number {
-      return state.visibleCount;
-    },
     nodeAssemblyIds: state.nodeAssemblyIds,
     nodeParents: state.nodeParents,
     nodeFirstChild: state.nodeFirstChild,
@@ -85,20 +99,37 @@ export function createSceneRuntime(scene: Scene): SceneRuntime {
     nodeInstanceEnd: state.nodeInstanceEnd,
     nodeVisible: state.nodeVisible,
     nodeEffectiveVisible: state.nodeEffectiveVisible,
+    nodeLocalTransforms: state.nodeLocalTransforms,
+    nodeWorldTransforms: state.nodeWorldTransforms,
     instancePartIds: state.instancePartIds,
     instanceOwningNode: state.instanceOwningNode,
     instancePartVisible: state.instancePartVisible,
     instanceOverrideVisible: state.instanceOverrideVisible,
     instanceVisible: state.instanceVisible,
+    instanceLocalTransforms: state.instanceLocalTransforms,
     instanceWorldTransforms: state.instanceWorldTransforms,
+  };
+}
+
+/** Compiles a scene into a packed runtime with delta-oriented visibility. */
+export function createSceneRuntime(scene: Scene): SceneRuntime {
+  const state: RuntimeState = compileSceneState(scene);
+  return {
+    ...runtimeArrays(state),
+    get visibleCount(): number {
+      return state.visibleCount;
+    },
     getPartId(instanceId: number): PartId | undefined {
       return state.instancePartIds[instanceId];
     },
     getTransform(instanceId: number): Mat4 | undefined {
-      if (instanceId < 0 || instanceId >= state.instanceCount) {
-        return undefined;
-      }
-      return state.instanceWorldTransforms.subarray(instanceId * 16, instanceId * 16 + 16);
+      return matrixView(state.instanceWorldTransforms, state.instanceCount, instanceId);
+    },
+    getNodeTransform(nodeId: number): Mat4 | undefined {
+      return matrixView(state.nodeLocalTransforms, state.nodeCount, nodeId);
+    },
+    getNodeWorldTransform(nodeId: number): Mat4 | undefined {
+      return matrixView(state.nodeWorldTransforms, state.nodeCount, nodeId);
     },
     isInstanceVisible(instanceId: number): boolean {
       return (
@@ -119,8 +150,11 @@ export function createSceneRuntime(scene: Scene): SceneRuntime {
     setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): VisibilityDelta {
       return setAssemblyVisible(state, assemblyId, visible);
     },
-    setInstanceTransform(instanceId: number, transform: Mat4): boolean {
+    setInstanceTransform(instanceId: number, transform: Mat4): TransformDelta {
       return setInstanceTransform(state, instanceId, transform);
+    },
+    setNodeTransform(nodeId: number, transform: Mat4): TransformDelta {
+      return setNodeTransform(state, nodeId, transform);
     },
   };
 }
