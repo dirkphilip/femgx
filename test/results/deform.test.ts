@@ -64,4 +64,18 @@ describe("deformGeometry", () => {
     expect(deformed.indices).toBe(geometry.indices);
     expect(Array.from(geometry.positions)).toEqual([0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0]);
   });
+
+  it("preserves element tessellations on the deformed geometry", () => {
+    const field = displacements([1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0]);
+    const geometry = {
+      positions: new Float32Array([0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0]),
+      indices: new Uint32Array([0, 1, 2, 2, 3, 0]),
+      elements: [
+        { id: 1, triangleStart: 0, triangleCount: 1 },
+        { id: 2, triangleStart: 1, triangleCount: 1 },
+      ],
+    };
+    const deformed = deformGeometry(geometry, field, 1);
+    expect(deformed.elements).toBe(geometry.elements);
+  });
 });

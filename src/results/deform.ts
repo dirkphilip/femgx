@@ -39,14 +39,17 @@ export function deformPositions(
   return deformed;
 }
 
-/** Returns the geometry with deformed positions, keeping the indices. */
+/**
+ * Returns the geometry with deformed positions. All other geometry data
+ * (indices and any element tessellations) is preserved.
+ */
 export function deformGeometry(
   geometry: Geometry,
   displacements: ResultField<"vector", "nodal">,
   scale = 1,
 ): Geometry {
   return {
+    ...geometry,
     positions: deformPositions(geometry.positions, displacements, scale),
-    indices: geometry.indices,
   };
 }
