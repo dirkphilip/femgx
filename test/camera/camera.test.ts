@@ -27,6 +27,15 @@ describe("camera", () => {
     expect(projectionMatrix(camera)[15]).toBe(1);
   });
 
+  it("preserves framing when switching projection modes", () => {
+    const perspective = resizeCamera(createCamera(), 800, 600);
+    const orthographic = setProjection(perspective, "orthographic");
+    const restored = setProjection(orthographic, "perspective");
+    expect(restored.position[0]).toBeCloseTo(perspective.position[0]);
+    expect(restored.position[1]).toBeCloseTo(perspective.position[1]);
+    expect(restored.position[2]).toBeCloseTo(perspective.position[2]);
+  });
+
   it("keeps camera controls immutable", () => {
     const camera = createCamera();
     const controlled = zoomCamera(panCamera(orbitCamera(camera, 0.2, 0.1), 1, 2), -0.3);

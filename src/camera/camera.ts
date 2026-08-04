@@ -41,9 +41,28 @@ export function resizeCamera(camera: Camera, width: number, height: number): Cam
   return { ...camera, width: Math.max(1, width), height: Math.max(1, height) };
 }
 
-/** Changes projection mode without changing the orbit pose. */
+/** Changes projection mode while keeping the current vertical framing. */
 export function setProjection(camera: Camera, mode: ProjectionMode): Camera {
-  return camera.mode === mode ? camera : { ...camera, mode };
+  if (camera.mode === mode) return camera;
+  if (mode === "orthographic") {
+    const distance = length(subtract(camera.position, camera.target));
+    return {
+      ...camera,
+      mode,
+      orthoHeight: clamp(distance * 2 * Math.tan(camera.fovY / 2), 0.01, camera.far),
+    };
+  }
+  const distance = clamp(
+    camera.orthoHeight / (2 * Math.tan(camera.fovY / 2)),
+    camera.near * 2,
+    camera.far / 2,
+  );
+  const offset = normalize(subtract(camera.position, camera.target));
+  return {
+    ...camera,
+    mode,
+    position: add(camera.target, scale(offset, distance)),
+  };
 }
 
 /** Orbits around the target in radians, clamping pitch before the poles. */

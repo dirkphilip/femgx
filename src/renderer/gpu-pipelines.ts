@@ -285,7 +285,7 @@ export function beginColorPass(
     colorAttachments: [
       {
         view: colorView,
-        clearValue: { r: 0.04, g: 0.06, b: 0.12, a: 1 },
+        clearValue: { r: 0.91, g: 0.93, b: 0.95, a: 1 },
         loadOp: "clear",
         storeOp: "store",
       },

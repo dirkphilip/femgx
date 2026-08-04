@@ -6,9 +6,10 @@
     <title>femgx demo</title>
     <style>
       :root {
-        color-scheme: dark;
-        font-family: Inter, system-ui, sans-serif;
-        background: #0b1020;
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        background: #eef1f4;
+        color: #26313c;
       }
       body {
         margin: 0;
@@ -17,8 +18,8 @@
         place-items: center;
       }
       main {
-        width: min(900px, 100vw);
-        padding: 24px;
+        width: min(1180px, 100vw);
+        padding: 28px;
         box-sizing: border-box;
       }
       header {
@@ -26,48 +27,55 @@
         justify-content: space-between;
         align-items: center;
         gap: 16px;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
       }
       h1 {
         margin: 0;
-        font-size: 18px;
-        letter-spacing: 0.04em;
+        font-size: 17px;
+        letter-spacing: 0.02em;
+        font-weight: 650;
       }
       .controls {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
       }
       button {
-        border: 1px solid #334155;
-        border-radius: 6px;
-        padding: 7px 10px;
-        color: #e2e8f0;
-        background: #172033;
+        border: 1px solid #c8d0d9;
+        border-radius: 7px;
+        padding: 7px 11px;
+        color: #344250;
+        background: #ffffff;
         cursor: pointer;
+        box-shadow: 0 1px 1px #1f29370d;
       }
       button:hover {
-        background: #24324c;
+        background: #f2f5f7;
+        border-color: #9eabb8;
       }
       #status {
-        color: #94a3b8;
+        color: #647384;
         font-size: 13px;
       }
       .viewport {
         overflow: hidden;
-        border: 1px solid #263551;
-        border-radius: 10px;
-        box-shadow: 0 20px 60px #0008;
+        border: 1px solid #cbd3db;
+        border-radius: 12px;
+        box-shadow:
+          0 18px 40px #44515f1f,
+          0 2px 5px #44515f12;
       }
       canvas {
         display: block;
         width: 100%;
         height: auto;
-        background: radial-gradient(circle at 50% 45%, #182640, #0d1424 70%);
+        background: #e8edf1;
         touch-action: none;
       }
       .help {
-        color: #64748b;
+        color: #73808d;
         font-size: 12px;
         margin-top: 10px;
       }
@@ -78,17 +86,17 @@
         margin: 0;
         font-size: 15px;
         letter-spacing: 0.04em;
-        color: #cbd5e1;
+        color: #3f4c59;
       }
       label.scale {
         display: flex;
         align-items: center;
         gap: 8px;
-        color: #94a3b8;
+        color: #687684;
         font-size: 13px;
       }
       #results-status {
-        color: #94a3b8;
+        color: #687684;
         font-size: 13px;
         margin-top: 8px;
       }
@@ -122,7 +130,8 @@
       </div>
       <div id="status" data-testid="status">8 instances · 8 reusable parts</div>
       <div class="help">
-        Drag to orbit · Shift-drag to pan · Scroll to zoom · Click an element or instance to select
+        Left-drag to orbit · Middle-drag or Shift-drag to pan · Scroll to zoom · Click an element or
+        instance to select
       </div>
       <section>
         <header>
