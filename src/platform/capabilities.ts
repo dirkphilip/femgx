@@ -6,8 +6,8 @@ export type WebGpuSupportStatus = "supported" | "unsupported";
 
 /** Options accepted by the capability and device probes. */
 export interface WebGpuQueryOptions {
-  /** GPU power preference; `undefined` lets the browser pick. */
-  readonly powerPreference: GPUPowerPreference | undefined;
+  /** GPU power preference; omit to let the browser pick. */
+  readonly powerPreference?: GPUPowerPreference;
 }
 
 /** Snapshot of the supported adapter surface reported to applications. */

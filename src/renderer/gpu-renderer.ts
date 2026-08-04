@@ -91,19 +91,8 @@ export interface WebGpuRenderer {
 export async function createWebGpuRenderer(
   options: WebGpuRendererOptions,
 ): Promise<WebGpuRenderer> {
-  const query =
-    options.powerPreference === undefined
-      ? undefined
-      : { powerPreference: options.powerPreference };
-  const device = options.device ?? (await requestWebGpuDevice(query)).device;
-  return new GpuRenderer(
-    options.canvas,
-    device,
-    options.powerPreference,
-    options.device === undefined,
-    options.onDeviceLost,
-    options.pointSizePixels ?? 8,
-  );
+  const device = options.device ?? (await requestWebGpuDevice(options)).device;
+  return new GpuRenderer(options.canvas, device, options);
 }
 
 class GpuRenderer implements WebGpuRenderer {
@@ -123,25 +112,22 @@ class GpuRenderer implements WebGpuRenderer {
   public constructor(
     private readonly canvas: HTMLCanvasElement,
     device: GPUDevice,
-    powerPreference: GPUPowerPreference | undefined,
-    ownsDevice: boolean,
-    onDeviceLost: ((info: DeviceLostInfo) => void) | undefined,
-    pointSize: number,
+    options: WebGpuRendererOptions,
   ) {
     const context = canvas.getContext("webgpu");
     if (context === null) throw new Error("WebGPU canvas context unavailable");
     this.context = context;
     this.format = navigator.gpu.getPreferredCanvasFormat();
-    this.pointSize = Math.max(1, pointSize);
+    this.pointSize = Math.max(1, options.pointSizePixels ?? 8);
     this.lifecycle = new GpuDeviceLifecycle({
       bundle: createGpuBundle(device, this.format, this.depthFormat),
       context,
       format: this.format,
       depthFormat: this.depthFormat,
-      powerPreference,
-      ownsDevice,
+      powerPreference: options.powerPreference,
+      ownsDevice: options.device === undefined,
       onLost: (info) => {
-        if (!this.destroyed) onDeviceLost?.(info);
+        if (!this.destroyed) options.onDeviceLost?.(info);
       },
     });
     this.resize();
