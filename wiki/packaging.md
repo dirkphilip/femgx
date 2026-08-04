@@ -79,15 +79,25 @@ reference no package that consumers must install:
 
 1. Builds, `npm pack`s, and checks the tarball contents (declarations present,
    no source/demo/wiki leakage).
-2. Installs the tarball into a clean temp consumer project with **no**
+2. Runs `@arethetypeswrong/cli` (attw) against the packed tarball, failing on
+   any finding. This catches hazards the bespoke checks do not, notably
+   masquerading as CJS/ESM (the UMD bundle sets `Symbol.toStringTag =
+"Module"`), wrong `types`-condition placement, and per-condition
+   `.d.ts`/`.d.cts` resolution edge cases across every `moduleResolution` mode.
+   The package currently reports "No problems found"; there are no tolerated
+   warnings, so the check is a hard gate (see `--ignore-rules` in attw if a
+   known-benign rule ever needs to be waived).
+3. Installs the tarball into a clean temp consumer project with **no**
    `@webgpu/types`, no TypeScript, no dev tooling.
-3. Asserts the installed manifest has no runtime deps, is not private, and has
+4. Asserts the installed manifest has no runtime deps, is not private, and has
    no `preinstall`.
-4. Runs `node` ESM `import` and CJS `require` of real APIs.
-5. Type-checks a consumer `.ts` under `bundler`, `nodenext` (`.mts` + `.cts`),
+5. Runs `node` ESM `import` and CJS `require` of real APIs.
+6. Type-checks a consumer `.ts` under `bundler`, `nodenext` (`.mts` + `.cts`),
    and `node10` resolution with `skipLibCheck: false`.
 
-`npm publish` runs `test:package` automatically via `prepublishOnly`.
+`npm publish` runs `test:package` automatically via `prepublishOnly`. attw is a
+devDependency only (`@arethetypeswrong/cli`), so the published package and the
+clean consumer never see it.
 
 ## Publish checklist
 
