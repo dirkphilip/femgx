@@ -15,7 +15,13 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        // Keep the default lane on the deterministic CPU fallback regardless of
+        // whether the host exposes a WebGPU adapter; the opt-in
+        // `chromium-webgpu` project enables WebGPU explicitly.
+        launchOptions: { args: ["--disable-gpu"] },
+      },
       testIgnore: /webgpu\.spec\.ts/,
     },
     ...(webgpuEnabled

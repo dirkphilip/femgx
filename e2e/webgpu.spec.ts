@@ -53,33 +53,40 @@ test("drives interaction and picking through the demo path", async ({ page }) =>
     throw new Error("canvas has no bounding box");
   }
 
-  // Sweep the pointer across the canvas until a GPU pick resolves a hover.
-  let hovered: string | null = null;
-  for (let row = 0; row < 6 && hovered === null; row++) {
+  // Sweep the pointer across the canvas until a GPU pick resolves a hover. The
+  // pick is asynchronous (GPU readback), so give it time to settle before
+  // reading the hover state, and remember where the hover landed so the click
+  // below targets the same instance rather than a fixed canvas point.
+  let hoverPoint: { readonly x: number; readonly y: number } | undefined;
+  for (let row = 0; row < 6 && hoverPoint === undefined; row++) {
     for (let col = 0; col < 8; col++) {
-      await page.mouse.move(
-        box.x + ((col + 0.5) / 8) * box.width,
-        box.y + ((row + 0.5) / 6) * box.height,
-      );
-      hovered = await canvas.getAttribute("data-hovered");
-      if (hovered !== null && hovered !== "") break;
+      const x = box.x + ((col + 0.5) / 8) * box.width;
+      const y = box.y + ((row + 0.5) / 6) * box.height;
+      await page.mouse.move(x, y);
+      await page.waitForTimeout(150);
+      const hovered = await canvas.getAttribute("data-hovered");
+      if (hovered !== null && hovered !== "") {
+        hoverPoint = { x, y };
+        break;
+      }
     }
   }
 
-  if (hovered === null || hovered === "") {
+  if (hoverPoint === undefined) {
     test.skip(true, "GPU picking is not functional in this browser environment");
+    return;
   }
 
   await expect.poll(() => canvas.getAttribute("data-hovered")).not.toBeNull();
 
   // Click the hovered instance to toggle its selection through GPU picking.
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.click(hoverPoint.x, hoverPoint.y);
   await expect.poll(() => canvas.getAttribute("data-selected")).not.toBeNull();
   const selected = await canvas.getAttribute("data-selected");
   expect(selected, "clicking an instance should select it").not.toBe("");
 
   // Clicking again deselects.
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.click(hoverPoint.x, hoverPoint.y);
   await expect.poll(() => canvas.getAttribute("data-selected")).toBe("");
 });
 

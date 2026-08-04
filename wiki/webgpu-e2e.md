@@ -22,7 +22,9 @@ RUN_WEBGPU=1 npx playwright test --project=chromium-webgpu
   Chromium with `--enable-unsafe-webgpu --enable-gpu`. This uses the software
   SwiftShader WebGPU implementation, so **no GPU hardware is required** and the
   lane can run on any CI runner. The project only matches `e2e/webgpu.spec.ts`;
-  the default `chromium` project excludes that file, so the default gate is
+  the default `chromium` project excludes that file and launches with
+  `--disable-gpu`, so it always exercises the deterministic CPU fallback even
+  on hosts that would otherwise expose a WebGPU adapter; the default gate is
   untouched.
 - `.github/workflows/webgpu.yml` runs the lane on `workflow_dispatch` (opt-in,
   mirroring the [[benchmarks|performance]] workflow). The default

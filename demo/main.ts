@@ -367,7 +367,12 @@ async function startWebGpuDemo(
     updateControls(cameraRef.camera, runtime.instanceCount, scene.parts.size);
     renderGpu();
   });
-  installResizeControl(cameraRef, renderGpu);
+  window.addEventListener("resize", () => {
+    const rect = canvas.getBoundingClientRect();
+    cameraRef.camera = resizeCamera(cameraRef.camera, rect.width, rect.height);
+    gpuRenderer?.resize();
+    renderGpu();
+  });
 
   window.addEventListener("pagehide", () => {
     gpuRenderer?.destroy();
