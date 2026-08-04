@@ -6,6 +6,7 @@ import {
   ensurePickTargets,
   pickPixelCoordinates,
   readPickPixel,
+  resetPickTargets,
 } from "../../src/renderer/gpu-pick";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
@@ -91,6 +92,72 @@ describe("GPU pick targets", () => {
       destroyPickTargets(pick);
       const readbackBuffers = gpu.buffers.filter((buffer) => buffer.size === 256);
       expect(readbackBuffers.every((buffer) => buffer.destroyed)).toBe(true);
+    } finally {
+      restore();
+    }
+  });
+
+  it("keeps the readback pool while resetting the render targets on resize", async () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice({ pickValue: 5 });
+      const pick = createPickTargets();
+      const canvas = fakeCanvas();
+      ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
+      await readPickPixel(gpu.device, canvas, pick, 10, 10);
+      resetPickTargets(pick);
+      expect(pick.texture).toBeUndefined();
+      expect(pick.depthTexture).toBeUndefined();
+      expect(gpu.textures[0]?.destroyed).toBe(true);
+      expect(gpu.textures[1]?.destroyed).toBe(true);
+      ensurePickTargets(gpu.device, pick, 400, 300, "depth24plus");
+      await readPickPixel(gpu.device, canvas, pick, 20, 20);
+      const readbackBuffers = gpu.buffers.filter((buffer) => buffer.size === 256);
+      expect(readbackBuffers).toHaveLength(1);
+      expect(readbackBuffers[0]?.destroyed).toBe(false);
+    } finally {
+      restore();
+    }
+  });
+
+  it("does not disturb a readback buffer in flight while the targets reset", async () => {
+    const restore = installGpuGlobals();
+    try {
+      const deferred: Array<() => void> = [];
+      let bufferCount = 0;
+      const device = {
+        queue: { submit: () => undefined },
+        createBuffer: () => {
+          bufferCount += 1;
+          const buffer = {
+            mapAsync: () =>
+              new Promise<void>((resolve) => {
+                deferred.push(resolve);
+              }),
+            getMappedRange: () => new Uint32Array([1]).buffer,
+            unmap: () => undefined,
+            destroy: () => undefined,
+          } as unknown as GPUBuffer;
+          return buffer;
+        },
+        createCommandEncoder: () => ({
+          copyTextureToBuffer: () => undefined,
+          finish: () => ({}),
+        }),
+        createTexture: () => ({ createView: () => ({}), destroy: () => undefined }),
+      } as unknown as GPUDevice;
+      const pick = createPickTargets();
+      ensurePickTargets(device, pick, 800, 600, "depth24plus");
+      const canvas = fakeCanvas();
+      const pending = readPickPixel(device, canvas, pick, 1, 1);
+      resetPickTargets(pick);
+      deferred[0]?.();
+      await expect(pending).resolves.toBe(1);
+      ensurePickTargets(device, pick, 800, 600, "depth24plus");
+      const after = readPickPixel(device, canvas, pick, 2, 2);
+      expect(bufferCount).toBe(1);
+      deferred[1]?.();
+      await expect(after).resolves.toBe(1);
     } finally {
       restore();
     }

@@ -123,12 +123,17 @@ export async function readPickPixel(
   }
 }
 
-/** Destroys the pick render targets and pooled readback buffers. */
-export function destroyPickTargets(pick: PickTargets): void {
+/** Clears the pick render targets, keeping the size-independent readback pool. */
+export function resetPickTargets(pick: PickTargets): void {
   pick.texture?.destroy();
   pick.depthTexture?.destroy();
   pick.texture = undefined;
   pick.depthTexture = undefined;
+}
+
+/** Destroys the pick render targets and pooled readback buffers. */
+export function destroyPickTargets(pick: PickTargets): void {
+  resetPickTargets(pick);
   for (const buffer of pick.readback.inFlight) buffer.destroy();
   for (const buffer of pick.readback.free) buffer.destroy();
   pick.readback.inFlight.clear();

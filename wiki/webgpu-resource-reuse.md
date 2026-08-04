@@ -22,8 +22,9 @@ Per-frame allocations were removed from `src/renderer/`:
 - **Pick readback** — `readPickPixel` borrows a `GPUBuffer` from
   `PickReadbackPool` (`src/renderer/gpu-pick.ts`) instead of allocating and
   destroying one per pick. Buffers are 256 bytes (the WebGPU minimum
-  `bytesPerRow`) and are reused across picks and resizes. `destroy` releases
-  every pooled buffer.
+  `bytesPerRow`) and are reused across picks and resizes. `resize` resets only
+  the render targets (`resetPickTargets`) and keeps the size-independent
+  readback pool; `destroy` releases every pooled buffer.
 
 ## Synchronization constraints
 
@@ -45,9 +46,11 @@ designed around:
 - On failure (including `mapAsync` rejection), the buffer is still unmapped if
   needed and returned to the pool, so it is never leaked or handed out while
   mapped.
-- `destroyPickTargets` (used by `resize` and `destroy`) destroys pooled readback
+- `destroyPickTargets` (renderer teardown only) destroys pooled readback
   buffers. This must not race an in-flight pick: `renderer.destroy()` should be
-  called only when no `pick()` promise is pending. See
+  called only when no `pick()` promise is pending. `resize` calls
+  `resetPickTargets` instead, which keeps the pool intact, so a pick in flight
+  during a resize completes normally and its buffer is reused. See
   [[performance-issues|Performance issues and risks]] for the remaining risks.
 
 ## Still not cached

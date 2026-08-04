@@ -19,6 +19,7 @@ import {
   destroyPickTargets,
   ensurePickTargets,
   readPickPixel,
+  resetPickTargets,
   type PickTargets,
 } from "./gpu-pick";
 import {
@@ -131,7 +132,7 @@ class GpuRenderer implements WebGpuRenderer {
     this.canvas.width = Math.max(1, Math.floor(width * devicePixelRatio));
     this.canvas.height = Math.max(1, Math.floor(height * devicePixelRatio));
     this.context.configure({ device: this.device, format: this.format, alphaMode: "opaque" });
-    destroyPickTargets(this.pickTargets);
+    resetPickTargets(this.pickTargets);
   }
 
   public destroy(): void {
