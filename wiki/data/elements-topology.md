@@ -33,9 +33,8 @@ Connectivity lists corners first, then mid-edge nodes in canonical edge order.
 - **Tet4/Tet10** corners: `0 1 2 3`. Tet10 mid-edge nodes: `4` on `0-1`, `5` on
   `1-2`, `6` on `2-0`, `7` on `0-3`, `8` on `1-3`, `9` on `2-3`.
 - **Hex8/Hex20** corners: `0 1 2 3 4 5 6 7` (bottom `0-1-2-3` counter-clockwise,
-  top `4-5-6-7`, vertical `0-4`, `1-5`, `3-7`, `2-6`). Hex20 mid-edge nodes
-  `8..19` follow the same edge order: bottom `8-11`, top `12-15`, vertical
-  `16-19` (on `0-4`, `1-5`, `3-7`, `2-6` respectively, per the VTK edge table).
+  top `4-5-6-7`, vertical `0-4`, `1-5`, `2-6`, `3-7`). Hex20 mid-edge nodes
+  `8..19` follow the same edge order: bottom `8-11`, top `12-15`, vertical `16-19`.
 
 `ElementTopology` exposes this structurally via `corners`, `edges` (corner-index
 pairs), and `edgeNodes` (aligned with `edges`), which is the foundation for
@@ -67,12 +66,18 @@ extract deterministic polygon and line output:
   polygons. Helpers: `canonicalKey` (`keys.ts`) and bounds-checked `at`
   (`indices.ts`), both internal.
 
-### Known edge-order difference vs VTK (resolved)
+### Hex20 edge order vs VTK
 
-The Hex20 mid-edge slots 18/19 used to be associated with vertical edges
-`[2,6]`/`[3,7]`, the **opposite** of VTK's edge order. `HEX_EDGES` was swapped so
-slot 18 sits on `{3,7}` and slot 19 on `{2,6}` (VTK edges 10/11). Fixed in
-https://github.com/dirkphilip/femgx/issues/66.
+The geometric mid-node assignment — connectivity slot 18 lies on edge `{2,6}`
+and slot 19 on edge `{3,7}` — matches VTK's canonical quadratic-hex numbering
+exactly (`vtkQuadraticHexahedron` maps mid-edge node 18 to edge `{2,6}` and 19
+to `{3,7}`; the golden fixtures in `test/elements/golden.ts` pin this). Only the
+order in which the last two vertical edges are _listed_ differs from VTK's
+internal `Edges` array index order (`{3,7}`/`{2,6}`), which has no effect on
+connectivity import — a file's slots 18/19 map to the same geometric edges in
+both conventions — or on set-based face/edge extraction. The earlier claim that
+VTK-ordered files swap those two mid nodes (issue #66) was verified against the
+VTK source and does not hold; do not "fix" the ordering by swapping slots 18/19.
 
 ## Validation
 
@@ -100,11 +105,9 @@ New families are added by extending the `ElementFamily` union, declaring the
 supported interpolation orders in the `SupportedOrder` type in
 `src/elements/shapes.ts`, and registering a topology for each resulting
 `<family>:<order>` key. The registry is compiler-exhaustive — the `satisfies`
-constraint ties its keys to the derived `SupportedShapeKey` union and pins each
-entry's `family`/`order` to the literals encoded in its key — so a missing
-topology, an unsupported order, a mis-keyed registration, or an entry whose
-`family`/`order` contradict its key fails at compile time instead of at runtime.
-`ElementOrder` (`0 | 1 | 2`) narrows the public
+constraint ties its keys to the derived `SupportedShapeKey` union — so a missing
+topology, an unsupported order, or a mis-keyed registration fails at compile time
+instead of at runtime. `ElementOrder` (`0 | 1 | 2`) narrows the public
 `ElementShape.order`/`ElementTopology.order`, and `topologyFor`/`createElement`
 keep a runtime safety net for untyped input. Nothing here couples topology to
 WebGPU.
