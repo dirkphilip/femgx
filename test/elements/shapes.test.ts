@@ -107,15 +107,15 @@ describe("topologyFor", () => {
   });
 
   it("throws for an unsupported order", () => {
-    expect(() =>
-      topologyFor({ family: "tet", order: 3 as ElementShape["order"] }),
-    ).toThrow("Unsupported element shape");
-    expect(() =>
-      topologyFor({ family: "hex", order: 3 as ElementShape["order"] }),
-    ).toThrow("Unsupported element shape");
-    expect(() =>
-      topologyFor({ family: "line", order: 3 as ElementShape["order"] }),
-    ).toThrow("Unsupported element shape");
+    expect(() => topologyFor({ family: "tet", order: 3 as ElementShape["order"] })).toThrow(
+      "Unsupported element shape",
+    );
+    expect(() => topologyFor({ family: "hex", order: 3 as ElementShape["order"] })).toThrow(
+      "Unsupported element shape",
+    );
+    expect(() => topologyFor({ family: "line", order: 3 as ElementShape["order"] })).toThrow(
+      "Unsupported element shape",
+    );
   });
 
   it("throws for an unknown family", () => {
