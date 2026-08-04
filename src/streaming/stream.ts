@@ -38,7 +38,7 @@ export interface ChunkStream {
   readonly total: number;
   /** Chunks parsed and emitted so far. */
   readonly loaded: number;
-  /** Chunks skipped because they were hidden, off-screen, or after cancel. */
+  /** Chunks skipped because they were hidden or off-screen. */
   readonly skipped: number;
   /** CPU bytes uploaded so far, including emitted chunk payloads. */
   readonly uploadedBytes: number;
@@ -49,7 +49,7 @@ export interface ChunkStream {
   readonly disposed: boolean;
   /** Processes the next budget slice; returns whether the stream is done. */
   tick(): boolean;
-  /** Cancels the stream; remaining chunks are skipped on the next tick. */
+  /** Cancels the stream; the next tick finishes without processing remaining chunks. */
   cancel(): void;
   /** Releases pending chunk buffers and stops the stream. */
   dispose(): void;
