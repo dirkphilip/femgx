@@ -1,12 +1,25 @@
-import { classifyFaces, facesOf, type ElementFace } from "../elements/faces";
+import {
+  classifyFaces,
+  facesOf,
+  facesOfElement,
+  type ElementFace,
+  type FaceKey,
+} from "../elements/faces";
 import { edgesOf, uniqueEdges, type ElementEdge } from "../elements/edges";
 import type { Element, ElementId, NodeId } from "../elements/element";
 import type { ElementModel } from "../elements/model";
-import { topologyFor, type ElementFamily } from "../elements/shapes";
-import { computeBounds, type ElementTessellation, type Geometry, type Part } from "./part";
+import type { ElementFamily } from "../elements/shapes";
+import {
+  computeBounds,
+  type ElementTessellation,
+  type FaceTessellation,
+  type Geometry,
+  type Part,
+} from "./part";
 import type { PartId } from "../scene/types";
+import { tessellateFace } from "./face-tessellation";
 import { LineMeshBuilder, TriangleMeshBuilder } from "./mesh-builder";
-import { average, cross, dot, length, quadraticPoint, subtract, type Vec3 } from "./vec-math";
+import { quadraticPoint, type Vec3 } from "./vec-math";
 
 /**
  * Tessellates an {@link ElementModel} into reusable part geometry per render
@@ -85,11 +98,18 @@ function volumeGeometry(
   family: ElementFamily,
   boundaryOnly: boolean,
 ): Geometry {
-  const faces: ReadonlyArray<{ readonly element: Element; readonly face: ElementFace }> =
-    boundaryOnly ? boundaryFaces(model, family) : allFaces(model, family);
+  const faces: ReadonlyArray<{
+    readonly element: Element;
+    readonly face: ElementFace;
+    readonly faceIndex: number;
+  }> = boundaryOnly ? boundaryFaces(model, family) : allFaces(model, family);
+  const neighbors = faceNeighbors(elementsOf(model, family));
   const mesh = new TriangleMeshBuilder();
   const elements: ElementTessellation[] = [];
+  const faceTessellations: FaceTessellation[] = [];
+  const nodePositions: number[] = [...model.nodes];
   let current: { readonly id: ElementId; readonly start: number } | undefined;
+  let faceId = 0;
   const flush = (): void => {
     if (current !== undefined) {
       elements.push({
@@ -99,30 +119,60 @@ function volumeGeometry(
       });
     }
   };
-  for (const { element, face } of faces) {
+  for (const { element, face, faceIndex } of faces) {
     if (current === undefined || current.id !== element.id) {
       flush();
       current = { id: element.id, start: mesh.triangleCount };
     }
     for (const triangle of tessellateFace(model, element, face)) {
-      mesh.append(triangle);
+      mesh.append(triangle, faceId + 1);
     }
+    faceTessellations.push({
+      id: faceId,
+      elementId: element.id,
+      faceIndex,
+      key: face.key,
+      nodeIds: face.nodeIds,
+      neighborElementIds: (neighbors.get(face.key) ?? []).filter((id) => id !== element.id),
+    });
+    faceId += 1;
   }
   flush();
-  return mesh.build("triangles", elements);
+  return mesh.build("triangles", elements, faceTessellations, nodePositions);
 }
 
 function allFaces(
   model: ElementModel,
   family: ElementFamily,
-): ReadonlyArray<{ readonly element: Element; readonly face: ElementFace }> {
-  const faces: Array<{ readonly element: Element; readonly face: ElementFace }> = [];
+): ReadonlyArray<{
+  readonly element: Element;
+  readonly face: ElementFace;
+  readonly faceIndex: number;
+}> {
+  const faces: Array<{
+    readonly element: Element;
+    readonly face: ElementFace;
+    readonly faceIndex: number;
+  }> = [];
   for (const element of elementsOf(model, family)) {
-    for (const face of facesOf(element)) {
-      faces.push({ element, face });
+    for (const { face, faceIndex } of facesOfElement(element)) {
+      faces.push({ element, face, faceIndex });
     }
   }
   return faces;
+}
+
+/** Maps every canonical face key to the elements incident to it. */
+function faceNeighbors(elements: readonly Element[]): Map<FaceKey, ElementId[]> {
+  const neighbors = new Map<FaceKey, ElementId[]>();
+  for (const element of elements) {
+    for (const face of facesOf(element)) {
+      const list = neighbors.get(face.key);
+      if (list === undefined) neighbors.set(face.key, [element.id]);
+      else list.push(element.id);
+    }
+  }
+  return neighbors;
 }
 
 /**
@@ -133,18 +183,35 @@ function allFaces(
 function boundaryFaces(
   model: ElementModel,
   family: ElementFamily,
-): ReadonlyArray<{ readonly element: Element; readonly face: ElementFace }> {
+): ReadonlyArray<{
+  readonly element: Element;
+  readonly face: ElementFace;
+  readonly faceIndex: number;
+}> {
   const elements = elementsOf(model, family);
   const elementById = new Map<ElementId, Element>();
+  const faceIndexByElement = new Map<ElementId, Map<FaceKey, number>>();
   for (const element of elements) {
     elementById.set(element.id, element);
+    const indexByKey = new Map<FaceKey, number>();
+    for (const { face, faceIndex } of facesOfElement(element)) {
+      indexByKey.set(face.key, faceIndex);
+    }
+    faceIndexByElement.set(element.id, indexByKey);
   }
-  const boundary: Array<{ readonly element: Element; readonly face: ElementFace }> = [];
+  const boundary: Array<{
+    readonly element: Element;
+    readonly face: ElementFace;
+    readonly faceIndex: number;
+  }> = [];
   for (const face of classifyFaces(elements)) {
     const element = elementById.get(face.elementId);
-    if (face.boundary && element !== undefined) {
-      boundary.push({ element, face });
+    if (!face.boundary || element === undefined) continue;
+    const faceIndex = faceIndexByElement.get(element.id)?.get(face.key);
+    if (faceIndex === undefined) {
+      throw new Error(`Element ${element.id} has no face index for ${face.key}`);
     }
+    boundary.push({ element, face: { key: face.key, nodeIds: face.nodeIds }, faceIndex });
   }
   return boundary;
 }
@@ -201,30 +268,6 @@ function elementsOf(model: ElementModel, family: ElementFamily): readonly Elemen
 }
 
 /**
- * Splits an interleaved face loop (corners and mid-edge nodes alternating,
- * starting with a corner) into separate corner and mid-edge node arrays.
- */
-function faceNodeIds(
-  element: Element,
-  face: ElementFace,
-): { readonly cornerNodeIds: readonly NodeId[]; readonly midNodeIds: readonly NodeId[] } {
-  const nodeIds = face.nodeIds;
-  if (topologyFor(element.shape).order < 2) {
-    return { cornerNodeIds: nodeIds, midNodeIds: [] };
-  }
-  const cornerNodeIds: NodeId[] = [];
-  const midNodeIds: NodeId[] = [];
-  nodeIds.forEach((nodeId, index) => {
-    if (index % 2 === 0) {
-      cornerNodeIds.push(nodeId);
-    } else {
-      midNodeIds.push(nodeId);
-    }
-  });
-  return { cornerNodeIds, midNodeIds };
-}
-
-/**
  * Tessellates one element face into triangles in model space, each wound to
  * face outward. Shared with the picking subsystem so face picking resolves
  * against exactly the surface the renderer draws.
@@ -234,68 +277,9 @@ export function faceTriangles(
   element: Element,
   face: ElementFace,
 ): ReadonlyArray<readonly [Vec3, Vec3, Vec3]> {
-  return tessellateFace(model, element, face);
-}
-
-/** Subdivides a face into triangles, each wound to face outward. */
-function tessellateFace(
-  model: ElementModel,
-  element: Element,
-  face: ElementFace,
-): ReadonlyArray<readonly [Vec3, Vec3, Vec3]> {
-  const { cornerNodeIds, midNodeIds } = faceNodeIds(element, face);
-  const corners = cornerNodeIds.map((id) => nodePosition(model, id));
-  const outward = outwardDirection(model, element, corners);
-  if (midNodeIds.length === 0) {
-    const triangles: Array<readonly [Vec3, Vec3, Vec3]> = [];
-    for (let i = 1; i < corners.length - 1; i += 1) {
-      triangles.push(
-        orient(outward, corners[0] as Vec3, corners[i] as Vec3, corners[i + 1] as Vec3),
-      );
-    }
-    return triangles;
-  }
-  const mids = midNodeIds.map((id) => nodePosition(model, id));
-  if (corners.length === 3) {
-    return quadraticTriangle(corners, mids, outward);
-  }
-  return quadraticQuad(corners, mids, outward);
-}
-
-function quadraticTriangle(
-  corners: readonly Vec3[],
-  mids: readonly Vec3[],
-  outward: Vec3,
-): ReadonlyArray<readonly [Vec3, Vec3, Vec3]> {
-  const [a, b, c] = corners as readonly [Vec3, Vec3, Vec3];
-  const [mab, mbc, mca] = mids as readonly [Vec3, Vec3, Vec3];
-  return [
-    orient(outward, a, mab, mca),
-    orient(outward, b, mbc, mab),
-    orient(outward, c, mca, mbc),
-    orient(outward, mab, mbc, mca),
-  ];
-}
-
-function quadraticQuad(
-  corners: readonly Vec3[],
-  mids: readonly Vec3[],
-  outward: Vec3,
-): ReadonlyArray<readonly [Vec3, Vec3, Vec3]> {
-  const [a, b, c, d] = corners as readonly [Vec3, Vec3, Vec3, Vec3];
-  const [mab, mbc, mcd, mda] = mids as readonly [Vec3, Vec3, Vec3, Vec3];
-  const center = average([...corners, ...mids]);
-  const pairs: ReadonlyArray<readonly [Vec3, Vec3]> = [
-    [a, mab],
-    [mab, b],
-    [b, mbc],
-    [mbc, c],
-    [c, mcd],
-    [mcd, d],
-    [d, mda],
-    [mda, a],
-  ];
-  return pairs.map(([from, to]) => orient(outward, center, from, to));
+  return tessellateFace(model, element, face).map((triangle) =>
+    triangle.map((vertex) => vertex.point),
+  );
 }
 
 /** Returns the interpolated control points of an edge (corners + mid node). */
@@ -324,19 +308,6 @@ function edgePoints(model: ElementModel, edge: ElementEdge, segments: number): r
   return points;
 }
 
-/** Direction from the element interior toward the face (for outward winding). */
-function outwardDirection(model: ElementModel, element: Element, corners: readonly Vec3[]): Vec3 {
-  const elementCentroid = average(element.nodeIds.map((id) => nodePosition(model, id)));
-  const faceCentroid = average(corners);
-  const outward = subtract(faceCentroid, elementCentroid);
-  return length(outward) > 0 ? outward : faceNormal(corners);
-}
-
-/** Wraps a triangle so its geometric normal aligns with `outward`. */
-function orient(outward: Vec3, a: Vec3, b: Vec3, c: Vec3): readonly [Vec3, Vec3, Vec3] {
-  return dot(cross(subtract(b, a), subtract(c, a)), outward) < 0 ? [a, c, b] : [a, b, c];
-}
-
 function nodePosition(model: ElementModel, nodeId: NodeId): Vec3 {
   const offset = nodeId * 3;
   const x = model.nodes[offset];
@@ -344,9 +315,4 @@ function nodePosition(model: ElementModel, nodeId: NodeId): Vec3 {
     throw new Error(`Model has no position for node ${nodeId}`);
   }
   return [x, model.nodes[offset + 1] ?? 0, model.nodes[offset + 2] ?? 0];
-}
-
-function faceNormal(corners: readonly Vec3[]): Vec3 {
-  const [a, b, c] = corners as readonly [Vec3, Vec3, Vec3];
-  return cross(subtract(b, a), subtract(c, a));
 }

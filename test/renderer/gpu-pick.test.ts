@@ -11,7 +11,7 @@ import {
 } from "../../src/renderer/gpu-pick";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
-const READBACK_SIZE = READBACK_BYTE_STRIDE * 2;
+const READBACK_SIZE = READBACK_BYTE_STRIDE * 4;
 
 describe("GPU pick targets", () => {
   it("maps and clamps pick pixels to the canvas bounds", () => {
@@ -28,13 +28,17 @@ describe("GPU pick targets", () => {
       const pick = createPickTargets();
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
-      expect(gpu.textureCreations).toBe(3);
+      expect(gpu.textureCreations).toBe(5);
       expect(pick.texture).toBeDefined();
       expect(pick.elementTexture).toBeDefined();
+      expect(pick.faceTexture).toBeDefined();
+      expect(pick.nodeTexture).toBeDefined();
       expect(pick.depthTexture).toBeDefined();
       destroyPickTargets(pick);
       expect(pick.texture).toBeUndefined();
       expect(pick.elementTexture).toBeUndefined();
+      expect(pick.faceTexture).toBeUndefined();
+      expect(pick.nodeTexture).toBeUndefined();
       expect(pick.depthTexture).toBeUndefined();
     } finally {
       restore();
@@ -63,27 +67,38 @@ describe("GPU pick targets", () => {
       await expect(readPickPixel(gpu.device, canvas, pick, 10, 10)).resolves.toEqual({
         instancePickId: 0,
         elementPickId: 0,
+        facePickId: 0,
+        nodePickId: 0,
       });
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       await expect(readPickPixel(gpu.device, canvas, pick, 10, 10)).resolves.toEqual({
         instancePickId: 7,
         elementPickId: 0,
+        facePickId: 0,
+        nodePickId: 0,
       });
     } finally {
       restore();
     }
   });
 
-  it("decodes the element pick id from the second attachment", async () => {
+  it("decodes the element, face, and node pick ids from the later attachments", async () => {
     const restore = installGpuGlobals();
     try {
-      const gpu = fakeGpuDevice({ pickValue: 3, elementPickValue: 9 });
+      const gpu = fakeGpuDevice({
+        pickValue: 3,
+        elementPickValue: 9,
+        facePickValue: 12,
+        nodePickValue: 20,
+      });
       const pick = createPickTargets();
       const canvas = fakeCanvas();
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       await expect(readPickPixel(gpu.device, canvas, pick, 10, 10)).resolves.toEqual({
         instancePickId: 3,
         elementPickId: 9,
+        facePickId: 12,
+        nodePickId: 20,
       });
     } finally {
       restore();
@@ -181,12 +196,22 @@ describe("GPU pick targets", () => {
       const pending = readPickPixel(device, canvas, pick, 1, 1);
       resetPickTargets(pick);
       deferred[0]?.();
-      await expect(pending).resolves.toEqual({ instancePickId: 1, elementPickId: 0 });
+      await expect(pending).resolves.toEqual({
+        instancePickId: 1,
+        elementPickId: 0,
+        facePickId: 0,
+        nodePickId: 0,
+      });
       ensurePickTargets(device, pick, 800, 600, "depth24plus");
       const after = readPickPixel(device, canvas, pick, 2, 2);
       expect(bufferCount).toBe(1);
       deferred[1]?.();
-      await expect(after).resolves.toEqual({ instancePickId: 1, elementPickId: 0 });
+      await expect(after).resolves.toEqual({
+        instancePickId: 1,
+        elementPickId: 0,
+        facePickId: 0,
+        nodePickId: 0,
+      });
     } finally {
       restore();
     }
@@ -227,18 +252,35 @@ describe("GPU pick targets", () => {
       const pick = createPickTargets();
       pick.texture = {} as GPUTexture;
       pick.elementTexture = {} as GPUTexture;
+      pick.faceTexture = {} as GPUTexture;
+      pick.nodeTexture = {} as GPUTexture;
       const canvas = fakeCanvas();
       const first = readPickPixel(device, canvas, pick, 1, 1);
       const second = readPickPixel(device, canvas, pick, 2, 2);
       expect(bufferCount).toBe(2);
       deferred[0]?.();
       deferred[1]?.();
-      await expect(first).resolves.toEqual({ instancePickId: 1, elementPickId: 0 });
-      await expect(second).resolves.toEqual({ instancePickId: 1, elementPickId: 0 });
+      await expect(first).resolves.toEqual({
+        instancePickId: 1,
+        elementPickId: 0,
+        facePickId: 0,
+        nodePickId: 0,
+      });
+      await expect(second).resolves.toEqual({
+        instancePickId: 1,
+        elementPickId: 0,
+        facePickId: 0,
+        nodePickId: 0,
+      });
       const third = readPickPixel(device, canvas, pick, 3, 3);
       expect(bufferCount).toBe(2);
       deferred[2]?.();
-      await expect(third).resolves.toEqual({ instancePickId: 1, elementPickId: 0 });
+      await expect(third).resolves.toEqual({
+        instancePickId: 1,
+        elementPickId: 0,
+        facePickId: 0,
+        nodePickId: 0,
+      });
     } finally {
       restore();
     }

@@ -90,7 +90,12 @@ export function fakeCanvas(width = 800, height = 600): HTMLCanvasElement {
 
 /** A GPU device that records buffer writes, creations, and draw calls. */
 export function fakeGpuDevice(
-  options: { readonly pickValue?: number; readonly elementPickValue?: number } = {},
+  options: {
+    readonly pickValue?: number;
+    readonly elementPickValue?: number;
+    readonly facePickValue?: number;
+    readonly nodePickValue?: number;
+  } = {},
 ): FakeGpu {
   const writes: RecordedWrite[] = [];
   const buffers: FakeBuffer[] = [];
@@ -103,6 +108,8 @@ export function fakeGpuDevice(
   let currentPipeline = "none";
   const pickValue = options.pickValue ?? 0;
   const elementPickValue = options.elementPickValue ?? 0;
+  const facePickValue = options.facePickValue ?? 0;
+  const nodePickValue = options.nodePickValue ?? 0;
   let resolveLost: (info: GPUDeviceLostInfo) => void = () => undefined;
   const lost = new Promise<GPUDeviceLostInfo>((resolve) => {
     resolveLost = resolve;
@@ -142,9 +149,11 @@ export function fakeGpuDevice(
         },
         mapAsync: () => Promise.resolve(),
         getMappedRange: () => {
-          const bytes = new Uint8Array(READBACK_BYTE_STRIDE * 2);
+          const bytes = new Uint8Array(READBACK_BYTE_STRIDE * 4);
           bytes.set(encodePickId(pickValue));
           bytes.set(encodePickId(elementPickValue), READBACK_BYTE_STRIDE);
+          bytes.set(encodePickId(facePickValue), READBACK_BYTE_STRIDE * 2);
+          bytes.set(encodePickId(nodePickValue), READBACK_BYTE_STRIDE * 3);
           return bytes.buffer;
         },
         unmap: () => undefined,

@@ -6,21 +6,29 @@ import {
   setElementSelected,
   setHoveredElement,
 } from "../../src/interaction/interaction";
+import { setFaceSelected, setNodeSelected } from "../../src/interaction/node-face";
 import { translation } from "../../src/math/mat4";
 import { createSceneRuntime, type SceneRuntime } from "../../src/scene-runtime/runtime";
 import { createScene, type Scene } from "../../src/scene/scene";
 import {
-  buildElementTrianglePickIds,
-  collectElementHighlightUpdates,
+  collectEmphasisUpdates,
   createHighlightStorage,
   ELEMENT_RECORD_STRIDE,
   encodeElementHighlight,
+  encodeEmphasisRecord,
+  encodeFaceHighlight,
+  encodeNodeHighlight,
   HIGHLIGHT_HEADER,
   INITIAL_ELEMENT_HIGHLIGHTS,
   syncElementHighlights,
   writeElementHighlights,
-  type ElementHighlightUpdate,
+  type EmphasisUpdate,
 } from "../../src/renderer/gpu-elements";
+import {
+  buildElementTrianglePickIds,
+  buildFaceTrianglePickIds,
+  buildVertexNodePickIds,
+} from "../../src/renderer/gpu-pick-ids";
 import {
   createDrawResources,
   encodeInstanceRecord,
@@ -37,6 +45,10 @@ const style = {
   opacity: 1,
   edge: false,
 };
+
+function elementUpdate(slot: number, elementId: number): EmphasisUpdate {
+  return { slot, elementPickId: elementId + 1, facePickId: 0, nodePickId: 0, style };
+}
 
 describe("buildElementTrianglePickIds", () => {
   it("maps each triangle to its element pick id (element id + 1)", () => {
@@ -63,17 +75,84 @@ describe("buildElementTrianglePickIds", () => {
   });
 });
 
-describe("encodeElementHighlight", () => {
-  it("encodes the record fields at the documented byte offsets", () => {
-    const data = encodeElementHighlight(2, 3, style);
+describe("buildFaceTrianglePickIds", () => {
+  it("copies the per-triangle face pick ids when present", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array(9),
+      indices: new Uint32Array(9),
+      facePickIds: new Uint32Array([5, 0, 5]),
+    };
+    expect(Array.from(buildFaceTrianglePickIds(geometry))).toEqual([5, 0, 5]);
+  });
+
+  it("produces all-zero ids when the geometry has no faces", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array(9),
+      indices: new Uint32Array(3),
+    };
+    expect(Array.from(buildFaceTrianglePickIds(geometry))).toEqual([0]);
+  });
+});
+
+describe("buildVertexNodePickIds", () => {
+  it("returns the per-vertex node pick ids when present", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array(12),
+      indices: new Uint32Array(12),
+      nodePickIds: new Uint32Array([1, 2, 3, 0]),
+    };
+    expect(Array.from(buildVertexNodePickIds(geometry))).toEqual([1, 2, 3, 0]);
+  });
+
+  it("produces all-zero ids when the geometry has no node data", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array(12),
+      indices: new Uint32Array(12),
+    };
+    expect(Array.from(buildVertexNodePickIds(geometry))).toEqual([0, 0, 0, 0]);
+  });
+});
+
+describe("encodeEmphasisRecord", () => {
+  it("encodes element, face, and node pick ids at the documented offsets", () => {
+    const data = encodeEmphasisRecord({
+      slot: 2,
+      elementPickId: 0,
+      facePickId: 6,
+      nodePickId: 9,
+      style,
+    });
     const ids = new Uint32Array(data);
     const floats = new Float32Array(data);
     expect(data.byteLength).toBe(ELEMENT_RECORD_STRIDE);
     expect(ids[0]).toBe(2);
-    expect(ids[1]).toBe(4);
+    expect(ids[1]).toBe(0);
+    expect(ids[2]).toBe(6);
+    expect(ids[3]).toBe(9);
     expect(floats[4]).toBeCloseTo(style.color.r);
     expect(floats[7]).toBeCloseTo(style.color.a * style.opacity);
     expect(floats[8]).toBeCloseTo(style.emissive);
+  });
+
+  it("encodes a 1-based element pick id", () => {
+    const ids = new Uint32Array(encodeElementHighlight(2, 3, style));
+    expect(ids[1]).toBe(4);
+    expect(ids[2]).toBe(0);
+    expect(ids[3]).toBe(0);
+  });
+
+  it("encodes a 1-based face pick id", () => {
+    const ids = new Uint32Array(encodeFaceHighlight(2, 3, style));
+    expect(ids[1]).toBe(0);
+    expect(ids[2]).toBe(4);
+    expect(ids[3]).toBe(0);
+  });
+
+  it("encodes a 1-based node pick id", () => {
+    const ids = new Uint32Array(encodeNodeHighlight(2, 3, style));
+    expect(ids[1]).toBe(0);
+    expect(ids[2]).toBe(0);
+    expect(ids[3]).toBe(4);
   });
 });
 
@@ -118,12 +197,11 @@ describe("writeElementHighlights", () => {
     try {
       const gpu = fakeGpuDevice();
       const storage = makeStorage(gpu);
-      const update = (elementId: number): ElementHighlightUpdate => ({ slot: 1, elementId, style });
-      writeElementHighlights(gpu.device, storage, [update(0)]);
+      writeElementHighlights(gpu.device, storage, [elementUpdate(1, 0)]);
       const afterFirst = gpu.writes.length;
-      writeElementHighlights(gpu.device, storage, [update(0)]);
+      writeElementHighlights(gpu.device, storage, [elementUpdate(1, 0)]);
       expect(gpu.writes.length).toBe(afterFirst);
-      writeElementHighlights(gpu.device, storage, [update(7)]);
+      writeElementHighlights(gpu.device, storage, [elementUpdate(1, 7)]);
       expect(
         gpu.writes.slice(afterFirst).map((write) => [write.offset, write.bytes.byteLength]),
       ).toEqual([[20, 4]]);
@@ -137,7 +215,7 @@ describe("writeElementHighlights", () => {
     try {
       const gpu = fakeGpuDevice();
       const storage = makeStorage(gpu);
-      writeElementHighlights(gpu.device, storage, [{ slot: 0, elementId: 0, style }]);
+      writeElementHighlights(gpu.device, storage, [elementUpdate(0, 0)]);
       const afterFirst = gpu.writes.length;
       writeElementHighlights(gpu.device, storage, []);
       const tail = gpu.writes.slice(afterFirst);
@@ -219,6 +297,35 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
     positions: new Float32Array(18),
     indices: new Uint32Array(18),
     elements: [{ id: 0, triangleStart: 0, triangleCount: 6 }],
+    nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
+    nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    facePickIds: new Uint32Array([1, 1, 2, 2, 3, 3]),
+    faces: [
+      {
+        id: 0,
+        elementId: 0,
+        faceIndex: 0,
+        key: "0,1,2",
+        nodeIds: [0, 1, 2],
+        neighborElementIds: [],
+      },
+      {
+        id: 1,
+        elementId: 0,
+        faceIndex: 1,
+        key: "0,1,3",
+        nodeIds: [0, 1, 3],
+        neighborElementIds: [],
+      },
+      {
+        id: 2,
+        elementId: 0,
+        faceIndex: 2,
+        key: "0,2,3",
+        nodeIds: [0, 2, 3],
+        neighborElementIds: [],
+      },
+    ],
   };
   const part: Part = { id: 1, geometry, bounds: computeBounds(geometry) };
   const scene = createScene()
@@ -236,9 +343,13 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
   return { scene, runtime: createSceneRuntime(scene) };
 }
 
-describe("collectElementHighlightUpdates", () => {
+function partsMap(scene: Scene): Map<number, Part> {
+  return new Map(scene.parts);
+}
+
+describe("collectEmphasisUpdates", () => {
   it("maps emphasized element occurrences to per-part records", () => {
-    const { runtime } = elementScene();
+    const { scene, runtime } = elementScene();
     const layout = buildInstanceLayout(runtime);
     const slotByInstanceId = new Map([
       ["1/0", 0],
@@ -246,15 +357,68 @@ describe("collectElementHighlightUpdates", () => {
     ]);
     let interaction = createInteractionState();
     interaction = setElementSelected(interaction, { instanceId: "1/1", elementId: 0 }, true);
-    const updates = collectElementHighlightUpdates(runtime, layout, slotByInstanceId, interaction);
+    const updates = collectEmphasisUpdates(
+      runtime,
+      layout,
+      slotByInstanceId,
+      partsMap(scene),
+      interaction,
+    );
     expect(Array.from(updates.keys())).toEqual([1]);
     const list = updates.get(1) ?? [];
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ slot: 1, elementId: 0 });
+    expect(list[0]).toMatchObject({ slot: 1, elementPickId: 1 });
+  });
+
+  it("maps emphasized face and node occurrences to face and node records", () => {
+    const { scene, runtime } = elementScene();
+    const layout = buildInstanceLayout(runtime);
+    const slotByInstanceId = new Map([
+      ["1/0", 0],
+      ["1/1", 1],
+    ]);
+    let interaction = createInteractionState();
+    interaction = setFaceSelected(
+      interaction,
+      { instanceId: "1/0", elementId: 0, faceIndex: 1 },
+      true,
+    );
+    interaction = setNodeSelected(interaction, { instanceId: "1/1", nodeId: 2 }, true);
+    const updates = collectEmphasisUpdates(
+      runtime,
+      layout,
+      slotByInstanceId,
+      partsMap(scene),
+      interaction,
+    );
+    const list = updates.get(1) ?? [];
+    expect(list).toHaveLength(2);
+    expect(list[0]).toMatchObject({ slot: 0, facePickId: 2 });
+    expect(list[1]).toMatchObject({ slot: 1, nodePickId: 3 });
+  });
+
+  it("drops face refs whose face is absent from the part geometry", () => {
+    const { scene, runtime } = elementScene();
+    const layout = buildInstanceLayout(runtime);
+    const slotByInstanceId = new Map([["1/0", 0]]);
+    let interaction = createInteractionState();
+    interaction = setFaceSelected(
+      interaction,
+      { instanceId: "1/0", elementId: 0, faceIndex: 99 },
+      true,
+    );
+    const updates = collectEmphasisUpdates(
+      runtime,
+      layout,
+      slotByInstanceId,
+      partsMap(scene),
+      interaction,
+    );
+    expect(updates.get(1) ?? []).toEqual([]);
   });
 
   it("combines hover, selection, and overrides in deterministic order", () => {
-    const { runtime } = elementScene();
+    const { scene, runtime } = elementScene();
     const layout = buildInstanceLayout(runtime);
     const slotByInstanceId = new Map([
       ["1/0", 0],
@@ -270,18 +434,30 @@ describe("collectElementHighlightUpdates", () => {
       },
     );
     interaction = setHoveredElement(interaction, { instanceId: "1/0", elementId: 0 });
-    const updates = collectElementHighlightUpdates(runtime, layout, slotByInstanceId, interaction);
+    const updates = collectEmphasisUpdates(
+      runtime,
+      layout,
+      slotByInstanceId,
+      partsMap(scene),
+      interaction,
+    );
     expect((updates.get(1) ?? []).map((update) => update.slot)).toEqual([0, 1]);
   });
 
   it("drops refs whose instance is unknown or hidden from the layout", () => {
-    const { runtime } = elementScene();
+    const { scene, runtime } = elementScene();
     const layout = buildInstanceLayout(runtime);
     const slotByInstanceId = new Map([["1/0", 0]]);
     let interaction = createInteractionState();
     interaction = setElementSelected(interaction, { instanceId: "1/0", elementId: 0 }, true);
     interaction = setElementSelected(interaction, { instanceId: "stale", elementId: 0 }, true);
-    const updates = collectElementHighlightUpdates(runtime, layout, slotByInstanceId, interaction);
+    const updates = collectEmphasisUpdates(
+      runtime,
+      layout,
+      slotByInstanceId,
+      partsMap(scene),
+      interaction,
+    );
     expect((updates.get(1) ?? []).map((update) => update.slot)).toEqual([0]);
   });
 });
@@ -295,13 +471,20 @@ describe("syncElementHighlights", () => {
       patchInstances(draw, 1, [
         { slot: 0, data: encodeInstanceRecord(translation(0, 0, 0), defaultStyle, 1) },
       ]);
-      const { runtime } = elementScene();
+      const { scene, runtime } = elementScene();
       const layout = buildInstanceLayout(runtime);
       const slotByInstanceId = new Map([
         ["1/0", 0],
         ["1/1", 1],
       ]);
-      const sync = { device: gpu.device, draw, runtime, layout, slotByInstanceId };
+      const sync = {
+        device: gpu.device,
+        draw,
+        runtime,
+        layout,
+        slotByInstanceId,
+        parts: partsMap(scene),
+      };
       let interaction = createInteractionState();
       interaction = setElementSelected(interaction, { instanceId: "1/0", elementId: 0 }, true);
       syncElementHighlights(sync, interaction);

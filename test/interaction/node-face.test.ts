@@ -4,14 +4,26 @@ import {
   setFaceSelected,
   setHoveredFace,
   emphasizedFaceRefs,
+  resolveFaceStyle,
 } from "../../src/interaction/faces";
-import { createInteractionState } from "../../src/interaction/interaction";
+import { createInteractionState, type ResolvedStyle } from "../../src/interaction/interaction";
 import {
   setHoveredNode,
   setNodeHighlighted,
   setNodeSelected,
   emphasizedNodeRefs,
+  resolveNodeStyle,
 } from "../../src/interaction/nodes";
+import { identity } from "../../src/math/mat4";
+import type { Instance } from "../../src/scene/types";
+
+const base: ResolvedStyle = {
+  color: { r: 0.2, g: 0.3, b: 0.4, a: 1 },
+  emissive: 0,
+  opacity: 1,
+  edge: false,
+};
+const item: Instance = { index: 0, instanceId: "1/0", partId: 1, worldTransform: identity() };
 
 const nodeRef = { instanceId: "1/0", nodeId: 7 };
 const otherNodeRef = { instanceId: "1/0", nodeId: 8 };
@@ -76,5 +88,47 @@ describe("face emphasis collection", () => {
     state = setFaceHighlighted(state, otherFaceRef, true);
     state = setHoveredFace(state, faceRef);
     expect(emphasizedFaceRefs(state)).toEqual([faceRef, otherFaceRef]);
+  });
+});
+
+describe("resolveNodeStyle", () => {
+  it("applies node hover over the base instance style", () => {
+    const state = setHoveredNode(createInteractionState(), nodeRef);
+    expect(resolveNodeStyle(item, nodeRef, base, state)).toMatchObject({ emissive: 0.45 });
+    expect(resolveNodeStyle(item, otherNodeRef, base, state)).toBe(base);
+  });
+
+  it("applies node selection over hover", () => {
+    const state = setNodeSelected(setHoveredNode(createInteractionState(), nodeRef), nodeRef, true);
+    expect(resolveNodeStyle(item, nodeRef, base, state)).toMatchObject({
+      color: { r: 1, g: 0.42, b: 0.12, a: 1 },
+      emissive: 0.7,
+    });
+  });
+
+  it("applies node highlight under hover", () => {
+    const state = setNodeHighlighted(createInteractionState(), nodeRef, true);
+    expect(resolveNodeStyle(item, nodeRef, base, state)).toMatchObject({ emissive: 0.35 });
+  });
+});
+
+describe("resolveFaceStyle", () => {
+  it("applies face hover over the base instance style", () => {
+    const state = setHoveredFace(createInteractionState(), faceRef);
+    expect(resolveFaceStyle(item, faceRef, base, state)).toMatchObject({ emissive: 0.3 });
+    expect(resolveFaceStyle(item, otherFaceRef, base, state)).toBe(base);
+  });
+
+  it("applies face selection over hover", () => {
+    const state = setFaceSelected(setHoveredFace(createInteractionState(), faceRef), faceRef, true);
+    expect(resolveFaceStyle(item, faceRef, base, state)).toMatchObject({
+      color: { r: 0.45, g: 1, b: 0.4, a: 1 },
+      emissive: 0.5,
+    });
+  });
+
+  it("applies face highlight under hover", () => {
+    const state = setFaceHighlighted(createInteractionState(), faceRef, true);
+    expect(resolveFaceStyle(item, faceRef, base, state)).toMatchObject({ emissive: 0.35 });
   });
 });

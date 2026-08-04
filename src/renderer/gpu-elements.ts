@@ -1,25 +1,28 @@
-import type { Geometry } from "../geometry/part";
+import type { Geometry, Part } from "../geometry/part";
 import {
   emphasizedElementRefs,
   resolveElementStyle,
   type InteractionState,
   type ResolvedStyle,
 } from "../interaction/interaction";
+import { emphasizedFaceRefs, resolveFaceStyle } from "../interaction/faces";
+import { emphasizedNodeRefs, resolveNodeStyle } from "../interaction/nodes";
 import type { SceneRuntime } from "../scene-runtime/runtime";
-import type { InstanceId, PartId } from "../scene/types";
+import type { Instance, InstanceId, PartId } from "../scene/types";
 import type { DrawResources, InstanceStorage } from "./gpu-draw";
 import { defaultStyle } from "./gpu-support";
 import type { InstanceLayout } from "./runtime-state";
 
 /**
- * Byte stride of one element-highlight record. The layout mirrors the
- * `ElementHighlight` struct in `gpu-shaders.ts`:
+ * Byte stride of one emphasis record. The layout mirrors the `ElementHighlight`
+ * struct in `gpu-shaders.ts`:
  *
  * | offset | size | field |
  * | ------ | ---- | ----- |
  * | 0      | 4    | part-local instance slot (`u32`) |
  * | 4      | 4    | element pick id, `elementId + 1` (`u32`) |
- * | 8      | 8    | padding |
+ * | 8      | 4    | face pick id, `faceId + 1` (`u32`) |
+ * | 12     | 4    | node pick id, `nodeId + 1` (`u32`) |
  * | 16     | 16   | resolved color with opacity folded into alpha (`vec4<f32>`) |
  * | 32     | 4    | emissive (`f32`) |
  * | 36     | 12   | padding |
@@ -34,59 +37,89 @@ export const ELEMENT_RECORD_STRIDE = 48;
 export const HIGHLIGHT_HEADER = 16;
 
 /**
- * Initial element-highlight records allocated per part. The vertex shader
- * scans the runtime-sized records list, so the buffer grows on demand when a
- * selection exceeds this size and records are never dropped.
+ * Initial emphasis records allocated per part. The vertex shader scans the
+ * runtime-sized records list, so the buffer grows on demand when a selection
+ * exceeds this size and records are never dropped.
  */
 export const INITIAL_ELEMENT_HIGHLIGHTS = 128;
 
-/** One element-level emphasis record destined for a part's highlight buffer. */
-export interface ElementHighlightUpdate {
+/** One emphasis record destined for a part's highlight buffer. */
+export interface EmphasisUpdate {
   /** Part-local instance slot (matches the values in the draw-order buffer). */
   readonly slot: number;
-  /** The element id this record emphasizes. */
-  readonly elementId: number;
+  /** 1-based element pick id, `0` when the record emphasizes a face or node. */
+  readonly elementPickId: number;
+  /** 1-based face pick id, `0` when the record emphasizes an element or node. */
+  readonly facePickId: number;
+  /** 1-based node pick id, `0` when the record emphasizes an element or face. */
+  readonly nodePickId: number;
   readonly style: ResolvedStyle;
 }
 
 /**
- * Encodes one element-highlight record. The element is stored as its 1-based
- * pick id (`elementId + 1`) so the vertex shader compares it directly against
- * the per-triangle element pick ids.
+ * Encodes one emphasis record. Only one of the three pick ids is non-zero, so
+ * the vertex shader compares exactly one key against the per-triangle or
+ * per-vertex pick data.
  */
+export function encodeEmphasisRecord(update: EmphasisUpdate): ArrayBuffer {
+  const data = new ArrayBuffer(ELEMENT_RECORD_STRIDE);
+  const ids = new Uint32Array(data);
+  const floats = new Float32Array(data);
+  ids[0] = update.slot;
+  ids[1] = update.elementPickId;
+  ids[2] = update.facePickId;
+  ids[3] = update.nodePickId;
+  floats[4] = update.style.color.r;
+  floats[5] = update.style.color.g;
+  floats[6] = update.style.color.b;
+  floats[7] = update.style.color.a * update.style.opacity;
+  floats[8] = update.style.emissive;
+  return data;
+}
+
+/** Encodes an element-emphasis record (`elementId + 1` pick id). */
 export function encodeElementHighlight(
   slot: number,
   elementId: number,
   style: ResolvedStyle,
 ): ArrayBuffer {
-  const data = new ArrayBuffer(ELEMENT_RECORD_STRIDE);
-  const ids = new Uint32Array(data);
-  const floats = new Float32Array(data);
-  ids[0] = slot;
-  ids[1] = elementId + 1;
-  floats[4] = style.color.r;
-  floats[5] = style.color.g;
-  floats[6] = style.color.b;
-  floats[7] = style.color.a * style.opacity;
-  floats[8] = style.emissive;
-  return data;
+  return encodeEmphasisRecord({
+    slot,
+    elementPickId: elementId + 1,
+    facePickId: 0,
+    nodePickId: 0,
+    style,
+  });
 }
 
-/**
- * Builds the per-triangle element pick id map for a part: one `u32` per
- * triangle holding `elementId + 1` (0 = "no element"). Parts without element
- * descriptors produce an all-zero map.
- */
-export function buildElementTrianglePickIds(geometry: Geometry): Uint32Array {
-  const triangleCount = Math.floor(geometry.indices.length / 3);
-  const pickIds = new Uint32Array(triangleCount);
-  for (const element of geometry.elements ?? []) {
-    const end = element.triangleStart + element.triangleCount;
-    for (let triangle = element.triangleStart; triangle < end; triangle++) {
-      pickIds[triangle] = element.id + 1;
-    }
-  }
-  return pickIds;
+/** Encodes a face-emphasis record (`faceId + 1` pick id). */
+export function encodeFaceHighlight(
+  slot: number,
+  faceId: number,
+  style: ResolvedStyle,
+): ArrayBuffer {
+  return encodeEmphasisRecord({
+    slot,
+    elementPickId: 0,
+    facePickId: faceId + 1,
+    nodePickId: 0,
+    style,
+  });
+}
+
+/** Encodes a node-emphasis record (`nodeId + 1` pick id). */
+export function encodeNodeHighlight(
+  slot: number,
+  nodeId: number,
+  style: ResolvedStyle,
+): ArrayBuffer {
+  return encodeEmphasisRecord({
+    slot,
+    elementPickId: 0,
+    facePickId: 0,
+    nodePickId: nodeId + 1,
+    style,
+  });
 }
 
 /**
@@ -138,40 +171,129 @@ export function createHighlightStorage(
 }
 
 /**
- * Maps the currently emphasized element occurrences to per-part highlight
- * updates, in deterministic order. Refs whose instance is not part of the
- * layout are dropped so stale or hidden references never reach the GPU.
+ * Maps the currently emphasized occurrences (elements, faces, nodes) to
+ * per-part emphasis updates, in deterministic order. Refs whose instance is
+ * not part of the layout are dropped so stale or hidden references never reach
+ * the GPU.
  */
-export function collectElementHighlightUpdates(
+export function collectEmphasisUpdates(
   runtime: SceneRuntime,
   layout: InstanceLayout,
   slotByInstanceId: ReadonlyMap<InstanceId, number>,
+  parts: ReadonlyMap<PartId, Part>,
   interaction: InteractionState,
-): ReadonlyMap<PartId, ElementHighlightUpdate[]> {
-  const byPart = new Map<PartId, ElementHighlightUpdate[]>();
+): ReadonlyMap<PartId, EmphasisUpdate[]> {
+  const context = { runtime, layout, slotByInstanceId };
+  const byPart = new Map<PartId, EmphasisUpdate[]>();
+  const push = (partId: PartId, update: EmphasisUpdate): void => {
+    const list = byPart.get(partId);
+    if (list === undefined) byPart.set(partId, [update]);
+    else list.push(update);
+  };
+  collectElementEmphasis(context, interaction, push);
+  collectFaceEmphasis(context, parts, interaction, push);
+  collectNodeEmphasis(context, interaction, push);
+  return byPart;
+}
+
+/** The occurrence-resolution inputs shared by every emphasis collector. */
+interface EmphasisContext {
+  readonly runtime: SceneRuntime;
+  readonly layout: InstanceLayout;
+  readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
+}
+
+/** Collects element-level emphasis records (hover, selection, overrides). */
+function collectElementEmphasis(
+  context: EmphasisContext,
+  interaction: InteractionState,
+  push: (partId: PartId, update: EmphasisUpdate) => void,
+): void {
   for (const ref of emphasizedElementRefs(interaction)) {
-    const slot = slotByInstanceId.get(ref.instanceId);
-    if (slot === undefined) continue;
-    const partId = runtime.instancePartIds[slot];
-    const local = layout.slotPartLocal[slot];
-    if (partId === undefined || local === undefined || local < 0) continue;
+    const occurrence = occurrenceAt(context, ref.instanceId);
+    if (occurrence === undefined) continue;
     const style = resolveElementStyle(
-      {
-        index: slot,
-        instanceId: ref.instanceId,
-        partId,
-        worldTransform: runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
-      },
+      occurrence.instance,
       ref.elementId,
       defaultStyle,
       interaction,
     );
-    const update: ElementHighlightUpdate = { slot: local, elementId: ref.elementId, style };
-    const list = byPart.get(partId);
-    if (list === undefined) byPart.set(partId, [update]);
-    else list.push(update);
+    push(occurrence.instance.partId, {
+      slot: occurrence.local,
+      elementPickId: ref.elementId + 1,
+      facePickId: 0,
+      nodePickId: 0,
+      style,
+    });
   }
-  return byPart;
+}
+
+/** Collects face-level emphasis records, resolved to their part-local face id. */
+function collectFaceEmphasis(
+  context: EmphasisContext,
+  parts: ReadonlyMap<PartId, Part>,
+  interaction: InteractionState,
+  push: (partId: PartId, update: EmphasisUpdate) => void,
+): void {
+  for (const ref of emphasizedFaceRefs(interaction)) {
+    const occurrence = occurrenceAt(context, ref.instanceId);
+    if (occurrence === undefined) continue;
+    const faceId = parts
+      .get(occurrence.instance.partId)
+      ?.geometry.faces?.find(
+        (face) => face.elementId === ref.elementId && face.key === ref.faceKey,
+      )?.id;
+    if (faceId === undefined) continue;
+    const style = resolveFaceStyle(occurrence.instance, ref, defaultStyle, interaction);
+    push(occurrence.instance.partId, {
+      slot: occurrence.local,
+      elementPickId: 0,
+      facePickId: faceId + 1,
+      nodePickId: 0,
+      style,
+    });
+  }
+}
+
+/** Collects node-level emphasis records. */
+function collectNodeEmphasis(
+  context: EmphasisContext,
+  interaction: InteractionState,
+  push: (partId: PartId, update: EmphasisUpdate) => void,
+): void {
+  for (const ref of emphasizedNodeRefs(interaction)) {
+    const occurrence = occurrenceAt(context, ref.instanceId);
+    if (occurrence === undefined) continue;
+    const style = resolveNodeStyle(occurrence.instance, ref, defaultStyle, interaction);
+    push(occurrence.instance.partId, {
+      slot: occurrence.local,
+      elementPickId: 0,
+      facePickId: 0,
+      nodePickId: ref.nodeId + 1,
+      style,
+    });
+  }
+}
+
+/** Resolves a ref's instance slot to its part-local slot and part id. */
+function occurrenceAt(
+  context: EmphasisContext,
+  instanceId: InstanceId,
+): { readonly instance: Instance; readonly local: number } | undefined {
+  const slot = context.slotByInstanceId.get(instanceId);
+  if (slot === undefined) return undefined;
+  const partId = context.runtime.instancePartIds[slot];
+  const local = context.layout.slotPartLocal[slot];
+  if (partId === undefined || local === undefined || local < 0) return undefined;
+  return {
+    instance: {
+      index: slot,
+      instanceId,
+      partId,
+      worldTransform: context.runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
+    },
+    local,
+  };
 }
 
 /**
@@ -184,7 +306,7 @@ export function collectElementHighlightUpdates(
 export function writeElementHighlights(
   device: GPUDevice,
   storage: InstanceStorage,
-  updates: readonly ElementHighlightUpdate[],
+  updates: readonly EmphasisUpdate[],
 ): void {
   const count = updates.length;
   growHighlightStorage(device, storage, count);
@@ -197,10 +319,7 @@ export function writeElementHighlights(
     const update = updates[index];
     if (update === undefined) continue;
     const offset = HIGHLIGHT_HEADER + index * ELEMENT_RECORD_STRIDE;
-    next.set(
-      new Uint8Array(encodeElementHighlight(update.slot, update.elementId, update.style)),
-      offset,
-    );
+    next.set(new Uint8Array(encodeEmphasisRecord(update)), offset);
   }
   const previous = storage.highlight.data;
   const meaningful = HIGHLIGHT_HEADER + count * ELEMENT_RECORD_STRIDE;
@@ -249,29 +368,31 @@ function highlightCapacity(byteLength: number): number {
   return (byteLength - HIGHLIGHT_HEADER) / ELEMENT_RECORD_STRIDE;
 }
 
-/** The draw-path inputs needed to sync element-highlight buffers. */
+/** The draw-path inputs needed to sync emphasis buffers. */
 export interface ElementHighlightSync {
   readonly device: GPUDevice;
   readonly draw: DrawResources;
   readonly runtime: SceneRuntime;
   readonly layout: InstanceLayout;
   readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
+  readonly parts: ReadonlyMap<PartId, Part>;
 }
 
 /**
- * Recomputes every part's element-highlight buffer from the current interaction
- * state. Parts without emphasized elements are written with an empty record
- * list so previously applied emphasis is cleared; the diffing in
+ * Recomputes every part's emphasis buffer from the current interaction state.
+ * Parts without emphasized occurrences are written with an empty record list
+ * so previously applied emphasis is cleared; the diffing in
  * `writeElementHighlights` skips parts whose buffer is already up to date.
  */
 export function syncElementHighlights(
   sync: ElementHighlightSync,
   interaction: InteractionState,
 ): void {
-  const updates = collectElementHighlightUpdates(
+  const updates = collectEmphasisUpdates(
     sync.runtime,
     sync.layout,
     sync.slotByInstanceId,
+    sync.parts,
     interaction,
   );
   for (const [partId, storage] of sync.draw.storages) {

@@ -18,7 +18,7 @@ import {
   type ElementRenderMode,
   type TessellationOptions,
 } from "../../src/geometry/element-mesh";
-import { validateElements } from "../../src/geometry/part";
+import { validateElements, validatePickIds } from "../../src/geometry/part";
 
 type Vec3 = readonly [number, number, number];
 
@@ -298,6 +298,53 @@ describe("elementGeometry", () => {
       { id: 1, triangleStart: 0, triangleCount: 3 },
       { id: 2, triangleStart: 3, triangleCount: 3 },
     ]);
+  });
+
+  it("records per-vertex node pick ids and node positions", () => {
+    const geometry = elementGeometry(tet4Model(), "tet", "solid");
+    expect(geometry.nodePositions).toEqual(new Float32Array(TET_NODES));
+    expect(geometry.nodePickIds?.length).toBe(geometry.positions.length / 3);
+    const pickIds = geometry.nodePickIds;
+    if (pickIds === undefined) throw new Error("expected node pick ids");
+    expect(new Set(pickIds)).toEqual(new Set([1, 2, 3, 4]));
+    expect(pickIds).not.toContain(0);
+  });
+
+  it("marks interpolated quadratic quad centers as non-node vertices", () => {
+    const geometry = elementGeometry(hex20Model(), "hex", "solid");
+    const pickIds = geometry.nodePickIds;
+    if (pickIds === undefined) throw new Error("expected node pick ids");
+    expect(pickIds).toContain(0);
+    const vertexCount = geometry.positions.length / 3;
+    expect(pickIds.length).toBe(vertexCount);
+  });
+
+  it("records face pick ids, face descriptors, and neighbors per triangle", () => {
+    const solid = elementGeometry(sharedTetPairModel(), "tet", "solid");
+    expect(solid.facePickIds?.length).toBe(solid.indices.length / 3);
+    expect(solid.faces).toHaveLength(8);
+    solid.faces?.forEach((face, index) => {
+      expect(face.id).toBe(index);
+      expect(face.nodeIds.length).toBeGreaterThanOrEqual(3);
+      expect(face.key).toBeDefined();
+    });
+    expect(() => {
+      validatePickIds(solid);
+    }).not.toThrow();
+  });
+
+  it("reports the neighbor elements of an interior face", () => {
+    const solid = elementGeometry(sharedTetPairModel(), "tet", "solid");
+    const shared = solid.faces?.find(
+      (face) => face.elementId === 1 && face.neighborElementIds.length > 0,
+    );
+    expect(shared?.neighborElementIds).toEqual([2]);
+  });
+
+  it("exposes only boundary faces in surface mode", () => {
+    const surface = elementGeometry(sharedTetPairModel(), "tet", "surface");
+    expect(surface.faces).toHaveLength(6);
+    expect(surface.faces?.every((face) => face.neighborElementIds.length === 0)).toBe(true);
   });
 
   it("generates point sprites for point elements", () => {
