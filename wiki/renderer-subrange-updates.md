@@ -10,9 +10,13 @@ Each part owns two storage buffers (`src/renderer/gpu-draw.ts`):
 
 - **Record buffer** (`binding 0`): one 96-byte record per slot — column-major
   world transform (16 floats), resolved color with opacity folded into alpha
-  (4 floats), and a stable pick id. The buffer is indexed by the **part-local
-  slot** (`runtime-state.ts` maps global instance slots to part-local slots once
-  at attach), so slot `N` always lives at byte `N * 96` and never moves.
+  (4 floats), a stable pick id, and an emissive scalar that drives the
+  hover/highlight glow in the fragment shader. Field offsets are documented on
+  `EMISSIVE_BYTE_OFFSET` in `src/renderer/gpu-draw.ts` and mirrored by the
+  `Instance` struct in `src/renderer/gpu-shaders.ts`. The buffer is indexed by
+  the **part-local slot** (`runtime-state.ts` maps global instance slots to
+  part-local slots once at attach), so slot `N` always lives at byte `N * 96`
+  and never moves.
 - **Draw-order buffer** (`binding 1`): the compacted list of that part's visible
   part-local slots in ascending draw order. The vertex shader reads
   `instances[drawOrder[instanceIndex]]`, so hidden slots are never drawn and the
