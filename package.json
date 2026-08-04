@@ -34,6 +34,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "bench": "vitest bench",
+    "bench:budget": "vitest run --config vitest.budget.config.ts",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
     "preview": "vite preview"

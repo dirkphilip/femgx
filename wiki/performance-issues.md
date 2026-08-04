@@ -46,8 +46,10 @@ resource creation, `gpu-draw.ts` owns per-part geometry/instance buffers and dra
 submission, and `gpu-pick.ts` owns the pick targets and readback, with
 `gpu-renderer.ts` as a thin orchestrator. GPU instance buffers, picking, and
 resource lifecycle are mocked in CPU-only unit tests. Remaining work is GPU
-subrange delta updates wired to the packed runtime's visibility deltas,
-benchmarks, and WebGPU-capable browser coverage.
+subrange delta updates wired to the packed runtime's visibility deltas, and
+WebGPU-capable browser coverage (including true frame-time benchmarking; the
+CPU-side side of performance is covered by [[benchmarks|deterministic
+benchmarks and budgets]]).
 
 ### Remaining GPU allocation risks
 

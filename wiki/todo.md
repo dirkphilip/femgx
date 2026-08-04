@@ -59,9 +59,10 @@ development workflow.
       tests for projection, clipping, and resize behavior.
 - [x] Add Playwright tests for initial
       rendering, projection changes, pointer controls, reset, and no-WebGPU fallback.
-- [ ] Add benchmarks for hierarchy compilation, updates, draw batching, and
-      picking at representative model sizes.
-- [ ] Add performance budgets and regression checks to CI.
+- [x] Add benchmarks for hierarchy compilation, updates, draw batching, and
+      picking at representative model sizes (see [[benchmarks|Benchmarks]]).
+- [x] Add performance budgets and regression checks to CI (see
+      [[benchmarks|Benchmarks]]).
 - [x] Align the supported Node version across `package.json`, CI, and docs.
 - [ ] Add WebGPU-capable browser coverage to the demo/e2e strategy, with a CPU
       fallback for environments without WebGPU.
