@@ -62,19 +62,34 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   against the CPU encoder constants, so a `vec3`-style desync fails in CI
   instead of silently misrendering.
 
-## Edge display mode
+## Edge overlay
 
-- `DisplayMode` (`solid` | `edge`) selects whether the color pass also draws a
-  wireframe edge overlay. Edges are a deduplicated line list per part
-  (`buildMeshEdges`), uploaded once like the triangle buffers.
-- The overlay pipeline draws with depth writes off on top of the solid pass, so
-  hover/selection still show through the solid fill underneath; the edge pass
-  itself renders instance-level style only.
+- `StyleOverride` supports an `edge` flag (part- or instance-level). When the
+  resolved style of a visible instance requests it, the renderer draws that
+  instance's deduplicated mesh edges (`buildMeshEdges`) as a line overlay on
+  top of its solid surface pass — so a wireframe look does not hide the solid
+  fill underneath.
+- The overlay is addressed by a second compacted per-part draw-order list (the
+  **edge order**, `writeEdgeOrder`), a subset of the surface draw order holding
+  only the edge-styled visible slots. `updateInstances` tracks which parts'
+  edge membership flipped (via a CPU edge-flag mirror) and rewrites only those
+  parts' edge orders; visibility deltas rebuild both orders for the affected
+  parts. The edge pass uses a second cached bind group per part that addresses
+  the edge order buffer.
+- The overlay draws with depth writes off and `depthCompare` selected by
+  `WebGpuRenderer.setEdgeDepthTest`: on (default) uses `less-equal` so edges
+  occluded by nearer geometry are culled; off uses `always` so every edge shows
+  through the model. Two line-list pipelines are pre-created in
+  `gpu-pipelines.ts`.
+- The demo drives the overlay by applying an `{ edge: true }` part override to
+  every part (`Edge overlay` toggle) and flips the overlay depth compare with
+  the `Depth test` toggle.
+- The edge pass renders instance-level style only; per-element emphasis is not
+  drawn on edges because edges shared between adjacent elements have no
+  unambiguous element owner.
 
 ## Limits and follow-ups
 
 - Element emphasis is per-part bounded (`MAX_ELEMENT_HIGHLIGHTS`); very large
   multi-element selections render the first records only (tracked in
   [femgx#68](https://github.com/dirkphilip/femgx/issues/68)).
-- The edge overlay draws instance-level emphasis, not per-element edges, because
-  edges shared between adjacent elements have no unambiguous element owner.

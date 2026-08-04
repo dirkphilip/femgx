@@ -5,15 +5,14 @@ export interface DemoView {
   readonly canvas: HTMLCanvasElement;
   readonly projectionToggle: HTMLButtonElement;
   readonly projectionLabel: HTMLElement;
-  readonly displayModeToggle: HTMLButtonElement;
-  readonly displayModeLabel: HTMLElement;
+  readonly edgeOverlayToggle: HTMLButtonElement;
+  readonly edgeOverlayLabel: HTMLElement;
+  readonly depthTestToggle: HTMLButtonElement;
+  readonly depthTestLabel: HTMLElement;
   readonly modeButtons: readonly HTMLButtonElement[];
   readonly resetButton: HTMLButtonElement;
   readonly status: HTMLElement;
 }
-
-/** How the renderer draws the visible color pass. */
-export type DisplayMode = "solid" | "edge";
 
 /** Mutable camera holder so controls can replace the camera immutably. */
 export interface CameraRef {
@@ -28,8 +27,10 @@ export interface ControlContext {
   readonly partCount: number;
   readonly mode: () => ElementRenderMode;
   readonly onRender: () => void;
-  /** Applies the display mode to the underlying renderer. */
-  readonly setDisplayMode?: (mode: DisplayMode) => void;
+  /** Applies the edge overlay to the model (e.g. per-part style overrides). */
+  readonly setEdgeOverlay?: (enabled: boolean) => void;
+  /** Applies the edge depth-test flag to the underlying renderer. */
+  readonly setEdgeDepthTest?: (enabled: boolean) => void;
 }
 
 /** Locates the demo's DOM nodes, throwing when the page is misconfigured. */
@@ -40,16 +41,20 @@ export function queryDemoView(): DemoView {
   }
   const projectionToggle = document.querySelector<HTMLButtonElement>("#projection-toggle");
   const projectionLabel = document.querySelector<HTMLElement>("#projection-label");
-  const displayModeToggle = document.querySelector<HTMLButtonElement>("#display-mode");
-  const displayModeLabel = document.querySelector<HTMLElement>("#display-mode-label");
+  const edgeOverlayToggle = document.querySelector<HTMLButtonElement>("#edge-overlay");
+  const edgeOverlayLabel = document.querySelector<HTMLElement>("#edge-overlay-label");
+  const depthTestToggle = document.querySelector<HTMLButtonElement>("#depth-test");
+  const depthTestLabel = document.querySelector<HTMLElement>("#depth-test-label");
   const resetButton = document.querySelector<HTMLButtonElement>("#reset");
   const status = document.querySelector<HTMLElement>("#status");
   const modeButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-mode]"));
   if (
     projectionToggle === null ||
     projectionLabel === null ||
-    displayModeToggle === null ||
-    displayModeLabel === null ||
+    edgeOverlayToggle === null ||
+    edgeOverlayLabel === null ||
+    depthTestToggle === null ||
+    depthTestLabel === null ||
     resetButton === null ||
     status === null ||
     modeButtons.length === 0
@@ -60,8 +65,10 @@ export function queryDemoView(): DemoView {
     canvas,
     projectionToggle,
     projectionLabel,
-    displayModeToggle,
-    displayModeLabel,
+    edgeOverlayToggle,
+    edgeOverlayLabel,
+    depthTestToggle,
+    depthTestLabel,
     modeButtons,
     resetButton,
     status,
@@ -90,17 +97,38 @@ export function installProjectionControl(context: ControlContext): void {
   });
 }
 
-/** Wires the display-mode toggle to switch between solid and edge rendering. */
-export function installDisplayModeControl(context: ControlContext): void {
-  const { view, onRender, setDisplayMode } = context;
-  let mode: DisplayMode = "solid";
-  view.displayModeToggle.addEventListener("click", () => {
-    mode = mode === "solid" ? "edge" : "solid";
-    view.displayModeLabel.textContent = mode === "solid" ? "Solid" : "Edges";
-    view.displayModeToggle.textContent = mode === "solid" ? "Edges" : "Solid";
-    setDisplayMode?.(mode);
+/** Wires the edge-overlay toggle to apply or clear the edge style overrides. */
+export function installEdgeOverlayControl(context: ControlContext): void {
+  const { view, onRender, setEdgeOverlay } = context;
+  let enabled = false;
+  const reflect = (): void => {
+    view.edgeOverlayLabel.textContent = enabled ? "On" : "Off";
+    view.edgeOverlayToggle.textContent = enabled ? "Hide edges" : "Overlay edges";
+  };
+  view.edgeOverlayToggle.addEventListener("click", () => {
+    enabled = !enabled;
+    reflect();
+    setEdgeOverlay?.(enabled);
     onRender();
   });
+  reflect();
+}
+
+/** Wires the edge depth-test toggle to switch the overlay depth compare. */
+export function installDepthTestControl(context: ControlContext): void {
+  const { view, onRender, setEdgeDepthTest } = context;
+  let enabled = true;
+  const reflect = (): void => {
+    view.depthTestLabel.textContent = enabled ? "On" : "Off";
+    view.depthTestToggle.textContent = enabled ? "Depth test off" : "Depth test on";
+  };
+  view.depthTestToggle.addEventListener("click", () => {
+    enabled = !enabled;
+    reflect();
+    setEdgeDepthTest?.(enabled);
+    onRender();
+  });
+  reflect();
 }
 
 /** Wires the element mode buttons to switch the renderer's visible family. */

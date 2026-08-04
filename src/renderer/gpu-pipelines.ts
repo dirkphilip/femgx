@@ -24,8 +24,10 @@ export interface RenderResources {
   readonly cameraBuffer: GPUBuffer;
   readonly cameraBindGroup: GPUBindGroup;
   readonly pipelines: DrawPipelines;
-  /** Line-list overlay that draws the mesh edges in edge display mode. */
+  /** Depth-tested line overlay that draws the mesh edges in the edge pass. */
   readonly edgePipeline: GPURenderPipeline;
+  /** Line overlay with depth compare `always`, showing edges through surfaces. */
+  readonly edgeAlwaysPipeline: GPURenderPipeline;
   readonly instanceLayout: GPUBindGroupLayout;
 }
 
@@ -79,7 +81,8 @@ export function createRenderResources(
     cameraBindGroup,
     instanceLayout,
     pipelines: buildPipelines(device, layout, format, depthFormat),
-    edgePipeline: createEdgePipeline(device, layout, format, depthFormat),
+    edgePipeline: createEdgePipeline(device, layout, format, depthFormat, "less-equal"),
+    edgeAlwaysPipeline: createEdgePipeline(device, layout, format, depthFormat, "always"),
   };
 }
 
@@ -202,15 +205,18 @@ function createPipeline(
 }
 
 /**
- * Creates the line-list pipeline that overlays mesh edges on the color pass in
- * edge display mode. Depth writes stay off so the overlay never hides the
- * solid pass drawn underneath.
+ * Creates a line-list pipeline that overlays mesh edges on the color pass for
+ * the parts whose style requests it. Depth writes stay off so the overlay never
+ * hides the solid pass drawn underneath; the compare function selects whether
+ * edges occluded by nearer geometry are culled (`less-equal`) or drawn through
+ * everything (`always`).
  */
 function createEdgePipeline(
   device: GPUDevice,
   layout: GPUPipelineLayout,
   format: GPUTextureFormat,
   depthFormat: GPUTextureFormat,
+  depthCompare: GPUCompareFunction,
 ): GPURenderPipeline {
   return device.createRenderPipeline({
     layout,
@@ -225,7 +231,7 @@ function createEdgePipeline(
       targets: [{ format }],
     },
     primitive: { topology: "line-list", cullMode: "none" },
-    depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare: "less-equal" },
+    depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare },
   });
 }
 

@@ -81,7 +81,6 @@ export {
 } from "./runtime/culling";
 export {
   createWebGpuRenderer,
-  type DisplayMode,
   type WebGpuRenderer,
   type WebGpuRendererOptions,
 } from "./renderer/gpu-renderer";

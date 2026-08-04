@@ -56,12 +56,19 @@ test("switches projection and resets camera controls", async ({ page }) => {
   await expect(label).toHaveText("Perspective");
 });
 
-test("toggles between solid and edge display modes", async ({ page }) => {
+test("toggles the edge overlay and edge depth test", async ({ page }) => {
   await page.goto("/");
-  const label = page.getByTestId("display-mode-label");
-  await expect(label).toHaveText("Solid");
-  await page.getByTestId("display-mode").click();
-  await expect(label).toHaveText("Edges");
-  await page.getByTestId("display-mode").click();
-  await expect(label).toHaveText("Solid");
+  const overlayLabel = page.getByTestId("edge-overlay-label");
+  await expect(overlayLabel).toHaveText("Off");
+  await page.getByTestId("edge-overlay").click();
+  await expect(overlayLabel).toHaveText("On");
+  await page.getByTestId("edge-overlay").click();
+  await expect(overlayLabel).toHaveText("Off");
+
+  const depthLabel = page.getByTestId("depth-test-label");
+  await expect(depthLabel).toHaveText("On");
+  await page.getByTestId("depth-test").click();
+  await expect(depthLabel).toHaveText("Off");
+  await page.getByTestId("depth-test").click();
+  await expect(depthLabel).toHaveText("On");
 });

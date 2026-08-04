@@ -9,6 +9,7 @@ import {
 } from "./gpu-elements";
 import type { DrawPipelines } from "./gpu-pipelines";
 import { createBuffer, type PartResource } from "./gpu-support";
+import { writeDiffedRange, writeOrderBuffer } from "./gpu-writes";
 
 /** Byte size of one instance record in the per-part storage buffer. */
 export const INSTANCE_STRIDE = 96;
@@ -43,13 +44,16 @@ export interface DrawCall {
 
 /**
  * Persistent per-part GPU storage: a slot-stable record buffer, a compacted
- * draw-order buffer, and a fixed-capacity element-highlight buffer. Hidden
- * instances stay in the record buffer but are removed from the draw-order
- * list, so only visible geometry is ever drawn.
+ * draw-order buffer, a compacted edge-overlay order buffer, and a
+ * fixed-capacity element-highlight buffer. Hidden instances stay in the record
+ * buffer but are removed from the draw-order lists, so only visible geometry is
+ * ever drawn. The edge order holds the subset of visible instances whose
+ * resolved style requests the line-overlay pass.
  */
 export interface InstanceStorage {
   readonly buffer: GPUBuffer;
   readonly orderBuffer: GPUBuffer;
+  readonly edgeOrderBuffer: GPUBuffer;
   readonly highlight: HighlightStorage;
   readonly capacity: number;
   /** CPU mirror of the record buffer, kept in sync by the patch functions. */
@@ -58,8 +62,14 @@ export interface InstanceStorage {
   orderData: Uint32Array;
   /** Number of meaningful draw-order entries. */
   orderLength: number;
+  /** CPU mirror of the edge-overlay order buffer. */
+  edgeOrderData: Uint32Array;
+  /** Number of meaningful edge-overlay order entries. */
+  edgeOrderLength: number;
   /** Cached bind group; invalidated whenever the storage buffers grow. */
   bindGroup: GPUBindGroup | undefined;
+  /** Cached bind group addressing the edge-order buffer; invalidated on growth. */
+  edgeBindGroup: GPUBindGroup | undefined;
 }
 
 /** Per-part geometry and instance storage buffers owned by the draw path. */
@@ -102,10 +112,8 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
   if (existing !== undefined) return existing;
   const vertexBuffer = createBuffer(draw.device, part.geometry.positions, GPUBufferUsage.VERTEX);
   const indexBuffer = createBuffer(draw.device, part.geometry.indices, GPUBufferUsage.INDEX);
-  const edges =
-    part.geometry.primitive === undefined || part.geometry.primitive === "triangles"
-      ? buildMeshEdges(part.geometry)
-      : new Uint32Array(0);
+  const triangles = part.geometry.primitive !== "lines" && part.geometry.primitive !== "points";
+  const edges = triangles ? buildMeshEdges(part.geometry) : new Uint32Array(0);
   const elementPickIdsBuffer = createBuffer(
     draw.device,
     buildElementTrianglePickIds(part.geometry),
@@ -140,10 +148,9 @@ export function encodeInstanceRecord(
 ): ArrayBuffer {
   const data = new ArrayBuffer(INSTANCE_STRIDE);
   const floats = new Float32Array(data);
-  const ids = new Uint32Array(data);
+  new Uint32Array(data)[20] = pickId;
   floats.set(transform, 0);
   floats.set([style.color.r, style.color.g, style.color.b, style.color.a * style.opacity], 16);
-  ids[20] = pickId;
   floats[EMISSIVE_BYTE_OFFSET / 4] = style.emissive;
   return data;
 }
@@ -189,30 +196,30 @@ export function patchInstances(
  */
 export function writeDrawOrder(draw: DrawResources, partId: PartId, order: Uint32Array): void {
   const storage = ensureStorage(draw, partId, Math.max(1, order.length));
-  const mirror = storage.orderData;
-  const length = Math.max(order.length, storage.orderLength);
-  let rangeStart = -1;
-  for (let index = 0; index < length; index++) {
-    const next = index < order.length ? (order[index] ?? 0) : 0;
-    const previous = index < storage.orderLength ? (mirror[index] ?? 0) : 0;
-    const changed = index < order.length !== index < storage.orderLength || next !== previous;
-    if (changed && rangeStart < 0) rangeStart = index;
-    if ((!changed || index === length - 1) && rangeStart >= 0) {
-      const rangeEnd = changed && index === length - 1 ? index + 1 : index;
-      const chunk = new Uint32Array(rangeEnd - rangeStart);
-      for (let i = rangeStart; i < rangeEnd; i++) {
-        chunk[i - rangeStart] = i < order.length ? (order[i] ?? 0) : 0;
-      }
-      draw.device.queue.writeBuffer(storage.orderBuffer, rangeStart * 4, chunk);
-      rangeStart = -1;
-    }
-  }
-  mirror.set(order);
-  storage.orderLength = order.length;
+  storage.orderLength = writeOrderBuffer(
+    draw.device,
+    storage.orderBuffer,
+    storage.orderData,
+    order,
+    storage.orderLength,
+  );
 }
 
-/** Which index buffer a draw batch should use. */
-export type IndexSource = "triangles" | "edges";
+/**
+ * Replaces the compacted edge-overlay order list of a part (visible instances
+ * whose resolved style requests the line overlay). Like `writeDrawOrder`, only
+ * the changed u32 subranges reach the GPU.
+ */
+export function writeEdgeOrder(draw: DrawResources, partId: PartId, order: Uint32Array): void {
+  const storage = ensureStorage(draw, partId, Math.max(1, order.length));
+  storage.edgeOrderLength = writeOrderBuffer(
+    draw.device,
+    storage.edgeOrderBuffer,
+    storage.edgeOrderData,
+    order,
+    storage.edgeOrderLength,
+  );
+}
 
 /** Which fragment pass a batch targets. */
 export type PipelinePass = "color" | "pick";
@@ -223,8 +230,12 @@ export interface DrawBatchOptions {
   readonly pass?: PipelinePass;
   /** Explicit pipeline override for overlay passes such as the wireframe edges. */
   readonly pipeline?: GPURenderPipeline;
-  /** Which per-part index buffer to draw from; defaults to triangles. */
-  readonly index?: IndexSource;
+  /**
+   * Draws through the part's edge-overlay order and edge index buffers instead
+   * of the surface draw order, addressing only the instances whose style
+   * requests the line overlay.
+   */
+  readonly overlay?: boolean;
 }
 
 /**
@@ -242,7 +253,7 @@ export function drawBatches(
   options: DrawBatchOptions = {},
 ): void {
   const passKind = options.pass ?? "color";
-  const index = options.index ?? "triangles";
+  const overlay = options.overlay === true;
   pass.setBindGroup(0, context.cameraBindGroup);
   let current: GPURenderPipeline | undefined;
   for (const call of calls) {
@@ -257,25 +268,47 @@ export function drawBatches(
       pass.setPipeline(pipeline);
       current = pipeline;
     }
-    if (storage.bindGroup === undefined) {
-      storage.bindGroup = draw.device.createBindGroup({
-        layout: context.instanceLayout,
-        entries: [
-          { binding: 0, resource: { buffer: storage.buffer } },
-          { binding: 1, resource: { buffer: storage.orderBuffer } },
-          { binding: 2, resource: { buffer: geometry.elementPickIdsBuffer } },
-          { binding: 3, resource: { buffer: storage.highlight.buffer } },
-        ],
-      });
-    }
-    pass.setBindGroup(1, storage.bindGroup);
+    const group = orderBindGroup(draw.device, context.instanceLayout, storage, overlay, geometry);
+    pass.setBindGroup(1, group);
     pass.setVertexBuffer(0, geometry.vertexBuffer);
-    const edges = index === "edges";
-    const buffer = edges ? geometry.edgeIndexBuffer : geometry.indexBuffer;
-    const count = edges ? geometry.edgeIndexCount : geometry.indexCount;
+    const buffer = overlay ? geometry.edgeIndexBuffer : geometry.indexBuffer;
+    const count = overlay ? geometry.edgeIndexCount : geometry.indexCount;
     pass.setIndexBuffer(buffer, "uint32");
     pass.drawIndexed(count, call.instanceCount);
   }
+}
+
+/** Returns the cached per-part bind group addressing the surface or edge order. */
+function orderBindGroup(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  storage: InstanceStorage,
+  overlay: boolean,
+  geometry: PartResource,
+): GPUBindGroup {
+  const orderBuffer = overlay ? storage.edgeOrderBuffer : storage.orderBuffer;
+  return overlay
+    ? (storage.edgeBindGroup ??= instanceBindGroup(device, layout, storage, orderBuffer, geometry))
+    : (storage.bindGroup ??= instanceBindGroup(device, layout, storage, orderBuffer, geometry));
+}
+
+/** Creates the per-part bind group addressing the given order buffer. */
+function instanceBindGroup(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  storage: InstanceStorage,
+  orderBuffer: GPUBuffer,
+  geometry: PartResource,
+): GPUBindGroup {
+  return device.createBindGroup({
+    layout,
+    entries: [
+      { binding: 0, resource: { buffer: storage.buffer } },
+      { binding: 1, resource: { buffer: orderBuffer } },
+      { binding: 2, resource: { buffer: geometry.elementPickIdsBuffer } },
+      { binding: 3, resource: { buffer: storage.highlight.buffer } },
+    ],
+  });
 }
 
 /** Selects the color or pick pipeline for a part's primitive kind. */
@@ -305,6 +338,7 @@ export function destroyDrawResources(draw: DrawResources): void {
   for (const storage of draw.storages.values()) {
     storage.buffer.destroy();
     storage.orderBuffer.destroy();
+    storage.edgeOrderBuffer.destroy();
     storage.highlight.buffer.destroy();
   }
   draw.depthTexture?.destroy();
@@ -314,36 +348,43 @@ export function destroyDrawResources(draw: DrawResources): void {
 function ensureStorage(draw: DrawResources, partId: PartId, capacity: number): InstanceStorage {
   const existing = draw.storages.get(partId);
   if (existing !== undefined && existing.capacity >= capacity) return existing;
-  const size =
-    existing === undefined ? Math.max(1, capacity) : Math.max(capacity, existing.capacity * 2);
+  const size = Math.max(capacity, existing === undefined ? 1 : existing.capacity * 2);
   const buffer = draw.device.createBuffer({
     size: size * INSTANCE_STRIDE,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
-  const orderBuffer = draw.device.createBuffer({
-    size: size * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
+  const orderBuffer = createOrderBuffer(draw.device, size);
+  const edgeOrderBuffer = createOrderBuffer(draw.device, size);
   const mirror = new Uint8Array(size * INSTANCE_STRIDE);
   const orderData = new Uint32Array(size);
+  const edgeOrderData = new Uint32Array(size);
   const orderLength = existing?.orderLength ?? 0;
+  const edgeOrderLength = existing?.edgeOrderLength ?? 0;
   const highlight = existing?.highlight ?? createHighlightStorage(draw.device);
   if (existing !== undefined) {
     mirror.set(new Uint8Array(existing.data));
     orderData.set(existing.orderData.subarray(0, orderLength));
+    edgeOrderData.set(existing.edgeOrderData.subarray(0, edgeOrderLength));
   }
   const storage: InstanceStorage = {
     buffer,
     orderBuffer,
+    edgeOrderBuffer,
     highlight,
     capacity: size,
     data: mirror.buffer,
     orderData,
     orderLength,
+    edgeOrderData,
+    edgeOrderLength,
     bindGroup: undefined,
+    edgeBindGroup: undefined,
   };
   if (existing !== undefined && existing.orderLength > 0) {
     draw.device.queue.writeBuffer(orderBuffer, 0, orderData.subarray(0, orderLength));
+  }
+  if (existing !== undefined && existing.edgeOrderLength > 0) {
+    draw.device.queue.writeBuffer(edgeOrderBuffer, 0, edgeOrderData.subarray(0, edgeOrderLength));
   }
   if (existing !== undefined) {
     draw.device.queue.writeBuffer(buffer, 0, mirror);
@@ -352,34 +393,10 @@ function ensureStorage(draw: DrawResources, partId: PartId, capacity: number): I
   return storage;
 }
 
-/**
- * Writes the changed contiguous byte ranges of a region into a GPU buffer.
- * Each written range is expanded outward to a 4-byte boundary because
- * `GPUQueue.writeBuffer` rejects byte lengths and offsets that are not a
- * multiple of 4, and instance records change in sub-float byte increments
- * (for example a single alpha byte).
- */
-function writeDiffedRange(
-  device: GPUDevice,
-  buffer: GPUBuffer,
-  baseOffset: number,
-  next: Uint8Array<ArrayBuffer>,
-  previous: Uint8Array<ArrayBuffer>,
-): void {
-  let rangeStart = -1;
-  for (let index = 0; index < next.length; index++) {
-    const changed = next[index] !== previous[index];
-    if (changed && rangeStart < 0) rangeStart = index;
-    if ((!changed || index === next.length - 1) && rangeStart >= 0) {
-      const rangeEnd = changed && index === next.length - 1 ? index + 1 : index;
-      const alignedStart = rangeStart - (rangeStart % 4);
-      const alignedEnd = Math.min(next.length, rangeEnd + ((4 - (rangeEnd % 4)) % 4));
-      device.queue.writeBuffer(
-        buffer,
-        baseOffset + alignedStart,
-        next.subarray(alignedStart, alignedEnd),
-      );
-      rangeStart = -1;
-    }
-  }
+/** Creates a u32 storage buffer sized to the part's slot capacity. */
+function createOrderBuffer(device: GPUDevice, size: number): GPUBuffer {
+  return device.createBuffer({
+    size: size * 4,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
 }
