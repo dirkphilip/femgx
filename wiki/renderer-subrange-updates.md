@@ -44,6 +44,12 @@ Pick ids are `global slot + 1`, so they are **stable across visibility changes**
 - Style/transform/visibility updates are explicit: the app applies a runtime
   delta (or interaction change) and passes the affected slots. The renderer
   does not rescan the whole scene per frame.
+- `updateInstances` detects visibility changes by comparing the runtime's total
+  visible count against the cached layout count. Batching several visibility
+  deltas whose net count is unchanged (e.g. hiding one slot and showing another)
+  into a single `updateInstances` call can skip the draw-order rebuild and leave
+  a hidden slot drawn; follow the one-`updateInstances`-per-delta flow until
+  per-part visibility tracking replaces the global-count heuristic.
 - Bind groups are still created per batch per frame (see
   [[performance-issues|performance risks]]); only the record and order buffers
   are persistent.
