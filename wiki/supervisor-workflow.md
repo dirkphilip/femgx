@@ -49,10 +49,11 @@ sv stop               # interrupt workers and stop immediately
   rules.
 - Keep `.supervisor/config.local.toml`, `.supervisor/issues.json`, and
   `.supervisor/run/` local and ignored.
-- The shared defaults use two concurrent issue slots and keep automatic PR
-  repair disabled. Use `sv job repair ISSUE` deliberately when a PR needs a
-  repair pass; local overrides should only raise concurrency for independent
-  tasks with sufficient machine capacity.
+- The shared defaults use two concurrent issue slots while retaining automatic
+  PR repair. The lower cap limits token and resource contention when a repair
+  pass runs beside active work; local overrides should only raise concurrency
+  for independent tasks with sufficient machine capacity. Use `sv job repair
+ISSUE` for a deliberate manual pass.
 
 ## Repository-aware validation
 

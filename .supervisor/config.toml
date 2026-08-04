@@ -62,10 +62,11 @@ auto_merge = true
 # allow-list gate. The label must be added by the repo owner (or a trusted
 # agent), never by random contributors.
 auto_pull = true
-# Keep repair passes explicit. Automatic repair can repeatedly relaunch agents
-# while a PR is waiting on CI or human review; `sv job repair ISSUE` remains
-# available for a deliberate one-shot repair.
-repair = false
+# Automatically launch a one-shot PR repair pass when sync detects conflicts,
+# failing checks, or new review activity. The lower concurrency cap limits the
+# token and resource cost of repair alongside active implementation work.
+# Explicit `sv job repair ISSUE` remains available for a deliberate pass.
+repair = true
 # Built-in PR repair is not a workflow stage, so its agent watchdog policy is
 # declared here next to the repair toggle: a 10-minute meaningful-progress stall
 # budget and a five-minute startup grace before stall detection can intervene.

@@ -6,8 +6,8 @@ const CONFIG_PATH = fileURLToPath(new URL("../../.supervisor/config.toml", impor
 const configText = readFileSync(CONFIG_PATH, "utf8");
 
 describe("supervisor runtime defaults", () => {
-  it("keeps the default run conservative and repairs explicit", () => {
+  it("keeps concurrency conservative while retaining automatic repair", () => {
     expect(configText).toMatch(/^max_issues_per_run\s*=\s*2\s*$/m);
-    expect(configText).toMatch(/^repair\s*=\s*false\s*$/m);
+    expect(configText).toMatch(/^repair\s*=\s*true\s*$/m);
   });
 });
