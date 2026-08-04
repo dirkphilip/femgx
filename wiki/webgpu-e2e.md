@@ -42,8 +42,8 @@ RUN_WEBGPU=1 npx playwright test --project=chromium-webgpu
 The lane must never make the default CI lane flaky or depend on GPU hardware.
 Two layers keep it deterministic:
 
-1. **Demo probe** (`demo/main.ts`): after creating a WebGPU renderer the demo
-   renders one frame and requires a real pick hit near the model center. If
+1. **Demo probe** (`demo/webgpu-probe.ts`): after creating a WebGPU renderer the
+   demo renders one frame and requires a real pick hit near the model center. If
    presentation, rasterization, or pick readback are broken, it destroys the
    renderer and falls back to the deterministic CPU (2D canvas) path.
 2. **Spec skip**: each test skips cleanly (with a reason) when the demo did not
