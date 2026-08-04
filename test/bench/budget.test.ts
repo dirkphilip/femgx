@@ -6,6 +6,7 @@ import { flattenAssembly } from "../../src/runtime/flatten";
 import { translation } from "../../src/math/mat4";
 import { resolvePick } from "../../src/picking/pick";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
+import { buildInstanceLayout, computeRuntimeGrowth } from "../../src/renderer/runtime-state";
 import { createCamera, viewProjectionMatrix } from "../../src/camera/camera";
 import { parseChunk } from "../../src/streaming/parser";
 import { buildSpatialGrid, cullChunks } from "../../src/streaming/spatial";
@@ -51,6 +52,16 @@ const flattened = flattenAssembly({
 });
 
 const runtime = createSceneRuntime(shallowScene);
+
+const baseLayout = buildInstanceLayout(runtime);
+const grownScene = makeScene({
+  subcaseCount: BENCH_SUBCASE_COUNT + 10,
+  placementsPerSubcase: BENCH_PLACEMENTS_PER_SUBCASE,
+  partCount: BENCH_PART_COUNT,
+});
+const grownRuntime = createSceneRuntime(grownScene);
+const grownLayout = buildInstanceLayout(grownRuntime);
+const grownGrowth = computeRuntimeGrowth(runtime, grownRuntime, baseLayout, grownLayout);
 
 const viewProjection = makeViewProjection();
 
@@ -273,6 +284,15 @@ const budgets: readonly BudgetCase[] = [
       }
     },
   },
+  {
+    name: "progressive renderer attach delta",
+    description: `grow a ${BENCH_INSTANCE_COUNT}-instance runtime by 10 subcases (20 000 instances)`,
+    budgetMs: 400,
+    run: () => {
+      buildInstanceLayout(grownRuntime);
+      computeRuntimeGrowth(runtime, grownRuntime, baseLayout, grownLayout);
+    },
+  },
 ];
 
 function report(name: string, description: string, measuredMs: number): void {
@@ -300,5 +320,11 @@ describe("performance budgets", () => {
     );
     runtime.setPartVisible(1, true);
     expect(runtime.visibleCount).toBe(BENCH_INSTANCE_COUNT);
+  });
+
+  it("computes a compatible progressive growth delta for a grown chunked runtime", () => {
+    expect(grownGrowth).toBeDefined();
+    expect(grownGrowth?.newSlots).toHaveLength(BENCH_PLACEMENTS_PER_SUBCASE * 10);
+    expect(grownGrowth?.changedParts.size).toBe(BENCH_PART_COUNT);
   });
 });

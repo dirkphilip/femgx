@@ -1,34 +1,18 @@
 import type { Camera } from "../camera/camera";
 import type { Part } from "../geometry/part";
-import { createInteractionState, type InteractionState } from "../interaction/interaction";
+import type { InteractionState } from "../interaction/interaction";
 import type { DeviceLostInfo } from "../platform/device";
 import { requestWebGpuDevice } from "../platform/device";
 import { resolvePickTarget } from "../picking/pick";
 import type { SceneRuntime } from "../scene-runtime/runtime";
-import type { Instance, InstanceId, PartId, PickTarget } from "../scene/types";
-import { syncElementHighlights } from "./gpu-elements";
+import type { PartId, PickTarget } from "../scene/types";
+import { RendererAttachment } from "./attachment";
+import { destroyDrawResources } from "./gpu-draw";
 import { syncDeformations, validateDeformation, type DeformationState } from "./gpu-deform";
-import {
-  createDrawResources,
-  destroyDrawResources,
-  patchInstances,
-  writeDrawOrder,
-  writeEdgeOrder,
-  type DrawCall,
-} from "./gpu-draw";
 import { encodeFrame } from "./gpu-frame";
 import { destroyPickTargets, readPickPixel, resetPickTargets } from "./gpu-pick";
 import { destroyRenderResources } from "./gpu-pipelines";
 import { createGpuBundle, GpuDeviceLifecycle } from "./gpu-recovery";
-import { collectInstanceUpdates } from "./instance-updates";
-import {
-  buildDrawCalls,
-  buildDrawOrder,
-  buildEdgeOrder,
-  buildInstanceLayout,
-  buildInstanceSnapshot,
-  type InstanceLayout,
-} from "./runtime-state";
 
 /** Options for creating a WebGPU renderer. */
 export interface WebGpuRendererOptions {
@@ -112,13 +96,7 @@ class GpuRenderer implements WebGpuRenderer {
   private readonly depthFormat = "depth24plus" as GPUTextureFormat;
   private readonly lifecycle: GpuDeviceLifecycle;
   private readonly pointSize: number;
-  private runtime: SceneRuntime | undefined;
-  private layout: InstanceLayout | undefined;
-  private calls: readonly DrawCall[] = [];
-  private edgeCalls: readonly DrawCall[] = [];
-  private instances: Instance[] = [];
-  private slotByInstanceId = new Map<InstanceId, number>();
-  private edgeFlags: boolean[] = [];
+  private readonly attachment = new RendererAttachment();
   private edgeDepthTest = true;
   private deformation: DeformationState | undefined;
   private destroyed = false;
@@ -149,7 +127,7 @@ class GpuRenderer implements WebGpuRenderer {
 
   public render(runtime: SceneRuntime, camera: Camera, parts: ReadonlyMap<PartId, Part>): void {
     this.ensureAlive();
-    this.attach(runtime);
+    this.attachment.attach(runtime, this.lifecycle.bundle);
     syncDeformations(this.lifecycle.bundle.draw, this.deformation);
     encodeFrame(camera, parts, {
       canvas: this.canvas,
@@ -157,8 +135,8 @@ class GpuRenderer implements WebGpuRenderer {
       device: this.lifecycle.bundle.device,
       draw: this.lifecycle.bundle.draw,
       resources: this.lifecycle.bundle.resources,
-      calls: this.calls,
-      edgeCalls: this.edgeCalls,
+      calls: this.attachment.calls,
+      edgeCalls: this.attachment.edgeCalls,
       pickTargets: this.lifecycle.bundle.pickTargets,
       depthFormat: this.depthFormat,
       edgeDepthTest: this.edgeDepthTest,
@@ -179,44 +157,17 @@ class GpuRenderer implements WebGpuRenderer {
     changedInstanceIds: readonly number[],
   ): void {
     this.ensureAlive();
-    this.attach(runtime);
-    const layout = this.layout;
-    if (layout === undefined) return;
-    const { updates, edgeChanged } = collectInstanceUpdates(
+    this.attachment.updateInstances(
       runtime,
-      layout,
       interaction,
-      this.edgeFlags,
       changedInstanceIds,
+      this.lifecycle.bundle,
     );
-    for (const [partId, partUpdates] of updates) {
-      patchInstances(this.lifecycle.bundle.draw, partId, partUpdates);
-    }
-    if (edgeChanged.size > 0) {
-      this.rebuildEdgeOrders(runtime, layout, edgeChanged);
-    }
-    if (runtime.visibleCount !== layout.visibleCount) {
-      this.rebuildVisibleOrders(runtime, layout, changedInstanceIds);
-    } else if (edgeChanged.size > 0) {
-      this.rebuildCalls();
-    }
   }
 
   public updateElements(runtime: SceneRuntime, interaction: InteractionState): void {
     this.ensureAlive();
-    this.attach(runtime);
-    const layout = this.layout;
-    if (layout === undefined) return;
-    syncElementHighlights(
-      {
-        device: this.lifecycle.bundle.device,
-        draw: this.lifecycle.bundle.draw,
-        runtime,
-        layout,
-        slotByInstanceId: this.slotByInstanceId,
-      },
-      interaction,
-    );
+    this.attachment.updateElements(runtime, interaction, this.lifecycle.bundle);
   }
 
   public setEdgeDepthTest(enabled: boolean): void {
@@ -226,16 +177,12 @@ class GpuRenderer implements WebGpuRenderer {
 
   public updateVisibility(runtime: SceneRuntime, changedInstanceIds: readonly number[]): void {
     this.ensureAlive();
-    this.attach(runtime);
-    const layout = this.layout;
-    if (layout === undefined) return;
-    this.rebuildVisibleOrders(runtime, layout, changedInstanceIds);
+    this.attachment.updateVisibility(runtime, changedInstanceIds, this.lifecycle.bundle);
   }
 
   public async pick(x: number, y: number): Promise<PickTarget | undefined> {
     this.ensureAlive();
-    const runtime = this.runtime;
-    if (runtime === undefined) return undefined;
+    if (this.attachment.runtime === undefined) return undefined;
     const { instancePickId, elementPickId } = await readPickPixel(
       this.lifecycle.bundle.device,
       this.canvas,
@@ -243,7 +190,7 @@ class GpuRenderer implements WebGpuRenderer {
       x,
       y,
     );
-    return resolvePickTarget(this.instances, instancePickId, elementPickId);
+    return resolvePickTarget(this.attachment.instances, instancePickId, elementPickId);
   }
 
   public resize(width = this.canvas.clientWidth, height = this.canvas.clientHeight): void {
@@ -272,93 +219,12 @@ class GpuRenderer implements WebGpuRenderer {
   public async recover(): Promise<void> {
     if (this.destroyed) throw new Error("WebGPU renderer has been destroyed");
     if (await this.lifecycle.recover()) {
-      this.runtime = this.layout = undefined;
-      this.calls = this.edgeCalls = [];
+      this.attachment.clear();
     }
   }
 
   private ensureAlive(): void {
     if (this.destroyed) throw new Error("WebGPU renderer has been destroyed");
     this.lifecycle.ensureUsable();
-  }
-
-  private attach(runtime: SceneRuntime): void {
-    if (
-      this.runtime === runtime &&
-      this.layout !== undefined &&
-      this.layout.instanceCount === runtime.instanceCount
-    ) {
-      return;
-    }
-    destroyDrawResources(this.lifecycle.bundle.draw);
-    this.lifecycle.bundle.draw = createDrawResources(this.lifecycle.bundle.device);
-    const layout = buildInstanceLayout(runtime);
-    const snapshot = buildInstanceSnapshot(runtime);
-    this.instances = snapshot.instances;
-    this.slotByInstanceId = snapshot.slotByInstanceId;
-    this.edgeFlags = new Array<boolean>(runtime.instanceCount).fill(false);
-    const allSlots = Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
-    const { updates } = collectInstanceUpdates(
-      runtime,
-      layout,
-      createInteractionState(),
-      this.edgeFlags,
-      allSlots,
-    );
-    for (const [partId, partUpdates] of updates) {
-      patchInstances(this.lifecycle.bundle.draw, partId, partUpdates);
-    }
-    for (const partId of layout.partOrder) {
-      writeDrawOrder(this.lifecycle.bundle.draw, partId, buildDrawOrder(layout, runtime, partId));
-    }
-    this.runtime = runtime;
-    this.layout = layout;
-    this.rebuildCalls();
-  }
-
-  private rebuildVisibleOrders(
-    runtime: SceneRuntime,
-    layout: InstanceLayout,
-    changedInstanceIds: readonly number[],
-  ): void {
-    const affected = new Set<PartId>();
-    for (const slot of changedInstanceIds) {
-      if (slot < 0 || slot >= runtime.instanceCount) continue;
-      const partId = runtime.instancePartIds[slot];
-      if (partId !== undefined) affected.add(partId);
-    }
-    const rebuild = affected.size > 0 ? affected : new Set(layout.partOrder);
-    for (const partId of rebuild) {
-      const order = buildDrawOrder(layout, runtime, partId);
-      writeDrawOrder(this.lifecycle.bundle.draw, partId, order);
-      layout.partVisibleCounts.set(partId, order.length);
-    }
-    this.rebuildEdgeOrders(runtime, layout, rebuild);
-    layout.visibleCount = runtime.visibleCount;
-    this.rebuildCalls();
-  }
-
-  private rebuildEdgeOrders(
-    runtime: SceneRuntime,
-    layout: InstanceLayout,
-    parts: ReadonlySet<PartId>,
-  ): void {
-    for (const partId of parts) {
-      const order = buildEdgeOrder(layout, runtime, partId, this.edgeFlags);
-      writeEdgeOrder(this.lifecycle.bundle.draw, partId, order);
-      layout.partEdgeCounts.set(partId, order.length);
-    }
-  }
-
-  private rebuildCalls(): void {
-    const layout = this.layout;
-    if (layout === undefined) {
-      this.calls = [];
-      this.edgeCalls = [];
-      return;
-    }
-    const built = buildDrawCalls(layout);
-    this.calls = built.calls;
-    this.edgeCalls = built.edgeCalls;
   }
 }

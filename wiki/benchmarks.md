@@ -14,25 +14,26 @@ several multiples, so budgets are only meaningful on clean timing runs.
 
 ### Covered workloads
 
-| Case                        | Model                            | Workload                     |
-| --------------------------- | -------------------------------- | ---------------------------- |
-| `flattenAssembly`           | shallow 200 000 instances        | full depth-first flatten     |
-| `compileScene`              | shallow 200 000 instances        | flatten + batch              |
-| `compileScene` with culling | shallow 200 000 instances        | flatten + cull + batch       |
-| `createSceneRuntime`        | shallow 200 000 instances        | packed compile               |
-| `createSceneRuntime` (deep) | balanced tree, 204 800 instances | nested transform composition |
-| `batchInstancesByPart`      | 200 000 instances / 200 parts    | group by part                |
-| `cullInstances`             | 200 000 instances                | sphere-in-frustum test       |
-| `setPartVisible` toggle     | part with 1 000 instances        | hide then show               |
-| `setAssemblyVisible` toggle | subcase with 2 000 instances     | hide then show               |
-| `setInstanceVisible` toggle | single instance                  | override, hide then show     |
-| `setNodeTransform`          | 2 000-instance subtree           | recompose subtree worlds     |
-| `getDrawList`               | 200 000 visible                  | rebuild draw list            |
-| `resolvePick`               | 50 000 lookups on 200 000        | O(1) index resolution        |
-| `parseChunk`                | 500 chunks / 3 000 000 vertices  | validate + bound + rebase    |
-| `buildSpatialGrid`          | 500 chunks                       | uniform-grid partition       |
-| `cullChunks`                | 500 chunks against one frustum   | cell-then-chunk culling      |
-| `createChunkStream`         | 500 chunks / 3 000 000 vertices  | deterministic budgeted load  |
+| Case                                | Model                            | Workload                     |
+| ----------------------------------- | -------------------------------- | ---------------------------- |
+| `flattenAssembly`                   | shallow 200 000 instances        | full depth-first flatten     |
+| `compileScene`                      | shallow 200 000 instances        | flatten + batch              |
+| `compileScene` with culling         | shallow 200 000 instances        | flatten + cull + batch       |
+| `createSceneRuntime`                | shallow 200 000 instances        | packed compile               |
+| `createSceneRuntime` (deep)         | balanced tree, 204 800 instances | nested transform composition |
+| `batchInstancesByPart`              | 200 000 instances / 200 parts    | group by part                |
+| `cullInstances`                     | 200 000 instances                | sphere-in-frustum test       |
+| `setPartVisible` toggle             | part with 1 000 instances        | hide then show               |
+| `setAssemblyVisible` toggle         | subcase with 2 000 instances     | hide then show               |
+| `setInstanceVisible` toggle         | single instance                  | override, hide then show     |
+| `setNodeTransform`                  | 2 000-instance subtree           | recompose subtree worlds     |
+| `getDrawList`                       | 200 000 visible                  | rebuild draw list            |
+| `resolvePick`                       | 50 000 lookups on 200 000        | O(1) index resolution        |
+| `parseChunk`                        | 500 chunks / 3 000 000 vertices  | validate + bound + rebase    |
+| `buildSpatialGrid`                  | 500 chunks                       | uniform-grid partition       |
+| `cullChunks`                        | 500 chunks against one frustum   | cell-then-chunk culling      |
+| `createChunkStream`                 | 500 chunks / 3 000 000 vertices  | deterministic budgeted load  |
+| `progressive renderer attach delta` | 200 000 instances + 10 subcases  | layout + growth delta        |
 
 ### Stable model sizes and warmup rules
 

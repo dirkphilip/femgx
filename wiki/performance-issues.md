@@ -43,9 +43,11 @@ with rotation/scale coverage in `test/mat4.test.ts`.
 The renderer is split into focused modules under `src/renderer/` (see
 [[source-organization|Source organization]]): `gpu-pipelines.ts` owns pipeline and
 resource creation, `gpu-draw.ts` owns per-part geometry/instance buffers and draw
-submission, `gpu-pick.ts` owns the pick targets and readback, and
+submission, `gpu-pick.ts` owns the pick targets and readback,
 `runtime-state.ts` bridges the [[packed-runtime|packed runtime]] slots to
-part-local storage. `gpu-renderer.ts` is a thin orchestrator.
+part-local storage, and `attachment.ts` owns the renderer's CPU-side scene
+attachment (layout, calls, pick snapshot, incremental growth). `gpu-renderer.ts`
+is a thin orchestrator.
 
 _Resolved_: packed visibility/transform/style deltas are now wired into GPU
 subrange writes (`WebGpuRenderer.updateInstances` patches slot-stable record
@@ -117,11 +119,9 @@ and product gaps, tracked in `wiki/todo.md` and the issue tracker:
   library does not yet spawn a worker. Node's native TS type-stripping cannot
   resolve this repo's extensionless imports, and a browser worker needs a
   second bundle entry, so the thread host was left out of the first pass.
-- **Level of detail**: coarse/fine chunk variants and per-LOD budgets are not
-  implemented; the grid is a reasonable partition to hang LOD off later.
-- **Renderer integration**: the WebGPU renderer still rebuilds all draw
-  resources when the runtime changes, so chunked _GPU_ upload would require a
-  progressive add-part path rather than a full `attach` rebuild.
+- **Level of detail**: coarse/fine chunk variants and distance-based detail
+  selection are implemented (see [[large-model-streaming|Large-model streaming]]);
+  per-LOD upload budgets remain future work.
 - **64-bit coordinates**: the local-origin rebase is the documented precision
   strategy; float64 vertex positions are not supported by current WebGPU.
 
