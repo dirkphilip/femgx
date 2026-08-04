@@ -10,7 +10,9 @@ canonical description.
 - `src/math/` — matrix/vector math (`mat4`).
 - `src/geometry/` — reusable part geometry and computed bounds.
 - `src/elements/` — typed finite-element model: shape/topology definitions
-  (`shapes.ts`) and validated element construction (`element.ts`); pure CPU-side
+  (`shapes.ts`), validated element construction (`element.ts`), oriented face
+  extraction and classification (`faces.ts`), unique edge extraction
+  (`edges.ts`), plus internal helpers (`keys.ts`, `indices.ts`); pure CPU-side
   data with no WebGPU coupling (see [[elements-topology|Element topology]]).
 - `src/scene/` — authoritative CPU model: part/assembly/instance identities
   (`types.ts`), assemblies, and the scene builder.

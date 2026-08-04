@@ -40,6 +40,40 @@ Connectivity lists corners first, then mid-edge nodes in canonical edge order.
 pairs), and `edgeNodes` (aligned with `edges`), which is the foundation for
 extracting faces/lines and generating unit geometry.
 
+## Faces and edges
+
+Built on the topology, `src/elements/faces.ts` and `src/elements/edges.ts`
+extract deterministic polygon and line output:
+
+- `facesOf(element)` returns the element's faces as oriented polygon loops
+  (`ElementFace { key, nodeIds }`). Faces follow the VTK face tables with
+  right-hand-rule winding, so a face loop gives an outward normal for a
+  right-handed (positive-Jacobian) element; in conforming meshes a shared face
+  appears with opposite windings in its two incident elements.
+- Quadratic shapes expand each face/edge with their mid-edge nodes, so a Tet10
+  face is a six-node loop and a Hex20 face an eight-node loop, interleaving
+  `[corner, mid, corner, ...]`.
+- Point and line elements have no faces; `edgesOf` exposes a line's single edge
+  (including its mid node for `LINE3_SHAPE`).
+- `classifyFaces(elements)` deduplicates coincident faces by a canonical key
+  (sorted node ids) and flags boundary faces — those shared by exactly one
+  element (`count === 1`); shared faces get `count === 2` and are interior.
+- `uniqueEdges(elements)` deduplicates edges across elements, presents each
+  edge in ascending corner order with the mid node centered, and sorts the
+  result in ascending node order.
+- The canonical keys (`FaceKey`/`EdgeKey`) are stable identity strings suitable
+  for serialization, and the loops themselves are renderer-uploadable node-id
+  polygons. Helpers: `canonicalKey` (`keys.ts`) and bounds-checked `at`
+  (`indices.ts`), both internal.
+
+### Known edge-order difference vs VTK
+
+The Hex20 mid-edge connectivity slots 18/19 in `shapes.ts` are associated with
+vertical edges `[2,6]`/`[3,7]`, which is the **opposite** of VTK's edge order
+(`{3,7}`/`{2,6}`). Extraction here is internally consistent, but VTK-ordered
+import files would swap those two mid nodes. See
+https://github.com/dirkphilip/femgx/issues/66.
+
 ## Validation
 
 `createElement` throws on:
@@ -56,7 +90,7 @@ topology in `src/elements/shapes.ts`. Nothing here couples topology to WebGPU.
 
 ## Future work
 
-- Polygon extraction: map each element's `nodeIds` (via `corners`/`edges`) to
-  triangles/lines for the renderer.
 - Renderer support and element-level picking: assign stable pick targets to
   elements instead of only parts/instances.
+- Triangulation: fan or midpoint triangles for the polygon loops so the
+  renderer can tessellate hex faces.

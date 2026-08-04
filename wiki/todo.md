@@ -78,6 +78,9 @@ development workflow.
 - [x] Add a typed finite-element model with point, line, Tet4/Tet10, Hex8/Hex20
       shapes, canonical VTK node ordering, and connectivity validation (see
       [[elements-topology|Element topology]]).
+- [x] Extract oriented polygon faces (with quadratic mid-edge nodes) and unique
+      element edges, with canonical-key deduplication and boundary/interior
+      face classification (see [[elements-topology|Element topology]]).
 
 ## Improvement work items
 

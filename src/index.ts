@@ -20,6 +20,14 @@ export {
   type ElementShape,
   type ElementTopology,
 } from "./elements/shapes";
+export {
+  classifyFaces,
+  facesOf,
+  type ClassifiedFace,
+  type ElementFace,
+  type FaceKey,
+} from "./elements/faces";
+export { edgesOf, uniqueEdges, type EdgeKey, type ElementEdge } from "./elements/edges";
 export { batchInstancesByPart, type InstanceBatch } from "./runtime/batch";
 export {
   createInteractionState,
