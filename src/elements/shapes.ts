@@ -105,7 +105,7 @@ type SupportedShapeKey = { [F in ElementFamily]: ShapeKeyOf<F> }[ElementFamily];
  * Compile-time-exhaustive topology registry.
  *
  * The `satisfies` constraint ties the keys to `SupportedShapeKey` (derived from
- * `ElementFamily` and `SUPPORTED_ORDERS`), so a missing or mis-keyed topology
+ * `ElementFamily` and `SupportedOrder`), so a missing or mis-keyed topology
  * fails the build instead of surfacing only at runtime.
  */
 const TOPOLOGY_REGISTRY = {
