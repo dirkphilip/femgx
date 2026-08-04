@@ -19,8 +19,9 @@ development workflow.
 - [x] Compile authoring maps into packed typed-array storage for placements,
       parents, transforms, visibility, and instance metadata (see
       [[packed-runtime|Packed scene runtime]]).
-- [ ] Add dirty-subtree transform propagation so unchanged branches are not
-      re-flattened or re-multiplied.
+- [x] Add dirty-subtree transform propagation so unchanged branches are not
+      re-flattened or re-multiplied (see
+      [[packed-runtime|Packed scene runtime]]).
 - [x] Make visibility updates delta-based with bitsets or ranges; avoid copying
       whole maps and sets for each hide/show operation (see
       [[packed-runtime|Packed scene runtime]]).
