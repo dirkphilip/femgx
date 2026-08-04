@@ -8,8 +8,9 @@ tessellation trade-offs. Related: [[elements-topology|Element topology]] and
 
 1. `createElementModel` (`src/elements/model.ts`) validates a CPU-side model:
    dense node ids plus typed elements (`src/elements/element.ts`).
-2. `extractFaces` / `extractEdges` (`src/elements/faces.ts`) express each
-   element's faces and edges in the element's own node ids. Face loops use the
+2. `facesOf` / `classifyFaces` (`src/elements/faces.ts`) and `edgesOf` /
+   `uniqueEdges` (`src/elements/edges.ts`) express each element's faces and
+   edges in the element's own node ids. Face loops use the
    canonical VTK corner order; quadratic mid-edge nodes are aligned with the
    edges they bisect, so geometry is never fabricated.
 3. `elementGeometry` (`src/geometry/element-mesh.ts`) tessellates the model into
