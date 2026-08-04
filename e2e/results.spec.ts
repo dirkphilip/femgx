@@ -123,6 +123,35 @@ test("load-case stepping swaps the result data", async ({ page }) => {
   );
 });
 
+test("playback advances load cases over time with interpolated deformation", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("results-canvas");
+  const play = page.getByTestId("results-play-toggle");
+  await expect(canvas).toHaveAttribute("data-playing", "0");
+  await expect(canvas).toHaveAttribute("data-case", "0");
+
+  await page.getByTestId("results-deformed-toggle").click();
+  await expect(canvas).toHaveAttribute("data-deformed", "1");
+  const before = await pixelHash(canvas);
+
+  await play.click();
+  await expect(canvas).toHaveAttribute("data-playing", "1");
+  await expect(play).toContainText("Pause");
+
+  await expect.poll(() => canvas.getAttribute("data-case"), { timeout: 4000 }).toBe("1");
+  await expect
+    .poll(async () => (await canvas.getAttribute("data-blend")) !== "0.000", {
+      timeout: 4000,
+    })
+    .toBe(true);
+
+  expect(await pixelHash(canvas), "playback must redraw the scene").not.toBe(before);
+
+  await play.click();
+  await expect(canvas).toHaveAttribute("data-playing", "0");
+  await expect(play).toContainText("Play");
+});
+
 async function setScale(scale: Locator, value: number): Promise<void> {
   await scale.evaluate((element: HTMLInputElement, next: number) => {
     element.value = String(next);

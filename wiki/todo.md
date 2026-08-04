@@ -103,8 +103,11 @@ development workflow.
 - [x] Demonstrate undeformed/deformed shape and scalar (von Mises)
       visualization with load-case stepping in the CPU results demo and
       deterministic e2e coverage.
-- [ ] GPU-side deformed rendering (per-instance vertex displacement) and a
-      dedicated animation API remain follow-ups (see [[results|Results]]).
+- [x] Add a dedicated load-case playback API (`CasePlayer`) with configurable
+      case duration, wrap/clamp looping, and optional displacement
+      interpolation between adjacent cases (see [[results|Results]]).
+- [ ] GPU-side deformed rendering (per-instance vertex displacement) remains a
+      follow-up (see [[results|Results]]).
 
 ## Improvement work items
 

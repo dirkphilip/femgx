@@ -63,6 +63,24 @@ vector field times a `scale` factor. Vertex index `i` corresponds to node index
 `i` (geometry may cover a subset of nodes); missing displacements leave the
 original vertex in place.
 
+## Load-case playback (`case-player.ts`)
+
+`createCasePlayer(cases, options)` builds an immutable `CasePlayer` over an
+ordered list of nodal displacement fields (validated to share a count and unit).
+`advanceCase(player, deltaSeconds)` advances playback in time and returns a new
+player: `caseIndex` moves through the cases, wrapping back to the first by
+default or clamping at the last (`loop: "wrap" | "clamp"`), and `caseDuration`
+controls the seconds per case. `sampleDisplacements(player)` serves the active
+displacement field — the source field directly when not blending, or a
+component-wise linear blend into the next case when `interpolate` is enabled.
+`nextCaseIndex`/`blend` expose the transition so consumers can keep other
+per-case data (stresses, derived fields) in sync.
+
+The player is delta-oriented: it only selects and serves the active fields and
+never rebuilds geometry, so per-frame stepping is a cheap index/time update
+plus an optional interpolated field. `NaN` components propagate through the
+blend, matching the field conventions.
+
 ## Demo
 
 `demo/results-fixture.ts` + `demo/results-demo.ts` render a triangulated
@@ -72,20 +90,22 @@ cantilever plate through the deterministic CPU 2D renderer:
   fields, von Mises derived through the library, and one intentionally missing
   stress element;
 - controls for undeformed/deformed, scalar/plain coloring, a deformation scale
-  slider, and load-case stepping;
+  slider, manual load-case stepping, and a play/pause loop that advances cases
+  over time via the case player with interpolated deformation;
 - the shared color map is built from the observed range over both load cases;
   switching cases demonstrates clipping when values exceed the map range.
 
 `e2e/results.spec.ts` exercises the demo deterministically (the default e2e lane
-runs the CPU renderer) by comparing canvas pixel hashes across each toggle.
+runs the CPU renderer) by comparing canvas pixel hashes across each toggle, and
+covers playback by observing the case index and blend progress advance.
 
 ## Status / follow-ups
 
 - GPU-side per-instance deformed rendering (per-instance vertex displacement)
   is not implemented; deformation today is computed CPU-side. Scalar colors
   already flow through the GPU per-instance color attribute.
-- Animation and load-case _stepping_ are demonstrated by swapping fields in the
-  demo; there is no dedicated animation API yet.
+- Load-case playback and displacement interpolation are provided by the
+  `CasePlayer` API and demonstrated in the demo.
 
 Related: [[elements-topology|Element topology]], [[fe-fixture|FE fixture]],
 [[interactive-state|Interactive state]], [[architecture-overview|Architecture
