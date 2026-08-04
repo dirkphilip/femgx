@@ -22,6 +22,10 @@ canonical description.
   visibility updates (`createSceneRuntime`).
 - `src/camera/` — immutable orbit camera and projection math.
 - `src/interaction/` — centralized highlight/selection/hover/override state.
+- `src/results/` — typed engineering result fields (scalar/vector/tensor over
+  nodes or elements), derived quantities (magnitude, von Mises, principal
+  values), value ranges, scalar color mapping with thresholds/legends, and
+  deformed-shape geometry; pure CPU-side data (see [[results|Results]]).
 - `src/picking/` — CPU-side pick-id resolution.
 - `src/renderer/` — WebGPU renderer split into focused modules:
   `gpu-renderer.ts` (thin orchestrator and public API),

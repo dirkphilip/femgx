@@ -109,3 +109,43 @@ export type {
   PartId,
   PickTarget,
 } from "./scene/types";
+export {
+  FIELD_COMPONENT_COUNT,
+  TENSOR_COMPONENT,
+  createResultField,
+  scalarAt,
+  tensorAt,
+  vectorAt,
+  type AnyResultField,
+  type FieldLocation,
+  type FieldShape,
+  type ResultField,
+  type ResultFieldOptions,
+  type ScalarField,
+  type Tensor6,
+  type TensorField,
+  type VectorField,
+} from "./results/fields";
+export { finiteRange, scalarRange, type ValueRange } from "./results/range";
+export {
+  magnitude,
+  magnitudeField,
+  magnitudes,
+  maxPrincipalField,
+  principalValues,
+  principals,
+  tensorMagnitude,
+  vonMises,
+  vonMisesField,
+  vonMisesValues,
+} from "./results/derived";
+export {
+  createScalarColorMap,
+  legend,
+  mapScalar,
+  type ColorStop,
+  type LegendEntry,
+  type ScalarColorMap,
+  type ScalarColorMapOptions,
+} from "./results/mapping";
+export { deformGeometry, deformPositions } from "./results/deform";

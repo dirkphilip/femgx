@@ -12,6 +12,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   geometry is reused via GPU instancing.
 - [[elements-topology|Element topology]] — typed finite-element shapes, canonical
   node ordering, connectivity validation, and oriented face/edge extraction.
+- [[results|Results, deformation, and scalar visualization]] — typed result
+  fields, derived quantities, ranges, color mapping, and deformed-shape data.
 - [[packed-runtime|Packed scene runtime]] — packed typed-array storage and
   delta-oriented visibility updates.
 - [[renderer-subrange-updates|Renderer subrange updates]] — packed deltas wired
