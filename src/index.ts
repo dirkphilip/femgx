@@ -6,6 +6,20 @@ export type {
   SubAssemblyPlacement,
 } from "./scene/assembly";
 export { computeBounds, type Bounds, type Geometry, type Part } from "./geometry/part";
+export { createElement, type Element, type ElementId, type NodeId } from "./elements/element";
+export {
+  HEX20_SHAPE,
+  HEX8_SHAPE,
+  LINE3_SHAPE,
+  LINE_SHAPE,
+  POINT_SHAPE,
+  TET10_SHAPE,
+  TET4_SHAPE,
+  topologyFor,
+  type ElementFamily,
+  type ElementShape,
+  type ElementTopology,
+} from "./elements/shapes";
 export { batchInstancesByPart, type InstanceBatch } from "./runtime/batch";
 export {
   createInteractionState,

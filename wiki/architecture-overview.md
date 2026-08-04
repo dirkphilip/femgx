@@ -30,6 +30,9 @@ scene is authoritative; the renderer syncs deltas from it.
   instanced draws, and asynchronous pick readback.
 - `src/geometry/part.ts` — part geometry + computed bounds. Parts are immutable
   and own no transforms.
+- `src/elements/` — typed finite-element model: shape/topology definitions and a
+  validated `createElement` constructor, independent of the renderer
+  (see [[elements-topology|Element topology]]).
 - `src/math/mat4.ts` — column-major 4x4 math
   (identity/translation/scale/rotation/multiply).
 - `src/picking/pick.ts` — CPU-side pick-id resolution (`resolvePick`,
