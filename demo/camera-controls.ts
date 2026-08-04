@@ -11,8 +11,9 @@ export interface CameraControlOptions {
 }
 
 /**
- * Wires drag-orbit, shift-drag pan, and scroll zoom to the canvas. Each pointer
- * move and wheel event renders exactly once through `onRender`.
+ * Wires CAD-style orbit, pan, and scroll zoom to the canvas. Left drag orbits;
+ * middle drag (or shift-left drag) pans. Each pointer move and wheel event
+ * renders exactly once through `onRender`.
  */
 export function installCameraControls(options: CameraControlOptions): void {
   const { canvas, cameraRef, onMove, onRender } = options;
@@ -27,7 +28,8 @@ export function installCameraControls(options: CameraControlOptions): void {
     if (pointer !== undefined) {
       const dx = event.clientX - pointer.x;
       const dy = event.clientY - pointer.y;
-      cameraRef.camera = event.shiftKey
+      const shouldPan = event.shiftKey || (event.buttons & 4) !== 0;
+      cameraRef.camera = shouldPan
         ? panCamera(cameraRef.camera, dx / 100, -dy / 100)
         : orbitCamera(cameraRef.camera, -dx / 180, -dy / 180);
       pointer = { x: event.clientX, y: event.clientY };
