@@ -42,4 +42,31 @@ describe("camera", () => {
     expect(controlled).not.toBe(camera);
     expect(camera.position).toEqual([3, 3, 5]);
   });
+
+  it("maps the perspective near and far planes to WebGPU [0, 1] depth", () => {
+    const camera = resizeCamera(
+      createCamera({ position: [0, 0, 0], target: [0, 0, -1], near: 1, far: 100 }),
+      800,
+      600,
+    );
+    const nearDepth = projectPoint(camera, [0, 0, -1])?.[2] ?? NaN;
+    const farDepth = projectPoint(camera, [0, 0, -100])?.[2] ?? NaN;
+    expect(nearDepth).toBeCloseTo(0);
+    expect(farDepth).toBeCloseTo(1);
+  });
+
+  it("maps the orthographic near and far planes to WebGPU [0, 1] depth", () => {
+    const camera = resizeCamera(
+      setProjection(
+        createCamera({ position: [0, 0, 0], target: [0, 0, -1], near: 1, far: 100 }),
+        "orthographic",
+      ),
+      800,
+      600,
+    );
+    const nearDepth = projectPoint(camera, [0, 0, -1])?.[2] ?? NaN;
+    const farDepth = projectPoint(camera, [0, 0, -100])?.[2] ?? NaN;
+    expect(nearDepth).toBeCloseTo(0);
+    expect(farDepth).toBeCloseTo(1);
+  });
 });

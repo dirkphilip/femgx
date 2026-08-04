@@ -133,7 +133,12 @@ export function viewMatrix(camera: Camera): Mat4 {
   ]);
 }
 
-/** Returns the column-major projection matrix. */
+/**
+ * Returns the column-major projection matrix.
+ * Assumes a right-handed view space with a -Z forward axis. Depth maps to
+ * `[0, 1]` to match the WebGPU clip-space convention: a point at the near
+ * plane gets `clip.z = 0` and a point at the far plane gets `clip.z = w`.
+ */
 export function projectionMatrix(camera: Camera): Mat4 {
   const aspect = camera.width / camera.height;
   if (camera.mode === "orthographic") {
@@ -150,11 +155,11 @@ export function projectionMatrix(camera: Camera): Mat4 {
       0,
       0,
       0,
-      -2 / (camera.far - camera.near),
+      -1 / (camera.far - camera.near),
       0,
       0,
       0,
-      -(camera.far + camera.near) / (camera.far - camera.near),
+      -camera.near / (camera.far - camera.near),
       1,
     ]);
   }
@@ -170,11 +175,11 @@ export function projectionMatrix(camera: Camera): Mat4 {
     0,
     0,
     0,
-    (camera.far + camera.near) / (camera.near - camera.far),
+    camera.far / (camera.near - camera.far),
     -1,
     0,
     0,
-    (2 * camera.far * camera.near) / (camera.near - camera.far),
+    (camera.far * camera.near) / (camera.near - camera.far),
     0,
   ]);
 }
@@ -184,7 +189,11 @@ export function viewProjectionMatrix(camera: Camera): Mat4 {
   return multiply(projectionMatrix(camera), viewMatrix(camera));
 }
 
-/** Projects a world point into pixel coordinates, or returns undefined if invalid. */
+/**
+ * Projects a world point into pixel coordinates, or returns undefined if the
+ * point is at or behind the camera. The third component is the NDC depth, in
+ * the `[0, 1]` convention used by the projection matrix.
+ */
 export function projectPoint(
   camera: Camera,
   point: Vec3,
