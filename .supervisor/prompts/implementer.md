@@ -55,9 +55,12 @@ run a final safety-net rebase before submission.
 
 Read repository guidance (`AGENTS.md`, `.cursor/rules`, and project docs)
 before editing. Implement the smallest complete solution and add/update focused
-tests in the codebase when behavior changes. Do not run the test suite, full
-repository validation, or repeated lint loops; CI runs those after the PR
-exists. Before handoff, run the repository's pre-commit gate at most once.
+tests in the codebase when behavior changes. Do not run the full test suite,
+full repository validation, or repeated lint loops during implementation; the
+reviewer and CI cover those after the PR exists. Run focused checks for changed
+files and the smallest relevant unit-test selection. Before handoff, run the
+repository's pre-commit gate at most once. Do not invoke the `quality-gate`
+skill during implementation.
 
 The quality gate is repository-aware: detect the repository's configured
 quality commands before running them by reading `AGENTS.md` (or equivalent repo
@@ -68,15 +71,11 @@ the commands those files define instead of a fixed list.
 Python/uv repositories keep the generic gate:
 `uv run pre-commit run --all-files`.
 
-For this TypeScript/npm repository the npm gate is authoritative — format, lint,
-typecheck, unit tests with coverage, build, and e2e:
-
-`npm run format`
-`npm run lint`
-`npm run typecheck`
-`npm run test:coverage`
-`npm run build`
-`npm run test:e2e`
+For this TypeScript/npm repository, use focused commands such as
+`npx prettier --check <changed-files>`, `npx eslint <changed-files>`,
+`npm run typecheck`, and `npm test -- <relevant-test-file>`. Do not run
+coverage, the full e2e suite, or the full build during implementation unless a
+focused investigation requires it.
 
 Do not push, create or update PRs, start agents, alter secrets, deploy, touch
 other worktrees, rewrite `$base_branch`, or change remotes. Use `gh` only to check for duplicate critical workflow issues, file one when

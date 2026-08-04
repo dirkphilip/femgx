@@ -1,11 +1,13 @@
 ---
 name: quality-gate
-description: Run the full femgx quality gate before finishing any change: typecheck, lint, unit tests with coverage, format, and Playwright e2e. Use when a change touches src, test, demo, or e2e, and before any handoff/PR.
+description: Run the full femgx quality gate during review or final integration: typecheck, lint, unit tests with coverage, format, and Playwright e2e. Implementation and repair workers use focused checks instead.
 ---
 
-# Quality Gate
+# Review quality gate
 
-Every femgx change must pass the full gate. Run these from the repo root:
+Run this gate once during the reviewer stage or final integration from the repo
+root. Implementation and repair workers must follow
+`.supervisor/WORKER_PROTOCOL.md` and use focused checks instead.
 
 ```sh
 npm run typecheck

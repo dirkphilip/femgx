@@ -48,9 +48,11 @@ You own local Git here. Fetch `origin/$base_branch` and continue or redo the
 rebase as needed (`git rebase --autostash` when dirty). Commit focused
 non-rebase repairs when needed. Do not ask the supervisor to rebase for you.
 
-Read repository guidance before editing. Do not run the test suite or full
-repository validation; CI runs those. Before handoff, run the repository's
-pre-commit gate at most once.
+Read repository guidance before editing. Do not run the full test suite or full
+repository validation during this one-shot repair; CI and the reviewer cover
+those after the repair. Run focused checks for the files and failure being
+repaired. Before handoff, run the repository's pre-commit gate at most once.
+Do not invoke the `quality-gate` skill during repair.
 
 The quality gate is repository-aware: detect the repository's configured
 quality commands before running them by reading `AGENTS.md` (or equivalent repo
@@ -58,15 +60,12 @@ guidance), the package-manager manifest (`package.json` for npm,
 `pyproject.toml` + `uv.lock` for Python/uv), and the CI workflow config; run
 the commands those files define instead of a fixed list.
 
-For a Python/uv repository that is `uv run pre-commit run --all-files`. For this
-TypeScript/npm repository the npm gate is authoritative — format, lint,
-typecheck, unit tests with coverage, build, and e2e:
-`npm run format`
-`npm run lint`
-`npm run typecheck`
-`npm run test:coverage`
-`npm run build`
-`npm run test:e2e`
+For a Python/uv repository that is `uv run pre-commit run --all-files`. For
+this TypeScript/npm repository, use focused commands such as
+`npx prettier --check <changed-files>`, `npx eslint <changed-files>`,
+`npm run typecheck`, and `npm test -- <relevant-test-file>`. Do not run
+coverage, the full e2e suite, or the full build during repair unless the repair
+specifically requires a focused reproduction.
 
 Do not push, call `gh`, create or update PRs, start agents, alter secrets,
 deploy, touch other worktrees, rewrite `$base_branch`, or change remotes.

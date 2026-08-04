@@ -27,8 +27,10 @@ agent_startup_grace_seconds = 300
 # Caps concurrent agent-capable jobs for `sv run` (and auto-pull).
 # A job holds a slot from queue through merge — including open PRs that may
 # still launch a repair pass — not only active implement/review workers.
-# Override this in config.local.toml when your machine has different capacity.
-max_issues_per_run = 3
+# Override this in config.local.toml only when tasks are known to be independent.
+# Two slots limit rebase conflicts and local resource contention while keeping
+# the workflow parallel for unrelated issues.
+max_issues_per_run = 2
 
 [logging]
 # Levels: debug, info, warning, error, critical.
@@ -61,8 +63,9 @@ auto_merge = true
 # agent), never by random contributors.
 auto_pull = true
 # Automatically launch a one-shot PR repair pass when sync detects conflicts,
-# failing checks, or new review activity. Explicit `sv job repair` still works
-# when false. Uses prompts/pr-repair.md (bundled; not a [[stages]] entry).
+# failing checks, or new review activity. The lower concurrency cap limits the
+# token and resource cost of repair alongside active implementation work.
+# Explicit `sv job repair ISSUE` remains available for a deliberate pass.
 repair = true
 # Built-in PR repair is not a workflow stage, so its agent watchdog policy is
 # declared here next to the repair toggle: a 10-minute meaningful-progress stall

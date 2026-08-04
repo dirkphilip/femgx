@@ -49,25 +49,39 @@ sv stop               # interrupt workers and stop immediately
   rules.
 - Keep `.supervisor/config.local.toml`, `.supervisor/issues.json`, and
   `.supervisor/run/` local and ignored.
+- The shared defaults use two concurrent issue slots while retaining automatic
+  PR repair. The lower cap limits token and resource contention when a repair
+  pass runs beside active work; local overrides should only raise concurrency
+  for independent tasks with sufficient machine capacity. Use `sv job repair
+ISSUE` for a deliberate manual pass.
 
-## Repository-aware quality gate
+## Repository-aware validation
 
 The worker prompts (`prompts/implementer.md`, `prompts/reviewer.md`,
-`prompts/pr-repair.md`) do not hardcode a single quality gate. They instruct
-agents to detect the repository's configured quality commands before running
-them by reading `AGENTS.md`, the package-manager manifest (`package.json` for
-npm, `pyproject.toml` + `uv.lock` for Python/uv), and the CI workflow config.
+`prompts/pr-repair.md`) detect the repository's configured commands by reading
+`AGENTS.md`, the package-manager manifest (`package.json` for npm,
+`pyproject.toml` + `uv.lock` for Python/uv), and the CI workflow config.
+
+Validation is stage-specific so implementation time is not spent repeating the
+same expensive gate before the code is ready for review:
+
+- Implement and repair workers run focused formatting, lint, typecheck, and
+  relevant test checks. They do not run coverage, the full build, or the full
+  e2e suite.
+- The reviewer runs the full repository gate once before submission.
+- CI remains authoritative for the published PR.
 
 - Python/uv repositories keep the generic gate: `uv run pre-commit run --all-files`
   before implement/repair handoff, plus `uv run pytest --cov=sv --cov-branch
 --cov-report=term-missing` during review.
-- TypeScript/npm repositories (like femgx) use the npm gate: `npm run format`,
+- TypeScript/npm reviewers (like femgx) use the npm gate: `npm run format`,
   `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `npm run build`,
   and `npm run test:e2e`. This mirrors `.github/workflows/ci.yml`.
 
 `test/supervisor/worker-contract.test.ts` locks this behavior: prompts must be
-repository-aware, keep the npm gate authoritative, scope uv/pytest commands to
-Python repositories, and preserve the handoff/progress contract.
+repository-aware, keep the full npm gate in review, keep it out of
+implementation/repair, scope uv/pytest commands to Python repositories, and
+preserve the handoff/progress contract.
 
 ## Pull request mode and merge behavior
 

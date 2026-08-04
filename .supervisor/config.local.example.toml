@@ -9,8 +9,9 @@ branch_prefix = "yourname/supervisor-"
 [runner]
 # Caps concurrent agent-capable jobs for `sv run` (and auto-pull).
 # A job holds a slot from queue through merge, including open PRs that may
-# still launch a repair pass.
-max_issues_per_run = 3
+# still launch a repair pass. Keep this at two unless the tasks are known to be
+# independent and the machine has enough CPU/memory for additional worktrees.
+max_issues_per_run = 2
 
 [agent]
 # Choose the provider installed and authenticated on this machine:

@@ -162,14 +162,14 @@ When working as a coding agent inside a Supervisor-managed worktree:
 2. Edit only the assigned worktree. Add focused tests when behavior changes.
    The quality gate is repository-aware: detect the repository's configured
    quality commands before running them (`AGENTS.md`, package-manager
-   manifest, CI workflows). Before implement/repair handoff run the
-   repository's pre-commit gate at most once (Python/uv:
-   `uv run pre-commit run --all-files`). During review, run the detected gate
-   once: Python/uv repos run pre-commit plus the coverage-enabled test suite
-   (`uv run pytest --cov=sv --cov-branch --cov-report=term-missing`), and
-   TypeScript/npm repos run the npm gate (`npm run format`, `npm run lint`,
-   `npm run typecheck`, `npm run test:coverage`, `npm run build`,
-   `npm run test:e2e`). Own local Git in the worktree
+   manifest, CI workflows). Implementation and repair workers run focused
+   checks and the repository's pre-commit gate at most once. During review,
+   run the detected full gate once: Python/uv repos run pre-commit plus the
+   coverage-enabled test suite (`uv run pytest --cov=sv --cov-branch
+   --cov-report=term-missing`), and TypeScript/npm repos run the npm gate
+   (`npm run format`, `npm run lint`, `npm run typecheck`,
+   `npm run test:coverage`, `npm run build`, `npm run test:e2e`). Own local Git
+   in the worktree
    (fetch, rebase onto the base branch, commit).
 3. Do not push, call `gh`, create pull requests, start another agent, rewrite
    the base branch, change remotes, or change secrets and deployments.

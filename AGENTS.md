@@ -181,20 +181,29 @@ These exist in `package.json`:
 - `npm run test:e2e:install` — install the Playwright Chromium browser.
 - `npm run preview` — preview the built demo.
 
-After any edit, agents must run: `npm run lint`, `npm run typecheck`, `npm test`,
-`npm run bench:budget`, and `npm run format`, and leave the repo clean. CI
-enforces the same gate automatically on every push/PR (see
-`.github/workflows/ci.yml`).
+During interactive development and reviewer handoffs, agents must run:
+`npm run lint`, `npm run typecheck`, `npm test`, `npm run bench:budget`, and
+`npm run format`, and leave the repo clean. Supervisor implementation and repair
+workers follow the stage-specific validation policy below. CI enforces the full
+gate automatically on every push/PR (see `.github/workflows/ci.yml`).
 
 ## Agent Workflow Rules
 
 - Read AGENTS.md (this file) and follow it on every change.
-- After any edit: run `npm run lint`, `npm run typecheck`, `npm test` (and format) and
-  leave the repo clean.
+- For interactive edits, run `npm run lint`, `npm run typecheck`, `npm test`,
+  and format, then leave the repo clean.
 - Keep changes small and reviewable; one logical change per PR/commit.
 - Follow the existing file/type conventions — do not introduce parallel abstractions.
 - Do not add comments to code unless they explain non-obvious design decisions.
 - Update this file when the architecture or commands materially change.
+
+### Supervisor worker validation
+
+The normal local quality gate applies to interactive development and reviewer
+handoffs. Supervisor implementation and repair workers follow
+`.supervisor/WORKER_PROTOCOL.md`: they run focused checks for the files they
+changed and do not repeat the full repository gate. The reviewer runs the full
+gate once before submission, and CI remains authoritative for the published PR.
 
 ## Clean Code as a First-Class Duty
 
