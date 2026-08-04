@@ -60,9 +60,9 @@ describe("createElement", () => {
   });
 
   it("rejects an unsupported shape order", () => {
-    expect(() => createElement(1, { family: "tet", order: 3 }, [0, 1, 2, 3])).toThrow(
-      "Unsupported element shape",
-    );
+    expect(() =>
+      createElement(1, { family: "tet", order: 3 as ElementShape["order"] }, [0, 1, 2, 3]),
+    ).toThrow("Unsupported element shape");
   });
 
   it("rejects negative node ids", () => {

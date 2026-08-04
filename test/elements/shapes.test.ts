@@ -98,10 +98,24 @@ describe("topologyFor", () => {
     }
   });
 
+  it("registers a topology whose family and order match every exported shape", () => {
+    for (const [_name, shape] of ALL_SHAPES) {
+      const topology = topologyFor(shape);
+      expect(topology.family).toBe(shape.family);
+      expect(topology.order).toBe(shape.order);
+    }
+  });
+
   it("throws for an unsupported order", () => {
-    expect(() => topologyFor({ family: "tet", order: 3 })).toThrow("Unsupported element shape");
-    expect(() => topologyFor({ family: "hex", order: 3 })).toThrow("Unsupported element shape");
-    expect(() => topologyFor({ family: "line", order: 3 })).toThrow("Unsupported element shape");
+    expect(() => topologyFor({ family: "tet", order: 3 as ElementShape["order"] })).toThrow(
+      "Unsupported element shape",
+    );
+    expect(() => topologyFor({ family: "hex", order: 3 as ElementShape["order"] })).toThrow(
+      "Unsupported element shape",
+    );
+    expect(() => topologyFor({ family: "line", order: 3 as ElementShape["order"] })).toThrow(
+      "Unsupported element shape",
+    );
   });
 
   it("throws for an unknown family", () => {

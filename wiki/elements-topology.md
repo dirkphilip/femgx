@@ -85,8 +85,16 @@ https://github.com/dirkphilip/femgx/issues/66.
 
 ## Extensibility
 
-New families are added by extending the `ElementFamily` union and registering a
-topology in `src/elements/shapes.ts`. Nothing here couples topology to WebGPU.
+New families are added by extending the `ElementFamily` union, declaring the
+supported interpolation orders in the `SupportedOrder` type in
+`src/elements/shapes.ts`, and registering a topology for each resulting
+`<family>:<order>` key. The registry is compiler-exhaustive — the `satisfies`
+constraint ties its keys to the derived `SupportedShapeKey` union — so a missing
+topology, an unsupported order, or a mis-keyed registration fails at compile time
+instead of at runtime. `ElementOrder` (`0 | 1 | 2`) narrows the public
+`ElementShape.order`/`ElementTopology.order`, and `topologyFor`/`createElement`
+keep a runtime safety net for untyped input. Nothing here couples topology to
+WebGPU.
 
 ## Future work
 
