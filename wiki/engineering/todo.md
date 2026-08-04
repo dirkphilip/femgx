@@ -127,7 +127,9 @@ development workflow.
       structural budgets (`test/runtime/stress.test.ts`; see
       [[benchmarks|Benchmarks]]).
 - [x] Add e2e visual regression for solid, edge, and selection modes on the
-      deterministic CPU renderer (`e2e/visual.spec.ts`).
+      deterministic CPU renderer (`e2e/visual.spec.ts`); the element render
+      modes (solid/surface/edges/lines/points) are covered by the element-mode
+      e2e tests in `e2e/demo.spec.ts`.
 - [x] Document the browser/GPU capability matrix in the wiki
       ([[compatibility-matrix|Browser/GPU compatibility matrix]]).
 - [x] Deterministic import/export round trips and invalid-input diagnostics are

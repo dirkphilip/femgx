@@ -30,11 +30,12 @@ browser performance (see [[webgpu-e2e|WebGPU browser e2e lane]] and
 ## Element and rendering-mode coverage
 
 The visual regression lane (`e2e/visual.spec.ts`) pins the deterministic CPU
-pixel output for the **solid**, **edge**, and **selection** display modes.
-Element-family rendering (point, line, polygon, wire) beyond triangle meshes is
-not yet a renderer feature; the element topology and connectivity conventions
-that would drive it are covered by the golden fixtures in
-`test/elements/golden.ts` (see [[elements-topology|Element topology]]).
+pixel output for the **solid**, **edge**, and **selection** display modes. The
+element-family render modes (**solid**, **surface**, **edges**, **lines**,
+**points**) switch visible families as part-visibility deltas and are covered by
+the demo's element-mode e2e tests (`e2e/demo.spec.ts`) and the golden fixtures in
+`test/elements/golden.ts` (see [[elements-topology|Element topology]] and
+[[element-rendering|Element rendering]]).
 
 Related: [[quality-gate|Quality gate]], [[webgpu-e2e|WebGPU browser e2e lane]],
 [[pick-format|Pick texture format]].
