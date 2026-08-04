@@ -1,4 +1,5 @@
 import {
+  createCamera,
   createInteractionState,
   createPickScene,
   createSceneRuntime,
@@ -129,7 +130,7 @@ export class WorkbenchController {
     this.presets = createModelPresets();
     this.preset = this.presets[0] ?? createEmptyPreset();
     this.cameraRef = {
-      camera: fitCamera(this.preset.bounds, this.canvas.width, this.canvas.height),
+      camera: fitCamera(createCamera(), this.preset.bounds, this.canvas.width, this.canvas.height),
     };
     this.mode = this.preset.defaultMode;
     this.toggles = {
@@ -142,10 +143,13 @@ export class WorkbenchController {
     };
     this.interaction = createInteractionState();
     this.emphasisContext = this.buildContext(this.preset);
+    this.applyModeVisibility();
     this.populateModelSelect();
     this.populateVisibilityPanel();
     this.installControls();
     this.installCanvasInteraction();
+    this.canvas.dataset["model"] = this.preset.id;
+    this.canvas.dataset["mode"] = this.mode;
     this.render();
   }
 
@@ -159,7 +163,12 @@ export class WorkbenchController {
     this.interaction = createInteractionState();
     this.explicitElementOverrides.clear();
     this.contextTarget = undefined;
-    this.cameraRef.camera = fitCamera(preset.bounds, this.canvas.width, this.canvas.height);
+    this.cameraRef.camera = fitCamera(
+      this.cameraRef.camera,
+      preset.bounds,
+      this.canvas.width,
+      this.canvas.height,
+    );
     this.emphasisContext = this.buildContext(preset);
     this.assemblyVisible.clear();
     for (const assemblyId of preset.scene.visibleAssemblyIds) {
@@ -167,12 +176,21 @@ export class WorkbenchController {
     }
     this.populateVisibilityPanel();
     this.canvas.dataset["model"] = preset.id;
+    this.canvas.dataset["mode"] = this.mode;
     this.render();
   }
 
   /** Switches the visible element family through the runtime. */
   setMode(mode: ElementRenderMode): void {
     if (mode === this.mode) return;
+    this.applyModeVisibility(mode);
+    this.mode = mode;
+    this.canvas.dataset["mode"] = mode;
+    this.render();
+  }
+
+  /** Applies the preset's per-mode part visibility to the runtime. */
+  private applyModeVisibility(mode: ElementRenderMode = this.mode): void {
     const visible = visiblePartIdsForPreset(this.preset, mode);
     for (const partId of this.preset.scene.parts.keys()) {
       const delta = this.runtime.setPartVisible(partId, visible.has(partId));
@@ -180,9 +198,7 @@ export class WorkbenchController {
         this.hooks.applyVisibility(this, this.interaction, delta.changedInstanceIds);
       }
     }
-    this.mode = mode;
-    this.canvas.dataset["mode"] = mode;
-    this.render();
+    this.syncVisibilityPanel();
   }
 
   /** Applies or clears the wireframe edge overlay across every part. */
@@ -202,6 +218,7 @@ export class WorkbenchController {
   fitView(): void {
     const rect = this.canvas.getBoundingClientRect();
     this.cameraRef.camera = fitCamera(
+      this.cameraRef.camera,
       this.preset.bounds,
       Math.max(1, rect.width),
       Math.max(1, rect.height),
@@ -215,11 +232,13 @@ export class WorkbenchController {
     this.explicitElementOverrides.clear();
     this.contextTarget = undefined;
     const rect = this.canvas.getBoundingClientRect();
-    this.cameraRef.camera = fitCamera(
+    const fitted = fitCamera(
+      this.cameraRef.camera,
       this.preset.bounds,
       Math.max(1, rect.width),
       Math.max(1, rect.height),
     );
+    this.cameraRef.camera = setProjection(fitted, "perspective");
     this.canvas.dataset["hovered"] = "";
     this.canvas.dataset["selected"] = "";
     this.canvas.dataset["pick"] = "";
@@ -585,6 +604,7 @@ export class WorkbenchController {
     if (delta.changedInstanceIds.length > 0) {
       this.hooks.applyVisibility(this, this.interaction, delta.changedInstanceIds);
     }
+    this.syncVisibilityPanel();
     this.render();
   }
 
@@ -595,7 +615,21 @@ export class WorkbenchController {
     if (delta.changedInstanceIds.length > 0) {
       this.hooks.applyVisibility(this, this.interaction, delta.changedInstanceIds);
     }
+    this.syncVisibilityPanel();
     this.render();
+  }
+
+  /** Keeps the visibility-panel checkboxes in step with the runtime state. */
+  private syncVisibilityPanel(): void {
+    for (const input of this.view.visibilityPanel.querySelectorAll<HTMLInputElement>("input")) {
+      const partId = input.dataset["partId"];
+      if (partId !== undefined) {
+        input.checked = this.partVisible(Number(partId));
+        continue;
+      }
+      const assemblyId = input.dataset["assemblyId"];
+      if (assemblyId !== undefined) input.checked = this.assemblyVisible.has(Number(assemblyId));
+    }
   }
 
   private render(): void {

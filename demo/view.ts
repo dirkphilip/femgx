@@ -1,4 +1,4 @@
-import { resizeCamera, setProjection, type Camera, type ElementRenderMode } from "../src/index";
+import type { Camera, ElementRenderMode } from "../src/index";
 
 /** Typed handles to the demo's DOM nodes. */
 export interface DemoView {
@@ -23,18 +23,6 @@ export interface DemoView {
 /** Mutable camera holder so controls can replace the camera immutably. */
 export interface CameraRef {
   camera: Camera;
-}
-
-/** Shared inputs for the control-bar installers. */
-export interface ControlContext {
-  readonly view: DemoView;
-  readonly cameraRef: CameraRef;
-  readonly mode: () => ElementRenderMode;
-  readonly onRender: () => void;
-  /** Applies the edge overlay to the model (e.g. per-part style overrides). */
-  readonly setEdgeOverlay?: (enabled: boolean) => void;
-  /** Applies the edge depth-test flag to the underlying renderer. */
-  readonly setEdgeDepthTest?: (enabled: boolean) => void;
 }
 
 /** The model/renderer summary written into the status bar. */
@@ -114,95 +102,4 @@ export function updateStatus(view: DemoView, camera: Camera, info: StatusInfo): 
   view.status.textContent =
     `${info.model} · ${info.renderer} · ${info.visibleInstances} visible · ` +
     `${info.parts} parts · ${info.batches} batches · ${info.mode} · ${cameraMode} camera`;
-}
-
-/** Wires the projection toggle to swap camera modes and re-render. */
-export function installProjectionControl(context: ControlContext): void {
-  const { view, cameraRef, onRender } = context;
-  view.projectionToggle.addEventListener("click", () => {
-    cameraRef.camera = setProjection(
-      cameraRef.camera,
-      cameraRef.camera.mode === "perspective" ? "orthographic" : "perspective",
-    );
-    onRender();
-  });
-}
-
-/** Wires the edge-overlay toggle to apply or clear the edge style overrides. */
-export function installEdgeOverlayControl(context: ControlContext): void {
-  const { view, onRender, setEdgeOverlay } = context;
-  let enabled = false;
-  const reflect = (): void => {
-    view.edgeOverlayLabel.textContent = enabled ? "On" : "Off";
-    view.edgeOverlayToggle.textContent = enabled ? "Hide edges" : "Overlay edges";
-  };
-  view.edgeOverlayToggle.addEventListener("click", () => {
-    enabled = !enabled;
-    reflect();
-    setEdgeOverlay?.(enabled);
-    onRender();
-  });
-  reflect();
-}
-
-/** Wires the edge depth-test toggle to switch the overlay depth compare. */
-export function installDepthTestControl(context: ControlContext): void {
-  const { view, onRender, setEdgeDepthTest } = context;
-  let enabled = true;
-  const reflect = (): void => {
-    view.depthTestLabel.textContent = enabled ? "On" : "Off";
-    view.depthTestToggle.textContent = enabled ? "Depth test off" : "Depth test on";
-  };
-  view.depthTestToggle.addEventListener("click", () => {
-    enabled = !enabled;
-    reflect();
-    setEdgeDepthTest?.(enabled);
-    onRender();
-  });
-  reflect();
-}
-
-/** Wires the element mode buttons to switch the renderer's visible family. */
-export function installModeControl(
-  context: ControlContext,
-  applyMode: (mode: ElementRenderMode) => void,
-): void {
-  const { view, onRender } = context;
-  for (const button of view.modeButtons) {
-    button.addEventListener("click", () => {
-      const mode = button.dataset["mode"];
-      if (mode === undefined || mode === context.mode()) return;
-      applyMode(mode as ElementRenderMode);
-      onRender();
-    });
-  }
-}
-
-/** Wires the reset button to restore the initial camera and interaction state. */
-export function installResetControl(
-  context: ControlContext,
-  initialCamera: Camera,
-  resetInteraction: () => void,
-): void {
-  const { view, cameraRef, onRender } = context;
-  view.resetButton.addEventListener("click", () => {
-    cameraRef.camera = initialCamera;
-    resetInteraction();
-    onRender();
-  });
-}
-
-/** Wires window resizes to refit the camera, with an optional renderer hook. */
-export function installResizeControl(
-  view: DemoView,
-  cameraRef: CameraRef,
-  onRender: () => void,
-  onResize?: () => void,
-): void {
-  window.addEventListener("resize", () => {
-    const rect = view.canvas.getBoundingClientRect();
-    cameraRef.camera = resizeCamera(cameraRef.camera, rect.width, rect.height);
-    onResize?.();
-    onRender();
-  });
 }

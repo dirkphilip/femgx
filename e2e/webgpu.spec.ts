@@ -53,15 +53,15 @@ test("drives interaction and picking through the demo path", async ({ page }) =>
     throw new Error("canvas has no bounding box");
   }
 
-  // Sweep the pointer across the canvas until a GPU pick resolves a hover. The
-  // pick is asynchronous (GPU readback), so give it time to settle before
-  // reading the hover state, and remember where the hover landed so the click
-  // below targets the same instance rather than a fixed canvas point.
+  // Sweep the pointer across the canvas until a pick resolves a hover. The
+  // pick is CPU raycasting in both renderers, so remember where the hover
+  // landed so the click below targets the same instance rather than a fixed
+  // canvas point.
   let hoverPoint: { readonly x: number; readonly y: number } | undefined;
   for (let row = 0; row < 6 && hoverPoint === undefined; row++) {
     for (let col = 0; col < 8; col++) {
-      const x = box.x + ((col + 0.5) / 8) * box.width;
-      const y = box.y + ((row + 0.5) / 6) * box.height;
+      const x = Math.round(box.x + ((col + 0.5) / 8) * box.width);
+      const y = Math.round(box.y + ((row + 0.5) / 6) * box.height);
       await page.mouse.move(x, y);
       await page.waitForTimeout(150);
       const hovered = await canvas.getAttribute("data-hovered");
@@ -73,14 +73,13 @@ test("drives interaction and picking through the demo path", async ({ page }) =>
   }
 
   if (hoverPoint === undefined) {
-    test.skip(true, "GPU picking is not functional in this browser environment");
+    test.skip(true, "picking is not functional in this browser environment");
     return;
   }
 
   await expect.poll(() => canvas.getAttribute("data-hovered")).not.toBeNull();
 
-  // Click the hovered target (an element, since the fixture's triangles all
-  // carry element ids) to toggle its selection through GPU picking.
+  // Click the hovered target to toggle its selection through the pick path.
   await page.mouse.click(hoverPoint.x, hoverPoint.y);
   await expect.poll(() => canvas.getAttribute("data-selected")).not.toBeNull();
   const selected = await canvas.getAttribute("data-selected");
@@ -91,7 +90,7 @@ test("drives interaction and picking through the demo path", async ({ page }) =>
   await expect.poll(() => canvas.getAttribute("data-selected")).toBe("");
 });
 
-test("keeps element selection feedback visible in edge overlay mode", async ({ page }) => {
+test("keeps selection feedback visible in edge overlay mode", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("view-canvas")).toBeVisible();
   await expect
@@ -108,43 +107,42 @@ test("keeps element selection feedback visible in edge overlay mode", async ({ p
     throw new Error("canvas has no bounding box");
   }
 
-  // Sweep until the GPU pick resolves an element target; element hover keys are
-  // encoded as `instanceId:elementId` in the demo dataset.
+  // Sweep until the pick resolves any target; the selected key encodes its
+  // granularity as a prefix (n:/f:/e:/i:/p:).
   let hoverPoint: { readonly x: number; readonly y: number } | undefined;
-  let elementKey = "";
   for (let row = 0; row < 6 && hoverPoint === undefined; row++) {
     for (let col = 0; col < 8; col++) {
-      const x = box.x + ((col + 0.5) / 8) * box.width;
-      const y = box.y + ((row + 0.5) / 6) * box.height;
+      const x = Math.round(box.x + ((col + 0.5) / 8) * box.width);
+      const y = Math.round(box.y + ((row + 0.5) / 6) * box.height);
       await page.mouse.move(x, y);
       await page.waitForTimeout(150);
       const hovered = (await canvas.getAttribute("data-hovered")) ?? "";
-      if (hovered.includes(":")) {
+      if (hovered !== "") {
         hoverPoint = { x, y };
-        elementKey = hovered;
         break;
       }
     }
   }
 
   if (hoverPoint === undefined) {
-    test.skip(true, "GPU element picking is not functional in this browser environment");
+    test.skip(true, "picking is not functional in this browser environment");
     return;
   }
 
   await page.mouse.click(hoverPoint.x, hoverPoint.y);
-  await expect.poll(() => canvas.getAttribute("data-selected")).toBe(elementKey);
+  await expect.poll(() => canvas.getAttribute("data-selected")).not.toBe("");
+  const selected = (await canvas.getAttribute("data-selected")) ?? "";
 
   // Edge overlay keeps the emphasis: the label flips and the demo still renders
-  // the selected element key in the next frame.
+  // the selected key in the next frame.
   await page.getByTestId("edge-overlay").click();
   await expect(page.getByTestId("edge-overlay-label")).toHaveText("On");
   await expect.poll(() => canvas.getAttribute("data-frames")).not.toBeNull();
-  expect(await canvas.getAttribute("data-selected")).toBe(elementKey);
+  expect(await canvas.getAttribute("data-selected")).toBe(selected);
 
   await page.getByTestId("edge-overlay").click();
   await expect(page.getByTestId("edge-overlay-label")).toHaveText("Off");
-  expect(await canvas.getAttribute("data-selected")).toBe(elementKey);
+  expect(await canvas.getAttribute("data-selected")).toBe(selected);
 });
 
 test("tears the renderer down and re-initializes it cleanly", async ({ page }) => {
