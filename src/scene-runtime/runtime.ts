@@ -1,6 +1,6 @@
 import type { Mat4 } from "../math/mat4";
 import type { Scene } from "../scene/scene";
-import type { AssemblyId, PartId } from "../scene/types";
+import type { AssemblyId, InstanceId, PartId } from "../scene/types";
 import { compileSceneState, type RuntimeState } from "./compile";
 import { setInstanceTransform, setNodeTransform, type TransformDelta } from "./transforms";
 import {
@@ -61,6 +61,8 @@ export interface SceneRuntime {
   readonly instanceWorldTransforms: Float32Array;
   /** Resolves an instance id to its part id. */
   getPartId(instanceId: number): PartId | undefined;
+  /** Resolves a stable instance slot to its authoring placement handle. */
+  getInstanceId(instanceId: number): InstanceId | undefined;
   /** Returns the world transform of an instance as a matrix view. */
   getTransform(instanceId: number): Mat4 | undefined;
   /** Returns the local placement transform of a node as a matrix view. */
@@ -121,6 +123,9 @@ export function createSceneRuntime(scene: Scene): SceneRuntime {
     },
     getPartId(instanceId: number): PartId | undefined {
       return state.instancePartIds[instanceId];
+    },
+    getInstanceId(instanceId: number): InstanceId | undefined {
+      return state.instanceInstanceIds[instanceId];
     },
     getTransform(instanceId: number): Mat4 | undefined {
       return matrixView(state.instanceWorldTransforms, state.instanceCount, instanceId);

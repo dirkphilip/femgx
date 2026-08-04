@@ -1,6 +1,6 @@
-import { identity, multiply, type Mat4 } from "../math/mat4";
 import type { Scene } from "../scene/scene";
-import type { AssemblyId, PartId } from "../scene/types";
+import type { AssemblyId } from "../scene/types";
+import { buildSceneDrafts, type InstanceDraft, type NodeDraft } from "./drafts";
 
 /**
  * Packed CPU-side state backing a scene runtime. Every part placement is a
@@ -29,6 +29,8 @@ export interface RuntimeState {
   readonly instanceVisible: Uint8Array;
   readonly instanceLocalTransforms: Float32Array;
   readonly instanceWorldTransforms: Float32Array;
+  /** Authoring placement handle per instance, mirroring flatten paths. */
+  readonly instanceInstanceIds: readonly string[];
   readonly sortedPartIds: Uint32Array;
   readonly partInstanceOffset: Uint32Array;
   readonly partInstanceList: Uint32Array;
@@ -36,29 +38,6 @@ export interface RuntimeState {
   readonly assemblyNodeOffset: Uint32Array;
   readonly assemblyNodeList: Uint32Array;
   visibleCount: number;
-}
-
-interface NodeDraft {
-  readonly assemblyId: AssemblyId;
-  readonly parent: number;
-  firstChild: number;
-  nextSibling: number;
-  lastChild: number;
-  readonly instanceStart: number;
-  instanceEnd: number;
-  readonly visible: 0 | 1;
-  readonly effective: 0 | 1;
-  readonly local: Mat4;
-  readonly world: Mat4;
-}
-
-interface InstanceDraft {
-  readonly partId: PartId;
-  readonly owningNode: number;
-  readonly partVisible: 0 | 1;
-  readonly effective: 0 | 1;
-  readonly local: Mat4;
-  readonly world: Mat4;
 }
 
 type PackedNodes = Pick<
@@ -85,86 +64,13 @@ type PackedInstances = Pick<
   | "instanceVisible"
   | "instanceLocalTransforms"
   | "instanceWorldTransforms"
+  | "instanceInstanceIds"
 > & { readonly visibleCount: number };
 
 interface KeyedGroupIndex {
   readonly sortedKeys: Uint32Array;
   readonly offset: Uint32Array;
   readonly list: Uint32Array;
-}
-
-function linkChild(nodes: NodeDraft[], parent: number, nodeIndex: number): void {
-  const parentNode = nodes[parent];
-  if (parentNode === undefined) {
-    return;
-  }
-  if (parentNode.firstChild === -1) {
-    parentNode.firstChild = nodeIndex;
-  } else {
-    const previousSibling = nodes[parentNode.lastChild];
-    if (previousSibling !== undefined) {
-      previousSibling.nextSibling = nodeIndex;
-    }
-  }
-  parentNode.lastChild = nodeIndex;
-}
-
-function buildSceneDrafts(scene: Scene): { nodes: NodeDraft[]; instances: InstanceDraft[] } {
-  const nodes: NodeDraft[] = [];
-  const instances: InstanceDraft[] = [];
-  const { assemblies, visibleAssemblyIds, visiblePartIds } = scene;
-  const walk = (
-    assemblyId: AssemblyId,
-    parent: number,
-    localTransform: Mat4,
-    worldTransform: Mat4,
-    parentEffective: 0 | 1,
-  ): void => {
-    const assembly = assemblies.get(assemblyId);
-    if (assembly === undefined) {
-      return;
-    }
-    const nodeIndex = nodes.length;
-    const visible: 0 | 1 = visibleAssemblyIds.has(assemblyId) ? 1 : 0;
-    const effective: 0 | 1 = visible === 1 && parentEffective === 1 ? 1 : 0;
-    const node: NodeDraft = {
-      assemblyId,
-      parent,
-      firstChild: -1,
-      nextSibling: -1,
-      lastChild: -1,
-      instanceStart: instances.length,
-      instanceEnd: -1,
-      visible,
-      effective,
-      local: localTransform,
-      world: worldTransform,
-    };
-    nodes.push(node);
-    if (parent !== -1) {
-      linkChild(nodes, parent, nodeIndex);
-    }
-    for (const placement of assembly.placements) {
-      const placementWorld = multiply(worldTransform, placement.transform);
-      if (placement.kind === "part") {
-        const partVisible: 0 | 1 = visiblePartIds.has(placement.partId) ? 1 : 0;
-        const instanceEffective: 0 | 1 = effective === 1 && partVisible === 1 ? 1 : 0;
-        instances.push({
-          partId: placement.partId,
-          owningNode: nodeIndex,
-          partVisible,
-          effective: instanceEffective,
-          local: placement.transform,
-          world: placementWorld,
-        });
-      } else {
-        walk(placement.assemblyId, nodeIndex, placement.transform, placementWorld, effective);
-      }
-    }
-    node.instanceEnd = instances.length;
-  };
-  walk(scene.rootAssemblyId, -1, identity(), identity(), 1);
-  return { nodes, instances };
 }
 
 function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
@@ -218,6 +124,7 @@ function packInstances(instances: readonly InstanceDraft[]): PackedInstances {
   const instanceVisible = new Uint8Array(count);
   const instanceLocalTransforms = new Float32Array(count * 16);
   const instanceWorldTransforms = new Float32Array(count * 16);
+  const instanceInstanceIds: string[] = [];
   let visibleCount = 0;
   for (let i = 0; i < count; i++) {
     const draft = instances[i];
@@ -233,6 +140,7 @@ function packInstances(instances: readonly InstanceDraft[]): PackedInstances {
     }
     instanceLocalTransforms.set(draft.local, i * 16);
     instanceWorldTransforms.set(draft.world, i * 16);
+    instanceInstanceIds.push(draft.instanceId);
   }
   return {
     instanceCount: count,
@@ -244,6 +152,7 @@ function packInstances(instances: readonly InstanceDraft[]): PackedInstances {
     instanceVisible,
     instanceLocalTransforms,
     instanceWorldTransforms,
+    instanceInstanceIds,
   };
 }
 

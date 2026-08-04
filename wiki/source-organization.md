@@ -21,9 +21,11 @@ canonical description.
 - `src/renderer/` — WebGPU renderer split into focused modules:
   `gpu-renderer.ts` (thin orchestrator and public API),
   `gpu-pipelines.ts` (layouts/pipelines/camera resources),
-  `gpu-draw.ts` (per-part geometry and instance buffers, draw submission),
+  `gpu-draw.ts` (per-part geometry, slot-stable record buffers, draw-order
+  buffers, draw submission),
   `gpu-pick.ts` (pick targets and readback), `gpu-shaders.ts` (WGSL strings),
-  and `gpu-support.ts` (shared GPU helpers).
+  `gpu-support.ts` (shared GPU helpers), and `runtime-state.ts` (CPU bridge from
+  packed runtime slots to part-local storage).
 
 `test/` mirrors `src/` one-to-one: each source module has its suite in the
 matching subsystem directory.

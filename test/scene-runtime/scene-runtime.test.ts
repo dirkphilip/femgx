@@ -338,6 +338,32 @@ describe("createSceneRuntime", () => {
     );
   });
 
+  it("keeps authoring placement handles stable and hidden slots resolvable", () => {
+    const scene = buildScene(
+      1,
+      [
+        {
+          id: 1,
+          placements: [
+            { kind: "part", partId: 1, transform: translation(1, 0, 0) },
+            { kind: "assembly", assemblyId: 2, transform: identity() },
+          ],
+        },
+        { id: 2, placements: [{ kind: "part", partId: 2, transform: identity() }] },
+      ],
+      [1, 2],
+      [2],
+    );
+    const runtime = createSceneRuntime(scene);
+    expect(runtime.getInstanceId(0)).toBe("1/0");
+    expect(runtime.getInstanceId(1)).toBe("1/1/0");
+    expect(runtime.getInstanceId(2)).toBeUndefined();
+    runtime.setAssemblyVisible(2, false);
+    runtime.setInstanceVisible(0, false);
+    expect(runtime.getInstanceId(0)).toBe("1/0");
+    expect(runtime.getInstanceId(1)).toBe("1/1/0");
+  });
+
   it("skips missing assembly references in an unvalidated scene", () => {
     const scene: Scene = {
       rootAssemblyId: 1,
