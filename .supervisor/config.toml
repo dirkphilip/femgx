@@ -51,8 +51,9 @@ provider = "opencode"
 enabled = true
 # Keep created pull requests ready for review instead of opening them as drafts.
 draft = false
-# Keep merging as an explicit, verified operator action after required checks.
-auto_merge = false
+# Ask GitHub to merge submitted PRs automatically after required checks and
+# approvals are satisfied.
+auto_merge = true
 # Automatically queue open GitHub issues that have no assignee when running.
 # Safer default: queue issues manually, or set allow_labels below for approval.
 # Only issues carrying an approval label below are auto-pulled; this is the
