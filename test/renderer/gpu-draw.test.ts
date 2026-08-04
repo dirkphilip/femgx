@@ -98,7 +98,7 @@ describe("GPU draw path", () => {
       patchInstances(draw, part.id, [{ slot: 0, data: record(1) }]);
       expect(gpu.writes.length).toBe(afterInitial);
       patchInstances(draw, part.id, [{ slot: 0, data: record(9) }]);
-      expect(writeRanges(gpu, afterInitial)).toEqual([[50, 2]]);
+      expect(writeRanges(gpu, afterInitial)).toEqual([[48, 4]]);
     } finally {
       restore();
     }
@@ -112,7 +112,7 @@ describe("GPU draw path", () => {
       patchInstances(draw, part.id, [{ slot: 2, data: record(1) }]);
       const afterInitial = gpu.writes.length;
       patchInstances(draw, part.id, [{ slot: 2, data: record(9) }]);
-      expect(writeRanges(gpu, afterInitial)).toEqual([[2 * 96 + 50, 2]]);
+      expect(writeRanges(gpu, afterInitial)).toEqual([[2 * 96 + 48, 4]]);
     } finally {
       restore();
     }

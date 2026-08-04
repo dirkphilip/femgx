@@ -85,6 +85,11 @@ export function fakeGpuDevice(options: { readonly pickValue?: number } = {}): Fa
           data instanceof ArrayBuffer
             ? new Uint8Array(data)
             : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+        if (offset % 4 !== 0 || bytes.byteLength % 4 !== 0) {
+          throw new Error(
+            `writeBuffer requires 4-byte-aligned offset and byte length (offset ${offset}, length ${bytes.byteLength})`,
+          );
+        }
         writes.push({ offset, bytes });
       },
       submit: () => undefined,
