@@ -2,9 +2,17 @@
   "name": "femgx",
   "version": "0.1.0",
   "description": "A TypeScript graphics library rendering giant finite element models with WebGPU and GPU instancing",
+  "keywords": [
+    "webgpu",
+    "finite-element",
+    "fem",
+    "3d",
+    "graphics",
+    "instancing"
+  ],
   "type": "module",
   "license": "MIT",
-  "private": true,
+  "sideEffects": false,
   "engines": {
     "node": ">=24.0.0"
   },
@@ -16,14 +24,22 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/femgx.js",
-      "require": "./dist/femgx.umd.cjs"
-    }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/femgx.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.cts",
+        "default": "./dist/femgx.umd.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "check-node": "node scripts/check-node-version.mjs",
-    "preinstall": "npm run check-node",
     "predev": "npm run check-node",
     "prebuild": "npm run check-node",
     "pretypecheck": "npm run check-node",
@@ -42,6 +58,8 @@
     "prepre-commit": "npm run check-node",
     "prepare": "husky",
     "pre-commit": "lint-staged",
+    "test:package": "npm run check-node && node scripts/package-smoke.mjs",
+    "prepublishOnly": "npm run test:package",
     "dev": "vite",
     "build": "npm run typecheck && vite build",
     "typecheck": "tsc --noEmit",

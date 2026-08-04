@@ -33,6 +33,7 @@ Commands:
 
 - `npm run dev` — dev server with demo app
 - `npm run build` — type-check and bundle the library with declarations
+- `npm run test:package` — package smoke test against a clean consumer install
 - `npm run typecheck` — strict TypeScript check
 - `npm run lint` — ESLint with zero warnings
 - `npm run lint:fix` — ESLint autofix
@@ -46,6 +47,48 @@ Commands:
 - `npm run preview` — preview the built demo
 
 Use Node 24 or newer; `.nvmrc` matches the CI runtime.
+
+## Installation
+
+```sh
+npm install femgx
+```
+
+The package ships ESM and CommonJS builds plus TypeScript declarations for both.
+There are no runtime dependencies. Consumers do **not** need `@webgpu/types`
+(WebGPU types come from the TypeScript 6 DOM lib).
+
+```js
+// ESM
+import { createScene, createCamera, flattenAssembly } from "femgx";
+```
+
+```js
+// CommonJS
+const { createScene, createCamera, flattenAssembly } = require("femgx");
+```
+
+## Supported environments
+
+- **Browsers**: modern Chrome, Edge, Firefox, and Safari with WebGPU enabled by
+  default in current releases. Rendering requires a WebGPU-capable browser; the
+  CPU scene, camera, and picking APIs work anywhere.
+- **TypeScript**: 6.0 or newer for consumers (declarations rely on DOM-lib WebGPU
+  types). `moduleResolution: bundler`, `node16`, `nodenext`, and legacy `node10`
+  resolution are all supported.
+- **Node**: 24+ for tooling; the library is browser-first and has no Node-only
+  runtime entry points.
+
+### WebGPU capability behavior
+
+- `createWebGpuRenderer(options)` is `async`: it checks `navigator.gpu`, requests an
+  adapter, and (unless `options.device` is provided) requests a device. It throws a
+  descriptive error when WebGPU is unavailable or the adapter/device request fails.
+- The CPU scene, camera, flatten/compile, and picking (`resolvePick`) APIs are
+  WebGPU-independent and work in any JavaScript environment.
+- Picking via the renderer uses asynchronous GPU readback: `pick(x, y)` returns a
+  `Promise`; the resolved `PickTarget` is the same type used by the CPU-side
+  `resolvePick`.
 
 ## Public API highlights
 
