@@ -168,10 +168,10 @@ export function readCellTypesLine(state: VtkState, text: string, line: number): 
 /** Finalizes geometry: assembles element blocks and appends attribute results. */
 export function finalizeGeometry(state: VtkState): void {
   flushPoints(state);
-  if (state.cellTypes.length < state.cellCount) {
+  if (state.cellTypes.length !== state.cellCount) {
     state.session.report(
-      "missing-cell-types",
-      `Declared ${String(state.cellCount)} cells but only ${String(state.cellTypes.length)} cell types were read`,
+      "cell-type-count-mismatch",
+      `CELLS declares ${String(state.cellCount)} cells but CELL_TYPES holds ${String(state.cellTypes.length)} entries`,
     );
   }
   assembleVtkElements(state);
@@ -191,7 +191,14 @@ function assembleVtkElements(state: VtkState): void {
       continue;
     }
     const nodeCount = topologyFor(shape).nodeCount;
-    const start = state.cellStarts[cell] ?? 0;
+    const start = state.cellStarts[cell];
+    if (start === undefined) {
+      state.session.report(
+        "missing-cell-connectivity",
+        `Cell ${String(cell)} has no connectivity entry in CELLS`,
+      );
+      continue;
+    }
     const connectivity = state.cellConnectivity.slice(start, start + nodeCount);
     if (connectivity.length !== nodeCount || !validNodeIds(connectivity)) {
       state.session.report(

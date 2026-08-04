@@ -9,7 +9,7 @@ export interface SourcePosition {
 
 /**
  * A typed diagnostic produced during import, export, or model validation.
- * `code` is a stable machine-readable identifier (e.g. `"missing-cell-types"`)
+ * `code` is a stable machine-readable identifier (e.g. `"cell-type-count-mismatch"`)
  * and `message` is a human-readable, actionable description.
  */
 export interface Issue {

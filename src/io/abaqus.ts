@@ -18,6 +18,7 @@ type AbaqusMode = "none" | "node" | "element" | "nset" | "elset";
 /** A set being accumulated before it is added to the model. */
 export interface PendingSet {
   readonly kind: ModelSetKind;
+  readonly name: string;
   readonly ids: number[];
 }
 
@@ -224,11 +225,11 @@ function finalizeAbaqus(state: AbaqusState): void {
   }
   flushAbaqusNodes(state);
   flushAbaqusElements(state);
-  for (const [name, set] of state.sets) {
+  for (const set of state.sets.values()) {
     if (set.ids.length === 0) {
       continue;
     }
-    state.session.builder.addSet(set.kind, name, set.ids);
+    state.session.builder.addSet(set.kind, set.name, set.ids);
   }
   state.session.progress(1, "Finished reading Abaqus");
 }

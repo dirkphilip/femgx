@@ -115,6 +115,32 @@ describe("parseAbaqus", () => {
     expect(result.model.nodes.count).toBe(1);
   });
 
+  it("keeps a node set and element set with the same name separate", () => {
+    const deck = [
+      "*NODE",
+      "1, 0, 0, 0",
+      "2, 1, 0, 0",
+      "3, 0, 1, 0",
+      "4, 0, 0, 1",
+      "*ELEMENT, TYPE=C3D4",
+      "1, 1, 2, 3, 4",
+      "*NSET, NSET=ALL",
+      "1, 2",
+      "*ELSET, ELSET=ALL",
+      "1",
+      "",
+    ].join("\n");
+    const result = parseAbaqus(deck);
+    expect(result.issues).toEqual([]);
+    expect(result.model.sets).toHaveLength(2);
+    const nodeSet = result.model.sets.find((set) => set.kind === "node");
+    const elementSet = result.model.sets.find((set) => set.kind === "element");
+    expect(nodeSet?.name).toBe("ALL");
+    expect([...required(nodeSet).ids]).toEqual([1, 2]);
+    expect(elementSet?.name).toBe("ALL");
+    expect([...required(elementSet).ids]).toEqual([1]);
+  });
+
   it("reports truncated continuation lines", () => {
     const deck = "*NODE\n1, 0, 0,\n";
     const result = parseAbaqus(deck);

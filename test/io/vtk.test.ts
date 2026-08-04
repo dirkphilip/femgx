@@ -131,6 +131,37 @@ describe("parseVtk", () => {
     const result = parseVtk(source);
     expect(result.issues.map((issue) => issue.code)).toContain("array-shape");
   });
+
+  it("reports a cell type count that outnumbers the declared cells", () => {
+    const source = TET_VTK.replace("CELL_TYPES 1\n10", "CELL_TYPES 2\n10\n10");
+    const result = parseVtk(source);
+    expect(result.issues.map((issue) => issue.code)).toContain("cell-type-count-mismatch");
+    expect(result.model.elementBlocks[0]?.count).toBe(1);
+    expect([...required(result.model.elementBlocks[0]).connectivity]).toEqual([0, 1, 2, 3]);
+  });
+
+  it("reports a cell type count below the declared cells", () => {
+    const source = [
+      "# vtk DataFile Version 5.0",
+      "tet example",
+      "ASCII",
+      "DATASET UNSTRUCTURED_GRID",
+      "POINTS 4 double",
+      "0 0 0",
+      "1 0 0",
+      "0 1 0",
+      "0 0 1",
+      "CELLS 2 10",
+      "4 0 1 2 3",
+      "4 0 1 2 3",
+      "CELL_TYPES 1",
+      "10",
+      "",
+    ].join("\n");
+    const result = parseVtk(source);
+    expect(result.issues.map((issue) => issue.code)).toContain("cell-type-count-mismatch");
+    expect(result.model.elementBlocks[0]?.count).toBe(1);
+  });
 });
 
 describe("writeVtk", () => {

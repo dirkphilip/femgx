@@ -217,12 +217,17 @@ export function shapeForAbaqusType(raw: string): ElementShape | undefined {
   }
 }
 
-/** Returns the set with `name`, creating a node/element set entry if needed. */
+/**
+ * Returns the set with `name`, creating a node/element set entry if needed.
+ * Node and element sets share a name namespace independently, so the map key
+ * includes the kind.
+ */
 export function ensureSet(state: AbaqusState, kind: "node" | "element", name: string): PendingSet {
-  let set = state.sets.get(name);
+  const key = `${kind}\u0000${name}`;
+  let set = state.sets.get(key);
   if (set === undefined) {
-    set = { kind, ids: [] };
-    state.sets.set(name, set);
+    set = { kind, name, ids: [] };
+    state.sets.set(key, set);
   }
   return set;
 }
