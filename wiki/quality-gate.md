@@ -1,7 +1,9 @@
 # Quality gate
 
-Every change must pass the full gate locally before push/handoff; CI
+The reviewer runs the full gate once before submission; CI
 (`.github/workflows/ci.yml`) enforces the same gate on every push/PR.
+Supervisor implementation and repair workers use focused checks and do not
+repeat the full gate. See [[supervisor-workflow|Supervisor workflow]].
 
 ## Local gate
 

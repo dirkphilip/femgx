@@ -11,7 +11,7 @@ const PROMPTS = [
   ".supervisor/prompts/pr-repair.md",
 ];
 
-const NPM_GATE_COMMANDS = [
+const FULL_NPM_GATE_COMMANDS = [
   "npm run format",
   "npm run lint",
   "npm run typecheck",
@@ -31,6 +31,13 @@ function blocks(content: string): string[] {
     .filter((block) => block.length > 0);
 }
 
+function hasStandaloneCommand(content: string, command: string): boolean {
+  return content.split("\n").some((line) => {
+    const trimmed = line.trim();
+    return trimmed === command || trimmed === `\`${command}\``;
+  });
+}
+
 describe("supervisor worker quality-gate contract", () => {
   it.each(PROMPTS)("asks agents to detect the repository's quality commands in %s", (path) => {
     const prompt = readPrompt(path);
@@ -40,14 +47,23 @@ describe("supervisor worker quality-gate contract", () => {
     );
   });
 
-  it.each(PROMPTS)(
-    "keeps the npm gate authoritative for this TypeScript repository in %s",
+  it("keeps the full npm gate in the reviewer stage", () => {
+    const prompt = readPrompt(".supervisor/prompts/reviewer.md");
+    for (const command of FULL_NPM_GATE_COMMANDS) {
+      expect(prompt).toContain(command);
+    }
+    expect(prompt).toMatch(/TypeScript\/npm repository/);
+  });
+
+  it.each([".supervisor/prompts/implementer.md", ".supervisor/prompts/pr-repair.md"])(
+    "keeps the full npm gate out of %s",
     (path) => {
       const prompt = readPrompt(path);
-      for (const command of NPM_GATE_COMMANDS) {
-        expect(prompt).toContain(command);
+      for (const command of FULL_NPM_GATE_COMMANDS) {
+        expect(hasStandaloneCommand(prompt, command)).toBe(false);
       }
-      expect(prompt).toMatch(/TypeScript\/npm repository/);
+      expect(prompt).toMatch(/focused checks/);
+      expect(prompt).toContain("Do not invoke the `quality-gate`");
     },
   );
 
