@@ -2,6 +2,7 @@ import { encodePickId } from "../../src/renderer/pick-format";
 import { READBACK_BYTE_STRIDE } from "../../src/renderer/gpu-pick";
 
 export interface RecordedWrite {
+  readonly buffer: GPUBuffer;
   readonly offset: number;
   readonly bytes: Uint8Array;
 }
@@ -10,6 +11,8 @@ export interface FakeBuffer {
   readonly size: number;
   readonly usage: number;
   destroyed: boolean;
+  /** The GPUBuffer object returned to the caller, for write matching. */
+  resource: GPUBuffer;
 }
 
 export interface DrawCall {
@@ -110,7 +113,7 @@ export function fakeGpuDevice(
   const device = {
     lost,
     queue: {
-      writeBuffer: (_buffer: GPUBuffer, offset: number, data: ArrayBufferView | ArrayBuffer) => {
+      writeBuffer: (buffer: GPUBuffer, offset: number, data: ArrayBufferView | ArrayBuffer) => {
         const bytes =
           data instanceof ArrayBuffer
             ? new Uint8Array(data)
@@ -120,7 +123,7 @@ export function fakeGpuDevice(
             `writeBuffer requires 4-byte-aligned offset and byte length (offset ${offset}, length ${bytes.byteLength})`,
           );
         }
-        writes.push({ offset, bytes });
+        writes.push({ buffer, offset, bytes });
       },
       submit: () => undefined,
     },
@@ -129,9 +132,11 @@ export function fakeGpuDevice(
         size: descriptor.size,
         usage: descriptor.usage,
         destroyed: false,
+        resource: {} as GPUBuffer,
       };
       buffers.push(record);
-      return {
+      const buffer = {
+        size: descriptor.size,
         destroy: () => {
           record.destroyed = true;
         },
@@ -144,6 +149,8 @@ export function fakeGpuDevice(
         },
         unmap: () => undefined,
       } as unknown as GPUBuffer;
+      record.resource = buffer;
+      return buffer;
     },
     createBindGroupLayout: () => ({}),
     createBindGroup: () => {

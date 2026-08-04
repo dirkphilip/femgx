@@ -7,6 +7,7 @@ import {
   MAX_ELEMENT_HIGHLIGHTS,
 } from "../../src/renderer/gpu-elements";
 import { CAMERA_UNIFORM_SIZE } from "../../src/renderer/gpu-pipelines";
+import { DEFORMATION_UNIFORM_SIZE } from "../../src/renderer/gpu-deform";
 import {
   colorFragmentShader,
   edgeVertexShader,
@@ -92,5 +93,43 @@ describe("GPU record struct layout vs CPU record encoders", () => {
   it("applies emissive additively in the color fragment shader", () => {
     expect(colorFragmentShader).toMatch(/@location\(2\) @interpolate\(flat\) emissive: f32/);
     expect(colorFragmentShader).toMatch(/color\.rgb \+ vec3<f32>\(emissive\)/);
+  });
+});
+
+describe("GPU deformation shader contract", () => {
+  it.each(vertexShaders)(
+    "declares the Deformation uniform at the offsets the CPU writes in %s",
+    (_name, source) => {
+      const info = structInfo(source, "Deformation");
+      const offsets = memberOffsets(info);
+      expect(offsets.get("scale")).toBe(0);
+      expect(offsets.get("loadCase")).toBe(4);
+      expect(offsets.get("loadCaseCount")).toBe(8);
+      expect(info.size).toBe(DEFORMATION_UNIFORM_SIZE);
+    },
+  );
+
+  it.each(vertexShaders)(
+    "reads the deformation uniform and displacement storage in %s",
+    (_name, source) => {
+      expect(source).toMatch(/@group\(0\) @binding\(1\) var<uniform> deformation: Deformation/);
+      expect(source).toMatch(
+        /@group\(1\) @binding\(4\) var<storage, read> displacements: array<f32>/,
+      );
+      expect(source).toMatch(/fn displaced\(position: vec3<f32>, vertexIndex: u32\)/);
+      expect(source).toMatch(/displaced\(position, vertexIndex\)/);
+    },
+  );
+
+  it("displaces by the active load case only when deformation is enabled", () => {
+    expect(instanceVertexShader).toMatch(/deformation\.loadCaseCount == 0u/);
+    expect(instanceVertexShader).toMatch(/arrayLength\(&displacements\)/);
+    expect(instanceVertexShader).toMatch(/deformation\.loadCase \* vertexCount \+ vertexIndex/);
+    expect(instanceVertexShader).toMatch(/delta \* deformation\.scale/);
+  });
+
+  it("displaces the edge overlay through the vertex buffer index", () => {
+    expect(edgeVertexShader).toMatch(/@builtin\(vertex_index\) vertexIndex: u32/);
+    expect(edgeVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
   });
 });

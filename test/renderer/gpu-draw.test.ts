@@ -57,7 +57,7 @@ function writeRanges(gpu: ReturnType<typeof fakeGpuDevice>, start: number) {
 
 function drawContext(): DrawCallContext {
   return {
-    cameraBindGroup: {} as GPUBindGroup,
+    frameBindGroup: {} as GPUBindGroup,
     instanceLayout: {} as GPUBindGroupLayout,
     parts: new Map([[part.id, part]]),
     pipelines: {} as DrawPipelines,
@@ -301,7 +301,7 @@ describe("GPU draw path", () => {
         writeDrawOrder(draw, item.id, new Uint32Array([0]));
       }
       const context: DrawCallContext = {
-        cameraBindGroup: {} as GPUBindGroup,
+        frameBindGroup: {} as GPUBindGroup,
         instanceLayout: {} as GPUBindGroupLayout,
         parts: new Map([
           [trianglePart.id, trianglePart],

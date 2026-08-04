@@ -17,6 +17,16 @@ struct Camera {
 };
 `;
 
+/** Per-frame deformation uniform: displacement scale plus the active load case. */
+const deformationStruct = /* wgsl */ `
+struct Deformation {
+  scale: f32,
+  loadCase: u32,
+  loadCaseCount: u32,
+  _padding: u32,
+};
+`;
+
 /** Instance storage layout shared by every vertex shader. */
 const instanceStruct = /* wgsl */ `
 // Field layout (byte offsets) must match encodeInstanceRecord in gpu-draw.ts:
@@ -57,8 +67,32 @@ struct ElementHighlights {
 /** Instance storage binding layout shared by every vertex shader. */
 const instanceBindings = /* wgsl */ `
 @group(0) @binding(0) var<uniform> camera: Camera;
+@group(0) @binding(1) var<uniform> deformation: Deformation;
 @group(1) @binding(0) var<storage, read> instances: array<Instance>;
 @group(1) @binding(1) var<storage, read> drawOrder: array<u32>;
+@group(1) @binding(4) var<storage, read> displacements: array<f32>;
+`;
+
+/**
+ * Displaces a model-space vertex by the active load case's nodal displacement,
+ * scaled by the deformation uniform. Parts without a displacement buffer (or a
+ * disabled deformation uniform) return the vertex unchanged. `vertexIndex` is
+ * the vertex buffer index, which aligns with the node numbering for parts that
+ * carry deformation data.
+ */
+const displacementFn = /* wgsl */ `
+fn displaced(position: vec3<f32>, vertexIndex: u32) -> vec3<f32> {
+  if (deformation.loadCaseCount == 0u) {
+    return position;
+  }
+  let vertexCount = arrayLength(&displacements) / (3u * deformation.loadCaseCount);
+  if (vertexCount == 0u) {
+    return position;
+  }
+  let base = (deformation.loadCase * vertexCount + vertexIndex) * 3u;
+  let delta = vec3<f32>(displacements[base], displacements[base + 1u], displacements[base + 2u]);
+  return position + delta * deformation.scale;
+}
 `;
 
 /** Shared vertex output for the color and picking fragment stages. */
@@ -76,11 +110,16 @@ struct VertexOutput {
 export const instanceVertexShader = /* wgsl */ `
 ${cameraStruct}
 
+${deformationStruct}
+
 ${instanceStruct}
 
 ${elementHighlightStructs}
 
 ${instanceBindings}
+
+${displacementFn}
+
 @group(1) @binding(2) var<storage, read> triangleElementPickIds: array<u32>;
 @group(1) @binding(3) var<storage, read> elementHighlights: ElementHighlights;
 
@@ -105,7 +144,7 @@ fn vertexMain(
     }
   }
   var output: VertexOutput;
-  output.position = camera.viewProjection * instance.transform * vec4<f32>(position, 1.0);
+  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   output.color = color;
   output.pickId = instance.pickId;
   output.emissive = emissive;
@@ -125,9 +164,13 @@ fn vertexMain(
 export const pointVertexShader = /* wgsl */ `
 ${cameraStruct}
 
+${deformationStruct}
+
 ${instanceStruct}
 
 ${instanceBindings}
+
+${displacementFn}
 
 ${vertexOutput}
 
@@ -144,7 +187,7 @@ fn spriteCorner(corner: u32) -> vec2<f32> {
 fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
   let corner = spriteCorner(vertexIndex % 4u);
-  let clip = camera.viewProjection * instance.transform * vec4<f32>(position, 1.0);
+  let clip = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   let offset = (corner * camera.pointSize) / camera.viewport;
   var output: VertexOutput;
   output.position = vec4<f32>(clip.x + offset.x * clip.w, clip.y + offset.y * clip.w, clip.z, clip.w);
@@ -172,9 +215,13 @@ fn fragmentMain(@location(0) color: vec4<f32>, @location(2) @interpolate(flat) e
 export const edgeVertexShader = /* wgsl */ `
 ${cameraStruct}
 
+${deformationStruct}
+
 ${instanceStruct}
 
 ${instanceBindings}
+
+${displacementFn}
 
 struct EdgeOutput {
   @builtin(position) position: vec4<f32>,
@@ -183,10 +230,14 @@ struct EdgeOutput {
 };
 
 @vertex
-fn vertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32) -> EdgeOutput {
+fn vertexMain(
+  @location(0) position: vec3<f32>,
+  @builtin(instance_index) instanceIndex: u32,
+  @builtin(vertex_index) vertexIndex: u32,
+) -> EdgeOutput {
   let instance = instances[drawOrder[instanceIndex]];
   var output: EdgeOutput;
-  output.position = camera.viewProjection * instance.transform * vec4<f32>(position, 1.0);
+  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   output.color = instance.color;
   output.emissive = instance.emissive;
   return output;

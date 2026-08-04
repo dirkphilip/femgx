@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deformGeometry, deformPositions } from "../../src/results/deform";
+import { deformGeometry, deformPositions, nodalDisplacements } from "../../src/results/deform";
 import { createResultField } from "../../src/results/fields";
 import type { VectorField } from "../../src/results/fields";
 
@@ -77,5 +77,27 @@ describe("deformGeometry", () => {
     };
     const deformed = deformGeometry(geometry, field, 1);
     expect(deformed.elements).toBe(geometry.elements);
+  });
+});
+
+describe("nodalDisplacements", () => {
+  it("packs one vec3 per vertex per load case, load-case major", () => {
+    const positions = new Float32Array(3 * 2);
+    const bending = displacements([1, 2, 3, 4, 5, 6]);
+    const twist = displacements([7, 8, 9, 10, 11, 12]);
+    const buffer = nodalDisplacements(positions, [bending, twist]);
+    expect(Array.from(buffer)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  });
+
+  it("writes zero deltas for missing or out-of-range vertices", () => {
+    const positions = new Float32Array(3 * 3);
+    const field = displacements([1, 1, 1, NaN, NaN, NaN]);
+    const buffer = nodalDisplacements(positions, [field]);
+    expect(Array.from(buffer)).toEqual([1, 1, 1, 0, 0, 0, 0, 0, 0]);
+  });
+
+  it("handles an empty load-case list with a zero-length buffer", () => {
+    const positions = new Float32Array(3 * 2);
+    expect(nodalDisplacements(positions, []).byteLength).toBe(0);
   });
 });

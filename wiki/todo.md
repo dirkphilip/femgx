@@ -106,8 +106,8 @@ development workflow.
 - [x] Add a dedicated load-case playback API (`CasePlayer`) with configurable
       case duration, wrap/clamp looping, and optional displacement
       interpolation between adjacent cases (see [[results|Results]]).
-- [ ] GPU-side deformed rendering (per-instance vertex displacement) remains a
-      follow-up (see [[results|Results]]).
+- [x] GPU-side deformed rendering (per-instance vertex displacement) via
+      `setDeformation` + `nodalDisplacements` (see [[results|Results]]).
 
 ## Improvement work items
 

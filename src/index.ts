@@ -84,6 +84,7 @@ export {
   type WebGpuRenderer,
   type WebGpuRendererOptions,
 } from "./renderer/gpu-renderer";
+export type { DeformationState } from "./renderer/gpu-deform";
 export {
   queryWebGpuSupport,
   requestWebGpuAdapter,
@@ -207,7 +208,7 @@ export {
   type ScalarColorMap,
   type ScalarColorMapOptions,
 } from "./results/mapping";
-export { deformGeometry, deformPositions } from "./results/deform";
+export { deformGeometry, deformPositions, nodalDisplacements } from "./results/deform";
 export {
   advanceCase,
   createCasePlayer,

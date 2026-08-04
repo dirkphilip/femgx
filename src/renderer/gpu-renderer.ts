@@ -7,6 +7,7 @@ import { resolvePickTarget } from "../picking/pick";
 import type { SceneRuntime } from "../scene-runtime/runtime";
 import type { Instance, InstanceId, PartId, PickTarget } from "../scene/types";
 import { syncElementHighlights } from "./gpu-elements";
+import { syncDeformations, validateDeformation, type DeformationState } from "./gpu-deform";
 import {
   createDrawResources,
   destroyDrawResources,
@@ -21,6 +22,7 @@ import { destroyRenderResources } from "./gpu-pipelines";
 import { createGpuBundle, GpuDeviceLifecycle } from "./gpu-recovery";
 import { collectInstanceUpdates } from "./instance-updates";
 import {
+  buildDrawCalls,
   buildDrawOrder,
   buildEdgeOrder,
   buildInstanceLayout,
@@ -49,6 +51,13 @@ export interface WebGpuRendererOptions {
  */
 export interface WebGpuRenderer {
   render(runtime: SceneRuntime, camera: Camera, parts: ReadonlyMap<PartId, Part>): void;
+  /**
+   * Sets the per-frame deformation state (displacement scale + active load
+   * case) and the per-part nodal displacement buffers that displace vertices on
+   * the GPU. Buffers are uploaded once and reused until the array reference
+   * changes; the uniform is rewritten each frame.
+   */
+  setDeformation(deformation: DeformationState): void;
   /**
    * Writes only the GPU subranges affected by changed instance slots, applying
    * the given interaction state (transform, style, and pick attributes).
@@ -111,6 +120,7 @@ class GpuRenderer implements WebGpuRenderer {
   private slotByInstanceId = new Map<InstanceId, number>();
   private edgeFlags: boolean[] = [];
   private edgeDepthTest = true;
+  private deformation: DeformationState | undefined;
   private destroyed = false;
 
   public constructor(
@@ -140,6 +150,7 @@ class GpuRenderer implements WebGpuRenderer {
   public render(runtime: SceneRuntime, camera: Camera, parts: ReadonlyMap<PartId, Part>): void {
     this.ensureAlive();
     this.attach(runtime);
+    syncDeformations(this.lifecycle.bundle.draw, this.deformation);
     encodeFrame(camera, parts, {
       canvas: this.canvas,
       context: this.context,
@@ -152,7 +163,14 @@ class GpuRenderer implements WebGpuRenderer {
       depthFormat: this.depthFormat,
       edgeDepthTest: this.edgeDepthTest,
       pointSize: this.pointSize,
+      deformation: this.deformation,
     });
+  }
+
+  public setDeformation(deformation: DeformationState): void {
+    this.ensureAlive();
+    validateDeformation(deformation);
+    this.deformation = deformation;
   }
 
   public updateInstances(
@@ -339,19 +357,8 @@ class GpuRenderer implements WebGpuRenderer {
       this.edgeCalls = [];
       return;
     }
-    const calls: DrawCall[] = [];
-    const edgeCalls: DrawCall[] = [];
-    for (const partId of layout.partOrder) {
-      const count = layout.partVisibleCounts.get(partId);
-      if (count !== undefined && count > 0) {
-        calls.push({ partId, instanceCount: count });
-      }
-      const edgeCount = layout.partEdgeCounts.get(partId);
-      if (edgeCount !== undefined && edgeCount > 0) {
-        edgeCalls.push({ partId, instanceCount: edgeCount });
-      }
-    }
-    this.calls = calls;
-    this.edgeCalls = edgeCalls;
+    const built = buildDrawCalls(layout);
+    this.calls = built.calls;
+    this.edgeCalls = built.edgeCalls;
   }
 }

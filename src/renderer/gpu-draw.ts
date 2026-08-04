@@ -10,6 +10,12 @@ import {
 import type { DrawPipelines } from "./gpu-pipelines";
 import { createBuffer, type PartResource } from "./gpu-support";
 import { writeDiffedRange, writeOrderBuffer } from "./gpu-writes";
+import { orderBindGroup } from "./gpu-bind-groups";
+import {
+  destroyDeformationBuffers,
+  ensureDeformationBuffer,
+  type DeformationStorage,
+} from "./gpu-deform";
 
 /** Byte size of one instance record in the per-part storage buffer. */
 export const INSTANCE_STRIDE = 96;
@@ -77,6 +83,7 @@ export interface DrawResources {
   readonly device: GPUDevice;
   readonly parts: Map<PartId, PartResource>;
   readonly storages: Map<PartId, InstanceStorage>;
+  readonly deformations: Map<PartId, DeformationStorage>;
   depthTexture: GPUTexture | undefined;
   depthWidth: number;
   depthHeight: number;
@@ -84,7 +91,7 @@ export interface DrawResources {
 
 /** Per-frame inputs shared by every draw batch of a pass. */
 export interface DrawCallContext {
-  readonly cameraBindGroup: GPUBindGroup;
+  readonly frameBindGroup: GPUBindGroup;
   readonly instanceLayout: GPUBindGroupLayout;
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly pipelines: DrawPipelines;
@@ -96,6 +103,7 @@ export function createDrawResources(device: GPUDevice): DrawResources {
     device,
     parts: new Map(),
     storages: new Map(),
+    deformations: new Map(),
     depthTexture: undefined,
     depthWidth: 0,
     depthHeight: 0,
@@ -254,7 +262,7 @@ export function drawBatches(
 ): void {
   const passKind = options.pass ?? "color";
   const overlay = options.overlay === true;
-  pass.setBindGroup(0, context.cameraBindGroup);
+  pass.setBindGroup(0, context.frameBindGroup);
   let current: GPURenderPipeline | undefined;
   for (const call of calls) {
     const part = context.parts.get(call.partId);
@@ -268,7 +276,11 @@ export function drawBatches(
       pass.setPipeline(pipeline);
       current = pipeline;
     }
-    const group = orderBindGroup(draw.device, context.instanceLayout, storage, overlay, geometry);
+    const deformation = ensureDeformationBuffer(draw.device, draw.deformations, call.partId);
+    const group = orderBindGroup(draw.device, context.instanceLayout, storage, overlay, {
+      geometry,
+      deformation,
+    });
     pass.setBindGroup(1, group);
     pass.setVertexBuffer(0, geometry.vertexBuffer);
     const buffer = overlay ? geometry.edgeIndexBuffer : geometry.indexBuffer;
@@ -276,39 +288,6 @@ export function drawBatches(
     pass.setIndexBuffer(buffer, "uint32");
     pass.drawIndexed(count, call.instanceCount);
   }
-}
-
-/** Returns the cached per-part bind group addressing the surface or edge order. */
-function orderBindGroup(
-  device: GPUDevice,
-  layout: GPUBindGroupLayout,
-  storage: InstanceStorage,
-  overlay: boolean,
-  geometry: PartResource,
-): GPUBindGroup {
-  const orderBuffer = overlay ? storage.edgeOrderBuffer : storage.orderBuffer;
-  return overlay
-    ? (storage.edgeBindGroup ??= instanceBindGroup(device, layout, storage, orderBuffer, geometry))
-    : (storage.bindGroup ??= instanceBindGroup(device, layout, storage, orderBuffer, geometry));
-}
-
-/** Creates the per-part bind group addressing the given order buffer. */
-function instanceBindGroup(
-  device: GPUDevice,
-  layout: GPUBindGroupLayout,
-  storage: InstanceStorage,
-  orderBuffer: GPUBuffer,
-  geometry: PartResource,
-): GPUBindGroup {
-  return device.createBindGroup({
-    layout,
-    entries: [
-      { binding: 0, resource: { buffer: storage.buffer } },
-      { binding: 1, resource: { buffer: orderBuffer } },
-      { binding: 2, resource: { buffer: geometry.elementPickIdsBuffer } },
-      { binding: 3, resource: { buffer: storage.highlight.buffer } },
-    ],
-  });
 }
 
 /** Selects the color or pick pipeline for a part's primitive kind. */
@@ -341,6 +320,7 @@ export function destroyDrawResources(draw: DrawResources): void {
     storage.edgeOrderBuffer.destroy();
     storage.highlight.buffer.destroy();
   }
+  destroyDeformationBuffers(draw.deformations);
   draw.depthTexture?.destroy();
 }
 

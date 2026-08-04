@@ -7,6 +7,7 @@ import {
 } from "./gpu-shaders";
 import { PICK_TEXTURE_FORMAT } from "./pick-format";
 import { vertexLayout } from "./gpu-support";
+import { DEFORMATION_UNIFORM_SIZE } from "./gpu-deform";
 import type { DrawResources } from "./gpu-draw";
 
 /** The six render pipelines: color and pick variants for each primitive. */
@@ -22,7 +23,9 @@ export interface DrawPipelines {
 /** WebGPU pipelines plus the layouts, camera buffer, and bind groups they share. */
 export interface RenderResources {
   readonly cameraBuffer: GPUBuffer;
-  readonly cameraBindGroup: GPUBindGroup;
+  /** Per-frame deformation uniform (scale + active load case). */
+  readonly deformationBuffer: GPUBuffer;
+  readonly frameBindGroup: GPUBindGroup;
   readonly pipelines: DrawPipelines;
   /** Depth-tested line overlay that draws the mesh edges in the edge pass. */
   readonly edgePipeline: GPURenderPipeline;
@@ -63,22 +66,33 @@ export function createRenderResources(
     ],
   });
   const cameraLayout = device.createBindGroupLayout({
-    entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } }],
+    entries: [
+      { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } },
+      { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } },
+    ],
   });
   const cameraBuffer = device.createBuffer({
     size: CAMERA_UNIFORM_SIZE,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  const cameraBindGroup = device.createBindGroup({
+  const deformationBuffer = device.createBuffer({
+    size: DEFORMATION_UNIFORM_SIZE,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  const frameBindGroup = device.createBindGroup({
     layout: cameraLayout,
-    entries: [{ binding: 0, resource: { buffer: cameraBuffer } }],
+    entries: [
+      { binding: 0, resource: { buffer: cameraBuffer } },
+      { binding: 1, resource: { buffer: deformationBuffer } },
+    ],
   });
   const layout = device.createPipelineLayout({
     bindGroupLayouts: [cameraLayout, instanceLayout],
   });
   return {
     cameraBuffer,
-    cameraBindGroup,
+    deformationBuffer,
+    frameBindGroup,
     instanceLayout,
     pipelines: buildPipelines(device, layout, format, depthFormat),
     edgePipeline: createEdgePipeline(device, layout, format, depthFormat, "less-equal"),
@@ -244,9 +258,10 @@ export function configureCanvasContext(
   context.configure({ device, format, alphaMode: "opaque" });
 }
 
-/** Releases the buffer owned by the render resources (pipelines need none). */
+/** Releases the buffers owned by the render resources (pipelines need none). */
 export function destroyRenderResources(resources: RenderResources): void {
   resources.cameraBuffer.destroy();
+  resources.deformationBuffer.destroy();
 }
 
 /** Creates a depth attachment sized to the given canvas dimensions. */
