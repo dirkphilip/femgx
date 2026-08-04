@@ -4,7 +4,9 @@ import { computeBounds } from "../../src/geometry/part";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
 import { createScene, type Scene } from "../../src/scene/scene";
-import { translation } from "../../src/math/mat4";
+import { identity, translation } from "../../src/math/mat4";
+import { partFromChunk, type ChunkSource } from "../../src/streaming/chunk";
+import { parseChunk } from "../../src/streaming/parser";
 import type { Camera } from "../../src/camera/camera";
 import {
   fakeCanvas,
@@ -300,6 +302,135 @@ describe("WebGPU renderer", () => {
 
     renderer.destroy();
   });
+  it("grows progressively when a chunked runtime appends a part, uploading only the delta", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice({ pickValue: 2 });
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+
+    const firstScene = chunkedScene(1, triangleChunk);
+    const firstRuntime = createSceneRuntime(firstScene);
+    renderer.render(firstRuntime, camera, firstScene.parts);
+    const buffersAfterFirst = gpu.buffers.length;
+    const texturesAfterFirst = gpu.textureCreations;
+    expect(buffersAfterFirst).toBeGreaterThan(0);
+
+    const grownScene = chunkedScene(2, triangleChunk);
+    const grownRuntime = createSceneRuntime(grownScene);
+    renderer.render(grownRuntime, camera, grownScene.parts);
+    renderer.render(grownRuntime, camera, grownScene.parts);
+
+    expect(gpu.buffers.every((buffer) => !buffer.destroyed)).toBe(true);
+    expect(gpu.textureCreations).toBe(texturesAfterFirst);
+    expect(gpu.buffers.length - buffersAfterFirst).toBe(9);
+    expect(gpu.drawCalls.slice(-4)).toEqual([
+      { indexCount: 3, instanceCount: 1 },
+      { indexCount: 3, instanceCount: 1 },
+      { indexCount: 3, instanceCount: 1 },
+      { indexCount: 3, instanceCount: 1 },
+    ]);
+    await expect(renderer.pick(400, 300)).resolves.toEqual({
+      kind: "instance",
+      instanceId: "1/1/0",
+    });
+    renderer.destroy();
+  });
+
+  it("grows only the affected part storage when a chunk appends existing-part instances", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const geometry = {
+      positions: new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+    };
+    const place = (id: number, x: number) => ({
+      kind: "part" as const,
+      partId: id,
+      transform: translation(x, 0, 0),
+    });
+    const scene1 = createScene()
+      .addPart({ id: 1, geometry, bounds: computeBounds(geometry) })
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [place(1, 0), place(1, 2)],
+      })
+      .withRoot(1)
+      .build();
+    const runtime1 = createSceneRuntime(scene1);
+    renderer.render(runtime1, camera, scene1.parts);
+    const buffersAfterFirst = gpu.buffers.length;
+
+    const scene2 = createScene()
+      .addPart({ id: 1, geometry, bounds: computeBounds(geometry) })
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [place(1, 0), place(1, 2), place(1, 4), place(1, 6)],
+      })
+      .withRoot(1)
+      .build();
+    const runtime2 = createSceneRuntime(scene2);
+    renderer.render(runtime2, camera, scene2.parts);
+
+    expect(gpu.buffers.every((buffer) => !buffer.destroyed)).toBe(true);
+    expect(gpu.buffers.length - buffersAfterFirst).toBe(3);
+    expect(gpu.drawCalls.slice(-2)).toEqual([
+      { indexCount: 3, instanceCount: 4 },
+      { indexCount: 3, instanceCount: 4 },
+    ]);
+    renderer.destroy();
+  });
+
+  it("falls back to a full rebuild when a runtime change is not a compatible append", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const geometry = {
+      positions: new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+    };
+    const part1 = { id: 1, geometry, bounds: computeBounds(geometry) };
+
+    const wrapped = createScene()
+      .addPart(part1)
+      .addAssembly({
+        id: 2,
+        name: "wrapped",
+        placements: [{ kind: "part", partId: 1, transform: translation(0, 0, 0) }],
+      })
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [{ kind: "assembly", assemblyId: 2, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime1 = createSceneRuntime(wrapped);
+    renderer.render(runtime1, camera, wrapped.parts);
+    expect(gpu.buffers.every((buffer) => !buffer.destroyed)).toBe(true);
+
+    const flattened = createScene()
+      .addPart(part1)
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [
+          { kind: "part", partId: 1, transform: translation(0, 0, 0) },
+          { kind: "part", partId: 1, transform: translation(2, 0, 0) },
+        ],
+      })
+      .withRoot(1)
+      .build();
+    const runtime2 = createSceneRuntime(flattened);
+    renderer.render(runtime2, camera, flattened.parts);
+
+    expect(gpu.buffers.some((buffer) => buffer.destroyed)).toBe(true);
+    renderer.destroy();
+  });
 });
 
 describe("WebGPU renderer deformation", () => {
@@ -395,3 +526,40 @@ describe("WebGPU renderer deformation", () => {
     renderer.destroy();
   });
 });
+
+/** A deterministic single-triangle chunk, one part placement wide. */
+function triangleChunk(chunkId: number, index: number, x: number): ChunkSource {
+  return {
+    chunkId,
+    index,
+    data: {
+      positions: new Float32Array([x, -0.5, 0, x + 1, -0.5, 0, x + 0.5, 0.5, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+    },
+  };
+}
+
+/** Scene with chunk parts `1..partCount`, each placed once under sub-assembly `id`. */
+function chunkedScene(
+  partCount: number,
+  chunk: (chunkId: number, index: number, x: number) => ChunkSource,
+): Scene {
+  let builder = createScene();
+  const rootPlacements: Array<{ kind: "assembly"; assemblyId: number; transform: Float32Array }> =
+    [];
+  for (let id = 1; id <= partCount; id++) {
+    const part = partFromChunk(parseChunk(chunk(id, id - 1, (id - 1) * 3)), id);
+    builder = builder.addPart(part);
+    const subcaseId = id + 100;
+    builder = builder.addAssembly({
+      id: subcaseId,
+      name: `chunk-${id}`,
+      placements: [{ kind: "part", partId: id, transform: identity() }],
+    });
+    rootPlacements.push({ kind: "assembly", assemblyId: subcaseId, transform: identity() });
+  }
+  return builder
+    .addAssembly({ id: 1, name: "root", placements: rootPlacements })
+    .withRoot(1)
+    .build();
+}

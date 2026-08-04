@@ -79,9 +79,25 @@ resolves to at cull time, not as stream state.
 `test/bench/budget.test.ts` covers `parseChunk`, `buildSpatialGrid`,
 `cullChunks`, and a full `createChunkStream` load at 500 chunks / 3M vertices,
 plus mixed-detail `parseChunk` and `createChunkStream` cases over 500 LOD
-chunks (see [[benchmarks|Benchmarks]]). Backpressure is the per-tick upload
-budget; `ChunkStream.uploadedBytes` and `pendingBytes` expose the memory
-ledger, and `dispose()` makes eviction predictable.
+chunks, and the renderer's `progressive renderer attach delta` (growing a
+200k-instance runtime by 10 subcases) so a regression that makes the growth
+scan quadratic fails the gate (see [[benchmarks|Benchmarks]]). Backpressure is
+the per-tick upload budget; `ChunkStream.uploadedBytes` and `pendingBytes`
+expose the memory ledger, and `dispose()` makes eviction predictable.
+
+## Renderer integration
+
+Issue #77. The WebGPU renderer consumes a grown runtime progressively:
+`RendererAttachment.attach` (in `src/renderer/attachment.ts`) computes the
+growth delta against the previously attached runtime and uploads only the new
+part geometry and appended instance records, leaving already-loaded buffers
+untouched. `computeRuntimeGrowth` (in `src/renderer/runtime-state.ts`) verifies
+a compatible superset (instance count grows, existing slots keep part and
+placement identity) and returns the appended slots plus the parts whose
+draw/edge orders need rebuilding; any other change falls back to a full
+rebuild. A consumer can therefore keep `partFromChunk`/the scene runtime as the
+single source of truth and call `render(runtime, camera, parts)` as chunks
+arrive. Covered by mocked-device unit tests in `test/renderer/gpu-renderer.test.ts`.
 
 Related: [[instancing-strategy|Instancing strategy]], [[packed-runtime|Packed
 scene runtime]], [[todo|Engineering TODO]].
