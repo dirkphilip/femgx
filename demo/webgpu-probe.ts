@@ -21,9 +21,9 @@ export function createWebGpuProbe(
   canvas: HTMLCanvasElement,
 ): RendererFactory {
   const probeTarget: Vec3 = [
-    fixture.dimensions.width / 2,
-    fixture.dimensions.depth / 2,
-    fixture.dimensions.stiffenerHeight / 2,
+    (fixture.elementFixture.bounds.minX + fixture.elementFixture.bounds.maxX) / 2,
+    (fixture.elementFixture.bounds.minY + fixture.elementFixture.bounds.maxY) / 2,
+    (fixture.elementFixture.bounds.minZ + fixture.elementFixture.bounds.maxZ) / 2,
   ];
   return async () => {
     let probe: WebGpuRenderer | undefined;
@@ -45,7 +45,7 @@ export function createWebGpuProbe(
       const probeCamera = resizeCamera(
         createCamera({
           target: probeTarget,
-          position: [fixture.dimensions.width / 2 + 3, fixture.dimensions.depth / 2 + 3, 6],
+          position: [probeTarget[0], probeTarget[1] + 3, probeTarget[2] + 5],
         }),
         probeCanvas.width,
         probeCanvas.height,

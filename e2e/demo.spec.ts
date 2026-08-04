@@ -23,10 +23,26 @@ test("renders the demo canvas with instanced geometry", async ({ page }) => {
   expect(drawn).toBe(true);
 });
 
-test("renders the deterministic FE fixture summary", async ({ page }) => {
+test("renders the deterministic element gallery summary", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("status")).toHaveText(
-    "21 instances · 3 reusable parts · perspective camera",
+    "8 instances · 8 reusable parts · solid · perspective camera",
+  );
+});
+
+test("switches element render modes", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("mode-surface").click();
+  await expect(page.getByTestId("status")).toHaveText(
+    "8 instances · 8 reusable parts · surface · perspective camera",
+  );
+  await page.getByTestId("mode-edges").click();
+  await expect(page.getByTestId("status")).toHaveText(
+    "8 instances · 8 reusable parts · edges · perspective camera",
+  );
+  await page.getByTestId("mode-solid").click();
+  await expect(page.getByTestId("status")).toHaveText(
+    "8 instances · 8 reusable parts · solid · perspective camera",
   );
 });
 

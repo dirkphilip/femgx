@@ -12,8 +12,24 @@ export {
   type ElementTessellation,
   type Geometry,
   type Part,
+  type Primitive,
 } from "./geometry/part";
 export { createElement, type Element, type ElementId, type NodeId } from "./elements/element";
+export { createElementModel, type ElementModel } from "./elements/model";
+export {
+  elementGeometry,
+  elementPart,
+  elementRenderModes,
+  type ElementRenderMode,
+  type TessellationOptions,
+} from "./geometry/element-mesh";
+export {
+  createElementFixture,
+  visiblePartIdsFor,
+  type ElementFixture,
+  type ElementFixtureOptions,
+  type ElementFixtureParts,
+} from "./fixture/element-fixture";
 export {
   HEX20_SHAPE,
   HEX8_SHAPE,
