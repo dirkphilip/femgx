@@ -202,6 +202,14 @@ export {
 } from "./results/mapping";
 export { deformGeometry, deformPositions } from "./results/deform";
 export {
+  advanceCase,
+  createCasePlayer,
+  sampleDisplacements,
+  type CaseLoopMode,
+  type CasePlayer,
+  type CasePlayerOptions,
+} from "./results/case-player";
+export {
   createCancellationToken,
   noopProgress,
   OperationCancelledError,
