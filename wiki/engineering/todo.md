@@ -115,6 +115,24 @@ development workflow.
       id packed across the RGBA channels) instead of `r32uint`, whose SwiftShader
       readback proved unreliable; see [[rendering/pick-format|Pick texture format]].
 
+## P3 — engineering verification (issue #60)
+
+- [x] Add golden topology/connectivity fixtures for the standard element
+      conventions, documenting node ordering and reference geometry in meters
+      (`test/elements/golden.ts` + `golden.test.ts`; see
+      [[elements-topology|Element topology]]).
+- [x] Add numerical checks for bounds, transforms, mid-edge interpolation,
+      face/edge extraction, and reference-element volume.
+- [x] Add a large-model correctness stress test with explicit model sizes and
+      structural budgets (`test/runtime/stress.test.ts`; see
+      [[benchmarks|Benchmarks]]).
+- [x] Add e2e visual regression for solid, edge, and selection modes on the
+      deterministic CPU renderer (`e2e/visual.spec.ts`).
+- [x] Document the browser/GPU capability matrix in the wiki
+      ([[compatibility-matrix|Browser/GPU compatibility matrix]]).
+- [x] Deterministic import/export round trips and invalid-input diagnostics are
+      covered by `test/io/roundtrip.test.ts` and `test/io/validate.test.ts`.
+
 ## P3 — large-model streaming
 
 - [x] Add chunked model loading: parse, validate, and bound geometry per chunk

@@ -83,6 +83,17 @@ https://github.com/dirkphilip/femgx/issues/66.
 - duplicate node references;
 - negative or non-integer element/node ids.
 
+## Golden fixtures
+
+`test/elements/golden.ts` is the single documented reference for the standard
+element conventions: canonical node ordering (corners, edges, mid-edge nodes),
+the reference unit geometry in meters, and the expected face/edge output.
+`test/elements/golden.test.ts` validates `topologyFor`, `facesOf`, and `edgesOf`
+against it, verifies bounds and the divergence-theorem volume of the reference
+geometry, checks that quadratic mid-edge nodes sit exactly at edge midpoints,
+and confirms translated reference geometry keeps its bounds. Failures name the
+affected element type.
+
 ## Extensibility
 
 New families are added by extending the `ElementFamily` union, declaring the
