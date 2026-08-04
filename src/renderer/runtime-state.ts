@@ -1,5 +1,5 @@
 import type { SceneRuntime } from "../scene-runtime/runtime";
-import type { PartId } from "../scene/types";
+import type { Instance, InstanceId, PartId } from "../scene/types";
 
 /**
  * CPU-side bridge between the packed scene runtime and per-part GPU storage.
@@ -75,4 +75,34 @@ export function buildDrawOrder(
     }
   }
   return new Uint32Array(visible);
+}
+
+/** Describes one placed part with a world-transform view into the runtime. */
+export function instanceAt(runtime: SceneRuntime, slot: number, partId: PartId): Instance {
+  return {
+    index: slot,
+    instanceId: runtime.getInstanceId(slot) ?? String(slot),
+    partId,
+    worldTransform: runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
+  };
+}
+
+/** The stable instance descriptors and their id-to-slot map for one runtime. */
+export interface InstanceSnapshot {
+  readonly instances: Instance[];
+  readonly slotByInstanceId: Map<InstanceId, number>;
+}
+
+/** Snapshots every placed instance for CPU-side pick resolution. */
+export function buildInstanceSnapshot(runtime: SceneRuntime): InstanceSnapshot {
+  const instances: Instance[] = [];
+  const slotByInstanceId = new Map<InstanceId, number>();
+  for (let slot = 0; slot < runtime.instanceCount; slot++) {
+    const instanceId = runtime.getInstanceId(slot);
+    const partId = runtime.instancePartIds[slot];
+    if (instanceId === undefined || partId === undefined) continue;
+    slotByInstanceId.set(instanceId, slot);
+    instances.push(instanceAt(runtime, slot, partId));
+  }
+  return { instances, slotByInstanceId };
 }

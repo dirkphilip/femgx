@@ -1,4 +1,7 @@
+import type { ElementId } from "../elements/element";
 import type { Mat4 } from "../math/mat4";
+
+export type { ElementId } from "../elements/element";
 
 /** A globally stable identifier for a part within a scene. */
 export type PartId = number;
@@ -8,6 +11,14 @@ export type AssemblyId = number;
 
 /** Stable identity of a placement in an assembly tree. */
 export type InstanceId = string;
+
+/** Stable identity of one element occurrence (an element placed in the scene). */
+export interface ElementRef {
+  /** The placement whose geometry contains the element. */
+  readonly instanceId: InstanceId;
+  /** The element id within that placement's part geometry. */
+  readonly elementId: ElementId;
+}
 
 /**
  * A single placement of a part in the world, produced by flattening an
@@ -27,6 +38,12 @@ export interface Instance {
 /** A resolveable reference to something the user can highlight/select. */
 export type PickTarget =
   | { readonly kind: "part"; readonly partId: PartId }
-  | { readonly kind: "instance"; readonly instanceId: InstanceId };
+  | { readonly kind: "instance"; readonly instanceId: InstanceId }
+  | {
+      readonly kind: "element";
+      readonly partId: PartId;
+      readonly instanceId: InstanceId;
+      readonly elementId: ElementId;
+    };
 
 export type { Mat4 } from "../math/mat4";

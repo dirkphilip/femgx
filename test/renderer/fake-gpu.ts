@@ -1,4 +1,5 @@
 import { encodePickId } from "../../src/renderer/pick-format";
+import { READBACK_BYTE_STRIDE } from "../../src/renderer/gpu-pick";
 
 export interface RecordedWrite {
   readonly offset: number;
@@ -73,13 +74,16 @@ export function fakeCanvas(width = 800, height = 600): HTMLCanvasElement {
 }
 
 /** A GPU device that records buffer writes, creations, and draw calls. */
-export function fakeGpuDevice(options: { readonly pickValue?: number } = {}): FakeGpu {
+export function fakeGpuDevice(
+  options: { readonly pickValue?: number; readonly elementPickValue?: number } = {},
+): FakeGpu {
   const writes: RecordedWrite[] = [];
   const buffers: FakeBuffer[] = [];
   const textures: FakeTexture[] = [];
   const drawCalls: DrawCall[] = [];
   let bindGroupCreations = 0;
   const pickValue = options.pickValue ?? 0;
+  const elementPickValue = options.elementPickValue ?? 0;
   const device = {
     queue: {
       writeBuffer: (_buffer: GPUBuffer, offset: number, data: ArrayBufferView | ArrayBuffer) => {
@@ -108,7 +112,12 @@ export function fakeGpuDevice(options: { readonly pickValue?: number } = {}): Fa
           record.destroyed = true;
         },
         mapAsync: () => Promise.resolve(),
-        getMappedRange: () => encodePickId(pickValue).buffer,
+        getMappedRange: () => {
+          const bytes = new Uint8Array(READBACK_BYTE_STRIDE * 2);
+          bytes.set(encodePickId(pickValue));
+          bytes.set(encodePickId(elementPickValue), READBACK_BYTE_STRIDE);
+          return bytes.buffer;
+        },
         unmap: () => undefined,
       } as unknown as GPUBuffer;
     },

@@ -1,27 +1,24 @@
-import { viewProjectionMatrix, type Camera } from "../camera/camera";
+import type { Camera } from "../camera/camera";
 import type { Part } from "../geometry/part";
 import { resolveInstanceStyle, type InteractionState } from "../interaction/interaction";
+import { resolvePickTarget } from "../picking/pick";
 import type { SceneRuntime } from "../scene-runtime/runtime";
-import type { Instance, PartId, PickTarget } from "../scene/types";
+import type { Instance, InstanceId, PartId, PickTarget } from "../scene/types";
+import { syncElementHighlights } from "./gpu-elements";
 import {
-  beginColorPass,
   createDrawResources,
   destroyDrawResources,
-  drawBatches,
   encodeInstanceRecord,
-  ensureDepthTexture,
   patchInstances,
   writeDrawOrder,
   type DrawCall,
-  type DrawCallContext,
   type DrawResources,
   type InstanceUpdate,
 } from "./gpu-draw";
+import { encodeFrame, type DisplayMode } from "./gpu-frame";
 import {
-  beginPickPass,
   createPickTargets,
   destroyPickTargets,
-  ensurePickTargets,
   readPickPixel,
   resetPickTargets,
   type PickTargets,
@@ -32,7 +29,13 @@ import {
   type RenderResources,
 } from "./gpu-pipelines";
 import { createDefaultInteraction, defaultStyle } from "./gpu-support";
-import { buildDrawOrder, buildInstanceLayout, type InstanceLayout } from "./runtime-state";
+import {
+  buildDrawOrder,
+  buildInstanceLayout,
+  buildInstanceSnapshot,
+  instanceAt,
+  type InstanceLayout,
+} from "./runtime-state";
 
 /** Options for creating a WebGPU renderer. */
 export interface WebGpuRendererOptions {
@@ -40,6 +43,9 @@ export interface WebGpuRendererOptions {
   readonly device?: GPUDevice;
   readonly powerPreference?: GPUPowerPreference;
 }
+
+/** How the visible color pass renders each part. */
+export type { DisplayMode } from "./gpu-frame";
 
 /**
  * A renderer that draws a packed scene runtime with stable per-part instance
@@ -58,6 +64,13 @@ export interface WebGpuRenderer {
     interaction: InteractionState,
     changedInstanceIds: readonly number[],
   ): void;
+  /**
+   * Writes the per-part element-highlight buffers for the currently emphasized
+   * elements (hovered, selected, or explicitly overridden) as diffed records.
+   */
+  updateElements(runtime: SceneRuntime, interaction: InteractionState): void;
+  /** Sets whether the color pass also draws the wireframe edge overlay. */
+  setDisplayMode(mode: DisplayMode): void;
   pick(x: number, y: number): Promise<PickTarget | undefined>;
   resize(width?: number, height?: number): void;
   destroy(): void;
@@ -90,6 +103,9 @@ class GpuRenderer implements WebGpuRenderer {
   private runtime: SceneRuntime | undefined;
   private layout: InstanceLayout | undefined;
   private calls: readonly DrawCall[] = [];
+  private instances: Instance[] = [];
+  private slotByInstanceId = new Map<InstanceId, number>();
+  private displayMode: DisplayMode = "solid";
   private destroyed = false;
 
   public constructor(
@@ -109,35 +125,17 @@ class GpuRenderer implements WebGpuRenderer {
   public render(runtime: SceneRuntime, camera: Camera, parts: ReadonlyMap<PartId, Part>): void {
     this.ensureAlive();
     this.attach(runtime);
-    const viewProjection = viewProjectionMatrix(camera);
-    this.device.queue.writeBuffer(this.resources.cameraBuffer, 0, new Float32Array(viewProjection));
-    const encoder = this.device.createCommandEncoder();
-    const colorView = this.context.getCurrentTexture().createView();
-    const depthTexture = ensureDepthTexture(
-      this.draw,
-      this.canvas.width,
-      this.canvas.height,
-      this.depthFormat,
-    );
-    const drawContext: DrawCallContext = {
-      cameraBindGroup: this.resources.cameraBindGroup,
-      instanceLayout: this.resources.instanceLayout,
-      parts,
-    };
-    const colorPass = beginColorPass(encoder, colorView, depthTexture.createView());
-    drawBatches(colorPass, this.draw, drawContext, this.calls, this.resources.colorPipeline);
-    colorPass.end();
-    ensurePickTargets(
-      this.device,
-      this.pickTargets,
-      this.canvas.width,
-      this.canvas.height,
-      this.depthFormat,
-    );
-    const pickPass = beginPickPass(encoder, this.pickTargets);
-    drawBatches(pickPass, this.draw, drawContext, this.calls, this.resources.pickPipeline);
-    pickPass.end();
-    this.device.queue.submit([encoder.finish()]);
+    encodeFrame(camera, parts, {
+      canvas: this.canvas,
+      context: this.context,
+      device: this.device,
+      draw: this.draw,
+      resources: this.resources,
+      calls: this.calls,
+      pickTargets: this.pickTargets,
+      depthFormat: this.depthFormat,
+      displayMode: this.displayMode,
+    });
   }
 
   public updateInstances(
@@ -159,7 +157,7 @@ class GpuRenderer implements WebGpuRenderer {
         slot: local,
         data: encodeInstanceRecord(
           runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
-          resolveInstanceStyle(this.instanceFor(runtime, slot, partId), defaultStyle, interaction),
+          resolveInstanceStyle(instanceAt(runtime, slot, partId), defaultStyle, interaction),
           slot + 1,
         ),
       };
@@ -178,17 +176,40 @@ class GpuRenderer implements WebGpuRenderer {
     }
   }
 
+  public updateElements(runtime: SceneRuntime, interaction: InteractionState): void {
+    this.ensureAlive();
+    this.attach(runtime);
+    const layout = this.layout;
+    if (layout === undefined) return;
+    syncElementHighlights(
+      {
+        device: this.device,
+        draw: this.draw,
+        runtime,
+        layout,
+        slotByInstanceId: this.slotByInstanceId,
+      },
+      interaction,
+    );
+  }
+
+  public setDisplayMode(mode: DisplayMode): void {
+    this.ensureAlive();
+    this.displayMode = mode;
+  }
+
   public async pick(x: number, y: number): Promise<PickTarget | undefined> {
     this.ensureAlive();
     const runtime = this.runtime;
     if (runtime === undefined) return undefined;
-    const pickId = await readPickPixel(this.device, this.canvas, this.pickTargets, x, y);
-    const slot = pickId - 1;
-    if (slot < 0 || slot >= runtime.instanceCount) return undefined;
-    const partId = runtime.instancePartIds[slot];
-    const instanceId = runtime.getInstanceId(slot);
-    if (partId === undefined || instanceId === undefined) return undefined;
-    return { kind: "instance", instanceId };
+    const { instancePickId, elementPickId } = await readPickPixel(
+      this.device,
+      this.canvas,
+      this.pickTargets,
+      x,
+      y,
+    );
+    return resolvePickTarget(this.instances, instancePickId, elementPickId);
   }
 
   public resize(width = this.canvas.clientWidth, height = this.canvas.clientHeight): void {
@@ -222,6 +243,9 @@ class GpuRenderer implements WebGpuRenderer {
     this.draw = createDrawResources(this.device);
     const layout = buildInstanceLayout(runtime);
     const interaction = createDefaultInteraction();
+    const snapshot = buildInstanceSnapshot(runtime);
+    this.instances = snapshot.instances;
+    this.slotByInstanceId = snapshot.slotByInstanceId;
     for (const partId of layout.partOrder) {
       const slots = layout.partSlots.get(partId);
       if (slots === undefined) continue;
@@ -234,11 +258,7 @@ class GpuRenderer implements WebGpuRenderer {
           slot: local,
           data: encodeInstanceRecord(
             runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
-            resolveInstanceStyle(
-              this.instanceFor(runtime, slot, slotPartId),
-              defaultStyle,
-              interaction,
-            ),
+            resolveInstanceStyle(instanceAt(runtime, slot, slotPartId), defaultStyle, interaction),
             slot + 1,
           ),
         });
@@ -286,14 +306,5 @@ class GpuRenderer implements WebGpuRenderer {
       }
     }
     this.calls = calls;
-  }
-
-  private instanceFor(runtime: SceneRuntime, slot: number, partId: PartId): Instance {
-    return {
-      index: slot,
-      instanceId: runtime.getInstanceId(slot) ?? String(slot),
-      partId,
-      worldTransform: runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
-    };
   }
 }

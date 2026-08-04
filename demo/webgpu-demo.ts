@@ -1,7 +1,9 @@
 import {
   createInteractionState,
   createSceneRuntime,
+  setHoveredElement,
   setHoveredInstance,
+  setElementSelected,
   setInstanceSelected,
   type InstanceId,
   type InteractionState,
@@ -13,6 +15,7 @@ import { installCameraControls } from "./camera-controls";
 import { startCpuDemo } from "./cpu-demo";
 import type { DemoFixture } from "./fixture";
 import {
+  installDisplayModeControl,
   installProjectionControl,
   installResetControl,
   installResizeControl,
@@ -20,6 +23,7 @@ import {
   type CameraRef,
   type ControlContext,
   type DemoView,
+  type DisplayMode,
 } from "./view";
 import type { RendererFactory } from "./webgpu-probe";
 
@@ -28,6 +32,14 @@ export interface WebGpuDemoOptions {
   readonly view: DemoView;
   readonly fixture: DemoFixture;
   readonly createRenderer: RendererFactory;
+}
+
+/** The string written to the hover/selection dataset for a pick target. */
+function targetKey(target: PickTarget | undefined): string {
+  if (target === undefined) return "";
+  if (target.kind === "element") return `${target.instanceId}:${target.elementId}`;
+  if (target.kind === "instance") return target.instanceId;
+  return "";
 }
 
 /**
@@ -62,18 +74,42 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<void>
     canvas.dataset["frames"] = String(Number(canvas.dataset["frames"] ?? "0") + 1);
   }
 
-  function patchHover(previous: InstanceId | undefined, next: InstanceId | undefined): void {
+  function patchInstancesFor(instanceIds: readonly (InstanceId | undefined)[]): void {
     if (gpuRenderer === undefined) return;
     const slots: number[] = [];
-    if (previous !== undefined) {
-      const slot = slotByInstanceId.get(previous);
-      if (slot !== undefined) slots.push(slot);
-    }
-    if (next !== undefined) {
-      const slot = slotByInstanceId.get(next);
+    for (const instanceId of instanceIds) {
+      if (instanceId === undefined) continue;
+      const slot = slotByInstanceId.get(instanceId);
       if (slot !== undefined) slots.push(slot);
     }
     if (slots.length > 0) gpuRenderer.updateInstances(runtime, interaction, slots);
+  }
+
+  function applyHover(target: PickTarget | undefined): void {
+    if (gpuRenderer === undefined) return;
+    const key = targetKey(target);
+    if (key === canvas.dataset["hovered"]) return;
+    const previousElement = interaction.hoveredElement?.instanceId;
+    const previousInstance = interaction.hoveredInstanceId;
+    interaction = setHoveredElement(
+      interaction,
+      target?.kind === "element"
+        ? { instanceId: target.instanceId, elementId: target.elementId }
+        : undefined,
+    );
+    interaction = setHoveredInstance(
+      interaction,
+      target?.kind === "element" || target?.kind === "instance" ? target.instanceId : undefined,
+    );
+    canvas.dataset["hovered"] = key;
+    gpuRenderer.updateElements(runtime, interaction);
+    patchInstancesFor([
+      previousElement,
+      previousInstance,
+      interaction.hoveredElement?.instanceId,
+      interaction.hoveredInstanceId,
+    ]);
+    renderGpu();
   }
 
   async function applyGpuPick(x: number, y: number): Promise<PickTarget | undefined> {
@@ -88,15 +124,8 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<void>
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-      const previous = interaction.hoveredInstanceId;
       pickChain = pickChain.then(async () => {
-        const target = await applyGpuPick(x, y);
-        const next = target?.kind === "instance" ? target.instanceId : undefined;
-        if (next !== previous) {
-          interaction = setHoveredInstance(interaction, next);
-          canvas.dataset["hovered"] = next ?? "";
-          patchHover(previous, next);
-        }
+        applyHover(await applyGpuPick(x, y));
       });
     },
     onRender: renderGpu,
@@ -107,15 +136,21 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<void>
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     void applyGpuPick(x, y).then((target) => {
-      if (target?.kind === "instance") {
+      if (gpuRenderer === undefined) return;
+      if (target?.kind === "element") {
+        const ref = { instanceId: target.instanceId, elementId: target.elementId };
+        const selected =
+          interaction.selectedElementIds.get(ref.instanceId)?.has(ref.elementId) ?? false;
+        interaction = setElementSelected(interaction, ref, !selected);
+        canvas.dataset["selected"] = selected ? "" : `${ref.instanceId}:${ref.elementId}`;
+        gpuRenderer.updateElements(runtime, interaction);
+      } else if (target?.kind === "instance") {
         const instanceId = target.instanceId;
         const selected = interaction.selectedInstanceIds.has(instanceId);
         interaction = setInstanceSelected(interaction, instanceId, !selected);
-        canvas.dataset["selected"] = interaction.selectedInstanceIds.has(instanceId)
-          ? instanceId
-          : "";
+        canvas.dataset["selected"] = selected ? "" : instanceId;
         const slot = slotByInstanceId.get(instanceId);
-        if (slot !== undefined) gpuRenderer?.updateInstances(runtime, interaction, [slot]);
+        if (slot !== undefined) gpuRenderer.updateInstances(runtime, interaction, [slot]);
       }
       renderGpu();
     });
@@ -127,8 +162,10 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<void>
     instanceCount: runtime.instanceCount,
     partCount: fixture.scene.parts.size,
     onRender: renderGpu,
+    setDisplayMode: (mode: DisplayMode) => gpuRenderer?.setDisplayMode(mode),
   };
   installProjectionControl(context);
+  installDisplayModeControl(context);
   installResetControl(context, fixture.initialCamera, resetInteraction);
   installResizeControl(view, cameraRef, renderGpu, () => gpuRenderer?.resize());
 
@@ -165,5 +202,7 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<void>
     interaction = createInteractionState();
     canvas.dataset["hovered"] = "";
     canvas.dataset["selected"] = "";
+    gpuRenderer?.updateElements(runtime, interaction);
+    renderGpu();
   }
 }

@@ -1,6 +1,12 @@
 import type { Part } from "../geometry/part";
 import type { ResolvedStyle } from "../interaction/interaction";
 import type { PartId } from "../scene/types";
+import {
+  buildElementTrianglePickIds,
+  buildMeshEdges,
+  createHighlightStorage,
+  type HighlightStorage,
+} from "./gpu-elements";
 import { createBuffer, type PartResource } from "./gpu-support";
 
 /** Byte size of one instance record in the per-part storage buffer. */
@@ -35,13 +41,15 @@ export interface DrawCall {
 }
 
 /**
- * Persistent per-part GPU storage: a slot-stable record buffer and a compacted
- * draw-order buffer. Hidden instances stay in the record buffer but are removed
- * from the draw-order list, so only visible geometry is ever drawn.
+ * Persistent per-part GPU storage: a slot-stable record buffer, a compacted
+ * draw-order buffer, and a fixed-capacity element-highlight buffer. Hidden
+ * instances stay in the record buffer but are removed from the draw-order
+ * list, so only visible geometry is ever drawn.
  */
 export interface InstanceStorage {
   readonly buffer: GPUBuffer;
   readonly orderBuffer: GPUBuffer;
+  readonly highlight: HighlightStorage;
   readonly capacity: number;
   /** CPU mirror of the record buffer, kept in sync by the patch functions. */
   data: ArrayBuffer;
@@ -88,7 +96,21 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
   if (existing !== undefined) return existing;
   const vertexBuffer = createBuffer(draw.device, part.geometry.positions, GPUBufferUsage.VERTEX);
   const indexBuffer = createBuffer(draw.device, part.geometry.indices, GPUBufferUsage.INDEX);
-  const resource = { vertexBuffer, indexBuffer, indexCount: part.geometry.indices.length };
+  const edges = buildMeshEdges(part.geometry);
+  const elementPickIdsBuffer = createBuffer(
+    draw.device,
+    buildElementTrianglePickIds(part.geometry),
+    GPUBufferUsage.STORAGE,
+  );
+  const edgeIndexBuffer = createBuffer(draw.device, edges, GPUBufferUsage.INDEX);
+  const resource: PartResource = {
+    vertexBuffer,
+    indexBuffer,
+    elementPickIdsBuffer,
+    edgeIndexBuffer,
+    indexCount: part.geometry.indices.length,
+    edgeIndexCount: edges.length,
+  };
   draw.parts.set(part.id, resource);
   return resource;
 }
@@ -176,60 +198,14 @@ export function writeDrawOrder(draw: DrawResources, partId: PartId, order: Uint3
   storage.orderLength = order.length;
 }
 
-/** Creates a depth attachment sized to the given canvas dimensions. */
-export function createDepthTexture(
-  device: GPUDevice,
-  width: number,
-  height: number,
-  format: GPUTextureFormat,
-): GPUTexture {
-  return device.createTexture({
-    size: [width, height],
-    format,
-    usage: GPUTextureUsage.RENDER_ATTACHMENT,
-  });
-}
+/** Which index buffer a draw batch should use. */
+export type IndexSource = "triangles" | "edges";
 
-/** Returns the cached depth texture, recreating it only when the canvas size changes. */
-export function ensureDepthTexture(
-  draw: DrawResources,
-  width: number,
-  height: number,
-  format: GPUTextureFormat,
-): GPUTexture {
-  if (draw.depthTexture !== undefined && draw.depthWidth === width && draw.depthHeight === height) {
-    return draw.depthTexture;
-  }
-  draw.depthTexture?.destroy();
-  const texture = createDepthTexture(draw.device, width, height, format);
-  draw.depthTexture = texture;
-  draw.depthWidth = width;
-  draw.depthHeight = height;
-  return texture;
-}
-
-/** Begins the visible color render pass with a cleared depth attachment. */
-export function beginColorPass(
-  encoder: GPUCommandEncoder,
-  colorView: GPUTextureView,
-  depthView: GPUTextureView,
-): GPURenderPassEncoder {
-  return encoder.beginRenderPass({
-    colorAttachments: [
-      {
-        view: colorView,
-        clearValue: { r: 0.04, g: 0.06, b: 0.12, a: 1 },
-        loadOp: "clear",
-        storeOp: "store",
-      },
-    ],
-    depthStencilAttachment: {
-      view: depthView,
-      depthClearValue: 1,
-      depthLoadOp: "clear",
-      depthStoreOp: "store",
-    },
-  });
+/** Options controlling one instanced draw pass. */
+export interface DrawBatchOptions {
+  readonly pipeline: GPURenderPipeline;
+  /** Which per-part index buffer to draw from; defaults to triangles. */
+  readonly index?: IndexSource;
 }
 
 /**
@@ -242,8 +218,9 @@ export function drawBatches(
   draw: DrawResources,
   context: DrawCallContext,
   calls: readonly DrawCall[],
-  pipeline: GPURenderPipeline,
+  options: DrawBatchOptions,
 ): void {
+  const { pipeline, index = "triangles" } = options;
   pass.setPipeline(pipeline);
   pass.setBindGroup(0, context.cameraBindGroup);
   for (const call of calls) {
@@ -257,13 +234,18 @@ export function drawBatches(
         entries: [
           { binding: 0, resource: { buffer: storage.buffer } },
           { binding: 1, resource: { buffer: storage.orderBuffer } },
+          { binding: 2, resource: { buffer: geometry.elementPickIdsBuffer } },
+          { binding: 3, resource: { buffer: storage.highlight.buffer } },
         ],
       });
     }
     pass.setBindGroup(1, storage.bindGroup);
     pass.setVertexBuffer(0, geometry.vertexBuffer);
-    pass.setIndexBuffer(geometry.indexBuffer, "uint32");
-    pass.drawIndexed(geometry.indexCount, call.instanceCount);
+    const edges = index === "edges";
+    const buffer = edges ? geometry.edgeIndexBuffer : geometry.indexBuffer;
+    const count = edges ? geometry.edgeIndexCount : geometry.indexCount;
+    pass.setIndexBuffer(buffer, "uint32");
+    pass.drawIndexed(count, call.instanceCount);
   }
 }
 
@@ -272,10 +254,13 @@ export function destroyDrawResources(draw: DrawResources): void {
   for (const resource of draw.parts.values()) {
     resource.vertexBuffer.destroy();
     resource.indexBuffer.destroy();
+    resource.elementPickIdsBuffer.destroy();
+    resource.edgeIndexBuffer.destroy();
   }
   for (const storage of draw.storages.values()) {
     storage.buffer.destroy();
     storage.orderBuffer.destroy();
+    storage.highlight.buffer.destroy();
   }
   draw.depthTexture?.destroy();
 }
@@ -297,6 +282,7 @@ function ensureStorage(draw: DrawResources, partId: PartId, capacity: number): I
   const mirror = new Uint8Array(size * INSTANCE_STRIDE);
   const orderData = new Uint32Array(size);
   const orderLength = existing?.orderLength ?? 0;
+  const highlight = existing?.highlight ?? createHighlightStorage(draw.device);
   if (existing !== undefined) {
     mirror.set(new Uint8Array(existing.data));
     orderData.set(existing.orderData.subarray(0, orderLength));
@@ -304,6 +290,7 @@ function ensureStorage(draw: DrawResources, partId: PartId, capacity: number): I
   const storage: InstanceStorage = {
     buffer,
     orderBuffer,
+    highlight,
     capacity: size,
     data: mirror.buffer,
     orderData,

@@ -1,4 +1,4 @@
-import type { InstanceId, PartId, Instance } from "../scene/types";
+import type { ElementId, ElementRef, InstanceId, PartId, Instance } from "../scene/types";
 
 /** RGBA color with normalized channels. */
 export interface Color {
@@ -29,13 +29,16 @@ export interface InteractionTheme {
   readonly hovered: StyleOverride;
 }
 
-/** Centralized interactive state for parts and individual placements. */
+/** Centralized interactive state for parts, placements, and finite elements. */
 export interface InteractionState {
   readonly highlightedPartIds: ReadonlySet<PartId>;
   readonly highlightedInstanceIds: ReadonlySet<InstanceId>;
   readonly selectedPartIds: ReadonlySet<PartId>;
   readonly selectedInstanceIds: ReadonlySet<InstanceId>;
   readonly hoveredInstanceId?: InstanceId;
+  readonly selectedElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
+  readonly hoveredElement?: ElementRef;
+  readonly elementOverrides: ReadonlyMap<InstanceId, ReadonlyMap<ElementId, StyleOverride>>;
   readonly partOverrides: ReadonlyMap<PartId, StyleOverride>;
   readonly instanceOverrides: ReadonlyMap<InstanceId, StyleOverride>;
   readonly theme: InteractionTheme;
@@ -54,6 +57,8 @@ export function createInteractionState(theme: InteractionTheme = defaultTheme): 
     highlightedInstanceIds: new Set(),
     selectedPartIds: new Set(),
     selectedInstanceIds: new Set(),
+    selectedElementIds: new Map(),
+    elementOverrides: new Map(),
     partOverrides: new Map(),
     instanceOverrides: new Map(),
     theme,
@@ -111,6 +116,63 @@ export function setHoveredInstance(
   return { ...state, hoveredInstanceId: instanceId };
 }
 
+/** Sets or clears an element selection without mutating the previous state. */
+export function setElementSelected(
+  state: InteractionState,
+  ref: ElementRef,
+  selected: boolean,
+): InteractionState {
+  const current = state.selectedElementIds.get(ref.instanceId);
+  const has = current?.has(ref.elementId) ?? false;
+  if (has === selected) return state;
+  const ids = new Set(current ?? []);
+  if (selected) ids.add(ref.elementId);
+  else ids.delete(ref.elementId);
+  const selectedElementIds = new Map(state.selectedElementIds);
+  if (ids.size === 0) selectedElementIds.delete(ref.instanceId);
+  else selectedElementIds.set(ref.instanceId, ids);
+  return { ...state, selectedElementIds };
+}
+
+/** Sets the currently hovered element, or clears hover with `undefined`. */
+export function setHoveredElement(
+  state: InteractionState,
+  ref: ElementRef | undefined,
+): InteractionState {
+  const current = state.hoveredElement;
+  if (current === ref) return state;
+  if (
+    current !== undefined &&
+    ref !== undefined &&
+    current.instanceId === ref.instanceId &&
+    current.elementId === ref.elementId
+  ) {
+    return state;
+  }
+  if (ref === undefined) {
+    const { hoveredElement: _, ...withoutHover } = state;
+    return withoutHover;
+  }
+  return { ...state, hoveredElement: ref };
+}
+
+/** Adds or replaces an explicit element style override. */
+export function setElementOverride(
+  state: InteractionState,
+  ref: ElementRef,
+  override: StyleOverride | undefined,
+): InteractionState {
+  const current = state.elementOverrides.get(ref.instanceId)?.get(ref.elementId);
+  if (current === override) return state;
+  const instanceOverrides = new Map(state.elementOverrides.get(ref.instanceId) ?? []);
+  if (override === undefined) instanceOverrides.delete(ref.elementId);
+  else instanceOverrides.set(ref.elementId, override);
+  const elementOverrides = new Map(state.elementOverrides);
+  if (instanceOverrides.size === 0) elementOverrides.delete(ref.instanceId);
+  else elementOverrides.set(ref.instanceId, instanceOverrides);
+  return { ...state, elementOverrides };
+}
+
 /** Adds or replaces an explicit part style override. */
 export function setPartOverride(
   state: InteractionState,
@@ -147,6 +209,64 @@ export function resolveInstanceStyle(
   const instanceOverride = state.instanceOverrides.get(instance.instanceId);
   if (instanceOverride !== undefined) overrides.push(instanceOverride);
   return overrides.reduce<ResolvedStyle>((style, override) => ({ ...style, ...override }), base);
+}
+
+/**
+ * Resolves the style of one element occurrence. Element-level state is more
+ * specific than part/instance state, so element hover, element selection, and
+ * explicit element overrides win over `resolveInstanceStyle` results. Within
+ * the element level, selection beats hover and explicit overrides win last.
+ */
+export function resolveElementStyle(
+  instance: Instance,
+  elementId: ElementId,
+  base: ResolvedStyle,
+  state: InteractionState,
+): ResolvedStyle {
+  let style = resolveInstanceStyle(instance, base, state);
+  const hovered = state.hoveredElement;
+  if (
+    hovered !== undefined &&
+    hovered.instanceId === instance.instanceId &&
+    hovered.elementId === elementId
+  ) {
+    style = { ...style, ...state.theme.hovered };
+  }
+  if (state.selectedElementIds.get(instance.instanceId)?.has(elementId) === true) {
+    style = { ...style, ...state.theme.selected };
+  }
+  const override = state.elementOverrides.get(instance.instanceId)?.get(elementId);
+  if (override !== undefined) style = { ...style, ...override };
+  return style;
+}
+
+/**
+ * Collects every element occurrence that currently carries element-level
+ * emphasis (hovered, selected, or explicitly overridden), in deterministic
+ * order with no duplicates.
+ */
+export function emphasizedElementRefs(state: InteractionState): readonly ElementRef[] {
+  const refs: ElementRef[] = [];
+  const seen = new Set<string>();
+  const push = (instanceId: InstanceId, elementId: ElementId): void => {
+    const key = `${instanceId}/${elementId}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    refs.push({ instanceId, elementId });
+  };
+  const hovered = state.hoveredElement;
+  if (hovered !== undefined) push(hovered.instanceId, hovered.elementId);
+  for (const [instanceId, ids] of state.selectedElementIds) {
+    for (const elementId of sortedNumbers(ids)) push(instanceId, elementId);
+  }
+  for (const [instanceId, overrides] of state.elementOverrides) {
+    for (const elementId of sortedNumbers(overrides.keys())) push(instanceId, elementId);
+  }
+  return refs;
+}
+
+function sortedNumbers(values: Iterable<ElementId>): number[] {
+  return Array.from(values).sort((a, b) => a - b);
 }
 
 function updatePartSet(

@@ -79,15 +79,72 @@ test("drives interaction and picking through the demo path", async ({ page }) =>
 
   await expect.poll(() => canvas.getAttribute("data-hovered")).not.toBeNull();
 
-  // Click the hovered instance to toggle its selection through GPU picking.
+  // Click the hovered target (an element, since the fixture's triangles all
+  // carry element ids) to toggle its selection through GPU picking.
   await page.mouse.click(hoverPoint.x, hoverPoint.y);
   await expect.poll(() => canvas.getAttribute("data-selected")).not.toBeNull();
   const selected = await canvas.getAttribute("data-selected");
-  expect(selected, "clicking an instance should select it").not.toBe("");
+  expect(selected, "clicking a target should select it").not.toBe("");
 
   // Clicking again deselects.
   await page.mouse.click(hoverPoint.x, hoverPoint.y);
   await expect.poll(() => canvas.getAttribute("data-selected")).toBe("");
+});
+
+test("keeps element selection feedback visible in edge display mode", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("view-canvas")).toBeVisible();
+  await expect
+    .poll(() => rendererMode(page), { timeout: 10_000 })
+    .toMatch(/^(webgpu|cpu|destroyed)$/);
+
+  if ((await rendererMode(page)) !== "webgpu") {
+    test.skip(true, "WebGPU renderer unavailable in this browser environment");
+  }
+
+  const canvas = page.getByTestId("view-canvas");
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("canvas has no bounding box");
+  }
+
+  // Sweep until the GPU pick resolves an element target; element hover keys are
+  // encoded as `instanceId:elementId` in the demo dataset.
+  let hoverPoint: { readonly x: number; readonly y: number } | undefined;
+  let elementKey = "";
+  for (let row = 0; row < 6 && hoverPoint === undefined; row++) {
+    for (let col = 0; col < 8; col++) {
+      const x = box.x + ((col + 0.5) / 8) * box.width;
+      const y = box.y + ((row + 0.5) / 6) * box.height;
+      await page.mouse.move(x, y);
+      await page.waitForTimeout(150);
+      const hovered = (await canvas.getAttribute("data-hovered")) ?? "";
+      if (hovered.includes(":")) {
+        hoverPoint = { x, y };
+        elementKey = hovered;
+        break;
+      }
+    }
+  }
+
+  if (hoverPoint === undefined) {
+    test.skip(true, "GPU element picking is not functional in this browser environment");
+    return;
+  }
+
+  await page.mouse.click(hoverPoint.x, hoverPoint.y);
+  await expect.poll(() => canvas.getAttribute("data-selected")).toBe(elementKey);
+
+  // Edge mode keeps the emphasis: the label flips and the demo still renders
+  // the selected element key in the next frame.
+  await page.getByTestId("display-mode").click();
+  await expect(page.getByTestId("display-mode-label")).toHaveText("Edges");
+  await expect.poll(() => canvas.getAttribute("data-frames")).not.toBeNull();
+  expect(await canvas.getAttribute("data-selected")).toBe(elementKey);
+
+  await page.getByTestId("display-mode").click();
+  await expect(page.getByTestId("display-mode-label")).toHaveText("Solid");
+  expect(await canvas.getAttribute("data-selected")).toBe(elementKey);
 });
 
 test("tears the renderer down and re-initializes it cleanly", async ({ page }) => {

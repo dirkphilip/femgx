@@ -3,7 +3,12 @@ import type { InteractionState, ResolvedStyle } from "../interaction/interaction
 export interface PartResource {
   readonly vertexBuffer: GPUBuffer;
   readonly indexBuffer: GPUBuffer;
+  /** Per-triangle element pick ids (`elementId + 1`, 0 = none). */
+  readonly elementPickIdsBuffer: GPUBuffer;
+  /** Line-list of the deduplicated mesh edges for the wireframe pass. */
+  readonly edgeIndexBuffer: GPUBuffer;
   readonly indexCount: number;
+  readonly edgeIndexCount: number;
 }
 
 export const defaultStyle: ResolvedStyle = {
@@ -40,6 +45,8 @@ export function createDefaultInteraction(): InteractionState {
     highlightedInstanceIds: new Set(),
     selectedPartIds: new Set(),
     selectedInstanceIds: new Set(),
+    selectedElementIds: new Map(),
+    elementOverrides: new Map(),
     partOverrides: new Map(),
     instanceOverrides: new Map(),
     theme: { highlighted: {}, selected: {}, hovered: {} },

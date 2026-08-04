@@ -5,7 +5,14 @@ export type {
   Placement,
   SubAssemblyPlacement,
 } from "./scene/assembly";
-export { computeBounds, type Bounds, type Geometry, type Part } from "./geometry/part";
+export {
+  computeBounds,
+  validateElements,
+  type Bounds,
+  type ElementTessellation,
+  type Geometry,
+  type Part,
+} from "./geometry/part";
 export { createElement, type Element, type ElementId, type NodeId } from "./elements/element";
 export {
   HEX20_SHAPE,
@@ -31,7 +38,12 @@ export { edgesOf, uniqueEdges, type EdgeKey, type ElementEdge } from "./elements
 export { batchInstancesByPart, type InstanceBatch } from "./runtime/batch";
 export {
   createInteractionState,
+  emphasizedElementRefs,
+  resolveElementStyle,
   resolveInstanceStyle,
+  setElementOverride,
+  setElementSelected,
+  setHoveredElement,
   setHoveredInstance,
   setInstanceHighlighted,
   setInstanceOverride,
@@ -59,6 +71,7 @@ export {
 } from "./runtime/culling";
 export {
   createWebGpuRenderer,
+  type DisplayMode,
   type WebGpuRenderer,
   type WebGpuRendererOptions,
 } from "./renderer/gpu-renderer";
@@ -87,5 +100,12 @@ export {
   translation,
   type Mat4,
 } from "./math/mat4";
-export { instanceToTarget, resolvePick } from "./picking/pick";
-export type { AssemblyId, Instance, InstanceId, PartId, PickTarget } from "./scene/types";
+export { instanceToTarget, resolvePick, resolvePickTarget } from "./picking/pick";
+export type {
+  AssemblyId,
+  ElementRef,
+  Instance,
+  InstanceId,
+  PartId,
+  PickTarget,
+} from "./scene/types";
