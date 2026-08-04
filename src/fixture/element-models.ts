@@ -112,8 +112,8 @@ export function buildHexModel(
             midNode(builder, c7, c4),
             midNode(builder, c0, c4),
             midNode(builder, c1, c5),
-            midNode(builder, c2, c6),
             midNode(builder, c3, c7),
+            midNode(builder, c2, c6),
           ];
           elements.push(
             createElement(id, HEX20_SHAPE, [c0, c1, c2, c3, c4, c5, c6, c7, ...midEdges]),
