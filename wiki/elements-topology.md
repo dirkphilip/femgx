@@ -33,8 +33,9 @@ Connectivity lists corners first, then mid-edge nodes in canonical edge order.
 - **Tet4/Tet10** corners: `0 1 2 3`. Tet10 mid-edge nodes: `4` on `0-1`, `5` on
   `1-2`, `6` on `2-0`, `7` on `0-3`, `8` on `1-3`, `9` on `2-3`.
 - **Hex8/Hex20** corners: `0 1 2 3 4 5 6 7` (bottom `0-1-2-3` counter-clockwise,
-  top `4-5-6-7`, vertical `0-4`, `1-5`, `2-6`, `3-7`). Hex20 mid-edge nodes
-  `8..19` follow the same edge order: bottom `8-11`, top `12-15`, vertical `16-19`.
+  top `4-5-6-7`, vertical `0-4`, `1-5`, `3-7`, `2-6`). Hex20 mid-edge nodes
+  `8..19` follow the same edge order: bottom `8-11`, top `12-15`, vertical
+  `16-19` (on `0-4`, `1-5`, `3-7`, `2-6` respectively, per the VTK edge table).
 
 `ElementTopology` exposes this structurally via `corners`, `edges` (corner-index
 pairs), and `edgeNodes` (aligned with `edges`), which is the foundation for
@@ -66,12 +67,11 @@ extract deterministic polygon and line output:
   polygons. Helpers: `canonicalKey` (`keys.ts`) and bounds-checked `at`
   (`indices.ts`), both internal.
 
-### Known edge-order difference vs VTK
+### Known edge-order difference vs VTK (resolved)
 
-The Hex20 mid-edge connectivity slots 18/19 in `shapes.ts` are associated with
-vertical edges `[2,6]`/`[3,7]`, which is the **opposite** of VTK's edge order
-(`{3,7}`/`{2,6}`). Extraction here is internally consistent, but VTK-ordered
-import files would swap those two mid nodes. See
+The Hex20 mid-edge slots 18/19 used to be associated with vertical edges
+`[2,6]`/`[3,7]`, the **opposite** of VTK's edge order. `HEX_EDGES` was swapped so
+slot 18 sits on `{3,7}` and slot 19 on `{2,6}` (VTK edges 10/11). Fixed in
 https://github.com/dirkphilip/femgx/issues/66.
 
 ## Validation

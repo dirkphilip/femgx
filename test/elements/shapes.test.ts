@@ -71,6 +71,26 @@ describe("topologyFor", () => {
     expect(hex20.edges).toEqual(hex8.edges);
   });
 
+  it("sits each hex20 mid-edge node on its VTK corner pair", () => {
+    const hex20 = topologyFor(HEX20_SHAPE);
+    const pairs = hex20.edges.map(([a, b]) => [Math.min(a, b), Math.max(a, b)] as const);
+    expect(pairs).toEqual([
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [0, 3],
+      [4, 5],
+      [5, 6],
+      [6, 7],
+      [4, 7],
+      [0, 4],
+      [1, 5],
+      [3, 7],
+      [2, 6],
+    ]);
+    expect(hex20.edgeNodes).toEqual([8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+  });
+
   it("assigns every connectivity position as either a corner or a mid-edge node", () => {
     for (const [_name, shape] of ALL_SHAPES) {
       const topology = topologyFor(shape);
