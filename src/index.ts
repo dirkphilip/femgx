@@ -24,6 +24,7 @@ export {
   TET4_SHAPE,
   topologyFor,
   type ElementFamily,
+  type ElementOrder,
   type ElementShape,
   type ElementTopology,
 } from "./elements/shapes";

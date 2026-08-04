@@ -5,18 +5,26 @@
  * element kind is explicit and never inferred from raw triangles. The node
  * ordering for each supported shape follows the VTK convention: corners first,
  * then mid-edge nodes in canonical edge order. This module is pure CPU-side
- * data with no dependency on the renderer or WebGPU, so future families can be
- * added by extending {@link ElementFamily} and registering a topology.
+ * data with no dependency on the renderer or WebGPU.
+ *
+ * The topology registry is compiler-exhaustive: `SUPPORTED_ORDERS` declares the
+ * interpolation orders each family supports, the registry is checked against
+ * the resulting key space with a `satisfies` constraint, and lookups still fail
+ * loudly at runtime for anything untyped. Adding a family to {@link
+ * ElementFamily} without declaring its orders and registering every shape fails
+ * at compile time, so a topology cannot be missed or mis-keyed silently.
  */
 
 /** A family of finite elements with a shared geometric structure. */
 export type ElementFamily = "point" | "line" | "tet" | "hex";
 
+/** Interpolation order: 0 for points, 1 linear, 2 quadratic. */
+export type ElementOrder = 0 | 1 | 2;
+
 /** An element shape: a family plus an explicit interpolation order. */
 export interface ElementShape {
   readonly family: ElementFamily;
-  /** Interpolation order: 0 for points, 1 linear, 2 quadratic. */
-  readonly order: number;
+  readonly order: ElementOrder;
 }
 
 /** Point element: a single node. */
@@ -44,7 +52,7 @@ export const HEX20_SHAPE: ElementShape = { family: "hex", order: 2 };
  */
 export interface ElementTopology {
   readonly family: ElementFamily;
-  readonly order: number;
+  readonly order: ElementOrder;
   /** Number of nodes an element of this shape references. */
   readonly nodeCount: number;
   /** Connectivity indices of the corners, in canonical order. */
@@ -79,61 +87,81 @@ const HEX_EDGES: ReadonlyArray<readonly [number, number]> = [
   [3, 7],
 ];
 
-const TOPOLOGIES: ReadonlyMap<string, ElementTopology> = new Map([
-  ["point:0", { family: "point", order: 0, nodeCount: 1, corners: [0], edges: [], edgeNodes: [] }],
-  [
-    "line:1",
-    { family: "line", order: 1, nodeCount: 2, corners: [0, 1], edges: [[0, 1]], edgeNodes: [] },
-  ],
-  [
-    "line:2",
-    { family: "line", order: 2, nodeCount: 3, corners: [0, 1], edges: [[0, 1]], edgeNodes: [2] },
-  ],
-  [
-    "tet:1",
-    {
-      family: "tet",
-      order: 1,
-      nodeCount: 4,
-      corners: [0, 1, 2, 3],
-      edges: TET_EDGES,
-      edgeNodes: [],
-    },
-  ],
-  [
-    "tet:2",
-    {
-      family: "tet",
-      order: 2,
-      nodeCount: 10,
-      corners: [0, 1, 2, 3],
-      edges: TET_EDGES,
-      edgeNodes: [4, 5, 6, 7, 8, 9],
-    },
-  ],
-  [
-    "hex:1",
-    {
-      family: "hex",
-      order: 1,
-      nodeCount: 8,
-      corners: [0, 1, 2, 3, 4, 5, 6, 7],
-      edges: HEX_EDGES,
-      edgeNodes: [],
-    },
-  ],
-  [
-    "hex:2",
-    {
-      family: "hex",
-      order: 2,
-      nodeCount: 20,
-      corners: [0, 1, 2, 3, 4, 5, 6, 7],
-      edges: HEX_EDGES,
-      edgeNodes: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
-    },
-  ],
-]);
+/** The interpolation orders each family supports. */
+const SUPPORTED_ORDERS = {
+  point: [0],
+  line: [1, 2],
+  tet: [1, 2],
+  hex: [1, 2],
+} as const satisfies Record<ElementFamily, readonly ElementOrder[]>;
+
+/** Flat key for one supported shape, e.g. `"tet:2"`. */
+type ShapeKeyOf<F extends ElementFamily> = `${F}:${(typeof SUPPORTED_ORDERS)[F][number]}`;
+
+/** Union of the flat keys of every supported shape. */
+type SupportedShapeKey = { [F in ElementFamily]: ShapeKeyOf<F> }[ElementFamily];
+
+/**
+ * Compile-time-exhaustive topology registry.
+ *
+ * The `satisfies` constraint ties the keys to `SupportedShapeKey` (derived from
+ * `ElementFamily` and `SUPPORTED_ORDERS`), so a missing or mis-keyed topology
+ * fails the build instead of surfacing only at runtime.
+ */
+const TOPOLOGY_REGISTRY = {
+  "point:0": { family: "point", order: 0, nodeCount: 1, corners: [0], edges: [], edgeNodes: [] },
+  "line:1": {
+    family: "line",
+    order: 1,
+    nodeCount: 2,
+    corners: [0, 1],
+    edges: [[0, 1]],
+    edgeNodes: [],
+  },
+  "line:2": {
+    family: "line",
+    order: 2,
+    nodeCount: 3,
+    corners: [0, 1],
+    edges: [[0, 1]],
+    edgeNodes: [2],
+  },
+  "tet:1": {
+    family: "tet",
+    order: 1,
+    nodeCount: 4,
+    corners: [0, 1, 2, 3],
+    edges: TET_EDGES,
+    edgeNodes: [],
+  },
+  "tet:2": {
+    family: "tet",
+    order: 2,
+    nodeCount: 10,
+    corners: [0, 1, 2, 3],
+    edges: TET_EDGES,
+    edgeNodes: [4, 5, 6, 7, 8, 9],
+  },
+  "hex:1": {
+    family: "hex",
+    order: 1,
+    nodeCount: 8,
+    corners: [0, 1, 2, 3, 4, 5, 6, 7],
+    edges: HEX_EDGES,
+    edgeNodes: [],
+  },
+  "hex:2": {
+    family: "hex",
+    order: 2,
+    nodeCount: 20,
+    corners: [0, 1, 2, 3, 4, 5, 6, 7],
+    edges: HEX_EDGES,
+    edgeNodes: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+  },
+} satisfies Record<SupportedShapeKey, ElementTopology>;
+
+/** Runtime lookup map so unsupported shapes still fail loudly in `topologyFor`. */
+const TOPOLOGIES: ReadonlyMap<string, ElementTopology> = new Map(Object.entries(TOPOLOGY_REGISTRY));
 
 /** Looks up the canonical topology for a shape, throwing if the shape is unsupported. */
 export function topologyFor(shape: ElementShape): ElementTopology {
