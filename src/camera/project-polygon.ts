@@ -27,10 +27,7 @@ const CLIP_PLANES: readonly (readonly [number, number, number, number])[] = [
  * render instead of being dropped whole. Returns an empty list when no part of
  * the polygon remains visible.
  */
-export function projectPolygon(
-  camera: Camera,
-  points: readonly Vec3[],
-): readonly ScreenPoint[] {
+export function projectPolygon(camera: Camera, points: readonly Vec3[]): readonly ScreenPoint[] {
   if (points.length === 0) return [];
   const viewProjection = viewProjectionMatrix(camera);
   let polygon: readonly ClipPoint[] = points.map((point) => toClipPoint(viewProjection, point));
@@ -67,7 +64,7 @@ function clipAgainstPlane(
   let previousDistance = signedDistance(plane, previous);
   for (const current of polygon) {
     const currentDistance = signedDistance(plane, current);
-    if ((previousDistance >= 0) !== (currentDistance >= 0)) {
+    if (previousDistance >= 0 !== currentDistance >= 0) {
       const t = previousDistance / (previousDistance - currentDistance);
       output.push(interpolate(previous, current, t));
     }
@@ -82,9 +79,7 @@ function signedDistance(
   plane: readonly [number, number, number, number],
   point: ClipPoint,
 ): number {
-  return (
-    plane[0] * point[0] + plane[1] * point[1] + plane[2] * point[2] + plane[3] * point[3]
-  );
+  return plane[0] * point[0] + plane[1] * point[1] + plane[2] * point[2] + plane[3] * point[3];
 }
 
 function interpolate(a: ClipPoint, b: ClipPoint, t: number): ClipPoint {
