@@ -27,10 +27,11 @@ needed for very large assemblies.
 
 `flattenAssembly` allocates a matrix for every visited placement and creates a new
 instance object for every visible placement. It now uses an iterative walk,
-deterministic per-part batching, and optional frustum culling; the packed scene
-runtime keeps authoring storage in typed arrays and updates visibility in place,
-but transform caching and dirty-subtree propagation remain future work for
-keeping frame work proportional to changed state.
+deterministic per-part batching, and optional frustum culling. The packed scene
+runtime keeps authoring storage in typed arrays and updates visibility in place;
+transform edits now recompose world transforms only within the affected subtree
+(see [[packed-runtime|Packed scene runtime]]), keeping frame work proportional to
+changed state.
 
 ## Matrix layout correctness
 

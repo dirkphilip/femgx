@@ -20,11 +20,14 @@ export interface RuntimeState {
   readonly nodeInstanceEnd: Uint32Array;
   readonly nodeVisible: Uint8Array;
   readonly nodeEffectiveVisible: Uint8Array;
+  readonly nodeLocalTransforms: Float32Array;
+  readonly nodeWorldTransforms: Float32Array;
   readonly instancePartIds: Uint32Array;
   readonly instanceOwningNode: Uint32Array;
   readonly instancePartVisible: Uint8Array;
   readonly instanceOverrideVisible: Uint8Array;
   readonly instanceVisible: Uint8Array;
+  readonly instanceLocalTransforms: Float32Array;
   readonly instanceWorldTransforms: Float32Array;
   readonly sortedPartIds: Uint32Array;
   readonly partInstanceOffset: Uint32Array;
@@ -45,6 +48,8 @@ interface NodeDraft {
   instanceEnd: number;
   readonly visible: 0 | 1;
   readonly effective: 0 | 1;
+  readonly local: Mat4;
+  readonly world: Mat4;
 }
 
 interface InstanceDraft {
@@ -52,7 +57,8 @@ interface InstanceDraft {
   readonly owningNode: number;
   readonly partVisible: 0 | 1;
   readonly effective: 0 | 1;
-  readonly transform: Mat4;
+  readonly local: Mat4;
+  readonly world: Mat4;
 }
 
 type PackedNodes = Pick<
@@ -66,8 +72,9 @@ type PackedNodes = Pick<
   | "nodeInstanceEnd"
   | "nodeVisible"
   | "nodeEffectiveVisible"
+  | "nodeLocalTransforms"
+  | "nodeWorldTransforms"
 >;
-
 type PackedInstances = Pick<
   RuntimeState,
   | "instanceCount"
@@ -76,6 +83,7 @@ type PackedInstances = Pick<
   | "instancePartVisible"
   | "instanceOverrideVisible"
   | "instanceVisible"
+  | "instanceLocalTransforms"
   | "instanceWorldTransforms"
 > & { readonly visibleCount: number };
 
@@ -108,7 +116,8 @@ function buildSceneDrafts(scene: Scene): { nodes: NodeDraft[]; instances: Instan
   const walk = (
     assemblyId: AssemblyId,
     parent: number,
-    parentTransform: Mat4,
+    localTransform: Mat4,
+    worldTransform: Mat4,
     parentEffective: 0 | 1,
   ): void => {
     const assembly = assemblies.get(assemblyId);
@@ -128,13 +137,15 @@ function buildSceneDrafts(scene: Scene): { nodes: NodeDraft[]; instances: Instan
       instanceEnd: -1,
       visible,
       effective,
+      local: localTransform,
+      world: worldTransform,
     };
     nodes.push(node);
     if (parent !== -1) {
       linkChild(nodes, parent, nodeIndex);
     }
     for (const placement of assembly.placements) {
-      const worldTransform = multiply(parentTransform, placement.transform);
+      const placementWorld = multiply(worldTransform, placement.transform);
       if (placement.kind === "part") {
         const partVisible: 0 | 1 = visiblePartIds.has(placement.partId) ? 1 : 0;
         const instanceEffective: 0 | 1 = effective === 1 && partVisible === 1 ? 1 : 0;
@@ -143,15 +154,16 @@ function buildSceneDrafts(scene: Scene): { nodes: NodeDraft[]; instances: Instan
           owningNode: nodeIndex,
           partVisible,
           effective: instanceEffective,
-          transform: worldTransform,
+          local: placement.transform,
+          world: placementWorld,
         });
       } else {
-        walk(placement.assemblyId, nodeIndex, worldTransform, effective);
+        walk(placement.assemblyId, nodeIndex, placement.transform, placementWorld, effective);
       }
     }
     node.instanceEnd = instances.length;
   };
-  walk(scene.rootAssemblyId, -1, identity(), 1);
+  walk(scene.rootAssemblyId, -1, identity(), identity(), 1);
   return { nodes, instances };
 }
 
@@ -165,6 +177,8 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
   const nodeInstanceEnd = new Uint32Array(count);
   const nodeVisible = new Uint8Array(count);
   const nodeEffectiveVisible = new Uint8Array(count);
+  const nodeLocalTransforms = new Float32Array(count * 16);
+  const nodeWorldTransforms = new Float32Array(count * 16);
   for (let i = 0; i < count; i++) {
     const node = nodes[i];
     if (node === undefined) {
@@ -178,6 +192,8 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
     nodeInstanceEnd[i] = node.instanceEnd;
     nodeVisible[i] = node.visible;
     nodeEffectiveVisible[i] = node.effective;
+    nodeLocalTransforms.set(node.local, i * 16);
+    nodeWorldTransforms.set(node.world, i * 16);
   }
   return {
     nodeCount: count,
@@ -189,6 +205,8 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
     nodeInstanceEnd,
     nodeVisible,
     nodeEffectiveVisible,
+    nodeLocalTransforms,
+    nodeWorldTransforms,
   };
 }
 
@@ -198,6 +216,7 @@ function packInstances(instances: readonly InstanceDraft[]): PackedInstances {
   const instanceOwningNode = new Uint32Array(count);
   const instancePartVisible = new Uint8Array(count);
   const instanceVisible = new Uint8Array(count);
+  const instanceLocalTransforms = new Float32Array(count * 16);
   const instanceWorldTransforms = new Float32Array(count * 16);
   let visibleCount = 0;
   for (let i = 0; i < count; i++) {
@@ -212,7 +231,8 @@ function packInstances(instances: readonly InstanceDraft[]): PackedInstances {
     if (draft.effective === 1) {
       visibleCount++;
     }
-    instanceWorldTransforms.set(draft.transform, i * 16);
+    instanceLocalTransforms.set(draft.local, i * 16);
+    instanceWorldTransforms.set(draft.world, i * 16);
   }
   return {
     instanceCount: count,
@@ -222,6 +242,7 @@ function packInstances(instances: readonly InstanceDraft[]): PackedInstances {
     instancePartVisible,
     instanceOverrideVisible: new Uint8Array(count).fill(1),
     instanceVisible,
+    instanceLocalTransforms,
     instanceWorldTransforms,
   };
 }
