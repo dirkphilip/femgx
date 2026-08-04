@@ -1,0 +1,36 @@
+/** How severe an issue is; errors make the result untrustworthy. */
+export type IssueSeverity = "error" | "warning" | "info";
+
+/** A position within a source document. Lines are 1-based. */
+export interface SourcePosition {
+  readonly line: number;
+  readonly column?: number;
+}
+
+/**
+ * A typed diagnostic produced during import, export, or model validation.
+ * `code` is a stable machine-readable identifier (e.g. `"missing-cell-types"`)
+ * and `message` is a human-readable, actionable description.
+ */
+export interface Issue {
+  readonly code: IssueCode;
+  readonly severity: IssueSeverity;
+  readonly message: string;
+  readonly position?: SourcePosition;
+}
+
+/** A stable, machine-readable diagnostic code. */
+export type IssueCode = string;
+
+/**
+ * Error thrown when an import or model validation fails. Carries the typed
+ * issues that caused the failure so callers can react programmatically.
+ */
+export class IoError extends Error {
+  readonly issues: readonly Issue[];
+  constructor(message: string, issues?: readonly Issue[]) {
+    super(message);
+    this.name = "IoError";
+    this.issues = issues ?? [];
+  }
+}

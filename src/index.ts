@@ -176,3 +176,51 @@ export {
   type ScalarColorMapOptions,
 } from "./results/mapping";
 export { deformGeometry, deformPositions } from "./results/deform";
+export {
+  createCancellationToken,
+  noopProgress,
+  OperationCancelledError,
+  type CancellationToken,
+  type CancellationTokenSource,
+  type ProgressReporter,
+  type ProgressUpdate,
+} from "./io/progress";
+export { createModelBuilder, type FemModelBuilder } from "./io/build";
+export {
+  IoError,
+  type Issue,
+  type IssueCode,
+  type IssueSeverity,
+  type SourcePosition,
+} from "./io/diagnostics";
+export {
+  FEMGX_FORMAT_VERSION,
+  type FemModel,
+  type MetadataValue,
+  type ModelElementBlock,
+  type ModelMetadata,
+  type ModelNodes,
+  type ModelSet,
+  type ModelSetKind,
+  type ResultField,
+} from "./io/model";
+export {
+  createParseSession,
+  finishParse,
+  parse,
+  parseAbaqus,
+  parseGmsh,
+  parseVtk,
+  parseVtu,
+  write,
+  writeAbaqus,
+  writeGmsh,
+  writeVtk,
+  writeVtu,
+  type IoFormat,
+  type ParseOptions,
+  type ParseResult,
+  type ParseSession,
+  type WriteOptions,
+} from "./io/parse";
+export { validateModel } from "./io/validate";
