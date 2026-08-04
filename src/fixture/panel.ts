@@ -1,3 +1,6 @@
+import { createElement } from "../elements/element";
+import { createElementModel, type ElementModel } from "../elements/model";
+import { TET4_SHAPE } from "../elements/shapes";
 import { computeBounds, type Geometry, type Part } from "../geometry/part";
 import { multiply, scale, translation } from "../math/mat4";
 import { createScene, type Scene } from "../scene/scene";
@@ -54,6 +57,12 @@ export interface PanelFixture {
   readonly dimensions: PanelDimensions;
   readonly partIds: PanelFixtureParts;
   readonly assemblyIds: PanelFixtureAssemblies;
+  /**
+   * The element model each part was tessellated from, keyed by part id. The
+   * flat shell/stiffener parts are represented as degenerate 4-node tet
+   * elements so node/face picking has a consistent FE identity per quad.
+   */
+  readonly elementModels: ReadonlyMap<PartId, ElementModel>;
   /** Number of part placements, i.e. the visible instance count. */
   readonly instanceCount: number;
 }
@@ -89,6 +98,11 @@ export function createPanelFixture(options: PanelFixtureOptions = {}): PanelFixt
     makePart(STIFFENER_X_PART_ID, unitStiffenerXGeometry()),
     makePart(STIFFENER_Y_PART_ID, unitStiffenerYGeometry()),
   ];
+  const elementModels = new Map<PartId, ElementModel>([
+    [SHELL_PART_ID, flatQuadModel(unitShellNodes())],
+    [STIFFENER_X_PART_ID, flatQuadModel(unitStiffenerXNodes())],
+    [STIFFENER_Y_PART_ID, flatQuadModel(unitStiffenerYNodes())],
+  ]);
   const rows = buildRowAssemblies(cellsX, cellsY, cellSize);
   const stiffenerX = buildStiffenerXAssembly(cellsY, cellSize, width, stiffenerHeight);
   const stiffenerY = buildStiffenerYAssembly(cellsX, cellsY, cellSize, depth, stiffenerHeight);
@@ -117,6 +131,7 @@ export function createPanelFixture(options: PanelFixtureOptions = {}): PanelFixt
       stiffenerX: stiffenerX.id,
       stiffenerY: stiffenerY.id,
     },
+    elementModels,
     instanceCount: cellsX * cellsY + (cellsY + 1) + (cellsX + 1),
   };
 }
@@ -221,26 +236,61 @@ function buildRootAssembly(
 
 function unitShellGeometry(): Geometry {
   return {
-    positions: new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0]),
+    positions: new Float32Array(unitShellNodes().flat()),
     indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
     elements: [unitElement(0)],
   };
+}
+
+/** The four corner nodes of the unit shell quad. */
+function unitShellNodes(): ReadonlyArray<readonly [number, number, number]> {
+  return [
+    [-0.5, -0.5, 0],
+    [0.5, -0.5, 0],
+    [0.5, 0.5, 0],
+    [-0.5, 0.5, 0],
+  ];
 }
 
 function unitStiffenerXGeometry(): Geometry {
   return {
-    positions: new Float32Array([-0.5, 0, 0, 0.5, 0, 0, 0.5, 0, 1, -0.5, 0, 1]),
+    positions: new Float32Array(unitStiffenerXNodes().flat()),
     indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
     elements: [unitElement(0)],
   };
 }
 
+/** The four corner nodes of the unit stiffener rib along X. */
+function unitStiffenerXNodes(): ReadonlyArray<readonly [number, number, number]> {
+  return [
+    [-0.5, 0, 0],
+    [0.5, 0, 0],
+    [0.5, 0, 1],
+    [-0.5, 0, 1],
+  ];
+}
+
 function unitStiffenerYGeometry(): Geometry {
   return {
-    positions: new Float32Array([0, -0.5, 0, 0, 0.5, 0, 0, 0.5, 1, 0, -0.5, 1]),
+    positions: new Float32Array(unitStiffenerYNodes().flat()),
     indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
     elements: [unitElement(0)],
   };
+}
+
+/** The four corner nodes of the unit stiffener rib along Y. */
+function unitStiffenerYNodes(): ReadonlyArray<readonly [number, number, number]> {
+  return [
+    [0, -0.5, 0],
+    [0, 0.5, 0],
+    [0, 0.5, 1],
+    [0, -0.5, 1],
+  ];
+}
+
+/** Builds a degenerate 4-node tet element model over one flat quad. */
+function flatQuadModel(nodes: ReadonlyArray<readonly [number, number, number]>): ElementModel {
+  return createElementModel(nodes.flat(), [createElement(0, TET4_SHAPE, [0, 1, 2, 3])]);
 }
 
 /** A single element covering a two-triangle quad. */

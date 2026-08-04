@@ -1,4 +1,8 @@
-import type { InteractionState, ResolvedStyle } from "../interaction/interaction";
+import {
+  createInteractionState,
+  type InteractionState,
+  type ResolvedStyle,
+} from "../interaction/interaction";
 
 export interface PartResource {
   readonly vertexBuffer: GPUBuffer;
@@ -41,15 +45,5 @@ export function createBuffer(
 
 /** Creates the empty interaction state used when no overrides are supplied. */
 export function createDefaultInteraction(): InteractionState {
-  return {
-    highlightedPartIds: new Set(),
-    highlightedInstanceIds: new Set(),
-    selectedPartIds: new Set(),
-    selectedInstanceIds: new Set(),
-    selectedElementIds: new Map(),
-    elementOverrides: new Map(),
-    partOverrides: new Map(),
-    instanceOverrides: new Map(),
-    theme: { highlighted: {}, selected: {}, hovered: {} },
-  };
+  return createInteractionState();
 }

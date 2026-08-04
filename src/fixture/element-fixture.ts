@@ -1,3 +1,4 @@
+import type { ElementModel } from "../elements/model";
 import { elementPart, type ElementRenderMode } from "../geometry/element-mesh";
 import type { Bounds, Part } from "../geometry/part";
 import { transformPoint, translation } from "../math/mat4";
@@ -39,6 +40,12 @@ export interface ElementFixture {
   readonly modePartIds: ReadonlyMap<ElementRenderMode, readonly PartId[]>;
   /** Point and line parts, always visible alongside the chosen mode. */
   readonly overlayPartIds: readonly PartId[];
+  /**
+   * The element model each part was tessellated from, keyed by part id. Used
+   * for CPU-side node/face picking and emphasis; parts without an entry are
+   * not node/face-pickable.
+   */
+  readonly elementModels: ReadonlyMap<PartId, ElementModel>;
   /** The volume mode visible by default. */
   readonly defaultMode: ElementRenderMode;
   /** Total part placements (one per reusable part). */
@@ -71,48 +78,12 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   const tet10Model = buildTetModel(gridSize, cellSize, true);
   const pointLineModel = buildPointLineModel(gridSize, cellSize);
 
-  const hexParts = [
-    elementPart(HEX_PART_ID, hexModel, "hex", "solid"),
-    elementPart(HEX_SURFACE_PART_ID, hex20Model, "hex", "surface"),
-    elementPart(HEX_EDGES_PART_ID, hexModel, "hex", "edges"),
-  ];
-  const tetParts = [
-    elementPart(TET_PART_ID, tet10Model, "tet", "solid"),
-    elementPart(TET_SURFACE_PART_ID, tetModel, "tet", "surface"),
-    elementPart(TET_EDGES_PART_ID, tetModel, "tet", "edges"),
-  ];
-  const pointPart = elementPart(POINTS_PART_ID, pointLineModel, "point", "points");
-  const linePart = elementPart(LINES_PART_ID, pointLineModel, "line", "lines");
-
-  const partIds: ElementFixtureParts = {
-    tetSolid: TET_PART_ID,
-    tetSurface: TET_SURFACE_PART_ID,
-    tetEdges: TET_EDGES_PART_ID,
-    hexSolid: HEX_PART_ID,
-    hexSurface: HEX_SURFACE_PART_ID,
-    hexEdges: HEX_EDGES_PART_ID,
-    points: POINTS_PART_ID,
-    lines: LINES_PART_ID,
-  };
-
-  let builder = createScene();
-  for (const part of [...hexParts, ...tetParts, pointPart, linePart]) {
-    builder = builder.addPart(part);
-  }
-  const root = {
-    id: ROOT_ASSEMBLY_ID,
-    name: "root",
-    placements: [
-      ...placed(hexParts, 0),
-      ...placed(tetParts, blockSize + GAP),
-      ...placed([pointPart, linePart], 2 * (blockSize + GAP)),
-    ],
-  };
-  const scene = builder.addAssembly(root).withRoot(root.id).build();
-
+  const gallery = galleryParts(hexModel, hex20Model, tetModel, tet10Model, pointLineModel);
+  const scene = galleryScene(gallery.parts, blockSize);
   return {
     scene,
-    partIds,
+    partIds: gallery.partIds,
+    elementModels: galleryElementModels(hexModel, hex20Model, tetModel, tet10Model, pointLineModel),
     modePartIds: new Map<ElementRenderMode, readonly PartId[]>([
       ["solid", [TET_PART_ID, HEX_PART_ID]],
       ["surface", [TET_SURFACE_PART_ID, HEX_SURFACE_PART_ID]],
@@ -125,6 +96,55 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   };
 }
 
+/** Builds the gallery's reusable parts and their stable part ids. */
+function galleryParts(
+  hexModel: ElementModel,
+  hex20Model: ElementModel,
+  tetModel: ElementModel,
+  tet10Model: ElementModel,
+  pointLineModel: ElementModel,
+): { readonly parts: readonly Part[]; readonly partIds: ElementFixtureParts } {
+  const parts = [
+    elementPart(HEX_PART_ID, hexModel, "hex", "solid"),
+    elementPart(HEX_SURFACE_PART_ID, hex20Model, "hex", "surface"),
+    elementPart(HEX_EDGES_PART_ID, hexModel, "hex", "edges"),
+    elementPart(TET_PART_ID, tet10Model, "tet", "solid"),
+    elementPart(TET_SURFACE_PART_ID, tetModel, "tet", "surface"),
+    elementPart(TET_EDGES_PART_ID, tetModel, "tet", "edges"),
+    elementPart(POINTS_PART_ID, pointLineModel, "point", "points"),
+    elementPart(LINES_PART_ID, pointLineModel, "line", "lines"),
+  ];
+  const partIds: ElementFixtureParts = {
+    tetSolid: TET_PART_ID,
+    tetSurface: TET_SURFACE_PART_ID,
+    tetEdges: TET_EDGES_PART_ID,
+    hexSolid: HEX_PART_ID,
+    hexSurface: HEX_SURFACE_PART_ID,
+    hexEdges: HEX_EDGES_PART_ID,
+    points: POINTS_PART_ID,
+    lines: LINES_PART_ID,
+  };
+  return { parts, partIds };
+}
+
+/** Builds the gallery scene with one placement per reusable part. */
+function galleryScene(parts: readonly Part[], blockSize: number): Scene {
+  let builder = createScene();
+  for (const part of parts) {
+    builder = builder.addPart(part);
+  }
+  const root = {
+    id: ROOT_ASSEMBLY_ID,
+    name: "root",
+    placements: [
+      ...placed(parts.slice(0, 3), 0),
+      ...placed(parts.slice(3, 6), blockSize + GAP),
+      ...placed(parts.slice(6), 2 * (blockSize + GAP)),
+    ],
+  };
+  return builder.addAssembly(root).withRoot(root.id).build();
+}
+
 /** Part ids to show for a volume mode, plus the always-visible overlays. */
 export function visiblePartIdsFor(
   fixture: ElementFixture,
@@ -132,6 +152,26 @@ export function visiblePartIdsFor(
 ): ReadonlySet<PartId> {
   const modeParts = fixture.modePartIds.get(mode) ?? [];
   return new Set([...modeParts, ...fixture.overlayPartIds]);
+}
+
+/** Maps each gallery part to the element model it was tessellated from. */
+function galleryElementModels(
+  hexModel: ElementModel,
+  hex20Model: ElementModel,
+  tetModel: ElementModel,
+  tet10Model: ElementModel,
+  pointLineModel: ElementModel,
+): ReadonlyMap<PartId, ElementModel> {
+  return new Map<PartId, ElementModel>([
+    [HEX_PART_ID, hexModel],
+    [HEX_SURFACE_PART_ID, hex20Model],
+    [HEX_EDGES_PART_ID, hexModel],
+    [TET_PART_ID, tet10Model],
+    [TET_SURFACE_PART_ID, tetModel],
+    [TET_EDGES_PART_ID, tetModel],
+    [POINTS_PART_ID, pointLineModel],
+    [LINES_PART_ID, pointLineModel],
+  ]);
 }
 
 function placed(

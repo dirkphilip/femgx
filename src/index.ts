@@ -45,6 +45,7 @@ export {
   type FaceKey,
 } from "./elements/faces";
 export { edgesOf, uniqueEdges, type EdgeKey, type ElementEdge } from "./elements/edges";
+export { faceTriangles } from "./geometry/element-mesh";
 export { batchInstancesByPart, type InstanceBatch } from "./runtime/batch";
 export {
   createInteractionState,
@@ -67,6 +68,21 @@ export {
   type ResolvedStyle,
   type StyleOverride,
 } from "./interaction/interaction";
+export {
+  setFaceHighlighted,
+  setFaceSelected,
+  setHoveredFace,
+  emphasizedFaceRefs,
+  isFaceEmphasized,
+} from "./interaction/faces";
+export {
+  setNodeHighlighted,
+  setNodeSelected,
+  setHoveredNode,
+  emphasizedNodeRefs,
+  isNodeEmphasized,
+} from "./interaction/nodes";
+export type { FaceRef, NodeRef } from "./interaction/refs";
 export { flattenAssembly, type FlattenOptions } from "./runtime/flatten";
 export { compileScene, type CompiledScene } from "./runtime/compile";
 export { createSceneRuntime, type SceneRuntime } from "./scene-runtime/runtime";
@@ -161,6 +177,21 @@ export {
   type Mat4,
 } from "./math/mat4";
 export { instanceToTarget, resolvePick, resolvePickTarget } from "./picking/pick";
+export {
+  createPickScene,
+  faceOwnership,
+  pick,
+  pickElement,
+  pickNode,
+  resolveFacePick,
+  type ElementPick,
+  type FaceOwnershipResult,
+  type FacePick,
+  type NodePick,
+  type PickScene,
+  type ResolvedPick,
+} from "./picking/raycast";
+export { intersectRayTriangle, rayFromCamera, type Ray } from "./picking/ray";
 export type {
   AssemblyId,
   ElementRef,

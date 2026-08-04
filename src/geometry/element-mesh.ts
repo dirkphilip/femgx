@@ -224,6 +224,19 @@ function faceNodeIds(
   return { cornerNodeIds, midNodeIds };
 }
 
+/**
+ * Tessellates one element face into triangles in model space, each wound to
+ * face outward. Shared with the picking subsystem so face picking resolves
+ * against exactly the surface the renderer draws.
+ */
+export function faceTriangles(
+  model: ElementModel,
+  element: Element,
+  face: ElementFace,
+): ReadonlyArray<readonly [Vec3, Vec3, Vec3]> {
+  return tessellateFace(model, element, face);
+}
+
 /** Subdivides a face into triangles, each wound to face outward. */
 function tessellateFace(
   model: ElementModel,
