@@ -310,8 +310,8 @@ function writeDiffedRange(
   device: GPUDevice,
   buffer: GPUBuffer,
   baseOffset: number,
-  next: Uint8Array,
-  previous: Uint8Array,
+  next: Uint8Array<ArrayBuffer>,
+  previous: Uint8Array<ArrayBuffer>,
 ): void {
   let rangeStart = -1;
   for (let index = 0; index < next.length; index++) {
