@@ -31,6 +31,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   allow/ignore labels match GitHub issue labels, and the migration behavior.
 - [[development-loop|Development loop]] — issue triage, Supervisor monitoring,
   PR completion, and safe long-running iteration.
+- [[fe-fixture|FE fixture]] — the deterministic procedural panel fixture used by
+  the demo and unit tests.
 
 ## Conventions
 
