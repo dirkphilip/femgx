@@ -71,6 +71,27 @@
         font-size: 12px;
         margin-top: 10px;
       }
+      section + section {
+        margin-top: 36px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 15px;
+        letter-spacing: 0.04em;
+        color: #cbd5e1;
+      }
+      label.scale {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #94a3b8;
+        font-size: 13px;
+      }
+      #results-status {
+        color: #94a3b8;
+        font-size: 13px;
+        margin-top: 8px;
+      }
     </style>
   </head>
   <body>
@@ -94,6 +115,47 @@
       <div class="help">
         Drag to orbit · Shift-drag to pan · Scroll to zoom · Click an element or instance to select
       </div>
+      <section>
+        <header>
+          <h2>Results · deformation and scalar visualization</h2>
+          <div class="controls">
+            <button id="results-case-toggle" data-testid="results-case-toggle" type="button">
+              Case: bending
+            </button>
+            <button
+              id="results-deformed-toggle"
+              data-testid="results-deformed-toggle"
+              type="button"
+            >
+              Deformed
+            </button>
+            <button id="results-scalar-toggle" data-testid="results-scalar-toggle" type="button">
+              Scalar: off
+            </button>
+            <label class="scale">
+              Deformation scale
+              <input
+                id="results-scale"
+                data-testid="results-scale"
+                type="range"
+                min="0"
+                max="2"
+                step="0.05"
+                value="1"
+              />
+            </label>
+          </div>
+        </header>
+        <div class="viewport">
+          <canvas
+            id="results-canvas"
+            data-testid="results-canvas"
+            width="800"
+            height="600"
+          ></canvas>
+        </div>
+        <div id="results-status" data-testid="results-status"></div>
+      </section>
     </main>
     <script type="module" src="/demo/main.ts"></script>
   </body>

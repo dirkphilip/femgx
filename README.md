@@ -99,6 +99,11 @@ const { createScene, createCamera, flattenAssembly } = require("femgx");
 - `createCamera()` supports perspective/orthographic projection, orbit, pan, zoom, and resize.
 - `createWebGpuRenderer()` uploads geometry once, renders instanced batches, applies styles,
   and exposes asynchronous `pick(x, y)` readback.
+- `createResultField()` builds typed nodal/elemental scalar, vector, and tensor fields; the
+  results API adds derived quantities (magnitude, von Mises, principal values), value ranges,
+  scalar color mapping with thresholds and legends, and deformed-shape geometry with a
+  configurable scale. A results demo shows undeformed/deformed shape and von Mises
+  visualization with load-case stepping.
 
 This repository is developed with an Agent Supervisor workflow; see
 [`wiki/supervisor-workflow.md`](wiki/supervisor-workflow.md).

@@ -82,6 +82,26 @@ development workflow.
       element edges, with canonical-key deduplication and boundary/interior
       face classification (see [[elements-topology|Element topology]]).
 
+## P2 — engineering results
+
+- [x] Add typed nodal/elemental scalar, vector, and symmetric tensor fields
+      with stable ids, units, and `NaN` missing-value conventions (see
+      [[results|Results]]).
+- [x] Add derived quantities: magnitude, tensor magnitude, von Mises, and
+      principal values, plus per-entity field helpers and derived scalar
+      fields.
+- [x] Add finite-value ranges that ignore missing data.
+- [x] Add scalar color mapping with ranges, gradient stops, thresholds
+      (discrete bands), clipping, and missing-value colors, plus legend
+      entries.
+- [x] Add deformed-shape geometry from a nodal displacement field with a
+      configurable scale.
+- [x] Demonstrate undeformed/deformed shape and scalar (von Mises)
+      visualization with load-case stepping in the CPU results demo and
+      deterministic e2e coverage.
+- [ ] GPU-side deformed rendering (per-instance vertex displacement) and a
+      dedicated animation API remain follow-ups (see [[results|Results]]).
+
 ## Improvement work items
 
 - [x] Render pick ids into a universally reliable format (`rgba8unorm` with the

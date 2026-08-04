@@ -97,6 +97,10 @@ under `test/`:
   visibility updates (`createSceneRuntime`).
 - `src/camera/` — immutable orbit camera and projection math.
 - `src/interaction/` — centralized highlight/selection/hover/override state.
+- `src/results/` — typed engineering result fields (scalar/vector/tensor over
+  nodes or elements), derived quantities (magnitude, von Mises, principal
+  values), value ranges, scalar color mapping with thresholds/legends, and
+  deformed-shape geometry; pure CPU-side data.
 - `src/picking/` — CPU-side pick-id resolution.
 - `src/renderer/` — WebGPU renderer, shaders, and GPU buffer support.
 
