@@ -8,7 +8,7 @@ import {
   TET10_SHAPE,
   TET4_SHAPE,
 } from "../elements/shapes";
-import type { FemModel, ResultField } from "./model";
+import type { FemModel, ModelResultField } from "./model";
 import type { WriteOptions } from "./parse";
 import { noopProgress } from "./progress";
 
@@ -108,7 +108,7 @@ function writeCellData(model: FemModel, lines: string[], cellCount: number): voi
   writeAttributes(lines, results);
 }
 
-function writeAttributes(lines: string[], results: readonly ResultField[]): void {
+function writeAttributes(lines: string[], results: readonly ModelResultField[]): void {
   for (const result of results) {
     if (result.components === 1) {
       lines.push(`SCALARS ${result.name} double`, "LOOKUP_TABLE default");
@@ -121,7 +121,7 @@ function writeAttributes(lines: string[], results: readonly ResultField[]): void
   }
 }
 
-function writeResultValues(lines: string[], result: ResultField): void {
+function writeResultValues(lines: string[], result: ModelResultField): void {
   for (const value of result.values) {
     lines.push(formatNumber(value));
   }

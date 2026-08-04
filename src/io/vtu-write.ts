@@ -8,7 +8,7 @@ import {
   TET10_SHAPE,
   TET4_SHAPE,
 } from "../elements/shapes";
-import type { FemModel, ResultField } from "./model";
+import type { FemModel, ModelResultField } from "./model";
 import type { WriteOptions } from "./parse";
 import { noopProgress } from "./progress";
 
@@ -109,7 +109,7 @@ function pushCellData(parts: string[], model: FemModel): void {
   pushResults(parts, results, "CellData");
 }
 
-function pushResults(parts: string[], results: readonly ResultField[], section: string): void {
+function pushResults(parts: string[], results: readonly ModelResultField[], section: string): void {
   if (results.length === 0) {
     return;
   }

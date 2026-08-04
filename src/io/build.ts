@@ -6,7 +6,7 @@ import {
   type MetadataValue,
   type ModelElementBlock,
   type ModelSetKind,
-  type ResultField,
+  type ModelResultField,
 } from "./model";
 
 /** A growable Uint32Array backing store. */
@@ -110,7 +110,7 @@ export interface FemModelBuilder {
   /** Sets a metadata entry, preserving insertion order. */
   setMetadata(key: string, value: MetadataValue): void;
   /** Adds a result field aligned to node or element ids. */
-  addResult(result: ResultField): void;
+  addResult(result: ModelResultField): void;
   /** The number of nodes accumulated so far. */
   readonly nodeCount: number;
   /** The number of elements accumulated so far. */
@@ -125,7 +125,7 @@ class ModelBuilder implements FemModelBuilder {
   private readonly blocks: PendingBlock[] = [];
   private readonly sets: PendingSet[] = [];
   private readonly metadata: Record<string, MetadataValue> = {};
-  private readonly results: ResultField[] = [];
+  private readonly results: ModelResultField[] = [];
   private openBlock: PendingBlock | undefined;
 
   get nodeCount(): number {
@@ -192,7 +192,7 @@ class ModelBuilder implements FemModelBuilder {
     this.metadata[key] = value;
   }
 
-  addResult(result: ResultField): void {
+  addResult(result: ModelResultField): void {
     validateResult(result);
     this.results.push(copyResult(result));
   }
@@ -249,7 +249,7 @@ function copyUint32(ids: ArrayLike<number>): Uint32Array {
   return copy;
 }
 
-function validateResult(result: ResultField): void {
+function validateResult(result: ModelResultField): void {
   if (result.name.length === 0) {
     throw new IoError("Result field names must not be empty");
   }
@@ -265,7 +265,7 @@ function validateResult(result: ResultField): void {
   validateIds(result.ids, "result");
 }
 
-function copyResult(result: ResultField): ResultField {
+function copyResult(result: ModelResultField): ModelResultField {
   const ids = copyUint32(result.ids);
   const values = new Float64Array(result.values.length);
   values.set(result.values);

@@ -53,7 +53,7 @@ export type ModelMetadata = Readonly<Record<string, MetadataValue>>;
  * each row of `values` belongs to; `values` holds `ids.length * components`
  * numbers in row-major order.
  */
-export interface ResultField {
+export interface ModelResultField {
   readonly name: string;
   readonly location: ModelSetKind;
   readonly components: number;
@@ -72,5 +72,5 @@ export interface FemModel {
   readonly elementBlocks: readonly ModelElementBlock[];
   readonly sets: readonly ModelSet[];
   readonly metadata: ModelMetadata;
-  readonly results: readonly ResultField[];
+  readonly results: readonly ModelResultField[];
 }

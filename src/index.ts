@@ -200,9 +200,9 @@ export {
   type ModelElementBlock,
   type ModelMetadata,
   type ModelNodes,
+  type ModelResultField,
   type ModelSet,
   type ModelSetKind,
-  type ResultField,
 } from "./io/model";
 export {
   createParseSession,

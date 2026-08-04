@@ -1,7 +1,7 @@
 import { topologyFor } from "../elements/shapes";
 import type { Issue } from "./diagnostics";
 import type { ElementId, NodeId } from "../elements/element";
-import type { FemModel, ModelElementBlock, ModelSet, ResultField } from "./model";
+import type { FemModel, ModelElementBlock, ModelSet, ModelResultField } from "./model";
 
 /**
  * Validates an interchange model and returns typed diagnostics. Checks cover
@@ -119,7 +119,7 @@ function validateSet(
 }
 
 function validateResult(
-  result: ResultField,
+  result: ModelResultField,
   nodeIds: Set<NodeId>,
   elementIds: Set<ElementId>,
   issues: Issue[],

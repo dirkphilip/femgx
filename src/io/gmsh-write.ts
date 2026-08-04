@@ -8,7 +8,7 @@ import {
   TET10_SHAPE,
   TET4_SHAPE,
 } from "../elements/shapes";
-import type { FemModel, ModelSet, ResultField } from "./model";
+import type { FemModel, ModelSet, ModelResultField } from "./model";
 import type { WriteOptions } from "./parse";
 import { noopProgress } from "./progress";
 
@@ -145,7 +145,7 @@ function writeResults(parts: string[], model: FemModel): void {
   }
 }
 
-function writeDataSection(parts: string[], result: ResultField, section: string): void {
+function writeDataSection(parts: string[], result: ModelResultField, section: string): void {
   if (result.ids.length === 0) {
     return;
   }
