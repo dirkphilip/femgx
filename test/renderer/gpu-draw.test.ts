@@ -17,13 +17,13 @@ import { beginColorPass, ensureDepthTexture } from "../../src/renderer/gpu-pipel
 import {
   ELEMENT_RECORD_STRIDE,
   HIGHLIGHT_HEADER,
-  MAX_ELEMENT_HIGHLIGHTS,
+  INITIAL_ELEMENT_HIGHLIGHTS,
 } from "../../src/renderer/gpu-elements";
 import { defaultStyle } from "../../src/renderer/gpu-support";
 import type { DrawPipelines } from "../../src/renderer/gpu-pipelines";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
-const HIGHLIGHT_BUFFER_SIZE = HIGHLIGHT_HEADER + MAX_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE;
+const HIGHLIGHT_BUFFER_SIZE = HIGHLIGHT_HEADER + INITIAL_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE;
 
 const part: Part = {
   id: 1,

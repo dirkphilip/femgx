@@ -50,17 +50,18 @@ export interface DrawCall {
 
 /**
  * Persistent per-part GPU storage: a slot-stable record buffer, a compacted
- * draw-order buffer, a compacted edge-overlay order buffer, and a
- * fixed-capacity element-highlight buffer. Hidden instances stay in the record
- * buffer but are removed from the draw-order lists, so only visible geometry is
- * ever drawn. The edge order holds the subset of visible instances whose
- * resolved style requests the line-overlay pass.
+ * draw-order buffer, a compacted edge-overlay order buffer, and a growable
+ * element-highlight buffer that is recreated larger when an emphasis list
+ * outgrows it. Hidden instances stay in the record buffer but are removed from
+ * the draw-order lists, so only visible geometry is ever drawn. The edge order
+ * holds the subset of visible instances whose resolved style requests the
+ * line-overlay pass.
  */
 export interface InstanceStorage {
   readonly buffer: GPUBuffer;
   readonly orderBuffer: GPUBuffer;
   readonly edgeOrderBuffer: GPUBuffer;
-  readonly highlight: HighlightStorage;
+  highlight: HighlightStorage;
   readonly capacity: number;
   /** CPU mirror of the record buffer, kept in sync by the patch functions. */
   data: ArrayBuffer;

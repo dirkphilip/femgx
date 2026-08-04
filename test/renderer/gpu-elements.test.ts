@@ -16,7 +16,7 @@ import {
   ELEMENT_RECORD_STRIDE,
   encodeElementHighlight,
   HIGHLIGHT_HEADER,
-  MAX_ELEMENT_HIGHLIGHTS,
+  INITIAL_ELEMENT_HIGHLIGHTS,
   syncElementHighlights,
   writeElementHighlights,
   type ElementHighlightUpdate,
@@ -78,12 +78,25 @@ describe("encodeElementHighlight", () => {
 });
 
 describe("createHighlightStorage", () => {
-  it("allocates a fixed-capacity buffer matching the shader struct", () => {
+  it("allocates a buffer matching the header plus the requested record capacity", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const storage = createHighlightStorage(gpu.device, 4);
+      const expected = HIGHLIGHT_HEADER + 4 * ELEMENT_RECORD_STRIDE;
+      expect(storage.data.byteLength).toBe(expected);
+      expect(gpu.buffers[0]?.size).toBe(expected);
+    } finally {
+      restore();
+    }
+  });
+
+  it("defaults to the initial capacity so small selections never grow the buffer", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
       const storage = createHighlightStorage(gpu.device);
-      const expected = HIGHLIGHT_HEADER + MAX_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE;
+      const expected = HIGHLIGHT_HEADER + INITIAL_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE;
       expect(storage.data.byteLength).toBe(expected);
       expect(gpu.buffers[0]?.size).toBe(expected);
     } finally {
@@ -93,13 +106,18 @@ describe("createHighlightStorage", () => {
 });
 
 describe("writeElementHighlights", () => {
+  function makeStorage(gpu: ReturnType<typeof fakeGpuDevice>): InstanceStorage {
+    return {
+      highlight: createHighlightStorage(gpu.device),
+      bindGroup: undefined,
+    } as unknown as InstanceStorage;
+  }
+
   it("writes only the changed subranges across selection deltas", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
-      const storage = {
-        highlight: createHighlightStorage(gpu.device),
-      } as unknown as InstanceStorage;
+      const storage = makeStorage(gpu);
       const update = (elementId: number): ElementHighlightUpdate => ({ slot: 1, elementId, style });
       writeElementHighlights(gpu.device, storage, [update(0)]);
       const afterFirst = gpu.writes.length;
@@ -118,9 +136,7 @@ describe("writeElementHighlights", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
-      const storage = {
-        highlight: createHighlightStorage(gpu.device),
-      } as unknown as InstanceStorage;
+      const storage = makeStorage(gpu);
       writeElementHighlights(gpu.device, storage, [{ slot: 0, elementId: 0, style }]);
       const afterFirst = gpu.writes.length;
       writeElementHighlights(gpu.device, storage, []);
@@ -133,21 +149,65 @@ describe("writeElementHighlights", () => {
     }
   });
 
-  it("drops records beyond the fixed per-part capacity", () => {
+  it("grows the buffer and keeps every record beyond the initial capacity", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
-      const storage = {
-        highlight: createHighlightStorage(gpu.device),
-      } as unknown as InstanceStorage;
-      const updates = Array.from({ length: MAX_ELEMENT_HIGHLIGHTS + 10 }, (_, index) => ({
+      const storage = makeStorage(gpu);
+      const updates = Array.from({ length: INITIAL_ELEMENT_HIGHLIGHTS + 10 }, (_, index) => ({
         slot: index,
-        elementId: 0,
+        elementId: index,
         style,
       }));
       writeElementHighlights(gpu.device, storage, updates);
-      const view = new Uint32Array(storage.highlight.data.buffer);
-      expect(view[0]).toBe(MAX_ELEMENT_HIGHLIGHTS);
+      const u32 = new Uint32Array(storage.highlight.data.buffer);
+      expect(u32[0]).toBe(updates.length);
+      for (let index = 0; index < updates.length; index += 1) {
+        const base = HIGHLIGHT_HEADER / 4 + index * (ELEMENT_RECORD_STRIDE / 4);
+        expect(u32[base]).toBe(index);
+        expect(u32[base + 1]).toBe(index + 1);
+      }
+      expect(gpu.buffers[0]?.destroyed).toBe(true);
+      expect(gpu.buffers[1]?.size).toBeGreaterThan(
+        HIGHLIGHT_HEADER + INITIAL_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE,
+      );
+    } finally {
+      restore();
+    }
+  });
+
+  it("invalidates the cached bind group when the buffer grows", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const storage = makeStorage(gpu);
+      storage.bindGroup = {} as GPUBindGroup;
+      const updates = Array.from({ length: INITIAL_ELEMENT_HIGHLIGHTS + 10 }, (_, index) => ({
+        slot: index,
+        elementId: index,
+        style,
+      }));
+      writeElementHighlights(gpu.device, storage, updates);
+      expect(storage.bindGroup).toBeUndefined();
+    } finally {
+      restore();
+    }
+  });
+
+  it("keeps diffing only changed subranges after the buffer grows", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const storage = makeStorage(gpu);
+      const updates = Array.from({ length: INITIAL_ELEMENT_HIGHLIGHTS + 10 }, (_, index) => ({
+        slot: index,
+        elementId: index,
+        style,
+      }));
+      writeElementHighlights(gpu.device, storage, updates);
+      const afterGrowth = gpu.writes.length;
+      writeElementHighlights(gpu.device, storage, updates);
+      expect(gpu.writes.length).toBe(afterGrowth);
     } finally {
       restore();
     }
