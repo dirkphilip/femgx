@@ -23,6 +23,7 @@ export interface FakeTexture {
 
 export interface FakeGpu {
   readonly device: GPUDevice;
+  readonly lost: Promise<GPUDeviceLostInfo>;
   readonly writes: readonly RecordedWrite[];
   readonly buffers: readonly FakeBuffer[];
   readonly textures: readonly FakeTexture[];
@@ -31,6 +32,8 @@ export interface FakeGpu {
   readonly bindGroupCreations: number;
   /** The pipeline objects passed to `setPipeline`, in call order. */
   readonly pipelineCalls: readonly unknown[];
+  /** Resolves the device `lost` promise to simulate a GPU device loss. */
+  lose(reason?: GPUDeviceLostReason, message?: string): void;
 }
 
 /** Defines the WebGPU numeric constants the renderer source references. */
@@ -87,7 +90,15 @@ export function fakeGpuDevice(
   let bindGroupCreations = 0;
   const pickValue = options.pickValue ?? 0;
   const elementPickValue = options.elementPickValue ?? 0;
+  let resolveLost: (info: GPUDeviceLostInfo) => void = () => undefined;
+  const lost = new Promise<GPUDeviceLostInfo>((resolve) => {
+    resolveLost = resolve;
+  });
+  const lose = (reason: GPUDeviceLostReason = "unknown", message = "fake device lost"): void => {
+    resolveLost({ reason, message } as GPUDeviceLostInfo);
+  };
   const device = {
+    lost,
     queue: {
       writeBuffer: (_buffer: GPUBuffer, offset: number, data: ArrayBufferView | ArrayBuffer) => {
         const bytes =
@@ -164,11 +175,13 @@ export function fakeGpuDevice(
   };
   return {
     device: device as unknown as GPUDevice,
+    lost,
     writes,
     buffers,
     textures,
     drawCalls,
     pipelineCalls,
+    lose,
     get textureCreations() {
       return textures.length;
     },
@@ -176,4 +189,29 @@ export function fakeGpuDevice(
       return bindGroupCreations;
     },
   };
+}
+
+/**
+ * Installs a navigator whose adapter requests each yield a fake device,
+ * returning the created devices in request order so tests can drive loss and
+ * recovery against the whole device sequence. `seed` is a device that already
+ * exists (used by the initial bundle) and is recorded but never served, so
+ * recovery requests always yield a fresh device.
+ */
+export function installFreshDeviceNavigator(seed?: FakeGpu): readonly FakeGpu[] {
+  const gpus: FakeGpu[] = seed === undefined ? [] : [seed];
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: {
+      gpu: {
+        getPreferredCanvasFormat: () => "bgra8unorm",
+        requestAdapter: () => {
+          const gpu = fakeGpuDevice();
+          gpus.push(gpu);
+          return Promise.resolve({ requestDevice: () => Promise.resolve(gpu.device) });
+        },
+      },
+    },
+  });
+  return gpus;
 }

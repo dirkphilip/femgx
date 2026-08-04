@@ -39,6 +39,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   `@webgpu/types` dev-only, and the clean-consumer smoke tests.
 - [[webgpu-e2e|WebGPU browser e2e lane]] — opt-in real-WebGPU browser coverage
   that never makes the default CI lane flaky.
+- [[platform-support|Platform support]] — capability probing, the explicit
+  unsupported fallback, and device-loss recovery.
 - [[benchmarks|Benchmarks and performance budgets]] — deterministic CPU
   benchmarks, budget thresholds, and how to run/interpret them.
 - [[performance-issues|Performance issues and risks]] — known scalability,
