@@ -1,9 +1,30 @@
 # FE fixture
 
-The deterministic procedural FE fixture (`src/fixture/panel.ts`) generates a
-CPU-only, WebGPU-independent stiffened deck panel model for the demo and unit tests.
+The deterministic procedural FE fixtures generate CPU-only, WebGPU-independent
+models for the demo and unit tests.
 
-## Parameters
+## Element gallery (`createElementFixture`)
+
+`src/fixture/element-fixture.ts` builds a gallery of linear and quadratic
+elements for the renderer: one reusable part per family/render-mode pair, with a
+root assembly that places the three volume blocks plus a point/line block along
+X. The model builders live in `src/fixture/element-models.ts`. Part ids:
+
+- hex: `solid` 1, `surface` 2 (Hex20), `edges` 3
+- tet: `solid` 4 (Tet10), `surface` 5, `edges` 6
+- `points` 7, `lines` 8 (always visible as overlays)
+
+Tuning knobs are `gridSize` (default `2`, hex cells per axis) and `cellSize`
+(default `1`). `modePartIds` maps the volume modes (`solid`, `surface`,
+`edges`) to their parts; `visiblePartIdsFor(fixture, mode)` returns the parts
+shown for a mode. See [[element-rendering|Element rendering]].
+
+## Deck panel (`createPanelFixture`)
+
+The original panel fixture (`src/fixture/panel.ts`) generates a stiffened deck
+panel model.
+
+### Parameters
 
 - `cellSize` (default `1`) — shell element size in model units (meters).
 - `cellsX` (default `4`) — shell elements along X.

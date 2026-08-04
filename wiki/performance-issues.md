@@ -124,3 +124,26 @@ and product gaps, tracked in `wiki/todo.md` and the issue tracker:
   progressive add-part path rather than a full `attach` rebuild.
 - **64-bit coordinates**: the local-origin rebase is the documented precision
   strategy; float64 vertex positions are not supported by current WebGPU.
+
+## Quadratic element tessellation trade-offs
+
+Quadratic (Tet10/Hex20/LINE3) geometry is tessellated through mid-edge nodes
+rather than reduced to linear facets (see
+[[element-rendering|Element rendering]]). The cost is a constant CPU/upload
+factor, never a runtime draw cost:
+
+- A Tet10 solid is 4 triangles per face vs 2 for a Tet4, and a Hex20 quad is 8
+  triangles vs 2 for a Hex8, so quadratic models upload 2-4x the triangle
+  geometry per element family.
+- `edgeSegments` (default 2, floor 2) raises line geometry linearly with the
+  requested subdivision; the floor guarantees the mid-edge node is honored.
+- These are one-time costs at part build time, amortized across instances by
+  instancing; the draw remains a single instanced call per part.
+- Boundary-face culling and edge deduplication (`surface`/`edges` modes) run
+  before tessellation, so culled interior faces never reach the vertex buffers.
+
+Risk: a full quadratic model at huge scale (the 100M-element target) multiplies
+the vertex footprint even though the draw count is unchanged. If that becomes a
+bottleneck, adaptive tessellation (subdivide only near silhouettes or when
+projected curvature is large) is the natural follow-up; nothing in the geometry
+or renderer API prevents swapping the tessellator per part.

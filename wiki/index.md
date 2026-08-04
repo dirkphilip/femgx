@@ -14,6 +14,9 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   node ordering, connectivity validation, and oriented face/edge extraction.
 - [[results|Results, deformation, and scalar visualization]] — typed result
   fields, derived quantities, ranges, color mapping, and deformed-shape data.
+- [[element-rendering|Element rendering]] — linear/quadratic face and edge
+  tessellation into triangle/line/point primitives, and mode switching via
+  visibility.
 - [[packed-runtime|Packed scene runtime]] — packed typed-array storage and
   delta-oriented visibility updates.
 - [[renderer-subrange-updates|Renderer subrange updates]] — packed deltas wired

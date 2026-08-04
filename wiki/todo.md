@@ -81,6 +81,10 @@ development workflow.
 - [x] Extract oriented polygon faces (with quadratic mid-edge nodes) and unique
       element edges, with canonical-key deduplication and boundary/interior
       face classification (see [[elements-topology|Element topology]]).
+- [x] Render linear and quadratic elements (points, lines, and element edges)
+      as triangle/line/point primitives, with boundary-face and edge-dedup
+      culling, quadratic mid-edge tessellation, and a mode-toggle demo (see
+      [[element-rendering|Element rendering]]).
 
 ## P2 — engineering results
 

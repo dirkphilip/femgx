@@ -5,17 +5,20 @@ import {
   setHoveredInstance,
   setElementSelected,
   setInstanceSelected,
+  type ElementRenderMode,
   type InstanceId,
   type InteractionState,
   type PickTarget,
   type SceneRuntime,
   type WebGpuRenderer,
 } from "../src/index";
+import { visiblePartIdsFor } from "../src/fixture/element-fixture";
 import { installCameraControls } from "./camera-controls";
 import { startCpuDemo } from "./cpu-demo";
 import type { DemoFixture } from "./fixture";
 import {
   installDisplayModeControl,
+  installModeControl,
   installProjectionControl,
   installResetControl,
   installResizeControl,
@@ -67,12 +70,26 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<void>
   let gpuRenderer: WebGpuRenderer | undefined = renderer;
   let interaction: InteractionState = createInteractionState();
   let pickChain: Promise<unknown> = Promise.resolve();
+  let mode: ElementRenderMode = fixture.elementFixture.defaultMode;
 
   function renderGpu(): void {
     if (gpuRenderer === undefined) return;
     gpuRenderer.render(runtime, cameraRef.camera, fixture.scene.parts);
     canvas.dataset["frames"] = String(Number(canvas.dataset["frames"] ?? "0") + 1);
   }
+
+  /** Applies a mode's part visibility through the runtime and returns changed slots. */
+  function applyModeVisibility(nextMode: ElementRenderMode): readonly number[] {
+    const visible = visiblePartIdsFor(fixture.elementFixture, nextMode);
+    const changed: number[] = [];
+    for (const partId of fixture.scene.parts.keys()) {
+      const delta = runtime.setPartVisible(partId, visible.has(partId));
+      changed.push(...delta.changedInstanceIds);
+    }
+    return changed;
+  }
+
+  applyModeVisibility(mode);
 
   function patchInstancesFor(instanceIds: readonly (InstanceId | undefined)[]): void {
     if (gpuRenderer === undefined) return;
@@ -161,11 +178,19 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<void>
     cameraRef,
     instanceCount: runtime.instanceCount,
     partCount: fixture.scene.parts.size,
+    mode: () => mode,
     onRender: renderGpu,
-    setDisplayMode: (mode: DisplayMode) => gpuRenderer?.setDisplayMode(mode),
+    setDisplayMode: (nextMode: DisplayMode) => gpuRenderer?.setDisplayMode(nextMode),
   };
   installProjectionControl(context);
   installDisplayModeControl(context);
+  installModeControl(context, (nextMode) => {
+    const changed = applyModeVisibility(nextMode);
+    mode = nextMode;
+    if (changed.length > 0 && gpuRenderer !== undefined) {
+      gpuRenderer.updateVisibility(runtime, changed);
+    }
+  });
   installResetControl(context, fixture.initialCamera, resetInteraction);
   installResizeControl(view, cameraRef, renderGpu, () => gpuRenderer?.resize());
 
@@ -195,7 +220,7 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<void>
     },
   };
 
-  updateStatus(view, cameraRef.camera, runtime.instanceCount, fixture.scene.parts.size);
+  updateStatus(view, cameraRef.camera, context);
   renderGpu();
 
   function resetInteraction(): void {

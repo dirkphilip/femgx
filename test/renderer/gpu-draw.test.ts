@@ -13,12 +13,13 @@ import {
   type DrawCallContext,
 } from "../../src/renderer/gpu-draw";
 import { beginColorPass, ensureDepthTexture } from "../../src/renderer/gpu-pipelines";
-import { defaultStyle } from "../../src/renderer/gpu-support";
 import {
   ELEMENT_RECORD_STRIDE,
   HIGHLIGHT_HEADER,
   MAX_ELEMENT_HIGHLIGHTS,
 } from "../../src/renderer/gpu-elements";
+import { defaultStyle } from "../../src/renderer/gpu-support";
+import type { DrawPipelines } from "../../src/renderer/gpu-pipelines";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
 const HIGHLIGHT_BUFFER_SIZE = HIGHLIGHT_HEADER + MAX_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE;
@@ -58,6 +59,7 @@ function drawContext(): DrawCallContext {
     cameraBindGroup: {} as GPUBindGroup,
     instanceLayout: {} as GPUBindGroupLayout,
     parts: new Map([[part.id, part]]),
+    pipelines: {} as DrawPipelines,
   };
 }
 
@@ -212,10 +214,70 @@ describe("GPU draw path", () => {
       const encoder = gpu.device.createCommandEncoder();
       const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
       drawBatches(pass, draw, drawContext(), [{ partId: part.id, instanceCount: 2 }], {
-        pipeline: {} as GPURenderPipeline,
+        pass: "color",
       });
       pass.end();
       expect(gpu.drawCalls).toEqual([{ indexCount: 3, instanceCount: 2 }]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("switches pipelines to match each part's primitive topology", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      const trianglePart: Part = { ...part, id: 1 };
+      const linePart: Part = {
+        ...part,
+        id: 2,
+        geometry: { ...part.geometry, primitive: "lines" },
+      };
+      const pointPart: Part = {
+        ...part,
+        id: 3,
+        geometry: { ...part.geometry, primitive: "points" },
+      };
+      const pipelines = {
+        trianglesColor: { name: "triangles-color" },
+        linesColor: { name: "lines-color" },
+        pointsColor: { name: "points-color" },
+      } as unknown as DrawPipelines;
+      for (const item of [trianglePart, linePart, pointPart]) {
+        patchInstances(draw, item.id, [{ slot: 0, data: record(0) }]);
+        writeDrawOrder(draw, item.id, new Uint32Array([0]));
+      }
+      const context: DrawCallContext = {
+        cameraBindGroup: {} as GPUBindGroup,
+        instanceLayout: {} as GPUBindGroupLayout,
+        parts: new Map([
+          [trianglePart.id, trianglePart],
+          [linePart.id, linePart],
+          [pointPart.id, pointPart],
+        ]),
+        pipelines,
+      };
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
+      drawBatches(
+        pass,
+        draw,
+        context,
+        [
+          { partId: trianglePart.id, instanceCount: 1 },
+          { partId: linePart.id, instanceCount: 1 },
+          { partId: pointPart.id, instanceCount: 1 },
+        ],
+        { pass: "color" },
+      );
+      pass.end();
+      expect(gpu.pipelineCalls).toEqual([
+        pipelines.trianglesColor,
+        pipelines.linesColor,
+        pipelines.pointsColor,
+      ]);
+      expect(gpu.drawCalls).toHaveLength(3);
     } finally {
       restore();
     }
@@ -232,7 +294,7 @@ describe("GPU draw path", () => {
       for (let frame = 0; frame < 3; frame += 1) {
         const encoder = gpu.device.createCommandEncoder();
         const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
-        drawBatches(pass, draw, drawContext(), calls, { pipeline: {} as GPURenderPipeline });
+        drawBatches(pass, draw, drawContext(), calls, { pass: "color" });
         pass.end();
       }
       expect(gpu.bindGroupCreations).toBe(1);
@@ -252,7 +314,7 @@ describe("GPU draw path", () => {
       const encoder = gpu.device.createCommandEncoder();
       const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
       drawBatches(pass, draw, drawContext(), [{ partId: part.id, instanceCount: 1 }], {
-        pipeline: {} as GPURenderPipeline,
+        pass: "color",
       });
       pass.end();
       patchInstances(draw, part.id, [
@@ -264,7 +326,7 @@ describe("GPU draw path", () => {
       const encoder2 = gpu.device.createCommandEncoder();
       const pass2 = beginColorPass(encoder2, {} as GPUTextureView, {} as GPUTextureView);
       drawBatches(pass2, draw, drawContext(), [{ partId: part.id, instanceCount: 3 }], {
-        pipeline: {} as GPURenderPipeline,
+        pass: "color",
       });
       pass2.end();
       expect(gpu.bindGroupCreations).toBe(2);

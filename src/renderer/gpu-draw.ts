@@ -1,4 +1,4 @@
-import type { Part } from "../geometry/part";
+import type { Part, Primitive } from "../geometry/part";
 import type { ResolvedStyle } from "../interaction/interaction";
 import type { PartId } from "../scene/types";
 import {
@@ -7,6 +7,7 @@ import {
   createHighlightStorage,
   type HighlightStorage,
 } from "./gpu-elements";
+import type { DrawPipelines } from "./gpu-pipelines";
 import { createBuffer, type PartResource } from "./gpu-support";
 
 /** Byte size of one instance record in the per-part storage buffer. */
@@ -76,6 +77,7 @@ export interface DrawCallContext {
   readonly cameraBindGroup: GPUBindGroup;
   readonly instanceLayout: GPUBindGroupLayout;
   readonly parts: ReadonlyMap<PartId, Part>;
+  readonly pipelines: DrawPipelines;
 }
 
 /** Creates the draw-path resource owner. */
@@ -90,19 +92,30 @@ export function createDrawResources(device: GPUDevice): DrawResources {
   };
 }
 
-/** Returns the cached geometry buffers for a part, uploading them once. */
+/**
+ * Returns the cached geometry buffers for a part, uploading them once. Only
+ * triangle parts carry a deduplicated edge list, so the edge overlay never
+ * draws spurious edges for line or point primitives.
+ */
 export function uploadPart(draw: DrawResources, part: Part): PartResource {
   const existing = draw.parts.get(part.id);
   if (existing !== undefined) return existing;
   const vertexBuffer = createBuffer(draw.device, part.geometry.positions, GPUBufferUsage.VERTEX);
   const indexBuffer = createBuffer(draw.device, part.geometry.indices, GPUBufferUsage.INDEX);
-  const edges = buildMeshEdges(part.geometry);
+  const edges =
+    part.geometry.primitive === undefined || part.geometry.primitive === "triangles"
+      ? buildMeshEdges(part.geometry)
+      : new Uint32Array(0);
   const elementPickIdsBuffer = createBuffer(
     draw.device,
     buildElementTrianglePickIds(part.geometry),
     GPUBufferUsage.STORAGE,
   );
-  const edgeIndexBuffer = createBuffer(draw.device, edges, GPUBufferUsage.INDEX);
+  const edgeIndexBuffer = createBuffer(
+    draw.device,
+    edges.length > 0 ? edges : new Uint32Array(1),
+    GPUBufferUsage.INDEX,
+  );
   const resource: PartResource = {
     vertexBuffer,
     indexBuffer,
@@ -201,33 +214,49 @@ export function writeDrawOrder(draw: DrawResources, partId: PartId, order: Uint3
 /** Which index buffer a draw batch should use. */
 export type IndexSource = "triangles" | "edges";
 
+/** Which fragment pass a batch targets. */
+export type PipelinePass = "color" | "pick";
+
 /** Options controlling one instanced draw pass. */
 export interface DrawBatchOptions {
-  readonly pipeline: GPURenderPipeline;
+  /** Which fragment pass the batch targets; selects color vs pick pipelines. */
+  readonly pass?: PipelinePass;
+  /** Explicit pipeline override for overlay passes such as the wireframe edges. */
+  readonly pipeline?: GPURenderPipeline;
   /** Which per-part index buffer to draw from; defaults to triangles. */
   readonly index?: IndexSource;
 }
 
 /**
- * Issues all instanced draws for the cached per-part calls. The storage record
- * buffer is addressed through the compacted draw-order buffer so hidden slots
- * are never drawn; bind groups are cached per storage and reused across frames.
+ * Issues all instanced draws for the cached per-part calls. The pipeline is
+ * switched per part to match its primitive topology (triangle/line/point
+ * sprite), so one pass can mix element solids, edges, and point elements. The
+ * storage record buffer is addressed through the compacted draw-order buffer so
+ * hidden slots are never drawn; bind groups are cached per storage.
  */
 export function drawBatches(
   pass: GPURenderPassEncoder,
   draw: DrawResources,
   context: DrawCallContext,
   calls: readonly DrawCall[],
-  options: DrawBatchOptions,
+  options: DrawBatchOptions = {},
 ): void {
-  const { pipeline, index = "triangles" } = options;
-  pass.setPipeline(pipeline);
+  const passKind = options.pass ?? "color";
+  const index = options.index ?? "triangles";
   pass.setBindGroup(0, context.cameraBindGroup);
+  let current: GPURenderPipeline | undefined;
   for (const call of calls) {
     const part = context.parts.get(call.partId);
     const storage = draw.storages.get(call.partId);
     if (part === undefined || storage === undefined) continue;
     const geometry = uploadPart(draw, part);
+    const pipeline =
+      options.pipeline ??
+      pipelineFor(part.geometry.primitive ?? "triangles", passKind, context.pipelines);
+    if (current !== pipeline) {
+      pass.setPipeline(pipeline);
+      current = pipeline;
+    }
     if (storage.bindGroup === undefined) {
       storage.bindGroup = draw.device.createBindGroup({
         layout: context.instanceLayout,
@@ -246,6 +275,22 @@ export function drawBatches(
     const count = edges ? geometry.edgeIndexCount : geometry.indexCount;
     pass.setIndexBuffer(buffer, "uint32");
     pass.drawIndexed(count, call.instanceCount);
+  }
+}
+
+/** Selects the color or pick pipeline for a part's primitive kind. */
+function pipelineFor(
+  primitive: Primitive,
+  pass: PipelinePass,
+  pipelines: DrawPipelines,
+): GPURenderPipeline {
+  switch (primitive) {
+    case "triangles":
+      return pass === "color" ? pipelines.trianglesColor : pipelines.trianglesPick;
+    case "lines":
+      return pass === "color" ? pipelines.linesColor : pipelines.linesPick;
+    case "points":
+      return pass === "color" ? pipelines.pointsColor : pipelines.pointsPick;
   }
 }
 

@@ -155,4 +155,25 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.drawCalls.at(-1)).toEqual({ indexCount: 3, instanceCount: 3 });
   });
+
+  it("culls hidden parts from the draw order without rewriting records", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildScene();
+    const runtime = createSceneRuntime(scene);
+    renderer.render(runtime, camera, scene.parts);
+
+    const hidden = runtime.setPartVisible(1, false);
+    renderer.updateVisibility(runtime, hidden.changedInstanceIds);
+    const callsBefore = gpu.drawCalls.length;
+    renderer.render(runtime, camera, scene.parts);
+    expect(gpu.drawCalls.length).toBe(callsBefore);
+
+    const shown = runtime.setPartVisible(1, true);
+    renderer.updateVisibility(runtime, shown.changedInstanceIds);
+    renderer.render(runtime, camera, scene.parts);
+    expect(gpu.drawCalls.at(-1)).toEqual({ indexCount: 3, instanceCount: 3 });
+  });
 });

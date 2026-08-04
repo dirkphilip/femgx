@@ -42,6 +42,8 @@ export interface WebGpuRendererOptions {
   readonly canvas: HTMLCanvasElement;
   readonly device?: GPUDevice;
   readonly powerPreference?: GPUPowerPreference;
+  /** Screen-space diameter of point elements in device pixels (default 8). */
+  readonly pointSizePixels?: number;
 }
 
 /** How the visible color pass renders each part. */
@@ -71,6 +73,13 @@ export interface WebGpuRenderer {
   updateElements(runtime: SceneRuntime, interaction: InteractionState): void;
   /** Sets whether the color pass also draws the wireframe edge overlay. */
   setDisplayMode(mode: DisplayMode): void;
+  /**
+   * Rebuilds GPU draw order after runtime visibility changed (part/assembly
+   * hide-show), using the delta of affected instance slots returned by the
+   * runtime. Instance records are untouched: hidden geometry is culled from the
+   * draw order, so nothing is rebuilt or re-uploaded.
+   */
+  updateVisibility(runtime: SceneRuntime, changedInstanceIds: readonly number[]): void;
   pick(x: number, y: number): Promise<PickTarget | undefined>;
   resize(width?: number, height?: number): void;
   destroy(): void;
@@ -90,7 +99,7 @@ export async function createWebGpuRenderer(
     throw new Error("WebGPU adapter request failed");
   }
   const device = options.device ?? (await adapter.requestDevice());
-  return new GpuRenderer(options.canvas, device);
+  return new GpuRenderer(options.canvas, device, options.pointSizePixels ?? 8);
 }
 
 class GpuRenderer implements WebGpuRenderer {
@@ -99,6 +108,7 @@ class GpuRenderer implements WebGpuRenderer {
   private readonly depthFormat = "depth24plus" as GPUTextureFormat;
   private readonly resources: RenderResources;
   private readonly pickTargets: PickTargets;
+  private readonly pointSize: number;
   private draw: DrawResources;
   private runtime: SceneRuntime | undefined;
   private layout: InstanceLayout | undefined;
@@ -111,11 +121,13 @@ class GpuRenderer implements WebGpuRenderer {
   public constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly device: GPUDevice,
+    pointSize: number,
   ) {
     const context = canvas.getContext("webgpu");
     if (context === null) throw new Error("WebGPU canvas context unavailable");
     this.context = context;
     this.format = navigator.gpu.getPreferredCanvasFormat();
+    this.pointSize = Math.max(1, pointSize);
     this.resources = createRenderResources(device, this.format, this.depthFormat);
     this.draw = createDrawResources(device);
     this.pickTargets = createPickTargets();
@@ -135,6 +147,7 @@ class GpuRenderer implements WebGpuRenderer {
       pickTargets: this.pickTargets,
       depthFormat: this.depthFormat,
       displayMode: this.displayMode,
+      pointSize: this.pointSize,
     });
   }
 
@@ -196,6 +209,14 @@ class GpuRenderer implements WebGpuRenderer {
   public setDisplayMode(mode: DisplayMode): void {
     this.ensureAlive();
     this.displayMode = mode;
+  }
+
+  public updateVisibility(runtime: SceneRuntime, changedInstanceIds: readonly number[]): void {
+    this.ensureAlive();
+    this.attach(runtime);
+    const layout = this.layout;
+    if (layout === undefined) return;
+    this.rebuildVisibleOrders(runtime, layout, changedInstanceIds);
   }
 
   public async pick(x: number, y: number): Promise<PickTarget | undefined> {

@@ -23,10 +23,18 @@ export interface ElementTessellation {
   readonly triangleCount: number;
 }
 
+/** How a part's indexed primitives are drawn on the GPU. */
+export type Primitive = "triangles" | "lines" | "points";
+
 /** CPU-side geometry descriptor; the renderer uploads this once. */
 export interface Geometry {
   readonly positions: Float32Array;
   readonly indices: Uint32Array;
+  /**
+   * Primitive kind, defaulting to `"triangles"`. `"points"` geometry is a
+   * screen-space sprite mesh; `"lines"` geometry uses `line-list` primitives.
+   */
+  readonly primitive?: Primitive;
   /**
    * Optional element tessellations. When absent the part is not element-pickable
    * and every triangle reports "no element". When present, every triangle must
