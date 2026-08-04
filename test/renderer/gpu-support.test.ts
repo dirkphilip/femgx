@@ -16,6 +16,7 @@ describe("GPU instance buffer updates", () => {
       capacity: 1,
       data: new ArrayBuffer(4),
       initialized: false,
+      bindGroup: undefined,
     };
     writeChangedBuffer(device, resource, new Uint8Array([1, 2, 3, 4]).buffer, 4);
     writeChangedBuffer(device, resource, new Uint8Array([1, 9, 3, 4]).buffer, 4);

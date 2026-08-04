@@ -8,7 +8,7 @@ import {
   createDrawResources,
   destroyDrawResources,
   beginColorPass,
-  createDepthTexture,
+  ensureDepthTexture,
   drawBatches,
   type DrawCallContext,
   type DrawResources,
@@ -19,6 +19,7 @@ import {
   destroyPickTargets,
   ensurePickTargets,
   readPickPixel,
+  resetPickTargets,
   type PickTargets,
 } from "./gpu-pick";
 import {
@@ -92,8 +93,8 @@ class GpuRenderer implements WebGpuRenderer {
     this.device.queue.writeBuffer(this.resources.cameraBuffer, 0, new Float32Array(viewProjection));
     const encoder = this.device.createCommandEncoder();
     const colorView = this.context.getCurrentTexture().createView();
-    const depthTexture = createDepthTexture(
-      this.device,
+    const depthTexture = ensureDepthTexture(
+      this.draw,
       this.canvas.width,
       this.canvas.height,
       this.depthFormat,
@@ -118,7 +119,6 @@ class GpuRenderer implements WebGpuRenderer {
     drawBatches(pickPass, this.draw, drawContext, compiled.batches, this.resources.pickPipeline);
     pickPass.end();
     this.device.queue.submit([encoder.finish()]);
-    depthTexture.destroy();
   }
 
   public async pick(x: number, y: number): Promise<PickTarget | undefined> {
@@ -132,7 +132,7 @@ class GpuRenderer implements WebGpuRenderer {
     this.canvas.width = Math.max(1, Math.floor(width * devicePixelRatio));
     this.canvas.height = Math.max(1, Math.floor(height * devicePixelRatio));
     this.context.configure({ device: this.device, format: this.format, alphaMode: "opaque" });
-    destroyPickTargets(this.pickTargets);
+    resetPickTargets(this.pickTargets);
   }
 
   public destroy(): void {
