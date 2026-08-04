@@ -3,7 +3,7 @@ import { edgesOf, uniqueEdges, type ElementEdge } from "../elements/edges";
 import type { Element, ElementId, NodeId } from "../elements/element";
 import type { ElementModel } from "../elements/model";
 import { topologyFor, type ElementFamily } from "../elements/shapes";
-import { computeBounds, type Geometry, type Part } from "./part";
+import { computeBounds, type ElementTessellation, type Geometry, type Part } from "./part";
 import type { PartId } from "../scene/types";
 import { LineMeshBuilder, TriangleMeshBuilder } from "./mesh-builder";
 import { average, cross, dot, length, quadraticPoint, subtract, type Vec3 } from "./vec-math";
@@ -88,12 +88,28 @@ function volumeGeometry(
   const faces: ReadonlyArray<{ readonly element: Element; readonly face: ElementFace }> =
     boundaryOnly ? boundaryFaces(model, family) : allFaces(model, family);
   const mesh = new TriangleMeshBuilder();
+  const elements: ElementTessellation[] = [];
+  let current: { readonly id: ElementId; readonly start: number } | undefined;
+  const flush = (): void => {
+    if (current !== undefined) {
+      elements.push({
+        id: current.id,
+        triangleStart: current.start,
+        triangleCount: mesh.triangleCount - current.start,
+      });
+    }
+  };
   for (const { element, face } of faces) {
+    if (current === undefined || current.id !== element.id) {
+      flush();
+      current = { id: element.id, start: mesh.triangleCount };
+    }
     for (const triangle of tessellateFace(model, element, face)) {
       mesh.append(triangle);
     }
   }
-  return mesh.build("triangles");
+  flush();
+  return mesh.build("triangles", elements);
 }
 
 function allFaces(

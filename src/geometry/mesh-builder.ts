@@ -1,4 +1,4 @@
-import type { Geometry, Primitive } from "./part";
+import type { ElementTessellation, Geometry, Primitive } from "./part";
 import type { Vec3 } from "./vec-math";
 
 /** Accumulates oriented triangles into flat position/index arrays. */
@@ -14,11 +14,17 @@ export class TriangleMeshBuilder {
     this.indices.push(base, base + 1, base + 2);
   }
 
-  build(primitive: Primitive): Geometry {
+  /** Number of triangles accumulated so far. */
+  get triangleCount(): number {
+    return Math.floor(this.indices.length / 3);
+  }
+
+  build(primitive: Primitive, elements?: readonly ElementTessellation[]): Geometry {
     return {
       positions: new Float32Array(this.positions),
       indices: new Uint32Array(this.indices),
       primitive,
+      ...(elements !== undefined && elements.length > 0 ? { elements } : {}),
     };
   }
 }

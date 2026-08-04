@@ -18,6 +18,7 @@ import {
   type ElementRenderMode,
   type TessellationOptions,
 } from "../../src/geometry/element-mesh";
+import { validateElements } from "../../src/geometry/part";
 
 type Vec3 = readonly [number, number, number];
 
@@ -277,6 +278,26 @@ describe("elementGeometry", () => {
     expect(elementGeometry(model, "tet", "solid").indices.length).toBe(8 * 3);
     const surface = elementGeometry(model, "tet", "surface");
     expect(surface.indices.length).toBe(6 * 3);
+  });
+
+  it("records element tessellations so every triangle is element-pickable", () => {
+    const hex = elementGeometry(hex8Model(), "hex", "solid");
+    expect(hex.elements).toEqual([{ id: 1, triangleStart: 0, triangleCount: 12 }]);
+    expect(() => {
+      validateElements(hex);
+    }).not.toThrow();
+
+    const solid = elementGeometry(sharedTetPairModel(), "tet", "solid");
+    expect(solid.elements).toEqual([
+      { id: 1, triangleStart: 0, triangleCount: 4 },
+      { id: 2, triangleStart: 4, triangleCount: 4 },
+    ]);
+
+    const surface = elementGeometry(sharedTetPairModel(), "tet", "surface");
+    expect(surface.elements).toEqual([
+      { id: 1, triangleStart: 0, triangleCount: 3 },
+      { id: 2, triangleStart: 3, triangleCount: 3 },
+    ]);
   });
 
   it("generates point sprites for point elements", () => {

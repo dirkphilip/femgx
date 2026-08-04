@@ -21,6 +21,15 @@ tessellation trade-offs. Related: [[elements-topology|Element topology]] and
    primitive, batches instances by part, and draws with the part's primitive
    (see [[renderer-subrange-updates|Renderer subrange updates]]).
 
+Volume geometry (`solid`/`surface` triangles) carries an
+`ElementTessellation` per element — the contiguous triangle range it owns —
+so every triangle maps to its element id. The renderer turns these into
+per-triangle pick ids and highlight records, making elements selectable at the
+element level through GPU picking (see
+[[element-interaction|Element interaction]]). Line and point parts are
+instance-pickable only: the point-sprite shader never emits element ids, and
+the line pipeline shares the triangle element-map layout.
+
 ## Render modes
 
 Each element family supports a subset of modes (`elementRenderModes`):

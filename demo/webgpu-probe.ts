@@ -65,7 +65,7 @@ export function createWebGpuProbe(
         const dxF = dx ?? 0;
         const dyF = dy ?? 0;
         const target = await probe.pick(width / 2 + dxF * width, height / 2 + dyF * height);
-        if (target?.kind === "instance") {
+        if (target?.kind === "instance" || target?.kind === "element") {
           verified = true;
           break;
         }
