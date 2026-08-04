@@ -13,6 +13,7 @@ struct Instance {
 
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(1) @binding(0) var<storage, read> instances: array<Instance>;
+@group(1) @binding(1) var<storage, read> drawOrder: array<u32>;
 
 struct VertexOutput {
   @builtin(position) position: vec4<f32>,
@@ -22,7 +23,7 @@ struct VertexOutput {
 
 @vertex
 fn vertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32) -> VertexOutput {
-  let instance = instances[instanceIndex];
+  let instance = instances[drawOrder[instanceIndex]];
   var output: VertexOutput;
   output.position = camera.viewProjection * instance.transform * vec4<f32>(position, 1.0);
   output.color = instance.color;

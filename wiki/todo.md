@@ -34,7 +34,8 @@ development workflow.
 - [x] Define the instance-buffer layout for transforms, style state, visibility,
       and pick IDs.
 - [x] Upload each part's geometry once and issue instanced draws grouped by part.
-- [ ] Add buffer subrange updates for transform and interaction deltas.
+- [x] Add buffer subrange updates for transform and interaction deltas (see
+      [[renderer-subrange-updates|Renderer subrange updates]]).
 - [x] Add a pick render pass and asynchronous single-pixel readback.
 - [x] Cache per-frame GPU resources: bind groups per batch, a resized depth
       texture, and a pooled pick readback (see

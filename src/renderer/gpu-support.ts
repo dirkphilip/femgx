@@ -6,14 +6,6 @@ export interface PartResource {
   readonly indexCount: number;
 }
 
-export interface BatchResource {
-  readonly buffer: GPUBuffer;
-  readonly capacity: number;
-  data: ArrayBuffer;
-  initialized: boolean;
-  bindGroup: GPUBindGroup | undefined;
-}
-
 export const defaultStyle: ResolvedStyle = {
   color: { r: 0.23, g: 0.51, b: 0.96, a: 1 },
   emissive: 0,
@@ -39,34 +31,6 @@ export function createBuffer(
   bytes.set(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
   device.queue.writeBuffer(buffer, 0, bytes);
   return buffer;
-}
-
-/** Writes only contiguous byte ranges that changed since the previous frame. */
-export function writeChangedBuffer(
-  device: GPUDevice,
-  resource: BatchResource,
-  nextData: ArrayBuffer,
-  byteLength: number,
-): void {
-  const next = new Uint8Array(nextData, 0, byteLength);
-  if (!resource.initialized) {
-    device.queue.writeBuffer(resource.buffer, 0, next);
-    resource.initialized = true;
-    resource.data = nextData;
-    return;
-  }
-  const previous = new Uint8Array(resource.data);
-  let rangeStart = -1;
-  for (let index = 0; index < byteLength; index += 1) {
-    const changed = next[index] !== previous[index];
-    if (changed && rangeStart < 0) rangeStart = index;
-    if ((!changed || index === byteLength - 1) && rangeStart >= 0) {
-      const rangeEnd = changed && index === byteLength - 1 ? index + 1 : index;
-      device.queue.writeBuffer(resource.buffer, rangeStart, next.subarray(rangeStart, rangeEnd));
-      rangeStart = -1;
-    }
-  }
-  resource.data = nextData;
 }
 
 /** Creates the empty interaction state used when no overrides are supplied. */

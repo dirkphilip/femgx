@@ -68,6 +68,11 @@ touched by transform edits, so `getDrawList()` stays deterministic and
 `VisibilityDelta`s remain consistent. Hidden instances keep valid world
 transforms so they render correctly when shown later.
 
+`getInstanceId(slot)` resolves a stable instance slot back to its authoring
+placement handle (the same path strings `flattenAssembly` derives), which lets
+the [[renderer-subrange-updates|renderer]] map interaction state and pick hits
+back to slots.
+
 ## Design notes
 
 - One compiled node per assembly _expansion_, so an assembly placed multiple
@@ -83,8 +88,9 @@ transforms so they render correctly when shown later.
 
 ## Future work
 
-- Cache the draw list and turn delta id lists into byte ranges for GPU buffer
-  subrange patching (see [[interactive-state|Interactive state]]).
 - Make the compile walk iterative (see Design notes).
+
+Visibility deltas are now wired to GPU subrange updates in the
+[[renderer-subrange-updates|renderer]].
 
 Related: [[performance-issues|Performance issues and risks]].

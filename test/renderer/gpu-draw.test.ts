@@ -6,13 +6,14 @@ import {
   createDrawResources,
   destroyDrawResources,
   drawBatches,
+  encodeInstanceRecord,
   ensureDepthTexture,
+  patchInstances,
   uploadPart,
-  uploadInstances,
+  writeDrawOrder,
   type DrawCallContext,
 } from "../../src/renderer/gpu-draw";
-import { createDefaultInteraction } from "../../src/renderer/gpu-support";
-import type { Instance } from "../../src/scene/types";
+import { defaultStyle } from "../../src/renderer/gpu-support";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
 const part: Part = {
@@ -24,12 +25,34 @@ const part: Part = {
   bounds: { minX: 0, minY: 0, minZ: 0, maxX: 1, maxY: 1, maxZ: 0 },
 };
 
-const instance: Instance = {
-  index: 0,
-  instanceId: "1/0",
-  partId: 1,
-  worldTransform: translation(1, 2, 3),
-};
+function record(x: number): ArrayBuffer {
+  return encodeInstanceRecord(translation(x, 0, 0), defaultStyle, 1);
+}
+
+/** A record whose bytes are all non-zero so every byte diffs against zeros. */
+function denseRecord(fill: number): ArrayBuffer {
+  const data = new Uint8Array(96);
+  data.fill(fill);
+  return data.buffer;
+}
+
+function instanceWrites(gpu: ReturnType<typeof fakeGpuDevice>) {
+  return gpu.writes.filter((write) => write.bytes.byteLength !== 64);
+}
+
+function writeRanges(gpu: ReturnType<typeof fakeGpuDevice>, start: number) {
+  return instanceWrites(gpu)
+    .slice(start)
+    .map((write) => [write.offset, write.bytes.byteLength] as const);
+}
+
+function drawContext(): DrawCallContext {
+  return {
+    cameraBindGroup: {} as GPUBindGroup,
+    instanceLayout: {} as GPUBindGroupLayout,
+    parts: new Map([[part.id, part]]),
+  };
+}
 
 describe("GPU draw path", () => {
   it("uploads part geometry once and caches it", () => {
@@ -49,59 +72,119 @@ describe("GPU draw path", () => {
     }
   });
 
-  it("encodes instance records and grows the per-part buffer", () => {
+  it("encodes transform, style, and stable pick id into a record", () => {
+    const data = encodeInstanceRecord(
+      translation(1, 2, 3),
+      { color: { r: 1, g: 0.5, b: 0.25, a: 1 }, emissive: 0, opacity: 0.5 },
+      7,
+    );
+    const floats = new Float32Array(data);
+    const ids = new Uint32Array(data);
+    expect(floats[12]).toBe(1);
+    expect(floats[13]).toBe(2);
+    expect(floats[14]).toBe(3);
+    expect(floats[16]).toBe(1);
+    expect(floats[19]).toBeCloseTo(0.5);
+    expect(ids[20]).toBe(7);
+  });
+
+  it("writes only the changed subranges of patched slots", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
-      const interaction = createDefaultInteraction();
-      const first = uploadInstances(draw, part.id, [instance], interaction);
-      expect(gpu.buffers).toHaveLength(1);
-      expect(gpu.buffers[0]?.size).toBe(96);
-      expect(gpu.writes).toHaveLength(1);
-      const record = gpu.writes[0];
-      if (record === undefined) throw new Error("expected the initial instance upload");
-      expect(record.offset).toBe(0);
-      expect(record.bytes.byteLength).toBe(96);
-      const floats = new Float32Array(record.bytes.buffer);
-      expect(floats[12]).toBe(1);
-      expect(floats[13]).toBe(2);
-      expect(floats[14]).toBe(3);
-      expect(floats[16]).toBeCloseTo(0.23);
-      expect(floats[19]).toBe(1);
-      const ids = new Uint32Array(record.bytes.buffer);
-      expect(ids[20]).toBe(1);
-      const second = uploadInstances(
-        draw,
-        part.id,
-        [instance, { ...instance, index: 1, instanceId: "1/1" }],
-        interaction,
-      );
-      expect(second).not.toBe(first);
-      expect(gpu.buffers[1]?.size).toBe(192);
+      patchInstances(draw, part.id, [{ slot: 0, data: record(1) }]);
+      const afterInitial = gpu.writes.length;
+      patchInstances(draw, part.id, [{ slot: 0, data: record(1) }]);
+      expect(gpu.writes.length).toBe(afterInitial);
+      patchInstances(draw, part.id, [{ slot: 0, data: record(9) }]);
+      expect(writeRanges(gpu, afterInitial)).toEqual([[50, 2]]);
     } finally {
       restore();
     }
   });
 
-  it("draws one instanced batch per part on a color pass", () => {
+  it("addresses patched slots at their record offsets", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
-      const context: DrawCallContext = {
-        cameraBindGroup: {} as GPUBindGroup,
-        instanceLayout: {} as GPUBindGroupLayout,
-        parts: new Map([[part.id, part]]),
-        interaction: createDefaultInteraction(),
-      };
+      patchInstances(draw, part.id, [{ slot: 2, data: record(1) }]);
+      const afterInitial = gpu.writes.length;
+      patchInstances(draw, part.id, [{ slot: 2, data: record(9) }]);
+      expect(writeRanges(gpu, afterInitial)).toEqual([[2 * 96 + 50, 2]]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("coalesces adjacent changed slots into one contiguous write", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, part.id, [
+        { slot: 0, data: denseRecord(1) },
+        { slot: 1, data: denseRecord(1) },
+      ]);
+      patchInstances(draw, part.id, [{ slot: 0, data: denseRecord(2) }]);
+      const writes = instanceWrites(gpu);
+      expect(writes[0]?.offset).toBe(0);
+      expect(writes[0]?.bytes.byteLength).toBe(192);
+      expect(writes[1]?.offset).toBe(0);
+      expect(writes[1]?.bytes.byteLength).toBe(96);
+    } finally {
+      restore();
+    }
+  });
+
+  it("grows the per-part buffers to cover patched slots", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, part.id, [{ slot: 5, data: record(1) }]);
+      expect(gpu.buffers).toHaveLength(2);
+      expect(gpu.buffers[0]?.size).toBe(6 * 96);
+      expect(gpu.buffers[1]?.size).toBe(6 * 4);
+      patchInstances(draw, part.id, [{ slot: 10, data: record(2) }]);
+      expect(gpu.buffers[2]?.size).toBe(12 * 96);
+    } finally {
+      restore();
+    }
+  });
+
+  it("rewrites only the changed draw-order entries", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      writeDrawOrder(draw, part.id, new Uint32Array([0, 1, 2]));
+      const afterInitial = gpu.writes.length;
+      writeDrawOrder(draw, part.id, new Uint32Array([0, 2]));
+      expect(writeRanges(gpu, afterInitial)).toEqual([[4, 8]]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("draws one instanced batch per part from its storage buffers", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, part.id, [
+        { slot: 0, data: record(0) },
+        { slot: 1, data: record(1) },
+      ]);
+      writeDrawOrder(draw, part.id, new Uint32Array([0, 1]));
       const encoder = gpu.device.createCommandEncoder();
       const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
       drawBatches(
         pass,
         draw,
-        context,
-        [{ partId: part.id, instances: [instance, { ...instance, index: 1, instanceId: "1/1" }] }],
+        drawContext(),
+        [{ partId: part.id, instanceCount: 2 }],
         {} as GPURenderPipeline,
       );
       pass.end();
@@ -111,22 +194,18 @@ describe("GPU draw path", () => {
     }
   });
 
-  it("reuses one bind group per batch across frames", () => {
+  it("reuses one bind group per storage across frames", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
-      const context: DrawCallContext = {
-        cameraBindGroup: {} as GPUBindGroup,
-        instanceLayout: {} as GPUBindGroupLayout,
-        parts: new Map([[part.id, part]]),
-        interaction: createDefaultInteraction(),
-      };
-      const batches = [{ partId: part.id, instances: [instance] }];
+      patchInstances(draw, part.id, [{ slot: 0, data: record(0) }]);
+      writeDrawOrder(draw, part.id, new Uint32Array([0]));
+      const calls = [{ partId: part.id, instanceCount: 1 }];
       for (let frame = 0; frame < 3; frame += 1) {
         const encoder = gpu.device.createCommandEncoder();
         const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
-        drawBatches(pass, draw, context, batches, {} as GPURenderPipeline);
+        drawBatches(pass, draw, drawContext(), calls, {} as GPURenderPipeline);
         pass.end();
       }
       expect(gpu.bindGroupCreations).toBe(1);
@@ -136,33 +215,38 @@ describe("GPU draw path", () => {
     }
   });
 
-  it("recreates a new bind group when the instance buffer grows", () => {
+  it("creates a new bind group when the storage grows", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
-      const context: DrawCallContext = {
-        cameraBindGroup: {} as GPUBindGroup,
-        instanceLayout: {} as GPUBindGroupLayout,
-        parts: new Map([[part.id, part]]),
-        interaction: createDefaultInteraction(),
-      };
-      const single = { partId: part.id, instances: [instance] };
+      patchInstances(draw, part.id, [{ slot: 0, data: record(0) }]);
+      writeDrawOrder(draw, part.id, new Uint32Array([0]));
       const encoder = gpu.device.createCommandEncoder();
       const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
-      drawBatches(pass, draw, context, [single], {} as GPURenderPipeline);
+      drawBatches(
+        pass,
+        draw,
+        drawContext(),
+        [{ partId: part.id, instanceCount: 1 }],
+        {} as GPURenderPipeline,
+      );
       pass.end();
-      const grown = {
-        partId: part.id,
-        instances: [
-          instance,
-          { ...instance, index: 1, instanceId: "1/1" },
-          { ...instance, index: 2, instanceId: "1/2" },
-        ],
-      };
+      patchInstances(draw, part.id, [
+        { slot: 0, data: record(0) },
+        { slot: 1, data: record(1) },
+        { slot: 2, data: record(2) },
+      ]);
+      writeDrawOrder(draw, part.id, new Uint32Array([0, 1, 2]));
       const encoder2 = gpu.device.createCommandEncoder();
       const pass2 = beginColorPass(encoder2, {} as GPUTextureView, {} as GPUTextureView);
-      drawBatches(pass2, draw, context, [grown], {} as GPURenderPipeline);
+      drawBatches(
+        pass2,
+        draw,
+        drawContext(),
+        [{ partId: part.id, instanceCount: 3 }],
+        {} as GPURenderPipeline,
+      );
       pass2.end();
       expect(gpu.bindGroupCreations).toBe(2);
     } finally {

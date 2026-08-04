@@ -43,13 +43,19 @@ with rotation/scale coverage in `test/mat4.test.ts`.
 The renderer is split into focused modules under `src/renderer/` (see
 [[source-organization|Source organization]]): `gpu-pipelines.ts` owns pipeline and
 resource creation, `gpu-draw.ts` owns per-part geometry/instance buffers and draw
-submission, and `gpu-pick.ts` owns the pick targets and readback, with
-`gpu-renderer.ts` as a thin orchestrator. GPU instance buffers, picking, and
-resource lifecycle are mocked in CPU-only unit tests. Remaining work is GPU
-subrange delta updates wired to the packed runtime's visibility deltas, and
-WebGPU-capable browser coverage (including true frame-time benchmarking; the
-CPU-side side of performance is covered by [[benchmarks|deterministic
-benchmarks and budgets]]).
+<<<<<<< HEAD
+submission, `gpu-pick.ts` owns the pick targets and readback, and
+`runtime-state.ts` bridges the [[packed-runtime|packed runtime]] slots to
+part-local storage. `gpu-renderer.ts` is a thin orchestrator.
+
+_Resolved_: packed visibility/transform/style deltas are now wired into GPU
+subrange writes (`WebGpuRenderer.updateInstances` patches slot-stable record
+buffers and compacts per-part draw-order buffers; see
+[[renderer-subrange-updates|Renderer subrange updates]]). GPU instance buffers,
+picking, and resource lifecycle are mocked in CPU-only unit tests. Remaining work
+is WebGPU-capable browser coverage (including true frame-time benchmarking; the
+CPU side of performance is covered by [[benchmarks|deterministic benchmarks and
+budgets]]).
 
 ### Remaining GPU allocation risks
 

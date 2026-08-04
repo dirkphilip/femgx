@@ -12,6 +12,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   geometry is reused via GPU instancing.
 - [[packed-runtime|Packed scene runtime]] — packed typed-array storage and
   delta-oriented visibility updates.
+- [[renderer-subrange-updates|Renderer subrange updates]] — packed deltas wired
+  into GPU subrange writes for transform/style/visibility attributes.
 - [[interactive-state|Interactive state]] — highlight, selection, and visibility
   as per-instance GPU attributes.
 - [[scaffold-decisions|Scaffold decisions]] — toolchain, strictness, and the
