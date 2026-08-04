@@ -6,7 +6,7 @@ issue labels, and the migration behavior around the fix.
 ## Effective configuration
 
 Configured intake labels are matched **exactly as written**; the supervisor does
-not apply its namespace prefix (`sup:`) to them:
+not apply its managed namespace prefix (`sv:`) to them:
 
 - A bare label such as `ready-for-supervisor` matches the GitHub label
   `ready-for-supervisor`.
@@ -38,9 +38,9 @@ Migration for existing configurations:
   `allow_labels = ["sup:ready-for-supervisor"]` to match a GitHub label literally
   named `sup:ready-for-supervisor`, must drop the `sup:` prefix after upgrading
   so the meaning is unchanged.
-- Lifecycle labels owned by the supervisor (for example `sup:in-progress`)
-  continue to use the configured `sup:` namespace; that is unrelated to user
-  allow/ignore labels.
+- Lifecycle labels owned by the supervisor use the configured `sv:` namespace;
+  that is unrelated to user allow/ignore labels. Older `sup:*` lifecycle labels
+  are stale historical labels and should be removed after migration.
 
 ## Verification
 

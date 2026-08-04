@@ -76,14 +76,14 @@ const ignoreLabels = stringList(github["ignore_labels"]);
 describe("supervisor allow/ignore label configuration", () => {
   it("parses the committed [github] section", () => {
     expect(github["auto_pull"]).toBe(true);
-    expect(github["supervisor_label_prefix"]).toBe("sup:");
+    expect(github["supervisor_label_prefix"]).toBe("sv:");
     expect(allowLabels).toContain("ready-for-supervisor");
     expect(ignoreLabels).toContain("ignore");
   });
 
   it("configures allow and ignore labels as bare names, not namespaced", () => {
-    expect(allowLabels).not.toContain("sup:ready-for-supervisor");
-    expect(ignoreLabels).not.toContain("sup:ignore");
+    expect(allowLabels).not.toContain("sv:ready-for-supervisor");
+    expect(ignoreLabels).not.toContain("sv:ignore");
   });
 
   it("auto-pulls an unassigned issue carrying the configured allow label", () => {
@@ -107,8 +107,8 @@ describe("supervisor allow/ignore label configuration", () => {
   });
 
   it("treats namespaced labels as distinct from configured bare labels", () => {
-    expect(isAutoPullEligible(["sup:ready-for-supervisor"], allowLabels, ignoreLabels)).toBe(false);
-    expect(isAutoPullEligible(["sup:ignore"], allowLabels, ignoreLabels)).toBe(false);
+    expect(isAutoPullEligible(["sv:ready-for-supervisor"], allowLabels, ignoreLabels)).toBe(false);
+    expect(isAutoPullEligible(["sv:ignore"], allowLabels, ignoreLabels)).toBe(false);
   });
 
   it("keeps the workflow documentation aligned with the configured approval label", () => {

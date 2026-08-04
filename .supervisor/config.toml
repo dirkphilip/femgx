@@ -82,11 +82,11 @@ ignore_labels = ["ignore"]
 # "ready-for-supervisor", and a fully qualified name such as "team:ready"
 # matches that exact label. Ignore labels still take precedence. This is the
 # approval allow-list: only issues labeled by the owner or trusted agents get
-# pulled in automatically. Do not add the "sup:" prefix here; that would
+# pulled in automatically. Do not add the "sv:" prefix here; that would
 # silently change the matched label.
 allow_labels = ["ready-for-supervisor"]
-# Status labels are prefixed so it is clear they are managed by Agent Supervisor.
-supervisor_label_prefix = "sup:"
+# Status labels use the current Agent Supervisor namespace.
+supervisor_label_prefix = "sv:"
 # Add a per-user suffix, such as "-laptop", to distinguish local instances.
 # Override in config.local.toml when multiple supervisors share a repo.
 # supervisor_label_suffix = "-your-machine"
