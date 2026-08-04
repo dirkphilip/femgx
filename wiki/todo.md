@@ -73,6 +73,12 @@ development workflow.
       fallback for environments without WebGPU (see
       [[webgpu-e2e|WebGPU browser e2e lane]]).
 
+## P2 — element topology
+
+- [x] Add a typed finite-element model with point, line, Tet4/Tet10, Hex8/Hex20
+      shapes, canonical VTK node ordering, and connectivity validation (see
+      [[elements-topology|Element topology]]).
+
 ## Improvement work items
 
 - [x] Render pick ids into a universally reliable format (`rgba8unorm` with the

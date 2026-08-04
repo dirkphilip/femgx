@@ -10,6 +10,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   and ownership boundaries.
 - [[instancing-strategy|Instancing strategy]] — parts, assemblies, and how
   geometry is reused via GPU instancing.
+- [[elements-topology|Element topology]] — typed finite-element shapes, canonical
+  node ordering, and connectivity validation.
 - [[packed-runtime|Packed scene runtime]] — packed typed-array storage and
   delta-oriented visibility updates.
 - [[renderer-subrange-updates|Renderer subrange updates]] — packed deltas wired
