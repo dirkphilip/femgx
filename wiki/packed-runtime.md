@@ -89,6 +89,9 @@ back to slots.
 ## Future work
 
 - Make the compile walk iterative (see Design notes).
+- Add a reverse `instanceId` → slot lookup so apps can map interaction changes
+  (keyed by stable handle) to slots for `updateInstances` without iterating all
+  slots. Today `getInstanceId(slot)` resolves slot → handle only.
 
 Visibility deltas are now wired to GPU subrange updates in the
 [[renderer-subrange-updates|renderer]].
