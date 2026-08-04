@@ -19,15 +19,10 @@ state_dir = "run"
 templates_dir = "prompts"
 # Default wall-clock timeout for a single agent or supervisor stage.
 default_timeout_seconds = 7200
-# Fallback for agent roles without an explicit stall policy (including custom agents).
+# Fallback meaningful-progress stall policy for agent stages without an explicit
+# policy (including custom agents).
 agent_stall_timeout_seconds = 1800
-# Meaningful-progress stall defaults: implementation gets 30 minutes; interactive
-# review and PR repair get 10 minutes. Repeated heartbeats and log output do not
-# reset these timers.
-implement_stall_timeout_seconds = 1800
-review_stall_timeout_seconds = 600
-repair_stall_timeout_seconds = 600
-# Give agents five minutes to start before stall detection can intervene.
+# Fallback startup grace before stall detection can intervene for such stages.
 agent_startup_grace_seconds = 300
 # Caps concurrent agent-capable jobs for `sv run` (and auto-pull).
 # A job holds a slot from queue through merge — including open PRs that may
@@ -56,6 +51,8 @@ provider = "opencode"
 enabled = true
 # Keep created pull requests ready for review instead of opening them as drafts.
 draft = false
+# Keep merging as an explicit, verified operator action after required checks.
+auto_merge = false
 # Automatically queue open GitHub issues that have no assignee when running.
 # Safer default: queue issues manually, or set allow_labels below for approval.
 # Only issues carrying an approval label below are auto-pulled; this is the
@@ -66,9 +63,12 @@ auto_pull = true
 # failing checks, or new review activity. Explicit `sv job repair` still works
 # when false. Uses prompts/pr-repair.md (bundled; not a [[stages]] entry).
 repair = true
+# Built-in PR repair is not a workflow stage, so its agent watchdog policy is
+# declared here next to the repair toggle: a 10-minute meaningful-progress stall
+# budget and a five-minute startup grace before stall detection can intervene.
+repair_stall_timeout_seconds = 600
+repair_startup_grace_seconds = 300
 # username is user-specific and belongs in config.local.toml.
-# Label suffixes are combined with github.supervisor_label_prefix at runtime.
-in_progress_label = "in-progress"
 # Issues with any of these labels are skipped by task pulls. An individual
 # `sv run ISSUE --force` can override this. Labels are matched exactly as
 # written here: a bare name such as "ignore" matches the GitHub label "ignore",
@@ -96,12 +96,27 @@ ci_timeout_seconds = 3600
 
 # Stages are an ordered checklist through pull request creation. Agent stages write
 # handoff.json with status "success" to advance; supervisor stages perform side
-# effects (comment, submit_pr, wait_for_ci, wait_for_labels). A stage may set
-# when_labels = ["label"] to skip itself when none of those labels are present,
-# or deny_labels = ["label"] to skip itself when any of those labels are present.
-# wait_for_labels also requires allow_labels and deny_labels; denial wins over
-# approval, while an unavailable GitHub read keeps the job waiting. Post-PR repair is not a stage: it
-# is gated by github.repair and uses prompts/pr-repair.md.
+# effects (comment, submit_pr, wait_for_ci, wait_for_labels). Stage conditions
+# are explicit:
+#   when = { stage = "review", field = "status", equals = "success" } gates a
+#     stage on one field of a prior agent stage's handoff (workflow state).
+#     `field` is one of status, summary, tests_run, blocker; use either
+#     `equals = "..."` or `present = true/false`, not both. When the source
+#     stage has not produced a handoff, the condition is not met and the stage
+#     is skipped.
+#   when_labels = ["label"] skips a stage when none of those GitHub labels are
+#     present, and deny_labels = ["label"] skips it when any is present. These
+#     stay GitHub label gates; prefer `when` for decisions about prior stage
+#     handoffs.
+#   wait_for_labels uses allow_labels and deny_labels as its human approval
+#     decision; denial wins over approval, while an unavailable GitHub read
+#     keeps the job waiting. Post-PR repair is not a stage: it is gated by
+#     github.repair (with its own watchdog policy above) and uses
+#     prompts/pr-repair.md.
+#
+# Migration: a comment stage such as publish_review that used
+# `deny_labels = ["no_review"]` as a proxy for "review happened" should now
+# declare `when = { stage = "review", field = "status", equals = "success" }`.
 #
 # Agent stage fields:
 #   name, kind = "agent", template (prompt under templates_dir)
@@ -115,6 +130,10 @@ ci_timeout_seconds = 3600
 name = "implement"
 kind = "agent"
 template = "implementer.md"
+# Implementation gets 30 minutes of meaningful-progress stall budget.
+stall_timeout_seconds = 1800
+# Give agents five minutes to start before stall detection can intervene.
+startup_grace_seconds = 300
 
 [[stages]]
 name = "review"
@@ -122,6 +141,9 @@ kind = "agent"
 template = "reviewer.md"
 refresh_base = true
 deny_labels = ["no_review"]
+# Interactive review gets 10 minutes of meaningful-progress stall budget.
+stall_timeout_seconds = 600
+startup_grace_seconds = 300
 
 [[stages]]
 name = "submit"
@@ -131,7 +153,7 @@ kind = "submit_pr"
 name = "publish_review"
 kind = "comment"
 target = "pr"
-deny_labels = ["no_review"]
+when = { stage = "review", field = "status", equals = "success" }
 
 # Optional examples (uncomment to extend the workflow):
 # [[stages]]

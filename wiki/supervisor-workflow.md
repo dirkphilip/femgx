@@ -72,11 +72,12 @@ Python repositories, and preserve the handoff/progress contract.
 ## Pull request mode and merge behavior
 
 The shared configuration sets `github.draft = false`, so Supervisor creates
-regular pull requests ready for review. The current Supervisor implementation
-does not provide an `auto_merge` setting or merge stage: after publication it
-tracks the job as `awaiting_merge` and leaves the final merge to the operator.
-GitHub auto-merge can be requested separately with `gh pr merge --auto`, but
-Supervisor does not request or manage that mode itself.
+regular pull requests ready for review. The current configuration also sets
+`github.auto_merge = false`, so after publication Supervisor tracks the job as
+`awaiting_merge` and leaves the final merge to the operator. The current
+provider supports `auto_merge = true` when a repository explicitly wants
+GitHub to merge after required checks and approvals, but this repository keeps
+that side effect disabled for deliberate verification.
 
 ## Approval allow-list
 
