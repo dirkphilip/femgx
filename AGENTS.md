@@ -138,7 +138,8 @@ and reviewable.
 - **Small modules**: files are capped by ESLint (`max-lines` 300, per-function 60,
   `max-depth` 4). Split large modules into focused, single-concern files.
 - **CI**: GitHub Actions runs the full quality gate (format, typecheck, lint, unit
-  tests + coverage, performance budgets, build, e2e) on every push/PR. CI must be
+  tests + coverage, performance budgets, build, package smoke tests, e2e) on every
+  push/PR. CI must be
   green before merge. Opt-in performance runs (full bench suite, browser perf)
   live in a separate `workflow_dispatch` workflow (see `wiki/benchmarks.md`).
 
@@ -151,6 +152,9 @@ These exist in `package.json`:
   a leftover merge-conflict-marker check.
 - `npm run dev` — dev server with demo app.
 - `npm run build` — type-check + bundle library (emits `dist/` with `.d.ts`).
+- `npm run test:package` — package smoke test: build, `npm pack`, install into a
+  clean consumer, verify ESM/CJS runtime import/require and declaration
+  resolution (see `wiki/packaging.md`).
 - `npm run typecheck` — `tsc --noEmit`.
 - `npm run lint` — ESLint on `src/`, `test/`, `demo/` with `--max-warnings 0`.
 - `npm run lint:fix` — ESLint with `--fix`.

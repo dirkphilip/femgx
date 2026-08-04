@@ -6,7 +6,7 @@ Recorded decisions from the initial toolchain setup.
 
 - Vite 8 library mode + `vite-plugin-dts` for `.d.ts` emission; demo app in
   `demo/` served by `index.html`.
-- TypeScript 5.9 with strict flags: `noUncheckedIndexedAccess`,
+- TypeScript 6.0.3 with strict flags: `noUncheckedIndexedAccess`,
   `noImplicitOverride`, `exactOptionalPropertyTypes`, `noUnusedLocals/Parameters`,
   `noPropertyAccessFromIndexSignature`, `verbatimModuleSyntax`.
 - ESLint flat config: `typescript-eslint` `recommendedTypeChecked` +
@@ -24,7 +24,8 @@ Recorded decisions from the initial toolchain setup.
 ## Gotchas
 
 - `typescript@7` is incompatible with `typescript-eslint` (peer range
-  `<6.1.0`); pinned to `^5.9`.
+  `<6.1.0`); pinned to `^6.0.3` (see
+  [[typescript-toolchain-compatibility|TypeScript toolchain compatibility]]).
 - `noUncheckedIndexedAccess` applies to typed arrays too: reading
   `positions[i]` yields `number | undefined` and needs a fallback.
 - JSDoc `require-param`/`require-returns` were disabled as redundant with strict
@@ -47,4 +48,6 @@ Recorded decisions from the initial toolchain setup.
 
 - Packed authoring storage, dirty-subtree propagation, benchmark budgets, and
   WebGPU-capable browser coverage.
-- `@webgpu/types` supplies strict browser-side types for the renderer boundary.
+- `@webgpu/types` is a devDependency only: the source needs its value
+  namespaces, but TS 6's DOM lib covers the WebGPU globals in emitted
+  declarations (see [[packaging|Packaging]]).

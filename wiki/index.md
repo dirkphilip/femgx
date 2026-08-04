@@ -28,6 +28,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   every agent runs before handoff.
 - [[typescript-toolchain-compatibility|TypeScript toolchain compatibility]] —
   TypeScript and typescript-eslint peer-version constraints.
+- [[packaging|Packaging]] — ESM/CJS builds, declaration resolution modes,
+  `@webgpu/types` dev-only, and the clean-consumer smoke tests.
 - [[webgpu-e2e|WebGPU browser e2e lane]] — opt-in real-WebGPU browser coverage
   that never makes the default CI lane flaky.
 - [[benchmarks|Benchmarks and performance budgets]] — deterministic CPU
