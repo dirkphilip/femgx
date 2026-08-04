@@ -104,7 +104,7 @@ interface BudgetCase {
 
 /**
  * Wall-clock ceilings for representative CPU workloads. Budgets are roughly
- * 10x the measured medians on a developer laptop (see `wiki/benchmarks.md`),
+ * 10x the measured medians on a developer laptop (see `wiki/engineering/benchmarks.md`),
  * so they absorb CI noise and only trip on order-of-magnitude or asymptotic
  * regressions — e.g. a visibility update that starts scanning the whole model
  * instead of a single part. Recalibrate with
@@ -309,7 +309,7 @@ describe("performance budgets", () => {
     expect(
       measured,
       `${budget.name} (${budget.description}) took ${measured.toFixed(2)} ms, above its ` +
-        `${budget.budgetMs} ms budget; see wiki/benchmarks.md`,
+        `${budget.budgetMs} ms budget; see wiki/engineering/benchmarks.md`,
     ).toBeLessThanOrEqual(budget.budgetMs);
   });
 

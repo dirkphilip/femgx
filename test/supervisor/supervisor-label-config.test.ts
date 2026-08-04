@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const CONFIG_PATH = fileURLToPath(new URL("../../.supervisor/config.toml", import.meta.url));
 const WORKFLOW_DOC_PATH = fileURLToPath(
-  new URL("../../wiki/supervisor-workflow.md", import.meta.url),
+  new URL("../../wiki/operations/supervisor-workflow.md", import.meta.url),
 );
 
 function parseTomlValue(raw: string): unknown {

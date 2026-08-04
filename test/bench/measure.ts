@@ -3,7 +3,7 @@
  *
  * Deterministic here means fixed workload, fixed warmup, and fixed sample
  * counts; wall-clock variance is absorbed by taking the median and by the
- * generous budget headroom documented in `wiki/benchmarks.md`.
+ * generous budget headroom documented in `wiki/engineering/benchmarks.md`.
  */
 export const WARMUP_ITERATIONS = 2;
 export const SAMPLE_COUNT = 7;
