@@ -52,8 +52,9 @@ development workflow.
 
 ## P2 — modern development workflow
 
-- [ ] Add a deterministic procedural FE example dataset with nested assemblies,
-      repeated parts, documented dimensions, and a checked-in fixture or generator.
+- [x] Add a deterministic procedural FE example dataset with nested assemblies,
+      repeated parts, documented dimensions, and a checked-in fixture or generator
+      (see [[fe-fixture|FE fixture]]).
 - [x] Build a demo assembly viewer with orbit, pan, zoom, reset, and camera
       state exposed through a small testable API.
 - [x] Support orthographic and perspective projections with explicit camera
