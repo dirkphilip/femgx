@@ -23,6 +23,13 @@ test("renders the demo canvas with instanced geometry", async ({ page }) => {
   expect(drawn).toBe(true);
 });
 
+test("renders the deterministic FE fixture summary", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("status")).toHaveText(
+    "21 instances · 3 reusable parts · perspective camera",
+  );
+});
+
 test("switches projection and resets camera controls", async ({ page }) => {
   await page.goto("/");
   const label = page.getByTestId("projection-label");

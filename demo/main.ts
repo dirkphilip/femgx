@@ -1,8 +1,6 @@
 import {
-  computeBounds,
   createCamera,
   createInteractionState,
-  createScene,
   flattenAssembly,
   orbitCamera,
   panCamera,
@@ -13,11 +11,14 @@ import {
   setInstanceSelected,
   setProjection,
   transformPoint,
-  translation,
   zoomCamera,
   type Camera,
+  type Color,
+  type Geometry,
   type InteractionState,
+  type PartId,
 } from "../src/index";
+import { createPanelFixture } from "../src/fixture/panel";
 
 const canvasElement = document.querySelector<HTMLCanvasElement>("#view");
 if (canvasElement === null) {
@@ -25,24 +26,18 @@ if (canvasElement === null) {
 }
 const canvas: HTMLCanvasElement = canvasElement;
 
-const geometry = {
-  positions: new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]),
-  indices: new Uint32Array([0, 1, 2]),
-};
-
-const scene = createScene()
-  .addPart({ id: 1, geometry, bounds: computeBounds(geometry) })
-  .addAssembly({
-    id: 1,
-    name: "root",
-    placements: [
-      { kind: "part", partId: 1, transform: translation(-1, 0, 0) },
-      { kind: "part", partId: 1, transform: translation(0, 1, 0) },
-      { kind: "part", partId: 1, transform: translation(1, 0, 0) },
-    ],
-  })
-  .withRoot(1)
-  .build();
+const fixture = createPanelFixture();
+const { scene, dimensions } = fixture;
+const geometryByPartId = new Map<PartId, Geometry>();
+for (const part of scene.parts.values()) {
+  geometryByPartId.set(part.id, part.geometry);
+}
+const partColors = new Map<PartId, Color>([
+  [fixture.partIds.shell, { r: 0.23, g: 0.51, b: 0.96, a: 1 }],
+  [fixture.partIds.stiffenerX, { r: 0.35, g: 0.82, b: 0.72, a: 1 }],
+  [fixture.partIds.stiffenerY, { r: 0.95, g: 0.68, b: 0.32, a: 1 }],
+]);
+const fallbackColor: Color = { r: 0.5, g: 0.5, b: 0.5, a: 1 };
 
 const instances = flattenAssembly({
   assemblyId: scene.rootAssemblyId,
@@ -74,7 +69,14 @@ const projectionLabel: HTMLElement = projectionLabelElement;
 const resetButton: HTMLButtonElement = resetButtonElement;
 const status: HTMLElement = statusElement;
 
-const initialCamera = resizeCamera(createCamera(), canvas.width, canvas.height);
+const initialCamera = resizeCamera(
+  createCamera({
+    target: [dimensions.width / 2, dimensions.depth / 2, dimensions.stiffenerHeight / 2],
+    position: [dimensions.width / 2 + 3, dimensions.depth / 2 + 3, 6],
+  }),
+  canvas.width,
+  canvas.height,
+);
 let camera: Camera = initialCamera;
 let interaction: InteractionState = createInteractionState();
 let pointer: { readonly x: number; readonly y: number } | undefined;
@@ -82,21 +84,27 @@ let pointer: { readonly x: number; readonly y: number } | undefined;
 function render(): void {
   context.clearRect(0, 0, canvas.width, canvas.height);
   for (const instance of instances) {
+    const partGeometry = geometryByPartId.get(instance.partId);
+    if (partGeometry === undefined) continue;
     const points: Array<readonly [number, number, number]> = [];
-    for (let i = 0; i < geometry.positions.length; i += 3) {
+    for (let i = 0; i < partGeometry.positions.length; i += 3) {
       const world = transformPoint(
         instance.worldTransform,
-        geometry.positions[i] ?? 0,
-        geometry.positions[i + 1] ?? 0,
-        geometry.positions[i + 2] ?? 0,
+        partGeometry.positions[i] ?? 0,
+        partGeometry.positions[i + 1] ?? 0,
+        partGeometry.positions[i + 2] ?? 0,
       );
       const screen = projectPoint(camera, world);
       if (screen === undefined) break;
       points.push(screen);
     }
     if (points.length < 3) continue;
-    const baseStyle = { color: { r: 0.23, g: 0.51, b: 0.96, a: 1 }, emissive: 0, opacity: 1 };
-    const style = resolveInstanceStyle(instance, baseStyle, interaction);
+    const baseColor = partColors.get(instance.partId) ?? fallbackColor;
+    const style = resolveInstanceStyle(
+      instance,
+      { color: baseColor, emissive: 0, opacity: 1 },
+      interaction,
+    );
     context.fillStyle = `rgba(${style.color.r * 255}, ${style.color.g * 255}, ${style.color.b * 255}, ${style.opacity})`;
     context.strokeStyle = style.emissive > 0 ? "#f8fafc" : "#60a5fa";
     context.lineWidth = style.emissive > 0 ? 3 : 1;
@@ -126,7 +134,7 @@ function updateControls(): void {
   const mode = camera.mode === "perspective" ? "Perspective" : "Orthographic";
   projectionLabel.textContent = mode;
   projectionToggle.textContent = camera.mode === "perspective" ? "Orthographic" : "Perspective";
-  status.textContent = `${instances.length} instances · 1 reusable part · ${mode.toLowerCase()} camera`;
+  status.textContent = `${instances.length} instances · ${scene.parts.size} reusable parts · ${mode.toLowerCase()} camera`;
 }
 
 projectionToggle.addEventListener("click", () => {
