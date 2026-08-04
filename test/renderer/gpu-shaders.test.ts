@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { EMISSIVE_BYTE_OFFSET } from "../../src/renderer/gpu-draw";
+import {
+  ELEMENT_RECORD_STRIDE,
+  HIGHLIGHT_HEADER,
+  MAX_ELEMENT_HIGHLIGHTS,
+} from "../../src/renderer/gpu-elements";
 import { colorFragmentShader, instanceVertexShader } from "../../src/renderer/gpu-shaders";
 
-/** Alignment and size of the WGSL scalar/vector types used by the record. */
+/** Alignment and size of the WGSL types used by the record structs. */
 const wgslTypeLayout: Readonly<
   Record<string, { readonly alignment: number; readonly size: number }>
 > = {
@@ -11,6 +16,11 @@ const wgslTypeLayout: Readonly<
   u32: { alignment: 4, size: 4 },
   f32: { alignment: 4, size: 4 },
   "vec2<u32>": { alignment: 8, size: 8 },
+  "array<u32, 3>": { alignment: 4, size: 12 },
+  "array<ElementHighlight, 128>": {
+    alignment: 16,
+    size: MAX_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE,
+  },
 };
 
 /** Parses a WGSL struct's fields, preserving declaration order. */
@@ -25,7 +35,7 @@ function structFields(
   for (const rawLine of (match[1] ?? "").split("\n")) {
     const line = rawLine.trim();
     if (line === "" || line.startsWith("//")) continue;
-    const parsed = /([A-Za-z_]\w*):\s*([A-Za-z0-9_<>]+),?$/.exec(line);
+    const parsed = /([A-Za-z_]\w*):\s*([A-Za-z0-9_<>]+(?:,\s*[A-Za-z0-9_<>]+)*),?$/.exec(line);
     if (parsed !== null) fields.push({ name: parsed[1] ?? "", type: parsed[2] ?? "" });
   }
   return fields;
@@ -60,6 +70,22 @@ describe("GPU instance-record shader contract", () => {
     expect(layout.get("pickId")).toBe(80);
     expect(layout.get("emissive")).toBe(EMISSIVE_BYTE_OFFSET);
     expect(layout.stride).toBe(96);
+  });
+
+  it("declares ElementHighlight records at the byte offsets the encoder writes", () => {
+    const layout = structLayout(instanceVertexShader, "ElementHighlight");
+    expect(layout.get("slot")).toBe(0);
+    expect(layout.get("elementPickId")).toBe(4);
+    expect(layout.get("color")).toBe(16);
+    expect(layout.get("emissive")).toBe(32);
+    expect(layout.stride).toBe(ELEMENT_RECORD_STRIDE);
+  });
+
+  it("places ElementHighlights records at the header offset and size the CPU allocates", () => {
+    const layout = structLayout(instanceVertexShader, "ElementHighlights");
+    expect(layout.get("count")).toBe(0);
+    expect(layout.get("records")).toBe(HIGHLIGHT_HEADER);
+    expect(layout.stride).toBe(HIGHLIGHT_HEADER + MAX_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE);
   });
 
   it("passes the per-instance emissive to the fragment stage", () => {

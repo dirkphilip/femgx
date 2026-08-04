@@ -15,21 +15,23 @@ struct Instance {
 };
 
 // Field layout must match encodeElementHighlight in gpu-elements.ts:
-// slot 0, elementPickId 4, padding 8, color 16, emissive 32, padding 36.
+// slot 0, elementPickId 4, padding 8, color 16, emissive 32. The struct has
+// no trailing member so its size stays 48 bytes (vec3 members would force
+// 16-byte alignment and a 64-byte stride that would not match the encoder).
 struct ElementHighlight {
   slot: u32,
   elementPickId: u32,
   _padding: vec2<u32>,
   color: vec4<f32>,
   emissive: f32,
-  _padding2: vec3<f32>,
 };
 
 // records starts at byte offset 16 to keep the 16-byte element alignment;
-// matches HIGHLIGHT_HEADER in gpu-elements.ts.
+// matches HIGHLIGHT_HEADER in gpu-elements.ts. The header padding is a plain
+// array so it stays 4-byte aligned (a vec3 would move records to offset 32).
 struct ElementHighlights {
   count: u32,
-  _padding: vec3<u32>,
+  _padding: array<u32, 3>,
   records: array<ElementHighlight, 128>,
 };
 

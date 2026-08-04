@@ -53,6 +53,11 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   CPU mirror so only changed byte subranges reach the GPU. Records beyond the
   fixed capacity are dropped (documented rendering limit for very large
   selections).
+- WGSL alignment trap: `vec3<T>` aligns to 16 bytes, so a `vec3` struct member
+  forces a 64-byte `ElementHighlight` stride and pushes the header padding of
+  `ElementHighlights` to 16 bytes (records to 32). Keep the CPU/GPU record
+  layout in sync: the element structs must not use `vec3` members (see the
+  layout tests in `test/renderer/gpu-shaders.test.ts`).
 
 ## Edge display mode
 

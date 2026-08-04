@@ -225,7 +225,9 @@ export interface ElementHighlightSync {
 
 /**
  * Recomputes every part's element-highlight buffer from the current interaction
- * state, writing only the parts that currently emphasize at least one element.
+ * state. Parts without emphasized elements are written with an empty record
+ * list so previously applied emphasis is cleared; the diffing in
+ * `writeElementHighlights` skips parts whose buffer is already up to date.
  */
 export function syncElementHighlights(
   sync: ElementHighlightSync,
@@ -237,9 +239,7 @@ export function syncElementHighlights(
     sync.slotByInstanceId,
     interaction,
   );
-  for (const [partId, list] of updates) {
-    const storage = sync.draw.storages.get(partId);
-    if (storage === undefined) continue;
-    writeElementHighlights(sync.device, storage, list);
+  for (const [partId, storage] of sync.draw.storages) {
+    writeElementHighlights(sync.device, storage, updates.get(partId) ?? []);
   }
 }

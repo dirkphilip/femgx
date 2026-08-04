@@ -17,9 +17,16 @@ import {
   encodeElementHighlight,
   HIGHLIGHT_HEADER,
   MAX_ELEMENT_HIGHLIGHTS,
+  syncElementHighlights,
   writeElementHighlights,
   type ElementHighlightUpdate,
 } from "../../src/renderer/gpu-elements";
+import {
+  createDrawResources,
+  encodeInstanceRecord,
+  patchInstances,
+} from "../../src/renderer/gpu-draw";
+import { defaultStyle } from "../../src/renderer/gpu-support";
 import type { InstanceStorage } from "../../src/renderer/gpu-draw";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
@@ -211,5 +218,37 @@ describe("collectElementHighlightUpdates", () => {
     interaction = setElementSelected(interaction, { instanceId: "stale", elementId: 0 }, true);
     const updates = collectElementHighlightUpdates(runtime, layout, slotByInstanceId, interaction);
     expect((updates.get(1) ?? []).map((update) => update.slot)).toEqual([0]);
+  });
+});
+
+describe("syncElementHighlights", () => {
+  it("clears a part's highlight records when its emphasis empties", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, 1, [
+        { slot: 0, data: encodeInstanceRecord(translation(0, 0, 0), defaultStyle, 1) },
+      ]);
+      const { runtime } = elementScene();
+      const layout = buildInstanceLayout(runtime);
+      const slotByInstanceId = new Map([
+        ["1/0", 0],
+        ["1/1", 1],
+      ]);
+      const sync = { device: gpu.device, draw, runtime, layout, slotByInstanceId };
+      let interaction = createInteractionState();
+      interaction = setElementSelected(interaction, { instanceId: "1/0", elementId: 0 }, true);
+      syncElementHighlights(sync, interaction);
+      const afterSelect = gpu.writes.length;
+      syncElementHighlights(sync, interaction);
+      expect(gpu.writes.length).toBe(afterSelect);
+      syncElementHighlights(sync, createInteractionState());
+      const tail = gpu.writes.slice(afterSelect);
+      const count = new Uint32Array(tail[0]?.bytes.buffer ?? new ArrayBuffer(0))[0];
+      expect(count, "clearing the last emphasis writes a zero record count").toBe(0);
+    } finally {
+      restore();
+    }
   });
 });
