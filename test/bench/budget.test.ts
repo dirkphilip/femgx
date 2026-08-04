@@ -6,7 +6,13 @@ import { flattenAssembly } from "../../src/runtime/flatten";
 import { translation } from "../../src/math/mat4";
 import { resolvePick } from "../../src/picking/pick";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
+import { parseChunk } from "../../src/streaming/parser";
+import { buildSpatialGrid, cullChunks } from "../../src/streaming/spatial";
+import { createChunkStream } from "../../src/streaming/stream";
 import {
+  BENCH_CHUNK_COUNT,
+  BENCH_CHUNK_VERTEX_COUNT,
+  BENCH_CHUNK_VERTICES_PER_CHUNK,
   BENCH_HIERARCHY_DEPTH,
   BENCH_HIERARCHY_FANOUT,
   BENCH_HIERARCHY_INSTANCE_COUNT,
@@ -15,6 +21,7 @@ import {
   BENCH_PART_COUNT,
   BENCH_PLACEMENTS_PER_SUBCASE,
   BENCH_SUBCASE_COUNT,
+  makeChunkSources,
   makeHierarchyScene,
   makeScene,
   makeViewProjection,
@@ -44,6 +51,12 @@ const flattened = flattenAssembly({
 const runtime = createSceneRuntime(shallowScene);
 
 const viewProjection = makeViewProjection();
+
+const chunks = makeChunkSources({
+  chunkCount: BENCH_CHUNK_COUNT,
+  verticesPerChunk: BENCH_CHUNK_VERTICES_PER_CHUNK,
+});
+const chunkGrid = buildSpatialGrid(chunks, 100_000);
 
 const PICK_COUNT = 50_000;
 const pickIds: number[] = [];
@@ -179,6 +192,43 @@ const budgets: readonly BudgetCase[] = [
     run: () => {
       for (const pickId of pickIds) {
         resolvePick(flattened, pickId);
+      }
+    },
+  },
+  {
+    name: "parseChunk",
+    description: `parse ${BENCH_CHUNK_COUNT} chunks, ${BENCH_CHUNK_VERTEX_COUNT} vertices`,
+    budgetMs: 100,
+    run: () => {
+      for (const source of chunks) {
+        parseChunk(source);
+      }
+    },
+  },
+  {
+    name: "buildSpatialGrid",
+    description: `partition ${BENCH_CHUNK_COUNT} chunks`,
+    budgetMs: 50,
+    run: () => {
+      buildSpatialGrid(chunks, 100_000);
+    },
+  },
+  {
+    name: "cullChunks",
+    description: `${BENCH_CHUNK_COUNT} chunks against one frustum`,
+    budgetMs: 50,
+    run: () => {
+      cullChunks(chunkGrid, viewProjection);
+    },
+  },
+  {
+    name: "createChunkStream full load",
+    description: `stream ${BENCH_CHUNK_COUNT} chunks, ${BENCH_CHUNK_VERTEX_COUNT} vertices`,
+    budgetMs: 100,
+    run: () => {
+      const stream = createChunkStream(chunks);
+      while (!stream.tick()) {
+        /* pump */
       }
     },
   },

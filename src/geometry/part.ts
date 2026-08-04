@@ -47,12 +47,21 @@ export interface Part {
 
 /** Computes the bounding box of a geometry's positions. */
 export function computeBounds(geometry: Geometry): Bounds {
+  return computePositionsBounds(geometry.positions);
+}
+
+/**
+ * Computes the bounding box of raw positions (single or double precision).
+ * Streaming parses untrusted model data that may arrive as doubles, so bounds
+ * are computed before the positions are converted to near-origin float32.
+ */
+export function computePositionsBounds(positions: Float32Array | Float64Array): Bounds {
   const mins = { minX: Infinity, minY: Infinity, minZ: Infinity };
   const maxs = { maxX: -Infinity, maxY: -Infinity, maxZ: -Infinity };
-  for (let i = 0; i < geometry.positions.length; i += 3) {
-    const x = geometry.positions[i] ?? 0;
-    const y = geometry.positions[i + 1] ?? 0;
-    const z = geometry.positions[i + 2] ?? 0;
+  for (let i = 0; i < positions.length; i += 3) {
+    const x = positions[i] ?? 0;
+    const y = positions[i + 1] ?? 0;
+    const z = positions[i + 2] ?? 0;
     if (x < mins.minX) mins.minX = x;
     if (y < mins.minY) mins.minY = y;
     if (z < mins.minZ) mins.minZ = z;
@@ -64,11 +73,16 @@ export function computeBounds(geometry: Geometry): Bounds {
 }
 
 /**
- * Validates element descriptors against a geometry. When elements are declared,
- * every triangle must be covered by exactly one element and ids must be unique.
- * Parts without element descriptors always validate.
+ * Validates element descriptors against an index buffer. When elements are
+ * declared, every triangle must be covered by exactly one element and ids must
+ * be unique. Geometry without element descriptors always validates. The
+ * parameter is structural so streaming can validate chunk data that has not
+ * been converted to float32 positions yet.
  */
-export function validateElements(geometry: Geometry): void {
+export function validateElements(geometry: {
+  readonly indices: Uint32Array;
+  readonly elements?: readonly ElementTessellation[];
+}): void {
   const elements = geometry.elements;
   if (elements === undefined || elements.length === 0) {
     return;

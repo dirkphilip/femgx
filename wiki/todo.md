@@ -108,6 +108,22 @@ development workflow.
       id packed across the RGBA channels) instead of `r32uint`, whose SwiftShader
       readback proved unreliable; see [[pick-format|Pick texture format]].
 
+## P3 — large-model streaming
+
+- [x] Add chunked model loading: parse, validate, and bound geometry per chunk
+      (see [[large-model-streaming|Large-model streaming]]).
+- [x] Add uniform-grid spatial partitioning and frustum chunk culling so
+      hidden/off-screen chunks avoid GPU upload and draw work.
+- [x] Add a deterministic, budgeted upload stream with backpressure,
+      cancellation, and disposal.
+- [x] Add local-origin coordinate rebasing that preserves sub-float32 detail
+      from double-precision model data.
+- [ ] Wire worker-thread parsing into `createChunkStream` (the parser is pure
+      and transferable; a thread host needs bundling support; see #57).
+- [ ] Add level-of-detail (coarse/fine chunk variants) to the stream (#76).
+- [ ] Feed streamed chunks directly into the WebGPU renderer so geometry
+      uploads progressively without a full draw-resource rebuild (#77).
+
 Related: [[performance-issues|Performance issues and risks]],
 [[instancing-strategy|Instancing strategy]], and
 [[interactive-state|Interactive state]].

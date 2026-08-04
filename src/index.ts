@@ -76,6 +76,33 @@ export {
   type WebGpuRendererOptions,
 } from "./renderer/gpu-renderer";
 export {
+  buildSpatialGrid,
+  cullChunks,
+  type ChunkCell,
+  type SpatialGrid,
+} from "./streaming/spatial";
+export { createChunkStream, type ChunkStream, type ChunkStreamOptions } from "./streaming/stream";
+export {
+  chunkTransferables,
+  parseChunk,
+  validateChunkData,
+  type ParseChunkOptions,
+} from "./streaming/parser";
+export {
+  chunkDataByteLength,
+  partFromChunk,
+  type ChunkData,
+  type ChunkId,
+  type ChunkSource,
+  type ParsedChunk,
+} from "./streaming/chunk";
+export {
+  computeLocalOrigin,
+  rebaseBounds,
+  rebasePositions,
+  type RebaseOrigin,
+} from "./streaming/rebase";
+export {
   createCamera,
   orbitCamera,
   panCamera,
