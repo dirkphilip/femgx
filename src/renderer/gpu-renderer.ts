@@ -53,25 +53,22 @@ export interface WebGpuRenderer {
   ): void;
   /**
    * Writes the per-part element-highlight buffers for the currently emphasized
-   * elements (hovered, selected, or explicitly overridden) as diffed records.
+   * elements as diffed records.
    */
   updateElements(runtime: SceneRuntime, interaction: InteractionState): void;
-  /**
-   * Controls whether the edge overlay culls edges occluded by nearer geometry.
-   * With depth testing on (`true`, the default) the overlay compares against
-   * the depth buffer; with it off edges are drawn through every surface.
-   */
+  /** Controls whether the edge overlay culls edges occluded by nearer geometry. */
   setEdgeDepthTest(enabled: boolean): void;
   /**
    * Rebuilds GPU draw order after runtime visibility changed (part/assembly
-   * hide-show), using the delta of affected instance slots returned by the
-   * runtime. Instance records are untouched: hidden geometry is culled from the
-   * draw order, so nothing is rebuilt or re-uploaded.
+   * hide-show), using the delta of affected instance slots. Hidden geometry is
+   * culled from the draw order; nothing is rebuilt or re-uploaded.
    */
   updateVisibility(runtime: SceneRuntime, changedInstanceIds: readonly number[]): void;
   pick(x: number, y: number): Promise<PickTarget | undefined>;
   resize(width?: number, height?: number): void;
   destroy(): void;
+  /** Number of surface draw batches encoded per frame. */
+  stats(): { readonly drawBatches: number };
   /** True while the GPU device is lost and awaiting `recover()`. */
   readonly lost: boolean;
   /**
@@ -210,6 +207,10 @@ class GpuRenderer implements WebGpuRenderer {
     destroyRenderResources(this.lifecycle.bundle.resources);
     destroyDrawResources(this.lifecycle.bundle.draw);
     destroyPickTargets(this.lifecycle.bundle.pickTargets);
+  }
+
+  public stats(): { readonly drawBatches: number } {
+    return { drawBatches: this.attachment.calls.length };
   }
 
   public get lost(): boolean {

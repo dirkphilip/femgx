@@ -188,6 +188,7 @@ export {
   type FaceOwnershipResult,
   type FacePick,
   type NodePick,
+  type PickRequest,
   type PickScene,
   type ResolvedPick,
 } from "./picking/raycast";

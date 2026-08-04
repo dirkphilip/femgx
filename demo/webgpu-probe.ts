@@ -6,7 +6,7 @@ import {
   type Vec3,
   type WebGpuRenderer,
 } from "../src/index";
-import type { DemoFixture } from "./fixture";
+import type { ModelPreset } from "../src/fixture/presets";
 
 /** Creates a WebGPU renderer, or `undefined` when WebGPU is unusable. */
 export type RendererFactory = () => Promise<WebGpuRenderer | undefined>;
@@ -16,14 +16,12 @@ export type RendererFactory = () => Promise<WebGpuRenderer | undefined>;
  * real view canvas when presentation, rasterization, and pick readback work;
  * otherwise it returns `undefined` so the demo falls back to the CPU renderer.
  */
-export function createWebGpuProbe(
-  fixture: DemoFixture,
-  canvas: HTMLCanvasElement,
-): RendererFactory {
+export function createWebGpuProbe(preset: ModelPreset, canvas: HTMLCanvasElement): RendererFactory {
+  const bounds = preset.bounds;
   const probeTarget: Vec3 = [
-    (fixture.elementFixture.bounds.minX + fixture.elementFixture.bounds.maxX) / 2,
-    (fixture.elementFixture.bounds.minY + fixture.elementFixture.bounds.maxY) / 2,
-    (fixture.elementFixture.bounds.minZ + fixture.elementFixture.bounds.maxZ) / 2,
+    (bounds.minX + bounds.maxX) / 2,
+    (bounds.minY + bounds.maxY) / 2,
+    (bounds.minZ + bounds.maxZ) / 2,
   ];
   return async () => {
     let probe: WebGpuRenderer | undefined;
@@ -50,8 +48,8 @@ export function createWebGpuProbe(
         probeCanvas.width,
         probeCanvas.height,
       );
-      const runtime = createSceneRuntime(fixture.scene);
-      probe.render(runtime, probeCamera, fixture.scene.parts);
+      const runtime = createSceneRuntime(preset.scene);
+      probe.render(runtime, probeCamera, preset.scene.parts);
       const width = probeCanvas.clientWidth;
       const height = probeCanvas.clientHeight;
       let verified = false;

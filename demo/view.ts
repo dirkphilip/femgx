@@ -3,6 +3,8 @@ import { resizeCamera, setProjection, type Camera, type ElementRenderMode } from
 /** Typed handles to the demo's DOM nodes. */
 export interface DemoView {
   readonly canvas: HTMLCanvasElement;
+  readonly modelSelect: HTMLSelectElement;
+  readonly fitView: HTMLButtonElement;
   readonly projectionToggle: HTMLButtonElement;
   readonly projectionLabel: HTMLElement;
   readonly edgeOverlayToggle: HTMLButtonElement;
@@ -12,6 +14,10 @@ export interface DemoView {
   readonly modeButtons: readonly HTMLButtonElement[];
   readonly resetButton: HTMLButtonElement;
   readonly status: HTMLElement;
+  readonly visibilityPanel: HTMLElement;
+  readonly inspectionPanel: HTMLElement;
+  readonly statsPanel: HTMLElement;
+  readonly contextMenu: HTMLElement;
 }
 
 /** Mutable camera holder so controls can replace the camera immutably. */
@@ -23,8 +29,6 @@ export interface CameraRef {
 export interface ControlContext {
   readonly view: DemoView;
   readonly cameraRef: CameraRef;
-  readonly instanceCount: number;
-  readonly partCount: number;
   readonly mode: () => ElementRenderMode;
   readonly onRender: () => void;
   /** Applies the edge overlay to the model (e.g. per-part style overrides). */
@@ -33,12 +37,21 @@ export interface ControlContext {
   readonly setEdgeDepthTest?: (enabled: boolean) => void;
 }
 
+/** The model/renderer summary written into the status bar. */
+export interface StatusInfo {
+  readonly model: string;
+  readonly renderer: string;
+  readonly visibleInstances: number;
+  readonly parts: number;
+  readonly batches: number;
+  readonly mode: ElementRenderMode;
+}
+
 /** Locates the demo's DOM nodes, throwing when the page is misconfigured. */
 export function queryDemoView(): DemoView {
   const canvas = document.querySelector<HTMLCanvasElement>("#view");
-  if (canvas === null) {
-    throw new Error("missing #view canvas");
-  }
+  const modelSelect = document.querySelector<HTMLSelectElement>("#model-select");
+  const fitView = document.querySelector<HTMLButtonElement>("#fit-view");
   const projectionToggle = document.querySelector<HTMLButtonElement>("#projection-toggle");
   const projectionLabel = document.querySelector<HTMLElement>("#projection-label");
   const edgeOverlayToggle = document.querySelector<HTMLButtonElement>("#edge-overlay");
@@ -47,8 +60,15 @@ export function queryDemoView(): DemoView {
   const depthTestLabel = document.querySelector<HTMLElement>("#depth-test-label");
   const resetButton = document.querySelector<HTMLButtonElement>("#reset");
   const status = document.querySelector<HTMLElement>("#status");
+  const visibilityPanel = document.querySelector<HTMLElement>("#visibility-panel");
+  const inspectionPanel = document.querySelector<HTMLElement>("#inspection-panel");
+  const statsPanel = document.querySelector<HTMLElement>("#stats-panel");
+  const contextMenu = document.querySelector<HTMLElement>("#context-menu");
   const modeButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-mode]"));
   if (
+    canvas === null ||
+    modelSelect === null ||
+    fitView === null ||
     projectionToggle === null ||
     projectionLabel === null ||
     edgeOverlayToggle === null ||
@@ -57,12 +77,18 @@ export function queryDemoView(): DemoView {
     depthTestLabel === null ||
     resetButton === null ||
     status === null ||
+    visibilityPanel === null ||
+    inspectionPanel === null ||
+    statsPanel === null ||
+    contextMenu === null ||
     modeButtons.length === 0
   ) {
     throw new Error("missing demo controls");
   }
   return {
     canvas,
+    modelSelect,
+    fitView,
     projectionToggle,
     projectionLabel,
     edgeOverlayToggle,
@@ -72,16 +98,22 @@ export function queryDemoView(): DemoView {
     modeButtons,
     resetButton,
     status,
+    visibilityPanel,
+    inspectionPanel,
+    statsPanel,
+    contextMenu,
   };
 }
 
-/** Reflects the camera mode, element mode, and model summary in the control bar. */
-export function updateStatus(view: DemoView, camera: Camera, context: ControlContext): void {
-  const cameraMode = camera.mode === "perspective" ? "Perspective" : "Orthographic";
-  view.projectionLabel.textContent = cameraMode;
+/** Reflects the camera and model summary in the status bar. */
+export function updateStatus(view: DemoView, camera: Camera, info: StatusInfo): void {
+  const cameraMode = camera.mode === "perspective" ? "perspective" : "orthographic";
+  view.projectionLabel.textContent = camera.mode === "perspective" ? "Perspective" : "Orthographic";
   view.projectionToggle.textContent =
     camera.mode === "perspective" ? "Orthographic" : "Perspective";
-  view.status.textContent = `${context.instanceCount} instances · ${context.partCount} reusable parts · ${context.mode()} · ${cameraMode.toLowerCase()} camera`;
+  view.status.textContent =
+    `${info.model} · ${info.renderer} · ${info.visibleInstances} visible · ` +
+    `${info.parts} parts · ${info.batches} batches · ${info.mode} · ${cameraMode} camera`;
 }
 
 /** Wires the projection toggle to swap camera modes and re-render. */
@@ -92,7 +124,6 @@ export function installProjectionControl(context: ControlContext): void {
       cameraRef.camera,
       cameraRef.camera.mode === "perspective" ? "orthographic" : "perspective",
     );
-    updateStatus(view, cameraRef.camera, context);
     onRender();
   });
 }
@@ -136,13 +167,12 @@ export function installModeControl(
   context: ControlContext,
   applyMode: (mode: ElementRenderMode) => void,
 ): void {
-  const { view, cameraRef, onRender } = context;
+  const { view, onRender } = context;
   for (const button of view.modeButtons) {
     button.addEventListener("click", () => {
       const mode = button.dataset["mode"];
       if (mode === undefined || mode === context.mode()) return;
       applyMode(mode as ElementRenderMode);
-      updateStatus(view, cameraRef.camera, context);
       onRender();
     });
   }
@@ -158,7 +188,6 @@ export function installResetControl(
   view.resetButton.addEventListener("click", () => {
     cameraRef.camera = initialCamera;
     resetInteraction();
-    updateStatus(view, cameraRef.camera, context);
     onRender();
   });
 }
