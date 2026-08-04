@@ -29,6 +29,8 @@ export interface FakeGpu {
   readonly drawCalls: readonly DrawCall[];
   readonly textureCreations: number;
   readonly bindGroupCreations: number;
+  /** The pipeline objects passed to `setPipeline`, in call order. */
+  readonly pipelineCalls: readonly unknown[];
 }
 
 /** Defines the WebGPU numeric constants the renderer source references. */
@@ -81,6 +83,7 @@ export function fakeGpuDevice(
   const buffers: FakeBuffer[] = [];
   const textures: FakeTexture[] = [];
   const drawCalls: DrawCall[] = [];
+  const pipelineCalls: unknown[] = [];
   let bindGroupCreations = 0;
   const pickValue = options.pickValue ?? 0;
   const elementPickValue = options.elementPickValue ?? 0;
@@ -142,7 +145,9 @@ export function fakeGpuDevice(
     createCommandEncoder: () => ({
       beginRenderPass: () => {
         const pass = {
-          setPipeline: () => undefined,
+          setPipeline: (pipeline: unknown) => {
+            pipelineCalls.push(pipeline);
+          },
           setBindGroup: () => undefined,
           setVertexBuffer: () => undefined,
           setIndexBuffer: () => undefined,
@@ -163,6 +168,7 @@ export function fakeGpuDevice(
     buffers,
     textures,
     drawCalls,
+    pipelineCalls,
     get textureCreations() {
       return textures.length;
     },

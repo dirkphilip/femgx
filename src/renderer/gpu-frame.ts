@@ -22,6 +22,8 @@ export interface FrameOptions {
   readonly pickTargets: PickTargets;
   readonly depthFormat: GPUTextureFormat;
   readonly displayMode: DisplayMode;
+  /** Screen-space diameter of point elements in device pixels. */
+  readonly pointSize: number;
 }
 
 /**
@@ -35,11 +37,12 @@ export function encodeFrame(
   parts: ReadonlyMap<PartId, Part>,
   frame: FrameOptions,
 ): void {
-  frame.device.queue.writeBuffer(
-    frame.resources.cameraBuffer,
-    0,
-    new Float32Array(viewProjectionMatrix(camera)),
-  );
+  const uniform = new Float32Array(20);
+  uniform.set(viewProjectionMatrix(camera), 0);
+  uniform[16] = frame.canvas.width;
+  uniform[17] = frame.canvas.height;
+  uniform[18] = frame.pointSize;
+  frame.device.queue.writeBuffer(frame.resources.cameraBuffer, 0, uniform);
   const encoder = frame.device.createCommandEncoder();
   const colorView = frame.context.getCurrentTexture().createView();
   const depthTexture = ensureDepthTexture(
@@ -52,11 +55,10 @@ export function encodeFrame(
     cameraBindGroup: frame.resources.cameraBindGroup,
     instanceLayout: frame.resources.instanceLayout,
     parts,
+    pipelines: frame.resources.pipelines,
   };
   const colorPass = beginColorPass(encoder, colorView, depthTexture.createView());
-  drawBatches(colorPass, frame.draw, context, frame.calls, {
-    pipeline: frame.resources.colorPipeline,
-  });
+  drawBatches(colorPass, frame.draw, context, frame.calls, { pass: "color" });
   if (frame.displayMode === "edge") {
     drawBatches(colorPass, frame.draw, context, frame.calls, {
       pipeline: frame.resources.edgePipeline,
@@ -72,9 +74,7 @@ export function encodeFrame(
     frame.depthFormat,
   );
   const pickPass = beginPickPass(encoder, frame.pickTargets);
-  drawBatches(pickPass, frame.draw, context, frame.calls, {
-    pipeline: frame.resources.pickPipeline,
-  });
+  drawBatches(pickPass, frame.draw, context, frame.calls, { pass: "pick" });
   pickPass.end();
   frame.device.queue.submit([encoder.finish()]);
 }

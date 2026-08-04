@@ -1,9 +1,24 @@
-/** Shared vertex stage for the color and picking render passes. */
-export const instanceVertexShader = /* wgsl */ `
+/**
+ * Shared WGSL for the instanced render passes. All three vertex shaders read
+ * the same camera uniform and per-part instance storage, so parts can mix
+ * triangle, line, and point-sprite primitives within one frame. Triangle and
+ * line primitives additionally read the per-triangle element pick ids and the
+ * bounded element-highlight records so element-level emphasis can override the
+ * resolved instance color; point sprites never carry element emphasis.
+ */
+
+/** Camera uniform: view projection plus viewport and point size in pixels. */
+const cameraStruct = /* wgsl */ `
 struct Camera {
   viewProjection: mat4x4<f32>,
+  viewport: vec2<f32>,
+  pointSize: f32,
+  _padding: f32,
 };
+`;
 
+/** Instance storage layout shared by every vertex shader. */
+const instanceStruct = /* wgsl */ `
 // Field layout (byte offsets) must match encodeInstanceRecord in gpu-draw.ts:
 // transform 0, color 64, pickId 80, emissive 84, padding 88.
 struct Instance {
@@ -13,7 +28,10 @@ struct Instance {
   emissive: f32,
   _padding: vec2<u32>,
 };
+`;
 
+/** Element-highlight records read by the triangle and line vertex stage. */
+const elementHighlightStructs = /* wgsl */ `
 // Field layout must match encodeElementHighlight in gpu-elements.ts:
 // slot 0, elementPickId 4, padding 8, color 16, emissive 32. The struct has
 // no trailing member so its size stays 48 bytes (vec3 members would force
@@ -34,13 +52,17 @@ struct ElementHighlights {
   _padding: array<u32, 3>,
   records: array<ElementHighlight, 128>,
 };
+`;
 
+/** Instance storage binding layout shared by every vertex shader. */
+const instanceBindings = /* wgsl */ `
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(1) @binding(0) var<storage, read> instances: array<Instance>;
 @group(1) @binding(1) var<storage, read> drawOrder: array<u32>;
-@group(1) @binding(2) var<storage, read> triangleElementPickIds: array<u32>;
-@group(1) @binding(3) var<storage, read> elementHighlights: ElementHighlights;
+`;
 
+/** Shared vertex output for the color and picking fragment stages. */
+const vertexOutput = /* wgsl */ `
 struct VertexOutput {
   @builtin(position) position: vec4<f32>,
   @location(0) color: vec4<f32>,
@@ -48,6 +70,21 @@ struct VertexOutput {
   @location(2) @interpolate(flat) emissive: f32,
   @location(3) @interpolate(flat) elementPickId: u32,
 };
+`;
+
+/** Shared vertex stage for triangle and line primitives. */
+export const instanceVertexShader = /* wgsl */ `
+${cameraStruct}
+
+${instanceStruct}
+
+${elementHighlightStructs}
+
+${instanceBindings}
+@group(1) @binding(2) var<storage, read> triangleElementPickIds: array<u32>;
+@group(1) @binding(3) var<storage, read> elementHighlights: ElementHighlights;
+
+${vertexOutput}
 
 @vertex
 fn vertexMain(
@@ -77,6 +114,48 @@ fn vertexMain(
 }
 `;
 
+/**
+ * Vertex stage for point-sprite parts. Each point is a quad of four vertices
+ * with the same center; `vertex_index % 4` selects the sprite corner, which is
+ * offset in clip space so points stay a constant screen size and always face
+ * the camera. The quad's depth is the point's own depth, so picking and depth
+ * testing behave like a true point primitive. Point geometry carries no
+ * element tessellations, so the element pick id is always zero.
+ */
+export const pointVertexShader = /* wgsl */ `
+${cameraStruct}
+
+${instanceStruct}
+
+${instanceBindings}
+
+${vertexOutput}
+
+fn spriteCorner(corner: u32) -> vec2<f32> {
+  switch corner {
+    case 0u: { return vec2<f32>(-1.0, -1.0); }
+    case 1u: { return vec2<f32>(1.0, -1.0); }
+    case 2u: { return vec2<f32>(1.0, 1.0); }
+    default: { return vec2<f32>(-1.0, 1.0); }
+  }
+}
+
+@vertex
+fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+  let instance = instances[drawOrder[instanceIndex]];
+  let corner = spriteCorner(vertexIndex % 4u);
+  let clip = camera.viewProjection * instance.transform * vec4<f32>(position, 1.0);
+  let offset = corner * (camera.pointSize / camera.viewport.y);
+  var output: VertexOutput;
+  output.position = vec4<f32>(clip.x + offset.x * clip.w, clip.y + offset.y * clip.w, clip.z, clip.w);
+  output.color = instance.color;
+  output.pickId = instance.pickId;
+  output.emissive = instance.emissive;
+  output.elementPickId = 0u;
+  return output;
+}
+`;
+
 /** Fragment stage for the visible color pass; emissive adds a white glow. */
 export const colorFragmentShader = /* wgsl */ `
 @fragment
@@ -91,21 +170,11 @@ fn fragmentMain(@location(0) color: vec4<f32>, @location(2) @interpolate(flat) e
  * still glow at the instance level without per-triangle element emphasis.
  */
 export const edgeVertexShader = /* wgsl */ `
-struct Camera {
-  viewProjection: mat4x4<f32>,
-};
+${cameraStruct}
 
-struct Instance {
-  transform: mat4x4<f32>,
-  color: vec4<f32>,
-  pickId: u32,
-  emissive: f32,
-  _padding: vec2<u32>,
-};
+${instanceStruct}
 
-@group(0) @binding(0) var<uniform> camera: Camera;
-@group(1) @binding(0) var<storage, read> instances: array<Instance>;
-@group(1) @binding(1) var<storage, read> drawOrder: array<u32>;
+${instanceBindings}
 
 struct EdgeOutput {
   @builtin(position) position: vec4<f32>,
