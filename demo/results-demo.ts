@@ -5,7 +5,7 @@ import {
   deformPositions,
   legend,
   mapScalar,
-  projectPoint,
+  projectPolygon,
   resizeCamera,
   sampleDisplacements,
   type Color,
@@ -109,10 +109,8 @@ export function startResultsDemo(view: ResultsDemoView, fixture: ResultsFixture)
       const a = vertex(positions, fixture.mesh.indices[element * 3] ?? 0);
       const b = vertex(positions, fixture.mesh.indices[element * 3 + 1] ?? 0);
       const c = vertex(positions, fixture.mesh.indices[element * 3 + 2] ?? 0);
-      const pa = projectPoint(camera, a);
-      const pb = projectPoint(camera, b);
-      const pc = projectPoint(camera, c);
-      if (pa === undefined || pb === undefined || pc === undefined) continue;
+      const screen = projectPolygon(camera, [a, b, c]);
+      if (screen.length < 3) continue;
       const color = state.scalar
         ? mapScalar(fixture.colorMap, caze.vonMises[element] ?? NaN)
         : fixture.baseColor;
@@ -120,9 +118,8 @@ export function startResultsDemo(view: ResultsDemoView, fixture: ResultsFixture)
       context.strokeStyle = "rgba(226, 232, 240, 0.45)";
       context.lineWidth = 1;
       context.beginPath();
-      context.moveTo(pa[0], pa[1]);
-      context.lineTo(pb[0], pb[1]);
-      context.lineTo(pc[0], pc[1]);
+      context.moveTo(screen[0]?.[0] ?? 0, screen[0]?.[1] ?? 0);
+      for (const point of screen.slice(1)) context.lineTo(point[0], point[1]);
       context.closePath();
       context.fill();
       context.stroke();

@@ -2,6 +2,7 @@ import {
   createInteractionState,
   flattenAssembly,
   projectPoint,
+  projectPolygon,
   resolveInstanceStyle,
   setHoveredInstance,
   setInstanceSelected,
@@ -65,19 +66,17 @@ export function startCpuDemo(options: CpuDemoOptions): void {
       if (!visible.has(instance.partId)) continue;
       const partGeometry = fixture.geometryByPartId.get(instance.partId);
       if (partGeometry === undefined) continue;
-      const points: Array<readonly [number, number, number]> = [];
+      const worldPoints: Array<readonly [number, number, number]> = [];
       for (let i = 0; i < partGeometry.positions.length; i += 3) {
-        const world = transformPoint(
-          instance.worldTransform,
-          partGeometry.positions[i] ?? 0,
-          partGeometry.positions[i + 1] ?? 0,
-          partGeometry.positions[i + 2] ?? 0,
+        worldPoints.push(
+          transformPoint(
+            instance.worldTransform,
+            partGeometry.positions[i] ?? 0,
+            partGeometry.positions[i + 1] ?? 0,
+            partGeometry.positions[i + 2] ?? 0,
+          ),
         );
-        const screen = projectPoint(cameraRef.camera, world);
-        if (screen === undefined) break;
-        points.push(screen);
       }
-      if (points.length === 0) continue;
       const baseColor = fixture.partColors.get(instance.partId) ?? fixture.fallbackColor;
       const style = resolveInstanceStyle(
         instance,
@@ -88,27 +87,35 @@ export function startCpuDemo(options: CpuDemoOptions): void {
       context.lineWidth = style.emissive > 0 ? 3 : 1;
       if (partGeometry.primitive === "lines") {
         for (let i = 0; i < partGeometry.indices.length; i += 2) {
-          const from = points[partGeometry.indices[i] ?? 0];
-          const to = points[partGeometry.indices[i + 1] ?? 0];
+          const from = worldPoints[partGeometry.indices[i] ?? 0];
+          const to = worldPoints[partGeometry.indices[i + 1] ?? 0];
           if (from === undefined || to === undefined) continue;
+          const segment = projectPolygon(cameraRef.camera, [from, to]);
+          const start = segment[0];
+          const end = segment[1];
+          if (start === undefined || end === undefined) continue;
           context.beginPath();
-          context.moveTo(from[0], from[1]);
-          context.lineTo(to[0], to[1]);
+          context.moveTo(start[0], start[1]);
+          context.lineTo(end[0], end[1]);
           context.stroke();
         }
         continue;
       }
       if (partGeometry.primitive === "points") {
-        for (let i = 0; i < points.length; i += 4) {
-          const point = points[i];
+        for (let i = 0; i < worldPoints.length; i += 4) {
+          const point = worldPoints[i];
           if (point === undefined) continue;
-          context.fillRect(point[0] - 2, point[1] - 2, 4, 4);
+          const screen = projectPoint(cameraRef.camera, point);
+          if (screen === undefined) continue;
+          context.fillRect(screen[0] - 2, screen[1] - 2, 4, 4);
         }
         continue;
       }
+      const screenPoints = projectPolygon(cameraRef.camera, worldPoints);
+      if (screenPoints.length < 3) continue;
       context.beginPath();
-      context.moveTo(points[0]?.[0] ?? 0, points[0]?.[1] ?? 0);
-      for (const point of points.slice(1)) context.lineTo(point[0], point[1]);
+      context.moveTo(screenPoints[0]?.[0] ?? 0, screenPoints[0]?.[1] ?? 0);
+      for (const point of screenPoints.slice(1)) context.lineTo(point[0], point[1]);
       context.closePath();
       context.fillStyle = `rgba(${style.color.r * 255}, ${style.color.g * 255}, ${style.color.b * 255}, ${style.opacity})`;
       context.fill();
