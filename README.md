@@ -70,9 +70,9 @@ const { createScene, createCamera, flattenAssembly } = require("femgx");
 
 ## Supported environments
 
-- **Browsers**: Chromium-based browsers with WebGPU enabled (Chrome, Edge, Firefox
-  behind a flag). Rendering requires a WebGPU-capable browser; the CPU scene,
-  camera, and picking APIs work anywhere.
+- **Browsers**: modern Chrome, Edge, Firefox, and Safari with WebGPU enabled by
+  default in current releases. Rendering requires a WebGPU-capable browser; the
+  CPU scene, camera, and picking APIs work anywhere.
 - **TypeScript**: 6.0 or newer for consumers (declarations rely on DOM-lib WebGPU
   types). `moduleResolution: bundler`, `node16`, `nodenext`, and legacy `node10`
   resolution are all supported.
