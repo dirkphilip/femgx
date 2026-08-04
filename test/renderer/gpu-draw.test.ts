@@ -15,7 +15,14 @@ import {
   type DrawCallContext,
 } from "../../src/renderer/gpu-draw";
 import { defaultStyle } from "../../src/renderer/gpu-support";
+import {
+  ELEMENT_RECORD_STRIDE,
+  HIGHLIGHT_HEADER,
+  MAX_ELEMENT_HIGHLIGHTS,
+} from "../../src/renderer/gpu-elements";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
+
+const HIGHLIGHT_BUFFER_SIZE = HIGHLIGHT_HEADER + MAX_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE;
 
 const part: Part = {
   id: 1,
@@ -65,9 +72,10 @@ describe("GPU draw path", () => {
       const second = uploadPart(draw, part);
       expect(second).toBe(first);
       expect(second.indexCount).toBe(3);
-      expect(gpu.buffers).toHaveLength(2);
+      expect(gpu.buffers).toHaveLength(3);
       expect(gpu.buffers[0]?.size).toBe(36);
       expect(gpu.buffers[1]?.size).toBe(12);
+      expect(gpu.buffers[2]?.size).toBe(4);
     } finally {
       restore();
     }
@@ -166,11 +174,12 @@ describe("GPU draw path", () => {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
       patchInstances(draw, part.id, [{ slot: 5, data: record(1) }]);
-      expect(gpu.buffers).toHaveLength(2);
+      expect(gpu.buffers).toHaveLength(3);
       expect(gpu.buffers[0]?.size).toBe(6 * 96);
       expect(gpu.buffers[1]?.size).toBe(6 * 4);
+      expect(gpu.buffers[2]?.size).toBe(HIGHLIGHT_BUFFER_SIZE);
       patchInstances(draw, part.id, [{ slot: 10, data: record(2) }]);
-      expect(gpu.buffers[2]?.size).toBe(12 * 96);
+      expect(gpu.buffers[3]?.size).toBe(12 * 96);
     } finally {
       restore();
     }

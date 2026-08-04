@@ -24,6 +24,8 @@ export function createRenderResources(
     entries: [
       { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
       { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
+      { binding: 2, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
+      { binding: 3, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
     ],
   });
   const cameraLayout = device.createBindGroupLayout({
@@ -58,7 +60,7 @@ export function createRenderResources(
     fragment: {
       module: device.createShaderModule({ code: pickFragmentShader }),
       entryPoint: "fragmentMain",
-      targets: [{ format: PICK_TEXTURE_FORMAT }],
+      targets: [{ format: PICK_TEXTURE_FORMAT }, { format: PICK_TEXTURE_FORMAT }],
     },
     primitive: { topology: "triangle-list", cullMode: "back" },
     depthStencil: { format: depthFormat, depthWriteEnabled: true, depthCompare: "less" },

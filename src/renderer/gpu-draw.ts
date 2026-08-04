@@ -1,6 +1,11 @@
 import type { Part } from "../geometry/part";
 import type { ResolvedStyle } from "../interaction/interaction";
 import type { PartId } from "../scene/types";
+import {
+  buildElementTrianglePickIds,
+  createHighlightStorage,
+  type HighlightStorage,
+} from "./gpu-elements";
 import { createBuffer, type PartResource } from "./gpu-support";
 
 /** Byte size of one instance record in the per-part storage buffer. */
@@ -35,13 +40,15 @@ export interface DrawCall {
 }
 
 /**
- * Persistent per-part GPU storage: a slot-stable record buffer and a compacted
- * draw-order buffer. Hidden instances stay in the record buffer but are removed
- * from the draw-order list, so only visible geometry is ever drawn.
+ * Persistent per-part GPU storage: a slot-stable record buffer, a compacted
+ * draw-order buffer, and a fixed-capacity element-highlight buffer. Hidden
+ * instances stay in the record buffer but are removed from the draw-order
+ * list, so only visible geometry is ever drawn.
  */
 export interface InstanceStorage {
   readonly buffer: GPUBuffer;
   readonly orderBuffer: GPUBuffer;
+  readonly highlight: HighlightStorage;
   readonly capacity: number;
   /** CPU mirror of the record buffer, kept in sync by the patch functions. */
   data: ArrayBuffer;
@@ -88,7 +95,17 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
   if (existing !== undefined) return existing;
   const vertexBuffer = createBuffer(draw.device, part.geometry.positions, GPUBufferUsage.VERTEX);
   const indexBuffer = createBuffer(draw.device, part.geometry.indices, GPUBufferUsage.INDEX);
-  const resource = { vertexBuffer, indexBuffer, indexCount: part.geometry.indices.length };
+  const elementPickIdsBuffer = createBuffer(
+    draw.device,
+    buildElementTrianglePickIds(part.geometry),
+    GPUBufferUsage.STORAGE,
+  );
+  const resource: PartResource = {
+    vertexBuffer,
+    indexBuffer,
+    elementPickIdsBuffer,
+    indexCount: part.geometry.indices.length,
+  };
   draw.parts.set(part.id, resource);
   return resource;
 }
@@ -257,6 +274,8 @@ export function drawBatches(
         entries: [
           { binding: 0, resource: { buffer: storage.buffer } },
           { binding: 1, resource: { buffer: storage.orderBuffer } },
+          { binding: 2, resource: { buffer: geometry.elementPickIdsBuffer } },
+          { binding: 3, resource: { buffer: storage.highlight.buffer } },
         ],
       });
     }
@@ -272,10 +291,12 @@ export function destroyDrawResources(draw: DrawResources): void {
   for (const resource of draw.parts.values()) {
     resource.vertexBuffer.destroy();
     resource.indexBuffer.destroy();
+    resource.elementPickIdsBuffer.destroy();
   }
   for (const storage of draw.storages.values()) {
     storage.buffer.destroy();
     storage.orderBuffer.destroy();
+    storage.highlight.buffer.destroy();
   }
   draw.depthTexture?.destroy();
 }
@@ -297,6 +318,7 @@ function ensureStorage(draw: DrawResources, partId: PartId, capacity: number): I
   const mirror = new Uint8Array(size * INSTANCE_STRIDE);
   const orderData = new Uint32Array(size);
   const orderLength = existing?.orderLength ?? 0;
+  const highlight = existing?.highlight ?? createHighlightStorage(draw.device);
   if (existing !== undefined) {
     mirror.set(new Uint8Array(existing.data));
     orderData.set(existing.orderData.subarray(0, orderLength));
@@ -304,6 +326,7 @@ function ensureStorage(draw: DrawResources, partId: PartId, capacity: number): I
   const storage: InstanceStorage = {
     buffer,
     orderBuffer,
+    highlight,
     capacity: size,
     data: mirror.buffer,
     orderData,

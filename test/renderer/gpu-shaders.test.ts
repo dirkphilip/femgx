@@ -66,7 +66,13 @@ describe("GPU instance-record shader contract", () => {
     const output = structFields(instanceVertexShader, "VertexOutput");
     expect(output.find((field) => field.name === "emissive")?.type).toBe("f32");
     expect(instanceVertexShader).toMatch(/@location\(2\) @interpolate\(flat\) emissive: f32/);
-    expect(instanceVertexShader).toMatch(/output\.emissive = instance\.emissive;/);
+    expect(instanceVertexShader).toMatch(/output\.emissive = emissive;/);
+  });
+
+  it("overrides triangle colors from the element-highlight records", () => {
+    expect(instanceVertexShader).toMatch(/triangleElementPickIds\[vertexIndex \/ 3u\]/);
+    expect(instanceVertexShader).toMatch(/elementHighlights\.records\[index\]/);
+    expect(instanceVertexShader).toMatch(/@location\(3\) @interpolate\(flat\) elementPickId: u32/);
   });
 
   it("applies emissive additively in the color fragment shader", () => {

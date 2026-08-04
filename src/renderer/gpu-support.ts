@@ -3,6 +3,8 @@ import type { InteractionState, ResolvedStyle } from "../interaction/interaction
 export interface PartResource {
   readonly vertexBuffer: GPUBuffer;
   readonly indexBuffer: GPUBuffer;
+  /** Per-triangle element pick ids (`elementId + 1`, 0 = none). */
+  readonly elementPickIdsBuffer: GPUBuffer;
   readonly indexCount: number;
 }
 
@@ -40,6 +42,8 @@ export function createDefaultInteraction(): InteractionState {
     highlightedInstanceIds: new Set(),
     selectedPartIds: new Set(),
     selectedInstanceIds: new Set(),
+    selectedElementIds: new Map(),
+    elementOverrides: new Map(),
     partOverrides: new Map(),
     instanceOverrides: new Map(),
     theme: { highlighted: {}, selected: {}, hovered: {} },

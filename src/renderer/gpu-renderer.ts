@@ -1,8 +1,10 @@
 import { viewProjectionMatrix, type Camera } from "../camera/camera";
 import type { Part } from "../geometry/part";
 import { resolveInstanceStyle, type InteractionState } from "../interaction/interaction";
+import { resolvePickTarget } from "../picking/pick";
 import type { SceneRuntime } from "../scene-runtime/runtime";
-import type { Instance, PartId, PickTarget } from "../scene/types";
+import type { Instance, InstanceId, PartId, PickTarget } from "../scene/types";
+import { syncElementHighlights } from "./gpu-elements";
 import {
   beginColorPass,
   createDrawResources,
@@ -32,7 +34,13 @@ import {
   type RenderResources,
 } from "./gpu-pipelines";
 import { createDefaultInteraction, defaultStyle } from "./gpu-support";
-import { buildDrawOrder, buildInstanceLayout, type InstanceLayout } from "./runtime-state";
+import {
+  buildDrawOrder,
+  buildInstanceLayout,
+  buildInstanceSnapshot,
+  instanceAt,
+  type InstanceLayout,
+} from "./runtime-state";
 
 /** Options for creating a WebGPU renderer. */
 export interface WebGpuRendererOptions {
@@ -58,6 +66,11 @@ export interface WebGpuRenderer {
     interaction: InteractionState,
     changedInstanceIds: readonly number[],
   ): void;
+  /**
+   * Writes the per-part element-highlight buffers for the currently emphasized
+   * elements (hovered, selected, or explicitly overridden) as diffed records.
+   */
+  updateElements(runtime: SceneRuntime, interaction: InteractionState): void;
   pick(x: number, y: number): Promise<PickTarget | undefined>;
   resize(width?: number, height?: number): void;
   destroy(): void;
@@ -90,6 +103,8 @@ class GpuRenderer implements WebGpuRenderer {
   private runtime: SceneRuntime | undefined;
   private layout: InstanceLayout | undefined;
   private calls: readonly DrawCall[] = [];
+  private instances: Instance[] = [];
+  private slotByInstanceId = new Map<InstanceId, number>();
   private destroyed = false;
 
   public constructor(
@@ -159,7 +174,7 @@ class GpuRenderer implements WebGpuRenderer {
         slot: local,
         data: encodeInstanceRecord(
           runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
-          resolveInstanceStyle(this.instanceFor(runtime, slot, partId), defaultStyle, interaction),
+          resolveInstanceStyle(instanceAt(runtime, slot, partId), defaultStyle, interaction),
           slot + 1,
         ),
       };
@@ -178,17 +193,35 @@ class GpuRenderer implements WebGpuRenderer {
     }
   }
 
+  public updateElements(runtime: SceneRuntime, interaction: InteractionState): void {
+    this.ensureAlive();
+    this.attach(runtime);
+    const layout = this.layout;
+    if (layout === undefined) return;
+    syncElementHighlights(
+      {
+        device: this.device,
+        draw: this.draw,
+        runtime,
+        layout,
+        slotByInstanceId: this.slotByInstanceId,
+      },
+      interaction,
+    );
+  }
+
   public async pick(x: number, y: number): Promise<PickTarget | undefined> {
     this.ensureAlive();
     const runtime = this.runtime;
     if (runtime === undefined) return undefined;
-    const pickId = await readPickPixel(this.device, this.canvas, this.pickTargets, x, y);
-    const slot = pickId - 1;
-    if (slot < 0 || slot >= runtime.instanceCount) return undefined;
-    const partId = runtime.instancePartIds[slot];
-    const instanceId = runtime.getInstanceId(slot);
-    if (partId === undefined || instanceId === undefined) return undefined;
-    return { kind: "instance", instanceId };
+    const { instancePickId, elementPickId } = await readPickPixel(
+      this.device,
+      this.canvas,
+      this.pickTargets,
+      x,
+      y,
+    );
+    return resolvePickTarget(this.instances, instancePickId, elementPickId);
   }
 
   public resize(width = this.canvas.clientWidth, height = this.canvas.clientHeight): void {
@@ -222,6 +255,9 @@ class GpuRenderer implements WebGpuRenderer {
     this.draw = createDrawResources(this.device);
     const layout = buildInstanceLayout(runtime);
     const interaction = createDefaultInteraction();
+    const snapshot = buildInstanceSnapshot(runtime);
+    this.instances = snapshot.instances;
+    this.slotByInstanceId = snapshot.slotByInstanceId;
     for (const partId of layout.partOrder) {
       const slots = layout.partSlots.get(partId);
       if (slots === undefined) continue;
@@ -235,7 +271,7 @@ class GpuRenderer implements WebGpuRenderer {
           data: encodeInstanceRecord(
             runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
             resolveInstanceStyle(
-              this.instanceFor(runtime, slot, slotPartId),
+              instanceAt(runtime, slot, slotPartId),
               defaultStyle,
               interaction,
             ),
@@ -286,14 +322,5 @@ class GpuRenderer implements WebGpuRenderer {
       }
     }
     this.calls = calls;
-  }
-
-  private instanceFor(runtime: SceneRuntime, slot: number, partId: PartId): Instance {
-    return {
-      index: slot,
-      instanceId: runtime.getInstanceId(slot) ?? String(slot),
-      partId,
-      worldTransform: runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
-    };
   }
 }

@@ -223,6 +223,7 @@ function unitShellGeometry(): Geometry {
   return {
     positions: new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0]),
     indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+    elements: [unitElement(0)],
   };
 }
 
@@ -230,6 +231,7 @@ function unitStiffenerXGeometry(): Geometry {
   return {
     positions: new Float32Array([-0.5, 0, 0, 0.5, 0, 0, 0.5, 0, 1, -0.5, 0, 1]),
     indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+    elements: [unitElement(0)],
   };
 }
 
@@ -237,5 +239,11 @@ function unitStiffenerYGeometry(): Geometry {
   return {
     positions: new Float32Array([0, -0.5, 0, 0, 0.5, 0, 0, 0.5, 1, 0, -0.5, 1]),
     indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+    elements: [unitElement(0)],
   };
+}
+
+/** A single element covering a two-triangle quad. */
+function unitElement(id: number) {
+  return { id, triangleStart: 0, triangleCount: 2 };
 }

@@ -14,25 +14,63 @@ struct Instance {
   _padding: vec2<u32>,
 };
 
+// Field layout must match encodeElementHighlight in gpu-elements.ts:
+// slot 0, elementPickId 4, padding 8, color 16, emissive 32, padding 36.
+struct ElementHighlight {
+  slot: u32,
+  elementPickId: u32,
+  _padding: vec2<u32>,
+  color: vec4<f32>,
+  emissive: f32,
+  _padding2: vec3<f32>,
+};
+
+// records starts at byte offset 16 to keep the 16-byte element alignment;
+// matches HIGHLIGHT_HEADER in gpu-elements.ts.
+struct ElementHighlights {
+  count: u32,
+  _padding: vec3<u32>,
+  records: array<ElementHighlight, 128>,
+};
+
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(1) @binding(0) var<storage, read> instances: array<Instance>;
 @group(1) @binding(1) var<storage, read> drawOrder: array<u32>;
+@group(1) @binding(2) var<storage, read> triangleElementPickIds: array<u32>;
+@group(1) @binding(3) var<storage, read> elementHighlights: ElementHighlights;
 
 struct VertexOutput {
   @builtin(position) position: vec4<f32>,
   @location(0) color: vec4<f32>,
   @location(1) @interpolate(flat) pickId: u32,
   @location(2) @interpolate(flat) emissive: f32,
+  @location(3) @interpolate(flat) elementPickId: u32,
 };
 
 @vertex
-fn vertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32) -> VertexOutput {
+fn vertexMain(
+  @location(0) position: vec3<f32>,
+  @builtin(instance_index) instanceIndex: u32,
+  @builtin(vertex_index) vertexIndex: u32,
+) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
+  let elementPickId = triangleElementPickIds[vertexIndex / 3u];
+  var color = instance.color;
+  var emissive = instance.emissive;
+  for (var index = 0u; index < elementHighlights.count; index++) {
+    let highlight = elementHighlights.records[index];
+    if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == elementPickId) {
+      color = highlight.color;
+      emissive = highlight.emissive;
+      break;
+    }
+  }
   var output: VertexOutput;
   output.position = camera.viewProjection * instance.transform * vec4<f32>(position, 1.0);
-  output.color = instance.color;
+  output.color = color;
   output.pickId = instance.pickId;
-  output.emissive = instance.emissive;
+  output.emissive = emissive;
+  output.elementPickId = elementPickId;
   return output;
 }
 `;
@@ -46,9 +84,10 @@ fn fragmentMain(@location(0) color: vec4<f32>, @location(2) @interpolate(flat) e
 `;
 
 /**
- * Fragment stage for the picking pass. Packs the u32 pick id across the four
+ * Fragment stage for the picking pass. Packs the u32 pick ids across the four
  * RGBA bytes of an `rgba8unorm` target, mirroring `encodePickId` in
- * `pick-format.ts`; the byte order of both must stay in sync.
+ * `pick-format.ts`; the byte order of both must stay in sync. Target 0 holds
+ * the instance pick id and target 1 the element pick id.
  */
 export const pickFragmentShader = /* wgsl */ `
 fn packPickId(pickId: u32) -> vec4<f32> {
@@ -60,8 +99,19 @@ fn packPickId(pickId: u32) -> vec4<f32> {
   );
 }
 
+struct PickOutput {
+  @location(0) instance: vec4<f32>,
+  @location(1) element: vec4<f32>,
+};
+
 @fragment
-fn fragmentMain(@location(0) color: vec4<f32>, @location(1) @interpolate(flat) pickId: u32) -> @location(0) vec4<f32> {
-  return packPickId(pickId);
+fn fragmentMain(
+  @location(1) @interpolate(flat) pickId: u32,
+  @location(3) @interpolate(flat) elementPickId: u32,
+) -> PickOutput {
+  var output: PickOutput;
+  output.instance = packPickId(pickId);
+  output.element = packPickId(elementPickId);
+  return output;
 }
 `;
