@@ -1,5 +1,6 @@
 import type { SceneRuntime } from "../scene-runtime/runtime";
 import type { Instance, InstanceId, PartId } from "../scene/types";
+import type { DrawCall } from "./gpu-draw";
 
 /**
  * CPU-side bridge between the packed scene runtime and per-part GPU storage.
@@ -139,4 +140,27 @@ export function buildInstanceSnapshot(runtime: SceneRuntime): InstanceSnapshot {
     instances.push(instanceAt(runtime, slot, partId));
   }
   return { instances, slotByInstanceId };
+}
+
+/** The per-part surface and edge-overlay draw calls of a layout. */
+export interface DrawCallLists {
+  readonly calls: DrawCall[];
+  readonly edgeCalls: DrawCall[];
+}
+
+/** Builds the deterministic per-part draw calls from the layout's counts. */
+export function buildDrawCalls(layout: InstanceLayout): DrawCallLists {
+  const calls: DrawCall[] = [];
+  const edgeCalls: DrawCall[] = [];
+  for (const partId of layout.partOrder) {
+    const count = layout.partVisibleCounts.get(partId);
+    if (count !== undefined && count > 0) {
+      calls.push({ partId, instanceCount: count });
+    }
+    const edgeCount = layout.partEdgeCounts.get(partId);
+    if (edgeCount !== undefined && edgeCount > 0) {
+      edgeCalls.push({ partId, instanceCount: edgeCount });
+    }
+  }
+  return { calls, edgeCalls };
 }

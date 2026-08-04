@@ -1,5 +1,5 @@
 import type { Geometry } from "../geometry/part";
-import type { ResultField } from "./fields";
+import type { ResultField, VectorField } from "./fields";
 
 /**
  * Returns a new position array displaced by a nodal displacement field.
@@ -52,4 +52,39 @@ export function deformGeometry(
     ...geometry,
     positions: deformPositions(geometry.positions, displacements, scale),
   };
+}
+
+/**
+ * Builds a per-vertex nodal displacement buffer for GPU-side deformation: one
+ * vec3 per vertex of `positions` per load case, laid out load-case major
+ * (`[case 0 vertex 0, case 0 vertex 1, ..., case 1 vertex 0, ...]`). Vertex `i`
+ * aligns with node `i` as in {@link deformPositions}; vertices beyond a field's
+ * entity count, or whose displacement is missing (`NaN`), keep a zero delta so
+ * the vertex stays in place on the GPU. The returned array is what
+ * `DeformationState.displacements` expects for one part.
+ */
+export function nodalDisplacements(
+  positions: Float32Array,
+  cases: readonly VectorField<"nodal">[],
+): Float32Array {
+  const vertexCount = Math.floor(positions.length / 3);
+  const displacements = new Float32Array(vertexCount * cases.length * 3);
+  for (let loadCase = 0; loadCase < cases.length; loadCase++) {
+    const field = cases[loadCase];
+    if (field === undefined) continue;
+    const covered = Math.min(vertexCount, field.count);
+    const caseOffset = loadCase * vertexCount * 3;
+    for (let vertex = 0; vertex < covered; vertex++) {
+      const source = vertex * 3;
+      const target = caseOffset + vertex * 3;
+      displacements[target] = finiteOrZero(field.values[source]);
+      displacements[target + 1] = finiteOrZero(field.values[source + 1]);
+      displacements[target + 2] = finiteOrZero(field.values[source + 2]);
+    }
+  }
+  return displacements;
+}
+
+function finiteOrZero(value: number | undefined): number {
+  return value !== undefined && Number.isFinite(value) ? value : 0;
 }

@@ -301,3 +301,97 @@ describe("WebGPU renderer", () => {
     renderer.destroy();
   });
 });
+
+describe("WebGPU renderer deformation", () => {
+  function uniformWrite(gpu: ReturnType<typeof fakeGpuDevice>) {
+    const buffer = gpu.buffers.find(
+      (candidate) => candidate.size === 16 && (candidate.usage & 1) !== 0,
+    );
+    return gpu.writes.find((write) => write.buffer === buffer?.resource);
+  }
+
+  it("writes a disabled deformation uniform before any deformation is set", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildScene();
+    const runtime = createSceneRuntime(scene);
+    renderer.render(runtime, camera, scene.parts);
+    const ids = new Uint32Array(uniformWrite(gpu)?.bytes.buffer ?? new ArrayBuffer(0), 0, 4);
+    expect(ids[1]).toBe(0);
+    expect(ids[2]).toBe(0);
+    renderer.destroy();
+  });
+
+  it("uploads displacement buffers and writes the deformation uniform", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildScene();
+    const runtime = createSceneRuntime(scene);
+    renderer.setDeformation({
+      scale: 2,
+      loadCase: 1,
+      loadCaseCount: 2,
+      displacements: new Map([[1, new Float32Array(3 * 2 * 3)]]),
+    });
+    renderer.render(runtime, camera, scene.parts);
+    const write = uniformWrite(gpu);
+    const floats = new Float32Array(write?.bytes.buffer ?? new ArrayBuffer(0), 0, 4);
+    const ids = new Uint32Array(write?.bytes.buffer ?? new ArrayBuffer(0), 0, 4);
+    expect(floats[0]).toBe(2);
+    expect(ids[1]).toBe(1);
+    expect(ids[2]).toBe(2);
+    const storage = gpu.buffers.find((buffer) => buffer.size === 72 && (buffer.usage & 16) !== 0);
+    expect(storage).toBeDefined();
+    expect(gpu.writes.some((entry) => entry.buffer === storage?.resource)).toBe(true);
+    renderer.destroy();
+  });
+
+  it("reuses uploaded displacement buffers across frames until the array changes", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildScene();
+    const runtime = createSceneRuntime(scene);
+    const deformation = {
+      scale: 1,
+      loadCase: 0,
+      loadCaseCount: 1,
+      displacements: new Map([[1, new Float32Array(3 * 3)]]),
+    };
+    renderer.setDeformation(deformation);
+    renderer.render(runtime, camera, scene.parts);
+    const storage = gpu.buffers.find((buffer) => buffer.size === 36 && (buffer.usage & 16) !== 0);
+    const uploads = () => gpu.writes.filter((write) => write.buffer === storage?.resource).length;
+    expect(uploads()).toBe(1);
+    renderer.render(runtime, camera, scene.parts);
+    expect(uploads()).toBe(1);
+    renderer.setDeformation({
+      ...deformation,
+      displacements: new Map([[1, new Float32Array(9)]]),
+    });
+    renderer.render(runtime, camera, scene.parts);
+    expect(uploads()).toBe(2);
+    renderer.destroy();
+  });
+
+  it("rejects an invalid deformation state", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    expect(() => {
+      renderer.setDeformation({
+        scale: 1,
+        loadCase: 5,
+        loadCaseCount: 2,
+        displacements: new Map(),
+      });
+    }).toThrow(/out of range/);
+    renderer.destroy();
+  });
+});

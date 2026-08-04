@@ -9,7 +9,8 @@ describe("GPU render resources", () => {
       const gpu = fakeGpuDevice();
       const resources = createRenderResources(gpu.device, "bgra8unorm", "depth24plus");
       expect(resources.cameraBuffer).toBeDefined();
-      expect(resources.cameraBindGroup).toBeDefined();
+      expect(resources.deformationBuffer).toBeDefined();
+      expect(resources.frameBindGroup).toBeDefined();
       expect(resources.pipelines.trianglesColor).toBeDefined();
       expect(resources.pipelines.trianglesPick).toBeDefined();
       expect(resources.pipelines.linesColor).toBeDefined();
@@ -19,9 +20,9 @@ describe("GPU render resources", () => {
       expect(resources.edgePipeline).toBeDefined();
       expect(resources.edgeAlwaysPipeline).toBeDefined();
       expect(resources.instanceLayout).toBeDefined();
-      expect(gpu.buffers).toHaveLength(1);
+      expect(gpu.buffers).toHaveLength(2);
       destroyRenderResources(resources);
-      expect(gpu.buffers[0]?.destroyed).toBe(true);
+      expect(gpu.buffers.every((buffer) => buffer.destroyed)).toBe(true);
     } finally {
       restore();
     }

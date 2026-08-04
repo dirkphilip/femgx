@@ -63,6 +63,28 @@ vector field times a `scale` factor. Vertex index `i` corresponds to node index
 `i` (geometry may cover a subset of nodes); missing displacements leave the
 original vertex in place.
 
+`nodalDisplacements(positions, cases)` builds the per-vertex displacement buffer
+consumed by the GPU renderer's deformed-shape path: one vec3 per vertex per load
+case, load-case major (`[case 0 vertex 0, case 0 vertex 1, ..., case 1 vertex
+0, ...]`), with `NaN`/missing values zeroed so the vertex stays put. Feed it
+into `DeformationState.displacements` for one part.
+
+## GPU deformed shapes (`gpu-deform.ts`)
+
+The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
+
+- `renderer.setDeformation({ scale, loadCase, loadCaseCount, displacements })`
+  sets the per-frame deformation state; `render()` rewrites the small
+  deformation uniform (scale + active load case) every frame and uploads each
+  part's displacement buffer once, reusing it until the array reference changes.
+- `displacements` is a `ReadonlyMap<PartId, Float32Array>`; each buffer holds
+  `loadCaseCount * vertexCount * 3` floats (build them with
+  `nodalDisplacements`). `loadCaseCount` of 0 disables deformation.
+- The WGSL vertex shaders (`gpu-shaders.ts`) add `displacement * scale` to the
+  model-space vertex in the triangle, point-sprite, and edge-overlay passes, so
+  the wireframe and picking stay aligned with the deformed solid.
+- Geometry upload stays amortized: only the tiny uniform (and a compact displacement buffer on load-case change) is rewritten, matching the delta-oriented architecture — see [[renderer-subrange-updates|Renderer subrange updates]].
+
 ## Load-case playback (`case-player.ts`)
 
 `createCasePlayer(cases, options)` builds an immutable `CasePlayer` over an
@@ -101,9 +123,10 @@ covers playback by observing the case index and blend progress advance.
 
 ## Status / follow-ups
 
-- GPU-side per-instance deformed rendering (per-instance vertex displacement)
-  is not implemented; deformation today is computed CPU-side. Scalar colors
-  already flow through the GPU per-instance color attribute.
+- GPU-side per-instance deformed rendering is implemented; the results demo
+  still uses the deterministic CPU renderer. Wiring the demo's scale/load-case
+  controls to `setDeformation` (optionally through `CasePlayer` interpolation
+  served as a one-case displacement buffer) is a follow-up.
 - Load-case playback and displacement interpolation are provided by the
   `CasePlayer` API and demonstrated in the demo.
 

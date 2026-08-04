@@ -1,6 +1,8 @@
 import { viewProjectionMatrix, type Camera } from "../camera/camera";
 import type { Part } from "../geometry/part";
 import type { PartId } from "../scene/types";
+import type { DeformationState } from "./gpu-deform";
+import { writeDeformationUniform } from "./gpu-deform";
 import type { DrawCall, DrawCallContext, DrawResources } from "./gpu-draw";
 import { drawBatches } from "./gpu-draw";
 import type { PickTargets } from "./gpu-pick";
@@ -25,6 +27,8 @@ export interface FrameOptions {
   readonly edgeDepthTest: boolean;
   /** Screen-space diameter of point elements in device pixels. */
   readonly pointSize: number;
+  /** Per-frame deformation state; `undefined` disables GPU deformation. */
+  readonly deformation: DeformationState | undefined;
 }
 
 /**
@@ -44,6 +48,7 @@ export function encodeFrame(
   uniform[17] = frame.canvas.height;
   uniform[18] = frame.pointSize;
   frame.device.queue.writeBuffer(frame.resources.cameraBuffer, 0, uniform);
+  writeDeformationUniform(frame.device, frame.resources.deformationBuffer, frame.deformation);
   const encoder = frame.device.createCommandEncoder();
   const colorView = frame.context.getCurrentTexture().createView();
   const depthTexture = ensureDepthTexture(
@@ -53,7 +58,7 @@ export function encodeFrame(
     frame.depthFormat,
   );
   const context: DrawCallContext = {
-    cameraBindGroup: frame.resources.cameraBindGroup,
+    frameBindGroup: frame.resources.frameBindGroup,
     instanceLayout: frame.resources.instanceLayout,
     parts,
     pipelines: frame.resources.pipelines,
