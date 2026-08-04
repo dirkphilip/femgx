@@ -17,6 +17,11 @@ export interface DrawCall {
   readonly instanceCount: number;
 }
 
+/** A draw recorded together with the pipeline tag that issued it. */
+export interface PipelineDraw extends DrawCall {
+  readonly pipeline: string;
+}
+
 export interface FakeTexture {
   destroyed: boolean;
 }
@@ -28,6 +33,8 @@ export interface FakeGpu {
   readonly buffers: readonly FakeBuffer[];
   readonly textures: readonly FakeTexture[];
   readonly drawCalls: readonly DrawCall[];
+  /** Every draw tagged with the pipeline that issued it. */
+  readonly pipelineDraws: readonly PipelineDraw[];
   readonly textureCreations: number;
   readonly bindGroupCreations: number;
   /** The pipeline objects passed to `setPipeline`, in call order. */
@@ -86,8 +93,11 @@ export function fakeGpuDevice(
   const buffers: FakeBuffer[] = [];
   const textures: FakeTexture[] = [];
   const drawCalls: DrawCall[] = [];
+  const pipelineDraws: PipelineDraw[] = [];
   const pipelineCalls: unknown[] = [];
   let bindGroupCreations = 0;
+  let pipelineCounter = 0;
+  let currentPipeline = "none";
   const pickValue = options.pickValue ?? 0;
   const elementPickValue = options.elementPickValue ?? 0;
   let resolveLost: (info: GPUDeviceLostInfo) => void = () => undefined;
@@ -142,7 +152,9 @@ export function fakeGpuDevice(
     },
     createPipelineLayout: () => ({}),
     createShaderModule: () => ({}),
-    createRenderPipeline: () => ({}),
+    createRenderPipeline: () => ({
+      __tag: `pipeline-${pipelineCounter++}`,
+    }),
     createTexture: () => {
       const record: FakeTexture = { destroyed: false };
       textures.push(record);
@@ -156,14 +168,16 @@ export function fakeGpuDevice(
     createCommandEncoder: () => ({
       beginRenderPass: () => {
         const pass = {
-          setPipeline: (pipeline: unknown) => {
+          setPipeline: (pipeline: { readonly __tag?: string }) => {
             pipelineCalls.push(pipeline);
+            currentPipeline = pipeline.__tag ?? "unknown";
           },
           setBindGroup: () => undefined,
           setVertexBuffer: () => undefined,
           setIndexBuffer: () => undefined,
           drawIndexed: (indexCount: number, instanceCount: number) => {
             drawCalls.push({ indexCount, instanceCount });
+            pipelineDraws.push({ pipeline: currentPipeline, indexCount, instanceCount });
           },
           end: () => undefined,
         };
@@ -180,6 +194,7 @@ export function fakeGpuDevice(
     buffers,
     textures,
     drawCalls,
+    pipelineDraws,
     pipelineCalls,
     lose,
     get textureCreations() {

@@ -91,7 +91,7 @@ test("drives interaction and picking through the demo path", async ({ page }) =>
   await expect.poll(() => canvas.getAttribute("data-selected")).toBe("");
 });
 
-test("keeps element selection feedback visible in edge display mode", async ({ page }) => {
+test("keeps element selection feedback visible in edge overlay mode", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("view-canvas")).toBeVisible();
   await expect
@@ -135,15 +135,15 @@ test("keeps element selection feedback visible in edge display mode", async ({ p
   await page.mouse.click(hoverPoint.x, hoverPoint.y);
   await expect.poll(() => canvas.getAttribute("data-selected")).toBe(elementKey);
 
-  // Edge mode keeps the emphasis: the label flips and the demo still renders
+  // Edge overlay keeps the emphasis: the label flips and the demo still renders
   // the selected element key in the next frame.
-  await page.getByTestId("display-mode").click();
-  await expect(page.getByTestId("display-mode-label")).toHaveText("Edges");
+  await page.getByTestId("edge-overlay").click();
+  await expect(page.getByTestId("edge-overlay-label")).toHaveText("On");
   await expect.poll(() => canvas.getAttribute("data-frames")).not.toBeNull();
   expect(await canvas.getAttribute("data-selected")).toBe(elementKey);
 
-  await page.getByTestId("display-mode").click();
-  await expect(page.getByTestId("display-mode-label")).toHaveText("Solid");
+  await page.getByTestId("edge-overlay").click();
+  await expect(page.getByTestId("edge-overlay-label")).toHaveText("Off");
   expect(await canvas.getAttribute("data-selected")).toBe(elementKey);
 });
 

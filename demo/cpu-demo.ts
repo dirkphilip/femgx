@@ -14,7 +14,8 @@ import { visiblePartIdsFor } from "../src/fixture/element-fixture";
 import { installCameraControls } from "./camera-controls";
 import type { DemoFixture } from "./fixture";
 import {
-  installDisplayModeControl,
+  installDepthTestControl,
+  installEdgeOverlayControl,
   installModeControl,
   installProjectionControl,
   installResetControl,
@@ -23,7 +24,6 @@ import {
   type CameraRef,
   type ControlContext,
   type DemoView,
-  type DisplayMode,
 } from "./view";
 
 /** Inputs for the deterministic CPU (2D canvas) renderer. */
@@ -51,7 +51,7 @@ export function startCpuDemo(options: CpuDemoOptions): void {
   });
   const cameraRef: CameraRef = { camera: fixture.initialCamera };
   let interaction: InteractionState = createInteractionState();
-  let displayMode: DisplayMode = "solid";
+  let edgeOverlay = false;
   let mode: ElementRenderMode = fixture.elementFixture.defaultMode;
 
   function visiblePartIds(): ReadonlySet<number> {
@@ -81,7 +81,7 @@ export function startCpuDemo(options: CpuDemoOptions): void {
       const baseColor = fixture.partColors.get(instance.partId) ?? fixture.fallbackColor;
       const style = resolveInstanceStyle(
         instance,
-        { color: baseColor, emissive: 0, opacity: 1 },
+        { color: baseColor, emissive: 0, opacity: 1, edge: false },
         interaction,
       );
       context.strokeStyle = style.emissive > 0 ? "#f8fafc" : "#60a5fa";
@@ -110,11 +110,11 @@ export function startCpuDemo(options: CpuDemoOptions): void {
       context.moveTo(points[0]?.[0] ?? 0, points[0]?.[1] ?? 0);
       for (const point of points.slice(1)) context.lineTo(point[0], point[1]);
       context.closePath();
-      if (displayMode === "solid") {
-        context.fillStyle = `rgba(${style.color.r * 255}, ${style.color.g * 255}, ${style.color.b * 255}, ${style.opacity})`;
-        context.fill();
+      context.fillStyle = `rgba(${style.color.r * 255}, ${style.color.g * 255}, ${style.color.b * 255}, ${style.opacity})`;
+      context.fill();
+      if (edgeOverlay || style.edge) {
+        context.stroke();
       }
-      context.stroke();
     }
   }
 
@@ -173,12 +173,16 @@ export function startCpuDemo(options: CpuDemoOptions): void {
     partCount,
     mode: () => mode,
     onRender: render,
-    setDisplayMode: (nextMode) => {
-      displayMode = nextMode;
+    setEdgeOverlay: (enabled) => {
+      edgeOverlay = enabled;
+    },
+    setEdgeDepthTest: () => {
+      // The 2D fallback has no depth buffer, so the depth-test control is inert.
     },
   };
   installProjectionControl(contextControls);
-  installDisplayModeControl(contextControls);
+  installEdgeOverlayControl(contextControls);
+  installDepthTestControl(contextControls);
   installModeControl(contextControls, (nextMode) => {
     mode = nextMode;
   });

@@ -16,6 +16,8 @@ export interface InstanceLayout {
   readonly partOrder: readonly PartId[];
   /** Visible instance count per part. */
   readonly partVisibleCounts: Map<PartId, number>;
+  /** Edge-overlay visible instance count per part. */
+  readonly partEdgeCounts: Map<PartId, number>;
   /** Total visible instance count, kept in sync with the runtime. */
   visibleCount: number;
 }
@@ -43,11 +45,15 @@ export function buildInstanceLayout(runtime: SceneRuntime): InstanceLayout {
     partSlots.set(partId, new Uint32Array(grouped.get(partId) ?? []));
   }
   const partVisibleCounts = new Map<PartId, number>();
+  const partEdgeCounts = new Map<PartId, number>();
   const drawList = runtime.getDrawList();
   for (const slot of drawList) {
     const partId = runtime.instancePartIds[slot];
     if (partId === undefined) continue;
     partVisibleCounts.set(partId, (partVisibleCounts.get(partId) ?? 0) + 1);
+  }
+  for (const partId of partOrder) {
+    partEdgeCounts.set(partId, 0);
   }
   return {
     instanceCount,
@@ -55,6 +61,7 @@ export function buildInstanceLayout(runtime: SceneRuntime): InstanceLayout {
     partSlots,
     partOrder,
     partVisibleCounts,
+    partEdgeCounts,
     visibleCount: drawList.length,
   };
 }
@@ -75,6 +82,33 @@ export function buildDrawOrder(
     }
   }
   return new Uint32Array(visible);
+}
+
+/**
+ * Returns the visible part-local slots of a part whose resolved style requests
+ * the edge overlay, in ascending draw order.
+ */
+export function buildEdgeOrder(
+  layout: InstanceLayout,
+  runtime: SceneRuntime,
+  partId: PartId,
+  edgeFlags: readonly boolean[],
+): Uint32Array {
+  const slots = layout.partSlots.get(partId);
+  if (slots === undefined) return new Uint32Array();
+  const overlay: number[] = [];
+  for (const slot of slots) {
+    const local = layout.slotPartLocal[slot];
+    if (
+      local !== undefined &&
+      local >= 0 &&
+      edgeFlags[slot] === true &&
+      runtime.isInstanceVisible(slot)
+    ) {
+      overlay.push(local);
+    }
+  }
+  return new Uint32Array(overlay);
 }
 
 /** Describes one placed part with a world-transform view into the runtime. */

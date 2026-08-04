@@ -6,7 +6,7 @@ changed placements instead of rebuilding instance data.
 
 ## Per-part storage
 
-Each part owns two storage buffers (`src/renderer/gpu-draw.ts`):
+Each part owns three storage buffers (`src/renderer/gpu-draw.ts`):
 
 - **Record buffer** (`binding 0`): one 96-byte record per slot — column-major
   world transform (16 floats), resolved color with opacity folded into alpha
@@ -21,6 +21,11 @@ Each part owns two storage buffers (`src/renderer/gpu-draw.ts`):
   part-local slots in ascending draw order. The vertex shader reads
   `instances[drawOrder[instanceIndex]]`, so hidden slots are never drawn and the
   draw is `drawIndexed(geometry, visibleCountOfPart)`.
+- **Edge-order buffer**: a second compacted list holding the visible slots whose
+  resolved style requests the line overlay (see
+  [[element-interaction|Element-level interaction]]). The overlay pass addresses
+  it through a second cached bind group per part, so only edge-styled instances
+  are drawn as lines while their surface pass keeps drawing everything visible.
 
 Pick ids are `global slot + 1`, so they are **stable across visibility changes**;
 `pick()` resolves a readback id through the runtime's `getInstanceId(slot)`.
@@ -35,6 +40,9 @@ Pick ids are `global slot + 1`, so they are **stable across visibility changes**
 - `writeDrawOrder(partId, order)` rewrites only the changed u32 subranges of the
   part's compacted draw order. A visibility delta rebuilds the order list only
   for the affected parts (`runtime-state.ts` `buildDrawOrder`).
+- `writeEdgeOrder(partId, order)` rewrites only the affected edge orders: the
+  renderer keeps a CPU edge-flag mirror per slot and rebuilds a part's edge
+  order only when its membership flips or its visibility changes.
 - Steady-state `render(runtime, camera, parts)` reuses cached buffers and issues
   zero instance writes.
 

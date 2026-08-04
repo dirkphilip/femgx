@@ -13,6 +13,8 @@ export interface StyleOverride {
   readonly color?: Color;
   readonly emissive?: number;
   readonly opacity?: number;
+  /** Whether the instance's mesh edges are overlaid as lines on its surface. */
+  readonly edge?: boolean;
 }
 
 /** Complete style consumed by a renderer. */
@@ -20,6 +22,8 @@ export interface ResolvedStyle {
   readonly color: Color;
   readonly emissive: number;
   readonly opacity: number;
+  /** Whether the instance's mesh edges are overlaid as lines on its surface. */
+  readonly edge: boolean;
 }
 
 /** Visual defaults for interaction states. */
