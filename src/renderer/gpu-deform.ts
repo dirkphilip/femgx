@@ -47,7 +47,10 @@ export const defaultDeformation: DeformationState = {
 export interface DeformationSync {
   readonly device: GPUDevice;
   readonly deformations: Map<PartId, DeformationStorage>;
-  readonly storages: ReadonlyMap<PartId, { bindGroup: GPUBindGroup | undefined }>;
+  readonly storages: ReadonlyMap<
+    PartId,
+    { bindGroup: GPUBindGroup | undefined; edgeBindGroup: GPUBindGroup | undefined }
+  >;
 }
 
 /**
@@ -85,14 +88,24 @@ export function validateDeformation(state: DeformationState): void {
 
 /**
  * Uploads every part's displacement buffer from the current deformation state,
- * skipping arrays already uploaded and recreating buffers that must grow.
- * Parts whose buffer was recreated have their cached bind group cleared so the
- * next draw rebinds the fresh buffer. `undefined` resolves to the disabled
- * identity state.
+ * skipping arrays already uploaded and recreating buffers whose size changed.
+ * Buffers uploaded from an earlier state that dropped out of the new state are
+ * destroyed and removed, so no stale displacement data outlives the state;
+ * empty fallback buffers created by the draw path (whose `source` is
+ * `undefined`) are left alone. Parts whose buffer was recreated or removed have
+ * both cached bind groups (surface and edge overlay) cleared so the next draw
+ * rebinds the fresh buffer. `undefined` resolves to the disabled identity state.
  */
 export function syncDeformations(sync: DeformationSync, state: DeformationState | undefined): void {
-  for (const [partId, values] of (state ?? defaultDeformation).displacements) {
+  const resolved = state ?? defaultDeformation;
+  for (const [partId, values] of resolved.displacements) {
     uploadDeformation(sync, partId, values);
+  }
+  for (const [partId, storage] of sync.deformations) {
+    if (storage.source === undefined || resolved.displacements.has(partId)) continue;
+    storage.buffer.destroy();
+    sync.deformations.delete(partId);
+    invalidateBindGroups(sync, partId);
   }
 }
 
@@ -140,10 +153,10 @@ export function destroyDeformationBuffers(deformations: Map<PartId, DeformationS
 function uploadDeformation(sync: DeformationSync, partId: PartId, values: Float32Array): void {
   const size = Math.max(4, values.byteLength);
   const current = sync.deformations.get(partId);
-  if (current !== undefined && current.source === values && current.buffer.size >= size) {
+  if (current !== undefined && current.source === values && current.buffer.size === size) {
     return;
   }
-  if (current !== undefined && current.buffer.size >= size) {
+  if (current !== undefined && current.buffer.size === size) {
     current.source = values;
     sync.device.queue.writeBuffer(current.buffer, 0, values);
     return;
@@ -152,9 +165,18 @@ function uploadDeformation(sync: DeformationSync, partId: PartId, values: Float3
     size,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
-  if (current !== undefined) current.buffer.destroy();
+  if (current !== undefined) {
+    current.buffer.destroy();
+    invalidateBindGroups(sync, partId);
+  }
   sync.deformations.set(partId, { buffer, source: values });
-  const storage = sync.storages.get(partId);
-  if (storage !== undefined) storage.bindGroup = undefined;
   sync.device.queue.writeBuffer(buffer, 0, values);
+}
+
+/** Clears the cached surface and edge-overlay bind groups for a part. */
+function invalidateBindGroups(sync: DeformationSync, partId: PartId): void {
+  const storage = sync.storages.get(partId);
+  if (storage === undefined) return;
+  storage.bindGroup = undefined;
+  storage.edgeBindGroup = undefined;
 }

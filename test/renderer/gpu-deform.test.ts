@@ -12,7 +12,10 @@ import {
 } from "../../src/renderer/gpu-deform";
 import { fakeGpuDevice, installGpuGlobals, type FakeGpu } from "./fake-gpu";
 
-type StorageMap = Map<number, { bindGroup: GPUBindGroup | undefined }>;
+type StorageMap = Map<
+  number,
+  { bindGroup: GPUBindGroup | undefined; edgeBindGroup: GPUBindGroup | undefined }
+>;
 
 function state(
   overrides: Partial<Pick<DeformationState, "scale" | "loadCase" | "loadCaseCount">> &
@@ -145,7 +148,10 @@ describe("syncDeformations", () => {
         loadCaseCount: 1,
         displacements: new Map([[1, new Float32Array([1, 2, 3])]]),
       });
-      storages.set(1, { bindGroup: {} as GPUBindGroup });
+      storages.set(1, {
+        bindGroup: {} as GPUBindGroup,
+        edgeBindGroup: {} as GPUBindGroup,
+      });
       const before = gpu.buffers.length;
       const next = new Float32Array([4, 5, 6]);
       syncDeformations(sync, {
@@ -157,12 +163,13 @@ describe("syncDeformations", () => {
       expect(gpu.buffers.length).toBe(before);
       expect(sync.deformations.get(1)?.source).toBe(next);
       expect(storages.get(1)?.bindGroup).toBeDefined();
+      expect(storages.get(1)?.edgeBindGroup).toBeDefined();
     } finally {
       restore();
     }
   });
 
-  it("recreates the buffer and clears the bind group when it must grow", () => {
+  it("recreates the buffer and clears both bind groups when it must grow", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
@@ -174,13 +181,78 @@ describe("syncDeformations", () => {
         displacements: new Map([[1, new Float32Array(length)]]),
       });
       syncDeformations(sync, deformation(3));
-      storages.set(1, { bindGroup: {} as GPUBindGroup });
+      storages.set(1, {
+        bindGroup: {} as GPUBindGroup,
+        edgeBindGroup: {} as GPUBindGroup,
+      });
       const old = gpu.buffers.at(-1);
       syncDeformations(sync, deformation(6));
       const current = gpu.buffers.at(-1);
       expect(current).not.toBe(old);
       expect(old?.destroyed).toBe(true);
       expect(storages.get(1)?.bindGroup).toBeUndefined();
+      expect(storages.get(1)?.edgeBindGroup).toBeUndefined();
+    } finally {
+      restore();
+    }
+  });
+
+  it("recreates the buffer when a smaller array replaces a larger one", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const { sync, storages } = syncWith(gpu);
+      syncDeformations(sync, {
+        scale: 1,
+        loadCase: 0,
+        loadCaseCount: 2,
+        displacements: new Map([[1, new Float32Array(2 * 3 * 3)]]),
+      });
+      storages.set(1, {
+        bindGroup: {} as GPUBindGroup,
+        edgeBindGroup: {} as GPUBindGroup,
+      });
+      const old = gpu.buffers.at(-1);
+      syncDeformations(sync, {
+        scale: 1,
+        loadCase: 0,
+        loadCaseCount: 1,
+        displacements: new Map([[1, new Float32Array(3 * 3)]]),
+      });
+      const current = gpu.buffers.at(-1);
+      expect(current).not.toBe(old);
+      expect(current?.size).toBe(36);
+      expect(old?.destroyed).toBe(true);
+      expect(storages.get(1)?.bindGroup).toBeUndefined();
+    } finally {
+      restore();
+    }
+  });
+
+  it("destroys buffers and clears bind groups for parts dropped from the state", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const { sync, storages } = syncWith(gpu);
+      const deformation = (partIds: readonly number[]): DeformationState => ({
+        scale: 1,
+        loadCase: 0,
+        loadCaseCount: 1,
+        displacements: new Map(partIds.map((partId) => [partId, new Float32Array(3)])),
+      });
+      syncDeformations(sync, deformation([1, 2]));
+      storages.set(1, {
+        bindGroup: {} as GPUBindGroup,
+        edgeBindGroup: {} as GPUBindGroup,
+      });
+      const droppedBuffer = sync.deformations.get(1)?.buffer;
+      const droppedRecord = gpu.buffers.find((buffer) => buffer.resource === droppedBuffer);
+      syncDeformations(sync, deformation([2]));
+      expect(sync.deformations.has(1)).toBe(false);
+      expect(sync.deformations.has(2)).toBe(true);
+      expect(droppedRecord?.destroyed).toBe(true);
+      expect(storages.get(1)?.bindGroup).toBeUndefined();
+      expect(storages.get(1)?.edgeBindGroup).toBeUndefined();
     } finally {
       restore();
     }

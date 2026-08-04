@@ -63,6 +63,7 @@ export function createRenderResources(
       { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
       { binding: 2, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
       { binding: 3, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
+      { binding: 4, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
     ],
   });
   const cameraLayout = device.createBindGroupLayout({

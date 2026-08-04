@@ -187,7 +187,10 @@ fn spriteCorner(corner: u32) -> vec2<f32> {
 fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
   let corner = spriteCorner(vertexIndex % 4u);
-  let clip = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
+  // The sprite draws four vertices per point (one per corner), so the point
+  // index is the vertex index divided by four; only that index aligns with the
+  // node numbering used by the displacement buffer.
+  let clip = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex / 4u), 1.0);
   let offset = (corner * camera.pointSize) / camera.viewport;
   var output: VertexOutput;
   output.position = vec4<f32>(clip.x + offset.x * clip.w, clip.y + offset.y * clip.w, clip.z, clip.w);

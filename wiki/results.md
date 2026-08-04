@@ -83,10 +83,7 @@ The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
 - The WGSL vertex shaders (`gpu-shaders.ts`) add `displacement * scale` to the
   model-space vertex in the triangle, point-sprite, and edge-overlay passes, so
   the wireframe and picking stay aligned with the deformed solid.
-- Geometry upload stays amortized: only the tiny uniform (and a compact
-      displacement buffer on load-case change) is rewritten, matching the
-      delta-oriented architecture — see [[renderer-subrange-updates|Renderer
-      subrange updates]].
+- Geometry upload stays amortized: only the tiny uniform (and a compact displacement buffer on load-case change) is rewritten, matching the delta-oriented architecture — see [[renderer-subrange-updates|Renderer subrange updates]].
 
 ## Load-case playback (`case-player.ts`)
 

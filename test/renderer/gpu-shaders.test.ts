@@ -117,15 +117,22 @@ describe("GPU deformation shader contract", () => {
         /@group\(1\) @binding\(4\) var<storage, read> displacements: array<f32>/,
       );
       expect(source).toMatch(/fn displaced\(position: vec3<f32>, vertexIndex: u32\)/);
-      expect(source).toMatch(/displaced\(position, vertexIndex\)/);
     },
   );
+
+  it("displaces surface vertices by their vertex buffer index", () => {
+    expect(instanceVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
+  });
 
   it("displaces by the active load case only when deformation is enabled", () => {
     expect(instanceVertexShader).toMatch(/deformation\.loadCaseCount == 0u/);
     expect(instanceVertexShader).toMatch(/arrayLength\(&displacements\)/);
     expect(instanceVertexShader).toMatch(/deformation\.loadCase \* vertexCount \+ vertexIndex/);
     expect(instanceVertexShader).toMatch(/delta \* deformation\.scale/);
+  });
+
+  it("displaces point sprites by the point index, not the sprite corner", () => {
+    expect(pointVertexShader).toMatch(/displaced\(position, vertexIndex \/ 4u\)/);
   });
 
   it("displaces the edge overlay through the vertex buffer index", () => {
