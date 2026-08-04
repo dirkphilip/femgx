@@ -1,6 +1,6 @@
 # FE fixture
 
-The deterministic procedural FE fixture ([[fe-fixture|`src/fixture/panel.ts`]]) generates a
+The deterministic procedural FE fixture (`src/fixture/panel.ts`) generates a
 CPU-only, WebGPU-independent stiffened deck panel model for the demo and unit tests.
 
 ## Parameters
@@ -39,4 +39,4 @@ Part and assembly ids are fixed constants, there is no randomness, and the scene
 function of the options. That gives stable instance ids, lets CPU tests assert the exact
 structure, and lets e2e assert the exact status text without flakiness. The demo status bar
 depends on the default parameters; changing the defaults must update the e2e assertion in
-[[../e2e/demo.spec.ts|`e2e/demo.spec.ts`]].
+`e2e/demo.spec.ts`.
