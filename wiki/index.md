@@ -53,6 +53,9 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   PR completion, and safe long-running iteration.
 - [[fe-fixture|FE fixture]] — the deterministic procedural panel fixture used by
   the demo and unit tests.
+- [[io-import-export|IO import/export]] — the versioned interchange model,
+  chunked builder, and the VTK/VTU/Gmsh/Abaqus adapters with their round-trip
+  contract.
 
 ## Conventions
 

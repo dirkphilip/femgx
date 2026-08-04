@@ -101,6 +101,9 @@ under `test/`:
   nodes or elements), derived quantities (magnitude, von Mises, principal
   values), value ranges, scalar color mapping with thresholds/legends, and
   deformed-shape geometry; pure CPU-side data.
+- `src/io/` — versioned typed interchange model, chunked model builder,
+  streaming VTK/VTU/Gmsh/Abaqus import/export adapters, validation,
+  diagnostics, and cancellation/progress (see `wiki/io-import-export.md`).
 - `src/picking/` — CPU-side pick-id resolution.
 - `src/renderer/` — WebGPU renderer, shaders, and GPU buffer support.
 
