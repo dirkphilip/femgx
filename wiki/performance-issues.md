@@ -27,10 +27,11 @@ needed for very large assemblies.
 
 `flattenAssembly` allocates a matrix for every visited placement and creates a new
 instance object for every visible placement. It now uses an iterative walk,
-deterministic per-part batching, and optional frustum culling; the packed scene
-runtime keeps authoring storage in typed arrays and updates visibility in place,
-but transform caching and dirty-subtree propagation remain future work for
-keeping frame work proportional to changed state.
+deterministic per-part batching, and optional frustum culling. The packed scene
+runtime keeps authoring storage in typed arrays and updates visibility in place;
+transform edits now recompose world transforms only within the affected subtree
+(see [[packed-runtime|Packed scene runtime]]), keeping frame work proportional to
+changed state.
 
 ## Matrix layout correctness
 
@@ -39,15 +40,62 @@ with rotation/scale coverage in `test/mat4.test.ts`.
 
 ## Renderer and validation gaps
 
-The renderer, GPU instance buffers, GPU picking, and resource lifecycle are now
-implemented and mocked in unit tests. Remaining work is GPU subrange delta
-updates wired to the packed runtime's visibility deltas, benchmarks, and
-WebGPU-capable browser coverage.
+The renderer is split into focused modules under `src/renderer/` (see
+[[source-organization|Source organization]]): `gpu-pipelines.ts` owns pipeline and
+resource creation, `gpu-draw.ts` owns per-part geometry/instance buffers and draw
+submission, `gpu-pick.ts` owns the pick targets and readback, and
+`runtime-state.ts` bridges the [[packed-runtime|packed runtime]] slots to
+part-local storage. `gpu-renderer.ts` is a thin orchestrator.
 
-`GpuRenderer.drawBatches` allocates a new bind group per batch on every frame
-and `render` re-creates a depth texture each frame; these per-frame allocations
-conflict with the instancing performance goal and should be cached/reused (e.g.
-bind groups keyed by batch resource, and a resized depth texture).
+_Resolved_: packed visibility/transform/style deltas are now wired into GPU
+subrange writes (`WebGpuRenderer.updateInstances` patches slot-stable record
+buffers and compacts per-part draw-order buffers; see
+[[renderer-subrange-updates|Renderer subrange updates]]). GPU instance buffers,
+picking, and resource lifecycle are mocked in CPU-only unit tests. An opt-in
+WebGPU-capable browser lane now exercises the real renderer through the demo
+(see [[webgpu-e2e|WebGPU browser e2e lane]]); true WebGPU frame-time
+benchmarking in a browser is still future work. The CPU side of performance is
+covered by [[benchmarks|deterministic benchmarks and budgets]].
+
+### Headless WebGPU pitfalls
+
+Running the WebGPU lane headlessly surfaced three real renderer bugs that the
+mocked device could not catch:
+
+- `GPUQueue.writeBuffer` rejects byte offsets and lengths that are not multiples
+  of 4. `patchInstances`' diffed subrange writes were expanded to 4-byte
+  alignment in `gpu-draw.ts`.
+- Integral user-defined vertex outputs and fragment inputs (the pick `u32`)
+  require the `@interpolate(flat)` attribute in WGSL.
+- On some headless SwiftShader builds the canvas swapchain texture is invalid
+  unless `--enable-gpu` is passed (see [[webgpu-e2e|WebGPU browser e2e lane]]).
+
+The demo probes presentation and picking before committing to WebGPU, so
+broken environments degrade to the CPU renderer instead of failing.
+
+### SwiftShader r32uint picking reliability
+
+In one headless SwiftShader environment the pick texture readback returned
+corrupted values (float bit patterns such as `0x3F800000`) for some instances
+even though the GPU record/draw-order buffers were verified correct and a
+minimal r32uint pipeline rendered cleanly. This looks like a software
+rasterizer quirk rather than a renderer bug, and it is the reason the WebGPU
+lane is capability-gated: environments whose picking is unreliable skip the
+picking test instead of failing. If it reproduces on Linux CI SwiftShader,
+consider rendering pick ids into an `rgba8unorm` texture (or another
+universally reliable format) instead of `r32uint`.
+
+### Remaining GPU allocation risks
+
+_Resolved for frame resources_: `drawBatches` now reuses one bind group per
+per-part batch resource across frames and passes, `render` keeps a single depth
+texture that is only resized when the canvas size changes, and pick readback
+reuses a pool of map buffers (see
+[[webgpu-resource-reuse|WebGPU resource reuse]]). Per-part instance buffers only
+grow; a grown-out buffer is replaced without being destroyed immediately, so it
+is only released when the renderer is destroyed — deferred buffer destruction
+for growth is still future work. The pick targets are already reused across
+frames and resized on demand.
 
 ## Toolchain reproducibility
 

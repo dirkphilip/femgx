@@ -16,7 +16,8 @@ material clones.
 - Represent as per-instance overrides (e.g. emissive/color) patched into the
   instance GPU buffer.
 - The renderer should patch only affected instance attributes per frame, or
-  adjust instance counts — never rebuild geometry or instance lists.
+  adjust instance counts — never rebuild geometry or instance lists (see
+  [[renderer-subrange-updates|Renderer subrange updates]]).
 
 ## Picking
 

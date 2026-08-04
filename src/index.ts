@@ -26,6 +26,7 @@ export {
 export { flattenAssembly, type FlattenOptions } from "./runtime/flatten";
 export { compileScene, type CompiledScene } from "./runtime/compile";
 export { createSceneRuntime, type SceneRuntime } from "./scene-runtime/runtime";
+export type { TransformDelta } from "./scene-runtime/transforms";
 export type { VisibilityDelta } from "./scene-runtime/visibility";
 export {
   cullInstances,

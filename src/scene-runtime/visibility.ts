@@ -1,4 +1,3 @@
-import type { Mat4 } from "../math/mat4";
 import type { AssemblyId, PartId } from "../scene/types";
 import type { RuntimeState } from "./compile";
 
@@ -188,19 +187,6 @@ export function setAssemblyVisible(
     recomputeSubtree(state, node, changed);
   }
   return makeDelta(state, changed, previousVisibleCount);
-}
-
-/** Replaces the world transform of a single instance slot. */
-export function setInstanceTransform(
-  state: RuntimeState,
-  instanceId: number,
-  transform: Mat4,
-): boolean {
-  if (instanceId < 0 || instanceId >= state.instanceCount) {
-    return false;
-  }
-  state.instanceWorldTransforms.set(transform, instanceId * 16);
-  return true;
 }
 
 /**

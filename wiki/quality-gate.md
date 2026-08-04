@@ -10,8 +10,14 @@ npm run format
 npm run typecheck
 npm run lint
 npm run test:coverage
+npm run bench:budget
 npm run test:e2e
 ```
+
+`npm run bench:budget` runs the performance budget gate standalone (see
+[[benchmarks|Benchmarks]]) because v8 coverage instrumentation distorts wall
+clock timing; CI runs it as its own step. `npm run bench` is the opt-in trend
+suite, not part of the gate.
 
 ## Coverage
 
@@ -29,6 +35,10 @@ npm run test:e2e
 - One-time browser install: `npm run test:e2e:install` (Chromium).
 - `e2e/demo.spec.ts` verifies the demo canvas renders instanced geometry.
 - CI installs with `--with-deps` and uploads the report on failure.
+- The default lane is deterministic and exercises the CPU fallback only. An
+  opt-in WebGPU-capable lane (`RUN_WEBGPU=1`, `.github/workflows/webgpu.yml`)
+  exercises the real WebGPU path through the demo and skips cleanly when the
+  browser cannot present/pick (see [[webgpu-e2e|WebGPU browser e2e lane]]).
 
 ## Linting (small modules)
 

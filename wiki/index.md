@@ -12,6 +12,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   geometry is reused via GPU instancing.
 - [[packed-runtime|Packed scene runtime]] — packed typed-array storage and
   delta-oriented visibility updates.
+- [[renderer-subrange-updates|Renderer subrange updates]] — packed deltas wired
+  into GPU subrange writes for transform/style/visibility attributes.
 - [[interactive-state|Interactive state]] — highlight, selection, and visibility
   as per-instance GPU attributes.
 - [[scaffold-decisions|Scaffold decisions]] — toolchain, strictness, and the
@@ -22,13 +24,23 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   every agent runs before handoff.
 - [[typescript-toolchain-compatibility|TypeScript toolchain compatibility]] —
   TypeScript and typescript-eslint peer-version constraints.
+- [[webgpu-e2e|WebGPU browser e2e lane]] — opt-in real-WebGPU browser coverage
+  that never makes the default CI lane flaky.
+- [[benchmarks|Benchmarks and performance budgets]] — deterministic CPU
+  benchmarks, budget thresholds, and how to run/interpret them.
 - [[performance-issues|Performance issues and risks]] — known scalability,
   correctness, renderer, and toolchain gaps.
+- [[webgpu-resource-reuse|WebGPU resource reuse]] — cached frame resources and
+  the readback-map synchronization constraints.
 - [[todo|Engineering TODO]] — prioritized implementation roadmap.
 - [[supervisor-workflow|Supervisor workflow]] — launching `sv` via `uvx`,
   provider setup, and useful commands.
+- [[supervisor-label-matching|Supervisor label matching]] — how configured
+  allow/ignore labels match GitHub issue labels, and the migration behavior.
 - [[development-loop|Development loop]] — issue triage, Supervisor monitoring,
   PR completion, and safe long-running iteration.
+- [[fe-fixture|FE fixture]] — the deterministic procedural panel fixture used by
+  the demo and unit tests.
 
 ## Conventions
 

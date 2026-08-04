@@ -25,8 +25,9 @@ scene is authoritative; the renderer syncs deltas from it.
 - `src/camera/camera.ts` — immutable orbit camera math for perspective and
   orthographic projection, shared by the demo and future renderers.
 - `src/renderer/gpu-renderer.ts` — WebGPU lifecycle, one-time part uploads,
-  storage-backed instance attributes, depth-tested instanced draws, and
-  asynchronous pick readback.
+  slot-stable instance attributes, GPU subrange updates for packed deltas
+  (see [[renderer-subrange-updates|Renderer subrange updates]]), depth-tested
+  instanced draws, and asynchronous pick readback.
 - `src/geometry/part.ts` — part geometry + computed bounds. Parts are immutable
   and own no transforms.
 - `src/math/mat4.ts` — column-major 4x4 math

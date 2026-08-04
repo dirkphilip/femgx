@@ -50,6 +50,25 @@ sv stop               # interrupt workers and stop immediately
 - Keep `.supervisor/config.local.toml`, `.supervisor/issues.json`, and
   `.supervisor/run/` local and ignored.
 
+## Repository-aware quality gate
+
+The worker prompts (`prompts/implementer.md`, `prompts/reviewer.md`,
+`prompts/pr-repair.md`) do not hardcode a single quality gate. They instruct
+agents to detect the repository's configured quality commands before running
+them by reading `AGENTS.md`, the package-manager manifest (`package.json` for
+npm, `pyproject.toml` + `uv.lock` for Python/uv), and the CI workflow config.
+
+- Python/uv repositories keep the generic gate: `uv run pre-commit run --all-files`
+  before implement/repair handoff, plus `uv run pytest --cov=sv --cov-branch
+--cov-report=term-missing` during review.
+- TypeScript/npm repositories (like femgx) use the npm gate: `npm run format`,
+  `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `npm run build`,
+  and `npm run test:e2e`. This mirrors `.github/workflows/ci.yml`.
+
+`test/supervisor/worker-contract.test.ts` locks this behavior: prompts must be
+repository-aware, keep the npm gate authoritative, scope uv/pytest commands to
+Python repositories, and preserve the handoff/progress contract.
+
 ## Pull request mode and merge behavior
 
 The shared configuration sets `github.draft = false`, so Supervisor creates
@@ -70,6 +89,15 @@ issue by adding the label:
 ```sh
 gh issue edit 123 --add-label ready-for-supervisor
 ```
+
+Configured `allow_labels` and `ignore_labels` are matched exactly as written;
+the supervisor does not apply its namespace prefix to them. A bare label such as
+`ready-for-supervisor` matches the GitHub label `ready-for-supervisor`, and a
+fully qualified label such as `team:ready` matches that exact label.
+`ignore_labels` still take precedence, so an issue carrying an ignore label is
+never auto-pulled even when it also carries an allow label. See
+[[supervisor-label-matching|Supervisor label matching]] for the effective
+configuration and the migration behavior.
 
 Explicit `sv run <issue>` bypasses the auto-pull gate.
 
@@ -97,3 +125,12 @@ commands may fail when the local token is expired or network access is blocked.
 Try task-local `UV_CACHE_DIR` and `UV_TOOL_DIR` first. If package downloads are
 offline, use the existing local Supervisor checkout only for safe status checks;
 do not edit Supervisor runtime state by hand.
+
+## Pre-commit gate
+
+The worker contract tells agents to run `uv run pre-commit run --all-files`
+before handoff, but this repository has no Python `.pre-commit-config.yaml`.
+The real pre-commit gate is the husky hook running lint-staged
+(`npm run pre-commit`): ESLint with `--fix`, Prettier, and a merge-conflict
+marker check on staged files. Run the focused checks on changed files yourself;
+CI runs the full quality gate after a PR exists.

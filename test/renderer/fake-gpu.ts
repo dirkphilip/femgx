@@ -1,0 +1,162 @@
+export interface RecordedWrite {
+  readonly offset: number;
+  readonly bytes: Uint8Array;
+}
+
+export interface FakeBuffer {
+  readonly size: number;
+  readonly usage: number;
+  destroyed: boolean;
+}
+
+export interface DrawCall {
+  readonly indexCount: number;
+  readonly instanceCount: number;
+}
+
+export interface FakeTexture {
+  destroyed: boolean;
+}
+
+export interface FakeGpu {
+  readonly device: GPUDevice;
+  readonly writes: readonly RecordedWrite[];
+  readonly buffers: readonly FakeBuffer[];
+  readonly textures: readonly FakeTexture[];
+  readonly drawCalls: readonly DrawCall[];
+  readonly textureCreations: number;
+  readonly bindGroupCreations: number;
+}
+
+/** Defines the WebGPU numeric constants the renderer source references. */
+export function installGpuGlobals(): () => void {
+  const originals = new Map<string, unknown>();
+  const define = (name: string, value: unknown): void => {
+    originals.set(name, (globalThis as Record<string, unknown>)[name]);
+    Object.defineProperty(globalThis, name, { configurable: true, value });
+  };
+  define("GPUShaderStage", { VERTEX: 1, FRAGMENT: 2 });
+  define("GPUBufferUsage", {
+    UNIFORM: 1,
+    COPY_DST: 2,
+    VERTEX: 4,
+    INDEX: 8,
+    STORAGE: 16,
+    MAP_READ: 32,
+  });
+  define("GPUTextureUsage", { RENDER_ATTACHMENT: 1, COPY_SRC: 2 });
+  define("GPUMapMode", { READ: 1 });
+  define("devicePixelRatio", 1);
+  return () => {
+    for (const [name, value] of originals) {
+      Object.defineProperty(globalThis, name, { configurable: true, value });
+    }
+  };
+}
+
+/** A minimal GPU canvas context for renderer tests. */
+export function fakeCanvas(width = 800, height = 600): HTMLCanvasElement {
+  const context = {
+    configure: () => undefined,
+    getCurrentTexture: () => ({ createView: () => ({}) }),
+  };
+  return {
+    width,
+    height,
+    clientWidth: width,
+    clientHeight: height,
+    getContext: () => context,
+    getBoundingClientRect: () => ({ width, height }),
+  } as unknown as HTMLCanvasElement;
+}
+
+/** A GPU device that records buffer writes, creations, and draw calls. */
+export function fakeGpuDevice(options: { readonly pickValue?: number } = {}): FakeGpu {
+  const writes: RecordedWrite[] = [];
+  const buffers: FakeBuffer[] = [];
+  const textures: FakeTexture[] = [];
+  const drawCalls: DrawCall[] = [];
+  let bindGroupCreations = 0;
+  const pickValue = options.pickValue ?? 0;
+  const device = {
+    queue: {
+      writeBuffer: (_buffer: GPUBuffer, offset: number, data: ArrayBufferView | ArrayBuffer) => {
+        const bytes =
+          data instanceof ArrayBuffer
+            ? new Uint8Array(data)
+            : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+        if (offset % 4 !== 0 || bytes.byteLength % 4 !== 0) {
+          throw new Error(
+            `writeBuffer requires 4-byte-aligned offset and byte length (offset ${offset}, length ${bytes.byteLength})`,
+          );
+        }
+        writes.push({ offset, bytes });
+      },
+      submit: () => undefined,
+    },
+    createBuffer: (descriptor: GPUBufferDescriptor) => {
+      const record: FakeBuffer = {
+        size: descriptor.size,
+        usage: descriptor.usage,
+        destroyed: false,
+      };
+      buffers.push(record);
+      return {
+        destroy: () => {
+          record.destroyed = true;
+        },
+        mapAsync: () => Promise.resolve(),
+        getMappedRange: () => new Uint32Array([pickValue]).buffer,
+        unmap: () => undefined,
+      } as unknown as GPUBuffer;
+    },
+    createBindGroupLayout: () => ({}),
+    createBindGroup: () => {
+      bindGroupCreations += 1;
+      return {};
+    },
+    createPipelineLayout: () => ({}),
+    createShaderModule: () => ({}),
+    createRenderPipeline: () => ({}),
+    createTexture: () => {
+      const record: FakeTexture = { destroyed: false };
+      textures.push(record);
+      return {
+        createView: () => ({}),
+        destroy: () => {
+          record.destroyed = true;
+        },
+      };
+    },
+    createCommandEncoder: () => ({
+      beginRenderPass: () => {
+        const pass = {
+          setPipeline: () => undefined,
+          setBindGroup: () => undefined,
+          setVertexBuffer: () => undefined,
+          setIndexBuffer: () => undefined,
+          drawIndexed: (indexCount: number, instanceCount: number) => {
+            drawCalls.push({ indexCount, instanceCount });
+          },
+          end: () => undefined,
+        };
+        return pass as unknown as GPURenderPassEncoder;
+      },
+      finish: () => ({}),
+      copyTextureToBuffer: () => undefined,
+    }),
+  };
+  return {
+    device: device as unknown as GPUDevice,
+    writes,
+    buffers,
+    textures,
+    drawCalls,
+    get textureCreations() {
+      return textures.length;
+    },
+    get bindGroupCreations() {
+      return bindGroupCreations;
+    },
+  };
+}

@@ -16,9 +16,12 @@ as a [[architecture-overview|Part]] and drawn many times via GPU instancing.
 ## What the renderer must batch
 
 - Group draw calls by part to minimize pipeline/bind-group changes.
-- Per-instance data (world transform, color, pick id) lives in a storage GPU
-  buffer; the renderer patches only changed contiguous byte ranges on state
-  changes (see [[interactive-state|Interactive state]]).
+- Per-instance data (world transform, color, pick id) lives in slot-stable
+  storage GPU buffers; the renderer patches only changed contiguous byte
+  subranges on state changes (see
+  [[renderer-subrange-updates|Renderer subrange updates]]).
+- Visibility is expressed as a compacted per-part draw-order buffer, so hidden
+  geometry is never drawn and instance counts scale with the changed parts only.
 - Instance count is the performance lever: keep geometry upload amortized and
   per-frame work proportional to state changes, not instance rebuilds.
 

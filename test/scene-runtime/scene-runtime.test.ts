@@ -272,8 +272,14 @@ describe("createSceneRuntime", () => {
       [1],
     );
     const runtime = createSceneRuntime(scene);
-    expect(runtime.setInstanceTransform(1, translation(50, 0, 0))).toBe(true);
-    expect(runtime.setInstanceTransform(99, translation(0, 0, 0))).toBe(false);
+    expect(runtime.setInstanceTransform(1, translation(50, 0, 0))).toEqual({
+      changedInstanceIds: [1],
+      valid: true,
+    });
+    expect(runtime.setInstanceTransform(99, translation(0, 0, 0))).toEqual({
+      changedInstanceIds: [],
+      valid: false,
+    });
     expect(runtime.getTransform(1)?.[12]).toBe(50);
     expect(runtime.getTransform(0)?.[12]).toBe(1);
   });
@@ -330,6 +336,32 @@ describe("createSceneRuntime", () => {
     expect(flattened.map((instance) => instance.partId)).toEqual(
       Array.from(runtime.instancePartIds).slice(0, flattened.length),
     );
+  });
+
+  it("keeps authoring placement handles stable and hidden slots resolvable", () => {
+    const scene = buildScene(
+      1,
+      [
+        {
+          id: 1,
+          placements: [
+            { kind: "part", partId: 1, transform: translation(1, 0, 0) },
+            { kind: "assembly", assemblyId: 2, transform: identity() },
+          ],
+        },
+        { id: 2, placements: [{ kind: "part", partId: 2, transform: identity() }] },
+      ],
+      [1, 2],
+      [2],
+    );
+    const runtime = createSceneRuntime(scene);
+    expect(runtime.getInstanceId(0)).toBe("1/0");
+    expect(runtime.getInstanceId(1)).toBe("1/1/0");
+    expect(runtime.getInstanceId(2)).toBeUndefined();
+    runtime.setAssemblyVisible(2, false);
+    runtime.setInstanceVisible(0, false);
+    expect(runtime.getInstanceId(0)).toBe("1/0");
+    expect(runtime.getInstanceId(1)).toBe("1/1/0");
   });
 
   it("skips missing assembly references in an unvalidated scene", () => {
@@ -391,5 +423,228 @@ describe("createSceneRuntime", () => {
     expect(runtime.visibleCount).toBe(0);
     expect(runtime.setAssemblyVisible(1, true).changedInstanceIds).toEqual([0, 1]);
     expect(Array.from(runtime.getDrawList())).toEqual([0, 1]);
+  });
+
+  describe("setNodeTransform", () => {
+    it("recomputes world transforms for the dirty subtree and isolates siblings", () => {
+      const scene = buildScene(
+        1,
+        [
+          {
+            id: 1,
+            placements: [
+              { kind: "assembly", assemblyId: 2, transform: translation(100, 0, 0) },
+              { kind: "assembly", assemblyId: 4, transform: translation(1000, 0, 0) },
+            ],
+          },
+          {
+            id: 2,
+            placements: [
+              { kind: "part", partId: 1, transform: translation(1, 0, 0) },
+              { kind: "assembly", assemblyId: 3, transform: translation(10, 0, 0) },
+            ],
+          },
+          { id: 3, placements: [{ kind: "part", partId: 2, transform: translation(1, 0, 0) }] },
+          { id: 4, placements: [{ kind: "part", partId: 3, transform: translation(1, 0, 0) }] },
+        ],
+        [1, 2, 3],
+      );
+      const runtime = createSceneRuntime(scene);
+      expect(runtime.getTransform(0)?.[12]).toBe(101);
+      expect(runtime.getTransform(1)?.[12]).toBe(111);
+      expect(runtime.getTransform(2)?.[12]).toBe(1001);
+      expect(runtime.getNodeWorldTransform(1)?.[12]).toBe(100);
+      expect(runtime.getNodeWorldTransform(3)?.[12]).toBe(1000);
+
+      expect(runtime.setNodeTransform(1, translation(200, 0, 0))).toEqual({
+        changedInstanceIds: [0, 1],
+        valid: true,
+      });
+      expect(runtime.getTransform(0)?.[12]).toBe(201);
+      expect(runtime.getTransform(1)?.[12]).toBe(211);
+      expect(runtime.getTransform(2)?.[12]).toBe(1001);
+      expect(runtime.getNodeTransform(1)?.[12]).toBe(200);
+      expect(runtime.getNodeWorldTransform(1)?.[12]).toBe(200);
+      expect(runtime.getNodeWorldTransform(2)?.[12]).toBe(210);
+
+      expect(runtime.setNodeTransform(3, translation(2000, 0, 0))).toEqual({
+        changedInstanceIds: [2],
+        valid: true,
+      });
+      expect(runtime.getTransform(2)?.[12]).toBe(2001);
+      expect(runtime.getTransform(0)?.[12]).toBe(201);
+      expect(runtime.getTransform(1)?.[12]).toBe(211);
+    });
+
+    it("moves only one expansion of a repeated assembly", () => {
+      const scene = buildScene(
+        1,
+        [
+          {
+            id: 1,
+            placements: [
+              { kind: "assembly", assemblyId: 2, transform: identity() },
+              { kind: "assembly", assemblyId: 2, transform: identity() },
+            ],
+          },
+          { id: 2, placements: [{ kind: "part", partId: 1, transform: translation(5, 0, 0) }] },
+        ],
+        [1],
+      );
+      const runtime = createSceneRuntime(scene);
+      expect(runtime.getTransform(0)?.[12]).toBe(5);
+      expect(runtime.getTransform(1)?.[12]).toBe(5);
+
+      expect(runtime.setNodeTransform(1, translation(10, 0, 0))).toEqual({
+        changedInstanceIds: [0],
+        valid: true,
+      });
+      expect(runtime.getTransform(0)?.[12]).toBe(15);
+      expect(runtime.getTransform(1)?.[12]).toBe(5);
+    });
+
+    it("moves the root node and everything beneath it", () => {
+      const scene = buildScene(
+        1,
+        [
+          {
+            id: 1,
+            placements: [
+              { kind: "part", partId: 1, transform: translation(1, 0, 0) },
+              { kind: "assembly", assemblyId: 2, transform: identity() },
+            ],
+          },
+          { id: 2, placements: [{ kind: "part", partId: 2, transform: translation(2, 0, 0) }] },
+        ],
+        [1, 2],
+      );
+      const runtime = createSceneRuntime(scene);
+      expect(runtime.setNodeTransform(0, translation(10, 0, 0))).toEqual({
+        changedInstanceIds: [0, 1],
+        valid: true,
+      });
+      expect(runtime.getNodeWorldTransform(0)?.[12]).toBe(10);
+      expect(runtime.getNodeWorldTransform(1)?.[12]).toBe(10);
+      expect(runtime.getTransform(0)?.[12]).toBe(11);
+      expect(runtime.getTransform(1)?.[12]).toBe(12);
+    });
+
+    it("returns empty no-op deltas for unchanged or out-of-range targets", () => {
+      const scene = buildScene(
+        1,
+        [
+          {
+            id: 1,
+            placements: [
+              { kind: "part", partId: 1, transform: translation(1, 0, 0) },
+              { kind: "assembly", assemblyId: 2, transform: translation(100, 0, 0) },
+            ],
+          },
+          { id: 2, placements: [{ kind: "part", partId: 2, transform: translation(2, 0, 0) }] },
+        ],
+        [1, 2],
+      );
+      const runtime = createSceneRuntime(scene);
+      expect(runtime.setNodeTransform(1, translation(100, 0, 0))).toEqual({
+        changedInstanceIds: [],
+        valid: true,
+      });
+      expect(runtime.setInstanceTransform(0, translation(1, 0, 0))).toEqual({
+        changedInstanceIds: [],
+        valid: true,
+      });
+      expect(runtime.setNodeTransform(-1, translation(0, 0, 0))).toEqual({
+        changedInstanceIds: [],
+        valid: false,
+      });
+      expect(runtime.setNodeTransform(99, translation(0, 0, 0))).toEqual({
+        changedInstanceIds: [],
+        valid: false,
+      });
+      expect(runtime.getNodeTransform(99)).toBeUndefined();
+      expect(runtime.getNodeWorldTransform(99)).toBeUndefined();
+      expect(runtime.getTransform(99)).toBeUndefined();
+      expect(runtime.getTransform(0)?.[12]).toBe(1);
+      expect(runtime.getTransform(1)?.[12]).toBe(102);
+    });
+
+    it("keeps a manually set instance transform under a moved ancestor", () => {
+      const scene = buildScene(
+        1,
+        [
+          {
+            id: 1,
+            placements: [{ kind: "assembly", assemblyId: 2, transform: translation(100, 0, 0) }],
+          },
+          { id: 2, placements: [{ kind: "part", partId: 1, transform: translation(1, 0, 0) }] },
+        ],
+        [1],
+      );
+      const runtime = createSceneRuntime(scene);
+      expect(runtime.setInstanceTransform(0, translation(10, 0, 0))).toEqual({
+        changedInstanceIds: [0],
+        valid: true,
+      });
+      expect(runtime.getTransform(0)?.[12]).toBe(110);
+
+      expect(runtime.setNodeTransform(1, translation(200, 0, 0))).toEqual({
+        changedInstanceIds: [0],
+        valid: true,
+      });
+      expect(runtime.getTransform(0)?.[12]).toBe(210);
+    });
+
+    it("recomputes hidden instance slots too", () => {
+      const scene = buildScene(
+        1,
+        [
+          {
+            id: 1,
+            placements: [{ kind: "assembly", assemblyId: 2, transform: translation(100, 0, 0) }],
+          },
+          { id: 2, placements: [{ kind: "part", partId: 1, transform: translation(1, 0, 0) }] },
+        ],
+        [1],
+        [1],
+      );
+      const runtime = createSceneRuntime(scene);
+      expect(runtime.visibleCount).toBe(0);
+      expect(runtime.instanceCount).toBe(1);
+      expect(runtime.setNodeTransform(1, translation(200, 0, 0))).toEqual({
+        changedInstanceIds: [0],
+        valid: true,
+      });
+      expect(runtime.getTransform(0)?.[12]).toBe(201);
+      expect(runtime.visibleCount).toBe(0);
+    });
+  });
+
+  it("keeps draw order and visibility deltas stable across transform edits", () => {
+    const scene = buildScene(
+      1,
+      [
+        {
+          id: 1,
+          placements: [
+            { kind: "part", partId: 1, transform: translation(1, 0, 0) },
+            { kind: "part", partId: 1, transform: translation(2, 0, 0) },
+            { kind: "part", partId: 1, transform: translation(3, 0, 0) },
+          ],
+        },
+      ],
+      [1],
+    );
+    const runtime = createSceneRuntime(scene);
+    const initial = Array.from(runtime.getDrawList());
+    expect(initial).toEqual([0, 1, 2]);
+    expect(runtime.setNodeTransform(0, translation(5, 0, 0)).changedInstanceIds).toEqual([0, 1, 2]);
+    expect(Array.from(runtime.getDrawList())).toEqual(initial);
+    expect(runtime.setInstanceVisible(1, false).changedInstanceIds).toEqual([1]);
+    expect(Array.from(runtime.getDrawList())).toEqual([0, 2]);
+    expect(runtime.setInstanceTransform(0, translation(20, 0, 0)).changedInstanceIds).toEqual([0]);
+    expect(Array.from(runtime.getDrawList())).toEqual([0, 2]);
+    expect(runtime.setInstanceVisible(1, true).changedInstanceIds).toEqual([1]);
+    expect(Array.from(runtime.getDrawList())).toEqual(initial);
+    expect(runtime.getTransform(0)?.[12]).toBe(25);
   });
 });
