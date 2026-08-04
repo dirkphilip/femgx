@@ -104,4 +104,7 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   instances of one part) can cost draw time and GPU memory (the buffer is bounded
   by `maxStorageBufferBindingSize`). Very large selections are a performance
   concern, not a correctness one (resolved in
-  [femgx#68](https://github.com/dirkphilip/femgx/issues/68)).
+  [femgx#68](https://github.com/dirkphilip/femgx/issues/68); the linear scan is
+  tracked in [femgx#95](https://github.com/dirkphilip/femgx/issues/95)).
+- The edge overlay draws instance-level emphasis, not per-element edges, because
+  edges shared between adjacent elements have no unambiguous element owner.
