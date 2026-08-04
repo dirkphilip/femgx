@@ -229,6 +229,15 @@ function createEdgePipeline(
   });
 }
 
+/** Configures the canvas context for a device and surface format. */
+export function configureCanvasContext(
+  context: GPUCanvasContext,
+  device: GPUDevice,
+  format: GPUTextureFormat,
+): void {
+  context.configure({ device, format, alphaMode: "opaque" });
+}
+
 /** Releases the buffer owned by the render resources (pipelines need none). */
 export function destroyRenderResources(resources: RenderResources): void {
   resources.cameraBuffer.destroy();

@@ -1,6 +1,8 @@
 import type { Camera } from "../camera/camera";
 import type { Part } from "../geometry/part";
 import { resolveInstanceStyle, type InteractionState } from "../interaction/interaction";
+import type { DeviceLostInfo } from "../platform/device";
+import { requestWebGpuDevice } from "../platform/device";
 import { resolvePickTarget } from "../picking/pick";
 import type { SceneRuntime } from "../scene-runtime/runtime";
 import type { Instance, InstanceId, PartId, PickTarget } from "../scene/types";
@@ -12,23 +14,13 @@ import {
   patchInstances,
   writeDrawOrder,
   type DrawCall,
-  type DrawResources,
   type InstanceUpdate,
 } from "./gpu-draw";
 import { encodeFrame, type DisplayMode } from "./gpu-frame";
-import {
-  createPickTargets,
-  destroyPickTargets,
-  readPickPixel,
-  resetPickTargets,
-  type PickTargets,
-} from "./gpu-pick";
-import {
-  createRenderResources,
-  destroyRenderResources,
-  type RenderResources,
-} from "./gpu-pipelines";
+import { destroyPickTargets, readPickPixel, resetPickTargets } from "./gpu-pick";
+import { destroyRenderResources } from "./gpu-pipelines";
 import { createDefaultInteraction, defaultStyle } from "./gpu-support";
+import { createGpuBundle, GpuDeviceLifecycle } from "./gpu-recovery";
 import {
   buildDrawOrder,
   buildInstanceLayout,
@@ -44,6 +36,8 @@ export interface WebGpuRendererOptions {
   readonly powerPreference?: GPUPowerPreference;
   /** Screen-space diameter of point elements in device pixels (default 8). */
   readonly pointSizePixels?: number;
+  /** Called with a typed reason when the underlying GPU device is lost. */
+  readonly onDeviceLost?: (info: DeviceLostInfo) => void;
 }
 
 /** How the visible color pass renders each part. */
@@ -83,33 +77,30 @@ export interface WebGpuRenderer {
   pick(x: number, y: number): Promise<PickTarget | undefined>;
   resize(width?: number, height?: number): void;
   destroy(): void;
+  /** True while the GPU device is lost and awaiting `recover()`. */
+  readonly lost: boolean;
+  /**
+   * Re-creates the GPU device after a loss and re-uploads the scene. No-op
+   * while the device is healthy. Throws when the renderer uses an externally
+   * provided device that it cannot recreate.
+   */
+  recover(): Promise<void>;
 }
 
-/** Creates a WebGPU renderer, or throws a descriptive error when unavailable. */
+/** Creates a WebGPU renderer, or throws a typed error when unavailable. */
 export async function createWebGpuRenderer(
   options: WebGpuRendererOptions,
 ): Promise<WebGpuRenderer> {
-  if (!("gpu" in navigator)) {
-    throw new Error("WebGPU is unavailable in this browser");
-  }
-  const adapterOptions =
-    options.powerPreference === undefined ? {} : { powerPreference: options.powerPreference };
-  const adapter = await navigator.gpu.requestAdapter(adapterOptions);
-  if (adapter === null) {
-    throw new Error("WebGPU adapter request failed");
-  }
-  const device = options.device ?? (await adapter.requestDevice());
-  return new GpuRenderer(options.canvas, device, options.pointSizePixels ?? 8);
+  const device = options.device ?? (await requestWebGpuDevice(options)).device;
+  return new GpuRenderer(options.canvas, device, options);
 }
 
 class GpuRenderer implements WebGpuRenderer {
   private readonly context: GPUCanvasContext;
   private readonly format: GPUTextureFormat;
   private readonly depthFormat = "depth24plus" as GPUTextureFormat;
-  private readonly resources: RenderResources;
-  private readonly pickTargets: PickTargets;
+  private readonly lifecycle: GpuDeviceLifecycle;
   private readonly pointSize: number;
-  private draw: DrawResources;
   private runtime: SceneRuntime | undefined;
   private layout: InstanceLayout | undefined;
   private calls: readonly DrawCall[] = [];
@@ -120,17 +111,25 @@ class GpuRenderer implements WebGpuRenderer {
 
   public constructor(
     private readonly canvas: HTMLCanvasElement,
-    private readonly device: GPUDevice,
-    pointSize: number,
+    device: GPUDevice,
+    options: WebGpuRendererOptions,
   ) {
     const context = canvas.getContext("webgpu");
     if (context === null) throw new Error("WebGPU canvas context unavailable");
     this.context = context;
     this.format = navigator.gpu.getPreferredCanvasFormat();
-    this.pointSize = Math.max(1, pointSize);
-    this.resources = createRenderResources(device, this.format, this.depthFormat);
-    this.draw = createDrawResources(device);
-    this.pickTargets = createPickTargets();
+    this.pointSize = Math.max(1, options.pointSizePixels ?? 8);
+    this.lifecycle = new GpuDeviceLifecycle({
+      bundle: createGpuBundle(device, this.format, this.depthFormat),
+      context,
+      format: this.format,
+      depthFormat: this.depthFormat,
+      powerPreference: options.powerPreference,
+      ownsDevice: options.device === undefined,
+      onLost: (info) => {
+        if (!this.destroyed) options.onDeviceLost?.(info);
+      },
+    });
     this.resize();
   }
 
@@ -140,11 +139,11 @@ class GpuRenderer implements WebGpuRenderer {
     encodeFrame(camera, parts, {
       canvas: this.canvas,
       context: this.context,
-      device: this.device,
-      draw: this.draw,
-      resources: this.resources,
+      device: this.lifecycle.bundle.device,
+      draw: this.lifecycle.bundle.draw,
+      resources: this.lifecycle.bundle.resources,
       calls: this.calls,
-      pickTargets: this.pickTargets,
+      pickTargets: this.lifecycle.bundle.pickTargets,
       depthFormat: this.depthFormat,
       displayMode: this.displayMode,
       pointSize: this.pointSize,
@@ -182,7 +181,7 @@ class GpuRenderer implements WebGpuRenderer {
       }
     }
     for (const [partId, partUpdates] of updates) {
-      patchInstances(this.draw, partId, partUpdates);
+      patchInstances(this.lifecycle.bundle.draw, partId, partUpdates);
     }
     if (runtime.visibleCount !== layout.visibleCount) {
       this.rebuildVisibleOrders(runtime, layout, changedInstanceIds);
@@ -196,8 +195,8 @@ class GpuRenderer implements WebGpuRenderer {
     if (layout === undefined) return;
     syncElementHighlights(
       {
-        device: this.device,
-        draw: this.draw,
+        device: this.lifecycle.bundle.device,
+        draw: this.lifecycle.bundle.draw,
         runtime,
         layout,
         slotByInstanceId: this.slotByInstanceId,
@@ -224,9 +223,9 @@ class GpuRenderer implements WebGpuRenderer {
     const runtime = this.runtime;
     if (runtime === undefined) return undefined;
     const { instancePickId, elementPickId } = await readPickPixel(
-      this.device,
+      this.lifecycle.bundle.device,
       this.canvas,
-      this.pickTargets,
+      this.lifecycle.bundle.pickTargets,
       x,
       y,
     );
@@ -236,20 +235,38 @@ class GpuRenderer implements WebGpuRenderer {
   public resize(width = this.canvas.clientWidth, height = this.canvas.clientHeight): void {
     this.canvas.width = Math.max(1, Math.floor(width * devicePixelRatio));
     this.canvas.height = Math.max(1, Math.floor(height * devicePixelRatio));
-    this.context.configure({ device: this.device, format: this.format, alphaMode: "opaque" });
-    resetPickTargets(this.pickTargets);
+    this.context.configure({
+      device: this.lifecycle.bundle.device,
+      format: this.format,
+      alphaMode: "opaque",
+    });
+    resetPickTargets(this.lifecycle.bundle.pickTargets);
   }
 
   public destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    destroyRenderResources(this.resources);
-    destroyDrawResources(this.draw);
-    destroyPickTargets(this.pickTargets);
+    destroyRenderResources(this.lifecycle.bundle.resources);
+    destroyDrawResources(this.lifecycle.bundle.draw);
+    destroyPickTargets(this.lifecycle.bundle.pickTargets);
+  }
+
+  public get lost(): boolean {
+    return this.lifecycle.lost;
+  }
+
+  public async recover(): Promise<void> {
+    if (this.destroyed) throw new Error("WebGPU renderer has been destroyed");
+    if (await this.lifecycle.recover()) {
+      this.runtime = undefined;
+      this.layout = undefined;
+      this.calls = [];
+    }
   }
 
   private ensureAlive(): void {
     if (this.destroyed) throw new Error("WebGPU renderer has been destroyed");
+    this.lifecycle.ensureUsable();
   }
 
   private attach(runtime: SceneRuntime): void {
@@ -260,8 +277,8 @@ class GpuRenderer implements WebGpuRenderer {
     ) {
       return;
     }
-    destroyDrawResources(this.draw);
-    this.draw = createDrawResources(this.device);
+    destroyDrawResources(this.lifecycle.bundle.draw);
+    this.lifecycle.bundle.draw = createDrawResources(this.lifecycle.bundle.device);
     const layout = buildInstanceLayout(runtime);
     const interaction = createDefaultInteraction();
     const snapshot = buildInstanceSnapshot(runtime);
@@ -284,8 +301,8 @@ class GpuRenderer implements WebGpuRenderer {
           ),
         });
       }
-      patchInstances(this.draw, partId, updates);
-      writeDrawOrder(this.draw, partId, buildDrawOrder(layout, runtime, partId));
+      patchInstances(this.lifecycle.bundle.draw, partId, updates);
+      writeDrawOrder(this.lifecycle.bundle.draw, partId, buildDrawOrder(layout, runtime, partId));
     }
     this.runtime = runtime;
     this.layout = layout;
@@ -306,7 +323,7 @@ class GpuRenderer implements WebGpuRenderer {
     const rebuild = affected.size > 0 ? affected : new Set(layout.partOrder);
     for (const partId of rebuild) {
       const order = buildDrawOrder(layout, runtime, partId);
-      writeDrawOrder(this.draw, partId, order);
+      writeDrawOrder(this.lifecycle.bundle.draw, partId, order);
       layout.partVisibleCounts.set(partId, order.length);
     }
     layout.visibleCount = runtime.visibleCount;

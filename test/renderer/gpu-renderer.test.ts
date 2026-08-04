@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createWebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import { computeBounds } from "../../src/geometry/part";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
@@ -6,7 +6,12 @@ import { createInteractionState, setPartOverride } from "../../src/interaction/i
 import { createScene, type Scene } from "../../src/scene/scene";
 import { translation } from "../../src/math/mat4";
 import type { Camera } from "../../src/camera/camera";
-import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
+import {
+  fakeCanvas,
+  fakeGpuDevice,
+  installFreshDeviceNavigator,
+  installGpuGlobals,
+} from "./fake-gpu";
 
 const originalNavigator = globalThis.navigator;
 const originalDevicePixelRatio = globalThis.devicePixelRatio;
@@ -175,5 +180,51 @@ describe("WebGPU renderer", () => {
     renderer.updateVisibility(runtime, shown.changedInstanceIds);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.drawCalls.at(-1)).toEqual({ indexCount: 3, instanceCount: 3 });
+  });
+
+  it("reports device loss, blocks rendering, and recovers on a fresh device", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpus = installFreshDeviceNavigator();
+    const onLost = vi.fn();
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas(), onDeviceLost: onLost });
+    const scene = buildScene();
+    const runtime = createSceneRuntime(scene);
+    renderer.render(runtime, camera, scene.parts);
+    const first = gpus[0];
+    if (first === undefined) throw new Error("no fake device created");
+    expect(first.drawCalls.length).toBeGreaterThan(0);
+    expect(renderer.lost).toBe(false);
+
+    first.lose("unknown", "gpu device crashed");
+    await first.lost;
+    expect(renderer.lost).toBe(true);
+    expect(onLost).toHaveBeenCalledWith({ reason: "unknown", message: "gpu device crashed" });
+    expect(() => {
+      renderer.render(runtime, camera, scene.parts);
+    }).toThrow(/lost/);
+    await expect(renderer.pick(1, 1)).rejects.toThrow(/lost/);
+
+    await renderer.recover();
+    expect(renderer.lost).toBe(false);
+    expect(gpus).toHaveLength(2);
+    renderer.render(runtime, camera, scene.parts);
+    const second = gpus[1];
+    if (second === undefined) throw new Error("no recovered device created");
+    expect(second.drawCalls.length).toBeGreaterThan(0);
+    renderer.destroy();
+  });
+
+  it("cannot recover an externally provided device", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const external = fakeGpuDevice();
+    installNavigator(external.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas(), device: external.device });
+    const scene = buildScene();
+    const runtime = createSceneRuntime(scene);
+    renderer.render(runtime, camera, scene.parts);
+    external.lose();
+    await external.lost;
+    expect(renderer.lost).toBe(true);
+    await expect(renderer.recover()).rejects.toThrow(/externally/i);
   });
 });

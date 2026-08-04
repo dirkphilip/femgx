@@ -105,6 +105,9 @@ under `test/`:
   streaming VTK/VTU/Gmsh/Abaqus import/export adapters, validation,
   diagnostics, and cancellation/progress (see `wiki/io-import-export.md`).
 - `src/picking/` — CPU-side pick-id resolution.
+- `src/platform/` — WebGPU capability detection (typed unsupported reasons and
+  adapter feature/limit reporting) and device lifecycle handling (device
+  request, loss reporting, re-creation after loss).
 - `src/renderer/` — WebGPU renderer, shaders, and GPU buffer support.
 
 Conventions:
