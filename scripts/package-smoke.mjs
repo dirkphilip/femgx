@@ -61,7 +61,22 @@ function main() {
     );
     expect(leaked.length === 0, `tarball leaks non-publishable files: ${leaked.join(", ")}`);
 
-    // 4. Install into a clean consumer project (no dev tooling, no registry access).
+    // 4. Validate the dual ESM/CJS types against the exports map with
+    //    @arethetypeswrong/cli (attw). Fails on any finding so hazards such as
+    //    masquerading as CJS/ESM or wrong types-condition placement cannot slip in.
+    console.log("Running @arethetypeswrong/cli on the packed tarball...");
+    const attw = join(repoRoot, "node_modules", ".bin", "attw");
+    let attwOutput;
+    try {
+      attwOutput = run(attw, [tarball, "--no-color", "--no-emoji"], repoRoot);
+    } catch (error) {
+      throw new Error(
+        `@arethetypeswrong/cli found type-resolution problems:\n${error.stdout ?? ""}${error.stderr ?? ""}`,
+      );
+    }
+    console.log(attwOutput.trim());
+
+    // 5. Install into a clean consumer project (no dev tooling, no registry access).
     writeFileSync(
       join(consumer, "package.json"),
       JSON.stringify({ name: "femgx-consumer", private: true, version: "0.0.0", type: "module" }),
@@ -94,7 +109,7 @@ function main() {
       "published package pulled in unexpected dependencies",
     );
 
-    // 5. ESM import at runtime.
+    // 6. ESM import at runtime.
     writeFileSync(
       join(consumer, "smoke.mjs"),
       [
@@ -108,7 +123,7 @@ function main() {
     );
     console.log(run("node", ["smoke.mjs"], consumer).trim());
 
-    // 6. CommonJS require at runtime.
+    // 7. CommonJS require at runtime.
     writeFileSync(
       join(consumer, "smoke.cjs"),
       [
@@ -121,7 +136,7 @@ function main() {
     );
     console.log(run("node", ["smoke.cjs"], consumer).trim());
 
-    // 7. Type-level consumption under each supported moduleResolution.
+    // 8. Type-level consumption under each supported moduleResolution.
     const tsc = join(repoRoot, "node_modules", ".bin", "tsc");
     const smokeTs = [
       'import { createCamera, createScene, identity, type Camera, type Mat4, type SceneBuilder } from "femgx";',
