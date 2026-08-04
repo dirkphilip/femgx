@@ -32,6 +32,9 @@ jobs:
       - name: Unit tests with coverage
         run: npm run test:coverage
 
+      - name: Performance budgets
+        run: npm run bench:budget
+
       - name: Build library
         run: npm run build
 

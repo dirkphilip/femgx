@@ -1,0 +1,48 @@
+name: Performance
+
+# Opt-in performance runs. Not part of the default CI gate: CPU budgets are
+# enforced by `npm run bench:budget` in ci.yml, while this workflow runs the
+# full benchmark suite and the browser performance smoke for human review and
+# trend tracking. Run it manually via workflow_dispatch.
+on:
+  workflow_dispatch:
+
+jobs:
+  cpu-bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run benchmark suite
+        run: npm run bench
+
+  browser-perf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUN_PERF: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser performance smoke
+        run: npm run test:e2e

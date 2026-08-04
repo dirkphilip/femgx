@@ -136,7 +136,9 @@ and reviewable.
 - **Small modules**: files are capped by ESLint (`max-lines` 300, per-function 60,
   `max-depth` 4). Split large modules into focused, single-concern files.
 - **CI**: GitHub Actions runs the full quality gate (format, typecheck, lint, unit
-  tests + coverage, build, e2e) on every push/PR. CI must be green before merge.
+  tests + coverage, performance budgets, build, e2e) on every push/PR. CI must be
+  green before merge. Opt-in performance runs (full bench suite, browser perf)
+  live in a separate `workflow_dispatch` workflow (see `wiki/benchmarks.md`).
 
 ## Commands
 
@@ -155,13 +157,17 @@ These exist in `package.json`:
 - `npm test` — Vitest unit tests (`test/**/*.test.ts`).
 - `npm run test:watch` — Vitest watch mode.
 - `npm run test:coverage` — unit tests with enforced v8 coverage thresholds.
+- `npm run bench` — opt-in Vitest benchmark suite (`test/bench/*.bench.ts`).
+- `npm run bench:budget` — deterministic performance budget gate; run standalone
+  (coverage distorts timing) and enforced by CI (see `wiki/benchmarks.md`).
 - `npm run test:e2e` — Playwright e2e tests (`e2e/`) against a local dev server.
 - `npm run test:e2e:install` — install the Playwright Chromium browser.
 - `npm run preview` — preview the built demo.
 
 After any edit, agents must run: `npm run lint`, `npm run typecheck`, `npm test`,
-and `npm run format`, and leave the repo clean. CI enforces the same gate
-automatically on every push/PR (see `.github/workflows/ci.yml`).
+`npm run bench:budget`, and `npm run format`, and leave the repo clean. CI
+enforces the same gate automatically on every push/PR (see
+`.github/workflows/ci.yml`).
 
 ## Agent Workflow Rules
 

@@ -10,8 +10,14 @@ npm run format
 npm run typecheck
 npm run lint
 npm run test:coverage
+npm run bench:budget
 npm run test:e2e
 ```
+
+`npm run bench:budget` runs the performance budget gate standalone (see
+[[benchmarks|Benchmarks]]) because v8 coverage instrumentation distorts wall
+clock timing; CI runs it as its own step. `npm run bench` is the opt-in trend
+suite, not part of the gate.
 
 ## Coverage
 
