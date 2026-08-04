@@ -15,6 +15,8 @@ export interface GmshDataSection {
   components: number;
   ids: number[];
   values: number[];
+  /** Set when a malformed line makes the rest of the block unreadable. */
+  dropped: boolean;
 }
 
 /** Starts collecting a data block, finalizing any previous one first. */
@@ -30,18 +32,19 @@ export function beginDataSection(state: GmshState, location: "node" | "element")
     components: 1,
     ids: [],
     values: [],
+    dropped: false,
   };
 }
 
 /** Feeds one line of a `$NodeData`/`$ElementData` block. */
-export function readDataSectionLine(state: GmshState, text: string): void {
+export function readDataSectionLine(state: GmshState, text: string, line: number): void {
   const data = state.data;
-  if (data === undefined) {
+  if (data === undefined || data.dropped) {
     return;
   }
   switch (data.stage) {
     case "strings-count":
-      beginTagLines(data, text, "strings");
+      beginTagLines(data, state, text, "strings", line);
       return;
     case "strings":
       data.stringTags.push(stripQuotes(text));
@@ -51,7 +54,7 @@ export function readDataSectionLine(state: GmshState, text: string): void {
       }
       return;
     case "reals-count":
-      beginTagLines(data, text, "reals");
+      beginTagLines(data, state, text, "reals", line);
       return;
     case "reals":
       data.remaining -= 1;
@@ -60,37 +63,58 @@ export function readDataSectionLine(state: GmshState, text: string): void {
       }
       return;
     case "ints-count":
-      beginTagLines(data, text, "ints");
+      beginTagLines(data, state, text, "ints", line);
       data.intTags = [];
       return;
     case "ints":
-      readIntTags(data, text);
+      readIntTags(data, state, text, line);
       return;
     case "data":
-      readDataValues(data, text);
+      readDataValues(data, state, text, line);
       return;
   }
 }
 
-function beginTagLines(data: GmshDataSection, text: string, stage: DataStage): void {
+function beginTagLines(
+  data: GmshDataSection,
+  state: GmshState,
+  text: string,
+  stage: DataStage,
+  line: number,
+): void {
   const count = Number(text);
   if (!Number.isInteger(count) || count < 0) {
-    data.stage = "data";
+    state.session.report("bad-data-count", `Malformed ${tagCountLabel(stage)} count '${text}'`, {
+      line,
+    });
+    data.dropped = true;
     return;
   }
   data.stage = stage;
   data.remaining = count;
 }
 
-function readIntTags(data: GmshDataSection, text: string): void {
+function tagCountLabel(stage: DataStage): string {
+  if (stage === "strings") {
+    return "string tag";
+  }
+  if (stage === "reals") {
+    return "real tag";
+  }
+  return "integer tag";
+}
+
+function readIntTags(data: GmshDataSection, state: GmshState, text: string, line: number): void {
   const values = numbersOf(text);
   if (values === undefined) {
-    data.stage = "data";
+    state.session.report("bad-data-line", `Expected integer tags, got '${text}'`, { line });
+    data.dropped = true;
     return;
   }
   for (const value of values) {
     if (data.remaining <= 0) {
-      data.stage = "data";
+      state.session.report("bad-data-line", "More integer tags than declared", { line });
+      data.dropped = true;
       return;
     }
     data.intTags.push(value);
@@ -103,16 +127,38 @@ function readIntTags(data: GmshDataSection, text: string): void {
   }
 }
 
-function readDataValues(data: GmshDataSection, text: string): void {
+function readDataValues(data: GmshDataSection, state: GmshState, text: string, line: number): void {
   const values = numbersOf(text);
-  if (values === undefined || values.length < 2) {
+  if (values === undefined) {
+    state.session.report("bad-data-line", `Expected data values, got '${text}'`, { line });
+    data.dropped = true;
+    return;
+  }
+  if (values.length === 0) {
     return;
   }
   const id = values[0] ?? -1;
+  if (values.length < 2) {
+    state.session.report("bad-data-line", `Expected 'id values' but got '${text}'`, { line });
+    data.dropped = true;
+    return;
+  }
   if (!Number.isInteger(id) || id < 0) {
+    state.session.report(
+      "bad-data-line",
+      `Data id must be a non-negative integer, got '${String(values[0])}'`,
+      { line },
+    );
+    data.dropped = true;
     return;
   }
   if (values.length - 1 !== data.components) {
+    state.session.report(
+      "data-shape",
+      `Expected ${String(data.components)} value(s) after the id but got ${String(values.length - 1)}`,
+      { line },
+    );
+    data.dropped = true;
     return;
   }
   data.ids.push(id);
@@ -128,11 +174,23 @@ export function finalizeDataSections(state: GmshState): void {
   if (data === undefined) {
     return;
   }
+  const section = data.location === "node" ? "$NodeData" : "$ElementData";
+  if (data.dropped) {
+    reportDroppedBlock(state, section);
+    return;
+  }
   if (data.name.length === 0) {
+    state.session.report("missing-data-name", `The ${section} block is missing its name`);
+    reportDroppedBlock(state, section);
     return;
   }
   const expected = data.ids.length * data.components;
   if (data.values.length !== expected) {
+    state.session.report(
+      "data-shape",
+      `${section} '${data.name}' holds ${String(data.values.length)} values for ${String(data.ids.length)} ids with ${String(data.components)} components`,
+    );
+    reportDroppedBlock(state, section);
     return;
   }
   const ids = new Uint32Array(data.ids);
@@ -145,6 +203,15 @@ export function finalizeDataSections(state: GmshState): void {
     ids,
     values,
   });
+}
+
+function reportDroppedBlock(state: GmshState, section: string): void {
+  state.session.report(
+    "dropped-data-block",
+    `Dropped the ${section} block because it is malformed`,
+    undefined,
+    "warning",
+  );
 }
 
 function stripQuotes(value: string): string {

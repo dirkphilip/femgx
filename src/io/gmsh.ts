@@ -137,7 +137,7 @@ function gmshSectionLine(state: GmshState, text: string, line: number): void {
       return;
     case "node-data":
     case "element-data":
-      readDataSectionLine(state, text);
+      readDataSectionLine(state, text, line);
       return;
     default:
       return;
