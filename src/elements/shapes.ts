@@ -7,7 +7,7 @@
  * then mid-edge nodes in canonical edge order. This module is pure CPU-side
  * data with no dependency on the renderer or WebGPU.
  *
- * The topology registry is compiler-exhaustive: `SUPPORTED_ORDERS` declares the
+ * The topology registry is compiler-exhaustive: `SupportedOrder` declares the
  * interpolation orders each family supports, the registry is checked against
  * the resulting key space with a `satisfies` constraint, and lookups still fail
  * loudly at runtime for anything untyped. Adding a family to {@link
@@ -87,16 +87,16 @@ const HEX_EDGES: ReadonlyArray<readonly [number, number]> = [
   [3, 7],
 ];
 
-/** The interpolation orders each family supports. */
-const SUPPORTED_ORDERS = {
-  point: [0],
-  line: [1, 2],
-  tet: [1, 2],
-  hex: [1, 2],
-} as const satisfies Record<ElementFamily, readonly ElementOrder[]>;
+/** The interpolation order(s) each family supports. */
+type SupportedOrder = {
+  point: 0;
+  line: 1 | 2;
+  tet: 1 | 2;
+  hex: 1 | 2;
+};
 
 /** Flat key for one supported shape, e.g. `"tet:2"`. */
-type ShapeKeyOf<F extends ElementFamily> = `${F}:${(typeof SUPPORTED_ORDERS)[F][number]}`;
+type ShapeKeyOf<F extends ElementFamily> = `${F}:${SupportedOrder[F]}`;
 
 /** Union of the flat keys of every supported shape. */
 type SupportedShapeKey = { [F in ElementFamily]: ShapeKeyOf<F> }[ElementFamily];
