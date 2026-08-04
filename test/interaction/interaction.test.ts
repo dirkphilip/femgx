@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   createInteractionState,
+  emphasizedElementRefs,
+  resolveElementStyle,
   resolveInstanceStyle,
+  setElementOverride,
+  setElementSelected,
+  setHoveredElement,
   setHoveredInstance,
   setInstanceHighlighted,
   setInstanceOverride,
@@ -16,7 +21,7 @@ import type {
   StyleOverride,
 } from "../../src/interaction/interaction";
 import { identity } from "../../src/math/mat4";
-import type { Instance } from "../../src/scene/types";
+import type { ElementRef, Instance } from "../../src/scene/types";
 
 const base: ResolvedStyle = { color: { r: 0.2, g: 0.3, b: 0.4, a: 1 }, emissive: 0, opacity: 1 };
 const item: Instance = { index: 0, instanceId: "1/0", partId: 1, worldTransform: identity() };
@@ -314,5 +319,165 @@ describe("resolveInstanceStyle", () => {
 
   it("ignores state that targets other parts or instances", () => {
     expect(resolveInstanceStyle(other, base, filledState())).toBe(base);
+  });
+});
+
+describe("setElementSelected", () => {
+  const ref: ElementRef = { instanceId: "1/0", elementId: 3 };
+
+  it("selects an element immutably", () => {
+    const initial = createInteractionState();
+    const state = setElementSelected(initial, ref, true);
+    expect(initial.selectedElementIds.size).toBe(0);
+    expect(state.selectedElementIds.get("1/0")).toEqual(new Set([3]));
+    expect(state).not.toBe(initial);
+  });
+
+  it("deselects an element immutably", () => {
+    const state = setElementSelected(createInteractionState(), ref, true);
+    const cleared = setElementSelected(state, ref, false);
+    expect(state.selectedElementIds.get("1/0")).toEqual(new Set([3]));
+    expect(cleared.selectedElementIds.size).toBe(0);
+    expect(cleared).not.toBe(state);
+  });
+
+  it("keeps sibling elements selected in the same instance", () => {
+    const state = setElementSelected(createInteractionState(), ref, true);
+    const withSibling = setElementSelected(state, { instanceId: "1/0", elementId: 4 }, true);
+    expect(withSibling.selectedElementIds.get("1/0")).toEqual(new Set([3, 4]));
+    expect(setElementSelected(withSibling, ref, false).selectedElementIds.get("1/0")).toEqual(
+      new Set([4]),
+    );
+  });
+
+  it("repeats are no-ops", () => {
+    const state = setElementSelected(createInteractionState(), ref, true);
+    expect(setElementSelected(state, ref, true)).toBe(state);
+    const initial = createInteractionState();
+    expect(setElementSelected(initial, ref, false)).toBe(initial);
+  });
+});
+
+describe("setHoveredElement", () => {
+  const ref: ElementRef = { instanceId: "1/0", elementId: 2 };
+
+  it("sets the hovered element immutably", () => {
+    const initial = createInteractionState();
+    const state = setHoveredElement(initial, ref);
+    expect(initial).not.toHaveProperty("hoveredElement");
+    expect(state.hoveredElement).toEqual(ref);
+    expect(state).not.toBe(initial);
+  });
+
+  it("replaces the current hover", () => {
+    const next: ElementRef = { instanceId: "1/0", elementId: 5 };
+    const state = setHoveredElement(setHoveredElement(createInteractionState(), ref), next);
+    expect(state.hoveredElement).toEqual(next);
+  });
+
+  it("clears hover and drops the optional property", () => {
+    const hovered = setHoveredElement(createInteractionState(), ref);
+    const cleared = setHoveredElement(hovered, undefined);
+    expect(hovered.hoveredElement).toEqual(ref);
+    expect(cleared).not.toHaveProperty("hoveredElement");
+    expect(cleared).not.toBe(hovered);
+  });
+
+  it("repeats are no-ops", () => {
+    const state = setHoveredElement(createInteractionState(), ref);
+    expect(setHoveredElement(state, ref)).toBe(state);
+    const initial = createInteractionState();
+    expect(setHoveredElement(initial, undefined)).toBe(initial);
+  });
+});
+
+describe("setElementOverride", () => {
+  const ref: ElementRef = { instanceId: "1/0", elementId: 1 };
+
+  it("sets, replaces, and clears an override immutably", () => {
+    const initial = createInteractionState();
+    const set = setElementOverride(initial, ref, { color: { r: 1, g: 0, b: 0, a: 1 } });
+    const replaced = setElementOverride(set, ref, { opacity: 0.5 });
+    const cleared = setElementOverride(replaced, ref, undefined);
+    expect(initial.elementOverrides.size).toBe(0);
+    expect(set.elementOverrides.get("1/0")?.get(1)).toMatchObject({
+      color: { r: 1, g: 0, b: 0, a: 1 },
+    });
+    expect(replaced.elementOverrides.get("1/0")?.get(1)).toMatchObject({ opacity: 0.5 });
+    expect(cleared.elementOverrides.size).toBe(0);
+    expect(set).not.toBe(initial);
+    expect(cleared).not.toBe(replaced);
+  });
+
+  it("keeps overrides for sibling elements", () => {
+    const state = setElementOverride(createInteractionState(), ref, { emissive: 0.9 });
+    const withSibling = setElementOverride(
+      state,
+      { instanceId: "1/0", elementId: 2 },
+      { emissive: 0.2 },
+    );
+    expect(withSibling.elementOverrides.get("1/0")?.size).toBe(2);
+    expect(setElementOverride(withSibling, ref, undefined).elementOverrides.get("1/0")?.size).toBe(
+      1,
+    );
+  });
+});
+
+describe("resolveElementStyle", () => {
+  it("applies element hover over the base instance style", () => {
+    const state = setHoveredElement(createInteractionState(), { instanceId: "1/0", elementId: 2 });
+    expect(resolveElementStyle(item, 2, base, state)).toMatchObject({ emissive: 0.2 });
+    expect(resolveElementStyle(item, 3, base, state)).toBe(base);
+  });
+
+  it("applies element selection over hover", () => {
+    const state = setElementSelected(
+      setHoveredElement(createInteractionState(), { instanceId: "1/0", elementId: 2 }),
+      { instanceId: "1/0", elementId: 2 },
+      true,
+    );
+    expect(resolveElementStyle(item, 2, base, state)).toMatchObject({
+      color: { r: 1, g: 0.75, b: 0.1, a: 1 },
+      emissive: 0.6,
+    });
+  });
+
+  it("gives explicit element overrides precedence over selection", () => {
+    const state = setElementOverride(
+      setElementSelected(createInteractionState(), { instanceId: "1/0", elementId: 2 }, true),
+      { instanceId: "1/0", elementId: 2 },
+      { emissive: 0.1 },
+    );
+    expect(resolveElementStyle(item, 2, base, state)).toMatchObject({ emissive: 0.1 });
+  });
+
+  it("still applies part and instance state to elements", () => {
+    const state = setPartSelected(
+      setInstanceSelected(createInteractionState(), "1/0", true),
+      1,
+      true,
+    );
+    expect(resolveElementStyle(item, 9, base, state)).toMatchObject({ emissive: 0.6 });
+  });
+});
+
+describe("emphasizedElementRefs", () => {
+  it("collects hovered, selected, and overridden elements without duplicates", () => {
+    let state = createInteractionState();
+    state = setElementSelected(state, { instanceId: "1/0", elementId: 1 }, true);
+    state = setElementSelected(state, { instanceId: "1/0", elementId: 2 }, true);
+    state = setElementSelected(state, { instanceId: "2/0", elementId: 1 }, true);
+    state = setElementOverride(state, { instanceId: "1/0", elementId: 2 }, { emissive: 0.5 });
+    state = setHoveredElement(state, { instanceId: "3/0", elementId: 7 });
+    expect(emphasizedElementRefs(state)).toEqual([
+      { instanceId: "3/0", elementId: 7 },
+      { instanceId: "1/0", elementId: 1 },
+      { instanceId: "1/0", elementId: 2 },
+      { instanceId: "2/0", elementId: 1 },
+    ]);
+  });
+
+  it("returns no refs for an empty state", () => {
+    expect(emphasizedElementRefs(createInteractionState())).toEqual([]);
   });
 });

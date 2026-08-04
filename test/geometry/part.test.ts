@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeBounds, type Part } from "../../src/geometry/part";
+import { computeBounds, validateElements, type Geometry, type Part } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 
 function part(id: number, positions: number[]): Part {
@@ -36,5 +36,81 @@ describe("part", () => {
     const t = translation(10, 0, 0);
     expect(t[12]).toBe(10);
     expect(p.bounds.minX).toBe(0);
+  });
+});
+
+function twoElementGeometry(): Geometry {
+  return {
+    positions: new Float32Array(18),
+    indices: new Uint32Array(18),
+    elements: [
+      { id: 0, triangleStart: 0, triangleCount: 2 },
+      { id: 1, triangleStart: 2, triangleCount: 4 },
+    ],
+  };
+}
+
+describe("validateElements", () => {
+  it("validates geometry without element descriptors", () => {
+    expect(() => {
+      validateElements({ positions: new Float32Array(9), indices: new Uint32Array(3) });
+    }).not.toThrow();
+  });
+
+  it("accepts a full, disjoint, unique coverage of the triangles", () => {
+    expect(() => {
+      validateElements(twoElementGeometry());
+    }).not.toThrow();
+  });
+
+  it("rejects an element outside the index buffer", () => {
+    expect(() => {
+      validateElements({
+        ...twoElementGeometry(),
+        elements: [{ id: 0, triangleStart: 6, triangleCount: 1 }],
+      });
+    }).toThrow(/outside the index buffer/);
+  });
+
+  it("rejects elements with no triangles", () => {
+    expect(() => {
+      validateElements({
+        ...twoElementGeometry(),
+        elements: [{ id: 0, triangleStart: 0, triangleCount: 0 }],
+      });
+    }).toThrow(/has no triangles/);
+  });
+
+  it("rejects duplicate element ids", () => {
+    expect(() => {
+      validateElements({
+        ...twoElementGeometry(),
+        elements: [
+          { id: 1, triangleStart: 0, triangleCount: 1 },
+          { id: 1, triangleStart: 1, triangleCount: 1 },
+        ],
+      });
+    }).toThrow(/Duplicate element id 1/);
+  });
+
+  it("rejects triangles shared by more than one element", () => {
+    expect(() => {
+      validateElements({
+        ...twoElementGeometry(),
+        elements: [
+          { id: 0, triangleStart: 0, triangleCount: 2 },
+          { id: 1, triangleStart: 1, triangleCount: 1 },
+        ],
+      });
+    }).toThrow(/belongs to more than one element/);
+  });
+
+  it("rejects triangles not covered by any element", () => {
+    expect(() => {
+      validateElements({
+        ...twoElementGeometry(),
+        elements: [{ id: 0, triangleStart: 0, triangleCount: 2 }],
+      });
+    }).toThrow(/not covered by any element/);
   });
 });

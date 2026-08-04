@@ -84,6 +84,45 @@ fn fragmentMain(@location(0) color: vec4<f32>, @location(2) @interpolate(flat) e
 `;
 
 /**
+ * Vertex stage for the wireframe/edge display pass. It draws the deduplicated
+ * mesh edges as a line list in the resolved instance color, so hover/selection
+ * still glow at the instance level without per-triangle element emphasis.
+ */
+export const edgeVertexShader = /* wgsl */ `
+struct Camera {
+  viewProjection: mat4x4<f32>,
+};
+
+struct Instance {
+  transform: mat4x4<f32>,
+  color: vec4<f32>,
+  pickId: u32,
+  emissive: f32,
+  _padding: vec2<u32>,
+};
+
+@group(0) @binding(0) var<uniform> camera: Camera;
+@group(1) @binding(0) var<storage, read> instances: array<Instance>;
+@group(1) @binding(1) var<storage, read> drawOrder: array<u32>;
+
+struct EdgeOutput {
+  @builtin(position) position: vec4<f32>,
+  @location(0) color: vec4<f32>,
+  @location(2) @interpolate(flat) emissive: f32,
+};
+
+@vertex
+fn vertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32) -> EdgeOutput {
+  let instance = instances[drawOrder[instanceIndex]];
+  var output: EdgeOutput;
+  output.position = camera.viewProjection * instance.transform * vec4<f32>(position, 1.0);
+  output.color = instance.color;
+  output.emissive = instance.emissive;
+  return output;
+}
+`;
+
+/**
  * Fragment stage for the picking pass. Packs the u32 pick ids across the four
  * RGBA bytes of an `rgba8unorm` target, mirroring `encodePickId` in
  * `pick-format.ts`; the byte order of both must stay in sync. Target 0 holds

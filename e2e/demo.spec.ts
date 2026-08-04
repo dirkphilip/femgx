@@ -39,3 +39,13 @@ test("switches projection and resets camera controls", async ({ page }) => {
   await page.getByTestId("reset").click();
   await expect(label).toHaveText("Perspective");
 });
+
+test("toggles between solid and edge display modes", async ({ page }) => {
+  await page.goto("/");
+  const label = page.getByTestId("display-mode-label");
+  await expect(label).toHaveText("Solid");
+  await page.getByTestId("display-mode").click();
+  await expect(label).toHaveText("Edges");
+  await page.getByTestId("display-mode").click();
+  await expect(label).toHaveText("Solid");
+});

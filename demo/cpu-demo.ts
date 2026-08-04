@@ -12,6 +12,7 @@ import {
 import { installCameraControls } from "./camera-controls";
 import type { DemoFixture } from "./fixture";
 import {
+  installDisplayModeControl,
   installProjectionControl,
   installResetControl,
   installResizeControl,
@@ -19,6 +20,7 @@ import {
   type CameraRef,
   type ControlContext,
   type DemoView,
+  type DisplayMode,
 } from "./view";
 
 /** Inputs for the deterministic CPU (2D canvas) renderer. */
@@ -46,6 +48,7 @@ export function startCpuDemo(options: CpuDemoOptions): void {
   });
   const cameraRef: CameraRef = { camera: fixture.initialCamera };
   let interaction: InteractionState = createInteractionState();
+  let displayMode: DisplayMode = "solid";
 
   function render(): void {
     context.clearRect(0, 0, canvas.width, canvas.height);
@@ -71,14 +74,20 @@ export function startCpuDemo(options: CpuDemoOptions): void {
         { color: baseColor, emissive: 0, opacity: 1 },
         interaction,
       );
-      context.fillStyle = `rgba(${style.color.r * 255}, ${style.color.g * 255}, ${style.color.b * 255}, ${style.opacity})`;
+      if (displayMode === "solid") {
+        context.fillStyle = `rgba(${style.color.r * 255}, ${style.color.g * 255}, ${style.color.b * 255}, ${style.opacity})`;
+        context.beginPath();
+        context.moveTo(points[0]?.[0] ?? 0, points[0]?.[1] ?? 0);
+        for (const point of points.slice(1)) context.lineTo(point[0], point[1]);
+        context.closePath();
+        context.fill();
+      }
       context.strokeStyle = style.emissive > 0 ? "#f8fafc" : "#60a5fa";
       context.lineWidth = style.emissive > 0 ? 3 : 1;
       context.beginPath();
       context.moveTo(points[0]?.[0] ?? 0, points[0]?.[1] ?? 0);
       for (const point of points.slice(1)) context.lineTo(point[0], point[1]);
       context.closePath();
-      context.fill();
       context.stroke();
     }
   }
@@ -135,8 +144,12 @@ export function startCpuDemo(options: CpuDemoOptions): void {
     instanceCount,
     partCount,
     onRender: render,
+    setDisplayMode: (mode) => {
+      displayMode = mode;
+    },
   };
   installProjectionControl(contextControls);
+  installDisplayModeControl(contextControls);
   installResetControl(contextControls, fixture.initialCamera, resetInteraction);
   installResizeControl(view, cameraRef, render);
 

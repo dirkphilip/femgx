@@ -1,6 +1,12 @@
-import { colorFragmentShader, instanceVertexShader, pickFragmentShader } from "./gpu-shaders";
+import {
+  colorFragmentShader,
+  edgeVertexShader,
+  instanceVertexShader,
+  pickFragmentShader,
+} from "./gpu-shaders";
 import { PICK_TEXTURE_FORMAT } from "./pick-format";
 import { vertexLayout } from "./gpu-support";
+import type { DrawResources } from "./gpu-draw";
 
 /** WebGPU pipelines plus the layouts, camera buffer, and bind groups they share. */
 export interface RenderResources {
@@ -8,6 +14,8 @@ export interface RenderResources {
   readonly cameraBindGroup: GPUBindGroup;
   readonly colorPipeline: GPURenderPipeline;
   readonly pickPipeline: GPURenderPipeline;
+  /** Line-list overlay that draws the mesh edges in edge display mode. */
+  readonly edgePipeline: GPURenderPipeline;
   readonly instanceLayout: GPUBindGroupLayout;
 }
 
@@ -65,10 +73,102 @@ export function createRenderResources(
     primitive: { topology: "triangle-list", cullMode: "back" },
     depthStencil: { format: depthFormat, depthWriteEnabled: true, depthCompare: "less" },
   });
-  return { cameraBuffer, cameraBindGroup, colorPipeline, pickPipeline, instanceLayout };
+  const edgePipeline = createEdgePipeline(device, layout, format, depthFormat);
+  return {
+    cameraBuffer,
+    cameraBindGroup,
+    colorPipeline,
+    pickPipeline,
+    edgePipeline,
+    instanceLayout,
+  };
+}
+
+/**
+ * Creates the line-list pipeline that overlays mesh edges on the color pass in
+ * edge display mode. Depth writes stay off so the overlay never hides the
+ * solid pass drawn underneath.
+ */
+function createEdgePipeline(
+  device: GPUDevice,
+  layout: GPUPipelineLayout,
+  format: GPUTextureFormat,
+  depthFormat: GPUTextureFormat,
+): GPURenderPipeline {
+  return device.createRenderPipeline({
+    layout,
+    vertex: {
+      module: device.createShaderModule({ code: edgeVertexShader }),
+      entryPoint: "vertexMain",
+      buffers: [vertexLayout],
+    },
+    fragment: {
+      module: device.createShaderModule({ code: colorFragmentShader }),
+      entryPoint: "fragmentMain",
+      targets: [{ format }],
+    },
+    primitive: { topology: "line-list", cullMode: "none" },
+    depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare: "less-equal" },
+  });
 }
 
 /** Releases the buffer owned by the render resources (pipelines need none). */
 export function destroyRenderResources(resources: RenderResources): void {
   resources.cameraBuffer.destroy();
+}
+
+/** Creates a depth attachment sized to the given canvas dimensions. */
+export function createDepthTexture(
+  device: GPUDevice,
+  width: number,
+  height: number,
+  format: GPUTextureFormat,
+): GPUTexture {
+  return device.createTexture({
+    size: [width, height],
+    format,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+}
+
+/** Returns the cached depth texture, recreating it only when the canvas size changes. */
+export function ensureDepthTexture(
+  draw: DrawResources,
+  width: number,
+  height: number,
+  format: GPUTextureFormat,
+): GPUTexture {
+  if (draw.depthTexture !== undefined && draw.depthWidth === width && draw.depthHeight === height) {
+    return draw.depthTexture;
+  }
+  draw.depthTexture?.destroy();
+  const texture = createDepthTexture(draw.device, width, height, format);
+  draw.depthTexture = texture;
+  draw.depthWidth = width;
+  draw.depthHeight = height;
+  return texture;
+}
+
+/** Begins the visible color render pass with a cleared depth attachment. */
+export function beginColorPass(
+  encoder: GPUCommandEncoder,
+  colorView: GPUTextureView,
+  depthView: GPUTextureView,
+): GPURenderPassEncoder {
+  return encoder.beginRenderPass({
+    colorAttachments: [
+      {
+        view: colorView,
+        clearValue: { r: 0.04, g: 0.06, b: 0.12, a: 1 },
+        loadOp: "clear",
+        storeOp: "store",
+      },
+    ],
+    depthStencilAttachment: {
+      view: depthView,
+      depthClearValue: 1,
+      depthLoadOp: "clear",
+      depthStoreOp: "store",
+    },
+  });
 }

@@ -1,4 +1,4 @@
-import { viewProjectionMatrix, type Camera } from "../camera/camera";
+import type { Camera } from "../camera/camera";
 import type { Part } from "../geometry/part";
 import { resolveInstanceStyle, type InteractionState } from "../interaction/interaction";
 import { resolvePickTarget } from "../picking/pick";
@@ -6,24 +6,19 @@ import type { SceneRuntime } from "../scene-runtime/runtime";
 import type { Instance, InstanceId, PartId, PickTarget } from "../scene/types";
 import { syncElementHighlights } from "./gpu-elements";
 import {
-  beginColorPass,
   createDrawResources,
   destroyDrawResources,
-  drawBatches,
   encodeInstanceRecord,
-  ensureDepthTexture,
   patchInstances,
   writeDrawOrder,
   type DrawCall,
-  type DrawCallContext,
   type DrawResources,
   type InstanceUpdate,
 } from "./gpu-draw";
+import { encodeFrame, type DisplayMode } from "./gpu-frame";
 import {
-  beginPickPass,
   createPickTargets,
   destroyPickTargets,
-  ensurePickTargets,
   readPickPixel,
   resetPickTargets,
   type PickTargets,
@@ -49,6 +44,9 @@ export interface WebGpuRendererOptions {
   readonly powerPreference?: GPUPowerPreference;
 }
 
+/** How the visible color pass renders each part. */
+export type { DisplayMode } from "./gpu-frame";
+
 /**
  * A renderer that draws a packed scene runtime with stable per-part instance
  * buffers. Instance records are patched in place as subrange writes; hidden
@@ -71,6 +69,8 @@ export interface WebGpuRenderer {
    * elements (hovered, selected, or explicitly overridden) as diffed records.
    */
   updateElements(runtime: SceneRuntime, interaction: InteractionState): void;
+  /** Sets whether the color pass also draws the wireframe edge overlay. */
+  setDisplayMode(mode: DisplayMode): void;
   pick(x: number, y: number): Promise<PickTarget | undefined>;
   resize(width?: number, height?: number): void;
   destroy(): void;
@@ -105,6 +105,7 @@ class GpuRenderer implements WebGpuRenderer {
   private calls: readonly DrawCall[] = [];
   private instances: Instance[] = [];
   private slotByInstanceId = new Map<InstanceId, number>();
+  private displayMode: DisplayMode = "solid";
   private destroyed = false;
 
   public constructor(
@@ -124,35 +125,17 @@ class GpuRenderer implements WebGpuRenderer {
   public render(runtime: SceneRuntime, camera: Camera, parts: ReadonlyMap<PartId, Part>): void {
     this.ensureAlive();
     this.attach(runtime);
-    const viewProjection = viewProjectionMatrix(camera);
-    this.device.queue.writeBuffer(this.resources.cameraBuffer, 0, new Float32Array(viewProjection));
-    const encoder = this.device.createCommandEncoder();
-    const colorView = this.context.getCurrentTexture().createView();
-    const depthTexture = ensureDepthTexture(
-      this.draw,
-      this.canvas.width,
-      this.canvas.height,
-      this.depthFormat,
-    );
-    const drawContext: DrawCallContext = {
-      cameraBindGroup: this.resources.cameraBindGroup,
-      instanceLayout: this.resources.instanceLayout,
-      parts,
-    };
-    const colorPass = beginColorPass(encoder, colorView, depthTexture.createView());
-    drawBatches(colorPass, this.draw, drawContext, this.calls, this.resources.colorPipeline);
-    colorPass.end();
-    ensurePickTargets(
-      this.device,
-      this.pickTargets,
-      this.canvas.width,
-      this.canvas.height,
-      this.depthFormat,
-    );
-    const pickPass = beginPickPass(encoder, this.pickTargets);
-    drawBatches(pickPass, this.draw, drawContext, this.calls, this.resources.pickPipeline);
-    pickPass.end();
-    this.device.queue.submit([encoder.finish()]);
+    encodeFrame(camera, parts, {
+      canvas: this.canvas,
+      context: this.context,
+      device: this.device,
+      draw: this.draw,
+      resources: this.resources,
+      calls: this.calls,
+      pickTargets: this.pickTargets,
+      depthFormat: this.depthFormat,
+      displayMode: this.displayMode,
+    });
   }
 
   public updateInstances(
@@ -208,6 +191,11 @@ class GpuRenderer implements WebGpuRenderer {
       },
       interaction,
     );
+  }
+
+  public setDisplayMode(mode: DisplayMode): void {
+    this.ensureAlive();
+    this.displayMode = mode;
   }
 
   public async pick(x: number, y: number): Promise<PickTarget | undefined> {
@@ -270,11 +258,7 @@ class GpuRenderer implements WebGpuRenderer {
           slot: local,
           data: encodeInstanceRecord(
             runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
-            resolveInstanceStyle(
-              instanceAt(runtime, slot, slotPartId),
-              defaultStyle,
-              interaction,
-            ),
+            resolveInstanceStyle(instanceAt(runtime, slot, slotPartId), defaultStyle, interaction),
             slot + 1,
           ),
         });

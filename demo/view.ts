@@ -5,9 +5,14 @@ export interface DemoView {
   readonly canvas: HTMLCanvasElement;
   readonly projectionToggle: HTMLButtonElement;
   readonly projectionLabel: HTMLElement;
+  readonly displayModeToggle: HTMLButtonElement;
+  readonly displayModeLabel: HTMLElement;
   readonly resetButton: HTMLButtonElement;
   readonly status: HTMLElement;
 }
+
+/** How the renderer displays the model. */
+export type DisplayMode = "solid" | "edge";
 
 /** Mutable camera holder so controls can replace the camera immutably. */
 export interface CameraRef {
@@ -21,6 +26,8 @@ export interface ControlContext {
   readonly instanceCount: number;
   readonly partCount: number;
   readonly onRender: () => void;
+  /** Applies the display mode to the underlying renderer. */
+  readonly setDisplayMode?: (mode: DisplayMode) => void;
 }
 
 /** Locates the demo's DOM nodes, throwing when the page is misconfigured. */
@@ -31,17 +38,29 @@ export function queryDemoView(): DemoView {
   }
   const projectionToggle = document.querySelector<HTMLButtonElement>("#projection-toggle");
   const projectionLabel = document.querySelector<HTMLElement>("#projection-label");
+  const displayModeToggle = document.querySelector<HTMLButtonElement>("#display-mode");
+  const displayModeLabel = document.querySelector<HTMLElement>("#display-mode-label");
   const resetButton = document.querySelector<HTMLButtonElement>("#reset");
   const status = document.querySelector<HTMLElement>("#status");
   if (
     projectionToggle === null ||
     projectionLabel === null ||
+    displayModeToggle === null ||
+    displayModeLabel === null ||
     resetButton === null ||
     status === null
   ) {
     throw new Error("missing demo controls");
   }
-  return { canvas, projectionToggle, projectionLabel, resetButton, status };
+  return {
+    canvas,
+    projectionToggle,
+    projectionLabel,
+    displayModeToggle,
+    displayModeLabel,
+    resetButton,
+    status,
+  };
 }
 
 /** Reflects the camera mode and model summary in the control bar. */
@@ -67,6 +86,19 @@ export function installProjectionControl(context: ControlContext): void {
       cameraRef.camera.mode === "perspective" ? "orthographic" : "perspective",
     );
     updateStatus(view, cameraRef.camera, instanceCount, partCount);
+    onRender();
+  });
+}
+
+/** Wires the display-mode toggle to switch between solid and edge rendering. */
+export function installDisplayModeControl(context: ControlContext): void {
+  const { view, onRender, setDisplayMode } = context;
+  let mode: DisplayMode = "solid";
+  view.displayModeToggle.addEventListener("click", () => {
+    mode = mode === "solid" ? "edge" : "solid";
+    view.displayModeLabel.textContent = mode === "solid" ? "Solid" : "Edges";
+    view.displayModeToggle.textContent = mode === "solid" ? "Edges" : "Solid";
+    setDisplayMode?.(mode);
     onRender();
   });
 }

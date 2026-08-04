@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { instanceToTarget, resolvePick } from "../../src/picking/pick";
+import { instanceToTarget, resolvePick, resolvePickTarget } from "../../src/picking/pick";
 import { identity } from "../../src/math/mat4";
 
 const instances = [
@@ -33,5 +33,25 @@ describe("instanceToTarget", () => {
       throw new Error("expected instance");
     }
     expect(instanceToTarget(target, false)).toEqual({ kind: "instance", instanceId: "1/0" });
+  });
+});
+
+describe("resolvePickTarget", () => {
+  it("resolves a hit with an element id to an element target", () => {
+    expect(resolvePickTarget(instances, 2, 5)).toEqual({
+      kind: "element",
+      partId: 2,
+      instanceId: "1/1",
+      elementId: 4,
+    });
+  });
+
+  it("resolves a hit without an element id to an instance target", () => {
+    expect(resolvePickTarget(instances, 2, 0)).toEqual({ kind: "instance", instanceId: "1/1" });
+  });
+
+  it("returns undefined when the instance pick id misses", () => {
+    expect(resolvePickTarget(instances, 0, 3)).toBeUndefined();
+    expect(resolvePickTarget(instances, 99, 3)).toBeUndefined();
   });
 });

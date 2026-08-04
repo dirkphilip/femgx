@@ -18,6 +18,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   into GPU subrange writes for transform/style/visibility attributes.
 - [[interactive-state|Interactive state]] — highlight, selection, and visibility
   as per-instance GPU attributes.
+- [[element-interaction|Element-level interaction]] — element picking, selection,
+  and GPU emphasis records with stable element ids.
 - [[pick-format|Pick texture format]] — the `rgba8unorm` pick readback format,
   why it replaced `r32uint`, and the supported pick-id range.
 - [[scaffold-decisions|Scaffold decisions]] — toolchain, strictness, and the

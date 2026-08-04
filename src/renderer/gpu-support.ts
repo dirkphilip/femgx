@@ -5,7 +5,10 @@ export interface PartResource {
   readonly indexBuffer: GPUBuffer;
   /** Per-triangle element pick ids (`elementId + 1`, 0 = none). */
   readonly elementPickIdsBuffer: GPUBuffer;
+  /** Line-list of the deduplicated mesh edges for the wireframe pass. */
+  readonly edgeIndexBuffer: GPUBuffer;
   readonly indexCount: number;
+  readonly edgeIndexCount: number;
 }
 
 export const defaultStyle: ResolvedStyle = {
