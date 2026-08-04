@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const webgpuEnabled = process.env["RUN_WEBGPU"] === "1";
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -14,7 +16,25 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      testIgnore: /webgpu\.spec\.ts/,
     },
+    ...(webgpuEnabled
+      ? [
+          {
+            name: "chromium-webgpu",
+            testMatch: /webgpu\.spec\.ts/,
+            use: {
+              ...devices["Desktop Chrome"],
+              // Software WebGPU (SwiftShader) so no GPU hardware is required.
+              // The demo still capability-gates: it falls back to the CPU
+              // renderer when the browser cannot present and pick.
+              launchOptions: {
+                args: ["--enable-unsafe-webgpu", "--enable-gpu"],
+              },
+            },
+          },
+        ]
+      : []),
   ],
   webServer: {
     command: "npm run dev -- --host 127.0.0.1",
