@@ -53,7 +53,7 @@ function twoElementGeometry(): Geometry {
 describe("validateElements", () => {
   it("validates geometry without element descriptors", () => {
     expect(() => {
-      validateElements({ positions: new Float32Array(9), indices: new Uint32Array(3) });
+      validateElements({ indices: new Uint32Array(3) });
     }).not.toThrow();
   });
 

@@ -29,6 +29,10 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `setNodeTransform`          | 2 000-instance subtree           | recompose subtree worlds     |
 | `getDrawList`               | 200 000 visible                  | rebuild draw list            |
 | `resolvePick`               | 50 000 lookups on 200 000        | O(1) index resolution        |
+| `parseChunk`                | 500 chunks / 3 000 000 vertices  | validate + bound + rebase    |
+| `buildSpatialGrid`          | 500 chunks                       | uniform-grid partition       |
+| `cullChunks`                | 500 chunks against one frustum   | cell-then-chunk culling      |
+| `createChunkStream`         | 500 chunks / 3 000 000 vertices  | deterministic budgeted load  |
 
 ### Stable model sizes and warmup rules
 

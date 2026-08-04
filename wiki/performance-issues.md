@@ -106,3 +106,21 @@ compatible Node runtime. Every npm lifecycle command now runs the lightweight
 `check-node` preflight, so a shell that resolves an older Node binary fails with
 the selected executable path instead of producing an unrelated Vite/Rolldown
 error. Node 21 is unsupported by the current toolchain.
+
+## Large-model streaming gaps
+
+The [[large-model-streaming|streaming subsystem]] resolves the CPU-side chunked
+load pipeline (parse, partition, budgeted upload, rebasing). Remaining GPU-side
+and product gaps, tracked in `wiki/todo.md` and the issue tracker:
+
+- **Worker-thread parsing**: `parseChunk` is pure and transferable, but the
+  library does not yet spawn a worker. Node's native TS type-stripping cannot
+  resolve this repo's extensionless imports, and a browser worker needs a
+  second bundle entry, so the thread host was left out of the first pass.
+- **Level of detail**: coarse/fine chunk variants and per-LOD budgets are not
+  implemented; the grid is a reasonable partition to hang LOD off later.
+- **Renderer integration**: the WebGPU renderer still rebuilds all draw
+  resources when the runtime changes, so chunked _GPU_ upload would require a
+  progressive add-part path rather than a full `attach` rebuild.
+- **64-bit coordinates**: the local-origin rebase is the documented precision
+  strategy; float64 vertex positions are not supported by current WebGPU.

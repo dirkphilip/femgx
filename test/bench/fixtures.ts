@@ -1,8 +1,9 @@
-import { computeBounds, type Part } from "../../src/geometry/part";
+import { computeBounds, computePositionsBounds, type Part } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import { createCamera, viewProjectionMatrix } from "../../src/camera/camera";
 import type { Assembly, Placement } from "../../src/scene/assembly";
 import type { Scene } from "../../src/scene/scene";
+import type { ChunkSource } from "../../src/streaming/chunk";
 import type { AssemblyId, PartId } from "../../src/scene/types";
 
 /**
@@ -21,6 +22,10 @@ export const BENCH_HIERARCHY_FANOUT = 8;
 export const BENCH_HIERARCHY_PARTS_PER_LEAF = 50;
 export const BENCH_HIERARCHY_INSTANCE_COUNT =
   BENCH_HIERARCHY_FANOUT ** BENCH_HIERARCHY_DEPTH * BENCH_HIERARCHY_PARTS_PER_LEAF;
+/** Streaming model: evenly spaced chunks, each with a fixed vertex budget. */
+export const BENCH_CHUNK_COUNT = 500;
+export const BENCH_CHUNK_VERTICES_PER_CHUNK = 6_000;
+export const BENCH_CHUNK_VERTEX_COUNT = BENCH_CHUNK_COUNT * BENCH_CHUNK_VERTICES_PER_CHUNK;
 
 function part(id: PartId): Part {
   const geometry = {
@@ -137,4 +142,37 @@ export function makeHierarchyScene(options: {
 /** A deterministic view-projection matrix for culling benchmarks. */
 export function makeViewProjection(): Float32Array {
   return viewProjectionMatrix(createCamera());
+}
+
+/**
+ * Deterministic streaming chunks: each chunk is a line of `verticesPerChunk`
+ * vertices along x, spaced `spacing` apart so chunks are cullable against the
+ * default frustum. Bounds are precomputed to model the common pre-indexed
+ * model-authority case.
+ */
+export function makeChunkSources(options: {
+  readonly chunkCount: number;
+  readonly verticesPerChunk: number;
+  readonly spacing?: number;
+}): readonly ChunkSource[] {
+  const spacing = options.spacing ?? 1;
+  const chunks: ChunkSource[] = [];
+  for (let chunk = 0; chunk < options.chunkCount; chunk++) {
+    const positions = new Float32Array(options.verticesPerChunk * 3);
+    const indices = new Uint32Array(options.verticesPerChunk);
+    const base = chunk * options.verticesPerChunk * spacing;
+    for (let vertex = 0; vertex < options.verticesPerChunk; vertex++) {
+      positions[vertex * 3] = base + vertex;
+      positions[vertex * 3 + 1] = 0;
+      positions[vertex * 3 + 2] = 0;
+      indices[vertex] = vertex;
+    }
+    chunks.push({
+      chunkId: chunk + 1,
+      index: chunk,
+      data: { positions, indices },
+      bounds: computePositionsBounds(positions),
+    });
+  }
+  return chunks;
 }

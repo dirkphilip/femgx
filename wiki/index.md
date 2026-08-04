@@ -40,6 +40,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   benchmarks, budget thresholds, and how to run/interpret them.
 - [[performance-issues|Performance issues and risks]] — known scalability,
   correctness, renderer, and toolchain gaps.
+- [[large-model-streaming|Large-model streaming]] — chunked loading, spatial
+  partitioning, budgeted upload, and local-origin coordinate rebasing.
 - [[webgpu-resource-reuse|WebGPU resource reuse]] — cached frame resources and
   the readback-map synchronization constraints.
 - [[todo|Engineering TODO]] — prioritized implementation roadmap.
