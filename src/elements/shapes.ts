@@ -83,8 +83,8 @@ const HEX_EDGES: ReadonlyArray<readonly [number, number]> = [
   [7, 4],
   [0, 4],
   [1, 5],
-  [2, 6],
   [3, 7],
+  [2, 6],
 ];
 
 /** The interpolation order(s) each family supports. */
