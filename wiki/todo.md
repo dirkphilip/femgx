@@ -119,10 +119,10 @@ development workflow.
 - [x] Add local-origin coordinate rebasing that preserves sub-float32 detail
       from double-precision model data.
 - [ ] Wire worker-thread parsing into `createChunkStream` (the parser is pure
-      and transferable; a thread host needs bundling support).
-- [ ] Add level-of-detail (coarse/fine chunk variants) to the stream.
+      and transferable; a thread host needs bundling support; see #57).
+- [ ] Add level-of-detail (coarse/fine chunk variants) to the stream (#76).
 - [ ] Feed streamed chunks directly into the WebGPU renderer so geometry
-      uploads progressively without a full draw-resource rebuild.
+      uploads progressively without a full draw-resource rebuild (#77).
 
 Related: [[performance-issues|Performance issues and risks]],
 [[instancing-strategy|Instancing strategy]], and
