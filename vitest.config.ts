@@ -6,6 +6,14 @@ export default defineConfig({
     // The performance budget gate runs standalone (see vitest.budget.config.ts)
     // so wall-clock budgets are not distorted by coverage instrumentation.
     exclude: ["test/bench/budget.test.ts"],
+    server: {
+      deps: {
+        // wgsl_reflect ships a CommonJS "main" that Node misloads under the
+        // package's ESM "type" field, so bundle it through Vite (its `module`
+        // build) instead of running it as an externalized dependency.
+        inline: ["wgsl_reflect"],
+      },
+    },
     benchmark: {
       include: ["test/bench/*.bench.ts"],
     },

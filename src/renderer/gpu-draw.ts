@@ -11,7 +11,7 @@ import type { DrawPipelines } from "./gpu-pipelines";
 import { createBuffer, type PartResource } from "./gpu-support";
 
 /** Byte size of one instance record in the per-part storage buffer. */
-const INSTANCE_STRIDE = 96;
+export const INSTANCE_STRIDE = 96;
 
 /**
  * Byte offset of the `emissive` scalar within an instance record. The record

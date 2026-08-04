@@ -57,5 +57,11 @@ Pick ids are `global slot + 1`, so they are **stable across visibility changes**
 - Bind groups are still created per batch per frame (see
   [[performance-issues|performance risks]]); only the record and order buffers
   are persistent.
+- The WGSL record structs (`Instance`, `ElementHighlight`, `ElementHighlights`,
+  `Camera`) are verified against the CPU encoder constants (`INSTANCE_STRIDE`,
+  `ELEMENT_RECORD_STRIDE`, `HIGHLIGHT_HEADER`, `CAMERA_UNIFORM_SIZE`) by
+  parsing the exported shader sources with `wgsl_reflect` in
+  `test/renderer/gpu-shaders.test.ts`. A `vec3` member or any other alignment
+  trap now fails unit tests instead of silently desyncing CPU/GPU records.
 
 Related: [[instancing-strategy|Instancing strategy]], [[interactive-state|Interactive state]].
