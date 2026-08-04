@@ -103,7 +103,9 @@ export {
 export {
   buildSpatialGrid,
   cullChunks,
+  detailIndexForDistance,
   type ChunkCell,
+  type CullChunksOptions,
   type SpatialGrid,
 } from "./streaming/spatial";
 export { createChunkStream, type ChunkStream, type ChunkStreamOptions } from "./streaming/stream";
@@ -115,10 +117,14 @@ export {
 } from "./streaming/parser";
 export {
   chunkDataByteLength,
+  isLodChunkSource,
   partFromChunk,
+  selectChunkDetail,
   type ChunkData,
   type ChunkId,
   type ChunkSource,
+  type LodChunkSource,
+  type LodDetail,
   type ParsedChunk,
 } from "./streaming/chunk";
 export {

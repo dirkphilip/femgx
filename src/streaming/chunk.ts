@@ -46,6 +46,60 @@ export interface ParsedChunk {
   readonly elements?: readonly ElementTessellation[];
 }
 
+/**
+ * One detail level of a {@link LodChunkSource}. Levels are ordered
+ * finest-first: `details[0]` is the full-fidelity geometry and higher indexes
+ * are progressively coarser variants (fewer vertices/indices) used when the
+ * chunk is distant from the camera.
+ */
+export interface LodDetail {
+  readonly data: ChunkData;
+  /** Optional precomputed world bounds for this detail; computed when absent. */
+  readonly bounds?: Bounds;
+}
+
+/**
+ * A chunk that carries an ordered list of detail levels, from finest to
+ * coarsest. Detail selection happens at cull time, which resolves the source
+ * to a single-detail {@link ChunkSource}. The chunk id and index are shared by
+ * every detail level, so pick identity and stream ordering are
+ * detail-independent.
+ */
+export interface LodChunkSource {
+  readonly chunkId: ChunkId;
+  /** Ordinal of this chunk in the model; the stream emits in this order. */
+  readonly index: number;
+  readonly details: readonly LodDetail[];
+}
+
+/** Narrowing guard: true when `source` carries ordered detail levels. */
+export function isLodChunkSource(source: ChunkSource | LodChunkSource): source is LodChunkSource {
+  return "details" in source;
+}
+
+/**
+ * Resolves a {@link LodChunkSource} to a single-detail {@link ChunkSource}
+ * carrying the `level`-th detail's data and bounds. Out-of-range levels clamp
+ * to the nearest valid detail (negative to the finest, large to the coarsest).
+ */
+export function selectChunkDetail(source: LodChunkSource, level: number): ChunkSource {
+  const detail = source.details[clampDetailLevel(level, source.details.length)];
+  if (detail === undefined) {
+    throw new Error(`LodChunkSource ${source.chunkId} has no detail levels`);
+  }
+  return {
+    chunkId: source.chunkId,
+    index: source.index,
+    data: detail.data,
+    ...(detail.bounds === undefined ? {} : { bounds: detail.bounds }),
+  };
+}
+
+function clampDetailLevel(level: number, detailCount: number): number {
+  const clamped = Math.min(Math.max(0, Math.floor(level)), detailCount - 1);
+  return clamped < 0 ? -1 : clamped;
+}
+
 /** Total CPU footprint of a chunk's raw buffers, in bytes. */
 export function chunkDataByteLength(data: ChunkData): number {
   return data.positions.byteLength + data.indices.byteLength;

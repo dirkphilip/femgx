@@ -52,13 +52,36 @@ This is the documented **local-origin** strategy. A 64-bit/global-coordinate
 strategy (float64 vertex positions) is out of scope for current WebGPU — see
 [[performance-issues|Performance issues]] and the issue tracker.
 
+## Level-of-detail chunk variants
+
+Issue #76. Chunks can carry an ordered list of detail levels (`LodChunkSource`),
+finest first, each with its own positions/indices/bounds (`LodDetail`). Detail
+selection hangs off the uniform grid:
+
+- `buildSpatialGrid` accepts `LodChunkSource` alongside plain chunks; cells and
+  culling are keyed to the **finest** detail's bounds so coarse variants are
+  never more visible than the full geometry.
+- `cullChunks(grid, viewProjection, { cameraPosition, detailThresholds })`
+  measures each **cell's** distance from the camera and resolves every chunk in
+  the cell to the detail level chosen by `detailIndexForDistance` (level 0 is
+  finest; each threshold crossed steps one level coarser). The result is a
+  stream-ready list of single-detail `ChunkSource`s, preserving chunk id/index
+  so pick identity and stream order are detail-independent.
+- Without `cameraPosition`, LOD chunks resolve to their finest detail, so the
+  cull API is backwards compatible.
+
+The stream itself is unchanged: it only ever sees resolved single-detail
+sources, so "defer fine geometry" is expressed as _which_ variant each chunk
+resolves to at cull time, not as stream state.
+
 ## Budgets
 
 `test/bench/budget.test.ts` covers `parseChunk`, `buildSpatialGrid`,
-`cullChunks`, and a full `createChunkStream` load at 500 chunks / 3M vertices
-(see [[benchmarks|Benchmarks]]). Backpressure is the per-tick upload budget;
-`ChunkStream.uploadedBytes` and `pendingBytes` expose the memory ledger, and
-`dispose()` makes eviction predictable.
+`cullChunks`, and a full `createChunkStream` load at 500 chunks / 3M vertices,
+plus mixed-detail `parseChunk` and `createChunkStream` cases over 500 LOD
+chunks (see [[benchmarks|Benchmarks]]). Backpressure is the per-tick upload
+budget; `ChunkStream.uploadedBytes` and `pendingBytes` expose the memory
+ledger, and `dispose()` makes eviction predictable.
 
 Related: [[instancing-strategy|Instancing strategy]], [[packed-runtime|Packed
 scene runtime]], [[todo|Engineering TODO]].
