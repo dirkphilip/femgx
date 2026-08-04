@@ -86,6 +86,8 @@ under `test/`:
 
 - `src/math/` — matrix/vector math (`mat4`).
 - `src/geometry/` — reusable part geometry and computed bounds.
+- `src/elements/` — typed finite-element model: shape/topology definitions and a
+  validated `createElement` constructor, independent of the renderer.
 - `src/scene/` — authoritative CPU model: part/assembly/instance identities,
   assemblies, and the scene builder.
 - `src/runtime/` — compile pipeline: flattening, frustum culling, per-part
