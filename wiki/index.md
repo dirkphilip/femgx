@@ -16,6 +16,8 @@ graph (open the repo as a vault, or follow the index files in a plain editor).
   into GPU subrange writes for transform/style/visibility attributes.
 - [[interactive-state|Interactive state]] — highlight, selection, and visibility
   as per-instance GPU attributes.
+- [[pick-format|Pick texture format]] — the `rgba8unorm` pick readback format,
+  why it replaced `r32uint`, and the supported pick-id range.
 - [[scaffold-decisions|Scaffold decisions]] — toolchain, strictness, and the
   initial library structure.
 - [[source-organization|Source organization]] — subsystem directory layout and

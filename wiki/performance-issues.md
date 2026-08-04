@@ -75,15 +75,16 @@ broken environments degrade to the CPU renderer instead of failing.
 
 ### SwiftShader r32uint picking reliability
 
-In one headless SwiftShader environment the pick texture readback returned
-corrupted values (float bit patterns such as `0x3F800000`) for some instances
-even though the GPU record/draw-order buffers were verified correct and a
-minimal r32uint pipeline rendered cleanly. This looks like a software
-rasterizer quirk rather than a renderer bug, and it is the reason the WebGPU
-lane is capability-gated: environments whose picking is unreliable skip the
-picking test instead of failing. If it reproduces on Linux CI SwiftShader,
-consider rendering pick ids into an `rgba8unorm` texture (or another
-universally reliable format) instead of `r32uint`.
+_Resolved_: pick ids are now packed across the four RGBA channels of an
+`rgba8unorm` texture instead of `r32uint` (see [[pick-format|Pick texture
+format]]), a byte-typed format that round-trips the full supported pick-id range
+on every WebGPU implementation. Previously, in one headless SwiftShader
+environment the `r32uint` pick readback returned corrupted values (float bit
+patterns such as `0x3F800000`) for some instances even though the GPU
+record/draw-order buffers were verified correct and a minimal r32uint pipeline
+rendered cleanly — a software rasterizer quirk rather than a renderer bug. The
+WebGPU lane stays capability-gated as a safety net: environments whose picking
+is unreliable skip the picking test instead of failing.
 
 ### Remaining GPU allocation risks
 

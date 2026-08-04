@@ -1,3 +1,5 @@
+import { encodePickId } from "../../src/renderer/pick-format";
+
 export interface RecordedWrite {
   readonly offset: number;
   readonly bytes: Uint8Array;
@@ -106,7 +108,7 @@ export function fakeGpuDevice(options: { readonly pickValue?: number } = {}): Fa
           record.destroyed = true;
         },
         mapAsync: () => Promise.resolve(),
-        getMappedRange: () => new Uint32Array([pickValue]).buffer,
+        getMappedRange: () => encodePickId(pickValue).buffer,
         unmap: () => undefined,
       } as unknown as GPUBuffer;
     },
