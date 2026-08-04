@@ -43,7 +43,6 @@ with rotation/scale coverage in `test/mat4.test.ts`.
 The renderer is split into focused modules under `src/renderer/` (see
 [[source-organization|Source organization]]): `gpu-pipelines.ts` owns pipeline and
 resource creation, `gpu-draw.ts` owns per-part geometry/instance buffers and draw
-<<<<<<< HEAD
 submission, `gpu-pick.ts` owns the pick targets and readback, and
 `runtime-state.ts` bridges the [[packed-runtime|packed runtime]] slots to
 part-local storage. `gpu-renderer.ts` is a thin orchestrator.
