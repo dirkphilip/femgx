@@ -1,4 +1,6 @@
-/** Integer pick textures reused across frames and resized on demand. */
+import { decodePickId, PICK_TEXTURE_FORMAT } from "./pick-format";
+
+/** Pick render targets reused across frames and resized on demand. */
 export interface PickTargets {
   texture: GPUTexture | undefined;
   depthTexture: GPUTexture | undefined;
@@ -49,7 +51,7 @@ export function ensurePickTargets(
   if (pick.texture !== undefined) return;
   pick.texture = device.createTexture({
     size: [width, height],
-    format: "r32uint",
+    format: PICK_TEXTURE_FORMAT,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
   });
   pick.depthTexture = device.createTexture({
@@ -59,7 +61,7 @@ export function ensurePickTargets(
   });
 }
 
-/** Begins the integer render pass used for asynchronous picking. */
+/** Begins the pick render pass used for asynchronous picking. */
 export function beginPickPass(encoder: GPUCommandEncoder, pick: PickTargets): GPURenderPassEncoder {
   const texture = pick.texture;
   const depthTexture = pick.depthTexture;
@@ -113,7 +115,7 @@ export async function readPickPixel(
     device.queue.submit([encoder.finish()]);
     await buffer.mapAsync(GPUMapMode.READ);
     mapped = true;
-    const pickId = new Uint32Array(buffer.getMappedRange())[0] ?? 0;
+    const pickId = decodePickId(new Uint8Array(buffer.getMappedRange()));
     buffer.unmap();
     mapped = false;
     return pickId;

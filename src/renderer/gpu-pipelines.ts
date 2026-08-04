@@ -1,4 +1,5 @@
 import { colorFragmentShader, instanceVertexShader, pickFragmentShader } from "./gpu-shaders";
+import { PICK_TEXTURE_FORMAT } from "./pick-format";
 import { vertexLayout } from "./gpu-support";
 
 /** WebGPU pipelines plus the layouts, camera buffer, and bind groups they share. */
@@ -57,7 +58,7 @@ export function createRenderResources(
     fragment: {
       module: device.createShaderModule({ code: pickFragmentShader }),
       entryPoint: "fragmentMain",
-      targets: [{ format: "r32uint" }],
+      targets: [{ format: PICK_TEXTURE_FORMAT }],
     },
     primitive: { topology: "triangle-list", cullMode: "back" },
     depthStencil: { format: depthFormat, depthWriteEnabled: true, depthCompare: "less" },

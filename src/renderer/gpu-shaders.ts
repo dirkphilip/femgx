@@ -45,10 +45,23 @@ fn fragmentMain(@location(0) color: vec4<f32>, @location(2) @interpolate(flat) e
 }
 `;
 
-/** Fragment stage for the integer picking pass. */
+/**
+ * Fragment stage for the picking pass. Packs the u32 pick id across the four
+ * RGBA bytes of an `rgba8unorm` target, mirroring `encodePickId` in
+ * `pick-format.ts`; the byte order of both must stay in sync.
+ */
 export const pickFragmentShader = /* wgsl */ `
+fn packPickId(pickId: u32) -> vec4<f32> {
+  return vec4<f32>(
+    f32(pickId & 0xFFu) / 255.0,
+    f32((pickId >> 8u) & 0xFFu) / 255.0,
+    f32((pickId >> 16u) & 0xFFu) / 255.0,
+    f32((pickId >> 24u) & 0xFFu) / 255.0,
+  );
+}
+
 @fragment
-fn fragmentMain(@location(0) color: vec4<f32>, @location(1) @interpolate(flat) pickId: u32) -> @location(0) u32 {
-  return pickId;
+fn fragmentMain(@location(0) color: vec4<f32>, @location(1) @interpolate(flat) pickId: u32) -> @location(0) vec4<f32> {
+  return packPickId(pickId);
 }
 `;

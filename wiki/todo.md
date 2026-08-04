@@ -75,10 +75,9 @@ development workflow.
 
 ## Improvement work items
 
-- [ ] If SwiftShader `r32uint` pick rendering proves unreliable in CI, render
-      pick ids into a universally reliable format (for example `rgba8unorm`
-      with the id packed across color channels) instead of `r32uint`; see
-      [[performance-issues|Performance issues and risks]].
+- [x] Render pick ids into a universally reliable format (`rgba8unorm` with the
+      id packed across the RGBA channels) instead of `r32uint`, whose SwiftShader
+      readback proved unreliable; see [[pick-format|Pick texture format]].
 
 Related: [[performance-issues|Performance issues and risks]],
 [[instancing-strategy|Instancing strategy]], and
