@@ -31,7 +31,12 @@ import type { InstanceStorage } from "../../src/renderer/gpu-draw";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
-const style = { color: { r: 0.23, g: 0.51, b: 0.96, a: 1 }, emissive: 0.5, opacity: 1 };
+const style = {
+  color: { r: 0.23, g: 0.51, b: 0.96, a: 1 },
+  emissive: 0.5,
+  opacity: 1,
+  edge: false,
+};
 
 describe("buildElementTrianglePickIds", () => {
   it("maps each triangle to its element pick id (element id + 1)", () => {

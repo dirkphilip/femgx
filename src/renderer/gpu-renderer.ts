@@ -1,6 +1,6 @@
 import type { Camera } from "../camera/camera";
 import type { Part } from "../geometry/part";
-import { resolveInstanceStyle, type InteractionState } from "../interaction/interaction";
+import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { DeviceLostInfo } from "../platform/device";
 import { requestWebGpuDevice } from "../platform/device";
 import { resolvePickTarget } from "../picking/pick";
@@ -10,22 +10,21 @@ import { syncElementHighlights } from "./gpu-elements";
 import {
   createDrawResources,
   destroyDrawResources,
-  encodeInstanceRecord,
   patchInstances,
   writeDrawOrder,
+  writeEdgeOrder,
   type DrawCall,
-  type InstanceUpdate,
 } from "./gpu-draw";
-import { encodeFrame, type DisplayMode } from "./gpu-frame";
+import { encodeFrame } from "./gpu-frame";
 import { destroyPickTargets, readPickPixel, resetPickTargets } from "./gpu-pick";
 import { destroyRenderResources } from "./gpu-pipelines";
-import { createDefaultInteraction, defaultStyle } from "./gpu-support";
 import { createGpuBundle, GpuDeviceLifecycle } from "./gpu-recovery";
+import { collectInstanceUpdates } from "./instance-updates";
 import {
   buildDrawOrder,
+  buildEdgeOrder,
   buildInstanceLayout,
   buildInstanceSnapshot,
-  instanceAt,
   type InstanceLayout,
 } from "./runtime-state";
 
@@ -40,14 +39,13 @@ export interface WebGpuRendererOptions {
   readonly onDeviceLost?: (info: DeviceLostInfo) => void;
 }
 
-/** How the visible color pass renders each part. */
-export type { DisplayMode } from "./gpu-frame";
-
 /**
  * A renderer that draws a packed scene runtime with stable per-part instance
  * buffers. Instance records are patched in place as subrange writes; hidden
  * instances are removed from per-part draw-order lists so only visible
- * geometry is ever drawn.
+ * geometry is ever drawn. The edge overlay draws the line edges of the visible
+ * instances whose resolved style requests them, through a second compacted
+ * draw-order list.
  */
 export interface WebGpuRenderer {
   render(runtime: SceneRuntime, camera: Camera, parts: ReadonlyMap<PartId, Part>): void;
@@ -65,8 +63,12 @@ export interface WebGpuRenderer {
    * elements (hovered, selected, or explicitly overridden) as diffed records.
    */
   updateElements(runtime: SceneRuntime, interaction: InteractionState): void;
-  /** Sets whether the color pass also draws the wireframe edge overlay. */
-  setDisplayMode(mode: DisplayMode): void;
+  /**
+   * Controls whether the edge overlay culls edges occluded by nearer geometry.
+   * With depth testing on (`true`, the default) the overlay compares against
+   * the depth buffer; with it off edges are drawn through every surface.
+   */
+  setEdgeDepthTest(enabled: boolean): void;
   /**
    * Rebuilds GPU draw order after runtime visibility changed (part/assembly
    * hide-show), using the delta of affected instance slots returned by the
@@ -104,9 +106,11 @@ class GpuRenderer implements WebGpuRenderer {
   private runtime: SceneRuntime | undefined;
   private layout: InstanceLayout | undefined;
   private calls: readonly DrawCall[] = [];
+  private edgeCalls: readonly DrawCall[] = [];
   private instances: Instance[] = [];
   private slotByInstanceId = new Map<InstanceId, number>();
-  private displayMode: DisplayMode = "solid";
+  private edgeFlags: boolean[] = [];
+  private edgeDepthTest = true;
   private destroyed = false;
 
   public constructor(
@@ -143,9 +147,10 @@ class GpuRenderer implements WebGpuRenderer {
       draw: this.lifecycle.bundle.draw,
       resources: this.lifecycle.bundle.resources,
       calls: this.calls,
+      edgeCalls: this.edgeCalls,
       pickTargets: this.lifecycle.bundle.pickTargets,
       depthFormat: this.depthFormat,
-      displayMode: this.displayMode,
+      edgeDepthTest: this.edgeDepthTest,
       pointSize: this.pointSize,
     });
   }
@@ -159,32 +164,23 @@ class GpuRenderer implements WebGpuRenderer {
     this.attach(runtime);
     const layout = this.layout;
     if (layout === undefined) return;
-    const updates = new Map<PartId, InstanceUpdate[]>();
-    for (const slot of changedInstanceIds) {
-      if (slot < 0 || slot >= runtime.instanceCount) continue;
-      const partId = runtime.instancePartIds[slot];
-      const local = layout.slotPartLocal[slot];
-      if (partId === undefined || local === undefined || local < 0) continue;
-      const update: InstanceUpdate = {
-        slot: local,
-        data: encodeInstanceRecord(
-          runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
-          resolveInstanceStyle(instanceAt(runtime, slot, partId), defaultStyle, interaction),
-          slot + 1,
-        ),
-      };
-      const list = updates.get(partId);
-      if (list === undefined) {
-        updates.set(partId, [update]);
-      } else {
-        list.push(update);
-      }
-    }
+    const { updates, edgeChanged } = collectInstanceUpdates(
+      runtime,
+      layout,
+      interaction,
+      this.edgeFlags,
+      changedInstanceIds,
+    );
     for (const [partId, partUpdates] of updates) {
       patchInstances(this.lifecycle.bundle.draw, partId, partUpdates);
     }
+    if (edgeChanged.size > 0) {
+      this.rebuildEdgeOrders(runtime, layout, edgeChanged);
+    }
     if (runtime.visibleCount !== layout.visibleCount) {
       this.rebuildVisibleOrders(runtime, layout, changedInstanceIds);
+    } else if (edgeChanged.size > 0) {
+      this.rebuildCalls();
     }
   }
 
@@ -205,9 +201,9 @@ class GpuRenderer implements WebGpuRenderer {
     );
   }
 
-  public setDisplayMode(mode: DisplayMode): void {
+  public setEdgeDepthTest(enabled: boolean): void {
     this.ensureAlive();
-    this.displayMode = mode;
+    this.edgeDepthTest = enabled;
   }
 
   public updateVisibility(runtime: SceneRuntime, changedInstanceIds: readonly number[]): void {
@@ -258,9 +254,8 @@ class GpuRenderer implements WebGpuRenderer {
   public async recover(): Promise<void> {
     if (this.destroyed) throw new Error("WebGPU renderer has been destroyed");
     if (await this.lifecycle.recover()) {
-      this.runtime = undefined;
-      this.layout = undefined;
-      this.calls = [];
+      this.runtime = this.layout = undefined;
+      this.calls = this.edgeCalls = [];
     }
   }
 
@@ -280,28 +275,22 @@ class GpuRenderer implements WebGpuRenderer {
     destroyDrawResources(this.lifecycle.bundle.draw);
     this.lifecycle.bundle.draw = createDrawResources(this.lifecycle.bundle.device);
     const layout = buildInstanceLayout(runtime);
-    const interaction = createDefaultInteraction();
     const snapshot = buildInstanceSnapshot(runtime);
     this.instances = snapshot.instances;
     this.slotByInstanceId = snapshot.slotByInstanceId;
+    this.edgeFlags = new Array<boolean>(runtime.instanceCount).fill(false);
+    const allSlots = Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
+    const { updates } = collectInstanceUpdates(
+      runtime,
+      layout,
+      createInteractionState(),
+      this.edgeFlags,
+      allSlots,
+    );
+    for (const [partId, partUpdates] of updates) {
+      patchInstances(this.lifecycle.bundle.draw, partId, partUpdates);
+    }
     for (const partId of layout.partOrder) {
-      const slots = layout.partSlots.get(partId);
-      if (slots === undefined) continue;
-      const updates: InstanceUpdate[] = [];
-      for (const slot of slots) {
-        const local = layout.slotPartLocal[slot];
-        const slotPartId = runtime.instancePartIds[slot];
-        if (local === undefined || local < 0 || slotPartId === undefined) continue;
-        updates.push({
-          slot: local,
-          data: encodeInstanceRecord(
-            runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
-            resolveInstanceStyle(instanceAt(runtime, slot, slotPartId), defaultStyle, interaction),
-            slot + 1,
-          ),
-        });
-      }
-      patchInstances(this.lifecycle.bundle.draw, partId, updates);
       writeDrawOrder(this.lifecycle.bundle.draw, partId, buildDrawOrder(layout, runtime, partId));
     }
     this.runtime = runtime;
@@ -326,23 +315,43 @@ class GpuRenderer implements WebGpuRenderer {
       writeDrawOrder(this.lifecycle.bundle.draw, partId, order);
       layout.partVisibleCounts.set(partId, order.length);
     }
+    this.rebuildEdgeOrders(runtime, layout, rebuild);
     layout.visibleCount = runtime.visibleCount;
     this.rebuildCalls();
+  }
+
+  private rebuildEdgeOrders(
+    runtime: SceneRuntime,
+    layout: InstanceLayout,
+    parts: ReadonlySet<PartId>,
+  ): void {
+    for (const partId of parts) {
+      const order = buildEdgeOrder(layout, runtime, partId, this.edgeFlags);
+      writeEdgeOrder(this.lifecycle.bundle.draw, partId, order);
+      layout.partEdgeCounts.set(partId, order.length);
+    }
   }
 
   private rebuildCalls(): void {
     const layout = this.layout;
     if (layout === undefined) {
       this.calls = [];
+      this.edgeCalls = [];
       return;
     }
     const calls: DrawCall[] = [];
+    const edgeCalls: DrawCall[] = [];
     for (const partId of layout.partOrder) {
       const count = layout.partVisibleCounts.get(partId);
       if (count !== undefined && count > 0) {
         calls.push({ partId, instanceCount: count });
       }
+      const edgeCount = layout.partEdgeCounts.get(partId);
+      if (edgeCount !== undefined && edgeCount > 0) {
+        edgeCalls.push({ partId, instanceCount: edgeCount });
+      }
     }
     this.calls = calls;
+    this.edgeCalls = edgeCalls;
   }
 }

@@ -50,6 +50,12 @@ Each element family supports a subset of modes (`elementRenderModes`):
   vertex shader expands them to a constant device-pixel size
   (`WebGpuRendererOptions.pointSizePixels`, default 8).
 
+The gallery's `edges` mode is edges-only geometry switched in through part
+visibility. On top of that, a per-instance `edge` style override (see
+[[element-interaction|Element-level interaction]]) overlays a part's edges as
+lines on its solid surface, with an optional depth-test toggle — so a model can
+be shown solid with a wireframe overlay instead of edges-only.
+
 ## Linear vs quadratic
 
 Quadratic elements are **never silently reduced** to linear geometry:

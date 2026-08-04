@@ -8,9 +8,6 @@ import { beginPickPass, ensurePickTargets } from "./gpu-pick";
 import type { RenderResources } from "./gpu-pipelines";
 import { beginColorPass, ensureDepthTexture } from "./gpu-pipelines";
 
-/** How the visible color pass renders each part. */
-export type DisplayMode = "solid" | "edge";
-
 /** Everything the per-frame command encoding needs from the renderer. */
 export interface FrameOptions {
   readonly canvas: HTMLCanvasElement;
@@ -18,19 +15,23 @@ export interface FrameOptions {
   readonly device: GPUDevice;
   readonly draw: DrawResources;
   readonly resources: RenderResources;
+  /** Per-part surface draw calls over the visible instances. */
   readonly calls: readonly DrawCall[];
+  /** Per-part edge-overlay draw calls over the edge-styled visible instances. */
+  readonly edgeCalls: readonly DrawCall[];
   readonly pickTargets: PickTargets;
   readonly depthFormat: GPUTextureFormat;
-  readonly displayMode: DisplayMode;
+  /** Whether the edge overlay culls edges occluded by depth (`less-equal`). */
+  readonly edgeDepthTest: boolean;
   /** Screen-space diameter of point elements in device pixels. */
   readonly pointSize: number;
 }
 
 /**
- * Encodes and submits one frame: the visible color pass (optionally with the
- * wireframe edge overlay in edge display mode) followed by the two-attachment
- * picking pass. The pick targets are always refreshed so `pick(x, y)` reads the
- * ids of the last rendered frame.
+ * Encodes and submits one frame: the visible color pass (with a wireframe edge
+ * overlay for the instances whose resolved style requests it) followed by the
+ * two-attachment picking pass. The pick targets are always refreshed so
+ * `pick(x, y)` reads the ids of the last rendered frame.
  */
 export function encodeFrame(
   camera: Camera,
@@ -59,10 +60,12 @@ export function encodeFrame(
   };
   const colorPass = beginColorPass(encoder, colorView, depthTexture.createView());
   drawBatches(colorPass, frame.draw, context, frame.calls, { pass: "color" });
-  if (frame.displayMode === "edge") {
-    drawBatches(colorPass, frame.draw, context, frame.calls, {
-      pipeline: frame.resources.edgePipeline,
-      index: "edges",
+  if (frame.edgeCalls.length > 0) {
+    drawBatches(colorPass, frame.draw, context, frame.edgeCalls, {
+      pipeline: frame.edgeDepthTest
+        ? frame.resources.edgePipeline
+        : frame.resources.edgeAlwaysPipeline,
+      overlay: true,
     });
   }
   colorPass.end();

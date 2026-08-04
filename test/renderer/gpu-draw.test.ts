@@ -10,6 +10,7 @@ import {
   patchInstances,
   uploadPart,
   writeDrawOrder,
+  writeEdgeOrder,
   type DrawCallContext,
 } from "../../src/renderer/gpu-draw";
 import { beginColorPass, ensureDepthTexture } from "../../src/renderer/gpu-pipelines";
@@ -86,7 +87,7 @@ describe("GPU draw path", () => {
   it("encodes transform, style, emissive, and stable pick id into a record", () => {
     const data = encodeInstanceRecord(
       translation(1, 2, 3),
-      { color: { r: 1, g: 0.5, b: 0.25, a: 1 }, emissive: 0.4, opacity: 0.5 },
+      { color: { r: 1, g: 0.5, b: 0.25, a: 1 }, emissive: 0.4, opacity: 0.5, edge: false },
       7,
     );
     const floats = new Float32Array(data);
@@ -138,7 +139,7 @@ describe("GPU draw path", () => {
       const styled = (emissive: number) =>
         encodeInstanceRecord(
           translation(1, 0, 0),
-          { color: { r: 0.23, g: 0.51, b: 0.96, a: 1 }, emissive, opacity: 1 },
+          { color: { r: 0.23, g: 0.51, b: 0.96, a: 1 }, emissive, opacity: 1, edge: false },
           1,
         );
       patchInstances(draw, part.id, [{ slot: 0, data: styled(0) }]);
@@ -176,12 +177,15 @@ describe("GPU draw path", () => {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
       patchInstances(draw, part.id, [{ slot: 5, data: record(1) }]);
-      expect(gpu.buffers).toHaveLength(3);
+      expect(gpu.buffers).toHaveLength(4);
       expect(gpu.buffers[0]?.size).toBe(6 * 96);
       expect(gpu.buffers[1]?.size).toBe(6 * 4);
-      expect(gpu.buffers[2]?.size).toBe(HIGHLIGHT_BUFFER_SIZE);
+      expect(gpu.buffers[2]?.size).toBe(6 * 4);
+      expect(gpu.buffers[3]?.size).toBe(HIGHLIGHT_BUFFER_SIZE);
       patchInstances(draw, part.id, [{ slot: 10, data: record(2) }]);
-      expect(gpu.buffers[3]?.size).toBe(12 * 96);
+      expect(gpu.buffers[4]?.size).toBe(12 * 96);
+      expect(gpu.buffers[5]?.size).toBe(12 * 4);
+      expect(gpu.buffers[6]?.size).toBe(12 * 4);
     } finally {
       restore();
     }
@@ -196,6 +200,54 @@ describe("GPU draw path", () => {
       const afterInitial = gpu.writes.length;
       writeDrawOrder(draw, part.id, new Uint32Array([0, 2]));
       expect(writeRanges(gpu, afterInitial)).toEqual([[4, 8]]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("writes the edge overlay order to its own buffer, diffed like the surface order", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      writeEdgeOrder(draw, part.id, new Uint32Array([0, 1, 2]));
+      const afterInitial = gpu.writes.length;
+      writeEdgeOrder(draw, part.id, new Uint32Array([0, 1, 2]));
+      expect(gpu.writes.length).toBe(afterInitial);
+      writeEdgeOrder(draw, part.id, new Uint32Array([0, 2]));
+      expect(writeRanges(gpu, afterInitial)).toEqual([[4, 8]]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("draws the overlay pass through the edge order and edge index buffers", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, part.id, [
+        { slot: 0, data: record(0) },
+        { slot: 1, data: record(1) },
+        { slot: 2, data: record(2) },
+      ]);
+      writeDrawOrder(draw, part.id, new Uint32Array([0, 1, 2]));
+      writeEdgeOrder(draw, part.id, new Uint32Array([0, 2]));
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
+      drawBatches(pass, draw, drawContext(), [{ partId: part.id, instanceCount: 3 }], {
+        pass: "color",
+      });
+      drawBatches(pass, draw, drawContext(), [{ partId: part.id, instanceCount: 2 }], {
+        pipeline: {} as GPURenderPipeline,
+        overlay: true,
+      });
+      pass.end();
+      expect(gpu.drawCalls).toEqual([
+        { indexCount: 3, instanceCount: 3 },
+        { indexCount: 6, instanceCount: 2 },
+      ]);
+      expect(gpu.bindGroupCreations).toBe(2);
     } finally {
       restore();
     }

@@ -23,7 +23,12 @@ import type {
 import { identity } from "../../src/math/mat4";
 import type { ElementRef, Instance } from "../../src/scene/types";
 
-const base: ResolvedStyle = { color: { r: 0.2, g: 0.3, b: 0.4, a: 1 }, emissive: 0, opacity: 1 };
+const base: ResolvedStyle = {
+  color: { r: 0.2, g: 0.3, b: 0.4, a: 1 },
+  emissive: 0,
+  opacity: 1,
+  edge: false,
+};
 const item: Instance = { index: 0, instanceId: "1/0", partId: 1, worldTransform: identity() };
 const other: Instance = { index: 1, instanceId: "2/0", partId: 2, worldTransform: identity() };
 
@@ -314,6 +319,23 @@ describe("resolveInstanceStyle", () => {
       color: { r: 1, g: 0.75, b: 0.1, a: 1 },
       emissive: 0.1,
       opacity: 0.25,
+      edge: false,
+    });
+  });
+
+  it("resolves the edge overlay flag from part and instance overrides", () => {
+    const partEdge = setPartOverride(createInteractionState(), 1, { edge: true });
+    expect(resolveInstanceStyle(item, base, partEdge)).toMatchObject({ edge: true });
+    const instanceEdge = setInstanceOverride(createInteractionState(), "1/0", { edge: true });
+    expect(resolveInstanceStyle(item, base, instanceEdge)).toMatchObject({ edge: true });
+    const cleared = setInstanceOverride(
+      setPartOverride(createInteractionState(), 1, { edge: true }),
+      "1/0",
+      { edge: false },
+    );
+    expect(resolveInstanceStyle(item, base, cleared)).toMatchObject({ edge: false });
+    expect(resolveInstanceStyle(item, base, createInteractionState())).toMatchObject({
+      edge: false,
     });
   });
 

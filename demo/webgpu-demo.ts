@@ -5,6 +5,7 @@ import {
   setHoveredInstance,
   setElementSelected,
   setInstanceSelected,
+  setPartOverride,
   type ElementRenderMode,
   type InstanceId,
   type InteractionState,
@@ -17,7 +18,8 @@ import { installCameraControls } from "./camera-controls";
 import { startCpuDemo } from "./cpu-demo";
 import type { DemoFixture } from "./fixture";
 import {
-  installDisplayModeControl,
+  installDepthTestControl,
+  installEdgeOverlayControl,
   installModeControl,
   installProjectionControl,
   installResetControl,
@@ -26,7 +28,6 @@ import {
   type CameraRef,
   type ControlContext,
   type DemoView,
-  type DisplayMode,
 } from "./view";
 import type { RendererFactory } from "./webgpu-probe";
 
@@ -180,10 +181,21 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<void>
     partCount: fixture.scene.parts.size,
     mode: () => mode,
     onRender: renderGpu,
-    setDisplayMode: (nextMode: DisplayMode) => gpuRenderer?.setDisplayMode(nextMode),
+    setEdgeOverlay: (enabled) => {
+      if (gpuRenderer === undefined) return;
+      let next = interaction;
+      for (const partId of fixture.scene.parts.keys()) {
+        next = setPartOverride(next, partId, enabled ? { edge: true } : undefined);
+      }
+      interaction = next;
+      const slots = Array.from({ length: runtime.instanceCount }, (_, index) => index);
+      gpuRenderer.updateInstances(runtime, interaction, slots);
+    },
+    setEdgeDepthTest: (enabled) => gpuRenderer?.setEdgeDepthTest(enabled),
   };
   installProjectionControl(context);
-  installDisplayModeControl(context);
+  installEdgeOverlayControl(context);
+  installDepthTestControl(context);
   installModeControl(context, (nextMode) => {
     const changed = applyModeVisibility(nextMode);
     mode = nextMode;
