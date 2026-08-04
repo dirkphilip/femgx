@@ -142,6 +142,7 @@ export {
   type ProjectionMode,
   type Vec3,
 } from "./camera/camera";
+export { projectPolygon, type ScreenPoint } from "./camera/project-polygon";
 export { createScene, type Scene, type SceneBuilder } from "./scene/scene";
 export {
   identity,
@@ -201,6 +202,14 @@ export {
   type ScalarColorMapOptions,
 } from "./results/mapping";
 export { deformGeometry, deformPositions } from "./results/deform";
+export {
+  advanceCase,
+  createCasePlayer,
+  sampleDisplacements,
+  type CaseLoopMode,
+  type CasePlayer,
+  type CasePlayerOptions,
+} from "./results/case-player";
 export {
   createCancellationToken,
   noopProgress,

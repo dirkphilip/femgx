@@ -15,7 +15,12 @@ export interface Frustum {
   readonly planes: readonly FrustumPlane[];
 }
 
-/** Extracts left/right/bottom/top/near/far planes from a clip matrix. */
+/**
+ * Extracts left/right/bottom/top/near/far planes from a clip matrix using the
+ * WebGPU `[0, 1]` depth convention. The near plane is satisfied when `clip.z`
+ * is non-negative, so it is the third row alone; the far plane when
+ * `clip.z <= clip.w`.
+ */
 export function extractFrustum(matrix: Mat4): Frustum {
   const row = (rowIndex: number, columnIndex: number): number =>
     matrix[columnIndex * 4 + rowIndex] ?? 0;
@@ -44,12 +49,7 @@ export function extractFrustum(matrix: Mat4): Frustum {
       row(3, 2) - row(1, 2),
       row(3, 3) - row(1, 3),
     ),
-    plane(
-      row(3, 0) + row(2, 0),
-      row(3, 1) + row(2, 1),
-      row(3, 2) + row(2, 2),
-      row(3, 3) + row(2, 3),
-    ),
+    plane(row(2, 0), row(2, 1), row(2, 2), row(2, 3)),
     plane(
       row(3, 0) - row(2, 0),
       row(3, 1) - row(2, 1),

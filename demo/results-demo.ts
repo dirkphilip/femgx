@@ -1,10 +1,13 @@
 import {
+  advanceCase,
   createCamera,
+  createCasePlayer,
   deformPositions,
   legend,
   mapScalar,
-  projectPoint,
+  projectPolygon,
   resizeCamera,
+  sampleDisplacements,
   type Color,
 } from "../src/index";
 import type { ResultsFixture, ResultsLoadCase } from "./results-fixture";
@@ -19,6 +22,7 @@ export interface ResultsDemoView {
   readonly deformedToggle: HTMLButtonElement;
   readonly scalarToggle: HTMLButtonElement;
   readonly scaleInput: HTMLInputElement;
+  readonly playToggle: HTMLButtonElement;
   readonly caseToggle: HTMLButtonElement;
   readonly status: HTMLElement;
 }
@@ -28,7 +32,6 @@ export interface ResultsDemoState {
   deformed: boolean;
   scalar: boolean;
   scale: number;
-  caseIndex: number;
 }
 
 /** Locates the results demo's DOM nodes, throwing when the page is misconfigured. */
@@ -37,6 +40,7 @@ export function queryResultsView(): ResultsDemoView {
   const deformedToggle = document.querySelector<HTMLButtonElement>("#results-deformed-toggle");
   const scalarToggle = document.querySelector<HTMLButtonElement>("#results-scalar-toggle");
   const scaleInput = document.querySelector<HTMLInputElement>("#results-scale");
+  const playToggle = document.querySelector<HTMLButtonElement>("#results-play-toggle");
   const caseToggle = document.querySelector<HTMLButtonElement>("#results-case-toggle");
   const status = document.querySelector<HTMLElement>("#results-status");
   if (
@@ -44,12 +48,13 @@ export function queryResultsView(): ResultsDemoView {
     deformedToggle === null ||
     scalarToggle === null ||
     scaleInput === null ||
+    playToggle === null ||
     caseToggle === null ||
     status === null
   ) {
     throw new Error("missing results demo controls");
   }
-  return { canvas, deformedToggle, scalarToggle, scaleInput, caseToggle, status };
+  return { canvas, deformedToggle, scalarToggle, scaleInput, playToggle, caseToggle, status };
 }
 
 /**
@@ -75,13 +80,19 @@ export function startResultsDemo(view: ResultsDemoView, fixture: ResultsFixture)
     canvas.height,
   );
 
-  const state: ResultsDemoState = { deformed: false, scalar: true, scale: 1, caseIndex: 0 };
+  const state: ResultsDemoState = { deformed: false, scalar: true, scale: 1 };
   if (fixture.cases.length === 0) {
     throw new Error("results fixture must define at least one load case");
   }
+  let player = createCasePlayer(
+    fixture.cases.map((caze) => caze.displacement),
+    { caseDuration: 1, loop: "wrap", interpolate: true },
+  );
+  let playing = false;
+  let lastFrameTime: number | undefined;
 
   function currentCase(): ResultsLoadCase {
-    const caze = fixture.cases[state.caseIndex % fixture.cases.length];
+    const caze = fixture.cases[player.caseIndex];
     if (caze === undefined) {
       throw new Error("results fixture has an empty load-case list");
     }
@@ -92,16 +103,14 @@ export function startResultsDemo(view: ResultsDemoView, fixture: ResultsFixture)
     context.clearRect(0, 0, canvas.width, canvas.height);
     const caze = currentCase();
     const positions = state.deformed
-      ? deformPositions(fixture.mesh.positions, caze.displacement, state.scale)
+      ? deformPositions(fixture.mesh.positions, sampleDisplacements(player), state.scale)
       : fixture.mesh.positions;
     for (let element = 0; element < fixture.mesh.indices.length / 3; element++) {
       const a = vertex(positions, fixture.mesh.indices[element * 3] ?? 0);
       const b = vertex(positions, fixture.mesh.indices[element * 3 + 1] ?? 0);
       const c = vertex(positions, fixture.mesh.indices[element * 3 + 2] ?? 0);
-      const pa = projectPoint(camera, a);
-      const pb = projectPoint(camera, b);
-      const pc = projectPoint(camera, c);
-      if (pa === undefined || pb === undefined || pc === undefined) continue;
+      const screen = projectPolygon(camera, [a, b, c]);
+      if (screen.length < 3) continue;
       const color = state.scalar
         ? mapScalar(fixture.colorMap, caze.vonMises[element] ?? NaN)
         : fixture.baseColor;
@@ -109,9 +118,8 @@ export function startResultsDemo(view: ResultsDemoView, fixture: ResultsFixture)
       context.strokeStyle = "rgba(226, 232, 240, 0.45)";
       context.lineWidth = 1;
       context.beginPath();
-      context.moveTo(pa[0], pa[1]);
-      context.lineTo(pb[0], pb[1]);
-      context.lineTo(pc[0], pc[1]);
+      context.moveTo(screen[0]?.[0] ?? 0, screen[0]?.[1] ?? 0);
+      for (const point of screen.slice(1)) context.lineTo(point[0], point[1]);
       context.closePath();
       context.fill();
       context.stroke();
@@ -120,27 +128,43 @@ export function startResultsDemo(view: ResultsDemoView, fixture: ResultsFixture)
     canvas.dataset["deformed"] = state.deformed ? "1" : "0";
     canvas.dataset["scalar"] = state.scalar ? "1" : "0";
     canvas.dataset["scale"] = String(state.scale);
-    canvas.dataset["case"] = String(state.caseIndex);
+    canvas.dataset["case"] = String(player.caseIndex);
+    canvas.dataset["blend"] = player.blend.toFixed(3);
+    canvas.dataset["playing"] = playing ? "1" : "0";
     updateStatus(caze);
+  }
+
+  function animate(time: number): void {
+    if (playing && lastFrameTime !== undefined) {
+      player = advanceCase(player, (time - lastFrameTime) / 1000);
+    }
+    lastFrameTime = time;
+    render();
+    if (playing) requestAnimationFrame(animate);
   }
 
   function updateStatus(caze: ResultsLoadCase): void {
     const missing = countMissing(caze.vonMises);
     const { min, max } = fixture.range;
+    const motion = state.deformed
+      ? player.blend > 0
+        ? `deformed · blend ${player.blend.toFixed(2)}`
+        : "deformed"
+      : "undeformed";
     view.status.textContent =
       `${caze.name} · von Mises ${format(min)}–${format(max)} MPa · ` +
-      `${missing} missing · ${state.deformed ? "deformed" : "undeformed"}`;
+      `${missing} missing · ${motion}`;
   }
 
   view.deformedToggle.addEventListener("click", () => {
     state.deformed = !state.deformed;
-    view.deformedToggle.textContent = state.deformed ? "Undeformed" : "Deformed";
+    updateControls(state, view, currentCase().name, playing);
     render();
   });
 
   view.scalarToggle.addEventListener("click", () => {
     state.scalar = !state.scalar;
-    view.scalarToggle.textContent = state.scalar ? "Scalar: off" : "Scalar: von Mises";
+    updateControls(state, view, currentCase().name, playing);
     render();
   });
 
@@ -150,19 +174,33 @@ export function startResultsDemo(view: ResultsDemoView, fixture: ResultsFixture)
   });
 
   view.caseToggle.addEventListener("click", () => {
-    state.caseIndex = (state.caseIndex + 1) % fixture.cases.length;
-    view.caseToggle.textContent = `Case: ${currentCase().name}`;
+    player = advanceCase(player, player.caseDuration);
+    updateControls(state, view, currentCase().name, playing);
     render();
   });
 
-  updateControls(state, view, fixture.cases[0]?.name ?? "");
+  view.playToggle.addEventListener("click", () => {
+    playing = !playing;
+    lastFrameTime = undefined;
+    if (playing) requestAnimationFrame(animate);
+    updateControls(state, view, currentCase().name, playing);
+    render();
+  });
+
+  updateControls(state, view, currentCase().name, playing);
   render();
 }
 
-function updateControls(state: ResultsDemoState, view: ResultsDemoView, caseName: string): void {
+function updateControls(
+  state: ResultsDemoState,
+  view: ResultsDemoView,
+  caseName: string,
+  playing: boolean,
+): void {
   view.deformedToggle.textContent = state.deformed ? "Undeformed" : "Deformed";
   view.scalarToggle.textContent = state.scalar ? "Scalar: off" : "Scalar: von Mises";
   view.caseToggle.textContent = `Case: ${caseName}`;
+  view.playToggle.textContent = playing ? "Pause" : "Play";
 }
 
 function vertex(positions: Float32Array, index: number): readonly [number, number, number] {

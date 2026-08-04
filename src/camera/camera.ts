@@ -41,9 +41,28 @@ export function resizeCamera(camera: Camera, width: number, height: number): Cam
   return { ...camera, width: Math.max(1, width), height: Math.max(1, height) };
 }
 
-/** Changes projection mode without changing the orbit pose. */
+/** Changes projection mode while keeping the current vertical framing. */
 export function setProjection(camera: Camera, mode: ProjectionMode): Camera {
-  return camera.mode === mode ? camera : { ...camera, mode };
+  if (camera.mode === mode) return camera;
+  if (mode === "orthographic") {
+    const distance = length(subtract(camera.position, camera.target));
+    return {
+      ...camera,
+      mode,
+      orthoHeight: clamp(distance * 2 * Math.tan(camera.fovY / 2), 0.01, camera.far),
+    };
+  }
+  const distance = clamp(
+    camera.orthoHeight / (2 * Math.tan(camera.fovY / 2)),
+    camera.near * 2,
+    camera.far / 2,
+  );
+  const offset = normalize(subtract(camera.position, camera.target));
+  return {
+    ...camera,
+    mode,
+    position: add(camera.target, scale(offset, distance)),
+  };
 }
 
 /** Orbits around the target in radians, clamping pitch before the poles. */
@@ -114,7 +133,12 @@ export function viewMatrix(camera: Camera): Mat4 {
   ]);
 }
 
-/** Returns the column-major projection matrix. */
+/**
+ * Returns the column-major projection matrix.
+ * Assumes a right-handed view space with a -Z forward axis. Depth maps to
+ * `[0, 1]` to match the WebGPU clip-space convention: a point at the near
+ * plane gets `clip.z = 0` and a point at the far plane gets `clip.z = w`.
+ */
 export function projectionMatrix(camera: Camera): Mat4 {
   const aspect = camera.width / camera.height;
   if (camera.mode === "orthographic") {
@@ -131,11 +155,11 @@ export function projectionMatrix(camera: Camera): Mat4 {
       0,
       0,
       0,
-      -2 / (camera.far - camera.near),
+      -1 / (camera.far - camera.near),
       0,
       0,
       0,
-      -(camera.far + camera.near) / (camera.far - camera.near),
+      -camera.near / (camera.far - camera.near),
       1,
     ]);
   }
@@ -151,11 +175,11 @@ export function projectionMatrix(camera: Camera): Mat4 {
     0,
     0,
     0,
-    (camera.far + camera.near) / (camera.near - camera.far),
+    camera.far / (camera.near - camera.far),
     -1,
     0,
     0,
-    (2 * camera.far * camera.near) / (camera.near - camera.far),
+    (camera.far * camera.near) / (camera.near - camera.far),
     0,
   ]);
 }
@@ -165,7 +189,11 @@ export function viewProjectionMatrix(camera: Camera): Mat4 {
   return multiply(projectionMatrix(camera), viewMatrix(camera));
 }
 
-/** Projects a world point into pixel coordinates, or returns undefined if invalid. */
+/**
+ * Projects a world point into pixel coordinates, or returns undefined if the
+ * point is at or behind the camera. The third component is the NDC depth, in
+ * the `[0, 1]` convention used by the projection matrix.
+ */
 export function projectPoint(
   camera: Camera,
   point: Vec3,
