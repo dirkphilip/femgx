@@ -66,6 +66,7 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 ## Limits and follow-ups
 
 - Element emphasis is per-part bounded (`MAX_ELEMENT_HIGHLIGHTS`); very large
-  multi-element selections render the first records only.
+  multi-element selections render the first records only (tracked in
+  [femgx#68](https://github.com/dirkphilip/femgx/issues/68)).
 - The edge overlay draws instance-level emphasis, not per-element edges, because
   edges shared between adjacent elements have no unambiguous element owner.
