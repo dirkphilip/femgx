@@ -39,7 +39,10 @@ All readers share a `ParseSession` (`io/session.ts`) with typed diagnostics,
 cooperative cancellation, and progress reporting. `parse()`/`write()` dispatch
 by `IoFormat`. Unknown keywords/sections are skipped; unsupported cell types
 produce warnings and are omitted; malformed records produce actionable
-`Issue`s with stable `code`s (see `io/diagnostics.ts`).
+`Issue`s with stable `code`s (see `io/diagnostics.ts`). Malformed
+`$NodeData`/`$ElementData` blocks report `bad-data-count`, `bad-data-line`, or
+`data-shape` and are dropped with a `dropped-data-block` warning rather than
+vanishing silently.
 
 ## Format capabilities and round-trip contract
 
