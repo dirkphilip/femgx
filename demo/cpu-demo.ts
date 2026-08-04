@@ -6,11 +6,11 @@ import {
   setHoveredInstance,
   setInstanceSelected,
   transformPoint,
-  visiblePartIdsFor,
   type ElementRenderMode,
   type InstanceId,
   type InteractionState,
 } from "../src/index";
+import { visiblePartIdsFor } from "../src/fixture/element-fixture";
 import { installCameraControls } from "./camera-controls";
 import type { DemoFixture } from "./fixture";
 import {

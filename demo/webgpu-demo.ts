@@ -5,7 +5,6 @@ import {
   setHoveredInstance,
   setElementSelected,
   setInstanceSelected,
-  visiblePartIdsFor,
   type ElementRenderMode,
   type InstanceId,
   type InteractionState,
@@ -13,6 +12,7 @@ import {
   type SceneRuntime,
   type WebGpuRenderer,
 } from "../src/index";
+import { visiblePartIdsFor } from "../src/fixture/element-fixture";
 import { installCameraControls } from "./camera-controls";
 import { startCpuDemo } from "./cpu-demo";
 import type { DemoFixture } from "./fixture";

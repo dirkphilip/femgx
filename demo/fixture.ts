@@ -1,14 +1,13 @@
 import {
   createCamera,
-  createElementFixture,
   resizeCamera,
   type Camera,
   type Color,
-  type ElementFixture,
   type Geometry,
   type PartId,
   type Scene,
 } from "../src/index";
+import { createElementFixture, type ElementFixture } from "../src/fixture/element-fixture";
 
 /**
  * Everything the demo renders derives from one deterministic element gallery

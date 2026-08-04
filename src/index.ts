@@ -24,13 +24,6 @@ export {
   type TessellationOptions,
 } from "./geometry/element-mesh";
 export {
-  createElementFixture,
-  visiblePartIdsFor,
-  type ElementFixture,
-  type ElementFixtureOptions,
-  type ElementFixtureParts,
-} from "./fixture/element-fixture";
-export {
   HEX20_SHAPE,
   HEX8_SHAPE,
   LINE3_SHAPE,
