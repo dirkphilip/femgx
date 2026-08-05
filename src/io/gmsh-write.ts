@@ -8,6 +8,7 @@ import {
   TET10_SHAPE,
   TET4_SHAPE,
 } from "../elements/shapes";
+import { canonicalToGmshOrder } from "./gmsh-order";
 import type { FemModel, ModelSet, ModelResultField } from "./model";
 import type { WriteOptions } from "./parse";
 import { noopProgress } from "./progress";
@@ -122,12 +123,14 @@ function writeElements(
   for (const block of model.elementBlocks) {
     const type = GMSH_TYPES.get(block.shape) ?? 0;
     const nodeCount = topologyFor(block.shape).nodeCount;
+    const gmshOrder = canonicalToGmshOrder(block.shape);
     for (let element = 0; element < block.count; element += 1) {
       const id = block.ids[element] ?? 0;
       const physical = physicalOf.get(id) ?? 0;
       const nodes: string[] = [];
       for (let node = 0; node < nodeCount; node += 1) {
-        nodes.push(String(block.connectivity[element * nodeCount + node] ?? 0));
+        const source = gmshOrder === undefined ? node : (gmshOrder[node] ?? node);
+        nodes.push(String(block.connectivity[element * nodeCount + source] ?? 0));
       }
       parts.push(`${String(id)} ${String(type)} 2 ${String(physical)} 0 ${nodes.join(" ")}`);
     }

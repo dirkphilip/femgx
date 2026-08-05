@@ -79,6 +79,12 @@ both conventions — or on set-based face/edge extraction. The earlier claim tha
 VTK-ordered files swap those two mid nodes (issue #66) was verified against the
 VTK source and does not hold; do not "fix" the ordering by swapping slots 18/19.
 
+File-format adapters that list quadratic mid-edge nodes differently than this
+canonical order (gmsh) translate connectivity at the format boundary; see
+[[data/io-import-export|IO: streaming import/export adapters]]. Abaqus's
+C3D10/C3D20 connectivity already matches this canonical order, so no
+translation is needed there.
+
 ## Validation
 
 `createElement` throws on:

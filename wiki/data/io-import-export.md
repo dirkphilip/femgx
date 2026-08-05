@@ -57,6 +57,36 @@ vanishing silently.
   export results only when ids are the contiguous entity sequence (their
   native domain).
 
+## Quadratic node ordering translation
+
+The library's canonical connectivity (see
+[[data/elements-topology|Element topology]]) follows the VTK convention:
+corners first, then mid-edge nodes in canonical edge order. Gmsh lists the
+mid-edge nodes of quadratic elements in a different order, so the gmsh
+adapters translate connectivity at the format boundary
+(`src/io/gmsh-order.ts`):
+
+- **Gmsh Tet10** (type 11) — only the last two mid-edge slots are swapped:
+  gmsh slot 8 lies on `{2,3}` and slot 9 on `{1,3}`, the reverse of the
+  canonical order. Both directions use the permutation
+  `[0,1,2,3,4,5,6,7,9,8]`.
+- **Gmsh Hexahedron20** (type 17) — gmsh's mid-edge order differs from VTK on
+  nearly every edge (e.g. gmsh slot 18 lies on `{5,6}` and slot 19 on
+  `{6,7}`, which are canonical slots 13 and 14). The permutations are derived
+  from the gmsh edge list and match meshio's gmsh↔VTK permutations
+  (`_gmsh_to_meshio_order` / `_meshio_to_gmsh_order`).
+- **Line3, and all linear shapes** — gmsh orders them identically to the
+  canonical ordering, so no translation is applied.
+
+**Abaqus needs no translation**: its `C3D10` and `C3D20` connectivity already
+matches the canonical VTK ordering (verified against the Abaqus/CalculiX
+convention — the C3D20 mid-edge nodes run bottom face 9-12, top face 13-16,
+vertical 17-20 = canonical slots 8-19). The intermediate Hex20 edge-order
+regression from #66/#92 that made Abaqus appear to swap slots 18/19 was a bug
+in `src/elements/shapes.ts` itself and was fixed there; the adapters were
+never the problem. `test/io/gmsh-order.test.ts` and the abaqus quadratic tests
+pin the mid-edge placement with known coordinates for both formats.
+
 ## Known limitations (deliberate, documented)
 
 - Binary VTK, binary/appended VTU, and Gmsh MSH 4.x are rejected with a clear
