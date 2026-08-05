@@ -54,6 +54,26 @@ live in the status UI and the dataset; they never depend on console output.
 (The pre-P0 hidden-probe machinery and its GPU pick-readback verification were
 removed with the CPU fallback; demo interaction picking is CPU raycasting.)
 
+A failed GPU pick readback is reported as a precise pick-path failure, never as
+a CPU-only/missing-WebGPU condition: `readPickPixel`
+(`src/renderer/gpu-pick.ts`) throws a typed `WebGpuPickReadbackError` when the
+asynchronous readback (`copy + mapAsync`) fails after rendering already
+succeeded. Callers of the GPU picking path can branch on that type instead of
+mislabeling the environment; a successful render is never rejected because an
+unrelated optional probe failed.
+
+### High-DPI mobile canvas and readback coordinates
+
+Pick coordinates are converted from CSS client space to device pixels
+(`pickPixelCoordinates` in `src/renderer/gpu-pick.ts`) so taps align with what
+is drawn even when the CSS size differs from the device-pixel backing size
+(`devicePixelRatio > 1`). The renderer sizes the backing store from the CSS
+size and `devicePixelRatio` (`GpuRenderer.resize`), and the demo's CPU
+raycast pick scales CSS viewport coordinates the same way. Focused tests
+(`test/renderer/gpu-pick.test.ts`) cover high-DPI mobile canvas/readback
+coordinates, and the e2e lane asserts the canvas backing size and CPU pick
+coordinates stay consistent on a high-DPI phone (`e2e/mobile.spec.ts`).
+
 ## Device loss and recovery
 
 Device lifetime is centralized in `GpuDeviceLifecycle`

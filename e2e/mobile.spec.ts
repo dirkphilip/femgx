@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { distinctColors, requireHit } from "./helpers";
 
+const BASE_URL = "http://127.0.0.1:5173";
+
 /**
  * Phone-sized regression coverage for the demo layout: no horizontal page
  * overflow, touch-friendly primary controls, and a context menu that stays
@@ -9,6 +11,47 @@ import { distinctColors, requireHit } from "./helpers";
  */
 
 const PHONE = { width: 390, height: 844 };
+
+test("keeps CSS size, device-pixel size, and pick coordinates consistent on a high-DPI phone", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    baseURL: BASE_URL,
+    viewport: PHONE,
+    deviceScaleFactor: 3,
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toBeVisible();
+  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+
+  // The canvas backing store is sized in device pixels while the CSS size is
+  // device pixels / deviceScaleFactor; pick coordinates must align with the
+  // drawn frame on a high-DPI screen.
+  const sizing = await canvas.evaluate((element: HTMLCanvasElement) => ({
+    cssWidth: element.getBoundingClientRect().width,
+    cssHeight: element.getBoundingClientRect().height,
+    deviceWidth: element.width,
+    deviceHeight: element.height,
+  }));
+  expect(sizing.deviceWidth).toBeCloseTo(sizing.cssWidth * 3, 0);
+  expect(sizing.deviceHeight).toBeCloseTo(sizing.cssHeight * 3, 0);
+
+  // Picking must resolve at the same CSS point on a high-DPI canvas.
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node raycast picking must resolve on the deterministic WebGPU lane at high DPI",
+  );
+  expect(hit.x).toBeGreaterThan(0);
+  expect(hit.y).toBeGreaterThan(0);
+
+  await context.close();
+});
 
 test("fits a phone-sized viewport without horizontal overflow", async ({ page }) => {
   await page.setViewportSize(PHONE);

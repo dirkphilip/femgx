@@ -35,6 +35,20 @@ export interface PickPixelResult {
 }
 
 /**
+ * Thrown when the asynchronous GPU pick readback fails after rendering already
+ * succeeded. The browser renders WebGPU correctly; only the single-pixel
+ * readback (copy + `mapAsync`) could not be completed. This is a pick-path
+ * failure, not a missing-WebGPU condition, so callers must report it as
+ * pick-readback and never mislabel the environment as CPU-only.
+ */
+export class WebGpuPickReadbackError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "WebGpuPickReadbackError";
+  }
+}
+
+/**
  * Byte stride reserved per pick attachment in a pooled readback buffer. The
  * instance pick id is copied to offset 0, the element pick id to
  * `READBACK_BYTE_STRIDE`, the face pick id to `READBACK_BYTE_STRIDE * 2`, and
@@ -197,6 +211,15 @@ export async function readPickPixel(
     buffer.unmap();
     mapped = false;
     return result;
+  } catch (error) {
+    // Rendering already succeeded; only the pick readback failed (e.g. the
+    // mapAsync rejection seen on some iOS/WebKit builds). Surface it as a
+    // precise pick-path failure instead of a generic unsupported/CPU-only
+    // error so callers can classify the phase independently.
+    throw new WebGpuPickReadbackError(
+      "WebGPU pick readback failed: rendering works, but the pick pixels could not be read back",
+      { cause: error },
+    );
   } finally {
     if (mapped) buffer.unmap();
     releaseReadback(pick.readback, buffer);
