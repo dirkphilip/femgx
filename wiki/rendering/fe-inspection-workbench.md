@@ -52,9 +52,13 @@ identical ([[rendering/element-interaction|Element-level interaction]],
   infer identity from a shared numeric id. Pure tree helpers live in
   `demo/visibility-tree.ts` and are unit-tested
   (`test/demo/visibility-tree.test.ts`).
-- Node/face/element selection is stored in `InteractionState`; node/face
-  emphasis is folded into per-element overrides by `demo/emphasis.ts` so both
-  renderers can emphasize a node or face selection without new geometry.
+- Node/face/element selection is stored in `InteractionState`. Node and face
+  emphasis are rendered through the library emphasis APIs
+  (`emphasizedNodeRefs`/`emphasizedFaceRefs` and `resolveNodeStyle`/
+  `resolveFaceStyle`) rather than derived into `elementOverrides`; the
+  demo-side `emphasis.ts` fold was removed. `elementOverrides` now holds only
+  explicit element highlights set through `setElementOverride`
+  ([[architecture/demo-library-boundary|Demo / library boundary]]).
 - Display toggles (edges, node markers, normals, face boundaries, ids,
   diagnostics) flip renderer state only; they never rebuild reusable geometry
   or drop selection state. The node-marker/normal/face-boundary/ID overlays

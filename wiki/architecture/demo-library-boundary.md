@@ -1,0 +1,73 @@
+# Demo / library boundary
+
+The demo (`demo/`) is a thin consumer and test bench for the femgx public API
+(`src/index.ts`). Reusable scene graphics, interaction rendering semantics, and
+renderer synchronization live in `src/`; the demo owns application-specific
+presentation and interaction policy only.
+
+## Classification
+
+**Library behavior (lives in `src/`):**
+
+- Scene/assembly model, packed runtime, compile, flatten, culling
+  ([[architecture/packed-runtime|Packed scene runtime]]).
+- Interaction state, style resolution, and emphasis refs
+  (`resolveInstanceStyle`, `resolveElementStyle`, `resolveFaceStyle`,
+  `resolveNodeStyle`, `emphasizedNodeRefs`, `emphasizedFaceRefs`,
+  `emphasizedElementRefs`) — see
+  [[rendering/interactive-state|Interactive state]] and
+  [[rendering/node-face-interaction|Node and face interaction]].
+- GPU renderer and its delta-oriented subrange sync
+  (`updateInstances`, `updateElements`, `updateVisibility`) plus the
+  interaction-diff helper `changedInstanceSlots`
+  ([[rendering/renderer-subrange-updates|Renderer subrange updates]]).
+- Picking (`pick`, `pickFromRay`, `createPickScene`) and camera math.
+
+**Demo-only policy (stays in `demo/`):**
+
+- DOM control wiring, the workbench controller, context menu, visibility
+  panel, inspection text, status formatting, fixture/model selection, and
+  modifier-key target policy (`controller.ts`, `view.ts`, `inspect.ts`,
+  `pick.ts`, `fit.ts`).
+- Pointer gesture wiring (`camera-controls.ts`, `camera-gestures.ts`).
+- WebGPU probing/fallback and device-loss recovery wiring (`webgpu-probe.ts`,
+  `webgpu-demo.ts`, `cpu-demo.ts`).
+- The results inspection demo (`results-demo.ts`, `results-fixture.ts`).
+
+## Emphasis rendering
+
+Node/face emphasis is represented and rendered entirely through library APIs,
+never by deriving `elementOverrides`. `InteractionState.elementOverrides` holds
+only explicit element overrides (set via `setElementOverride`); node/face
+emphasis stays in `selectedNodeIds`/`highlightedNodeIds`/`hoveredNode` and the
+face equivalents. The WebGPU renderer maps those refs to emphasis records
+directly ([[rendering/node-face-interaction|Node and face interaction]]); the
+CPU fallback draws them as node-marker circles and face fills using
+`resolveNodeStyle`/`resolveFaceStyle`.
+
+This removes the former demo-side `emphasis.ts` fold (node/face emphasis →
+per-element overrides). Removing it means element solid fills on the CPU
+fallback no longer glow for a node/face selection — emphasis appears through
+the node/face markers/fills instead — which is the intended thin-consumer
+behavior and avoids duplicating the WebGPU emphasis semantics.
+
+## Instance synchronization
+
+The demo feeds the renderer real deltas: interaction changes produce the
+affected instance slots via `changedInstanceSlots(runtime, previous, next)`,
+and visibility changes use the runtime's `VisibilityDelta.changedInstanceIds`
+through `updateVisibility`. It never rewrites every instance on a frame (the
+former `allSlots(runtime)` whole-runtime patch). After a renderer recovery or
+re-creation the demo resets its applied-interaction baseline to an empty state,
+because a fresh attachment re-uploads records from an empty interaction state.
+
+## CPU fallback boundary
+
+The CPU 2D-canvas renderer (`demo/cpu-render.ts`) remains a demo-only fallback
+and is kept thin: it consumes library resolution/emphasis APIs for every style
+decision and adds only 2D presentation (canvas fills/strokes, marker circles,
+label text). It is not a second source of reusable rendering semantics — all
+style precedence and emphasis derivation is library-owned. Keeping it in the
+demo (rather than moving it into `src/`) is deliberate: it exists only to make
+the demo usable without WebGPU and to keep the default deterministic e2e lane
+running ([[engineering/e2e-policy|e2e policy]]).
