@@ -1,15 +1,16 @@
 /**
- * Shared WGSL for the instanced render passes. All three vertex shaders read
- * the same camera uniform and per-part instance storage, so parts can mix
- * triangle, line, and point-sprite primitives within one frame. Triangle and
- * line primitives additionally read the per-triangle element pick ids and the
- * runtime-sized element-highlight records so element-level emphasis can
- * override the resolved instance color; point sprites never carry element
- * emphasis.
+ * Shared WGSL for the instanced render passes. All vertex shaders read the
+ * same camera and deformation uniforms and per-part instance storage, so parts
+ * can mix triangle, line, and point-sprite primitives within one frame.
+ * Triangle geometry additionally reads the per-triangle element and face pick
+ * ids and the per-vertex node pick ids, plus the runtime-sized emphasis
+ * records, so element/face/node emphasis can override the resolved instance
+ * color; point sprites never carry emphasis. The triangle pick pass lives in
+ * `gpu-node-pick.ts` so it can also report the nearest node.
  */
 
 /** Camera uniform: view projection plus viewport and point size in pixels. */
-const cameraStruct = /* wgsl */ `
+export const cameraStruct = /* wgsl */ `
 struct Camera {
   viewProjection: mat4x4<f32>,
   viewport: vec2<f32>,
@@ -19,7 +20,7 @@ struct Camera {
 `;
 
 /** Per-frame deformation uniform: displacement scale plus the active load case. */
-const deformationStruct = /* wgsl */ `
+export const deformationStruct = /* wgsl */ `
 struct Deformation {
   scale: f32,
   loadCase: u32,
@@ -29,7 +30,7 @@ struct Deformation {
 `;
 
 /** Instance storage layout shared by every vertex shader. */
-const instanceStruct = /* wgsl */ `
+export const instanceStruct = /* wgsl */ `
 // Field layout (byte offsets) must match encodeInstanceRecord in gpu-draw.ts:
 // transform 0, color 64, pickId 80, emissive 84, padding 88.
 struct Instance {
@@ -41,16 +42,18 @@ struct Instance {
 };
 `;
 
-/** Element-highlight records read by the triangle and line vertex stage. */
-const elementHighlightStructs = /* wgsl */ `
-// Field layout must match encodeElementHighlight in gpu-elements.ts:
-// slot 0, elementPickId 4, padding 8, color 16, emissive 32. The struct has
-// no trailing member so its size stays 48 bytes (vec3 members would force
-// 16-byte alignment and a 64-byte stride that would not match the encoder).
+/** Emphasis records read by the triangle and line vertex stage. */
+export const emphasisStructs = /* wgsl */ `
+// Field layout must match encodeEmphasisRecord in gpu-elements.ts:
+// slot 0, elementPickId 4, facePickId 8, nodePickId 12, color 16, emissive 32.
+// The struct has no trailing member so its size stays 48 bytes (vec3 members
+// would force 16-byte alignment and a 64-byte stride that would not match the
+// encoder).
 struct ElementHighlight {
   slot: u32,
   elementPickId: u32,
-  _padding: vec2<u32>,
+  facePickId: u32,
+  nodePickId: u32,
   color: vec4<f32>,
   emissive: f32,
 };
@@ -67,13 +70,25 @@ struct ElementHighlights {
 };
 `;
 
-/** Instance storage binding layout shared by every vertex shader. */
-const instanceBindings = /* wgsl */ `
+/** Frame-uniform binding layout shared by every vertex shader. */
+export const frameBindings = /* wgsl */ `
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(0) @binding(1) var<uniform> deformation: Deformation;
+`;
+
+/** Instance storage binding layout shared by every vertex shader. */
+export const instanceBindings = /* wgsl */ `
 @group(1) @binding(0) var<storage, read> instances: array<Instance>;
 @group(1) @binding(1) var<storage, read> drawOrder: array<u32>;
 @group(1) @binding(4) var<storage, read> displacements: array<f32>;
+`;
+
+/** Per-triangle and per-vertex pick data bindings used by the triangle stage. */
+export const pickDataBindings = /* wgsl */ `
+@group(1) @binding(2) var<storage, read> triangleElementPickIds: array<u32>;
+@group(1) @binding(3) var<storage, read> elementHighlights: ElementHighlights;
+@group(1) @binding(5) var<storage, read> triangleFacePickIds: array<u32>;
+@group(1) @binding(6) var<storage, read> vertexNodePickIds: array<u32>;
 `;
 
 /**
@@ -83,7 +98,7 @@ const instanceBindings = /* wgsl */ `
  * the vertex buffer index, which aligns with the node numbering for parts that
  * carry deformation data.
  */
-const displacementFn = /* wgsl */ `
+export const displacementFn = /* wgsl */ `
 fn displaced(position: vec3<f32>, vertexIndex: u32) -> vec3<f32> {
   if (deformation.loadCaseCount == 0u) {
     return position;
@@ -99,14 +114,27 @@ fn displaced(position: vec3<f32>, vertexIndex: u32) -> vec3<f32> {
 `;
 
 /** Shared vertex output for the color and picking fragment stages. */
-const vertexOutput = /* wgsl */ `
+export const vertexOutput = /* wgsl */ `
 struct VertexOutput {
   @builtin(position) position: vec4<f32>,
   @location(0) color: vec4<f32>,
   @location(1) @interpolate(flat) pickId: u32,
   @location(2) @interpolate(flat) emissive: f32,
   @location(3) @interpolate(flat) elementPickId: u32,
+  @location(4) @interpolate(flat) facePickId: u32,
 };
+`;
+
+/** Packs a u32 pick id into the four RGBA bytes of an `rgba8unorm` target. */
+export const packPickIdFunction = /* wgsl */ `
+fn packPickId(pickId: u32) -> vec4<f32> {
+  return vec4<f32>(
+    f32(pickId & 0xFFu) / 255.0,
+    f32((pickId >> 8u) & 0xFFu) / 255.0,
+    f32((pickId >> 16u) & 0xFFu) / 255.0,
+    f32((pickId >> 24u) & 0xFFu) / 255.0,
+  );
+}
 `;
 
 /** Shared vertex stage for triangle and line primitives. */
@@ -117,14 +145,13 @@ ${deformationStruct}
 
 ${instanceStruct}
 
-${elementHighlightStructs}
+${emphasisStructs}
 
+${frameBindings}
 ${instanceBindings}
+${pickDataBindings}
 
 ${displacementFn}
-
-@group(1) @binding(2) var<storage, read> triangleElementPickIds: array<u32>;
-@group(1) @binding(3) var<storage, read> elementHighlights: ElementHighlights;
 
 ${vertexOutput}
 
@@ -136,14 +163,24 @@ fn vertexMain(
 ) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
   let elementPickId = triangleElementPickIds[vertexIndex / 3u];
+  let facePickId = triangleFacePickIds[vertexIndex / 3u];
   var color = instance.color;
   var emissive = instance.emissive;
   for (var index = 0u; index < elementHighlights.count; index++) {
     let highlight = elementHighlights.records[index];
-    if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == elementPickId) {
-      color = highlight.color;
-      emissive = highlight.emissive;
-      break;
+    if (highlight.slot == drawOrder[instanceIndex]) {
+      var match = highlight.elementPickId != 0u && highlight.elementPickId == elementPickId;
+      if (!match && highlight.facePickId != 0u && highlight.facePickId == facePickId) {
+        match = true;
+      }
+      if (!match && highlight.nodePickId != 0u && triangleHasNode(highlight.nodePickId, vertexIndex)) {
+        match = true;
+      }
+      if (match) {
+        color = highlight.color;
+        emissive = highlight.emissive;
+        break;
+      }
     }
   }
   var output: VertexOutput;
@@ -152,7 +189,15 @@ fn vertexMain(
   output.pickId = instance.pickId;
   output.emissive = emissive;
   output.elementPickId = elementPickId;
+  output.facePickId = facePickId;
   return output;
+}
+
+fn triangleHasNode(nodePickId: u32, vertexIndex: u32) -> bool {
+  let base = (vertexIndex / 3u) * 3u;
+  return vertexNodePickIds[base] == nodePickId
+      || vertexNodePickIds[base + 1u] == nodePickId
+      || vertexNodePickIds[base + 2u] == nodePickId;
 }
 `;
 
@@ -162,7 +207,7 @@ fn vertexMain(
  * offset in clip space so points stay a constant screen size and always face
  * the camera. The quad's depth is the point's own depth, so picking and depth
  * testing behave like a true point primitive. Point geometry carries no
- * element tessellations, so the element pick id is always zero.
+ * element tessellations, so the element and face pick ids are always zero.
  */
 export const pointVertexShader = /* wgsl */ `
 ${cameraStruct}
@@ -171,6 +216,7 @@ ${deformationStruct}
 
 ${instanceStruct}
 
+${frameBindings}
 ${instanceBindings}
 
 ${displacementFn}
@@ -201,6 +247,7 @@ fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) in
   output.pickId = instance.pickId;
   output.emissive = instance.emissive;
   output.elementPickId = 0u;
+  output.facePickId = 0u;
   return output;
 }
 `;
@@ -216,7 +263,7 @@ fn fragmentMain(@location(0) color: vec4<f32>, @location(2) @interpolate(flat) e
 /**
  * Vertex stage for the wireframe/edge display pass. It draws the deduplicated
  * mesh edges as a line list in the resolved instance color, so hover/selection
- * still glow at the instance level without per-triangle element emphasis.
+ * still glow at the instance level without per-triangle emphasis.
  */
 export const edgeVertexShader = /* wgsl */ `
 ${cameraStruct}
@@ -225,6 +272,7 @@ ${deformationStruct}
 
 ${instanceStruct}
 
+${frameBindings}
 ${instanceBindings}
 
 ${displacementFn}
@@ -254,31 +302,30 @@ fn vertexMain(
  * Fragment stage for the picking pass. Packs the u32 pick ids across the four
  * RGBA bytes of an `rgba8unorm` target, mirroring `encodePickId` in
  * `pick-format.ts`; the byte order of both must stay in sync. Target 0 holds
- * the instance pick id and target 1 the element pick id.
+ * the instance pick id, target 1 the element pick id, target 2 the face pick
+ * id, and target 3 the node pick id.
  */
 export const pickFragmentShader = /* wgsl */ `
-fn packPickId(pickId: u32) -> vec4<f32> {
-  return vec4<f32>(
-    f32(pickId & 0xFFu) / 255.0,
-    f32((pickId >> 8u) & 0xFFu) / 255.0,
-    f32((pickId >> 16u) & 0xFFu) / 255.0,
-    f32((pickId >> 24u) & 0xFFu) / 255.0,
-  );
-}
+${packPickIdFunction}
 
 struct PickOutput {
   @location(0) instance: vec4<f32>,
   @location(1) element: vec4<f32>,
+  @location(2) face: vec4<f32>,
+  @location(3) node: vec4<f32>,
 };
 
 @fragment
 fn fragmentMain(
   @location(1) @interpolate(flat) pickId: u32,
   @location(3) @interpolate(flat) elementPickId: u32,
+  @location(4) @interpolate(flat) facePickId: u32,
 ) -> PickOutput {
   var output: PickOutput;
   output.instance = packPickId(pickId);
   output.element = packPickId(elementPickId);
+  output.face = packPickId(facePickId);
+  output.node = packPickId(0u);
   return output;
 }
 `;

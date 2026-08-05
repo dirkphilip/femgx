@@ -20,19 +20,22 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 
 ## Picking
 
-- The pick pass renders two attachments: the existing instance pick id and a
-  per-triangle element pick id (`pickFragmentShader` writes both). Both use the
-  `rgba8unorm` packing of [[rendering/pick-format|pick-format]].
-- `readPickPixel` copies both attachments into one pooled readback buffer and
-  decodes both ids; `resolvePickTarget` turns a hit into an `element` target
-  only when both ids hit, otherwise falls back to the `instance` target. A
-  `PickTarget` therefore distinguishes `part`, `instance`, and `element`.
+- The pick pass renders four attachments: the instance, element, face, and
+  node pick ids (`pickFragmentShader` writes all four). All use the
+  `rgba8unorm` packing of [[rendering/pick-format|pick-format]] (see
+  [[rendering/node-face-interaction|node and face interaction]]).
+- `readPickPixel` copies all attachments into one pooled readback buffer and
+  decodes the ids; `resolvePickTarget` turns a hit into the most specific
+  target the ids support (`node` > `face` > `element` > `instance`). A
+  `PickTarget` therefore distinguishes `part`, `instance`, `element`, `face`,
+  and `node`.
 - The demo uses CPU raycasting for both renderers instead of GPU readback
   (see [[rendering/fe-inspection-workbench|FE inspection workbench]]): the unified
   `pick()` resolves the most specific target (node → face → element), and
   hover/selection keys are prefixed by granularity (`n:instance:node`,
   `f:instance:element:faceKey`, `e:instance:element`, `i:instance`,
-  `p:part`).
+  `p:part`). `pickFromRay` is the renderer-independent CPU analogue of the GPU
+  pick target resolution (see [[rendering/node-face-interaction|node and face interaction]]).
 
 ## Interaction state and precedence
 
@@ -52,12 +55,14 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   the part-local slot and the triangle's element pick id overrides color and
   emissive. Emphasis therefore never clones materials or rebuilds geometry.
 - `syncElementHighlights` maps emphasized refs to per-part records
-  (`collectElementHighlightUpdates`), dropping refs whose instance is not in the
+  (`collectEmphasisUpdates`), dropping refs whose instance is not in the
   layout (e.g. hidden or stale), and `writeElementHighlights` diffs against a
   CPU mirror so only changed byte subranges reach the GPU. When an emphasis list
   outgrows a part's buffer it is recreated larger (doubling from the initial
   capacity), the old buffer is destroyed, and the cached bind group invalidated
   so the next draw binds the larger buffer — records are never silently dropped.
+  The same buffer also carries face and node emphasis records (see
+  [[rendering/node-face-interaction|node and face interaction]]).
 - The WGSL `ElementHighlights` struct declares `records` as a runtime-sized
   `array<ElementHighlight>`, so the buffer size is a CPU-side concern: the
   shader scans exactly `count` records regardless of capacity.

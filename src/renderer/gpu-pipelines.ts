@@ -5,6 +5,7 @@ import {
   pickFragmentShader,
   pointVertexShader,
 } from "./gpu-shaders";
+import { nodePickFragmentShader, nodePickVertexShader } from "./gpu-node-pick";
 import { PICK_TEXTURE_FORMAT } from "./pick-format";
 import { vertexLayout } from "./gpu-support";
 import { DEFORMATION_UNIFORM_SIZE } from "./gpu-deform";
@@ -64,6 +65,9 @@ export function createRenderResources(
       { binding: 2, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
       { binding: 3, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
       { binding: 4, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
+      { binding: 5, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
+      { binding: 6, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
+      { binding: 7, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
     ],
   });
   const cameraLayout = device.createBindGroupLayout({
@@ -101,12 +105,22 @@ export function createRenderResources(
   };
 }
 
-/** Module-level pieces shared by the six pipelines. */
+/** The four pick attachments (instance, element, face, node). */
+const PICK_FORMATS = [
+  PICK_TEXTURE_FORMAT,
+  PICK_TEXTURE_FORMAT,
+  PICK_TEXTURE_FORMAT,
+  PICK_TEXTURE_FORMAT,
+] as const;
+
+/** Module-level pieces shared by the pipelines. */
 interface PipelineShaders {
   readonly triangleVertex: GPUShaderModule;
   readonly pointVertex: GPUShaderModule;
   readonly colorFragment: GPUShaderModule;
   readonly pickFragment: GPUShaderModule;
+  readonly nodePickVertex: GPUShaderModule;
+  readonly nodePickFragment: GPUShaderModule;
 }
 
 /** Primitive-level pipeline parameters (shared across color and pick passes). */
@@ -129,6 +143,8 @@ function createPipelineShaders(device: GPUDevice): PipelineShaders {
     pointVertex: device.createShaderModule({ code: pointVertexShader }),
     colorFragment: device.createShaderModule({ code: colorFragmentShader }),
     pickFragment: device.createShaderModule({ code: pickFragmentShader }),
+    nodePickVertex: device.createShaderModule({ code: nodePickVertexShader }),
+    nodePickFragment: device.createShaderModule({ code: nodePickFragmentShader }),
   };
 }
 
@@ -176,20 +192,15 @@ function buildPipelines(
     });
   return {
     trianglesColor: make(variants.triangles, shaders.colorFragment, [format]),
-    trianglesPick: make(variants.triangles, shaders.pickFragment, [
-      PICK_TEXTURE_FORMAT,
-      PICK_TEXTURE_FORMAT,
-    ]),
+    trianglesPick: make(
+      { ...variants.triangles, vertexModule: shaders.nodePickVertex },
+      shaders.nodePickFragment,
+      PICK_FORMATS,
+    ),
     linesColor: make(variants.lines, shaders.colorFragment, [format]),
-    linesPick: make(variants.lines, shaders.pickFragment, [
-      PICK_TEXTURE_FORMAT,
-      PICK_TEXTURE_FORMAT,
-    ]),
+    linesPick: make(variants.lines, shaders.pickFragment, PICK_FORMATS),
     pointsColor: make(variants.points, shaders.colorFragment, [format]),
-    pointsPick: make(variants.points, shaders.pickFragment, [
-      PICK_TEXTURE_FORMAT,
-      PICK_TEXTURE_FORMAT,
-    ]),
+    pointsPick: make(variants.points, shaders.pickFragment, PICK_FORMATS),
   };
 }
 

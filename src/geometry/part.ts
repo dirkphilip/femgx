@@ -1,4 +1,9 @@
+import type { FaceKey } from "../elements/faces";
+import type { NodeId } from "../elements/element";
 import type { ElementId, PartId } from "../scene/types";
+
+/** Stable identity of one oriented element face within a part. */
+export type FaceId = number;
 
 /** Axis-aligned bounding box in local part space. */
 export interface Bounds {
@@ -23,6 +28,26 @@ export interface ElementTessellation {
   readonly triangleCount: number;
 }
 
+/**
+ * The tessellation of one oriented element face: a stable part-local face id
+ * plus the element, face index, canonical key, ordered node loop, and the
+ * elements that share the face's canonical key (its neighbors).
+ */
+export interface FaceTessellation {
+  /** Stable part-local face id (indexes this list). */
+  readonly id: FaceId;
+  /** The element owning this oriented face. */
+  readonly elementId: ElementId;
+  /** Index of the face within the element's canonical face list. */
+  readonly faceIndex: number;
+  /** Canonical identity shared by coincident faces. */
+  readonly key: FaceKey;
+  /** Outward-oriented node loop; interleaves mid-edge nodes when quadratic. */
+  readonly nodeIds: readonly NodeId[];
+  /** Other elements incident to the same canonical face (empty on boundaries). */
+  readonly neighborElementIds: readonly ElementId[];
+}
+
 /** How a part's indexed primitives are drawn on the GPU. */
 export type Primitive = "triangles" | "lines" | "points";
 
@@ -41,6 +66,25 @@ export interface Geometry {
    * belong to exactly one element.
    */
   readonly elements?: readonly ElementTessellation[];
+  /**
+   * Optional per-vertex node pick ids: `nodeId + 1` for vertices that come from
+   * a model node, `0` for interpolated tessellation vertices (e.g. the center
+   * of a quadratic quad). When present the part is node-pickable.
+   */
+  readonly nodePickIds?: Uint32Array;
+  /**
+   * Optional node positions indexed directly by `NodeId` (three floats per
+   * node), used to resolve node picks to local/world positions on the CPU.
+   */
+  readonly nodePositions?: Float32Array;
+  /**
+   * Optional per-triangle face pick ids: `faceId + 1`, `0` = no face. When
+   * present the part is face-pickable and every triangle must reference a
+   * valid face id (or `0`).
+   */
+  readonly facePickIds?: Uint32Array;
+  /** Optional face descriptors in ascending `id` order. */
+  readonly faces?: readonly FaceTessellation[];
 }
 
 /**
@@ -121,6 +165,37 @@ export function validateElements(geometry: {
     if (coverage[triangle] === 0) {
       throw new Error(`Triangle ${triangle} is not covered by any element`);
     }
+  }
+}
+
+/**
+ * Validates the optional node/face pick-id arrays against the geometry's
+ * vertex and triangle counts and the declared face descriptors.
+ */
+export function validatePickIds(geometry: Geometry): void {
+  const vertexCount = geometry.positions.length / 3;
+  if (geometry.nodePickIds !== undefined && geometry.nodePickIds.length !== vertexCount) {
+    throw new Error(
+      `nodePickIds must have one entry per vertex (${vertexCount}), got ${geometry.nodePickIds.length}`,
+    );
+  }
+  const triangleCount = Math.floor(geometry.indices.length / 3);
+  if (geometry.facePickIds !== undefined && geometry.facePickIds.length !== triangleCount) {
+    throw new Error(
+      `facePickIds must have one entry per triangle (${triangleCount}), got ${geometry.facePickIds.length}`,
+    );
+  }
+  if (geometry.faces !== undefined) {
+    const seen = new Set<FaceId>();
+    geometry.faces.forEach((face, index) => {
+      if (face.id !== index) {
+        throw new Error(`Face ${face.id} is not at its id index ${index}`);
+      }
+      if (seen.has(face.id)) {
+        throw new Error(`Duplicate face id ${face.id}`);
+      }
+      seen.add(face.id);
+    });
   }
 }
 

@@ -1,6 +1,7 @@
 import type { NodeId } from "../elements/element";
-import type { InstanceId } from "../scene/types";
+import type { Instance, InstanceId } from "../scene/types";
 import type { InteractionState } from "./interaction";
+import { resolveInstanceStyle, type ResolvedStyle } from "./interaction";
 import type { NodeRef } from "./refs";
 
 function updateNodeSet(
@@ -68,6 +69,30 @@ export function isNodeEmphasized(state: InteractionState, ref: NodeRef): boolean
     state.highlightedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true ||
     state.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
   );
+}
+
+/**
+ * Resolves the style of one node occurrence. Node-level state is more specific
+ * than part/instance state, so node highlight, hover, and selection win over
+ * `resolveInstanceStyle`; selection beats hover, and hover beats highlight.
+ */
+export function resolveNodeStyle(
+  instance: Instance,
+  ref: NodeRef,
+  base: ResolvedStyle,
+  state: InteractionState,
+): ResolvedStyle {
+  let style = resolveInstanceStyle(instance, base, state);
+  if (state.highlightedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true) {
+    style = { ...style, ...state.theme.highlighted };
+  }
+  if (state.hoveredNode?.instanceId === ref.instanceId && state.hoveredNode.nodeId === ref.nodeId) {
+    style = { ...style, ...state.theme.hoveredNode };
+  }
+  if (state.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true) {
+    style = { ...style, ...state.theme.selectedNode };
+  }
+  return style;
 }
 
 /**

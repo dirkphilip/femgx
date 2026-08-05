@@ -10,6 +10,7 @@ import {
   instanceVertexShader,
   pointVertexShader,
 } from "../../src/renderer/gpu-shaders";
+import { nodePickFragmentShader, nodePickVertexShader } from "../../src/renderer/gpu-node-pick";
 
 /** Returns the named struct's layout as computed by the wgsl_reflect parser. */
 function structInfo(source: string, name: string): StructInfo {
@@ -44,13 +45,16 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     },
   );
 
-  it("keeps ElementHighlight records aligned with encodeElementHighlight", () => {
-    const offsets = memberOffsets(structInfo(instanceVertexShader, "ElementHighlight"));
+  it("keeps ElementHighlight records aligned with encodeEmphasisRecord", () => {
+    const info = structInfo(instanceVertexShader, "ElementHighlight");
+    const offsets = memberOffsets(info);
     expect(offsets.get("slot")).toBe(0);
     expect(offsets.get("elementPickId")).toBe(4);
+    expect(offsets.get("facePickId")).toBe(8);
+    expect(offsets.get("nodePickId")).toBe(12);
     expect(offsets.get("color")).toBe(16);
     expect(offsets.get("emissive")).toBe(32);
-    expect(structInfo(instanceVertexShader, "ElementHighlight").size).toBe(ELEMENT_RECORD_STRIDE);
+    expect(info.size).toBe(ELEMENT_RECORD_STRIDE);
   });
 
   it("declares a runtime-sized records array at the header offset the CPU allocates", () => {
@@ -80,10 +84,42 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(instanceVertexShader).toMatch(/output\.emissive = emissive;/);
   });
 
-  it("overrides triangle colors from the element-highlight records", () => {
+  it("overrides triangle colors from the emphasis records", () => {
     expect(instanceVertexShader).toMatch(/triangleElementPickIds\[vertexIndex \/ 3u\]/);
+    expect(instanceVertexShader).toMatch(/triangleFacePickIds\[vertexIndex \/ 3u\]/);
     expect(instanceVertexShader).toMatch(/elementHighlights\.records\[index\]/);
+    expect(instanceVertexShader).toMatch(/triangleHasNode\(highlight\.nodePickId, vertexIndex\)/);
     expect(instanceVertexShader).toMatch(/@location\(3\) @interpolate\(flat\) elementPickId: u32/);
+    expect(instanceVertexShader).toMatch(/@location\(4\) @interpolate\(flat\) facePickId: u32/);
+  });
+
+  it("reports the nearest triangle corner node in the node pick pass", () => {
+    const memberNames = structInfo(nodePickVertexShader, "NodeVertexOutput").members.map(
+      (member) => member.name,
+    );
+    expect(memberNames).toEqual([
+      "position",
+      "color",
+      "pickId",
+      "emissive",
+      "elementPickId",
+      "facePickId",
+      "localPosition",
+      "cornerA",
+      "cornerB",
+      "cornerC",
+      "nodePickIds",
+    ]);
+    expect(nodePickVertexShader).toMatch(/@location\(5\) localPosition: vec3<f32>/);
+    expect(nodePickVertexShader).toMatch(
+      /@location\(9\) @interpolate\(flat\) nodePickIds: vec3<u32>/,
+    );
+    expect(nodePickVertexShader).toMatch(/cornerPositions: array<f32>/);
+    expect(nodePickVertexShader).toMatch(/cornerPositions\[base3\]/);
+    expect(nodePickVertexShader).toMatch(/vertexNodePickIds\[base\]/);
+    expect(nodePickFragmentShader).toMatch(
+      /nearestNode\(localPosition, cornerA, cornerB, cornerC, nodePickIds\)/,
+    );
   });
 
   it("applies emissive additively in the color fragment shader", () => {

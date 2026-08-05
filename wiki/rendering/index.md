@@ -13,6 +13,9 @@
   tessellation into renderable primitives.
 - [[rendering/interactive-state|Interactive state]] — centralized highlight,
   selection, hover, and style precedence.
+- [[rendering/node-face-interaction|Node and face interaction]] — node/face
+  picking, selection, the four-attachment GPU pick pass, and the CPU raycast
+  fallback.
 - [[rendering/pick-format|Pick texture format]] — portable packed GPU pick IDs.
 - [[rendering/platform-support|Platform support]] — WebGPU capability
   detection, unsupported behavior, and device recovery.

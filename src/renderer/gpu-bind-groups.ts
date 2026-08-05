@@ -42,6 +42,9 @@ function instanceBindGroup(
       { binding: 2, resource: { buffer: part.geometry.elementPickIdsBuffer } },
       { binding: 3, resource: { buffer: storage.highlight.buffer } },
       { binding: 4, resource: { buffer: part.deformation } },
+      { binding: 5, resource: { buffer: part.geometry.facePickIdsBuffer } },
+      { binding: 6, resource: { buffer: part.geometry.nodePickIdsBuffer } },
+      { binding: 7, resource: { buffer: part.geometry.cornerPositionsBuffer } },
     ],
   });
 }

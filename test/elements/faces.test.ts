@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
-import { classifyFaces, facesOf } from "../../src/elements/faces";
+import { classifyFaces, facesOf, facesOfElement } from "../../src/elements/faces";
 import {
   HEX20_SHAPE,
   HEX8_SHAPE,
@@ -193,6 +193,19 @@ describe("facesOf", () => {
     for (const shape of VOLUME_SHAPES) {
       assertOutwardFaces(sequentialElement(1, shape));
     }
+  });
+});
+
+describe("facesOfElement", () => {
+  it("pairs every face with a stable element-scoped index", () => {
+    const element = sequentialElement(7, TET4_SHAPE);
+    const refs = facesOfElement(element);
+    expect(refs).toHaveLength(4);
+    refs.forEach((ref, index) => {
+      expect(ref.elementId).toBe(7);
+      expect(ref.faceIndex).toBe(index);
+      expect(ref.face).toEqual(facesOf(element)[index]);
+    });
   });
 });
 
