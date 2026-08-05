@@ -43,6 +43,13 @@ RUN_WEBGPU=1 npx playwright test --project=chromium-webgpu
     context-menu toggles are disabled and annotated "CPU renderer only" (the
     WebGPU path has no overlay passes yet) while the edge overlay stays
     enabled.
+  - **rendered pixels** — element emphasis (the context-menu highlight on an
+    element target) must visibly change the presented canvas pixels, and
+    toggling it off must restore the exact baseline. This catches silent
+    WGSL/CPU record-layout desyncs (like #69) that DOM/data-attribute
+    assertions cannot see. The comparison captures `canvas.screenshot()` and
+    requires several consecutive byte-identical captures, so it also proves
+    the WebGPU output is deterministic for a static scene.
 
 ## Capability gating (non-flakiness)
 
@@ -55,6 +62,12 @@ Two layers keep it deterministic:
    renderer and falls back to the deterministic CPU (2D canvas) path.
 2. **Spec skip**: each test skips cleanly (with a reason) when the demo did not
    commit to WebGPU, or when GPU picking does not resolve any instance.
+3. **Settled screenshots**: WebGPU presentation is asynchronous, so the pixel
+   test polls `canvas.screenshot()` until several consecutive captures are
+   byte-identical before comparing states. Moving the pointer to an empty canvas
+   corner clears the hovered state first, so hover emphasis cannot satisfy (or
+   break) the comparison; the test fails (rather than silently passing) if that
+   empty spot cannot be found.
 
 So on a healthy WebGPU browser the lane validates the full flow; on a browser
 that cannot present/pick (for example headless SwiftShader quirks, see
