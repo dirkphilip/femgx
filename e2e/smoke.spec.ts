@@ -45,7 +45,7 @@ test("loads, renders, and reacts to a user action without runtime errors", async
 
   // Render: the workbench reports the loaded model and the canvas has drawn
   // geometry, not just the page chrome.
-  await expect(page.getByTestId("status")).toContainText("Element gallery");
+  await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
   expect(await drawnPixels(canvas)).toBe(true);
   const before = await pixelHash(canvas);
 
