@@ -228,7 +228,9 @@ test("picks and selects a node, exposing adjacency and neighbors", async ({ page
 
 test("picks and selects a face, exposing its normal and ownership", async ({ page }) => {
   await page.goto("/");
-  await page.getByTestId("model-select").selectOption("frame");
+  // The stiffened deck panel projects large faces; the frame's thin members
+  // are too sparse to hit with the coarse pick sweep.
+  await page.getByTestId("model-select").selectOption("panel");
   await page.waitForTimeout(200);
   const canvas = page.getByTestId("view-canvas");
   const hit = await findPick(page, canvas, "f:");
