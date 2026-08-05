@@ -105,6 +105,14 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 
 ## Limits and follow-ups
 
+- The CPU fallback (`demo/cpu-render.ts`) expresses emphasis with overlays
+  (node-marker circles, semi-transparent face fills, thicker line strokes) and
+  ignores `emissive` on solid triangle fills, so an explicit element highlight
+  (`{ emissive: 0.35 }`) is invisible on the CPU renderer's solids while the
+  WebGPU renderer adds the emissive glow. This is a known rendering asymmetry,
+  not a correctness bug in one path: the WebGPU e2e pixel assertion (see
+  [[rendering/webgpu-e2e|WebGPU browser e2e lane]]) covers the emissive path in a
+  real browser.
 - Element-highlight buffers grow on demand, so there is no fixed per-part
   element-selection cap; the vertex shader scans every record per triangle, so
   selections on the order of the whole model (or every element across many

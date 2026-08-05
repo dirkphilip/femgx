@@ -47,6 +47,73 @@ async function findHoverPoint(
   return undefined;
 }
 
+/**
+ * Captures the canvas pixels once the presented frame settles. WebGPU
+ * presentation is asynchronous and the demo renders on demand, so three
+ * consecutive byte-identical captures prove the swapchain has presented a
+ * stable frame (and that the renderer is deterministic for a static scene).
+ */
+async function stableCanvasPixels(page: Page, canvas: Locator): Promise<Buffer> {
+  let previous: Buffer | undefined;
+  let streak = 0;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const shot = await canvas.screenshot();
+    if (previous !== undefined && shot.equals(previous)) streak += 1;
+    else streak = 0;
+    previous = shot;
+    if (streak >= 2) return shot;
+    await page.waitForTimeout(100);
+  }
+  throw new Error("canvas pixels never stabilized across captures");
+}
+
+/**
+ * Moves the pointer to an empty canvas corner so the CPU raycast clears the
+ * hovered state. The hover sweep used to find a pick target leaves a hovered
+ * instance, whose emphasis would otherwise bleed into the pixel comparison.
+ */
+async function clearHover(page: Page, canvas: Locator): Promise<void> {
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("canvas has no bounding box");
+  }
+  const corners: ReadonlyArray<readonly [number, number]> = [
+    [0.05, 0.05],
+    [0.95, 0.05],
+    [0.05, 0.95],
+    [0.95, 0.95],
+  ];
+  for (const [fx, fy] of corners) {
+    await page.mouse.move(box.x + fx * box.width, box.y + fy * box.height);
+    await page.waitForTimeout(120);
+    const hovered = await canvas.getAttribute("data-hovered");
+    if (hovered === null || hovered === "") {
+      return;
+    }
+  }
+  throw new Error("could not move the pointer to an empty canvas point to clear hover");
+}
+
+/**
+ * Shift-right-clicks a target to promote a node/face pick to its owning
+ * element and toggles the context-menu highlight, the explicit element emphasis
+ * state the renderer draws as an emissive glow.
+ */
+async function toggleElementHighlight(
+  page: Page,
+  point: { readonly x: number; readonly y: number },
+): Promise<void> {
+  await page.mouse.move(point.x, point.y);
+  await page.waitForTimeout(120);
+  await page.keyboard.down("Shift");
+  await page.mouse.click(point.x, point.y, { button: "right" });
+  await page.keyboard.up("Shift");
+  const menu = page.getByTestId("context-menu");
+  await expect(menu).toBeVisible();
+  await expect(menu.locator(".menu-title").first()).toHaveText(/^Element \d+$/);
+  await menu.locator('button[data-action="highlight"]').click();
+}
+
 test("initializes the WebGPU renderer and renders an instanced frame", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("view-canvas")).toBeVisible();
@@ -146,6 +213,53 @@ test("keeps selection feedback visible in edge overlay mode", async ({ page }) =
   await page.getByTestId("edge-overlay").click();
   await expect(page.getByTestId("edge-overlay-label")).toHaveText("Off");
   expect(await canvas.getAttribute("data-selected")).toBe(selected);
+});
+
+test("element emphasis changes the rendered pixels and clears back to the baseline", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.getByTestId("view-canvas")).toBeVisible();
+  await expect
+    .poll(() => rendererMode(page), { timeout: 10_000 })
+    .toMatch(/^(webgpu|cpu|destroyed)$/);
+
+  if ((await rendererMode(page)) !== "webgpu") {
+    test.skip(true, "WebGPU renderer unavailable in this browser environment");
+  }
+
+  const canvas = page.getByTestId("view-canvas");
+  await expect.poll(() => canvas.getAttribute("data-frames"), { timeout: 10_000 }).not.toBeNull();
+
+  // Baseline: no interaction, so the canvas holds only the deterministic model.
+  const baseline = await stableCanvasPixels(page, canvas);
+
+  const hoverPoint = await findHoverPoint(page, canvas);
+  if (hoverPoint === undefined) {
+    test.skip(true, "picking is not functional in this browser environment");
+    return;
+  }
+
+  // Emphasize the element under the pointer, then clear the hover so the
+  // pixel comparison isolates the emphasis. If element emphasis ever renders
+  // invisibly again (a WGSL/CPU record-layout desync like #69), the settled
+  // pixels never differ from the baseline and this assertion fails.
+  await toggleElementHighlight(page, hoverPoint);
+  await clearHover(page, canvas);
+  const emphasized = await stableCanvasPixels(page, canvas);
+  expect(
+    emphasized.equals(baseline),
+    "element emphasis must render as visibly different pixels",
+  ).toBe(false);
+
+  // Toggling the emphasis off again must restore the exact baseline pixels,
+  // proving the earlier difference came from emphasis and not transient state.
+  await toggleElementHighlight(page, hoverPoint);
+  await clearHover(page, canvas);
+  const restored = await stableCanvasPixels(page, canvas);
+  expect(restored.equals(baseline), "clearing the emphasis must restore the baseline pixels").toBe(
+    true,
+  );
 });
 
 test("disables the display-overlay toggles the WebGPU renderer cannot honor", async ({ page }) => {
