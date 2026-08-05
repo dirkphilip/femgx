@@ -178,14 +178,14 @@ fn vertexMain(
   for (var index = 0u; index < elementHighlights.count; index++) {
     let highlight = elementHighlights.records[index];
     if (highlight.slot == drawOrder[instanceIndex]) {
-      var match = highlight.elementPickId != 0u && highlight.elementPickId == elementPickId;
-      if (!match && highlight.facePickId != 0u && highlight.facePickId == facePickId) {
-        match = true;
+      var matched = highlight.elementPickId != 0u && highlight.elementPickId == elementPickId;
+      if (!matched && highlight.facePickId != 0u && highlight.facePickId == facePickId) {
+        matched = true;
       }
-      if (!match && highlight.nodePickId != 0u && triangleHasNode(highlight.nodePickId, vertexIndex)) {
-        match = true;
+      if (!matched && highlight.nodePickId != 0u && triangleHasNode(highlight.nodePickId, vertexIndex)) {
+        matched = true;
       }
-      if (match) {
+      if (matched) {
         color = highlight.color;
         emissive = highlight.emissive;
         break;
