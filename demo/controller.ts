@@ -21,6 +21,7 @@ import {
   setPartSelected,
   setProjection,
   type AssemblyId,
+  type Camera,
   type ElementId,
   type ElementRef,
   type ElementRenderMode,
@@ -153,6 +154,7 @@ export class WorkbenchController {
     this.installCanvasInteraction();
     this.canvas.dataset["model"] = this.preset.id;
     this.canvas.dataset["mode"] = this.mode;
+    this.canvas.dataset["dragging"] = "false";
     this.render();
   }
 
@@ -345,17 +347,19 @@ export class WorkbenchController {
     installCameraControls({
       canvas,
       cameraRef: this.cameraRef,
-      onMove: () => undefined,
+      onGestureChange: (active) => {
+        this.dragging = active;
+        canvas.dataset["dragging"] = active ? "true" : "false";
+      },
       onRender: () => {
         this.render();
       },
     });
     canvas.addEventListener("pointerdown", (event) => {
-      this.dragging = true;
       this.downPosition = { x: event.clientX, y: event.clientY };
     });
-    canvas.addEventListener("pointerup", () => {
-      this.dragging = false;
+    canvas.addEventListener("pointercancel", () => {
+      this.downPosition = undefined;
     });
     canvas.addEventListener("pointermove", (event) => {
       if (!this.dragging) this.hoverAt(event);
@@ -647,6 +651,7 @@ export class WorkbenchController {
     this.hooks.render(this, this.interaction);
     this.refreshStatus();
     this.refreshSelectedDataset();
+    this.canvas.dataset["camera"] = cameraKey(this.cameraRef.camera);
   }
 
   private refreshStatus(): void {
@@ -889,6 +894,13 @@ export class WorkbenchController {
 /** Fallback preset used only if the preset list is somehow empty. */
 function createEmptyPreset(): ModelPreset {
   return createModelPresets()[0] as ModelPreset;
+}
+
+/** Compact camera pose key for e2e assertions on gesture-driven movement. */
+function cameraKey(camera: Camera): string {
+  const position = camera.position.map((value) => value.toFixed(3)).join(",");
+  const target = camera.target.map((value) => value.toFixed(3)).join(",");
+  return `p:${position} t:${target} o:${camera.orthoHeight.toFixed(3)}`;
 }
 
 function targetLabel(target: SelectTarget): string {
