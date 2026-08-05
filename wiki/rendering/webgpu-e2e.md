@@ -39,6 +39,10 @@ RUN_WEBGPU=1 npx playwright test --project=chromium-webgpu
   - **device-loss recovery** — `window.femgxDemo.forceDeviceLoss()` destroys the
     real GPU device; the demo must recover (status shows `recovered`) or fall
     back to the CPU renderer, and must not raise page errors either way.
+  - **display-overlay toggles** — the node-marker/normal/face-boundary/ID
+    context-menu toggles are disabled and annotated "CPU renderer only" (the
+    WebGPU path has no overlay passes yet) while the edge overlay stays
+    enabled.
 
 ## Capability gating (non-flakiness)
 

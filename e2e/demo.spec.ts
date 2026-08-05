@@ -310,6 +310,38 @@ test("context menu selects a target and toggles display without losing selection
   expect(await dataset(page, "selected")).toBe(selected);
 });
 
+test("keeps the node/normal/face-boundary/ID toggles on the CPU renderer", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  // The demo probes WebGPU before committing to the CPU fallback, so the
+  // renderer is only known once the probe settles; poll like the visual spec.
+  await expect.poll(() => canvas.getAttribute("data-renderer")).toMatch(/^(cpu|webgpu)$/);
+  if ((await canvas.getAttribute("data-renderer")) !== "cpu") {
+    test.skip(true, "the WebGPU spec covers the overlay toggles when WebGPU is active");
+    return;
+  }
+  const hit = await findPick(page, canvas, "n:");
+  if (hit === undefined) {
+    test.skip(true, "node picking is not functional in this environment");
+    return;
+  }
+
+  await page.mouse.click(hit.x, hit.y, { button: "right" });
+  const menu = page.getByTestId("context-menu");
+  await expect(menu).toBeVisible();
+  for (const action of ["node-markers", "normals", "face-boundaries", "ids"]) {
+    await expect(menu.locator(`button[data-action="${action}"]`)).toBeEnabled();
+  }
+
+  // Toggling an overlay flips its menu label, so the toggle still works.
+  await menu.locator('button[data-action="normals"]').click();
+  await page.mouse.click(hit.x, hit.y, { button: "right" });
+  await expect(page.getByTestId("context-menu")).toBeVisible();
+  await expect(
+    page.getByTestId("context-menu").locator('button[data-action="normals"]'),
+  ).toHaveText("Normals off");
+});
+
 test("context menu hides and restores a part via the visibility panel", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");

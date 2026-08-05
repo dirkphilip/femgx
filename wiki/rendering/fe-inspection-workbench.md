@@ -45,7 +45,12 @@ identical ([[rendering/element-interaction|Element-level interaction]],
   renderers can emphasize a node or face selection without new geometry.
 - Display toggles (edges, node markers, normals, face boundaries, ids,
   diagnostics) flip renderer state only; they never rebuild reusable geometry
-  or drop selection state.
+  or drop selection state. The node-marker/normal/face-boundary/ID overlays
+  are drawn only by the CPU fallback renderer; the WebGPU renderer has no
+  overlay passes yet, so the workbench's `displayOverlays` capability (false
+  on the WebGPU demo path) disables and annotates those context-menu toggles
+  instead of advertising a no-op. `edges` is a real WebGPU pass and stays
+  enabled ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
 - The controller exposes a `rendererState` note (e.g. `recovered`, `fallback`)
   that the status line shows after a GPU device loss; the WebGPU demo path
   recovers the renderer once and falls back to the CPU renderer when recovery
