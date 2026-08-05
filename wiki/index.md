@@ -6,6 +6,9 @@ Links use Foam/Obsidian `[[path/to/note|label]]` syntax.
 
 ## Areas
 
+- [[requirements/index|Requirements and product scope]] — the authoritative
+  product-scope contract: what is Core now, Deferred, or Remove, and the
+  decision gate for proposed additions.
 - [[architecture/index|Architecture and API]] — public vocabulary, scene
   ownership, instancing, runtime compilation, and source boundaries.
 - [[data/index|Data and FE models]] — element topology, results, import/export,

@@ -19,7 +19,8 @@
   picking, selection, and the four-attachment GPU pick pass.
 - [[rendering/pick-format|Pick texture format]] — portable packed GPU pick IDs.
 - [[rendering/platform-support|Platform support]] — WebGPU as the product
-  requirement, explicit unsupported behavior, and device recovery.
+  requirement, explicit unsupported behavior, and supported-path device
+  recovery.
 - [[rendering/renderer-subrange-updates|Renderer subrange updates]] — delta
   updates for instance and element GPU state.
 - [[rendering/webgpu-e2e|WebGPU browser e2e lane]] — real-WebGPU browser

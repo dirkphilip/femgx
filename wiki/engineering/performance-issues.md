@@ -76,7 +76,9 @@ mocked device could not catch:
 The demo requires WebGPU and reports an explicit unsupported state when it
 cannot initialize, instead of failing silently; the e2e lane launches Chromium
 with `--enable-unsafe-webgpu --enable-gpu` (software WebGPU) so the default CI
-gate exercises the real renderer.
+gate exercises the real renderer. A broken WebGPU environment must get a typed
+unsupported result instead of a second renderer (see
+[[rendering/platform-support|Platform support]]).
 
 ### SwiftShader r32uint picking reliability
 
@@ -114,6 +116,9 @@ error. Node 21 is unsupported by the current toolchain.
 
 ## Large-model streaming gaps
 
+**Deferred** — the whole streaming subsystem is out of the minimum product and
+must not grow (see [[requirements/product-scope|product scope]]).
+
 The [[data/large-model-streaming|streaming subsystem]] resolves the CPU-side chunked
 load pipeline (parse, partition, budgeted upload, rebasing). Remaining GPU-side
 and product gaps, tracked in `wiki/engineering/todo.md` and the issue tracker:
@@ -129,6 +134,9 @@ and product gaps, tracked in `wiki/engineering/todo.md` and the issue tracker:
   strategy; float64 vertex positions are not supported by current WebGPU.
 
 ## Quadratic element tessellation trade-offs
+
+**Deferred** — quadratic shapes are not part of the minimum product (see
+[[requirements/product-scope|product scope]]).
 
 Quadratic (Tet10/Hex20/LINE3) geometry is tessellated through mid-edge nodes
 rather than reduced to linear facets (see

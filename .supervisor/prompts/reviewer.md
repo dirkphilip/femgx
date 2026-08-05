@@ -11,6 +11,31 @@ Issue description
 $issue_body
 ---
 
+## Review against the product contract
+
+Start by challenging the requested scope against `AGENTS.md` and
+`wiki/requirements/product-scope.md`:
+
+- **User value and minimum behavior** — does the change deliver concrete value
+  with the smallest design that covers it?
+- **Deletion candidates** — could the change have deleted or simplified
+  existing code instead of adding? A successful implementation may delete code;
+  line count, module count, and abstraction count should not grow without
+  justification.
+- **Non-goals** — reject scope expansion that is not in the issue and not in
+  the product contract.
+- **New abstractions** — flag new abstractions or public API symbols that an
+  existing pattern already covers.
+
+Apply the lightweight scope checklist to the diff and record any hit as a
+finding (fixing it directly when it is small and clearly in scope):
+
+- New **fallback branches**, **compatibility layers**, **optional modes**, or
+  **public API additions** without an explicit requirement in the issue.
+- Line count, module count, or abstraction count grew without justification.
+- New scope that does not pass the decision gate (user value, minimum behavior,
+  deletion candidates, non-goals, necessity).
+
 ## Integration expectations
 
 We merge quickly once work is ready. Keep the change focused, surface blockers

@@ -5,6 +5,18 @@ The supervisor generates a worker file for every role invocation under
 coding agent with a short prompt that points to that file; the worker file is
 the authoritative contract.
 
+## Requirement challenge and deletion-first
+
+Every worker starts by challenging the requested scope against `AGENTS.md` and
+`wiki/requirements/product-scope.md` (the authoritative scope contract): user
+value, minimum behavior, deletion candidates, non-goals, and whether a new
+abstraction is truly necessary. Workers reject or flag scope expansion that is
+not in the issue, do not add fallback branches, compatibility layers, optional
+modes, or public API surface without an explicit requirement, and treat
+deletion-first as the default: a successful implementation may delete code, and
+line count, module count, and abstraction count should not grow without
+justification.
+
 Agents may edit only the issue worktree and own local Git there: fetch, rebase
 onto `origin/<base>`, add, and commit. They must not push, invoke GitHub/`gh`,
 create or update PRs, start the next role, rewrite the base branch, or change

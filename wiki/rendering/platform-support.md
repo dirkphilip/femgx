@@ -1,6 +1,7 @@
 # Platform support: WebGPU as the product requirement
 
-Modern WebGPU is the product's only rendering backend. Environments without a
+Modern WebGPU is the product's only rendering backend (see
+[[requirements/product-scope|product scope contract]]). Environments without a
 working WebGPU path get a predictable, typed "unsupported" result and actionable
 errors — never a hang, a silent probe, or a fallback renderer. The CPU-side
 scene/assembly model is backend-independent, so model I/O and computation never

@@ -120,3 +120,59 @@ describe("supervisor worker quality-gate contract", () => {
     }
   });
 });
+
+const PRODUCT_CONTRACT_PROMPTS = PROMPTS.filter((path) => /implementer|reviewer/.test(path));
+
+describe("supervisor requirement-challenge contract", () => {
+  it.each(PRODUCT_CONTRACT_PROMPTS)("opens %s with the requirement challenge", (path) => {
+    const prompt = readPrompt(path);
+    expect(prompt).toMatch(/user value/i);
+    expect(prompt).toMatch(/minimum behavior/i);
+    expect(prompt).toMatch(/deletion candidates/i);
+    expect(prompt).toMatch(/non-goals/i);
+    expect(prompt).toMatch(/new abstraction/i);
+    expect(prompt).toMatch(/product scope|product-scope/);
+  });
+
+  it.each(PROMPTS)("flags out-of-contract additions in %s", (path) => {
+    const prompt = readPrompt(path);
+    expect(prompt).toMatch(/fallback branches/i);
+    expect(prompt).toMatch(/compatibility layers/i);
+    expect(prompt).toMatch(/optional modes/i);
+    expect(prompt).toMatch(/public API/i);
+  });
+
+  it.each(PRODUCT_CONTRACT_PROMPTS)("expects deletion-first implementations in %s", (path) => {
+    const prompt = readPrompt(path);
+    expect(prompt).toMatch(/may delete code/);
+    expect(prompt).toMatch(/should not grow without\s+justification/);
+  });
+
+  it("gives the reviewer a lightweight scope checklist", () => {
+    const prompt = readPrompt(".supervisor/prompts/reviewer.md");
+    expect(prompt).toMatch(/scope checklist/);
+    expect(prompt).toMatch(/Line count, module count, or abstraction count grew/);
+  });
+});
+
+describe("product contract", () => {
+  it("AGENTS.md encodes the focused agent contract", () => {
+    const agents = readFileSync(join(REPO_ROOT, "AGENTS.md"), "utf8");
+    expect(agents).toMatch(/## Product Contract/);
+    expect(agents).toMatch(/### Core requirements/);
+    expect(agents).toMatch(/### Non-goals and deferred capabilities/);
+    expect(agents).toMatch(/### Simplicity rules/);
+    expect(agents).toMatch(/### Decision gate for proposed additions/);
+    expect(agents).toMatch(/requirements\/product-scope/);
+  });
+
+  it("wiki/requirements/product-scope.md is the source-of-truth scope contract", () => {
+    const scope = readFileSync(join(REPO_ROOT, "wiki/requirements/product-scope.md"), "utf8");
+    expect(scope).toMatch(/source of truth for product scope/);
+    expect(scope).toMatch(/Core now/);
+    expect(scope).toMatch(/Deferred/);
+    expect(scope).toMatch(/Remove/);
+    expect(scope).toMatch(/line counts/i);
+    expect(scope).toMatch(/Decision gate/);
+  });
+});

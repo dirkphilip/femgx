@@ -11,6 +11,14 @@ Issue description:
 $issue_body
 ---
 
+## Scope discipline
+
+Repair addresses the trigger above only. Do not expand scope, and do not add
+fallback branches, compatibility layers, optional modes, or public API surface
+without an explicit requirement. Do not preserve obsolete compatibility paths
+just to keep checks green; if a change conflicts with the product contract in
+`AGENTS.md` and `wiki/requirements/product-scope.md`, report it instead.
+
 ## What needs attention
 
 Repair trigger: $repair_reason

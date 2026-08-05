@@ -1,7 +1,11 @@
 # Engineering TODO
 
-Prioritized roadmap for high-performance assemblies and a modern WebGPU
-development workflow.
+Prioritized roadmap for the minimum WebGPU product. Classifications follow the
+[[requirements/product-scope|product scope contract]]: items below marked
+**Deferred** are not requirements (code may stay, but must not grow), and items
+marked **Remove** are scheduled for deletion behind an explicit product
+decision. Checked items record what was built; the roadmap is not a mandate to
+extend out-of-scope capability.
 
 ## P0 — correctness and runtime foundation
 
@@ -72,7 +76,8 @@ development workflow.
 - [x] Align the supported Node version across `package.json`, CI, and docs.
 - [x] Add WebGPU-capable browser coverage to the demo/e2e strategy as the
       default lane, with an explicit unsupported state for environments without
-      WebGPU (see [[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
+      WebGPU (see [[rendering/webgpu-e2e|WebGPU browser e2e lane]]). The CPU
+      fallback was removed in #171.
 
 ## P2 — element topology
 
@@ -82,10 +87,12 @@ development workflow.
 - [x] Extract oriented polygon faces (with quadratic mid-edge nodes) and unique
       element edges, with canonical-key deduplication and boundary/interior
       face classification (see [[data/elements-topology|Element topology]]).
-- [x] Render linear and quadratic elements (points, lines, and element edges)
-      as triangle/line/point primitives, with boundary-face and edge-dedup
-      culling, quadratic mid-edge tessellation, and a mode-toggle demo (see
-      [[rendering/element-rendering|Element rendering]]).
+- [x] Render linear elements (points, lines, and element edges) as
+      triangle/line/point primitives, with boundary-face and edge-dedup
+      culling and a mode-toggle demo (see
+      [[rendering/element-rendering|Element rendering]]). Quadratic mid-edge
+      tessellation is **Deferred** (see
+      [[requirements/product-scope|product scope]]).
 
 ## P2 — engineering results
 
@@ -107,6 +114,8 @@ development workflow.
 - [x] Add a dedicated load-case playback API (`CasePlayer`) with configurable
       case duration, wrap/clamp looping, and optional displacement
       interpolation between adjacent cases (see [[data/results|Results]]).
+      **Deferred** — playback is beyond the minimum product; keep the simple
+      load-case stepping in the demo.
 - [x] GPU-side deformed rendering (per-instance vertex displacement) via
       `setDeformation` + `nodalDisplacements` (see [[data/results|Results]]).
 
@@ -130,13 +139,19 @@ development workflow.
 - [x] Add e2e visual regression for solid, edge, and selection modes on the
       WebGPU renderer (`e2e/visual.spec.ts`); the element render
       modes (solid/surface/edges/lines/points) are covered by the element-mode
-      e2e tests in `e2e/demo.spec.ts`.
+      e2e tests in `e2e/demo.spec.ts`. The CPU renderer was removed in #171.
 - [x] Document the browser/GPU capability matrix in the wiki
       ([[engineering/compatibility-matrix|Browser/GPU compatibility matrix]]).
+      **Deferred** — under the WebGPU-only contract the matrix collapses to
+      "modern WebGPU browser or typed unsupported".
 - [x] Deterministic import/export round trips and invalid-input diagnostics are
       covered by `test/io/roundtrip.test.ts` and `test/io/validate.test.ts`.
 
 ## P3 — large-model streaming
+
+**Deferred** — the whole streaming subsystem is out of the minimum product (see
+[[requirements/product-scope|product scope]]). Do not extend it; the remaining
+unchecked item stays unimplemented until an explicit product decision.
 
 - [x] Add chunked model loading: parse, validate, and bound geometry per chunk
       (see [[data/large-model-streaming|Large-model streaming]]).

@@ -6,129 +6,114 @@ This is an **experimental product** (version 0.0.0/0.0.1). There is **no stable 
 we do not care about breaking API changes. The only thing that matters is shipping a
 very clean product. Prefer improving the design over preserving backwards compatibility.
 
-## Supported target and simplicity
+## Product Contract
 
-Modern WebGPU is a **product requirement**, not an optional capability: the
-supported target is current browsers with a working WebGPU implementation.
-Environments without a working WebGPU path get a clear error or an explicit
-unsupported-status result — there is deliberately no second rendering backend,
-no CPU fallback, no hidden capability-probe canvas, and no elaborate
-device-recovery switching in the library or the demo.
+The authoritative scope decision is [[requirements/product-scope|Product scope and
+requirements contract]]. Read it before starting any task; this section is the short form.
 
-Simplicity is an explicit product and engineering constraint. **Prefer deleting
-code over adding abstraction**, and do not preserve fallback/probing/recovery
-machinery, tests, fixtures, documentation, or dependencies that exist only to
-support non-target environments. When a supported-path feature is intentionally
-retained because it is a real part of the WebGPU contract (for example
-re-creating the device after a loss), keep it small, focused on the supported
-path, and record a short rationale in the wiki.
+### Core requirements
+
+- **WebGPU-only rendering.** A modern WebGPU browser is the only supported
+  rendering target. There is no CPU renderer, no hidden capability-probe canvas,
+  and no fallback-driven device-recovery switching in the library or the demo: a
+  missing/failed WebGPU device produces a typed unsupported result or a clear
+  error, never a second renderer. Capability probing (`queryWebGpuSupport`) and
+  device-loss recovery (`recover()`) are retained as supported-path features of
+  the WebGPU contract (see [[rendering/platform-support|Platform support]]).
+- **Parts, assemblies, instancing, visibility, camera, picking, interaction.**
+  Reusable part geometry is drawn once and instanced across hierarchical
+  assembly placements. Element-level GPU picking, selection/highlight/hover,
+  and hide/show are driven by per-instance GPU attributes, not CPU material
+  clones.
+- **Linear elements.** Points, lines, triangles, quads, Tet4, Hex8 with
+  canonical topology and validated `createElement` construction.
+- **Results.** Typed scalar/vector/tensor fields, derived quantities (magnitude,
+  von Mises, principal values), value ranges, scalar color mapping, and
+  deformed-shape geometry.
+- **IO.** A single interchange format (VTK legacy) with validation and
+  diagnostics.
+- **Deterministic compile pipeline.** Iterative flattening, deterministic
+  per-part batching, and frustum culling with stable placement handles.
+
+### Non-goals and deferred capabilities
+
+The following are **not** requirements and must not be expanded as if they were:
+
+- CPU fallback rendering (removed in #171; do not re-add a second renderer).
+- Quadratic element shapes and mid-edge tessellation.
+- Node/face picking granularity, adjacency inspection, and node/face overlays.
+- Advanced results playback (CasePlayer, interpolation) and legends.
+- IO adapters beyond VTK (VTU, Gmsh, Abaqus), chunked builders, cancellation,
+  and progress.
+- Large-model streaming (spatial partitioning, LOD, upload budgets, worker
+  parsing, coordinate rebasing) and the "hundreds of millions of elements"
+  ambition.
+
+Existing code for deferred capabilities stays in the repository until an
+explicit product decision removes it; new work must not grow it.
+
+### Simplicity rules
+
+- Prefer the smallest design that delivers the product value; **deletion-first**
+  is the default stance.
+- Do not add fallback branches, compatibility layers, optional modes, or new
+  public API surface without an explicit requirement.
+- Do not introduce parallel abstractions; extend an existing pattern when it
+  covers the case.
+- A successful implementation may delete code. Line count, module count, and
+  abstraction count should not grow without justification.
+
+### Decision gate for proposed additions
+
+Any scope addition must answer, before work starts: (1) concrete user value,
+(2) the minimum behavior that delivers it, (3) what existing code can be deleted
+or simplified instead, (4) explicit non-goals, and (5) whether a new abstraction
+is truly necessary. Work that grows scope without passing this gate is rejected.
 
 ## Project Overview
 
-A modern TypeScript graphics library that renders very large finite element (FE) models
-efficiently using **WebGPU** and **GPU instancing**.
-
-The goal is to display giant FE models (hundreds of millions of elements) at interactive
-frame rates by drawing geometry once and reusing it across many instances.
-
-## Core Concepts
-
-### Parts
-
-A **Part** is a reusable unit of drawable geometry:
-
-- Owns a single set of GPU resources (vertex/index buffers, bounding volume).
-- Does NOT own world transforms — it is the shared geometry that can be instanced many times.
-- Has a stable identifier that the API can refer to (for selection, highlighting, styling).
-
-### Assemblies
-
-An **Assembly** is a hierarchical composition of parts and other assemblies:
-
-- Places parts in the scene via transforms (local-to-parent or local-to-world).
-- Each placement is an **instance** of a part → enables GPU instancing.
-- Supports nested/hierarchical transforms (sub-assemblies) so large models can be
-  organized the way FE tools organize them (e.g. model → subcase → part → element set).
-- Supports **hide/show** at both part and assembly level; hiding an assembly hides all
-  of its instances/sub-assemblies.
-
-### Instancing Strategy
-
-- Geometry that is repeated (identical meshes, common element shapes) is drawn once via
-  instancing, with per-instance data (world transform, color, pick ID) in a GPU buffer.
-- The renderer should batch draw calls by part to minimize pipeline/bind-group changes.
-- Design so instance count is high and geometry upload is amortized — instancing is the
-  core performance lever.
-
-## API Requirements
-
-The public API must be clean and ergonomic for interactivity:
-
-- **Highlight** — per-part or per-instance style override (e.g. emissive/color) without
-  touching the base material.
-- **Selection** — maintain a set of selected parts/instances; the renderer renders them
-  in a distinct state.
-- **Hit testing / picking** — GPU-based picking (render instance IDs into a buffer and
-  read back on pointer events) with a clean `pick(x, y)`-style API returning the
-  part/instance under the cursor.
-- **Hide/show** — toggling visibility on parts or assemblies (with hierarchy inheritance)
-  must be cheap: it should update GPU state or instance counts directly, not rebuild
-  buffers or touch materials.
-- All interactive state (highlight/selection/hover/visibility) must be efficient: driven
-  by per-instance attributes in GPU buffers, not by CPU-side material clones.
-
-## Architecture Principles
-
-- **Render Graph-ish separation**: a front-end scene/assembly model (CPU) is decoupled
-  from a back-end GPU renderer. The scene is authoritative; the renderer syncs deltas.
-- **Ownership boundaries**: Parts own geometry and are immutable once uploaded; Assemblies
-  own the placement/hierarchy; the Renderer owns the device/swapchain/pipelines.
-- **Async resource loading** and a deferred resource creation model (WebGPU requires
-  device-queued creation of buffers/pipelines).
-- **Deterministic ordering** of draw calls and instance data to keep frame-to-frame
-  stability (important for picking consistency and diffs).
-- **Efficient state management**: interactive state (highlight, selection, hover,
-  visibility) is centralized and managed as deltas against the authoritative scene, not
-  scattered one-off mutations. The scene flattens parts/assemblies into a deterministic
-  instance list once; per-frame state changes only patch the affected instance attributes
-  (color/emissive/pick/visibility) in the GPU buffer, or adjust instance counts, without
-  rebuilding geometry or instance lists. Visibility is resolved bottom-up by hierarchy and
-  culled instances at the source so hidden geometry is never drawn.
+A TypeScript graphics library that renders finite-element (FE) models with
+**WebGPU** and **GPU instancing**: geometry is uploaded once as a reusable
+`Part` and drawn many times across `Assembly` placements, batching draws by part
+to minimize pipeline changes. The authoritative CPU scene compiles into a packed
+`SceneRuntime`; the renderer syncs per-frame deltas to per-instance GPU state.
 
 ## Source Organization
 
 Implementation and tests are organized by subsystem so ownership boundaries are
 obvious. Each subsystem is a directory under `src/` with a mirrored directory
-under `test/`:
+under `test/`. Tags reflect the [[requirements/product-scope|product scope]]:
 
-- `src/math/` — matrix/vector math (`mat4`).
-- `src/geometry/` — reusable part geometry and computed bounds.
+- `src/math/` — matrix/vector math (`mat4`). **Core.**
+- `src/geometry/` — reusable part geometry, computed bounds, and linear-element
+  tessellation. **Core** (quadratic tessellation **Deferred**).
 - `src/elements/` — typed finite-element model: shape/topology definitions, a
-  validated `createElement` constructor, and oriented face/edge extraction
-  (faces, edges), independent of the renderer.
+  validated `createElement` constructor, and face/edge extraction. **Core for
+  linear shapes; quadratic shapes Deferred.**
 - `src/scene/` — authoritative CPU model: part/assembly/instance identities,
-  assemblies, and the scene builder.
+  assemblies, and the scene builder. **Core.**
 - `src/runtime/` — compile pipeline: flattening, frustum culling, per-part
-  batching, and `compileScene`.
+  batching, and `compileScene`. **Core.**
 - `src/scene-runtime/` — packed CPU-side scene runtime with delta-oriented
-  visibility updates (`createSceneRuntime`).
-- `src/camera/` — immutable orbit camera and projection math.
+  visibility updates (`createSceneRuntime`). **Core.**
+- `src/camera/` — immutable orbit camera and projection math. **Core.**
 - `src/interaction/` — centralized highlight/selection/hover/override state.
-- `src/results/` — typed engineering result fields (scalar/vector/tensor over
-  nodes or elements), derived quantities (magnitude, von Mises, principal
-  values), value ranges, scalar color mapping with thresholds/legends, and
-  deformed-shape geometry; pure CPU-side data.
-- `src/io/` — versioned typed interchange model, chunked model builder,
-  streaming VTK/VTU/Gmsh/Abaqus import/export adapters, validation,
-  diagnostics, and cancellation/progress (see `wiki/data/io-import-export.md`).
+  **Core.**
+- `src/results/` — typed result fields, derived quantities, value ranges,
+  scalar color mapping, and deformed-shape geometry. **Core** (playback and
+  legends **Deferred**).
+- `src/io/` — versioned interchange model, VTK legacy read/write, and shared
+  validation/diagnostics. **Core** (VTU/Gmsh/Abaqus adapters and chunked
+  builders **Deferred**).
 - `src/streaming/` — chunk parsing, spatial partitioning, upload budgets, and
-  coordinate rebasing for large-model rendering (see
-  `wiki/data/large-model-streaming.md`).
-- `src/picking/` — CPU-side pick-id resolution.
-- `src/platform/` — explicit WebGPU unsupported/error reporting (typed reasons)
-  and device lifecycle handling focused on the supported path (device request
-  and loss reporting/re-creation).
-- `src/renderer/` — WebGPU renderer, shaders, and GPU buffer support.
+  coordinate rebasing. **Deferred**; do not grow it.
+- `src/picking/` — CPU-side pick-id resolution for element-level targets.
+  **Core** (node/face resolution **Deferred**; the raycast fallback was removed
+  in #171).
+- `src/platform/` — WebGPU device request and loss reporting with typed
+  unsupported reasons, plus capability probing (`queryWebGpuSupport`) and
+  supported-path device recovery. **Core.**
+- `src/renderer/` — WebGPU renderer, shaders, and GPU buffer support. **Core.**
 
 Conventions:
 
@@ -151,7 +136,7 @@ The canonical public workflow is reusable part definitions and assembly
 placements registered in a `Scene`, compiled into one `SceneRuntime`, and
 consumed by the renderer. Preserve the semantic distinction between part
 definitions, part instances, assembly definitions, registries, and runtime
-slots; see `wiki/architecture/api-design.md`.
+slots; see [[architecture/api-design|API design north star]].
 
 - Reusable geometry is defined once and referenced by instances; placements do
   not copy geometry.
@@ -160,7 +145,8 @@ slots; see `wiki/architecture/api-design.md`.
 - Runtime slots, draw-order buffers, GPU record layouts, and storage capacities
   are implementation details, not default root-level API concepts.
 - Every new public concept needs a clear owner, identity/data-ownership story,
-  place in the canonical flow, end-to-end example, and API-level test.
+  place in the canonical flow, end-to-end example, and API-level test — and must
+  pass the [[#decision-gate-for-proposed-additions|decision gate]].
 
 ## Engineering Standards
 
@@ -171,26 +157,25 @@ and reviewable.
   `satisfies`, readonly, const objects, and definite assignment — no `any` where
   avoidable. Favor functional style (pure functions, immutable updates) for the CPU-side
   scene/state model.
-- **Build**: Choose a modern bundler (Vite recommended) with library mode for the
-  published API plus a demo/dev app for development.
-- **Formatting**: Use Prettier with a committed config; agents must run it after edits.
+- **Build**: Modern bundler (Vite) with library mode for the published API plus a
+  demo/dev app.
+- **Formatting**: Prettier with a committed config; run it after edits.
 - **Linting**: ESLint flat config with `typescript-eslint` recommended + strict rulesets
-  (`strict-type-checked`), and enforce additional strictness (e.g. no-unused-vars,
-  no-explicit-any, consistent-type-imports). Lint must pass before any PR.
+  (`strict-type-checked`), plus extra strictness (no-unused-vars, no-explicit-any,
+  consistent-type-imports). Lint must pass before any PR.
 - **Type checking**: `tsc --noEmit` with strict settings must be clean before any PR.
 - **Tests**: Unit tests for the CPU-side scene/assembly/picking logic (no GPU needed).
   Keep WebGPU code behind thin interfaces so it can be tested/mocked. Vitest with
   enforced v8 coverage thresholds (lines/functions 80%, branches 70%). Playwright
-  e2e tests cover the demo app against a local dev server.
+  e2e tests cover the WebGPU demo contract against a local dev server.
 - **Docs**: Document the public API surface (typedoc or JSDoc on exported symbols).
 - **Small modules**: files are capped by ESLint (`max-lines` 300, per-function 60,
   `max-depth` 4). Split large modules into focused, single-concern files.
 - **CI**: GitHub Actions runs the full quality gate (pre-commit hooks, format,
   typecheck, lint, unit tests + coverage, performance budgets, build, package smoke
-  tests, e2e) on every push/PR. CI must be
-  green before merge. Opt-in performance runs (full bench suite, browser perf)
+  tests, e2e) on every push/PR. CI must be green before merge. Opt-in performance runs
   live in a separate `workflow_dispatch` workflow (see
-  `wiki/engineering/benchmarks.md`).
+  [[engineering/benchmarks|Benchmarks]]).
 
 ## Commands
 
@@ -204,12 +189,12 @@ These exist in `package.json`:
   the husky ones. Husky owns the git `pre-commit` hook slot, so pre-commit is
   NOT installed as a hook; CI runs `pre-commit run --all-files` and developers
   can run the same command locally if they have `pre-commit` installed (see
-  `wiki/engineering/pre-commit-hooks.md`).
+  [[engineering/pre-commit-hooks|Pre-commit hooks]]).
 - `npm run dev` — dev server with demo app.
 - `npm run build` — type-check + bundle library (emits `dist/` with `.d.ts`).
 - `npm run test:package` — package smoke test: build, `npm pack`, install into a
   clean consumer, verify ESM/CJS runtime import/require and declaration
-  resolution (see `wiki/engineering/packaging.md`).
+  resolution (see [[engineering/packaging|Packaging]]).
 - `npm run typecheck` — `tsc --noEmit`.
 - `npm run lint` — ESLint on `src/`, `test/`, `demo/` with `--max-warnings 0`.
 - `npm run lint:fix` — ESLint with `--fix`.
@@ -221,7 +206,7 @@ These exist in `package.json`:
 - `npm run bench` — opt-in Vitest benchmark suite (`test/bench/*.bench.ts`).
 - `npm run bench:budget` — deterministic performance budget gate; run standalone
   (coverage distorts timing) and enforced by CI (see
-  `wiki/engineering/benchmarks.md`).
+  [[engineering/benchmarks|Benchmarks]]).
 - `npm run test:e2e` — Playwright e2e tests (`e2e/`) against a local dev server.
 - `npm run test:e2e:install` — install the Playwright Chromium browser.
 - `npm run preview` — preview the built demo.
@@ -234,7 +219,10 @@ gate automatically on every push/PR (see `.github/workflows/ci.yml`).
 
 ## Agent Workflow Rules
 
-- Read AGENTS.md (this file) and follow it on every change.
+- Read AGENTS.md (this file) and the
+  [[requirements/product-scope|product scope]] and follow them on every change.
+- Start every task with a requirement challenge: user value, minimum behavior,
+  deletion candidates, non-goals, and whether a new abstraction is necessary.
 - For interactive edits, run `npm run lint`, `npm run typecheck`, `npm test`,
   and format, then leave the repo clean.
 - Keep changes small and reviewable; one logical change per PR/commit.
@@ -254,7 +242,7 @@ required checks decide mergeability, the Supervisor waits for them after PR
 creation (`wait_for_ci`), and a pending, missing, or failing required check
 blocks the workflow. New feature intake pauses while the base commit's CI is
 red. Full product validation is owned by CI (see `.github/workflows/ci.yml`
-and `wiki/operations/ci-authority.md`).
+and [[operations/ci-authority|CI authority]]).
 
 ## Clean Code as a First-Class Duty
 
@@ -268,6 +256,8 @@ The codebase must stay clean, not just correct. This is an explicit, ongoing dut
   stay reviewable.
 - **Avoid parallel abstractions**: if an existing pattern covers a case, extend it; do not
   introduce a second, overlapping way of doing the same thing.
+- **Deletion-first**: removing a subsystem or trimming a deferred capability behind an
+  explicit product decision is good work, not a loss.
 - **Leave the campsite cleaner than you found it**: tidy small messes encountered in
   passing (naming, formatting, obvious dead code) without waiting for a dedicated task.
 
@@ -275,9 +265,9 @@ The codebase must stay clean, not just correct. This is an explicit, ongoing dut
 
 Agents must actively report problems, not silently work around them:
 
-- When you find a bug, a design smell, a performance risk, or an inconsistency, **raise it**
-  — don't bury it. Surface it in your response to the user and record it in the wiki
-  (below).
+- When you find a bug, a design smell, a performance risk, a scope expansion, or an
+  inconsistency, **raise it** — don't bury it. Surface it in your response to the user
+  and record it in the wiki (below).
 - Prefer the smallest fix that resolves the issue; if a proper fix is out of scope, record
   it clearly so it is not lost.
 - Open questions and unresolved trade-offs belong in the wiki, not only in chat.
@@ -299,5 +289,6 @@ future agents**: it is the project's living memory, browseable by anyone reading
   its area index and add every new area to the root index.
 - Keep notes concise and current: update them when the relevant design changes, and mark
   resolved issues as resolved rather than deleting history silently.
-- Record: architecture decisions and rationale, issues/gotchas found, WebGPU/instancing
-  pitfalls, API design notes, and anything a future agent would otherwise have to rediscover.
+- Record: architecture decisions and rationale, scope classifications, issues/gotchas found,
+  WebGPU/instancing pitfalls, API design notes, and anything a future agent would otherwise
+  have to rediscover.

@@ -1,10 +1,11 @@
 # WebGPU browser e2e lane
 
-WebGPU is the product's only renderer, so the WebGPU browser contract is the
-**default** e2e lane, not an opt-in. The default `chromium` project launches
-Chromium with `--enable-unsafe-webgpu --enable-gpu`, which selects the software
-SwiftShader WebGPU implementation — no GPU hardware is required, so the lane
-runs on any CI runner and on developer machines.
+WebGPU is the product's only renderer (see
+[[requirements/product-scope|product scope contract]]), so the WebGPU browser
+contract is the **default** e2e lane, not an opt-in. The default `chromium`
+project launches Chromium with `--enable-unsafe-webgpu --enable-gpu`, which
+selects the software SwiftShader WebGPU implementation — no GPU hardware is
+required, so the lane runs on any CI runner and on developer machines.
 
 ## How it runs
 

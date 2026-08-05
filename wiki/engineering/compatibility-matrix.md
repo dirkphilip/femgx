@@ -1,8 +1,9 @@
 # Browser/GPU compatibility matrix
 
-WebGPU is the product's only rendering backend, so the compatibility contract is
-single-tier: the e2e lane exercises the real WebGPU path in Chromium using
-software rendering (SwiftShader), so no GPU hardware is required on CI.
+WebGPU is the product's only rendering backend (see
+[[requirements/product-scope|product scope contract]]), so the compatibility
+contract is single-tier: the e2e lane exercises the real WebGPU path in Chromium
+using software rendering (SwiftShader), so no GPU hardware is required on CI.
 
 ## Capability tiers
 
