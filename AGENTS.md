@@ -227,13 +227,17 @@ gate automatically on every push/PR (see `.github/workflows/ci.yml`).
 
 ### Supervisor worker validation
 
-The gate list above applies to interactive development and reviewer handoffs,
-not to Supervisor implementation and repair workers. Those workers follow
+The gate list above applies to interactive development. Supervisor
+implementation, review, and repair workers follow
 `.supervisor/WORKER_PROTOCOL.md`: they run focused checks once, before handoff,
 on the files they changed, and do not run the full test suite, coverage, the
 full build, the full e2e suite, or the pre-commit gate by hand. The reviewer
-runs the full gate once before submission, and CI remains authoritative for the
-published PR.
+records focused local validation but is not a merge authority: GitHub's
+required checks decide mergeability, the Supervisor waits for them after PR
+creation (`wait_for_ci`), and a pending, missing, or failing required check
+blocks the workflow. New feature intake pauses while the base commit's CI is
+red. Full product validation is owned by CI (see `.github/workflows/ci.yml`
+and `wiki/operations/ci-authority.md`).
 
 ## Clean Code as a First-Class Duty
 

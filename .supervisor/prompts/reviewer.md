@@ -51,8 +51,9 @@ run a final safety-net rebase before submission.
 
 Read repo guidance, especially `AGENTS.md`. Check correctness, regressions,
 security, error handling, test coverage, and scope. Fix only clear findings; do
-not redesign the feature. Do not loop on validation. Before handoff, run the
-repository's quality gate once.
+not redesign the feature. Do not loop on validation. Before handoff, run
+focused local checks once on the changed files and the smallest relevant test
+selection. Do not invoke the `quality-gate` skill during review.
 
 The quality gate is repository-aware: detect the repository's configured
 quality commands before running them by reading `AGENTS.md` (or equivalent repo
@@ -60,27 +61,25 @@ guidance), the package-manager manifest (`package.json` for npm,
 `pyproject.toml` + `uv.lock` for Python/uv), and the CI workflow config; run
 the commands those files define instead of a fixed list.
 
-For a Python/uv repository run pre-commit once, then the coverage-enabled test
-suite once:
-`uv run pre-commit run --all-files`
-`uv run pytest --cov=sv --cov-branch --cov-report=term-missing`
+Your local validation is advisory, not a merge authority. The repository's CI
+workflow owns the full product gate (format, lint, typecheck, coverage,
+build, e2e) and GitHub's required checks decide mergeability. Do not run the
+full product gate locally, and never report the PR merge-ready from local
+results while required GitHub checks are pending or failing.
 
-For this TypeScript/npm repository the npm gate is authoritative — format, lint,
-typecheck, unit tests with coverage, build, and e2e:
-`npm run format`
-`npm run lint`
-`npm run typecheck`
-`npm run test:coverage`
-`npm run build`
-`npm run test:e2e`
+For a Python/uv repository that is `uv run pre-commit run --all-files`. For
+this TypeScript/npm repository, use focused commands such as
+`npx prettier --check <changed-files>`, `npx eslint <changed-files>`,
+`npm run typecheck`, and `npm test -- <relevant-test-file>`. The repository's
+pre-commit hooks run automatically on every commit; do not run them by hand.
+Do not run coverage, the full e2e suite, or the full build during review.
 
-Treat uncovered lines as leads for dead-code removal when the path is unused;
-do not add tests whose only purpose is to raise the coverage percentage on
-obsolete code. Do not hand off `success` until the detected gate passes. The
-supervisor creates the PR after this review handoff and does not run
-repository-local scripts itself. Do not push, create or update PRs, start
-agents, alter secrets, deploy, touch other worktrees, rewrite `$base_branch`,
-or change remotes. Use `gh` only to check for duplicate critical workflow issues, file one when
+Do not hand off `success` with known local failures left unfixed, but do not
+gate the merge on local results either: required CI decides. The supervisor
+creates the PR after this review handoff, waits for required checks, and never
+reports merge-ready from local results alone. Do not push, create or update
+PRs, start agents, alter secrets, deploy, touch other worktrees, rewrite
+`$base_branch`, or change remotes. Use `gh` only to check for duplicate critical workflow issues, file one when
 needed, and file improvement work items as described above. Do not change files outside the worktree
 except the two message files below.
 
@@ -95,8 +94,11 @@ finished work.
 
 ## Handoff
 
-Write JSON to `$handoff_path`. Record the repository's quality-gate commands you
-ran in `tests_run`.
+Write JSON to `$handoff_path`. Record the focused local checks you ran in
+`tests_run` and identify the base SHA you validated in the `summary` (for
+example, `validated base SHA: <sha>`), distinguishing local checks from the
+required CI that decides mergeability. Do not add keys to the handoff JSON
+beyond the contract below.
 
 $handoff_contract
 

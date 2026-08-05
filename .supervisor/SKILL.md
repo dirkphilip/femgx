@@ -101,10 +101,17 @@ sv stop
 Use `job sync` to refresh recorded PR status without starting repair, and
 `job repair N` to start a one-shot repair pass that injects current PR comments
 and aims to make the PR mergeable. Prefer `--json` on `job` commands for
-scripts and agents. A job remains in `awaiting_merge` after a PR is created
-until the PR is merged. Use `sv pause` to drain a live run without
-interrupting agents, `sv continue` to cancel that pause and resume intake, or
-`sv stop` for an immediate verified shutdown of the run process.
+scripts and agents. A job waits for required CI checks after its PR is created
+and remains in `awaiting_merge` until the PR is merged. Use `sv pause` to drain
+a live run without interrupting agents, `sv continue` to cancel that pause and
+resume intake, or `sv stop` for an immediate verified shutdown of the run
+process.
+
+GitHub's required checks decide mergeability: the workflow waits for them
+(`wait_for_ci`) and a pending, missing, or failing required check blocks
+completion. Failing required checks may trigger PR repair (`github.repair`).
+New feature intake pauses while the base commit's CI is red; see
+`wiki/operations/ci-authority.md`.
 
 Configured workflows may use `when_labels` to skip optional stages and
 `deny_labels` to skip a stage when a label is present. They may also use
@@ -162,14 +169,11 @@ When working as a coding agent inside a Supervisor-managed worktree:
 2. Edit only the assigned worktree. Add focused tests when behavior changes.
    The quality gate is repository-aware: detect the repository's configured
    quality commands before running them (`AGENTS.md`, package-manager
-   manifest, CI workflows). Implementation and repair workers run focused
-   checks once, before handoff, and never loop on validation; installed
+   manifest, CI workflows). Implementation, review, and repair workers run
+   focused checks once, before handoff, and never loop on validation; installed
    pre-commit hooks run automatically on commit, so they are not invoked by
-   hand. During review, run the detected full gate once: Python/uv repos run
-   pre-commit plus the coverage-enabled test suite (`uv run pytest --cov=sv
-   --cov-branch --cov-report=term-missing`), and TypeScript/npm repos run the
-   npm gate (`npm run format`, `npm run lint`, `npm run typecheck`,
-   `npm run test:coverage`, `npm run build`, `npm run test:e2e`). Own local
+   hand. The full product gate is owned by CI, and the reviewer records local
+   validation without acting as a second merge authority. Own local
    Git in the worktree
    (fetch, rebase onto the base branch, commit).
 3. Do not push, call `gh`, create pull requests, start another agent, rewrite

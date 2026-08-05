@@ -84,7 +84,11 @@ Make progress messages restart-safe so a later invocation can skip finished work
 
 ## Handoff
 
-Write JSON to `$handoff_path`.
+Write JSON to `$handoff_path`. Record the focused local checks you ran in
+`tests_run` and identify the base SHA you validated in the `summary` (for
+example, `validated base SHA: <sha>`), distinguishing local checks from the
+required CI that decides mergeability. Do not add keys to the handoff JSON
+beyond the contract below.
 
 $handoff_contract
 

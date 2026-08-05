@@ -54,7 +54,8 @@ enabled = true
 # Keep created pull requests ready for review instead of opening them as drafts.
 draft = false
 # Ask GitHub to merge submitted PRs automatically after required checks and
-# approvals are satisfied.
+# approvals are satisfied. GitHub's required checks are the merge authority:
+# the supervisor never reports a PR merge-ready from local results alone.
 auto_merge = true
 # Automatically queue open GitHub issues that have no assignee when running.
 # Safer default: queue issues manually, or set allow_labels below for approval.
@@ -98,9 +99,12 @@ supervisor_label_prefix = "sv:"
 # How long wait_for_ci (and related PR check waits) may block.
 ci_timeout_seconds = 3600
 
-# Stages are an ordered checklist through pull request creation. Agent stages write
-# handoff.json with status "success" to advance; supervisor stages perform side
-# effects (comment, submit_pr, wait_for_ci, wait_for_labels). Stage conditions
+# Stages are an ordered checklist through pull request creation and CI. Agent
+# stages write handoff.json with status "success" to advance; supervisor stages
+# perform side effects (comment, submit_pr, wait_for_ci, wait_for_labels).
+# GitHub's required checks are authoritative for mergeability: the `ci` stage
+# waits for all required checks after publication, and a pending, missing, or
+# failing required check blocks the workflow from completing. Stage conditions
 # are explicit:
 #   when = { stage = "review", field = "status", equals = "success" } gates a
 #     stage on one field of a prior agent stage's handoff (workflow state).
@@ -117,6 +121,11 @@ ci_timeout_seconds = 3600
 #     keeps the job waiting. Post-PR repair is not a stage: it is gated by
 #     github.repair (with its own watchdog policy above) and uses
 #     prompts/pr-repair.md.
+#
+# Agent stages record focused local validation only. The repository's CI
+# workflow owns the full product gate; local results are advisory and never
+# gate merge. Worker handoffs identify the validated base SHA and distinguish
+# local checks from required CI.
 #
 # Migration: a comment stage such as publish_review that used
 # `deny_labels = ["no_review"]` as a proxy for "review happened" should now
@@ -153,6 +162,13 @@ startup_grace_seconds = 300
 name = "submit"
 kind = "submit_pr"
 
+# GitHub CI is the merge authority. After publication the workflow waits for
+# all required checks (github.ci_timeout_seconds); failing checks block the
+# workflow and repair (github.repair) may be triggered by PR maintenance.
+[[stages]]
+name = "ci"
+kind = "wait_for_ci"
+
 [[stages]]
 name = "publish_review"
 kind = "comment"
@@ -172,7 +188,3 @@ when = { stage = "review", field = "status", equals = "success" }
 # when_labels = ["needs-plan"]
 # allow_labels = ["plan-accepted"]
 # deny_labels = ["plan-rejected"]
-#
-# [[stages]]
-# name = "ci"
-# kind = "wait_for_ci"
