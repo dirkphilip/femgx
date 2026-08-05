@@ -3,6 +3,10 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
+  // Chromium's software WebGPU backend is not stable with multiple browser
+  // contexts sharing the CI runner. Keep the required WebGPU lane serialized
+  // in CI; local runs retain Playwright's normal parallelism.
+  ...(process.env["CI"] ? { workers: 1 } : {}),
   forbidOnly: !!process.env["CI"],
   retries: process.env["CI"] ? 2 : 0,
   // `list` marks skipped tests with `-`; the custom reporter groups the skip
