@@ -727,11 +727,12 @@ export class WorkbenchController {
     parts.className = "visibility-list";
     for (const partId of sortedNumbers(this.preset.scene.parts.keys())) {
       parts.appendChild(
-        this.visibilityToggle(
-          partId,
-          this.partVisible(partId),
-          this.preset.partNames.get(partId) ?? `Part ${partId}`,
-        ),
+        this.visibilityToggle({
+          kind: "part",
+          id: partId,
+          checked: this.partVisible(partId),
+          label: this.preset.partNames.get(partId) ?? `Part ${partId}`,
+        }),
       );
     }
     const assemblies = document.createElement("div");
@@ -739,18 +740,29 @@ export class WorkbenchController {
     for (const assembly of this.preset.scene.assemblies.values()) {
       const name = (assembly as { readonly name?: string }).name ?? `Assembly ${assembly.id}`;
       assemblies.appendChild(
-        this.visibilityToggle(assembly.id, this.assemblyVisible.has(assembly.id), name),
+        this.visibilityToggle({
+          kind: "assembly",
+          id: assembly.id,
+          checked: this.assemblyVisible.has(assembly.id),
+          label: name,
+        }),
       );
     }
     panel.append(parts, assemblies);
   }
 
-  private visibilityToggle(id: number, checked: boolean, label: string): HTMLLabelElement {
+  private visibilityToggle(options: {
+    readonly kind: "part" | "assembly";
+    readonly id: number;
+    readonly checked: boolean;
+    readonly label: string;
+  }): HTMLLabelElement {
+    const { kind, id, checked, label } = options;
     const element = document.createElement("label");
     const input = document.createElement("input");
     input.type = "checkbox";
     input.checked = checked;
-    if (this.preset.scene.parts.has(id)) {
+    if (kind === "part") {
       input.dataset["partId"] = String(id);
       input.dataset["testid"] = `part-vis-${id}`;
     } else {
