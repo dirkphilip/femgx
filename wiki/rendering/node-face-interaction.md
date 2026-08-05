@@ -66,11 +66,11 @@ oriented element faces are the finest-grained pickable units under
 
 ## Demo
 
-- The demo's workbench ([[rendering/fe-inspection-workbench|FE inspection
-      workbench]]) uses the unified CPU `pick()` for both renderers; plain click
-      selects the most specific hit (node), Shift promotes to the element, Alt to
-      the instance, Ctrl to the part. Hover/selection datasets are prefixed by
-      granularity (`n:instance:node`, `f:instance:element:faceKey`,
+- The demo's workbench uses the unified CPU `pick()` for both renderers; plain
+  click selects the most specific hit (node), Shift promotes to the element, Alt
+  to the instance, Ctrl to the part. Hover/selection datasets are prefixed by
+  granularity (`n:instance:node`, `f:instance:element:faceKey`,
   `e:instance:element`, `i:instance`, `p:part`). The WebGPU renderer also
-      exposes `renderer.pick(x, y, granularity)`, whose renderer-independent CPU
-      analogue is `pickFromRay` + `rayFromPixel`.
+  exposes `renderer.pick(x, y, granularity)`, whose renderer-independent CPU
+  analogue is `pickFromRay` + `rayFromPixel` (see
+  [[rendering/fe-inspection-workbench|FE inspection workbench]]).
