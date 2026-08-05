@@ -61,6 +61,18 @@ Pick ids are `global slot + 1`, so they are **stable across visibility changes**
 - Style/transform/visibility updates are explicit: the app applies a runtime
   delta (or interaction change) and passes the affected slots. The renderer
   does not rescan the whole scene per frame.
+- Interaction changes reach the renderer through the library helper
+  `changedInstanceSlots(runtime, previous, next)`
+  (`src/renderer/interaction-diff.ts`), which diffs the part/instance-level
+  interaction state against the previous state and returns the affected
+  instance slots in ascending order. Element/node/face emphasis is excluded —
+  it flows through `updateElements`, which diffs its own buffers. The demo
+  tracks the last-applied interaction state and feeds these slots to
+  `updateInstances` instead of rewriting every instance
+  ([[architecture/demo-library-boundary|Demo / library boundary]]). After a
+  device-loss recovery or renderer re-creation the attachment re-uploads from
+  an empty interaction state, so the caller must reset its applied-state
+  baseline to empty before the next diff.
 - `updateInstances` detects visibility changes by comparing the runtime's total
   visible count against the cached layout count. Batching several visibility
   deltas whose net count is unchanged (e.g. hiding one slot and showing another)

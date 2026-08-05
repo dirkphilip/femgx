@@ -66,6 +66,11 @@ oriented element faces are the finest-grained pickable units under
 - The bounded per-part emphasis capacity documented in
   [[rendering/element-interaction|element-interaction]] applies to node/face records too
   (tracked in [femgx#68](https://github.com/dirkphilip/femgx/issues/68)).
+- The demo CPU fallback renders node/face emphasis as marker circles and face
+  fills using `emphasizedNodeRefs`/`emphasizedFaceRefs` plus
+  `resolveNodeStyle`/`resolveFaceStyle`; it does not derive element overrides
+  from node/face state
+  ([[architecture/demo-library-boundary|Demo / library boundary]]).
 
 ## Demo
 

@@ -1,8 +1,9 @@
 import type { ModelPreset } from "../src/fixture/presets";
 import {
+  changedInstanceSlots,
+  createInteractionState,
   type DeviceLostInfo,
   type InteractionState,
-  type SceneRuntime,
   type WebGpuRenderer,
 } from "../src/index";
 import { startCpuDemo } from "./cpu-demo";
@@ -18,20 +19,17 @@ export interface WebGpuDemoOptions {
   readonly createRenderer: RendererFactory;
 }
 
-/** All instance slots of a runtime, used for whole-state instance patches. */
-function allSlots(runtime: SceneRuntime): number[] {
-  return Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
-}
-
 function renderFrame(
   gpuRenderer: WebGpuRenderer,
   canvas: HTMLCanvasElement,
   controller: WorkbenchController,
   state: InteractionState,
+  previous: InteractionState,
 ): void {
   if (gpuRenderer.lost) return;
   const runtime = controller.runtime;
-  gpuRenderer.updateInstances(runtime, state, allSlots(runtime));
+  const changed = changedInstanceSlots(runtime, previous, state);
+  gpuRenderer.updateInstances(runtime, state, changed);
   gpuRenderer.updateElements(runtime, state);
   gpuRenderer.render(runtime, controller.cameraRef.camera, controller.preset.scene.parts);
   canvas.dataset["frames"] = String(Number(canvas.dataset["frames"] ?? "0") + 1);
@@ -63,6 +61,13 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<Workb
   let controller: WorkbenchController | undefined;
   /** Loss observed before the renderer/controller pair could run recovery. */
   let pendingDeviceLoss: DeviceLostInfo | undefined;
+  /**
+   * The interaction state last handed to `updateInstances`, so each frame can
+   * patch only the instance slots that changed (see `changedInstanceSlots`).
+   * A re-created or recovered renderer re-uploads from an empty interaction
+   * state, so the baseline resets to empty when the attachment is rebuilt.
+   */
+  let appliedInteraction: InteractionState = createInteractionState();
 
   /** Recovers the renderer once, or falls back to the CPU renderer. */
   const recoverFromDeviceLoss = async (info: DeviceLostInfo): Promise<void> => {
@@ -78,6 +83,7 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<Workb
     }
     try {
       await renderer.recover();
+      appliedInteraction = createInteractionState();
       active.rendererState = "recovered";
       canvas.dataset["recovery"] = "recovered";
       active.render();
@@ -118,12 +124,14 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<Workb
   const hooks: RendererHooks = {
     render: (active, state) => {
       if (gpuRenderer === undefined) return;
-      renderFrame(gpuRenderer, canvas, active, state);
+      renderFrame(gpuRenderer, canvas, active, state, appliedInteraction);
+      appliedInteraction = state;
     },
     applyVisibility: (active, state, changed) => {
       if (gpuRenderer === undefined || gpuRenderer.lost) return;
       gpuRenderer.updateVisibility(active.runtime, changed);
-      renderFrame(gpuRenderer, canvas, active, state);
+      renderFrame(gpuRenderer, canvas, active, state, appliedInteraction);
+      appliedInteraction = state;
     },
     stats: (active): RendererStats => {
       const stats = gpuRenderer?.stats();
@@ -179,10 +187,12 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<Workb
       });
       if (recreated === undefined) return;
       gpuRenderer = recreated;
+      appliedInteraction = createInteractionState();
       canvas.dataset["renderer"] = "webgpu";
       drainPendingDeviceLoss();
       if (controller !== undefined) {
-        renderFrame(gpuRenderer, canvas, controller, controller.interaction);
+        renderFrame(gpuRenderer, canvas, controller, controller.interaction, appliedInteraction);
+        appliedInteraction = controller.interaction;
       }
     },
     forceDeviceLoss: () => {
