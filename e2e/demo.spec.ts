@@ -313,6 +313,9 @@ test("context menu selects a target and toggles display without losing selection
 test("keeps the node/normal/face-boundary/ID toggles on the CPU renderer", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
+  // The demo probes WebGPU before committing to the CPU fallback, so the
+  // renderer is only known once the probe settles; poll like the visual spec.
+  await expect.poll(() => canvas.getAttribute("data-renderer")).toMatch(/^(cpu|webgpu)$/);
   if ((await canvas.getAttribute("data-renderer")) !== "cpu") {
     test.skip(true, "the WebGPU spec covers the overlay toggles when WebGPU is active");
     return;
