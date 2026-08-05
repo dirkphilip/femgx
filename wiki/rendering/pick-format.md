@@ -37,9 +37,9 @@ supported pick-id range without a backend-specific integer-texture quirk.
 
 - `test/renderer/pick-format.test.ts` covers encode/decode boundaries (id 0/1,
   per-byte boundaries, `MAX_PICK_ID`) and the little-endian channel order.
-- The demo's WebGPU probe renders and requires a real pick hit before committing
-  to the WebGPU renderer, so a browser that cannot round-trip the format degrades
-  to the deterministic CPU fallback (see [[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
+- The e2e lane renders and picks through the real WebGPU renderer, and the
+  picking tests skip only when the environment cannot resolve a pick (see
+  [[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
 
 Related: [[rendering/interactive-state|Interactive state]],
 [[rendering/webgpu-e2e|WebGPU browser e2e lane]],

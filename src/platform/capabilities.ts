@@ -50,7 +50,7 @@ export class WebGpuUnsupportedError extends Error {
 export function unsupportedMessage(reason: WebGpuUnsupportedReason): string {
   switch (reason) {
     case "no-webgpu":
-      return "WebGPU is unavailable in this browser (navigator.gpu is not exposed). Use a WebGPU-capable browser, or query capabilities and choose a CPU fallback.";
+      return "WebGPU is unavailable in this browser (navigator.gpu is not exposed). Use a WebGPU-capable browser; WebGPU is required for rendering.";
     case "adapter-unavailable":
       return "No WebGPU adapter is available. The browser may be running without GPU support, or WebGPU support is disabled for this machine.";
     case "device-unavailable":

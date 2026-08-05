@@ -4,8 +4,9 @@ import { drawnPixels, pixelHash } from "./helpers";
 /**
  * Deterministic CPU-side results demo coverage: undeformed/deformed shape,
  * scalar color mapping, configurable deformation scale, and load-case
- * stepping. The default e2e lane runs the CPU renderer, so the demo's
- * 2D canvas output is fully deterministic and comparable frame to frame.
+ * stepping. The results workbench is a 2D-canvas visualization of the CPU-side
+ * results APIs, so its output is fully deterministic and comparable frame to
+ * frame.
  */
 
 async function setScale(scale: Locator, value: number): Promise<void> {

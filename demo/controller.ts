@@ -66,13 +66,9 @@ export interface RendererHooks {
   readonly stats: (controller: WorkbenchController) => RendererStats;
 }
 
-/** Display overlay toggles shared by the control bar and context menu. */
+/** Display toggles shared by the control bar and context menu. */
 export interface DisplayToggles {
   edges: boolean;
-  nodeMarkers: boolean;
-  normals: boolean;
-  faceBoundaries: boolean;
-  ids: boolean;
   diagnostics: boolean;
 }
 
@@ -84,45 +80,27 @@ export interface WorkbenchOptions {
   readonly hooks: RendererHooks;
   /** Optional edge depth-test hook backed by the active renderer. */
   readonly setEdgeDepthTest?: (enabled: boolean) => void;
-  /**
-   * Whether the active renderer implements depth-tested edge rendering. The
-   * WebGPU renderer supports it; the CPU renderer does not, so its Depth test
-   * control is disabled and annotated instead of advertising a no-op.
-   * Defaults to true.
-   */
-  readonly supportsEdgeDepthTest?: boolean;
   /** Optional teardown hook invoked on destroy. */
   readonly onDestroy?: () => void;
-  /**
-   * Whether the active renderer draws the display overlays (node markers,
-   * normals, face boundaries, and ID labels). The CPU renderer supports them;
-   * the WebGPU renderer does not yet, so its context menu disables and
-   * annotates the toggles instead of advertising a no-op. Defaults to true.
-   */
-  readonly displayOverlays?: boolean;
 }
 
 /**
  * The renderer-independent interaction brain of the demo: owns the active
  * model, the packed runtime, interaction state, visibility, and all display
- * toggles, and drives whichever renderer is attached through {@link
- * RendererHooks}. Picking is unified CPU raycasting for both renderers.
+ * toggles, and drives the attached WebGPU renderer through {@link
+ * RendererHooks}. Picking is unified CPU raycasting.
  */
 export class WorkbenchController {
   readonly canvas: HTMLCanvasElement;
   readonly view: DemoView;
   readonly hooks: RendererHooks;
   readonly rendererName: string;
-  /** Whether the active renderer implements depth-tested edge rendering. */
-  readonly supportsEdgeDepthTest: boolean;
-  /** Whether the active renderer draws the node/normal/face-boundary/ID overlays. */
-  readonly displayOverlays: boolean;
   readonly nodeRadius = 10;
   preset: ModelPreset;
   mode: ElementRenderMode;
   toggles: DisplayToggles;
   interaction: InteractionState;
-  /** Renderer-state note shown in the status line (e.g. "recovered", "fallback"). */
+  /** Renderer-state note shown in the status line (e.g. "recovered"). */
   rendererState = "";
   runtime!: SceneRuntime;
   pickScene!: PickScene;
@@ -143,8 +121,6 @@ export class WorkbenchController {
     this.canvas = options.canvas;
     this.hooks = options.hooks;
     this.rendererName = options.rendererName;
-    this.supportsEdgeDepthTest = options.supportsEdgeDepthTest ?? true;
-    this.displayOverlays = options.displayOverlays ?? true;
     this.setEdgeDepthTest = options.setEdgeDepthTest;
     this.onDestroy = options.onDestroy;
     this.presets = createModelPresets();
@@ -155,10 +131,6 @@ export class WorkbenchController {
     this.mode = this.preset.defaultMode;
     this.toggles = {
       edges: false,
-      nodeMarkers: true,
-      normals: false,
-      faceBoundaries: false,
-      ids: false,
       diagnostics: false,
     };
     this.interaction = createInteractionState();
@@ -299,7 +271,6 @@ export class WorkbenchController {
       this.setEdges(!this.toggles.edges);
     });
     view.depthTestToggle.addEventListener("click", () => {
-      if (!this.supportsEdgeDepthTest) return;
       this.setEdgeDepthTest?.(!this.depthTestEnabled);
       this.depthTestEnabled = !this.depthTestEnabled;
       this.reflectDepthTest();
@@ -564,22 +535,6 @@ export class WorkbenchController {
         break;
       case "edges":
         this.setEdges(!this.toggles.edges);
-        break;
-      case "node-markers":
-        this.toggles.nodeMarkers = !this.toggles.nodeMarkers;
-        this.render();
-        break;
-      case "normals":
-        this.toggles.normals = !this.toggles.normals;
-        this.render();
-        break;
-      case "face-boundaries":
-        this.toggles.faceBoundaries = !this.toggles.faceBoundaries;
-        this.render();
-        break;
-      case "ids":
-        this.toggles.ids = !this.toggles.ids;
-        this.render();
         break;
       case "diagnostics":
         this.toggles.diagnostics = !this.toggles.diagnostics;
@@ -886,10 +841,6 @@ export class WorkbenchController {
     this.menuButton(menu, "Hide / Show part", "hide-part");
     this.menuSection(menu, "Display");
     this.menuButton(menu, this.toggles.edges ? "Hide edges" : "Overlay edges", "edges");
-    this.menuOverlayToggle(menu, "Node markers", "node-markers", this.toggles.nodeMarkers);
-    this.menuOverlayToggle(menu, "Normals", "normals", this.toggles.normals);
-    this.menuOverlayToggle(menu, "Face boundaries", "face-boundaries", this.toggles.faceBoundaries);
-    this.menuOverlayToggle(menu, "IDs", "ids", this.toggles.ids);
     this.menuButton(
       menu,
       this.toggles.diagnostics ? "Diagnostics off" : "Diagnostics on",
@@ -915,6 +866,9 @@ export class WorkbenchController {
     menu.style.top = `${Math.min(y, Math.max(margin, maxY))}px`;
   }
 
+  /**
+   * Adds a display toggle to the context menu.
+   */
   private menuButton(menu: HTMLElement, label: string, action: string, disabled = false): void {
     const button = document.createElement("button");
     button.type = "button";
@@ -922,24 +876,6 @@ export class WorkbenchController {
     button.dataset["action"] = action;
     button.disabled = disabled;
     menu.appendChild(button);
-  }
-
-  /**
-   * Adds a display-overlay toggle (node markers, normals, face boundaries, or
-   * IDs). When the active renderer does not draw the overlays, the button is
-   * disabled and annotated instead of silently doing nothing on click.
-   */
-  private menuOverlayToggle(
-    menu: HTMLElement,
-    label: string,
-    action: string,
-    enabled: boolean,
-  ): void {
-    if (!this.displayOverlays) {
-      this.menuButton(menu, `${label} · CPU renderer only`, action, true);
-      return;
-    }
-    this.menuButton(menu, `${label} ${enabled ? "off" : "on"}`, action);
   }
 
   private menuSection(menu: HTMLElement, title: string): void {
@@ -962,38 +898,11 @@ export class WorkbenchController {
   }
 
   private reflectDepthTest(): void {
-    const state = depthTestUiState(this.supportsEdgeDepthTest, this.depthTestEnabled);
-    this.view.depthTestLabel.textContent = state.label;
-    this.view.depthTestToggle.textContent = state.buttonText;
-    this.view.depthTestToggle.disabled = state.disabled;
+    this.view.depthTestLabel.textContent = this.depthTestEnabled ? "On" : "Off";
+    this.view.depthTestToggle.textContent = this.depthTestEnabled
+      ? "Depth test off"
+      : "Depth test on";
   }
-}
-
-/** How the Depth test control presents itself for a renderer capability. */
-export interface DepthTestUiState {
-  readonly disabled: boolean;
-  readonly label: string;
-  readonly buttonText: string;
-}
-
-/**
- * The Depth test control must not silently toggle a no-op: a renderer without
- * depth-tested edge rendering gets a disabled, annotated control, while a
- * capable renderer keeps the working on/off toggle.
- */
-export function depthTestUiState(supported: boolean, enabled: boolean): DepthTestUiState {
-  if (!supported) {
-    return {
-      disabled: true,
-      label: "WebGPU only",
-      buttonText: "Depth test · WebGPU only",
-    };
-  }
-  return {
-    disabled: false,
-    label: enabled ? "On" : "Off",
-    buttonText: enabled ? "Depth test off" : "Depth test on",
-  };
 }
 
 /** Fallback preset used only if the preset list is somehow empty. */

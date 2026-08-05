@@ -6,6 +6,23 @@ This is an **experimental product** (version 0.0.0/0.0.1). There is **no stable 
 we do not care about breaking API changes. The only thing that matters is shipping a
 very clean product. Prefer improving the design over preserving backwards compatibility.
 
+## Supported target and simplicity
+
+Modern WebGPU is a **product requirement**, not an optional capability: the
+supported target is current browsers with a working WebGPU implementation.
+Environments without a working WebGPU path get a clear error or an explicit
+unsupported-status result — there is deliberately no second rendering backend,
+no CPU fallback, no hidden capability-probe canvas, and no elaborate
+device-recovery switching in the library or the demo.
+
+Simplicity is an explicit product and engineering constraint. **Prefer deleting
+code over adding abstraction**, and do not preserve fallback/probing/recovery
+machinery, tests, fixtures, documentation, or dependencies that exist only to
+support non-target environments. When a supported-path feature is intentionally
+retained because it is a real part of the WebGPU contract (for example
+re-creating the device after a loss), keep it small, focused on the supported
+path, and record a short rationale in the wiki.
+
 ## Project Overview
 
 A modern TypeScript graphics library that renders very large finite element (FE) models
@@ -108,9 +125,9 @@ under `test/`:
   coordinate rebasing for large-model rendering (see
   `wiki/data/large-model-streaming.md`).
 - `src/picking/` — CPU-side pick-id resolution.
-- `src/platform/` — WebGPU capability detection (typed unsupported reasons and
-  adapter feature/limit reporting) and device lifecycle handling (device
-  request, loss reporting, re-creation after loss).
+- `src/platform/` — explicit WebGPU unsupported/error reporting (typed reasons)
+  and device lifecycle handling focused on the supported path (device request
+  and loss reporting/re-creation).
 - `src/renderer/` — WebGPU renderer, shaders, and GPU buffer support.
 
 Conventions:

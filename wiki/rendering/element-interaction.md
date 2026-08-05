@@ -29,13 +29,13 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   target the ids support (`node` > `face` > `element` > `instance`). A
   `PickTarget` therefore distinguishes `part`, `instance`, `element`, `face`,
   and `node`.
-- The demo uses CPU raycasting for both renderers instead of GPU readback
-  (see [[rendering/fe-inspection-workbench|FE inspection workbench]]): the unified
+- The demo uses the unified CPU raycast `pick()` for interaction instead of GPU
+  readback (see [[rendering/fe-inspection-workbench|FE inspection workbench]]): the
   `pick()` resolves the most specific target (node → face → element), and
   hover/selection keys are prefixed by granularity (`n:instance:node`,
   `f:instance:element:faceKey`, `e:instance:element`, `i:instance`,
-  `p:part`). `pickFromRay` is the renderer-independent CPU analogue of the GPU
-  pick target resolution (see [[rendering/node-face-interaction|node and face interaction]]).
+  `p:part`). The renderer's `pick(x, y, granularity)` provides GPU readback
+  picking (see [[rendering/node-face-interaction|node and face interaction]]).
 
 ## Interaction state and precedence
 
@@ -96,23 +96,17 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   `gpu-pipelines.ts`.
 - The demo drives the overlay by applying an `{ edge: true }` part override to
   every part (`Edge overlay` toggle) and flips the overlay depth compare with
-  the `Depth test` toggle. Depth-tested edges are a WebGPU-only pass, so the
-  CPU fallback disables and annotates that control instead of advertising a
-  no-op (see [[rendering/fe-inspection-workbench|FE inspection workbench]]).
+  the `Depth test` toggle (see
+  [[rendering/fe-inspection-workbench|FE inspection workbench]]).
 - The edge pass renders instance-level style only; per-element emphasis is not
   drawn on edges because edges shared between adjacent elements have no
   unambiguous element owner.
 
 ## Limits and follow-ups
 
-- The CPU fallback (`demo/cpu-render.ts`) expresses emphasis with overlays
-  (node-marker circles, semi-transparent face fills, thicker line strokes) and
-  ignores `emissive` on solid triangle fills, so an explicit element highlight
-  (`{ emissive: 0.35 }`) is invisible on the CPU renderer's solids while the
-  WebGPU renderer adds the emissive glow. This is a known rendering asymmetry,
-  not a correctness bug in one path: the WebGPU e2e pixel assertion (see
-  [[rendering/webgpu-e2e|WebGPU browser e2e lane]]) covers the emissive path in a
-  real browser.
+- Element emphasis renders as an emissive glow in the WebGPU color pass; the
+  WebGPU e2e pixel assertion (see
+  [[rendering/webgpu-e2e|WebGPU browser e2e lane]]) covers it in a real browser.
 - Element-highlight buffers grow on demand, so there is no fixed per-part
   element-selection cap; the vertex shader scans every record per triangle, so
   selections on the order of the whole model (or every element across many

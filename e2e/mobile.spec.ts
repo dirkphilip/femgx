@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { requireHit } from "./helpers";
+import { distinctColors, requireHit } from "./helpers";
 
 /**
  * Phone-sized regression coverage for the demo layout: no horizontal page
  * overflow, touch-friendly primary controls, and a context menu that stays
  * inside the viewport when opened near an edge. The default e2e lane runs
- * the CPU renderer so layout is deterministic.
+ * the WebGPU renderer.
  */
 
 const PHONE = { width: 390, height: 844 };
@@ -26,23 +26,11 @@ test("renders the bolted showcase with distinct part colors on a phone", async (
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
-  await expect.poll(() => canvas.getAttribute("data-renderer")).toBe("cpu");
+  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
 
-  const drawn = await canvas.evaluate((el: HTMLCanvasElement) => {
-    const context = el.getContext("2d");
-    if (context === null) {
-      return false;
-    }
-    const { data } = context.getImageData(0, 0, el.width, el.height);
-    const colors = new Set<number>();
-    for (let i = 0; i < data.length; i += 4) {
-      if (data[i + 3] === 0) continue;
-      colors.add((data[i] ?? 0) | ((data[i + 1] ?? 0) << 8) | ((data[i + 2] ?? 0) << 16));
-      if (colors.size >= 4) return true;
-    }
-    return false;
-  });
-  expect(drawn, "the bolted view must render distinct part colors on a phone").toBe(true);
+  await expect
+    .poll(async () => distinctColors(canvas), { timeout: 10_000 })
+    .toBeGreaterThanOrEqual(4);
 
   const screenshot = await canvas.screenshot();
   expect(
@@ -90,7 +78,7 @@ test("keeps the context menu inside a phone-sized viewport", async ({ page }) =>
     page,
     canvas,
     { reverse: true },
-    "picking must resolve near the canvas edge on the deterministic CPU lane",
+    "picking must resolve near the canvas edge on the deterministic WebGPU lane",
   );
 
   await page.mouse.click(hit.x, hit.y, { button: "right" });

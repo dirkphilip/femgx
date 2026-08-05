@@ -2,24 +2,28 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { sweepForHit } from "./helpers";
 
 /**
- * Opt-in WebGPU browser coverage (environment capability coverage, category 2
- * in `wiki/engineering/e2e-policy.md`). It is skipped by the default e2e gate
- * and only runs when `RUN_WEBGPU=1`, which the opt-in `.github/workflows/webgpu.yml`
- * lane sets. The lane launches Chromium with software WebGPU flags
- * (`--enable-unsafe-webgpu --enable-gpu`) so it needs no GPU hardware.
- *
- * The lane is capability-gated, not failure-prone: the demo only commits to
- * the WebGPU renderer when it can prove rendering and picking work, and the
- * tests skip cleanly when an environment cannot exercise WebGPU. Those skips
- * are the only conditional skips left in the suite and stay out of the
- * required default-lane count by design; the skip-summary reporter prints them.
+ * Required WebGPU browser coverage (category 1 in
+ * `wiki/engineering/e2e-policy.md`). WebGPU is the product's only renderer, so
+ * the default e2e lane exercises the real WebGPU path. It launches Chromium
+ * with software WebGPU flags (`--enable-unsafe-webgpu --enable-gpu`) so it
+ * needs no GPU hardware. On an environment that genuinely cannot initialize
+ * WebGPU the demo reports an explicit unsupported state and these tests skip
+ * with a reason instead of failing.
  */
-const enabled = process.env["RUN_WEBGPU"] === "1";
-
-test.skip(!enabled, "WebGPU browser coverage is opt-in via RUN_WEBGPU=1");
-
 async function rendererMode(page: Page): Promise<string> {
   return (await page.getByTestId("view-canvas").getAttribute("data-renderer")) ?? "";
+}
+
+/** Loads the demo and skips when the environment cannot run WebGPU. */
+async function loadWebGpuPage(page: Page): Promise<void> {
+  await page.goto("/");
+  await expect(page.getByTestId("view-canvas")).toBeVisible();
+  await expect
+    .poll(() => rendererMode(page), { timeout: 10_000 })
+    .toMatch(/^(webgpu|unsupported)$/);
+  if ((await rendererMode(page)) !== "webgpu") {
+    test.skip(true, "WebGPU renderer unavailable in this browser environment");
+  }
 }
 
 /**
@@ -90,16 +94,7 @@ async function toggleElementHighlight(
 }
 
 test("initializes the WebGPU renderer and renders an instanced frame", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("view-canvas")).toBeVisible();
-  await expect
-    .poll(() => rendererMode(page), { timeout: 10_000 })
-    .toMatch(/^(webgpu|cpu|destroyed)$/);
-
-  if ((await rendererMode(page)) !== "webgpu") {
-    test.skip(true, "WebGPU renderer unavailable in this browser environment");
-  }
-
+  await loadWebGpuPage(page);
   await expect
     .poll(() => page.getByTestId("view-canvas").getAttribute("data-frames"), { timeout: 10_000 })
     .not.toBeNull();
@@ -108,15 +103,7 @@ test("initializes the WebGPU renderer and renders an instanced frame", async ({ 
 });
 
 test("drives interaction and picking through the demo path", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("view-canvas")).toBeVisible();
-  await expect
-    .poll(() => rendererMode(page), { timeout: 10_000 })
-    .toMatch(/^(webgpu|cpu|destroyed)$/);
-
-  if ((await rendererMode(page)) !== "webgpu") {
-    test.skip(true, "WebGPU renderer unavailable in this browser environment");
-  }
+  await loadWebGpuPage(page);
 
   const canvas = page.getByTestId("view-canvas");
   const box = await canvas.boundingBox();
@@ -148,15 +135,7 @@ test("drives interaction and picking through the demo path", async ({ page }) =>
 });
 
 test("keeps selection feedback visible in edge overlay mode", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("view-canvas")).toBeVisible();
-  await expect
-    .poll(() => rendererMode(page), { timeout: 10_000 })
-    .toMatch(/^(webgpu|cpu|destroyed)$/);
-
-  if ((await rendererMode(page)) !== "webgpu") {
-    test.skip(true, "WebGPU renderer unavailable in this browser environment");
-  }
+  await loadWebGpuPage(page);
 
   const canvas = page.getByTestId("view-canvas");
   const box = await canvas.boundingBox();
@@ -193,15 +172,7 @@ test("keeps selection feedback visible in edge overlay mode", async ({ page }) =
 test("element emphasis changes the rendered pixels and clears back to the baseline", async ({
   page,
 }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("view-canvas")).toBeVisible();
-  await expect
-    .poll(() => rendererMode(page), { timeout: 10_000 })
-    .toMatch(/^(webgpu|cpu|destroyed)$/);
-
-  if ((await rendererMode(page)) !== "webgpu") {
-    test.skip(true, "WebGPU renderer unavailable in this browser environment");
-  }
+  await loadWebGpuPage(page);
 
   const canvas = page.getByTestId("view-canvas");
   await expect.poll(() => canvas.getAttribute("data-frames"), { timeout: 10_000 }).not.toBeNull();
@@ -237,50 +208,8 @@ test("element emphasis changes the rendered pixels and clears back to the baseli
   );
 });
 
-test("disables the display-overlay toggles the WebGPU renderer cannot honor", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("view-canvas")).toBeVisible();
-  await expect
-    .poll(() => rendererMode(page), { timeout: 10_000 })
-    .toMatch(/^(webgpu|cpu|destroyed)$/);
-
-  if ((await rendererMode(page)) !== "webgpu") {
-    test.skip(true, "WebGPU renderer unavailable in this browser environment");
-  }
-
-  const canvas = page.getByTestId("view-canvas");
-  const hit = await sweepForHit(page, canvas, { attribute: "hovered", settleMs: 150 });
-  if (hit === undefined) {
-    test.skip(true, "picking is not functional in this browser environment");
-    return;
-  }
-
-  await page.mouse.click(hit.x, hit.y, { button: "right" });
-  const menu = page.getByTestId("context-menu");
-  await expect(menu).toBeVisible();
-
-  // The node/normal/face-boundary/ID overlays are not implemented on the
-  // WebGPU path, so the menu must not advertise them as working: the toggles
-  // are disabled and annotated instead of silently doing nothing.
-  for (const action of ["node-markers", "normals", "face-boundaries", "ids"]) {
-    const button = menu.locator(`button[data-action="${action}"]`);
-    await expect(button).toBeDisabled();
-    await expect(button).toContainText("CPU renderer only");
-  }
-  // The edge overlay is a real WebGPU pass, so its toggle stays available.
-  await expect(menu.locator('button[data-action="edges"]')).toBeEnabled();
-});
-
 test("keeps the depth-test toggle working on the WebGPU renderer", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("view-canvas")).toBeVisible();
-  await expect
-    .poll(() => rendererMode(page), { timeout: 10_000 })
-    .toMatch(/^(webgpu|cpu|destroyed)$/);
-
-  if ((await rendererMode(page)) !== "webgpu") {
-    test.skip(true, "WebGPU renderer unavailable in this browser environment");
-  }
+  await loadWebGpuPage(page);
 
   // The WebGPU renderer implements depth-tested edges, so the header control
   // stays live and toggles the overlay depth compare.
@@ -295,16 +224,32 @@ test("keeps the depth-test toggle working on the WebGPU renderer", async ({ page
   await expect(depthLabel).toHaveText("On");
 });
 
-test("tears the renderer down and re-initializes it cleanly", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("view-canvas")).toBeVisible();
-  await expect
-    .poll(() => rendererMode(page), { timeout: 10_000 })
-    .toMatch(/^(webgpu|cpu|destroyed)$/);
+test("does not advertise CPU-only overlay toggles in the context menu", async ({ page }) => {
+  await loadWebGpuPage(page);
 
-  if ((await rendererMode(page)) !== "webgpu") {
-    test.skip(true, "WebGPU renderer unavailable in this browser environment");
+  const canvas = page.getByTestId("view-canvas");
+  const hit = await sweepForHit(page, canvas, { attribute: "hovered", settleMs: 150 });
+  if (hit === undefined) {
+    test.skip(true, "picking is not functional in this browser environment");
+    return;
   }
+
+  await page.mouse.click(hit.x, hit.y, { button: "right" });
+  const menu = page.getByTestId("context-menu");
+  await expect(menu).toBeVisible();
+
+  // The node/normal/face-boundary/ID overlays were CPU-renderer-only and are
+  // gone with it; the menu must not advertise them at all.
+  for (const action of ["node-markers", "normals", "face-boundaries", "ids"]) {
+    await expect(menu.locator(`button[data-action="${action}"]`)).toHaveCount(0);
+  }
+  // The edge overlay and diagnostics are real workbench display controls.
+  await expect(menu.locator('button[data-action="edges"]')).toBeEnabled();
+  await expect(menu.locator('button[data-action="diagnostics"]')).toBeEnabled();
+});
+
+test("tears the renderer down and re-initializes it cleanly", async ({ page }) => {
+  await loadWebGpuPage(page);
 
   const canvas = page.getByTestId("view-canvas");
 
@@ -329,40 +274,32 @@ test("tears the renderer down and re-initializes it cleanly", async ({ page }) =
   expect(errors, "teardown and re-initialization must not raise page errors").toEqual([]);
 });
 
-test("recovers from GPU device loss or falls back to the CPU renderer", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("view-canvas")).toBeVisible();
-  await expect
-    .poll(() => rendererMode(page), { timeout: 10_000 })
-    .toMatch(/^(webgpu|cpu|destroyed)$/);
-
-  if ((await rendererMode(page)) !== "webgpu") {
-    test.skip(true, "WebGPU renderer unavailable in this browser environment");
-  }
+test("recovers from GPU device loss or reports the loss", async ({ page }) => {
+  await loadWebGpuPage(page);
 
   const canvas = page.getByTestId("view-canvas");
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
 
-  // Destroy the underlying GPU device. The demo either recovers the renderer
+  // Destroy the underlying GPU device. The demo recovers the renderer
   // (re-requesting a device and re-uploading the scene) or, when recovery is
-  // impossible, destroys the renderer and starts the CPU fallback; either way
-  // it must keep working and never raise page errors.
+  // impossible, destroys the renderer and reports the loss; either way it must
+  // never raise page errors.
   await page.evaluate(() => {
     (window as { femgxDemo?: { forceDeviceLoss: () => void } }).femgxDemo?.forceDeviceLoss();
   });
   await expect
     .poll(() => canvas.getAttribute("data-recovery"), { timeout: 10_000 })
-    .toMatch(/^(recovered|cpu-fallback)$/);
+    .toMatch(/^(recovered|error)$/);
 
   const recovery = await canvas.getAttribute("data-recovery");
   if (recovery === "recovered") {
     await expect.poll(() => rendererMode(page)).toBe("webgpu");
     await expect(page.getByTestId("status")).toContainText("recovered");
+    await expect.poll(() => canvas.getAttribute("data-frames")).not.toBeNull();
   } else {
-    await expect.poll(() => rendererMode(page)).toBe("cpu");
+    await expect.poll(() => rendererMode(page)).toBe("unsupported");
   }
-  await expect.poll(() => canvas.getAttribute("data-frames")).not.toBeNull();
 
   expect(errors, "device loss must not raise page errors").toEqual([]);
 });

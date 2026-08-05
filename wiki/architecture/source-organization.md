@@ -27,7 +27,7 @@ canonical description.
   values), value ranges, scalar color mapping with thresholds/legends, and
   deformed-shape geometry; pure CPU-side data (see [[data/results|Results]]).
 - `src/picking/` — CPU-side pick-id resolution.
-- `src/platform/` — WebGPU capability detection with typed unsupported reasons and adapter feature reporting (`capabilities.ts`), plus device request, loss reporting, and re-creation (`device.ts`); see [[rendering/platform-support|Platform support]].
+- `src/platform/` — explicit WebGPU unsupported/error reporting with typed reasons (`capabilities.ts`), plus device request, loss reporting, and re-creation focused on the supported path (`device.ts`); see [[rendering/platform-support|Platform support]].
 - `src/renderer/` — WebGPU renderer split into focused modules:
   `gpu-renderer.ts` (thin orchestrator and public API),
   `gpu-pipelines.ts` (layouts/pipelines/camera resources),

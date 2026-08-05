@@ -53,7 +53,7 @@ _Resolved_: packed visibility/transform/style deltas are now wired into GPU
 subrange writes (`WebGpuRenderer.updateInstances` patches slot-stable record
 buffers and compacts per-part draw-order buffers; see
 [[rendering/renderer-subrange-updates|Renderer subrange updates]]). GPU instance buffers,
-picking, and resource lifecycle are mocked in CPU-only unit tests. An opt-in
+picking, and resource lifecycle are mocked in CPU-only unit tests. The default
 WebGPU-capable browser lane now exercises the real renderer through the demo
 (see [[rendering/webgpu-e2e|WebGPU browser e2e lane]]); true WebGPU frame-time
 benchmarking in a browser is still future work. The CPU side of performance is
@@ -70,10 +70,13 @@ mocked device could not catch:
 - Integral user-defined vertex outputs and fragment inputs (the pick `u32`)
   require the `@interpolate(flat)` attribute in WGSL.
 - On some headless SwiftShader builds the canvas swapchain texture is invalid
-  unless `--enable-gpu` is passed (see [[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
+  unless `--enable-gpu` is passed (see [[rendering/webgpu-e2e|WebGPU browser e2e lane]]);
+  the e2e lane passes both `--enable-unsafe-webgpu` and `--enable-gpu`.
 
-The demo probes presentation and picking before committing to WebGPU, so
-broken environments degrade to the CPU renderer instead of failing.
+The demo requires WebGPU and reports an explicit unsupported state when it
+cannot initialize, instead of failing silently; the e2e lane launches Chromium
+with `--enable-unsafe-webgpu --enable-gpu` (software WebGPU) so the default CI
+gate exercises the real renderer.
 
 ### SwiftShader r32uint picking reliability
 

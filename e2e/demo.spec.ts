@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { drawnPixels, requireHit } from "./helpers";
+import { distinctColors, drawnPixels, requireHit } from "./helpers";
 
 /** The stable status summary the workbench reports for a model + renderer. */
 async function status(page: Page): Promise<string> {
@@ -15,16 +15,22 @@ test("renders the demo canvas with instanced geometry", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
+  await expect
+    .poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 })
+    .toMatch(/^(webgpu|unsupported)$/);
+  if ((await canvas.getAttribute("data-renderer")) !== "webgpu") {
+    test.skip(true, "WebGPU renderer unavailable in this browser environment");
+  }
 
-  expect(await drawnPixels(canvas)).toBe(true);
+  await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
 });
 
 test("reports the active model, renderer, instances, parts, and batches", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("status")).toHaveText(
-    /Bolted plate assembly · (webgpu|cpu) · \d+ visible · 12 parts · \d+ batches · solid · (perspective|orthographic) camera/,
+    /Bolted plate assembly · webgpu · \d+ visible · 12 parts · \d+ batches · solid · (perspective|orthographic) camera/,
   );
-  await expect(page.getByTestId("renderer-status")).toHaveText(/Renderer (webgpu|cpu)/);
+  await expect(page.getByTestId("renderer-status")).toHaveText(/Renderer webgpu/);
   await expect(page.getByTestId("stats-panel")).toContainText("Visible instances");
   await expect(page.getByTestId("stats-panel")).toContainText("Reusable parts 12");
   await expect(page.getByTestId("stats-panel")).toContainText("Draw batches");
@@ -61,25 +67,15 @@ test("renders the bolted showcase with distinct part colors and a screenshot", a
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
-  // The demo probes WebGPU before committing to the CPU fallback, so the
-  // renderer is only known once the probe settles; poll like the visual spec.
-  await expect.poll(() => canvas.getAttribute("data-renderer")).toMatch(/^(cpu|webgpu)$/);
+  // The renderer is only known once WebGPU initializes; poll like the visual spec.
+  await expect.poll(() => canvas.getAttribute("data-renderer")).toMatch(/^(webgpu|unsupported)$/);
+  if ((await canvas.getAttribute("data-renderer")) !== "webgpu") {
+    test.skip(true, "WebGPU renderer unavailable in this browser environment");
+  }
 
-  const drawn = await canvas.evaluate((el: HTMLCanvasElement) => {
-    const context = el.getContext("2d");
-    if (context === null) {
-      return false;
-    }
-    const { data } = context.getImageData(0, 0, el.width, el.height);
-    const colors = new Set<number>();
-    for (let i = 0; i < data.length; i += 4) {
-      if (data[i + 3] === 0) continue;
-      colors.add((data[i] ?? 0) | ((data[i + 1] ?? 0) << 8) | ((data[i + 2] ?? 0) << 16));
-      if (colors.size >= 4) return true;
-    }
-    return false;
-  });
-  expect(drawn, "the bolted view must render at least four distinct part colors").toBe(true);
+  await expect
+    .poll(async () => distinctColors(canvas), { timeout: 10_000 })
+    .toBeGreaterThanOrEqual(4);
 
   const screenshot = await canvas.screenshot();
   expect(screenshot, "the bolted showcase must produce a non-empty screenshot").not.toHaveLength(0);
@@ -289,20 +285,23 @@ test("toggles the edge overlay", async ({ page }) => {
   await expect(overlayLabel).toHaveText("Off");
 });
 
-test("does not advertise the depth-test toggle on the CPU renderer", async ({ page }) => {
+test("keeps the depth-test toggle enabled on the WebGPU renderer", async ({ page }) => {
   await page.goto("/");
-  const canvas = page.getByTestId("view-canvas");
-  // The demo probes WebGPU before committing to the CPU fallback, so the
-  // renderer is only known once the probe settles; the default lane launches
-  // with `--disable-gpu`, so it must always commit to the CPU renderer.
-  await expect.poll(() => canvas.getAttribute("data-renderer")).toBe("cpu");
+  await expect
+    .poll(() => page.getByTestId("view-canvas").getAttribute("data-renderer"), {
+      timeout: 10_000,
+    })
+    .toBe("webgpu");
 
-  // The CPU renderer draws no depth-tested edge pass, so the control must not
-  // pretend to work: it is disabled and annotated instead of toggling a no-op.
+  // The WebGPU renderer draws a depth-tested edge pass, so the control stays
+  // live instead of being annotated as unsupported.
   const depthButton = page.getByTestId("depth-test");
-  await expect(depthButton).toBeDisabled();
-  await expect(depthButton).toContainText("WebGPU only");
-  await expect(page.getByTestId("depth-test-label")).toHaveText("WebGPU only");
+  await expect(depthButton).toBeEnabled();
+  await expect(page.getByTestId("depth-test-label")).toHaveText("On");
+  await depthButton.click();
+  await expect(page.getByTestId("depth-test-label")).toHaveText("Off");
+  await depthButton.click();
+  await expect(page.getByTestId("depth-test-label")).toHaveText("On");
 });
 
 test("selects an element by promoting a node pick with shift-click", async ({ page }) => {
@@ -312,7 +311,7 @@ test("selects an element by promoting a node pick with shift-click", async ({ pa
     page,
     canvas,
     { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic CPU lane",
+    "node raycast picking must resolve on the deterministic WebGPU lane",
   );
 
   await page.keyboard.down("Shift");
@@ -333,7 +332,7 @@ test("picks and selects a node, exposing adjacency and neighbors", async ({ page
     page,
     canvas,
     { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic CPU lane",
+    "node raycast picking must resolve on the deterministic WebGPU lane",
   );
 
   await page.mouse.click(hit.x, hit.y);
@@ -369,7 +368,7 @@ test("promotes a node pick to its owning element with shift", async ({ page }) =
     page,
     canvas,
     { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic CPU lane",
+    "node raycast picking must resolve on the deterministic WebGPU lane",
   );
   const owned = (await dataset(page, "pick")).split(":");
   expect(owned[0]).toBe("n");
@@ -390,7 +389,7 @@ test("context menu selects a target and toggles display without losing selection
     page,
     canvas,
     { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic CPU lane",
+    "node raycast picking must resolve on the deterministic WebGPU lane",
   );
 
   await page.mouse.click(hit.x, hit.y, { button: "right" });
@@ -429,34 +428,28 @@ test("context menu selects a target and toggles display without losing selection
   expect(await dataset(page, "selected")).toBe(selected);
 });
 
-test("keeps the node/normal/face-boundary/ID toggles on the CPU renderer", async ({ page }) => {
+test("does not advertise the CPU-only display overlays in the context menu", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  // The demo probes WebGPU before committing to the CPU fallback, so the
-  // renderer is only known once the probe settles; the default lane launches
-  // with `--disable-gpu`, so it must always commit to the CPU renderer.
-  await expect.poll(() => canvas.getAttribute("data-renderer")).toBe("cpu");
+  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
   const hit = await requireHit(
     page,
     canvas,
     { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic CPU lane",
+    "node raycast picking must resolve on the deterministic WebGPU lane",
   );
 
   await page.mouse.click(hit.x, hit.y, { button: "right" });
   const menu = page.getByTestId("context-menu");
   await expect(menu).toBeVisible();
+  // The node-marker/normal/face-boundary/ID overlays were CPU-renderer-only and
+  // were removed with it; the menu must not advertise them.
   for (const action of ["node-markers", "normals", "face-boundaries", "ids"]) {
-    await expect(menu.locator(`button[data-action="${action}"]`)).toBeEnabled();
+    await expect(menu.locator(`button[data-action="${action}"]`)).toHaveCount(0);
   }
-
-  // Toggling an overlay flips its menu label, so the toggle still works.
-  await menu.locator('button[data-action="normals"]').click();
-  await page.mouse.click(hit.x, hit.y, { button: "right" });
-  await expect(page.getByTestId("context-menu")).toBeVisible();
-  await expect(
-    page.getByTestId("context-menu").locator('button[data-action="normals"]'),
-  ).toHaveText("Normals off");
+  // The edges and diagnostics display toggles remain.
+  await expect(menu.locator('button[data-action="edges"]')).toBeEnabled();
+  await expect(menu.locator('button[data-action="diagnostics"]')).toBeEnabled();
 });
 
 test("context menu hides and restores a part via the visibility panel", async ({ page }) => {
@@ -466,7 +459,7 @@ test("context menu hides and restores a part via the visibility panel", async ({
     page,
     canvas,
     { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic CPU lane",
+    "node raycast picking must resolve on the deterministic WebGPU lane",
   );
 
   await page.mouse.click(hit.x, hit.y, { button: "right" });
@@ -500,7 +493,7 @@ test("keeps selection stable across repeated orbit interactions", async ({ page 
     page,
     canvas,
     { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic CPU lane",
+    "node raycast picking must resolve on the deterministic WebGPU lane",
   );
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
@@ -520,6 +513,6 @@ test("keeps selection stable across repeated orbit interactions", async ({ page 
     }
     await page.mouse.up();
   }
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-renderer", /cpu|webgpu/);
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-renderer", "webgpu");
   await expect.poll(() => dataset(page, "selected"), { timeout: 5000 }).toBe(selected);
 });

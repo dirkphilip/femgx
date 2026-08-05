@@ -44,10 +44,6 @@ oriented element faces are the finest-grained pickable units under
   local/world position and geometry-derived adjacency; face targets carry the
   oriented node loop, world-space normal, neighbor elements, and a hit position
   (the face centroid for rasterized picks).
-- **CPU fallback**: `pickFromRay` raycasts the triangle tessellation of every
-  considered instance (Möller–Trumbore) and returns the same targets, with the
-  exact hit position on face targets. `rayFromPixel(camera, x, y)` builds a
-  pick ray for a pixel, so a camera + `pickFromRay` replaces the GPU pass.
 
 ## Interaction state and emphasis
 
@@ -66,19 +62,17 @@ oriented element faces are the finest-grained pickable units under
 - The bounded per-part emphasis capacity documented in
   [[rendering/element-interaction|element-interaction]] applies to node/face records too
   (tracked in [femgx#68](https://github.com/dirkphilip/femgx/issues/68)).
-- The demo CPU fallback renders node/face emphasis as marker circles and face
-  fills using `emphasizedNodeRefs`/`emphasizedFaceRefs` plus
-  `resolveNodeStyle`/`resolveFaceStyle`; it does not derive element overrides
-  from node/face state
-  ([[architecture/demo-library-boundary|Demo / library boundary]]).
+- The demo renders node/face emphasis through the library
+  `emphasizedNodeRefs`/`emphasizedFaceRefs` plus `resolveNodeStyle`/
+  `resolveFaceStyle`; it does not derive element overrides from node/face
+  state ([[architecture/demo-library-boundary|Demo / library boundary]]).
 
 ## Demo
 
-- The demo's workbench uses the unified CPU `pick()` for both renderers; plain
+- The demo's workbench uses the unified CPU `pick()` for interaction; plain
   click selects the most specific hit (node), Shift promotes to the element, Alt
   to the instance, Ctrl to the part. Hover/selection datasets are prefixed by
   granularity (`n:instance:node`, `f:instance:element:faceKey`,
   `e:instance:element`, `i:instance`, `p:part`). The WebGPU renderer also
-  exposes `renderer.pick(x, y, granularity)`, whose renderer-independent CPU
-  analogue is `pickFromRay` + `rayFromPixel` (see
+  exposes `renderer.pick(x, y, granularity)` for GPU readback picking (see
   [[rendering/fe-inspection-workbench|FE inspection workbench]]).

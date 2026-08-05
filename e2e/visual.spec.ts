@@ -1,69 +1,92 @@
-import { expect, test, type Page } from "@playwright/test";
-import { pixelHash, requireHit } from "./helpers";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import { requireHit } from "./helpers";
 
 /**
- * Visual regression for the deterministic CPU renderer: solid, edge, and
- * selection modes must each produce stable, mode-distinct pixel output. The
- * default `chromium` project disables the GPU so the demo always commits to the
- * CPU renderer, whose 2D canvas output is deterministic frame to frame.
+ * Visual regression for the WebGPU renderer: solid, edge, and selection modes
+ * must each produce stable, mode-distinct pixel output. WebGPU presentation is
+ * asynchronous, so each capture settles on several consecutive byte-identical
+ * frames before being compared. On an environment that cannot initialize
+ * WebGPU the demo reports an explicit unsupported state and these tests skip.
  */
 
 async function rendererMode(page: Page): Promise<string> {
   return (await page.getByTestId("view-canvas").getAttribute("data-renderer")) ?? "";
 }
 
-async function solidModeHash(page: Page): Promise<string> {
+/** Loads the demo and skips when the environment cannot run WebGPU. */
+async function loadVisualPage(page: Page): Promise<void> {
   await page.goto("/");
   await expect(page.getByTestId("view-canvas")).toBeVisible();
-  await expect.poll(() => rendererMode(page)).toBe("cpu");
-  return pixelHash(page.getByTestId("view-canvas"));
+  await expect
+    .poll(() => rendererMode(page), { timeout: 10_000 })
+    .toMatch(/^(webgpu|unsupported)$/);
+  if ((await rendererMode(page)) !== "webgpu") {
+    test.skip(true, "WebGPU renderer unavailable in this browser environment");
+  }
+}
+
+/** Captures the canvas pixels once the presented frame settles. */
+async function stableCanvasPixels(page: Page, canvas: Locator): Promise<Buffer> {
+  let previous: Buffer | undefined;
+  let streak = 0;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const shot = await canvas.screenshot();
+    if (previous !== undefined && shot.equals(previous)) streak += 1;
+    else streak = 0;
+    previous = shot;
+    if (streak >= 2) return shot;
+    await page.waitForTimeout(100);
+  }
+  throw new Error("canvas pixels never stabilized across captures");
 }
 
 test("solid mode renders deterministically across page loads", async ({ page }) => {
-  const first = await solidModeHash(page);
-  const second = await solidModeHash(page);
-  expect(first, "solid mode pixel output must be deterministic").toBe(second);
+  await loadVisualPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const first = await stableCanvasPixels(page, canvas);
+  await page.reload();
+  await expect.poll(() => rendererMode(page)).toBe("webgpu");
+  const second = await stableCanvasPixels(page, canvas);
+  expect(first.equals(second), "solid mode pixel output must be deterministic").toBe(true);
 });
 
 test("edge mode differs from solid mode", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("view-canvas")).toBeVisible();
-  await expect.poll(() => rendererMode(page)).toBe("cpu");
+  await loadVisualPage(page);
 
   const canvas = page.getByTestId("view-canvas");
-  const solid = await pixelHash(canvas);
+  const solid = await stableCanvasPixels(page, canvas);
 
   await page.getByTestId("mode-edges").click();
   await expect(canvas).toHaveAttribute("data-mode", "edges");
-  const edge = await pixelHash(canvas);
+  const edge = await stableCanvasPixels(page, canvas);
 
-  expect(edge, "edge mode must render different pixels than solid").not.toBe(solid);
+  expect(edge.equals(solid), "edge mode must render different pixels than solid").toBe(false);
 });
 
 test("selection changes the rendered pixels and stays stable", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("view-canvas")).toBeVisible();
-  await expect.poll(() => rendererMode(page)).toBe("cpu");
+  await loadVisualPage(page);
 
   const canvas = page.getByTestId("view-canvas");
-  const before = await pixelHash(canvas);
+  const before = await stableCanvasPixels(page, canvas);
 
-  // The default lane's pick is deterministic CPU raycasting; a hover that
-  // never resolves means the interaction path is broken, not that this
-  // environment lacks a capability, so this is a required assertion.
+  // The demo's pick is deterministic CPU raycasting; a hover that never
+  // resolves means the interaction path is broken, not that this environment
+  // lacks a capability, so this is a required assertion.
   const hoverPoint = await requireHit(
     page,
     canvas,
     { attribute: "hovered" },
-    "a hoverable instance must resolve on the deterministic CPU renderer",
+    "a hoverable instance must resolve on the WebGPU renderer",
   );
 
   await page.mouse.click(hoverPoint.x, hoverPoint.y);
   await expect.poll(() => canvas.getAttribute("data-selected")).not.toBe("");
 
-  const selected = await pixelHash(canvas);
-  expect(selected, "selecting an instance must change the rendered pixels").not.toBe(before);
+  const selected = await stableCanvasPixels(page, canvas);
+  expect(selected.equals(before), "selecting an instance must change the rendered pixels").toBe(
+    false,
+  );
 
-  const again = await pixelHash(canvas);
-  expect(again, "the selected state must render deterministically").toBe(selected);
+  const again = await stableCanvasPixels(page, canvas);
+  expect(again.equals(selected), "the selected state must render deterministically").toBe(true);
 });
