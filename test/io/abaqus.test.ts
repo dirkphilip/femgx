@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { required } from "./helpers";
+import {
+  canonicalElementCoordinates,
+  canonicalElementModel,
+  coordsOfModel,
+  expectMidEdgePlacement,
+  required,
+} from "./helpers";
 import { parseAbaqus, writeAbaqus } from "../../src/io/parse";
 import { createModelBuilder } from "../../src/io/build";
-import { TET4_SHAPE, HEX8_SHAPE, HEX20_SHAPE } from "../../src/elements/shapes";
+import { TET4_SHAPE, HEX8_SHAPE, HEX20_SHAPE, TET10_SHAPE } from "../../src/elements/shapes";
 
 const DECK = [
   "** Abaqus example",
@@ -204,5 +210,44 @@ describe("writeAbaqus", () => {
     builder.appendNodes([1], [0, 0, 0]);
     const model = builder.build();
     expect(writeAbaqus(model)).toBe(writeAbaqus(model));
+  });
+
+  it("writes and re-reads C3D10 mid-edge nodes on their canonical edges", () => {
+    const { model, coordsOf } = canonicalElementModel(TET10_SHAPE);
+    const parsed = parseAbaqus(writeAbaqus(model));
+    expect(parsed.issues).toEqual([]);
+    const block = required(parsed.model.elementBlocks[0]);
+    expect([...block.connectivity]).toEqual([...required(model.elementBlocks[0]).connectivity]);
+    expectMidEdgePlacement(block, coordsOf);
+  });
+
+  it("writes and re-reads C3D20 mid-edge nodes on their canonical edges", () => {
+    const { model, coordsOf } = canonicalElementModel(HEX20_SHAPE);
+    const parsed = parseAbaqus(writeAbaqus(model));
+    expect(parsed.issues).toEqual([]);
+    const block = required(parsed.model.elementBlocks[0]);
+    expect([...block.connectivity]).toEqual([...required(model.elementBlocks[0]).connectivity]);
+    expectMidEdgePlacement(block, coordsOf);
+  });
+});
+
+describe("parseAbaqus quadratic ordering", () => {
+  it("parses a native C3D20 deck into canonical node order", () => {
+    const coords = canonicalElementCoordinates(HEX20_SHAPE);
+    const lines = ["*NODE"];
+    for (let node = 0; node < 20; node += 1) {
+      lines.push(
+        `${String(node)}, ${String(coords[3 * node])}, ${String(coords[3 * node + 1])}, ${String(
+          coords[3 * node + 2],
+        )}`,
+      );
+    }
+    lines.push("*ELEMENT, TYPE=C3D20");
+    lines.push(`1, ${Array.from({ length: 20 }, (_, index) => index).join(", ")}`);
+    const parsed = parseAbaqus(lines.join("\n"));
+    expect(parsed.issues).toEqual([]);
+    const block = required(parsed.model.elementBlocks[0]);
+    expect([...block.connectivity]).toEqual(Array.from({ length: 20 }, (_, index) => index));
+    expectMidEdgePlacement(block, coordsOfModel(parsed.model));
   });
 });

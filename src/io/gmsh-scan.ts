@@ -9,6 +9,7 @@ import {
   topologyFor,
   type ElementShape,
 } from "../elements/shapes";
+import { gmshToCanonicalOrder, permuteConnectivity } from "./gmsh-order";
 import { numbersOf, tokensOf } from "./numbers";
 import type { GmshState } from "./gmsh";
 
@@ -105,16 +106,9 @@ function readElementLine(state: GmshState, tokens: readonly string[], line: numb
   if (numTags >= 1 && Number.isInteger(physicalIndex) && physicalIndex > 0) {
     addPhysicalMember(state, physicalIndex, id);
   }
-  const nodeIds: number[] = [];
-  for (let index = 0; index < nodeCount; index += 1) {
-    const nodeId = Number(tokens[3 + numTags + index]);
-    if (!Number.isInteger(nodeId) || nodeId < 0) {
-      state.session.report("bad-node-id", `Element ${String(id)} references an invalid node id`, {
-        line,
-      });
-      return;
-    }
-    nodeIds.push(nodeId);
+  const canonicalNodes = canonicalNodeIds(state, shape, tokens, 3 + numTags, line);
+  if (canonicalNodes === undefined) {
+    return;
   }
   if (state.pendingShape !== shape) {
     flushGmshElements(state);
@@ -122,13 +116,39 @@ function readElementLine(state: GmshState, tokens: readonly string[], line: numb
     state.pendingShape = shape;
   }
   state.pendingElementIds.push(id);
-  for (const nodeId of nodeIds) {
+  for (const nodeId of canonicalNodes) {
     state.pendingElementConn.push(nodeId);
   }
   state.elementRead += 1;
   if (state.pendingElementIds.length >= 512) {
     flushGmshElements(state);
   }
+}
+
+/** Parses the node ids of an element line and reorders them into the canonical shape order. */
+function canonicalNodeIds(
+  state: GmshState,
+  shape: ElementShape,
+  tokens: readonly string[],
+  start: number,
+  line: number,
+): readonly number[] | undefined {
+  const nodeCount = topologyFor(shape).nodeCount;
+  const nodeIds: number[] = [];
+  for (let index = 0; index < nodeCount; index += 1) {
+    const nodeId = Number(tokens[start + index]);
+    if (!Number.isInteger(nodeId) || nodeId < 0) {
+      state.session.report(
+        "bad-node-id",
+        `Element ${String(tokens[0])} references an invalid node id`,
+        { line },
+      );
+      return undefined;
+    }
+    nodeIds.push(nodeId);
+  }
+  const order = gmshToCanonicalOrder(shape);
+  return order === undefined ? nodeIds : permuteConnectivity(nodeIds, order);
 }
 
 function addPhysicalMember(state: GmshState, index: number, elementId: number): void {
