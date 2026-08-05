@@ -195,6 +195,36 @@ describe("parseVtk", () => {
     expect([...required(result.model.elementBlocks[0]).ids]).toEqual([1]);
     expect([...required(result.model.elementBlocks[0]).connectivity]).toEqual([0, 1, 2, 3]);
   });
+
+  it("reports fractional and oversized cell types as unsupported instead of truncating", () => {
+    const source = [
+      "# vtk DataFile Version 5.0",
+      "tet example",
+      "ASCII",
+      "DATASET UNSTRUCTURED_GRID",
+      "POINTS 4 double",
+      "0 0 0",
+      "1 0 0",
+      "0 1 0",
+      "0 0 1",
+      "CELLS 3 15",
+      "4 0 1 2 3",
+      "4 0 1 2 3",
+      "4 0 1 2 3",
+      "CELL_TYPES 3",
+      "10.5",
+      "4294967297",
+      "10",
+      "",
+    ].join("\n");
+    const result = parseVtk(source);
+    expect(
+      result.issues.map((issue) => issue.code).filter((code) => code === "unsupported-cell-type"),
+    ).toHaveLength(2);
+    expect(result.model.elementBlocks).toHaveLength(1);
+    expect(result.model.elementBlocks[0]?.count).toBe(1);
+    expect([...required(result.model.elementBlocks[0]).ids]).toEqual([2]);
+  });
 });
 
 describe("parseVtk streaming memory", () => {

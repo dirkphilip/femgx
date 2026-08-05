@@ -26,6 +26,9 @@ const VTK_TYPES: ReadonlyMap<number, ElementShape> = new Map([
 /** Sentinel `cellStarts` entry marking a cell whose node ids were not valid integers. */
 const MISSING_START = 0xffffffff;
 
+/** Sentinel `cellTypes` entry marking a type that is not a non-negative 32-bit integer. */
+const INVALID_TYPE = 0xffffffff;
+
 /** Starts collecting a POINTS block; `tokens[1]` is the node count. */
 export function startPoints(state: VtkState, tokens: readonly string[], line: number): void {
   const count = Number(tokens[1]);
@@ -166,7 +169,8 @@ export function readCellTypesLine(state: VtkState, text: string, line: number): 
       });
       return;
     }
-    state.cellTypes.push(value);
+    const validType = Number.isInteger(value) && value >= 0 && value <= INVALID_TYPE;
+    state.cellTypes.push(validType ? value : INVALID_TYPE);
     state.cellTypesRemaining -= 1;
   }
 }
