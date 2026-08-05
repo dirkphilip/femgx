@@ -197,7 +197,7 @@ Use this order when the backlog needs a next issue:
    without material cloning, visibility inheritance, and a stable `pick(x, y)`
    result.
 5. Demo and validation: runnable Vite demo, orbit/pan/zoom/reset, orthographic
-   and perspective cameras, WebGPU fallback, representative FE fixtures,
+   and perspective cameras, WebGPU rendering, representative FE fixtures,
    Playwright coverage, and performance budgets.
 
 Every rendering or interaction issue should state its expected batching,

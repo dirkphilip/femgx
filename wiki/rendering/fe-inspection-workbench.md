@@ -1,20 +1,20 @@
 # FE inspection workbench
 
 The demo is an FE model inspection workbench: deterministic model presets,
-unified CPU raycast picking (node → face → element), a shared
-renderer-independent controller, and per-node/face/element selection and
-highlighting that never rebuilds geometry or clones materials. WebGPU and CPU
-fallback drive the same controller, so camera and interaction behavior is
-identical ([[rendering/element-interaction|Element-level interaction]],
+unified CPU raycast picking (node → face → element), a shared workbench
+controller, and per-node/face/element selection and highlighting that never
+rebuilds geometry or clones materials. The WebGPU renderer drives the
+controller, so camera and interaction behavior is stable
+([[rendering/element-interaction|Element-level interaction]],
 [[rendering/interactive-state|Interactive state]]).
 
 ## Model presets
 
-- `src/fixture/presets.ts` builds three deterministic models from fixed
-  options: the **element gallery** (tet/hex families plus point/line overlays),
-  the **stiffened deck panel**, and the **portal frame** with conforming hex
-  topology. Every preset is CPU-renderable and derived purely from fixed data,
-  so the demo and tests share identical structure.
+- `src/fixture/presets.ts` builds deterministic models from fixed options: the
+  **element gallery** (tet/hex families plus point/line overlays), the
+  **stiffened deck panel**, the **portal frame** with conforming hex topology,
+  and the **bolted plate assembly** showcase. Every preset is derived purely
+  from fixed data, so the demo and tests share identical structure.
 - Each preset carries `elementModels` (per-part element topology used for
   node/face picking and emphasis), a part theme, per-mode part visibility, and
   overall bounds. The demo's model `<select>` switches presets without editing
@@ -29,17 +29,17 @@ identical ([[rendering/element-interaction|Element-level interaction]],
   pointer wins over the face the ray hits first, which wins over the element.
   Modifier keys promote/narrow the selection: shift → element, alt → instance,
   ctrl → part (see `demo/pick.ts`).
-- Hit data is stable across visibility changes, draw-list compaction, and
-  renderer switches because it is keyed by part/instance/element/node/face ids
-  from the authoritative scene and element models.
+- Hit data is stable across visibility changes and draw-list compaction because
+  it is keyed by part/instance/element/node/face ids from the authoritative
+  scene and element models.
 
 ## Workbench controller
 
 - `demo/controller.ts` (`WorkbenchController`) owns the active preset, the
   packed runtime, interaction state, visibility, and display toggles, and
-  drives whichever renderer is attached through `RendererHooks`. It wires the
-  control bar, visibility panel, inspection panel, stats panel, and the
-  right-click context menu.
+  drives the attached renderer through `RendererHooks`. It wires the control
+  bar, visibility panel, inspection panel, stats panel, and the right-click
+  context menu.
 - The **visibility panel is a hierarchical tree** built from the authoritative
   scene graph: expandable assembly rows (with a disclosure button and an
   explicit `Assembly`/`Part` identity-kind badge) nest the parts placed beneath
@@ -59,27 +59,16 @@ identical ([[rendering/element-interaction|Element-level interaction]],
   demo-side `emphasis.ts` fold was removed. `elementOverrides` now holds only
   explicit element highlights set through `setElementOverride`
   ([[architecture/demo-library-boundary|Demo / library boundary]]).
-- Display toggles (edges, node markers, normals, face boundaries, ids,
-  diagnostics) flip renderer state only; they never rebuild reusable geometry
-  or drop selection state. The node-marker/normal/face-boundary/ID overlays
-  are drawn only by the CPU fallback renderer; the WebGPU renderer has no
-  overlay passes yet, so the workbench's `displayOverlays` capability (false
-  on the WebGPU demo path) disables and annotates those context-menu toggles
-  instead of advertising a no-op. `edges` is a real WebGPU pass and stays
-  enabled ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
-- The `Depth test` control is the mirror image of the overlays: depth-tested
-  edge rendering is a WebGPU-only pass, so the workbench's
-  `supportsEdgeDepthTest` capability (false on the CPU demo path) disables and
-  annotates that control (`Depth test · WebGPU only`) instead of silently
-  toggling a no-op (resolved in
-  [femgx#138](https://github.com/dirkphilip/femgx/issues/138)).
+- Display toggles (edges, diagnostics) flip renderer state only; they never
+  rebuild reusable geometry or drop selection state. The `edges` overlay is a
+  real WebGPU pass with a depth-test control that stays live
+  ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
 - The control bar shows the active renderer in a `#renderer-status` chip next
-  to the model selector, so renderer-specific controls are read against the
-  renderer that is actually driving the view.
-- The controller exposes a `rendererState` note (e.g. `recovered`, `fallback`)
-  that the status line shows after a GPU device loss; the WebGPU demo path
-  recovers the renderer once and falls back to the CPU renderer when recovery
-  is impossible ([[rendering/platform-support|Platform support]]).
+  to the model selector.
+- The controller exposes a `rendererState` note (e.g. `recovered`) that the
+  status line shows after a GPU device loss; the WebGPU demo path recovers the
+  renderer once and reports an explicit unsupported message when recovery is
+  impossible ([[rendering/platform-support|Platform support]]).
 
 ## Mobile / responsive layout
 
@@ -102,5 +91,5 @@ rendering after repeated orbit interactions.
 `e2e/mobile.spec.ts` asserts at a 390x844 viewport that the page has no
 horizontal overflow, primary controls stay reachable with 44px hit areas, and
 the context menu fits inside the viewport. The default Playwright lane runs the
-deterministic CPU renderer; the opt-in WebGPU lane exercises the same
-controller against WebGPU ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
+real WebGPU renderer through the same controller
+([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).

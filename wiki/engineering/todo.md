@@ -43,7 +43,7 @@ development workflow.
 - [x] Split the renderer into focused modules (pipelines, draw, pick readback)
       below the 300-line limit (see [[architecture/source-organization|Source organization]]).
 - [x] Encode emissive into the GPU instance record so hover/highlight themes
-      take effect on the WebGPU path, matching the CPU fallback (see
+      take effect on the WebGPU path (see
       [[rendering/renderer-subrange-updates|Renderer subrange updates]]).
 
 ## P2 — interaction API
@@ -63,15 +63,16 @@ development workflow.
 - [x] Support orthographic and perspective projections with explicit camera
       tests for projection, clipping, and resize behavior.
 - [x] Add Playwright tests for initial
-      rendering, projection changes, pointer controls, reset, and no-WebGPU fallback.
+      rendering, projection changes, pointer controls, reset, and the WebGPU
+      product contract on the default e2e lane.
 - [x] Add benchmarks for hierarchy compilation, updates, draw batching, and
       picking at representative model sizes (see [[engineering/benchmarks|Benchmarks]]).
 - [x] Add performance budgets and regression checks to CI (see
       [[engineering/benchmarks|Benchmarks]]).
 - [x] Align the supported Node version across `package.json`, CI, and docs.
-- [x] Add WebGPU-capable browser coverage to the demo/e2e strategy, with a CPU
-      fallback for environments without WebGPU (see
-      [[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
+- [x] Add WebGPU-capable browser coverage to the demo/e2e strategy as the
+      default lane, with an explicit unsupported state for environments without
+      WebGPU (see [[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
 
 ## P2 — element topology
 
@@ -127,7 +128,7 @@ development workflow.
       structural budgets (`test/runtime/stress.test.ts`; see
       [[engineering/benchmarks|Benchmarks]]).
 - [x] Add e2e visual regression for solid, edge, and selection modes on the
-      deterministic CPU renderer (`e2e/visual.spec.ts`); the element render
+      WebGPU renderer (`e2e/visual.spec.ts`); the element render
       modes (solid/surface/edges/lines/points) are covered by the element-mode
       e2e tests in `e2e/demo.spec.ts`.
 - [x] Document the browser/GPU capability matrix in the wiki

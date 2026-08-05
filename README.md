@@ -11,10 +11,12 @@ interactive frame rates using **WebGPU** and **GPU instancing**.
 
 ## Status
 
-This experimental product has a working CPU scene foundation, WebGPU renderer, and
-interactive CPU fallback: validated hierarchies, column-major transforms, stable placement
-handles, deterministic batching and frustum culling, centralized interaction styles,
-camera controls, asynchronous GPU picking, and a runnable demo.
+This experimental product has a working CPU scene foundation and a WebGPU renderer:
+validated hierarchies, column-major transforms, stable placement handles, deterministic
+batching and frustum culling, centralized interaction styles, camera controls,
+asynchronous GPU picking, and a runnable demo. WebGPU is the product's only rendering
+backend; environments without a working WebGPU path get a clear error instead of a
+fallback rendering path.
 
 ## Architecture
 
@@ -77,7 +79,8 @@ const { createScene, createCamera, flattenAssembly } = require("femgx");
 
 - **Browsers**: modern Chrome, Edge, Firefox, and Safari with WebGPU enabled by
   default in current releases. Rendering requires a WebGPU-capable browser; the
-  CPU scene, camera, and picking APIs work anywhere.
+  CPU scene, camera, and picking APIs work anywhere, and unsupported
+  environments receive an explicit unsupported/error result from the renderer.
 - **TypeScript**: 6.0 or newer for consumers (declarations rely on DOM-lib WebGPU
   types). `moduleResolution: bundler`, `node16`, `nodenext`, and legacy `node10`
   resolution are all supported.
@@ -89,6 +92,8 @@ const { createScene, createCamera, flattenAssembly } = require("femgx");
 - `createWebGpuRenderer(options)` is `async`: it checks `navigator.gpu`, requests an
   adapter, and (unless `options.device` is provided) requests a device. It throws a
   descriptive error when WebGPU is unavailable or the adapter/device request fails.
+- `queryWebGpuSupport()` is a non-throwing probe that returns a typed
+  "supported"/"unsupported" report for applications that want to branch up front.
 - The CPU scene, camera, flatten/compile, and picking (`resolvePick`) APIs are
   WebGPU-independent and work in any JavaScript environment.
 - Picking via the renderer uses asynchronous GPU readback: `pick(x, y)` returns a

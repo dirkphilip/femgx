@@ -6,8 +6,6 @@
   projection transitions, and CAD-style navigation.
 - [[rendering/camera-touch-controls|Camera touch controls]] — pointer-driven
   one-finger orbit, pinch zoom, two-finger pan, and gesture cancellation.
-- [[rendering/cpu-fallback-face-culling|CPU fallback face culling]] — why thin
-  solids must back-face cull in the 2D-canvas fallback.
 - [[rendering/element-interaction|Element-level interaction]] — element
   picking, selection, highlighting, and edge overlays.
 - [[rendering/fe-inspection-workbench|FE inspection workbench]] — the demo's
@@ -18,14 +16,13 @@
 - [[rendering/interactive-state|Interactive state]] — centralized highlight,
   selection, hover, and style precedence.
 - [[rendering/node-face-interaction|Node and face interaction]] — node/face
-  picking, selection, the four-attachment GPU pick pass, and the CPU raycast
-  fallback.
+  picking, selection, and the four-attachment GPU pick pass.
 - [[rendering/pick-format|Pick texture format]] — portable packed GPU pick IDs.
-- [[rendering/platform-support|Platform support]] — WebGPU capability
-  detection, unsupported behavior, and device recovery.
+- [[rendering/platform-support|Platform support]] — WebGPU as the product
+  requirement, explicit unsupported behavior, and device recovery.
 - [[rendering/renderer-subrange-updates|Renderer subrange updates]] — delta
   updates for instance and element GPU state.
-- [[rendering/webgpu-e2e|WebGPU browser e2e lane]] — opt-in real-WebGPU
-  browser coverage.
+- [[rendering/webgpu-e2e|WebGPU browser e2e lane]] — real-WebGPU browser
+  coverage on the default e2e lane.
 - [[rendering/webgpu-resource-reuse|WebGPU resource reuse]] — cached frame,
   depth, bind-group, and readback resources.

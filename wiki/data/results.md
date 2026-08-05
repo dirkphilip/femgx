@@ -113,10 +113,11 @@ blend, matching the field conventions.
 ## Demo
 
 `demo/results-fixture.ts` + `demo/results-demo.ts` render a cantilever plate
-through the deterministic CPU 2D renderer. The mesh is tessellated by the FE
-geometry builder (`elementGeometry`, one degenerate tet per grid cell), so the
-demo deforms it through the node-mapped CPU path rather than a hand-built
-node-aligned vertex buffer:
+through a 2D canvas (the results workbench is a CPU-side visualization of the
+results APIs, not a rendering fallback for the model). The mesh is tessellated
+by the FE geometry builder (`elementGeometry`, one degenerate tet per grid
+cell), so the demo deforms it through the node-mapped CPU path rather than a
+hand-built node-aligned vertex buffer:
 
 - two load cases (bending, twist) with nodal displacement and elemental stress
   fields, von Mises derived through the library, and one intentionally missing
@@ -127,14 +128,14 @@ node-aligned vertex buffer:
 - the shared color map is built from the observed range over both load cases;
   switching cases demonstrates clipping when values exceed the map range.
 
-`e2e/results.spec.ts` exercises the demo deterministically (the default e2e lane
-runs the CPU renderer) by comparing canvas pixel hashes across each toggle, and
-covers playback by observing the case index and blend progress advance.
+`e2e/results.spec.ts` exercises the demo deterministically by comparing canvas
+pixel hashes across each toggle, and covers playback by observing the case
+index and blend progress advance.
 
 ## Status / follow-ups
 
 - GPU-side per-instance deformed rendering is implemented; the results demo
-  still uses the deterministic CPU renderer. Wiring the demo's scale/load-case
+  still draws through its 2D canvas. Wiring the demo's scale/load-case
   controls to `setDeformation` (optionally through `CasePlayer` interpolation
   served as a one-case displacement buffer) is a follow-up.
 - Load-case playback and displacement interpolation are provided by the
