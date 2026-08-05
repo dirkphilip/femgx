@@ -103,6 +103,8 @@ export class WorkbenchController {
   mode: ElementRenderMode;
   toggles: DisplayToggles;
   interaction: InteractionState;
+  /** Renderer-state note shown in the status line (e.g. "recovered", "fallback"). */
+  rendererState = "";
   runtime!: SceneRuntime;
   pickScene!: PickScene;
   cameraRef: CameraRef;
@@ -633,7 +635,8 @@ export class WorkbenchController {
     }
   }
 
-  private render(): void {
+  /** Re-draws the current state and refreshes the status line and datasets. */
+  render(): void {
     if (this.disposed) return;
     this.hooks.render(this, this.interaction);
     this.refreshStatus();
@@ -645,6 +648,7 @@ export class WorkbenchController {
     const info: StatusInfo = {
       model: this.preset.name,
       renderer: this.rendererName,
+      rendererState: this.rendererState,
       visibleInstances: stats.visibleInstances,
       parts: this.preset.scene.parts.size,
       batches: stats.batches,

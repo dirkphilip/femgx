@@ -29,6 +29,8 @@ export interface CameraRef {
 export interface StatusInfo {
   readonly model: string;
   readonly renderer: string;
+  /** Optional renderer-state note (e.g. "recovered" or "fallback"). */
+  readonly rendererState?: string;
   readonly visibleInstances: number;
   readonly parts: number;
   readonly batches: number;
@@ -96,10 +98,12 @@ export function queryDemoView(): DemoView {
 /** Reflects the camera and model summary in the status bar. */
 export function updateStatus(view: DemoView, camera: Camera, info: StatusInfo): void {
   const cameraMode = camera.mode === "perspective" ? "perspective" : "orthographic";
+  const hasRendererState = info.rendererState !== undefined && info.rendererState !== "";
+  const renderer = hasRendererState ? `${info.renderer} · ${info.rendererState}` : info.renderer;
   view.projectionLabel.textContent = camera.mode === "perspective" ? "Perspective" : "Orthographic";
   view.projectionToggle.textContent =
     camera.mode === "perspective" ? "Orthographic" : "Perspective";
   view.status.textContent =
-    `${info.model} · ${info.renderer} · ${info.visibleInstances} visible · ` +
+    `${info.model} · ${renderer} · ${info.visibleInstances} visible · ` +
     `${info.parts} parts · ${info.batches} batches · ${info.mode} · ${cameraMode} camera`;
 }

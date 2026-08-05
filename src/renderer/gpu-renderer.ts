@@ -77,6 +77,8 @@ export interface WebGpuRenderer {
    * provided device that it cannot recreate.
    */
   recover(): Promise<void>;
+  /** The GPU device backing the renderer; replaced by a fresh device on recovery. */
+  readonly device: GPUDevice;
 }
 
 /** Creates a WebGPU renderer, or throws a typed error when unavailable. */
@@ -215,6 +217,10 @@ class GpuRenderer implements WebGpuRenderer {
 
   public get lost(): boolean {
     return this.lifecycle.lost;
+  }
+
+  public get device(): GPUDevice {
+    return this.lifecycle.bundle.device;
   }
 
   public async recover(): Promise<void> {

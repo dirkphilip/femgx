@@ -180,3 +180,41 @@ test("tears the renderer down and re-initializes it cleanly", async ({ page }) =
 
   expect(errors, "teardown and re-initialization must not raise page errors").toEqual([]);
 });
+
+test("recovers from GPU device loss or falls back to the CPU renderer", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("view-canvas")).toBeVisible();
+  await expect
+    .poll(() => rendererMode(page), { timeout: 10_000 })
+    .toMatch(/^(webgpu|cpu|destroyed)$/);
+
+  if ((await rendererMode(page)) !== "webgpu") {
+    test.skip(true, "WebGPU renderer unavailable in this browser environment");
+  }
+
+  const canvas = page.getByTestId("view-canvas");
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+
+  // Destroy the underlying GPU device. The demo either recovers the renderer
+  // (re-requesting a device and re-uploading the scene) or, when recovery is
+  // impossible, destroys the renderer and starts the CPU fallback; either way
+  // it must keep working and never raise page errors.
+  await page.evaluate(() => {
+    (window as { femgxDemo?: { forceDeviceLoss: () => void } }).femgxDemo?.forceDeviceLoss();
+  });
+  await expect
+    .poll(() => canvas.getAttribute("data-recovery"), { timeout: 10_000 })
+    .toMatch(/^(recovered|cpu-fallback)$/);
+
+  const recovery = await canvas.getAttribute("data-recovery");
+  if (recovery === "recovered") {
+    await expect.poll(() => rendererMode(page)).toBe("webgpu");
+    await expect(page.getByTestId("status")).toContainText("recovered");
+  } else {
+    await expect.poll(() => rendererMode(page)).toBe("cpu");
+  }
+  await expect.poll(() => canvas.getAttribute("data-frames")).not.toBeNull();
+
+  expect(errors, "device loss must not raise page errors").toEqual([]);
+});

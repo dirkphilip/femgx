@@ -35,7 +35,10 @@ RUN_WEBGPU=1 npx playwright test --project=chromium-webgpu
   - **interaction/picking** — pointer hover/click drives GPU picking and updates
     the demo's hover/selection state;
   - **clean teardown** — the demo's `window.femgxDemo` seam destroys and
-    re-initializes the renderer without page errors.
+    re-initializes the renderer without page errors;
+  - **device-loss recovery** — `window.femgxDemo.forceDeviceLoss()` destroys the
+    real GPU device; the demo must recover (status shows `recovered`) or fall
+    back to the CPU renderer, and must not raise page errors either way.
 
 ## Capability gating (non-flakiness)
 
@@ -57,10 +60,14 @@ that cannot present/pick (for example headless SwiftShader quirks, see
 
 - `data-renderer="webgpu" | "cpu" | "destroyed"` on the `#view` canvas.
 - `data-frames` — successful render count.
+- `data-recovery="recovered" | "cpu-fallback"` — outcome of a device loss.
 - `data-hovered` / `data-selected` — current hovered/selected instance id
   (empty string when none).
 - `window.femgxDemo.destroyRenderer()` / `recreateRenderer()` — explicit
   lifecycle seam used to exercise clean teardown through the demo.
+- `window.femgxDemo.forceDeviceLoss()` — destroys the active renderer's GPU
+  device to exercise the demo's recovery/fallback path (see
+  [[rendering/platform-support|Platform support: capabilities, fallback, and device recovery]]).
 
 Related: [[engineering/quality-gate|Quality gate]], [[engineering/benchmarks|Benchmarks]],
 [[engineering/performance-issues|Performance issues and risks]].
