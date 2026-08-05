@@ -25,7 +25,7 @@ camera controls, asynchronous GPU picking, and a runnable demo.
   in a separate integer render pass.
 
 Design decisions, gotchas, and open issues live in [`wiki/`](wiki/index.md).
-The development workflow is documented in [`wiki/development-loop.md`](wiki/development-loop.md).
+The development workflow is documented in [`wiki/operations/development-loop.md`](wiki/operations/development-loop.md).
 
 ## Development
 
@@ -106,4 +106,4 @@ const { createScene, createCamera, flattenAssembly } = require("femgx");
   visualization with load-case stepping.
 
 This repository is developed with an Agent Supervisor workflow; see
-[`wiki/supervisor-workflow.md`](wiki/supervisor-workflow.md).
+[`wiki/operations/supervisor-workflow.md`](wiki/operations/supervisor-workflow.md).

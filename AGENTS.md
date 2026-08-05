@@ -103,7 +103,10 @@ under `test/`:
   deformed-shape geometry; pure CPU-side data.
 - `src/io/` — versioned typed interchange model, chunked model builder,
   streaming VTK/VTU/Gmsh/Abaqus import/export adapters, validation,
-  diagnostics, and cancellation/progress (see `wiki/io-import-export.md`).
+  diagnostics, and cancellation/progress (see `wiki/data/io-import-export.md`).
+- `src/streaming/` — chunk parsing, spatial partitioning, upload budgets, and
+  coordinate rebasing for large-model rendering (see
+  `wiki/data/large-model-streaming.md`).
 - `src/picking/` — CPU-side pick-id resolution.
 - `src/platform/` — WebGPU capability detection (typed unsupported reasons and
   adapter feature/limit reporting) and device lifecycle handling (device
@@ -124,6 +127,23 @@ Conventions:
 - Prefer intra-subsystem imports; import across subsystems through the public
   `src/index.ts` boundary or the owning module's exported surface, not by
   reaching into another subsystem's internals.
+
+## Public API North Star
+
+The canonical public workflow is reusable part definitions and assembly
+placements registered in a `Scene`, compiled into one `SceneRuntime`, and
+consumed by the renderer. Preserve the semantic distinction between part
+definitions, part instances, assembly definitions, registries, and runtime
+slots; see `wiki/architecture/api-design.md`.
+
+- Reusable geometry is defined once and referenced by instances; placements do
+  not copy geometry.
+- The authoritative CPU scene owns model data. Packed runtime arrays and GPU
+  buffers are derived representations.
+- Runtime slots, draw-order buffers, GPU record layouts, and storage capacities
+  are implementation details, not default root-level API concepts.
+- Every new public concept needs a clear owner, identity/data-ownership story,
+  place in the canonical flow, end-to-end example, and API-level test.
 
 ## Engineering Standards
 
@@ -152,7 +172,8 @@ and reviewable.
   tests + coverage, performance budgets, build, package smoke tests, e2e) on every
   push/PR. CI must be
   green before merge. Opt-in performance runs (full bench suite, browser perf)
-  live in a separate `workflow_dispatch` workflow (see `wiki/benchmarks.md`).
+  live in a separate `workflow_dispatch` workflow (see
+  `wiki/engineering/benchmarks.md`).
 
 ## Commands
 
@@ -165,7 +186,7 @@ These exist in `package.json`:
 - `npm run build` — type-check + bundle library (emits `dist/` with `.d.ts`).
 - `npm run test:package` — package smoke test: build, `npm pack`, install into a
   clean consumer, verify ESM/CJS runtime import/require and declaration
-  resolution (see `wiki/packaging.md`).
+  resolution (see `wiki/engineering/packaging.md`).
 - `npm run typecheck` — `tsc --noEmit`.
 - `npm run lint` — ESLint on `src/`, `test/`, `demo/` with `--max-warnings 0`.
 - `npm run lint:fix` — ESLint with `--fix`.
@@ -176,7 +197,8 @@ These exist in `package.json`:
 - `npm run test:coverage` — unit tests with enforced v8 coverage thresholds.
 - `npm run bench` — opt-in Vitest benchmark suite (`test/bench/*.bench.ts`).
 - `npm run bench:budget` — deterministic performance budget gate; run standalone
-  (coverage distorts timing) and enforced by CI (see `wiki/benchmarks.md`).
+  (coverage distorts timing) and enforced by CI (see
+  `wiki/engineering/benchmarks.md`).
 - `npm run test:e2e` — Playwright e2e tests (`e2e/`) against a local dev server.
 - `npm run test:e2e:install` — install the Playwright Chromium browser.
 - `npm run preview` — preview the built demo.
@@ -239,11 +261,13 @@ future agents**: it is the project's living memory, browseable by anyone reading
 (open it as a Foam/Obsidian vault, or follow the index files in a plain editor):
 
 - **One markdown file per topic** (a design decision, a gotcha, an API note, an issue,
-  a known limitation). Name files with `kebab-case`, e.g. `wiki/instancing-strategy.md`.
-- **Use `[[wiki-link]]` style links** to reference related notes, and prefer cross-linking
+  a known limitation). Name files with `kebab-case` under the owning area, e.g.
+  `wiki/architecture/instancing-strategy.md`.
+- **Use path-qualified `[[area/note|wiki-link]]` style links** to reference related notes, and prefer cross-linking
   over duplicating content.
-- **Maintain index files** (e.g. `wiki/index.md`) that list and link the notes by topic
-  area, so the wiki is navigable without a search tool. Add every new note to the index.
+- **Maintain index files** at `wiki/index.md` and under each topical area; they list and
+  link the notes so the wiki is navigable without a search tool. Add every new note to
+  its area index and add every new area to the root index.
 - Keep notes concise and current: update them when the relevant design changes, and mark
   resolved issues as resolved rather than deleting history silently.
 - Record: architecture decisions and rationale, issues/gotchas found, WebGPU/instancing

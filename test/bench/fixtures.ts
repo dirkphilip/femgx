@@ -9,7 +9,7 @@ import type { AssemblyId, PartId } from "../../src/scene/types";
 /**
  * Deterministic benchmark model sizes. These are fixed so measurements stay
  * comparable across runs; change them together with the budgets in
- * `budget.test.ts` and the note in `wiki/benchmarks.md`.
+ * `budget.test.ts` and the note in `wiki/engineering/benchmarks.md`.
  */
 export const BENCH_PART_COUNT = 200;
 export const BENCH_SUBCASE_COUNT = 100;
