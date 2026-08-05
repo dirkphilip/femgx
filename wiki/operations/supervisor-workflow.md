@@ -74,7 +74,6 @@ product gate before CI runs it:
 - CI remains authoritative for the published PR: the workflow waits for all
   required GitHub checks after publication (see
   [[operations/ci-authority|CI authority and base-health intake]]).
-
 - Python/uv repositories keep the generic gate: `uv run pre-commit run --all-files`
   before implement/repair/review handoff.
 - TypeScript/npm workers (like femgx) use focused commands such as
