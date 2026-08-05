@@ -57,5 +57,19 @@ Playwright's `touchscreen` API is single-touch only.
   anchored; an exact screen-point-anchored zoom would need an
   unprojection/`zoomCameraAt`-style camera API and is out of scope for the demo.
 
+## Related demo fixes
+
+- `WorkbenchController.resolve` scales CSS viewport coordinates into camera
+  pixel space (`camera.width`/`camera.height`) before picking. The projection
+  (and therefore `projectPoint` and `rayFromCamera`) works in the canvas
+  internal pixel space, so picking was misaligned whenever CSS scaled the
+  canvas — worst on phone-sized viewports, where most of the model was not
+  tappable. The scale is identity when `camera.width` already tracks the CSS
+  size (after a window resize), so it is correct in both modes.
+- `visibilityToggle` now takes an explicit part/assembly kind instead of
+  inferring it from `scene.parts.has(id)`: gallery part 1 collides with the
+  root assembly id 1, which previously mislabeled the assembly checkbox as
+  `part-vis-1`.
+
 Related: [[rendering/camera-presentation|Camera presentation]],
 [[rendering/fe-inspection-workbench|FE inspection workbench]].

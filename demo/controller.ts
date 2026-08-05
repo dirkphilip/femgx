@@ -442,11 +442,17 @@ export class WorkbenchController {
     readonly clientY: number;
   }): ResolvedPick | undefined {
     const rect = this.canvas.getBoundingClientRect();
+    // The projection (and therefore the pick) works in camera pixel space,
+    // which is the canvas's internal size; scale CSS viewport coordinates so
+    // taps align with what is drawn even when the canvas is scaled by CSS.
+    const camera = this.cameraRef.camera;
+    const scaleX = camera.width / Math.max(1, rect.width);
+    const scaleY = camera.height / Math.max(1, rect.height);
     const request: PickRequest = {
       runtime: this.runtime,
-      camera: this.cameraRef.camera,
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
+      camera,
+      x: (event.clientX - rect.left) * scaleX,
+      y: (event.clientY - rect.top) * scaleY,
     };
     return pick(this.pickScene, request, this.nodeRadius);
   }
