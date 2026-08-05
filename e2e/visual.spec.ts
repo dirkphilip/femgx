@@ -52,8 +52,8 @@ test("edge mode differs from solid mode", async ({ page }) => {
   const canvas = page.getByTestId("view-canvas");
   const solid = await pixelHash(canvas);
 
-  await page.getByTestId("display-mode").click();
-  await expect(page.getByTestId("display-mode-label")).toHaveText("Edges");
+  await page.getByTestId("mode-edges").click();
+  await expect(canvas).toHaveAttribute("data-mode", "edges");
   const edge = await pixelHash(canvas);
 
   expect(edge, "edge mode must render different pixels than solid").not.toBe(solid);
