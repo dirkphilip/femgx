@@ -32,8 +32,11 @@ oriented element faces are the finest-grained pickable units under
   node ids; a dedicated `nodePickVertexShader`/`nodePickFragmentShader`
   (triangle pick pipeline) passes each triangle's three corner positions and
   node ids as flat varyings plus the interpolated local position, and the
-  fragment reports the node id of the corner nearest the hit. Lines and points
-  report element/face/node = 0.
+  fragment reports the node id of the corner nearest the hit. The corner
+  positions are read from a tightly packed `array<f32>` (3 floats per vertex),
+  not `array<vec3<f32>>` — a vec3 storage array strides at 16 bytes, which
+  would misalign the packed `positions` buffer. Lines and points report
+  element/face/node = 0.
 - `resolvePickTarget(context, ids, granularity)` returns the most specific
   level the hit supports (`node` > `face` > `element` > `instance` > `part`).
   Passing a `granularity` promotes/narrows the hit to that level, falling back

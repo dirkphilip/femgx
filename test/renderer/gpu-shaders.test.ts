@@ -114,7 +114,8 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(nodePickVertexShader).toMatch(
       /@location\(9\) @interpolate\(flat\) nodePickIds: vec3<u32>/,
     );
-    expect(nodePickVertexShader).toMatch(/cornerPositions\[base\]/);
+    expect(nodePickVertexShader).toMatch(/cornerPositions: array<f32>/);
+    expect(nodePickVertexShader).toMatch(/cornerPositions\[base3\]/);
     expect(nodePickVertexShader).toMatch(/vertexNodePickIds\[base\]/);
     expect(nodePickFragmentShader).toMatch(
       /nearestNode\(localPosition, cornerA, cornerB, cornerC, nodePickIds\)/,

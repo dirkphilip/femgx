@@ -26,6 +26,7 @@ import {
   type EmphasisUpdate,
 } from "../../src/renderer/gpu-elements";
 import {
+  buildCornerPositions,
   buildElementTrianglePickIds,
   buildFaceTrianglePickIds,
   buildVertexNodePickIds,
@@ -111,6 +112,16 @@ describe("buildVertexNodePickIds", () => {
       indices: new Uint32Array(12),
     };
     expect(Array.from(buildVertexNodePickIds(geometry))).toEqual([0, 0, 0, 0]);
+  });
+});
+
+describe("buildCornerPositions", () => {
+  it("returns the tightly packed per-vertex positions (3 floats each)", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array([0, 1, 2, 3, 4, 5, 6, 7, 8]),
+      indices: new Uint32Array([0, 1, 2]),
+    };
+    expect(Array.from(buildCornerPositions(geometry))).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
   });
 });
 

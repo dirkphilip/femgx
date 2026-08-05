@@ -32,7 +32,7 @@ ${emphasisStructs}
 ${frameBindings}
 ${instanceBindings}
 ${pickDataBindings}
-@group(1) @binding(7) var<storage, read> cornerPositions: array<vec3<f32>>;
+@group(1) @binding(7) var<storage, read> cornerPositions: array<f32>;
 
 ${displacementFn}
 
@@ -58,6 +58,7 @@ fn vertexMain(
 ) -> NodeVertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
   let base = (vertexIndex / 3u) * 3u;
+  let base3 = base * 3u;
   var output: NodeVertexOutput;
   output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   output.color = instance.color;
@@ -66,9 +67,26 @@ fn vertexMain(
   output.elementPickId = triangleElementPickIds[vertexIndex / 3u];
   output.facePickId = triangleFacePickIds[vertexIndex / 3u];
   output.localPosition = displaced(position, vertexIndex);
-  output.cornerA = displaced(cornerPositions[base], base);
-  output.cornerB = displaced(cornerPositions[base + 1u], base + 1u);
-  output.cornerC = displaced(cornerPositions[base + 2u], base + 2u);
+  output.cornerA = displaced(
+    vec3<f32>(cornerPositions[base3], cornerPositions[base3 + 1u], cornerPositions[base3 + 2u]),
+    base,
+  );
+  output.cornerB = displaced(
+    vec3<f32>(
+      cornerPositions[base3 + 3u],
+      cornerPositions[base3 + 4u],
+      cornerPositions[base3 + 5u],
+    ),
+    base + 1u,
+  );
+  output.cornerC = displaced(
+    vec3<f32>(
+      cornerPositions[base3 + 6u],
+      cornerPositions[base3 + 7u],
+      cornerPositions[base3 + 8u],
+    ),
+    base + 2u,
+  );
   output.nodePickIds = vec3<u32>(
     vertexNodePickIds[base],
     vertexNodePickIds[base + 1u],
