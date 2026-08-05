@@ -152,10 +152,10 @@ describe("facesOf", () => {
 
   it("interleaves mid-edge nodes into Hex20 faces", () => {
     expect(facesOf(sequentialElement(1, HEX20_SHAPE)).map((face) => face.nodeIds)).toEqual([
-      [0, 16, 4, 15, 7, 18, 3, 11],
-      [1, 9, 2, 19, 6, 13, 5, 17],
+      [0, 16, 4, 15, 7, 19, 3, 11],
+      [1, 9, 2, 18, 6, 13, 5, 17],
       [0, 8, 1, 17, 5, 12, 4, 16],
-      [3, 18, 7, 14, 6, 19, 2, 10],
+      [3, 19, 7, 14, 6, 18, 2, 10],
       [0, 11, 3, 10, 2, 9, 1, 8],
       [4, 12, 5, 13, 6, 14, 7, 15],
     ]);
