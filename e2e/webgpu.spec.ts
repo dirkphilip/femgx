@@ -303,3 +303,31 @@ test("recovers from GPU device loss or reports the loss", async ({ page }) => {
 
   expect(errors, "device loss must not raise page errors").toEqual([]);
 });
+
+test("reports the WebGPU-only contract instead of a CPU fallback when WebGPU is unavailable", async ({
+  page,
+}) => {
+  // Simulate a browser without WebGPU by hiding `navigator.gpu` before any
+  // page script runs. The demo must report an explicit unsupported state with
+  // the probe diagnostic and must never start a 2D CPU renderer for the model.
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, "gpu", {
+      configurable: true,
+      get: () => undefined,
+    });
+  });
+  await page.goto("/");
+
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toBeVisible();
+  await expect.poll(() => rendererMode(page), { timeout: 10_000 }).toBe("unsupported");
+
+  // The page clearly reports that femgx requires a usable WebGPU renderer,
+  // including the capability-probe diagnostic.
+  await expect(page.getByTestId("renderer-status")).toHaveText("Renderer unsupported");
+  await expect(page.getByTestId("status")).toContainText("femgx requires a usable WebGPU renderer");
+  await expect(page.getByTestId("status")).toContainText("navigator.gpu is not exposed");
+
+  // Failed WebGPU startup never creates a 2D CPU renderer for the model view.
+  expect(await rendererMode(page)).toBe("unsupported");
+});
