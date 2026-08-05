@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * Optional browser performance smoke. It is skipped by the default e2e gate and
- * only runs when `RUN_PERF=1`, which the opt-in `perf.yml` workflow sets. It
+ * Optional browser performance smoke (optional performance coverage, category
+ * 3 in `wiki/engineering/e2e-policy.md`). It is skipped by the default e2e gate
+ * and only runs when `RUN_PERF=1`, which the opt-in `perf.yml` workflow sets. It
  * measures the demo's interaction round trip (pointer event -> render) in a
  * real browser as a loose regression signal; true WebGPU frame-time
  * benchmarking is tracked in `wiki/performance-issues.md`.

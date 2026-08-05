@@ -44,6 +44,7 @@ suite, not part of the gate.
   opt-in WebGPU-capable lane (`RUN_WEBGPU=1`, `.github/workflows/webgpu.yml`)
   exercises the real WebGPU path through the demo and skips cleanly when the
   browser cannot present/pick (see [[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
+  Required CPU journeys never skip (see [[engineering/e2e-policy|E2E test classification and skip policy]]).
 
 ## Linting (small modules)
 

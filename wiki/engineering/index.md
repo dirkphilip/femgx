@@ -4,6 +4,8 @@
   CPU benchmarks and budget gates.
 - [[engineering/compatibility-matrix|Browser/GPU compatibility matrix]] —
   documented capability tiers and the CI lanes that exercise them.
+- [[engineering/e2e-policy|E2E test classification and skip policy]] — which
+  e2e tests are required, what may skip and why, and how skips stay visible.
 - [[engineering/packaging|Packaging]] — ESM/CJS builds and declaration
   resolution.
 - [[engineering/performance-issues|Performance issues and risks]] — known

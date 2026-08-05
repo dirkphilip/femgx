@@ -7,7 +7,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env["CI"],
   retries: process.env["CI"] ? 2 : 0,
-  reporter: "list",
+  // `list` marks skipped tests with `-`; the custom reporter groups the skip
+  // reasons at the end so capability-gated skips stay visible and reviewable
+  // (see `wiki/engineering/e2e-policy.md`).
+  reporter: [["list"], ["./e2e/skip-summary-reporter.ts"]],
   use: {
     baseURL: "http://127.0.0.1:5173",
     trace: "on-first-retry",
