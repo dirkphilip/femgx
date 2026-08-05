@@ -4,7 +4,9 @@ import {
   facesOf,
   projectPoint,
   resolveElementStyle,
+  resolveFaceStyle,
   resolveInstanceStyle,
+  resolveNodeStyle,
   transformPoint,
   type Camera,
   type Color,
@@ -16,14 +18,17 @@ import {
   type Vec3,
 } from "../src/index";
 import type { ModelPreset } from "../src/fixture/presets";
-import { faceEmphasisStyle, nodeEmphasisStyle } from "./emphasis";
 import type { DisplayToggles } from "./controller";
 
 /**
  * The deterministic 2D-canvas renderer used when WebGPU is unusable. It draws
- * per-triangle element styles (so element/face/node emphasis works), plus node
- * markers, face boundaries, normals, and ID labels driven by the workbench
- * display toggles. WebGPU and CPU share the same camera and interaction model.
+ * per-triangle element styles (so element/instance emphasis works), plus node
+ * markers, face emphasis, face boundaries, normals, and ID labels driven by the
+ * workbench display toggles. Emphasis is resolved entirely through the library
+ * interaction APIs (`resolveElementStyle`, `resolveFaceStyle`,
+ * `resolveNodeStyle`, `emphasizedNodeRefs`, `emphasizedFaceRefs`), so the demo
+ * stays a consumer and never derives its own emphasis semantics. WebGPU and CPU
+ * share the same camera and interaction model.
  */
 
 /** Everything the CPU fallback needs to draw one frame. */
@@ -230,8 +235,12 @@ function drawFaceEmphasis(input: CpuFrameInput, slotViews: readonly SlotView[]):
       projectPoint(camera, worldNode(model, view.transform, nodeId)),
     );
     if (screen.some((point) => point === undefined)) continue;
-    const style = faceEmphasisStyle(interaction, ref.instanceId, ref.elementId, ref.faceKey);
-    if (style === undefined) continue;
+    const style = resolveFaceStyle(
+      instanceFor(view),
+      ref,
+      baseStyle(input.preset, view.partId),
+      interaction,
+    );
     fillPolygon(context, screen as Vec3[], style);
     strokePolygon(context, screen as Vec3[], style);
     if (toggles.faceBoundaries) {
@@ -276,9 +285,13 @@ function drawNodeMarkers(input: CpuFrameInput, slotViews: readonly SlotView[]): 
     if (model === undefined) continue;
     const screen = projectPoint(camera, worldNode(model, view.transform, ref.nodeId));
     if (screen === undefined) continue;
-    const style = nodeEmphasisStyle(interaction, ref.instanceId, ref.nodeId);
-    if (style === undefined) continue;
-    const color = style.color ?? { r: 1, g: 1, b: 1, a: 1 };
+    const style = resolveNodeStyle(
+      instanceFor(view),
+      ref,
+      baseStyle(input.preset, view.partId),
+      interaction,
+    );
+    const color = style.color;
     context.fillStyle = rgba(color, 1);
     context.strokeStyle = "rgba(248, 250, 252, 0.9)";
     context.lineWidth = 1.5;

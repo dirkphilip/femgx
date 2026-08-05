@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Camera } from "../../src/camera/camera";
 import type { ModelPreset } from "../../src/fixture/presets";
-import type { InteractionState, SceneRuntime } from "../../src/index";
+import { createInteractionState, type InteractionState, type SceneRuntime } from "../../src/index";
 import type { RendererFactory, RendererOptions } from "../../demo/webgpu-probe";
 import type { DemoView } from "../../demo/view";
 import type { RendererHooks, WorkbenchController, WorkbenchOptions } from "../../demo/controller";
@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => {
     readonly hooks: RendererHooks;
     readonly onDestroy: (() => void) | undefined;
     rendererState = "";
-    interaction = {} as InteractionState;
+    interaction: InteractionState = createInteractionState();
     runtime = { instanceCount: 0, visibleCount: 0 } as SceneRuntime;
     cameraRef = { camera: {} as Camera };
     preset = { scene: { parts: new Map<number, never>() } } as unknown as ModelPreset;
@@ -208,5 +208,24 @@ describe("startWebGpuDemo", () => {
     });
     expect(second.recover).toHaveBeenCalledTimes(1);
     expect(second.lost).toBe(false);
+  });
+
+  it("drives instance updates as a delta instead of a whole-runtime rewrite", async () => {
+    const renderer = fakeRenderer();
+    const canvas = fakeCanvas();
+    const controller = await startWebGpuDemo(startOptions(canvas, () => Promise.resolve(renderer)));
+
+    controller.render();
+    controller.render();
+
+    const changedLists: unknown[] = renderer.updateInstances.mock.calls.map(
+      (call) => call[2] as unknown,
+    );
+    expect(changedLists.length).toBeGreaterThanOrEqual(2);
+    for (const changed of changedLists) {
+      // With an unchanged (empty) interaction state nothing is styled, so no
+      // instance slot needs a patch; the demo must never rewrite every slot.
+      expect(changed).toEqual([]);
+    }
   });
 });

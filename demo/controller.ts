@@ -5,6 +5,7 @@ import {
   createSceneRuntime,
   pick,
   resizeCamera,
+  setElementOverride,
   setElementSelected,
   setFaceHighlighted,
   setFaceSelected,
@@ -32,7 +33,6 @@ import {
   type PickScene,
   type ResolvedPick,
   type SceneRuntime,
-  type StyleOverride,
 } from "../src/index";
 import {
   createModelPresets,
@@ -40,7 +40,6 @@ import {
   type ModelPreset,
 } from "../src/fixture/presets";
 import { installCameraControls } from "./camera-controls";
-import { rebuildElementOverrides, type EmphasisContext } from "./emphasis";
 import { fitCamera } from "./fit";
 import { describePick } from "./inspect";
 import { selectTarget, targetKey, type SelectTarget } from "./pick";
@@ -133,9 +132,7 @@ export class WorkbenchController {
   private readonly presets: readonly ModelPreset[];
   private readonly slotByInstanceId = new Map<InstanceId, number>();
   private readonly partFirstSlot = new Map<PartId, number>();
-  private readonly explicitElementOverrides = new Map<InstanceId, Map<ElementId, StyleOverride>>();
   private depthTestEnabled = true;
-  private emphasisContext: EmphasisContext;
   private contextTarget: SelectTarget | undefined;
   private dragging = false;
   private downPosition: { readonly x: number; readonly y: number } | undefined;
@@ -165,7 +162,7 @@ export class WorkbenchController {
       diagnostics: false,
     };
     this.interaction = createInteractionState();
-    this.emphasisContext = this.buildContext(this.preset);
+    this.buildRuntime(this.preset);
     this.applyModeVisibility();
     this.populateModelSelect();
     this.populateVisibilityPanel();
@@ -185,7 +182,6 @@ export class WorkbenchController {
     this.preset = preset;
     this.mode = preset.defaultMode;
     this.interaction = createInteractionState();
-    this.explicitElementOverrides.clear();
     this.contextTarget = undefined;
     this.cameraRef.camera = fitCamera(
       this.cameraRef.camera,
@@ -193,7 +189,7 @@ export class WorkbenchController {
       this.canvas.width,
       this.canvas.height,
     );
-    this.emphasisContext = this.buildContext(preset);
+    this.buildRuntime(preset);
     this.applyModeVisibility();
     this.populateVisibilityPanel();
     this.canvas.dataset["model"] = preset.id;
@@ -250,7 +246,6 @@ export class WorkbenchController {
   /** Clears interaction state and restores the initial camera pose. */
   reset(): void {
     this.interaction = createInteractionState();
-    this.explicitElementOverrides.clear();
     this.contextTarget = undefined;
     const rect = this.canvas.getBoundingClientRect();
     const fitted = fitCamera(
@@ -276,7 +271,7 @@ export class WorkbenchController {
     this.onDestroy?.();
   }
 
-  private buildContext(preset: ModelPreset): EmphasisContext {
+  private buildRuntime(preset: ModelPreset): void {
     this.runtime = createSceneRuntime(preset.scene);
     this.pickScene = createPickScene(preset.scene.parts, preset.elementModels);
     this.slotByInstanceId.clear();
@@ -289,11 +284,6 @@ export class WorkbenchController {
         this.partFirstSlot.set(partId, slot);
       }
     }
-    return {
-      runtime: this.runtime,
-      slotByInstanceId: this.slotByInstanceId,
-      elementModels: preset.elementModels,
-    };
   }
 
   private installControls(): void {
@@ -417,7 +407,7 @@ export class WorkbenchController {
       state,
       target !== undefined && target.kind !== "part" ? target.instanceId : undefined,
     );
-    this.interaction = this.withOverrides(state);
+    this.interaction = state;
     this.canvas.dataset["hovered"] = targetKey(target);
     this.canvas.dataset["pick"] = targetKey(hit);
     this.view.inspectionPanel.textContent = describePick(hit, (partId) => this.partName(partId));
@@ -511,7 +501,7 @@ export class WorkbenchController {
         break;
       }
     }
-    this.interaction = this.withOverrides(state);
+    this.interaction = state;
     this.render();
   }
 
@@ -538,9 +528,8 @@ export class WorkbenchController {
       }
       case "element": {
         const ref: ElementRef = { instanceId: target.instanceId, elementId: target.elementId };
-        const has = this.explicitStyle(ref) !== undefined;
-        this.setExplicitElementStyle(ref, has ? undefined : { emissive: 0.35 });
-        state = this.interaction;
+        const has = state.elementOverrides.get(ref.instanceId)?.has(ref.elementId) ?? false;
+        state = setElementOverride(state, ref, has ? undefined : { emissive: 0.35 });
         break;
       }
       case "instance": {
@@ -554,7 +543,7 @@ export class WorkbenchController {
         break;
       }
     }
-    this.interaction = this.withOverrides(state);
+    this.interaction = state;
     this.render();
   }
 
@@ -882,22 +871,6 @@ export class WorkbenchController {
   /** Human-readable part name for the inspection panel, when known. */
   private partName(partId: PartId): string | undefined {
     return this.preset.partNames.get(partId);
-  }
-
-  private explicitStyle(ref: ElementRef): StyleOverride | undefined {
-    return this.explicitElementOverrides.get(ref.instanceId)?.get(ref.elementId);
-  }
-
-  private setExplicitElementStyle(ref: ElementRef, style: StyleOverride | undefined): void {
-    const elements = new Map(this.explicitElementOverrides.get(ref.instanceId) ?? []);
-    if (style === undefined) elements.delete(ref.elementId);
-    else elements.set(ref.elementId, style);
-    if (elements.size === 0) this.explicitElementOverrides.delete(ref.instanceId);
-    else this.explicitElementOverrides.set(ref.instanceId, elements);
-  }
-
-  private withOverrides(state: InteractionState): InteractionState {
-    return rebuildElementOverrides(state, this.emphasisContext, this.explicitElementOverrides);
   }
 
   private showContextMenu(target: SelectTarget, x: number, y: number): void {
