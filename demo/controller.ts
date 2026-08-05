@@ -45,6 +45,7 @@ import { fitCamera } from "./fit";
 import { describePick } from "./inspect";
 import { selectTarget, targetKey, type SelectTarget } from "./pick";
 import { updateStatus, type CameraRef, type DemoView, type StatusInfo } from "./view";
+import { assemblyName, assemblySubtreeIds, assemblyVisibilityState } from "./visibility-tree";
 
 /** Current draw statistics reported by the active renderer. */
 export interface RendererStats {
@@ -132,7 +133,6 @@ export class WorkbenchController {
   private readonly presets: readonly ModelPreset[];
   private readonly slotByInstanceId = new Map<InstanceId, number>();
   private readonly partFirstSlot = new Map<PartId, number>();
-  private readonly assemblyVisible = new Set<AssemblyId>();
   private readonly explicitElementOverrides = new Map<InstanceId, Map<ElementId, StyleOverride>>();
   private depthTestEnabled = true;
   private emphasisContext: EmphasisContext;
@@ -166,7 +166,6 @@ export class WorkbenchController {
     };
     this.interaction = createInteractionState();
     this.emphasisContext = this.buildContext(this.preset);
-    this.seedAssemblyVisibility();
     this.applyModeVisibility();
     this.populateModelSelect();
     this.populateVisibilityPanel();
@@ -195,20 +194,11 @@ export class WorkbenchController {
       this.canvas.height,
     );
     this.emphasisContext = this.buildContext(preset);
-    this.seedAssemblyVisibility();
     this.applyModeVisibility();
     this.populateVisibilityPanel();
     this.canvas.dataset["model"] = preset.id;
     this.canvas.dataset["mode"] = this.mode;
     this.render();
-  }
-
-  /** Tracks the assemblies the scene starts visible as the panel's baseline. */
-  private seedAssemblyVisibility(): void {
-    this.assemblyVisible.clear();
-    for (const assemblyId of this.preset.scene.visibleAssemblyIds) {
-      this.assemblyVisible.add(assemblyId);
-    }
   }
 
   /** Switches the visible element family through the runtime. */
@@ -651,11 +641,19 @@ export class WorkbenchController {
   }
 
   private setAssemblyVisibility(assemblyId: AssemblyId, visible: boolean): void {
-    const delta = this.runtime.setAssemblyVisible(assemblyId, visible);
-    if (visible) this.assemblyVisible.add(assemblyId);
-    else this.assemblyVisible.delete(assemblyId);
-    if (delta.changedInstanceIds.length > 0) {
-      this.hooks.applyVisibility(this, this.interaction, delta.changedInstanceIds);
+    const changed = new Set<number>();
+    for (const id of assemblySubtreeIds(this.preset.scene.assemblies, assemblyId)) {
+      const delta = this.runtime.setAssemblyVisible(id, visible);
+      for (const instanceId of delta.changedInstanceIds) {
+        changed.add(instanceId);
+      }
+    }
+    if (changed.size > 0) {
+      this.hooks.applyVisibility(
+        this,
+        this.interaction,
+        [...changed].sort((a, b) => a - b),
+      );
     }
     this.syncVisibilityPanel();
     this.render();
@@ -667,10 +665,15 @@ export class WorkbenchController {
       const partId = input.dataset["partId"];
       if (partId !== undefined) {
         input.checked = this.partVisible(Number(partId));
+        input.indeterminate = false;
         continue;
       }
       const assemblyId = input.dataset["assemblyId"];
-      if (assemblyId !== undefined) input.checked = this.assemblyVisible.has(Number(assemblyId));
+      if (assemblyId !== undefined) {
+        const state = assemblyVisibilityState(this.runtime, Number(assemblyId));
+        input.checked = state === "checked";
+        input.indeterminate = state === "mixed";
+      }
     }
   }
 
@@ -760,48 +763,84 @@ export class WorkbenchController {
     select.value = this.preset.id;
   }
 
+  /**
+   * Builds the hierarchical visibility tree from the authoritative scene
+   * hierarchy: expandable assembly rows whose checkboxes reflect their subtree,
+   * with part rows nested beneath the assembly that places them.
+   */
   private populateVisibilityPanel(): void {
     const panel = this.view.visibilityPanel;
     panel.textContent = "";
-    const parts = document.createElement("div");
-    parts.className = "visibility-list";
-    for (const partId of sortedNumbers(this.preset.scene.parts.keys())) {
-      parts.appendChild(
-        this.visibilityToggle({
-          kind: "part",
-          id: partId,
-          checked: this.partVisible(partId),
-          label: this.preset.partNames.get(partId) ?? `Part ${partId}`,
-        }),
-      );
-    }
-    const assemblies = document.createElement("div");
-    assemblies.className = "visibility-list";
-    for (const assembly of this.preset.scene.assemblies.values()) {
-      const name = (assembly as { readonly name?: string }).name ?? `Assembly ${assembly.id}`;
-      assemblies.appendChild(
-        this.visibilityToggle({
-          kind: "assembly",
-          id: assembly.id,
-          checked: this.assemblyVisible.has(assembly.id),
-          label: name,
-        }),
-      );
-    }
-    panel.append(parts, assemblies);
+    const rootAssemblyId = this.preset.scene.rootAssemblyId;
+    const context = document.createElement("div");
+    context.className = "visibility-context";
+    context.dataset["testid"] = "visibility-context";
+    context.textContent = `Assembly · ${assemblyName(this.preset.scene.assemblies.get(rootAssemblyId)) ?? `Assembly ${rootAssemblyId}`}`;
+    panel.appendChild(context);
+    panel.appendChild(this.assemblyNode(rootAssemblyId, new Set<PartId>()));
+    this.syncVisibilityPanel();
   }
 
-  private visibilityToggle(options: {
-    readonly kind: "part" | "assembly";
-    readonly id: number;
-    readonly checked: boolean;
-    readonly label: string;
-  }): HTMLLabelElement {
-    const { kind, id, checked, label } = options;
-    const element = document.createElement("label");
+  /**
+   * Builds one expandable assembly branch of the visibility tree. Parts are
+   * deduped globally across the tree so each part checkbox appears once, nested
+   * beneath the first assembly that places it; assembly rows always reflect the
+   * full scene hierarchy.
+   */
+  private assemblyNode(assemblyId: AssemblyId, seenParts: Set<PartId>): HTMLElement {
+    const assembly = this.preset.scene.assemblies.get(assemblyId);
+    const name = assemblyName(assembly) ?? `Assembly ${assemblyId}`;
+    const branch = document.createElement("div");
+    branch.className = "visibility-branch";
+
+    const row = document.createElement("div");
+    row.className = "visibility-row visibility-assembly";
+
+    const expander = document.createElement("button");
+    expander.type = "button";
+    expander.className = "visibility-expander";
+    expander.dataset["testid"] = `assembly-expand-${assemblyId}`;
+    expander.setAttribute("aria-expanded", "true");
+    expander.setAttribute("aria-label", `Collapse ${name}`);
+    expander.textContent = "▾";
+
+    const children = document.createElement("div");
+    children.className = "visibility-children";
+    for (const placement of assembly?.placements ?? []) {
+      if (placement.kind === "part") {
+        if (seenParts.has(placement.partId)) continue;
+        seenParts.add(placement.partId);
+        children.appendChild(this.partNode(placement.partId));
+      } else {
+        children.appendChild(this.assemblyNode(placement.assemblyId, seenParts));
+      }
+    }
+    expander.addEventListener("click", () => {
+      this.toggleAssemblyExpanded(expander, children, name);
+    });
+
+    const label = this.rowLabel("assembly", assemblyId, name);
+    row.append(expander, label);
+    branch.append(row, children);
+    return branch;
+  }
+
+  /** Builds one part row nested beneath its owning assembly. */
+  private partNode(partId: PartId): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "visibility-row visibility-part";
+    const spacer = document.createElement("span");
+    spacer.className = "visibility-spacer";
+    spacer.setAttribute("aria-hidden", "true");
+    row.append(spacer, this.rowLabel("part", partId, this.partName(partId) ?? `Part ${partId}`));
+    return row;
+  }
+
+  /** Builds a checkbox label row with an explicit identity-kind badge. */
+  private rowLabel(kind: "part" | "assembly", id: number, name: string): HTMLLabelElement {
+    const label = document.createElement("label");
     const input = document.createElement("input");
     input.type = "checkbox";
-    input.checked = checked;
     if (kind === "part") {
       input.dataset["partId"] = String(id);
       input.dataset["testid"] = `part-vis-${id}`;
@@ -809,8 +848,29 @@ export class WorkbenchController {
       input.dataset["assemblyId"] = String(id);
       input.dataset["testid"] = `assembly-vis-${id}`;
     }
-    element.append(input, document.createTextNode(label));
-    return element;
+    label.append(input);
+    const badge = document.createElement("span");
+    badge.className = "visibility-kind";
+    badge.textContent = kind === "part" ? "Part" : "Assembly";
+    label.append(badge);
+    const text = document.createElement("span");
+    text.className = "visibility-label";
+    text.textContent = name;
+    label.append(text);
+    return label;
+  }
+
+  /** Collapses or expands one assembly branch of the visibility tree. */
+  private toggleAssemblyExpanded(
+    expander: HTMLButtonElement,
+    children: HTMLElement,
+    name: string,
+  ): void {
+    const expanded = children.hidden;
+    children.hidden = !expanded;
+    expander.setAttribute("aria-expanded", String(expanded));
+    expander.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} ${name}`);
+    expander.textContent = expanded ? "▾" : "▸";
   }
 
   private partVisible(partId: PartId): boolean {

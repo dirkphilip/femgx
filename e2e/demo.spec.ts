@@ -185,6 +185,86 @@ test("keeps part and assembly visibility controls in separate namespaces", async
   await expect(page.getByTestId("status")).toContainText("1 visible");
 });
 
+test("collapses and expands assembly rows in the visibility tree", async ({ page }) => {
+  await page.goto("/");
+  // The bolted tree starts fully expanded, so Fasteners shows its subassemblies.
+  const fasteners = page.getByTestId("assembly-expand-3");
+  await expect(fasteners).toHaveAttribute("aria-expanded", "true");
+  const firstFastener = page.getByTestId("assembly-vis-4");
+  await expect(firstFastener).toBeVisible();
+
+  // Collapsing Fasteners hides its subtree but keeps the parent row reachable.
+  await fasteners.click();
+  await expect(fasteners).toHaveAttribute("aria-expanded", "false");
+  await expect(firstFastener).toBeHidden();
+  await expect(page.getByTestId("assembly-vis-3")).toBeVisible();
+
+  // Expanding restores the subtree.
+  await fasteners.click();
+  await expect(fasteners).toHaveAttribute("aria-expanded", "true");
+  await expect(firstFastener).toBeVisible();
+});
+
+test("exposes the assembly context and distinct identity kinds in the tree", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("visibility-context")).toContainText("Bolted joint");
+  // The bolted preset overlaps part id 1 (Steel plates solid) with the root
+  // assembly id 1; the tree keeps the two namespaces distinct instead of
+  // inferring meaning from the shared numeric id.
+  await expect(page.getByTestId("part-vis-1")).toHaveAttribute("data-part-id", "1");
+  await expect(page.getByTestId("assembly-vis-1")).toHaveAttribute("data-assembly-id", "1");
+});
+
+test("hides the plate stack through the assembly tree", async ({ page }) => {
+  await page.goto("/");
+  expect(await status(page)).toContain("34 visible");
+  const plateStack = page.getByTestId("assembly-vis-2");
+  await expect(plateStack).toBeChecked();
+
+  await plateStack.uncheck();
+  await expect(plateStack).not.toBeChecked();
+  expect(await status(page)).toContain("32 visible");
+
+  await plateStack.check();
+  await expect(plateStack).toBeChecked();
+  expect(await status(page)).toContain("34 visible");
+});
+
+test("hides and restores all fasteners through the assembly tree", async ({ page }) => {
+  await page.goto("/");
+  const fasteners = page.getByTestId("assembly-vis-3");
+  await expect(fasteners).toBeChecked();
+
+  await fasteners.uncheck();
+  await expect(fasteners).not.toBeChecked();
+  expect(await status(page)).toContain("2 visible");
+
+  await fasteners.check();
+  await expect(fasteners).toBeChecked();
+  expect(await status(page)).toContain("34 visible");
+});
+
+test("reflects a hidden fastener subassembly as mixed and restores it", async ({ page }) => {
+  await page.goto("/");
+  const fasteners = page.getByTestId("assembly-vis-3");
+  const joint = page.getByTestId("assembly-vis-1");
+  await expect(fasteners).toBeChecked();
+  await expect(joint).toBeChecked();
+
+  // Hiding one fastener leaves the fastener group and the joint mixed.
+  await page.getByTestId("assembly-vis-4").uncheck();
+  await expect(page.getByTestId("assembly-vis-4")).not.toBeChecked();
+  expect(await status(page)).toContain("30 visible");
+  await expect(fasteners).toHaveJSProperty("indeterminate", true);
+  await expect(joint).toHaveJSProperty("indeterminate", true);
+
+  // Toggling the mixed parent restores the whole subtree.
+  await fasteners.check();
+  await expect(fasteners).toBeChecked();
+  await expect(page.getByTestId("assembly-vis-4")).toBeChecked();
+  expect(await status(page)).toContain("34 visible");
+});
+
 test("switches projection, fits to view, and resets camera controls", async ({ page }) => {
   await page.goto("/");
   const label = page.getByTestId("projection-label");

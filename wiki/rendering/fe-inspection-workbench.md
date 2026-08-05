@@ -40,6 +40,18 @@ identical ([[rendering/element-interaction|Element-level interaction]],
   drives whichever renderer is attached through `RendererHooks`. It wires the
   control bar, visibility panel, inspection panel, stats panel, and the
   right-click context menu.
+- The **visibility panel is a hierarchical tree** built from the authoritative
+  scene graph: expandable assembly rows (with a disclosure button and an
+  explicit `Assembly`/`Part` identity-kind badge) nest the parts placed beneath
+  them. A row's checkbox reflects its subtree's effective assembly visibility
+  as checked, unchecked, or mixed, and clicking a mixed parent restores the
+  whole subtree. Toggling an assembly applies the authoring visibility to every
+  descendant assembly through the runtime's delta-oriented visibility API, so
+  no geometry is rebuilt and no material is cloned. Part and assembly controls
+  keep separate namespaces (`data-part-id` vs `data-assembly-id`) and never
+  infer identity from a shared numeric id. Pure tree helpers live in
+  `demo/visibility-tree.ts` and are unit-tested
+  (`test/demo/visibility-tree.test.ts`).
 - Node/face/element selection is stored in `InteractionState`; node/face
   emphasis is folded into per-element overrides by `demo/emphasis.ts` so both
   renderers can emphasize a node or face selection without new geometry.
@@ -78,9 +90,11 @@ opens past the right or bottom edge.
 
 ## Demo e2e coverage
 
-`e2e/demo.spec.ts` covers preset switching, mode visibility, part/assembly
-visibility toggles, fit-to-view, projection, the context menu, node/face
-picking and selection, and stable rendering after repeated orbit interactions.
+`e2e/demo.spec.ts` covers preset switching, mode visibility, the hierarchical
+assembly tree (collapse/expand, plate-stack/fastener/fastener-subassembly hides,
+mixed parent state, and restoring a subtree from its parent), fit-to-view,
+projection, the context menu, node/face picking and selection, and stable
+rendering after repeated orbit interactions.
 `e2e/mobile.spec.ts` asserts at a 390x844 viewport that the page has no
 horizontal overflow, primary controls stay reachable with 44px hit areas, and
 the context menu fits inside the viewport. The default Playwright lane runs the
