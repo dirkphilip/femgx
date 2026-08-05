@@ -10,15 +10,21 @@ A chunked model is a list of `ChunkSource`s. Each source carries raw geometry
 (`ChunkData`), a stable `chunkId`, a model-authority `index`, and optional
 precomputed world bounds. The pipeline is:
 
-1. **Parse** — `parseChunk` validates the index buffer, validates element
-   coverage, computes world bounds, and applies local-origin rebasing
+1. **Parse** — `parseChunk` validates the index buffer, rejects non-finite
+   position components (`validateChunkData`), validates element coverage,
+   computes world bounds, and applies local-origin rebasing
    (`ParseChunkOptions.origin`). It is a pure function over typed arrays, so it
    can run on a worker thread; `chunkTransferables` returns the buffers to put
    on a postMessage transfer list so parsed geometry moves without copying.
+   NaN/Infinity positions fail loudly here instead of silently corrupting
+   bounds, culling, and rebasing.
 2. **Partition** — `buildSpatialGrid` bins chunks by their bounds center into a
    uniform grid, and `cullChunks` rejects whole off-screen cells before
    checking individual chunk bounding spheres, so hidden/off-screen chunks
-   never reach the upload path.
+   never reach the upload path. Chunks or cells whose bounds are non-finite are
+   treated as **always visible** (never culled), mirroring `cullInstances`, so
+   degenerate data reaches the parser and fails loudly instead of being
+   silently dropped.
 3. **Stream** — `createChunkStream` is a deterministic, budgeted pump: chunks
    are emitted strictly in model order, hidden/off-screen chunks are skipped
    (never uploaded), a per-tick byte budget defers large work to the next tick
