@@ -121,6 +121,7 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<Workb
     view,
     canvas,
     rendererName: "webgpu",
+    displayOverlays: false,
     hooks,
     setEdgeDepthTest: (enabled) => {
       if (gpuRenderer !== undefined && !gpuRenderer.lost) gpuRenderer.setEdgeDepthTest(enabled);

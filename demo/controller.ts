@@ -86,6 +86,13 @@ export interface WorkbenchOptions {
   readonly setEdgeDepthTest?: (enabled: boolean) => void;
   /** Optional teardown hook invoked on destroy. */
   readonly onDestroy?: () => void;
+  /**
+   * Whether the active renderer draws the display overlays (node markers,
+   * normals, face boundaries, and ID labels). The CPU renderer supports them;
+   * the WebGPU renderer does not yet, so its context menu disables and
+   * annotates the toggles instead of advertising a no-op. Defaults to true.
+   */
+  readonly displayOverlays?: boolean;
 }
 
 /**
@@ -99,6 +106,8 @@ export class WorkbenchController {
   readonly view: DemoView;
   readonly hooks: RendererHooks;
   readonly rendererName: string;
+  /** Whether the active renderer draws the node/normal/face-boundary/ID overlays. */
+  readonly displayOverlays: boolean;
   readonly nodeRadius = 10;
   preset: ModelPreset;
   mode: ElementRenderMode;
@@ -128,6 +137,7 @@ export class WorkbenchController {
     this.canvas = options.canvas;
     this.hooks = options.hooks;
     this.rendererName = options.rendererName;
+    this.displayOverlays = options.displayOverlays ?? true;
     this.setEdgeDepthTest = options.setEdgeDepthTest;
     this.onDestroy = options.onDestroy;
     this.presets = createModelPresets();
@@ -825,18 +835,10 @@ export class WorkbenchController {
     this.menuButton(menu, "Hide / Show part", "hide-part");
     this.menuSection(menu, "Display");
     this.menuButton(menu, this.toggles.edges ? "Hide edges" : "Overlay edges", "edges");
-    this.menuButton(
-      menu,
-      this.toggles.nodeMarkers ? "Node markers off" : "Node markers on",
-      "node-markers",
-    );
-    this.menuButton(menu, this.toggles.normals ? "Normals off" : "Normals on", "normals");
-    this.menuButton(
-      menu,
-      this.toggles.faceBoundaries ? "Face boundaries off" : "Face boundaries on",
-      "face-boundaries",
-    );
-    this.menuButton(menu, this.toggles.ids ? "IDs off" : "IDs on", "ids");
+    this.menuOverlayToggle(menu, "Node markers", "node-markers", this.toggles.nodeMarkers);
+    this.menuOverlayToggle(menu, "Normals", "normals", this.toggles.normals);
+    this.menuOverlayToggle(menu, "Face boundaries", "face-boundaries", this.toggles.faceBoundaries);
+    this.menuOverlayToggle(menu, "IDs", "ids", this.toggles.ids);
     this.menuButton(
       menu,
       this.toggles.diagnostics ? "Diagnostics off" : "Diagnostics on",
@@ -862,12 +864,31 @@ export class WorkbenchController {
     menu.style.top = `${Math.min(y, Math.max(margin, maxY))}px`;
   }
 
-  private menuButton(menu: HTMLElement, label: string, action: string): void {
+  private menuButton(menu: HTMLElement, label: string, action: string, disabled = false): void {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = label;
     button.dataset["action"] = action;
+    button.disabled = disabled;
     menu.appendChild(button);
+  }
+
+  /**
+   * Adds a display-overlay toggle (node markers, normals, face boundaries, or
+   * IDs). When the active renderer does not draw the overlays, the button is
+   * disabled and annotated instead of silently doing nothing on click.
+   */
+  private menuOverlayToggle(
+    menu: HTMLElement,
+    label: string,
+    action: string,
+    enabled: boolean,
+  ): void {
+    if (!this.displayOverlays) {
+      this.menuButton(menu, `${label} · CPU renderer only`, action, true);
+      return;
+    }
+    this.menuButton(menu, `${label} ${enabled ? "off" : "on"}`, action);
   }
 
   private menuSection(menu: HTMLElement, title: string): void {
