@@ -16,7 +16,7 @@ import type { AssemblyId, Instance, PartId } from "../../src/scene/types";
  * deterministic order, stable instance identities, part distribution, and pick
  * round-trips at scale. Model sizes are explicit so failures always identify
  * the invariant that broke, complementing the wall-clock budgets in
- * `test/bench/budget.test.ts` (see `wiki/benchmarks.md`).
+ * `test/bench/budget.test.ts` (see `wiki/engineering/benchmarks.md`).
  */
 const STRESS_SUBCASES = 80;
 const STRESS_PLACEMENTS_PER_SUBCASE = 2_000;
