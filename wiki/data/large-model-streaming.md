@@ -11,13 +11,14 @@ A chunked model is a list of `ChunkSource`s. Each source carries raw geometry
 precomputed world bounds. The pipeline is:
 
 1. **Parse** — `parseChunk` validates the index buffer, rejects non-finite
-   position components (`validateChunkData`), validates element coverage,
-   computes world bounds, and applies local-origin rebasing
+   position components (`validateChunkData`) and non-finite components in a
+   chunk's precomputed world bounds (`source.bounds`), validates element
+   coverage, computes world bounds, and applies local-origin rebasing
    (`ParseChunkOptions.origin`). It is a pure function over typed arrays, so it
    can run on a worker thread; `chunkTransferables` returns the buffers to put
    on a postMessage transfer list so parsed geometry moves without copying.
-   NaN/Infinity positions fail loudly here instead of silently corrupting
-   bounds, culling, and rebasing.
+   NaN/Infinity positions and bounds fail loudly here instead of silently
+   corrupting bounds, culling, and rebasing.
 2. **Partition** — `buildSpatialGrid` bins chunks by their bounds center into a
    uniform grid, and `cullChunks` rejects whole off-screen cells before
    checking individual chunk bounding spheres, so hidden/off-screen chunks
@@ -49,6 +50,10 @@ project datums). float32 can only represent sub-ulp detail near zero, so a
 6 000 000 m coordinate cannot also carry a 0.25 m feature. The rebase strategy:
 
 - `computeLocalOrigin(chunks)` picks the bounding-box center of the whole model.
+  Chunks whose bounds are not finite are skipped when unioning, so one corrupt
+  chunk (e.g. a NaN in an untrusted precomputed bounds) cannot poison the
+  origin for the whole model; the corrupt chunk itself still fails loudly at
+  parse time.
 - `rebasePositions` subtracts that origin **from double-precision input before
   rounding to float32**, preserving detail that a naive float32 copy loses.
 - `parseChunk(source, { origin })` applies the same rebase to positions and

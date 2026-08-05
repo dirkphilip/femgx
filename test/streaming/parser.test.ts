@@ -102,6 +102,29 @@ describe("parseChunk", () => {
     };
     expect(() => parseChunk({ ...source, data })).toThrow(/is not finite/);
   });
+
+  it("throws on a NaN precomputed bounds component so corrupt bounds cannot poison rebasing", () => {
+    const source: ChunkSource = {
+      ...quadChunk(1, 0, 0),
+      bounds: { minX: Number.NaN, minY: -0.5, minZ: 0, maxX: 0.5, maxY: 0.5, maxZ: 0 },
+    };
+    expect(() => parseChunk(source)).toThrow(/bounds minX is not finite: NaN/);
+  });
+
+  it("throws on an infinite precomputed bounds component", () => {
+    const source: ChunkSource = {
+      ...quadChunk(1, 0, 0),
+      bounds: {
+        minX: -0.5,
+        minY: -0.5,
+        minZ: 0,
+        maxX: Number.POSITIVE_INFINITY,
+        maxY: 0.5,
+        maxZ: 0,
+      },
+    };
+    expect(() => parseChunk(source)).toThrow(/bounds maxX is not finite: Infinity/);
+  });
 });
 
 describe("chunkTransferables", () => {

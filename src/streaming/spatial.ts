@@ -9,6 +9,7 @@ import {
   type ChunkSource,
   type LodChunkSource,
 } from "./chunk";
+import { isFiniteBounds } from "./finite";
 
 /** One cell of the uniform spatial grid. */
 export interface ChunkCell {
@@ -215,22 +216,6 @@ function isCellVisible(cell: ChunkCell, frustum: Frustum): boolean {
   return isFiniteBounds(cell.bounds)
     ? isSphereVisible(frustum, boundsCenter(cell.bounds), boundsRadius(cell.bounds))
     : true;
-}
-
-/**
- * Degenerate (non-finite) bounds make a sphere test meaningless, so chunks or
- * cells with them are treated as visible rather than silently culled. This
- * mirrors `cullInstances`, which keeps parts with non-finite bounds on screen.
- */
-function isFiniteBounds(bounds: Bounds): boolean {
-  return (
-    Number.isFinite(bounds.minX) &&
-    Number.isFinite(bounds.minY) &&
-    Number.isFinite(bounds.minZ) &&
-    Number.isFinite(bounds.maxX) &&
-    Number.isFinite(bounds.maxY) &&
-    Number.isFinite(bounds.maxZ)
-  );
 }
 
 function boundsRadius(bounds: Bounds): number {
