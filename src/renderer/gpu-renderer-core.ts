@@ -139,6 +139,10 @@ export class GpuRenderer implements WebGpuRenderer {
     return this.lifecycle.lost;
   }
 
+  public get device(): GPUDevice {
+    return this.lifecycle.bundle.device;
+  }
+
   public async recover(): Promise<void> {
     if (this.destroyed) throw new Error("WebGPU renderer has been destroyed");
     if (await this.lifecycle.recover()) {

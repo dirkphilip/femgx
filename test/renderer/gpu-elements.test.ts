@@ -244,11 +244,9 @@ describe("writeElementHighlights", () => {
     try {
       const gpu = fakeGpuDevice();
       const storage = makeStorage(gpu);
-      const updates = Array.from({ length: INITIAL_ELEMENT_HIGHLIGHTS + 10 }, (_, index) => ({
-        slot: index,
-        elementId: index,
-        style,
-      }));
+      const updates = Array.from({ length: INITIAL_ELEMENT_HIGHLIGHTS + 10 }, (_, index) =>
+        elementUpdate(index, index),
+      );
       writeElementHighlights(gpu.device, storage, updates);
       const u32 = new Uint32Array(storage.highlight.data.buffer);
       expect(u32[0]).toBe(updates.length);
@@ -272,11 +270,9 @@ describe("writeElementHighlights", () => {
       const gpu = fakeGpuDevice();
       const storage = makeStorage(gpu);
       storage.bindGroup = {} as GPUBindGroup;
-      const updates = Array.from({ length: INITIAL_ELEMENT_HIGHLIGHTS + 10 }, (_, index) => ({
-        slot: index,
-        elementId: index,
-        style,
-      }));
+      const updates = Array.from({ length: INITIAL_ELEMENT_HIGHLIGHTS + 10 }, (_, index) =>
+        elementUpdate(index, index),
+      );
       writeElementHighlights(gpu.device, storage, updates);
       expect(storage.bindGroup).toBeUndefined();
     } finally {
@@ -289,11 +285,9 @@ describe("writeElementHighlights", () => {
     try {
       const gpu = fakeGpuDevice();
       const storage = makeStorage(gpu);
-      const updates = Array.from({ length: INITIAL_ELEMENT_HIGHLIGHTS + 10 }, (_, index) => ({
-        slot: index,
-        elementId: index,
-        style,
-      }));
+      const updates = Array.from({ length: INITIAL_ELEMENT_HIGHLIGHTS + 10 }, (_, index) =>
+        elementUpdate(index, index),
+      );
       writeElementHighlights(gpu.device, storage, updates);
       const afterGrowth = gpu.writes.length;
       writeElementHighlights(gpu.device, storage, updates);

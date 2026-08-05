@@ -40,7 +40,7 @@ export interface InstanceStorage {
   readonly buffer: GPUBuffer;
   readonly orderBuffer: GPUBuffer;
   readonly edgeOrderBuffer: GPUBuffer;
-  readonly highlight: HighlightStorage;
+  highlight: HighlightStorage;
   readonly capacity: number;
   /** CPU mirror of the record buffer, kept in sync by the patch functions. */
   data: ArrayBuffer;

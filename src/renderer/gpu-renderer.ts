@@ -93,4 +93,3 @@ export async function createWebGpuRenderer(
   const device = options.device ?? (await requestWebGpuDevice(options)).device;
   return new GpuRenderer(options.canvas, device, options);
 }
-
