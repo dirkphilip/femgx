@@ -142,11 +142,14 @@ describe("GPU deformation shader contract", () => {
   );
 
   it.each(vertexShaders)(
-    "reads the deformation uniform and displacement storage in %s",
+    "reads the deformation uniform, displacement storage, and node ids in %s",
     (_name, source) => {
       expect(source).toMatch(/@group\(0\) @binding\(1\) var<uniform> deformation: Deformation/);
       expect(source).toMatch(
         /@group\(1\) @binding\(4\) var<storage, read> displacements: array<f32>/,
+      );
+      expect(source).toMatch(
+        /@group\(1\) @binding\(6\) var<storage, read> vertexNodePickIds: array<u32>/,
       );
       expect(source).toMatch(/fn displaced\(position: vec3<f32>, vertexIndex: u32\)/);
     },
@@ -156,15 +159,17 @@ describe("GPU deformation shader contract", () => {
     expect(instanceVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
   });
 
-  it("displaces by the active load case only when deformation is enabled", () => {
+  it("resolves each vertex to its node before reading the displacement buffer", () => {
+    expect(instanceVertexShader).toMatch(/vertexNodePickIds\[vertexIndex\]/);
     expect(instanceVertexShader).toMatch(/deformation\.loadCaseCount == 0u/);
     expect(instanceVertexShader).toMatch(/arrayLength\(&displacements\)/);
-    expect(instanceVertexShader).toMatch(/deformation\.loadCase \* vertexCount \+ vertexIndex/);
+    expect(instanceVertexShader).toMatch(/nodePickId == 0u \|\| nodePickId > nodeCount/);
+    expect(instanceVertexShader).toMatch(/deformation\.loadCase \* nodeCount \+ nodePickId - 1u/);
     expect(instanceVertexShader).toMatch(/delta \* deformation\.scale/);
   });
 
-  it("displaces point sprites by the point index, not the sprite corner", () => {
-    expect(pointVertexShader).toMatch(/displaced\(position, vertexIndex \/ 4u\)/);
+  it("displaces point sprites by the vertex index, which carries the point's node", () => {
+    expect(pointVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
   });
 
   it("displaces the edge overlay through the vertex buffer index", () => {

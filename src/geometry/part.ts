@@ -69,7 +69,9 @@ export interface Geometry {
   /**
    * Optional per-vertex node pick ids: `nodeId + 1` for vertices that come from
    * a model node, `0` for interpolated tessellation vertices (e.g. the center
-   * of a quadratic quad). When present the part is node-pickable.
+   * of a quadratic quad). When present the part is node-pickable and the
+   * renderer's deformed-shape path uses the map to resolve each vertex back to
+   * its node's displacement, so tessellated geometry deforms correctly.
    */
   readonly nodePickIds?: Uint32Array;
   /**

@@ -64,23 +64,28 @@ export class TriangleMeshBuilder {
 export class LineMeshBuilder {
   readonly positions: number[] = [];
   readonly indices: number[] = [];
+  /** Per-vertex node pick ids (`nodeId + 1`, `0` = interpolated). */
+  readonly nodePickIds: number[] = [];
 
-  append(points: readonly Vec3[]): void {
-    if (points.length < 2) return;
+  append(vertices: readonly MeshVertex[]): void {
+    if (vertices.length < 2) return;
     const base = this.positions.length / 3;
-    for (const point of points) {
-      this.positions.push(point[0], point[1], point[2]);
+    for (const vertex of vertices) {
+      this.positions.push(vertex.point[0], vertex.point[1], vertex.point[2]);
+      this.nodePickIds.push(vertex.nodeId === undefined ? 0 : vertex.nodeId + 1);
     }
-    for (let i = 0; i < points.length - 1; i += 1) {
+    for (let i = 0; i < vertices.length - 1; i += 1) {
       this.indices.push(base + i, base + i + 1);
     }
   }
 
   build(primitive: Primitive): Geometry {
+    const hasNodeIds = this.nodePickIds.some((id) => id !== 0);
     return {
       positions: new Float32Array(this.positions),
       indices: new Uint32Array(this.indices),
       primitive,
+      ...(hasNodeIds ? { nodePickIds: new Uint32Array(this.nodePickIds) } : {}),
     };
   }
 }
