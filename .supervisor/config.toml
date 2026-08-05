@@ -152,7 +152,6 @@ startup_grace_seconds = 300
 name = "review"
 kind = "agent"
 template = "reviewer.md"
-refresh_base = true
 deny_labels = ["no_review"]
 # Interactive review gets 10 minutes of meaningful-progress stall budget.
 stall_timeout_seconds = 600

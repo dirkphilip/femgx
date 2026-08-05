@@ -85,6 +85,13 @@ describe("supervisor worker quality-gate contract", () => {
     expect(prompt).toMatch(/never report the PR merge-ready from local\s+results/);
   });
 
+  it("gives the reviewer worker-owned base rebasing without a supervisor checkpoint", () => {
+    const prompt = readPrompt(".supervisor/prompts/reviewer.md");
+    expect(prompt).toMatch(/Fetch `origin\/\$base_branch` and rebase onto/);
+    expect(prompt).toMatch(/run a final safety-net rebase before submission/);
+    expect(prompt).not.toContain("$base_freshness");
+  });
+
   it.each(PROMPTS)(
     "requires the validated base SHA and a local-vs-CI distinction in %s",
     (path) => {
