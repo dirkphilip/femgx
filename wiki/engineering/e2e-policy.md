@@ -71,6 +71,32 @@ At least one required journey covers each interactive concern, all in
 - **inspection** — "picks and selects a node, exposing adjacency and
   neighbors" (inspection panel), "picks and selects a face".
 
+## Runtime-error smoke contract
+
+`e2e/smoke.spec.ts` is a required category-1 contract that closes the gap
+between "the right DOM attributes are set" and "the app actually works end to
+end". It runs one deterministic vertical in the default CPU lane and fails the
+run when any of the following is true:
+
+- the page raises an unexpected `pageerror` (uncaught exception);
+- the browser logs an unexpected console error (`console.error`);
+- the demo does not commit to the CPU renderer and report a rendered model;
+- the canvas does not actually draw geometry;
+- a representative user action (pick + select a node) updates neither the
+  application state nor the rendered pixels.
+
+The contract asserts load → render → interaction → observable result with
+stable semantic assertions (`expect.poll` on renderer/selection state, pixel
+fingerprints on the deterministic CPU lane) instead of timing-based waits.
+Failure artifacts come from the standard Playwright run: the CI job uploads
+`playwright-report`, traces are captured on retry, and a failure screenshot is
+taken (`screenshot: "only-on-failure"` in `playwright.config.ts`).
+
+Feature-specific assertions stay in their owning suites; the smoke contract
+only pins the vertical and the runtime-error surface, so a partially broken app
+(an exception mid-frame, a swallowed console error, state updated without a
+visible redraw) can no longer pass a green required run.
+
 This policy does not duplicate the WebGPU pixel-rendering scope (see
 [[rendering/webgpu-e2e|WebGPU browser e2e lane]]) or the renderer-control
 honesty scope; it only removes the escape hatch that let those journeys pass

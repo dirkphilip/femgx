@@ -1,0 +1,71 @@
+import { expect, test, type Page } from "@playwright/test";
+import { drawnPixels, pixelHash, requireHit } from "./helpers";
+
+/**
+ * Required browser smoke contract (category 1 in `wiki/engineering/e2e-policy.md`).
+ *
+ * One deterministic journey that proves the demo loads, renders, and reacts to
+ * a representative user action with both a state change and a meaningful
+ * visible outcome — while never raising unexpected page exceptions or browser
+ * console errors. A partially broken app (an exception mid-frame, a swallowed
+ * console error, state updated without a visible redraw) fails this test and
+ * therefore fails the required e2e job.
+ *
+ * Feature-specific behavior stays in the owning suites (`demo.spec.ts`,
+ * `results.spec.ts`, `visual.spec.ts`); this contract only pins the vertical.
+ */
+
+interface RuntimeFailure {
+  readonly kind: "pageerror" | "console-error";
+  readonly detail: string;
+}
+
+/** Records unexpected page exceptions and browser console errors for the test. */
+function watchRuntime(page: Page): RuntimeFailure[] {
+  const failures: RuntimeFailure[] = [];
+  page.on("pageerror", (error) => failures.push({ kind: "pageerror", detail: error.message }));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      failures.push({ kind: "console-error", detail: message.text() });
+    }
+  });
+  return failures;
+}
+
+test("loads, renders, and reacts to a user action without runtime errors", async ({ page }) => {
+  const runtime = watchRuntime(page);
+
+  await page.goto("/");
+
+  // Load: the demo probes WebGPU and deterministically commits to the CPU
+  // renderer on the default lane (launched with `--disable-gpu`).
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toBeVisible();
+  await expect.poll(() => canvas.getAttribute("data-renderer")).toBe("cpu");
+
+  // Render: the workbench reports the loaded model and the canvas has drawn
+  // geometry, not just the page chrome.
+  await expect(page.getByTestId("status")).toContainText("Element gallery");
+  expect(await drawnPixels(canvas)).toBe(true);
+  const before = await pixelHash(canvas);
+
+  // Interact: the representative user action is picking and selecting a node.
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node raycast picking must resolve on the deterministic CPU lane",
+  );
+  await page.mouse.click(hit.x, hit.y);
+
+  // Observable result: application state reflects the selection and the
+  // rendered output changes to show it. Both are stable semantic assertions.
+  await expect.poll(() => canvas.getAttribute("data-selected")).toMatch(/^n:/);
+  expect(await pixelHash(canvas), "selecting a node must redraw the scene").not.toBe(before);
+
+  // The whole journey must be free of unexpected runtime errors.
+  expect(
+    runtime,
+    "the smoke journey must not raise unexpected page exceptions or console errors",
+  ).toEqual([]);
+});

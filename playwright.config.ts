@@ -14,6 +14,9 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:5173",
     trace: "on-first-retry",
+    // Failure artifacts (in `playwright-report`/CI) include a screenshot even
+    // on the first failure, so smoke-contract failures are diagnosable.
+    screenshot: "only-on-failure",
   },
   projects: [
     {
