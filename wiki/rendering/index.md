@@ -27,3 +27,5 @@
   coverage on the default e2e lane.
 - [[rendering/webgpu-resource-reuse|WebGPU resource reuse]] — cached frame,
   depth, bind-group, and readback resources.
+- [[rendering/wgsl-reserved-keywords|WGSL reserved keywords vs wgsl_reflect]] —
+  shader identifiers that only Tint rejects, and how to validate them.
