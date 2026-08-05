@@ -9,8 +9,8 @@ presentation and interaction policy only.
 
 **Library behavior (lives in `src/`):**
 
-- Scene/assembly model, packed runtime, compile, flatten, culling
-  ([[architecture/packed-runtime|Packed scene runtime]]).
+- Scene/assembly model, packed runtime (`createSceneRuntime`), and internal
+  flatten/cull helpers ([[architecture/packed-runtime|Packed scene runtime]]).
 - Interaction state, style resolution, and emphasis refs
   (`resolveInstanceStyle`, `resolveElementStyle`, `resolveFaceStyle`,
   `resolveNodeStyle`, `emphasizedNodeRefs`, `emphasizedFaceRefs`,
@@ -21,7 +21,8 @@ presentation and interaction policy only.
   (`updateInstances`, `updateElements`, `updateVisibility`) plus the
   interaction-diff helper `changedInstanceSlots`
   ([[rendering/renderer-subrange-updates|Renderer subrange updates]]).
-- Picking (`pick`, `createPickScene`) and camera math.
+- GPU picking (`WebGpuRenderer.pick`, `resolvePick` / `resolvePickTarget`) and
+  camera math.
 
 **Demo-only policy (stays in `demo/`):**
 

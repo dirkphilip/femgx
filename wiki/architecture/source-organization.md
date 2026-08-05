@@ -16,8 +16,8 @@ canonical description.
   data with no WebGPU coupling (see [[data/elements-topology|Element topology]]).
 - `src/scene/` — authoritative CPU model: part/assembly/instance identities
   (`types.ts`), assemblies, and the scene builder.
-- `src/runtime/` — compile pipeline: flattening, frustum culling, per-part
-  batching, and `compileScene`.
+- `src/runtime/` — internal helpers: flattening, frustum culling, and per-part
+  batching (not the public product path; prefer `createSceneRuntime`).
 - `src/scene-runtime/` — packed CPU-side scene runtime with delta-oriented
   visibility updates (`createSceneRuntime`).
 - `src/camera/` — immutable orbit camera and projection math.
@@ -26,7 +26,7 @@ canonical description.
   nodes or elements), derived quantities (magnitude, von Mises, principal
   values), value ranges, scalar color mapping with thresholds/legends, and
   deformed-shape geometry; pure CPU-side data (see [[data/results|Results]]).
-- `src/picking/` — CPU-side pick-id resolution.
+- `src/picking/` — GPU pick-id resolution (`resolvePick` / `resolvePickTarget`).
 - `src/platform/` — explicit WebGPU unsupported/error reporting with typed reasons (`capabilities.ts`), plus device request, loss reporting, and re-creation focused on the supported path (`device.ts`); see [[rendering/platform-support|Platform support]].
 - `src/renderer/` — WebGPU renderer split into focused modules:
   `gpu-renderer.ts` (thin orchestrator and public API),

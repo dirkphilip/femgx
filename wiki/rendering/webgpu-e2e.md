@@ -1,17 +1,24 @@
 # WebGPU browser e2e lane
 
 WebGPU is the product's only renderer (see
-[[requirements/product-scope|product scope contract]]), so the WebGPU browser
-contract is the **default** e2e lane, not an opt-in. The default `chromium`
-project launches Chromium with `--enable-unsafe-webgpu --enable-gpu`, which
-selects the software SwiftShader WebGPU implementation — no GPU hardware is
-required, so the lane runs on any CI runner and on developer machines.
+[[requirements/product-scope|product scope contract]]). The **full** e2e
+contract (render, pick, pixels, recovery) runs against **system Chrome with
+hardware WebGPU** via `npm run test:e2e`. That is the developer lane today.
+
+CI does **not** use SwiftShader as a stand-in for real WebGPU. Until a GPU
+runner exists, CI only runs the no-GPU unsupported-contract smoke
+(`npm run test:e2e:ci`).
 
 ## How it runs
 
-- `playwright.config.ts` defines a single `chromium` project for all e2e specs,
-  launched with the software-WebGPU flags.
-- `e2e/webgpu.spec.ts` asserts the WebGPU product contract:
+- `playwright.config.ts` defines:
+  - **`chrome`** — `channel: "chrome"` (system Google Chrome), **headed**.
+    Hardware WebGPU. Used by `npm run test:e2e`. (Headless Chrome injects
+    SwiftShader; we do not treat that as the product lane.)
+  - **`chromium`** — Playwright Chromium for the CI no-GPU contract
+    (`npm run test:e2e:ci`).
+- One-time install: `npm run test:e2e:install` (Chrome + Chromium).
+- `e2e/webgpu.spec.ts` asserts the WebGPU product contract on the Chrome lane:
   - **initialization** — the demo commits to the WebGPU renderer;
   - **one instanced render** — the demo's frame counter advances;
   - **interaction/picking** — pointer hover/click drives picking and updates
@@ -25,24 +32,19 @@ required, so the lane runs on any CI runner and on developer machines.
   - **WebGPU-only unsupported contract** — with `navigator.gpu` hidden before
     page load, the demo must report `data-renderer="unsupported"`, state that
     femgx requires a usable WebGPU renderer, include the probe diagnostic, and
-    never start a 2D CPU renderer for the model view.
+    never start a 2D CPU renderer for the model view. This test is what CI runs.
   - **display toggles** — the depth-test control stays live, and the removed
     CPU-renderer-only node/normal/face-boundary/ID overlays are no longer
     advertised in the context menu.
-  - **rendered pixels** — element emphasis (the context-menu highlight on an
-    element target) must visibly change the presented canvas pixels, and
-    toggling it off must restore the exact baseline. This catches silent
-    WGSL/CPU record-layout desyncs (like #69) that DOM/data-attribute
-    assertions cannot see. The comparison captures `canvas.screenshot()` and
-    requires several consecutive byte-identical captures, so it also proves
-    the WebGPU output is deterministic for a static scene.
+  - **rendered pixels** — element emphasis must visibly change the presented
+    canvas pixels. Captures use settled `canvas.screenshot()` comparisons.
 - `e2e/visual.spec.ts` additionally pins deterministic pixel output for solid,
   edge, and selection modes using the same settled-screenshot technique.
 
 ## Capability gating (non-flakiness)
 
-The lane must never fail on a machine that genuinely cannot initialize WebGPU.
-Two layers keep it deterministic:
+The Chrome lane must never fail on a machine that genuinely cannot initialize
+WebGPU:
 
 1. **Explicit unsupported state**: when WebGPU cannot be initialized, the demo
    sets `data-renderer="unsupported"` and shows its error message instead of
@@ -52,17 +54,13 @@ Two layers keep it deterministic:
    resolve any instance.
 3. **Settled screenshots**: WebGPU presentation is asynchronous, so the pixel
    tests poll `canvas.screenshot()` until several consecutive captures are
-   byte-identical before comparing states. Moving the pointer to an empty canvas
-   corner clears the hovered state first, so hover emphasis cannot satisfy (or
-   break) the comparison; the test fails (rather than silently passing) if that
-   empty spot cannot be found.
+   byte-identical before comparing states.
 
-So on a healthy WebGPU browser the lane validates the full flow; on a browser
-that cannot present/pick it skips instead of failing. These skips are the only
-conditional skips left in the suite and are classified as environment capability
-coverage in [[engineering/e2e-policy|E2E test classification and skip policy]].
-`e2e/skip-summary-reporter.ts` prints the per-reason skip count at the end of
-the run so they stay visible and reviewable in CI output.
+## Future: GPU CI runner
+
+A self-hosted (or cloud) runner with a real GPU should run the full
+`--project=chrome` suite in CI. Until then, treat local `npm run test:e2e` as
+the authoritative WebGPU interaction/pixel gate.
 
 ## Demo test surface
 
@@ -77,5 +75,5 @@ the run so they stay visible and reviewable in CI output.
   device to exercise the demo's recovery/report path (see
   [[rendering/platform-support|Platform support]]).
 
-Related: [[engineering/quality-gate|Quality gate]], [[engineering/benchmarks|Benchmarks]],
-[[engineering/performance-issues|Performance issues and risks]].
+Related: [[engineering/quality-gate|Quality gate]], [[engineering/e2e-policy|E2E policy]],
+[[engineering/benchmarks|Benchmarks]].

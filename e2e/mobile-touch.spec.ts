@@ -97,14 +97,13 @@ test("a one-finger tap still performs picking and selection", async ({ browser }
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
 
-  // The pick radius is 10 canvas pixels, so a 10px-spaced step grid guarantees
-  // a point lands within the radius of any node center. A miss means the
-  // picking path is broken, not that the environment lacks a capability.
+  // Dense step grid so a pointer lands on rasterized node/face pixels. A miss
+  // means the GPU pick path is broken, not that the environment lacks a capability.
   const hit = await requireHit(
     page,
     canvas,
-    { prefix: "n:", step: 10 },
-    "node raycast picking must resolve on the deterministic WebGPU lane",
+    { prefix: "n:" },
+    "node GPU picking must resolve on the deterministic WebGPU lane",
   );
 
   await page.touchscreen.tap(hit.x, hit.y);

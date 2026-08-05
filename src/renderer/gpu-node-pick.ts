@@ -14,7 +14,9 @@ import {
  * Triangle pick pass shaders. In addition to the instance, element, and face
  * pick ids they pass each triangle's three corner positions and node pick ids
  * as flat varyings plus the interpolated local position, so the fragment stage
- * can report the node id of the corner nearest to the hit. Corner and local
+ * can report the node id of the corner nearest to the hit when the hit is
+ * close enough to that corner. Hits farther from every corner write node id 0
+ * so `resolvePickTarget` falls through to face/element. Corner and local
  * positions are displaced by the deformation state so node picking stays
  * consistent on deformed shapes.
  */
@@ -128,6 +130,13 @@ fn nearestNode(
   if (ids.z != 0u && distC < bestDist) {
     bestDist = distC;
     bestId = ids.z;
+  }
+  // Accept a node only near a corner; otherwise leave node id 0 so face/
+  // element resolution can win for face-interior fragments.
+  let edgeScale = max(max(distanceSquared(a, b), distanceSquared(b, c)), distanceSquared(c, a));
+  let threshold = edgeScale * 0.04;
+  if (bestId == 0u || bestDist > threshold) {
+    return 0u;
   }
   return bestId;
 }

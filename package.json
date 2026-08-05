@@ -74,8 +74,9 @@
     "test:coverage": "vitest run --coverage",
     "bench": "vitest bench",
     "bench:budget": "vitest run --config vitest.budget.config.ts",
-    "test:e2e": "playwright test",
-    "test:e2e:install": "playwright install chromium",
+    "test:e2e": "playwright test --project=chrome",
+    "test:e2e:ci": "playwright test --project=chromium e2e/webgpu.spec.ts -g \"WebGPU-only contract\"",
+    "test:e2e:install": "playwright install chrome chromium",
     "preview": "vite preview"
   },
   "devDependencies": {

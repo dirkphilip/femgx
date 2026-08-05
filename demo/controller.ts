@@ -1,9 +1,7 @@
 import {
   createCamera,
   createInteractionState,
-  createPickScene,
   createSceneRuntime,
-  pick,
   resizeCamera,
   setElementOverride,
   setElementSelected,
@@ -29,9 +27,8 @@ import {
   type InstanceId,
   type InteractionState,
   type PartId,
-  type PickRequest,
-  type PickScene,
-  type ResolvedPick,
+  type PickGranularity,
+  type PickTarget,
   type SceneRuntime,
 } from "../src/index";
 import {
@@ -62,6 +59,12 @@ export interface RendererHooks {
     state: InteractionState,
     changedSlots: readonly number[],
   ) => void;
+  /** GPU pick under a canvas pixel (camera space), or undefined when unavailable. */
+  readonly pick: (
+    x: number,
+    y: number,
+    granularity?: PickGranularity,
+  ) => Promise<PickTarget | undefined>;
   /** Current draw statistics for the status bar. */
   readonly stats: (controller: WorkbenchController) => RendererStats;
 }
@@ -85,17 +88,16 @@ export interface WorkbenchOptions {
 }
 
 /**
- * The renderer-independent interaction brain of the demo: owns the active
- * model, the packed runtime, interaction state, visibility, and all display
- * toggles, and drives the attached WebGPU renderer through {@link
- * RendererHooks}. Picking is unified CPU raycasting.
+ * The interaction brain of the demo: owns the active model, the packed
+ * runtime, interaction state, visibility, and display toggles, and drives the
+ * attached WebGPU renderer through {@link RendererHooks}. Picking uses the
+ * renderer's GPU pick path.
  */
 export class WorkbenchController {
   readonly canvas: HTMLCanvasElement;
   readonly view: DemoView;
   readonly hooks: RendererHooks;
   readonly rendererName: string;
-  readonly nodeRadius = 10;
   preset: ModelPreset;
   mode: ElementRenderMode;
   toggles: DisplayToggles;
@@ -103,18 +105,20 @@ export class WorkbenchController {
   /** Renderer-state note shown in the status line (e.g. "recovered"). */
   rendererState = "";
   runtime!: SceneRuntime;
-  pickScene!: PickScene;
   cameraRef: CameraRef;
   private readonly setEdgeDepthTest: ((enabled: boolean) => void) | undefined;
   private readonly onDestroy: (() => void) | undefined;
   private readonly presets: readonly ModelPreset[];
   private readonly slotByInstanceId = new Map<InstanceId, number>();
+  private readonly partIdByInstanceId = new Map<InstanceId, PartId>();
   private readonly partFirstSlot = new Map<PartId, number>();
   private depthTestEnabled = true;
   private contextTarget: SelectTarget | undefined;
   private dragging = false;
   private downPosition: { readonly x: number; readonly y: number } | undefined;
   private disposed = false;
+  /** Ignores stale async GPU pick results when a newer pointer event arrived. */
+  private pickGeneration = 0;
 
   constructor(options: WorkbenchOptions) {
     this.view = options.view;
@@ -240,18 +244,22 @@ export class WorkbenchController {
   destroy(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.pickGeneration += 1;
     this.onDestroy?.();
   }
 
   private buildRuntime(preset: ModelPreset): void {
     this.runtime = createSceneRuntime(preset.scene);
-    this.pickScene = createPickScene(preset.scene.parts, preset.elementModels);
     this.slotByInstanceId.clear();
+    this.partIdByInstanceId.clear();
     this.partFirstSlot.clear();
     for (let slot = 0; slot < this.runtime.instanceCount; slot++) {
       const instanceId = this.runtime.getInstanceId(slot);
       const partId = this.runtime.instancePartIds[slot];
-      if (instanceId !== undefined) this.slotByInstanceId.set(instanceId, slot);
+      if (instanceId !== undefined) {
+        this.slotByInstanceId.set(instanceId, slot);
+        if (partId !== undefined) this.partIdByInstanceId.set(instanceId, partId);
+      }
       if (partId !== undefined && !this.partFirstSlot.has(partId)) {
         this.partFirstSlot.set(partId, slot);
       }
@@ -336,13 +344,13 @@ export class WorkbenchController {
       this.downPosition = undefined;
     });
     canvas.addEventListener("pointermove", (event) => {
-      if (!this.dragging) this.hoverAt(event);
+      if (!this.dragging) void this.hoverAt(event);
     });
     canvas.addEventListener("click", (event) => {
-      this.clickAt(event);
+      void this.clickAt(event);
     });
     canvas.addEventListener("contextmenu", (event) => {
-      this.contextmenuAt(event);
+      void this.contextmenuAt(event);
     });
     window.addEventListener("click", () => {
       this.hideContextMenu();
@@ -352,9 +360,14 @@ export class WorkbenchController {
     });
   }
 
-  private hoverAt(event: PointerEvent): void {
-    const hit = this.resolve(event);
-    const target = hit === undefined ? undefined : selectTarget(hit, event);
+  private async hoverAt(event: PointerEvent): Promise<void> {
+    const generation = ++this.pickGeneration;
+    const hit = await this.resolve(event);
+    if (generation !== this.pickGeneration || this.disposed) return;
+    const target =
+      hit === undefined
+        ? undefined
+        : selectTarget(hit, event, (id) => this.partIdByInstanceId.get(id));
     let state = this.interaction;
     state = setHoveredNode(
       state,
@@ -381,54 +394,61 @@ export class WorkbenchController {
     this.interaction = state;
     this.canvas.dataset["hovered"] = targetKey(target);
     this.canvas.dataset["pick"] = targetKey(hit);
-    this.view.inspectionPanel.textContent = describePick(hit, (partId) => this.partName(partId));
+    this.view.inspectionPanel.textContent = describePick(
+      hit,
+      (partId) => this.partName(partId),
+      (id) => this.partIdByInstanceId.get(id),
+    );
     this.render();
   }
 
-  private clickAt(event: MouseEvent): void {
+  private async clickAt(event: MouseEvent): Promise<void> {
     const down = this.downPosition;
     this.downPosition = undefined;
-    if (down !== undefined && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 5) {
+    // Ignore camera-drag releases; allow small pointer jitter between down/up.
+    if (down !== undefined && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 10) {
       return;
     }
-    const hit = this.resolve(event);
-    if (hit === undefined) return;
-    const target = selectTarget(hit, event);
+    const generation = ++this.pickGeneration;
+    const hit = await this.resolve(event);
+    if (generation !== this.pickGeneration || this.disposed || hit === undefined) return;
+    const target = selectTarget(hit, event, (id) => this.partIdByInstanceId.get(id));
     if (target === undefined) return;
     this.toggleSelection(target);
   }
 
-  private contextmenuAt(event: MouseEvent): void {
+  private async contextmenuAt(event: MouseEvent): Promise<void> {
     event.preventDefault();
-    const hit = this.resolve(event);
-    const target = hit === undefined ? undefined : selectTarget(hit, event);
+    const generation = ++this.pickGeneration;
+    const hit = await this.resolve(event);
+    if (generation !== this.pickGeneration || this.disposed) return;
+    const target =
+      hit === undefined
+        ? undefined
+        : selectTarget(hit, event, (id) => this.partIdByInstanceId.get(id));
     this.contextTarget = target;
     if (target === undefined) {
       this.hideContextMenu();
       return;
     }
-    this.view.inspectionPanel.textContent = describePick(hit, (partId) => this.partName(partId));
+    this.view.inspectionPanel.textContent = describePick(
+      hit,
+      (partId) => this.partName(partId),
+      (id) => this.partIdByInstanceId.get(id),
+    );
     this.showContextMenu(target, event.clientX, event.clientY);
   }
 
-  private resolve(event: {
+  private async resolve(event: {
     readonly clientX: number;
     readonly clientY: number;
-  }): ResolvedPick | undefined {
+  }): Promise<PickTarget | undefined> {
     const rect = this.canvas.getBoundingClientRect();
-    // The projection (and therefore the pick) works in camera pixel space,
-    // which is the canvas's internal size; scale CSS viewport coordinates so
-    // taps align with what is drawn even when the canvas is scaled by CSS.
-    const camera = this.cameraRef.camera;
-    const scaleX = camera.width / Math.max(1, rect.width);
-    const scaleY = camera.height / Math.max(1, rect.height);
-    const request: PickRequest = {
-      runtime: this.runtime,
-      camera,
-      x: (event.clientX - rect.left) * scaleX,
-      y: (event.clientY - rect.top) * scaleY,
-    };
-    return pick(this.pickScene, request, this.nodeRadius);
+    // `WebGpuRenderer.pick` maps CSS-local coordinates through the canvas
+    // bounding rect onto the device buffer (see `pickPixelCoordinates`).
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    return this.hooks.pick(x, y);
   }
 
   private toggleSelection(target: SelectTarget): void {

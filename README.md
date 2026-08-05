@@ -67,12 +67,12 @@ There are no runtime dependencies. Consumers do **not** need `@webgpu/types`
 
 ```js
 // ESM
-import { createScene, createCamera, flattenAssembly } from "femgx";
+import { createScene, createCamera, createSceneRuntime } from "femgx";
 ```
 
 ```js
 // CommonJS
-const { createScene, createCamera, flattenAssembly } = require("femgx");
+const { createScene, createCamera, createSceneRuntime } = require("femgx");
 ```
 
 ## Supported environments
@@ -94,17 +94,18 @@ const { createScene, createCamera, flattenAssembly } = require("femgx");
   descriptive error when WebGPU is unavailable or the adapter/device request fails.
 - `queryWebGpuSupport()` is a non-throwing probe that returns a typed
   "supported"/"unsupported" report for applications that want to branch up front.
-- The CPU scene, camera, flatten/compile, and picking (`resolvePick`) APIs are
-  WebGPU-independent and work in any JavaScript environment.
-- Picking via the renderer uses asynchronous GPU readback: `pick(x, y)` returns a
-  `Promise`; the resolved `PickTarget` is the same type used by the CPU-side
-  `resolvePick`.
+- The CPU scene, camera, packed runtime (`createSceneRuntime`), and pick-id
+  resolution (`resolvePick` / `resolvePickTarget`) APIs are WebGPU-independent
+  and work in any JavaScript environment.
+- Interaction picking goes through the renderer: asynchronous GPU readback via
+  `pick(x, y)` returns a `Promise<PickTarget | undefined>` with host-mappable
+  part/instance/element/face/node ids.
 
 ## Public API highlights
 
 - `createScene()` validates duplicate IDs, missing references, invalid roots, and cycles.
-- `flattenAssembly()` is iterative and returns a compact draw index plus a stable `instanceId`.
-- `compileScene()` produces deterministic visible instances, culling, and reusable-part batches.
+- `createSceneRuntime()` packs the scene for rendering with stable instance slots
+  and delta-oriented visibility updates.
 - `createInteractionState()` manages selection, highlight, hover, and style overrides.
 - `createCamera()` supports perspective/orthographic projection, orbit, pan, zoom, and resize.
 - `createWebGpuRenderer()` uploads geometry once, renders instanced batches, applies styles,

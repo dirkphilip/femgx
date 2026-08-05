@@ -20,8 +20,8 @@ oriented element faces are the finest-grained pickable units under
   per-triangle `facePickIds` map (`faceId + 1`, `0` = no face).
 - `Geometry` carries `nodePickIds`, `nodePositions`, `facePickIds`, and
   `faces`; `validatePickIds` enforces the per-vertex/per-triangle lengths and
-  that face ids are dense. Both GPU and CPU pickers resolve from the same part
-  geometry, so ids stay stable across renderers, culling, and compaction.
+  that face ids are dense. GPU pick readback resolves from the same part
+  geometry, so ids stay stable across culling and compaction.
 
 ## Picking
 
@@ -32,8 +32,11 @@ oriented element faces are the finest-grained pickable units under
   node ids; a dedicated `nodePickVertexShader`/`nodePickFragmentShader`
   (triangle pick pipeline) passes each triangle's three corner positions and
   node ids as flat varyings plus the interpolated local position, and the
-  fragment reports the node id of the corner nearest the hit. The corner
-  positions are read from a tightly packed `array<f32>` (3 floats per vertex),
+  fragment reports the node id of the nearest corner only when the hit is
+  close enough to that corner (relative to the triangle's longest edge);
+  otherwise the node attachment stays 0 so face interiors resolve as faces.
+  The corner positions are read from a tightly packed `array<f32>` (3 floats
+  per vertex),
   not `array<vec3<f32>>` — a vec3 storage array strides at 16 bytes, which
   would misalign the packed `positions` buffer. Lines and points report
   element/face/node = 0.
@@ -69,10 +72,9 @@ oriented element faces are the finest-grained pickable units under
 
 ## Demo
 
-- The demo's workbench uses the unified CPU `pick()` for interaction; plain
-  click selects the most specific hit (node), Shift promotes to the element, Alt
-  to the instance, Ctrl to the part. Hover/selection datasets are prefixed by
-  granularity (`n:instance:node`, `f:instance:element:faceKey`,
-  `e:instance:element`, `i:instance`, `p:part`). The WebGPU renderer also
-  exposes `renderer.pick(x, y, granularity)` for GPU readback picking (see
-  [[rendering/fe-inspection-workbench|FE inspection workbench]]).
+- The demo's workbench uses `renderer.pick(x, y, granularity)` for interaction;
+  plain click selects the most specific hit (node), Shift promotes to the
+  element, Alt to the instance, Ctrl to the part. Hover/selection datasets are
+  prefixed by granularity (`n:instance:node`, `f:instance:element:faceKey`,
+  `e:instance:element`, `i:instance`, `p:part`). See
+  [[rendering/fe-inspection-workbench|FE inspection workbench]].

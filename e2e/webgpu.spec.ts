@@ -47,9 +47,9 @@ async function stableCanvasPixels(page: Page, canvas: Locator): Promise<Buffer> 
 }
 
 /**
- * Moves the pointer to an empty canvas corner so the CPU raycast clears the
- * hovered state. The hover sweep used to find a pick target leaves a hovered
- * instance, whose emphasis would otherwise bleed into the pixel comparison.
+ * Moves the pointer to an empty canvas corner so GPU pick clears the hovered
+ * state. The hover sweep used to find a pick target leaves a hovered instance,
+ * whose emphasis would otherwise bleed into the pixel comparison.
  */
 async function clearHover(page: Page, canvas: Locator): Promise<void> {
   const box = await canvas.boundingBox();
@@ -143,9 +143,8 @@ test("keeps selection feedback visible in edge overlay mode", async ({ page }) =
     throw new Error("canvas has no bounding box");
   }
 
-  // Sweep until the pick resolves any target; the selected key encodes its
-  // granularity as a prefix (n:/f:/e:/i:/p:). Dense grid so it lands within
-  // the 10px node-pick radius.
+  // Sweep until GPU pick resolves any target; the selected key encodes its
+  // granularity as a prefix (n:/f:/e:/i:/p:).
   const hoverPoint = await sweepForHit(page, canvas, { attribute: "hovered", settleMs: 150 });
 
   if (hoverPoint === undefined) {

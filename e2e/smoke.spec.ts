@@ -49,19 +49,24 @@ test("loads, renders, and reacts to a user action without runtime errors", async
   await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
   const before = await pixelHash(canvas);
 
-  // Interact: the representative user action is picking and selecting a node.
+  // Pick/click without screenshots in between: screenshots can stall GPU pick
+  // readback. `requireHit` warms a frame after the hash capture.
   const hit = await requireHit(
     page,
     canvas,
-    { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic WebGPU lane",
+    {},
+    "GPU picking must resolve on the hardware WebGPU lane",
   );
-  await page.mouse.click(hit.x, hit.y);
+  await page.mouse.move(hit.x, hit.y);
+  await page.waitForTimeout(100);
+  await page.mouse.click(hit.x, hit.y, { delay: 20 });
 
   // Observable result: application state reflects the selection and the
   // rendered output changes to show it. Both are stable semantic assertions.
-  await expect.poll(() => canvas.getAttribute("data-selected")).toMatch(/^n:/);
-  expect(await pixelHash(canvas), "selecting a node must redraw the scene").not.toBe(before);
+  await expect
+    .poll(() => canvas.getAttribute("data-selected"), { timeout: 10_000 })
+    .toMatch(/^[nfe]:/);
+  expect(await pixelHash(canvas), "selecting a target must redraw the scene").not.toBe(before);
 
   // The whole journey must be free of unexpected runtime errors.
   expect(

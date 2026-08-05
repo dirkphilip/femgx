@@ -1,9 +1,9 @@
 # FE inspection workbench
 
 The demo is an FE model inspection workbench: deterministic model presets,
-unified CPU raycast picking (node → face → element), a shared workbench
-controller, and per-node/face/element selection and highlighting that never
-rebuilds geometry or clones materials. The WebGPU renderer drives the
+GPU picking via `WebGpuRenderer.pick` (node → face → element), a shared
+workbench controller, and per-node/face/element selection and highlighting that
+never rebuilds geometry or clones materials. The WebGPU renderer drives the
 controller, so camera and interaction behavior is stable
 ([[rendering/element-interaction|Element-level interaction]],
 [[rendering/interactive-state|Interactive state]]).
@@ -20,18 +20,18 @@ controller, so camera and interaction behavior is stable
   overall bounds. The demo's model `<select>` switches presets without editing
   source.
 
-## Unified picking
+## GPU picking
 
-- `src/picking/` provides CPU raycasting against the tessellated geometry the
-  renderer draws, with per-part inspection caches built once per preset
-  (triangle→element, node adjacency, face ownership).
-- `pick()` resolves the **most specific available target**: a node near the
-  pointer wins over the face the ray hits first, which wins over the element.
-  Modifier keys promote/narrow the selection: shift → element, alt → instance,
-  ctrl → part (see `demo/pick.ts`).
-- Hit data is stable across visibility changes and draw-list compaction because
-  it is keyed by part/instance/element/node/face ids from the authoritative
-  scene and element models.
+- Interaction picking is asynchronous GPU readback: `RendererHooks.pick` →
+  `WebGpuRenderer.pick(x, y)` → `resolvePickTarget`, returning a host-mappable
+  `PickTarget` (part / instance / element / face / node).
+- Default granularity prefers the **most specific available target**
+  (`node` > `face` > `element` > `instance`). Modifier keys promote/narrow the
+  selection: shift → element, alt → instance, ctrl → part (see `demo/pick.ts`).
+- The workbench ignores stale readbacks with a pick generation counter so
+  hover/click races never apply an older hit.
+- Hit data is stable across visibility changes because ids come from the
+  packed runtime and part geometry descriptors, not from draw-list order.
 
 ## Workbench controller
 

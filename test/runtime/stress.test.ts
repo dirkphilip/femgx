@@ -3,7 +3,6 @@ import { computeBounds, type Part } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import { resolvePick } from "../../src/picking/pick";
 import { batchInstancesByPart } from "../../src/runtime/batch";
-import { compileScene } from "../../src/runtime/compile";
 import { cullInstances } from "../../src/runtime/culling";
 import { flattenAssembly } from "../../src/runtime/flatten";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
@@ -151,10 +150,11 @@ describe("large-model stress", () => {
     expect(total).toBe(STRESS_INSTANCE_COUNT);
   });
 
-  it("compiles the scene into the same instance list", () => {
-    const compiled = compileScene(scene);
-    expect(compiled.instances).toHaveLength(STRESS_INSTANCE_COUNT);
-    expect(compiled.batches).toHaveLength(STRESS_PART_COUNT);
+  it("compiles the packed runtime for the full model", () => {
+    const runtime = createSceneRuntime(scene);
+    expect(runtime.instanceCount).toBe(STRESS_INSTANCE_COUNT);
+    expect(runtime.visibleCount).toBe(STRESS_INSTANCE_COUNT);
+    expect(runtime.getDrawList()).toHaveLength(STRESS_INSTANCE_COUNT);
   });
 
   it("culling preserves instance identity and part distribution", () => {

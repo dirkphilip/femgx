@@ -29,13 +29,12 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   target the ids support (`node` > `face` > `element` > `instance`). A
   `PickTarget` therefore distinguishes `part`, `instance`, `element`, `face`,
   and `node`.
-- The demo uses the unified CPU raycast `pick()` for interaction instead of GPU
-  readback (see [[rendering/fe-inspection-workbench|FE inspection workbench]]): the
-  `pick()` resolves the most specific target (node → face → element), and
-  hover/selection keys are prefixed by granularity (`n:instance:node`,
-  `f:instance:element:faceKey`, `e:instance:element`, `i:instance`,
-  `p:part`). The renderer's `pick(x, y, granularity)` provides GPU readback
-  picking (see [[rendering/node-face-interaction|node and face interaction]]).
+- The demo and library share one pick path: the renderer's asynchronous
+  `pick(x, y, granularity)` GPU readback (see
+  [[rendering/fe-inspection-workbench|FE inspection workbench]] and
+  [[rendering/node-face-interaction|node and face interaction]]). Hover/
+  selection keys are prefixed by granularity (`n:instance:node`,
+  `f:instance:element:faceKey`, `e:instance:element`, `i:instance`, `p:part`).
 
 ## Interaction state and precedence
 

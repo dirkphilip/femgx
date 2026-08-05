@@ -68,8 +68,11 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run e2e tests
-        run: npm run test:e2e
+      # Full WebGPU pick/pixel e2e needs hardware Chrome (`npm run test:e2e`
+      # locally). CI only asserts the no-GPU unsupported contract until a GPU
+      # runner exists; SwiftShader is not treated as a faithful WebGPU stand-in.
+      - name: Run e2e (no-GPU contract)
+        run: npm run test:e2e:ci
 
       - uses: actions/upload-artifact@v7
         if: failure()

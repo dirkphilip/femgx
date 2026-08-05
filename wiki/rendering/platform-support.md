@@ -51,8 +51,8 @@ reason, e.g. `navigator.gpu is not exposed`). No failure is silently swallowed:
 renderer creation, the first frame, and re-creation failures all report the
 explicit message and clean up the renderer on the failure path. Diagnostics
 live in the status UI and the dataset; they never depend on console output.
-(The pre-P0 hidden-probe machinery and its GPU pick-readback verification were
-removed with the CPU fallback; demo interaction picking is CPU raycasting.)
+(The pre-P0 hidden-probe machinery was removed with the CPU fallback. Demo
+interaction picking uses the renderer's GPU pick readback path.)
 
 A failed GPU pick readback is reported as a precise pick-path failure, never as
 a CPU-only/missing-WebGPU condition: `readPickPixel`

@@ -68,6 +68,10 @@ export interface WebGpuRenderer {
   /**
    * Picks the most specific target under a pixel, or a target at an explicit
    * granularity (see {@link PickGranularity}).
+   *
+   * `x`/`y` are CSS pixels relative to the canvas element's top-left
+   * (`clientX - rect.left`, `clientY - rect.top`); the renderer maps them onto
+   * the device buffer via the canvas bounding rect.
    */
   pick(x: number, y: number, granularity?: PickGranularity): Promise<PickTarget | undefined>;
   resize(width?: number, height?: number): void;
