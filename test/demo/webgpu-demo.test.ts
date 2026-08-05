@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Camera } from "../../src/camera/camera";
 import type { ModelPreset } from "../../src/fixture/presets";
-import { createInteractionState, type InteractionState, type SceneRuntime } from "../../src/index";
+import {
+  createInteractionState,
+  unsupportedMessage,
+  WebGpuUnsupportedError,
+  type InteractionState,
+  type SceneRuntime,
+} from "../../src/index";
 import type { DemoView } from "../../demo/view";
 import type { RendererHooks, WorkbenchController, WorkbenchOptions } from "../../demo/controller";
 import { startWebGpuDemo } from "../../demo/webgpu-demo";
@@ -191,6 +197,7 @@ describe("startWebGpuDemo", () => {
     });
     expect(renderer.destroy).toHaveBeenCalled();
     expect(canvas.dataset["renderer"]).toBe("unsupported");
+    expect(canvas.dataset["webgpu-error"]).toBe("device");
   });
 
   it("reports an explicit unsupported message when the renderer cannot be created", async () => {
@@ -205,8 +212,49 @@ describe("startWebGpuDemo", () => {
 
     expect(controller).toBeUndefined();
     expect(canvas.dataset["renderer"]).toBe("unsupported");
+    expect(canvas.dataset["webgpu-error"]).toBe("renderer-setup");
     expect(status.textContent).toContain("WebGPU is unavailable");
     expect(rendererStatus.textContent).toBe("Renderer unsupported");
+  });
+
+  it("classifies a typed device error into its startup phase", async () => {
+    mocks.createWebGpuRenderer.mockRejectedValue(
+      new WebGpuUnsupportedError("device-unavailable", unsupportedMessage("device-unavailable")),
+    );
+    const canvas = fakeCanvas();
+    const status = { textContent: "" };
+    const rendererStatus = { textContent: "" };
+    const controller = await startWebGpuDemo({
+      view: { canvas, status, rendererStatus } as unknown as DemoView,
+      canvas,
+    });
+
+    expect(controller).toBeUndefined();
+    expect(canvas.dataset["renderer"]).toBe("unsupported");
+    expect(canvas.dataset["webgpu-error"]).toBe("device");
+    expect(status.textContent).toContain("device");
+    expect(rendererStatus.textContent).toBe("Renderer unsupported");
+  });
+
+  it("reports a first-frame submission failure and destroys the renderer", async () => {
+    const renderer = fakeRenderer();
+    renderer.render.mockImplementation(() => {
+      throw new Error("frame submit exploded");
+    });
+    mocks.createWebGpuRenderer.mockResolvedValue(renderer);
+    const canvas = fakeCanvas();
+    const status = { textContent: "" };
+    const rendererStatus = { textContent: "" };
+    const controller = await startWebGpuDemo({
+      view: { canvas, status, rendererStatus } as unknown as DemoView,
+      canvas,
+    });
+
+    expect(controller).toBeUndefined();
+    expect(canvas.dataset["renderer"]).toBe("unsupported");
+    expect(canvas.dataset["webgpu-error"]).toBe("frame-submission");
+    expect(status.textContent).toContain("frame submit exploded");
+    expect(renderer.destroy).toHaveBeenCalled();
   });
 
   it("drives instance updates as a delta instead of a whole-runtime rewrite", async () => {
@@ -257,5 +305,28 @@ describe("startWebGpuDemo", () => {
     });
     expect(second.recover).toHaveBeenCalledTimes(1);
     expect(second.lost).toBe(false);
+  });
+
+  it("reports a renderer re-creation failure instead of swallowing it", async () => {
+    const first = fakeRenderer();
+    mocks.createWebGpuRenderer.mockResolvedValueOnce(first);
+    const canvas = fakeCanvas();
+    const status = { textContent: "" };
+    const rendererStatus = { textContent: "" };
+    await startWebGpuDemo({
+      view: { canvas, status, rendererStatus } as unknown as DemoView,
+      canvas,
+    });
+
+    const seam = demoWindow.femgxDemo;
+    expect(seam).toBeDefined();
+    seam?.destroyRenderer();
+    mocks.createWebGpuRenderer.mockRejectedValue(new Error("re-creation failed"));
+    await seam?.recreateRenderer();
+
+    expect(canvas.dataset["renderer"]).toBe("unsupported");
+    expect(canvas.dataset["webgpu-error"]).toBe("renderer-setup");
+    expect(status.textContent).toContain("re-creation failed");
+    expect(rendererStatus.textContent).toBe("Renderer unsupported");
   });
 });
