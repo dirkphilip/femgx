@@ -5,8 +5,9 @@ export const DEFORMATION_UNIFORM_SIZE = 16;
 
 /**
  * Per-part nodal displacement storage for GPU-side vertex deformation. The
- * buffer holds `loadCaseCount * vertexCount * 3` floats laid out load-case
- * major, mirroring the `displacements` storage binding in `gpu-shaders.ts`.
+ * buffer holds `loadCaseCount * nodeCount * 3` floats laid out load-case
+ * major and indexed by `NodeId`, mirroring the `displacements` storage
+ * binding in `gpu-shaders.ts`.
  */
 export interface DeformationStorage {
   readonly buffer: GPUBuffer;
@@ -27,10 +28,11 @@ export interface DeformationState {
   /** Number of load cases stored per part displacement buffer. */
   readonly loadCaseCount: number;
   /**
-   * Per-part nodal displacement buffers, one vec3 per vertex per load case,
-   * load-case major. Vertex `i` aligns with node `i` of the owning model, as
-   * produced by `nodalDisplacements`. Buffers must be divisible by
-   * `loadCaseCount * 3` floats.
+   * Per-part nodal displacement buffers, one vec3 per model node per load
+   * case, load-case major. Each buffer is indexed by `NodeId`, as produced by
+   * `nodalDisplacements`; the vertex shader resolves every vertex to its node
+   * through the part's per-vertex node pick ids, so any tessellated geometry
+   * deforms correctly. Buffers must be divisible by `loadCaseCount * 3` floats.
    */
   readonly displacements: ReadonlyMap<PartId, Float32Array>;
 }

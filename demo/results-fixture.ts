@@ -1,3 +1,7 @@
+import { createElement } from "../src/elements/element";
+import { createElementModel } from "../src/elements/model";
+import { TET4_SHAPE } from "../src/elements/shapes";
+import { elementGeometry } from "../src/geometry/element-mesh";
 import {
   createResultField,
   createScalarColorMap,
@@ -10,7 +14,7 @@ import {
   type VectorField,
 } from "../src/index";
 
-/** Grid cells along X and Y; the mesh is a triangulated plate grid. */
+/** Grid cells along X and Y; the mesh is a plate grid of one tet per cell. */
 const CELLS_X = 6;
 const CELLS_Y = 4;
 const WIDTH = 6;
@@ -18,12 +22,20 @@ const DEPTH = 4;
 const NODE_COLUMNS = CELLS_X + 1;
 const NODE_ROWS = CELLS_Y + 1;
 const NODE_COUNT = NODE_COLUMNS * NODE_ROWS;
-const ELEMENT_COUNT = CELLS_X * CELLS_Y * 2;
+const ELEMENT_COUNT = CELLS_X * CELLS_Y;
 
-/** A triangulated FE mesh whose vertex index matches the node index. */
+/**
+ * A tessellated FE plate mesh: duplicated vertices per triangle plus the
+ * per-vertex node map that lets a nodal displacement field deform it, exactly
+ * what `elementGeometry` produces for an FE model.
+ */
 export interface ResultsMesh {
   readonly positions: Float32Array;
   readonly indices: Uint32Array;
+  /** Per-vertex node ids (`nodeId + 1`, `0` = interpolated). */
+  readonly nodePickIds: Uint32Array;
+  /** Owning element id of every triangle, for per-element stress coloring. */
+  readonly triangleElements: Uint32Array;
 }
 
 /** One analysis step: a displacement field, a stress field, and its von Mises. */
@@ -48,6 +60,9 @@ export interface ResultsFixture {
  * Builds the results demo: a cantilever plate in the XY plane with a nodal
  * displacement field and an elemental stress field per load case. Element 0 of
  * every stress field is missing (`NaN`) to exercise missing-value handling.
+ * The mesh is tessellated by the FE geometry builder (one degenerate tet per
+ * grid cell), so the demo exercises the node-mapped deformation path rather
+ * than a hand-built node-aligned vertex buffer.
  */
 export function createResultsFixture(): ResultsFixture {
   const mesh = buildMesh();
@@ -69,34 +84,53 @@ export function createResultsFixture(): ResultsFixture {
 }
 
 function buildMesh(): ResultsMesh {
-  const positions = new Float32Array(NODE_COUNT * 3);
+  const nodes: number[] = [];
   for (let row = 0; row < NODE_ROWS; row++) {
     for (let column = 0; column < NODE_COLUMNS; column++) {
-      const base = (row * NODE_COLUMNS + column) * 3;
-      positions[base] = (column / CELLS_X) * WIDTH;
-      positions[base + 1] = (row / CELLS_Y) * DEPTH;
-      positions[base + 2] = 0;
+      nodes.push((column / CELLS_X) * WIDTH, (row / CELLS_Y) * DEPTH, 0);
     }
   }
-  const indices = new Uint32Array(ELEMENT_COUNT * 3);
-  let element = 0;
+  const elements = [];
   for (let row = 0; row < CELLS_Y; row++) {
     for (let column = 0; column < CELLS_X; column++) {
       const n00 = row * NODE_COLUMNS + column;
       const n10 = n00 + 1;
+      const n11 = n00 + NODE_COLUMNS + 1;
       const n01 = n00 + NODE_COLUMNS;
-      const n11 = n01 + 1;
-      const base = element * 3;
-      indices[base] = n00;
-      indices[base + 1] = n10;
-      indices[base + 2] = n01;
-      indices[base + 3] = n10;
-      indices[base + 4] = n11;
-      indices[base + 5] = n01;
-      element += 2;
+      elements.push(createElement(row * CELLS_X + column, TET4_SHAPE, [n00, n10, n11, n01]));
     }
   }
-  return { positions, indices };
+  const geometry = elementGeometry(createElementModel(nodes, elements), "tet", "solid");
+  const nodePickIds = geometry.nodePickIds;
+  if (nodePickIds === undefined) {
+    throw new Error("results fixture mesh must be node-mapped");
+  }
+  return {
+    positions: geometry.positions,
+    indices: geometry.indices,
+    nodePickIds,
+    triangleElements: triangleElementsOf(geometry),
+  };
+}
+
+/** Maps each triangle to the element that tessellated it, in triangle order. */
+function triangleElementsOf(geometry: {
+  readonly indices: Uint32Array;
+  readonly elements?: readonly {
+    readonly id: number;
+    readonly triangleStart: number;
+    readonly triangleCount: number;
+  }[];
+}): Uint32Array {
+  const triangleCount = Math.floor(geometry.indices.length / 3);
+  const triangleElements = new Uint32Array(triangleCount);
+  for (const element of geometry.elements ?? []) {
+    const end = element.triangleStart + element.triangleCount;
+    for (let triangle = element.triangleStart; triangle < end; triangle++) {
+      triangleElements[triangle] = element.id;
+    }
+  }
+  return triangleElements;
 }
 
 function buildBendingCase(): ResultsLoadCase {
@@ -165,11 +199,9 @@ function buildStressField(
       const cx = (column + 0.5) / CELLS_X;
       const cy = (row + 0.5) / CELLS_Y;
       const components = tensor(cx, cy);
-      for (let half = 0; half < 2; half++) {
-        const base = (cell * 2 + half) * 6;
-        for (let index = 0; index < 6; index++) {
-          values[base + index] = components[index] ?? NaN;
-        }
+      const base = cell * 6;
+      for (let index = 0; index < 6; index++) {
+        values[base + index] = components[index] ?? NaN;
       }
     }
   }

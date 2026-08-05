@@ -103,8 +103,14 @@ export function startResultsDemo(view: ResultsDemoView, fixture: ResultsFixture)
     context.clearRect(0, 0, canvas.width, canvas.height);
     const caze = currentCase();
     const positions = state.deformed
-      ? deformPositions(fixture.mesh.positions, sampleDisplacements(player), state.scale)
+      ? deformPositions(
+          fixture.mesh.positions,
+          fixture.mesh.nodePickIds,
+          sampleDisplacements(player),
+          state.scale,
+        )
       : fixture.mesh.positions;
+    const triangleElements = fixture.mesh.triangleElements;
     for (let element = 0; element < fixture.mesh.indices.length / 3; element++) {
       const a = vertex(positions, fixture.mesh.indices[element * 3] ?? 0);
       const b = vertex(positions, fixture.mesh.indices[element * 3 + 1] ?? 0);
@@ -112,7 +118,7 @@ export function startResultsDemo(view: ResultsDemoView, fixture: ResultsFixture)
       const screen = projectPolygon(camera, [a, b, c]);
       if (screen.length < 3) continue;
       const color = state.scalar
-        ? mapScalar(fixture.colorMap, caze.vonMises[element] ?? NaN)
+        ? mapScalar(fixture.colorMap, caze.vonMises[triangleElements[element] ?? 0] ?? NaN)
         : fixture.baseColor;
       context.fillStyle = rgba(color);
       context.strokeStyle = "rgba(226, 232, 240, 0.45)";

@@ -354,6 +354,7 @@ describe("elementGeometry", () => {
     expect(geometry.indices.length).toBe(2 * 6);
     expect(containsPosition(geometry, [1, 2, 3])).toBe(true);
     expect(containsPosition(geometry, [4, 5, 6])).toBe(true);
+    expect(Array.from(geometry.nodePickIds ?? [])).toEqual([1, 1, 1, 1, 2, 2, 2, 2]);
   });
 
   it("generates line segments for line elements", () => {
@@ -362,6 +363,7 @@ describe("elementGeometry", () => {
     expect(geometry.indices.length).toBe(2 + 2 * 2);
     expect(containsPosition(geometry, [1, 2, 3])).toBe(true);
     expect(containsPosition(geometry, [7, 8, 9])).toBe(true);
+    expect(Array.from(geometry.nodePickIds ?? [])).toEqual([1, 2, 2, 1, 3]);
   });
 
   it("produces deterministic output on repeated calls", () => {

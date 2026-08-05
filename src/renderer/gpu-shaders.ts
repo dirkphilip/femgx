@@ -2,11 +2,13 @@
  * Shared WGSL for the instanced render passes. All vertex shaders read the
  * same camera and deformation uniforms and per-part instance storage, so parts
  * can mix triangle, line, and point-sprite primitives within one frame.
- * Triangle geometry additionally reads the per-triangle element and face pick
- * ids and the per-vertex node pick ids, plus the runtime-sized emphasis
- * records, so element/face/node emphasis can override the resolved instance
- * color; point sprites never carry emphasis. The triangle pick pass lives in
- * `gpu-node-pick.ts` so it can also report the nearest node.
+ * Every vertex shader reads the per-vertex node pick ids so displacement maps
+ * vertices back to their FE nodes (see `displacementFn`); triangle geometry
+ * additionally reads the per-triangle element and face pick ids plus the
+ * runtime-sized emphasis records, so element/face/node emphasis can override
+ * the resolved instance color; point sprites never carry emphasis. The
+ * triangle pick pass lives in `gpu-node-pick.ts` so it can also report the
+ * nearest node.
  */
 
 /** Camera uniform: view projection plus viewport and point size in pixels. */
@@ -81,6 +83,7 @@ export const instanceBindings = /* wgsl */ `
 @group(1) @binding(0) var<storage, read> instances: array<Instance>;
 @group(1) @binding(1) var<storage, read> drawOrder: array<u32>;
 @group(1) @binding(4) var<storage, read> displacements: array<f32>;
+@group(1) @binding(6) var<storage, read> vertexNodePickIds: array<u32>;
 `;
 
 /** Per-triangle and per-vertex pick data bindings used by the triangle stage. */
@@ -88,26 +91,32 @@ export const pickDataBindings = /* wgsl */ `
 @group(1) @binding(2) var<storage, read> triangleElementPickIds: array<u32>;
 @group(1) @binding(3) var<storage, read> elementHighlights: ElementHighlights;
 @group(1) @binding(5) var<storage, read> triangleFacePickIds: array<u32>;
-@group(1) @binding(6) var<storage, read> vertexNodePickIds: array<u32>;
 `;
 
 /**
  * Displaces a model-space vertex by the active load case's nodal displacement,
- * scaled by the deformation uniform. Parts without a displacement buffer (or a
- * disabled deformation uniform) return the vertex unchanged. `vertexIndex` is
- * the vertex buffer index, which aligns with the node numbering for parts that
- * carry deformation data.
+ * scaled by the deformation uniform. Each vertex is mapped to the model node
+ * it came from through the per-vertex `vertexNodePickIds` storage buffer
+ * (`nodeId + 1`, `0` = interpolated vertex with no node), so tessellated
+ * geometry that duplicates vertices per triangle/segment deforms like its FE
+ * nodes rather than assuming `vertexIndex == nodeIndex`. The `displacements`
+ * buffer is indexed by node id. Vertices without a node, whose node id falls
+ * outside the buffer, or under a disabled deformation uniform stay in place.
  */
 export const displacementFn = /* wgsl */ `
 fn displaced(position: vec3<f32>, vertexIndex: u32) -> vec3<f32> {
   if (deformation.loadCaseCount == 0u) {
     return position;
   }
-  let vertexCount = arrayLength(&displacements) / (3u * deformation.loadCaseCount);
-  if (vertexCount == 0u) {
+  let nodeCount = arrayLength(&displacements) / (3u * deformation.loadCaseCount);
+  if (nodeCount == 0u) {
     return position;
   }
-  let base = (deformation.loadCase * vertexCount + vertexIndex) * 3u;
+  let nodePickId = vertexNodePickIds[vertexIndex];
+  if (nodePickId == 0u || nodePickId > nodeCount) {
+    return position;
+  }
+  let base = (deformation.loadCase * nodeCount + nodePickId - 1u) * 3u;
   let delta = vec3<f32>(displacements[base], displacements[base + 1u], displacements[base + 2u]);
   return position + delta * deformation.scale;
 }
@@ -236,10 +245,10 @@ fn spriteCorner(corner: u32) -> vec2<f32> {
 fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
   let corner = spriteCorner(vertexIndex % 4u);
-  // The sprite draws four vertices per point (one per corner), so the point
-  // index is the vertex index divided by four; only that index aligns with the
-  // node numbering used by the displacement buffer.
-  let clip = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex / 4u), 1.0);
+  // The sprite draws four vertices per point (one per corner). Each corner
+  // carries the point's node pick id, so the displacement lookup can use the
+  // vertex index directly and the whole sprite follows its node's delta.
+  let clip = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   let offset = (corner * camera.pointSize) / camera.viewport;
   var output: VertexOutput;
   output.position = vec4<f32>(clip.x + offset.x * clip.w, clip.y + offset.y * clip.w, clip.z, clip.w);

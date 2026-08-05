@@ -58,16 +58,21 @@ renderer changes — see [[rendering/interactive-state|Interactive state]].
 
 ## Deformation (`deform.ts`)
 
-`deformPositions` / `deformGeometry` displace a geometry by a nodal displacement
-vector field times a `scale` factor. Vertex index `i` corresponds to node index
-`i` (geometry may cover a subset of nodes); missing displacements leave the
-original vertex in place.
+`deformPositions(positions, nodePickIds, displacements, scale)` / `deformGeometry(geometry,
+displacements, scale)` displace a geometry by a nodal displacement vector field times a `scale`
+factor. Vertices are mapped back to their model node through the per-vertex `nodePickIds` map
+(`nodeId + 1`, `0` = interpolated), so tessellated geometry that duplicates vertices per
+triangle/segment deforms like its FE nodes instead of assuming vertex `i` is node `i`.
+Vertices without a node, without a matching displacement, or whose displacement is missing
+(`NaN`) keep their original position. `deformGeometry` requires a node-mapped geometry
+(`elementGeometry`/`elementPart` always provide one) and throws otherwise.
 
-`nodalDisplacements(positions, cases)` builds the per-vertex displacement buffer
-consumed by the GPU renderer's deformed-shape path: one vec3 per vertex per load
-case, load-case major (`[case 0 vertex 0, case 0 vertex 1, ..., case 1 vertex
-0, ...]`), with `NaN`/missing values zeroed so the vertex stays put. Feed it
-into `DeformationState.displacements` for one part.
+`nodalDisplacements(nodeCount, cases)` builds the per-node displacement buffer consumed by the
+GPU renderer's deformed-shape path: one vec3 per model node per load case, load-case major
+(`[case 0 node 0, case 0 node 1, ..., case 1 node 0, ...]`) and indexed by `NodeId`. Pass the
+owning model's node count (the largest node id used by the part's vertices plus one). `NaN`/
+missing values are zeroed so the node stays put. Feed it into
+`DeformationState.displacements` for one part.
 
 ## GPU deformed shapes (`gpu-deform.ts`)
 
@@ -78,11 +83,13 @@ The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
   deformation uniform (scale + active load case) every frame and uploads each
   part's displacement buffer once, reusing it until the array reference changes.
 - `displacements` is a `ReadonlyMap<PartId, Float32Array>`; each buffer holds
-  `loadCaseCount * vertexCount * 3` floats (build them with
+  `loadCaseCount * nodeCount * 3` floats indexed by `NodeId` (build them with
   `nodalDisplacements`). `loadCaseCount` of 0 disables deformation.
-- The WGSL vertex shaders (`gpu-shaders.ts`) add `displacement * scale` to the
-  model-space vertex in the triangle, point-sprite, and edge-overlay passes, so
-  the wireframe and picking stay aligned with the deformed solid.
+- The WGSL vertex shaders (`gpu-shaders.ts`) resolve each vertex to its FE node through the
+  part's per-vertex node pick ids and add `displacement * scale` to the model-space vertex in
+  the triangle, point-sprite, and edge-overlay passes, so the wireframe and picking stay
+  aligned with the deformed solid. Interpolated tessellation vertices (e.g. quadratic quad
+  centers) have no node and stay in place.
 - Geometry upload stays amortized: only the tiny uniform (and a compact displacement buffer on load-case change) is rewritten, matching the delta-oriented architecture — see [[rendering/renderer-subrange-updates|Renderer subrange updates]].
 
 ## Load-case playback (`case-player.ts`)
@@ -105,8 +112,11 @@ blend, matching the field conventions.
 
 ## Demo
 
-`demo/results-fixture.ts` + `demo/results-demo.ts` render a triangulated
-cantilever plate through the deterministic CPU 2D renderer:
+`demo/results-fixture.ts` + `demo/results-demo.ts` render a cantilever plate
+through the deterministic CPU 2D renderer. The mesh is tessellated by the FE
+geometry builder (`elementGeometry`, one degenerate tet per grid cell), so the
+demo deforms it through the node-mapped CPU path rather than a hand-built
+node-aligned vertex buffer:
 
 - two load cases (bending, twist) with nodal displacement and elemental stress
   fields, von Mises derived through the library, and one intentionally missing

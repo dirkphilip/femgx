@@ -18,7 +18,7 @@ import {
 } from "./part";
 import type { PartId } from "../scene/types";
 import { tessellateFace } from "./face-tessellation";
-import { LineMeshBuilder, TriangleMeshBuilder } from "./mesh-builder";
+import { LineMeshBuilder, TriangleMeshBuilder, type MeshVertex } from "./mesh-builder";
 import { quadraticPoint, type Vec3 } from "./vec-math";
 
 /**
@@ -237,8 +237,13 @@ function lineGeometry(model: ElementModel, segments: number): Geometry {
 function pointGeometry(model: ElementModel): Geometry {
   const positions: number[] = [];
   const indices: number[] = [];
+  const nodePickIds: number[] = [];
   for (const element of elementsOf(model, "point")) {
-    const point = nodePosition(model, element.nodeIds[0] as NodeId);
+    const nodeId = element.nodeIds[0];
+    if (nodeId === undefined) {
+      throw new Error("Point element must reference exactly one node");
+    }
+    const point = nodePosition(model, nodeId);
     const base = positions.length / 3;
     positions.push(
       point[0],
@@ -254,12 +259,14 @@ function pointGeometry(model: ElementModel): Geometry {
       point[1],
       point[2],
     );
+    nodePickIds.push(nodeId + 1, nodeId + 1, nodeId + 1, nodeId + 1);
     indices.push(base, base + 1, base + 2, base + 2, base + 1, base + 3);
   }
   return {
     positions: new Float32Array(positions),
     indices: new Uint32Array(indices),
     primitive: "points",
+    nodePickIds: new Uint32Array(nodePickIds),
   };
 }
 
@@ -283,7 +290,11 @@ export function faceTriangles(
 }
 
 /** Returns the interpolated control points of an edge (corners + mid node). */
-function edgePoints(model: ElementModel, edge: ElementEdge, segments: number): readonly Vec3[] {
+function edgePoints(
+  model: ElementModel,
+  edge: ElementEdge,
+  segments: number,
+): readonly MeshVertex[] {
   const first = edge.nodeIds[0];
   const last = edge.nodeIds[edge.nodeIds.length - 1];
   if (first === undefined || last === undefined) {
@@ -292,7 +303,10 @@ function edgePoints(model: ElementModel, edge: ElementEdge, segments: number): r
   const a = nodePosition(model, first);
   const b = nodePosition(model, last);
   if (edge.nodeIds.length === 2) {
-    return [a, b];
+    return [
+      { point: a, nodeId: first },
+      { point: b, nodeId: last },
+    ];
   }
   const midNodeId = edge.nodeIds[1];
   if (midNodeId === undefined) {
@@ -300,10 +314,14 @@ function edgePoints(model: ElementModel, edge: ElementEdge, segments: number): r
   }
   const mid = nodePosition(model, midNodeId);
   const count = Math.max(2, segments);
-  const points: Vec3[] = [];
+  const points: MeshVertex[] = [];
   for (let step = 0; step <= count; step += 1) {
     const t = step / count;
-    points.push(quadraticPoint(a, mid, b, t));
+    let nodeId: number | undefined;
+    if (step === 0) nodeId = first;
+    else if (step === count) nodeId = last;
+    else if (count % 2 === 0 && step === count / 2) nodeId = midNodeId;
+    points.push({ point: quadraticPoint(a, mid, b, t), nodeId });
   }
   return points;
 }
