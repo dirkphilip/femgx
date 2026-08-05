@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { required } from "./helpers";
 import { parseVtk, writeVtk } from "../../src/io/parse";
 import { createModelBuilder } from "../../src/io/build";
+import { Uint32Buffer } from "../../src/io/growable";
+import { createParseSession } from "../../src/io/session";
+import { createVtkState } from "../../src/io/vtk";
+import { readCellsLine, readCellTypesLine } from "../../src/io/vtk-cells";
 import { TET4_SHAPE, HEX8_SHAPE } from "../../src/elements/shapes";
 
 const TET_VTK = [
@@ -161,6 +165,138 @@ describe("parseVtk", () => {
     const result = parseVtk(source);
     expect(result.issues.map((issue) => issue.code)).toContain("cell-type-count-mismatch");
     expect(result.model.elementBlocks[0]?.count).toBe(1);
+  });
+
+  it("skips cells with fractional or negative node ids and reports bad-cell-shape", () => {
+    const source = [
+      "# vtk DataFile Version 5.0",
+      "tet example",
+      "ASCII",
+      "DATASET UNSTRUCTURED_GRID",
+      "POINTS 4 double",
+      "0 0 0",
+      "1 0 0",
+      "0 1 0",
+      "0 0 1",
+      "CELLS 3 15",
+      "4 0 1 2.5 3",
+      "4 0 1 2 3",
+      "4 -1 1 2 3",
+      "CELL_TYPES 3",
+      "10",
+      "10",
+      "10",
+      "",
+    ].join("\n");
+    const result = parseVtk(source);
+    expect(result.issues.map((issue) => issue.code)).toContain("bad-cell-shape");
+    expect(result.model.elementBlocks).toHaveLength(1);
+    expect(result.model.elementBlocks[0]?.count).toBe(1);
+    expect([...required(result.model.elementBlocks[0]).ids]).toEqual([1]);
+    expect([...required(result.model.elementBlocks[0]).connectivity]).toEqual([0, 1, 2, 3]);
+  });
+
+  it("reports fractional and oversized cell types as unsupported instead of truncating", () => {
+    const source = [
+      "# vtk DataFile Version 5.0",
+      "tet example",
+      "ASCII",
+      "DATASET UNSTRUCTURED_GRID",
+      "POINTS 4 double",
+      "0 0 0",
+      "1 0 0",
+      "0 1 0",
+      "0 0 1",
+      "CELLS 3 15",
+      "4 0 1 2 3",
+      "4 0 1 2 3",
+      "4 0 1 2 3",
+      "CELL_TYPES 3",
+      "10.5",
+      "4294967297",
+      "10",
+      "",
+    ].join("\n");
+    const result = parseVtk(source);
+    expect(
+      result.issues.map((issue) => issue.code).filter((code) => code === "unsupported-cell-type"),
+    ).toHaveLength(2);
+    expect(result.model.elementBlocks).toHaveLength(1);
+    expect(result.model.elementBlocks[0]?.count).toBe(1);
+    expect([...required(result.model.elementBlocks[0]).ids]).toEqual([2]);
+  });
+});
+
+describe("parseVtk streaming memory", () => {
+  it("accumulates a large cell table in compact typed-array buffers", () => {
+    const cellCount = 2_000;
+    const session = createParseSession();
+    const state = createVtkState(session);
+    state.cellsRemaining = cellCount;
+    for (let cell = 0; cell < cellCount; cell += 1) {
+      readCellsLine(state, "4 0 1 2 3", cell + 20);
+    }
+    expect(state.cellCount).toBe(cellCount);
+    expect(state.cellStarts.size).toBe(cellCount);
+    expect(state.cellConnectivity.size).toBe(cellCount * 4);
+    expect(state.cellConnectivity.toArray()).toBeInstanceOf(Uint32Array);
+    expect(state.cellStarts).toBeInstanceOf(Uint32Buffer);
+    expect(state.cellConnectivity).toBeInstanceOf(Uint32Buffer);
+    expect(state.cellStarts.byteLength).toBeLessThanOrEqual(cellCount * 8);
+    expect(state.cellConnectivity.byteLength).toBeLessThanOrEqual(cellCount * 4 * 8);
+
+    state.cellTypesRemaining = cellCount;
+    for (let cell = 0; cell < cellCount; cell += 1) {
+      readCellTypesLine(state, "10", cell + 20);
+    }
+    expect(state.cellTypes.size).toBe(cellCount);
+    expect(state.cellTypes.toArray()).toBeInstanceOf(Uint32Array);
+    expect(state.cellTypes).toBeInstanceOf(Uint32Buffer);
+    expect(state.cellTypes.byteLength).toBeLessThanOrEqual(cellCount * 8);
+  });
+
+  it("parses a large mixed-shape fixture into typed element blocks", () => {
+    const cellCount = 5_000;
+    const hexCount = Math.floor(cellCount / 2);
+    const tetCount = cellCount - hexCount;
+    const lines: string[] = [
+      "# vtk DataFile Version 5.0",
+      "streaming memory",
+      "ASCII",
+      "DATASET UNSTRUCTURED_GRID",
+      "POINTS 8 double",
+      "0 0 0",
+      "1 0 0",
+      "1 1 0",
+      "0 1 0",
+      "0 0 1",
+      "1 0 1",
+      "1 1 1",
+      "0 1 1",
+      `CELLS ${String(cellCount)} ${String(cellCount * 9)}`,
+    ];
+    for (let cell = 0; cell < hexCount; cell += 1) {
+      lines.push("8 0 1 2 3 4 5 6 7");
+    }
+    for (let cell = 0; cell < tetCount; cell += 1) {
+      lines.push("4 0 1 2 3");
+    }
+    lines.push(`CELL_TYPES ${String(cellCount)}`);
+    for (let cell = 0; cell < hexCount; cell += 1) {
+      lines.push("12");
+    }
+    for (let cell = 0; cell < tetCount; cell += 1) {
+      lines.push("10");
+    }
+
+    const result = parseVtk(lines.join("\n"));
+    expect(result.issues).toEqual([]);
+    expect(result.model.elementBlocks.map((block) => block.shape.family)).toEqual(["hex", "tet"]);
+    expect(result.model.elementBlocks.map((block) => block.count)).toEqual([hexCount, tetCount]);
+    for (const block of result.model.elementBlocks) {
+      expect(block.ids).toBeInstanceOf(Uint32Array);
+      expect(block.connectivity).toBeInstanceOf(Uint32Array);
+    }
   });
 });
 

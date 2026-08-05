@@ -1,4 +1,5 @@
 import type { ElementShape } from "../elements/shapes";
+import { Float64Buffer, Uint32Buffer } from "./growable";
 import { textLines, tokensOf } from "./numbers";
 import { createParseSession, finishParse, type ParseOptions, type ParseResult } from "./session";
 import type { ParseSession } from "./session";
@@ -48,16 +49,16 @@ export interface VtkState {
   coords: number[];
   nextNodeId: number;
   cellsRemaining: number;
-  cellStarts: number[];
-  cellConnectivity: number[];
+  cellStarts: Uint32Buffer;
+  cellConnectivity: Uint32Buffer;
   cellTypesRemaining: number;
-  cellTypes: number[];
+  cellTypes: Uint32Buffer;
   cellCount: number;
   sectionCount: number;
   location: "node" | "element";
   arrayName: string;
   components: number;
-  arrayValues: number[];
+  arrayValues: Float64Buffer;
   fieldRemaining: number;
   dataBlocks: ArrayBlock[];
   openShape: ElementShape | undefined;
@@ -98,16 +99,16 @@ export function createVtkState(session: ParseSession): VtkState {
     coords: [],
     nextNodeId: 0,
     cellsRemaining: 0,
-    cellStarts: [],
-    cellConnectivity: [],
+    cellStarts: new Uint32Buffer(),
+    cellConnectivity: new Uint32Buffer(),
     cellTypesRemaining: 0,
-    cellTypes: [],
+    cellTypes: new Uint32Buffer(),
     cellCount: 0,
     sectionCount: 0,
     location: "node",
     arrayName: "",
     components: 0,
-    arrayValues: [],
+    arrayValues: new Float64Buffer(),
     fieldRemaining: 0,
     dataBlocks: [],
     openShape: undefined,

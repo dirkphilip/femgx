@@ -23,6 +23,12 @@ const VTK_TYPES: ReadonlyMap<number, ElementShape> = new Map([
   [25, HEX20_SHAPE],
 ]);
 
+/** Sentinel `cellStarts` entry marking a cell whose node ids were not valid integers. */
+const MISSING_START = 0xffffffff;
+
+/** Sentinel `cellTypes` entry marking a type that is not a non-negative 32-bit integer. */
+const INVALID_TYPE = 0xffffffff;
+
 /** Starts collecting a POINTS block; `tokens[1]` is the node count. */
 export function startPoints(state: VtkState, tokens: readonly string[], line: number): void {
   const count = Number(tokens[1]);
@@ -138,10 +144,13 @@ export function readCellsLine(state: VtkState, text: string, line: number): void
     state.session.report("extra-cell-data", "More cells than declared in CELLS", { line });
     return;
   }
-  state.cellStarts.push(state.cellConnectivity.length);
-  for (let index = 1; index < values.length; index += 1) {
-    state.cellConnectivity.push(values[index] ?? 0);
-  }
+  const ids = values.slice(1);
+  state.cellStarts.push(
+    ids.every((id) => Number.isInteger(id) && id >= 0)
+      ? state.cellConnectivity.size
+      : MISSING_START,
+  );
+  state.cellConnectivity.append(ids);
   state.cellCount += 1;
   state.cellsRemaining -= 1;
 }
@@ -160,7 +169,8 @@ export function readCellTypesLine(state: VtkState, text: string, line: number): 
       });
       return;
     }
-    state.cellTypes.push(value);
+    const validType = Number.isInteger(value) && value >= 0 && value <= INVALID_TYPE;
+    state.cellTypes.push(validType ? value : INVALID_TYPE);
     state.cellTypesRemaining -= 1;
   }
 }
@@ -168,10 +178,10 @@ export function readCellTypesLine(state: VtkState, text: string, line: number): 
 /** Finalizes geometry: assembles element blocks and appends attribute results. */
 export function finalizeGeometry(state: VtkState): void {
   flushPoints(state);
-  if (state.cellTypes.length !== state.cellCount) {
+  if (state.cellTypes.size !== state.cellCount) {
     state.session.report(
       "cell-type-count-mismatch",
-      `CELLS declares ${String(state.cellCount)} cells but CELL_TYPES holds ${String(state.cellTypes.length)} entries`,
+      `CELLS declares ${String(state.cellCount)} cells but CELL_TYPES holds ${String(state.cellTypes.size)} entries`,
     );
   }
   assembleVtkElements(state);
@@ -181,17 +191,24 @@ export function finalizeGeometry(state: VtkState): void {
 }
 
 function assembleVtkElements(state: VtkState): void {
-  for (let cell = 0; cell < state.cellTypes.length; cell += 1) {
-    const shape = VTK_TYPES.get(state.cellTypes[cell] ?? -1);
+  for (let cell = 0; cell < state.cellTypes.size; cell += 1) {
+    const shape = VTK_TYPES.get(state.cellTypes.at(cell) ?? -1);
     if (shape === undefined) {
       state.session.report(
         "unsupported-cell-type",
-        `Skipping cell ${String(cell)} with unsupported VTK type ${String(state.cellTypes[cell])}`,
+        `Skipping cell ${String(cell)} with unsupported VTK type ${String(state.cellTypes.at(cell))}`,
       );
       continue;
     }
     const nodeCount = topologyFor(shape).nodeCount;
-    const start = state.cellStarts[cell];
+    const start = state.cellStarts.at(cell);
+    if (start === MISSING_START) {
+      state.session.report(
+        "bad-cell-shape",
+        `Cell ${String(cell)} does not match shape ${shape.family} order ${String(shape.order)}`,
+      );
+      continue;
+    }
     if (start === undefined) {
       state.session.report(
         "missing-cell-connectivity",
@@ -200,7 +217,7 @@ function assembleVtkElements(state: VtkState): void {
       continue;
     }
     const connectivity = state.cellConnectivity.slice(start, start + nodeCount);
-    if (connectivity.length !== nodeCount || !validNodeIds(connectivity)) {
+    if (connectivity.length !== nodeCount) {
       state.session.report(
         "bad-cell-shape",
         `Cell ${String(cell)} does not match shape ${shape.family} order ${String(shape.order)}`,
@@ -213,13 +230,4 @@ function assembleVtkElements(state: VtkState): void {
     }
     state.session.builder.appendElements([cell], connectivity);
   }
-}
-
-function validNodeIds(ids: readonly number[]): boolean {
-  for (const id of ids) {
-    if (!Number.isInteger(id) || id < 0) {
-      return false;
-    }
-  }
-  return true;
 }

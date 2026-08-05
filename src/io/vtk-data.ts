@@ -1,3 +1,4 @@
+import { Float64Buffer } from "./growable";
 import { numbersOf, tokensOf } from "./numbers";
 import type { VtkState } from "./vtk";
 
@@ -7,7 +8,7 @@ export interface ArrayBlock {
   readonly name: string;
   readonly components: number;
   readonly count: number;
-  readonly values: readonly number[];
+  readonly values: Float64Array;
 }
 
 /** Starts a POINT_DATA or CELL_DATA section with a known entity count. */
@@ -41,7 +42,7 @@ export function startArray(state: VtkState, components: number, name: string, li
   }
   state.arrayName = name;
   state.components = components;
-  state.arrayValues = [];
+  state.arrayValues = new Float64Buffer();
   state.mode = "data";
 }
 
@@ -64,10 +65,10 @@ export function closeArray(state: VtkState): void {
     return;
   }
   const expected = state.sectionCount * state.components;
-  if (state.arrayValues.length !== expected) {
+  if (state.arrayValues.size !== expected) {
     state.session.report(
       "array-shape",
-      `Attribute ${state.arrayName} has ${String(state.arrayValues.length)} values but ${String(expected)} are expected`,
+      `Attribute ${state.arrayName} has ${String(state.arrayValues.size)} values but ${String(expected)} are expected`,
     );
   }
   const block: ArrayBlock = {
@@ -80,7 +81,7 @@ export function closeArray(state: VtkState): void {
   state.dataBlocks.push(block);
   state.arrayName = "";
   state.components = 0;
-  state.arrayValues = [];
+  state.arrayValues = new Float64Buffer();
 }
 
 /** Consumes a numeric line while collecting a plain attribute array. */
@@ -92,7 +93,7 @@ export function readDataLine(state: VtkState, text: string, line: number): void 
   }
   const expected = state.sectionCount * state.components;
   for (const value of values) {
-    if (state.arrayValues.length >= expected) {
+    if (state.arrayValues.size >= expected) {
       state.session.report(
         "extra-array-data",
         `Attribute ${state.arrayName} has more values than expected`,
@@ -130,12 +131,12 @@ export function readFieldLine(state: VtkState, text: string, line: number): void
     state.arrayName = name;
     state.components = components;
     state.sectionCount = tuples;
-    state.arrayValues = [];
+    state.arrayValues = new Float64Buffer();
     return;
   }
   const expected = state.sectionCount * state.components;
   for (const value of values) {
-    if (state.arrayValues.length >= expected) {
+    if (state.arrayValues.size >= expected) {
       state.session.report(
         "extra-array-data",
         `Attribute ${state.arrayName} has more values than expected`,

@@ -70,6 +70,10 @@ vanishing silently.
 
 Readers are split into focused files to stay under the `max-lines` budget:
 
+- `growable.ts` — shared growable `Uint32Buffer`/`Float64Buffer` typed-array
+  backing stores used by the chunked builder and the VTK legacy reader so
+  intermediate connectivity/type/value tables stay compact (never boxed JS
+  numbers) even when a full section is buffered before assembly.
 - `vtk.ts` (state + dispatch) / `vtk-cells.ts` (points, cells, types) /
   `vtk-data.ts` (attribute arrays and results).
 - `gmsh.ts` (sections) / `gmsh-scan.ts` (nodes + elements) /
