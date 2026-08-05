@@ -46,17 +46,21 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 
 ## GPU emphasis without material clones
 
-- Each part storage has a fixed-capacity `ElementHighlights` storage buffer
-  (records at `ELEMENT_RECORD_STRIDE` bytes, up to `MAX_ELEMENT_HIGHLIGHTS`
+- Each part storage has a growable `ElementHighlights` storage buffer
+  (records at `ELEMENT_RECORD_STRIDE` bytes, initially `INITIAL_ELEMENT_HIGHLIGHTS`
   records) that the color vertex shader scans per triangle: a record matching
   the part-local slot and the triangle's element pick id overrides color and
   emissive. Emphasis therefore never clones materials or rebuilds geometry.
 - `syncElementHighlights` maps emphasized refs to per-part records
   (`collectElementHighlightUpdates`), dropping refs whose instance is not in the
   layout (e.g. hidden or stale), and `writeElementHighlights` diffs against a
-  CPU mirror so only changed byte subranges reach the GPU. Records beyond the
-  fixed capacity are dropped (documented rendering limit for very large
-  selections).
+  CPU mirror so only changed byte subranges reach the GPU. When an emphasis list
+  outgrows a part's buffer it is recreated larger (doubling from the initial
+  capacity), the old buffer is destroyed, and the cached bind group invalidated
+  so the next draw binds the larger buffer — records are never silently dropped.
+- The WGSL `ElementHighlights` struct declares `records` as a runtime-sized
+  `array<ElementHighlight>`, so the buffer size is a CPU-side concern: the
+  shader scans exactly `count` records regardless of capacity.
 - WGSL alignment trap: `vec3<T>` aligns to 16 bytes, so a `vec3` struct member
   forces a 64-byte `ElementHighlight` stride and pushes the header padding of
   `ElementHighlights` to 16 bytes (records to 32). Keep the CPU/GPU record
@@ -94,6 +98,13 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 
 ## Limits and follow-ups
 
-- Element emphasis is per-part bounded (`MAX_ELEMENT_HIGHLIGHTS`); very large
-  multi-element selections render the first records only (tracked in
-  [femgx#68](https://github.com/dirkphilip/femgx/issues/68)).
+- Element-highlight buffers grow on demand, so there is no fixed per-part
+  element-selection cap; the vertex shader scans every record per triangle, so
+  selections on the order of the whole model (or every element across many
+  instances of one part) can cost draw time and GPU memory (the buffer is bounded
+  by `maxStorageBufferBindingSize`). Very large selections are a performance
+  concern, not a correctness one (resolved in
+  [femgx#68](https://github.com/dirkphilip/femgx/issues/68); the linear scan is
+  tracked in [femgx#95](https://github.com/dirkphilip/femgx/issues/95)).
+- The edge overlay draws instance-level emphasis, not per-element edges, because
+  edges shared between adjacent elements have no unambiguous element owner.

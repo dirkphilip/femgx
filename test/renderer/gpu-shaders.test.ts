@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { WgslReflect, type StructInfo } from "wgsl_reflect";
 import { EMISSIVE_BYTE_OFFSET, INSTANCE_STRIDE } from "../../src/renderer/gpu-draw";
-import {
-  ELEMENT_RECORD_STRIDE,
-  HIGHLIGHT_HEADER,
-  MAX_ELEMENT_HIGHLIGHTS,
-} from "../../src/renderer/gpu-elements";
+import { ELEMENT_RECORD_STRIDE, HIGHLIGHT_HEADER } from "../../src/renderer/gpu-elements";
 import { CAMERA_UNIFORM_SIZE } from "../../src/renderer/gpu-pipelines";
 import { DEFORMATION_UNIFORM_SIZE } from "../../src/renderer/gpu-deform";
 import {
@@ -57,12 +53,12 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(structInfo(instanceVertexShader, "ElementHighlight").size).toBe(ELEMENT_RECORD_STRIDE);
   });
 
-  it("places ElementHighlights records at the header offset and stride the CPU allocates", () => {
+  it("declares a runtime-sized records array at the header offset the CPU allocates", () => {
     const info = structInfo(instanceVertexShader, "ElementHighlights");
     const offsets = memberOffsets(info);
     expect(offsets.get("count")).toBe(0);
     expect(offsets.get("records")).toBe(HIGHLIGHT_HEADER);
-    expect(info.size).toBe(HIGHLIGHT_HEADER + MAX_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE);
+    expect(info.size).toBe(HIGHLIGHT_HEADER);
   });
 
   it.each(vertexShaders)(

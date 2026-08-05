@@ -27,18 +27,18 @@ import type { InstanceLayout } from "./runtime-state";
 export const ELEMENT_RECORD_STRIDE = 48;
 
 /**
- * Byte offset of the `items` array inside the highlight buffer. The WGSL
- * struct packs `count` at offset 0 and aligns the 128-element array to 16
- * bytes, so records start at offset 16.
+ * Byte offset of the `records` array inside the highlight buffer. The WGSL
+ * struct packs `count` at offset 0 and aligns the runtime-sized records array
+ * to 16 bytes, so records start at offset 16.
  */
 export const HIGHLIGHT_HEADER = 16;
 
 /**
- * Maximum element-highlight records written per part. The vertex shader scans
- * this bounded list, so selections larger than this render the first records
- * only; see `wiki/element-interaction.md`.
+ * Initial element-highlight records allocated per part. The vertex shader
+ * scans the runtime-sized records list, so the buffer grows on demand when a
+ * selection exceeds this size and records are never dropped.
  */
-export const MAX_ELEMENT_HIGHLIGHTS = 128;
+export const INITIAL_ELEMENT_HIGHLIGHTS = 128;
 
 /** One element-level emphasis record destined for a part's highlight buffer. */
 export interface ElementHighlightUpdate {
@@ -120,9 +120,16 @@ export interface HighlightStorage {
   data: Uint8Array<ArrayBuffer>;
 }
 
-/** Creates the fixed-capacity highlight buffer for one part's storage. */
-export function createHighlightStorage(device: GPUDevice): HighlightStorage {
-  const size = HIGHLIGHT_HEADER + MAX_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE;
+/**
+ * Creates a highlight buffer sized for `capacity` element-highlight records
+ * plus its header. The buffer can only grow by recreating it; callers grow it
+ * on demand when an emphasis list exceeds the current capacity.
+ */
+export function createHighlightStorage(
+  device: GPUDevice,
+  capacity = INITIAL_ELEMENT_HIGHLIGHTS,
+): HighlightStorage {
+  const size = HIGHLIGHT_HEADER + capacity * ELEMENT_RECORD_STRIDE;
   const buffer = device.createBuffer({
     size,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
@@ -169,17 +176,19 @@ export function collectElementHighlightUpdates(
 
 /**
  * Replaces a part's emphasis records, writing only the byte subranges whose
- * count or records changed since the last write. Records beyond the per-part
- * capacity are dropped so the buffer size stays fixed and bind groups stay
- * valid across selection deltas.
+ * count or records changed since the last write. When an emphasis list exceeds
+ * the buffer's capacity the highlight buffer is recreated larger (destroying
+ * the old buffer and invalidating the cached bind group), so every record is
+ * always uploaded and no selection is silently dropped.
  */
 export function writeElementHighlights(
   device: GPUDevice,
   storage: InstanceStorage,
   updates: readonly ElementHighlightUpdate[],
 ): void {
+  const count = updates.length;
+  growHighlightStorage(device, storage, count);
   const next = new Uint8Array(storage.highlight.data);
-  const count = Math.min(updates.length, MAX_ELEMENT_HIGHLIGHTS);
   const view = new Uint32Array(next.buffer);
   if (view[0] !== count) {
     view[0] = count;
@@ -212,6 +221,32 @@ export function writeElementHighlights(
     }
   }
   previous.set(next);
+}
+
+/**
+ * Recreates the part's highlight buffer with room for `count` records when the
+ * current one is too small, copying the CPU mirror and re-uploading it so the
+ * diff in `writeElementHighlights` keeps writing only changed subranges. The
+ * old buffer is destroyed and the cached bind group invalidated so the next
+ * draw recreates it against the larger buffer.
+ */
+function growHighlightStorage(device: GPUDevice, storage: InstanceStorage, count: number): void {
+  const highlight = storage.highlight;
+  const capacity = highlightCapacity(highlight.data.byteLength);
+  if (count <= capacity) return;
+  const nextCapacity = Math.max(count, capacity * 2);
+  const grown = createHighlightStorage(device, nextCapacity);
+  const mirror = new Uint8Array(grown.data);
+  mirror.set(highlight.data);
+  device.queue.writeBuffer(grown.buffer, 0, mirror);
+  highlight.buffer.destroy();
+  storage.highlight = grown;
+  storage.bindGroup = undefined;
+}
+
+/** Element-highlight record capacity implied by a buffer's byte size. */
+function highlightCapacity(byteLength: number): number {
+  return (byteLength - HIGHLIGHT_HEADER) / ELEMENT_RECORD_STRIDE;
 }
 
 /** The draw-path inputs needed to sync element-highlight buffers. */

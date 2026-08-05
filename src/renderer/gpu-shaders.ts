@@ -3,8 +3,9 @@
  * the same camera uniform and per-part instance storage, so parts can mix
  * triangle, line, and point-sprite primitives within one frame. Triangle and
  * line primitives additionally read the per-triangle element pick ids and the
- * bounded element-highlight records so element-level emphasis can override the
- * resolved instance color; point sprites never carry element emphasis.
+ * runtime-sized element-highlight records so element-level emphasis can
+ * override the resolved instance color; point sprites never carry element
+ * emphasis.
  */
 
 /** Camera uniform: view projection plus viewport and point size in pixels. */
@@ -57,10 +58,12 @@ struct ElementHighlight {
 // records starts at byte offset 16 to keep the 16-byte element alignment;
 // matches HIGHLIGHT_HEADER in gpu-elements.ts. The header padding is a plain
 // array so it stays 4-byte aligned (a vec3 would move records to offset 32).
+// records is a runtime-sized array so each part's buffer can grow on demand
+// without a fixed element-highlight cap (see wiki/element-interaction.md).
 struct ElementHighlights {
   count: u32,
   _padding: array<u32, 3>,
-  records: array<ElementHighlight, 128>,
+  records: array<ElementHighlight>,
 };
 `;
 
