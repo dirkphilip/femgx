@@ -174,6 +174,7 @@ export class WorkbenchController {
     for (const assemblyId of preset.scene.visibleAssemblyIds) {
       this.assemblyVisible.add(assemblyId);
     }
+    this.applyModeVisibility();
     this.populateVisibilityPanel();
     this.canvas.dataset["model"] = preset.id;
     this.canvas.dataset["mode"] = this.mode;

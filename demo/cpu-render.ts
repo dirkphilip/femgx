@@ -148,7 +148,7 @@ function drawTriangles(draw: TriangleDraw): void {
     context.strokeStyle = rgba(style.color, style.opacity);
     context.lineWidth = style.edge ? 1 : 0;
     context.beginPath();
-    let started = false;
+    let drawn = false;
     const end = element.triangleStart + element.triangleCount;
     for (let triangle = element.triangleStart; triangle < end; triangle++) {
       const baseIndex = triangle * 3;
@@ -156,13 +156,13 @@ function drawTriangles(draw: TriangleDraw): void {
       const b = projectVertex(camera, transform, positions, indices[baseIndex + 1] ?? 0);
       const c = projectVertex(camera, transform, positions, indices[baseIndex + 2] ?? 0);
       if (a === undefined || b === undefined || c === undefined) continue;
-      if (started) context.moveTo(a[0], a[1]);
-      else started = true;
+      context.moveTo(a[0], a[1]);
       context.lineTo(b[0], b[1]);
       context.lineTo(c[0], c[1]);
       context.closePath();
+      drawn = true;
     }
-    if (!started) continue;
+    if (!drawn) continue;
     context.fill();
     if (style.edge) context.stroke();
   }

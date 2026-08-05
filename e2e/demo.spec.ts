@@ -81,6 +81,7 @@ test("switches between deterministic model presets", async ({ page }) => {
   await select.selectOption("frame");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "frame");
   await expect(page.getByTestId("status")).toContainText("Portal frame");
+  await expect(page.getByTestId("status")).toContainText("1 visible");
 
   await select.selectOption("gallery");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "gallery");
