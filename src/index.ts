@@ -107,6 +107,7 @@ export {
   type WebGpuRenderer,
   type WebGpuRendererOptions,
 } from "./renderer/gpu-renderer";
+export { changedInstanceSlots } from "./renderer/interaction-diff";
 export type { DeformationState } from "./renderer/gpu-deform";
 export {
   queryWebGpuSupport,
