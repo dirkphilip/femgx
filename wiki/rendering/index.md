@@ -4,6 +4,8 @@
   depth-range and projection conventions.
 - [[rendering/camera-presentation|Camera presentation]] — perspective framing,
   projection transitions, and CAD-style navigation.
+- [[rendering/camera-touch-controls|Camera touch controls]] — pointer-driven
+  one-finger orbit, pinch zoom, two-finger pan, and gesture cancellation.
 - [[rendering/element-interaction|Element-level interaction]] — element
   picking, selection, highlighting, and edge overlays.
 - [[rendering/fe-inspection-workbench|FE inspection workbench]] — the demo's
