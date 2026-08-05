@@ -55,4 +55,12 @@ export default tseslint.config(
       "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
     },
   },
+  {
+    files: ["src/index.ts"],
+    rules: {
+      // The public API barrel is an aggregation of re-exports, not an
+      // implementation module; exempt it from the per-file size cap.
+      "max-lines": "off",
+    },
+  },
 );

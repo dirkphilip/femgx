@@ -1,5 +1,5 @@
 import type { NodeId } from "../elements/element";
-import type { Instance } from "../scene/types";
+import type { Instance, InstanceId } from "../scene/types";
 import type { InteractionState } from "./interaction";
 import { resolveInstanceStyle, type ResolvedStyle } from "./interaction";
 import type { NodeRef } from "./refs";
@@ -86,10 +86,7 @@ export function resolveNodeStyle(
   if (state.highlightedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true) {
     style = { ...style, ...state.theme.highlighted };
   }
-  if (
-    state.hoveredNode?.instanceId === ref.instanceId &&
-    state.hoveredNode.nodeId === ref.nodeId
-  ) {
+  if (state.hoveredNode?.instanceId === ref.instanceId && state.hoveredNode.nodeId === ref.nodeId) {
     style = { ...style, ...state.theme.hoveredNode };
   }
   if (state.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true) {

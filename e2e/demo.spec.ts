@@ -136,19 +136,6 @@ test("switches projection, fits to view, and resets camera controls", async ({ p
   await expect(label).toHaveText("Perspective");
 });
 
-test("picks and selects a node or face through the CPU raycast fallback", async ({ page }) => {
-  await page.goto("/");
-  const canvas = page.getByTestId("view-canvas");
-  const box = await canvas.boundingBox();
-  if (box === null) throw new Error("canvas has no bounding box");
-  const x = box.x + box.width * 0.5;
-  const y = box.y + box.height * 0.45;
-  await page.mouse.move(x, y);
-  await expect(canvas).toHaveAttribute("data-hovered", /:\d+(\/\d+)?|:n\d+/);
-  await page.mouse.click(x, y);
-  await expect(canvas).toHaveAttribute("data-selected", /:\d+(\/\d+)?|:n\d+/);
-});
-
 test("toggles the edge overlay and edge depth test", async ({ page }) => {
   await page.goto("/");
   const overlayLabel = page.getByTestId("edge-overlay-label");

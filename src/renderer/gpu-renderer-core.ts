@@ -122,6 +122,11 @@ export class GpuRenderer implements WebGpuRenderer {
     resetPickTargets(this.lifecycle.bundle.pickTargets);
   }
 
+  public stats(): { readonly drawBatches: number } {
+    this.ensureAlive();
+    return { drawBatches: this.attachment.calls.length };
+  }
+
   public destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;

@@ -195,7 +195,7 @@ export {
   pickFromRay,
   rayFromPixel,
   type PickFromRayOptions,
-  type Ray as PickRay,
+  type PickRay,
 } from "./picking/raycast-fallback";
 export {
   createPickScene,

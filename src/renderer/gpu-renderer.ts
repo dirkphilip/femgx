@@ -72,6 +72,8 @@ export interface WebGpuRenderer {
   pick(x: number, y: number, granularity?: PickGranularity): Promise<PickTarget | undefined>;
   resize(width?: number, height?: number): void;
   destroy(): void;
+  /** Number of surface draw batches encoded per frame. */
+  stats(): { readonly drawBatches: number };
   /** True while the GPU device is lost and awaiting `recover()`. */
   readonly lost: boolean;
   /**

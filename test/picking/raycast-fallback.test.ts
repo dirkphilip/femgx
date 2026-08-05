@@ -6,7 +6,7 @@ import { createCamera } from "../../src/camera/camera";
 import { elementPart } from "../../src/geometry/element-mesh";
 import type { Part } from "../../src/geometry/part";
 import { identity } from "../../src/math/mat4";
-import { pickFromRay, rayFromPixel, type Ray as PickRay } from "../../src/picking/raycast-fallback";
+import { pickFromRay, rayFromPixel, type PickRay } from "../../src/picking/raycast-fallback";
 import type { Instance, PickTarget } from "../../src/scene/types";
 
 const TET_NODES: readonly number[] = [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1];

@@ -277,8 +277,8 @@ export function faceTriangles(
   element: Element,
   face: ElementFace,
 ): ReadonlyArray<readonly [Vec3, Vec3, Vec3]> {
-  return tessellateFace(model, element, face).map((triangle) =>
-    triangle.map((vertex) => vertex.point),
+  return tessellateFace(model, element, face).map(
+    (triangle) => [triangle[0].point, triangle[1].point, triangle[2].point] as const,
   );
 }
 
