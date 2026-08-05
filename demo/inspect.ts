@@ -22,7 +22,7 @@ export function describePick(
       hit.adjacentElementIds.length === 0 ? "none" : hit.adjacentElementIds.join(", ");
     return (
       `Node ${hit.nodeId}\n` +
-      `${context} Instance ${hit.instanceId}\n` +
+      `${context} · Instance ${hit.instanceId}\n` +
       `Position ${position}\n` +
       `Adjacent elements ${adjacency}\n` +
       `Neighbors ${hit.adjacentNodeIds.length}`
@@ -32,7 +32,7 @@ export function describePick(
     const owners = hit.adjacentElementIds.join(", ");
     return (
       `Face ${hit.faceKey}\n` +
-      `Element ${hit.elementId} · ${context} Instance ${hit.instanceId}\n` +
+      `Element ${hit.elementId} · ${context} · Instance ${hit.instanceId}\n` +
       `Normal ${formatVec(hit.normal)}\n` +
       `Hit ${position}\n` +
       `${hit.boundary ? "Boundary" : "Interior"} · Adjacent elements ${owners}\n` +
@@ -41,7 +41,7 @@ export function describePick(
   }
   return (
     `Element ${hit.elementId}\n` +
-    `${context} Instance ${hit.instanceId}\n` +
+    `${context} · Instance ${hit.instanceId}\n` +
     `Normal ${formatVec(hit.normal)}\n` +
     `Hit ${position}`
   );
