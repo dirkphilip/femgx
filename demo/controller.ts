@@ -273,7 +273,9 @@ export class WorkbenchController {
     this.canvas.dataset["hovered"] = "";
     this.canvas.dataset["selected"] = "";
     this.canvas.dataset["pick"] = "";
-    this.view.inspectionPanel.textContent = describePick(undefined);
+    this.view.inspectionPanel.textContent = describePick(undefined, (partId) =>
+      this.partName(partId),
+    );
     this.render();
   }
 
@@ -428,7 +430,7 @@ export class WorkbenchController {
     this.interaction = this.withOverrides(state);
     this.canvas.dataset["hovered"] = targetKey(target);
     this.canvas.dataset["pick"] = targetKey(hit);
-    this.view.inspectionPanel.textContent = describePick(hit);
+    this.view.inspectionPanel.textContent = describePick(hit, (partId) => this.partName(partId));
     this.render();
   }
 
@@ -454,7 +456,7 @@ export class WorkbenchController {
       this.hideContextMenu();
       return;
     }
-    this.view.inspectionPanel.textContent = describePick(hit);
+    this.view.inspectionPanel.textContent = describePick(hit, (partId) => this.partName(partId));
     this.showContextMenu(target, event.clientX, event.clientY);
   }
 
@@ -815,6 +817,11 @@ export class WorkbenchController {
     const slot = this.partFirstSlot.get(partId);
     if (slot === undefined) return false;
     return this.runtime.instancePartVisible[slot] === 1;
+  }
+
+  /** Human-readable part name for the inspection panel, when known. */
+  private partName(partId: PartId): string | undefined {
+    return this.preset.partNames.get(partId);
   }
 
   private explicitStyle(ref: ElementRef): StyleOverride | undefined {

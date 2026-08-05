@@ -22,20 +22,79 @@ test("renders the demo canvas with instanced geometry", async ({ page }) => {
 test("reports the active model, renderer, instances, parts, and batches", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("status")).toHaveText(
-    /Element gallery · (webgpu|cpu) · \d+ visible · 8 parts · \d+ batches · solid · (perspective|orthographic) camera/,
+    /Bolted plate assembly · (webgpu|cpu) · \d+ visible · 12 parts · \d+ batches · solid · (perspective|orthographic) camera/,
   );
   await expect(page.getByTestId("renderer-status")).toHaveText(/Renderer (webgpu|cpu)/);
   await expect(page.getByTestId("stats-panel")).toContainText("Visible instances");
-  await expect(page.getByTestId("stats-panel")).toContainText("Reusable parts 8");
+  await expect(page.getByTestId("stats-panel")).toContainText("Reusable parts 12");
   await expect(page.getByTestId("stats-panel")).toContainText("Draw batches");
+});
+
+test("defaults to the bolted plate assembly showcase", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("model-select")).toHaveValue("bolted");
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "bolted");
+  await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
+  await expect(page.getByTestId("status")).toContainText("34 visible");
+  await expect(page.getByTestId("stats-panel")).toContainText("Reusable parts 12");
+});
+
+test("lists the bolted assembly hierarchy in the visibility panel", async ({ page }) => {
+  await page.goto("/");
+  const visibility = page.getByTestId("visibility-panel");
+  for (const name of [
+    "Bolted joint",
+    "Plate stack",
+    "Fasteners",
+    "Fastener 1",
+    "Fastener 8",
+    "Steel plates",
+    "Bolts",
+    "Washers",
+    "Nuts",
+  ]) {
+    await expect(visibility).toContainText(name);
+  }
+});
+
+test("renders the bolted showcase with distinct part colors and a screenshot", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toBeVisible();
+  // The demo probes WebGPU before committing to the CPU fallback, so the
+  // renderer is only known once the probe settles; poll like the visual spec.
+  await expect.poll(() => canvas.getAttribute("data-renderer")).toMatch(/^(cpu|webgpu)$/);
+
+  const drawn = await canvas.evaluate((el: HTMLCanvasElement) => {
+    const context = el.getContext("2d");
+    if (context === null) {
+      return false;
+    }
+    const { data } = context.getImageData(0, 0, el.width, el.height);
+    const colors = new Set<number>();
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] === 0) continue;
+      colors.add((data[i] ?? 0) | ((data[i + 1] ?? 0) << 8) | ((data[i + 2] ?? 0) << 16));
+      if (colors.size >= 4) return true;
+    }
+    return false;
+  });
+  expect(drawn, "the bolted view must render at least four distinct part colors").toBe(true);
+
+  const screenshot = await canvas.screenshot();
+  expect(screenshot, "the bolted showcase must produce a non-empty screenshot").not.toHaveLength(0);
 });
 
 test("switches between deterministic model presets", async ({ page }) => {
   await page.goto("/");
   const select = page.getByTestId("model-select");
-  await expect(select.locator("option")).toHaveCount(3);
-  await expect(select).toHaveValue("gallery");
+  await expect(select.locator("option")).toHaveCount(4);
+  await expect(select).toHaveValue("bolted");
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "bolted");
+
+  await select.selectOption("gallery");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "gallery");
+  await expect(page.getByTestId("status")).toContainText("Element gallery");
 
   await select.selectOption("panel");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "panel");
@@ -46,8 +105,9 @@ test("switches between deterministic model presets", async ({ page }) => {
   await expect(page.getByTestId("status")).toContainText("Portal frame");
   await expect(page.getByTestId("status")).toContainText("1 visible");
 
-  await select.selectOption("gallery");
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "gallery");
+  await select.selectOption("bolted");
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "bolted");
+  await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
 });
 
 test("switches element render modes with mode-mapped visibility", async ({ page }) => {
@@ -73,22 +133,24 @@ test("switches element render modes with mode-mapped visibility", async ({ page 
 test("toggles part visibility and restores it via the visibility panel", async ({ page }) => {
   await page.goto("/");
   expect(await dataset(page, "selected")).toBe("");
+  expect(await status(page)).toContain("34 visible");
   const partCheckbox = page.getByTestId("part-vis-4");
   await expect(partCheckbox).toBeChecked();
 
   await partCheckbox.uncheck();
   await expect(partCheckbox).not.toBeChecked();
-  expect(await status(page)).toContain("3 visible");
+  expect(await status(page)).toContain("26 visible");
 
   await partCheckbox.check();
   await expect(partCheckbox).toBeChecked();
-  expect(await status(page)).toContain("4 visible");
+  expect(await status(page)).toContain("34 visible");
 });
 
 test("keeps part and assembly visibility controls in separate namespaces", async ({ page }) => {
   await page.goto("/");
-  // The gallery also overlaps part 1 and root assembly 1; the assembly control
-  // starts checked because the scene starts with the root assembly visible.
+  // The default bolted preset also overlaps part ids with assembly ids; the
+  // assembly control starts checked because the scene starts with the root
+  // assembly visible.
   await expect(page.getByTestId("assembly-vis-1")).toBeChecked();
   await page.getByTestId("model-select").selectOption("frame");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "frame");
@@ -330,7 +392,7 @@ test("context menu hides and restores a part via the visibility panel", async ({
   await page.mouse.click(hit.x, hit.y, { button: "right" });
   await expect(page.getByTestId("context-menu")).toBeVisible();
   const inspection = (await page.getByTestId("inspection-panel").textContent()) ?? "";
-  const match = /Part (\d+) · Instance/.exec(inspection);
+  const match = /Part (\d+)/.exec(inspection);
   expect(
     match,
     "the inspection panel must report the owning part and instance after a pick",

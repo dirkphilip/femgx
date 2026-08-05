@@ -64,6 +64,58 @@ frame is the workbench preset that best exercises element/face picking because
 its faces are large and unambiguous (see
 [[rendering/fe-inspection-workbench|FE inspection workbench]]).
 
+## Bolted plate assembly (`createBoltedPlateFixture`)
+
+`src/fixture/bolted-plate.ts` (meshes in `bolted-plate-mesh.ts`) builds the
+demo's default showcase: a bolted lap joint of two overlapping plates clamped
+by a grid of fasteners. It is the reference example of the canonical
+hierarchical assembly model and GPU instancing: every fastener reuses the same
+bolt, washer, and nut part definitions through nested assemblies.
+
+### Parameters
+
+- `plateLength` (default `30`) — plate length along X.
+- `plateWidth` (default `14`) — plate width along Z.
+- `plateThickness` (default `2`) — plate thickness along Y.
+- `overlapOffset` (default `6`) — X offset of the upper plate, leaving the
+  overlap zone that hosts the fasteners.
+
+### Topology
+
+Four reusable components, each tessellated for the three volume modes (so 12
+parts total):
+
+- `plate` (solid 1, surface 2, edges 3) — a shared 30 x 14 x 2 m steel plate,
+  placed twice (lower + upper).
+- `bolt` (4, 5, 6) — a 1.6 m shaft under a 4 x 4 m square head.
+- `washer` (7, 8, 9) — a thin 2.8 x 2.8 m slab, placed twice per fastener.
+- `nut` (10, 11, 12) — a 3 x 3 m box on the shaft end.
+
+Nested assemblies (19 total):
+
+```text
+Bolted joint (1)
+├── Plate stack (2)          places the shared plate part twice
+└── Fasteners (3)
+    └── Fastener 1..8 (4..11)  at 2 rows x 4 columns
+        ├── Bolt               solid/surface/edges placements
+        ├── Washers (12..19)   top + bottom placements
+        └── Nut                solid/surface/edges placements
+```
+
+### Expected dimensions and counts
+
+- Default instance count is 102 (all mode parts placed), of which 34 are
+  visible per volume mode: 2 plates + 8 fasteners x (1 bolt + 2 washers + 1 nut).
+- Bounds span X `-15..21`, Y `-4..5` (fasteners protrude beyond the 2 m plate
+  stack), Z `-7..7`; the isometric default camera frames this box.
+- Instance ids are deterministic and readable, e.g. `"1/1/0/3/0"` is the top
+  washer (solid) of fastener 1.
+
+The bolted preset is the demo's default (`createDefaultPreset`), so e2e
+assertions about the landing view and status line depend on these defaults;
+changing them must update `e2e/demo.spec.ts`.
+
 ## Why deterministic
 
 Part and assembly ids are fixed constants, there is no randomness, and the scene is a pure

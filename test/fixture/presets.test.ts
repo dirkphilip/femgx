@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  createBoltedPlatePreset,
+  createDefaultPreset,
   createFramePreset,
   createGalleryPreset,
   createModelPresets,
@@ -8,10 +10,15 @@ import {
 } from "../../src/fixture/presets";
 
 describe("createModelPresets", () => {
-  it("offers at least three deterministic models", () => {
+  it("offers at least four deterministic models with the bolted showcase first", () => {
     const presets = createModelPresets();
-    expect(presets.map((preset) => preset.id)).toEqual(["gallery", "panel", "frame"]);
-    expect(new Set(presets.map((preset) => preset.name)).size).toBe(3);
+    expect(presets.map((preset) => preset.id)).toEqual(["bolted", "gallery", "panel", "frame"]);
+    expect(new Set(presets.map((preset) => preset.name)).size).toBe(4);
+  });
+
+  it("exposes the bolted plate assembly as the default showcase", () => {
+    expect(createDefaultPreset().id).toBe("bolted");
+    expect(createModelPresets()[0]).toEqual(createDefaultPreset());
   });
 
   it("exposes element models for every part of every preset", () => {
@@ -51,6 +58,17 @@ describe("createPanelPreset", () => {
     for (const mode of ["solid", "surface", "edges"] as const) {
       expect(preset.modePartIds.get(mode)).toHaveLength(3);
     }
+  });
+});
+
+describe("createBoltedPlatePreset", () => {
+  it("keeps the bolted footprint and mode part ids", () => {
+    const preset = createBoltedPlatePreset();
+    expect(preset.bounds).toEqual({ minX: -15, minY: -4, minZ: -7, maxX: 21, maxY: 5, maxZ: 7 });
+    expect(preset.modePartIds.get("solid")).toEqual([1, 4, 7, 10]);
+    expect(preset.partNames.get(4)).toBe("Bolts");
+    expect(preset.partNames.get(7)).toBe("Washers");
+    expect(preset.partNames.get(10)).toBe("Nuts");
   });
 });
 
