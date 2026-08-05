@@ -6,7 +6,8 @@ import {
   setElementSelected,
   setHoveredElement,
 } from "../../src/interaction/interaction";
-import { setFaceSelected, setNodeSelected } from "../../src/interaction/node-face";
+import { setFaceSelected } from "../../src/interaction/faces";
+import { setNodeSelected } from "../../src/interaction/nodes";
 import { translation } from "../../src/math/mat4";
 import { createSceneRuntime, type SceneRuntime } from "../../src/scene-runtime/runtime";
 import { createScene, type Scene } from "../../src/scene/scene";
@@ -380,7 +381,7 @@ describe("collectEmphasisUpdates", () => {
     let interaction = createInteractionState();
     interaction = setFaceSelected(
       interaction,
-      { instanceId: "1/0", elementId: 0, faceIndex: 1 },
+      { instanceId: "1/0", elementId: 0, faceKey: "0,1,3" },
       true,
     );
     interaction = setNodeSelected(interaction, { instanceId: "1/1", nodeId: 2 }, true);
@@ -404,7 +405,7 @@ describe("collectEmphasisUpdates", () => {
     let interaction = createInteractionState();
     interaction = setFaceSelected(
       interaction,
-      { instanceId: "1/0", elementId: 0, faceIndex: 99 },
+      { instanceId: "1/0", elementId: 0, faceKey: "9,9,9" },
       true,
     );
     const updates = collectEmphasisUpdates(
