@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createCamera, viewProjectionMatrix } from "../../src/camera/camera";
-import type { ChunkSource } from "../../src/streaming/chunk";
+import type { ChunkData, ChunkSource } from "../../src/streaming/chunk";
 import { buildSpatialGrid, cullChunks, detailIndexForDistance } from "../../src/streaming/spatial";
 import { lodLineChunk, quadChunk } from "./fixtures";
 
@@ -77,6 +77,45 @@ describe("cullChunks", () => {
     const dataOnly = [quadChunk(1, 0, 0), quadChunk(2, 1, 1_000_000)];
     const grid = buildSpatialGrid(dataOnly, 100_000);
     expect(cullChunks(grid, viewProjection).map((chunk) => chunk.chunkId)).toEqual([1]);
+  });
+});
+
+describe("cullChunks non-finite bounds", () => {
+  it("keeps chunks with non-finite precomputed bounds visible instead of culling them", () => {
+    const degenerate: ChunkSource = {
+      chunkId: 2,
+      index: 1,
+      data: quadChunk(2, 1, 1_000_000).data,
+      bounds: {
+        minX: Number.POSITIVE_INFINITY,
+        minY: Number.POSITIVE_INFINITY,
+        minZ: Number.POSITIVE_INFINITY,
+        maxX: Number.NEGATIVE_INFINITY,
+        maxY: Number.NEGATIVE_INFINITY,
+        maxZ: Number.NEGATIVE_INFINITY,
+      },
+    };
+    const grid = buildSpatialGrid([quadChunk(1, 0, 0), degenerate], 4);
+    expect(cullChunks(grid, viewProjection).map((chunk) => chunk.chunkId)).toEqual([1, 2]);
+  });
+
+  it("keeps chunks whose computed bounds are non-finite (all-NaN data) visible", () => {
+    const data: ChunkData = {
+      positions: new Float32Array([
+        Number.NaN,
+        Number.NaN,
+        Number.NaN,
+        Number.NaN,
+        Number.NaN,
+        Number.NaN,
+        Number.NaN,
+        Number.NaN,
+        Number.NaN,
+      ]),
+      indices: new Uint32Array([0, 1, 2]),
+    };
+    const grid = buildSpatialGrid([quadChunk(1, 0, 0), { chunkId: 2, index: 1, data }], 4);
+    expect(cullChunks(grid, viewProjection).map((chunk) => chunk.chunkId)).toEqual([1, 2]);
   });
 });
 

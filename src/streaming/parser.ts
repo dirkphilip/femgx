@@ -43,7 +43,12 @@ export function chunkTransferables(chunk: ParsedChunk): readonly ArrayBufferLike
   return [chunk.positions.buffer, chunk.indices.buffer];
 }
 
-/** Throws when the index buffer references vertices outside the positions. */
+/**
+ * Throws when a chunk's indices or positions are structurally invalid: indices
+ * must reference vertices inside the positions, and every position component
+ * must be finite. Rejecting NaN/Infinity here is what keeps garbage data from
+ * silently corrupting bounds, culling, and rebasing downstream.
+ */
 export function validateChunkData(data: ChunkData): void {
   const vertexCount = data.positions.length / 3;
   if (!Number.isInteger(vertexCount)) {
@@ -53,6 +58,15 @@ export function validateChunkData(data: ChunkData): void {
     const index = data.indices[i];
     if (index === undefined || index >= vertexCount) {
       throw new Error(`Chunk index ${String(index)} is out of range (vertex count ${vertexCount})`);
+    }
+  }
+  for (let i = 0; i < data.positions.length; i++) {
+    if (!Number.isFinite(data.positions[i])) {
+      throw new Error(
+        `Chunk position ${Math.floor(i / 3)} component ${i % 3} is not finite: ${String(
+          data.positions[i],
+        )}`,
+      );
     }
   }
 }

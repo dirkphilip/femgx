@@ -205,15 +205,32 @@ function union(a: Bounds, b: Bounds): Bounds {
 }
 
 function isChunkVisible(chunk: ChunkSource | LodChunkSource, frustum: Frustum): boolean {
-  return isSphereVisible(
-    frustum,
-    boundsCenter(chunkBounds(chunk)),
-    boundsRadius(chunkBounds(chunk)),
-  );
+  const bounds = chunkBounds(chunk);
+  return isFiniteBounds(bounds)
+    ? isSphereVisible(frustum, boundsCenter(bounds), boundsRadius(bounds))
+    : true;
 }
 
 function isCellVisible(cell: ChunkCell, frustum: Frustum): boolean {
-  return isSphereVisible(frustum, boundsCenter(cell.bounds), boundsRadius(cell.bounds));
+  return isFiniteBounds(cell.bounds)
+    ? isSphereVisible(frustum, boundsCenter(cell.bounds), boundsRadius(cell.bounds))
+    : true;
+}
+
+/**
+ * Degenerate (non-finite) bounds make a sphere test meaningless, so chunks or
+ * cells with them are treated as visible rather than silently culled. This
+ * mirrors `cullInstances`, which keeps parts with non-finite bounds on screen.
+ */
+function isFiniteBounds(bounds: Bounds): boolean {
+  return (
+    Number.isFinite(bounds.minX) &&
+    Number.isFinite(bounds.minY) &&
+    Number.isFinite(bounds.minZ) &&
+    Number.isFinite(bounds.maxX) &&
+    Number.isFinite(bounds.maxY) &&
+    Number.isFinite(bounds.maxZ)
+  );
 }
 
 function boundsRadius(bounds: Bounds): number {

@@ -30,6 +30,26 @@ describe("validateChunkData", () => {
       validateChunkData(data);
     }).toThrow(/not a multiple of 3/);
   });
+
+  it("rejects NaN position components", () => {
+    const data: ChunkData = {
+      positions: new Float32Array([0, Number.NaN, 0, 1, 1, 1, 2, 2, 2]),
+      indices: new Uint32Array([0, 1, 2]),
+    };
+    expect(() => {
+      validateChunkData(data);
+    }).toThrow(/position 0 component 1 is not finite: NaN/);
+  });
+
+  it("rejects infinite position components", () => {
+    const data: ChunkData = {
+      positions: new Float64Array([Number.POSITIVE_INFINITY, 0, 0, 1, 1, 1, 2, 2, 2]),
+      indices: new Uint32Array([0, 1, 2]),
+    };
+    expect(() => {
+      validateChunkData(data);
+    }).toThrow(/position 0 component 0 is not finite: Infinity/);
+  });
 });
 
 describe("parseChunk", () => {
@@ -72,6 +92,15 @@ describe("parseChunk", () => {
     const source = quadChunk(1, 0, 0);
     const data = { ...source.data, elements: [{ id: 0, triangleStart: 0, triangleCount: 1 }] };
     expect(() => parseChunk({ ...source, data })).toThrow(/not covered/);
+  });
+
+  it("throws on non-finite positions so NaN data fails loudly at parse time", () => {
+    const source = quadChunk(1, 0, 0);
+    const data: ChunkData = {
+      positions: new Float32Array([0, 0, 0, Number.NaN, 1, 1, 2, 2, 2, 3, 3, 3]),
+      indices: source.data.indices,
+    };
+    expect(() => parseChunk({ ...source, data })).toThrow(/is not finite/);
   });
 });
 
