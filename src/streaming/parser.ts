@@ -17,6 +17,7 @@ export interface ParseChunkOptions {
  */
 export function parseChunk(source: ChunkSource, options: ParseChunkOptions = {}): ParsedChunk {
   validateChunkData(source.data);
+  validateChunkBounds(source);
   if (source.data.elements !== undefined) {
     validateElements(source.data);
   }
@@ -67,6 +68,33 @@ export function validateChunkData(data: ChunkData): void {
           data.positions[i],
         )}`,
       );
+    }
+  }
+}
+
+/**
+ * Throws when a chunk's precomputed world bounds contain a non-finite
+ * component. Bounds come from untrusted model files and are unioned into the
+ * local-rebase origin and used for culling, so a NaN/Infinity component would
+ * poison the whole model (`Math.min(4.5, NaN) === NaN`); reject it loudly here
+ * just like non-finite positions.
+ */
+function validateChunkBounds(source: ChunkSource): void {
+  const bounds = source.bounds;
+  if (bounds === undefined) {
+    return;
+  }
+  const components: ReadonlyArray<readonly [name: keyof Bounds, value: number]> = [
+    ["minX", bounds.minX],
+    ["minY", bounds.minY],
+    ["minZ", bounds.minZ],
+    ["maxX", bounds.maxX],
+    ["maxY", bounds.maxY],
+    ["maxZ", bounds.maxZ],
+  ];
+  for (const [name, value] of components) {
+    if (!Number.isFinite(value)) {
+      throw new Error(`Chunk ${source.chunkId} bounds ${name} is not finite: ${String(value)}`);
     }
   }
 }

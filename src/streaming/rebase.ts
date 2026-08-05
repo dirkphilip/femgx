@@ -1,5 +1,6 @@
 import { computePositionsBounds, type Bounds } from "../geometry/part";
 import type { ChunkSource } from "./chunk";
+import { isFiniteBounds } from "./finite";
 
 /**
  * A local model origin. Rebasing subtracts this point from every vertex so
@@ -43,11 +44,13 @@ export function rebaseBounds(bounds: Bounds, origin: RebaseOrigin): Bounds {
  * Picks a local origin near the model's overall bounding-box center so the
  * rebased coordinates stay as small as possible. The result is deterministic
  * for a given chunk list. Chunks without precomputed bounds have their bounds
- * computed from their data.
+ * computed from their data. Chunks whose bounds are not finite (a NaN/Infinity
+ * component in an untrusted precomputed bounds) are skipped, so one corrupt
+ * chunk cannot poison the origin for the whole model; the corrupt chunk itself
+ * is rejected loudly by `parseChunk`.
  */
 export function computeLocalOrigin(chunks: readonly ChunkSource[]): RebaseOrigin {
-  const bounds = chunks.map(chunkBounds);
-  const overall = unionBounds(bounds);
+  const overall = unionBounds(chunks.map(chunkBounds));
   return [
     (overall.minX + overall.maxX) / 2,
     (overall.minY + overall.maxY) / 2,
@@ -62,7 +65,7 @@ function chunkBounds(source: ChunkSource): Bounds {
 }
 
 function unionBounds(bounds: readonly Bounds[]): Bounds {
-  return bounds.reduce(
+  return bounds.filter(isFiniteBounds).reduce(
     (union, current) => ({
       minX: Math.min(union.minX, current.minX),
       minY: Math.min(union.minY, current.minY),

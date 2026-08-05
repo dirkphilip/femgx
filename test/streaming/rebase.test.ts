@@ -67,4 +67,28 @@ describe("computeLocalOrigin", () => {
     const chunks = [quadChunk(1, 1, 3), quadChunk(2, 0, 7)];
     expect(computeLocalOrigin(chunks)).toEqual(computeLocalOrigin(chunks));
   });
+
+  it("skips chunks with non-finite precomputed bounds so one corrupt chunk cannot poison the origin", () => {
+    const corrupt: ChunkSource = {
+      ...quadChunk(2, 1, 10),
+      bounds: { minX: Number.NaN, minY: -0.5, minZ: 0, maxX: 10.5, maxY: 0.5, maxZ: 0 },
+    };
+    const origin = computeLocalOrigin([quadChunk(1, 0, 0), corrupt]);
+    expect(origin[0]).toBe(0);
+    expect(Number.isNaN(origin[1])).toBe(false);
+    expect(Number.isNaN(origin[2])).toBe(false);
+  });
+
+  it("keeps a well-formed origin when a chunk's computed bounds are all non-finite", () => {
+    const degenerate: ChunkSource = {
+      chunkId: 2,
+      index: 1,
+      data: {
+        positions: new Float32Array(Array<number>(9).fill(Number.NaN)),
+        indices: new Uint32Array([0, 1, 2]),
+      },
+    };
+    const origin = computeLocalOrigin([quadChunk(1, 0, 0), degenerate]);
+    expect(origin[0]).toBe(0);
+  });
 });
