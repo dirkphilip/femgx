@@ -104,7 +104,7 @@ test("a one-finger tap still performs picking and selection", async ({ browser }
     page,
     canvas,
     { prefix: "n:", step: 10 },
-    "node raycast picking must resolve on the deterministic CPU lane",
+    "node raycast picking must resolve on the deterministic WebGPU lane",
   );
 
   await page.touchscreen.tap(hit.x, hit.y);

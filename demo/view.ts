@@ -30,7 +30,7 @@ export interface CameraRef {
 export interface StatusInfo {
   readonly model: string;
   readonly renderer: string;
-  /** Optional renderer-state note (e.g. "recovered" or "fallback"). */
+  /** Optional renderer-state note (e.g. "recovered"). */
   readonly rendererState?: string;
   readonly visibleInstances: number;
   readonly parts: number;

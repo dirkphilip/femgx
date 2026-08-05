@@ -37,16 +37,16 @@ test("loads, renders, and reacts to a user action without runtime errors", async
 
   await page.goto("/");
 
-  // Load: the demo probes WebGPU and deterministically commits to the CPU
-  // renderer on the default lane (launched with `--disable-gpu`).
+  // Load: WebGPU is the product's only renderer, so the demo commits to the
+  // WebGPU renderer on the default lane (launched with software WebGPU flags).
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
-  await expect.poll(() => canvas.getAttribute("data-renderer")).toBe("cpu");
+  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
 
   // Render: the workbench reports the loaded model and the canvas has drawn
   // geometry, not just the page chrome.
   await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
-  expect(await drawnPixels(canvas)).toBe(true);
+  await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
   const before = await pixelHash(canvas);
 
   // Interact: the representative user action is picking and selecting a node.
@@ -54,7 +54,7 @@ test("loads, renders, and reacts to a user action without runtime errors", async
     page,
     canvas,
     { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic CPU lane",
+    "node raycast picking must resolve on the deterministic WebGPU lane",
   );
   await page.mouse.click(hit.x, hit.y);
 

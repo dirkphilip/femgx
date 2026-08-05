@@ -193,12 +193,6 @@ export {
   type ResolvedPickIds,
 } from "./picking/pick";
 export {
-  pickFromRay,
-  rayFromPixel,
-  type PickFromRayOptions,
-  type PickRay,
-} from "./picking/raycast-fallback";
-export {
   createPickScene,
   faceOwnership,
   pick,
