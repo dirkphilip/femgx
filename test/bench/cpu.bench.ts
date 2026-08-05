@@ -1,6 +1,5 @@
 import { bench, describe } from "vitest";
 import { batchInstancesByPart } from "../../src/runtime/batch";
-import { compileScene } from "../../src/runtime/compile";
 import { cullInstances } from "../../src/runtime/culling";
 import { flattenAssembly } from "../../src/runtime/flatten";
 import { translation } from "../../src/math/mat4";
@@ -57,14 +56,6 @@ describe("hierarchy compile", () => {
       visibleAssemblyIds: shallowScene.visibleAssemblyIds,
       visiblePartIds: shallowScene.visiblePartIds,
     });
-  });
-
-  bench(`compileScene ${BENCH_INSTANCE_COUNT} instances`, () => {
-    compileScene(shallowScene);
-  });
-
-  bench(`compileScene with culling ${BENCH_INSTANCE_COUNT} instances`, () => {
-    compileScene(shallowScene, { viewProjection });
   });
 
   bench(`createSceneRuntime ${BENCH_INSTANCE_COUNT} instances`, () => {

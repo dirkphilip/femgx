@@ -1,5 +1,4 @@
-import type { ElementId, FaceKey, InstanceId, PartId } from "../src/index";
-import type { ResolvedPick } from "../src/index";
+import type { ElementId, FaceKey, InstanceId, PartId, PickTarget } from "../src/index";
 
 /** The interaction granularity a modifier key can select at. */
 export type PickLevel = "node" | "face" | "element" | "instance" | "part";
@@ -17,24 +16,36 @@ export type SelectTarget =
   | { readonly kind: "instance"; readonly instanceId: InstanceId }
   | { readonly kind: "part"; readonly partId: PartId };
 
+/** Resolves an instance id to its part id for modifier promotion. */
+export type PartIdForInstance = (instanceId: InstanceId) => PartId | undefined;
+
 /**
- * Maps a resolved pick to the selection target the modifier keys select at:
+ * Maps a GPU pick target to the selection target the modifier keys select at:
  * no modifier keeps the most specific hit, shift promotes to the element,
  * alt to the instance, and ctrl to the part.
  */
 export function selectTarget(
-  hit: ResolvedPick,
+  hit: PickTarget,
   modifiers: { readonly shiftKey: boolean; readonly altKey: boolean; readonly ctrlKey: boolean },
+  partIdForInstance: PartIdForInstance,
 ): SelectTarget | undefined {
-  if (modifiers.ctrlKey) return { kind: "part", partId: hit.partId };
-  if (modifiers.altKey) return { kind: "instance", instanceId: hit.instanceId };
+  if (modifiers.ctrlKey) {
+    const partId = partIdOf(hit, partIdForInstance);
+    return partId === undefined ? undefined : { kind: "part", partId };
+  }
+  if (modifiers.altKey) {
+    if (hit.kind === "part") return { kind: "part", partId: hit.partId };
+    return { kind: "instance", instanceId: hit.instanceId };
+  }
   if (modifiers.shiftKey) {
     if (hit.kind === "node") {
-      const elementId = hit.adjacentElementIds[0];
-      if (elementId === undefined) return undefined;
+      const elementId = hit.neighborElementIds[0] ?? hit.elementId;
       return { kind: "element", instanceId: hit.instanceId, elementId };
     }
     if (hit.kind === "face") {
+      return { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId };
+    }
+    if (hit.kind === "element") {
       return { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId };
     }
   }
@@ -44,20 +55,26 @@ export function selectTarget(
       kind: "face",
       instanceId: hit.instanceId,
       elementId: hit.elementId,
-      faceKey: hit.faceKey,
+      faceKey: hit.key,
     };
   }
-  return { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId };
+  if (hit.kind === "element") {
+    return { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId };
+  }
+  if (hit.kind === "instance") return { kind: "instance", instanceId: hit.instanceId };
+  return { kind: "part", partId: hit.partId };
 }
 
 /** Stable dataset key for a resolved pick or selection target. */
-export function targetKey(target: ResolvedPick | SelectTarget | undefined): string {
+export function targetKey(target: PickTarget | SelectTarget | undefined): string {
   if (target === undefined) return "";
   switch (target.kind) {
     case "node":
       return `n:${target.instanceId}:${target.nodeId}`;
     case "face":
-      return `f:${target.instanceId}:${target.elementId}:${target.faceKey}`;
+      return "key" in target
+        ? `f:${target.instanceId}:${target.elementId}:${target.key}`
+        : `f:${target.instanceId}:${target.elementId}:${target.faceKey}`;
     case "element":
       return `e:${target.instanceId}:${target.elementId}`;
     case "instance":
@@ -65,4 +82,10 @@ export function targetKey(target: ResolvedPick | SelectTarget | undefined): stri
     case "part":
       return `p:${target.partId}`;
   }
+}
+
+function partIdOf(hit: PickTarget, partIdForInstance: PartIdForInstance): PartId | undefined {
+  if (hit.kind === "part") return hit.partId;
+  if ("partId" in hit) return hit.partId;
+  return partIdForInstance(hit.instanceId);
 }

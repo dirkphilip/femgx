@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { batchInstancesByPart } from "../../src/runtime/batch";
-import { compileScene } from "../../src/runtime/compile";
 import { cullInstances } from "../../src/runtime/culling";
 import { flattenAssembly } from "../../src/runtime/flatten";
 import { translation } from "../../src/math/mat4";
@@ -122,22 +121,6 @@ const budgets: readonly BudgetCase[] = [
         visibleAssemblyIds: shallowScene.visibleAssemblyIds,
         visiblePartIds: shallowScene.visiblePartIds,
       });
-    },
-  },
-  {
-    name: "compileScene",
-    description: `flatten + batch, ${BENCH_INSTANCE_COUNT} instances`,
-    budgetMs: 500,
-    run: () => {
-      compileScene(shallowScene);
-    },
-  },
-  {
-    name: "compileScene with frustum culling",
-    description: `flatten + cull + batch, ${BENCH_INSTANCE_COUNT} instances`,
-    budgetMs: 700,
-    run: () => {
-      compileScene(shallowScene, { viewProjection });
     },
   },
   {

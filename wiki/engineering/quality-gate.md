@@ -17,13 +17,14 @@ npm run typecheck
 npm run lint
 npm run test:coverage
 npm run bench:budget
-npm run test:e2e
+npm run test:e2e          # system Chrome / hardware WebGPU (local)
 ```
 
 `npm run bench:budget` runs the performance budget gate standalone (see
 [[engineering/benchmarks|Benchmarks]]) because v8 coverage instrumentation distorts wall
 clock timing; CI runs it as its own step. `npm run bench` is the opt-in trend
-suite, not part of the gate.
+suite, not part of the gate. Merge CI runs `npm run test:e2e:ci` (no-GPU
+unsupported contract only) until a GPU runner hosts the full Chrome lane.
 
 ## Coverage
 
@@ -38,14 +39,11 @@ suite, not part of the gate.
 
 - `e2e/` tests run against the local Vite dev server (see
   `playwright.config.ts`, `webServer`).
-- One-time browser install: `npm run test:e2e:install` (Chromium).
-- `e2e/demo.spec.ts` verifies the demo canvas renders instanced geometry.
-- CI installs with `--with-deps` and uploads the report on failure.
-- The default e2e lane exercises the real WebGPU path through the demo using
-  Chromium's software WebGPU implementation and skips cleanly when the browser
-  genuinely cannot initialize WebGPU (see [[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
-  Required WebGPU journeys never skip on a healthy WebGPU browser (see
-  [[engineering/e2e-policy|E2E test classification and skip policy]]).
+- One-time browser install: `npm run test:e2e:install` (system Chrome + Chromium).
+- **Local / authoritative WebGPU lane:** `npm run test:e2e` (`--project=chrome`).
+- **Merge CI:** `npm run test:e2e:ci` (unsupported-contract smoke only).
+- See [[rendering/webgpu-e2e|WebGPU browser e2e lane]] and
+  [[engineering/e2e-policy|E2E test classification and skip policy]].
 
 ## Linting (small modules)
 

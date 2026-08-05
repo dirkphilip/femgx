@@ -67,17 +67,15 @@ test("selection changes the rendered pixels and stays stable", async ({ page }) 
   await loadVisualPage(page);
 
   const canvas = page.getByTestId("view-canvas");
-  const before = await stableCanvasPixels(page, canvas);
 
-  // The demo's pick is deterministic CPU raycasting; a hover that never
-  // resolves means the interaction path is broken, not that this environment
-  // lacks a capability, so this is a required assertion.
+  // Pick before settled screenshots: screenshots can stall GPU pick readback.
   const hoverPoint = await requireHit(
     page,
     canvas,
     { attribute: "hovered" },
     "a hoverable instance must resolve on the WebGPU renderer",
   );
+  const before = await stableCanvasPixels(page, canvas);
 
   await page.mouse.click(hoverPoint.x, hoverPoint.y);
   await expect.poll(() => canvas.getAttribute("data-selected")).not.toBe("");

@@ -40,7 +40,9 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | Linear element shapes (point, line, triangle, quad, Tet4, Hex8) + canonical topology                                               | ~0.6k                     | ~1.2k      | **Core now** | The minimum FE geometry the product must render.                                                                                                                                                          |
 | Quadratic element shapes (Tet10/Hex20/LINE3) + mid-edge tessellation                                                               | part of elements/renderer | same       | **Deferred** | Multiplies the vertex footprint for no minimum-product value.                                                                                                                                             |
 | Edge / face / node overlays                                                                                                        | renderer + demo           | same       | **Deferred** | Display modes beyond solid/surface/edges are demo polish, not the minimum product.                                                                                                                        |
-| Node/face picking granularity and adjacency inspection                                                                             | ~0.4k                     | ~0.3k      | **Deferred** | Element-level picking is the minimum; node/face granularity and the inspection workbench are optional.                                                                                                    |
+| GPU picking (element + node strict; face Core) with host-mappable ids                                                              | renderer + picking        | same       | **Core now** | Interaction picking is `WebGpuRenderer.pick` → `resolvePickTarget`. Node and element ids are strict product requirements; face is Core. Multi-hit `pickMany` is future (below), not Core-now.             |
+| CPU raycast picking (`createPickScene` / `pick()`)                                                                                 | —                         | —          | **Remove**   | Replaced by the GPU pick path; deleted with the flat-compile cleanup.                                                                                                                                     |
+| Adjacency inspection overlays / pick-list UI polish                                                                                | demo                      | e2e        | **Deferred** | Host-mappable neighbor ids on `PickTarget` stay; rich adjacency workbench polish is optional.                                                                                                             |
 | Results fields + derived quantities (magnitude, von Mises, principal), value ranges, scalar color mapping, deformed-shape geometry | ~0.8k                     | ~0.9k      | **Core now** | Typed result visualization is core FE value.                                                                                                                                                              |
 | Advanced results playback (CasePlayer, interpolation) and legends                                                                  | part of results           | same       | **Deferred** | Stepping and interpolation are beyond the minimum; keep the simple load-case stepping in the demo.                                                                                                        |
 | IO: VTK legacy read/write + shared validation and diagnostics                                                                      | ~1.0k                     | ~0.9k      | **Core now** | One interchange format is the minimum; VTK legacy is the smallest faithful FE format.                                                                                                                     |
@@ -57,10 +59,11 @@ femgx 0.x renders finite-element models in a **modern WebGPU browser**. A model
 is defined as reusable part geometry (linear elements: points, lines,
 triangles, quads, Tet4, Hex8) placed by hierarchical assemblies, compiled once
 into a packed scene runtime, and drawn with instanced WebGPU draws batched by
-part. The renderer provides element-level GPU picking, selection/highlight/
-hover, visibility, camera control, results fields with derived quantities and
-scalar color mapping, deformed-shape geometry, and deterministic frustum
-culling. Interchange is a single format (VTK legacy) with validation and
+part. The renderer provides GPU picking with host-mappable part/instance/
+element/face/node ids (node and element strict; face Core), selection/
+highlight/hover, visibility, camera control, results fields with derived
+quantities and scalar color mapping, deformed-shape geometry, and deterministic
+frustum culling. Interchange is a single format (VTK legacy) with validation and
 diagnostics. Browsers without a working WebGPU device receive a typed
 unsupported result — never a second renderer.
 
@@ -85,6 +88,14 @@ A change that grows line count, module count, or abstraction count without
 justifying itself against these questions is rejected. A successful
 implementation may delete code; deletion-first is the default stance.
 
+## Future: multi-hit pick lists (`pickMany`)
+
+Not Core-now. A later extension can expose unique targets under a screen region
+via ID-buffer readback (preferred first shape for box-ish pick lists). Ordered
+multi-hit along a ray (depth peeling / A-buffer) is a harder follow-on and must
+pass the [[#decision-gate|decision gate]] separately. Do not grow a parallel
+CPU pick-list path.
+
 ## Deletion tracking
 
 Removals are implemented by their owning issues, not speculatively here:
@@ -93,6 +104,9 @@ Removals are implemented by their owning issues, not speculatively here:
   (Simplify the product around modern WebGPU requirements). Capability probing
   and device-loss recovery were reviewed there and **retained** as supported-path
   features of the WebGPU contract.
-- Quadratic elements, node/face granularity, results playback, IO breadth, and
+- Flat `compileScene` snapshot and CPU raycast stack (`createPickScene` /
+  `pick()`) → **removed**; the product path is `createSceneRuntime` + GPU
+  `renderer.pick`.
+- Quadratic elements, adjacency UI polish, results playback, IO breadth, and
   streaming remain in the codebase as **Deferred**; they must not grow, and a
   future issue may trim them behind an explicit product decision.

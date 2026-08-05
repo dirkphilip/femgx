@@ -1,14 +1,17 @@
 import { defineConfig, devices } from "@playwright/test";
 
+/**
+ * E2E browser projects:
+ * - `chrome` — system Google Chrome (hardware WebGPU). Default local lane.
+ * - `chromium` — Playwright Chromium, used by CI for the no-GPU unsupported
+ *   contract only. Full WebGPU pick/pixel coverage is local (or a future GPU
+ *   runner), not SwiftShader.
+ */
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
-  // Chromium's software WebGPU backend is not stable with multiple browser
-  // contexts sharing the CI runner. Keep the required WebGPU lane serialized
-  // in CI; local runs retain Playwright's normal parallelism.
-  ...(process.env["CI"] ? { workers: 1 } : {}),
   forbidOnly: !!process.env["CI"],
-  retries: process.env["CI"] ? 2 : 0,
+  retries: process.env["CI"] ? 1 : 0,
   // `list` marks skipped tests with `-`; the custom reporter groups the skip
   // reasons at the end so capability-gated skips stay visible and reviewable
   // (see `wiki/engineering/e2e-policy.md`).
@@ -22,14 +25,19 @@ export default defineConfig({
   },
   projects: [
     {
+      name: "chrome",
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chrome",
+        // Headless Chrome injects `--enable-unsafe-swiftshader`, which is not a
+        // faithful WebGPU stand-in. Headed system Chrome uses the real GPU.
+        headless: false,
+      },
+    },
+    {
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
-        // WebGPU is the product's only renderer, so the default e2e lane
-        // exercises the real WebGPU path. `--enable-unsafe-webgpu --enable-gpu`
-        // selects Chromium's software SwiftShader implementation, so no GPU
-        // hardware is required on CI or developer machines.
-        launchOptions: { args: ["--enable-unsafe-webgpu", "--enable-gpu"] },
       },
     },
   ],

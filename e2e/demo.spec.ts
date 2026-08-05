@@ -311,7 +311,7 @@ test("selects an element by promoting a node pick with shift-click", async ({ pa
     page,
     canvas,
     { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic WebGPU lane",
+    "node GPU picking must resolve on the deterministic WebGPU lane",
   );
 
   await page.keyboard.down("Shift");
@@ -332,7 +332,7 @@ test("picks and selects a node, exposing adjacency and neighbors", async ({ page
     page,
     canvas,
     { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic WebGPU lane",
+    "node GPU picking must resolve on the deterministic WebGPU lane",
   );
 
   await page.mouse.click(hit.x, hit.y);
@@ -352,13 +352,13 @@ test("picks and selects a face, exposing its normal and ownership", async ({ pag
     page,
     canvas,
     { prefix: "f:" },
-    "face raycast picking must resolve on the stiffened deck panel",
+    "face GPU picking must resolve on the stiffened deck panel",
   );
 
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => dataset(page, "selected")).toMatch(/^f:/);
   await expect(page.getByTestId("inspection-panel")).toContainText("Normal");
-  await expect(page.getByTestId("inspection-panel")).toContainText("Boundary");
+  await expect(page.getByTestId("inspection-panel")).toContainText("Adjacent elements");
 });
 
 test("promotes a node pick to its owning element with shift", async ({ page }) => {
@@ -368,7 +368,7 @@ test("promotes a node pick to its owning element with shift", async ({ page }) =
     page,
     canvas,
     { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic WebGPU lane",
+    "node GPU picking must resolve on the deterministic WebGPU lane",
   );
   const owned = (await dataset(page, "pick")).split(":");
   expect(owned[0]).toBe("n");
@@ -388,8 +388,8 @@ test("context menu selects a target and toggles display without losing selection
   const hit = await requireHit(
     page,
     canvas,
-    { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic WebGPU lane",
+    {},
+    "GPU picking must resolve on the deterministic WebGPU lane",
   );
 
   await page.mouse.click(hit.x, hit.y, { button: "right" });
@@ -435,8 +435,8 @@ test("does not advertise the CPU-only display overlays in the context menu", asy
   const hit = await requireHit(
     page,
     canvas,
-    { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic WebGPU lane",
+    {},
+    "GPU picking must resolve on the deterministic WebGPU lane",
   );
 
   await page.mouse.click(hit.x, hit.y, { button: "right" });
@@ -458,8 +458,8 @@ test("context menu hides and restores a part via the visibility panel", async ({
   const hit = await requireHit(
     page,
     canvas,
-    { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic WebGPU lane",
+    {},
+    "GPU picking must resolve on the deterministic WebGPU lane",
   );
 
   await page.mouse.click(hit.x, hit.y, { button: "right" });
@@ -493,7 +493,7 @@ test("keeps selection stable across repeated orbit interactions", async ({ page 
     page,
     canvas,
     { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic WebGPU lane",
+    "node GPU picking must resolve on the deterministic WebGPU lane",
   );
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);

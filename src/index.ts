@@ -51,7 +51,6 @@ export {
 } from "./elements/faces";
 export { edgesOf, uniqueEdges, type EdgeKey, type ElementEdge } from "./elements/edges";
 export { faceTriangles } from "./geometry/element-mesh";
-export { batchInstancesByPart, type InstanceBatch } from "./runtime/batch";
 export {
   createInteractionState,
   emphasizedElementRefs,
@@ -90,8 +89,6 @@ export {
   resolveNodeStyle,
 } from "./interaction/nodes";
 export type { FaceRef, NodeRef } from "./interaction/refs";
-export { flattenAssembly, type FlattenOptions } from "./runtime/flatten";
-export { compileScene, type CompiledScene } from "./runtime/compile";
 export { createSceneRuntime, type SceneRuntime } from "./scene-runtime/runtime";
 export type { TransformDelta } from "./scene-runtime/transforms";
 export type { VisibilityDelta } from "./scene-runtime/visibility";
@@ -193,22 +190,6 @@ export {
   type PickGranularity,
   type ResolvedPickIds,
 } from "./picking/pick";
-export {
-  createPickScene,
-  faceOwnership,
-  pick,
-  pickElement,
-  pickNode,
-  resolveFacePick,
-  type ElementPick,
-  type FaceOwnershipResult,
-  type FacePick,
-  type NodePick,
-  type PickRequest,
-  type PickScene,
-  type ResolvedPick,
-} from "./picking/raycast";
-export { intersectRayTriangle, rayFromCamera, type Ray } from "./picking/ray";
 export type {
   AssemblyId,
   ElementRef,

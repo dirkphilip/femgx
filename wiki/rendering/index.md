@@ -9,7 +9,7 @@
 - [[rendering/element-interaction|Element-level interaction]] — element
   picking, selection, highlighting, and edge overlays.
 - [[rendering/fe-inspection-workbench|FE inspection workbench]] — the demo's
-  model presets, unified CPU picking, shared workbench controller, and e2e
+  model presets, GPU picking, shared workbench controller, and e2e
   coverage.
 - [[rendering/element-rendering|Element rendering]] — linear and quadratic
   tessellation into renderable primitives.

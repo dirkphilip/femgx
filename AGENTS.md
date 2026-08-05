@@ -22,9 +22,9 @@ requirements contract]]. Read it before starting any task; this section is the s
   the WebGPU contract (see [[rendering/platform-support|Platform support]]).
 - **Parts, assemblies, instancing, visibility, camera, picking, interaction.**
   Reusable part geometry is drawn once and instanced across hierarchical
-  assembly placements. Element-level GPU picking, selection/highlight/hover,
-  and hide/show are driven by per-instance GPU attributes, not CPU material
-  clones.
+  assembly placements. GPU picking (`renderer.pick`) returns host-mappable
+  part/instance/element/face/node ids; selection/highlight/hover and hide/show
+  are driven by per-instance GPU attributes, not CPU material clones.
 - **Linear elements.** Points, lines, triangles, quads, Tet4, Hex8 with
   canonical topology and validated `createElement` construction.
 - **Results.** Typed scalar/vector/tensor fields, derived quantities (magnitude,
@@ -41,7 +41,8 @@ The following are **not** requirements and must not be expanded as if they were:
 
 - CPU fallback rendering (removed in #171; do not re-add a second renderer).
 - Quadratic element shapes and mid-edge tessellation.
-- Node/face picking granularity, adjacency inspection, and node/face overlays.
+- Multi-hit pick lists (`pickMany`), adjacency inspection polish, and node/face
+  display overlays.
 - Advanced results playback (CasePlayer, interpolation) and legends.
 - IO adapters beyond VTK (VTU, Gmsh, Abaqus), chunked builders, cancellation,
   and progress.
@@ -92,8 +93,8 @@ under `test/`. Tags reflect the [[requirements/product-scope|product scope]]:
   linear shapes; quadratic shapes Deferred.**
 - `src/scene/` — authoritative CPU model: part/assembly/instance identities,
   assemblies, and the scene builder. **Core.**
-- `src/runtime/` — compile pipeline: flattening, frustum culling, per-part
-  batching, and `compileScene`. **Core.**
+- `src/runtime/` — internal helpers: flattening, frustum culling, and per-part
+  batching (not the public product path; prefer `createSceneRuntime`). **Core.**
 - `src/scene-runtime/` — packed CPU-side scene runtime with delta-oriented
   visibility updates (`createSceneRuntime`). **Core.**
 - `src/camera/` — immutable orbit camera and projection math. **Core.**
@@ -107,9 +108,9 @@ under `test/`. Tags reflect the [[requirements/product-scope|product scope]]:
   builders **Deferred**).
 - `src/streaming/` — chunk parsing, spatial partitioning, upload budgets, and
   coordinate rebasing. **Deferred**; do not grow it.
-- `src/picking/` — CPU-side pick-id resolution for element-level targets.
-  **Core** (node/face resolution **Deferred**; the raycast fallback was removed
-  in #171).
+- `src/picking/` — GPU pick-id resolution (`resolvePick` / `resolvePickTarget`)
+  for part/instance/element/face/node targets. **Core** (CPU raycast stack
+  removed; multi-hit `pickMany` is future).
 - `src/platform/` — WebGPU device request and loss reporting with typed
   unsupported reasons, plus capability probing (`queryWebGpuSupport`) and
   supported-path device recovery. **Core.**
@@ -207,8 +208,11 @@ These exist in `package.json`:
 - `npm run bench:budget` — deterministic performance budget gate; run standalone
   (coverage distorts timing) and enforced by CI (see
   [[engineering/benchmarks|Benchmarks]]).
-- `npm run test:e2e` — Playwright e2e tests (`e2e/`) against a local dev server.
-- `npm run test:e2e:install` — install the Playwright Chromium browser.
+- `npm run test:e2e` — full Playwright e2e against system Chrome (hardware
+  WebGPU). Run locally; requires `npm run test:e2e:install`.
+- `npm run test:e2e:ci` — CI-only no-GPU unsupported-contract smoke (no
+  SwiftShader full suite; a GPU runner may host the full lane later).
+- `npm run test:e2e:install` — install system Chrome + Playwright Chromium.
 - `npm run preview` — preview the built demo.
 
 During interactive development and reviewer handoffs, agents must run:

@@ -17,8 +17,6 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | Case                                | Model                            | Workload                     |
 | ----------------------------------- | -------------------------------- | ---------------------------- |
 | `flattenAssembly`                   | shallow 200 000 instances        | full depth-first flatten     |
-| `compileScene`                      | shallow 200 000 instances        | flatten + batch              |
-| `compileScene` with culling         | shallow 200 000 instances        | flatten + cull + batch       |
 | `createSceneRuntime`                | shallow 200 000 instances        | packed compile               |
 | `createSceneRuntime` (deep)         | balanced tree, 204 800 instances | nested transform composition |
 | `batchInstancesByPart`              | 200 000 instances / 200 parts    | group by part                |

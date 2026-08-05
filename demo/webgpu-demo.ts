@@ -114,6 +114,10 @@ export async function startWebGpuDemo(
       renderFrame(gpuRenderer, canvas, active, state, appliedInteraction);
       appliedInteraction = state;
     },
+    pick: async (x, y, granularity) => {
+      if (gpuRenderer === undefined || gpuRenderer.lost) return undefined;
+      return gpuRenderer.pick(x, y, granularity);
+    },
     stats: (active): RendererStats => {
       const stats = gpuRenderer?.stats();
       return {

@@ -94,7 +94,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(instanceVertexShader).toMatch(/@location\(4\) @interpolate\(flat\) facePickId: u32/);
   });
 
-  it("reports the nearest triangle corner node in the node pick pass", () => {
+  it("reports a proximity-gated nearest corner node in the node pick pass", () => {
     const memberNames = structInfo(nodePickVertexShader, "NodeVertexOutput").members.map(
       (member) => member.name,
     );
@@ -121,6 +121,8 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(nodePickFragmentShader).toMatch(
       /nearestNode\(localPosition, cornerA, cornerB, cornerC, nodePickIds\)/,
     );
+    expect(nodePickFragmentShader).toMatch(/edgeScale \* 0\.04/);
+    expect(nodePickFragmentShader).toMatch(/bestDist > threshold/);
   });
 
   it("applies emissive additively in the color fragment shader", () => {
