@@ -1,5 +1,5 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
-import { requireHit } from "./helpers";
+import { expect, test, type Page } from "@playwright/test";
+import { pixelHash, requireHit } from "./helpers";
 
 /**
  * Visual regression for the deterministic CPU renderer: solid, edge, and
@@ -7,26 +7,6 @@ import { requireHit } from "./helpers";
  * default `chromium` project disables the GPU so the demo always commits to the
  * CPU renderer, whose 2D canvas output is deterministic frame to frame.
  */
-
-async function pixelHash(canvas: Locator): Promise<string> {
-  return canvas.evaluate((element: HTMLCanvasElement) => {
-    const context = element.getContext("2d");
-    if (context === null) {
-      return "no-context";
-    }
-    const { data } = context.getImageData(0, 0, element.width, element.height);
-    let hash = 0;
-    for (let index = 0; index < data.length; index += 4) {
-      hash =
-        ((hash * 31 + (data[index] ?? 0)) * 31 +
-          (data[index + 1] ?? 0) * 7 +
-          (data[index + 2] ?? 0) * 3 +
-          (data[index + 3] ?? 0)) >>>
-        0;
-    }
-    return hash.toString(16);
-  });
-}
 
 async function rendererMode(page: Page): Promise<string> {
   return (await page.getByTestId("view-canvas").getAttribute("data-renderer")) ?? "";

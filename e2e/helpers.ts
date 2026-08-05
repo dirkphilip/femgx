@@ -1,5 +1,43 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+/** True when the canvas drawing buffer contains any non-transparent pixel. */
+export async function drawnPixels(canvas: Locator): Promise<boolean> {
+  return canvas.evaluate((element: HTMLCanvasElement) => {
+    const context = element.getContext("2d");
+    if (context === null) {
+      return false;
+    }
+    const { data } = context.getImageData(0, 0, element.width, element.height);
+    for (let index = 0; index < data.length; index += 4) {
+      if ((data[index + 3] ?? 0) !== 0) {
+        return true;
+      }
+    }
+    return false;
+  });
+}
+
+/** A deterministic fingerprint of the canvas drawing buffer. */
+export async function pixelHash(canvas: Locator): Promise<string> {
+  return canvas.evaluate((element: HTMLCanvasElement) => {
+    const context = element.getContext("2d");
+    if (context === null) {
+      return "no-context";
+    }
+    const { data } = context.getImageData(0, 0, element.width, element.height);
+    let hash = 0;
+    for (let index = 0; index < data.length; index += 4) {
+      hash =
+        ((hash * 31 + (data[index] ?? 0)) * 31 +
+          (data[index + 1] ?? 0) * 7 +
+          (data[index + 2] ?? 0) * 3 +
+          (data[index + 3] ?? 0)) >>>
+        0;
+    }
+    return hash.toString(16);
+  });
+}
+
 /** A resolved canvas point whose dataset key matched the sweep. */
 export interface SweepHit {
   readonly x: number;

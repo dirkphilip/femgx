@@ -1,4 +1,5 @@
 import { expect, test, type Locator } from "@playwright/test";
+import { drawnPixels, pixelHash } from "./helpers";
 
 /**
  * Deterministic CPU-side results demo coverage: undeformed/deformed shape,
@@ -7,40 +8,11 @@ import { expect, test, type Locator } from "@playwright/test";
  * 2D canvas output is fully deterministic and comparable frame to frame.
  */
 
-async function pixelHash(canvas: Locator): Promise<string> {
-  return canvas.evaluate((element: HTMLCanvasElement) => {
-    const context = element.getContext("2d");
-    if (context === null) {
-      return "no-context";
-    }
-    const { data } = context.getImageData(0, 0, element.width, element.height);
-    let hash = 0;
-    for (let index = 0; index < data.length; index += 4) {
-      hash =
-        ((hash * 31 + (data[index] ?? 0)) * 31 +
-          (data[index + 1] ?? 0) * 7 +
-          (data[index + 2] ?? 0) * 3 +
-          (data[index + 3] ?? 0)) >>>
-        0;
-    }
-    return hash.toString(16);
-  });
-}
-
-async function drawnPixels(canvas: Locator): Promise<boolean> {
-  return canvas.evaluate((element: HTMLCanvasElement) => {
-    const context = element.getContext("2d");
-    if (context === null) {
-      return false;
-    }
-    const { data } = context.getImageData(0, 0, element.width, element.height);
-    for (let index = 0; index < data.length; index += 4) {
-      if ((data[index + 3] ?? 0) !== 0) {
-        return true;
-      }
-    }
-    return false;
-  });
+async function setScale(scale: Locator, value: number): Promise<void> {
+  await scale.evaluate((element: HTMLInputElement, next: number) => {
+    element.value = String(next);
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+  }, value);
 }
 
 test("renders the undeformed scalar visualization with a legend and range", async ({ page }) => {
@@ -151,10 +123,3 @@ test("playback advances load cases over time with interpolated deformation", asy
   await expect(canvas).toHaveAttribute("data-playing", "0");
   await expect(play).toContainText("Play");
 });
-
-async function setScale(scale: Locator, value: number): Promise<void> {
-  await scale.evaluate((element: HTMLInputElement, next: number) => {
-    element.value = String(next);
-    element.dispatchEvent(new Event("input", { bubbles: true }));
-  }, value);
-}

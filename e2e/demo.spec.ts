@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { requireHit } from "./helpers";
+import { drawnPixels, requireHit } from "./helpers";
 
 /** The stable status summary the workbench reports for a model + renderer. */
 async function status(page: Page): Promise<string> {
@@ -16,22 +16,7 @@ test("renders the demo canvas with instanced geometry", async ({ page }) => {
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
 
-  const drawn = await canvas.evaluate((el: HTMLCanvasElement) => {
-    const context = el.getContext("2d");
-    if (context === null) {
-      return false;
-    }
-    const { data } = context.getImageData(0, 0, el.width, el.height);
-    for (let i = 0; i < data.length; i += 4) {
-      const alpha = data[i + 3];
-      if (alpha !== 0) {
-        return true;
-      }
-    }
-    return false;
-  });
-
-  expect(drawn).toBe(true);
+  expect(await drawnPixels(canvas)).toBe(true);
 });
 
 test("reports the active model, renderer, instances, parts, and batches", async ({ page }) => {
