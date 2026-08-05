@@ -51,11 +51,12 @@ run a final safety-net rebase before submission.
 Read repository guidance (`AGENTS.md`, `.cursor/rules`, and project docs)
 before editing. Implement the smallest complete solution and add/update focused
 tests in the codebase when behavior changes. Do not run the full test suite,
-full repository validation, or repeated lint loops during implementation; the
-reviewer and CI cover those after the PR exists. Run focused checks for changed
-files and the smallest relevant unit-test selection. Before handoff, run the
-repository's pre-commit gate at most once. Do not invoke the `quality-gate`
-skill during implementation.
+full repository validation, coverage, the full build, or the full e2e suite
+during implementation; the reviewer and CI cover those after the PR exists. Run
+focused checks once, before handoff, on the files you changed and the smallest
+relevant unit-test selection — do not run checks after every edit and do not
+loop on validation. Do not invoke the `quality-gate` skill during
+implementation.
 
 The quality gate is repository-aware: detect the repository's configured
 quality commands before running them by reading `AGENTS.md` (or equivalent repo
@@ -68,9 +69,11 @@ Python/uv repositories keep the generic gate:
 
 For this TypeScript/npm repository, use focused commands such as
 `npx prettier --check <changed-files>`, `npx eslint <changed-files>`,
-`npm run typecheck`, and `npm test -- <relevant-test-file>`. Do not run
-coverage, the full e2e suite, or the full build during implementation unless a
-focused investigation requires it.
+`npm run typecheck`, and `npm test -- <relevant-test-file>`. The repository's
+pre-commit hooks run automatically on every commit; do not run them by hand.
+Do not run coverage, the full e2e suite, or the full build during
+implementation. When a focused reproduction is genuinely required, run only the
+minimal subset (a single spec), never the whole suite.
 
 Do not push, create or update PRs, start agents, alter secrets, deploy, touch
 other worktrees, rewrite `$base_branch`, or change remotes. Use `gh` only to check for duplicate critical workflow issues, file one when
