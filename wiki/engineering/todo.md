@@ -120,18 +120,18 @@ development workflow.
 - [x] Add golden topology/connectivity fixtures for the standard element
       conventions, documenting node ordering and reference geometry in meters
       (`test/elements/golden.ts` + `golden.test.ts`; see
-      [[elements-topology|Element topology]]).
+      [[data/elements-topology|Element topology]]).
 - [x] Add numerical checks for bounds, transforms, mid-edge interpolation,
       face/edge extraction, and reference-element volume.
 - [x] Add a large-model correctness stress test with explicit model sizes and
       structural budgets (`test/runtime/stress.test.ts`; see
-      [[benchmarks|Benchmarks]]).
+      [[engineering/benchmarks|Benchmarks]]).
 - [x] Add e2e visual regression for solid, edge, and selection modes on the
       deterministic CPU renderer (`e2e/visual.spec.ts`); the element render
       modes (solid/surface/edges/lines/points) are covered by the element-mode
       e2e tests in `e2e/demo.spec.ts`.
 - [x] Document the browser/GPU capability matrix in the wiki
-      ([[compatibility-matrix|Browser/GPU compatibility matrix]]).
+      ([[engineering/compatibility-matrix|Browser/GPU compatibility matrix]]).
 - [x] Deterministic import/export round trips and invalid-input diagnostics are
       covered by `test/io/roundtrip.test.ts` and `test/io/validate.test.ts`.
 

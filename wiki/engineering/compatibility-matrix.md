@@ -3,8 +3,8 @@
 Documented capability tiers for the library and demo. These tiers are the
 compatibility contract the CI lanes exercise: the default lane validates the
 deterministic CPU fallback, and opt-in lanes exercise the real WebGPU path and
-browser performance (see [[webgpu-e2e|WebGPU browser e2e lane]] and
-[[benchmarks|Benchmarks]]).
+browser performance (see [[rendering/webgpu-e2e|WebGPU browser e2e lane]] and
+[[engineering/benchmarks|Benchmarks]]).
 
 ## Capability tiers
 
@@ -22,8 +22,8 @@ browser performance (see [[webgpu-e2e|WebGPU browser e2e lane]] and
 - **Tier 2** additionally exercises real GPU buffers, pipelines, instanced
   draws, and GPU picking. It is capability-gated: the demo probes presentation
   and pick readback and falls back to Tier 1 when either is broken (see
-  [[webgpu-e2e|WebGPU browser e2e lane]] and
-  [[performance-issues|Performance issues and risks]]).
+  [[rendering/webgpu-e2e|WebGPU browser e2e lane]] and
+  [[engineering/performance-issues|Performance issues and risks]]).
 - **Tier 3** is a loose interaction smoke with a generous ceiling; it is a
   regression signal, not a frame-time benchmark.
 
@@ -37,8 +37,9 @@ element-family render modes (**solid**, **surface**, **edges**, **lines**,
 (`e2e/demo.spec.ts`); the **points** and **lines** parts render as always-visible
 overlays in every demo and visual test, and the point/line topology those modes
 draw is pinned by the golden fixtures in `test/elements/golden.ts` (see
-[[elements-topology|Element topology]] and [[element-rendering|Element
+[[data/elements-topology|Element topology]] and [[rendering/element-rendering|Element
 rendering]]).
 
-Related: [[quality-gate|Quality gate]], [[webgpu-e2e|WebGPU browser e2e lane]],
-[[pick-format|Pick texture format]].
+Related: [[engineering/quality-gate|Quality gate]],
+[[rendering/webgpu-e2e|WebGPU browser e2e lane]],
+[[rendering/pick-format|Pick texture format]].

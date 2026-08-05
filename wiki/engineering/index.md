@@ -2,6 +2,8 @@
 
 - [[engineering/benchmarks|Benchmarks and performance budgets]] — deterministic
   CPU benchmarks and budget gates.
+- [[engineering/compatibility-matrix|Browser/GPU compatibility matrix]] —
+  documented capability tiers and the CI lanes that exercise them.
 - [[engineering/packaging|Packaging]] — ESM/CJS builds and declaration
   resolution.
 - [[engineering/performance-issues|Performance issues and risks]] — known
