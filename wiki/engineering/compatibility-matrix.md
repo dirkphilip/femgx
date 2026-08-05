@@ -6,10 +6,10 @@ software rendering (SwiftShader), so no GPU hardware is required on CI.
 
 ## Capability tiers
 
-| Tier | Runtime                                        | Renderer                      | Example environments                          | CI coverage                                                          |
-| ---- | ---------------------------------------------- | ----------------------------- | --------------------------------------------- | -------------------------------------------------------------------- |
-| 1    | Chromium with WebGPU (hardware or SwiftShader) | WebGPU instanced              | Chrome/Edge, CI with `--enable-unsafe-webgpu` | Default `ci.yml` e2e lane (`chromium` project, software WebGPU)      |
-| 2    | Any browser, interaction smoke                 | WebGPU                        | Local dev, opt-in perf runs                   | Opt-in `perf.yml` lane (`RUN_PERF=1`)                                |
+| Tier | Runtime                                        | Renderer         | Example environments                          | CI coverage                                                     |
+| ---- | ---------------------------------------------- | ---------------- | --------------------------------------------- | --------------------------------------------------------------- |
+| 1    | Chromium with WebGPU (hardware or SwiftShader) | WebGPU instanced | Chrome/Edge, CI with `--enable-unsafe-webgpu` | Default `ci.yml` e2e lane (`chromium` project, software WebGPU) |
+| 2    | Any browser, interaction smoke                 | WebGPU           | Local dev, opt-in perf runs                   | Opt-in `perf.yml` lane (`RUN_PERF=1`)                           |
 
 There is deliberately no CPU rendering tier: environments without a working
 WebGPU path get the explicit unsupported behavior documented in
