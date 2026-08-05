@@ -10,9 +10,11 @@
  * The topology registry is compiler-exhaustive: `SupportedOrder` declares the
  * interpolation orders each family supports, the registry is checked against
  * the resulting key space with a `satisfies` constraint, and lookups still fail
- * loudly at runtime for anything untyped. Adding a family to {@link
- * ElementFamily} without declaring its orders and registering every shape fails
- * at compile time, so a topology cannot be missed or mis-keyed silently.
+ * loudly at runtime for anything untyped. Each entry's `family`/`order` is also
+ * pinned to the literals encoded in its key, so a value registered under the
+ * wrong key fails at compile time. Adding a family to {@link ElementFamily}
+ * without declaring its orders and registering every shape fails at compile
+ * time, so a topology cannot be missed or mis-keyed silently.
  */
 
 /** A family of finite elements with a shared geometric structure. */
@@ -101,13 +103,40 @@ type ShapeKeyOf<F extends ElementFamily> = `${F}:${SupportedOrder[F]}`;
 /** Union of the flat keys of every supported shape. */
 type SupportedShapeKey = { [F in ElementFamily]: ShapeKeyOf<F> }[ElementFamily];
 
+/** The element family encoded in a shape key, e.g. `"tet"` in `"tet:2"`. */
+type FamilyOf<K extends SupportedShapeKey> = K extends `${infer F}:${number}` ? F : never;
+
+/** The interpolation order encoded in a shape key, e.g. `2` in `"tet:2"`. */
+type OrderOf<K extends SupportedShapeKey> = K extends `${string}:${infer O}`
+  ? O extends "0"
+    ? 0
+    : O extends "1"
+      ? 1
+      : O extends "2"
+        ? 2
+        : never
+  : never;
+
+/**
+ * A topology entry whose `family` and `order` are pinned to the literals
+ * encoded in its key, so a value copied under the wrong key fails to compile.
+ */
+type KeyedTopology<K extends SupportedShapeKey> = ElementTopology & {
+  family: FamilyOf<K>;
+  order: OrderOf<K>;
+};
+
 /**
  * Compile-time-exhaustive topology registry.
  *
  * The `satisfies` constraint ties the keys to `SupportedShapeKey` (derived from
- * `ElementFamily` and `SupportedOrder`), so a missing or mis-keyed topology
- * fails the build instead of surfacing only at runtime.
+ * `ElementFamily` and `SupportedOrder`) and pins each entry's `family`/`order`
+ * to the literals in its key, so a missing topology, a mis-keyed key, or a
+ * value whose `family`/`order` contradict the key fails the build instead of
+ * surfacing only at runtime.
  */
+type TopologyRegistry = { [K in SupportedShapeKey]: KeyedTopology<K> };
+
 const TOPOLOGY_REGISTRY = {
   "point:0": { family: "point", order: 0, nodeCount: 1, corners: [0], edges: [], edgeNodes: [] },
   "line:1": {
@@ -158,7 +187,7 @@ const TOPOLOGY_REGISTRY = {
     edges: HEX_EDGES,
     edgeNodes: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
   },
-} satisfies Record<SupportedShapeKey, ElementTopology>;
+} satisfies TopologyRegistry;
 
 /** Runtime lookup map so unsupported shapes still fail loudly in `topologyFor`. */
 const TOPOLOGIES: ReadonlyMap<string, ElementTopology> = new Map(Object.entries(TOPOLOGY_REGISTRY));
