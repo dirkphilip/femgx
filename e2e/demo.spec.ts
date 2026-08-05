@@ -62,6 +62,7 @@ test("reports the active model, renderer, instances, parts, and batches", async 
   await expect(page.getByTestId("status")).toHaveText(
     /Element gallery · (webgpu|cpu) · \d+ visible · 8 parts · \d+ batches · solid · (perspective|orthographic) camera/,
   );
+  await expect(page.getByTestId("renderer-status")).toHaveText(/Renderer (webgpu|cpu)/);
   await expect(page.getByTestId("stats-panel")).toContainText("Visible instances");
   await expect(page.getByTestId("stats-panel")).toContainText("Reusable parts 8");
   await expect(page.getByTestId("stats-panel")).toContainText("Draw batches");
@@ -174,7 +175,7 @@ test("switches projection, fits to view, and resets camera controls", async ({ p
   await expect(label).toHaveText("Perspective");
 });
 
-test("toggles the edge overlay and edge depth test", async ({ page }) => {
+test("toggles the edge overlay", async ({ page }) => {
   await page.goto("/");
   const overlayLabel = page.getByTestId("edge-overlay-label");
   await expect(overlayLabel).toHaveText("Off");
@@ -182,13 +183,25 @@ test("toggles the edge overlay and edge depth test", async ({ page }) => {
   await expect(overlayLabel).toHaveText("On");
   await page.getByTestId("edge-overlay").click();
   await expect(overlayLabel).toHaveText("Off");
+});
 
-  const depthLabel = page.getByTestId("depth-test-label");
-  await expect(depthLabel).toHaveText("On");
-  await page.getByTestId("depth-test").click();
-  await expect(depthLabel).toHaveText("Off");
-  await page.getByTestId("depth-test").click();
-  await expect(depthLabel).toHaveText("On");
+test("does not advertise the depth-test toggle on the CPU renderer", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  // The demo probes WebGPU before committing to the CPU fallback, so the
+  // renderer is only known once the probe settles; poll like the visual spec.
+  await expect.poll(() => canvas.getAttribute("data-renderer")).toMatch(/^(cpu|webgpu)$/);
+  if ((await canvas.getAttribute("data-renderer")) !== "cpu") {
+    test.skip(true, "the WebGPU spec covers the depth-test toggle when WebGPU is active");
+    return;
+  }
+
+  // The CPU renderer draws no depth-tested edge pass, so the control must not
+  // pretend to work: it is disabled and annotated instead of toggling a no-op.
+  const depthButton = page.getByTestId("depth-test");
+  await expect(depthButton).toBeDisabled();
+  await expect(depthButton).toContainText("WebGPU only");
+  await expect(page.getByTestId("depth-test-label")).toHaveText("WebGPU only");
 });
 
 test("selects an element by promoting a node pick with shift-click", async ({ page }) => {

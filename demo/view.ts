@@ -3,6 +3,7 @@ import type { Camera, ElementRenderMode } from "../src/index";
 /** Typed handles to the demo's DOM nodes. */
 export interface DemoView {
   readonly canvas: HTMLCanvasElement;
+  readonly rendererStatus: HTMLElement;
   readonly modelSelect: HTMLSelectElement;
   readonly fitView: HTMLButtonElement;
   readonly projectionToggle: HTMLButtonElement;
@@ -40,6 +41,7 @@ export interface StatusInfo {
 /** Locates the demo's DOM nodes, throwing when the page is misconfigured. */
 export function queryDemoView(): DemoView {
   const canvas = document.querySelector<HTMLCanvasElement>("#view");
+  const rendererStatus = document.querySelector<HTMLElement>("#renderer-status");
   const modelSelect = document.querySelector<HTMLSelectElement>("#model-select");
   const fitView = document.querySelector<HTMLButtonElement>("#fit-view");
   const projectionToggle = document.querySelector<HTMLButtonElement>("#projection-toggle");
@@ -57,6 +59,7 @@ export function queryDemoView(): DemoView {
   const modeButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-mode]"));
   if (
     canvas === null ||
+    rendererStatus === null ||
     modelSelect === null ||
     fitView === null ||
     projectionToggle === null ||
@@ -77,6 +80,7 @@ export function queryDemoView(): DemoView {
   }
   return {
     canvas,
+    rendererStatus,
     modelSelect,
     fitView,
     projectionToggle,
@@ -100,6 +104,7 @@ export function updateStatus(view: DemoView, camera: Camera, info: StatusInfo): 
   const cameraMode = camera.mode === "perspective" ? "perspective" : "orthographic";
   const hasRendererState = info.rendererState !== undefined && info.rendererState !== "";
   const renderer = hasRendererState ? `${info.renderer} · ${info.rendererState}` : info.renderer;
+  view.rendererStatus.textContent = `Renderer ${renderer}`;
   view.projectionLabel.textContent = camera.mode === "perspective" ? "Perspective" : "Orthographic";
   view.projectionToggle.textContent =
     camera.mode === "perspective" ? "Orthographic" : "Perspective";
