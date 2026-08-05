@@ -27,8 +27,12 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   decodes both ids; `resolvePickTarget` turns a hit into an `element` target
   only when both ids hit, otherwise falls back to the `instance` target. A
   `PickTarget` therefore distinguishes `part`, `instance`, and `element`.
-- The demo encodes hover/selection keys as `instanceId:elementId` for element
-  targets and `instanceId` for instance targets.
+- The demo uses CPU raycasting for both renderers instead of GPU readback
+  (see [[rendering/fe-inspection-workbench|FE inspection workbench]]): the unified
+  `pick()` resolves the most specific target (node → face → element), and
+  hover/selection keys are prefixed by granularity (`n:instance:node`,
+  `f:instance:element:faceKey`, `e:instance:element`, `i:instance`,
+  `p:part`).
 
 ## Interaction state and precedence
 

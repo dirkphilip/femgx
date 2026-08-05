@@ -1,210 +1,80 @@
-import {
-  createInteractionState,
-  createSceneRuntime,
-  setHoveredElement,
-  setHoveredInstance,
-  setElementSelected,
-  setInstanceSelected,
-  setPartOverride,
-  type ElementRenderMode,
-  type InstanceId,
-  type InteractionState,
-  type PickTarget,
-  type SceneRuntime,
-  type WebGpuRenderer,
-} from "../src/index";
-import { visiblePartIdsFor } from "../src/fixture/element-fixture";
-import { installCameraControls } from "./camera-controls";
+import type { ModelPreset } from "../src/fixture/presets";
+import { type InteractionState, type SceneRuntime, type WebGpuRenderer } from "../src/index";
 import { startCpuDemo } from "./cpu-demo";
-import type { DemoFixture } from "./fixture";
-import {
-  installDepthTestControl,
-  installEdgeOverlayControl,
-  installModeControl,
-  installProjectionControl,
-  installResetControl,
-  installResizeControl,
-  updateStatus,
-  type CameraRef,
-  type ControlContext,
-  type DemoView,
-} from "./view";
+import { WorkbenchController, type RendererHooks, type RendererStats } from "./controller";
 import type { RendererFactory } from "./webgpu-probe";
+import type { DemoView } from "./view";
 
 /** Inputs for the WebGPU demo path. */
 export interface WebGpuDemoOptions {
   readonly view: DemoView;
-  readonly fixture: DemoFixture;
+  readonly canvas: HTMLCanvasElement;
+  readonly preset: ModelPreset;
   readonly createRenderer: RendererFactory;
 }
 
-/** The string written to the hover/selection dataset for a pick target. */
-function targetKey(target: PickTarget | undefined): string {
-  if (target === undefined) return "";
-  if (target.kind === "element") return `${target.instanceId}:${target.elementId}`;
-  if (target.kind === "instance") return target.instanceId;
-  return "";
+/** All instance slots of a runtime, used for whole-state instance patches. */
+function allSlots(runtime: SceneRuntime): number[] {
+  return Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
+}
+
+function renderFrame(
+  gpuRenderer: WebGpuRenderer | undefined,
+  canvas: HTMLCanvasElement,
+  controller: WorkbenchController,
+  state: InteractionState,
+): void {
+  if (gpuRenderer === undefined) return;
+  const runtime = controller.runtime;
+  gpuRenderer.updateInstances(runtime, state, allSlots(runtime));
+  gpuRenderer.updateElements(runtime, state);
+  gpuRenderer.render(runtime, controller.cameraRef.camera, controller.preset.scene.parts);
+  canvas.dataset["frames"] = String(Number(canvas.dataset["frames"] ?? "0") + 1);
 }
 
 /**
  * Starts the WebGPU renderer, falling back to the CPU renderer when probing
- * fails. Renders on demand and drives hover/selection through GPU picking.
+ * fails. Both paths drive the same workbench controller, so camera and
+ * interaction behavior is identical.
  */
-export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<void> {
-  const { view, fixture, createRenderer } = options;
-  const { canvas } = view;
-  const renderer = await createRenderer();
+export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<WorkbenchController> {
+  const { view, canvas, preset } = options;
+  const renderer = await options.createRenderer();
   if (renderer === undefined) {
-    startCpuDemo(options);
-    return;
+    return startCpuDemo({ view, canvas, preset });
   }
   canvas.dataset["renderer"] = "webgpu";
 
-  const runtime: SceneRuntime = createSceneRuntime(fixture.scene);
-  const slotByInstanceId = new Map<InstanceId, number>();
-  for (let slot = 0; slot < runtime.instanceCount; slot++) {
-    const instanceId = runtime.getInstanceId(slot);
-    if (instanceId !== undefined) slotByInstanceId.set(instanceId, slot);
-  }
-
-  const cameraRef: CameraRef = { camera: fixture.initialCamera };
   let gpuRenderer: WebGpuRenderer | undefined = renderer;
-  let interaction: InteractionState = createInteractionState();
-  let pickChain: Promise<unknown> = Promise.resolve();
-  let mode: ElementRenderMode = fixture.elementFixture.defaultMode;
-
-  function renderGpu(): void {
-    if (gpuRenderer === undefined) return;
-    gpuRenderer.render(runtime, cameraRef.camera, fixture.scene.parts);
-    canvas.dataset["frames"] = String(Number(canvas.dataset["frames"] ?? "0") + 1);
-  }
-
-  /** Applies a mode's part visibility through the runtime and returns changed slots. */
-  function applyModeVisibility(nextMode: ElementRenderMode): readonly number[] {
-    const visible = visiblePartIdsFor(fixture.elementFixture, nextMode);
-    const changed: number[] = [];
-    for (const partId of fixture.scene.parts.keys()) {
-      const delta = runtime.setPartVisible(partId, visible.has(partId));
-      changed.push(...delta.changedInstanceIds);
-    }
-    return changed;
-  }
-
-  applyModeVisibility(mode);
-
-  function patchInstancesFor(instanceIds: readonly (InstanceId | undefined)[]): void {
-    if (gpuRenderer === undefined) return;
-    const slots: number[] = [];
-    for (const instanceId of instanceIds) {
-      if (instanceId === undefined) continue;
-      const slot = slotByInstanceId.get(instanceId);
-      if (slot !== undefined) slots.push(slot);
-    }
-    if (slots.length > 0) gpuRenderer.updateInstances(runtime, interaction, slots);
-  }
-
-  function applyHover(target: PickTarget | undefined): void {
-    if (gpuRenderer === undefined) return;
-    const key = targetKey(target);
-    if (key === canvas.dataset["hovered"]) return;
-    const previousElement = interaction.hoveredElement?.instanceId;
-    const previousInstance = interaction.hoveredInstanceId;
-    interaction = setHoveredElement(
-      interaction,
-      target?.kind === "element"
-        ? { instanceId: target.instanceId, elementId: target.elementId }
-        : undefined,
-    );
-    interaction = setHoveredInstance(
-      interaction,
-      target?.kind === "element" || target?.kind === "instance" ? target.instanceId : undefined,
-    );
-    canvas.dataset["hovered"] = key;
-    gpuRenderer.updateElements(runtime, interaction);
-    patchInstancesFor([
-      previousElement,
-      previousInstance,
-      interaction.hoveredElement?.instanceId,
-      interaction.hoveredInstanceId,
-    ]);
-    renderGpu();
-  }
-
-  async function applyGpuPick(x: number, y: number): Promise<PickTarget | undefined> {
-    if (gpuRenderer === undefined) return undefined;
-    return gpuRenderer.pick(x, y);
-  }
-
-  installCameraControls({
-    canvas,
-    cameraRef,
-    onMove: (event) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      pickChain = pickChain.then(async () => {
-        applyHover(await applyGpuPick(x, y));
-      });
+  const hooks: RendererHooks = {
+    render: (controller, state) => {
+      renderFrame(gpuRenderer, canvas, controller, state);
     },
-    onRender: renderGpu,
-  });
-
-  canvas.addEventListener("click", (event) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    void applyGpuPick(x, y).then((target) => {
+    applyVisibility: (controller, state, changed) => {
       if (gpuRenderer === undefined) return;
-      if (target?.kind === "element") {
-        const ref = { instanceId: target.instanceId, elementId: target.elementId };
-        const selected =
-          interaction.selectedElementIds.get(ref.instanceId)?.has(ref.elementId) ?? false;
-        interaction = setElementSelected(interaction, ref, !selected);
-        canvas.dataset["selected"] = selected ? "" : `${ref.instanceId}:${ref.elementId}`;
-        gpuRenderer.updateElements(runtime, interaction);
-      } else if (target?.kind === "instance") {
-        const instanceId = target.instanceId;
-        const selected = interaction.selectedInstanceIds.has(instanceId);
-        interaction = setInstanceSelected(interaction, instanceId, !selected);
-        canvas.dataset["selected"] = selected ? "" : instanceId;
-        const slot = slotByInstanceId.get(instanceId);
-        if (slot !== undefined) gpuRenderer.updateInstances(runtime, interaction, [slot]);
-      }
-      renderGpu();
-    });
-  });
-
-  const context: ControlContext = {
-    view,
-    cameraRef,
-    instanceCount: runtime.instanceCount,
-    partCount: fixture.scene.parts.size,
-    mode: () => mode,
-    onRender: renderGpu,
-    setEdgeOverlay: (enabled) => {
-      if (gpuRenderer === undefined) return;
-      let next = interaction;
-      for (const partId of fixture.scene.parts.keys()) {
-        next = setPartOverride(next, partId, enabled ? { edge: true } : undefined);
-      }
-      interaction = next;
-      const slots = Array.from({ length: runtime.instanceCount }, (_, index) => index);
-      gpuRenderer.updateInstances(runtime, interaction, slots);
+      gpuRenderer.updateVisibility(controller.runtime, changed);
+      renderFrame(gpuRenderer, canvas, controller, state);
     },
-    setEdgeDepthTest: (enabled) => gpuRenderer?.setEdgeDepthTest(enabled),
+    stats: (controller): RendererStats => {
+      const stats = gpuRenderer?.stats();
+      return {
+        visibleInstances: controller.runtime.visibleCount,
+        batches: stats?.drawBatches ?? 0,
+      };
+    },
   };
-  installProjectionControl(context);
-  installEdgeOverlayControl(context);
-  installDepthTestControl(context);
-  installModeControl(context, (nextMode) => {
-    const changed = applyModeVisibility(nextMode);
-    mode = nextMode;
-    if (changed.length > 0 && gpuRenderer !== undefined) {
-      gpuRenderer.updateVisibility(runtime, changed);
-    }
+
+  const controller = new WorkbenchController({
+    view,
+    canvas,
+    rendererName: "webgpu",
+    hooks,
+    setEdgeDepthTest: (enabled) => gpuRenderer?.setEdgeDepthTest(enabled),
+    onDestroy: () => {
+      gpuRenderer?.destroy();
+      gpuRenderer = undefined;
+    },
   });
-  installResetControl(context, fixture.initialCamera, resetInteraction);
-  installResizeControl(view, cameraRef, renderGpu, () => gpuRenderer?.resize());
 
   window.addEventListener("pagehide", () => {
     gpuRenderer?.destroy();
@@ -224,22 +94,13 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<void>
     },
     recreateRenderer: async () => {
       if (gpuRenderer !== undefined) return;
-      const recreated = await createRenderer();
+      const recreated = await options.createRenderer();
       if (recreated === undefined) return;
       gpuRenderer = recreated;
       canvas.dataset["renderer"] = "webgpu";
-      renderGpu();
+      renderFrame(gpuRenderer, canvas, controller, controller.interaction);
     },
   };
 
-  updateStatus(view, cameraRef.camera, context);
-  renderGpu();
-
-  function resetInteraction(): void {
-    interaction = createInteractionState();
-    canvas.dataset["hovered"] = "";
-    canvas.dataset["selected"] = "";
-    gpuRenderer?.updateElements(runtime, interaction);
-    renderGpu();
-  }
+  return controller;
 }

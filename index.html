@@ -14,20 +14,21 @@
       body {
         margin: 0;
         min-height: 100vh;
-        display: grid;
-        place-items: center;
+        color: #e2e8f0;
       }
       main {
-        width: min(1180px, 100vw);
-        padding: 28px;
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 20px;
         box-sizing: border-box;
       }
       header {
         display: flex;
+        flex-wrap: wrap;
         justify-content: space-between;
         align-items: center;
-        gap: 16px;
-        margin-bottom: 14px;
+        gap: 12px;
+        margin-bottom: 12px;
       }
       h1 {
         margin: 0;
@@ -35,13 +36,21 @@
         letter-spacing: 0.02em;
         font-weight: 650;
       }
+      h2 {
+        margin: 0 0 8px;
+        font-size: 14px;
+        letter-spacing: 0.04em;
+        color: #cbd5e1;
+      }
       .controls {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 6px;
         flex-wrap: wrap;
         justify-content: flex-end;
       }
+      select,
       button {
         border: 1px solid #c8d0d9;
         border-radius: 7px;
@@ -51,15 +60,21 @@
         cursor: pointer;
         box-shadow: 0 1px 1px #1f29370d;
       }
-      button:hover {
-        background: #f2f5f7;
-        border-color: #9eabb8;
+      button:hover,
+      select:hover {
+        background: #24324c;
+      }
+      .toggle-label {
+        color: #94a3b8;
+        font-size: 13px;
       }
       #status {
         color: #647384;
         font-size: 13px;
+        margin-top: 8px;
       }
       .viewport {
+        position: relative;
         overflow: hidden;
         border: 1px solid #cbd3db;
         border-radius: 12px;
@@ -79,14 +94,77 @@
         font-size: 12px;
         margin-top: 10px;
       }
-      section + section {
-        margin-top: 36px;
+      .columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 14px;
+        margin-top: 20px;
       }
-      h2 {
+      .panel {
+        border: 1px solid #263551;
+        border-radius: 10px;
+        padding: 12px;
+        background: #0f172a;
+      }
+      .panel pre {
         margin: 0;
-        font-size: 15px;
-        letter-spacing: 0.04em;
-        color: #3f4c59;
+        font-size: 12px;
+        line-height: 1.5;
+        color: #94a3b8;
+        white-space: pre-wrap;
+      }
+      .visibility-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 13px;
+      }
+      .visibility-list label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #cbd5e1;
+      }
+      .visibility-list input {
+        accent-color: #3b82f6;
+      }
+      .context-menu {
+        position: fixed;
+        z-index: 50;
+        min-width: 220px;
+        background: #111a2e;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 6px;
+        box-shadow: 0 16px 48px #000c;
+      }
+      .context-menu button {
+        display: block;
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: transparent;
+        border-radius: 6px;
+        padding: 7px 10px;
+        font-size: 13px;
+      }
+      .context-menu button:hover {
+        background: #1e293b;
+      }
+      .context-menu .menu-section {
+        margin: 4px 0;
+        border-top: 1px solid #263551;
+        padding-top: 4px;
+      }
+      .context-menu .menu-title {
+        color: #64748b;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 4px 10px 2px;
+      }
+      section + section {
+        margin-top: 28px;
       }
       label.scale {
         display: flex;
@@ -100,20 +178,31 @@
         font-size: 13px;
         margin-top: 8px;
       }
+      @media (max-width: 900px) {
+        .columns {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body>
     <main>
       <header>
-        <h1>FEMGX · instanced assembly viewer</h1>
+        <h1>FEMGX · FE model inspection workbench</h1>
         <div class="controls">
-          <span id="projection-label" data-testid="projection-label">Perspective</span>
+          <select id="model-select" data-testid="model-select" aria-label="Model"></select>
+          <button id="fit-view" data-testid="fit-view" type="button">Fit to view</button>
+          <span id="projection-label" data-testid="projection-label" class="toggle-label"
+            >Perspective</span
+          >
           <button id="projection-toggle" data-testid="projection-toggle" type="button">
             Orthographic
           </button>
-          <span id="edge-overlay-label" data-testid="edge-overlay-label">Off</span>
+          <span id="edge-overlay-label" data-testid="edge-overlay-label" class="toggle-label"
+            >Off</span
+          >
           <button id="edge-overlay" data-testid="edge-overlay" type="button">Overlay edges</button>
-          <span id="depth-test-label" data-testid="depth-test-label">On</span>
+          <span id="depth-test-label" data-testid="depth-test-label" class="toggle-label">On</span>
           <button id="depth-test" data-testid="depth-test" type="button">Depth test off</button>
           <button id="mode-solid" data-mode="solid" data-testid="mode-solid" type="button">
             Solid
@@ -130,11 +219,27 @@
       <div class="viewport">
         <canvas id="view" data-testid="view-canvas" width="800" height="600"></canvas>
       </div>
-      <div id="status" data-testid="status">8 instances · 8 reusable parts</div>
+      <div id="status" data-testid="status"></div>
       <div class="help">
-        Left-drag to orbit · Middle-drag or Shift-drag to pan · Scroll to zoom · Click an element or
-        instance to select
+        Drag to orbit · Shift-drag to pan · Scroll to zoom · Click to inspect the most specific hit
+        (node → face → element) · Shift-click element · Alt-click instance · Ctrl-click part ·
+        Right-click for the inspection menu
       </div>
+      <section class="columns">
+        <section class="panel">
+          <h2>Visibility</h2>
+          <div id="visibility-panel" data-testid="visibility-panel"></div>
+        </section>
+        <section class="panel">
+          <h2>Inspection</h2>
+          <pre id="inspection-panel" data-testid="inspection-panel"></pre>
+        </section>
+        <section class="panel">
+          <h2>Stats</h2>
+          <pre id="stats-panel" data-testid="stats-panel"></pre>
+        </section>
+      </section>
+      <div id="context-menu" class="context-menu" data-testid="context-menu" hidden></div>
       <section>
         <header>
           <h2>Results · deformation and scalar visualization</h2>

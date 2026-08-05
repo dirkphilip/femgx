@@ -61,6 +61,10 @@ describe("createInteractionState", () => {
       highlighted: { emissive: 0.35 },
       selected: { color: { r: 1, g: 0.75, b: 0.1, a: 1 }, emissive: 0.6 },
       hovered: { emissive: 0.2 },
+      hoveredFace: { emissive: 0.3 },
+      selectedFace: { color: { r: 0.45, g: 1, b: 0.4, a: 1 }, emissive: 0.5 },
+      hoveredNode: { emissive: 0.45 },
+      selectedNode: { color: { r: 1, g: 0.42, b: 0.12, a: 1 }, emissive: 0.7 },
     });
   });
 
@@ -69,6 +73,10 @@ describe("createInteractionState", () => {
       highlighted: { emissive: 0.9 },
       selected: { color: { r: 1, g: 0, b: 0, a: 1 } },
       hovered: { opacity: 0.4 },
+      hoveredFace: { emissive: 0.9 },
+      selectedFace: { color: { r: 1, g: 0, b: 0, a: 1 } },
+      hoveredNode: { emissive: 0.9 },
+      selectedNode: { color: { r: 1, g: 0, b: 0, a: 1 } },
     };
     expect(createInteractionState(theme).theme).toBe(theme);
   });

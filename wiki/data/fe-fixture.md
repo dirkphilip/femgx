@@ -54,10 +54,20 @@ Nested assemblies:
   (12 shells, 4 X-stiffeners, 5 Y-stiffeners over a `4 x 3` m footprint).
 - Instance ids are deterministic and readable, e.g. `"1/0/0"` is the first shell of the first row.
 
+## Portal frame (`createFrameFixture`)
+
+`src/fixture/frame-fixture.ts` generates a structural portal frame with
+conforming hex topology: columns, a beam, and a brace network, each modeled
+with real finite elements (not a single panel). Three reusable parts (`solid`,
+`surface`, `edges`) let the volume render modes switch by part visibility. The
+frame is the workbench preset that best exercises element/face picking because
+its faces are large and unambiguous (see
+[[rendering/fe-inspection-workbench|FE inspection workbench]]).
+
 ## Why deterministic
 
 Part and assembly ids are fixed constants, there is no randomness, and the scene is a pure
 function of the options. That gives stable instance ids, lets CPU tests assert the exact
 structure, and lets e2e assert the exact status text without flakiness. The demo status bar
-depends on the default parameters; changing the defaults must update the e2e assertion in
+depends on the default parameters; changing the defaults must update the e2e assertions in
 `e2e/demo.spec.ts`.

@@ -1,4 +1,7 @@
 import type { ElementId, ElementRef, InstanceId, PartId, Instance } from "../scene/types";
+import type { NodeId } from "../elements/element";
+import type { FaceKey } from "../elements/faces";
+import type { FaceRef, NodeRef } from "./refs";
 
 /** RGBA color with normalized channels. */
 export interface Color {
@@ -31,6 +34,10 @@ export interface InteractionTheme {
   readonly highlighted: StyleOverride;
   readonly selected: StyleOverride;
   readonly hovered: StyleOverride;
+  readonly hoveredFace: StyleOverride;
+  readonly selectedFace: StyleOverride;
+  readonly hoveredNode: StyleOverride;
+  readonly selectedNode: StyleOverride;
 }
 
 /** Centralized interactive state for parts, placements, and finite elements. */
@@ -45,6 +52,12 @@ export interface InteractionState {
   readonly elementOverrides: ReadonlyMap<InstanceId, ReadonlyMap<ElementId, StyleOverride>>;
   readonly partOverrides: ReadonlyMap<PartId, StyleOverride>;
   readonly instanceOverrides: ReadonlyMap<InstanceId, StyleOverride>;
+  readonly selectedNodeIds: ReadonlyMap<InstanceId, ReadonlySet<NodeId>>;
+  readonly highlightedNodeIds: ReadonlyMap<InstanceId, ReadonlySet<NodeId>>;
+  readonly hoveredNode?: NodeRef;
+  readonly selectedFaces: ReadonlyMap<InstanceId, ReadonlyMap<FaceKey, ElementId>>;
+  readonly highlightedFaces: ReadonlyMap<InstanceId, ReadonlyMap<FaceKey, ElementId>>;
+  readonly hoveredFace?: FaceRef;
   readonly theme: InteractionTheme;
 }
 
@@ -52,6 +65,10 @@ const defaultTheme: InteractionTheme = {
   highlighted: { emissive: 0.35 },
   selected: { color: { r: 1, g: 0.75, b: 0.1, a: 1 }, emissive: 0.6 },
   hovered: { emissive: 0.2 },
+  hoveredFace: { emissive: 0.3 },
+  selectedFace: { color: { r: 0.45, g: 1, b: 0.4, a: 1 }, emissive: 0.5 },
+  hoveredNode: { emissive: 0.45 },
+  selectedNode: { color: { r: 1, g: 0.42, b: 0.12, a: 1 }, emissive: 0.7 },
 };
 
 /** Creates an empty interaction state. */
@@ -65,6 +82,10 @@ export function createInteractionState(theme: InteractionTheme = defaultTheme): 
     elementOverrides: new Map(),
     partOverrides: new Map(),
     instanceOverrides: new Map(),
+    selectedNodeIds: new Map(),
+    highlightedNodeIds: new Map(),
+    selectedFaces: new Map(),
+    highlightedFaces: new Map(),
     theme,
   };
 }
