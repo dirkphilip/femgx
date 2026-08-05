@@ -8,6 +8,7 @@ import {
   READBACK_BYTE_STRIDE,
   readPickPixel,
   resetPickTargets,
+  WebGpuPickReadbackError,
 } from "../../src/renderer/gpu-pick";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
@@ -19,6 +20,15 @@ describe("GPU pick targets", () => {
     expect(pickPixelCoordinates(50, 50, rect, 800, 600)).toEqual({ x: 400, y: 300 });
     expect(pickPixelCoordinates(-10, -10, rect, 800, 600)).toEqual({ x: 0, y: 0 });
     expect(pickPixelCoordinates(10_000, 10_000, rect, 800, 600)).toEqual({ x: 799, y: 599 });
+  });
+
+  it("maps CSS tap coordinates to device pixels on a high-DPI canvas", () => {
+    // A 390x844 CSS phone canvas at devicePixelRatio 2 has a 780x1688 backing
+    // store; a CSS tap must read the matching device pixel.
+    const rect = { width: 390, height: 844 };
+    expect(pickPixelCoordinates(195, 422, rect, 780, 1688)).toEqual({ x: 390, y: 844 });
+    expect(pickPixelCoordinates(0, 0, rect, 780, 1688)).toEqual({ x: 0, y: 0 });
+    expect(pickPixelCoordinates(390, 844, rect, 780, 1688)).toEqual({ x: 779, y: 1687 });
   });
 
   it("creates the pick targets once and clears them on destroy", () => {
@@ -100,6 +110,74 @@ describe("GPU pick targets", () => {
         facePickId: 12,
         nodePickId: 20,
       });
+    } finally {
+      restore();
+    }
+  });
+
+  it("throws a typed pick-readback error when the readback map fails", async () => {
+    const restore = installGpuGlobals();
+    try {
+      const device = {
+        queue: { submit: () => undefined },
+        createBuffer: () => ({
+          mapAsync: () => Promise.reject(new Error("mapAsync rejected")),
+          getMappedRange: () => new Uint8Array(0),
+          unmap: () => undefined,
+          destroy: () => undefined,
+        }),
+        createCommandEncoder: () => ({
+          copyTextureToBuffer: () => undefined,
+          finish: () => ({}),
+        }),
+        createTexture: () => ({ createView: () => ({}), destroy: () => undefined }),
+      } as unknown as GPUDevice;
+      const pick = createPickTargets();
+      ensurePickTargets(device, pick, 800, 600, "depth24plus");
+      const canvas = fakeCanvas();
+      await expect(readPickPixel(device, canvas, pick, 10, 10)).rejects.toBeInstanceOf(
+        WebGpuPickReadbackError,
+      );
+    } finally {
+      restore();
+    }
+  });
+
+  it("reads the device-pixel coordinate matching a CSS tap on a high-DPI canvas", async () => {
+    const restore = installGpuGlobals();
+    try {
+      const copiedOrigins: Array<{ readonly x: number; readonly y: number }> = [];
+      const device = {
+        queue: { submit: () => undefined },
+        createBuffer: () => ({
+          mapAsync: () => Promise.resolve(),
+          getMappedRange: () => new Uint32Array([7]).buffer,
+          unmap: () => undefined,
+          destroy: () => undefined,
+        }),
+        createCommandEncoder: () => ({
+          copyTextureToBuffer: (
+            source: { readonly origin: { readonly x: number; readonly y: number } },
+            _destination: unknown,
+            _copy: unknown,
+          ) => {
+            copiedOrigins.push({ x: source.origin.x, y: source.origin.y });
+          },
+          finish: () => ({}),
+        }),
+        createTexture: () => ({ createView: () => ({}), destroy: () => undefined }),
+      } as unknown as GPUDevice;
+      const pick = createPickTargets();
+      ensurePickTargets(device, pick, 780, 1688, "depth24plus");
+      // A 390x844 CSS canvas with a 780x1688 device backing store: a tap at
+      // CSS (195, 422) must copy from the device pixel (390, 844).
+      const canvas = {
+        width: 780,
+        height: 1688,
+        getBoundingClientRect: () => ({ width: 390, height: 844 }),
+      } as unknown as HTMLCanvasElement;
+      await readPickPixel(device, canvas, pick, 195, 422);
+      expect(copiedOrigins[0]).toEqual({ x: 390, y: 844 });
     } finally {
       restore();
     }
