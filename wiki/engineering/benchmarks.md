@@ -72,6 +72,17 @@ case for human review and trend comparison and is **not** part of the default
 gate. The opt-in `.github/workflows/perf.yml` (`workflow_dispatch`) runs it and
 the browser performance smoke on demand.
 
+## Large-model correctness stress test
+
+`test/runtime/stress.test.ts` complements the timing budgets with a pure
+correctness check at scale: 80 subcases x 2 000 placements (160 000 instances).
+It verifies deterministic flattening order, unique stable instance ids, the part
+distribution implied by the placement cycle, per-part batching, compiled scene
+consistency, culling that preserves identity, a packed runtime that matches the
+flattened model, and pick round-trips. Budgets here are structural (explicit
+model sizes and invariants) rather than wall clock, so the test runs in the
+default unit suite without coverage-distorted timing.
+
 ## Browser performance (opt-in)
 
 `e2e/perf.spec.ts` measures the demo's interaction round trip in Chromium. It
