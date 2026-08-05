@@ -168,9 +168,9 @@ and reviewable.
 - **Docs**: Document the public API surface (typedoc or JSDoc on exported symbols).
 - **Small modules**: files are capped by ESLint (`max-lines` 300, per-function 60,
   `max-depth` 4). Split large modules into focused, single-concern files.
-- **CI**: GitHub Actions runs the full quality gate (format, typecheck, lint, unit
-  tests + coverage, performance budgets, build, package smoke tests, e2e) on every
-  push/PR. CI must be
+- **CI**: GitHub Actions runs the full quality gate (pre-commit hooks, format,
+  typecheck, lint, unit tests + coverage, performance budgets, build, package smoke
+  tests, e2e) on every push/PR. CI must be
   green before merge. Opt-in performance runs (full bench suite, browser perf)
   live in a separate `workflow_dispatch` workflow (see
   `wiki/engineering/benchmarks.md`).
@@ -182,6 +182,12 @@ These exist in `package.json`:
 - `npm run pre-commit` — lint-staged on staged files (installed as a husky
   `pre-commit` hook via `npm run prepare`); runs eslint `--fix`, prettier, and
   a leftover merge-conflict-marker check.
+- Pre-commit framework hooks — `.pre-commit-config.yaml` adds popular
+  validators (YAML/JSON, large files, private keys, whitespace, EOF) on top of
+  the husky ones. Husky owns the git `pre-commit` hook slot, so pre-commit is
+  NOT installed as a hook; CI runs `pre-commit run --all-files` and developers
+  can run the same command locally if they have `pre-commit` installed (see
+  `wiki/engineering/pre-commit-hooks.md`).
 - `npm run dev` — dev server with demo app.
 - `npm run build` — type-check + bundle library (emits `dist/` with `.d.ts`).
 - `npm run test:package` — package smoke test: build, `npm pack`, install into a
