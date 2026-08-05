@@ -145,6 +145,7 @@ export class WorkbenchController {
     };
     this.interaction = createInteractionState();
     this.emphasisContext = this.buildContext(this.preset);
+    this.seedAssemblyVisibility();
     this.applyModeVisibility();
     this.populateModelSelect();
     this.populateVisibilityPanel();
@@ -172,15 +173,20 @@ export class WorkbenchController {
       this.canvas.height,
     );
     this.emphasisContext = this.buildContext(preset);
-    this.assemblyVisible.clear();
-    for (const assemblyId of preset.scene.visibleAssemblyIds) {
-      this.assemblyVisible.add(assemblyId);
-    }
+    this.seedAssemblyVisibility();
     this.applyModeVisibility();
     this.populateVisibilityPanel();
     this.canvas.dataset["model"] = preset.id;
     this.canvas.dataset["mode"] = this.mode;
     this.render();
+  }
+
+  /** Tracks the assemblies the scene starts visible as the panel's baseline. */
+  private seedAssemblyVisibility(): void {
+    this.assemblyVisible.clear();
+    for (const assemblyId of this.preset.scene.visibleAssemblyIds) {
+      this.assemblyVisible.add(assemblyId);
+    }
   }
 
   /** Switches the visible element family through the runtime. */

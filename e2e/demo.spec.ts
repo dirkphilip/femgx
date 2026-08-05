@@ -124,6 +124,9 @@ test("toggles part visibility and restores it via the visibility panel", async (
 
 test("keeps part and assembly visibility controls in separate namespaces", async ({ page }) => {
   await page.goto("/");
+  // The gallery also overlaps part 1 and root assembly 1; the assembly control
+  // starts checked because the scene starts with the root assembly visible.
+  await expect(page.getByTestId("assembly-vis-1")).toBeChecked();
   await page.getByTestId("model-select").selectOption("frame");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "frame");
 
