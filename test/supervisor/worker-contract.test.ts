@@ -47,50 +47,51 @@ describe("supervisor worker quality-gate contract", () => {
     );
   });
 
-  it("keeps the full npm gate in the reviewer stage", () => {
-    const prompt = readPrompt(".supervisor/prompts/reviewer.md");
+  it.each(PROMPTS)("keeps the full npm gate out of %s", (path) => {
+    const prompt = readPrompt(path);
     for (const command of FULL_NPM_GATE_COMMANDS) {
-      expect(prompt).toContain(command);
+      expect(hasStandaloneCommand(prompt, command)).toBe(false);
     }
-    expect(prompt).toMatch(/TypeScript\/npm repository/);
+    expect(prompt).toMatch(/focused checks/);
+    expect(prompt).toContain("Do not invoke the `quality-gate`");
   });
 
-  it.each([".supervisor/prompts/implementer.md", ".supervisor/prompts/pr-repair.md"])(
-    "keeps the full npm gate out of %s",
-    (path) => {
-      const prompt = readPrompt(path);
-      for (const command of FULL_NPM_GATE_COMMANDS) {
-        expect(hasStandaloneCommand(prompt, command)).toBe(false);
-      }
-      expect(prompt).toMatch(/focused checks/);
-      expect(prompt).toContain("Do not invoke the `quality-gate`");
-    },
-  );
+  it.each(PROMPTS)("runs %s workers' focused checks once instead of repeatedly", (path) => {
+    const prompt = readPrompt(path);
+    expect(prompt).toMatch(/focused checks/);
+    expect(prompt).toMatch(/\bonce\b/);
+    expect(prompt).toMatch(/loop on validation/i);
+  });
 
-  it.each([".supervisor/prompts/implementer.md", ".supervisor/prompts/pr-repair.md"])(
-    "runs %s workers' focused checks once instead of repeatedly",
-    (path) => {
-      const prompt = readPrompt(path);
-      expect(prompt).toMatch(/focused checks/);
-      expect(prompt).toMatch(/\bonce\b/);
-      expect(prompt).toMatch(/loop on validation/i);
-    },
-  );
+  it.each(PROMPTS)("does not ask %s workers to run the pre-commit gate by hand", (path) => {
+    const prompt = readPrompt(path);
+    expect(prompt).not.toMatch(/pre-commit gate at most once/);
+    expect(prompt).toMatch(/pre-commit hooks run automatically on every commit/);
+  });
 
-  it.each([".supervisor/prompts/implementer.md", ".supervisor/prompts/pr-repair.md"])(
-    "does not ask %s workers to run the pre-commit gate by hand",
-    (path) => {
-      const prompt = readPrompt(path);
-      expect(prompt).not.toMatch(/pre-commit gate at most once/);
-      expect(prompt).toMatch(/pre-commit hooks run automatically on every commit/);
-    },
-  );
+  it.each(PROMPTS)("keeps the full e2e suite and build out of %s", (path) => {
+    const prompt = readPrompt(path);
+    expect(prompt).toMatch(/Do not run coverage, the full e2e suite, or the full build/);
+  });
 
-  it.each([".supervisor/prompts/implementer.md", ".supervisor/prompts/pr-repair.md"])(
-    "keeps the full e2e suite and build out of %s",
+  it("records focused local validation in the reviewer without making it a merge authority", () => {
+    const prompt = readPrompt(".supervisor/prompts/reviewer.md");
+    expect(prompt).toMatch(/focused local/);
+    expect(prompt).toMatch(/not a merge authority/);
+    expect(prompt).toMatch(/required checks decide mergeability|required checks/);
+    expect(prompt).toMatch(
+      /Do not run the full\s+product gate|Do not run\s+the\s+full\s+product gate/,
+    );
+    expect(prompt).toMatch(/never report the PR merge-ready from local\s+results/);
+  });
+
+  it.each(PROMPTS)(
+    "requires the validated base SHA and a local-vs-CI distinction in %s",
     (path) => {
       const prompt = readPrompt(path);
-      expect(prompt).toMatch(/Do not run coverage, the full e2e suite, or the full build/);
+      expect(prompt).toMatch(/validated base SHA/);
+      expect(prompt).toMatch(/distinguishing local checks from/);
+      expect(prompt).toMatch(/Do not add keys to the handoff JSON/);
     },
   );
 

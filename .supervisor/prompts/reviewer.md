@@ -52,7 +52,7 @@ run a final safety-net rebase before submission.
 Read repo guidance, especially `AGENTS.md`. Check correctness, regressions,
 security, error handling, test coverage, and scope. Fix only clear findings; do
 not redesign the feature. Do not loop on validation. Before handoff, run
-focused local checks once on the changed files and the smallest relevant test
+focused checks once on the changed files and the smallest relevant test
 selection. Do not invoke the `quality-gate` skill during review.
 
 The quality gate is repository-aware: detect the repository's configured
