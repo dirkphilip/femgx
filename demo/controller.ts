@@ -145,6 +145,7 @@ export class WorkbenchController {
     };
     this.interaction = createInteractionState();
     this.emphasisContext = this.buildContext(this.preset);
+    this.seedAssemblyVisibility();
     this.applyModeVisibility();
     this.populateModelSelect();
     this.populateVisibilityPanel();
@@ -172,15 +173,20 @@ export class WorkbenchController {
       this.canvas.height,
     );
     this.emphasisContext = this.buildContext(preset);
-    this.assemblyVisible.clear();
-    for (const assemblyId of preset.scene.visibleAssemblyIds) {
-      this.assemblyVisible.add(assemblyId);
-    }
+    this.seedAssemblyVisibility();
     this.applyModeVisibility();
     this.populateVisibilityPanel();
     this.canvas.dataset["model"] = preset.id;
     this.canvas.dataset["mode"] = this.mode;
     this.render();
+  }
+
+  /** Tracks the assemblies the scene starts visible as the panel's baseline. */
+  private seedAssemblyVisibility(): void {
+    this.assemblyVisible.clear();
+    for (const assemblyId of this.preset.scene.visibleAssemblyIds) {
+      this.assemblyVisible.add(assemblyId);
+    }
   }
 
   /** Switches the visible element family through the runtime. */
@@ -727,11 +733,12 @@ export class WorkbenchController {
     parts.className = "visibility-list";
     for (const partId of sortedNumbers(this.preset.scene.parts.keys())) {
       parts.appendChild(
-        this.visibilityToggle(
-          partId,
-          this.partVisible(partId),
-          this.preset.partNames.get(partId) ?? `Part ${partId}`,
-        ),
+        this.visibilityToggle({
+          kind: "part",
+          id: partId,
+          checked: this.partVisible(partId),
+          label: this.preset.partNames.get(partId) ?? `Part ${partId}`,
+        }),
       );
     }
     const assemblies = document.createElement("div");
@@ -739,18 +746,29 @@ export class WorkbenchController {
     for (const assembly of this.preset.scene.assemblies.values()) {
       const name = (assembly as { readonly name?: string }).name ?? `Assembly ${assembly.id}`;
       assemblies.appendChild(
-        this.visibilityToggle(assembly.id, this.assemblyVisible.has(assembly.id), name),
+        this.visibilityToggle({
+          kind: "assembly",
+          id: assembly.id,
+          checked: this.assemblyVisible.has(assembly.id),
+          label: name,
+        }),
       );
     }
     panel.append(parts, assemblies);
   }
 
-  private visibilityToggle(id: number, checked: boolean, label: string): HTMLLabelElement {
+  private visibilityToggle(options: {
+    readonly kind: "part" | "assembly";
+    readonly id: number;
+    readonly checked: boolean;
+    readonly label: string;
+  }): HTMLLabelElement {
+    const { kind, id, checked, label } = options;
     const element = document.createElement("label");
     const input = document.createElement("input");
     input.type = "checkbox";
     input.checked = checked;
-    if (this.preset.scene.parts.has(id)) {
+    if (kind === "part") {
       input.dataset["partId"] = String(id);
       input.dataset["testid"] = `part-vis-${id}`;
     } else {

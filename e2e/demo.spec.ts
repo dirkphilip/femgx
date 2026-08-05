@@ -122,6 +122,44 @@ test("toggles part visibility and restores it via the visibility panel", async (
   expect(await status(page)).toContain("4 visible");
 });
 
+test("keeps part and assembly visibility controls in separate namespaces", async ({ page }) => {
+  await page.goto("/");
+  // The gallery also overlaps part 1 and root assembly 1; the assembly control
+  // starts checked because the scene starts with the root assembly visible.
+  await expect(page.getByTestId("assembly-vis-1")).toBeChecked();
+  await page.getByTestId("model-select").selectOption("frame");
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "frame");
+
+  // The frame preset reuses id 1 for a part and the root assembly; the panel
+  // must still create two distinct controls with their own test ids.
+  const partCheckbox = page.getByTestId("part-vis-1");
+  await expect(partCheckbox).toHaveAttribute("data-part-id", "1");
+  await expect(partCheckbox).toBeChecked();
+
+  const rootCheckbox = page.getByTestId("assembly-vis-1");
+  await expect(rootCheckbox).toHaveAttribute("data-assembly-id", "1");
+  await expect(rootCheckbox).toBeChecked();
+
+  // Hiding the root assembly hides every descendant instance.
+  await rootCheckbox.uncheck();
+  await expect(rootCheckbox).not.toBeChecked();
+  await expect(page.getByTestId("status")).toContainText("0 visible");
+
+  await rootCheckbox.check();
+  await expect(page.getByTestId("status")).toContainText("1 visible");
+
+  // Hiding a part affects only that part's instances, leaving the assembly on.
+  await partCheckbox.uncheck();
+  await expect(partCheckbox).not.toBeChecked();
+  await expect(rootCheckbox).toBeChecked();
+  await expect(page.getByTestId("status")).toContainText("0 visible");
+
+  await partCheckbox.check();
+  await expect(partCheckbox).toBeChecked();
+  await expect(rootCheckbox).toBeChecked();
+  await expect(page.getByTestId("status")).toContainText("1 visible");
+});
+
 test("switches projection, fits to view, and resets camera controls", async ({ page }) => {
   await page.goto("/");
   const label = page.getByTestId("projection-label");
