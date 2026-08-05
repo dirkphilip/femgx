@@ -8,8 +8,11 @@ export type {
 export {
   computeBounds,
   validateElements,
+  validatePickIds,
   type Bounds,
   type ElementTessellation,
+  type FaceId,
+  type FaceTessellation,
   type Geometry,
   type Part,
   type Primitive,
@@ -40,8 +43,10 @@ export {
 export {
   classifyFaces,
   facesOf,
+  facesOfElement,
   type ClassifiedFace,
   type ElementFace,
+  type ElementFaceRef,
   type FaceKey,
 } from "./elements/faces";
 export { edgesOf, uniqueEdges, type EdgeKey, type ElementEdge } from "./elements/edges";
@@ -74,6 +79,7 @@ export {
   setHoveredFace,
   emphasizedFaceRefs,
   isFaceEmphasized,
+  resolveFaceStyle,
 } from "./interaction/faces";
 export {
   setNodeHighlighted,
@@ -81,6 +87,7 @@ export {
   setHoveredNode,
   emphasizedNodeRefs,
   isNodeEmphasized,
+  resolveNodeStyle,
 } from "./interaction/nodes";
 export type { FaceRef, NodeRef } from "./interaction/refs";
 export { flattenAssembly, type FlattenOptions } from "./runtime/flatten";
@@ -176,7 +183,20 @@ export {
   translation,
   type Mat4,
 } from "./math/mat4";
-export { instanceToTarget, resolvePick, resolvePickTarget } from "./picking/pick";
+export {
+  instanceToTarget,
+  resolvePick,
+  resolvePickTarget,
+  type PickContext,
+  type PickGranularity,
+  type ResolvedPickIds,
+} from "./picking/pick";
+export {
+  pickFromRay,
+  rayFromPixel,
+  type PickFromRayOptions,
+  type PickRay,
+} from "./picking/raycast-fallback";
 export {
   createPickScene,
   faceOwnership,
@@ -196,8 +216,10 @@ export { intersectRayTriangle, rayFromCamera, type Ray } from "./picking/ray";
 export type {
   AssemblyId,
   ElementRef,
+  FacePickTarget,
   Instance,
   InstanceId,
+  NodePickTarget,
   PartId,
   PickTarget,
 } from "./scene/types";

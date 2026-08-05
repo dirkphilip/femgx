@@ -1,3 +1,4 @@
+import type { Part } from "../geometry/part";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { SceneRuntime } from "../scene-runtime/runtime";
 import type { Instance, InstanceId, PartId } from "../scene/types";
@@ -101,6 +102,7 @@ export class RendererAttachment {
     runtime: SceneRuntime,
     interaction: InteractionState,
     bundle: GpuBundle,
+    parts: ReadonlyMap<PartId, Part>,
   ): void {
     this.attach(runtime, bundle);
     const layout = this.layout;
@@ -112,6 +114,7 @@ export class RendererAttachment {
         runtime,
         layout,
         slotByInstanceId: this.slotByInstanceId,
+        parts,
       },
       interaction,
     );

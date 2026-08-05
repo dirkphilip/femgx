@@ -2,7 +2,9 @@ import type { ElementId } from "../elements/element";
 import type { FaceKey } from "../elements/faces";
 import type { InstanceId } from "../scene/types";
 import type { InteractionState } from "./interaction";
+import { resolveInstanceStyle, type ResolvedStyle } from "./interaction";
 import type { FaceRef } from "./refs";
+import type { Instance } from "../scene/types";
 
 function updateFaceSet(
   state: InteractionState,
@@ -72,6 +74,34 @@ export function isFaceEmphasized(state: InteractionState, ref: FaceRef): boolean
     state.highlightedFaces.get(ref.instanceId)?.has(ref.faceKey) === true ||
     state.selectedFaces.get(ref.instanceId)?.has(ref.faceKey) === true
   );
+}
+
+/**
+ * Resolves the style of one face occurrence. Face-level state is more specific
+ * than part/instance state, so face highlight, hover, and selection win over
+ * `resolveInstanceStyle`; selection beats hover, and hover beats highlight.
+ */
+export function resolveFaceStyle(
+  instance: Instance,
+  ref: FaceRef,
+  base: ResolvedStyle,
+  state: InteractionState,
+): ResolvedStyle {
+  let style = resolveInstanceStyle(instance, base, state);
+  if (state.highlightedFaces.get(ref.instanceId)?.has(ref.faceKey) === true) {
+    style = { ...style, ...state.theme.highlighted };
+  }
+  if (
+    state.hoveredFace?.instanceId === ref.instanceId &&
+    state.hoveredFace.elementId === ref.elementId &&
+    state.hoveredFace.faceKey === ref.faceKey
+  ) {
+    style = { ...style, ...state.theme.hoveredFace };
+  }
+  if (state.selectedFaces.get(ref.instanceId)?.has(ref.faceKey) === true) {
+    style = { ...style, ...state.theme.selectedFace };
+  }
+  return style;
 }
 
 /**

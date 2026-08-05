@@ -74,11 +74,14 @@ describe("GPU draw path", () => {
       const second = uploadPart(draw, part);
       expect(second).toBe(first);
       expect(second.indexCount).toBe(3);
-      expect(gpu.buffers).toHaveLength(4);
+      expect(gpu.buffers).toHaveLength(7);
       expect(gpu.buffers[0]?.size).toBe(36);
       expect(gpu.buffers[1]?.size).toBe(12);
       expect(gpu.buffers[2]?.size).toBe(4);
-      expect(gpu.buffers[3]?.size).toBe(24);
+      expect(gpu.buffers[3]?.size).toBe(4);
+      expect(gpu.buffers[4]?.size).toBe(12);
+      expect(gpu.buffers[5]?.size).toBe(36);
+      expect(gpu.buffers[6]?.size).toBe(24);
     } finally {
       restore();
     }

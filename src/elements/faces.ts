@@ -25,6 +25,27 @@ export interface ElementFace {
   readonly nodeIds: readonly NodeId[];
 }
 
+/** Stable identity of one oriented face of an element. */
+export interface FaceIdRef {
+  readonly elementId: ElementId;
+  /** Index of the face within the element's canonical face list. */
+  readonly faceIndex: number;
+}
+
+/** An element face together with its stable identity. */
+export interface ElementFaceRef extends FaceIdRef {
+  readonly face: ElementFace;
+}
+
+/** Returns the element's faces paired with their stable `faceIndex`. */
+export function facesOfElement(element: Element): readonly ElementFaceRef[] {
+  return facesOf(element).map((face, faceIndex) => ({
+    elementId: element.id,
+    faceIndex,
+    face,
+  }));
+}
+
 /** A face together with how it is shared across a mesh. */
 export interface ClassifiedFace {
   readonly elementId: ElementId;

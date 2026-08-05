@@ -102,7 +102,7 @@ describe("WebGPU renderer", () => {
       { indexCount: 3, instanceCount: 3 },
       { indexCount: 3, instanceCount: 3 },
     ]);
-    expect(gpu.textureCreations).toBe(4);
+    expect(gpu.textureCreations).toBe(6);
     expect(gpu.bindGroupCreations).toBe(2);
     await expect(renderer.pick(400, 300)).resolves.toEqual({ kind: "instance", instanceId: "1/0" });
     renderer.resize(400, 300);
@@ -324,7 +324,7 @@ describe("WebGPU renderer", () => {
 
     expect(gpu.buffers.every((buffer) => !buffer.destroyed)).toBe(true);
     expect(gpu.textureCreations).toBe(texturesAfterFirst);
-    expect(gpu.buffers.length - buffersAfterFirst).toBe(9);
+    expect(gpu.buffers.length - buffersAfterFirst).toBe(12);
     expect(gpu.drawCalls.slice(-4)).toEqual([
       { indexCount: 3, instanceCount: 1 },
       { indexCount: 3, instanceCount: 1 },
