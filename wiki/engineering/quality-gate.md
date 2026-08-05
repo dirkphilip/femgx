@@ -2,8 +2,9 @@
 
 The reviewer runs the full gate once before submission; CI
 (`.github/workflows/ci.yml`) enforces the same gate on every push/PR.
-Supervisor implementation and repair workers use focused checks and do not
-repeat the full gate. See [[operations/supervisor-workflow|Supervisor workflow]].
+Supervisor implementation and repair workers run focused checks once, before
+handoff, and do not repeat the full gate. See
+[[operations/supervisor-workflow|Supervisor workflow]].
 Pre-commit framework hooks ([[engineering/pre-commit-hooks|Pre-commit hooks]])
 run via CI in addition to the npm gate.
 

@@ -67,6 +67,33 @@ describe("supervisor worker quality-gate contract", () => {
     },
   );
 
+  it.each([".supervisor/prompts/implementer.md", ".supervisor/prompts/pr-repair.md"])(
+    "runs %s workers' focused checks once instead of repeatedly",
+    (path) => {
+      const prompt = readPrompt(path);
+      expect(prompt).toMatch(/focused checks/);
+      expect(prompt).toMatch(/\bonce\b/);
+      expect(prompt).toMatch(/loop on validation/i);
+    },
+  );
+
+  it.each([".supervisor/prompts/implementer.md", ".supervisor/prompts/pr-repair.md"])(
+    "does not ask %s workers to run the pre-commit gate by hand",
+    (path) => {
+      const prompt = readPrompt(path);
+      expect(prompt).not.toMatch(/pre-commit gate at most once/);
+      expect(prompt).toMatch(/pre-commit hooks run automatically on every commit/);
+    },
+  );
+
+  it.each([".supervisor/prompts/implementer.md", ".supervisor/prompts/pr-repair.md"])(
+    "keeps the full e2e suite and build out of %s",
+    (path) => {
+      const prompt = readPrompt(path);
+      expect(prompt).toMatch(/Do not run coverage, the full e2e suite, or the full build/);
+    },
+  );
+
   it.each(PROMPTS)("scopes uv/pytest commands to Python repositories in %s", (path) => {
     for (const block of blocks(readPrompt(path))) {
       if (block.includes("uv run") || block.includes("pytest")) {

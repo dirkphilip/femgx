@@ -227,11 +227,13 @@ gate automatically on every push/PR (see `.github/workflows/ci.yml`).
 
 ### Supervisor worker validation
 
-The normal local quality gate applies to interactive development and reviewer
-handoffs. Supervisor implementation and repair workers follow
-`.supervisor/WORKER_PROTOCOL.md`: they run focused checks for the files they
-changed and do not repeat the full repository gate. The reviewer runs the full
-gate once before submission, and CI remains authoritative for the published PR.
+The gate list above applies to interactive development and reviewer handoffs,
+not to Supervisor implementation and repair workers. Those workers follow
+`.supervisor/WORKER_PROTOCOL.md`: they run focused checks once, before handoff,
+on the files they changed, and do not run the full test suite, coverage, the
+full build, the full e2e suite, or the pre-commit gate by hand. The reviewer
+runs the full gate once before submission, and CI remains authoritative for the
+published PR.
 
 ## Clean Code as a First-Class Duty
 
