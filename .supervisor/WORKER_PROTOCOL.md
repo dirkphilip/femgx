@@ -12,6 +12,11 @@ remotes. The supervisor owns state transitions, pushes, pull requests, CI
 waiting, labels, and process termination. It may still run a final safety-net
 rebase immediately before publication.
 
+GitHub's required checks are the merge authority: the supervisor waits for all
+required checks after PR creation, never reports a PR merge-ready from local
+results, and pauses new feature intake while the base commit's CI is red (see
+`wiki/operations/ci-authority.md`).
+
 ## Integration cadence
 
 We merge quickly once work is ready. Keep changes focused, surface blockers
@@ -51,19 +56,22 @@ Do not add other keys. After writing the handoff, wait for the sibling
 `{"ok": true}` for the current handoff contents. If it reports `"ok": false`,
 read `error`, fix the handoff, and wait again.
 
-During implementation and repair, do not run the full test suite, coverage,
-the full build, or the full e2e suite; CI and the review stage cover those
-after the change is complete. Run focused checks once — on the files you
-changed and the smallest relevant unit-test selection — before handoff, and do
-not run checks after every edit or loop on validation. Installed pre-commit
-hooks run automatically on every commit, so do not invoke them by hand. During
-review, run the repository's quality gate once. The gate is repository-aware:
-detect the repository's configured quality commands before running them (read
-`AGENTS.md`, the package-manager manifest, and CI workflows) and use those
-instead of a fixed command list. Python/uv repositories keep the generic
-`uv run pre-commit run --all-files` and, in review, `uv run pytest --cov=sv
---cov-branch --cov-report=term-missing`; TypeScript/npm repositories use their
-npm gate (format, lint, typecheck, unit tests with coverage, build, and e2e).
+During implementation, review, and repair, do not run the full test suite,
+coverage, the full build, or the full e2e suite; CI owns the full product gate
+after the PR exists. Run focused checks once — on the files you changed and the
+smallest relevant unit-test selection — before handoff, and do not run checks
+after every edit or loop on validation. Installed pre-commit hooks run
+automatically on every commit, so do not invoke them by hand. The reviewer
+records focused local validation but does not act as a second merge authority:
+GitHub's required checks decide mergeability, and the supervisor waits for them
+after PR creation. The gate is repository-aware: detect the repository's
+configured quality commands before running them (read `AGENTS.md`, the
+package-manager manifest, and CI workflows) and use those instead of a fixed
+command list. Python/uv repositories keep the generic `uv run pre-commit run
+--all-files`; TypeScript/npm repositories use focused commands (`npx prettier
+--check <changed-files>`, `npx eslint <changed-files>`, `npm run typecheck`,
+`npm test -- <relevant-test-file>`). Worker handoffs record the validated base
+SHA and distinguish local checks from required CI.
 
 The supervisor tracks heartbeat freshness separately from meaningful progress.
 Meaningful progress changes the `status`, `stage`, or `message` fields; repeating

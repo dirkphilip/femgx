@@ -6,3 +6,5 @@
   matching and migration behavior.
 - [[operations/supervisor-workflow|Supervisor workflow]] — launching and
   operating the Supervisor.
+- [[operations/ci-authority|CI authority and base-health intake]] — GitHub
+  checks as the merge authority and the base-health intake gate.

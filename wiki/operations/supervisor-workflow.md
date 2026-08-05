@@ -62,36 +62,51 @@ The worker prompts (`prompts/implementer.md`, `prompts/reviewer.md`,
 `AGENTS.md`, the package-manager manifest (`package.json` for npm,
 `pyproject.toml` + `uv.lock` for Python/uv), and the CI workflow config.
 
-Validation is stage-specific so implementation time is not spent repeating the
-same expensive gate before the code is ready for review:
+Validation is stage-specific so agent time is not spent repeating the full
+product gate before CI runs it:
 
-- Implement and repair workers run one focused batch of formatting, lint,
-  typecheck, and relevant test checks once, before handoff. They do not run
-  checks after every edit, do not loop on validation, and do not run coverage,
-  the full build, or the full e2e suite. Installed pre-commit hooks run
-  automatically on every commit, so workers do not invoke them by hand.
-- The reviewer runs the full repository gate once before submission.
-- CI remains authoritative for the published PR.
-
+- Implement, review, and repair workers run one focused batch of formatting,
+  lint, typecheck, and relevant test checks once, before handoff. They do not
+  run checks after every edit, do not loop on validation, and do not run
+  coverage, the full build, or the full e2e suite. Installed pre-commit hooks
+  run automatically on every commit, so workers do not invoke them by hand.
+- The reviewer records focused local validation but is not a merge authority.
+- CI remains authoritative for the published PR: the workflow waits for all
+  required GitHub checks after publication (see
+  [[operations/ci-authority|CI authority and base-health intake]]).
 - Python/uv repositories keep the generic gate: `uv run pre-commit run --all-files`
-  before implement/repair handoff, plus `uv run pytest --cov=sv --cov-branch
---cov-report=term-missing` during review.
-- TypeScript/npm reviewers (like femgx) use the npm gate: `npm run format`,
-  `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `npm run build`,
-  and `npm run test:e2e`. This mirrors `.github/workflows/ci.yml`.
+  before implement/repair/review handoff.
+- TypeScript/npm workers (like femgx) use focused commands such as
+  `npx prettier --check <changed-files>`, `npx eslint <changed-files>`,
+  `npm run typecheck`, and `npm test -- <relevant-test-file>`. The full npm
+  gate (`npm run format`, `npm run lint`, `npm run typecheck`,
+  `npm run test:coverage`, `npm run build`, `npm run test:e2e`) mirrors
+  `.github/workflows/ci.yml` and is owned by CI.
 
 `test/supervisor/worker-contract.test.ts` locks this behavior: prompts must be
-repository-aware, keep the full npm gate in review, keep it out of
-implementation/repair, scope uv/pytest commands to Python repositories, and
+repository-aware, keep the full npm gate out of every worker stage, scope
+uv/pytest commands to Python repositories, and
 preserve the handoff/progress contract.
 
 ## Pull request mode and merge behavior
 
 The shared configuration sets `github.draft = false`, so Supervisor creates
-regular pull requests ready for review. The current configuration also sets
-`github.auto_merge = true`, so after publication Supervisor asks GitHub to
-merge the PR automatically once required checks and approvals are satisfied.
-The PR remains a regular, reviewable PR rather than a draft.
+regular pull requests ready for review. After publication the workflow runs a
+`ci` (`wait_for_ci`) stage that waits for all required GitHub checks before the
+workflow completes; a pending, missing, or failing required check blocks
+completion and failing checks may trigger PR repair. The configuration also
+sets `github.auto_merge = true`, so after required checks and approvals are
+satisfied GitHub merges the PR automatically. GitHub's required checks — not
+local worker results — are the merge authority. See
+[[operations/ci-authority|CI authority and base-health intake]].
+
+## Base-health intake
+
+Before starting new feature work, the Supervisor performs a lightweight health
+check against the current base commit. If the base is red, new feature intake
+pauses and a base-health blocker is reported until a repair PR restores green
+CI; repair work remains possible while intake is paused. See
+[[operations/ci-authority|CI authority and base-health intake]].
 
 ## Approval allow-list
 
