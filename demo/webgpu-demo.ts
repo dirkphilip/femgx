@@ -8,7 +8,6 @@ import {
 } from "../src/index";
 import { WorkbenchController, type RendererHooks, type RendererStats } from "./controller";
 import type { DemoView } from "./view";
-import { classifyWebGpuStartupError, type WebGpuStartupDiagnostic } from "./webgpu-startup";
 
 /** Inputs for the WebGPU demo path. */
 export interface WebGpuDemoOptions {
@@ -35,13 +34,11 @@ function renderFrame(
 /**
  * Starts the WebGPU demo renderer. WebGPU is the product's only renderer: when
  * it is unavailable the demo reports an explicit unsupported message instead of
- * degrading to a second rendering path. Startup failures are classified into a
- * stable phase (api/adapter/device, renderer setup, frame submission) that is
- * written to the canvas `data-webgpu-error` attribute and shown in the status
- * line; no failure is silently swallowed. A device loss recovers the renderer
- * once; when recovery fails the renderer is destroyed and the unsupported
- * message is shown. A loss reported while the renderer is still being created
- * is buffered and recovered once it is wired up.
+ * degrading to a second rendering path. Renderer creation, the first frame,
+ * and re-creation failures are reported explicitly rather than swallowed. A
+ * device loss recovers the renderer once; when recovery fails the renderer is
+ * destroyed and the unsupported message is shown. A loss reported while the
+ * renderer is still being created is buffered and recovered once it is wired up.
  */
 export async function startWebGpuDemo(
   options: WebGpuDemoOptions,
@@ -58,12 +55,17 @@ export async function startWebGpuDemo(
    */
   let appliedInteraction: InteractionState = createInteractionState();
 
-  /** Shows the classified unsupported/error diagnostic on the demo's status line. */
-  const reportUnsupported = (diagnostic: WebGpuStartupDiagnostic): void => {
+  /** Shows the explicit unsupported/error message on the demo's status line. */
+  const reportUnsupported = (message: string): void => {
     canvas.dataset["renderer"] = "unsupported";
-    canvas.dataset["webgpu-error"] = diagnostic.phase;
     view.rendererStatus.textContent = "Renderer unsupported";
-    view.status.textContent = diagnostic.message;
+    view.status.textContent = message;
+  };
+
+  /** Formats a renderer failure into the demo's explicit unsupported message. */
+  const rendererFailureMessage = (error: unknown): string => {
+    const detail = error instanceof Error ? error.message : String(error);
+    return `femgx requires a usable WebGPU renderer. ${detail}`;
   };
 
   /** Recovers the renderer once, or reports the loss when recovery is impossible. */
@@ -87,10 +89,9 @@ export async function startWebGpuDemo(
       renderer.destroy();
       gpuRenderer = undefined;
       canvas.dataset["recovery"] = "error";
-      reportUnsupported({
-        phase: "device",
-        message: "The WebGPU device was lost and could not be recovered; reload to restart.",
-      });
+      reportUnsupported(
+        "The WebGPU device was lost and could not be recovered; reload to restart.",
+      );
     }
   };
 
@@ -145,7 +146,7 @@ export async function startWebGpuDemo(
     });
   } catch (error) {
     controller.destroy();
-    reportUnsupported(classifyWebGpuStartupError("renderer-setup", error));
+    reportUnsupported(rendererFailureMessage(error));
     return undefined;
   }
   canvas.dataset["renderer"] = "webgpu";
@@ -157,11 +158,11 @@ export async function startWebGpuDemo(
     controller.render();
   } catch (error) {
     // The first frame could not be submitted; destroy the renderer and report
-    // the classified diagnostic instead of leaving an unhandled error.
+    // the explicit error instead of leaving an unhandled failure.
     gpuRenderer.destroy();
     gpuRenderer = undefined;
     controller.destroy();
-    reportUnsupported(classifyWebGpuStartupError("frame-submission", error));
+    reportUnsupported(rendererFailureMessage(error));
     return undefined;
   }
 
@@ -192,7 +193,7 @@ export async function startWebGpuDemo(
           },
         });
       } catch (error) {
-        reportUnsupported(classifyWebGpuStartupError("renderer-setup", error));
+        reportUnsupported(rendererFailureMessage(error));
         return;
       }
       gpuRenderer = recreated;
@@ -205,7 +206,7 @@ export async function startWebGpuDemo(
       } catch (error) {
         gpuRenderer.destroy();
         gpuRenderer = undefined;
-        reportUnsupported(classifyWebGpuStartupError("frame-submission", error));
+        reportUnsupported(rendererFailureMessage(error));
       }
     },
     forceDeviceLoss: () => {

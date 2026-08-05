@@ -22,6 +22,10 @@ required, so the lane runs on any CI runner and on developer machines.
     real GPU device; the demo must recover (status shows `recovered`) or report
     the loss (`data-recovery="error"`), and must not raise page errors either
     way.
+  - **WebGPU-only unsupported contract** — with `navigator.gpu` hidden before
+    page load, the demo must report `data-renderer="unsupported"`, state that
+    femgx requires a usable WebGPU renderer, include the probe diagnostic, and
+    never start a 2D CPU renderer for the model view.
   - **display toggles** — the depth-test control stays live, and the removed
     CPU-renderer-only node/normal/face-boundary/ID overlays are no longer
     advertised in the context menu.

@@ -36,30 +36,22 @@ renderer, no CPU fallback, and no hidden capability-probe canvas in the library
 or the demo. A caller that cannot create a WebGPU renderer receives a
 `WebGpuUnsupportedError` (or the typed `queryWebGpuSupport` report) and decides
 how to present that to its user. The demo is a thin consumer: it starts the
-WebGPU renderer directly and shows the error message in its status line when
-WebGPU is unavailable (`data-renderer="unsupported"`).
+WebGPU renderer directly and, when WebGPU is unavailable, sets
+`data-renderer="unsupported"` and reports that femgx requires a usable WebGPU
+renderer, including the probe diagnostic, in its status line. The e2e lane
+asserts this contract by hiding `navigator.gpu` before page load and verifying
+the demo never starts a 2D CPU renderer.
 
-### Classified startup diagnostics
+### Explicit startup failures
 
-The demo classifies every startup failure into a stable phase
-(`demo/webgpu-startup.ts`) so the reason is never indistinguishable from a
-generic "unsupported" message. The phase is written to the canvas
-`data-webgpu-error` attribute and the diagnostic text to the status line:
-
-- `api` — `navigator.gpu` is not exposed (`WebGpuUnsupportedError("no-webgpu")`).
-- `adapter` — `requestAdapter` returned `null` or rejected.
-- `device` — an adapter exists but `requestDevice` failed, or a device was
-  lost and could not be recovered.
-- `renderer-setup` — the renderer failed to build after a device existed
-  (canvas context, pipeline, or buffer creation).
-- `frame-submission` — the first frame could not be submitted.
-
-Typed `WebGpuUnsupportedError`s map to their api/adapter/device phase; any
-other error keeps the phase it was thrown in. No failure is silently swallowed:
-renderer creation, the first frame, and re-creation all report a classified
-diagnostic and clean up the renderer on the failure path. Diagnostics live in
-the status UI and the dataset; they never depend on console output. (The
-pre-P0 hidden-probe machinery and its GPU pick-readback verification were
+The demo reports every renderer failure as `data-renderer="unsupported"` with a
+status-line message: "femgx requires a usable WebGPU renderer" plus the error
+detail (a typed `WebGpuUnsupportedError` message already contains the probe
+reason, e.g. `navigator.gpu is not exposed`). No failure is silently swallowed:
+renderer creation, the first frame, and re-creation failures all report the
+explicit message and clean up the renderer on the failure path. Diagnostics
+live in the status UI and the dataset; they never depend on console output.
+(The pre-P0 hidden-probe machinery and its GPU pick-readback verification were
 removed with the CPU fallback; demo interaction picking is CPU raycasting.)
 
 ## Device loss and recovery
