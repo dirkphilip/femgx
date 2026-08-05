@@ -42,7 +42,7 @@ A gesture is cleared (and the controller's `dragging` flag reset) by any of:
   uncaptured `pointerout` is the safety net when capture never took.
 
 The controller reflects the live gesture state in `data-dragging` on the canvas
-and the camera pose in `data-camera`; `e2e/mobile.spec.ts` uses these to assert
+and the camera pose in `data-camera`; `e2e/mobile-touch.spec.ts` uses these to assert
 one-finger orbit, pinch zoom, two-finger pan, tap selection, and — crucially —
 that an interrupted touch (`touchCancel`) never leaves dragging stuck. The e2e
 lane injects raw multi-touch via CDP (`Input.dispatchTouchEvent`) because

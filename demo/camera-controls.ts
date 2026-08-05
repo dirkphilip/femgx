@@ -105,7 +105,9 @@ export function installCameraControls(options: CameraControlOptions): void {
         );
       }
       if (step.zoom !== 0) {
-        cameraRef.camera = zoomCamera(cameraRef.camera, step.zoom);
+        // zoomCamera's amount is positive when moving the camera away; the
+        // gesture step is positive when the fingers spread, so negate.
+        cameraRef.camera = zoomCamera(cameraRef.camera, -step.zoom);
       }
     }
   }
