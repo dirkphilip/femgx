@@ -39,6 +39,29 @@ how to present that to its user. The demo is a thin consumer: it starts the
 WebGPU renderer directly and shows the error message in its status line when
 WebGPU is unavailable (`data-renderer="unsupported"`).
 
+### Classified startup diagnostics
+
+The demo classifies every startup failure into a stable phase
+(`demo/webgpu-startup.ts`) so the reason is never indistinguishable from a
+generic "unsupported" message. The phase is written to the canvas
+`data-webgpu-error` attribute and the diagnostic text to the status line:
+
+- `api` — `navigator.gpu` is not exposed (`WebGpuUnsupportedError("no-webgpu")`).
+- `adapter` — `requestAdapter` returned `null` or rejected.
+- `device` — an adapter exists but `requestDevice` failed, or a device was
+  lost and could not be recovered.
+- `renderer-setup` — the renderer failed to build after a device existed
+  (canvas context, pipeline, or buffer creation).
+- `frame-submission` — the first frame could not be submitted.
+
+Typed `WebGpuUnsupportedError`s map to their api/adapter/device phase; any
+other error keeps the phase it was thrown in. No failure is silently swallowed:
+renderer creation, the first frame, and re-creation all report a classified
+diagnostic and clean up the renderer on the failure path. Diagnostics live in
+the status UI and the dataset; they never depend on console output. (The
+pre-P0 hidden-probe machinery and its GPU pick-readback verification were
+removed with the CPU fallback; demo interaction picking is CPU raycasting.)
+
 ## Device loss and recovery
 
 Device lifetime is centralized in `GpuDeviceLifecycle`
