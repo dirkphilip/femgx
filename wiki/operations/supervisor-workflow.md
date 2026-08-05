@@ -88,6 +88,15 @@ repository-aware, keep the full npm gate out of every worker stage, scope
 uv/pytest commands to Python repositories, and
 preserve the handoff/progress contract.
 
+## Base rebase ownership
+
+Workers own base rebasing in their worktree (implementer, reviewer, and repair
+prompts all fetch `origin/$base_branch` and rebase before working or validating),
+matching `WORKER_PROTOCOL.md`. The workflow does not enable the supervisor-side
+`refresh_base` stage option, so no duplicate base refresh happens at review
+launch. The supervisor performs only the final safety-net rebase immediately
+before PR submission.
+
 ## Pull request mode and merge behavior
 
 The shared configuration sets `github.draft = false`, so Supervisor creates

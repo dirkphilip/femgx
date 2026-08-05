@@ -42,10 +42,9 @@ check for duplicates and include only the impact, evidence, recommended next
 action, and acceptance criteria. Mention issue URLs in the handoff summary.
 Never include secrets, credentials, or Supervisor control tokens.
 
-You own local Git in this worktree. The supervisor's base checkpoint before
-launch is `$base_freshness`. Fetch `origin/$base_branch` and rebase onto it
-before validation when the branch is behind (use `git rebase --autostash` when
-the tree is dirty). Commit clear review fixes when needed. Do not ask the
+You own local Git in this worktree. Fetch `origin/$base_branch` and rebase onto
+it before validation when the branch is behind (use `git rebase --autostash`
+when the tree is dirty). Commit clear review fixes when needed. Do not ask the
 supervisor to rebase for you. The supervisor still publishes (push + PR) and may
 run a final safety-net rebase before submission.
 

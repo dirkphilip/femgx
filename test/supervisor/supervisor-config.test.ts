@@ -67,6 +67,10 @@ describe("supervisor runtime defaults", () => {
     expect(configText).toMatch(/^max_issues_per_run\s*=\s*2\s*$/m);
     expect(configText).toMatch(/^repair\s*=\s*true\s*$/m);
   });
+
+  it("leaves base rebasing to the workers instead of a supervisor-side refresh", () => {
+    expect(configText).not.toMatch(/^refresh_base\s*=\s*true\s*$/m);
+  });
 });
 
 describe("supervisor CI-authoritative workflow", () => {
