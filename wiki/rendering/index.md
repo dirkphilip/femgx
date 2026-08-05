@@ -6,6 +6,8 @@
   projection transitions, and CAD-style navigation.
 - [[rendering/camera-touch-controls|Camera touch controls]] — pointer-driven
   one-finger orbit, pinch zoom, two-finger pan, and gesture cancellation.
+- [[rendering/cpu-fallback-face-culling|CPU fallback face culling]] — why thin
+  solids must back-face cull in the 2D-canvas fallback.
 - [[rendering/element-interaction|Element-level interaction]] — element
   picking, selection, highlighting, and edge overlays.
 - [[rendering/fe-inspection-workbench|FE inspection workbench]] — the demo's

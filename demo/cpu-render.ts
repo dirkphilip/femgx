@@ -148,21 +148,28 @@ function drawTriangles(draw: TriangleDraw): void {
     context.strokeStyle = rgba(style.color, style.opacity);
     context.lineWidth = style.edge ? 1 : 0;
     context.beginPath();
-    let drawn = false;
     const end = element.triangleStart + element.triangleCount;
+    let elementDrawn = false;
     for (let triangle = element.triangleStart; triangle < end; triangle++) {
       const baseIndex = triangle * 3;
       const a = projectVertex(camera, transform, positions, indices[baseIndex] ?? 0);
       const b = projectVertex(camera, transform, positions, indices[baseIndex + 1] ?? 0);
       const c = projectVertex(camera, transform, positions, indices[baseIndex + 2] ?? 0);
       if (a === undefined || b === undefined || c === undefined) continue;
+      // Cull back faces the way the WebGPU solid pipeline does (`cullMode:
+      // "back"`): a triangle whose screen-space winding is clockwise faces away
+      // from the camera. Without this, a single path that mixes front and back
+      // faces (e.g. a thin plate seen at a shallow angle) lets the nonzero fill
+      // rule cancel overlapping opposite-wound triangles to nothing.
+      const signedArea = (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]);
+      if (signedArea <= 0) continue;
       context.moveTo(a[0], a[1]);
       context.lineTo(b[0], b[1]);
       context.lineTo(c[0], c[1]);
       context.closePath();
-      drawn = true;
+      elementDrawn = true;
     }
-    if (!drawn) continue;
+    if (!elementDrawn) continue;
     context.fill();
     if (style.edge) context.stroke();
   }

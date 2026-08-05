@@ -6,6 +6,7 @@ import { transformPoint } from "../math/mat4";
 import { flattenAssembly } from "../runtime/flatten";
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../scene/types";
+import { createBoltedPlateFixture } from "./bolted-plate";
 import { createElementFixture } from "./element-fixture";
 import { createFrameFixture } from "./frame-fixture";
 import { createPanelFixture } from "./panel";
@@ -145,9 +146,66 @@ export function createFramePreset(): ModelPreset {
   };
 }
 
+/** Builds the bolted-plate assembly showcase preset. */
+export function createBoltedPlatePreset(): ModelPreset {
+  const fixture = createBoltedPlateFixture();
+  const partIds = fixture.partIds;
+  const colors = new Map<PartId, Color>([
+    [partIds.plate.solid, { r: 0.45, g: 0.55, b: 0.68, a: 1 }],
+    [partIds.plate.surface, { r: 0.5, g: 0.6, b: 0.72, a: 1 }],
+    [partIds.plate.edges, { r: 0.36, g: 0.46, b: 0.6, a: 1 }],
+    [partIds.bolt.solid, { r: 0.32, g: 0.36, b: 0.42, a: 1 }],
+    [partIds.bolt.surface, { r: 0.36, g: 0.4, b: 0.47, a: 1 }],
+    [partIds.bolt.edges, { r: 0.24, g: 0.28, b: 0.34, a: 1 }],
+    [partIds.washer.solid, { r: 0.85, g: 0.87, b: 0.9, a: 1 }],
+    [partIds.washer.surface, { r: 0.88, g: 0.9, b: 0.93, a: 1 }],
+    [partIds.washer.edges, { r: 0.72, g: 0.74, b: 0.78, a: 1 }],
+    [partIds.nut.solid, { r: 0.75, g: 0.55, b: 0.2, a: 1 }],
+    [partIds.nut.surface, { r: 0.8, g: 0.6, b: 0.25, a: 1 }],
+    [partIds.nut.edges, { r: 0.62, g: 0.45, b: 0.16, a: 1 }],
+  ]);
+  const names = new Map<PartId, string>([
+    [partIds.plate.solid, "Steel plates"],
+    [partIds.plate.surface, "Steel plates"],
+    [partIds.plate.edges, "Steel plates"],
+    [partIds.bolt.solid, "Bolts"],
+    [partIds.bolt.surface, "Bolts"],
+    [partIds.bolt.edges, "Bolts"],
+    [partIds.washer.solid, "Washers"],
+    [partIds.washer.surface, "Washers"],
+    [partIds.washer.edges, "Washers"],
+    [partIds.nut.solid, "Nuts"],
+    [partIds.nut.surface, "Nuts"],
+    [partIds.nut.edges, "Nuts"],
+  ]);
+  return {
+    id: "bolted",
+    name: "Bolted plate assembly",
+    scene: fixture.scene,
+    elementModels: fixture.elementModels,
+    partColors: colors,
+    fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
+    partNames: names,
+    modePartIds: fixture.modePartIds,
+    overlayPartIds: [],
+    defaultMode: fixture.defaultMode,
+    bounds: fixtureBounds(fixture.scene),
+  };
+}
+
 /** The deterministic presets offered by the demo, in stable order. */
 export function createModelPresets(): readonly ModelPreset[] {
-  return [createGalleryPreset(), createPanelPreset(), createFramePreset()];
+  return [
+    createBoltedPlatePreset(),
+    createGalleryPreset(),
+    createPanelPreset(),
+    createFramePreset(),
+  ];
+}
+
+/** The demo's default showcase preset (the bolted plate assembly). */
+export function createDefaultPreset(): ModelPreset {
+  return createModelPresets()[0] as ModelPreset;
 }
 
 /** World bounds of every placed part in the scene, merged into one box. */

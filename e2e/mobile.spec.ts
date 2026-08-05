@@ -21,6 +21,36 @@ test("fits a phone-sized viewport without horizontal overflow", async ({ page })
   expect(overflow, "the page must not scroll horizontally on a phone").toBeLessThanOrEqual(0);
 });
 
+test("renders the bolted showcase with distinct part colors on a phone", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toBeVisible();
+  await expect.poll(() => canvas.getAttribute("data-renderer")).toBe("cpu");
+
+  const drawn = await canvas.evaluate((el: HTMLCanvasElement) => {
+    const context = el.getContext("2d");
+    if (context === null) {
+      return false;
+    }
+    const { data } = context.getImageData(0, 0, el.width, el.height);
+    const colors = new Set<number>();
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] === 0) continue;
+      colors.add((data[i] ?? 0) | ((data[i + 1] ?? 0) << 8) | ((data[i + 2] ?? 0) << 16));
+      if (colors.size >= 4) return true;
+    }
+    return false;
+  });
+  expect(drawn, "the bolted view must render distinct part colors on a phone").toBe(true);
+
+  const screenshot = await canvas.screenshot();
+  expect(
+    screenshot,
+    "the bolted showcase must produce a non-empty phone screenshot",
+  ).not.toHaveLength(0);
+});
+
 test("keeps primary controls reachable and touch-sized on a phone", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto("/");
