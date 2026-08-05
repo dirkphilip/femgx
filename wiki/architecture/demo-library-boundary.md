@@ -21,7 +21,7 @@ presentation and interaction policy only.
   (`updateInstances`, `updateElements`, `updateVisibility`) plus the
   interaction-diff helper `changedInstanceSlots`
   ([[rendering/renderer-subrange-updates|Renderer subrange updates]]).
-- Picking (`pick`, `pickFromRay`, `createPickScene`) and camera math.
+- Picking (`pick`, `createPickScene`) and camera math.
 
 **Demo-only policy (stays in `demo/`):**
 
@@ -30,8 +30,7 @@ presentation and interaction policy only.
   modifier-key target policy (`controller.ts`, `view.ts`, `inspect.ts`,
   `pick.ts`, `fit.ts`).
 - Pointer gesture wiring (`camera-controls.ts`, `camera-gestures.ts`).
-- WebGPU probing/fallback and device-loss recovery wiring (`webgpu-probe.ts`,
-  `webgpu-demo.ts`, `cpu-demo.ts`).
+- WebGPU renderer startup and device-loss recovery wiring (`webgpu-demo.ts`).
 - The results inspection demo (`results-demo.ts`, `results-fixture.ts`).
 
 ## Emphasis rendering
@@ -41,15 +40,12 @@ never by deriving `elementOverrides`. `InteractionState.elementOverrides` holds
 only explicit element overrides (set via `setElementOverride`); node/face
 emphasis stays in `selectedNodeIds`/`highlightedNodeIds`/`hoveredNode` and the
 face equivalents. The WebGPU renderer maps those refs to emphasis records
-directly ([[rendering/node-face-interaction|Node and face interaction]]); the
-CPU fallback draws them as node-marker circles and face fills using
-`resolveNodeStyle`/`resolveFaceStyle`.
+directly ([[rendering/node-face-interaction|Node and face interaction]]).
 
 This removes the former demo-side `emphasis.ts` fold (node/face emphasis →
-per-element overrides). Removing it means element solid fills on the CPU
-fallback no longer glow for a node/face selection — emphasis appears through
-the node/face markers/fills instead — which is the intended thin-consumer
-behavior and avoids duplicating the WebGPU emphasis semantics.
+per-element overrides); emphasis appears through the renderer's node/face
+emphasis records, the intended thin-consumer behavior that avoids duplicating
+the WebGPU emphasis semantics.
 
 ## Instance synchronization
 
@@ -60,14 +56,3 @@ through `updateVisibility`. It never rewrites every instance on a frame (the
 former `allSlots(runtime)` whole-runtime patch). After a renderer recovery or
 re-creation the demo resets its applied-interaction baseline to an empty state,
 because a fresh attachment re-uploads records from an empty interaction state.
-
-## CPU fallback boundary
-
-The CPU 2D-canvas renderer (`demo/cpu-render.ts`) remains a demo-only fallback
-and is kept thin: it consumes library resolution/emphasis APIs for every style
-decision and adds only 2D presentation (canvas fills/strokes, marker circles,
-label text). It is not a second source of reusable rendering semantics — all
-style precedence and emphasis derivation is library-owned. Keeping it in the
-demo (rather than moving it into `src/`) is deliberate: it exists only to make
-the demo usable without WebGPU and to keep the default deterministic e2e lane
-running ([[engineering/e2e-policy|e2e policy]]).

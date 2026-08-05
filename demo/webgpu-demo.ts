@@ -183,10 +183,8 @@ export async function startWebGpuDemo(
       appliedInteraction = createInteractionState();
       canvas.dataset["renderer"] = "webgpu";
       drainPendingDeviceLoss();
-      if (controller !== undefined) {
-        renderFrame(gpuRenderer, canvas, controller, controller.interaction, appliedInteraction);
-        appliedInteraction = controller.interaction;
-      }
+      renderFrame(gpuRenderer, canvas, controller, controller.interaction, appliedInteraction);
+      appliedInteraction = controller.interaction;
     },
     forceDeviceLoss: () => {
       gpuRenderer?.device.destroy();
