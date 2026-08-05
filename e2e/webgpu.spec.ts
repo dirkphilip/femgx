@@ -54,14 +54,15 @@ test("drives interaction and picking through the demo path", async ({ page }) =>
   }
 
   // Sweep the pointer across the canvas until a pick resolves a hover. The
-  // pick is CPU raycasting in both renderers, so remember where the hover
-  // landed so the click below targets the same instance rather than a fixed
-  // canvas point.
+  // pick is CPU raycasting in both renderers with a 10px node radius, so the
+  // sweep grid must be dense enough to land on a node; use the same grid as
+  // the demo spec. Remember where the hover landed so the click below targets
+  // the same instance rather than a fixed canvas point.
   let hoverPoint: { readonly x: number; readonly y: number } | undefined;
-  for (let row = 0; row < 6 && hoverPoint === undefined; row++) {
-    for (let col = 0; col < 8; col++) {
-      const x = Math.round(box.x + ((col + 0.5) / 8) * box.width);
-      const y = Math.round(box.y + ((row + 0.5) / 6) * box.height);
+  for (let row = 0; row < 8 && hoverPoint === undefined; row++) {
+    for (let col = 0; col < 10; col++) {
+      const x = Math.round(box.x + ((col + 0.5) / 10) * box.width);
+      const y = Math.round(box.y + ((row + 0.5) / 8) * box.height);
       await page.mouse.move(x, y);
       await page.waitForTimeout(150);
       const hovered = await canvas.getAttribute("data-hovered");
@@ -108,12 +109,13 @@ test("keeps selection feedback visible in edge overlay mode", async ({ page }) =
   }
 
   // Sweep until the pick resolves any target; the selected key encodes its
-  // granularity as a prefix (n:/f:/e:/i:/p:).
+  // granularity as a prefix (n:/f:/e:/i:/p:). Dense grid so it lands within
+  // the 10px node-pick radius.
   let hoverPoint: { readonly x: number; readonly y: number } | undefined;
-  for (let row = 0; row < 6 && hoverPoint === undefined; row++) {
-    for (let col = 0; col < 8; col++) {
-      const x = Math.round(box.x + ((col + 0.5) / 8) * box.width);
-      const y = Math.round(box.y + ((row + 0.5) / 6) * box.height);
+  for (let row = 0; row < 8 && hoverPoint === undefined; row++) {
+    for (let col = 0; col < 10; col++) {
+      const x = Math.round(box.x + ((col + 0.5) / 10) * box.width);
+      const y = Math.round(box.y + ((row + 0.5) / 8) * box.height);
       await page.mouse.move(x, y);
       await page.waitForTimeout(150);
       const hovered = (await canvas.getAttribute("data-hovered")) ?? "";
