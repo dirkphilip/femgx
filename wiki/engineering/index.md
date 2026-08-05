@@ -6,6 +6,8 @@
   resolution.
 - [[engineering/performance-issues|Performance issues and risks]] — known
   scalability, renderer, and toolchain risks.
+- [[engineering/pre-commit-hooks|Pre-commit hooks]] — popular validators layered
+  on top of husky, run by CI.
 - [[engineering/quality-gate|Quality gate]] — local and CI validation.
 - [[engineering/scaffold-decisions|Scaffold decisions]] — toolchain and
   strictness decisions.

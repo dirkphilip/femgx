@@ -142,8 +142,10 @@ do not edit Supervisor runtime state by hand.
 ## Pre-commit gate
 
 The worker contract tells agents to run `uv run pre-commit run --all-files`
-before handoff, but this repository has no Python `.pre-commit-config.yaml`.
-The real pre-commit gate is the husky hook running lint-staged
-(`npm run pre-commit`): ESLint with `--fix`, Prettier, and a merge-conflict
-marker check on staged files. Run the focused checks on changed files yourself;
-CI runs the full quality gate after a PR exists.
+before handoff, but that applies to Python/uv repositories. This repo has a
+`.pre-commit-config.yaml` (see [[engineering/pre-commit-hooks|Pre-commit
+hooks]]) that CI runs via `pre-commit run --all-files`, but husky owns the git
+`pre-commit` hook slot locally and runs lint-staged (`npm run pre-commit`):
+ESLint with `--fix`, Prettier, and a merge-conflict marker check on staged
+files. Run the focused checks on changed files yourself; CI runs the full
+quality gate after a PR exists.
