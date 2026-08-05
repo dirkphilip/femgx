@@ -51,11 +51,24 @@ identical ([[rendering/element-interaction|Element-level interaction]],
   recovers the renderer once and falls back to the CPU renderer when recovery
   is impossible ([[rendering/platform-support|Platform support]]).
 
+## Mobile / responsive layout
+
+The demo layout is responsive at phone widths (`index.html`): below 480px the
+top toolbar and results header stack vertically, primary controls get a 44px
+touch target, the model selector spans the full row, and the results scale
+slider fills its row. The `@media (max-width: 900px)` rule already collapses
+the visibility/inspection/stats panels into a single column. The right-click
+context menu clamps its position inside the viewport (see
+`WorkbenchController.clampMenuToViewport` in `demo/controller.ts`) so it never
+opens past the right or bottom edge.
+
 ## Demo e2e coverage
 
 `e2e/demo.spec.ts` covers preset switching, mode visibility, part/assembly
 visibility toggles, fit-to-view, projection, the context menu, node/face
 picking and selection, and stable rendering after repeated orbit interactions.
-The default Playwright lane runs the deterministic CPU renderer; the opt-in
-WebGPU lane exercises the same controller against WebGPU
-([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
+`e2e/mobile.spec.ts` asserts at a 390x844 viewport that the page has no
+horizontal overflow, primary controls stay reachable with 44px hit areas, and
+the context menu fits inside the viewport. The default Playwright lane runs the
+deterministic CPU renderer; the opt-in WebGPU lane exercises the same
+controller against WebGPU ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).

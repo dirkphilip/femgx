@@ -819,6 +819,18 @@ export class WorkbenchController {
     menu.style.left = `${x}px`;
     menu.style.top = `${y}px`;
     menu.hidden = false;
+    this.clampMenuToViewport(x, y);
+  }
+
+  /** Keeps a just-opened context menu fully inside the viewport. */
+  private clampMenuToViewport(x: number, y: number): void {
+    const menu = this.view.contextMenu;
+    const rect = menu.getBoundingClientRect();
+    const margin = 8;
+    const maxX = window.innerWidth - rect.width - margin;
+    const maxY = window.innerHeight - rect.height - margin;
+    menu.style.left = `${Math.min(x, Math.max(margin, maxX))}px`;
+    menu.style.top = `${Math.min(y, Math.max(margin, maxY))}px`;
   }
 
   private menuButton(menu: HTMLElement, label: string, action: string): void {
