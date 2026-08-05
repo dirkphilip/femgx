@@ -51,18 +51,19 @@ Do not add other keys. After writing the handoff, wait for the sibling
 `{"ok": true}` for the current handoff contents. If it reports `"ok": false`,
 read `error`, fix the handoff, and wait again.
 
-During implementation and repair, do not run the full test suite or full
-repository validation loops; CI and the review stage cover those after the
-change is complete. Run focused checks for changed files and the smallest
-relevant unit-test selection, plus the repository's pre-commit gate at most
-once when the worker contract asks for it. During review, run the repository's
-quality gate once. The gate is repository-aware: detect the repository's
-configured quality commands before running them (read `AGENTS.md`, the
-package-manager manifest, and CI workflows) and use those instead of a fixed
-command list. Python/uv repositories keep the generic `uv run pre-commit run
---all-files` and, in review, `uv run pytest --cov=sv --cov-branch
---cov-report=term-missing`; TypeScript/npm repositories use their npm gate
-(format, lint, typecheck, unit tests with coverage, build, and e2e).
+During implementation and repair, do not run the full test suite, coverage,
+the full build, or the full e2e suite; CI and the review stage cover those
+after the change is complete. Run focused checks once — on the files you
+changed and the smallest relevant unit-test selection — before handoff, and do
+not run checks after every edit or loop on validation. Installed pre-commit
+hooks run automatically on every commit, so do not invoke them by hand. During
+review, run the repository's quality gate once. The gate is repository-aware:
+detect the repository's configured quality commands before running them (read
+`AGENTS.md`, the package-manager manifest, and CI workflows) and use those
+instead of a fixed command list. Python/uv repositories keep the generic
+`uv run pre-commit run --all-files` and, in review, `uv run pytest --cov=sv
+--cov-branch --cov-report=term-missing`; TypeScript/npm repositories use their
+npm gate (format, lint, typecheck, unit tests with coverage, build, and e2e).
 
 The supervisor tracks heartbeat freshness separately from meaningful progress.
 Meaningful progress changes the `status`, `stage`, or `message` fields; repeating

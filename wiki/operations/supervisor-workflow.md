@@ -65,9 +65,11 @@ The worker prompts (`prompts/implementer.md`, `prompts/reviewer.md`,
 Validation is stage-specific so implementation time is not spent repeating the
 same expensive gate before the code is ready for review:
 
-- Implement and repair workers run focused formatting, lint, typecheck, and
-  relevant test checks. They do not run coverage, the full build, or the full
-  e2e suite.
+- Implement and repair workers run one focused batch of formatting, lint,
+  typecheck, and relevant test checks once, before handoff. They do not run
+  checks after every edit, do not loop on validation, and do not run coverage,
+  the full build, or the full e2e suite. Installed pre-commit hooks run
+  automatically on every commit, so workers do not invoke them by hand.
 - The reviewer runs the full repository gate once before submission.
 - CI remains authoritative for the published PR.
 
@@ -141,11 +143,13 @@ do not edit Supervisor runtime state by hand.
 
 ## Pre-commit gate
 
-The worker contract tells agents to run `uv run pre-commit run --all-files`
-before handoff, but that applies to Python/uv repositories. This repo has a
+Python/uv repositories keep the generic gate `uv run pre-commit run
+--all-files` before implement/repair handoff. This repo is TypeScript/npm:
+husky owns the git `pre-commit` hook slot locally and runs lint-staged
+(`npm run pre-commit`) automatically on every commit — ESLint with `--fix`,
+Prettier, and a merge-conflict marker check on staged files.
 `.pre-commit-config.yaml` (see [[engineering/pre-commit-hooks|Pre-commit
-hooks]]) that CI runs via `pre-commit run --all-files`, but husky owns the git
-`pre-commit` hook slot locally and runs lint-staged (`npm run pre-commit`):
-ESLint with `--fix`, Prettier, and a merge-conflict marker check on staged
-files. Run the focused checks on changed files yourself; CI runs the full
-quality gate after a PR exists.
+hooks]]) adds framework validators that CI runs via `pre-commit run
+--all-files`. Implementation and repair workers therefore run one focused batch
+of checks on their changed files before handoff and never invoke the pre-commit
+gate by hand; CI runs the full quality gate after a PR exists.
