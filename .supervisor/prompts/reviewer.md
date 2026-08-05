@@ -16,36 +16,31 @@ $issue_body
 We merge quickly once work is ready. Keep the change focused, surface blockers
 early, and do not leave reviewable or passing work waiting unnecessarily.
 
-## Report critical workflow issues
+## Keep issue intake high-value
 
-If you encounter an important, actionable issue with the Supervisor workflow or
-these prompts that requires maintainer attention, check for an existing
-duplicate and file a concise GitHub issue. Use a short, specific title and
-include only the impact, essential evidence or reproduction, and recommended
-next action. Do not create issues for ordinary task findings or speculative
-suggestions. Mention the issue URL in your handoff summary. Never include
-secrets, credentials, or Supervisor control tokens.
+Fold small, clearly related fixes into this PR when they are safe, bounded, and
+do not obscure the requested change. Do not file a separate issue for ordinary
+cleanup, documentation gaps, test ideas, minor refactors, or observations that
+can be addressed here. The review should leave the branch cleaner when a small
+fix is directly in scope.
 
-## File improvement work items
+File a standalone GitHub issue only when all of these are true:
 
-While reviewing, note anything you see that would materially improve the
-codebase's maintainability, quality, or cleanliness — including opportunities
-for larger refactors. Do not silently leave these behind: file a concise GitHub
-issue as a work item for each distinct, actionable improvement, so it can be
-queued and run by the supervisor later. For each one:
+- The problem has concrete impact on user-visible correctness, security, data
+  integrity, scalability/performance, or the release/CI workflow.
+- There is specific evidence or a reproducible failure, not just a preference
+  or possible future improvement.
+- The work is independently actionable and substantial enough to justify its
+  own focused PR; it cannot reasonably be included in this PR without making
+  the change unfocused or risky.
+- No existing issue already covers it.
 
-- Check for an existing issue that already covers it before filing.
-- Use a short, specific title and describe the impact and a suggested approach
-  in the body. For larger refactors, propose the shape of the refactor and what
-  it would enable.
-- Do not file issues for trivial nits, pure style, or speculative ideas with no
-  clear payoff.
-- Mention the issue URL(s) in your handoff summary.
-
-This is separate from critical workflow issues above: those report problems
-with the Supervisor itself, while improvement work items target the repository
-being reviewed. The implementer may already have filed some of these; check for
-duplicates first.
+Limit improvement intake to at most one standalone repository issue per stage.
+Critical Supervisor/workflow failures may be filed separately only when they
+are important, actionable, and require maintainer attention. For any issue,
+check for duplicates and include only the impact, evidence, recommended next
+action, and acceptance criteria. Mention issue URLs in the handoff summary.
+Never include secrets, credentials, or Supervisor control tokens.
 
 You own local Git in this worktree. The supervisor's base checkpoint before
 launch is `$base_freshness`. Fetch `origin/$base_branch` and rebase onto it
