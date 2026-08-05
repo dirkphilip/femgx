@@ -196,6 +196,7 @@ describe("WebGPU renderer", () => {
     if (first === undefined) throw new Error("no fake device created");
     expect(first.drawCalls.length).toBeGreaterThan(0);
     expect(renderer.lost).toBe(false);
+    expect(renderer.device).toBe(first.device);
 
     first.lose("unknown", "gpu device crashed");
     await first.lost;
@@ -209,9 +210,10 @@ describe("WebGPU renderer", () => {
     await renderer.recover();
     expect(renderer.lost).toBe(false);
     expect(gpus).toHaveLength(2);
-    renderer.render(runtime, camera, scene.parts);
     const second = gpus[1];
     if (second === undefined) throw new Error("no recovered device created");
+    expect(renderer.device).toBe(second.device);
+    renderer.render(runtime, camera, scene.parts);
     expect(second.drawCalls.length).toBeGreaterThan(0);
     renderer.destroy();
   });

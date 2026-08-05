@@ -46,6 +46,10 @@ identical ([[rendering/element-interaction|Element-level interaction]],
 - Display toggles (edges, node markers, normals, face boundaries, ids,
   diagnostics) flip renderer state only; they never rebuild reusable geometry
   or drop selection state.
+- The controller exposes a `rendererState` note (e.g. `recovered`, `fallback`)
+  that the status line shows after a GPU device loss; the WebGPU demo path
+  recovers the renderer once and falls back to the CPU renderer when recovery
+  is impossible ([[rendering/platform-support|Platform support]]).
 
 ## Demo e2e coverage
 

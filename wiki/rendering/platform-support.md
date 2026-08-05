@@ -64,9 +64,24 @@ Device lifetime is centralized in `GpuDeviceLifecycle`
 - `recover()` is a no-op while the device is healthy; `destroy()` stays
   idempotent and ignores loss callbacks that fire after teardown.
 
+The **demo** wires this into a real recovery path (`demo/webgpu-probe.ts` and
+`demo/webgpu-demo.ts`): it passes `onDeviceLost` when creating its renderer and,
+on loss, calls `renderer.recover()` once. Recovery re-uploads the scene on the
+fresh device and the status line reports `webgpu · recovered`; when recovery is
+impossible the renderer is destroyed and the demo starts the CPU fallback
+(`startCpuDemo`). One gotcha: a canvas whose context mode is already `webgpu`
+returns `null` for `getContext("2d")` (the HTML spec fixes a canvas to one
+context type), so the CPU fallback after a loss replaces the canvas element with
+a fresh one (`freshCpuCanvas` in `demo/webgpu-demo.ts`). While the device is
+lost, the demo's render hooks no-op instead of throwing, so interactions during
+the brief recovery window are ignored rather than erroring.
+
 Tests drive the full loss → blocked-render → recovery → re-upload cycle against
 mocked devices (`test/platform/*`, `test/renderer/gpu-recovery.test.ts`,
-`test/renderer/gpu-renderer.test.ts`).
+`test/renderer/gpu-renderer.test.ts`). The opt-in
+[[rendering/webgpu-e2e|WebGPU e2e lane]] additionally destroys the real GPU
+device through `window.femgxDemo.forceDeviceLoss()` and asserts the demo recovers
+or falls back without page errors.
 
 ## Browser/GPU support
 

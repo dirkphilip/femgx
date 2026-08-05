@@ -3,13 +3,24 @@ import {
   createSceneRuntime,
   createWebGpuRenderer,
   resizeCamera,
+  type DeviceLostInfo,
   type Vec3,
   type WebGpuRenderer,
 } from "../src/index";
 import type { ModelPreset } from "../src/fixture/presets";
 
-/** Creates a WebGPU renderer, or `undefined` when WebGPU is unusable. */
-export type RendererFactory = () => Promise<WebGpuRenderer | undefined>;
+/** Options for creating the demo's WebGPU renderer. */
+export interface RendererOptions {
+  /** Called with a typed reason when the GPU device is lost. */
+  readonly onDeviceLost?: (info: DeviceLostInfo) => void;
+}
+
+/**
+ * Creates a WebGPU renderer, or `undefined` when WebGPU is unusable. The
+ * optional `onDeviceLost` callback is wired to the committed renderer so the
+ * demo can recover from device loss or fall back.
+ */
+export type RendererFactory = (options?: RendererOptions) => Promise<WebGpuRenderer | undefined>;
 
 /**
  * Probes WebGPU on a hidden canvas. The returned factory only commits to the
@@ -23,7 +34,7 @@ export function createWebGpuProbe(preset: ModelPreset, canvas: HTMLCanvasElement
     (bounds.minY + bounds.maxY) / 2,
     (bounds.minZ + bounds.maxZ) / 2,
   ];
-  return async () => {
+  return async (options) => {
     let probe: WebGpuRenderer | undefined;
     let probeCanvas: HTMLCanvasElement | undefined;
     try {
@@ -73,7 +84,11 @@ export function createWebGpuProbe(preset: ModelPreset, canvas: HTMLCanvasElement
       probeCanvas.remove();
       probeCanvas = undefined;
       if (!verified) return undefined;
-      return await createWebGpuRenderer({ canvas });
+      const committed =
+        options?.onDeviceLost === undefined
+          ? { canvas }
+          : { canvas, onDeviceLost: options.onDeviceLost };
+      return await createWebGpuRenderer(committed);
     } catch {
       probe?.destroy();
       probeCanvas?.remove();
