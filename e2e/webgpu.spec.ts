@@ -182,6 +182,30 @@ test("disables the display-overlay toggles the WebGPU renderer cannot honor", as
   await expect(menu.locator('button[data-action="edges"]')).toBeEnabled();
 });
 
+test("keeps the depth-test toggle working on the WebGPU renderer", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("view-canvas")).toBeVisible();
+  await expect
+    .poll(() => rendererMode(page), { timeout: 10_000 })
+    .toMatch(/^(webgpu|cpu|destroyed)$/);
+
+  if ((await rendererMode(page)) !== "webgpu") {
+    test.skip(true, "WebGPU renderer unavailable in this browser environment");
+  }
+
+  // The WebGPU renderer implements depth-tested edges, so the header control
+  // stays live and toggles the overlay depth compare.
+  await expect(page.getByTestId("renderer-status")).toContainText("Renderer webgpu");
+  const depthButton = page.getByTestId("depth-test");
+  const depthLabel = page.getByTestId("depth-test-label");
+  await expect(depthButton).toBeEnabled();
+  await expect(depthLabel).toHaveText("On");
+  await depthButton.click();
+  await expect(depthLabel).toHaveText("Off");
+  await depthButton.click();
+  await expect(depthLabel).toHaveText("On");
+});
+
 test("tears the renderer down and re-initializes it cleanly", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("view-canvas")).toBeVisible();

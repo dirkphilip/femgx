@@ -55,6 +55,7 @@ export function startCpuDemo(options: CpuDemoOptions): WorkbenchController {
     view,
     canvas,
     rendererName: "cpu",
+    supportsEdgeDepthTest: false,
     hooks,
   });
   return controller;

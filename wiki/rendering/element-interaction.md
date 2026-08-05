@@ -96,7 +96,9 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   `gpu-pipelines.ts`.
 - The demo drives the overlay by applying an `{ edge: true }` part override to
   every part (`Edge overlay` toggle) and flips the overlay depth compare with
-  the `Depth test` toggle.
+  the `Depth test` toggle. Depth-tested edges are a WebGPU-only pass, so the
+  CPU fallback disables and annotates that control instead of advertising a
+  no-op (see [[rendering/fe-inspection-workbench|FE inspection workbench]]).
 - The edge pass renders instance-level style only; per-element emphasis is not
   drawn on edges because edges shared between adjacent elements have no
   unambiguous element owner.

@@ -84,6 +84,13 @@ export interface WorkbenchOptions {
   readonly hooks: RendererHooks;
   /** Optional edge depth-test hook backed by the active renderer. */
   readonly setEdgeDepthTest?: (enabled: boolean) => void;
+  /**
+   * Whether the active renderer implements depth-tested edge rendering. The
+   * WebGPU renderer supports it; the CPU renderer does not, so its Depth test
+   * control is disabled and annotated instead of advertising a no-op.
+   * Defaults to true.
+   */
+  readonly supportsEdgeDepthTest?: boolean;
   /** Optional teardown hook invoked on destroy. */
   readonly onDestroy?: () => void;
   /**
@@ -106,6 +113,8 @@ export class WorkbenchController {
   readonly view: DemoView;
   readonly hooks: RendererHooks;
   readonly rendererName: string;
+  /** Whether the active renderer implements depth-tested edge rendering. */
+  readonly supportsEdgeDepthTest: boolean;
   /** Whether the active renderer draws the node/normal/face-boundary/ID overlays. */
   readonly displayOverlays: boolean;
   readonly nodeRadius = 10;
@@ -137,6 +146,7 @@ export class WorkbenchController {
     this.canvas = options.canvas;
     this.hooks = options.hooks;
     this.rendererName = options.rendererName;
+    this.supportsEdgeDepthTest = options.supportsEdgeDepthTest ?? true;
     this.displayOverlays = options.displayOverlays ?? true;
     this.setEdgeDepthTest = options.setEdgeDepthTest;
     this.onDestroy = options.onDestroy;
@@ -307,6 +317,7 @@ export class WorkbenchController {
       this.setEdges(!this.toggles.edges);
     });
     view.depthTestToggle.addEventListener("click", () => {
+      if (!this.supportsEdgeDepthTest) return;
       this.setEdgeDepthTest?.(!this.depthTestEnabled);
       this.depthTestEnabled = !this.depthTestEnabled;
       this.reflectDepthTest();
@@ -911,11 +922,38 @@ export class WorkbenchController {
   }
 
   private reflectDepthTest(): void {
-    this.view.depthTestLabel.textContent = this.depthTestEnabled ? "On" : "Off";
-    this.view.depthTestToggle.textContent = this.depthTestEnabled
-      ? "Depth test off"
-      : "Depth test on";
+    const state = depthTestUiState(this.supportsEdgeDepthTest, this.depthTestEnabled);
+    this.view.depthTestLabel.textContent = state.label;
+    this.view.depthTestToggle.textContent = state.buttonText;
+    this.view.depthTestToggle.disabled = state.disabled;
   }
+}
+
+/** How the Depth test control presents itself for a renderer capability. */
+export interface DepthTestUiState {
+  readonly disabled: boolean;
+  readonly label: string;
+  readonly buttonText: string;
+}
+
+/**
+ * The Depth test control must not silently toggle a no-op: a renderer without
+ * depth-tested edge rendering gets a disabled, annotated control, while a
+ * capable renderer keeps the working on/off toggle.
+ */
+export function depthTestUiState(supported: boolean, enabled: boolean): DepthTestUiState {
+  if (!supported) {
+    return {
+      disabled: true,
+      label: "WebGPU only",
+      buttonText: "Depth test · WebGPU only",
+    };
+  }
+  return {
+    disabled: false,
+    label: enabled ? "On" : "Off",
+    buttonText: enabled ? "Depth test off" : "Depth test on",
+  };
 }
 
 /** Fallback preset used only if the preset list is somehow empty. */

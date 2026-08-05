@@ -51,6 +51,15 @@ identical ([[rendering/element-interaction|Element-level interaction]],
   on the WebGPU demo path) disables and annotates those context-menu toggles
   instead of advertising a no-op. `edges` is a real WebGPU pass and stays
   enabled ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
+- The `Depth test` control is the mirror image of the overlays: depth-tested
+  edge rendering is a WebGPU-only pass, so the workbench's
+  `supportsEdgeDepthTest` capability (false on the CPU demo path) disables and
+  annotates that control (`Depth test · WebGPU only`) instead of silently
+  toggling a no-op (resolved in
+  [femgx#138](https://github.com/dirkphilip/femgx/issues/138)).
+- The control bar shows the active renderer in a `#renderer-status` chip next
+  to the model selector, so renderer-specific controls are read against the
+  renderer that is actually driving the view.
 - The controller exposes a `rendererState` note (e.g. `recovered`, `fallback`)
   that the status line shows after a GPU device loss; the WebGPU demo path
   recovers the renderer once and falls back to the CPU renderer when recovery
