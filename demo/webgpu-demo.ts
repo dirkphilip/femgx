@@ -51,21 +51,31 @@ function freshCpuCanvas(canvas: HTMLCanvasElement): HTMLCanvasElement {
 /**
  * Starts the WebGPU renderer, falling back to the CPU renderer when probing
  * fails. Both paths drive the same workbench controller, so camera and
- * interaction behavior is identical. A device loss after startup is handled
- * here: the renderer is recovered once (the demo owns its device) and, when
- * recovery is impossible, the demo destroys the renderer and starts the CPU
- * fallback on a fresh canvas.
+ * interaction behavior is identical. A device loss is handled here: the
+ * renderer is recovered once (the demo owns its device) and, when recovery is
+ * impossible, the demo destroys the renderer and starts the CPU fallback on a
+ * fresh canvas. A loss reported while the renderer or controller is still
+ * being wired up is buffered and recovered once both are assigned.
  */
 export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<WorkbenchController> {
   const { view, canvas, preset } = options;
   let gpuRenderer: WebGpuRenderer | undefined;
   let controller: WorkbenchController | undefined;
+  /** Loss observed before the renderer/controller pair could run recovery. */
+  let pendingDeviceLoss: DeviceLostInfo | undefined;
 
   /** Recovers the renderer once, or falls back to the CPU renderer. */
-  const recoverFromDeviceLoss = async (_info: DeviceLostInfo): Promise<void> => {
+  const recoverFromDeviceLoss = async (info: DeviceLostInfo): Promise<void> => {
     const renderer = gpuRenderer;
     const active = controller;
-    if (renderer === undefined || active === undefined) return;
+    if (renderer === undefined || active === undefined) {
+      // The committed renderer subscribes at construction time, so it can
+      // report a loss before `startWebGpuDemo` assigns the renderer and
+      // controller. Buffer the loss instead of dropping it; recovery runs
+      // once both are wired up (see `drainPendingDeviceLoss`).
+      pendingDeviceLoss = info;
+      return;
+    }
     try {
       await renderer.recover();
       active.rendererState = "recovered";
@@ -85,6 +95,13 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<Workb
       cpuCanvas.dataset["recovery"] = "cpu-fallback";
       controller.render();
     }
+  };
+
+  /** Runs a loss buffered while the renderer or controller was still wiring up. */
+  const drainPendingDeviceLoss = (): void => {
+    const info = pendingDeviceLoss;
+    pendingDeviceLoss = undefined;
+    if (info !== undefined) void recoverFromDeviceLoss(info);
   };
 
   const renderer = await options.createRenderer({
@@ -132,6 +149,10 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<Workb
     },
   });
 
+  // A device lost during startup was buffered by `recoverFromDeviceLoss`; run
+  // the same recovery now that the renderer and controller are wired up.
+  drainPendingDeviceLoss();
+
   window.addEventListener("pagehide", () => {
     gpuRenderer?.destroy();
     gpuRenderer = undefined;
@@ -159,6 +180,7 @@ export async function startWebGpuDemo(options: WebGpuDemoOptions): Promise<Workb
       if (recreated === undefined) return;
       gpuRenderer = recreated;
       canvas.dataset["renderer"] = "webgpu";
+      drainPendingDeviceLoss();
       if (controller !== undefined) {
         renderFrame(gpuRenderer, canvas, controller, controller.interaction);
       }

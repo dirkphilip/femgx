@@ -66,7 +66,11 @@ Device lifetime is centralized in `GpuDeviceLifecycle`
 
 The **demo** wires this into a real recovery path (`demo/webgpu-probe.ts` and
 `demo/webgpu-demo.ts`): it passes `onDeviceLost` when creating its renderer and,
-on loss, calls `renderer.recover()` once. Recovery re-uploads the scene on the
+on loss, calls `renderer.recover()` once. The committed renderer subscribes to
+`lost` at construction time — before the demo has assigned its own renderer and
+controller handles — so a loss observed in that startup window is buffered
+(`pendingDeviceLoss` in `demo/webgpu-demo.ts`) and recovered as soon as both are
+wired up. Recovery re-uploads the scene on the
 fresh device and the status line reports `webgpu · recovered`; when recovery is
 impossible the renderer is destroyed and the demo starts the CPU fallback
 (`startCpuDemo`). One gotcha: a canvas whose context mode is already `webgpu`
