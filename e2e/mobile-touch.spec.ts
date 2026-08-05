@@ -1,4 +1,5 @@
-import { expect, test, type CDPSession, type Locator, type Page } from "@playwright/test";
+import { expect, test, type CDPSession } from "@playwright/test";
+import { requireHit } from "./helpers";
 
 const BASE_URL = "http://127.0.0.1:5173";
 
@@ -17,31 +18,6 @@ async function dispatchTouch(
   touchPoints: readonly TouchPoint[],
 ): Promise<void> {
   await client.send("Input.dispatchTouchEvent", { type, touchPoints: [...touchPoints] });
-}
-
-/** Sweeps the pointer until a node pick resolves, returning the canvas point. */
-async function findPickPoint(
-  page: Page,
-  canvas: Locator,
-): Promise<{ readonly x: number; readonly y: number } | undefined> {
-  const box = await canvas.boundingBox();
-  if (box === null) {
-    throw new Error("canvas has no bounding box");
-  }
-  // The pick radius is 10 canvas pixels, so a 10px-spaced grid guarantees a
-  // point lands within the radius of any node center.
-  for (let y = 0; y < box.height; y += 10) {
-    for (let x = 0; x < box.width; x += 10) {
-      const pointX = Math.round(box.x + x + 5);
-      const pointY = Math.round(box.y + y + 5);
-      await page.mouse.move(pointX, pointY);
-      const key = (await canvas.getAttribute("data-pick")) ?? "";
-      if (key.startsWith("n:")) {
-        return { x: pointX, y: pointY };
-      }
-    }
-  }
-  return undefined;
 }
 
 test("touch gestures orbit, pinch-zoom, and pan without leaving dragging stuck", async ({
@@ -121,12 +97,15 @@ test("a one-finger tap still performs picking and selection", async ({ browser }
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
 
-  const hit = await findPickPoint(page, canvas);
-  if (hit === undefined) {
-    await context.close();
-    test.skip(true, "node picking is not functional in this environment");
-    return;
-  }
+  // The pick radius is 10 canvas pixels, so a 10px-spaced step grid guarantees
+  // a point lands within the radius of any node center. A miss means the
+  // picking path is broken, not that the environment lacks a capability.
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:", step: 10 },
+    "node raycast picking must resolve on the deterministic CPU lane",
+  );
 
   await page.touchscreen.tap(hit.x, hit.y);
   await expect.poll(async () => canvas.getAttribute("data-selected")).toMatch(/^n:/);

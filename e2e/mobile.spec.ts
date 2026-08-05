@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { requireHit } from "./helpers";
 
 /**
  * Phone-sized regression coverage for the demo layout: no horizontal page
@@ -8,33 +9,6 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
  */
 
 const PHONE = { width: 390, height: 844 };
-
-/** The stable pick key encoded in the canvas dataset. */
-async function pickKey(page: Page): Promise<string> {
-  return (await page.getByTestId("view-canvas").getAttribute("data-pick")) ?? "";
-}
-
-/** Sweeps from the bottom-right corner inward to find a pick near the edges. */
-async function findEdgePick(
-  page: Page,
-  canvas: Locator,
-): Promise<{ readonly x: number; readonly y: number } | undefined> {
-  const box = await canvas.boundingBox();
-  if (box === null) {
-    throw new Error("canvas has no bounding box");
-  }
-  for (let row = 7; row >= 0; row--) {
-    for (let col = 9; col >= 0; col--) {
-      const x = Math.round(box.x + ((col + 0.5) / 10) * box.width);
-      const y = Math.round(box.y + ((row + 0.5) / 8) * box.height);
-      await page.mouse.move(x, y);
-      if ((await pickKey(page)) !== "") {
-        return { x, y };
-      }
-    }
-  }
-  return undefined;
-}
 
 test("fits a phone-sized viewport without horizontal overflow", async ({ page }) => {
   await page.setViewportSize(PHONE);
@@ -80,11 +54,14 @@ test("keeps the context menu inside a phone-sized viewport", async ({ page }) =>
   await page.setViewportSize(PHONE);
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  const hit = await findEdgePick(page, canvas);
-  if (hit === undefined) {
-    test.skip(true, "picking is not functional in this environment");
-    return;
-  }
+  // Sweep from the bottom-right corner inward so the right-click lands near the
+  // viewport edges, which is what forces the menu-clamping behavior.
+  const hit = await requireHit(
+    page,
+    canvas,
+    { reverse: true },
+    "picking must resolve near the canvas edge on the deterministic CPU lane",
+  );
 
   await page.mouse.click(hit.x, hit.y, { button: "right" });
   await expect(page.getByTestId("context-menu")).toBeVisible();

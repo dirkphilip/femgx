@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { requireHit } from "./helpers";
 
 /** The stable status summary the workbench reports for a model + renderer. */
 async function status(page: Page): Promise<string> {
@@ -8,30 +9,6 @@ async function status(page: Page): Promise<string> {
 /** The stable selection/pick key encoded in the canvas dataset. */
 async function dataset(page: Page, key: string): Promise<string> {
   return (await page.getByTestId("view-canvas").getAttribute(`data-${key}`)) ?? "";
-}
-
-/** Sweeps the pointer until the CPU raycast pick resolves, returning the point. */
-async function findPick(
-  page: Page,
-  canvas: Locator,
-  prefix: string,
-): Promise<{ readonly x: number; readonly y: number; readonly key: string } | undefined> {
-  const box = await canvas.boundingBox();
-  if (box === null) {
-    throw new Error("canvas has no bounding box");
-  }
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 10; col++) {
-      const x = Math.round(box.x + ((col + 0.5) / 10) * box.width);
-      const y = Math.round(box.y + ((row + 0.5) / 8) * box.height);
-      await page.mouse.move(x, y);
-      const key = await dataset(page, "pick");
-      if (key.startsWith(prefix)) {
-        return { x, y, key };
-      }
-    }
-  }
-  return undefined;
 }
 
 test("renders the demo canvas with instanced geometry", async ({ page }) => {
@@ -189,12 +166,9 @@ test("does not advertise the depth-test toggle on the CPU renderer", async ({ pa
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   // The demo probes WebGPU before committing to the CPU fallback, so the
-  // renderer is only known once the probe settles; poll like the visual spec.
-  await expect.poll(() => canvas.getAttribute("data-renderer")).toMatch(/^(cpu|webgpu)$/);
-  if ((await canvas.getAttribute("data-renderer")) !== "cpu") {
-    test.skip(true, "the WebGPU spec covers the depth-test toggle when WebGPU is active");
-    return;
-  }
+  // renderer is only known once the probe settles; the default lane launches
+  // with `--disable-gpu`, so it must always commit to the CPU renderer.
+  await expect.poll(() => canvas.getAttribute("data-renderer")).toBe("cpu");
 
   // The CPU renderer draws no depth-tested edge pass, so the control must not
   // pretend to work: it is disabled and annotated instead of toggling a no-op.
@@ -207,11 +181,12 @@ test("does not advertise the depth-test toggle on the CPU renderer", async ({ pa
 test("selects an element by promoting a node pick with shift-click", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  const hit = await findPick(page, canvas, "n:");
-  if (hit === undefined) {
-    test.skip(true, "node picking is not functional in this environment");
-    return;
-  }
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node raycast picking must resolve on the deterministic CPU lane",
+  );
 
   await page.keyboard.down("Shift");
   await page.mouse.click(hit.x, hit.y);
@@ -227,11 +202,12 @@ test("selects an element by promoting a node pick with shift-click", async ({ pa
 test("picks and selects a node, exposing adjacency and neighbors", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  const hit = await findPick(page, canvas, "n:");
-  if (hit === undefined) {
-    test.skip(true, "node picking is not functional in this environment");
-    return;
-  }
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node raycast picking must resolve on the deterministic CPU lane",
+  );
 
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
@@ -246,11 +222,12 @@ test("picks and selects a face, exposing its normal and ownership", async ({ pag
   await page.getByTestId("model-select").selectOption("panel");
   await page.waitForTimeout(200);
   const canvas = page.getByTestId("view-canvas");
-  const hit = await findPick(page, canvas, "f:");
-  if (hit === undefined) {
-    test.skip(true, "face picking is not functional in this environment");
-    return;
-  }
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "f:" },
+    "face raycast picking must resolve on the stiffened deck panel",
+  );
 
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => dataset(page, "selected")).toMatch(/^f:/);
@@ -261,11 +238,12 @@ test("picks and selects a face, exposing its normal and ownership", async ({ pag
 test("promotes a node pick to its owning element with shift", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  const hit = await findPick(page, canvas, "n:");
-  if (hit === undefined) {
-    test.skip(true, "node picking is not functional in this environment");
-    return;
-  }
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node raycast picking must resolve on the deterministic CPU lane",
+  );
   const owned = (await dataset(page, "pick")).split(":");
   expect(owned[0]).toBe("n");
 
@@ -281,11 +259,12 @@ test("context menu selects a target and toggles display without losing selection
 }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  const hit = await findPick(page, canvas, "n:");
-  if (hit === undefined) {
-    test.skip(true, "node picking is not functional in this environment");
-    return;
-  }
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node raycast picking must resolve on the deterministic CPU lane",
+  );
 
   await page.mouse.click(hit.x, hit.y, { button: "right" });
   await expect(page.getByTestId("context-menu")).toBeVisible();
@@ -327,17 +306,15 @@ test("keeps the node/normal/face-boundary/ID toggles on the CPU renderer", async
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   // The demo probes WebGPU before committing to the CPU fallback, so the
-  // renderer is only known once the probe settles; poll like the visual spec.
-  await expect.poll(() => canvas.getAttribute("data-renderer")).toMatch(/^(cpu|webgpu)$/);
-  if ((await canvas.getAttribute("data-renderer")) !== "cpu") {
-    test.skip(true, "the WebGPU spec covers the overlay toggles when WebGPU is active");
-    return;
-  }
-  const hit = await findPick(page, canvas, "n:");
-  if (hit === undefined) {
-    test.skip(true, "node picking is not functional in this environment");
-    return;
-  }
+  // renderer is only known once the probe settles; the default lane launches
+  // with `--disable-gpu`, so it must always commit to the CPU renderer.
+  await expect.poll(() => canvas.getAttribute("data-renderer")).toBe("cpu");
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node raycast picking must resolve on the deterministic CPU lane",
+  );
 
   await page.mouse.click(hit.x, hit.y, { button: "right" });
   const menu = page.getByTestId("context-menu");
@@ -358,19 +335,23 @@ test("keeps the node/normal/face-boundary/ID toggles on the CPU renderer", async
 test("context menu hides and restores a part via the visibility panel", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  const hit = await findPick(page, canvas, "n:");
-  if (hit === undefined) {
-    test.skip(true, "node picking is not functional in this environment");
-    return;
-  }
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node raycast picking must resolve on the deterministic CPU lane",
+  );
 
   await page.mouse.click(hit.x, hit.y, { button: "right" });
   await expect(page.getByTestId("context-menu")).toBeVisible();
   const inspection = (await page.getByTestId("inspection-panel").textContent()) ?? "";
   const match = /Part (\d+) · Instance/.exec(inspection);
+  expect(
+    match,
+    "the inspection panel must report the owning part and instance after a pick",
+  ).not.toBeNull();
   if (match === null) {
-    test.skip(true, "inspection panel did not report a part");
-    return;
+    throw new Error("the inspection panel must report the owning part and instance");
   }
   const partId = match[1];
 
@@ -388,11 +369,12 @@ test("context menu hides and restores a part via the visibility panel", async ({
 test("keeps selection stable across repeated orbit interactions", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  const hit = await findPick(page, canvas, "n:");
-  if (hit === undefined) {
-    test.skip(true, "node picking is not functional in this environment");
-    return;
-  }
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node raycast picking must resolve on the deterministic CPU lane",
+  );
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
   const selected = await dataset(page, "selected");

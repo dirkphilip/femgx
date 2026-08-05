@@ -1,14 +1,18 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { sweepForHit } from "./helpers";
 
 /**
- * Opt-in WebGPU browser coverage. It is skipped by the default e2e gate and
- * only runs when `RUN_WEBGPU=1`, which the opt-in `.github/workflows/webgpu.yml`
+ * Opt-in WebGPU browser coverage (environment capability coverage, category 2
+ * in `wiki/engineering/e2e-policy.md`). It is skipped by the default e2e gate
+ * and only runs when `RUN_WEBGPU=1`, which the opt-in `.github/workflows/webgpu.yml`
  * lane sets. The lane launches Chromium with software WebGPU flags
  * (`--enable-unsafe-webgpu --enable-gpu`) so it needs no GPU hardware.
  *
  * The lane is capability-gated, not failure-prone: the demo only commits to
  * the WebGPU renderer when it can prove rendering and picking work, and the
- * tests skip cleanly when an environment cannot exercise WebGPU.
+ * tests skip cleanly when an environment cannot exercise WebGPU. Those skips
+ * are the only conditional skips left in the suite and stay out of the
+ * required default-lane count by design; the skip-summary reporter prints them.
  */
 const enabled = process.env["RUN_WEBGPU"] === "1";
 
@@ -16,35 +20,6 @@ test.skip(!enabled, "WebGPU browser coverage is opt-in via RUN_WEBGPU=1");
 
 async function rendererMode(page: Page): Promise<string> {
   return (await page.getByTestId("view-canvas").getAttribute("data-renderer")) ?? "";
-}
-
-/**
- * Sweeps the pointer across the canvas until a pick resolves a hover, so
- * right-clicks land on a real target. The pick is CPU raycasting in both
- * renderers with a 10px node radius, so the grid must be dense enough to land
- * on a node; use the same grid as the demo spec.
- */
-async function findHoverPoint(
-  page: Page,
-  canvas: Locator,
-): Promise<{ readonly x: number; readonly y: number } | undefined> {
-  const box = await canvas.boundingBox();
-  if (box === null) {
-    throw new Error("canvas has no bounding box");
-  }
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 10; col++) {
-      const x = Math.round(box.x + ((col + 0.5) / 10) * box.width);
-      const y = Math.round(box.y + ((row + 0.5) / 8) * box.height);
-      await page.mouse.move(x, y);
-      await page.waitForTimeout(150);
-      const hovered = await canvas.getAttribute("data-hovered");
-      if (hovered !== null && hovered !== "") {
-        return { x, y };
-      }
-    }
-  }
-  return undefined;
 }
 
 /**
@@ -152,7 +127,7 @@ test("drives interaction and picking through the demo path", async ({ page }) =>
   // Sweep the pointer across the canvas until a pick resolves a hover. Remember
   // where the hover landed so the click below targets the same instance rather
   // than a fixed canvas point.
-  const hoverPoint = await findHoverPoint(page, canvas);
+  const hoverPoint = await sweepForHit(page, canvas, { attribute: "hovered", settleMs: 150 });
 
   if (hoverPoint === undefined) {
     test.skip(true, "picking is not functional in this browser environment");
@@ -192,7 +167,7 @@ test("keeps selection feedback visible in edge overlay mode", async ({ page }) =
   // Sweep until the pick resolves any target; the selected key encodes its
   // granularity as a prefix (n:/f:/e:/i:/p:). Dense grid so it lands within
   // the 10px node-pick radius.
-  const hoverPoint = await findHoverPoint(page, canvas);
+  const hoverPoint = await sweepForHit(page, canvas, { attribute: "hovered", settleMs: 150 });
 
   if (hoverPoint === undefined) {
     test.skip(true, "picking is not functional in this browser environment");
@@ -234,7 +209,7 @@ test("element emphasis changes the rendered pixels and clears back to the baseli
   // Baseline: no interaction, so the canvas holds only the deterministic model.
   const baseline = await stableCanvasPixels(page, canvas);
 
-  const hoverPoint = await findHoverPoint(page, canvas);
+  const hoverPoint = await sweepForHit(page, canvas, { attribute: "hovered", settleMs: 150 });
   if (hoverPoint === undefined) {
     test.skip(true, "picking is not functional in this browser environment");
     return;
@@ -274,7 +249,7 @@ test("disables the display-overlay toggles the WebGPU renderer cannot honor", as
   }
 
   const canvas = page.getByTestId("view-canvas");
-  const hit = await findHoverPoint(page, canvas);
+  const hit = await sweepForHit(page, canvas, { attribute: "hovered", settleMs: 150 });
   if (hit === undefined) {
     test.skip(true, "picking is not functional in this browser environment");
     return;

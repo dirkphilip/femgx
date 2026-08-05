@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { requireHit } from "./helpers";
 
 /**
  * Visual regression for the deterministic CPU renderer: solid, edge, and
@@ -67,29 +68,15 @@ test("selection changes the rendered pixels and stays stable", async ({ page }) 
   const canvas = page.getByTestId("view-canvas");
   const before = await pixelHash(canvas);
 
-  const box = await canvas.boundingBox();
-  if (box === null) {
-    throw new Error("canvas has no bounding box");
-  }
-  let hoverPoint: { readonly x: number; readonly y: number } | undefined;
-  for (let row = 0; row < 6 && hoverPoint === undefined; row++) {
-    for (let col = 0; col < 8; col++) {
-      const x = box.x + ((col + 0.5) / 8) * box.width;
-      const y = box.y + ((row + 0.5) / 6) * box.height;
-      await page.mouse.move(x, y);
-      await page.waitForTimeout(60);
-      const hovered = await canvas.getAttribute("data-hovered");
-      if (hovered !== null && hovered !== "") {
-        hoverPoint = { x, y };
-        break;
-      }
-    }
-  }
-
-  if (hoverPoint === undefined) {
-    test.skip(true, "no hoverable instance found on the CPU renderer");
-    return;
-  }
+  // The default lane's pick is deterministic CPU raycasting; a hover that
+  // never resolves means the interaction path is broken, not that this
+  // environment lacks a capability, so this is a required assertion.
+  const hoverPoint = await requireHit(
+    page,
+    canvas,
+    { attribute: "hovered" },
+    "a hoverable instance must resolve on the deterministic CPU renderer",
+  );
 
   await page.mouse.click(hoverPoint.x, hoverPoint.y);
   await expect.poll(() => canvas.getAttribute("data-selected")).not.toBe("");

@@ -73,6 +73,12 @@ So on a healthy WebGPU browser the lane validates the full flow; on a browser
 that cannot present/pick (for example headless SwiftShader quirks, see
 [[engineering/performance-issues|Performance issues and risks]]) it skips instead of failing.
 
+These skips are the only conditional skips left in the suite, classified as
+environment capability coverage and kept out of the required default-lane count
+by design (see [[engineering/e2e-policy|E2E test classification and skip policy]]).
+`e2e/skip-summary-reporter.ts` prints the per-reason skip count at the end of
+the run so they stay visible and reviewable in CI output.
+
 ## Demo test surface
 
 - `data-renderer="webgpu" | "cpu" | "destroyed"` on the `#view` canvas.
