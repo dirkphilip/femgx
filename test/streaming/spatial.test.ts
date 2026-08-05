@@ -99,9 +99,19 @@ describe("cullChunks non-finite bounds", () => {
     expect(cullChunks(grid, viewProjection).map((chunk) => chunk.chunkId)).toEqual([1, 2]);
   });
 
-  it("keeps chunks whose computed bounds are non-finite (NaN data) visible", () => {
+  it("keeps chunks whose computed bounds are non-finite (all-NaN data) visible", () => {
     const data: ChunkData = {
-      positions: new Float32Array([Number.NaN, 0, 0, 1, 0, 0, 0, 1, 0]),
+      positions: new Float32Array([
+        Number.NaN,
+        Number.NaN,
+        Number.NaN,
+        Number.NaN,
+        Number.NaN,
+        Number.NaN,
+        Number.NaN,
+        Number.NaN,
+        Number.NaN,
+      ]),
       indices: new Uint32Array([0, 1, 2]),
     };
     const grid = buildSpatialGrid([quadChunk(1, 0, 0), { chunkId: 2, index: 1, data }], 4);
