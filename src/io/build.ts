@@ -1,5 +1,6 @@
 import { topologyFor, type ElementShape } from "../elements/shapes";
 import { IoError } from "./diagnostics";
+import { Float64Buffer, Uint32Buffer } from "./growable";
 import {
   FEMGX_FORMAT_VERSION,
   type FemModel,
@@ -8,72 +9,6 @@ import {
   type ModelSetKind,
   type ModelResultField,
 } from "./model";
-
-/** A growable Uint32Array backing store. */
-class Uint32Buffer {
-  private values = new Uint32Array(1024);
-  private length = 0;
-
-  append(chunk: ArrayLike<number>): void {
-    this.ensure(this.length + chunk.length);
-    for (let index = 0; index < chunk.length; index++) {
-      this.values[this.length + index] = chunk[index] ?? 0;
-    }
-    this.length += chunk.length;
-  }
-
-  get size(): number {
-    return this.length;
-  }
-
-  toArray(): Uint32Array {
-    return this.values.slice(0, this.length);
-  }
-
-  private ensure(capacity: number): void {
-    if (capacity <= this.values.length) {
-      return;
-    }
-    let next = this.values.length;
-    while (next < capacity) {
-      next *= 2;
-    }
-    const grown = new Uint32Array(next);
-    grown.set(this.values);
-    this.values = grown;
-  }
-}
-
-/** A growable Float64Array backing store. */
-class Float64Buffer {
-  private values = new Float64Array(1024);
-  private length = 0;
-
-  append(chunk: ArrayLike<number>): void {
-    this.ensure(this.length + chunk.length);
-    for (let index = 0; index < chunk.length; index++) {
-      this.values[this.length + index] = chunk[index] ?? 0;
-    }
-    this.length += chunk.length;
-  }
-
-  toArray(): Float64Array {
-    return this.values.slice(0, this.length);
-  }
-
-  private ensure(capacity: number): void {
-    if (capacity <= this.values.length) {
-      return;
-    }
-    let next = this.values.length;
-    while (next < capacity) {
-      next *= 2;
-    }
-    const grown = new Float64Array(next);
-    grown.set(this.values);
-    this.values = grown;
-  }
-}
 
 interface PendingBlock {
   readonly shape: ElementShape;
