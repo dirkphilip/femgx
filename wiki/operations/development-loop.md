@@ -135,9 +135,11 @@ token or runtime URL.
 
 ## PR completion and merge
 
-Supervisor creates a regular pull request and owns publication/status
-synchronization. The current Supervisor does not auto-merge; the operator owns
-the final merge decision. For each `awaiting_merge` job:
+Supervisor creates a regular pull request, waits for all required GitHub
+checks, and owns publication/status synchronization. GitHub's required checks
+decide mergeability (`github.auto_merge = true` asks GitHub to merge once
+checks and approvals are satisfied); local worker results never gate the merge.
+For each `awaiting_merge` job:
 
 ```sh
 sv job sync ISSUE_NUMBER --json
@@ -214,11 +216,15 @@ Stop intake and report to the maintainer when any of these is true:
 - the working tree contains unrelated user changes or a merge would overwrite
   them;
 - the next change would be broad enough to require a new architectural plan;
-- the quality gate is red and the failure is unrelated to the current issue.
+- the quality gate is red and the failure is unrelated to the current issue;
+- the base commit's CI is red: pause new feature intake and report a
+  base-health blocker until a repair PR restores green CI (see
+  [[operations/ci-authority|CI authority and base-health intake]]).
 
 When stopping, leave a concise issue or wiki note with evidence, the exact
 command/state that blocked progress, and the smallest next action. A clean,
 paused queue is preferable to silently accumulating failed or ambiguous jobs.
+Do not start feature work on a broken base: repair the base first.
 
 ## Quality gate
 

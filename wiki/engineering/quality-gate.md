@@ -1,12 +1,13 @@
 # Quality gate
 
-The reviewer runs the full gate once before submission; CI
-(`.github/workflows/ci.yml`) enforces the same gate on every push/PR.
-Supervisor implementation and repair workers run focused checks once, before
-handoff, and do not repeat the full gate. See
-[[operations/supervisor-workflow|Supervisor workflow]].
-Pre-commit framework hooks ([[engineering/pre-commit-hooks|Pre-commit hooks]])
-run via CI in addition to the npm gate.
+CI (`.github/workflows/ci.yml`) enforces the full gate on every push/PR and is
+the authoritative merge gate. Supervisor implementation, review, and repair
+workers run focused checks once, before handoff, and do not repeat the full
+gate; the reviewer records local validation but is not a merge authority (see
+[[operations/ci-authority|CI authority and base-health intake]] and
+[[operations/supervisor-workflow|Supervisor workflow]]). Pre-commit framework
+hooks ([[engineering/pre-commit-hooks|Pre-commit hooks]]) run via CI in
+addition to the npm gate.
 
 ## Local gate
 

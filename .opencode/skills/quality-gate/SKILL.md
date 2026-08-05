@@ -1,19 +1,22 @@
 ---
 name: quality-gate
-description: Run the full femgx quality gate during review or final integration: typecheck, lint, unit tests with coverage, format, and Playwright e2e. Implementation and repair workers use focused checks instead.
+description: Run the full femgx quality gate during final integration or CI parity checks: typecheck, lint, unit tests with coverage, format, build, and Playwright e2e. Supervisor implementation, review, and repair workers use focused checks instead; CI owns the full product gate.
 ---
 
-# Review quality gate
+# Full quality gate
 
-Run this gate once during the reviewer stage or final integration from the repo
-root. Implementation and repair workers must follow
-`.supervisor/WORKER_PROTOCOL.md` and use focused checks instead.
+Run this gate only during final integration or an explicit CI-parity check from
+the repo root. Supervisor implementation, review, and repair workers must follow
+`.supervisor/WORKER_PROTOCOL.md` and use focused checks instead. The reviewer
+records focused local validation but is not a merge authority; GitHub's required
+checks decide mergeability (see `wiki/operations/ci-authority.md`).
 
 ```sh
 npm run typecheck
 npm run lint
 npm run test:coverage
 npm run format
+npm run build
 npm run test:e2e
 ```
 
@@ -26,6 +29,7 @@ npm run test:e2e
   enforced**: lines/functions 80%, branches 70%. Do not lower them to pass;
   add tests or remove uncovered dead code instead.
 - `format` — Prettier write. Leave the repo formatted.
+- `build` — type-check + bundle library (emits `dist/` with `.d.ts`).
 - `test:e2e` — Playwright against the local dev server (`e2e/`).
 
 ## Coverage policy
@@ -36,6 +40,6 @@ the percentage.
 
 ## Notes
 
-- CI runs the same gate (`.github/workflows/ci.yml`), so the gate must pass
-  locally before pushing.
+- CI runs the same gate (`.github/workflows/ci.yml`) on every push/PR, so CI is
+  the authoritative result; a local run is a parity check, not a merge gate.
 - Playwright needs the Chromium browser once: `npm run test:e2e:install`.
