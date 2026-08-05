@@ -11,6 +11,28 @@ Issue description:
 $issue_body
 ---
 
+## Start with a requirement challenge
+
+Before writing code, challenge the requested scope against the repository's
+product contract (`AGENTS.md` and `wiki/requirements/product-scope.md`):
+
+- **User value** — what concrete, user-visible value does the requested work
+  deliver?
+- **Minimum behavior** — what is the smallest design that delivers it?
+- **Deletion candidates** — what existing code or abstractions can be deleted
+  or simplified instead of adding?
+- **Non-goals** — what is explicitly out of scope, both in the issue and by the
+  product contract? Reject or flag scope expansion that is not in the issue.
+- **New abstraction?** — is a new abstraction or public API symbol truly
+  necessary, or does an existing pattern already cover the case?
+
+Implement the smallest change that satisfies the issue. A successful
+implementation may delete code; line count, module count, and abstraction count
+should not grow without justification. Do not add fallback branches,
+compatibility layers, optional modes, or public API surface without an explicit
+requirement. The issue must state acceptance criteria and non-goals; if it does
+not, record the gap instead of inventing scope.
+
 ## Integration expectations
 
 We merge quickly once work is ready. Keep the change focused, surface blockers

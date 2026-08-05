@@ -2,7 +2,8 @@
 
 The e2e suite is classified into explicit categories so a broken product path
 can never hide behind a green run. The category decides what may skip, how it
-skips, and whether the skip is visible in CI.
+skips, and whether the skip is visible in CI. The product contract is
+WebGPU-only ([[requirements/product-scope|product scope]]).
 
 ## Categories
 
