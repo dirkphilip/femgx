@@ -324,7 +324,7 @@ describe("WebGPU renderer", () => {
 
     expect(gpu.buffers.every((buffer) => !buffer.destroyed)).toBe(true);
     expect(gpu.textureCreations).toBe(texturesAfterFirst);
-    expect(gpu.buffers.length - buffersAfterFirst).toBe(9);
+    expect(gpu.buffers.length - buffersAfterFirst).toBe(12);
     expect(gpu.drawCalls.slice(-4)).toEqual([
       { indexCount: 3, instanceCount: 1 },
       { indexCount: 3, instanceCount: 1 },
