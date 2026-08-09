@@ -39,9 +39,10 @@ controller, so camera and interaction behavior is stable
 
 ## Workbench controller
 
-- `demo/controller.ts` (`WorkbenchController`) owns the active preset, the
-  packed runtime, interaction state, visibility, and display toggles, and
-  drives the attached renderer through `RendererHooks`. It wires the control
+- `demo/controller.ts` (`WorkbenchController`) owns active-preset and DOM
+  presentation policy while `FemViewport` owns the packed runtime, camera,
+  controls, interaction synchronization, visibility, picking, and renderer
+  lifecycle. The controller wires the control
   bar, visibility panel, inspection panel, stats panel, and the right-click
   context menu.
 - The **visibility panel is a hierarchical tree** built from the authoritative
@@ -79,10 +80,9 @@ controller, so camera and interaction behavior is stable
   compact scene overlays, so there is no separate CPU-canvas results renderer.
   The control bar shows the active renderer in a `#renderer-status` chip next
   to the model selector.
-- The controller exposes a `rendererState` note (e.g. `recovered`) that the
-  status line shows after a GPU device loss; the WebGPU demo path recovers the
-  renderer once and reports an explicit unsupported message when recovery is
-  impossible ([[rendering/platform-support|Platform support]]).
+- The controller exposes a `rendererState` note (e.g. `recovered`) for status
+  presentation. `FemViewport` performs recovery and reports success/failure to
+  the demo callbacks ([[rendering/platform-support|Platform support]]).
 
 ## Mobile / responsive layout
 

@@ -26,14 +26,18 @@ presentation and interaction policy only.
 - Opinionated SpaceClaim-style mouse/touch navigation
   (`installCameraControls`), camera math, asynchronous orbit-pivot handling,
   and the renderer-owned pivot marker.
+- The canonical `FemViewport`: runtime compilation, camera fit/resize,
+  standard controls, render invalidation, interaction/visibility GPU deltas,
+  picking, scene replacement, device recovery, and teardown.
 
 **Demo-only policy (stays in `demo/`):**
 
 - DOM control wiring, the workbench controller, context menu, visibility
   panel, inspection text, status formatting, fixture/model selection, and
   modifier-key target policy (`controller.ts`, `view.ts`, `inspect.ts`,
-  `pick.ts`, `fit.ts`).
-- WebGPU renderer startup and device-loss recovery wiring (`webgpu-demo.ts`).
+  `pick.ts`).
+- Unsupported-state wording, performance telemetry, and the browser-test
+  lifecycle seam (`webgpu-demo.ts`).
 
 ## Emphasis rendering
 
@@ -49,12 +53,9 @@ per-element overrides); emphasis appears through the renderer's node/face
 emphasis records, the intended thin-consumer behavior that avoids duplicating
 the WebGPU emphasis semantics.
 
-## Instance synchronization
+## Viewport synchronization
 
-The demo feeds the renderer real deltas: interaction changes produce the
-affected instance slots via `changedInstanceSlots(runtime, previous, next)`,
-and visibility changes use the runtime's `VisibilityDelta.changedInstanceIds`
-through `updateVisibility`. It never rewrites every instance on a frame (the
-former `allSlots(runtime)` whole-runtime patch). After a renderer recovery or
-re-creation the demo resets its applied-interaction baseline to an empty state,
-because a fresh attachment re-uploads records from an empty interaction state.
+The demo passes presentation state to `FemViewport`; it never calls renderer
+upload or draw methods. The viewport derives interaction and visibility deltas,
+owns the packed runtime, and resets its upload baseline after scene replacement
+or recovery. This keeps the public host path and the demo test bench identical.

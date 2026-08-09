@@ -1,51 +1,55 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Camera } from "../../src/camera/camera";
-import type { ModelPreset } from "../../src/fixture/presets";
-import { createInteractionState, type InteractionState, type SceneRuntime } from "../../src/index";
+import type { FemViewport } from "../../src/viewport/fem-viewport";
 import type { DemoView } from "../../demo/view";
-import type { RendererHooks, WorkbenchController, WorkbenchOptions } from "../../demo/controller";
+import type { WorkbenchOptions } from "../../demo/controller";
 import { startWebGpuDemo } from "../../demo/webgpu-demo";
 
 const mocks = vi.hoisted(() => {
   class FakeWorkbenchController {
-    readonly hooks: RendererHooks;
-    readonly onDestroy: (() => void) | undefined;
+    readonly interaction = {} as never;
+    readonly preset;
     rendererState = "";
-    interaction: InteractionState = createInteractionState();
-    runtime = { instanceCount: 0, visibleCount: 0 } as SceneRuntime;
-    cameraRef = { camera: {} as Camera };
-    preset = { scene: { parts: new Map<number, never>() } } as unknown as ModelPreset;
+    private currentViewport;
 
     constructor(options: WorkbenchOptions) {
-      this.hooks = options.hooks;
-      this.onDestroy = options.onDestroy;
+      this.currentViewport = options.viewport;
+      this.preset = options.presets[0];
+    }
+
+    get camera() {
+      return this.currentViewport.camera;
     }
 
     render(): void {
-      this.hooks.render(this as unknown as WorkbenchController, this.interaction);
+      this.currentViewport.setInteraction(this.interaction);
     }
 
+    setViewport(viewport: FemViewport): void {
+      this.currentViewport = viewport;
+    }
+
+    setCameraGestureActive(): void {}
+    totalTriangleCount(): number {
+      return 0;
+    }
     destroy(): void {
-      this.onDestroy?.();
+      this.currentViewport.destroy();
     }
   }
-  return {
-    FakeWorkbenchController,
-    createWebGpuRenderer: vi.fn(),
-  };
+  return { FakeWorkbenchController, createFemViewport: vi.fn() };
 });
 
 vi.mock("../../demo/controller", () => ({
   WorkbenchController: mocks.FakeWorkbenchController,
 }));
-vi.mock("../../src/renderer/gpu-renderer", () => ({
-  createWebGpuRenderer: mocks.createWebGpuRenderer,
+vi.mock("../../src/index", async (importOriginal) => ({
+  ...(await importOriginal()),
+  createFemViewport: mocks.createFemViewport,
 }));
 
 interface DemoSeam {
   readonly destroyRenderer: () => void;
   readonly recreateRenderer: () => Promise<void>;
-  readonly forceDeviceLoss: () => void;
 }
 
 interface DemoWindow {
@@ -54,52 +58,48 @@ interface DemoWindow {
 }
 
 const originalWindow = (globalThis as { readonly window?: unknown }).window;
-
 let demoWindow: DemoWindow;
 
 function fakeCanvas(): HTMLCanvasElement {
-  const canvas = {
-    dataset: {},
-  } as unknown as HTMLCanvasElement;
-  return canvas;
+  return { dataset: {} } as unknown as HTMLCanvasElement;
 }
 
-function fakeRenderer(): FakeRenderer {
-  const renderer: FakeRenderer = {
-    lost: false,
-    recover: vi.fn((): Promise<void> => {
-      renderer.lost = false;
-      return Promise.resolve();
-    }),
-    render: vi.fn(),
-    setDeformation: vi.fn(),
-    updateInstances: vi.fn(),
-    updateElements: vi.fn(),
-    setEdgeDepthTest: vi.fn(),
-    updateVisibility: vi.fn(),
-    pick: vi.fn(),
-    resize: vi.fn(),
-    destroy: vi.fn(),
-    stats: vi.fn(() => ({ drawBatches: 0 })),
-    device: {} as GPUDevice,
+interface FakeViewport {
+  readonly viewport: FemViewport;
+  readonly render: ReturnType<typeof vi.fn>;
+  readonly destroy: ReturnType<typeof vi.fn>;
+}
+
+function fakeViewport(): FakeViewport {
+  const render = vi.fn();
+  const destroy = vi.fn();
+  return {
+    render,
+    destroy,
+    viewport: {
+      scene: {} as FemViewport["scene"],
+      runtime: { visibleCount: 0 } as FemViewport["runtime"],
+      camera: {} as FemViewport["camera"],
+      interaction: {} as FemViewport["interaction"],
+      setScene: vi.fn(),
+      setCamera: vi.fn(),
+      fitView: vi.fn(),
+      setInteraction: vi.fn(),
+      setEdgeDepthTest: vi.fn(),
+      setNodeOverlay: vi.fn(),
+      setPartVisible: vi.fn(),
+      setAssemblyVisible: vi.fn(),
+      setInstanceVisible: vi.fn(),
+      pick: vi.fn(),
+      pickPoint: vi.fn(),
+      resize: vi.fn(),
+      invalidate: vi.fn(),
+      render,
+      recover: vi.fn(),
+      destroy,
+      stats: vi.fn(() => ({ visibleInstances: 0, drawBatches: 0 })),
+    },
   };
-  return renderer;
-}
-
-interface FakeRenderer {
-  lost: boolean;
-  recover: ReturnType<typeof vi.fn>;
-  render: ReturnType<typeof vi.fn>;
-  setDeformation: ReturnType<typeof vi.fn>;
-  updateInstances: ReturnType<typeof vi.fn>;
-  updateElements: ReturnType<typeof vi.fn>;
-  setEdgeDepthTest: ReturnType<typeof vi.fn>;
-  updateVisibility: ReturnType<typeof vi.fn>;
-  pick: ReturnType<typeof vi.fn>;
-  resize: ReturnType<typeof vi.fn>;
-  destroy: ReturnType<typeof vi.fn>;
-  stats: ReturnType<typeof vi.fn>;
-  device: GPUDevice;
 }
 
 function startOptions(canvas: HTMLCanvasElement): Parameters<typeof startWebGpuDemo>[0] {
@@ -113,91 +113,37 @@ function startOptions(canvas: HTMLCanvasElement): Parameters<typeof startWebGpuD
   };
 }
 
-/** A factory whose committed renderer reports its device lost before returning. */
-function startupLossRenderer(): FakeRenderer {
-  const renderer = fakeRenderer();
-  renderer.lost = true;
-  renderer.recover.mockImplementation(() => {
-    renderer.lost = false;
-  });
-  mocks.createWebGpuRenderer.mockImplementation(
-    (options: { readonly onDeviceLost?: (info: { reason: string; message: string }) => void }) => {
-      options.onDeviceLost?.({
-        reason: "destroyed",
-        message: "device lost during startup wiring",
-      });
-      return Promise.resolve(renderer);
-    },
-  );
-  return renderer;
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
-  demoWindow = {
-    addEventListener: () => undefined,
-  };
+  demoWindow = { addEventListener: () => undefined };
   (globalThis as { window?: unknown }).window = demoWindow;
 });
 
 afterEach(() => {
-  if (originalWindow === undefined) {
-    delete (globalThis as { window?: unknown }).window;
-  } else {
-    (globalThis as { window?: unknown }).window = originalWindow;
-  }
+  if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
+  else (globalThis as { window?: unknown }).window = originalWindow;
 });
 
 describe("startWebGpuDemo", () => {
-  it("starts the renderer without recovery when the device is healthy", async () => {
-    const renderer = fakeRenderer();
-    mocks.createWebGpuRenderer.mockResolvedValue(renderer);
+  it("starts through the public FEM viewport", async () => {
+    const viewport = fakeViewport();
+    mocks.createFemViewport.mockResolvedValue(viewport.viewport);
     const canvas = fakeCanvas();
-    const controller = await startWebGpuDemo(startOptions(canvas));
 
-    expect(renderer.recover).not.toHaveBeenCalled();
-    expect(canvas.dataset["recovery"]).toBeUndefined();
-    expect(canvas.dataset["renderer"]).toBe("webgpu");
-
-    controller?.render();
-    expect(Number(canvas.dataset["frames"])).toBeGreaterThanOrEqual(1);
-  });
-
-  it("recovers a device lost during startup once the renderer and controller are wired up", async () => {
-    const renderer = startupLossRenderer();
-    const canvas = fakeCanvas();
     const controller = await startWebGpuDemo(startOptions(canvas));
 
     expect(controller).toBeDefined();
-    await vi.waitFor(() => {
-      expect(canvas.dataset["recovery"]).toBe("recovered");
-    });
-    expect(renderer.recover).toHaveBeenCalledTimes(1);
-    expect(renderer.lost).toBe(false);
-    expect(controller?.rendererState).toBe("recovered");
-
-    controller?.render();
-    expect(Number(canvas.dataset["frames"])).toBeGreaterThanOrEqual(1);
+    expect(mocks.createFemViewport).toHaveBeenCalledOnce();
+    expect(viewport.render).toHaveBeenCalled();
+    expect(canvas.dataset["renderer"]).toBe("webgpu");
   });
 
-  it("reports an explicit error and destroys the renderer when recovery is impossible", async () => {
-    const renderer = startupLossRenderer();
-    renderer.recover.mockRejectedValue(new Error("cannot re-request a GPU device"));
-    const canvas = fakeCanvas();
-    await startWebGpuDemo(startOptions(canvas));
-
-    await vi.waitFor(() => {
-      expect(canvas.dataset["recovery"]).toBe("error");
-    });
-    expect(renderer.destroy).toHaveBeenCalled();
-    expect(canvas.dataset["renderer"]).toBe("unsupported");
-  });
-
-  it("reports an explicit unsupported message when the renderer cannot be created", async () => {
-    mocks.createWebGpuRenderer.mockRejectedValue(new Error("no WebGPU adapter"));
+  it("reports an explicit unsupported message when viewport creation fails", async () => {
+    mocks.createFemViewport.mockRejectedValue(new Error("no WebGPU adapter"));
     const canvas = fakeCanvas();
     const status = { textContent: "" };
     const rendererStatus = { textContent: "" };
+
     const controller = await startWebGpuDemo({
       view: { canvas, status, rendererStatus } as unknown as DemoView,
       canvas,
@@ -205,102 +151,63 @@ describe("startWebGpuDemo", () => {
 
     expect(controller).toBeUndefined();
     expect(canvas.dataset["renderer"]).toBe("unsupported");
-    expect(status.textContent).toContain("femgx requires a usable WebGPU renderer");
     expect(status.textContent).toContain("no WebGPU adapter");
     expect(rendererStatus.textContent).toBe("Renderer unsupported");
   });
 
-  it("reports a first-frame submission failure and destroys the renderer", async () => {
-    const renderer = fakeRenderer();
-    renderer.render.mockImplementation(() => {
+  it("reports a first-frame failure and destroys the viewport", async () => {
+    const viewport = fakeViewport();
+    viewport.render.mockImplementation(() => {
       throw new Error("frame submit exploded");
     });
-    mocks.createWebGpuRenderer.mockResolvedValue(renderer);
+    mocks.createFemViewport.mockResolvedValue(viewport.viewport);
     const canvas = fakeCanvas();
     const status = { textContent: "" };
-    const rendererStatus = { textContent: "" };
+
     const controller = await startWebGpuDemo({
-      view: { canvas, status, rendererStatus } as unknown as DemoView,
+      view: { canvas, status, rendererStatus: { textContent: "" } } as unknown as DemoView,
       canvas,
     });
 
     expect(controller).toBeUndefined();
-    expect(canvas.dataset["renderer"]).toBe("unsupported");
-    expect(status.textContent).toContain("femgx requires a usable WebGPU renderer");
+    expect(viewport.destroy).toHaveBeenCalled();
     expect(status.textContent).toContain("frame submit exploded");
-    expect(renderer.destroy).toHaveBeenCalled();
   });
 
-  it("drives instance updates as a delta instead of a whole-runtime rewrite", async () => {
-    const renderer = fakeRenderer();
-    mocks.createWebGpuRenderer.mockResolvedValue(renderer);
-    const canvas = fakeCanvas();
-    const controller = await startWebGpuDemo(startOptions(canvas));
-
-    controller?.render();
-    controller?.render();
-
-    const changedLists: unknown[] = renderer.updateInstances.mock.calls.map(
-      (call) => call[2] as unknown,
-    );
-    expect(changedLists.length).toBeGreaterThanOrEqual(2);
-    for (const changed of changedLists) {
-      // With an unchanged (empty) interaction state nothing is styled, so no
-      // instance slot needs a patch; the demo must never rewrite every slot.
-      expect(changed).toEqual([]);
-    }
-  });
-
-  it("recovers a device lost while the renderer is being re-created", async () => {
-    const first = fakeRenderer();
-    const second = fakeRenderer();
-    let calls = 0;
-    mocks.createWebGpuRenderer.mockImplementation(
-      (options: {
-        readonly onDeviceLost?: (info: { reason: string; message: string }) => void;
-      }) => {
-        calls += 1;
-        if (calls === 1) return Promise.resolve(first);
-        second.lost = true;
-        options.onDeviceLost?.({ reason: "destroyed", message: "lost during re-creation" });
-        return Promise.resolve(second);
-      },
-    );
+  it("tears down and recreates the public viewport", async () => {
+    const first = fakeViewport();
+    const second = fakeViewport();
+    mocks.createFemViewport
+      .mockResolvedValueOnce(first.viewport)
+      .mockResolvedValueOnce(second.viewport);
     const canvas = fakeCanvas();
     await startWebGpuDemo(startOptions(canvas));
 
-    const seam = demoWindow.femgxDemo;
-    expect(seam).toBeDefined();
-    seam?.destroyRenderer();
-    await seam?.recreateRenderer();
+    demoWindow.femgxDemo?.destroyRenderer();
+    expect(first.destroy).toHaveBeenCalledOnce();
+    expect(canvas.dataset["renderer"]).toBe("destroyed");
 
-    await vi.waitFor(() => {
-      expect(canvas.dataset["recovery"]).toBe("recovered");
-    });
-    expect(second.recover).toHaveBeenCalledTimes(1);
-    expect(second.lost).toBe(false);
+    await demoWindow.femgxDemo?.recreateRenderer();
+    expect(mocks.createFemViewport).toHaveBeenCalledTimes(2);
+    expect(second.render).toHaveBeenCalled();
+    expect(canvas.dataset["renderer"]).toBe("webgpu");
   });
 
-  it("reports a renderer re-creation failure instead of swallowing it", async () => {
-    const first = fakeRenderer();
-    mocks.createWebGpuRenderer.mockResolvedValueOnce(first);
+  it("reports a viewport recreation failure", async () => {
+    const first = fakeViewport();
+    mocks.createFemViewport.mockResolvedValueOnce(first.viewport);
     const canvas = fakeCanvas();
     const status = { textContent: "" };
-    const rendererStatus = { textContent: "" };
     await startWebGpuDemo({
-      view: { canvas, status, rendererStatus } as unknown as DemoView,
+      view: { canvas, status, rendererStatus: { textContent: "" } } as unknown as DemoView,
       canvas,
     });
+    demoWindow.femgxDemo?.destroyRenderer();
+    mocks.createFemViewport.mockRejectedValueOnce(new Error("recreation failed"));
 
-    const seam = demoWindow.femgxDemo;
-    expect(seam).toBeDefined();
-    seam?.destroyRenderer();
-    mocks.createWebGpuRenderer.mockRejectedValue(new Error("re-creation failed"));
-    await seam?.recreateRenderer();
+    await demoWindow.femgxDemo?.recreateRenderer();
 
     expect(canvas.dataset["renderer"]).toBe("unsupported");
-    expect(status.textContent).toContain("femgx requires a usable WebGPU renderer");
-    expect(status.textContent).toContain("re-creation failed");
-    expect(rendererStatus.textContent).toBe("Renderer unsupported");
+    expect(status.textContent).toContain("recreation failed");
   });
 });
