@@ -359,12 +359,10 @@ struct PickOutput {
   @location(1) element: vec4<f32>,
   @location(2) face: vec4<f32>,
   @location(3) node: vec4<f32>,
-  @location(4) displayedDepth: f32,
 };
 
 @fragment
 fn fragmentMain(
-  @builtin(position) fragmentPosition: vec4<f32>,
   @location(1) @interpolate(flat) pickId: u32,
   @location(3) @interpolate(flat) elementPickId: u32,
   @location(4) @interpolate(flat) facePickId: u32,
@@ -374,7 +372,14 @@ fn fragmentMain(
   output.element = packPickId(elementPickId);
   output.face = packPickId(facePickId);
   output.node = packPickId(0u);
-  output.displayedDepth = fragmentPosition.z;
   return output;
+}
+`;
+
+/** Writes the nearest displayed fragment depth into a copyable scalar target. */
+export const depthPickFragmentShader = /* wgsl */ `
+@fragment
+fn fragmentMain(@builtin(position) fragmentPosition: vec4<f32>) -> @location(0) f32 {
+  return fragmentPosition.z;
 }
 `;

@@ -79,6 +79,8 @@ export interface SweepOptions {
   readonly reverse?: boolean;
   /** When set, scan with a fixed pixel step instead of the fractional grid. */
   readonly step?: number;
+  /** Clear the diagnostic before every move so returned coordinates are exact. */
+  readonly fresh?: boolean;
 }
 
 type Box = {
@@ -145,11 +147,16 @@ function gridCells(
 async function sweepCells(
   page: Page,
   cells: ReadonlyArray<readonly [number, number]>,
-  keyOf: () => Promise<string>,
-  matches: (key: string) => boolean,
-  settleMs: number,
+  options: {
+    readonly clearKey?: (() => Promise<void>) | undefined;
+    readonly keyOf: () => Promise<string>;
+    readonly matches: (key: string) => boolean;
+    readonly settleMs: number;
+  },
 ): Promise<SweepHit | undefined> {
+  const { clearKey, keyOf, matches, settleMs } = options;
   for (const [x, y] of cells) {
+    await clearKey?.();
     await page.mouse.move(x, y);
     const key = await waitForKey(keyOf, matches, settleMs, page);
     if (matches(key)) {
@@ -182,46 +189,63 @@ export async function sweepForHit(
     settleMs = 250,
     reverse = false,
     step,
+    fresh = false,
   } = options;
   const keyOf = async (): Promise<string> => (await canvas.getAttribute(`data-${attribute}`)) ?? "";
+  const clearKey = async (): Promise<void> => {
+    await canvas.evaluate((node, name) => {
+      (node as HTMLElement).dataset[name] = "";
+    }, attribute);
+  };
   const matches = (key: string): boolean => key !== "" && (prefix === "" || key.startsWith(prefix));
   const anyHit = (key: string): boolean => key !== "";
 
   // Warm a frame so pick attachments are current after navigations/screenshots.
-  await page.mouse.move(Math.round(box.x + box.width / 2), Math.round(box.y + box.height / 2));
-  await waitForKey(keyOf, anyHit, settleMs, page);
+  const center: readonly [number, number] = [
+    Math.round(box.x + box.width / 2),
+    Math.round(box.y + box.height / 2),
+  ];
+  if (fresh || prefix !== "") await clearKey();
+  await page.mouse.move(center[0], center[1]);
+  const centerKey = await waitForKey(keyOf, anyHit, settleMs, page);
+  if (matches(centerKey)) return { x: center[0], y: center[1], key: centerKey };
 
-  const coarse = gridCells(
+  if (prefix !== "") {
+    const radius = 180;
+    const localStep = 12;
+    const local: Array<readonly [number, number]> = [];
+    for (let dy = -radius; dy <= radius; dy += localStep) {
+      for (let dx = -radius; dx <= radius; dx += localStep) {
+        const x = center[0] + dx;
+        const y = center[1] + dy;
+        if (x >= box.x && y >= box.y && x <= box.x + box.width && y <= box.y + box.height) {
+          local.push([x, y]);
+        }
+      }
+    }
+    local.sort(
+      (a, b) =>
+        Math.hypot(a[0] - center[0], a[1] - center[1]) -
+        Math.hypot(b[0] - center[0], b[1] - center[1]),
+    );
+    return sweepCells(page, local, { clearKey, keyOf, matches, settleMs });
+  }
+
+  const grid = gridCells(
     box,
     step === undefined ? { rows, cols, reverse } : { rows, cols, reverse, step },
   );
-  if (prefix === "") {
-    return sweepCells(page, coarse, keyOf, matches, settleMs);
-  }
-
-  // Specific prefixes (e.g. node) are sparse under GPU proximity gating. Find
-  // any geometry first, then search a local neighborhood for the prefix.
-  const seed = await sweepCells(page, coarse, keyOf, anyHit, settleMs);
-  if (seed === undefined) {
-    return undefined;
-  }
-  if (matches(seed.key)) {
-    return seed;
-  }
-  const localStep = 4;
-  const radius = 72;
-  const local: Array<readonly [number, number]> = [];
-  for (let dy = -radius; dy <= radius; dy += localStep) {
-    for (let dx = -radius; dx <= radius; dx += localStep) {
-      const x = seed.x + dx;
-      const y = seed.y + dy;
-      if (x < box.x || y < box.y || x > box.x + box.width || y > box.y + box.height) {
-        continue;
-      }
-      local.push([x, y]);
-    }
-  }
-  return sweepCells(page, local, keyOf, matches, settleMs);
+  const coarse = fresh
+    ? [[Math.round(box.x + box.width / 2), Math.round(box.y + box.height / 2)] as const, ...grid]
+    : grid;
+  const sweep = (cells: ReadonlyArray<readonly [number, number]>) =>
+    sweepCells(page, cells, {
+      ...(fresh ? { clearKey } : {}),
+      keyOf,
+      matches,
+      settleMs,
+    });
+  return sweep(coarse);
 }
 
 /**

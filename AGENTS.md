@@ -234,6 +234,10 @@ gate automatically on every push/PR (see `.github/workflows/ci.yml`).
 - Follow the existing file/type conventions — do not introduce parallel abstractions.
 - Do not add comments to code unless they explain non-obvious design decisions.
 - Update this file when the architecture or commands materially change.
+- Before merging any rendering, camera, interaction, demo, CSS, or responsive-layout
+  change, run the real system-Chrome WebGPU lane and inspect actual screenshots at
+  both desktop and 390×844 mobile viewports. A submitted-frame counter, mocked GPU
+  test, or no-GPU CI pass is not visual evidence; a black/blank canvas blocks merge.
 
 ### Supervisor worker validation
 

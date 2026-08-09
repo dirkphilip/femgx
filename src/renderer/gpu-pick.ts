@@ -123,53 +123,6 @@ export function ensurePickTargets(
   });
 }
 
-/** Begins the pick render pass used for asynchronous picking. */
-export function beginPickPass(encoder: GPUCommandEncoder, pick: PickTargets): GPURenderPassEncoder {
-  const texture = pick.texture;
-  const elementTexture = pick.elementTexture;
-  const faceTexture = pick.faceTexture;
-  const nodeTexture = pick.nodeTexture;
-  const displayedDepthTexture = pick.displayedDepthTexture;
-  const depthTexture = pick.depthTexture;
-  if (
-    texture === undefined ||
-    elementTexture === undefined ||
-    faceTexture === undefined ||
-    nodeTexture === undefined ||
-    displayedDepthTexture === undefined ||
-    depthTexture === undefined
-  ) {
-    throw new Error("WebGPU picking targets were not created");
-  }
-  const attachment = (view: GPUTextureView): GPURenderPassColorAttachment => ({
-    view,
-    clearValue: { r: 0, g: 0, b: 0, a: 0 },
-    loadOp: "clear",
-    storeOp: "store",
-  });
-  return encoder.beginRenderPass({
-    colorAttachments: [
-      attachment(texture.createView()),
-      attachment(elementTexture.createView()),
-      attachment(faceTexture.createView()),
-      attachment(nodeTexture.createView()),
-      {
-        ...attachment(displayedDepthTexture.createView()),
-        clearValue: { r: 1, g: 0, b: 0, a: 0 },
-      },
-    ],
-    depthStencilAttachment: {
-      view: depthTexture.createView(),
-      depthClearValue: 1,
-      depthLoadOp: "clear",
-      depthStoreOp: "store",
-      stencilClearValue: 0,
-      stencilLoadOp: "clear",
-      stencilStoreOp: "discard",
-    },
-  });
-}
-
 /** Copies the pick textures under the pointer and reads both pick ids. */
 export async function readPickPixel(
   device: GPUDevice,

@@ -155,7 +155,7 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
 }
 
 /** Which fragment pass a batch targets. */
-export type PipelinePass = "color" | "pick";
+export type PipelinePass = "color" | "pick" | "depth";
 
 /** Options controlling one instanced draw pass. */
 export interface DrawBatchOptions {
@@ -231,12 +231,31 @@ function pipelineFor(
 ): GPURenderPipeline {
   switch (primitive) {
     case "triangles":
-      return pass === "color" ? pipelines.trianglesColor : pipelines.trianglesPick;
+      return pipelineVariant(
+        pass,
+        pipelines.trianglesColor,
+        pipelines.trianglesPick,
+        pipelines.trianglesDepth,
+      );
     case "lines":
-      return pass === "color" ? pipelines.linesColor : pipelines.linesPick;
+      return pipelineVariant(pass, pipelines.linesColor, pipelines.linesPick, pipelines.linesDepth);
     case "points":
-      return pass === "color" ? pipelines.pointsColor : pipelines.pointsPick;
+      return pipelineVariant(
+        pass,
+        pipelines.pointsColor,
+        pipelines.pointsPick,
+        pipelines.pointsDepth,
+      );
   }
+}
+
+function pipelineVariant(
+  pass: PipelinePass,
+  color: GPURenderPipeline,
+  pick: GPURenderPipeline,
+  depth: GPURenderPipeline,
+): GPURenderPipeline {
+  return pass === "color" ? color : pass === "pick" ? pick : depth;
 }
 
 /** Releases every part, storage, and depth resource owned by the draw path. */

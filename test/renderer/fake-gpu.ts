@@ -44,6 +44,8 @@ export interface FakeGpu {
   readonly pipelineCalls: readonly unknown[];
   /** Render-pipeline descriptors in creation order. */
   readonly renderPipelineDescriptors: readonly GPURenderPipelineDescriptor[];
+  /** Command-buffer submissions in call order. */
+  readonly submissionCount: number;
   /** Resolves the device `lost` promise to simulate a GPU device loss. */
   lose(reason?: GPUDeviceLostReason, message?: string): void;
 }
@@ -118,6 +120,7 @@ export function fakeGpuDevice(
   const pipelineCalls: unknown[] = [];
   const renderPipelineDescriptors: GPURenderPipelineDescriptor[] = [];
   let bindGroupCreations = 0;
+  let submissionCount = 0;
   let pipelineCounter = 0;
   let currentPipeline = "none";
   const pickValue = options.pickValue ?? 0;
@@ -147,7 +150,9 @@ export function fakeGpuDevice(
         }
         writes.push({ buffer, offset, bytes });
       },
-      submit: () => undefined,
+      submit: () => {
+        submissionCount += 1;
+      },
     },
     createBuffer: (descriptor: GPUBufferDescriptor) => {
       const record: FakeBuffer = {
@@ -237,6 +242,9 @@ export function fakeGpuDevice(
     },
     get bindGroupCreations() {
       return bindGroupCreations;
+    },
+    get submissionCount() {
+      return submissionCount;
     },
   };
 }

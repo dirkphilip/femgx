@@ -57,7 +57,7 @@ export async function startWebGpuDemo(
       },
       onRender: () => {
         canvas.dataset["frames"] = String(Number(canvas.dataset["frames"] ?? "0") + 1);
-        controller?.syncViewportPresentation();
+        if (viewport !== undefined) controller?.syncViewportPresentation();
       },
     });
 

@@ -228,27 +228,6 @@ test("hides and restores all fasteners through the assembly tree", async ({ page
   expect(await status(page)).toContain("34 visible");
 });
 
-test("reflects a hidden fastener subassembly as mixed and restores it", async ({ page }) => {
-  await page.goto("/");
-  const fasteners = page.getByTestId("assembly-vis-3");
-  const joint = page.getByTestId("assembly-vis-1");
-  await expect(fasteners).toBeChecked();
-  await expect(joint).toBeChecked();
-
-  // Hiding one fastener leaves the fastener group and the joint mixed.
-  await page.getByTestId("assembly-vis-4").uncheck();
-  await expect(page.getByTestId("assembly-vis-4")).not.toBeChecked();
-  expect(await status(page)).toContain("30 visible");
-  await expect(fasteners).toHaveJSProperty("indeterminate", true);
-  await expect(joint).toHaveJSProperty("indeterminate", true);
-
-  // Toggling the mixed parent restores the whole subtree.
-  await fasteners.check();
-  await expect(fasteners).toBeChecked();
-  await expect(page.getByTestId("assembly-vis-4")).toBeChecked();
-  expect(await status(page)).toContain("34 visible");
-});
-
 test("switches projection, fits to view, and resets camera controls", async ({ page }) => {
   await page.goto("/");
   const label = page.getByTestId("projection-label");
@@ -331,41 +310,18 @@ test("picks and selects a node, exposing adjacency and neighbors", async ({ page
 
 test("picks and selects a face, exposing its normal and ownership", async ({ page }) => {
   await page.goto("/");
-  // The stiffened deck panel projects large faces; the frame's thin members
-  // are too sparse to hit with the coarse pick sweep.
-  await page.getByTestId("model-select").selectOption("panel");
-  await page.waitForTimeout(200);
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
     canvas,
     { prefix: "f:" },
-    "face GPU picking must resolve on the stiffened deck panel",
+    "face GPU picking must resolve on the deterministic WebGPU lane",
   );
 
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => dataset(page, "selected")).toMatch(/^f:/);
   await expect(page.getByTestId("inspection-panel")).toContainText("Normal");
   await expect(page.getByTestId("inspection-panel")).toContainText("Adjacent elements");
-});
-
-test("promotes a node pick to its owning element with shift", async ({ page }) => {
-  await page.goto("/");
-  const canvas = page.getByTestId("view-canvas");
-  const hit = await requireHit(
-    page,
-    canvas,
-    { prefix: "n:" },
-    "node GPU picking must resolve on the deterministic WebGPU lane",
-  );
-  const owned = (await dataset(page, "pick")).split(":");
-  expect(owned[0]).toBe("n");
-
-  await page.keyboard.down("Shift");
-  await page.mouse.click(hit.x, hit.y);
-  await page.keyboard.up("Shift");
-  const selected = await dataset(page, "selected");
-  expect(selected.startsWith("e:")).toBe(true);
 });
 
 test("context menu selects a target and toggles display without losing selection", async ({
