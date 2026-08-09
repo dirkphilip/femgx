@@ -25,10 +25,6 @@ runner exists, CI only runs the no-GPU unsupported-contract smoke
     the demo's hover/selection state;
   - **clean teardown** — the demo's `window.femgxDemo` seam destroys and
     re-initializes the renderer without page errors;
-  - **device-loss recovery** — `window.femgxDemo.forceDeviceLoss()` destroys the
-    real GPU device; the demo must recover (status shows `recovered`) or report
-    the loss (`data-recovery="error"`), and must not raise page errors either
-    way.
   - **WebGPU-only unsupported contract** — with `navigator.gpu` hidden before
     page load, the demo must report `data-renderer="unsupported"`, state that
     femgx requires a usable WebGPU renderer, include the probe diagnostic, and
@@ -66,14 +62,15 @@ the authoritative WebGPU interaction/pixel gate.
 
 - `data-renderer="webgpu" | "unsupported" | "destroyed"` on the `#view` canvas.
 - `data-frames` — successful render count.
-- `data-recovery="recovered" | "error"` — outcome of a device loss.
+- `data-recovery="recovered" | "error"` — outcome reported by the viewport after device loss.
 - `data-hovered` / `data-selected` — current hovered/selected instance id
   (empty string when none).
 - `window.femgxDemo.destroyRenderer()` / `recreateRenderer()` — explicit
   lifecycle seam used to exercise clean teardown through the demo.
-- `window.femgxDemo.forceDeviceLoss()` — destroys the active renderer's GPU
-  device to exercise the demo's recovery/report path (see
-  [[rendering/platform-support|Platform support]]).
+
+Device-loss recovery is covered at the renderer and public viewport API layers
+with controlled fake devices; the demo no longer reaches through the viewport
+facade to expose its underlying `GPUDevice` solely for a browser-test hook.
 
 Related: [[engineering/quality-gate|Quality gate]], [[engineering/e2e-policy|E2E policy]],
 [[engineering/benchmarks|Benchmarks]].

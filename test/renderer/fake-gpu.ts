@@ -206,6 +206,7 @@ export function fakeGpuDevice(
             currentPipeline = pipeline.__tag ?? "unknown";
           },
           setBindGroup: () => undefined,
+          setStencilReference: () => undefined,
           setVertexBuffer: () => undefined,
           setIndexBuffer: () => undefined,
           drawIndexed: (indexCount: number, instanceCount: number) => {

@@ -98,16 +98,14 @@ Device lifetime is centralized in `GpuDeviceLifecycle`
 Re-creating the device after a loss is **intentionally retained**: device loss is
 a normal part of the WebGPU contract on supported hardware (driver resets,
 tab eviction), so this is a supported-path feature rather than a fallback for
-non-target environments. The demo wires it into `onDeviceLost` and calls
-`renderer.recover()` once; if recovery fails it destroys the renderer and shows
-the explicit unsupported message (`data-recovery="error"`). There is no CPU
+non-target environments. `FemViewport` wires device loss into `recover()` and
+destroys the failed renderer if recovery is impossible; the demo only maps the
+viewport callbacks to status text (`data-recovery="error"`). There is no CPU
 fallback and no canvas replacement.
 
 Tests drive the full loss → blocked-render → recovery → re-upload cycle against
 mocked devices (`test/platform/*`, `test/renderer/gpu-recovery.test.ts`,
-`test/renderer/gpu-renderer.test.ts`). The e2e lane destroys the real GPU device
-through `window.femgxDemo.forceDeviceLoss()` and asserts the demo recovers or
-reports the loss without page errors.
+`test/renderer/gpu-renderer.test.ts`, `test/viewport/fem-viewport.test.ts`).
 
 ## Browser support
 

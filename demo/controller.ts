@@ -1,11 +1,6 @@
 import {
-  createCamera,
   clientToCanvasCss,
   createInteractionState,
-  createSceneRuntime,
-  fitCamera,
-  installCameraControls,
-  resizeCamera,
   setElementOverride,
   setElementSelected,
   setFaceHighlighted,
@@ -24,8 +19,6 @@ import {
   setProjection,
   type AssemblyId,
   type Camera,
-  type CameraNavigationTarget,
-  type CameraRef,
   type Color,
   type ElementId,
   type ElementRef,
@@ -33,18 +26,13 @@ import {
   type InstanceId,
   type InteractionState,
   type PartId,
-  type PickGranularity,
   type PickTarget,
+  type FemViewport,
   type SceneRuntime,
 } from "../src/index";
-import {
-  createModelPresets,
-  visiblePartIdsForPreset,
-  type ModelPreset,
-} from "../src/fixture/presets";
+import { visiblePartIdsForPreset, type ModelPreset } from "../src/fixture/presets";
 import { describePick } from "./inspect";
 import { selectTarget, targetKey, type SelectTarget } from "./pick";
-import { createPerformancePreset } from "./performance-fixture";
 import { updateStatus, type DemoView, type StatusInfo } from "./view";
 import { assemblyName, assemblySubtreeIds, assemblyVisibilityState } from "./visibility-tree";
 
@@ -52,28 +40,6 @@ import { assemblyName, assemblySubtreeIds, assemblyVisibilityState } from "./vis
 export interface RendererStats {
   readonly visibleInstances: number;
   readonly batches: number;
-}
-
-/** Renderer callbacks the workbench drives. */
-export interface RendererHooks extends CameraNavigationTarget {
-  /** Draws one frame with the current interaction state. */
-  readonly render: (controller: WorkbenchController, state: InteractionState) => void;
-  /** Applies visibility changes and re-renders. */
-  readonly applyVisibility: (
-    controller: WorkbenchController,
-    state: InteractionState,
-    changedSlots: readonly number[],
-  ) => void;
-  /** GPU pick under a canvas pixel (camera space), or undefined when unavailable. */
-  readonly pick: (
-    x: number,
-    y: number,
-    granularity?: PickGranularity,
-  ) => Promise<PickTarget | undefined>;
-  /** Current draw statistics for the status bar. */
-  readonly stats: (controller: WorkbenchController) => RendererStats;
-  /** Keeps the WebGPU attachment aligned with the CSS-sized full-screen canvas. */
-  readonly resize?: () => void;
 }
 
 /** Display toggles shared by the control bar and context menu. */
@@ -88,25 +54,18 @@ export interface WorkbenchOptions {
   readonly view: DemoView;
   readonly canvas: HTMLCanvasElement;
   readonly rendererName: string;
-  readonly hooks: RendererHooks;
-  /** Optional edge depth-test hook backed by the active renderer. */
-  readonly setEdgeDepthTest?: (enabled: boolean) => void;
-  /** Optional FE-node glyph visibility hook backed by the active renderer. */
-  readonly setNodeOverlay?: (enabled: boolean) => void;
-  /** Optional teardown hook invoked on destroy. */
-  readonly onDestroy?: () => void;
+  readonly viewport: FemViewport;
+  readonly presets: readonly ModelPreset[];
 }
 
 /**
- * The interaction brain of the demo: owns the active model, the packed
- * runtime, interaction state, visibility, and display toggles, and drives the
- * attached WebGPU renderer through {@link RendererHooks}. Picking uses the
- * renderer's GPU pick path.
+ * Presentation policy for the demo workbench. Reusable scene, camera,
+ * interaction, rendering, picking, and lifecycle behavior belongs to the
+ * library-owned {@link FemViewport}.
  */
 export class WorkbenchController {
   readonly canvas: HTMLCanvasElement;
   readonly view: DemoView;
-  readonly hooks: RendererHooks;
   readonly rendererName: string;
   preset: ModelPreset;
   mode: ElementRenderMode;
@@ -114,12 +73,7 @@ export class WorkbenchController {
   interaction: InteractionState;
   /** Renderer-state note shown in the status line (e.g. "recovered"). */
   rendererState = "";
-  runtime!: SceneRuntime;
-  cameraRef: CameraRef;
-  private readonly setEdgeDepthTest: ((enabled: boolean) => void) | undefined;
-  private readonly setNodeOverlay: ((enabled: boolean) => void) | undefined;
-  private readonly onDestroy: (() => void) | undefined;
-  private removeCameraControls: (() => void) | undefined;
+  private viewport: FemViewport;
   private readonly presets: readonly ModelPreset[];
   private readonly slotByInstanceId = new Map<InstanceId, number>();
   private readonly partIdByInstanceId = new Map<InstanceId, PartId>();
@@ -135,22 +89,12 @@ export class WorkbenchController {
   constructor(options: WorkbenchOptions) {
     this.view = options.view;
     this.canvas = options.canvas;
-    this.hooks = options.hooks;
     this.rendererName = options.rendererName;
-    this.setEdgeDepthTest = options.setEdgeDepthTest;
-    this.setNodeOverlay = options.setNodeOverlay;
-    this.onDestroy = options.onDestroy;
-    this.presets = [...createModelPresets(), createPerformancePreset()];
-    this.preset = this.presets[0] ?? createEmptyPreset();
-    const viewport = this.canvas.getBoundingClientRect();
-    this.cameraRef = {
-      camera: fitCamera(
-        createCamera(),
-        this.preset.bounds,
-        Math.max(1, viewport.width),
-        Math.max(1, viewport.height),
-      ),
-    };
+    this.viewport = options.viewport;
+    this.presets = options.presets;
+    const initialPreset = this.presets[0];
+    if (initialPreset === undefined) throw new Error("Workbench requires at least one preset");
+    this.preset = initialPreset;
     this.mode = "solid";
     this.toggles = {
       edges: false,
@@ -158,7 +102,8 @@ export class WorkbenchController {
       diagnostics: false,
     };
     this.interaction = this.createPresetInteraction(this.preset);
-    this.buildRuntime(this.preset);
+    this.viewport.setInteraction(this.interaction);
+    this.indexRuntime();
     this.applyModeVisibility();
     this.populateModelSelect();
     this.populateVisibilityPanel();
@@ -170,6 +115,40 @@ export class WorkbenchController {
     this.render();
   }
 
+  get runtime(): SceneRuntime {
+    return this.viewport.runtime;
+  }
+
+  get camera(): Camera {
+    return this.viewport.camera;
+  }
+
+  /** Reattaches the presentation shell after the e2e lifecycle seam recreates the viewport. */
+  setViewport(viewport: FemViewport): void {
+    this.viewport = viewport;
+    this.viewport.setInteraction(this.interaction);
+    this.viewport.setEdgeDepthTest(this.depthTestEnabled);
+    this.viewport.setNodeOverlay(this.toggles.nodes);
+    this.indexRuntime();
+    this.applyModeVisibility();
+    this.populateVisibilityPanel();
+    this.render();
+  }
+
+  /** Mirrors the core camera gesture state into demo-only hover policy and diagnostics. */
+  setCameraGestureActive(active: boolean): void {
+    this.dragging = active;
+    this.canvas.dataset["dragging"] = active ? "true" : "false";
+  }
+
+  /** Refreshes demo-only status after a viewport-owned camera/render update. */
+  syncViewportPresentation(): void {
+    if (this.disposed) return;
+    this.refreshStatus();
+    this.refreshSelectedDataset();
+    this.canvas.dataset["camera"] = cameraKey(this.viewport.camera);
+  }
+
   /** Switches to another deterministic model preset and rebuilds state. */
   setPreset(id: string): void {
     if (id === this.preset.id) return;
@@ -179,14 +158,9 @@ export class WorkbenchController {
     this.mode = "solid";
     this.interaction = this.createPresetInteraction(preset);
     this.contextTarget = undefined;
-    const viewport = this.canvas.getBoundingClientRect();
-    this.cameraRef.camera = fitCamera(
-      this.cameraRef.camera,
-      preset.bounds,
-      Math.max(1, viewport.width),
-      Math.max(1, viewport.height),
-    );
-    this.buildRuntime(preset);
+    this.viewport.setScene(preset.scene);
+    this.viewport.setInteraction(this.interaction);
+    this.indexRuntime();
     this.applyModeVisibility();
     this.populateVisibilityPanel();
     this.canvas.dataset["model"] = preset.id;
@@ -210,10 +184,7 @@ export class WorkbenchController {
   private applyModeVisibility(mode: ElementRenderMode = this.mode): void {
     const visible = visiblePartIdsForPreset(this.preset, mode);
     for (const partId of this.preset.scene.parts.keys()) {
-      const delta = this.runtime.setPartVisible(partId, visible.has(partId));
-      if (delta.changedInstanceIds.length > 0) {
-        this.hooks.applyVisibility(this, this.interaction, delta.changedInstanceIds);
-      }
+      this.viewport.setPartVisible(partId, visible.has(partId));
     }
     this.syncVisibilityPanel();
   }
@@ -235,20 +206,14 @@ export class WorkbenchController {
   setNodes(enabled: boolean): void {
     if (this.toggles.nodes === enabled) return;
     this.toggles.nodes = enabled;
-    this.setNodeOverlay?.(enabled);
+    this.viewport.setNodeOverlay(enabled);
     this.reflectNodes();
     this.render();
   }
 
   /** Reframes the camera onto the whole model. */
   fitView(): void {
-    const rect = this.canvas.getBoundingClientRect();
-    this.cameraRef.camera = fitCamera(
-      this.cameraRef.camera,
-      this.preset.bounds,
-      Math.max(1, rect.width),
-      Math.max(1, rect.height),
-    );
+    this.viewport.fitView();
     this.render();
   }
 
@@ -256,14 +221,8 @@ export class WorkbenchController {
   reset(): void {
     this.interaction = this.createPresetInteraction(this.preset);
     this.contextTarget = undefined;
-    const rect = this.canvas.getBoundingClientRect();
-    const fitted = fitCamera(
-      this.cameraRef.camera,
-      this.preset.bounds,
-      Math.max(1, rect.width),
-      Math.max(1, rect.height),
-    );
-    this.cameraRef.camera = setProjection(fitted, "perspective");
+    this.viewport.fitView();
+    this.viewport.setCamera(setProjection(this.viewport.camera, "perspective"));
     this.canvas.dataset["hovered"] = "";
     this.canvas.dataset["selected"] = "";
     this.canvas.dataset["pick"] = "";
@@ -297,13 +256,10 @@ export class WorkbenchController {
     if (this.disposed) return;
     this.disposed = true;
     this.pickGeneration += 1;
-    this.removeCameraControls?.();
-    this.removeCameraControls = undefined;
-    this.onDestroy?.();
+    this.viewport.destroy();
   }
 
-  private buildRuntime(preset: ModelPreset): void {
-    this.runtime = createSceneRuntime(preset.scene);
+  private indexRuntime(): void {
     this.slotByInstanceId.clear();
     this.partIdByInstanceId.clear();
     this.partFirstSlot.clear();
@@ -323,9 +279,11 @@ export class WorkbenchController {
   private installControls(): void {
     const view = this.view;
     view.projectionToggle.addEventListener("click", () => {
-      this.cameraRef.camera = setProjection(
-        this.cameraRef.camera,
-        this.cameraRef.camera.mode === "perspective" ? "orthographic" : "perspective",
+      this.viewport.setCamera(
+        setProjection(
+          this.viewport.camera,
+          this.viewport.camera.mode === "perspective" ? "orthographic" : "perspective",
+        ),
       );
       this.render();
     });
@@ -333,7 +291,7 @@ export class WorkbenchController {
       this.setEdges(!this.toggles.edges);
     });
     view.depthTestToggle.addEventListener("click", () => {
-      this.setEdgeDepthTest?.(!this.depthTestEnabled);
+      this.viewport.setEdgeDepthTest(!this.depthTestEnabled);
       this.depthTestEnabled = !this.depthTestEnabled;
       this.reflectDepthTest();
     });
@@ -348,12 +306,6 @@ export class WorkbenchController {
     });
     view.modelSelect.addEventListener("change", () => {
       this.setPreset(view.modelSelect.value);
-    });
-    window.addEventListener("resize", () => {
-      this.hooks.resize?.();
-      const rect = view.canvas.getBoundingClientRect();
-      this.cameraRef.camera = resizeCamera(this.cameraRef.camera, rect.width, rect.height);
-      this.render();
     });
     view.visibilityPanel.addEventListener("change", (event) => {
       const target = event.target;
@@ -383,18 +335,6 @@ export class WorkbenchController {
 
   private installCanvasInteraction(): void {
     const canvas = this.canvas;
-    this.removeCameraControls = installCameraControls({
-      canvas,
-      cameraRef: this.cameraRef,
-      navigation: this.hooks,
-      onGestureChange: (active) => {
-        this.dragging = active;
-        canvas.dataset["dragging"] = active ? "true" : "false";
-      },
-      onRender: () => {
-        this.render();
-      },
-    });
     canvas.addEventListener("pointerdown", (event) => {
       this.downPosition = { x: event.clientX, y: event.clientY };
     });
@@ -503,7 +443,7 @@ export class WorkbenchController {
   }): Promise<PickTarget | undefined> {
     const rect = this.canvas.getBoundingClientRect();
     const point = clientToCanvasCss(event.clientX, event.clientY, rect);
-    return this.hooks.pick(point.x, point.y);
+    return this.viewport.pick(point.x, point.y);
   }
 
   private toggleSelection(target: SelectTarget): void {
@@ -629,10 +569,7 @@ export class WorkbenchController {
     const slot = this.slotByInstanceId.get(target.instanceId);
     if (slot === undefined) return;
     const visible = this.runtime.isInstanceVisible(slot);
-    const delta = this.runtime.setInstanceVisible(slot, !visible);
-    if (delta.changedInstanceIds.length > 0) {
-      this.hooks.applyVisibility(this, this.interaction, delta.changedInstanceIds);
-    }
+    this.viewport.setInstanceVisible(slot, !visible);
     this.render();
   }
 
@@ -651,38 +588,21 @@ export class WorkbenchController {
   }
 
   private setPartVisibility(partId: PartId, visible: boolean): void {
-    const delta = this.runtime.setPartVisible(partId, visible);
-    if (delta.changedInstanceIds.length > 0) {
-      this.hooks.applyVisibility(this, this.interaction, delta.changedInstanceIds);
-    }
+    this.viewport.setPartVisible(partId, visible);
     this.syncVisibilityPanel();
     this.render();
   }
 
   /** Applies a visibility override to one placement from the expanded component tree. */
   private setInstanceVisibility(slot: number, visible: boolean): void {
-    const delta = this.runtime.setInstanceVisible(slot, visible);
-    if (delta.changedInstanceIds.length > 0) {
-      this.hooks.applyVisibility(this, this.interaction, delta.changedInstanceIds);
-    }
+    this.viewport.setInstanceVisible(slot, visible);
     this.syncVisibilityPanel();
     this.render();
   }
 
   private setAssemblyVisibility(assemblyId: AssemblyId, visible: boolean): void {
-    const changed = new Set<number>();
     for (const id of assemblySubtreeIds(this.preset.scene.assemblies, assemblyId)) {
-      const delta = this.runtime.setAssemblyVisible(id, visible);
-      for (const instanceId of delta.changedInstanceIds) {
-        changed.add(instanceId);
-      }
-    }
-    if (changed.size > 0) {
-      this.hooks.applyVisibility(
-        this,
-        this.interaction,
-        [...changed].sort((a, b) => a - b),
-      );
+      this.viewport.setAssemblyVisible(id, visible);
     }
     this.syncVisibilityPanel();
     this.render();
@@ -715,14 +635,16 @@ export class WorkbenchController {
   /** Re-draws the current state and refreshes the status line and datasets. */
   render(): void {
     if (this.disposed) return;
-    this.hooks.render(this, this.interaction);
-    this.refreshStatus();
-    this.refreshSelectedDataset();
-    this.canvas.dataset["camera"] = cameraKey(this.cameraRef.camera);
+    this.viewport.setInteraction(this.interaction);
+    this.syncViewportPresentation();
   }
 
   private refreshStatus(): void {
-    const stats = this.hooks.stats(this);
+    const viewportStats = this.viewport.stats();
+    const stats: RendererStats = {
+      visibleInstances: viewportStats.visibleInstances,
+      batches: viewportStats.drawBatches,
+    };
     const info: StatusInfo = {
       model: this.preset.name,
       renderer: this.rendererName,
@@ -732,7 +654,7 @@ export class WorkbenchController {
       batches: stats.batches,
       mode: this.mode,
     };
-    updateStatus(this.view, this.cameraRef.camera, info);
+    updateStatus(this.view, this.viewport.camera, info);
     this.view.statsPanel.textContent = this.statsText(stats);
   }
 
@@ -1163,11 +1085,6 @@ export class WorkbenchController {
       ? "Depth test off"
       : "Depth test on";
   }
-}
-
-/** Fallback preset used only if the preset list is somehow empty. */
-function createEmptyPreset(): ModelPreset {
-  return createModelPresets()[0] as ModelPreset;
 }
 
 /** Compact camera pose key for e2e assertions on gesture-driven movement. */

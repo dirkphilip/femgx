@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { computeBounds } from "../../src/geometry/part";
 import { setPartOverride } from "../../src/interaction/interaction";
 import { translation } from "../../src/math/mat4";
@@ -44,16 +44,26 @@ describe("FemViewport", () => {
     installNavigator();
     const gpu = fakeGpuDevice();
     const canvas = fakeCanvas(640, 360);
-    const viewport = await createFemViewport({ canvas, scene: scene(), device: gpu.device });
+    const onRender = vi.fn();
+    const viewport = await createFemViewport({
+      canvas,
+      scene: scene(),
+      device: gpu.device,
+      onRender,
+    });
 
     expect(viewport.runtime.instanceCount).toBe(1);
     expect(viewport.camera.width).toBe(640);
     expect(viewport.stats()).toEqual({ visibleInstances: 1, drawBatches: 1 });
+    expect(onRender).toHaveBeenCalledOnce();
 
     const interaction = setPartOverride(viewport.interaction, 1, {
       color: { r: 1, g: 0, b: 0, a: 1 },
     });
     viewport.setInteraction(interaction);
+    viewport.setEdgeDepthTest(false);
+    viewport.setNodeOverlay(true);
+    viewport.render();
     expect(viewport.interaction).toBe(interaction);
 
     viewport.setPartVisible(1, false);
@@ -93,5 +103,25 @@ describe("FemViewport", () => {
     expect(viewport.camera.target[0]).toBeCloseTo(25);
     expect(viewport.runtime.getTransform(0)?.[12]).toBe(25);
     viewport.destroy();
+  });
+
+  it("owns unrecoverable device-loss cleanup and error reporting", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const onError = vi.fn();
+    await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: gpu.device,
+      onError,
+    });
+
+    gpu.lose("destroyed", "test loss");
+
+    await vi.waitFor(() => {
+      expect(onError).toHaveBeenCalledOnce();
+    });
+    expect(gpu.buffers.every((buffer) => buffer.destroyed)).toBe(true);
   });
 });

@@ -1,12 +1,7 @@
-import {
-  changedInstanceSlots,
-  createInteractionState,
-  createWebGpuRenderer,
-  type DeviceLostInfo,
-  type InteractionState,
-  type WebGpuRenderer,
-} from "../src/index";
-import { WorkbenchController, type RendererHooks, type RendererStats } from "./controller";
+import { createFemViewport, type FemViewport } from "../src/index";
+import { createModelPresets, type ModelPreset } from "../src/fixture/presets";
+import { WorkbenchController } from "./controller";
+import { createPerformancePreset } from "./performance-fixture";
 import type { DemoView } from "./view";
 
 /** Inputs for the WebGPU demo path. */
@@ -15,201 +10,98 @@ export interface WebGpuDemoOptions {
   readonly canvas: HTMLCanvasElement;
 }
 
-function renderFrame(
-  gpuRenderer: WebGpuRenderer,
-  canvas: HTMLCanvasElement,
-  controller: WorkbenchController,
-  state: InteractionState,
-  previous: InteractionState,
-): void {
-  if (gpuRenderer.lost) return;
-  const runtime = controller.runtime;
-  const changed = changedInstanceSlots(runtime, previous, state);
-  gpuRenderer.updateInstances(runtime, state, changed);
-  gpuRenderer.updateElements(runtime, state);
-  gpuRenderer.render(runtime, controller.cameraRef.camera, controller.preset.scene.parts);
-  canvas.dataset["frames"] = String(Number(canvas.dataset["frames"] ?? "0") + 1);
-}
-
-/**
- * Starts the WebGPU demo renderer. WebGPU is the product's only renderer: when
- * it is unavailable the demo reports an explicit unsupported message instead of
- * degrading to a second rendering path. Renderer creation, the first frame,
- * and re-creation failures are reported explicitly rather than swallowed. A
- * device loss recovers the renderer once; when recovery fails the renderer is
- * destroyed and the unsupported message is shown. A loss reported while the
- * renderer is still being created is buffered and recovered once it is wired up.
- */
+/** Starts the presentation-only demo shell around the canonical FEM viewport. */
 export async function startWebGpuDemo(
   options: WebGpuDemoOptions,
 ): Promise<WorkbenchController | undefined> {
   const { view, canvas } = options;
-  let gpuRenderer: WebGpuRenderer | undefined;
-  /** Loss observed before the renderer could run recovery. */
-  let pendingDeviceLoss: DeviceLostInfo | undefined;
-  /**
-   * The interaction state last handed to `updateInstances`, so each frame can
-   * patch only the instance slots that changed (see `changedInstanceSlots`).
-   * A re-created or recovered renderer re-uploads from an empty interaction
-   * state, so the baseline resets to empty when the attachment is rebuilt.
-   */
-  let appliedInteraction: InteractionState = createInteractionState();
+  const presets = [...createModelPresets(), createPerformancePreset()];
+  const initialPreset = presets[0];
+  if (initialPreset === undefined) throw new Error("The demo requires at least one model preset");
+
+  let viewport: FemViewport | undefined;
+  let controller: WorkbenchController | undefined;
   let animationFrame: number | undefined;
 
-  /** Shows the explicit unsupported/error message on the demo's status line. */
-  const reportUnsupported = (message: string): void => {
+  const reportUnsupported = (error: unknown): void => {
+    const detail = error instanceof Error ? error.message : String(error);
     canvas.dataset["renderer"] = "unsupported";
     view.rendererStatus.textContent = "Renderer unsupported";
-    view.status.textContent = message;
+    view.status.textContent = `femgx requires a usable WebGPU renderer. ${detail}`;
   };
 
-  /** Formats a renderer failure into the demo's explicit unsupported message. */
-  const rendererFailureMessage = (error: unknown): string => {
-    const detail = error instanceof Error ? error.message : String(error);
-    return `femgx requires a usable WebGPU renderer. ${detail}`;
-  };
-
-  /** Recovers the renderer once, or reports the loss when recovery is impossible. */
-  const recoverFromDeviceLoss = async (info: DeviceLostInfo): Promise<void> => {
-    const renderer = gpuRenderer;
-    if (renderer === undefined) {
-      // The committed renderer subscribes at construction time, so it can
-      // report a loss before `startWebGpuDemo` assigns it. Buffer the loss
-      // instead of dropping it; recovery runs once the renderer is assigned
-      // (see `drainPendingDeviceLoss`).
-      pendingDeviceLoss = info;
-      return;
-    }
-    try {
-      await renderer.recover();
-      appliedInteraction = createInteractionState();
-      controller.rendererState = "recovered";
-      canvas.dataset["recovery"] = "recovered";
-      controller.render();
-    } catch {
-      renderer.destroy();
-      gpuRenderer = undefined;
-      canvas.dataset["recovery"] = "error";
-      reportUnsupported(
-        "The WebGPU device was lost and could not be recovered; reload to restart.",
-      );
-    }
-  };
-
-  /** Runs a loss buffered while the renderer was still being created. */
-  const drainPendingDeviceLoss = (): void => {
-    const info = pendingDeviceLoss;
-    pendingDeviceLoss = undefined;
-    if (info !== undefined) void recoverFromDeviceLoss(info);
-  };
-
-  const hooks: RendererHooks = {
-    render: (active, state) => {
-      if (gpuRenderer === undefined) return;
-      renderFrame(gpuRenderer, canvas, active, state, appliedInteraction);
-      appliedInteraction = state;
-    },
-    applyVisibility: (active, state, changed) => {
-      if (gpuRenderer === undefined || gpuRenderer.lost) return;
-      gpuRenderer.updateVisibility(active.runtime, changed);
-      renderFrame(gpuRenderer, canvas, active, state, appliedInteraction);
-      appliedInteraction = state;
-    },
-    pick: async (x, y, granularity) => {
-      if (gpuRenderer === undefined || gpuRenderer.lost) return undefined;
-      return gpuRenderer.pick(x, y, granularity);
-    },
-    pickPoint: async (camera, x, y) => {
-      if (gpuRenderer === undefined || gpuRenderer.lost) return undefined;
-      return gpuRenderer.pickPoint(camera, x, y);
-    },
-    setOrbitPivot: (pivot) => {
-      if (gpuRenderer !== undefined && !gpuRenderer.lost) gpuRenderer.setOrbitPivot(pivot);
-    },
-    stats: (active): RendererStats => {
-      const stats = gpuRenderer?.stats();
-      return {
-        visibleInstances: active.runtime.visibleCount,
-        batches: stats?.drawBatches ?? 0,
-      };
-    },
-    resize: () => {
-      gpuRenderer?.resize();
-    },
-  };
-
-  const controller = new WorkbenchController({
-    view,
-    canvas,
-    rendererName: "webgpu",
-    hooks,
-    setEdgeDepthTest: (enabled) => {
-      if (gpuRenderer !== undefined && !gpuRenderer.lost) gpuRenderer.setEdgeDepthTest(enabled);
-    },
-    setNodeOverlay: (enabled) => {
-      if (gpuRenderer !== undefined && !gpuRenderer.lost) gpuRenderer.setNodeOverlay(enabled);
-    },
-    onDestroy: () => {
-      gpuRenderer?.destroy();
-      gpuRenderer = undefined;
-    },
-  });
-
-  try {
-    gpuRenderer = await createWebGpuRenderer({
+  const createViewport = async (preset: ModelPreset): Promise<FemViewport> =>
+    createFemViewport({
       canvas,
-      onDeviceLost: (info) => {
-        void recoverFromDeviceLoss(info);
+      scene: preset.scene,
+      ...(controller === undefined ? {} : { camera: controller.camera }),
+      ...(controller === undefined ? {} : { interaction: controller.interaction }),
+      onDeviceLost: () => {
+        canvas.dataset["recovery"] = "recovering";
+      },
+      onRecovered: () => {
+        canvas.dataset["recovery"] = "recovered";
+        if (controller !== undefined) {
+          controller.rendererState = "recovered";
+          controller.render();
+        }
+      },
+      onError: (error) => {
+        controller?.destroy();
+        viewport = undefined;
+        canvas.dataset["recovery"] = "error";
+        reportUnsupported(error);
+      },
+      onGestureChange: (active) => {
+        controller?.setCameraGestureActive(active);
+      },
+      onRender: () => {
+        canvas.dataset["frames"] = String(Number(canvas.dataset["frames"] ?? "0") + 1);
+        controller?.syncViewportPresentation();
       },
     });
+
+  try {
+    viewport = await createViewport(initialPreset);
+    controller = new WorkbenchController({
+      view,
+      canvas,
+      rendererName: "webgpu",
+      viewport,
+      presets,
+    });
+    viewport.render();
   } catch (error) {
-    controller.destroy();
-    reportUnsupported(rendererFailureMessage(error));
+    viewport?.destroy();
+    viewport = undefined;
+    controller?.destroy();
+    reportUnsupported(error);
     return undefined;
   }
   canvas.dataset["renderer"] = "webgpu";
-
-  // A device lost during startup was buffered by `recoverFromDeviceLoss`; run
-  // the same recovery now that the renderer is wired up.
-  drainPendingDeviceLoss();
-  try {
-    controller.render();
-  } catch (error) {
-    // The first frame could not be submitted; destroy the renderer and report
-    // the explicit error instead of leaving an unhandled failure.
-    gpuRenderer.destroy();
-    gpuRenderer = undefined;
-    controller.destroy();
-    reportUnsupported(rendererFailureMessage(error));
-    return undefined;
-  }
-
   startPerformanceLoop();
 
   window.addEventListener("pagehide", () => {
     if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
-    gpuRenderer?.destroy();
-    gpuRenderer = undefined;
+    viewport?.destroy();
+    viewport = undefined;
   });
 
-  /** Continuously measures the normal render path without a benchmark-only renderer. */
+  /** Continuously measures the normal public viewport path. */
   function startPerformanceLoop(): void {
     if (typeof requestAnimationFrame === "undefined") return;
     let frameCount = 0;
     let sampleStart = performance.now();
     const frame = (now: number): void => {
-      if (gpuRenderer !== undefined && !gpuRenderer.lost) {
-        renderFrame(gpuRenderer, canvas, controller, controller.interaction, appliedInteraction);
-        appliedInteraction = controller.interaction;
-        frameCount += 1;
-      }
+      viewport?.render();
+      if (viewport !== undefined) frameCount += 1;
       const elapsed = now - sampleStart;
-      if (elapsed >= 500) {
+      if (elapsed >= 500 && controller !== undefined) {
         const fps = (frameCount * 1000) / elapsed;
         view.performanceOverlay.textContent =
           `Triangles  ${formatCount(controller.totalTriangleCount())}\n` +
           `FPS        ${fps.toFixed(1)}\n` +
-          `Batches    ${gpuRenderer?.stats().drawBatches ?? 0}`;
+          `Batches    ${viewport?.stats().drawBatches ?? 0}`;
         frameCount = 0;
         sampleStart = now;
       }
@@ -218,46 +110,26 @@ export async function startWebGpuDemo(
     animationFrame = requestAnimationFrame(frame);
   }
 
-  /**
-   * Explicit lifecycle seam used by the e2e lane to exercise clean teardown,
-   * re-initialization, and device-loss recovery through the demo.
-   */
+  /** Explicit lifecycle seam used by the e2e lane. */
   (window as typeof window & { femgxDemo?: unknown }).femgxDemo = {
     destroyRenderer: () => {
-      if (gpuRenderer === undefined) return;
-      gpuRenderer.destroy();
-      gpuRenderer = undefined;
+      viewport?.destroy();
+      viewport = undefined;
       canvas.dataset["renderer"] = "destroyed";
     },
     recreateRenderer: async () => {
-      if (gpuRenderer !== undefined) return;
-      let recreated: WebGpuRenderer;
+      if (viewport !== undefined) return;
       try {
-        recreated = await createWebGpuRenderer({
-          canvas,
-          onDeviceLost: (info) => {
-            void recoverFromDeviceLoss(info);
-          },
-        });
+        const recreated = await createViewport(controller.preset);
+        viewport = recreated;
+        controller.setViewport(recreated);
+        canvas.dataset["renderer"] = "webgpu";
+        recreated.render();
       } catch (error) {
-        reportUnsupported(rendererFailureMessage(error));
-        return;
+        viewport?.destroy();
+        viewport = undefined;
+        reportUnsupported(error);
       }
-      gpuRenderer = recreated;
-      appliedInteraction = createInteractionState();
-      canvas.dataset["renderer"] = "webgpu";
-      drainPendingDeviceLoss();
-      try {
-        renderFrame(gpuRenderer, canvas, controller, controller.interaction, appliedInteraction);
-        appliedInteraction = controller.interaction;
-      } catch (error) {
-        gpuRenderer.destroy();
-        gpuRenderer = undefined;
-        reportUnsupported(rendererFailureMessage(error));
-      }
-    },
-    forceDeviceLoss: () => {
-      gpuRenderer?.device.destroy();
     },
   };
 

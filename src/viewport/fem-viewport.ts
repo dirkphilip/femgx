@@ -20,7 +20,10 @@ export interface FemViewportOptions {
   readonly device?: GPUDevice;
   readonly powerPreference?: GPUPowerPreference;
   readonly onDeviceLost?: (info: DeviceLostInfo) => void;
+  readonly onRecovered?: () => void;
   readonly onError?: (error: unknown) => void;
+  readonly onGestureChange?: (active: boolean) => void;
+  readonly onRender?: () => void;
 }
 
 /** Canonical scene, camera, interaction, rendering, and lifecycle owner. */
@@ -33,6 +36,8 @@ export interface FemViewport {
   setCamera(camera: Camera): void;
   fitView(): void;
   setInteraction(interaction: InteractionState): void;
+  setEdgeDepthTest(enabled: boolean): void;
+  setNodeOverlay(enabled: boolean): void;
   setPartVisible(partId: PartId, visible: boolean): void;
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void;
   setInstanceVisible(instanceId: number, visible: boolean): void;
@@ -93,6 +98,9 @@ class FemViewportCore implements FemViewport {
       onRender: () => {
         this.invalidate();
       },
+      ...(options.onGestureChange === undefined
+        ? {}
+        : { onGestureChange: options.onGestureChange }),
     });
     this.removeResize = installResize(options.canvas, () => {
       this.resize();
@@ -143,6 +151,18 @@ class FemViewportCore implements FemViewport {
   setInteraction(interaction: InteractionState): void {
     this.ensureAlive();
     this.currentInteraction = interaction;
+    this.invalidate();
+  }
+
+  setEdgeDepthTest(enabled: boolean): void {
+    this.ensureAlive();
+    this.renderer.setEdgeDepthTest(enabled);
+    this.invalidate();
+  }
+
+  setNodeOverlay(enabled: boolean): void {
+    this.ensureAlive();
+    this.renderer.setNodeOverlay(enabled);
     this.invalidate();
   }
 
@@ -201,6 +221,7 @@ class FemViewportCore implements FemViewport {
     this.renderer.updateElements(this.currentRuntime, this.currentInteraction);
     this.renderer.render(this.currentRuntime, this.cameraRef.camera, this.currentScene.parts);
     this.appliedInteraction = this.currentInteraction;
+    this.options.onRender?.();
   }
 
   async recover(): Promise<void> {
@@ -208,10 +229,12 @@ class FemViewportCore implements FemViewport {
     await this.renderer.recover();
     this.appliedInteraction = createInteractionState();
     this.render();
+    this.options.onRecovered?.();
   }
 
   handleDeviceLoss(): void {
     void this.recover().catch((error: unknown) => {
+      this.destroy();
       this.options.onError?.(error);
     });
   }
