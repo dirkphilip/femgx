@@ -6,6 +6,8 @@ export interface PartDrawInputs {
   readonly geometry: PartResource;
   /** Nodal displacement buffer; empty for parts without deformation data. */
   readonly deformation: GPUBuffer;
+  /** Node glyph geometry is transient relative to the cached surface bind group. */
+  readonly cache?: boolean;
 }
 
 /**
@@ -21,6 +23,7 @@ export function orderBindGroup(
   part: PartDrawInputs,
 ): GPUBindGroup {
   const orderBuffer = overlay ? storage.edgeOrderBuffer : storage.orderBuffer;
+  if (part.cache === false) return instanceBindGroup(device, layout, storage, orderBuffer, part);
   return overlay
     ? (storage.edgeBindGroup ??= instanceBindGroup(device, layout, storage, orderBuffer, part))
     : (storage.bindGroup ??= instanceBindGroup(device, layout, storage, orderBuffer, part));

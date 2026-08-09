@@ -135,6 +135,9 @@ export async function startWebGpuDemo(
     setEdgeDepthTest: (enabled) => {
       if (gpuRenderer !== undefined && !gpuRenderer.lost) gpuRenderer.setEdgeDepthTest(enabled);
     },
+    setNodeOverlay: (enabled) => {
+      if (gpuRenderer !== undefined && !gpuRenderer.lost) gpuRenderer.setNodeOverlay(enabled);
+    },
     onDestroy: () => {
       gpuRenderer?.destroy();
       gpuRenderer = undefined;

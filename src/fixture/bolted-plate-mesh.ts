@@ -96,27 +96,27 @@ export function createPlateModel(
   ]);
 }
 
-/** The bolt mesh: a 1.6 m shaft below a 4 x 4 m square head. */
-export function createBoltModel(): ElementModel {
+/** The bolt mesh: an 0.8 m shaft below a 1.4 x 1.4 m square head. */
+export function createBoltModel(headBaseY: number): ElementModel {
   return gridModel([
     {
-      minX: -0.8,
+      minX: -0.4,
       minY: -4,
-      minZ: -0.8,
-      maxX: 0.8,
-      maxY: 3,
-      maxZ: 0.8,
+      minZ: -0.4,
+      maxX: 0.4,
+      maxY: headBaseY,
+      maxZ: 0.4,
       cellsX: 1,
       cellsY: 1,
       cellsZ: 1,
     },
     {
-      minX: -2,
-      minY: 3,
-      minZ: -2,
-      maxX: 2,
-      maxY: 5,
-      maxZ: 2,
+      minX: -0.7,
+      minY: headBaseY,
+      minZ: -0.7,
+      maxX: 0.7,
+      maxY: headBaseY + 1,
+      maxZ: 0.7,
       cellsX: 1,
       cellsY: 1,
       cellsZ: 1,
@@ -124,16 +124,16 @@ export function createBoltModel(): ElementModel {
   ]);
 }
 
-/** The flat washer mesh: a thin 2.8 x 2.8 m slab around the shaft. */
+/** The flat washer mesh: a thin 1.4 x 1.4 m slab around the shaft. */
 export function createWasherModel(): ElementModel {
   return gridModel([
     {
-      minX: -1.4,
-      minY: -0.25,
-      minZ: -1.4,
-      maxX: 1.4,
-      maxY: 0.25,
-      maxZ: 1.4,
+      minX: -0.7,
+      minY: -0.125,
+      minZ: -0.7,
+      maxX: 0.7,
+      maxY: 0.125,
+      maxZ: 0.7,
       cellsX: 1,
       cellsY: 1,
       cellsZ: 1,
@@ -141,16 +141,16 @@ export function createWasherModel(): ElementModel {
   ]);
 }
 
-/** The nut mesh: a 3 x 3 m box threaded on the shaft end. */
+/** The nut mesh: a 1.5 x 1.5 m box threaded on the shaft end. */
 export function createNutModel(): ElementModel {
   return gridModel([
     {
-      minX: -1.5,
-      minY: -1,
-      minZ: -1.5,
-      maxX: 1.5,
-      maxY: 1,
-      maxZ: 1.5,
+      minX: -0.75,
+      minY: -0.5,
+      minZ: -0.75,
+      maxX: 0.75,
+      maxY: 0.5,
+      maxZ: 0.75,
       cellsX: 1,
       cellsY: 1,
       cellsZ: 1,

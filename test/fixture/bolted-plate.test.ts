@@ -176,12 +176,14 @@ describe("createBoltedPlateFixture", () => {
     const washers = instances.filter((instance) => instance.partId === 7);
     expect(washers).toHaveLength(16);
     const washerHeights = washers.map((instance) => instance.worldTransform[13] ?? 0);
-    expect(washerHeights.some((height) => Math.abs(height - 3.05) < 1e-6)).toBe(true);
-    expect(washerHeights.some((height) => Math.abs(height + 1.05) < 1e-6)).toBe(true);
+    expect(washerHeights.some((height) => Math.abs(height - 3.175) < 1e-6)).toBe(true);
+    expect(washerHeights.some((height) => Math.abs(height + 1.175) < 1e-6)).toBe(true);
 
     const nuts = instances.filter((instance) => instance.partId === 10);
     expect(nuts).toHaveLength(8);
-    expect(nuts.every((instance) => instance.worldTransform[13] === -2.5)).toBe(true);
+    expect(
+      nuts.every((instance) => Math.abs((instance.worldTransform[13] ?? 0) + 1.85) < 1e-6),
+    ).toBe(true);
   });
 
   it("produces deterministic, stable instance ordering", () => {
@@ -203,7 +205,7 @@ describe("createBoltedPlateFixture", () => {
       minY: -4,
       minZ: -7,
       maxX: 21,
-      maxY: 5,
+      maxY: 4.349999904632568,
       maxZ: 7,
     });
     expect(createBoltedPlatePreset().bounds).toEqual({
@@ -211,7 +213,7 @@ describe("createBoltedPlateFixture", () => {
       minY: -4,
       minZ: -7,
       maxX: 21,
-      maxY: 5,
+      maxY: 4.349999904632568,
       maxZ: 7,
     });
   });
@@ -220,18 +222,18 @@ describe("createBoltedPlateFixture", () => {
     const { scene, partIds } = createBoltedPlateFixture();
     const plateSolid = scene.parts.get(partIds.plate.solid);
     expect(plateSolid?.geometry.primitive).toBe("triangles");
-    expect(plateSolid?.geometry.indices).toHaveLength(216);
+    expect(plateSolid?.geometry.indices).toHaveLength(132);
     const plateEdges = scene.parts.get(partIds.plate.edges);
     expect(plateEdges?.geometry.primitive).toBe("lines");
     const boltModel = createBoltedPlateFixture().elementModels.get(partIds.bolt.solid);
     expect(boltModel?.elements).toHaveLength(2);
     expect(scene.parts.get(partIds.bolt.solid)?.bounds).toEqual({
-      minX: -2,
+      minX: -0.699999988079071,
       minY: -4,
-      minZ: -2,
-      maxX: 2,
-      maxY: 5,
-      maxZ: 2,
+      minZ: -0.699999988079071,
+      maxX: 0.699999988079071,
+      maxY: 4.349999904632568,
+      maxZ: 0.699999988079071,
     });
   });
 
@@ -261,7 +263,7 @@ describe("createBoltedPlateFixture", () => {
       minY: -4,
       minZ: -7,
       maxX: 14,
-      maxY: 5,
+      maxY: 2.8499999046325684,
       maxZ: 7,
     });
   });

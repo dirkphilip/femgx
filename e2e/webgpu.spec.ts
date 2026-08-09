@@ -73,6 +73,22 @@ async function clearHover(page: Page, canvas: Locator): Promise<void> {
   throw new Error("could not move the pointer to an empty canvas point to clear hover");
 }
 
+/** Orbits the actual canvas through a user-equivalent drag gesture. */
+async function orbitCanvas(
+  page: Page,
+  canvas: Locator,
+  delta: { readonly x: number; readonly y: number },
+): Promise<void> {
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + delta.x, y + delta.y);
+  await page.mouse.up();
+}
+
 /**
  * Shift-right-clicks a target to promote a node/face pick to its owning
  * element and toggles the context-menu highlight, the explicit element emphasis
@@ -205,6 +221,46 @@ test("element emphasis changes the rendered pixels and clears back to the baseli
   expect(restored.equals(baseline), "clearing the emphasis must restore the baseline pixels").toBe(
     true,
   );
+});
+
+test("renders element nodes as a separate visible annotation pass", async ({ page }) => {
+  await loadWebGpuPage(page);
+
+  const canvas = page.getByTestId("view-canvas");
+  const baseline = await stableCanvasPixels(page, canvas);
+  const nodeToggle = page.getByTestId("node-overlay");
+  await nodeToggle.click();
+  await expect(page.getByTestId("node-overlay-label")).toHaveText("On");
+  await expect(nodeToggle).toHaveText("Hide element nodes");
+  const withNodes = await stableCanvasPixels(page, canvas);
+  expect(withNodes.equals(baseline), "node glyphs must change the rendered pixels").toBe(false);
+
+  await nodeToggle.click();
+  await expect(page.getByTestId("node-overlay-label")).toHaveText("Off");
+  const restored = await stableCanvasPixels(page, canvas);
+  expect(restored.equals(baseline), "hiding node glyphs must restore the surface").toBe(true);
+});
+
+test("keeps element edges and nodes visible after orbiting", async ({ page }) => {
+  await loadWebGpuPage(page);
+
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("edge-overlay").click();
+  await page.getByTestId("node-overlay").click();
+  await expect(page.getByTestId("edge-overlay-label")).toHaveText("On");
+  await expect(page.getByTestId("node-overlay-label")).toHaveText("On");
+
+  for (const delta of [
+    { x: 90, y: 35 },
+    { x: -150, y: 55 },
+  ]) {
+    await orbitCanvas(page, canvas, delta);
+    const withNodes = await stableCanvasPixels(page, canvas);
+    await page.getByTestId("node-overlay").click();
+    const withoutNodes = await stableCanvasPixels(page, canvas);
+    expect(withoutNodes.equals(withNodes), "nodes must remain visible after orbiting").toBe(false);
+    await page.getByTestId("node-overlay").click();
+  }
 });
 
 test("keeps the depth-test toggle working on the WebGPU renderer", async ({ page }) => {

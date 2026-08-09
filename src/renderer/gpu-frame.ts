@@ -23,8 +23,9 @@ export interface FrameOptions {
   readonly edgeCalls: readonly DrawCall[];
   readonly pickTargets: PickTargets;
   readonly depthFormat: GPUTextureFormat;
-  /** Whether the edge overlay culls edges occluded by depth (`less-equal`). */
+  /** Whether the edge overlay culls edges occluded by depth (`less`). */
   readonly edgeDepthTest: boolean;
+  readonly showNodes: boolean;
   /** Screen-space diameter of point elements in device pixels. */
   readonly pointSize: number;
   /** Per-frame deformation state; `undefined` disables GPU deformation. */
@@ -73,6 +74,7 @@ export function encodeFrame(
       overlay: true,
     });
   }
+  if (frame.showNodes) drawNodeOverlay(colorPass, frame, context);
   colorPass.end();
   ensurePickTargets(
     frame.device,
@@ -85,4 +87,18 @@ export function encodeFrame(
   drawBatches(pickPass, frame.draw, context, frame.calls, { pass: "pick" });
   pickPass.end();
   frame.device.queue.submit([encoder.finish()]);
+}
+
+function drawNodeOverlay(
+  pass: GPURenderPassEncoder,
+  frame: FrameOptions,
+  context: DrawCallContext,
+): void {
+  // Depth keeps rear nodes behind the model; stencil accepts only the first
+  // visible translucent circle at each pixel so overlap cannot darken it.
+  pass.setStencilReference(0);
+  drawBatches(pass, frame.draw, context, frame.calls, {
+    nodes: true,
+    pipeline: frame.resources.nodeOverlayPipelines.visible,
+  });
 }

@@ -83,7 +83,7 @@ export function elementGeometry(
   switch (mode) {
     case "solid":
     case "surface":
-      return volumeGeometry(model, family, mode === "surface");
+      return volumeGeometry(model, family);
     case "edges":
       return edgeGeometry(model, family, segments);
     case "lines":
@@ -93,16 +93,12 @@ export function elementGeometry(
   }
 }
 
-function volumeGeometry(
-  model: ElementModel,
-  family: ElementFamily,
-  boundaryOnly: boolean,
-): Geometry {
+function volumeGeometry(model: ElementModel, family: ElementFamily): Geometry {
   const faces: ReadonlyArray<{
     readonly element: Element;
     readonly face: ElementFace;
     readonly faceIndex: number;
-  }> = boundaryOnly ? boundaryFaces(model, family) : allFaces(model, family);
+  }> = boundaryFaces(model, family);
   const neighbors = faceNeighbors(elementsOf(model, family));
   const mesh = new TriangleMeshBuilder();
   const elements: ElementTessellation[] = [];
@@ -139,27 +135,6 @@ function volumeGeometry(
   }
   flush();
   return mesh.build("triangles", elements, faceTessellations, nodePositions);
-}
-
-function allFaces(
-  model: ElementModel,
-  family: ElementFamily,
-): ReadonlyArray<{
-  readonly element: Element;
-  readonly face: ElementFace;
-  readonly faceIndex: number;
-}> {
-  const faces: Array<{
-    readonly element: Element;
-    readonly face: ElementFace;
-    readonly faceIndex: number;
-  }> = [];
-  for (const element of elementsOf(model, family)) {
-    for (const { face, faceIndex } of facesOfElement(element)) {
-      faces.push({ element, face, faceIndex });
-    }
-  }
-  return faces;
 }
 
 /** Maps every canonical face key to the elements incident to it. */

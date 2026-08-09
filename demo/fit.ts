@@ -12,7 +12,7 @@ export function fitCamera(camera: Camera, bounds: Bounds, width: number, height:
     bounds.maxY - bounds.minY,
     bounds.maxZ - bounds.minZ,
   );
-  const distance = size * 2.4;
+  const distance = size * 2;
   return setProjection(
     resizeCamera(
       createCamera({

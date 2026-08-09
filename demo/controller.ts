@@ -21,6 +21,7 @@ import {
   setProjection,
   type AssemblyId,
   type Camera,
+  type Color,
   type ElementId,
   type ElementRef,
   type ElementRenderMode,
@@ -72,6 +73,7 @@ export interface RendererHooks {
 /** Display toggles shared by the control bar and context menu. */
 export interface DisplayToggles {
   edges: boolean;
+  nodes: boolean;
   diagnostics: boolean;
 }
 
@@ -83,6 +85,8 @@ export interface WorkbenchOptions {
   readonly hooks: RendererHooks;
   /** Optional edge depth-test hook backed by the active renderer. */
   readonly setEdgeDepthTest?: (enabled: boolean) => void;
+  /** Optional FE-node glyph visibility hook backed by the active renderer. */
+  readonly setNodeOverlay?: (enabled: boolean) => void;
   /** Optional teardown hook invoked on destroy. */
   readonly onDestroy?: () => void;
 }
@@ -107,6 +111,7 @@ export class WorkbenchController {
   runtime!: SceneRuntime;
   cameraRef: CameraRef;
   private readonly setEdgeDepthTest: ((enabled: boolean) => void) | undefined;
+  private readonly setNodeOverlay: ((enabled: boolean) => void) | undefined;
   private readonly onDestroy: (() => void) | undefined;
   private readonly presets: readonly ModelPreset[];
   private readonly slotByInstanceId = new Map<InstanceId, number>();
@@ -126,18 +131,20 @@ export class WorkbenchController {
     this.hooks = options.hooks;
     this.rendererName = options.rendererName;
     this.setEdgeDepthTest = options.setEdgeDepthTest;
+    this.setNodeOverlay = options.setNodeOverlay;
     this.onDestroy = options.onDestroy;
     this.presets = createModelPresets();
     this.preset = this.presets[0] ?? createEmptyPreset();
     this.cameraRef = {
       camera: fitCamera(createCamera(), this.preset.bounds, this.canvas.width, this.canvas.height),
     };
-    this.mode = this.preset.defaultMode;
+    this.mode = "solid";
     this.toggles = {
       edges: false,
+      nodes: false,
       diagnostics: false,
     };
-    this.interaction = createInteractionState();
+    this.interaction = this.createPresetInteraction(this.preset);
     this.buildRuntime(this.preset);
     this.applyModeVisibility();
     this.populateModelSelect();
@@ -156,8 +163,8 @@ export class WorkbenchController {
     const preset = this.presets.find((candidate) => candidate.id === id);
     if (preset === undefined) return;
     this.preset = preset;
-    this.mode = preset.defaultMode;
-    this.interaction = createInteractionState();
+    this.mode = "solid";
+    this.interaction = this.createPresetInteraction(preset);
     this.contextTarget = undefined;
     this.cameraRef.camera = fitCamera(
       this.cameraRef.camera,
@@ -176,6 +183,8 @@ export class WorkbenchController {
   /** Switches the visible element family through the runtime. */
   setMode(mode: ElementRenderMode): void {
     if (mode === this.mode) return;
+    if (mode === "edges") this.setEdges(true);
+    else if (this.mode === "edges") this.setEdges(false);
     this.applyModeVisibility(mode);
     this.mode = mode;
     this.canvas.dataset["mode"] = mode;
@@ -200,10 +209,19 @@ export class WorkbenchController {
     this.toggles.edges = enabled;
     let state = this.interaction;
     for (const partId of this.preset.scene.parts.keys()) {
-      state = setPartOverride(state, partId, enabled ? { edge: true } : undefined);
+      state = setPartOverride(state, partId, this.partStyleOverride(partId, enabled));
     }
     this.interaction = state;
     this.reflectEdges();
+    this.render();
+  }
+
+  /** Shows one small glyph at every visible finite-element node. */
+  setNodes(enabled: boolean): void {
+    if (this.toggles.nodes === enabled) return;
+    this.toggles.nodes = enabled;
+    this.setNodeOverlay?.(enabled);
+    this.reflectNodes();
     this.render();
   }
 
@@ -221,7 +239,7 @@ export class WorkbenchController {
 
   /** Clears interaction state and restores the initial camera pose. */
   reset(): void {
-    this.interaction = createInteractionState();
+    this.interaction = this.createPresetInteraction(this.preset);
     this.contextTarget = undefined;
     const rect = this.canvas.getBoundingClientRect();
     const fitted = fitCamera(
@@ -238,6 +256,25 @@ export class WorkbenchController {
       this.partName(partId),
     );
     this.render();
+  }
+
+  /** Applies the preset palette through the existing per-part style path. */
+  private createPresetInteraction(preset: ModelPreset): InteractionState {
+    let state = createInteractionState();
+    for (const partId of preset.scene.parts.keys()) {
+      state = setPartOverride(state, partId, {
+        color: preset.partColors.get(partId) ?? preset.fallbackColor,
+      });
+    }
+    return state;
+  }
+
+  /** Keeps the palette intact while toggling the wireframe edge overlay. */
+  private partStyleOverride(partId: PartId, edges: boolean): { color: Color; edge?: true } {
+    return {
+      color: this.preset.partColors.get(partId) ?? this.preset.fallbackColor,
+      ...(edges ? { edge: true } : {}),
+    };
   }
 
   /** Releases listeners owned by the controller and the renderer teardown hook. */
@@ -283,12 +320,9 @@ export class WorkbenchController {
       this.depthTestEnabled = !this.depthTestEnabled;
       this.reflectDepthTest();
     });
-    for (const button of view.modeButtons) {
-      button.addEventListener("click", () => {
-        const mode = button.dataset["mode"] as ElementRenderMode | undefined;
-        if (mode !== undefined) this.setMode(mode);
-      });
-    }
+    view.nodeOverlayToggle.addEventListener("click", () => {
+      this.setNodes(!this.toggles.nodes);
+    });
     view.resetButton.addEventListener("click", () => {
       this.reset();
     });
@@ -322,6 +356,7 @@ export class WorkbenchController {
     });
     this.reflectEdges();
     this.reflectDepthTest();
+    this.reflectNodes();
   }
 
   private installCanvasInteraction(): void {
@@ -914,11 +949,27 @@ export class WorkbenchController {
 
   private reflectEdges(): void {
     this.view.edgeOverlayLabel.textContent = this.toggles.edges ? "On" : "Off";
+    this.view.edgeOverlayLabel.dataset["state"] = this.toggles.edges ? "on" : "off";
+    this.view.edgeOverlayToggle.dataset["active"] = String(this.toggles.edges);
+    this.view.edgeOverlayToggle.setAttribute("aria-pressed", String(this.toggles.edges));
     this.view.edgeOverlayToggle.textContent = this.toggles.edges ? "Hide edges" : "Overlay edges";
+  }
+
+  private reflectNodes(): void {
+    this.view.nodeOverlayLabel.textContent = this.toggles.nodes ? "On" : "Off";
+    this.view.nodeOverlayLabel.dataset["state"] = this.toggles.nodes ? "on" : "off";
+    this.view.nodeOverlayToggle.dataset["active"] = String(this.toggles.nodes);
+    this.view.nodeOverlayToggle.ariaPressed = String(this.toggles.nodes);
+    this.view.nodeOverlayToggle.textContent = this.toggles.nodes
+      ? "Hide element nodes"
+      : "Show element nodes";
   }
 
   private reflectDepthTest(): void {
     this.view.depthTestLabel.textContent = this.depthTestEnabled ? "On" : "Off";
+    this.view.depthTestLabel.dataset["state"] = this.depthTestEnabled ? "on" : "off";
+    this.view.depthTestToggle.dataset["active"] = String(this.depthTestEnabled);
+    this.view.depthTestToggle.setAttribute("aria-pressed", String(this.depthTestEnabled));
     this.view.depthTestToggle.textContent = this.depthTestEnabled
       ? "Depth test off"
       : "Depth test on";

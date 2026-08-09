@@ -273,9 +273,9 @@ describe("elementGeometry", () => {
     expect(geometry.indices.length).toBe(12 * 2);
   });
 
-  it("culls the shared face between two tets in surface mode", () => {
+  it("culls the shared face between two tets in solid geometry", () => {
     const model = sharedTetPairModel();
-    expect(elementGeometry(model, "tet", "solid").indices.length).toBe(8 * 3);
+    expect(elementGeometry(model, "tet", "solid").indices.length).toBe(6 * 3);
     const surface = elementGeometry(model, "tet", "surface");
     expect(surface.indices.length).toBe(6 * 3);
   });
@@ -289,8 +289,8 @@ describe("elementGeometry", () => {
 
     const solid = elementGeometry(sharedTetPairModel(), "tet", "solid");
     expect(solid.elements).toEqual([
-      { id: 1, triangleStart: 0, triangleCount: 4 },
-      { id: 2, triangleStart: 4, triangleCount: 4 },
+      { id: 1, triangleStart: 0, triangleCount: 3 },
+      { id: 2, triangleStart: 3, triangleCount: 3 },
     ]);
 
     const surface = elementGeometry(sharedTetPairModel(), "tet", "surface");
@@ -322,7 +322,7 @@ describe("elementGeometry", () => {
   it("records face pick ids, face descriptors, and neighbors per triangle", () => {
     const solid = elementGeometry(sharedTetPairModel(), "tet", "solid");
     expect(solid.facePickIds?.length).toBe(solid.indices.length / 3);
-    expect(solid.faces).toHaveLength(8);
+    expect(solid.faces).toHaveLength(6);
     solid.faces?.forEach((face, index) => {
       expect(face.id).toBe(index);
       expect(face.nodeIds.length).toBeGreaterThanOrEqual(3);
@@ -333,12 +333,9 @@ describe("elementGeometry", () => {
     }).not.toThrow();
   });
 
-  it("reports the neighbor elements of an interior face", () => {
+  it("omits interior faces from solid geometry", () => {
     const solid = elementGeometry(sharedTetPairModel(), "tet", "solid");
-    const shared = solid.faces?.find(
-      (face) => face.elementId === 1 && face.neighborElementIds.length > 0,
-    );
-    expect(shared?.neighborElementIds).toEqual([2]);
+    expect(solid.faces?.every((face) => face.neighborElementIds.length === 0)).toBe(true);
   });
 
   it("exposes only boundary faces in surface mode", () => {

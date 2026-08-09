@@ -3,11 +3,7 @@ import { WebGpuUnsupportedError } from "../platform/capabilities";
 import { requestWebGpuDevice, watchDeviceLoss, type DeviceLostInfo } from "../platform/device";
 import { createDrawResources, type DrawResources } from "./gpu-draw";
 import { createPickTargets, type PickTargets } from "./gpu-pick";
-import {
-  configureCanvasContext,
-  createRenderResources,
-  type RenderResources,
-} from "./gpu-pipelines";
+import { createRenderResources, type RenderResources } from "./gpu-pipelines";
 
 /** Actionable message when a renderer cannot recreate an external device. */
 export const EXTERNAL_DEVICE_RECOVERY_MESSAGE =
@@ -47,7 +43,7 @@ export async function rebuildGpuBundle(
   options?: WebGpuQueryOptions,
 ): Promise<GpuBundle> {
   const requested = await requestWebGpuDevice(options);
-  configureCanvasContext(context, requested.device, format);
+  context.configure({ device: requested.device, format, alphaMode: "opaque" });
   return createGpuBundle(requested.device, format, depthFormat);
 }
 

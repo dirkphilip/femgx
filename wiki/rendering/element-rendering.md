@@ -40,10 +40,9 @@ Each element family supports a subset of modes (`elementRenderModes`):
 | line      | `lines`                     |
 | point     | `points`                    |
 
-- `solid` tessellates every face (interior included), back-face culled.
-- `surface` keeps only boundary faces: faces whose corner-node set is referenced
-  by exactly one element. Shared interior faces are culled at the source, so
-  hidden internal geometry is never drawn.
+- `solid` and `surface` tessellate only boundary faces: faces whose corner-node
+  set is referenced by exactly one element. Shared interior faces are culled at
+  the source, so no coincident triangles compete in the depth buffer.
 - `edges` deduplicates element edges by their unordered corner pair, so shared
   edges are emitted once.
 - Points become screen-space sprite quads (4 vertices per point); the point
@@ -55,6 +54,10 @@ visibility. On top of that, a per-instance `edge` style override (see
 [[rendering/element-interaction|Element-level interaction]]) overlays a part's edges as
 lines on its solid surface, with an optional depth-test toggle — so a model can
 be shown solid with a wireframe overlay instead of edges-only.
+
+The inspection demo presents a single `Solid` display and optional edge
+overlay. Solid geometry is a boundary skin, so selection remains a color change
+on the selected element/node's existing triangles—never a highlight pass.
 
 ## Linear vs quadratic
 

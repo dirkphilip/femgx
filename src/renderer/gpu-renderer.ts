@@ -58,6 +58,8 @@ export interface WebGpuRenderer {
    * the depth buffer; with it off edges are drawn through every surface.
    */
   setEdgeDepthTest(enabled: boolean): void;
+  /** Controls the screen-space glyphs for finite-element nodes. */
+  setNodeOverlay(enabled: boolean): void;
   /**
    * Rebuilds GPU draw order after runtime visibility changed (part/assembly
    * hide-show), using the delta of affected instance slots returned by the

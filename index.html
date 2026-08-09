@@ -49,6 +49,24 @@
         gap: 6px;
         justify-content: flex-end;
       }
+      .control-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px;
+        border: 1px solid #d7dee6;
+        border-radius: 9px;
+        background: #f8fafc;
+      }
+      .control-label {
+        padding: 0 3px 0 5px;
+        color: #475569;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
       select,
       button {
         box-sizing: border-box;
@@ -63,7 +81,26 @@
       }
       button:hover,
       select:hover {
-        background: #24324c;
+        background: #dbeafe;
+        color: #172033;
+      }
+      button:focus-visible,
+      select:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: 2px;
+      }
+      button[data-active="true"] {
+        border-color: #1d4ed8;
+        background: #1d4ed8;
+        color: #ffffff;
+        box-shadow:
+          inset 0 0 0 1px #93c5fd,
+          0 2px 4px #1d4ed833;
+      }
+      button[data-active="true"]:hover {
+        border-color: #1e40af;
+        background: #1e40af;
+        color: #ffffff;
       }
       button:disabled {
         color: #64748b;
@@ -74,8 +111,25 @@
         background: #ffffff;
       }
       .toggle-label {
-        color: #94a3b8;
-        font-size: 13px;
+        padding: 3px 7px;
+        border: 1px solid #cbd5e1;
+        border-radius: 999px;
+        color: #475569;
+        background: #f1f5f9;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+      .toggle-label[data-state="on"] {
+        border-color: #38bdf8;
+        color: #075985;
+        background: #e0f2fe;
+      }
+      .render-mode-help {
+        color: #64748b;
+        font-size: 12px;
+        line-height: 1.45;
+        margin-top: 9px;
       }
       #status {
         color: #647384;
@@ -212,8 +266,8 @@
         max-width: calc(100vw - 16px);
         max-height: calc(100vh - 16px);
         overflow-y: auto;
-        background: #111a2e;
-        border: 1px solid #334155;
+        background: #111827;
+        border: 1px solid #475569;
         border-radius: 8px;
         padding: 6px;
         box-shadow: 0 16px 48px #000c;
@@ -226,10 +280,13 @@
         background: transparent;
         border-radius: 6px;
         padding: 7px 10px;
+        color: #e2e8f0;
         font-size: 13px;
+        box-shadow: none;
       }
       .context-menu button:hover {
-        background: #1e293b;
+        color: #ffffff;
+        background: #334155;
       }
       .context-menu button:disabled {
         color: #64748b;
@@ -245,7 +302,7 @@
         padding-top: 4px;
       }
       .context-menu .menu-title {
-        color: #64748b;
+        color: #94a3b8;
         font-size: 11px;
         text-transform: uppercase;
         letter-spacing: 0.06em;
@@ -318,27 +375,58 @@
           <span id="renderer-status" data-testid="renderer-status" class="toggle-label"></span>
           <select id="model-select" data-testid="model-select" aria-label="Model"></select>
           <button id="fit-view" data-testid="fit-view" type="button">Fit to view</button>
-          <span id="projection-label" data-testid="projection-label" class="toggle-label"
-            >Perspective</span
+          <div class="control-group" title="Choose perspective or orthographic camera projection.">
+            <span id="projection-label" data-testid="projection-label" class="control-label"
+              >Perspective</span
+            >
+            <button id="projection-toggle" data-testid="projection-toggle" type="button">
+              Orthographic
+            </button>
+          </div>
+          <div
+            class="control-group"
+            title="Add actual finite-element edges to the current surface mode."
           >
-          <button id="projection-toggle" data-testid="projection-toggle" type="button">
-            Orthographic
-          </button>
-          <span id="edge-overlay-label" data-testid="edge-overlay-label" class="toggle-label"
-            >Off</span
+            <span
+              id="edge-overlay-label"
+              data-testid="edge-overlay-label"
+              class="toggle-label"
+              data-state="off"
+              >Off</span
+            >
+            <button id="edge-overlay" data-testid="edge-overlay" type="button" aria-pressed="false">
+              Overlay edges
+            </button>
+          </div>
+          <div class="control-group" title="Hide overlay edges that are behind nearer surfaces.">
+            <span
+              id="depth-test-label"
+              data-testid="depth-test-label"
+              class="toggle-label"
+              data-state="on"
+              >On</span
+            >
+            <button id="depth-test" data-testid="depth-test" type="button" aria-pressed="true">
+              Depth test off
+            </button>
+          </div>
+          <div class="control-group" title="Show a small circle at every finite-element node.">
+            <span
+              id="node-overlay-label"
+              data-testid="node-overlay-label"
+              class="toggle-label"
+              data-state="off"
+              >Off</span
+            >
+            <button id="node-overlay" data-testid="node-overlay" type="button" aria-pressed="false">
+              Show element nodes
+            </button>
+          </div>
+          <span
+            class="control-label"
+            title="The demo displays solid element faces; use Overlay edges to add actual element edges."
+            >Solid</span
           >
-          <button id="edge-overlay" data-testid="edge-overlay" type="button">Overlay edges</button>
-          <span id="depth-test-label" data-testid="depth-test-label" class="toggle-label">On</span>
-          <button id="depth-test" data-testid="depth-test" type="button">Depth test off</button>
-          <button id="mode-solid" data-mode="solid" data-testid="mode-solid" type="button">
-            Solid
-          </button>
-          <button id="mode-surface" data-mode="surface" data-testid="mode-surface" type="button">
-            Surface
-          </button>
-          <button id="mode-edges" data-mode="edges" data-testid="mode-edges" type="button">
-            Edges
-          </button>
           <button id="reset" data-testid="reset" type="button">Reset</button>
         </div>
       </header>
@@ -346,6 +434,10 @@
         <canvas id="view" data-testid="view-canvas" width="800" height="600"></canvas>
       </div>
       <div id="status" data-testid="status"></div>
+      <div class="render-mode-help">
+        Solid shows every element face · Overlay edges adds actual element edges · Depth test hides
+        edges behind surfaces · Show element nodes adds small node circles
+      </div>
       <div class="help">
         Drag to orbit · Shift-drag to pan · Scroll to zoom · Pinch to zoom · Two-finger drag to pan
         · Click to inspect the most specific hit (node → face → element) · Shift-click element ·

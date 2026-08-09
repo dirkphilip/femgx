@@ -5,8 +5,9 @@
  * Every vertex shader reads the per-vertex node pick ids so displacement maps
  * vertices back to their FE nodes (see `displacementFn`); triangle geometry
  * additionally reads the per-triangle element and face pick ids plus the
- * runtime-sized emphasis records, so element/face/node emphasis can override
- * the resolved instance color; point sprites never carry emphasis. The
+ * runtime-sized emphasis records, so element/face emphasis can override the
+ * resolved instance color. The node-overlay point sprites read the same
+ * records for node emphasis. The
  * triangle pick pass lives in `gpu-node-pick.ts` so it can also report the
  * nearest node.
  */
@@ -44,7 +45,7 @@ struct Instance {
 };
 `;
 
-/** Emphasis records read by the triangle and line vertex stage. */
+/** Emphasis records read by the visible triangle and point vertex stages. */
 export const emphasisStructs = /* wgsl */ `
 // Field layout must match encodeEmphasisRecord in gpu-elements.ts:
 // slot 0, elementPickId 4, facePickId 8, nodePickId 12, color 16, emissive 32.
@@ -131,6 +132,7 @@ struct VertexOutput {
   @location(2) @interpolate(flat) emissive: f32,
   @location(3) @interpolate(flat) elementPickId: u32,
   @location(4) @interpolate(flat) facePickId: u32,
+  @location(5) local: vec2<f32>,
 };
 `;
 
@@ -182,9 +184,6 @@ fn vertexMain(
       if (!matched && highlight.facePickId != 0u && highlight.facePickId == facePickId) {
         matched = true;
       }
-      if (!matched && highlight.nodePickId != 0u && triangleHasNode(highlight.nodePickId, vertexIndex)) {
-        matched = true;
-      }
       if (matched) {
         color = highlight.color;
         emissive = highlight.emissive;
@@ -199,15 +198,10 @@ fn vertexMain(
   output.emissive = emissive;
   output.elementPickId = elementPickId;
   output.facePickId = facePickId;
+  output.local = vec2<f32>(0.0);
   return output;
 }
 
-fn triangleHasNode(nodePickId: u32, vertexIndex: u32) -> bool {
-  let base = (vertexIndex / 3u) * 3u;
-  return vertexNodePickIds[base] == nodePickId
-      || vertexNodePickIds[base + 1u] == nodePickId
-      || vertexNodePickIds[base + 2u] == nodePickId;
-}
 `;
 
 /**
@@ -224,9 +218,11 @@ ${cameraStruct}
 ${deformationStruct}
 
 ${instanceStruct}
+${emphasisStructs}
 
 ${frameBindings}
 ${instanceBindings}
+${pickDataBindings}
 
 ${displacementFn}
 
@@ -251,12 +247,31 @@ fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) in
   let clip = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   let offset = (corner * camera.pointSize) / camera.viewport;
   var output: VertexOutput;
-  output.position = vec4<f32>(clip.x + offset.x * clip.w, clip.y + offset.y * clip.w, clip.z, clip.w);
-  output.color = instance.color;
+  output.position = vec4<f32>(
+    clip.x + offset.x * clip.w,
+    clip.y + offset.y * clip.w,
+    clip.z,
+    clip.w,
+  );
+  // Node annotations are neutral and legible against every part palette.
+  // A matching node emphasis record may still provide interaction feedback.
+  var color = vec4<f32>(0.0, 0.0, 0.0, 0.45);
+  var emissive = 0.0;
+  let nodePickId = vertexNodePickIds[vertexIndex];
+  for (var index = 0u; index < elementHighlights.count; index++) {
+    let highlight = elementHighlights.records[index];
+    if (highlight.slot == drawOrder[instanceIndex] && highlight.nodePickId == nodePickId) {
+      color = highlight.color;
+      emissive = highlight.emissive;
+      break;
+    }
+  }
+  output.color = color;
   output.pickId = instance.pickId;
-  output.emissive = instance.emissive;
+  output.emissive = emissive;
   output.elementPickId = 0u;
   output.facePickId = 0u;
+  output.local = corner;
   return output;
 }
 `;
@@ -264,15 +279,15 @@ fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) in
 /** Fragment stage for the visible color pass; emissive adds a white glow. */
 export const colorFragmentShader = /* wgsl */ `
 @fragment
-fn fragmentMain(@location(0) color: vec4<f32>, @location(2) @interpolate(flat) emissive: f32) -> @location(0) vec4<f32> {
+fn fragmentMain(@location(0) color: vec4<f32>, @location(2) @interpolate(flat) emissive: f32, @location(5) local: vec2<f32>) -> @location(0) vec4<f32> {
+  if (dot(local, local) > 1.0) { discard; }
   return vec4<f32>(color.rgb + vec3<f32>(emissive), color.a);
 }
 `;
 
 /**
  * Vertex stage for the wireframe/edge display pass. It draws the deduplicated
- * mesh edges as a line list in the resolved instance color, so hover/selection
- * still glow at the instance level without per-triangle emphasis.
+ * mesh edges as a neutral black line list above the solid surface.
  */
 export const edgeVertexShader = /* wgsl */ `
 ${cameraStruct}
@@ -290,6 +305,7 @@ struct EdgeOutput {
   @builtin(position) position: vec4<f32>,
   @location(0) color: vec4<f32>,
   @location(2) @interpolate(flat) emissive: f32,
+  @location(5) local: vec2<f32>,
 };
 
 @vertex
@@ -299,10 +315,14 @@ fn vertexMain(
   @builtin(vertex_index) vertexIndex: u32,
 ) -> EdgeOutput {
   let instance = instances[drawOrder[instanceIndex]];
+  let clip = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   var output: EdgeOutput;
-  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
-  output.color = instance.color;
-  output.emissive = instance.emissive;
+  // Move coplanar edge fragments slightly toward the camera before the
+  // depth-tested overlay pass so they do not fight the surface depth.
+  output.position = vec4<f32>(clip.x, clip.y, clip.z - 0.000001 * clip.w, clip.w);
+  output.color = vec4<f32>(0.0, 0.0, 0.0, 0.45);
+  output.emissive = 0.0;
+  output.local = vec2<f32>(0.0);
   return output;
 }
 `;

@@ -92,7 +92,6 @@ test("keeps primary controls reachable and touch-sized on a phone", async ({ pag
     "fit-view",
     "projection-toggle",
     "edge-overlay",
-    "mode-solid",
     "reset",
     "results-play-toggle",
     "results-case-toggle",
