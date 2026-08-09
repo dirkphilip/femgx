@@ -121,6 +121,7 @@ const PICK_FORMATS = [
   PICK_TEXTURE_FORMAT,
   PICK_TEXTURE_FORMAT,
   PICK_TEXTURE_FORMAT,
+  "r32float",
 ] as const;
 
 /** Module-level pieces shared by the pipelines. */

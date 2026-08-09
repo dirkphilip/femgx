@@ -10,6 +10,7 @@ import {
   edgeVertexShader,
   instanceVertexShader,
   pointVertexShader,
+  pickFragmentShader,
 } from "../../src/renderer/gpu-shaders";
 import { nodePickFragmentShader, nodePickVertexShader } from "../../src/renderer/gpu-node-pick";
 
@@ -126,6 +127,15 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(nodePickFragmentShader).toMatch(/edgeScale \* 0\.04/);
     expect(nodePickFragmentShader).toMatch(/bestDist > threshold/);
   });
+
+  it.each([pickFragmentShader, nodePickFragmentShader])(
+    "writes the winning fragment depth to the copyable pick attachment",
+    (shader) => {
+      expect(shader).toMatch(/@builtin\(position\) fragmentPosition/);
+      expect(shader).toMatch(/@location\(4\) displayedDepth: f32/);
+      expect(shader).toMatch(/output\.displayedDepth = fragmentPosition\.z/);
+    },
+  );
 
   it("applies emissive additively in the color fragment shader", () => {
     expect(colorFragmentShader).toMatch(/@location\(2\) @interpolate\(flat\) emissive: f32/);
