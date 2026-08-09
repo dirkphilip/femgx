@@ -1,7 +1,7 @@
-import { createCamera, resizeCamera, setProjection, type Camera } from "../src/index";
-import type { Bounds } from "../src/index";
+import { createCamera, resizeCamera, setProjection, type Camera } from "./camera";
+import type { Bounds } from "../geometry/part";
 
-/** Frames a camera to look at a model's world bounds, keeping its projection. */
+/** Frames a camera around world-space bounds while preserving projection mode. */
 export function fitCamera(camera: Camera, bounds: Bounds, width: number, height: number): Camera {
   const centerX = (bounds.minX + bounds.maxX) / 2;
   const centerY = (bounds.minY + bounds.maxY) / 2;
