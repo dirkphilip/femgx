@@ -88,4 +88,14 @@ is skipped by default and runs only with `RUN_PERF=1` (set by `perf.yml`). True
 WebGPU frame-time benchmarking needs a WebGPU-capable runner and is future work
 (see [[engineering/performance-issues|Performance issues]]).
 
+## Interactive WebGPU inspection case
+
+The full-screen demo includes a deliberately demo-owned `Performance · 2.10M
+triangles` model. `demo/performance-fixture.ts` generates one 128 × 128 shell
+and places it 64 times, exercising reusable geometry and GPU instancing at
+exactly 2,097,152 triangles without a second renderer or a checked-in mesh
+asset. Its overlay shows the authored triangle total, a rolling frame-rate
+sample, and draw batches. It is a manual visual/performance check, not a CI
+frame-time budget: real WebGPU timings remain hardware- and driver-dependent.
+
 Related: [[engineering/todo|Engineering TODO]].

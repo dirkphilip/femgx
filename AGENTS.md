@@ -254,6 +254,12 @@ The codebase must stay clean, not just correct. This is an explicit, ongoing dut
 
 - **Seek to simplify**: prefer the simplest design that satisfies the requirements.
   Delete dead code, remove unused abstractions, and resist speculative complexity.
+- **Fix rendering failures at their source**: when a visual regression appears,
+  inspect the renderer, shader, pipeline, camera, and geometry contracts before
+  changing a demo fixture. Do not add duplicate faces, proxy volumes, or other
+  fixture workarounds to conceal a rendering defect. In particular, linear 2D
+  surfaces must remain inspectable from either side unless an explicit product
+  requirement introduces an opt-in culling policy.
 - **Refactor when it makes things much cleaner**: if restructuring a function, module, or
   type meaningfully improves clarity or reduces duplication, do it — even if it touches
   lines unrelated to the current change. Keep such refactors in their own commit so they

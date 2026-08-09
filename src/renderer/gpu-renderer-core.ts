@@ -1,7 +1,9 @@
 import type { Camera } from "../camera/camera";
+import type { Vec3 } from "../camera/camera";
 import type { Part } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
 import type { PickGranularity } from "../picking/pick";
+import { hitPointFromPick } from "../picking/hit-point";
 import type { SceneRuntime } from "../scene-runtime/runtime";
 import type { PartId, PickTarget } from "../scene/types";
 import { RendererAttachment } from "./attachment";
@@ -24,6 +26,7 @@ export class GpuRenderer implements WebGpuRenderer {
   private parts = new Map<PartId, Part>();
   private edgeDepthTest = true;
   private nodeOverlay = false;
+  private orbitPivot: Vec3 | undefined;
   private deformation: DeformationState | undefined;
   private destroyed = false;
 
@@ -94,6 +97,11 @@ export class GpuRenderer implements WebGpuRenderer {
     this.nodeOverlay = enabled;
   }
 
+  public setOrbitPivot(pivot: Vec3 | undefined): void {
+    this.ensureAlive();
+    this.orbitPivot = pivot;
+  }
+
   public updateVisibility(runtime: SceneRuntime, changedInstanceIds: readonly number[]): void {
     this.ensureAlive();
     this.attachment.updateVisibility(runtime, changedInstanceIds, this.lifecycle.bundle);
@@ -115,6 +123,10 @@ export class GpuRenderer implements WebGpuRenderer {
       y,
       granularity,
     });
+  }
+
+  public async pickPoint(camera: Camera, x: number, y: number): Promise<Vec3 | undefined> {
+    return hitPointFromPick(camera, x, y, await this.pick(x, y, "face"));
   }
 
   public resize(width = this.canvas.clientWidth, height = this.canvas.clientHeight): void {
@@ -176,6 +188,7 @@ export class GpuRenderer implements WebGpuRenderer {
       showNodes: this.nodeOverlay,
       pointSize: this.pointSize,
       deformation: this.deformation,
+      orbitPivot: this.orbitPivot,
     };
   }
 }

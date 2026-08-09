@@ -10,7 +10,17 @@ distance from that height. This avoids the apparent zoom jump that previously ma
 the perspective toggle look broken. See [[rendering/interactive-state|Interactive state]] for the related
 interaction model and [[rendering/element-rendering|Element rendering]] for the demo geometry modes.
 
-The demo follows CAD conventions for navigation: left-drag orbits, middle-drag
-or Shift-left-drag pans, and the wheel zooms toward the orbit target. The demo
-presentation uses a light studio background and restrained material colors so
-geometry edges and selection emphasis remain legible.
+The public `installCameraControls` helper follows SpaceClaim's default mouse navigation: middle-drag spins,
+Shift+middle-drag pans, Ctrl+middle-drag zooms vertically, and the wheel zooms
+toward the orbit target. Spin uses the closest visible GPU-picked face
+under its start point as the rotation pivot; `WebGpuRenderer.pickPoint`
+intersects a picked face with the camera ray rather than using its centroid.
+Empty space falls back to the fitted model target. Early drag deltas wait for
+the asynchronous GPU hit, so the gesture uses one pivot from its first visible
+movement onward. The WebGPU renderer projects its active pivot to an
+always-visible, high-contrast screen-space target at that world-space position. Spin is
+continuous through the poles, and both spin and pan use the SpaceClaim
+direction convention. Left-drag is reserved for selection, including its
+shift-based inspection modifiers. The demo presentation uses a light studio
+background and restrained material colors so geometry edges and selection
+emphasis remain legible.

@@ -109,12 +109,29 @@ const { createScene, createCamera, createSceneRuntime } = require("femgx");
 - `createInteractionState()` manages selection, highlight, hover, and style overrides.
 - `createCamera()` supports perspective/orthographic projection, orbit, pan, zoom, and resize.
 - `createWebGpuRenderer()` uploads geometry once, renders instanced batches, applies styles,
-  and exposes asynchronous `pick(x, y)` readback.
+  and exposes asynchronous `pick(x, y)` and exact-surface `pickPoint(camera, x, y)` readback.
+- `installCameraControls()` adds the library's SpaceClaim-style mouse/touch behavior and
+  renderer-owned rotation marker without requiring the demo's tree, toolbar, or info panels.
 - `createResultField()` builds typed nodal/elemental scalar, vector, and tensor fields; the
   results API adds derived quantities (magnitude, von Mises, principal values), value ranges,
   scalar color mapping with thresholds and legends, and deformed-shape geometry with a
   configurable scale. A results demo shows undeformed/deformed shape and von Mises
   visualization with load-case stepping.
+
+```ts
+const renderer = await createWebGpuRenderer({ canvas });
+const cameraRef = { camera: createCamera() };
+const render = () => renderer.render(runtime, cameraRef.camera, scene.parts);
+
+const removeCameraControls = installCameraControls({
+  canvas,
+  cameraRef,
+  navigation: renderer,
+  onRender: render,
+});
+render();
+// Call removeCameraControls() when the viewport is disposed.
+```
 
 This repository is developed with an Agent Supervisor workflow; see
 [`wiki/operations/supervisor-workflow.md`](wiki/operations/supervisor-workflow.md).

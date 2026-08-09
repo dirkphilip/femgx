@@ -1,6 +1,7 @@
-/* eslint-disable jsdoc/require-jsdoc */
+/* eslint-disable jsdoc/require-jsdoc, max-lines, max-lines-per-function */
 import {
   colorFragmentShader,
+  edgeFragmentShader,
   edgeVertexShader,
   instanceVertexShader,
   pickFragmentShader,
@@ -13,6 +14,7 @@ import { DEFORMATION_UNIFORM_SIZE } from "./gpu-deform";
 import type { DrawResources } from "./gpu-draw";
 import { createNodeOverlayPipelines } from "./gpu-node-overlay";
 import type { NodeOverlayPipelines } from "./gpu-node-overlay";
+import { createOrbitPivotResources, type OrbitPivotResources } from "./gpu-orbit-pivot";
 
 export interface DrawPipelines {
   readonly trianglesColor: GPURenderPipeline;
@@ -32,6 +34,8 @@ export interface RenderResources {
   readonly edgeAlwaysPipeline: GPURenderPipeline;
   /** Final FE-node visibility probe and annotation passes. */
   readonly nodeOverlayPipelines: NodeOverlayPipelines;
+  /** Library-owned world-space camera-pivot indicator. */
+  readonly orbitPivot: OrbitPivotResources;
   readonly instanceLayout: GPUBindGroupLayout;
 }
 
@@ -88,15 +92,27 @@ export function createRenderResources(
   const layout = device.createPipelineLayout({
     bindGroupLayouts: [cameraLayout, instanceLayout],
   });
+  const pipelines = buildPipelines(device, layout, format, depthFormat);
+  const edgePipeline = createEdgePipeline(device, layout, format, depthFormat, "less-equal");
+  const edgeAlwaysPipeline = createEdgePipeline(device, layout, format, depthFormat, "always");
+  const nodeOverlayPipelines = createNodeOverlayPipelines(device, layout, format, depthFormat);
+  const orbitPivot = createOrbitPivotResources(
+    device,
+    format,
+    depthFormat,
+    cameraBuffer,
+    deformationBuffer,
+  );
   return {
     cameraBuffer,
     deformationBuffer,
     frameBindGroup,
     instanceLayout,
-    pipelines: buildPipelines(device, layout, format, depthFormat),
-    edgePipeline: createEdgePipeline(device, layout, format, depthFormat, "less"),
-    edgeAlwaysPipeline: createEdgePipeline(device, layout, format, depthFormat, "always"),
-    nodeOverlayPipelines: createNodeOverlayPipelines(device, layout, format, depthFormat),
+    pipelines,
+    edgePipeline,
+    edgeAlwaysPipeline,
+    nodeOverlayPipelines,
+    orbitPivot,
   };
 }
 
@@ -148,7 +164,9 @@ function pipelineVariants(shaders: PipelineShaders): PipelineVariants {
       vertexModule: shaders.triangleVertex,
       vertexEntry: "vertexMain",
       primitive: "triangle-list",
-      cullMode: "back",
+      // FE shells and surface meshes are valid from either side; culling their
+      // reverse winding makes an ordinary 180° orbit look like missing geometry.
+      cullMode: "none",
     },
     lines: {
       vertexModule: shaders.triangleVertex,
@@ -240,7 +258,7 @@ function createEdgePipeline(
       buffers: [vertexLayout],
     },
     fragment: {
-      module: device.createShaderModule({ code: colorFragmentShader }),
+      module: device.createShaderModule({ code: edgeFragmentShader }),
       entryPoint: "fragmentMain",
       targets: [
         {
@@ -260,6 +278,7 @@ function createEdgePipeline(
 export function destroyRenderResources(resources: RenderResources): void {
   resources.cameraBuffer.destroy();
   resources.deformationBuffer.destroy();
+  resources.orbitPivot.buffer.destroy();
 }
 
 export function createDepthTexture(

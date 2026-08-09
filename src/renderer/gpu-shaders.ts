@@ -285,6 +285,26 @@ fn fragmentMain(@location(0) color: vec4<f32>, @location(2) @interpolate(flat) e
 }
 `;
 
+/** Edge color pass with the minimum depth24 offset needed for coplanar lines. */
+export const edgeFragmentShader = /* wgsl */ `
+struct EdgeFragmentOutput {
+  @location(0) color: vec4<f32>,
+  @builtin(frag_depth) depth: f32,
+};
+
+@fragment
+fn fragmentMain(
+  @builtin(position) fragmentPosition: vec4<f32>,
+  @location(0) color: vec4<f32>,
+  @location(2) @interpolate(flat) emissive: f32,
+) -> EdgeFragmentOutput {
+  var output: EdgeFragmentOutput;
+  output.color = vec4<f32>(color.rgb + vec3<f32>(emissive), color.a);
+  output.depth = max(fragmentPosition.z - 1.0 / 16777215.0, 0.0);
+  return output;
+}
+`;
+
 /**
  * Vertex stage for the wireframe/edge display pass. It draws the deduplicated
  * mesh edges as a neutral black line list above the solid surface.
@@ -315,11 +335,8 @@ fn vertexMain(
   @builtin(vertex_index) vertexIndex: u32,
 ) -> EdgeOutput {
   let instance = instances[drawOrder[instanceIndex]];
-  let clip = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   var output: EdgeOutput;
-  // Move coplanar edge fragments slightly toward the camera before the
-  // depth-tested overlay pass so they do not fight the surface depth.
-  output.position = vec4<f32>(clip.x, clip.y, clip.z - 0.000001 * clip.w, clip.w);
+  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   output.color = vec4<f32>(0.0, 0.0, 0.0, 0.45);
   output.emissive = 0.0;
   output.local = vec2<f32>(0.0);

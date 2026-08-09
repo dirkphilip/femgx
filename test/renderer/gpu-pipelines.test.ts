@@ -19,9 +19,13 @@ describe("GPU render resources", () => {
       expect(resources.pipelines.pointsPick).toBeDefined();
       expect(resources.edgePipeline).toBeDefined();
       expect(resources.edgeAlwaysPipeline).toBeDefined();
+      expect(gpu.renderPipelineDescriptors.at(-4)?.depthStencil?.depthCompare).toBe("less-equal");
+      expect(gpu.renderPipelineDescriptors.at(-3)?.depthStencil?.depthCompare).toBe("always");
       expect(resources.nodeOverlayPipelines.visible).toBeDefined();
       expect(resources.instanceLayout).toBeDefined();
-      expect(gpu.buffers).toHaveLength(2);
+      expect(gpu.renderPipelineDescriptors[0]?.primitive?.cullMode).toBe("none");
+      expect(gpu.renderPipelineDescriptors[1]?.primitive?.cullMode).toBe("none");
+      expect(gpu.buffers).toHaveLength(3);
       destroyRenderResources(resources);
       expect(gpu.buffers.every((buffer) => buffer.destroyed)).toBe(true);
     } finally {

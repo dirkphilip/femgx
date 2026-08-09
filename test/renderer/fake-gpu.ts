@@ -42,6 +42,8 @@ export interface FakeGpu {
   readonly bindGroupCreations: number;
   /** The pipeline objects passed to `setPipeline`, in call order. */
   readonly pipelineCalls: readonly unknown[];
+  /** Render-pipeline descriptors in creation order. */
+  readonly renderPipelineDescriptors: readonly GPURenderPipelineDescriptor[];
   /** Resolves the device `lost` promise to simulate a GPU device loss. */
   lose(reason?: GPUDeviceLostReason, message?: string): void;
 }
@@ -103,6 +105,7 @@ export function fakeGpuDevice(
   const drawCalls: DrawCall[] = [];
   const pipelineDraws: PipelineDraw[] = [];
   const pipelineCalls: unknown[] = [];
+  const renderPipelineDescriptors: GPURenderPipelineDescriptor[] = [];
   let bindGroupCreations = 0;
   let pipelineCounter = 0;
   let currentPipeline = "none";
@@ -168,9 +171,10 @@ export function fakeGpuDevice(
     },
     createPipelineLayout: () => ({}),
     createShaderModule: () => ({}),
-    createRenderPipeline: () => ({
-      __tag: `pipeline-${pipelineCounter++}`,
-    }),
+    createRenderPipeline: (descriptor: GPURenderPipelineDescriptor) => {
+      renderPipelineDescriptors.push(descriptor);
+      return { __tag: `pipeline-${pipelineCounter++}` };
+    },
     createTexture: () => {
       const record: FakeTexture = { destroyed: false };
       textures.push(record);
@@ -212,6 +216,7 @@ export function fakeGpuDevice(
     drawCalls,
     pipelineDraws,
     pipelineCalls,
+    renderPipelineDescriptors,
     lose,
     get textureCreations() {
       return textures.length;

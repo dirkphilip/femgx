@@ -58,6 +58,15 @@ be shown solid with a wireframe overlay instead of edges-only.
 The inspection demo presents a single `Solid` display and optional edge
 overlay. Solid geometry is a boundary skin, so selection remains a color change
 on the selected element/node's existing triangles—never a highlight pass.
+Triangle pipelines do not cull back faces by default: 2D FE shells are valid
+geometry and must remain inspectable from either side. The edge shader applies
+the same transform as the surface shader, and the depth-tested edge pipeline
+uses `less-equal`: coplanar edges pass at their exact surface depth while edges
+behind nearer geometry remain occluded. Because line and triangle rasterization
+can quantize the same geometric depth differently, the edge fragment shader
+pulls the final line depth forward by one 24-bit depth-buffer unit. Do not pull
+overlay vertices toward the camera in clip space: the larger pre-rasterization
+offset can move a genuinely occluded edge in front of a nearby surface.
 
 ## Linear vs quadratic
 

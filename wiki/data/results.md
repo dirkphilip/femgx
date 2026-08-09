@@ -110,34 +110,11 @@ never rebuilds geometry, so per-frame stepping is a cheap index/time update
 plus an optional interpolated field. `NaN` components propagate through the
 blend, matching the field conventions.
 
-## Demo
-
-`demo/results-fixture.ts` + `demo/results-demo.ts` render a cantilever plate
-through a 2D canvas (the results workbench is a CPU-side visualization of the
-results APIs, not a rendering fallback for the model). The mesh is tessellated
-by the FE geometry builder (`elementGeometry`, one degenerate tet per grid
-cell), so the demo deforms it through the node-mapped CPU path rather than a
-hand-built node-aligned vertex buffer:
-
-- two load cases (bending, twist) with nodal displacement and elemental stress
-  fields, von Mises derived through the library, and one intentionally missing
-  stress element;
-- controls for undeformed/deformed, scalar/plain coloring, a deformation scale
-  slider, manual load-case stepping, and a play/pause loop that advances cases
-  over time via the case player with interpolated deformation;
-- the shared color map is built from the observed range over both load cases;
-  switching cases demonstrates clipping when values exceed the map range.
-
-`e2e/results.spec.ts` exercises the demo deterministically by comparing canvas
-pixel hashes across each toggle, and covers playback by observing the case
-index and blend progress advance.
-
 ## Status / follow-ups
 
-- GPU-side per-instance deformed rendering is implemented; the results demo
-  still draws through its 2D canvas. Wiring the demo's scale/load-case
-  controls to `setDeformation` (optionally through `CasePlayer` interpolation
-  served as a one-case displacement buffer) is a follow-up.
+- Results are rendered through the WebGPU renderer; the former CPU-canvas demo
+  was removed to retain the WebGPU-only product contract. A WebGPU results
+  interaction surface can be added when it has a focused product requirement.
 - Load-case playback and displacement interpolation are provided by the
   `CasePlayer` API and demonstrated in the demo.
 

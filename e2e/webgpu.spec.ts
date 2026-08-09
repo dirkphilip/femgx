@@ -73,20 +73,23 @@ async function clearHover(page: Page, canvas: Locator): Promise<void> {
   throw new Error("could not move the pointer to an empty canvas point to clear hover");
 }
 
-/** Orbits the actual canvas through a user-equivalent drag gesture. */
-async function orbitCanvas(
+/** Performs one SpaceClaim middle-button camera gesture on the actual canvas. */
+async function dragCamera(
   page: Page,
   canvas: Locator,
   delta: { readonly x: number; readonly y: number },
+  modifier?: "Shift" | "Control",
 ): Promise<void> {
   const box = await canvas.boundingBox();
   if (box === null) throw new Error("canvas has no bounding box");
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
   await page.mouse.move(x, y);
-  await page.mouse.down();
+  if (modifier !== undefined) await page.keyboard.down(modifier);
+  await page.mouse.down({ button: "middle" });
   await page.mouse.move(x + delta.x, y + delta.y);
-  await page.mouse.up();
+  await page.mouse.up({ button: "middle" });
+  if (modifier !== undefined) await page.keyboard.up(modifier);
 }
 
 /**
@@ -254,13 +257,34 @@ test("keeps element edges and nodes visible after orbiting", async ({ page }) =>
     { x: 90, y: 35 },
     { x: -150, y: 55 },
   ]) {
-    await orbitCanvas(page, canvas, delta);
+    await dragCamera(page, canvas, delta);
     const withNodes = await stableCanvasPixels(page, canvas);
     await page.getByTestId("node-overlay").click();
     const withoutNodes = await stableCanvasPixels(page, canvas);
     expect(withoutNodes.equals(withNodes), "nodes must remain visible after orbiting").toBe(false);
     await page.getByTestId("node-overlay").click();
   }
+});
+
+test("uses SpaceClaim middle-button spin, pan, and zoom gestures", async ({ page }) => {
+  await loadWebGpuPage(page);
+
+  const canvas = page.getByTestId("view-canvas");
+  const cameraKey = async (): Promise<string | null> => canvas.getAttribute("data-camera");
+
+  const beforeSpin = await cameraKey();
+  await dragCamera(page, canvas, { x: 90, y: 35 });
+  expect(await cameraKey()).not.toBe(beforeSpin);
+
+  await page.getByTestId("reset").click();
+  const beforePan = await cameraKey();
+  await dragCamera(page, canvas, { x: 90, y: 35 }, "Shift");
+  expect(await cameraKey()).not.toBe(beforePan);
+
+  await page.getByTestId("reset").click();
+  const beforeZoom = await cameraKey();
+  await dragCamera(page, canvas, { x: 0, y: -90 }, "Control");
+  expect(await cameraKey()).not.toBe(beforeZoom);
 });
 
 test("keeps the depth-test toggle working on the WebGPU renderer", async ({ page }) => {
