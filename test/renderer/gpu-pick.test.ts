@@ -12,7 +12,14 @@ import {
 } from "../../src/renderer/gpu-pick";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
-const READBACK_SIZE = READBACK_BYTE_STRIDE * 4;
+const READBACK_SIZE = READBACK_BYTE_STRIDE * 5;
+
+function readbackBytes(instancePickId = 1, ndcDepth = 1): ArrayBuffer {
+  const bytes = new Uint8Array(READBACK_SIZE);
+  new DataView(bytes.buffer).setUint32(0, instancePickId, true);
+  new DataView(bytes.buffer).setFloat32(READBACK_BYTE_STRIDE * 4, ndcDepth, true);
+  return bytes.buffer;
+}
 
 describe("GPU pick targets", () => {
   it("maps and clamps pick pixels to the canvas bounds", () => {
@@ -38,17 +45,19 @@ describe("GPU pick targets", () => {
       const pick = createPickTargets();
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
-      expect(gpu.textureCreations).toBe(5);
+      expect(gpu.textureCreations).toBe(6);
       expect(pick.texture).toBeDefined();
       expect(pick.elementTexture).toBeDefined();
       expect(pick.faceTexture).toBeDefined();
       expect(pick.nodeTexture).toBeDefined();
+      expect(pick.displayedDepthTexture).toBeDefined();
       expect(pick.depthTexture).toBeDefined();
       destroyPickTargets(pick);
       expect(pick.texture).toBeUndefined();
       expect(pick.elementTexture).toBeUndefined();
       expect(pick.faceTexture).toBeUndefined();
       expect(pick.nodeTexture).toBeUndefined();
+      expect(pick.displayedDepthTexture).toBeUndefined();
       expect(pick.depthTexture).toBeUndefined();
     } finally {
       restore();
@@ -79,6 +88,7 @@ describe("GPU pick targets", () => {
         elementPickId: 0,
         facePickId: 0,
         nodePickId: 0,
+        ndcDepth: 1,
       });
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       await expect(readPickPixel(gpu.device, canvas, pick, 10, 10)).resolves.toEqual({
@@ -86,6 +96,7 @@ describe("GPU pick targets", () => {
         elementPickId: 0,
         facePickId: 0,
         nodePickId: 0,
+        ndcDepth: 1,
       });
     } finally {
       restore();
@@ -100,6 +111,7 @@ describe("GPU pick targets", () => {
         elementPickValue: 9,
         facePickValue: 12,
         nodePickValue: 20,
+        ndcDepth: 0.375,
       });
       const pick = createPickTargets();
       const canvas = fakeCanvas();
@@ -109,6 +121,7 @@ describe("GPU pick targets", () => {
         elementPickId: 9,
         facePickId: 12,
         nodePickId: 20,
+        ndcDepth: 0.375,
       });
     } finally {
       restore();
@@ -151,7 +164,7 @@ describe("GPU pick targets", () => {
         queue: { submit: () => undefined },
         createBuffer: () => ({
           mapAsync: () => Promise.resolve(),
-          getMappedRange: () => new Uint32Array([7]).buffer,
+          getMappedRange: () => readbackBytes(7),
           unmap: () => undefined,
           destroy: () => undefined,
         }),
@@ -256,7 +269,7 @@ describe("GPU pick targets", () => {
               new Promise<void>((resolve) => {
                 deferred.push(resolve);
               }),
-            getMappedRange: () => new Uint32Array([1]).buffer,
+            getMappedRange: () => readbackBytes(),
             unmap: () => undefined,
             destroy: () => undefined,
           } as unknown as GPUBuffer;
@@ -279,6 +292,7 @@ describe("GPU pick targets", () => {
         elementPickId: 0,
         facePickId: 0,
         nodePickId: 0,
+        ndcDepth: 1,
       });
       ensurePickTargets(device, pick, 800, 600, "depth24plus");
       const after = readPickPixel(device, canvas, pick, 2, 2);
@@ -289,6 +303,7 @@ describe("GPU pick targets", () => {
         elementPickId: 0,
         facePickId: 0,
         nodePickId: 0,
+        ndcDepth: 1,
       });
     } finally {
       restore();
@@ -316,7 +331,7 @@ describe("GPU pick targets", () => {
                 });
               });
             },
-            getMappedRange: () => new Uint32Array([1]).buffer,
+            getMappedRange: () => readbackBytes(),
             unmap: () => undefined,
             destroy: () => undefined,
           } as unknown as GPUBuffer;
@@ -332,6 +347,7 @@ describe("GPU pick targets", () => {
       pick.elementTexture = {} as GPUTexture;
       pick.faceTexture = {} as GPUTexture;
       pick.nodeTexture = {} as GPUTexture;
+      pick.displayedDepthTexture = {} as GPUTexture;
       const canvas = fakeCanvas();
       const first = readPickPixel(device, canvas, pick, 1, 1);
       const second = readPickPixel(device, canvas, pick, 2, 2);
@@ -343,12 +359,14 @@ describe("GPU pick targets", () => {
         elementPickId: 0,
         facePickId: 0,
         nodePickId: 0,
+        ndcDepth: 1,
       });
       await expect(second).resolves.toEqual({
         instancePickId: 1,
         elementPickId: 0,
         facePickId: 0,
         nodePickId: 0,
+        ndcDepth: 1,
       });
       const third = readPickPixel(device, canvas, pick, 3, 3);
       expect(bufferCount).toBe(2);
@@ -358,6 +376,7 @@ describe("GPU pick targets", () => {
         elementPickId: 0,
         facePickId: 0,
         nodePickId: 0,
+        ndcDepth: 1,
       });
     } finally {
       restore();

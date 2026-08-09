@@ -3,7 +3,6 @@ import type { Vec3 } from "../camera/camera";
 import type { Part } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
 import type { PickGranularity } from "../picking/pick";
-import { hitPointFromPick } from "../picking/hit-point";
 import type { SceneRuntime } from "../scene-runtime/runtime";
 import type { PartId, PickTarget } from "../scene/types";
 import { RendererAttachment } from "./attachment";
@@ -12,6 +11,7 @@ import { syncDeformations, validateDeformation, type DeformationState } from "./
 import { destroyDrawResources } from "./gpu-draw";
 import { encodeFrame } from "./gpu-frame";
 import { destroyPickTargets, pickTargetFromPixel, resetPickTargets } from "./gpu-pick";
+import { displayedPointFromPixel } from "./gpu-pick-point";
 import { destroyRenderResources } from "./gpu-pipelines";
 import { createGpuBundle, GpuDeviceLifecycle } from "./gpu-recovery";
 
@@ -126,7 +126,16 @@ export class GpuRenderer implements WebGpuRenderer {
   }
 
   public async pickPoint(camera: Camera, x: number, y: number): Promise<Vec3 | undefined> {
-    return hitPointFromPick(camera, x, y, await this.pick(x, y, "face"));
+    this.ensureAlive();
+    if (this.attachment.runtime === undefined) return undefined;
+    return displayedPointFromPixel({
+      device: this.lifecycle.bundle.device,
+      canvas: this.canvas,
+      pick: this.lifecycle.bundle.pickTargets,
+      camera,
+      x,
+      y,
+    });
   }
 
   public resize(width = this.canvas.clientWidth, height = this.canvas.clientHeight): void {

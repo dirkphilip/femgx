@@ -7,7 +7,7 @@ import { createScene, type Scene } from "../../src/scene/scene";
 import { identity, translation } from "../../src/math/mat4";
 import { partFromChunk, type ChunkSource } from "../../src/streaming/chunk";
 import { parseChunk } from "../../src/streaming/parser";
-import type { Camera } from "../../src/camera/camera";
+import { projectPoint, unprojectPoint, type Camera } from "../../src/camera/camera";
 import {
   fakeCanvas,
   fakeGpuDevice,
@@ -130,7 +130,7 @@ describe("WebGPU renderer", () => {
       { indexCount: 3, instanceCount: 3 },
       { indexCount: 3, instanceCount: 3 },
     ]);
-    expect(gpu.textureCreations).toBe(6);
+    expect(gpu.textureCreations).toBe(7);
     expect(gpu.bindGroupCreations).toBe(4);
     await expect(renderer.pick(400, 300)).resolves.toEqual({ kind: "instance", instanceId: "1/0" });
     renderer.resize(400, 300);
@@ -144,15 +144,38 @@ describe("WebGPU renderer", () => {
 
   it("resolves a visible face pixel to an exact world-space point", async () => {
     restoreGpuGlobals = installGpuGlobals();
-    const gpu = fakeGpuDevice({ pickValue: 1, elementPickValue: 1, facePickValue: 1 });
+    const faceCamera = { ...camera, position: [0, 0, 5] as const, target: [0, 0, 0] as const };
+    const depth = projectPoint(faceCamera, [0, 0, 0])?.[2] ?? 1;
+    const gpu = fakeGpuDevice({
+      pickValue: 1,
+      elementPickValue: 1,
+      facePickValue: 1,
+      ndcDepth: depth,
+    });
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildFaceScene();
     const runtime = createSceneRuntime(scene);
-    const faceCamera = { ...camera, position: [0, 0, 5] as const, target: [0, 0, 0] as const };
     renderer.render(runtime, faceCamera, scene.parts);
 
-    await expect(renderer.pickPoint(faceCamera, 400, 300)).resolves.toEqual([0, 0, 0]);
+    await expect(renderer.pickPoint(faceCamera, 400, 300)).resolves.toEqual(
+      unprojectPoint(faceCamera, [400.5, 300.5, depth]),
+    );
+    renderer.destroy();
+  });
+
+  it("follows displayed GPU depth instead of the undeformed CPU face plane", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const faceCamera = { ...camera, position: [0, 0, 5] as const, target: [0, 0, 0] as const };
+    const displayedDepth = projectPoint(faceCamera, [0, 0, 1])?.[2] ?? 1;
+    const gpu = fakeGpuDevice({ pickValue: 1, facePickValue: 1, ndcDepth: displayedDepth });
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildFaceScene();
+    renderer.render(createSceneRuntime(scene), faceCamera, scene.parts);
+
+    const point = await renderer.pickPoint(faceCamera, 400, 300);
+    expect(point?.[2]).toBeCloseTo(1, 3);
     renderer.destroy();
   });
 

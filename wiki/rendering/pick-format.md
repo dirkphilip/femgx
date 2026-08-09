@@ -1,9 +1,11 @@
 # Pick texture format
 
-The WebGPU pick pass renders the per-instance pick id into a dedicated
-`rgba8unorm` texture and reads one pixel back on pointer events. The format and
-its byte packing live in `src/renderer/pick-format.ts`, with the packing
-mirrored in the WGSL `packPickId` in `src/renderer/gpu-shaders.ts`.
+The WebGPU pick pass renders instance, element, face, and node ids into four
+dedicated `rgba8unorm` textures. A fifth `r32float` color attachment stores the
+winning fragment's WebGPU NDC depth. All five pixels share one pooled readback
+buffer and one `mapAsync`; `pickPoint` unprojects the copied depth into the
+displayed world position. ID packing lives in `src/renderer/pick-format.ts`,
+with the packing mirrored in WGSL `packPickId`.
 
 ## Why `rgba8unorm` instead of `r32uint`
 

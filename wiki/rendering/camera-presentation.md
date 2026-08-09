@@ -14,7 +14,9 @@ The public `installCameraControls` helper follows SpaceClaim's default mouse nav
 Shift+middle-drag pans, Ctrl+middle-drag zooms vertically, and the wheel zooms
 toward the orbit target. Spin uses the closest visible GPU-picked face
 under its start point as the rotation pivot; `WebGpuRenderer.pickPoint`
-intersects a picked face with the camera ray rather than using its centroid.
+reads the winning fragment's NDC depth and unprojects the exact displayed world
+position. This follows GPU deformation and non-planar tessellation instead of
+reconstructing an undeformed CPU face plane.
 Empty space falls back to the fitted model target. Early drag deltas wait for
 the asynchronous GPU hit, so the gesture uses one pivot from its first visible
 movement onward. The WebGPU renderer projects its active pivot to an

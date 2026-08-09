@@ -97,6 +97,7 @@ export function fakeGpuDevice(
     readonly elementPickValue?: number;
     readonly facePickValue?: number;
     readonly nodePickValue?: number;
+    readonly ndcDepth?: number;
   } = {},
 ): FakeGpu {
   const writes: RecordedWrite[] = [];
@@ -113,6 +114,7 @@ export function fakeGpuDevice(
   const elementPickValue = options.elementPickValue ?? 0;
   const facePickValue = options.facePickValue ?? 0;
   const nodePickValue = options.nodePickValue ?? 0;
+  const ndcDepth = options.ndcDepth ?? 1;
   let resolveLost: (info: GPUDeviceLostInfo) => void = () => undefined;
   const lost = new Promise<GPUDeviceLostInfo>((resolve) => {
     resolveLost = resolve;
@@ -152,11 +154,12 @@ export function fakeGpuDevice(
         },
         mapAsync: () => Promise.resolve(),
         getMappedRange: () => {
-          const bytes = new Uint8Array(READBACK_BYTE_STRIDE * 4);
+          const bytes = new Uint8Array(READBACK_BYTE_STRIDE * 5);
           bytes.set(encodePickId(pickValue));
           bytes.set(encodePickId(elementPickValue), READBACK_BYTE_STRIDE);
           bytes.set(encodePickId(facePickValue), READBACK_BYTE_STRIDE * 2);
           bytes.set(encodePickId(nodePickValue), READBACK_BYTE_STRIDE * 3);
+          new DataView(bytes.buffer).setFloat32(READBACK_BYTE_STRIDE * 4, ndcDepth, true);
           return bytes.buffer;
         },
         unmap: () => undefined,

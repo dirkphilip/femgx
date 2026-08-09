@@ -3,6 +3,8 @@ import { resolvePickTarget } from "../picking/pick";
 import { canvasCssToRenderPixel } from "../camera/coordinates";
 import type { PickTarget } from "../scene/types";
 import { decodePickId, PICK_TEXTURE_FORMAT } from "./pick-format";
+import { WebGpuPickReadbackError } from "./gpu-pick-error";
+export { WebGpuPickReadbackError } from "./gpu-pick-error";
 
 /** Pick render targets reused across frames and resized on demand. */
 export interface PickTargets {
@@ -13,6 +15,8 @@ export interface PickTargets {
   faceTexture: GPUTexture | undefined;
   /** Fourth attachment holding the per-fragment node pick id. */
   nodeTexture: GPUTexture | undefined;
+  /** Copyable color attachment holding the winning fragment's WebGPU NDC depth. */
+  displayedDepthTexture: GPUTexture | undefined;
   depthTexture: GPUTexture | undefined;
   readonly readback: PickReadbackPool;
 }
@@ -33,6 +37,8 @@ export interface PickPixelResult {
   readonly facePickId: number;
   /** 1-based node id, `0` when the hit fragment has no node. */
   readonly nodePickId: number;
+  /** WebGPU NDC depth in `[0, 1]`; `1` when no geometry was hit. */
+  readonly ndcDepth: number;
 }
 
 /**
@@ -42,13 +48,6 @@ export interface PickPixelResult {
  * failure, not a missing-WebGPU condition, so callers must report it as
  * pick-readback and never mislabel the environment as CPU-only.
  */
-export class WebGpuPickReadbackError extends Error {
-  constructor(message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = "WebGpuPickReadbackError";
-  }
-}
-
 /**
  * Byte stride reserved per pick attachment in a pooled readback buffer. The
  * instance pick id is copied to offset 0, the element pick id to
@@ -57,7 +56,7 @@ export class WebGpuPickReadbackError extends Error {
  */
 export const READBACK_BYTE_STRIDE = 256;
 
-const READBACK_SIZE = READBACK_BYTE_STRIDE * 4;
+const READBACK_SIZE = READBACK_BYTE_STRIDE * 5;
 
 /** Creates empty pick targets; they are populated before the first pick pass. */
 export function createPickTargets(): PickTargets {
@@ -66,6 +65,7 @@ export function createPickTargets(): PickTargets {
     elementTexture: undefined,
     faceTexture: undefined,
     nodeTexture: undefined,
+    displayedDepthTexture: undefined,
     depthTexture: undefined,
     readback: { free: [], inFlight: new Set() },
   };
@@ -111,6 +111,11 @@ export function ensurePickTargets(
     format: PICK_TEXTURE_FORMAT,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
   });
+  pick.displayedDepthTexture = device.createTexture({
+    size: [width, height],
+    format: "r32float",
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+  });
   pick.depthTexture = device.createTexture({
     size: [width, height],
     format: depthFormat,
@@ -124,12 +129,14 @@ export function beginPickPass(encoder: GPUCommandEncoder, pick: PickTargets): GP
   const elementTexture = pick.elementTexture;
   const faceTexture = pick.faceTexture;
   const nodeTexture = pick.nodeTexture;
+  const displayedDepthTexture = pick.displayedDepthTexture;
   const depthTexture = pick.depthTexture;
   if (
     texture === undefined ||
     elementTexture === undefined ||
     faceTexture === undefined ||
     nodeTexture === undefined ||
+    displayedDepthTexture === undefined ||
     depthTexture === undefined
   ) {
     throw new Error("WebGPU picking targets were not created");
@@ -146,6 +153,10 @@ export function beginPickPass(encoder: GPUCommandEncoder, pick: PickTargets): GP
       attachment(elementTexture.createView()),
       attachment(faceTexture.createView()),
       attachment(nodeTexture.createView()),
+      {
+        ...attachment(displayedDepthTexture.createView()),
+        clearValue: { r: 1, g: 0, b: 0, a: 0 },
+      },
     ],
     depthStencilAttachment: {
       view: depthTexture.createView(),
@@ -167,17 +178,15 @@ export async function readPickPixel(
   x: number,
   y: number,
 ): Promise<PickPixelResult> {
-  const texture = pick.texture;
-  const elementTexture = pick.elementTexture;
-  const faceTexture = pick.faceTexture;
-  const nodeTexture = pick.nodeTexture;
-  if (
-    texture === undefined ||
-    elementTexture === undefined ||
-    faceTexture === undefined ||
-    nodeTexture === undefined
-  ) {
-    return { instancePickId: 0, elementPickId: 0, facePickId: 0, nodePickId: 0 };
+  const textures = readableTextures(pick);
+  if (textures === undefined) {
+    return {
+      instancePickId: 0,
+      elementPickId: 0,
+      facePickId: 0,
+      nodePickId: 0,
+      ndcDepth: 1,
+    };
   }
   const pixel = pickPixelCoordinates(
     x,
@@ -189,21 +198,7 @@ export async function readPickPixel(
   const buffer = acquireReadback(device, pick.readback);
   let mapped = false;
   try {
-    const encoder = device.createCommandEncoder();
-    copyPickPixel(encoder, buffer, pixel, { texture, offset: 0 });
-    copyPickPixel(encoder, buffer, pixel, {
-      texture: elementTexture,
-      offset: READBACK_BYTE_STRIDE,
-    });
-    copyPickPixel(encoder, buffer, pixel, {
-      texture: faceTexture,
-      offset: READBACK_BYTE_STRIDE * 2,
-    });
-    copyPickPixel(encoder, buffer, pixel, {
-      texture: nodeTexture,
-      offset: READBACK_BYTE_STRIDE * 3,
-    });
-    device.queue.submit([encoder.finish()]);
+    submitPickCopies(device, textures, buffer, pixel);
     await buffer.mapAsync(GPUMapMode.READ);
     mapped = true;
     const result = decodePickPixel(new Uint8Array(buffer.getMappedRange()));
@@ -223,6 +218,54 @@ export async function readPickPixel(
     if (mapped) buffer.unmap();
     releaseReadback(pick.readback, buffer);
   }
+}
+
+interface ReadablePickTextures {
+  readonly instance: GPUTexture;
+  readonly element: GPUTexture;
+  readonly face: GPUTexture;
+  readonly node: GPUTexture;
+  readonly depth: GPUTexture;
+}
+
+function readableTextures(pick: PickTargets): ReadablePickTextures | undefined {
+  const { texture, elementTexture, faceTexture, nodeTexture, displayedDepthTexture } = pick;
+  if (
+    texture === undefined ||
+    elementTexture === undefined ||
+    faceTexture === undefined ||
+    nodeTexture === undefined ||
+    displayedDepthTexture === undefined
+  ) {
+    return undefined;
+  }
+  return {
+    instance: texture,
+    element: elementTexture,
+    face: faceTexture,
+    node: nodeTexture,
+    depth: displayedDepthTexture,
+  };
+}
+
+function submitPickCopies(
+  device: GPUDevice,
+  textures: ReadablePickTextures,
+  buffer: GPUBuffer,
+  pixel: { readonly x: number; readonly y: number },
+): void {
+  const encoder = device.createCommandEncoder();
+  const ordered = [
+    textures.instance,
+    textures.element,
+    textures.face,
+    textures.node,
+    textures.depth,
+  ];
+  ordered.forEach((texture, index) => {
+    copyPickPixel(encoder, buffer, pixel, { texture, offset: READBACK_BYTE_STRIDE * index });
+  });
+  device.queue.submit([encoder.finish()]);
 }
 
 /** Copies one pick attachment under the pointer into the readback buffer. */
@@ -246,6 +289,11 @@ function decodePickPixel(pixels: Uint8Array): PickPixelResult {
     elementPickId: decodePickId(pixels, READBACK_BYTE_STRIDE),
     facePickId: decodePickId(pixels, READBACK_BYTE_STRIDE * 2),
     nodePickId: decodePickId(pixels, READBACK_BYTE_STRIDE * 3),
+    ndcDepth: new DataView(
+      pixels.buffer,
+      pixels.byteOffset + READBACK_BYTE_STRIDE * 4,
+      4,
+    ).getFloat32(0, true),
   };
 }
 
@@ -278,11 +326,13 @@ export function resetPickTargets(pick: PickTargets): void {
   pick.elementTexture?.destroy();
   pick.faceTexture?.destroy();
   pick.nodeTexture?.destroy();
+  pick.displayedDepthTexture?.destroy();
   pick.depthTexture?.destroy();
   pick.texture = undefined;
   pick.elementTexture = undefined;
   pick.faceTexture = undefined;
   pick.nodeTexture = undefined;
+  pick.displayedDepthTexture = undefined;
   pick.depthTexture = undefined;
 }
 
