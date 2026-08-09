@@ -1,4 +1,5 @@
 import { orbitCamera, panCamera, type Camera, type Vec3, zoomCamera } from "./camera";
+import { clientToCanvasCss } from "./coordinates";
 import { CameraGestureTracker, type GestureStep } from "./gestures";
 
 /** Mutable camera holder replaced by the immutable camera operations. */
@@ -188,10 +189,11 @@ class CameraControls {
     };
     this.orbitGestures.set(event.pointerId, gesture);
     const rect = this.options.canvas.getBoundingClientRect();
+    const point = clientToCanvasCss(event.clientX, event.clientY, rect);
     const pivot = this.options.navigation.pickPoint(
       this.options.cameraRef.camera,
-      event.clientX - rect.left,
-      event.clientY - rect.top,
+      point.x,
+      point.y,
     );
     void pivot.then(
       (result) => {

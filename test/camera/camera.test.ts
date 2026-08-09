@@ -4,6 +4,7 @@ import {
   orbitCamera,
   panCamera,
   projectPoint,
+  unprojectPoint,
   projectionMatrix,
   resizeCamera,
   setProjection,
@@ -11,6 +12,27 @@ import {
 } from "../../src/camera/camera";
 
 describe("camera", () => {
+  it.each(["perspective", "orthographic"] as const)(
+    "round-trips displayed world points through %s projection",
+    (mode) => {
+      const camera = createCamera({
+        mode,
+        position: [4, 3, 7],
+        target: [0, 0, 0],
+        width: 973,
+        height: 611,
+        near: 0.1,
+        far: 100,
+      });
+      const world = [0.4, -0.2, 0.7] as const;
+      const screen = projectPoint(camera, world);
+      expect(screen).toBeDefined();
+      const restored = unprojectPoint(camera, screen ?? [0, 0, 0]);
+      expect(restored[0]).toBeCloseTo(world[0], 4);
+      expect(restored[1]).toBeCloseTo(world[1], 4);
+      expect(restored[2]).toBeCloseTo(world[2], 4);
+    },
+  );
   it("projects the target near the center of the viewport", () => {
     const camera = resizeCamera(createCamera(), 800, 600);
     const point = projectPoint(camera, [0, 0, 0]);

@@ -161,6 +161,7 @@ export {
   orbitCamera,
   panCamera,
   projectPoint,
+  unprojectPoint,
   projectionMatrix,
   resizeCamera,
   setProjection,
@@ -171,6 +172,12 @@ export {
   type ProjectionMode,
   type Vec3,
 } from "./camera/camera";
+export {
+  canvasCssToRenderPixel,
+  clientToCanvasCss,
+  type CanvasCssPoint,
+  type RenderPixel,
+} from "./camera/coordinates";
 export { projectPolygon, type ScreenPoint } from "./camera/project-polygon";
 export {
   installCameraControls,
