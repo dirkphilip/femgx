@@ -1,5 +1,6 @@
 import type { PickGranularity, PickContext } from "../picking/pick";
 import { resolvePickTarget } from "../picking/pick";
+import { canvasCssToRenderPixel } from "../camera/coordinates";
 import type { PickTarget } from "../scene/types";
 import { decodePickId, PICK_TEXTURE_FORMAT } from "./pick-format";
 
@@ -78,12 +79,7 @@ export function pickPixelCoordinates(
   canvasWidth: number,
   canvasHeight: number,
 ): { readonly x: number; readonly y: number } {
-  const pixelX = Math.max(0, Math.min(canvasWidth - 1, Math.floor((x / rect.width) * canvasWidth)));
-  const pixelY = Math.max(
-    0,
-    Math.min(canvasHeight - 1, Math.floor((y / rect.height) * canvasHeight)),
-  );
-  return { x: pixelX, y: pixelY };
+  return canvasCssToRenderPixel({ x, y }, rect, { width: canvasWidth, height: canvasHeight });
 }
 
 /** Creates the pick render targets once, sized to the current canvas. */

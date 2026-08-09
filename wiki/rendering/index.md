@@ -29,3 +29,5 @@
   depth, bind-group, and readback resources.
 - [[rendering/wgsl-reserved-keywords|WGSL reserved keywords vs wgsl_reflect]] —
   shader identifiers that only Tint rejects, and how to validate them.
+- [[rendering/coordinate-spaces|Coordinate spaces]] — browser input, render
+  pixels, WebGPU NDC depth, and displayed world positions.

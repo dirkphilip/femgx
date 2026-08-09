@@ -1,5 +1,6 @@
 import {
   createCamera,
+  clientToCanvasCss,
   createInteractionState,
   createSceneRuntime,
   installCameraControls,
@@ -501,11 +502,8 @@ export class WorkbenchController {
     readonly clientY: number;
   }): Promise<PickTarget | undefined> {
     const rect = this.canvas.getBoundingClientRect();
-    // `WebGpuRenderer.pick` maps CSS-local coordinates through the canvas
-    // bounding rect onto the device buffer (see `pickPixelCoordinates`).
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    return this.hooks.pick(x, y);
+    const point = clientToCanvasCss(event.clientX, event.clientY, rect);
+    return this.hooks.pick(point.x, point.y);
   }
 
   private toggleSelection(target: SelectTarget): void {

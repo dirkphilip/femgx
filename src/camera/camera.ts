@@ -203,6 +203,36 @@ export function projectPoint(
   ];
 }
 
+/**
+ * Unprojects a camera-pixel position and WebGPU NDC depth into world space.
+ * `point[0..1]` use the camera's top-left pixel coordinates and `point[2]`
+ * uses WebGPU's `[0, 1]` depth convention.
+ */
+export function unprojectPoint(camera: Camera, point: Vec3): Vec3 {
+  const ndcX = (point[0] / camera.width) * 2 - 1;
+  const ndcY = 1 - (point[1] / camera.height) * 2;
+  const forward = normalize(subtract(camera.target, camera.position));
+  const right = normalize(cross(forward, camera.up));
+  const up = cross(right, forward);
+  if (camera.mode === "orthographic") {
+    const distance = camera.near + point[2] * (camera.far - camera.near);
+    const halfHeight = camera.orthoHeight / 2;
+    const halfWidth = halfHeight * (camera.width / camera.height);
+    return add(
+      add(add(camera.position, scale(forward, distance)), scale(right, ndcX * halfWidth)),
+      scale(up, ndcY * halfHeight),
+    );
+  }
+  const distance =
+    (camera.near * camera.far) / (camera.far - point[2] * (camera.far - camera.near));
+  const halfHeight = Math.tan(camera.fovY / 2) * distance;
+  const halfWidth = halfHeight * (camera.width / camera.height);
+  return add(
+    add(add(camera.position, scale(forward, distance)), scale(right, ndcX * halfWidth)),
+    scale(up, ndcY * halfHeight),
+  );
+}
+
 function multiplyPoint(matrix: Mat4, point: Vec3): readonly [number, number, number, number] {
   return [
     entry(matrix, 0) * point[0] +
