@@ -1,5 +1,11 @@
 # API design north star
 
+The default host workflow is `createFemViewport({ canvas, scene })`. The
+viewport owns the derived `SceneRuntime`, WebGPU renderer, fitted camera,
+standard controls, resize synchronization, render invalidation, device
+recovery, and teardown. Low-level constructors remain available for advanced
+composition but are not the documentation-first integration path.
+
 This note defines the intended public vocabulary and ownership boundaries for
 the experimental API. It is the design reference for changes to the public
 surface; the root [[index|wiki index]] is the navigation map.

@@ -80,14 +80,24 @@ export function fakeCanvas(width = 800, height = 600): HTMLCanvasElement {
     configure: () => undefined,
     getCurrentTexture: () => ({ createView: () => ({}) }),
   };
-  return {
+  const canvas = {
     width,
     height,
     clientWidth: width,
     clientHeight: height,
     getContext: () => context,
-    getBoundingClientRect: () => ({ width, height }),
+    getBoundingClientRect: () => ({
+      width: canvas.clientWidth,
+      height: canvas.clientHeight,
+      left: 0,
+      top: 0,
+    }),
+    addEventListener: () => undefined,
+    hasPointerCapture: () => false,
+    setPointerCapture: () => undefined,
+    releasePointerCapture: () => undefined,
   } as unknown as HTMLCanvasElement;
+  return canvas;
 }
 
 /** A GPU device that records buffer writes, creations, and draw calls. */

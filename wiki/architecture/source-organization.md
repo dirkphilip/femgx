@@ -37,6 +37,8 @@ canonical description.
   `gpu-support.ts` (shared GPU helpers), `gpu-recovery.ts` (device-loss tracking
   and resource re-creation), and `runtime-state.ts` (CPU bridge from packed
   runtime slots to part-local storage).
+- `src/viewport/` — canonical host-facing ownership of scene runtime, fitted
+  camera, renderer, controls, resize, interaction synchronization, and teardown.
 
 `test/` mirrors `src/` one-to-one: each source module has its suite in the
 matching subsystem directory.

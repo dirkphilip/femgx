@@ -3,6 +3,7 @@ import {
   clientToCanvasCss,
   createInteractionState,
   createSceneRuntime,
+  fitCamera,
   installCameraControls,
   resizeCamera,
   setElementOverride,
@@ -41,7 +42,6 @@ import {
   visiblePartIdsForPreset,
   type ModelPreset,
 } from "../src/fixture/presets";
-import { fitCamera } from "./fit";
 import { describePick } from "./inspect";
 import { selectTarget, targetKey, type SelectTarget } from "./pick";
 import { createPerformancePreset } from "./performance-fixture";

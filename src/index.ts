@@ -179,12 +179,18 @@ export {
   type RenderPixel,
 } from "./camera/coordinates";
 export { projectPolygon, type ScreenPoint } from "./camera/project-polygon";
+export { fitCamera } from "./camera/fit";
 export {
   installCameraControls,
   type CameraControlOptions,
   type CameraNavigationTarget,
   type CameraRef,
 } from "./camera/controls";
+export {
+  createFemViewport,
+  type FemViewport,
+  type FemViewportOptions,
+} from "./viewport/fem-viewport";
 export { createScene, type Scene, type SceneBuilder } from "./scene/scene";
 export {
   identity,

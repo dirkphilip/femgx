@@ -115,6 +115,7 @@ under `test/`. Tags reflect the [[requirements/product-scope|product scope]]:
   unsupported reasons, plus capability probing (`queryWebGpuSupport`) and
   supported-path device recovery. **Core.**
 - `src/renderer/` — WebGPU renderer, shaders, and GPU buffer support. **Core.**
+- `src/viewport/` — canonical scene/runtime/camera/renderer/controls lifecycle facade. **Core.**
 
 Conventions:
 
