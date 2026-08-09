@@ -6,7 +6,7 @@ import {
   ensureDeformationBuffer,
   type DeformationStorage,
 } from "./gpu-deform";
-import { buildMeshEdges } from "./gpu-elements";
+import { buildMeshEdges } from "./gpu-edge";
 import type { InstanceStorage } from "./gpu-instance-storage";
 import {
   buildCornerPositions,
@@ -38,6 +38,7 @@ export interface DrawCall {
 export interface DrawResources {
   readonly device: GPUDevice;
   readonly parts: Map<PartId, PartResource>;
+  readonly nodeParts: Map<PartId, PartResource>;
   readonly storages: Map<PartId, InstanceStorage>;
   readonly deformations: Map<PartId, DeformationStorage>;
   depthTexture: GPUTexture | undefined;
@@ -58,12 +59,47 @@ export function createDrawResources(device: GPUDevice): DrawResources {
   return {
     device,
     parts: new Map(),
+    nodeParts: new Map(),
     storages: new Map(),
     deformations: new Map(),
     depthTexture: undefined,
     depthWidth: 0,
     depthHeight: 0,
   };
+}
+
+function uploadNodePart(draw: DrawResources, part: Part): PartResource {
+  const existing = draw.nodeParts.get(part.id);
+  if (existing !== undefined) return existing;
+  const nodes = part.geometry.nodePositions ?? new Float32Array(0);
+  const count = nodes.length / 3;
+  const positions = new Float32Array(count * 12);
+  const ids = new Uint32Array(count * 4);
+  const indices = new Uint32Array(count * 6);
+  for (let node = 0; node < count; node += 1) {
+    const source = node * 3;
+    for (let corner = 0; corner < 4; corner += 1) {
+      positions.set(nodes.subarray(source, source + 3), (node * 4 + corner) * 3);
+      ids[node * 4 + corner] = node + 1;
+    }
+    indices.set(
+      [0, 1, 2, 0, 2, 3].map((index) => index + node * 4),
+      node * 6,
+    );
+  }
+  const resource: PartResource = {
+    vertexBuffer: createBuffer(draw.device, positions, GPUBufferUsage.VERTEX),
+    indexBuffer: createBuffer(draw.device, indices, GPUBufferUsage.INDEX),
+    elementPickIdsBuffer: createBuffer(draw.device, new Uint32Array(1), GPUBufferUsage.STORAGE),
+    facePickIdsBuffer: createBuffer(draw.device, new Uint32Array(1), GPUBufferUsage.STORAGE),
+    nodePickIdsBuffer: createBuffer(draw.device, ids, GPUBufferUsage.STORAGE),
+    cornerPositionsBuffer: createBuffer(draw.device, positions, GPUBufferUsage.STORAGE),
+    edgeIndexBuffer: createBuffer(draw.device, new Uint32Array(1), GPUBufferUsage.INDEX),
+    indexCount: indices.length,
+    edgeIndexCount: 0,
+  };
+  draw.nodeParts.set(part.id, resource);
+  return resource;
 }
 
 /**
@@ -133,6 +169,8 @@ export interface DrawBatchOptions {
    * requests the line overlay.
    */
   readonly overlay?: boolean;
+  /** Draws one small point sprite for every FE node of each visible part. */
+  readonly nodes?: boolean;
 }
 
 /**
@@ -151,16 +189,21 @@ export function drawBatches(
 ): void {
   const passKind = options.pass ?? "color";
   const overlay = options.overlay === true;
+  const nodes = options.nodes === true;
   pass.setBindGroup(0, context.frameBindGroup);
   let current: GPURenderPipeline | undefined;
   for (const call of calls) {
     const part = context.parts.get(call.partId);
     const storage = draw.storages.get(call.partId);
     if (part === undefined || storage === undefined) continue;
-    const geometry = uploadPart(draw, part);
+    const geometry = nodes ? uploadNodePart(draw, part) : uploadPart(draw, part);
     const pipeline =
       options.pipeline ??
-      pipelineFor(part.geometry.primitive ?? "triangles", passKind, context.pipelines);
+      pipelineFor(
+        nodes ? "points" : (part.geometry.primitive ?? "triangles"),
+        passKind,
+        context.pipelines,
+      );
     if (current !== pipeline) {
       pass.setPipeline(pipeline);
       current = pipeline;
@@ -169,6 +212,7 @@ export function drawBatches(
     const group = orderBindGroup(draw.device, context.instanceLayout, storage, overlay, {
       geometry,
       deformation,
+      cache: !nodes,
     });
     pass.setBindGroup(1, group);
     pass.setVertexBuffer(0, geometry.vertexBuffer);
@@ -198,6 +242,15 @@ function pipelineFor(
 /** Releases every part, storage, and depth resource owned by the draw path. */
 export function destroyDrawResources(draw: DrawResources): void {
   for (const resource of draw.parts.values()) {
+    resource.vertexBuffer.destroy();
+    resource.indexBuffer.destroy();
+    resource.elementPickIdsBuffer.destroy();
+    resource.facePickIdsBuffer.destroy();
+    resource.nodePickIdsBuffer.destroy();
+    resource.cornerPositionsBuffer.destroy();
+    resource.edgeIndexBuffer.destroy();
+  }
+  for (const resource of draw.nodeParts.values()) {
     resource.vertexBuffer.destroy();
     resource.indexBuffer.destroy();
     resource.elementPickIdsBuffer.destroy();

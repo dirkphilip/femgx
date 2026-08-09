@@ -12,7 +12,8 @@ export interface DemoView {
   readonly edgeOverlayLabel: HTMLElement;
   readonly depthTestToggle: HTMLButtonElement;
   readonly depthTestLabel: HTMLElement;
-  readonly modeButtons: readonly HTMLButtonElement[];
+  readonly nodeOverlayToggle: HTMLButtonElement;
+  readonly nodeOverlayLabel: HTMLElement;
   readonly resetButton: HTMLButtonElement;
   readonly status: HTMLElement;
   readonly visibilityPanel: HTMLElement;
@@ -50,13 +51,14 @@ export function queryDemoView(): DemoView {
   const edgeOverlayLabel = document.querySelector<HTMLElement>("#edge-overlay-label");
   const depthTestToggle = document.querySelector<HTMLButtonElement>("#depth-test");
   const depthTestLabel = document.querySelector<HTMLElement>("#depth-test-label");
+  const nodeOverlayToggle = document.querySelector<HTMLButtonElement>("#node-overlay");
+  const nodeOverlayLabel = document.querySelector<HTMLElement>("#node-overlay-label");
   const resetButton = document.querySelector<HTMLButtonElement>("#reset");
   const status = document.querySelector<HTMLElement>("#status");
   const visibilityPanel = document.querySelector<HTMLElement>("#visibility-panel");
   const inspectionPanel = document.querySelector<HTMLElement>("#inspection-panel");
   const statsPanel = document.querySelector<HTMLElement>("#stats-panel");
   const contextMenu = document.querySelector<HTMLElement>("#context-menu");
-  const modeButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-mode]"));
   if (
     canvas === null ||
     rendererStatus === null ||
@@ -68,13 +70,14 @@ export function queryDemoView(): DemoView {
     edgeOverlayLabel === null ||
     depthTestToggle === null ||
     depthTestLabel === null ||
+    nodeOverlayToggle === null ||
+    nodeOverlayLabel === null ||
     resetButton === null ||
     status === null ||
     visibilityPanel === null ||
     inspectionPanel === null ||
     statsPanel === null ||
-    contextMenu === null ||
-    modeButtons.length === 0
+    contextMenu === null
   ) {
     throw new Error("missing demo controls");
   }
@@ -89,7 +92,8 @@ export function queryDemoView(): DemoView {
     edgeOverlayLabel,
     depthTestToggle,
     depthTestLabel,
-    modeButtons,
+    nodeOverlayToggle,
+    nodeOverlayLabel,
     resetButton,
     status,
     visibilityPanel,

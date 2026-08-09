@@ -19,6 +19,7 @@ describe("GPU render resources", () => {
       expect(resources.pipelines.pointsPick).toBeDefined();
       expect(resources.edgePipeline).toBeDefined();
       expect(resources.edgeAlwaysPipeline).toBeDefined();
+      expect(resources.nodeOverlayPipelines.visible).toBeDefined();
       expect(resources.instanceLayout).toBeDefined();
       expect(gpu.buffers).toHaveLength(2);
       destroyRenderResources(resources);

@@ -99,9 +99,9 @@ const DEFAULT_PLATE_THICKNESS = 2;
 const DEFAULT_OVERLAP_OFFSET = 6;
 const FASTENER_ROWS = [-4, 10] as const;
 const FASTENER_COLUMNS = [-4.5, -1.5, 1.5, 4.5] as const;
-const TOP_WASHER_Y = 3.05;
-const BOTTOM_WASHER_Y = -1.05;
-const NUT_Y = -2.5;
+const FASTENER_CLEARANCE = 0.05;
+const WASHER_HALF_THICKNESS = 0.125;
+const NUT_HALF_HEIGHT = 0.5;
 
 const PLATE_SOLID: PartId = 1;
 const PLATE_SURFACE: PartId = 2;
@@ -141,23 +141,22 @@ export function createBoltedPlateFixture(options: BoltedPlateOptions = {}): Bolt
   const overlapOffset = options.overlapOffset ?? DEFAULT_OVERLAP_OFFSET;
   validateBoltedPlateOptions({ plateLength, plateWidth, plateThickness, overlapOffset });
 
+  const heights = fastenerHeights(plateThickness);
   const models = {
     plate: createPlateModel(plateLength, plateWidth, plateThickness),
-    bolt: createBoltModel(),
+    bolt: createBoltModel(heights.boltHeadBase),
     washer: createWasherModel(),
     nut: createNutModel(),
   };
   const parts: readonly Part[] = componentParts(COMPONENT_PARTS, models);
   const positions = fastenerPositions();
-  const modePartIds = new Map<ElementRenderMode, readonly PartId[]>([
-    ["solid", [PLATE_SOLID, BOLT_SOLID, WASHER_SOLID, NUT_SOLID]],
-    ["surface", [PLATE_SURFACE, BOLT_SURFACE, WASHER_SURFACE, NUT_SURFACE]],
-    ["edges", [PLATE_EDGES, BOLT_EDGES, WASHER_EDGES, NUT_EDGES]],
-  ]);
+  const modePartIds = componentModePartIds();
 
-  const washerAssemblies = positions.map((_, index) => washersAssembly(WASHER_BASE + index));
+  const washerAssemblies = positions.map((_, index) =>
+    washersAssembly(WASHER_BASE + index, heights),
+  );
   const fastenerAssemblies = positions.map((_, index) =>
-    fastenerAssembly(FASTENER_BASE + index, WASHER_BASE + index),
+    fastenerAssembly(FASTENER_BASE + index, WASHER_BASE + index, heights.nut),
   );
   const plateStack = plateStackAssembly(plateThickness, overlapOffset);
   const fasteners = fastenersGroup(positions);
@@ -194,6 +193,14 @@ export function createBoltedPlateFixture(options: BoltedPlateOptions = {}): Bolt
     instanceCount: 6 + positions.length * 12,
     visibleInstanceCount: 2 + positions.length * 4,
   };
+}
+
+function componentModePartIds(): ReadonlyMap<ElementRenderMode, readonly PartId[]> {
+  return new Map<ElementRenderMode, readonly PartId[]>([
+    ["solid", [PLATE_SOLID, BOLT_SOLID, WASHER_SOLID, NUT_SOLID]],
+    ["surface", [PLATE_SURFACE, BOLT_SURFACE, WASHER_SURFACE, NUT_SURFACE]],
+    ["edges", [PLATE_EDGES, BOLT_EDGES, WASHER_EDGES, NUT_EDGES]],
+  ]);
 }
 
 function validateBoltedPlateOptions(options: {
@@ -269,26 +276,44 @@ function plateStackAssembly(plateThickness: number, overlapOffset: number) {
   };
 }
 
-function fastenerAssembly(id: AssemblyId, washersId: AssemblyId) {
+function fastenerAssembly(id: AssemblyId, washersId: AssemblyId, nutY: number) {
   return {
     id,
     name: `Fastener ${id - FASTENER_BASE + 1}`,
     placements: [
       ...modePlacements(COMPONENT_PARTS.bolt, identity()),
       { kind: "assembly" as const, assemblyId: washersId, transform: identity() },
-      ...modePlacements(COMPONENT_PARTS.nut, translation(0, NUT_Y, 0)),
+      ...modePlacements(COMPONENT_PARTS.nut, translation(0, nutY, 0)),
     ],
   };
 }
 
-function washersAssembly(id: AssemblyId) {
+function washersAssembly(id: AssemblyId, heights: FastenerHeights) {
   return {
     id,
     name: "Washers",
     placements: [
-      ...modePlacements(COMPONENT_PARTS.washer, translation(0, TOP_WASHER_Y, 0)),
-      ...modePlacements(COMPONENT_PARTS.washer, translation(0, BOTTOM_WASHER_Y, 0)),
+      ...modePlacements(COMPONENT_PARTS.washer, translation(0, heights.topWasher, 0)),
+      ...modePlacements(COMPONENT_PARTS.washer, translation(0, heights.bottomWasher, 0)),
     ],
+  };
+}
+
+interface FastenerHeights {
+  readonly topWasher: number;
+  readonly bottomWasher: number;
+  readonly boltHeadBase: number;
+  readonly nut: number;
+}
+
+function fastenerHeights(plateThickness: number): FastenerHeights {
+  const topWasher = plateThickness * 1.5 + WASHER_HALF_THICKNESS + FASTENER_CLEARANCE;
+  const bottomWasher = -plateThickness * 0.5 - WASHER_HALF_THICKNESS - FASTENER_CLEARANCE;
+  return {
+    topWasher,
+    bottomWasher,
+    boltHeadBase: topWasher + WASHER_HALF_THICKNESS + FASTENER_CLEARANCE,
+    nut: bottomWasher - WASHER_HALF_THICKNESS - NUT_HALF_HEIGHT - FASTENER_CLEARANCE,
   };
 }
 

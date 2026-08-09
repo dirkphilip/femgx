@@ -126,11 +126,11 @@ describe("createElementFixture", () => {
     expect(surface?.geometry.indices).toHaveLength(576);
   });
 
-  it("draws quadratic Tet10 solids as four triangles per face", () => {
+  it("culls shared interior faces from quadratic Tet10 solid parts", () => {
     const { scene, partIds } = createElementFixture();
     const solid = scene.parts.get(partIds.tetSolid);
-    expect(solid?.geometry.positions).toHaveLength(6912);
-    expect(solid?.geometry.indices).toHaveLength(2304);
+    expect(solid?.geometry.positions).toHaveLength(2304);
+    expect(solid?.geometry.indices).toHaveLength(768);
   });
 
   it("respects custom grid options and recomputes bounds", () => {

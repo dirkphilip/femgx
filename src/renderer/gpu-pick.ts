@@ -156,6 +156,9 @@ export function beginPickPass(encoder: GPUCommandEncoder, pick: PickTargets): GP
       depthClearValue: 1,
       depthLoadOp: "clear",
       depthStoreOp: "store",
+      stencilClearValue: 0,
+      stencilLoadOp: "clear",
+      stencilStoreOp: "discard",
     },
   });
 }

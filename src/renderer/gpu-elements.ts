@@ -1,4 +1,4 @@
-import type { Geometry, Part } from "../geometry/part";
+import type { Part } from "../geometry/part";
 import {
   emphasizedElementRefs,
   resolveElementStyle,
@@ -120,31 +120,6 @@ export function encodeNodeHighlight(
     nodePickId: nodeId + 1,
     style,
   });
-}
-
-/**
- * Builds a deduplicated line-list of the mesh edges (unique undirected
- * vertex pairs), used by the wireframe/edge display pass. The edge set is a
- * pure function of the index buffer, so it is uploaded once per part.
- */
-export function buildMeshEdges(geometry: Geometry): Uint32Array {
-  const indices = geometry.indices;
-  const triangleCount = Math.floor(indices.length / 3);
-  const seen = new Set<string>();
-  const edges: number[] = [];
-  for (let triangle = 0; triangle < triangleCount; triangle++) {
-    const base = triangle * 3;
-    const corners = [indices[base] ?? 0, indices[base + 1] ?? 0, indices[base + 2] ?? 0];
-    for (let corner = 0; corner < 3; corner++) {
-      const a = corners[corner] ?? 0;
-      const b = corners[(corner + 1) % 3] ?? 0;
-      const key = `${Math.min(a, b)},${Math.max(a, b)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      edges.push(a, b);
-    }
-  }
-  return new Uint32Array(edges);
 }
 
 /** A GPU highlight buffer plus its full CPU mirror for diffed writes. */

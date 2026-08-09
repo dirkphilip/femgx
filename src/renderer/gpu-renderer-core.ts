@@ -17,12 +17,13 @@ import { createGpuBundle, GpuDeviceLifecycle } from "./gpu-recovery";
 export class GpuRenderer implements WebGpuRenderer {
   private readonly context: GPUCanvasContext;
   private readonly format: GPUTextureFormat;
-  private readonly depthFormat = "depth24plus" as GPUTextureFormat;
+  private readonly depthFormat = "depth24plus-stencil8" as GPUTextureFormat;
   private readonly lifecycle: GpuDeviceLifecycle;
   private readonly pointSize: number;
   private readonly attachment = new RendererAttachment();
   private parts = new Map<PartId, Part>();
   private edgeDepthTest = true;
+  private nodeOverlay = false;
   private deformation: DeformationState | undefined;
   private destroyed = false;
 
@@ -86,6 +87,11 @@ export class GpuRenderer implements WebGpuRenderer {
   public setEdgeDepthTest(enabled: boolean): void {
     this.ensureAlive();
     this.edgeDepthTest = enabled;
+  }
+
+  public setNodeOverlay(enabled: boolean): void {
+    this.ensureAlive();
+    this.nodeOverlay = enabled;
   }
 
   public updateVisibility(runtime: SceneRuntime, changedInstanceIds: readonly number[]): void {
@@ -167,6 +173,7 @@ export class GpuRenderer implements WebGpuRenderer {
       pickTargets: this.lifecycle.bundle.pickTargets,
       depthFormat: this.depthFormat,
       edgeDepthTest: this.edgeDepthTest,
+      showNodes: this.nodeOverlay,
       pointSize: this.pointSize,
       deformation: this.deformation,
     };

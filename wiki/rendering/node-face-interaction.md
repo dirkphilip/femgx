@@ -58,10 +58,10 @@ oriented element faces are the finest-grained pickable units under
   state (highlight < hover < selection, all above part/instance).
 - GPU emphasis reuses the generalized per-part emphasis buffer: a record now
   carries exactly one of `elementPickId`, `facePickId`, or `nodePickId`. The
-  color vertex shader matches element records against the per-triangle element
-  id, face records against the per-triangle face id, and node records against
-  the triangle's three vertex node ids (`triangleHasNode`). Node selection
-  therefore glows the incident triangles without geometry rebuilds.
+  surface shader matches element records against the per-triangle element id
+  and face records against the per-triangle face id. It deliberately ignores
+  node records, so selecting a node never recolors its incident faces or draws
+  overlapping highlight geometry.
 - The bounded per-part emphasis capacity documented in
   [[rendering/element-interaction|element-interaction]] applies to node/face records too
   (tracked in [femgx#68](https://github.com/dirkphilip/femgx/issues/68)).
@@ -69,6 +69,24 @@ oriented element faces are the finest-grained pickable units under
   `emphasizedNodeRefs`/`emphasizedFaceRefs` plus `resolveNodeStyle`/
   `resolveFaceStyle`; it does not derive element overrides from node/face
   state ([[architecture/demo-library-boundary|Demo / library boundary]]).
+
+## Node glyph overlay
+
+- The demo's `Show element nodes` control draws one small screen-space circle
+  for every visible FE node. The default glyph color is black, independent of
+  the part palette. It reuses the point-sprite path with generated per-node
+  quads; it does not introduce a second copy of surface geometry.
+- This annotation pass follows both the solid and element-edge passes. A tiny
+  center probe first passes normal depth testing and writes a stencil bit; the
+  complete circle then draws only where that bit is present. Front nodes are
+  therefore complete circles over edges, while nodes behind nearer surfaces
+  never receive the stencil bit at any zoom level.
+- Node emphasis is resolved only in this glyph pass, where a matching
+  `nodePickId` changes the circle's color/emissive. This keeps node selection
+  local and avoids surface z-fighting.
+- Default node glyphs are translucent black. The visible pass increments the
+  accepted stencil value, so only the first visible node blends at a pixel and
+  overlapping nodes do not accumulate into a darker mark.
 
 ## Demo
 

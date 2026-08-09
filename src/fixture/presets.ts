@@ -43,12 +43,16 @@ export interface ModelPreset {
 /** The volume render modes a structural preset supports. */
 const VOLUME_MODES: readonly ElementRenderMode[] = ["solid", "surface", "edges"];
 
-/** Part ids to show for a mode: the mode parts plus the always-visible overlays. */
+/**
+ * Part ids to show in the inspection demo plus the always-visible overlays.
+ * The edges mode is a display style; the controller enables the existing
+ * per-instance edge overlay instead of switching to edge-only geometry.
+ */
 export function visiblePartIdsForPreset(
   preset: ModelPreset,
   mode: ElementRenderMode,
 ): ReadonlySet<PartId> {
-  const modeParts = preset.modePartIds.get(mode) ?? [];
+  const modeParts = preset.modePartIds.get(mode === "edges" ? "solid" : mode) ?? [];
   return new Set([...modeParts, ...preset.overlayPartIds]);
 }
 

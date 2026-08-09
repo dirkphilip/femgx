@@ -89,7 +89,8 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(instanceVertexShader).toMatch(/triangleElementPickIds\[vertexIndex \/ 3u\]/);
     expect(instanceVertexShader).toMatch(/triangleFacePickIds\[vertexIndex \/ 3u\]/);
     expect(instanceVertexShader).toMatch(/elementHighlights\.records\[index\]/);
-    expect(instanceVertexShader).toMatch(/triangleHasNode\(highlight\.nodePickId, vertexIndex\)/);
+    expect(instanceVertexShader).not.toMatch(/highlight\.nodePickId/);
+    expect(pointVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
     expect(instanceVertexShader).toMatch(/@location\(3\) @interpolate\(flat\) elementPickId: u32/);
     expect(instanceVertexShader).toMatch(/@location\(4\) @interpolate\(flat\) facePickId: u32/);
   });
@@ -173,6 +174,23 @@ describe("GPU deformation shader contract", () => {
 
   it("displaces point sprites by the vertex index, which carries the point's node", () => {
     expect(pointVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
+  });
+
+  it("keeps node emphasis on the node glyph instead of recoloring surface triangles", () => {
+    expect(instanceVertexShader).not.toMatch(/highlight\.nodePickId/);
+    expect(pointVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
+  });
+
+  it("draws point sprites as circles at their exact model depth", () => {
+    expect(pointVertexShader).toMatch(/clip\.z,/);
+    expect(pointVertexShader).not.toMatch(/clip\.z - 0\.000001 \* clip\.w/);
+    expect(colorFragmentShader).toMatch(/dot\(local, local\) > 1\.0/);
+  });
+
+  it("uses neutral black for element nodes and edges", () => {
+    expect(pointVertexShader).toMatch(/var color = vec4<f32>\(0\.0, 0\.0, 0\.0, 0\.45\)/);
+    expect(edgeVertexShader).toMatch(/output\.color = vec4<f32>\(0\.0, 0\.0, 0\.0, 0\.45\)/);
+    expect(edgeVertexShader).toMatch(/output\.emissive = 0\.0/);
   });
 
   it("displaces the edge overlay through the vertex buffer index", () => {

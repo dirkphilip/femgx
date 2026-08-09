@@ -64,7 +64,14 @@ describe("createPanelPreset", () => {
 describe("createBoltedPlatePreset", () => {
   it("keeps the bolted footprint and mode part ids", () => {
     const preset = createBoltedPlatePreset();
-    expect(preset.bounds).toEqual({ minX: -15, minY: -4, minZ: -7, maxX: 21, maxY: 5, maxZ: 7 });
+    expect(preset.bounds).toEqual({
+      minX: -15,
+      minY: -4,
+      minZ: -7,
+      maxX: 21,
+      maxY: 4.349999904632568,
+      maxZ: 7,
+    });
     expect(preset.modePartIds.get("solid")).toEqual([1, 4, 7, 10]);
     expect(preset.partNames.get(4)).toBe("Bolts");
     expect(preset.partNames.get(7)).toBe("Washers");

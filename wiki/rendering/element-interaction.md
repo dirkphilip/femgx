@@ -89,10 +89,12 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   parts. The edge pass uses a second cached bind group per part that addresses
   the edge order buffer.
 - The overlay draws with depth writes off and `depthCompare` selected by
-  `WebGpuRenderer.setEdgeDepthTest`: on (default) uses `less-equal` so edges
+  `WebGpuRenderer.setEdgeDepthTest`: on (default) uses `less` so edges
   occluded by nearer geometry are culled; off uses `always` so every edge shows
   through the model. Two line-list pipelines are pre-created in
   `gpu-pipelines.ts`.
+- Element edges use translucent neutral black rather than inheriting each
+  part's fill color, so topology stays readable without obscuring the model.
 - The demo drives the overlay by applying an `{ edge: true }` part override to
   every part (`Edge overlay` toggle) and flips the overlay depth compare with
   the `Depth test` toggle (see

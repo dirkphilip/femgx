@@ -1,3 +1,4 @@
+/* eslint-disable jsdoc/require-jsdoc */
 import {
   colorFragmentShader,
   edgeVertexShader,
@@ -10,8 +11,9 @@ import { PICK_TEXTURE_FORMAT } from "./pick-format";
 import { vertexLayout } from "./gpu-support";
 import { DEFORMATION_UNIFORM_SIZE } from "./gpu-deform";
 import type { DrawResources } from "./gpu-draw";
+import { createNodeOverlayPipelines } from "./gpu-node-overlay";
+import type { NodeOverlayPipelines } from "./gpu-node-overlay";
 
-/** The six render pipelines: color and pick variants for each primitive. */
 export interface DrawPipelines {
   readonly trianglesColor: GPURenderPipeline;
   readonly trianglesPick: GPURenderPipeline;
@@ -21,21 +23,18 @@ export interface DrawPipelines {
   readonly pointsPick: GPURenderPipeline;
 }
 
-/** WebGPU pipelines plus the layouts, camera buffer, and bind groups they share. */
 export interface RenderResources {
   readonly cameraBuffer: GPUBuffer;
-  /** Per-frame deformation uniform (scale + active load case). */
   readonly deformationBuffer: GPUBuffer;
   readonly frameBindGroup: GPUBindGroup;
   readonly pipelines: DrawPipelines;
-  /** Depth-tested line overlay that draws the mesh edges in the edge pass. */
   readonly edgePipeline: GPURenderPipeline;
-  /** Line overlay with depth compare `always`, showing edges through surfaces. */
   readonly edgeAlwaysPipeline: GPURenderPipeline;
+  /** Final FE-node visibility probe and annotation passes. */
+  readonly nodeOverlayPipelines: NodeOverlayPipelines;
   readonly instanceLayout: GPUBindGroupLayout;
 }
 
-/** Bytes of the camera uniform (mat4 + viewport + pointSize + padding). */
 export const CAMERA_UNIFORM_SIZE = 80;
 
 interface PipelineSpec {
@@ -48,11 +47,6 @@ interface PipelineSpec {
   readonly cullMode: GPUCullMode;
 }
 
-/**
- * Creates the shared bind group layouts, camera uniform buffer, and the color
- * and pick render pipelines for triangle, line, and point-sprite primitives,
- * plus the line-list overlay pipeline used in edge display mode.
- */
 export function createRenderResources(
   device: GPUDevice,
   format: GPUTextureFormat,
@@ -100,12 +94,12 @@ export function createRenderResources(
     frameBindGroup,
     instanceLayout,
     pipelines: buildPipelines(device, layout, format, depthFormat),
-    edgePipeline: createEdgePipeline(device, layout, format, depthFormat, "less-equal"),
+    edgePipeline: createEdgePipeline(device, layout, format, depthFormat, "less"),
     edgeAlwaysPipeline: createEdgePipeline(device, layout, format, depthFormat, "always"),
+    nodeOverlayPipelines: createNodeOverlayPipelines(device, layout, format, depthFormat),
   };
 }
 
-/** The four pick attachments (instance, element, face, node). */
 const PICK_FORMATS = [
   PICK_TEXTURE_FORMAT,
   PICK_TEXTURE_FORMAT,
@@ -230,13 +224,7 @@ function createPipeline(
   });
 }
 
-/**
- * Creates a line-list pipeline that overlays mesh edges on the color pass for
- * the parts whose style requests it. Depth writes stay off so the overlay never
- * hides the solid pass drawn underneath; the compare function selects whether
- * edges occluded by nearer geometry are culled (`less-equal`) or drawn through
- * everything (`always`).
- */
+/** Creates a depth-tested or always-visible line overlay pipeline. */
 function createEdgePipeline(
   device: GPUDevice,
   layout: GPUPipelineLayout,
@@ -254,29 +242,26 @@ function createEdgePipeline(
     fragment: {
       module: device.createShaderModule({ code: colorFragmentShader }),
       entryPoint: "fragmentMain",
-      targets: [{ format }],
+      targets: [
+        {
+          format,
+          blend: {
+            color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha" },
+            alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" },
+          },
+        },
+      ],
     },
     primitive: { topology: "line-list", cullMode: "none" },
     depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare },
   });
 }
 
-/** Configures the canvas context for a device and surface format. */
-export function configureCanvasContext(
-  context: GPUCanvasContext,
-  device: GPUDevice,
-  format: GPUTextureFormat,
-): void {
-  context.configure({ device, format, alphaMode: "opaque" });
-}
-
-/** Releases the buffers owned by the render resources (pipelines need none). */
 export function destroyRenderResources(resources: RenderResources): void {
   resources.cameraBuffer.destroy();
   resources.deformationBuffer.destroy();
 }
 
-/** Creates a depth attachment sized to the given canvas dimensions. */
 export function createDepthTexture(
   device: GPUDevice,
   width: number,
@@ -290,7 +275,6 @@ export function createDepthTexture(
   });
 }
 
-/** Returns the cached depth texture, recreating it only when the canvas size changes. */
 export function ensureDepthTexture(
   draw: DrawResources,
   width: number,
@@ -328,6 +312,9 @@ export function beginColorPass(
       depthClearValue: 1,
       depthLoadOp: "clear",
       depthStoreOp: "store",
+      stencilClearValue: 0,
+      stencilLoadOp: "clear",
+      stencilStoreOp: "discard",
     },
   });
 }

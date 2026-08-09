@@ -106,24 +106,14 @@ test("switches between deterministic model presets", async ({ page }) => {
   await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
 });
 
-test("switches element render modes with mode-mapped visibility", async ({ page }) => {
+test("toggles the element edge overlay independently of solid geometry", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("status")).toContainText("solid");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-mode", "solid");
 
-  await page.getByTestId("mode-surface").click();
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-mode", "surface");
-  await expect(page.getByTestId("status")).toContainText("surface");
-  const surface = await status(page);
-
-  await page.getByTestId("mode-edges").click();
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-mode", "edges");
-  await expect(page.getByTestId("status")).toContainText("edges");
-
-  await page.getByTestId("mode-solid").click();
+  await page.getByTestId("edge-overlay").click();
+  await expect(page.getByTestId("edge-overlay-label")).toHaveText("On");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-mode", "solid");
-  await expect(page.getByTestId("status")).toContainText("solid");
-  expect(surface, "switching modes must rebuild the draw list").not.toBe(await status(page));
 });
 
 test("toggles part visibility and restores it via the visibility panel", async ({ page }) => {

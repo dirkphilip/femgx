@@ -87,9 +87,9 @@ parts total):
 
 - `plate` (solid 1, surface 2, edges 3) — a shared 30 x 14 x 2 m steel plate,
   placed twice (lower + upper).
-- `bolt` (4, 5, 6) — a 1.6 m shaft under a 4 x 4 m square head.
-- `washer` (7, 8, 9) — a thin 2.8 x 2.8 m slab, placed twice per fastener.
-- `nut` (10, 11, 12) — a 3 x 3 m box on the shaft end.
+- `bolt` (4, 5, 6) — an 0.8 m shaft under a 1.4 x 1.4 m square head.
+- `washer` (7, 8, 9) — a thin 1.4 x 1.4 m slab, placed twice per fastener.
+- `nut` (10, 11, 12) — a 1.5 x 1.5 m box on the shaft end.
 
 Nested assemblies (19 total):
 
@@ -107,10 +107,14 @@ Bolted joint (1)
 
 - Default instance count is 102 (all mode parts placed), of which 34 are
   visible per volume mode: 2 plates + 8 fasteners x (1 bolt + 2 washers + 1 nut).
-- Bounds span X `-15..21`, Y `-4..5` (fasteners protrude beyond the 2 m plate
+- Bounds span X `-15..21`, Y `-4..4.35` (fasteners protrude beyond the 2 m plate
   stack), Z `-7..7`; the isometric default camera frames this box.
 - Instance ids are deterministic and readable, e.g. `"1/1/0/3/0"` is the top
   washer (solid) of fastener 1.
+
+The exterior washer, bolt-head, and nut faces are separated by a fixed `0.05 m`
+clearance derived from the plate thickness. This keeps the fixture visually
+unambiguous and avoids coplanar surfaces in the renderer showcase.
 
 The bolted preset is the demo's default (`createDefaultPreset`), so e2e
 assertions about the landing view and status line depend on these defaults;

@@ -50,14 +50,14 @@ test("solid mode renders deterministically across page loads", async ({ page }) 
   expect(first.equals(second), "solid mode pixel output must be deterministic").toBe(true);
 });
 
-test("edge mode differs from solid mode", async ({ page }) => {
+test("edge overlay differs from solid mode", async ({ page }) => {
   await loadVisualPage(page);
 
   const canvas = page.getByTestId("view-canvas");
   const solid = await stableCanvasPixels(page, canvas);
 
-  await page.getByTestId("mode-edges").click();
-  await expect(canvas).toHaveAttribute("data-mode", "edges");
+  await page.getByTestId("edge-overlay").click();
+  await expect(canvas).toHaveAttribute("data-mode", "solid");
   const edge = await stableCanvasPixels(page, canvas);
 
   expect(edge.equals(solid), "edge mode must render different pixels than solid").toBe(false);
