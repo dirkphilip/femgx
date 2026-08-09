@@ -1,4 +1,4 @@
-/** A screen-space pointer position used by the gesture tracker. */
+/** A screen-space pointer position used by the camera gesture tracker. */
 export interface GesturePoint {
   readonly x: number;
   readonly y: number;

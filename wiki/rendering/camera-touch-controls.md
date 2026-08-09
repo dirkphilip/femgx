@@ -1,13 +1,21 @@
 # Camera touch controls
 
-The demo's camera navigation is driven by unified pointer tracking in
-`demo/camera-controls.ts`, so desktop mice and phone touch share one code path.
+Camera navigation is public library behavior driven by unified pointer tracking
+in `src/camera/controls.ts`, so any femgx canvas gets the same functional
+SpaceClaim-style mouse and touch controls without adopting the demo's tree,
+toolbars, or inspection panels.
 
 ## Gestures
 
-- **One finger / left drag** orbits (`orbitCamera`).
-- **Shift-drag or middle-button drag** pans (`panCamera`).
-- **Wheel** zooms toward the target (`zoomCamera`).
+- **Middle drag** spins (`orbitCamera`); **Shift+middle drag** pans
+  (`panCamera`); **Ctrl+middle drag** zooms vertically (`zoomCamera`). This
+  matches the default SpaceClaim desktop navigation.
+- **Wheel** zooms toward the target (`zoomCamera`); an upward wheel/drag motion
+  zooms in and a downward motion zooms out.
+- **Left mouse drag** is not a camera gesture, preserving click and
+  shift-click inspection selection.
+- **One finger** continues to orbit on touch devices.
+- **Spin** has no pole clamp, so it can turn through and beyond a full circle.
 - **Two fingers** pinch-zoom and pan together: the pinch distance change maps
   to a log-scale zoom (`zoom = ln(distance / previousDistance)`, so spreading
   zooms in) and the midpoint movement maps to a two-finger pan.
@@ -17,7 +25,7 @@ The demo's camera navigation is driven by unified pointer tracking in
 
 ## Gesture state machine
 
-`demo/camera-gestures.ts` exposes a pure, DOM-free `CameraGestureTracker` that
+`src/camera/gestures.ts` contains the pure, DOM-free `CameraGestureTracker` that
 turns pointer events into `GestureStep` deltas. It is unit-tested in
 `test/demo/camera-gestures.test.ts`:
 
@@ -52,6 +60,10 @@ Playwright's `touchscreen` API is single-touch only.
 
 - `touch-action: none` remains scoped to the canvas elements only, so the rest
   of the page keeps native scrolling.
+- Middle-button orbit asks `WebGpuRenderer.pickPoint` for the exact visible
+  surface point. Drag deltas wait for the asynchronous GPU readback, then apply
+  once around that point, so the camera never starts around a stale target and
+  switches pivots mid-gesture.
 - Pinch zoom currently uses the existing `zoomCamera` (target-anchored). The
   midpoint is used for the two-finger pan, which keeps the pinch feeling
   anchored; an exact screen-point-anchored zoom would need an
@@ -59,13 +71,10 @@ Playwright's `touchscreen` API is single-touch only.
 
 ## Related demo fixes
 
-- `WorkbenchController.resolve` scales CSS viewport coordinates into camera
-  pixel space (`camera.width`/`camera.height`) before picking. The projection
-  (and therefore `projectPoint` and `rayFromCamera`) works in the canvas
-  internal pixel space, so picking was misaligned whenever CSS scaled the
-  canvas — worst on phone-sized viewports, where most of the model was not
-  tappable. The scale is identity when `camera.width` already tracks the CSS
-  size (after a window resize), so it is correct in both modes.
+- The demo initializes and refits the camera from the canvas CSS rectangle,
+  matching the CSS-local coordinates accepted by renderer picking. The WebGPU
+  drawing buffer can therefore scale independently for device pixel ratio
+  without moving the picked rotation point away from the cursor.
 - `visibilityToggle` now takes an explicit part/assembly kind instead of
   inferring it from `scene.parts.has(id)`: gallery part 1 collides with the
   root assembly id 1, which previously mislabeled the assembly checkbox as

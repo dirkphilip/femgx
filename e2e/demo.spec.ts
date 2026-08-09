@@ -52,8 +52,6 @@ test("lists the bolted assembly hierarchy in the visibility panel", async ({ pag
     "Bolted joint",
     "Plate stack",
     "Fasteners",
-    "Fastener 1",
-    "Fastener 8",
     "Steel plates",
     "Bolts",
     "Washers",
@@ -84,7 +82,7 @@ test("renders the bolted showcase with distinct part colors and a screenshot", a
 test("switches between deterministic model presets", async ({ page }) => {
   await page.goto("/");
   const select = page.getByTestId("model-select");
-  await expect(select.locator("option")).toHaveCount(4);
+  await expect(select.locator("option")).toHaveCount(5);
   await expect(select).toHaveValue("bolted");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "bolted");
 
@@ -173,22 +171,22 @@ test("keeps part and assembly visibility controls in separate namespaces", async
 
 test("collapses and expands assembly rows in the visibility tree", async ({ page }) => {
   await page.goto("/");
-  // The bolted tree starts fully expanded, so Fasteners shows its subassemblies.
+  // The bolted tree starts fully expanded, so Fasteners shows its component controls.
   const fasteners = page.getByTestId("assembly-expand-3");
   await expect(fasteners).toHaveAttribute("aria-expanded", "true");
-  const firstFastener = page.getByTestId("assembly-vis-4");
-  await expect(firstFastener).toBeVisible();
+  const bolts = page.getByTestId("part-vis-4");
+  await expect(bolts).toBeVisible();
 
   // Collapsing Fasteners hides its subtree but keeps the parent row reachable.
   await fasteners.click();
   await expect(fasteners).toHaveAttribute("aria-expanded", "false");
-  await expect(firstFastener).toBeHidden();
+  await expect(bolts).toBeHidden();
   await expect(page.getByTestId("assembly-vis-3")).toBeVisible();
 
   // Expanding restores the subtree.
   await fasteners.click();
   await expect(fasteners).toHaveAttribute("aria-expanded", "true");
-  await expect(firstFastener).toBeVisible();
+  await expect(bolts).toBeVisible();
 });
 
 test("exposes the assembly context and distinct identity kinds in the tree", async ({ page }) => {
@@ -497,11 +495,11 @@ test("keeps selection stable across repeated orbit interactions", async ({ page 
   const centerY = box.y + box.height / 2;
   for (let turn = 0; turn < 3; turn++) {
     await page.mouse.move(centerX, centerY);
-    await page.mouse.down();
+    await page.mouse.down({ button: "middle" });
     for (let step = 0; step < 24; step++) {
       await page.mouse.move(centerX + step * 2, centerY + step);
     }
-    await page.mouse.up();
+    await page.mouse.up({ button: "middle" });
   }
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-renderer", "webgpu");
   await expect.poll(() => dataset(page, "selected"), { timeout: 5000 }).toBe(selected);

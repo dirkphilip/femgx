@@ -3,505 +3,453 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>femgx demo</title>
+    <title>femgx · inspection</title>
     <style>
       :root {
-        color-scheme: light;
+        color-scheme: dark;
         font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-        background: #eef1f4;
-        color: #26313c;
+        background: #08111f;
+        color: #e7edf5;
+      }
+      * {
+        box-sizing: border-box;
       }
       body {
         margin: 0;
+        min-width: 320px;
         min-height: 100vh;
-        color: #e2e8f0;
+        overflow: hidden;
       }
-      main {
-        max-width: 1100px;
-        margin: 0 auto;
-        padding: 20px;
-        box-sizing: border-box;
-      }
-      header {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 12px;
-      }
-      h1 {
-        margin: 0;
-        font-size: 17px;
-        letter-spacing: 0.02em;
-        font-weight: 650;
-      }
-      h2 {
-        margin: 0 0 8px;
-        font-size: 14px;
-        letter-spacing: 0.04em;
-        color: #cbd5e1;
-      }
-      .controls {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px;
-        justify-content: flex-end;
-      }
-      .control-group {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        padding: 3px;
-        border: 1px solid #d7dee6;
-        border-radius: 9px;
-        background: #f8fafc;
-      }
-      .control-label {
-        padding: 0 3px 0 5px;
-        color: #475569;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.03em;
-        text-transform: uppercase;
-        white-space: nowrap;
-      }
+      button,
       select,
-      button {
-        box-sizing: border-box;
-        border: 1px solid #c8d0d9;
+      input {
+        font: inherit;
+      }
+      button,
+      select {
+        border: 1px solid #34445c;
         border-radius: 7px;
-        padding: 7px 11px;
-        color: #344250;
-        background: #ffffff;
+        padding: 7px 10px;
+        color: #dbe7f5;
+        background: #172438;
         cursor: pointer;
-        box-shadow: 0 1px 1px #1f29370d;
-        touch-action: manipulation;
       }
       button:hover,
       select:hover {
-        background: #dbeafe;
-        color: #172033;
+        background: #223550;
       }
       button:focus-visible,
       select:focus-visible {
-        outline: 2px solid #2563eb;
+        outline: 2px solid #60a5fa;
         outline-offset: 2px;
       }
       button[data-active="true"] {
-        border-color: #1d4ed8;
-        background: #1d4ed8;
-        color: #ffffff;
-        box-shadow:
-          inset 0 0 0 1px #93c5fd,
-          0 2px 4px #1d4ed833;
+        border-color: #60a5fa;
+        color: #fff;
+        background: #2563eb;
       }
-      button[data-active="true"]:hover {
-        border-color: #1e40af;
-        background: #1e40af;
-        color: #ffffff;
-      }
-      button:disabled {
-        color: #64748b;
-        cursor: default;
-        opacity: 0.7;
-      }
-      button:disabled:hover {
-        background: #ffffff;
-      }
-      .toggle-label {
-        padding: 3px 7px;
-        border: 1px solid #cbd5e1;
-        border-radius: 999px;
-        color: #475569;
-        background: #f1f5f9;
-        font-size: 11px;
-        font-weight: 700;
-        line-height: 1.2;
-      }
-      .toggle-label[data-state="on"] {
-        border-color: #38bdf8;
-        color: #075985;
-        background: #e0f2fe;
-      }
-      .render-mode-help {
-        color: #64748b;
-        font-size: 12px;
-        line-height: 1.45;
-        margin-top: 9px;
-      }
-      #status {
-        color: #647384;
-        font-size: 13px;
-        margin-top: 8px;
-      }
-      .viewport {
-        position: relative;
-        overflow: hidden;
-        border: 1px solid #cbd3db;
-        border-radius: 12px;
-        box-shadow:
-          0 18px 40px #44515f1f,
-          0 2px 5px #44515f12;
-      }
-      canvas {
-        display: block;
-        width: 100%;
-        height: auto;
-        background: #e8edf1;
-        touch-action: none;
-      }
-      .help {
-        color: #73808d;
-        font-size: 12px;
-        margin-top: 10px;
-      }
-      .columns {
+      .app {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 14px;
-        margin-top: 20px;
+        grid-template-columns: 288px minmax(0, 1fr);
+        height: 100vh;
       }
-      .panel {
-        border: 1px solid #263551;
-        border-radius: 10px;
-        padding: 12px;
-        background: #0f172a;
+      .sidebar {
+        display: flex;
+        min-height: 0;
+        flex-direction: column;
+        border-right: 1px solid #223149;
+        background: #0d1828;
       }
-      .panel pre {
+      .brand {
+        padding: 18px 18px 14px;
+        border-bottom: 1px solid #223149;
+      }
+      h1 {
         margin: 0;
-        font-size: 12px;
-        line-height: 1.5;
-        color: #94a3b8;
-        white-space: pre-wrap;
+        font-size: 15px;
+        letter-spacing: 0.07em;
+        font-weight: 750;
       }
-      .visibility-context {
-        color: #64748b;
+      .subtitle {
+        margin: 5px 0 0;
+        color: #8ea3bd;
         font-size: 11px;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
-        margin-bottom: 6px;
+        letter-spacing: 0.08em;
       }
-      .visibility-branch {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
+      .sidebar-heading {
+        margin: 16px 18px 9px;
+        color: #91a6c1;
+        font-size: 11px;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
       }
-      .visibility-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        min-height: 26px;
+      #visibility-panel {
+        overflow: auto;
+        padding: 0 14px 18px;
       }
-      .visibility-row label {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex: 1;
-        min-width: 0;
-        color: #cbd5e1;
-        cursor: pointer;
+      .visibility-context {
+        margin: 0 4px 8px;
+        color: #7890ad;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
-      .visibility-row input {
-        accent-color: #3b82f6;
-        flex: none;
-      }
+      .visibility-branch,
       .visibility-children {
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        margin-left: 8px;
+        gap: 3px;
+      }
+      .visibility-children {
+        margin-left: 10px;
         padding-left: 8px;
-        border-left: 1px solid #263551;
+        border-left: 1px solid #263a55;
       }
       .visibility-children[hidden] {
         display: none;
       }
-      .visibility-expander {
-        flex: none;
-        display: inline-flex;
+      .visibility-row {
+        display: flex;
         align-items: center;
-        justify-content: center;
-        width: 24px;
-        height: 24px;
+        gap: 5px;
+        min-height: 28px;
+      }
+      .visibility-row label {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        align-items: center;
+        gap: 6px;
+        color: #d5dfeb;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .visibility-row input {
+        accent-color: #3b82f6;
+      }
+      .visibility-expander,
+      .visibility-spacer {
+        flex: 0 0 22px;
+        width: 22px;
+        height: 22px;
         padding: 0;
         border: 0;
+        color: #9db1c8;
         background: transparent;
-        border-radius: 6px;
-        color: #94a3b8;
-        cursor: pointer;
       }
       .visibility-expander:hover {
-        background: #1e293b;
-        color: #e2e8f0;
-      }
-      .visibility-spacer {
-        flex: none;
-        width: 24px;
+        background: #1c2d45;
       }
       .visibility-kind {
-        flex: none;
-        color: #64748b;
-        font-size: 10px;
+        color: #738aa6;
+        font-size: 9px;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
       }
       .visibility-assembly .visibility-kind {
-        color: #38bdf8;
-      }
-      .visibility-part .visibility-kind {
-        color: #94a3b8;
+        color: #61b5ff;
       }
       .visibility-label {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+      .scene {
+        position: relative;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        background: #e8edf1;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: #e8edf1;
+        touch-action: none;
+      }
+      .toolbar {
+        position: absolute;
+        z-index: 5;
+        top: 14px;
+        left: 14px;
+        right: 14px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        pointer-events: none;
+      }
+      .toolbar > * {
+        pointer-events: auto;
+      }
+      .control-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px;
+        border: 1px solid #34445c;
+        border-radius: 9px;
+        background: #111d2ddd;
+        backdrop-filter: blur(8px);
+      }
+      .control-label {
+        padding: 0 3px 0 5px;
+        color: #a7b8cc;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .toggle-label {
+        padding: 3px 7px;
+        border: 1px solid #334860;
+        border-radius: 999px;
+        color: #a8bbd0;
+        background: #18263a;
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .toggle-label[data-state="on"] {
+        border-color: #2188da;
+        color: #cbeeff;
+        background: #0b4c75;
+      }
+      .hud {
+        position: absolute;
+        z-index: 4;
+        right: 14px;
+        border: 1px solid #2c405a;
+        border-radius: 9px;
+        background: #0b1728df;
+        box-shadow: 0 10px 30px #06101ea8;
+        backdrop-filter: blur(8px);
+      }
+      #performance-overlay {
+        position: absolute;
+        z-index: 4;
+        right: 14px;
+        top: 88px;
+        min-width: 160px;
+        border: 1px solid #2c405a;
+        border-radius: 9px;
+        padding: 10px 12px;
+        color: #e5edf8;
+        background: #0b1728df;
+        box-shadow: 0 10px 30px #06101ea8;
+        backdrop-filter: blur(8px);
+        font-size: 12px;
+        line-height: 1.55;
+        white-space: pre-line;
+      }
+      .inspection {
+        bottom: 14px;
+        width: min(330px, calc(100% - 28px));
+        padding: 10px 12px;
+      }
+      .inspection h2 {
+        margin: 0 0 6px;
+        color: #93a9c3;
+        font-size: 10px;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+      .inspection pre,
+      #stats-panel {
+        margin: 0;
+        color: #d5e0ee;
+        font:
+          12px/1.5 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        white-space: pre-wrap;
+      }
+      #status {
+        position: absolute;
+        z-index: 4;
+        bottom: 15px;
+        left: 15px;
+        max-width: calc(100% - 380px);
+        color: #d8e1eb;
+        font-size: 12px;
+        text-shadow: 0 1px 2px #09111c;
+      }
       .context-menu {
         position: fixed;
         z-index: 50;
-        box-sizing: border-box;
         min-width: 220px;
         max-width: calc(100vw - 16px);
         max-height: calc(100vh - 16px);
         overflow-y: auto;
-        background: #111827;
-        border: 1px solid #475569;
+        border: 1px solid #475d79;
         border-radius: 8px;
         padding: 6px;
+        background: #101d2e;
         box-shadow: 0 16px 48px #000c;
       }
       .context-menu button {
         display: block;
         width: 100%;
-        text-align: left;
         border: 0;
         background: transparent;
-        border-radius: 6px;
-        padding: 7px 10px;
-        color: #e2e8f0;
-        font-size: 13px;
+        text-align: left;
         box-shadow: none;
       }
       .context-menu button:hover {
-        color: #ffffff;
-        background: #334155;
-      }
-      .context-menu button:disabled {
-        color: #64748b;
-        cursor: default;
-        opacity: 0.7;
-      }
-      .context-menu button:disabled:hover {
-        background: transparent;
+        background: #263a56;
       }
       .context-menu .menu-section {
         margin: 4px 0;
-        border-top: 1px solid #263551;
+        border-top: 1px solid #263a55;
         padding-top: 4px;
       }
       .context-menu .menu-title {
-        color: #94a3b8;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
         padding: 4px 10px 2px;
+        color: #93a9c3;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
-      section + section {
-        margin-top: 28px;
+      #stats-panel {
+        display: none;
       }
-      label.scale {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: #687684;
-        font-size: 13px;
-      }
-      #results-status {
-        color: #687684;
-        font-size: 13px;
-        margin-top: 8px;
-      }
-      @media (max-width: 900px) {
-        .columns {
+      @media (max-width: 720px) {
+        body {
+          overflow: auto;
+        }
+        .app {
           grid-template-columns: 1fr;
+          grid-template-rows: minmax(480px, 72vh) auto;
+          height: auto;
+          min-height: 100vh;
         }
-      }
-      @media (max-width: 480px) {
-        main {
-          padding: 12px;
+        .scene {
+          grid-row: 1;
+          min-height: 480px;
         }
-        header {
-          flex-direction: column;
-          align-items: stretch;
+        .sidebar {
+          grid-row: 2;
+          border-top: 1px solid #223149;
+          border-right: 0;
         }
-        .controls {
-          justify-content: flex-start;
+        .brand {
+          padding: 13px 16px;
+        }
+        #visibility-panel {
+          max-height: 300px;
+        }
+        .toolbar {
+          top: 8px;
+          left: 8px;
+          right: 8px;
         }
         select,
         button {
           min-height: 44px;
-          padding: 10px 12px;
-          font-size: 14px;
         }
-        #model-select {
-          width: 100%;
+        .toolbar .control-group:nth-of-type(n + 3),
+        #depth-test-label,
+        #depth-test,
+        #node-overlay-label,
+        #node-overlay {
+          display: none;
         }
-        .columns {
-          gap: 10px;
+        #performance-overlay {
+          top: 92px;
+          right: 8px;
         }
-        .panel {
-          padding: 10px;
+        .inspection {
+          display: none;
         }
-        .visibility-row {
-          min-height: 44px;
-        }
-        label.scale {
-          width: 100%;
-        }
-        #results-scale {
-          flex: 1 1 auto;
-          min-width: 0;
+        #status {
+          bottom: 9px;
+          left: 9px;
+          max-width: calc(100% - 18px);
+          font-size: 11px;
         }
       }
     </style>
   </head>
   <body>
-    <main>
-      <header>
-        <h1>FEMGX · FE model inspection workbench</h1>
-        <div class="controls">
+    <main class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>FEMGX</h1>
+          <p class="subtitle">FE inspection</p>
+        </div>
+        <h2 class="sidebar-heading">Visibility</h2>
+        <div id="visibility-panel" data-testid="visibility-panel"></div>
+      </aside>
+      <section class="scene" aria-label="Model scene">
+        <canvas id="view" data-testid="view-canvas" width="800" height="600"></canvas>
+        <div class="toolbar">
           <span id="renderer-status" data-testid="renderer-status" class="toggle-label"></span>
           <select id="model-select" data-testid="model-select" aria-label="Model"></select>
-          <button id="fit-view" data-testid="fit-view" type="button">Fit to view</button>
-          <div class="control-group" title="Choose perspective or orthographic camera projection.">
+          <button id="fit-view" data-testid="fit-view" type="button">Fit</button>
+          <div class="control-group">
             <span id="projection-label" data-testid="projection-label" class="control-label"
               >Perspective</span
-            >
-            <button id="projection-toggle" data-testid="projection-toggle" type="button">
+            ><button id="projection-toggle" data-testid="projection-toggle" type="button">
               Orthographic
             </button>
           </div>
-          <div
-            class="control-group"
-            title="Add actual finite-element edges to the current surface mode."
-          >
+          <div class="control-group">
             <span
               id="edge-overlay-label"
               data-testid="edge-overlay-label"
               class="toggle-label"
               data-state="off"
               >Off</span
+            ><button
+              id="edge-overlay"
+              data-testid="edge-overlay"
+              type="button"
+              aria-pressed="false"
             >
-            <button id="edge-overlay" data-testid="edge-overlay" type="button" aria-pressed="false">
               Overlay edges
             </button>
           </div>
-          <div class="control-group" title="Hide overlay edges that are behind nearer surfaces.">
+          <div class="control-group">
             <span
               id="depth-test-label"
               data-testid="depth-test-label"
               class="toggle-label"
               data-state="on"
               >On</span
-            >
-            <button id="depth-test" data-testid="depth-test" type="button" aria-pressed="true">
+            ><button id="depth-test" data-testid="depth-test" type="button" aria-pressed="true">
               Depth test off
             </button>
           </div>
-          <div class="control-group" title="Show a small circle at every finite-element node.">
+          <div class="control-group">
             <span
               id="node-overlay-label"
               data-testid="node-overlay-label"
               class="toggle-label"
               data-state="off"
               >Off</span
+            ><button
+              id="node-overlay"
+              data-testid="node-overlay"
+              type="button"
+              aria-pressed="false"
             >
-            <button id="node-overlay" data-testid="node-overlay" type="button" aria-pressed="false">
-              Show element nodes
+              Show nodes
             </button>
           </div>
-          <span
-            class="control-label"
-            title="The demo displays solid element faces; use Overlay edges to add actual element edges."
-            >Solid</span
-          >
           <button id="reset" data-testid="reset" type="button">Reset</button>
         </div>
-      </header>
-      <div class="viewport">
-        <canvas id="view" data-testid="view-canvas" width="800" height="600"></canvas>
-      </div>
-      <div id="status" data-testid="status"></div>
-      <div class="render-mode-help">
-        Solid shows every element face · Overlay edges adds actual element edges · Depth test hides
-        edges behind surfaces · Show element nodes adds small node circles
-      </div>
-      <div class="help">
-        Drag to orbit · Shift-drag to pan · Scroll to zoom · Pinch to zoom · Two-finger drag to pan
-        · Click to inspect the most specific hit (node → face → element) · Shift-click element ·
-        Alt-click instance · Ctrl-click part · Right-click for the inspection menu
-      </div>
-      <section class="columns">
-        <section class="panel">
-          <h2>Visibility</h2>
-          <div id="visibility-panel" data-testid="visibility-panel"></div>
-        </section>
-        <section class="panel">
+        <div id="performance-overlay" data-testid="performance-overlay">Measuring frame rate…</div>
+        <div class="hud inspection">
           <h2>Inspection</h2>
           <pre id="inspection-panel" data-testid="inspection-panel"></pre>
-        </section>
-        <section class="panel">
-          <h2>Stats</h2>
-          <pre id="stats-panel" data-testid="stats-panel"></pre>
-        </section>
+        </div>
+        <div id="status" data-testid="status"></div>
+        <pre id="stats-panel" data-testid="stats-panel"></pre>
       </section>
       <div id="context-menu" class="context-menu" data-testid="context-menu" hidden></div>
-      <section>
-        <header>
-          <h2>Results · deformation and scalar visualization</h2>
-          <div class="controls">
-            <button id="results-play-toggle" data-testid="results-play-toggle" type="button">
-              Play
-            </button>
-            <button id="results-case-toggle" data-testid="results-case-toggle" type="button">
-              Case: bending
-            </button>
-            <button
-              id="results-deformed-toggle"
-              data-testid="results-deformed-toggle"
-              type="button"
-            >
-              Deformed
-            </button>
-            <button id="results-scalar-toggle" data-testid="results-scalar-toggle" type="button">
-              Scalar: off
-            </button>
-            <label class="scale">
-              Deformation scale
-              <input
-                id="results-scale"
-                data-testid="results-scale"
-                type="range"
-                min="0"
-                max="2"
-                step="0.05"
-                value="1"
-              />
-            </label>
-          </div>
-        </header>
-        <div class="viewport">
-          <canvas
-            id="results-canvas"
-            data-testid="results-canvas"
-            width="800"
-            height="600"
-          ></canvas>
-        </div>
-        <div id="results-status" data-testid="results-status"></div>
-      </section>
     </main>
     <script type="module" src="/demo/main.ts"></script>
   </body>

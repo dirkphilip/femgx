@@ -19,6 +19,10 @@ controller, so camera and interaction behavior is stable
   node/face picking and emphasis), a part theme, per-mode part visibility, and
   overall bounds. The demo's model `<select>` switches presets without editing
   source.
+- `demo/performance-fixture.ts` owns a demo-only stress scenario rather than
+  extending the library: one generated 128 × 128 shell is instanced 64 times
+  for exactly 2,097,152 triangles. The live scene overlay reports total
+  triangles, sampled frame rate, and draw batches from the normal WebGPU path.
 
 ## GPU picking
 
@@ -61,9 +65,19 @@ controller, so camera and interaction behavior is stable
   ([[architecture/demo-library-boundary|Demo / library boundary]]).
 - Display toggles (edges, diagnostics) flip renderer state only; they never
   rebuild reusable geometry or drop selection state. The `edges` overlay is a
-  real WebGPU pass with a depth-test control that stays live
+  real WebGPU pass with a depth-test control that stays live. Coplanar overlay
+  edges are offset in clip space in their vertex shader, rather than using a
+  second surface or a backend-dependent pipeline depth bias. Shell triangles
+  are two-sided by default, so a genuine 2D FE surface remains visible from
+  either side
   ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
-- The control bar shows the active renderer in a `#renderer-status` chip next
+- Part rows with multiple placements expose a collapsed `Instance` list. Each
+  instance checkbox updates that one runtime slot, preserving the ability to
+  hide or restore individual placements without expanding the assembly model.
+- The full-screen layout keeps the hierarchical visibility tree in a left rail;
+  the WebGPU canvas owns the remaining space. Inspection and telemetry are
+  compact scene overlays, so there is no separate CPU-canvas results renderer.
+  The control bar shows the active renderer in a `#renderer-status` chip next
   to the model selector.
 - The controller exposes a `rendererState` note (e.g. `recovered`) that the
   status line shows after a GPU device loss; the WebGPU demo path recovers the
@@ -72,12 +86,11 @@ controller, so camera and interaction behavior is stable
 
 ## Mobile / responsive layout
 
-The demo layout is responsive at phone widths (`index.html`): below 480px the
-top toolbar and results header stack vertically, primary controls get a 44px
-touch target, the model selector spans the full row, and the results scale
-slider fills its row. The `@media (max-width: 900px)` rule already collapses
-the visibility/inspection/stats panels into a single column. The right-click
-context menu clamps its position inside the viewport (see
+The demo layout is responsive at phone widths (`index.html`): the scene keeps
+the top portion of the viewport while the visibility rail moves below it;
+secondary toolbar controls and the inspection overlay are hidden, and the
+remaining primary controls get 44px touch targets. The right-click context
+menu clamps its position inside the viewport (see
 `WorkbenchController.clampMenuToViewport` in `demo/controller.ts`) so it never
 opens past the right or bottom edge.
 

@@ -87,17 +87,7 @@ test("keeps primary controls reachable and touch-sized on a phone", async ({ pag
   await page.goto("/");
   const viewportWidth = await page.evaluate(() => window.innerWidth);
 
-  for (const testId of [
-    "model-select",
-    "fit-view",
-    "projection-toggle",
-    "edge-overlay",
-    "reset",
-    "results-play-toggle",
-    "results-case-toggle",
-    "results-deformed-toggle",
-    "results-scalar-toggle",
-  ]) {
+  for (const testId of ["model-select", "fit-view", "projection-toggle", "edge-overlay", "reset"]) {
     const control = page.getByTestId(testId);
     await expect(control).toBeVisible();
     const box = await control.boundingBox();

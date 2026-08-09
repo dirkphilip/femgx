@@ -64,6 +64,34 @@ function buildScene(): Scene {
     .build();
 }
 
+function buildFaceScene(): Scene {
+  const positions = new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]);
+  const geometry = {
+    positions,
+    indices: new Uint32Array([0, 1, 2]),
+    nodePositions: positions,
+    faces: [
+      {
+        id: 0,
+        elementId: 0,
+        faceIndex: 0,
+        key: "0:1:2",
+        nodeIds: [0, 1, 2],
+        neighborElementIds: [],
+      },
+    ],
+  };
+  return createScene()
+    .addPart({ id: 1, geometry, bounds: computeBounds(geometry) })
+    .addAssembly({
+      id: 1,
+      name: "root",
+      placements: [{ kind: "part", partId: 1, transform: identity() }],
+    })
+    .withRoot(1)
+    .build();
+}
+
 const camera: Camera = {
   mode: "perspective",
   position: [3, 3, 5],
@@ -103,7 +131,7 @@ describe("WebGPU renderer", () => {
       { indexCount: 3, instanceCount: 3 },
     ]);
     expect(gpu.textureCreations).toBe(6);
-    expect(gpu.bindGroupCreations).toBe(2);
+    expect(gpu.bindGroupCreations).toBe(4);
     await expect(renderer.pick(400, 300)).resolves.toEqual({ kind: "instance", instanceId: "1/0" });
     renderer.resize(400, 300);
     renderer.destroy();
@@ -112,6 +140,20 @@ describe("WebGPU renderer", () => {
     expect(() => {
       renderer.render(runtime, camera, scene.parts);
     }).toThrow("destroyed");
+  });
+
+  it("resolves a visible face pixel to an exact world-space point", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice({ pickValue: 1, elementPickValue: 1, facePickValue: 1 });
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildFaceScene();
+    const runtime = createSceneRuntime(scene);
+    const faceCamera = { ...camera, position: [0, 0, 5] as const, target: [0, 0, 0] as const };
+    renderer.render(runtime, faceCamera, scene.parts);
+
+    await expect(renderer.pickPoint(faceCamera, 400, 300)).resolves.toEqual([0, 0, 0]);
+    renderer.destroy();
   });
 
   it("patches only the affected GPU subranges from packed deltas", async () => {

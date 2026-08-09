@@ -65,25 +65,17 @@ export function setProjection(camera: Camera, mode: ProjectionMode): Camera {
   };
 }
 
-/** Orbits around the target in radians, clamping pitch before the poles. */
-export function orbitCamera(camera: Camera, yawDelta: number, pitchDelta: number): Camera {
-  const offset = subtract(camera.position, camera.target);
-  const distance = length(offset);
-  const yaw = Math.atan2(offset[0], offset[2]) + yawDelta;
-  const pitch = clamp(
-    Math.asin(offset[1] / distance) + pitchDelta,
-    -Math.PI / 2 + 0.01,
-    Math.PI / 2 - 0.01,
-  );
-  const horizontal = Math.cos(pitch) * distance;
-  return {
-    ...camera,
-    position: [
-      camera.target[0] + Math.sin(yaw) * horizontal,
-      camera.target[1] + Math.sin(pitch) * distance,
-      camera.target[2] + Math.cos(yaw) * horizontal,
-    ],
-  };
+/**
+ * Orbits in radians around the target, or around an explicit world-space
+ * pivot. Rotation is continuous through the poles instead of clamping pitch.
+ */
+export function orbitCamera(
+  camera: Camera,
+  yawDelta: number,
+  pitchDelta: number,
+  pivot?: Vec3,
+): Camera {
+  return orbitAroundPivot(camera, yawDelta, pitchDelta, pivot ?? camera.target);
 }
 
 /** Pans the camera in view-plane world units. */
@@ -100,12 +92,16 @@ export function zoomCamera(camera: Camera, amount: number): Camera {
   if (camera.mode === "orthographic") {
     return {
       ...camera,
-      orthoHeight: clamp(camera.orthoHeight * Math.exp(amount), 0.01, camera.far),
+      orthoHeight: clamp(camera.orthoHeight * Math.exp(amount), 0.000001, camera.far),
     };
   }
   const offset = subtract(camera.position, camera.target);
-  const distance = clamp(length(offset) * Math.exp(amount), camera.near * 2, camera.far / 2);
-  return { ...camera, position: add(camera.target, scale(normalize(offset), distance)) };
+  const distance = clamp(length(offset) * Math.exp(amount), 0.000001, camera.far / 2);
+  return {
+    ...camera,
+    near: Math.min(camera.near, distance / 1000),
+    position: add(camera.target, scale(normalize(offset), distance)),
+  };
 }
 
 /** Returns the column-major view matrix. */
@@ -259,6 +255,32 @@ function length(vector: Vec3): number {
 function normalize(vector: Vec3): Vec3 {
   const magnitude = length(vector);
   return magnitude === 0 ? [0, 0, 1] : scale(vector, 1 / magnitude);
+}
+
+/** Rotates both eye and look target around a picked point without an initial jump. */
+function orbitAroundPivot(camera: Camera, yaw: number, pitch: number, pivot: Vec3): Camera {
+  const yawedPosition = rotateAround(camera.position, pivot, camera.up, yaw);
+  const yawedTarget = rotateAround(camera.target, pivot, camera.up, yaw);
+  const forward = normalize(subtract(yawedTarget, yawedPosition));
+  const right = normalize(cross(forward, camera.up));
+  return {
+    ...camera,
+    position: rotateAround(yawedPosition, pivot, right, pitch),
+    target: rotateAround(yawedTarget, pivot, right, pitch),
+  };
+}
+
+/** Rodrigues rotation of a point around an axis through a pivot. */
+function rotateAround(point: Vec3, pivot: Vec3, axis: Vec3, angle: number): Vec3 {
+  const vector = subtract(point, pivot);
+  const unitAxis = normalize(axis);
+  const cosine = Math.cos(angle);
+  const sine = Math.sin(angle);
+  const rotated = add(
+    add(scale(vector, cosine), scale(cross(unitAxis, vector), sine)),
+    scale(unitAxis, dot(unitAxis, vector) * (1 - cosine)),
+  );
+  return add(pivot, rotated);
 }
 
 function clamp(value: number, min: number, max: number): number {

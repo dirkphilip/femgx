@@ -54,6 +54,7 @@ export async function startWebGpuDemo(
    * state, so the baseline resets to empty when the attachment is rebuilt.
    */
   let appliedInteraction: InteractionState = createInteractionState();
+  let animationFrame: number | undefined;
 
   /** Shows the explicit unsupported/error message on the demo's status line. */
   const reportUnsupported = (message: string): void => {
@@ -118,12 +119,22 @@ export async function startWebGpuDemo(
       if (gpuRenderer === undefined || gpuRenderer.lost) return undefined;
       return gpuRenderer.pick(x, y, granularity);
     },
+    pickPoint: async (camera, x, y) => {
+      if (gpuRenderer === undefined || gpuRenderer.lost) return undefined;
+      return gpuRenderer.pickPoint(camera, x, y);
+    },
+    setOrbitPivot: (pivot) => {
+      if (gpuRenderer !== undefined && !gpuRenderer.lost) gpuRenderer.setOrbitPivot(pivot);
+    },
     stats: (active): RendererStats => {
       const stats = gpuRenderer?.stats();
       return {
         visibleInstances: active.runtime.visibleCount,
         batches: stats?.drawBatches ?? 0,
       };
+    },
+    resize: () => {
+      gpuRenderer?.resize();
     },
   };
 
@@ -173,10 +184,39 @@ export async function startWebGpuDemo(
     return undefined;
   }
 
+  startPerformanceLoop();
+
   window.addEventListener("pagehide", () => {
+    if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
     gpuRenderer?.destroy();
     gpuRenderer = undefined;
   });
+
+  /** Continuously measures the normal render path without a benchmark-only renderer. */
+  function startPerformanceLoop(): void {
+    if (typeof requestAnimationFrame === "undefined") return;
+    let frameCount = 0;
+    let sampleStart = performance.now();
+    const frame = (now: number): void => {
+      if (gpuRenderer !== undefined && !gpuRenderer.lost) {
+        renderFrame(gpuRenderer, canvas, controller, controller.interaction, appliedInteraction);
+        appliedInteraction = controller.interaction;
+        frameCount += 1;
+      }
+      const elapsed = now - sampleStart;
+      if (elapsed >= 500) {
+        const fps = (frameCount * 1000) / elapsed;
+        view.performanceOverlay.textContent =
+          `Triangles  ${formatCount(controller.totalTriangleCount())}\n` +
+          `FPS        ${fps.toFixed(1)}\n` +
+          `Batches    ${gpuRenderer?.stats().drawBatches ?? 0}`;
+        frameCount = 0;
+        sampleStart = now;
+      }
+      animationFrame = requestAnimationFrame(frame);
+    };
+    animationFrame = requestAnimationFrame(frame);
+  }
 
   /**
    * Explicit lifecycle seam used by the e2e lane to exercise clean teardown,
@@ -222,4 +262,8 @@ export async function startWebGpuDemo(
   };
 
   return controller;
+}
+
+function formatCount(value: number): string {
+  return new Intl.NumberFormat("en-US").format(value);
 }

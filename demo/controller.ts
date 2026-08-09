@@ -2,6 +2,7 @@ import {
   createCamera,
   createInteractionState,
   createSceneRuntime,
+  installCameraControls,
   resizeCamera,
   setElementOverride,
   setElementSelected,
@@ -21,6 +22,8 @@ import {
   setProjection,
   type AssemblyId,
   type Camera,
+  type CameraNavigationTarget,
+  type CameraRef,
   type Color,
   type ElementId,
   type ElementRef,
@@ -37,11 +40,11 @@ import {
   visiblePartIdsForPreset,
   type ModelPreset,
 } from "../src/fixture/presets";
-import { installCameraControls } from "./camera-controls";
 import { fitCamera } from "./fit";
 import { describePick } from "./inspect";
 import { selectTarget, targetKey, type SelectTarget } from "./pick";
-import { updateStatus, type CameraRef, type DemoView, type StatusInfo } from "./view";
+import { createPerformancePreset } from "./performance-fixture";
+import { updateStatus, type DemoView, type StatusInfo } from "./view";
 import { assemblyName, assemblySubtreeIds, assemblyVisibilityState } from "./visibility-tree";
 
 /** Current draw statistics reported by the active renderer. */
@@ -51,7 +54,7 @@ export interface RendererStats {
 }
 
 /** Renderer callbacks the workbench drives. */
-export interface RendererHooks {
+export interface RendererHooks extends CameraNavigationTarget {
   /** Draws one frame with the current interaction state. */
   readonly render: (controller: WorkbenchController, state: InteractionState) => void;
   /** Applies visibility changes and re-renders. */
@@ -68,6 +71,8 @@ export interface RendererHooks {
   ) => Promise<PickTarget | undefined>;
   /** Current draw statistics for the status bar. */
   readonly stats: (controller: WorkbenchController) => RendererStats;
+  /** Keeps the WebGPU attachment aligned with the CSS-sized full-screen canvas. */
+  readonly resize?: () => void;
 }
 
 /** Display toggles shared by the control bar and context menu. */
@@ -113,6 +118,7 @@ export class WorkbenchController {
   private readonly setEdgeDepthTest: ((enabled: boolean) => void) | undefined;
   private readonly setNodeOverlay: ((enabled: boolean) => void) | undefined;
   private readonly onDestroy: (() => void) | undefined;
+  private removeCameraControls: (() => void) | undefined;
   private readonly presets: readonly ModelPreset[];
   private readonly slotByInstanceId = new Map<InstanceId, number>();
   private readonly partIdByInstanceId = new Map<InstanceId, PartId>();
@@ -133,10 +139,16 @@ export class WorkbenchController {
     this.setEdgeDepthTest = options.setEdgeDepthTest;
     this.setNodeOverlay = options.setNodeOverlay;
     this.onDestroy = options.onDestroy;
-    this.presets = createModelPresets();
+    this.presets = [...createModelPresets(), createPerformancePreset()];
     this.preset = this.presets[0] ?? createEmptyPreset();
+    const viewport = this.canvas.getBoundingClientRect();
     this.cameraRef = {
-      camera: fitCamera(createCamera(), this.preset.bounds, this.canvas.width, this.canvas.height),
+      camera: fitCamera(
+        createCamera(),
+        this.preset.bounds,
+        Math.max(1, viewport.width),
+        Math.max(1, viewport.height),
+      ),
     };
     this.mode = "solid";
     this.toggles = {
@@ -166,11 +178,12 @@ export class WorkbenchController {
     this.mode = "solid";
     this.interaction = this.createPresetInteraction(preset);
     this.contextTarget = undefined;
+    const viewport = this.canvas.getBoundingClientRect();
     this.cameraRef.camera = fitCamera(
       this.cameraRef.camera,
       preset.bounds,
-      this.canvas.width,
-      this.canvas.height,
+      Math.max(1, viewport.width),
+      Math.max(1, viewport.height),
     );
     this.buildRuntime(preset);
     this.applyModeVisibility();
@@ -187,6 +200,7 @@ export class WorkbenchController {
     else if (this.mode === "edges") this.setEdges(false);
     this.applyModeVisibility(mode);
     this.mode = mode;
+    this.populateVisibilityPanel();
     this.canvas.dataset["mode"] = mode;
     this.render();
   }
@@ -282,6 +296,8 @@ export class WorkbenchController {
     if (this.disposed) return;
     this.disposed = true;
     this.pickGeneration += 1;
+    this.removeCameraControls?.();
+    this.removeCameraControls = undefined;
     this.onDestroy?.();
   }
 
@@ -333,6 +349,7 @@ export class WorkbenchController {
       this.setPreset(view.modelSelect.value);
     });
     window.addEventListener("resize", () => {
+      this.hooks.resize?.();
       const rect = view.canvas.getBoundingClientRect();
       this.cameraRef.camera = resizeCamera(this.cameraRef.camera, rect.width, rect.height);
       this.render();
@@ -345,6 +362,10 @@ export class WorkbenchController {
       if (partId !== undefined) this.setPartVisibility(Number(partId), target.checked);
       else if (assemblyId !== undefined) {
         this.setAssemblyVisibility(Number(assemblyId), target.checked);
+      } else {
+        const instanceSlot = target.dataset["instanceSlot"];
+        if (instanceSlot !== undefined)
+          this.setInstanceVisibility(Number(instanceSlot), target.checked);
       }
     });
     view.contextMenu.addEventListener("click", (event) => {
@@ -361,9 +382,10 @@ export class WorkbenchController {
 
   private installCanvasInteraction(): void {
     const canvas = this.canvas;
-    installCameraControls({
+    this.removeCameraControls = installCameraControls({
       canvas,
       cameraRef: this.cameraRef,
+      navigation: this.hooks,
       onGestureChange: (active) => {
         this.dragging = active;
         canvas.dataset["dragging"] = active ? "true" : "false";
@@ -639,6 +661,16 @@ export class WorkbenchController {
     this.render();
   }
 
+  /** Applies a visibility override to one placement from the expanded component tree. */
+  private setInstanceVisibility(slot: number, visible: boolean): void {
+    const delta = this.runtime.setInstanceVisible(slot, visible);
+    if (delta.changedInstanceIds.length > 0) {
+      this.hooks.applyVisibility(this, this.interaction, delta.changedInstanceIds);
+    }
+    this.syncVisibilityPanel();
+    this.render();
+  }
+
   private setAssemblyVisibility(assemblyId: AssemblyId, visible: boolean): void {
     const changed = new Set<number>();
     for (const id of assemblySubtreeIds(this.preset.scene.assemblies, assemblyId)) {
@@ -672,6 +704,12 @@ export class WorkbenchController {
         const state = assemblyVisibilityState(this.runtime, Number(assemblyId));
         input.checked = state === "checked";
         input.indeterminate = state === "mixed";
+        continue;
+      }
+      const instanceSlot = input.dataset["instanceSlot"];
+      if (instanceSlot !== undefined) {
+        input.checked = this.runtime.isInstanceVisible(Number(instanceSlot));
+        input.indeterminate = false;
       }
     }
   }
@@ -715,12 +753,36 @@ export class WorkbenchController {
       `Model ${this.preset.name} (${this.preset.id})\n` +
       `Renderer ${this.rendererName}\n` +
       `Visible instances ${stats.visibleInstances}\n` +
+      `Visible triangles ${formatCount(this.visibleTriangleCount())}\n` +
       `Reusable parts ${this.preset.scene.parts.size}\n` +
       `Draw batches ${stats.batches}\n` +
       `Mode ${this.mode}\n` +
       `Selections ${this.selectedKeys().length}` +
       diagnostics
     );
+  }
+
+  /** Triangle count after runtime visibility, including every instance draw. */
+  private visibleTriangleCount(): number {
+    let triangles = 0;
+    for (let slot = 0; slot < this.runtime.instanceCount; slot++) {
+      if (!this.runtime.isInstanceVisible(slot)) continue;
+      const partId = this.runtime.instancePartIds[slot];
+      const part = partId === undefined ? undefined : this.preset.scene.parts.get(partId);
+      triangles += part === undefined ? 0 : Math.floor(part.geometry.indices.length / 3);
+    }
+    return triangles;
+  }
+
+  /** Total triangles authored by this preset, before temporary visibility changes. */
+  totalTriangleCount(): number {
+    let triangles = 0;
+    for (let slot = 0; slot < this.runtime.instanceCount; slot++) {
+      const partId = this.runtime.instancePartIds[slot];
+      const part = partId === undefined ? undefined : this.preset.scene.parts.get(partId);
+      triangles += part === undefined ? 0 : Math.floor(part.geometry.indices.length / 3);
+    }
+    return triangles;
   }
 
   private refreshSelectedDataset(): void {
@@ -776,7 +838,13 @@ export class WorkbenchController {
     context.dataset["testid"] = "visibility-context";
     context.textContent = `Assembly · ${assemblyName(this.preset.scene.assemblies.get(rootAssemblyId)) ?? `Assembly ${rootAssemblyId}`}`;
     panel.appendChild(context);
-    panel.appendChild(this.assemblyNode(rootAssemblyId, new Set<PartId>()));
+    panel.appendChild(
+      this.assemblyNode(
+        rootAssemblyId,
+        new Set<PartId>(),
+        visiblePartIdsForPreset(this.preset, this.mode),
+      ),
+    );
     this.syncVisibilityPanel();
   }
 
@@ -786,7 +854,11 @@ export class WorkbenchController {
    * beneath the first assembly that places it; assembly rows always reflect the
    * full scene hierarchy.
    */
-  private assemblyNode(assemblyId: AssemblyId, seenParts: Set<PartId>): HTMLElement {
+  private assemblyNode(
+    assemblyId: AssemblyId,
+    seenParts: Set<PartId>,
+    visibleParts: ReadonlySet<PartId>,
+  ): HTMLElement {
     const assembly = this.preset.scene.assemblies.get(assemblyId);
     const name = assemblyName(assembly) ?? `Assembly ${assemblyId}`;
     const branch = document.createElement("div");
@@ -805,13 +877,17 @@ export class WorkbenchController {
 
     const children = document.createElement("div");
     children.className = "visibility-children";
-    for (const placement of assembly?.placements ?? []) {
-      if (placement.kind === "part") {
-        if (seenParts.has(placement.partId)) continue;
-        seenParts.add(placement.partId);
-        children.appendChild(this.partNode(placement.partId));
-      } else {
-        children.appendChild(this.assemblyNode(placement.assemblyId, seenParts));
+    const repeatedParts = this.repeatedAssemblyPartIds(assemblyId, visibleParts);
+    if (repeatedParts !== undefined) {
+      this.appendPartNodes(children, repeatedParts, seenParts);
+    } else {
+      for (const placement of assembly?.placements ?? []) {
+        if (placement.kind === "part") {
+          if (!visibleParts.has(placement.partId)) continue;
+          this.appendPartNodes(children, [placement.partId], seenParts);
+        } else {
+          children.appendChild(this.assemblyNode(placement.assemblyId, seenParts, visibleParts));
+        }
       }
     }
     expander.addEventListener("click", () => {
@@ -824,8 +900,72 @@ export class WorkbenchController {
     return branch;
   }
 
+  /** Appends each active part once; non-active render-mode placements stay hidden. */
+  private appendPartNodes(
+    children: HTMLElement,
+    partIds: Iterable<PartId>,
+    seenParts: Set<PartId>,
+  ): void {
+    for (const partId of partIds) {
+      if (seenParts.has(partId)) continue;
+      seenParts.add(partId);
+      children.appendChild(this.partNode(partId));
+    }
+  }
+
+  /** Active part ids placed anywhere within an assembly subtree. */
+  private partIdsForAssembly(
+    assemblyId: AssemblyId,
+    visibleParts: ReadonlySet<PartId>,
+  ): Set<PartId> {
+    const result = new Set<PartId>();
+    const pending = [assemblyId];
+    const visited = new Set<AssemblyId>();
+    while (pending.length > 0) {
+      const current = pending.pop();
+      if (current === undefined || visited.has(current)) continue;
+      visited.add(current);
+      for (const placement of this.preset.scene.assemblies.get(current)?.placements ?? []) {
+        if (placement.kind === "part") {
+          if (visibleParts.has(placement.partId)) result.add(placement.partId);
+        } else {
+          pending.push(placement.assemblyId);
+        }
+      }
+    }
+    return result;
+  }
+
+  /** Collapses identical sibling subassemblies, such as the eight fasteners, into components. */
+  private repeatedAssemblyPartIds(
+    assemblyId: AssemblyId,
+    visibleParts: ReadonlySet<PartId>,
+  ): readonly PartId[] | undefined {
+    const placements = this.preset.scene.assemblies.get(assemblyId)?.placements ?? [];
+    if (placements.length < 2 || placements.some((placement) => placement.kind !== "assembly")) {
+      return undefined;
+    }
+    const assemblyPlacements = placements.filter(
+      (
+        placement,
+      ): placement is Extract<(typeof placements)[number], { readonly kind: "assembly" }> =>
+        placement.kind === "assembly",
+    );
+    const groups = assemblyPlacements.map((placement) =>
+      this.partIdsForAssembly(placement.assemblyId, visibleParts),
+    );
+    const first = groups[0];
+    if (first === undefined || first.size === 0) return undefined;
+    const identical = groups.every(
+      (group) => group.size === first.size && [...group].every((partId) => first.has(partId)),
+    );
+    return identical ? [...first].sort((a, b) => a - b) : undefined;
+  }
+
   /** Builds one part row nested beneath its owning assembly. */
   private partNode(partId: PartId): HTMLElement {
+    const slots = this.instanceSlotsForPart(partId);
+    if (slots.length > 1) return this.partBranch(partId, slots);
     const row = document.createElement("div");
     row.className = "visibility-row visibility-part";
     const spacer = document.createElement("span");
@@ -835,22 +975,73 @@ export class WorkbenchController {
     return row;
   }
 
+  /** Groups repeat placements beneath one component row without hiding their controls. */
+  private partBranch(partId: PartId, slots: readonly number[]): HTMLElement {
+    const name = this.partName(partId) ?? `Part ${partId}`;
+    const branch = document.createElement("div");
+    branch.className = "visibility-branch";
+    const row = document.createElement("div");
+    row.className = "visibility-row visibility-part";
+    const expander = document.createElement("button");
+    expander.type = "button";
+    expander.className = "visibility-expander";
+    expander.setAttribute("aria-expanded", "false");
+    expander.setAttribute("aria-label", `Expand ${name} instances`);
+    expander.textContent = "▸";
+    const children = document.createElement("div");
+    children.className = "visibility-children";
+    children.hidden = true;
+    slots.forEach((slot, index) => children.appendChild(this.instanceNode(slot, index + 1)));
+    expander.addEventListener("click", () => {
+      this.toggleAssemblyExpanded(expander, children, `${name} instances`);
+    });
+    row.append(expander, this.rowLabel("part", partId, name));
+    branch.append(row, children);
+    return branch;
+  }
+
+  /** Builds one independently hideable placement row. */
+  private instanceNode(slot: number, index: number): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "visibility-row visibility-instance";
+    const spacer = document.createElement("span");
+    spacer.className = "visibility-spacer";
+    spacer.setAttribute("aria-hidden", "true");
+    row.append(spacer, this.rowLabel("instance", slot, `Instance ${index}`));
+    return row;
+  }
+
+  private instanceSlotsForPart(partId: PartId): number[] {
+    const slots: number[] = [];
+    for (let slot = 0; slot < this.runtime.instanceCount; slot++) {
+      if (this.runtime.instancePartIds[slot] === partId) slots.push(slot);
+    }
+    return slots;
+  }
+
   /** Builds a checkbox label row with an explicit identity-kind badge. */
-  private rowLabel(kind: "part" | "assembly", id: number, name: string): HTMLLabelElement {
+  private rowLabel(
+    kind: "part" | "assembly" | "instance",
+    id: number,
+    name: string,
+  ): HTMLLabelElement {
     const label = document.createElement("label");
     const input = document.createElement("input");
     input.type = "checkbox";
     if (kind === "part") {
       input.dataset["partId"] = String(id);
       input.dataset["testid"] = `part-vis-${id}`;
-    } else {
+    } else if (kind === "assembly") {
       input.dataset["assemblyId"] = String(id);
       input.dataset["testid"] = `assembly-vis-${id}`;
+    } else {
+      input.dataset["instanceSlot"] = String(id);
+      input.dataset["testid"] = `instance-vis-${id}`;
     }
     label.append(input);
     const badge = document.createElement("span");
     badge.className = "visibility-kind";
-    badge.textContent = kind === "part" ? "Part" : "Assembly";
+    badge.textContent = kind === "part" ? "Part" : kind === "assembly" ? "Assembly" : "Instance";
     label.append(badge);
     const text = document.createElement("span");
     text.className = "visibility-label";
@@ -1017,4 +1208,8 @@ function sortedStrings(values: Iterable<string>): string[] {
 
 function sortedFaces(faces: ReadonlyMap<string, ElementId>): Array<readonly [string, ElementId]> {
   return [...faces.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+function formatCount(value: number): string {
+  return new Intl.NumberFormat("en-US").format(value);
 }

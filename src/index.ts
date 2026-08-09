@@ -172,6 +172,12 @@ export {
   type Vec3,
 } from "./camera/camera";
 export { projectPolygon, type ScreenPoint } from "./camera/project-polygon";
+export {
+  installCameraControls,
+  type CameraControlOptions,
+  type CameraNavigationTarget,
+  type CameraRef,
+} from "./camera/controls";
 export { createScene, type Scene, type SceneBuilder } from "./scene/scene";
 export {
   identity,

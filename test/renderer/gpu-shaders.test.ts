@@ -6,6 +6,7 @@ import { CAMERA_UNIFORM_SIZE } from "../../src/renderer/gpu-pipelines";
 import { DEFORMATION_UNIFORM_SIZE } from "../../src/renderer/gpu-deform";
 import {
   colorFragmentShader,
+  edgeFragmentShader,
   edgeVertexShader,
   instanceVertexShader,
   pointVertexShader,
@@ -196,5 +197,18 @@ describe("GPU deformation shader contract", () => {
   it("displaces the edge overlay through the vertex buffer index", () => {
     expect(edgeVertexShader).toMatch(/@builtin\(vertex_index\) vertexIndex: u32/);
     expect(edgeVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
+  });
+
+  it("keeps overlay vertices at their model depth", () => {
+    expect(edgeVertexShader).not.toMatch(/clip\.z\s*-/);
+    expect(edgeVertexShader).toContain(
+      "output.position = camera.viewProjection * instance.transform",
+    );
+  });
+
+  it("resolves coplanar line depth by one depth24 unit after rasterization", () => {
+    expect(edgeFragmentShader).toMatch(/@builtin\(position\) fragmentPosition/);
+    expect(edgeFragmentShader).toMatch(/@builtin\(frag_depth\) depth/);
+    expect(edgeFragmentShader).toContain("fragmentPosition.z - 1.0 / 16777215.0");
   });
 });

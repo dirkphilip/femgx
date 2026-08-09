@@ -9,6 +9,7 @@ import type { PickTargets } from "./gpu-pick";
 import { beginPickPass, ensurePickTargets } from "./gpu-pick";
 import type { RenderResources } from "./gpu-pipelines";
 import { beginColorPass, ensureDepthTexture } from "./gpu-pipelines";
+import { drawOrbitPivot } from "./gpu-orbit-pivot";
 
 /** Everything the per-frame command encoding needs from the renderer. */
 export interface FrameOptions {
@@ -30,6 +31,8 @@ export interface FrameOptions {
   readonly pointSize: number;
   /** Per-frame deformation state; `undefined` disables GPU deformation. */
   readonly deformation: DeformationState | undefined;
+  /** Active world-space camera spin pivot. */
+  readonly orbitPivot: readonly [number, number, number] | undefined;
 }
 
 /**
@@ -75,6 +78,7 @@ export function encodeFrame(
     });
   }
   if (frame.showNodes) drawNodeOverlay(colorPass, frame, context);
+  drawOrbitPivot(colorPass, frame.resources.orbitPivot, frame.orbitPivot, frame.device);
   colorPass.end();
   ensurePickTargets(
     frame.device,

@@ -43,6 +43,32 @@ describe("camera", () => {
     expect(camera.position).toEqual([3, 3, 5]);
   });
 
+  it("orbits rigidly around an explicit picked pivot", () => {
+    const camera = createCamera({ position: [0, 0, 5], target: [0, 0, 0] });
+    const pivot: readonly [number, number, number] = [2, 0, 0];
+    const rotated = orbitCamera(camera, 0.4, 0.2, pivot);
+    expect(distance(rotated.position, pivot)).toBeCloseTo(distance(camera.position, pivot));
+    expect(distance(rotated.target, pivot)).toBeCloseTo(distance(camera.target, pivot));
+    expect(rotated.target).not.toEqual(camera.target);
+  });
+
+  it("rotates continuously through the old pitch limit", () => {
+    const camera = createCamera({ position: [0, 0, 5], target: [0, 0, 0] });
+    const halfway = orbitCamera(camera, 0, Math.PI);
+    const fullTurn = orbitCamera(camera, 0, Math.PI * 2);
+    expect(halfway.position[2]).toBeCloseTo(-5);
+    expect(fullTurn.position[0]).toBeCloseTo(camera.position[0]);
+    expect(fullTurn.position[1]).toBeCloseTo(camera.position[1]);
+    expect(fullTurn.position[2]).toBeCloseTo(camera.position[2]);
+  });
+
+  it("adapts the perspective near plane instead of stopping close zoom", () => {
+    const camera = createCamera({ position: [0, 0, 1], target: [0, 0, 0], near: 0.01 });
+    const zoomed = zoomCamera(camera, -20);
+    expect(zoomed.position[2]).toBeLessThan(0.01);
+    expect(zoomed.near).toBeLessThan(camera.near);
+  });
+
   it("maps the perspective near and far planes to WebGPU [0, 1] depth", () => {
     const camera = resizeCamera(
       createCamera({ position: [0, 0, 0], target: [0, 0, -1], near: 1, far: 100 }),
@@ -70,3 +96,10 @@ describe("camera", () => {
     expect(farDepth).toBeCloseTo(1);
   });
 });
+
+function distance(
+  a: readonly [number, number, number],
+  b: readonly [number, number, number],
+): number {
+  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}

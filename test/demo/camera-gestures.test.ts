@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CameraGestureTracker } from "../../demo/camera-gestures";
+import { CameraGestureTracker } from "../../src/camera/gestures";
 
 describe("CameraGestureTracker", () => {
   it("tracks a single-pointer drag as pixel deltas", () => {

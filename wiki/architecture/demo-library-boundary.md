@@ -22,7 +22,10 @@ presentation and interaction policy only.
   interaction-diff helper `changedInstanceSlots`
   ([[rendering/renderer-subrange-updates|Renderer subrange updates]]).
 - GPU picking (`WebGpuRenderer.pick`, `resolvePick` / `resolvePickTarget`) and
-  camera math.
+  exact visible-surface points (`WebGpuRenderer.pickPoint`).
+- Opinionated SpaceClaim-style mouse/touch navigation
+  (`installCameraControls`), camera math, asynchronous orbit-pivot handling,
+  and the renderer-owned pivot marker.
 
 **Demo-only policy (stays in `demo/`):**
 
@@ -30,9 +33,7 @@ presentation and interaction policy only.
   panel, inspection text, status formatting, fixture/model selection, and
   modifier-key target policy (`controller.ts`, `view.ts`, `inspect.ts`,
   `pick.ts`, `fit.ts`).
-- Pointer gesture wiring (`camera-controls.ts`, `camera-gestures.ts`).
 - WebGPU renderer startup and device-loss recovery wiring (`webgpu-demo.ts`).
-- The results inspection demo (`results-demo.ts`, `results-fixture.ts`).
 
 ## Emphasis rendering
 

@@ -4,6 +4,7 @@ import type { InteractionState } from "../interaction/interaction";
 import type { DeviceLostInfo } from "../platform/device";
 import { requestWebGpuDevice } from "../platform/device";
 import type { PickGranularity } from "../picking/pick";
+import type { Vec3 } from "../camera/camera";
 import type { SceneRuntime } from "../scene-runtime/runtime";
 import type { PartId, PickTarget } from "../scene/types";
 import type { DeformationState } from "./gpu-deform";
@@ -60,6 +61,8 @@ export interface WebGpuRenderer {
   setEdgeDepthTest(enabled: boolean): void;
   /** Controls the screen-space glyphs for finite-element nodes. */
   setNodeOverlay(enabled: boolean): void;
+  /** Shows the library-styled world-space rotation pivot, or clears it. */
+  setOrbitPivot(pivot: Vec3 | undefined): void;
   /**
    * Rebuilds GPU draw order after runtime visibility changed (part/assembly
    * hide-show), using the delta of affected instance slots returned by the
@@ -76,6 +79,12 @@ export interface WebGpuRenderer {
    * the device buffer via the canvas bounding rect.
    */
   pick(x: number, y: number, granularity?: PickGranularity): Promise<PickTarget | undefined>;
+  /**
+   * Returns the exact world-space point on the nearest visible face under a
+   * CSS-local canvas pixel, suitable for camera rotation and other geometry-
+   * anchored interaction.
+   */
+  pickPoint(camera: Camera, x: number, y: number): Promise<Vec3 | undefined>;
   resize(width?: number, height?: number): void;
   destroy(): void;
   /** Number of surface draw batches encoded per frame. */
