@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  beginPickPass,
   createPickTargets,
   destroyPickTargets,
   ensurePickTargets,
@@ -10,6 +9,7 @@ import {
   resetPickTargets,
   WebGpuPickReadbackError,
 } from "../../src/renderer/gpu-pick";
+import { beginPickPass } from "../../src/renderer/gpu-pick-pass";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
 const READBACK_SIZE = READBACK_BYTE_STRIDE * 5;

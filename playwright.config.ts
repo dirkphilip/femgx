@@ -26,6 +26,9 @@ export default defineConfig({
   projects: [
     {
       name: "chrome",
+      // Multiple headed WebGPU contexts compete for the same physical device
+      // and can produce blank captures or stalled readbacks under load.
+      workers: 1,
       use: {
         ...devices["Desktop Chrome"],
         channel: "chrome",

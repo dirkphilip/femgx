@@ -13,8 +13,10 @@ runner exists, CI only runs the no-GPU unsupported-contract smoke
 
 - `playwright.config.ts` defines:
   - **`chrome`** — `channel: "chrome"` (system Google Chrome), **headed**.
-    Hardware WebGPU. Used by `npm run test:e2e`. (Headless Chrome injects
-    SwiftShader; we do not treat that as the product lane.)
+    Hardware WebGPU. Used by `npm run test:e2e` with one worker because parallel
+    headed contexts compete for the physical GPU and can yield blank captures
+    or stalled readbacks. (Headless Chrome injects SwiftShader; we do not treat
+    that as the product lane.)
   - **`chromium`** — Playwright Chromium for the CI no-GPU contract
     (`npm run test:e2e:ci`).
 - One-time install: `npm run test:e2e:install` (Chrome + Chromium).
@@ -50,7 +52,8 @@ WebGPU:
    resolve any instance.
 3. **Settled screenshots**: WebGPU presentation is asynchronous, so the pixel
    tests poll `canvas.screenshot()` until several consecutive captures are
-   byte-identical before comparing states.
+   byte-identical before comparing states. Dynamic and focus-sensitive demo
+   chrome is masked when the assertion concerns renderer pixels.
 
 ## Future: GPU CI runner
 

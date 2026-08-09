@@ -6,7 +6,8 @@ import { writeDeformationUniform } from "./gpu-deform";
 import type { DrawCall, DrawCallContext, DrawResources } from "./gpu-draw";
 import { drawBatches } from "./gpu-draw";
 import type { PickTargets } from "./gpu-pick";
-import { beginPickPass, ensurePickTargets } from "./gpu-pick";
+import { ensurePickTargets } from "./gpu-pick";
+import { beginPickDepthPass, beginPickPass } from "./gpu-pick-pass";
 import type { RenderResources } from "./gpu-pipelines";
 import { beginColorPass, ensureDepthTexture } from "./gpu-pipelines";
 import { drawOrbitPivot } from "./gpu-orbit-pivot";
@@ -53,7 +54,7 @@ export function encodeFrame(
   uniform[18] = frame.pointSize;
   frame.device.queue.writeBuffer(frame.resources.cameraBuffer, 0, uniform);
   writeDeformationUniform(frame.device, frame.resources.deformationBuffer, frame.deformation);
-  const encoder = frame.device.createCommandEncoder();
+  const colorEncoder = frame.device.createCommandEncoder();
   const colorView = frame.context.getCurrentTexture().createView();
   const depthTexture = ensureDepthTexture(
     frame.draw,
@@ -67,7 +68,7 @@ export function encodeFrame(
     parts,
     pipelines: frame.resources.pipelines,
   };
-  const colorPass = beginColorPass(encoder, colorView, depthTexture.createView());
+  const colorPass = beginColorPass(colorEncoder, colorView, depthTexture.createView());
   drawBatches(colorPass, frame.draw, context, frame.calls, { pass: "color" });
   if (frame.edgeCalls.length > 0) {
     drawBatches(colorPass, frame.draw, context, frame.edgeCalls, {
@@ -80,6 +81,7 @@ export function encodeFrame(
   if (frame.showNodes) drawNodeOverlay(colorPass, frame, context);
   drawOrbitPivot(colorPass, frame.resources.orbitPivot, frame.orbitPivot, frame.device);
   colorPass.end();
+  frame.device.queue.submit([colorEncoder.finish()]);
   ensurePickTargets(
     frame.device,
     frame.pickTargets,
@@ -87,10 +89,14 @@ export function encodeFrame(
     frame.canvas.height,
     frame.depthFormat,
   );
-  const pickPass = beginPickPass(encoder, frame.pickTargets);
+  const pickEncoder = frame.device.createCommandEncoder();
+  const pickPass = beginPickPass(pickEncoder, frame.pickTargets);
   drawBatches(pickPass, frame.draw, context, frame.calls, { pass: "pick" });
   pickPass.end();
-  frame.device.queue.submit([encoder.finish()]);
+  const depthPass = beginPickDepthPass(pickEncoder, frame.pickTargets);
+  drawBatches(depthPass, frame.draw, context, frame.calls, { pass: "depth" });
+  depthPass.end();
+  frame.device.queue.submit([pickEncoder.finish()]);
 }
 
 function drawNodeOverlay(

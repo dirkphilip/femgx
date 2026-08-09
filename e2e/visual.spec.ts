@@ -30,7 +30,9 @@ async function stableCanvasPixels(page: Page, canvas: Locator): Promise<Buffer> 
   let previous: Buffer | undefined;
   let streak = 0;
   for (let attempt = 0; attempt < 30; attempt++) {
-    const shot = await canvas.screenshot();
+    const shot = await canvas.screenshot({
+      mask: [page.locator(".toolbar, #performance-overlay, #inspection-panel, #status")],
+    });
     if (previous !== undefined && shot.equals(previous)) streak += 1;
     else streak = 0;
     previous = shot;
