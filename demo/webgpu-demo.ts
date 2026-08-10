@@ -154,7 +154,8 @@ export async function startWebGpuDemo(
         ? "Idle"
         : `Benchmark ${measuredFps.toFixed(1)} FPS · idle`;
     view.performanceOverlay.textContent =
-      `Triangles  ${formatCount(controller.totalTriangleCount())}\n` +
+      `Unique     ${formatCount(controller.uniqueTriangleCount())} triangles\n` +
+      `Submitted  ${formatCount(controller.submittedTriangleCount())} triangles\n` +
       `State      ${state}\n` +
       `Frames     ${formatCount(frameCount)}\n` +
       `Batches    ${viewport?.stats().drawBatches ?? 0}`;
@@ -180,6 +181,13 @@ export async function startWebGpuDemo(
         viewport = undefined;
         reportUnsupported(error);
       }
+    },
+    runBenchmark: async (includeLarge: boolean) => {
+      stopPerformanceMeasurement();
+      controller.destroy();
+      viewport = undefined;
+      const { runWebGpuBenchmark } = await import("./webgpu-benchmark");
+      return runWebGpuBenchmark(canvas, { includeLarge });
     },
   };
 

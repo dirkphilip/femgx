@@ -2,7 +2,7 @@ name: Performance
 
 # Opt-in performance runs. Not part of the default CI gate: CPU budgets are
 # enforced by `npm run bench:budget` in ci.yml, while this workflow runs the
-# full benchmark suite and the browser performance smoke for human review and
+# full benchmark suite and the real-WebGPU capacity benchmark for human review and
 # trend tracking. Run it manually via workflow_dispatch.
 on:
   workflow_dispatch:
@@ -41,8 +41,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+      - name: Install system Chrome
+        run: npx playwright install --with-deps chrome
 
-      - name: Run browser performance smoke
-        run: npm run test:e2e
+      - name: Run WebGPU benchmark
+        run: xvfb-run --auto-servernum npm run bench:webgpu
+
+      - name: Upload WebGPU benchmark report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: webgpu-benchmark
+          path: test-results/**/webgpu-benchmark.json
+          if-no-files-found: warn

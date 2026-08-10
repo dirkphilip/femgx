@@ -209,6 +209,8 @@ These exist in `package.json`:
 - `npm run bench:budget` — deterministic performance budget gate; run standalone
   (coverage distorts timing) and enforced by CI (see
   [[engineering/benchmarks|Benchmarks]]).
+- `npm run bench:webgpu` — opt-in system-Chrome WebGPU capacity benchmark;
+  emits a machine-readable report and has no cross-device timing threshold.
 - `npm run test:e2e` — full Playwright e2e against system Chrome (hardware
   WebGPU). Run locally; requires `npm run test:e2e:install`.
 - `npm run test:e2e:ci` — CI-only no-GPU unsupported-contract smoke (no

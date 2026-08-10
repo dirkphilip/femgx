@@ -29,14 +29,21 @@ const mocks = vi.hoisted(() => {
     }
 
     setCameraGestureActive(): void {}
-    totalTriangleCount(): number {
+    uniqueTriangleCount(): number {
+      return 0;
+    }
+    submittedTriangleCount(): number {
       return 0;
     }
     destroy(): void {
       this.currentViewport.destroy();
     }
   }
-  return { FakeWorkbenchController, createFemViewport: vi.fn() };
+  return {
+    FakeWorkbenchController,
+    createFemViewport: vi.fn(),
+    runWebGpuBenchmark: vi.fn(() => Promise.resolve({ schemaVersion: 1 })),
+  };
 });
 
 vi.mock("../../demo/controller", () => ({
@@ -46,10 +53,14 @@ vi.mock("../../src/index", async (importOriginal) => ({
   ...(await importOriginal()),
   createFemViewport: mocks.createFemViewport,
 }));
+vi.mock("../../demo/webgpu-benchmark", () => ({
+  runWebGpuBenchmark: mocks.runWebGpuBenchmark,
+}));
 
 interface DemoSeam {
   readonly destroyRenderer: () => void;
   readonly recreateRenderer: () => Promise<void>;
+  readonly runBenchmark: (includeLarge: boolean) => Promise<unknown>;
 }
 
 interface DemoWindow {
@@ -223,5 +234,16 @@ describe("startWebGpuDemo", () => {
 
     expect(canvas.dataset["renderer"]).toBe("unsupported");
     expect(status.textContent).toContain("recreation failed");
+  });
+
+  it("tears down the workbench before running the opt-in benchmark", async () => {
+    const viewport = fakeViewport();
+    mocks.createFemViewport.mockResolvedValue(viewport.viewport);
+    const canvas = fakeCanvas();
+    await startWebGpuDemo(startOptions(canvas));
+
+    await expect(demoWindow.femgxDemo?.runBenchmark(true)).resolves.toEqual({ schemaVersion: 1 });
+    expect(viewport.destroy).toHaveBeenCalledOnce();
+    expect(mocks.runWebGpuBenchmark).toHaveBeenCalledWith(canvas, { includeLarge: true });
   });
 });

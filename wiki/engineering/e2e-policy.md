@@ -38,7 +38,8 @@ covers the unsupported contract only).
 The only `test.skip` calls left are capability or opt-in gates:
 
 - `e2e/perf.spec.ts` — file-level: "browser performance runs are opt-in via
-  RUN_PERF=1" (category 3; runs only under `perf.yml`).
+  RUN_PERF=1" (category 3; the fixed-resolution capacity benchmark runs only
+  under `perf.yml`; see [[engineering/benchmarks|Benchmarks]]).
 - `e2e/webgpu.spec.ts`, `e2e/visual.spec.ts`, `e2e/demo.spec.ts` — per-test:
   "WebGPU renderer unavailable in this browser environment" and "picking is not
   functional in this browser environment" (category 2; genuine environment
