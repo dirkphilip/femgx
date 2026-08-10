@@ -173,6 +173,31 @@ test("toggles the element edge overlay independently of solid geometry", async (
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-mode", "solid");
 });
 
+test("reset restores the complete workbench display state", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  const firstPart = page.locator("#visibility-panel input[data-part-id]").first();
+  await firstPart.uncheck();
+  await page.getByTestId("edge-overlay").click();
+  await page.getByTestId("node-overlay").click();
+  await page.getByTestId("depth-test").click();
+  await page.getByTestId("projection-toggle").click();
+
+  await expect(firstPart).not.toBeChecked();
+  await expect(page.getByTestId("edge-overlay-label")).toHaveText("On");
+  await expect(page.getByTestId("node-overlay-label")).toHaveText("On");
+  await expect(page.getByTestId("depth-test-label")).toHaveText("Off");
+  await expect(page.getByTestId("projection-label")).toHaveText("Orthographic");
+
+  await page.getByTestId("reset").click();
+  await expect(firstPart).toBeChecked();
+  await expect(page.getByTestId("edge-overlay-label")).toHaveText("Off");
+  await expect(page.getByTestId("node-overlay-label")).toHaveText("Off");
+  await expect(page.getByTestId("depth-test-label")).toHaveText("On");
+  await expect(page.getByTestId("projection-label")).toHaveText("Perspective");
+  await expect(canvas).toHaveAttribute("data-mode", "solid");
+});
+
 test("toggles one fastener occurrence and restores it via the visibility panel", async ({
   page,
 }) => {
