@@ -92,7 +92,7 @@ GPU renderer's deformed-shape path: one vec3 per model node per load case, load-
 (`[case 0 node 0, case 0 node 1, ..., case 1 node 0, ...]`) and indexed by `NodeId`. Pass the
 owning model's node count (the largest node id used by the part's vertices plus one). `NaN`/
 missing values are zeroed so the node stays put. Feed it into
-`DeformationState.displacements` for one part.
+the renderer's `setDeformation` state for one part.
 
 ## GPU deformed shapes (`gpu-deform.ts`)
 

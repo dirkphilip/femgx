@@ -2,6 +2,8 @@
 
 - [[architecture/api-design|API design north star]] — canonical definitions,
   instances, registries, identities, and public-boundary rules.
+- [[architecture/public-api-audit|Public API audit]] — exhaustive root export
+  inventory and the intentional pruning decisions from issue #196.
 - [[architecture/architecture-overview|Architecture overview]] — scene model,
   renderer split, and ownership boundaries.
 - [[architecture/demo-library-boundary|Demo / library boundary]] — what the

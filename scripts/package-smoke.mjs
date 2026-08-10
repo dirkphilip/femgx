@@ -139,13 +139,15 @@ function main() {
     // 8. Type-level consumption under each supported moduleResolution.
     const tsc = join(repoRoot, "node_modules", ".bin", "tsc");
     const smokeTs = [
-      'import { createCamera, createScene, identity, type Camera, type Mat4, type SceneBuilder } from "femgx";',
+      'import { createCamera, createResultField, createScene, identity, type Camera, type FemViewport, type Mat4, type SceneBuilder, type ViewportResultsConfig } from "femgx";',
       'import type { WebGpuRendererOptions } from "femgx";',
       "const scene: SceneBuilder = createScene();",
       "const camera: Camera = createCamera();",
       "const m: Mat4 = identity();",
       "const options: WebGpuRendererOptions = { canvas: null as unknown as HTMLCanvasElement };",
-      "if (scene === null || camera === null || m.length !== 16 || options === null) throw new Error();",
+      'const result: ViewportResultsConfig = { field: createResultField({ id: "scalar", name: "Scalar", location: "elemental", shape: "scalar", count: 0, unit: "-", values: new Float32Array() }) };',
+      "const viewport: FemViewport | undefined = undefined;",
+      "if (scene === null || camera === null || m.length !== 16 || options === null || result === null || viewport !== undefined) throw new Error();",
     ].join("\n");
     writeFileSync(join(consumer, "smoke.ts"), smokeTs);
 
