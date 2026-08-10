@@ -84,11 +84,14 @@ oriented element faces are the finest-grained pickable units under
   (`texture_depth_multisampled_2d`), rejects an occluded node once, then
   draws its complete circle without changing depth. The vertex stage passes a
   flat center pixel and node depth so every fragment of a glyph shares one
-  visibility decision. The fragment takes the nearest of the four MSAA depth
-  samples, converts node and scene depth to view-space eye distance, and hides
-  the glyph only when the scene is nearer by more than a small
-  distance-relative epsilon. That keeps coplanar surface/edge nodes stable
-  under zoom without the large NDC bias that let rear nodes punch through.
+  visibility decision. The fragment converts depths to view-space eye distance
+  (same formulas as `unprojectPoint`) and hides the glyph only when **every**
+  MSAA sample is nearer by more than `camera.depthSlack` (unanimous occlusion).
+  That avoids blinks from a single coplanar/silhouette subsample that is
+  slightly nearer than the vertex. Slack is `max(1e-5, 2e-3 * sceneScale)` with
+  `sceneScale` = camera distance (perspective) or ortho height. The CPU helper
+  in `src/renderer/node-overlay-visibility.ts` mirrors this math for unit tests
+  only — it is not a per-node CPU path and does not run for millions of nodes.
   Regular point geometry and picking remain at exact model depth.
 - Node emphasis is resolved only in this glyph pass, where a matching
   `nodePickId` changes the circle's color/emissive. This keeps node selection

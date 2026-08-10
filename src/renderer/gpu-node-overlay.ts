@@ -75,6 +75,10 @@ fn eyeDepth(z: f32) -> f32 {
     max(camera.farPlane - z * (camera.farPlane - camera.nearPlane), 1e-8);
 }
 
+fn sampleOccludes(sceneZ: f32, nodeEye: f32) -> bool {
+  return eyeDepth(sceneZ) + camera.depthSlack < nodeEye;
+}
+
 @fragment
 fn nodeOverlayFragmentMain(
   @location(0) color: vec4<f32>,
@@ -84,19 +88,20 @@ fn nodeOverlayFragmentMain(
   @location(7) @interpolate(flat) nodeDepth: f32,
 ) -> @location(0) vec4<f32> {
   if (dot(local, local) > 1.0) { discard; }
-  // Flat center + nearest MSAA sample. Compare in view space so coplanar
-  // surface/edge error stays within a distance-relative epsilon under zoom,
-  // while real front/back separation still occludes.
+  // Unanimous MSAA occlusion: hide only when every subsample is clearly nearer.
+  // min()-based tests blinked front glyphs when any coplanar/silhouette sample
+  // was slightly nearer than the vertex (see node-overlay-visibility.ts).
   let dims = vec2<i32>(textureDimensions(sceneDepth));
   let center = clamp(vec2<i32>(floor(centerPixel)), vec2<i32>(0), dims - 1);
-  var sceneZ = textureLoad(sceneDepth, center, 0);
-  sceneZ = min(sceneZ, textureLoad(sceneDepth, center, 1));
-  sceneZ = min(sceneZ, textureLoad(sceneDepth, center, 2));
-  sceneZ = min(sceneZ, textureLoad(sceneDepth, center, 3));
   let nodeEye = eyeDepth(nodeDepth);
-  let sceneEye = eyeDepth(sceneZ);
-  let eps = max(1e-4, abs(nodeEye) * 1e-4);
-  if (sceneEye + eps < nodeEye) { discard; }
+  if (
+    sampleOccludes(textureLoad(sceneDepth, center, 0), nodeEye) &&
+    sampleOccludes(textureLoad(sceneDepth, center, 1), nodeEye) &&
+    sampleOccludes(textureLoad(sceneDepth, center, 2), nodeEye) &&
+    sampleOccludes(textureLoad(sceneDepth, center, 3), nodeEye)
+  ) {
+    discard;
+  }
   return vec4<f32>(color.rgb + vec3<f32>(emissive), color.a);
 }
 `;

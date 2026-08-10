@@ -83,7 +83,7 @@ const blendState: GPUBlendState = {
 };
 
 const pivotShader = /* wgsl */ `
-struct Camera { viewProjection: mat4x4<f32>, viewport: vec2<f32>, pointSize: f32, nearPlane: f32, farPlane: f32, ortho: f32, _pad: vec2<f32> };
+struct Camera { viewProjection: mat4x4<f32>, viewport: vec2<f32>, pointSize: f32, nearPlane: f32, farPlane: f32, ortho: f32, depthSlack: f32, _pad: f32 };
 struct Pivot { position: vec3<f32>, enabled: f32 };
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(1) @binding(0) var<uniform> pivot: Pivot;

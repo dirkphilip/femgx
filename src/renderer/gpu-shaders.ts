@@ -12,7 +12,7 @@
  * nearest node.
  */
 
-/** Camera uniform: view projection plus viewport, point size, and clip planes. */
+/** Camera uniform: view projection, viewport, point size, clip planes, slack. */
 export const cameraStruct = /* wgsl */ `
 struct Camera {
   viewProjection: mat4x4<f32>,
@@ -21,7 +21,8 @@ struct Camera {
   nearPlane: f32,
   farPlane: f32,
   ortho: f32,
-  _pad: vec2<f32>,
+  depthSlack: f32,
+  _pad: f32,
 };
 `;
 

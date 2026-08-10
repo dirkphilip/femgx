@@ -76,6 +76,10 @@ describe("GPU record struct layout vs CPU record encoders", () => {
       expect(offsets.get("viewProjection")).toBe(0);
       expect(offsets.get("viewport")).toBe(64);
       expect(offsets.get("pointSize")).toBe(72);
+      expect(offsets.get("nearPlane")).toBe(76);
+      expect(offsets.get("farPlane")).toBe(80);
+      expect(offsets.get("ortho")).toBe(84);
+      expect(offsets.get("depthSlack")).toBe(88);
       expect(info.size).toBe(CAMERA_UNIFORM_SIZE);
     },
   );
@@ -208,9 +212,12 @@ describe("GPU deformation shader contract", () => {
     expect(nodeOverlayFragmentShader).toMatch(/@interpolate\(flat\) centerPixel: vec2<f32>/);
     expect(nodeOverlayFragmentShader).toMatch(/@interpolate\(flat\) nodeDepth: f32/);
     expect(nodeOverlayFragmentShader).toMatch(/textureLoad\(sceneDepth, center, 0\)/);
-    expect(nodeOverlayFragmentShader).toMatch(/min\(sceneZ, textureLoad\(sceneDepth, center/);
+    expect(nodeOverlayFragmentShader).toMatch(/fn sampleOccludes\(sceneZ: f32, nodeEye: f32\)/);
     expect(nodeOverlayFragmentShader).toMatch(/fn eyeDepth\(z: f32\)/);
-    expect(nodeOverlayFragmentShader).toMatch(/sceneEye \+ eps < nodeEye/);
+    expect(nodeOverlayFragmentShader).toMatch(
+      /sampleOccludes\(textureLoad\(sceneDepth, center, 0\), nodeEye\) &&/,
+    );
+    expect(pointVertexShader).toMatch(/depthSlack: f32/);
   });
 
   it("uses neutral black for element nodes and edges", () => {

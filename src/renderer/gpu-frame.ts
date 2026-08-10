@@ -12,6 +12,7 @@ import { beginNodeOverlayPass, bindNodeOverlayDepth } from "./gpu-node-overlay";
 import type { RenderResources } from "./gpu-pipelines";
 import { beginColorPass, ensureColorTargets } from "./gpu-pipelines";
 import { drawOrbitPivot } from "./gpu-orbit-pivot";
+import { nodeOverlaySlack } from "./node-overlay-visibility";
 
 /** Everything the per-frame command encoding needs from the renderer. */
 export interface FrameOptions {
@@ -126,6 +127,14 @@ function drawContext(frame: FrameOptions, parts: ReadonlyMap<PartId, Part>): Dra
   };
 }
 
+function cameraSceneScale(camera: Camera): number {
+  if (camera.mode === "orthographic") return Math.max(camera.orthoHeight, 1e-6);
+  const dx = camera.position[0] - camera.target[0];
+  const dy = camera.position[1] - camera.target[1];
+  const dz = camera.position[2] - camera.target[2];
+  return Math.max(Math.hypot(dx, dy, dz), 1e-6);
+}
+
 function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
   const uniform = new Float32Array(24);
   uniform.set(viewProjectionMatrix(camera), 0);
@@ -135,6 +144,7 @@ function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
   uniform[19] = camera.near;
   uniform[20] = camera.far;
   uniform[21] = camera.mode === "orthographic" ? 1 : 0;
+  uniform[22] = nodeOverlaySlack(cameraSceneScale(camera));
   frame.device.queue.writeBuffer(frame.resources.cameraBuffer, 0, uniform);
   writeDeformationUniform(frame.device, frame.resources.deformationBuffer, frame.deformation);
 }
