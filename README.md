@@ -1,6 +1,6 @@
 # FE Mesh GPU (femgx)
 
-A TypeScript graphics library for rendering very large finite element (FE) models at
+A TypeScript graphics library for rendering finite element (FE) models at
 interactive frame rates using **WebGPU** and **GPU instancing**.
 
 ## Goals
@@ -77,9 +77,9 @@ const { createScene, createCamera, createSceneRuntime } = require("femgx");
 
 ## Supported environments
 
-- **Browsers**: modern Chrome, Edge, Firefox, and Safari with WebGPU enabled by
-  default in current releases. Rendering requires a WebGPU-capable browser; the
-  CPU scene, camera, and picking APIs work anywhere, and unsupported
+- **Browsers**: a modern browser with a working WebGPU implementation. Rendering
+  requires WebGPU; the CPU scene, camera, packed runtime, and pick-id resolution
+  APIs are WebGPU-independent, while renderer picking requires WebGPU. Unsupported
   environments receive an explicit unsupported/error result from the renderer.
 - **TypeScript**: 6.0 or newer for consumers (declarations rely on DOM-lib WebGPU
   types). `moduleResolution: bundler`, `node16`, `nodenext`, and legacy `node10`
@@ -96,7 +96,8 @@ const { createScene, createCamera, createSceneRuntime } = require("femgx");
   "supported"/"unsupported" report for applications that want to branch up front.
 - The CPU scene, camera, packed runtime (`createSceneRuntime`), and pick-id
   resolution (`resolvePick` / `resolvePickTarget`) APIs are WebGPU-independent
-  and work in any JavaScript environment.
+  and work in any JavaScript environment. GPU renderer picking (`pick` and
+  `pickPoint`) requires a working WebGPU renderer.
 - Interaction picking goes through the renderer: asynchronous GPU readback via
   `pick(x, y)` returns a `Promise<PickTarget | undefined>` with host-mappable
   part/instance/element/face/node ids.
@@ -116,9 +117,8 @@ const { createScene, createCamera, createSceneRuntime } = require("femgx");
   camera, renderer, controls, resize, interaction synchronization, recovery, and teardown.
 - `createResultField()` builds typed nodal/elemental scalar, vector, and tensor fields; the
   results API adds derived quantities (magnitude, von Mises, principal values), value ranges,
-  scalar color mapping with thresholds and legends, and deformed-shape geometry with a
-  configurable scale. A results demo shows undeformed/deformed shape and von Mises
-  visualization with load-case stepping.
+  scalar color mapping with optional thresholds, and deformed-shape geometry with a
+  configurable scale.
 
 ```ts
 const viewport = await createFemViewport({ canvas, scene });

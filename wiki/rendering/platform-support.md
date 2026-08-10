@@ -68,10 +68,9 @@ Pick coordinates are converted from CSS client space to device pixels
 (`pickPixelCoordinates` in `src/renderer/gpu-pick.ts`) so taps align with what
 is drawn even when the CSS size differs from the device-pixel backing size
 (`devicePixelRatio > 1`). The renderer sizes the backing store from the CSS
-size and `devicePixelRatio` (`GpuRenderer.resize`), and the demo's CPU
-raycast pick scales CSS viewport coordinates the same way. Focused tests
+size and `devicePixelRatio` (`GpuRenderer.resize`). Focused tests
 (`test/renderer/gpu-pick.test.ts`) cover high-DPI mobile canvas/readback
-coordinates, and the e2e lane asserts the canvas backing size and CPU pick
+coordinates, and the e2e lane asserts the canvas backing size and GPU pick
 coordinates stay consistent on a high-DPI phone (`e2e/mobile.spec.ts`).
 
 ## Device loss and recovery
@@ -109,15 +108,8 @@ mocked devices (`test/platform/*`, `test/renderer/gpu-recovery.test.ts`,
 
 ## Browser support
 
-- **Chrome/Edge/Opera (Chromium)**: WebGPU enabled by default; supported.
-- **Firefox**: WebGPU on by default since Firefox 141 (previously behind a
-  flag); treat as capability-gated.
-- **Safari**: WebGPU shipped behind the "WebGPU" experimental flag
-  (`safari://settings` → Advanced); capability-gated.
-- **No-GPU / software environments**: SwiftShader-backed Chromium can present
-  via the e2e lane; otherwise `requestAdapter` often resolves `null` and the
-  typed `"adapter-unavailable"` path applies.
-
-Degraded behavior is always explicit: a typed reason plus guidance text, never a
-silent fallback. Callers check capabilities once up front and branch on
-`status`/`reason`.
+Any browser that exposes a working WebGPU device can use the renderer. Browser
+version, platform, driver, and policy differences can make WebGPU unavailable,
+so callers should use `queryWebGpuSupport()` or handle the typed creation error.
+Unsupported behavior is always explicit: a typed reason plus guidance text,
+never a silent fallback. Callers branch on `status`/`reason`.

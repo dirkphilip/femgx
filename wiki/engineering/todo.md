@@ -102,9 +102,9 @@ restore renderer switching or CPU fallback.
 
 ## P2 — element topology
 
-- [x] Add a typed finite-element model with point, line, Tet4/Tet10, Hex8/Hex20
-      shapes, canonical VTK node ordering, and connectivity validation (see
-      [[data/elements-topology|Element topology]]).
+- [x] Add a typed finite-element model with Core linear shapes and retained
+      deferred Tet10/Hex20 coverage, canonical VTK node ordering, and
+      connectivity validation (see [[data/elements-topology|Element topology]]).
 - [x] Extract oriented polygon faces (with quadratic mid-edge nodes) and unique
       element edges, with canonical-key deduplication and boundary/interior
       face classification (see [[data/elements-topology|Element topology]]).
@@ -128,9 +128,6 @@ restore renderer switching or CPU fallback.
       (discrete bands), clipping, and missing-value colors.
 - [x] Add deformed-shape geometry from a nodal displacement field with a
       configurable scale.
-- [x] Demonstrate undeformed/deformed shape and scalar (von Mises)
-      visualization with load-case stepping in the CPU results demo and
-      deterministic e2e coverage.
 - [x] ~~Add a dedicated load-case playback API (`CasePlayer`)~~ — **removed**
       as out of product scope (see [[data/results|Results]]).
 - [x] GPU-side deformed rendering (per-instance vertex displacement) via
@@ -158,7 +155,7 @@ restore renderer switching or CPU fallback.
       modes (solid/surface/edges/lines/points) are covered by the element-mode
       e2e tests in `e2e/demo.spec.ts`. The CPU renderer was removed in #171.
 - [x] Document the browser/GPU capability matrix in the wiki
-      ([[engineering/compatibility-matrix|Browser/GPU compatibility matrix]]).
+      ([[engineering/compatibility-matrix|WebGPU compatibility notes]]).
       **Deferred** — under the WebGPU-only contract the matrix collapses to
       "modern WebGPU browser or typed unsupported".
 - [x] Deterministic import/export round trips and invalid-input diagnostics are
