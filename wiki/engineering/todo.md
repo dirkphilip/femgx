@@ -9,20 +9,19 @@ extend out-of-scope capability.
 
 ## Open-backlog scope map
 
-This classification snapshot records the open backlog audited in issue #209.
-GitHub issue state remains the work queue; this map makes the product-scope
-decision visible without turning labels into a second process. Deferred issues
-require a fresh decision-gate approval before implementation.
+This classification snapshot records the backlog audited in issue #209.
+GitHub issue state remains authoritative; this map makes the product-scope
+decision visible without turning labels into a second process. The audited
+backlog is now empty, and any future deferred capability requires a fresh
+decision-gate approval before implementation.
 
 The current audit and closure rationale live in
 [[engineering/issue-audit|Open issue audit]]. The canonical-workflow milestone
-is deliberately ordered: #192 (viewport facade) is complete; #194 (static
-viewport results), #196 (public API audit), and #155 (WebGPU-only required CI)
-are the remaining core/infrastructure prerequisites. #199 is the umbrella gate,
-not permission to implement breadth work. New work must answer the decision-gate
-questions in the repository's issue template and carry `ready-for-supervisor`;
-issues carrying `deferred` or `scope:deferred` are excluded from automatic
-Supervisor intake.
+is complete: #192, #194, #196, and #155 were delivered through PRs #227,
+#229, and #228 after the #225 umbrella gate. New work must answer the
+decision-gate questions in the repository's issue template and carry
+`ready-for-supervisor`; issues carrying `deferred` or `scope:deferred` are
+excluded from automatic Supervisor intake.
 
 ### Breadth reactivation gate
 
@@ -38,19 +37,21 @@ review confirms all of the following:
 Completing this gate does not automatically promote any deferred issue. Each
 future capability needs its own decision and acceptance criteria.
 
-- **Core now:** #95, #97, #118, #119, #125, #127, #139, #192, #194, #205,
-  #206, and #208.
+- **Core delivered:** #95, #97, #118, #119, #125, #117, #127, #139, #192,
+  #194, #205, #206, and #208.
 - **Deferred:** #101 and #105 (advanced playback); #107 and #115 (streaming and
   LOD); #111 and #112 (Gmsh IO breadth).
 - **Removal:** #100 and #132 are closed because their CPU fallback and CPU
   picking premises were removed in #171. #113 is closed because its former
   playback e2e path no longer exists.
-- **Project infrastructure:** #155, #168, #196, #197, #199, #207, and #209.
+- **Project infrastructure delivered:** #155, #196, #199, #207, and #209.
+- **Project infrastructure not planned:** #168 and #197.
 
 The core classification of #119 is limited to the deterministic runtime
 culling bug; it does not reactivate streaming. The core classification of #127
 is limited to listener ownership in the current WebGPU demo; it does not
-restore renderer switching or CPU fallback.
+restore renderer switching or CPU fallback. All retained issues in this map are
+closed; the list is historical scope memory, not an open implementation queue.
 
 ## P0 — correctness and runtime foundation
 
