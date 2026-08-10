@@ -7,6 +7,27 @@ marked **Remove** are scheduled for deletion behind an explicit product
 decision. Checked items record what was built; the roadmap is not a mandate to
 extend out-of-scope capability.
 
+## Open-backlog scope map
+
+This classification snapshot records the open backlog audited in issue #209.
+GitHub issue state remains the work queue; this map makes the product-scope
+decision visible without turning labels into a second process. Deferred issues
+require a fresh decision-gate approval before implementation.
+
+- **Core now:** #95, #97, #118, #119, #125, #127, #139, #192, #194, #205,
+  #206, and #208.
+- **Deferred:** #101 and #105 (advanced playback); #107 and #115 (streaming and
+  LOD); #111 and #112 (Gmsh IO breadth).
+- **Removal:** #100 and #132 are closed because their CPU fallback and CPU
+  picking premises were removed in #171. #113 is closed because its former
+  playback e2e path no longer exists.
+- **Project infrastructure:** #155, #168, #196, #197, #199, #207, and #209.
+
+The core classification of #119 is limited to the deterministic runtime
+culling bug; it does not reactivate streaming. The core classification of #127
+is limited to listener ownership in the current WebGPU demo; it does not
+restore renderer switching or CPU fallback.
+
 ## P0 — correctness and runtime foundation
 
 - [x] Fix column-major `Mat4` multiplication and add rotation, scale, and nested
