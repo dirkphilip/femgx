@@ -67,12 +67,12 @@ There are no runtime dependencies. Consumers do **not** need `@webgpu/types`
 
 ```js
 // ESM
-import { createScene, createCamera, createSceneRuntime } from "femgx";
+import { createScene, createFemViewport, createResultField } from "femgx";
 ```
 
 ```js
 // CommonJS
-const { createScene, createCamera, createSceneRuntime } = require("femgx");
+const { createScene, createFemViewport, createResultField } = require("femgx");
 ```
 
 ## Supported environments
@@ -105,8 +105,8 @@ const { createScene, createCamera, createSceneRuntime } = require("femgx");
 ## Public API highlights
 
 - `createScene()` validates duplicate IDs, missing references, invalid roots, and cycles.
-- `createSceneRuntime()` packs the scene for rendering with stable instance slots
-  and delta-oriented visibility updates.
+- `createSceneRuntime()` is an advanced low-level renderer input; most hosts should
+  let `createFemViewport()` own it.
 - `createInteractionState()` manages selection, highlight, hover, and style overrides.
 - `createCamera()` supports perspective/orthographic projection, orbit, pan, zoom, and resize.
 - `createWebGpuRenderer()` uploads geometry once, renders instanced batches, applies styles,
@@ -121,9 +121,24 @@ const { createScene, createCamera, createSceneRuntime } = require("femgx");
   configurable scale.
 
 ```ts
+const scene = createScene()
+  .addPart(part)
+  .addAssembly({
+    id: 1,
+    name: "root",
+    placements: [{ kind: "part", partId: part.id, transform: identity() }],
+  })
+  .withRoot(1)
+  .build();
 const viewport = await createFemViewport({ canvas, scene });
 viewport.setInteraction(interaction);
-viewport.setPartVisible(partId, false);
+viewport.setResults({
+  field: stress,
+  derive: "vonMises",
+  deformation: { field: displacement, scale: 1.5 },
+});
+viewport.setPartVisible(part.id, false);
+viewport.clearResults();
 viewport.destroy();
 ```
 

@@ -50,7 +50,6 @@ export {
   type FaceKey,
 } from "./elements/faces";
 export { edgesOf, uniqueEdges, type EdgeKey, type ElementEdge } from "./elements/edges";
-export { faceTriangles } from "./geometry/element-mesh";
 export {
   createInteractionState,
   emphasizedElementRefs,
@@ -90,23 +89,12 @@ export {
 } from "./interaction/nodes";
 export type { FaceRef, NodeRef } from "./interaction/refs";
 export { createSceneRuntime, type SceneRuntime } from "./scene-runtime/runtime";
-export type { TransformDelta } from "./scene-runtime/transforms";
-export type { VisibilityDelta } from "./scene-runtime/visibility";
-export {
-  cullInstances,
-  extractFrustum,
-  isSphereVisible,
-  type Frustum,
-  type FrustumPlane,
-} from "./runtime/culling";
 export {
   createWebGpuRenderer,
   type WebGpuRenderer,
   type WebGpuRendererOptions,
 } from "./renderer/gpu-renderer";
 export { WebGpuPickReadbackError } from "./renderer/gpu-pick";
-export { changedInstanceSlots } from "./renderer/interaction-diff";
-export type { DeformationState } from "./renderer/gpu-deform";
 export {
   queryWebGpuSupport,
   requestWebGpuAdapter,
