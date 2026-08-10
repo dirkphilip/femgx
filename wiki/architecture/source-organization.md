@@ -45,9 +45,9 @@ matching subsystem directory.
 
 ## Conventions
 
-- New domain code belongs in the owning subsystem directory; keep modules at or
-  below the 300-line limit and split oversized modules into focused,
-  single-concern files.
+- New domain code belongs in the owning subsystem directory. Treat 300
+  implementation lines as a design-review threshold and 400 as the hard limit;
+  split modules when that improves cohesion and ownership.
 - The single public entry point is `src/index.ts`; anything it does not
   re-export is internal. Do not widen the public API by exporting internals from
   a new location.

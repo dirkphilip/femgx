@@ -121,9 +121,10 @@ under `test/`. Tags reflect the [[requirements/product-scope|product scope]]:
 
 Conventions:
 
-- New domain code belongs in the owning subsystem directory; keep modules at or
-  below the documented size limits and split oversized modules into focused,
-  single-concern files.
+- New domain code belongs in the owning subsystem directory. Keep modules
+  focused; treat 300 implementation lines as a review threshold and 400 as the
+  hard limit. Split a module when doing so improves cohesion, not merely to
+  satisfy a line count.
 - The single public entry point is `src/index.ts`; anything it does not
   re-export is internal. Subsystem directories expose only deliberate public
   boundaries — do not widen the API surface by exporting internals from a new
@@ -173,8 +174,10 @@ and reviewable.
   enforced v8 coverage thresholds (lines/functions 80%, branches 70%). Playwright
   e2e tests cover the WebGPU demo contract against a local dev server.
 - **Docs**: Document the public API surface (typedoc or JSDoc on exported symbols).
-- **Small modules**: files are capped by ESLint (`max-lines` 300, per-function 60,
-  `max-depth` 4). Split large modules into focused, single-concern files.
+- **Small modules**: ESLint enforces a 400-line implementation-file ceiling;
+  300 lines is a review threshold. Per-function length remains 60 lines and
+  nesting depth remains 4. Split large modules when that produces clearer
+  single-concern boundaries.
 - **CI**: GitHub Actions runs the full quality gate (pre-commit hooks, format,
   typecheck, lint, unit tests + coverage, performance budgets, build, package smoke
   tests, e2e) on every push/PR. CI must be green before merge. Opt-in performance runs

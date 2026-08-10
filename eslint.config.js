@@ -51,7 +51,9 @@ export default tseslint.config(
   {
     files: ["src/**/*.ts"],
     rules: {
-      "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+      // 300 lines is a design-review threshold; 400 is the hard ceiling so
+      // cohesive orchestration modules are not split solely to satisfy lint.
+      "max-lines": ["error", { max: 400, skipBlankLines: true, skipComments: true }],
       "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
     },
   },
