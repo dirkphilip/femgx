@@ -47,6 +47,8 @@ unsupported contract only) until a GPU runner hosts the full Chrome lane.
 
 ## Linting (small modules)
 
-ESLint caps source files: `max-lines` 300, per-function 60, `max-depth` 4.
-Rules are scoped to `src/`; tests and demo are exempt. See the
+ESLint caps source files at 400 implementation lines. Around 300 lines is a
+design-review threshold, not an automatic split requirement. Per-function
+length remains 60 lines and `max-depth` remains 4. Split modules when that
+improves cohesion and ownership. Rules are scoped to `src/`; tests and demo are exempt. See the
 [[engineering/scaffold-decisions|scaffold decisions]] gotchas for why.

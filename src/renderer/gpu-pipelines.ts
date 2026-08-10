@@ -1,4 +1,4 @@
-/* eslint-disable jsdoc/require-jsdoc, max-lines, max-lines-per-function */
+/* eslint-disable jsdoc/require-jsdoc, max-lines-per-function */
 import {
   colorFragmentShader,
   edgeFragmentShader,
