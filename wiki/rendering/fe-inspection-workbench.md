@@ -10,7 +10,7 @@ controller, so camera and interaction behavior is stable
 
 ## Model presets
 
-- `src/fixture/presets.ts` builds deterministic models from fixed options: the
+- `demo/fixture/presets.ts` builds deterministic models from fixed options: the
   **element gallery** (tet/hex families plus point/line overlays), the
   **stiffened deck panel**, the **portal frame** with conforming hex topology,
   and the **bolted plate assembly** showcase. Every preset is derived purely
@@ -19,7 +19,7 @@ controller, so camera and interaction behavior is stable
   node/face picking and emphasis), a part theme, per-mode part visibility, and
   overall bounds. The demo's model `<select>` switches presets without editing
   source.
-- `demo/performance-fixture.ts` owns a demo-only stress scenario rather than
+- `demo/fixture/performance-fixture.ts` owns a demo-only stress scenario rather than
   extending the library: one generated 128 × 128 shell is instanced 64 times
   for exactly 2,097,152 triangles. The live scene overlay reports total
   triangles, sampled frame rate, and draw batches from the normal WebGPU path.

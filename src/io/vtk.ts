@@ -78,7 +78,6 @@ function readVtk(session: ParseSession, source: string): void {
   const state = createVtkState(session);
   let headerLines = 0;
   for (const { text, line } of textLines(source)) {
-    session.checkCancelled();
     if (headerLines < 3) {
       headerLines += 1;
       readVtkHeader(state, headerLines, text, line);

@@ -1,10 +1,10 @@
-import type { ElementModel } from "../elements/model";
-import { elementPart, type ElementRenderMode } from "../geometry/element-mesh";
-import type { Part } from "../geometry/part";
-import { identity, translation, type Mat4 } from "../math/mat4";
-import type { NamedAssembly, Placement } from "../scene/assembly";
-import { createScene, type Scene } from "../scene/scene";
-import type { AssemblyId, PartId } from "../scene/types";
+import type { ElementModel } from "../../src/elements/model";
+import { elementPart, type ElementRenderMode } from "../../src/geometry/element-mesh";
+import type { Part } from "../../src/geometry/part";
+import { identity, translation, type Mat4 } from "../../src/math/mat4";
+import type { NamedAssembly, Placement } from "../../src/scene/assembly";
+import { createScene, type Scene } from "../../src/scene/scene";
+import type { AssemblyId, PartId } from "../../src/scene/types";
 import {
   createBoltModel,
   createNutModel,

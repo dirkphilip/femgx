@@ -30,7 +30,7 @@ import {
   type FemViewport,
   type SceneRuntime,
 } from "../src/index";
-import { visiblePartIdsForPreset, type ModelPreset } from "../src/fixture/presets";
+import { visiblePartIdsForPreset, type ModelPreset } from "./fixture/presets";
 import { describePick } from "./inspect";
 import { selectTarget, targetKey, type SelectTarget } from "./pick";
 import { updateStatus, type DemoView, type StatusInfo } from "./view";

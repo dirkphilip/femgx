@@ -16,8 +16,8 @@ published package makes to consumers. See also
   `dist/cjs/index.d.cts`.
 
 `vite-plugin-dts` is configured with two out dirs (`dist` and `dist/cjs`, the
-latter with `moduleFormat: "cjs"`), and `src/fixture/` is excluded so the
-demo-only panel fixture never ships.
+latter with `moduleFormat: "cjs"`). Demo fixtures live under `demo/fixture/`
+and are outside the library entry, so they never ship.
 
 ### Declaration extension rewriting
 

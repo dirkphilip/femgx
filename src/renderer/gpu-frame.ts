@@ -10,7 +10,7 @@ import { ensurePickTargets } from "./gpu-pick";
 import { beginPickPass } from "./gpu-pick-pass";
 import { beginNodeOverlayPass, bindNodeOverlayDepth } from "./gpu-node-overlay";
 import type { RenderResources } from "./gpu-pipelines";
-import { beginColorPass, ensureDepthTexture } from "./gpu-pipelines";
+import { beginColorPass, ensureColorTargets } from "./gpu-pipelines";
 import { drawOrbitPivot } from "./gpu-orbit-pivot";
 
 /** Everything the per-frame command encoding needs from the renderer. */
@@ -20,6 +20,8 @@ export interface FrameOptions {
   readonly device: GPUDevice;
   readonly draw: DrawResources;
   readonly resources: RenderResources;
+  /** Swap-chain / MSAA color format matching the configured canvas context. */
+  readonly colorFormat: GPUTextureFormat;
   /** Per-part surface draw calls over the visible instances. */
   readonly calls: readonly DrawCall[];
   /** Per-part edge-overlay draw calls over the edge-styled visible instances. */
@@ -29,12 +31,21 @@ export interface FrameOptions {
   /** Whether the edge overlay culls edges occluded by depth (`less`). */
   readonly edgeDepthTest: boolean;
   readonly showNodes: boolean;
-  /** Screen-space diameter of point elements; node annotations use half. */
+  /**
+   * Screen-space diameter of point elements in CSS pixels; node annotations use
+   * three-quarters. Written to the camera uniform as device pixels
+   * (`× devicePixelRatio`).
+   */
   readonly pointSize: number;
   /** Per-frame deformation state; `undefined` disables GPU deformation. */
   readonly deformation: DeformationState | undefined;
   /** Active world-space camera spin pivot. */
   readonly orbitPivot: readonly [number, number, number] | undefined;
+}
+
+/** Converts a CSS-pixel point diameter into device pixels for the GPU uniform. */
+export function pointSizeDevicePixels(cssPixels: number, dpr = devicePixelRatio): number {
+  return Math.max(1, cssPixels * dpr);
 }
 
 /** Encodes and submits one visible color frame without any picking work. */
@@ -45,16 +56,23 @@ export function encodeVisibleFrame(
 ): void {
   writeFrameUniforms(camera, frame);
   const colorEncoder = frame.device.createCommandEncoder();
-  const colorView = frame.context.getCurrentTexture().createView();
-  const depthTexture = ensureDepthTexture(
+  const resolveTarget = frame.context.getCurrentTexture().createView();
+  const targets = ensureColorTargets(
     frame.draw,
     frame.canvas.width,
     frame.canvas.height,
+    frame.colorFormat,
     frame.depthFormat,
   );
   const context = drawContext(frame, parts);
-  const depthView = depthTexture.createView();
-  const colorPass = beginColorPass(colorEncoder, colorView, depthView);
+  const colorView = targets.color.createView();
+  const depthView = targets.depth.createView();
+  const colorPass = beginColorPass(
+    colorEncoder,
+    colorView,
+    depthView,
+    frame.showNodes ? undefined : resolveTarget,
+  );
   drawBatches(colorPass, frame.draw, context, frame.calls, { pass: "color" });
   if (frame.edgeCalls.length > 0) {
     drawBatches(colorPass, frame.draw, context, frame.edgeCalls, {
@@ -66,8 +84,8 @@ export function encodeVisibleFrame(
   }
   if (frame.showNodes) {
     colorPass.end();
-    const nodePass = beginNodeOverlayPass(colorEncoder, colorView, depthView);
-    drawNodeOverlay(nodePass, frame, context, depthTexture);
+    const nodePass = beginNodeOverlayPass(colorEncoder, colorView, depthView, resolveTarget);
+    drawNodeOverlay(nodePass, frame, context, targets.depth);
     drawOrbitPivot(nodePass, frame.resources.orbitPivot, frame.orbitPivot, frame.device);
     nodePass.end();
   } else {
@@ -109,11 +127,14 @@ function drawContext(frame: FrameOptions, parts: ReadonlyMap<PartId, Part>): Dra
 }
 
 function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
-  const uniform = new Float32Array(20);
+  const uniform = new Float32Array(24);
   uniform.set(viewProjectionMatrix(camera), 0);
   uniform[16] = frame.canvas.width;
   uniform[17] = frame.canvas.height;
-  uniform[18] = frame.pointSize;
+  uniform[18] = pointSizeDevicePixels(frame.pointSize);
+  uniform[19] = camera.near;
+  uniform[20] = camera.far;
+  uniform[21] = camera.mode === "orthographic" ? 1 : 0;
   frame.device.queue.writeBuffer(frame.resources.cameraBuffer, 0, uniform);
   writeDeformationUniform(frame.device, frame.resources.deformationBuffer, frame.deformation);
 }
@@ -124,9 +145,7 @@ function drawNodeOverlay(
   context: DrawCallContext,
   depthTexture: GPUTexture,
 ): void {
-  // Center-depth classification keeps the whole glyph stable across zoom;
-  // stencil prevents overlapping translucent circles from darkening.
-  pass.setStencilReference(0);
+  // Flat center-depth classification keeps the whole glyph visible or hidden.
   bindNodeOverlayDepth(
     pass,
     frame.device,

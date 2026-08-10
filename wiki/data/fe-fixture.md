@@ -1,14 +1,14 @@
 # FE fixture
 
-The deterministic procedural FE fixtures generate CPU-only, WebGPU-independent
-models for the demo and unit tests.
+The deterministic procedural FE fixtures live under `demo/fixture/` and
+generate CPU-only, WebGPU-independent models for the demo and unit tests.
 
 ## Element gallery (`createElementFixture`)
 
-`src/fixture/element-fixture.ts` builds a gallery of linear and quadratic
+`demo/fixture/element-fixture.ts` builds a gallery of linear and quadratic
 elements for the renderer: one reusable part per family/render-mode pair, with a
 root assembly that places the three volume blocks plus a point/line block along
-X. The model builders live in `src/fixture/element-models.ts`. Part ids:
+X. The model builders live in `demo/fixture/element-models.ts`. Part ids:
 
 - hex: `solid` 1, `surface` 2 (Hex20), `edges` 3
 - tet: `solid` 4 (Tet10), `surface` 5, `edges` 6
@@ -21,7 +21,7 @@ shown for a mode. See [[rendering/element-rendering|Element rendering]].
 
 ## Deck panel (`createPanelFixture`)
 
-The original panel fixture (`src/fixture/panel.ts`) generates a stiffened deck
+The original panel fixture (`demo/fixture/panel.ts`) generates a stiffened deck
 panel model.
 
 ### Parameters
@@ -56,7 +56,7 @@ Nested assemblies:
 
 ## Portal frame (`createFrameFixture`)
 
-`src/fixture/frame-fixture.ts` generates a structural portal frame with
+`demo/fixture/frame-fixture.ts` generates a structural portal frame with
 conforming hex topology: columns, a beam, and a brace network, each modeled
 with real finite elements (not a single panel). Three reusable parts (`solid`,
 `surface`, `edges`) let the volume render modes switch by part visibility. The
@@ -66,7 +66,7 @@ its faces are large and unambiguous (see
 
 ## Bolted plate assembly (`createBoltedPlateFixture`)
 
-`src/fixture/bolted-plate.ts` (meshes in `bolted-plate-mesh.ts`) builds the
+`demo/fixture/bolted-plate.ts` (meshes in `bolted-plate-mesh.ts`) builds the
 demo's default showcase: a bolted lap joint of two overlapping plates clamped
 by a grid of fasteners. It is the reference example of the canonical
 hierarchical assembly model and GPU instancing: the eight placements reuse one

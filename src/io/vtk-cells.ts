@@ -44,7 +44,6 @@ export function startPoints(state: VtkState, tokens: readonly string[], line: nu
   flushPoints(state);
   state.pointsRemaining = count * 3;
   state.mode = "points";
-  state.session.progress(0.1, `Reading ${String(count)} points`);
 }
 
 /** Starts collecting a CELLS block; `tokens[1]` is the cell count. */
@@ -187,7 +186,6 @@ export function finalizeGeometry(state: VtkState): void {
   assembleVtkElements(state);
   closeArray(state);
   addDataBlocks(state);
-  state.session.progress(1, "Finished reading VTK");
 }
 
 function assembleVtkElements(state: VtkState): void {

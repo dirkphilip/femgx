@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createBoltedPlateFixture, type BoltedPlateFixture } from "../../src/fixture/bolted-plate";
-import { createBoltedPlatePreset, visiblePartIdsForPreset } from "../../src/fixture/presets";
-import { transformPoint } from "../../src/math/mat4";
-import { flattenAssembly } from "../../src/runtime/flatten";
-import type { Assembly, SubAssemblyPlacement } from "../../src/scene/assembly";
-import type { Instance } from "../../src/scene/types";
+import {
+  createBoltedPlateFixture,
+  type BoltedPlateFixture,
+} from "../../../demo/fixture/bolted-plate";
+import { createBoltedPlatePreset, visiblePartIdsForPreset } from "../../../demo/fixture/presets";
+import { transformPoint } from "../../../src/math/mat4";
+import { flattenAssembly } from "../../../src/runtime/flatten";
+import type { Assembly, SubAssemblyPlacement } from "../../../src/scene/assembly";
+import type { Instance } from "../../../src/scene/types";
 
 function flatten(fixture: BoltedPlateFixture): readonly Instance[] {
   const { scene } = fixture;

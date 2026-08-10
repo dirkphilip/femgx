@@ -25,7 +25,6 @@ export default defineConfig({
   plugins: [
     dts({
       include: ["src"],
-      exclude: ["src/fixture/**"],
       outDirs: ["dist", { dir: "dist/cjs", moduleFormat: "cjs" }],
       beforeWriteFile(filePath, content) {
         const isEsm = filePath.endsWith(".d.ts");

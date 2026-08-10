@@ -125,18 +125,14 @@ restore renderer switching or CPU fallback.
       fields.
 - [x] Add finite-value ranges that ignore missing data.
 - [x] Add scalar color mapping with ranges, gradient stops, thresholds
-      (discrete bands), clipping, and missing-value colors, plus legend
-      entries.
+      (discrete bands), clipping, and missing-value colors.
 - [x] Add deformed-shape geometry from a nodal displacement field with a
       configurable scale.
 - [x] Demonstrate undeformed/deformed shape and scalar (von Mises)
       visualization with load-case stepping in the CPU results demo and
       deterministic e2e coverage.
-- [x] Add a dedicated load-case playback API (`CasePlayer`) with configurable
-      case duration, wrap/clamp looping, and optional displacement
-      interpolation between adjacent cases (see [[data/results|Results]]).
-      **Deferred** — playback is beyond the minimum product; keep the simple
-      load-case stepping in the demo.
+- [x] ~~Add a dedicated load-case playback API (`CasePlayer`)~~ — **removed**
+      as out of product scope (see [[data/results|Results]]).
 - [x] GPU-side deformed rendering (per-instance vertex displacement) via
       `setDeformation` + `nodalDisplacements` (see [[data/results|Results]]).
 
@@ -170,23 +166,10 @@ restore renderer switching or CPU fallback.
 
 ## P3 — large-model streaming
 
-**Deferred** — the whole streaming subsystem is out of the minimum product (see
-[[requirements/product-scope|product scope]]). Do not extend it; the remaining
-unchecked item stays unimplemented until an explicit product decision.
-
-- [x] Add chunked model loading: parse, validate, and bound geometry per chunk
-      (see [[data/large-model-streaming|Large-model streaming]]).
-- [x] Add uniform-grid spatial partitioning and frustum chunk culling so
-      hidden/off-screen chunks avoid GPU upload and draw work.
-- [x] Add a deterministic, budgeted upload stream with backpressure,
-      cancellation, and disposal.
-- [x] Add local-origin coordinate rebasing that preserves sub-float32 detail
-      from double-precision model data.
-- [ ] Wire worker-thread parsing into `createChunkStream` (the parser is pure
-      and transferable; a thread host needs bundling support; see #57).
-- [x] Add level-of-detail (coarse/fine chunk variants) to the stream (#76).
-- [x] Feed streamed chunks directly into the WebGPU renderer so geometry
-      uploads progressively without a full draw-resource rebuild (#77).
+**Removed** — `src/streaming/` was deleted to match
+[[requirements/product-scope|product scope]]. Do not re-add chunked loading,
+spatial partitioning, LOD streams, or coordinate rebasing without an explicit
+product decision.
 
 Related: [[engineering/performance-issues|Performance issues and risks]],
 [[architecture/instancing-strategy|Instancing strategy]], and

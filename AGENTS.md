@@ -27,8 +27,9 @@ requirements contract]]. Read it before starting any task; this section is the s
   part/instance/element/face/node ids; selection/highlight/hover and hide/show
   are driven by per-instance GPU attributes, not CPU material clones.
 - **Readable node annotations.** FE node glyphs respect scene depth: nearer
-  faces hide occluded nodes, while complete 4 px front glyphs overlay faces and
-  edges. Visibility must not depend on a geometric depth offset or zoom level.
+  faces hide occluded nodes, while complete 6 CSS-px front glyphs (scaled by
+  `devicePixelRatio`) overlay faces and edges. Visibility must not depend on a
+  geometric depth offset or zoom level.
 - **Linear elements.** Points, lines, triangles, quads, Tet4, Hex8 with
   canonical topology and validated `createElement` construction.
 - **Results.** Typed scalar/vector/tensor fields, derived quantities (magnitude,
@@ -47,12 +48,13 @@ The following are **not** requirements and must not be expanded as if they were:
 - Quadratic element shapes and mid-edge tessellation.
 - Multi-hit pick lists (`pickMany`), adjacency inspection polish, and optional
   face display overlays.
-- Advanced results playback (CasePlayer, interpolation) and legends.
-- IO adapters beyond VTK (VTU, Gmsh, Abaqus), chunked builders, cancellation,
-  and progress.
+- Advanced results playback (CasePlayer, interpolation) and legends
+  (removed; do not re-add without an explicit product decision).
+- IO adapters beyond VTK (VTU, Gmsh, Abaqus), cancellation, and progress
+  (removed; do not re-add without an explicit product decision).
 - Large-model streaming (spatial partitioning, LOD, upload budgets, worker
   parsing, coordinate rebasing) and the "hundreds of millions of elements"
-  ambition.
+  ambition (removed; do not re-add without an explicit product decision).
 
 Existing code for deferred capabilities stays in the repository until an
 explicit product decision removes it; new work must not grow it.
@@ -105,13 +107,9 @@ under `test/`. Tags reflect the [[requirements/product-scope|product scope]]:
 - `src/interaction/` — centralized highlight/selection/hover/override state.
   **Core.**
 - `src/results/` — typed result fields, derived quantities, value ranges,
-  scalar color mapping, and deformed-shape geometry. **Core** (playback and
-  legends **Deferred**).
+  scalar color mapping, and deformed-shape geometry. **Core.**
 - `src/io/` — versioned interchange model, VTK legacy read/write, and shared
-  validation/diagnostics. **Core** (VTU/Gmsh/Abaqus adapters and chunked
-  builders **Deferred**).
-- `src/streaming/` — chunk parsing, spatial partitioning, upload budgets, and
-  coordinate rebasing. **Deferred**; do not grow it.
+  validation/diagnostics. **Core.**
 - `src/picking/` — GPU pick-id resolution (`resolvePick` / `resolvePickTarget`)
   for part/instance/element/face/node targets. **Core** (CPU raycast stack
   removed; multi-hit `pickMany` is future).

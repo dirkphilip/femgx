@@ -1,5 +1,5 @@
-import { createElement, type Element, type NodeId } from "../elements/element";
-import { createElementModel, type ElementModel } from "../elements/model";
+import { createElement, type Element, type NodeId } from "../../src/elements/element";
+import { createElementModel, type ElementModel } from "../../src/elements/model";
 import {
   HEX20_SHAPE,
   HEX8_SHAPE,
@@ -8,7 +8,7 @@ import {
   POINT_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
-} from "../elements/shapes";
+} from "../../src/elements/shapes";
 
 /**
  * Deterministic element-model builders for the fixture: shared-node hex and tet

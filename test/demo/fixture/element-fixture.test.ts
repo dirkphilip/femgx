@@ -3,9 +3,9 @@ import {
   createElementFixture,
   visiblePartIdsFor,
   type ElementFixture,
-} from "../../src/fixture/element-fixture";
-import { flattenAssembly } from "../../src/runtime/flatten";
-import type { Instance } from "../../src/scene/types";
+} from "../../../demo/fixture/element-fixture";
+import { flattenAssembly } from "../../../src/runtime/flatten";
+import type { Instance } from "../../../src/scene/types";
 
 function flatten(fixture: ElementFixture): readonly Instance[] {
   const { scene } = fixture;

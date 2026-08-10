@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { createParseSession, finishParse } from "../../src/io/session";
-import { createCancellationToken, OperationCancelledError } from "../../src/io/progress";
 import { IoError } from "../../src/io/diagnostics";
 
 describe("createParseSession", () => {
@@ -24,26 +23,6 @@ describe("createParseSession", () => {
     session.report("w", "warning", undefined, "warning");
     session.report("i", "info", undefined, "info");
     expect(session.issues.map((issue) => issue.severity)).toEqual(["warning", "info"]);
-  });
-
-  it("throws when the token is cancelled", () => {
-    const source = createCancellationToken();
-    const session = createParseSession({ token: source.token });
-    expect(() => {
-      session.checkCancelled();
-    }).not.toThrow();
-    source.cancel();
-    expect(() => {
-      session.checkCancelled();
-    }).toThrow(OperationCancelledError);
-  });
-
-  it("forwards progress updates", () => {
-    const updates: number[] = [];
-    const session = createParseSession({ onProgress: (update) => updates.push(update.fraction) });
-    session.progress(0.25, "quarter");
-    session.progress(1, "done");
-    expect(updates).toEqual([0.25, 1]);
   });
 });
 

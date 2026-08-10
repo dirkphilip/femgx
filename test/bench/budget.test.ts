@@ -6,14 +6,7 @@ import { translation } from "../../src/math/mat4";
 import { resolvePick } from "../../src/picking/pick";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
 import { buildInstanceLayout, computeRuntimeGrowth } from "../../src/renderer/runtime-state";
-import { createCamera, viewProjectionMatrix } from "../../src/camera/camera";
-import { parseChunk } from "../../src/streaming/parser";
-import { buildSpatialGrid, cullChunks } from "../../src/streaming/spatial";
-import { createChunkStream } from "../../src/streaming/stream";
 import {
-  BENCH_CHUNK_COUNT,
-  BENCH_CHUNK_VERTEX_COUNT,
-  BENCH_CHUNK_VERTICES_PER_CHUNK,
   BENCH_HIERARCHY_DEPTH,
   BENCH_HIERARCHY_FANOUT,
   BENCH_HIERARCHY_INSTANCE_COUNT,
@@ -22,9 +15,7 @@ import {
   BENCH_PART_COUNT,
   BENCH_PLACEMENTS_PER_SUBCASE,
   BENCH_SUBCASE_COUNT,
-  makeChunkSources,
   makeHierarchyScene,
-  makeLodChunkSources,
   makeScene,
   makeViewProjection,
 } from "./fixtures";
@@ -63,30 +54,6 @@ const grownLayout = buildInstanceLayout(grownRuntime);
 const grownGrowth = computeRuntimeGrowth(runtime, grownRuntime, baseLayout, grownLayout);
 
 const viewProjection = makeViewProjection();
-
-const chunks = makeChunkSources({
-  chunkCount: BENCH_CHUNK_COUNT,
-  verticesPerChunk: BENCH_CHUNK_VERTICES_PER_CHUNK,
-});
-const chunkGrid = buildSpatialGrid(chunks, 100_000);
-
-const lodChunks = makeLodChunkSources({
-  chunkCount: BENCH_CHUNK_COUNT,
-  verticesPerChunk: BENCH_CHUNK_VERTICES_PER_CHUNK,
-});
-const lodGrid = buildSpatialGrid(lodChunks, 100_000);
-const lodCamera = createCamera({
-  position: [0, 0, 0],
-  target: [BENCH_CHUNK_VERTEX_COUNT, 0, 0],
-  far: BENCH_CHUNK_VERTEX_COUNT * 4,
-  fovY: Math.PI / 1.5,
-});
-const lodViewProjection = viewProjectionMatrix(lodCamera);
-const lodOptions = {
-  cameraPosition: lodCamera.position,
-  detailThresholds: [100_000, 1_000_000],
-};
-const lodSelection = cullChunks(lodGrid, lodViewProjection, lodOptions);
 
 const PICK_COUNT = 50_000;
 const pickIds: number[] = [];
@@ -210,64 +177,6 @@ const budgets: readonly BudgetCase[] = [
     },
   },
   {
-    name: "parseChunk",
-    description: `parse ${BENCH_CHUNK_COUNT} chunks, ${BENCH_CHUNK_VERTEX_COUNT} vertices`,
-    budgetMs: 100,
-    run: () => {
-      for (const source of chunks) {
-        parseChunk(source);
-      }
-    },
-  },
-  {
-    name: "parseChunk mixed-detail model",
-    description: `parse ${BENCH_CHUNK_COUNT} selected LOD chunks across 3 detail levels`,
-    budgetMs: 150,
-    run: () => {
-      for (const source of lodSelection) {
-        parseChunk(source);
-      }
-    },
-  },
-  {
-    name: "buildSpatialGrid",
-    description: `partition ${BENCH_CHUNK_COUNT} chunks`,
-    budgetMs: 50,
-    run: () => {
-      buildSpatialGrid(chunks, 100_000);
-    },
-  },
-  {
-    name: "cullChunks",
-    description: `${BENCH_CHUNK_COUNT} chunks against one frustum`,
-    budgetMs: 50,
-    run: () => {
-      cullChunks(chunkGrid, viewProjection);
-    },
-  },
-  {
-    name: "createChunkStream full load",
-    description: `stream ${BENCH_CHUNK_COUNT} chunks, ${BENCH_CHUNK_VERTEX_COUNT} vertices`,
-    budgetMs: 100,
-    run: () => {
-      const stream = createChunkStream(chunks);
-      while (!stream.tick()) {
-        /* pump */
-      }
-    },
-  },
-  {
-    name: "createChunkStream LOD selection",
-    description: `cull + stream ${BENCH_CHUNK_COUNT} mixed-detail chunks`,
-    budgetMs: 150,
-    run: () => {
-      const stream = createChunkStream(cullChunks(lodGrid, lodViewProjection, lodOptions));
-      while (!stream.tick()) {
-        /* pump */
-      }
-    },
-  },
-  {
     name: "progressive renderer attach delta",
     description: `grow a ${BENCH_INSTANCE_COUNT}-instance runtime by 10 subcases (20 000 instances)`,
     budgetMs: 400,
@@ -305,7 +214,7 @@ describe("performance budgets", () => {
     expect(runtime.visibleCount).toBe(BENCH_INSTANCE_COUNT);
   });
 
-  it("computes a compatible progressive growth delta for a grown chunked runtime", () => {
+  it("computes a compatible progressive growth delta for a grown runtime", () => {
     expect(grownGrowth).toBeDefined();
     expect(grownGrowth?.newSlots).toHaveLength(BENCH_PLACEMENTS_PER_SUBCASE * 10);
     expect(grownGrowth?.changedParts.size).toBe(BENCH_PART_COUNT);

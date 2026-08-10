@@ -15,7 +15,11 @@ export interface WebGpuRendererOptions {
   readonly canvas: HTMLCanvasElement;
   readonly device?: GPUDevice;
   readonly powerPreference?: GPUPowerPreference;
-  /** Screen-space diameter of point elements in device pixels (default 8). */
+  /**
+   * Screen-space diameter of point elements in CSS pixels (default 8).
+   * Scaled by `devicePixelRatio` so apparent size stays stable across displays.
+   * FE node annotations use three-quarters of this diameter.
+   */
   readonly pointSizePixels?: number;
   /** Called with a typed reason when the underlying GPU device is lost. */
   readonly onDeviceLost?: (info: DeviceLostInfo) => void;

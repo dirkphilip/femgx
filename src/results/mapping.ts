@@ -7,15 +7,6 @@ export interface ColorStop {
   readonly color: Color;
 }
 
-/** A band boundary color or a continuous gradient stop color at its offset. */
-export interface LegendEntry {
-  /** Normalized position within `[0, 1]` used to lay out a legend bar. */
-  readonly fraction: number;
-  readonly color: Color;
-  /** Human-readable label for the value (or value band) at this entry. */
-  readonly label: string;
-}
-
 /**
  * A scalar-to-color map over a fixed range. Values below `min` clamp to the
  * first stop color and values above `max` to the last (clipping); `NaN` maps
@@ -82,34 +73,6 @@ export function mapScalar(map: ScalarColorMap, value: number): Color {
     return bandColor(map, bandIndex(map.thresholds, value));
   }
   return rampColor(map.stops, normalize(map, value));
-}
-
-/**
- * Returns the legend entries used to render a color bar: one entry per stop
- * for continuous maps, or one entry per band for thresholded maps. Missing
- * values are not part of the legend; render them with `missingColor`.
- */
-export function legend(map: ScalarColorMap): readonly LegendEntry[] {
-  if (map.thresholds === undefined) {
-    return map.stops.map((stop) => ({
-      fraction: stop.offset,
-      color: stop.color,
-      label: formatScalar(map.min + stop.offset * (map.max - map.min)),
-    }));
-  }
-  const bands = map.thresholds.length + 1;
-  const entries: LegendEntry[] = [];
-  let lower = map.min;
-  for (let band = 0; band < bands; band++) {
-    const upper = band < map.thresholds.length ? (map.thresholds[band] ?? map.max) : map.max;
-    entries.push({
-      fraction: (band + 0.5) / bands,
-      color: bandColor(map, band),
-      label: `${formatScalar(lower)} – ${formatScalar(upper)}`,
-    });
-    lower = upper;
-  }
-  return entries;
 }
 
 function normalize(map: ScalarColorMap, value: number): number {
@@ -188,8 +151,4 @@ function validateThresholds(
     }
   }
   return sorted;
-}
-
-function formatScalar(value: number): string {
-  return Number(value.toPrecision(3)).toString();
 }

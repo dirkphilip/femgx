@@ -7,7 +7,7 @@ import {
   createModelPresets,
   createPanelPreset,
   visiblePartIdsForPreset,
-} from "../../src/fixture/presets";
+} from "../../../demo/fixture/presets";
 
 describe("createModelPresets", () => {
   it("offers at least four deterministic models with the bolted showcase first", () => {

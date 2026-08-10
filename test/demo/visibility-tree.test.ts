@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createBoltedPlateFixture } from "../../src/fixture/bolted-plate";
-import { createBoltedPlatePreset, visiblePartIdsForPreset } from "../../src/fixture/presets";
+import { createBoltedPlateFixture } from "../../demo/fixture/bolted-plate";
+import { createBoltedPlatePreset, visiblePartIdsForPreset } from "../../demo/fixture/presets";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { SceneRuntime } from "../../src/scene-runtime/runtime";
 import {

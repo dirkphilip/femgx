@@ -12,13 +12,16 @@
  * nearest node.
  */
 
-/** Camera uniform: view projection plus viewport and point size in pixels. */
+/** Camera uniform: view projection plus viewport, point size, and clip planes. */
 export const cameraStruct = /* wgsl */ `
 struct Camera {
   viewProjection: mat4x4<f32>,
   viewport: vec2<f32>,
   pointSize: f32,
-  _padding: f32,
+  nearPlane: f32,
+  farPlane: f32,
+  ortho: f32,
+  _pad: vec2<f32>,
 };
 `;
 
@@ -133,6 +136,8 @@ struct VertexOutput {
   @location(3) @interpolate(flat) elementPickId: u32,
   @location(4) @interpolate(flat) facePickId: u32,
   @location(5) local: vec2<f32>,
+  @location(6) @interpolate(flat) centerPixel: vec2<f32>,
+  @location(7) @interpolate(flat) nodeDepth: f32,
 };
 `;
 
@@ -199,6 +204,8 @@ fn vertexMain(
   output.elementPickId = elementPickId;
   output.facePickId = facePickId;
   output.local = vec2<f32>(0.0);
+  output.centerPixel = vec2<f32>(0.0);
+  output.nodeDepth = 0.0;
   return output;
 }
 
@@ -240,11 +247,9 @@ fn spriteCorner(corner: u32) -> vec2<f32> {
 fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, sizeScale: f32) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
   let corner = spriteCorner(vertexIndex % 4u);
-  // The sprite draws four vertices per point (one per corner). Each corner
-  // carries the point's node pick id, so the displacement lookup can use the
-  // vertex index directly and the whole sprite follows its node's delta.
   let clip = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   let offset = (corner * camera.pointSize * sizeScale) / camera.viewport;
+  let ndc = clip.xy / clip.w;
   var output: VertexOutput;
   output.position = vec4<f32>(
     clip.x + offset.x * clip.w,
@@ -252,8 +257,6 @@ fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, sizeSc
     clip.z,
     clip.w,
   );
-  // Node annotations are neutral and legible against every part palette.
-  // A matching node emphasis record may still provide interaction feedback.
   var color = vec4<f32>(0.0, 0.0, 0.0, 0.45);
   var emissive = 0.0;
   let nodePickId = vertexNodePickIds[vertexIndex];
@@ -271,6 +274,11 @@ fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, sizeSc
   output.elementPickId = 0u;
   output.facePickId = 0u;
   output.local = corner;
+  output.centerPixel = vec2<f32>(
+    (ndc.x * 0.5 + 0.5) * camera.viewport.x,
+    (0.5 - ndc.y * 0.5) * camera.viewport.y,
+  );
+  output.nodeDepth = clip.z / clip.w;
   return output;
 }
 
@@ -281,7 +289,7 @@ fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) in
 
 @vertex
 fn nodeOverlayVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-  return pointVertex(position, instanceIndex, vertexIndex, 0.5);
+  return pointVertex(position, instanceIndex, vertexIndex, 0.75);
 }
 `;
 

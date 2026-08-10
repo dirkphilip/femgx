@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildFrameModel, createFrameFixture } from "../../src/fixture/frame-fixture";
-import { flattenAssembly } from "../../src/runtime/flatten";
+import { buildFrameModel, createFrameFixture } from "../../../demo/fixture/frame-fixture";
+import { flattenAssembly } from "../../../src/runtime/flatten";
 
 describe("buildFrameModel", () => {
   it("builds a conforming hex mesh with shared joint nodes", () => {

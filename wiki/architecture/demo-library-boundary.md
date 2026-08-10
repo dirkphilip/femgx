@@ -33,9 +33,9 @@ presentation and interaction policy only.
 **Demo-only policy (stays in `demo/`):**
 
 - DOM control wiring, the workbench controller, context menu, visibility
-  panel, inspection text, status formatting, fixture/model selection, and
-  modifier-key target policy (`controller.ts`, `view.ts`, `inspect.ts`,
-  `pick.ts`).
+  panel, inspection text, status formatting, deterministic model fixtures
+  (`demo/fixture/`), fixture/model selection, and modifier-key target policy
+  (`controller.ts`, `view.ts`, `inspect.ts`, `pick.ts`).
 - Unsupported-state wording, performance telemetry, and the browser-test
   lifecycle seam (`webgpu-demo.ts`).
 

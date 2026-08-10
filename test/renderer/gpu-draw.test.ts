@@ -13,7 +13,7 @@ import {
   writeEdgeOrder,
   type DrawCallContext,
 } from "../../src/renderer/gpu-draw";
-import { beginColorPass, ensureDepthTexture } from "../../src/renderer/gpu-pipelines";
+import { beginColorPass, ensureColorTargets } from "../../src/renderer/gpu-pipelines";
 import {
   ELEMENT_RECORD_STRIDE,
   HIGHLIGHT_HEADER,
@@ -237,7 +237,12 @@ describe("GPU draw path", () => {
       writeDrawOrder(draw, part.id, new Uint32Array([0, 1, 2]));
       writeEdgeOrder(draw, part.id, new Uint32Array([0, 2]));
       const encoder = gpu.device.createCommandEncoder();
-      const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
       drawBatches(pass, draw, drawContext(), [{ partId: part.id, instanceCount: 3 }], {
         pass: "color",
       });
@@ -267,7 +272,12 @@ describe("GPU draw path", () => {
       ]);
       writeDrawOrder(draw, part.id, new Uint32Array([0, 1]));
       const encoder = gpu.device.createCommandEncoder();
-      const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
       drawBatches(pass, draw, drawContext(), [{ partId: part.id, instanceCount: 2 }], {
         pass: "color",
       });
@@ -314,7 +324,12 @@ describe("GPU draw path", () => {
         pipelines,
       };
       const encoder = gpu.device.createCommandEncoder();
-      const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
       drawBatches(
         pass,
         draw,
@@ -348,7 +363,12 @@ describe("GPU draw path", () => {
       const calls = [{ partId: part.id, instanceCount: 1 }];
       for (let frame = 0; frame < 3; frame += 1) {
         const encoder = gpu.device.createCommandEncoder();
-        const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
+        const pass = beginColorPass(
+          encoder,
+          {} as GPUTextureView,
+          {} as GPUTextureView,
+          {} as GPUTextureView,
+        );
         drawBatches(pass, draw, drawContext(), calls, { pass: "color" });
         pass.end();
       }
@@ -367,7 +387,12 @@ describe("GPU draw path", () => {
       patchInstances(draw, part.id, [{ slot: 0, data: record(0) }]);
       writeDrawOrder(draw, part.id, new Uint32Array([0]));
       const encoder = gpu.device.createCommandEncoder();
-      const pass = beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView);
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
       drawBatches(pass, draw, drawContext(), [{ partId: part.id, instanceCount: 1 }], {
         pass: "color",
       });
@@ -379,7 +404,12 @@ describe("GPU draw path", () => {
       ]);
       writeDrawOrder(draw, part.id, new Uint32Array([0, 1, 2]));
       const encoder2 = gpu.device.createCommandEncoder();
-      const pass2 = beginColorPass(encoder2, {} as GPUTextureView, {} as GPUTextureView);
+      const pass2 = beginColorPass(
+        encoder2,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
       drawBatches(pass2, draw, drawContext(), [{ partId: part.id, instanceCount: 3 }], {
         pass: "color",
       });
@@ -390,24 +420,29 @@ describe("GPU draw path", () => {
     }
   });
 
-  it("reuses the depth texture and only resizes when the canvas size changes", () => {
+  it("reuses multisampled color targets and only resizes when the canvas size changes", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
-      const first = ensureDepthTexture(draw, 800, 600, "depth24plus");
-      const second = ensureDepthTexture(draw, 800, 600, "depth24plus");
-      expect(second).toBe(first);
-      expect(gpu.textureCreations).toBe(1);
-      expect(gpu.textures[0]?.descriptor.usage).toBe(
+      const first = ensureColorTargets(draw, 800, 600, "bgra8unorm", "depth24plus-stencil8");
+      const second = ensureColorTargets(draw, 800, 600, "bgra8unorm", "depth24plus-stencil8");
+      expect(second.color).toBe(first.color);
+      expect(second.depth).toBe(first.depth);
+      expect(gpu.textureCreations).toBe(2);
+      expect(gpu.textures[0]?.descriptor.sampleCount).toBe(4);
+      expect(gpu.textures[1]?.descriptor.sampleCount).toBe(4);
+      expect(gpu.textures[1]?.descriptor.usage).toBe(
         GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
       );
-      const resized = ensureDepthTexture(draw, 400, 300, "depth24plus");
-      expect(resized).not.toBe(first);
-      expect(gpu.textureCreations).toBe(2);
+      const resized = ensureColorTargets(draw, 400, 300, "bgra8unorm", "depth24plus-stencil8");
+      expect(resized.depth).not.toBe(first.depth);
+      expect(gpu.textureCreations).toBe(4);
       expect(gpu.textures[0]?.destroyed).toBe(true);
-      destroyDrawResources(draw);
       expect(gpu.textures[1]?.destroyed).toBe(true);
+      destroyDrawResources(draw);
+      expect(gpu.textures[2]?.destroyed).toBe(true);
+      expect(gpu.textures[3]?.destroyed).toBe(true);
     } finally {
       restore();
     }

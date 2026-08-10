@@ -9,8 +9,6 @@ import {
   TET4_SHAPE,
 } from "../elements/shapes";
 import type { FemModel, ModelResultField } from "./model";
-import type { WriteOptions } from "./parse";
-import { noopProgress } from "./progress";
 
 const VTK_TYPES: ReadonlyMap<ElementShape, number> = new Map([
   [POINT_SHAPE, 1],
@@ -27,18 +25,15 @@ const VTK_TYPES: ReadonlyMap<ElementShape, number> = new Map([
  * with implicit ids 0..n-1, so results are exported only when their ids are
  * exactly the contiguous entity sequence.
  */
-export function writeVtk(model: FemModel, options: WriteOptions = {}): string {
-  const onProgress = options.onProgress ?? noopProgress;
+export function writeVtk(model: FemModel): string {
   const lines: string[] = [];
   const cellCount = totalCells(model);
   lines.push("# vtk DataFile Version 5.0", "femgx export", "ASCII", "DATASET UNSTRUCTURED_GRID");
   lines.push(`POINTS ${String(model.nodes.count)} double`);
   writeCoordinates(model, lines);
-  onProgress({ fraction: 0.5, message: "Writing cells" });
   writeCells(model, lines, cellCount);
   writePointData(model, lines);
   writeCellData(model, lines, cellCount);
-  onProgress({ fraction: 1, message: "Finished writing VTK" });
   return lines.join("\n") + "\n";
 }
 

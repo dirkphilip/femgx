@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createRenderResources, destroyRenderResources } from "../../src/renderer/gpu-pipelines";
+import {
+  COLOR_SAMPLE_COUNT,
+  createRenderResources,
+  destroyRenderResources,
+} from "../../src/renderer/gpu-pipelines";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
 describe("GPU render resources", () => {
@@ -32,6 +36,9 @@ describe("GPU render resources", () => {
         depthCompare: "always",
         depthWriteEnabled: false,
       });
+      expect(nodePipeline?.multisample?.count).toBe(COLOR_SAMPLE_COUNT);
+      expect(gpu.renderPipelineDescriptors[0]?.multisample?.count).toBe(COLOR_SAMPLE_COUNT);
+      expect(gpu.renderPipelineDescriptors[1]?.multisample?.count ?? 1).toBe(1);
       expect(resources.instanceLayout).toBeDefined();
       expect(gpu.renderPipelineDescriptors[0]?.primitive?.cullMode).toBe("none");
       expect(gpu.renderPipelineDescriptors[1]?.primitive?.cullMode).toBe("none");

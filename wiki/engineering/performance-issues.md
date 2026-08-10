@@ -120,24 +120,12 @@ compatible Node runtime. Every npm lifecycle command now runs the lightweight
 the selected executable path instead of producing an unrelated Vite/Rolldown
 error. Node 21 is unsupported by the current toolchain.
 
-## Large-model streaming gaps
+## Large-model streaming
 
-**Deferred** — the whole streaming subsystem is out of the minimum product and
-must not grow (see [[requirements/product-scope|product scope]]).
-
-The [[data/large-model-streaming|streaming subsystem]] resolves the CPU-side chunked
-load pipeline (parse, partition, budgeted upload, rebasing). Remaining GPU-side
-and product gaps, tracked in `wiki/engineering/todo.md` and the issue tracker:
-
-- **Worker-thread parsing**: `parseChunk` is pure and transferable, but the
-  library does not yet spawn a worker. Node's native TS type-stripping cannot
-  resolve this repo's extensionless imports, and a browser worker needs a
-  second bundle entry, so the thread host was left out of the first pass.
-- **Level of detail**: coarse/fine chunk variants and distance-based detail
-  selection are implemented (see [[data/large-model-streaming|Large-model streaming]]);
-  per-LOD upload budgets remain future work.
-- **64-bit coordinates**: the local-origin rebase is the documented precision
-  strategy; float64 vertex positions are not supported by current WebGPU.
+**Removed** — the former `src/streaming/` subsystem (chunk parse, spatial
+partition, budgeted upload, coordinate rebasing) was deleted to match
+[[requirements/product-scope|product scope]]. Do not re-add it without an
+explicit product decision. In-memory models remain the product path.
 
 ## Quadratic element tessellation trade-offs
 

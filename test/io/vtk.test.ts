@@ -374,10 +374,3 @@ describe("writeVtk", () => {
     expect(written).not.toContain("tensor");
   });
 });
-
-describe("parseVtk cancellation", () => {
-  it("stops when the token is cancelled", () => {
-    const cancelled = { cancelled: true };
-    expect(() => parseVtk(TET_VTK, { token: cancelled })).toThrow(/cancelled/i);
-  });
-});
