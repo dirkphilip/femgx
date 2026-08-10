@@ -25,6 +25,12 @@ Per-frame allocations were removed from `src/renderer/`:
   `bytesPerRow`) and are reused across picks and resizes. `resize` resets only
   the render targets (`resetPickTargets`) and keeps the size-independent
   readback pool; `destroy` releases every pooled buffer.
+- **Pick snapshot** — visible rendering does not encode pick geometry. The first
+  `pick()` or `pickPoint()` after camera, canvas, geometry/placement,
+  visibility, or deformation changes renders one current ID/depth snapshot;
+  later readbacks reuse it. Interaction colors, edge/node overlays, and the
+  orbit marker do not invalidate the snapshot because they do not change hit
+  geometry.
 
 ## Synchronization constraints
 

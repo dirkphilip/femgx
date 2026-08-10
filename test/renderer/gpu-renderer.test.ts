@@ -127,15 +127,17 @@ describe("WebGPU renderer", () => {
     expect(gpu.drawCalls).toEqual([
       { indexCount: 3, instanceCount: 3 },
       { indexCount: 3, instanceCount: 3 },
-      { indexCount: 3, instanceCount: 3 },
-      { indexCount: 3, instanceCount: 3 },
-      { indexCount: 3, instanceCount: 3 },
-      { indexCount: 3, instanceCount: 3 },
     ]);
-    expect(gpu.textureCreations).toBe(7);
+    expect(gpu.textureCreations).toBe(1);
     expect(gpu.bindGroupCreations).toBe(4);
-    expect(gpu.submissionCount).toBe(4);
+    expect(gpu.submissionCount).toBe(2);
     await expect(renderer.pick(400, 300)).resolves.toEqual({ kind: "instance", instanceId: "1/0" });
+    expect(gpu.drawCalls).toHaveLength(4);
+    expect(gpu.textureCreations).toBe(7);
+    expect(gpu.submissionCount).toBe(4);
+    await renderer.pick(300, 200);
+    expect(gpu.drawCalls).toHaveLength(4);
+    expect(gpu.submissionCount).toBe(5);
     renderer.resize(400, 300);
     renderer.destroy();
     renderer.destroy();
@@ -143,6 +145,62 @@ describe("WebGPU renderer", () => {
     expect(() => {
       renderer.render(runtime, camera, scene.parts);
     }).toThrow("destroyed");
+  });
+
+  it("reuses pick snapshots until pick-relevant state changes", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice({ pickValue: 1 });
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildScene();
+    const runtime = createSceneRuntime(scene);
+    const interaction = createInteractionState();
+
+    renderer.render(runtime, camera, scene.parts);
+    await renderer.pick(100, 100);
+    expect(gpu.drawCalls).toHaveLength(3);
+    await renderer.pick(200, 200);
+    expect(gpu.drawCalls).toHaveLength(3);
+
+    const styled = setPartOverride(interaction, 1, {
+      color: { r: 1, g: 0, b: 0, a: 1 },
+    });
+    renderer.updateInstances(runtime, styled, [0]);
+    renderer.render(runtime, camera, scene.parts);
+    await renderer.pick(300, 300);
+    expect(gpu.drawCalls).toHaveLength(4);
+
+    const movedCamera = { ...camera, target: [1, 0, 0] as const };
+    renderer.render(runtime, movedCamera, scene.parts);
+    await renderer.pick(300, 300);
+    expect(gpu.drawCalls).toHaveLength(7);
+
+    runtime.setInstanceTransform(0, translation(1, 0, 0));
+    renderer.updateInstances(runtime, styled, [0]);
+    renderer.render(runtime, movedCamera, scene.parts);
+    await renderer.pick(300, 300);
+    expect(gpu.drawCalls).toHaveLength(10);
+
+    const hidden = runtime.setInstanceVisible(1, false);
+    renderer.updateVisibility(runtime, hidden.changedInstanceIds);
+    renderer.render(runtime, movedCamera, scene.parts);
+    await renderer.pick(300, 300);
+    expect(gpu.drawCalls).toHaveLength(13);
+
+    renderer.resize(400, 300);
+    await renderer.pick(150, 100);
+    expect(gpu.drawCalls).toHaveLength(15);
+
+    renderer.setDeformation({
+      scale: 1,
+      loadCase: 0,
+      loadCaseCount: 1,
+      displacements: new Map([[1, new Float32Array(9)]]),
+    });
+    renderer.render(runtime, movedCamera, scene.parts);
+    await renderer.pick(150, 100);
+    expect(gpu.drawCalls).toHaveLength(18);
+    renderer.destroy();
   });
 
   it("resolves a visible face pixel to an exact world-space point", async () => {
@@ -310,23 +368,19 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws).toEqual([
       { pipeline: "pipeline-0", indexCount: 3, instanceCount: 3 },
-      { pipeline: "pipeline-1", indexCount: 3, instanceCount: 3 },
-      { pipeline: "pipeline-2", indexCount: 3, instanceCount: 3 },
     ]);
 
     const edge = setPartOverride(createInteractionState(), 1, { edge: true });
     renderer.updateInstances(runtime, edge, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
-    expect(gpu.pipelineDraws.slice(-4)).toEqual([
+    expect(gpu.pipelineDraws.slice(-2)).toEqual([
       { pipeline: "pipeline-0", indexCount: 3, instanceCount: 3 },
       { pipeline: "pipeline-9", indexCount: 6, instanceCount: 3 },
-      { pipeline: "pipeline-1", indexCount: 3, instanceCount: 3 },
-      { pipeline: "pipeline-2", indexCount: 3, instanceCount: 3 },
     ]);
 
     renderer.setEdgeDepthTest(false);
     renderer.render(runtime, camera, scene.parts);
-    expect(gpu.pipelineDraws.at(-3)).toEqual({
+    expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-10",
       indexCount: 6,
       instanceCount: 3,
@@ -334,7 +388,7 @@ describe("WebGPU renderer", () => {
 
     renderer.setEdgeDepthTest(true);
     renderer.render(runtime, camera, scene.parts);
-    expect(gpu.pipelineDraws.at(-3)).toEqual({
+    expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-9",
       indexCount: 6,
       instanceCount: 3,
@@ -357,7 +411,7 @@ describe("WebGPU renderer", () => {
     const hidden = runtime.setInstanceVisible(1, false);
     renderer.updateInstances(runtime, edge, hidden.changedInstanceIds);
     renderer.render(runtime, camera, scene.parts);
-    expect(gpu.pipelineDraws.at(-3)).toEqual({
+    expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-9",
       indexCount: 6,
       instanceCount: 2,
@@ -366,7 +420,7 @@ describe("WebGPU renderer", () => {
     runtime.setInstanceVisible(1, true);
     renderer.updateInstances(runtime, edge, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
-    expect(gpu.pipelineDraws.at(-3)).toEqual({
+    expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-9",
       indexCount: 6,
       instanceCount: 3,
@@ -450,7 +504,7 @@ describe("WebGPU renderer", () => {
     expect(gpu.buffers.every((buffer) => !buffer.destroyed)).toBe(true);
     expect(gpu.buffers.length - buffersAfterFirst).toBe(3);
     expect(gpu.drawCalls.slice(-2)).toEqual([
-      { indexCount: 3, instanceCount: 4 },
+      { indexCount: 3, instanceCount: 2 },
       { indexCount: 3, instanceCount: 4 },
     ]);
     renderer.destroy();
