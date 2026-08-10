@@ -135,6 +135,7 @@ export {
   viewMatrix,
   viewProjectionMatrix,
   zoomCamera,
+  zoomCameraAtPoint,
   type Camera,
   type ProjectionMode,
   type Vec3,

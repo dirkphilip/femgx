@@ -1,4 +1,11 @@
-import { orbitCamera, panCamera, type Camera, type Vec3, zoomCamera } from "./camera";
+import {
+  orbitCamera,
+  panCamera,
+  type Camera,
+  type Vec3,
+  zoomCamera,
+  zoomCameraAtPoint,
+} from "./camera";
 import { clientToCanvasCss } from "./coordinates";
 import { CameraGestureTracker, type GestureStep } from "./gestures";
 
@@ -52,6 +59,8 @@ class CameraControls {
   private readonly tracker = new CameraGestureTracker();
   private readonly trackedPointerIds = new Set<number>();
   private readonly orbitGestures = new Map<number, OrbitGesture>();
+  private wheelQueue: Promise<void> = Promise.resolve();
+  private disposed = false;
 
   constructor(private readonly options: CameraControlOptions) {
     const signal = { signal: this.abortController.signal };
@@ -68,6 +77,7 @@ class CameraControls {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.abortController.abort();
     this.trackedPointerIds.clear();
     this.orbitGestures.clear();
@@ -115,9 +125,28 @@ class CameraControls {
 
   private readonly wheel = (event: WheelEvent): void => {
     event.preventDefault();
-    const { cameraRef } = this.options;
-    cameraRef.camera = zoomCamera(cameraRef.camera, event.deltaY / 1000);
-    this.options.onRender();
+    const rect = this.options.canvas.getBoundingClientRect();
+    const point = clientToCanvasCss(event.clientX, event.clientY, rect);
+    const amount = event.deltaY / 1000;
+    this.wheelQueue = this.wheelQueue.then(async () => {
+      if (this.abortController.signal.aborted) return;
+      let pivot: Vec3 | undefined;
+      try {
+        pivot = await this.options.navigation.pickPoint(
+          this.options.cameraRef.camera,
+          point.x,
+          point.y,
+        );
+      } catch {
+        pivot = undefined;
+      }
+      if (this.disposed) return;
+      this.options.cameraRef.camera =
+        pivot === undefined
+          ? zoomCamera(this.options.cameraRef.camera, amount)
+          : zoomCameraAtPoint(this.options.cameraRef.camera, amount, pivot);
+      this.options.onRender();
+    });
   };
 
   private endPointer(event: PointerEvent, releaseCapture: boolean): void {

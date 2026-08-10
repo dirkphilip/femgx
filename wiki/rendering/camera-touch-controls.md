@@ -10,8 +10,9 @@ toolbars, or inspection panels.
 - **Middle drag** spins (`orbitCamera`); **Shift+middle drag** pans
   (`panCamera`); **Ctrl+middle drag** zooms vertically (`zoomCamera`). This
   matches the default SpaceClaim desktop navigation.
-- **Wheel** zooms toward the target (`zoomCamera`); an upward wheel/drag motion
-  zooms in and a downward motion zooms out.
+- **Wheel** zooms toward the visible world point under the cursor
+  (`zoomCameraAtPoint`); an upward wheel/drag motion zooms in and a downward
+  motion zooms out. Empty space falls back to the target-anchored `zoomCamera`.
 - **Left mouse drag** is not a camera gesture, preserving click and
   shift-click inspection selection.
 - **One finger** continues to orbit on touch devices.
@@ -66,8 +67,8 @@ Playwright's `touchscreen` API is single-touch only.
   switches pivots mid-gesture.
 - Pinch zoom currently uses the existing `zoomCamera` (target-anchored). The
   midpoint is used for the two-finger pan, which keeps the pinch feeling
-  anchored; an exact screen-point-anchored zoom would need an
-  unprojection/`zoomCameraAt`-style camera API and is out of scope for the demo.
+  anchored; cursor-anchored wheel zoom is implemented separately through the
+  picked world point.
 
 ## Related demo fixes
 

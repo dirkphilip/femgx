@@ -12,12 +12,14 @@ interaction model and [[rendering/element-rendering|Element rendering]] for the 
 
 The public `installCameraControls` helper follows SpaceClaim's default mouse navigation: middle-drag spins,
 Shift+middle-drag pans, Ctrl+middle-drag zooms vertically, and the wheel zooms
-toward the orbit target. Spin uses the closest visible GPU-picked face
+toward the visible point under the cursor. Spin uses the closest visible GPU-picked face
 under its start point as the rotation pivot; `WebGpuRenderer.pickPoint`
 reads the winning fragment's NDC depth and unprojects the exact displayed world
 position. This follows GPU deformation and non-planar tessellation instead of
 reconstructing an undeformed CPU face plane.
-Empty space falls back to the fitted model target. Early drag deltas wait for
+Empty space falls back to the fitted model target. Wheel zoom uses the picked
+world point as a scale pivot, preserving its screen position while zooming.
+Early drag deltas wait for
 the asynchronous GPU hit, so the gesture uses one pivot from its first visible
 movement onward. The WebGPU renderer projects its active pivot to an
 always-visible, high-contrast screen-space target at that world-space position. Spin is
@@ -25,4 +27,6 @@ continuous through the poles, and both spin and pan use the SpaceClaim
 direction convention. Left-drag is reserved for selection, including its
 shift-based inspection modifiers. The demo presentation uses a light studio
 background and restrained material colors so geometry edges and selection
-emphasis remain legible.
+emphasis remain legible. Its lower-left orientation gizmo follows the camera's
+screen-space world-axis projection, and pressing `Z` fits the selected visible
+occurrences (or the complete scene when there is no selection).

@@ -11,6 +11,13 @@ interface PointerInput {
   readonly clientY: number;
 }
 
+interface WheelInput {
+  readonly clientX: number;
+  readonly clientY: number;
+  readonly deltaY: number;
+  readonly preventDefault: () => void;
+}
+
 class FakeCanvas {
   private readonly listeners = new Map<string, (event: PointerEvent) => void>();
   private readonly captures = new Set<number>();
@@ -23,7 +30,7 @@ class FakeCanvas {
     this.listeners.set(type, listener as (event: PointerEvent) => void);
   }
 
-  dispatch(type: string, event: PointerInput): void {
+  dispatch(type: string, event: PointerInput | WheelInput): void {
     this.listeners.get(type)?.(event as PointerEvent);
   }
 
@@ -93,6 +100,38 @@ describe("camera controls", () => {
     expect(distance(cameraRef.camera.position, [1, 0, 0])).toBeCloseTo(
       distance(initial.position, [1, 0, 0]),
     );
+  });
+
+  it("zooms around the world point under the mouse", async () => {
+    const canvas = new FakeCanvas();
+    const initial = resizeCamera(
+      createCamera({ position: [0, 0, 5], target: [0, 0, 0] }),
+      200,
+      100,
+    );
+    const cameraRef = { camera: initial };
+    const render = vi.fn();
+    const preventDefault = vi.fn();
+    const pivot: Vec3 = [1, 0, 0];
+    installCameraControls({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      cameraRef,
+      navigation: {
+        pickPoint: (_camera, x, y) => {
+          expect([x, y]).toEqual([90, 30]);
+          return Promise.resolve(pivot);
+        },
+        setOrbitPivot: vi.fn(),
+      },
+      onRender: render,
+    });
+
+    canvas.dispatch("wheel", { clientX: 100, clientY: 50, deltaY: -100, preventDefault });
+    expect(preventDefault).toHaveBeenCalledOnce();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    expect(render).toHaveBeenCalledOnce();
+    expect(cameraRef.camera.position).not.toEqual(initial.position);
   });
 });
 

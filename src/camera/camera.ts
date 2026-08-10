@@ -104,6 +104,28 @@ export function zoomCamera(camera: Camera, amount: number): Camera {
   };
 }
 
+/** Zooms around a world-space point while keeping that point under the cursor. */
+export function zoomCameraAtPoint(camera: Camera, amount: number, pivot: Vec3): Camera {
+  const factor = Math.exp(amount);
+  const position = add(pivot, scale(subtract(camera.position, pivot), factor));
+  const target = add(pivot, scale(subtract(camera.target, pivot), factor));
+  if (camera.mode === "orthographic") {
+    return {
+      ...camera,
+      position,
+      target,
+      orthoHeight: clamp(camera.orthoHeight * factor, 0.000001, camera.far),
+    };
+  }
+  const distance = length(subtract(position, target));
+  return {
+    ...camera,
+    position,
+    target,
+    near: Math.min(camera.near, distance / 1000),
+  };
+}
+
 /** Returns the column-major view matrix. */
 export function viewMatrix(camera: Camera): Mat4 {
   const forward = normalize(subtract(camera.target, camera.position));
