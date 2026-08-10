@@ -71,6 +71,12 @@ describe("supervisor runtime defaults", () => {
   it("leaves base rebasing to the workers instead of a supervisor-side refresh", () => {
     expect(configText).not.toMatch(/^refresh_base\s*=\s*true\s*$/m);
   });
+
+  it("keeps deferred scope out of automatic intake", () => {
+    expect(configText).toMatch(/ignore_labels\s*=\s*\[.*"deferred"/);
+    expect(configText).toMatch(/ignore_labels\s*=\s*\[.*"scope:deferred"/);
+    expect(configText).toMatch(/allow_labels\s*=\s*\["ready-for-supervisor"\]/);
+  });
 });
 
 describe("supervisor CI-authoritative workflow", () => {
