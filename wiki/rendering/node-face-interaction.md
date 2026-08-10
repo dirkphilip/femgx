@@ -76,11 +76,9 @@ oriented element faces are the finest-grained pickable units under
   for every visible FE node. The default glyph color is black, independent of
   the part palette. It reuses the point-sprite path with generated per-node
   quads; it does not introduce a second copy of surface geometry.
-- This annotation pass follows both the solid and element-edge passes. A tiny
-  center probe first passes normal depth testing and writes a stencil bit; the
-  complete circle then draws only where that bit is present. Front nodes are
-  therefore complete circles over edges, while nodes behind nearer surfaces
-  never receive the stencil bit at any zoom level.
+- This annotation pass follows both the solid and element-edge passes and uses
+  `depthCompare: "always"`. Node glyphs are therefore x-ray annotations: element
+  faces cannot hide rear-side nodes during inspection.
 - Node emphasis is resolved only in this glyph pass, where a matching
   `nodePickId` changes the circle's color/emissive. This keeps node selection
   local and avoids surface z-fighting.

@@ -52,6 +52,7 @@ test("lists the bolted assembly hierarchy in the visibility panel", async ({ pag
     "Bolted joint",
     "Plate stack",
     "Fasteners",
+    "Fastener × 8",
     "Steel plates",
     "Bolts",
     "Washers",
@@ -59,6 +60,7 @@ test("lists the bolted assembly hierarchy in the visibility panel", async ({ pag
   ]) {
     await expect(visibility).toContainText(name);
   }
+  await expect(page.getByTestId("assembly-vis-4")).toHaveAttribute("data-assembly-id", "4");
 });
 
 test("renders the bolted showcase with distinct part colors and a screenshot", async ({ page }) => {

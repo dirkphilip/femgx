@@ -22,9 +22,12 @@ requirements contract]]. Read it before starting any task; this section is the s
   the WebGPU contract (see [[rendering/platform-support|Platform support]]).
 - **Parts, assemblies, instancing, visibility, camera, picking, interaction.**
   Reusable part geometry is drawn once and instanced across hierarchical
-  assembly placements. GPU picking (`renderer.pick`) returns host-mappable
+  assembly placements, including repeated placements of one reusable assembly
+  definition. GPU picking (`renderer.pick`) returns host-mappable
   part/instance/element/face/node ids; selection/highlight/hover and hide/show
   are driven by per-instance GPU attributes, not CPU material clones.
+- **Readable node annotations.** FE node glyphs are an x-ray annotation layer,
+  so element faces do not hide rear-side nodes during inspection.
 - **Linear elements.** Points, lines, triangles, quads, Tet4, Hex8 with
   canonical topology and validated `createElement` construction.
 - **Results.** Typed scalar/vector/tensor fields, derived quantities (magnitude,
@@ -41,8 +44,8 @@ The following are **not** requirements and must not be expanded as if they were:
 
 - CPU fallback rendering (removed in #171; do not re-add a second renderer).
 - Quadratic element shapes and mid-edge tessellation.
-- Multi-hit pick lists (`pickMany`), adjacency inspection polish, and node/face
-  display overlays.
+- Multi-hit pick lists (`pickMany`), adjacency inspection polish, and optional
+  face display overlays.
 - Advanced results playback (CasePlayer, interpolation) and legends.
 - IO adapters beyond VTK (VTU, Gmsh, Abaqus), chunked builders, cancellation,
   and progress.

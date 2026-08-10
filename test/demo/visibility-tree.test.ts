@@ -23,14 +23,10 @@ function solidRuntime(): SceneRuntime {
 describe("assemblySubtreeIds", () => {
   it("returns the assembly and its nested sub-assemblies in pre-order", () => {
     const { scene, assemblyIds } = createBoltedPlateFixture();
-    const firstFastener = assemblyIds.fastener[0];
-    if (firstFastener === undefined) throw new Error("expected a fastener assembly id");
     expect(assemblySubtreeIds(scene.assemblies, assemblyIds.plateStack)).toEqual([2]);
-    expect(assemblySubtreeIds(scene.assemblies, assemblyIds.fasteners)).toEqual([
-      3, 4, 12, 5, 13, 6, 14, 7, 15, 8, 16, 9, 17, 10, 18, 11, 19,
-    ]);
-    expect(assemblySubtreeIds(scene.assemblies, firstFastener)).toEqual([4, 12]);
-    expect(assemblySubtreeIds(scene.assemblies, assemblyIds.root)).toHaveLength(19);
+    expect(assemblySubtreeIds(scene.assemblies, assemblyIds.fasteners)).toEqual([3, 4, 5]);
+    expect(assemblySubtreeIds(scene.assemblies, assemblyIds.fastener)).toEqual([4, 5]);
+    expect(assemblySubtreeIds(scene.assemblies, assemblyIds.root)).toEqual([1, 2, 3, 4, 5]);
   });
 });
 
@@ -62,24 +58,20 @@ describe("assemblyVisibilityState", () => {
     expect(runtime.visibleCount).toBe(2);
   });
 
-  it("marks the fastener group mixed when one fastener is hidden", () => {
+  it("hides every placement of a reusable assembly definition", () => {
     const { assemblyIds } = createBoltedPlateFixture();
     const runtime = solidRuntime();
-    const first = assemblyIds.fastener[0];
-    if (first === undefined) throw new Error("expected a fastener assembly id");
-    runtime.setAssemblyVisible(first, false);
-    expect(assemblyVisibilityState(runtime, first)).toBe("unchecked");
+    runtime.setAssemblyVisible(assemblyIds.fastener, false);
+    expect(assemblyVisibilityState(runtime, assemblyIds.fastener)).toBe("unchecked");
     expect(assemblyVisibilityState(runtime, assemblyIds.fasteners)).toBe("mixed");
     expect(assemblyVisibilityState(runtime, assemblyIds.root)).toBe("mixed");
-    expect(runtime.visibleCount).toBe(30);
+    expect(runtime.visibleCount).toBe(2);
   });
 
   it("restores a mixed subtree by showing every descendant assembly", () => {
     const { scene, assemblyIds } = createBoltedPlateFixture();
     const runtime = solidRuntime();
-    const first = assemblyIds.fastener[0];
-    if (first === undefined) throw new Error("expected a fastener assembly id");
-    runtime.setAssemblyVisible(first, false);
+    runtime.setAssemblyVisible(assemblyIds.washers, false);
     expect(assemblyVisibilityState(runtime, assemblyIds.fasteners)).toBe("mixed");
 
     for (const id of assemblySubtreeIds(scene.assemblies, assemblyIds.fasteners)) {
@@ -93,13 +85,11 @@ describe("assemblyVisibilityState", () => {
   it("does not restore an author-hidden descendant with a single parent toggle", () => {
     const { assemblyIds } = createBoltedPlateFixture();
     const runtime = solidRuntime();
-    const first = assemblyIds.fastener[0];
-    if (first === undefined) throw new Error("expected a fastener assembly id");
-    runtime.setAssemblyVisible(first, false);
+    runtime.setAssemblyVisible(assemblyIds.washers, false);
     runtime.setAssemblyVisible(assemblyIds.fasteners, true);
-    expect(assemblyVisibilityState(runtime, first)).toBe("unchecked");
+    expect(assemblyVisibilityState(runtime, assemblyIds.washers)).toBe("unchecked");
     expect(assemblyVisibilityState(runtime, assemblyIds.fasteners)).toBe("mixed");
-    expect(runtime.visibleCount).toBe(30);
+    expect(runtime.visibleCount).toBe(18);
   });
 });
 
@@ -107,7 +97,7 @@ describe("assemblyName", () => {
   it("reads the optional display name from a registered assembly", () => {
     const { scene, assemblyIds } = createBoltedPlateFixture();
     expect(assemblyName(scene.assemblies.get(assemblyIds.root))).toBe("Bolted joint");
-    expect(assemblyName(scene.assemblies.get(assemblyIds.fastener[0] ?? 0))).toBe("Fastener 1");
+    expect(assemblyName(scene.assemblies.get(assemblyIds.fastener))).toBe("Fastener");
     expect(assemblyName(undefined)).toBeUndefined();
   });
 });

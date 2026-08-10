@@ -74,12 +74,12 @@ describe("createBoltedPlateFixture", () => {
     expect(fixture.assemblyIds.root).toBe(1);
     expect(fixture.assemblyIds.plateStack).toBe(2);
     expect(fixture.assemblyIds.fasteners).toBe(3);
-    expect(fixture.assemblyIds.fastener).toEqual([4, 5, 6, 7, 8, 9, 10, 11]);
-    expect(fixture.assemblyIds.washers).toEqual([12, 13, 14, 15, 16, 17, 18, 19]);
+    expect(fixture.assemblyIds.fastener).toBe(4);
+    expect(fixture.assemblyIds.washers).toBe(5);
     expect(fixture.instanceCount).toBe(102);
     expect(fixture.visibleInstanceCount).toBe(34);
     expect(fixture.scene.parts.size).toBe(12);
-    expect(fixture.scene.assemblies.size).toBe(19);
+    expect(fixture.scene.assemblies.size).toBe(5);
   });
 
   it("nests the plate stack and fastener groups under the root", () => {
@@ -102,33 +102,36 @@ describe("createBoltedPlateFixture", () => {
     const fastenerNested = fastenerPlacements.filter(
       (placement): placement is SubAssemblyPlacement => placement.kind === "assembly",
     );
-    expect(fastenerNested.map((placement) => placement.assemblyId)).toEqual(assemblyIds.fastener);
+    expect(fastenerNested).toHaveLength(8);
+    expect(fastenerNested.every((placement) => placement.assemblyId === assemblyIds.fastener)).toBe(
+      true,
+    );
+    expect(new Set(fastenerNested.map((placement) => placement.transform[12]))).toEqual(
+      new Set([-4, 10]),
+    );
+    expect(new Set(fastenerNested.map((placement) => placement.transform[14]))).toEqual(
+      new Set([-4.5, -1.5, 1.5, 4.5]),
+    );
   });
 
-  it("nests bolt, washers, and nut under each fastener", () => {
+  it("nests reusable bolt, washers, and nut definitions under the fastener", () => {
     const { scene, assemblyIds } = createBoltedPlateFixture();
-    const fastenerId = assemblyIds.fastener[0];
-    if (fastenerId === undefined) throw new Error("expected a fastener assembly id");
-    const fastener = scene.assemblies.get(fastenerId);
-    expect(assemblyName(fastener)).toBe("Fastener 1");
+    const fastener = scene.assemblies.get(assemblyIds.fastener);
+    expect(assemblyName(fastener)).toBe("Fastener");
     expect(fastener?.placements).toHaveLength(7);
     const placementKinds = fastener?.placements.map((placement) => placement.kind) ?? [];
     expect(placementKinds).toEqual(["part", "part", "part", "assembly", "part", "part", "part"]);
 
-    const washersId = assemblyIds.washers[0];
-    if (washersId === undefined) throw new Error("expected a washers assembly id");
-    const washers = scene.assemblies.get(washersId);
+    const washers = scene.assemblies.get(assemblyIds.washers);
     expect(assemblyName(washers)).toBe("Washers");
     expect(washers?.placements).toHaveLength(6);
     expect(washers?.placements.every((placement) => placement.kind === "part")).toBe(true);
     expect(washers?.placements[0]).toMatchObject({ kind: "part", partId: 7 });
     expect(washers?.placements[3]).toMatchObject({ kind: "part", partId: 7 });
-
-    const lastFastenerId = assemblyIds.fastener[7];
-    if (lastFastenerId === undefined) throw new Error("expected a fastener assembly id");
-    const lastFastener = scene.assemblies.get(lastFastenerId);
-    expect(assemblyName(lastFastener)).toBe("Fastener 8");
-    expect(lastFastener?.placements[3]).toMatchObject({ kind: "assembly", assemblyId: 19 });
+    expect(fastener?.placements[3]).toMatchObject({
+      kind: "assembly",
+      assemblyId: assemblyIds.washers,
+    });
   });
 
   it("reuses the shared parts across the full instance list", () => {
