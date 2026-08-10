@@ -12,7 +12,7 @@ interface NodePipelineOptions {
   readonly stencilPassOp: GPUStencilOperation;
 }
 
-/** Creates the x-ray, overlap-safe FE-node annotation pass. */
+/** Creates the depth-tested, overlap-safe FE-node annotation pass. */
 export function createNodeOverlayPipelines(
   device: GPUDevice,
   layout: GPUPipelineLayout,
@@ -40,7 +40,7 @@ function createNodePipeline(
     layout,
     vertex: {
       module: device.createShaderModule({ code: pointVertexShader }),
-      entryPoint: "pointVertexMain",
+      entryPoint: "nodeOverlayVertexMain",
       buffers: [vertexLayout],
     },
     fragment: {
@@ -52,7 +52,7 @@ function createNodePipeline(
     depthStencil: {
       format: depthFormat,
       depthWriteEnabled: false,
-      depthCompare: "always",
+      depthCompare: "less-equal",
       stencilFront: { compare: options.stencilCompare, passOp: options.stencilPassOp },
       stencilBack: { compare: options.stencilCompare, passOp: options.stencilPassOp },
       stencilReadMask: 1,

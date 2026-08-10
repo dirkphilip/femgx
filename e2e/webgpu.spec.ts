@@ -275,6 +275,30 @@ test("keeps element edges and nodes visible after orbiting", async ({ page }) =>
   }
 });
 
+test("keeps depth-tested node annotations visible across zoom levels", async ({ page }) => {
+  await loadWebGpuPage(page);
+  await page.getByTestId("model-select").selectOption({ label: "Element gallery" });
+
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("node-overlay").click();
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+
+  for (const deltaY of [-900, 900]) {
+    await page.getByTestId("reset").click();
+    await page.mouse.wheel(0, deltaY);
+    const withNodes = await stableCanvasPixels(page, canvas);
+    await page.getByTestId("node-overlay").click();
+    const withoutNodes = await stableCanvasPixels(page, canvas);
+    expect(
+      withoutNodes.equals(withNodes),
+      `node annotations must remain visible at wheel zoom ${deltaY}`,
+    ).toBe(false);
+    await page.getByTestId("node-overlay").click();
+  }
+});
+
 test("uses SpaceClaim middle-button spin, pan, and zoom gestures", async ({ page }) => {
   await loadWebGpuPage(page);
 

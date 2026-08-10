@@ -191,9 +191,12 @@ describe("GPU deformation shader contract", () => {
     expect(pointVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
   });
 
-  it("draws point sprites as circles at their exact model depth", () => {
-    expect(pointVertexShader).toMatch(/clip\.z,/);
-    expect(pointVertexShader).not.toMatch(/clip\.z - 0\.000001 \* clip\.w/);
+  it("keeps regular points at model depth and biases only node annotations", () => {
+    expect(pointVertexShader).toMatch(/pointVertex\(position, instanceIndex, vertexIndex, 0\.0\)/);
+    expect(pointVertexShader).toMatch(
+      /nodeOverlayVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, 0\.00001\)/,
+    );
+    expect(pointVertexShader).toMatch(/clip\.z - depthOffset \* clip\.w/);
     expect(colorFragmentShader).toMatch(/dot\(local, local\) > 1\.0/);
   });
 
