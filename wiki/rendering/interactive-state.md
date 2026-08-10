@@ -23,8 +23,9 @@ material clones.
 
 - GPU-based: render instance indices into a pick buffer and read back a single
   value on pointer events.
-- CPU side resolves that id via `resolvePick(instances, pickId)` and maps it to a
-  [[architecture/architecture-overview|PickTarget]] (part or instance).
+- CPU side resolves that id via `resolvePick` / `resolvePickTarget` and
+  maps it to a [[architecture/architecture-overview|PickTarget]] (part, instance,
+  element, face, or node).
 
 ## Precedence
 

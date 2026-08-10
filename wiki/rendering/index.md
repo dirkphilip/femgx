@@ -11,8 +11,8 @@
 - [[rendering/fe-inspection-workbench|FE inspection workbench]] — the demo's
   model presets, GPU picking, shared workbench controller, and e2e
   coverage.
-- [[rendering/element-rendering|Element rendering]] — linear and quadratic
-  tessellation into renderable primitives.
+- [[rendering/element-rendering|Element rendering]] — linear core tessellation
+  and retained deferred quadratic coverage.
 - [[rendering/interactive-state|Interactive state]] — centralized highlight,
   selection, hover, and style precedence.
 - [[rendering/node-face-interaction|Node and face interaction]] — node/face

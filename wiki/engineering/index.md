@@ -2,8 +2,8 @@
 
 - [[engineering/benchmarks|Benchmarks and performance budgets]] — deterministic
   CPU benchmarks and budget gates.
-- [[engineering/compatibility-matrix|Browser/GPU compatibility matrix]] —
-  WebGPU-only supported environments and the CI lanes that exercise them.
+- [[engineering/compatibility-matrix|WebGPU compatibility notes]] — the
+  single renderer contract and its validation lanes.
 - [[engineering/e2e-policy|E2E test classification and skip policy]] — which
   e2e tests are required, what may skip and why, and how skips stay visible.
 - [[engineering/packaging|Packaging]] — ESM/CJS builds and declaration

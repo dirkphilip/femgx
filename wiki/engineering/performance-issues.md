@@ -19,9 +19,9 @@ cost is proportional to the changed placements instead of the whole model.
 
 `SceneBuilder` copies maps and visibility sets for each builder operation. This
 is convenient for small scenes, but repeated additions or visibility changes
-copy O(n) state and can become quadratic while authoring large models. A packed
-runtime representation, batch construction, and a delta-oriented update path are
-needed for very large assemblies.
+copy O(n) state and can become quadratic while authoring large in-memory
+assemblies. A packed runtime representation, batch construction, and a
+delta-oriented update path keep the current product path practical.
 
 ## Flattening cost
 
@@ -147,8 +147,8 @@ factor, never a runtime draw cost:
 - Boundary-face culling and edge deduplication (`surface`/`edges` modes) run
   before tessellation, so culled interior faces never reach the vertex buffers.
 
-Risk: a full quadratic model at huge scale (the 100M-element target) multiplies
-the vertex footprint even though the draw count is unchanged. If that becomes a
-bottleneck, adaptive tessellation (subdivide only near silhouettes or when
-projected curvature is large) is the natural follow-up; nothing in the geometry
-or renderer API prevents swapping the tessellator per part.
+Risk: a large quadratic model multiplies the vertex footprint even though the
+draw count is unchanged. If deferred quadratic support is ever reconsidered and
+becomes a bottleneck, adaptive tessellation (subdivide only near silhouettes or
+when projected curvature is large) is the natural follow-up; nothing in the
+geometry or renderer API prevents swapping the tessellator per part.

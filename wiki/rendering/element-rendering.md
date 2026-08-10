@@ -1,7 +1,8 @@
 # Element rendering
 
-How finite elements become drawable geometry, and the linear/quadratic
-tessellation trade-offs. Related: [[data/elements-topology|Element topology]] and
+How finite elements become drawable geometry. Linear shapes are Core now;
+quadratic tessellation is retained code but Deferred by the product contract.
+Related: [[data/elements-topology|Element topology]] and
 [[architecture/instancing-strategy|Instancing strategy]].
 
 ## Pipeline
@@ -71,9 +72,11 @@ pulls the final line depth forward by one 24-bit depth-buffer unit. Do not pull
 overlay vertices toward the camera in clip space: the larger pre-rasterization
 offset can move a genuinely occluded edge in front of a nearby surface.
 
-## Linear vs quadratic
+## Deferred quadratic support
 
-Quadratic elements are **never silently reduced** to linear geometry:
+Quadratic elements are **never silently reduced** to linear geometry in the
+retained implementation. They are not part of the minimum product and must not
+be expanded without a new product decision:
 
 - Tet10 faces are each subdivided into 4 triangles through the three mid-edge
   nodes (one center triangle + three corner triangles).
