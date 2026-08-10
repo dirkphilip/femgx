@@ -27,8 +27,8 @@ requirements contract]]. Read it before starting any task; this section is the s
   part/instance/element/face/node ids; selection/highlight/hover and hide/show
   are driven by per-instance GPU attributes, not CPU material clones.
 - **Readable node annotations.** FE node glyphs respect scene depth: nearer
-  faces hide occluded nodes, while front-facing or coincident nodes overlay
-  faces and edges cleanly.
+  faces hide occluded nodes, while complete 4 px front glyphs overlay faces and
+  edges. Visibility must not depend on a geometric depth offset or zoom level.
 - **Linear elements.** Points, lines, triangles, quads, Tet4, Hex8 with
   canonical topology and validated `createElement` construction.
 - **Results.** Typed scalar/vector/tensor fields, derived quantities (magnitude,

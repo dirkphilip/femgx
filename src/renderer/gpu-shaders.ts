@@ -208,11 +208,9 @@ fn vertexMain(
  * Vertex stage for point-sprite parts. Each point is a quad of four vertices
  * with the same center; `vertex_index % 4` selects the sprite corner, which is
  * offset in clip space so points stay a constant screen size and always face
- * the camera. Regular points use the point's exact depth. The node-overlay
- * entry moves glyphs slightly toward the camera so a front node's whole circle
- * stays above its coincident face while nearer geometry still occludes rear
- * nodes. Point geometry carries no element tessellations, so the element and
- * face pick ids are always zero.
+ * the camera. Regular points use the configured size; the node-overlay entry
+ * uses half that diameter. Both stay at exact model depth. Point geometry
+ * carries no element tessellations, so the element and face pick ids are zero.
  */
 export const pointVertexShader = /* wgsl */ `
 ${cameraStruct}
@@ -239,19 +237,19 @@ fn spriteCorner(corner: u32) -> vec2<f32> {
   }
 }
 
-fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, depthOffset: f32) -> VertexOutput {
+fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, sizeScale: f32) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
   let corner = spriteCorner(vertexIndex % 4u);
   // The sprite draws four vertices per point (one per corner). Each corner
   // carries the point's node pick id, so the displacement lookup can use the
   // vertex index directly and the whole sprite follows its node's delta.
   let clip = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
-  let offset = (corner * camera.pointSize) / camera.viewport;
+  let offset = (corner * camera.pointSize * sizeScale) / camera.viewport;
   var output: VertexOutput;
   output.position = vec4<f32>(
     clip.x + offset.x * clip.w,
     clip.y + offset.y * clip.w,
-    clip.z - depthOffset * clip.w,
+    clip.z,
     clip.w,
   );
   // Node annotations are neutral and legible against every part palette.
@@ -278,12 +276,12 @@ fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, depthO
 
 @vertex
 fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-  return pointVertex(position, instanceIndex, vertexIndex, 0.0);
+  return pointVertex(position, instanceIndex, vertexIndex, 1.0);
 }
 
 @vertex
 fn nodeOverlayVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-  return pointVertex(position, instanceIndex, vertexIndex, 0.00001);
+  return pointVertex(position, instanceIndex, vertexIndex, 0.5);
 }
 `;
 

@@ -73,15 +73,15 @@ oriented element faces are the finest-grained pickable units under
 ## Node glyph overlay
 
 - The demo's `Show element nodes` control draws one small screen-space circle
-  for every visible FE node. The default glyph color is black, independent of
-  the part palette. It reuses the point-sprite path with generated per-node
-  quads; it does not introduce a second copy of surface geometry.
-- This annotation pass follows both the solid and element-edge passes, uses
-  `depthCompare: "less-equal"`, and disables depth writes. Its dedicated vertex
-  entry shifts glyph depth slightly toward the camera; regular point geometry
-  remains at exact model depth. Nearer faces hide occluded nodes, while
-  front-facing or coincident nodes render as complete circles over faces and
-  edges.
+  for every visible FE node. Annotation circles are 4 device pixels in diameter
+  (half the regular point-element diameter). Their default color is black,
+  independent of the part palette. The pass reuses generated per-node quads; it
+  does not introduce a second copy of surface geometry.
+- The surface pass stores its depth texture. A following read-only overlay pass
+  samples scene depth at each node center, rejects an occluded node once, then
+  draws its complete circle without changing depth. This avoids the
+  zoom-dependent clipping and rear-node leakage caused by geometric depth
+  offsets. Regular point geometry and picking remain at exact model depth.
 - Node emphasis is resolved only in this glyph pass, where a matching
   `nodePickId` changes the circle's color/emissive. This keeps node selection
   local and avoids surface z-fighting.

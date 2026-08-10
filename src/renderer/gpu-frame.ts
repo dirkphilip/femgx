@@ -8,6 +8,7 @@ import { drawBatches } from "./gpu-draw";
 import type { PickTargets } from "./gpu-pick";
 import { ensurePickTargets } from "./gpu-pick";
 import { beginPickPass } from "./gpu-pick-pass";
+import { beginNodeOverlayPass, bindNodeOverlayDepth } from "./gpu-node-overlay";
 import type { RenderResources } from "./gpu-pipelines";
 import { beginColorPass, ensureDepthTexture } from "./gpu-pipelines";
 import { drawOrbitPivot } from "./gpu-orbit-pivot";
@@ -28,7 +29,7 @@ export interface FrameOptions {
   /** Whether the edge overlay culls edges occluded by depth (`less`). */
   readonly edgeDepthTest: boolean;
   readonly showNodes: boolean;
-  /** Screen-space diameter of point elements in device pixels. */
+  /** Screen-space diameter of point elements; node annotations use half. */
   readonly pointSize: number;
   /** Per-frame deformation state; `undefined` disables GPU deformation. */
   readonly deformation: DeformationState | undefined;
@@ -52,7 +53,8 @@ export function encodeVisibleFrame(
     frame.depthFormat,
   );
   const context = drawContext(frame, parts);
-  const colorPass = beginColorPass(colorEncoder, colorView, depthTexture.createView());
+  const depthView = depthTexture.createView();
+  const colorPass = beginColorPass(colorEncoder, colorView, depthView);
   drawBatches(colorPass, frame.draw, context, frame.calls, { pass: "color" });
   if (frame.edgeCalls.length > 0) {
     drawBatches(colorPass, frame.draw, context, frame.edgeCalls, {
@@ -62,9 +64,16 @@ export function encodeVisibleFrame(
       overlay: true,
     });
   }
-  if (frame.showNodes) drawNodeOverlay(colorPass, frame, context);
-  drawOrbitPivot(colorPass, frame.resources.orbitPivot, frame.orbitPivot, frame.device);
-  colorPass.end();
+  if (frame.showNodes) {
+    colorPass.end();
+    const nodePass = beginNodeOverlayPass(colorEncoder, colorView, depthView);
+    drawNodeOverlay(nodePass, frame, context, depthTexture);
+    drawOrbitPivot(nodePass, frame.resources.orbitPivot, frame.orbitPivot, frame.device);
+    nodePass.end();
+  } else {
+    drawOrbitPivot(colorPass, frame.resources.orbitPivot, frame.orbitPivot, frame.device);
+    colorPass.end();
+  }
   frame.device.queue.submit([colorEncoder.finish()]);
 }
 
@@ -113,10 +122,18 @@ function drawNodeOverlay(
   pass: GPURenderPassEncoder,
   frame: FrameOptions,
   context: DrawCallContext,
+  depthTexture: GPUTexture,
 ): void {
-  // Depth hides occluded nodes while the overlay vertex entry keeps front
-  // circles above coincident faces; stencil prevents overlap from darkening.
+  // Center-depth classification keeps the whole glyph stable across zoom;
+  // stencil prevents overlapping translucent circles from darkening.
   pass.setStencilReference(0);
+  bindNodeOverlayDepth(
+    pass,
+    frame.device,
+    frame.resources.nodeOverlayPipelines,
+    frame.draw,
+    depthTexture,
+  );
   drawBatches(pass, frame.draw, context, frame.calls, {
     nodes: true,
     pipeline: frame.resources.nodeOverlayPipelines.visible,

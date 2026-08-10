@@ -202,6 +202,7 @@ export function fakeGpuDevice(
       return {};
     },
     createPipelineLayout: () => ({}),
+    createSampler: () => ({}),
     createShaderModule: () => ({}),
     createRenderPipeline: (descriptor: GPURenderPipelineDescriptor) => {
       renderPipelineDescriptors.push(descriptor);
