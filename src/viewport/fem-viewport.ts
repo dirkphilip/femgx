@@ -4,12 +4,19 @@ import { fitCamera } from "../camera/fit";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { DeviceLostInfo } from "../platform/device";
 import type { PickGranularity } from "../picking/pick";
+import { defaultDeformation } from "../renderer/gpu-deform";
 import { createWebGpuRenderer, type WebGpuRenderer } from "../renderer/gpu-renderer";
 import { changedInstanceSlots } from "../renderer/interaction-diff";
 import { createSceneRuntime, type SceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
 import type { AssemblyId, PartId, PickTarget } from "../scene/types";
 import { sceneWorldBounds } from "./scene-bounds";
+import {
+  applyViewportResultInteraction,
+  resolveViewportResults,
+  type ViewportResultsConfig,
+  type ViewportResultsState,
+} from "./results";
 
 /** Inputs for the opinionated WebGPU FEM viewport. */
 export interface FemViewportOptions {
@@ -17,6 +24,7 @@ export interface FemViewportOptions {
   readonly scene: Scene;
   readonly camera?: Camera;
   readonly interaction?: InteractionState;
+  readonly results?: ViewportResultsConfig;
   readonly device?: GPUDevice;
   readonly powerPreference?: GPUPowerPreference;
   readonly onDeviceLost?: (info: DeviceLostInfo) => void;
@@ -32,10 +40,13 @@ export interface FemViewport {
   readonly runtime: SceneRuntime;
   readonly camera: Camera;
   readonly interaction: InteractionState;
+  readonly results: ViewportResultsState | undefined;
   setScene(scene: Scene): void;
   setCamera(camera: Camera): void;
   fitView(): void;
   setInteraction(interaction: InteractionState): void;
+  setResults(results: ViewportResultsConfig): void;
+  clearResults(): void;
   setEdgeDepthTest(enabled: boolean): void;
   setNodeOverlay(enabled: boolean): void;
   setPartVisible(partId: PartId, visible: boolean): void;
@@ -75,7 +86,9 @@ class FemViewportCore implements FemViewport {
   private currentScene: Scene;
   private currentRuntime: SceneRuntime;
   private cameraRef: { camera: Camera };
+  private baseInteraction: InteractionState;
   private currentInteraction: InteractionState;
+  private currentResults: ViewportResultsState | undefined;
   private appliedInteraction = createInteractionState();
   private readonly removeControls: () => void;
   private readonly removeResize: () => void;
@@ -88,7 +101,8 @@ class FemViewportCore implements FemViewport {
   ) {
     this.currentScene = options.scene;
     this.currentRuntime = createSceneRuntime(options.scene);
-    this.currentInteraction = options.interaction ?? createInteractionState();
+    this.baseInteraction = options.interaction ?? createInteractionState();
+    this.currentInteraction = this.baseInteraction;
     this.cameraRef = { camera: options.camera ?? createCamera() };
     this.resize(false);
     if (options.camera === undefined) this.fitView(false);
@@ -106,6 +120,7 @@ class FemViewportCore implements FemViewport {
     this.removeResize = installResize(options.canvas, () => {
       this.resize();
     });
+    if (options.results !== undefined) this.applyResults(options.results);
     this.render();
   }
 
@@ -121,12 +136,18 @@ class FemViewportCore implements FemViewport {
   get interaction(): InteractionState {
     return this.currentInteraction;
   }
+  get results(): ViewportResultsState | undefined {
+    return this.currentResults;
+  }
 
   setScene(scene: Scene): void {
     this.ensureAlive();
     this.currentScene = scene;
     this.currentRuntime = createSceneRuntime(scene);
+    this.currentResults = undefined;
+    this.currentInteraction = this.baseInteraction;
     this.appliedInteraction = createInteractionState();
+    this.renderer.setDeformation(defaultDeformation);
     this.fitView(false);
     this.invalidate();
   }
@@ -151,7 +172,34 @@ class FemViewportCore implements FemViewport {
 
   setInteraction(interaction: InteractionState): void {
     this.ensureAlive();
-    this.currentInteraction = interaction;
+    this.baseInteraction = interaction;
+    this.currentInteraction =
+      this.currentResults === undefined
+        ? interaction
+        : applyViewportResultInteraction(
+            interaction,
+            this.currentResults.scalarField,
+            this.currentResults.colorMap,
+            this.currentScene,
+            this.currentRuntime,
+          );
+    if (this.currentResults !== undefined) {
+      this.currentResults = { ...this.currentResults, interaction: this.currentInteraction };
+    }
+    this.invalidate();
+  }
+
+  setResults(results: ViewportResultsConfig): void {
+    this.ensureAlive();
+    this.applyResults(results);
+    this.invalidate();
+  }
+
+  clearResults(): void {
+    this.ensureAlive();
+    this.currentResults = undefined;
+    this.currentInteraction = this.baseInteraction;
+    this.renderer.setDeformation(defaultDeformation);
     this.invalidate();
   }
 
@@ -268,6 +316,18 @@ class FemViewportCore implements FemViewport {
     if (changed.length === 0) return;
     this.renderer.updateVisibility(this.currentRuntime, changed);
     this.invalidate();
+  }
+
+  private applyResults(results: ViewportResultsConfig): void {
+    const resolved = resolveViewportResults(
+      results,
+      this.currentScene,
+      this.currentRuntime,
+      this.baseInteraction,
+    );
+    this.currentResults = resolved;
+    this.currentInteraction = resolved.interaction;
+    this.renderer.setDeformation(resolved.deformation ?? defaultDeformation);
   }
 
   private ensureAlive(): void {

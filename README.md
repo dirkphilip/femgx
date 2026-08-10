@@ -127,6 +127,37 @@ viewport.setPartVisible(partId, false);
 viewport.destroy();
 ```
 
+Static results use the same viewport and authoritative scene. Elemental tensor values can be
+derived and colored while a nodal displacement field drives the existing GPU deformation path:
+
+```ts
+const stress = createResultField({
+  id: "stress",
+  name: "Stress",
+  location: "elemental",
+  shape: "tensor",
+  count: elementCount,
+  unit: "MPa",
+  values: stressValues,
+});
+const displacement = createResultField({
+  id: "displacement",
+  name: "Displacement",
+  location: "nodal",
+  shape: "vector",
+  count: nodeCount,
+  unit: "mm",
+  values: displacementValues,
+});
+viewport.setResults({
+  field: stress,
+  derive: "vonMises",
+  deformation: { field: displacement, scale: 1.5 },
+});
+// Return to the base part styles and undeformed geometry.
+viewport.clearResults();
+```
+
 Advanced consumers can still compose the lower-level renderer directly:
 
 ```ts

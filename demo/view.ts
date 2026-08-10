@@ -11,6 +11,8 @@ export interface DemoView {
   readonly projectionLabel: HTMLElement;
   readonly edgeOverlayToggle: HTMLButtonElement;
   readonly edgeOverlayLabel: HTMLElement;
+  readonly resultsToggle: HTMLButtonElement;
+  readonly resultsLabel: HTMLElement;
   readonly depthTestToggle: HTMLButtonElement;
   readonly depthTestLabel: HTMLElement;
   readonly nodeOverlayToggle: HTMLButtonElement;
@@ -47,6 +49,8 @@ export function queryDemoView(): DemoView {
   const projectionLabel = document.querySelector<HTMLElement>("#projection-label");
   const edgeOverlayToggle = document.querySelector<HTMLButtonElement>("#edge-overlay");
   const edgeOverlayLabel = document.querySelector<HTMLElement>("#edge-overlay-label");
+  const resultsToggle = document.querySelector<HTMLButtonElement>("#results-toggle");
+  const resultsLabel = document.querySelector<HTMLElement>("#results-label");
   const depthTestToggle = document.querySelector<HTMLButtonElement>("#depth-test");
   const depthTestLabel = document.querySelector<HTMLElement>("#depth-test-label");
   const nodeOverlayToggle = document.querySelector<HTMLButtonElement>("#node-overlay");
@@ -68,6 +72,8 @@ export function queryDemoView(): DemoView {
     projectionLabel === null ||
     edgeOverlayToggle === null ||
     edgeOverlayLabel === null ||
+    resultsToggle === null ||
+    resultsLabel === null ||
     depthTestToggle === null ||
     depthTestLabel === null ||
     nodeOverlayToggle === null ||
@@ -92,6 +98,8 @@ export function queryDemoView(): DemoView {
     projectionLabel,
     edgeOverlayToggle,
     edgeOverlayLabel,
+    resultsToggle,
+    resultsLabel,
     depthTestToggle,
     depthTestLabel,
     nodeOverlayToggle,

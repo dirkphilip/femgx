@@ -6,8 +6,10 @@ import { transformPoint } from "../../src/math/mat4";
 import { flattenAssembly } from "../../src/runtime/flatten";
 import type { Scene } from "../../src/scene/scene";
 import type { PartId } from "../../src/scene/types";
+import type { ViewportResultsConfig } from "../../src/viewport/results";
 import { createBoltedPlateFixture } from "./bolted-plate";
 import { createElementFixture, createHex20CylinderFixture } from "./element-fixture";
+import { createResultsPreset } from "./results-preset";
 import { createVtkFixture } from "./vtk-fixture";
 
 /** A deterministic demo model and its presentation metadata. */
@@ -23,6 +25,7 @@ export interface ModelPreset {
   readonly overlayPartIds: readonly PartId[];
   readonly defaultMode: ElementRenderMode;
   readonly bounds: Bounds;
+  readonly results?: ViewportResultsConfig;
 }
 
 /** Resolves the active mode to visible parts and preserves point/line overlays. */
@@ -176,6 +179,7 @@ export function createModelPresets(): readonly ModelPreset[] {
     createVtkPreset(),
     createGalleryPreset(),
     createHex20CylinderPreset(),
+    createResultsPreset(),
   ];
 }
 
