@@ -694,8 +694,17 @@ export class WorkbenchController {
     return triangles;
   }
 
-  /** Total triangles authored by this preset, before temporary visibility changes. */
-  totalTriangleCount(): number {
+  /** Unique triangles stored across the preset's reusable part definitions. */
+  uniqueTriangleCount(): number {
+    let triangles = 0;
+    for (const part of this.preset.scene.parts.values()) {
+      triangles += Math.floor(part.geometry.indices.length / 3);
+    }
+    return triangles;
+  }
+
+  /** Submitted triangles authored by this preset, before temporary visibility changes. */
+  submittedTriangleCount(): number {
     let triangles = 0;
     for (let slot = 0; slot < this.runtime.instanceCount; slot++) {
       const partId = this.runtime.instancePartIds[slot];

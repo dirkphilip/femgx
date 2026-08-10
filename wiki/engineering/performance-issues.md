@@ -56,7 +56,9 @@ buffers and compacts per-part draw-order buffers; see
 picking, and resource lifecycle are mocked in CPU-only unit tests. The default
 WebGPU-capable browser lane now exercises the real renderer through the demo
 (see [[rendering/webgpu-e2e|WebGPU browser e2e lane]]); true WebGPU frame-time
-benchmarking in a browser is still future work. The CPU side of performance is
+benchmarking is covered by the opt-in real-Chrome capacity suite. It separates
+unique and submitted geometry plus visible, pick-snapshot, and readback costs
+without adding cross-device timing thresholds. The CPU side of performance is
 covered by [[engineering/benchmarks|deterministic benchmarks and budgets]].
 
 ### Headless WebGPU pitfalls

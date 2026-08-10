@@ -68,7 +68,7 @@ commit message.
 the same models plus a few extra update cases. It reports ops/sec / time per
 case for human review and trend comparison and is **not** part of the default
 gate. The opt-in `.github/workflows/perf.yml` (`workflow_dispatch`) runs it and
-the browser performance smoke on demand.
+the real-WebGPU benchmark on demand.
 
 ## Large-model correctness stress test
 
@@ -83,10 +83,36 @@ default unit suite without coverage-distorted timing.
 
 ## Browser performance (opt-in)
 
-`e2e/perf.spec.ts` measures the demo's interaction round trip in Chromium. It
-is skipped by default and runs only with `RUN_PERF=1` (set by `perf.yml`). True
-WebGPU frame-time benchmarking needs a WebGPU-capable runner and is future work
-(see [[engineering/performance-issues|Performance issues]]).
+`npm run bench:webgpu` runs `e2e/perf.spec.ts` in system Chrome. It is skipped
+by the normal e2e gate and has no device-dependent pass/fail timing threshold.
+The benchmark fixes the canvas at 800×600 device pixels and DPR 1, requests a
+high-performance WebGPU adapter, performs two untimed warmups, and reports p50
+and p95 from seven timed samples. Set `RUN_PERF_LARGE=1` to include the bounded
+2-million-unique-triangle local case in addition to the default cases:
+
+| Case              | Unique triangles | Instances | Submitted triangles |
+| ----------------- | ---------------: | --------: | ------------------: |
+| `instanced-2.10m` |           32,768 |        64 |           2,097,152 |
+| `unique-250k`     |          250,632 |         1 |             250,632 |
+| `unique-1m`       |          999,698 |         1 |             999,698 |
+| `unique-2m-local` |        2,000,000 |         1 |           2,000,000 |
+
+Each iteration creates a fresh renderer over the same deterministic scene. It
+drains `GPUQueue.onSubmittedWorkDone()` around the initial upload/first frame
+and steady visible frame. The upload/attachment estimate is their difference.
+After priming reusable pick targets and applying a camera-reference
+invalidation, it measures the combined lazy pick snapshot plus readback and then
+a cached-snapshot readback; the pick-snapshot estimate is their difference. The
+report retains both directly measured totals alongside the estimates. Portable
+WebGPU timestamp queries are not required.
+
+The JSON report identifies the browser user agent, adapter identity and fallback
+status, enabled features, resolution, DPR, triangle counts, timings, and an
+estimated GPU-buffer/render-target memory breakdown. Playwright writes it as
+`webgpu-benchmark.json` in the test output and the manual `perf.yml` workflow
+uploads it as the `webgpu-benchmark` artifact. Compare reports only between
+similar browser/adapter configurations; the numbers are a capacity envelope,
+not a universal triangle limit.
 
 ## Interactive WebGPU inspection case
 
@@ -95,10 +121,10 @@ triangles` model. `demo/performance-fixture.ts` generates one 128 × 128 shell
 and places it 64 times, exercising reusable geometry and GPU instancing at
 exactly 2,097,152 triangles without a second renderer or a checked-in mesh
 asset. The demo is idle by default and renders only after viewport invalidation.
-Its overlay reports the actual rendered-frame count and clearly marks the idle
+Its overlay distinguishes the 32,768 unique triangles from 2,097,152 submitted
+triangles, reports the actual rendered-frame count, and clearly marks the idle
 state. Selecting this performance preset runs one bounded 500 ms FPS sample,
-reports the result, and then returns to idle. It is a manual visual/performance
-check, not a CI frame-time budget: real WebGPU timings remain hardware- and
-driver-dependent.
+reports the result, and then returns to idle. It remains a manual visual check;
+the opt-in benchmark above owns reproducible cost breakdowns.
 
 Related: [[engineering/todo|Engineering TODO]].
