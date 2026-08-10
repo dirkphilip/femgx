@@ -14,6 +14,30 @@ GitHub issue state remains the work queue; this map makes the product-scope
 decision visible without turning labels into a second process. Deferred issues
 require a fresh decision-gate approval before implementation.
 
+The current audit and closure rationale live in
+[[engineering/issue-audit|Open issue audit]]. The canonical-workflow milestone
+is deliberately ordered: #192 (viewport facade) is complete; #194 (static
+viewport results), #196 (public API audit), and #155 (WebGPU-only required CI)
+are the remaining core/infrastructure prerequisites. #199 is the umbrella gate,
+not permission to implement breadth work. New work must answer the decision-gate
+questions in the repository's issue template and carry `ready-for-supervisor`;
+issues carrying `deferred` or `scope:deferred` are excluded from automatic
+Supervisor intake.
+
+### Breadth reactivation gate
+
+Deferred capabilities may be reconsidered only after a deliberate product
+review confirms all of the following:
+
+- the canonical static viewport/results path is complete and documented;
+- the public API audit has removed accidental implementation commitments;
+- required WebGPU-only CI checks and local reproduction are understood; and
+- a new issue records user value, minimum behavior, deletion candidates,
+  non-goals, and why an existing abstraction cannot cover the work.
+
+Completing this gate does not automatically promote any deferred issue. Each
+future capability needs its own decision and acceptance criteria.
+
 - **Core now:** #95, #97, #118, #119, #125, #127, #139, #192, #194, #205,
   #206, and #208.
 - **Deferred:** #101 and #105 (advanced playback); #107 and #115 (streaming and

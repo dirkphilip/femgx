@@ -79,7 +79,10 @@ repair_startup_grace_seconds = 300
 # written here: a bare name such as "ignore" matches the GitHub label "ignore",
 # and a fully qualified name such as "team:skip" matches that exact GitHub
 # label. Ignore labels take precedence over allow labels.
-ignore_labels = ["ignore"]
+# Deferred work is never auto-promoted into the implementation queue. A
+# deliberate product decision can remove the label and add the allow-list label
+# after the prerequisites are complete.
+ignore_labels = ["ignore", "deferred", "scope:deferred"]
 # When non-empty, auto-pull only selects issues carrying at least one of these
 # labels. Labels are matched exactly as written here (no supervisor namespace
 # prefix is applied): "ready-for-supervisor" matches the GitHub label

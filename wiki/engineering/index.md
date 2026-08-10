@@ -6,6 +6,8 @@
   single renderer contract and its validation lanes.
 - [[engineering/e2e-policy|E2E test classification and skip policy]] — which
   e2e tests are required, what may skip and why, and how skips stay visible.
+- [[engineering/issue-audit|Open issue audit]] — current backlog decisions and
+  the technical notes preserved when stale scope is closed.
 - [[engineering/packaging|Packaging]] — ESM/CJS builds and declaration
   resolution.
 - [[engineering/performance-issues|Performance issues and risks]] — known
