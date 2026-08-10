@@ -238,6 +238,33 @@ describe("createSceneRuntime", () => {
     expect(runtime.visibleCount).toBe(3);
   });
 
+  it("updates only one occurrence of a repeated assembly", () => {
+    const scene = buildScene(
+      1,
+      [
+        {
+          id: 1,
+          placements: [
+            { kind: "assembly", assemblyId: 2, transform: identity() },
+            { kind: "assembly", assemblyId: 2, transform: identity() },
+          ],
+        },
+        { id: 2, placements: [{ kind: "part", partId: 1, transform: identity() }] },
+      ],
+      [1],
+    );
+    const runtime = createSceneRuntime(scene);
+    expect(runtime.nodeAssemblyIds).toEqual(new Uint32Array([1, 2, 2]));
+
+    expect(runtime.setAssemblyNodeVisible(1, false)).toMatchObject({
+      changedInstanceIds: [0],
+      visibleCount: 1,
+    });
+    expect(runtime.isInstanceVisible(0)).toBe(false);
+    expect(runtime.isInstanceVisible(1)).toBe(true);
+    expect(runtime.setAssemblyNodeVisible(1, true).changedInstanceIds).toEqual([0]);
+  });
+
   it("returns empty deltas for out-of-range or no-op updates", () => {
     const scene = buildScene(
       1,
@@ -249,6 +276,9 @@ describe("createSceneRuntime", () => {
     expect(runtime.setPartVisible(999, true).changedInstanceIds).toEqual([]);
     expect(runtime.setAssemblyVisible(999, true).changedInstanceIds).toEqual([]);
     expect(runtime.setAssemblyVisible(1, true).changedInstanceIds).toEqual([]);
+    expect(runtime.setAssemblyNodeVisible(0, true).changedInstanceIds).toEqual([]);
+    expect(runtime.setAssemblyNodeVisible(99, false).changedInstanceIds).toEqual([]);
+    expect(runtime.setAssemblyNodeVisible(-1, false).changedInstanceIds).toEqual([]);
     expect(runtime.setInstanceVisible(0, true).changedInstanceIds).toEqual([]);
     expect(runtime.setInstanceVisible(99, false).changedInstanceIds).toEqual([]);
     expect(runtime.setInstanceVisible(-1, false).changedInstanceIds).toEqual([]);

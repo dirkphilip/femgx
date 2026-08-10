@@ -100,6 +100,7 @@ function fakeViewport(): FakeViewport {
       setEdgeDepthTest: vi.fn(),
       setNodeOverlay: vi.fn(),
       setPartVisible: vi.fn(),
+      setAssemblyNodeVisible: vi.fn(),
       setAssemblyVisible: vi.fn(),
       setInstanceVisible: vi.fn(),
       pick: vi.fn(),

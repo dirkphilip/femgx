@@ -52,7 +52,8 @@ test("lists the bolted assembly hierarchy in the visibility panel", async ({ pag
     "Bolted joint",
     "Plate stack",
     "Fasteners",
-    "Fastener × 8",
+    "Fastener 1",
+    "Fastener 8",
     "Steel plates",
     "Bolts",
     "Washers",
@@ -60,7 +61,10 @@ test("lists the bolted assembly hierarchy in the visibility panel", async ({ pag
   ]) {
     await expect(visibility).toContainText(name);
   }
-  await expect(page.getByTestId("assembly-vis-4")).toHaveAttribute("data-assembly-id", "4");
+  await expect(page.getByTestId("assembly-node-vis-3")).toHaveAttribute(
+    "data-assembly-node-id",
+    "3",
+  );
 });
 
 test("renders the bolted showcase with distinct part colors and a screenshot", async ({ page }) => {
@@ -116,40 +120,36 @@ test("toggles the element edge overlay independently of solid geometry", async (
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-mode", "solid");
 });
 
-test("toggles part visibility and restores it via the visibility panel", async ({ page }) => {
+test("toggles one fastener occurrence and restores it via the visibility panel", async ({
+  page,
+}) => {
   await page.goto("/");
   expect(await dataset(page, "selected")).toBe("");
   expect(await status(page)).toContain("34 visible");
-  const partCheckbox = page.getByTestId("part-vis-4");
-  await expect(partCheckbox).toBeChecked();
+  const fastenerCheckbox = page.getByTestId("assembly-node-vis-3");
+  await expect(fastenerCheckbox).toBeChecked();
 
-  await partCheckbox.uncheck();
-  await expect(partCheckbox).not.toBeChecked();
-  expect(await status(page)).toContain("26 visible");
+  await fastenerCheckbox.uncheck();
+  await expect(fastenerCheckbox).not.toBeChecked();
+  expect(await status(page)).toContain("30 visible");
 
-  await partCheckbox.check();
-  await expect(partCheckbox).toBeChecked();
+  await fastenerCheckbox.check();
+  await expect(fastenerCheckbox).toBeChecked();
   expect(await status(page)).toContain("34 visible");
 });
 
-test("keeps part and assembly visibility controls in separate namespaces", async ({ page }) => {
+test("uses stable runtime-node and instance controls", async ({ page }) => {
   await page.goto("/");
-  // The default bolted preset also overlaps part ids with assembly ids; the
-  // assembly control starts checked because the scene starts with the root
-  // assembly visible.
-  await expect(page.getByTestId("assembly-vis-1")).toBeChecked();
+  await expect(page.getByTestId("assembly-node-vis-0")).toBeChecked();
   await page.getByTestId("model-select").selectOption("frame");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "frame");
 
-  // The frame preset reuses id 1 for a part and the root assembly; the panel
-  // must still create two distinct controls with their own test ids.
-  const partCheckbox = page.getByTestId("part-vis-1");
-  await expect(partCheckbox).toHaveAttribute("data-part-id", "1");
-  await expect(partCheckbox).toBeChecked();
-
-  const rootCheckbox = page.getByTestId("assembly-vis-1");
-  await expect(rootCheckbox).toHaveAttribute("data-assembly-id", "1");
+  const rootCheckbox = page.getByTestId("assembly-node-vis-0");
+  await expect(rootCheckbox).toHaveAttribute("data-assembly-node-id", "0");
   await expect(rootCheckbox).toBeChecked();
+  const partCheckbox = page.getByTestId("instance-vis-0");
+  await expect(partCheckbox).toHaveAttribute("data-instance-slot", "0");
+  await expect(partCheckbox).toBeChecked();
 
   // Hiding the root assembly hides every descendant instance.
   await rootCheckbox.uncheck();
@@ -159,7 +159,7 @@ test("keeps part and assembly visibility controls in separate namespaces", async
   await rootCheckbox.check();
   await expect(page.getByTestId("status")).toContainText("1 visible");
 
-  // Hiding a part affects only that part's instances, leaving the assembly on.
+  // Hiding the direct part occurrence leaves the assembly occurrence enabled.
   await partCheckbox.uncheck();
   await expect(partCheckbox).not.toBeChecked();
   await expect(rootCheckbox).toBeChecked();
@@ -173,38 +173,38 @@ test("keeps part and assembly visibility controls in separate namespaces", async
 
 test("collapses and expands assembly rows in the visibility tree", async ({ page }) => {
   await page.goto("/");
-  // The bolted tree starts fully expanded, so Fasteners shows its component controls.
-  const fasteners = page.getByTestId("assembly-expand-3");
+  // The bolted tree starts fully expanded, so Fasteners shows each occurrence.
+  const fasteners = page.getByTestId("assembly-expand-2");
   await expect(fasteners).toHaveAttribute("aria-expanded", "true");
-  const bolts = page.getByTestId("part-vis-4");
-  await expect(bolts).toBeVisible();
+  const firstFastener = page.getByTestId("assembly-node-vis-3");
+  await expect(firstFastener).toBeVisible();
 
   // Collapsing Fasteners hides its subtree but keeps the parent row reachable.
   await fasteners.click();
   await expect(fasteners).toHaveAttribute("aria-expanded", "false");
-  await expect(bolts).toBeHidden();
-  await expect(page.getByTestId("assembly-vis-3")).toBeVisible();
+  await expect(firstFastener).toBeHidden();
+  await expect(page.getByTestId("assembly-node-vis-2")).toBeVisible();
 
   // Expanding restores the subtree.
   await fasteners.click();
   await expect(fasteners).toHaveAttribute("aria-expanded", "true");
-  await expect(bolts).toBeVisible();
+  await expect(firstFastener).toBeVisible();
 });
 
-test("exposes the assembly context and distinct identity kinds in the tree", async ({ page }) => {
+test("exposes assembly occurrence and direct-part identity in the tree", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("visibility-context")).toContainText("Bolted joint");
-  // The bolted preset overlaps part id 1 (Steel plates solid) with the root
-  // assembly id 1; the tree keeps the two namespaces distinct instead of
-  // inferring meaning from the shared numeric id.
-  await expect(page.getByTestId("part-vis-1")).toHaveAttribute("data-part-id", "1");
-  await expect(page.getByTestId("assembly-vis-1")).toHaveAttribute("data-assembly-id", "1");
+  await expect(page.getByTestId("assembly-node-vis-0")).toHaveAttribute(
+    "data-assembly-node-id",
+    "0",
+  );
+  await expect(page.getByTestId("instance-vis-0")).toHaveAttribute("data-instance-slot", "0");
 });
 
 test("hides the plate stack through the assembly tree", async ({ page }) => {
   await page.goto("/");
   expect(await status(page)).toContain("34 visible");
-  const plateStack = page.getByTestId("assembly-vis-2");
+  const plateStack = page.getByTestId("assembly-node-vis-1");
   await expect(plateStack).toBeChecked();
 
   await plateStack.uncheck();
@@ -218,15 +218,17 @@ test("hides the plate stack through the assembly tree", async ({ page }) => {
 
 test("hides and restores all fasteners through the assembly tree", async ({ page }) => {
   await page.goto("/");
-  const fasteners = page.getByTestId("assembly-vis-3");
+  const fasteners = page.getByTestId("assembly-node-vis-2");
   await expect(fasteners).toBeChecked();
 
   await fasteners.uncheck();
   await expect(fasteners).not.toBeChecked();
+  await expect(page.getByTestId("assembly-node-vis-3")).toBeDisabled();
   expect(await status(page)).toContain("2 visible");
 
   await fasteners.check();
   await expect(fasteners).toBeChecked();
+  await expect(page.getByTestId("assembly-node-vis-3")).toBeEnabled();
   expect(await status(page)).toContain("34 visible");
 });
 
@@ -398,7 +400,7 @@ test("does not advertise the CPU-only display overlays in the context menu", asy
   await expect(menu.locator('button[data-action="diagnostics"]')).toBeEnabled();
 });
 
-test("context menu hides and restores a part via the visibility panel", async ({ page }) => {
+test("context menu synchronizes instance visibility with the tree", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
@@ -411,19 +413,16 @@ test("context menu hides and restores a part via the visibility panel", async ({
   await page.mouse.click(hit.x, hit.y, { button: "right" });
   await expect(page.getByTestId("context-menu")).toBeVisible();
   const inspection = (await page.getByTestId("inspection-panel").textContent()) ?? "";
-  const match = /Part (\d+)/.exec(inspection);
-  expect(
-    match,
-    "the inspection panel must report the owning part and instance after a pick",
-  ).not.toBeNull();
+  const match = /Instance ([^\n]+)/.exec(inspection);
+  expect(match, "the inspection panel must report the picked instance").not.toBeNull();
   if (match === null) {
-    throw new Error("the inspection panel must report the owning part and instance");
+    throw new Error("the inspection panel must report the picked instance");
   }
-  const partId = match[1];
+  const instanceId = match[1];
 
-  const checkbox = page.getByTestId(`part-vis-${partId}`);
+  const checkbox = page.locator(`input[data-instance-id="${instanceId}"]`);
   await expect(checkbox).toBeChecked();
-  await page.getByTestId("context-menu").getByText("Hide / Show part").click();
+  await page.getByTestId("context-menu").getByText("Hide / Show instance").click();
   await expect(checkbox).not.toBeChecked();
   await expect(page.getByTestId("status")).toContainText("visible");
 

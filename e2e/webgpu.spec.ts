@@ -341,8 +341,8 @@ test("keeps depth-tested node annotations stable across fine zoom steps", async 
   await page.getByTestId("model-select").selectOption({ label: "Element gallery" });
   // Hide the gallery's hardware point/line overlays so the measured delta is
   // only the center-depth node annotation pass.
-  await page.getByTestId("part-vis-7").uncheck();
-  await page.getByTestId("part-vis-8").uncheck();
+  await page.getByLabel("Part Point nodes").uncheck();
+  await page.getByLabel("Part Line outline").uncheck();
   await page.getByTestId("fit-view").click();
 
   const canvas = page.getByTestId("view-canvas");

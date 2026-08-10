@@ -5,6 +5,7 @@ import { compileSceneState, type RuntimeState } from "./compile";
 import { setInstanceTransform, setNodeTransform, type TransformDelta } from "./transforms";
 import {
   getDrawList as computeDrawList,
+  setAssemblyNodeVisible,
   setAssemblyVisible,
   setInstanceVisible,
   setPartVisible,
@@ -74,6 +75,8 @@ export interface SceneRuntime {
   getDrawList(): Uint32Array;
   setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta;
   setPartVisible(partId: PartId, visible: boolean): VisibilityDelta;
+  /** Sets visibility for one expanded assembly occurrence. */
+  setAssemblyNodeVisible(nodeId: number, visible: boolean): VisibilityDelta;
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): VisibilityDelta;
   /** Sets a part instance's local placement transform and recomputes its world. */
   setInstanceTransform(instanceId: number, transform: Mat4): TransformDelta;
@@ -151,6 +154,9 @@ export function createSceneRuntime(scene: Scene): SceneRuntime {
     },
     setPartVisible(partId: PartId, visible: boolean): VisibilityDelta {
       return setPartVisible(state, partId, visible);
+    },
+    setAssemblyNodeVisible(nodeId: number, visible: boolean): VisibilityDelta {
+      return setAssemblyNodeVisible(state, nodeId, visible);
     },
     setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): VisibilityDelta {
       return setAssemblyVisible(state, assemblyId, visible);

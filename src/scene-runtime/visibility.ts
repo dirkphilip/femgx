@@ -132,6 +132,26 @@ export function setInstanceVisible(
   return makeDelta(state, changed, previousVisibleCount);
 }
 
+/** Sets visibility for one expanded assembly occurrence and its subtree. */
+export function setAssemblyNodeVisible(
+  state: RuntimeState,
+  nodeId: number,
+  visible: boolean,
+): VisibilityDelta {
+  const previousVisibleCount = state.visibleCount;
+  if (nodeId < 0 || nodeId >= state.nodeCount) {
+    return makeDelta(state, [], previousVisibleCount);
+  }
+  const flag = visible ? 1 : 0;
+  if (state.nodeVisible[nodeId] === flag) {
+    return makeDelta(state, [], previousVisibleCount);
+  }
+  state.nodeVisible[nodeId] = flag;
+  const changed: number[] = [];
+  recomputeSubtree(state, nodeId, changed);
+  return makeDelta(state, changed, previousVisibleCount);
+}
+
 /**
  * Sets the authoring visibility of every instance of a part. Instances under a
  * hidden assembly stay hidden because hierarchy visibility gates the result.
