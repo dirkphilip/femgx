@@ -10,7 +10,7 @@ import { type ModelPreset } from "../fixture/presets";
 import { updateStatus, type DemoView } from "../view";
 import { selectedKeys } from "./selection";
 import { statsText } from "./status";
-import type { DisplayToggles, RendererStats } from "./types";
+import type { DisplayToggles, RendererStats, ResultDisplayMode } from "./types";
 
 /** Presentation-only DOM policy for the workbench shell. */
 export interface WorkbenchPresentationOptions {
@@ -20,6 +20,7 @@ export interface WorkbenchPresentationOptions {
   readonly getPreset: () => ModelPreset;
   readonly getMode: () => ElementRenderMode;
   readonly getToggles: () => DisplayToggles;
+  readonly getResultMode: () => ResultDisplayMode;
   readonly getInteraction: () => InteractionState;
   readonly getRuntime: () => SceneRuntime;
   readonly partFirstSlot: ReadonlyMap<PartId, number>;
@@ -102,6 +103,17 @@ export class WorkbenchPresentation {
     this.options.view.depthTestToggle.dataset["active"] = String(enabled);
     this.options.view.depthTestToggle.setAttribute("aria-pressed", String(enabled));
     this.options.view.depthTestToggle.textContent = enabled ? "Depth test off" : "Depth test on";
+  }
+
+  reflectResults(): void {
+    const enabled = this.options.getPreset().results !== undefined;
+    const mode = this.options.getResultMode();
+    this.options.view.resultsToggle.disabled = !enabled;
+    this.options.view.resultsLabel.textContent = mode;
+    this.options.view.resultsLabel.dataset["state"] = mode;
+    this.options.view.resultsToggle.dataset["active"] = String(enabled && mode !== "base");
+    this.options.view.resultsToggle.textContent = enabled ? "Cycle results" : "No results";
+    this.options.canvas.dataset["results"] = mode;
   }
 }
 

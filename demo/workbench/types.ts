@@ -15,6 +15,9 @@ export interface DisplayToggles {
   diagnostics: boolean;
 }
 
+/** Static result display states exercised by the results demo preset. */
+export type ResultDisplayMode = "base" | "colored" | "deformed";
+
 /** Options for the shared inspection workbench controller. */
 export interface WorkbenchOptions {
   readonly view: DemoView;

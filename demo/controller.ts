@@ -26,9 +26,14 @@ import { WorkbenchPresentation } from "./workbench/presentation";
 import { WorkbenchVisibilityActions } from "./workbench/visibility-actions";
 import { createPresetInteraction, partStyleOverride } from "./workbench/preset";
 import { indexRuntime } from "./workbench/runtime-index";
-import type { DisplayToggles, WorkbenchOptions } from "./workbench/types";
+import type { DisplayToggles, ResultDisplayMode, WorkbenchOptions } from "./workbench/types";
 
-export type { DisplayToggles, RendererStats, WorkbenchOptions } from "./workbench/types";
+export type {
+  DisplayToggles,
+  RendererStats,
+  ResultDisplayMode,
+  WorkbenchOptions,
+} from "./workbench/types";
 
 /** Presentation policy for the demo workbench; rendering/picking stays in FemViewport. */
 export class WorkbenchController {
@@ -38,6 +43,7 @@ export class WorkbenchController {
   preset: ModelPreset;
   mode: ElementRenderMode;
   toggles: DisplayToggles;
+  resultMode: ResultDisplayMode;
   interaction: InteractionState;
   /** Renderer-state note shown in the status line (e.g. "recovered"). */
   rendererState = "";
@@ -122,6 +128,7 @@ export class WorkbenchController {
       getPreset: () => this.preset,
       getMode: () => this.mode,
       getToggles: () => this.toggles,
+      getResultMode: () => this.resultMode,
       getInteraction: () => this.interaction,
       getRuntime: () => this.runtime,
       partFirstSlot: this.partFirstSlot,
@@ -135,7 +142,9 @@ export class WorkbenchController {
       nodes: false,
       diagnostics: false,
     };
+    this.resultMode = this.preset.results === undefined ? "base" : "deformed";
     this.interaction = createPresetInteraction(this.preset);
+    this.applyResultMode(false);
     this.viewport.setInteraction(this.interaction);
     indexRuntime(this.runtime, this.slotByInstanceId, this.partIdByInstanceId, this.partFirstSlot);
     this.applyModeVisibility();
@@ -159,6 +168,7 @@ export class WorkbenchController {
   /** Reattaches the presentation shell after the e2e lifecycle seam recreates the viewport. */
   setViewport(viewport: FemViewport): void {
     this.viewport = viewport;
+    this.applyResultMode(false);
     this.viewport.setInteraction(this.interaction);
     this.viewport.setEdgeDepthTest(this.depthTestEnabled);
     this.viewport.setNodeOverlay(this.toggles.nodes);
@@ -191,9 +201,11 @@ export class WorkbenchController {
     if (preset === undefined) return;
     this.preset = preset;
     this.mode = "solid";
+    this.resultMode = preset.results === undefined ? "base" : "deformed";
     this.interaction = createPresetInteraction(preset);
     this.interactionController.clearContext();
     this.viewport.setScene(preset.scene);
+    this.applyResultMode(false);
     this.viewport.setInteraction(this.interaction);
     indexRuntime(this.runtime, this.slotByInstanceId, this.partIdByInstanceId, this.partFirstSlot);
     this.applyModeVisibility();
@@ -272,8 +284,10 @@ export class WorkbenchController {
     this.mode = "solid";
     this.toggles = { edges: false, nodes: false, diagnostics: false };
     this.depthTestEnabled = true;
+    this.resultMode = this.preset.results === undefined ? "base" : "deformed";
     this.interaction = createPresetInteraction(this.preset);
     this.interactionController.clearContext();
+    this.applyResultMode(false);
     for (let nodeId = 0; nodeId < this.runtime.nodeAssemblyIds.length; nodeId += 1) {
       this.viewport.setAssemblyNodeVisible(nodeId, true);
     }
@@ -288,6 +302,7 @@ export class WorkbenchController {
     this.viewport.setCamera(setProjection(this.viewport.camera, "perspective"));
     this.visibilityPanel.rebuild();
     this.presentation.reflectEdges();
+    this.presentation.reflectResults();
     this.presentation.reflectNodes();
     this.presentation.reflectDepthTest(this.depthTestEnabled);
     this.canvas.dataset["mode"] = this.mode;
@@ -332,6 +347,9 @@ export class WorkbenchController {
       setNodes: () => {
         this.setNodes(!this.toggles.nodes);
       },
+      setResults: () => {
+        this.cycleResultMode();
+      },
       reset: () => {
         this.reset();
       },
@@ -348,6 +366,34 @@ export class WorkbenchController {
     this.presentation.reflectEdges();
     this.presentation.reflectDepthTest(this.depthTestEnabled);
     this.presentation.reflectNodes();
+  }
+
+  /** Cycles the results preset through base, colored, and deformed states. */
+  setResultMode(mode: ResultDisplayMode): void {
+    if (this.preset.results === undefined && mode !== "base") return;
+    this.resultMode = mode;
+    this.applyResultMode(true);
+  }
+
+  private cycleResultMode(): void {
+    const next: ResultDisplayMode =
+      this.resultMode === "base" ? "colored" : this.resultMode === "colored" ? "deformed" : "base";
+    this.setResultMode(next);
+  }
+
+  private applyResultMode(render: boolean): void {
+    const config = this.preset.results;
+    if (config === undefined || this.resultMode === "base") {
+      this.resultMode = "base";
+      this.viewport.clearResults();
+    } else if (this.resultMode === "colored") {
+      const { deformation: _, ...coloredConfig } = config;
+      this.viewport.setResults(coloredConfig);
+    } else {
+      this.viewport.setResults(config);
+    }
+    this.presentation.reflectResults();
+    if (render) this.render();
   }
 
   private applyMenuAction(action: string): void {
