@@ -26,8 +26,9 @@ requirements contract]]. Read it before starting any task; this section is the s
   definition. GPU picking (`renderer.pick`) returns host-mappable
   part/instance/element/face/node ids; selection/highlight/hover and hide/show
   are driven by per-instance GPU attributes, not CPU material clones.
-- **Readable node annotations.** FE node glyphs are an x-ray annotation layer,
-  so element faces do not hide rear-side nodes during inspection.
+- **Readable node annotations.** FE node glyphs respect scene depth: nearer
+  faces hide occluded nodes, while front-facing or coincident nodes overlay
+  faces and edges cleanly.
 - **Linear elements.** Points, lines, triangles, quads, Tet4, Hex8 with
   canonical topology and validated `createElement` construction.
 - **Results.** Typed scalar/vector/tensor fields, derived quantities (magnitude,

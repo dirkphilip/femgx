@@ -208,9 +208,11 @@ fn vertexMain(
  * Vertex stage for point-sprite parts. Each point is a quad of four vertices
  * with the same center; `vertex_index % 4` selects the sprite corner, which is
  * offset in clip space so points stay a constant screen size and always face
- * the camera. The quad's depth is the point's own depth, so picking and depth
- * testing behave like a true point primitive. Point geometry carries no
- * element tessellations, so the element and face pick ids are always zero.
+ * the camera. Regular points use the point's exact depth. The node-overlay
+ * entry moves glyphs slightly toward the camera so a front node's whole circle
+ * stays above its coincident face while nearer geometry still occludes rear
+ * nodes. Point geometry carries no element tessellations, so the element and
+ * face pick ids are always zero.
  */
 export const pointVertexShader = /* wgsl */ `
 ${cameraStruct}
@@ -237,8 +239,7 @@ fn spriteCorner(corner: u32) -> vec2<f32> {
   }
 }
 
-@vertex
-fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, depthOffset: f32) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
   let corner = spriteCorner(vertexIndex % 4u);
   // The sprite draws four vertices per point (one per corner). Each corner
@@ -250,7 +251,7 @@ fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) in
   output.position = vec4<f32>(
     clip.x + offset.x * clip.w,
     clip.y + offset.y * clip.w,
-    clip.z,
+    clip.z - depthOffset * clip.w,
     clip.w,
   );
   // Node annotations are neutral and legible against every part palette.
@@ -273,6 +274,16 @@ fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) in
   output.facePickId = 0u;
   output.local = corner;
   return output;
+}
+
+@vertex
+fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+  return pointVertex(position, instanceIndex, vertexIndex, 0.0);
+}
+
+@vertex
+fn nodeOverlayVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+  return pointVertex(position, instanceIndex, vertexIndex, 0.00001);
 }
 `;
 

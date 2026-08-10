@@ -25,7 +25,13 @@ describe("GPU render resources", () => {
       expect(gpu.renderPipelineDescriptors.at(-4)?.depthStencil?.depthCompare).toBe("less-equal");
       expect(gpu.renderPipelineDescriptors.at(-3)?.depthStencil?.depthCompare).toBe("always");
       expect(resources.nodeOverlayPipelines.visible).toBeDefined();
-      expect(gpu.renderPipelineDescriptors.at(-1)?.depthStencil?.depthCompare).toBe("always");
+      const nodePipeline = gpu.renderPipelineDescriptors.find(
+        (descriptor) => descriptor.vertex.entryPoint === "nodeOverlayVertexMain",
+      );
+      expect(nodePipeline?.depthStencil).toMatchObject({
+        depthCompare: "less-equal",
+        depthWriteEnabled: false,
+      });
       expect(resources.instanceLayout).toBeDefined();
       expect(gpu.renderPipelineDescriptors[0]?.primitive?.cullMode).toBe("none");
       expect(gpu.renderPipelineDescriptors[1]?.primitive?.cullMode).toBe("none");

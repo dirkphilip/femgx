@@ -114,8 +114,8 @@ function drawNodeOverlay(
   frame: FrameOptions,
   context: DrawCallContext,
 ): void {
-  // Nodes are x-ray annotations; stencil accepts only the first translucent
-  // circle at each pixel so overlap cannot darken it.
+  // Depth hides occluded nodes while the overlay vertex entry keeps front
+  // circles above coincident faces; stencil prevents overlap from darkening.
   pass.setStencilReference(0);
   drawBatches(pass, frame.draw, context, frame.calls, {
     nodes: true,
