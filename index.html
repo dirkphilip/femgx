@@ -169,6 +169,37 @@
         background: #e8edf1;
         touch-action: none;
       }
+      #axis-gizmo {
+        position: absolute;
+        z-index: 4;
+        left: 14px;
+        bottom: 14px;
+        width: 86px;
+        height: 86px;
+        border: 1px solid #2c405a;
+        border-radius: 9px;
+        background: #0b1728df;
+        box-shadow: 0 10px 30px #06101ea8;
+        pointer-events: none;
+      }
+      #axis-gizmo svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #axis-gizmo line {
+        stroke-linecap: round;
+        stroke-width: 3;
+      }
+      #axis-gizmo circle {
+        fill: #e7edf5;
+      }
+      #axis-gizmo text {
+        font-size: 12px;
+        font-weight: 750;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
       .toolbar {
         position: absolute;
         z-index: 5;
@@ -271,7 +302,7 @@
         position: absolute;
         z-index: 4;
         bottom: 15px;
-        left: 15px;
+        left: 112px;
         max-width: calc(100% - 380px);
         color: #d8e1eb;
         font-size: 12px;
@@ -365,9 +396,13 @@
         }
         #status {
           bottom: 9px;
-          left: 9px;
-          max-width: calc(100% - 18px);
+          left: 108px;
+          max-width: calc(100% - 117px);
           font-size: 11px;
+        }
+        #axis-gizmo {
+          left: 9px;
+          bottom: 9px;
         }
       }
     </style>
@@ -384,6 +419,17 @@
       </aside>
       <section class="scene" aria-label="Model scene">
         <canvas id="view" data-testid="view-canvas" width="800" height="600"></canvas>
+        <div id="axis-gizmo" data-testid="axis-gizmo" aria-label="World coordinate axes">
+          <svg viewBox="0 0 100 100" role="img" aria-label="X, Y and Z axes">
+            <circle cx="50" cy="50" r="3"></circle>
+            <line data-axis-line="x" x1="50" y1="50" x2="81" y2="50" stroke="#ef6b6b"></line>
+            <line data-axis-line="y" x1="50" y1="50" x2="50" y2="19" stroke="#67c587"></line>
+            <line data-axis-line="z" x1="50" y1="50" x2="50" y2="81" stroke="#6fa8ed"></line>
+            <text data-axis-label="x" x="89" y="50" fill="#ef6b6b">X</text>
+            <text data-axis-label="y" x="50" y="11" fill="#67c587">Y</text>
+            <text data-axis-label="z" x="50" y="89" fill="#6fa8ed">Z</text>
+          </svg>
+        </div>
         <div class="toolbar">
           <span id="renderer-status" data-testid="renderer-status" class="toggle-label"></span>
           <select id="model-select" data-testid="model-select" aria-label="Model"></select>

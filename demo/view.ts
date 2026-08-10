@@ -3,6 +3,7 @@ import type { Camera, ElementRenderMode } from "../src/index";
 /** Typed handles to the demo's DOM nodes. */
 export interface DemoView {
   readonly canvas: HTMLCanvasElement;
+  readonly axisGizmo: HTMLElement;
   readonly rendererStatus: HTMLElement;
   readonly modelSelect: HTMLSelectElement;
   readonly fitView: HTMLButtonElement;
@@ -38,6 +39,7 @@ export interface StatusInfo {
 /** Locates the demo's DOM nodes, throwing when the page is misconfigured. */
 export function queryDemoView(): DemoView {
   const canvas = document.querySelector<HTMLCanvasElement>("#view");
+  const axisGizmo = document.querySelector<HTMLElement>("#axis-gizmo");
   const rendererStatus = document.querySelector<HTMLElement>("#renderer-status");
   const modelSelect = document.querySelector<HTMLSelectElement>("#model-select");
   const fitView = document.querySelector<HTMLButtonElement>("#fit-view");
@@ -58,6 +60,7 @@ export function queryDemoView(): DemoView {
   const contextMenu = document.querySelector<HTMLElement>("#context-menu");
   if (
     canvas === null ||
+    axisGizmo === null ||
     rendererStatus === null ||
     modelSelect === null ||
     fitView === null ||
@@ -81,6 +84,7 @@ export function queryDemoView(): DemoView {
   }
   return {
     canvas,
+    axisGizmo,
     rendererStatus,
     modelSelect,
     fitView,

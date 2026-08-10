@@ -17,6 +17,7 @@ import {
   setPartOverride,
   setPartSelected,
   setProjection,
+  fitCamera,
   type Camera,
   type Color,
   type ElementId,
@@ -29,9 +30,11 @@ import {
   type FemViewport,
   type SceneRuntime,
 } from "../src/index";
+import { updateAxisGizmo } from "./axis-gizmo";
 import { visiblePartIdsForPreset, type ModelPreset } from "./fixture/presets";
 import { describePick } from "./inspect";
 import { selectTarget, targetKey, type SelectTarget } from "./pick";
+import { selectedWorldBounds } from "./selection-bounds";
 import { updateStatus, type DemoView, type StatusInfo } from "./view";
 import { assemblyName } from "./visibility-tree";
 
@@ -146,6 +149,7 @@ export class WorkbenchController {
     this.refreshStatus();
     this.refreshSelectedDataset();
     this.canvas.dataset["camera"] = cameraKey(this.viewport.camera);
+    updateAxisGizmo(this.view.axisGizmo, this.viewport.camera);
   }
 
   /** Switches to another deterministic model preset and rebuilds state. */
@@ -213,6 +217,20 @@ export class WorkbenchController {
   /** Reframes the camera onto the whole model. */
   fitView(): void {
     this.viewport.fitView();
+    this.render();
+  }
+
+  /** Fits selected occurrences, or the complete scene when nothing is selected. */
+  fitSelection(): void {
+    const bounds = selectedWorldBounds(this.preset.scene, this.runtime, this.interaction);
+    if (bounds === undefined) {
+      this.fitView();
+      return;
+    }
+    const rect = this.canvas.getBoundingClientRect();
+    this.viewport.setCamera(
+      fitCamera(this.viewport.camera, bounds, Math.max(1, rect.width), Math.max(1, rect.height)),
+    );
     this.render();
   }
 
@@ -354,6 +372,10 @@ export class WorkbenchController {
     });
     window.addEventListener("keydown", (event) => {
       if (event.key === "Escape") this.hideContextMenu();
+      else if (event.key.toLowerCase() === "z" && !isEditableTarget(event.target)) {
+        event.preventDefault();
+        this.fitSelection();
+      }
     });
   }
 
@@ -1066,4 +1088,13 @@ function sortedFaces(faces: ReadonlyMap<string, ElementId>): Array<readonly [str
 
 function formatCount(value: number): string {
   return new Intl.NumberFormat("en-US").format(value);
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
 }

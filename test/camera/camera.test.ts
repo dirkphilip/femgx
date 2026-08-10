@@ -9,6 +9,7 @@ import {
   resizeCamera,
   setProjection,
   zoomCamera,
+  zoomCameraAtPoint,
 } from "../../src/camera/camera";
 
 describe("camera", () => {
@@ -90,6 +91,21 @@ describe("camera", () => {
     expect(zoomed.position[2]).toBeLessThan(0.01);
     expect(zoomed.near).toBeLessThan(camera.near);
   });
+
+  it.each(["perspective", "orthographic"] as const)(
+    "keeps a cursor pivot under the same screen point while zooming in %s",
+    (mode) => {
+      const camera = setProjection(
+        resizeCamera(createCamera({ position: [4, 3, 7], target: [0, 0, 0] }), 973, 611),
+        mode,
+      );
+      const pivot = [0.4, -0.2, 0.7] as const;
+      const before = projectPoint(camera, pivot);
+      const after = projectPoint(zoomCameraAtPoint(camera, -0.4, pivot), pivot);
+      expect(after?.[0]).toBeCloseTo(before?.[0] ?? NaN, 5);
+      expect(after?.[1]).toBeCloseTo(before?.[1] ?? NaN, 5);
+    },
+  );
 
   it("maps the perspective near and far planes to WebGPU [0, 1] depth", () => {
     const camera = resizeCamera(

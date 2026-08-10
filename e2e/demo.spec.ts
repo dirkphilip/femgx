@@ -45,6 +45,41 @@ test("defaults to the bolted plate assembly showcase", async ({ page }) => {
   await expect(page.getByTestId("stats-panel")).toContainText("Reusable parts 12");
 });
 
+test("shows a camera-aligned world coordinate gizmo", async ({ page }) => {
+  await page.goto("/");
+  const gizmo = page.getByTestId("axis-gizmo");
+  await expect(gizmo).toBeVisible();
+  await expect(gizmo.locator("text")).toHaveCount(3);
+  await expect(gizmo).toContainText("X");
+  await expect(gizmo).toContainText("Y");
+  await expect(gizmo).toContainText("Z");
+});
+
+test("zooms toward the point under the mouse and fits selection with Z", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  const x = Math.round(box.x + box.width * 0.65);
+  const y = Math.round(box.y + box.height * 0.5);
+  const beforeZoom = await canvas.getAttribute("data-camera");
+  await page.mouse.move(x, y);
+  await page.mouse.wheel(0, -160);
+  await expect.poll(() => canvas.getAttribute("data-camera")).not.toBe(beforeZoom);
+
+  const hit = await requireHit(
+    page,
+    canvas,
+    {},
+    "GPU picking must resolve before fitting the selected target",
+  );
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => canvas.getAttribute("data-selected")).not.toBe("");
+  const beforeFit = await canvas.getAttribute("data-camera");
+  await page.keyboard.press("z");
+  await expect.poll(() => canvas.getAttribute("data-camera")).not.toBe(beforeFit);
+});
+
 test("lists the bolted assembly hierarchy in the visibility panel", async ({ page }) => {
   await page.goto("/");
   const visibility = page.getByTestId("visibility-panel");
