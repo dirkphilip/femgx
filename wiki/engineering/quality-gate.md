@@ -45,6 +45,23 @@ unsupported contract only) until a GPU runner hosts the full Chrome lane.
 - See [[rendering/webgpu-e2e|WebGPU browser e2e lane]] and
   [[engineering/e2e-policy|E2E test classification and skip policy]].
 
+## Protected main
+
+The `main` branch requires the two stable CI contexts `check` and `e2e`.
+`check` contains pre-commit validation, formatting, strict type checking,
+linting, coverage-enforced unit tests, the performance budget, the library
+build, and package smoke tests. `e2e` is the required no-GPU unsupported
+contract lane in hosted CI; the real system-Chrome WebGPU lane remains the
+required local validation for rendering, camera, interaction, demo, and
+responsive-layout changes because hosted runners do not provide deterministic
+hardware WebGPU.
+
+Both contexts must be successful and present before a pull request can merge;
+an optional performance experiment never substitutes for either context.
+Administrators are subject to the same requirement, and force-push/deletion of
+`main` is disabled. A red `main` pauses feature intake: repair the failing
+base first, then re-run the full gate before starting new work.
+
 ## Linting (small modules)
 
 ESLint caps source files at 400 implementation lines. Around 300 lines is a
