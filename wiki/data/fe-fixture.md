@@ -1,134 +1,55 @@
 # FE fixture
 
-The deterministic procedural FE fixtures live under `demo/fixture/` and
-generate CPU-only, WebGPU-independent models for the demo and unit tests.
+The demo fixtures under `demo/fixture/` are deterministic, CPU-only model
+builders used to exercise the WebGPU path and unit tests.
 
-## Element gallery (`createElementFixture`)
+## Element gallery
 
-`demo/fixture/element-fixture.ts` builds a gallery of linear and retained
-deferred quadratic elements for renderer tests: one reusable part per
-family/render-mode pair, with a root assembly that places the three volume blocks
-plus a point/line block along X. The model builders live in
-`demo/fixture/element-models.ts`. Part ids:
+`createElementFixture` places one reusable example for every currently
+supported shape: Point, Line, Line3, Tet4, Tet10, Hex8, and Hex20. Volume modes
+share the same four volume parts; point and line parts remain as overlays. The
+gallery is intentionally explicit about quadratic shapes so the tessellated
+surface is inspectable without introducing another renderer or API.
 
-- hex: `solid` 1, `surface` 2 (Hex20), `edges` 3
-- tet: `solid` 4 (Tet10), `surface` 5, `edges` 6
-- `points` 7, `lines` 8 (always visible as overlays)
+The product-scope contract also names triangles and quads, but they are not yet
+registered in `src/elements/shapes.ts` or exported by the current API. This
+demo change covers the actual registry and deliberately does not expand element
+topology scope.
 
-Tuning knobs are `gridSize` (default `2`, hex cells per axis) and `cellSize`
-(default `1`). `modePartIds` maps the volume modes (`solid`, `surface`,
-`edges`) to their parts; `visiblePartIdsFor(fixture, mode)` returns the parts
-shown for a mode. See [[rendering/element-rendering|Element rendering]].
+## VTK sample
 
-## Deck panel (`createPanelFixture`)
+`demo/fixture/sample-block.vtk` is a checked-in ASCII legacy VTK unstructured
+grid containing four Hex8 cells, nodal temperature data, and elemental stress
+data. `createVtkFixture` parses it through the public `parseVtk` path and turns
+the imported element block into the demo's reusable solid/surface/edge parts.
+This is the demo's small real-file import smoke fixture; VTK remains the only
+interchange format in product scope.
 
-The original panel fixture (`demo/fixture/panel.ts`) generates a stiffened deck
-panel model.
+## Hex20 cylinder
 
-### Parameters
+`createHex20CylinderFixture` builds a small 12-sector, two-ring annular
+cylinder from Hex20 cells. Circumferential mid-edge nodes lie on the circular
+arc rather than at the chord midpoint, and the fixture requests four quadratic
+edge segments so the curved tessellation is visible with the demo edge overlay.
 
-- `cellSize` (default `1`) — shell element size in model units (meters).
-- `cellsX` (default `4`) — shell elements along X.
-- `cellsY` (default `3`) — shell elements along Y.
-- `stiffenerHeight` (default `0.5`) — rib height above the deck.
+## Bolted plate assembly
 
-## Topology
+`createBoltedPlateFixture` builds the default showcase: two overlapping plates
+clamped by eight fasteners. Four reusable components are tessellated for solid,
+surface, and edge modes (12 parts total); nested assembly definitions reuse the
+same bolt, washer-pair, and nut definitions at every fastener location.
 
-Three reusable parts with stable ids:
+The deterministic defaults span X `-15..21`, Y `-4..4.35`, and Z `-7..7`, with
+34 visible part instances in the solid mode. The preset is the landing view, so
+changes to these defaults require matching e2e updates.
 
-- `shell` (id `1`) — unit `1 x 1` quad plate in the XY plane.
-- `stiffenerX` (id `2`) — unit vertical rib along X (z from 0 to 1).
-- `stiffenerY` (id `3`) — unit vertical rib along Y (z from 0 to 1).
+## Removed demo fixtures
 
-Nested assemblies:
+The broken portal-frame and stiffened-deck-panel presets were removed from the
+demo, along with their fixture modules and tests. They did not represent a
+supported user workflow and left dead code behind after the demo shifted toward
+the VTK import and element-topology examples.
 
-- `root` (id `1`) contains one row sub-assembly per shell row plus two stiffener assemblies.
-- `row-<i>` (ids `2 .. cellsY + 1`) places `cellsX` shells, each translated along X; the row
-  placement carries the Y offset so row `i` sits at `y = i * cellSize`.
-- `stiffeners-x` (id `cellsY + 2`) places `cellsY + 1` ribs scaled to the full deck width.
-- `stiffeners-y` (id `cellsY + 3`) places `cellsX + 1` ribs scaled to the full deck depth.
-
-## Expected dimensions and counts
-
-- Width `cellsX * cellSize`, depth `cellsY * cellSize`, height `stiffenerHeight`.
-- Default instance count: `cellsX * cellsY + (cellsY + 1) + (cellsX + 1)` = 21 for the defaults
-  (12 shells, 4 X-stiffeners, 5 Y-stiffeners over a `4 x 3` m footprint).
-- Instance ids are deterministic and readable, e.g. `"1/0/0"` is the first shell of the first row.
-
-## Portal frame (`createFrameFixture`)
-
-`demo/fixture/frame-fixture.ts` generates a structural portal frame with
-conforming hex topology: columns, a beam, and a brace network, each modeled
-with real finite elements (not a single panel). Three reusable parts (`solid`,
-`surface`, `edges`) let the volume render modes switch by part visibility. The
-frame is the workbench preset that best exercises element/face picking because
-its faces are large and unambiguous (see
-[[rendering/fe-inspection-workbench|FE inspection workbench]]).
-
-## Bolted plate assembly (`createBoltedPlateFixture`)
-
-`demo/fixture/bolted-plate.ts` (meshes in `bolted-plate-mesh.ts`) builds the
-demo's default showcase: a bolted lap joint of two overlapping plates clamped
-by a grid of fasteners. It is the reference example of the canonical
-hierarchical assembly model and GPU instancing: the eight placements reuse one
-fastener assembly definition, which in turn reuses the same bolt, washer-pair,
-and nut definitions.
-
-### Parameters
-
-- `plateLength` (default `30`) — plate length along X.
-- `plateWidth` (default `14`) — plate width along Z.
-- `plateThickness` (default `2`) — plate thickness along Y.
-- `overlapOffset` (default `6`) — X offset of the upper plate, leaving the
-  overlap zone that hosts the fasteners.
-
-### Topology
-
-Four reusable components, each tessellated for the three volume modes (so 12
-parts total):
-
-- `plate` (solid 1, surface 2, edges 3) — a shared 30 x 14 x 2 m steel plate,
-  placed twice (lower + upper).
-- `bolt` (4, 5, 6) — an 0.8 m shaft under a 1.4 x 1.4 m square head.
-- `washer` (7, 8, 9) — a thin 1.4 x 1.4 m slab, placed twice per fastener.
-- `nut` (10, 11, 12) — a 1.5 x 1.5 m box on the shaft end.
-
-Nested assembly definitions (5 total):
-
-```text
-Bolted joint (1)
-├── Plate stack (2)          places the shared plate part twice
-└── Fasteners (3)
-    └── Fastener (4) ×8        one definition at 2 rows x 4 columns
-        ├── Bolt               solid/surface/edges placements
-        ├── Washers (5)        reusable top + bottom placements
-        └── Nut                solid/surface/edges placements
-```
-
-Each Fastener placement has its own transform and expands to distinct stable
-part-instance ids, while the assembly and part definitions remain shared.
-
-### Expected dimensions and counts
-
-- Default instance count is 102 (all mode parts placed), of which 34 are
-  visible per volume mode: 2 plates + 8 fasteners x (1 bolt + 2 washers + 1 nut).
-- Bounds span X `-15..21`, Y `-4..4.35` (fasteners protrude beyond the 2 m plate
-  stack), Z `-7..7`; the isometric default camera frames this box.
-- Instance ids are deterministic and readable, e.g. `"1/1/0/3/0"` is the top
-  washer (solid) of fastener 1.
-
-The exterior washer, bolt-head, and nut faces are separated by a fixed `0.05 m`
-clearance derived from the plate thickness. This keeps the fixture visually
-unambiguous and avoids coplanar surfaces in the renderer showcase.
-
-The bolted preset is the demo's default (`createDefaultPreset`), so e2e
-assertions about the landing view and status line depend on these defaults;
-changing them must update `e2e/demo.spec.ts`.
-
-## Why deterministic
-
-Part and assembly ids are fixed constants, there is no randomness, and the scene is a pure
-function of the options. That gives stable instance ids, lets CPU tests assert the exact
-structure, and lets e2e assert the exact status text without flakiness. The demo status bar
-depends on the default parameters; changing the defaults must update the e2e assertions in
-`e2e/demo.spec.ts`.
+Related: [[data/elements-topology|Element topology]],
+[[data/io-import-export|IO import/export]],
+[[rendering/element-rendering|Element rendering]].

@@ -194,7 +194,11 @@ function buildCellTets(
 }
 
 /** Point and line elements tracing the outer outline of one grid block. */
-export function buildPointLineModel(gridSize: number, cellSize: number): ElementModel {
+export function buildPointLineModel(
+  gridSize: number,
+  cellSize: number,
+  lineKind: "all" | "linear" | "quadratic" = "all",
+): ElementModel {
   const builder = new SharedNodeBuilder();
   const count = gridSize + 1;
   const cornerIds: NodeId[] = [];
@@ -222,9 +226,85 @@ export function buildPointLineModel(gridSize: number, cellSize: number): Element
       }
     }
   }
-  elements.push(...outlineLineElements(at, gridSize, id));
+  elements.push(...outlineLineElements(at, gridSize, id, lineKind));
 
   return createElementModel(builder.positions, elements);
+}
+
+/** Optional dimensions for the curved Hex20 cylinder fixture. */
+interface Hex20CylinderOptions {
+  readonly sectors?: number;
+  readonly radialCells?: number;
+  readonly axialCells?: number;
+  readonly innerRadius?: number;
+  readonly outerRadius?: number;
+  readonly height?: number;
+}
+
+/** Builds a small annular cylinder from conforming quadratic Hex20 elements. */
+export function buildHex20CylinderModel(options: Hex20CylinderOptions = {}): ElementModel {
+  const sectors = options.sectors ?? 12;
+  const radialCells = options.radialCells ?? 2;
+  const axialCells = options.axialCells ?? 3;
+  const innerRadius = options.innerRadius ?? 0.2;
+  const outerRadius = options.outerRadius ?? 1;
+  const height = options.height ?? 1.8;
+  const builder = new SharedNodeBuilder();
+  const elements: Element[] = [];
+  let id = 1;
+  for (let layer = 0; layer < axialCells; layer += 1) {
+    const z0 = (layer / axialCells - 0.5) * height;
+    const z1 = ((layer + 1) / axialCells - 0.5) * height;
+    for (let sector = 0; sector < sectors; sector += 1) {
+      const nextSector = (sector + 1) % sectors;
+      const angle0 = (sector / sectors) * Math.PI * 2;
+      const angle1 = ((sector + 1) / sectors) * Math.PI * 2;
+      for (let radial = 0; radial < radialCells; radial += 1) {
+        const r0 = innerRadius + ((outerRadius - innerRadius) * radial) / radialCells;
+        const r1 = innerRadius + ((outerRadius - innerRadius) * (radial + 1)) / radialCells;
+        const corners = [
+          cylinderNode(builder, layer, sector, radial, r0, angle0, z0),
+          cylinderNode(builder, layer, sector, radial + 1, r1, angle0, z0),
+          cylinderNode(builder, layer, nextSector, radial + 1, r1, angle1, z0),
+          cylinderNode(builder, layer, nextSector, radial, r0, angle1, z0),
+          cylinderNode(builder, layer + 1, sector, radial, r0, angle0, z1),
+          cylinderNode(builder, layer + 1, sector, radial + 1, r1, angle0, z1),
+          cylinderNode(builder, layer + 1, nextSector, radial + 1, r1, angle1, z1),
+          cylinderNode(builder, layer + 1, nextSector, radial, r0, angle1, z1),
+        ] as const;
+        const midEdges = [
+          cylinderNode(builder, layer, sector, radial + 0.5, (r0 + r1) / 2, angle0, z0),
+          cylinderNode(builder, layer, sector + 0.5, radial + 1, r1, (angle0 + angle1) / 2, z0),
+          cylinderNode(builder, layer, nextSector, radial + 0.5, (r0 + r1) / 2, angle1, z0),
+          cylinderNode(builder, layer, sector + 0.5, radial, r0, (angle0 + angle1) / 2, z0),
+          cylinderNode(builder, layer + 1, sector, radial + 0.5, (r0 + r1) / 2, angle0, z1),
+          cylinderNode(builder, layer + 1, sector + 0.5, radial + 1, r1, (angle0 + angle1) / 2, z1),
+          cylinderNode(builder, layer + 1, nextSector, radial + 0.5, (r0 + r1) / 2, angle1, z1),
+          cylinderNode(builder, layer + 1, sector + 0.5, radial, r0, (angle0 + angle1) / 2, z1),
+          cylinderNode(builder, layer + 0.5, sector, radial, r0, angle0, (z0 + z1) / 2),
+          cylinderNode(builder, layer + 0.5, sector, radial + 1, r1, angle0, (z0 + z1) / 2),
+          cylinderNode(builder, layer + 0.5, nextSector, radial + 1, r1, angle1, (z0 + z1) / 2),
+          cylinderNode(builder, layer + 0.5, nextSector, radial, r0, angle1, (z0 + z1) / 2),
+        ];
+        elements.push(createElement(id, HEX20_SHAPE, [...corners, ...midEdges]));
+        id += 1;
+      }
+    }
+  }
+  return createElementModel(builder.positions, elements);
+}
+
+function cylinderNode(
+  builder: SharedNodeBuilder,
+  ...values: [number, number, number, number, number, number]
+): NodeId {
+  const [layer, sector, radial, radius, angle, z] = values;
+  const normalizedSector = sector < 0 ? sector + 100000 : sector;
+  return builder.getOrCreate(`cylinder:${layer}:${normalizedSector}:${radial}`, [
+    radius * Math.cos(angle),
+    radius * Math.sin(angle),
+    z,
+  ]);
 }
 
 /** Line elements tracing the outer outline of one grid block. */
@@ -232,15 +312,20 @@ function outlineLineElements(
   at: (i: number, j: number, k: number) => NodeId,
   gridSize: number,
   startId: number,
+  lineKind: "all" | "linear" | "quadratic",
 ): readonly Element[] {
   const elements: Element[] = [];
   let id = startId;
   const end = gridSize;
-  for (const [a, b] of blockEdgeSegments(end)) {
-    elements.push(createElement(id, LINE_SHAPE, [at(a[0], a[1], a[2]), at(b[0], b[1], b[2])]));
-    id += 1;
+  if (lineKind !== "quadratic") {
+    for (const [a, b] of blockEdgeSegments(end)) {
+      elements.push(createElement(id, LINE_SHAPE, [at(a[0], a[1], a[2]), at(b[0], b[1], b[2])]));
+      id += 1;
+    }
   }
-  elements.push(createElement(id, LINE3_SHAPE, [at(0, 0, 0), at(end, end, end), at(0, 0, end)]));
+  if (lineKind !== "linear") {
+    elements.push(createElement(id, LINE3_SHAPE, [at(0, 0, 0), at(end, end, end), at(0, 0, end)]));
+  }
   return elements;
 }
 

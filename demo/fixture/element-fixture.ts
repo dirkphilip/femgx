@@ -5,21 +5,25 @@ import { transformPoint, translation } from "../../src/math/mat4";
 import { flattenAssembly } from "../../src/runtime/flatten";
 import { createScene, type Scene } from "../../src/scene/scene";
 import type { AssemblyId, PartId } from "../../src/scene/types";
-import { buildHexModel, buildPointLineModel, buildTetModel } from "./element-models";
+import {
+  buildHex20CylinderModel,
+  buildHexModel,
+  buildPointLineModel,
+  buildTetModel,
+} from "./element-models";
 
-/** Stable part identifiers produced by the element fixture. */
+/** Stable part identifiers for every element shape supported by femgx. */
 export interface ElementFixtureParts {
-  readonly tetSolid: PartId;
-  readonly tetSurface: PartId;
-  readonly tetEdges: PartId;
-  readonly hexSolid: PartId;
-  readonly hexSurface: PartId;
-  readonly hexEdges: PartId;
-  readonly points: PartId;
-  readonly lines: PartId;
+  readonly point: PartId;
+  readonly line: PartId;
+  readonly line3: PartId;
+  readonly tet4: PartId;
+  readonly tet10: PartId;
+  readonly hex8: PartId;
+  readonly hex20: PartId;
 }
 
-/** Tuning knobs for the deterministic element fixture. */
+/** Tuning knobs for the deterministic element gallery. */
 export interface ElementFixtureOptions {
   /** Hex elements along each axis of the volume grids (default `2`). */
   readonly gridSize?: number;
@@ -27,166 +31,143 @@ export interface ElementFixtureOptions {
   readonly cellSize?: number;
 }
 
-/**
- * A deterministic CPU-only FE fixture: a gallery of linear and quadratic Tet,
- * Hex, point, and line elements. Each element family and render mode is a
- * reusable part, so mode selection is pure part visibility; every placement is
- * derived from the grid parameters.
- */
+/** A deterministic gallery containing one visible example per supported shape. */
 export interface ElementFixture {
   readonly scene: Scene;
   readonly partIds: ElementFixtureParts;
-  /** Parts shown for each volume render mode (tet + hex). */
   readonly modePartIds: ReadonlyMap<ElementRenderMode, readonly PartId[]>;
-  /** Point and line parts, always visible alongside the chosen mode. */
   readonly overlayPartIds: readonly PartId[];
-  /**
-   * The element model each part was tessellated from, keyed by part id. Used
-   * for CPU-side node/face picking and emphasis; parts without an entry are
-   * not node/face-pickable.
-   */
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
-  /** The volume mode visible by default. */
   readonly defaultMode: ElementRenderMode;
-  /** Total part placements (one per reusable part). */
   readonly instanceCount: number;
-  /** Overall model bounds, framing the full gallery. */
   readonly bounds: Bounds;
 }
 
-const HEX_PART_ID: PartId = 1;
-const HEX_SURFACE_PART_ID: PartId = 2;
-const HEX_EDGES_PART_ID: PartId = 3;
-const TET_PART_ID: PartId = 4;
-const TET_SURFACE_PART_ID: PartId = 5;
-const TET_EDGES_PART_ID: PartId = 6;
-const POINTS_PART_ID: PartId = 7;
-const LINES_PART_ID: PartId = 8;
+const POINT_PART_ID: PartId = 1;
+const LINE_PART_ID: PartId = 2;
+const LINE3_PART_ID: PartId = 3;
+const TET4_PART_ID: PartId = 4;
+const TET10_PART_ID: PartId = 5;
+const HEX8_PART_ID: PartId = 6;
+const HEX20_PART_ID: PartId = 7;
 const ROOT_ASSEMBLY_ID: AssemblyId = 1;
 const GAP = 1;
 
-/** Builds the element gallery with a `gridSize` cube per family block. */
+/** Builds the element gallery with all point, line, Tet, and Hex shapes. */
 export function createElementFixture(options: ElementFixtureOptions = {}): ElementFixture {
   const gridSize = options.gridSize ?? 2;
   const cellSize = options.cellSize ?? 1;
   validateFixtureOptions(gridSize, cellSize);
 
   const blockSize = gridSize * cellSize;
-  const hexModel = buildHexModel(gridSize, cellSize, false);
-  const hex20Model = buildHexModel(gridSize, cellSize, true);
-  const tetModel = buildTetModel(gridSize, cellSize, false);
-  const tet10Model = buildTetModel(gridSize, cellSize, true);
   const pointLineModel = buildPointLineModel(gridSize, cellSize);
-
-  const gallery = galleryParts(hexModel, hex20Model, tetModel, tet10Model, pointLineModel);
-  const scene = galleryScene(gallery.parts, blockSize);
+  const lineModel = buildPointLineModel(gridSize, cellSize, "linear");
+  const line3Model = buildPointLineModel(gridSize, cellSize, "quadratic");
+  const tet4Model = buildTetModel(gridSize, cellSize, false);
+  const tet10Model = buildTetModel(gridSize, cellSize, true);
+  const hex8Model = buildHexModel(gridSize, cellSize, false);
+  const hex20Model = buildHexModel(gridSize, cellSize, true);
+  const models = new Map<PartId, ElementModel>([
+    [POINT_PART_ID, pointLineModel],
+    [LINE_PART_ID, lineModel],
+    [LINE3_PART_ID, line3Model],
+    [TET4_PART_ID, tet4Model],
+    [TET10_PART_ID, tet10Model],
+    [HEX8_PART_ID, hex8Model],
+    [HEX20_PART_ID, hex20Model],
+  ]);
+  const parts: readonly Part[] = [
+    elementPart(POINT_PART_ID, pointLineModel, "point", "points"),
+    elementPart(LINE_PART_ID, lineModel, "line", "lines"),
+    elementPart(LINE3_PART_ID, line3Model, "line", "lines"),
+    elementPart(TET4_PART_ID, tet4Model, "tet", "solid"),
+    elementPart(TET10_PART_ID, tet10Model, "tet", "solid"),
+    elementPart(HEX8_PART_ID, hex8Model, "hex", "solid"),
+    elementPart(HEX20_PART_ID, hex20Model, "hex", "solid"),
+  ];
+  const scene = galleryScene(parts, blockSize);
+  const volumePartIds = [TET4_PART_ID, TET10_PART_ID, HEX8_PART_ID, HEX20_PART_ID];
   return {
     scene,
-    partIds: gallery.partIds,
-    elementModels: galleryElementModels(hexModel, hex20Model, tetModel, tet10Model, pointLineModel),
+    partIds: {
+      point: POINT_PART_ID,
+      line: LINE_PART_ID,
+      line3: LINE3_PART_ID,
+      tet4: TET4_PART_ID,
+      tet10: TET10_PART_ID,
+      hex8: HEX8_PART_ID,
+      hex20: HEX20_PART_ID,
+    },
+    elementModels: models,
     modePartIds: new Map<ElementRenderMode, readonly PartId[]>([
-      ["solid", [TET_PART_ID, HEX_PART_ID]],
-      ["surface", [TET_SURFACE_PART_ID, HEX_SURFACE_PART_ID]],
-      ["edges", [TET_EDGES_PART_ID, HEX_EDGES_PART_ID]],
+      ["solid", volumePartIds],
+      ["surface", volumePartIds],
+      ["edges", volumePartIds],
     ]),
-    overlayPartIds: [POINTS_PART_ID, LINES_PART_ID],
+    overlayPartIds: [POINT_PART_ID, LINE_PART_ID, LINE3_PART_ID],
     defaultMode: "solid",
-    instanceCount: 8,
+    instanceCount: parts.length,
     bounds: sceneBounds(scene),
   };
 }
 
-/** Builds the gallery's reusable parts and their stable part ids. */
-function galleryParts(
-  hexModel: ElementModel,
-  hex20Model: ElementModel,
-  tetModel: ElementModel,
-  tet10Model: ElementModel,
-  pointLineModel: ElementModel,
-): { readonly parts: readonly Part[]; readonly partIds: ElementFixtureParts } {
+/** Fixture shape with a second reusable edge-overlay part. */
+type Hex20CylinderFixture = Omit<ElementFixture, "partIds"> & {
+  readonly partIds: ElementFixtureParts & { readonly edges: PartId };
+};
+
+/** Builds the Hex20 cylinder example used by the gallery preset. */
+export function createHex20CylinderFixture(): Hex20CylinderFixture {
+  const model = buildHex20CylinderModel();
+  const edgePartId: PartId = 8;
   const parts = [
-    elementPart(HEX_PART_ID, hexModel, "hex", "solid"),
-    elementPart(HEX_SURFACE_PART_ID, hex20Model, "hex", "surface"),
-    elementPart(HEX_EDGES_PART_ID, hexModel, "hex", "edges"),
-    elementPart(TET_PART_ID, tet10Model, "tet", "solid"),
-    elementPart(TET_SURFACE_PART_ID, tetModel, "tet", "surface"),
-    elementPart(TET_EDGES_PART_ID, tetModel, "tet", "edges"),
-    elementPart(POINTS_PART_ID, pointLineModel, "point", "points"),
-    elementPart(LINES_PART_ID, pointLineModel, "line", "lines"),
+    elementPart(HEX20_PART_ID, model, "hex", "solid", { edgeSegments: 4 }),
+    elementPart(edgePartId, model, "hex", "edges", { edgeSegments: 4 }),
   ];
-  const partIds: ElementFixtureParts = {
-    tetSolid: TET_PART_ID,
-    tetSurface: TET_SURFACE_PART_ID,
-    tetEdges: TET_EDGES_PART_ID,
-    hexSolid: HEX_PART_ID,
-    hexSurface: HEX_SURFACE_PART_ID,
-    hexEdges: HEX_EDGES_PART_ID,
-    points: POINTS_PART_ID,
-    lines: LINES_PART_ID,
+  const scene = galleryScene(parts, 0);
+  const modePartIds = new Map<ElementRenderMode, readonly PartId[]>([
+    ["solid", [HEX20_PART_ID]],
+    ["surface", [HEX20_PART_ID]],
+    ["edges", [HEX20_PART_ID]],
+  ]);
+  return {
+    scene,
+    partIds: {
+      point: POINT_PART_ID,
+      line: LINE_PART_ID,
+      line3: LINE3_PART_ID,
+      tet4: TET4_PART_ID,
+      tet10: TET10_PART_ID,
+      hex8: HEX8_PART_ID,
+      hex20: HEX20_PART_ID,
+      edges: edgePartId,
+    },
+    elementModels: new Map([
+      [HEX20_PART_ID, model],
+      [edgePartId, model],
+    ]),
+    modePartIds,
+    overlayPartIds: [edgePartId],
+    defaultMode: "solid",
+    instanceCount: parts.length,
+    bounds: sceneBounds(scene),
   };
-  return { parts, partIds };
 }
 
-/** Builds the gallery scene with one placement per reusable part. */
 function galleryScene(parts: readonly Part[], blockSize: number): Scene {
   let builder = createScene();
-  for (const part of parts) {
-    builder = builder.addPart(part);
-  }
+  for (const part of parts) builder = builder.addPart(part);
+  const spacing = blockSize === 0 ? 0 : blockSize + GAP;
   const root = {
     id: ROOT_ASSEMBLY_ID,
-    name: "root",
-    placements: [
-      ...placed(parts.slice(0, 3), 0),
-      ...placed(parts.slice(3, 6), blockSize + GAP),
-      ...placed(parts.slice(6), 2 * (blockSize + GAP)),
-    ],
+    name: "element-gallery",
+    placements: parts.map((part, index) => ({
+      kind: "part" as const,
+      partId: part.id,
+      transform: translation(index * spacing, 0, 0),
+    })),
   };
   return builder.addAssembly(root).withRoot(root.id).build();
-}
-
-/** Part ids to show for a volume mode, plus the always-visible overlays. */
-export function visiblePartIdsFor(
-  fixture: ElementFixture,
-  mode: ElementRenderMode,
-): ReadonlySet<PartId> {
-  const modeParts = fixture.modePartIds.get(mode) ?? [];
-  return new Set([...modeParts, ...fixture.overlayPartIds]);
-}
-
-/** Maps each gallery part to the element model it was tessellated from. */
-function galleryElementModels(
-  hexModel: ElementModel,
-  hex20Model: ElementModel,
-  tetModel: ElementModel,
-  tet10Model: ElementModel,
-  pointLineModel: ElementModel,
-): ReadonlyMap<PartId, ElementModel> {
-  return new Map<PartId, ElementModel>([
-    [HEX_PART_ID, hexModel],
-    [HEX_SURFACE_PART_ID, hex20Model],
-    [HEX_EDGES_PART_ID, hexModel],
-    [TET_PART_ID, tet10Model],
-    [TET_SURFACE_PART_ID, tetModel],
-    [TET_EDGES_PART_ID, tetModel],
-    [POINTS_PART_ID, pointLineModel],
-    [LINES_PART_ID, pointLineModel],
-  ]);
-}
-
-function placed(
-  parts: readonly Part[],
-  xOffset: number,
-): ReadonlyArray<{
-  readonly kind: "part";
-  readonly partId: PartId;
-  readonly transform: Float32Array;
-}> {
-  return parts.map((part) => ({
-    kind: "part" as const,
-    partId: part.id,
-    transform: translation(xOffset, 0, 0),
-  }));
 }
 
 function validateFixtureOptions(gridSize: number, cellSize: number): void {
@@ -198,7 +179,6 @@ function validateFixtureOptions(gridSize: number, cellSize: number): void {
   }
 }
 
-/** Merges the world bounds of every placed part into one model bounds. */
 function sceneBounds(scene: Scene): Bounds {
   const instances = flattenAssembly({
     assemblyId: scene.rootAssemblyId,
@@ -242,14 +222,14 @@ function transformBounds(bounds: Bounds, transform: Float32Array): Bounds {
   return result;
 }
 
-function mergeBounds(a: Bounds | undefined, b: Bounds): Bounds {
-  if (a === undefined) return b;
+function mergeBounds(first: Bounds | undefined, second: Bounds): Bounds {
+  if (first === undefined) return second;
   return {
-    minX: Math.min(a.minX, b.minX),
-    minY: Math.min(a.minY, b.minY),
-    minZ: Math.min(a.minZ, b.minZ),
-    maxX: Math.max(a.maxX, b.maxX),
-    maxY: Math.max(a.maxY, b.maxY),
-    maxZ: Math.max(a.maxZ, b.maxZ),
+    minX: Math.min(first.minX, second.minX),
+    minY: Math.min(first.minY, second.minY),
+    minZ: Math.min(first.minZ, second.minZ),
+    maxX: Math.max(first.maxX, second.maxX),
+    maxY: Math.max(first.maxY, second.maxY),
+    maxZ: Math.max(first.maxZ, second.maxZ),
   };
 }
