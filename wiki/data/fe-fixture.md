@@ -5,10 +5,11 @@ generate CPU-only, WebGPU-independent models for the demo and unit tests.
 
 ## Element gallery (`createElementFixture`)
 
-`demo/fixture/element-fixture.ts` builds a gallery of linear and quadratic
-elements for the renderer: one reusable part per family/render-mode pair, with a
-root assembly that places the three volume blocks plus a point/line block along
-X. The model builders live in `demo/fixture/element-models.ts`. Part ids:
+`demo/fixture/element-fixture.ts` builds a gallery of linear and retained
+deferred quadratic elements for renderer tests: one reusable part per
+family/render-mode pair, with a root assembly that places the three volume blocks
+plus a point/line block along X. The model builders live in
+`demo/fixture/element-models.ts`. Part ids:
 
 - hex: `solid` 1, `surface` 2 (Hex20), `edges` 3
 - tet: `solid` 4 (Tet10), `surface` 5, `edges` 6

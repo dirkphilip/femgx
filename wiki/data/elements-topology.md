@@ -1,8 +1,10 @@
 # Element topology
 
-The `src/elements/` subsystem is the typed finite-element foundation for future
-polygon extraction, renderer support, and element-level picking. It is pure
-CPU-side data with **no dependency on the renderer or WebGPU**.
+The `src/elements/` subsystem is the typed finite-element foundation for polygon
+extraction, renderer support, and element-level picking. Linear shapes are Core
+now; quadratic shapes are retained deferred coverage and must not grow without
+a product decision. The subsystem is pure CPU-side data with **no dependency on
+the renderer or WebGPU**.
 
 ## Model
 

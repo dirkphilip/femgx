@@ -11,8 +11,8 @@ a point at the near plane gets `clip.z = 0` and a point at the far plane gets
 - `src/camera/project-polygon.ts` `projectPolygon`, which clips a world-space
   polygon against the six clip-space planes (near plane first, so no vertex
   with `w <= 0` survives into the later passes) and projects it to screen
-  points. This is what the demo's results workbench uses so faces straddling
-  the camera plane render instead of being dropped whole.
+  points. This keeps geometry-anchored screen projections valid when a polygon
+  straddles the camera plane instead of dropping it whole.
 
 ## History (issue #73)
 
@@ -26,8 +26,8 @@ WebGPU clips at `[0, 1]`. Consequences that are now fixed:
   correct for `[-1, 1]`; with a `[0, 1]` matrix it placed the CPU near plane at
   roughly `0.5 * near`, disagreeing with the GPU near clip and causing
   in-frustum instances to flicker for `cullInstances` consumers.
-- The 2D results workbench dropped a whole projected face when any vertex had
-  `clip.w <= 0`; it now clips the polygon against the camera plane.
+- Screen-space polygon projection previously dropped a whole polygon when any
+  vertex had `clip.w <= 0`; it now clips the polygon against the camera plane.
 
 The depth convention is exercised by regression tests in `test/camera/` and
 `test/runtime/culling.test.ts`.
