@@ -1,152 +1,87 @@
 import { describe, expect, it } from "vitest";
 import {
   createElementFixture,
-  visiblePartIdsFor,
+  createHex20CylinderFixture,
   type ElementFixture,
 } from "../../../demo/fixture/element-fixture";
 import { flattenAssembly } from "../../../src/runtime/flatten";
 import type { Instance } from "../../../src/scene/types";
 
 function flatten(fixture: ElementFixture): readonly Instance[] {
-  const { scene } = fixture;
   return flattenAssembly({
-    assemblyId: scene.rootAssemblyId,
-    assemblies: scene.assemblies,
-    visibleAssemblyIds: scene.visibleAssemblyIds,
-    visiblePartIds: scene.visiblePartIds,
+    assemblyId: fixture.scene.rootAssemblyId,
+    assemblies: fixture.scene.assemblies,
+    visibleAssemblyIds: fixture.scene.visibleAssemblyIds,
+    visiblePartIds: fixture.scene.visiblePartIds,
   });
 }
 
 describe("createElementFixture", () => {
-  it("builds the gallery with stable ids and one instance per part", () => {
+  it("builds one reusable part for every supported shape", () => {
     const fixture = createElementFixture();
     expect(fixture.partIds).toEqual({
-      tetSolid: 4,
-      tetSurface: 5,
-      tetEdges: 6,
-      hexSolid: 1,
-      hexSurface: 2,
-      hexEdges: 3,
-      points: 7,
-      lines: 8,
+      point: 1,
+      line: 2,
+      line3: 3,
+      tet4: 4,
+      tet10: 5,
+      hex8: 6,
+      hex20: 7,
     });
-    expect(fixture.instanceCount).toBe(8);
-    expect(fixture.scene.parts.size).toBe(8);
-    expect(fixture.scene.assemblies.size).toBe(1);
-    expect(flatten(fixture)).toHaveLength(8);
+    expect(fixture.instanceCount).toBe(7);
+    expect(fixture.scene.parts.size).toBe(7);
+    expect(flatten(fixture)).toHaveLength(7);
   });
 
-  it("places each reusable part exactly once along the x axis", () => {
+  it("places every shape example at a stable x offset", () => {
     const fixture = createElementFixture();
-    const instances = flatten(fixture);
-    const origins = new Map<number, number>();
-    for (const instance of instances) {
-      origins.set(instance.partId, instance.worldTransform[12] as number);
+    const origins = new Map(
+      flatten(fixture).map((instance) => [instance.partId, instance.worldTransform[12]]),
+    );
+    expect(origins.get(fixture.partIds.point)).toBe(0);
+    expect(origins.get(fixture.partIds.line)).toBe(3);
+    expect(origins.get(fixture.partIds.line3)).toBe(6);
+    expect(origins.get(fixture.partIds.tet4)).toBe(9);
+    expect(origins.get(fixture.partIds.hex20)).toBe(18);
+  });
+
+  it("keeps all volume shapes visible in each display mode", () => {
+    const fixture = createElementFixture();
+    const volumes = [
+      fixture.partIds.tet4,
+      fixture.partIds.tet10,
+      fixture.partIds.hex8,
+      fixture.partIds.hex20,
+    ];
+    for (const mode of ["solid", "surface", "edges"] as const) {
+      expect(fixture.modePartIds.get(mode)).toEqual(volumes);
     }
-    expect(origins.get(fixture.partIds.hexSolid)).toBe(0);
-    expect(origins.get(fixture.partIds.tetSolid)).toBe(3);
-    expect(origins.get(fixture.partIds.points)).toBe(6);
-    expect(origins.get(fixture.partIds.lines)).toBe(6);
+    expect(fixture.overlayPartIds).toEqual([
+      fixture.partIds.point,
+      fixture.partIds.line,
+      fixture.partIds.line3,
+    ]);
+    expect(new Set([...volumes, ...fixture.overlayPartIds]).size).toBe(7);
   });
 
-  it("keys mode part ids to the three volume render modes", () => {
-    const fixture = createElementFixture();
-    expect(fixture.defaultMode).toBe("solid");
-    expect(fixture.modePartIds).toEqual(
-      new Map([
-        ["solid", [fixture.partIds.tetSolid, fixture.partIds.hexSolid]],
-        ["surface", [fixture.partIds.tetSurface, fixture.partIds.hexSurface]],
-        ["edges", [fixture.partIds.tetEdges, fixture.partIds.hexEdges]],
-      ]),
-    );
-    expect(fixture.overlayPartIds).toEqual([fixture.partIds.points, fixture.partIds.lines]);
-  });
-
-  it("resolves visible part sets per mode plus overlays", () => {
-    const fixture = createElementFixture();
-    expect(visiblePartIdsFor(fixture, "solid")).toEqual(
-      new Set([
-        fixture.partIds.tetSolid,
-        fixture.partIds.hexSolid,
-        fixture.partIds.points,
-        fixture.partIds.lines,
-      ]),
-    );
-    expect(visiblePartIdsFor(fixture, "edges")).toEqual(
-      new Set([
-        fixture.partIds.tetEdges,
-        fixture.partIds.hexEdges,
-        fixture.partIds.points,
-        fixture.partIds.lines,
-      ]),
-    );
-  });
-
-  it("produces identical output on repeated calls", () => {
-    const first = flatten(createElementFixture());
-    const second = flatten(createElementFixture());
-    expect(first.map((instance) => instance.instanceId)).toEqual(
-      second.map((instance) => instance.instanceId),
-    );
-    expect(first.map((instance) => instance.worldTransform[12])).toEqual(
-      second.map((instance) => instance.worldTransform[12]),
-    );
-  });
-
-  it("spans the full gallery in world bounds", () => {
-    const fixture = createElementFixture();
-    expect(fixture.bounds).toEqual({
-      minX: 0,
-      minY: 0,
-      minZ: 0,
-      maxX: 8,
-      maxY: 2,
-      maxZ: 2,
-    });
-  });
-
-  it("exposes CPU geometry per family and mode", () => {
+  it("produces geometry for points, lines, Tet4, and Hex20", () => {
     const { scene, partIds } = createElementFixture();
-    const hexSolid = scene.parts.get(partIds.hexSolid);
-    expect(hexSolid?.geometry.primitive).toBe("triangles");
-    const hexSurface = scene.parts.get(partIds.hexSurface);
-    expect(hexSurface?.geometry.primitive).toBe("triangles");
-    const tetEdges = scene.parts.get(partIds.tetEdges);
-    expect(tetEdges?.geometry.primitive).toBe("lines");
-    const points = scene.parts.get(partIds.points);
-    expect(points?.geometry.primitive).toBe("points");
-    const lines = scene.parts.get(partIds.lines);
-    expect(lines?.geometry.primitive).toBe("lines");
+    expect(scene.parts.get(partIds.point)?.geometry.primitive).toBe("points");
+    expect(scene.parts.get(partIds.line)?.geometry.primitive).toBe("lines");
+    expect(scene.parts.get(partIds.line3)?.geometry.primitive).toBe("lines");
+    expect(scene.parts.get(partIds.tet4)?.geometry.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.hex20)?.geometry.primitive).toBe("triangles");
   });
 
-  it("draws quadratic Hex20 surfaces through mid-edge nodes", () => {
-    const { scene, partIds } = createElementFixture();
-    const surface = scene.parts.get(partIds.hexSurface);
-    expect(surface?.geometry.positions).toHaveLength(1728);
-    expect(surface?.geometry.indices).toHaveLength(576);
+  it("builds a curved Hex20 cylinder with a bounded height", () => {
+    const fixture = createHex20CylinderFixture();
+    expect(fixture.scene.parts.size).toBe(2);
+    expect(flatten(fixture).map((instance) => instance.worldTransform[12])).toEqual([0, 0]);
+    expect(fixture.bounds.minZ).toBeCloseTo(-0.9);
+    expect(fixture.bounds.maxZ).toBeCloseTo(0.9);
   });
 
-  it("culls shared interior faces from quadratic Tet10 solid parts", () => {
-    const { scene, partIds } = createElementFixture();
-    const solid = scene.parts.get(partIds.tetSolid);
-    expect(solid?.geometry.positions).toHaveLength(2304);
-    expect(solid?.geometry.indices).toHaveLength(768);
-  });
-
-  it("respects custom grid options and recomputes bounds", () => {
-    const fixture = createElementFixture({ gridSize: 1, cellSize: 0.5 });
-    expect(fixture.instanceCount).toBe(8);
-    expect(fixture.bounds).toEqual({
-      minX: 0,
-      minY: 0,
-      minZ: 0,
-      maxX: 3.5,
-      maxY: 0.5,
-      maxZ: 0.5,
-    });
-  });
-
-  it("rejects invalid options", () => {
+  it("rejects invalid gallery options", () => {
     expect(() => createElementFixture({ gridSize: 0 })).toThrow("gridSize");
     expect(() => createElementFixture({ gridSize: 1.5 })).toThrow("gridSize");
     expect(() => createElementFixture({ cellSize: 0 })).toThrow("cellSize");

@@ -338,11 +338,13 @@ test("keeps element edges and nodes visible after orbiting", async ({ page }) =>
 
 test("keeps depth-tested node annotations stable across fine zoom steps", async ({ page }) => {
   await loadWebGpuPage(page);
-  await page.getByTestId("model-select").selectOption({ label: "Element gallery" });
+  await page
+    .getByTestId("model-select")
+    .selectOption({ label: "Element gallery · all supported shapes" });
   // Hide the gallery's hardware point/line overlays so the measured delta is
   // only the center-depth node annotation pass.
-  await page.getByLabel("Part Point nodes").uncheck();
-  await page.getByLabel("Part Line outline").uncheck();
+  await page.getByLabel("Part Point").uncheck();
+  await page.getByLabel("Part Line").uncheck();
   await page.getByTestId("fit-view").click();
 
   const canvas = page.getByTestId("view-canvas");

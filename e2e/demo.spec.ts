@@ -131,14 +131,13 @@ test("switches between deterministic model presets", async ({ page }) => {
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "gallery");
   await expect(page.getByTestId("status")).toContainText("Element gallery");
 
-  await select.selectOption("panel");
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "panel");
-  await expect(page.getByTestId("status")).toContainText("Stiffened deck panel");
+  await select.selectOption("vtk");
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "vtk");
+  await expect(page.getByTestId("status")).toContainText("VTK sample block");
 
-  await select.selectOption("frame");
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "frame");
-  await expect(page.getByTestId("status")).toContainText("Portal frame");
-  await expect(page.getByTestId("status")).toContainText("1 visible");
+  await select.selectOption("hex20-cylinder");
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "hex20-cylinder");
+  await expect(page.getByTestId("status")).toContainText("Hex20 cylinder");
 
   await select.selectOption("bolted");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "bolted");
@@ -176,8 +175,8 @@ test("toggles one fastener occurrence and restores it via the visibility panel",
 test("uses stable runtime-node and instance controls", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("assembly-node-vis-0")).toBeChecked();
-  await page.getByTestId("model-select").selectOption("frame");
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "frame");
+  await page.getByTestId("model-select").selectOption("vtk");
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "vtk");
 
   const rootCheckbox = page.getByTestId("assembly-node-vis-0");
   await expect(rootCheckbox).toHaveAttribute("data-assembly-node-id", "0");

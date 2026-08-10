@@ -7,47 +7,25 @@ import { flattenAssembly } from "../../src/runtime/flatten";
 import type { Scene } from "../../src/scene/scene";
 import type { PartId } from "../../src/scene/types";
 import { createBoltedPlateFixture } from "./bolted-plate";
-import { createElementFixture } from "./element-fixture";
-import { createFrameFixture } from "./frame-fixture";
-import { createPanelFixture } from "./panel";
+import { createElementFixture, createHex20CylinderFixture } from "./element-fixture";
+import { createVtkFixture } from "./vtk-fixture";
 
-/**
- * A deterministic demo model: the scene, the per-part element models used for
- * CPU-side node/face picking and emphasis, a part theme, and the per-mode
- * visibility mapping. Every preset is CPU-renderable and derived purely from
- * fixed options, so the demo and tests share identical structure.
- */
+/** A deterministic demo model and its presentation metadata. */
 export interface ModelPreset {
-  /** Stable preset key used by the demo's model selector. */
   readonly id: string;
-  /** Human-readable preset name. */
   readonly name: string;
   readonly scene: Scene;
-  /** The element model each part was tessellated from, keyed by part id. */
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
-  /** Display theme per part, shared by every renderer. */
   readonly partColors: ReadonlyMap<PartId, Color>;
   readonly fallbackColor: Color;
-  /** Human-readable part names for the visibility panel. */
   readonly partNames: ReadonlyMap<PartId, string>;
-  /** Parts shown for each element render mode. */
   readonly modePartIds: ReadonlyMap<ElementRenderMode, readonly PartId[]>;
-  /** Parts always shown alongside the active mode (e.g. point/line overlays). */
   readonly overlayPartIds: readonly PartId[];
-  /** The element mode visible by default. */
   readonly defaultMode: ElementRenderMode;
-  /** Overall model bounds, framing the initial camera. */
   readonly bounds: Bounds;
 }
 
-/** The volume render modes a structural preset supports. */
-const VOLUME_MODES: readonly ElementRenderMode[] = ["solid", "surface", "edges"];
-
-/**
- * Part ids to show in the inspection demo plus the always-visible overlays.
- * The edges mode is a display style; the controller enables the existing
- * per-instance edge overlay instead of switching to edge-only geometry.
- */
+/** Resolves the active mode to visible parts and preserves point/line overlays. */
 export function visiblePartIdsForPreset(
   preset: ModelPreset,
   mode: ElementRenderMode,
@@ -56,35 +34,33 @@ export function visiblePartIdsForPreset(
   return new Set([...modeParts, ...preset.overlayPartIds]);
 }
 
-/** Builds the element gallery preset (tet/hex gallery plus point/line overlay). */
+/** Builds the gallery containing every currently supported element shape. */
 export function createGalleryPreset(): ModelPreset {
   const fixture = createElementFixture();
   const partIds = fixture.partIds;
   return {
     id: "gallery",
-    name: "Element gallery",
+    name: "Element gallery · all supported shapes",
     scene: fixture.scene,
     elementModels: fixture.elementModels,
     partColors: new Map<PartId, Color>([
-      [partIds.hexSolid, { r: 0.23, g: 0.51, b: 0.96, a: 1 }],
-      [partIds.hexSurface, { r: 0.32, g: 0.6, b: 0.98, a: 1 }],
-      [partIds.hexEdges, { r: 0.18, g: 0.42, b: 0.85, a: 1 }],
-      [partIds.tetSolid, { r: 0.95, g: 0.45, b: 0.35, a: 1 }],
-      [partIds.tetSurface, { r: 0.96, g: 0.56, b: 0.44, a: 1 }],
-      [partIds.tetEdges, { r: 0.8, g: 0.36, b: 0.28, a: 1 }],
-      [partIds.points, { r: 0.95, g: 0.78, b: 0.28, a: 1 }],
-      [partIds.lines, { r: 0.3, g: 0.85, b: 0.7, a: 1 }],
+      [partIds.point, { r: 0.98, g: 0.78, b: 0.24, a: 1 }],
+      [partIds.line, { r: 0.18, g: 0.72, b: 0.98, a: 1 }],
+      [partIds.line3, { r: 0.15, g: 0.92, b: 0.65, a: 1 }],
+      [partIds.tet4, { r: 0.95, g: 0.36, b: 0.3, a: 1 }],
+      [partIds.tet10, { r: 0.98, g: 0.55, b: 0.25, a: 1 }],
+      [partIds.hex8, { r: 0.25, g: 0.45, b: 0.96, a: 1 }],
+      [partIds.hex20, { r: 0.55, g: 0.35, b: 0.96, a: 1 }],
     ]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map<PartId, string>([
-      [partIds.hexSolid, "Hex solid"],
-      [partIds.hexSurface, "Hex20 surface"],
-      [partIds.hexEdges, "Hex edges"],
-      [partIds.tetSolid, "Tet10 solid"],
-      [partIds.tetSurface, "Tet surface"],
-      [partIds.tetEdges, "Tet edges"],
-      [partIds.points, "Point nodes"],
-      [partIds.lines, "Line outline"],
+      [partIds.point, "Point"],
+      [partIds.line, "Line"],
+      [partIds.line3, "Line3"],
+      [partIds.tet4, "Tet4"],
+      [partIds.tet10, "Tet10"],
+      [partIds.hex8, "Hex8"],
+      [partIds.hex20, "Hex20"],
     ]),
     modePartIds: fixture.modePartIds,
     overlayPartIds: fixture.overlayPartIds,
@@ -93,64 +69,60 @@ export function createGalleryPreset(): ModelPreset {
   };
 }
 
-/** Builds the stiffened deck panel preset. */
-export function createPanelPreset(): ModelPreset {
-  const fixture = createPanelFixture();
-  const partIds = fixture.partIds;
-  const panelModes = new Map<ElementRenderMode, readonly PartId[]>(
-    VOLUME_MODES.map((mode) => [mode, [partIds.shell, partIds.stiffenerX, partIds.stiffenerY]]),
-  );
+/** Builds the imported ASCII VTK finite-element sample. */
+export function createVtkPreset(): ModelPreset {
+  const fixture = createVtkFixture();
+  const { solid, surface, edges } = fixture.partIds;
   return {
-    id: "panel",
-    name: "Stiffened deck panel",
+    id: "vtk",
+    name: "VTK sample block",
     scene: fixture.scene,
     elementModels: fixture.elementModels,
     partColors: new Map<PartId, Color>([
-      [partIds.shell, { r: 0.33, g: 0.62, b: 0.98, a: 1 }],
-      [partIds.stiffenerX, { r: 0.96, g: 0.58, b: 0.24, a: 1 }],
-      [partIds.stiffenerY, { r: 0.85, g: 0.4, b: 0.16, a: 1 }],
+      [solid, { r: 0.23, g: 0.57, b: 0.84, a: 1 }],
+      [surface, { r: 0.3, g: 0.68, b: 0.94, a: 1 }],
+      [edges, { r: 0.12, g: 0.34, b: 0.6, a: 1 }],
     ]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map<PartId, string>([
-      [partIds.shell, "Deck shell"],
-      [partIds.stiffenerX, "X stiffeners"],
-      [partIds.stiffenerY, "Y stiffeners"],
-    ]),
-    modePartIds: panelModes,
-    overlayPartIds: [],
-    defaultMode: "surface",
-    bounds: fixtureBounds(fixture.scene),
-  };
-}
-
-/** Builds the structural portal-frame preset. */
-export function createFramePreset(): ModelPreset {
-  const fixture = createFrameFixture();
-  const partIds = fixture.partIds;
-  return {
-    id: "frame",
-    name: "Portal frame",
-    scene: fixture.scene,
-    elementModels: fixture.elementModels,
-    partColors: new Map<PartId, Color>([
-      [partIds.solid, { r: 0.47, g: 0.62, b: 0.85, a: 1 }],
-      [partIds.surface, { r: 0.55, g: 0.7, b: 0.92, a: 1 }],
-      [partIds.edges, { r: 0.3, g: 0.42, b: 0.65, a: 1 }],
-    ]),
-    fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
-    partNames: new Map<PartId, string>([
-      [partIds.solid, "Frame solid"],
-      [partIds.surface, "Frame surface"],
-      [partIds.edges, "Frame edges"],
+      [solid, "VTK Hex8 solid"],
+      [surface, "VTK Hex8 surface"],
+      [edges, "VTK Hex8 edges"],
     ]),
     modePartIds: fixture.modePartIds,
     overlayPartIds: [],
-    defaultMode: fixture.defaultMode,
+    defaultMode: "solid",
     bounds: fixture.bounds,
   };
 }
 
-/** Builds the bolted-plate assembly showcase preset. */
+/** Builds a small curved Hex20 cylinder to make quadratic tessellation visible. */
+export function createHex20CylinderPreset(): ModelPreset {
+  const fixture = createHex20CylinderFixture();
+  const partId = fixture.partIds.hex20;
+  const edgePartId = fixture.partIds.edges;
+  return {
+    id: "hex20-cylinder",
+    name: "Hex20 cylinder",
+    scene: fixture.scene,
+    elementModels: fixture.elementModels,
+    partColors: new Map<PartId, Color>([
+      [partId, { r: 0.76, g: 0.34, b: 0.84, a: 1 }],
+      [edgePartId, { r: 0.32, g: 0.1, b: 0.42, a: 1 }],
+    ]),
+    fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
+    partNames: new Map<PartId, string>([
+      [partId, "Hex20 cylinder · solid"],
+      [edgePartId, "Hex20 cylinder · curved mid-edge tessellation"],
+    ]),
+    modePartIds: fixture.modePartIds,
+    overlayPartIds: [edgePartId],
+    defaultMode: "solid",
+    bounds: fixture.bounds,
+  };
+}
+
+/** Builds the bolted plate assembly showcase preset. */
 export function createBoltedPlatePreset(): ModelPreset {
   const fixture = createBoltedPlateFixture();
   const partIds = fixture.partIds;
@@ -201,9 +173,9 @@ export function createBoltedPlatePreset(): ModelPreset {
 export function createModelPresets(): readonly ModelPreset[] {
   return [
     createBoltedPlatePreset(),
+    createVtkPreset(),
     createGalleryPreset(),
-    createPanelPreset(),
-    createFramePreset(),
+    createHex20CylinderPreset(),
   ];
 }
 
@@ -212,7 +184,6 @@ export function createDefaultPreset(): ModelPreset {
   return createModelPresets()[0] as ModelPreset;
 }
 
-/** World bounds of every placed part in the scene, merged into one box. */
 function fixtureBounds(scene: Scene): Bounds {
   const instances = flattenAssembly({
     assemblyId: scene.rootAssemblyId,
@@ -220,6 +191,18 @@ function fixtureBounds(scene: Scene): Bounds {
     visibleAssemblyIds: scene.visibleAssemblyIds,
     visiblePartIds: scene.visiblePartIds,
   });
+  let result: Bounds | undefined;
+  for (const instance of instances) {
+    const part = scene.parts.get(instance.partId);
+    if (part === undefined) continue;
+    const bounds = transformBounds(part.bounds, instance.worldTransform);
+    result = mergeBounds(result, bounds);
+  }
+  if (result === undefined) throw new Error("Preset scene must contain at least one part");
+  return result;
+}
+
+function transformBounds(bounds: Bounds, transform: Float32Array): Bounds {
   let result: Bounds = {
     minX: Infinity,
     minY: Infinity,
@@ -228,24 +211,32 @@ function fixtureBounds(scene: Scene): Bounds {
     maxY: -Infinity,
     maxZ: -Infinity,
   };
-  for (const instance of instances) {
-    const part = scene.parts.get(instance.partId);
-    if (part === undefined) continue;
-    for (const x of [part.bounds.minX, part.bounds.maxX]) {
-      for (const y of [part.bounds.minY, part.bounds.maxY]) {
-        for (const z of [part.bounds.minZ, part.bounds.maxZ]) {
-          const [px, py, pz] = transformPoint(instance.worldTransform, x, y, z);
-          result = {
-            minX: Math.min(result.minX, px),
-            minY: Math.min(result.minY, py),
-            minZ: Math.min(result.minZ, pz),
-            maxX: Math.max(result.maxX, px),
-            maxY: Math.max(result.maxY, py),
-            maxZ: Math.max(result.maxZ, pz),
-          };
-        }
+  for (const x of [bounds.minX, bounds.maxX]) {
+    for (const y of [bounds.minY, bounds.maxY]) {
+      for (const z of [bounds.minZ, bounds.maxZ]) {
+        const [px, py, pz] = transformPoint(transform, x, y, z);
+        result = {
+          minX: Math.min(result.minX, px),
+          minY: Math.min(result.minY, py),
+          minZ: Math.min(result.minZ, pz),
+          maxX: Math.max(result.maxX, px),
+          maxY: Math.max(result.maxY, py),
+          maxZ: Math.max(result.maxZ, pz),
+        };
       }
     }
   }
   return result;
+}
+
+function mergeBounds(first: Bounds | undefined, second: Bounds): Bounds {
+  if (first === undefined) return second;
+  return {
+    minX: Math.min(first.minX, second.minX),
+    minY: Math.min(first.minY, second.minY),
+    minZ: Math.min(first.minZ, second.minZ),
+    maxX: Math.max(first.maxX, second.maxX),
+    maxY: Math.max(first.maxY, second.maxY),
+    maxZ: Math.max(first.maxZ, second.maxZ),
+  };
 }
