@@ -1,4 +1,4 @@
-import type { Bounds } from "../geometry/part";
+import { isFiniteBounds, type Bounds } from "../geometry/part";
 import { transformPoint } from "../math/mat4";
 import type { SceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
@@ -19,12 +19,12 @@ export function sceneWorldBounds(scene: Scene, runtime: SceneRuntime): Bounds {
     const partId = runtime.instancePartIds[slot];
     const transform = runtime.getTransform(slot);
     const part = partId === undefined ? undefined : scene.parts.get(partId);
-    if (part === undefined || transform === undefined) continue;
+    if (part === undefined || transform === undefined || !isFiniteBounds(part.bounds)) continue;
     for (const corner of boundCorners(part.bounds)) {
       include(bounds, transformPoint(transform, corner[0], corner[1], corner[2]));
     }
   }
-  return Number.isFinite(bounds.minX)
+  return isFiniteBounds(bounds)
     ? bounds
     : { minX: -0.5, minY: -0.5, minZ: -0.5, maxX: 0.5, maxY: 0.5, maxZ: 0.5 };
 }

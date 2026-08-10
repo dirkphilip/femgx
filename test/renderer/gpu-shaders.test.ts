@@ -8,10 +8,9 @@ import {
   colorFragmentShader,
   edgeFragmentShader,
   edgeVertexShader,
-  instanceVertexShader,
-  pointVertexShader,
   pickFragmentShader,
 } from "../../src/renderer/gpu-shaders";
+import { instanceVertexShader, pointVertexShader } from "../../src/renderer/gpu-instanced-shaders";
 import { nodePickFragmentShader, nodePickVertexShader } from "../../src/renderer/gpu-node-pick";
 import { nodeOverlayFragmentShader } from "../../src/renderer/gpu-node-overlay";
 
@@ -95,7 +94,9 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(instanceVertexShader).not.toMatch(/\bvar match\b/);
     expect(instanceVertexShader).toMatch(/triangleElementPickIds\[vertexIndex \/ 3u\]/);
     expect(instanceVertexShader).toMatch(/triangleFacePickIds\[vertexIndex \/ 3u\]/);
-    expect(instanceVertexShader).toMatch(/elementHighlights\.records\[index\]/);
+    expect(instanceVertexShader).toMatch(/highlightHash\(/);
+    expect(instanceVertexShader).toMatch(/elementHighlights\.records\[base \+ offset\]/);
+    expect(instanceVertexShader).not.toMatch(/index < elementHighlights\.count/);
     expect(instanceVertexShader).not.toMatch(/highlight\.nodePickId/);
     expect(pointVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
     expect(instanceVertexShader).toMatch(/@location\(3\) @interpolate\(flat\) elementPickId: u32/);
@@ -123,8 +124,8 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(nodePickVertexShader).toMatch(
       /@location\(9\) @interpolate\(flat\) nodePickIds: vec3<u32>/,
     );
-    expect(nodePickVertexShader).toMatch(/cornerPositions: array<f32>/);
-    expect(nodePickVertexShader).toMatch(/cornerPositions\[base3\]/);
+    expect(nodePickVertexShader).toMatch(/positions: array<f32>/);
+    expect(nodePickVertexShader).toMatch(/positions\[base3\]/);
     expect(nodePickVertexShader).toMatch(/vertexNodePickIds\[base\]/);
     expect(nodePickFragmentShader).toMatch(
       /nearestNode\(localPosition, cornerA, cornerB, cornerC, nodePickIds\)/,

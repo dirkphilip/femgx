@@ -1,4 +1,5 @@
-import { cameraStruct, pointVertexShader } from "./gpu-shaders";
+import { cameraStruct } from "./gpu-shaders";
+import { pointVertexShader } from "./gpu-instanced-shaders";
 import type { DrawResources } from "./gpu-draw";
 import { COLOR_SAMPLE_COUNT, vertexLayout } from "./gpu-support";
 

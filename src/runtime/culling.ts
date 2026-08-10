@@ -1,5 +1,5 @@
 import { transformPoint, type Mat4 } from "../math/mat4";
-import type { Part } from "../geometry/part";
+import { isFiniteBounds, type Part } from "../geometry/part";
 import type { Instance } from "../scene/types";
 
 /** A normalized plane in view-frustum space. */
@@ -92,13 +92,7 @@ export function cullInstances(
 
 function isInstanceVisible(instance: Instance, part: Part, frustum: Frustum): boolean {
   const bounds = part.bounds;
-  if (
-    !Number.isFinite(bounds.minX) ||
-    !Number.isFinite(bounds.minY) ||
-    !Number.isFinite(bounds.minZ)
-  ) {
-    return true;
-  }
+  if (!isFiniteBounds(bounds)) return true;
   const center = transformPoint(
     instance.worldTransform,
     (bounds.minX + bounds.maxX) / 2,

@@ -101,7 +101,7 @@ type SupportedOrder = {
 type ShapeKeyOf<F extends ElementFamily> = `${F}:${SupportedOrder[F]}`;
 
 /** Union of the flat keys of every supported shape. */
-type SupportedShapeKey = { [F in ElementFamily]: ShapeKeyOf<F> }[ElementFamily];
+export type SupportedShapeKey = { [F in ElementFamily]: ShapeKeyOf<F> }[ElementFamily];
 
 /** The element family encoded in a shape key, e.g. `"tet"` in `"tet:2"`. */
 type FamilyOf<K extends SupportedShapeKey> = K extends `${infer F}:${number}` ? F : never;
@@ -121,7 +121,7 @@ type OrderOf<K extends SupportedShapeKey> = K extends `${string}:${infer O}`
  * A topology entry whose `family` and `order` are pinned to the literals
  * encoded in its key, so a value copied under the wrong key fails to compile.
  */
-type KeyedTopology<K extends SupportedShapeKey> = ElementTopology & {
+export type KeyedTopology<K extends SupportedShapeKey> = ElementTopology & {
   family: FamilyOf<K>;
   order: OrderOf<K>;
 };

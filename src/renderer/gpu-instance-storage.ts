@@ -31,7 +31,7 @@ export interface InstanceUpdate {
 /**
  * Persistent per-part GPU storage: a slot-stable record buffer, a compacted
  * draw-order buffer, a compacted edge-overlay order buffer, and a
- * fixed-capacity emphasis buffer. Hidden instances stay in the record buffer
+ * bounded-bucket emphasis buffer. Hidden instances stay in the record buffer
  * but are removed from the draw-order lists, so only visible geometry is ever
  * drawn. The edge order holds the subset of visible instances whose resolved
  * style requests the line-overlay pass.

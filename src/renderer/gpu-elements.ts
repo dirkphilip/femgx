@@ -10,6 +10,11 @@ import { emphasizedNodeRefs, resolveNodeStyle } from "../interaction/nodes";
 import type { SceneRuntime } from "../scene-runtime/runtime";
 import type { Instance, InstanceId, PartId } from "../scene/types";
 import type { DrawResources, InstanceStorage } from "./gpu-draw";
+import {
+  buildHighlightTable,
+  HIGHLIGHT_BUCKET_SIZE,
+  type HighlightTableEntry,
+} from "./gpu-highlight-table";
 import { defaultStyle } from "./gpu-support";
 import type { InstanceLayout } from "./runtime-state";
 
@@ -37,9 +42,8 @@ export const ELEMENT_RECORD_STRIDE = 48;
 export const HIGHLIGHT_HEADER = 16;
 
 /**
- * Initial emphasis records allocated per part. The vertex shader scans the
- * runtime-sized records list, so the buffer grows on demand when a selection
- * exceeds this size and records are never dropped.
+ * Initial emphasis record slots allocated per part. Records are placed in
+ * four-entry buckets so the vertex shader performs a bounded lookup.
  */
 export const INITIAL_ELEMENT_HIGHLIGHTS = 128;
 
@@ -272,32 +276,40 @@ function occurrenceAt(
 }
 
 /**
- * Replaces a part's emphasis records, writing only the byte subranges whose
- * count or records changed since the last write. When an emphasis list exceeds
- * the buffer's capacity the highlight buffer is recreated larger (destroying
- * the old buffer and invalidating the cached bind group), so every record is
- * always uploaded and no selection is silently dropped.
+ * Replaces a part's emphasis table, writing only the byte subranges whose
+ * header or buckets changed since the last write. When the bounded table does
+ * not fit, the highlight buffer is recreated larger and every record remains
+ * addressable without a linear shader scan.
  */
 export function writeElementHighlights(
   device: GPUDevice,
   storage: InstanceStorage,
   updates: readonly EmphasisUpdate[],
 ): void {
-  const count = updates.length;
-  growHighlightStorage(device, storage, count);
-  const next = new Uint8Array(storage.highlight.data);
-  const view = new Uint32Array(next.buffer);
-  if (view[0] !== count) {
-    view[0] = count;
+  const entries = updates.map(toTableEntry);
+  let table = buildHighlightTable(entries, highlightCapacity(storage.highlight.data.byteLength));
+  while (table === undefined) {
+    growHighlightStorage(device, storage, nextTableCapacity(entries.length));
+    table = buildHighlightTable(entries, highlightCapacity(storage.highlight.data.byteLength));
   }
-  for (let index = 0; index < count; index++) {
-    const update = updates[index];
-    if (update === undefined) continue;
-    const offset = HIGHLIGHT_HEADER + index * ELEMENT_RECORD_STRIDE;
-    next.set(new Uint8Array(encodeEmphasisRecord(update)), offset);
+  const next = new Uint8Array(storage.highlight.data.length);
+  const view = new Uint32Array(next.buffer);
+  view[0] = entries.length;
+  view[1] = table.bucketCount;
+  view[2] = table.seed;
+  for (let index = 0; index < table.entries.length; index += 1) {
+    const entry = table.entries[index];
+    if (entry === undefined) continue;
+    next.set(new Uint8Array(entry.data), HIGHLIGHT_HEADER + index * ELEMENT_RECORD_STRIDE);
   }
   const previous = storage.highlight.data;
-  const meaningful = HIGHLIGHT_HEADER + count * ELEMENT_RECORD_STRIDE;
+  const previousView = new Uint32Array(previous.buffer);
+  const previousSlots = (previousView[1] ?? 0) * HIGHLIGHT_BUCKET_SIZE;
+  const nextSlots = table.bucketCount * HIGHLIGHT_BUCKET_SIZE;
+  const meaningful = Math.min(
+    next.byteLength,
+    HIGHLIGHT_HEADER + Math.max(previousSlots, nextSlots) * ELEMENT_RECORD_STRIDE,
+  );
   let rangeStart = -1;
   for (let index = 0; index < meaningful; index++) {
     const changed = next[index] !== previous[index];
@@ -316,19 +328,20 @@ export function writeElementHighlights(
   }
   previous.set(next);
 }
-
 /**
- * Recreates the part's highlight buffer with room for `count` records when the
- * current one is too small, copying the CPU mirror and re-uploading it so the
- * diff in `writeElementHighlights` keeps writing only changed subranges. The
- * old buffer is destroyed and the cached bind group invalidated so the next
- * draw recreates it against the larger buffer.
+ * Recreates the part's highlight buffer with room for the requested table,
+ * copying the CPU mirror and re-uploading it so diffed writes remain intact.
+ * The old buffer is destroyed and both cached bind groups are invalidated.
  */
-function growHighlightStorage(device: GPUDevice, storage: InstanceStorage, count: number): void {
+function growHighlightStorage(
+  device: GPUDevice,
+  storage: InstanceStorage,
+  minimumRecords: number,
+): void {
   const highlight = storage.highlight;
   const capacity = highlightCapacity(highlight.data.byteLength);
-  if (count <= capacity) return;
-  const nextCapacity = Math.max(count, capacity * 2);
+  if (minimumRecords <= capacity) return;
+  const nextCapacity = Math.max(minimumRecords, capacity * 2);
   const grown = createHighlightStorage(device, nextCapacity);
   const mirror = new Uint8Array(grown.data);
   mirror.set(highlight.data);
@@ -336,11 +349,22 @@ function growHighlightStorage(device: GPUDevice, storage: InstanceStorage, count
   highlight.buffer.destroy();
   storage.highlight = grown;
   storage.bindGroup = undefined;
+  storage.edgeBindGroup = undefined;
 }
-
 /** Element-highlight record capacity implied by a buffer's byte size. */
 function highlightCapacity(byteLength: number): number {
   return (byteLength - HIGHLIGHT_HEADER) / ELEMENT_RECORD_STRIDE;
+}
+
+function toTableEntry(update: EmphasisUpdate): HighlightTableEntry {
+  return { ...update, data: encodeEmphasisRecord(update) };
+}
+
+function nextTableCapacity(count: number): number {
+  if (count === 0) return 0;
+  let bucketCount = 1;
+  while (bucketCount * 2 < Math.ceil(count / 2)) bucketCount *= 2;
+  return bucketCount * HIGHLIGHT_BUCKET_SIZE * 2;
 }
 
 /** The draw-path inputs needed to sync emphasis buffers. */

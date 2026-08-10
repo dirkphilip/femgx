@@ -13,8 +13,6 @@ export interface PartResource {
   readonly facePickIdsBuffer: GPUBuffer;
   /** Per-vertex node pick ids (`nodeId + 1`, 0 = interpolated vertex). */
   readonly nodePickIdsBuffer: GPUBuffer;
-  /** Per-vertex corner positions read by the node-pick vertex stage. */
-  readonly cornerPositionsBuffer: GPUBuffer;
   /** Line-list of the deduplicated mesh edges for the wireframe pass. */
   readonly edgeIndexBuffer: GPUBuffer;
   readonly indexCount: number;

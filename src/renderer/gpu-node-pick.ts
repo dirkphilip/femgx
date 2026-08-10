@@ -34,7 +34,7 @@ ${emphasisStructs}
 ${frameBindings}
 ${instanceBindings}
 ${pickDataBindings}
-@group(1) @binding(7) var<storage, read> cornerPositions: array<f32>;
+@group(1) @binding(7) var<storage, read> positions: array<f32>;
 
 ${displacementFn}
 
@@ -70,22 +70,22 @@ fn vertexMain(
   output.facePickId = triangleFacePickIds[vertexIndex / 3u];
   output.localPosition = displaced(position, vertexIndex);
   output.cornerA = displaced(
-    vec3<f32>(cornerPositions[base3], cornerPositions[base3 + 1u], cornerPositions[base3 + 2u]),
+    vec3<f32>(positions[base3], positions[base3 + 1u], positions[base3 + 2u]),
     base,
   );
   output.cornerB = displaced(
     vec3<f32>(
-      cornerPositions[base3 + 3u],
-      cornerPositions[base3 + 4u],
-      cornerPositions[base3 + 5u],
+      positions[base3 + 3u],
+      positions[base3 + 4u],
+      positions[base3 + 5u],
     ),
     base + 1u,
   );
   output.cornerC = displaced(
     vec3<f32>(
-      cornerPositions[base3 + 6u],
-      cornerPositions[base3 + 7u],
-      cornerPositions[base3 + 8u],
+      positions[base3 + 6u],
+      positions[base3 + 7u],
+      positions[base3 + 8u],
     ),
     base + 2u,
   );
