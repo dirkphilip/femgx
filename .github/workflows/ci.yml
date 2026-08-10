@@ -6,6 +6,7 @@ on:
   pull_request:
 
 jobs:
+  # Keep these job ids stable: they are the required branch-protection contexts.
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
