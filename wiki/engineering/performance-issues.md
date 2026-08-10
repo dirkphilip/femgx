@@ -104,7 +104,10 @@ grow; a grown-out buffer is replaced without being destroyed immediately, so it
 is only released when the renderer is destroyed — deferred buffer destruction
 for growth is still future work. Pick targets are reused across frames and
 resized on demand; their geometry snapshot is rendered lazily on the first pick
-after pick-relevant state changes rather than during every visible frame.
+after pick-relevant state changes rather than during every visible frame. That
+snapshot now rasterizes geometry once: a one-invocation compute pass reads the
+winning depth texel from the ID pass depth attachment, replacing the former
+second geometry traversal and `r32float` color target.
 
 ## Toolchain reproducibility
 

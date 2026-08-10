@@ -16,38 +16,16 @@ export function beginPickPass(encoder: GPUCommandEncoder, pick: PickTargets): GP
   }
   return encoder.beginRenderPass({
     colorAttachments: available.map((texture) => attachment(texture.createView())),
-    depthStencilAttachment: depthAttachment(pick.depthTexture, "store"),
+    depthStencilAttachment: depthAttachment(pick.depthTexture),
   });
 }
 
-/** Begins the single-target pass that records the nearest displayed NDC depth. */
-export function beginPickDepthPass(
-  encoder: GPUCommandEncoder,
-  pick: PickTargets,
-): GPURenderPassEncoder {
-  if (pick.displayedDepthTexture === undefined || pick.depthTexture === undefined) {
-    throw new Error("WebGPU picking targets were not created");
-  }
-  return encoder.beginRenderPass({
-    colorAttachments: [
-      {
-        ...attachment(pick.displayedDepthTexture.createView()),
-        clearValue: { r: 1, g: 0, b: 0, a: 0 },
-      },
-    ],
-    depthStencilAttachment: depthAttachment(pick.depthTexture, "discard"),
-  });
-}
-
-function depthAttachment(
-  texture: GPUTexture,
-  storeOp: GPUStoreOp,
-): GPURenderPassDepthStencilAttachment {
+function depthAttachment(texture: GPUTexture): GPURenderPassDepthStencilAttachment {
   return {
     view: texture.createView(),
     depthClearValue: 1,
     depthLoadOp: "clear",
-    depthStoreOp: storeOp,
+    depthStoreOp: "store",
     stencilClearValue: 0,
     stencilLoadOp: "clear",
     stencilStoreOp: "discard",

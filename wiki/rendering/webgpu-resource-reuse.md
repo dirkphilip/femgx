@@ -21,10 +21,12 @@ Per-frame allocations were removed from `src/renderer/`:
   depth texture; the next render lazily replaces it if the size changed.
 - **Pick readback** — `readPickPixel` borrows a `GPUBuffer` from
   `PickReadbackPool` (`src/renderer/gpu-pick.ts`) instead of allocating and
-  destroying one per pick. Buffers are 256 bytes (the WebGPU minimum
-  `bytesPerRow`) and are reused across picks and resizes. `resize` resets only
-  the render targets (`resetPickTargets`) and keeps the size-independent
-  readback pool; `destroy` releases every pooled buffer.
+  destroying one per pick. Buffers reserve five 256-byte lanes: four satisfy
+  the texture-copy `bytesPerRow` alignment and the fifth receives the scalar
+  depth extracted by compute. They are reused across picks and resizes.
+  `resize` resets only the render targets (`resetPickTargets`) and keeps the
+  size-independent readback pool and depth-extraction pipeline; `destroy`
+  releases every pooled and intermediate buffer.
 - **Pick snapshot** — visible rendering does not encode pick geometry. The first
   `pick()` or `pickPoint()` after camera, canvas, geometry/placement,
   visibility, or deformation changes renders one current ID/depth snapshot;
@@ -43,8 +45,8 @@ designed around:
   only move to `free` after `unmap` in `readPickPixel`'s `finally`. Two
   concurrent picks therefore get distinct buffers (the pool grows by one rather
   than blocking or double-mapping).
-- A pooled buffer is only re-queued for a new `copyTextureToBuffer` after its
-  previous map resolved, i.e. after the GPU work it was read from has completed.
+- A pooled buffer is only re-queued for new ID copies and depth extraction after
+  its previous map resolved, i.e. after the GPU work it was read from has completed.
   That makes reuse safe: no two submitted commands reference the same buffer at
   the same time.
 - `mapAsync` resolves only after the copy is complete, so a successful read is a

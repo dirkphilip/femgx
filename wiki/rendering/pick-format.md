@@ -1,18 +1,20 @@
 # Pick texture format
 
-WebGPU picking uses two render passes. The ID pass renders instance, element,
-face, and node ids into four dedicated `rgba8unorm` textures. A second,
-single-attachment pass stores the winning fragment's WebGPU NDC depth in an
-`r32float` texture. All five pixels share one pooled readback buffer and one
-`mapAsync`; `pickPoint` unprojects the copied depth into the displayed world
-position. ID packing lives in `src/renderer/pick-format.ts`, with the packing
-mirrored in WGSL `packPickId`.
+WebGPU picking rasterizes geometry once. The pass renders instance, element,
+face, and node ids into four dedicated `rgba8unorm` textures and stores the
+winning fragment in its normal depth attachment. Readback copies the four ID
+pixels and uses a one-invocation compute pass to load the requested depth texel
+into the same pooled readback buffer. One `mapAsync` then yields all four ids
+plus depth; `pickPoint` unprojects that depth into the displayed world position.
+ID packing lives in `src/renderer/pick-format.ts`, with the packing mirrored in
+WGSL `packPickId`.
 
 Four `rgba8unorm` attachments already consume the WebGPU device default of 32
-color-attachment bytes per sample. Depth therefore cannot be a fifth attachment
-in that pass, even when the physical adapter advertises a higher limit. The
-visible color pass is submitted independently before either pick pass, so a
-pick-path validation failure cannot invalidate the displayed frame.
+color-attachment bytes per sample. Depth therefore cannot be a fifth color
+attachment, even when the physical adapter advertises a higher limit. Sampling
+the existing depth attachment avoids both that limit and a second geometry
+pass. The visible color pass is submitted independently before the pick pass,
+so a pick-path validation failure cannot invalidate the displayed frame.
 
 ## Why `rgba8unorm` instead of `r32uint`
 

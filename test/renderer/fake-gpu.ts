@@ -26,7 +26,14 @@ export interface PipelineDraw extends DrawCall {
 }
 
 export interface FakeTexture {
+  readonly descriptor: GPUTextureDescriptor;
   destroyed: boolean;
+}
+
+export interface BufferCopy {
+  readonly sourceOffset: number;
+  readonly destinationOffset: number;
+  readonly size: number;
 }
 
 export interface FakeGpu {
@@ -42,6 +49,8 @@ export interface FakeGpu {
   readonly bindGroupCreations: number;
   /** The pipeline objects passed to `setPipeline`, in call order. */
   readonly pipelineCalls: readonly unknown[];
+  readonly bufferCopies: readonly BufferCopy[];
+  readonly computeDispatchCount: number;
   /** Render-pipeline descriptors in creation order. */
   readonly renderPipelineDescriptors: readonly GPURenderPipelineDescriptor[];
   /** Command-buffer submissions in call order. */
@@ -57,7 +66,7 @@ export function installGpuGlobals(): () => void {
     originals.set(name, (globalThis as Record<string, unknown>)[name]);
     Object.defineProperty(globalThis, name, { configurable: true, value });
   };
-  define("GPUShaderStage", { VERTEX: 1, FRAGMENT: 2 });
+  define("GPUShaderStage", { VERTEX: 1, FRAGMENT: 2, COMPUTE: 4 });
   define("GPUBufferUsage", {
     UNIFORM: 1,
     COPY_DST: 2,
@@ -65,8 +74,9 @@ export function installGpuGlobals(): () => void {
     INDEX: 8,
     STORAGE: 16,
     MAP_READ: 32,
+    COPY_SRC: 64,
   });
-  define("GPUTextureUsage", { RENDER_ATTACHMENT: 1, COPY_SRC: 2 });
+  define("GPUTextureUsage", { RENDER_ATTACHMENT: 1, COPY_SRC: 2, TEXTURE_BINDING: 4 });
   define("GPUMapMode", { READ: 1 });
   define("devicePixelRatio", 1);
   return () => {
@@ -110,6 +120,8 @@ export function fakeGpuDevice(
     readonly facePickValue?: number;
     readonly nodePickValue?: number;
     readonly ndcDepth?: number;
+    readonly mapAsync?: () => Promise<void>;
+    readonly onCopyTextureToBuffer?: (source: GPUTexelCopyTextureInfo) => void;
   } = {},
 ): FakeGpu {
   const writes: RecordedWrite[] = [];
@@ -119,7 +131,9 @@ export function fakeGpuDevice(
   const pipelineDraws: PipelineDraw[] = [];
   const pipelineCalls: unknown[] = [];
   const renderPipelineDescriptors: GPURenderPipelineDescriptor[] = [];
+  const bufferCopies: BufferCopy[] = [];
   let bindGroupCreations = 0;
+  let computeDispatchCount = 0;
   let submissionCount = 0;
   let pipelineCounter = 0;
   let currentPipeline = "none";
@@ -167,7 +181,7 @@ export function fakeGpuDevice(
         destroy: () => {
           record.destroyed = true;
         },
-        mapAsync: () => Promise.resolve(),
+        mapAsync: options.mapAsync ?? (() => Promise.resolve()),
         getMappedRange: () => {
           const bytes = new Uint8Array(READBACK_BYTE_STRIDE * 5);
           bytes.set(encodePickId(pickValue));
@@ -193,8 +207,9 @@ export function fakeGpuDevice(
       renderPipelineDescriptors.push(descriptor);
       return { __tag: `pipeline-${pipelineCounter++}` };
     },
-    createTexture: () => {
-      const record: FakeTexture = { destroyed: false };
+    createComputePipeline: () => ({}),
+    createTexture: (descriptor: GPUTextureDescriptor) => {
+      const record: FakeTexture = { descriptor, destroyed: false };
       textures.push(record);
       return {
         createView: () => ({}),
@@ -222,8 +237,28 @@ export function fakeGpuDevice(
         };
         return pass as unknown as GPURenderPassEncoder;
       },
+      beginComputePass: () =>
+        ({
+          setPipeline: () => undefined,
+          setBindGroup: () => undefined,
+          dispatchWorkgroups: () => {
+            computeDispatchCount += 1;
+          },
+          end: () => undefined,
+        }) as unknown as GPUComputePassEncoder,
       finish: () => ({}),
-      copyTextureToBuffer: () => undefined,
+      copyTextureToBuffer: (source: GPUTexelCopyTextureInfo) => {
+        options.onCopyTextureToBuffer?.(source);
+      },
+      copyBufferToBuffer: (
+        _source: GPUBuffer,
+        sourceOffset: number,
+        _destination: GPUBuffer,
+        destinationOffset: number,
+        size: number,
+      ) => {
+        bufferCopies.push({ sourceOffset, destinationOffset, size });
+      },
     }),
   };
   return {
@@ -236,6 +271,7 @@ export function fakeGpuDevice(
     pipelineDraws,
     pipelineCalls,
     renderPipelineDescriptors,
+    bufferCopies,
     lose,
     get textureCreations() {
       return textures.length;
@@ -245,6 +281,9 @@ export function fakeGpuDevice(
     },
     get submissionCount() {
       return submissionCount;
+    },
+    get computeDispatchCount() {
+      return computeDispatchCount;
     },
   };
 }

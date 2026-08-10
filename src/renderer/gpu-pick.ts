@@ -4,6 +4,13 @@ import { canvasCssToRenderPixel } from "../camera/coordinates";
 import type { PickTarget } from "../scene/types";
 import { decodePickId, PICK_TEXTURE_FORMAT } from "./pick-format";
 import { WebGpuPickReadbackError } from "./gpu-pick-error";
+import {
+  bindPickDepth,
+  createPickDepthReadback,
+  destroyPickDepthReadback,
+  encodePickDepthReadback,
+  type PickDepthReadback,
+} from "./gpu-pick-depth";
 export { WebGpuPickReadbackError } from "./gpu-pick-error";
 
 /** Pick render targets reused across frames and resized on demand. */
@@ -15,9 +22,8 @@ export interface PickTargets {
   faceTexture: GPUTexture | undefined;
   /** Fourth attachment holding the per-fragment node pick id. */
   nodeTexture: GPUTexture | undefined;
-  /** Copyable color attachment holding the winning fragment's WebGPU NDC depth. */
-  displayedDepthTexture: GPUTexture | undefined;
   depthTexture: GPUTexture | undefined;
+  depthReadback: PickDepthReadback | undefined;
   readonly readback: PickReadbackPool;
 }
 
@@ -65,8 +71,8 @@ export function createPickTargets(): PickTargets {
     elementTexture: undefined,
     faceTexture: undefined,
     nodeTexture: undefined,
-    displayedDepthTexture: undefined,
     depthTexture: undefined,
+    depthReadback: undefined,
     readback: { free: [], inFlight: new Set() },
   };
 }
@@ -111,16 +117,13 @@ export function ensurePickTargets(
     format: PICK_TEXTURE_FORMAT,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
   });
-  pick.displayedDepthTexture = device.createTexture({
-    size: [width, height],
-    format: "r32float",
-    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
-  });
   pick.depthTexture = device.createTexture({
     size: [width, height],
     format: depthFormat,
-    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
   });
+  pick.depthReadback ??= createPickDepthReadback(device);
+  bindPickDepth(device, pick.depthReadback, pick.depthTexture);
 }
 
 /** Copies the pick textures under the pointer and reads both pick ids. */
@@ -178,17 +181,18 @@ interface ReadablePickTextures {
   readonly element: GPUTexture;
   readonly face: GPUTexture;
   readonly node: GPUTexture;
-  readonly depth: GPUTexture;
+  readonly readback: PickDepthReadback;
 }
 
 function readableTextures(pick: PickTargets): ReadablePickTextures | undefined {
-  const { texture, elementTexture, faceTexture, nodeTexture, displayedDepthTexture } = pick;
+  const { texture, elementTexture, faceTexture, nodeTexture, depthTexture, depthReadback } = pick;
   if (
     texture === undefined ||
     elementTexture === undefined ||
     faceTexture === undefined ||
     nodeTexture === undefined ||
-    displayedDepthTexture === undefined
+    depthTexture === undefined ||
+    depthReadback === undefined
   ) {
     return undefined;
   }
@@ -197,7 +201,7 @@ function readableTextures(pick: PickTargets): ReadablePickTextures | undefined {
     element: elementTexture,
     face: faceTexture,
     node: nodeTexture,
-    depth: displayedDepthTexture,
+    readback: depthReadback,
   };
 }
 
@@ -208,16 +212,11 @@ function submitPickCopies(
   pixel: { readonly x: number; readonly y: number },
 ): void {
   const encoder = device.createCommandEncoder();
-  const ordered = [
-    textures.instance,
-    textures.element,
-    textures.face,
-    textures.node,
-    textures.depth,
-  ];
+  const ordered = [textures.instance, textures.element, textures.face, textures.node];
   ordered.forEach((texture, index) => {
     copyPickPixel(encoder, buffer, pixel, { texture, offset: READBACK_BYTE_STRIDE * index });
   });
+  encodePickDepthReadback(device, encoder, textures.readback, buffer, pixel);
   device.queue.submit([encoder.finish()]);
 }
 
@@ -279,19 +278,20 @@ export function resetPickTargets(pick: PickTargets): void {
   pick.elementTexture?.destroy();
   pick.faceTexture?.destroy();
   pick.nodeTexture?.destroy();
-  pick.displayedDepthTexture?.destroy();
   pick.depthTexture?.destroy();
   pick.texture = undefined;
   pick.elementTexture = undefined;
   pick.faceTexture = undefined;
   pick.nodeTexture = undefined;
-  pick.displayedDepthTexture = undefined;
   pick.depthTexture = undefined;
+  if (pick.depthReadback !== undefined) pick.depthReadback.bindGroup = undefined;
 }
 
 /** Destroys the pick render targets and pooled readback buffers. */
 export function destroyPickTargets(pick: PickTargets): void {
   resetPickTargets(pick);
+  if (pick.depthReadback !== undefined) destroyPickDepthReadback(pick.depthReadback);
+  pick.depthReadback = undefined;
   for (const buffer of pick.readback.inFlight) buffer.destroy();
   for (const buffer of pick.readback.free) buffer.destroy();
   pick.readback.inFlight.clear();

@@ -6,7 +6,6 @@ import { CAMERA_UNIFORM_SIZE } from "../../src/renderer/gpu-pipelines";
 import { DEFORMATION_UNIFORM_SIZE } from "../../src/renderer/gpu-deform";
 import {
   colorFragmentShader,
-  depthPickFragmentShader,
   edgeFragmentShader,
   edgeVertexShader,
   instanceVertexShader,
@@ -136,11 +135,6 @@ describe("GPU record struct layout vs CPU record encoders", () => {
       expect(shader).not.toMatch(/@builtin\(position\) fragmentPosition/);
     },
   );
-
-  it("writes displayed depth in the dedicated scalar pass", () => {
-    expect(depthPickFragmentShader).toMatch(/@builtin\(position\) fragmentPosition/);
-    expect(depthPickFragmentShader).toMatch(/return fragmentPosition\.z/);
-  });
 
   it("applies emissive additively in the color fragment shader", () => {
     expect(colorFragmentShader).toMatch(/@location\(2\) @interpolate\(flat\) emissive: f32/);
