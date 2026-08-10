@@ -159,6 +159,13 @@ export {
   type FemViewport,
   type FemViewportOptions,
 } from "./viewport/fem-viewport";
+export type {
+  ViewportDeformationConfig,
+  ViewportResultDerivation,
+  ViewportResultField,
+  ViewportResultsConfig,
+  ViewportResultsState,
+} from "./viewport/results";
 export { createScene, type Scene, type SceneBuilder } from "./scene/scene";
 export {
   identity,

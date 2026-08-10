@@ -10,15 +10,16 @@ import {
 } from "../../../demo/fixture/presets";
 
 describe("createModelPresets", () => {
-  it("offers the showcase, VTK sample, complete gallery, and Hex20 cylinder", () => {
+  it("offers the showcase, VTK sample, gallery, cylinder, and results workflow", () => {
     const presets = createModelPresets();
     expect(presets.map((preset) => preset.id)).toEqual([
       "bolted",
       "vtk",
       "gallery",
       "hex20-cylinder",
+      "results",
     ]);
-    expect(new Set(presets.map((preset) => preset.name)).size).toBe(4);
+    expect(new Set(presets.map((preset) => preset.name)).size).toBe(5);
   });
 
   it("keeps the bolted plate as the default showcase", () => {
@@ -68,5 +69,14 @@ describe("createBoltedPlatePreset", () => {
     const preset = createBoltedPlatePreset();
     expect(preset.modePartIds.get("solid")).toEqual([1, 4, 7, 10]);
     expect(preset.partNames.get(4)).toBe("Bolts");
+  });
+});
+
+describe("results preset", () => {
+  it("connects a tensor field and nodal deformation to one FE part", () => {
+    const preset = createModelPresets().find((candidate) => candidate.id === "results");
+    expect(preset?.results?.derive).toBe("vonMises");
+    expect(preset?.results?.deformation?.field.location).toBe("nodal");
+    expect(preset?.scene.parts.get(20)?.geometry.elements).toHaveLength(1);
   });
 });

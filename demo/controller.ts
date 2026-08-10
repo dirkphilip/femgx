@@ -51,6 +51,9 @@ export interface DisplayToggles {
   diagnostics: boolean;
 }
 
+/** Static result display states exercised by the results demo preset. */
+export type ResultDisplayMode = "base" | "colored" | "deformed";
+
 /** Options for the shared inspection workbench controller. */
 export interface WorkbenchOptions {
   readonly view: DemoView;
@@ -72,6 +75,7 @@ export class WorkbenchController {
   preset: ModelPreset;
   mode: ElementRenderMode;
   toggles: DisplayToggles;
+  resultMode: ResultDisplayMode;
   interaction: InteractionState;
   /** Renderer-state note shown in the status line (e.g. "recovered"). */
   rendererState = "";
@@ -103,6 +107,7 @@ export class WorkbenchController {
       nodes: false,
       diagnostics: false,
     };
+    this.resultMode = "base";
     this.interaction = this.createPresetInteraction(this.preset);
     this.viewport.setInteraction(this.interaction);
     this.indexRuntime();
@@ -128,6 +133,7 @@ export class WorkbenchController {
   /** Reattaches the presentation shell after the e2e lifecycle seam recreates the viewport. */
   setViewport(viewport: FemViewport): void {
     this.viewport = viewport;
+    this.applyResultMode(false);
     this.viewport.setInteraction(this.interaction);
     this.viewport.setEdgeDepthTest(this.depthTestEnabled);
     this.viewport.setNodeOverlay(this.toggles.nodes);
@@ -159,9 +165,11 @@ export class WorkbenchController {
     if (preset === undefined) return;
     this.preset = preset;
     this.mode = "solid";
+    this.resultMode = preset.results === undefined ? "base" : "deformed";
     this.interaction = this.createPresetInteraction(preset);
     this.contextTarget = undefined;
     this.viewport.setScene(preset.scene);
+    this.applyResultMode(false);
     this.viewport.setInteraction(this.interaction);
     this.indexRuntime();
     this.applyModeVisibility();
@@ -214,6 +222,13 @@ export class WorkbenchController {
     this.render();
   }
 
+  /** Selects one of the static result visualization states. */
+  setResultMode(mode: ResultDisplayMode): void {
+    if (this.preset.results === undefined && mode !== "base") return;
+    this.resultMode = mode;
+    this.applyResultMode(true);
+  }
+
   /** Reframes the camera onto the whole model. */
   fitView(): void {
     this.viewport.fitView();
@@ -237,6 +252,8 @@ export class WorkbenchController {
   /** Clears interaction state and restores the initial camera pose. */
   reset(): void {
     this.interaction = this.createPresetInteraction(this.preset);
+    this.resultMode = this.preset.results === undefined ? "base" : "deformed";
+    this.applyResultMode(false);
     this.contextTarget = undefined;
     this.viewport.fitView();
     this.viewport.setCamera(setProjection(this.viewport.camera, "perspective"));
@@ -307,6 +324,15 @@ export class WorkbenchController {
     view.edgeOverlayToggle.addEventListener("click", () => {
       this.setEdges(!this.toggles.edges);
     });
+    view.resultsToggle.addEventListener("click", () => {
+      const next: ResultDisplayMode =
+        this.resultMode === "base"
+          ? "colored"
+          : this.resultMode === "colored"
+            ? "deformed"
+            : "base";
+      this.setResultMode(next);
+    });
     view.depthTestToggle.addEventListener("click", () => {
       this.viewport.setEdgeDepthTest(!this.depthTestEnabled);
       this.depthTestEnabled = !this.depthTestEnabled;
@@ -346,6 +372,7 @@ export class WorkbenchController {
       this.hideContextMenu();
     });
     this.reflectEdges();
+    this.reflectResults();
     this.reflectDepthTest();
     this.reflectNodes();
   }
@@ -1025,6 +1052,31 @@ export class WorkbenchController {
     this.view.edgeOverlayToggle.dataset["active"] = String(this.toggles.edges);
     this.view.edgeOverlayToggle.setAttribute("aria-pressed", String(this.toggles.edges));
     this.view.edgeOverlayToggle.textContent = this.toggles.edges ? "Hide edges" : "Overlay edges";
+  }
+
+  private applyResultMode(render: boolean): void {
+    const config = this.preset.results;
+    if (config === undefined || this.resultMode === "base") {
+      this.resultMode = "base";
+      this.viewport.clearResults();
+    } else if (this.resultMode === "colored") {
+      const { deformation: _, ...coloredConfig } = config;
+      this.viewport.setResults(coloredConfig);
+    } else {
+      this.viewport.setResults(config);
+    }
+    this.reflectResults();
+    if (render) this.render();
+  }
+
+  private reflectResults(): void {
+    const enabled = this.preset.results !== undefined;
+    this.view.resultsToggle.disabled = !enabled;
+    this.view.resultsLabel.textContent = this.resultMode;
+    this.view.resultsLabel.dataset["state"] = this.resultMode;
+    this.view.resultsToggle.dataset["active"] = String(enabled && this.resultMode !== "base");
+    this.view.resultsToggle.textContent = enabled ? "Cycle results" : "No results";
+    this.canvas.dataset["results"] = this.resultMode;
   }
 
   private reflectNodes(): void {

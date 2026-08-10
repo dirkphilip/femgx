@@ -54,6 +54,28 @@ Mapped colors are plain `Color` values, so they feed the existing per-instance
 GPU color attribute path (via interaction style overrides) without renderer
 changes — see [[rendering/interactive-state|Interactive state]].
 
+## Canonical viewport workflow
+
+`FemViewport.setResults({ field, derive, range, colorMap, deformation })` composes
+these helpers into the supported static visualization path. The field must be
+elemental so each part element occurrence receives one mapped color. Scalar
+fields are used directly; vector fields support `magnitude`, and tensor fields
+support `magnitude`, `vonMises`, or `maxPrincipal`. An omitted range is computed
+from finite values (constant fields receive a small expanded range), while an
+explicit color map must use the same range.
+
+An optional nodal vector field is converted into one GPU deformation buffer per
+scene part. The viewport validates that every rendered part has node pick ids and
+that every referenced element/node has a field value. `clearResults()` restores
+the base interaction state, disables deformation, and leaves the authoritative
+scene geometry untouched. Replacing results reuses the same scene/runtime and
+only updates the derived interaction colors and deformation state.
+
+The `results` demo preset exercises this workflow with a static Hex8 stress field:
+the public API supports the undeformed/base state via `clearResults()`, the
+colored state via `setResults({ field, derive: "vonMises" })`, and the combined
+colored/deformed state by adding `deformation`.
+
 ## Deformation (`deform.ts`)
 
 `deformPositions(positions, nodePickIds, displacements, scale)` / `deformGeometry(geometry,
@@ -93,8 +115,8 @@ The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
 ## Status / follow-ups
 
 - Results are rendered through the WebGPU renderer; the former CPU-canvas demo
-  was removed to retain the WebGPU-only product contract. A WebGPU results
-  interaction surface can be added when it has a focused product requirement.
+  was removed to retain the WebGPU-only product contract. Static viewport
+  composition is the supported results path.
 - Load-case playback (`CasePlayer`), interpolation, and legend helpers were
   removed as out of product scope.
 

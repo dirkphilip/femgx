@@ -382,6 +382,7 @@
           min-height: 44px;
         }
         .toolbar .control-group:nth-of-type(n + 3),
+        #results-control,
         #depth-test-label,
         #depth-test,
         #node-overlay-label,
@@ -455,6 +456,17 @@
               aria-pressed="false"
             >
               Overlay edges
+            </button>
+          </div>
+          <div class="control-group" id="results-control">
+            <span
+              id="results-label"
+              data-testid="results-label"
+              class="toggle-label"
+              data-state="base"
+              >base</span
+            ><button id="results-toggle" data-testid="results-toggle" type="button" disabled>
+              No results
             </button>
           </div>
           <div class="control-group">

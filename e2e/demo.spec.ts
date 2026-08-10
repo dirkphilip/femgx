@@ -123,7 +123,7 @@ test("renders the bolted showcase with distinct part colors and a screenshot", a
 test("switches between deterministic model presets", async ({ page }) => {
   await page.goto("/");
   const select = page.getByTestId("model-select");
-  await expect(select.locator("option")).toHaveCount(5);
+  await expect(select.locator("option")).toHaveCount(6);
   await expect(select).toHaveValue("bolted");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "bolted");
 
@@ -142,6 +142,25 @@ test("switches between deterministic model presets", async ({ page }) => {
   await select.selectOption("bolted");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "bolted");
   await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
+});
+
+test("cycles the canonical static results preset through base, colored, and deformed states", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByTestId("model-select").selectOption("results");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toHaveAttribute("data-model", "results");
+  await expect(canvas).toHaveAttribute("data-results", "deformed");
+
+  const resultsToggle = page.getByTestId("results-toggle");
+  await expect(resultsToggle).toBeEnabled();
+  await resultsToggle.click();
+  await expect(canvas).toHaveAttribute("data-results", "base");
+  await resultsToggle.click();
+  await expect(canvas).toHaveAttribute("data-results", "colored");
+  await resultsToggle.click();
+  await expect(canvas).toHaveAttribute("data-results", "deformed");
 });
 
 test("toggles the element edge overlay independently of solid geometry", async ({ page }) => {
