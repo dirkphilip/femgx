@@ -399,6 +399,9 @@ describe("GPU draw path", () => {
       const second = ensureDepthTexture(draw, 800, 600, "depth24plus");
       expect(second).toBe(first);
       expect(gpu.textureCreations).toBe(1);
+      expect(gpu.textures[0]?.descriptor.usage).toBe(
+        GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+      );
       const resized = ensureDepthTexture(draw, 400, 300, "depth24plus");
       expect(resized).not.toBe(first);
       expect(gpu.textureCreations).toBe(2);

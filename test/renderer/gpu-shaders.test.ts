@@ -13,6 +13,7 @@ import {
   pickFragmentShader,
 } from "../../src/renderer/gpu-shaders";
 import { nodePickFragmentShader, nodePickVertexShader } from "../../src/renderer/gpu-node-pick";
+import { nodeOverlayFragmentShader } from "../../src/renderer/gpu-node-overlay";
 
 /** Returns the named struct's layout as computed by the wgsl_reflect parser. */
 function structInfo(source: string, name: string): StructInfo {
@@ -191,13 +192,20 @@ describe("GPU deformation shader contract", () => {
     expect(pointVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
   });
 
-  it("keeps regular points at model depth and biases only node annotations", () => {
-    expect(pointVertexShader).toMatch(/pointVertex\(position, instanceIndex, vertexIndex, 0\.0\)/);
+  it("keeps regular points at model depth and halves only node annotations", () => {
+    expect(pointVertexShader).toMatch(/pointVertex\(position, instanceIndex, vertexIndex, 1\.0\)/);
     expect(pointVertexShader).toMatch(
-      /nodeOverlayVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, 0\.00001\)/,
+      /nodeOverlayVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, 0\.5\)/,
     );
-    expect(pointVertexShader).toMatch(/clip\.z - depthOffset \* clip\.w/);
+    expect(pointVertexShader).toMatch(/clip\.z,/);
     expect(colorFragmentShader).toMatch(/dot\(local, local\) > 1\.0/);
+  });
+
+  it("classifies complete node glyphs from their center scene depth", () => {
+    expect(nodeOverlayFragmentShader).toMatch(/texture_depth_2d/);
+    expect(nodeOverlayFragmentShader).toMatch(/local \* camera\.pointSize \* 0\.25/);
+    expect(nodeOverlayFragmentShader).toMatch(/textureSampleCompareLevel/);
+    expect(nodeOverlayFragmentShader).toMatch(/fragmentPosition\.z - oneDepthUnit/);
   });
 
   it("uses neutral black for element nodes and edges", () => {

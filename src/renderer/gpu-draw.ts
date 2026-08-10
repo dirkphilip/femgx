@@ -42,6 +42,7 @@ export interface DrawResources {
   readonly storages: Map<PartId, InstanceStorage>;
   readonly deformations: Map<PartId, DeformationStorage>;
   depthTexture: GPUTexture | undefined;
+  nodeDepthBindGroup: GPUBindGroup | undefined;
   depthWidth: number;
   depthHeight: number;
 }
@@ -63,6 +64,7 @@ export function createDrawResources(device: GPUDevice): DrawResources {
     storages: new Map(),
     deformations: new Map(),
     depthTexture: undefined,
+    nodeDepthBindGroup: undefined,
     depthWidth: 0,
     depthHeight: 0,
   };

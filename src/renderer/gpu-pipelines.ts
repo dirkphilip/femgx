@@ -70,7 +70,11 @@ export function createRenderResources(
   });
   const cameraLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } },
+      {
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: { type: "uniform" },
+      },
       { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } },
     ],
   });
@@ -95,7 +99,13 @@ export function createRenderResources(
   const pipelines = buildPipelines(device, layout, format, depthFormat);
   const edgePipeline = createEdgePipeline(device, layout, format, depthFormat, "less-equal");
   const edgeAlwaysPipeline = createEdgePipeline(device, layout, format, depthFormat, "always");
-  const nodeOverlayPipelines = createNodeOverlayPipelines(device, layout, format, depthFormat);
+  const nodeOverlayPipelines = createNodeOverlayPipelines(
+    device,
+    cameraLayout,
+    instanceLayout,
+    format,
+    depthFormat,
+  );
   const orbitPivot = createOrbitPivotResources(
     device,
     format,
@@ -290,7 +300,7 @@ export function createDepthTexture(
   return device.createTexture({
     size: [width, height],
     format,
-    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
   });
 }
 
@@ -306,6 +316,7 @@ export function ensureDepthTexture(
   draw.depthTexture?.destroy();
   const texture = createDepthTexture(draw.device, width, height, format);
   draw.depthTexture = texture;
+  draw.nodeDepthBindGroup = undefined;
   draw.depthWidth = width;
   draw.depthHeight = height;
   return texture;

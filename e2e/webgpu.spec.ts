@@ -285,7 +285,7 @@ test("keeps depth-tested node annotations visible across zoom levels", async ({ 
   if (box === null) throw new Error("canvas has no bounding box");
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 
-  for (const deltaY of [-900, 900]) {
+  for (const deltaY of [-1200, 0, 1200]) {
     await page.getByTestId("reset").click();
     await page.mouse.wheel(0, deltaY);
     const withNodes = await stableCanvasPixels(page, canvas);

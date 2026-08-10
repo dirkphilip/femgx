@@ -29,7 +29,7 @@ describe("GPU render resources", () => {
         (descriptor) => descriptor.vertex.entryPoint === "nodeOverlayVertexMain",
       );
       expect(nodePipeline?.depthStencil).toMatchObject({
-        depthCompare: "less-equal",
+        depthCompare: "always",
         depthWriteEnabled: false,
       });
       expect(resources.instanceLayout).toBeDefined();
