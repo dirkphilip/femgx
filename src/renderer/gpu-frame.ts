@@ -7,7 +7,7 @@ import type { DrawCall, DrawCallContext, DrawResources } from "./gpu-draw";
 import { drawBatches } from "./gpu-draw";
 import type { PickTargets } from "./gpu-pick";
 import { ensurePickTargets } from "./gpu-pick";
-import { beginPickDepthPass, beginPickPass } from "./gpu-pick-pass";
+import { beginPickPass } from "./gpu-pick-pass";
 import type { RenderResources } from "./gpu-pipelines";
 import { beginColorPass, ensureDepthTexture } from "./gpu-pipelines";
 import { drawOrbitPivot } from "./gpu-orbit-pivot";
@@ -87,9 +87,6 @@ export function encodePickSnapshot(
   const pickPass = beginPickPass(pickEncoder, frame.pickTargets);
   drawBatches(pickPass, frame.draw, context, frame.calls, { pass: "pick" });
   pickPass.end();
-  const depthPass = beginPickDepthPass(pickEncoder, frame.pickTargets);
-  drawBatches(depthPass, frame.draw, context, frame.calls, { pass: "depth" });
-  depthPass.end();
   frame.device.queue.submit([pickEncoder.finish()]);
 }
 

@@ -1,7 +1,6 @@
 /* eslint-disable jsdoc/require-jsdoc, max-lines, max-lines-per-function */
 import {
   colorFragmentShader,
-  depthPickFragmentShader,
   edgeFragmentShader,
   edgeVertexShader,
   instanceVertexShader,
@@ -20,13 +19,10 @@ import { createOrbitPivotResources, type OrbitPivotResources } from "./gpu-orbit
 export interface DrawPipelines {
   readonly trianglesColor: GPURenderPipeline;
   readonly trianglesPick: GPURenderPipeline;
-  readonly trianglesDepth: GPURenderPipeline;
   readonly linesColor: GPURenderPipeline;
   readonly linesPick: GPURenderPipeline;
-  readonly linesDepth: GPURenderPipeline;
   readonly pointsColor: GPURenderPipeline;
   readonly pointsPick: GPURenderPipeline;
-  readonly pointsDepth: GPURenderPipeline;
 }
 
 export interface RenderResources {
@@ -133,7 +129,6 @@ interface PipelineShaders {
   readonly pointVertex: GPUShaderModule;
   readonly colorFragment: GPUShaderModule;
   readonly pickFragment: GPUShaderModule;
-  readonly depthFragment: GPUShaderModule;
   readonly nodePickVertex: GPUShaderModule;
   readonly nodePickFragment: GPUShaderModule;
 }
@@ -158,7 +153,6 @@ function createPipelineShaders(device: GPUDevice): PipelineShaders {
     pointVertex: device.createShaderModule({ code: pointVertexShader }),
     colorFragment: device.createShaderModule({ code: colorFragmentShader }),
     pickFragment: device.createShaderModule({ code: pickFragmentShader }),
-    depthFragment: device.createShaderModule({ code: depthPickFragmentShader }),
     nodePickVertex: device.createShaderModule({ code: nodePickVertexShader }),
     nodePickFragment: device.createShaderModule({ code: nodePickFragmentShader }),
   };
@@ -215,13 +209,10 @@ function buildPipelines(
       shaders.nodePickFragment,
       PICK_FORMATS,
     ),
-    trianglesDepth: make(variants.triangles, shaders.depthFragment, ["r32float"]),
     linesColor: make(variants.lines, shaders.colorFragment, [format]),
     linesPick: make(variants.lines, shaders.pickFragment, PICK_FORMATS),
-    linesDepth: make(variants.lines, shaders.depthFragment, ["r32float"]),
     pointsColor: make(variants.points, shaders.colorFragment, [format]),
     pointsPick: make(variants.points, shaders.pickFragment, PICK_FORMATS),
-    pointsDepth: make(variants.points, shaders.depthFragment, ["r32float"]),
   };
 }
 

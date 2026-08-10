@@ -132,11 +132,11 @@ describe("WebGPU renderer", () => {
     expect(gpu.bindGroupCreations).toBe(4);
     expect(gpu.submissionCount).toBe(2);
     await expect(renderer.pick(400, 300)).resolves.toEqual({ kind: "instance", instanceId: "1/0" });
-    expect(gpu.drawCalls).toHaveLength(4);
-    expect(gpu.textureCreations).toBe(7);
+    expect(gpu.drawCalls).toHaveLength(3);
+    expect(gpu.textureCreations).toBe(6);
     expect(gpu.submissionCount).toBe(4);
     await renderer.pick(300, 200);
-    expect(gpu.drawCalls).toHaveLength(4);
+    expect(gpu.drawCalls).toHaveLength(3);
     expect(gpu.submissionCount).toBe(5);
     renderer.resize(400, 300);
     renderer.destroy();
@@ -158,9 +158,9 @@ describe("WebGPU renderer", () => {
 
     renderer.render(runtime, camera, scene.parts);
     await renderer.pick(100, 100);
-    expect(gpu.drawCalls).toHaveLength(3);
+    expect(gpu.drawCalls).toHaveLength(2);
     await renderer.pick(200, 200);
-    expect(gpu.drawCalls).toHaveLength(3);
+    expect(gpu.drawCalls).toHaveLength(2);
 
     const styled = setPartOverride(interaction, 1, {
       color: { r: 1, g: 0, b: 0, a: 1 },
@@ -168,28 +168,28 @@ describe("WebGPU renderer", () => {
     renderer.updateInstances(runtime, styled, [0]);
     renderer.render(runtime, camera, scene.parts);
     await renderer.pick(300, 300);
-    expect(gpu.drawCalls).toHaveLength(4);
+    expect(gpu.drawCalls).toHaveLength(3);
 
     const movedCamera = { ...camera, target: [1, 0, 0] as const };
     renderer.render(runtime, movedCamera, scene.parts);
     await renderer.pick(300, 300);
-    expect(gpu.drawCalls).toHaveLength(7);
+    expect(gpu.drawCalls).toHaveLength(5);
 
     runtime.setInstanceTransform(0, translation(1, 0, 0));
     renderer.updateInstances(runtime, styled, [0]);
     renderer.render(runtime, movedCamera, scene.parts);
     await renderer.pick(300, 300);
-    expect(gpu.drawCalls).toHaveLength(10);
+    expect(gpu.drawCalls).toHaveLength(7);
 
     const hidden = runtime.setInstanceVisible(1, false);
     renderer.updateVisibility(runtime, hidden.changedInstanceIds);
     renderer.render(runtime, movedCamera, scene.parts);
     await renderer.pick(300, 300);
-    expect(gpu.drawCalls).toHaveLength(13);
+    expect(gpu.drawCalls).toHaveLength(9);
 
     renderer.resize(400, 300);
     await renderer.pick(150, 100);
-    expect(gpu.drawCalls).toHaveLength(15);
+    expect(gpu.drawCalls).toHaveLength(10);
 
     renderer.setDeformation({
       scale: 1,
@@ -199,28 +199,58 @@ describe("WebGPU renderer", () => {
     });
     renderer.render(runtime, movedCamera, scene.parts);
     await renderer.pick(150, 100);
-    expect(gpu.drawCalls).toHaveLength(18);
+    expect(gpu.drawCalls).toHaveLength(12);
     renderer.destroy();
   });
 
-  it("resolves a visible face pixel to an exact world-space point", async () => {
+  it.each(["perspective", "orthographic"] as const)(
+    "resolves a visible face pixel to an exact world-space point in %s mode",
+    async (mode) => {
+      restoreGpuGlobals = installGpuGlobals();
+      const faceCamera = {
+        ...camera,
+        mode,
+        position: [0, 0, 5] as const,
+        target: [0, 0, 0] as const,
+      };
+      const depth = projectPoint(faceCamera, [0, 0, 0])?.[2] ?? 1;
+      const gpu = fakeGpuDevice({
+        pickValue: 1,
+        elementPickValue: 1,
+        facePickValue: 1,
+        ndcDepth: depth,
+      });
+      installNavigator(gpu.device);
+      const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+      const scene = buildFaceScene();
+      const runtime = createSceneRuntime(scene);
+      renderer.render(runtime, faceCamera, scene.parts);
+
+      await expect(renderer.pickPoint(faceCamera, 400, 300)).resolves.toEqual(
+        unprojectPoint(faceCamera, [400.5, 300.5, depth]),
+      );
+      renderer.destroy();
+    },
+  );
+
+  it("reconstructs a displayed point in a large-coordinate camera frame", async () => {
     restoreGpuGlobals = installGpuGlobals();
-    const faceCamera = { ...camera, position: [0, 0, 5] as const, target: [0, 0, 0] as const };
-    const depth = projectPoint(faceCamera, [0, 0, 0])?.[2] ?? 1;
-    const gpu = fakeGpuDevice({
-      pickValue: 1,
-      elementPickValue: 1,
-      facePickValue: 1,
-      ndcDepth: depth,
-    });
+    const faceCamera = {
+      ...camera,
+      position: [10_000, 20_000, 30_005] as const,
+      target: [10_000, 20_000, 30_000] as const,
+      far: 100,
+    };
+    const displayedPoint = [10_000, 20_000, 30_001] as const;
+    const depth = projectPoint(faceCamera, displayedPoint)?.[2] ?? 1;
+    const gpu = fakeGpuDevice({ pickValue: 1, facePickValue: 1, ndcDepth: depth });
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildFaceScene();
-    const runtime = createSceneRuntime(scene);
-    renderer.render(runtime, faceCamera, scene.parts);
+    renderer.render(createSceneRuntime(scene), faceCamera, scene.parts);
 
     await expect(renderer.pickPoint(faceCamera, 400, 300)).resolves.toEqual(
-      unprojectPoint(faceCamera, [400.5, 300.5, depth]),
+      unprojectPoint(faceCamera, [400.5, 300.5, Math.fround(depth)]),
     );
     renderer.destroy();
   });
@@ -375,13 +405,13 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.slice(-2)).toEqual([
       { pipeline: "pipeline-0", indexCount: 3, instanceCount: 3 },
-      { pipeline: "pipeline-9", indexCount: 6, instanceCount: 3 },
+      { pipeline: "pipeline-6", indexCount: 6, instanceCount: 3 },
     ]);
 
     renderer.setEdgeDepthTest(false);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-10",
+      pipeline: "pipeline-7",
       indexCount: 6,
       instanceCount: 3,
     });
@@ -389,7 +419,7 @@ describe("WebGPU renderer", () => {
     renderer.setEdgeDepthTest(true);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-9",
+      pipeline: "pipeline-6",
       indexCount: 6,
       instanceCount: 3,
     });
@@ -412,7 +442,7 @@ describe("WebGPU renderer", () => {
     renderer.updateInstances(runtime, edge, hidden.changedInstanceIds);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-9",
+      pipeline: "pipeline-6",
       indexCount: 6,
       instanceCount: 2,
     });
@@ -421,7 +451,7 @@ describe("WebGPU renderer", () => {
     renderer.updateInstances(runtime, edge, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-9",
+      pipeline: "pipeline-6",
       indexCount: 6,
       instanceCount: 3,
     });

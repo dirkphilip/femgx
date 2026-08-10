@@ -14,13 +14,6 @@ import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
 const READBACK_SIZE = READBACK_BYTE_STRIDE * 5;
 
-function readbackBytes(instancePickId = 1, ndcDepth = 1): ArrayBuffer {
-  const bytes = new Uint8Array(READBACK_SIZE);
-  new DataView(bytes.buffer).setUint32(0, instancePickId, true);
-  new DataView(bytes.buffer).setFloat32(READBACK_BYTE_STRIDE * 4, ndcDepth, true);
-  return bytes.buffer;
-}
-
 describe("GPU pick targets", () => {
   it("maps and clamps pick pixels to the canvas bounds", () => {
     const rect = { width: 100, height: 100 };
@@ -45,20 +38,26 @@ describe("GPU pick targets", () => {
       const pick = createPickTargets();
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
-      expect(gpu.textureCreations).toBe(6);
+      expect(gpu.textureCreations).toBe(5);
       expect(pick.texture).toBeDefined();
       expect(pick.elementTexture).toBeDefined();
       expect(pick.faceTexture).toBeDefined();
       expect(pick.nodeTexture).toBeDefined();
-      expect(pick.displayedDepthTexture).toBeDefined();
       expect(pick.depthTexture).toBeDefined();
+      expect(pick.depthReadback).toBeDefined();
+      expect(gpu.textures.at(-1)?.descriptor.usage).toBe(
+        GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+      );
+      const depthRequest = gpu.buffers.find((buffer) => buffer.size === 16);
+      expect(depthRequest).toBeDefined();
       destroyPickTargets(pick);
       expect(pick.texture).toBeUndefined();
       expect(pick.elementTexture).toBeUndefined();
       expect(pick.faceTexture).toBeUndefined();
       expect(pick.nodeTexture).toBeUndefined();
-      expect(pick.displayedDepthTexture).toBeUndefined();
       expect(pick.depthTexture).toBeUndefined();
+      expect(pick.depthReadback).toBeUndefined();
+      expect(depthRequest?.destroyed).toBe(true);
     } finally {
       restore();
     }
@@ -123,6 +122,10 @@ describe("GPU pick targets", () => {
         nodePickId: 20,
         ndcDepth: 0.375,
       });
+      expect(gpu.computeDispatchCount).toBe(1);
+      expect(gpu.bufferCopies).toEqual([
+        { sourceOffset: 8, destinationOffset: READBACK_BYTE_STRIDE * 4, size: 4 },
+      ]);
     } finally {
       restore();
     }
@@ -131,24 +134,13 @@ describe("GPU pick targets", () => {
   it("throws a typed pick-readback error when the readback map fails", async () => {
     const restore = installGpuGlobals();
     try {
-      const device = {
-        queue: { submit: () => undefined },
-        createBuffer: () => ({
-          mapAsync: () => Promise.reject(new Error("mapAsync rejected")),
-          getMappedRange: () => new Uint8Array(0),
-          unmap: () => undefined,
-          destroy: () => undefined,
-        }),
-        createCommandEncoder: () => ({
-          copyTextureToBuffer: () => undefined,
-          finish: () => ({}),
-        }),
-        createTexture: () => ({ createView: () => ({}), destroy: () => undefined }),
-      } as unknown as GPUDevice;
+      const gpu = fakeGpuDevice({
+        mapAsync: () => Promise.reject(new Error("mapAsync rejected")),
+      });
       const pick = createPickTargets();
-      ensurePickTargets(device, pick, 800, 600, "depth24plus");
+      ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       const canvas = fakeCanvas();
-      await expect(readPickPixel(device, canvas, pick, 10, 10)).rejects.toBeInstanceOf(
+      await expect(readPickPixel(gpu.device, canvas, pick, 10, 10)).rejects.toBeInstanceOf(
         WebGpuPickReadbackError,
       );
     } finally {
@@ -160,28 +152,15 @@ describe("GPU pick targets", () => {
     const restore = installGpuGlobals();
     try {
       const copiedOrigins: Array<{ readonly x: number; readonly y: number }> = [];
-      const device = {
-        queue: { submit: () => undefined },
-        createBuffer: () => ({
-          mapAsync: () => Promise.resolve(),
-          getMappedRange: () => readbackBytes(7),
-          unmap: () => undefined,
-          destroy: () => undefined,
-        }),
-        createCommandEncoder: () => ({
-          copyTextureToBuffer: (
-            source: { readonly origin: { readonly x: number; readonly y: number } },
-            _destination: unknown,
-            _copy: unknown,
-          ) => {
-            copiedOrigins.push({ x: source.origin.x, y: source.origin.y });
-          },
-          finish: () => ({}),
-        }),
-        createTexture: () => ({ createView: () => ({}), destroy: () => undefined }),
-      } as unknown as GPUDevice;
+      const gpu = fakeGpuDevice({
+        pickValue: 7,
+        onCopyTextureToBuffer: (source) => {
+          const origin = source.origin as { readonly x?: number; readonly y?: number } | undefined;
+          copiedOrigins.push({ x: origin?.x ?? 0, y: origin?.y ?? 0 });
+        },
+      });
       const pick = createPickTargets();
-      ensurePickTargets(device, pick, 780, 1688, "depth24plus");
+      ensurePickTargets(gpu.device, pick, 780, 1688, "depth24plus");
       // A 390x844 CSS canvas with a 780x1688 device backing store: a tap at
       // CSS (195, 422) must copy from the device pixel (390, 844).
       const canvas = {
@@ -189,7 +168,7 @@ describe("GPU pick targets", () => {
         height: 1688,
         getBoundingClientRect: () => ({ width: 390, height: 844 }),
       } as unknown as HTMLCanvasElement;
-      await readPickPixel(device, canvas, pick, 195, 422);
+      await readPickPixel(gpu.device, canvas, pick, 195, 422);
       expect(copiedOrigins[0]).toEqual({ x: 390, y: 844 });
     } finally {
       restore();
@@ -259,32 +238,17 @@ describe("GPU pick targets", () => {
     const restore = installGpuGlobals();
     try {
       const deferred: Array<() => void> = [];
-      let bufferCount = 0;
-      const device = {
-        queue: { submit: () => undefined },
-        createBuffer: () => {
-          bufferCount += 1;
-          const buffer = {
-            mapAsync: () =>
-              new Promise<void>((resolve) => {
-                deferred.push(resolve);
-              }),
-            getMappedRange: () => readbackBytes(),
-            unmap: () => undefined,
-            destroy: () => undefined,
-          } as unknown as GPUBuffer;
-          return buffer;
-        },
-        createCommandEncoder: () => ({
-          copyTextureToBuffer: () => undefined,
-          finish: () => ({}),
-        }),
-        createTexture: () => ({ createView: () => ({}), destroy: () => undefined }),
-      } as unknown as GPUDevice;
+      const gpu = fakeGpuDevice({
+        pickValue: 1,
+        mapAsync: () =>
+          new Promise<void>((resolve) => {
+            deferred.push(resolve);
+          }),
+      });
       const pick = createPickTargets();
-      ensurePickTargets(device, pick, 800, 600, "depth24plus");
+      ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       const canvas = fakeCanvas();
-      const pending = readPickPixel(device, canvas, pick, 1, 1);
+      const pending = readPickPixel(gpu.device, canvas, pick, 1, 1);
       resetPickTargets(pick);
       deferred[0]?.();
       await expect(pending).resolves.toEqual({
@@ -294,9 +258,9 @@ describe("GPU pick targets", () => {
         nodePickId: 0,
         ndcDepth: 1,
       });
-      ensurePickTargets(device, pick, 800, 600, "depth24plus");
-      const after = readPickPixel(device, canvas, pick, 2, 2);
-      expect(bufferCount).toBe(1);
+      ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
+      const after = readPickPixel(gpu.device, canvas, pick, 2, 2);
+      expect(gpu.buffers.filter((buffer) => buffer.size === READBACK_SIZE)).toHaveLength(1);
       deferred[1]?.();
       await expect(after).resolves.toEqual({
         instancePickId: 1,
@@ -314,44 +278,19 @@ describe("GPU pick targets", () => {
     const restore = installGpuGlobals();
     try {
       const deferred: Array<() => void> = [];
-      const mapped = new Set<GPUBuffer>();
-      let bufferCount = 0;
-      const device = {
-        queue: { submit: () => undefined },
-        createBuffer: () => {
-          bufferCount += 1;
-          const buffer = {
-            mapAsync: () => {
-              expect(mapped.has(buffer)).toBe(false);
-              mapped.add(buffer);
-              return new Promise<void>((resolve) => {
-                deferred.push(() => {
-                  mapped.delete(buffer);
-                  resolve();
-                });
-              });
-            },
-            getMappedRange: () => readbackBytes(),
-            unmap: () => undefined,
-            destroy: () => undefined,
-          } as unknown as GPUBuffer;
-          return buffer;
-        },
-        createCommandEncoder: () => ({
-          copyTextureToBuffer: () => undefined,
-          finish: () => ({}),
-        }),
-      } as unknown as GPUDevice;
+      const gpu = fakeGpuDevice({
+        pickValue: 1,
+        mapAsync: () =>
+          new Promise<void>((resolve) => {
+            deferred.push(resolve);
+          }),
+      });
       const pick = createPickTargets();
-      pick.texture = {} as GPUTexture;
-      pick.elementTexture = {} as GPUTexture;
-      pick.faceTexture = {} as GPUTexture;
-      pick.nodeTexture = {} as GPUTexture;
-      pick.displayedDepthTexture = {} as GPUTexture;
+      ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       const canvas = fakeCanvas();
-      const first = readPickPixel(device, canvas, pick, 1, 1);
-      const second = readPickPixel(device, canvas, pick, 2, 2);
-      expect(bufferCount).toBe(2);
+      const first = readPickPixel(gpu.device, canvas, pick, 1, 1);
+      const second = readPickPixel(gpu.device, canvas, pick, 2, 2);
+      expect(gpu.buffers.filter((buffer) => buffer.size === READBACK_SIZE)).toHaveLength(2);
       deferred[0]?.();
       deferred[1]?.();
       await expect(first).resolves.toEqual({
@@ -368,8 +307,8 @@ describe("GPU pick targets", () => {
         nodePickId: 0,
         ndcDepth: 1,
       });
-      const third = readPickPixel(device, canvas, pick, 3, 3);
-      expect(bufferCount).toBe(2);
+      const third = readPickPixel(gpu.device, canvas, pick, 3, 3);
+      expect(gpu.buffers.filter((buffer) => buffer.size === READBACK_SIZE)).toHaveLength(2);
       deferred[2]?.();
       await expect(third).resolves.toEqual({
         instancePickId: 1,

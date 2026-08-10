@@ -375,11 +375,3 @@ fn fragmentMain(
   return output;
 }
 `;
-
-/** Writes the nearest displayed fragment depth into a copyable scalar target. */
-export const depthPickFragmentShader = /* wgsl */ `
-@fragment
-fn fragmentMain(@builtin(position) fragmentPosition: vec4<f32>) -> @location(0) f32 {
-  return fragmentPosition.z;
-}
-`;
