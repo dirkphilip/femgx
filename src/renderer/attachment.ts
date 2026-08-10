@@ -9,7 +9,10 @@ import {
   patchInstances,
   writeDrawOrder,
   writeEdgeOrder,
+  INSTANCE_STRIDE,
   type DrawCall,
+  type DrawResources,
+  type InstanceUpdate,
 } from "./gpu-draw";
 import type { GpuBundle } from "./gpu-recovery";
 import { collectInstanceUpdates } from "./instance-updates";
@@ -48,23 +51,24 @@ export class RendererAttachment {
    * Ensures the attachment matches `runtime`, growing in place when the runtime
    * is a compatible superset of the previously attached one.
    */
-  public attach(runtime: SceneRuntime, bundle: GpuBundle): void {
+  public attach(runtime: SceneRuntime, bundle: GpuBundle): boolean {
     if (
       this.runtime === runtime &&
       this.layout !== undefined &&
       this.layout.instanceCount === runtime.instanceCount
     ) {
-      return;
+      return false;
     }
     const layout = buildInstanceLayout(runtime);
     if (this.runtime !== undefined && this.layout !== undefined) {
       const growth = computeRuntimeGrowth(this.runtime, runtime, this.layout, layout);
       if (growth !== undefined) {
         this.growAttach(runtime, layout, growth, bundle);
-        return;
+        return true;
       }
     }
     this.fullAttach(runtime, layout, bundle);
+    return true;
   }
 
   /** Writes only the GPU subranges affected by the changed instance slots. */
@@ -73,10 +77,10 @@ export class RendererAttachment {
     interaction: InteractionState,
     changedInstanceIds: readonly number[],
     bundle: GpuBundle,
-  ): void {
-    this.attach(runtime, bundle);
+  ): boolean {
+    const attached = this.attach(runtime, bundle);
     const layout = this.layout;
-    if (layout === undefined) return;
+    if (layout === undefined) return attached;
     const { updates, edgeChanged } = collectInstanceUpdates(
       runtime,
       layout,
@@ -84,17 +88,21 @@ export class RendererAttachment {
       this.edgeFlags,
       changedInstanceIds,
     );
+    let transformChanged = false;
     for (const [partId, partUpdates] of updates) {
+      transformChanged ||= instanceTransformsChanged(bundle.draw, partId, partUpdates);
       patchInstances(bundle.draw, partId, partUpdates);
     }
     if (edgeChanged.size > 0) {
       this.rebuildEdgeOrders(runtime, layout, edgeChanged, bundle);
     }
-    if (runtime.visibleCount !== layout.visibleCount) {
+    const visibilityChanged = runtime.visibleCount !== layout.visibleCount;
+    if (visibilityChanged) {
       this.rebuildVisibleOrders(runtime, layout, changedInstanceIds, bundle);
     } else if (edgeChanged.size > 0) {
       this.rebuildCalls();
     }
+    return attached || transformChanged || visibilityChanged;
   }
 
   /** Writes the per-part element-highlight buffers as diffed records. */
@@ -103,10 +111,10 @@ export class RendererAttachment {
     interaction: InteractionState,
     bundle: GpuBundle,
     parts: ReadonlyMap<PartId, Part>,
-  ): void {
-    this.attach(runtime, bundle);
+  ): boolean {
+    const attached = this.attach(runtime, bundle);
     const layout = this.layout;
-    if (layout === undefined) return;
+    if (layout === undefined) return attached;
     syncElementHighlights(
       {
         device: bundle.device,
@@ -118,6 +126,7 @@ export class RendererAttachment {
       },
       interaction,
     );
+    return attached;
   }
 
   /** Rebuilds GPU draw order after runtime visibility changed. */
@@ -125,11 +134,12 @@ export class RendererAttachment {
     runtime: SceneRuntime,
     changedInstanceIds: readonly number[],
     bundle: GpuBundle,
-  ): void {
-    this.attach(runtime, bundle);
+  ): boolean {
+    const attached = this.attach(runtime, bundle);
     const layout = this.layout;
-    if (layout === undefined) return;
+    if (layout === undefined) return attached;
     this.rebuildVisibleOrders(runtime, layout, changedInstanceIds, bundle);
+    return attached || changedInstanceIds.length > 0;
   }
 
   /** Clears the attachment so the next frame re-uploads everything. */
@@ -271,4 +281,21 @@ export class RendererAttachment {
     this.calls = calls;
     this.edgeCalls = edgeCalls;
   }
+}
+
+function instanceTransformsChanged(
+  draw: DrawResources,
+  partId: PartId,
+  updates: readonly InstanceUpdate[],
+): boolean {
+  const storage = draw.storages.get(partId);
+  if (storage === undefined) return updates.length > 0;
+  const current = new Uint8Array(storage.data);
+  for (const update of updates) {
+    const offset = update.slot * INSTANCE_STRIDE;
+    const next = new Uint8Array(update.data, 0, 64);
+    const previous = current.subarray(offset, offset + 64);
+    if (next.some((value, index) => value !== previous[index])) return true;
+  }
+  return false;
 }

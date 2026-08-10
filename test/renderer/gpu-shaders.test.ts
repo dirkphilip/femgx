@@ -69,7 +69,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
   });
 
   it.each(vertexShaders)(
-    "keeps the Camera uniform layout aligned with encodeFrame in %s",
+    "keeps the Camera uniform layout aligned with frame encoding in %s",
     (_name, source) => {
       const info = structInfo(source, "Camera");
       const offsets = memberOffsets(info);

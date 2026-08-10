@@ -102,8 +102,9 @@ reuses a pool of map buffers (see
 [[rendering/webgpu-resource-reuse|WebGPU resource reuse]]). Per-part instance buffers only
 grow; a grown-out buffer is replaced without being destroyed immediately, so it
 is only released when the renderer is destroyed — deferred buffer destruction
-for growth is still future work. The pick targets are already reused across
-frames and resized on demand.
+for growth is still future work. Pick targets are reused across frames and
+resized on demand; their geometry snapshot is rendered lazily on the first pick
+after pick-relevant state changes rather than during every visible frame.
 
 ## Toolchain reproducibility
 

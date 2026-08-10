@@ -9,7 +9,7 @@ import { RendererAttachment } from "./attachment";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./gpu-renderer";
 import { syncDeformations, validateDeformation, type DeformationState } from "./gpu-deform";
 import { destroyDrawResources } from "./gpu-draw";
-import { encodeFrame } from "./gpu-frame";
+import { encodePickSnapshot, encodeVisibleFrame } from "./gpu-frame";
 import { destroyPickTargets, pickTargetFromPixel, resetPickTargets } from "./gpu-pick";
 import { displayedPointFromPixel } from "./gpu-pick-point";
 import { destroyRenderResources } from "./gpu-pipelines";
@@ -24,6 +24,9 @@ export class GpuRenderer implements WebGpuRenderer {
   private readonly pointSize: number;
   private readonly attachment = new RendererAttachment();
   private parts = new Map<PartId, Part>();
+  private sourceParts: ReadonlyMap<PartId, Part> | undefined;
+  private lastCamera: Camera | undefined;
+  private pickSnapshotValid = false;
   private edgeDepthTest = true;
   private nodeOverlay = false;
   private orbitPivot: Vec3 | undefined;
@@ -56,15 +59,21 @@ export class GpuRenderer implements WebGpuRenderer {
 
   public render(runtime: SceneRuntime, camera: Camera, parts: ReadonlyMap<PartId, Part>): void {
     this.ensureAlive();
+    const partsChanged = this.sourceParts !== parts;
+    const cameraChanged = this.lastCamera !== camera;
+    this.sourceParts = parts;
+    this.lastCamera = camera;
     this.parts = new Map(parts);
-    this.attachment.attach(runtime, this.lifecycle.bundle);
+    const attachmentChanged = this.attachment.attach(runtime, this.lifecycle.bundle);
     syncDeformations(this.lifecycle.bundle.draw, this.deformation);
-    encodeFrame(camera, parts, this.frameOptions());
+    if (partsChanged || cameraChanged || attachmentChanged) this.pickSnapshotValid = false;
+    encodeVisibleFrame(camera, parts, this.frameOptions());
   }
 
   public setDeformation(deformation: DeformationState): void {
     this.ensureAlive();
     validateDeformation(deformation);
+    if (this.deformation !== deformation) this.pickSnapshotValid = false;
     this.deformation = deformation;
   }
 
@@ -74,17 +83,23 @@ export class GpuRenderer implements WebGpuRenderer {
     changedInstanceIds: readonly number[],
   ): void {
     this.ensureAlive();
-    this.attachment.updateInstances(
-      runtime,
-      interaction,
-      changedInstanceIds,
-      this.lifecycle.bundle,
-    );
+    if (
+      this.attachment.updateInstances(
+        runtime,
+        interaction,
+        changedInstanceIds,
+        this.lifecycle.bundle,
+      )
+    ) {
+      this.pickSnapshotValid = false;
+    }
   }
 
   public updateElements(runtime: SceneRuntime, interaction: InteractionState): void {
     this.ensureAlive();
-    this.attachment.updateElements(runtime, interaction, this.lifecycle.bundle, this.parts);
+    if (this.attachment.updateElements(runtime, interaction, this.lifecycle.bundle, this.parts)) {
+      this.pickSnapshotValid = false;
+    }
   }
 
   public setEdgeDepthTest(enabled: boolean): void {
@@ -104,7 +119,9 @@ export class GpuRenderer implements WebGpuRenderer {
 
   public updateVisibility(runtime: SceneRuntime, changedInstanceIds: readonly number[]): void {
     this.ensureAlive();
-    this.attachment.updateVisibility(runtime, changedInstanceIds, this.lifecycle.bundle);
+    if (this.attachment.updateVisibility(runtime, changedInstanceIds, this.lifecycle.bundle)) {
+      this.pickSnapshotValid = false;
+    }
   }
 
   public async pick(
@@ -114,6 +131,7 @@ export class GpuRenderer implements WebGpuRenderer {
   ): Promise<PickTarget | undefined> {
     this.ensureAlive();
     if (this.attachment.runtime === undefined) return undefined;
+    if (!this.ensurePickSnapshot()) return undefined;
     return pickTargetFromPixel({
       device: this.lifecycle.bundle.device,
       canvas: this.canvas,
@@ -128,6 +146,7 @@ export class GpuRenderer implements WebGpuRenderer {
   public async pickPoint(camera: Camera, x: number, y: number): Promise<Vec3 | undefined> {
     this.ensureAlive();
     if (this.attachment.runtime === undefined) return undefined;
+    if (!this.ensurePickSnapshot(camera)) return undefined;
     return displayedPointFromPixel({
       device: this.lifecycle.bundle.device,
       canvas: this.canvas,
@@ -147,6 +166,7 @@ export class GpuRenderer implements WebGpuRenderer {
       alphaMode: "opaque",
     });
     resetPickTargets(this.lifecycle.bundle.pickTargets);
+    this.pickSnapshotValid = false;
   }
 
   public stats(): { readonly drawBatches: number } {
@@ -174,12 +194,27 @@ export class GpuRenderer implements WebGpuRenderer {
     if (this.destroyed) throw new Error("WebGPU renderer has been destroyed");
     if (await this.lifecycle.recover()) {
       this.attachment.clear();
+      this.pickSnapshotValid = false;
     }
   }
 
   private ensureAlive(): void {
     if (this.destroyed) throw new Error("WebGPU renderer has been destroyed");
     this.lifecycle.ensureUsable();
+  }
+
+  private ensurePickSnapshot(camera = this.lastCamera): boolean {
+    if (camera === undefined) return false;
+    if (camera !== this.lastCamera) {
+      this.lastCamera = camera;
+      this.pickSnapshotValid = false;
+    }
+    if (!this.pickSnapshotValid) {
+      syncDeformations(this.lifecycle.bundle.draw, this.deformation);
+      encodePickSnapshot(camera, this.parts, this.frameOptions());
+      this.pickSnapshotValid = true;
+    }
+    return true;
   }
 
   private frameOptions() {

@@ -36,24 +36,13 @@ export interface FrameOptions {
   readonly orbitPivot: readonly [number, number, number] | undefined;
 }
 
-/**
- * Encodes and submits one frame: the visible color pass (with a wireframe edge
- * overlay for the instances whose resolved style requests it) followed by the
- * two-attachment picking pass. The pick targets are always refreshed so
- * `pick(x, y)` reads the ids of the last rendered frame.
- */
-export function encodeFrame(
+/** Encodes and submits one visible color frame without any picking work. */
+export function encodeVisibleFrame(
   camera: Camera,
   parts: ReadonlyMap<PartId, Part>,
   frame: FrameOptions,
 ): void {
-  const uniform = new Float32Array(20);
-  uniform.set(viewProjectionMatrix(camera), 0);
-  uniform[16] = frame.canvas.width;
-  uniform[17] = frame.canvas.height;
-  uniform[18] = frame.pointSize;
-  frame.device.queue.writeBuffer(frame.resources.cameraBuffer, 0, uniform);
-  writeDeformationUniform(frame.device, frame.resources.deformationBuffer, frame.deformation);
+  writeFrameUniforms(camera, frame);
   const colorEncoder = frame.device.createCommandEncoder();
   const colorView = frame.context.getCurrentTexture().createView();
   const depthTexture = ensureDepthTexture(
@@ -62,12 +51,7 @@ export function encodeFrame(
     frame.canvas.height,
     frame.depthFormat,
   );
-  const context: DrawCallContext = {
-    frameBindGroup: frame.resources.frameBindGroup,
-    instanceLayout: frame.resources.instanceLayout,
-    parts,
-    pipelines: frame.resources.pipelines,
-  };
+  const context = drawContext(frame, parts);
   const colorPass = beginColorPass(colorEncoder, colorView, depthTexture.createView());
   drawBatches(colorPass, frame.draw, context, frame.calls, { pass: "color" });
   if (frame.edgeCalls.length > 0) {
@@ -82,6 +66,15 @@ export function encodeFrame(
   drawOrbitPivot(colorPass, frame.resources.orbitPivot, frame.orbitPivot, frame.device);
   colorPass.end();
   frame.device.queue.submit([colorEncoder.finish()]);
+}
+
+/** Encodes and submits one current pick snapshot for subsequent readbacks. */
+export function encodePickSnapshot(
+  camera: Camera,
+  parts: ReadonlyMap<PartId, Part>,
+  frame: FrameOptions,
+): void {
+  writeFrameUniforms(camera, frame);
   ensurePickTargets(
     frame.device,
     frame.pickTargets,
@@ -89,6 +82,7 @@ export function encodeFrame(
     frame.canvas.height,
     frame.depthFormat,
   );
+  const context = drawContext(frame, parts);
   const pickEncoder = frame.device.createCommandEncoder();
   const pickPass = beginPickPass(pickEncoder, frame.pickTargets);
   drawBatches(pickPass, frame.draw, context, frame.calls, { pass: "pick" });
@@ -97,6 +91,25 @@ export function encodeFrame(
   drawBatches(depthPass, frame.draw, context, frame.calls, { pass: "depth" });
   depthPass.end();
   frame.device.queue.submit([pickEncoder.finish()]);
+}
+
+function drawContext(frame: FrameOptions, parts: ReadonlyMap<PartId, Part>): DrawCallContext {
+  return {
+    frameBindGroup: frame.resources.frameBindGroup,
+    instanceLayout: frame.resources.instanceLayout,
+    parts,
+    pipelines: frame.resources.pipelines,
+  };
+}
+
+function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
+  const uniform = new Float32Array(20);
+  uniform.set(viewProjectionMatrix(camera), 0);
+  uniform[16] = frame.canvas.width;
+  uniform[17] = frame.canvas.height;
+  uniform[18] = frame.pointSize;
+  frame.device.queue.writeBuffer(frame.resources.cameraBuffer, 0, uniform);
+  writeDeformationUniform(frame.device, frame.resources.deformationBuffer, frame.deformation);
 }
 
 function drawNodeOverlay(
