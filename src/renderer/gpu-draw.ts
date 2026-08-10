@@ -9,7 +9,6 @@ import {
 import { buildMeshEdges } from "./gpu-edge";
 import type { InstanceStorage } from "./gpu-instance-storage";
 import {
-  buildCornerPositions,
   buildElementTrianglePickIds,
   buildFaceTrianglePickIds,
   buildVertexNodePickIds,
@@ -93,12 +92,15 @@ function uploadNodePart(draw: DrawResources, part: Part): PartResource {
     );
   }
   const resource: PartResource = {
-    vertexBuffer: createBuffer(draw.device, positions, GPUBufferUsage.VERTEX),
+    vertexBuffer: createBuffer(
+      draw.device,
+      positions,
+      GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
+    ),
     indexBuffer: createBuffer(draw.device, indices, GPUBufferUsage.INDEX),
     elementPickIdsBuffer: createBuffer(draw.device, new Uint32Array(1), GPUBufferUsage.STORAGE),
     facePickIdsBuffer: createBuffer(draw.device, new Uint32Array(1), GPUBufferUsage.STORAGE),
     nodePickIdsBuffer: createBuffer(draw.device, ids, GPUBufferUsage.STORAGE),
-    cornerPositionsBuffer: createBuffer(draw.device, positions, GPUBufferUsage.STORAGE),
     edgeIndexBuffer: createBuffer(draw.device, new Uint32Array(1), GPUBufferUsage.INDEX),
     indexCount: indices.length,
     edgeIndexCount: 0,
@@ -115,7 +117,11 @@ function uploadNodePart(draw: DrawResources, part: Part): PartResource {
 export function uploadPart(draw: DrawResources, part: Part): PartResource {
   const existing = draw.parts.get(part.id);
   if (existing !== undefined) return existing;
-  const vertexBuffer = createBuffer(draw.device, part.geometry.positions, GPUBufferUsage.VERTEX);
+  const vertexBuffer = createBuffer(
+    draw.device,
+    part.geometry.positions,
+    GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
+  );
   const indexBuffer = createBuffer(draw.device, part.geometry.indices, GPUBufferUsage.INDEX);
   const triangles = part.geometry.primitive !== "lines" && part.geometry.primitive !== "points";
   const edges = triangles ? buildMeshEdges(part.geometry) : new Uint32Array(0);
@@ -134,11 +140,6 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
     buildVertexNodePickIds(part.geometry),
     GPUBufferUsage.STORAGE,
   );
-  const cornerPositionsBuffer = createBuffer(
-    draw.device,
-    buildCornerPositions(part.geometry),
-    GPUBufferUsage.STORAGE,
-  );
   const edgeIndexBuffer = createBuffer(
     draw.device,
     edges.length > 0 ? edges : new Uint32Array(1),
@@ -150,7 +151,6 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
     elementPickIdsBuffer,
     facePickIdsBuffer,
     nodePickIdsBuffer,
-    cornerPositionsBuffer,
     edgeIndexBuffer,
     indexCount: part.geometry.indices.length,
     edgeIndexCount: edges.length,
@@ -202,6 +202,7 @@ export function drawBatches(
     const storage = draw.storages.get(call.partId);
     if (part === undefined || storage === undefined) continue;
     const geometry = nodes ? uploadNodePart(draw, part) : uploadPart(draw, part);
+    if (overlay && geometry.edgeIndexCount === 0) continue;
     const pipeline =
       options.pipeline ??
       pipelineFor(
@@ -260,7 +261,6 @@ export function destroyDrawResources(draw: DrawResources): void {
     resource.elementPickIdsBuffer.destroy();
     resource.facePickIdsBuffer.destroy();
     resource.nodePickIdsBuffer.destroy();
-    resource.cornerPositionsBuffer.destroy();
     resource.edgeIndexBuffer.destroy();
   }
   for (const resource of draw.nodeParts.values()) {
@@ -269,7 +269,6 @@ export function destroyDrawResources(draw: DrawResources): void {
     resource.elementPickIdsBuffer.destroy();
     resource.facePickIdsBuffer.destroy();
     resource.nodePickIdsBuffer.destroy();
-    resource.cornerPositionsBuffer.destroy();
     resource.edgeIndexBuffer.destroy();
   }
   for (const storage of draw.storages.values()) {

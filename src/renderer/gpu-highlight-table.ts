@@ -1,0 +1,94 @@
+/** Maximum number of records probed for one emphasis lookup in WGSL. */
+export const HIGHLIGHT_BUCKET_SIZE = 4;
+
+/** One CPU-side emphasis record ready for placement in the GPU table. */
+export interface HighlightTableEntry {
+  readonly slot: number;
+  readonly elementPickId: number;
+  readonly facePickId: number;
+  readonly nodePickId: number;
+  readonly data: ArrayBuffer;
+}
+
+/** A bounded-bucket table consumed by the visible vertex shaders. */
+export interface HighlightTable {
+  readonly bucketCount: number;
+  readonly seed: number;
+  readonly entries: ReadonlyArray<HighlightTableEntry | undefined>;
+}
+
+/**
+ * Builds a deterministic bounded-bucket table. A lookup reads one bucket and
+ * therefore stays constant-time even when many elements are emphasized. The
+ * caller supplies the physical record capacity so a failed layout can trigger
+ * one GPU-buffer growth before trying again.
+ */
+export function buildHighlightTable(
+  entries: readonly HighlightTableEntry[],
+  recordCapacity: number,
+): HighlightTable | undefined {
+  if (entries.length === 0) return { bucketCount: 0, seed: 0, entries: [] };
+  const maxBucketCount = highestPowerOfTwo(Math.floor(recordCapacity / HIGHLIGHT_BUCKET_SIZE));
+  let bucketCount = nextPowerOfTwo(Math.max(1, Math.ceil(entries.length / 2)));
+  while (bucketCount <= maxBucketCount) {
+    for (let seed = 0; seed < 256; seed += 1) {
+      const table = placeEntries(entries, bucketCount, seed);
+      if (table !== undefined) return table;
+    }
+    bucketCount *= 2;
+  }
+  return undefined;
+}
+
+/** Returns the same u32 hash used by the WGSL emphasis lookup. */
+export function highlightHash(
+  slot: number,
+  elementPickId: number,
+  facePickId: number,
+  nodePickId: number,
+  seed: number,
+): number {
+  let hash = seed >>> 0;
+  hash ^= Math.imul(slot >>> 0, 0x9e3779b9);
+  hash ^= Math.imul(elementPickId >>> 0, 0x85ebca6b);
+  hash ^= Math.imul(facePickId >>> 0, 0xc2b2ae35);
+  hash ^= Math.imul(nodePickId >>> 0, 0x27d4eb2f);
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 0x7feb352d);
+  hash ^= hash >>> 15;
+  hash = Math.imul(hash, 0x846ca68b);
+  return (hash ^ (hash >>> 16)) >>> 0;
+}
+
+function placeEntries(
+  entries: readonly HighlightTableEntry[],
+  bucketCount: number,
+  seed: number,
+): HighlightTable | undefined {
+  const table: Array<HighlightTableEntry | undefined> = new Array<HighlightTableEntry | undefined>(
+    bucketCount * HIGHLIGHT_BUCKET_SIZE,
+  );
+  const used = new Uint8Array(bucketCount);
+  for (const entry of entries) {
+    const bucket =
+      highlightHash(entry.slot, entry.elementPickId, entry.facePickId, entry.nodePickId, seed) &
+      (bucketCount - 1);
+    const offset = bucket * HIGHLIGHT_BUCKET_SIZE + (used[bucket] ?? 0);
+    if ((used[bucket] ?? 0) >= HIGHLIGHT_BUCKET_SIZE) return undefined;
+    table[offset] = entry;
+    used[bucket] = (used[bucket] ?? 0) + 1;
+  }
+  return { bucketCount, seed, entries: table };
+}
+
+function nextPowerOfTwo(value: number): number {
+  let result = 1;
+  while (result < value) result *= 2;
+  return result;
+}
+
+function highestPowerOfTwo(value: number): number {
+  let result = 1;
+  while (result * 2 <= value) result *= 2;
+  return value < 1 ? 0 : result;
+}

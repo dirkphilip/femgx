@@ -26,11 +26,11 @@ import {
   type EmphasisUpdate,
 } from "../../src/renderer/gpu-elements";
 import {
-  buildCornerPositions,
   buildElementTrianglePickIds,
   buildFaceTrianglePickIds,
   buildVertexNodePickIds,
 } from "../../src/renderer/gpu-pick-ids";
+import { HIGHLIGHT_BUCKET_SIZE } from "../../src/renderer/gpu-highlight-table";
 import {
   createDrawResources,
   encodeInstanceRecord,
@@ -112,16 +112,6 @@ describe("buildVertexNodePickIds", () => {
       indices: new Uint32Array(12),
     };
     expect(Array.from(buildVertexNodePickIds(geometry))).toEqual([0, 0, 0, 0]);
-  });
-});
-
-describe("buildCornerPositions", () => {
-  it("returns the tightly packed per-vertex positions (3 floats each)", () => {
-    const geometry: Geometry = {
-      positions: new Float32Array([0, 1, 2, 3, 4, 5, 6, 7, 8]),
-      indices: new Uint32Array([0, 1, 2]),
-    };
-    expect(Array.from(buildCornerPositions(geometry))).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
   });
 });
 
@@ -250,10 +240,18 @@ describe("writeElementHighlights", () => {
       writeElementHighlights(gpu.device, storage, updates);
       const u32 = new Uint32Array(storage.highlight.data.buffer);
       expect(u32[0]).toBe(updates.length);
-      for (let index = 0; index < updates.length; index += 1) {
-        const base = HIGHLIGHT_HEADER / 4 + index * (ELEMENT_RECORD_STRIDE / 4);
-        expect(u32[base]).toBe(index);
-        expect(u32[base + 1]).toBe(index + 1);
+      const bucketCount = u32[1] ?? 0;
+      expect(bucketCount).toBeGreaterThan(0);
+      for (const update of updates) {
+        let found = false;
+        for (let index = 0; index < bucketCount * HIGHLIGHT_BUCKET_SIZE; index += 1) {
+          const base = HIGHLIGHT_HEADER / 4 + index * (ELEMENT_RECORD_STRIDE / 4);
+          if (u32[base] === update.slot && u32[base + 1] === update.elementPickId) {
+            found = true;
+            break;
+          }
+        }
+        expect(found).toBe(true);
       }
       expect(gpu.buffers[0]?.destroyed).toBe(true);
       expect(gpu.buffers[1]?.size).toBeGreaterThan(

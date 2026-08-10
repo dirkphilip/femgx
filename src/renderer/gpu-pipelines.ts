@@ -3,10 +3,9 @@ import {
   colorFragmentShader,
   edgeFragmentShader,
   edgeVertexShader,
-  instanceVertexShader,
   pickFragmentShader,
-  pointVertexShader,
 } from "./gpu-shaders";
+import { instanceVertexShader, pointVertexShader } from "./gpu-instanced-shaders";
 import { nodePickFragmentShader, nodePickVertexShader } from "./gpu-node-pick";
 import { PICK_TEXTURE_FORMAT } from "./pick-format";
 import { COLOR_SAMPLE_COUNT, vertexLayout } from "./gpu-support";

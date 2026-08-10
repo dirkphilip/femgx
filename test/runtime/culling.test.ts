@@ -62,4 +62,26 @@ describe("cullInstances", () => {
     const visible = cullInstances(instances, parts, viewProjection);
     expect(visible.map((item) => item.instanceId)).toEqual(["1"]);
   });
+
+  it("keeps an instance visible when any maximum bound is non-finite", () => {
+    const bounds = {
+      minX: -1,
+      minY: -1,
+      minZ: -1,
+      maxX: Number.POSITIVE_INFINITY,
+      maxY: 1,
+      maxZ: 1,
+    };
+    const partWithInfiniteMax: Part = {
+      id: 4,
+      geometry: { positions: new Float32Array([0, 0, 0]), indices: new Uint32Array() },
+      bounds,
+    };
+    const visible = cullInstances(
+      [instance("4", partWithInfiniteMax.id, identity())],
+      new Map([[partWithInfiniteMax.id, partWithInfiniteMax]]),
+      viewProjection,
+    );
+    expect(visible.map((item) => item.instanceId)).toEqual(["4"]);
+  });
 });

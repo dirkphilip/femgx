@@ -74,14 +74,13 @@ describe("GPU draw path", () => {
       const second = uploadPart(draw, part);
       expect(second).toBe(first);
       expect(second.indexCount).toBe(3);
-      expect(gpu.buffers).toHaveLength(7);
+      expect(gpu.buffers).toHaveLength(6);
       expect(gpu.buffers[0]?.size).toBe(36);
       expect(gpu.buffers[1]?.size).toBe(12);
       expect(gpu.buffers[2]?.size).toBe(4);
       expect(gpu.buffers[3]?.size).toBe(4);
       expect(gpu.buffers[4]?.size).toBe(12);
-      expect(gpu.buffers[5]?.size).toBe(36);
-      expect(gpu.buffers[6]?.size).toBe(24);
+      expect(gpu.buffers[5]?.size).toBe(24);
     } finally {
       restore();
     }
@@ -256,6 +255,37 @@ describe("GPU draw path", () => {
         { indexCount: 6, instanceCount: 2 },
       ]);
       expect(gpu.bindGroupCreations).toBe(2);
+    } finally {
+      restore();
+    }
+  });
+
+  it("skips overlay batches that have no edge geometry", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      const linePart: Part = {
+        ...part,
+        geometry: { ...part.geometry, primitive: "lines" },
+      };
+      patchInstances(draw, linePart.id, [{ slot: 0, data: record(0) }]);
+      writeEdgeOrder(draw, linePart.id, new Uint32Array([0]));
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+      const context = { ...drawContext(), parts: new Map([[linePart.id, linePart]]) };
+      drawBatches(pass, draw, context, [{ partId: linePart.id, instanceCount: 1 }], {
+        pipeline: {} as GPURenderPipeline,
+        overlay: true,
+      });
+      pass.end();
+      expect(gpu.drawCalls).toEqual([]);
+      expect(gpu.bindGroupCreations).toBe(0);
     } finally {
       restore();
     }

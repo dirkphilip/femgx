@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { computeBounds, validateElements, type Geometry, type Part } from "../../src/geometry/part";
+import {
+  computeBounds,
+  isFiniteBounds,
+  validateElements,
+  type Geometry,
+  type Part,
+} from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 
 function part(id: number, positions: number[]): Part {
@@ -20,6 +26,20 @@ describe("computeBounds", () => {
     const b = computeBounds({ positions: new Float32Array(), indices: new Uint32Array() });
     expect(b.minX).toBe(Infinity);
     expect(b.maxX).toBe(-Infinity);
+    expect(isFiniteBounds(b)).toBe(false);
+  });
+
+  it("requires all six components to be finite", () => {
+    expect(
+      isFiniteBounds({
+        minX: 0,
+        minY: 0,
+        minZ: 0,
+        maxX: 1,
+        maxY: Number.POSITIVE_INFINITY,
+        maxZ: 1,
+      }),
+    ).toBe(false);
   });
 });
 

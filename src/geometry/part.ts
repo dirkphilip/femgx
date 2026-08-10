@@ -104,6 +104,18 @@ export function computeBounds(geometry: Geometry): Bounds {
   return computePositionsBounds(geometry.positions);
 }
 
+/** Returns whether every component of a bounding box is finite. */
+export function isFiniteBounds(bounds: Bounds): boolean {
+  return (
+    Number.isFinite(bounds.minX) &&
+    Number.isFinite(bounds.minY) &&
+    Number.isFinite(bounds.minZ) &&
+    Number.isFinite(bounds.maxX) &&
+    Number.isFinite(bounds.maxY) &&
+    Number.isFinite(bounds.maxZ)
+  );
+}
+
 /**
  * Computes the bounding box of raw positions (single or double precision).
  * Streaming parses untrusted model data that may arrive as doubles, so bounds

@@ -35,14 +35,3 @@ export function buildVertexNodePickIds(geometry: Geometry): Uint32Array {
   if (geometry.nodePickIds === undefined) return new Uint32Array(vertexCount);
   return geometry.nodePickIds;
 }
-
-/**
- * Builds the per-vertex corner-position buffer read by the node-pick vertex
- * stage. Only triangle parts are node-pickable; other parts get a single
- * element buffer whose out-of-bounds reads return zero.
- */
-export function buildCornerPositions(geometry: Geometry): Float32Array {
-  const triangleCount = Math.floor(geometry.indices.length / 3);
-  if (triangleCount === 0) return new Float32Array(3);
-  return geometry.positions;
-}
