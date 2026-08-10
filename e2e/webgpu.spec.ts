@@ -48,24 +48,24 @@ async function stableCanvasPixels(page: Page, canvas: Locator): Promise<Buffer> 
   throw new Error("canvas pixels never stabilized across captures");
 }
 
-/** Reads raw RGBA bytes from the WebGPU canvas via createImageBitmap. */
-async function canvasRgba(page: Page): Promise<Buffer> {
-  const payload = await page.evaluate(async () => {
-    const canvas = document.querySelector<HTMLCanvasElement>("[data-testid='view-canvas']");
-    if (canvas === null) throw new Error("missing view canvas");
-    const bitmap = await createImageBitmap(canvas);
+/** Reads presented raw RGBA bytes from the canvas screenshot. */
+async function canvasRgba(page: Page, canvas: Locator): Promise<Buffer> {
+  const encoded = (await canvas.screenshot()).toString("base64");
+  const payload = await page.evaluate(async (screenshot) => {
+    const encodedBytes = Uint8Array.from(atob(screenshot), (character) => character.charCodeAt(0));
+    const bitmap = await createImageBitmap(new Blob([encodedBytes], { type: "image/png" }));
     const offscreen = new OffscreenCanvas(bitmap.width, bitmap.height);
     const context = offscreen.getContext("2d", { willReadFrequently: true });
     if (context === null) throw new Error("2d context unavailable");
     context.drawImage(bitmap, 0, 0);
     const image = context.getImageData(0, 0, bitmap.width, bitmap.height);
-    const bytes = new Uint8Array(image.data.buffer);
+    const rgbaBytes = new Uint8Array(image.data.buffer);
     let binary = "";
-    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
-      binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    for (let offset = 0; offset < rgbaBytes.length; offset += 0x8000) {
+      binary += String.fromCharCode(...rgbaBytes.subarray(offset, offset + 0x8000));
     }
     return btoa(binary);
-  });
+  }, encoded);
   return Buffer.from(payload, "base64");
 }
 
@@ -93,17 +93,18 @@ function differingPixelCount(a: Buffer, b: Buffer, threshold = 8): number {
 
 /** Node-on vs node-off pixel contribution for the current camera. */
 async function nodeContribution(page: Page): Promise<number> {
+  const canvas = page.getByTestId("view-canvas");
   const label = page.getByTestId("node-overlay-label");
   if ((await label.textContent()) !== "On") {
     await page.getByTestId("node-overlay").click();
     await expect(label).toHaveText("On");
   }
   await page.waitForTimeout(50);
-  const withNodes = await canvasRgba(page);
+  const withNodes = await canvasRgba(page, canvas);
   await page.getByTestId("node-overlay").click();
   await expect(label).toHaveText("Off");
   await page.waitForTimeout(50);
-  const withoutNodes = await canvasRgba(page);
+  const withoutNodes = await canvasRgba(page, canvas);
   await page.getByTestId("node-overlay").click();
   await expect(label).toHaveText("On");
   return differingPixelCount(withNodes, withoutNodes);
@@ -343,8 +344,8 @@ test("keeps depth-tested node annotations stable across fine zoom steps", async 
     .selectOption({ label: "Element gallery · all supported shapes" });
   // Hide the gallery's hardware point/line overlays so the measured delta is
   // only the center-depth node annotation pass.
-  await page.getByLabel("Part Point").uncheck();
-  await page.getByLabel("Part Line").uncheck();
+  await page.getByTestId("instance-vis-0").uncheck();
+  await page.getByTestId("instance-vis-1").uncheck();
   await page.getByTestId("fit-view").click();
 
   const canvas = page.getByTestId("view-canvas");

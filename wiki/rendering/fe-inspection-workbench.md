@@ -41,9 +41,10 @@ controller, so camera and interaction behavior is stable
 - `demo/controller.ts` (`WorkbenchController`) owns active-preset and DOM
   presentation policy while `FemViewport` owns the packed runtime, camera,
   controls, interaction synchronization, visibility, picking, and renderer
-  lifecycle. The controller wires the control
-  bar, visibility panel, inspection panel, stats panel, and the right-click
-  context menu.
+  lifecycle. Focused `demo/workbench/` modules own async picking, selection
+  state, visibility actions/tree construction, menu rendering, presentation,
+  status formatting, and abortable DOM bindings; the controller remains the
+  orchestration surface.
 - The **visibility panel is a hierarchical tree** built from the authoritative
   scene graph: expandable assembly rows (with a disclosure button and an
   explicit `Assembly`/`Part` identity-kind badge) nest the parts placed beneath
@@ -82,6 +83,11 @@ controller, so camera and interaction behavior is stable
 - The controller exposes a `rendererState` note (e.g. `recovered`) for status
   presentation. `FemViewport` performs recovery and reports success/failure to
   the demo callbacks ([[rendering/platform-support|Platform support]]).
+- The toolbar **Reset** action restores the active preset's complete initial
+  state: solid mode, all runtime hierarchy/part/instance visibility, palette
+  interaction state, perspective camera fitted to the scene, edge/node/depth
+  toggles, diagnostics, selection/hover/pick datasets, and the inspection
+  panel. It does not switch the selected model preset.
 
 ## Mobile / responsive layout
 
@@ -90,7 +96,7 @@ the top portion of the viewport while the visibility rail moves below it;
 secondary toolbar controls and the inspection overlay are hidden, and the
 remaining primary controls get 44px touch targets. The right-click context
 menu clamps its position inside the viewport (see
-`WorkbenchController.clampMenuToViewport` in `demo/controller.ts`) so it never
+`WorkbenchMenu` in `demo/workbench/menu.ts`) so it never
 opens past the right or bottom edge.
 
 ## Demo e2e coverage
