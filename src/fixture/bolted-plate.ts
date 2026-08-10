@@ -40,10 +40,10 @@ export interface BoltedPlateAssemblies {
   readonly root: AssemblyId;
   readonly plateStack: AssemblyId;
   readonly fasteners: AssemblyId;
-  /** One fastener sub-assembly per fastener, in deterministic order. */
-  readonly fastener: readonly AssemblyId[];
-  /** One washers sub-assembly per fastener, in deterministic order. */
-  readonly washers: readonly AssemblyId[];
+  /** The reusable fastener definition placed at every grid position. */
+  readonly fastener: AssemblyId;
+  /** The reusable washer-pair definition nested by the fastener. */
+  readonly washers: AssemblyId;
 }
 
 /** Model dimensions of the bolted lap joint, in model units (meters). */
@@ -119,8 +119,8 @@ const NUT_EDGES: PartId = 12;
 const ROOT: AssemblyId = 1;
 const PLATE_STACK: AssemblyId = 2;
 const FASTENERS: AssemblyId = 3;
-const FASTENER_BASE: AssemblyId = 4;
-const WASHER_BASE: AssemblyId = 12;
+const FASTENER: AssemblyId = 4;
+const WASHERS: AssemblyId = 5;
 
 const COMPONENT_PARTS: BoltedPlateParts = {
   plate: { solid: PLATE_SOLID, surface: PLATE_SURFACE, edges: PLATE_EDGES },
@@ -152,22 +152,12 @@ export function createBoltedPlateFixture(options: BoltedPlateOptions = {}): Bolt
   const positions = fastenerPositions();
   const modePartIds = componentModePartIds();
 
-  const washerAssemblies = positions.map((_, index) =>
-    washersAssembly(WASHER_BASE + index, heights),
-  );
-  const fastenerAssemblies = positions.map((_, index) =>
-    fastenerAssembly(FASTENER_BASE + index, WASHER_BASE + index, heights.nut),
-  );
+  const washers = washersAssembly(heights);
+  const fastener = fastenerAssembly(heights.nut);
   const plateStack = plateStackAssembly(plateThickness, overlapOffset);
   const fasteners = fastenersGroup(positions);
   const root = rootAssembly(plateStack.id, fasteners.id);
-  const scene = buildScene(parts, [
-    plateStack,
-    fasteners,
-    ...fastenerAssemblies,
-    ...washerAssemblies,
-    root,
-  ]);
+  const scene = buildScene(parts, [plateStack, fasteners, fastener, washers, root]);
 
   return {
     scene,
@@ -184,8 +174,8 @@ export function createBoltedPlateFixture(options: BoltedPlateOptions = {}): Bolt
       root: root.id,
       plateStack: plateStack.id,
       fasteners: fasteners.id,
-      fastener: fastenerAssemblies.map((assembly) => assembly.id),
-      washers: washerAssemblies.map((assembly) => assembly.id),
+      fastener: fastener.id,
+      washers: washers.id,
     },
     elementModels: componentModels(COMPONENT_PARTS, models),
     modePartIds,
@@ -276,21 +266,21 @@ function plateStackAssembly(plateThickness: number, overlapOffset: number) {
   };
 }
 
-function fastenerAssembly(id: AssemblyId, washersId: AssemblyId, nutY: number) {
+function fastenerAssembly(nutY: number) {
   return {
-    id,
-    name: `Fastener ${id - FASTENER_BASE + 1}`,
+    id: FASTENER,
+    name: "Fastener",
     placements: [
       ...modePlacements(COMPONENT_PARTS.bolt, identity()),
-      { kind: "assembly" as const, assemblyId: washersId, transform: identity() },
+      { kind: "assembly" as const, assemblyId: WASHERS, transform: identity() },
       ...modePlacements(COMPONENT_PARTS.nut, translation(0, nutY, 0)),
     ],
   };
 }
 
-function washersAssembly(id: AssemblyId, heights: FastenerHeights) {
+function washersAssembly(heights: FastenerHeights) {
   return {
-    id,
+    id: WASHERS,
     name: "Washers",
     placements: [
       ...modePlacements(COMPONENT_PARTS.washer, translation(0, heights.topWasher, 0)),
@@ -321,9 +311,9 @@ function fastenersGroup(positions: ReadonlyArray<{ readonly x: number; readonly 
   return {
     id: FASTENERS,
     name: "Fasteners",
-    placements: positions.map((position, index) => ({
+    placements: positions.map((position) => ({
       kind: "assembly" as const,
-      assemblyId: FASTENER_BASE + index,
+      assemblyId: FASTENER,
       transform: translation(position.x, 0, position.z),
     })),
   };

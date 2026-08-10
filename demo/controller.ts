@@ -787,9 +787,11 @@ export class WorkbenchController {
     assemblyId: AssemblyId,
     seenParts: Set<PartId>,
     visibleParts: ReadonlySet<PartId>,
+    placementCount = 1,
   ): HTMLElement {
     const assembly = this.preset.scene.assemblies.get(assemblyId);
     const name = assemblyName(assembly) ?? `Assembly ${assemblyId}`;
+    const displayName = placementCount > 1 ? `${name} × ${placementCount}` : name;
     const branch = document.createElement("div");
     branch.className = "visibility-branch";
 
@@ -801,29 +803,40 @@ export class WorkbenchController {
     expander.className = "visibility-expander";
     expander.dataset["testid"] = `assembly-expand-${assemblyId}`;
     expander.setAttribute("aria-expanded", "true");
-    expander.setAttribute("aria-label", `Collapse ${name}`);
+    expander.setAttribute("aria-label", `Collapse ${displayName}`);
     expander.textContent = "▾";
 
     const children = document.createElement("div");
     children.className = "visibility-children";
-    const repeatedParts = this.repeatedAssemblyPartIds(assemblyId, visibleParts);
-    if (repeatedParts !== undefined) {
-      this.appendPartNodes(children, repeatedParts, seenParts);
-    } else {
-      for (const placement of assembly?.placements ?? []) {
-        if (placement.kind === "part") {
-          if (!visibleParts.has(placement.partId)) continue;
-          this.appendPartNodes(children, [placement.partId], seenParts);
-        } else {
-          children.appendChild(this.assemblyNode(placement.assemblyId, seenParts, visibleParts));
-        }
+    const nestedCounts = new Map<AssemblyId, number>();
+    for (const placement of assembly?.placements ?? []) {
+      if (placement.kind === "assembly") {
+        nestedCounts.set(placement.assemblyId, (nestedCounts.get(placement.assemblyId) ?? 0) + 1);
+      }
+    }
+    const appendedAssemblies = new Set<AssemblyId>();
+    for (const placement of assembly?.placements ?? []) {
+      if (placement.kind === "part") {
+        if (!visibleParts.has(placement.partId)) continue;
+        this.appendPartNodes(children, [placement.partId], seenParts);
+      } else {
+        if (appendedAssemblies.has(placement.assemblyId)) continue;
+        appendedAssemblies.add(placement.assemblyId);
+        children.appendChild(
+          this.assemblyNode(
+            placement.assemblyId,
+            seenParts,
+            visibleParts,
+            nestedCounts.get(placement.assemblyId),
+          ),
+        );
       }
     }
     expander.addEventListener("click", () => {
-      this.toggleAssemblyExpanded(expander, children, name);
+      this.toggleAssemblyExpanded(expander, children, displayName);
     });
 
-    const label = this.rowLabel("assembly", assemblyId, name);
+    const label = this.rowLabel("assembly", assemblyId, displayName);
     row.append(expander, label);
     branch.append(row, children);
     return branch;
@@ -840,55 +853,6 @@ export class WorkbenchController {
       seenParts.add(partId);
       children.appendChild(this.partNode(partId));
     }
-  }
-
-  /** Active part ids placed anywhere within an assembly subtree. */
-  private partIdsForAssembly(
-    assemblyId: AssemblyId,
-    visibleParts: ReadonlySet<PartId>,
-  ): Set<PartId> {
-    const result = new Set<PartId>();
-    const pending = [assemblyId];
-    const visited = new Set<AssemblyId>();
-    while (pending.length > 0) {
-      const current = pending.pop();
-      if (current === undefined || visited.has(current)) continue;
-      visited.add(current);
-      for (const placement of this.preset.scene.assemblies.get(current)?.placements ?? []) {
-        if (placement.kind === "part") {
-          if (visibleParts.has(placement.partId)) result.add(placement.partId);
-        } else {
-          pending.push(placement.assemblyId);
-        }
-      }
-    }
-    return result;
-  }
-
-  /** Collapses identical sibling subassemblies, such as the eight fasteners, into components. */
-  private repeatedAssemblyPartIds(
-    assemblyId: AssemblyId,
-    visibleParts: ReadonlySet<PartId>,
-  ): readonly PartId[] | undefined {
-    const placements = this.preset.scene.assemblies.get(assemblyId)?.placements ?? [];
-    if (placements.length < 2 || placements.some((placement) => placement.kind !== "assembly")) {
-      return undefined;
-    }
-    const assemblyPlacements = placements.filter(
-      (
-        placement,
-      ): placement is Extract<(typeof placements)[number], { readonly kind: "assembly" }> =>
-        placement.kind === "assembly",
-    );
-    const groups = assemblyPlacements.map((placement) =>
-      this.partIdsForAssembly(placement.assemblyId, visibleParts),
-    );
-    const first = groups[0];
-    if (first === undefined || first.size === 0) return undefined;
-    const identical = groups.every(
-      (group) => group.size === first.size && [...group].every((partId) => first.has(partId)),
-    );
-    return identical ? [...first].sort((a, b) => a - b) : undefined;
   }
 
   /** Builds one part row nested beneath its owning assembly. */

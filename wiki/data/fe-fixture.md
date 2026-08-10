@@ -69,8 +69,9 @@ its faces are large and unambiguous (see
 `src/fixture/bolted-plate.ts` (meshes in `bolted-plate-mesh.ts`) builds the
 demo's default showcase: a bolted lap joint of two overlapping plates clamped
 by a grid of fasteners. It is the reference example of the canonical
-hierarchical assembly model and GPU instancing: every fastener reuses the same
-bolt, washer, and nut part definitions through nested assemblies.
+hierarchical assembly model and GPU instancing: the eight placements reuse one
+fastener assembly definition, which in turn reuses the same bolt, washer-pair,
+and nut definitions.
 
 ### Parameters
 
@@ -91,17 +92,20 @@ parts total):
 - `washer` (7, 8, 9) — a thin 1.4 x 1.4 m slab, placed twice per fastener.
 - `nut` (10, 11, 12) — a 1.5 x 1.5 m box on the shaft end.
 
-Nested assemblies (19 total):
+Nested assembly definitions (5 total):
 
 ```text
 Bolted joint (1)
 ├── Plate stack (2)          places the shared plate part twice
 └── Fasteners (3)
-    └── Fastener 1..8 (4..11)  at 2 rows x 4 columns
+    └── Fastener (4) ×8        one definition at 2 rows x 4 columns
         ├── Bolt               solid/surface/edges placements
-        ├── Washers (12..19)   top + bottom placements
+        ├── Washers (5)        reusable top + bottom placements
         └── Nut                solid/surface/edges placements
 ```
+
+Each Fastener placement has its own transform and expands to distinct stable
+part-instance ids, while the assembly and part definitions remain shared.
 
 ### Expected dimensions and counts
 

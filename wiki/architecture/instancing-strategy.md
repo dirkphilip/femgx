@@ -9,6 +9,9 @@ as a [[architecture/architecture-overview|Part]] and drawn many times via GPU in
   immutable once uploaded.
 - An assembly places parts (and sub-assemblies) with local transforms. Each
   placement of a part is an instance.
+- One assembly definition may be placed repeatedly. Each placement contributes
+  its own transform and stable expanded part-instance ids without cloning the
+  assembly or its nested part definitions.
 - `flattenAssembly` walks the tree depth-first and emits `Instance` records:
   `index`, stable `instanceId`, `partId`, and a world transform. `index` is the
   compact current draw/pick id; `instanceId` survives visibility changes.
