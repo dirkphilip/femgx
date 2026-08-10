@@ -1,12 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createWebGpuRenderer } from "../../src/renderer/gpu-renderer";
-import { computeBounds } from "../../src/geometry/part";
+import { computeBounds, type Part } from "../../src/geometry/part";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { identity, translation } from "../../src/math/mat4";
-import { partFromChunk, type ChunkSource } from "../../src/streaming/chunk";
-import { parseChunk } from "../../src/streaming/parser";
 import { projectPoint, unprojectPoint, type Camera } from "../../src/camera/camera";
 import {
   fakeCanvas,
@@ -128,12 +126,12 @@ describe("WebGPU renderer", () => {
       { indexCount: 3, instanceCount: 3 },
       { indexCount: 3, instanceCount: 3 },
     ]);
-    expect(gpu.textureCreations).toBe(1);
+    expect(gpu.textureCreations).toBe(2);
     expect(gpu.bindGroupCreations).toBe(4);
     expect(gpu.submissionCount).toBe(2);
     await expect(renderer.pick(400, 300)).resolves.toEqual({ kind: "instance", instanceId: "1/0" });
     expect(gpu.drawCalls).toHaveLength(3);
-    expect(gpu.textureCreations).toBe(6);
+    expect(gpu.textureCreations).toBe(7);
     expect(gpu.submissionCount).toBe(4);
     await renderer.pick(300, 200);
     expect(gpu.drawCalls).toHaveLength(3);
@@ -458,20 +456,20 @@ describe("WebGPU renderer", () => {
 
     renderer.destroy();
   });
-  it("grows progressively when a chunked runtime appends a part, uploading only the delta", async () => {
+  it("grows progressively when a runtime appends a part, uploading only the delta", async () => {
     restoreGpuGlobals = installGpuGlobals();
     const gpu = fakeGpuDevice({ pickValue: 2 });
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
 
-    const firstScene = chunkedScene(1, triangleChunk);
+    const firstScene = multiPartScene(1);
     const firstRuntime = createSceneRuntime(firstScene);
     renderer.render(firstRuntime, camera, firstScene.parts);
     const buffersAfterFirst = gpu.buffers.length;
     const texturesAfterFirst = gpu.textureCreations;
     expect(buffersAfterFirst).toBeGreaterThan(0);
 
-    const grownScene = chunkedScene(2, triangleChunk);
+    const grownScene = multiPartScene(2);
     const grownRuntime = createSceneRuntime(grownScene);
     renderer.render(grownRuntime, camera, grownScene.parts);
     renderer.render(grownRuntime, camera, grownScene.parts);
@@ -683,33 +681,26 @@ describe("WebGPU renderer deformation", () => {
   });
 });
 
-/** A deterministic single-triangle chunk, one part placement wide. */
-function triangleChunk(chunkId: number, index: number, x: number): ChunkSource {
-  return {
-    chunkId,
-    index,
-    data: {
-      positions: new Float32Array([x, -0.5, 0, x + 1, -0.5, 0, x + 0.5, 0.5, 0]),
-      indices: new Uint32Array([0, 1, 2]),
-    },
+/** A deterministic single-triangle part. */
+function trianglePart(id: number, x: number): Part {
+  const geometry = {
+    positions: new Float32Array([x, -0.5, 0, x + 1, -0.5, 0, x + 0.5, 0.5, 0]),
+    indices: new Uint32Array([0, 1, 2]),
   };
+  return { id, geometry, bounds: computeBounds(geometry) };
 }
 
-/** Scene with chunk parts `1..partCount`, each placed once under sub-assembly `id`. */
-function chunkedScene(
-  partCount: number,
-  chunk: (chunkId: number, index: number, x: number) => ChunkSource,
-): Scene {
+/** Scene with parts `1..partCount`, each placed once under sub-assembly `id`. */
+function multiPartScene(partCount: number): Scene {
   let builder = createScene();
   const rootPlacements: Array<{ kind: "assembly"; assemblyId: number; transform: Float32Array }> =
     [];
   for (let id = 1; id <= partCount; id++) {
-    const part = partFromChunk(parseChunk(chunk(id, id - 1, (id - 1) * 3)), id);
-    builder = builder.addPart(part);
+    builder = builder.addPart(trianglePart(id, (id - 1) * 3));
     const subcaseId = id + 100;
     builder = builder.addAssembly({
       id: subcaseId,
-      name: `chunk-${id}`,
+      name: `part-${id}`,
       placements: [{ kind: "part", partId: id, transform: identity() }],
     });
     rootPlacements.push({ kind: "assembly", assemblyId: subcaseId, transform: identity() });

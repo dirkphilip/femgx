@@ -1,14 +1,14 @@
-import type { ModelPreset } from "../src/fixture/presets";
+import type { ModelPreset } from "./presets";
 import {
   computeBounds,
   type ElementTessellation,
   type FaceTessellation,
   type Geometry,
   type Part,
-} from "../src/geometry/part";
-import { translation } from "../src/math/mat4";
-import { createScene } from "../src/scene/scene";
-import type { ElementRenderMode, PartId } from "../src/index";
+} from "../../src/geometry/part";
+import { translation } from "../../src/math/mat4";
+import { createScene } from "../../src/scene/scene";
+import type { ElementRenderMode, PartId } from "../../src/index";
 
 const PART_ID: PartId = 1;
 const ROOT_ASSEMBLY_ID = 1;

@@ -1,12 +1,12 @@
-import { createElement, type Element, type NodeId } from "../elements/element";
-import { createElementModel, type ElementModel } from "../elements/model";
-import { HEX8_SHAPE } from "../elements/shapes";
-import { elementPart, type ElementRenderMode } from "../geometry/element-mesh";
-import type { Bounds, Part } from "../geometry/part";
-import { identity } from "../math/mat4";
-import { flattenAssembly } from "../runtime/flatten";
-import { createScene, type Scene } from "../scene/scene";
-import type { AssemblyId, PartId } from "../scene/types";
+import { createElement, type Element, type NodeId } from "../../src/elements/element";
+import { createElementModel, type ElementModel } from "../../src/elements/model";
+import { HEX8_SHAPE } from "../../src/elements/shapes";
+import { elementPart, type ElementRenderMode } from "../../src/geometry/element-mesh";
+import type { Bounds, Part } from "../../src/geometry/part";
+import { identity } from "../../src/math/mat4";
+import { flattenAssembly } from "../../src/runtime/flatten";
+import { createScene, type Scene } from "../../src/scene/scene";
+import type { AssemblyId, PartId } from "../../src/scene/types";
 
 /** Stable part identifiers produced by the portal-frame fixture. */
 export interface FrameFixtureParts {

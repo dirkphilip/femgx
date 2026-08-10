@@ -41,6 +41,8 @@ export interface DrawResources {
   readonly nodeParts: Map<PartId, PartResource>;
   readonly storages: Map<PartId, InstanceStorage>;
   readonly deformations: Map<PartId, DeformationStorage>;
+  /** Multisampled color target resolved to the canvas each visible frame. */
+  msaaColorTexture: GPUTexture | undefined;
   depthTexture: GPUTexture | undefined;
   nodeDepthBindGroup: GPUBindGroup | undefined;
   depthWidth: number;
@@ -63,6 +65,7 @@ export function createDrawResources(device: GPUDevice): DrawResources {
     nodeParts: new Map(),
     storages: new Map(),
     deformations: new Map(),
+    msaaColorTexture: undefined,
     depthTexture: undefined,
     nodeDepthBindGroup: undefined,
     depthWidth: 0,
@@ -276,5 +279,6 @@ export function destroyDrawResources(draw: DrawResources): void {
     storage.highlight.buffer.destroy();
   }
   destroyDeformationBuffers(draw.deformations);
+  draw.msaaColorTexture?.destroy();
   draw.depthTexture?.destroy();
 }

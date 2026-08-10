@@ -124,39 +124,6 @@ export {
   type RequestedWebGpuDevice,
 } from "./platform/device";
 export {
-  buildSpatialGrid,
-  cullChunks,
-  detailIndexForDistance,
-  type ChunkCell,
-  type CullChunksOptions,
-  type SpatialGrid,
-} from "./streaming/spatial";
-export { createChunkStream, type ChunkStream, type ChunkStreamOptions } from "./streaming/stream";
-export {
-  chunkTransferables,
-  parseChunk,
-  validateChunkData,
-  type ParseChunkOptions,
-} from "./streaming/parser";
-export {
-  chunkDataByteLength,
-  isLodChunkSource,
-  partFromChunk,
-  selectChunkDetail,
-  type ChunkData,
-  type ChunkId,
-  type ChunkSource,
-  type LodChunkSource,
-  type LodDetail,
-  type ParsedChunk,
-} from "./streaming/chunk";
-export {
-  computeLocalOrigin,
-  rebaseBounds,
-  rebasePositions,
-  type RebaseOrigin,
-} from "./streaming/rebase";
-export {
   createCamera,
   orbitCamera,
   panCamera,
@@ -251,32 +218,12 @@ export {
 } from "./results/derived";
 export {
   createScalarColorMap,
-  legend,
   mapScalar,
   type ColorStop,
-  type LegendEntry,
   type ScalarColorMap,
   type ScalarColorMapOptions,
 } from "./results/mapping";
 export { deformGeometry, deformPositions, nodalDisplacements } from "./results/deform";
-export {
-  advanceCase,
-  createCasePlayer,
-  sampleDisplacements,
-  type CaseLoopMode,
-  type CasePlayer,
-  type CasePlayerOptions,
-} from "./results/case-player";
-export {
-  createCancellationToken,
-  noopProgress,
-  OperationCancelledError,
-  type CancellationToken,
-  type CancellationTokenSource,
-  type ProgressReporter,
-  type ProgressUpdate,
-} from "./io/progress";
-export { createModelBuilder, type FemModelBuilder } from "./io/build";
 export {
   IoError,
   type Issue,
@@ -295,23 +242,17 @@ export {
   type ModelSet,
   type ModelSetKind,
 } from "./io/model";
+export { createModelBuilder, type FemModelBuilder } from "./io/build";
 export {
   createParseSession,
   finishParse,
   parse,
-  parseAbaqus,
-  parseGmsh,
   parseVtk,
-  parseVtu,
   write,
-  writeAbaqus,
-  writeGmsh,
   writeVtk,
-  writeVtu,
   type IoFormat,
   type ParseOptions,
   type ParseResult,
   type ParseSession,
-  type WriteOptions,
 } from "./io/parse";
 export { validateModel } from "./io/validate";

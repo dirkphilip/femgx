@@ -1,10 +1,10 @@
-import { createElement } from "../elements/element";
-import { createElementModel, type ElementModel } from "../elements/model";
-import { TET4_SHAPE } from "../elements/shapes";
-import { computeBounds, type Geometry, type Part } from "../geometry/part";
-import { multiply, scale, translation } from "../math/mat4";
-import { createScene, type Scene } from "../scene/scene";
-import type { AssemblyId, PartId } from "../scene/types";
+import { createElement } from "../../src/elements/element";
+import { createElementModel, type ElementModel } from "../../src/elements/model";
+import { TET4_SHAPE } from "../../src/elements/shapes";
+import { computeBounds, type Geometry, type Part } from "../../src/geometry/part";
+import { multiply, scale, translation } from "../../src/math/mat4";
+import { createScene, type Scene } from "../../src/scene/scene";
+import type { AssemblyId, PartId } from "../../src/scene/types";
 
 /** Stable part identifiers produced by the panel fixture. */
 export interface PanelFixtureParts {

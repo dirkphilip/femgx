@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createScalarColorMap, legend, mapScalar } from "../../src/results/mapping";
+import { createScalarColorMap, mapScalar } from "../../src/results/mapping";
 
 describe("createScalarColorMap", () => {
   it("uses the default ramp, range, and missing color", () => {
@@ -120,42 +120,5 @@ describe("mapScalar", () => {
     expect(mapScalar(banded, 75)).toEqual({ r: 1, g: 1, b: 1, a: 1 });
     expect(mapScalar(banded, 200)).toEqual({ r: 1, g: 1, b: 1, a: 1 });
     expect(mapScalar(banded, NaN)).toEqual(banded.missingColor);
-  });
-});
-
-describe("legend", () => {
-  it("returns one entry per stop for continuous maps", () => {
-    const map = createScalarColorMap({
-      min: 0,
-      max: 100,
-      stops: [
-        { offset: 0, color: { r: 0, g: 0, b: 0, a: 1 } },
-        { offset: 1, color: { r: 1, g: 1, b: 1, a: 1 } },
-      ],
-    });
-    const entries = legend(map);
-    expect(entries.length).toBe(2);
-    expect(entries[0]?.fraction).toBe(0);
-    expect(entries[0]?.label).toBe("0");
-    expect(entries[1]?.fraction).toBe(1);
-    expect(entries[1]?.label).toBe("100");
-  });
-
-  it("returns one entry per band for thresholded maps with range labels", () => {
-    const map = createScalarColorMap({
-      min: 0,
-      max: 100,
-      thresholds: [50],
-      stops: [
-        { offset: 0, color: { r: 0, g: 0, b: 0, a: 1 } },
-        { offset: 1, color: { r: 1, g: 1, b: 1, a: 1 } },
-      ],
-    });
-    const entries = legend(map);
-    expect(entries.length).toBe(2);
-    expect(entries[0]?.label).toBe("0 – 50");
-    expect(entries[1]?.label).toBe("50 – 100");
-    expect(entries[0]?.color).toEqual({ r: 0, g: 0, b: 0, a: 1 });
-    expect(entries[1]?.color).toEqual({ r: 1, g: 1, b: 1, a: 1 });
   });
 });

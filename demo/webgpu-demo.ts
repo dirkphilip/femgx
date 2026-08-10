@@ -1,7 +1,7 @@
 import { createFemViewport, type FemViewport } from "../src/index";
-import { createModelPresets, type ModelPreset } from "../src/fixture/presets";
+import { createModelPresets, type ModelPreset } from "./fixture/presets";
 import { WorkbenchController } from "./controller";
-import { createPerformancePreset } from "./performance-fixture";
+import { createPerformancePreset } from "./fixture/performance-fixture";
 import type { DemoView } from "./view";
 
 /** Inputs for the WebGPU demo path. */

@@ -1,14 +1,13 @@
 import { cameraStruct, pointVertexShader } from "./gpu-shaders";
 import type { DrawResources } from "./gpu-draw";
-import { vertexLayout } from "./gpu-support";
+import { COLOR_SAMPLE_COUNT, vertexLayout } from "./gpu-support";
 
 export interface NodeOverlayPipelines {
   readonly visible: GPURenderPipeline;
   readonly depthLayout: GPUBindGroupLayout;
-  readonly depthSampler: GPUSampler;
 }
 
-/** Creates the depth-tested, overlap-safe FE-node annotation pass. */
+/** Creates the depth-tested FE-node annotation pass. */
 export function createNodeOverlayPipelines(
   device: GPUDevice,
   cameraLayout: GPUBindGroupLayout,
@@ -18,8 +17,11 @@ export function createNodeOverlayPipelines(
 ): NodeOverlayPipelines {
   const depthLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: "depth" } },
-      { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: { type: "comparison" } },
+      {
+        binding: 0,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: "depth", multisampled: true },
+      },
     ],
   });
   const layout = device.createPipelineLayout({
@@ -28,7 +30,6 @@ export function createNodeOverlayPipelines(
   return {
     visible: createNodePipeline(device, layout, format, depthFormat),
     depthLayout,
-    depthSampler: device.createSampler({ compare: "less-equal" }),
   };
 }
 
@@ -55,11 +56,8 @@ function createNodePipeline(
       format: depthFormat,
       depthWriteEnabled: false,
       depthCompare: "always",
-      stencilFront: { compare: "equal", passOp: "increment-clamp" },
-      stencilBack: { compare: "equal", passOp: "increment-clamp" },
-      stencilReadMask: 1,
-      stencilWriteMask: 1,
     },
+    multisample: { count: COLOR_SAMPLE_COUNT },
   });
 }
 
@@ -67,45 +65,70 @@ export const nodeOverlayFragmentShader = /* wgsl */ `
 ${cameraStruct}
 
 @group(0) @binding(0) var<uniform> camera: Camera;
-@group(2) @binding(0) var sceneDepth: texture_depth_2d;
-@group(2) @binding(1) var sceneDepthSampler: sampler_comparison;
+@group(2) @binding(0) var sceneDepth: texture_depth_multisampled_2d;
+
+fn eyeDepth(z: f32) -> f32 {
+  if (camera.ortho > 0.5) {
+    return camera.nearPlane + z * (camera.farPlane - camera.nearPlane);
+  }
+  return (camera.nearPlane * camera.farPlane) /
+    max(camera.farPlane - z * (camera.farPlane - camera.nearPlane), 1e-8);
+}
+
+fn sampleOccludes(sceneZ: f32, nodeEye: f32) -> bool {
+  return eyeDepth(sceneZ) + camera.depthSlack < nodeEye;
+}
 
 @fragment
 fn nodeOverlayFragmentMain(
-  @builtin(position) fragmentPosition: vec4<f32>,
   @location(0) color: vec4<f32>,
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
+  @location(6) @interpolate(flat) centerPixel: vec2<f32>,
+  @location(7) @interpolate(flat) nodeDepth: f32,
 ) -> @location(0) vec4<f32> {
   if (dot(local, local) > 1.0) { discard; }
-  let centerPixel = fragmentPosition.xy - local * camera.pointSize * 0.25;
-  let centerUv = centerPixel / camera.viewport;
-  let oneDepthUnit = 1.0 / 16777215.0;
-  let visible = textureSampleCompareLevel(
-    sceneDepth,
-    sceneDepthSampler,
-    centerUv,
-    fragmentPosition.z - oneDepthUnit,
-  );
-  if (visible == 0.0) { discard; }
+  // Unanimous MSAA occlusion: hide only when every subsample is clearly nearer.
+  // min()-based tests blinked front glyphs when any coplanar/silhouette sample
+  // was slightly nearer than the vertex (see node-overlay-visibility.ts).
+  let dims = vec2<i32>(textureDimensions(sceneDepth));
+  let center = clamp(vec2<i32>(floor(centerPixel)), vec2<i32>(0), dims - 1);
+  let nodeEye = eyeDepth(nodeDepth);
+  if (
+    sampleOccludes(textureLoad(sceneDepth, center, 0), nodeEye) &&
+    sampleOccludes(textureLoad(sceneDepth, center, 1), nodeEye) &&
+    sampleOccludes(textureLoad(sceneDepth, center, 2), nodeEye) &&
+    sampleOccludes(textureLoad(sceneDepth, center, 3), nodeEye)
+  ) {
+    discard;
+  }
   return vec4<f32>(color.rgb + vec3<f32>(emissive), color.a);
 }
 `;
 
-/** Begins the color-loaded pass that reads, but never rewrites, scene depth. */
+/**
+ * Begins the color-loaded overlay pass that reads, but never rewrites, scene
+ * depth, and resolves the multisampled color target to the canvas.
+ */
 export function beginNodeOverlayPass(
   encoder: GPUCommandEncoder,
   colorView: GPUTextureView,
   depthView: GPUTextureView,
+  resolveTarget: GPUTextureView,
 ): GPURenderPassEncoder {
   return encoder.beginRenderPass({
-    colorAttachments: [{ view: colorView, loadOp: "load", storeOp: "store" }],
+    colorAttachments: [
+      {
+        view: colorView,
+        resolveTarget,
+        loadOp: "load",
+        storeOp: "discard",
+      },
+    ],
     depthStencilAttachment: {
       view: depthView,
       depthReadOnly: true,
-      stencilClearValue: 0,
-      stencilLoadOp: "clear",
-      stencilStoreOp: "discard",
+      stencilReadOnly: true,
     },
   });
 }
@@ -120,10 +143,7 @@ export function bindNodeOverlayDepth(
 ): void {
   draw.nodeDepthBindGroup ??= device.createBindGroup({
     layout: pipelines.depthLayout,
-    entries: [
-      { binding: 0, resource: depthTexture.createView({ aspect: "depth-only" }) },
-      { binding: 1, resource: pipelines.depthSampler },
-    ],
+    entries: [{ binding: 0, resource: depthTexture.createView({ aspect: "depth-only" }) }],
   });
   pass.setBindGroup(2, draw.nodeDepthBindGroup);
 }

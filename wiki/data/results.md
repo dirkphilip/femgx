@@ -50,11 +50,9 @@ default blue-cyan-yellow-red ramp. `mapScalar`:
 - optionally maps into discrete bands via ascending `thresholds`,
 - returns `missingColor` (default gray) for `NaN`.
 
-`legend` returns labeled `LegendEntry`s (one per stop, or one per band) for
-rendering a color bar, and the demo draws a gradient plus a gray missing
-swatch. Mapped colors are plain `Color` values, so they feed the existing
-per-instance GPU color attribute path (via interaction style overrides) without
-renderer changes — see [[rendering/interactive-state|Interactive state]].
+Mapped colors are plain `Color` values, so they feed the existing per-instance
+GPU color attribute path (via interaction style overrides) without renderer
+changes — see [[rendering/interactive-state|Interactive state]].
 
 ## Deformation (`deform.ts`)
 
@@ -92,31 +90,13 @@ The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
   centers) have no node and stay in place.
 - Geometry upload stays amortized: only the tiny uniform (and a compact displacement buffer on load-case change) is rewritten, matching the delta-oriented architecture — see [[rendering/renderer-subrange-updates|Renderer subrange updates]].
 
-## Load-case playback (`case-player.ts`)
-
-`createCasePlayer(cases, options)` builds an immutable `CasePlayer` over an
-ordered list of nodal displacement fields (validated to share a count and unit).
-`advanceCase(player, deltaSeconds)` advances playback in time and returns a new
-player: `caseIndex` moves through the cases, wrapping back to the first by
-default or clamping at the last (`loop: "wrap" | "clamp"`), and `caseDuration`
-controls the seconds per case. `sampleDisplacements(player)` serves the active
-displacement field — the source field directly when not blending, or a
-component-wise linear blend into the next case when `interpolate` is enabled.
-`nextCaseIndex`/`blend` expose the transition so consumers can keep other
-per-case data (stresses, derived fields) in sync.
-
-The player is delta-oriented: it only selects and serves the active fields and
-never rebuilds geometry, so per-frame stepping is a cheap index/time update
-plus an optional interpolated field. `NaN` components propagate through the
-blend, matching the field conventions.
-
 ## Status / follow-ups
 
 - Results are rendered through the WebGPU renderer; the former CPU-canvas demo
   was removed to retain the WebGPU-only product contract. A WebGPU results
   interaction surface can be added when it has a focused product requirement.
-- Load-case playback and displacement interpolation are provided by the
-  `CasePlayer` API and demonstrated in the demo.
+- Load-case playback (`CasePlayer`), interpolation, and legend helpers were
+  removed as out of product scope.
 
 Related: [[data/elements-topology|Element topology]], [[data/fe-fixture|FE fixture]],
 [[rendering/interactive-state|Interactive state]], [[architecture/architecture-overview|Architecture

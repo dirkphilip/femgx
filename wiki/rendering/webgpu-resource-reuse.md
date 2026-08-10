@@ -15,10 +15,12 @@ Per-frame allocations were removed from `src/renderer/`:
   bind group is created only when the instance buffer grows (a new
   `BatchResource` replaces the old one), never per frame. Bind groups are not
   GPU-owned destroyable resources, so replacing an entry is safe.
-- **Depth texture** — `ensureDepthTexture` keeps a single depth attachment on
-  `DrawResources` and only recreates it when the canvas pixel size changes;
-  `render` no longer allocates and destroys one per frame. `resize` keeps the
-  depth texture; the next render lazily replaces it if the size changed.
+- **Color + depth targets** — `ensureColorTargets` keeps a multisampled
+  (`COLOR_SAMPLE_COUNT` = 4) color texture and matching depth-stencil on
+  `DrawResources`, and only recreates them when the canvas pixel size changes.
+  Each visible frame resolves the MSAA color into the canvas swap chain.
+  `resize` keeps the targets; the next render lazily replaces them if the size
+  changed. Pick targets stay single-sampled.
 - **Pick readback** — `readPickPixel` borrows a `GPUBuffer` from
   `PickReadbackPool` (`src/renderer/gpu-pick.ts`) instead of allocating and
   destroying one per pick. Buffers reserve five 256-byte lanes: four satisfy

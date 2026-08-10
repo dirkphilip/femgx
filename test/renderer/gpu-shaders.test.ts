@@ -76,6 +76,10 @@ describe("GPU record struct layout vs CPU record encoders", () => {
       expect(offsets.get("viewProjection")).toBe(0);
       expect(offsets.get("viewport")).toBe(64);
       expect(offsets.get("pointSize")).toBe(72);
+      expect(offsets.get("nearPlane")).toBe(76);
+      expect(offsets.get("farPlane")).toBe(80);
+      expect(offsets.get("ortho")).toBe(84);
+      expect(offsets.get("depthSlack")).toBe(88);
       expect(info.size).toBe(CAMERA_UNIFORM_SIZE);
     },
   );
@@ -192,20 +196,28 @@ describe("GPU deformation shader contract", () => {
     expect(pointVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
   });
 
-  it("keeps regular points at model depth and halves only node annotations", () => {
+  it("keeps regular points at model depth and draws node annotations smaller", () => {
     expect(pointVertexShader).toMatch(/pointVertex\(position, instanceIndex, vertexIndex, 1\.0\)/);
     expect(pointVertexShader).toMatch(
-      /nodeOverlayVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, 0\.5\)/,
+      /nodeOverlayVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, 0\.75\)/,
     );
     expect(pointVertexShader).toMatch(/clip\.z,/);
     expect(colorFragmentShader).toMatch(/dot\(local, local\) > 1\.0/);
   });
 
   it("classifies complete node glyphs from their center scene depth", () => {
-    expect(nodeOverlayFragmentShader).toMatch(/texture_depth_2d/);
-    expect(nodeOverlayFragmentShader).toMatch(/local \* camera\.pointSize \* 0\.25/);
-    expect(nodeOverlayFragmentShader).toMatch(/textureSampleCompareLevel/);
-    expect(nodeOverlayFragmentShader).toMatch(/fragmentPosition\.z - oneDepthUnit/);
+    expect(pointVertexShader).toMatch(/output\.centerPixel = vec2<f32>/);
+    expect(pointVertexShader).toMatch(/output\.nodeDepth = clip\.z \/ clip\.w/);
+    expect(nodeOverlayFragmentShader).toMatch(/texture_depth_multisampled_2d/);
+    expect(nodeOverlayFragmentShader).toMatch(/@interpolate\(flat\) centerPixel: vec2<f32>/);
+    expect(nodeOverlayFragmentShader).toMatch(/@interpolate\(flat\) nodeDepth: f32/);
+    expect(nodeOverlayFragmentShader).toMatch(/textureLoad\(sceneDepth, center, 0\)/);
+    expect(nodeOverlayFragmentShader).toMatch(/fn sampleOccludes\(sceneZ: f32, nodeEye: f32\)/);
+    expect(nodeOverlayFragmentShader).toMatch(/fn eyeDepth\(z: f32\)/);
+    expect(nodeOverlayFragmentShader).toMatch(
+      /sampleOccludes\(textureLoad\(sceneDepth, center, 0\), nodeEye\) &&/,
+    );
+    expect(pointVertexShader).toMatch(/depthSlack: f32/);
   });
 
   it("uses neutral black for element nodes and edges", () => {

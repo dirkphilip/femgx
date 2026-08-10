@@ -24,7 +24,7 @@ canonical description.
 - `src/interaction/` — centralized highlight/selection/hover/override state.
 - `src/results/` — typed engineering result fields (scalar/vector/tensor over
   nodes or elements), derived quantities (magnitude, von Mises, principal
-  values), value ranges, scalar color mapping with thresholds/legends, and
+  values), value ranges, scalar color mapping with thresholds, and
   deformed-shape geometry; pure CPU-side data (see [[data/results|Results]]).
 - `src/picking/` — GPU pick-id resolution (`resolvePick` / `resolvePickTarget`).
 - `src/platform/` — explicit WebGPU unsupported/error reporting with typed reasons (`capabilities.ts`), plus device request, loss reporting, and re-creation focused on the supported path (`device.ts`); see [[rendering/platform-support|Platform support]].

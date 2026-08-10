@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createPanelFixture, type PanelFixture } from "../../src/fixture/panel";
-import { flattenAssembly } from "../../src/runtime/flatten";
-import type { Instance } from "../../src/scene/types";
+import { createPanelFixture, type PanelFixture } from "../../../demo/fixture/panel";
+import { flattenAssembly } from "../../../src/runtime/flatten";
+import type { Instance } from "../../../src/scene/types";
 
 function flatten(fixture: PanelFixture): readonly Instance[] {
   const { scene } = fixture;

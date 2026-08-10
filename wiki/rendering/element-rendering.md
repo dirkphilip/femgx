@@ -46,8 +46,11 @@ Each element family supports a subset of modes (`elementRenderModes`):
 - `edges` deduplicates element edges by their unordered corner pair, so shared
   edges are emitted once.
 - Points become screen-space sprite quads (4 vertices per point); the point
-  vertex shader expands them to a constant device-pixel size
-  (`WebGpuRendererOptions.pointSizePixels`, default 8).
+  vertex shader expands them to a constant CSS-pixel size
+  (`WebGpuRendererOptions.pointSizePixels`, default 8), scaled by
+  `devicePixelRatio` into device pixels so apparent size is stable across
+  displays. The visible color path renders at 4× MSAA and resolves to the
+  canvas, so mesh edges and line lists are antialiased.
 
 The gallery's `edges` mode is edges-only geometry switched in through part
 visibility. On top of that, a per-instance `edge` style override (see

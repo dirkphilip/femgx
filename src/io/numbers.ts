@@ -73,32 +73,3 @@ export function numbersOf(line: string): readonly number[] | undefined {
   }
   return values;
 }
-
-/**
- * Yields the whitespace-separated tokens of `source` in bounded chunks, so a
- * very large numeric data block can be streamed without materializing every
- * token at once.
- * @yields {string[]} arrays of up to `chunkSize` tokens.
- */
-export function* tokenChunks(source: string, chunkSize: number): Generator<string[], void, void> {
-  const chunk: string[] = [];
-  let token = "";
-  for (let index = 0; index <= source.length; index += 1) {
-    const char = source[index];
-    if (char === undefined || /\s/.test(char)) {
-      if (token.length > 0) {
-        chunk.push(token);
-        token = "";
-        if (chunk.length === chunkSize) {
-          yield chunk.slice();
-          chunk.length = 0;
-        }
-      }
-    } else {
-      token += char;
-    }
-  }
-  if (chunk.length > 0) {
-    yield chunk.slice();
-  }
-}

@@ -1,6 +1,6 @@
-import { createElement, type Element, type NodeId } from "../elements/element";
-import { createElementModel, type ElementModel } from "../elements/model";
-import { HEX8_SHAPE } from "../elements/shapes";
+import { createElement, type Element, type NodeId } from "../../src/elements/element";
+import { createElementModel, type ElementModel } from "../../src/elements/model";
+import { HEX8_SHAPE } from "../../src/elements/shapes";
 
 /**
  * Deterministic hex-mesh builders for the bolted-plate fixture. Each builder

@@ -1,9 +1,8 @@
-import { computeBounds, computePositionsBounds, type Part } from "../../src/geometry/part";
+import { computeBounds, type Part } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import { createCamera, viewProjectionMatrix } from "../../src/camera/camera";
 import type { Assembly, Placement } from "../../src/scene/assembly";
 import type { Scene } from "../../src/scene/scene";
-import type { ChunkData, ChunkSource, LodChunkSource } from "../../src/streaming/chunk";
 import type { AssemblyId, PartId } from "../../src/scene/types";
 
 /**
@@ -22,10 +21,6 @@ export const BENCH_HIERARCHY_FANOUT = 8;
 export const BENCH_HIERARCHY_PARTS_PER_LEAF = 50;
 export const BENCH_HIERARCHY_INSTANCE_COUNT =
   BENCH_HIERARCHY_FANOUT ** BENCH_HIERARCHY_DEPTH * BENCH_HIERARCHY_PARTS_PER_LEAF;
-/** Streaming model: evenly spaced chunks, each with a fixed vertex budget. */
-export const BENCH_CHUNK_COUNT = 500;
-export const BENCH_CHUNK_VERTICES_PER_CHUNK = 6_000;
-export const BENCH_CHUNK_VERTEX_COUNT = BENCH_CHUNK_COUNT * BENCH_CHUNK_VERTICES_PER_CHUNK;
 
 function part(id: PartId): Part {
   const geometry = {
@@ -142,70 +137,4 @@ export function makeHierarchyScene(options: {
 /** A deterministic view-projection matrix for culling benchmarks. */
 export function makeViewProjection(): Float32Array {
   return viewProjectionMatrix(createCamera());
-}
-
-/**
- * Deterministic streaming chunks: each chunk is a line of `verticesPerChunk`
- * vertices along x, spaced `spacing` apart so chunks are cullable against the
- * default frustum. Bounds are precomputed to model the common pre-indexed
- * model-authority case.
- */
-export function makeChunkSources(options: {
-  readonly chunkCount: number;
-  readonly verticesPerChunk: number;
-  readonly spacing?: number;
-}): readonly ChunkSource[] {
-  const spacing = options.spacing ?? 1;
-  const chunks: ChunkSource[] = [];
-  for (let chunk = 0; chunk < options.chunkCount; chunk++) {
-    const base = chunk * options.verticesPerChunk * spacing;
-    const { data, bounds } = lineData(base, options.verticesPerChunk);
-    chunks.push({
-      chunkId: chunk + 1,
-      index: chunk,
-      data,
-      bounds,
-    });
-  }
-  return chunks;
-}
-
-/**
- * Deterministic mixed-detail streaming chunks: each chunk carries three detail
- * levels with `verticesPerChunk`, half, and quarter vertices (finest to
- * coarsest). Detail selection over these chunks exercises the LOD path with
- * the same geometry shape as {@link makeChunkSources}.
- */
-export function makeLodChunkSources(options: {
-  readonly chunkCount: number;
-  readonly verticesPerChunk: number;
-  readonly spacing?: number;
-}): readonly LodChunkSource[] {
-  const spacing = options.spacing ?? 1;
-  const chunks: LodChunkSource[] = [];
-  for (let chunk = 0; chunk < options.chunkCount; chunk++) {
-    const base = chunk * options.verticesPerChunk * spacing;
-    const details = [
-      options.verticesPerChunk,
-      Math.floor(options.verticesPerChunk / 2),
-      Math.floor(options.verticesPerChunk / 4),
-    ].map((vertexCount) => lineData(base, vertexCount));
-    chunks.push({ chunkId: chunk + 1, index: chunk, details });
-  }
-  return chunks;
-}
-
-function lineData(
-  base: number,
-  vertexCount: number,
-): { data: ChunkData; bounds: ReturnType<typeof computePositionsBounds> } {
-  const positions = new Float32Array(vertexCount * 3);
-  const indices = new Uint32Array(vertexCount);
-  for (let vertex = 0; vertex < vertexCount; vertex++) {
-    positions[vertex * 3] = base + vertex;
-    positions[vertex * 3 + 1] = 0;
-    positions[vertex * 3 + 2] = 0;
-    indices[vertex] = vertex;
-  }
-  return { data: { positions, indices }, bounds: computePositionsBounds(positions) };
 }

@@ -12,7 +12,7 @@ Links use Foam/Obsidian `[[path/to/note|label]]` syntax.
 - [[architecture/index|Architecture and API]] — public vocabulary, scene
   ownership, instancing, runtime compilation, and source boundaries.
 - [[data/index|Data and FE models]] — element topology, results, import/export,
-  streaming, and deterministic fixtures.
+  and deterministic fixtures.
 - [[rendering/index|Rendering and interaction]] — camera, WebGPU, picking,
   interaction state, and renderer resource behavior.
 - [[engineering/index|Engineering and quality]] — benchmarks, quality gates,

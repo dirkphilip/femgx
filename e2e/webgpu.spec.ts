@@ -48,6 +48,67 @@ async function stableCanvasPixels(page: Page, canvas: Locator): Promise<Buffer> 
   throw new Error("canvas pixels never stabilized across captures");
 }
 
+/** Reads raw RGBA bytes from the WebGPU canvas via createImageBitmap. */
+async function canvasRgba(page: Page): Promise<Buffer> {
+  const payload = await page.evaluate(async () => {
+    const canvas = document.querySelector<HTMLCanvasElement>("[data-testid='view-canvas']");
+    if (canvas === null) throw new Error("missing view canvas");
+    const bitmap = await createImageBitmap(canvas);
+    const offscreen = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const context = offscreen.getContext("2d", { willReadFrequently: true });
+    if (context === null) throw new Error("2d context unavailable");
+    context.drawImage(bitmap, 0, 0);
+    const image = context.getImageData(0, 0, bitmap.width, bitmap.height);
+    const bytes = new Uint8Array(image.data.buffer);
+    let binary = "";
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    }
+    return btoa(binary);
+  });
+  return Buffer.from(payload, "base64");
+}
+
+/** Counts pixels whose RGB channels differ by more than `threshold`. */
+function differingPixelCount(a: Buffer, b: Buffer, threshold = 8): number {
+  const length = Math.min(a.length, b.length);
+  let count = 0;
+  for (let index = 0; index + 2 < length; index += 4) {
+    const ar = a[index] ?? 0;
+    const ag = a[index + 1] ?? 0;
+    const ab = a[index + 2] ?? 0;
+    const br = b[index] ?? 0;
+    const bg = b[index + 1] ?? 0;
+    const bb = b[index + 2] ?? 0;
+    if (
+      Math.abs(ar - br) > threshold ||
+      Math.abs(ag - bg) > threshold ||
+      Math.abs(ab - bb) > threshold
+    ) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/** Node-on vs node-off pixel contribution for the current camera. */
+async function nodeContribution(page: Page): Promise<number> {
+  const label = page.getByTestId("node-overlay-label");
+  if ((await label.textContent()) !== "On") {
+    await page.getByTestId("node-overlay").click();
+    await expect(label).toHaveText("On");
+  }
+  await page.waitForTimeout(50);
+  const withNodes = await canvasRgba(page);
+  await page.getByTestId("node-overlay").click();
+  await expect(label).toHaveText("Off");
+  await page.waitForTimeout(50);
+  const withoutNodes = await canvasRgba(page);
+  await page.getByTestId("node-overlay").click();
+  await expect(label).toHaveText("On");
+  return differingPixelCount(withNodes, withoutNodes);
+}
+
 /**
  * Moves the pointer to an empty canvas corner so GPU pick clears the hovered
  * state. The hover sweep used to find a pick target leaves a hovered instance,
@@ -275,27 +336,45 @@ test("keeps element edges and nodes visible after orbiting", async ({ page }) =>
   }
 });
 
-test("keeps depth-tested node annotations visible across zoom levels", async ({ page }) => {
+test("keeps depth-tested node annotations stable across fine zoom steps", async ({ page }) => {
   await loadWebGpuPage(page);
   await page.getByTestId("model-select").selectOption({ label: "Element gallery" });
+  // Hide the gallery's hardware point/line overlays so the measured delta is
+  // only the center-depth node annotation pass.
+  await page.getByTestId("part-vis-7").uncheck();
+  await page.getByTestId("part-vis-8").uncheck();
+  await page.getByTestId("fit-view").click();
 
   const canvas = page.getByTestId("view-canvas");
-  await page.getByTestId("node-overlay").click();
   const box = await canvas.boundingBox();
   if (box === null) throw new Error("canvas has no bounding box");
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 
-  for (const deltaY of [-1200, 0, 1200]) {
-    await page.getByTestId("reset").click();
-    await page.mouse.wheel(0, deltaY);
-    const withNodes = await stableCanvasPixels(page, canvas);
-    await page.getByTestId("node-overlay").click();
-    const withoutNodes = await stableCanvasPixels(page, canvas);
+  await page.getByTestId("node-overlay").click();
+  await expect(page.getByTestId("node-overlay-label")).toHaveText("On");
+
+  const contributions: number[] = [];
+  for (let step = 0; step < 8; step++) {
+    contributions.push(await nodeContribution(page));
+    await page.mouse.wheel(0, -180);
+    await page.waitForTimeout(50);
+  }
+
+  const baseline = contributions[0];
+  expect(contributions.length).toBeGreaterThan(0);
+  expect(baseline).toBeGreaterThan(40);
+  if (baseline === undefined) return;
+
+  for (const [index, count] of contributions.entries()) {
+    expect(count, `node contribution must stay visible at zoom step ${index}`).toBeGreaterThan(40);
     expect(
-      withoutNodes.equals(withNodes),
-      `node annotations must remain visible at wheel zoom ${deltaY}`,
-    ).toBe(false);
-    await page.getByTestId("node-overlay").click();
+      count,
+      `node contribution must not collapse across zoom (step ${index}: ${String(count)} vs ${String(baseline)})`,
+    ).toBeGreaterThan(baseline * 0.35);
+    expect(
+      count,
+      `node contribution must not explode from flicker/leakage (step ${index}: ${String(count)} vs ${String(baseline)})`,
+    ).toBeLessThan(baseline * 3);
   }
 });
 

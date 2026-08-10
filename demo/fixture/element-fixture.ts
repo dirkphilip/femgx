@@ -1,10 +1,10 @@
-import type { ElementModel } from "../elements/model";
-import { elementPart, type ElementRenderMode } from "../geometry/element-mesh";
-import type { Bounds, Part } from "../geometry/part";
-import { transformPoint, translation } from "../math/mat4";
-import { flattenAssembly } from "../runtime/flatten";
-import { createScene, type Scene } from "../scene/scene";
-import type { AssemblyId, PartId } from "../scene/types";
+import type { ElementModel } from "../../src/elements/model";
+import { elementPart, type ElementRenderMode } from "../../src/geometry/element-mesh";
+import type { Bounds, Part } from "../../src/geometry/part";
+import { transformPoint, translation } from "../../src/math/mat4";
+import { flattenAssembly } from "../../src/runtime/flatten";
+import { createScene, type Scene } from "../../src/scene/scene";
+import type { AssemblyId, PartId } from "../../src/scene/types";
 import { buildHexModel, buildPointLineModel, buildTetModel } from "./element-models";
 
 /** Stable part identifiers produced by the element fixture. */

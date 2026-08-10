@@ -9,12 +9,14 @@ import {
 } from "./gpu-shaders";
 import { nodePickFragmentShader, nodePickVertexShader } from "./gpu-node-pick";
 import { PICK_TEXTURE_FORMAT } from "./pick-format";
-import { vertexLayout } from "./gpu-support";
+import { COLOR_SAMPLE_COUNT, vertexLayout } from "./gpu-support";
 import { DEFORMATION_UNIFORM_SIZE } from "./gpu-deform";
 import type { DrawResources } from "./gpu-draw";
 import { createNodeOverlayPipelines } from "./gpu-node-overlay";
 import type { NodeOverlayPipelines } from "./gpu-node-overlay";
 import { createOrbitPivotResources, type OrbitPivotResources } from "./gpu-orbit-pivot";
+
+export { COLOR_SAMPLE_COUNT } from "./gpu-support";
 
 export interface DrawPipelines {
   readonly trianglesColor: GPURenderPipeline;
@@ -39,7 +41,7 @@ export interface RenderResources {
   readonly instanceLayout: GPUBindGroupLayout;
 }
 
-export const CAMERA_UNIFORM_SIZE = 80;
+export const CAMERA_UNIFORM_SIZE = 96;
 
 interface PipelineSpec {
   readonly depthFormat: GPUTextureFormat;
@@ -49,6 +51,7 @@ interface PipelineSpec {
   readonly passFormats: readonly GPUTextureFormat[];
   readonly primitive: GPUPrimitiveTopology;
   readonly cullMode: GPUCullMode;
+  readonly sampleCount: number;
 }
 
 export function createRenderResources(
@@ -205,24 +208,27 @@ function buildPipelines(
     spec: PrimitiveSpec,
     fragmentModule: GPUShaderModule,
     passFormats: readonly GPUTextureFormat[],
+    sampleCount: number,
   ): GPURenderPipeline =>
     createPipeline(device, layout, {
       ...spec,
       passFormats,
       depthFormat,
       fragmentModule,
+      sampleCount,
     });
   return {
-    trianglesColor: make(variants.triangles, shaders.colorFragment, [format]),
+    trianglesColor: make(variants.triangles, shaders.colorFragment, [format], COLOR_SAMPLE_COUNT),
     trianglesPick: make(
       { ...variants.triangles, vertexModule: shaders.nodePickVertex },
       shaders.nodePickFragment,
       PICK_FORMATS,
+      1,
     ),
-    linesColor: make(variants.lines, shaders.colorFragment, [format]),
-    linesPick: make(variants.lines, shaders.pickFragment, PICK_FORMATS),
-    pointsColor: make(variants.points, shaders.colorFragment, [format]),
-    pointsPick: make(variants.points, shaders.pickFragment, PICK_FORMATS),
+    linesColor: make(variants.lines, shaders.colorFragment, [format], COLOR_SAMPLE_COUNT),
+    linesPick: make(variants.lines, shaders.pickFragment, PICK_FORMATS, 1),
+    pointsColor: make(variants.points, shaders.colorFragment, [format], COLOR_SAMPLE_COUNT),
+    pointsPick: make(variants.points, shaders.pickFragment, PICK_FORMATS, 1),
   };
 }
 
@@ -249,6 +255,7 @@ function createPipeline(
       depthWriteEnabled: true,
       depthCompare: "less",
     },
+    multisample: { count: spec.sampleCount },
   });
 }
 
@@ -282,6 +289,7 @@ function createEdgePipeline(
     },
     primitive: { topology: "line-list", cullMode: "none" },
     depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare },
+    multisample: { count: COLOR_SAMPLE_COUNT },
   });
 }
 
@@ -291,52 +299,58 @@ export function destroyRenderResources(resources: RenderResources): void {
   resources.orbitPivot.buffer.destroy();
 }
 
-export function createDepthTexture(
-  device: GPUDevice,
-  width: number,
-  height: number,
-  format: GPUTextureFormat,
-): GPUTexture {
-  return device.createTexture({
-    size: [width, height],
-    format,
-    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-  });
-}
-
-export function ensureDepthTexture(
+/** Allocates or reuses the multisampled color + depth targets for a visible frame. */
+export function ensureColorTargets(
   draw: DrawResources,
   width: number,
   height: number,
-  format: GPUTextureFormat,
-): GPUTexture {
-  if (draw.depthTexture !== undefined && draw.depthWidth === width && draw.depthHeight === height) {
-    return draw.depthTexture;
+  colorFormat: GPUTextureFormat,
+  depthFormat: GPUTextureFormat,
+): { readonly color: GPUTexture; readonly depth: GPUTexture } {
+  if (
+    draw.msaaColorTexture !== undefined &&
+    draw.depthTexture !== undefined &&
+    draw.depthWidth === width &&
+    draw.depthHeight === height
+  ) {
+    return { color: draw.msaaColorTexture, depth: draw.depthTexture };
   }
+  draw.msaaColorTexture?.destroy();
   draw.depthTexture?.destroy();
-  const texture = createDepthTexture(draw.device, width, height, format);
-  draw.depthTexture = texture;
   draw.nodeDepthBindGroup = undefined;
+  draw.msaaColorTexture = draw.device.createTexture({
+    size: [width, height],
+    sampleCount: COLOR_SAMPLE_COUNT,
+    format: colorFormat,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  draw.depthTexture = draw.device.createTexture({
+    size: [width, height],
+    sampleCount: COLOR_SAMPLE_COUNT,
+    format: depthFormat,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+  });
   draw.depthWidth = width;
   draw.depthHeight = height;
-  return texture;
+  return { color: draw.msaaColorTexture, depth: draw.depthTexture };
 }
 
-/** Begins the visible color render pass with a cleared depth attachment. */
+/** Begins the visible color render pass with a cleared multisampled depth attachment. */
 export function beginColorPass(
   encoder: GPUCommandEncoder,
   colorView: GPUTextureView,
   depthView: GPUTextureView,
+  resolveTarget: GPUTextureView | undefined,
 ): GPURenderPassEncoder {
+  const colorAttachment: GPURenderPassColorAttachment = {
+    view: colorView,
+    clearValue: { r: 0.91, g: 0.93, b: 0.95, a: 1 },
+    loadOp: "clear",
+    storeOp: resolveTarget === undefined ? "store" : "discard",
+  };
+  if (resolveTarget !== undefined) colorAttachment.resolveTarget = resolveTarget;
   return encoder.beginRenderPass({
-    colorAttachments: [
-      {
-        view: colorView,
-        clearValue: { r: 0.91, g: 0.93, b: 0.95, a: 1 },
-        loadOp: "clear",
-        storeOp: "store",
-      },
-    ],
+    colorAttachments: [colorAttachment],
     depthStencilAttachment: {
       view: depthView,
       depthClearValue: 1,

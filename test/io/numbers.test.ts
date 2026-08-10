@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { numbersOf, parseFloatToken, textLines, tokenChunks, tokensOf } from "../../src/io/numbers";
+import { numbersOf, parseFloatToken, textLines, tokensOf } from "../../src/io/numbers";
 
 describe("textLines", () => {
   it("yields lines with 1-based line numbers", () => {
@@ -67,33 +67,5 @@ describe("numbersOf", () => {
 
   it("returns undefined when any token is not a number", () => {
     expect(numbersOf("1 two")).toBeUndefined();
-  });
-});
-
-describe("tokenChunks", () => {
-  it("yields bounded chunks of whitespace-separated tokens", () => {
-    const chunks = [...tokenChunks("1 2 3 4 5 6 7", 3)];
-    expect(chunks).toEqual([["1", "2", "3"], ["4", "5", "6"], ["7"]]);
-  });
-
-  it("handles newlines and repeated whitespace", () => {
-    const chunks = [...tokenChunks("1\n2  3\n\n4", 2)];
-    expect(chunks).toEqual([
-      ["1", "2"],
-      ["3", "4"],
-    ]);
-  });
-
-  it("yields nothing for an empty source", () => {
-    expect([...tokenChunks("", 4)]).toEqual([]);
-  });
-
-  it("emits fresh arrays on every yield", () => {
-    const iterator = tokenChunks("1 2 3 4", 2);
-    const first = iterator.next().value as string[];
-    const second = iterator.next().value as string[];
-    expect(first).toEqual(["1", "2"]);
-    expect(second).toEqual(["3", "4"]);
-    expect(first).not.toBe(second);
   });
 });

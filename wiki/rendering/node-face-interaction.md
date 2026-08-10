@@ -73,21 +73,32 @@ oriented element faces are the finest-grained pickable units under
 ## Node glyph overlay
 
 - The demo's `Show element nodes` control draws one small screen-space circle
-  for every visible FE node. Annotation circles are 4 device pixels in diameter
-  (half the regular point-element diameter). Their default color is black,
-  independent of the part palette. The pass reuses generated per-node quads; it
-  does not introduce a second copy of surface geometry.
-- The surface pass stores its depth texture. A following read-only overlay pass
-  samples scene depth at each node center, rejects an occluded node once, then
-  draws its complete circle without changing depth. This avoids the
-  zoom-dependent clipping and rear-node leakage caused by geometric depth
-  offsets. Regular point geometry and picking remain at exact model depth.
+  for every visible FE node. Annotation circles are 6 CSS pixels in diameter
+  (three-quarters of the regular point-element diameter), scaled by
+  `devicePixelRatio` so they stay the same apparent size on Retina and 1×
+  displays. Their default color is black, independent of the part palette. The
+  pass reuses generated per-node quads; it does not introduce a second copy of
+  surface geometry.
+- The surface pass stores its multisampled depth texture. A following
+  read-only overlay pass loads scene depth at each node center
+  (`texture_depth_multisampled_2d`), rejects an occluded node once, then
+  draws its complete circle without changing depth. The vertex stage passes a
+  flat center pixel and node depth so every fragment of a glyph shares one
+  visibility decision. The fragment converts depths to view-space eye distance
+  (same formulas as `unprojectPoint`) and hides the glyph only when **every**
+  MSAA sample is nearer by more than `camera.depthSlack` (unanimous occlusion).
+  That avoids blinks from a single coplanar/silhouette subsample that is
+  slightly nearer than the vertex. Slack is `max(1e-5, 2e-3 * sceneScale)` with
+  `sceneScale` = camera distance (perspective) or ortho height. The CPU helper
+  in `src/renderer/node-overlay-visibility.ts` mirrors this math for unit tests
+  only — it is not a per-node CPU path and does not run for millions of nodes.
+  Regular point geometry and picking remain at exact model depth.
 - Node emphasis is resolved only in this glyph pass, where a matching
   `nodePickId` changes the circle's color/emissive. This keeps node selection
   local and avoids surface z-fighting.
-- Default node glyphs are translucent black. The visible pass increments the
-  accepted stencil value, so only the first visible node blends at a pixel and
-  overlapping nodes do not accumulate into a darker mark.
+- Default node glyphs are translucent black. Overlapping glyphs may darken
+  slightly where they blend; the pass no longer uses stencil “first wins”
+  masking, which clipped circles into Pac-Man shapes on dense grids.
 
 ## Demo
 

@@ -27,10 +27,6 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `setNodeTransform`                  | 2 000-instance subtree           | recompose subtree worlds     |
 | `getDrawList`                       | 200 000 visible                  | rebuild draw list            |
 | `resolvePick`                       | 50 000 lookups on 200 000        | O(1) index resolution        |
-| `parseChunk`                        | 500 chunks / 3 000 000 vertices  | validate + bound + rebase    |
-| `buildSpatialGrid`                  | 500 chunks                       | uniform-grid partition       |
-| `cullChunks`                        | 500 chunks against one frustum   | cell-then-chunk culling      |
-| `createChunkStream`                 | 500 chunks / 3 000 000 vertices  | deterministic budgeted load  |
 | `progressive renderer attach delta` | 200 000 instances + 10 subcases  | layout + growth delta        |
 
 ### Stable model sizes and warmup rules
@@ -117,7 +113,7 @@ not a universal triangle limit.
 ## Interactive WebGPU inspection case
 
 The full-screen demo includes a deliberately demo-owned `Performance · 2.10M
-triangles` model. `demo/performance-fixture.ts` generates one 128 × 128 shell
+triangles` model. `demo/fixture/performance-fixture.ts` generates one 128 × 128 shell
 and places it 64 times, exercising reusable geometry and GPU instancing at
 exactly 2,097,152 triangles without a second renderer or a checked-in mesh
 asset. The demo is idle by default and renders only after viewport invalidation.
