@@ -94,8 +94,11 @@ The full-screen demo includes a deliberately demo-owned `Performance · 2.10M
 triangles` model. `demo/performance-fixture.ts` generates one 128 × 128 shell
 and places it 64 times, exercising reusable geometry and GPU instancing at
 exactly 2,097,152 triangles without a second renderer or a checked-in mesh
-asset. Its overlay shows the authored triangle total, a rolling frame-rate
-sample, and draw batches. It is a manual visual/performance check, not a CI
-frame-time budget: real WebGPU timings remain hardware- and driver-dependent.
+asset. The demo is idle by default and renders only after viewport invalidation.
+Its overlay reports the actual rendered-frame count and clearly marks the idle
+state. Selecting this performance preset runs one bounded 500 ms FPS sample,
+reports the result, and then returns to idle. It is a manual visual/performance
+check, not a CI frame-time budget: real WebGPU timings remain hardware- and
+driver-dependent.
 
 Related: [[engineering/todo|Engineering TODO]].
