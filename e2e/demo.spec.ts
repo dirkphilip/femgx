@@ -176,7 +176,7 @@ test("toggles the element edge overlay independently of solid geometry", async (
 test("reset restores the complete workbench display state", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  const firstPart = page.locator("#visibility-panel input[data-part-id]").first();
+  const firstPart = page.locator("#visibility-panel input[data-instance-slot]").first();
   await firstPart.uncheck();
   await page.getByTestId("edge-overlay").click();
   await page.getByTestId("node-overlay").click();
