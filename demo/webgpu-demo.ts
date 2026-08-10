@@ -21,7 +21,12 @@ export async function startWebGpuDemo(
 
   let viewport: FemViewport | undefined;
   let controller: WorkbenchController | undefined;
-  let animationFrame: number | undefined;
+  let benchmarkFrame: number | undefined;
+  let benchmarkActive = false;
+  let benchmarkComplete = false;
+  let benchmarkFrames = 0;
+  let benchmarkStart = 0;
+  let measuredFps: number | undefined;
 
   const reportUnsupported = (error: unknown): void => {
     const detail = error instanceof Error ? error.message : String(error);
@@ -57,7 +62,10 @@ export async function startWebGpuDemo(
       },
       onRender: () => {
         canvas.dataset["frames"] = String(Number(canvas.dataset["frames"] ?? "0") + 1);
-        if (viewport !== undefined) controller?.syncViewportPresentation();
+        if (viewport !== undefined) {
+          controller?.syncViewportPresentation();
+          syncPerformanceMeasurement();
+        }
       },
     });
 
@@ -79,35 +87,77 @@ export async function startWebGpuDemo(
     return undefined;
   }
   canvas.dataset["renderer"] = "webgpu";
-  startPerformanceLoop();
 
   window.addEventListener("pagehide", () => {
-    if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
+    stopPerformanceMeasurement();
     viewport?.destroy();
     viewport = undefined;
   });
 
-  /** Continuously measures the normal public viewport path. */
-  function startPerformanceLoop(): void {
-    if (typeof requestAnimationFrame === "undefined") return;
-    let frameCount = 0;
-    let sampleStart = performance.now();
+  /** Runs one bounded frame-rate sample when the performance preset is selected. */
+  function startPerformanceMeasurement(): void {
+    if (typeof requestAnimationFrame === "undefined" || benchmarkActive) return;
+    benchmarkActive = true;
+    benchmarkFrames = 0;
+    benchmarkStart = 0;
+    measuredFps = undefined;
     const frame = (now: number): void => {
-      viewport?.render();
-      if (viewport !== undefined) frameCount += 1;
-      const elapsed = now - sampleStart;
-      if (elapsed >= 500 && controller !== undefined) {
-        const fps = (frameCount * 1000) / elapsed;
-        view.performanceOverlay.textContent =
-          `Triangles  ${formatCount(controller.totalTriangleCount())}\n` +
-          `FPS        ${fps.toFixed(1)}\n` +
-          `Batches    ${viewport?.stats().drawBatches ?? 0}`;
-        frameCount = 0;
-        sampleStart = now;
+      if (viewport === undefined || controller?.preset.id !== "performance") {
+        stopPerformanceMeasurement();
+        return;
       }
-      animationFrame = requestAnimationFrame(frame);
+      if (benchmarkStart === 0) benchmarkStart = now;
+      viewport.render();
+      benchmarkFrames += 1;
+      const elapsed = now - benchmarkStart;
+      if (elapsed >= 500) {
+        benchmarkActive = false;
+        benchmarkComplete = true;
+        benchmarkFrame = undefined;
+        measuredFps = (benchmarkFrames * 1000) / elapsed;
+        updatePerformanceOverlay();
+        return;
+      }
+      benchmarkFrame = requestAnimationFrame(frame);
     };
-    animationFrame = requestAnimationFrame(frame);
+    benchmarkFrame = requestAnimationFrame(frame);
+    updatePerformanceOverlay();
+  }
+
+  function stopPerformanceMeasurement(): void {
+    if (benchmarkFrame !== undefined && typeof cancelAnimationFrame !== "undefined") {
+      cancelAnimationFrame(benchmarkFrame);
+    }
+    benchmarkFrame = undefined;
+    benchmarkActive = false;
+  }
+
+  function syncPerformanceMeasurement(): void {
+    if (controller === undefined) return;
+    if (controller.preset.id !== "performance") {
+      stopPerformanceMeasurement();
+      benchmarkComplete = false;
+      measuredFps = undefined;
+      updatePerformanceOverlay();
+      return;
+    }
+    if (!benchmarkComplete) startPerformanceMeasurement();
+    updatePerformanceOverlay();
+  }
+
+  function updatePerformanceOverlay(): void {
+    if (controller === undefined) return;
+    const frameCount = Number(canvas.dataset["frames"] ?? "0");
+    const state = benchmarkActive
+      ? "Benchmark active"
+      : measuredFps === undefined
+        ? "Idle"
+        : `Benchmark ${measuredFps.toFixed(1)} FPS · idle`;
+    view.performanceOverlay.textContent =
+      `Triangles  ${formatCount(controller.totalTriangleCount())}\n` +
+      `State      ${state}\n` +
+      `Frames     ${formatCount(frameCount)}\n` +
+      `Batches    ${viewport?.stats().drawBatches ?? 0}`;
   }
 
   /** Explicit lifecycle seam used by the e2e lane. */

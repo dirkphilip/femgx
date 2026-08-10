@@ -58,6 +58,7 @@ interface DemoWindow {
 }
 
 const originalWindow = (globalThis as { readonly window?: unknown }).window;
+const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
 let demoWindow: DemoWindow;
 
 function fakeCanvas(): HTMLCanvasElement {
@@ -122,6 +123,7 @@ beforeEach(() => {
 afterEach(() => {
   if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
   else (globalThis as { window?: unknown }).window = originalWindow;
+  globalThis.requestAnimationFrame = originalRequestAnimationFrame;
 });
 
 describe("startWebGpuDemo", () => {
@@ -136,6 +138,18 @@ describe("startWebGpuDemo", () => {
     expect(mocks.createFemViewport).toHaveBeenCalledOnce();
     expect(viewport.render).toHaveBeenCalled();
     expect(canvas.dataset["renderer"]).toBe("webgpu");
+  });
+
+  it("does not schedule continuous frames for a static preset", async () => {
+    const viewport = fakeViewport();
+    mocks.createFemViewport.mockResolvedValue(viewport.viewport);
+    const requestFrame = vi.fn(() => 1);
+    globalThis.requestAnimationFrame = requestFrame;
+
+    await startWebGpuDemo(startOptions(fakeCanvas()));
+
+    expect(viewport.render).toHaveBeenCalledOnce();
+    expect(requestFrame).not.toHaveBeenCalled();
   });
 
   it("reports an explicit unsupported message when viewport creation fails", async () => {
