@@ -39,6 +39,7 @@ export interface FemViewport {
   setEdgeDepthTest(enabled: boolean): void;
   setNodeOverlay(enabled: boolean): void;
   setPartVisible(partId: PartId, visible: boolean): void;
+  setAssemblyNodeVisible(nodeId: number, visible: boolean): void;
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void;
   setInstanceVisible(instanceId: number, visible: boolean): void;
   pick(x: number, y: number, granularity?: PickGranularity): Promise<PickTarget | undefined>;
@@ -168,6 +169,11 @@ class FemViewportCore implements FemViewport {
 
   setPartVisible(partId: PartId, visible: boolean): void {
     this.applyVisibility(this.currentRuntime.setPartVisible(partId, visible).changedInstanceIds);
+  }
+  setAssemblyNodeVisible(nodeId: number, visible: boolean): void {
+    this.applyVisibility(
+      this.currentRuntime.setAssemblyNodeVisible(nodeId, visible).changedInstanceIds,
+    );
   }
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void {
     this.applyVisibility(
