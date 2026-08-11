@@ -8,7 +8,8 @@ composition but are not the documentation-first integration path.
 
 This note defines the intended public vocabulary and ownership boundaries for
 the experimental API. It is the design reference for changes to the public
-surface; the root [[index|wiki index]] is the navigation map.
+surface; the concise [[architecture/core-api|Core API review]] is the reader
+oriented API map, and the root [[index|wiki index]] is the navigation map.
 
 ## Canonical concepts
 
