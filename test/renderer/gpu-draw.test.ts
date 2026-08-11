@@ -4,7 +4,6 @@ import { translation } from "../../src/math/mat4";
 import {
   createDrawResources,
   destroyDrawResources,
-  drawBatches,
   EMISSIVE_BYTE_OFFSET,
   encodeInstanceRecord,
   patchInstances,
@@ -13,6 +12,7 @@ import {
   writeEdgeOrder,
   type DrawCallContext,
 } from "../../src/renderer/gpu-draw";
+import { drawBatches } from "../../src/renderer/gpu-batch";
 import { beginColorPass, ensureColorTargets } from "../../src/renderer/gpu-pipelines";
 import {
   ELEMENT_RECORD_STRIDE,

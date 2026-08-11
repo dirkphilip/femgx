@@ -10,7 +10,6 @@ import {
 import { PICK_TEXTURE_FORMAT } from "./pick-format";
 import { COLOR_SAMPLE_COUNT, vertexLayout } from "./gpu-support";
 import { DEFORMATION_UNIFORM_SIZE } from "./gpu-deform";
-import type { DrawResources } from "./gpu-draw";
 import { createNodeOverlayPipelines } from "./gpu-node-overlay";
 import type { NodeOverlayPipelines } from "./gpu-node-overlay";
 import { createOrbitPivotResources, type OrbitPivotResources } from "./gpu-orbit-pivot";
@@ -38,6 +37,14 @@ export interface RenderResources {
   /** Library-owned world-space camera-pivot indicator. */
   readonly orbitPivot: OrbitPivotResources;
   readonly instanceLayout: GPUBindGroupLayout;
+}
+
+interface DrawTargets {
+  readonly device: GPUDevice;
+  msaaColorTexture: GPUTexture | undefined;
+  depthTexture: GPUTexture | undefined;
+  depthWidth: number;
+  depthHeight: number;
 }
 
 export const CAMERA_UNIFORM_SIZE = 96;
@@ -314,7 +321,7 @@ export function destroyRenderResources(resources: RenderResources): void {
 
 /** Allocates or reuses the multisampled color + depth targets for a visible frame. */
 export function ensureColorTargets(
-  draw: DrawResources,
+  draw: DrawTargets,
   width: number,
   height: number,
   colorFormat: GPUTextureFormat,

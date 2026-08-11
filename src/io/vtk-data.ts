@@ -1,15 +1,6 @@
 import { Float64Buffer } from "./growable";
 import { numbersOf, tokensOf } from "./numbers";
-import type { VtkState } from "./vtk";
-
-/** A completed attribute array collected from POINT_DATA or CELL_DATA. */
-export interface ArrayBlock {
-  readonly location: "node" | "element";
-  readonly name: string;
-  readonly components: number;
-  readonly count: number;
-  readonly values: Float64Array;
-}
+import type { ArrayBlock, VtkState } from "./vtk-state";
 
 /** Starts a POINT_DATA or CELL_DATA section with a known entity count. */
 export function beginData(

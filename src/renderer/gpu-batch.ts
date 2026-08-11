@@ -7,7 +7,8 @@ import {
   type DrawCallContext,
   type DrawResources,
 } from "./gpu-draw";
-import type { PipelinePass } from "./gpu-draw";
+
+type PipelinePass = "color" | "pick";
 
 /** Inputs shared by one instanced batch draw. */
 export interface BatchDrawOptions {
@@ -16,6 +17,38 @@ export interface BatchDrawOptions {
   readonly nodes: boolean;
   readonly pipelineOverride: GPURenderPipeline | undefined;
   readonly current: GPURenderPipeline | undefined;
+}
+
+/** Options controlling one collection of instanced draws. */
+export interface DrawBatchOptions {
+  readonly pass?: PipelinePass;
+  readonly pipeline?: GPURenderPipeline;
+  readonly overlay?: boolean;
+  readonly nodes?: boolean;
+}
+
+/** Issues all instanced draws for the cached per-part calls. */
+export function drawBatches(
+  pass: GPURenderPassEncoder,
+  draw: DrawResources,
+  context: DrawCallContext,
+  calls: readonly DrawCall[],
+  options: DrawBatchOptions = {},
+): void {
+  const passKind = options.pass ?? "color";
+  const overlay = options.overlay === true;
+  const nodes = options.nodes === true;
+  pass.setBindGroup(0, context.frameBindGroup);
+  let current: GPURenderPipeline | undefined;
+  for (const call of calls) {
+    current = drawOneBatch(pass, draw, context, call, {
+      passKind,
+      overlay,
+      nodes,
+      pipelineOverride: options.pipeline,
+      current,
+    });
+  }
 }
 
 /** Uploads and draws one part batch, retaining the previous pipeline when skipped. */

@@ -8,7 +8,7 @@ import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import type { PickTarget } from "../picking/types";
 import { RendererAttachment } from "./attachment";
-import type { WebGpuRenderer, WebGpuRendererOptions } from "./gpu-renderer";
+import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
 import { syncDeformations, validateDeformation } from "./gpu-deform";
 import { destroyDrawResources } from "./gpu-draw";
 import { encodePickSnapshot, encodeVisibleFrame } from "./gpu-frame";

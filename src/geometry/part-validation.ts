@@ -1,5 +1,5 @@
 import type { ElementId } from "../elements/element";
-import type { Body, BodyId, ElementTessellation, FaceId, Geometry } from "./part";
+import type { Body, BodyId, ElementTessellation, FaceId, Geometry } from "./types";
 
 /** Machine-readable geometry validation failure. */
 export type GeometryValidationCode =

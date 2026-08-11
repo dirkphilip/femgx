@@ -1,16 +1,9 @@
-import type { ElementShape } from "../elements/shapes";
-import { Float64Buffer, Uint32Buffer } from "./growable";
 import { textLines, tokensOf } from "./numbers";
+import { Float64Buffer, Uint32Buffer } from "./growable";
 import { createParseSession, finishParse, type ParseOptions, type ParseResult } from "./session";
 import type { ParseSession } from "./session";
-import {
-  beginData,
-  readDataLine,
-  readFieldLine,
-  startArray,
-  startField,
-  type ArrayBlock,
-} from "./vtk-data";
+import type { VtkState } from "./vtk-state";
+import { beginData, readDataLine, readFieldLine, startArray, startField } from "./vtk-data";
 import {
   finalizeGeometry,
   readCellsLine,
@@ -37,32 +30,6 @@ const VTK_KEYWORDS = new Set([
   "COLOR_SCALARS",
   "METADATA",
 ]);
-
-type VtkMode = "top" | "points" | "cells" | "cell-types" | "data" | "field" | "skip";
-
-/** Mutable state shared by the VTK legacy reader's helper modules. */
-export interface VtkState {
-  readonly session: ParseSession;
-  mode: VtkMode;
-  pointsRemaining: number;
-  nodeIds: number[];
-  coords: number[];
-  nextNodeId: number;
-  cellsRemaining: number;
-  cellStarts: Uint32Buffer;
-  cellConnectivity: Uint32Buffer;
-  cellTypesRemaining: number;
-  cellTypes: Uint32Buffer;
-  cellCount: number;
-  sectionCount: number;
-  location: "node" | "element";
-  arrayName: string;
-  components: number;
-  arrayValues: Float64Buffer;
-  fieldRemaining: number;
-  dataBlocks: ArrayBlock[];
-  openShape: ElementShape | undefined;
-}
 
 /**
  * Reads an ASCII VTK legacy dataset. Only `DATASET UNSTRUCTURED_GRID` is

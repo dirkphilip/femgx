@@ -210,8 +210,11 @@ These exist in `package.json`:
   clean consumer, verify ESM/CJS runtime import/require and declaration
   resolution (see [[engineering/packaging|Packaging]]).
 - `npm run typecheck` — `tsc --noEmit`.
-- `npm run lint` — ESLint on `src/`, `test/`, `demo/` with `--max-warnings 0`.
-- `npm run lint:fix` — ESLint with `--fix`.
+- `npm run lint` — ESLint on `src/`, `test/`, `demo/`, and `e2e/` with
+  `--max-warnings 0`, followed by the dependency-cruiser subsystem DAG gate.
+- `npm run lint:fix` — ESLint with `--fix`, followed by the dependency DAG gate.
+- `npm run lint:dependencies` — dependency-cruiser validation of the production
+  subsystem DAG, including type-only imports.
 - `npm run format` — Prettier write on the whole repo.
 - `npm run format:check` — Prettier check (agents should use `format`).
 - `npm test` — Vitest unit tests (`test/**/*.test.ts`).

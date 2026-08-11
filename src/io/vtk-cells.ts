@@ -13,7 +13,7 @@ import {
 } from "../elements/shapes";
 import { numbersOf } from "./numbers";
 import { addDataBlocks, closeArray } from "./vtk-data";
-import type { VtkState } from "./vtk";
+import type { VtkState } from "./vtk-state";
 
 const VTK_TYPES: ReadonlyMap<number, ElementShape> = new Map([
   [1, POINT_SHAPE],

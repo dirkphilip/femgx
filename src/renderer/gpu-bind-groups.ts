@@ -1,4 +1,4 @@
-import type { InstanceStorage } from "./gpu-draw";
+import type { InstanceStorage } from "./gpu-instance-storage";
 import type { PartResource } from "./gpu-support";
 
 /** The per-part draw inputs a bind group addresses. */

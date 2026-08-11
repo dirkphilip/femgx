@@ -3,7 +3,6 @@ import type { InteractionState } from "../interaction/interaction";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import type { InstanceId } from "../scene/types";
-import type { DrawResources, InstanceStorage } from "./gpu-draw";
 import {
   buildHighlightTable,
   BODY_HIGHLIGHT_MARKER,
@@ -18,7 +17,10 @@ import {
   INITIAL_ELEMENT_HIGHLIGHTS,
   type EmphasisUpdate,
 } from "./gpu-elements";
-import type { InstanceLayout } from "./runtime-state";
+
+interface InstanceLayout {
+  readonly slotPartLocal: Int32Array;
+}
 
 /** A GPU highlight buffer plus its full CPU mirror for diffed writes. */
 export interface HighlightStorage {
@@ -42,7 +44,7 @@ export function createHighlightStorage(
 /** Writes only changed header and bucket byte ranges to a part's table. */
 export function writeElementHighlights(
   device: GPUDevice,
-  storage: InstanceStorage,
+  storage: HighlightTarget,
   updates: readonly EmphasisUpdate[],
 ): void {
   const entries = updates.map(toTableEntry);
@@ -67,7 +69,7 @@ export function writeElementHighlights(
 
 function writeChangedRanges(
   device: GPUDevice,
-  storage: InstanceStorage,
+  storage: HighlightTarget,
   next: Uint8Array,
   bucketCount: number,
 ): void {
@@ -99,7 +101,7 @@ function writeChangedRanges(
 
 function growHighlightStorage(
   device: GPUDevice,
-  storage: InstanceStorage,
+  storage: HighlightTarget,
   minimumRecords: number,
 ): void {
   const highlight = storage.highlight;
@@ -141,11 +143,17 @@ function nextTableCapacity(count: number): number {
 /** The draw-path inputs needed to sync emphasis buffers. */
 export interface ElementHighlightSync {
   readonly device: GPUDevice;
-  readonly draw: DrawResources;
+  readonly draw: { readonly storages: ReadonlyMap<PartId, HighlightTarget> };
   readonly runtime: PackedSceneRuntime;
   readonly layout: InstanceLayout;
   readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
   readonly parts: ReadonlyMap<PartId, Part>;
+}
+
+interface HighlightTarget {
+  highlight: HighlightStorage;
+  bindGroup: GPUBindGroup | undefined;
+  edgeBindGroup: GPUBindGroup | undefined;
 }
 
 /** Recomputes every part's emphasis table and writes only changed ranges. */
