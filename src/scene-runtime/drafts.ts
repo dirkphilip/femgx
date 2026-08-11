@@ -79,23 +79,20 @@ class DraftWriter {
     });
   }
 
-  /** Compiles one assembly expansion and recurses into its placements. */
-  public walk(
+  private pushNode(
     assemblyId: AssemblyId,
     parent: number,
     local: Mat4,
     world: Mat4,
-    path: string,
-  ): void {
-    const assembly = this.assemblies.get(assemblyId);
-    if (assembly === undefined) {
-      return;
+  ): number | undefined {
+    if (this.assemblies.get(assemblyId) === undefined) {
+      return undefined;
     }
-    const nodeIndex = this.nodes.length;
     const parentEffective: 0 | 1 = parent === -1 ? 1 : (this.nodes[parent]?.effective ?? 1);
     const visible: 0 | 1 = this.visibleAssemblyIds.has(assemblyId) ? 1 : 0;
     const effective: 0 | 1 = visible === 1 && parentEffective === 1 ? 1 : 0;
-    const node: NodeDraft = {
+    const nodeIndex = this.nodes.length;
+    this.nodes.push({
       assemblyId,
       parent,
       firstChild: -1,
@@ -107,43 +104,90 @@ class DraftWriter {
       effective,
       local,
       world,
-    };
-    this.nodes.push(node);
+    });
     if (parent !== -1) {
       linkChild(this.nodes, parent, nodeIndex);
     }
-    for (let index = 0; index < assembly.placements.length; index++) {
-      const placement = assembly.placements[index];
+    return nodeIndex;
+  }
+
+  /** Compiles every assembly expansion with an explicit depth-first stack. */
+  public walk(assemblyId: AssemblyId, local: Mat4, world: Mat4, path: string): void {
+    const root = this.pushNode(assemblyId, -1, local, world);
+    if (root === undefined) {
+      return;
+    }
+    const stack: WalkItem[] = [{ nodeIndex: root, assemblyId, world, path, nextPlacement: 0 }];
+    while (stack.length > 0) {
+      const item = stack[stack.length - 1];
+      if (item === undefined) {
+        stack.pop();
+        continue;
+      }
+      const assembly = this.assemblies.get(item.assemblyId);
+      if (assembly === undefined || item.nextPlacement >= assembly.placements.length) {
+        const node = this.nodes[item.nodeIndex];
+        if (node !== undefined) {
+          node.instanceEnd = this.instances.length;
+        }
+        stack.pop();
+        continue;
+      }
+      const placementIndex = item.nextPlacement;
+      item.nextPlacement += 1;
+      const placement = assembly.placements[placementIndex];
       if (placement === undefined) {
         continue;
       }
-      const placementWorld = multiply(world, placement.transform);
-      const placementPath = `${path}/${index}`;
+      const placementWorld = multiply(item.world, placement.transform);
+      const placementPath = `${item.path}/${placementIndex}`;
       if (placement.kind === "part") {
-        this.pushPart(nodeIndex, placement, placementWorld, placementPath, effective);
-      } else {
-        this.walk(
-          placement.assemblyId,
-          nodeIndex,
-          placement.transform,
+        const node = this.nodes[item.nodeIndex];
+        this.pushPart(
+          item.nodeIndex,
+          placement,
           placementWorld,
           placementPath,
+          node?.effective ?? 0,
         );
+        continue;
+      }
+      const child = this.pushNode(
+        placement.assemblyId,
+        item.nodeIndex,
+        placement.transform,
+        placementWorld,
+      );
+      if (child !== undefined) {
+        stack.push({
+          nodeIndex: child,
+          assemblyId: placement.assemblyId,
+          world: placementWorld,
+          path: placementPath,
+          nextPlacement: 0,
+        });
       }
     }
-    node.instanceEnd = this.instances.length;
   }
 }
 
+interface WalkItem {
+  readonly nodeIndex: number;
+  readonly assemblyId: AssemblyId;
+  readonly world: Mat4;
+  readonly path: string;
+  nextPlacement: number;
+}
+
 /**
- * Compiles an authoring scene into draft nodes and instances, threading the
- * same placement paths `flattenAssembly` derives so slots stay resolvable.
+ * Compiles an authoring scene into draft nodes and instances with stable
+ * placement paths so slots stay resolvable.
  */
 export function buildSceneDrafts(scene: Scene): {
   nodes: NodeDraft[];
   instances: InstanceDraft[];
 } {
   const writer = new DraftWriter(scene);
-  writer.walk(scene.rootAssemblyId, -1, identity(), identity(), String(scene.rootAssemblyId));
+  writer.walk(scene.rootAssemblyId, identity(), identity(), String(scene.rootAssemblyId));
   return { nodes: writer.nodes, instances: writer.instances };
 }

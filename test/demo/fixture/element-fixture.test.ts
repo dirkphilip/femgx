@@ -4,16 +4,23 @@ import {
   createHex20CylinderFixture,
   type ElementFixture,
 } from "../../../demo/fixture/element-fixture";
-import { flattenAssembly } from "../../../src/runtime/flatten";
+import { createSceneRuntime } from "../../../src/scene-runtime/runtime";
 import type { Instance } from "../../../src/scene/types";
 
-function flatten(fixture: Pick<ElementFixture, "scene">): readonly Instance[] {
-  return flattenAssembly({
-    assemblyId: fixture.scene.rootAssemblyId,
-    assemblies: fixture.scene.assemblies,
-    visibleAssemblyIds: fixture.scene.visibleAssemblyIds,
-    visiblePartIds: fixture.scene.visiblePartIds,
-  });
+function runtimeInstances(fixture: Pick<ElementFixture, "scene">): readonly Instance[] {
+  const runtime = createSceneRuntime(fixture.scene);
+  const instances: Instance[] = [];
+  const drawList = runtime.getDrawList();
+  for (let index = 0; index < drawList.length; index += 1) {
+    const slot = drawList[index];
+    if (slot === undefined) continue;
+    const instanceId = runtime.getInstanceId(slot);
+    const partId = runtime.getPartId(slot);
+    const worldTransform = runtime.getTransform(slot);
+    if (instanceId === undefined || partId === undefined || worldTransform === undefined) continue;
+    instances.push({ index, instanceId, partId, worldTransform });
+  }
+  return instances;
 }
 
 describe("createElementFixture", () => {
@@ -33,13 +40,13 @@ describe("createElementFixture", () => {
     });
     expect(fixture.instanceCount).toBe(10);
     expect(fixture.scene.parts.size).toBe(10);
-    expect(flatten(fixture)).toHaveLength(10);
+    expect(runtimeInstances(fixture)).toHaveLength(10);
   });
 
   it("places every shape example at a stable x offset", () => {
     const fixture = createElementFixture();
     const origins = new Map(
-      flatten(fixture).map((instance) => [instance.partId, instance.worldTransform[12]]),
+      runtimeInstances(fixture).map((instance) => [instance.partId, instance.worldTransform[12]]),
     );
     expect(origins.get(fixture.partIds.point)).toBe(0);
     expect(origins.get(fixture.partIds.line)).toBe(3);
@@ -89,7 +96,7 @@ describe("createElementFixture", () => {
     const fixture = createHex20CylinderFixture();
     expect(fixture.scene.parts.size).toBe(1);
     expect(fixture.overlayPartIds).toEqual([]);
-    expect(flatten(fixture).map((instance) => instance.worldTransform[12])).toEqual([0]);
+    expect(runtimeInstances(fixture).map((instance) => instance.worldTransform[12])).toEqual([0]);
     expect(fixture.bounds.minZ).toBeCloseTo(-0.9);
     expect(fixture.bounds.maxZ).toBeCloseTo(0.9);
   });

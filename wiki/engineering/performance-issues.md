@@ -4,12 +4,11 @@ This note records the remaining scalability risks after the first WebGPU rendere
 
 ## Stable instance identity
 
-`flattenAssembly` assigns a compact visible `index` after visibility culling.
-Hiding or showing an earlier placement can change that draw index, so GPU picking
-and incremental per-instance updates use the separate path-derived `instanceId`.
-The [[architecture/packed-runtime|packed scene runtime]] adds a third, fully packed handle: a
-stable numeric instance slot over the whole placement list that never changes
-across visibility updates.
+The [[architecture/packed-runtime|packed scene runtime]] assigns a stable numeric
+slot over the whole placement list and keeps the path-derived `instanceId` for
+host-facing identity. Hiding or showing an earlier placement can change its
+compact draw-list position, so GPU picking and incremental updates resolve
+through the packed slot mapping.
 
 ## Scene update cost
 
@@ -20,18 +19,17 @@ cost is proportional to the changed placements instead of the whole model.
 `SceneBuilder` copies maps and visibility sets for each builder operation. This
 is convenient for small scenes, but repeated additions or visibility changes
 copy O(n) state and can become quadratic while authoring large in-memory
-assemblies. A packed runtime representation, batch construction, and a
-delta-oriented update path keep the current product path practical.
+assemblies. The packed runtime and its delta-oriented update path keep the
+current product path practical.
 
-## Flattening cost
+## Packed compile cost
 
-`flattenAssembly` allocates a matrix for every visited placement and creates a new
-instance object for every visible placement. It now uses an iterative walk and
-deterministic per-part batching. The packed scene
-runtime keeps authoring storage in typed arrays and updates visibility in place;
-transform edits now recompose world transforms only within the affected subtree
-(see [[architecture/packed-runtime|Packed scene runtime]]), keeping frame work proportional to
-changed state.
+The packed scene runtime uses one explicit iterative walk for every assembly
+expansion, preserving placement order and stable paths without recursion. It
+keeps authoring storage in typed arrays and updates visibility in place; transform
+edits recompose world transforms only within the affected subtree (see
+[[architecture/packed-runtime|Packed scene runtime]]), keeping frame work
+proportional to changed state.
 
 ## Matrix layout correctness
 

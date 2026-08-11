@@ -5,18 +5,25 @@ import {
 } from "../../../demo/fixture/bolted-plate";
 import { createBoltedPlatePreset, visiblePartIdsForPreset } from "../../../demo/fixture/presets";
 import { transformPoint } from "../../../src/math/mat4";
-import { flattenAssembly } from "../../../src/runtime/flatten";
+import { createSceneRuntime } from "../../../src/scene-runtime/runtime";
 import type { Assembly, SubAssemblyPlacement } from "../../../src/scene/assembly";
+import type { Scene } from "../../../src/scene/scene";
 import type { Instance } from "../../../src/scene/types";
 
-function flatten(fixture: BoltedPlateFixture): readonly Instance[] {
-  const { scene } = fixture;
-  return flattenAssembly({
-    assemblyId: scene.rootAssemblyId,
-    assemblies: scene.assemblies,
-    visibleAssemblyIds: scene.visibleAssemblyIds,
-    visiblePartIds: scene.visiblePartIds,
-  });
+function runtimeInstances(scene: Scene): readonly Instance[] {
+  const runtime = createSceneRuntime(scene);
+  const instances: Instance[] = [];
+  const drawList = runtime.getDrawList();
+  for (let index = 0; index < drawList.length; index += 1) {
+    const slot = drawList[index];
+    if (slot === undefined) continue;
+    const instanceId = runtime.getInstanceId(slot);
+    const partId = runtime.getPartId(slot);
+    const worldTransform = runtime.getTransform(slot);
+    if (instanceId === undefined || partId === undefined || worldTransform === undefined) continue;
+    instances.push({ index, instanceId, partId, worldTransform });
+  }
+  return instances;
 }
 
 /** The display name of a registered assembly, when it carries one. */
@@ -35,7 +42,7 @@ function worldBounds(fixture: BoltedPlateFixture) {
     maxY: -Infinity,
     maxZ: -Infinity,
   };
-  for (const instance of flatten(fixture)) {
+  for (const instance of runtimeInstances(fixture.scene)) {
     const part = scene.parts.get(instance.partId);
     if (part === undefined) continue;
     for (const x of [part.bounds.minX, part.bounds.maxX]) {
@@ -139,7 +146,7 @@ describe("createBoltedPlateFixture", () => {
 
   it("reuses the shared parts across the full instance list", () => {
     const fixture = createBoltedPlateFixture();
-    const instances = flatten(fixture);
+    const instances = runtimeInstances(fixture.scene);
     expect(instances).toHaveLength(102);
     const counts = new Map<number, number>();
     for (const instance of instances) {
@@ -166,7 +173,7 @@ describe("createBoltedPlateFixture", () => {
 
   it("places plates in the lap-joint overlap and fasteners in rows and columns", () => {
     const fixture = createBoltedPlateFixture();
-    const instances = flatten(fixture);
+    const instances = runtimeInstances(fixture.scene);
     const plates = instances.filter((instance) => instance.partId === 1);
     expect(plates.map((instance) => instance.worldTransform[12])).toEqual([0, 6]);
     expect(plates.map((instance) => instance.worldTransform[13])).toEqual([0, 2]);
@@ -194,7 +201,7 @@ describe("createBoltedPlateFixture", () => {
 
   it("produces deterministic, stable instance ordering", () => {
     const fixture = createBoltedPlateFixture();
-    const instances = flatten(fixture);
+    const instances = runtimeInstances(fixture.scene);
     expect(instances[0]?.instanceId).toBe("1/0/0");
     expect(instances[5]?.instanceId).toBe("1/0/5");
     expect(instances[6]?.instanceId).toBe("1/1/0/0");
@@ -244,8 +251,8 @@ describe("createBoltedPlateFixture", () => {
   });
 
   it("produces identical output on repeated calls", () => {
-    const first = flatten(createBoltedPlateFixture());
-    const second = flatten(createBoltedPlateFixture());
+    const first = runtimeInstances(createBoltedPlateFixture().scene);
+    const second = runtimeInstances(createBoltedPlateFixture().scene);
     expect(first.map((instance) => instance.instanceId)).toEqual(
       second.map((instance) => instance.instanceId),
     );
@@ -293,12 +300,8 @@ describe("createBoltedPlatePreset", () => {
     expect(preset.overlayPartIds).toEqual([]);
     const visible = visiblePartIdsForPreset(preset, "solid");
     const { scene } = preset;
-    const instances = flattenAssembly({
-      assemblyId: scene.rootAssemblyId,
-      assemblies: scene.assemblies,
-      visibleAssemblyIds: scene.visibleAssemblyIds,
-      visiblePartIds: visible,
-    });
+    const visibleScene = { ...scene, visiblePartIds: visible };
+    const instances = runtimeInstances(visibleScene);
     expect(instances).toHaveLength(34);
   });
 });

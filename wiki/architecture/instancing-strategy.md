@@ -15,9 +15,10 @@ as a [[architecture/architecture-overview|Part]] and drawn many times via GPU in
 - A compiled assembly expansion is a runtime node. User-facing hierarchy
   controls address that node occurrence (not the shared assembly definition),
   so hiding one fastener does not affect its sibling fasteners.
-- `flattenAssembly` walks the tree depth-first and emits `Instance` records:
-  `index`, stable `instanceId`, `partId`, and a world transform. `index` is the
-  compact current draw/pick id; `instanceId` survives visibility changes.
+- `createSceneRuntime` walks the tree depth-first and emits stable packed slots:
+  each slot stores its `instanceId`, `partId`, and world transform. The draw
+  list is a compact view of visible slots, while the placement handle survives
+  visibility changes.
 
 ## What the renderer must batch
 
@@ -33,6 +34,6 @@ as a [[architecture/architecture-overview|Part]] and drawn many times via GPU in
 
 ## Determinism
 
-Depth-first, placement-order flattening keeps source placement handles stable
-between frames. Compact indices can change after culling; GPU picking is resolved
-against the current compiled list and returns the stable handle.
+Depth-first, placement-order compilation keeps source placement handles stable
+between frames. Compact draw-list indices can change after culling; GPU picking
+is resolved against the current packed runtime and returns the stable handle.

@@ -16,8 +16,6 @@ canonical description.
   data with no WebGPU coupling (see [[data/elements-topology|Element topology]]).
 - `src/scene/` — authoritative CPU model: part/assembly/instance identities
   (`types.ts`), assemblies, and the scene builder.
-- `src/runtime/` — internal helpers: flattening and per-part batching (not the
-  public product path; prefer `createSceneRuntime`).
 - `src/scene-runtime/` — packed CPU-side scene runtime with delta-oriented
   visibility updates (`createSceneRuntime`).
 - `src/camera/` — immutable orbit camera and projection math.

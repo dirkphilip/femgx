@@ -3,8 +3,8 @@ import type { ElementRenderMode } from "../../src/geometry/element-mesh";
 import type { Bounds } from "../../src/geometry/part";
 import type { Color } from "../../src/interaction/interaction";
 import { transformPoint } from "../../src/math/mat4";
-import { flattenAssembly } from "../../src/runtime/flatten";
 import type { Scene } from "../../src/scene/scene";
+import { createSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { PartId } from "../../src/scene/types";
 import type { ViewportResultsConfig } from "../../src/viewport/results";
 import { createBoltedPlateFixture } from "./bolted-plate";
@@ -217,17 +217,14 @@ export function createDefaultPreset(): ModelPreset {
 }
 
 function fixtureBounds(scene: Scene): Bounds {
-  const instances = flattenAssembly({
-    assemblyId: scene.rootAssemblyId,
-    assemblies: scene.assemblies,
-    visibleAssemblyIds: scene.visibleAssemblyIds,
-    visiblePartIds: scene.visiblePartIds,
-  });
+  const runtime = createSceneRuntime(scene);
   let result: Bounds | undefined;
-  for (const instance of instances) {
-    const part = scene.parts.get(instance.partId);
-    if (part === undefined) continue;
-    const bounds = transformBounds(part.bounds, instance.worldTransform);
+  for (const slot of runtime.getDrawList()) {
+    const partId = runtime.getPartId(slot);
+    const transform = runtime.getTransform(slot);
+    const part = partId === undefined ? undefined : scene.parts.get(partId);
+    if (part === undefined || transform === undefined) continue;
+    const bounds = transformBounds(part.bounds, transform);
     result = mergeBounds(result, bounds);
   }
   if (result === undefined) throw new Error("Preset scene must contain at least one part");

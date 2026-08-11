@@ -8,16 +8,10 @@ scene is authoritative; the renderer syncs deltas from it.
 - `src/scene/scene.ts` — authoritative CPU model: parts, assemblies, and
   visibility. Immutable builder API (`createScene`); every update returns a new
   builder so state changes are deltas, not scattered mutations.
-- `src/runtime/flatten.ts` — iteratively flattens an assembly tree into a
-  deterministic, depth-first instance list. Hidden assemblies/parts are culled
-  at the source, so hidden geometry is never drawn; compact draw indices are
-  separate from stable placement `instanceId` handles.
-- `src/runtime/compile.ts` and `src/runtime/batch.ts` — compile visible
-  instances and group them into deterministic reusable-part batches for
-  renderer submission.
-- `src/scene-runtime/runtime.ts` — packed scene runtime: `createSceneRuntime(scene)`
-  compiles the scene into typed arrays with delta-oriented visibility updates
-  (see [[architecture/packed-runtime|Packed scene runtime]]).
+- `src/scene-runtime/` — the single packed scene compiler and runtime:
+  `createSceneRuntime(scene)` performs an iterative, deterministic depth-first
+  compile into typed arrays with delta-oriented visibility updates (see
+  [[architecture/packed-runtime|Packed scene runtime]]).
 - `src/interaction/interaction.ts` — immutable centralized selection, highlight,
   hover, and style override state with explicit precedence.
 - `src/camera/camera.ts` — immutable orbit camera math for perspective and
