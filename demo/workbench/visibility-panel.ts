@@ -10,6 +10,9 @@ import { visiblePartIdsForPreset, type ModelPreset } from "../fixture/presets";
 import type { ElementDisplayMode } from "../fixture/types";
 import { assemblyName } from "../visibility-tree";
 import { createBodyGroupAction, parseBodyIds } from "./body-controls";
+import type { VisibilityRowTarget } from "./tree-hover";
+import { installVisibilityTreeHover } from "./tree-hover-events";
+import { visibilityRowLabel } from "./visibility-row";
 
 export type BodyAction = "highlight" | "color";
 
@@ -35,6 +38,7 @@ export interface VisibilityPanelOptions {
   readonly onBodyAction: (instanceId: InstanceId, bodyId: BodyId, action: BodyAction) => void;
   readonly onInstanceVisibility: (instanceId: InstanceId, visible: boolean) => void;
   readonly onAssemblyVisibility: (nodeId: AssemblyNodeId, visible: boolean) => void;
+  readonly onTreeHover?: (target: VisibilityRowTarget | undefined) => void;
 }
 
 /** Builds and synchronizes the expanded assembly/part visibility tree. */
@@ -60,10 +64,14 @@ export class VisibilityPanelController {
       },
       { signal },
     );
+    if (this.options.onTreeHover !== undefined) {
+      installVisibilityTreeHover(this.options.panel, signal, this.options.onTreeHover);
+    }
   }
 
   rebuild(): void {
     const { panel } = this.options;
+    this.options.onTreeHover?.(undefined);
     const preset = this.options.getPreset();
     panel.textContent = "";
     const rootAssemblyId = preset.scene.rootAssemblyId;
@@ -205,6 +213,8 @@ export class VisibilityPanelController {
     branch.className = "visibility-branch";
     const row = document.createElement("div");
     row.className = "visibility-row visibility-assembly";
+    row.dataset["visibilityTargetKind"] = "assembly";
+    row.dataset["visibilityTargetNodeId"] = nodeId;
     const expander = document.createElement("button");
     expander.type = "button";
     expander.className = "visibility-expander";
@@ -228,7 +238,13 @@ export class VisibilityPanelController {
     });
     row.append(
       expander,
-      this.rowLabel("assembly-node", nodeId, displayName, undefined, this.nodeDisplayId(nodeId)),
+      visibilityRowLabel(
+        "assembly-node",
+        nodeId,
+        displayName,
+        undefined,
+        this.nodeDisplayId(nodeId),
+      ),
     );
     branch.append(row, children);
     return branch;
@@ -246,6 +262,8 @@ export class VisibilityPanelController {
     const repeated = siblings.filter((item) => runtime.getPartId(item) === partId).length > 1;
     const row = document.createElement("div");
     row.className = "visibility-row visibility-part";
+    row.dataset["visibilityTargetKind"] = "instance";
+    row.dataset["visibilityTargetInstanceId"] = instanceId;
     const spacer = document.createElement("span");
     spacer.className = "visibility-spacer";
     spacer.setAttribute("aria-hidden", "true");
@@ -254,7 +272,7 @@ export class VisibilityPanelController {
     const bodies = part?.geometry.bodies ?? [];
     row.append(
       spacer,
-      this.rowLabel(
+      visibilityRowLabel(
         "instance",
         instanceId,
         repeated ? `${name} ${index}` : name,
@@ -284,6 +302,9 @@ export class VisibilityPanelController {
     const displayId = this.instanceDisplayId(instanceId);
     const row = document.createElement("div");
     row.className = "visibility-row visibility-body";
+    row.dataset["visibilityTargetKind"] = "body";
+    row.dataset["visibilityTargetInstanceId"] = instanceId;
+    row.dataset["visibilityTargetBodyId"] = String(body.id);
     const spacer = document.createElement("span");
     spacer.className = "visibility-spacer visibility-body-spacer";
     spacer.setAttribute("aria-hidden", "true");
@@ -351,39 +372,6 @@ export class VisibilityPanelController {
     return total > 1 ? `${name} ${occurrence}` : name;
   }
 
-  private rowLabel(
-    kind: "part" | "assembly-node" | "instance",
-    id: string | number,
-    name: string,
-    badgeText?: "Part",
-    testId = id,
-  ): HTMLLabelElement {
-    const label = document.createElement("label");
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    if (kind === "part") {
-      input.dataset["partId"] = String(id);
-      input.dataset["testid"] = `part-vis-${id}`;
-    } else if (kind === "assembly-node") {
-      input.dataset["assemblyNodeId"] = String(id);
-      input.dataset["testid"] = `assembly-node-vis-${testId}`;
-    } else {
-      input.dataset["instanceId"] = String(id);
-      input.dataset["testid"] = `instance-vis-${testId}`;
-    }
-    label.append(input);
-    const badge = document.createElement("span");
-    badge.className = "visibility-kind";
-    badge.textContent =
-      badgeText ?? (kind === "part" ? "Part" : kind === "assembly-node" ? "Assembly" : "Instance");
-    label.append(badge);
-    const text = document.createElement("span");
-    text.className = "visibility-label";
-    text.textContent = name;
-    label.append(text);
-    return label;
-  }
-
   private instanceVisible(runtime: SceneRuntime, instanceId: InstanceId | undefined): boolean {
     return instanceId !== undefined && runtime.isInstanceVisible(instanceId);
   }
@@ -398,6 +386,7 @@ export class VisibilityPanelController {
 
   private toggleExpanded(expander: HTMLButtonElement, children: HTMLElement, name: string): void {
     const expanded = children.hidden;
+    if (!expanded) this.options.onTreeHover?.(undefined);
     children.hidden = !expanded;
     expander.setAttribute("aria-expanded", String(expanded));
     expander.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} ${name}`);

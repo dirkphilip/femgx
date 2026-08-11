@@ -78,6 +78,7 @@ export {
   resolveBodyStyle,
   resolveElementStyle,
   resolveInstanceStyle,
+  setElementHighlighted,
   setElementOverride,
   setElementSelected,
   setHoveredElement,
@@ -94,6 +95,13 @@ export {
   type ResolvedStyle,
   type StyleOverride,
 } from "./interaction/interaction";
+export {
+  clearSelection,
+  setTargetHighlighted,
+  setTargetsHighlighted,
+  setTargetSelected,
+  type InteractionTarget,
+} from "./interaction/targets";
 export {
   emphasizedBodyRefs,
   isBodyEmphasized,

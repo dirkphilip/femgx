@@ -1,10 +1,12 @@
 import {
   setPartOverride,
+  setTargetsHighlighted,
   setProjection,
   fitCamera,
   type Camera,
   type InteractionState,
   type FemViewport,
+  type InteractionTarget,
   type SceneRuntime,
 } from "../src/index";
 import { visiblePartIdsForPreset, type ModelPreset } from "./fixture/presets";
@@ -23,6 +25,7 @@ import {
 import { WorkbenchPresentation } from "./workbench/presentation";
 import { WorkbenchVisibilityActions } from "./workbench/visibility-actions";
 import { createPresetInteraction, partStyleOverride } from "./workbench/preset";
+import { interactionTargetsForRow, type VisibilityRowTarget } from "./workbench/tree-hover";
 import {
   createDefaultDisplayToggles,
   type DisplayToggles,
@@ -59,6 +62,7 @@ export class WorkbenchController {
   private readonly presentation: WorkbenchPresentation;
   private depthTestEnabled = true;
   private dragging = false;
+  private treeHoverTargets: readonly InteractionTarget[] = [];
   private disposed = false;
 
   constructor(options: WorkbenchOptions) {
@@ -84,7 +88,7 @@ export class WorkbenchController {
       },
       applyInteraction: (interaction) => {
         this.interaction = interaction;
-        this.viewport.setInteraction(interaction);
+        this.applyDisplayedInteraction();
       },
       syncPanel: () => {
         this.visibilityPanel.sync();
@@ -124,6 +128,9 @@ export class WorkbenchController {
       },
       onAssemblyVisibility: (nodeId, visible) => {
         this.visibilityActions.setAssemblyNode(nodeId, visible);
+      },
+      onTreeHover: (target) => {
+        this.setTreeHover(target);
       },
     };
     this.visibilityPanel = new VisibilityPanelController(visibilityOptions);
@@ -183,6 +190,7 @@ export class WorkbenchController {
   /** Reattaches the presentation shell after the e2e lifecycle seam recreates the viewport. */
   setViewport(viewport: FemViewport): void {
     this.viewport = viewport;
+    this.treeHoverTargets = [];
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
     this.applyModeVisibility();
@@ -212,6 +220,7 @@ export class WorkbenchController {
     const preset = this.presets.find((candidate) => candidate.id === id);
     if (preset === undefined) return;
     this.preset = preset;
+    this.treeHoverTargets = [];
     this.mode = "solid";
     this.toggles = createDefaultDisplayToggles();
     this.resultMode = preset.results === undefined ? "base" : "deformed";
@@ -287,6 +296,7 @@ export class WorkbenchController {
 
   /** Restores the complete initial workbench state for the active preset. */
   reset(): void {
+    this.treeHoverTargets = [];
     this.mode = "solid";
     this.toggles = createDefaultDisplayToggles();
     this.depthTestEnabled = true;
@@ -320,6 +330,7 @@ export class WorkbenchController {
   destroy(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.treeHoverTargets = [];
     this.listenerController.abort();
     this.interactionController.destroy();
     this.viewport.destroy();
@@ -406,7 +417,7 @@ export class WorkbenchController {
       );
     }
     this.interaction = state;
-    this.viewport.setInteraction(state);
+    this.applyDisplayedInteraction();
     this.viewport.setEdgeDepthTest(this.depthTestEnabled);
     this.viewport.setNodeOverlay(this.toggles.nodes);
     this.reflectDisplayControls();
@@ -418,6 +429,18 @@ export class WorkbenchController {
     this.presentation.reflectNodes();
     this.presentation.reflectResults();
     this.presentation.reflectDepthTest(this.depthTestEnabled);
+  }
+
+  private setTreeHover(target: VisibilityRowTarget | undefined): void {
+    this.treeHoverTargets =
+      target === undefined ? [] : interactionTargetsForRow(this.runtime, target);
+    this.render();
+  }
+
+  private applyDisplayedInteraction(): void {
+    this.viewport.setInteraction(
+      setTargetsHighlighted(this.interaction, this.treeHoverTargets, true),
+    );
   }
 
   private applyMenuAction(action: string): void {
@@ -460,7 +483,7 @@ export class WorkbenchController {
   /** Re-draws the current state and refreshes the status line and datasets. */
   render(): void {
     if (this.disposed) return;
-    this.viewport.setInteraction(this.interaction);
+    this.applyDisplayedInteraction();
     this.syncViewportPresentation();
   }
 

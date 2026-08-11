@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createPart } from "../../src/geometry/part";
 import {
   createInteractionState,
+  setElementHighlighted,
   setElementSelected,
   setInstanceOverride,
   setInstanceSelected,
@@ -122,6 +123,14 @@ describe("changedInstanceSlots", () => {
     state = setNodeSelected(state, { instanceId: "1/0", nodeId: 0 }, true);
     state = setFaceHighlighted(state, { instanceId: "1/0", elementId: 0, faceKey: "0,1,2" }, true);
     expect(changedInstanceSlots(rt, empty, state)).toEqual([]);
+  });
+
+  it("marks an element highlight's owning instance slot dirty", () => {
+    const rt = runtime();
+    const empty = createInteractionState();
+    const highlighted = setElementHighlighted(empty, { instanceId: "1/3", elementId: 0 }, true);
+    expect(changedInstanceSlots(rt, empty, highlighted)).toEqual([3]);
+    expect(changedInstanceSlots(rt, highlighted, empty)).toEqual([3]);
   });
 
   it("ignores stale instance handles from a previous preset", () => {

@@ -110,7 +110,7 @@ function targetLabel(target: SelectTarget): string {
     case "node":
       return `Node ${target.nodeId}`;
     case "face":
-      return `Face ${target.faceKey}`;
+      return `Face ${target.key}`;
     case "element":
       return `Element ${target.elementId}`;
     case "instance":

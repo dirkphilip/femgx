@@ -110,6 +110,9 @@ const { createScene, createFemViewport, createResultField } = require("femgx");
 - `createSceneRuntime()` is an advanced stable-handle runtime boundary; most hosts
   should let `createFemViewport()` own the derived runtime.
 - `createInteractionState()` manages selection, highlight, hover, and style overrides.
+- `InteractionTarget`, `setTargetSelected()`, and `setTargetHighlighted()` provide
+  immutable dispatch for any part, instance, body, element, face, or node identity;
+  `clearSelection()` preserves non-selection state.
 - `createCamera()` supports perspective/orthographic projection, orbit, pan, zoom, and resize.
 - `createWebGpuRenderer()` uploads geometry once, renders instanced batches, applies styles,
   and exposes asynchronous `pick(x, y)` and exact-surface `pickPoint(camera, x, y)` readback.

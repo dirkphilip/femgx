@@ -8,8 +8,10 @@ import type { PackedSceneRuntime } from "../scene-runtime/runtime";
  * state moves from `previous` to `next`, so the viewport can feed exactly
  * those slots to `WebGpuRenderer.updateInstances` instead of rescanning the
  * whole runtime. Body-, element-, node-, and face-level emphasis is
- * intentionally excluded: it flows through `updateElements`, which diffs its
- * own buffers.
+ * Most element-, node-, and face-level emphasis is intentionally excluded: it
+ * flows through `updateElements`, which diffs its own buffers. Element
+ * highlights also mark their owning slot here so consumers can observe the
+ * complete interaction transition through the instance diff.
  *
  * Slots are returned in ascending order with no duplicates.
  */
@@ -60,11 +62,31 @@ export function changedInstanceSlots(
   diffSetMembers(previous.highlightedInstanceIds, next.highlightedInstanceIds, addInstance);
   diffSetMembers(previous.selectedInstanceIds, next.selectedInstanceIds, addInstance);
   diffOverrideKeys(previous.instanceOverrides, next.instanceOverrides, addInstance);
+  diffNestedSetMembers(previous.highlightedElementIds, next.highlightedElementIds, addInstance);
   if (previous.hoveredInstanceId !== next.hoveredInstanceId) {
     addInstance(previous.hoveredInstanceId);
     addInstance(next.hoveredInstanceId);
   }
   return Array.from(changed).sort((a, b) => a - b);
+}
+
+function diffNestedSetMembers<OuterKey, InnerKey>(
+  previous: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
+  next: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
+  visit: (value: OuterKey) => void,
+): void {
+  for (const [outerKey, values] of previous) {
+    const nextValues = next.get(outerKey);
+    if (nextValues === undefined || [...values].some((value) => !nextValues.has(value))) {
+      visit(outerKey);
+    }
+  }
+  for (const [outerKey, values] of next) {
+    const previousValues = previous.get(outerKey);
+    if (previousValues === undefined || [...values].some((value) => !previousValues.has(value))) {
+      visit(outerKey);
+    }
+  }
 }
 
 function diffSetMembers<T>(

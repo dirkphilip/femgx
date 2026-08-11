@@ -313,6 +313,48 @@ test("exposes assembly occurrence and direct-part identity in the tree", async (
   await expect(page.getByTestId("instance-vis-0")).toHaveAttribute("data-instance-id", "1/0/0");
 });
 
+test("temporarily highlights exact tree occurrences without changing selection", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node GPU picking must resolve before tree-hover assertions",
+  );
+  await page.mouse.click(hit.x, hit.y);
+  const selected = await dataset(page, "selected");
+  const baseline = await canvas.screenshot();
+  const visibility = page.getByTestId("visibility-panel");
+  const firstOccurrence = visibility
+    .getByTestId("assembly-node-vis-3")
+    .locator("xpath=ancestor::div[contains(@class, 'visibility-row')]");
+  const secondOccurrence = visibility
+    .getByTestId("assembly-node-vis-4")
+    .locator("xpath=ancestor::div[contains(@class, 'visibility-row')]");
+  await firstOccurrence.hover();
+  await expect
+    .poll(async () => Buffer.compare(baseline, await canvas.screenshot()) !== 0)
+    .toBe(true);
+  const firstHighlight = await canvas.screenshot();
+  expect(await dataset(page, "selected")).toBe(selected);
+
+  await secondOccurrence.hover();
+  await expect
+    .poll(async () => Buffer.compare(firstHighlight, await canvas.screenshot()) !== 0)
+    .toBe(true);
+  expect(await dataset(page, "selected")).toBe(selected);
+
+  await visibility.getByTestId("visibility-context").hover();
+  await expect
+    .poll(async () => Buffer.compare(baseline, await canvas.screenshot()) === 0)
+    .toBe(true);
+  expect(await dataset(page, "selected")).toBe(selected);
+});
+
 test("hides the plate stack through the assembly tree", async ({ page }) => {
   await page.goto("/");
   expect(await status(page)).toContain("34 visible");

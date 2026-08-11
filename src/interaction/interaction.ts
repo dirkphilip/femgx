@@ -64,6 +64,7 @@ export interface InteractionState {
   readonly bodyOverrides: ReadonlyMap<InstanceId, ReadonlyMap<BodyId, StyleOverride>>;
   readonly hiddenBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
   readonly selectedElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
+  readonly highlightedElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
   readonly hoveredElement?: ElementRef;
   readonly elementOverrides: ReadonlyMap<InstanceId, ReadonlyMap<ElementId, StyleOverride>>;
   readonly partOverrides: ReadonlyMap<PartId, StyleOverride>;
@@ -99,6 +100,7 @@ export function createInteractionState(theme: InteractionTheme = defaultTheme): 
     bodyOverrides: new Map(),
     hiddenBodyIds: new Map(),
     selectedElementIds: new Map(),
+    highlightedElementIds: new Map(),
     elementOverrides: new Map(),
     partOverrides: new Map(),
     instanceOverrides: new Map(),
@@ -175,6 +177,22 @@ export function setElementSelected(
   );
   if (selectedElementIds === state.selectedElementIds) return state;
   return { ...state, selectedElementIds };
+}
+
+/** Sets or clears an element highlight without mutating the previous state. */
+export function setElementHighlighted(
+  state: InteractionState,
+  ref: ElementRef,
+  highlighted: boolean,
+): InteractionState {
+  const highlightedElementIds = updateNestedSet(
+    state.highlightedElementIds,
+    ref.instanceId,
+    ref.elementId,
+    highlighted,
+  );
+  if (highlightedElementIds === state.highlightedElementIds) return state;
+  return { ...state, highlightedElementIds };
 }
 
 /** Sets the currently hovered element, or clears hover with `undefined`. */
@@ -273,9 +291,10 @@ export function resolveBodyStyle(
 
 /**
  * Resolves the style of one element occurrence. Element-level state is more
- * specific than part/instance state, so element hover, element selection, and
- * explicit element overrides win over `resolveInstanceStyle` results. Within
- * the element level, selection beats hover and explicit overrides win last.
+ * specific than part/instance state, so element highlight, element hover,
+ * element selection, and explicit element overrides win over
+ * `resolveInstanceStyle` results. Within the element level, selection beats
+ * hover and explicit overrides win last.
  */
 export function resolveElementStyle(
   instance: Instance,
@@ -289,6 +308,9 @@ export function resolveElementStyle(
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
   return applyStyleLayers(style, [
+    state.highlightedElementIds.get(instance.instanceId)?.has(elementId) === true
+      ? state.theme.highlighted
+      : undefined,
     sameRef(state.hoveredElement, { instanceId: instance.instanceId, elementId }, (value) => [
       value.instanceId,
       value.elementId,
@@ -304,7 +326,7 @@ export function resolveElementStyle(
 
 /**
  * Collects every element occurrence that currently carries element-level
- * emphasis (hovered, selected, or explicitly overridden), in deterministic
+ * emphasis (highlighted, hovered, selected, or explicitly overridden), in deterministic
  * order with no duplicates.
  */
 export function emphasizedElementRefs(state: InteractionState): readonly ElementRef[] {
@@ -312,6 +334,9 @@ export function emphasizedElementRefs(state: InteractionState): readonly Element
     state.hoveredElement,
     (ref) => `${ref.instanceId}/${ref.elementId}`,
     (push) => {
+      for (const [instanceId, ids] of state.highlightedElementIds) {
+        for (const elementId of sortedNumbers(ids)) push({ instanceId, elementId });
+      }
       for (const [instanceId, ids] of state.selectedElementIds) {
         for (const elementId of sortedNumbers(ids)) push({ instanceId, elementId });
       }

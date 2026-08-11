@@ -39,13 +39,13 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 
 ## Interaction state and precedence
 
-- `InteractionState` adds `selectedElementIds` (per instance), `hoveredElement`,
-  and `elementOverrides`.
+- `InteractionState` adds `highlightedElementIds` and `selectedElementIds` (per
+  instance), `hoveredElement`, and `elementOverrides`.
 - `resolveElementStyle` resolves the instance style first, then applies element
-  hover, element selection, then an explicit element override. Element state
+  highlight, hover, selection, and an explicit element override. Element state
   beats instance/part state; selection beats hover; explicit overrides win last.
-- `emphasizedElementRefs` collects every emphasized occurrence (hovered,
-  selected, or overridden) in deterministic order with no duplicates.
+- `emphasizedElementRefs` collects every emphasized occurrence (highlighted,
+  hovered, selected, or overridden) in deterministic order with no duplicates.
 
 ## GPU emphasis without material clones
 

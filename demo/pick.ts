@@ -1,31 +1,12 @@
-import type { BodyId, ElementId, FaceKey, InstanceId, PartId, PickTarget } from "../src/index";
+import type { BodyId, InstanceId, InteractionTarget, PartId, PickTarget } from "../src/index";
 
 /** The interaction granularity a modifier key can select at. */
 export type PickLevel = "node" | "face" | "element" | "instance" | "part";
 
 /** A stable selection identity at any supported granularity. */
-export type SelectTarget =
-  | {
-      readonly kind: "node";
-      readonly instanceId: InstanceId;
-      readonly nodeId: number;
-      readonly bodyId?: BodyId;
-    }
-  | {
-      readonly kind: "face";
-      readonly instanceId: InstanceId;
-      readonly elementId: ElementId;
-      readonly faceKey: FaceKey;
-      readonly bodyId?: BodyId;
-    }
-  | {
-      readonly kind: "element";
-      readonly instanceId: InstanceId;
-      readonly elementId: ElementId;
-      readonly bodyId?: BodyId;
-    }
-  | { readonly kind: "instance"; readonly instanceId: InstanceId }
-  | { readonly kind: "part"; readonly partId: PartId };
+export type SelectTarget = Exclude<InteractionTarget, { readonly kind: "body" }> & {
+  readonly bodyId?: BodyId;
+};
 
 /** Resolves an instance id to its part id for inspection and target labeling. */
 export type PartIdForInstance = (instanceId: InstanceId) => PartId | undefined;
@@ -89,7 +70,7 @@ export function selectTarget(
       kind: "face",
       instanceId: hit.instanceId,
       elementId: hit.elementId,
-      faceKey: hit.key,
+      key: hit.key,
       ...optionalBodyId(hit.bodyId),
     };
   }
@@ -118,9 +99,7 @@ export function targetKey(target: PickTarget | SelectTarget | undefined): string
     case "node":
       return `n:${target.instanceId}:${target.nodeId}`;
     case "face":
-      return "key" in target
-        ? `f:${target.instanceId}:${target.elementId}:${target.key}`
-        : `f:${target.instanceId}:${target.elementId}:${target.faceKey}`;
+      return `f:${target.instanceId}:${target.elementId}:${target.key}`;
     case "element":
       return `e:${target.instanceId}:${target.elementId}`;
     case "instance":
