@@ -106,6 +106,31 @@ function visiblePixelCount(rgba: Buffer, threshold = 32): number {
   return count;
 }
 
+/** Measures the central luminance spread across pixels changed by selection. */
+function selectedLuminanceSpread(baseline: Buffer, selected: Buffer): number {
+  const luminances: number[] = [];
+  const length = Math.min(baseline.length, selected.length);
+  for (let index = 0; index + 2 < length; index += 4) {
+    const red = selected[index] ?? 0;
+    const green = selected[index + 1] ?? 0;
+    const blue = selected[index + 2] ?? 0;
+    const change =
+      Math.abs(red - (baseline[index] ?? 0)) +
+      Math.abs(green - (baseline[index + 1] ?? 0)) +
+      Math.abs(blue - (baseline[index + 2] ?? 0));
+    if (change < 30 || red + green + blue < 180) continue;
+    luminances.push(red * 0.2126 + green * 0.7152 + blue * 0.0722);
+  }
+  expect(
+    luminances.length,
+    "selected volume should cover representative surface pixels",
+  ).toBeGreaterThan(200);
+  luminances.sort((a, b) => a - b);
+  const low = luminances[Math.floor(luminances.length * 0.1)] ?? 0;
+  const high = luminances[Math.floor(luminances.length * 0.9)] ?? 0;
+  return high - low;
+}
+
 /** Node-on vs node-off pixel contribution for the current camera. */
 async function nodeContribution(page: Page): Promise<number> {
   const canvas = page.getByTestId("view-canvas");
@@ -611,9 +636,16 @@ test("renders a distinct edge-overlay frame", async ({ page }) => {
   expect(edge.equals(solid), "edge mode must render different pixels than solid").toBe(false);
 });
 
-test("renders selection feedback as a stable pixel change", async ({ page }) => {
+test("keeps selected volume faces lit, distinct, and reversible with overlays", async ({
+  page,
+}) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("model-select").selectOption("results");
+  await expect(canvas).toHaveAttribute("data-model", "results");
+  await page.getByTestId("results-toggle").click();
+  await expect(page.getByTestId("results-label")).toHaveText("base");
+  await dragCamera(page, canvas, { x: 64, y: 24 });
   const hoverPoint = await sweepForHit(page, canvas, {
     attribute: "hovered",
     settleMs: 150,
@@ -626,9 +658,14 @@ test("renders selection feedback as a stable pixel change", async ({ page }) => 
 
   await clearHover(page, canvas);
   const before = await stableCanvasPixels(page, canvas);
+  const baselineRgba = await canvasRgba(page, canvas);
+  await page.keyboard.down("Shift");
   await page.mouse.click(hoverPoint.x, hoverPoint.y);
-  await expect.poll(() => canvas.getAttribute("data-selected")).not.toBe("");
+  await page.keyboard.up("Shift");
+  await expect.poll(() => canvas.getAttribute("data-selected")).toMatch(/^e:/);
+  await clearHover(page, canvas);
   const selected = await stableCanvasPixels(page, canvas);
+  const selectedRgba = await canvasRgba(page, canvas);
 
   expect(selected.equals(before), "selecting an instance must change the rendered pixels").toBe(
     false,
@@ -637,6 +674,36 @@ test("renders selection feedback as a stable pixel change", async ({ page }) => 
     (await stableCanvasPixels(page, canvas)).equals(selected),
     "the selected state must render deterministically",
   ).toBe(true);
+  expect(
+    selectedLuminanceSpread(baselineRgba, selectedRgba),
+    "differently oriented selected volume faces must retain useful lighting contrast",
+  ).toBeGreaterThan(18);
+
+  await page.keyboard.down("Shift");
+  await page.mouse.click(hoverPoint.x, hoverPoint.y);
+  await page.keyboard.up("Shift");
+  await expect.poll(() => canvas.getAttribute("data-selected")).toBe("");
+  await clearHover(page, canvas);
+  expect(
+    (await stableCanvasPixels(page, canvas)).equals(before),
+    "deselection must restore the ordinary surface appearance",
+  ).toBe(true);
+
+  await page.getByTestId("edge-overlay").click();
+  await page.getByTestId("node-overlay").click();
+  await expect(page.getByTestId("edge-overlay-label")).toHaveText("On");
+  await expect(page.getByTestId("node-overlay-label")).toHaveText("On");
+  const overlaid = await stableCanvasPixels(page, canvas);
+  await page.keyboard.down("Shift");
+  await page.mouse.click(hoverPoint.x, hoverPoint.y);
+  await page.keyboard.up("Shift");
+  await expect.poll(() => canvas.getAttribute("data-selected")).toMatch(/^e:/);
+  await clearHover(page, canvas);
+  const selectedOverlaid = await stableCanvasPixels(page, canvas);
+  expect(
+    differingPixelCount(overlaid, selectedOverlaid),
+    "selected volume must remain clear when edges and nodes are enabled",
+  ).toBeGreaterThan(200);
 });
 
 test("exposes body visibility, color, and highlight controls", async ({ page }) => {
