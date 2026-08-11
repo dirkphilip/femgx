@@ -10,18 +10,18 @@ controller, so camera and interaction behavior is stable
 
 ## Model presets
 
-- `demo/fixture/presets.ts` builds deterministic models from fixed data: the
-  **bolted plate assembly**, the imported **VTK sample block**, the complete
-  **element gallery**, and a linearly tessellated **Hex20 cylinder**. Every preset is derived
-  from fixed data, so the demo and tests share identical structure.
+- `demo/fixture/presets.ts` builds exactly five deterministic product stories from fixed data:
+  the **bolted plate assembly**, imported **VTK sample**, **supported element gallery**,
+  linearly tessellated **Hex20 cylinder**, and **static results** workflow. Every preset is
+  derived from fixed data, so the demo and tests share identical structure.
 - Each preset carries `elementModels` (per-part element topology used for
   node/face picking and emphasis), a part theme, per-mode part visibility, and
   overall bounds. The demo's model `<select>` switches presets without editing
   source.
 - `demo/fixture/performance-fixture.ts` owns a demo-only stress scenario rather than
   extending the library: one generated 128 × 128 shell is instanced 64 times
-  for exactly 2,097,152 triangles. The live scene overlay reports total
-  triangles, sampled frame rate, and draw batches from the normal WebGPU path.
+  for exactly 2,097,152 triangles. The opt-in benchmark lane consumes it directly;
+  it is not an ordinary product story or live-demo measurement loop.
 
 ## GPU picking
 

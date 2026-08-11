@@ -23,7 +23,6 @@ export interface DemoView {
   readonly visibilityPanel: HTMLElement;
   readonly inspectionPanel: HTMLElement;
   readonly statsPanel: HTMLElement;
-  readonly performanceOverlay: HTMLElement;
   readonly contextMenu: HTMLElement;
 }
 
@@ -61,7 +60,6 @@ export function queryDemoView(): DemoView {
   const visibilityPanel = document.querySelector<HTMLElement>("#visibility-panel");
   const inspectionPanel = document.querySelector<HTMLElement>("#inspection-panel");
   const statsPanel = document.querySelector<HTMLElement>("#stats-panel");
-  const performanceOverlay = document.querySelector<HTMLElement>("#performance-overlay");
   const contextMenu = document.querySelector<HTMLElement>("#context-menu");
   if (
     canvas === null ||
@@ -84,7 +82,6 @@ export function queryDemoView(): DemoView {
     visibilityPanel === null ||
     inspectionPanel === null ||
     statsPanel === null ||
-    performanceOverlay === null ||
     contextMenu === null
   ) {
     throw new Error("missing demo controls");
@@ -110,7 +107,6 @@ export function queryDemoView(): DemoView {
     visibilityPanel,
     inspectionPanel,
     statsPanel,
-    performanceOverlay,
     contextMenu,
   };
 }
