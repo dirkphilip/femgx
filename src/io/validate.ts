@@ -26,6 +26,13 @@ export function validateModel(model: FemModel): readonly Issue[] {
 }
 
 function validateNodes(model: FemModel, nodeIds: Set<NodeId>, issues: Issue[]): void {
+  if (model.nodes.ids.length !== model.nodes.count) {
+    issues.push({
+      code: "node-table-shape",
+      severity: "error",
+      message: `Node table holds ${model.nodes.ids.length} ids for ${model.nodes.count} nodes`,
+    });
+  }
   for (const id of model.nodes.ids) {
     if (nodeIds.has(id)) {
       issues.push({

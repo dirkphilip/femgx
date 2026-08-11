@@ -7,6 +7,7 @@ import { createParseSession } from "../../src/io/session";
 import { createVtkState } from "../../src/io/vtk";
 import { readCellsLine, readCellTypesLine } from "../../src/io/vtk-cells";
 import { HEX8_SHAPE, QUAD_SHAPE, TET4_SHAPE, TRIANGLE_SHAPE } from "../../src/elements/shapes";
+import { VtkWriteError } from "../../src/io/diagnostics";
 
 const TET_VTK = [
   "# vtk DataFile Version 5.0",
@@ -367,21 +368,56 @@ describe("writeVtk", () => {
     expect(writeVtk(model)).toBe(writeVtk(model));
   });
 
-  it("skips results whose ids are not the contiguous entity sequence", () => {
+  it("remaps non-dense node ids and preserves complete result associations", () => {
     const builder = createModelBuilder();
     builder.appendNodes([10, 20], [0, 0, 0, 1, 0, 0]);
     builder.addResult({
       name: "temp",
       location: "node",
       components: 1,
-      ids: new Uint32Array([10, 20]),
-      values: new Float64Array([1, 2]),
+      ids: new Uint32Array([20, 10]),
+      values: new Float64Array([2, 1]),
     });
     const written = writeVtk(builder.build());
-    expect(written).not.toContain("POINT_DATA");
+    expect(written).toContain("POINT_DATA 2");
+    const parsed = parseVtk(written);
+    expect(parsed.issues).toEqual([]);
+    expect([...required(parsed.model.results[0]).values]).toEqual([1, 2]);
   });
 
-  it("writes vector results and skips other component counts", () => {
+  it("remaps non-dense connectivity without changing coordinate row order", () => {
+    const builder = createModelBuilder();
+    builder.appendNodes([20, 10, 30], [20, 0, 0, 10, 0, 0, 30, 0, 0]);
+    builder.openElementBlock(TRIANGLE_SHAPE);
+    builder.appendElements([40], [10, 20, 30]);
+
+    const parsed = parseVtk(writeVtk(builder.build()));
+    expect(parsed.issues).toEqual([]);
+    expect([...parsed.model.nodes.coordinates]).toEqual([20, 0, 0, 10, 0, 0, 30, 0, 0]);
+    expect([...required(parsed.model.elementBlocks[0]).connectivity]).toEqual([1, 0, 2]);
+  });
+
+  it("reorders element results to the authored block and row cell order", () => {
+    const builder = createModelBuilder();
+    builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
+    builder.openElementBlock(TRIANGLE_SHAPE);
+    builder.appendElements([20], [0, 1, 2]);
+    builder.openElementBlock(TRIANGLE_SHAPE);
+    builder.appendElements([10], [0, 1, 2]);
+    builder.addResult({
+      name: "stress",
+      location: "element",
+      components: 1,
+      ids: new Uint32Array([10, 20]),
+      values: new Float64Array([10, 20]),
+    });
+
+    const parsed = parseVtk(writeVtk(builder.build()));
+    expect(parsed.issues).toEqual([]);
+    expect([...required(parsed.model.results[0]).values]).toEqual([20, 10]);
+  });
+
+  it("writes vector results and rejects unsupported component counts", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1], [0, 0, 0, 1, 0, 0]);
     builder.addResult({
@@ -398,8 +434,76 @@ describe("writeVtk", () => {
       ids: new Uint32Array([0, 1]),
       values: new Float64Array(18),
     });
-    const written = writeVtk(builder.build());
+    const model = builder.build();
+    const vector = model.results[0];
+    if (vector === undefined) throw new Error("expected vector result");
+    const written = writeVtk({ ...model, results: [vector] });
     expect(written).toContain("VECTORS velocity double");
-    expect(written).not.toContain("tensor");
+    expect(() => writeVtk(model)).toThrow(
+      expect.objectContaining({
+        name: "VtkWriteError",
+        code: "unsupported-writer-state",
+      }),
+    );
+  });
+
+  it("rejects invalid models before producing output", () => {
+    const builder = createModelBuilder();
+    builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
+    builder.openElementBlock(TRIANGLE_SHAPE);
+    builder.appendElements([1], [0, 1, 99]);
+    expect(() => writeVtk(builder.build())).toThrow(
+      expect.objectContaining({ name: "VtkWriteError", code: "invalid-model" }),
+    );
+  });
+
+  it("reports duplicate authoritative node ids through the typed writer error", () => {
+    const builder = createModelBuilder();
+    builder.appendNodes([0, 0, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
+    builder.openElementBlock(TRIANGLE_SHAPE);
+    builder.appendElements([1], [0, 0, 2]);
+    try {
+      writeVtk(builder.build());
+      throw new Error("expected VtkWriteError");
+    } catch (error) {
+      expect(error).toBeInstanceOf(VtkWriteError);
+      expect((error as VtkWriteError).issues.map((issue) => issue.code)).toContain(
+        "duplicate-node-id",
+      );
+    }
+  });
+
+  it.each([
+    ["duplicate", new Uint32Array([0, 0]), "duplicate-result-identity"],
+    ["partial", new Uint32Array([0]), "incomplete-result-coverage"],
+    ["extra", new Uint32Array([0, 1, 2]), "incomplete-result-coverage"],
+  ] as const)("rejects %s result identity coverage", (_name, ids, code) => {
+    const builder = createModelBuilder();
+    builder.appendNodes([0, 1], [0, 0, 0, 1, 0, 0]);
+    builder.addResult({
+      name: "temp",
+      location: "node",
+      components: 1,
+      ids,
+      values: new Float64Array(ids.length),
+    });
+    expect(() => writeVtk(builder.build())).toThrow(
+      expect.objectContaining({ name: "VtkWriteError", code }),
+    );
+  });
+
+  it("rejects non-finite result values instead of writing zero", () => {
+    const builder = createModelBuilder();
+    builder.appendNodes([0], [0, 0, 0]);
+    builder.addResult({
+      name: "temp",
+      location: "node",
+      components: 1,
+      ids: new Uint32Array([0]),
+      values: new Float64Array([NaN]),
+    });
+    expect(() => writeVtk(builder.build())).toThrow(
+      expect.objectContaining({ name: "VtkWriteError", code: "unsupported-writer-state" }),
+    );
   });
 });
