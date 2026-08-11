@@ -147,9 +147,9 @@ See [[rendering/interaction-selection-menu|selection and view context menu]].
 - [x] Add stable body metadata and validated element membership to reusable
       part geometry (see [[architecture/bodies|Part bodies]]).
 
-- [x] Add a typed finite-element model with Core linear shapes and retained
-      deferred Tet10/Hex20 coverage, canonical VTK node ordering, and
-      connectivity validation (see [[data/elements-topology|Element topology]]).
+- [x] Add a typed finite-element model with the supported linear and quadratic
+      shapes, canonical VTK node ordering, and connectivity validation (see
+      [[data/elements-topology|Element topology]]).
 - [x] Extract oriented polygon faces (with quadratic mid-edge nodes) and unique
       element edges, with canonical-key deduplication and boundary/interior
       face classification (see [[data/elements-topology|Element topology]]).

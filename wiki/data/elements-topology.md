@@ -1,9 +1,9 @@
 # Element topology
 
 The `src/elements/` subsystem is the typed finite-element foundation for polygon
-extraction, renderer support, and element-level picking. Linear shapes are Core
-now; quadratic shapes are retained deferred coverage and must not grow without
-a product decision. The subsystem is pure CPU-side data with **no dependency on
+extraction, renderer support, and element-level picking. Point, Line, Line3,
+Triangle, Quad, Tet4, Tet10, Hex8, and Hex20 are Core now. The subsystem is pure
+CPU-side data with **no dependency on
 the renderer or WebGPU**.
 
 ## Model

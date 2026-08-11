@@ -13,8 +13,8 @@
 - [[rendering/fe-inspection-workbench|FE inspection workbench]] — the demo's
   model presets, GPU picking, shared workbench controller, and e2e
   coverage.
-- [[rendering/element-rendering|Element rendering]] — linear core tessellation
-  and retained deferred quadratic coverage.
+- [[rendering/element-rendering|Element rendering]] — core linear and quadratic
+  tessellation.
 - [[rendering/face-subsets|Face subsets]] — validated exterior or explicit
   element-face selection through compact GPU index orders.
 - [[rendering/interactive-state|Interactive state]] — centralized highlight,
