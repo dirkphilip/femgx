@@ -166,6 +166,13 @@ describe("product contract", () => {
     expect(agents).toMatch(/requirements\/product-scope/);
   });
 
+  it("AGENTS.md retains the invariant-driven ownership-boundary guidance", () => {
+    const agents = readFileSync(join(REPO_ROOT, "AGENTS.md"), "utf8");
+    expect(agents).toMatch(/engineering\/state-invariants/);
+    expect(agents).toMatch(/ownership boundaries/);
+    expect(agents).toMatch(/preserve documented invariants/);
+  });
+
   it("wiki/requirements/product-scope.md is the source-of-truth scope contract", () => {
     const scope = readFileSync(join(REPO_ROOT, "wiki/requirements/product-scope.md"), "utf8");
     expect(scope).toMatch(/source of truth for product scope/);

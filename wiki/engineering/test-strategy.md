@@ -42,6 +42,10 @@ does not gate correctness.
   improve runtime or reported coverage. New feature issues must add focused
   contract tests in the owning subsystem and update this inventory when they
   change the test surface.
+- Contract and regression tests should also protect the owning boundary's
+  documented invariants, including forbidden, boundary, inverse, and round-trip
+  paths where applicable; see [[engineering/state-invariants|Invariant-driven
+  state design]].
 
 Related: [[engineering/e2e-policy|E2E policy]],
 [[engineering/quality-gate|Quality gate]], and
@@ -49,4 +53,5 @@ Related: [[engineering/e2e-policy|E2E policy]],
 
 [engineering/e2e-policy|E2E policy]: e2e-policy.md
 [engineering/quality-gate|Quality gate]: quality-gate.md
+[engineering/state-invariants|Invariant-driven state design]: state-invariants.md
 [requirements/product-scope|Product scope]: ../requirements/product-scope.md
