@@ -9,6 +9,7 @@ import type { PartId } from "../../src/scene/types";
 import type { ViewportResultsConfig } from "../../src/viewport/results";
 import { createBoltedPlateFixture } from "./bolted-plate";
 import { createElementFixture, createHex20CylinderFixture } from "./element-fixture";
+import { createHeterogeneousFixture } from "./heterogeneous-fixture";
 import { createResultsPreset } from "./results-preset";
 import { createVtkFixture } from "./vtk-fixture";
 
@@ -70,6 +71,33 @@ export function createGalleryPreset(): ModelPreset {
       [partIds.tet10, "Tet10"],
       [partIds.hex8, "Hex8"],
       [partIds.hex20, "Hex20"],
+    ]),
+    modePartIds: fixture.modePartIds,
+    overlayPartIds: fixture.overlayPartIds,
+    defaultMode: fixture.defaultMode,
+    bounds: fixture.bounds,
+  };
+}
+
+/** Builds the recommended one-model heterogeneous linear-element workflow. */
+export function createHeterogeneousPreset(): ModelPreset {
+  const fixture = createHeterogeneousFixture();
+  const { triangle, line, point } = fixture.partIds;
+  return {
+    id: "heterogeneous",
+    name: "Heterogeneous linear model · grouped primitives",
+    scene: fixture.scene,
+    elementModels: fixture.elementModels,
+    partColors: new Map<PartId, Color>([
+      [triangle, { r: 0.28, g: 0.55, b: 0.95, a: 1 }],
+      [line, { r: 0.18, g: 0.78, b: 0.94, a: 1 }],
+      [point, { r: 0.98, g: 0.72, b: 0.2, a: 1 }],
+    ]),
+    fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
+    partNames: new Map<PartId, string>([
+      [triangle, "Triangle / quad / Tet4 / Hex8"],
+      [line, "Line elements"],
+      [point, "Point elements"],
     ]),
     modePartIds: fixture.modePartIds,
     overlayPartIds: fixture.overlayPartIds,
@@ -183,6 +211,7 @@ export function createModelPresets(): readonly ModelPreset[] {
   return [
     createBoltedPlatePreset(),
     createVtkPreset(),
+    createHeterogeneousPreset(),
     createGalleryPreset(),
     createHex20CylinderPreset(),
     createResultsPreset(),

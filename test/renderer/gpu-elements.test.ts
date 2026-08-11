@@ -92,6 +92,29 @@ describe("buildElementTrianglePickIds", () => {
       ),
     ).toEqual([0]);
   });
+
+  it("maps authored line segments and point sprites to their element ids", () => {
+    expect(
+      Array.from(
+        buildElementTrianglePickIds({
+          positions: new Float32Array(6),
+          indices: new Uint32Array([0, 1]),
+          primitive: "lines",
+          elements: [{ id: 4, primitiveStart: 0, primitiveCount: 1 }],
+        }),
+      ),
+    ).toEqual([5]);
+    expect(
+      Array.from(
+        buildElementTrianglePickIds({
+          positions: new Float32Array(12),
+          indices: new Uint32Array([0, 1, 2, 2, 1, 3]),
+          primitive: "points",
+          elements: [{ id: 8, primitiveStart: 0, primitiveCount: 1 }],
+        }),
+      ),
+    ).toEqual([9]);
+  });
 });
 
 describe("buildBodyTrianglePickIds", () => {

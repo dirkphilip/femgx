@@ -8,7 +8,8 @@ Related: [[data/elements-topology|Element topology]] and
 ## Pipeline
 
 1. `createElementModel` (`src/elements/model.ts`) validates a CPU-side model:
-   dense node ids plus typed elements (`src/elements/element.ts`).
+   dense node ids plus typed elements (`src/elements/element.ts`). Interchange
+   models use `createElementModelFromFemModel` for one validated conversion.
 2. `facesOf` / `classifyFaces` (`src/elements/faces.ts`) and `edgesOf` /
    `uniqueEdges` (`src/elements/edges.ts`) express each element's faces and
    edges in the element's own node ids. Face loops use the
@@ -27,12 +28,12 @@ Related: [[data/elements-topology|Element topology]] and
 
 Volume geometry (`solid`/`surface` triangles) carries an
 `ElementTessellation` per element — the contiguous triangle range it owns —
-so every triangle maps to its element id. The renderer turns these into
-per-triangle pick ids and highlight records, making elements selectable at the
-element level through GPU picking (see
-[[rendering/element-interaction|Element interaction]]). Line and point parts are
-instance-pickable only: the point-sprite shader never emits element ids, and
-the line pipeline shares the triangle element-map layout.
+so every triangle maps to its element id. Mixed models use the same metadata
+contract for line and point variants, with a logical primitive range instead of
+triangle fields (see [[rendering/heterogeneous-elements|Heterogeneous element
+parts]]). The renderer turns all ranges into per-primitive pick ids and
+highlight records, making elements and nodes selectable through GPU picking
+(see [[rendering/element-interaction|Element interaction]]).
 
 ## Render modes
 
@@ -58,6 +59,9 @@ Each element family supports a subset of modes (`elementRenderModes`):
   `devicePixelRatio` into device pixels so apparent size is stable across
   displays. The visible color path renders at 4× MSAA and resolves to the
   canvas, so mesh edges and line lists are antialiased.
+- Mixed builds keep triangle, line, and point topologies in explicit reusable
+  parts. They share source node and element identities without forcing
+  incompatible primitives into one draw.
 
 The gallery's `edges` mode is edges-only geometry switched in through part
 visibility. On top of that, a per-instance `edge` style override (see

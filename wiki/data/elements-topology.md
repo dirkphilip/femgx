@@ -16,6 +16,15 @@ the renderer or WebGPU**.
 - `createElement(id, shape, nodeIds)` — the validated constructor. It copies
   `nodeIds` so each element owns its connectivity.
 
+An `ElementModel` may contain any supported families in one ordered element
+list. `heterogeneousElementParts` is the render boundary that groups linear
+triangle/quad/Tet4/Hex8 geometry into one triangle part and emits explicit
+line/point parts without dropping source ids (see
+[[rendering/heterogeneous-elements|Heterogeneous element parts]]). A
+serializable `FemModel` can be converted once with
+`createElementModelFromFemModel`; its node ids must already be dense because
+the render model indexes coordinates directly.
+
 ## Shapes
 
 | Shape            | Family     | Order | Nodes | Corners | Mid-edge nodes |

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { createElementModel, type ElementModel } from "../../src/elements/model";
-import { TET4_SHAPE } from "../../src/elements/shapes";
+import { LINE_SHAPE, POINT_SHAPE, TET4_SHAPE } from "../../src/elements/shapes";
 import { elementGeometry } from "../../src/geometry/element-mesh";
+import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
 import { computeBounds, validatePickIds, type Geometry, type Part } from "../../src/geometry/part";
 import { identity, type Mat4 } from "../../src/math/mat4";
 import {
@@ -192,6 +193,38 @@ describe("resolvePickTarget", () => {
     );
     if (target?.kind !== "face") throw new Error("expected face target");
     expect(target.hitPosition).toEqual([5 + 1 / 3, 1 / 3, 1 / 3]);
+  });
+
+  it("resolves element and node ids from heterogeneous line and point parts", () => {
+    const model = createElementModel(
+      [0, 0, 0, 1, 0, 0],
+      [createElement(5, LINE_SHAPE, [0, 1]), createElement(8, POINT_SHAPE, [1])],
+    );
+    const parts = heterogeneousElementParts({ line: 2, point: 3 }, model);
+    const mixedContext: PickContext = {
+      instances: [instanceAt(0, 2), instanceAt(1, 3)],
+      parts: new Map([
+        [2, partWithGeometry(parts.line?.geometry as Geometry)],
+        [3, partWithGeometry(parts.point?.geometry as Geometry)],
+      ]),
+    };
+
+    expect(resolvePickTarget(mixedContext, ids({ instancePickId: 1, elementPickId: 6 }))).toEqual({
+      kind: "element",
+      partId: 2,
+      instanceId: "1/0",
+      elementId: 5,
+    });
+    expect(
+      resolvePickTarget(mixedContext, ids({ instancePickId: 2, elementPickId: 9, nodePickId: 2 })),
+    ).toMatchObject({
+      kind: "node",
+      partId: 3,
+      instanceId: "1/1",
+      elementId: 8,
+      nodeId: 1,
+      localPosition: [1, 0, 0],
+    });
   });
 });
 

@@ -8,13 +8,15 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 ## Stable element ids
 
 - `Geometry` optionally declares `ElementTessellation` descriptors: a stable
-  `id` plus the contiguous triangle range (`triangleStart`, `triangleCount`)
-  that tessellates the element in the part's index buffer
+  `id` plus the contiguous logical-primitive range that tessellates the element
+  in the part's index buffer. Triangle geometry uses
+  (`triangleStart`, `triangleCount`); line and point geometry use
+  (`primitiveStart`, `primitiveCount`)
   ([[data/elements-topology|Element topology]]).
-- `validateElements` enforces that, when declared, every triangle belongs to
-  exactly one element and ids are unique. Parts without descriptors are not
-  element-pickable and every triangle reports "no element".
-- The GPU pick map stores `elementId + 1` per triangle (`0` = none), so the
+- `validateElements` enforces that, when declared, every logical primitive
+  belongs to exactly one element and ids are unique. Parts without descriptors
+  are not element-pickable and every primitive reports "no element".
+- The GPU pick map stores `elementId + 1` per logical primitive (`0` = none), so the
   id `0` collision with "no element" is avoided; `buildElementTrianglePickIds`
   mirrors the CPU descriptor exactly.
 
@@ -50,9 +52,10 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 
 - Each part storage has a growable `ElementHighlights` storage buffer
   (records at `ELEMENT_RECORD_STRIDE` bytes, initially `INITIAL_ELEMENT_HIGHLIGHTS`
-  records) that the color vertex shader scans per triangle: a record matching
-  the part-local slot and the triangle's element pick id overrides color and
-  emissive. Emphasis therefore never clones materials or rebuilds geometry.
+  records) that the color vertex shader scans per logical primitive: a record
+  matching the part-local slot and the primitive's element pick id overrides
+  color and emissive. Emphasis therefore never clones materials or rebuilds
+  geometry.
 - `syncElementHighlights` maps emphasized refs to per-part records
   (`collectEmphasisUpdates`), dropping refs whose instance is not in the
   layout (e.g. hidden or stale), and `writeElementHighlights` diffs against a

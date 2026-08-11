@@ -35,6 +35,13 @@ export {
   type TessellationOptions,
 } from "./geometry/element-mesh";
 export {
+  heterogeneousElementParts,
+  HeterogeneousElementError,
+  type HeterogeneousElementErrorCode,
+  type HeterogeneousElementPartIds,
+  type HeterogeneousElementPartSet,
+} from "./geometry/heterogeneous-element-mesh";
+export {
   polygonGeometry,
   polygonPart,
   PolygonGeometryError,
@@ -272,6 +279,7 @@ export {
   type ModelSetKind,
 } from "./io/model";
 export { createModelBuilder, type FemModelBuilder } from "./io/build";
+export { createElementModelFromFemModel } from "./io/element-model";
 export {
   createParseSession,
   finishParse,

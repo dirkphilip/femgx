@@ -10,8 +10,17 @@ import {
   edgeVertexShader,
   pickFragmentShader,
 } from "../../src/renderer/gpu-shaders";
-import { instanceVertexShader, pointVertexShader } from "../../src/renderer/gpu-instanced-shaders";
-import { nodePickFragmentShader, nodePickVertexShader } from "../../src/renderer/gpu-node-pick";
+import {
+  instanceVertexShader,
+  lineVertexShader,
+  pointVertexShader,
+} from "../../src/renderer/gpu-instanced-shaders";
+import {
+  lineNodePickVertexShader,
+  nodePickFragmentShader,
+  nodePickVertexShader,
+  pointNodePickVertexShader,
+} from "../../src/renderer/gpu-node-pick";
 import { nodeOverlayFragmentShader } from "../../src/renderer/gpu-node-overlay";
 
 /** Returns the named struct's layout as computed by the wgsl_reflect parser. */
@@ -92,8 +101,8 @@ describe("GPU record struct layout vs CPU record encoders", () => {
 
   it("overrides triangle colors from the emphasis records", () => {
     expect(instanceVertexShader).not.toMatch(/\bvar match\b/);
-    expect(instanceVertexShader).toMatch(/triangleElementPickIds\[vertexIndex \/ 3u\]/);
-    expect(instanceVertexShader).toMatch(/triangleFaceBodyPickIds\[vertexIndex \/ 3u\]/);
+    expect(instanceVertexShader).toMatch(/primitiveElementPickIds\[vertexIndex \/ 3u\]/);
+    expect(instanceVertexShader).toMatch(/primitiveFaceBodyPickIds\[vertexIndex \/ 3u\]/);
     expect(instanceVertexShader).toMatch(/highlightHash\(/);
     expect(instanceVertexShader).toMatch(/elementHighlights\.records\[base \+ offset\]/);
     expect(instanceVertexShader).not.toMatch(/index < elementHighlights\.count/);
@@ -101,6 +110,8 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(pointVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
     expect(instanceVertexShader).toMatch(/@location\(3\) @interpolate\(flat\) elementPickId: u32/);
     expect(instanceVertexShader).toMatch(/@location\(4\) @interpolate\(flat\) facePickId: u32/);
+    expect(lineVertexShader).toMatch(/primitiveElementPickIds\[vertexIndex \/ 2u\]/);
+    expect(lineVertexShader).toMatch(/primitiveFaceBodyPickIds\[vertexIndex \/ 2u\]/);
   });
 
   it("reports a proximity-gated nearest corner node in the node pick pass", () => {
@@ -132,6 +143,11 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     );
     expect(nodePickFragmentShader).toMatch(/edgeScale \* 0\.04/);
     expect(nodePickFragmentShader).toMatch(/bestDist > threshold/);
+    expect(lineNodePickVertexShader).toMatch(/let base = \(vertexIndex \/ 2u\) \* 2u/);
+    expect(lineNodePickVertexShader).toMatch(/vertexNodePickIds\[base \+ 1u\]/);
+    expect(lineNodePickVertexShader).not.toMatch(/positions\[base3 \+ 6u\]/);
+    expect(pointNodePickVertexShader).toMatch(/primitiveElementPickIds\[vertexIndex \/ 4u\]/);
+    expect(pointNodePickVertexShader).toMatch(/output\.nodePickIds = vec3<u32>/);
   });
 
   it.each([pickFragmentShader, nodePickFragmentShader])(

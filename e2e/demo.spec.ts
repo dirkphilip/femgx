@@ -132,7 +132,7 @@ test("renders the bolted showcase with distinct part colors and a screenshot", a
 test("switches between deterministic model presets", async ({ page }) => {
   await page.goto("/");
   const select = page.getByTestId("model-select");
-  await expect(select.locator("option")).toHaveCount(6);
+  await expect(select.locator("option")).toHaveCount(7);
   await expect(select).toHaveValue("bolted");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "bolted");
 
@@ -151,6 +151,29 @@ test("switches between deterministic model presets", async ({ page }) => {
   await select.selectOption("bolted");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "bolted");
   await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
+});
+
+test("renders the heterogeneous model through explicit primitive groups", async ({ page }) => {
+  await page.goto("/");
+  const select = page.getByTestId("model-select");
+  const canvas = page.getByTestId("view-canvas");
+  await select.selectOption("heterogeneous");
+  await expect(page.getByTestId("status")).toContainText(
+    "Heterogeneous linear model · grouped primitives",
+  );
+  await expect(page.getByTestId("stats-panel")).toContainText("Reusable parts 3");
+  await expect(page.getByTestId("visibility-panel")).toContainText("Line elements");
+  await expect(page.getByTestId("visibility-panel")).toContainText("Point elements");
+  await expect.poll(() => canvas.getAttribute("data-renderer")).toBe("webgpu");
+  await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
+  const hit = await requireHit(
+    page,
+    canvas,
+    { attribute: "hovered", prefix: "f:", fresh: true },
+    "the heterogeneous triangle group must remain face-pickable",
+  );
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => dataset(page, "selected")).not.toBe("");
 });
 
 test("cycles the canonical static results preset through base, colored, and deformed states", async ({

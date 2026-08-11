@@ -160,6 +160,10 @@ closed; the list is historical scope memory, not an open implementation queue.
 - [x] Add validated element-face subsets, exterior-face selection, compact GPU
       index orders, preserved picks, and an exterior VTK demo path (see
       [[rendering/face-subsets|Face subsets]]).
+- [x] Build one heterogeneous `ElementModel` into deterministic reusable
+      triangle, line, and point parts with preserved shape metadata, picks,
+      results, deformation, bodies, and face subsets (see
+      [[rendering/heterogeneous-elements|Heterogeneous element parts]]).
 
 ## P2 — engineering results
 

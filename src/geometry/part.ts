@@ -1,5 +1,6 @@
 import type { FaceKey } from "../elements/faces";
 import type { NodeId } from "../elements/element";
+import type { ElementShape } from "../elements/shapes";
 import type { ElementId, PartId } from "../scene/types";
 
 /** Stable identity of one oriented element face within a part. */
@@ -33,16 +34,22 @@ export interface Bounds {
 }
 
 /**
- * The tessellation of one finite element: a stable element id (matching the
- * `ElementId` of the FE model) plus the contiguous range of triangles in the
- * part's index buffer that draw it. Elements are the unit of element-level
- * picking and selection.
+ * The tessellation of one finite element: a stable element id plus a
+ * contiguous range of the part's logical primitives. Triangle geometry uses
+ * `triangleStart`/`triangleCount`; line and point geometry uses
+ * `primitiveStart`/`primitiveCount`. Elements are the unit of element-level
+ * picking, selection, and result mapping.
  */
 export interface ElementTessellation {
   readonly id: ElementId;
   /** First triangle of this element (each triangle is three indices). */
-  readonly triangleStart: number;
-  readonly triangleCount: number;
+  readonly triangleStart?: number;
+  readonly triangleCount?: number;
+  /** First line segment or point sprite of this element. */
+  readonly primitiveStart?: number;
+  readonly primitiveCount?: number;
+  /** Original FE shape, when the source model retained typed shape metadata. */
+  readonly shape?: ElementShape;
   /** Optional logical body owning this element. */
   readonly bodyId?: BodyId;
 }
@@ -83,8 +90,10 @@ export interface Geometry {
   readonly primitive?: Primitive;
   /**
    * Optional element tessellations. When absent the part is not element-pickable
-   * and every triangle reports "no element". When present, every triangle must
-   * belong to exactly one element.
+   * and every primitive reports "no element". When present, every logical
+   * primitive must belong to exactly one element; triangle geometry uses the
+   * triangle range fields and line/point geometry uses the generic primitive
+   * range fields.
    */
   readonly elements?: readonly ElementTessellation[];
   /**

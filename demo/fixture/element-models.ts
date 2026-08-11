@@ -241,6 +241,25 @@ export function buildSurfaceModel(): ElementModel {
   );
 }
 
+/** Builds one mixed linear model for the recommended heterogeneous API path. */
+export function buildHeterogeneousModel(): ElementModel {
+  return createElementModel(
+    [
+      0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, 0, 0, 2.3, 0, 0, 2.3, 1, 0, 1.3, 1, 0, 0, 1.5, 0, 1, 1.5, 0,
+      0, 2.5, 0, 0, 1.5, 1, 1.4, 1.5, 0, 2.4, 1.5, 0, 2.4, 2.5, 0, 1.4, 2.5, 0, 1.4, 1.5, 1, 2.4,
+      1.5, 1, 2.4, 2.5, 1, 1.4, 2.5, 1, 0, 3, 0, 1, 3, 0, 2.5, 3, 0,
+    ],
+    [
+      createElement(1, TRIANGLE_SHAPE, [0, 1, 2]),
+      createElement(2, QUAD_SHAPE, [3, 4, 5, 6]),
+      createElement(3, TET4_SHAPE, [7, 8, 9, 10]),
+      createElement(4, HEX8_SHAPE, [11, 12, 13, 14, 15, 16, 17, 18]),
+      createElement(5, LINE_SHAPE, [19, 20]),
+      createElement(6, POINT_SHAPE, [21]),
+    ],
+  );
+}
+
 /** Optional dimensions for the curved Hex20 cylinder fixture. */
 interface Hex20CylinderOptions {
   readonly sectors?: number;
