@@ -23,6 +23,9 @@ position. This follows GPU deformation and non-planar tessellation instead of
 reconstructing an undeformed CPU face plane.
 Empty space falls back to the fitted model target. Wheel zoom uses the picked
 world point as a scale pivot, preserving its screen position while zooming.
+All control-driven zoom transitions are admitted against the current compiled
+scene bounds, so an aggressive wheel, drag, or pinch gesture stops at a safe
+front-of-model depth and updates the clip interval to the accepted range.
 Early drag deltas wait for
 the asynchronous GPU hit, so the gesture uses one pivot from its first visible
 movement onward. The WebGPU renderer projects its active pivot to a

@@ -1,12 +1,13 @@
 import type { Bounds } from "../geometry/part";
 import { cross, dot, normalize, scale, subtract, type Vec3 } from "../math/vec3";
 import type { Camera } from "./camera";
+import { cameraDepthMargin } from "./navigation";
 
 /** Fraction of the viewport occupied by the fitted bounds on each axis. */
 export const FIT_FRAME_FRACTION = 0.9;
 
 /** Keeps fitted bounds strictly inside the configured clip interval. */
-const FIT_DEPTH_MARGIN = 0.01;
+const FIT_POSITION_MARGIN = 0.01;
 const FIT_MIN_NEAR = 0.0001;
 
 /** Frames bounds around their center while preserving the camera orientation. */
@@ -26,6 +27,7 @@ export function fitCamera(camera: Camera, bounds: Bounds, width: number, height:
   const inputs: FitInputs = {
     camera,
     center,
+    bounds,
     orientation,
     corners,
     dimensions,
@@ -46,6 +48,7 @@ interface ViewOrientation {
 interface FitInputs {
   readonly camera: Camera;
   readonly center: Vec3;
+  readonly bounds: Bounds;
   readonly orientation: ViewOrientation;
   readonly corners: readonly Vec3[];
   readonly dimensions: { readonly width: number; readonly height: number };
@@ -56,13 +59,13 @@ interface FitInputs {
 }
 
 function fitOrthographic(inputs: FitInputs): Camera {
-  const { camera, center, orientation, dimensions, depth, width, height, aspect } = inputs;
+  const { camera, center, bounds, orientation, dimensions, depth, width, height, aspect } = inputs;
   const orthoHeight = Math.max(
     0.001,
     dimensions.height / FIT_FRAME_FRACTION,
     dimensions.width / (aspect * FIT_FRAME_FRACTION),
   );
-  const distance = Math.max(-Math.min(...depth) + FIT_DEPTH_MARGIN, FIT_DEPTH_MARGIN);
+  const distance = Math.max(-Math.min(...depth) + FIT_POSITION_MARGIN, FIT_POSITION_MARGIN);
   const fittedDepth = depth.map((value) => value + distance);
   const near = fittedNear(fittedDepth);
   return {
@@ -71,7 +74,7 @@ function fitOrthographic(inputs: FitInputs): Camera {
     target: center,
     up: orientation.up,
     near,
-    far: fittedFar(fittedDepth, near),
+    far: fittedFar(fittedDepth, near, cameraDepthMargin(bounds)),
     orthoHeight,
     width,
     height,
@@ -79,7 +82,7 @@ function fitOrthographic(inputs: FitInputs): Camera {
 }
 
 function fitPerspective(inputs: FitInputs): Camera {
-  const { camera, center, orientation, corners, depth, width, height, aspect } = inputs;
+  const { camera, center, bounds, orientation, corners, depth, width, height, aspect } = inputs;
   const tangent = Math.tan(clamp(camera.fovY, 0.01, Math.PI - 0.01) / 2);
   const requiredDistance = Math.max(
     ...corners.map((corner, index) => {
@@ -94,8 +97,8 @@ function fitPerspective(inputs: FitInputs): Camera {
   );
   const distance = Math.max(
     requiredDistance,
-    -Math.min(...depth) + FIT_DEPTH_MARGIN,
-    FIT_DEPTH_MARGIN,
+    -Math.min(...depth) + FIT_POSITION_MARGIN,
+    FIT_POSITION_MARGIN,
   );
   const fittedDepth = depth.map((value) => value + distance);
   const near = fittedNear(fittedDepth);
@@ -105,7 +108,7 @@ function fitPerspective(inputs: FitInputs): Camera {
     target: center,
     up: orientation.up,
     near,
-    far: fittedFar(fittedDepth, near),
+    far: fittedFar(fittedDepth, near, cameraDepthMargin(bounds)),
     width,
     height,
   };
@@ -115,9 +118,9 @@ function fittedNear(depth: readonly number[]): number {
   return Math.max(FIT_MIN_NEAR, Math.min(...depth) * 0.25);
 }
 
-function fittedFar(depth: readonly number[], near: number): number {
-  const far = Math.max(...depth) + FIT_DEPTH_MARGIN;
-  return far > near ? far : near + FIT_DEPTH_MARGIN;
+function fittedFar(depth: readonly number[], near: number, margin: number): number {
+  const far = Math.max(...depth) + margin;
+  return far > near ? far : near + margin;
 }
 
 function viewOrientation(camera: Camera): ViewOrientation {

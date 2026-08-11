@@ -12,7 +12,8 @@ toolbars, or inspection panels.
   (`zoomCamera`).
 - **Wheel** zooms toward the visible world point under the cursor
   (`zoomCameraAtPoint`); an upward wheel/drag motion zooms in and a downward
-  motion zooms out. Empty space falls back to the target-anchored `zoomCamera`.
+  motion zooms out. Empty space falls back to the target-anchored
+  bounds-aware `zoomCamera` transition.
 - **Left mouse drag** is not a camera gesture, preserving click and
   shift-click inspection selection.
 - **One finger** continues to orbit on touch devices.
@@ -65,10 +66,11 @@ Playwright's `touchscreen` API is single-touch only.
   surface point. Drag deltas wait for the asynchronous GPU readback, then apply
   once around that point, so the camera never starts around a stale target and
   switches pivots mid-gesture.
-- Pinch zoom currently uses the existing `zoomCamera` (target-anchored). The
+- Pinch zoom uses the target-anchored bounds-aware `zoomCamera` transition. The
   midpoint is used for the two-finger pan, which keeps the pinch feeling
   anchored; cursor-anchored wheel zoom is implemented separately through the
-  picked world point.
+  picked world point. Every accepted zoom recomputes clip planes from the
+  current scene bounds, so the same safety policy applies to desktop and touch.
 
 ## Related demo fixes
 

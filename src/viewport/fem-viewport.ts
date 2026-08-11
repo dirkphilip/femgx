@@ -121,6 +121,7 @@ class FemViewportCore implements FemViewport {
       canvas: options.canvas,
       cameraRef: this.cameraRef,
       navigation: renderer,
+      bounds: () => sceneWorldBounds(this.currentScene, this.currentRuntime),
       onRender: () => {
         this.invalidate();
       },

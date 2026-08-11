@@ -143,10 +143,10 @@ describe("camera", () => {
     expect(distance(beyondPoleLimit.target, atPoleLimit.target)).toBeLessThan(1e-9);
   });
 
-  it("clamps perspective zoom without changing the clip planes", () => {
+  it("does not use clip planes as a perspective distance clamp", () => {
     const camera = createCamera({ position: [0, 0, 1], target: [0, 0, 0], near: 0.01, far: 100 });
     const zoomed = zoomCamera(camera, -20);
-    expect(zoomed.position[2]).toBeCloseTo(camera.near * 2);
+    expect(zoomed.position[2]).toBeCloseTo(Math.exp(-20));
     expect(zoomed.near).toBe(camera.near);
     expect(zoomed.far).toBe(camera.far);
   });
@@ -181,17 +181,17 @@ describe("camera", () => {
     expect(restored.far).toBe(camera.far);
   });
 
-  it("clamps cursor-centered perspective zoom at both distance bounds", () => {
+  it("allows cursor-centered zoom beyond the configured clip interval", () => {
     const camera = createCamera({ position: [0, 0, 10], target: [0, 0, 0], near: 0.1, far: 100 });
     const pivot = [2, 0, 0] as const;
     const directNear = zoomCamera(camera, -20);
     const directFar = zoomCamera(camera, 20);
     const near = zoomCameraAtPoint(camera, -20, pivot);
     const far = zoomCameraAtPoint(camera, 20, pivot);
-    expect(distance(directNear.position, directNear.target)).toBeCloseTo(camera.near * 2);
-    expect(distance(directFar.position, directFar.target)).toBeCloseTo(camera.far / 2);
-    expect(distance(near.position, near.target)).toBeCloseTo(camera.near * 2);
-    expect(distance(far.position, far.target)).toBeCloseTo(camera.far / 2);
+    expect(distance(directNear.position, directNear.target)).toBeCloseTo(10 * Math.exp(-20));
+    expect(distance(directFar.position, directFar.target)).toBeCloseTo(10 * Math.exp(20));
+    expect(distance(near.position, near.target)).toBeCloseTo(10 * Math.exp(-20));
+    expect(distance(far.position, far.target)).toBeCloseTo(10 * Math.exp(20));
     expect(near.near).toBe(camera.near);
     expect(near.far).toBe(camera.far);
     expect(far.near).toBe(camera.near);

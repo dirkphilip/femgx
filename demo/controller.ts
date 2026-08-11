@@ -191,6 +191,7 @@ export class WorkbenchController {
   setViewport(viewport: FemViewport): void {
     this.viewport = viewport;
     this.treeHoverTargets = [];
+    this.canvas.dataset["treeHover"] = "";
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
     this.applyModeVisibility();
@@ -221,6 +222,7 @@ export class WorkbenchController {
     if (preset === undefined) return;
     this.preset = preset;
     this.treeHoverTargets = [];
+    this.canvas.dataset["treeHover"] = "";
     this.mode = "solid";
     this.toggles = createDefaultDisplayToggles();
     this.resultMode = preset.results === undefined ? "base" : "deformed";
@@ -297,6 +299,7 @@ export class WorkbenchController {
   /** Restores the complete initial workbench state for the active preset. */
   reset(): void {
     this.treeHoverTargets = [];
+    this.canvas.dataset["treeHover"] = "";
     this.mode = "solid";
     this.toggles = createDefaultDisplayToggles();
     this.depthTestEnabled = true;
@@ -331,6 +334,7 @@ export class WorkbenchController {
     if (this.disposed) return;
     this.disposed = true;
     this.treeHoverTargets = [];
+    this.canvas.dataset["treeHover"] = "";
     this.listenerController.abort();
     this.interactionController.destroy();
     this.viewport.destroy();
@@ -432,9 +436,17 @@ export class WorkbenchController {
   }
 
   private setTreeHover(target: VisibilityRowTarget | undefined): void {
+    if (this.disposed) return;
     this.treeHoverTargets =
       target === undefined ? [] : interactionTargetsForRow(this.runtime, target);
-    this.render();
+    this.canvas.dataset["treeHover"] = this.treeHoverTargets
+      .map((value) => JSON.stringify(value))
+      .join("|");
+    try {
+      this.render();
+    } catch (error) {
+      if (!isDestroyedViewportError(error)) throw error;
+    }
   }
 
   private applyDisplayedInteraction(): void {
@@ -496,4 +508,8 @@ export class WorkbenchController {
   submittedTriangleCount(): number {
     return submittedTriangleCount(this.preset, this.runtime);
   }
+}
+
+function isDestroyedViewportError(error: unknown): boolean {
+  return error instanceof Error && error.message === "FemViewport has been destroyed";
 }
