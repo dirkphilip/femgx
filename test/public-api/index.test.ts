@@ -4,8 +4,6 @@ import * as publicApi from "../../src/index";
 describe("public root API", () => {
   it("does not expose renderer/runtime implementation helpers", () => {
     expect(publicApi).not.toHaveProperty("changedInstanceSlots");
-    expect(publicApi).not.toHaveProperty("cullInstances");
-    expect(publicApi).not.toHaveProperty("extractFrustum");
     expect(publicApi).not.toHaveProperty("faceTriangles");
   });
 

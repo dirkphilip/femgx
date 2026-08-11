@@ -76,7 +76,6 @@ closed; the list is historical scope memory, not an open implementation queue.
       whole maps and sets for each hide/show operation (see
       [[architecture/packed-runtime|Packed scene runtime]]).
 - [x] Batch visible instances by part while preserving stable instance handles.
-- [x] Add bounds-based frustum culling and measure its CPU/GPU trade-offs.
 
 ## P1 — WebGPU renderer
 

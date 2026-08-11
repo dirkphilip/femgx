@@ -8,8 +8,8 @@ material clones.
 
 - Parts and assemblies each carry hide/show state on the CPU scene model.
 - Hiding an assembly hides everything beneath it (hierarchy inheritance).
-- `flattenAssembly` culls hidden instances at the source, so hidden geometry is
-  never drawn and never consumes instance slots.
+- The scene runtime culls hidden instances at the source, so hidden geometry is
+  never drawn and never consumes visible draw-list slots.
 - Parts may also define stable body groups. Body visibility is interaction state
   scoped by instance and body id, so hiding one body does not alter reusable
   geometry or another placement of that part.

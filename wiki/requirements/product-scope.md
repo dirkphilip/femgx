@@ -49,7 +49,6 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | IO: VTK legacy read/write + shared validation and diagnostics                                                                      | ~1.0k              | ~0.9k      | **Core now** | One interchange format is the minimum; VTK legacy is the smallest faithful FE format.                                                                                                                     |
 | IO: VTU, Gmsh, Abaqus adapters, cancellation/progress                                                                              | —                  | —          | **Remove**   | Deleted; product keeps a single VTK legacy interchange path.                                                                                                                                              |
 | Large-model streaming (spatial partitioning, LOD, upload budgets, worker parsing, coordinate rebasing)                             | —                  | —          | **Remove**   | Deleted; in-memory models are the product path.                                                                                                                                                           |
-| Frustum culling (deterministic CPU compile-time culling)                                                                           | runtime            | runtime    | **Core now** | Small, already integrated into the compile pipeline; culls hidden geometry at the source.                                                                                                                 |
 | Deformation (per-vertex displacement)                                                                                              | renderer + results | renderer   | **Core now** | Part of results visualization.                                                                                                                                                                            |
 | Package smoke tests, e2e coverage, benchmarks and budgets                                                                          | scripts            | test/bench | **Core now** | Engineering gate stays; the e2e contract becomes WebGPU-only.                                                                                                                                             |
 | Compatibility reporting (capability tiers/matrix)                                                                                  | wiki               | —          | **Deferred** | Collapses to "modern WebGPU browser or typed unsupported"; no tier ladder.                                                                                                                                |
@@ -64,9 +63,9 @@ part. The renderer provides GPU picking with host-mappable part/instance/
 element/face/node ids (node and element strict; face Core), readable
 depth-tested node annotations, selection/
 highlight/hover, visibility, camera control, results fields with derived
-quantities and scalar color mapping, deformed-shape geometry, and deterministic
-frustum culling. Interchange is a single format (VTK legacy) with validation and
-diagnostics. Browsers without a working WebGPU device receive a typed
+quantities and scalar color mapping, and deformed-shape geometry. Interchange
+is a single format (VTK legacy) with validation and diagnostics. Browsers without
+a working WebGPU device receive a typed
 unsupported result — never a second renderer.
 
 Everything outside the "Core now" rows is **not** a requirement of the minimum
