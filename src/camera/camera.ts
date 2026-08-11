@@ -87,7 +87,7 @@ export function panCamera(camera: Camera, horizontal: number, vertical: number):
   return { ...camera, position: add(camera.position, delta), target: add(camera.target, delta) };
 }
 
-/** Zooms toward the target while keeping near/far planes valid. */
+/** Zooms toward the target while preserving the configured clip planes. */
 export function zoomCamera(camera: Camera, amount: number): Camera {
   if (camera.mode === "orthographic") {
     return {
@@ -96,10 +96,9 @@ export function zoomCamera(camera: Camera, amount: number): Camera {
     };
   }
   const offset = subtract(camera.position, camera.target);
-  const distance = clamp(length(offset) * Math.exp(amount), 0.000001, camera.far / 2);
+  const distance = clamp(length(offset) * Math.exp(amount), camera.near * 2, camera.far / 2);
   return {
     ...camera,
-    near: Math.min(camera.near, distance / 1000),
     position: add(camera.target, scale(normalize(offset), distance)),
   };
 }
@@ -107,9 +106,9 @@ export function zoomCamera(camera: Camera, amount: number): Camera {
 /** Zooms around a world-space point while keeping that point under the cursor. */
 export function zoomCameraAtPoint(camera: Camera, amount: number, pivot: Vec3): Camera {
   const factor = Math.exp(amount);
-  const position = add(pivot, scale(subtract(camera.position, pivot), factor));
-  const target = add(pivot, scale(subtract(camera.target, pivot), factor));
   if (camera.mode === "orthographic") {
+    const position = add(pivot, scale(subtract(camera.position, pivot), factor));
+    const target = add(pivot, scale(subtract(camera.target, pivot), factor));
     return {
       ...camera,
       position,
@@ -117,12 +116,15 @@ export function zoomCameraAtPoint(camera: Camera, amount: number, pivot: Vec3): 
       orthoHeight: clamp(camera.orthoHeight * factor, 0.000001, camera.far),
     };
   }
-  const distance = length(subtract(position, target));
+  const currentDistance = length(subtract(camera.position, camera.target));
+  const distance = clamp(currentDistance * factor, camera.near * 2, camera.far / 2);
+  const appliedFactor = distance / currentDistance;
+  const position = add(pivot, scale(subtract(camera.position, pivot), appliedFactor));
+  const target = add(pivot, scale(subtract(camera.target, pivot), appliedFactor));
   return {
     ...camera,
     position,
     target,
-    near: Math.min(camera.near, distance / 1000),
   };
 }
 

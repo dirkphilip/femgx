@@ -456,6 +456,39 @@ test("shows a camera-oriented rotation-origin widget only during orbit", async (
   );
 });
 
+test("keeps depth ordering and picking after deep zoom in and out", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+
+  for (let step = 0; step < 12; step += 1) {
+    await page.mouse.wheel(0, -800);
+  }
+  const zoomedIn = await stableCanvasPixels(page, canvas);
+  expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(200);
+
+  for (let step = 0; step < 12; step += 1) {
+    await page.mouse.wheel(0, 800);
+  }
+  const zoomedOut = await stableCanvasPixels(page, canvas);
+  expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(200);
+  expect(zoomedOut.equals(zoomedIn), "zooming back out must produce a settled visible frame").toBe(
+    false,
+  );
+
+  const hit = await requireHit(
+    page,
+    canvas,
+    {},
+    "GPU picking must still resolve after deep zoom in and out",
+  );
+  expect(hit.key).toMatch(/^(n|f|e|i|p):/);
+});
+
 test("keeps the depth-test toggle working on the WebGPU renderer", async ({ page }) => {
   await loadWebGpuPage(page);
 

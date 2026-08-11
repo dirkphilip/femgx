@@ -24,3 +24,10 @@ WebGPU clips at `[0, 1]`. Consequences that are now fixed:
 
 The depth convention is exercised by regression tests in `test/camera/` and
 `test/camera/project-polygon.test.ts`.
+
+Perspective zoom preserves the configured `near` and `far` clip planes. The
+eye-target distance is clamped to `[2 * near, far / 2]`, so deep zoom cannot
+ratchet the near plane toward zero and destroy depth precision. Cursor-centered
+zoom applies the same distance clamp while scaling the eye and target around
+the world-space pivot; ordinary orthographic zoom retains its existing scale
+behavior.
