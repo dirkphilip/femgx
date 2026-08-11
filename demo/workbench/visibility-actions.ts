@@ -96,6 +96,23 @@ export class WorkbenchVisibilityActions {
     this.setPart(partId, !this.partVisible(partId));
   }
 
+  /** Restores every authored assembly, part, and instance visibility bit. */
+  showAll(): void {
+    const viewport = this.options.viewport();
+    viewport.batch(() => {
+      for (let nodeId = 0; nodeId < this.options.runtime().nodeAssemblyIds.length; nodeId += 1) {
+        viewport.setAssemblyNodeVisible(nodeId, true);
+      }
+      for (const partId of this.options.firstSlotByPart.keys()) {
+        viewport.setPartVisible(partId, true);
+      }
+      for (let slot = 0; slot < this.options.runtime().instanceCount; slot += 1) {
+        viewport.setInstanceVisible(slot, true);
+      }
+    });
+    this.finish();
+  }
+
   partVisible(partId: PartId): boolean {
     const slot = this.options.firstSlotByPart.get(partId);
     return slot !== undefined && this.options.runtime().instancePartVisible[slot] === 1;

@@ -12,7 +12,12 @@ import {
 } from "../../src/index";
 import { describePick } from "../inspect";
 import { selectTarget, targetKey, type SelectTarget } from "../pick";
-import { toggleHighlight, toggleSelection } from "./selection";
+import {
+  clearSelection as clearSelectedTargets,
+  replaceSelection,
+  toggleHighlight,
+  toggleSelection,
+} from "./selection";
 import type { WorkbenchMenu } from "./menu";
 
 /** View and state hooks used by the asynchronous picking interaction layer. */
@@ -57,10 +62,7 @@ export class WorkbenchInteraction {
     const generation = ++this.generation;
     const hit = await this.resolve(event);
     if (generation !== this.generation) return;
-    const target =
-      hit === undefined
-        ? undefined
-        : selectTarget(hit, event, (id) => this.options.partIdForInstance(id));
+    const target = hit === undefined ? undefined : selectTarget(hit, event);
     let interaction = this.options.getInteraction();
     interaction = setHoveredBody(
       interaction,
@@ -104,14 +106,30 @@ export class WorkbenchInteraction {
       return;
     const generation = ++this.generation;
     const hit = await this.resolve(event);
-    if (generation !== this.generation || hit === undefined) return;
-    const target = selectTarget(hit, event, (id) => this.options.partIdForInstance(id));
+    if (generation !== this.generation) return;
+    if (hit === undefined) {
+      this.clearSelection();
+      this.showPick(undefined);
+      return;
+    }
+    const target = selectTarget(hit, event);
     if (target === undefined) return;
-    this.select(target);
+    if (event.ctrlKey || event.metaKey) this.select(target);
+    else this.replace(target);
   }
 
   select(target: SelectTarget): void {
     this.options.setInteraction(toggleSelection(this.options.getInteraction(), target));
+    this.options.render();
+  }
+
+  replace(target: SelectTarget): void {
+    this.options.setInteraction(replaceSelection(this.options.getInteraction(), target));
+    this.options.render();
+  }
+
+  clearSelection(): void {
+    this.options.setInteraction(clearSelectedTargets(this.options.getInteraction()));
     this.options.render();
   }
 
@@ -125,12 +143,10 @@ export class WorkbenchInteraction {
     const generation = ++this.generation;
     const hit = await this.resolve(event);
     if (generation !== this.generation) return;
-    this.target =
-      hit === undefined
-        ? undefined
-        : selectTarget(hit, event, (id) => this.options.partIdForInstance(id));
+    this.target = hit === undefined ? undefined : selectTarget(hit, event);
     if (this.target === undefined) {
-      this.options.menu.hide();
+      this.showPick(undefined);
+      this.options.menu.showView(event.clientX, event.clientY);
       return;
     }
     this.showPick(hit);
