@@ -233,11 +233,10 @@ These exist in `package.json`:
 - `npm run test:e2e:install` — install system Chrome + Playwright Chromium.
 - `npm run preview` — preview the built demo.
 
-During interactive development and reviewer handoffs, agents must run:
+During interactive development, agents must run:
 `npm run lint`, `npm run typecheck`, `npm test`, `npm run bench:budget`, and
-`npm run format`, and leave the repo clean. Supervisor implementation and repair
-workers follow the stage-specific validation policy below. CI enforces the full
-gate automatically on every push/PR (see `.github/workflows/ci.yml`).
+`npm run format`, and leave the repo clean. CI enforces the full gate
+automatically on every push/PR (see `.github/workflows/ci.yml`).
 
 ## Agent Workflow Rules
 
@@ -255,20 +254,6 @@ gate automatically on every push/PR (see `.github/workflows/ci.yml`).
   change, run the real system-Chrome WebGPU lane and inspect actual screenshots at
   both desktop and 390×844 mobile viewports. A submitted-frame counter, mocked GPU
   test, or no-GPU CI pass is not visual evidence; a black/blank canvas blocks merge.
-
-### Supervisor worker validation
-
-The gate list above applies to interactive development. Supervisor
-implementation, review, and repair workers follow
-`.supervisor/WORKER_PROTOCOL.md`: they run focused checks once, before handoff,
-on the files they changed, and do not run the full test suite, coverage, the
-full build, the full e2e suite, or the pre-commit gate by hand. The reviewer
-records focused local validation but is not a merge authority: GitHub's
-required checks decide mergeability, the Supervisor waits for them after PR
-creation (`wait_for_ci`), and a pending, missing, or failing required check
-blocks the workflow. New feature intake pauses while the base commit's CI is
-red. Full product validation is owned by CI (see `.github/workflows/ci.yml`
-and [[operations/ci-authority|CI authority]]).
 
 ## Clean Code as a First-Class Duty
 

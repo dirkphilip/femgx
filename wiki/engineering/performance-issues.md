@@ -112,8 +112,8 @@ second geometry traversal and `r32float` color target.
 ## Toolchain reproducibility
 
 The repository pins Node 24.18.0 in `.nvmrc`, and the package engine declaration
-uses a full semver lower bound so local tooling and Supervisor can select a
-compatible Node runtime. Every npm lifecycle command now runs the lightweight
+uses a full semver lower bound so local tooling can select a compatible Node
+runtime. Every npm lifecycle command now runs the lightweight
 `check-node` preflight, so a shell that resolves an older Node binary fails with
 the selected executable path instead of producing an unrelated Vite/Rolldown
 error. Node 21 is unsupported by the current toolchain.

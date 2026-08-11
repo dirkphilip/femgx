@@ -19,8 +19,8 @@ Markdown.
   interaction state, and renderer resource behavior.
 - [[engineering/index|Engineering and quality]] — benchmarks, quality gates,
   packaging, performance risks, test strategy, and durable decisions.
-- [[operations/index|Operations and workflow]] — development loop and
-  Supervisor notes.
+- [[operations/index|Operations and workflow]] — CI and repository workflow
+  notes.
 
 ## Conventions
 

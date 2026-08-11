@@ -18,7 +18,7 @@ performance budget is measured separately without coverage instrumentation.
 | IO                          | `test/io`                                            | VTK round trips, diagnostics, validation, and malformed input                      |
 | Viewport and public API     | `test/viewport`, `test/public-api`                   | Canonical facade workflow and deliberate root exports                              |
 | Demo fixtures and workbench | `test/demo`                                          | Fixture construction, controls, lifecycle, and preset behavior                     |
-| Engineering safeguards      | `test/scripts`, `test/supervisor`, `test/bench`      | Repository policy, worker contract, and deterministic CPU budgets                  |
+| Engineering safeguards      | `test/scripts`, `test/bench`                         | Repository policy and deterministic CPU budgets                                    |
 | Browser product contract    | `e2e/smoke`, `e2e/demo`, `e2e/webgpu`, `e2e/mobile*` | WebGPU rendering, picking, interaction, responsive behavior, and unsupported state |
 
 The `chrome` project is the real-WebGPU visual and interaction lane. The
