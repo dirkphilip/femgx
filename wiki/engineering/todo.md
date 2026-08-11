@@ -108,6 +108,14 @@ closed; the list is historical scope memory, not an open implementation queue.
       [[engineering/benchmarks|Benchmarks]]).
 - [x] Define precedence when part and instance styles overlap.
 - [x] Expose a clean `pick(x, y)` API returning stable part/instance targets.
+- [x] Clear selection on empty-space clicks and preserve it across orbit/pan
+      gestures.
+- [x] Use plain clicks for replacement and Control/Meta clicks for additive
+      selection.
+- [x] Add a clamped view context menu with fit, clear, show-all, and reset
+      actions.
+
+See [[rendering/interaction-selection-menu|selection and view context menu]].
 
 ## P2 — modern development workflow
 
