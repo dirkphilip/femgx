@@ -194,6 +194,3 @@ const removeCameraControls = installCameraControls({
 render();
 // Call removeCameraControls() when the viewport is disposed.
 ```
-
-This repository is developed with an Agent Supervisor workflow; see
-[`wiki/operations/supervisor-workflow.md`](wiki/operations/supervisor-workflow.md).

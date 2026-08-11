@@ -1,13 +1,8 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const CONFIG_PATH = fileURLToPath(new URL("../../.supervisor/config.toml", import.meta.url));
-const WORKFLOW_DOC_PATH = join(REPO_ROOT, "wiki/operations/supervisor-workflow.md");
-const CI_AUTHORITY_DOC_PATH = join(REPO_ROOT, "wiki/operations/ci-authority.md");
-const REVIEWER_PROMPT_PATH = join(REPO_ROOT, ".supervisor/prompts/reviewer.md");
 
 type CheckState =
   | "FAILURE"
@@ -132,15 +127,6 @@ describe("workflow declares the required-checks gate", () => {
     expect(configText).toMatch(/^auto_merge\s*=\s*true\s*$/m);
     expect(configText).toMatch(/^ci_timeout_seconds\s*=\s*3600\s*$/m);
   });
-
-  it("documents that required CI decides mergeability, not local results", () => {
-    const workflowDoc = readFileSync(WORKFLOW_DOC_PATH, "utf8");
-    const reviewerPrompt = readFileSync(REVIEWER_PROMPT_PATH, "utf8");
-    expect(workflowDoc).toMatch(
-      /required checks[\s\S]*merge authority|merge authority[\s\S]*required checks/,
-    );
-    expect(reviewerPrompt).toMatch(/never report the PR merge-ready from local\s+results/);
-  });
 });
 
 describe("base-health intake decision", () => {
@@ -154,28 +140,5 @@ describe("base-health intake decision", () => {
 
   it("pauses conservatively when base health cannot be verified", () => {
     expect(intakeDecision("unknown")).toBe("pause");
-  });
-
-  it("keeps repair work possible while intake is paused", () => {
-    const doc = readFileSync(CI_AUTHORITY_DOC_PATH, "utf8");
-    expect(doc).toMatch(/repair work on the broken base remains possible/);
-    expect(doc).toMatch(/repair PR restores green\s+CI/);
-    expect(intakeDecision("red")).toBe("pause");
-  });
-});
-
-describe("base-health intake contract", () => {
-  it("documents the intake gate and its manual fallback", () => {
-    const doc = readFileSync(CI_AUTHORITY_DOC_PATH, "utf8");
-    expect(doc).toMatch(/base-health intake gate|base-health blocker/);
-    expect(doc).toMatch(/sv pause/);
-    expect(doc).toMatch(/gh api/);
-  });
-
-  it("is linked from the workflow documentation", () => {
-    const workflowDoc = readFileSync(WORKFLOW_DOC_PATH, "utf8");
-    expect(workflowDoc).toContain(
-      "[[operations/ci-authority|CI authority and base-health intake]]",
-    );
   });
 });

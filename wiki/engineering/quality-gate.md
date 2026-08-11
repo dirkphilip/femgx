@@ -1,13 +1,11 @@
 # Quality gate
 
 CI (`.github/workflows/ci.yml`) enforces the full gate on every push/PR and is
-the authoritative merge gate. Supervisor implementation, review, and repair
-workers run focused checks once, before handoff, and do not repeat the full
-gate; the reviewer records local validation but is not a merge authority (see
-[[operations/ci-authority|CI authority and base-health intake]] and
-[[operations/supervisor-workflow|Supervisor workflow]]). Pre-commit framework
-hooks ([[engineering/pre-commit-hooks|Pre-commit hooks]]) run via CI in
-addition to the npm gate.
+the authoritative merge gate. Local checks provide fast feedback, but required
+GitHub checks decide mergeability (see [[operations/ci-authority|CI
+authority]]). Pre-commit framework hooks
+([[engineering/pre-commit-hooks|Pre-commit hooks]]) run via CI in addition to
+the npm gate.
 
 ## Local gate
 
@@ -79,6 +77,5 @@ improves cohesion and ownership. Rules are scoped to `src/`; tests and demo are 
 [engineering/e2e-policy|E2E test classification and skip policy]: e2e-policy.md
 [engineering/pre-commit-hooks|Pre-commit hooks]: pre-commit-hooks.md
 [engineering/scaffold-decisions|scaffold decisions]: scaffold-decisions.md
-[operations/ci-authority|CI authority and base-health intake]: ../operations/ci-authority.md
-[operations/supervisor-workflow|Supervisor workflow]: ../operations/supervisor-workflow.md
+[operations/ci-authority|CI authority]: ../operations/ci-authority.md
 [rendering/webgpu-e2e|WebGPU browser e2e lane]: ../rendering/webgpu-e2e.md
