@@ -1,9 +1,15 @@
 import type { WebGpuQueryOptions } from "../platform/capabilities";
 import { WebGpuUnsupportedError } from "../platform/capabilities";
 import { requestWebGpuDevice, watchDeviceLoss, type DeviceLostInfo } from "../platform/device";
-import { createDrawResources, type DrawResources } from "./gpu-draw";
-import { createPickTargets, type PickTargets } from "./gpu-pick";
-import { createRenderResources, type RenderResources } from "./gpu-pipelines";
+import { createDrawResources, destroyDrawResources, type DrawResources } from "./gpu-draw";
+import { createPickTargets, destroyPickTargets, type PickTargets } from "./gpu-pick";
+import { createPickDepthReadback } from "./gpu-pick-depth";
+import {
+  createRenderResources,
+  destroyRenderResources,
+  type RenderResources,
+} from "./gpu-pipelines";
+import type { GpuValidationOptions } from "./gpu-validation";
 
 /** Actionable message when a renderer cannot recreate an external device. */
 export const EXTERNAL_DEVICE_RECOVERY_MESSAGE =
@@ -18,17 +24,29 @@ export interface GpuBundle {
 }
 
 /** Creates the initial GPU resource bundle for a device. */
-export function createGpuBundle(
+export async function createGpuBundle(
   device: GPUDevice,
   format: GPUTextureFormat,
   depthFormat: GPUTextureFormat,
-): GpuBundle {
-  return {
-    device,
-    resources: createRenderResources(device, format, depthFormat),
-    draw: createDrawResources(device),
-    pickTargets: createPickTargets(),
-  };
+  validation?: GpuValidationOptions,
+): Promise<GpuBundle> {
+  let resources: RenderResources | undefined;
+  let draw: DrawResources | undefined;
+  let pickTargets: PickTargets | undefined;
+  let depthReadback: Awaited<ReturnType<typeof createPickDepthReadback>> | undefined;
+  try {
+    resources = await createRenderResources(device, format, depthFormat, validation);
+    depthReadback = await createPickDepthReadback(device, validation);
+    pickTargets = createPickTargets(depthReadback);
+    draw = createDrawResources(device);
+    return { device, resources, draw, pickTargets };
+  } catch (error) {
+    if (resources !== undefined) destroyRenderResources(resources);
+    if (draw !== undefined) destroyDrawResources(draw);
+    if (pickTargets !== undefined) destroyPickTargets(pickTargets);
+    else if (depthReadback !== undefined) depthReadback.requestBuffer.destroy();
+    throw error;
+  }
 }
 
 /**
@@ -41,10 +59,11 @@ export async function rebuildGpuBundle(
   format: GPUTextureFormat,
   depthFormat: GPUTextureFormat,
   options?: WebGpuQueryOptions,
+  validation?: GpuValidationOptions,
 ): Promise<GpuBundle> {
   const requested = await requestWebGpuDevice(options);
   context.configure({ device: requested.device, format, alphaMode: "opaque" });
-  return createGpuBundle(requested.device, format, depthFormat);
+  return createGpuBundle(requested.device, format, depthFormat, validation);
 }
 
 /** Options for constructing a `GpuDeviceLifecycle`. */
@@ -54,6 +73,7 @@ export interface GpuDeviceLifecycleOptions {
   readonly format: GPUTextureFormat;
   readonly depthFormat: GPUTextureFormat;
   readonly powerPreference: GPUPowerPreference | undefined;
+  readonly validation?: GpuValidationOptions | undefined;
   /** False when the renderer uses a caller-provided device it cannot recreate. */
   readonly ownsDevice: boolean;
   readonly onLost: ((info: DeviceLostInfo) => void) | undefined;
@@ -72,6 +92,7 @@ export class GpuDeviceLifecycle {
   private readonly format: GPUTextureFormat;
   private readonly depthFormat: GPUTextureFormat;
   private readonly powerPreference: GPUPowerPreference | undefined;
+  private readonly validation: GpuValidationOptions | undefined;
   private readonly ownsDevice: boolean;
   private readonly onLost: ((info: DeviceLostInfo) => void) | undefined;
 
@@ -81,6 +102,7 @@ export class GpuDeviceLifecycle {
     this.format = options.format;
     this.depthFormat = options.depthFormat;
     this.powerPreference = options.powerPreference;
+    this.validation = options.validation;
     this.ownsDevice = options.ownsDevice;
     this.onLost = options.onLost;
     this.subscribe();
@@ -106,7 +128,13 @@ export class GpuDeviceLifecycle {
     }
     const query =
       this.powerPreference === undefined ? undefined : { powerPreference: this.powerPreference };
-    this.bundle = await rebuildGpuBundle(this.context, this.format, this.depthFormat, query);
+    this.bundle = await rebuildGpuBundle(
+      this.context,
+      this.format,
+      this.depthFormat,
+      query,
+      this.validation,
+    );
     this.subscribe();
     this.lost = false;
     return true;

@@ -1,3 +1,9 @@
+import {
+  createValidatedComputePipeline,
+  createValidatedShaderModule,
+  type GpuValidationOptions,
+} from "./gpu-validation";
+
 const DEPTH_RESULT_OFFSET = 8;
 const DEPTH_READBACK_OFFSET = 256 * 4;
 
@@ -27,19 +33,25 @@ export interface PickDepthReadback {
 }
 
 /** Creates the reusable compute pipeline and storage used for depth extraction. */
-export function createPickDepthReadback(device: GPUDevice): PickDepthReadback {
+export async function createPickDepthReadback(
+  device: GPUDevice,
+  validation?: GpuValidationOptions,
+): Promise<PickDepthReadback> {
   const bindGroupLayout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility: GPUShaderStage.COMPUTE, texture: { sampleType: "depth" } },
       { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
     ],
   });
-  const pipeline = device.createComputePipeline({
+  const module = await createValidatedShaderModule(
+    device,
+    "pick-depth compute/readback",
+    depthReadbackShader,
+    validation,
+  );
+  const pipeline = await createValidatedComputePipeline(device, "pick-depth compute/readback", {
     layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
-    compute: {
-      module: device.createShaderModule({ code: depthReadbackShader }),
-      entryPoint: "computeMain",
-    },
+    compute: { module, entryPoint: "computeMain" },
   });
   const requestBuffer = device.createBuffer({
     size: 16,

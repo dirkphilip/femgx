@@ -1,6 +1,11 @@
 import { viewMatrix, type Camera } from "../camera/camera";
 import type { Vec3 } from "../math/vec3";
 import { COLOR_SAMPLE_COUNT } from "./gpu-support";
+import {
+  createValidatedRenderPipeline,
+  createValidatedShaderModule,
+  type GpuValidationOptions,
+} from "./gpu-validation";
 
 /** GPU resources for the library-owned screen-space camera-pivot widget. */
 export interface OrbitPivotResources {
@@ -16,6 +21,26 @@ export interface OrbitPivotMetrics {
   readonly lineWidth: number;
   readonly arrowLength: number;
   readonly arrowWidth: number;
+}
+
+interface OrbitPivotPipelineOptions {
+  readonly device: GPUDevice;
+  readonly format: GPUTextureFormat;
+  readonly depthFormat: GPUTextureFormat;
+  readonly validation: GpuValidationOptions | undefined;
+}
+
+export interface OrbitPivotPipeline {
+  readonly frameLayout: GPUBindGroupLayout;
+  readonly pivotLayout: GPUBindGroupLayout;
+  readonly pipeline: GPURenderPipeline;
+}
+
+interface OrbitPivotResourceOptions {
+  readonly device: GPUDevice;
+  readonly pipeline: OrbitPivotPipeline;
+  readonly cameraBuffer: GPUBuffer;
+  readonly deformationBuffer: GPUBuffer;
 }
 
 /** Returns the widget dimensions in device pixels for the current point size. */
@@ -38,56 +63,84 @@ export function orbitPivotAxisProjection(camera: Camera, axis: Vec3): readonly [
   ];
 }
 
-/** Creates the always-visible three-axis widget rendered at an active pivot. */
-export function createOrbitPivotResources(
-  device: GPUDevice,
-  format: GPUTextureFormat,
-  depthFormat: GPUTextureFormat,
-  cameraBuffer: GPUBuffer,
-  deformationBuffer: GPUBuffer,
-): OrbitPivotResources {
-  const frameLayout = device.createBindGroupLayout({
+/** Validates the always-visible three-axis widget's shader and pipeline. */
+export async function createOrbitPivotPipeline(
+  options: OrbitPivotPipelineOptions,
+): Promise<OrbitPivotPipeline> {
+  const frameLayout = options.device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } },
       { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } },
     ],
   });
-  const pivotLayout = device.createBindGroupLayout({
+  const pivotLayout = options.device.createBindGroupLayout({
     entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } }],
   });
+  const pipeline = await createOrbitPipeline({ ...options, frameLayout, pivotLayout });
+  return { frameLayout, pivotLayout, pipeline };
+}
+
+/** Allocates the widget's buffer and bind groups after its pipeline is valid. */
+export function createOrbitPivotResources(options: OrbitPivotResourceOptions): OrbitPivotResources {
+  const { device, pipeline, cameraBuffer, deformationBuffer } = options;
   const buffer = device.createBuffer({
     // Pivot data is 56 bytes; uniform structures are rounded to a 16-byte
     // boundary for the implementations used by the supported browsers.
     size: 64,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  const pipeline = device.createRenderPipeline({
-    layout: device.createPipelineLayout({ bindGroupLayouts: [frameLayout, pivotLayout] }),
-    vertex: { module: device.createShaderModule({ code: pivotShader }), entryPoint: "vertexMain" },
+  try {
+    return {
+      buffer,
+      pipeline: pipeline.pipeline,
+      bindGroup: device.createBindGroup({
+        layout: pipeline.frameLayout,
+        entries: [
+          { binding: 0, resource: { buffer: cameraBuffer } },
+          { binding: 1, resource: { buffer: deformationBuffer } },
+        ],
+      }),
+      pivotBindGroup: device.createBindGroup({
+        layout: pipeline.pivotLayout,
+        entries: [{ binding: 0, resource: { buffer } }],
+      }),
+    };
+  } catch (error) {
+    buffer.destroy();
+    throw error;
+  }
+}
+
+interface OrbitPipelineOptions extends OrbitPivotPipelineOptions {
+  readonly frameLayout: GPUBindGroupLayout;
+  readonly pivotLayout: GPUBindGroupLayout;
+}
+
+async function createOrbitPipeline(options: OrbitPipelineOptions): Promise<GPURenderPipeline> {
+  const module = await createValidatedShaderModule(
+    options.device,
+    "orbit pivot overlay",
+    pivotShader,
+    options.validation,
+  );
+  return createValidatedRenderPipeline(options.device, "orbit pivot overlay", {
+    layout: options.device.createPipelineLayout({
+      bindGroupLayouts: [options.frameLayout, options.pivotLayout],
+    }),
+    vertex: { module, entryPoint: "vertexMain" },
     fragment: {
-      module: device.createShaderModule({ code: pivotShader }),
+      module,
       entryPoint: "fragmentMain",
-      targets: [{ format, blend: blendState }],
+      targets: [{ format: options.format, blend: blendState }],
     },
     primitive: { topology: "triangle-list" },
-    depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare: "always" },
+    depthStencil: {
+      format: options.depthFormat,
+      depthWriteEnabled: false,
+      depthCompare: "always",
+    },
     multisample: { count: COLOR_SAMPLE_COUNT },
   });
-  return {
-    buffer,
-    pipeline,
-    bindGroup: device.createBindGroup({
-      layout: frameLayout,
-      entries: [
-        { binding: 0, resource: { buffer: cameraBuffer } },
-        { binding: 1, resource: { buffer: deformationBuffer } },
-      ],
-    }),
-    pivotBindGroup: device.createBindGroup({
-      layout: pivotLayout,
-      entries: [{ binding: 0, resource: { buffer } }],
-    }),
-  };
 }
 
 /** Draws the pivot after scene geometry as an always-visible screen-space widget. */

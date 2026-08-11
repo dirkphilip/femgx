@@ -24,6 +24,14 @@ While calling [Device].CreateRenderPipeline([RenderPipelineDescriptor]).
   `getCompilationInfo()` against a real device (for example via the Playwright
   WebGPU lane or a one-off browser probe) rather than relying on the parser.
 
+Renderer startup now awaits `getCompilationInfo()` for every shader module and
+validates each render/compute pipeline inside a validation error scope before
+publishing a renderer. Diagnostics retain the logical module or pipeline label
+and source location; warnings are observable without preventing startup, while
+errors produce a labeled initialization failure. The demo-only
+`?testShaderFailure=<label>` seam exercises this contract in browser smoke tests
+without adding a public API.
+
 Related: [[rendering/webgpu-e2e|WebGPU browser e2e lane]].
 
 [rendering/webgpu-e2e|WebGPU browser e2e lane]: webgpu-e2e.md

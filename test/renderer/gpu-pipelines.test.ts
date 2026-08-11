@@ -7,11 +7,11 @@ import {
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
 describe("GPU render resources", () => {
-  it("creates the camera buffer, bind group, and color and id pipelines", () => {
+  it("creates the camera buffer, bind group, and color and id pipelines", async () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
-      const resources = createRenderResources(gpu.device, "bgra8unorm", "depth24plus");
+      const resources = await createRenderResources(gpu.device, "bgra8unorm", "depth24plus");
       expect(resources.cameraBuffer).toBeDefined();
       expect(resources.deformationBuffer).toBeDefined();
       expect(resources.frameBindGroup).toBeDefined();

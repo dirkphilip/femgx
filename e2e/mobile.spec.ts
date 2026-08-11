@@ -134,6 +134,7 @@ test("keeps the empty-scene view menu inside a phone-sized viewport", async ({ p
   await page.setViewportSize(PHONE);
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
   const box = await canvas.boundingBox();
   if (box === null) throw new Error("canvas has no bounding box");
 
