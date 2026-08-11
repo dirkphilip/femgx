@@ -285,12 +285,12 @@ test("keeps selection feedback visible in edge overlay mode", async ({ page }) =
   // Edge overlay keeps the emphasis: the label flips and the demo still renders
   // the selected key in the next frame.
   await page.getByTestId("edge-overlay").click();
-  await expect(page.getByTestId("edge-overlay-label")).toHaveText("On");
+  await expect(page.getByTestId("edge-overlay-label")).toHaveText("Off");
   await expect.poll(() => canvas.getAttribute("data-frames")).not.toBeNull();
   expect(await canvas.getAttribute("data-selected")).toBe(selected);
 
   await page.getByTestId("edge-overlay").click();
-  await expect(page.getByTestId("edge-overlay-label")).toHaveText("Off");
+  await expect(page.getByTestId("edge-overlay-label")).toHaveText("On");
   expect(await canvas.getAttribute("data-selected")).toBe(selected);
 });
 
@@ -340,13 +340,13 @@ test("renders element nodes as a separate visible annotation pass", async ({ pag
   await page.getByTestId("model-select").selectOption("gallery");
 
   const canvas = page.getByTestId("view-canvas");
-  const baseline = await stableCanvasPixels(page, canvas);
+  const withNodes = await stableCanvasPixels(page, canvas);
   const nodeToggle = page.getByTestId("node-overlay");
   await nodeToggle.click();
-  await expect(page.getByTestId("node-overlay-label")).toHaveText("On");
-  await expect(nodeToggle).toHaveText("Hide element nodes");
-  const withNodes = await stableCanvasPixels(page, canvas);
-  expect(withNodes.equals(baseline), "node glyphs must change the rendered pixels").toBe(false);
+  await expect(page.getByTestId("node-overlay-label")).toHaveText("Off");
+  await expect(nodeToggle).toHaveText("Show element nodes");
+  const withoutNodes = await stableCanvasPixels(page, canvas);
+  expect(withoutNodes.equals(withNodes), "node glyphs must change the rendered pixels").toBe(false);
   const withNodesRgba = await canvasRgba(page, canvas);
   expect(
     visiblePixelCount(withNodesRgba),
@@ -354,9 +354,9 @@ test("renders element nodes as a separate visible annotation pass", async ({ pag
   ).toBeGreaterThan(withNodesRgba.length / 16);
 
   await nodeToggle.click();
-  await expect(page.getByTestId("node-overlay-label")).toHaveText("Off");
+  await expect(page.getByTestId("node-overlay-label")).toHaveText("On");
   const restored = await stableCanvasPixels(page, canvas);
-  expect(restored.equals(withNodes), "hiding node glyphs must change the annotated frame").toBe(
+  expect(restored.equals(withoutNodes), "showing node glyphs must change the plain frame").toBe(
     false,
   );
 });
@@ -365,8 +365,6 @@ test("keeps element edges and nodes visible after orbiting", async ({ page }) =>
   await loadWebGpuPage(page);
 
   const canvas = page.getByTestId("view-canvas");
-  await page.getByTestId("edge-overlay").click();
-  await page.getByTestId("node-overlay").click();
   await expect(page.getByTestId("edge-overlay-label")).toHaveText("On");
   await expect(page.getByTestId("node-overlay-label")).toHaveText("On");
 
@@ -397,7 +395,6 @@ test("keeps depth-tested node annotations stable across fine zoom steps", async 
   if (box === null) throw new Error("canvas has no bounding box");
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 
-  await page.getByTestId("node-overlay").click();
   await expect(page.getByTestId("node-overlay-label")).toHaveText("On");
 
   const contributions: number[] = [];
@@ -687,8 +684,6 @@ test("keeps selected volume faces lit, distinct, and reversible with overlays", 
     "deselection must restore the ordinary surface appearance",
   ).toBe(true);
 
-  await page.getByTestId("edge-overlay").click();
-  await page.getByTestId("node-overlay").click();
   await expect(page.getByTestId("edge-overlay-label")).toHaveText("On");
   await expect(page.getByTestId("node-overlay-label")).toHaveText("On");
   const overlaid = await stableCanvasPixels(page, canvas);

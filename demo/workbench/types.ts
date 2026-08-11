@@ -15,6 +15,11 @@ export interface DisplayToggles {
   diagnostics: boolean;
 }
 
+/** Returns the inspection-first model defaults used by startup, reset, and switches. */
+export function createDefaultDisplayToggles(): DisplayToggles {
+  return { edges: true, nodes: true, diagnostics: false };
+}
+
 /** Static result display states exercised by the results demo preset. */
 export type ResultDisplayMode = "base" | "colored" | "deformed";
 
