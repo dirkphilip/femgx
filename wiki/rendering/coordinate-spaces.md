@@ -17,7 +17,10 @@ femgx uses one top-left-origin path from browser input to displayed geometry:
 `clientToCanvasCss` and `canvasCssToRenderPixel` own browser-to-GPU conversion.
 `projectPoint` and `unprojectPoint` own world/NDC conversion for both camera
 projection modes. Camera width and height are CSS viewport dimensions; renderer
-textures use render-pixel dimensions.
+textures use render-pixel dimensions. Empty-space navigation reuses the target's
+projected depth with the requested CSS x/y, producing a point on the
+view-aligned plane through `camera.target` without adding a ray or ground-plane
+abstraction.
 
 Related: [[rendering/camera-presentation|Camera presentation]],
 [[rendering/fe-inspection-workbench|FE inspection workbench]].

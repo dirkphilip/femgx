@@ -91,8 +91,14 @@ type Box = {
 };
 
 export interface CameraSnapshot {
+  readonly mode: "perspective" | "orthographic";
   readonly position: readonly [number, number, number];
   readonly target: readonly [number, number, number];
+  readonly up: readonly [number, number, number];
+  readonly fovY: number;
+  readonly orthoHeight: number;
+  readonly width: number;
+  readonly height: number;
   readonly near: number;
   readonly far: number;
 }
@@ -139,6 +145,64 @@ export function cameraDistance(camera: CameraSnapshot): number {
   );
 }
 
+/** Computes the empty-space navigation point on the plane through the target. */
+export function targetPlanePoint(
+  camera: CameraSnapshot,
+  x: number,
+  y: number,
+): readonly [number, number, number] {
+  const forward = normalize(subtract(camera.target, camera.position));
+  const right = normalize(cross(forward, camera.up));
+  const up = cross(right, forward);
+  const distance = dot(subtract(camera.target, camera.position), forward);
+  const halfHeight =
+    camera.mode === "orthographic" ? camera.orthoHeight / 2 : Math.tan(camera.fovY / 2) * distance;
+  const halfWidth = halfHeight * (camera.width / camera.height);
+  const ndcX = (x / camera.width) * 2 - 1;
+  const ndcY = 1 - (y / camera.height) * 2;
+  return add(
+    add(add(camera.position, scale(forward, distance)), scale(right, ndcX * halfWidth)),
+    scale(up, ndcY * halfHeight),
+  );
+}
+
+/** Applies the camera's existing view-plane pan convention to a snapshot. */
+export function panCameraSnapshot(
+  camera: CameraSnapshot,
+  horizontal: number,
+  vertical: number,
+): CameraSnapshot {
+  const forward = normalize(subtract(camera.target, camera.position));
+  const right = normalize(cross(forward, camera.up));
+  const up = normalize(cross(right, forward));
+  const delta = add(scale(right, -horizontal), scale(up, vertical));
+  return {
+    ...camera,
+    position: add(camera.position, delta),
+    target: add(camera.target, delta),
+  };
+}
+
+/** Projects a world point into the camera's CSS pixel coordinates. */
+export function projectCameraPoint(
+  camera: CameraSnapshot,
+  point: readonly [number, number, number],
+): readonly [number, number] | undefined {
+  const forward = normalize(subtract(camera.target, camera.position));
+  const right = normalize(cross(forward, camera.up));
+  const up = cross(right, forward);
+  const relative = subtract(point, camera.position);
+  const depth = dot(relative, forward);
+  if (depth <= 0) return undefined;
+  const halfHeight =
+    camera.mode === "orthographic" ? camera.orthoHeight / 2 : Math.tan(camera.fovY / 2) * depth;
+  const halfWidth = halfHeight * (camera.width / camera.height);
+  return [
+    ((dot(relative, right) / halfWidth + 1) * camera.width) / 2,
+    ((1 - dot(relative, up) / halfHeight) * camera.height) / 2,
+  ];
+}
+
 function boundsDepths(camera: CameraSnapshot, bounds: BoundsSnapshot): readonly number[] {
   const forward = normalize([
     camera.target[0] - camera.position[0],
@@ -174,7 +238,29 @@ function dot(a: readonly number[], b: readonly number[]): number {
   return (a[0] ?? 0) * (b[0] ?? 0) + (a[1] ?? 0) * (b[1] ?? 0) + (a[2] ?? 0) * (b[2] ?? 0);
 }
 
-function normalize(vector: readonly number[]): readonly number[] {
+type Vec3 = readonly [number, number, number];
+
+function add(a: readonly number[], b: readonly number[]): Vec3 {
+  return [(a[0] ?? 0) + (b[0] ?? 0), (a[1] ?? 0) + (b[1] ?? 0), (a[2] ?? 0) + (b[2] ?? 0)];
+}
+
+function subtract(a: readonly number[], b: readonly number[]): Vec3 {
+  return [(a[0] ?? 0) - (b[0] ?? 0), (a[1] ?? 0) - (b[1] ?? 0), (a[2] ?? 0) - (b[2] ?? 0)];
+}
+
+function scale(vector: readonly number[], amount: number): Vec3 {
+  return [(vector[0] ?? 0) * amount, (vector[1] ?? 0) * amount, (vector[2] ?? 0) * amount];
+}
+
+function cross(a: readonly number[], b: readonly number[]): Vec3 {
+  return [
+    (a[1] ?? 0) * (b[2] ?? 0) - (a[2] ?? 0) * (b[1] ?? 0),
+    (a[2] ?? 0) * (b[0] ?? 0) - (a[0] ?? 0) * (b[2] ?? 0),
+    (a[0] ?? 0) * (b[1] ?? 0) - (a[1] ?? 0) * (b[0] ?? 0),
+  ];
+}
+
+function normalize(vector: readonly number[]): Vec3 {
   const length = Math.hypot(vector[0] ?? 0, vector[1] ?? 0, vector[2] ?? 0);
   return [(vector[0] ?? 0) / length, (vector[1] ?? 0) / length, (vector[2] ?? 0) / length];
 }

@@ -1,7 +1,11 @@
 import { orbitCamera, panCamera, type Camera, zoomCamera, zoomCameraAtPoint } from "./camera";
 import { clientToCanvasCss } from "./coordinates";
 import { CameraGestureTracker, type GestureStep } from "./gestures";
-import { zoomCameraAtPointWithinBounds, zoomCameraWithinBounds } from "./navigation";
+import {
+  targetPlanePoint,
+  zoomCameraAtPointWithinBounds,
+  zoomCameraWithinBounds,
+} from "./navigation";
 import type { Bounds } from "../geometry/part";
 import type { Vec3 } from "../math/vec3";
 
@@ -35,6 +39,14 @@ interface OrbitGesture {
   deltaY: number;
 }
 
+interface ZoomGesture {
+  readonly fallbackPivot: Vec3;
+  active: boolean;
+  resolved: boolean;
+  pivot: Vec3 | undefined;
+  pendingAmount: number;
+}
+
 const PAN_SCALE = 100;
 const ORBIT_SCALE = 180;
 const ZOOM_DRAG_SCALE = 300;
@@ -56,6 +68,7 @@ class CameraControls {
   private readonly tracker = new CameraGestureTracker();
   private readonly trackedPointerIds = new Set<number>();
   private readonly orbitGestures = new Map<number, OrbitGesture>();
+  private readonly zoomGestures = new Map<number, ZoomGesture>();
   private wheelQueue: Promise<void> = Promise.resolve();
   private disposed = false;
 
@@ -83,14 +96,18 @@ class CameraControls {
     }
     this.trackedPointerIds.clear();
     this.orbitGestures.clear();
+    this.zoomGestures.clear();
     this.tracker.clear();
   }
 
   private readonly pointerDown = (event: PointerEvent): void => {
     if (event.pointerType !== "touch" && event.button !== 1) return;
     this.trackedPointerIds.add(event.pointerId);
-    const step = this.tracker.begin(event.pointerId, eventPoint(event));
-    if (event.pointerType !== "touch" && !event.shiftKey && !isPanModifier(event)) {
+    const point = eventPoint(event, this.options.canvas.getBoundingClientRect());
+    const step = this.tracker.begin(event.pointerId, point);
+    if (event.pointerType !== "touch" && event.shiftKey && !isPanModifier(event)) {
+      this.beginZoom(event, point);
+    } else if (event.pointerType !== "touch" && !isPanModifier(event)) {
       this.beginOrbit(event);
     } else if (event.pointerType === "touch") {
       this.orbitGestures.delete(event.pointerId);
@@ -104,8 +121,10 @@ class CameraControls {
 
   private readonly pointerMove = (event: PointerEvent): void => {
     if (!this.trackedPointerIds.has(event.pointerId)) return;
-    this.applyGesture(event, this.tracker.move(event.pointerId, eventPoint(event)));
-    this.options.onRender();
+    const point = eventPoint(event, this.options.canvas.getBoundingClientRect());
+    if (this.applyGesture(event, this.tracker.move(event.pointerId, point))) {
+      this.options.onRender();
+    }
   };
 
   private readonly pointerUp = (event: PointerEvent): void => {
@@ -132,19 +151,17 @@ class CameraControls {
     const amount = event.deltaY / 1000;
     this.wheelQueue = this.wheelQueue.then(async () => {
       if (this.abortController.signal.aborted) return;
+      const camera = this.options.cameraRef.camera;
       let pivot: Vec3 | undefined;
       try {
-        pivot = await this.options.navigation.pickPoint(
-          this.options.cameraRef.camera,
-          point.x,
-          point.y,
-        );
+        pivot = await this.options.navigation.pickPoint(camera, point.x, point.y);
       } catch {
         pivot = undefined;
       }
       if (this.disposed) return;
-      this.options.cameraRef.camera =
-        pivot === undefined ? this.zoom(amount) : this.zoom(amount, pivot);
+      const next = this.zoom(amount, pivot ?? targetPlanePoint(camera, point.x, point.y), camera);
+      if (next === camera) return;
+      this.options.cameraRef.camera = next;
       this.options.onRender();
     });
   };
@@ -152,6 +169,7 @@ class CameraControls {
   private endPointer(event: PointerEvent, releaseCapture: boolean): void {
     if (!this.trackedPointerIds.delete(event.pointerId)) return;
     this.releaseOrbit(event.pointerId);
+    this.releaseZoom(event.pointerId);
     const step = this.tracker.end(event.pointerId);
     if (releaseCapture && this.options.canvas.hasPointerCapture(event.pointerId)) {
       this.options.canvas.releasePointerCapture(event.pointerId);
@@ -159,12 +177,11 @@ class CameraControls {
     if (step.pointerCount === 0) this.options.onGestureChange?.(false);
   }
 
-  private applyGesture(event: PointerEvent, step: GestureStep): void {
+  private applyGesture(event: PointerEvent, step: GestureStep): boolean {
     if (step.pointerCount >= 2) {
-      this.applyTouchGesture(step);
-      return;
+      return this.applyTouchGesture(step);
     }
-    if (step.pointerCount !== 1 || (step.deltaX === 0 && step.deltaY === 0)) return;
+    if (step.pointerCount !== 1 || (step.deltaX === 0 && step.deltaY === 0)) return false;
     const { cameraRef } = this.options;
     if (event.pointerType !== "touch" && isPanModifier(event)) {
       cameraRef.camera = panCamera(
@@ -172,15 +189,20 @@ class CameraControls {
         step.deltaX / PAN_SCALE,
         -step.deltaY / PAN_SCALE,
       );
-    } else if (event.pointerType !== "touch" && event.shiftKey) {
-      cameraRef.camera = this.zoom(step.deltaY / ZOOM_DRAG_SCALE);
+      return true;
+    } else if (
+      event.pointerType !== "touch" &&
+      (event.shiftKey || this.zoomGestures.has(event.pointerId))
+    ) {
+      return this.applyZoom(event.pointerId, step.deltaY / ZOOM_DRAG_SCALE);
     } else {
-      this.applyOrbit(event.pointerId, step);
+      return this.applyOrbit(event.pointerId, step);
     }
   }
 
-  private applyTouchGesture(step: GestureStep): void {
+  private applyTouchGesture(step: GestureStep): boolean {
     const { cameraRef } = this.options;
+    const beforePan = cameraRef.camera;
     if (step.deltaX !== 0 || step.deltaY !== 0) {
       cameraRef.camera = panCamera(
         cameraRef.camera,
@@ -188,11 +210,14 @@ class CameraControls {
         -step.deltaY / PAN_SCALE,
       );
     }
-    if (step.zoom !== 0) cameraRef.camera = this.zoom(-step.zoom);
+    if (step.zoom !== 0 && step.midpoint !== undefined) {
+      const pivot = targetPlanePoint(cameraRef.camera, step.midpoint.x, step.midpoint.y);
+      cameraRef.camera = this.zoom(-step.zoom, pivot);
+    }
+    return cameraRef.camera !== beforePan;
   }
 
-  private zoom(amount: number, pivot?: Vec3): Camera {
-    const camera = this.options.cameraRef.camera;
+  private zoom(amount: number, pivot?: Vec3, camera = this.options.cameraRef.camera): Camera {
     const bounds = this.options.bounds?.();
     if (bounds === undefined) {
       return pivot === undefined
@@ -204,12 +229,12 @@ class CameraControls {
       : zoomCameraAtPointWithinBounds(camera, amount, pivot, bounds);
   }
 
-  private applyOrbit(pointerId: number, step: GestureStep): void {
+  private applyOrbit(pointerId: number, step: GestureStep): boolean {
     const gesture = this.orbitGestures.get(pointerId);
     if (gesture !== undefined && !gesture.resolved) {
       gesture.deltaX += step.deltaX;
       gesture.deltaY += step.deltaY;
-      return;
+      return false;
     }
     const { cameraRef } = this.options;
     cameraRef.camera = orbitCamera(
@@ -218,6 +243,7 @@ class CameraControls {
       step.deltaY / ORBIT_SCALE,
       gesture?.pivot,
     );
+    return true;
   }
 
   private beginOrbit(event: PointerEvent): void {
@@ -245,6 +271,70 @@ class CameraControls {
         this.resolveOrbit(event.pointerId, gesture, undefined);
       },
     );
+  }
+
+  private beginZoom(event: PointerEvent, point: { readonly x: number; readonly y: number }): void {
+    const camera = this.options.cameraRef.camera;
+    const gesture: ZoomGesture = {
+      fallbackPivot: targetPlanePoint(camera, point.x, point.y),
+      active: true,
+      resolved: false,
+      pivot: undefined,
+      pendingAmount: 0,
+    };
+    this.zoomGestures.set(event.pointerId, gesture);
+    let pivot: Promise<Vec3 | undefined>;
+    try {
+      pivot = this.options.navigation.pickPoint(camera, point.x, point.y);
+    } catch {
+      this.resolveZoom(event.pointerId, gesture, undefined);
+      return;
+    }
+    void pivot.then(
+      (result) => {
+        this.resolveZoom(event.pointerId, gesture, result);
+      },
+      () => {
+        this.resolveZoom(event.pointerId, gesture, undefined);
+      },
+    );
+  }
+
+  private applyZoom(pointerId: number, amount: number): boolean {
+    const gesture = this.zoomGestures.get(pointerId);
+    if (gesture === undefined || !gesture.resolved) {
+      if (gesture !== undefined) gesture.pendingAmount += amount;
+      return false;
+    }
+    const before = this.options.cameraRef.camera;
+    const next = this.zoom(amount, gesture.pivot ?? gesture.fallbackPivot);
+    this.options.cameraRef.camera = next;
+    return next !== before;
+  }
+
+  private resolveZoom(pointerId: number, gesture: ZoomGesture, pivot: Vec3 | undefined): void {
+    if (this.zoomGestures.get(pointerId) !== gesture) return;
+    gesture.resolved = true;
+    gesture.pivot = pivot;
+    let changed = false;
+    if (gesture.pendingAmount !== 0) {
+      const before = this.options.cameraRef.camera;
+      this.options.cameraRef.camera = this.zoom(
+        gesture.pendingAmount,
+        pivot ?? gesture.fallbackPivot,
+      );
+      changed = this.options.cameraRef.camera !== before;
+      gesture.pendingAmount = 0;
+    }
+    if (changed) this.options.onRender();
+    if (!gesture.active) this.zoomGestures.delete(pointerId);
+  }
+
+  private releaseZoom(pointerId: number): void {
+    const gesture = this.zoomGestures.get(pointerId);
+    if (gesture === undefined) return;
+    gesture.active = false;
+    if (gesture.resolved) this.zoomGestures.delete(pointerId);
   }
 
   private resolveOrbit(pointerId: number, gesture: OrbitGesture, pivot: Vec3 | undefined): void {
@@ -282,11 +372,14 @@ class CameraControls {
   }
 }
 
-function eventPoint(event: { readonly clientX: number; readonly clientY: number }): {
+function eventPoint(
+  event: { readonly clientX: number; readonly clientY: number },
+  rect: Pick<DOMRect, "left" | "top">,
+): {
   readonly x: number;
   readonly y: number;
 } {
-  return { x: event.clientX, y: event.clientY };
+  return clientToCanvasCss(event.clientX, event.clientY, rect);
 }
 
 function isPanModifier(event: { readonly ctrlKey: boolean; readonly metaKey: boolean }): boolean {

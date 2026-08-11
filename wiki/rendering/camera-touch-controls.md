@@ -9,11 +9,11 @@ toolbars, or inspection panels.
 
 - **Middle drag** spins (`orbitCamera`); **Ctrl/Meta+middle drag** pans
   (`panCamera`) in the drag direction; **Shift+middle drag** zooms vertically
-  (`zoomCamera`).
+  around the pointer-down position.
 - **Wheel** zooms toward the visible world point under the cursor
   (`zoomCameraAtPoint`); an upward wheel/drag motion zooms in and a downward
-  motion zooms out. Empty space falls back to the target-anchored
-  bounds-aware `zoomCamera` transition.
+  motion zooms out. Empty space uses the point under the cursor on the
+  view-aligned plane through `camera.target`.
 - **Left mouse drag** is not a camera gesture, preserving click and
   shift-click inspection selection.
 - **One finger** continues to orbit on touch devices.
@@ -34,6 +34,8 @@ turns pointer events into `GestureStep` deltas. It is unit-tested in
 - One pointer reports its pixel drag delta.
 - Two pointers report the midpoint movement plus the pinch zoom; the baseline
   is taken when the second pointer lands, so the first move is not a jump.
+  The current midpoint is included in each two-pointer step in canvas CSS
+  coordinates.
 - Three or more pointers freeze the gesture; when a pointer lifts back to one
   or two, the baseline is recomputed from the current positions.
 - `end` is idempotent, so it can be driven by `pointerup`, `pointercancel`,
@@ -65,12 +67,12 @@ Playwright's `touchscreen` API is single-touch only.
 - Middle-button orbit asks `WebGpuRenderer.pickPoint` for the exact visible
   surface point. Drag deltas wait for the asynchronous GPU readback, then apply
   once around that point, so the camera never starts around a stale target and
-  switches pivots mid-gesture.
-- Pinch zoom uses the target-anchored bounds-aware `zoomCamera` transition. The
-  midpoint is used for the two-finger pan, which keeps the pinch feeling
-  anchored; cursor-anchored wheel zoom is implemented separately through the
-  picked world point. Every accepted zoom recomputes clip planes from the
-  current scene bounds, so the same safety policy applies to desktop and touch.
+  switches pivots mid-gesture. Shift+middle zoom uses the same one-time
+  readback, falling back to the target plane and buffering early deltas.
+- Pinch applies midpoint pan first, then recomputes the target-plane anchor
+  under the current midpoint for each zoom step. Every accepted zoom
+  recomputes clip planes from the current scene bounds, so the same safety
+  policy applies to desktop and touch.
 
 ## Related demo fixes
 

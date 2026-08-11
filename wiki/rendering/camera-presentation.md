@@ -21,8 +21,11 @@ under its start point as the rotation pivot; `WebGpuRenderer.pickPoint`
 reads the winning fragment's NDC depth and unprojects the exact displayed world
 position. This follows GPU deformation and non-planar tessellation instead of
 reconstructing an undeformed CPU face plane.
-Empty space falls back to the fitted model target. Wheel zoom uses the picked
-world point as a scale pivot, preserving its screen position while zooming.
+Empty space uses the point under the cursor on the view-aligned plane through the
+camera target. Wheel zoom uses the picked world point when available and this
+target-plane point otherwise, preserving the chosen screen position while
+zooming. Shift+middle-drag captures the same anchor at pointer-down; pinch
+recomputes it under the current two-pointer midpoint after midpoint pan.
 All control-driven zoom transitions are admitted against the current compiled
 scene bounds, so an aggressive wheel, drag, or pinch gesture stops at a safe
 front-of-model depth and updates the clip interval to the accepted range.

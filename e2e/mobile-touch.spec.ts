@@ -1,12 +1,16 @@
 import { expect, test, type CDPSession } from "@playwright/test";
 import {
   cameraDistance,
+  drawnPixels,
   expectBoundsClippedSafely,
+  panCameraSnapshot,
+  projectCameraPoint,
   readNavigationState,
   requireHit,
+  targetPlanePoint,
 } from "./helpers";
 
-const BASE_URL = "http://127.0.0.1:5173";
+const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 
 type TouchEventType = "touchStart" | "touchMove" | "touchEnd" | "touchCancel";
 
@@ -130,6 +134,57 @@ test("keeps repeated mobile pinch zoom inside the model bounds", async ({ browse
   expectBoundsClippedSafely(closest.camera, closest.bounds);
   expect(cameraDistance(closest.camera)).toBeLessThan(cameraDistance(before.camera));
   expect(await canvas.screenshot()).not.toHaveLength(0);
+  await context.close();
+});
+
+test("anchors an off-center empty-space pinch at its midpoint", async ({ browser }) => {
+  const context = await browser.newContext({
+    baseURL: BASE_URL,
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toBeVisible();
+  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await page.getByTestId("fit-view").click();
+
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  const midpoint = {
+    x: Math.round(box.x + box.width * 0.78),
+    y: Math.round(box.y + box.height * 0.3),
+  };
+  const before = await readNavigationState(canvas);
+  const client = await context.newCDPSession(page);
+  await dispatchTouch(client, "touchStart", [
+    { x: midpoint.x - 28, y: midpoint.y, id: 0 },
+    { x: midpoint.x + 28, y: midpoint.y, id: 1 },
+  ]);
+  await dispatchTouch(client, "touchMove", [
+    { x: midpoint.x - 62, y: midpoint.y, id: 0 },
+    { x: midpoint.x + 28, y: midpoint.y, id: 1 },
+  ]);
+  const currentMidpoint = { x: midpoint.x - 17, y: midpoint.y };
+  const afterPan = panCameraSnapshot(before.camera, -17 / 100, 0);
+  const anchor = targetPlanePoint(afterPan, currentMidpoint.x - box.x, currentMidpoint.y - box.y);
+  await dispatchTouch(client, "touchEnd", []);
+  await expect.poll(() => canvas.getAttribute("data-dragging")).toBe("false");
+
+  const after = await readNavigationState(canvas);
+  const projected = projectCameraPoint(after.camera, anchor);
+  expect(projected).toBeDefined();
+  expect(
+    Math.hypot(
+      (projected?.[0] ?? 0) - (currentMidpoint.x - box.x),
+      (projected?.[1] ?? 0) - (currentMidpoint.y - box.y),
+    ),
+  ).toBeLessThan(0.2);
+  expect(cameraDistance(after.camera)).toBeLessThan(cameraDistance(before.camera));
+  expectBoundsClippedSafely(after.camera, after.bounds);
+  expect(await drawnPixels(canvas)).toBe(true);
   await context.close();
 });
 

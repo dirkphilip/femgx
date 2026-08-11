@@ -1,6 +1,6 @@
 import type { Bounds } from "../geometry/part";
 import { dot, normalize, subtract, type Vec3 } from "../math/vec3";
-import { zoomCamera, zoomCameraAtPoint, type Camera } from "./camera";
+import { projectPoint, unprojectPoint, zoomCamera, zoomCameraAtPoint, type Camera } from "./camera";
 
 const SAFE_MARGIN_FRACTION = 1e-5;
 const MIN_NEAR_FRACTION = 1e-7;
@@ -21,6 +21,16 @@ export function zoomCameraAtPointWithinBounds(
   return zoomWithinBounds(camera, amount, bounds, (value, step) =>
     zoomCameraAtPoint(value, step, pivot),
   );
+}
+
+/** Returns the world point under a CSS pixel on the view-aligned target plane. */
+export function targetPlanePoint(camera: Camera, x: number, y: number): Vec3 {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    throw new Error("Camera target-plane coordinates must be finite");
+  }
+  const targetScreen = projectPoint(camera, camera.target);
+  if (targetScreen === undefined) throw new Error("Camera target must be projectable");
+  return unprojectPoint(camera, [x, y, targetScreen[2]]);
 }
 
 function zoomWithinBounds(
