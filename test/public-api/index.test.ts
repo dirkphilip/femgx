@@ -54,6 +54,7 @@ describe("public root API", () => {
       "fitCamera",
       "heterogeneousElementParts",
       "identity",
+      "installBoxSelection",
       "installCameraControls",
       "instanceToTarget",
       "isBodyEmphasized",
