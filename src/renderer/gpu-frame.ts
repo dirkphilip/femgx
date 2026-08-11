@@ -87,10 +87,10 @@ export function encodeVisibleFrame(
     colorPass.end();
     const nodePass = beginNodeOverlayPass(colorEncoder, colorView, depthView, resolveTarget);
     drawNodeOverlay(nodePass, frame, context, targets.depth);
-    drawOrbitPivot(nodePass, frame.resources.orbitPivot, frame.orbitPivot, frame.device);
+    drawFrameOrbitPivot(nodePass, camera, frame);
     nodePass.end();
   } else {
-    drawOrbitPivot(colorPass, frame.resources.orbitPivot, frame.orbitPivot, frame.device);
+    drawFrameOrbitPivot(colorPass, camera, frame);
     colorPass.end();
   }
   frame.device.queue.submit([colorEncoder.finish()]);
@@ -167,4 +167,22 @@ function drawNodeOverlay(
     nodes: true,
     pipeline: frame.resources.nodeOverlayPipelines.visible,
   });
+}
+
+/** Draws the temporary camera-pivot widget in whichever overlay pass is active. */
+function drawFrameOrbitPivot(
+  pass: GPURenderPassEncoder,
+  camera: Camera,
+  frame: FrameOptions,
+): void {
+  drawOrbitPivot(
+    pass,
+    frame.resources.orbitPivot,
+    {
+      point: frame.orbitPivot,
+      camera,
+      pointSizeDevicePixels: pointSizeDevicePixels(frame.pointSize),
+    },
+    frame.device,
+  );
 }

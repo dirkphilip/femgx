@@ -112,7 +112,7 @@ const { createScene, createFemViewport, createResultField } = require("femgx");
 - `createWebGpuRenderer()` uploads geometry once, renders instanced batches, applies styles,
   and exposes asynchronous `pick(x, y)` and exact-surface `pickPoint(camera, x, y)` readback.
 - `installCameraControls()` adds the library's SpaceClaim-style mouse/touch behavior and
-  renderer-owned rotation marker without requiring the demo's tree, toolbar, or info panels.
+  renderer-owned rotation-origin axis widget without requiring the demo's tree, toolbar, or info panels.
 - `createFemViewport()` is the canonical application path: it owns the packed runtime, fitted
   camera, renderer, controls, resize, interaction synchronization, recovery, and teardown.
 - `createResultField()` builds typed nodal/elemental scalar, vector, and tensor fields; the

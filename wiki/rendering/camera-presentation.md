@@ -21,8 +21,11 @@ Empty space falls back to the fitted model target. Wheel zoom uses the picked
 world point as a scale pivot, preserving its screen position while zooming.
 Early drag deltas wait for
 the asynchronous GPU hit, so the gesture uses one pivot from its first visible
-movement onward. The WebGPU renderer projects its active pivot to an
-always-visible, high-contrast screen-space target at that world-space position. Spin is
+movement onward. The WebGPU renderer projects its active pivot to a
+high-contrast three-axis screen-space widget at that world-space position. The X/Y/Z
+directions follow the current camera projection, while the widget dimensions scale
+with device pixels and stay stable through perspective, orthographic, and resize changes.
+The widget is visible only while the orbit gesture is active. Spin is
 continuous through the poles, and both spin and pan use the SpaceClaim
 direction convention. Left-drag is reserved for selection, including its
 shift-based inspection modifiers. The demo presentation uses a light studio

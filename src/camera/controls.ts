@@ -79,6 +79,11 @@ class CameraControls {
   dispose(): void {
     this.disposed = true;
     this.abortController.abort();
+    try {
+      this.options.navigation.setOrbitPivot(undefined);
+    } catch {
+      // Teardown can follow device loss; the renderer is already unable to draw.
+    }
     this.trackedPointerIds.clear();
     this.orbitGestures.clear();
     this.tracker.clear();
@@ -238,8 +243,8 @@ class CameraControls {
     if (this.orbitGestures.get(pointerId) !== gesture) return;
     gesture.resolved = true;
     gesture.pivot = pivot;
-    this.options.navigation.setOrbitPivot(pivot);
     this.applyQueuedOrbit(gesture, pivot);
+    this.options.navigation.setOrbitPivot(gesture.active ? pivot : undefined);
     this.options.onRender();
     if (!gesture.active) this.orbitGestures.delete(pointerId);
   }
@@ -261,7 +266,11 @@ class CameraControls {
     const gesture = this.orbitGestures.get(pointerId);
     if (gesture === undefined) return;
     gesture.active = false;
-    if (gesture.resolved) this.orbitGestures.delete(pointerId);
+    if (gesture.resolved) {
+      this.options.navigation.setOrbitPivot(undefined);
+      this.options.onRender();
+      this.orbitGestures.delete(pointerId);
+    }
   }
 }
 

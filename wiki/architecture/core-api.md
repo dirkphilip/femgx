@@ -206,7 +206,6 @@ separate proposals:
 - Body grouping and body-level state: [#232](https://github.com/dirkphilip/femgx/issues/232),
   [#233](https://github.com/dirkphilip/femgx/issues/233), and
   [#234](https://github.com/dirkphilip/femgx/issues/234).
-- Three-axis rotation-origin widget: [#235](https://github.com/dirkphilip/femgx/issues/235).
 - Test-suite value and redundancy audit: [#236](https://github.com/dirkphilip/femgx/issues/236).
 - Validated face subsets and exterior-only rendering: [#237](https://github.com/dirkphilip/femgx/issues/237).
 
