@@ -12,8 +12,9 @@ import {
   type ElementShape,
 } from "../elements/shapes";
 import { VtkWriteError, type Issue } from "./diagnostics";
-import type { FemModel, ModelElementBlock, ModelResultField } from "./model";
+import type { FemModel, ModelElementBlock } from "./model";
 import { validateModel } from "./validate";
+import { prepareResults, writeAttributes, type PreparedResult } from "./vtk-write-results";
 
 const VTK_TYPES: ReadonlyMap<string, number> = new Map([
   [shapeKey(POINT_SHAPE), 1],
@@ -32,11 +33,6 @@ interface EmittedCell {
   readonly shape: ElementShape;
   readonly vtkType: number;
   readonly connectivity: readonly number[];
-}
-
-interface PreparedResult {
-  readonly result: ModelResultField;
-  readonly values: Float64Array;
 }
 
 interface WritePlan {
@@ -162,118 +158,6 @@ function appendBlockCells(
   }
 }
 
-function prepareResults(
-  results: readonly ModelResultField[],
-  location: "node" | "element",
-  emittedIds: readonly number[],
-): PreparedResult[] {
-  validateResultLocations(results);
-  return results
-    .filter((result) => result.location === location)
-    .map((result) => prepareResult(result, emittedIds));
-}
-
-function prepareResult(result: ModelResultField, emittedIds: readonly number[]): PreparedResult {
-  validateResultShape(result);
-  const emittedRows = collectResultRows(result, emittedIds);
-  return { result, values: reorderResultValues(result, emittedIds, emittedRows) };
-}
-
-function validateResultLocations(results: readonly ModelResultField[]): void {
-  for (const result of results) {
-    const locationValue: unknown = result.location;
-    const location = String(locationValue);
-    if (location !== "node" && location !== "element") {
-      throw new VtkWriteError(
-        "unsupported-writer-state",
-        `VTK result ${result.name} has unsupported location ${location}`,
-      );
-    }
-  }
-}
-
-function validateResultShape(result: ModelResultField): void {
-  if (result.components !== 1 && result.components !== 3) {
-    throw new VtkWriteError(
-      "unsupported-writer-state",
-      `VTK result ${result.name} has ${result.components} components; only scalar and vector fields are supported`,
-    );
-  }
-  if (result.name.length === 0) {
-    throw new VtkWriteError("unsupported-writer-state", "VTK result names must not be empty");
-  }
-  const expectedValueCount = result.ids.length * result.components;
-  if (result.values.length !== expectedValueCount) {
-    throw invalidModel(
-      `Result ${result.name} holds ${result.values.length} values for ${result.ids.length} ids with ${result.components} components`,
-    );
-  }
-}
-
-function collectResultRows(
-  result: ModelResultField,
-  emittedIds: readonly number[],
-): Map<number, number> {
-  const emittedRows = new Map<number, number>();
-  const expected = new Set(emittedIds);
-  for (let row = 0; row < result.ids.length; row += 1) {
-    const id = requiredValue(
-      result.ids[row],
-      `Result ${result.name} is missing an id at row ${row}`,
-    );
-    if (emittedRows.has(id)) {
-      throw new VtkWriteError(
-        "duplicate-result-identity",
-        `Result ${result.name} repeats ${result.location} id ${id}`,
-      );
-    }
-    if (!expected.has(id)) {
-      throw new VtkWriteError(
-        "incomplete-result-coverage",
-        `Result ${result.name} references unknown ${result.location} id ${id}`,
-      );
-    }
-    emittedRows.set(id, row);
-  }
-  if (emittedRows.size !== emittedIds.length) {
-    const missing = emittedIds.find((id) => !emittedRows.has(id));
-    throw new VtkWriteError(
-      "incomplete-result-coverage",
-      `Result ${result.name} must cover every ${result.location} id; missing ${String(missing)}`,
-    );
-  }
-  return emittedRows;
-}
-
-function reorderResultValues(
-  result: ModelResultField,
-  emittedIds: readonly number[],
-  emittedRows: ReadonlyMap<number, number>,
-): Float64Array {
-  const values = new Float64Array(emittedIds.length * result.components);
-  for (let emittedRow = 0; emittedRow < emittedIds.length; emittedRow += 1) {
-    const emittedId = emittedIds[emittedRow];
-    const sourceRow = emittedId === undefined ? undefined : emittedRows.get(emittedId);
-    if (sourceRow === undefined) {
-      throw new VtkWriteError(
-        "incomplete-result-coverage",
-        `Result ${result.name} has no row for emitted ${result.location} ${String(emittedId)}`,
-      );
-    }
-    for (let component = 0; component < result.components; component += 1) {
-      const value = result.values[sourceRow * result.components + component];
-      if (value === undefined || !Number.isFinite(value)) {
-        throw new VtkWriteError(
-          "unsupported-writer-state",
-          `Result ${result.name} contains a non-finite value at row ${sourceRow}, component ${component}`,
-        );
-      }
-      values[emittedRow * result.components + component] = value;
-    }
-  }
-  return values;
-}
-
 function writeCoordinates(model: FemModel, lines: string[]): void {
   for (let row = 0; row < model.nodes.count; row += 1) {
     const offset = row * 3;
@@ -314,17 +198,6 @@ function writeCellData(
   if (results.length === 0) return;
   lines.push(`CELL_DATA ${String(cellCount)}`);
   writeAttributes(lines, results);
-}
-
-function writeAttributes(lines: string[], results: readonly PreparedResult[]): void {
-  for (const prepared of results) {
-    if (prepared.result.components === 1) {
-      lines.push(`SCALARS ${prepared.result.name} double`, "LOOKUP_TABLE default");
-    } else {
-      lines.push(`VECTORS ${prepared.result.name} double`);
-    }
-    for (const value of prepared.values) lines.push(formatNumber(value));
-  }
 }
 
 function shapeKey(shape: ElementShape): string {

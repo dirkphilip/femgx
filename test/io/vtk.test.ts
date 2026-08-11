@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { required } from "./helpers";
 import { parseVtk, writeVtk } from "../../src/io/parse";
@@ -417,7 +419,7 @@ describe("writeVtk", () => {
     expect([...required(parsed.model.results[0]).values]).toEqual([20, 10]);
   });
 
-  it("writes vector results and rejects unsupported component counts", () => {
+  it("writes native scalar, vector, and tensor results", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1], [0, 0, 0, 1, 0, 0]);
     builder.addResult({
@@ -439,12 +441,121 @@ describe("writeVtk", () => {
     if (vector === undefined) throw new Error("expected vector result");
     const written = writeVtk({ ...model, results: [vector] });
     expect(written).toContain("VECTORS velocity double");
-    expect(() => writeVtk(model)).toThrow(
-      expect.objectContaining({
-        name: "VtkWriteError",
-        code: "unsupported-writer-state",
-      }),
+    expect(written).not.toContain("FIELD FieldData");
+    expect(writeVtk(model)).toContain("TENSORS tensor double");
+  });
+
+  it("round-trips every supported result component shape at both locations", () => {
+    const cases = [1, 2, 3, 4, 6, 9] as const;
+    const builder = createModelBuilder();
+    const nodeIds = [20, 10, 30];
+    builder.appendNodes(nodeIds, [20, 0, 0, 10, 0, 0, 30, 0, 0]);
+    builder.openElementBlock(TRIANGLE_SHAPE);
+    builder.appendElements([200], [20, 10, 30]);
+    builder.openElementBlock(TRIANGLE_SHAPE);
+    builder.appendElements([100], [20, 10, 30]);
+
+    for (const components of cases) {
+      builder.addResult({
+        name: `node_${String(components)}`,
+        location: "node",
+        components,
+        ids: new Uint32Array([30, 20, 10]),
+        values: resultValues([30, 20, 10], components),
+      });
+      builder.addResult({
+        name: `cell_${String(components)}`,
+        location: "element",
+        components,
+        ids: new Uint32Array([100, 200]),
+        values: resultValues([100, 200], components),
+      });
+    }
+
+    const written = writeVtk(builder.build());
+    expect(written).toContain("POINT_DATA 3");
+    expect(written).toContain("CELL_DATA 2");
+    expect(written.match(/FIELD FieldData 3/g)).toHaveLength(2);
+    expect(written).toContain("SCALARS node_1 double");
+    expect(written).toContain("VECTORS node_3 double");
+    expect(written).toContain("TENSORS node_9 double");
+    expect(written).toContain("node_2 2 3 double");
+    expect(written).toContain("node_4 4 3 double");
+    expect(written).toContain("node_6 6 3 double");
+    expect(written).toContain("cell_2 2 2 double");
+
+    const parsed = parseVtk(written);
+    expect(parsed.issues).toEqual([]);
+    expect(parsed.model.results).toHaveLength(cases.length * 2);
+    const parsedByName = new Map(parsed.model.results.map((result) => [result.name, result]));
+    for (let index = 0; index < cases.length; index += 1) {
+      const components = required(cases[index]);
+      const nodeResult = parsedByName.get(`node_${String(components)}`);
+      const cellResult = parsedByName.get(`cell_${String(components)}`);
+      expect(nodeResult?.name).toBe(`node_${String(components)}`);
+      expect(nodeResult?.location).toBe("node");
+      expect(nodeResult?.components).toBe(components);
+      expect([...required(nodeResult).values]).toEqual([...resultValues(nodeIds, components)]);
+      expect(cellResult?.name).toBe(`cell_${String(components)}`);
+      expect(cellResult?.location).toBe("element");
+      expect(cellResult?.components).toBe(components);
+      expect([...required(cellResult).values]).toEqual([...resultValues([200, 100], components)]);
+    }
+  });
+
+  it.each([0, -1, 1.5] as const)("rejects invalid result component count %s", (components) => {
+    const builder = createModelBuilder();
+    builder.appendNodes([0], [0, 0, 0]);
+    const model = builder.build();
+    const invalidResult = {
+      name: "invalid_components",
+      location: "node" as const,
+      components,
+      ids: new Uint32Array([0]),
+      values: new Float64Array(Math.max(0, components)),
+    };
+    expect(() => writeVtk({ ...model, results: [invalidResult] })).toThrow(
+      expect.objectContaining({ name: "VtkWriteError" }),
     );
+  });
+
+  it.each(["bad name", "SCALARS", "1.0"] as const)(
+    "rejects unrepresentable VTK result name %s",
+    (name) => {
+      const builder = createModelBuilder();
+      builder.appendNodes([0], [0, 0, 0]);
+      const model = builder.build();
+      const invalidResult = {
+        name,
+        location: "node" as const,
+        components: 1,
+        ids: new Uint32Array([0]),
+        values: new Float64Array([1]),
+      };
+      expect(() => writeVtk({ ...model, results: [invalidResult] })).toThrow(
+        expect.objectContaining({
+          name: "VtkWriteError",
+          code: "unsupported-writer-state",
+        }),
+      );
+    },
+  );
+
+  it("reads the compact result component golden fixture", () => {
+    const source = readFileSync(
+      join(process.cwd(), "test/io/fixtures/results-components.vtk"),
+      "utf8",
+    );
+    const parsed = parseVtk(source);
+    expect(parsed.issues).toEqual([]);
+    expect(
+      parsed.model.results.map((result) => [result.location, result.name, result.components]),
+    ).toEqual([
+      ["node", "temperature", 1],
+      ["node", "strain", 6],
+      ["element", "velocity", 3],
+      ["element", "stress", 9],
+    ]);
   });
 
   it("rejects invalid models before producing output", () => {
@@ -507,3 +618,14 @@ describe("writeVtk", () => {
     );
   });
 });
+
+function resultValues(ids: readonly number[], components: number): Float64Array {
+  const values = new Float64Array(ids.length * components);
+  for (let row = 0; row < ids.length; row += 1) {
+    const id = ids[row] ?? 0;
+    for (let component = 0; component < components; component += 1) {
+      values[row * components + component] = id * 100 + component;
+    }
+  }
+  return values;
+}

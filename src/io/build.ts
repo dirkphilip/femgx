@@ -188,7 +188,7 @@ function validateResult(result: ModelResultField): void {
   if (result.name.length === 0) {
     throw new IoError("Result field names must not be empty");
   }
-  if (result.components < 1) {
+  if (!Number.isInteger(result.components) || result.components < 1) {
     throw new IoError(`Result ${result.name} has invalid component count ${result.components}`);
   }
   if (result.values.length !== result.ids.length * result.components) {
