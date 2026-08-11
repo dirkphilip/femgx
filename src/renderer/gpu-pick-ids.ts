@@ -64,7 +64,10 @@ export function buildTriangleFaceBodyPickData(geometry: Geometry): Uint32Array {
 }
 
 /** Builds one face/body pair per authored node sprite for the node passes. */
-export function buildNodeBodyPickData(geometry: Geometry): Uint32Array {
+export function buildNodeBodyPickData(
+  geometry: Geometry,
+  spritePickIds?: ArrayLike<number>,
+): Uint32Array {
   const nodeCount = (geometry.nodePositions?.length ?? 0) / 3;
   const nodeBodies = new Map<number, number | null>();
   for (const element of geometry.elements ?? []) {
@@ -89,11 +92,25 @@ export function buildNodeBodyPickData(geometry: Geometry): Uint32Array {
   }
   // The shared binding is array<vec2<u32>>, whose minimum valid storage
   // binding is one complete 8-byte pair even when this part has no nodes.
-  const data = new Uint32Array(Math.max(2, nodeCount * 2));
-  for (const [nodeId, bodyId] of nodeBodies) {
-    if (bodyId !== null) data[nodeId * 2 + 1] = bodyId + 1;
+  const sprites =
+    spritePickIds ?? Uint32Array.from({ length: nodeCount }, (_, nodeId) => nodeId + 1);
+  const data = new Uint32Array(Math.max(2, sprites.length * 2));
+  for (let sprite = 0; sprite < sprites.length; sprite += 1) {
+    const pickId = sprites[sprite] ?? 0;
+    const bodyId = nodeBodies.get(pickId - 1);
+    if (bodyId !== undefined && bodyId !== null) data[sprite * 2 + 1] = bodyId + 1;
   }
   return data;
+}
+
+/** Builds deterministic, ascending 1-based ids for the node sprites a part uses. */
+export function buildNodeSpritePickIds(geometry: Geometry): Uint32Array {
+  const nodeCount = (geometry.nodePositions?.length ?? 0) / 3;
+  const ids = new Set<number>();
+  for (const pickId of geometry.nodePickIds ?? []) {
+    if (pickId > 0 && pickId <= nodeCount) ids.add(pickId);
+  }
+  return Uint32Array.from([...ids].sort((a, b) => a - b));
 }
 
 /** Builds the per-vertex node pick id map (`nodeId + 1`, 0 = interpolated). */
