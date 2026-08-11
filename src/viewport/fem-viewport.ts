@@ -45,6 +45,8 @@ export interface FemViewport {
   setCamera(camera: Camera): void;
   fitView(): void;
   setInteraction(interaction: InteractionState): void;
+  /** Groups synchronous mutations into one deferred invalidation and render. */
+  batch<T>(operation: () => T): T;
   setResults(results: ViewportResultsConfig): void;
   clearResults(): void;
   setEdgeDepthTest(enabled: boolean): void;
@@ -93,6 +95,9 @@ class FemViewportCore implements FemViewport {
   private readonly removeControls: () => void;
   private readonly removeResize: () => void;
   private frame: number | undefined;
+  private batchDepth = 0;
+  private batchDirty = false;
+  private readonly pendingVisibility = new Set<number>();
   private destroyed = false;
 
   constructor(
@@ -144,6 +149,7 @@ class FemViewportCore implements FemViewport {
     this.ensureAlive();
     this.currentScene = scene;
     this.currentRuntime = createSceneRuntime(scene);
+    this.pendingVisibility.clear();
     this.currentResults = undefined;
     this.currentInteraction = this.baseInteraction;
     this.appliedInteraction = createInteractionState();
@@ -187,6 +193,17 @@ class FemViewportCore implements FemViewport {
       this.currentResults = { ...this.currentResults, interaction: this.currentInteraction };
     }
     this.invalidate();
+  }
+
+  batch<T>(operation: () => T): T {
+    this.ensureAlive();
+    this.batchDepth += 1;
+    try {
+      return operation();
+    } finally {
+      this.batchDepth -= 1;
+      if (this.batchDepth === 0) this.flushBatch();
+    }
   }
 
   setResults(results: ViewportResultsConfig): void {
@@ -253,6 +270,10 @@ class FemViewportCore implements FemViewport {
 
   invalidate(): void {
     this.ensureAlive();
+    if (this.batchDepth > 0) {
+      this.batchDirty = true;
+      return;
+    }
     if (this.frame !== undefined) return;
     if (typeof requestAnimationFrame === "undefined") {
       this.render();
@@ -266,6 +287,10 @@ class FemViewportCore implements FemViewport {
 
   render(): void {
     this.ensureAlive();
+    if (this.batchDepth > 0) {
+      this.batchDirty = true;
+      return;
+    }
     const changed = changedInstanceSlots(
       this.currentRuntime,
       this.appliedInteraction,
@@ -314,8 +339,24 @@ class FemViewportCore implements FemViewport {
   private applyVisibility(changed: readonly number[]): void {
     this.ensureAlive();
     if (changed.length === 0) return;
-    this.renderer.updateVisibility(this.currentRuntime, changed);
+    if (this.batchDepth > 0) {
+      for (const slot of changed) this.pendingVisibility.add(slot);
+    } else {
+      this.renderer.updateVisibility(this.currentRuntime, changed);
+    }
     this.invalidate();
+  }
+
+  private flushBatch(): void {
+    if (this.pendingVisibility.size > 0) {
+      const changed = [...this.pendingVisibility].sort((a, b) => a - b);
+      this.pendingVisibility.clear();
+      this.renderer.updateVisibility(this.currentRuntime, changed);
+    }
+    if (this.batchDirty) {
+      this.batchDirty = false;
+      this.invalidate();
+    }
   }
 
   private applyResults(results: ViewportResultsConfig): void {

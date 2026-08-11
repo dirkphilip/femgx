@@ -189,6 +189,20 @@
         color: #fff0d2;
         background: #70451b;
       }
+      .visibility-body-group-action {
+        flex: 0 0 auto;
+        padding: 3px 5px;
+        border-color: #2b3c54;
+        color: #91a6be;
+        background: #122033;
+        font-size: 9px;
+        line-height: 1;
+      }
+      .visibility-body-group-action[data-active="true"] {
+        border-color: #e29a3c;
+        color: #fff0d2;
+        background: #70451b;
+      }
       .scene {
         position: relative;
         min-width: 0;
@@ -416,6 +430,9 @@
           min-height: 44px;
         }
         .visibility-body-action {
+          min-height: 30px;
+        }
+        .visibility-body-group-action {
           min-height: 30px;
         }
         .toolbar .control-group:nth-of-type(n + 3),

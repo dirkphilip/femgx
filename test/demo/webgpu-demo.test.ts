@@ -98,6 +98,7 @@ function fakeViewport(): FakeViewport {
       setCamera: vi.fn(),
       fitView: vi.fn(),
       setInteraction: vi.fn(),
+      batch: <T>(operation: () => T): T => operation(),
       setResults: vi.fn(),
       clearResults: vi.fn(),
       setEdgeDepthTest: vi.fn(),

@@ -58,6 +58,17 @@ function elementUpdate(slot: number, elementId: number): EmphasisUpdate {
   return { slot, elementPickId: elementId + 1, facePickId: 0, nodePickId: 0, style };
 }
 
+function bodyUpdate(slot: number, bodyId: number): EmphasisUpdate {
+  return {
+    slot,
+    elementPickId: 0,
+    facePickId: 0,
+    nodePickId: 0,
+    bodyPickId: bodyId + 1,
+    style,
+  };
+}
+
 describe("buildElementTrianglePickIds", () => {
   it("maps each triangle to its element pick id (element id + 1)", () => {
     const geometry: Geometry = {
@@ -257,6 +268,24 @@ describe("writeElementHighlights", () => {
       writeElementHighlights(gpu.device, storage, [elementUpdate(1, 0)]);
       expect(gpu.writes.length).toBe(afterFirst);
       writeElementHighlights(gpu.device, storage, [elementUpdate(1, 7)]);
+      expect(
+        gpu.writes.slice(afterFirst).map((write) => [write.offset, write.bytes.byteLength]),
+      ).toEqual([[20, 4]]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("skips unchanged body records and writes only the changed body range", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const storage = makeStorage(gpu);
+      writeElementHighlights(gpu.device, storage, [bodyUpdate(1, 2)]);
+      const afterFirst = gpu.writes.length;
+      writeElementHighlights(gpu.device, storage, [bodyUpdate(1, 2)]);
+      expect(gpu.writes.length).toBe(afterFirst);
+      writeElementHighlights(gpu.device, storage, [bodyUpdate(1, 7)]);
       expect(
         gpu.writes.slice(afterFirst).map((write) => [write.offset, write.bytes.byteLength]),
       ).toEqual([[20, 4]]);

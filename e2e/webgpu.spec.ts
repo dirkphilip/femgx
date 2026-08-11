@@ -589,13 +589,24 @@ test("exposes body visibility, color, and highlight controls", async ({ page }) 
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
   const body = page.getByTestId("body-vis-6-2");
+  const group = page.getByTestId("body-group-6");
   const color = page.getByTestId("body-color-6-2");
   const glow = page.getByTestId("body-highlight-6-2");
   await expect(body).toBeChecked();
+  await expect(group).toHaveText("Hide bodies");
   await expect(color).toHaveAttribute("data-active", "false");
   await expect(glow).toHaveAttribute("data-active", "false");
 
   const baseline = await stableCanvasPixels(page, canvas);
+  await group.click();
+  await expect(page.getByTestId("body-vis-6-1")).not.toBeChecked();
+  await expect(body).not.toBeChecked();
+  await expect(group).toHaveText("Show bodies");
+  await group.click();
+  await expect(page.getByTestId("body-vis-6-1")).toBeChecked();
+  await expect(body).toBeChecked();
+  await expect(group).toHaveText("Hide bodies");
+
   await body.uncheck();
   await expect(body).not.toBeChecked();
   const hidden = await stableCanvasPixels(page, canvas);

@@ -85,6 +85,10 @@ export class WorkbenchController {
       setInteraction: (interaction) => {
         this.interaction = interaction;
       },
+      applyInteraction: (interaction) => {
+        this.interaction = interaction;
+        this.viewport.setInteraction(interaction);
+      },
       syncPanel: () => {
         this.visibilityPanel.sync();
       },
@@ -100,6 +104,8 @@ export class WorkbenchController {
       partName: (partId) => this.preset.partNames.get(partId),
       partVisible: (partId) => this.visibilityActions.partVisible(partId),
       bodyVisible: (instanceId, bodyId) => this.visibilityActions.bodyVisible(instanceId, bodyId),
+      bodyGroupVisible: (instanceId, bodyIds) =>
+        this.visibilityActions.bodyGroupVisible(instanceId, bodyIds),
       bodyHighlighted: (instanceId, bodyId) =>
         this.visibilityActions.bodyHighlighted(instanceId, bodyId),
       bodyColorActive: (instanceId, bodyId) =>
@@ -109,6 +115,9 @@ export class WorkbenchController {
       },
       onBodyVisibility: (instanceId, bodyId, visible) => {
         this.visibilityActions.setBody(instanceId, bodyId, visible);
+      },
+      onBodyGroupVisibility: (instanceId, bodyIds, visible) => {
+        this.visibilityActions.setBodyGroup(instanceId, bodyIds, visible);
       },
       onBodyAction: (instanceId, bodyId, action) => {
         this.visibilityActions.bodyAction(instanceId, bodyId, action);

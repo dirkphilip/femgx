@@ -123,6 +123,7 @@ range and can participate in element picking and interaction.
 | `setCamera(camera)` / `fitView()` | Set or fit the immutable camera value.                           |
 | `resize()`                        | Match WebGPU render size to the canvas and device pixel ratio.   |
 | `invalidate()` / `render()`       | Schedule or perform a render of the current state.               |
+| `batch(operation)`                | Coalesce synchronous mutations into one invalidation and render. |
 | `recover()`                       | Recreate supported WebGPU resources after device loss.           |
 | `destroy()`                       | Release renderer, resize, and camera-control resources.          |
 
