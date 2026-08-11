@@ -107,6 +107,25 @@ describe("FemViewport", () => {
     viewport.destroy();
   });
 
+  it("rejects an invalid camera without replacing the current camera", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const onRender = vi.fn();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: fakeGpuDevice().device,
+      onRender,
+    });
+    const previous = viewport.camera;
+    expect(() => {
+      viewport.setCamera({ ...previous, near: 0 });
+    }).toThrow(/near\/far/);
+    expect(viewport.camera).toBe(previous);
+    expect(onRender).toHaveBeenCalledOnce();
+    viewport.destroy();
+  });
+
   it("coalesces body and visibility mutations inside one batch", async () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();

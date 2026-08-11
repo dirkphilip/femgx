@@ -38,5 +38,12 @@ emphasis remain legible. Its lower-left orientation gizmo follows the camera's
 screen-space world-axis projection, and pressing `Z` fits the selected visible
 occurrences (or the complete scene when there is no selection).
 
+Camera admission through `createCamera` and `FemViewport.setCamera` rejects
+non-finite vectors/scalars, degenerate view bases, invalid field of view or
+clip ranges, and incomplete viewport dimensions. Camera transitions reject
+non-finite deltas and pivots; finite zero/negative resize values normalize to
+one pixel at the resize boundary. The internal validation is centralized in
+the camera subsystem and is not a public assertion API.
+
 [rendering/element-rendering|Element rendering]: element-rendering.md
 [rendering/interactive-state|Interactive state]: interactive-state.md
