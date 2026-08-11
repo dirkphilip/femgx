@@ -556,6 +556,39 @@ describe("WebGPU renderer deformation", () => {
     renderer.destroy();
   });
 
+  it("clears deformation buffers and disables the uniform when set to undefined", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildScene();
+    const runtime = createPackedSceneRuntime(scene);
+    renderer.setDeformation({
+      scale: 2,
+      loadCase: 0,
+      loadCaseCount: 1,
+      displacements: new Map([[1, new Float32Array(9)]]),
+    });
+    renderer.render(runtime, camera, scene.parts);
+    const deformationBuffer = gpu.buffers.find(
+      (buffer) => buffer.size === 36 && (buffer.usage & 16) !== 0,
+    );
+    expect(deformationBuffer).toBeDefined();
+
+    renderer.setDeformation(undefined);
+    renderer.render(runtime, camera, scene.parts);
+
+    expect(deformationBuffer?.destroyed).toBe(true);
+    const uniformBuffer = gpu.buffers.find(
+      (buffer) => buffer.size === 16 && (buffer.usage & 1) !== 0,
+    );
+    const write = gpu.writes.filter((entry) => entry.buffer === uniformBuffer?.resource).at(-1);
+    const ids = new Uint32Array(write?.bytes.buffer ?? new ArrayBuffer(0), 0, 4);
+    expect(ids[1]).toBe(0);
+    expect(ids[2]).toBe(0);
+    renderer.destroy();
+  });
+
   it("reuses uploaded displacement buffers across frames until the array changes", async () => {
     restoreGpuGlobals = installGpuGlobals();
     const gpu = fakeGpuDevice();

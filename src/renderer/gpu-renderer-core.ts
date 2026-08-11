@@ -3,12 +3,13 @@ import type { Vec3 } from "../math/vec3";
 import type { Part } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
 import type { PickGranularity } from "../picking/pick";
+import type { DeformationState } from "../results/deform";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import type { PickTarget } from "../picking/types";
 import { RendererAttachment } from "./attachment";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./gpu-renderer";
-import { syncDeformations, validateDeformation, type DeformationState } from "./gpu-deform";
+import { syncDeformations, validateDeformation } from "./gpu-deform";
 import { destroyDrawResources } from "./gpu-draw";
 import { encodePickSnapshot, encodeVisibleFrame } from "./gpu-frame";
 import { destroyPickTargets, pickTargetFromPixel, resetPickTargets } from "./gpu-pick";
@@ -75,9 +76,9 @@ export class GpuRenderer implements WebGpuRenderer {
     encodeVisibleFrame(camera, parts, this.frameOptions());
   }
 
-  public setDeformation(deformation: DeformationState): void {
+  public setDeformation(deformation: DeformationState | undefined): void {
     this.ensureAlive();
-    validateDeformation(deformation);
+    if (deformation !== undefined) validateDeformation(deformation);
     if (this.deformation !== deformation) this.pickSnapshotValid = false;
     this.deformation = deformation;
   }

@@ -5,10 +5,10 @@ import type { InteractionState } from "../interaction/interaction";
 import type { DeviceLostInfo } from "../platform/device";
 import { requestWebGpuDevice } from "../platform/device";
 import type { PickGranularity } from "../picking/pick";
+import type { DeformationState } from "../results/deform";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import type { PickTarget } from "../picking/types";
-import type { DeformationState } from "./gpu-deform";
 import { GpuRenderer } from "./gpu-renderer-core";
 
 /** Options for creating a WebGPU renderer. */
@@ -42,7 +42,7 @@ export interface WebGpuRenderer {
    * the GPU. Buffers are uploaded once and reused until the array reference
    * changes; the uniform is rewritten each frame.
    */
-  setDeformation(deformation: DeformationState): void;
+  setDeformation(deformation: DeformationState | undefined): void;
   /**
    * Writes only the GPU subranges affected by changed instance slots, applying
    * the given interaction state (transform, style, and pick attributes).

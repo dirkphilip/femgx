@@ -1,5 +1,4 @@
-import type { DeformationState } from "../renderer/gpu-deform";
-import { nodalDisplacements } from "../results/deform";
+import { nodalDisplacements, type DeformationState } from "../results/deform";
 import { magnitudeField, maxPrincipalField, vonMisesField } from "../results/derived";
 import { scalarAt, type ScalarField, type TensorField, type VectorField } from "../results/fields";
 import { createScalarColorMap, mapScalar, type ScalarColorMap } from "../results/mapping";

@@ -13,7 +13,7 @@ import {
 import { setFaceHighlighted } from "../../src/interaction/faces";
 import { setNodeSelected } from "../../src/interaction/nodes";
 import { translation } from "../../src/math/mat4";
-import { changedInstanceSlots } from "../../src/renderer/interaction-diff";
+import { changedInstanceSlots } from "../../src/viewport/interaction-diff";
 import {
   createPackedSceneRuntime,
   type PackedSceneRuntime as SceneRuntime,

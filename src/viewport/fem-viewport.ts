@@ -5,9 +5,8 @@ import { fitCamera } from "../camera/fit";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { DeviceLostInfo } from "../platform/device";
 import type { PickGranularity } from "../picking/pick";
-import { defaultDeformation } from "../renderer/gpu-deform";
 import { createWebGpuRenderer, type WebGpuRenderer } from "../renderer/gpu-renderer";
-import { changedInstanceSlots } from "../renderer/interaction-diff";
+import { changedInstanceSlots } from "./interaction-diff";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "../scene-runtime/runtime";
 import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/public-runtime";
 import type { Scene } from "../scene/scene";
@@ -161,7 +160,7 @@ class FemViewportCore implements FemViewport {
     this.currentResults = undefined;
     this.currentInteraction = this.baseInteraction;
     this.appliedInteraction = createInteractionState();
-    this.renderer.setDeformation(defaultDeformation);
+    this.renderer.setDeformation(undefined);
     this.fitView(false);
     this.invalidate();
   }
@@ -225,7 +224,7 @@ class FemViewportCore implements FemViewport {
     this.ensureAlive();
     this.currentResults = undefined;
     this.currentInteraction = this.baseInteraction;
-    this.renderer.setDeformation(defaultDeformation);
+    this.renderer.setDeformation(undefined);
     this.invalidate();
   }
 
@@ -383,7 +382,7 @@ class FemViewportCore implements FemViewport {
     );
     this.currentResults = resolved;
     this.currentInteraction = resolved.interaction;
-    this.renderer.setDeformation(resolved.deformation ?? defaultDeformation);
+    this.renderer.setDeformation(resolved.deformation);
   }
 
   private ensureAlive(): void {

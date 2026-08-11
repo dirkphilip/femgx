@@ -1,5 +1,22 @@
 import type { Geometry } from "../geometry/part";
+import type { PartId } from "../geometry/part";
 import type { ResultField, VectorField } from "./fields";
+
+/**
+ * CPU-side deformation data consumed by the viewport and renderer. The
+ * displacement arrays are laid out load-case major, with three floats per
+ * model node, as produced by {@link nodalDisplacements}.
+ */
+export interface DeformationState {
+  /** Multiplier applied to the active load case's displacement. */
+  readonly scale: number;
+  /** Active load case index (`0 <= loadCase < loadCaseCount`). */
+  readonly loadCase: number;
+  /** Number of load cases stored per part displacement buffer. */
+  readonly loadCaseCount: number;
+  /** Per-part nodal displacement arrays used by GPU vertex deformation. */
+  readonly displacements: ReadonlyMap<PartId, Float32Array>;
+}
 
 /**
  * Returns a new position array displaced by a nodal displacement field.

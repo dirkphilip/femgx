@@ -1,4 +1,5 @@
 import type { PartId } from "../geometry/part";
+import type { DeformationState } from "../results/deform";
 
 /** Bytes of the deformation uniform (scale + loadCase + loadCaseCount + padding). */
 export const DEFORMATION_UNIFORM_SIZE = 16;
@@ -15,30 +16,8 @@ export interface DeformationStorage {
   source: Float32Array | undefined;
 }
 
-/**
- * Per-frame GPU deformation state: the displacement scale, the active load
- * case, and the per-part nodal displacement buffers that feed the vertex
- * shader. `loadCaseCount` of 0 disables deformation entirely.
- */
-export interface DeformationState {
-  /** Multiplier applied to the active load case's displacement field. */
-  readonly scale: number;
-  /** Active load case index (`0 <= loadCase < loadCaseCount`). */
-  readonly loadCase: number;
-  /** Number of load cases stored per part displacement buffer. */
-  readonly loadCaseCount: number;
-  /**
-   * Per-part nodal displacement buffers, one vec3 per model node per load
-   * case, load-case major. Each buffer is indexed by `NodeId`, as produced by
-   * `nodalDisplacements`; the vertex shader resolves every vertex to its node
-   * through the part's per-vertex node pick ids, so any tessellated geometry
-   * deforms correctly. Buffers must be divisible by `loadCaseCount * 3` floats.
-   */
-  readonly displacements: ReadonlyMap<PartId, Float32Array>;
-}
-
-/** The no-deformation identity state used before the first `setDeformation`. */
-export const defaultDeformation: DeformationState = {
+/** Concrete uniform state used internally when the viewport passes `undefined`. */
+const disabledDeformation: DeformationState = {
   scale: 0,
   loadCase: 0,
   loadCaseCount: 0,
@@ -99,7 +78,7 @@ export function validateDeformation(state: DeformationState): void {
  * rebinds the fresh buffer. `undefined` resolves to the disabled identity state.
  */
 export function syncDeformations(sync: DeformationSync, state: DeformationState | undefined): void {
-  const resolved = state ?? defaultDeformation;
+  const resolved = state ?? disabledDeformation;
   for (const [partId, values] of resolved.displacements) {
     uploadDeformation(sync, partId, values);
   }
@@ -136,7 +115,7 @@ export function writeDeformationUniform(
   buffer: GPUBuffer,
   state: DeformationState | undefined,
 ): void {
-  const resolved = state ?? defaultDeformation;
+  const resolved = state ?? disabledDeformation;
   const uniform = new Uint32Array(4);
   const floats = new Float32Array(uniform.buffer);
   floats[0] = resolved.scale;

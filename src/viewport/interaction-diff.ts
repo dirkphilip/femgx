@@ -1,14 +1,15 @@
-import type { InteractionState } from "../interaction/interaction";
-import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { InstanceId } from "../scene/types";
 import type { PartId } from "../geometry/part";
+import type { InteractionState } from "../interaction/interaction";
+import type { InstanceId } from "../scene/types";
+import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 
 /**
  * Computes the instance slots whose GPU record may change when an interaction
- * state moves from `previous` to `next`, so callers can feed exactly those
- * slots to `WebGpuRenderer.updateInstances` instead of rescanning the whole
- * runtime. Body-, element-, node-, and face-level emphasis is intentionally
- * excluded: it flows through `updateElements`, which diffs its own buffers.
+ * state moves from `previous` to `next`, so the viewport can feed exactly
+ * those slots to `WebGpuRenderer.updateInstances` instead of rescanning the
+ * whole runtime. Body-, element-, node-, and face-level emphasis is
+ * intentionally excluded: it flows through `updateElements`, which diffs its
+ * own buffers.
  *
  * Slots are returned in ascending order with no duplicates.
  */

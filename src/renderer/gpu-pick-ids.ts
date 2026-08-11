@@ -1,5 +1,9 @@
-import { bodyIdForElement, type Geometry } from "../geometry/part";
-import { logicalPrimitiveCount, primitiveRangeForElement } from "../geometry/part-validation";
+import {
+  bodyIdForElement,
+  logicalPrimitiveCount,
+  primitiveRangeForElement,
+  type Geometry,
+} from "../geometry/part";
 
 /**
  * Builders for the per-primitive and per-vertex pick-id buffers uploaded with a

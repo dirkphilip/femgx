@@ -243,6 +243,8 @@ export function computePositionsBounds(positions: Float32Array | Float64Array): 
 export {
   bodyIdForElement,
   GeometryValidationError,
+  logicalPrimitiveCount,
+  primitiveRangeForElement,
   validateBodies,
   validateElements,
   validateFaceSubset,
