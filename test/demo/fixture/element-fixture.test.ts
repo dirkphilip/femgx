@@ -25,14 +25,15 @@ describe("createElementFixture", () => {
       line3: 3,
       triangle: 8,
       quad: 9,
+      polygon: 10,
       tet4: 4,
       tet10: 5,
       hex8: 6,
       hex20: 7,
     });
-    expect(fixture.instanceCount).toBe(9);
-    expect(fixture.scene.parts.size).toBe(9);
-    expect(flatten(fixture)).toHaveLength(9);
+    expect(fixture.instanceCount).toBe(10);
+    expect(fixture.scene.parts.size).toBe(10);
+    expect(flatten(fixture)).toHaveLength(10);
   });
 
   it("places every shape example at a stable x offset", () => {
@@ -47,6 +48,7 @@ describe("createElementFixture", () => {
     expect(origins.get(fixture.partIds.hex20)).toBe(18);
     expect(origins.get(fixture.partIds.triangle)).toBe(21);
     expect(origins.get(fixture.partIds.quad)).toBe(24);
+    expect(origins.get(fixture.partIds.polygon)).toBe(27);
   });
 
   it("keeps all volume shapes visible in each display mode", () => {
@@ -58,6 +60,7 @@ describe("createElementFixture", () => {
       fixture.partIds.hex20,
       fixture.partIds.triangle,
       fixture.partIds.quad,
+      fixture.partIds.polygon,
     ];
     for (const mode of ["solid", "surface", "edges"] as const) {
       expect(fixture.modePartIds.get(mode)).toEqual(volumes);
@@ -67,7 +70,7 @@ describe("createElementFixture", () => {
       fixture.partIds.line,
       fixture.partIds.line3,
     ]);
-    expect(new Set([...volumes, ...fixture.overlayPartIds]).size).toBe(9);
+    expect(new Set([...volumes, ...fixture.overlayPartIds]).size).toBe(10);
   });
 
   it("produces geometry for points, lines, triangle, Tet4, and Hex20", () => {
@@ -77,6 +80,7 @@ describe("createElementFixture", () => {
     expect(scene.parts.get(partIds.line3)?.geometry.primitive).toBe("lines");
     expect(scene.parts.get(partIds.triangle)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.quad)?.geometry.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.polygon)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.tet4)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.hex20)?.geometry.primitive).toBe("triangles");
   });

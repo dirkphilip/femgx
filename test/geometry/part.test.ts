@@ -5,6 +5,7 @@ import {
   isFiniteBounds,
   validateBodies,
   validateElements,
+  validatePickIds,
   type Geometry,
   type Part,
 } from "../../src/geometry/part";
@@ -199,5 +200,47 @@ describe("body metadata", () => {
         ],
       });
     }).toThrow(/strictly ascending/);
+  });
+});
+
+describe("pick metadata", () => {
+  const face = {
+    id: 0,
+    elementId: 4,
+    faceIndex: 0,
+    key: "0,1,2",
+    nodeIds: [0, 1, 2],
+    neighborElementIds: [],
+  };
+
+  it("rejects a face pick id without a declared face", () => {
+    expect(() => {
+      validatePickIds({
+        positions: new Float32Array(9),
+        indices: new Uint32Array(3),
+        facePickIds: new Uint32Array([2]),
+        faces: [face],
+      });
+    }).toThrow(/undeclared face 1/);
+  });
+
+  it("requires face owners and node references to resolve", () => {
+    expect(() => {
+      validatePickIds({
+        positions: new Float32Array(9),
+        indices: new Uint32Array(3),
+        nodePositions: new Float32Array(9),
+        elements: [{ id: 1, triangleStart: 0, triangleCount: 1 }],
+        faces: [face],
+      });
+    }).toThrow(/undeclared element 4/);
+    expect(() => {
+      validatePickIds({
+        positions: new Float32Array(9),
+        indices: new Uint32Array(3),
+        nodePositions: new Float32Array(6),
+        faces: [{ ...face, nodeIds: [0, 1, 2] }],
+      });
+    }).toThrow(/outside nodePositions/);
   });
 });

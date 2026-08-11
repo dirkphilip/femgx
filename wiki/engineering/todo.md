@@ -154,6 +154,9 @@ closed; the list is historical scope memory, not an open implementation queue.
 - [x] Add validated linear triangle and quad elements with canonical surface
       faces, edges, GPU-pickable tessellation, VTK cell mappings, and a gallery
       example (see [[data/elements-topology|Element topology]]).
+- [x] Add validated polygon-part input with deterministic triangulation,
+      retained face/element ownership, node picks, deformation support, and a
+      gallery example (see [[data/polygon-input|Polygon input]]).
 
 ## P2 — engineering results
 

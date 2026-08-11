@@ -1,5 +1,6 @@
 import type { ElementModel } from "../../src/elements/model";
 import { elementPart, type ElementRenderMode } from "../../src/geometry/element-mesh";
+import { polygonPart } from "../../src/geometry/polygon";
 import type { Bounds, Part } from "../../src/geometry/part";
 import { transformPoint, translation } from "../../src/math/mat4";
 import { flattenAssembly } from "../../src/runtime/flatten";
@@ -20,6 +21,7 @@ export interface ElementFixtureParts {
   readonly line3: PartId;
   readonly triangle: PartId;
   readonly quad: PartId;
+  readonly polygon: PartId;
   readonly tet4: PartId;
   readonly tet10: PartId;
   readonly hex8: PartId;
@@ -51,6 +53,7 @@ const LINE_PART_ID: PartId = 2;
 const LINE3_PART_ID: PartId = 3;
 const TRIANGLE_PART_ID: PartId = 8;
 const QUAD_PART_ID: PartId = 9;
+const POLYGON_PART_ID: PartId = 10;
 const TET4_PART_ID: PartId = 4;
 const TET10_PART_ID: PartId = 5;
 const HEX8_PART_ID: PartId = 6;
@@ -83,6 +86,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     [HEX20_PART_ID, hex20Model],
     [TRIANGLE_PART_ID, surfaceModel],
     [QUAD_PART_ID, surfaceModel],
+    [POLYGON_PART_ID, surfaceModel],
   ]);
   const parts: readonly Part[] = [
     elementPart(POINT_PART_ID, pointLineModel, "point", "points"),
@@ -94,6 +98,10 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     elementPart(HEX20_PART_ID, hex20Model, "hex", "solid"),
     elementPart(TRIANGLE_PART_ID, surfaceModel, "triangle", "solid"),
     elementPart(QUAD_PART_ID, surfaceModel, "quad", "solid"),
+    polygonPart(POLYGON_PART_ID, {
+      positions: [0, 0, 0, 2, 0, 0, 2, 2, 0, 1, 1, 0, 0, 2, 0],
+      faces: [{ nodeIds: [0, 1, 2, 3, 4], elementId: 1, key: "gallery-polygon" }],
+    }),
   ];
   const scene = galleryScene(parts, blockSize);
   const volumePartIds = [
@@ -103,6 +111,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     HEX20_PART_ID,
     TRIANGLE_PART_ID,
     QUAD_PART_ID,
+    POLYGON_PART_ID,
   ];
   return {
     scene,
@@ -116,6 +125,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
       tet10: TET10_PART_ID,
       hex8: HEX8_PART_ID,
       hex20: HEX20_PART_ID,
+      polygon: POLYGON_PART_ID,
     },
     elementModels: models,
     modePartIds: new Map<ElementRenderMode, readonly PartId[]>([
