@@ -4,6 +4,10 @@ import type { Camera, Vec3 } from "./camera";
 /** Fraction of the viewport occupied by the fitted bounds on each axis. */
 export const FIT_FRAME_FRACTION = 0.9;
 
+/** Keeps fitted bounds strictly inside the configured clip interval. */
+const FIT_DEPTH_MARGIN = 0.01;
+const FIT_MIN_NEAR = 0.0001;
+
 /** Frames bounds around their center while preserving the camera orientation. */
 export function fitCamera(camera: Camera, bounds: Bounds, width: number, height: number): Camera {
   const center: Vec3 = [
@@ -57,19 +61,16 @@ function fitOrthographic(inputs: FitInputs): Camera {
     dimensions.height / FIT_FRAME_FRACTION,
     dimensions.width / (aspect * FIT_FRAME_FRACTION),
   );
-  const distance = Math.max(
-    vectorLength(subtract(camera.position, camera.target)),
-    camera.near * 2,
-    1,
-  );
-  const near = Math.min(camera.near, Math.max(0.0001, distance - Math.max(...depth) - 1));
+  const distance = Math.max(-Math.min(...depth) + FIT_DEPTH_MARGIN, FIT_DEPTH_MARGIN);
+  const fittedDepth = depth.map((value) => value + distance);
+  const near = fittedNear(fittedDepth);
   return {
     ...camera,
     position: subtract(center, scale(orientation.forward, distance)),
     target: center,
     up: orientation.up,
     near,
-    far: Math.max(camera.far, distance + Math.max(...depth) + 1, near + 1),
+    far: fittedFar(fittedDepth, near),
     orthoHeight,
     width,
     height,
@@ -90,19 +91,32 @@ function fitPerspective(inputs: FitInputs): Camera {
       );
     }),
   );
-  const distance = Math.max(requiredDistance, -Math.min(...depth) + 0.01, camera.near * 2, 0.01);
+  const distance = Math.max(
+    requiredDistance,
+    -Math.min(...depth) + FIT_DEPTH_MARGIN,
+    FIT_DEPTH_MARGIN,
+  );
   const fittedDepth = depth.map((value) => value + distance);
-  const near = Math.max(0.0001, Math.min(camera.near, Math.min(...fittedDepth) * 0.25));
+  const near = fittedNear(fittedDepth);
   return {
     ...camera,
     position: subtract(center, scale(orientation.forward, distance)),
     target: center,
     up: orientation.up,
     near,
-    far: Math.max(camera.far, Math.max(...fittedDepth) + near),
+    far: fittedFar(fittedDepth, near),
     width,
     height,
   };
+}
+
+function fittedNear(depth: readonly number[]): number {
+  return Math.max(FIT_MIN_NEAR, Math.min(...depth) * 0.25);
+}
+
+function fittedFar(depth: readonly number[], near: number): number {
+  const far = Math.max(...depth) + FIT_DEPTH_MARGIN;
+  return far > near ? far : near + FIT_DEPTH_MARGIN;
 }
 
 function viewOrientation(camera: Camera): ViewOrientation {
