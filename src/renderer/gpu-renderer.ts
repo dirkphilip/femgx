@@ -5,7 +5,7 @@ import type { DeviceLostInfo } from "../platform/device";
 import { requestWebGpuDevice } from "../platform/device";
 import type { PickGranularity } from "../picking/pick";
 import type { Vec3 } from "../camera/camera";
-import type { SceneRuntime } from "../scene-runtime/runtime";
+import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId, PickTarget } from "../scene/types";
 import type { DeformationState } from "./gpu-deform";
 import { GpuRenderer } from "./gpu-renderer-core";
@@ -34,7 +34,7 @@ export interface WebGpuRendererOptions {
  * draw-order list.
  */
 export interface WebGpuRenderer {
-  render(runtime: SceneRuntime, camera: Camera, parts: ReadonlyMap<PartId, Part>): void;
+  render(runtime: PackedSceneRuntime, camera: Camera, parts: ReadonlyMap<PartId, Part>): void;
   /**
    * Sets the per-frame deformation state (displacement scale + active load
    * case) and the per-part nodal displacement buffers that displace vertices on
@@ -47,7 +47,7 @@ export interface WebGpuRenderer {
    * the given interaction state (transform, style, and pick attributes).
    */
   updateInstances(
-    runtime: SceneRuntime,
+    runtime: PackedSceneRuntime,
     interaction: InteractionState,
     changedInstanceIds: readonly number[],
   ): void;
@@ -56,7 +56,7 @@ export interface WebGpuRenderer {
    * elements, faces, and nodes (hovered, selected, or explicitly overridden)
    * as diffed records.
    */
-  updateElements(runtime: SceneRuntime, interaction: InteractionState): void;
+  updateElements(runtime: PackedSceneRuntime, interaction: InteractionState): void;
   /**
    * Controls whether the edge overlay culls edges occluded by nearer geometry.
    * With depth testing on (`true`, the default) the overlay compares against
@@ -73,7 +73,7 @@ export interface WebGpuRenderer {
    * runtime. Instance records are untouched: hidden geometry is culled from the
    * draw order, so nothing is rebuilt or re-uploaded.
    */
-  updateVisibility(runtime: SceneRuntime, changedInstanceIds: readonly number[]): void;
+  updateVisibility(runtime: PackedSceneRuntime, changedInstanceIds: readonly number[]): void;
   /**
    * Picks the most specific target under a pixel, or a target at an explicit
    * granularity (see {@link PickGranularity}).

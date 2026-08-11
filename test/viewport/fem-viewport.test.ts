@@ -71,7 +71,7 @@ describe("FemViewport", () => {
     viewport.setPartVisible(1, false);
     expect(viewport.stats().visibleInstances).toBe(0);
     viewport.setPartVisible(1, true);
-    viewport.setInstanceVisible(0, false);
+    viewport.setInstanceVisible("1/0", false);
     expect(viewport.stats().visibleInstances).toBe(0);
 
     Object.defineProperty(canvas, "clientWidth", { configurable: true, value: 320 });
@@ -103,7 +103,7 @@ describe("FemViewport", () => {
     });
 
     expect(viewport.camera.target[0]).toBeCloseTo(25);
-    expect(viewport.runtime.getTransform(0)?.[12]).toBe(25);
+    expect(viewport.runtime.getTransform("1/0")?.[12]).toBe(25);
     viewport.destroy();
   });
 

@@ -3,9 +3,7 @@ import {
   setProjection,
   fitCamera,
   type Camera,
-  type InstanceId,
   type InteractionState,
-  type PartId,
   type FemViewport,
   type SceneRuntime,
 } from "../src/index";
@@ -25,7 +23,6 @@ import {
 import { WorkbenchPresentation } from "./workbench/presentation";
 import { WorkbenchVisibilityActions } from "./workbench/visibility-actions";
 import { createPresetInteraction, partStyleOverride } from "./workbench/preset";
-import { indexRuntime } from "./workbench/runtime-index";
 import type { DisplayToggles, ResultDisplayMode, WorkbenchOptions } from "./workbench/types";
 
 export type {
@@ -49,9 +46,6 @@ export class WorkbenchController {
   rendererState = "";
   private viewport: FemViewport;
   private readonly presets: readonly ModelPreset[];
-  private readonly slotByInstanceId = new Map<InstanceId, number>();
-  private readonly partIdByInstanceId = new Map<InstanceId, PartId>();
-  private readonly partFirstSlot = new Map<PartId, number>();
   private readonly listenerController = new AbortController();
   private readonly menu: WorkbenchMenu;
   private readonly visibilityPanel: VisibilityPanelController;
@@ -79,8 +73,6 @@ export class WorkbenchController {
     this.visibilityActions = new WorkbenchVisibilityActions({
       viewport: () => this.viewport,
       runtime: () => this.runtime,
-      slotByInstanceId: this.slotByInstanceId,
-      firstSlotByPart: this.partFirstSlot,
       interaction: () => this.interaction,
       setInteraction: (interaction) => {
         this.interaction = interaction;
@@ -122,8 +114,8 @@ export class WorkbenchController {
       onBodyAction: (instanceId, bodyId, action) => {
         this.visibilityActions.bodyAction(instanceId, bodyId, action);
       },
-      onInstanceVisibility: (slot, visible) => {
-        this.visibilityActions.setInstance(slot, visible);
+      onInstanceVisibility: (instanceId, visible) => {
+        this.visibilityActions.setInstance(instanceId, visible);
       },
       onAssemblyVisibility: (nodeId, visible) => {
         this.visibilityActions.setAssemblyNode(nodeId, visible);
@@ -138,7 +130,7 @@ export class WorkbenchController {
       setInteraction: (interaction) => {
         this.interaction = interaction;
       },
-      partIdForInstance: (instanceId) => this.partIdByInstanceId.get(instanceId),
+      partIdForInstance: (instanceId) => this.runtime.getPartId(instanceId),
       partName: (partId) => this.preset.partNames.get(partId),
       menu: this.menu,
       render: () => {
@@ -155,7 +147,6 @@ export class WorkbenchController {
       getResultMode: () => this.resultMode,
       getInteraction: () => this.interaction,
       getRuntime: () => this.runtime,
-      partFirstSlot: this.partFirstSlot,
     });
     const initialPreset = this.presets[0];
     if (initialPreset === undefined) throw new Error("Workbench requires at least one preset");
@@ -170,7 +161,6 @@ export class WorkbenchController {
     this.interaction = createPresetInteraction(this.preset);
     this.applyResultMode(false);
     this.viewport.setInteraction(this.interaction);
-    indexRuntime(this.runtime, this.slotByInstanceId, this.partIdByInstanceId, this.partFirstSlot);
     this.applyModeVisibility();
     this.presentation.populateModelSelect(this.presets);
     this.visibilityPanel.rebuild();
@@ -196,7 +186,6 @@ export class WorkbenchController {
     this.viewport.setInteraction(this.interaction);
     this.viewport.setEdgeDepthTest(this.depthTestEnabled);
     this.viewport.setNodeOverlay(this.toggles.nodes);
-    indexRuntime(this.runtime, this.slotByInstanceId, this.partIdByInstanceId, this.partFirstSlot);
     this.applyModeVisibility();
     this.visibilityPanel.rebuild();
     this.render();
@@ -231,7 +220,6 @@ export class WorkbenchController {
     this.viewport.setScene(preset.scene);
     this.applyResultMode(false);
     this.viewport.setInteraction(this.interaction);
-    indexRuntime(this.runtime, this.slotByInstanceId, this.partIdByInstanceId, this.partFirstSlot);
     this.applyModeVisibility();
     this.visibilityPanel.rebuild();
     this.presentation.populateModelSelect(this.presets);
@@ -312,12 +300,12 @@ export class WorkbenchController {
     this.interaction = createPresetInteraction(this.preset);
     this.interactionController.clearContext();
     this.applyResultMode(false);
-    for (let nodeId = 0; nodeId < this.runtime.nodeAssemblyIds.length; nodeId += 1) {
+    for (const nodeId of this.runtime.getNodeIds()) {
       this.viewport.setAssemblyNodeVisible(nodeId, true);
     }
     for (const partId of this.preset.scene.parts.keys()) this.viewport.setPartVisible(partId, true);
-    for (let slot = 0; slot < this.runtime.instanceCount; slot += 1) {
-      this.viewport.setInstanceVisible(slot, true);
+    for (const instanceId of this.runtime.getInstanceIds()) {
+      this.viewport.setInstanceVisible(instanceId, true);
     }
     this.applyModeVisibility();
     this.viewport.setEdgeDepthTest(true);

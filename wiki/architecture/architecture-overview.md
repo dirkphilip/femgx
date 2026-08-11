@@ -8,9 +8,10 @@ scene is authoritative; the renderer syncs deltas from it.
 - `src/scene/scene.ts` — authoritative CPU model: parts, assemblies, and
   visibility. Immutable builder API (`createScene`); every update returns a new
   builder so state changes are deltas, not scattered mutations.
-- `src/scene-runtime/` — the single packed scene compiler and runtime:
-  `createSceneRuntime(scene)` performs an iterative, deterministic depth-first
-  compile into typed arrays with delta-oriented visibility updates (see
+- `src/scene-runtime/` — the single scene compiler and runtime boundary:
+  `createSceneRuntime(scene)` exposes stable handles while the internal packed
+  compiler performs the iterative, deterministic depth-first compile into
+  typed arrays with delta-oriented visibility updates (see
   [[architecture/packed-runtime|Packed scene runtime]]).
 - `src/interaction/interaction.ts` — immutable centralized selection, highlight,
   hover, and style override state with explicit precedence.

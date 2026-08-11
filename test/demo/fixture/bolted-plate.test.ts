@@ -5,13 +5,13 @@ import {
 } from "../../../demo/fixture/bolted-plate";
 import { createBoltedPlatePreset, visiblePartIdsForPreset } from "../../../demo/fixture/presets";
 import { transformPoint } from "../../../src/math/mat4";
-import { createSceneRuntime } from "../../../src/scene-runtime/runtime";
+import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import type { Assembly, SubAssemblyPlacement } from "../../../src/scene/assembly";
 import type { Scene } from "../../../src/scene/scene";
 import type { Instance } from "../../../src/scene/types";
 
 function runtimeInstances(scene: Scene): readonly Instance[] {
-  const runtime = createSceneRuntime(scene);
+  const runtime = createPackedSceneRuntime(scene);
   const instances: Instance[] = [];
   const drawList = runtime.getDrawList();
   for (let index = 0; index < drawList.length; index += 1) {

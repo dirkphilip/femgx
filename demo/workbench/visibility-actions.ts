@@ -19,8 +19,6 @@ import type { BodyAction } from "./visibility-panel";
 export interface VisibilityActionOptions {
   readonly viewport: () => FemViewport;
   readonly runtime: () => SceneRuntime;
-  readonly slotByInstanceId: ReadonlyMap<string, number>;
-  readonly firstSlotByPart: ReadonlyMap<PartId, number>;
   readonly interaction: () => InteractionState;
   readonly setInteraction: (interaction: InteractionState) => void;
   readonly applyInteraction: (interaction: InteractionState) => void;
@@ -43,12 +41,12 @@ export class WorkbenchVisibilityActions {
     this.finish();
   }
 
-  setInstance(slot: number, visible: boolean): void {
-    this.options.viewport().setInstanceVisible(slot, visible);
+  setInstance(instanceId: InstanceId, visible: boolean): void {
+    this.options.viewport().setInstanceVisible(instanceId, visible);
     this.finish();
   }
 
-  setAssemblyNode(nodeId: number, visible: boolean): void {
+  setAssemblyNode(nodeId: string, visible: boolean): void {
     this.options.viewport().setAssemblyNodeVisible(nodeId, visible);
     this.finish();
   }
@@ -85,9 +83,9 @@ export class WorkbenchVisibilityActions {
 
   toggleInstance(target: SelectTarget): void {
     if (target.kind === "part") return;
-    const slot = this.slotForInstance(target.instanceId);
-    if (slot === undefined) return;
-    this.setInstance(slot, !this.options.runtime().isInstanceVisible(slot));
+    const runtime = this.options.runtime();
+    if (runtime.getInstance(target.instanceId) === undefined) return;
+    this.setInstance(target.instanceId, !runtime.isInstanceVisible(target.instanceId));
   }
 
   togglePart(target: SelectTarget): void {
@@ -100,22 +98,28 @@ export class WorkbenchVisibilityActions {
   showAll(): void {
     const viewport = this.options.viewport();
     viewport.batch(() => {
-      for (let nodeId = 0; nodeId < this.options.runtime().nodeAssemblyIds.length; nodeId += 1) {
+      for (const nodeId of this.options.runtime().getNodeIds()) {
         viewport.setAssemblyNodeVisible(nodeId, true);
       }
-      for (const partId of this.options.firstSlotByPart.keys()) {
+      for (const partId of this.options
+        .runtime()
+        .getInstances()
+        .map((instance) => instance.partId)) {
         viewport.setPartVisible(partId, true);
       }
-      for (let slot = 0; slot < this.options.runtime().instanceCount; slot += 1) {
-        viewport.setInstanceVisible(slot, true);
+      for (const instanceId of this.options.runtime().getInstanceIds()) {
+        viewport.setInstanceVisible(instanceId, true);
       }
     });
     this.finish();
   }
 
   partVisible(partId: PartId): boolean {
-    const slot = this.options.firstSlotByPart.get(partId);
-    return slot !== undefined && this.options.runtime().instancePartVisible[slot] === 1;
+    const instance = this.options
+      .runtime()
+      .getInstances()
+      .find((candidate) => candidate.partId === partId);
+    return instance?.partVisible ?? false;
   }
 
   bodyVisible(instanceId: InstanceId, bodyId: BodyId): boolean {
@@ -136,15 +140,9 @@ export class WorkbenchVisibilityActions {
     );
   }
 
-  private slotForInstance(instanceId: string): number | undefined {
-    return this.options.slotByInstanceId.get(instanceId);
-  }
-
   private partForTarget(target: SelectTarget): PartId | undefined {
     if (target.kind === "part") return target.partId;
-    const runtime = this.options.runtime();
-    const slot = this.slotForInstance(target.instanceId);
-    return slot === undefined ? undefined : runtime.instancePartIds[slot];
+    return this.options.runtime().getPartId(target.instanceId);
   }
 
   private finish(render = true): void {

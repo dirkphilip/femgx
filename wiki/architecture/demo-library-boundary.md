@@ -9,7 +9,8 @@ presentation and interaction policy only.
 
 **Library behavior (lives in `src/`):**
 
-- Scene/assembly model, packed runtime (`createSceneRuntime`), and internal
+- Scene/assembly model, stable-handle runtime (`createSceneRuntime`), private
+  packed runtime, and internal
   flatten/cull helpers ([[architecture/packed-runtime|Packed scene runtime]]).
 - Interaction state, style resolution, and emphasis refs
   (`resolveInstanceStyle`, `resolveElementStyle`, `resolveFaceStyle`,

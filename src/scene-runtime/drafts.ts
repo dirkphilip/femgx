@@ -1,10 +1,11 @@
 import { identity, multiply, type Mat4 } from "../math/mat4";
 import type { Assembly, PartPlacement } from "../scene/assembly";
 import type { Scene } from "../scene/scene";
-import type { AssemblyId, PartId } from "../scene/types";
+import type { AssemblyId, AssemblyNodeId, PartId } from "../scene/types";
 
 /** Mutable intermediate for a compiled assembly expansion. */
 export interface NodeDraft {
+  readonly nodeId: AssemblyNodeId;
   readonly assemblyId: AssemblyId;
   readonly parent: number;
   firstChild: number;
@@ -84,6 +85,7 @@ class DraftWriter {
     parent: number,
     local: Mat4,
     world: Mat4,
+    nodeId: AssemblyNodeId,
   ): number | undefined {
     if (this.assemblies.get(assemblyId) === undefined) {
       return undefined;
@@ -93,6 +95,7 @@ class DraftWriter {
     const effective: 0 | 1 = visible === 1 && parentEffective === 1 ? 1 : 0;
     const nodeIndex = this.nodes.length;
     this.nodes.push({
+      nodeId,
       assemblyId,
       parent,
       firstChild: -1,
@@ -113,7 +116,7 @@ class DraftWriter {
 
   /** Compiles every assembly expansion with an explicit depth-first stack. */
   public walk(assemblyId: AssemblyId, local: Mat4, world: Mat4, path: string): void {
-    const root = this.pushNode(assemblyId, -1, local, world);
+    const root = this.pushNode(assemblyId, -1, local, world, path);
     if (root === undefined) {
       return;
     }
@@ -157,6 +160,7 @@ class DraftWriter {
         item.nodeIndex,
         placement.transform,
         placementWorld,
+        placementPath,
       );
       if (child !== undefined) {
         stack.push({

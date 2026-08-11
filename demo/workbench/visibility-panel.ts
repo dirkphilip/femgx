@@ -1,4 +1,11 @@
-import type { Body, BodyId, InstanceId, PartId, SceneRuntime } from "../../src/index";
+import type {
+  AssemblyNodeId,
+  Body,
+  BodyId,
+  InstanceId,
+  PartId,
+  SceneRuntime,
+} from "../../src/index";
 import { visiblePartIdsForPreset, type ModelPreset } from "../fixture/presets";
 import type { ElementDisplayMode } from "../fixture/types";
 import { assemblyName } from "../visibility-tree";
@@ -26,8 +33,8 @@ export interface VisibilityPanelOptions {
     visible: boolean,
   ) => void;
   readonly onBodyAction: (instanceId: InstanceId, bodyId: BodyId, action: BodyAction) => void;
-  readonly onInstanceVisibility: (slot: number, visible: boolean) => void;
-  readonly onAssemblyVisibility: (nodeId: number, visible: boolean) => void;
+  readonly onInstanceVisibility: (instanceId: InstanceId, visible: boolean) => void;
+  readonly onAssemblyVisibility: (nodeId: AssemblyNodeId, visible: boolean) => void;
 }
 
 /** Builds and synchronizes the expanded assembly/part visibility tree. */
@@ -65,9 +72,12 @@ export class VisibilityPanelController {
     context.dataset["testid"] = "visibility-context";
     context.textContent = `Assembly · ${assemblyName(preset.scene.assemblies.get(rootAssemblyId)) ?? `Assembly ${rootAssemblyId}`}`;
     panel.appendChild(context);
-    panel.appendChild(
-      this.assemblyNode(0, visiblePartIdsForPreset(preset, this.options.getMode())),
-    );
+    const rootNodeId = this.options.getRuntime().getNodeIds()[0];
+    if (rootNodeId !== undefined) {
+      panel.appendChild(
+        this.assemblyNode(rootNodeId, visiblePartIdsForPreset(preset, this.options.getMode())),
+      );
+    }
     this.sync();
   }
 
@@ -77,11 +87,10 @@ export class VisibilityPanelController {
       const bodyId = input.dataset["bodyId"];
       if (bodyId !== undefined) {
         const instanceId = input.dataset["bodyInstanceId"];
-        const slot = Number(input.dataset["bodyInstanceSlot"] ?? "-1");
         input.checked =
           instanceId !== undefined && this.options.bodyVisible(instanceId, Number(bodyId));
         input.indeterminate = false;
-        input.disabled = !this.instanceVisible(runtime, slot);
+        input.disabled = !this.instanceVisible(runtime, instanceId);
         continue;
       }
       const partId = input.dataset["partId"];
@@ -93,23 +102,21 @@ export class VisibilityPanelController {
       }
       const assemblyNodeId = input.dataset["assemblyNodeId"];
       if (assemblyNodeId !== undefined) {
-        const nodeId = Number(assemblyNodeId);
-        input.checked = runtime.nodeEffectiveVisible[nodeId] === 1;
+        const node = runtime.getNode(assemblyNodeId);
+        input.checked = node?.effectiveVisible ?? false;
         input.indeterminate = false;
-        const parent = runtime.nodeParents[nodeId] ?? -1;
-        input.disabled = parent !== -1 && runtime.nodeEffectiveVisible[parent] !== 1;
+        const parent = node?.parentId === undefined ? undefined : runtime.getNode(node.parentId);
+        input.disabled = parent !== undefined && !parent.effectiveVisible;
         continue;
       }
-      const instanceSlot = input.dataset["instanceSlot"];
-      if (instanceSlot !== undefined) {
-        const slot = Number(instanceSlot);
-        input.checked = runtime.isInstanceVisible(slot);
+      const instanceId = input.dataset["instanceId"];
+      if (instanceId !== undefined) {
+        const instance = runtime.getInstance(instanceId);
+        input.checked = instance?.visible ?? false;
         input.indeterminate = false;
-        const owningNode = runtime.instanceOwningNode[slot];
+        const node = instance === undefined ? undefined : runtime.getNode(instance.nodeId);
         input.disabled =
-          owningNode === undefined ||
-          runtime.nodeEffectiveVisible[owningNode] !== 1 ||
-          runtime.instancePartVisible[slot] !== 1;
+          node === undefined || !node.effectiveVisible || instance?.partVisible !== true;
       }
     }
     for (const button of this.options.panel.querySelectorAll<HTMLButtonElement>(
@@ -118,9 +125,8 @@ export class VisibilityPanelController {
       const instanceId = button.dataset["bodyInstanceId"];
       const bodyId = button.dataset["bodyId"];
       const action = button.dataset["bodyAction"] as BodyAction | undefined;
-      const slot = Number(button.dataset["bodyInstanceSlot"] ?? "-1");
       if (instanceId === undefined || bodyId === undefined || action === undefined) continue;
-      button.disabled = !this.instanceVisible(runtime, slot);
+      button.disabled = !this.instanceVisible(runtime, instanceId);
       button.dataset["active"] = String(
         action === "highlight"
           ? this.options.bodyHighlighted(instanceId, Number(bodyId))
@@ -132,10 +138,9 @@ export class VisibilityPanelController {
     )) {
       const instanceId = button.dataset["bodyInstanceId"];
       const bodyIds = parseBodyIds(button.dataset["bodyGroupBodyIds"]);
-      const slot = Number(button.dataset["bodyInstanceSlot"] ?? "-1");
       if (instanceId === undefined || bodyIds.length === 0) continue;
       const visible = this.options.bodyGroupVisible(instanceId, bodyIds);
-      button.disabled = !this.instanceVisible(runtime, slot);
+      button.disabled = !this.instanceVisible(runtime, instanceId);
       button.textContent = visible ? "Hide bodies" : "Show bodies";
       button.dataset["active"] = String(!visible);
     }
@@ -156,11 +161,10 @@ export class VisibilityPanelController {
     const assemblyNodeId = target.dataset["assemblyNodeId"];
     if (partId !== undefined) this.options.onPartVisibility(Number(partId), target.checked);
     else if (assemblyNodeId !== undefined) {
-      this.options.onAssemblyVisibility(Number(assemblyNodeId), target.checked);
+      this.options.onAssemblyVisibility(assemblyNodeId, target.checked);
     } else {
-      const instanceSlot = target.dataset["instanceSlot"];
-      if (instanceSlot !== undefined)
-        this.options.onInstanceVisibility(Number(instanceSlot), target.checked);
+      const instanceId = target.dataset["instanceId"];
+      if (instanceId !== undefined) this.options.onInstanceVisibility(instanceId, target.checked);
     }
   }
 
@@ -189,11 +193,12 @@ export class VisibilityPanelController {
     );
   }
 
-  private assemblyNode(nodeId: number, visibleParts: ReadonlySet<PartId>): HTMLElement {
+  private assemblyNode(nodeId: AssemblyNodeId, visibleParts: ReadonlySet<PartId>): HTMLElement {
     const preset = this.options.getPreset();
     const runtime = this.options.getRuntime();
-    const assemblyId = runtime.nodeAssemblyIds[nodeId];
-    if (assemblyId === undefined) throw new Error(`Missing assembly id for runtime node ${nodeId}`);
+    const node = runtime.getNode(nodeId);
+    if (node === undefined) throw new Error(`Missing runtime node ${nodeId}`);
+    const assemblyId = node.assemblyId;
     const name = assemblyName(preset.scene.assemblies.get(assemblyId)) ?? `Assembly ${assemblyId}`;
     const displayName = this.assemblyOccurrenceName(nodeId, name);
     const branch = document.createElement("div");
@@ -203,35 +208,42 @@ export class VisibilityPanelController {
     const expander = document.createElement("button");
     expander.type = "button";
     expander.className = "visibility-expander";
-    expander.dataset["testid"] = `assembly-expand-${nodeId}`;
+    expander.dataset["testid"] = `assembly-expand-${this.nodeDisplayId(nodeId)}`;
     expander.setAttribute("aria-expanded", "true");
     expander.setAttribute("aria-label", `Collapse ${displayName}`);
     expander.textContent = "▾";
     const children = document.createElement("div");
     children.className = "visibility-children";
-    const directSlots = this.directPartSlots(nodeId, visibleParts);
-    for (let index = 0; index < directSlots.length; index++) {
-      const slot = directSlots[index];
-      if (slot !== undefined) children.appendChild(this.partNode(slot, index + 1, directSlots));
+    const directInstances = this.directPartInstances(nodeId, visibleParts);
+    for (let index = 0; index < directInstances.length; index++) {
+      const instanceId = directInstances[index];
+      if (instanceId !== undefined)
+        children.appendChild(this.partNode(instanceId, index + 1, directInstances));
     }
-    let child = runtime.nodeFirstChild[nodeId] ?? -1;
-    while (child !== -1) {
-      children.appendChild(this.assemblyNode(child, visibleParts));
-      child = runtime.nodeNextSibling[child] ?? -1;
+    for (const childId of node.childIds) {
+      children.appendChild(this.assemblyNode(childId, visibleParts));
     }
     expander.addEventListener("click", () => {
       this.toggleExpanded(expander, children, displayName);
     });
-    row.append(expander, this.rowLabel("assembly-node", nodeId, displayName));
+    row.append(
+      expander,
+      this.rowLabel("assembly-node", nodeId, displayName, undefined, this.nodeDisplayId(nodeId)),
+    );
     branch.append(row, children);
     return branch;
   }
 
-  private partNode(slot: number, index: number, siblings: readonly number[]): HTMLElement {
+  private partNode(
+    instanceId: InstanceId,
+    index: number,
+    siblings: readonly InstanceId[],
+  ): HTMLElement {
     const runtime = this.options.getRuntime();
-    const partId = runtime.instancePartIds[slot];
+    const instance = runtime.getInstance(instanceId);
+    const partId = instance?.partId;
     const name = this.options.partName(partId ?? -1) ?? `Part ${partId}`;
-    const repeated = siblings.filter((item) => runtime.instancePartIds[item] === partId).length > 1;
+    const repeated = siblings.filter((item) => runtime.getPartId(item) === partId).length > 1;
     const row = document.createElement("div");
     row.className = "visibility-row visibility-part";
     const spacer = document.createElement("span");
@@ -242,13 +254,18 @@ export class VisibilityPanelController {
     const bodies = part?.geometry.bodies ?? [];
     row.append(
       spacer,
-      this.rowLabel("instance", slot, repeated ? `${name} ${index}` : name, "Part"),
+      this.rowLabel(
+        "instance",
+        instanceId,
+        repeated ? `${name} ${index}` : name,
+        "Part",
+        this.instanceDisplayId(instanceId),
+      ),
     );
-    const instanceId = runtime.getInstanceId(slot);
-    if (instanceId !== undefined && bodies.length > 1) {
+    if (bodies.length > 1) {
       row.append(
         createBodyGroupAction(
-          slot,
+          this.instanceDisplayId(instanceId),
           instanceId,
           bodies.map((body) => body.id),
         ),
@@ -258,14 +275,13 @@ export class VisibilityPanelController {
     branch.className = "visibility-body-branch";
     branch.appendChild(row);
     for (const body of bodies) {
-      branch.appendChild(this.bodyNode(slot, body));
+      branch.appendChild(this.bodyNode(instanceId, body));
     }
     return branch;
   }
 
-  private bodyNode(slot: number, body: Body): HTMLElement {
-    const runtime = this.options.getRuntime();
-    const instanceId = runtime.getInstanceId(slot);
+  private bodyNode(instanceId: InstanceId, body: Body): HTMLElement {
+    const displayId = this.instanceDisplayId(instanceId);
     const row = document.createElement("div");
     row.className = "visibility-row visibility-body";
     const spacer = document.createElement("span");
@@ -275,9 +291,8 @@ export class VisibilityPanelController {
     const input = document.createElement("input");
     input.type = "checkbox";
     input.dataset["bodyId"] = String(body.id);
-    input.dataset["bodyInstanceSlot"] = String(slot);
-    if (instanceId !== undefined) input.dataset["bodyInstanceId"] = instanceId;
-    input.dataset["testid"] = `body-vis-${slot}-${body.id}`;
+    input.dataset["bodyInstanceId"] = instanceId;
+    input.dataset["testid"] = `body-vis-${displayId}-${body.id}`;
     label.append(input);
     const badge = document.createElement("span");
     badge.className = "visibility-kind";
@@ -294,10 +309,9 @@ export class VisibilityPanelController {
       button.type = "button";
       button.className = "visibility-body-action";
       button.dataset["bodyAction"] = action;
-      button.dataset["bodyInstanceSlot"] = String(slot);
       button.dataset["bodyId"] = String(body.id);
-      if (instanceId !== undefined) button.dataset["bodyInstanceId"] = instanceId;
-      button.dataset["testid"] = `body-${action}-${slot}-${body.id}`;
+      button.dataset["bodyInstanceId"] = instanceId;
+      button.dataset["testid"] = `body-${action}-${displayId}-${body.id}`;
       button.setAttribute("aria-label", `${action} ${text.textContent}`);
       button.textContent = action === "highlight" ? "Glow" : "Color";
       actions.appendChild(button);
@@ -306,44 +320,43 @@ export class VisibilityPanelController {
     return row;
   }
 
-  private directPartSlots(nodeId: number, visibleParts: ReadonlySet<PartId>): number[] {
+  private directPartInstances(
+    nodeId: AssemblyNodeId,
+    visibleParts: ReadonlySet<PartId>,
+  ): InstanceId[] {
     const runtime = this.options.getRuntime();
-    const slots: number[] = [];
-    for (let slot = 0; slot < runtime.instanceCount; slot++) {
-      const partId = runtime.instancePartIds[slot];
-      if (
-        runtime.instanceOwningNode[slot] === nodeId &&
-        partId !== undefined &&
-        visibleParts.has(partId)
-      )
-        slots.push(slot);
-    }
-    return slots;
+    return (
+      runtime.getNode(nodeId)?.instanceIds.filter((instanceId) => {
+        if (runtime.getInstance(instanceId)?.nodeId !== nodeId) return false;
+        const partId = runtime.getPartId(instanceId);
+        return partId !== undefined && visibleParts.has(partId);
+      }) ?? []
+    );
   }
 
-  private assemblyOccurrenceName(nodeId: number, name: string): string {
+  private assemblyOccurrenceName(nodeId: AssemblyNodeId, name: string): string {
     const runtime = this.options.getRuntime();
-    const parent = runtime.nodeParents[nodeId] ?? -1;
-    if (parent === -1) return name;
-    const assemblyId = runtime.nodeAssemblyIds[nodeId];
+    const node = runtime.getNode(nodeId);
+    const parent = node?.parentId === undefined ? undefined : runtime.getNode(node.parentId);
+    if (parent === undefined || node === undefined) return name;
     let occurrence = 0;
     let total = 0;
-    let sibling = runtime.nodeFirstChild[parent] ?? -1;
-    while (sibling !== -1) {
-      if (runtime.nodeAssemblyIds[sibling] === assemblyId) {
+    for (const siblingId of parent.childIds) {
+      const sibling = runtime.getNode(siblingId);
+      if (sibling?.assemblyId === node.assemblyId) {
         total += 1;
-        if (sibling === nodeId) occurrence = total;
+        if (siblingId === nodeId) occurrence = total;
       }
-      sibling = runtime.nodeNextSibling[sibling] ?? -1;
     }
     return total > 1 ? `${name} ${occurrence}` : name;
   }
 
   private rowLabel(
     kind: "part" | "assembly-node" | "instance",
-    id: number,
+    id: string | number,
     name: string,
     badgeText?: "Part",
+    testId = id,
   ): HTMLLabelElement {
     const label = document.createElement("label");
     const input = document.createElement("input");
@@ -353,12 +366,10 @@ export class VisibilityPanelController {
       input.dataset["testid"] = `part-vis-${id}`;
     } else if (kind === "assembly-node") {
       input.dataset["assemblyNodeId"] = String(id);
-      input.dataset["testid"] = `assembly-node-vis-${id}`;
+      input.dataset["testid"] = `assembly-node-vis-${testId}`;
     } else {
-      input.dataset["instanceSlot"] = String(id);
-      const instanceId = this.options.getRuntime().getInstanceId(id);
-      if (instanceId !== undefined) input.dataset["instanceId"] = instanceId;
-      input.dataset["testid"] = `instance-vis-${id}`;
+      input.dataset["instanceId"] = String(id);
+      input.dataset["testid"] = `instance-vis-${testId}`;
     }
     label.append(input);
     const badge = document.createElement("span");
@@ -373,14 +384,16 @@ export class VisibilityPanelController {
     return label;
   }
 
-  private instanceVisible(runtime: SceneRuntime, slot: number): boolean {
-    const owningNode = runtime.instanceOwningNode[slot];
-    return (
-      owningNode !== undefined &&
-      runtime.nodeEffectiveVisible[owningNode] === 1 &&
-      runtime.instancePartVisible[slot] === 1 &&
-      runtime.isInstanceVisible(slot)
-    );
+  private instanceVisible(runtime: SceneRuntime, instanceId: InstanceId | undefined): boolean {
+    return instanceId !== undefined && runtime.isInstanceVisible(instanceId);
+  }
+
+  private nodeDisplayId(nodeId: AssemblyNodeId): number {
+    return this.options.getRuntime().getNodeIds().indexOf(nodeId);
+  }
+
+  private instanceDisplayId(instanceId: InstanceId): number {
+    return this.options.getRuntime().getInstanceIds().indexOf(instanceId);
   }
 
   private toggleExpanded(expander: HTMLButtonElement, children: HTMLElement, name: string): void {

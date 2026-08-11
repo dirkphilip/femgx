@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createWebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import { createPart } from "../../src/geometry/part";
-import { createSceneRuntime } from "../../src/scene-runtime/runtime";
+import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { identity, translation } from "../../src/math/mat4";
@@ -120,7 +120,7 @@ describe("WebGPU renderer", () => {
 
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     await expect(renderer.pick(1, 1)).resolves.toBeUndefined();
     renderer.render(runtime, camera, scene.parts);
     renderer.render(runtime, camera, scene.parts);
@@ -153,7 +153,7 @@ describe("WebGPU renderer", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     const interaction = createInteractionState();
 
     renderer.render(runtime, camera, scene.parts);
@@ -223,7 +223,7 @@ describe("WebGPU renderer", () => {
       installNavigator(gpu.device);
       const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
       const scene = buildFaceScene();
-      const runtime = createSceneRuntime(scene);
+      const runtime = createPackedSceneRuntime(scene);
       renderer.render(runtime, faceCamera, scene.parts);
 
       await expect(renderer.pickPoint(faceCamera, 400, 300)).resolves.toEqual(
@@ -247,7 +247,7 @@ describe("WebGPU renderer", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildFaceScene();
-    renderer.render(createSceneRuntime(scene), faceCamera, scene.parts);
+    renderer.render(createPackedSceneRuntime(scene), faceCamera, scene.parts);
 
     await expect(renderer.pickPoint(faceCamera, 400, 300)).resolves.toEqual(
       unprojectPoint(faceCamera, [400.5, 300.5, Math.fround(depth)]),
@@ -263,7 +263,7 @@ describe("WebGPU renderer", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildFaceScene();
-    renderer.render(createSceneRuntime(scene), faceCamera, scene.parts);
+    renderer.render(createPackedSceneRuntime(scene), faceCamera, scene.parts);
 
     const point = await renderer.pickPoint(faceCamera, 400, 300);
     expect(point?.[2]).toBeCloseTo(1, 3);
@@ -276,7 +276,7 @@ describe("WebGPU renderer", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
 
     const instanceWrites = () => gpu.writes.filter((write) => write.bytes.byteLength !== 64);
@@ -325,7 +325,7 @@ describe("WebGPU renderer", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
 
     const hidden = runtime.setPartVisible(1, false);
@@ -346,7 +346,7 @@ describe("WebGPU renderer", () => {
     const onLost = vi.fn();
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas(), onDeviceLost: onLost });
     const scene = buildScene();
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
     const first = gpus[0];
     if (first === undefined) throw new Error("no fake device created");
@@ -380,7 +380,7 @@ describe("WebGPU renderer", () => {
     installNavigator(external.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas(), device: external.device });
     const scene = buildScene();
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
     external.lose();
     await external.lost;
@@ -394,7 +394,7 @@ describe("WebGPU renderer", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws).toEqual([
       { pipeline: "pipeline-0", indexCount: 3, instanceCount: 3 },
@@ -433,7 +433,7 @@ describe("WebGPU renderer", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
     const edge = setPartOverride(createInteractionState(), 1, { edge: true });
     renderer.updateInstances(runtime, edge, [0, 1, 2]);
@@ -484,7 +484,7 @@ describe("WebGPU renderer", () => {
       })
       .withRoot(1)
       .build();
-    const runtime1 = createSceneRuntime(wrapped);
+    const runtime1 = createPackedSceneRuntime(wrapped);
     renderer.render(runtime1, camera, wrapped.parts);
     expect(gpu.buffers.every((buffer) => !buffer.destroyed)).toBe(true);
 
@@ -500,7 +500,7 @@ describe("WebGPU renderer", () => {
       })
       .withRoot(1)
       .build();
-    const runtime2 = createSceneRuntime(replacementScene);
+    const runtime2 = createPackedSceneRuntime(replacementScene);
     renderer.render(runtime2, camera, replacementScene.parts);
 
     expect(gpu.buffers.some((buffer) => buffer.destroyed)).toBe(true);
@@ -522,7 +522,7 @@ describe("WebGPU renderer deformation", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
     const ids = new Uint32Array(uniformWrite(gpu)?.bytes.buffer ?? new ArrayBuffer(0), 0, 4);
     expect(ids[1]).toBe(0);
@@ -536,7 +536,7 @@ describe("WebGPU renderer deformation", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     renderer.setDeformation({
       scale: 2,
       loadCase: 1,
@@ -562,7 +562,7 @@ describe("WebGPU renderer deformation", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     const deformation = {
       scale: 1,
       loadCase: 0,

@@ -1,9 +1,4 @@
-import {
-  type Camera,
-  type InteractionState,
-  type PartId,
-  type SceneRuntime,
-} from "../../src/index";
+import { type Camera, type InteractionState, type SceneRuntime } from "../../src/index";
 import { updateAxisGizmo } from "../axis-gizmo";
 import { type ModelPreset } from "../fixture/presets";
 import type { ElementDisplayMode } from "../fixture/types";
@@ -23,7 +18,6 @@ export interface WorkbenchPresentationOptions {
   readonly getResultMode: () => ResultDisplayMode;
   readonly getInteraction: () => InteractionState;
   readonly getRuntime: () => SceneRuntime;
-  readonly partFirstSlot: ReadonlyMap<PartId, number>;
 }
 
 /** Keeps status, toolbar reflection, model selection, and camera chrome in sync. */
@@ -62,7 +56,6 @@ export class WorkbenchPresentation {
         preset,
         runtime: this.options.getRuntime(),
         interaction: this.options.getInteraction(),
-        partFirstSlot: this.options.partFirstSlot,
       },
       {
         rendererName: this.options.rendererName,

@@ -107,7 +107,7 @@ test("lists the bolted assembly hierarchy in the visibility panel", async ({ pag
   }
   await expect(page.getByTestId("assembly-node-vis-3")).toHaveAttribute(
     "data-assembly-node-id",
-    "3",
+    "1/1/0",
   );
 });
 
@@ -230,7 +230,7 @@ test("toggles the element edge overlay independently of solid geometry", async (
 test("reset restores the complete workbench display state", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  const firstPart = page.locator("#visibility-panel input[data-instance-slot]").first();
+  const firstPart = page.locator("#visibility-panel input[data-instance-id]").first();
   await firstPart.uncheck();
   await page.getByTestId("edge-overlay").click();
   await page.getByTestId("node-overlay").click();
@@ -277,10 +277,10 @@ test("uses stable runtime-node and instance controls", async ({ page }) => {
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "vtk");
 
   const rootCheckbox = page.getByTestId("assembly-node-vis-0");
-  await expect(rootCheckbox).toHaveAttribute("data-assembly-node-id", "0");
+  await expect(rootCheckbox).toHaveAttribute("data-assembly-node-id", "1");
   await expect(rootCheckbox).toBeChecked();
   const partCheckbox = page.getByTestId("instance-vis-0");
-  await expect(partCheckbox).toHaveAttribute("data-instance-slot", "0");
+  await expect(partCheckbox).toHaveAttribute("data-instance-id", "1/0");
   await expect(partCheckbox).toBeChecked();
 
   // Hiding the root assembly hides every descendant instance.
@@ -328,9 +328,9 @@ test("exposes assembly occurrence and direct-part identity in the tree", async (
   await expect(page.getByTestId("visibility-context")).toContainText("Bolted joint");
   await expect(page.getByTestId("assembly-node-vis-0")).toHaveAttribute(
     "data-assembly-node-id",
-    "0",
+    "1",
   );
-  await expect(page.getByTestId("instance-vis-0")).toHaveAttribute("data-instance-slot", "0");
+  await expect(page.getByTestId("instance-vis-0")).toHaveAttribute("data-instance-id", "1/0/0");
 });
 
 test("hides the plate stack through the assembly tree", async ({ page }) => {
@@ -585,7 +585,7 @@ test("opens a view context menu on empty scene space", async ({ page }) => {
 
   const partCheckbox = page
     .getByTestId("visibility-panel")
-    .locator("input[data-instance-slot]")
+    .locator("input[data-instance-id]")
     .first();
   await partCheckbox.uncheck();
   await expect(partCheckbox).not.toBeChecked();

@@ -1,6 +1,6 @@
 import type { InteractionState } from "../interaction/interaction";
 import { resolveInstanceStyle } from "../interaction/interaction";
-import type { SceneRuntime } from "../scene-runtime/runtime";
+import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../scene/types";
 import { encodeInstanceRecord, type InstanceUpdate } from "./gpu-draw";
 import { defaultStyle } from "./gpu-support";
@@ -18,7 +18,7 @@ export interface CollectedInstanceUpdates {
  * flipped so the renderer can rebuild their overlay orders.
  */
 export function collectInstanceUpdates(
-  runtime: SceneRuntime,
+  runtime: PackedSceneRuntime,
   layout: InstanceLayout,
   interaction: InteractionState,
   edgeFlags: boolean[],

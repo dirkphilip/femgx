@@ -4,11 +4,11 @@ import {
   createHex20CylinderFixture,
   type ElementFixture,
 } from "../../../demo/fixture/element-fixture";
-import { createSceneRuntime } from "../../../src/scene-runtime/runtime";
+import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import type { Instance } from "../../../src/scene/types";
 
 function runtimeInstances(fixture: Pick<ElementFixture, "scene">): readonly Instance[] {
-  const runtime = createSceneRuntime(fixture.scene);
+  const runtime = createPackedSceneRuntime(fixture.scene);
   const instances: Instance[] = [];
   const drawList = runtime.getDrawList();
   for (let index = 0; index < drawList.length; index += 1) {

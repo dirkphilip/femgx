@@ -15,6 +15,9 @@ export type AssemblyId = number;
 /** Stable identity of a placement in an assembly tree. */
 export type InstanceId = string;
 
+/** Stable identity of one expanded assembly occurrence in a scene runtime. */
+export type AssemblyNodeId = string;
+
 /** Stable identity of one element occurrence (an element placed in the scene). */
 export interface ElementRef {
   /** The placement whose geometry contains the element. */

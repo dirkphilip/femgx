@@ -7,7 +7,7 @@ import { scalarRange, type ValueRange } from "../results/range";
 import type { InteractionState, StyleOverride } from "../interaction/interaction";
 import type { Scene } from "../scene/scene";
 import type { InstanceId, PartId } from "../scene/types";
-import type { SceneRuntime } from "../scene-runtime/runtime";
+import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 
 /** An elemental field that can be displayed by the viewport results path. */
 export type ViewportResultField =
@@ -50,7 +50,7 @@ export interface ViewportResultsState {
 export function resolveViewportResults(
   config: ViewportResultsConfig,
   scene: Scene,
-  runtime: SceneRuntime,
+  runtime: PackedSceneRuntime,
   baseInteraction: InteractionState,
 ): ViewportResultsState {
   const scalarField = deriveScalarField(config.field, config.derive);
@@ -74,7 +74,7 @@ export function applyViewportResultInteraction(
   scalarField: ScalarField<"elemental">,
   colorMap: ScalarColorMap,
   scene: Scene,
-  runtime: SceneRuntime,
+  runtime: PackedSceneRuntime,
 ): InteractionState {
   const elementOverrides = new Map<InstanceId, ReadonlyMap<number, StyleOverride>>();
   for (const [instanceId, overrides] of baseInteraction.elementOverrides) {

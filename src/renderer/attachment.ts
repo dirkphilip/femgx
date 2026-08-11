@@ -1,6 +1,6 @@
 import type { Part } from "../geometry/part";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
-import type { SceneRuntime } from "../scene-runtime/runtime";
+import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Instance, InstanceId, PartId } from "../scene/types";
 import { syncElementHighlights } from "./gpu-elements";
 import {
@@ -34,7 +34,7 @@ import {
  * attachment remain incremental subrange updates.
  */
 export class RendererAttachment {
-  public runtime: SceneRuntime | undefined;
+  public runtime: PackedSceneRuntime | undefined;
   public layout: InstanceLayout | undefined;
   public calls: readonly DrawCall[] = [];
   public edgeCalls: readonly DrawCall[] = [];
@@ -46,7 +46,7 @@ export class RendererAttachment {
    * Ensures the attachment matches `runtime`, rebuilding the attachment when
    * the runtime identity changes.
    */
-  public attach(runtime: SceneRuntime, bundle: GpuBundle): boolean {
+  public attach(runtime: PackedSceneRuntime, bundle: GpuBundle): boolean {
     if (
       this.runtime === runtime &&
       this.layout !== undefined &&
@@ -61,7 +61,7 @@ export class RendererAttachment {
 
   /** Writes only the GPU subranges affected by the changed instance slots. */
   public updateInstances(
-    runtime: SceneRuntime,
+    runtime: PackedSceneRuntime,
     interaction: InteractionState,
     changedInstanceIds: readonly number[],
     bundle: GpuBundle,
@@ -95,7 +95,7 @@ export class RendererAttachment {
 
   /** Writes the per-part element-highlight buffers as diffed records. */
   public updateElements(
-    runtime: SceneRuntime,
+    runtime: PackedSceneRuntime,
     interaction: InteractionState,
     bundle: GpuBundle,
     parts: ReadonlyMap<PartId, Part>,
@@ -119,7 +119,7 @@ export class RendererAttachment {
 
   /** Rebuilds GPU draw order after runtime visibility changed. */
   public updateVisibility(
-    runtime: SceneRuntime,
+    runtime: PackedSceneRuntime,
     changedInstanceIds: readonly number[],
     bundle: GpuBundle,
   ): boolean {
@@ -136,7 +136,7 @@ export class RendererAttachment {
     this.calls = this.edgeCalls = [];
   }
 
-  private fullAttach(runtime: SceneRuntime, layout: InstanceLayout, bundle: GpuBundle): void {
+  private fullAttach(runtime: PackedSceneRuntime, layout: InstanceLayout, bundle: GpuBundle): void {
     destroyDrawResources(bundle.draw);
     bundle.draw = createDrawResources(bundle.device);
     const snapshot = buildInstanceSnapshot(runtime);
@@ -163,7 +163,7 @@ export class RendererAttachment {
   }
 
   private rebuildVisibleOrders(
-    runtime: SceneRuntime,
+    runtime: PackedSceneRuntime,
     layout: InstanceLayout,
     changedInstanceIds: readonly number[],
     bundle: GpuBundle,
@@ -186,7 +186,7 @@ export class RendererAttachment {
   }
 
   private rebuildEdgeOrders(
-    runtime: SceneRuntime,
+    runtime: PackedSceneRuntime,
     layout: InstanceLayout,
     parts: ReadonlySet<PartId>,
     bundle: GpuBundle,

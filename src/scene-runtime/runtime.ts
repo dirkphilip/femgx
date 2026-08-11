@@ -1,6 +1,6 @@
 import type { Mat4 } from "../math/mat4";
 import type { Scene } from "../scene/scene";
-import type { AssemblyId, InstanceId, PartId } from "../scene/types";
+import type { AssemblyId, AssemblyNodeId, InstanceId, PartId } from "../scene/types";
 import { compileSceneState, type RuntimeState } from "./compile";
 import { setInstanceTransform, setNodeTransform, type TransformDelta } from "./transforms";
 import {
@@ -21,12 +21,13 @@ import {
  * never change when visibility changes. The typed arrays are read-only views
  * into the runtime: do not mutate them, or visibleCount desynchronizes.
  */
-export interface SceneRuntime {
+export interface PackedSceneRuntime {
   readonly rootAssemblyId: AssemblyId;
   /** Number of compiled assembly expansions. */
   readonly nodeCount: number;
   /** Number of part placements; each is a stable instance id in `[0, count)`. */
   readonly instanceCount: number;
+  readonly nodeNodeIds: readonly AssemblyNodeId[];
   /** Number of currently visible instances. */
   readonly visibleCount: number;
   readonly nodeAssemblyIds: Uint32Array;
@@ -64,6 +65,12 @@ export interface SceneRuntime {
   getPartId(instanceId: number): PartId | undefined;
   /** Resolves a stable instance slot to its authoring placement handle. */
   getInstanceId(instanceId: number): InstanceId | undefined;
+  /** Resolves an authoring placement handle to its packed slot. */
+  getInstanceSlot(instanceId: InstanceId): number | undefined;
+  /** Resolves a packed node slot to its stable occurrence handle. */
+  getNodeId(nodeId: number): AssemblyNodeId | undefined;
+  /** Resolves an assembly occurrence handle to its packed node slot. */
+  getNodeSlot(nodeId: AssemblyNodeId): number | undefined;
   /** Returns the world transform of an instance as a matrix view. */
   getTransform(instanceId: number): Mat4 | undefined;
   /** Returns the local placement transform of a node as a matrix view. */
@@ -95,6 +102,7 @@ function runtimeArrays(state: RuntimeState) {
   return {
     rootAssemblyId: state.rootAssemblyId,
     nodeCount: state.nodeCount,
+    nodeNodeIds: state.nodeNodeIds,
     instanceCount: state.instanceCount,
     nodeAssemblyIds: state.nodeAssemblyIds,
     nodeParents: state.nodeParents,
@@ -116,9 +124,32 @@ function runtimeArrays(state: RuntimeState) {
   };
 }
 
-/** Compiles a scene into a packed runtime with delta-oriented visibility. */
-export function createSceneRuntime(scene: Scene): SceneRuntime {
+interface RuntimeMaps {
+  readonly instanceSlots: ReadonlyMap<InstanceId, number>;
+  readonly nodeSlots: ReadonlyMap<AssemblyNodeId, number>;
+}
+
+function runtimeMaps(state: RuntimeState): RuntimeMaps {
+  const instanceSlots = new Map<InstanceId, number>();
+  for (let slot = 0; slot < state.instanceInstanceIds.length; slot++) {
+    const instanceId = state.instanceInstanceIds[slot];
+    if (instanceId !== undefined) instanceSlots.set(instanceId, slot);
+  }
+  const nodeSlots = new Map<AssemblyNodeId, number>();
+  for (let node = 0; node < state.nodeNodeIds.length; node++) {
+    const nodeId = state.nodeNodeIds[node];
+    if (nodeId !== undefined) nodeSlots.set(nodeId, node);
+  }
+  return { instanceSlots, nodeSlots };
+}
+
+/** Compiles a scene into packed storage for the renderer and viewport internals. */
+export function createPackedSceneRuntime(scene: Scene): PackedSceneRuntime {
   const state: RuntimeState = compileSceneState(scene);
+  return createPackedRuntime(state, runtimeMaps(state));
+}
+
+function createPackedRuntime(state: RuntimeState, maps: RuntimeMaps): PackedSceneRuntime {
   return {
     ...runtimeArrays(state),
     get visibleCount(): number {
@@ -129,6 +160,15 @@ export function createSceneRuntime(scene: Scene): SceneRuntime {
     },
     getInstanceId(instanceId: number): InstanceId | undefined {
       return state.instanceInstanceIds[instanceId];
+    },
+    getInstanceSlot(instanceId: InstanceId): number | undefined {
+      return maps.instanceSlots.get(instanceId);
+    },
+    getNodeId(nodeId: number): AssemblyNodeId | undefined {
+      return state.nodeNodeIds[nodeId];
+    },
+    getNodeSlot(nodeId: AssemblyNodeId): number | undefined {
+      return maps.nodeSlots.get(nodeId);
     },
     getTransform(instanceId: number): Mat4 | undefined {
       return matrixView(state.instanceWorldTransforms, state.instanceCount, instanceId);

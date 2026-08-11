@@ -96,7 +96,7 @@ const { createScene, createFemViewport, createResultField } = require("femgx");
   descriptive error when WebGPU is unavailable or the adapter/device request fails.
 - `queryWebGpuSupport()` is a non-throwing probe that returns a typed
   "supported"/"unsupported" report for applications that want to branch up front.
-- The CPU scene, camera, packed runtime (`createSceneRuntime`), and pick-id
+- The CPU scene, camera, stable-handle runtime (`createSceneRuntime`), and pick-id
   resolution (`resolvePick` / `resolvePickTarget`) APIs are WebGPU-independent
   and work in any JavaScript environment. GPU renderer picking (`pick` and
   `pickPoint`) requires a working WebGPU renderer.
@@ -107,8 +107,8 @@ const { createScene, createFemViewport, createResultField } = require("femgx");
 ## Public API highlights
 
 - `createScene()` validates duplicate IDs, missing references, invalid roots, and cycles.
-- `createSceneRuntime()` is an advanced low-level renderer input; most hosts should
-  let `createFemViewport()` own it.
+- `createSceneRuntime()` is an advanced stable-handle runtime boundary; most hosts
+  should let `createFemViewport()` own the derived runtime.
 - `createInteractionState()` manages selection, highlight, hover, and style overrides.
 - `createCamera()` supports perspective/orthographic projection, orbit, pan, zoom, and resize.
 - `createWebGpuRenderer()` uploads geometry once, renders instanced batches, applies styles,

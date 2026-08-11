@@ -1,4 +1,4 @@
-import type { FemViewport, InteractionState, PartId, SceneRuntime } from "../../src/index";
+import type { FemViewport, InteractionState, SceneRuntime } from "../../src/index";
 import type { DemoView } from "../view";
 import type { ModelPreset } from "../fixture/presets";
 
@@ -32,5 +32,4 @@ export interface WorkbenchSceneContext {
   readonly preset: ModelPreset;
   readonly runtime: SceneRuntime;
   readonly interaction: InteractionState;
-  readonly partFirstSlot: ReadonlyMap<PartId, number>;
 }
