@@ -1,4 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { createElement } from "../../src/elements/element";
+import { createElementModel } from "../../src/elements/model";
+import { HEX20_SHAPE } from "../../src/elements/shapes";
+import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
 import { createPart } from "../../src/geometry/part";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { identity } from "../../src/math/mat4";
@@ -41,6 +45,50 @@ function createTestScene() {
     })
     .withRoot(1)
     .build();
+}
+
+function createHex20ViewportScene() {
+  const nodes = [
+    [0, 0, 0],
+    [1, 0, 0],
+    [1, 1, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+    [1, 0, 1],
+    [1, 1, 1],
+    [0, 1, 1],
+    [0.5, 0, 0],
+    [1, 0.5, 0],
+    [0.5, 1, 0],
+    [0, 0.5, 0],
+    [0.5, 0, 1],
+    [1, 0.5, 1],
+    [0.5, 1, 1],
+    [0, 0.5, 1],
+    [0, 0, 0.5],
+    [1, 0, 0.5],
+    [1, 1, 0.5],
+    [0, 1, 0.5],
+  ].flat();
+  const model = createElementModel(nodes, [
+    createElement(
+      1,
+      HEX20_SHAPE,
+      Array.from({ length: 20 }, (_, index) => index),
+    ),
+  ]);
+  const part = heterogeneousElementParts({ triangle: 7 }, model).triangle;
+  if (part === undefined) throw new Error("Hex20 viewport fixture has no triangle part");
+  const scene = createScene()
+    .addPart(part)
+    .addAssembly({
+      id: 7,
+      name: "hex20",
+      placements: [{ kind: "part", partId: 7, transform: identity() }],
+    })
+    .withRoot(7)
+    .build();
+  return { model, scene, part };
 }
 
 function elementalTensor() {
@@ -127,6 +175,45 @@ describe("viewport results workflow", () => {
     viewport.clearResults();
     expect(viewport.results).toBeUndefined();
     expect(viewport.interaction).toBe(base);
+    viewport.destroy();
+  });
+
+  it("drives actual Hex20 tessellation through viewport deformation", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const { model, scene, part } = createHex20ViewportScene();
+    const field = createResultField({
+      id: "hex20-viewport-displacement",
+      name: "Hex20 viewport displacement",
+      location: "nodal",
+      shape: "vector",
+      count: model.nodes.length / 3,
+      unit: "mm",
+      values: new Float32Array(model.nodes.length).fill(0.1),
+    });
+    const stress = createResultField({
+      id: "hex20-viewport-stress",
+      name: "Hex20 viewport stress",
+      location: "elemental",
+      shape: "scalar",
+      count: 2,
+      unit: "MPa",
+      values: new Float32Array([0, 1]),
+    });
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene,
+      device: gpu.device,
+      results: { field: stress, deformation: { field } },
+    });
+
+    expect(part.geometry.indices.length).toBe(6 * 6 * 3);
+    expect(part.geometry.nodePickIds).not.toContain(0);
+    expect(viewport.results?.deformation?.displacements.get(7)).toHaveLength(model.nodes.length);
+    expect(gpu.writes.some((write) => write.bytes.byteLength === model.nodes.length * 4)).toBe(
+      true,
+    );
     viewport.destroy();
   });
 

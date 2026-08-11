@@ -26,6 +26,8 @@ import {
   type PointGeometry,
   type TriangleGeometry,
 } from "../../src/geometry/part";
+import { deformGeometry } from "../../src/results/deform";
+import { createResultField } from "../../src/results/fields";
 
 type Vec3 = readonly [number, number, number];
 
@@ -117,6 +119,18 @@ function hex20Model(): ElementModel {
       Array.from({ length: 20 }, (_, index) => index),
     ),
   ]);
+}
+
+function skewedHex20Model(): ElementModel {
+  const model = hex20Model();
+  const nodes: number[] = [];
+  for (let offset = 0; offset < model.nodes.length; offset += 3) {
+    const x = model.nodes[offset] ?? 0;
+    const y = model.nodes[offset + 1] ?? 0;
+    const z = model.nodes[offset + 2] ?? 0;
+    nodes.push(x + 0.2 * y, y + 0.15 * z, z + 0.1 * x);
+  }
+  return createElementModel(nodes, model.elements);
 }
 
 function surfaceModel(): ElementModel {
@@ -314,10 +328,30 @@ describe("heterogeneousElementParts geometry", () => {
 
   it("tessellates a Hex20 solid through its twelve mid-edge nodes", () => {
     const geometry = geometryFor(hex20Model(), "triangle");
-    expect(geometry.indices.length).toBe(6 * 8 * 3);
+    expect(geometry.indices.length).toBe(6 * 6 * 3);
     expect(containsPosition(geometry, [0.5, 0, 0])).toBe(true);
     expect(containsPosition(geometry, [1, 0.5, 1])).toBe(true);
     expect(containsPosition(geometry, [0, 1, 0.5])).toBe(true);
+  });
+
+  it("uses every authored Hex20 node in a deterministic six-triangle face split", () => {
+    const geometry = geometryFor(hex20Model(), "triangle");
+    const repeated = geometryFor(hex20Model(), "triangle");
+    const nodePickIds = geometry.nodePickIds;
+    if (nodePickIds === undefined) throw new Error("expected Hex20 node pick ids");
+    expect(nodePickIds).not.toContain(0);
+    expect(new Set(nodePickIds)).toEqual(new Set(Array.from({ length: 20 }, (_, id) => id + 1)));
+    expect(geometry.indices).toEqual(repeated.indices);
+  });
+
+  it("orients every Hex20 facet outward on a non-axis-aligned cell", () => {
+    const geometry = geometryFor(skewedHex20Model(), "triangle");
+    const centroid: Vec3 = [0.6, 0.575, 0.55];
+    for (const triangle of triangles(geometry)) {
+      expect(
+        dot(triangleNormal(triangle), subtract(triangleCenter(triangle), centroid)),
+      ).toBeGreaterThan(0);
+    }
   });
 
   it("culls the shared face between two tets in solid geometry", () => {
@@ -351,13 +385,59 @@ describe("heterogeneousElementParts geometry", () => {
     expect(pickIds).not.toContain(0);
   });
 
-  it("marks interpolated quadratic quad centers as non-node vertices", () => {
+  it("keeps Hex20 deformation attached to every authored tessellation vertex", () => {
     const geometry = geometryFor(hex20Model(), "triangle");
     const pickIds = geometry.nodePickIds;
     if (pickIds === undefined) throw new Error("expected node pick ids");
-    expect(pickIds).toContain(0);
-    const vertexCount = geometry.positions.length / 3;
-    expect(pickIds.length).toBe(vertexCount);
+    const values = new Float32Array(20 * 3);
+    for (let node = 0; node < 20; node += 1) {
+      values[node * 3] = node / 10;
+      values[node * 3 + 1] = node / 20;
+      values[node * 3 + 2] = -node / 30;
+    }
+    const field = createResultField({
+      id: "hex20-displacement",
+      name: "Hex20 displacement",
+      location: "nodal",
+      shape: "vector",
+      count: 20,
+      unit: "mm",
+      values,
+    });
+    const translation = createResultField({
+      id: "hex20-translation",
+      name: "Hex20 translation",
+      location: "nodal",
+      shape: "vector",
+      count: 20,
+      unit: "mm",
+      values: new Float32Array(20 * 3).fill(0.25),
+    });
+    const translated = deformGeometry(geometry, translation);
+    for (let offset = 0; offset < translated.positions.length; offset += 3) {
+      expect(translated.positions[offset]).toBeCloseTo((geometry.positions[offset] ?? 0) + 0.25);
+      expect(translated.positions[offset + 1]).toBeCloseTo(
+        (geometry.positions[offset + 1] ?? 0) + 0.25,
+      );
+      expect(translated.positions[offset + 2]).toBeCloseTo(
+        (geometry.positions[offset + 2] ?? 0) + 0.25,
+      );
+    }
+    const deformed = deformGeometry(geometry, field);
+    for (let vertex = 0; vertex < pickIds.length; vertex += 1) {
+      const node = (pickIds[vertex] ?? 1) - 1;
+      const base = vertex * 3;
+      expect(deformed.positions[base]).toBeCloseTo(
+        (geometry.positions[base] ?? 0) + (values[node * 3] ?? 0),
+      );
+      expect(deformed.positions[base + 1]).toBeCloseTo(
+        (geometry.positions[base + 1] ?? 0) + (values[node * 3 + 1] ?? 0),
+      );
+      expect(deformed.positions[base + 2]).toBeCloseTo(
+        (geometry.positions[base + 2] ?? 0) + (values[node * 3 + 2] ?? 0),
+      );
+    }
+    expect(deformGeometry(geometry, field, 0).positions).toEqual(geometry.positions);
   });
 
   it("records face pick ids, face descriptors, and neighbors per triangle", () => {

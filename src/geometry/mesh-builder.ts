@@ -9,10 +9,10 @@ import type {
 } from "./part";
 import type { Vec3 } from "../math/vec3";
 
-/** A tessellated triangle vertex plus the model node it came from, if any. */
+/** A tessellated triangle vertex plus the authored model node it came from. */
 export interface MeshVertex {
   readonly point: Vec3;
-  /** The model node this vertex came from; `undefined` for interpolated points. */
+  /** The authored model node this vertex came from. */
   readonly nodeId: number | undefined;
 }
 
@@ -20,7 +20,7 @@ export interface MeshVertex {
 export class TriangleMeshBuilder {
   readonly positions: number[] = [];
   readonly indices: number[] = [];
-  /** Per-vertex node pick ids (`nodeId + 1`, `0` = interpolated). */
+  /** Per-vertex node pick ids (`nodeId + 1`). */
   readonly nodePickIds: number[] = [];
   /** Per-triangle face pick ids (`faceId + 1`, `0` = no face). */
   readonly facePickIds: number[] = [];
@@ -81,7 +81,7 @@ export class TriangleMeshBuilder {
 export class LineMeshBuilder {
   readonly positions: number[] = [];
   readonly indices: number[] = [];
-  /** Per-vertex node pick ids (`nodeId + 1`, `0` = interpolated). */
+  /** Per-vertex node pick ids (`nodeId + 1`). */
   readonly nodePickIds: number[] = [];
 
   append(vertices: readonly MeshVertex[]): void {
