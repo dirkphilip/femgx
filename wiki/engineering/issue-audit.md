@@ -39,9 +39,8 @@ their premises are outside the current product contract:
 
 - #101 and #105: CasePlayer/playback and the old results-demo architecture were
   removed from scope. Static viewport results are covered by #194.
-- #107 and #115: large-model streaming/LOD and cumulative attach-growth work
-  belong to the removed streaming path. The current attach-growth benchmark is
-  an implementation guard, not a streaming promise.
+- #107 and #115: large-model streaming/LOD and cumulative attachment growth
+  belong to the removed streaming path.
 - #111 and #112: Gmsh parsing is outside the single VTK interchange contract;
   their malformed-tag diagnostics remain historical context.
 - #168: the issue is empty and asks for supervisor-runtime behavior already

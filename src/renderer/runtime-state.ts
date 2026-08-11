@@ -67,67 +67,6 @@ export function buildInstanceLayout(runtime: SceneRuntime): InstanceLayout {
   };
 }
 
-/**
- * Describes how a grown runtime extends the previously attached one: the
- * appended instance slots and the parts whose compacted draw/edge orders must
- * be rebuilt (new parts, parts that gained instances, or parts whose effective
- * visibility changed among already-attached slots).
- */
-export interface RuntimeGrowth {
-  /** Parts whose draw/edge orders must be rewritten. */
-  readonly changedParts: ReadonlySet<PartId>;
-  /** Global instance slots appended since the previous runtime. */
-  readonly newSlots: readonly number[];
-}
-
-/**
- * Computes the progressive delta between the previously attached runtime and a
- * grown one. Returns `undefined` when the new runtime is not a compatible
- * superset (the instance count shrank, or an already-attached slot changed its
- * part or placement identity), which forces a full rebuild. Because instances
- * are only ever appended, an existing slot keeps its part-local slot, so
- * already-uploaded instance records and geometry stay valid untouched.
- */
-export function computeRuntimeGrowth(
-  previousRuntime: SceneRuntime,
-  newRuntime: SceneRuntime,
-  previousLayout: InstanceLayout,
-  newLayout: InstanceLayout,
-): RuntimeGrowth | undefined {
-  if (newRuntime.instanceCount < previousRuntime.instanceCount) {
-    return undefined;
-  }
-  const changedParts = new Set<PartId>();
-  for (let slot = 0; slot < previousRuntime.instanceCount; slot++) {
-    const previousPart = previousRuntime.instancePartIds[slot];
-    const nextPart = newRuntime.instancePartIds[slot];
-    if (previousPart !== nextPart) return undefined;
-    if (previousRuntime.getInstanceId(slot) !== newRuntime.getInstanceId(slot)) return undefined;
-    if (
-      nextPart !== undefined &&
-      previousRuntime.isInstanceVisible(slot) !== newRuntime.isInstanceVisible(slot)
-    ) {
-      changedParts.add(nextPart);
-    }
-  }
-  for (const partId of newLayout.partOrder) {
-    const previousSlots = previousLayout.partSlots.get(partId);
-    const nextSlots = newLayout.partSlots.get(partId);
-    if (
-      previousSlots === undefined ||
-      nextSlots === undefined ||
-      previousSlots.length !== nextSlots.length
-    ) {
-      changedParts.add(partId);
-    }
-  }
-  const newSlots: number[] = [];
-  for (let slot = previousRuntime.instanceCount; slot < newRuntime.instanceCount; slot++) {
-    newSlots.push(slot);
-  }
-  return { changedParts, newSlots };
-}
-
 /** Returns the visible part-local slots of a part in ascending draw order. */
 export function buildDrawOrder(
   layout: InstanceLayout,
