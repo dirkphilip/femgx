@@ -22,8 +22,11 @@ export {
   type FaceSubset,
   type Geometry,
   type GeometryValidationCode,
+  type LineGeometry,
   type Part,
+  type PointGeometry,
   type Primitive,
+  type TriangleGeometry,
 } from "./geometry/part";
 export { createElement, type Element, type ElementId, type NodeId } from "./elements/element";
 export { createElementModel, type ElementModel } from "./elements/model";

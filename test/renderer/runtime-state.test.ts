@@ -6,7 +6,11 @@ import { createScene } from "../../src/scene/scene";
 import { buildDrawOrder, buildInstanceLayout } from "../../src/renderer/runtime-state";
 
 function part(id: number): Part {
-  const geometry = { positions: new Float32Array([0, 0, 0]), indices: new Uint32Array() };
+  const geometry = {
+    positions: new Float32Array([0, 0, 0]),
+    indices: new Uint32Array(),
+    primitive: "triangles" as const,
+  };
   return { id, geometry, bounds: computeBounds(geometry) };
 }
 

@@ -6,6 +6,7 @@ describe("buildMeshEdges", () => {
     const geometry = {
       positions: new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0]),
       indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+      primitive: "triangles" as const,
       nodePickIds: new Uint32Array([1, 2, 3, 4]),
       faces: [
         {
@@ -26,10 +27,11 @@ describe("buildMeshEdges", () => {
     const geometry = {
       positions: new Float32Array(18),
       indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+      primitive: "triangles" as const,
       nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 4]),
       elements: [
-        { id: 4, triangleStart: 0, triangleCount: 1, bodyId: 7 },
-        { id: 5, triangleStart: 1, triangleCount: 1, bodyId: 8 },
+        { id: 4, primitiveStart: 0, primitiveCount: 1, bodyId: 7 },
+        { id: 5, primitiveStart: 1, primitiveCount: 1, bodyId: 8 },
       ],
       faces: [
         {

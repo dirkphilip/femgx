@@ -20,7 +20,11 @@ const STRESS_PART_COUNT = 40;
 const STRESS_INSTANCE_COUNT = STRESS_SUBCASES * STRESS_PLACEMENTS_PER_SUBCASE;
 
 function part(id: PartId): Part {
-  const geometry = { positions: new Float32Array([0, 0, 0]), indices: new Uint32Array() };
+  const geometry = {
+    positions: new Float32Array([0, 0, 0]),
+    indices: new Uint32Array(),
+    primitive: "triangles" as const,
+  };
   return { id, geometry, bounds: computeBounds(geometry) };
 }
 

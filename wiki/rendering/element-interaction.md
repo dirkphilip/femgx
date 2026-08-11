@@ -9,15 +9,14 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 
 - `Geometry` optionally declares `ElementTessellation` descriptors: a stable
   `id` plus the contiguous logical-primitive range that tessellates the element
-  in the part's index buffer. Triangle geometry uses
-  (`triangleStart`, `triangleCount`); line and point geometry use
-  (`primitiveStart`, `primitiveCount`)
+  in the part's index buffer. Every primitive kind uses the same
+  (`primitiveStart`, `primitiveCount`) contract
   ([[data/elements-topology|Element topology]]).
 - `validateElements` enforces that, when declared, every logical primitive
   belongs to exactly one element and ids are unique. Parts without descriptors
   are not element-pickable and every primitive reports "no element".
 - The GPU pick map stores `elementId + 1` per logical primitive (`0` = none), so the
-  id `0` collision with "no element" is avoided; `buildElementTrianglePickIds`
+  id `0` collision with "no element" is avoided; `buildElementPrimitivePickIds`
   mirrors the CPU descriptor exactly.
 
 ## Picking

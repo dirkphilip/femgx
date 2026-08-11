@@ -83,6 +83,7 @@ describe("deformGeometry", () => {
     const geometry = {
       positions: new Float32Array([0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0]),
       indices: new Uint32Array([0, 1, 2, 2, 3, 0]),
+      primitive: "triangles" as const,
       nodePickIds: nodeAligned(4),
     };
     const deformed = deformGeometry(geometry, field, 0.5);
@@ -96,10 +97,11 @@ describe("deformGeometry", () => {
     const geometry = {
       positions: new Float32Array([0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0]),
       indices: new Uint32Array([0, 1, 2, 2, 3, 0]),
+      primitive: "triangles" as const,
       nodePickIds: nodeAligned(4),
       elements: [
-        { id: 1, triangleStart: 0, triangleCount: 1 },
-        { id: 2, triangleStart: 1, triangleCount: 1 },
+        { id: 1, primitiveStart: 0, primitiveCount: 1 },
+        { id: 2, primitiveStart: 1, primitiveCount: 1 },
       ],
     };
     const deformed = deformGeometry(geometry, field, 1);
@@ -111,6 +113,7 @@ describe("deformGeometry", () => {
     const geometry = {
       positions: new Float32Array([0, 0, 0]),
       indices: new Uint32Array([0]),
+      primitive: "triangles" as const,
     };
     expect(() => deformGeometry(geometry, field)).toThrow(/nodePickIds/);
   });

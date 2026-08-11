@@ -28,7 +28,8 @@ function createTestScene() {
   const geometry = {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
-    elements: [{ id: 0, triangleStart: 0, triangleCount: 1 }],
+    primitive: "triangles" as const,
+    elements: [{ id: 0, primitiveStart: 0, primitiveCount: 1 }],
     nodePickIds: new Uint32Array([1, 2, 3]),
   };
   return createScene()

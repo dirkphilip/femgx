@@ -136,7 +136,8 @@ function createGridGeometry(cells: number): Geometry {
   return {
     positions,
     indices,
-    elements: [{ id: 0, triangleStart: 0, triangleCount: indices.length / 3 }],
+    primitive: "triangles",
+    elements: [{ id: 0, primitiveStart: 0, primitiveCount: indices.length / 3 }],
     nodePickIds,
     nodePositions: positions,
   };

@@ -1,7 +1,7 @@
-import type { Geometry } from "../geometry/part";
+import type { TriangleGeometry } from "../geometry/part";
 
 /** Builds a compact index order over selected faces without copying vertices. */
-export function buildFaceSubsetIndices(geometry: Geometry): Uint32Array {
+export function buildFaceSubsetIndices(geometry: TriangleGeometry): Uint32Array {
   const subset = geometry.faceSubset;
   if (subset === undefined || subset.faceIds.length === 0) return new Uint32Array();
   const selected = new Set(subset.faceIds.map((faceId) => faceId + 1));

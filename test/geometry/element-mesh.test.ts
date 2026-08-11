@@ -301,8 +301,8 @@ describe("elementGeometry", () => {
     const quad = elementGeometry(model, "quad", "surface");
     expect(triangle.indices.length).toBe(3);
     expect(quad.indices.length).toBe(6);
-    expect(triangle.elements).toEqual([{ id: 1, triangleStart: 0, triangleCount: 1 }]);
-    expect(quad.elements).toEqual([{ id: 2, triangleStart: 0, triangleCount: 2 }]);
+    expect(triangle.elements).toEqual([{ id: 1, primitiveStart: 0, primitiveCount: 1 }]);
+    expect(quad.elements).toEqual([{ id: 2, primitiveStart: 0, primitiveCount: 2 }]);
     expect(triangle.faces?.[0]).toMatchObject({ id: 0, elementId: 1, faceIndex: 0 });
     expect(quad.faces?.[0]).toMatchObject({ id: 0, elementId: 2, faceIndex: 0 });
     expect(() => {
@@ -341,21 +341,21 @@ describe("elementGeometry", () => {
 
   it("records element tessellations so every triangle is element-pickable", () => {
     const hex = elementGeometry(hex8Model(), "hex", "solid");
-    expect(hex.elements).toEqual([{ id: 1, triangleStart: 0, triangleCount: 12 }]);
+    expect(hex.elements).toEqual([{ id: 1, primitiveStart: 0, primitiveCount: 12 }]);
     expect(() => {
       validateElements(hex);
     }).not.toThrow();
 
     const solid = elementGeometry(sharedTetPairModel(), "tet", "solid");
     expect(solid.elements).toEqual([
-      { id: 1, triangleStart: 0, triangleCount: 3 },
-      { id: 2, triangleStart: 3, triangleCount: 3 },
+      { id: 1, primitiveStart: 0, primitiveCount: 3 },
+      { id: 2, primitiveStart: 3, primitiveCount: 3 },
     ]);
 
     const surface = elementGeometry(sharedTetPairModel(), "tet", "surface");
     expect(surface.elements).toEqual([
-      { id: 1, triangleStart: 0, triangleCount: 3 },
-      { id: 2, triangleStart: 3, triangleCount: 3 },
+      { id: 1, primitiveStart: 0, primitiveCount: 3 },
+      { id: 2, primitiveStart: 3, primitiveCount: 3 },
     ]);
   });
 
@@ -451,11 +451,11 @@ describe("elementGeometry", () => {
   it("generates point sprites for point elements", () => {
     const geometry = elementGeometry(pointLineModel(), "point", "points");
     expect(geometry.primitive).toBe("points");
-    expect(geometry.positions.length / 3).toBe(2 * 4);
-    expect(geometry.indices.length).toBe(2 * 6);
+    expect(geometry.positions.length / 3).toBe(2);
+    expect(geometry.indices.length).toBe(2);
     expect(containsPosition(geometry, [1, 2, 3])).toBe(true);
     expect(containsPosition(geometry, [4, 5, 6])).toBe(true);
-    expect(Array.from(geometry.nodePickIds ?? [])).toEqual([1, 1, 1, 1, 2, 2, 2, 2]);
+    expect(Array.from(geometry.nodePickIds ?? [])).toEqual([1, 2]);
   });
 
   it("generates line segments for line elements", () => {

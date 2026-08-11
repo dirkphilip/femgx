@@ -256,6 +256,7 @@ describe("validatePickIds", () => {
     const geometry: Geometry = {
       positions: new Float32Array(9),
       indices: new Uint32Array(9),
+      primitive: "triangles" as const,
       nodePickIds: new Uint32Array([1, 2, 3]),
       facePickIds: new Uint32Array([1, 1, 1]),
       faces: [
@@ -279,6 +280,7 @@ describe("validatePickIds", () => {
       validatePickIds({
         positions: new Float32Array(9),
         indices: new Uint32Array(9),
+        primitive: "triangles" as const,
         nodePickIds: new Uint32Array([1, 2]),
       });
     }).toThrow("nodePickIds must have one entry per vertex");
@@ -289,6 +291,7 @@ describe("validatePickIds", () => {
       validatePickIds({
         positions: new Float32Array(9),
         indices: new Uint32Array(9),
+        primitive: "triangles" as const,
         facePickIds: new Uint32Array([1, 2]),
       });
     }).toThrow("facePickIds must have one entry per triangle");

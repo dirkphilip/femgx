@@ -13,13 +13,13 @@ const parts = heterogeneousElementParts({ triangle: 10, line: 11, point: 12 }, m
 The builder scans the source element list once, validates every element id,
 and emits only the primitive groups that are present. Linear triangle, quad,
 Tet4, and Hex8 elements share one triangle part. Authored line and point
-elements become explicit line-list and point-sprite parts because WebGPU
+elements become explicit line-list and logical-point parts because WebGPU
 cannot combine incompatible primitive topologies in one draw. The caller
 registers the returned parts in one scene; it never filters or rebuilds the
 source model by family.
 
 Each generated descriptor preserves the source `ElementId` and `ElementShape`.
-Triangle descriptors use `triangleStart`/`triangleCount`; line and point
+Triangle descriptors use `primitiveStart`/`primitiveCount`; line and point
 descriptors use `primitiveStart`/`primitiveCount`. These ranges drive element
 pick ids, body ids, result colors, visibility/highlight state, node picks, and
 nodal deformation. Triangle faces retain one deterministic face table and are

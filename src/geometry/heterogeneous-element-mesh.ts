@@ -1,7 +1,14 @@
 import type { Element, ElementId } from "../elements/element";
 import type { ElementModel } from "../elements/model";
 import type { ElementShape } from "../elements/shapes";
-import { computeBounds, type Geometry, type Part } from "./part";
+import {
+  computeBounds,
+  type Geometry,
+  type LineGeometry,
+  type Part,
+  type PointGeometry,
+  type TriangleGeometry,
+} from "./part";
 import type { PartId } from "../scene/types";
 import type { TessellationOptions } from "./element-mesh";
 import {
@@ -20,9 +27,9 @@ export interface HeterogeneousElementPartIds {
 
 /** Explicit primitive groups emitted from one heterogeneous source model. */
 export interface HeterogeneousElementPartSet {
-  readonly triangle?: Part;
-  readonly line?: Part;
-  readonly point?: Part;
+  readonly triangle?: Part & { readonly geometry: TriangleGeometry };
+  readonly line?: Part & { readonly geometry: LineGeometry };
+  readonly point?: Part & { readonly geometry: PointGeometry };
 }
 
 /** Machine-readable failure from heterogeneous element classification/building. */
@@ -103,7 +110,10 @@ export function heterogeneousElementParts(
   };
 }
 
-function buildPart(partId: PartId, geometry: Geometry): Part {
+function buildPart<T extends Geometry>(
+  partId: PartId,
+  geometry: T,
+): Part & { readonly geometry: T } {
   return { id: partId, geometry, bounds: computeBounds(geometry) };
 }
 

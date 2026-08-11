@@ -2,7 +2,15 @@ import type { FaceIdRef, ElementFace } from "../elements/faces";
 import type { Element } from "../elements/element";
 import type { ElementModel } from "../elements/model";
 import type { ElementFamily } from "../elements/shapes";
-import { computeBounds, type Body, type Geometry, type Part } from "./part";
+import {
+  computeBounds,
+  type Body,
+  type Geometry,
+  type LineGeometry,
+  type Part,
+  type PointGeometry,
+  type TriangleGeometry,
+} from "./part";
 import type { PartId } from "../scene/types";
 import { tessellateFace } from "./face-tessellation";
 import {
@@ -55,15 +63,63 @@ export function elementPart(
   partId: PartId,
   model: ElementModel,
   family: ElementFamily,
+  mode: "solid" | "surface",
+  options?: TessellationOptions,
+): Part & { readonly geometry: TriangleGeometry };
+export function elementPart(
+  partId: PartId,
+  model: ElementModel,
+  family: ElementFamily,
+  mode: "edges" | "lines",
+  options?: TessellationOptions,
+): Part & { readonly geometry: LineGeometry };
+export function elementPart(
+  partId: PartId,
+  model: ElementModel,
+  family: ElementFamily,
+  mode: "points",
+  options?: TessellationOptions,
+): Part & { readonly geometry: PointGeometry };
+export function elementPart(
+  partId: PartId,
+  model: ElementModel,
+  family: ElementFamily,
   mode: ElementRenderMode,
   options: TessellationOptions = {},
 ): Part {
-  const geometry = elementGeometry(model, family, mode, options);
+  const geometry = elementGeometryInternal(model, family, mode, options);
   return { id: partId, geometry, bounds: computeBounds(geometry) };
 }
 
 /** Generates geometry for one family and validates its requested render mode. */
 export function elementGeometry(
+  model: ElementModel,
+  family: ElementFamily,
+  mode: "solid" | "surface",
+  options?: TessellationOptions,
+): TriangleGeometry;
+export function elementGeometry(
+  model: ElementModel,
+  family: ElementFamily,
+  mode: "edges" | "lines",
+  options?: TessellationOptions,
+): LineGeometry;
+export function elementGeometry(
+  model: ElementModel,
+  family: ElementFamily,
+  mode: "points",
+  options?: TessellationOptions,
+): PointGeometry;
+export function elementGeometry(
+  model: ElementModel,
+  family: ElementFamily,
+  mode: ElementRenderMode,
+  options: TessellationOptions = {},
+): Geometry {
+  return elementGeometryInternal(model, family, mode, options);
+}
+
+function elementGeometryInternal(
   model: ElementModel,
   family: ElementFamily,
   mode: ElementRenderMode,

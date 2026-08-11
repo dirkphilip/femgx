@@ -71,7 +71,7 @@ describe("polygonGeometry", () => {
     });
     expect(geometry.indices.length).toBe(6);
     expect(triangleAreaSum(geometry)).toBeCloseTo(1);
-    expect(geometry.elements).toEqual([{ id: 2, triangleStart: 0, triangleCount: 2 }]);
+    expect(geometry.elements).toEqual([{ id: 2, primitiveStart: 0, primitiveCount: 2 }]);
     expect(geometry.faces?.[0]).toMatchObject({
       id: 0,
       elementId: 2,
@@ -89,7 +89,7 @@ describe("polygonGeometry", () => {
     expect(triangleAreaSum(first)).toBeCloseTo(3);
     expect(first.positions).toEqual(second.positions);
     expect(first.indices).toEqual(second.indices);
-    expect(first.elements).toEqual([{ id: 7, triangleStart: 0, triangleCount: 3 }]);
+    expect(first.elements).toEqual([{ id: 7, primitiveStart: 0, primitiveCount: 3 }]);
     expect(first.faces).toEqual([
       {
         id: 0,
@@ -113,7 +113,7 @@ describe("polygonGeometry", () => {
       ],
       bodies: [{ id: 2, name: "shell", elementIds: [4] }],
     });
-    expect(geometry.elements).toEqual([{ id: 4, triangleStart: 0, triangleCount: 2, bodyId: 2 }]);
+    expect(geometry.elements).toEqual([{ id: 4, primitiveStart: 0, primitiveCount: 2, bodyId: 2 }]);
     expect(geometry.faces?.map((face) => face.faceIndex)).toEqual([0, 1]);
     expect(geometry.faces?.every((face) => face.bodyId === 2)).toBe(true);
     expect(geometry.bodies).toEqual([{ id: 2, name: "shell", elementIds: [4] }]);

@@ -16,9 +16,9 @@ Related: [[data/elements-topology|Element topology]] and
    canonical VTK corner order; quadratic mid-edge nodes are aligned with the
    edges they bisect, so geometry is never fabricated.
 3. `elementGeometry` (`src/geometry/element-mesh.ts`) tessellates the model into
-   a `Geometry` tagged with a `Primitive` (`"triangles" | "lines" | "points"`,
-   default `"triangles"`, see `src/geometry/part.ts`). `elementPart` wraps the
-   result in a reusable part with computed bounds. Solid/surface callers can
+   a `Geometry` tagged with its required `Primitive` (`"triangles" | "lines" |
+"points"`, see `src/geometry/part.ts`). `elementPart` wraps the result in a
+   reusable part with computed bounds. Solid/surface callers can
    pass a validated `faceSubset` of `{ elementId, faceIndex }` identities; the
    renderer keeps the full reusable vertex mesh and draws the selected faces
    through a compact index order (see [[rendering/face-subsets|Face subsets]]).
@@ -27,11 +27,11 @@ Related: [[data/elements-topology|Element topology]] and
    (see [[rendering/renderer-subrange-updates|Renderer subrange updates]]).
 
 Volume geometry (`solid`/`surface` triangles) carries an
-`ElementTessellation` per element — the contiguous triangle range it owns —
-so every triangle maps to its element id. Mixed models use the same metadata
-contract for line and point variants, with a logical primitive range instead of
-triangle fields (see [[rendering/heterogeneous-elements|Heterogeneous element
-parts]]). The renderer turns all ranges into per-primitive pick ids and
+`ElementTessellation` per element — the contiguous `primitiveStart`/
+`primitiveCount` range it owns — so every triangle maps to its element id. Mixed
+models use the same metadata contract for line and point variants (see
+[[rendering/heterogeneous-elements|Heterogeneous element parts]]). The renderer
+turns all ranges into per-primitive pick ids and
 highlight records, making elements and nodes selectable through GPU picking
 (see [[rendering/element-interaction|Element interaction]]).
 
@@ -53,8 +53,9 @@ Each element family supports a subset of modes (`elementRenderModes`):
   the source, so no coincident triangles compete in the depth buffer.
 - `edges` deduplicates element edges by their unordered corner pair, so shared
   edges are emitted once.
-- Points become screen-space sprite quads (4 vertices per point); the point
-  vertex shader expands them to a constant CSS-pixel size
+- Points are authored as one center and one index per logical point. GPU upload
+  expands each center into a screen-space sprite quad (4 vertices per point);
+  the point vertex shader sizes it to a constant CSS-pixel diameter
   (`WebGpuRendererOptions.pointSizePixels`, default 8), scaled by
   `devicePixelRatio` into device pixels so apparent size is stable across
   displays. The visible color path renders at 4× MSAA and resolves to the

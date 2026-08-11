@@ -35,19 +35,15 @@ export interface Bounds {
 
 /**
  * The tessellation of one finite element: a stable element id plus a
- * contiguous range of the part's logical primitives. Triangle geometry uses
- * `triangleStart`/`triangleCount`; line and point geometry uses
- * `primitiveStart`/`primitiveCount`. Elements are the unit of element-level
- * picking, selection, and result mapping.
+ * contiguous range of the part's logical primitives. Elements are the unit of
+ * element-level picking, selection, and result mapping.
  */
 export interface ElementTessellation {
   readonly id: ElementId;
-  /** First triangle of this element (each triangle is three indices). */
-  readonly triangleStart?: number;
-  readonly triangleCount?: number;
-  /** First line segment or point sprite of this element. */
-  readonly primitiveStart?: number;
-  readonly primitiveCount?: number;
+  /** First logical primitive of this element. */
+  readonly primitiveStart: number;
+  /** Number of logical primitives owned by this element. */
+  readonly primitiveCount: number;
   /** Original FE shape, when the source model retained typed shape metadata. */
   readonly shape?: ElementShape;
   /** Optional logical body owning this element. */
@@ -79,22 +75,10 @@ export interface FaceTessellation {
 /** How a part's indexed primitives are drawn on the GPU. */
 export type Primitive = "triangles" | "lines" | "points";
 
-/** CPU-side geometry descriptor; the renderer uploads this once. */
-export interface Geometry {
+interface GeometryBase {
   readonly positions: Float32Array;
   readonly indices: Uint32Array;
-  /**
-   * Primitive kind, defaulting to `"triangles"`. `"points"` geometry is a
-   * screen-space sprite mesh; `"lines"` geometry uses `line-list` primitives.
-   */
-  readonly primitive?: Primitive;
-  /**
-   * Optional element tessellations. When absent the part is not element-pickable
-   * and every primitive reports "no element". When present, every logical
-   * primitive must belong to exactly one element; triangle geometry uses the
-   * triangle range fields and line/point geometry uses the generic primitive
-   * range fields.
-   */
+  /** Optional element tessellations covering the logical primitives. */
   readonly elements?: readonly ElementTessellation[];
   /**
    * Optional per-vertex node pick ids: `nodeId + 1` for vertices that come from
@@ -109,19 +93,36 @@ export interface Geometry {
    * node), used to resolve node picks to local/world positions on the CPU.
    */
   readonly nodePositions?: Float32Array;
-  /**
-   * Optional per-triangle face pick ids: `faceId + 1`, `0` = no face. When
-   * present the part is face-pickable and every triangle must reference a
-   * valid face id (or `0`).
-   */
+  /** Optional logical bodies in ascending `id` order. */
+  readonly bodies?: readonly Body[];
+}
+
+/** CPU-side triangle geometry descriptor; the renderer uploads this once. */
+export interface TriangleGeometry extends GeometryBase {
+  readonly primitive: "triangles";
+  /** Optional per-triangle face pick ids: `faceId + 1`, `0` = no face. */
   readonly facePickIds?: Uint32Array;
   /** Optional face descriptors in ascending `id` order. */
   readonly faces?: readonly FaceTessellation[];
   /** Optional render-time subset of the declared triangle faces. */
   readonly faceSubset?: FaceSubset;
-  /** Optional logical bodies in ascending `id` order. */
-  readonly bodies?: readonly Body[];
 }
+
+/** CPU-side line geometry descriptor. */
+export interface LineGeometry extends GeometryBase {
+  readonly primitive: "lines";
+}
+
+/** CPU-side logical-point geometry descriptor. */
+export interface PointGeometry extends GeometryBase {
+  readonly primitive: "points";
+}
+
+/** CPU-side non-triangle geometry descriptors. */
+export type LinearGeometry = LineGeometry | PointGeometry;
+
+/** CPU-side geometry descriptor; the renderer uploads this once. */
+export type Geometry = TriangleGeometry | LinearGeometry;
 
 /**
  * Reusable, immutable drawable geometry. Parts never own world transforms;

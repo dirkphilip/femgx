@@ -10,7 +10,7 @@ import {
   TET4_SHAPE,
 } from "../../src/elements/shapes";
 import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
-import { computeBounds, type Part } from "../../src/geometry/part";
+import { computeBounds } from "../../src/geometry/part";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { identity } from "../../src/math/mat4";
 import { createResultField } from "../../src/results/fields";
@@ -34,7 +34,7 @@ function heterogeneousScene() {
   const model = mixedModel();
   const parts = heterogeneousElementParts({ triangle: 30, line: 31, point: 32 }, model);
   const sourceParts = [parts.triangle, parts.line, parts.point].filter(
-    (part): part is Part => part !== undefined,
+    (part) => part !== undefined,
   );
   let builder = createScene();
   for (const part of sourceParts) builder = builder.addPart(part);

@@ -31,18 +31,15 @@ export function drawOneBatch(
   const storage = draw.storages.get(call.partId);
   if (part === undefined || storage === undefined) return current;
   const geometry = nodes ? uploadNodePart(draw, part) : uploadPart(draw, part);
-  const subset = !nodes && part.geometry.faceSubset !== undefined;
+  const subset =
+    !nodes && part.geometry.primitive === "triangles" && part.geometry.faceSubset !== undefined;
   if (overlay && (subset ? geometry.subsetEdgeIndexCount : geometry.edgeIndexCount) === 0) {
     return current;
   }
   if (!overlay && subset && geometry.subsetIndexCount === 0) return current;
   const pipeline =
     pipelineOverride ??
-    pipelineFor(
-      nodes ? "points" : (part.geometry.primitive ?? "triangles"),
-      passKind,
-      context.pipelines,
-    );
+    pipelineFor(nodes ? "points" : part.geometry.primitive, passKind, context.pipelines);
   if (current !== pipeline) pass.setPipeline(pipeline);
   const deformation = ensureDeformationBuffer(draw.device, draw.deformations, call.partId);
   const group = orderBindGroup(draw.device, context.instanceLayout, storage, overlay, {

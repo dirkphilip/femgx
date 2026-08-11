@@ -22,7 +22,7 @@ function referenceGeometry(convention: GoldenElementConvention): Geometry {
     positions[index * 3 + 1] = point[1];
     positions[index * 3 + 2] = point[2];
   });
-  return { positions, indices: new Uint32Array() };
+  return { positions, indices: new Uint32Array(), primitive: "triangles" as const };
 }
 
 function pointAt(
@@ -150,7 +150,11 @@ describe("golden element transforms", () => {
         translated[index * 3 + 1] = y;
         translated[index * 3 + 2] = z;
       });
-      const bounds = computeBounds({ positions: translated, indices: new Uint32Array() });
+      const bounds = computeBounds({
+        positions: translated,
+        indices: new Uint32Array(),
+        primitive: "triangles",
+      });
       expect(bounds.minX).toBeCloseTo(convention.bounds.minX + offset[0], 6);
       expect(bounds.minY).toBeCloseTo(convention.bounds.minY + offset[1], 6);
       expect(bounds.minZ).toBeCloseTo(convention.bounds.minZ + offset[2], 6);
