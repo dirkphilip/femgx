@@ -44,13 +44,16 @@ the demo never starts a 2D CPU renderer.
 
 ### Explicit startup failures
 
-The demo reports every renderer failure as `data-renderer="unsupported"` with a
-status-line message: "femgx requires a usable WebGPU renderer" plus the error
-detail (a typed `WebGpuUnsupportedError` message already contains the probe
-reason, e.g. `navigator.gpu is not exposed`). No failure is silently swallowed:
-renderer creation, the first frame, and re-creation failures all report the
-explicit message and clean up the renderer on the failure path. Diagnostics
-live in the status UI and the dataset; they never depend on console output.
+The demo reports typed WebGPU support failures as `data-renderer="unsupported"`
+with a status-line message: "femgx requires a usable WebGPU renderer" plus the
+error detail (a typed `WebGpuUnsupportedError` message already contains the
+probe reason, e.g. `navigator.gpu is not exposed`). Shader or pipeline
+validation failures are distinct `data-renderer="error"` outcomes with the
+labelled compiler diagnostic in the status line. No failure is silently
+swallowed: renderer creation, the first frame, and re-creation failures all
+report the explicit message and clean up the renderer on the failure path.
+Diagnostics live in the status UI and the dataset; they never depend on console
+output.
 (The pre-P0 hidden-probe machinery was removed with the CPU fallback. Demo
 interaction picking uses the renderer's GPU pick readback path.)
 
@@ -89,6 +92,10 @@ Device lifetime is centralized in `GpuDeviceLifecycle`
   (pipelines, camera buffer, per-part storages, pick targets), re-subscribes to
   the **new** device's `lost` promise, and clears the renderer's per-scene
   layout so the next frame re-uploads everything from the authoritative scene.
+- Recovery is single-flight and generation-aware: concurrent calls share one
+  rebuild, stale loss callbacks are ignored, and a replacement lost during
+  setup remains lost. Destroying during recovery releases the candidate bundle
+  when it settles and suppresses late callbacks.
 - A renderer built on a caller-provided `device` cannot recreate it; `recover()`
   throws a `WebGpuUnsupportedError` explaining that a new renderer is required.
 - `recover()` is a no-op while the device is healthy; `destroy()` stays
@@ -102,7 +109,8 @@ destroys the failed renderer if recovery is impossible; the demo only maps the
 viewport callbacks to status text (`data-recovery="error"`). There is no CPU
 fallback and no canvas replacement.
 
-Tests drive the full loss → blocked-render → recovery → re-upload cycle against
+Tests drive the full loss → blocked-render → recovery → re-upload cycle and
+deterministic concurrent/destroyed/replacement-loss interleavings against
 mocked devices (`test/platform/*`, `test/renderer/gpu-recovery.test.ts`,
 `test/renderer/gpu-renderer.test.ts`, `test/viewport/fem-viewport.test.ts`).
 

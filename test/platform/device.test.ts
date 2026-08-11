@@ -69,4 +69,18 @@ describe("watchDeviceLoss", () => {
     expect(seen[0]?.reason).toBe("unknown");
     expect(seen[0]?.message).toContain("lost");
   });
+
+  it("detaches a stale loss callback when disposed", async () => {
+    let resolveLost!: (info: GPUDeviceLostInfo) => void;
+    const lost = new Promise<GPUDeviceLostInfo>((resolve) => {
+      resolveLost = resolve;
+    });
+    const seen: DeviceLostInfo[] = [];
+    const dispose = watchDeviceLoss({ lost } as unknown as GPUDevice, (info) => seen.push(info));
+    dispose();
+    resolveLost({ reason: "destroyed", message: "stale device" } as GPUDeviceLostInfo);
+    await lost;
+    await Promise.resolve();
+    expect(seen).toEqual([]);
+  });
 });

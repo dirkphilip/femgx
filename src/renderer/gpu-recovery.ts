@@ -23,6 +23,14 @@ export interface GpuBundle {
   pickTargets: PickTargets;
 }
 
+/** Internal guards used while a replacement device is being assembled. */
+interface RebuildGpuBundleOptions {
+  readonly query?: WebGpuQueryOptions | undefined;
+  readonly validation?: GpuValidationOptions | undefined;
+  readonly canInstall?: () => boolean;
+  readonly onCandidateLost?: (info: DeviceLostInfo) => void;
+}
+
 /** Creates the initial GPU resource bundle for a device. */
 export async function createGpuBundle(
   device: GPUDevice,
@@ -58,12 +66,35 @@ export async function rebuildGpuBundle(
   context: GPUCanvasContext,
   format: GPUTextureFormat,
   depthFormat: GPUTextureFormat,
-  options?: WebGpuQueryOptions,
-  validation?: GpuValidationOptions,
+  options: RebuildGpuBundleOptions = {},
 ): Promise<GpuBundle> {
-  const requested = await requestWebGpuDevice(options);
-  context.configure({ device: requested.device, format, alphaMode: "opaque" });
-  return createGpuBundle(requested.device, format, depthFormat, validation);
+  const requested = await requestWebGpuDevice(options.query);
+  if (options.canInstall !== undefined && !options.canInstall()) {
+    throw new Error("WebGPU renderer was destroyed during device recovery");
+  }
+  let candidateLost: DeviceLostInfo | undefined;
+  const unsubscribe = watchDeviceLoss(requested.device, (info) => {
+    candidateLost = info;
+    options.onCandidateLost?.(info);
+  });
+  try {
+    context.configure({ device: requested.device, format, alphaMode: "opaque" });
+    const bundle = await createGpuBundle(requested.device, format, depthFormat, options.validation);
+    if (candidateLost !== undefined) {
+      destroyGpuBundle(bundle);
+      throw new Error("Replacement WebGPU device was lost during recovery");
+    }
+    return bundle;
+  } finally {
+    unsubscribe();
+  }
+}
+
+/** Releases every resource owned by a completed GPU bundle. */
+export function destroyGpuBundle(bundle: GpuBundle): void {
+  destroyRenderResources(bundle.resources);
+  destroyDrawResources(bundle.draw);
+  destroyPickTargets(bundle.pickTargets);
 }
 
 /** Options for constructing a `GpuDeviceLifecycle`. */
@@ -87,7 +118,6 @@ export interface GpuDeviceLifecycleOptions {
  */
 export class GpuDeviceLifecycle {
   public bundle: GpuBundle;
-  public lost = false;
   private readonly context: GPUCanvasContext;
   private readonly format: GPUTextureFormat;
   private readonly depthFormat: GPUTextureFormat;
@@ -95,6 +125,10 @@ export class GpuDeviceLifecycle {
   private readonly validation: GpuValidationOptions | undefined;
   private readonly ownsDevice: boolean;
   private readonly onLost: ((info: DeviceLostInfo) => void) | undefined;
+  private state: "healthy" | "lost" | "recovering" | "destroyed" = "healthy";
+  private generation = 0;
+  private unsubscribeLoss: (() => void) | undefined;
+  private recoveryPromise: Promise<boolean> | undefined;
 
   public constructor(options: GpuDeviceLifecycleOptions) {
     this.bundle = options.bundle;
@@ -105,13 +139,22 @@ export class GpuDeviceLifecycle {
     this.validation = options.validation;
     this.ownsDevice = options.ownsDevice;
     this.onLost = options.onLost;
-    this.subscribe();
+    this.subscribe(this.bundle, this.generation);
+  }
+
+  /** True while the active lifecycle is unable to accept GPU operations. */
+  public get lost(): boolean {
+    return this.state !== "healthy";
   }
 
   /** Throws when the device is lost and `recover()` must run before drawing. */
   public ensureUsable(): void {
-    if (this.lost) {
-      throw new Error("WebGPU device is lost; await recover() before using the renderer again");
+    if (this.state !== "healthy") {
+      throw new Error(
+        this.state === "destroyed"
+          ? "WebGPU renderer has been destroyed"
+          : "WebGPU device is lost or recovering; await recover() before using the renderer again",
+      );
     }
   }
 
@@ -121,31 +164,94 @@ export class GpuDeviceLifecycle {
    * the device is healthy. Throws when the renderer uses an externally provided
    * device it cannot recreate.
    */
-  public async recover(): Promise<boolean> {
-    if (!this.lost) return false;
-    if (!this.ownsDevice) {
-      throw new WebGpuUnsupportedError("device-unavailable", EXTERNAL_DEVICE_RECOVERY_MESSAGE);
+  public recover(): Promise<boolean> {
+    if (this.state === "healthy") return Promise.resolve(false);
+    if (this.state === "destroyed") {
+      return Promise.reject(new Error("WebGPU renderer has been destroyed"));
     }
+    if (this.recoveryPromise !== undefined) return this.recoveryPromise;
+    if (!this.ownsDevice) {
+      return Promise.reject(
+        new WebGpuUnsupportedError("device-unavailable", EXTERNAL_DEVICE_RECOVERY_MESSAGE),
+      );
+    }
+    this.state = "recovering";
     const query =
       this.powerPreference === undefined ? undefined : { powerPreference: this.powerPreference };
-    this.bundle = await rebuildGpuBundle(
-      this.context,
-      this.format,
-      this.depthFormat,
-      query,
-      this.validation,
+    const recovery = this.recoverOnce(query);
+    this.recoveryPromise = recovery;
+    recovery.then(
+      () => {
+        if (this.recoveryPromise === recovery) this.recoveryPromise = undefined;
+      },
+      () => {
+        if (this.recoveryPromise === recovery) this.recoveryPromise = undefined;
+      },
     );
-    this.subscribe();
-    this.lost = false;
-    return true;
+    return recovery;
   }
 
-  /** Watches the active device so a subsequent loss is reported. */
-  private subscribe(): void {
-    watchDeviceLoss(this.bundle.device, (info) => {
-      if (this.lost) return;
-      this.lost = true;
-      this.onLost?.(info);
+  /** Releases the active bundle and prevents pending recovery from installing. */
+  public destroy(): void {
+    if (this.state === "destroyed") return;
+    this.state = "destroyed";
+    this.generation += 1;
+    this.unsubscribeLoss?.();
+    this.unsubscribeLoss = undefined;
+    destroyGpuBundle(this.bundle);
+  }
+
+  private async recoverOnce(query: WebGpuQueryOptions | undefined): Promise<boolean> {
+    const candidateGeneration = this.generation + 1;
+    const candidateLost = { value: false };
+    try {
+      const bundle = await rebuildGpuBundle(this.context, this.format, this.depthFormat, {
+        query,
+        validation: this.validation,
+        canInstall: () => this.state !== "destroyed",
+        onCandidateLost: (info) => {
+          candidateLost.value = true;
+          this.markLost(info);
+        },
+      });
+      if (this.state === "destroyed" || candidateLost.value) {
+        destroyGpuBundle(bundle);
+        if (this.state === "destroyed") {
+          throw new Error("WebGPU renderer was destroyed during device recovery");
+        }
+        throw new Error("Replacement WebGPU device was lost during recovery");
+      }
+      this.unsubscribeLoss?.();
+      destroyGpuBundle(this.bundle);
+      this.bundle = bundle;
+      this.generation = candidateGeneration;
+      this.subscribe(this.bundle, this.generation);
+      this.state = "healthy";
+      return true;
+    } catch (error) {
+      if (this.state !== "destroyed") this.state = "lost";
+      throw error;
+    }
+  }
+
+  /** Watches one device generation and ignores stale or duplicate callbacks. */
+  private subscribe(bundle: GpuBundle, generation: number): void {
+    this.unsubscribeLoss = watchDeviceLoss(bundle.device, (info) => {
+      if (
+        this.state === "destroyed" ||
+        this.state !== "healthy" ||
+        generation !== this.generation ||
+        bundle !== this.bundle
+      ) {
+        return;
+      }
+      this.markLost(info);
     });
+  }
+
+  private markLost(info: DeviceLostInfo): void {
+    if (this.state === "destroyed" || this.state === "lost") return;
+    this.state = "lost";
+    this.onLost?.(info);
   }
 }
