@@ -85,11 +85,59 @@ describe("camera", () => {
     expect(distance(beyondPoleLimit.target, atPoleLimit.target)).toBeLessThan(1e-9);
   });
 
-  it("adapts the perspective near plane instead of stopping close zoom", () => {
-    const camera = createCamera({ position: [0, 0, 1], target: [0, 0, 0], near: 0.01 });
+  it("clamps perspective zoom without changing the clip planes", () => {
+    const camera = createCamera({ position: [0, 0, 1], target: [0, 0, 0], near: 0.01, far: 100 });
     const zoomed = zoomCamera(camera, -20);
-    expect(zoomed.position[2]).toBeLessThan(0.01);
-    expect(zoomed.near).toBeLessThan(camera.near);
+    expect(zoomed.position[2]).toBeCloseTo(camera.near * 2);
+    expect(zoomed.near).toBe(camera.near);
+    expect(zoomed.far).toBe(camera.far);
+  });
+
+  it("round-trips non-clamped perspective zoom", () => {
+    const camera = createCamera({ position: [0, 0, 10], target: [0, 0, 0], near: 0.1, far: 100 });
+    const zoomed = zoomCamera(camera, 0.4);
+    const restored = zoomCamera(zoomed, -0.4);
+    expect(restored.position[2]).toBeCloseTo(camera.position[2]);
+    expect(restored.target).toEqual(camera.target);
+    expect(restored.near).toBe(camera.near);
+    expect(restored.far).toBe(camera.far);
+  });
+
+  it("round-trips non-clamped cursor-centered perspective zoom", () => {
+    const camera = createCamera({
+      position: [4, 3, 10],
+      target: [1, 0, 0],
+      near: 0.1,
+      far: 100,
+    });
+    const pivot = [0.4, -0.2, 0.7] as const;
+    const zoomed = zoomCameraAtPoint(camera, 0.4, pivot);
+    const restored = zoomCameraAtPoint(zoomed, -0.4, pivot);
+    expect(restored.position[0]).toBeCloseTo(camera.position[0]);
+    expect(restored.position[1]).toBeCloseTo(camera.position[1]);
+    expect(restored.position[2]).toBeCloseTo(camera.position[2]);
+    expect(restored.target[0]).toBeCloseTo(camera.target[0]);
+    expect(restored.target[1]).toBeCloseTo(camera.target[1]);
+    expect(restored.target[2]).toBeCloseTo(camera.target[2]);
+    expect(restored.near).toBe(camera.near);
+    expect(restored.far).toBe(camera.far);
+  });
+
+  it("clamps cursor-centered perspective zoom at both distance bounds", () => {
+    const camera = createCamera({ position: [0, 0, 10], target: [0, 0, 0], near: 0.1, far: 100 });
+    const pivot = [2, 0, 0] as const;
+    const directNear = zoomCamera(camera, -20);
+    const directFar = zoomCamera(camera, 20);
+    const near = zoomCameraAtPoint(camera, -20, pivot);
+    const far = zoomCameraAtPoint(camera, 20, pivot);
+    expect(distance(directNear.position, directNear.target)).toBeCloseTo(camera.near * 2);
+    expect(distance(directFar.position, directFar.target)).toBeCloseTo(camera.far / 2);
+    expect(distance(near.position, near.target)).toBeCloseTo(camera.near * 2);
+    expect(distance(far.position, far.target)).toBeCloseTo(camera.far / 2);
+    expect(near.near).toBe(camera.near);
+    expect(near.far).toBe(camera.far);
+    expect(far.near).toBe(camera.near);
+    expect(far.far).toBe(camera.far);
   });
 
   it.each(["perspective", "orthographic"] as const)(
