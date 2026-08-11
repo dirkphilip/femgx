@@ -35,12 +35,15 @@ the line pipeline shares the triangle element-map layout.
 
 Each element family supports a subset of modes (`elementRenderModes`):
 
-| Family    | Modes                       |
-| --------- | --------------------------- |
-| tet / hex | `solid`, `surface`, `edges` |
-| line      | `lines`                     |
-| point     | `points`                    |
+| Family                      | Modes                       |
+| --------------------------- | --------------------------- |
+| triangle / quad / tet / hex | `solid`, `surface`, `edges` |
+| line                        | `lines`                     |
+| point                       | `points`                    |
 
+- Triangle and quad elements are surface shapes. Their `solid` and `surface`
+  modes both emit filled triangles; the distinction keeps the existing mode
+  vocabulary usable for a gallery containing both surface and volume elements.
 - `solid` and `surface` tessellate only boundary faces: faces whose corner-node
   set is referenced by exactly one element. Shared interior faces are culled at
   the source, so no coincident triangles compete in the depth buffer.

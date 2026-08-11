@@ -18,15 +18,17 @@ the renderer or WebGPU**.
 
 ## Shapes
 
-| Shape         | Family  | Order | Nodes | Corners | Mid-edge nodes |
-| ------------- | ------- | ----- | ----- | ------- | -------------- |
-| `POINT_SHAPE` | `point` | 0     | 1     | 1       | 0              |
-| `LINE_SHAPE`  | `line`  | 1     | 2     | 2       | 0              |
-| `LINE3_SHAPE` | `line`  | 2     | 3     | 2       | 1              |
-| `TET4_SHAPE`  | `tet`   | 1     | 4     | 4       | 0              |
-| `TET10_SHAPE` | `tet`   | 2     | 10    | 4       | 6              |
-| `HEX8_SHAPE`  | `hex`   | 1     | 8     | 8       | 0              |
-| `HEX20_SHAPE` | `hex`   | 2     | 20    | 8       | 12             |
+| Shape            | Family     | Order | Nodes | Corners | Mid-edge nodes |
+| ---------------- | ---------- | ----- | ----- | ------- | -------------- |
+| `POINT_SHAPE`    | `point`    | 0     | 1     | 1       | 0              |
+| `LINE_SHAPE`     | `line`     | 1     | 2     | 2       | 0              |
+| `LINE3_SHAPE`    | `line`     | 2     | 3     | 2       | 1              |
+| `TRIANGLE_SHAPE` | `triangle` | 1     | 3     | 3       | 0              |
+| `QUAD_SHAPE`     | `quad`     | 1     | 4     | 4       | 0              |
+| `TET4_SHAPE`     | `tet`      | 1     | 4     | 4       | 0              |
+| `TET10_SHAPE`    | `tet`      | 2     | 10    | 4       | 6              |
+| `HEX8_SHAPE`     | `hex`      | 1     | 8     | 8       | 0              |
+| `HEX20_SHAPE`    | `hex`      | 2     | 20    | 8       | 12             |
 
 ## Canonical node ordering (VTK convention)
 
@@ -55,8 +57,11 @@ extract deterministic polygon and line output:
 - Quadratic shapes expand each face/edge with their mid-edge nodes, so a Tet10
   face is a six-node loop and a Hex20 face an eight-node loop, interleaving
   `[corner, mid, corner, ...]`.
+- A linear triangle or quad exposes its complete surface as one oriented face;
+  that face owns all triangles emitted by the surface tessellator.
 - Point and line elements have no faces; `edgesOf` exposes a line's single edge
-  (including its mid node for `LINE3_SHAPE`).
+  (including its mid node for `LINE3_SHAPE`), while triangle and quad edges use
+  their canonical perimeter order.
 - `classifyFaces(elements)` deduplicates coincident faces by a canonical key
   (sorted node ids) and flags boundary faces — those shared by exactly one
   element (`count === 1`); shared faces get `count === 2` and are interior.
@@ -121,9 +126,10 @@ topology, an unsupported order, a mis-keyed registration, or an entry whose
 keep a runtime safety net for untyped input. Nothing here couples topology to
 WebGPU.
 
-## Future work
+## Surface authoring
 
-- Renderer support and element-level picking: assign stable pick targets to
-  elements instead of only parts/instances.
-- Triangulation: fan or midpoint triangles for the polygon loops so the
-  renderer can tessellate hex faces.
+`TRIANGLE_SHAPE` and `QUAD_SHAPE` are the typed path for linear surface finite
+elements. They preserve element ids, node ids, face ownership, deformation,
+results, and GPU picking through `elementGeometry`/`elementPart`. Polygon loops
+that are not already typed elements belong to the separate geometry-owned
+authoring path tracked by issue #240.

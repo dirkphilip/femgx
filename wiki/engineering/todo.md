@@ -151,6 +151,9 @@ closed; the list is historical scope memory, not an open implementation queue.
       [[rendering/element-rendering|Element rendering]]). Quadratic mid-edge
       tessellation is **Deferred** (see
       [[requirements/product-scope|product scope]]).
+- [x] Add validated linear triangle and quad elements with canonical surface
+      faces, edges, GPU-pickable tessellation, VTK cell mappings, and a gallery
+      example (see [[data/elements-topology|Element topology]]).
 
 ## P2 — engineering results
 

@@ -9,6 +9,7 @@ import {
   buildHex20CylinderModel,
   buildHexModel,
   buildPointLineModel,
+  buildSurfaceModel,
   buildTetModel,
 } from "./element-models";
 
@@ -17,6 +18,8 @@ export interface ElementFixtureParts {
   readonly point: PartId;
   readonly line: PartId;
   readonly line3: PartId;
+  readonly triangle: PartId;
+  readonly quad: PartId;
   readonly tet4: PartId;
   readonly tet10: PartId;
   readonly hex8: PartId;
@@ -46,6 +49,8 @@ export interface ElementFixture {
 const POINT_PART_ID: PartId = 1;
 const LINE_PART_ID: PartId = 2;
 const LINE3_PART_ID: PartId = 3;
+const TRIANGLE_PART_ID: PartId = 8;
+const QUAD_PART_ID: PartId = 9;
 const TET4_PART_ID: PartId = 4;
 const TET10_PART_ID: PartId = 5;
 const HEX8_PART_ID: PartId = 6;
@@ -53,7 +58,7 @@ const HEX20_PART_ID: PartId = 7;
 const ROOT_ASSEMBLY_ID: AssemblyId = 1;
 const GAP = 1;
 
-/** Builds the element gallery with all point, line, Tet, and Hex shapes. */
+/** Builds the element gallery with all point, line, surface, Tet, and Hex shapes. */
 export function createElementFixture(options: ElementFixtureOptions = {}): ElementFixture {
   const gridSize = options.gridSize ?? 2;
   const cellSize = options.cellSize ?? 1;
@@ -67,6 +72,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   const tet10Model = buildTetModel(gridSize, cellSize, true);
   const hex8Model = buildHexModel(gridSize, cellSize, false);
   const hex20Model = buildHexModel(gridSize, cellSize, true);
+  const surfaceModel = buildSurfaceModel();
   const models = new Map<PartId, ElementModel>([
     [POINT_PART_ID, pointLineModel],
     [LINE_PART_ID, lineModel],
@@ -75,6 +81,8 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     [TET10_PART_ID, tet10Model],
     [HEX8_PART_ID, hex8Model],
     [HEX20_PART_ID, hex20Model],
+    [TRIANGLE_PART_ID, surfaceModel],
+    [QUAD_PART_ID, surfaceModel],
   ]);
   const parts: readonly Part[] = [
     elementPart(POINT_PART_ID, pointLineModel, "point", "points"),
@@ -84,15 +92,26 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     elementPart(TET10_PART_ID, tet10Model, "tet", "solid"),
     elementPart(HEX8_PART_ID, hex8Model, "hex", "solid"),
     elementPart(HEX20_PART_ID, hex20Model, "hex", "solid"),
+    elementPart(TRIANGLE_PART_ID, surfaceModel, "triangle", "solid"),
+    elementPart(QUAD_PART_ID, surfaceModel, "quad", "solid"),
   ];
   const scene = galleryScene(parts, blockSize);
-  const volumePartIds = [TET4_PART_ID, TET10_PART_ID, HEX8_PART_ID, HEX20_PART_ID];
+  const volumePartIds = [
+    TET4_PART_ID,
+    TET10_PART_ID,
+    HEX8_PART_ID,
+    HEX20_PART_ID,
+    TRIANGLE_PART_ID,
+    QUAD_PART_ID,
+  ];
   return {
     scene,
     partIds: {
       point: POINT_PART_ID,
       line: LINE_PART_ID,
       line3: LINE3_PART_ID,
+      triangle: TRIANGLE_PART_ID,
+      quad: QUAD_PART_ID,
       tet4: TET4_PART_ID,
       tet10: TET10_PART_ID,
       hex8: HEX8_PART_ID,
@@ -113,7 +132,10 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
 
 /** Fixture shape with a second reusable edge-overlay part. */
 type Hex20CylinderFixture = Omit<ElementFixture, "partIds"> & {
-  readonly partIds: ElementFixtureParts & { readonly edges: PartId };
+  readonly partIds: Pick<
+    ElementFixtureParts,
+    "point" | "line" | "line3" | "tet4" | "tet10" | "hex8" | "hex20"
+  > & { readonly edges: PartId };
 };
 
 /** Builds the Hex20 cylinder example used by the gallery preset. */

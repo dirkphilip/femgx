@@ -37,12 +37,12 @@ describe("createModelPresets", () => {
 });
 
 describe("createGalleryPreset", () => {
-  it("includes all seven supported shapes", () => {
+  it("includes all nine supported shapes", () => {
     const preset = createGalleryPreset();
-    expect(preset.partColors.size).toBe(7);
+    expect(preset.partColors.size).toBe(9);
     expect(preset.overlayPartIds.length).toBe(3);
     const visible = visiblePartIdsForPreset(preset, "solid");
-    expect(visible.size).toBe(7);
+    expect(visible.size).toBe(9);
   });
 });
 

@@ -6,7 +6,7 @@ import { Uint32Buffer } from "../../src/io/growable";
 import { createParseSession } from "../../src/io/session";
 import { createVtkState } from "../../src/io/vtk";
 import { readCellsLine, readCellTypesLine } from "../../src/io/vtk-cells";
-import { TET4_SHAPE, HEX8_SHAPE } from "../../src/elements/shapes";
+import { HEX8_SHAPE, QUAD_SHAPE, TET4_SHAPE, TRIANGLE_SHAPE } from "../../src/elements/shapes";
 
 const TET_VTK = [
   "# vtk DataFile Version 5.0",
@@ -36,6 +36,35 @@ describe("parseVtk", () => {
     expect(block.shape.family).toBe("tet");
     expect([...block.ids]).toEqual([0]);
     expect([...block.connectivity]).toEqual([0, 1, 2, 3]);
+  });
+
+  it("reads VTK linear triangle and quad cell types", () => {
+    const source = [
+      "# vtk DataFile Version 5.0",
+      "surface example",
+      "ASCII",
+      "DATASET UNSTRUCTURED_GRID",
+      "POINTS 5 double",
+      "0 0 0",
+      "1 0 0",
+      "0 1 0",
+      "2 0 0",
+      "2 1 0",
+      "CELLS 2 9",
+      "3 0 1 2",
+      "4 1 3 4 2",
+      "CELL_TYPES 2",
+      "5",
+      "9",
+      "",
+    ].join("\n");
+    const result = parseVtk(source, { strict: true });
+    expect(result.issues).toEqual([]);
+    expect(result.model.elementBlocks.map((block) => block.shape)).toEqual([
+      TRIANGLE_SHAPE,
+      QUAD_SHAPE,
+    ]);
+    expect(result.model.elementBlocks.map((block) => block.count)).toEqual([1, 1]);
   });
 
   it("reads scalar and vector point data as result fields", () => {
@@ -92,7 +121,7 @@ describe("parseVtk", () => {
       "4 0 1 2 3",
       "2 1 5",
       "CELL_TYPES 3",
-      "5",
+      "7",
       "10",
       "3",
       "",

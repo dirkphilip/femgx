@@ -6,15 +6,11 @@ builders used to exercise the WebGPU path and unit tests.
 ## Element gallery
 
 `createElementFixture` places one reusable example for every currently
-supported shape: Point, Line, Line3, Tet4, Tet10, Hex8, and Hex20. Volume modes
-share the same four volume parts; point and line parts remain as overlays. The
-gallery is intentionally explicit about quadratic shapes so the tessellated
-surface is inspectable without introducing another renderer or API.
-
-The product-scope contract also names triangles and quads, but they are not yet
-registered in `src/elements/shapes.ts` or exported by the current API. This
-demo change covers the actual registry and deliberately does not expand element
-topology scope.
+supported shape: Point, Line, Line3, Triangle, Quad, Tet4, Tet10, Hex8, and
+Hex20. Filled modes share the surface and volume parts; point and line parts
+remain as overlays. The gallery is intentionally explicit about quadratic
+shapes so the tessellated surface is inspectable without introducing another
+renderer or API.
 
 ## VTK sample
 

@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { required } from "./helpers";
 import { parse, write } from "../../src/io/parse";
 import { createModelBuilder } from "../../src/io/build";
-import { TET10_SHAPE, HEX20_SHAPE, LINE3_SHAPE } from "../../src/elements/shapes";
+import {
+  HEX20_SHAPE,
+  LINE3_SHAPE,
+  QUAD_SHAPE,
+  TET10_SHAPE,
+  TRIANGLE_SHAPE,
+} from "../../src/elements/shapes";
 
 function sampleModel() {
   const builder = createModelBuilder();
@@ -13,6 +19,10 @@ function sampleModel() {
   builder.appendElements([1], [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3]);
   builder.openElementBlock(LINE3_SHAPE);
   builder.appendElements([2], [0, 1, 2]);
+  builder.openElementBlock(TRIANGLE_SHAPE);
+  builder.appendElements([3], [0, 1, 2]);
+  builder.openElementBlock(QUAD_SHAPE);
+  builder.appendElements([4], [0, 1, 2, 3]);
   return builder.build();
 }
 
@@ -26,6 +36,13 @@ describe("VTK round-trips", () => {
     expect(parsed.model.nodes.count).toBe(model.nodes.count);
     expect([...parsed.model.nodes.coordinates]).toEqual([...model.nodes.coordinates]);
     expect(parsed.model.elementBlocks).toHaveLength(model.elementBlocks.length);
+    expect(parsed.model.elementBlocks.map((block) => block.shape.family)).toEqual([
+      "tet",
+      "hex",
+      "line",
+      "triangle",
+      "quad",
+    ]);
     expect([...required(parsed.model.elementBlocks[0]).connectivity]).toEqual([
       ...required(model.elementBlocks[0]).connectivity,
     ]);

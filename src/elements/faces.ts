@@ -6,7 +6,8 @@
  * outward normal for a right-handed (positive-Jacobian) element. Quadratic
  * shapes expand each face with its mid-edge nodes, interleaving corners and
  * mid-edge nodes around the loop, so coincident faces share one canonical
- * identity across elements. Point and line elements have no faces.
+ * identity across elements. Point and line elements have no faces. A linear
+ * triangle or quad exposes its complete surface as one oriented face.
  */
 
 import type { Element, ElementId, NodeId } from "./element";
@@ -76,6 +77,10 @@ const HEX_FACES: ReadonlyArray<readonly number[]> = [
 
 function faceCornerLoops(family: ElementFamily): ReadonlyArray<readonly number[]> {
   switch (family) {
+    case "triangle":
+      return [[0, 1, 2]];
+    case "quad":
+      return [[0, 1, 2, 3]];
     case "tet":
       return TET_FACES;
     case "hex":

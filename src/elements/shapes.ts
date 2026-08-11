@@ -18,7 +18,7 @@
  */
 
 /** A family of finite elements with a shared geometric structure. */
-export type ElementFamily = "point" | "line" | "tet" | "hex";
+export type ElementFamily = "point" | "line" | "triangle" | "quad" | "tet" | "hex";
 
 /** Interpolation order: 0 for points, 1 linear, 2 quadratic. */
 export type ElementOrder = 0 | 1 | 2;
@@ -35,6 +35,10 @@ export const POINT_SHAPE: ElementShape = { family: "point", order: 0 };
 export const LINE_SHAPE: ElementShape = { family: "line", order: 1 };
 /** Quadratic line element: two corners plus one mid-edge node. */
 export const LINE3_SHAPE: ElementShape = { family: "line", order: 2 };
+/** Linear triangle surface element: three corner nodes. */
+export const TRIANGLE_SHAPE: ElementShape = { family: "triangle", order: 1 };
+/** Linear quadrilateral surface element: four corner nodes. */
+export const QUAD_SHAPE: ElementShape = { family: "quad", order: 1 };
 /** Linear tetrahedron (Tet4): four corner nodes. */
 export const TET4_SHAPE: ElementShape = { family: "tet", order: 1 };
 /** Quadratic tetrahedron (Tet10): four corners plus six mid-edge nodes. */
@@ -93,6 +97,8 @@ const HEX_EDGES: ReadonlyArray<readonly [number, number]> = [
 type SupportedOrder = {
   point: 0;
   line: 1 | 2;
+  triangle: 1;
+  quad: 1;
   tet: 1 | 2;
   hex: 1 | 2;
 };
@@ -154,6 +160,31 @@ const TOPOLOGY_REGISTRY = {
     corners: [0, 1],
     edges: [[0, 1]],
     edgeNodes: [2],
+  },
+  "triangle:1": {
+    family: "triangle",
+    order: 1,
+    nodeCount: 3,
+    corners: [0, 1, 2],
+    edges: [
+      [0, 1],
+      [1, 2],
+      [2, 0],
+    ],
+    edgeNodes: [],
+  },
+  "quad:1": {
+    family: "quad",
+    order: 1,
+    nodeCount: 4,
+    corners: [0, 1, 2, 3],
+    edges: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+    ],
+    edgeNodes: [],
   },
   "tet:1": {
     family: "tet",

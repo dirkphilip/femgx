@@ -7,6 +7,8 @@ import {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  QUAD_SHAPE,
+  TRIANGLE_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
   topologyFor,
@@ -26,6 +28,17 @@ const VOLUME_SHAPES: readonly ElementShape[] = [TET4_SHAPE, TET10_SHAPE, HEX8_SH
 const CORNER_COORDS: Record<ElementFamily, ReadonlyArray<readonly [number, number, number]>> = {
   point: [],
   line: [],
+  triangle: [
+    [0, 0, 0],
+    [1, 0, 0],
+    [0, 1, 0],
+  ],
+  quad: [
+    [0, 0, 0],
+    [1, 0, 0],
+    [1, 1, 0],
+    [0, 1, 0],
+  ],
   tet: [
     [0, 0, 0],
     [1, 0, 0],
@@ -138,6 +151,15 @@ describe("facesOf", () => {
       [3, 7, 6, 2],
       [0, 3, 2, 1],
       [4, 5, 6, 7],
+    ]);
+  });
+
+  it("exposes a triangle or quad surface element as one oriented face", () => {
+    expect(facesOf(sequentialElement(1, TRIANGLE_SHAPE)).map((face) => face.nodeIds)).toEqual([
+      [0, 1, 2],
+    ]);
+    expect(facesOf(sequentialElement(1, QUAD_SHAPE)).map((face) => face.nodeIds)).toEqual([
+      [0, 1, 2, 3],
     ]);
   });
 

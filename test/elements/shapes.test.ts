@@ -5,6 +5,8 @@ import {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  QUAD_SHAPE,
+  TRIANGLE_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
   topologyFor,
@@ -15,6 +17,8 @@ const ALL_SHAPES: ReadonlyArray<readonly [string, ElementShape]> = [
   ["point", POINT_SHAPE],
   ["line", LINE_SHAPE],
   ["line3", LINE3_SHAPE],
+  ["triangle", TRIANGLE_SHAPE],
+  ["quad", QUAD_SHAPE],
   ["tet4", TET4_SHAPE],
   ["tet10", TET10_SHAPE],
   ["hex8", HEX8_SHAPE],
@@ -27,6 +31,8 @@ describe("topologyFor", () => {
       point: 1,
       line: 2,
       line3: 3,
+      triangle: 3,
+      quad: 4,
       tet4: 4,
       tet10: 10,
       hex8: 8,
@@ -139,7 +145,7 @@ describe("topologyFor", () => {
   });
 
   it("throws for an unknown family", () => {
-    expect(() => topologyFor({ family: "quad" as ElementShape["family"], order: 1 })).toThrow(
+    expect(() => topologyFor({ family: "polygon" as ElementShape["family"], order: 1 })).toThrow(
       "Unsupported element shape",
     );
   });

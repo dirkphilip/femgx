@@ -7,6 +7,8 @@ import {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  QUAD_SHAPE,
+  TRIANGLE_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
   type ElementFamily,
@@ -112,6 +114,13 @@ function hex20Model(): ElementModel {
   ]);
 }
 
+function surfaceModel(): ElementModel {
+  return createElementModel(
+    [0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0, 0, 2, 1, 0],
+    [createElement(1, TRIANGLE_SHAPE, [0, 1, 2]), createElement(2, QUAD_SHAPE, [1, 3, 4, 2])],
+  );
+}
+
 /** Two tets sharing the face (0,1,2), one mirrored across that face. */
 function sharedTetPairModel(): ElementModel {
   const nodes = [...TET_NODES, 0, 0, -1];
@@ -193,6 +202,11 @@ describe("elementRenderModes", () => {
     expect(elementRenderModes("line")).toEqual(["lines"]);
     expect(elementRenderModes("point")).toEqual(["points"]);
   });
+
+  it("selects filled and edge modes for linear surface families", () => {
+    expect(elementRenderModes("triangle")).toEqual(["solid", "surface", "edges"]);
+    expect(elementRenderModes("quad")).toEqual(["solid", "surface", "edges"]);
+  });
 });
 
 describe("elementGeometry", () => {
@@ -258,6 +272,30 @@ describe("elementGeometry", () => {
     const geometry = elementGeometry(hex8Model(), "hex", "solid");
     expect(geometry.primitive).toBe("triangles");
     expect(geometry.indices.length).toBe(12 * 3);
+  });
+
+  it("tessellates typed triangle and quad surfaces with face ownership", () => {
+    const model = surfaceModel();
+    const triangle = elementGeometry(model, "triangle", "surface");
+    const quad = elementGeometry(model, "quad", "surface");
+    expect(triangle.indices.length).toBe(3);
+    expect(quad.indices.length).toBe(6);
+    expect(triangle.elements).toEqual([{ id: 1, triangleStart: 0, triangleCount: 1 }]);
+    expect(quad.elements).toEqual([{ id: 2, triangleStart: 0, triangleCount: 2 }]);
+    expect(triangle.faces?.[0]).toMatchObject({ id: 0, elementId: 1, faceIndex: 0 });
+    expect(quad.faces?.[0]).toMatchObject({ id: 0, elementId: 2, faceIndex: 0 });
+    expect(() => {
+      validateElements(triangle);
+    }).not.toThrow();
+    expect(() => {
+      validateElements(quad);
+    }).not.toThrow();
+    expect(() => {
+      validatePickIds(triangle);
+    }).not.toThrow();
+    expect(() => {
+      validatePickIds(quad);
+    }).not.toThrow();
   });
 
   it("tessellates a Hex20 solid through its twelve mid-edge nodes", () => {
@@ -396,7 +434,7 @@ function triangleCenter(triangle: readonly [Vec3, Vec3, Vec3]): Vec3 {
 
 describe("element families", () => {
   it("covers every supported family with a render mode", () => {
-    const families: readonly ElementFamily[] = ["point", "line", "tet", "hex"];
+    const families: readonly ElementFamily[] = ["point", "line", "triangle", "quad", "tet", "hex"];
     const modes = new Set<ElementRenderMode>();
     for (const family of families) {
       for (const mode of elementRenderModes(family)) modes.add(mode);
