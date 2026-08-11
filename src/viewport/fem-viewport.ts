@@ -1,4 +1,10 @@
-import { createCamera, resizeCamera, type Camera, type Vec3 } from "../camera/camera";
+import {
+  assertValidCamera,
+  createCamera,
+  resizeCamera,
+  type Camera,
+  type Vec3,
+} from "../camera/camera";
 import { installCameraControls } from "../camera/controls";
 import { fitCamera } from "../camera/fit";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
@@ -109,6 +115,7 @@ class FemViewportCore implements FemViewport {
     this.baseInteraction = options.interaction ?? createInteractionState();
     this.currentInteraction = this.baseInteraction;
     this.cameraRef = { camera: options.camera ?? createCamera() };
+    assertValidCamera(this.cameraRef.camera);
     this.resize(false);
     if (options.camera === undefined) this.fitView(false);
     this.removeControls = installCameraControls({
@@ -160,6 +167,7 @@ class FemViewportCore implements FemViewport {
 
   setCamera(camera: Camera): void {
     this.ensureAlive();
+    assertValidCamera(camera);
     this.cameraRef.camera = camera;
     this.invalidate();
   }

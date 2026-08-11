@@ -66,6 +66,64 @@ describe("camera", () => {
     expect(camera.position).toEqual([3, 3, 5]);
   });
 
+  it.each([
+    { name: "mode", options: { mode: "invalid" as never }, message: "mode" },
+    { name: "position", options: { position: [NaN, 0, 1] }, message: "position" },
+    { name: "target", options: { target: [0, Infinity, 0] }, message: "target" },
+    {
+      name: "equal position and target",
+      options: { position: [0, 0, 0], target: [0, 0, 0] },
+      message: "distinct",
+    },
+    { name: "zero up", options: { up: [0, 0, 0] }, message: "non-zero" },
+    {
+      name: "parallel up",
+      options: { position: [0, 0, 1], target: [0, 0, 0], up: [0, 0, 1] },
+      message: "parallel",
+    },
+    { name: "fovY", options: { fovY: 0 }, message: "fovY" },
+    { name: "non-finite fovY", options: { fovY: Infinity }, message: "fovY" },
+    { name: "near", options: { near: 0 }, message: "near/far" },
+    { name: "non-finite near", options: { near: NaN }, message: "near" },
+    { name: "far", options: { near: 2, far: 1 }, message: "near/far" },
+    { name: "non-finite far", options: { far: Infinity }, message: "far" },
+    { name: "orthoHeight", options: { orthoHeight: 0 }, message: "orthoHeight" },
+    { name: "non-finite orthoHeight", options: { orthoHeight: Infinity }, message: "orthoHeight" },
+    { name: "width", options: { width: 0 }, message: "width and height" },
+    { name: "non-finite width", options: { width: Infinity }, message: "width" },
+    { name: "height", options: { height: NaN }, message: "height" },
+  ] as const)("rejects invalid camera state: $name", ({ options, message }) => {
+    expect(() => createCamera(options)).toThrow(new RegExp(message));
+  });
+
+  it("rejects non-finite transition inputs and resize dimensions", () => {
+    const camera = createCamera();
+    expect(() => orbitCamera(camera, NaN, 0)).toThrow(/orbit yaw/);
+    expect(() => orbitCamera(camera, 0, 0, [Infinity, 0, 0])).toThrow(/orbit pivot/);
+    expect(() => panCamera(camera, 0, Infinity)).toThrow(/pan vertical/);
+    expect(() => zoomCamera(camera, NaN)).toThrow(/zoom amount/);
+    expect(() => zoomCameraAtPoint(camera, 0, [0, NaN, 0])).toThrow(/zoom pivot/);
+    expect(() => resizeCamera(camera, NaN, 100)).toThrow(/width/);
+    expect(() => resizeCamera(camera, 100, Infinity)).toThrow(/height/);
+    expect(resizeCamera(camera, 0, -1)).toMatchObject({ width: 1, height: 1 });
+  });
+
+  it("accepts a valid non-default camera without changing its values", () => {
+    const camera = createCamera({
+      mode: "orthographic",
+      position: [4, 3, 7],
+      target: [1, 0, 0],
+      up: [0, 1, 0],
+      fovY: 1,
+      near: 0.2,
+      far: 500,
+      orthoHeight: 12,
+      width: 800,
+      height: 600,
+    });
+    expect(camera).toMatchObject({ mode: "orthographic", near: 0.2, far: 500, width: 800 });
+  });
+
   it("orbits rigidly around an explicit picked pivot", () => {
     const camera = createCamera({ position: [0, 0, 5], target: [0, 0, 0] });
     const pivot: readonly [number, number, number] = [2, 0, 0];

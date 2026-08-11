@@ -20,9 +20,52 @@ export interface Camera {
   readonly height: number;
 }
 
+const CAMERA_EPSILON = 1e-8;
+
+/** Validates a complete camera at an ownership boundary. */
+export function assertValidCamera(camera: Camera): void {
+  assertProjectionMode(camera.mode);
+  assertFiniteVector("position", camera.position);
+  assertFiniteVector("target", camera.target);
+  assertFiniteVector("up", camera.up);
+  const view = subtract(camera.target, camera.position);
+  const viewLength = length(view);
+  const upLength = length(camera.up);
+  if (!Number.isFinite(viewLength) || !Number.isFinite(upLength)) {
+    throw new Error("Camera view basis must have finite length");
+  }
+  if (viewLength <= CAMERA_EPSILON) {
+    throw new Error("Camera position and target must be distinct");
+  }
+  if (upLength <= CAMERA_EPSILON) {
+    throw new Error("Camera up must have non-zero length");
+  }
+  const normalizedView = scale(view, 1 / viewLength);
+  const normalizedUp = scale(camera.up, 1 / upLength);
+  if (length(cross(normalizedView, normalizedUp)) <= CAMERA_EPSILON) {
+    throw new Error("Camera up must not be parallel to the view direction");
+  }
+  assertFiniteNumber("fovY", camera.fovY);
+  if (camera.fovY <= 0 || camera.fovY >= Math.PI) {
+    throw new Error("Camera fovY must be strictly between 0 and Math.PI");
+  }
+  assertFiniteNumber("near", camera.near);
+  assertFiniteNumber("far", camera.far);
+  if (camera.near <= 0 || camera.near >= camera.far) {
+    throw new Error("Camera near/far must satisfy 0 < near < far");
+  }
+  assertFiniteNumber("orthoHeight", camera.orthoHeight);
+  if (camera.orthoHeight <= 0) throw new Error("Camera orthoHeight must be greater than zero");
+  assertFiniteNumber("width", camera.width);
+  assertFiniteNumber("height", camera.height);
+  if (camera.width < 1 || camera.height < 1) {
+    throw new Error("Camera width and height must be at least 1");
+  }
+}
+
 /** Creates a camera with useful defaults for a model viewer. */
 export function createCamera(options: Partial<Camera> = {}): Camera {
-  return {
+  const camera = {
     mode: options.mode ?? "perspective",
     position: options.position ?? [3, 3, 5],
     target: options.target ?? [0, 0, 0],
@@ -34,15 +77,20 @@ export function createCamera(options: Partial<Camera> = {}): Camera {
     width: options.width ?? 1,
     height: options.height ?? 1,
   };
+  assertValidCamera(camera);
+  return camera;
 }
 
-/** Returns a copy resized to the viewport dimensions. */
+/** Returns a copy resized to finite viewport dimensions; small sizes normalize to 1. */
 export function resizeCamera(camera: Camera, width: number, height: number): Camera {
+  assertFiniteNumber("width", width);
+  assertFiniteNumber("height", height);
   return { ...camera, width: Math.max(1, width), height: Math.max(1, height) };
 }
 
 /** Changes projection mode while keeping the current vertical framing. */
 export function setProjection(camera: Camera, mode: ProjectionMode): Camera {
+  assertProjectionMode(mode);
   if (camera.mode === mode) return camera;
   if (mode === "orthographic") {
     const distance = length(subtract(camera.position, camera.target));
@@ -75,11 +123,16 @@ export function orbitCamera(
   pitchDelta: number,
   pivot?: Vec3,
 ): Camera {
+  assertFiniteNumber("orbit yaw", yawDelta);
+  assertFiniteNumber("orbit pitch", pitchDelta);
+  if (pivot !== undefined) assertFiniteVector("orbit pivot", pivot);
   return orbitAroundPivot(camera, yawDelta, pitchDelta, pivot ?? camera.target);
 }
 
 /** Pans the camera in view-plane world units. */
 export function panCamera(camera: Camera, horizontal: number, vertical: number): Camera {
+  assertFiniteNumber("pan horizontal", horizontal);
+  assertFiniteNumber("pan vertical", vertical);
   const forward = normalize(subtract(camera.target, camera.position));
   const right = normalize(cross(forward, camera.up));
   const up = normalize(cross(right, forward));
@@ -89,6 +142,7 @@ export function panCamera(camera: Camera, horizontal: number, vertical: number):
 
 /** Zooms toward the target while preserving the configured clip planes. */
 export function zoomCamera(camera: Camera, amount: number): Camera {
+  assertFiniteNumber("zoom amount", amount);
   if (camera.mode === "orthographic") {
     return {
       ...camera,
@@ -105,6 +159,8 @@ export function zoomCamera(camera: Camera, amount: number): Camera {
 
 /** Zooms around a world-space point while keeping that point under the cursor. */
 export function zoomCameraAtPoint(camera: Camera, amount: number, pivot: Vec3): Camera {
+  assertFiniteNumber("zoom amount", amount);
+  assertFiniteVector("zoom pivot", pivot);
   const factor = Math.exp(amount);
   if (camera.mode === "orthographic") {
     const position = add(pivot, scale(subtract(camera.position, pivot), factor));
@@ -309,6 +365,23 @@ function length(vector: Vec3): number {
 function normalize(vector: Vec3): Vec3 {
   const magnitude = length(vector);
   return magnitude === 0 ? [0, 0, 1] : scale(vector, 1 / magnitude);
+}
+
+function assertFiniteNumber(name: string, value: number): void {
+  if (!Number.isFinite(value)) throw new Error(`Camera ${name} must be finite`);
+}
+
+function assertFiniteVector(name: string, value: Vec3): void {
+  const components = value as readonly number[];
+  if (components.length !== 3 || components.some((component) => !Number.isFinite(component))) {
+    throw new Error(`Camera ${name} must contain three finite components`);
+  }
+}
+
+function assertProjectionMode(value: unknown): asserts value is ProjectionMode {
+  if (value !== "perspective" && value !== "orthographic") {
+    throw new Error(`Camera mode must be "perspective" or "orthographic"`);
+  }
 }
 
 /** Rotates both eye and look target around a picked point without an initial jump. */
