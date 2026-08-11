@@ -36,7 +36,7 @@ export class TriangleMeshBuilder {
     primitive: Primitive,
     elements?: readonly ElementTessellation[],
     faces?: readonly FaceTessellation[],
-    nodePositions?: readonly number[],
+    nodePositions?: ArrayLike<number>,
     bodies?: readonly Body[],
   ): Geometry {
     const hasNodeIds = this.nodePickIds.some((id) => id !== 0);

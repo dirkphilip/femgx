@@ -2,6 +2,8 @@
 
 - [[data/elements-topology|Element topology]] — typed finite-element shapes,
   canonical node ordering, and face/edge extraction.
+- [[data/polygon-input|Polygon input]] — validated polygon loops, deterministic
+  triangulation, and face/element ownership metadata.
 - [[data/fe-fixture|FE fixture]] — deterministic procedural FE datasets used by
   the demo and tests.
 - [[data/io-import-export|IO import/export]] — versioned interchange model and

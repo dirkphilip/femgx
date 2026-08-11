@@ -214,6 +214,8 @@ export function validatePickIds(geometry: Geometry): void {
       `facePickIds must have one entry per triangle (${triangleCount}), got ${geometry.facePickIds.length}`,
     );
   }
+  validateNodePickIds(geometry);
+  validateFaceMetadata(geometry);
   if (geometry.faces !== undefined) {
     const seen = new Set<FaceId>();
     geometry.faces.forEach((face, index) => {
@@ -227,4 +229,67 @@ export function validatePickIds(geometry: Geometry): void {
     });
   }
   validateBodies(geometry);
+}
+
+function validateNodePickIds(geometry: Geometry): void {
+  const nodeCount =
+    geometry.nodePositions === undefined ? undefined : geometry.nodePositions.length / 3;
+  if (nodeCount !== undefined && !Number.isInteger(nodeCount)) {
+    throw new Error("nodePositions length must be a multiple of 3");
+  }
+  for (const pickId of geometry.nodePickIds ?? []) {
+    if (pickId === 0) continue;
+    if (nodeCount !== undefined && pickId > nodeCount) {
+      throw new Error(`nodePickIds references node ${pickId - 1} outside nodePositions`);
+    }
+  }
+}
+
+function validateFaceMetadata(geometry: Geometry): void {
+  const faces = geometry.faces;
+  const facePickIds = geometry.facePickIds;
+  if (facePickIds !== undefined) {
+    for (const pickId of facePickIds) {
+      if (pickId === 0) continue;
+      if (faces === undefined || pickId > faces.length) {
+        throw new Error(`facePickIds references undeclared face ${pickId - 1}`);
+      }
+    }
+  }
+  if (faces === undefined) return;
+  const elementIds =
+    geometry.elements === undefined
+      ? undefined
+      : new Set(geometry.elements.map((element) => element.id));
+  const nodeCount =
+    geometry.nodePositions === undefined ? undefined : geometry.nodePositions.length / 3;
+  for (const face of faces) {
+    if (!Number.isInteger(face.elementId) || face.elementId < 0) {
+      throw new Error(`Face ${face.id} has invalid element owner ${face.elementId}`);
+    }
+    if (elementIds !== undefined && !elementIds.has(face.elementId)) {
+      throw new Error(`Face ${face.id} references undeclared element ${face.elementId}`);
+    }
+    validateFaceNodes(face.id, face.nodeIds, nodeCount);
+    for (const neighbor of face.neighborElementIds) {
+      if (!Number.isInteger(neighbor) || neighbor < 0) {
+        throw new Error(`Face ${face.id} has invalid neighbor element ${neighbor}`);
+      }
+    }
+  }
+}
+
+function validateFaceNodes(
+  faceId: FaceId,
+  nodeIds: readonly number[],
+  nodeCount: number | undefined,
+): void {
+  for (const nodeId of nodeIds) {
+    if (!Number.isInteger(nodeId) || nodeId < 0) {
+      throw new Error(`Face ${faceId} has invalid node reference ${nodeId}`);
+    }
+    if (nodeCount !== undefined && nodeId >= nodeCount) {
+      throw new Error(`Face ${faceId} references node ${nodeId} outside nodePositions`);
+    }
+  }
 }

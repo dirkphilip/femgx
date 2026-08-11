@@ -7,10 +7,11 @@ builders used to exercise the WebGPU path and unit tests.
 
 `createElementFixture` places one reusable example for every currently
 supported shape: Point, Line, Line3, Triangle, Quad, Tet4, Tet10, Hex8, and
-Hex20. Filled modes share the surface and volume parts; point and line parts
-remain as overlays. The gallery is intentionally explicit about quadratic
-shapes so the tessellated surface is inspectable without introducing another
-renderer or API.
+Hex20. It also includes a concave polygon authored through the geometry-owned
+`polygonPart` path. Filled modes share the surface and volume parts; point and
+line parts remain as overlays. The gallery is intentionally explicit about
+quadratic shapes so the tessellated surface is inspectable without introducing
+another renderer or API.
 
 ## VTK sample
 

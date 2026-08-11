@@ -33,6 +33,14 @@ export {
   type TessellationOptions,
 } from "./geometry/element-mesh";
 export {
+  polygonGeometry,
+  polygonPart,
+  PolygonGeometryError,
+  type PolygonFaceInput,
+  type PolygonGeometryInput,
+  type PolygonValidationCode,
+} from "./geometry/polygon";
+export {
   HEX20_SHAPE,
   HEX8_SHAPE,
   LINE3_SHAPE,

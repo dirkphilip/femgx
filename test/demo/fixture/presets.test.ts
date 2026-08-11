@@ -37,12 +37,12 @@ describe("createModelPresets", () => {
 });
 
 describe("createGalleryPreset", () => {
-  it("includes all nine supported shapes", () => {
+  it("includes all supported shapes and a polygon-authored face", () => {
     const preset = createGalleryPreset();
-    expect(preset.partColors.size).toBe(9);
+    expect(preset.partColors.size).toBe(10);
     expect(preset.overlayPartIds.length).toBe(3);
     const visible = visiblePartIdsForPreset(preset, "solid");
-    expect(visible.size).toBe(9);
+    expect(visible.size).toBe(10);
   });
 });
 
