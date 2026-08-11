@@ -8,6 +8,7 @@ import type {
 } from "../../src/index";
 import { visiblePartIdsForPreset, type ModelPreset } from "../fixture/presets";
 import { assemblyName } from "../visibility-tree";
+import { createBodyGroupAction, parseBodyIds } from "./body-controls";
 
 export type BodyAction = "highlight" | "color";
 
@@ -20,10 +21,16 @@ export interface VisibilityPanelOptions {
   readonly partName: (partId: PartId) => string | undefined;
   readonly partVisible: (partId: PartId) => boolean;
   readonly bodyVisible: (instanceId: InstanceId, bodyId: BodyId) => boolean;
+  readonly bodyGroupVisible: (instanceId: InstanceId, bodyIds: readonly BodyId[]) => boolean;
   readonly bodyHighlighted: (instanceId: InstanceId, bodyId: BodyId) => boolean;
   readonly bodyColorActive: (instanceId: InstanceId, bodyId: BodyId) => boolean;
   readonly onPartVisibility: (partId: PartId, visible: boolean) => void;
   readonly onBodyVisibility: (instanceId: InstanceId, bodyId: BodyId, visible: boolean) => void;
+  readonly onBodyGroupVisibility: (
+    instanceId: InstanceId,
+    bodyIds: readonly BodyId[],
+    visible: boolean,
+  ) => void;
   readonly onBodyAction: (instanceId: InstanceId, bodyId: BodyId, action: BodyAction) => void;
   readonly onInstanceVisibility: (slot: number, visible: boolean) => void;
   readonly onAssemblyVisibility: (nodeId: number, visible: boolean) => void;
@@ -126,6 +133,18 @@ export class VisibilityPanelController {
           : this.options.bodyColorActive(instanceId, Number(bodyId)),
       );
     }
+    for (const button of this.options.panel.querySelectorAll<HTMLButtonElement>(
+      "button[data-body-group-action]",
+    )) {
+      const instanceId = button.dataset["bodyInstanceId"];
+      const bodyIds = parseBodyIds(button.dataset["bodyGroupBodyIds"]);
+      const slot = Number(button.dataset["bodyInstanceSlot"] ?? "-1");
+      if (instanceId === undefined || bodyIds.length === 0) continue;
+      const visible = this.options.bodyGroupVisible(instanceId, bodyIds);
+      button.disabled = !this.instanceVisible(runtime, slot);
+      button.textContent = visible ? "Hide bodies" : "Show bodies";
+      button.dataset["active"] = String(!visible);
+    }
   }
 
   private onChange(event: Event): void {
@@ -155,12 +174,25 @@ export class VisibilityPanelController {
     const target = event.target;
     if (!(target instanceof Element)) return;
     const button = target.closest<HTMLButtonElement>("button[data-body-action]");
-    if (button === null) return;
-    const instanceId = button.dataset["bodyInstanceId"];
-    const bodyId = button.dataset["bodyId"];
-    const action = button.dataset["bodyAction"] as BodyAction | undefined;
-    if (instanceId === undefined || bodyId === undefined || action === undefined) return;
-    this.options.onBodyAction(instanceId, Number(bodyId), action);
+    if (button !== null) {
+      const instanceId = button.dataset["bodyInstanceId"];
+      const bodyId = button.dataset["bodyId"];
+      const action = button.dataset["bodyAction"] as BodyAction | undefined;
+      if (instanceId !== undefined && bodyId !== undefined && action !== undefined) {
+        this.options.onBodyAction(instanceId, Number(bodyId), action);
+      }
+      return;
+    }
+    const group = target.closest<HTMLButtonElement>("button[data-body-group-action]");
+    if (group === null) return;
+    const instanceId = group.dataset["bodyInstanceId"];
+    const bodyIds = parseBodyIds(group.dataset["bodyGroupBodyIds"]);
+    if (instanceId === undefined || bodyIds.length === 0) return;
+    this.options.onBodyGroupVisibility(
+      instanceId,
+      bodyIds,
+      !this.options.bodyGroupVisible(instanceId, bodyIds),
+    );
   }
 
   private assemblyNode(nodeId: number, visibleParts: ReadonlySet<PartId>): HTMLElement {
@@ -211,16 +243,27 @@ export class VisibilityPanelController {
     const spacer = document.createElement("span");
     spacer.className = "visibility-spacer";
     spacer.setAttribute("aria-hidden", "true");
+    const part =
+      partId === undefined ? undefined : this.options.getPreset().scene.parts.get(partId);
+    const bodies = part?.geometry.bodies ?? [];
     row.append(
       spacer,
       this.rowLabel("instance", slot, repeated ? `${name} ${index}` : name, "Part"),
     );
+    const instanceId = runtime.getInstanceId(slot);
+    if (instanceId !== undefined && bodies.length > 1) {
+      row.append(
+        createBodyGroupAction(
+          slot,
+          instanceId,
+          bodies.map((body) => body.id),
+        ),
+      );
+    }
     const branch = document.createElement("div");
     branch.className = "visibility-body-branch";
     branch.appendChild(row);
-    const part =
-      partId === undefined ? undefined : this.options.getPreset().scene.parts.get(partId);
-    for (const body of part?.geometry.bodies ?? []) {
+    for (const body of bodies) {
       branch.appendChild(this.bodyNode(slot, body));
     }
     return branch;

@@ -23,6 +23,7 @@ export interface VisibilityActionOptions {
   readonly firstSlotByPart: ReadonlyMap<PartId, number>;
   readonly interaction: () => InteractionState;
   readonly setInteraction: (interaction: InteractionState) => void;
+  readonly applyInteraction: (interaction: InteractionState) => void;
   readonly syncPanel: () => void;
   readonly render: () => void;
 }
@@ -56,6 +57,18 @@ export class WorkbenchVisibilityActions {
     const ref = { instanceId, bodyId };
     this.options.setInteraction(setBodyVisible(this.options.interaction(), ref, visible));
     this.finish();
+  }
+
+  setBodyGroup(instanceId: InstanceId, bodyIds: readonly BodyId[], visible: boolean): void {
+    const viewport = this.options.viewport();
+    viewport.batch(() => {
+      let state = this.options.interaction();
+      for (const bodyId of bodyIds) {
+        state = setBodyVisible(state, { instanceId, bodyId }, visible);
+        this.options.applyInteraction(state);
+      }
+    });
+    this.finish(false);
   }
 
   bodyAction(instanceId: InstanceId, bodyId: BodyId, action: BodyAction): void {
@@ -92,6 +105,10 @@ export class WorkbenchVisibilityActions {
     return isBodyVisible(this.options.interaction(), { instanceId, bodyId });
   }
 
+  bodyGroupVisible(instanceId: InstanceId, bodyIds: readonly BodyId[]): boolean {
+    return bodyIds.every((bodyId) => this.bodyVisible(instanceId, bodyId));
+  }
+
   bodyHighlighted(instanceId: InstanceId, bodyId: BodyId): boolean {
     return this.options.interaction().highlightedBodyIds.get(instanceId)?.has(bodyId) ?? false;
   }
@@ -113,9 +130,9 @@ export class WorkbenchVisibilityActions {
     return slot === undefined ? undefined : runtime.instancePartIds[slot];
   }
 
-  private finish(): void {
+  private finish(render = true): void {
     this.options.syncPanel();
-    this.options.render();
+    if (render) this.options.render();
   }
 }
 

@@ -103,6 +103,9 @@ closed; the list is historical scope memory, not an open implementation queue.
 - [x] Add placement-scoped body selection, highlight, hover, visibility, and
       style overrides, with body-aware GPU picking and demo controls (see
       [[rendering/interactive-state|Interactive state]]).
+- [x] Add synchronous body-update batching with one viewport invalidation,
+      coalesced visibility slots, and a representative benchmark (see
+      [[engineering/benchmarks|Benchmarks]]).
 - [x] Define precedence when part and instance styles overlap.
 - [x] Expose a clean `pick(x, y)` API returning stable part/instance targets.
 

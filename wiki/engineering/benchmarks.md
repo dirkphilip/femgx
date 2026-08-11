@@ -66,6 +66,12 @@ case for human review and trend comparison and is **not** part of the default
 gate. The opt-in `.github/workflows/perf.yml` (`workflow_dispatch`) runs it and
 the real-WebGPU benchmark on demand.
 
+`test/bench/body-batch.bench.ts` compares 64 body visibility mutations issued
+individually with the same ordered mutations inside `FemViewport.batch`. The
+reference local run was 22.33x faster for the batch path; the result is a trend
+signal rather than a cross-machine budget because it includes fake-GPU command
+encoding.
+
 ## Large-model correctness stress test
 
 `test/runtime/stress.test.ts` complements the timing budgets with a pure

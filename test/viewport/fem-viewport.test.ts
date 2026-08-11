@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { computeBounds } from "../../src/geometry/part";
+import { setBodyOverride, setBodyVisible } from "../../src/interaction/bodies";
 import { setPartOverride } from "../../src/interaction/interaction";
 import { translation } from "../../src/math/mat4";
 import { createScene } from "../../src/scene/scene";
@@ -102,6 +103,43 @@ describe("FemViewport", () => {
 
     expect(viewport.camera.target[0]).toBeCloseTo(25);
     expect(viewport.runtime.getTransform(0)?.[12]).toBe(25);
+    viewport.destroy();
+  });
+
+  it("coalesces body and visibility mutations inside one batch", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const onRender = vi.fn();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: fakeGpuDevice().device,
+      onRender,
+    });
+    expect(onRender).toHaveBeenCalledOnce();
+
+    const finalInteraction = viewport.batch(() => {
+      let interaction = setBodyVisible(
+        viewport.interaction,
+        { instanceId: "1/0", bodyId: 0 },
+        false,
+      );
+      viewport.setInteraction(interaction);
+      interaction = setBodyOverride(
+        interaction,
+        { instanceId: "1/0", bodyId: 0 },
+        { emissive: 0.5 },
+      );
+      viewport.setInteraction(interaction);
+      viewport.setPartVisible(1, false);
+      viewport.setPartVisible(1, true);
+      expect(onRender).toHaveBeenCalledOnce();
+      return interaction;
+    });
+
+    expect(finalInteraction).toBe(viewport.interaction);
+    expect(viewport.runtime.visibleCount).toBe(1);
+    expect(onRender).toHaveBeenCalledTimes(2);
     viewport.destroy();
   });
 

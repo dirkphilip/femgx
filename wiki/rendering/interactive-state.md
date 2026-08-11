@@ -48,6 +48,15 @@ face, and node state remains more specific than its owning body. Hidden body
 records are applied before emphasis so every primitive belonging to that body is
 excluded from the render and pick passes.
 
+## Batching
+
+`FemViewport.batch(operation)` is a synchronous transaction boundary for related
+mutations. Nested batches share the outer boundary; the final interaction state
+and visibility state preserve operation order, while visibility slots are sent to
+the renderer once as a sorted union and one invalidation schedules the frame.
+Body emphasis still uses immutable state and the existing diffed
+`updateElements` path. Batches do not cross frames or await asynchronous work.
+
 ## Emphasis representation
 
 - `InteractionState.elementOverrides` holds **explicit** element overrides only
