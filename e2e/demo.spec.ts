@@ -153,6 +153,28 @@ test("switches between deterministic model presets", async ({ page }) => {
   await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
 });
 
+test("refits cleanly after switching from a larger gallery to the bolted model", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const select = page.getByTestId("model-select");
+  const canvas = page.getByTestId("view-canvas");
+  await select.selectOption("gallery");
+  await page.getByTestId("fit-view").click();
+  await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
+
+  await select.selectOption("bolted");
+  await page.getByTestId("fit-view").click();
+  await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
+  const hit = await requireHit(
+    page,
+    canvas,
+    {},
+    "GPU picking must remain functional after history-independent fitting",
+  );
+  expect(hit.key).toMatch(/^(n|f|e|i|p):/);
+});
+
 test("renders the heterogeneous model through explicit primitive groups", async ({ page }) => {
   await page.goto("/");
   const select = page.getByTestId("model-select");

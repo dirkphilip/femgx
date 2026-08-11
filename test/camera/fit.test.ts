@@ -39,6 +39,61 @@ describe("fitCamera", () => {
     expect(Math.max(...projected.map((point) => point[0]))).toBeGreaterThan(1152 * 0.85);
   });
 
+  it.each(["perspective", "orthographic"] as const)(
+    "does not inherit clip history for %s fitting",
+    (mode) => {
+      const boundsToFit = { minX: -2, minY: -1, minZ: -3, maxX: 4, maxY: 3, maxZ: 2 };
+      const ordinary = fitCamera(
+        createCamera({ mode, near: 0.01, far: 10_000 }),
+        boundsToFit,
+        1152,
+        900,
+      );
+      const pathological = fitCamera(
+        createCamera({ mode, near: 10, far: 100_000 }),
+        boundsToFit,
+        1152,
+        900,
+      );
+      expect(pathological.position[0]).toBeCloseTo(ordinary.position[0]);
+      expect(pathological.position[1]).toBeCloseTo(ordinary.position[1]);
+      expect(pathological.position[2]).toBeCloseTo(ordinary.position[2]);
+      expect(pathological.near).toBeCloseTo(ordinary.near);
+      expect(pathological.far).toBeCloseTo(ordinary.far);
+      expect(pathological.orthoHeight).toBeCloseTo(ordinary.orthoHeight);
+    },
+  );
+
+  it.each(["perspective", "orthographic"] as const)(
+    "matches a fresh fit after a large-to-small transition in %s mode",
+    (mode) => {
+      const large = { minX: -1000, minY: -500, minZ: -250, maxX: 1000, maxY: 500, maxZ: 250 };
+      const small = { minX: -2, minY: -1, minZ: -3, maxX: 4, maxY: 3, maxZ: 2 };
+      const initial = createCamera({ mode });
+      const transitioned = fitCamera(fitCamera(initial, large, 1152, 900), small, 1152, 900);
+      const direct = fitCamera(initial, small, 1152, 900);
+      expect(transitioned.position[0]).toBeCloseTo(direct.position[0]);
+      expect(transitioned.position[1]).toBeCloseTo(direct.position[1]);
+      expect(transitioned.position[2]).toBeCloseTo(direct.position[2]);
+      expect(transitioned.target).toEqual(direct.target);
+      expect(transitioned.near).toBeCloseTo(direct.near);
+      expect(transitioned.far).toBeCloseTo(direct.far);
+      expect(transitioned.orthoHeight).toBeCloseTo(direct.orthoHeight);
+    },
+  );
+
+  it.each(["perspective", "orthographic"] as const)("is idempotent in %s mode", (mode) => {
+    const first = fitCamera(createCamera({ mode }), bounds, 1152, 900);
+    const second = fitCamera(first, bounds, 1152, 900);
+    expect(second.position[0]).toBeCloseTo(first.position[0]);
+    expect(second.position[1]).toBeCloseTo(first.position[1]);
+    expect(second.position[2]).toBeCloseTo(first.position[2]);
+    expect(second.target).toEqual(first.target);
+    expect(second.near).toBeCloseTo(first.near);
+    expect(second.far).toBeCloseTo(first.far);
+    expect(second.orthoHeight).toBeCloseTo(first.orthoHeight);
+  });
+
   it.each([
     { name: "tall", value: { minX: -1, minY: -20, minZ: -1, maxX: 1, maxY: 20, maxZ: 1 } },
     { name: "flat", value: { minX: -3, minY: -2, minZ: 0, maxX: 3, maxY: 2, maxZ: 0 } },

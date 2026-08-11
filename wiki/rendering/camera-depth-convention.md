@@ -31,3 +31,8 @@ ratchet the near plane toward zero and destroy depth precision. Cursor-centered
 zoom applies the same distance clamp while scaling the eye and target around
 the world-space pivot; ordinary orthographic zoom retains its existing scale
 behavior.
+
+Explicit fitting has a separate responsibility: `fitCamera` derives the pose
+and clip interval from the current bounds and orientation, with a small finite
+depth margin. It does not retain near/far values or eye distance from a prior
+scene, and repeated fitting of unchanged inputs is idempotent.
