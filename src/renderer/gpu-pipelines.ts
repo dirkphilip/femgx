@@ -316,7 +316,6 @@ export function ensureColorTargets(
   }
   draw.msaaColorTexture?.destroy();
   draw.depthTexture?.destroy();
-  draw.nodeDepthBindGroup = undefined;
   draw.msaaColorTexture = draw.device.createTexture({
     size: [width, height],
     sampleCount: COLOR_SAMPLE_COUNT,

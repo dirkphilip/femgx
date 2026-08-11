@@ -8,11 +8,9 @@ import { drawBatches } from "./gpu-draw";
 import type { PickTargets } from "./gpu-pick";
 import { ensurePickTargets } from "./gpu-pick";
 import { beginPickPass } from "./gpu-pick-pass";
-import { beginNodeOverlayPass, bindNodeOverlayDepth } from "./gpu-node-overlay";
 import type { RenderResources } from "./gpu-pipelines";
 import { beginColorPass, ensureColorTargets } from "./gpu-pipelines";
 import { drawOrbitPivot } from "./gpu-orbit-pivot";
-import { nodeOverlaySlack } from "./node-overlay-visibility";
 
 /** Everything the per-frame command encoding needs from the renderer. */
 export interface FrameOptions {
@@ -68,12 +66,7 @@ export function encodeVisibleFrame(
   const context = drawContext(frame, parts);
   const colorView = targets.color.createView();
   const depthView = targets.depth.createView();
-  const colorPass = beginColorPass(
-    colorEncoder,
-    colorView,
-    depthView,
-    frame.showNodes ? undefined : resolveTarget,
-  );
+  const colorPass = beginColorPass(colorEncoder, colorView, depthView, resolveTarget);
   drawBatches(colorPass, frame.draw, context, frame.calls, { pass: "color" });
   if (frame.edgeCalls.length > 0) {
     drawBatches(colorPass, frame.draw, context, frame.edgeCalls, {
@@ -84,15 +77,10 @@ export function encodeVisibleFrame(
     });
   }
   if (frame.showNodes) {
-    colorPass.end();
-    const nodePass = beginNodeOverlayPass(colorEncoder, colorView, depthView, resolveTarget);
-    drawNodeOverlay(nodePass, frame, context, targets.depth);
-    drawFrameOrbitPivot(nodePass, camera, frame);
-    nodePass.end();
-  } else {
-    drawFrameOrbitPivot(colorPass, camera, frame);
-    colorPass.end();
+    drawNodeOverlay(colorPass, frame, context);
   }
+  drawFrameOrbitPivot(colorPass, camera, frame);
+  colorPass.end();
   frame.device.queue.submit([colorEncoder.finish()]);
 }
 
@@ -127,14 +115,6 @@ function drawContext(frame: FrameOptions, parts: ReadonlyMap<PartId, Part>): Dra
   };
 }
 
-function cameraSceneScale(camera: Camera): number {
-  if (camera.mode === "orthographic") return Math.max(camera.orthoHeight, 1e-6);
-  const dx = camera.position[0] - camera.target[0];
-  const dy = camera.position[1] - camera.target[1];
-  const dz = camera.position[2] - camera.target[2];
-  return Math.max(Math.hypot(dx, dy, dz), 1e-6);
-}
-
 function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
   const uniform = new Float32Array(24);
   uniform.set(viewProjectionMatrix(camera), 0);
@@ -144,7 +124,7 @@ function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
   uniform[19] = camera.near;
   uniform[20] = camera.far;
   uniform[21] = camera.mode === "orthographic" ? 1 : 0;
-  uniform[22] = nodeOverlaySlack(cameraSceneScale(camera));
+  uniform[22] = 0;
   frame.device.queue.writeBuffer(frame.resources.cameraBuffer, 0, uniform);
   writeDeformationUniform(frame.device, frame.resources.deformationBuffer, frame.deformation);
 }
@@ -153,16 +133,7 @@ function drawNodeOverlay(
   pass: GPURenderPassEncoder,
   frame: FrameOptions,
   context: DrawCallContext,
-  depthTexture: GPUTexture,
 ): void {
-  // Flat center-depth classification keeps the whole glyph visible or hidden.
-  bindNodeOverlayDepth(
-    pass,
-    frame.device,
-    frame.resources.nodeOverlayPipelines,
-    frame.draw,
-    depthTexture,
-  );
   drawBatches(pass, frame.draw, context, frame.calls, {
     nodes: true,
     pipeline: frame.resources.nodeOverlayPipelines.visible,

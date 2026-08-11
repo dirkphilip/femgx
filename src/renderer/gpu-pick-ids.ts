@@ -76,7 +76,9 @@ export function buildNodeBodyPickData(geometry: Geometry): Uint32Array {
       }
     }
   }
-  const data = new Uint32Array(nodeCount * 2);
+  // The shared binding is array<vec2<u32>>, whose minimum valid storage
+  // binding is one complete 8-byte pair even when this part has no nodes.
+  const data = new Uint32Array(Math.max(2, nodeCount * 2));
   for (const [nodeId, bodyId] of nodeBodies) {
     if (bodyId !== null) data[nodeId * 2 + 1] = bodyId + 1;
   }
