@@ -128,7 +128,7 @@ function classifyElements(model: ElementModel): ElementGroups {
     else {
       throw new HeterogeneousElementError(
         "unsupported-shape",
-        `Element ${element.id} shape ${element.shape.family} order ${element.shape.order} is deferred in heterogeneousElementParts; use a typed elementPart build instead`,
+        `Element ${element.id} shape ${element.shape.family} order ${element.shape.order} is not supported by heterogeneousElementParts; use the dedicated typed elementPart build instead`,
         { elementId: element.id, shape: element.shape },
       );
     }

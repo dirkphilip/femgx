@@ -46,7 +46,8 @@ requirements contract]]. Read it before starting any task; this section is the s
 The following are **not** requirements and must not be expanded as if they were:
 
 - CPU fallback rendering (removed in #171; do not re-add a second renderer).
-- Quadratic element shapes and mid-edge tessellation.
+- Element families beyond Point, Line, Line3, Triangle, Quad, Tet4, Tet10,
+  Hex8, and Hex20.
 - Multi-hit pick lists (`pickMany`), adjacency inspection polish, and optional
   face display overlays.
 - Advanced results playback (CasePlayer, interpolation) and legends
@@ -93,11 +94,11 @@ obvious. Each subsystem is a directory under `src/` with a mirrored directory
 under `test/`. Tags reflect the [[requirements/product-scope|product scope]]:
 
 - `src/math/` — matrix/vector math (`mat4`). **Core.**
-- `src/geometry/` — reusable part geometry, computed bounds, and linear-element
-  tessellation. **Core** (quadratic tessellation **Deferred**).
+- `src/geometry/` — reusable part geometry, computed bounds, and element
+  tessellation. **Core** for the supported linear and quadratic shapes.
 - `src/elements/` — typed finite-element model: shape/topology definitions, a
   validated `createElement` constructor, and face/edge extraction. **Core for
-  linear shapes; quadratic shapes Deferred.**
+  the supported linear and quadratic shapes.**
 - `src/scene/` — authoritative CPU model: part/assembly/instance identities,
   assemblies, and the scene builder. **Core.**
 - `src/runtime/` — internal helpers: flattening, frustum culling, and per-part

@@ -33,11 +33,11 @@ and requires the `FemModel` node ids to already be dense and ordered because
 `ElementModel` indexes nodes directly. Invalid interchange data raises an
 `IoError` carrying the validation issues instead of silently dropping a block.
 
-Tet10, Hex20, LINE3, and unknown/deferred shapes are rejected by the
+Tet10, Hex20, LINE3, and other unsupported shapes are rejected by the
 heterogeneous builder with `HeterogeneousElementError` and an element id/shape
-when available. The typed family path retains its existing deferred quadratic
-implementation; this high-level mixed path does not expand quadratic shapes,
-combine incompatible primitives into one draw, or introduce streaming.
+when available. The dedicated typed family path supports the quadratic shapes;
+this high-level mixed path remains limited to its current compatible groups and
+does not combine incompatible primitives into one draw or introduce streaming.
 
 Related: [[rendering/element-rendering|Element rendering]],
 [[rendering/element-interaction|Element-level interaction]],

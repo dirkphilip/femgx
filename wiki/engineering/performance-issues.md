@@ -129,7 +129,7 @@ explicit product decision. In-memory models remain the product path.
 
 ## Quadratic element tessellation trade-offs
 
-**Deferred** — quadratic shapes are not part of the minimum product (see
+**Core trade-off** — quadratic shapes are part of the minimum product (see
 [[requirements/product-scope|product scope]]).
 
 Quadratic (Tet10/Hex20/LINE3) geometry is tessellated through mid-edge nodes
@@ -148,7 +148,7 @@ factor, never a runtime draw cost:
   before tessellation, so culled interior faces never reach the vertex buffers.
 
 Risk: a large quadratic model multiplies the vertex footprint even though the
-draw count is unchanged. If deferred quadratic support is ever reconsidered and
-becomes a bottleneck, adaptive tessellation (subdivide only near silhouettes or
-when projected curvature is large) is the natural follow-up; nothing in the
-geometry or renderer API prevents swapping the tessellator per part.
+draw count is unchanged. If this supported-path cost becomes a bottleneck,
+adaptive tessellation (subdivide only near silhouettes or when projected
+curvature is large) is the natural follow-up; nothing in the geometry or
+renderer API prevents swapping the tessellator per part.
