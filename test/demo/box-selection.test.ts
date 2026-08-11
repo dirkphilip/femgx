@@ -25,7 +25,8 @@ class FakeStyle {
 class FakeOverlay {
   hidden = true;
   readonly style = new FakeStyle();
-  readonly attributes = new Map<string, string>();
+  /** Mirrors the index.html default; the preview must never flip it. */
+  readonly attributes = new Map<string, string>([["aria-hidden", "true"]]);
 
   setAttribute(name: string, value: string): void {
     this.attributes.set(name, value);
@@ -79,7 +80,7 @@ describe("WorkbenchBoxPreview", () => {
       modifiers: { shift: false, control: false, alt: false, meta: false },
     });
     expect(overlay.hidden).toBe(false);
-    expect(overlay.attributes.get("aria-hidden")).toBe("false");
+    expect(overlay.attributes.get("aria-hidden")).toBe("true");
     expect(overlay.style.left).toBe("20px");
     expect(overlay.style.top).toBe("30px");
     expect(overlay.style.width).toBe("100px");

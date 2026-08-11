@@ -39,12 +39,10 @@ function showBoxSelection(overlay: HTMLElement, rect: BoxSelectionRect): void {
   overlay.style.top = `${rect.top}px`;
   overlay.style.width = `${rect.width}px`;
   overlay.style.height = `${rect.height}px`;
-  overlay.setAttribute("aria-hidden", "false");
 }
 
 function hideBoxSelection(overlay: HTMLElement): void {
   overlay.hidden = true;
-  overlay.setAttribute("aria-hidden", "true");
   overlay.style.removeProperty("left");
   overlay.style.removeProperty("top");
   overlay.style.removeProperty("width");
