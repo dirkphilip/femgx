@@ -49,10 +49,15 @@ test("shows a camera-aligned world coordinate gizmo", async ({ page }) => {
   await page.goto("/");
   const gizmo = page.getByTestId("axis-gizmo");
   await expect(gizmo).toBeVisible();
-  await expect(gizmo.locator("text")).toHaveCount(3);
-  await expect(gizmo).toContainText("X");
-  await expect(gizmo).toContainText("Y");
-  await expect(gizmo).toContainText("Z");
+  await expect(gizmo.locator("circle")).toHaveCount(1);
+  await expect(gizmo.locator("line")).toHaveCount(6);
+  await expect(gizmo.locator("text")).toHaveCount(6);
+  await expect(gizmo).toContainText("+X");
+  await expect(gizmo).toContainText("−X");
+  await expect(gizmo).toContainText("+Y");
+  await expect(gizmo).toContainText("−Y");
+  await expect(gizmo).toContainText("+Z");
+  await expect(gizmo).toContainText("−Z");
 });
 
 test("zooms toward the point under the mouse and fits selection with Z", async ({ page }) => {
