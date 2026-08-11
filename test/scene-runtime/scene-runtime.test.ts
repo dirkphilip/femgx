@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import type { Assembly } from "../../src/scene/assembly";
-import { flattenAssembly } from "../../src/runtime/flatten";
 import { identity, translation } from "../../src/math/mat4";
 import { computeBounds, type Part } from "../../src/geometry/part";
 import { createScene, type Scene } from "../../src/scene/scene";
@@ -339,7 +338,7 @@ describe("createSceneRuntime", () => {
     expect(Array.from(runtime.getDrawList())).toEqual(initial);
   });
 
-  it("matches flattenAssembly ordering for the visible subset", () => {
+  it("keeps depth-first slot and draw ordering deterministic", () => {
     const scene = buildScene(
       1,
       [
@@ -356,16 +355,11 @@ describe("createSceneRuntime", () => {
       [1, 2, 3],
     );
     const runtime = createSceneRuntime(scene);
-    const flattened = flattenAssembly({
-      assemblyId: scene.rootAssemblyId,
-      assemblies: scene.assemblies,
-      visibleAssemblyIds: scene.visibleAssemblyIds,
-      visiblePartIds: scene.visiblePartIds,
-    });
-    expect(flattened.map((instance) => instance.index)).toEqual(Array.from(runtime.getDrawList()));
-    expect(flattened.map((instance) => instance.partId)).toEqual(
-      Array.from(runtime.instancePartIds).slice(0, flattened.length),
-    );
+    expect(Array.from(runtime.getDrawList())).toEqual([0, 1, 2]);
+    expect(Array.from(runtime.instancePartIds)).toEqual([2, 3, 1]);
+    expect(runtime.getInstanceId(0)).toBe("1/0");
+    expect(runtime.getInstanceId(1)).toBe("1/1/0");
+    expect(runtime.getInstanceId(2)).toBe("1/2");
   });
 
   it("keeps authoring placement handles stable and hidden slots resolvable", () => {

@@ -20,10 +20,9 @@ that stores, in typed arrays indexed by stable **instance id**:
 
 Instance ids are slots over the **full** depth-first placement list, including
 currently hidden placements, so they never change when visibility changes. This
-decouples the stable pick identity from the compacted draw list. This is the
-packed counterpart of `flattenAssembly`'s path-derived `InstanceId` strings
-(`src/runtime/compile.ts` compiles per-frame snapshots; the scene runtime keeps
-persistent packed state and updates it in place).
+decouples the stable pick identity from the compacted draw list. The packed
+compiler is the only placement-path algorithm and updates persistent runtime
+state in place after the initial compile.
 
 ## Visibility deltas
 
@@ -43,8 +42,8 @@ hidden ancestor. Updates touch only the affected instance slots and report the
 changed ids plus before/after `visibleCount`; geometry and the instance list are
 never rebuilt.
 
-`getDrawList()` returns the visible instance ids in deterministic depth-first
-order (matching `[[architecture/instancing-strategy|flattenAssembly]]` ordering).
+`getDrawList()` returns the visible instance slots in deterministic depth-first
+placement order.
 
 ## Transform updates
 
@@ -69,7 +68,7 @@ touched by transform edits, so `getDrawList()` stays deterministic and
 transforms so they render correctly when shown later.
 
 `getInstanceId(slot)` resolves a stable instance slot back to its authoring
-placement handle (the same path strings `flattenAssembly` derives), which lets
+placement handle, which lets
 the [[rendering/renderer-subrange-updates|renderer]] map interaction state and pick hits
 back to slots.
 
@@ -78,17 +77,12 @@ back to slots.
 - One compiled node per assembly _expansion_, so an assembly placed multiple
   times becomes multiple nodes with independent subtrees.
 - `Scene.build()` now validates references and cycles, so the runtime assumes
-  valid input but still skips missing assemblies defensively, mirroring
-  `flattenAssembly`.
+  valid input but still skips missing assemblies defensively.
 - The typed arrays are read-only views; mutating them desynchronizes
   `visibleCount`.
-- The compile walk is recursive (as `flattenAssembly` was before #4); scenes
-  are validated acyclic so this is safe, but an iterative compile would match
-  the post-#4 flatten walk for deeply nested models.
 
 ## Future work
 
-- Make the compile walk iterative (see Design notes).
 - Add a reverse `instanceId` → slot lookup so apps can map interaction changes
   (keyed by stable handle) to slots for `updateInstances` without iterating all
   slots. Today `getInstanceId(slot)` resolves slot → handle only.

@@ -101,8 +101,6 @@ under `test/`. Tags reflect the [[requirements/product-scope|product scope]]:
   the supported linear and quadratic shapes.**
 - `src/scene/` — authoritative CPU model: part/assembly/instance identities,
   assemblies, and the scene builder. **Core.**
-- `src/runtime/` — internal helpers: flattening and per-part batching (not the
-  public product path; prefer `createSceneRuntime`). **Core.**
 - `src/scene-runtime/` — packed CPU-side scene runtime with delta-oriented
   visibility updates (`createSceneRuntime`). **Core.**
 - `src/camera/` — immutable orbit camera and projection math. **Core.**

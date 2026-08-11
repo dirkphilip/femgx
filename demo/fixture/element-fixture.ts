@@ -3,8 +3,8 @@ import { elementPart, type ElementRenderMode } from "../../src/geometry/element-
 import { polygonPart } from "../../src/geometry/polygon";
 import type { Bounds, Part } from "../../src/geometry/part";
 import { transformPoint, translation } from "../../src/math/mat4";
-import { flattenAssembly } from "../../src/runtime/flatten";
 import { createScene, type Scene } from "../../src/scene/scene";
+import { createSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { AssemblyId, PartId } from "../../src/scene/types";
 import {
   buildHex20CylinderModel,
@@ -204,17 +204,14 @@ function validateFixtureOptions(gridSize: number, cellSize: number): void {
 }
 
 function sceneBounds(scene: Scene): Bounds {
-  const instances = flattenAssembly({
-    assemblyId: scene.rootAssemblyId,
-    assemblies: scene.assemblies,
-    visibleAssemblyIds: scene.visibleAssemblyIds,
-    visiblePartIds: scene.visiblePartIds,
-  });
+  const runtime = createSceneRuntime(scene);
   let bounds: Bounds | undefined;
-  for (const instance of instances) {
-    const part = scene.parts.get(instance.partId);
-    if (part === undefined) continue;
-    bounds = mergeBounds(bounds, transformBounds(part.bounds, instance.worldTransform));
+  for (const slot of runtime.getDrawList()) {
+    const partId = runtime.getPartId(slot);
+    const transform = runtime.getTransform(slot);
+    const part = partId === undefined ? undefined : scene.parts.get(partId);
+    if (part === undefined || transform === undefined) continue;
+    bounds = mergeBounds(bounds, transformBounds(part.bounds, transform));
   }
   return bounds ?? { minX: 0, minY: 0, minZ: 0, maxX: 0, maxY: 0, maxZ: 0 };
 }

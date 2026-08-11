@@ -190,8 +190,8 @@ function buildGroups(keys: ArrayLike<number>): KeyedGroupIndex {
 
 /**
  * Compiles an authoring scene into packed, deterministic runtime storage.
- * Mirrors `flattenAssembly` semantics: missing assemblies are skipped and
- * hierarchy validation/cycle behavior is unchanged.
+ * Missing assemblies are skipped defensively; hierarchy validation and cycle
+ * behavior are owned by the scene builder.
  */
 export function compileSceneState(scene: Scene): RuntimeState {
   const { nodes, instances } = buildSceneDrafts(scene);

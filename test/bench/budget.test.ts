@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { batchInstancesByPart } from "../../src/runtime/batch";
-import { flattenAssembly } from "../../src/runtime/flatten";
 import { createElement, type Element } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
 import {
@@ -42,21 +40,20 @@ const deepScene = makeHierarchyScene({
   partCount: BENCH_PART_COUNT,
 });
 
-const flattened = flattenAssembly({
-  assemblyId: shallowScene.rootAssemblyId,
-  assemblies: shallowScene.assemblies,
-  visibleAssemblyIds: shallowScene.visibleAssemblyIds,
-  visiblePartIds: shallowScene.visiblePartIds,
-});
-
 const runtime = createSceneRuntime(shallowScene);
+const runtimeInstances = Array.from(runtime.getDrawList(), (slot, index) => ({
+  index,
+  instanceId: runtime.getInstanceId(slot) ?? "",
+  partId: runtime.getPartId(slot) ?? 0,
+  worldTransform: runtime.getTransform(slot) ?? new Float32Array(16),
+}));
 
 const heterogeneousModel = makeHeterogeneousModel(100);
 
 const PICK_COUNT = 50_000;
 const pickIds: number[] = [];
 for (let i = 0; i < PICK_COUNT; i++) {
-  pickIds.push(i % flattened.length);
+  pickIds.push(i % runtimeInstances.length);
 }
 
 function makeHeterogeneousModel(repetitions: number) {
@@ -105,19 +102,6 @@ interface BudgetCase {
  */
 const budgets: readonly BudgetCase[] = [
   {
-    name: "flattenAssembly",
-    description: `shallow model, ${BENCH_INSTANCE_COUNT} instances`,
-    budgetMs: 500,
-    run: () => {
-      flattenAssembly({
-        assemblyId: shallowScene.rootAssemblyId,
-        assemblies: shallowScene.assemblies,
-        visibleAssemblyIds: shallowScene.visibleAssemblyIds,
-        visiblePartIds: shallowScene.visiblePartIds,
-      });
-    },
-  },
-  {
     name: "createSceneRuntime",
     description: `packed compile, ${BENCH_INSTANCE_COUNT} instances`,
     budgetMs: 700,
@@ -131,14 +115,6 @@ const budgets: readonly BudgetCase[] = [
     budgetMs: 700,
     run: () => {
       createSceneRuntime(deepScene);
-    },
-  },
-  {
-    name: "batchInstancesByPart",
-    description: `${BENCH_INSTANCE_COUNT} instances over ${BENCH_PART_COUNT} parts`,
-    budgetMs: 100,
-    run: () => {
-      batchInstancesByPart(flattened);
     },
   },
   {
@@ -191,7 +167,7 @@ const budgets: readonly BudgetCase[] = [
     budgetMs: 50,
     run: () => {
       for (const pickId of pickIds) {
-        resolvePick(flattened, pickId);
+        resolvePick(runtimeInstances, pickId);
       }
     },
   },

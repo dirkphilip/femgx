@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 import { computeBounds, type Part } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import { resolvePick } from "../../src/picking/pick";
-import { batchInstancesByPart } from "../../src/runtime/batch";
-import { flattenAssembly } from "../../src/runtime/flatten";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { Assembly, Placement } from "../../src/scene/assembly";
 import type { Scene } from "../../src/scene/scene";
@@ -59,25 +57,8 @@ function stressScene(): Scene {
 const scene = stressScene();
 
 describe("large-model stress", () => {
-  it("flattens the full model with a deterministic instance list", () => {
-    const instances = flattenAssembly({
-      assemblyId: scene.rootAssemblyId,
-      assemblies: scene.assemblies,
-      visibleAssemblyIds: scene.visibleAssemblyIds,
-      visiblePartIds: scene.visiblePartIds,
-    });
-    expect(instances).toHaveLength(STRESS_INSTANCE_COUNT);
-    expect(instances[0]?.index).toBe(0);
-    expect(instances[STRESS_INSTANCE_COUNT - 1]?.index).toBe(STRESS_INSTANCE_COUNT - 1);
-  });
-
   it("produces stable and unique instance identities at scale", () => {
-    const instances = flattenAssembly({
-      assemblyId: scene.rootAssemblyId,
-      assemblies: scene.assemblies,
-      visibleAssemblyIds: scene.visibleAssemblyIds,
-      visiblePartIds: scene.visiblePartIds,
-    });
+    const instances = runtimeInstances(createSceneRuntime(scene));
     const ids = new Set<string>();
     for (const instance of instances) {
       expect(ids.has(instance.instanceId)).toBe(false);
@@ -87,35 +68,11 @@ describe("large-model stress", () => {
   });
 
   it("matches part distribution to the placement cycle", () => {
-    const instances = flattenAssembly({
-      assemblyId: scene.rootAssemblyId,
-      assemblies: scene.assemblies,
-      visibleAssemblyIds: scene.visibleAssemblyIds,
-      visiblePartIds: scene.visiblePartIds,
-    });
+    const instances = runtimeInstances(createSceneRuntime(scene));
     const perPart = Math.ceil(STRESS_PLACEMENTS_PER_SUBCASE / STRESS_PART_COUNT);
     for (const [partId, count] of countsByPart(instances)) {
       expect(count, `part ${partId} instance count`).toBe(perPart * STRESS_SUBCASES);
     }
-  });
-
-  it("batches instances by part while preserving source order", () => {
-    const instances = flattenAssembly({
-      assemblyId: scene.rootAssemblyId,
-      assemblies: scene.assemblies,
-      visibleAssemblyIds: scene.visibleAssemblyIds,
-      visiblePartIds: scene.visiblePartIds,
-    });
-    const batches = batchInstancesByPart(instances);
-    expect(batches).toHaveLength(STRESS_PART_COUNT);
-    let total = 0;
-    for (const batch of batches) {
-      total += batch.instances.length;
-      for (const instance of batch.instances) {
-        expect(instance.partId).toBe(batch.partId);
-      }
-    }
-    expect(total).toBe(STRESS_INSTANCE_COUNT);
   });
 
   it("compiles the packed runtime for the full model", () => {
@@ -125,28 +82,18 @@ describe("large-model stress", () => {
     expect(runtime.getDrawList()).toHaveLength(STRESS_INSTANCE_COUNT);
   });
 
-  it("the packed runtime matches the flattened model at scale", () => {
+  it("keeps packed slots and runtime-derived identities aligned at scale", () => {
     const runtime = createSceneRuntime(scene);
-    const flattened = flattenAssembly({
-      assemblyId: scene.rootAssemblyId,
-      assemblies: scene.assemblies,
-      visibleAssemblyIds: scene.visibleAssemblyIds,
-      visiblePartIds: scene.visiblePartIds,
-    });
+    const instances = runtimeInstances(runtime);
     expect(runtime.instanceCount).toBe(STRESS_INSTANCE_COUNT);
     expect(runtime.visibleCount).toBe(STRESS_INSTANCE_COUNT);
     expect(runtime.getDrawList()).toHaveLength(STRESS_INSTANCE_COUNT);
     const handle = runtime.getInstanceId(0);
-    expect(handle).toBe(flattened[0]?.instanceId);
+    expect(handle).toBe(instances[0]?.instanceId);
   });
 
-  it("resolves picks round-trip through the flattened model", () => {
-    const instances = flattenAssembly({
-      assemblyId: scene.rootAssemblyId,
-      assemblies: scene.assemblies,
-      visibleAssemblyIds: scene.visibleAssemblyIds,
-      visiblePartIds: scene.visiblePartIds,
-    });
+  it("resolves picks round-trip through runtime-derived instances", () => {
+    const instances = runtimeInstances(createSceneRuntime(scene));
     for (const pickId of [0, 1, STRESS_INSTANCE_COUNT / 2, STRESS_INSTANCE_COUNT - 1]) {
       const resolved = resolvePick(instances, pickId);
       expect(resolved?.index).toBe(pickId);
@@ -163,4 +110,19 @@ function countsByPart(instances: readonly Instance[]): ReadonlyMap<PartId, numbe
     counts.set(instance.partId, (counts.get(instance.partId) ?? 0) + 1);
   }
   return counts;
+}
+
+function runtimeInstances(runtime: ReturnType<typeof createSceneRuntime>): readonly Instance[] {
+  const instances: Instance[] = [];
+  const drawList = runtime.getDrawList();
+  for (let index = 0; index < drawList.length; index += 1) {
+    const slot = drawList[index];
+    if (slot === undefined) continue;
+    const instanceId = runtime.getInstanceId(slot);
+    const partId = runtime.getPartId(slot);
+    const worldTransform = runtime.getTransform(slot);
+    if (instanceId === undefined || partId === undefined || worldTransform === undefined) continue;
+    instances.push({ index, instanceId, partId, worldTransform });
+  }
+  return instances;
 }

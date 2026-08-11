@@ -485,7 +485,7 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime1, camera, wrapped.parts);
     expect(gpu.buffers.every((buffer) => !buffer.destroyed)).toBe(true);
 
-    const flattened = createScene()
+    const replacementScene = createScene()
       .addPart(part1)
       .addAssembly({
         id: 1,
@@ -497,8 +497,8 @@ describe("WebGPU renderer", () => {
       })
       .withRoot(1)
       .build();
-    const runtime2 = createSceneRuntime(flattened);
-    renderer.render(runtime2, camera, flattened.parts);
+    const runtime2 = createSceneRuntime(replacementScene);
+    renderer.render(runtime2, camera, replacementScene.parts);
 
     expect(gpu.buffers.some((buffer) => buffer.destroyed)).toBe(true);
     renderer.destroy();

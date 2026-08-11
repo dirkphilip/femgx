@@ -16,10 +16,8 @@ several multiples, so budgets are only meaningful on clean timing runs.
 
 | Case                        | Model                            | Workload                                 |
 | --------------------------- | -------------------------------- | ---------------------------------------- |
-| `flattenAssembly`           | shallow 200 000 instances        | full depth-first flatten                 |
 | `createSceneRuntime`        | shallow 200 000 instances        | packed compile                           |
 | `createSceneRuntime` (deep) | balanced tree, 204 800 instances | nested transform composition             |
-| `batchInstancesByPart`      | 200 000 instances / 200 parts    | group by part                            |
 | `setPartVisible` toggle     | part with 1 000 instances        | hide then show                           |
 | `setAssemblyVisible` toggle | subcase with 2 000 instances     | hide then show                           |
 | `setInstanceVisible` toggle | single instance                  | override, hide then show                 |
@@ -75,10 +73,9 @@ encoding.
 
 `test/runtime/stress.test.ts` complements the timing budgets with a pure
 correctness check at scale: 80 subcases x 2 000 placements (160 000 instances).
-It verifies deterministic flattening order, unique stable instance ids, the part
-distribution implied by the placement cycle, per-part batching, compiled scene
-consistency, a packed runtime that matches the flattened model, and pick
-round-trips. Budgets here are structural (explicit
+It verifies deterministic packed placement order, unique stable instance ids, the
+part distribution implied by the placement cycle, compiled scene consistency,
+runtime-derived instance identities, and pick round-trips. Budgets here are structural (explicit
 model sizes and invariants) rather than wall clock, so the test runs in the
 default unit suite without coverage-distorted timing.
 
