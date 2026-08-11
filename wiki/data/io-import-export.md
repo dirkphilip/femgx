@@ -38,9 +38,19 @@ malformed records produce actionable `Issue`s with stable `code`s (see
 
 ## Format capabilities
 
-- **IDs**: VTK has implicit ids, so round-trips use the contiguous 0..n-1 domain.
+- **IDs**: VTK has implicit ids. `writeVtk` preserves coordinate row order and
+  remaps authoritative node and element ids to those emitted rows; a parsed
+  file therefore receives dense 0..n-1 ids, while geometry and result
+  associations remain intact.
 - **Sets / metadata**: VTK legacy has no set or metadata concept.
-- **Results**: exported only when ids are the contiguous entity sequence.
+- **Results**: complete node and element fields are reordered by identity to
+  POINT_DATA and CELL_DATA row order. Partial, duplicate, unknown, or
+  non-finite fields fail with `VtkWriteError`; unsupported component counts are
+  rejected instead of being silently omitted.
+
+The dense ids after parsing are an unavoidable VTK limitation, not a loss of
+the original associations. Callers should match entities by coordinate and
+connectivity position when comparing a written model with its parsed result.
 
 ## Module split
 

@@ -278,6 +278,8 @@ export {
   type IssueCode,
   type IssueSeverity,
   type SourcePosition,
+  VtkWriteError,
+  type VtkWriteErrorCode,
 } from "./io/diagnostics";
 export {
   FEMGX_FORMAT_VERSION,

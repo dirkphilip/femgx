@@ -21,6 +21,7 @@ describe("public root API", () => {
       "TET10_SHAPE",
       "TET4_SHAPE",
       "TRIANGLE_SHAPE",
+      "VtkWriteError",
       "WebGpuPickReadbackError",
       "WebGpuUnsupportedError",
       "boundaryFaceRefs",

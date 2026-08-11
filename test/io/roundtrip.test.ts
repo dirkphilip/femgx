@@ -4,10 +4,15 @@ import { parse, write } from "../../src/io/parse";
 import { createModelBuilder } from "../../src/io/build";
 import {
   HEX20_SHAPE,
+  HEX8_SHAPE,
+  LINE_SHAPE,
   LINE3_SHAPE,
+  POINT_SHAPE,
   QUAD_SHAPE,
+  TET4_SHAPE,
   TET10_SHAPE,
   TRIANGLE_SHAPE,
+  topologyFor,
 } from "../../src/elements/shapes";
 
 function sampleModel() {
@@ -49,6 +54,69 @@ describe("VTK round-trips", () => {
     expect([...required(parsed.model.elementBlocks[1]).connectivity]).toEqual([
       ...required(model.elementBlocks[1]).connectivity,
     ]);
+  });
+
+  it("round-trips every supported shape and reorders node and element results", () => {
+    const builder = createModelBuilder();
+    const nodeIds = [
+      105, 101, 119, 104, 110, 102, 118, 107, 113, 100, 116, 108, 114, 103, 111, 117, 106, 115, 109,
+      112,
+    ];
+    const coordinates = new Array<number>();
+    for (let row = 0; row < nodeIds.length; row += 1) coordinates.push(row, row + 0.5, -row);
+    builder.appendNodes(nodeIds, coordinates);
+
+    const shapes = [
+      POINT_SHAPE,
+      LINE_SHAPE,
+      LINE3_SHAPE,
+      TRIANGLE_SHAPE,
+      QUAD_SHAPE,
+      TET4_SHAPE,
+      TET10_SHAPE,
+      HEX8_SHAPE,
+      HEX20_SHAPE,
+    ] as const;
+    const elementIds = shapes.map((_shape, index) => 1000 + index);
+    for (const [index, shape] of shapes.entries()) {
+      const nodeCount = topologyFor(shape).nodeCount;
+      builder.openElementBlock(shape);
+      builder.appendElements([elementIds[index] as number], nodeIds.slice(0, nodeCount));
+    }
+    const shuffledNodeIds = [...nodeIds].reverse();
+    builder.addResult({
+      name: "node-value",
+      location: "node",
+      components: 1,
+      ids: new Uint32Array(shuffledNodeIds),
+      values: new Float64Array(shuffledNodeIds.map((id) => 1000 + nodeIds.indexOf(id))),
+    });
+    const shuffledElementIds = [...elementIds].reverse();
+    builder.addResult({
+      name: "element-value",
+      location: "element",
+      components: 1,
+      ids: new Uint32Array(shuffledElementIds),
+      values: new Float64Array(shuffledElementIds.map((id) => 2000 + elementIds.indexOf(id))),
+    });
+    const model = builder.build();
+
+    const written = write(model);
+    expect(write(model)).toBe(written);
+    const parsed = parse(written);
+    expect(parsed.issues).toEqual([]);
+    expect(parsed.model.elementBlocks.map((block) => block.shape)).toEqual([...shapes]);
+    for (const [index, shape] of shapes.entries()) {
+      expect([...required(parsed.model.elementBlocks[index]).connectivity]).toEqual(
+        Array.from({ length: topologyFor(shape).nodeCount }, (_value, row) => row),
+      );
+    }
+    expect([...required(parsed.model.results[0]).values]).toEqual(
+      Array.from({ length: nodeIds.length }, (_value, row) => 1000 + row),
+    );
+    expect([...required(parsed.model.results[1]).values]).toEqual(
+      Array.from({ length: elementIds.length }, (_value, row) => 2000 + row),
+    );
   });
 });
 
