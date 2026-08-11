@@ -72,7 +72,8 @@ describe("createHeterogeneousPreset", () => {
 describe("createHex20CylinderPreset", () => {
   it("builds a small curved quadratic cylinder", () => {
     const preset = createHex20CylinderPreset();
-    expect(preset.scene.parts.size).toBe(2);
+    expect(preset.scene.parts.size).toBe(1);
+    expect(preset.overlayPartIds).toEqual([]);
     expect(preset.bounds.minZ).toBeCloseTo(-0.9);
     expect(preset.bounds.maxZ).toBeCloseTo(0.9);
   });
