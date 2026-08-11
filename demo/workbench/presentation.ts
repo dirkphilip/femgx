@@ -1,12 +1,12 @@
 import {
   type Camera,
-  type ElementRenderMode,
   type InteractionState,
   type PartId,
   type SceneRuntime,
 } from "../../src/index";
 import { updateAxisGizmo } from "../axis-gizmo";
 import { type ModelPreset } from "../fixture/presets";
+import type { ElementDisplayMode } from "../fixture/types";
 import { updateStatus, type DemoView } from "../view";
 import { selectedKeys } from "./selection";
 import { statsText } from "./status";
@@ -18,7 +18,7 @@ export interface WorkbenchPresentationOptions {
   readonly canvas: HTMLCanvasElement;
   readonly rendererName: string;
   readonly getPreset: () => ModelPreset;
-  readonly getMode: () => ElementRenderMode;
+  readonly getMode: () => ElementDisplayMode;
   readonly getToggles: () => DisplayToggles;
   readonly getResultMode: () => ResultDisplayMode;
   readonly getInteraction: () => InteractionState;

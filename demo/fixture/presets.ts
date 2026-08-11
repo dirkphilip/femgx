@@ -1,5 +1,4 @@
 import type { ElementModel } from "../../src/elements/model";
-import type { ElementRenderMode } from "../../src/geometry/element-mesh";
 import type { Bounds } from "../../src/geometry/part";
 import type { Color } from "../../src/interaction/interaction";
 import { transformPoint } from "../../src/math/mat4";
@@ -12,6 +11,7 @@ import { createElementFixture, createHex20CylinderFixture } from "./element-fixt
 import { createHeterogeneousFixture } from "./heterogeneous-fixture";
 import { createResultsPreset } from "./results-preset";
 import { createVtkFixture } from "./vtk-fixture";
+import type { ElementDisplayMode } from "./types";
 
 /** A deterministic demo model and its presentation metadata. */
 export interface ModelPreset {
@@ -22,9 +22,9 @@ export interface ModelPreset {
   readonly partColors: ReadonlyMap<PartId, Color>;
   readonly fallbackColor: Color;
   readonly partNames: ReadonlyMap<PartId, string>;
-  readonly modePartIds: ReadonlyMap<ElementRenderMode, readonly PartId[]>;
+  readonly modePartIds: ReadonlyMap<ElementDisplayMode, readonly PartId[]>;
   readonly overlayPartIds: readonly PartId[];
-  readonly defaultMode: ElementRenderMode;
+  readonly defaultMode: ElementDisplayMode;
   readonly bounds: Bounds;
   readonly results?: ViewportResultsConfig;
 }
@@ -32,7 +32,7 @@ export interface ModelPreset {
 /** Resolves the active mode to visible parts and preserves point/line overlays. */
 export function visiblePartIdsForPreset(
   preset: ModelPreset,
-  mode: ElementRenderMode,
+  mode: ElementDisplayMode,
 ): ReadonlySet<PartId> {
   const modeParts = preset.modePartIds.get(mode === "edges" ? "solid" : mode) ?? [];
   return new Set([...modeParts, ...preset.overlayPartIds]);
@@ -109,23 +109,15 @@ export function createHeterogeneousPreset(): ModelPreset {
 /** Builds the imported ASCII VTK finite-element sample. */
 export function createVtkPreset(): ModelPreset {
   const fixture = createVtkFixture();
-  const { solid, surface, edges } = fixture.partIds;
+  const { solid } = fixture.partIds;
   return {
     id: "vtk",
     name: "VTK sample block · exterior subset",
     scene: fixture.scene,
     elementModels: fixture.elementModels,
-    partColors: new Map<PartId, Color>([
-      [solid, { r: 0.23, g: 0.57, b: 0.84, a: 1 }],
-      [surface, { r: 0.3, g: 0.68, b: 0.94, a: 1 }],
-      [edges, { r: 0.12, g: 0.34, b: 0.6, a: 1 }],
-    ]),
+    partColors: new Map<PartId, Color>([[solid, { r: 0.23, g: 0.57, b: 0.84, a: 1 }]]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
-    partNames: new Map<PartId, string>([
-      [solid, "VTK Hex8 solid"],
-      [surface, "VTK Hex8 surface"],
-      [edges, "VTK Hex8 edges"],
-    ]),
+    partNames: new Map<PartId, string>([[solid, "VTK Hex8 exterior"]]),
     modePartIds: fixture.modePartIds,
     overlayPartIds: [],
     defaultMode: "solid",
@@ -133,7 +125,7 @@ export function createVtkPreset(): ModelPreset {
   };
 }
 
-/** Builds a small curved Hex20 cylinder to make quadratic tessellation visible. */
+/** Builds a small linearly tessellated Hex20 cylinder. */
 export function createHex20CylinderPreset(): ModelPreset {
   const fixture = createHex20CylinderFixture();
   const partId = fixture.partIds.hex20;
@@ -144,7 +136,7 @@ export function createHex20CylinderPreset(): ModelPreset {
     elementModels: fixture.elementModels,
     partColors: new Map<PartId, Color>([[partId, { r: 0.76, g: 0.34, b: 0.84, a: 1 }]]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
-    partNames: new Map<PartId, string>([[partId, "Hex20 cylinder · curved mid-edge tessellation"]]),
+    partNames: new Map<PartId, string>([[partId, "Hex20 cylinder · linear mid-edge tessellation"]]),
     modePartIds: fixture.modePartIds,
     overlayPartIds: fixture.overlayPartIds,
     defaultMode: "solid",
@@ -157,32 +149,16 @@ export function createBoltedPlatePreset(): ModelPreset {
   const fixture = createBoltedPlateFixture();
   const partIds = fixture.partIds;
   const colors = new Map<PartId, Color>([
-    [partIds.plate.solid, { r: 0.45, g: 0.55, b: 0.68, a: 1 }],
-    [partIds.plate.surface, { r: 0.5, g: 0.6, b: 0.72, a: 1 }],
-    [partIds.plate.edges, { r: 0.36, g: 0.46, b: 0.6, a: 1 }],
-    [partIds.bolt.solid, { r: 0.32, g: 0.36, b: 0.42, a: 1 }],
-    [partIds.bolt.surface, { r: 0.36, g: 0.4, b: 0.47, a: 1 }],
-    [partIds.bolt.edges, { r: 0.24, g: 0.28, b: 0.34, a: 1 }],
-    [partIds.washer.solid, { r: 0.85, g: 0.87, b: 0.9, a: 1 }],
-    [partIds.washer.surface, { r: 0.88, g: 0.9, b: 0.93, a: 1 }],
-    [partIds.washer.edges, { r: 0.72, g: 0.74, b: 0.78, a: 1 }],
-    [partIds.nut.solid, { r: 0.75, g: 0.55, b: 0.2, a: 1 }],
-    [partIds.nut.surface, { r: 0.8, g: 0.6, b: 0.25, a: 1 }],
-    [partIds.nut.edges, { r: 0.62, g: 0.45, b: 0.16, a: 1 }],
+    [partIds.plate.partId, { r: 0.45, g: 0.55, b: 0.68, a: 1 }],
+    [partIds.bolt.partId, { r: 0.32, g: 0.36, b: 0.42, a: 1 }],
+    [partIds.washer.partId, { r: 0.85, g: 0.87, b: 0.9, a: 1 }],
+    [partIds.nut.partId, { r: 0.75, g: 0.55, b: 0.2, a: 1 }],
   ]);
   const names = new Map<PartId, string>([
-    [partIds.plate.solid, "Steel plates"],
-    [partIds.plate.surface, "Steel plates"],
-    [partIds.plate.edges, "Steel plates"],
-    [partIds.bolt.solid, "Bolts"],
-    [partIds.bolt.surface, "Bolts"],
-    [partIds.bolt.edges, "Bolts"],
-    [partIds.washer.solid, "Washers"],
-    [partIds.washer.surface, "Washers"],
-    [partIds.washer.edges, "Washers"],
-    [partIds.nut.solid, "Nuts"],
-    [partIds.nut.surface, "Nuts"],
-    [partIds.nut.edges, "Nuts"],
+    [partIds.plate.partId, "Steel plates"],
+    [partIds.bolt.partId, "Bolts"],
+    [partIds.washer.partId, "Washers"],
+    [partIds.nut.partId, "Nuts"],
   ]);
   return {
     id: "bolted",

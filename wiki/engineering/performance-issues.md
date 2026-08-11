@@ -138,18 +138,17 @@ factor, never a runtime draw cost:
 - A Tet10 solid is 4 triangles per face vs 2 for a Tet4, and a Hex20 quad is 8
   triangles vs 2 for a Hex8, so quadratic models upload 2-4x the triangle
   geometry per element family.
-- `edgeSegments` (default 2, floor 2) raises line geometry linearly with the
-  requested subdivision; the floor guarantees the mid-edge node is honored.
+- Quadratic shapes use a fixed linearization through authored mid-edge nodes,
+  so their upload cost is predictable and the mid-edge node is always honored.
 - These are one-time costs at part build time, amortized across instances by
   instancing; the draw remains a single instanced call per part.
-- Boundary-face culling and edge deduplication (`surface`/`edges` modes) run
-  before tessellation, so culled interior faces never reach the vertex buffers.
+- Boundary-face culling runs before tessellation, so culled interior faces never
+  reach the vertex buffers; edge overlay topology is derived from the retained
+  triangle part when requested.
 
 Risk: a large quadratic model multiplies the vertex footprint even though the
-draw count is unchanged. If this supported-path cost becomes a bottleneck,
-adaptive tessellation (subdivide only near silhouettes or when projected
-curvature is large) is the natural follow-up; nothing in the geometry or
-renderer API prevents swapping the tessellator per part.
+draw count is unchanged. Exact curved interpolation is intentionally outside
+the product contract and would require a fresh product decision.
 
 [architecture/packed-runtime|packed runtime]: ../architecture/packed-runtime.md
 [architecture/packed-runtime|packed scene runtime]: ../architecture/packed-runtime.md

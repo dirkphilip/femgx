@@ -52,7 +52,7 @@ describe("createVtkPreset", () => {
   it("imports the checked-in VTK sample mesh", () => {
     const preset = createVtkPreset();
     expect(preset.name).toBe("VTK sample block · exterior subset");
-    expect(preset.scene.parts.size).toBe(3);
+    expect(preset.scene.parts.size).toBe(1);
     expect(preset.bounds).toEqual({ minX: 0, minY: 0, minZ: 0, maxX: 2, maxY: 2, maxZ: 1 });
   });
 });
@@ -70,7 +70,7 @@ describe("createHeterogeneousPreset", () => {
 });
 
 describe("createHex20CylinderPreset", () => {
-  it("builds a small curved quadratic cylinder", () => {
+  it("builds a small linearly tessellated Hex20 cylinder", () => {
     const preset = createHex20CylinderPreset();
     expect(preset.scene.parts.size).toBe(1);
     expect(preset.overlayPartIds).toEqual([]);

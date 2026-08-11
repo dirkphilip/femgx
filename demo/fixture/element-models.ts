@@ -260,7 +260,7 @@ export function buildHeterogeneousModel(): ElementModel {
   );
 }
 
-/** Optional dimensions for the curved Hex20 cylinder fixture. */
+/** Optional dimensions for the linearly tessellated Hex20 cylinder fixture. */
 interface Hex20CylinderOptions {
   readonly sectors?: number;
   readonly radialCells?: number;

@@ -1,11 +1,12 @@
-import type { ElementRenderMode, PartId } from "../../src/index";
+import type { PartId } from "../../src/index";
 import type { ModelPreset } from "../fixture/presets";
+import type { ElementDisplayMode } from "../fixture/types";
 import type { DisplayToggles, RendererStats, WorkbenchSceneContext } from "./types";
 
 /** Display inputs used to format one status snapshot. */
 export interface StatusTextOptions {
   readonly rendererName: string;
-  readonly mode: ElementRenderMode;
+  readonly mode: ElementDisplayMode;
   readonly toggles: DisplayToggles;
   readonly stats: RendererStats;
   readonly selectedCount: number;

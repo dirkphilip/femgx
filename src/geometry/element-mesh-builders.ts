@@ -1,5 +1,5 @@
 import type { FaceIdRef } from "../elements/faces";
-import { edgesOf, uniqueEdges, type ElementEdge } from "../elements/edges";
+import { edgesOf, type ElementEdge } from "../elements/edges";
 import type { Element, ElementId, NodeId } from "../elements/element";
 import type { ElementModel } from "../elements/model";
 import {
@@ -18,7 +18,7 @@ import {
 } from "./part";
 import { tessellateFace } from "./face-tessellation";
 import { LineMeshBuilder, TriangleMeshBuilder, type MeshVertex } from "./mesh-builder";
-import { quadraticPoint, type Vec3 } from "./vec-math";
+import type { Vec3 } from "./vec-math";
 import {
   allFacesForElements,
   boundaryFacesForElements,
@@ -159,22 +159,10 @@ function buildVolumeGeometry(options: VolumeGeometryOptions): TriangleGeometry {
   return geometry;
 }
 
-/** Builds deduplicated line geometry for a selected set of source elements. */
-export function edgeGeometry(
-  model: ElementModel,
-  elements: readonly Element[],
-  segments: number,
-): LineGeometry {
-  const mesh = new LineMeshBuilder();
-  for (const edge of uniqueEdges(elements)) mesh.append(edgePoints(model, edge, segments));
-  return mesh.build("lines");
-}
-
 /** Builds element-pickable line geometry for authored line elements. */
 export function lineGeometry(
   model: ElementModel,
   elements: readonly Element[],
-  segments: number,
   bodyIds: ReadonlyMap<ElementId, BodyId>,
   bodies: readonly Body[] | undefined,
 ): LineGeometry {
@@ -182,7 +170,7 @@ export function lineGeometry(
   const descriptors: ElementTessellation[] = [];
   for (const element of elements) {
     const primitiveStart = mesh.indices.length / 2;
-    for (const edge of edgesOf(element)) mesh.append(edgePoints(model, edge, segments));
+    for (const edge of edgesOf(element)) mesh.append(edgePoints(model, edge));
     const descriptor: ElementTessellation = {
       id: element.id,
       primitiveStart,
@@ -285,11 +273,7 @@ function bodiesForElements(
   });
 }
 
-function edgePoints(
-  model: ElementModel,
-  edge: ElementEdge,
-  segments: number,
-): readonly MeshVertex[] {
+function edgePoints(model: ElementModel, edge: ElementEdge): readonly MeshVertex[] {
   const first = edge.nodeIds[0];
   const last = edge.nodeIds[edge.nodeIds.length - 1];
   if (first === undefined || last === undefined)
@@ -305,21 +289,11 @@ function edgePoints(
   const midNodeId = edge.nodeIds[1];
   if (midNodeId === undefined) throw new Error("Quadratic edge must carry its mid-edge node");
   const mid = nodePosition(model, midNodeId);
-  const count = Math.max(2, segments);
-  const points: MeshVertex[] = [];
-  for (let step = 0; step <= count; step += 1) {
-    const t = step / count;
-    const nodeId =
-      step === 0
-        ? first
-        : step === count
-          ? last
-          : count % 2 === 0 && step === count / 2
-            ? midNodeId
-            : undefined;
-    points.push({ point: quadraticPoint(a, mid, b, t), nodeId });
-  }
-  return points;
+  return [
+    { point: a, nodeId: first },
+    { point: mid, nodeId: midNodeId },
+    { point: b, nodeId: last },
+  ];
 }
 
 function nodePosition(model: ElementModel, nodeId: NodeId): Vec3 {

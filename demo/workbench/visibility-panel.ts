@@ -1,12 +1,6 @@
-import type {
-  Body,
-  BodyId,
-  ElementRenderMode,
-  InstanceId,
-  PartId,
-  SceneRuntime,
-} from "../../src/index";
+import type { Body, BodyId, InstanceId, PartId, SceneRuntime } from "../../src/index";
 import { visiblePartIdsForPreset, type ModelPreset } from "../fixture/presets";
+import type { ElementDisplayMode } from "../fixture/types";
 import { assemblyName } from "../visibility-tree";
 import { createBodyGroupAction, parseBodyIds } from "./body-controls";
 
@@ -17,7 +11,7 @@ export interface VisibilityPanelOptions {
   readonly panel: HTMLElement;
   readonly getPreset: () => ModelPreset;
   readonly getRuntime: () => SceneRuntime;
-  readonly getMode: () => ElementRenderMode;
+  readonly getMode: () => ElementDisplayMode;
   readonly partName: (partId: PartId) => string | undefined;
   readonly partVisible: (partId: PartId) => boolean;
   readonly bodyVisible: (instanceId: InstanceId, bodyId: BodyId) => boolean;

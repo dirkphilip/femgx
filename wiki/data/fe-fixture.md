@@ -8,17 +8,18 @@ builders used to exercise the WebGPU path and unit tests.
 `createElementFixture` places one reusable example for every currently
 supported shape: Point, Line, Line3, Triangle, Quad, Tet4, Tet10, Hex8, and
 Hex20. It also includes a concave polygon authored through the geometry-owned
-`polygonPart` path. Filled modes share the surface and volume parts; point and
-line parts remain as overlays. The gallery is intentionally explicit about
-quadratic shapes so the tessellated surface is inspectable without introducing
-another renderer or API.
+`polygonPart` path. Triangle, line, and point outputs remain separate only where
+WebGPU primitive topology requires it; edge display is a renderer-owned overlay.
+The gallery is intentionally explicit about quadratic shapes so their linear
+mid-edge tessellation is inspectable without introducing another renderer or
+API.
 
 ## VTK sample
 
 `demo/fixture/sample-block.vtk` is a checked-in ASCII legacy VTK unstructured
 grid containing four Hex8 cells, nodal temperature data, and elemental stress
 data. `createVtkFixture` parses it through the public `parseVtk` path and turns
-the imported element block into the demo's reusable solid/surface/edge parts.
+the imported element block into one reusable exterior triangle part.
 This is the demo's small real-file import smoke fixture; VTK remains the only
 interchange format in product scope.
 
@@ -26,18 +27,19 @@ interchange format in product scope.
 
 `createHex20CylinderFixture` builds a small 12-sector, two-ring annular
 cylinder from Hex20 cells. Circumferential mid-edge nodes lie on the circular
-arc rather than at the chord midpoint, and the fixture requests four quadratic
-edge segments so the curved tessellation is visible with the demo edge overlay.
+arc rather than at the chord midpoint; the compiler uses those authored nodes
+as straight linear facet vertices, so the result is a deterministic faceted
+approximation with no curved interpolation.
 
 ## Bolted plate assembly
 
 `createBoltedPlateFixture` builds the default showcase: two overlapping plates
-clamped by eight fasteners. Four reusable components are tessellated for solid,
-surface, and edge modes (12 parts total); nested assembly definitions reuse the
-same bolt, washer-pair, and nut definitions at every fastener location.
+clamped by eight fasteners. Four reusable component parts are shared by the
+nested assembly definitions at every fastener location; edge display is a
+renderer-owned overlay rather than duplicate geometry.
 
 The deterministic defaults span X `-15..21`, Y `-4..4.35`, and Z `-7..7`, with
-34 visible part instances in the solid mode. The preset is the landing view, so
+34 visible part instances in the default view. The preset is the landing view, so
 changes to these defaults require matching e2e updates.
 
 ## Removed demo fixtures

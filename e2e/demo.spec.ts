@@ -28,11 +28,11 @@ test("renders the demo canvas with instanced geometry", async ({ page }) => {
 test("reports the active model, renderer, instances, parts, and batches", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("status")).toHaveText(
-    /Bolted plate assembly · webgpu · \d+ visible · 12 parts · \d+ batches · solid · (perspective|orthographic) camera/,
+    /Bolted plate assembly · webgpu · \d+ visible · 4 parts · \d+ batches · solid · (perspective|orthographic) camera/,
   );
   await expect(page.getByTestId("renderer-status")).toHaveText(/Renderer webgpu/);
   await expect(page.getByTestId("stats-panel")).toContainText("Visible instances");
-  await expect(page.getByTestId("stats-panel")).toContainText("Reusable parts 12");
+  await expect(page.getByTestId("stats-panel")).toContainText("Reusable parts 4");
   await expect(page.getByTestId("stats-panel")).toContainText("Draw batches");
 });
 
@@ -42,7 +42,7 @@ test("defaults to the bolted plate assembly showcase", async ({ page }) => {
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "bolted");
   await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
   await expect(page.getByTestId("status")).toContainText("34 visible");
-  await expect(page.getByTestId("stats-panel")).toContainText("Reusable parts 12");
+  await expect(page.getByTestId("stats-panel")).toContainText("Reusable parts 4");
 });
 
 test("shows a camera-aligned world coordinate gizmo", async ({ page }) => {

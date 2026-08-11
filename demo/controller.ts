@@ -3,7 +3,6 @@ import {
   setProjection,
   fitCamera,
   type Camera,
-  type ElementRenderMode,
   type InstanceId,
   type InteractionState,
   type PartId,
@@ -11,6 +10,7 @@ import {
   type SceneRuntime,
 } from "../src/index";
 import { visiblePartIdsForPreset, type ModelPreset } from "./fixture/presets";
+import type { ElementDisplayMode } from "./fixture/types";
 import { describePick } from "./inspect";
 import { selectedWorldBounds } from "./selection-bounds";
 import type { DemoView } from "./view";
@@ -41,7 +41,7 @@ export class WorkbenchController {
   readonly view: DemoView;
   readonly rendererName: string;
   preset: ModelPreset;
-  mode: ElementRenderMode;
+  mode: ElementDisplayMode;
   toggles: DisplayToggles;
   resultMode: ResultDisplayMode;
   interaction: InteractionState;
@@ -241,7 +241,7 @@ export class WorkbenchController {
   }
 
   /** Switches the visible element family through the runtime. */
-  setMode(mode: ElementRenderMode): void {
+  setMode(mode: ElementDisplayMode): void {
     if (mode === this.mode) return;
     if (mode === "edges") this.setEdges(true);
     else if (this.mode === "edges") this.setEdges(false);
@@ -253,7 +253,7 @@ export class WorkbenchController {
   }
 
   /** Applies the preset's per-mode part visibility to the runtime. */
-  private applyModeVisibility(mode: ElementRenderMode = this.mode): void {
+  private applyModeVisibility(mode: ElementDisplayMode = this.mode): void {
     const visible = visiblePartIdsForPreset(this.preset, mode);
     for (const partId of this.preset.scene.parts.keys()) {
       this.viewport.setPartVisible(partId, visible.has(partId));

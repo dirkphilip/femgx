@@ -8,7 +8,8 @@ import {
 } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { createScene } from "../../src/scene/scene";
-import type { ElementRenderMode, PartId } from "../../src/index";
+import type { PartId } from "../../src/index";
+import type { ElementDisplayMode } from "./types";
 
 const PART_ID: PartId = 1;
 const ROOT_ASSEMBLY_ID = 1;
@@ -35,7 +36,7 @@ export function createPerformancePreset(): ModelPreset {
     })),
   });
   const scene = builder.withRoot(ROOT_ASSEMBLY_ID).build();
-  const modes = new Map<ElementRenderMode, readonly PartId[]>([
+  const modes = new Map<ElementDisplayMode, readonly PartId[]>([
     ["solid", [PART_ID]],
     ["surface", [PART_ID]],
     ["edges", [PART_ID]],

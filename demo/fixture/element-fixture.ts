@@ -1,11 +1,12 @@
-import type { ElementModel } from "../../src/elements/model";
-import { elementPart, type ElementRenderMode } from "../../src/geometry/element-mesh";
+import { createElementModel, type ElementModel } from "../../src/elements/model";
+import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
 import { polygonPart } from "../../src/geometry/polygon";
 import type { Bounds, Part } from "../../src/geometry/part";
 import { transformPoint, translation } from "../../src/math/mat4";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { AssemblyId, PartId } from "../../src/scene/types";
+import type { ElementDisplayMode } from "./types";
 import {
   buildHex20CylinderModel,
   buildHexModel,
@@ -40,10 +41,10 @@ export interface ElementFixtureOptions {
 export interface ElementFixture {
   readonly scene: Scene;
   readonly partIds: ElementFixtureParts;
-  readonly modePartIds: ReadonlyMap<ElementRenderMode, readonly PartId[]>;
+  readonly modePartIds: ReadonlyMap<ElementDisplayMode, readonly PartId[]>;
   readonly overlayPartIds: readonly PartId[];
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
-  readonly defaultMode: ElementRenderMode;
+  readonly defaultMode: ElementDisplayMode;
   readonly instanceCount: number;
   readonly bounds: Bounds;
 }
@@ -89,15 +90,34 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     [POLYGON_PART_ID, surfaceModel],
   ]);
   const parts: readonly Part[] = [
-    elementPart(POINT_PART_ID, pointLineModel, "point", "points"),
-    elementPart(LINE_PART_ID, lineModel, "line", "lines"),
-    elementPart(LINE3_PART_ID, line3Model, "line", "lines"),
-    elementPart(TET4_PART_ID, tet4Model, "tet", "solid"),
-    elementPart(TET10_PART_ID, tet10Model, "tet", "solid"),
-    elementPart(HEX8_PART_ID, hex8Model, "hex", "solid"),
-    elementPart(HEX20_PART_ID, hex20Model, "hex", "solid"),
-    elementPart(TRIANGLE_PART_ID, surfaceModel, "triangle", "solid"),
-    elementPart(QUAD_PART_ID, surfaceModel, "quad", "solid"),
+    requireGroup(
+      heterogeneousElementParts({ point: POINT_PART_ID }, elementsOf(pointLineModel, "point")),
+      "point",
+    ),
+    requireGroup(
+      heterogeneousElementParts({ line: LINE_PART_ID }, elementsOf(lineModel, "line", 1)),
+      "line",
+    ),
+    requireGroup(
+      heterogeneousElementParts({ line: LINE3_PART_ID }, elementsOf(line3Model, "line", 2)),
+      "line",
+    ),
+    requireGroup(heterogeneousElementParts({ triangle: TET4_PART_ID }, tet4Model), "triangle"),
+    requireGroup(heterogeneousElementParts({ triangle: TET10_PART_ID }, tet10Model), "triangle"),
+    requireGroup(heterogeneousElementParts({ triangle: HEX8_PART_ID }, hex8Model), "triangle"),
+    requireGroup(heterogeneousElementParts({ triangle: HEX20_PART_ID }, hex20Model), "triangle"),
+    requireGroup(
+      heterogeneousElementParts({ triangle: TRIANGLE_PART_ID }, surfaceModel, {
+        faceSubset: [{ elementId: 1, faceIndex: 0 }],
+      }),
+      "triangle",
+    ),
+    requireGroup(
+      heterogeneousElementParts({ triangle: QUAD_PART_ID }, surfaceModel, {
+        faceSubset: [{ elementId: 2, faceIndex: 0 }],
+      }),
+      "triangle",
+    ),
     polygonPart(POLYGON_PART_ID, {
       positions: [0, 0, 0, 2, 0, 0, 2, 2, 0, 1, 1, 0, 0, 2, 0],
       faces: [{ nodeIds: [0, 1, 2, 3, 4], elementId: 1, key: "gallery-polygon" }],
@@ -128,7 +148,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
       polygon: POLYGON_PART_ID,
     },
     elementModels: models,
-    modePartIds: new Map<ElementRenderMode, readonly PartId[]>([
+    modePartIds: new Map<ElementDisplayMode, readonly PartId[]>([
       ["solid", volumePartIds],
       ["surface", volumePartIds],
       ["edges", volumePartIds],
@@ -140,7 +160,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   };
 }
 
-/** Fixture shape for the curved Hex20 cylinder example. */
+/** Fixture shape for the linearly tessellated Hex20 cylinder example. */
 type Hex20CylinderFixture = Omit<ElementFixture, "partIds"> & {
   readonly partIds: Pick<
     ElementFixtureParts,
@@ -151,9 +171,13 @@ type Hex20CylinderFixture = Omit<ElementFixture, "partIds"> & {
 /** Builds the Hex20 cylinder example used by the gallery preset. */
 export function createHex20CylinderFixture(): Hex20CylinderFixture {
   const model = buildHex20CylinderModel();
-  const parts = [elementPart(HEX20_PART_ID, model, "hex", "solid")];
+  const part = requireGroup(
+    heterogeneousElementParts({ triangle: HEX20_PART_ID }, model),
+    "triangle",
+  );
+  const parts = [part];
   const scene = galleryScene(parts, 0);
-  const modePartIds = new Map<ElementRenderMode, readonly PartId[]>([
+  const modePartIds = new Map<ElementDisplayMode, readonly PartId[]>([
     ["solid", [HEX20_PART_ID]],
     ["surface", [HEX20_PART_ID]],
     ["edges", [HEX20_PART_ID]],
@@ -176,6 +200,25 @@ export function createHex20CylinderFixture(): Hex20CylinderFixture {
     instanceCount: parts.length,
     bounds: sceneBounds(scene),
   };
+}
+
+function elementsOf(model: ElementModel, family: "point" | "line", order?: number): ElementModel {
+  return createElementModel(
+    [...model.nodes],
+    model.elements.filter(
+      (element) =>
+        element.shape.family === family && (order === undefined || element.shape.order === order),
+    ),
+  );
+}
+
+function requireGroup(
+  parts: ReturnType<typeof heterogeneousElementParts>,
+  group: "triangle" | "line" | "point",
+): Part {
+  const part = parts[group];
+  if (part === undefined) throw new Error(`Element fixture has no ${group} part`);
+  return part;
 }
 
 function galleryScene(parts: readonly Part[], blockSize: number): Scene {

@@ -141,7 +141,7 @@ WebGPU.
 
 `TRIANGLE_SHAPE` and `QUAD_SHAPE` are the typed path for linear surface finite
 elements. They preserve element ids, node ids, face ownership, deformation,
-results, and GPU picking through `elementGeometry`/`elementPart`. Polygon loops
+results, and GPU picking through `heterogeneousElementParts`. Polygon loops
 that are not already typed elements belong to the separate geometry-owned
 authoring path in [[data/polygon-input|Polygon input]].
 

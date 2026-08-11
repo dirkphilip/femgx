@@ -12,7 +12,7 @@ describe("createVtkFixture", () => {
     ]);
     expect(fixture.vtkModel.results[0]?.location).toBe("node");
     expect(fixture.vtkModel.results[1]?.location).toBe("element");
-    expect(fixture.scene.parts.size).toBe(3);
+    expect(fixture.scene.parts.size).toBe(1);
     const solid = fixture.scene.parts.get(fixture.partIds.solid)?.geometry;
     if (solid?.primitive !== "triangles") throw new Error("VTK solid fixture is not triangles");
     expect(solid.faceSubset?.faceIds.length).toBeGreaterThan(0);
