@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { computeBounds } from "../../src/geometry/part";
+import { createPart } from "../../src/geometry/part";
 import { setBodyOverride, setBodyVisible } from "../../src/interaction/bodies";
 import { setPartOverride } from "../../src/interaction/interaction";
 import { translation } from "../../src/math/mat4";
@@ -30,7 +30,7 @@ function scene(offset = 0) {
     primitive: "triangles" as const,
   };
   return createScene()
-    .addPart({ id: 1, geometry, bounds: computeBounds(geometry) })
+    .addPart(createPart(1, geometry))
     .addAssembly({
       id: 1,
       name: "root",

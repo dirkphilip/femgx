@@ -5,7 +5,7 @@ import {
   PolygonGeometryError,
   type PolygonGeometryInput,
 } from "../../src/geometry/polygon";
-import { computeBounds } from "../../src/geometry/part";
+import { createPart } from "../../src/geometry/part";
 import { resolvePickTarget, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
 import { identity } from "../../src/math/mat4";
 import { deformGeometry } from "../../src/results/deform";
@@ -121,7 +121,7 @@ describe("polygonGeometry", () => {
 
   it("keeps node identity through picking and deformation", () => {
     const geometry = polygonGeometry(concaveInput());
-    const part = { id: 1, geometry, bounds: computeBounds(geometry) };
+    const part = createPart(1, geometry);
     const context: PickContext = { instances: [instance()], parts: new Map([[1, part]]) };
     expect(
       resolvePickTarget(context, ids({ elementPickId: 8, facePickId: 1 }), "face"),

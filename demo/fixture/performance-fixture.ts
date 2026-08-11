@@ -1,6 +1,6 @@
 import type { ModelPreset } from "./presets";
 import {
-  computeBounds,
+  createPart,
   type ElementTessellation,
   type FaceTessellation,
   type Geometry,
@@ -24,7 +24,7 @@ const ROWS = 8;
  */
 export function createPerformancePreset(): ModelPreset {
   const geometry = createGridGeometry(CELLS_PER_SIDE);
-  const part: Part = { id: PART_ID, geometry, bounds: computeBounds(geometry) };
+  const part: Part = createPart(PART_ID, geometry);
   let builder = createScene().addPart(part);
   builder = builder.addAssembly({
     id: ROOT_ASSEMBLY_ID,

@@ -2,7 +2,7 @@ import type { ElementId, NodeId } from "../elements/element";
 import type { FaceKey } from "../elements/faces";
 import type { PartId } from "../scene/types";
 import {
-  computeBounds,
+  createPart,
   validateBodies,
   validateElements,
   validatePickIds,
@@ -102,11 +102,7 @@ export function polygonGeometry(input: PolygonGeometryInput): TriangleGeometry {
 /** Builds a reusable part from polygon input, including finite bounds. */
 export function polygonPart(partId: PartId, input: PolygonGeometryInput): Part {
   const geometry = polygonGeometry(input);
-  return {
-    id: partId,
-    geometry,
-    bounds: geometry.positions.length === 0 ? emptyBounds() : computeBounds(geometry),
-  };
+  return createPart(partId, geometry);
 }
 
 function copyPositions(input: ArrayLike<number>): Float32Array {
@@ -260,15 +256,4 @@ function faceTessellation(record: PolygonRecord, bodyId: number | undefined): Fa
 
 function canonicalFaceKey(nodeIds: readonly NodeId[]): FaceKey {
   return [...nodeIds].sort((a, b) => a - b).join(",");
-}
-
-function emptyBounds(): {
-  readonly minX: 0;
-  readonly minY: 0;
-  readonly minZ: 0;
-  readonly maxX: 0;
-  readonly maxY: 0;
-  readonly maxZ: 0;
-} {
-  return { minX: 0, minY: 0, minZ: 0, maxX: 0, maxY: 0, maxZ: 0 };
 }

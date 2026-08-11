@@ -14,12 +14,13 @@ const geometry: Geometry = {
 };
 ```
 
-`validateBodies` checks duplicate ids, deterministic ordering, unknown element
-references, duplicate membership, and consistency between the body list and
-each `ElementTessellation.bodyId`. `SceneBuilder.addPart` runs this validation
-before the part enters the authoritative scene. `bodyIdForElement` is the
-small lookup used by picking and interaction layers; placements continue to
-reference the same reusable part and do not acquire body-local geometry.
+`createPart` validates body metadata before a part enters the authoritative
+scene. `Body.elementIds` is the single authoring source of membership;
+`ElementTessellation.bodyId` and `FaceTessellation.bodyId` are derived,
+validated render/pick metadata retained for fast local lookup. The
+`bodyIdForElement` helper resolves the same relationship for geometry without
+descriptor metadata. Placements continue to reference the same reusable part
+and do not acquire body-local geometry.
 
 Body visibility and styling build on this metadata in
 [[rendering/interactive-state|Interactive state]]. Face subsets and polygon

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createWebGpuRenderer } from "../../src/renderer/gpu-renderer";
-import { computeBounds } from "../../src/geometry/part";
+import { createPart } from "../../src/geometry/part";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
 import { createScene, type Scene } from "../../src/scene/scene";
@@ -49,7 +49,7 @@ function buildScene(): Scene {
     primitive: "triangles" as const,
   };
   return createScene()
-    .addPart({ id: 1, geometry, bounds: computeBounds(geometry) })
+    .addPart(createPart(1, geometry))
     .addAssembly({
       id: 1,
       name: "root",
@@ -82,7 +82,7 @@ function buildFaceScene(): Scene {
     ],
   };
   return createScene()
-    .addPart({ id: 1, geometry, bounds: computeBounds(geometry) })
+    .addPart(createPart(1, geometry))
     .addAssembly({
       id: 1,
       name: "root",
@@ -468,7 +468,7 @@ describe("WebGPU renderer", () => {
       indices: new Uint32Array([0, 1, 2]),
       primitive: "triangles" as const,
     };
-    const part1 = { id: 1, geometry, bounds: computeBounds(geometry) };
+    const part1 = createPart(1, geometry);
 
     const wrapped = createScene()
       .addPart(part1)

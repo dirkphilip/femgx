@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, bench, describe } from "vitest";
-import { computeBounds, type Body, type ElementTessellation } from "../../src/geometry/part";
+import { createPart, type Body, type ElementTessellation } from "../../src/geometry/part";
 import { setBodyVisible } from "../../src/interaction/bodies";
 import { identity } from "../../src/math/mat4";
 import type { FemViewport } from "../../src/viewport/fem-viewport";
@@ -28,7 +28,7 @@ function bodyScene() {
   }
   const geometry = { primitive: "triangles" as const, positions, indices, elements, bodies };
   return createScene()
-    .addPart({ id: 1, geometry, bounds: computeBounds(geometry) })
+    .addPart(createPart(1, geometry))
     .addAssembly({
       id: 1,
       name: "body-benchmark",
