@@ -216,6 +216,7 @@ export function validatePickIds(geometry: Geometry): void {
   }
   validateNodePickIds(geometry);
   validateFaceMetadata(geometry);
+  validateFaceSubset(geometry);
   if (geometry.faces !== undefined) {
     const seen = new Set<FaceId>();
     geometry.faces.forEach((face, index) => {
@@ -229,6 +230,32 @@ export function validatePickIds(geometry: Geometry): void {
     });
   }
   validateBodies(geometry);
+}
+
+/** Validates that a render-time face subset resolves to declared face ids. */
+export function validateFaceSubset(geometry: Geometry): void {
+  const subset = geometry.faceSubset;
+  if (subset === undefined) return;
+  if (geometry.primitive === "lines" || geometry.primitive === "points") {
+    throw new Error("faceSubset is supported only by triangle geometry");
+  }
+  if (subset.faceIds.length === 0) return;
+  const faces = geometry.faces;
+  const facePickIds = geometry.facePickIds;
+  if (faces === undefined || facePickIds === undefined) {
+    throw new Error("faceSubset requires declared faces and facePickIds");
+  }
+  const seen = new Set<FaceId>();
+  for (const faceId of subset.faceIds) {
+    if (!Number.isInteger(faceId) || faceId < 0 || faceId >= faces.length) {
+      throw new Error(`faceSubset references undeclared face ${faceId}`);
+    }
+    if (seen.has(faceId)) throw new Error(`faceSubset repeats face ${faceId}`);
+    if (!facePickIds.includes(faceId + 1)) {
+      throw new Error(`faceSubset references face ${faceId} without triangles`);
+    }
+    seen.add(faceId);
+  }
 }
 
 function validateNodePickIds(geometry: Geometry): void {

@@ -157,6 +157,9 @@ closed; the list is historical scope memory, not an open implementation queue.
 - [x] Add validated polygon-part input with deterministic triangulation,
       retained face/element ownership, node picks, deformation support, and a
       gallery example (see [[data/polygon-input|Polygon input]]).
+- [x] Add validated element-face subsets, exterior-face selection, compact GPU
+      index orders, preserved picks, and an exterior VTK demo path (see
+      [[rendering/face-subsets|Face subsets]]).
 
 ## P2 — engineering results
 

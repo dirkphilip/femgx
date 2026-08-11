@@ -17,6 +17,11 @@ export interface PartResource {
   readonly edgeIndexBuffer: GPUBuffer;
   readonly indexCount: number;
   readonly edgeIndexCount: number;
+  /** Optional compact index orders for a validated face subset. */
+  readonly subsetIndexBuffer?: GPUBuffer;
+  readonly subsetEdgeIndexBuffer?: GPUBuffer;
+  readonly subsetIndexCount: number;
+  readonly subsetEdgeIndexCount: number;
 }
 
 export const defaultStyle: ResolvedStyle = {

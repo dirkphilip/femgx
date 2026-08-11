@@ -142,7 +142,7 @@ test("switches between deterministic model presets", async ({ page }) => {
 
   await select.selectOption("vtk");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "vtk");
-  await expect(page.getByTestId("status")).toContainText("VTK sample block");
+  await expect(page.getByTestId("status")).toContainText("VTK sample block · exterior subset");
 
   await select.selectOption("hex20-cylinder");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "hex20-cylinder");

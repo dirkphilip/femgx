@@ -65,6 +65,8 @@ extract deterministic polygon and line output:
 - `classifyFaces(elements)` deduplicates coincident faces by a canonical key
   (sorted node ids) and flags boundary faces — those shared by exactly one
   element (`count === 1`); shared faces get `count === 2` and are interior.
+- `boundaryFaceRefs(elements)` turns that classification into stable `{ elementId, faceIndex }`
+  identities for [[rendering/face-subsets|face subset]] rendering.
 - `uniqueEdges(elements)` deduplicates edges across elements, presents each
   edge in ascending corner order with the mid node centered, and sorts the
   result in ascending node order.
@@ -132,4 +134,4 @@ WebGPU.
 elements. They preserve element ids, node ids, face ownership, deformation,
 results, and GPU picking through `elementGeometry`/`elementPart`. Polygon loops
 that are not already typed elements belong to the separate geometry-owned
-authoring path tracked by issue #240.
+authoring path in [[data/polygon-input|Polygon input]].

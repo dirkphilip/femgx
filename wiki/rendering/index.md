@@ -13,6 +13,8 @@
   coverage.
 - [[rendering/element-rendering|Element rendering]] — linear core tessellation
   and retained deferred quadratic coverage.
+- [[rendering/face-subsets|Face subsets]] — validated exterior or explicit
+  element-face selection through compact GPU index orders.
 - [[rendering/interactive-state|Interactive state]] — centralized highlight,
   selection, hover, and style precedence.
 - [[rendering/node-face-interaction|Node and face interaction]] — node/face

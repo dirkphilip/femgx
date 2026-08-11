@@ -34,6 +34,35 @@ const part: Part = {
   bounds: { minX: 0, minY: 0, minZ: 0, maxX: 1, maxY: 1, maxZ: 0 },
 };
 
+const subsetPart: Part = {
+  id: 2,
+  geometry: {
+    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1]),
+    indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+    facePickIds: new Uint32Array([1, 2]),
+    faces: [
+      {
+        id: 0,
+        elementId: 1,
+        faceIndex: 0,
+        key: "0,1,2",
+        nodeIds: [0, 1, 2],
+        neighborElementIds: [],
+      },
+      {
+        id: 1,
+        elementId: 1,
+        faceIndex: 1,
+        key: "3,4,5",
+        nodeIds: [3, 4, 5],
+        neighborElementIds: [],
+      },
+    ],
+    faceSubset: { faceIds: [1] },
+  },
+  bounds: { minX: 0, minY: 0, minZ: 0, maxX: 1, maxY: 1, maxZ: 1 },
+};
+
 function record(x: number): ArrayBuffer {
   return encodeInstanceRecord(translation(x, 0, 0), defaultStyle, 1);
 }
@@ -81,6 +110,42 @@ describe("GPU draw path", () => {
       expect(gpu.buffers[3]?.size).toBe(8);
       expect(gpu.buffers[4]?.size).toBe(12);
       expect(gpu.buffers[5]?.size).toBe(24);
+    } finally {
+      restore();
+    }
+  });
+
+  it("draws a face subset through compact indices without another vertex mesh", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      const resource = uploadPart(draw, subsetPart);
+      expect(resource.indexCount).toBe(6);
+      expect(resource.subsetIndexCount).toBe(3);
+      expect(resource.subsetEdgeIndexCount).toBe(6);
+      expect(resource.subsetIndexBuffer).toBeDefined();
+      expect(resource.subsetEdgeIndexBuffer).toBeDefined();
+      expect(gpu.buffers).toHaveLength(8);
+
+      patchInstances(draw, subsetPart.id, [{ slot: 0, data: record(0) }]);
+      writeDrawOrder(draw, subsetPart.id, new Uint32Array([0]));
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) },
+        [{ partId: subsetPart.id, instanceCount: 1 }],
+        { pass: "color" },
+      );
+      pass.end();
+      expect(gpu.drawCalls).toEqual([{ indexCount: 3, instanceCount: 1 }]);
     } finally {
       restore();
     }

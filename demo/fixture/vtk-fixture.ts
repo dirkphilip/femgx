@@ -1,6 +1,7 @@
 import sampleBlockVtk from "./sample-block.vtk?raw";
 import { createElement } from "../../src/elements/element";
 import { createElementModel, type ElementModel } from "../../src/elements/model";
+import { boundaryFaceRefs } from "../../src/elements/faces";
 import { topologyFor } from "../../src/elements/shapes";
 import { parseVtk, type FemModel } from "../../src/index";
 import { elementPart, type ElementRenderMode } from "../../src/geometry/element-mesh";
@@ -42,9 +43,10 @@ export function createVtkFixture(): VtkFixture {
     );
   });
   const elementModel = createElementModel([...vtkModel.nodes.coordinates], elements);
+  const exteriorFaces = boundaryFaceRefs(elements);
   const parts: readonly Part[] = [
-    elementPart(SOLID_PART_ID, elementModel, "hex", "solid"),
-    elementPart(SURFACE_PART_ID, elementModel, "hex", "surface"),
+    elementPart(SOLID_PART_ID, elementModel, "hex", "solid", { faceSubset: exteriorFaces }),
+    elementPart(SURFACE_PART_ID, elementModel, "hex", "surface", { faceSubset: exteriorFaces }),
     elementPart(EDGES_PART_ID, elementModel, "hex", "edges"),
   ];
   let builder = createScene();

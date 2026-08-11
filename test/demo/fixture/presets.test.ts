@@ -49,7 +49,7 @@ describe("createGalleryPreset", () => {
 describe("createVtkPreset", () => {
   it("imports the checked-in VTK sample mesh", () => {
     const preset = createVtkPreset();
-    expect(preset.name).toBe("VTK sample block");
+    expect(preset.name).toBe("VTK sample block · exterior subset");
     expect(preset.scene.parts.size).toBe(3);
     expect(preset.bounds).toEqual({ minX: 0, minY: 0, minZ: 0, maxX: 2, maxY: 2, maxZ: 1 });
   });

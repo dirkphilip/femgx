@@ -5,6 +5,12 @@ import type { ElementId, PartId } from "../scene/types";
 /** Stable identity of one oriented element face within a part. */
 export type FaceId = number;
 
+/** Stable set of part-local faces selected for solid/pick rendering. */
+export interface FaceSubset {
+  /** Face ids index the part's declared `faces` array. An empty set draws nothing. */
+  readonly faceIds: readonly FaceId[];
+}
+
 /** Stable identity of one logical body within a reusable part. */
 export type BodyId = number;
 
@@ -102,6 +108,8 @@ export interface Geometry {
   readonly facePickIds?: Uint32Array;
   /** Optional face descriptors in ascending `id` order. */
   readonly faces?: readonly FaceTessellation[];
+  /** Optional render-time subset of the declared triangle faces. */
+  readonly faceSubset?: FaceSubset;
   /** Optional logical bodies in ascending `id` order. */
   readonly bodies?: readonly Body[];
 }
@@ -160,6 +168,7 @@ export {
   GeometryValidationError,
   validateBodies,
   validateElements,
+  validateFaceSubset,
   validatePickIds,
 } from "./part-validation";
 export type { GeometryValidationCode } from "./part-validation";

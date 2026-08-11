@@ -17,7 +17,10 @@ Related: [[data/elements-topology|Element topology]] and
 3. `elementGeometry` (`src/geometry/element-mesh.ts`) tessellates the model into
    a `Geometry` tagged with a `Primitive` (`"triangles" | "lines" | "points"`,
    default `"triangles"`, see `src/geometry/part.ts`). `elementPart` wraps the
-   result in a reusable part with computed bounds.
+   result in a reusable part with computed bounds. Solid/surface callers can
+   pass a validated `faceSubset` of `{ elementId, faceIndex }` identities; the
+   renderer keeps the full reusable vertex mesh and draws the selected faces
+   through a compact index order (see [[rendering/face-subsets|Face subsets]]).
 4. The renderer (`src/renderer/`) creates color and pick pipelines per
    primitive, batches instances by part, and draws with the part's primitive
    (see [[rendering/renderer-subrange-updates|Renderer subrange updates]]).
