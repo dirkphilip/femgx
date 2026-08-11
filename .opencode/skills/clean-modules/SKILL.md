@@ -7,12 +7,14 @@ description: Keep femgx source files small and clearly modular. Use when creatin
 
 femgx enforces small files and clear module boundaries via ESLint:
 
-- `max-lines`: 300 non-blank, non-comment lines per file (`src/**/*.ts`).
+- `max-lines`: 400 non-blank, non-comment lines per file (`src/**/*.ts`), with
+  300 lines as the design-review threshold.
 - `max-lines-per-function`: 60 lines per function.
 - `max-depth`: 4 nesting levels.
 - `max-params`: 5 parameters.
 
-These are **errors** in `src/`, enforced by `npm run lint`.
+The 400-line limit is an error in `src/`, enforced by `npm run lint`; the
+300-line threshold prompts a cohesion review.
 
 ## When to split
 

@@ -1,7 +1,7 @@
 {
   "name": "femgx",
   "version": "0.1.0",
-  "description": "A TypeScript graphics library rendering giant finite element models with WebGPU and GPU instancing",
+  "description": "A TypeScript graphics library rendering finite element models with WebGPU and GPU instancing",
   "keywords": [
     "webgpu",
     "finite-element",

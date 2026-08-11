@@ -5,8 +5,9 @@ description: Run and control Agent Supervisor, the local issue-to-pull-request w
 
 # Agent Supervisor
 
-For the repository’s end-to-end issue → implementation → monitoring → merge →
-re-triage operating loop, follow `../wiki/development-loop.md`.
+For repository contracts and the quality gate, follow `../AGENTS.md` and
+`../wiki/engineering/quality-gate.md`. GitHub issues and pull requests remain
+the authoritative work tracker.
 
 Use Agent Supervisor to turn an approved GitHub issue into a pull request
 through an isolated, resumable coding-agent workflow.
