@@ -1,34 +1,18 @@
 /* eslint-disable jsdoc/require-jsdoc, max-lines-per-function */
-import {
-  colorFragmentShader,
-  edgeFragmentShader,
-  edgeVertexShader,
-  triangleColorFragmentShader,
-} from "./gpu-shaders";
-import { instanceVertexShader, lineVertexShader, pointVertexShader } from "./gpu-instanced-shaders";
-import {
-  lineNodePickVertexShader,
-  nodePickFragmentShader,
-  nodePickVertexShader,
-  pointNodePickVertexShader,
-} from "./gpu-node-pick";
-import { PICK_TEXTURE_FORMAT } from "./pick-format";
-import { COLOR_SAMPLE_COUNT, vertexLayout } from "./gpu-support";
+import { COLOR_SAMPLE_COUNT } from "./gpu-support";
 import { DEFORMATION_UNIFORM_SIZE } from "./gpu-deform";
 import { createNodeOverlayPipelines } from "./gpu-node-overlay";
 import type { NodeOverlayPipelines } from "./gpu-node-overlay";
-import { createOrbitPivotResources, type OrbitPivotResources } from "./gpu-orbit-pivot";
+import {
+  createOrbitPivotPipeline,
+  createOrbitPivotResources,
+  type OrbitPivotResources,
+} from "./gpu-orbit-pivot";
+import { createPipelineResources, type DrawPipelines } from "./gpu-pipeline-builders";
+import type { GpuValidationOptions } from "./gpu-validation";
 
 export { COLOR_SAMPLE_COUNT } from "./gpu-support";
-
-export interface DrawPipelines {
-  readonly trianglesColor: GPURenderPipeline;
-  readonly trianglesPick: GPURenderPipeline;
-  readonly linesColor: GPURenderPipeline;
-  readonly linesPick: GPURenderPipeline;
-  readonly pointsColor: GPURenderPipeline;
-  readonly pointsPick: GPURenderPipeline;
-}
+export type { DrawPipelines } from "./gpu-pipeline-builders";
 
 export interface RenderResources {
   readonly cameraBuffer: GPUBuffer;
@@ -54,22 +38,13 @@ interface DrawTargets {
 
 export const CAMERA_UNIFORM_SIZE = 112;
 
-interface PipelineSpec {
-  readonly depthFormat: GPUTextureFormat;
-  readonly vertexModule: GPUShaderModule;
-  readonly vertexEntry: string;
-  readonly fragmentModule: GPUShaderModule;
-  readonly passFormats: readonly GPUTextureFormat[];
-  readonly primitive: GPUPrimitiveTopology;
-  readonly cullMode: GPUCullMode;
-  readonly sampleCount: number;
-}
-
-export function createRenderResources(
+/** Creates validated pipelines before allocating the remaining frame resources. */
+export async function createRenderResources(
   device: GPUDevice,
   format: GPUTextureFormat,
   depthFormat: GPUTextureFormat,
-): RenderResources {
+  validation?: GpuValidationOptions,
+): Promise<RenderResources> {
   const instanceLayout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
@@ -92,237 +67,73 @@ export function createRenderResources(
       { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } },
     ],
   });
-  const cameraBuffer = device.createBuffer({
-    size: CAMERA_UNIFORM_SIZE,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  const deformationBuffer = device.createBuffer({
-    size: DEFORMATION_UNIFORM_SIZE,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  const frameBindGroup = device.createBindGroup({
-    layout: cameraLayout,
-    entries: [
-      { binding: 0, resource: { buffer: cameraBuffer } },
-      { binding: 1, resource: { buffer: deformationBuffer } },
-    ],
-  });
   const layout = device.createPipelineLayout({
     bindGroupLayouts: [cameraLayout, instanceLayout],
   });
-  const pipelines = buildPipelines(device, layout, format, depthFormat);
-  const edgePipeline = createEdgePipeline(device, layout, format, depthFormat, "less-equal");
-  const edgeAlwaysPipeline = createEdgePipeline(device, layout, format, depthFormat, "always");
-  const nodeOverlayPipelines = createNodeOverlayPipelines(
+  const pipelineResources = await createPipelineResources(
+    device,
+    layout,
+    format,
+    depthFormat,
+    validation,
+  );
+  const nodeOverlayPipelines = await createNodeOverlayPipelines({
     device,
     cameraLayout,
     instanceLayout,
     format,
     depthFormat,
-  );
-  const orbitPivot = createOrbitPivotResources(
+    pointVertexModule: pipelineResources.pointVertexModule,
+    validation,
+  });
+  const orbitPivotPipeline = await createOrbitPivotPipeline({
     device,
     format,
     depthFormat,
-    cameraBuffer,
-    deformationBuffer,
-  );
-  return {
-    cameraBuffer,
-    deformationBuffer,
-    frameBindGroup,
-    instanceLayout,
-    pipelines,
-    edgePipeline,
-    edgeAlwaysPipeline,
-    nodeOverlayPipelines,
-    orbitPivot,
-  };
-}
-
-const PICK_FORMATS = [
-  PICK_TEXTURE_FORMAT,
-  PICK_TEXTURE_FORMAT,
-  PICK_TEXTURE_FORMAT,
-  PICK_TEXTURE_FORMAT,
-] as const;
-
-/** Module-level pieces shared by the pipelines. */
-interface PipelineShaders {
-  readonly triangleVertex: GPUShaderModule;
-  readonly lineVertex: GPUShaderModule;
-  readonly pointVertex: GPUShaderModule;
-  readonly lineNodeVertex: GPUShaderModule;
-  readonly pointNodeVertex: GPUShaderModule;
-  readonly colorFragment: GPUShaderModule;
-  readonly triangleColorFragment: GPUShaderModule;
-  readonly nodePickVertex: GPUShaderModule;
-  readonly nodePickFragment: GPUShaderModule;
-}
-
-/** Primitive-level pipeline parameters (shared across color and pick passes). */
-interface PrimitiveSpec {
-  readonly vertexModule: GPUShaderModule;
-  readonly vertexEntry: string;
-  readonly primitive: GPUPrimitiveTopology;
-  readonly cullMode: GPUCullMode;
-}
-
-interface PipelineVariants {
-  readonly triangles: PrimitiveSpec;
-  readonly lines: PrimitiveSpec;
-  readonly points: PrimitiveSpec;
-}
-
-function createPipelineShaders(device: GPUDevice): PipelineShaders {
-  return {
-    triangleVertex: device.createShaderModule({ code: instanceVertexShader }),
-    lineVertex: device.createShaderModule({ code: lineVertexShader }),
-    pointVertex: device.createShaderModule({ code: pointVertexShader }),
-    lineNodeVertex: device.createShaderModule({ code: lineNodePickVertexShader }),
-    pointNodeVertex: device.createShaderModule({ code: pointNodePickVertexShader }),
-    colorFragment: device.createShaderModule({ code: colorFragmentShader }),
-    triangleColorFragment: device.createShaderModule({ code: triangleColorFragmentShader }),
-    nodePickVertex: device.createShaderModule({ code: nodePickVertexShader }),
-    nodePickFragment: device.createShaderModule({ code: nodePickFragmentShader }),
-  };
-}
-
-function pipelineVariants(shaders: PipelineShaders): PipelineVariants {
-  return {
-    triangles: {
-      vertexModule: shaders.triangleVertex,
-      vertexEntry: "vertexMain",
-      primitive: "triangle-list",
-      // FE shells and surface meshes are valid from either side; culling their
-      // reverse winding makes an ordinary 180° orbit look like missing geometry.
-      cullMode: "none",
-    },
-    lines: {
-      vertexModule: shaders.lineVertex,
-      vertexEntry: "vertexMain",
-      primitive: "line-list",
-      cullMode: "none",
-    },
-    points: {
-      vertexModule: shaders.pointVertex,
-      vertexEntry: "pointVertexMain",
-      primitive: "triangle-list",
-      cullMode: "none",
-    },
-  };
-}
-
-function buildPipelines(
-  device: GPUDevice,
-  layout: GPUPipelineLayout,
-  format: GPUTextureFormat,
-  depthFormat: GPUTextureFormat,
-): DrawPipelines {
-  const shaders = createPipelineShaders(device);
-  const variants = pipelineVariants(shaders);
-  const make = (
-    spec: PrimitiveSpec,
-    fragmentModule: GPUShaderModule,
-    passFormats: readonly GPUTextureFormat[],
-    sampleCount: number,
-  ): GPURenderPipeline =>
-    createPipeline(device, layout, {
-      ...spec,
-      passFormats,
-      depthFormat,
-      fragmentModule,
-      sampleCount,
+    validation,
+  });
+  let cameraBuffer: GPUBuffer | undefined;
+  let deformationBuffer: GPUBuffer | undefined;
+  let orbitPivot: OrbitPivotResources | undefined;
+  try {
+    cameraBuffer = device.createBuffer({
+      size: CAMERA_UNIFORM_SIZE,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-  return {
-    trianglesColor: make(
-      variants.triangles,
-      shaders.triangleColorFragment,
-      [format],
-      COLOR_SAMPLE_COUNT,
-    ),
-    trianglesPick: make(
-      { ...variants.triangles, vertexModule: shaders.nodePickVertex },
-      shaders.nodePickFragment,
-      PICK_FORMATS,
-      1,
-    ),
-    linesColor: make(variants.lines, shaders.colorFragment, [format], COLOR_SAMPLE_COUNT),
-    linesPick: make(
-      { ...variants.lines, vertexModule: shaders.lineNodeVertex },
-      shaders.nodePickFragment,
-      PICK_FORMATS,
-      1,
-    ),
-    pointsColor: make(variants.points, shaders.colorFragment, [format], COLOR_SAMPLE_COUNT),
-    pointsPick: make(
-      { ...variants.points, vertexModule: shaders.pointNodeVertex },
-      shaders.nodePickFragment,
-      PICK_FORMATS,
-      1,
-    ),
-  };
-}
-
-function createPipeline(
-  device: GPUDevice,
-  layout: GPUPipelineLayout,
-  spec: PipelineSpec,
-): GPURenderPipeline {
-  return device.createRenderPipeline({
-    layout,
-    vertex: {
-      module: spec.vertexModule,
-      entryPoint: spec.vertexEntry,
-      buffers: [vertexLayout],
-    },
-    fragment: {
-      module: spec.fragmentModule,
-      entryPoint: "fragmentMain",
-      targets: spec.passFormats.map((passFormat) => ({ format: passFormat })),
-    },
-    primitive: { topology: spec.primitive, cullMode: spec.cullMode },
-    depthStencil: {
-      format: spec.depthFormat,
-      depthWriteEnabled: true,
-      depthCompare: "less",
-    },
-    multisample: { count: spec.sampleCount },
-  });
-}
-
-/** Creates a depth-tested or always-visible line overlay pipeline. */
-function createEdgePipeline(
-  device: GPUDevice,
-  layout: GPUPipelineLayout,
-  format: GPUTextureFormat,
-  depthFormat: GPUTextureFormat,
-  depthCompare: GPUCompareFunction,
-): GPURenderPipeline {
-  return device.createRenderPipeline({
-    layout,
-    vertex: {
-      module: device.createShaderModule({ code: edgeVertexShader }),
-      entryPoint: "vertexMain",
-      buffers: [vertexLayout],
-    },
-    fragment: {
-      module: device.createShaderModule({ code: edgeFragmentShader }),
-      entryPoint: "fragmentMain",
-      targets: [
-        {
-          format,
-          blend: {
-            color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha" },
-            alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" },
-          },
-        },
+    deformationBuffer = device.createBuffer({
+      size: DEFORMATION_UNIFORM_SIZE,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    orbitPivot = createOrbitPivotResources({
+      device,
+      pipeline: orbitPivotPipeline,
+      cameraBuffer,
+      deformationBuffer,
+    });
+    const frameBindGroup = device.createBindGroup({
+      layout: cameraLayout,
+      entries: [
+        { binding: 0, resource: { buffer: cameraBuffer } },
+        { binding: 1, resource: { buffer: deformationBuffer } },
       ],
-    },
-    primitive: { topology: "line-list", cullMode: "none" },
-    depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare },
-    multisample: { count: COLOR_SAMPLE_COUNT },
-  });
+    });
+    return {
+      cameraBuffer,
+      deformationBuffer,
+      frameBindGroup,
+      instanceLayout,
+      pipelines: pipelineResources.pipelines,
+      edgePipeline: pipelineResources.edgePipeline,
+      edgeAlwaysPipeline: pipelineResources.edgeAlwaysPipeline,
+      nodeOverlayPipelines,
+      orbitPivot,
+    };
+  } catch (error) {
+    orbitPivot?.buffer.destroy();
+    cameraBuffer?.destroy();
+    deformationBuffer?.destroy();
+    throw error;
+  }
 }
 
 export function destroyRenderResources(resources: RenderResources): void {

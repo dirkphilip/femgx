@@ -10,9 +10,14 @@ import {
   WebGpuPickReadbackError,
 } from "../../src/renderer/gpu-pick";
 import { beginPickPass } from "../../src/renderer/gpu-pick-pass";
+import { createPickDepthReadback } from "../../src/renderer/gpu-pick-depth";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
 const READBACK_SIZE = READBACK_BYTE_STRIDE * 5;
+
+async function createTestPickTargets(device: GPUDevice) {
+  return createPickTargets(await createPickDepthReadback(device));
+}
 
 describe("GPU pick targets", () => {
   it("maps and clamps pick pixels to the canvas bounds", () => {
@@ -31,11 +36,11 @@ describe("GPU pick targets", () => {
     expect(pickPixelCoordinates(390, 844, rect, 780, 1688)).toEqual({ x: 779, y: 1687 });
   });
 
-  it("creates the pick targets once and clears them on destroy", () => {
+  it("creates the pick targets once and clears them on destroy", async () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
-      const pick = createPickTargets();
+      const pick = await createTestPickTargets(gpu.device);
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       expect(gpu.textureCreations).toBe(5);
@@ -80,7 +85,7 @@ describe("GPU pick targets", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice({ pickValue: 7 });
-      const pick = createPickTargets();
+      const pick = await createTestPickTargets(gpu.device);
       const canvas = fakeCanvas();
       await expect(readPickPixel(gpu.device, canvas, pick, 10, 10)).resolves.toEqual({
         instancePickId: 0,
@@ -112,7 +117,7 @@ describe("GPU pick targets", () => {
         nodePickValue: 20,
         ndcDepth: 0.375,
       });
-      const pick = createPickTargets();
+      const pick = await createTestPickTargets(gpu.device);
       const canvas = fakeCanvas();
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       await expect(readPickPixel(gpu.device, canvas, pick, 10, 10)).resolves.toEqual({
@@ -137,7 +142,7 @@ describe("GPU pick targets", () => {
       const gpu = fakeGpuDevice({
         mapAsync: () => Promise.reject(new Error("mapAsync rejected")),
       });
-      const pick = createPickTargets();
+      const pick = await createTestPickTargets(gpu.device);
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       const canvas = fakeCanvas();
       await expect(readPickPixel(gpu.device, canvas, pick, 10, 10)).rejects.toBeInstanceOf(
@@ -159,7 +164,7 @@ describe("GPU pick targets", () => {
           copiedOrigins.push({ x: origin?.x ?? 0, y: origin?.y ?? 0 });
         },
       });
-      const pick = createPickTargets();
+      const pick = await createTestPickTargets(gpu.device);
       ensurePickTargets(gpu.device, pick, 780, 1688, "depth24plus");
       // A 390x844 CSS canvas with a 780x1688 device backing store: a tap at
       // CSS (195, 422) must copy from the device pixel (390, 844).
@@ -179,7 +184,7 @@ describe("GPU pick targets", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice({ pickValue: 7 });
-      const pick = createPickTargets();
+      const pick = await createTestPickTargets(gpu.device);
       const canvas = fakeCanvas();
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       await readPickPixel(gpu.device, canvas, pick, 10, 10);
@@ -196,7 +201,7 @@ describe("GPU pick targets", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice({ pickValue: 7 });
-      const pick = createPickTargets();
+      const pick = await createTestPickTargets(gpu.device);
       const canvas = fakeCanvas();
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       await readPickPixel(gpu.device, canvas, pick, 10, 10);
@@ -213,7 +218,7 @@ describe("GPU pick targets", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice({ pickValue: 5 });
-      const pick = createPickTargets();
+      const pick = await createTestPickTargets(gpu.device);
       const canvas = fakeCanvas();
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       await readPickPixel(gpu.device, canvas, pick, 10, 10);
@@ -245,7 +250,7 @@ describe("GPU pick targets", () => {
             deferred.push(resolve);
           }),
       });
-      const pick = createPickTargets();
+      const pick = await createTestPickTargets(gpu.device);
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       const canvas = fakeCanvas();
       const pending = readPickPixel(gpu.device, canvas, pick, 1, 1);
@@ -285,7 +290,7 @@ describe("GPU pick targets", () => {
             deferred.push(resolve);
           }),
       });
-      const pick = createPickTargets();
+      const pick = await createTestPickTargets(gpu.device);
       ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
       const canvas = fakeCanvas();
       const first = readPickPixel(gpu.device, canvas, pick, 1, 1);

@@ -53,6 +53,8 @@ export interface FakeGpu {
   readonly computeDispatchCount: number;
   /** Render-pipeline descriptors in creation order. */
   readonly renderPipelineDescriptors: readonly GPURenderPipelineDescriptor[];
+  /** Shader-module descriptors in creation order. */
+  readonly shaderModuleDescriptors: readonly GPUShaderModuleDescriptor[];
   /** Command-buffer submissions in call order. */
   readonly submissionCount: number;
   /** Resolves the device `lost` promise to simulate a GPU device loss. */
@@ -122,6 +124,9 @@ export function fakeGpuDevice(
     readonly ndcDepth?: number;
     readonly mapAsync?: () => Promise<void>;
     readonly onCopyTextureToBuffer?: (source: GPUTexelCopyTextureInfo) => void;
+    readonly shaderMessages?: readonly GPUCompilationMessage[];
+    readonly renderPipelineError?: string;
+    readonly computePipelineError?: string;
   } = {},
 ): FakeGpu {
   const writes: RecordedWrite[] = [];
@@ -131,6 +136,7 @@ export function fakeGpuDevice(
   const pipelineDraws: PipelineDraw[] = [];
   const pipelineCalls: unknown[] = [];
   const renderPipelineDescriptors: GPURenderPipelineDescriptor[] = [];
+  const shaderModuleDescriptors: GPUShaderModuleDescriptor[] = [];
   const bufferCopies: BufferCopy[] = [];
   let bindGroupCreations = 0;
   let computeDispatchCount = 0;
@@ -203,12 +209,35 @@ export function fakeGpuDevice(
     },
     createPipelineLayout: () => ({}),
     createSampler: () => ({}),
-    createShaderModule: () => ({}),
+    createShaderModule: (descriptor: GPUShaderModuleDescriptor) => {
+      shaderModuleDescriptors.push(descriptor);
+      return {
+        getCompilationInfo: () => Promise.resolve({ messages: options.shaderMessages ?? [] }),
+      };
+    },
     createRenderPipeline: (descriptor: GPURenderPipelineDescriptor) => {
       renderPipelineDescriptors.push(descriptor);
+      if (options.renderPipelineError !== undefined) throw new Error(options.renderPipelineError);
       return { __tag: `pipeline-${pipelineCounter++}` };
     },
-    createComputePipeline: () => ({}),
+    createRenderPipelineAsync: (descriptor: GPURenderPipelineDescriptor) =>
+      Promise.resolve(
+        (
+          device as unknown as { createRenderPipeline: typeof device.createRenderPipeline }
+        ).createRenderPipeline(descriptor),
+      ),
+    createComputePipeline: () => {
+      if (options.computePipelineError !== undefined) throw new Error(options.computePipelineError);
+      return {};
+    },
+    createComputePipelineAsync: () => {
+      if (options.computePipelineError !== undefined) {
+        return Promise.reject(new Error(options.computePipelineError));
+      }
+      return Promise.resolve({});
+    },
+    pushErrorScope: () => undefined,
+    popErrorScope: () => Promise.resolve(null),
     createTexture: (descriptor: GPUTextureDescriptor) => {
       const record: FakeTexture = { descriptor, destroyed: false };
       textures.push(record);
@@ -272,6 +301,7 @@ export function fakeGpuDevice(
     pipelineDraws,
     pipelineCalls,
     renderPipelineDescriptors,
+    shaderModuleDescriptors,
     bufferCopies,
     lose,
     get textureCreations() {

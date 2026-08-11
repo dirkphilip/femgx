@@ -1,47 +1,69 @@
 import { pointVertexShader } from "./gpu-instanced-shaders";
 import { COLOR_SAMPLE_COUNT, vertexLayout } from "./gpu-support";
+import {
+  createValidatedRenderPipeline,
+  createValidatedShaderModule,
+  type GpuValidationOptions,
+} from "./gpu-validation";
 
 export interface NodeOverlayPipelines {
   readonly visible: GPURenderPipeline;
 }
 
-/** Creates the depth-tested FE-node annotation pass. */
-export function createNodeOverlayPipelines(
-  device: GPUDevice,
-  cameraLayout: GPUBindGroupLayout,
-  instanceLayout: GPUBindGroupLayout,
-  format: GPUTextureFormat,
-  depthFormat: GPUTextureFormat,
-): NodeOverlayPipelines {
-  const layout = device.createPipelineLayout({
-    bindGroupLayouts: [cameraLayout, instanceLayout],
-  });
-  return {
-    visible: createNodePipeline(device, layout, format, depthFormat),
-  };
+interface NodeOverlayOptions {
+  readonly device: GPUDevice;
+  readonly cameraLayout: GPUBindGroupLayout;
+  readonly instanceLayout: GPUBindGroupLayout;
+  readonly format: GPUTextureFormat;
+  readonly depthFormat: GPUTextureFormat;
+  readonly pointVertexModule: GPUShaderModule | undefined;
+  readonly validation: GpuValidationOptions | undefined;
 }
 
-function createNodePipeline(
-  device: GPUDevice,
-  layout: GPUPipelineLayout,
-  format: GPUTextureFormat,
-  depthFormat: GPUTextureFormat,
-): GPURenderPipeline {
-  return device.createRenderPipeline({
-    layout,
+/** Creates the depth-tested FE-node annotation pass. */
+export function createNodeOverlayPipelines(
+  options: NodeOverlayOptions,
+): Promise<NodeOverlayPipelines> {
+  const layout = options.device.createPipelineLayout({
+    bindGroupLayouts: [options.cameraLayout, options.instanceLayout],
+  });
+  return createNodePipeline({ ...options, layout }).then((visible) => ({ visible }));
+}
+
+interface NodePipelineOptions extends NodeOverlayOptions {
+  readonly layout: GPUPipelineLayout;
+}
+
+async function createNodePipeline(options: NodePipelineOptions): Promise<GPURenderPipeline> {
+  const vertexModule =
+    options.pointVertexModule ??
+    (await createValidatedShaderModule(
+      options.device,
+      "node annotation vertex",
+      pointVertexShader,
+      options.validation,
+    ));
+  const fragmentModule = await createValidatedShaderModule(
+    options.device,
+    "node annotation fragment",
+    nodeOverlayFragmentShader,
+    options.validation,
+  );
+  return createValidatedRenderPipeline(options.device, "node annotation overlay", {
+    layout: options.layout,
     vertex: {
-      module: device.createShaderModule({ code: pointVertexShader }),
+      module: vertexModule,
       entryPoint: "nodeOverlayVertexMain",
       buffers: [vertexLayout],
     },
     fragment: {
-      module: device.createShaderModule({ code: nodeOverlayFragmentShader }),
+      module: fragmentModule,
       entryPoint: "nodeOverlayFragmentMain",
-      targets: [{ format, writeMask: 0xf }],
+      targets: [{ format: options.format, writeMask: 0xf }],
     },
     primitive: { topology: "triangle-list", cullMode: "none" },
     depthStencil: {
-      format: depthFormat,
+      format: options.depthFormat,
       depthWriteEnabled: false,
       depthCompare: "less-equal",
     },

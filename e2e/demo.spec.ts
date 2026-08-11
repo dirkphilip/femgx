@@ -11,6 +11,13 @@ async function dataset(page: Page, key: string): Promise<string> {
   return (await page.getByTestId("view-canvas").getAttribute(`data-${key}`)) ?? "";
 }
 
+/** Waits for asynchronous WebGPU setup before inspecting workbench state. */
+async function waitForRenderer(page: Page): Promise<void> {
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-renderer", "webgpu", {
+    timeout: 10_000,
+  });
+}
+
 test("renders the demo canvas with instanced geometry", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
@@ -297,6 +304,7 @@ test("toggles one fastener occurrence and restores it via the visibility panel",
   page,
 }) => {
   await page.goto("/");
+  await waitForRenderer(page);
   expect(await dataset(page, "selected")).toBe("");
   expect(await status(page)).toContain("34 visible");
   const fastenerCheckbox = page.getByTestId("assembly-node-vis-3");
@@ -422,6 +430,7 @@ test("temporarily highlights exact tree occurrences without changing selection",
 
 test("hides the plate stack through the assembly tree", async ({ page }) => {
   await page.goto("/");
+  await waitForRenderer(page);
   expect(await status(page)).toContain("34 visible");
   const plateStack = page.getByTestId("assembly-node-vis-1");
   await expect(plateStack).toBeChecked();

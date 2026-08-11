@@ -15,13 +15,22 @@ import { encodePickSnapshot, encodeVisibleFrame } from "./gpu-frame";
 import { destroyPickTargets, pickTargetFromPixel, resetPickTargets } from "./gpu-pick";
 import { displayedPointFromPixel } from "./gpu-pick-point";
 import { destroyRenderResources } from "./gpu-pipelines";
-import { createGpuBundle, GpuDeviceLifecycle } from "./gpu-recovery";
+import { GpuDeviceLifecycle, type GpuBundle } from "./gpu-recovery";
+import type { GpuValidationOptions } from "./gpu-validation";
+
+export interface GpuRendererConstruction {
+  readonly bundle: GpuBundle;
+  readonly context: GPUCanvasContext;
+  readonly format: GPUTextureFormat;
+  readonly depthFormat: GPUTextureFormat;
+  readonly validation: GpuValidationOptions | undefined;
+}
 
 /** The WebGPU renderer implementation; see `gpu-renderer.ts` for the API. */
 export class GpuRenderer implements WebGpuRenderer {
   private readonly context: GPUCanvasContext;
   private readonly format: GPUTextureFormat;
-  private readonly depthFormat = "depth24plus-stencil8" as GPUTextureFormat;
+  private readonly depthFormat: GPUTextureFormat;
   private readonly lifecycle: GpuDeviceLifecycle;
   private readonly pointSize: number;
   private readonly attachment = new RendererAttachment();
@@ -37,20 +46,20 @@ export class GpuRenderer implements WebGpuRenderer {
 
   public constructor(
     private readonly canvas: HTMLCanvasElement,
-    device: GPUDevice,
     options: WebGpuRendererOptions,
+    construction: GpuRendererConstruction,
   ) {
-    const context = canvas.getContext("webgpu");
-    if (context === null) throw new Error("WebGPU canvas context unavailable");
-    this.context = context;
-    this.format = navigator.gpu.getPreferredCanvasFormat();
+    this.context = construction.context;
+    this.format = construction.format;
+    this.depthFormat = construction.depthFormat;
     this.pointSize = Math.max(1, options.pointSizePixels ?? 8);
     this.lifecycle = new GpuDeviceLifecycle({
-      bundle: createGpuBundle(device, this.format, this.depthFormat),
-      context,
+      bundle: construction.bundle,
+      context: construction.context,
       format: this.format,
       depthFormat: this.depthFormat,
       powerPreference: options.powerPreference,
+      validation: construction.validation,
       ownsDevice: options.device === undefined,
       onLost: (info) => {
         if (!this.destroyed) options.onDeviceLost?.(info);

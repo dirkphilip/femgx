@@ -22,11 +22,11 @@ function fakeContext(): GPUCanvasContext {
 }
 
 describe("createGpuBundle", () => {
-  it("creates the device-bound resources for a device", () => {
+  it("creates the device-bound resources for a device", async () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
-      const bundle = createGpuBundle(gpu.device, "bgra8unorm", "depth24plus");
+      const bundle = await createGpuBundle(gpu.device, "bgra8unorm", "depth24plus");
       expect(bundle.device).toBe(gpu.device);
       expect(bundle.resources.cameraBuffer).toBeDefined();
       expect(bundle.draw.parts).toBeInstanceOf(Map);
@@ -58,7 +58,7 @@ describe("GpuDeviceLifecycle", () => {
     const gpus = installFreshDeviceNavigator(first);
     const onLost = vi.fn();
     const lifecycle = new GpuDeviceLifecycle({
-      bundle: createGpuBundle(first.device, "bgra8unorm", "depth24plus"),
+      bundle: await createGpuBundle(first.device, "bgra8unorm", "depth24plus"),
       context: fakeContext(),
       format: "bgra8unorm",
       depthFormat: "depth24plus",
@@ -94,7 +94,7 @@ describe("GpuDeviceLifecycle", () => {
     const first = fakeGpuDevice();
     const gpus = installFreshDeviceNavigator(first);
     const lifecycle = new GpuDeviceLifecycle({
-      bundle: createGpuBundle(first.device, "bgra8unorm", "depth24plus"),
+      bundle: await createGpuBundle(first.device, "bgra8unorm", "depth24plus"),
       context: fakeContext(),
       format: "bgra8unorm",
       depthFormat: "depth24plus",
@@ -111,7 +111,7 @@ describe("GpuDeviceLifecycle", () => {
     const first = fakeGpuDevice();
     installFreshDeviceNavigator(first);
     const lifecycle = new GpuDeviceLifecycle({
-      bundle: createGpuBundle(first.device, "bgra8unorm", "depth24plus"),
+      bundle: await createGpuBundle(first.device, "bgra8unorm", "depth24plus"),
       context: fakeContext(),
       format: "bgra8unorm",
       depthFormat: "depth24plus",

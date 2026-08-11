@@ -6,7 +6,6 @@ import { decodePickId, PICK_TEXTURE_FORMAT } from "./pick-format";
 import { WebGpuPickReadbackError } from "./gpu-pick-error";
 import {
   bindPickDepth,
-  createPickDepthReadback,
   destroyPickDepthReadback,
   encodePickDepthReadback,
   type PickDepthReadback,
@@ -65,14 +64,14 @@ export const READBACK_BYTE_STRIDE = 256;
 const READBACK_SIZE = READBACK_BYTE_STRIDE * 5;
 
 /** Creates empty pick targets; they are populated before the first pick pass. */
-export function createPickTargets(): PickTargets {
+export function createPickTargets(depthReadback?: PickDepthReadback): PickTargets {
   return {
     texture: undefined,
     elementTexture: undefined,
     faceTexture: undefined,
     nodeTexture: undefined,
     depthTexture: undefined,
-    depthReadback: undefined,
+    depthReadback,
     readback: { free: [], inFlight: new Set() },
   };
 }
@@ -97,6 +96,9 @@ export function ensurePickTargets(
   depthFormat: GPUTextureFormat,
 ): void {
   if (pick.texture !== undefined) return;
+  if (pick.depthReadback === undefined) {
+    throw new Error("WebGPU picking depth resources were not validated during setup");
+  }
   pick.texture = device.createTexture({
     size: [width, height],
     format: PICK_TEXTURE_FORMAT,
@@ -122,7 +124,6 @@ export function ensurePickTargets(
     format: depthFormat,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
   });
-  pick.depthReadback ??= createPickDepthReadback(device);
   bindPickDepth(device, pick.depthReadback, pick.depthTexture);
 }
 

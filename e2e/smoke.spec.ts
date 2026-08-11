@@ -74,3 +74,19 @@ test("loads, renders, and reacts to a user action without runtime errors", async
     "the smoke journey must not raise unexpected page exceptions or console errors",
   ).toEqual([]);
 });
+
+test("surfaces a deterministic shader validation failure without a healthy renderer", async ({
+  page,
+}) => {
+  const runtime = watchRuntime(page);
+
+  await page.goto("/?testShaderFailure=triangle%20color%20vertex");
+
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toBeVisible();
+  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("error");
+  await expect(page.getByTestId("status")).toContainText("Injected shader failure");
+  await expect(page.getByTestId("status")).toContainText("triangle color vertex");
+  expect(await canvas.getAttribute("data-frames")).toBeNull();
+  expect(runtime, "shader validation should be surfaced through the page UI").toEqual([]);
+});
