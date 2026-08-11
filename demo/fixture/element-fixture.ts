@@ -140,22 +140,18 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   };
 }
 
-/** Fixture shape with a second reusable edge-overlay part. */
+/** Fixture shape for the curved Hex20 cylinder example. */
 type Hex20CylinderFixture = Omit<ElementFixture, "partIds"> & {
   readonly partIds: Pick<
     ElementFixtureParts,
     "point" | "line" | "line3" | "tet4" | "tet10" | "hex8" | "hex20"
-  > & { readonly edges: PartId };
+  >;
 };
 
 /** Builds the Hex20 cylinder example used by the gallery preset. */
 export function createHex20CylinderFixture(): Hex20CylinderFixture {
   const model = buildHex20CylinderModel();
-  const edgePartId: PartId = 8;
-  const parts = [
-    elementPart(HEX20_PART_ID, model, "hex", "solid", { edgeSegments: 4 }),
-    elementPart(edgePartId, model, "hex", "edges", { edgeSegments: 4 }),
-  ];
+  const parts = [elementPart(HEX20_PART_ID, model, "hex", "solid")];
   const scene = galleryScene(parts, 0);
   const modePartIds = new Map<ElementRenderMode, readonly PartId[]>([
     ["solid", [HEX20_PART_ID]],
@@ -172,14 +168,10 @@ export function createHex20CylinderFixture(): Hex20CylinderFixture {
       tet10: TET10_PART_ID,
       hex8: HEX8_PART_ID,
       hex20: HEX20_PART_ID,
-      edges: edgePartId,
     },
-    elementModels: new Map([
-      [HEX20_PART_ID, model],
-      [edgePartId, model],
-    ]),
+    elementModels: new Map([[HEX20_PART_ID, model]]),
     modePartIds,
-    overlayPartIds: [edgePartId],
+    overlayPartIds: [],
     defaultMode: "solid",
     instanceCount: parts.length,
     bounds: sceneBounds(scene),

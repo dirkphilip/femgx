@@ -137,23 +137,16 @@ export function createVtkPreset(): ModelPreset {
 export function createHex20CylinderPreset(): ModelPreset {
   const fixture = createHex20CylinderFixture();
   const partId = fixture.partIds.hex20;
-  const edgePartId = fixture.partIds.edges;
   return {
     id: "hex20-cylinder",
     name: "Hex20 cylinder",
     scene: fixture.scene,
     elementModels: fixture.elementModels,
-    partColors: new Map<PartId, Color>([
-      [partId, { r: 0.76, g: 0.34, b: 0.84, a: 1 }],
-      [edgePartId, { r: 0.32, g: 0.1, b: 0.42, a: 1 }],
-    ]),
+    partColors: new Map<PartId, Color>([[partId, { r: 0.76, g: 0.34, b: 0.84, a: 1 }]]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
-    partNames: new Map<PartId, string>([
-      [partId, "Hex20 cylinder · solid"],
-      [edgePartId, "Hex20 cylinder · curved mid-edge tessellation"],
-    ]),
+    partNames: new Map<PartId, string>([[partId, "Hex20 cylinder · curved mid-edge tessellation"]]),
     modePartIds: fixture.modePartIds,
-    overlayPartIds: [edgePartId],
+    overlayPartIds: fixture.overlayPartIds,
     defaultMode: "solid",
     bounds: fixture.bounds,
   };
