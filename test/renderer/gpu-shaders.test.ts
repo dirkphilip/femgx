@@ -112,6 +112,9 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(instanceVertexShader).toMatch(/@location\(4\) @interpolate\(flat\) facePickId: u32/);
     expect(lineVertexShader).toMatch(/primitiveElementPickIds\[vertexIndex \/ 2u\]/);
     expect(lineVertexShader).toMatch(/primitiveFaceBodyPickIds\[vertexIndex \/ 2u\]/);
+    expect(edgeVertexShader).toMatch(/topologyBodyRanges\[topologyIndex\]/);
+    expect(edgeVertexShader).toMatch(/highlight\.hidden == 0u/);
+    expect(pointVertexShader).toMatch(/topologyBodyVisible\(/);
   });
 
   it("reports a proximity-gated nearest corner node in the node pick pass", () => {
@@ -186,6 +189,9 @@ describe("GPU deformation shader contract", () => {
       );
       expect(source).toMatch(
         /@group\(1\) @binding\(6\) var<storage, read> vertexNodePickIds: array<u32>/,
+      );
+      expect(source).toMatch(
+        /@group\(1\) @binding\(8\) var<storage, read> topologyBodyRanges: array<vec2<u32>>/,
       );
       expect(source).toMatch(/fn displaced\(position: vec3<f32>, vertexIndex: u32\)/);
     },

@@ -15,11 +15,17 @@ export interface PartResource {
   readonly nodePickIdsBuffer: GPUBuffer;
   /** Line-list of the deduplicated mesh edges for the wireframe pass. */
   readonly edgeIndexBuffer: GPUBuffer;
+  /** Body-owner ranges for the active topology (edges or node sprites). */
+  readonly topologyBodyRangesBuffer: GPUBuffer;
+  /** Body-owner ids referenced by `topologyBodyRangesBuffer`. */
+  readonly topologyBodyIdsBuffer: GPUBuffer;
   readonly indexCount: number;
   readonly edgeIndexCount: number;
   /** Optional compact index orders for a validated face subset. */
   readonly subsetIndexBuffer?: GPUBuffer;
   readonly subsetEdgeIndexBuffer?: GPUBuffer;
+  readonly subsetTopologyBodyRangesBuffer?: GPUBuffer;
+  readonly subsetTopologyBodyIdsBuffer?: GPUBuffer;
   readonly subsetIndexCount: number;
   readonly subsetEdgeIndexCount: number;
 }

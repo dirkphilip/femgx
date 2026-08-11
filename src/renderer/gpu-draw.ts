@@ -1,23 +1,20 @@
-import { validateFaceSubset, type Part, type Primitive } from "../geometry/part";
+import { validateFaceSubset, type Part } from "../geometry/part";
 import type { PartId } from "../scene/types";
-import { orderBindGroup } from "./gpu-bind-groups";
-import {
-  destroyDeformationBuffers,
-  ensureDeformationBuffer,
-  type DeformationStorage,
-} from "./gpu-deform";
-import { buildMeshEdges } from "./gpu-edge";
+import { destroyDeformationBuffers, type DeformationStorage } from "./gpu-deform";
+import { buildMeshEdgeData, type MeshEdgeData } from "./gpu-edge";
 import { buildFaceSubsetIndices } from "./gpu-face-subset";
 import type { InstanceStorage } from "./gpu-instance-storage";
 import {
   buildElementTrianglePickIds,
   buildNodeBodyPickData,
+  buildNodeBodyOwnerData,
   buildNodeSpritePickIds,
   buildTriangleFaceBodyPickData,
   buildVertexNodePickIds,
 } from "./gpu-pick-ids";
 import type { DrawPipelines } from "./gpu-pipelines";
 import { createBuffer, type PartResource } from "./gpu-support";
+import { drawOneBatch, type BatchDrawOptions } from "./gpu-batch";
 
 export {
   INSTANCE_STRIDE,
@@ -73,11 +70,13 @@ export function createDrawResources(device: GPUDevice): DrawResources {
   };
 }
 
-function uploadNodePart(draw: DrawResources, part: Part): PartResource {
+/** Uploads the transient node-sprite geometry and its body-owner metadata. */
+export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
   const existing = draw.nodeParts.get(part.id);
   if (existing !== undefined) return existing;
   const nodes = part.geometry.nodePositions ?? new Float32Array(0);
   const spritePickIds = buildNodeSpritePickIds(part.geometry);
+  const nodeBodyData = buildNodeBodyOwnerData(part.geometry, spritePickIds);
   const count = spritePickIds.length;
   const positions = new Float32Array(count * 12);
   const ids = new Uint32Array(count * 4);
@@ -112,6 +111,12 @@ function uploadNodePart(draw: DrawResources, part: Part): PartResource {
     ),
     nodePickIdsBuffer: createBuffer(draw.device, ids, GPUBufferUsage.STORAGE),
     edgeIndexBuffer: createBuffer(draw.device, new Uint32Array(1), GPUBufferUsage.INDEX),
+    topologyBodyRangesBuffer: createBuffer(
+      draw.device,
+      nodeBodyData.bodyRanges,
+      GPUBufferUsage.STORAGE,
+    ),
+    topologyBodyIdsBuffer: createBuffer(draw.device, nodeBodyData.bodyIds, GPUBufferUsage.STORAGE),
     indexCount: indices.length,
     edgeIndexCount: 0,
     subsetIndexCount: 0,
@@ -139,22 +144,28 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
   const triangles = part.geometry.primitive !== "lines" && part.geometry.primitive !== "points";
   const subsetIndices =
     part.geometry.faceSubset === undefined ? undefined : buildFaceSubsetIndices(part.geometry);
-  const edges = triangles
-    ? buildMeshEdges(part.geometry, subsetIndices ?? part.geometry.indices)
-    : new Uint32Array(0);
+  const edgeData = triangles
+    ? buildMeshEdgeData(part.geometry, subsetIndices ?? part.geometry.indices)
+    : emptyMeshEdgeData();
   const picks = uploadPickBuffers(draw, part);
-  const edgeIndexBuffer = createIndexBuffer(draw.device, edges);
-  const subsetBuffers = createSubsetBuffers(draw.device, subsetIndices, edges);
+  const edgeIndexBuffer = createIndexBuffer(draw.device, edgeData.indices);
+  const subsetBuffers = createSubsetBuffers(draw.device, subsetIndices, edgeData);
   const resource: PartResource = {
     vertexBuffer,
     indexBuffer,
     ...picks,
     edgeIndexBuffer,
+    topologyBodyRangesBuffer: createBuffer(
+      draw.device,
+      edgeData.bodyRanges,
+      GPUBufferUsage.STORAGE,
+    ),
+    topologyBodyIdsBuffer: createBuffer(draw.device, edgeData.bodyIds, GPUBufferUsage.STORAGE),
     indexCount: part.geometry.indices.length,
-    edgeIndexCount: edges.length,
+    edgeIndexCount: edgeData.indices.length,
     ...subsetBuffers,
     subsetIndexCount: subsetIndices?.length ?? 0,
-    subsetEdgeIndexCount: part.geometry.faceSubset === undefined ? 0 : edges.length,
+    subsetEdgeIndexCount: part.geometry.faceSubset === undefined ? 0 : edgeData.indices.length,
   };
   draw.parts.set(part.id, resource);
   return resource;
@@ -194,12 +205,32 @@ function createIndexBuffer(device: GPUDevice, indices: Uint32Array): GPUBuffer {
 function createSubsetBuffers(
   device: GPUDevice,
   indices: Uint32Array | undefined,
-  edges: Uint32Array,
-): Pick<PartResource, "subsetIndexBuffer" | "subsetEdgeIndexBuffer"> {
+  edgeData: MeshEdgeData,
+): Pick<
+  PartResource,
+  | "subsetIndexBuffer"
+  | "subsetEdgeIndexBuffer"
+  | "subsetTopologyBodyRangesBuffer"
+  | "subsetTopologyBodyIdsBuffer"
+> {
   if (indices === undefined) return {};
   return {
     subsetIndexBuffer: createIndexBuffer(device, indices),
-    subsetEdgeIndexBuffer: createIndexBuffer(device, edges),
+    subsetEdgeIndexBuffer: createIndexBuffer(device, edgeData.indices),
+    subsetTopologyBodyRangesBuffer: createBuffer(
+      device,
+      edgeData.bodyRanges,
+      GPUBufferUsage.STORAGE,
+    ),
+    subsetTopologyBodyIdsBuffer: createBuffer(device, edgeData.bodyIds, GPUBufferUsage.STORAGE),
+  };
+}
+
+function emptyMeshEdgeData(): MeshEdgeData {
+  return {
+    indices: new Uint32Array(),
+    bodyRanges: new Uint32Array([0, 0]),
+    bodyIds: new Uint32Array([0]),
   };
 }
 
@@ -242,76 +273,15 @@ export function drawBatches(
   pass.setBindGroup(0, context.frameBindGroup);
   let current: GPURenderPipeline | undefined;
   for (const call of calls) {
-    const part = context.parts.get(call.partId);
-    const storage = draw.storages.get(call.partId);
-    if (part === undefined || storage === undefined) continue;
-    const geometry = nodes ? uploadNodePart(draw, part) : uploadPart(draw, part);
-    const subset = !nodes && part.geometry.faceSubset !== undefined;
-    if (overlay && (subset ? geometry.subsetEdgeIndexCount : geometry.edgeIndexCount) === 0) {
-      continue;
-    }
-    if (!overlay && subset && geometry.subsetIndexCount === 0) continue;
-    const pipeline =
-      options.pipeline ??
-      pipelineFor(
-        nodes ? "points" : (part.geometry.primitive ?? "triangles"),
-        passKind,
-        context.pipelines,
-      );
-    if (current !== pipeline) {
-      pass.setPipeline(pipeline);
-      current = pipeline;
-    }
-    const deformation = ensureDeformationBuffer(draw.device, draw.deformations, call.partId);
-    const group = orderBindGroup(draw.device, context.instanceLayout, storage, overlay, {
-      geometry,
-      deformation,
-      cache: !nodes,
-    });
-    pass.setBindGroup(1, group);
-    pass.setVertexBuffer(0, geometry.vertexBuffer);
-    const buffer = overlay
-      ? subset
-        ? geometry.subsetEdgeIndexBuffer
-        : geometry.edgeIndexBuffer
-      : subset
-        ? geometry.subsetIndexBuffer
-        : geometry.indexBuffer;
-    const count = overlay
-      ? subset
-        ? geometry.subsetEdgeIndexCount
-        : geometry.edgeIndexCount
-      : subset
-        ? geometry.subsetIndexCount
-        : geometry.indexCount;
-    if (buffer === undefined) continue;
-    pass.setIndexBuffer(buffer, "uint32");
-    pass.drawIndexed(count, call.instanceCount);
+    const batchOptions: BatchDrawOptions = {
+      passKind,
+      overlay,
+      nodes,
+      pipelineOverride: options.pipeline,
+      current,
+    };
+    current = drawOneBatch(pass, draw, context, call, batchOptions);
   }
-}
-
-/** Selects the color or pick pipeline for a part's primitive kind. */
-function pipelineFor(
-  primitive: Primitive,
-  pass: PipelinePass,
-  pipelines: DrawPipelines,
-): GPURenderPipeline {
-  switch (primitive) {
-    case "triangles":
-      return pipelineVariant(pass, pipelines.trianglesColor, pipelines.trianglesPick);
-    case "lines":
-      return pipelineVariant(pass, pipelines.linesColor, pipelines.linesPick);
-    case "points":
-      return pipelineVariant(pass, pipelines.pointsColor, pipelines.pointsPick);
-  }
-}
-
-function pipelineVariant(
-  pass: PipelinePass,
-  color: GPURenderPipeline,
-  pick: GPURenderPipeline,
-): GPURenderPipeline {
-  return pass === "color" ? color : pick;
 }
 
 /** Releases every part, storage, and depth resource owned by the draw path. */
@@ -323,8 +293,12 @@ export function destroyDrawResources(draw: DrawResources): void {
     resource.facePickIdsBuffer.destroy();
     resource.nodePickIdsBuffer.destroy();
     resource.edgeIndexBuffer.destroy();
+    resource.topologyBodyRangesBuffer.destroy();
+    resource.topologyBodyIdsBuffer.destroy();
     resource.subsetIndexBuffer?.destroy();
     resource.subsetEdgeIndexBuffer?.destroy();
+    resource.subsetTopologyBodyRangesBuffer?.destroy();
+    resource.subsetTopologyBodyIdsBuffer?.destroy();
   }
   for (const resource of draw.nodeParts.values()) {
     resource.vertexBuffer.destroy();
@@ -333,8 +307,12 @@ export function destroyDrawResources(draw: DrawResources): void {
     resource.facePickIdsBuffer.destroy();
     resource.nodePickIdsBuffer.destroy();
     resource.edgeIndexBuffer.destroy();
+    resource.topologyBodyRangesBuffer.destroy();
+    resource.topologyBodyIdsBuffer.destroy();
     resource.subsetIndexBuffer?.destroy();
     resource.subsetEdgeIndexBuffer?.destroy();
+    resource.subsetTopologyBodyRangesBuffer?.destroy();
+    resource.subsetTopologyBodyIdsBuffer?.destroy();
   }
   for (const storage of draw.storages.values()) {
     storage.buffer.destroy();

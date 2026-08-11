@@ -140,6 +140,32 @@ fn spriteCorner(corner: u32) -> vec2<f32> {
   }
 }
 
+fn topologyBodyVisible(slot: u32, topologyIndex: u32) -> bool {
+  let range = topologyBodyRanges[topologyIndex];
+  if (range.y == 0u || elementHighlights.bucketCount == 0u) {
+    return true;
+  }
+  for (var owner = 0u; owner < range.y; owner++) {
+    let bodyPickId = topologyBodyIds[range.x + owner];
+    let bucket = highlightHash(slot, bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
+    let base = bucket * 4u;
+    var hidden = false;
+    var found = false;
+    for (var offset = 0u; offset < 4u; offset++) {
+      let highlight = elementHighlights.records[base + offset];
+      if (highlight.slot == slot && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
+        hidden = highlight.hidden != 0u;
+        found = true;
+        break;
+      }
+    }
+    if (!found || !hidden) {
+      return true;
+    }
+  }
+  return false;
+}
+
 fn pointVertex(
   position: vec3<f32>,
   instanceIndex: u32,
@@ -201,6 +227,9 @@ fn pointVertex(
         break;
       }
     }
+  }
+  if (nodeOverlay && !topologyBodyVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
+    hidden = true;
   }
   if (hidden) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
