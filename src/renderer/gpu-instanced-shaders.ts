@@ -140,7 +140,13 @@ fn spriteCorner(corner: u32) -> vec2<f32> {
   }
 }
 
-fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, sizeScale: f32) -> VertexOutput {
+fn pointVertex(
+  position: vec3<f32>,
+  instanceIndex: u32,
+  vertexIndex: u32,
+  sizeScale: f32,
+  nodeOverlay: bool,
+) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
   let corner = spriteCorner(vertexIndex % 4u);
   let clip = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
@@ -155,7 +161,7 @@ fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, sizeSc
     clip.z,
     clip.w,
   );
-  var color = vec4<f32>(0.0, 0.0, 0.0, 0.45);
+  var color = select(instance.color, vec4<f32>(0.0, 0.0, 0.0, 0.45), nodeOverlay);
   var emissive = 0.0;
   var hidden = false;
   if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
@@ -215,11 +221,11 @@ fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, sizeSc
 
 @vertex
 fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-  return pointVertex(position, instanceIndex, vertexIndex, 1.0);
+  return pointVertex(position, instanceIndex, vertexIndex, 1.0, false);
 }
 
 @vertex
 fn nodeOverlayVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-  return pointVertex(position, instanceIndex, vertexIndex, 0.75);
+  return pointVertex(position, instanceIndex, vertexIndex, 0.75, true);
 }
 `;
