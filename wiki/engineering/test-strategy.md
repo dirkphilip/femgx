@@ -1,0 +1,48 @@
+# Test strategy and audit
+
+This note records the August 2026 audit for issue #236. The unit suite on the
+audit base contained 68 test files and 733 passing tests; coverage thresholds
+remain 80% for lines, functions, and statements and 70% for branches. The
+performance budget is measured separately without coverage instrumentation.
+
+## Retained contract coverage
+
+| Area                        | Primary tests                                        | Classification                                                                     |
+| --------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Math, camera, controls      | `test/math`, `test/camera`, `test/demo/camera-*`     | Contract and regression protection                                                 |
+| Elements and topology       | `test/elements`                                      | Canonical ordering, validation, faces, edges, and golden fixtures                  |
+| Geometry and results        | `test/geometry`, `test/results`                      | Tessellation, metadata, deformation, derived values, and mapping                   |
+| Scene and runtime           | `test/scene`, `test/scene-runtime`, `test/runtime`   | Hierarchy validation, packed state, culling, batching, and stress budgets          |
+| Interaction and picking     | `test/interaction`, `test/picking`                   | Immutable state, precedence, adjacency, and GPU-id resolution                      |
+| Renderer and platform       | `test/renderer`, `test/platform`                     | Fake-device lifecycle, buffer writes, shaders, picking, and unsupported paths      |
+| IO                          | `test/io`                                            | VTK round trips, diagnostics, validation, and malformed input                      |
+| Viewport and public API     | `test/viewport`, `test/public-api`                   | Canonical facade workflow and deliberate root exports                              |
+| Demo fixtures and workbench | `test/demo`                                          | Fixture construction, controls, lifecycle, and preset behavior                     |
+| Engineering safeguards      | `test/scripts`, `test/supervisor`, `test/bench`      | Repository policy, worker contract, and deterministic CPU budgets                  |
+| Browser product contract    | `e2e/smoke`, `e2e/demo`, `e2e/webgpu`, `e2e/mobile*` | WebGPU rendering, picking, interaction, responsive behavior, and unsupported state |
+
+The `chrome` project is the real-WebGPU visual and interaction lane. The
+Chromium CI lane runs only the explicit unsupported-contract test; it does not
+pretend that SwiftShader is product evidence. `e2e/perf.spec.ts` is opt-in and
+does not gate correctness.
+
+## Audit decisions
+
+- Removed `e2e/visual.spec.ts`. Its three settled-pixel assertions duplicated
+  the required WebGPU suite, so they now live in `e2e/webgpu.spec.ts` beside
+  the renderer contract and share one capability gate.
+- Removed a stale `results.spec.ts` reference from the smoke-suite comment;
+  static results coverage is owned by `test/results`, viewport tests, and the
+  results paths in `e2e/demo.spec.ts`.
+- No test asserts the removed CPU renderer, playback API, non-VTK adapters, or
+  streaming subsystem. Mentions of those terms in policy tests and historical
+  wiki notes are intentional contract/deletion checks, not obsolete product
+  expectations.
+- No coverage threshold was lowered and no retained test was deleted solely to
+  improve runtime or reported coverage. New feature issues must add focused
+  contract tests in the owning subsystem and update this inventory when they
+  change the test surface.
+
+Related: [[engineering/e2e-policy|E2E policy]],
+[[engineering/quality-gate|Quality gate]], and
+[[requirements/product-scope|Product scope]].

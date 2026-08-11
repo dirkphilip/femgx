@@ -499,3 +499,55 @@ test("reports the WebGPU-only contract instead of a CPU fallback when WebGPU is 
   // Failed WebGPU startup never creates a 2D CPU renderer for the model view.
   expect(await rendererMode(page)).toBe("unsupported");
 });
+
+test("keeps the solid frame deterministic across page loads", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const first = await stableCanvasPixels(page, canvas);
+
+  await page.reload();
+  await expect.poll(() => rendererMode(page)).toBe("webgpu");
+  const second = await stableCanvasPixels(page, canvas);
+
+  expect(first.equals(second), "solid mode pixel output must be deterministic").toBe(true);
+});
+
+test("renders a distinct edge-overlay frame", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const solid = await stableCanvasPixels(page, canvas);
+
+  await page.getByTestId("edge-overlay").click();
+  await expect(canvas).toHaveAttribute("data-mode", "solid");
+  const edge = await stableCanvasPixels(page, canvas);
+
+  expect(edge.equals(solid), "edge mode must render different pixels than solid").toBe(false);
+});
+
+test("renders selection feedback as a stable pixel change", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const hoverPoint = await sweepForHit(page, canvas, {
+    attribute: "hovered",
+    settleMs: 150,
+    fresh: true,
+  });
+  if (hoverPoint === undefined) {
+    test.skip(true, "picking is not functional in this browser environment");
+    return;
+  }
+
+  await clearHover(page, canvas);
+  const before = await stableCanvasPixels(page, canvas);
+  await page.mouse.click(hoverPoint.x, hoverPoint.y);
+  await expect.poll(() => canvas.getAttribute("data-selected")).not.toBe("");
+  const selected = await stableCanvasPixels(page, canvas);
+
+  expect(selected.equals(before), "selecting an instance must change the rendered pixels").toBe(
+    false,
+  );
+  expect(
+    (await stableCanvasPixels(page, canvas)).equals(selected),
+    "the selected state must render deterministically",
+  ).toBe(true);
+});

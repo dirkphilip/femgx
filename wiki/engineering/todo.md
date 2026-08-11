@@ -176,7 +176,7 @@ closed; the list is historical scope memory, not an open implementation queue.
       structural budgets (`test/runtime/stress.test.ts`; see
       [[engineering/benchmarks|Benchmarks]]).
 - [x] Add e2e visual regression for solid, edge, and selection modes on the
-      WebGPU renderer (`e2e/visual.spec.ts`); the element render
+      WebGPU renderer (`e2e/webgpu.spec.ts`); the element render
       modes (solid/surface/edges/lines/points) are covered by the element-mode
       e2e tests in `e2e/demo.spec.ts`. The CPU renderer was removed in #171.
 - [x] Document the browser/GPU capability matrix in the wiki

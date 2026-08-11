@@ -16,7 +16,7 @@ Links use Foam/Obsidian `[[path/to/note|label]]` syntax.
 - [[rendering/index|Rendering and interaction]] — camera, WebGPU, picking,
   interaction state, and renderer resource behavior.
 - [[engineering/index|Engineering and quality]] — benchmarks, quality gates,
-  packaging, performance risks, decisions, and roadmap.
+  packaging, performance risks, test strategy, decisions, and roadmap.
 - [[operations/index|Operations and workflow]] — development loop and
   Supervisor notes.
 
