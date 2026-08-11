@@ -32,7 +32,7 @@ import { quadraticPoint, type Vec3 } from "./vec-math";
  * see `wiki/element-rendering.md` for the trade-offs.
  */
 
-/** How an element family is drawn. */
+/** How an element family is drawn. Filled surface shapes accept solid/surface. */
 export type ElementRenderMode = "solid" | "surface" | "edges" | "lines" | "points";
 
 /** Tessellation knobs for quadratic elements. */
@@ -49,6 +49,8 @@ export interface TessellationOptions {
 /** Returns the render modes supported by an element family. */
 export function elementRenderModes(family: ElementFamily): readonly ElementRenderMode[] {
   switch (family) {
+    case "triangle":
+    case "quad":
     case "tet":
     case "hex":
       return ["solid", "surface", "edges"];

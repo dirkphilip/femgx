@@ -38,6 +38,8 @@ export {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  QUAD_SHAPE,
+  TRIANGLE_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
   topologyFor,

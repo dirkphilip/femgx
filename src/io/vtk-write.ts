@@ -5,6 +5,8 @@ import {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  QUAD_SHAPE,
+  TRIANGLE_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
 } from "../elements/shapes";
@@ -13,6 +15,8 @@ import type { FemModel, ModelResultField } from "./model";
 const VTK_TYPES: ReadonlyMap<ElementShape, number> = new Map([
   [POINT_SHAPE, 1],
   [LINE_SHAPE, 3],
+  [TRIANGLE_SHAPE, 5],
+  [QUAD_SHAPE, 9],
   [LINE3_SHAPE, 21],
   [TET4_SHAPE, 10],
   [TET10_SHAPE, 24],

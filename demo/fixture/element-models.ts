@@ -6,6 +6,8 @@ import {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  QUAD_SHAPE,
+  TRIANGLE_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
 } from "../../src/elements/shapes";
@@ -229,6 +231,14 @@ export function buildPointLineModel(
   elements.push(...outlineLineElements(at, gridSize, id, lineKind));
 
   return createElementModel(builder.positions, elements);
+}
+
+/** Builds a planar pair that demonstrates typed triangle and quad surfaces. */
+export function buildSurfaceModel(): ElementModel {
+  return createElementModel(
+    [0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0, 0, 2, 1, 0],
+    [createElement(1, TRIANGLE_SHAPE, [0, 1, 2]), createElement(2, QUAD_SHAPE, [1, 3, 4, 2])],
+  );
 }
 
 /** Optional dimensions for the curved Hex20 cylinder fixture. */

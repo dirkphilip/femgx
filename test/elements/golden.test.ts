@@ -110,13 +110,14 @@ describe("golden element conventions", () => {
     },
   );
 
-  it.each(GOLDEN_ELEMENT_CONVENTIONS.filter((convention) => convention.volume === 0))(
-    "point and line shapes enclose no volume for $name",
-    (convention) => {
-      expect(convention.faces).toEqual([]);
-      expect(signedVolume(convention)).toBe(0);
-    },
-  );
+  it.each(
+    GOLDEN_ELEMENT_CONVENTIONS.filter(
+      (convention) => convention.volume === 0 && convention.faces.length === 0,
+    ),
+  )("point and line shapes enclose no volume for $name", (convention) => {
+    expect(convention.faces).toEqual([]);
+    expect(signedVolume(convention)).toBe(0);
+  });
 
   it.each(MID_EDGE_CONVENTIONS)(
     "mid-edge nodes lie exactly at the edge midpoints for $name",

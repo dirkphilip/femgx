@@ -4,6 +4,8 @@ import {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  QUAD_SHAPE,
+  TRIANGLE_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
   topologyFor,
@@ -16,6 +18,8 @@ import type { VtkState } from "./vtk";
 const VTK_TYPES: ReadonlyMap<number, ElementShape> = new Map([
   [1, POINT_SHAPE],
   [3, LINE_SHAPE],
+  [5, TRIANGLE_SHAPE],
+  [9, QUAD_SHAPE],
   [21, LINE3_SHAPE],
   [10, TET4_SHAPE],
   [24, TET10_SHAPE],

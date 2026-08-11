@@ -7,7 +7,7 @@ import {
 import { flattenAssembly } from "../../../src/runtime/flatten";
 import type { Instance } from "../../../src/scene/types";
 
-function flatten(fixture: ElementFixture): readonly Instance[] {
+function flatten(fixture: Pick<ElementFixture, "scene">): readonly Instance[] {
   return flattenAssembly({
     assemblyId: fixture.scene.rootAssemblyId,
     assemblies: fixture.scene.assemblies,
@@ -23,14 +23,16 @@ describe("createElementFixture", () => {
       point: 1,
       line: 2,
       line3: 3,
+      triangle: 8,
+      quad: 9,
       tet4: 4,
       tet10: 5,
       hex8: 6,
       hex20: 7,
     });
-    expect(fixture.instanceCount).toBe(7);
-    expect(fixture.scene.parts.size).toBe(7);
-    expect(flatten(fixture)).toHaveLength(7);
+    expect(fixture.instanceCount).toBe(9);
+    expect(fixture.scene.parts.size).toBe(9);
+    expect(flatten(fixture)).toHaveLength(9);
   });
 
   it("places every shape example at a stable x offset", () => {
@@ -43,6 +45,8 @@ describe("createElementFixture", () => {
     expect(origins.get(fixture.partIds.line3)).toBe(6);
     expect(origins.get(fixture.partIds.tet4)).toBe(9);
     expect(origins.get(fixture.partIds.hex20)).toBe(18);
+    expect(origins.get(fixture.partIds.triangle)).toBe(21);
+    expect(origins.get(fixture.partIds.quad)).toBe(24);
   });
 
   it("keeps all volume shapes visible in each display mode", () => {
@@ -52,6 +56,8 @@ describe("createElementFixture", () => {
       fixture.partIds.tet10,
       fixture.partIds.hex8,
       fixture.partIds.hex20,
+      fixture.partIds.triangle,
+      fixture.partIds.quad,
     ];
     for (const mode of ["solid", "surface", "edges"] as const) {
       expect(fixture.modePartIds.get(mode)).toEqual(volumes);
@@ -61,14 +67,16 @@ describe("createElementFixture", () => {
       fixture.partIds.line,
       fixture.partIds.line3,
     ]);
-    expect(new Set([...volumes, ...fixture.overlayPartIds]).size).toBe(7);
+    expect(new Set([...volumes, ...fixture.overlayPartIds]).size).toBe(9);
   });
 
-  it("produces geometry for points, lines, Tet4, and Hex20", () => {
+  it("produces geometry for points, lines, triangle, Tet4, and Hex20", () => {
     const { scene, partIds } = createElementFixture();
     expect(scene.parts.get(partIds.point)?.geometry.primitive).toBe("points");
     expect(scene.parts.get(partIds.line)?.geometry.primitive).toBe("lines");
     expect(scene.parts.get(partIds.line3)?.geometry.primitive).toBe("lines");
+    expect(scene.parts.get(partIds.triangle)?.geometry.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.quad)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.tet4)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.hex20)?.geometry.primitive).toBe("triangles");
   });
