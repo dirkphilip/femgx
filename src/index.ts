@@ -6,14 +6,20 @@ export type {
   SubAssemblyPlacement,
 } from "./scene/assembly";
 export {
+  bodyIdForElement,
   computeBounds,
+  GeometryValidationError,
+  validateBodies,
   validateElements,
   validatePickIds,
   type Bounds,
+  type Body,
+  type BodyId,
   type ElementTessellation,
   type FaceId,
   type FaceTessellation,
   type Geometry,
+  type GeometryValidationCode,
   type Part,
   type Primitive,
 } from "./geometry/part";

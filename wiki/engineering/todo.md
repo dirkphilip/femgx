@@ -130,6 +130,9 @@ closed; the list is historical scope memory, not an open implementation queue.
 
 ## P2 — element topology
 
+- [x] Add stable body metadata and validated element membership to reusable
+      part geometry (see [[architecture/bodies|Part bodies]]).
+
 - [x] Add a typed finite-element model with Core linear shapes and retained
       deferred Tet10/Hex20 coverage, canonical VTK node ordering, and
       connectivity validation (see [[data/elements-topology|Element topology]]).

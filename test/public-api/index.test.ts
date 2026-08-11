@@ -14,4 +14,10 @@ describe("public root API", () => {
     expect(publicApi.createFemViewport).toBeTypeOf("function");
     expect(publicApi.createResultField).toBeTypeOf("function");
   });
+
+  it("exposes validated part-body metadata helpers", () => {
+    expect(publicApi.validateBodies).toBeTypeOf("function");
+    expect(publicApi.bodyIdForElement).toBeTypeOf("function");
+    expect(publicApi.GeometryValidationError).toBeTypeOf("function");
+  });
 });

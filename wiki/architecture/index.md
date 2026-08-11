@@ -2,6 +2,8 @@
 
 - [[architecture/api-design|API design north star]] — canonical definitions,
   instances, registries, identities, and public-boundary rules.
+- [[architecture/bodies|Part bodies]] — stable body metadata and element
+  membership owned by reusable geometry.
 - [[architecture/core-api|Core API review]] — the concise review sheet for the
   canonical scene, viewport, interaction, picking, results, IO, and platform
   APIs.

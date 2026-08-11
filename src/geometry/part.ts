@@ -5,6 +5,17 @@ import type { ElementId, PartId } from "../scene/types";
 /** Stable identity of one oriented element face within a part. */
 export type FaceId = number;
 
+/** Stable identity of one logical body within a reusable part. */
+export type BodyId = number;
+
+/** Read-only logical body metadata owned by a part's geometry. */
+export interface Body {
+  readonly id: BodyId;
+  readonly name?: string;
+  /** Element ids belonging to this body, in ascending order. */
+  readonly elementIds: readonly ElementId[];
+}
+
 /** Axis-aligned bounding box in local part space. */
 export interface Bounds {
   readonly minX: number;
@@ -26,6 +37,8 @@ export interface ElementTessellation {
   /** First triangle of this element (each triangle is three indices). */
   readonly triangleStart: number;
   readonly triangleCount: number;
+  /** Optional logical body owning this element. */
+  readonly bodyId?: BodyId;
 }
 
 /**
@@ -46,6 +59,8 @@ export interface FaceTessellation {
   readonly nodeIds: readonly NodeId[];
   /** Other elements incident to the same canonical face (empty on boundaries). */
   readonly neighborElementIds: readonly ElementId[];
+  /** Optional logical body owning the face's element. */
+  readonly bodyId?: BodyId;
 }
 
 /** How a part's indexed primitives are drawn on the GPU. */
@@ -87,6 +102,8 @@ export interface Geometry {
   readonly facePickIds?: Uint32Array;
   /** Optional face descriptors in ascending `id` order. */
   readonly faces?: readonly FaceTessellation[];
+  /** Optional logical bodies in ascending `id` order. */
+  readonly bodies?: readonly Body[];
 }
 
 /**
@@ -138,79 +155,13 @@ export function computePositionsBounds(positions: Float32Array | Float64Array): 
   return { ...mins, ...maxs };
 }
 
-/**
- * Validates element descriptors against an index buffer. When elements are
- * declared, every triangle must be covered by exactly one element and ids must
- * be unique. Geometry without element descriptors always validates. The
- * parameter is structural so streaming can validate chunk data that has not
- * been converted to float32 positions yet.
- */
-export function validateElements(geometry: {
-  readonly indices: Uint32Array;
-  readonly elements?: readonly ElementTessellation[];
-}): void {
-  const elements = geometry.elements;
-  if (elements === undefined || elements.length === 0) {
-    return;
-  }
-  const triangleCount = Math.floor(geometry.indices.length / 3);
-  const coverage = new Uint8Array(triangleCount);
-  const seenIds = new Set<ElementId>();
-  for (const element of elements) {
-    if (element.triangleCount <= 0) {
-      throw new Error(`Element ${element.id} has no triangles`);
-    }
-    if (seenIds.has(element.id)) {
-      throw new Error(`Duplicate element id ${element.id}`);
-    }
-    seenIds.add(element.id);
-    const end = element.triangleStart + element.triangleCount;
-    if (element.triangleStart < 0 || end > triangleCount) {
-      throw new Error(`Element ${element.id} is outside the index buffer`);
-    }
-    for (let triangle = element.triangleStart; triangle < end; triangle++) {
-      if (coverage[triangle] === 1) {
-        throw new Error(`Triangle ${triangle} belongs to more than one element`);
-      }
-      coverage[triangle] = 1;
-    }
-  }
-  for (let triangle = 0; triangle < triangleCount; triangle++) {
-    if (coverage[triangle] === 0) {
-      throw new Error(`Triangle ${triangle} is not covered by any element`);
-    }
-  }
-}
-
-/**
- * Validates the optional node/face pick-id arrays against the geometry's
- * vertex and triangle counts and the declared face descriptors.
- */
-export function validatePickIds(geometry: Geometry): void {
-  const vertexCount = geometry.positions.length / 3;
-  if (geometry.nodePickIds !== undefined && geometry.nodePickIds.length !== vertexCount) {
-    throw new Error(
-      `nodePickIds must have one entry per vertex (${vertexCount}), got ${geometry.nodePickIds.length}`,
-    );
-  }
-  const triangleCount = Math.floor(geometry.indices.length / 3);
-  if (geometry.facePickIds !== undefined && geometry.facePickIds.length !== triangleCount) {
-    throw new Error(
-      `facePickIds must have one entry per triangle (${triangleCount}), got ${geometry.facePickIds.length}`,
-    );
-  }
-  if (geometry.faces !== undefined) {
-    const seen = new Set<FaceId>();
-    geometry.faces.forEach((face, index) => {
-      if (face.id !== index) {
-        throw new Error(`Face ${face.id} is not at its id index ${index}`);
-      }
-      if (seen.has(face.id)) {
-        throw new Error(`Duplicate face id ${face.id}`);
-      }
-      seen.add(face.id);
-    });
-  }
-}
+export {
+  bodyIdForElement,
+  GeometryValidationError,
+  validateBodies,
+  validateElements,
+  validatePickIds,
+} from "./part-validation";
+export type { GeometryValidationCode } from "./part-validation";
 
 export type { PartId } from "../scene/types";
