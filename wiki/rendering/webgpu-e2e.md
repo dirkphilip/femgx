@@ -34,10 +34,9 @@ runner exists, CI only runs the no-GPU unsupported-contract smoke
   - **display toggles** — the depth-test control stays live, and the removed
     CPU-renderer-only node/normal/face-boundary/ID overlays are no longer
     advertised in the context menu.
-  - **rendered pixels** — element emphasis must visibly change the presented
+  - **rendered pixels** — element emphasis, solid/edge mode changes, selection,
+    and reload determinism must visibly change or stabilize the presented
     canvas pixels. Captures use settled `canvas.screenshot()` comparisons.
-- `e2e/visual.spec.ts` additionally pins deterministic pixel output for solid,
-  edge, and selection modes using the same settled-screenshot technique.
 
 ## Capability gating (non-flakiness)
 

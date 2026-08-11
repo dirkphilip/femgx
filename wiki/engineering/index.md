@@ -18,5 +18,7 @@
 - [[engineering/scaffold-decisions|Scaffold decisions]] — toolchain and
   strictness decisions.
 - [[engineering/todo|Engineering TODO]] — prioritized implementation roadmap.
+- [[engineering/test-strategy|Test strategy and audit]] — retained coverage,
+  redundancy decisions, and current contract inventory.
 - [[engineering/typescript-toolchain-compatibility|TS compatibility]] — compiler
   and lint-tool constraints.
