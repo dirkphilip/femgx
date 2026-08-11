@@ -66,11 +66,12 @@ export function clearSelection(interaction: InteractionState): InteractionState 
   };
 }
 
-/** Replaces the selection for a plain click, keeping the clicked target selected. */
+/** Replaces the selection for a plain click, toggling off an already selected target. */
 export function replaceSelection(
   interaction: InteractionState,
   target: SelectTarget,
 ): InteractionState {
+  if (isSelected(interaction, target)) return clearSelection(interaction);
   return toggleSelection(clearSelection(interaction), target);
 }
 
@@ -142,6 +143,21 @@ function hasSelection(interaction: InteractionState): boolean {
     interaction.selectedNodeIds.size > 0 ||
     interaction.selectedFaces.size > 0
   );
+}
+
+function isSelected(interaction: InteractionState, target: SelectTarget): boolean {
+  switch (target.kind) {
+    case "node":
+      return interaction.selectedNodeIds.get(target.instanceId)?.has(target.nodeId) ?? false;
+    case "face":
+      return interaction.selectedFaces.get(target.instanceId)?.has(target.faceKey) ?? false;
+    case "element":
+      return interaction.selectedElementIds.get(target.instanceId)?.has(target.elementId) ?? false;
+    case "instance":
+      return interaction.selectedInstanceIds.has(target.instanceId);
+    case "part":
+      return interaction.selectedPartIds.has(target.partId);
+  }
 }
 
 function sortedMap<K, V>(map: ReadonlyMap<K, V>): Array<readonly [K, V]> {

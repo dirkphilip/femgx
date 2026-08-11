@@ -53,7 +53,7 @@ describe("demo selection policy", () => {
     expect(replaced.selectedElementIds.get("1/0")).toEqual(new Set([7]));
 
     const same = replaceSelection(replaced, element);
-    expect(same.selectedElementIds.get("1/0")).toEqual(new Set([7]));
+    expect(same.selectedElementIds).toEqual(new Map());
 
     const additive = toggleSelection(toggleSelection(createInteractionState(), part), instance);
     expect(additive.selectedPartIds).toEqual(new Set([4]));
