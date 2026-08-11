@@ -50,7 +50,9 @@ export function buildMeshEdgeData(
         edges.push(edge);
         byKey.set(key, edge);
       }
-      if (bodyPickId !== 0) edge.bodies.add(bodyPickId);
+      // Keep `0` as an explicit unowned contributor. It makes topology shared
+      // with an unowned element visible even when every named body is hidden.
+      edge.bodies.add(bodyPickId);
     }
   }
   const bodyIds: number[] = [];
@@ -61,7 +63,8 @@ export function buildMeshEdgeData(
     if (edge === undefined) continue;
     indices[index * 2] = edge.a;
     indices[index * 2 + 1] = edge.b;
-    const owners = [...edge.bodies].sort((a, b) => a - b);
+    const hasNamedOwner = [...edge.bodies].some((bodyPickId) => bodyPickId !== 0);
+    const owners = hasNamedOwner ? [...edge.bodies].sort((a, b) => a - b) : [];
     bodyRanges[index * 2] = bodyIds.length;
     bodyRanges[index * 2 + 1] = owners.length;
     bodyIds.push(...owners);

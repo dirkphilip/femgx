@@ -235,6 +235,27 @@ describe("buildNodeBodyPickData", () => {
     });
     expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([0, 0, 0, 0, 0, 0]);
   });
+
+  it("keeps unowned contributors for shared node visibility", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array(12),
+      indices: new Uint32Array([0, 1, 2, 0, 1, 3]),
+      primitive: "triangles",
+      nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 4]),
+      nodePositions: new Float32Array(12),
+      elements: [
+        { id: 4, primitiveStart: 0, primitiveCount: 1, bodyId: 7 },
+        { id: 5, primitiveStart: 1, primitiveCount: 1 },
+      ],
+      bodies: [{ id: 7, elementIds: [4] }],
+    };
+
+    expect(buildNodeBodyOwnerData(geometry, new Uint32Array([1, 2, 3, 4]))).toEqual({
+      bodyRanges: new Uint32Array([0, 2, 2, 2, 4, 1, 5, 0]),
+      bodyIds: new Uint32Array([0, 8, 0, 8, 8]),
+    });
+    expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([0, 0, 0, 0, 0, 8, 0, 0]);
+  });
 });
 
 describe("buildNodeSpritePickIds", () => {

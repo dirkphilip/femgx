@@ -364,6 +364,24 @@ test("hides and restores all fasteners through the assembly tree", async ({ page
   expect(await status(page)).toContain("34 visible");
 });
 
+test("keeps body overlays rendered while hiding a named body", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await page.getByTestId("edge-overlay").click();
+  await page.getByTestId("node-overlay").click();
+
+  const body = page.locator('input[data-testid^="body-vis-"]').first();
+  await expect(body).toBeChecked();
+  await body.uncheck();
+  await expect(body).not.toBeChecked();
+  await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
+
+  await body.check();
+  await expect(body).toBeChecked();
+  await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
+});
+
 test("switches projection, fits to view, and resets camera controls", async ({ page }) => {
   await page.goto("/");
   const label = page.getByTestId("projection-label");
