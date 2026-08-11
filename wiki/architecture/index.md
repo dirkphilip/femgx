@@ -2,6 +2,9 @@
 
 - [[architecture/api-design|API design north star]] — canonical definitions,
   instances, registries, identities, and public-boundary rules.
+- [[architecture/core-api|Core API review]] — the concise review sheet for the
+  canonical scene, viewport, interaction, picking, results, IO, and platform
+  APIs.
 - [[architecture/public-api-audit|Public API audit]] — exhaustive root export
   inventory and the intentional pruning decisions from issue #196.
 - [[architecture/architecture-overview|Architecture overview]] — scene model,
