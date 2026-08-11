@@ -84,7 +84,9 @@ fn vertexMain(
     }
   }
   var output: VertexOutput;
-  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
+  let displayedPosition = displaced(position, vertexIndex);
+  let worldPosition = (instance.transform * vec4<f32>(displayedPosition, 1.0)).xyz;
+  output.position = camera.viewProjection * vec4<f32>(worldPosition, 1.0);
   if (hidden) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
@@ -96,6 +98,7 @@ fn vertexMain(
   output.local = vec2<f32>(0.0);
   output.centerPixel = vec2<f32>(0.0);
   output.nodeDepth = 0.0;
+  output.worldPosition = worldPosition;
   return output;
 }
 
@@ -175,7 +178,9 @@ fn pointVertex(
 ) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
   let corner = spriteCorner(vertexIndex % 4u);
-  let clip = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
+  let displayedPosition = displaced(position, vertexIndex);
+  let worldPosition = (instance.transform * vec4<f32>(displayedPosition, 1.0)).xyz;
+  let clip = camera.viewProjection * vec4<f32>(worldPosition, 1.0);
   let offset = (corner * camera.pointSize * sizeScale) / camera.viewport;
   let ndc = clip.xy / clip.w;
   let elementPickId = primitiveElementPickIds[vertexIndex / 4u];
@@ -245,6 +250,7 @@ fn pointVertex(
     (0.5 - ndc.y * 0.5) * camera.viewport.y,
   );
   output.nodeDepth = clip.z / clip.w;
+  output.worldPosition = worldPosition;
   return output;
 }
 

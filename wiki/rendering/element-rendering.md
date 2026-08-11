@@ -28,6 +28,13 @@ Related: [[data/elements-topology|Element topology]] and
    primitive, batches instances by part, and draws with the part's primitive
    (see [[rendering/renderer-subrange-updates|Renderer subrange updates]]).
 
+Visible triangle surfaces use one internal flat-lighting fragment path. It
+derives a geometric normal from the displayed world position, applies a
+camera-following key direction with strong ambient fill, and uses an absolute
+two-sided response so shell geometry remains readable from either side. Line,
+point, edge, node-overlay, and picking paths remain unlit; lighting does not
+alter alpha or the existing interaction emissive.
+
 Triangle geometry carries an
 `ElementTessellation` per element — the contiguous `primitiveStart`/
 `primitiveCount` range it owns — so every triangle maps to its element id. Mixed

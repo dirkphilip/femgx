@@ -12,7 +12,7 @@
  * nearest node.
  */
 
-/** Camera uniform: view projection, viewport, point size, clip planes, slack. */
+/** Camera uniform: view projection, viewport, clip planes, and key light. */
 export const cameraStruct = /* wgsl */ `
 struct Camera {
   viewProjection: mat4x4<f32>,
@@ -23,6 +23,7 @@ struct Camera {
   ortho: f32,
   depthSlack: f32,
   _pad: f32,
+  keyLightDirection: vec4<f32>,
 };
 `;
 
@@ -161,6 +162,7 @@ struct VertexOutput {
   @location(5) local: vec2<f32>,
   @location(6) @interpolate(flat) centerPixel: vec2<f32>,
   @location(7) @interpolate(flat) nodeDepth: f32,
+  @location(8) worldPosition: vec3<f32>,
 };
 `;
 
@@ -182,6 +184,34 @@ export const colorFragmentShader = /* wgsl */ `
 fn fragmentMain(@location(0) color: vec4<f32>, @location(2) @interpolate(flat) emissive: f32, @location(5) local: vec2<f32>) -> @location(0) vec4<f32> {
   if (dot(local, local) > 1.0) { discard; }
   return vec4<f32>(color.rgb + vec3<f32>(emissive), color.a);
+}
+`;
+
+/** Lit triangle fragment stage; overlays, lines, and points remain unlit. */
+export const triangleColorFragmentShader = /* wgsl */ `
+${cameraStruct}
+${deformationStruct}
+${frameBindings}
+
+@fragment
+fn fragmentMain(
+  @location(0) color: vec4<f32>,
+  @location(2) @interpolate(flat) emissive: f32,
+  @location(5) local: vec2<f32>,
+  @location(8) worldPosition: vec3<f32>,
+) -> @location(0) vec4<f32> {
+  if (dot(local, local) > 1.0) { discard; }
+  let geometricNormal = cross(dpdx(worldPosition), dpdy(worldPosition));
+  let normalLength = length(geometricNormal);
+  var diffuse = 0.65;
+  // WGSL's finite-value built-in is not available in the browser baseline;
+  // NaN is unequal to itself and infinity exceeds this practical bound.
+  if (normalLength == normalLength && normalLength > 1e-6 && normalLength < 1e20) {
+    let normal = geometricNormal / normalLength;
+    let keyResponse = abs(dot(normal, normalize(camera.keyLightDirection.xyz)));
+    diffuse = 0.65 + 0.35 * clamp(keyResponse, 0.0, 1.0);
+  }
+  return vec4<f32>(color.rgb * diffuse + vec3<f32>(emissive), color.a);
 }
 `;
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { pointSizeDevicePixels } from "../../src/renderer/gpu-frame";
+import { cameraKeyLightDirection, pointSizeDevicePixels } from "../../src/renderer/gpu-frame";
 import { orbitPivotAxisProjection, orbitPivotMetrics } from "../../src/renderer/gpu-orbit-pivot";
 import { createCamera, resizeCamera } from "../../src/camera/camera";
 
@@ -22,6 +22,26 @@ describe("pointSizeDevicePixels", () => {
 
   it("never returns less than one device pixel", () => {
     expect(pointSizeDevicePixels(0.1, 1)).toBe(1);
+  });
+});
+
+describe("cameraKeyLightDirection", () => {
+  it.each([
+    createCamera({ position: [4, 3, 6], target: [0, 0, 0] }),
+    createCamera({ position: [0, 4, 0], target: [0, 0, 0], up: [1, 0, 0] }),
+    createCamera({ position: [0, -4, 0], target: [0, 0, 0], up: [1, 0, 0] }),
+  ])("returns a finite normalized direction for valid camera #%#", (camera) => {
+    const direction = cameraKeyLightDirection(camera);
+    expect(direction.every(Number.isFinite)).toBe(true);
+    expect(Math.hypot(...direction)).toBeCloseTo(1);
+  });
+
+  it("follows the view while retaining a small upward bias", () => {
+    const direction = cameraKeyLightDirection(
+      createCamera({ position: [0, 0, 4], target: [0, 0, 0] }),
+    );
+    expect(direction[2]).toBeGreaterThan(direction[1]);
+    expect(direction[1]).toBeGreaterThan(0);
   });
 });
 

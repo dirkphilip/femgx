@@ -1,5 +1,10 @@
 /* eslint-disable jsdoc/require-jsdoc, max-lines-per-function */
-import { colorFragmentShader, edgeFragmentShader, edgeVertexShader } from "./gpu-shaders";
+import {
+  colorFragmentShader,
+  edgeFragmentShader,
+  edgeVertexShader,
+  triangleColorFragmentShader,
+} from "./gpu-shaders";
 import { instanceVertexShader, lineVertexShader, pointVertexShader } from "./gpu-instanced-shaders";
 import {
   lineNodePickVertexShader,
@@ -47,7 +52,7 @@ interface DrawTargets {
   depthHeight: number;
 }
 
-export const CAMERA_UNIFORM_SIZE = 96;
+export const CAMERA_UNIFORM_SIZE = 112;
 
 interface PipelineSpec {
   readonly depthFormat: GPUTextureFormat;
@@ -150,6 +155,7 @@ interface PipelineShaders {
   readonly lineNodeVertex: GPUShaderModule;
   readonly pointNodeVertex: GPUShaderModule;
   readonly colorFragment: GPUShaderModule;
+  readonly triangleColorFragment: GPUShaderModule;
   readonly nodePickVertex: GPUShaderModule;
   readonly nodePickFragment: GPUShaderModule;
 }
@@ -176,6 +182,7 @@ function createPipelineShaders(device: GPUDevice): PipelineShaders {
     lineNodeVertex: device.createShaderModule({ code: lineNodePickVertexShader }),
     pointNodeVertex: device.createShaderModule({ code: pointNodePickVertexShader }),
     colorFragment: device.createShaderModule({ code: colorFragmentShader }),
+    triangleColorFragment: device.createShaderModule({ code: triangleColorFragmentShader }),
     nodePickVertex: device.createShaderModule({ code: nodePickVertexShader }),
     nodePickFragment: device.createShaderModule({ code: nodePickFragmentShader }),
   };
@@ -228,7 +235,12 @@ function buildPipelines(
       sampleCount,
     });
   return {
-    trianglesColor: make(variants.triangles, shaders.colorFragment, [format], COLOR_SAMPLE_COUNT),
+    trianglesColor: make(
+      variants.triangles,
+      shaders.triangleColorFragment,
+      [format],
+      COLOR_SAMPLE_COUNT,
+    ),
     trianglesPick: make(
       { ...variants.triangles, vertexModule: shaders.nodePickVertex },
       shaders.nodePickFragment,

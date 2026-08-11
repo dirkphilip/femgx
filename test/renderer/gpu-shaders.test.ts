@@ -9,6 +9,7 @@ import {
   edgeFragmentShader,
   edgeVertexShader,
   pickFragmentShader,
+  triangleColorFragmentShader,
 } from "../../src/renderer/gpu-shaders";
 import {
   instanceVertexShader,
@@ -88,6 +89,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
       expect(offsets.get("farPlane")).toBe(80);
       expect(offsets.get("ortho")).toBe(84);
       expect(offsets.get("depthSlack")).toBe(88);
+      expect(offsets.get("keyLightDirection")).toBe(96);
       expect(info.size).toBe(CAMERA_UNIFORM_SIZE);
     },
   );
@@ -164,6 +166,23 @@ describe("GPU record struct layout vs CPU record encoders", () => {
   it("applies emissive additively in the color fragment shader", () => {
     expect(colorFragmentShader).toMatch(/@location\(2\) @interpolate\(flat\) emissive: f32/);
     expect(colorFragmentShader).toMatch(/color\.rgb \+ vec3<f32>\(emissive\)/);
+  });
+
+  it("lights only triangle surfaces from displayed world-space derivatives", () => {
+    expect(triangleColorFragmentShader).toContain("@location(8) worldPosition: vec3<f32>");
+    expect(triangleColorFragmentShader).toContain(
+      "cross(dpdx(worldPosition), dpdy(worldPosition))",
+    );
+    expect(triangleColorFragmentShader).toContain(
+      "abs(dot(normal, normalize(camera.keyLightDirection.xyz)))",
+    );
+    expect(triangleColorFragmentShader).toContain(
+      "normalLength == normalLength && normalLength > 1e-6 && normalLength < 1e20",
+    );
+    expect(triangleColorFragmentShader).toContain("color.rgb * diffuse + vec3<f32>(emissive)");
+    expect(triangleColorFragmentShader).toContain("color.a");
+    expect(colorFragmentShader).not.toContain("keyLightDirection");
+    expect(colorFragmentShader).not.toContain("dpdx");
   });
 });
 
