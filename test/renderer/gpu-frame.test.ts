@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { pointSizeDevicePixels } from "../../src/renderer/gpu-frame";
-import { orbitPivotAxisDirection, orbitPivotMetrics } from "../../src/renderer/gpu-orbit-pivot";
+import { orbitPivotAxisProjection, orbitPivotMetrics } from "../../src/renderer/gpu-orbit-pivot";
 import { createCamera, resizeCamera } from "../../src/camera/camera";
 
 const originalDevicePixelRatio = globalThis.devicePixelRatio;
@@ -41,16 +41,21 @@ describe("orbit pivot widget", () => {
     });
   });
 
-  it("projects world axes into camera-oriented screen directions", () => {
+  it("foreshortens a world axis as it faces the camera", () => {
     const camera = resizeCamera(createCamera({ position: [4, 3, 6], target: [0, 0, 0] }), 800, 600);
-    const pivot = [0, 0, 0] as const;
-    const x = orbitPivotAxisDirection(camera, pivot, [1, 0, 0]);
-    const y = orbitPivotAxisDirection(camera, pivot, [0, 1, 0]);
-    const z = orbitPivotAxisDirection(camera, pivot, [0, 0, 1]);
-    expect(Math.hypot(...x)).toBeCloseTo(1);
-    expect(Math.hypot(...y)).toBeCloseTo(1);
-    expect(Math.hypot(...z)).toBeCloseTo(1);
+    const x = orbitPivotAxisProjection(camera, [1, 0, 0]);
+    const y = orbitPivotAxisProjection(camera, [0, 1, 0]);
+    const z = orbitPivotAxisProjection(camera, [0, 0, 1]);
+    expect(Math.hypot(...x)).toBeLessThan(1);
+    expect(Math.hypot(...y)).toBeLessThan(1);
+    expect(Math.hypot(...z)).toBeLessThan(1);
     expect(x).not.toEqual(y);
     expect(y).not.toEqual(z);
+
+    const faceOn = orbitPivotAxisProjection(
+      createCamera({ position: [5, 0, 0], target: [0, 0, 0] }),
+      [1, 0, 0],
+    );
+    expect(faceOn).toEqual([0, 0]);
   });
 });
