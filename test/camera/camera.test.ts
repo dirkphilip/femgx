@@ -75,14 +75,14 @@ describe("camera", () => {
     expect(rotated.target).not.toEqual(camera.target);
   });
 
-  it("rotates continuously through the old pitch limit", () => {
+  it("stops short of the poles so the orbit frame never flips", () => {
     const camera = createCamera({ position: [0, 0, 5], target: [0, 0, 0] });
-    const halfway = orbitCamera(camera, 0, Math.PI);
-    const fullTurn = orbitCamera(camera, 0, Math.PI * 2);
-    expect(halfway.position[2]).toBeCloseTo(-5);
-    expect(fullTurn.position[0]).toBeCloseTo(camera.position[0]);
-    expect(fullTurn.position[1]).toBeCloseTo(camera.position[1]);
-    expect(fullTurn.position[2]).toBeCloseTo(camera.position[2]);
+    const atPoleLimit = orbitCamera(camera, 0, Math.PI);
+    const beyondPoleLimit = orbitCamera(atPoleLimit, 0, Math.PI);
+    expect(atPoleLimit.position[1]).toBeLessThan(-4.9);
+    expect(atPoleLimit.position[2]).toBeGreaterThan(0);
+    expect(distance(beyondPoleLimit.position, atPoleLimit.position)).toBeLessThan(1e-9);
+    expect(distance(beyondPoleLimit.target, atPoleLimit.target)).toBeLessThan(1e-9);
   });
 
   it("adapts the perspective near plane instead of stopping close zoom", () => {

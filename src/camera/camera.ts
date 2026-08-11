@@ -67,7 +67,7 @@ export function setProjection(camera: Camera, mode: ProjectionMode): Camera {
 
 /**
  * Orbits in radians around the target, or around an explicit world-space
- * pivot. Rotation is continuous through the poles instead of clamping pitch.
+ * pivot. Pitch stops just short of the poles so the view frame cannot invert.
  */
 export function orbitCamera(
   camera: Camera,
@@ -314,13 +314,19 @@ function orbitAroundPivot(camera: Camera, yaw: number, pitch: number, pivot: Vec
   const yawedPosition = rotateAround(camera.position, pivot, camera.up, yaw);
   const yawedTarget = rotateAround(camera.target, pivot, camera.up, yaw);
   const forward = normalize(subtract(yawedTarget, yawedPosition));
-  const right = normalize(cross(forward, camera.up));
+  const up = normalize(camera.up);
+  const right = normalize(cross(forward, up));
+  const elevation = Math.asin(clamp(dot(forward, up), -1, 1));
+  const limitedPitch = clamp(pitch, -ORBIT_POLE_LIMIT - elevation, ORBIT_POLE_LIMIT - elevation);
   return {
     ...camera,
-    position: rotateAround(yawedPosition, pivot, right, pitch),
-    target: rotateAround(yawedTarget, pivot, right, pitch),
+    position: rotateAround(yawedPosition, pivot, right, limitedPitch),
+    target: rotateAround(yawedTarget, pivot, right, limitedPitch),
   };
 }
+
+// Keeping a non-zero horizontal component makes the view matrix well-defined.
+const ORBIT_POLE_LIMIT = Math.PI / 2 - 0.01;
 
 /** Rodrigues rotation of a point around an axis through a pivot. */
 function rotateAround(point: Vec3, pivot: Vec3, axis: Vec3, angle: number): Vec3 {
