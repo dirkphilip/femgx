@@ -53,7 +53,6 @@ Start each cycle by inspecting both the repository and GitHub state:
 git fetch origin main
 gh issue list --state open --limit 50
 gh pr list --state open --limit 50
-sed -n '1,260p' wiki/engineering/todo.md
 sed -n '1,260p' wiki/engineering/performance-issues.md
 ```
 
@@ -169,8 +168,7 @@ After every merge:
 
 1. Read the changed files and tests on `main`.
 2. Run the project quality gate locally.
-3. Re-read `wiki/engineering/todo.md`, `wiki/engineering/performance-issues.md`, and relevant design
-   notes.
+3. Re-read `wiki/engineering/performance-issues.md` and relevant design notes.
 4. Record a newly discovered issue only when it is distinct, actionable, and
    has a clear payoff. Link the originating PR and the relevant wiki note.
 5. Add `ready-for-supervisor` only after triage; then choose the next issue by
@@ -241,6 +239,6 @@ npm run test:e2e
 
 Run the full gate after merging a logical batch, and use focused tests while
 triaging. Leave the repository clean except for intentionally uncommitted user
-work. Update [[engineering/todo|Engineering TODO]], [[engineering/performance-issues|Performance issues
-and risks]], or a more specific wiki note whenever the implementation changes
-the roadmap or exposes a reusable pitfall.
+work. Update [[engineering/performance-issues|Performance issues and risks]] or
+a more specific wiki note whenever the implementation changes a durable
+contract or exposes a reusable pitfall. Keep current work state in GitHub.
