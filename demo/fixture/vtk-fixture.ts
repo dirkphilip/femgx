@@ -1,9 +1,7 @@
 import sampleBlockVtk from "./sample-block.vtk?raw";
-import { createElement } from "../../src/elements/element";
-import { createElementModel, type ElementModel } from "../../src/elements/model";
+import type { ElementModel } from "../../src/elements/model";
 import { boundaryFaceRefs } from "../../src/elements/faces";
-import { topologyFor } from "../../src/elements/shapes";
-import { parseVtk, type FemModel } from "../../src/index";
+import { createElementModelFromFemModel, parseVtk, type FemModel } from "../../src/index";
 import { elementPart, type ElementRenderMode } from "../../src/geometry/element-mesh";
 import type { Bounds, Part } from "../../src/geometry/part";
 import { identity } from "../../src/math/mat4";
@@ -33,17 +31,8 @@ export function createVtkFixture(): VtkFixture {
   }
   const block = vtkModel.elementBlocks[0];
   if (block === undefined) throw new Error("The sample VTK asset has no element block");
-  const elements = Array.from({ length: block.count }, (_, index) => {
-    const nodeCount = topologyFor(block.shape).nodeCount;
-    const start = index * nodeCount;
-    return createElement(
-      block.ids[index] ?? index,
-      block.shape,
-      Array.from(block.connectivity.slice(start, start + nodeCount)),
-    );
-  });
-  const elementModel = createElementModel([...vtkModel.nodes.coordinates], elements);
-  const exteriorFaces = boundaryFaceRefs(elements);
+  const elementModel = createElementModelFromFemModel(vtkModel);
+  const exteriorFaces = boundaryFaceRefs(elementModel.elements);
   const parts: readonly Part[] = [
     elementPart(SOLID_PART_ID, elementModel, "hex", "solid", { faceSubset: exteriorFaces }),
     elementPart(SURFACE_PART_ID, elementModel, "hex", "surface", { faceSubset: exteriorFaces }),

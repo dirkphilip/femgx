@@ -37,8 +37,8 @@ fn vertexMain(
   @builtin(vertex_index) vertexIndex: u32,
 ) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
-  let elementPickId = triangleElementPickIds[vertexIndex / 3u];
-  let faceBodyPickIds = triangleFaceBodyPickIds[vertexIndex / 3u];
+  let elementPickId = primitiveElementPickIds[vertexIndex / 3u];
+  let faceBodyPickIds = primitiveFaceBodyPickIds[vertexIndex / 3u];
   let facePickId = faceBodyPickIds.x;
   let bodyPickId = faceBodyPickIds.y;
   var color = instance.color;
@@ -101,6 +101,12 @@ fn vertexMain(
 
 `;
 
+/** Line-list variant of the shared element vertex shader. */
+export const lineVertexShader = instanceVertexShader.replaceAll(
+  "vertexIndex / 3u",
+  "vertexIndex / 2u",
+);
+
 /**
  * Vertex stage for point-sprite parts. Each point is a quad of four vertices
  * with the same center; `vertex_index % 4` selects the sprite corner, which
@@ -140,7 +146,8 @@ fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, sizeSc
   let clip = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   let offset = (corner * camera.pointSize * sizeScale) / camera.viewport;
   let ndc = clip.xy / clip.w;
-  let bodyPickId = triangleFaceBodyPickIds[vertexIndex / 4u].y;
+  let elementPickId = primitiveElementPickIds[vertexIndex / 4u];
+  let bodyPickId = primitiveFaceBodyPickIds[vertexIndex / 4u].y;
   var output: VertexOutput;
   output.position = vec4<f32>(
     clip.x + offset.x * clip.w,
@@ -164,6 +171,18 @@ fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, sizeSc
       }
     }
   }
+  if (elementPickId != 0u && elementHighlights.bucketCount != 0u) {
+    let bucket = highlightHash(drawOrder[instanceIndex], elementPickId, 0u, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
+    let base = bucket * 4u;
+    for (var offset = 0u; offset < 4u; offset++) {
+      let highlight = elementHighlights.records[base + offset];
+      if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == elementPickId && highlight.facePickId == 0u) {
+        color = highlight.color;
+        emissive = highlight.emissive;
+        break;
+      }
+    }
+  }
   let nodePickId = vertexNodePickIds[vertexIndex];
   if (nodePickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], 0u, 0u, nodePickId, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
@@ -183,7 +202,7 @@ fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, sizeSc
   output.color = color;
   output.pickId = instance.pickId;
   output.emissive = emissive;
-  output.elementPickId = 0u;
+  output.elementPickId = elementPickId;
   output.facePickId = 0u;
   output.local = corner;
   output.centerPixel = vec2<f32>(

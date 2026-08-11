@@ -21,6 +21,10 @@ import {
   type ElementRenderMode,
   type TessellationOptions,
 } from "../../src/geometry/element-mesh";
+import {
+  HeterogeneousElementError,
+  heterogeneousElementParts,
+} from "../../src/geometry/heterogeneous-element-mesh";
 import { validateElements, validatePickIds } from "../../src/geometry/part";
 
 type Vec3 = readonly [number, number, number];
@@ -141,6 +145,22 @@ function pointLineModel(): ElementModel {
       createElement(4, LINE3_SHAPE, [1, 2, 0]),
     ],
   );
+}
+
+function heterogeneousModel(): ElementModel {
+  const nodes: number[] = [
+    0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0, 0, 3, 0, 0, 3, 1, 0, 2, 1, 0, 0, 0, 2, 1, 0, 2, 0, 1, 2, 0, 0,
+    3, 2, 0, 2, 3, 0, 2, 3, 1, 2, 2, 1, 2, 2, 0, 3, 3, 0, 3, 3, 1, 3, 2, 1, 3, 4, 0, 0, 5, 0, 0, 6,
+    0, 0,
+  ];
+  return createElementModel(nodes, [
+    createElement(1, TRIANGLE_SHAPE, [0, 1, 2]),
+    createElement(2, QUAD_SHAPE, [3, 4, 5, 6]),
+    createElement(3, TET4_SHAPE, [7, 8, 9, 10]),
+    createElement(4, HEX8_SHAPE, [11, 12, 13, 14, 15, 16, 17, 18]),
+    createElement(5, LINE_SHAPE, [19, 20]),
+    createElement(6, POINT_SHAPE, [21]),
+  ]);
 }
 
 function triangles(geometry: { readonly positions: Float32Array; readonly indices: Uint32Array }) {
@@ -470,6 +490,95 @@ describe("elementPart", () => {
     expect(geometry.bodies).toEqual([{ id: 3, name: "housing", elementIds: [1] }]);
     expect(geometry.elements?.[0]).toMatchObject({ id: 1, bodyId: 3 });
     expect(geometry.faces?.every((face) => face.bodyId === 3)).toBe(true);
+  });
+});
+
+describe("heterogeneousElementParts", () => {
+  it("groups linear surface, volume, line, and point elements without dropping ids", () => {
+    const parts = heterogeneousElementParts(
+      { triangle: 20, line: 21, point: 22 },
+      heterogeneousModel(),
+    );
+    expect(parts.triangle?.geometry.primitive).toBe("triangles");
+    expect(parts.triangle?.geometry.elements?.map((element) => element.id)).toEqual([1, 2, 3, 4]);
+    expect(parts.triangle?.geometry.elements?.map((element) => element.shape?.family)).toEqual([
+      "triangle",
+      "quad",
+      "tet",
+      "hex",
+    ]);
+    expect(parts.line?.geometry.elements).toEqual([
+      {
+        id: 5,
+        primitiveStart: 0,
+        primitiveCount: 1,
+        shape: LINE_SHAPE,
+      },
+    ]);
+    expect(parts.point?.geometry.elements).toEqual([
+      {
+        id: 6,
+        primitiveStart: 0,
+        primitiveCount: 1,
+        shape: POINT_SHAPE,
+      },
+    ]);
+  });
+
+  it("preserves mixed face identity and explicit face subsets", () => {
+    const parts = heterogeneousElementParts(
+      { triangle: 20, line: 21, point: 22 },
+      heterogeneousModel(),
+      { faceSubset: [{ elementId: 3, faceIndex: 0 }] },
+    );
+    expect(parts.triangle?.geometry.faceSubset).toEqual({ faceIds: [2] });
+    expect(parts.triangle?.geometry.faces?.[2]).toMatchObject({ elementId: 3, faceIndex: 0 });
+    expect(parts.triangle?.geometry.indices.length).toBeGreaterThan(3);
+  });
+
+  it("rejects missing group ids and deferred shapes instead of silently omitting them", () => {
+    expect(() => heterogeneousElementParts({ triangle: 20 }, heterogeneousModel())).toThrow(
+      expect.objectContaining({ code: "missing-part-id" }),
+    );
+    expect(() =>
+      heterogeneousElementParts(
+        { triangle: 20 },
+        createElementModel(
+          [...TET10_NODES],
+          [
+            createElement(
+              1,
+              TET10_SHAPE,
+              Array.from({ length: 10 }, (_, index) => index),
+            ),
+          ],
+        ),
+      ),
+    ).toThrow(expect.objectContaining({ code: "unsupported-shape" }));
+  });
+
+  it("keeps repeated builds deterministic and carries body membership to each group", () => {
+    const model = heterogeneousModel();
+    const options = {
+      bodies: [{ id: 2, name: "mixed", elementIds: [1, 2, 3, 4, 5, 6] }],
+    } as const;
+    const first = heterogeneousElementParts({ triangle: 20, line: 21, point: 22 }, model, options);
+    const second = heterogeneousElementParts({ triangle: 20, line: 21, point: 22 }, model, options);
+    expect(first.triangle?.geometry.positions).toEqual(second.triangle?.geometry.positions);
+    expect(first.triangle?.geometry.elements?.every((element) => element.bodyId === 2)).toBe(true);
+    expect(first.line?.geometry.elements?.[0]?.bodyId).toBe(2);
+    expect(first.point?.geometry.elements?.[0]?.bodyId).toBe(2);
+  });
+
+  it("rejects duplicate part ids with a typed diagnostic", () => {
+    expect(() =>
+      heterogeneousElementParts({ triangle: 20, line: 20 }, heterogeneousModel()),
+    ).toThrow(
+      new HeterogeneousElementError(
+        "duplicate-part-id",
+        "Heterogeneous part id 20 is assigned to more than one primitive group",
+      ),
+    );
   });
 });
 

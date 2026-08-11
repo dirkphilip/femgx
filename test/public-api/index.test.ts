@@ -18,6 +18,9 @@ describe("public root API", () => {
     expect(publicApi.PolygonGeometryError).toBeTypeOf("function");
     expect(publicApi.boundaryFaceRefs).toBeTypeOf("function");
     expect(publicApi.FaceSelectionError).toBeTypeOf("function");
+    expect(publicApi.heterogeneousElementParts).toBeTypeOf("function");
+    expect(publicApi.HeterogeneousElementError).toBeTypeOf("function");
+    expect(publicApi.createElementModelFromFemModel).toBeTypeOf("function");
   });
 
   it("exposes validated part-body metadata helpers", () => {

@@ -108,6 +108,14 @@ closed; the list is historical scope memory, not an open implementation queue.
       [[engineering/benchmarks|Benchmarks]]).
 - [x] Define precedence when part and instance styles overlap.
 - [x] Expose a clean `pick(x, y)` API returning stable part/instance targets.
+- [x] Clear selection on empty-space clicks and preserve it across orbit/pan
+      gestures.
+- [x] Use plain clicks for replacement and Control/Meta clicks for additive
+      selection.
+- [x] Add a clamped view context menu with fit, clear, show-all, and reset
+      actions.
+
+See [[rendering/interaction-selection-menu|selection and view context menu]].
 
 ## P2 — modern development workflow
 
@@ -160,6 +168,10 @@ closed; the list is historical scope memory, not an open implementation queue.
 - [x] Add validated element-face subsets, exterior-face selection, compact GPU
       index orders, preserved picks, and an exterior VTK demo path (see
       [[rendering/face-subsets|Face subsets]]).
+- [x] Build one heterogeneous `ElementModel` into deterministic reusable
+      triangle, line, and point parts with preserved shape metadata, picks,
+      results, deformation, bodies, and face subsets (see
+      [[rendering/heterogeneous-elements|Heterogeneous element parts]]).
 
 ## P2 — engineering results
 

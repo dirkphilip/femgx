@@ -27,23 +27,24 @@ export type SelectTarget =
   | { readonly kind: "instance"; readonly instanceId: InstanceId }
   | { readonly kind: "part"; readonly partId: PartId };
 
-/** Resolves an instance id to its part id for modifier promotion. */
+/** Resolves an instance id to its part id for inspection and target labeling. */
 export type PartIdForInstance = (instanceId: InstanceId) => PartId | undefined;
 
 /**
  * Maps a GPU pick target to the selection target the modifier keys select at:
  * no modifier keeps the most specific hit, shift promotes to the element,
- * alt to the instance, and ctrl to the part.
+ * and alt to the instance. Control/Meta are selection-mode modifiers and do
+ * not change the target granularity.
  */
 export function selectTarget(
   hit: PickTarget,
-  modifiers: { readonly shiftKey: boolean; readonly altKey: boolean; readonly ctrlKey: boolean },
-  partIdForInstance: PartIdForInstance,
+  modifiers: {
+    readonly shiftKey: boolean;
+    readonly altKey: boolean;
+    readonly ctrlKey: boolean;
+    readonly metaKey: boolean;
+  },
 ): SelectTarget | undefined {
-  if (modifiers.ctrlKey) {
-    const partId = partIdOf(hit, partIdForInstance);
-    return partId === undefined ? undefined : { kind: "part", partId };
-  }
   if (modifiers.altKey) {
     if (hit.kind === "part") return { kind: "part", partId: hit.partId };
     return { kind: "instance", instanceId: hit.instanceId };
@@ -127,10 +128,4 @@ export function targetKey(target: PickTarget | SelectTarget | undefined): string
     case "part":
       return `p:${target.partId}`;
   }
-}
-
-function partIdOf(hit: PickTarget, partIdForInstance: PartIdForInstance): PartId | undefined {
-  if (hit.kind === "part") return hit.partId;
-  if ("partId" in hit) return hit.partId;
-  return partIdForInstance(hit.instanceId);
 }

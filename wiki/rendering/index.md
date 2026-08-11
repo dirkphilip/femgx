@@ -8,6 +8,8 @@
   one-finger orbit, pinch zoom, two-finger pan, and gesture cancellation.
 - [[rendering/element-interaction|Element-level interaction]] — element
   picking, selection, highlighting, and edge overlays.
+- [[rendering/heterogeneous-elements|Heterogeneous element parts]] — one mixed
+  element model compiled into deterministic triangle, line, and point parts.
 - [[rendering/fe-inspection-workbench|FE inspection workbench]] — the demo's
   model presets, GPU picking, shared workbench controller, and e2e
   coverage.
@@ -17,6 +19,9 @@
   element-face selection through compact GPU index orders.
 - [[rendering/interactive-state|Interactive state]] — centralized highlight,
   selection, hover, and style precedence.
+- [[rendering/interaction-selection-menu|Selection and view context menu]] —
+  plain replacement, modifier selection, empty-space clearing, and view
+  actions.
 - [[rendering/node-face-interaction|Node and face interaction]] — node/face
   picking, selection, and the four-attachment GPU pick pass.
 - [[rendering/pick-format|Pick texture format]] — portable packed GPU pick IDs.

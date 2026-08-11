@@ -96,11 +96,11 @@ export const instanceBindings = /* wgsl */ `
 @group(1) @binding(6) var<storage, read> vertexNodePickIds: array<u32>;
 `;
 
-/** Per-triangle and per-vertex pick data bindings used by the triangle stage. */
+/** Per-primitive and per-vertex pick data bindings used by draw stages. */
 export const pickDataBindings = /* wgsl */ `
-@group(1) @binding(2) var<storage, read> triangleElementPickIds: array<u32>;
+@group(1) @binding(2) var<storage, read> primitiveElementPickIds: array<u32>;
 @group(1) @binding(3) var<storage, read> elementHighlights: ElementHighlights;
-@group(1) @binding(5) var<storage, read> triangleFaceBodyPickIds: array<vec2<u32>>;
+@group(1) @binding(5) var<storage, read> primitiveFaceBodyPickIds: array<vec2<u32>>;
 `;
 
 /**

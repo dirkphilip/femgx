@@ -52,6 +52,29 @@ export function toggleSelection(
   }
 }
 
+/** Removes every selected target while preserving hover, highlights, and styles. */
+export function clearSelection(interaction: InteractionState): InteractionState {
+  if (!hasSelection(interaction)) return interaction;
+  return {
+    ...interaction,
+    selectedPartIds: new Set(),
+    selectedInstanceIds: new Set(),
+    selectedBodyIds: new Map(),
+    selectedElementIds: new Map(),
+    selectedNodeIds: new Map(),
+    selectedFaces: new Map(),
+  };
+}
+
+/** Replaces the selection for a plain click, toggling off an already selected target. */
+export function replaceSelection(
+  interaction: InteractionState,
+  target: SelectTarget,
+): InteractionState {
+  if (isSelected(interaction, target)) return clearSelection(interaction);
+  return toggleSelection(clearSelection(interaction), target);
+}
+
 /** Applies one highlight toggle without coupling it to the DOM or renderer. */
 export function toggleHighlight(
   interaction: InteractionState,
@@ -109,6 +132,32 @@ export function selectedKeys(interaction: InteractionState): string[] {
     keys.push(`i:${instanceId}`);
   for (const partId of sortedNumbers(interaction.selectedPartIds)) keys.push(`p:${partId}`);
   return keys;
+}
+
+function hasSelection(interaction: InteractionState): boolean {
+  return (
+    interaction.selectedPartIds.size > 0 ||
+    interaction.selectedInstanceIds.size > 0 ||
+    interaction.selectedBodyIds.size > 0 ||
+    interaction.selectedElementIds.size > 0 ||
+    interaction.selectedNodeIds.size > 0 ||
+    interaction.selectedFaces.size > 0
+  );
+}
+
+function isSelected(interaction: InteractionState, target: SelectTarget): boolean {
+  switch (target.kind) {
+    case "node":
+      return interaction.selectedNodeIds.get(target.instanceId)?.has(target.nodeId) ?? false;
+    case "face":
+      return interaction.selectedFaces.get(target.instanceId)?.has(target.faceKey) ?? false;
+    case "element":
+      return interaction.selectedElementIds.get(target.instanceId)?.has(target.elementId) ?? false;
+    case "instance":
+      return interaction.selectedInstanceIds.has(target.instanceId);
+    case "part":
+      return interaction.selectedPartIds.has(target.partId);
+  }
 }
 
 function sortedMap<K, V>(map: ReadonlyMap<K, V>): Array<readonly [K, V]> {

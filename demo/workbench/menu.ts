@@ -58,6 +58,19 @@ export class WorkbenchMenu {
     this.clampToViewport(x, y);
   }
 
+  showView(x: number, y: number): void {
+    this.menu.textContent = "";
+    this.menuSection("View");
+    this.menuButton("Fit to view", "fit-view");
+    this.menuButton("Clear selection", "clear-selection");
+    this.menuButton("Show all", "show-all");
+    this.menuButton("Reset view", "reset");
+    this.menu.style.left = `${x}px`;
+    this.menu.style.top = `${y}px`;
+    this.menu.hidden = false;
+    this.clampToViewport(x, y);
+  }
+
   hide(): void {
     this.menu.hidden = true;
   }
@@ -65,8 +78,10 @@ export class WorkbenchMenu {
   private clampToViewport(x: number, y: number): void {
     const rect = this.menu.getBoundingClientRect();
     const margin = 8;
-    const maxX = window.innerWidth - rect.width - margin;
-    const maxY = window.innerHeight - rect.height - margin;
+    const viewportWidth = document.documentElement.clientWidth;
+    const viewportHeight = document.documentElement.clientHeight;
+    const maxX = viewportWidth - rect.width - margin;
+    const maxY = viewportHeight - rect.height - margin;
     this.menu.style.left = `${Math.min(x, Math.max(margin, maxX))}px`;
     this.menu.style.top = `${Math.min(y, Math.max(margin, maxY))}px`;
   }

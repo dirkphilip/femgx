@@ -1,12 +1,12 @@
 /* eslint-disable jsdoc/require-jsdoc, max-lines-per-function */
+import { colorFragmentShader, edgeFragmentShader, edgeVertexShader } from "./gpu-shaders";
+import { instanceVertexShader, lineVertexShader, pointVertexShader } from "./gpu-instanced-shaders";
 import {
-  colorFragmentShader,
-  edgeFragmentShader,
-  edgeVertexShader,
-  pickFragmentShader,
-} from "./gpu-shaders";
-import { instanceVertexShader, pointVertexShader } from "./gpu-instanced-shaders";
-import { nodePickFragmentShader, nodePickVertexShader } from "./gpu-node-pick";
+  lineNodePickVertexShader,
+  nodePickFragmentShader,
+  nodePickVertexShader,
+  pointNodePickVertexShader,
+} from "./gpu-node-pick";
 import { PICK_TEXTURE_FORMAT } from "./pick-format";
 import { COLOR_SAMPLE_COUNT, vertexLayout } from "./gpu-support";
 import { DEFORMATION_UNIFORM_SIZE } from "./gpu-deform";
@@ -138,9 +138,11 @@ const PICK_FORMATS = [
 /** Module-level pieces shared by the pipelines. */
 interface PipelineShaders {
   readonly triangleVertex: GPUShaderModule;
+  readonly lineVertex: GPUShaderModule;
   readonly pointVertex: GPUShaderModule;
+  readonly lineNodeVertex: GPUShaderModule;
+  readonly pointNodeVertex: GPUShaderModule;
   readonly colorFragment: GPUShaderModule;
-  readonly pickFragment: GPUShaderModule;
   readonly nodePickVertex: GPUShaderModule;
   readonly nodePickFragment: GPUShaderModule;
 }
@@ -162,9 +164,11 @@ interface PipelineVariants {
 function createPipelineShaders(device: GPUDevice): PipelineShaders {
   return {
     triangleVertex: device.createShaderModule({ code: instanceVertexShader }),
+    lineVertex: device.createShaderModule({ code: lineVertexShader }),
     pointVertex: device.createShaderModule({ code: pointVertexShader }),
+    lineNodeVertex: device.createShaderModule({ code: lineNodePickVertexShader }),
+    pointNodeVertex: device.createShaderModule({ code: pointNodePickVertexShader }),
     colorFragment: device.createShaderModule({ code: colorFragmentShader }),
-    pickFragment: device.createShaderModule({ code: pickFragmentShader }),
     nodePickVertex: device.createShaderModule({ code: nodePickVertexShader }),
     nodePickFragment: device.createShaderModule({ code: nodePickFragmentShader }),
   };
@@ -181,7 +185,7 @@ function pipelineVariants(shaders: PipelineShaders): PipelineVariants {
       cullMode: "none",
     },
     lines: {
-      vertexModule: shaders.triangleVertex,
+      vertexModule: shaders.lineVertex,
       vertexEntry: "vertexMain",
       primitive: "line-list",
       cullMode: "none",
@@ -225,9 +229,19 @@ function buildPipelines(
       1,
     ),
     linesColor: make(variants.lines, shaders.colorFragment, [format], COLOR_SAMPLE_COUNT),
-    linesPick: make(variants.lines, shaders.pickFragment, PICK_FORMATS, 1),
+    linesPick: make(
+      { ...variants.lines, vertexModule: shaders.lineNodeVertex },
+      shaders.nodePickFragment,
+      PICK_FORMATS,
+      1,
+    ),
     pointsColor: make(variants.points, shaders.colorFragment, [format], COLOR_SAMPLE_COUNT),
-    pointsPick: make(variants.points, shaders.pickFragment, PICK_FORMATS, 1),
+    pointsPick: make(
+      { ...variants.points, vertexModule: shaders.pointNodeVertex },
+      shaders.nodePickFragment,
+      PICK_FORMATS,
+      1,
+    ),
   };
 }
 

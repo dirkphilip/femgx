@@ -1,8 +1,8 @@
 # Open issue audit — August 2026
 
 This note records the backlog review against the authoritative
-[[requirements/product-scope|product-scope contract]]. The audit was completed
-on `main` at `62a7b3b`; GitHub issue state remains authoritative, while this
+[[requirements/product-scope|product-scope contract]]. The audit was refreshed
+on `main` at `ee0b2c1`; GitHub issue state remains authoritative, while this
 note preserves the value decision, delivery mapping, and closure rationale.
 
 ## Retained and delivered
@@ -18,6 +18,14 @@ Every retained issue from the audit is now closed as `completed`:
 | #196                       | Public API audit         | PR #229: removed accidental implementation-detail root exports and documented the deliberate advanced surface.                                   |
 | #199                       | Product infrastructure   | PR #225: decision gate, issue-template questions, deferred-intake policy, and this audit trail.                                                  |
 | #155                       | CI infrastructure        | PR #228: documented the WebGPU-only gate; the active `main` ruleset now requires strict `check` and `e2e` contexts with no bypass actors.        |
+| #232                       | Core scene metadata      | PR #247: reusable part body metadata, validation, and deterministic body ownership.                                                              |
+| #233                       | Core interaction         | PR #248: body-aware visibility, styling, highlighting, and GPU picking in the demo.                                                              |
+| #234                       | Performance              | PR #249: synchronous `FemViewport.batch`, coalesced visibility writes, and a representative budget.                                              |
+| #235, #236                 | Demo and test quality    | PRs #243 and #242: camera-aligned axis widget and test-suite consolidation.                                                                      |
+| #237                       | Core rendering           | PR #254: validated face subsets with compact GPU index orders and preserved picks.                                                               |
+| #239, #240                 | Core element topology    | PRs #250 and #251: validated linear triangle/quad and polygon authoring paths.                                                                   |
+| #241                       | Core element rendering   | PR #256: heterogeneous linear models grouped into reusable triangle, line, and point parts with preserved metadata and result/pick paths.        |
+| #244, #245, #246           | Demo interaction         | PR #258: empty-space clearing, plain replacement, Control/Meta additive selection, and a clamped view context menu.                              |
 
 The adjacent infrastructure issues #205–#208 were already complete when this
 audit began: demand-driven GPU picking, displayed pick-depth recovery, the

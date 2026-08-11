@@ -81,13 +81,19 @@ export class LineMeshBuilder {
     }
   }
 
-  build(primitive: Primitive): Geometry {
+  build(
+    primitive: Primitive,
+    elements?: readonly ElementTessellation[],
+    nodePositions?: ArrayLike<number>,
+  ): Geometry {
     const hasNodeIds = this.nodePickIds.some((id) => id !== 0);
     return {
       positions: new Float32Array(this.positions),
       indices: new Uint32Array(this.indices),
       primitive,
+      ...(elements !== undefined && elements.length > 0 ? { elements } : {}),
       ...(hasNodeIds ? { nodePickIds: new Uint32Array(this.nodePickIds) } : {}),
+      ...(nodePositions !== undefined ? { nodePositions: new Float32Array(nodePositions) } : {}),
     };
   }
 }

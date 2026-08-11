@@ -1,34 +1,41 @@
 import { bodyIdForElement, type Geometry } from "../geometry/part";
+import { logicalPrimitiveCount, primitiveRangeForElement } from "../geometry/part-validation";
 
 /**
- * Builders for the per-triangle and per-vertex pick-id buffers uploaded with a
+ * Builders for the per-primitive and per-vertex pick-id buffers uploaded with a
  * part's geometry. All ids are 1-based (`0` = none), mirroring the encoding of
  * the pick fragment shader and `pick-format.ts`.
  */
 
-/** Builds the per-triangle element pick id map (`elementId + 1`, 0 = none). */
+/** Builds the per-primitive element pick id map (`elementId + 1`, 0 = none). */
 export function buildElementTrianglePickIds(geometry: Geometry): Uint32Array {
-  const triangleCount = Math.floor(geometry.indices.length / 3);
-  const pickIds = new Uint32Array(triangleCount);
+  const primitiveCount = logicalPrimitiveCount(geometry);
+  const pickIds = new Uint32Array(primitiveCount);
+  const primitive = geometry.primitive ?? "triangles";
   for (const element of geometry.elements ?? []) {
-    const end = element.triangleStart + element.triangleCount;
-    for (let triangle = element.triangleStart; triangle < end; triangle++) {
-      pickIds[triangle] = element.id + 1;
+    const range = primitiveRangeForElement(primitive, element);
+    if (range === undefined) continue;
+    const end = range.start + range.count;
+    for (let primitiveIndex = range.start; primitiveIndex < end; primitiveIndex++) {
+      pickIds[primitiveIndex] = element.id + 1;
     }
   }
   return pickIds;
 }
 
-/** Builds the per-triangle body pick id map (`bodyId + 1`, 0 = ungrouped). */
+/** Builds the per-primitive body pick id map (`bodyId + 1`, 0 = ungrouped). */
 export function buildBodyTrianglePickIds(geometry: Geometry): Uint32Array {
-  const triangleCount = Math.floor(geometry.indices.length / 3);
-  const pickIds = new Uint32Array(triangleCount);
+  const primitiveCount = logicalPrimitiveCount(geometry);
+  const pickIds = new Uint32Array(primitiveCount);
+  const primitive = geometry.primitive ?? "triangles";
   for (const element of geometry.elements ?? []) {
     const bodyId = bodyIdForElement(geometry, element.id);
     if (bodyId === undefined) continue;
-    const end = element.triangleStart + element.triangleCount;
-    for (let triangle = element.triangleStart; triangle < end; triangle++) {
-      pickIds[triangle] = bodyId + 1;
+    const range = primitiveRangeForElement(primitive, element);
+    if (range === undefined) continue;
+    const end = range.start + range.count;
+    for (let primitiveIndex = range.start; primitiveIndex < end; primitiveIndex++) {
+      pickIds[primitiveIndex] = bodyId + 1;
     }
   }
   return pickIds;
@@ -36,10 +43,10 @@ export function buildBodyTrianglePickIds(geometry: Geometry): Uint32Array {
 
 /** Builds the per-triangle face pick id map (`faceId + 1`, 0 = none). */
 export function buildFaceTrianglePickIds(geometry: Geometry): Uint32Array {
-  const triangleCount = Math.floor(geometry.indices.length / 3);
-  const pickIds = new Uint32Array(triangleCount);
+  const primitiveCount = logicalPrimitiveCount(geometry);
+  const pickIds = new Uint32Array(primitiveCount);
   if (geometry.facePickIds !== undefined) {
-    pickIds.set(geometry.facePickIds.subarray(0, triangleCount));
+    pickIds.set(geometry.facePickIds.subarray(0, primitiveCount));
   }
   return pickIds;
 }
@@ -62,8 +69,12 @@ export function buildNodeBodyPickData(geometry: Geometry): Uint32Array {
   const nodeBodies = new Map<number, number | null>();
   for (const element of geometry.elements ?? []) {
     const bodyId = bodyIdForElement(geometry, element.id);
-    const start = element.triangleStart * 3;
-    const end = (element.triangleStart + element.triangleCount) * 3;
+    const range = primitiveRangeForElement(geometry.primitive ?? "triangles", element);
+    if (range === undefined) continue;
+    const verticesPerPrimitive =
+      geometry.primitive === "lines" ? 2 : geometry.primitive === "points" ? 4 : 3;
+    const start = range.start * verticesPerPrimitive;
+    const end = (range.start + range.count) * verticesPerPrimitive;
     for (let vertex = start; vertex < end; vertex += 1) {
       const pickId = geometry.nodePickIds?.[vertex] ?? 0;
       if (pickId === 0) continue;

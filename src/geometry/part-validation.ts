@@ -23,43 +23,103 @@ export class GeometryValidationError extends Error {
 }
 
 /**
- * Validates element descriptors against an index buffer. When elements are
- * declared, every triangle must be covered by exactly one element and ids must
- * be unique. Geometry without element descriptors always validates.
+ * Validates element descriptors against a primitive buffer. When elements are
+ * declared, every logical primitive must be covered by exactly one element and
+ * ids must be unique. Geometry without element descriptors always validates.
  */
 export function validateElements(geometry: {
+  readonly positions?: Float32Array;
   readonly indices: Uint32Array;
+  readonly primitive?: "triangles" | "lines" | "points";
   readonly elements?: readonly ElementTessellation[];
 }): void {
   const elements = geometry.elements;
   if (elements === undefined || elements.length === 0) return;
-  const triangleCount = Math.floor(geometry.indices.length / 3);
-  const coverage = new Uint8Array(triangleCount);
+  const primitive = geometry.primitive ?? "triangles";
+  const primitiveCount = logicalPrimitiveCount(geometry);
+  const coverage = new Uint8Array(primitiveCount);
   const seenIds = new Set<ElementId>();
   for (const element of elements) {
-    if (element.triangleCount <= 0) {
-      throw new Error(`Element ${element.id} has no triangles`);
+    const range = primitiveRangeForElement(primitive, element);
+    if (range === undefined) {
+      throw new Error(`Element ${element.id} has no ${primitiveLabel(primitive)} range`);
     }
+    if (range.count <= 0)
+      throw new Error(`Element ${element.id} has no ${primitiveLabel(primitive)}`);
     if (seenIds.has(element.id)) {
       throw new Error(`Duplicate element id ${element.id}`);
     }
     seenIds.add(element.id);
-    const end = element.triangleStart + element.triangleCount;
-    if (element.triangleStart < 0 || end > triangleCount) {
-      throw new Error(`Element ${element.id} is outside the index buffer`);
+    const end = range.start + range.count;
+    if (range.start < 0 || end > primitiveCount) {
+      throw new Error(
+        primitive === "triangles"
+          ? `Element ${element.id} is outside the index buffer`
+          : `Element ${element.id} is outside the primitive buffer`,
+      );
     }
-    for (let triangle = element.triangleStart; triangle < end; triangle++) {
-      if (coverage[triangle] === 1) {
-        throw new Error(`Triangle ${triangle} belongs to more than one element`);
+    for (let primitiveIndex = range.start; primitiveIndex < end; primitiveIndex++) {
+      if (coverage[primitiveIndex] === 1) {
+        throw new Error(
+          `${primitiveLabel(primitive)} ${primitiveIndex} belongs to more than one element`,
+        );
       }
-      coverage[triangle] = 1;
+      coverage[primitiveIndex] = 1;
     }
   }
-  for (let triangle = 0; triangle < triangleCount; triangle++) {
-    if (coverage[triangle] === 0) {
-      throw new Error(`Triangle ${triangle} is not covered by any element`);
+  for (let primitiveIndex = 0; primitiveIndex < primitiveCount; primitiveIndex++) {
+    if (coverage[primitiveIndex] === 0) {
+      throw new Error(
+        `${capitalize(primitiveLabel(primitive))} ${primitiveIndex} is not covered by any element`,
+      );
     }
   }
+}
+
+/** Returns the number of logical draw primitives in geometry. */
+export function logicalPrimitiveCount(geometry: {
+  readonly positions?: Float32Array;
+  readonly indices: Uint32Array;
+  readonly primitive?: "triangles" | "lines" | "points";
+}): number {
+  switch (geometry.primitive ?? "triangles") {
+    case "triangles":
+      return Math.floor(geometry.indices.length / 3);
+    case "lines":
+      return Math.floor(geometry.indices.length / 2);
+    case "points":
+      return Math.floor((geometry.positions?.length ?? 0) / 12);
+  }
+}
+
+/** Resolves the range fields appropriate for the geometry's primitive kind. */
+export function primitiveRangeForElement(
+  primitive: "triangles" | "lines" | "points",
+  element: ElementTessellation,
+): { readonly start: number; readonly count: number } | undefined {
+  if (primitive === "triangles") {
+    if (element.triangleStart === undefined || element.triangleCount === undefined)
+      return undefined;
+    return { start: element.triangleStart, count: element.triangleCount };
+  }
+  if (element.primitiveStart === undefined || element.primitiveCount === undefined)
+    return undefined;
+  return { start: element.primitiveStart, count: element.primitiveCount };
+}
+
+function primitiveLabel(primitive: "triangles" | "lines" | "points"): string {
+  switch (primitive) {
+    case "triangles":
+      return "triangles";
+    case "lines":
+      return "line segments";
+    case "points":
+      return "point sprites";
+  }
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 /**
