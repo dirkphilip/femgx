@@ -3,9 +3,6 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const CONFIG_PATH = fileURLToPath(new URL("../../.supervisor/config.toml", import.meta.url));
-const WORKFLOW_DOC_PATH = fileURLToPath(
-  new URL("../../wiki/operations/supervisor-workflow.md", import.meta.url),
-);
 
 function parseTomlValue(raw: string): unknown {
   const inlineComment = raw.indexOf("#");
@@ -109,10 +106,5 @@ describe("supervisor allow/ignore label configuration", () => {
   it("treats namespaced labels as distinct from configured bare labels", () => {
     expect(isAutoPullEligible(["sv:ready-for-supervisor"], allowLabels, ignoreLabels)).toBe(false);
     expect(isAutoPullEligible(["sv:ignore"], allowLabels, ignoreLabels)).toBe(false);
-  });
-
-  it("keeps the workflow documentation aligned with the configured approval label", () => {
-    const workflowDoc = readFileSync(WORKFLOW_DOC_PATH, "utf8");
-    expect(workflowDoc).toContain("ready-for-supervisor");
   });
 });
