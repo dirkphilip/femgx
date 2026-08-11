@@ -403,7 +403,66 @@ test("selects an element by promoting a node pick with shift-click", async ({ pa
   await page.keyboard.down("Shift");
   await page.mouse.click(hit.x, hit.y);
   await page.keyboard.up("Shift");
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
+});
+
+test("clears selection on empty scene clicks but preserves it through orbit", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node GPU picking must resolve on the deterministic WebGPU lane",
+  );
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
+
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  const empty = { x: Math.round(box.x + box.width - 12), y: Math.round(box.y + box.height - 12) };
+  await page.mouse.click(empty.x, empty.y);
   await expect.poll(() => dataset(page, "selected")).toBe("");
+
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
+  const selected = await dataset(page, "selected");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down({ button: "middle" });
+  await page.mouse.move(box.x + box.width / 2 + 48, box.y + box.height / 2 + 24);
+  await page.mouse.up({ button: "middle" });
+  await expect.poll(() => dataset(page, "selected")).toBe(selected);
+});
+
+test("uses Control/Meta-click for additive and toggle selection", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  const nodeHit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node GPU picking must resolve on the deterministic WebGPU lane",
+  );
+  const faceHit = await requireHit(
+    page,
+    canvas,
+    { prefix: "f:", reverse: true, fresh: true },
+    "face GPU picking must resolve on the deterministic WebGPU lane",
+  );
+  await page.mouse.click(nodeHit.x, nodeHit.y);
+  const nodeKey = await dataset(page, "selected");
+  const modifier = process.platform === "darwin" ? "Meta" : "Control";
+  await page.keyboard.down(modifier);
+  await page.mouse.click(faceHit.x, faceHit.y);
+  await page.keyboard.up(modifier);
+  await expect.poll(() => dataset(page, "selected")).toContain(nodeKey);
+  const additive = await dataset(page, "selected");
+  expect(additive.startsWith(`${nodeKey},f:`)).toBe(true);
+
+  await page.keyboard.down(modifier);
+  await page.mouse.click(faceHit.x, faceHit.y);
+  await page.keyboard.up(modifier);
+  await expect.poll(() => dataset(page, "selected")).toBe(nodeKey);
 });
 
 test("picks and selects a node, exposing adjacency and neighbors", async ({ page }) => {
@@ -484,6 +543,63 @@ test("context menu selects a target and toggles display without losing selection
   await page.getByTestId("context-menu").getByText("Hide edges").click();
   await expect(page.getByTestId("edge-overlay-label")).toHaveText("Off");
   expect(await dataset(page, "selected")).toBe(selected);
+});
+
+test("opens a view context menu on empty scene space", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  const empty = { x: Math.round(box.x + box.width - 12), y: Math.round(box.y + box.height - 12) };
+
+  const hit = await requireHit(
+    page,
+    canvas,
+    {},
+    "GPU picking must resolve on the deterministic WebGPU lane",
+  );
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => dataset(page, "selected")).not.toBe("");
+
+  const partCheckbox = page
+    .getByTestId("visibility-panel")
+    .locator("input[data-instance-slot]")
+    .first();
+  await partCheckbox.uncheck();
+  await expect(partCheckbox).not.toBeChecked();
+
+  await page.mouse.click(empty.x, empty.y, { button: "right" });
+  const menu = page.getByTestId("context-menu");
+  await expect(menu).toBeVisible();
+  await expect(menu.locator(".menu-title").first()).toHaveText("View");
+  for (const action of ["fit-view", "clear-selection", "show-all", "reset"]) {
+    await expect(menu.locator(`button[data-action="${action}"]`)).toBeVisible();
+  }
+  await expect(menu.locator('button[data-action="select"]')).toHaveCount(0);
+
+  await menu.getByText("Clear selection").click();
+  await expect.poll(() => dataset(page, "selected")).toBe("");
+  await expect(menu).toBeHidden();
+
+  await page.mouse.click(empty.x, empty.y, { button: "right" });
+  await menu.getByText("Show all").click();
+  await expect(partCheckbox).toBeChecked();
+
+  await page.getByTestId("projection-toggle").click();
+  await expect(page.getByTestId("projection-label")).toHaveText("Orthographic");
+  await page.mouse.click(empty.x, empty.y, { button: "right" });
+  await menu.getByText("Reset view").click();
+  await expect(page.getByTestId("projection-label")).toHaveText("Perspective");
+
+  await page.mouse.click(empty.x, empty.y, { button: "right" });
+  await expect(menu).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+
+  await page.mouse.click(empty.x, empty.y, { button: "right" });
+  await expect(menu).toBeVisible();
+  await page.getByTestId("renderer-status").click();
+  await expect(menu).toBeHidden();
 });
 
 test("does not advertise the CPU-only display overlays in the context menu", async ({ page }) => {

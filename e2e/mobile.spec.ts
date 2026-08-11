@@ -129,3 +129,31 @@ test("keeps the context menu inside a phone-sized viewport", async ({ page }) =>
   expect(menu.y, "menu top edge").toBeGreaterThanOrEqual(0);
   expect(menu.y + menu.height, "menu bottom edge").toBeLessThanOrEqual(viewport.height);
 });
+
+test("keeps the empty-scene view menu inside a phone-sized viewport", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+
+  // Stay inside the canvas but above the mobile status strip, where the
+  // bottom-right canvas point is covered by the status element.
+  const x = Math.round(box.x + box.width - 20);
+  const y = Math.round(box.y + box.height - 100);
+  await page.mouse.click(x, y, { button: "right" });
+
+  const menu = page.getByTestId("context-menu");
+  await expect(menu).toBeVisible();
+  await expect(menu.locator(".menu-title").first()).toHaveText("View");
+  const menuBox = await menu.boundingBox();
+  const viewport = await page.evaluate(() => ({
+    width: document.documentElement.clientWidth,
+    height: document.documentElement.clientHeight,
+  }));
+  if (menuBox === null) throw new Error("context menu has no bounding box");
+  expect(menuBox.x, "view menu left edge").toBeGreaterThanOrEqual(0);
+  expect(menuBox.x + menuBox.width, "view menu right edge").toBeLessThanOrEqual(viewport.width);
+  expect(menuBox.y, "view menu top edge").toBeGreaterThanOrEqual(0);
+  expect(menuBox.y + menuBox.height, "view menu bottom edge").toBeLessThanOrEqual(viewport.height);
+});

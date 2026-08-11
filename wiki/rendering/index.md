@@ -19,6 +19,9 @@
   element-face selection through compact GPU index orders.
 - [[rendering/interactive-state|Interactive state]] — centralized highlight,
   selection, hover, and style precedence.
+- [[rendering/interaction-selection-menu|Selection and view context menu]] —
+  plain replacement, modifier selection, empty-space clearing, and view
+  actions.
 - [[rendering/node-face-interaction|Node and face interaction]] — node/face
   picking, selection, and the four-attachment GPU pick pass.
 - [[rendering/pick-format|Pick texture format]] — portable packed GPU pick IDs.

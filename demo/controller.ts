@@ -435,6 +435,12 @@ export class WorkbenchController {
       case "hide-part":
         if (target !== undefined) this.visibilityActions.togglePart(target);
         break;
+      case "clear-selection":
+        this.interactionController.clearSelection();
+        break;
+      case "show-all":
+        this.visibilityActions.showAll();
+        break;
       case "edges":
         this.setEdges(!this.toggles.edges);
         break;
