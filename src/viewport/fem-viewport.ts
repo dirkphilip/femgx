@@ -99,6 +99,7 @@ class FemViewportCore implements FemViewport {
   private readonly removeControls: () => void;
   private readonly removeResize: () => void;
   private frame: number | undefined;
+  private recoveryPromise: Promise<void> | undefined;
   private batchDepth = 0;
   private batchDirty = false;
   private readonly pendingVisibility = new Set<number>();
@@ -314,8 +315,23 @@ class FemViewportCore implements FemViewport {
     this.options.onRender?.();
   }
 
-  async recover(): Promise<void> {
+  recover(): Promise<void> {
     this.ensureAlive();
+    if (this.recoveryPromise !== undefined) return this.recoveryPromise;
+    const recovery = this.recoverOnce();
+    this.recoveryPromise = recovery;
+    recovery.then(
+      () => {
+        if (this.recoveryPromise === recovery) this.recoveryPromise = undefined;
+      },
+      () => {
+        if (this.recoveryPromise === recovery) this.recoveryPromise = undefined;
+      },
+    );
+    return recovery;
+  }
+
+  private async recoverOnce(): Promise<void> {
     await this.renderer.recover();
     this.appliedInteraction = createInteractionState();
     this.render();
@@ -323,7 +339,9 @@ class FemViewportCore implements FemViewport {
   }
 
   handleDeviceLoss(): void {
+    if (this.destroyed) return;
     void this.recover().catch((error: unknown) => {
+      if (this.destroyed) return;
       this.destroy();
       this.options.onError?.(error);
     });

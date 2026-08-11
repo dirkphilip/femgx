@@ -125,6 +125,7 @@ export function fakeGpuDevice(
     readonly mapAsync?: () => Promise<void>;
     readonly onCopyTextureToBuffer?: (source: GPUTexelCopyTextureInfo) => void;
     readonly shaderMessages?: readonly GPUCompilationMessage[];
+    readonly shaderCompilationInfo?: () => Promise<GPUCompilationInfo>;
     readonly renderPipelineError?: string;
     readonly computePipelineError?: string;
   } = {},
@@ -212,7 +213,9 @@ export function fakeGpuDevice(
     createShaderModule: (descriptor: GPUShaderModuleDescriptor) => {
       shaderModuleDescriptors.push(descriptor);
       return {
-        getCompilationInfo: () => Promise.resolve({ messages: options.shaderMessages ?? [] }),
+        getCompilationInfo: () =>
+          options.shaderCompilationInfo?.() ??
+          Promise.resolve({ messages: options.shaderMessages ?? [] } as GPUCompilationInfo),
       };
     },
     createRenderPipeline: (descriptor: GPURenderPipelineDescriptor) => {

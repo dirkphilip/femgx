@@ -10,11 +10,9 @@ import type { PickTarget } from "../picking/types";
 import { RendererAttachment } from "./attachment";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
 import { syncDeformations, validateDeformation } from "./gpu-deform";
-import { destroyDrawResources } from "./gpu-draw";
 import { encodePickSnapshot, encodeVisibleFrame } from "./gpu-frame";
-import { destroyPickTargets, pickTargetFromPixel, resetPickTargets } from "./gpu-pick";
+import { pickTargetFromPixel, resetPickTargets } from "./gpu-pick";
 import { displayedPointFromPixel } from "./gpu-pick-point";
-import { destroyRenderResources } from "./gpu-pipelines";
 import { GpuDeviceLifecycle, type GpuBundle } from "./gpu-recovery";
 import type { GpuValidationOptions } from "./gpu-validation";
 
@@ -195,9 +193,7 @@ export class GpuRenderer implements WebGpuRenderer {
   public destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    destroyRenderResources(this.lifecycle.bundle.resources);
-    destroyDrawResources(this.lifecycle.bundle.draw);
-    destroyPickTargets(this.lifecycle.bundle.pickTargets);
+    this.lifecycle.destroy();
   }
 
   public get lost(): boolean {

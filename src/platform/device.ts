@@ -41,16 +41,24 @@ export interface DeviceLostInfo {
 
 /**
  * Subscribes to a device's `lost` promise and reports the loss through the
- * callback. The subscription lives for the lifetime of the device, so the
- * callback must be idempotent.
+ * callback. Returns a disposer so stale generations can be detached before a
+ * replacement device is installed.
  */
-export function watchDeviceLoss(device: GPUDevice, onLost: (info: DeviceLostInfo) => void): void {
+export function watchDeviceLoss(
+  device: GPUDevice,
+  onLost: (info: DeviceLostInfo) => void,
+): () => void {
+  let active = true;
   void device.lost.then(
     (info) => {
-      onLost({ reason: info.reason, message: info.message });
+      if (active) onLost({ reason: info.reason, message: info.message });
     },
     () => {
-      onLost({ reason: "unknown", message: "WebGPU device lost with an unknown error" });
+      if (active)
+        onLost({ reason: "unknown", message: "WebGPU device lost with an unknown error" });
     },
   );
+  return () => {
+    active = false;
+  };
 }

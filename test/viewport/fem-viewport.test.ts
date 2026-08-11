@@ -23,6 +23,40 @@ function installNavigator(): void {
   });
 }
 
+function deferred<T>(): {
+  readonly promise: Promise<T>;
+  readonly resolve: (value: T) => void;
+} {
+  let resolvePromise: (value: T) => void = () => undefined;
+  const promise = new Promise<T>((resolve) => {
+    resolvePromise = resolve;
+  });
+  return { promise, resolve: resolvePromise };
+}
+
+function installTwoPhaseNavigator(first: GPUDevice, candidate: GPUDevice): () => void {
+  const candidateRequest = deferred<GPUDevice>();
+  let requestCount = 0;
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: {
+      gpu: {
+        getPreferredCanvasFormat: () => "bgra8unorm",
+        requestAdapter: () => {
+          requestCount += 1;
+          return Promise.resolve({
+            requestDevice: () =>
+              requestCount === 1 ? Promise.resolve(first) : candidateRequest.promise,
+          });
+        },
+      },
+    },
+  });
+  return () => {
+    candidateRequest.resolve(candidate);
+  };
+}
+
 function scene(offset = 0) {
   const geometry = {
     positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
@@ -181,5 +215,57 @@ describe("FemViewport", () => {
       expect(onError).toHaveBeenCalledOnce();
     });
     expect(gpu.buffers.every((buffer) => buffer.destroyed)).toBe(true);
+  });
+
+  it("suppresses recovery callbacks after viewport destruction", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const first = fakeGpuDevice();
+    const shaderInfo = deferred<GPUCompilationInfo>();
+    const candidate = fakeGpuDevice({ shaderCompilationInfo: () => shaderInfo.promise });
+    const resolveCandidate = installTwoPhaseNavigator(first.device, candidate.device);
+    const onRecovered = vi.fn();
+    const onError = vi.fn();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      onRecovered,
+      onError,
+    });
+
+    first.lose("unknown", "test loss");
+    await first.lost;
+    resolveCandidate();
+    await vi.waitFor(() => {
+      expect(candidate.shaderModuleDescriptors.length).toBeGreaterThan(0);
+    });
+    viewport.destroy();
+    shaderInfo.resolve({ messages: [] } as unknown as GPUCompilationInfo);
+
+    await vi.waitFor(() => {
+      expect(candidate.buffers.length).toBeGreaterThan(0);
+    });
+    expect(onRecovered).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(candidate.buffers.every((buffer) => buffer.destroyed)).toBe(true);
+  });
+
+  it("coalesces concurrent viewport recovery callbacks", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const onRecovered = vi.fn();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: fakeGpuDevice().device,
+      onRecovered,
+    });
+
+    const firstRecovery = viewport.recover();
+    const secondRecovery = viewport.recover();
+    expect(secondRecovery).toBe(firstRecovery);
+    await firstRecovery;
+    await secondRecovery;
+    expect(onRecovered).toHaveBeenCalledOnce();
+    viewport.destroy();
   });
 });
