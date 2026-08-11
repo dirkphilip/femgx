@@ -46,8 +46,9 @@ canonical description.
   camera, renderer, controls, resize, interaction synchronization, the pure
   `changedInstanceSlots` orchestration helper, and teardown.
 
-`test/` mirrors `src/` one-to-one: each source module has its suite in the
-matching subsystem directory.
+`test/` mirrors `src/` for product subsystem ownership, with deliberate
+repository-level suites under `test/demo`, `test/public-api`, `test/runtime`,
+`test/scripts`, and `test/supervisor`.
 
 ## Conventions
 

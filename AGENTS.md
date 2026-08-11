@@ -2,7 +2,7 @@
 
 ## Experimental Status
 
-This is an **experimental product** (version 0.0.0/0.0.1). There is **no stable API**:
+This is an **experimental product** (version 0.1.0). There is **no stable API**:
 we do not care about breaking API changes. The only thing that matters is shipping a
 very clean product. Prefer improving the design over preserving backwards compatibility.
 
@@ -129,11 +129,12 @@ Conventions:
   re-export is internal. Subsystem directories expose only deliberate public
   boundaries — do not widen the API surface by exporting internals from a new
   location.
-- `test/` mirrors source ownership: each source module's suite lives in the
-  matching subsystem directory, so every test has an obvious owner.
-- Prefer intra-subsystem imports; import across subsystems through the public
-  `src/index.ts` boundary or the owning module's exported surface, not by
-  reaching into another subsystem's internals.
+- `test/` mirrors source ownership for product subsystems, while deliberate
+  repository-level suites also live under `test/demo`, `test/public-api`,
+  `test/runtime`, `test/scripts`, and `test/supervisor`.
+- Prefer intra-subsystem imports. `src/index.ts` is the external and demo
+  consumer boundary; production modules must use the owning subsystem's
+  exported surface and must not import the root barrel.
 
 ## Public API North Star
 

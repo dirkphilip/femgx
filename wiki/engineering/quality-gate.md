@@ -35,7 +35,7 @@ encode ownership and can create declaration-build cycles.
 - Reporters `text`/`html`/`lcov` write to `coverage/`; CI uploads it as an
   artifact.
 - Missing coverage is a dead-code audit lead, not a reason to pad tests.
-- `test/gpu-renderer.test.ts` uses a mocked WebGPU device to exercise adapter
+- `test/renderer/gpu-renderer.test.ts` uses a mocked WebGPU device to exercise adapter
   failure, resource upload/reuse, render passes, pick readback, resize, and teardown.
 
 ## Playwright e2e

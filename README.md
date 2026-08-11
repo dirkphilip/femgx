@@ -13,7 +13,7 @@ interactive frame rates using **WebGPU** and **GPU instancing**.
 
 This experimental product has a working CPU scene foundation and a WebGPU renderer:
 validated hierarchies, column-major transforms, stable placement handles, deterministic
-batching and frustum culling, centralized interaction styles, camera controls,
+batching, centralized interaction styles, camera controls,
 asynchronous GPU picking, and a runnable demo. WebGPU is the product's only rendering
 backend; environments without a working WebGPU path get a clear error instead of a
 fallback rendering path.
@@ -27,7 +27,8 @@ fallback rendering path.
   in a separate integer render pass.
 
 Design decisions, gotchas, and open issues live in [`wiki/`](wiki/index.md).
-The development workflow is documented in [`wiki/operations/development-loop.md`](wiki/operations/development-loop.md).
+Repository contracts and the quality gate are documented in
+[`AGENTS.md`](AGENTS.md) and [`wiki/engineering/quality-gate.md`](wiki/engineering/quality-gate.md).
 The wiki uses Foam `[[wikilinks]]`; committed link-reference definitions keep
 those links navigable in GitHub-rendered Markdown.
 
