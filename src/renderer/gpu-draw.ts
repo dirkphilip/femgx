@@ -1,5 +1,5 @@
 import type { Part } from "../geometry/part";
-import type { PartId } from "../scene/types";
+import type { PartId } from "../geometry/part";
 import { destroyDeformationBuffers, type DeformationStorage } from "./gpu-deform";
 import { buildMeshEdgeData, type MeshEdgeData } from "./gpu-edge";
 import { buildFaceSubsetIndices } from "./gpu-face-subset";

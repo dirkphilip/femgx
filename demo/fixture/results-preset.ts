@@ -6,7 +6,7 @@ import { computeBounds } from "../../src/geometry/part";
 import { identity } from "../../src/math/mat4";
 import { createResultField } from "../../src/results/fields";
 import { createScene } from "../../src/scene/scene";
-import type { PartId } from "../../src/scene/types";
+import type { PartId } from "../../src/geometry/part";
 import type { ModelPreset } from "./presets";
 
 const RESULTS_PART_ID: PartId = 20;

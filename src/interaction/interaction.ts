@@ -1,7 +1,7 @@
-import type { ElementId, ElementRef, InstanceId, PartId, Instance } from "../scene/types";
+import type { ElementId, ElementRef, InstanceId, Instance } from "../scene/types";
 import type { NodeId } from "../elements/element";
 import type { FaceKey } from "../elements/faces";
-import type { BodyId } from "../geometry/part";
+import type { BodyId, PartId } from "../geometry/part";
 import type { BodyRef, FaceRef, NodeRef } from "./refs";
 
 /** RGBA color with normalized channels. */

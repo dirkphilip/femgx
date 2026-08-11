@@ -1,10 +1,5 @@
-import {
-  assertValidCamera,
-  createCamera,
-  resizeCamera,
-  type Camera,
-  type Vec3,
-} from "../camera/camera";
+import { assertValidCamera, createCamera, resizeCamera, type Camera } from "../camera/camera";
+import type { Vec3 } from "../math/vec3";
 import { installCameraControls } from "../camera/controls";
 import { fitCamera } from "../camera/fit";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
@@ -16,7 +11,9 @@ import { changedInstanceSlots } from "../renderer/interaction-diff";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "../scene-runtime/runtime";
 import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/public-runtime";
 import type { Scene } from "../scene/scene";
-import type { AssemblyId, AssemblyNodeId, InstanceId, PartId, PickTarget } from "../scene/types";
+import type { PartId } from "../geometry/part";
+import type { PickTarget } from "../picking/types";
+import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { sceneWorldBounds } from "./scene-bounds";
 import {
   applyViewportResultInteraction,

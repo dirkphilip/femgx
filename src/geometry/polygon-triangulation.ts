@@ -1,7 +1,7 @@
 import type { NodeId } from "../elements/element";
+import { cross, dot, length, subtract, type Vec3 } from "../math/vec3";
 
 type Vec2 = readonly [number, number];
-type Vec3 = readonly [number, number, number];
 
 const EPSILON = 1e-9;
 const PLANAR_EPSILON = 1e-6;
@@ -295,20 +295,4 @@ function pointInTriangle(point: Vec2, a: Vec2, b: Vec2, c: Vec2, epsilon: number
 
 function cross2(a: Vec2, b: Vec2, c: Vec2): number {
   return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
-}
-
-function subtract(a: Vec3, b: Vec3): Vec3 {
-  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-}
-
-function dot(a: Vec3, b: Vec3): number {
-  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-}
-
-function cross(a: Vec3, b: Vec3): Vec3 {
-  return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-}
-
-function length(vector: Vec3): number {
-  return Math.hypot(vector[0], vector[1], vector[2]);
 }

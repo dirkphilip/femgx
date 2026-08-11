@@ -1,7 +1,8 @@
 import type { Part } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { InstanceId, PartId } from "../scene/types";
+import type { PartId } from "../geometry/part";
+import type { InstanceId } from "../scene/types";
 import type { DrawResources, InstanceStorage } from "./gpu-draw";
 import {
   buildHighlightTable,

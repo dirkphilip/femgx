@@ -11,7 +11,7 @@ import {
   type PointGeometry,
   type TriangleGeometry,
 } from "./part";
-import type { PartId } from "../scene/types";
+import type { PartId } from "./part";
 import {
   bodyAssignments,
   lineGeometry,

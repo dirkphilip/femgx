@@ -1,8 +1,10 @@
 import type { FaceKey } from "../elements/faces";
-import type { NodeId } from "../elements/element";
+import type { ElementId, NodeId } from "../elements/element";
 import type { ElementShape } from "../elements/shapes";
-import type { ElementId, PartId } from "../scene/types";
 import { validateElements, validatePickIds } from "./part-validation";
+
+/** A globally stable identifier for a reusable part within a scene. */
+export type PartId = number;
 
 /** Stable identity of one oriented element face within a part. */
 export type FaceId = number;
@@ -247,5 +249,3 @@ export {
   validatePickIds,
 } from "./part-validation";
 export type { GeometryValidationCode } from "./part-validation";
-
-export type { PartId } from "../scene/types";

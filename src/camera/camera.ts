@@ -1,7 +1,5 @@
 import { multiply, type Mat4 } from "../math/mat4";
-
-/** A three-component vector used by camera state. */
-export type Vec3 = readonly [number, number, number];
+import { add, cross, dot, length, normalize, scale, subtract, type Vec3 } from "../math/vec3";
 
 /** Supported camera projection modes. */
 export type ProjectionMode = "perspective" | "orthographic";
@@ -336,35 +334,6 @@ function multiplyPoint(matrix: Mat4, point: Vec3): readonly [number, number, num
 
 function entry(matrix: Mat4, index: number): number {
   return matrix[index] ?? 0;
-}
-
-function add(a: Vec3, b: Vec3): Vec3 {
-  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-}
-
-function subtract(a: Vec3, b: Vec3): Vec3 {
-  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-}
-
-function scale(vector: Vec3, amount: number): Vec3 {
-  return [vector[0] * amount, vector[1] * amount, vector[2] * amount];
-}
-
-function cross(a: Vec3, b: Vec3): Vec3 {
-  return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-}
-
-function dot(a: Vec3, b: Vec3): number {
-  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-}
-
-function length(vector: Vec3): number {
-  return Math.hypot(vector[0], vector[1], vector[2]);
-}
-
-function normalize(vector: Vec3): Vec3 {
-  const magnitude = length(vector);
-  return magnitude === 0 ? [0, 0, 1] : scale(vector, 1 / magnitude);
 }
 
 function assertFiniteNumber(name: string, value: number): void {

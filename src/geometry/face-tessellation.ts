@@ -3,7 +3,7 @@ import type { ElementFace } from "../elements/faces";
 import type { ElementModel } from "../elements/model";
 import { topologyFor } from "../elements/shapes";
 import { type MeshVertex } from "./mesh-builder";
-import { average, cross, dot, length, subtract, type Vec3 } from "./vec-math";
+import { average, cross, dot, length, subtract, type Vec3 } from "../math/vec3";
 
 /**
  * Subdivides an oriented element face into triangles, each wound to face

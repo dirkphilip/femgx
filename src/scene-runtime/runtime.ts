@@ -1,6 +1,7 @@
 import type { Mat4 } from "../math/mat4";
 import type { Scene } from "../scene/scene";
-import type { AssemblyId, AssemblyNodeId, InstanceId, PartId } from "../scene/types";
+import type { PartId } from "../geometry/part";
+import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { compileSceneState, type RuntimeState } from "./compile";
 import { setInstanceTransform, setNodeTransform, type TransformDelta } from "./transforms";
 import {

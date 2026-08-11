@@ -2,7 +2,8 @@ import { createPart, type Part } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import type { Assembly, Placement } from "../../src/scene/assembly";
 import type { Scene } from "../../src/scene/scene";
-import type { AssemblyId, PartId } from "../../src/scene/types";
+import type { PartId } from "../../src/geometry/part";
+import type { AssemblyId } from "../../src/scene/types";
 
 /**
  * Deterministic benchmark model sizes. These are fixed so measurements stay

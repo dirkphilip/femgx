@@ -24,6 +24,7 @@ export {
   type GeometryValidationCode,
   type LineGeometry,
   type Part,
+  type PartId,
   type PointGeometry,
   type Primitive,
   type TriangleGeometry,
@@ -170,8 +171,8 @@ export {
   zoomCameraAtPoint,
   type Camera,
   type ProjectionMode,
-  type Vec3,
 } from "./camera/camera";
+export type { Vec3 } from "./math/vec3";
 export {
   canvasCssToRenderPixel,
   clientToCanvasCss,
@@ -216,17 +217,8 @@ export {
   type PickGranularity,
   type ResolvedPickIds,
 } from "./picking/pick";
-export type {
-  AssemblyId,
-  AssemblyNodeId,
-  ElementRef,
-  FacePickTarget,
-  Instance,
-  InstanceId,
-  NodePickTarget,
-  PartId,
-  PickTarget,
-} from "./scene/types";
+export type { AssemblyId, AssemblyNodeId, ElementRef, Instance, InstanceId } from "./scene/types";
+export type { FacePickTarget, NodePickTarget, PickTarget } from "./picking/types";
 export {
   FIELD_COMPONENT_COUNT,
   TENSOR_COMPONENT,

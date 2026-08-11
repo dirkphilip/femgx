@@ -1,4 +1,5 @@
-import type { AssemblyId, PartId } from "../scene/types";
+import type { PartId } from "../geometry/part";
+import type { AssemblyId } from "../scene/types";
 import type { RuntimeState } from "./compile";
 
 /** Result of a visibility update: the affected instance slots and counts. */

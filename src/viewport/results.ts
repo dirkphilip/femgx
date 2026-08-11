@@ -6,7 +6,8 @@ import { createScalarColorMap, mapScalar, type ScalarColorMap } from "../results
 import { scalarRange, type ValueRange } from "../results/range";
 import type { InteractionState, StyleOverride } from "../interaction/interaction";
 import type { Scene } from "../scene/scene";
-import type { InstanceId, PartId } from "../scene/types";
+import type { InstanceId } from "../scene/types";
+import type { PartId } from "../geometry/part";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 
 /** An elemental field that can be displayed by the viewport results path. */

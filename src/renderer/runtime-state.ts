@@ -1,5 +1,6 @@
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { Instance, InstanceId, PartId } from "../scene/types";
+import type { PartId } from "../geometry/part";
+import type { Instance, InstanceId } from "../scene/types";
 import type { DrawCall } from "./gpu-draw";
 
 /**

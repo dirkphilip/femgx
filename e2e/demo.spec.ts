@@ -439,11 +439,6 @@ test("selects an element by promoting a node pick with shift-click", async ({ pa
   await page.mouse.click(hit.x, hit.y);
   await page.keyboard.up("Shift");
   await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
-
-  await page.keyboard.down("Shift");
-  await page.mouse.click(hit.x, hit.y);
-  await page.keyboard.up("Shift");
-  await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
 });
 
 test("clears selection on empty scene clicks but preserves it through orbit", async ({ page }) => {

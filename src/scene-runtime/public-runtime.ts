@@ -1,6 +1,7 @@
 import type { Mat4 } from "../math/mat4";
 import type { Scene } from "../scene/scene";
-import type { AssemblyId, AssemblyNodeId, InstanceId, PartId } from "../scene/types";
+import type { PartId } from "../geometry/part";
+import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "./runtime";
 import type { TransformDelta } from "./transforms";
 

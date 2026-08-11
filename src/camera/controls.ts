@@ -1,13 +1,7 @@
-import {
-  orbitCamera,
-  panCamera,
-  type Camera,
-  type Vec3,
-  zoomCamera,
-  zoomCameraAtPoint,
-} from "./camera";
+import { orbitCamera, panCamera, type Camera, zoomCamera, zoomCameraAtPoint } from "./camera";
 import { clientToCanvasCss } from "./coordinates";
 import { CameraGestureTracker, type GestureStep } from "./gestures";
+import type { Vec3 } from "../math/vec3";
 
 /** Mutable camera holder replaced by the immutable camera operations. */
 export interface CameraRef {

@@ -1,10 +1,11 @@
 import type { Camera } from "../camera/camera";
-import type { Vec3 } from "../camera/camera";
+import type { Vec3 } from "../math/vec3";
 import type { Part } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
 import type { PickGranularity } from "../picking/pick";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { PartId, PickTarget } from "../scene/types";
+import type { PartId } from "../geometry/part";
+import type { PickTarget } from "../picking/types";
 import { RendererAttachment } from "./attachment";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./gpu-renderer";
 import { syncDeformations, validateDeformation, type DeformationState } from "./gpu-deform";

@@ -4,7 +4,8 @@ import type { Body, Part } from "../../src/geometry/part";
 import { identity, translation, type Mat4 } from "../../src/math/mat4";
 import type { NamedAssembly, Placement } from "../../src/scene/assembly";
 import { createScene, type Scene } from "../../src/scene/scene";
-import type { AssemblyId, PartId } from "../../src/scene/types";
+import type { PartId } from "../../src/geometry/part";
+import type { AssemblyId } from "../../src/scene/types";
 import type { ElementDisplayMode } from "./types";
 import {
   createBoltModel,

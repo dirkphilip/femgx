@@ -1,6 +1,7 @@
 import type { InteractionState } from "../interaction/interaction";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { InstanceId, PartId } from "../scene/types";
+import type { InstanceId } from "../scene/types";
+import type { PartId } from "../geometry/part";
 
 /**
  * Computes the instance slots whose GPU record may change when an interaction

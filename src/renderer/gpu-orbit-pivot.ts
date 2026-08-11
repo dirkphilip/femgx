@@ -1,4 +1,5 @@
-import { viewMatrix, type Camera, type Vec3 } from "../camera/camera";
+import { viewMatrix, type Camera } from "../camera/camera";
+import type { Vec3 } from "../math/vec3";
 import { COLOR_SAMPLE_COUNT } from "./gpu-support";
 
 /** GPU resources for the library-owned screen-space camera-pivot widget. */

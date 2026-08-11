@@ -1,5 +1,6 @@
 import type { Bounds } from "../geometry/part";
-import type { Camera, Vec3 } from "./camera";
+import { cross, dot, normalize, scale, subtract, type Vec3 } from "../math/vec3";
+import type { Camera } from "./camera";
 
 /** Fraction of the viewport occupied by the fitted bounds on each axis. */
 export const FIT_FRAME_FRACTION = 0.9;
@@ -120,9 +121,9 @@ function fittedFar(depth: readonly number[], near: number): number {
 }
 
 function viewOrientation(camera: Camera): ViewOrientation {
-  const forward = normalize(subtract(camera.target, camera.position), [0, 0, -1]);
-  const right = normalize(cross(forward, camera.up), [1, 0, 0]);
-  return { forward, right, up: normalize(cross(right, forward), [0, 1, 0]) };
+  const forward = normalize(subtract(camera.target, camera.position), [0, 0, -1], 1e-8);
+  const right = normalize(cross(forward, camera.up), [1, 0, 0], 1e-8);
+  return { forward, right, up: normalize(cross(right, forward), [0, 1, 0], 1e-8) };
 }
 
 function boundsCorners(bounds: Bounds): readonly Vec3[] {
@@ -159,29 +160,4 @@ function midpoint(min: number, max: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
-}
-
-function vectorLength(vector: Vec3): number {
-  return Math.hypot(vector[0], vector[1], vector[2]);
-}
-
-function normalize(vector: Vec3, fallback: Vec3): Vec3 {
-  const length = vectorLength(vector);
-  return length > 1e-8 && Number.isFinite(length) ? scale(vector, 1 / length) : fallback;
-}
-
-function cross(a: Vec3, b: Vec3): Vec3 {
-  return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-}
-
-function dot(a: Vec3, b: Vec3): number {
-  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-}
-
-function subtract(a: Vec3, b: Vec3): Vec3 {
-  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-}
-
-function scale(vector: Vec3, amount: number): Vec3 {
-  return [vector[0] * amount, vector[1] * amount, vector[2] * amount];
 }

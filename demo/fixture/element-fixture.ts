@@ -5,7 +5,8 @@ import type { Bounds, Part } from "../../src/geometry/part";
 import { transformPoint, translation } from "../../src/math/mat4";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { createSceneRuntime } from "../../src/index";
-import type { AssemblyId, PartId } from "../../src/scene/types";
+import type { PartId } from "../../src/geometry/part";
+import type { AssemblyId } from "../../src/scene/types";
 import type { ElementDisplayMode } from "./types";
 import {
   buildHex20CylinderModel,
