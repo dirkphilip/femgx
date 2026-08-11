@@ -178,6 +178,13 @@ and reviewable.
   300 lines is a review threshold. Per-function length remains 60 lines and
   nesting depth remains 4. Split large modules when that produces clearer
   single-concern boundaries.
+- **[[engineering/state-invariants|Invariant-driven state design]]**: validate
+  runtime values at public, untrusted, and ownership boundaries when types
+  cannot express the constraint; keep practical transitions pure and immutable,
+  preserve documented invariants, and test forbidden, boundary, inverse, and
+  round-trip paths. Do not scatter duplicate internal assertions or silently
+  normalize invalid state unless normalization is the documented boundary
+  contract.
 - **CI**: GitHub Actions runs the full quality gate (pre-commit hooks, format,
   typecheck, lint, unit tests + coverage, performance budgets, build, package smoke
   tests, e2e) on every push/PR. CI must be green before merge. Opt-in performance runs
@@ -323,6 +330,7 @@ the wiki is not an implementation checklist or backlog mirror:
 [engineering/benchmarks|Benchmarks]: wiki/engineering/benchmarks.md
 [engineering/packaging|Packaging]: wiki/engineering/packaging.md
 [engineering/pre-commit-hooks|Pre-commit hooks]: wiki/engineering/pre-commit-hooks.md
+[engineering/state-invariants|Invariant-driven state design]: wiki/engineering/state-invariants.md
 [operations/ci-authority|CI authority]: wiki/operations/ci-authority.md
 [rendering/platform-support|Platform support]: wiki/rendering/platform-support.md
 [requirements/product-scope|product scope]: wiki/requirements/product-scope.md

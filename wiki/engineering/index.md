@@ -15,6 +15,8 @@
 - [[engineering/quality-gate|Quality gate]] — local and CI validation.
 - [[engineering/scaffold-decisions|Scaffold decisions]] — toolchain and
   strictness decisions.
+- [[engineering/state-invariants|Invariant-driven state design]] — boundary
+  validation, state ownership, and relationship-based tests.
 - [[engineering/test-strategy|Test strategy and audit]] — retained coverage,
   redundancy decisions, and current contract inventory.
 - [[engineering/typescript-toolchain-compatibility|TS compatibility]] — compiler
@@ -28,5 +30,6 @@
 [engineering/pre-commit-hooks|Pre-commit hooks]: pre-commit-hooks.md
 [engineering/quality-gate|Quality gate]: quality-gate.md
 [engineering/scaffold-decisions|Scaffold decisions]: scaffold-decisions.md
+[engineering/state-invariants|Invariant-driven state design]: state-invariants.md
 [engineering/test-strategy|Test strategy and audit]: test-strategy.md
 [engineering/typescript-toolchain-compatibility|TS compatibility]: typescript-toolchain-compatibility.md
