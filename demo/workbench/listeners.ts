@@ -11,6 +11,7 @@ export interface WorkbenchBindingOptions {
   readonly viewport: () => FemViewport;
   readonly interaction: WorkbenchInteraction;
   readonly menu: WorkbenchMenu;
+  /** True while a camera or box pointer gesture suppresses asynchronous hover. */
   readonly dragging: () => boolean;
   readonly setDepthTest: () => void;
   readonly setEdges: () => void;

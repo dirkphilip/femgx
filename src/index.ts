@@ -130,6 +130,14 @@ export {
 } from "./interaction/nodes";
 export type { BodyRef, FaceRef, NodeRef } from "./interaction/refs";
 export {
+  installBoxSelection,
+  type BoxSelectionCancelReason,
+  type BoxSelectionEvent,
+  type BoxSelectionModifiers,
+  type BoxSelectionOptions,
+  type BoxSelectionRect,
+} from "./interaction/box-selection";
+export {
   createSceneRuntime,
   type RuntimeInstance,
   type RuntimeNode,

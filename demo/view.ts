@@ -5,6 +5,7 @@ import type { ElementDisplayMode } from "./fixture/types";
 export interface DemoView {
   readonly canvas: HTMLCanvasElement;
   readonly axisGizmo: HTMLElement;
+  readonly boxSelectionOverlay: HTMLElement;
   readonly rendererStatus: HTMLElement;
   readonly modelSelect: HTMLSelectElement;
   readonly fitView: HTMLButtonElement;
@@ -42,6 +43,7 @@ export interface StatusInfo {
 export function queryDemoView(): DemoView {
   const canvas = document.querySelector<HTMLCanvasElement>("#view");
   const axisGizmo = document.querySelector<HTMLElement>("#axis-gizmo");
+  const boxSelectionOverlay = document.querySelector<HTMLElement>("#box-selection-overlay");
   const rendererStatus = document.querySelector<HTMLElement>("#renderer-status");
   const modelSelect = document.querySelector<HTMLSelectElement>("#model-select");
   const fitView = document.querySelector<HTMLButtonElement>("#fit-view");
@@ -64,6 +66,7 @@ export function queryDemoView(): DemoView {
   if (
     canvas === null ||
     axisGizmo === null ||
+    boxSelectionOverlay === null ||
     rendererStatus === null ||
     modelSelect === null ||
     fitView === null ||
@@ -89,6 +92,7 @@ export function queryDemoView(): DemoView {
   return {
     canvas,
     axisGizmo,
+    boxSelectionOverlay,
     rendererStatus,
     modelSelect,
     fitView,

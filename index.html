@@ -218,6 +218,13 @@
         background: #e8edf1;
         touch-action: none;
       }
+      #box-selection-overlay {
+        position: absolute;
+        z-index: 3;
+        border: 1px solid #3b82f6;
+        background: rgb(59 130 246 / 0.14);
+        pointer-events: none;
+      }
       #axis-gizmo {
         position: absolute;
         z-index: 4;
@@ -458,6 +465,12 @@
       </aside>
       <section class="scene" aria-label="Model scene">
         <canvas id="view" data-testid="view-canvas" width="800" height="600"></canvas>
+        <div
+          id="box-selection-overlay"
+          data-testid="box-selection-overlay"
+          aria-hidden="true"
+          hidden
+        ></div>
         <div id="axis-gizmo" data-testid="axis-gizmo" aria-label="World coordinate axes">
           <svg viewBox="0 0 100 100" role="img" aria-label="Positive and negative X, Y and Z axes">
             <circle cx="50" cy="50" r="3"></circle>

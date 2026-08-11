@@ -3,6 +3,7 @@ import {
   setTargetsHighlighted,
   setProjection,
   fitCamera,
+  installBoxSelection,
   type Camera,
   type InteractionState,
   type FemViewport,
@@ -16,6 +17,7 @@ import { selectedWorldBounds } from "./selection-bounds";
 import type { DemoView } from "./view";
 import { WorkbenchInteraction } from "./workbench/interaction";
 import { installWorkbenchBindings } from "./workbench/listeners";
+import { WorkbenchBoxPreview } from "./workbench/box-preview";
 import { WorkbenchMenu } from "./workbench/menu";
 import { submittedTriangleCount, uniqueTriangleCount } from "./workbench/status";
 import {
@@ -60,6 +62,8 @@ export class WorkbenchController {
   private readonly visibilityActions: WorkbenchVisibilityActions;
   private readonly interactionController: WorkbenchInteraction;
   private readonly presentation: WorkbenchPresentation;
+  private readonly boxPreview: WorkbenchBoxPreview;
+  private boxSelectionDisposer: (() => void) | undefined;
   private depthTestEnabled = true;
   private dragging = false;
   private treeHoverTargets: readonly InteractionTarget[] = [];
@@ -160,6 +164,7 @@ export class WorkbenchController {
       getInteraction: () => this.interaction,
       getRuntime: () => this.runtime,
     });
+    this.boxPreview = new WorkbenchBoxPreview(this.view.boxSelectionOverlay);
     const initialPreset = this.presets[0];
     if (initialPreset === undefined) throw new Error("Workbench requires at least one preset");
     this.preset = initialPreset;
@@ -203,6 +208,11 @@ export class WorkbenchController {
   setCameraGestureActive(active: boolean): void {
     this.dragging = active;
     this.canvas.dataset["dragging"] = active ? "true" : "false";
+  }
+
+  /** True while a camera or box drag is suppressing asynchronous hover. */
+  isPointerGestureActive(): boolean {
+    return this.dragging || this.boxPreview.isActive();
   }
 
   /** Refreshes demo-only status after a viewport-owned camera/render update. */
@@ -333,15 +343,26 @@ export class WorkbenchController {
   destroy(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.boxSelectionDisposer?.();
+    this.boxSelectionDisposer = undefined;
     this.treeHoverTargets = [];
     this.canvas.dataset["treeHover"] = "";
     this.listenerController.abort();
     this.interactionController.destroy();
+    this.boxPreview.dispose();
     this.viewport.destroy();
   }
 
   private installListeners(): void {
     const signal = this.listenerController.signal;
+    // Install before the workbench hover listener so the threshold-crossing
+    // move marks box interaction active before hover handling runs.
+    this.boxSelectionDisposer = installBoxSelection({
+      canvas: this.canvas,
+      onEvent: (event) => {
+        this.boxPreview.handleEvent(event);
+      },
+    });
     this.visibilityPanel.install(signal);
     this.menu.install(signal);
     installWorkbenchBindings({
@@ -351,7 +372,7 @@ export class WorkbenchController {
       viewport: () => this.viewport,
       interaction: this.interactionController,
       menu: this.menu,
-      dragging: () => this.dragging,
+      dragging: () => this.isPointerGestureActive(),
       setDepthTest: () => {
         this.depthTestEnabled = !this.depthTestEnabled;
         this.viewport.setEdgeDepthTest(this.depthTestEnabled);
