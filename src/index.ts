@@ -31,18 +31,12 @@ export {
 export { createElement, type Element, type ElementId, type NodeId } from "./elements/element";
 export { createElementModel, type ElementModel } from "./elements/model";
 export {
-  elementGeometry,
-  elementPart,
-  elementRenderModes,
-  type ElementRenderMode,
-  type TessellationOptions,
-} from "./geometry/element-mesh";
-export {
   heterogeneousElementParts,
   HeterogeneousElementError,
   type HeterogeneousElementErrorCode,
   type HeterogeneousElementPartIds,
   type HeterogeneousElementPartSet,
+  type TessellationOptions,
 } from "./geometry/heterogeneous-element-mesh";
 export {
   polygonGeometry,

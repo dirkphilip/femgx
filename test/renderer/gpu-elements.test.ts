@@ -551,7 +551,7 @@ describe("collectEmphasisUpdates", () => {
       new Map(fixture.scene.parts),
       interaction,
     );
-    expect(updates.get(fixture.partIds.plate.solid)).toMatchObject([
+    expect(updates.get(fixture.partIds.plate.partId)).toMatchObject([
       { slot: 0, bodyPickId: 3, hidden: true },
     ]);
   });

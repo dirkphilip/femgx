@@ -76,19 +76,19 @@ describe("createBoltedPlateFixture", () => {
       fastenerColumns: [-4.5, -1.5, 1.5, 4.5],
     });
     expect(fixture.partIds).toEqual({
-      plate: { solid: 1, surface: 2, edges: 3 },
-      bolt: { solid: 4, surface: 5, edges: 6 },
-      washer: { solid: 7, surface: 8, edges: 9 },
-      nut: { solid: 10, surface: 11, edges: 12 },
+      plate: { partId: 1 },
+      bolt: { partId: 4 },
+      washer: { partId: 7 },
+      nut: { partId: 10 },
     });
     expect(fixture.assemblyIds.root).toBe(1);
     expect(fixture.assemblyIds.plateStack).toBe(2);
     expect(fixture.assemblyIds.fasteners).toBe(3);
     expect(fixture.assemblyIds.fastener).toBe(4);
     expect(fixture.assemblyIds.washers).toBe(5);
-    expect(fixture.instanceCount).toBe(102);
+    expect(fixture.instanceCount).toBe(34);
     expect(fixture.visibleInstanceCount).toBe(34);
-    expect(fixture.scene.parts.size).toBe(12);
+    expect(fixture.scene.parts.size).toBe(4);
     expect(fixture.scene.assemblies.size).toBe(5);
   });
 
@@ -102,7 +102,7 @@ describe("createBoltedPlateFixture", () => {
     ]);
 
     const plateStack = scene.assemblies.get(assemblyIds.plateStack);
-    expect(plateStack?.placements).toHaveLength(6);
+    expect(plateStack?.placements).toHaveLength(2);
     expect(plateStack?.placements.every((placement) => placement.kind === "part")).toBe(true);
     expect(plateStack?.placements[0]).toMatchObject({ kind: "part", partId: 1 });
 
@@ -128,17 +128,17 @@ describe("createBoltedPlateFixture", () => {
     const { scene, assemblyIds } = createBoltedPlateFixture();
     const fastener = scene.assemblies.get(assemblyIds.fastener);
     expect(assemblyName(fastener)).toBe("Fastener");
-    expect(fastener?.placements).toHaveLength(7);
+    expect(fastener?.placements).toHaveLength(3);
     const placementKinds = fastener?.placements.map((placement) => placement.kind) ?? [];
-    expect(placementKinds).toEqual(["part", "part", "part", "assembly", "part", "part", "part"]);
+    expect(placementKinds).toEqual(["part", "assembly", "part"]);
 
     const washers = scene.assemblies.get(assemblyIds.washers);
     expect(assemblyName(washers)).toBe("Washers");
-    expect(washers?.placements).toHaveLength(6);
+    expect(washers?.placements).toHaveLength(2);
     expect(washers?.placements.every((placement) => placement.kind === "part")).toBe(true);
     expect(washers?.placements[0]).toMatchObject({ kind: "part", partId: 7 });
-    expect(washers?.placements[3]).toMatchObject({ kind: "part", partId: 7 });
-    expect(fastener?.placements[3]).toMatchObject({
+    expect(washers?.placements[1]).toMatchObject({ kind: "part", partId: 7 });
+    expect(fastener?.placements[1]).toMatchObject({
       kind: "assembly",
       assemblyId: assemblyIds.washers,
     });
@@ -147,7 +147,7 @@ describe("createBoltedPlateFixture", () => {
   it("reuses the shared parts across the full instance list", () => {
     const fixture = createBoltedPlateFixture();
     const instances = runtimeInstances(fixture.scene);
-    expect(instances).toHaveLength(102);
+    expect(instances).toHaveLength(34);
     const counts = new Map<number, number>();
     for (const instance of instances) {
       counts.set(instance.partId, (counts.get(instance.partId) ?? 0) + 1);
@@ -155,20 +155,12 @@ describe("createBoltedPlateFixture", () => {
     expect(counts).toEqual(
       new Map([
         [1, 2],
-        [2, 2],
-        [3, 2],
         [4, 8],
-        [5, 8],
-        [6, 8],
         [7, 16],
-        [8, 16],
-        [9, 16],
         [10, 8],
-        [11, 8],
-        [12, 8],
       ]),
     );
-    expect(new Set(instances.map((instance) => instance.partId)).size).toBe(12);
+    expect(new Set(instances.map((instance) => instance.partId)).size).toBe(4);
   });
 
   it("places plates in the lap-joint overlap and fasteners in rows and columns", () => {
@@ -203,13 +195,12 @@ describe("createBoltedPlateFixture", () => {
     const fixture = createBoltedPlateFixture();
     const instances = runtimeInstances(fixture.scene);
     expect(instances[0]?.instanceId).toBe("1/0/0");
-    expect(instances[5]?.instanceId).toBe("1/0/5");
-    expect(instances[6]?.instanceId).toBe("1/1/0/0");
-    expect(instances[9]?.instanceId).toBe("1/1/0/3/0");
-    expect(instances[12]?.instanceId).toBe("1/1/0/3/3");
-    expect(instances[15]?.instanceId).toBe("1/1/0/4");
-    expect(instances[18]?.instanceId).toBe("1/1/1/0");
-    expect(instances[instances.length - 1]?.instanceId).toBe("1/1/7/6");
+    expect(instances[1]?.instanceId).toBe("1/0/1");
+    expect(instances[2]?.instanceId).toBe("1/1/0/0");
+    expect(instances[3]?.instanceId).toBe("1/1/0/1/0");
+    expect(instances[4]?.instanceId).toBe("1/1/0/1/1");
+    expect(instances[5]?.instanceId).toBe("1/1/0/2");
+    expect(instances[instances.length - 1]?.instanceId).toBe("1/1/7/2");
   });
 
   it("reports the model bounds including protruding fasteners", () => {
@@ -233,14 +224,12 @@ describe("createBoltedPlateFixture", () => {
 
   it("exposes CPU geometry per mode with computed bounds", () => {
     const { scene, partIds } = createBoltedPlateFixture();
-    const plateSolid = scene.parts.get(partIds.plate.solid);
+    const plateSolid = scene.parts.get(partIds.plate.partId);
     expect(plateSolid?.geometry.primitive).toBe("triangles");
     expect(plateSolid?.geometry.indices).toHaveLength(132);
-    const plateEdges = scene.parts.get(partIds.plate.edges);
-    expect(plateEdges?.geometry.primitive).toBe("lines");
-    const boltModel = createBoltedPlateFixture().elementModels.get(partIds.bolt.solid);
+    const boltModel = createBoltedPlateFixture().elementModels.get(partIds.bolt.partId);
     expect(boltModel?.elements).toHaveLength(2);
-    expect(scene.parts.get(partIds.bolt.solid)?.bounds).toEqual({
+    expect(scene.parts.get(partIds.bolt.partId)?.bounds).toEqual({
       minX: -0.699999988079071,
       minY: -4,
       minZ: -0.699999988079071,
@@ -269,7 +258,7 @@ describe("createBoltedPlateFixture", () => {
     });
     expect(fixture.dimensions.plateLength).toBe(20);
     expect(fixture.dimensions.plateThickness).toBe(1);
-    expect(fixture.instanceCount).toBe(102);
+    expect(fixture.instanceCount).toBe(34);
     expect(fixture.visibleInstanceCount).toBe(34);
     expect(worldBounds(fixture)).toEqual({
       minX: -10,
@@ -296,7 +285,7 @@ describe("createBoltedPlatePreset", () => {
     expect(preset.name).toBe("Bolted plate assembly");
     expect(preset.defaultMode).toBe("solid");
     expect(visiblePartIdsForPreset(preset, "solid")).toEqual(new Set([1, 4, 7, 10]));
-    expect(preset.partColors.size).toBe(12);
+    expect(preset.partColors.size).toBe(4);
     expect(preset.overlayPartIds).toEqual([]);
     const visible = visiblePartIdsForPreset(preset, "solid");
     const { scene } = preset;

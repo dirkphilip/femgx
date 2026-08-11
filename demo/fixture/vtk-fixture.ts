@@ -2,25 +2,24 @@ import sampleBlockVtk from "./sample-block.vtk?raw";
 import type { ElementModel } from "../../src/elements/model";
 import { boundaryFaceRefs } from "../../src/elements/faces";
 import { createElementModelFromFemModel, parseVtk, type FemModel } from "../../src/index";
-import { elementPart, type ElementRenderMode } from "../../src/geometry/element-mesh";
+import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
 import type { Bounds, Part } from "../../src/geometry/part";
 import { identity } from "../../src/math/mat4";
 import { createScene, type Scene } from "../../src/scene/scene";
 import type { AssemblyId, PartId } from "../../src/scene/types";
+import type { ElementDisplayMode } from "./types";
 
-/** The imported VTK asset and its three display-mode parts. */
+/** The imported VTK asset and its canonical triangle part. */
 export interface VtkFixture {
   readonly scene: Scene;
   readonly vtkModel: FemModel;
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
-  readonly modePartIds: ReadonlyMap<ElementRenderMode, readonly PartId[]>;
-  readonly partIds: { readonly solid: PartId; readonly surface: PartId; readonly edges: PartId };
+  readonly modePartIds: ReadonlyMap<ElementDisplayMode, readonly PartId[]>;
+  readonly partIds: { readonly solid: PartId };
   readonly bounds: Bounds;
 }
 
 const SOLID_PART_ID: PartId = 1;
-const SURFACE_PART_ID: PartId = 2;
-const EDGES_PART_ID: PartId = 3;
 const ROOT_ASSEMBLY_ID: AssemblyId = 1;
 
 /** Parses the checked-in ASCII legacy VTK sample into the demo scene. */
@@ -33,11 +32,11 @@ export function createVtkFixture(): VtkFixture {
   if (block === undefined) throw new Error("The sample VTK asset has no element block");
   const elementModel = createElementModelFromFemModel(vtkModel);
   const exteriorFaces = boundaryFaceRefs(elementModel.elements);
-  const parts: readonly Part[] = [
-    elementPart(SOLID_PART_ID, elementModel, "hex", "solid", { faceSubset: exteriorFaces }),
-    elementPart(SURFACE_PART_ID, elementModel, "hex", "surface", { faceSubset: exteriorFaces }),
-    elementPart(EDGES_PART_ID, elementModel, "hex", "edges"),
-  ];
+  const triangle = heterogeneousElementParts({ triangle: SOLID_PART_ID }, elementModel, {
+    faceSubset: exteriorFaces,
+  }).triangle;
+  if (triangle === undefined) throw new Error("The sample VTK asset has no triangle part");
+  const parts: readonly Part[] = [triangle];
   let builder = createScene();
   for (const part of parts) builder = builder.addPart(part);
   const root = {
@@ -50,21 +49,17 @@ export function createVtkFixture(): VtkFixture {
     })),
   };
   const scene = builder.addAssembly(root).withRoot(root.id).build();
-  const elementModels = new Map<PartId, ElementModel>([
-    [SOLID_PART_ID, elementModel],
-    [SURFACE_PART_ID, elementModel],
-    [EDGES_PART_ID, elementModel],
-  ]);
+  const elementModels = new Map<PartId, ElementModel>([[SOLID_PART_ID, elementModel]]);
   return {
     scene,
     vtkModel,
     elementModels,
-    modePartIds: new Map<ElementRenderMode, readonly PartId[]>([
+    modePartIds: new Map<ElementDisplayMode, readonly PartId[]>([
       ["solid", [SOLID_PART_ID]],
-      ["surface", [SURFACE_PART_ID]],
-      ["edges", [EDGES_PART_ID]],
+      ["surface", [SOLID_PART_ID]],
+      ["edges", [SOLID_PART_ID]],
     ]),
-    partIds: { solid: SOLID_PART_ID, surface: SURFACE_PART_ID, edges: EDGES_PART_ID },
+    partIds: { solid: SOLID_PART_ID },
     bounds: parts[0]?.bounds ?? emptyBounds(),
   };
 }

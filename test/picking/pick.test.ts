@@ -2,9 +2,14 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { createElementModel, type ElementModel } from "../../src/elements/model";
 import { LINE_SHAPE, POINT_SHAPE, TET4_SHAPE } from "../../src/elements/shapes";
-import { elementGeometry } from "../../src/geometry/element-mesh";
 import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
-import { computeBounds, validatePickIds, type Geometry, type Part } from "../../src/geometry/part";
+import {
+  computeBounds,
+  validatePickIds,
+  type Geometry,
+  type Part,
+  type TriangleGeometry,
+} from "../../src/geometry/part";
 import { identity, type Mat4 } from "../../src/math/mat4";
 import {
   geometryAdjacency,
@@ -34,6 +39,12 @@ function ids(partial: Partial<ResolvedPickIds>): ResolvedPickIds {
   return { instancePickId: 0, elementPickId: 0, facePickId: 0, nodePickId: 0, ...partial };
 }
 
+function triangleGeometry(model: ElementModel): TriangleGeometry {
+  const part = heterogeneousElementParts({ triangle: 1 }, model).triangle;
+  if (part === undefined) throw new Error("expected triangle geometry");
+  return part.geometry;
+}
+
 describe("resolvePick", () => {
   it("resolves a valid pick id to an instance", () => {
     expect(resolvePick([instanceAt(0), instanceAt(1, 2)], 1)?.partId).toBe(2);
@@ -60,7 +71,7 @@ describe("instanceToTarget", () => {
 });
 
 describe("resolvePickTarget", () => {
-  const geometry = elementGeometry(tetModel(), "tet", "solid");
+  const geometry = triangleGeometry(tetModel());
   const part = partWithGeometry(geometry);
   const context: PickContext = { instances: [instanceAt(0)], parts: new Map([[1, part]]) };
 
@@ -236,14 +247,14 @@ describe("geometryAdjacency", () => {
     );
 
   it("collects neighbor elements and nodes from the face descriptors", () => {
-    const geometry = elementGeometry(shared(), "tet", "solid");
+    const geometry = triangleGeometry(shared());
     const adjacency = geometryAdjacency(geometry, 0);
     expect(adjacency.neighborElementIds).toEqual([1, 2]);
     expect(adjacency.neighborNodeIds).toEqual([1, 2, 3, 4]);
   });
 
   it("returns empty adjacency for an unknown node", () => {
-    const geometry = elementGeometry(tetModel(), "tet", "solid");
+    const geometry = triangleGeometry(tetModel());
     expect(geometryAdjacency(geometry, 99)).toEqual({
       neighborElementIds: [],
       neighborNodeIds: [],

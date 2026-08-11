@@ -85,7 +85,7 @@ factor. Vertices are mapped back to their model node through the per-vertex `nod
 triangle/segment deforms like its FE nodes instead of assuming vertex `i` is node `i`.
 Vertices without a node, without a matching displacement, or whose displacement is missing
 (`NaN`) keep their original position. `deformGeometry` requires a node-mapped geometry
-(`elementGeometry`/`elementPart` always provide one) and throws otherwise.
+(`heterogeneousElementParts` provides one for element-backed geometry) and throws otherwise.
 
 `nodalDisplacements(nodeCount, cases)` builds the per-node displacement buffer consumed by the
 GPU renderer's deformed-shape path: one vec3 per model node per load case, load-case major

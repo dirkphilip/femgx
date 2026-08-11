@@ -1,8 +1,10 @@
+import type { FaceIdRef } from "../elements/faces";
 import type { Element, ElementId } from "../elements/element";
 import type { ElementModel } from "../elements/model";
 import type { ElementShape } from "../elements/shapes";
 import {
   computeBounds,
+  type Body,
   type Geometry,
   type LineGeometry,
   type Part,
@@ -10,13 +12,20 @@ import {
   type TriangleGeometry,
 } from "./part";
 import type { PartId } from "../scene/types";
-import type { TessellationOptions } from "./element-mesh";
 import {
   bodyAssignments,
   lineGeometry,
   pointGeometry,
   volumeGeometry,
 } from "./element-mesh-builders";
+
+/** Tessellation options shared by the single mixed-model compiler. */
+export interface TessellationOptions {
+  /** Optional stable body metadata for generated geometry. */
+  readonly bodies?: readonly Body[];
+  /** Optional stable element-face identities to draw in the triangle group. */
+  readonly faceSubset?: readonly FaceIdRef[];
+}
 
 /** Part ids assigned to the primitive groups emitted by a mixed model build. */
 export interface HeterogeneousElementPartIds {
@@ -96,7 +105,7 @@ export function heterogeneousElementParts(
       : {
           line: buildPart(
             partIds.line as PartId,
-            lineGeometry(model, groups.line, 1, bodyIds, options.bodies),
+            lineGeometry(model, groups.line, bodyIds, options.bodies),
           ),
         }),
     ...(groups.point.length === 0
@@ -138,7 +147,7 @@ function classifyElements(model: ElementModel): ElementGroups {
     else {
       throw new HeterogeneousElementError(
         "unsupported-shape",
-        `Element ${element.id} shape ${element.shape.family} order ${element.shape.order} is not supported by heterogeneousElementParts; use the dedicated typed elementPart build instead`,
+        `Element ${element.id} shape ${element.shape.family} order ${element.shape.order} is not supported by heterogeneousElementParts`,
         { elementId: element.id, shape: element.shape },
       );
     }
@@ -147,18 +156,9 @@ function classifyElements(model: ElementModel): ElementGroups {
 }
 
 function supportedGroup(shape: ElementShape): "triangle" | "line" | "point" | undefined {
-  if (shape.family === "point" && shape.order === 0) return "point";
-  if (shape.family === "line" && shape.order === 1) return "line";
-  if (
-    (shape.family === "triangle" ||
-      shape.family === "quad" ||
-      shape.family === "tet" ||
-      shape.family === "hex") &&
-    shape.order === 1
-  ) {
-    return "triangle";
-  }
-  return undefined;
+  if (shape.family === "point") return shape.order === 0 ? "point" : undefined;
+  if (shape.family === "line") return shape.order === 1 || shape.order === 2 ? "line" : undefined;
+  return shape.order === 1 || shape.order === 2 ? "triangle" : undefined;
 }
 
 function validatePartIds(partIds: HeterogeneousElementPartIds, groups: ElementGroups): void {

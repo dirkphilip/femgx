@@ -12,7 +12,7 @@ controller, so camera and interaction behavior is stable
 
 - `demo/fixture/presets.ts` builds deterministic models from fixed data: the
   **bolted plate assembly**, the imported **VTK sample block**, the complete
-  **element gallery**, and a curved **Hex20 cylinder**. Every preset is derived
+  **element gallery**, and a linearly tessellated **Hex20 cylinder**. Every preset is derived
   from fixed data, so the demo and tests share identical structure.
 - Each preset carries `elementModels` (per-part element topology used for
   node/face picking and emphasis), a part theme, per-mode part visibility, and

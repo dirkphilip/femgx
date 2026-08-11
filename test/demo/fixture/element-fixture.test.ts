@@ -92,7 +92,7 @@ describe("createElementFixture", () => {
     expect(scene.parts.get(partIds.hex20)?.geometry.primitive).toBe("triangles");
   });
 
-  it("builds a curved Hex20 cylinder with a bounded height", () => {
+  it("builds a linearly tessellated Hex20 cylinder with a bounded height", () => {
     const fixture = createHex20CylinderFixture();
     expect(fixture.scene.parts.size).toBe(1);
     expect(fixture.overlayPartIds).toEqual([]);

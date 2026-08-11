@@ -5,7 +5,9 @@ while drawing only a validated set of element faces:
 
 ```ts
 const exterior = boundaryFaceRefs(model.elements);
-const part = elementPart(1, model, "hex", "solid", { faceSubset: exterior });
+const part = heterogeneousElementParts({ triangle: 1 }, model, {
+  faceSubset: exterior,
+}).triangle;
 ```
 
 `faceSubset` uses stable `{ elementId, faceIndex }` identities. Unknown elements,

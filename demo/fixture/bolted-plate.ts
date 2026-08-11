@@ -1,10 +1,11 @@
 import type { ElementModel } from "../../src/elements/model";
-import { elementPart, type ElementRenderMode } from "../../src/geometry/element-mesh";
+import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
 import type { Body, Part } from "../../src/geometry/part";
 import { identity, translation, type Mat4 } from "../../src/math/mat4";
 import type { NamedAssembly, Placement } from "../../src/scene/assembly";
 import { createScene, type Scene } from "../../src/scene/scene";
 import type { AssemblyId, PartId } from "../../src/scene/types";
+import type { ElementDisplayMode } from "./types";
 import {
   createBoltModel,
   createNutModel,
@@ -20,11 +21,9 @@ import {
  * instancing, and hierarchical hide/show at every level.
  */
 
-/** The three render-mode part ids of one reusable component. */
+/** The canonical triangle part id of one reusable component. */
 export interface BoltedPlateComponentParts {
-  readonly solid: PartId;
-  readonly surface: PartId;
-  readonly edges: PartId;
+  readonly partId: PartId;
 }
 
 /** Stable part identifiers produced by the bolted-plate fixture. */
@@ -84,10 +83,10 @@ export interface BoltedPlateFixture {
   readonly assemblyIds: BoltedPlateAssemblies;
   /** The element model each part was tessellated from, keyed by part id. */
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
-  readonly modePartIds: ReadonlyMap<ElementRenderMode, readonly PartId[]>;
+  readonly modePartIds: ReadonlyMap<ElementDisplayMode, readonly PartId[]>;
   /** The volume mode visible by default. */
-  readonly defaultMode: ElementRenderMode;
-  /** Total part placements, one per mode-tessellated part placement. */
+  readonly defaultMode: ElementDisplayMode;
+  /** Total part placements in the canonical assembly graph. */
   readonly instanceCount: number;
   /** Part placements visible in the default mode. */
   readonly visibleInstanceCount: number;
@@ -103,18 +102,10 @@ const FASTENER_CLEARANCE = 0.05;
 const WASHER_HALF_THICKNESS = 0.125;
 const NUT_HALF_HEIGHT = 0.5;
 
-const PLATE_SOLID: PartId = 1;
-const PLATE_SURFACE: PartId = 2;
-const PLATE_EDGES: PartId = 3;
-const BOLT_SOLID: PartId = 4;
-const BOLT_SURFACE: PartId = 5;
-const BOLT_EDGES: PartId = 6;
-const WASHER_SOLID: PartId = 7;
-const WASHER_SURFACE: PartId = 8;
-const WASHER_EDGES: PartId = 9;
-const NUT_SOLID: PartId = 10;
-const NUT_SURFACE: PartId = 11;
-const NUT_EDGES: PartId = 12;
+const PLATE_PART_ID: PartId = 1;
+const BOLT_PART_ID: PartId = 4;
+const WASHER_PART_ID: PartId = 7;
+const NUT_PART_ID: PartId = 10;
 
 const ROOT: AssemblyId = 1;
 const PLATE_STACK: AssemblyId = 2;
@@ -123,10 +114,10 @@ const FASTENER: AssemblyId = 4;
 const WASHERS: AssemblyId = 5;
 
 const COMPONENT_PARTS: BoltedPlateParts = {
-  plate: { solid: PLATE_SOLID, surface: PLATE_SURFACE, edges: PLATE_EDGES },
-  bolt: { solid: BOLT_SOLID, surface: BOLT_SURFACE, edges: BOLT_EDGES },
-  washer: { solid: WASHER_SOLID, surface: WASHER_SURFACE, edges: WASHER_EDGES },
-  nut: { solid: NUT_SOLID, surface: NUT_SURFACE, edges: NUT_EDGES },
+  plate: { partId: PLATE_PART_ID },
+  bolt: { partId: BOLT_PART_ID },
+  washer: { partId: WASHER_PART_ID },
+  nut: { partId: NUT_PART_ID },
 };
 
 const COMPONENT_BODY_NAMES: { readonly [K in keyof BoltedPlateParts]: readonly string[] } = {
@@ -187,16 +178,16 @@ export function createBoltedPlateFixture(options: BoltedPlateOptions = {}): Bolt
     elementModels: componentModels(COMPONENT_PARTS, models),
     modePartIds,
     defaultMode: "solid",
-    instanceCount: 6 + positions.length * 12,
+    instanceCount: 2 + positions.length * 4,
     visibleInstanceCount: 2 + positions.length * 4,
   };
 }
 
-function componentModePartIds(): ReadonlyMap<ElementRenderMode, readonly PartId[]> {
-  return new Map<ElementRenderMode, readonly PartId[]>([
-    ["solid", [PLATE_SOLID, BOLT_SOLID, WASHER_SOLID, NUT_SOLID]],
-    ["surface", [PLATE_SURFACE, BOLT_SURFACE, WASHER_SURFACE, NUT_SURFACE]],
-    ["edges", [PLATE_EDGES, BOLT_EDGES, WASHER_EDGES, NUT_EDGES]],
+function componentModePartIds(): ReadonlyMap<ElementDisplayMode, readonly PartId[]> {
+  return new Map<ElementDisplayMode, readonly PartId[]>([
+    ["solid", [PLATE_PART_ID, BOLT_PART_ID, WASHER_PART_ID, NUT_PART_ID]],
+    ["surface", [PLATE_PART_ID, BOLT_PART_ID, WASHER_PART_ID, NUT_PART_ID]],
+    ["edges", [PLATE_PART_ID, BOLT_PART_ID, WASHER_PART_ID, NUT_PART_ID]],
   ]);
 }
 
@@ -223,11 +214,11 @@ function componentParts(
     bodyNames: readonly string[],
   ): readonly Part[] => {
     const bodies = bodyGroups(model, bodyNames);
-    return [
-      elementPart(component.solid, model, "hex", "solid", { bodies }),
-      elementPart(component.surface, model, "hex", "surface", { bodies }),
-      elementPart(component.edges, model, "hex", "edges", { bodies }),
-    ];
+    const part = heterogeneousElementParts({ triangle: component.partId }, model, {
+      bodies,
+    }).triangle;
+    if (part === undefined) throw new Error("Bolted plate component has no triangle part");
+    return [part];
   };
   return [
     ...build(parts.plate, models.plate, COMPONENT_BODY_NAMES.plate),
@@ -257,31 +248,19 @@ function componentModels(
   models: { readonly [K in keyof BoltedPlateParts]: ElementModel },
 ): ReadonlyMap<PartId, ElementModel> {
   return new Map<PartId, ElementModel>([
-    [parts.plate.solid, models.plate],
-    [parts.plate.surface, models.plate],
-    [parts.plate.edges, models.plate],
-    [parts.bolt.solid, models.bolt],
-    [parts.bolt.surface, models.bolt],
-    [parts.bolt.edges, models.bolt],
-    [parts.washer.solid, models.washer],
-    [parts.washer.surface, models.washer],
-    [parts.washer.edges, models.washer],
-    [parts.nut.solid, models.nut],
-    [parts.nut.surface, models.nut],
-    [parts.nut.edges, models.nut],
+    [parts.plate.partId, models.plate],
+    [parts.bolt.partId, models.bolt],
+    [parts.washer.partId, models.washer],
+    [parts.nut.partId, models.nut],
   ]);
 }
 
-/** The solid, surface, and edges placements of one part at a transform. */
+/** Places one canonical component part at a transform. */
 function modePlacements(
   component: BoltedPlateComponentParts,
   transform: Mat4,
 ): readonly Placement[] {
-  return [
-    { kind: "part", partId: component.solid, transform },
-    { kind: "part", partId: component.surface, transform },
-    { kind: "part", partId: component.edges, transform },
-  ];
+  return [{ kind: "part", partId: component.partId, transform }];
 }
 
 function plateStackAssembly(plateThickness: number, overlapOffset: number) {

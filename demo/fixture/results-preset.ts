@@ -1,8 +1,8 @@
 import { createElement } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
 import { HEX8_SHAPE } from "../../src/elements/shapes";
-import { elementPart } from "../../src/geometry/element-mesh";
-import { computeBounds, type Part } from "../../src/geometry/part";
+import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
+import { computeBounds } from "../../src/geometry/part";
 import { identity } from "../../src/math/mat4";
 import { createResultField } from "../../src/results/fields";
 import { createScene } from "../../src/scene/scene";
@@ -17,7 +17,8 @@ export function createResultsPreset(): ModelPreset {
     [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1],
     [createElement(1, HEX8_SHAPE, [0, 1, 2, 3, 4, 5, 6, 7])],
   );
-  const part: Part = elementPart(RESULTS_PART_ID, model, "hex", "solid");
+  const part = heterogeneousElementParts({ triangle: RESULTS_PART_ID }, model).triangle;
+  if (part === undefined) throw new Error("Results fixture has no triangle part");
   const scene = createScene()
     .addPart(part)
     .addAssembly({

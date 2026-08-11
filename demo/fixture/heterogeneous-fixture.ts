@@ -4,7 +4,7 @@ import type { Bounds, Part } from "../../src/geometry/part";
 import { identity } from "../../src/math/mat4";
 import { createScene, type Scene } from "../../src/scene/scene";
 import type { AssemblyId, PartId } from "../../src/scene/types";
-import type { ElementRenderMode } from "../../src/geometry/element-mesh";
+import type { ElementDisplayMode } from "./types";
 import { buildHeterogeneousModel } from "./element-models";
 
 /** The one-model, three-primitive-group heterogeneous demo fixture. */
@@ -16,9 +16,9 @@ export interface HeterogeneousFixture {
     readonly point: PartId;
   };
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
-  readonly modePartIds: ReadonlyMap<ElementRenderMode, readonly PartId[]>;
+  readonly modePartIds: ReadonlyMap<ElementDisplayMode, readonly PartId[]>;
   readonly overlayPartIds: readonly PartId[];
-  readonly defaultMode: ElementRenderMode;
+  readonly defaultMode: ElementDisplayMode;
   readonly instanceCount: number;
   readonly bounds: Bounds;
 }
@@ -49,7 +49,7 @@ export function createHeterogeneousFixture(): HeterogeneousFixture {
     scene,
     partIds: { triangle: TRIANGLE_PART_ID, line: LINE_PART_ID, point: POINT_PART_ID },
     elementModels,
-    modePartIds: new Map<ElementRenderMode, readonly PartId[]>([
+    modePartIds: new Map<ElementDisplayMode, readonly PartId[]>([
       ["solid", [TRIANGLE_PART_ID]],
       ["surface", [TRIANGLE_PART_ID]],
       ["edges", [TRIANGLE_PART_ID]],

@@ -1,4 +1,5 @@
-import type { Camera, ElementRenderMode } from "../src/index";
+import type { Camera } from "../src/index";
+import type { ElementDisplayMode } from "./fixture/types";
 
 /** Typed handles to the demo's DOM nodes. */
 export interface DemoView {
@@ -35,7 +36,7 @@ export interface StatusInfo {
   readonly visibleInstances: number;
   readonly parts: number;
   readonly batches: number;
-  readonly mode: ElementRenderMode;
+  readonly mode: ElementDisplayMode;
 }
 
 /** Locates the demo's DOM nodes, throwing when the page is misconfigured. */

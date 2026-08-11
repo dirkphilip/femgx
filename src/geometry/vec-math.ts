@@ -38,15 +38,3 @@ export function dot(a: Vec3, b: Vec3): number {
 export function length(vector: Vec3): number {
   return Math.hypot(vector[0], vector[1], vector[2]);
 }
-
-/** Quadratic Lagrange interpolation along the control points a-mid-b. */
-export function quadraticPoint(a: Vec3, mid: Vec3, b: Vec3, t: number): Vec3 {
-  const w0 = (1 - t) * (1 - 2 * t);
-  const w1 = 4 * t * (1 - t);
-  const w2 = t * (2 * t - 1);
-  return [
-    w0 * a[0] + w1 * mid[0] + w2 * b[0],
-    w0 * a[1] + w1 * mid[1] + w2 * b[1],
-    w0 * a[2] + w1 * mid[2] + w2 * b[2],
-  ];
-}

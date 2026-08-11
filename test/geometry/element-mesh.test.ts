@@ -15,17 +15,17 @@ import {
   type ElementFamily,
 } from "../../src/elements/shapes";
 import {
-  elementGeometry,
-  elementPart,
-  elementRenderModes,
-  type ElementRenderMode,
   type TessellationOptions,
-} from "../../src/geometry/element-mesh";
-import {
   HeterogeneousElementError,
   heterogeneousElementParts,
 } from "../../src/geometry/heterogeneous-element-mesh";
-import { validateElements, validatePickIds } from "../../src/geometry/part";
+import {
+  validateElements,
+  validatePickIds,
+  type LineGeometry,
+  type PointGeometry,
+  type TriangleGeometry,
+} from "../../src/geometry/part";
 
 type Vec3 = readonly [number, number, number];
 
@@ -213,31 +213,42 @@ function containsPosition(geometry: { readonly positions: Float32Array }, point:
   return false;
 }
 
-describe("elementRenderModes", () => {
-  it("selects solid, surface, and edge modes for volume families", () => {
-    expect(elementRenderModes("tet")).toEqual(["solid", "surface", "edges"]);
-    expect(elementRenderModes("hex")).toEqual(["solid", "surface", "edges"]);
-  });
+function geometryFor(
+  model: ElementModel,
+  group: "triangle",
+  options?: TessellationOptions,
+): TriangleGeometry;
+function geometryFor(
+  model: ElementModel,
+  group: "line",
+  options?: TessellationOptions,
+): LineGeometry;
+function geometryFor(
+  model: ElementModel,
+  group: "point",
+  options?: TessellationOptions,
+): PointGeometry;
+function geometryFor(
+  model: ElementModel,
+  group: "triangle" | "line" | "point",
+  options: TessellationOptions = {},
+): TriangleGeometry | LineGeometry | PointGeometry {
+  const parts = heterogeneousElementParts({ triangle: 20, line: 21, point: 22 }, model, options);
+  const part = parts[group];
+  if (part === undefined) throw new Error(`Expected ${group} geometry`);
+  return part.geometry;
+}
 
-  it("selects line and point modes for their families", () => {
-    expect(elementRenderModes("line")).toEqual(["lines"]);
-    expect(elementRenderModes("point")).toEqual(["points"]);
-  });
+function familyModel(model: ElementModel, family: ElementFamily): ElementModel {
+  return createElementModel(
+    [...model.nodes],
+    model.elements.filter((element) => element.shape.family === family),
+  );
+}
 
-  it("selects filled and edge modes for linear surface families", () => {
-    expect(elementRenderModes("triangle")).toEqual(["solid", "surface", "edges"]);
-    expect(elementRenderModes("quad")).toEqual(["solid", "surface", "edges"]);
-  });
-});
-
-describe("elementGeometry", () => {
-  it("rejects a mode that does not belong to the family", () => {
-    expect(() => elementGeometry(tet4Model(), "tet", "points")).toThrow("not supported for tet");
-    expect(() => elementGeometry(tet4Model(), "point", "solid")).toThrow("not supported for point");
-  });
-
+describe("heterogeneousElementParts geometry", () => {
   it("tessellates a Tet4 into four outward-facing solid triangles", () => {
-    const geometry = elementGeometry(tet4Model(), "tet", "solid");
+    const geometry = geometryFor(tet4Model(), "triangle");
     expect(geometry.primitive).toBe("triangles");
     expect(geometry.indices.length).toBe(4 * 3);
     const centroid: Vec3 = [0.25, 0.25, 0.25];
@@ -248,19 +259,12 @@ describe("elementGeometry", () => {
   });
 
   it("renders a Tet4 surface as its four boundary triangles", () => {
-    const geometry = elementGeometry(tet4Model(), "tet", "surface");
+    const geometry = geometryFor(tet4Model(), "triangle");
     expect(geometry.indices.length).toBe(4 * 3);
   });
 
-  it("renders a Tet4 edge set as six unique straight edges", () => {
-    const geometry = elementGeometry(tet4Model(), "tet", "edges");
-    expect(geometry.primitive).toBe("lines");
-    expect(geometry.indices.length).toBe(6 * 2);
-    expect(geometry.positions.length / 3).toBe(6 * 2);
-  });
-
   it("tessellates a Tet10 solid through its mid-edge nodes", () => {
-    const geometry = elementGeometry(tet10Model(), "tet", "solid");
+    const geometry = geometryFor(tet10Model(), "triangle");
     expect(geometry.indices.length).toBe(4 * 4 * 3);
     for (const mid of [
       [0.5, 0, 0],
@@ -274,35 +278,24 @@ describe("elementGeometry", () => {
     }
   });
 
-  it("draws quadratic edges through the mid-edge node by default", () => {
-    const geometry = elementGeometry(tet10Model(), "tet", "edges");
-    expect(geometry.primitive).toBe("lines");
-    expect(geometry.indices.length).toBe(6 * 2 * 2);
-    expect(containsPosition(geometry, [0.5, 0, 0])).toBe(true);
-    expect(containsPosition(geometry, [0, 0, 0.5])).toBe(true);
-  });
-
-  it("honors edgeSegments without ever dropping the mid-edge node", () => {
-    const options: TessellationOptions = { edgeSegments: 4 };
-    const geometry = elementGeometry(tet10Model(), "tet", "edges", options);
-    expect(geometry.indices.length).toBe(6 * 4 * 2);
-    expect(containsPosition(geometry, [0.5, 0, 0])).toBe(true);
-  });
-
   it("tessellates a Hex8 into twelve solid triangles", () => {
-    const geometry = elementGeometry(hex8Model(), "hex", "solid");
+    const geometry = geometryFor(hex8Model(), "triangle");
     expect(geometry.primitive).toBe("triangles");
     expect(geometry.indices.length).toBe(12 * 3);
   });
 
   it("tessellates typed triangle and quad surfaces with face ownership", () => {
     const model = surfaceModel();
-    const triangle = elementGeometry(model, "triangle", "surface");
-    const quad = elementGeometry(model, "quad", "surface");
+    const triangle = geometryFor(familyModel(model, "triangle"), "triangle");
+    const quad = geometryFor(familyModel(model, "quad"), "triangle");
     expect(triangle.indices.length).toBe(3);
     expect(quad.indices.length).toBe(6);
-    expect(triangle.elements).toEqual([{ id: 1, primitiveStart: 0, primitiveCount: 1 }]);
-    expect(quad.elements).toEqual([{ id: 2, primitiveStart: 0, primitiveCount: 2 }]);
+    expect(triangle.elements).toEqual([
+      { id: 1, primitiveStart: 0, primitiveCount: 1, shape: TRIANGLE_SHAPE },
+    ]);
+    expect(quad.elements).toEqual([
+      { id: 2, primitiveStart: 0, primitiveCount: 2, shape: QUAD_SHAPE },
+    ]);
     expect(triangle.faces?.[0]).toMatchObject({ id: 0, elementId: 1, faceIndex: 0 });
     expect(quad.faces?.[0]).toMatchObject({ id: 0, elementId: 2, faceIndex: 0 });
     expect(() => {
@@ -320,47 +313,36 @@ describe("elementGeometry", () => {
   });
 
   it("tessellates a Hex20 solid through its twelve mid-edge nodes", () => {
-    const geometry = elementGeometry(hex20Model(), "hex", "solid");
+    const geometry = geometryFor(hex20Model(), "triangle");
     expect(geometry.indices.length).toBe(6 * 8 * 3);
     expect(containsPosition(geometry, [0.5, 0, 0])).toBe(true);
     expect(containsPosition(geometry, [1, 0.5, 1])).toBe(true);
     expect(containsPosition(geometry, [0, 1, 0.5])).toBe(true);
   });
 
-  it("renders twelve unique hex edges", () => {
-    const geometry = elementGeometry(hex8Model(), "hex", "edges");
-    expect(geometry.indices.length).toBe(12 * 2);
-  });
-
   it("culls the shared face between two tets in solid geometry", () => {
     const model = sharedTetPairModel();
-    expect(elementGeometry(model, "tet", "solid").indices.length).toBe(6 * 3);
-    const surface = elementGeometry(model, "tet", "surface");
-    expect(surface.indices.length).toBe(6 * 3);
+    expect(geometryFor(model, "triangle").indices.length).toBe(6 * 3);
   });
 
   it("records element tessellations so every triangle is element-pickable", () => {
-    const hex = elementGeometry(hex8Model(), "hex", "solid");
-    expect(hex.elements).toEqual([{ id: 1, primitiveStart: 0, primitiveCount: 12 }]);
+    const hex = geometryFor(hex8Model(), "triangle");
+    expect(hex.elements).toEqual([
+      { id: 1, primitiveStart: 0, primitiveCount: 12, shape: HEX8_SHAPE },
+    ]);
     expect(() => {
       validateElements(hex);
     }).not.toThrow();
 
-    const solid = elementGeometry(sharedTetPairModel(), "tet", "solid");
+    const solid = geometryFor(sharedTetPairModel(), "triangle");
     expect(solid.elements).toEqual([
-      { id: 1, primitiveStart: 0, primitiveCount: 3 },
-      { id: 2, primitiveStart: 3, primitiveCount: 3 },
-    ]);
-
-    const surface = elementGeometry(sharedTetPairModel(), "tet", "surface");
-    expect(surface.elements).toEqual([
-      { id: 1, primitiveStart: 0, primitiveCount: 3 },
-      { id: 2, primitiveStart: 3, primitiveCount: 3 },
+      { id: 1, primitiveStart: 0, primitiveCount: 3, shape: TET4_SHAPE },
+      { id: 2, primitiveStart: 3, primitiveCount: 3, shape: TET4_SHAPE },
     ]);
   });
 
   it("records per-vertex node pick ids and node positions", () => {
-    const geometry = elementGeometry(tet4Model(), "tet", "solid");
+    const geometry = geometryFor(tet4Model(), "triangle");
     expect(geometry.nodePositions).toEqual(new Float32Array(TET_NODES));
     expect(geometry.nodePickIds?.length).toBe(geometry.positions.length / 3);
     const pickIds = geometry.nodePickIds;
@@ -370,7 +352,7 @@ describe("elementGeometry", () => {
   });
 
   it("marks interpolated quadratic quad centers as non-node vertices", () => {
-    const geometry = elementGeometry(hex20Model(), "hex", "solid");
+    const geometry = geometryFor(hex20Model(), "triangle");
     const pickIds = geometry.nodePickIds;
     if (pickIds === undefined) throw new Error("expected node pick ids");
     expect(pickIds).toContain(0);
@@ -379,7 +361,7 @@ describe("elementGeometry", () => {
   });
 
   it("records face pick ids, face descriptors, and neighbors per triangle", () => {
-    const solid = elementGeometry(sharedTetPairModel(), "tet", "solid");
+    const solid = geometryFor(sharedTetPairModel(), "triangle");
     expect(solid.facePickIds?.length).toBe(solid.indices.length / 3);
     expect(solid.faces).toHaveLength(6);
     solid.faces?.forEach((face, index) => {
@@ -393,18 +375,12 @@ describe("elementGeometry", () => {
   });
 
   it("omits interior faces from solid geometry", () => {
-    const solid = elementGeometry(sharedTetPairModel(), "tet", "solid");
+    const solid = geometryFor(sharedTetPairModel(), "triangle");
     expect(solid.faces?.every((face) => face.neighborElementIds.length === 0)).toBe(true);
   });
 
-  it("exposes only boundary faces in surface mode", () => {
-    const surface = elementGeometry(sharedTetPairModel(), "tet", "surface");
-    expect(surface.faces).toHaveLength(6);
-    expect(surface.faces?.every((face) => face.neighborElementIds.length === 0)).toBe(true);
-  });
-
   it("keeps full geometry while drawing an explicit stable face subset", () => {
-    const geometry = elementGeometry(sharedTetPairModel(), "tet", "surface", {
+    const geometry = geometryFor(sharedTetPairModel(), "triangle", {
       faceSubset: [{ elementId: 1, faceIndex: 3 }],
     });
     expect(geometry.indices.length).toBe(8 * 3);
@@ -418,20 +394,20 @@ describe("elementGeometry", () => {
   });
 
   it("accepts an empty face subset and rejects unresolved identities", () => {
-    const empty = elementGeometry(sharedTetPairModel(), "tet", "solid", { faceSubset: [] });
+    const empty = geometryFor(sharedTetPairModel(), "triangle", { faceSubset: [] });
     expect(empty.faceSubset).toEqual({ faceIds: [] });
     expect(() =>
-      elementGeometry(sharedTetPairModel(), "tet", "solid", {
+      geometryFor(sharedTetPairModel(), "triangle", {
         faceSubset: [{ elementId: 1, faceIndex: 8 }],
       }),
     ).toThrow(FaceSelectionError);
     expect(() =>
-      elementGeometry(sharedTetPairModel(), "tet", "solid", {
+      geometryFor(sharedTetPairModel(), "triangle", {
         faceSubset: [{ elementId: 99, faceIndex: 0 }],
       }),
-    ).toThrow(/outside tet elements/);
+    ).toThrow(/outside heterogeneous elements/);
     expect(() =>
-      elementGeometry(sharedTetPairModel(), "tet", "solid", {
+      geometryFor(sharedTetPairModel(), "triangle", {
         faceSubset: [
           { elementId: 1, faceIndex: 0 },
           { elementId: 1, faceIndex: 0 },
@@ -449,7 +425,7 @@ describe("elementGeometry", () => {
   });
 
   it("generates point sprites for point elements", () => {
-    const geometry = elementGeometry(pointLineModel(), "point", "points");
+    const geometry = geometryFor(pointLineModel(), "point");
     expect(geometry.primitive).toBe("points");
     expect(geometry.positions.length / 3).toBe(2);
     expect(geometry.indices.length).toBe(2);
@@ -459,7 +435,7 @@ describe("elementGeometry", () => {
   });
 
   it("generates line segments for line elements", () => {
-    const geometry = elementGeometry(pointLineModel(), "line", "lines");
+    const geometry = geometryFor(pointLineModel(), "line");
     expect(geometry.primitive).toBe("lines");
     expect(geometry.indices.length).toBe(2 + 2 * 2);
     expect(containsPosition(geometry, [1, 2, 3])).toBe(true);
@@ -468,23 +444,16 @@ describe("elementGeometry", () => {
   });
 
   it("produces deterministic output on repeated calls", () => {
-    const first = elementGeometry(tet10Model(), "tet", "solid");
-    const second = elementGeometry(tet10Model(), "tet", "solid");
+    const first = geometryFor(tet10Model(), "triangle");
+    const second = geometryFor(tet10Model(), "triangle");
     expect(first.positions).toEqual(second.positions);
     expect(first.indices).toEqual(second.indices);
   });
 });
 
-describe("elementPart", () => {
-  it("builds a reusable part with primitive and computed bounds", () => {
-    const part = elementPart(7, tet4Model(), "tet", "edges");
-    expect(part.id).toBe(7);
-    expect(part.geometry.primitive).toBe("lines");
-    expect(part.bounds).toEqual({ minX: 0, minY: 0, minZ: 0, maxX: 1, maxY: 1, maxZ: 1 });
-  });
-
+describe("heterogeneousElementParts metadata", () => {
   it("preserves body membership through typed volume tessellation", () => {
-    const geometry = elementGeometry(tet4Model(), "tet", "solid", {
+    const geometry = geometryFor(tet4Model(), "triangle", {
       bodies: [{ id: 3, name: "housing", elementIds: [1] }],
     });
     expect(geometry.bodies).toEqual([{ id: 3, name: "housing", elementIds: [1] }]);
@@ -540,21 +509,8 @@ describe("heterogeneousElementParts", () => {
     expect(() => heterogeneousElementParts({ triangle: 20 }, heterogeneousModel())).toThrow(
       expect.objectContaining({ code: "missing-part-id" }),
     );
-    expect(() =>
-      heterogeneousElementParts(
-        { triangle: 20 },
-        createElementModel(
-          [...TET10_NODES],
-          [
-            createElement(
-              1,
-              TET10_SHAPE,
-              Array.from({ length: 10 }, (_, index) => index),
-            ),
-          ],
-        ),
-      ),
-    ).toThrow(expect.objectContaining({ code: "unsupported-shape" }));
+    const quadratic = heterogeneousElementParts({ triangle: 20 }, tet10Model());
+    expect(quadratic.triangle?.geometry.primitive).toBe("triangles");
   });
 
   it("keeps repeated builds deterministic and carries body membership to each group", () => {
@@ -586,14 +542,3 @@ function triangleCenter(triangle: readonly [Vec3, Vec3, Vec3]): Vec3 {
   const [a, b, c] = triangle;
   return [(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3];
 }
-
-describe("element families", () => {
-  it("covers every supported family with a render mode", () => {
-    const families: readonly ElementFamily[] = ["point", "line", "triangle", "quad", "tet", "hex"];
-    const modes = new Set<ElementRenderMode>();
-    for (const family of families) {
-      for (const mode of elementRenderModes(family)) modes.add(mode);
-    }
-    expect(modes).toEqual(new Set(["solid", "surface", "edges", "lines", "points"]));
-  });
-});

@@ -11,8 +11,9 @@ const parts = heterogeneousElementParts({ triangle: 10, line: 11, point: 12 }, m
 ```
 
 The builder scans the source element list once, validates every element id,
-and emits only the primitive groups that are present. Linear triangle, quad,
-Tet4, and Hex8 elements share one triangle part. Authored line and point
+and emits only the primitive groups that are present. Linear and quadratic
+triangle/volume elements share one triangle part. Quadratic shapes are rendered
+as straight linear facets through their authored mid-edge nodes. Authored line and point
 elements become explicit line-list and logical-point parts because WebGPU
 cannot combine incompatible primitive topologies in one draw. The caller
 registers the returned parts in one scene; it never filters or rebuilds the
@@ -33,11 +34,11 @@ and requires the `FemModel` node ids to already be dense and ordered because
 `ElementModel` indexes nodes directly. Invalid interchange data raises an
 `IoError` carrying the validation issues instead of silently dropping a block.
 
-Tet10, Hex20, LINE3, and other unsupported shapes are rejected by the
-heterogeneous builder with `HeterogeneousElementError` and an element id/shape
-when available. The dedicated typed family path supports the quadratic shapes;
-this high-level mixed path remains limited to its current compatible groups and
-does not combine incompatible primitives into one draw or introduce streaming.
+Tet10, Hex20, and LINE3 are accepted and linearly tessellated; unsupported
+families are rejected by the heterogeneous builder with `HeterogeneousElementError`
+and an element id/shape when available. The builder does not interpolate curved
+quadratic geometry, combine incompatible primitives into one draw, or introduce
+streaming.
 
 Related: [[rendering/element-rendering|Element rendering]],
 [[rendering/element-interaction|Element-level interaction]],
