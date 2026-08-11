@@ -1,5 +1,4 @@
-import { viewProjectionMatrix, type Camera, type Vec3 } from "../camera/camera";
-import { transformPoint } from "../math/mat4";
+import { viewMatrix, type Camera, type Vec3 } from "../camera/camera";
 import { COLOR_SAMPLE_COUNT } from "./gpu-support";
 
 /** GPU resources for the library-owned screen-space camera-pivot widget. */
@@ -29,25 +28,13 @@ export function orbitPivotMetrics(pointSizeDevicePixels: number): OrbitPivotMetr
   };
 }
 
-/** Returns a normalized screen direction for a world-space axis at a pivot. */
-export function orbitPivotAxisDirection(
-  camera: Camera,
-  pivot: Vec3,
-  axis: Vec3,
-): readonly [number, number] {
-  const projection = viewProjectionMatrix(camera);
-  const origin = transformPoint(projection, pivot[0], pivot[1], pivot[2]);
-  const tip = transformPoint(
-    projection,
-    pivot[0] + axis[0],
-    pivot[1] + axis[1],
-    pivot[2] + axis[2],
-  );
-  const x = tip[0] - origin[0];
-  const y = tip[1] - origin[1];
-  const length = Math.hypot(x, y);
-  if (length > 1e-6) return [x / length, y / length];
-  return axis[1] !== 0 ? [0, 1] : [1, 0];
+/** Returns the foreshortened screen projection for a world-space axis. */
+export function orbitPivotAxisProjection(camera: Camera, axis: Vec3): readonly [number, number] {
+  const matrix = viewMatrix(camera);
+  return [
+    (matrix[0] ?? 0) * axis[0] + (matrix[4] ?? 0) * axis[1] + (matrix[8] ?? 0) * axis[2],
+    (matrix[1] ?? 0) * axis[0] + (matrix[5] ?? 0) * axis[1] + (matrix[9] ?? 0) * axis[2],
+  ];
 }
 
 /** Creates the always-visible three-axis widget rendered at an active pivot. */
@@ -109,7 +96,7 @@ interface OrbitPivotDrawOptions {
   readonly pointSizeDevicePixels: number;
 }
 
-/** Writes current pivot orientation and draws the three colored axis arrows. */
+/** Writes current pivot orientation and draws the signed, foreshortened axis arrows. */
 export function drawOrbitPivot(
   pass: GPURenderPassEncoder,
   resources: OrbitPivotResources,
@@ -119,9 +106,9 @@ export function drawOrbitPivot(
   const { point, camera, pointSizeDevicePixels } = options;
   if (point === undefined) return;
   const metrics = orbitPivotMetrics(pointSizeDevicePixels);
-  const xAxis = orbitPivotAxisDirection(camera, point, [1, 0, 0]);
-  const yAxis = orbitPivotAxisDirection(camera, point, [0, 1, 0]);
-  const zAxis = orbitPivotAxisDirection(camera, point, [0, 0, 1]);
+  const xAxis = orbitPivotAxisProjection(camera, [1, 0, 0]);
+  const yAxis = orbitPivotAxisProjection(camera, [0, 1, 0]);
+  const zAxis = orbitPivotAxisProjection(camera, [0, 0, 1]);
   device.queue.writeBuffer(
     resources.buffer,
     0,
@@ -145,7 +132,7 @@ export function drawOrbitPivot(
   pass.setPipeline(resources.pipeline);
   pass.setBindGroup(0, resources.bindGroup);
   pass.setBindGroup(1, resources.pivotBindGroup);
-  pass.draw(27);
+  pass.draw(60);
 }
 
 const blendState: GPUBlendState = {
@@ -170,7 +157,7 @@ struct Pivot {
 @group(1) @binding(0) var<uniform> pivot: Pivot;
 struct Output {
   @builtin(position) position: vec4<f32>,
-  @location(0) @interpolate(flat) axis: u32,
+  @location(0) @interpolate(flat) color: vec4<f32>,
 };
 
 fn axisDirection(axis: u32) -> vec2<f32> {
@@ -190,9 +177,14 @@ fn axisColor(axis: u32) -> vec3<f32> {
 }
 
 fn pixelPosition(axis: u32, vertex: u32) -> vec2<f32> {
-  let direction = axisDirection(axis);
+  let screenAxis = axisDirection(axis);
+  let projectionLength = length(screenAxis);
+  let axisLength = projectionLength * pivot.axisLength;
+  let direction = screenAxis / max(projectionLength, 1e-6);
   let normal = vec2<f32>(-direction.y, direction.x);
-  let lineEnd = pivot.axisLength - pivot.arrowLength;
+  let arrowLength = min(pivot.arrowLength, axisLength * .5);
+  let arrowWidth = min(pivot.arrowWidth, axisLength * .4);
+  let lineEnd = axisLength - arrowLength;
   let halfWidth = pivot.lineWidth * .5;
   switch vertex % 9u {
     case 0u: { return normal * halfWidth; }
@@ -201,22 +193,43 @@ fn pixelPosition(axis: u32, vertex: u32) -> vec2<f32> {
     case 3u: { return normal * halfWidth; }
     case 4u: { return direction * lineEnd - normal * halfWidth; }
     case 5u: { return -normal * halfWidth; }
-    case 6u: { return direction * pivot.axisLength; }
-    case 7u: { return direction * lineEnd + normal * pivot.arrowWidth; }
-    default: { return direction * lineEnd - normal * pivot.arrowWidth; }
+    case 6u: { return direction * axisLength; }
+    case 7u: { return direction * lineEnd + normal * arrowWidth; }
+    default: { return direction * lineEnd - normal * arrowWidth; }
+  }
+}
+
+fn centerDot(vertex: u32) -> vec2<f32> {
+  let halfWidth = pivot.lineWidth;
+  switch vertex {
+    case 0u: { return vec2<f32>(-halfWidth, -halfWidth); }
+    case 1u: { return vec2<f32>(halfWidth, -halfWidth); }
+    case 2u: { return vec2<f32>(halfWidth, halfWidth); }
+    case 3u: { return vec2<f32>(-halfWidth, -halfWidth); }
+    case 4u: { return vec2<f32>(halfWidth, halfWidth); }
+    default: { return vec2<f32>(-halfWidth, halfWidth); }
   }
 }
 
 @vertex fn vertexMain(@builtin(vertex_index) index: u32) -> Output {
   let clip = camera.viewProjection * vec4<f32>(pivot.position, 1.);
-  let axis = index / 9u;
-  let pixels = pixelPosition(axis, index);
+  var pixels: vec2<f32>;
+  var color: vec4<f32>;
+  if (index < 54u) {
+    let axis = index / 18u;
+    let arm = index / 9u % 2u;
+    pixels = pixelPosition(axis, index) * select(1., -1., arm == 1u);
+    color = vec4<f32>(axisColor(axis), 1.);
+  } else {
+    pixels = centerDot(index - 54u);
+    color = vec4<f32>(1.);
+  }
   let offset = pixels * 2. / camera.viewport;
   var output: Output;
   output.position = vec4<f32>(clip.xy + offset * clip.w, 0., clip.w);
-  output.axis = axis;
+  output.color = color;
   return output;
 }
 @fragment fn fragmentMain(input: Output) -> @location(0) vec4<f32> {
-  return vec4<f32>(axisColor(input.axis), 1.);
+  return input.color;
 }`;
