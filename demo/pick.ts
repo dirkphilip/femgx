@@ -1,18 +1,29 @@
-import type { ElementId, FaceKey, InstanceId, PartId, PickTarget } from "../src/index";
+import type { BodyId, ElementId, FaceKey, InstanceId, PartId, PickTarget } from "../src/index";
 
 /** The interaction granularity a modifier key can select at. */
 export type PickLevel = "node" | "face" | "element" | "instance" | "part";
 
 /** A stable selection identity at any supported granularity. */
 export type SelectTarget =
-  | { readonly kind: "node"; readonly instanceId: InstanceId; readonly nodeId: number }
+  | {
+      readonly kind: "node";
+      readonly instanceId: InstanceId;
+      readonly nodeId: number;
+      readonly bodyId?: BodyId;
+    }
   | {
       readonly kind: "face";
       readonly instanceId: InstanceId;
       readonly elementId: ElementId;
       readonly faceKey: FaceKey;
+      readonly bodyId?: BodyId;
     }
-  | { readonly kind: "element"; readonly instanceId: InstanceId; readonly elementId: ElementId }
+  | {
+      readonly kind: "element";
+      readonly instanceId: InstanceId;
+      readonly elementId: ElementId;
+      readonly bodyId?: BodyId;
+    }
   | { readonly kind: "instance"; readonly instanceId: InstanceId }
   | { readonly kind: "part"; readonly partId: PartId };
 
@@ -40,29 +51,63 @@ export function selectTarget(
   if (modifiers.shiftKey) {
     if (hit.kind === "node") {
       const elementId = hit.neighborElementIds[0] ?? hit.elementId;
-      return { kind: "element", instanceId: hit.instanceId, elementId };
+      return {
+        kind: "element",
+        instanceId: hit.instanceId,
+        elementId,
+        ...optionalBodyId(hit.bodyId),
+      };
     }
     if (hit.kind === "face") {
-      return { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId };
+      return {
+        kind: "element",
+        instanceId: hit.instanceId,
+        elementId: hit.elementId,
+        ...optionalBodyId(hit.bodyId),
+      };
     }
     if (hit.kind === "element") {
-      return { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId };
+      return {
+        kind: "element",
+        instanceId: hit.instanceId,
+        elementId: hit.elementId,
+        ...optionalBodyId(hit.bodyId),
+      };
     }
   }
-  if (hit.kind === "node") return { kind: "node", instanceId: hit.instanceId, nodeId: hit.nodeId };
+  if (hit.kind === "node") {
+    return {
+      kind: "node",
+      instanceId: hit.instanceId,
+      nodeId: hit.nodeId,
+      ...optionalBodyId(hit.bodyId),
+    };
+  }
   if (hit.kind === "face") {
     return {
       kind: "face",
       instanceId: hit.instanceId,
       elementId: hit.elementId,
       faceKey: hit.key,
+      ...optionalBodyId(hit.bodyId),
     };
   }
   if (hit.kind === "element") {
-    return { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId };
+    return {
+      kind: "element",
+      instanceId: hit.instanceId,
+      elementId: hit.elementId,
+      ...optionalBodyId(hit.bodyId),
+    };
   }
   if (hit.kind === "instance") return { kind: "instance", instanceId: hit.instanceId };
   return { kind: "part", partId: hit.partId };
+}
+
+function optionalBodyId(
+  bodyId: BodyId | undefined,
+): { readonly bodyId: BodyId } | Record<never, never> {
+  return bodyId === undefined ? {} : { bodyId };
 }
 
 /** Stable dataset key for a resolved pick or selection target. */

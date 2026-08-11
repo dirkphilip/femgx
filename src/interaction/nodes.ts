@@ -1,7 +1,8 @@
 import type { NodeId } from "../elements/element";
 import type { Instance, InstanceId } from "../scene/types";
 import type { InteractionState } from "./interaction";
-import { resolveInstanceStyle, type ResolvedStyle } from "./interaction";
+import type { BodyId } from "../geometry/part";
+import { resolveBodyStyle, resolveInstanceStyle, type ResolvedStyle } from "./interaction";
 import type { NodeRef } from "./refs";
 
 function updateNodeSet(
@@ -81,8 +82,12 @@ export function resolveNodeStyle(
   ref: NodeRef,
   base: ResolvedStyle,
   state: InteractionState,
+  bodyId?: BodyId,
 ): ResolvedStyle {
-  let style = resolveInstanceStyle(instance, base, state);
+  let style =
+    bodyId === undefined
+      ? resolveInstanceStyle(instance, base, state)
+      : resolveBodyStyle(instance, bodyId, base, state);
   if (state.highlightedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true) {
     style = { ...style, ...state.theme.highlighted };
   }

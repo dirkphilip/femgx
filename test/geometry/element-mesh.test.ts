@@ -378,6 +378,15 @@ describe("elementPart", () => {
     expect(part.geometry.primitive).toBe("lines");
     expect(part.bounds).toEqual({ minX: 0, minY: 0, minZ: 0, maxX: 1, maxY: 1, maxZ: 1 });
   });
+
+  it("preserves body membership through typed volume tessellation", () => {
+    const geometry = elementGeometry(tet4Model(), "tet", "solid", {
+      bodies: [{ id: 3, name: "housing", elementIds: [1] }],
+    });
+    expect(geometry.bodies).toEqual([{ id: 3, name: "housing", elementIds: [1] }]);
+    expect(geometry.elements?.[0]).toMatchObject({ id: 1, bodyId: 3 });
+    expect(geometry.faces?.every((face) => face.bodyId === 3)).toBe(true);
+  });
 });
 
 function triangleCenter(triangle: readonly [Vec3, Vec3, Vec3]): Vec3 {

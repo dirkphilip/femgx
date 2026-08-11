@@ -2,7 +2,8 @@ import type { ElementId } from "../elements/element";
 import type { FaceKey } from "../elements/faces";
 import type { InstanceId } from "../scene/types";
 import type { InteractionState } from "./interaction";
-import { resolveInstanceStyle, type ResolvedStyle } from "./interaction";
+import type { BodyId } from "../geometry/part";
+import { resolveBodyStyle, resolveInstanceStyle, type ResolvedStyle } from "./interaction";
 import type { FaceRef } from "./refs";
 import type { Instance } from "../scene/types";
 
@@ -86,8 +87,12 @@ export function resolveFaceStyle(
   ref: FaceRef,
   base: ResolvedStyle,
   state: InteractionState,
+  bodyId?: BodyId,
 ): ResolvedStyle {
-  let style = resolveInstanceStyle(instance, base, state);
+  let style =
+    bodyId === undefined
+      ? resolveInstanceStyle(instance, base, state)
+      : resolveBodyStyle(instance, bodyId, base, state);
   if (state.highlightedFaces.get(ref.instanceId)?.has(ref.faceKey) === true) {
     style = { ...style, ...state.theme.highlighted };
   }

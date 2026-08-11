@@ -25,6 +25,8 @@ export function describePick(
     return (
       `Node ${hit.nodeId}\n` +
       `${context} · Instance ${hit.instanceId}\n` +
+      bodyDescription(hit) +
+      (hit.bodyId === undefined ? "" : "\n") +
       `Position ${formatVec(hit.worldPosition)}\n` +
       `Adjacent elements ${adjacency}\n` +
       `Neighbors ${hit.neighborNodeIds.length}`
@@ -35,6 +37,8 @@ export function describePick(
     return (
       `Face ${hit.key}\n` +
       `Element ${hit.elementId} · ${context} · Instance ${hit.instanceId}\n` +
+      bodyDescription(hit) +
+      (hit.bodyId === undefined ? "" : "\n") +
       `Normal ${formatVec(hit.normal)}\n` +
       `Hit ${formatVec(hit.hitPosition)}\n` +
       `Adjacent elements ${owners || "none"}\n` +
@@ -42,12 +46,16 @@ export function describePick(
     );
   }
   if (hit.kind === "element") {
-    return `Element ${hit.elementId}\n${context} · Instance ${hit.instanceId}`;
+    return `Element ${hit.elementId}\n${context} · Instance ${hit.instanceId}${bodyDescription(hit)}`;
   }
   if (hit.kind === "instance") {
     return `Instance ${hit.instanceId}\n${context}`;
   }
   return `Part ${hit.partId}${partName(hit.partId) === undefined ? "" : ` · ${partName(hit.partId)}`}`;
+}
+
+function bodyDescription(hit: { readonly bodyId?: number }): string {
+  return hit.bodyId === undefined ? "" : `\nBody ${hit.bodyId}`;
 }
 
 /** "Part N · Name" when a name is known, otherwise just "Part N". */

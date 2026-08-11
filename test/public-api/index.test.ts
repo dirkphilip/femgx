@@ -20,4 +20,12 @@ describe("public root API", () => {
     expect(publicApi.bodyIdForElement).toBeTypeOf("function");
     expect(publicApi.GeometryValidationError).toBeTypeOf("function");
   });
+
+  it("exposes body interaction helpers through the root API", () => {
+    expect(publicApi.setBodyVisible).toBeTypeOf("function");
+    expect(publicApi.setBodyOverride).toBeTypeOf("function");
+    expect(publicApi.setBodyHighlighted).toBeTypeOf("function");
+    expect(publicApi.setBodySelected).toBeTypeOf("function");
+    expect(publicApi.setHoveredBody).toBeTypeOf("function");
+  });
 });

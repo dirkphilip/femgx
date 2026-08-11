@@ -1,5 +1,6 @@
 import {
   clientToCanvasCss,
+  setHoveredBody,
   setHoveredElement,
   setHoveredFace,
   setHoveredInstance,
@@ -61,6 +62,12 @@ export class WorkbenchInteraction {
         ? undefined
         : selectTarget(hit, event, (id) => this.options.partIdForInstance(id));
     let interaction = this.options.getInteraction();
+    interaction = setHoveredBody(
+      interaction,
+      target === undefined || !("bodyId" in target)
+        ? undefined
+        : { instanceId: target.instanceId, bodyId: target.bodyId },
+    );
     interaction = setHoveredNode(
       interaction,
       target?.kind === "node"

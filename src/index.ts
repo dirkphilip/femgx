@@ -59,6 +59,7 @@ export { edgesOf, uniqueEdges, type EdgeKey, type ElementEdge } from "./elements
 export {
   createInteractionState,
   emphasizedElementRefs,
+  resolveBodyStyle,
   resolveElementStyle,
   resolveInstanceStyle,
   setElementOverride,
@@ -78,6 +79,16 @@ export {
   type StyleOverride,
 } from "./interaction/interaction";
 export {
+  emphasizedBodyRefs,
+  isBodyEmphasized,
+  isBodyVisible,
+  setBodyHighlighted,
+  setBodyOverride,
+  setBodySelected,
+  setBodyVisible,
+  setHoveredBody,
+} from "./interaction/bodies";
+export {
   setFaceHighlighted,
   setFaceSelected,
   setHoveredFace,
@@ -93,7 +104,7 @@ export {
   isNodeEmphasized,
   resolveNodeStyle,
 } from "./interaction/nodes";
-export type { FaceRef, NodeRef } from "./interaction/refs";
+export type { BodyRef, FaceRef, NodeRef } from "./interaction/refs";
 export { createSceneRuntime, type SceneRuntime } from "./scene-runtime/runtime";
 export {
   createWebGpuRenderer,

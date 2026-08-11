@@ -100,6 +100,9 @@ closed; the list is historical scope memory, not an open implementation queue.
 
 - [x] Add centralized part-level and instance-level selection, highlight, hover,
       and visibility state.
+- [x] Add placement-scoped body selection, highlight, hover, visibility, and
+      style overrides, with body-aware GPU picking and demo controls (see
+      [[rendering/interactive-state|Interactive state]]).
 - [x] Define precedence when part and instance styles overlap.
 - [x] Expose a clean `pick(x, y)` API returning stable part/instance targets.
 

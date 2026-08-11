@@ -1,20 +1,17 @@
-import type { Part } from "../geometry/part";
+import { bodyIdForElement, type Part } from "../geometry/part";
 import {
   emphasizedElementRefs,
+  resolveBodyStyle,
   resolveElementStyle,
   type InteractionState,
   type ResolvedStyle,
 } from "../interaction/interaction";
+import { emphasizedBodyRefs, isBodyVisible } from "../interaction/bodies";
 import { emphasizedFaceRefs, resolveFaceStyle } from "../interaction/faces";
 import { emphasizedNodeRefs, resolveNodeStyle } from "../interaction/nodes";
 import type { SceneRuntime } from "../scene-runtime/runtime";
 import type { Instance, InstanceId, PartId } from "../scene/types";
-import type { DrawResources, InstanceStorage } from "./gpu-draw";
-import {
-  buildHighlightTable,
-  HIGHLIGHT_BUCKET_SIZE,
-  type HighlightTableEntry,
-} from "./gpu-highlight-table";
+import { BODY_HIGHLIGHT_MARKER } from "./gpu-highlight-table";
 import { defaultStyle } from "./gpu-support";
 import type { InstanceLayout } from "./runtime-state";
 
@@ -30,7 +27,8 @@ import type { InstanceLayout } from "./runtime-state";
  * | 12     | 4    | node pick id, `nodeId + 1` (`u32`) |
  * | 16     | 16   | resolved color with opacity folded into alpha (`vec4<f32>`) |
  * | 32     | 4    | emissive (`f32`) |
- * | 36     | 12   | padding |
+ * | 36     | 4    | hidden (`u32`) |
+ * | 40     | 8    | trailing alignment padding |
  */
 export const ELEMENT_RECORD_STRIDE = 48;
 
@@ -57,6 +55,10 @@ export interface EmphasisUpdate {
   readonly facePickId: number;
   /** 1-based node pick id, `0` when the record emphasizes an element or face. */
   readonly nodePickId: number;
+  /** 1-based body pick id, `0` for element/face/node records. */
+  readonly bodyPickId?: number;
+  /** Hides the matching body triangles in both color and pick passes. */
+  readonly hidden?: boolean;
   readonly style: ResolvedStyle;
 }
 
@@ -70,14 +72,15 @@ export function encodeEmphasisRecord(update: EmphasisUpdate): ArrayBuffer {
   const ids = new Uint32Array(data);
   const floats = new Float32Array(data);
   ids[0] = update.slot;
-  ids[1] = update.elementPickId;
-  ids[2] = update.facePickId;
+  ids[1] = update.bodyPickId ?? update.elementPickId;
+  ids[2] = update.bodyPickId === undefined ? update.facePickId : BODY_HIGHLIGHT_MARKER;
   ids[3] = update.nodePickId;
   floats[4] = update.style.color.r;
   floats[5] = update.style.color.g;
   floats[6] = update.style.color.b;
   floats[7] = update.style.color.a * update.style.opacity;
   floats[8] = update.style.emissive;
+  ids[9] = update.hidden === true ? 1 : 0;
   return data;
 }
 
@@ -126,27 +129,22 @@ export function encodeNodeHighlight(
   });
 }
 
-/** A GPU highlight buffer plus its full CPU mirror for diffed writes. */
-export interface HighlightStorage {
-  readonly buffer: GPUBuffer;
-  data: Uint8Array<ArrayBuffer>;
-}
-
-/**
- * Creates a highlight buffer sized for `capacity` element-highlight records
- * plus its header. The buffer can only grow by recreating it; callers grow it
- * on demand when an emphasis list exceeds the current capacity.
- */
-export function createHighlightStorage(
-  device: GPUDevice,
-  capacity = INITIAL_ELEMENT_HIGHLIGHTS,
-): HighlightStorage {
-  const size = HIGHLIGHT_HEADER + capacity * ELEMENT_RECORD_STRIDE;
-  const buffer = device.createBuffer({
-    size,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+/** Encodes a body-emphasis record (`bodyId + 1` plus the body marker). */
+export function encodeBodyHighlight(
+  slot: number,
+  bodyId: number,
+  style: ResolvedStyle,
+  hidden = false,
+): ArrayBuffer {
+  return encodeEmphasisRecord({
+    slot,
+    elementPickId: 0,
+    facePickId: 0,
+    nodePickId: 0,
+    bodyPickId: bodyId + 1,
+    hidden,
+    style,
   });
-  return { buffer, data: new Uint8Array(size) };
 }
 
 /**
@@ -169,10 +167,36 @@ export function collectEmphasisUpdates(
     if (list === undefined) byPart.set(partId, [update]);
     else list.push(update);
   };
-  collectElementEmphasis(context, interaction, push);
+  collectBodyEmphasis(context, parts, interaction, push);
+  collectElementEmphasis(context, parts, interaction, push);
   collectFaceEmphasis(context, parts, interaction, push);
   collectNodeEmphasis(context, interaction, push);
   return byPart;
+}
+
+/** Collects body-level style and visibility records. */
+function collectBodyEmphasis(
+  context: EmphasisContext,
+  parts: ReadonlyMap<PartId, Part>,
+  interaction: InteractionState,
+  push: (partId: PartId, update: EmphasisUpdate) => void,
+): void {
+  for (const ref of emphasizedBodyRefs(interaction)) {
+    const occurrence = occurrenceAt(context, ref.instanceId);
+    if (occurrence === undefined) continue;
+    const part = parts.get(occurrence.instance.partId);
+    const body = part?.geometry.bodies?.find((candidate) => candidate.id === ref.bodyId);
+    if (body === undefined) continue;
+    push(occurrence.instance.partId, {
+      slot: occurrence.local,
+      elementPickId: 0,
+      facePickId: 0,
+      nodePickId: 0,
+      bodyPickId: ref.bodyId + 1,
+      hidden: !isBodyVisible(interaction, ref),
+      style: resolveBodyStyle(occurrence.instance, ref.bodyId, defaultStyle, interaction),
+    });
+  }
 }
 
 /** The occurrence-resolution inputs shared by every emphasis collector. */
@@ -185,17 +209,21 @@ interface EmphasisContext {
 /** Collects element-level emphasis records (hover, selection, overrides). */
 function collectElementEmphasis(
   context: EmphasisContext,
+  parts: ReadonlyMap<PartId, Part>,
   interaction: InteractionState,
   push: (partId: PartId, update: EmphasisUpdate) => void,
 ): void {
   for (const ref of emphasizedElementRefs(interaction)) {
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
+    const geometry = parts.get(occurrence.instance.partId)?.geometry;
+    const bodyId = geometry === undefined ? undefined : bodyIdForElement(geometry, ref.elementId);
     const style = resolveElementStyle(
       occurrence.instance,
       ref.elementId,
       defaultStyle,
       interaction,
+      bodyId,
     );
     push(occurrence.instance.partId, {
       slot: occurrence.local,
@@ -217,17 +245,26 @@ function collectFaceEmphasis(
   for (const ref of emphasizedFaceRefs(interaction)) {
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
-    const faceId = parts
+    const face = parts
       .get(occurrence.instance.partId)
       ?.geometry.faces?.find(
         (face) => face.elementId === ref.elementId && face.key === ref.faceKey,
       )?.id;
-    if (faceId === undefined) continue;
-    const style = resolveFaceStyle(occurrence.instance, ref, defaultStyle, interaction);
+    if (face === undefined) continue;
+    const geometry = parts.get(occurrence.instance.partId)?.geometry;
+    const descriptor = geometry?.faces?.[face];
+    const style = resolveFaceStyle(
+      occurrence.instance,
+      ref,
+      defaultStyle,
+      interaction,
+      descriptor?.bodyId ??
+        (geometry === undefined ? undefined : bodyIdForElement(geometry, ref.elementId)),
+    );
     push(occurrence.instance.partId, {
       slot: occurrence.local,
       elementPickId: 0,
-      facePickId: faceId + 1,
+      facePickId: face + 1,
       nodePickId: 0,
       style,
     });
@@ -275,126 +312,9 @@ function occurrenceAt(
   };
 }
 
-/**
- * Replaces a part's emphasis table, writing only the byte subranges whose
- * header or buckets changed since the last write. When the bounded table does
- * not fit, the highlight buffer is recreated larger and every record remains
- * addressable without a linear shader scan.
- */
-export function writeElementHighlights(
-  device: GPUDevice,
-  storage: InstanceStorage,
-  updates: readonly EmphasisUpdate[],
-): void {
-  const entries = updates.map(toTableEntry);
-  let table = buildHighlightTable(entries, highlightCapacity(storage.highlight.data.byteLength));
-  while (table === undefined) {
-    growHighlightStorage(device, storage, nextTableCapacity(entries.length));
-    table = buildHighlightTable(entries, highlightCapacity(storage.highlight.data.byteLength));
-  }
-  const next = new Uint8Array(storage.highlight.data.length);
-  const view = new Uint32Array(next.buffer);
-  view[0] = entries.length;
-  view[1] = table.bucketCount;
-  view[2] = table.seed;
-  for (let index = 0; index < table.entries.length; index += 1) {
-    const entry = table.entries[index];
-    if (entry === undefined) continue;
-    next.set(new Uint8Array(entry.data), HIGHLIGHT_HEADER + index * ELEMENT_RECORD_STRIDE);
-  }
-  const previous = storage.highlight.data;
-  const previousView = new Uint32Array(previous.buffer);
-  const previousSlots = (previousView[1] ?? 0) * HIGHLIGHT_BUCKET_SIZE;
-  const nextSlots = table.bucketCount * HIGHLIGHT_BUCKET_SIZE;
-  const meaningful = Math.min(
-    next.byteLength,
-    HIGHLIGHT_HEADER + Math.max(previousSlots, nextSlots) * ELEMENT_RECORD_STRIDE,
-  );
-  let rangeStart = -1;
-  for (let index = 0; index < meaningful; index++) {
-    const changed = next[index] !== previous[index];
-    if (changed && rangeStart < 0) rangeStart = index;
-    if ((!changed || index === meaningful - 1) && rangeStart >= 0) {
-      const rangeEnd = changed && index === meaningful - 1 ? index + 1 : index;
-      const alignedStart = rangeStart - (rangeStart % 4);
-      const alignedEnd = Math.min(meaningful, rangeEnd + ((4 - (rangeEnd % 4)) % 4));
-      device.queue.writeBuffer(
-        storage.highlight.buffer,
-        alignedStart,
-        next.subarray(alignedStart, alignedEnd),
-      );
-      rangeStart = -1;
-    }
-  }
-  previous.set(next);
-}
-/**
- * Recreates the part's highlight buffer with room for the requested table,
- * copying the CPU mirror and re-uploading it so diffed writes remain intact.
- * The old buffer is destroyed and both cached bind groups are invalidated.
- */
-function growHighlightStorage(
-  device: GPUDevice,
-  storage: InstanceStorage,
-  minimumRecords: number,
-): void {
-  const highlight = storage.highlight;
-  const capacity = highlightCapacity(highlight.data.byteLength);
-  if (minimumRecords <= capacity) return;
-  const nextCapacity = Math.max(minimumRecords, capacity * 2);
-  const grown = createHighlightStorage(device, nextCapacity);
-  const mirror = new Uint8Array(grown.data);
-  mirror.set(highlight.data);
-  device.queue.writeBuffer(grown.buffer, 0, mirror);
-  highlight.buffer.destroy();
-  storage.highlight = grown;
-  storage.bindGroup = undefined;
-  storage.edgeBindGroup = undefined;
-}
-/** Element-highlight record capacity implied by a buffer's byte size. */
-function highlightCapacity(byteLength: number): number {
-  return (byteLength - HIGHLIGHT_HEADER) / ELEMENT_RECORD_STRIDE;
-}
-
-function toTableEntry(update: EmphasisUpdate): HighlightTableEntry {
-  return { ...update, data: encodeEmphasisRecord(update) };
-}
-
-function nextTableCapacity(count: number): number {
-  if (count === 0) return 0;
-  let bucketCount = 1;
-  while (bucketCount * 2 < Math.ceil(count / 2)) bucketCount *= 2;
-  return bucketCount * HIGHLIGHT_BUCKET_SIZE * 2;
-}
-
-/** The draw-path inputs needed to sync emphasis buffers. */
-export interface ElementHighlightSync {
-  readonly device: GPUDevice;
-  readonly draw: DrawResources;
-  readonly runtime: SceneRuntime;
-  readonly layout: InstanceLayout;
-  readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
-  readonly parts: ReadonlyMap<PartId, Part>;
-}
-
-/**
- * Recomputes every part's emphasis buffer from the current interaction state.
- * Parts without emphasized occurrences are written with an empty record list
- * so previously applied emphasis is cleared; the diffing in
- * `writeElementHighlights` skips parts whose buffer is already up to date.
- */
-export function syncElementHighlights(
-  sync: ElementHighlightSync,
-  interaction: InteractionState,
-): void {
-  const updates = collectEmphasisUpdates(
-    sync.runtime,
-    sync.layout,
-    sync.slotByInstanceId,
-    sync.parts,
-    interaction,
-  );
-  for (const [partId, storage] of sync.draw.storages) {
-    writeElementHighlights(sync.device, storage, updates.get(partId) ?? []);
-  }
-}
+export {
+  createHighlightStorage,
+  syncElementHighlights,
+  writeElementHighlights,
+} from "./gpu-highlight-storage";
+export type { ElementHighlightSync, HighlightStorage } from "./gpu-highlight-storage";

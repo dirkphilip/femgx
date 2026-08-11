@@ -10,6 +10,9 @@ material clones.
 - Hiding an assembly hides everything beneath it (hierarchy inheritance).
 - `flattenAssembly` culls hidden instances at the source, so hidden geometry is
   never drawn and never consumes instance slots.
+- Parts may also define stable body groups. Body visibility is interaction state
+  scoped by instance and body id, so hiding one body does not alter reusable
+  geometry or another placement of that part.
 
 ## Highlight / selection / hover
 
@@ -18,6 +21,11 @@ material clones.
 - The renderer should patch only affected instance attributes per frame, or
   adjust instance counts — never rebuild geometry or instance lists (see
   [[rendering/renderer-subrange-updates|Renderer subrange updates]]).
+- Body selection, highlight, hover, and explicit style overrides use the same
+  immutable interaction state pattern, keyed by `(instanceId, bodyId)`.
+- Body emphasis is recorded in the element-highlight table and resolved on the
+  GPU before element, face, or node emphasis. Body visibility is a GPU hidden
+  bit, not a CPU material clone or geometry rewrite.
 
 ## Picking
 
@@ -34,6 +42,12 @@ part override, then explicit instance override. More specific state wins, while
 selection intentionally remains stronger than hover. The resulting complete style
 can be copied directly into a GPU instance attribute without material cloning.
 
+For body-aware styles, instance state is resolved first, followed by body
+highlight, body hover, body selection, and the explicit body override. Element,
+face, and node state remains more specific than its owning body. Hidden body
+records are applied before emphasis so every primitive belonging to that body is
+excluded from the render and pick passes.
+
 ## Emphasis representation
 
 - `InteractionState.elementOverrides` holds **explicit** element overrides only
@@ -46,3 +60,7 @@ can be copied directly into a GPU instance attribute without material cloning.
   `changedInstanceSlots` feeding `updateInstances`; element/node/face emphasis
   flows through `updateElements`
   ([[rendering/renderer-subrange-updates|Renderer subrange updates]]).
+- Body records are included in the same `updateElements` path. Surface geometry
+  stores interleaved `(facePickId, bodyPickId)` pairs so the renderer stays within
+  the WebGPU vertex-stage storage-buffer limit; authored node sprites use the
+  same pair layout for body-aware visibility and emphasis.

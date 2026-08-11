@@ -12,9 +12,12 @@ import type { ElementFamily } from "../elements/shapes";
 import {
   computeBounds,
   type ElementTessellation,
+  type Body,
+  type BodyId,
   type FaceTessellation,
   type Geometry,
   type Part,
+  validateBodies,
 } from "./part";
 import type { PartId } from "../scene/types";
 import { tessellateFace } from "./face-tessellation";
@@ -39,6 +42,8 @@ export interface TessellationOptions {
    * so the mid-edge node is always honored; linear edges stay a single segment.
    */
   readonly edgeSegments?: number;
+  /** Optional stable body metadata for the generated triangle part. */
+  readonly bodies?: readonly Body[];
 }
 
 /** Returns the render modes supported by an element family. */
@@ -83,7 +88,7 @@ export function elementGeometry(
   switch (mode) {
     case "solid":
     case "surface":
-      return volumeGeometry(model, family);
+      return volumeGeometry(model, family, options.bodies);
     case "edges":
       return edgeGeometry(model, family, segments);
     case "lines":
@@ -93,7 +98,12 @@ export function elementGeometry(
   }
 }
 
-function volumeGeometry(model: ElementModel, family: ElementFamily): Geometry {
+function volumeGeometry(
+  model: ElementModel,
+  family: ElementFamily,
+  bodies: readonly Body[] | undefined,
+): Geometry {
+  const bodyIds = bodyAssignments(model, bodies);
   const faces: ReadonlyArray<{
     readonly element: Element;
     readonly face: ElementFace;
@@ -108,11 +118,13 @@ function volumeGeometry(model: ElementModel, family: ElementFamily): Geometry {
   let faceId = 0;
   const flush = (): void => {
     if (current !== undefined) {
-      elements.push({
+      const tessellation: ElementTessellation = {
         id: current.id,
         triangleStart: current.start,
         triangleCount: mesh.triangleCount - current.start,
-      });
+      };
+      const bodyId = bodyIds.get(current.id);
+      elements.push(bodyId === undefined ? tessellation : { ...tessellation, bodyId });
     }
   };
   for (const { element, face, faceIndex } of faces) {
@@ -123,18 +135,61 @@ function volumeGeometry(model: ElementModel, family: ElementFamily): Geometry {
     for (const triangle of tessellateFace(model, element, face)) {
       mesh.append(triangle, faceId + 1);
     }
-    faceTessellations.push({
+    const tessellation: FaceTessellation = {
       id: faceId,
       elementId: element.id,
       faceIndex,
       key: face.key,
       nodeIds: face.nodeIds,
       neighborElementIds: (neighbors.get(face.key) ?? []).filter((id) => id !== element.id),
-    });
+    };
+    const bodyId = bodyIds.get(element.id);
+    faceTessellations.push(bodyId === undefined ? tessellation : { ...tessellation, bodyId });
     faceId += 1;
   }
   flush();
-  return mesh.build("triangles", elements, faceTessellations, nodePositions);
+  return buildVolumeGeometry(mesh, elements, faceTessellations, nodePositions, bodies);
+}
+
+function buildVolumeGeometry(
+  mesh: TriangleMeshBuilder,
+  elements: readonly ElementTessellation[],
+  faces: readonly FaceTessellation[],
+  nodePositions: readonly number[],
+  bodies: readonly Body[] | undefined,
+): Geometry {
+  const renderedElementIds = new Set(elements.map((element) => element.id));
+  const renderedBodies = bodies?.flatMap((body) => {
+    const elementIds = body.elementIds.filter((id) => renderedElementIds.has(id));
+    return elementIds.length === 0 ? [] : [{ ...body, elementIds }];
+  });
+  const geometry = mesh.build("triangles", elements, faces, nodePositions, renderedBodies);
+  validateBodies(geometry);
+  return geometry;
+}
+
+function bodyAssignments(
+  model: ElementModel,
+  bodies: readonly Body[] | undefined,
+): ReadonlyMap<ElementId, BodyId> {
+  if (bodies === undefined || bodies.length === 0) return new Map();
+  const assignments = new Map<ElementId, BodyId>();
+  for (const body of bodies) {
+    for (const elementId of body.elementIds) assignments.set(elementId, body.id);
+  }
+  validateBodies({
+    elements: model.elements.map((element) => {
+      const tessellation: ElementTessellation = {
+        id: element.id,
+        triangleStart: 0,
+        triangleCount: 1,
+      };
+      const bodyId = assignments.get(element.id);
+      return bodyId === undefined ? tessellation : { ...tessellation, bodyId };
+    }),
+    bodies,
+  });
+  return assignments;
 }
 
 /** Maps every canonical face key to the elements incident to it. */

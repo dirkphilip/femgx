@@ -1,7 +1,7 @@
 import type { Vec3 } from "../camera/camera";
 import type { FaceKey } from "../elements/faces";
 import type { ElementId, NodeId } from "../elements/element";
-import type { FaceId } from "../geometry/part";
+import type { BodyId, FaceId } from "../geometry/part";
 import type { Mat4 } from "../math/mat4";
 
 export type { ElementId } from "../elements/element";
@@ -44,6 +44,8 @@ export interface FacePickTarget {
   readonly partId: PartId;
   readonly instanceId: InstanceId;
   readonly elementId: ElementId;
+  /** Optional logical body owning the face's element. */
+  readonly bodyId?: BodyId;
   /** Stable part-local face id (index into the part's face descriptors). */
   readonly faceId: FaceId;
   readonly faceIndex: number;
@@ -67,6 +69,8 @@ export interface NodePickTarget {
   /** The element whose tessellation was hit (the node's owning element here). */
   readonly elementId: ElementId;
   readonly nodeId: NodeId;
+  /** Optional logical body owning the picked element. */
+  readonly bodyId?: BodyId;
   readonly localPosition: Vec3;
   readonly worldPosition: Vec3;
   /** Elements whose faces reference this node. */
@@ -84,6 +88,8 @@ export type PickTarget =
       readonly partId: PartId;
       readonly instanceId: InstanceId;
       readonly elementId: ElementId;
+      /** Optional logical body owning the element. */
+      readonly bodyId?: BodyId;
     }
   | FacePickTarget
   | NodePickTarget;

@@ -9,7 +9,7 @@ export interface PartResource {
   readonly indexBuffer: GPUBuffer;
   /** Per-triangle element pick ids (`elementId + 1`, 0 = none). */
   readonly elementPickIdsBuffer: GPUBuffer;
-  /** Per-triangle face pick ids (`faceId + 1`, 0 = none). */
+  /** Interleaved per-triangle face/body pick ids (`faceId + 1`, `bodyId + 1`). */
   readonly facePickIdsBuffer: GPUBuffer;
   /** Per-vertex node pick ids (`nodeId + 1`, 0 = interpolated vertex). */
   readonly nodePickIdsBuffer: GPUBuffer;

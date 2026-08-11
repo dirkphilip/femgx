@@ -1,7 +1,8 @@
 import type { ElementId, ElementRef, InstanceId, PartId, Instance } from "../scene/types";
 import type { NodeId } from "../elements/element";
 import type { FaceKey } from "../elements/faces";
-import type { FaceRef, NodeRef } from "./refs";
+import type { BodyId } from "../geometry/part";
+import type { BodyRef, FaceRef, NodeRef } from "./refs";
 
 /** RGBA color with normalized channels. */
 export interface Color {
@@ -47,6 +48,11 @@ export interface InteractionState {
   readonly selectedPartIds: ReadonlySet<PartId>;
   readonly selectedInstanceIds: ReadonlySet<InstanceId>;
   readonly hoveredInstanceId?: InstanceId;
+  readonly selectedBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
+  readonly highlightedBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
+  readonly hoveredBody?: BodyRef;
+  readonly bodyOverrides: ReadonlyMap<InstanceId, ReadonlyMap<BodyId, StyleOverride>>;
+  readonly hiddenBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
   readonly selectedElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
   readonly hoveredElement?: ElementRef;
   readonly elementOverrides: ReadonlyMap<InstanceId, ReadonlyMap<ElementId, StyleOverride>>;
@@ -78,6 +84,10 @@ export function createInteractionState(theme: InteractionTheme = defaultTheme): 
     highlightedInstanceIds: new Set(),
     selectedPartIds: new Set(),
     selectedInstanceIds: new Set(),
+    selectedBodyIds: new Map(),
+    highlightedBodyIds: new Map(),
+    bodyOverrides: new Map(),
+    hiddenBodyIds: new Map(),
     selectedElementIds: new Map(),
     elementOverrides: new Map(),
     partOverrides: new Map(),
@@ -236,6 +246,31 @@ export function resolveInstanceStyle(
   return overrides.reduce<ResolvedStyle>((style, override) => ({ ...style, ...override }), base);
 }
 
+/** Resolves one body occurrence after part and instance styles. */
+export function resolveBodyStyle(
+  instance: Instance,
+  bodyId: BodyId,
+  base: ResolvedStyle,
+  state: InteractionState,
+): ResolvedStyle {
+  let style = resolveInstanceStyle(instance, base, state);
+  if (state.highlightedBodyIds.get(instance.instanceId)?.has(bodyId) === true) {
+    style = { ...style, ...state.theme.highlighted };
+  }
+  if (
+    state.hoveredBody?.instanceId === instance.instanceId &&
+    state.hoveredBody.bodyId === bodyId
+  ) {
+    style = { ...style, ...state.theme.hovered };
+  }
+  if (state.selectedBodyIds.get(instance.instanceId)?.has(bodyId) === true) {
+    style = { ...style, ...state.theme.selected };
+  }
+  const override = state.bodyOverrides.get(instance.instanceId)?.get(bodyId);
+  if (override !== undefined) style = { ...style, ...override };
+  return style;
+}
+
 /**
  * Resolves the style of one element occurrence. Element-level state is more
  * specific than part/instance state, so element hover, element selection, and
@@ -247,8 +282,12 @@ export function resolveElementStyle(
   elementId: ElementId,
   base: ResolvedStyle,
   state: InteractionState,
+  bodyId?: BodyId,
 ): ResolvedStyle {
-  let style = resolveInstanceStyle(instance, base, state);
+  let style =
+    bodyId === undefined
+      ? resolveInstanceStyle(instance, base, state)
+      : resolveBodyStyle(instance, bodyId, base, state);
   const hovered = state.hoveredElement;
   if (
     hovered !== undefined &&

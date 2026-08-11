@@ -4,10 +4,10 @@
  * can mix triangle, line, and point-sprite primitives within one frame.
  * Every vertex shader reads the per-vertex node pick ids so displacement maps
  * vertices back to their FE nodes (see `displacementFn`); triangle geometry
- * additionally reads the per-triangle element and face pick ids plus the
- * runtime-sized emphasis records, so element/face emphasis can override the
- * resolved instance color. The node-overlay point sprites read the same
- * records for node emphasis. The
+ * additionally reads the per-triangle element and face/body pick ids plus the
+ * runtime-sized emphasis records, so body, element, and face emphasis can
+ * override the resolved instance color. The node-overlay point sprites read
+ * the same records for body and node emphasis. The
  * triangle pick pass lives in `gpu-node-pick.ts` so it can also report the
  * nearest node.
  */
@@ -52,7 +52,8 @@ struct Instance {
 /** Emphasis records read by the visible triangle and point vertex stages. */
 export const emphasisStructs = /* wgsl */ `
 // Field layout must match encodeEmphasisRecord in gpu-elements.ts:
-// slot 0, elementPickId 4, facePickId 8, nodePickId 12, color 16, emissive 32.
+// slot 0, elementPickId 4, facePickId 8, nodePickId 12, color 16, emissive 32,
+// hidden 36.
 // The struct has no trailing member so its size stays 48 bytes (vec3 members
 // would force 16-byte alignment and a 64-byte stride that would not match the
 // encoder).
@@ -63,6 +64,7 @@ struct ElementHighlight {
   nodePickId: u32,
   color: vec4<f32>,
   emissive: f32,
+  hidden: u32,
 };
 
 // records starts at byte offset 16 to keep the 16-byte element alignment;
@@ -98,7 +100,7 @@ export const instanceBindings = /* wgsl */ `
 export const pickDataBindings = /* wgsl */ `
 @group(1) @binding(2) var<storage, read> triangleElementPickIds: array<u32>;
 @group(1) @binding(3) var<storage, read> elementHighlights: ElementHighlights;
-@group(1) @binding(5) var<storage, read> triangleFacePickIds: array<u32>;
+@group(1) @binding(5) var<storage, read> triangleFaceBodyPickIds: array<vec2<u32>>;
 `;
 
 /**

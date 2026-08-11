@@ -38,16 +38,32 @@ fn vertexMain(
 ) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
   let elementPickId = triangleElementPickIds[vertexIndex / 3u];
-  let facePickId = triangleFacePickIds[vertexIndex / 3u];
+  let faceBodyPickIds = triangleFaceBodyPickIds[vertexIndex / 3u];
+  let facePickId = faceBodyPickIds.x;
+  let bodyPickId = faceBodyPickIds.y;
   var color = instance.color;
   var emissive = instance.emissive;
+  var hidden = false;
   var matched = false;
+  if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
+    let bucket = highlightHash(drawOrder[instanceIndex], bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
+    let base = bucket * 4u;
+    for (var offset = 0u; offset < 4u; offset++) {
+      let highlight = elementHighlights.records[base + offset];
+      if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
+        color = highlight.color;
+        emissive = highlight.emissive;
+        hidden = highlight.hidden != 0u;
+        break;
+      }
+    }
+  }
   if (elementPickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], elementPickId, 0u, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;
     for (var offset = 0u; offset < 4u; offset++) {
       let highlight = elementHighlights.records[base + offset];
-      if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == elementPickId) {
+      if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == elementPickId && highlight.facePickId == 0u) {
         color = highlight.color;
         emissive = highlight.emissive;
         matched = true;
@@ -69,6 +85,9 @@ fn vertexMain(
   }
   var output: VertexOutput;
   output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
+  if (hidden) {
+    output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
+  }
   output.color = color;
   output.pickId = instance.pickId;
   output.emissive = emissive;
@@ -121,6 +140,7 @@ fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, sizeSc
   let clip = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   let offset = (corner * camera.pointSize * sizeScale) / camera.viewport;
   let ndc = clip.xy / clip.w;
+  let bodyPickId = triangleFaceBodyPickIds[vertexIndex / 4u].y;
   var output: VertexOutput;
   output.position = vec4<f32>(
     clip.x + offset.x * clip.w,
@@ -130,6 +150,20 @@ fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, sizeSc
   );
   var color = vec4<f32>(0.0, 0.0, 0.0, 0.45);
   var emissive = 0.0;
+  var hidden = false;
+  if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
+    let bucket = highlightHash(drawOrder[instanceIndex], bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
+    let base = bucket * 4u;
+    for (var offset = 0u; offset < 4u; offset++) {
+      let highlight = elementHighlights.records[base + offset];
+      if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
+        color = highlight.color;
+        emissive = highlight.emissive;
+        hidden = highlight.hidden != 0u;
+        break;
+      }
+    }
+  }
   let nodePickId = vertexNodePickIds[vertexIndex];
   if (nodePickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], 0u, 0u, nodePickId, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
@@ -142,6 +176,9 @@ fn pointVertex(position: vec3<f32>, instanceIndex: u32, vertexIndex: u32, sizeSc
         break;
       }
     }
+  }
+  if (hidden) {
+    output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
   output.color = color;
   output.pickId = instance.pickId;

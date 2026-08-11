@@ -1,6 +1,6 @@
 import type { ElementModel } from "../../src/elements/model";
 import { elementPart, type ElementRenderMode } from "../../src/geometry/element-mesh";
-import type { Part } from "../../src/geometry/part";
+import type { Body, Part } from "../../src/geometry/part";
 import { identity, translation, type Mat4 } from "../../src/math/mat4";
 import type { NamedAssembly, Placement } from "../../src/scene/assembly";
 import { createScene, type Scene } from "../../src/scene/scene";
@@ -129,6 +129,13 @@ const COMPONENT_PARTS: BoltedPlateParts = {
   nut: { solid: NUT_SOLID, surface: NUT_SURFACE, edges: NUT_EDGES },
 };
 
+const COMPONENT_BODY_NAMES: { readonly [K in keyof BoltedPlateParts]: readonly string[] } = {
+  plate: ["Plate row A", "Plate row B"],
+  bolt: ["Shaft", "Head"],
+  washer: ["Washer"],
+  nut: ["Nut"],
+};
+
 /**
  * Builds the bolted lap-joint fixture. Defaults produce two 30 x 14 x 2 m
  * plates overlapping by 24 m, clamped by 8 fasteners (2 rows x 4 columns)
@@ -210,17 +217,39 @@ function componentParts(
   parts: BoltedPlateParts,
   models: { readonly [K in keyof BoltedPlateParts]: ElementModel },
 ): readonly Part[] {
-  const build = (component: BoltedPlateComponentParts, model: ElementModel): readonly Part[] => [
-    elementPart(component.solid, model, "hex", "solid"),
-    elementPart(component.surface, model, "hex", "surface"),
-    elementPart(component.edges, model, "hex", "edges"),
-  ];
+  const build = (
+    component: BoltedPlateComponentParts,
+    model: ElementModel,
+    bodyNames: readonly string[],
+  ): readonly Part[] => {
+    const bodies = bodyGroups(model, bodyNames);
+    return [
+      elementPart(component.solid, model, "hex", "solid", { bodies }),
+      elementPart(component.surface, model, "hex", "surface", { bodies }),
+      elementPart(component.edges, model, "hex", "edges", { bodies }),
+    ];
+  };
   return [
-    ...build(parts.plate, models.plate),
-    ...build(parts.bolt, models.bolt),
-    ...build(parts.washer, models.washer),
-    ...build(parts.nut, models.nut),
+    ...build(parts.plate, models.plate, COMPONENT_BODY_NAMES.plate),
+    ...build(parts.bolt, models.bolt, COMPONENT_BODY_NAMES.bolt),
+    ...build(parts.washer, models.washer, COMPONENT_BODY_NAMES.washer),
+    ...build(parts.nut, models.nut, COMPONENT_BODY_NAMES.nut),
   ];
+}
+
+function bodyGroups(model: ElementModel, names: readonly string[]): readonly Body[] {
+  if (names.length === 0 || names.length > model.elements.length) {
+    throw new Error("A bolted fixture body group must contain at least one element per name");
+  }
+  return names.map((name, index) => {
+    const start = Math.floor((index * model.elements.length) / names.length);
+    const end = Math.floor(((index + 1) * model.elements.length) / names.length);
+    return {
+      id: index + 1,
+      name,
+      elementIds: model.elements.slice(start, end).map((element) => element.id),
+    };
+  });
 }
 
 function componentModels(

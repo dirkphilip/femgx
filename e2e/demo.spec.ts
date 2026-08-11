@@ -93,6 +93,10 @@ test("lists the bolted assembly hierarchy in the visibility panel", async ({ pag
     "Bolts",
     "Washers",
     "Nuts",
+    "Plate row A",
+    "Plate row B",
+    "Shaft",
+    "Head",
   ]) {
     await expect(visibility).toContainText(name);
   }

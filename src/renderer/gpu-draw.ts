@@ -10,7 +10,8 @@ import { buildMeshEdges } from "./gpu-edge";
 import type { InstanceStorage } from "./gpu-instance-storage";
 import {
   buildElementTrianglePickIds,
-  buildFaceTrianglePickIds,
+  buildNodeBodyPickData,
+  buildTriangleFaceBodyPickData,
   buildVertexNodePickIds,
 } from "./gpu-pick-ids";
 import type { DrawPipelines } from "./gpu-pipelines";
@@ -99,7 +100,11 @@ function uploadNodePart(draw: DrawResources, part: Part): PartResource {
     ),
     indexBuffer: createBuffer(draw.device, indices, GPUBufferUsage.INDEX),
     elementPickIdsBuffer: createBuffer(draw.device, new Uint32Array(1), GPUBufferUsage.STORAGE),
-    facePickIdsBuffer: createBuffer(draw.device, new Uint32Array(1), GPUBufferUsage.STORAGE),
+    facePickIdsBuffer: createBuffer(
+      draw.device,
+      buildNodeBodyPickData(part.geometry),
+      GPUBufferUsage.STORAGE,
+    ),
     nodePickIdsBuffer: createBuffer(draw.device, ids, GPUBufferUsage.STORAGE),
     edgeIndexBuffer: createBuffer(draw.device, new Uint32Array(1), GPUBufferUsage.INDEX),
     indexCount: indices.length,
@@ -132,7 +137,7 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
   );
   const facePickIdsBuffer = createBuffer(
     draw.device,
-    buildFaceTrianglePickIds(part.geometry),
+    buildTriangleFaceBodyPickData(part.geometry),
     GPUBufferUsage.STORAGE,
   );
   const nodePickIdsBuffer = createBuffer(
