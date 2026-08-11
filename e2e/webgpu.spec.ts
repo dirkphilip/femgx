@@ -584,3 +584,28 @@ test("renders selection feedback as a stable pixel change", async ({ page }) => 
     "the selected state must render deterministically",
   ).toBe(true);
 });
+
+test("exposes body visibility, color, and highlight controls", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const body = page.getByTestId("body-vis-6-2");
+  const color = page.getByTestId("body-color-6-2");
+  const glow = page.getByTestId("body-highlight-6-2");
+  await expect(body).toBeChecked();
+  await expect(color).toHaveAttribute("data-active", "false");
+  await expect(glow).toHaveAttribute("data-active", "false");
+
+  const baseline = await stableCanvasPixels(page, canvas);
+  await body.uncheck();
+  await expect(body).not.toBeChecked();
+  const hidden = await stableCanvasPixels(page, canvas);
+  expect(hidden.equals(baseline), "hiding one body must change the WebGPU frame").toBe(false);
+
+  await body.check();
+  await color.click();
+  await expect(color).toHaveAttribute("data-active", "true");
+  await glow.click();
+  await expect(glow).toHaveAttribute("data-active", "true");
+  const styled = await stableCanvasPixels(page, canvas);
+  expect(styled.equals(baseline), "body styling must change the WebGPU frame").toBe(false);
+});

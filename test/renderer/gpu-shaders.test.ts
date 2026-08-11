@@ -93,7 +93,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
   it("overrides triangle colors from the emphasis records", () => {
     expect(instanceVertexShader).not.toMatch(/\bvar match\b/);
     expect(instanceVertexShader).toMatch(/triangleElementPickIds\[vertexIndex \/ 3u\]/);
-    expect(instanceVertexShader).toMatch(/triangleFacePickIds\[vertexIndex \/ 3u\]/);
+    expect(instanceVertexShader).toMatch(/triangleFaceBodyPickIds\[vertexIndex \/ 3u\]/);
     expect(instanceVertexShader).toMatch(/highlightHash\(/);
     expect(instanceVertexShader).toMatch(/elementHighlights\.records\[base \+ offset\]/);
     expect(instanceVertexShader).not.toMatch(/index < elementHighlights\.count/);

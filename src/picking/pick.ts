@@ -1,5 +1,5 @@
 import type { Vec3 } from "../camera/camera";
-import type { Geometry, Part } from "../geometry/part";
+import { bodyIdForElement, type Geometry, type Part } from "../geometry/part";
 import type { FacePickTarget, Instance, NodePickTarget, PartId, PickTarget } from "../scene/types";
 
 /** The inputs every pick resolution needs: the drawn instances and their parts. */
@@ -87,11 +87,13 @@ function deepestTarget(
     return faceTarget(instance, geometry, ids);
   }
   if (ids.elementPickId > 0) {
+    const elementId = ids.elementPickId - 1;
     return {
       kind: "element",
       partId: instance.partId,
       instanceId: instance.instanceId,
-      elementId: ids.elementPickId - 1,
+      elementId,
+      ...bodyFields(geometry, elementId),
     };
   }
   return { kind: "instance", instanceId: instance.instanceId };
@@ -109,14 +111,17 @@ function targetAtGranularity(
       return { kind: "part", partId: instance.partId };
     case "instance":
       return { kind: "instance", instanceId: instance.instanceId };
-    case "element":
+    case "element": {
       if (ids.elementPickId <= 0) return undefined;
+      const elementId = ids.elementPickId - 1;
       return {
         kind: "element",
         partId: instance.partId,
         instanceId: instance.instanceId,
-        elementId: ids.elementPickId - 1,
+        elementId,
+        ...bodyFields(geometry, elementId),
       };
+    }
     case "face":
       if (geometry === undefined || ids.facePickId <= 0) return undefined;
       return faceTarget(instance, geometry, ids);
@@ -138,6 +143,7 @@ function nodeTarget(instance: Instance, geometry: Geometry, ids: ResolvedPickIds
     instanceId: instance.instanceId,
     elementId,
     nodeId,
+    ...bodyFields(geometry, elementId),
     localPosition,
     worldPosition: transformPosition(instance, localPosition),
     neighborElementIds: adjacency.neighborElementIds,
@@ -159,6 +165,7 @@ function faceTarget(instance: Instance, geometry: Geometry, ids: ResolvedPickIds
     partId: instance.partId,
     instanceId: instance.instanceId,
     elementId: face.elementId,
+    ...bodyFields(geometry, face.elementId, face.bodyId),
     faceId: face.id,
     faceIndex: face.faceIndex,
     key: face.key,
@@ -167,6 +174,16 @@ function faceTarget(instance: Instance, geometry: Geometry, ids: ResolvedPickIds
     hitPosition: average(worldPoints),
     normal: polygonNormal(worldPoints),
   };
+}
+
+function bodyFields(
+  geometry: Geometry | undefined,
+  elementId: number,
+  explicitBodyId?: number,
+): { readonly bodyId: number } | Record<never, never> {
+  const bodyId =
+    explicitBodyId ?? (geometry === undefined ? undefined : bodyIdForElement(geometry, elementId));
+  return bodyId === undefined ? {} : { bodyId };
 }
 
 /**

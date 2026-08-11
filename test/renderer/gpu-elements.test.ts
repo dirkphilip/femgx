@@ -6,6 +6,7 @@ import {
   setElementSelected,
   setHoveredElement,
 } from "../../src/interaction/interaction";
+import { setBodyOverride, setBodyVisible } from "../../src/interaction/bodies";
 import { setFaceSelected } from "../../src/interaction/faces";
 import { setNodeSelected } from "../../src/interaction/nodes";
 import { translation } from "../../src/math/mat4";
@@ -15,6 +16,7 @@ import {
   collectEmphasisUpdates,
   createHighlightStorage,
   ELEMENT_RECORD_STRIDE,
+  encodeBodyHighlight,
   encodeElementHighlight,
   encodeEmphasisRecord,
   encodeFaceHighlight,
@@ -26,8 +28,11 @@ import {
   type EmphasisUpdate,
 } from "../../src/renderer/gpu-elements";
 import {
+  buildBodyTrianglePickIds,
   buildElementTrianglePickIds,
   buildFaceTrianglePickIds,
+  buildNodeBodyPickData,
+  buildTriangleFaceBodyPickData,
   buildVertexNodePickIds,
 } from "../../src/renderer/gpu-pick-ids";
 import { HIGHLIGHT_BUCKET_SIZE } from "../../src/renderer/gpu-highlight-table";
@@ -40,6 +45,7 @@ import { defaultStyle } from "../../src/renderer/gpu-support";
 import type { InstanceStorage } from "../../src/renderer/gpu-draw";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
+import { createBoltedPlateFixture } from "../../demo/fixture/bolted-plate";
 
 const style = {
   color: { r: 0.23, g: 0.51, b: 0.96, a: 1 },
@@ -77,6 +83,18 @@ describe("buildElementTrianglePickIds", () => {
   });
 });
 
+describe("buildBodyTrianglePickIds", () => {
+  it("maps triangles to their reusable body pick ids", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array(18),
+      indices: new Uint32Array(6),
+      elements: [{ id: 4, triangleStart: 0, triangleCount: 2, bodyId: 7 }],
+      bodies: [{ id: 7, elementIds: [4] }],
+    };
+    expect(Array.from(buildBodyTrianglePickIds(geometry))).toEqual([8, 8]);
+  });
+});
+
 describe("buildFaceTrianglePickIds", () => {
   it("copies the per-triangle face pick ids when present", () => {
     const geometry: Geometry = {
@@ -93,6 +111,33 @@ describe("buildFaceTrianglePickIds", () => {
       indices: new Uint32Array(3),
     };
     expect(Array.from(buildFaceTrianglePickIds(geometry))).toEqual([0]);
+  });
+});
+
+describe("buildTriangleFaceBodyPickData", () => {
+  it("packs face and body ids into the shared triangle buffer", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array(18),
+      indices: new Uint32Array(6),
+      facePickIds: new Uint32Array([5, 0]),
+      elements: [{ id: 4, triangleStart: 0, triangleCount: 2, bodyId: 7 }],
+      bodies: [{ id: 7, elementIds: [4] }],
+    };
+    expect(Array.from(buildTriangleFaceBodyPickData(geometry))).toEqual([5, 8, 0, 8]);
+  });
+});
+
+describe("buildNodeBodyPickData", () => {
+  it("assigns a body to nodes that belong to exactly one body", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array(18),
+      indices: new Uint32Array(6),
+      nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
+      nodePositions: new Float32Array(9),
+      elements: [{ id: 4, triangleStart: 0, triangleCount: 2, bodyId: 7 }],
+      bodies: [{ id: 7, elementIds: [4] }],
+    };
+    expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([0, 8, 0, 8, 0, 8]);
   });
 });
 
@@ -155,6 +200,14 @@ describe("encodeEmphasisRecord", () => {
     expect(ids[1]).toBe(0);
     expect(ids[2]).toBe(0);
     expect(ids[3]).toBe(4);
+  });
+
+  it("encodes a body key with a distinct marker and hidden flag", () => {
+    const ids = new Uint32Array(encodeBodyHighlight(2, 3, style, true));
+    expect(ids[0]).toBe(2);
+    expect(ids[1]).toBe(4);
+    expect(ids[2]).toBe(0xffffffff);
+    expect(ids[9]).toBe(1);
   });
 });
 
@@ -300,7 +353,8 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
   const geometry: Geometry = {
     positions: new Float32Array(18),
     indices: new Uint32Array(18),
-    elements: [{ id: 0, triangleStart: 0, triangleCount: 6 }],
+    elements: [{ id: 0, triangleStart: 0, triangleCount: 6, bodyId: 3 }],
+    bodies: [{ id: 3, name: "body", elementIds: [0] }],
     nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
     nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     facePickIds: new Uint32Array([1, 1, 2, 2, 3, 3]),
@@ -312,6 +366,7 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
         key: "0,1,2",
         nodeIds: [0, 1, 2],
         neighborElementIds: [],
+        bodyId: 3,
       },
       {
         id: 1,
@@ -320,6 +375,7 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
         key: "0,1,3",
         nodeIds: [0, 1, 3],
         neighborElementIds: [],
+        bodyId: 3,
       },
       {
         id: 2,
@@ -328,6 +384,7 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
         key: "0,2,3",
         nodeIds: [0, 2, 3],
         neighborElementIds: [],
+        bodyId: 3,
       },
     ],
   };
@@ -352,6 +409,45 @@ function partsMap(scene: Scene): Map<number, Part> {
 }
 
 describe("collectEmphasisUpdates", () => {
+  it("maps authored fixture bodies to reusable part-local records", () => {
+    const fixture = createBoltedPlateFixture();
+    const runtime = createSceneRuntime(fixture.scene);
+    const layout = buildInstanceLayout(runtime);
+    const instanceId = runtime.getInstanceId(0);
+    if (instanceId === undefined) throw new Error("expected the first fixture instance");
+    let interaction = createInteractionState();
+    interaction = setBodyVisible(interaction, { instanceId, bodyId: 2 }, false);
+    const updates = collectEmphasisUpdates(
+      runtime,
+      layout,
+      new Map([[instanceId, 0]]),
+      new Map(fixture.scene.parts),
+      interaction,
+    );
+    expect(updates.get(fixture.partIds.plate.solid)).toMatchObject([
+      { slot: 0, bodyPickId: 3, hidden: true },
+    ]);
+  });
+
+  it("maps body style and visibility to one reusable body record", () => {
+    const { scene, runtime } = elementScene();
+    const layout = buildInstanceLayout(runtime);
+    const slotByInstanceId = new Map([["1/0", 0]]);
+    let interaction = createInteractionState();
+    interaction = setBodyOverride(interaction, { instanceId: "1/0", bodyId: 3 }, { emissive: 0.8 });
+    interaction = setBodyVisible(interaction, { instanceId: "1/0", bodyId: 3 }, false);
+    const updates = collectEmphasisUpdates(
+      runtime,
+      layout,
+      slotByInstanceId,
+      partsMap(scene),
+      interaction,
+    );
+    expect(updates.get(1)).toMatchObject([
+      { slot: 0, bodyPickId: 4, hidden: true, style: { emissive: 0.8 } },
+    ]);
+  });
+
   it("maps emphasized element occurrences to per-part records", () => {
     const { scene, runtime } = elementScene();
     const layout = buildInstanceLayout(runtime);

@@ -9,6 +9,7 @@ import {
   packPickIdFunction,
   pickDataBindings,
 } from "./gpu-shaders";
+import { emphasisHash } from "./gpu-highlight-shader";
 
 /**
  * Triangle pick pass shaders. In addition to the instance, element, and face
@@ -30,6 +31,7 @@ ${deformationStruct}
 ${instanceStruct}
 
 ${emphasisStructs}
+${emphasisHash}
 
 ${frameBindings}
 ${instanceBindings}
@@ -61,13 +63,30 @@ fn vertexMain(
   let instance = instances[drawOrder[instanceIndex]];
   let base = (vertexIndex / 3u) * 3u;
   let base3 = base * 3u;
+  let faceBodyPickIds = triangleFaceBodyPickIds[vertexIndex / 3u];
+  let bodyPickId = faceBodyPickIds.y;
+  var hidden = false;
+  if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
+    let bucket = highlightHash(drawOrder[instanceIndex], bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
+    let highlightBase = bucket * 4u;
+    for (var offset = 0u; offset < 4u; offset++) {
+      let highlight = elementHighlights.records[highlightBase + offset];
+      if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
+        hidden = highlight.hidden != 0u;
+        break;
+      }
+    }
+  }
   var output: NodeVertexOutput;
   output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
+  if (hidden) {
+    output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
+  }
   output.color = instance.color;
   output.pickId = instance.pickId;
   output.emissive = instance.emissive;
   output.elementPickId = triangleElementPickIds[vertexIndex / 3u];
-  output.facePickId = triangleFacePickIds[vertexIndex / 3u];
+  output.facePickId = faceBodyPickIds.x;
   output.localPosition = displaced(position, vertexIndex);
   output.cornerA = displaced(
     vec3<f32>(positions[base3], positions[base3 + 1u], positions[base3 + 2u]),

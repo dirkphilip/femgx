@@ -81,6 +81,10 @@ export class WorkbenchController {
       runtime: () => this.runtime,
       slotByInstanceId: this.slotByInstanceId,
       firstSlotByPart: this.partFirstSlot,
+      interaction: () => this.interaction,
+      setInteraction: (interaction) => {
+        this.interaction = interaction;
+      },
       syncPanel: () => {
         this.visibilityPanel.sync();
       },
@@ -95,8 +99,19 @@ export class WorkbenchController {
       getMode: () => this.mode,
       partName: (partId) => this.preset.partNames.get(partId),
       partVisible: (partId) => this.visibilityActions.partVisible(partId),
+      bodyVisible: (instanceId, bodyId) => this.visibilityActions.bodyVisible(instanceId, bodyId),
+      bodyHighlighted: (instanceId, bodyId) =>
+        this.visibilityActions.bodyHighlighted(instanceId, bodyId),
+      bodyColorActive: (instanceId, bodyId) =>
+        this.visibilityActions.bodyColorActive(instanceId, bodyId),
       onPartVisibility: (partId, visible) => {
         this.visibilityActions.setPart(partId, visible);
+      },
+      onBodyVisibility: (instanceId, bodyId, visible) => {
+        this.visibilityActions.setBody(instanceId, bodyId, visible);
+      },
+      onBodyAction: (instanceId, bodyId, action) => {
+        this.visibilityActions.bodyAction(instanceId, bodyId, action);
       },
       onInstanceVisibility: (slot, visible) => {
         this.visibilityActions.setInstance(slot, visible);

@@ -1,6 +1,15 @@
-import type { ElementRenderMode, PartId, SceneRuntime } from "../../src/index";
+import type {
+  Body,
+  BodyId,
+  ElementRenderMode,
+  InstanceId,
+  PartId,
+  SceneRuntime,
+} from "../../src/index";
 import { visiblePartIdsForPreset, type ModelPreset } from "../fixture/presets";
 import { assemblyName } from "../visibility-tree";
+
+export type BodyAction = "highlight" | "color";
 
 /** Callbacks that keep the runtime as the single source of visibility truth. */
 export interface VisibilityPanelOptions {
@@ -10,7 +19,12 @@ export interface VisibilityPanelOptions {
   readonly getMode: () => ElementRenderMode;
   readonly partName: (partId: PartId) => string | undefined;
   readonly partVisible: (partId: PartId) => boolean;
+  readonly bodyVisible: (instanceId: InstanceId, bodyId: BodyId) => boolean;
+  readonly bodyHighlighted: (instanceId: InstanceId, bodyId: BodyId) => boolean;
+  readonly bodyColorActive: (instanceId: InstanceId, bodyId: BodyId) => boolean;
   readonly onPartVisibility: (partId: PartId, visible: boolean) => void;
+  readonly onBodyVisibility: (instanceId: InstanceId, bodyId: BodyId, visible: boolean) => void;
+  readonly onBodyAction: (instanceId: InstanceId, bodyId: BodyId, action: BodyAction) => void;
   readonly onInstanceVisibility: (slot: number, visible: boolean) => void;
   readonly onAssemblyVisibility: (nodeId: number, visible: boolean) => void;
 }
@@ -28,6 +42,13 @@ export class VisibilityPanelController {
       "change",
       (event) => {
         this.onChange(event);
+      },
+      { signal },
+    );
+    this.options.panel.addEventListener(
+      "click",
+      (event) => {
+        this.onClick(event);
       },
       { signal },
     );
@@ -52,6 +73,16 @@ export class VisibilityPanelController {
   sync(): void {
     const runtime = this.options.getRuntime();
     for (const input of this.options.panel.querySelectorAll<HTMLInputElement>("input")) {
+      const bodyId = input.dataset["bodyId"];
+      if (bodyId !== undefined) {
+        const instanceId = input.dataset["bodyInstanceId"];
+        const slot = Number(input.dataset["bodyInstanceSlot"] ?? "-1");
+        input.checked =
+          instanceId !== undefined && this.options.bodyVisible(instanceId, Number(bodyId));
+        input.indeterminate = false;
+        input.disabled = !this.instanceVisible(runtime, slot);
+        continue;
+      }
       const partId = input.dataset["partId"];
       if (partId !== undefined) {
         input.checked = this.options.partVisible(Number(partId));
@@ -80,11 +111,34 @@ export class VisibilityPanelController {
           runtime.instancePartVisible[slot] !== 1;
       }
     }
+    for (const button of this.options.panel.querySelectorAll<HTMLButtonElement>(
+      "button[data-body-action]",
+    )) {
+      const instanceId = button.dataset["bodyInstanceId"];
+      const bodyId = button.dataset["bodyId"];
+      const action = button.dataset["bodyAction"] as BodyAction | undefined;
+      const slot = Number(button.dataset["bodyInstanceSlot"] ?? "-1");
+      if (instanceId === undefined || bodyId === undefined || action === undefined) continue;
+      button.disabled = !this.instanceVisible(runtime, slot);
+      button.dataset["active"] = String(
+        action === "highlight"
+          ? this.options.bodyHighlighted(instanceId, Number(bodyId))
+          : this.options.bodyColorActive(instanceId, Number(bodyId)),
+      );
+    }
   }
 
   private onChange(event: Event): void {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
+    const bodyId = target.dataset["bodyId"];
+    if (bodyId !== undefined) {
+      const instanceId = target.dataset["bodyInstanceId"];
+      if (instanceId !== undefined) {
+        this.options.onBodyVisibility(instanceId, Number(bodyId), target.checked);
+      }
+      return;
+    }
     const partId = target.dataset["partId"];
     const assemblyNodeId = target.dataset["assemblyNodeId"];
     if (partId !== undefined) this.options.onPartVisibility(Number(partId), target.checked);
@@ -95,6 +149,18 @@ export class VisibilityPanelController {
       if (instanceSlot !== undefined)
         this.options.onInstanceVisibility(Number(instanceSlot), target.checked);
     }
+  }
+
+  private onClick(event: Event): void {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest<HTMLButtonElement>("button[data-body-action]");
+    if (button === null) return;
+    const instanceId = button.dataset["bodyInstanceId"];
+    const bodyId = button.dataset["bodyId"];
+    const action = button.dataset["bodyAction"] as BodyAction | undefined;
+    if (instanceId === undefined || bodyId === undefined || action === undefined) return;
+    this.options.onBodyAction(instanceId, Number(bodyId), action);
   }
 
   private assemblyNode(nodeId: number, visibleParts: ReadonlySet<PartId>): HTMLElement {
@@ -149,6 +215,57 @@ export class VisibilityPanelController {
       spacer,
       this.rowLabel("instance", slot, repeated ? `${name} ${index}` : name, "Part"),
     );
+    const branch = document.createElement("div");
+    branch.className = "visibility-body-branch";
+    branch.appendChild(row);
+    const part =
+      partId === undefined ? undefined : this.options.getPreset().scene.parts.get(partId);
+    for (const body of part?.geometry.bodies ?? []) {
+      branch.appendChild(this.bodyNode(slot, body));
+    }
+    return branch;
+  }
+
+  private bodyNode(slot: number, body: Body): HTMLElement {
+    const runtime = this.options.getRuntime();
+    const instanceId = runtime.getInstanceId(slot);
+    const row = document.createElement("div");
+    row.className = "visibility-row visibility-body";
+    const spacer = document.createElement("span");
+    spacer.className = "visibility-spacer visibility-body-spacer";
+    spacer.setAttribute("aria-hidden", "true");
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.dataset["bodyId"] = String(body.id);
+    input.dataset["bodyInstanceSlot"] = String(slot);
+    if (instanceId !== undefined) input.dataset["bodyInstanceId"] = instanceId;
+    input.dataset["testid"] = `body-vis-${slot}-${body.id}`;
+    label.append(input);
+    const badge = document.createElement("span");
+    badge.className = "visibility-kind";
+    badge.textContent = "Body";
+    label.append(badge);
+    const text = document.createElement("span");
+    text.className = "visibility-label";
+    text.textContent = body.name ?? `Body ${body.id}`;
+    label.append(text);
+    const actions = document.createElement("span");
+    actions.className = "visibility-body-actions";
+    for (const action of ["highlight", "color"] as const) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "visibility-body-action";
+      button.dataset["bodyAction"] = action;
+      button.dataset["bodyInstanceSlot"] = String(slot);
+      button.dataset["bodyId"] = String(body.id);
+      if (instanceId !== undefined) button.dataset["bodyInstanceId"] = instanceId;
+      button.dataset["testid"] = `body-${action}-${slot}-${body.id}`;
+      button.setAttribute("aria-label", `${action} ${text.textContent}`);
+      button.textContent = action === "highlight" ? "Glow" : "Color";
+      actions.appendChild(button);
+    }
+    row.append(spacer, label, actions);
     return row;
   }
 
@@ -217,6 +334,16 @@ export class VisibilityPanelController {
     text.textContent = name;
     label.append(text);
     return label;
+  }
+
+  private instanceVisible(runtime: SceneRuntime, slot: number): boolean {
+    const owningNode = runtime.instanceOwningNode[slot];
+    return (
+      owningNode !== undefined &&
+      runtime.nodeEffectiveVisible[owningNode] === 1 &&
+      runtime.instancePartVisible[slot] === 1 &&
+      runtime.isInstanceVisible(slot)
+    );
   }
 
   private toggleExpanded(expander: HTMLButtonElement, children: HTMLElement, name: string): void {

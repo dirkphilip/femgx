@@ -81,19 +81,19 @@ range and can participate in element picking and interaction.
 
 ## Core vocabulary and owners
 
-| Area        | Core API                                                                                                     | Owns                                                                                                               |
-| ----------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| Geometry    | `Geometry`, `Part`, `Body`, `computeBounds`, `validateBodies`, `validateElements`, `validatePickIds`         | Immutable local positions, indices, optional body/element/node/face metadata, and local bounds.                    |
-| Elements    | `createElement`, `ElementModel`, `elementPart`, `ElementShape`                                               | Validated linear FE connectivity and canonical topology/tessellation inputs.                                       |
-| Assemblies  | `NamedAssembly`, `PartPlacement`, `SubAssemblyPlacement`                                                     | Reusable hierarchical placement definitions and local transforms.                                                  |
-| Scene       | `createScene`, `SceneBuilder`, `Scene`                                                                       | Authoritative part/assembly registries, root identity, and authoring visibility state.                             |
-| Viewport    | `createFemViewport`, `FemViewport`, `FemViewportOptions`                                                     | Runtime compilation, camera, WebGPU renderer, controls, resize, interaction sync, results, recovery, and teardown. |
-| Interaction | `createInteractionState`, `setPart*`, `setInstance*`, `setElement*`, `setFace*`, `setNode*`, `resolve*Style` | Immutable selection, highlight, hover, and style state.                                                            |
-| Camera      | `createCamera`, `setProjection`, `orbitCamera`, `panCamera`, `zoomCamera`, `fitCamera`                       | Immutable camera values and projection/navigation math.                                                            |
-| Picking     | `FemViewport.pick`, `FemViewport.pickPoint`, `PickTarget`, `PickGranularity`                                 | GPU readback and stable part/instance/element/face/node target resolution.                                         |
-| Results     | `createResultField`, derived-field helpers, `ViewportResultsConfig`                                          | Typed nodal/elemental values, derivations, ranges, maps, and deformation configuration.                            |
-| IO          | `parse`, `write`, `parseVtk`, `writeVtk`, `validateModel`                                                    | The single supported VTK legacy interchange boundary and diagnostics.                                              |
-| Platform    | `queryWebGpuSupport`, `WebGpuUnsupportedError`, `requestWebGpuDevice`                                        | Capability probing, typed unsupported results, device creation, and loss information.                              |
+| Area        | Core API                                                                                                                 | Owns                                                                                                               |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Geometry    | `Geometry`, `Part`, `Body`, `computeBounds`, `validateBodies`, `validateElements`, `validatePickIds`                     | Immutable local positions, indices, optional body/element/node/face metadata, and local bounds.                    |
+| Elements    | `createElement`, `ElementModel`, `elementPart`, `ElementShape`                                                           | Validated linear FE connectivity and canonical topology/tessellation inputs.                                       |
+| Assemblies  | `NamedAssembly`, `PartPlacement`, `SubAssemblyPlacement`                                                                 | Reusable hierarchical placement definitions and local transforms.                                                  |
+| Scene       | `createScene`, `SceneBuilder`, `Scene`                                                                                   | Authoritative part/assembly registries, root identity, and authoring visibility state.                             |
+| Viewport    | `createFemViewport`, `FemViewport`, `FemViewportOptions`                                                                 | Runtime compilation, camera, WebGPU renderer, controls, resize, interaction sync, results, recovery, and teardown. |
+| Interaction | `createInteractionState`, `setPart*`, `setInstance*`, `setBody*`, `setElement*`, `setFace*`, `setNode*`, `resolve*Style` | Immutable selection, highlight, hover, visibility, and style state.                                                |
+| Camera      | `createCamera`, `setProjection`, `orbitCamera`, `panCamera`, `zoomCamera`, `fitCamera`                                   | Immutable camera values and projection/navigation math.                                                            |
+| Picking     | `FemViewport.pick`, `FemViewport.pickPoint`, `PickTarget`, `PickGranularity`                                             | GPU readback and stable part/instance/element/face/node target resolution.                                         |
+| Results     | `createResultField`, derived-field helpers, `ViewportResultsConfig`                                                      | Typed nodal/elemental values, derivations, ranges, maps, and deformation configuration.                            |
+| IO          | `parse`, `write`, `parseVtk`, `writeVtk`, `validateModel`                                                                | The single supported VTK legacy interchange boundary and diagnostics.                                              |
+| Platform    | `queryWebGpuSupport`, `WebGpuUnsupportedError`, `requestWebGpuDevice`                                                    | Capability probing, typed unsupported results, device creation, and loss information.                              |
 
 ## Ownership and identity rules
 
@@ -105,6 +105,8 @@ range and can participate in element picking and interaction.
   visibility or draw-order compaction changes.
 - `ElementId` is part-local. `FaceId` is part-local and indexes the part's
   face descriptors. `NodeId` is model-local.
+- `BodyId` is part-local. A body groups element membership in reusable geometry;
+  body interaction state is scoped by the placement `InstanceId`.
 - `Scene` is the authoring source of truth. `SceneRuntime`, typed arrays, draw
   orders, GPU buffers, and batch records are derived representations.
 - `FemViewport` is the normal owner of `SceneRuntime` and
@@ -129,12 +131,15 @@ range and can participate in element picking and interaction.
 `setPartVisible`, `setAssemblyNodeVisible`, `setAssemblyVisible`, and
 `setInstanceVisible` update the packed runtime and synchronize only affected
 instance records. Style, selection, hover, and highlight changes are expressed
-as a new `InteractionState` and installed with `setInteraction`.
+as a new `InteractionState` and installed with `setInteraction`. Body visibility
+and emphasis are scoped by placement and body id and use the same immutable
+interaction object.
 
 Interaction state is immutable and layered. Part and instance state establish
-the base style; element, face, and node state provide more specific emphasis;
-explicit overrides are resolved by the existing style resolvers. The renderer
-receives GPU attributes rather than CPU material clones.
+the base style; body state adds placement-scoped visibility and emphasis; element,
+face, and node state provide more specific emphasis; explicit overrides are
+resolved by the existing style resolvers. The renderer receives GPU attributes
+rather than CPU material clones.
 
 ### Picking
 
@@ -147,7 +152,8 @@ if (target?.kind === "face") {
 const point = await viewport.pickPoint(x, y);
 ```
 
-`pick` returns one `PickTarget` or `undefined`. The optional granularity can
+`pick` returns one `PickTarget` or `undefined`. Element, face, and node targets
+include the owning `bodyId` when the geometry provides one. The optional granularity can
 request `part`, `instance`, `element`, `face`, or `node`; requesting a level
 that the hit cannot support resolves to the deepest available target. There is
 no multi-hit pick-list API in the current contract.
@@ -203,10 +209,8 @@ concepts.
 The following are intentionally not implied by today's API and are tracked as
 separate proposals:
 
-- Body-level state and batching remain tracked separately in
-  [#233](https://github.com/dirkphilip/femgx/issues/233) and
+- Batched interaction invalidation remains tracked in
   [#234](https://github.com/dirkphilip/femgx/issues/234).
-- Test-suite value and redundancy audit: [#236](https://github.com/dirkphilip/femgx/issues/236).
 - Validated face subsets and exterior-only rendering: [#237](https://github.com/dirkphilip/femgx/issues/237).
 
 These proposals must still pass the product decision gate before adding public

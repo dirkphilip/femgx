@@ -6,8 +6,8 @@ import type { InstanceId, PartId } from "../scene/types";
  * Computes the instance slots whose GPU record may change when an interaction
  * state moves from `previous` to `next`, so callers can feed exactly those
  * slots to `WebGpuRenderer.updateInstances` instead of rescanning the whole
- * runtime. Element-, node-, and face-level emphasis is intentionally excluded:
- * it flows through `updateElements`, which diffs its own buffers.
+ * runtime. Body-, element-, node-, and face-level emphasis is intentionally
+ * excluded: it flows through `updateElements`, which diffs its own buffers.
  *
  * Slots are returned in ascending order with no duplicates.
  */

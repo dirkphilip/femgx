@@ -52,7 +52,7 @@ export interface WebGpuRenderer {
     changedInstanceIds: readonly number[],
   ): void;
   /**
-   * Writes the per-part emphasis buffers for the currently emphasized
+   * Writes the per-part emphasis buffers for currently emphasized bodies,
    * elements, faces, and nodes (hovered, selected, or explicitly overridden)
    * as diffed records.
    */

@@ -79,6 +79,31 @@ describe("resolvePickTarget", () => {
     });
   });
 
+  it("preserves body identity on element, face, and node targets", () => {
+    const bodyGeometry: Geometry = {
+      ...geometry,
+      elements: (geometry.elements ?? []).map((element) => ({ ...element, bodyId: 6 })),
+      bodies: [{ id: 6, elementIds: [1] }],
+      faces: (geometry.faces ?? []).map((face) => ({ ...face, bodyId: 6 })),
+    };
+    const bodyContext: PickContext = {
+      instances: [instanceAt(0)],
+      parts: new Map([[1, partWithGeometry(bodyGeometry)]]),
+    };
+    expect(
+      resolvePickTarget(bodyContext, ids({ instancePickId: 1, elementPickId: 2 })),
+    ).toMatchObject({ kind: "element", bodyId: 6 });
+    expect(
+      resolvePickTarget(bodyContext, ids({ instancePickId: 1, elementPickId: 2, facePickId: 2 })),
+    ).toMatchObject({ kind: "face", bodyId: 6 });
+    expect(
+      resolvePickTarget(
+        bodyContext,
+        ids({ instancePickId: 1, elementPickId: 2, facePickId: 3, nodePickId: 2 }),
+      ),
+    ).toMatchObject({ kind: "node", bodyId: 6 });
+  });
+
   it("returns undefined when the instance pick id misses", () => {
     expect(
       resolvePickTarget(context, ids({ instancePickId: 0, elementPickId: 3 })),

@@ -1,4 +1,4 @@
-import type { ElementTessellation, FaceTessellation, Geometry, Primitive } from "./part";
+import type { Body, ElementTessellation, FaceTessellation, Geometry, Primitive } from "./part";
 import type { Vec3 } from "./vec-math";
 
 /** A tessellated triangle vertex plus the model node it came from, if any. */
@@ -37,6 +37,7 @@ export class TriangleMeshBuilder {
     elements?: readonly ElementTessellation[],
     faces?: readonly FaceTessellation[],
     nodePositions?: readonly number[],
+    bodies?: readonly Body[],
   ): Geometry {
     const hasNodeIds = this.nodePickIds.some((id) => id !== 0);
     return {
@@ -56,6 +57,7 @@ export class TriangleMeshBuilder {
         ? { facePickIds: new Uint32Array(this.facePickIds) }
         : {}),
       ...(faces !== undefined && faces.length > 0 ? { faces } : {}),
+      ...(bodies !== undefined && bodies.length > 0 ? { bodies } : {}),
     };
   }
 }
