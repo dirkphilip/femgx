@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createWebGpuRenderer } from "../../src/renderer/gpu-renderer";
-import { computeBounds, type Part } from "../../src/geometry/part";
+import { computeBounds } from "../../src/geometry/part";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
 import { createScene, type Scene } from "../../src/scene/scene";
@@ -456,89 +456,7 @@ describe("WebGPU renderer", () => {
 
     renderer.destroy();
   });
-  it("grows progressively when a runtime appends a part, uploading only the delta", async () => {
-    restoreGpuGlobals = installGpuGlobals();
-    const gpu = fakeGpuDevice({ pickValue: 2 });
-    installNavigator(gpu.device);
-    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
-
-    const firstScene = multiPartScene(1);
-    const firstRuntime = createSceneRuntime(firstScene);
-    renderer.render(firstRuntime, camera, firstScene.parts);
-    const buffersAfterFirst = gpu.buffers.length;
-    const texturesAfterFirst = gpu.textureCreations;
-    expect(buffersAfterFirst).toBeGreaterThan(0);
-
-    const grownScene = multiPartScene(2);
-    const grownRuntime = createSceneRuntime(grownScene);
-    renderer.render(grownRuntime, camera, grownScene.parts);
-    renderer.render(grownRuntime, camera, grownScene.parts);
-
-    expect(gpu.buffers.every((buffer) => !buffer.destroyed)).toBe(true);
-    expect(gpu.textureCreations).toBe(texturesAfterFirst);
-    expect(gpu.buffers.length - buffersAfterFirst).toBe(11);
-    expect(gpu.drawCalls.slice(-4)).toEqual([
-      { indexCount: 3, instanceCount: 1 },
-      { indexCount: 3, instanceCount: 1 },
-      { indexCount: 3, instanceCount: 1 },
-      { indexCount: 3, instanceCount: 1 },
-    ]);
-    await expect(renderer.pick(400, 300)).resolves.toEqual({
-      kind: "instance",
-      instanceId: "1/1/0",
-    });
-    renderer.destroy();
-  });
-
-  it("grows only the affected part storage when a chunk appends existing-part instances", async () => {
-    restoreGpuGlobals = installGpuGlobals();
-    const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
-    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
-    const geometry = {
-      positions: new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]),
-      indices: new Uint32Array([0, 1, 2]),
-    };
-    const place = (id: number, x: number) => ({
-      kind: "part" as const,
-      partId: id,
-      transform: translation(x, 0, 0),
-    });
-    const scene1 = createScene()
-      .addPart({ id: 1, geometry, bounds: computeBounds(geometry) })
-      .addAssembly({
-        id: 1,
-        name: "root",
-        placements: [place(1, 0), place(1, 2)],
-      })
-      .withRoot(1)
-      .build();
-    const runtime1 = createSceneRuntime(scene1);
-    renderer.render(runtime1, camera, scene1.parts);
-    const buffersAfterFirst = gpu.buffers.length;
-
-    const scene2 = createScene()
-      .addPart({ id: 1, geometry, bounds: computeBounds(geometry) })
-      .addAssembly({
-        id: 1,
-        name: "root",
-        placements: [place(1, 0), place(1, 2), place(1, 4), place(1, 6)],
-      })
-      .withRoot(1)
-      .build();
-    const runtime2 = createSceneRuntime(scene2);
-    renderer.render(runtime2, camera, scene2.parts);
-
-    expect(gpu.buffers.every((buffer) => !buffer.destroyed)).toBe(true);
-    expect(gpu.buffers.length - buffersAfterFirst).toBe(3);
-    expect(gpu.drawCalls.slice(-2)).toEqual([
-      { indexCount: 3, instanceCount: 2 },
-      { indexCount: 3, instanceCount: 4 },
-    ]);
-    renderer.destroy();
-  });
-
-  it("falls back to a full rebuild when a runtime change is not a compatible append", async () => {
+  it("rebuilds the attachment when a runtime is replaced", async () => {
     restoreGpuGlobals = installGpuGlobals();
     const gpu = fakeGpuDevice();
     installNavigator(gpu.device);
@@ -680,33 +598,3 @@ describe("WebGPU renderer deformation", () => {
     renderer.destroy();
   });
 });
-
-/** A deterministic single-triangle part. */
-function trianglePart(id: number, x: number): Part {
-  const geometry = {
-    positions: new Float32Array([x, -0.5, 0, x + 1, -0.5, 0, x + 0.5, 0.5, 0]),
-    indices: new Uint32Array([0, 1, 2]),
-  };
-  return { id, geometry, bounds: computeBounds(geometry) };
-}
-
-/** Scene with parts `1..partCount`, each placed once under sub-assembly `id`. */
-function multiPartScene(partCount: number): Scene {
-  let builder = createScene();
-  const rootPlacements: Array<{ kind: "assembly"; assemblyId: number; transform: Float32Array }> =
-    [];
-  for (let id = 1; id <= partCount; id++) {
-    builder = builder.addPart(trianglePart(id, (id - 1) * 3));
-    const subcaseId = id + 100;
-    builder = builder.addAssembly({
-      id: subcaseId,
-      name: `part-${id}`,
-      placements: [{ kind: "part", partId: id, transform: identity() }],
-    });
-    rootPlacements.push({ kind: "assembly", assemblyId: subcaseId, transform: identity() });
-  }
-  return builder
-    .addAssembly({ id: 1, name: "root", placements: rootPlacements })
-    .withRoot(1)
-    .build();
-}

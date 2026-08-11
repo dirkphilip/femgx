@@ -50,13 +50,11 @@ Pick ids are `global slot + 1`, so they are **stable across visibility changes**
 
 - Visibility is expressed entirely by the draw-order buffer; hiding/showing
   never rewrites record buffers.
-- `attach` runs once per runtime and then grows in place when the same scene
-  appends parts/instances. A fresh runtime that is a compatible
-  superset (instances are only appended, existing slots keep their
-  part and placement identity) uploads only the delta — the new part's geometry
-  and the appended instance records — via `RendererAttachment` in
-  `src/renderer/attachment.ts`. Any other change (shrink, reordering, identity
-  shift) falls back to a full rebuild.
+- `attach` runs one full geometry/layout upload for each runtime identity. A
+  fresh runtime replacement destroys the previous attachment and uploads the
+  new scene through `RendererAttachment` in `src/renderer/attachment.ts`.
+  Transform, visibility, interaction, deformation, and highlight changes within
+  the attached runtime remain subrange-oriented.
 - Style/transform/visibility updates are explicit: the app applies a runtime
   delta (or interaction change) and passes the affected slots. The renderer
   does not rescan the whole scene per frame.

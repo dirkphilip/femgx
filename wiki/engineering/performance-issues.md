@@ -46,7 +46,7 @@ resource creation, `gpu-draw.ts` owns per-part geometry/instance buffers and dra
 submission, `gpu-pick.ts` owns the pick targets and readback,
 `runtime-state.ts` bridges the [[architecture/packed-runtime|packed runtime]] slots to
 part-local storage, and `attachment.ts` owns the renderer's CPU-side scene
-attachment (layout, calls, pick snapshot, incremental growth). `gpu-renderer.ts`
+attachment (layout, calls, pick snapshot, and incremental deltas). `gpu-renderer.ts`
 is a thin orchestrator.
 
 _Resolved_: packed visibility/transform/style deltas are now wired into GPU

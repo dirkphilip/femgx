@@ -21,10 +21,7 @@ import {
   buildEdgeOrder,
   buildInstanceLayout,
   buildInstanceSnapshot,
-  computeRuntimeGrowth,
-  instanceAt,
   type InstanceLayout,
-  type RuntimeGrowth,
 } from "./runtime-state";
 
 /**
@@ -32,11 +29,9 @@ import {
  * layout, compacted draw/edge calls, pick snapshot, and edge-flag mirror, kept
  * in sync with per-part GPU storage.
  *
- * `attach` is incremental when the runtime merely grew (a chunked model
- * appended parts/instances): only the new part geometry and instance records
- * are uploaded and only the affected draw/edge orders are rewritten, so
- * already-loaded geometry is never re-uploaded. Any other runtime change falls
- * back to a full rebuild.
+ * `attach` performs one full geometry/layout upload for each runtime identity.
+ * Transform, visibility, interaction, deformation, and highlight changes after
+ * attachment remain incremental subrange updates.
  */
 export class RendererAttachment {
   public runtime: SceneRuntime | undefined;
@@ -48,8 +43,8 @@ export class RendererAttachment {
   private edgeFlags: boolean[] = [];
 
   /**
-   * Ensures the attachment matches `runtime`, growing in place when the runtime
-   * is a compatible superset of the previously attached one.
+   * Ensures the attachment matches `runtime`, rebuilding the attachment when
+   * the runtime identity changes.
    */
   public attach(runtime: SceneRuntime, bundle: GpuBundle): boolean {
     if (
@@ -60,13 +55,6 @@ export class RendererAttachment {
       return false;
     }
     const layout = buildInstanceLayout(runtime);
-    if (this.runtime !== undefined && this.layout !== undefined) {
-      const growth = computeRuntimeGrowth(this.runtime, runtime, this.layout, layout);
-      if (growth !== undefined) {
-        this.growAttach(runtime, layout, growth, bundle);
-        return true;
-      }
-    }
     this.fullAttach(runtime, layout, bundle);
     return true;
   }
@@ -169,55 +157,6 @@ export class RendererAttachment {
     for (const partId of layout.partOrder) {
       writeDrawOrder(bundle.draw, partId, buildDrawOrder(layout, runtime, partId));
     }
-    this.runtime = runtime;
-    this.layout = layout;
-    this.rebuildCalls();
-  }
-
-  /**
-   * Extends an existing attachment with only the delta of a grown runtime:
-   * encodes and patches the appended instance records, appends their pick
-   * snapshot entries, and rebuilds the draw/edge orders of the parts that
-   * gained instances or changed visibility. Already-uploaded geometry and
-   * instance buffers are left untouched.
-   */
-  private growAttach(
-    runtime: SceneRuntime,
-    layout: InstanceLayout,
-    growth: RuntimeGrowth,
-    bundle: GpuBundle,
-  ): void {
-    const previousCount = this.layout?.instanceCount ?? 0;
-    if (this.edgeFlags.length < runtime.instanceCount) {
-      const flags = new Array<boolean>(runtime.instanceCount).fill(false);
-      for (let slot = 0; slot < previousCount; slot++) {
-        flags[slot] = this.edgeFlags[slot] ?? false;
-      }
-      this.edgeFlags = flags;
-    }
-    const { updates } = collectInstanceUpdates(
-      runtime,
-      layout,
-      createInteractionState(),
-      this.edgeFlags,
-      growth.newSlots,
-    );
-    for (const [partId, partUpdates] of updates) {
-      patchInstances(bundle.draw, partId, partUpdates);
-    }
-    for (let slot = previousCount; slot < runtime.instanceCount; slot++) {
-      const instanceId = runtime.getInstanceId(slot);
-      const partId = runtime.instancePartIds[slot];
-      if (instanceId === undefined || partId === undefined) continue;
-      this.slotByInstanceId.set(instanceId, slot);
-      this.instances.push(instanceAt(runtime, slot, partId));
-    }
-    for (const partId of growth.changedParts) {
-      const order = buildDrawOrder(layout, runtime, partId);
-      writeDrawOrder(bundle.draw, partId, order);
-      layout.partVisibleCounts.set(partId, order.length);
-    }
-    this.rebuildEdgeOrders(runtime, layout, growth.changedParts, bundle);
     this.runtime = runtime;
     this.layout = layout;
     this.rebuildCalls();
