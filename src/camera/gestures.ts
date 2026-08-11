@@ -15,6 +15,7 @@ export interface GestureStep {
   readonly deltaY: number;
   readonly zoom: number;
   readonly pointerCount: number;
+  readonly midpoint?: GesturePoint;
 }
 
 interface PinchState {
@@ -99,6 +100,7 @@ export class CameraGestureTracker {
       deltaY: midpoint.y - baseline.midpoint.y,
       zoom,
       pointerCount: 2,
+      midpoint,
     };
   }
 

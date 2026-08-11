@@ -2,9 +2,11 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   cameraDistance,
   expectBoundsClippedSafely,
+  projectCameraPoint,
   readNavigationState,
   requireHit,
   sweepForHit,
+  targetPlanePoint,
 } from "./helpers";
 
 /**
@@ -538,6 +540,69 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
   const zoomedOutAgain = await readNavigationState(canvas);
   expectBoundsClippedSafely(zoomedOutAgain.camera, zoomedOutAgain.bounds);
   expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(20);
+});
+
+test("keeps empty-canvas wheel zoom anchored at the cursor", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("fit-view").click();
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+
+  const candidates = [
+    [0.05, 0.05],
+    [0.95, 0.05],
+    [0.05, 0.95],
+    [0.95, 0.95],
+  ] as const;
+  let empty: readonly [number, number] | undefined;
+  for (const [fx, fy] of candidates) {
+    const point = [box.x + box.width * fx, box.y + box.height * fy] as const;
+    await page.mouse.move(point[0], point[1]);
+    await page.waitForTimeout(120);
+    if ((await canvas.getAttribute("data-hovered")) === "") {
+      empty = point;
+      break;
+    }
+  }
+  if (empty === undefined) throw new Error("could not find an empty canvas corner");
+
+  const local = [empty[0] - box.x, empty[1] - box.y] as const;
+  const before = await readNavigationState(canvas);
+  const anchor = targetPlanePoint(before.camera, local[0], local[1]);
+  for (let step = 0; step < 2; step += 1) await page.mouse.wheel(0, -180);
+  await stableCanvasPixels(page, canvas);
+  await page.waitForTimeout(500);
+
+  const zoomed = await readNavigationState(canvas);
+  const projected = projectCameraPoint(zoomed.camera, anchor);
+  expect(projected).toBeDefined();
+  expect(
+    Math.hypot((projected?.[0] ?? 0) - local[0], (projected?.[1] ?? 0) - local[1]),
+  ).toBeLessThan(1);
+  expect(cameraDistance(zoomed.camera)).toBeLessThan(cameraDistance(before.camera));
+  expect(
+    Math.hypot(
+      zoomed.camera.target[0] - before.camera.target[0],
+      zoomed.camera.target[1] - before.camera.target[1],
+      zoomed.camera.target[2] - before.camera.target[2],
+    ),
+  ).toBeGreaterThan(0.01);
+  expectBoundsClippedSafely(zoomed.camera, zoomed.bounds);
+
+  for (let step = 0; step < 2; step += 1) await page.mouse.wheel(0, 180);
+  await stableCanvasPixels(page, canvas);
+  await page.waitForTimeout(500);
+  const restored = await readNavigationState(canvas);
+  const restoredProjection = projectCameraPoint(restored.camera, anchor);
+  expect(restoredProjection).toBeDefined();
+  expect(
+    Math.hypot(
+      (restoredProjection?.[0] ?? 0) - local[0],
+      (restoredProjection?.[1] ?? 0) - local[1],
+    ),
+  ).toBeLessThan(1);
+  expect(cameraDistance(restored.camera)).toBeCloseTo(cameraDistance(before.camera), 4);
 });
 
 test("keeps the depth-test toggle working on the WebGPU renderer", async ({ page }) => {

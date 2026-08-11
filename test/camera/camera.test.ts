@@ -213,6 +213,41 @@ describe("camera", () => {
     },
   );
 
+  it.each(["perspective", "orthographic"] as const)(
+    "keeps target-plane fallback anchors under their screen points in %s mode",
+    (mode) => {
+      const camera = setProjection(
+        resizeCamera(
+          createCamera({ position: [4, 3, 7], target: [0, 0, 0], near: 0.1, far: 100 }),
+          973,
+          611,
+        ),
+        mode,
+      );
+      const before = JSON.stringify(camera);
+      const positions: readonly (readonly [number, number])[] = [
+        [486.5, 305.5],
+        [80, 90],
+        [890, 540],
+        [950, 40],
+      ];
+      for (const [x, y] of positions) {
+        const targetScreen = projectPoint(camera, camera.target);
+        expect(targetScreen).toBeDefined();
+        const anchor = unprojectPoint(camera, [x, y, targetScreen?.[2] ?? NaN]);
+        expect(projectPoint(camera, anchor)?.slice(0, 2)).toEqual([
+          expect.closeTo(x),
+          expect.closeTo(y),
+        ]);
+        const zoomed = zoomCameraAtPoint(camera, -0.2, anchor);
+        const projected = projectPoint(zoomed, anchor);
+        expect(projected?.[0]).toBeCloseTo(x, 4);
+        expect(projected?.[1]).toBeCloseTo(y, 4);
+      }
+      expect(JSON.stringify(camera)).toBe(before);
+    },
+  );
+
   it("maps the perspective near and far planes to WebGPU [0, 1] depth", () => {
     const camera = resizeCamera(
       createCamera({ position: [0, 0, 0], target: [0, 0, -1], near: 1, far: 100 }),

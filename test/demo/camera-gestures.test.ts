@@ -47,14 +47,17 @@ describe("CameraGestureTracker", () => {
     expect(spread.deltaX).toBe(-5);
     expect(spread.deltaY).toBe(0);
     expect(spread.zoom).toBeCloseTo(Math.log(110 / 100));
+    expect(spread.midpoint).toEqual({ x: 45, y: 0 });
 
     const slide = tracker.move(2, { x: 110, y: 0 });
     expect(slide.deltaX).toBe(5);
     expect(slide.zoom).toBeCloseTo(Math.log(120 / 110));
+    expect(slide.midpoint).toEqual({ x: 50, y: 0 });
 
     const pinch = tracker.move(1, { x: 10, y: 0 });
     expect(pinch.zoom).toBeCloseTo(Math.log(100 / 120));
     expect(pinch.zoom).toBeLessThan(0);
+    expect(pinch.midpoint).toEqual({ x: 60, y: 0 });
   });
 
   it("reports midpoint movement when both fingers travel together", () => {
@@ -65,6 +68,7 @@ describe("CameraGestureTracker", () => {
     expect(step.deltaX).toBe(5);
     expect(step.deltaY).toBe(5);
     expect(step.zoom).toBeCloseTo(Math.log(Math.hypot(10, 10) / 20));
+    expect(step.midpoint).toEqual({ x: 55, y: 5 });
   });
 
   it("resumes a single-pointer drag without a jump after a finger lifts", () => {
@@ -101,6 +105,7 @@ describe("CameraGestureTracker", () => {
     const step = tracker.move(1, { x: 15, y: 0 });
     expect(step.pointerCount).toBe(2);
     expect(step.zoom).toBeCloseTo(Math.log(85 / 90));
+    expect(step.midpoint).toEqual({ x: 57.5, y: 0 });
   });
 
   it("ignores moves for untracked pointers and after the gesture ends", () => {

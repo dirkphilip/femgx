@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const baseURL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
+
 /**
  * E2E browser projects:
  * - `chrome` — system Google Chrome (hardware WebGPU). Default local lane.
@@ -17,7 +19,7 @@ export default defineConfig({
   // (see `wiki/engineering/e2e-policy.md`).
   reporter: [["list"], ["./e2e/skip-summary-reporter.ts"]],
   use: {
-    baseURL: "http://127.0.0.1:5173",
+    baseURL,
     trace: "on-first-retry",
     // Failure artifacts (in `playwright-report`/CI) include a screenshot even
     // on the first failure, so smoke-contract failures are diagnosable.
@@ -45,8 +47,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev -- --host 127.0.0.1",
-    url: "http://127.0.0.1:5173",
+    command: `npm run dev -- --host 127.0.0.1 --port ${new URL(baseURL).port || "5173"}`,
+    url: baseURL,
     reuseExistingServer: !process.env["CI"],
   },
 });

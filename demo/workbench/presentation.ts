@@ -117,7 +117,11 @@ function cameraSnapshot(camera: Camera): {
   readonly mode: Camera["mode"];
   readonly position: Camera["position"];
   readonly target: Camera["target"];
+  readonly up: Camera["up"];
+  readonly fovY: number;
   readonly orthoHeight: number;
+  readonly width: number;
+  readonly height: number;
   readonly near: number;
   readonly far: number;
 } {
@@ -125,7 +129,11 @@ function cameraSnapshot(camera: Camera): {
     mode: camera.mode,
     position: camera.position,
     target: camera.target,
+    up: camera.up,
+    fovY: camera.fovY,
     orthoHeight: camera.orthoHeight,
+    width: camera.width,
+    height: camera.height,
     near: camera.near,
     far: camera.far,
   };
