@@ -103,15 +103,13 @@ describe("GPU draw path", () => {
       const second = uploadPart(draw, part);
       expect(second).toBe(first);
       expect(second.indexCount).toBe(3);
-      expect(gpu.buffers).toHaveLength(8);
+      expect(gpu.buffers).toHaveLength(6);
       expect(gpu.buffers[0]?.size).toBe(36);
       expect(gpu.buffers[1]?.size).toBe(12);
       expect(gpu.buffers[2]?.size).toBe(4);
-      expect(gpu.buffers[3]?.size).toBe(8);
-      expect(gpu.buffers[4]?.size).toBe(12);
-      expect(gpu.buffers[5]?.size).toBe(24);
-      expect(gpu.buffers[6]?.size).toBe(24);
-      expect(gpu.buffers[7]?.size).toBe(4);
+      expect(gpu.buffers[3]?.size).toBe(12);
+      expect(gpu.buffers[4]?.size).toBe(24);
+      expect(gpu.buffers[5]?.size).toBe(44);
     } finally {
       restore();
     }
@@ -128,7 +126,7 @@ describe("GPU draw path", () => {
       expect(resource.subsetEdgeIndexCount).toBe(6);
       expect(resource.subsetIndexBuffer).toBeDefined();
       expect(resource.subsetEdgeIndexBuffer).toBeDefined();
-      expect(gpu.buffers).toHaveLength(12);
+      expect(gpu.buffers).toHaveLength(8);
 
       patchInstances(draw, subsetPart.id, [{ slot: 0, data: record(0) }]);
       writeDrawOrder(draw, subsetPart.id, new Uint32Array([0]));

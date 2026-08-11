@@ -38,7 +38,7 @@ fn vertexMain(
 ) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
   let elementPickId = primitiveElementPickIds[vertexIndex / 3u];
-  let faceBodyPickIds = primitiveFaceBodyPickIds[vertexIndex / 3u];
+  let faceBodyPickIds = primitiveFaceBodyPickIds(vertexIndex / 3u);
   let facePickId = faceBodyPickIds.x;
   let bodyPickId = faceBodyPickIds.y;
   var color = instance.color;
@@ -141,12 +141,12 @@ fn spriteCorner(corner: u32) -> vec2<f32> {
 }
 
 fn topologyBodyVisible(slot: u32, topologyIndex: u32) -> bool {
-  let range = topologyBodyRanges[topologyIndex];
+  let range = topologyBodyRange(topologyIndex);
   if (range.y == 0u || elementHighlights.bucketCount == 0u) {
     return true;
   }
   for (var owner = 0u; owner < range.y; owner++) {
-    let bodyPickId = topologyBodyIds[range.x + owner];
+    let bodyPickId = topologyBodyId(range.x + owner);
     let bucket = highlightHash(slot, bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;
     var hidden = false;
@@ -179,7 +179,7 @@ fn pointVertex(
   let offset = (corner * camera.pointSize * sizeScale) / camera.viewport;
   let ndc = clip.xy / clip.w;
   let elementPickId = primitiveElementPickIds[vertexIndex / 4u];
-  let bodyPickId = primitiveFaceBodyPickIds[vertexIndex / 4u].y;
+  let bodyPickId = primitiveFaceBodyPickIds(vertexIndex / 4u).y;
   var output: VertexOutput;
   output.position = vec4<f32>(
     clip.x + offset.x * clip.w,

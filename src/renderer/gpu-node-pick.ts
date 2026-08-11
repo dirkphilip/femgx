@@ -62,7 +62,7 @@ fn vertexMain(
   let instance = instances[drawOrder[instanceIndex]];
   let base = (vertexIndex / 3u) * 3u;
   let base3 = base * 3u;
-  let faceBodyPickIds = primitiveFaceBodyPickIds[vertexIndex / 3u];
+  let faceBodyPickIds = primitiveFaceBodyPickIds(vertexIndex / 3u);
   let bodyPickId = faceBodyPickIds.y;
   var hidden = false;
   if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
@@ -191,7 +191,7 @@ fn pointVertexMain(
   let corner = spriteCorner(vertexIndex % 4u);
   let offset = (corner * camera.pointSize) / camera.viewport;
   let elementPickId = primitiveElementPickIds[vertexIndex / 4u];
-  let bodyPickId = primitiveFaceBodyPickIds[vertexIndex / 4u].y;
+  let bodyPickId = primitiveFaceBodyPickIds(vertexIndex / 4u).y;
   var hidden = false;
   if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);

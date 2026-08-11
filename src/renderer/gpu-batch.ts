@@ -49,8 +49,6 @@ export function drawOneBatch(
     geometry,
     deformation,
     cache: !nodes,
-    topologyBodyRangesBuffer: subset ? geometry.subsetTopologyBodyRangesBuffer : undefined,
-    topologyBodyIdsBuffer: subset ? geometry.subsetTopologyBodyIdsBuffer : undefined,
   });
   pass.setBindGroup(1, group);
   pass.setVertexBuffer(0, geometry.vertexBuffer);
