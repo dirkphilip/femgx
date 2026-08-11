@@ -14,8 +14,8 @@ distance from that height. This avoids the apparent zoom jump that previously ma
 the perspective toggle look broken. See [[rendering/interactive-state|Interactive state]] for the related
 interaction model and [[rendering/element-rendering|Element rendering]] for the demo geometry modes.
 
-The public `installCameraControls` helper follows SpaceClaim's default mouse navigation: middle-drag spins,
-Shift+middle-drag pans, Ctrl+middle-drag zooms vertically, and the wheel zooms
+The public `installCameraControls` helper uses middle-drag to spin,
+Ctrl/Meta+middle-drag to pan in the drag direction, Shift+middle-drag to zoom vertically, and the wheel to zoom
 toward the visible point under the cursor. Spin uses the closest visible GPU-picked face
 under its start point as the rotation pivot; `WebGpuRenderer.pickPoint`
 reads the winning fragment's NDC depth and unprojects the exact displayed world

@@ -44,8 +44,8 @@ const ZOOM_DRAG_SCALE = 300;
 
 /**
  * Installs SpaceClaim-style mouse/touch navigation and returns its disposer.
- * Middle drag spins around the nearest visible point, Shift+middle pans,
- * Ctrl+middle zooms, and touch provides orbit/pan/pinch gestures.
+ * Middle drag spins around the nearest visible point, Ctrl/Meta+middle pans,
+ * Shift+middle zooms, and touch provides orbit/pan/pinch gestures.
  */
 export function installCameraControls(options: CameraControlOptions): () => void {
   const controls = new CameraControls(options);
@@ -93,7 +93,7 @@ class CameraControls {
     if (event.pointerType !== "touch" && event.button !== 1) return;
     this.trackedPointerIds.add(event.pointerId);
     const step = this.tracker.begin(event.pointerId, eventPoint(event));
-    if (event.pointerType !== "touch" && !event.shiftKey && !event.ctrlKey) {
+    if (event.pointerType !== "touch" && !event.shiftKey && !isPanModifier(event)) {
       this.beginOrbit(event);
     } else if (event.pointerType === "touch") {
       this.orbitGestures.delete(event.pointerId);
@@ -171,14 +171,14 @@ class CameraControls {
     }
     if (step.pointerCount !== 1 || (step.deltaX === 0 && step.deltaY === 0)) return;
     const { cameraRef } = this.options;
-    if (event.pointerType !== "touch" && event.ctrlKey) {
-      cameraRef.camera = zoomCamera(cameraRef.camera, step.deltaY / ZOOM_DRAG_SCALE);
-    } else if (event.pointerType !== "touch" && event.shiftKey) {
+    if (event.pointerType !== "touch" && isPanModifier(event)) {
       cameraRef.camera = panCamera(
         cameraRef.camera,
-        -step.deltaX / PAN_SCALE,
-        step.deltaY / PAN_SCALE,
+        step.deltaX / PAN_SCALE,
+        -step.deltaY / PAN_SCALE,
       );
+    } else if (event.pointerType !== "touch" && event.shiftKey) {
+      cameraRef.camera = zoomCamera(cameraRef.camera, step.deltaY / ZOOM_DRAG_SCALE);
     } else {
       this.applyOrbit(event.pointerId, step);
     }
@@ -279,4 +279,8 @@ function eventPoint(event: { readonly clientX: number; readonly clientY: number 
   readonly y: number;
 } {
   return { x: event.clientX, y: event.clientY };
+}
+
+function isPanModifier(event: { readonly ctrlKey: boolean; readonly metaKey: boolean }): boolean {
+  return event.ctrlKey || event.metaKey;
 }
