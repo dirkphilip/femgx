@@ -43,3 +43,9 @@ Related: [[rendering/element-rendering|Element rendering]],
 [[rendering/element-interaction|Element-level interaction]],
 [[rendering/face-subsets|Face subsets]], [[data/io-import-export|IO import/export]],
 and [[architecture/core-api|Core API review]].
+
+[architecture/core-api|Core API review]: ../architecture/core-api.md
+[data/io-import-export|IO import/export]: ../data/io-import-export.md
+[rendering/element-interaction|Element-level interaction]: element-interaction.md
+[rendering/element-rendering|Element rendering]: element-rendering.md
+[rendering/face-subsets|Face subsets]: face-subsets.md

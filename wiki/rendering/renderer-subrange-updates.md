@@ -87,3 +87,10 @@ Pick ids are `global slot + 1`, so they are **stable across visibility changes**
   trap now fails unit tests instead of silently desyncing CPU/GPU records.
 
 Related: [[architecture/instancing-strategy|Instancing strategy]], [[rendering/interactive-state|Interactive state]].
+
+[architecture/demo-library-boundary|Demo / library boundary]: ../architecture/demo-library-boundary.md
+[architecture/instancing-strategy|Instancing strategy]: ../architecture/instancing-strategy.md
+[architecture/packed-runtime|packed runtime]: ../architecture/packed-runtime.md
+[engineering/performance-issues|performance risks]: ../engineering/performance-issues.md
+[rendering/element-interaction|Element-level interaction]: element-interaction.md
+[rendering/interactive-state|Interactive state]: interactive-state.md

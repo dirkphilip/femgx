@@ -150,3 +150,14 @@ draw count is unchanged. If this supported-path cost becomes a bottleneck,
 adaptive tessellation (subdivide only near silhouettes or when projected
 curvature is large) is the natural follow-up; nothing in the geometry or
 renderer API prevents swapping the tessellator per part.
+
+[architecture/packed-runtime|packed runtime]: ../architecture/packed-runtime.md
+[architecture/packed-runtime|packed scene runtime]: ../architecture/packed-runtime.md
+[architecture/source-organization|Source organization]: ../architecture/source-organization.md
+[engineering/benchmarks|deterministic benchmarks and budgets]: benchmarks.md
+[rendering/element-rendering|Element rendering]: ../rendering/element-rendering.md
+[rendering/platform-support|Platform support]: ../rendering/platform-support.md
+[rendering/renderer-subrange-updates|Renderer subrange updates]: ../rendering/renderer-subrange-updates.md
+[rendering/webgpu-e2e|WebGPU browser e2e lane]: ../rendering/webgpu-e2e.md
+[rendering/webgpu-resource-reuse|WebGPU resource reuse]: ../rendering/webgpu-resource-reuse.md
+[requirements/product-scope|product scope]: ../requirements/product-scope.md

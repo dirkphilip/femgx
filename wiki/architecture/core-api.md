@@ -240,3 +240,9 @@ Related: [[architecture/api-design|API design north star]],
 [[architecture/public-api-audit|Public API audit]],
 [[architecture/demo-library-boundary|Demo / library boundary]],
 [[rendering/platform-support|WebGPU platform support]].
+
+[architecture/api-design|API design north star]: api-design.md
+[architecture/demo-library-boundary|Demo / library boundary]: demo-library-boundary.md
+[architecture/public-api-audit|public API audit]: public-api-audit.md
+[rendering/platform-support|WebGPU platform support]: ../rendering/platform-support.md
+[requirements/product-scope|Product scope]: ../requirements/product-scope.md

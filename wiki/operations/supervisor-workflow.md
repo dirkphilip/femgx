@@ -177,3 +177,6 @@ hooks]]) adds framework validators that CI runs via `pre-commit run
 --all-files`. Implementation and repair workers therefore run one focused batch
 of checks on their changed files before handoff and never invoke the pre-commit
 gate by hand; CI runs the full quality gate after a PR exists.
+
+[operations/ci-authority|CI authority and base-health intake]: ci-authority.md
+[operations/supervisor-label-matching|Supervisor label matching]: supervisor-label-matching.md

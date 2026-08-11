@@ -112,3 +112,7 @@ Removals are implemented by their owning issues, not speculatively here:
   explicit decision before implementation.
 - Results playback / legends, IO breadth beyond VTK, and large-model streaming
   → **removed** (explicit product cleanup).
+
+[#decision-gate|decision gate]: product-scope.md#decision-gate
+[architecture/architecture-overview|Architecture overview]: ../architecture/architecture-overview.md
+[requirements/index|Requirements index]: index.md

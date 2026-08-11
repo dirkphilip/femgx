@@ -55,3 +55,7 @@ supported pick-id range without a backend-specific integer-texture quirk.
 Related: [[rendering/interactive-state|Interactive state]],
 [[rendering/webgpu-e2e|WebGPU browser e2e lane]],
 [[engineering/performance-issues|Performance issues and risks]].
+
+[engineering/performance-issues|Performance issues and risks]: ../engineering/performance-issues.md
+[rendering/interactive-state|Interactive state]: interactive-state.md
+[rendering/webgpu-e2e|WebGPU browser e2e lane]: webgpu-e2e.md

@@ -32,3 +32,7 @@ no faces and therefore do not accept `faceSubset`.
 Related: [[data/elements-topology|Element topology]],
 [[rendering/element-rendering|Element rendering]], and
 [[architecture/core-api|Core API review]].
+
+[architecture/core-api|Core API review]: ../architecture/core-api.md
+[data/elements-topology|Element topology]: ../data/elements-topology.md
+[rendering/element-rendering|Element rendering]: element-rendering.md

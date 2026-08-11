@@ -106,3 +106,6 @@ clean consumer never see it.
 - [ ] `npm run test:package`
 - [ ] `npm publish` (tags via `npm version`, semver; experimental product, so
       breaking changes are fine — see AGENTS.md)
+
+[engineering/scaffold-decisions|Scaffold decisions]: scaffold-decisions.md
+[engineering/typescript-toolchain-compatibility|TypeScript toolchain compatibility]: typescript-toolchain-compatibility.md

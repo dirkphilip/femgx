@@ -40,3 +40,6 @@ The package smoke suite continues to compile ESM, CommonJS, and declaration
 consumers. It should import the canonical viewport/results types rather than
 implementation records. See [[architecture/api-design|API design north star]]
 and [[data/results|Results]].
+
+[architecture/api-design|API design north star]: api-design.md
+[data/results|Results]: ../data/results.md

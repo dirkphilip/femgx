@@ -23,3 +23,6 @@ visibility without changing the current selection or display mode.
 
 Related: [[rendering/interactive-state|Interactive state]],
 [[rendering/element-interaction|Element interaction]].
+
+[rendering/element-interaction|Element interaction]: element-interaction.md
+[rendering/interactive-state|Interactive state]: interactive-state.md

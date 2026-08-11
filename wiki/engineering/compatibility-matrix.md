@@ -29,3 +29,8 @@ and unsupported diagnostics.
 Related: [[rendering/webgpu-e2e|WebGPU browser e2e lane]],
 [[rendering/platform-support|Platform support]],
 [[engineering/quality-gate|Quality gate]].
+
+[engineering/quality-gate|Quality gate]: quality-gate.md
+[rendering/platform-support|Platform support]: ../rendering/platform-support.md
+[rendering/webgpu-e2e|WebGPU browser e2e lane]: ../rendering/webgpu-e2e.md
+[requirements/product-scope|product scope contract]: ../requirements/product-scope.md

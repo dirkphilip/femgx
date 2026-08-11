@@ -56,3 +56,6 @@ malformed records produce actionable `Issue`s with stable `code`s (see
 VTU, Gmsh, Abaqus adapters, cooperative cancellation, and progress reporting
 were removed to match [[requirements/product-scope|product scope]]. Do not
 re-add them without an explicit scope decision.
+
+[architecture/source-organization|Source organization]: ../architecture/source-organization.md
+[requirements/product-scope|product scope]: ../requirements/product-scope.md

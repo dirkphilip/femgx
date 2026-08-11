@@ -127,3 +127,10 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   tracked in [femgx#95](https://github.com/dirkphilip/femgx/issues/95)).
 - The edge overlay draws instance-level emphasis, not per-element edges, because
   edges shared between adjacent elements have no unambiguous element owner.
+
+[data/elements-topology|Element topology]: ../data/elements-topology.md
+[rendering/fe-inspection-workbench|FE inspection workbench]: fe-inspection-workbench.md
+[rendering/interactive-state|Interactive state]: interactive-state.md
+[rendering/node-face-interaction|node and face interaction]: node-face-interaction.md
+[rendering/pick-format|pick-format]: pick-format.md
+[rendering/webgpu-e2e|WebGPU browser e2e lane]: webgpu-e2e.md

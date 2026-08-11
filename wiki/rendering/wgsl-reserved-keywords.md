@@ -25,3 +25,5 @@ While calling [Device].CreateRenderPipeline([RenderPipelineDescriptor]).
   WebGPU lane or a one-off browser probe) rather than relying on the parser.
 
 Related: [[rendering/webgpu-e2e|WebGPU browser e2e lane]].
+
+[rendering/webgpu-e2e|WebGPU browser e2e lane]: webgpu-e2e.md

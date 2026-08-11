@@ -46,3 +46,7 @@ does not gate correctness.
 Related: [[engineering/e2e-policy|E2E policy]],
 [[engineering/quality-gate|Quality gate]], and
 [[requirements/product-scope|Product scope]].
+
+[engineering/e2e-policy|E2E policy]: e2e-policy.md
+[engineering/quality-gate|Quality gate]: quality-gate.md
+[requirements/product-scope|Product scope]: ../requirements/product-scope.md

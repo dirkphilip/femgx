@@ -44,3 +44,9 @@ behind a small interface and tested with a mocked device; see
 - The renderer owns device/swapchain/pipelines.
 
 Related: [[architecture/instancing-strategy|Instancing strategy]].
+
+[architecture/instancing-strategy|Instancing strategy]: instancing-strategy.md
+[architecture/packed-runtime|Packed scene runtime]: packed-runtime.md
+[data/elements-topology|Element topology]: ../data/elements-topology.md
+[rendering/interactive-state|Interactive state]: ../rendering/interactive-state.md
+[rendering/renderer-subrange-updates|Renderer subrange updates]: ../rendering/renderer-subrange-updates.md

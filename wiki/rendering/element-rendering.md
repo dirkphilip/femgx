@@ -116,3 +116,12 @@ family/mode, so switching modes is pure part visibility:
 `WebGpuRenderer.updateVisibility` rebuilds only the affected parts' GPU draw
 order — no buffers or geometry are rebuilt (see
 [[architecture/packed-runtime|Packed scene runtime]]).
+
+[architecture/instancing-strategy|Instancing strategy]: ../architecture/instancing-strategy.md
+[architecture/packed-runtime|Packed scene runtime]: ../architecture/packed-runtime.md
+[data/elements-topology|Element topology]: ../data/elements-topology.md
+[rendering/element-interaction|Element interaction]: element-interaction.md
+[rendering/element-interaction|Element-level interaction]: element-interaction.md
+[rendering/face-subsets|Face subsets]: face-subsets.md
+[rendering/heterogeneous-elements|Heterogeneous element parts]: heterogeneous-elements.md
+[rendering/renderer-subrange-updates|Renderer subrange updates]: renderer-subrange-updates.md

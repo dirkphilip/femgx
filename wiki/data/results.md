@@ -123,3 +123,8 @@ The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
 Related: [[data/elements-topology|Element topology]], [[data/fe-fixture|FE fixture]],
 [[rendering/interactive-state|Interactive state]], [[architecture/architecture-overview|Architecture
 overview]].
+
+[data/elements-topology|Element topology]: elements-topology.md
+[data/fe-fixture|FE fixture]: fe-fixture.md
+[rendering/interactive-state|Interactive state]: ../rendering/interactive-state.md
+[rendering/renderer-subrange-updates|Renderer subrange updates]: ../rendering/renderer-subrange-updates.md
