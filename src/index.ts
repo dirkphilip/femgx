@@ -28,6 +28,7 @@ export {
   type Primitive,
   type TriangleGeometry,
 } from "./geometry/part";
+export { createPart } from "./geometry/part";
 export { createElement, type Element, type ElementId, type NodeId } from "./elements/element";
 export { createElementModel, type ElementModel } from "./elements/model";
 export {

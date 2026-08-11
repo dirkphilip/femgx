@@ -1,4 +1,4 @@
-import { computeBounds, type Part } from "../../src/geometry/part";
+import { createPart, type Part } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import type { Assembly, Placement } from "../../src/scene/assembly";
 import type { Scene } from "../../src/scene/scene";
@@ -27,7 +27,7 @@ function part(id: PartId): Part {
     indices: new Uint32Array([0, 1, 2]),
     primitive: "triangles" as const,
   };
-  return { id, geometry, bounds: computeBounds(geometry) };
+  return createPart(id, geometry);
 }
 
 function partMap(count: number): ReadonlyMap<PartId, Part> {

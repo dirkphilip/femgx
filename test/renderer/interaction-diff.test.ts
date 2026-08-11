@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeBounds } from "../../src/geometry/part";
+import { createPart } from "../../src/geometry/part";
 import {
   createInteractionState,
   setElementSelected,
@@ -30,8 +30,8 @@ function runtime(): SceneRuntime {
     transform: translation(x, 0, 0),
   });
   const scene = createScene()
-    .addPart({ id: 1, geometry, bounds: computeBounds(geometry) })
-    .addPart({ id: 2, geometry, bounds: computeBounds(geometry) })
+    .addPart(createPart(1, geometry))
+    .addPart(createPart(2, geometry))
     .addAssembly({
       id: 1,
       name: "root",

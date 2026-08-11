@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { computeBounds } from "../../src/geometry/part";
+import { createPart } from "../../src/geometry/part";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { identity } from "../../src/math/mat4";
 import { createResultField } from "../../src/results/fields";
@@ -33,7 +33,7 @@ function createTestScene() {
     nodePickIds: new Uint32Array([1, 2, 3]),
   };
   return createScene()
-    .addPart({ id: 1, geometry, bounds: computeBounds(geometry) })
+    .addPart(createPart(1, geometry))
     .addAssembly({
       id: 1,
       name: "root",

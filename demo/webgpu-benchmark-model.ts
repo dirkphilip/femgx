@@ -1,4 +1,4 @@
-import { computeBounds, type Geometry, type Part } from "../src/geometry/part";
+import { createPart, type Geometry, type Part } from "../src/geometry/part";
 import { translation } from "../src/math/mat4";
 import { createScene, type Scene } from "../src/scene/scene";
 import { createPerformancePreset } from "./fixture/performance-fixture";
@@ -62,7 +62,7 @@ export function createBenchmarkCase(spec: {
     return { ...spec, scene: createPerformancePreset().scene };
   }
   const geometry = createGridGeometry(spec.gridCells);
-  const part: Part = { id: PART_ID, geometry, bounds: computeBounds(geometry) };
+  const part: Part = createPart(PART_ID, geometry);
   const scene = createScene()
     .addPart(part)
     .addAssembly({

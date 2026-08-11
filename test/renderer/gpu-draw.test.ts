@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Part } from "../../src/geometry/part";
+import { createPart, type Part } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import {
   createDrawResources,
@@ -25,60 +25,48 @@ import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
 const HIGHLIGHT_BUFFER_SIZE = HIGHLIGHT_HEADER + INITIAL_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE;
 
-const part: Part = {
-  id: 1,
-  geometry: {
-    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-    indices: new Uint32Array([0, 1, 2]),
-    primitive: "triangles" as const,
-  },
-  bounds: { minX: 0, minY: 0, minZ: 0, maxX: 1, maxY: 1, maxZ: 0 },
-};
+const part: Part = createPart(1, {
+  positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+  indices: new Uint32Array([0, 1, 2]),
+  primitive: "triangles" as const,
+});
 
-const subsetPart: Part = {
-  id: 2,
-  geometry: {
-    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1]),
-    indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
-    primitive: "triangles" as const,
-    facePickIds: new Uint32Array([1, 2]),
-    faces: [
-      {
-        id: 0,
-        elementId: 1,
-        faceIndex: 0,
-        key: "0,1,2",
-        nodeIds: [0, 1, 2],
-        neighborElementIds: [],
-      },
-      {
-        id: 1,
-        elementId: 1,
-        faceIndex: 1,
-        key: "3,4,5",
-        nodeIds: [3, 4, 5],
-        neighborElementIds: [],
-      },
-    ],
-    faceSubset: { faceIds: [1] },
-  },
-  bounds: { minX: 0, minY: 0, minZ: 0, maxX: 1, maxY: 1, maxZ: 1 },
-};
+const subsetPart: Part = createPart(2, {
+  positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1]),
+  indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+  primitive: "triangles" as const,
+  facePickIds: new Uint32Array([1, 2]),
+  faces: [
+    {
+      id: 0,
+      elementId: 1,
+      faceIndex: 0,
+      key: "0,1,2",
+      nodeIds: [0, 1, 2],
+      neighborElementIds: [],
+    },
+    {
+      id: 1,
+      elementId: 1,
+      faceIndex: 1,
+      key: "3,4,5",
+      nodeIds: [3, 4, 5],
+      neighborElementIds: [],
+    },
+  ],
+  faceSubset: { faceIds: [1] },
+});
 
-const logicalPointPart: Part = {
-  id: 3,
-  geometry: {
-    positions: new Float32Array([0, 0, 0, 1, 1, 1]),
-    indices: new Uint32Array([0, 1]),
-    primitive: "points",
-    elements: [
-      { id: 10, primitiveStart: 0, primitiveCount: 1 },
-      { id: 11, primitiveStart: 1, primitiveCount: 1 },
-    ],
-    nodePickIds: new Uint32Array([1, 2]),
-  },
-  bounds: { minX: 0, minY: 0, minZ: 0, maxX: 1, maxY: 1, maxZ: 1 },
-};
+const logicalPointPart: Part = createPart(3, {
+  positions: new Float32Array([0, 0, 0, 1, 1, 1]),
+  indices: new Uint32Array([0, 1]),
+  primitive: "points",
+  elements: [
+    { id: 10, primitiveStart: 0, primitiveCount: 1 },
+    { id: 11, primitiveStart: 1, primitiveCount: 1 },
+  ],
+  nodePickIds: new Uint32Array([1, 2]),
+});
 
 function record(x: number): ArrayBuffer {
   return encodeInstanceRecord(translation(x, 0, 0), defaultStyle, 1);
@@ -362,10 +350,11 @@ describe("GPU draw path", () => {
     try {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
-      const linePart: Part = {
-        ...part,
-        geometry: { ...part.geometry, primitive: "lines" },
-      };
+      const linePart = createPart(4, {
+        positions: new Float32Array([0, 0, 0, 1, 0, 0]),
+        indices: new Uint32Array([0, 1]),
+        primitive: "lines",
+      });
       patchInstances(draw, linePart.id, [{ slot: 0, data: record(0) }]);
       writeEdgeOrder(draw, linePart.id, new Uint32Array([0]));
       const encoder = gpu.device.createCommandEncoder();
@@ -420,17 +409,17 @@ describe("GPU draw path", () => {
     try {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
-      const trianglePart: Part = { ...part, id: 1 };
-      const linePart: Part = {
-        ...part,
-        id: 2,
-        geometry: { ...part.geometry, primitive: "lines" },
-      };
-      const pointPart: Part = {
-        ...part,
-        id: 3,
-        geometry: { ...part.geometry, primitive: "points" },
-      };
+      const trianglePart = part;
+      const linePart = createPart(2, {
+        positions: new Float32Array([0, 0, 0, 1, 0, 0]),
+        indices: new Uint32Array([0, 1]),
+        primitive: "lines",
+      });
+      const pointPart = createPart(3, {
+        positions: new Float32Array([0, 0, 0, 1, 0, 0]),
+        indices: new Uint32Array([0, 1]),
+        primitive: "points",
+      });
       const pipelines = {
         trianglesColor: { name: "triangles-color" },
         linesColor: { name: "lines-color" },

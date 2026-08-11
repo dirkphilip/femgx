@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeBounds, type Geometry, type Part } from "../../src/geometry/part";
+import { createPart, type Geometry, type Part } from "../../src/geometry/part";
 import {
   createInteractionState,
   setElementOverride,
@@ -483,7 +483,7 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
     elements: [{ id: 0, primitiveStart: 0, primitiveCount: 6, bodyId: 3 }],
     bodies: [{ id: 3, name: "body", elementIds: [0] }],
     nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
-    nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]),
     facePickIds: new Uint32Array([1, 1, 2, 2, 3, 3]),
     faces: [
       {
@@ -515,7 +515,7 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
       },
     ],
   };
-  const part: Part = { id: 1, geometry, bounds: computeBounds(geometry) };
+  const part: Part = createPart(1, geometry);
   const scene = createScene()
     .addPart(part)
     .addAssembly({

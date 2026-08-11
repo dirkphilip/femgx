@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeBounds, type Part } from "../../src/geometry/part";
+import { createPart, type Part } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import { resolvePick } from "../../src/picking/pick";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
@@ -25,7 +25,7 @@ function part(id: PartId): Part {
     indices: new Uint32Array(),
     primitive: "triangles" as const,
   };
-  return { id, geometry, bounds: computeBounds(geometry) };
+  return createPart(id, geometry);
 }
 
 function stressScene(): Scene {

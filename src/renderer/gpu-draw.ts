@@ -1,4 +1,4 @@
-import { validateFaceSubset, type Part } from "../geometry/part";
+import type { Part } from "../geometry/part";
 import type { PartId } from "../scene/types";
 import { destroyDeformationBuffers, type DeformationStorage } from "./gpu-deform";
 import { buildMeshEdgeData, type MeshEdgeData } from "./gpu-edge";
@@ -132,7 +132,6 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
 export function uploadPart(draw: DrawResources, part: Part): PartResource {
   const existing = draw.parts.get(part.id);
   if (existing !== undefined) return existing;
-  validateFaceSubset(part.geometry);
   const vertexData =
     part.geometry.primitive === "points"
       ? expandPointGeometry(part.geometry)

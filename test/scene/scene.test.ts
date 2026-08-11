@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createScene } from "../../src/scene/scene";
-import { computeBounds, type Part } from "../../src/geometry/part";
+import { createPart, type Part } from "../../src/geometry/part";
 
 function part(id: number): Part {
   const geometry = {
@@ -8,7 +8,7 @@ function part(id: number): Part {
     indices: new Uint32Array(),
     primitive: "triangles" as const,
   };
-  return { id, geometry, bounds: computeBounds(geometry) };
+  return createPart(id, geometry);
 }
 
 describe("createScene", () => {

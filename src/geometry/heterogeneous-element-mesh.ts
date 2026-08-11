@@ -3,7 +3,7 @@ import type { Element, ElementId } from "../elements/element";
 import type { ElementModel } from "../elements/model";
 import type { ElementShape } from "../elements/shapes";
 import {
-  computeBounds,
+  createPart,
   type Body,
   type Geometry,
   type LineGeometry,
@@ -123,7 +123,7 @@ function buildPart<T extends Geometry>(
   partId: PartId,
   geometry: T,
 ): Part & { readonly geometry: T } {
-  return { id: partId, geometry, bounds: computeBounds(geometry) };
+  return createPart(partId, geometry);
 }
 
 function classifyElements(model: ElementModel): ElementGroups {

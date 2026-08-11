@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeBounds, type Part } from "../../src/geometry/part";
+import { createPart, type Part } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createScene } from "../../src/scene/scene";
@@ -11,7 +11,7 @@ function part(id: number): Part {
     indices: new Uint32Array(),
     primitive: "triangles" as const,
   };
-  return { id, geometry, bounds: computeBounds(geometry) };
+  return createPart(id, geometry);
 }
 
 describe("renderer runtime state", () => {

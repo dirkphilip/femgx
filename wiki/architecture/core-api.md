@@ -32,14 +32,13 @@ instances.
 
 ```ts
 import {
-  computeBounds,
+  createPart,
   createFemViewport,
   createInteractionState,
   createScene,
   identity,
   setPartOverride,
   type Geometry,
-  type Part,
 } from "femgx";
 
 const geometry: Geometry = {
@@ -47,11 +46,7 @@ const geometry: Geometry = {
   indices,
   elements,
 };
-const part: Part = {
-  id: 1,
-  geometry,
-  bounds: computeBounds(geometry),
-};
+const part = createPart(1, geometry);
 
 const scene = createScene()
   .addPart(part)
@@ -81,23 +76,24 @@ range and can participate in element picking and interaction.
 
 ## Core vocabulary and owners
 
-| Area        | Core API                                                                                                                                                                   | Owns                                                                                                                                                        |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Geometry    | `Geometry`, `Part`, `Body`, `FaceSubset`, `polygonGeometry`, `polygonPart`, `computeBounds`, `validateBodies`, `validateElements`, `validateFaceSubset`, `validatePickIds` | Immutable local positions, indices, optional body/element/node/face metadata, and local bounds.                                                             |
-| Elements    | `createElement`, `ElementModel`, `heterogeneousElementParts`, `boundaryFaceRefs`, `FaceIdRef`, `ElementShape`                                                              | Validated FE connectivity (point, line, triangle, quad, Tet4, Tet10, Hex8, Hex20), canonical topology, mixed primitive grouping, and face selection inputs. |
-| Assemblies  | `NamedAssembly`, `PartPlacement`, `SubAssemblyPlacement`                                                                                                                   | Reusable hierarchical placement definitions and local transforms.                                                                                           |
-| Scene       | `createScene`, `SceneBuilder`, `Scene`                                                                                                                                     | Authoritative part/assembly registries, root identity, and authoring visibility state.                                                                      |
-| Viewport    | `createFemViewport`, `FemViewport`, `FemViewportOptions`                                                                                                                   | Runtime compilation, camera, WebGPU renderer, controls, resize, interaction sync, results, recovery, and teardown.                                          |
-| Interaction | `createInteractionState`, `setPart*`, `setInstance*`, `setBody*`, `setElement*`, `setFace*`, `setNode*`, `resolve*Style`                                                   | Immutable selection, highlight, hover, visibility, and style state.                                                                                         |
-| Camera      | `createCamera`, `setProjection`, `orbitCamera`, `panCamera`, `zoomCamera`, `fitCamera`                                                                                     | Immutable camera values and projection/navigation math.                                                                                                     |
-| Picking     | `FemViewport.pick`, `FemViewport.pickPoint`, `PickTarget`, `PickGranularity`                                                                                               | GPU readback and stable part/instance/element/face/node target resolution.                                                                                  |
-| Results     | `createResultField`, derived-field helpers, `ViewportResultsConfig`                                                                                                        | Typed nodal/elemental values, derivations, ranges, maps, and deformation configuration.                                                                     |
-| IO          | `parse`, `write`, `parseVtk`, `writeVtk`, `validateModel`                                                                                                                  | The single supported VTK legacy interchange boundary and diagnostics.                                                                                       |
-| Platform    | `queryWebGpuSupport`, `WebGpuUnsupportedError`, `requestWebGpuDevice`                                                                                                      | Capability probing, typed unsupported results, device creation, and loss information.                                                                       |
+| Area        | Core API                                                                                                                 | Owns                                                                                                                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Geometry    | `Geometry`, `Part`, `createPart`, `Body`, `FaceSubset`, `polygonGeometry`, `polygonPart`                                 | Validated immutable local positions, indices, optional body/element/node/face metadata, and derived local bounds. Focused validators and raw bound calculation are implementation helpers. |
+| Elements    | `createElement`, `ElementModel`, `heterogeneousElementParts`, `boundaryFaceRefs`, `FaceIdRef`, `ElementShape`            | Validated FE connectivity (point, line, triangle, quad, Tet4, Tet10, Hex8, Hex20), canonical topology, mixed primitive grouping, and face selection inputs.                                |
+| Assemblies  | `NamedAssembly`, `PartPlacement`, `SubAssemblyPlacement`                                                                 | Reusable hierarchical placement definitions and local transforms.                                                                                                                          |
+| Scene       | `createScene`, `SceneBuilder`, `Scene`                                                                                   | Authoritative part/assembly registries, root identity, and authoring visibility state.                                                                                                     |
+| Viewport    | `createFemViewport`, `FemViewport`, `FemViewportOptions`                                                                 | Runtime compilation, camera, WebGPU renderer, controls, resize, interaction sync, results, recovery, and teardown.                                                                         |
+| Interaction | `createInteractionState`, `setPart*`, `setInstance*`, `setBody*`, `setElement*`, `setFace*`, `setNode*`, `resolve*Style` | Immutable selection, highlight, hover, visibility, and style state.                                                                                                                        |
+| Camera      | `createCamera`, `setProjection`, `orbitCamera`, `panCamera`, `zoomCamera`, `fitCamera`                                   | Immutable camera values and projection/navigation math.                                                                                                                                    |
+| Picking     | `FemViewport.pick`, `FemViewport.pickPoint`, `PickTarget`, `PickGranularity`                                             | GPU readback and stable part/instance/element/face/node target resolution.                                                                                                                 |
+| Results     | `createResultField`, derived-field helpers, `ViewportResultsConfig`                                                      | Typed nodal/elemental values, derivations, ranges, maps, and deformation configuration.                                                                                                    |
+| IO          | `parse`, `write`, `parseVtk`, `writeVtk`, `validateModel`                                                                | The single supported VTK legacy interchange boundary and diagnostics.                                                                                                                      |
+| Platform    | `queryWebGpuSupport`, `WebGpuUnsupportedError`, `requestWebGpuDevice`                                                    | Capability probing, typed unsupported results, device creation, and loss information.                                                                                                      |
 
 ## Ownership and identity rules
 
-- A `Part` is reusable local geometry. It does not own a world transform.
+- A `Part` is reusable local geometry constructed by `createPart`. It does not
+  own a world transform, and callers cannot provide a separate bounds value.
 - A placement references a part or assembly definition; it does not copy
   geometry.
 - `PartId` and `AssemblyId` identify registry definitions within a scene.

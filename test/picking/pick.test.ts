@@ -4,7 +4,7 @@ import { createElementModel, type ElementModel } from "../../src/elements/model"
 import { LINE_SHAPE, POINT_SHAPE, TET4_SHAPE } from "../../src/elements/shapes";
 import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
 import {
-  computeBounds,
+  createPart,
   validatePickIds,
   type Geometry,
   type Part,
@@ -28,7 +28,7 @@ function tetModel(): ElementModel {
 }
 
 function partWithGeometry(geometry: Geometry): Part {
-  return { id: 1, geometry, bounds: computeBounds(geometry) };
+  return createPart(1, geometry);
 }
 
 function instanceAt(index: number, partId = 1, transform: Mat4 = identity()): Instance {

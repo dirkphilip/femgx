@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   bodyIdForElement,
   computeBounds,
+  createPart,
   isFiniteBounds,
   validateBodies,
   validateElements,
@@ -17,7 +18,7 @@ function part(id: number, positions: number[]): Part {
     indices: new Uint32Array([0, 1, 2]),
     primitive: "triangles" as const,
   };
-  return { id, geometry, bounds: computeBounds(geometry) };
+  return createPart(id, geometry);
 }
 
 describe("computeBounds", () => {
@@ -64,10 +65,30 @@ describe("part", () => {
   });
 
   it("combines a part with a transform", () => {
-    const p = part(1, [0, 0, 0]);
+    const p = part(1, [0, 0, 0, 1, 0, 0, 0, 1, 0]);
     const t = translation(10, 0, 0);
     expect(t[12]).toBe(10);
     expect(p.bounds.minX).toBe(0);
+  });
+
+  it("derives finite bounds for an empty part", () => {
+    const p = createPart(1, {
+      positions: new Float32Array(),
+      indices: new Uint32Array(),
+      primitive: "triangles",
+    });
+    expect(p.bounds).toEqual({ minX: 0, minY: 0, minZ: 0, maxX: 0, maxY: 0, maxZ: 0 });
+    expect(isFiniteBounds(p.bounds)).toBe(true);
+  });
+
+  it("validates primitive arrays before construction", () => {
+    expect(() =>
+      createPart(1, {
+        positions: new Float32Array([0, 0, 0]),
+        indices: new Uint32Array([0, 1, 2]),
+        primitive: "triangles",
+      }),
+    ).toThrow(/outside positions/);
   });
 });
 

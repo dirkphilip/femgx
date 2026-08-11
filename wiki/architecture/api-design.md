@@ -13,14 +13,14 @@ oriented API map, and the root [[../index|wiki index]] is the navigation map.
 
 ## Canonical concepts
 
-| Concept             | Current representation | Responsibility                                                      |
-| ------------------- | ---------------------- | ------------------------------------------------------------------- |
-| Part definition     | `Part`                 | Immutable reusable geometry, bounds, and optional element ranges    |
-| Part instance       | `PartPlacement`        | A reference to a part definition plus a local transform             |
-| Assembly definition | `NamedAssembly`        | Ordered hierarchy of part and assembly placements                   |
-| Scene registry      | `Scene`                | Authoritative maps of parts and assemblies plus visibility state    |
-| Scene runtime       | `SceneRuntime`         | Packed stable instance slots, transforms, visibility, and deltas    |
-| Renderer            | `WebGpuRenderer`       | GPU resources, draw submission, interaction attributes, and picking |
+| Concept             | Current representation | Responsibility                                                                     |
+| ------------------- | ---------------------- | ---------------------------------------------------------------------------------- |
+| Part definition     | `Part` / `createPart`  | Validated immutable reusable geometry, derived bounds, and optional element ranges |
+| Part instance       | `PartPlacement`        | A reference to a part definition plus a local transform                            |
+| Assembly definition | `NamedAssembly`        | Ordered hierarchy of part and assembly placements                                  |
+| Scene registry      | `Scene`                | Authoritative maps of parts and assemblies plus visibility state                   |
+| Scene runtime       | `SceneRuntime`         | Packed stable instance slots, transforms, visibility, and deltas                   |
+| Renderer            | `WebGpuRenderer`       | GPU resources, draw submission, interaction attributes, and picking                |
 
 The API may eventually introduce explicit `PartDefinition` and
 `PartInstance` names, but it must preserve this semantic distinction even
@@ -42,6 +42,12 @@ Reusable geometry is defined once. Instances refer to that definition by a
 stable part key and carry only placement-specific state such as transform,
 visibility, and interaction style. The renderer must never become the source
 of truth for scene data.
+
+`createPart(id, geometry)` is the construction boundary for reusable parts. It
+validates primitive arrays and element/pick/body metadata, derives bounds from
+the supplied positions, and uses a finite zero box for an empty part. The
+authoring body list owns membership; descriptor body ids are validated derived
+metadata for render and pick paths.
 
 ## Registry and identity rules
 
