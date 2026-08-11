@@ -9,8 +9,8 @@ import {
   type Body,
   type ElementTessellation,
   type FaceTessellation,
-  type Geometry,
   type Part,
+  type TriangleGeometry,
 } from "./part";
 import { TriangleMeshBuilder, type MeshVertex } from "./mesh-builder";
 import {
@@ -58,7 +58,7 @@ interface ElementGroup {
 }
 
 /** Builds reusable indexed triangle geometry from authored polygon loops. */
-export function polygonGeometry(input: PolygonGeometryInput): Geometry {
+export function polygonGeometry(input: PolygonGeometryInput): TriangleGeometry {
   const positions = copyPositions(input.positions);
   const nextFaceIndices = new Map<ElementId, number>();
   const records = input.faces.map((face, index) => {
@@ -74,18 +74,18 @@ export function polygonGeometry(input: PolygonGeometryInput): Geometry {
   const mesh = new TriangleMeshBuilder();
   const elements: ElementTessellation[] = [];
   for (const group of groups) {
-    const triangleStart = mesh.triangleCount;
+    const primitiveStart = mesh.triangleCount;
     for (const record of group.faces) {
       for (const triangle of record.triangles) {
         mesh.append(triangleVertices(triangle, positions), record.id + 1);
       }
     }
-    const triangleCount = mesh.triangleCount - triangleStart;
+    const primitiveCount = mesh.triangleCount - primitiveStart;
     const bodyId = bodyIds.get(group.elementId);
     const tessellation: ElementTessellation = {
       id: group.elementId,
-      triangleStart,
-      triangleCount,
+      primitiveStart,
+      primitiveCount,
     };
     elements.push(bodyId === undefined ? tessellation : { ...tessellation, bodyId });
   }
@@ -93,7 +93,7 @@ export function polygonGeometry(input: PolygonGeometryInput): Geometry {
     faceTessellation(record, bodyIds.get(record.input.elementId)),
   );
   const geometry = mesh.build("triangles", elements, faces, positions, input.bodies);
-  const result: Geometry = { ...geometry, nodePositions: positions };
+  const result: TriangleGeometry = { ...geometry, nodePositions: positions };
   validateElements(result);
   validatePickIds(result);
   return result;
@@ -203,8 +203,8 @@ function bodyAssignments(
     const bodyId = assignments.get(group.elementId);
     const element: ElementTessellation = {
       id: group.elementId,
-      triangleStart: 0,
-      triangleCount: 1,
+      primitiveStart: 0,
+      primitiveCount: 1,
     };
     provisional.push(bodyId === undefined ? element : { ...element, bodyId });
   }

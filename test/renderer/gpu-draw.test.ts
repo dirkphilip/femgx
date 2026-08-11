@@ -30,6 +30,7 @@ const part: Part = {
   geometry: {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
+    primitive: "triangles" as const,
   },
   bounds: { minX: 0, minY: 0, minZ: 0, maxX: 1, maxY: 1, maxZ: 0 },
 };
@@ -39,6 +40,7 @@ const subsetPart: Part = {
   geometry: {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1]),
     indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+    primitive: "triangles" as const,
     facePickIds: new Uint32Array([1, 2]),
     faces: [
       {
@@ -59,6 +61,21 @@ const subsetPart: Part = {
       },
     ],
     faceSubset: { faceIds: [1] },
+  },
+  bounds: { minX: 0, minY: 0, minZ: 0, maxX: 1, maxY: 1, maxZ: 1 },
+};
+
+const logicalPointPart: Part = {
+  id: 3,
+  geometry: {
+    positions: new Float32Array([0, 0, 0, 1, 1, 1]),
+    indices: new Uint32Array([0, 1]),
+    primitive: "points",
+    elements: [
+      { id: 10, primitiveStart: 0, primitiveCount: 1 },
+      { id: 11, primitiveStart: 1, primitiveCount: 1 },
+    ],
+    nodePickIds: new Uint32Array([1, 2]),
   },
   bounds: { minX: 0, minY: 0, minZ: 0, maxX: 1, maxY: 1, maxZ: 1 },
 };
@@ -146,6 +163,21 @@ describe("GPU draw path", () => {
       );
       pass.end();
       expect(gpu.drawCalls).toEqual([{ indexCount: 3, instanceCount: 1 }]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("expands logical point centers only at GPU upload", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      const resource = uploadPart(draw, logicalPointPart);
+      expect(resource.indexCount).toBe(12);
+      expect(gpu.buffers[0]?.size).toBe(96);
+      expect(gpu.buffers[1]?.size).toBe(48);
+      expect(gpu.buffers[3]?.size).toBe(32);
     } finally {
       restore();
     }

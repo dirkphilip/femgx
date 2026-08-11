@@ -12,7 +12,11 @@ import {
 import { translation } from "../../src/math/mat4";
 
 function part(id: number, positions: number[]): Part {
-  const geometry = { positions: new Float32Array(positions), indices: new Uint32Array([0, 1, 2]) };
+  const geometry = {
+    positions: new Float32Array(positions),
+    indices: new Uint32Array([0, 1, 2]),
+    primitive: "triangles" as const,
+  };
   return { id, geometry, bounds: computeBounds(geometry) };
 }
 
@@ -21,12 +25,17 @@ describe("computeBounds", () => {
     const b = computeBounds({
       positions: new Float32Array([-1, 0, 0, 3, 2, 5]),
       indices: new Uint32Array(),
+      primitive: "triangles",
     });
     expect(b).toEqual({ minX: -1, minY: 0, minZ: 0, maxX: 3, maxY: 2, maxZ: 5 });
   });
 
   it("returns infinite bounds for empty geometry", () => {
-    const b = computeBounds({ positions: new Float32Array(), indices: new Uint32Array() });
+    const b = computeBounds({
+      positions: new Float32Array(),
+      indices: new Uint32Array(),
+      primitive: "triangles",
+    });
     expect(b.minX).toBe(Infinity);
     expect(b.maxX).toBe(-Infinity);
     expect(isFiniteBounds(b)).toBe(false);
@@ -66,9 +75,10 @@ function twoElementGeometry(): Geometry {
   return {
     positions: new Float32Array(18),
     indices: new Uint32Array(18),
+    primitive: "triangles" as const,
     elements: [
-      { id: 0, triangleStart: 0, triangleCount: 2 },
-      { id: 1, triangleStart: 2, triangleCount: 4 },
+      { id: 0, primitiveStart: 0, primitiveCount: 2 },
+      { id: 1, primitiveStart: 2, primitiveCount: 4 },
     ],
   };
 }
@@ -76,7 +86,7 @@ function twoElementGeometry(): Geometry {
 describe("validateElements", () => {
   it("validates geometry without element descriptors", () => {
     expect(() => {
-      validateElements({ indices: new Uint32Array(3) });
+      validateElements({ indices: new Uint32Array(3), primitive: "triangles" });
     }).not.toThrow();
   });
 
@@ -90,7 +100,7 @@ describe("validateElements", () => {
     expect(() => {
       validateElements({
         ...twoElementGeometry(),
-        elements: [{ id: 0, triangleStart: 6, triangleCount: 1 }],
+        elements: [{ id: 0, primitiveStart: 6, primitiveCount: 1 }],
       });
     }).toThrow(/outside the index buffer/);
   });
@@ -99,7 +109,7 @@ describe("validateElements", () => {
     expect(() => {
       validateElements({
         ...twoElementGeometry(),
-        elements: [{ id: 0, triangleStart: 0, triangleCount: 0 }],
+        elements: [{ id: 0, primitiveStart: 0, primitiveCount: 0 }],
       });
     }).toThrow(/has no triangles/);
   });
@@ -109,8 +119,8 @@ describe("validateElements", () => {
       validateElements({
         ...twoElementGeometry(),
         elements: [
-          { id: 1, triangleStart: 0, triangleCount: 1 },
-          { id: 1, triangleStart: 1, triangleCount: 1 },
+          { id: 1, primitiveStart: 0, primitiveCount: 1 },
+          { id: 1, primitiveStart: 1, primitiveCount: 1 },
         ],
       });
     }).toThrow(/Duplicate element id 1/);
@@ -121,8 +131,8 @@ describe("validateElements", () => {
       validateElements({
         ...twoElementGeometry(),
         elements: [
-          { id: 0, triangleStart: 0, triangleCount: 2 },
-          { id: 1, triangleStart: 1, triangleCount: 1 },
+          { id: 0, primitiveStart: 0, primitiveCount: 2 },
+          { id: 1, primitiveStart: 1, primitiveCount: 1 },
         ],
       });
     }).toThrow(/belongs to more than one element/);
@@ -132,7 +142,7 @@ describe("validateElements", () => {
     expect(() => {
       validateElements({
         ...twoElementGeometry(),
-        elements: [{ id: 0, triangleStart: 0, triangleCount: 2 }],
+        elements: [{ id: 0, primitiveStart: 0, primitiveCount: 2 }],
       });
     }).toThrow(/not covered by any element/);
   });
@@ -142,9 +152,10 @@ describe("body metadata", () => {
   const geometry: Geometry = {
     positions: new Float32Array(9),
     indices: new Uint32Array(6),
+    primitive: "triangles" as const,
     elements: [
-      { id: 2, triangleStart: 0, triangleCount: 1, bodyId: 4 },
-      { id: 8, triangleStart: 1, triangleCount: 1 },
+      { id: 2, primitiveStart: 0, primitiveCount: 1, bodyId: 4 },
+      { id: 8, primitiveStart: 1, primitiveCount: 1 },
     ],
     bodies: [{ id: 4, name: "housing", elementIds: [2] }],
   };
@@ -218,6 +229,7 @@ describe("pick metadata", () => {
       validatePickIds({
         positions: new Float32Array(9),
         indices: new Uint32Array(3),
+        primitive: "triangles" as const,
         facePickIds: new Uint32Array([2]),
         faces: [face],
       });
@@ -229,8 +241,9 @@ describe("pick metadata", () => {
       validatePickIds({
         positions: new Float32Array(9),
         indices: new Uint32Array(3),
+        primitive: "triangles" as const,
         nodePositions: new Float32Array(9),
-        elements: [{ id: 1, triangleStart: 0, triangleCount: 1 }],
+        elements: [{ id: 1, primitiveStart: 0, primitiveCount: 1 }],
         faces: [face],
       });
     }).toThrow(/undeclared element 4/);
@@ -238,6 +251,7 @@ describe("pick metadata", () => {
       validatePickIds({
         positions: new Float32Array(9),
         indices: new Uint32Array(3),
+        primitive: "triangles" as const,
         nodePositions: new Float32Array(6),
         faces: [{ ...face, nodeIds: [0, 1, 2] }],
       });

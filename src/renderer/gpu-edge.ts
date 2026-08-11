@@ -1,5 +1,5 @@
 import type { Geometry } from "../geometry/part";
-import { buildBodyTrianglePickIds } from "./gpu-pick-ids";
+import { buildBodyPrimitivePickIds } from "./gpu-pick-ids";
 
 /** Indexed edge geometry plus the body owners of each logical edge. */
 export interface MeshEdgeData {
@@ -25,7 +25,7 @@ export function buildMeshEdgeData(
 ): MeshEdgeData {
   const triangleCount = Math.floor(sourceIndices.length / 3);
   const elementEdges = elementEdgeKeys(geometry);
-  const bodyPickIds = buildBodyTrianglePickIds(geometry);
+  const bodyPickIds = buildBodyPrimitivePickIds(geometry);
   const sourceBodyIds = triangleBodyIds(geometry, sourceIndices, bodyPickIds);
   const edges: Array<{ readonly a: number; readonly b: number; readonly bodies: Set<number> }> = [];
   const byKey = new Map<string, (typeof edges)[number]>();
@@ -112,6 +112,7 @@ function triangleKey(a: number, b: number, c: number): string {
 
 /** Returns declared FE edge keys, or undefined for generic triangle meshes. */
 function elementEdgeKeys(geometry: Geometry): Set<string> | undefined {
+  if (geometry.primitive !== "triangles") return undefined;
   const faces = geometry.faces;
   if (faces === undefined || geometry.nodePickIds === undefined) return undefined;
   const edges = new Set<string>();

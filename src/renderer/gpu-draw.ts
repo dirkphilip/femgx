@@ -5,11 +5,11 @@ import { buildMeshEdgeData, type MeshEdgeData } from "./gpu-edge";
 import { buildFaceSubsetIndices } from "./gpu-face-subset";
 import type { InstanceStorage } from "./gpu-instance-storage";
 import {
-  buildElementTrianglePickIds,
+  buildElementPrimitivePickIds,
   buildNodeBodyPickData,
   buildNodeBodyOwnerData,
   buildNodeSpritePickIds,
-  buildTriangleFaceBodyPickData,
+  buildPrimitiveFaceBodyPickData,
   buildVertexNodePickIds,
 } from "./gpu-pick-ids";
 import type { DrawPipelines } from "./gpu-pipelines";
@@ -133,20 +133,30 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
   const existing = draw.parts.get(part.id);
   if (existing !== undefined) return existing;
   validateFaceSubset(part.geometry);
+  const vertexData =
+    part.geometry.primitive === "points"
+      ? expandPointGeometry(part.geometry)
+      : {
+          positions: part.geometry.positions,
+          indices: part.geometry.indices,
+          nodePickIds: part.geometry.nodePickIds,
+        };
   const vertexBuffer = createBuffer(
     draw.device,
-    part.geometry.positions,
+    vertexData.positions,
     GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
   );
-  const indexBuffer = createBuffer(draw.device, part.geometry.indices, GPUBufferUsage.INDEX);
-  const triangles = part.geometry.primitive !== "lines" && part.geometry.primitive !== "points";
+  const indexBuffer = createBuffer(draw.device, vertexData.indices, GPUBufferUsage.INDEX);
+  const triangleGeometry = part.geometry.primitive === "triangles" ? part.geometry : undefined;
   const subsetIndices =
-    part.geometry.faceSubset === undefined ? undefined : buildFaceSubsetIndices(part.geometry);
-  const edgeData = triangles
-    ? buildMeshEdgeData(part.geometry, subsetIndices ?? part.geometry.indices)
+    triangleGeometry?.faceSubset === undefined
+      ? undefined
+      : buildFaceSubsetIndices(triangleGeometry);
+  const edgeData = triangleGeometry
+    ? buildMeshEdgeData(triangleGeometry, subsetIndices ?? triangleGeometry.indices)
     : emptyMeshEdgeData();
-  const picks = uploadPickBuffers(draw, part);
-  const faceBodyPickIds = buildTriangleFaceBodyPickData(part.geometry);
+  const picks = uploadPickBuffers(draw, part, vertexData.nodePickIds);
+  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(part.geometry);
   const edgeIndexBuffer = createIndexBuffer(draw.device, edgeData.indices);
   const subsetBuffers = createSubsetBuffers(draw.device, subsetIndices, edgeData);
   const resource: PartResource = {
@@ -159,11 +169,11 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
       GPUBufferUsage.STORAGE,
     ),
     edgeIndexBuffer,
-    indexCount: part.geometry.indices.length,
+    indexCount: vertexData.indices.length,
     edgeIndexCount: edgeData.indices.length,
     ...subsetBuffers,
     subsetIndexCount: subsetIndices?.length ?? 0,
-    subsetEdgeIndexCount: part.geometry.faceSubset === undefined ? 0 : edgeData.indices.length,
+    subsetEdgeIndexCount: triangleGeometry?.faceSubset === undefined ? 0 : edgeData.indices.length,
   };
   draw.parts.set(part.id, resource);
   return resource;
@@ -172,19 +182,54 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
 function uploadPickBuffers(
   draw: DrawResources,
   part: Part,
+  nodePickIds: Uint32Array | undefined,
 ): Pick<PartResource, "elementPickIdsBuffer" | "nodePickIdsBuffer"> {
   return {
     elementPickIdsBuffer: createBuffer(
       draw.device,
-      buildElementTrianglePickIds(part.geometry),
+      buildElementPrimitivePickIds(part.geometry),
       GPUBufferUsage.STORAGE,
     ),
     nodePickIdsBuffer: createBuffer(
       draw.device,
-      buildVertexNodePickIds(part.geometry),
+      buildVertexNodePickIds({ positions: part.geometry.positions, nodePickIds }),
       GPUBufferUsage.STORAGE,
     ),
   };
+}
+
+interface PointVertexData {
+  readonly positions: Float32Array;
+  readonly indices: Uint32Array;
+  readonly nodePickIds: Uint32Array;
+}
+
+/** Expands logical point centers into the camera-facing sprite vertices. */
+function expandPointGeometry(
+  geometry: Extract<Part["geometry"], { primitive: "points" }>,
+): PointVertexData {
+  const pointCount = geometry.indices.length;
+  const positions = new Float32Array(pointCount * 12);
+  const indices = new Uint32Array(pointCount * 6);
+  const nodePickIds = new Uint32Array(pointCount * 4);
+  for (let point = 0; point < pointCount; point += 1) {
+    const sourceIndex = geometry.indices[point] ?? 0;
+    const sourceOffset = sourceIndex * 3;
+    const targetOffset = point * 12;
+    const x = geometry.positions[sourceOffset] ?? 0;
+    const y = geometry.positions[sourceOffset + 1] ?? 0;
+    const z = geometry.positions[sourceOffset + 2] ?? 0;
+    for (let corner = 0; corner < 4; corner += 1) {
+      const offset = targetOffset + corner * 3;
+      positions[offset] = x;
+      positions[offset + 1] = y;
+      positions[offset + 2] = z;
+      nodePickIds[point * 4 + corner] = geometry.nodePickIds?.[sourceIndex] ?? 0;
+    }
+    const vertex = point * 4;
+    indices.set([vertex, vertex + 1, vertex + 2, vertex + 2, vertex + 1, vertex + 3], point * 6);
+  }
+  return { positions, indices, nodePickIds };
 }
 
 function createIndexBuffer(device: GPUDevice, indices: Uint32Array): GPUBuffer {

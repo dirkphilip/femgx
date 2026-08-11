@@ -245,21 +245,19 @@ function collectFaceEmphasis(
   for (const ref of emphasizedFaceRefs(interaction)) {
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
-    const face = parts
-      .get(occurrence.instance.partId)
-      ?.geometry.faces?.find(
-        (face) => face.elementId === ref.elementId && face.key === ref.faceKey,
-      )?.id;
-    if (face === undefined) continue;
     const geometry = parts.get(occurrence.instance.partId)?.geometry;
-    const descriptor = geometry?.faces?.[face];
+    if (geometry?.primitive !== "triangles") continue;
+    const face = geometry.faces?.find(
+      (face) => face.elementId === ref.elementId && face.key === ref.faceKey,
+    )?.id;
+    if (face === undefined) continue;
+    const descriptor = geometry.faces?.[face];
     const style = resolveFaceStyle(
       occurrence.instance,
       ref,
       defaultStyle,
       interaction,
-      descriptor?.bodyId ??
-        (geometry === undefined ? undefined : bodyIdForElement(geometry, ref.elementId)),
+      descriptor?.bodyId ?? bodyIdForElement(geometry, ref.elementId),
     );
     push(occurrence.instance.partId, {
       slot: occurrence.local,

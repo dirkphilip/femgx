@@ -46,6 +46,7 @@ function buildScene(): Scene {
   const geometry = {
     positions: new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]),
     indices: new Uint32Array([0, 1, 2]),
+    primitive: "triangles" as const,
   };
   return createScene()
     .addPart({ id: 1, geometry, bounds: computeBounds(geometry) })
@@ -67,6 +68,7 @@ function buildFaceScene(): Scene {
   const geometry = {
     positions,
     indices: new Uint32Array([0, 1, 2]),
+    primitive: "triangles" as const,
     nodePositions: positions,
     faces: [
       {
@@ -464,6 +466,7 @@ describe("WebGPU renderer", () => {
     const geometry = {
       positions: new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]),
       indices: new Uint32Array([0, 1, 2]),
+      primitive: "triangles" as const,
     };
     const part1 = { id: 1, geometry, bounds: computeBounds(geometry) };
 

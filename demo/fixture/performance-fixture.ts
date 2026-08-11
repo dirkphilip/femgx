@@ -86,7 +86,7 @@ function createGridGeometry(cells: number): Geometry {
       indices.set([bottomLeft, bottomRight, topRight, bottomLeft, topRight, topLeft], offset);
       const cell = y * cells + x;
       const elementId = cell + 1;
-      elements.push({ id: elementId, triangleStart: cell * 2, triangleCount: 2 });
+      elements.push({ id: elementId, primitiveStart: cell * 2, primitiveCount: 2 });
       faces.push({
         id: cell,
         elementId,
@@ -105,6 +105,7 @@ function createGridGeometry(cells: number): Geometry {
   return {
     positions,
     indices,
+    primitive: "triangles",
     elements,
     faces,
     facePickIds,

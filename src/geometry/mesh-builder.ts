@@ -1,4 +1,12 @@
-import type { Body, ElementTessellation, FaceTessellation, Geometry, Primitive } from "./part";
+import type {
+  Body,
+  ElementTessellation,
+  FaceTessellation,
+  Geometry,
+  LineGeometry,
+  Primitive,
+  TriangleGeometry,
+} from "./part";
 import type { Vec3 } from "./vec-math";
 
 /** A tessellated triangle vertex plus the model node it came from, if any. */
@@ -32,6 +40,13 @@ export class TriangleMeshBuilder {
     return Math.floor(this.indices.length / 3);
   }
 
+  build(
+    primitive: "triangles",
+    elements?: readonly ElementTessellation[],
+    faces?: readonly FaceTessellation[],
+    nodePositions?: ArrayLike<number>,
+    bodies?: readonly Body[],
+  ): TriangleGeometry;
   build(
     primitive: Primitive,
     elements?: readonly ElementTessellation[],
@@ -81,6 +96,11 @@ export class LineMeshBuilder {
     }
   }
 
+  build(
+    primitive: "lines",
+    elements?: readonly ElementTessellation[],
+    nodePositions?: ArrayLike<number>,
+  ): LineGeometry;
   build(
     primitive: Primitive,
     elements?: readonly ElementTessellation[],

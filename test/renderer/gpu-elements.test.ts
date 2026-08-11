@@ -28,13 +28,13 @@ import {
   type EmphasisUpdate,
 } from "../../src/renderer/gpu-elements";
 import {
-  buildBodyTrianglePickIds,
-  buildElementTrianglePickIds,
-  buildFaceTrianglePickIds,
+  buildBodyPrimitivePickIds,
+  buildElementPrimitivePickIds,
+  buildFacePrimitivePickIds,
   buildNodeBodyPickData,
   buildNodeBodyOwnerData,
   buildNodeSpritePickIds,
-  buildTriangleFaceBodyPickData,
+  buildPrimitiveFaceBodyPickData,
   buildVertexNodePickIds,
 } from "../../src/renderer/gpu-pick-ids";
 import { HIGHLIGHT_BUCKET_SIZE } from "../../src/renderer/gpu-highlight-table";
@@ -71,25 +71,27 @@ function bodyUpdate(slot: number, bodyId: number): EmphasisUpdate {
   };
 }
 
-describe("buildElementTrianglePickIds", () => {
+describe("buildElementPrimitivePickIds", () => {
   it("maps each triangle to its element pick id (element id + 1)", () => {
     const geometry: Geometry = {
       positions: new Float32Array(9),
       indices: new Uint32Array(9),
+      primitive: "triangles" as const,
       elements: [
-        { id: 0, triangleStart: 0, triangleCount: 2 },
-        { id: 3, triangleStart: 2, triangleCount: 1 },
+        { id: 0, primitiveStart: 0, primitiveCount: 2 },
+        { id: 3, primitiveStart: 2, primitiveCount: 1 },
       ],
     };
-    expect(Array.from(buildElementTrianglePickIds(geometry))).toEqual([1, 1, 4]);
+    expect(Array.from(buildElementPrimitivePickIds(geometry))).toEqual([1, 1, 4]);
   });
 
   it("produces all-zero ids when the geometry has no elements", () => {
     expect(
       Array.from(
-        buildElementTrianglePickIds({
+        buildElementPrimitivePickIds({
           positions: new Float32Array(9),
           indices: new Uint32Array(3),
+          primitive: "triangles" as const,
         }),
       ),
     ).toEqual([0]);
@@ -98,7 +100,7 @@ describe("buildElementTrianglePickIds", () => {
   it("maps authored line segments and point sprites to their element ids", () => {
     expect(
       Array.from(
-        buildElementTrianglePickIds({
+        buildElementPrimitivePickIds({
           positions: new Float32Array(6),
           indices: new Uint32Array([0, 1]),
           primitive: "lines",
@@ -108,9 +110,9 @@ describe("buildElementTrianglePickIds", () => {
     ).toEqual([5]);
     expect(
       Array.from(
-        buildElementTrianglePickIds({
-          positions: new Float32Array(12),
-          indices: new Uint32Array([0, 1, 2, 2, 1, 3]),
+        buildElementPrimitivePickIds({
+          positions: new Float32Array(6),
+          indices: new Uint32Array([0]),
           primitive: "points",
           elements: [{ id: 8, primitiveStart: 0, primitiveCount: 1 }],
         }),
@@ -119,47 +121,51 @@ describe("buildElementTrianglePickIds", () => {
   });
 });
 
-describe("buildBodyTrianglePickIds", () => {
+describe("buildBodyPrimitivePickIds", () => {
   it("maps triangles to their reusable body pick ids", () => {
     const geometry: Geometry = {
       positions: new Float32Array(18),
       indices: new Uint32Array(6),
-      elements: [{ id: 4, triangleStart: 0, triangleCount: 2, bodyId: 7 }],
+      primitive: "triangles" as const,
+      elements: [{ id: 4, primitiveStart: 0, primitiveCount: 2, bodyId: 7 }],
       bodies: [{ id: 7, elementIds: [4] }],
     };
-    expect(Array.from(buildBodyTrianglePickIds(geometry))).toEqual([8, 8]);
+    expect(Array.from(buildBodyPrimitivePickIds(geometry))).toEqual([8, 8]);
   });
 });
 
-describe("buildFaceTrianglePickIds", () => {
+describe("buildFacePrimitivePickIds", () => {
   it("copies the per-triangle face pick ids when present", () => {
     const geometry: Geometry = {
       positions: new Float32Array(9),
       indices: new Uint32Array(9),
+      primitive: "triangles" as const,
       facePickIds: new Uint32Array([5, 0, 5]),
     };
-    expect(Array.from(buildFaceTrianglePickIds(geometry))).toEqual([5, 0, 5]);
+    expect(Array.from(buildFacePrimitivePickIds(geometry))).toEqual([5, 0, 5]);
   });
 
   it("produces all-zero ids when the geometry has no faces", () => {
     const geometry: Geometry = {
       positions: new Float32Array(9),
       indices: new Uint32Array(3),
+      primitive: "triangles" as const,
     };
-    expect(Array.from(buildFaceTrianglePickIds(geometry))).toEqual([0]);
+    expect(Array.from(buildFacePrimitivePickIds(geometry))).toEqual([0]);
   });
 });
 
-describe("buildTriangleFaceBodyPickData", () => {
+describe("buildPrimitiveFaceBodyPickData", () => {
   it("packs face and body ids into the shared triangle buffer", () => {
     const geometry: Geometry = {
       positions: new Float32Array(18),
       indices: new Uint32Array(6),
+      primitive: "triangles" as const,
       facePickIds: new Uint32Array([5, 0]),
-      elements: [{ id: 4, triangleStart: 0, triangleCount: 2, bodyId: 7 }],
+      elements: [{ id: 4, primitiveStart: 0, primitiveCount: 2, bodyId: 7 }],
       bodies: [{ id: 7, elementIds: [4] }],
     };
-    expect(Array.from(buildTriangleFaceBodyPickData(geometry))).toEqual([5, 8, 0, 8]);
+    expect(Array.from(buildPrimitiveFaceBodyPickData(geometry))).toEqual([5, 8, 0, 8]);
   });
 });
 
@@ -167,7 +173,11 @@ describe("buildNodeBodyPickData", () => {
   it("keeps an empty node binding large enough for one vec2 storage element", () => {
     expect(
       Array.from(
-        buildNodeBodyPickData({ positions: new Float32Array(), indices: new Uint32Array() }),
+        buildNodeBodyPickData({
+          positions: new Float32Array(),
+          indices: new Uint32Array(),
+          primitive: "triangles" as const,
+        }),
       ),
     ).toEqual([0, 0]);
   });
@@ -176,9 +186,10 @@ describe("buildNodeBodyPickData", () => {
     const geometry: Geometry = {
       positions: new Float32Array(18),
       indices: new Uint32Array(6),
+      primitive: "triangles" as const,
       nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
       nodePositions: new Float32Array(9),
-      elements: [{ id: 4, triangleStart: 0, triangleCount: 2, bodyId: 7 }],
+      elements: [{ id: 4, primitiveStart: 0, primitiveCount: 2, bodyId: 7 }],
       bodies: [{ id: 7, elementIds: [4] }],
     };
     expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([0, 8, 0, 8, 0, 8]);
@@ -188,9 +199,10 @@ describe("buildNodeBodyPickData", () => {
     const geometry: Geometry = {
       positions: new Float32Array(18),
       indices: new Uint32Array(6),
+      primitive: "triangles" as const,
       nodePickIds: new Uint32Array([2, 2, 4, 4, 0, 0]),
       nodePositions: new Float32Array(12),
-      elements: [{ id: 4, triangleStart: 0, triangleCount: 2, bodyId: 7 }],
+      elements: [{ id: 4, primitiveStart: 0, primitiveCount: 2, bodyId: 7 }],
       bodies: [{ id: 7, elementIds: [4] }],
     };
     expect(Array.from(buildNodeBodyPickData(geometry, new Uint32Array([2, 4])))).toEqual([
@@ -202,11 +214,12 @@ describe("buildNodeBodyPickData", () => {
     const geometry: Geometry = {
       positions: new Float32Array(18),
       indices: new Uint32Array(6),
+      primitive: "triangles" as const,
       nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
       nodePositions: new Float32Array(9),
       elements: [
-        { id: 4, triangleStart: 0, triangleCount: 1, bodyId: 7 },
-        { id: 5, triangleStart: 1, triangleCount: 1, bodyId: 8 },
+        { id: 4, primitiveStart: 0, primitiveCount: 1, bodyId: 7 },
+        { id: 5, primitiveStart: 1, primitiveCount: 1, bodyId: 8 },
       ],
       bodies: [
         { id: 7, elementIds: [4] },
@@ -226,6 +239,7 @@ describe("buildNodeSpritePickIds", () => {
     const geometry: Geometry = {
       positions: new Float32Array(18),
       indices: new Uint32Array(6),
+      primitive: "triangles" as const,
       nodePickIds: new Uint32Array([4, 2, 4, 0, 2, 0]),
       nodePositions: new Float32Array(12),
     };
@@ -238,6 +252,7 @@ describe("buildVertexNodePickIds", () => {
     const geometry: Geometry = {
       positions: new Float32Array(12),
       indices: new Uint32Array(12),
+      primitive: "triangles" as const,
       nodePickIds: new Uint32Array([1, 2, 3, 0]),
     };
     expect(Array.from(buildVertexNodePickIds(geometry))).toEqual([1, 2, 3, 0]);
@@ -247,6 +262,7 @@ describe("buildVertexNodePickIds", () => {
     const geometry: Geometry = {
       positions: new Float32Array(12),
       indices: new Uint32Array(12),
+      primitive: "triangles" as const,
     };
     expect(Array.from(buildVertexNodePickIds(geometry))).toEqual([0, 0, 0, 0]);
   });
@@ -463,7 +479,8 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
   const geometry: Geometry = {
     positions: new Float32Array(18),
     indices: new Uint32Array(18),
-    elements: [{ id: 0, triangleStart: 0, triangleCount: 6, bodyId: 3 }],
+    primitive: "triangles" as const,
+    elements: [{ id: 0, primitiveStart: 0, primitiveCount: 6, bodyId: 3 }],
     bodies: [{ id: 3, name: "body", elementIds: [0] }],
     nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
     nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),

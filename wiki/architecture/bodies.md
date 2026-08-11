@@ -9,7 +9,7 @@ one body, and ungrouped elements remain valid.
 const geometry: Geometry = {
   positions,
   indices,
-  elements: [{ id: 10, triangleStart: 0, triangleCount: 2, bodyId: 3 }],
+  elements: [{ id: 10, primitiveStart: 0, primitiveCount: 2, bodyId: 3 }],
   bodies: [{ id: 3, name: "Housing", elementIds: [10] }],
 };
 ```

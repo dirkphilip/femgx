@@ -30,20 +30,17 @@ export class GeometryValidationError extends Error {
 export function validateElements(geometry: {
   readonly positions?: Float32Array;
   readonly indices: Uint32Array;
-  readonly primitive?: "triangles" | "lines" | "points";
+  readonly primitive: "triangles" | "lines" | "points";
   readonly elements?: readonly ElementTessellation[];
 }): void {
   const elements = geometry.elements;
   if (elements === undefined || elements.length === 0) return;
-  const primitive = geometry.primitive ?? "triangles";
+  const primitive = geometry.primitive;
   const primitiveCount = logicalPrimitiveCount(geometry);
   const coverage = new Uint8Array(primitiveCount);
   const seenIds = new Set<ElementId>();
   for (const element of elements) {
-    const range = primitiveRangeForElement(primitive, element);
-    if (range === undefined) {
-      throw new Error(`Element ${element.id} has no ${primitiveLabel(primitive)} range`);
-    }
+    const range = primitiveRangeForElement(element);
     if (range.count <= 0)
       throw new Error(`Element ${element.id} has no ${primitiveLabel(primitive)}`);
     if (seenIds.has(element.id)) {
@@ -80,30 +77,23 @@ export function validateElements(geometry: {
 export function logicalPrimitiveCount(geometry: {
   readonly positions?: Float32Array;
   readonly indices: Uint32Array;
-  readonly primitive?: "triangles" | "lines" | "points";
+  readonly primitive: "triangles" | "lines" | "points";
 }): number {
-  switch (geometry.primitive ?? "triangles") {
+  switch (geometry.primitive) {
     case "triangles":
       return Math.floor(geometry.indices.length / 3);
     case "lines":
       return Math.floor(geometry.indices.length / 2);
     case "points":
-      return Math.floor((geometry.positions?.length ?? 0) / 12);
+      return geometry.indices.length;
   }
 }
 
-/** Resolves the range fields appropriate for the geometry's primitive kind. */
-export function primitiveRangeForElement(
-  primitive: "triangles" | "lines" | "points",
-  element: ElementTessellation,
-): { readonly start: number; readonly count: number } | undefined {
-  if (primitive === "triangles") {
-    if (element.triangleStart === undefined || element.triangleCount === undefined)
-      return undefined;
-    return { start: element.triangleStart, count: element.triangleCount };
-  }
-  if (element.primitiveStart === undefined || element.primitiveCount === undefined)
-    return undefined;
+/** Resolves the single logical primitive range owned by an element. */
+export function primitiveRangeForElement(element: ElementTessellation): {
+  readonly start: number;
+  readonly count: number;
+} {
   return { start: element.primitiveStart, count: element.primitiveCount };
 }
 
@@ -268,16 +258,20 @@ export function validatePickIds(geometry: Geometry): void {
       `nodePickIds must have one entry per vertex (${vertexCount}), got ${geometry.nodePickIds.length}`,
     );
   }
-  const triangleCount = Math.floor(geometry.indices.length / 3);
-  if (geometry.facePickIds !== undefined && geometry.facePickIds.length !== triangleCount) {
+  const primitiveCount = logicalPrimitiveCount(geometry);
+  if (
+    geometry.primitive === "triangles" &&
+    geometry.facePickIds !== undefined &&
+    geometry.facePickIds.length !== primitiveCount
+  ) {
     throw new Error(
-      `facePickIds must have one entry per triangle (${triangleCount}), got ${geometry.facePickIds.length}`,
+      `facePickIds must have one entry per triangle (${primitiveCount}), got ${geometry.facePickIds.length}`,
     );
   }
   validateNodePickIds(geometry);
   validateFaceMetadata(geometry);
   validateFaceSubset(geometry);
-  if (geometry.faces !== undefined) {
+  if (geometry.primitive === "triangles" && geometry.faces !== undefined) {
     const seen = new Set<FaceId>();
     geometry.faces.forEach((face, index) => {
       if (face.id !== index) {
@@ -294,11 +288,9 @@ export function validatePickIds(geometry: Geometry): void {
 
 /** Validates that a render-time face subset resolves to declared face ids. */
 export function validateFaceSubset(geometry: Geometry): void {
+  if (geometry.primitive !== "triangles") return;
   const subset = geometry.faceSubset;
   if (subset === undefined) return;
-  if (geometry.primitive === "lines" || geometry.primitive === "points") {
-    throw new Error("faceSubset is supported only by triangle geometry");
-  }
   if (subset.faceIds.length === 0) return;
   const faces = geometry.faces;
   const facePickIds = geometry.facePickIds;
@@ -333,6 +325,7 @@ function validateNodePickIds(geometry: Geometry): void {
 }
 
 function validateFaceMetadata(geometry: Geometry): void {
+  if (geometry.primitive !== "triangles") return;
   const faces = geometry.faces;
   const facePickIds = geometry.facePickIds;
   if (facePickIds !== undefined) {

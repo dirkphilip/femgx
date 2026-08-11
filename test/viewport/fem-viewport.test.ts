@@ -27,6 +27,7 @@ function scene(offset = 0) {
   const geometry = {
     positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
+    primitive: "triangles" as const,
   };
   return createScene()
     .addPart({ id: 1, geometry, bounds: computeBounds(geometry) })

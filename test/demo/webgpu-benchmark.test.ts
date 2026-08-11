@@ -25,7 +25,7 @@ describe("WebGPU benchmark models", () => {
     const part = benchmarkCase.scene.parts.get(1);
     expect(part?.geometry.positions).toHaveLength(27);
     expect(part?.geometry.indices).toHaveLength(24);
-    expect(part?.geometry.elements).toEqual([{ id: 0, triangleStart: 0, triangleCount: 8 }]);
+    expect(part?.geometry.elements).toEqual([{ id: 0, primitiveStart: 0, primitiveCount: 8 }]);
   });
 
   it("reports buffer and render-target memory as an explicit sum", () => {

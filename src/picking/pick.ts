@@ -83,7 +83,7 @@ function deepestTarget(
   if (geometry !== undefined && ids.nodePickId > 0) {
     return nodeTarget(instance, geometry, ids);
   }
-  if (geometry !== undefined && ids.facePickId > 0) {
+  if (geometry?.primitive === "triangles" && ids.facePickId > 0) {
     return faceTarget(instance, geometry, ids);
   }
   if (ids.elementPickId > 0) {
@@ -123,7 +123,7 @@ function targetAtGranularity(
       };
     }
     case "face":
-      if (geometry === undefined || ids.facePickId <= 0) return undefined;
+      if (geometry?.primitive !== "triangles" || ids.facePickId <= 0) return undefined;
       return faceTarget(instance, geometry, ids);
     case "node":
       if (geometry === undefined || ids.nodePickId <= 0) return undefined;
@@ -151,7 +151,11 @@ function nodeTarget(instance: Instance, geometry: Geometry, ids: ResolvedPickIds
   };
 }
 
-function faceTarget(instance: Instance, geometry: Geometry, ids: ResolvedPickIds): FacePickTarget {
+function faceTarget(
+  instance: Instance,
+  geometry: Extract<Geometry, { primitive: "triangles" }>,
+  ids: ResolvedPickIds,
+): FacePickTarget {
   const faceId = ids.facePickId - 1;
   const face = geometry.faces?.[faceId];
   if (face === undefined) {
@@ -194,6 +198,9 @@ export function geometryAdjacency(
   geometry: Geometry,
   nodeId: number,
 ): { readonly neighborElementIds: readonly number[]; readonly neighborNodeIds: readonly number[] } {
+  if (geometry.primitive !== "triangles") {
+    return { neighborElementIds: [], neighborNodeIds: [] };
+  }
   const elementIds = new Set<number>();
   const nodeIds = new Set<number>();
   for (const face of geometry.faces ?? []) {

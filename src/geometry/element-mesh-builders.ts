@@ -9,7 +9,9 @@ import {
   type FaceId,
   type FaceSubset,
   type FaceTessellation,
-  type Geometry,
+  type LineGeometry,
+  type PointGeometry,
+  type TriangleGeometry,
   validateBodies,
   validateElements,
   validatePickIds,
@@ -38,7 +40,7 @@ interface VolumeGeometryInput {
 }
 
 /** Builds triangle geometry for one or more compatible element shapes. */
-export function volumeGeometry(input: VolumeGeometryInput): Geometry {
+export function volumeGeometry(input: VolumeGeometryInput): TriangleGeometry {
   const {
     model,
     elements,
@@ -110,8 +112,8 @@ function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
     if (current === undefined) return;
     const tessellation: ElementTessellation = {
       id: current.element.id,
-      triangleStart: current.start,
-      triangleCount: mesh.triangleCount - current.start,
+      primitiveStart: current.start,
+      primitiveCount: mesh.triangleCount - current.start,
       ...(includeShapes ? { shape: current.element.shape } : {}),
     };
     const bodyId = bodyIds.get(current.element.id);
@@ -142,7 +144,7 @@ function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
   return { mesh, elements, faces: faceTessellations, nodePositions, selectedFaceIds };
 }
 
-function buildVolumeGeometry(options: VolumeGeometryOptions): Geometry {
+function buildVolumeGeometry(options: VolumeGeometryOptions): TriangleGeometry {
   const { mesh, elements, faces, nodePositions, bodies, faceSubset } = options;
   const renderedElementIds = new Set(elements.map((element) => element.id));
   const renderedBodies = bodies?.flatMap((body) => {
@@ -162,7 +164,7 @@ export function edgeGeometry(
   model: ElementModel,
   elements: readonly Element[],
   segments: number,
-): Geometry {
+): LineGeometry {
   const mesh = new LineMeshBuilder();
   for (const edge of uniqueEdges(elements)) mesh.append(edgePoints(model, edge, segments));
   return mesh.build("lines");
@@ -175,7 +177,7 @@ export function lineGeometry(
   segments: number,
   bodyIds: ReadonlyMap<ElementId, BodyId>,
   bodies: readonly Body[] | undefined,
-): Geometry {
+): LineGeometry {
   const mesh = new LineMeshBuilder();
   const descriptors: ElementTessellation[] = [];
   for (const element of elements) {
@@ -207,7 +209,7 @@ export function pointGeometry(
   elements: readonly Element[],
   bodyIds: ReadonlyMap<ElementId, BodyId>,
   bodies: readonly Body[] | undefined,
-): Geometry {
+): PointGeometry {
   const positions: number[] = [];
   const indices: number[] = [];
   const nodePickIds: number[] = [];
@@ -216,24 +218,11 @@ export function pointGeometry(
     const nodeId = element.nodeIds[0];
     if (nodeId === undefined) throw new Error("Point element must reference exactly one node");
     const point = nodePosition(model, nodeId);
-    const primitiveStart = positions.length / 12;
+    const primitiveStart = positions.length / 3;
     const base = positions.length / 3;
-    positions.push(
-      point[0],
-      point[1],
-      point[2],
-      point[0],
-      point[1],
-      point[2],
-      point[0],
-      point[1],
-      point[2],
-      point[0],
-      point[1],
-      point[2],
-    );
-    nodePickIds.push(nodeId + 1, nodeId + 1, nodeId + 1, nodeId + 1);
-    indices.push(base, base + 1, base + 2, base + 2, base + 1, base + 3);
+    positions.push(point[0], point[1], point[2]);
+    nodePickIds.push(nodeId + 1);
+    indices.push(base);
     const descriptor: ElementTessellation = {
       id: element.id,
       primitiveStart,
@@ -244,7 +233,7 @@ export function pointGeometry(
     descriptors.push(bodyId === undefined ? descriptor : { ...descriptor, bodyId });
   }
   const renderedBodies = bodiesForElements(elements, bodies);
-  const geometry: Geometry = {
+  const geometry: PointGeometry = {
     positions: new Float32Array(positions),
     indices: new Uint32Array(indices),
     primitive: "points",
@@ -273,8 +262,8 @@ export function bodyAssignments(
     elements: elements.map((element) => {
       const tessellation: ElementTessellation = {
         id: element.id,
-        triangleStart: 0,
-        triangleCount: 1,
+        primitiveStart: 0,
+        primitiveCount: 1,
       };
       const bodyId = assignments.get(element.id);
       return bodyId === undefined ? tessellation : { ...tessellation, bodyId };
