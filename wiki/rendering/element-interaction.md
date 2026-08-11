@@ -93,7 +93,7 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   parts. The edge pass uses a second cached bind group per part that addresses
   the edge order buffer.
 - The overlay draws with depth writes off and `depthCompare` selected by
-  `WebGpuRenderer.setEdgeDepthTest`: on (default) uses `less` so edges
+  `FemViewport.setEdgeDepthTest`: on (default) uses `less` so edges
   occluded by nearer geometry are culled; off uses `always` so every edge shows
   through the model. Two line-list pipelines are pre-created in
   `gpu-pipelines.ts`.

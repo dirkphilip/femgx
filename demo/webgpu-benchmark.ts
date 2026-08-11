@@ -1,10 +1,5 @@
-import {
-  createCamera,
-  createWebGpuRenderer,
-  fitCamera,
-  type Camera,
-  type WebGpuRenderer,
-} from "../src/index";
+import { createCamera, fitCamera, type Camera } from "../src/index";
+import { createWebGpuRenderer, type WebGpuRenderer } from "../src/renderer/gpu-renderer";
 import { createPackedSceneRuntime } from "../src/scene-runtime/runtime";
 import {
   benchmarkCaseSpecs,

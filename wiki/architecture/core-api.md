@@ -107,9 +107,9 @@ range and can participate in element picking and interaction.
   body interaction state is scoped by the placement `InstanceId`.
 - `Scene` is the authoring source of truth. `SceneRuntime`, typed arrays, draw
   orders, GPU buffers, and batch records are derived representations.
-- `FemViewport` is the normal owner of `SceneRuntime` and
-  `WebGpuRenderer`; hosts should not manually synchronize both unless they
-  deliberately use an advanced path.
+- `FemViewport` is the public owner of `SceneRuntime` and the internal WebGPU
+  renderer; hosts do not manually synchronize packed runtime and renderer
+  state.
 
 For imported data, `createElementModelFromFemModel` is the one validated
 conversion from the serializable VTK-backed `FemModel` into the dense
@@ -195,16 +195,19 @@ tensor magnitude/von Mises/maximum principal derivations, explicit or observed
 ranges, scalar color maps, and optional one-load-case nodal deformation.
 Playback, interpolation, and legends are outside the current core API.
 
-## Advanced APIs
+## Additional supported APIs
 
-These exports are supported but are not the default composition path:
+These exports are supported utilities around the canonical viewport path:
 
 - `createSceneRuntime` / `SceneRuntime` for hosts that intentionally own
   runtime compilation and stable-handle queries.
-- `createWebGpuRenderer` / `WebGpuRenderer` for custom renderer lifecycles.
 - `installCameraControls` and the lower-level camera math for custom viewport
   shells.
 - `resolvePick` / `resolvePickTarget` for host-side pick-id resolution.
+
+The low-level WebGPU renderer is internal to `FemViewport` and is not exported
+from the package root. A custom renderer lifecycle requires a separate product
+decision and stable public ownership contract.
 
 Advanced APIs must not become a reason to expose runtime slots, GPU record
 layouts, storage capacities, or parallel renderer abstractions as new default

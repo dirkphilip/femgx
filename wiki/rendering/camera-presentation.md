@@ -17,7 +17,7 @@ interaction model and [[rendering/element-rendering|Element rendering]] for the 
 The public `installCameraControls` helper uses middle-drag to spin,
 Ctrl/Meta+middle-drag to pan in the drag direction, Shift+middle-drag to zoom vertically, and the wheel to zoom
 toward the visible point under the cursor. Spin uses the closest visible GPU-picked face
-under its start point as the rotation pivot; `WebGpuRenderer.pickPoint`
+under its start point as the rotation pivot; `FemViewport.pickPoint`
 reads the winning fragment's NDC depth and unprojects the exact displayed world
 position. This follows GPU deformation and non-planar tessellation instead of
 reconstructing an undeformed CPU face plane.

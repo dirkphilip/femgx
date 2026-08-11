@@ -22,8 +22,8 @@ presentation and interaction policy only.
   (`updateInstances`, `updateElements`, `updateVisibility`) plus the viewport's
   pure interaction-diff helper `changedInstanceSlots`
   ([[rendering/renderer-subrange-updates|Renderer subrange updates]]).
-- GPU picking (`WebGpuRenderer.pick`, `resolvePick` / `resolvePickTarget`) and
-  exact visible-surface points (`WebGpuRenderer.pickPoint`).
+- GPU picking (`FemViewport.pick`, `resolvePick` / `resolvePickTarget`) and
+  exact visible-surface points (`FemViewport.pickPoint`).
 - Opinionated SpaceClaim-style mouse/touch navigation
   (`installCameraControls`), camera math, asynchronous orbit-pivot handling,
   and the renderer-owned rotation-origin axis widget.

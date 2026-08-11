@@ -1,10 +1,12 @@
 # API design north star
 
-The default host workflow is `createFemViewport({ canvas, scene })`. The
-viewport owns the derived `SceneRuntime`, WebGPU renderer, fitted camera,
-standard controls, resize synchronization, render invalidation, device
-recovery, and teardown. Low-level constructors remain available for advanced
-composition but are not the documentation-first integration path.
+The default and only public rendering lifecycle is
+`createFemViewport({ canvas, scene })`. The viewport owns the derived
+`SceneRuntime`, internal WebGPU renderer, fitted camera, standard controls,
+resize synchronization, render invalidation, device recovery, and teardown.
+Lower-level renderer construction remains an internal implementation detail;
+camera math, stable runtime queries, and pick-id resolution are separate
+supported utilities when a host needs them.
 
 This note defines the intended public vocabulary and ownership boundaries for
 the experimental API. It is the design reference for changes to the public
@@ -20,7 +22,7 @@ oriented API map, and the root [[../index|wiki index]] is the navigation map.
 | Assembly definition | `NamedAssembly`        | Ordered hierarchy of part and assembly placements                                  |
 | Scene registry      | `Scene`                | Authoritative maps of parts and assemblies plus visibility state                   |
 | Scene runtime       | `SceneRuntime`         | Stable placement/assembly-occurrence queries, transforms, visibility, and deltas   |
-| Renderer            | `WebGpuRenderer`       | GPU resources, draw submission, interaction attributes, and picking                |
+| Viewport            | `FemViewport`          | Public scene lifecycle, GPU rendering, interaction attributes, and picking         |
 
 The API may eventually introduce explicit `PartDefinition` and
 `PartInstance` names, but it must preserve this semantic distinction even
@@ -35,7 +37,7 @@ part definitions + assembly placements
               ↓
        createSceneRuntime
               ↓
-          WebGpuRenderer
+      FemViewport
 ```
 
 Reusable geometry is defined once. Instances refer to that definition by a
@@ -70,14 +72,13 @@ The main user workflow should be expressible as:
 1. Define or import reusable part definitions.
 2. Register part and assembly definitions in a scene.
 3. Place a definition one or more times with transforms.
-4. Compile one scene runtime.
-5. Render the runtime and apply interaction deltas.
+4. Create one `FemViewport`.
+5. Apply interaction, visibility, results, and lifecycle operations through it.
 
 Low-level flattening, batching, culling, draw-order buffers, GPU record
 layouts, and storage capacities are renderer/runtime implementation details.
-They may be exposed later through deliberate advanced entry points, but new
-features should not add them to the default root API merely because they are
-convenient internally.
+They remain internal until a concrete host need justifies a separate product
+decision and stable public lifecycle contract.
 
 ## Design test for new features
 
