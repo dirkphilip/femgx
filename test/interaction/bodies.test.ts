@@ -65,7 +65,7 @@ describe("resolveBodyStyle", () => {
     state = setBodySelected(state, ref, true);
     state = setBodyOverride(state, ref, { opacity: 0.25, emissive: 0.05 });
     expect(resolveBodyStyle(item, 3, base, state)).toEqual({
-      color: { r: 1, g: 0.75, b: 0.1, a: 1 },
+      color: { r: 0.95, g: 0.5, b: 0.1, a: 1 },
       emissive: 0.05,
       opacity: 0.25,
       edge: false,

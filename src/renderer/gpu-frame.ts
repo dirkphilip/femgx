@@ -48,10 +48,10 @@ export function pointSizeDevicePixels(cssPixels: number, dpr = devicePixelRatio)
   return Math.max(1, cssPixels * dpr);
 }
 
-/** Returns a finite camera-following key direction with a slight world-up bias. */
+/** Returns a finite camera-following key direction with an asymmetric world-space bias. */
 export function cameraKeyLightDirection(camera: Camera): Vec3 {
   const viewDirection = normalize(subtract(camera.position, camera.target), [0, 0, 1], 1e-6);
-  return normalize(add(scale(viewDirection, 1), [0, 0.35, 0]), [0, 1, 0], 1e-6);
+  return normalize(add(scale(viewDirection, 1), [0.7, 0.4, -0.55]), [0, 1, 0], 1e-6);
 }
 
 /** Encodes and submits one visible color frame without any picking work. */

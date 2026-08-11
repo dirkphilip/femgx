@@ -59,7 +59,7 @@ describe("createInteractionState", () => {
   it("uses the default theme when none is given", () => {
     expect(createInteractionState().theme).toEqual({
       highlighted: { emissive: 0.35 },
-      selected: { color: { r: 1, g: 0.75, b: 0.1, a: 1 }, emissive: 0.6 },
+      selected: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 }, emissive: 0.06 },
       hovered: { emissive: 0.2 },
       hoveredFace: { emissive: 0.3 },
       selectedFace: { color: { r: 0.45, g: 1, b: 0.4, a: 1 }, emissive: 0.5 },
@@ -277,8 +277,8 @@ describe("resolveInstanceStyle", () => {
       true,
     );
     expect(resolveInstanceStyle(item, base, state)).toMatchObject({
-      color: { r: 1, g: 0.75, b: 0.1, a: 1 },
-      emissive: 0.6,
+      color: { r: 0.95, g: 0.5, b: 0.1, a: 1 },
+      emissive: 0.06,
     });
   });
 
@@ -300,7 +300,7 @@ describe("resolveInstanceStyle", () => {
       1,
       true,
     );
-    expect(resolveInstanceStyle(item, base, state)).toMatchObject({ emissive: 0.6 });
+    expect(resolveInstanceStyle(item, base, state)).toMatchObject({ emissive: 0.06 });
   });
 
   it("gives explicit overrides precedence over theme states", () => {
@@ -324,7 +324,7 @@ describe("resolveInstanceStyle", () => {
   it("resolves the full precedence chain deterministically", () => {
     const state = filledState();
     expect(resolveInstanceStyle(item, base, state)).toEqual({
-      color: { r: 1, g: 0.75, b: 0.1, a: 1 },
+      color: { r: 0.95, g: 0.5, b: 0.1, a: 1 },
       emissive: 0.1,
       opacity: 0.25,
       edge: false,
@@ -467,8 +467,8 @@ describe("resolveElementStyle", () => {
       true,
     );
     expect(resolveElementStyle(item, 2, base, state)).toMatchObject({
-      color: { r: 1, g: 0.75, b: 0.1, a: 1 },
-      emissive: 0.6,
+      color: { r: 0.95, g: 0.5, b: 0.1, a: 1 },
+      emissive: 0.06,
     });
   });
 
@@ -487,7 +487,7 @@ describe("resolveElementStyle", () => {
       1,
       true,
     );
-    expect(resolveElementStyle(item, 9, base, state)).toMatchObject({ emissive: 0.6 });
+    expect(resolveElementStyle(item, 9, base, state)).toMatchObject({ emissive: 0.06 });
   });
 });
 

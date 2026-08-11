@@ -79,7 +79,7 @@ export interface InteractionState {
 
 const defaultTheme: InteractionTheme = {
   highlighted: { emissive: 0.35 },
-  selected: { color: { r: 1, g: 0.75, b: 0.1, a: 1 }, emissive: 0.6 },
+  selected: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 }, emissive: 0.06 },
   hovered: { emissive: 0.2 },
   hoveredFace: { emissive: 0.3 },
   selectedFace: { color: { r: 0.45, g: 1, b: 0.4, a: 1 }, emissive: 0.5 },
