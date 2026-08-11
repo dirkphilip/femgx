@@ -127,5 +127,3 @@ triangles, reports the actual rendered-frame count, and clearly marks the idle
 state. Selecting this performance preset runs one bounded 500 ms FPS sample,
 reports the result, and then returns to idle. It remains a manual visual check;
 the opt-in benchmark above owns reproducible cost breakdowns.
-
-Related: [[engineering/todo|Engineering TODO]].

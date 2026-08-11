@@ -239,5 +239,4 @@ Before adding a public symbol, confirm:
 Related: [[architecture/api-design|API design north star]],
 [[architecture/public-api-audit|Public API audit]],
 [[architecture/demo-library-boundary|Demo / library boundary]],
-[[rendering/platform-support|WebGPU platform support]], and
-[[engineering/issue-audit|Issue audit]].
+[[rendering/platform-support|WebGPU platform support]].

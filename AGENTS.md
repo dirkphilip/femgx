@@ -291,17 +291,20 @@ Agents must actively report problems, not silently work around them:
 
 - When you find a bug, a design smell, a performance risk, a scope expansion, or an
   inconsistency, **raise it** — don't bury it. Surface it in your response to the user
-  and record it in the wiki (below).
+  and open or update the relevant GitHub issue.
 - Prefer the smallest fix that resolves the issue; if a proper fix is out of scope, record
-  it clearly so it is not lost.
-- Open questions and unresolved trade-offs belong in the wiki, not only in chat.
+  it clearly in GitHub so it is not lost.
+- Open questions and unresolved trade-offs belong in a GitHub issue and, when durable,
+  in the owning wiki note—not only in chat.
 
 ## Internal Wiki (Knowledge Base)
 
 Maintain an internal, plain-markdown wiki under `wiki/` using Foam/Obsidian-style
 conventions so notes are linkable and navigable. It is written for **both humans and
-future agents**: it is the project's living memory, browseable by anyone reading the repo
-(open it as a Foam/Obsidian vault, or follow the index files in a plain editor):
+future agents**: it is the project's durable product and engineering memory, browseable
+by anyone reading the repo (open it as a Foam/Obsidian vault, or follow the index files
+in a plain editor). GitHub issues and pull requests are the authoritative work tracker;
+the wiki is not an implementation checklist or backlog mirror:
 
 - **One markdown file per topic** (a design decision, a gotcha, an API note, an issue,
   a known limitation). Name files with `kebab-case` under the owning area, e.g.
@@ -311,8 +314,8 @@ future agents**: it is the project's living memory, browseable by anyone reading
 - **Maintain index files** at `wiki/index.md` and under each topical area; they list and
   link the notes so the wiki is navigable without a search tool. Add every new note to
   its area index and add every new area to the root index.
-- Keep notes concise and current: update them when the relevant design changes, and mark
-  resolved issues as resolved rather than deleting history silently.
+- Keep notes concise and current: update them when the relevant design changes, and retain
+  resolved history only when it explains a durable decision or gotcha.
 - Record: architecture decisions and rationale, scope classifications, issues/gotchas found,
   WebGPU/instancing pitfalls, API design notes, and anything a future agent would otherwise
   have to rediscover.

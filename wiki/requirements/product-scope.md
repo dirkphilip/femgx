@@ -1,10 +1,9 @@
 # Product scope and requirements contract
 
 This note is the **source of truth for product scope**. `AGENTS.md` is the
-focused agent contract built on it; the engineering roadmap
-([[engineering/todo|Engineering TODO]]) and all implementation/review guidance
-follow its classifications. If another document contradicts this note, this
-note wins.
+focused agent contract built on it; GitHub issues and pull requests carry the
+current work state, while the wiki records durable contracts and rationale. If
+another document contradicts this note, this note wins.
 
 Related: [[architecture/architecture-overview|Architecture overview]],
 [[requirements/index|Requirements index]].

@@ -39,4 +39,5 @@ Which existing pattern was considered first?
 
 - [ ] The behavior is covered by an API, unit, benchmark, or e2e test as
       appropriate.
-- [ ] The relevant wiki note and roadmap entry are updated.
+- [ ] The relevant durable wiki contract is updated when this change affects
+      product scope, architecture, or a reusable gotcha.
