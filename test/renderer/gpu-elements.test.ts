@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createPart, type Geometry, type Part } from "../../src/geometry/part";
 import {
   createInteractionState,
+  setElementHighlighted,
   setElementOverride,
   setElementSelected,
   setHoveredElement,
@@ -621,6 +622,24 @@ describe("collectEmphasisUpdates", () => {
     const list = updates.get(1) ?? [];
     expect(list).toHaveLength(1);
     expect(list[0]).toMatchObject({ slot: 1, elementPickId: 1 });
+  });
+
+  it("maps semantic element highlights to the same GPU records", () => {
+    const { scene, runtime } = elementScene();
+    const layout = buildInstanceLayout(runtime);
+    const interaction = setElementHighlighted(
+      createInteractionState(),
+      { instanceId: "1/0", elementId: 0 },
+      true,
+    );
+    const updates = collectEmphasisUpdates(
+      runtime,
+      layout,
+      new Map([["1/0", 0]]),
+      partsMap(scene),
+      interaction,
+    );
+    expect(updates.get(1)).toMatchObject([{ slot: 0, elementPickId: 1 }]);
   });
 
   it("maps emphasized face and node occurrences to face and node records", () => {

@@ -66,7 +66,7 @@ export class WorkbenchInteraction {
     let interaction = this.options.getInteraction();
     interaction = setHoveredBody(
       interaction,
-      target === undefined || !("bodyId" in target)
+      target === undefined || target.kind === "part" || target.bodyId === undefined
         ? undefined
         : { instanceId: target.instanceId, bodyId: target.bodyId },
     );
@@ -79,7 +79,7 @@ export class WorkbenchInteraction {
     interaction = setHoveredFace(
       interaction,
       target?.kind === "face"
-        ? { instanceId: target.instanceId, elementId: target.elementId, faceKey: target.faceKey }
+        ? { instanceId: target.instanceId, elementId: target.elementId, faceKey: target.key }
         : undefined,
     );
     interaction = setHoveredElement(
@@ -90,7 +90,7 @@ export class WorkbenchInteraction {
     );
     interaction = setHoveredInstance(
       interaction,
-      target !== undefined && target.kind !== "part" ? target.instanceId : undefined,
+      target === undefined || target.kind === "part" ? undefined : target.instanceId,
     );
     this.options.setInteraction(interaction);
     this.options.canvas.dataset["hovered"] = targetKey(target);
