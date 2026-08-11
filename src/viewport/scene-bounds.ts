@@ -1,6 +1,6 @@
 import { isFiniteBounds, type Bounds } from "../geometry/part";
 import { transformPoint } from "../math/mat4";
-import type { SceneRuntime } from "../scene-runtime/runtime";
+import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
 
 interface MutableBounds {
@@ -13,7 +13,7 @@ interface MutableBounds {
 }
 
 /** Returns the union of every placed part bound in displayed world space. */
-export function sceneWorldBounds(scene: Scene, runtime: SceneRuntime): Bounds {
+export function sceneWorldBounds(scene: Scene, runtime: PackedSceneRuntime): Bounds {
   const bounds = emptyBounds();
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
     const partId = runtime.instancePartIds[slot];

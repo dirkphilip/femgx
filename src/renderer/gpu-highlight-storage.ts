@@ -1,6 +1,6 @@
 import type { Part } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
-import type { SceneRuntime } from "../scene-runtime/runtime";
+import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { InstanceId, PartId } from "../scene/types";
 import type { DrawResources, InstanceStorage } from "./gpu-draw";
 import {
@@ -141,7 +141,7 @@ function nextTableCapacity(count: number): number {
 export interface ElementHighlightSync {
   readonly device: GPUDevice;
   readonly draw: DrawResources;
-  readonly runtime: SceneRuntime;
+  readonly runtime: PackedSceneRuntime;
   readonly layout: InstanceLayout;
   readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
   readonly parts: ReadonlyMap<PartId, Part>;

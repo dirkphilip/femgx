@@ -1,5 +1,5 @@
 import type { InteractionState } from "../interaction/interaction";
-import type { SceneRuntime } from "../scene-runtime/runtime";
+import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { InstanceId, PartId } from "../scene/types";
 
 /**
@@ -12,7 +12,7 @@ import type { InstanceId, PartId } from "../scene/types";
  * Slots are returned in ascending order with no duplicates.
  */
 export function changedInstanceSlots(
-  runtime: SceneRuntime,
+  runtime: PackedSceneRuntime,
   previous: InteractionState,
   next: InteractionState,
 ): number[] {

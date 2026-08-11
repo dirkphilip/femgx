@@ -12,7 +12,7 @@ import {
 import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
 import { translation } from "../../src/math/mat4";
 import { resolvePick } from "../../src/picking/pick";
-import { createSceneRuntime } from "../../src/scene-runtime/runtime";
+import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import {
   BENCH_HIERARCHY_DEPTH,
   BENCH_HIERARCHY_FANOUT,
@@ -40,7 +40,7 @@ const deepScene = makeHierarchyScene({
   partCount: BENCH_PART_COUNT,
 });
 
-const runtime = createSceneRuntime(shallowScene);
+const runtime = createPackedSceneRuntime(shallowScene);
 const runtimeInstances = Array.from(runtime.getDrawList(), (slot, index) => ({
   index,
   instanceId: runtime.getInstanceId(slot) ?? "",
@@ -102,19 +102,19 @@ interface BudgetCase {
  */
 const budgets: readonly BudgetCase[] = [
   {
-    name: "createSceneRuntime",
+    name: "createPackedSceneRuntime",
     description: `packed compile, ${BENCH_INSTANCE_COUNT} instances`,
     budgetMs: 700,
     run: () => {
-      createSceneRuntime(shallowScene);
+      createPackedSceneRuntime(shallowScene);
     },
   },
   {
-    name: "createSceneRuntime (deep hierarchy)",
+    name: "createPackedSceneRuntime (deep hierarchy)",
     description: `nested transforms, ${BENCH_HIERARCHY_INSTANCE_COUNT} instances`,
     budgetMs: 700,
     run: () => {
-      createSceneRuntime(deepScene);
+      createPackedSceneRuntime(deepScene);
     },
   },
   {

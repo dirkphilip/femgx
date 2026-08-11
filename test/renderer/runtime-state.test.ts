@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createPart, type Part } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
-import { createSceneRuntime } from "../../src/scene-runtime/runtime";
+import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createScene } from "../../src/scene/scene";
 import { buildDrawOrder, buildInstanceLayout } from "../../src/renderer/runtime-state";
 
@@ -30,7 +30,7 @@ describe("renderer runtime state", () => {
       })
       .withRoot(1)
       .build();
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     const layout = buildInstanceLayout(runtime);
     expect(layout.instanceCount).toBe(3);
     expect(layout.partOrder).toEqual([1, 2]);
@@ -56,7 +56,7 @@ describe("renderer runtime state", () => {
       })
       .withRoot(1)
       .build();
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     const layout = buildInstanceLayout(runtime);
     expect(Array.from(buildDrawOrder(layout, runtime, 1))).toEqual([0, 1, 2]);
     runtime.setInstanceVisible(1, false);
@@ -77,7 +77,7 @@ describe("renderer runtime state", () => {
       })
       .withRoot(1)
       .build();
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     runtime.setPartVisible(2, false);
     const layout = buildInstanceLayout(runtime);
     expect(Array.from(buildDrawOrder(layout, runtime, 2))).toHaveLength(0);

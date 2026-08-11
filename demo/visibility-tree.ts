@@ -47,30 +47,25 @@ export function assemblyVisibilityState(
   runtime: SceneRuntime,
   assemblyId: AssemblyId,
 ): AssemblyVisibilityState {
-  const { nodeAssemblyIds, nodeEffectiveVisible, nodeFirstChild, nodeNextSibling } = runtime;
   let total = 0;
   let visible = 0;
-  for (let node = 0; node < runtime.nodeCount; node++) {
-    if (nodeAssemblyIds[node] !== assemblyId) {
+  for (const nodeId of runtime.getNodeIds()) {
+    const node = runtime.getNode(nodeId);
+    if (node?.assemblyId !== assemblyId) {
       continue;
     }
-    const stack: number[] = [node];
+    const stack = [nodeId];
     while (stack.length > 0) {
-      const current = stack.pop();
+      const currentId = stack.pop();
+      const current = currentId === undefined ? undefined : runtime.getNode(currentId);
       if (current === undefined) {
         continue;
       }
       total += 1;
-      if (nodeEffectiveVisible[current] === 1) {
+      if (current.effectiveVisible) {
         visible += 1;
       }
-      const firstChild = nodeFirstChild[current];
-      let child = firstChild ?? -1;
-      while (child !== -1) {
-        stack.push(child);
-        const next = nodeNextSibling[child];
-        child = next ?? -1;
-      }
+      stack.push(...current.childIds);
     }
   }
   if (total === 0 || visible === 0) {

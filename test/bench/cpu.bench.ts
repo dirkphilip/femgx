@@ -1,7 +1,7 @@
 import { bench, describe } from "vitest";
 import { translation } from "../../src/math/mat4";
 import { instanceToTarget, resolvePick } from "../../src/picking/pick";
-import { createSceneRuntime } from "../../src/scene-runtime/runtime";
+import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import {
   BENCH_HIERARCHY_DEPTH,
   BENCH_HIERARCHY_FANOUT,
@@ -28,7 +28,7 @@ const deepScene = makeHierarchyScene({
   partCount: BENCH_PART_COUNT,
 });
 
-const runtime = createSceneRuntime(shallowScene);
+const runtime = createPackedSceneRuntime(shallowScene);
 const runtimeInstances = Array.from(runtime.getDrawList(), (slot, index) => ({
   index,
   instanceId: runtime.getInstanceId(slot) ?? "",
@@ -42,13 +42,16 @@ for (let i = 0; i < PICK_COUNT; i++) {
 }
 
 describe("hierarchy compile", () => {
-  bench(`createSceneRuntime ${BENCH_INSTANCE_COUNT} instances`, () => {
-    createSceneRuntime(shallowScene);
+  bench(`createPackedSceneRuntime ${BENCH_INSTANCE_COUNT} instances`, () => {
+    createPackedSceneRuntime(shallowScene);
   });
 
-  bench(`createSceneRuntime deep hierarchy ${BENCH_HIERARCHY_INSTANCE_COUNT} instances`, () => {
-    createSceneRuntime(deepScene);
-  });
+  bench(
+    `createPackedSceneRuntime deep hierarchy ${BENCH_HIERARCHY_INSTANCE_COUNT} instances`,
+    () => {
+      createPackedSceneRuntime(deepScene);
+    },
+  );
 });
 
 describe("scene-runtime updates", () => {

@@ -10,7 +10,10 @@ import { setBodyOverride, setBodyVisible } from "../../src/interaction/bodies";
 import { setFaceSelected } from "../../src/interaction/faces";
 import { setNodeSelected } from "../../src/interaction/nodes";
 import { translation } from "../../src/math/mat4";
-import { createSceneRuntime, type SceneRuntime } from "../../src/scene-runtime/runtime";
+import {
+  createPackedSceneRuntime,
+  type PackedSceneRuntime as SceneRuntime,
+} from "../../src/scene-runtime/runtime";
 import { createScene, type Scene } from "../../src/scene/scene";
 import {
   collectEmphasisUpdates,
@@ -528,7 +531,7 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
     })
     .withRoot(1)
     .build();
-  return { scene, runtime: createSceneRuntime(scene) };
+  return { scene, runtime: createPackedSceneRuntime(scene) };
 }
 
 function partsMap(scene: Scene): Map<number, Part> {
@@ -538,7 +541,7 @@ function partsMap(scene: Scene): Map<number, Part> {
 describe("collectEmphasisUpdates", () => {
   it("maps authored fixture bodies to reusable part-local records", () => {
     const fixture = createBoltedPlateFixture();
-    const runtime = createSceneRuntime(fixture.scene);
+    const runtime = createPackedSceneRuntime(fixture.scene);
     const layout = buildInstanceLayout(runtime);
     const instanceId = runtime.getInstanceId(0);
     if (instanceId === undefined) throw new Error("expected the first fixture instance");

@@ -3,7 +3,7 @@ import type { Vec3 } from "../camera/camera";
 import type { Part } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
 import type { PickGranularity } from "../picking/pick";
-import type { SceneRuntime } from "../scene-runtime/runtime";
+import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId, PickTarget } from "../scene/types";
 import { RendererAttachment } from "./attachment";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./gpu-renderer";
@@ -57,7 +57,11 @@ export class GpuRenderer implements WebGpuRenderer {
     this.resize();
   }
 
-  public render(runtime: SceneRuntime, camera: Camera, parts: ReadonlyMap<PartId, Part>): void {
+  public render(
+    runtime: PackedSceneRuntime,
+    camera: Camera,
+    parts: ReadonlyMap<PartId, Part>,
+  ): void {
     this.ensureAlive();
     const partsChanged = this.sourceParts !== parts;
     const cameraChanged = this.lastCamera !== camera;
@@ -78,7 +82,7 @@ export class GpuRenderer implements WebGpuRenderer {
   }
 
   public updateInstances(
-    runtime: SceneRuntime,
+    runtime: PackedSceneRuntime,
     interaction: InteractionState,
     changedInstanceIds: readonly number[],
   ): void {
@@ -95,7 +99,7 @@ export class GpuRenderer implements WebGpuRenderer {
     }
   }
 
-  public updateElements(runtime: SceneRuntime, interaction: InteractionState): void {
+  public updateElements(runtime: PackedSceneRuntime, interaction: InteractionState): void {
     this.ensureAlive();
     if (this.attachment.updateElements(runtime, interaction, this.lifecycle.bundle, this.parts)) {
       this.pickSnapshotValid = false;
@@ -117,7 +121,10 @@ export class GpuRenderer implements WebGpuRenderer {
     this.orbitPivot = pivot;
   }
 
-  public updateVisibility(runtime: SceneRuntime, changedInstanceIds: readonly number[]): void {
+  public updateVisibility(
+    runtime: PackedSceneRuntime,
+    changedInstanceIds: readonly number[],
+  ): void {
     this.ensureAlive();
     if (this.attachment.updateVisibility(runtime, changedInstanceIds, this.lifecycle.bundle)) {
       this.pickSnapshotValid = false;

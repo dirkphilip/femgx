@@ -15,10 +15,14 @@ export interface StatusTextOptions {
 /** Formats the diagnostics block for the current scene/runtime snapshot. */
 export function statsText(context: WorkbenchSceneContext, options: StatusTextOptions): string {
   const partLines: string[] = [];
-  for (const partId of sortedNumbers(context.partFirstSlot.keys())) {
-    const slot = context.partFirstSlot.get(partId);
-    if (slot === undefined) continue;
-    const visible = context.runtime.instancePartVisible[slot] === 1;
+  const firstInstances = new Map<PartId, { readonly visible: boolean }>();
+  for (const instance of context.runtime.getInstances()) {
+    if (!firstInstances.has(instance.partId)) {
+      firstInstances.set(instance.partId, instance);
+    }
+  }
+  for (const partId of sortedNumbers(firstInstances.keys())) {
+    const visible = firstInstances.get(partId)?.visible ?? false;
     partLines.push(
       `Part ${partId} ${context.preset.partNames.get(partId) ?? ""} · ${visible ? "shown" : "hidden"}`,
     );
@@ -40,9 +44,9 @@ export function statsText(context: WorkbenchSceneContext, options: StatusTextOpt
 /** Triangle count after runtime visibility, including every instance draw. */
 export function visibleTriangleCount(context: WorkbenchSceneContext): number {
   let triangles = 0;
-  for (let slot = 0; slot < context.runtime.instanceCount; slot++) {
-    if (!context.runtime.isInstanceVisible(slot)) continue;
-    triangles += triangleCount(context.preset, context.runtime.instancePartIds[slot]);
+  for (const instance of context.runtime.getInstances()) {
+    if (!instance.visible) continue;
+    triangles += triangleCount(context.preset, instance.partId);
   }
   return triangles;
 }
@@ -61,8 +65,8 @@ export function submittedTriangleCount(
   runtime: WorkbenchSceneContext["runtime"],
 ): number {
   let triangles = 0;
-  for (let slot = 0; slot < runtime.instanceCount; slot++) {
-    triangles += triangleCount(preset, runtime.instancePartIds[slot]);
+  for (const instance of runtime.getInstances()) {
+    triangles += triangleCount(preset, instance.partId);
   }
   return triangles;
 }

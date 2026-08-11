@@ -14,7 +14,10 @@ import { setFaceHighlighted } from "../../src/interaction/faces";
 import { setNodeSelected } from "../../src/interaction/nodes";
 import { translation } from "../../src/math/mat4";
 import { changedInstanceSlots } from "../../src/renderer/interaction-diff";
-import { createSceneRuntime, type SceneRuntime } from "../../src/scene-runtime/runtime";
+import {
+  createPackedSceneRuntime,
+  type PackedSceneRuntime as SceneRuntime,
+} from "../../src/scene-runtime/runtime";
 import { createScene } from "../../src/scene/scene";
 
 /** A two-part scene: three instances of part 1 (slots 0-2) and two of part 2 (slots 3-4). */
@@ -39,7 +42,7 @@ function runtime(): SceneRuntime {
     })
     .withRoot(1)
     .build();
-  return createSceneRuntime(scene);
+  return createPackedSceneRuntime(scene);
 }
 
 describe("changedInstanceSlots", () => {

@@ -99,6 +99,8 @@ range and can participate in element picking and interaction.
 - `PartId` and `AssemblyId` identify registry definitions within a scene.
 - `InstanceId` identifies a placement occurrence and remains stable when
   visibility or draw-order compaction changes.
+- `AssemblyNodeId` identifies one expanded assembly occurrence, including
+  repeated placements of the same assembly definition.
 - `ElementId` is part-local. `FaceId` is part-local and indexes the part's
   face descriptors. `NodeId` is model-local.
 - `BodyId` is part-local. A body groups element membership in reusable geometry;
@@ -132,8 +134,9 @@ the scene.
 ### Visibility and interaction
 
 `setPartVisible`, `setAssemblyNodeVisible`, `setAssemblyVisible`, and
-`setInstanceVisible` update the packed runtime and synchronize only affected
-instance records. Style, selection, hover, and highlight changes are expressed
+`setInstanceVisible` update the derived runtime using stable part, assembly,
+and placement handles, then synchronize only affected instance records. Style,
+selection, hover, and highlight changes are expressed
 as a new `InteractionState` and installed with `setInteraction`. Body visibility
 and emphasis are scoped by placement and body id and use the same immutable
 interaction object.
@@ -197,7 +200,7 @@ Playback, interpolation, and legends are outside the current core API.
 These exports are supported but are not the default composition path:
 
 - `createSceneRuntime` / `SceneRuntime` for hosts that intentionally own
-  runtime compilation and packed storage.
+  runtime compilation and stable-handle queries.
 - `createWebGpuRenderer` / `WebGpuRenderer` for custom renderer lifecycles.
 - `installCameraControls` and the lower-level camera math for custom viewport
   shells.

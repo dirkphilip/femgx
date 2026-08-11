@@ -15,10 +15,11 @@ as a [[architecture/architecture-overview|Part]] and drawn many times via GPU in
 - A compiled assembly expansion is a runtime node. User-facing hierarchy
   controls address that node occurrence (not the shared assembly definition),
   so hiding one fastener does not affect its sibling fasteners.
-- `createSceneRuntime` walks the tree depth-first and emits stable packed slots:
-  each slot stores its `instanceId`, `partId`, and world transform. The draw
-  list is a compact view of visible slots, while the placement handle survives
-  visibility changes.
+- The internal packed compiler walks the tree depth-first and emits stable
+  slots; each slot stores its `instanceId`, `partId`, and world transform. The
+  public `SceneRuntime` resolves those handles without exposing slot storage.
+  The draw list is a compact view of visible slots, while the placement handle
+  survives visibility changes.
 
 ## What the renderer must batch
 

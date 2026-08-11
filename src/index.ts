@@ -126,7 +126,13 @@ export {
   resolveNodeStyle,
 } from "./interaction/nodes";
 export type { BodyRef, FaceRef, NodeRef } from "./interaction/refs";
-export { createSceneRuntime, type SceneRuntime } from "./scene-runtime/runtime";
+export {
+  createSceneRuntime,
+  type RuntimeInstance,
+  type RuntimeNode,
+  type RuntimeVisibilityDelta,
+  type SceneRuntime,
+} from "./scene-runtime/public-runtime";
 export {
   createWebGpuRenderer,
   type WebGpuRenderer,
@@ -212,6 +218,7 @@ export {
 } from "./picking/pick";
 export type {
   AssemblyId,
+  AssemblyNodeId,
   ElementRef,
   FacePickTarget,
   Instance,

@@ -19,7 +19,7 @@ oriented API map, and the root [[../index|wiki index]] is the navigation map.
 | Part instance       | `PartPlacement`        | A reference to a part definition plus a local transform                            |
 | Assembly definition | `NamedAssembly`        | Ordered hierarchy of part and assembly placements                                  |
 | Scene registry      | `Scene`                | Authoritative maps of parts and assemblies plus visibility state                   |
-| Scene runtime       | `SceneRuntime`         | Packed stable instance slots, transforms, visibility, and deltas                   |
+| Scene runtime       | `SceneRuntime`         | Stable placement/assembly-occurrence queries, transforms, visibility, and deltas  |
 | Renderer            | `WebGpuRenderer`       | GPU resources, draw submission, interaction attributes, and picking                |
 
 The API may eventually introduce explicit `PartDefinition` and
@@ -60,7 +60,8 @@ metadata for render and pick paths.
 - Runtime slots and GPU-local slots are implementation details and must not
   leak into the authoring API.
 - The authoritative CPU representation owns the model data; typed arrays in
-  the runtime and GPU buffers are compiled representations.
+  the private packed runtime and GPU buffers are compiled representations. The
+  public `SceneRuntime` exposes stable handles and query objects, not slots.
 
 ## Public API boundary
 

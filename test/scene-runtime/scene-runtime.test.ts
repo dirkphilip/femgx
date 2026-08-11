@@ -3,7 +3,7 @@ import type { Assembly } from "../../src/scene/assembly";
 import { identity, translation } from "../../src/math/mat4";
 import { createPart, type Part } from "../../src/geometry/part";
 import { createScene, type Scene } from "../../src/scene/scene";
-import { createSceneRuntime } from "../../src/scene-runtime/runtime";
+import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 
 function part(id: number): Part {
   const geometry = {
@@ -41,7 +41,7 @@ function buildScene(
   return builder.withRoot(rootAssemblyId).build();
 }
 
-describe("createSceneRuntime", () => {
+describe("createPackedSceneRuntime", () => {
   it("compiles parts, nested assemblies, and composed transforms", () => {
     const scene = buildScene(
       1,
@@ -57,7 +57,7 @@ describe("createSceneRuntime", () => {
       ],
       [1, 2],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     expect(runtime.instanceCount).toBe(2);
     expect(runtime.nodeCount).toBe(2);
     expect(Array.from(runtime.instancePartIds)).toEqual([1, 2]);
@@ -82,7 +82,7 @@ describe("createSceneRuntime", () => {
       [1, 2],
       [2],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     expect(runtime.instanceCount).toBe(2);
     expect(runtime.visibleCount).toBe(1);
     expect(runtime.isInstanceVisible(0)).toBe(true);
@@ -106,7 +106,7 @@ describe("createSceneRuntime", () => {
       ],
       [1],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     expect(Array.from(runtime.getDrawList())).toEqual([0, 1, 2]);
 
     const hidden = runtime.setPartVisible(1, false);
@@ -148,7 +148,7 @@ describe("createSceneRuntime", () => {
       ],
       [1, 2, 3, 4],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     expect(Array.from(runtime.instancePartIds)).toEqual([1, 2, 3, 4]);
     expect(Array.from(runtime.getDrawList())).toEqual([0, 1, 2, 3]);
 
@@ -178,7 +178,7 @@ describe("createSceneRuntime", () => {
       ],
       [1, 2],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     expect(Array.from(runtime.getDrawList())).toEqual([0, 1]);
 
     expect(runtime.setAssemblyVisible(3, false).changedInstanceIds).toEqual([1]);
@@ -203,7 +203,7 @@ describe("createSceneRuntime", () => {
       ],
       [1, 2],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     expect(runtime.setAssemblyVisible(2, false).changedInstanceIds).toEqual([1]);
     expect(runtime.setPartVisible(2, true).changedInstanceIds).toEqual([]);
     expect(runtime.visibleCount).toBe(1);
@@ -230,7 +230,7 @@ describe("createSceneRuntime", () => {
       ],
       [1],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     const delta = runtime.setInstanceVisible(1, false);
     expect(delta.changedInstanceIds).toEqual([1]);
     expect(delta.visibleCount).toBe(2);
@@ -256,7 +256,7 @@ describe("createSceneRuntime", () => {
       ],
       [1],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     expect(runtime.nodeAssemblyIds).toEqual(new Uint32Array([1, 2, 2]));
 
     expect(runtime.setAssemblyNodeVisible(1, false)).toMatchObject({
@@ -274,7 +274,7 @@ describe("createSceneRuntime", () => {
       [{ id: 1, placements: [{ kind: "part", partId: 1, transform: identity() }] }],
       [1],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     expect(runtime.setPartVisible(1, true).changedInstanceIds).toEqual([]);
     expect(runtime.setPartVisible(999, true).changedInstanceIds).toEqual([]);
     expect(runtime.setAssemblyVisible(999, true).changedInstanceIds).toEqual([]);
@@ -304,7 +304,7 @@ describe("createSceneRuntime", () => {
       ],
       [1],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     expect(runtime.setInstanceTransform(1, translation(50, 0, 0))).toEqual({
       changedInstanceIds: [1],
       valid: true,
@@ -333,7 +333,7 @@ describe("createSceneRuntime", () => {
       ],
       [1, 2, 3],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     const initial = Array.from(runtime.getDrawList());
     runtime.setPartVisible(1, false);
     runtime.setAssemblyVisible(2, false);
@@ -358,7 +358,7 @@ describe("createSceneRuntime", () => {
       ],
       [1, 2, 3],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     expect(Array.from(runtime.getDrawList())).toEqual([0, 1, 2]);
     expect(Array.from(runtime.instancePartIds)).toEqual([2, 3, 1]);
     expect(runtime.getInstanceId(0)).toBe("1/0");
@@ -382,7 +382,7 @@ describe("createSceneRuntime", () => {
       [1, 2],
       [2],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     expect(runtime.getInstanceId(0)).toBe("1/0");
     expect(runtime.getInstanceId(1)).toBe("1/1/0");
     expect(runtime.getInstanceId(2)).toBeUndefined();
@@ -402,7 +402,7 @@ describe("createSceneRuntime", () => {
       visiblePartIds: new Set(),
       visibleAssemblyIds: new Set([1]),
     };
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     expect(runtime.nodeCount).toBe(1);
     expect(runtime.instanceCount).toBe(0);
     expect(runtime.visibleCount).toBe(0);
@@ -424,7 +424,7 @@ describe("createSceneRuntime", () => {
       ],
       [1],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     expect(runtime.instanceCount).toBe(2);
     expect(runtime.nodeCount).toBe(3);
     expect(runtime.setAssemblyVisible(2, false).changedInstanceIds).toEqual([0, 1]);
@@ -446,7 +446,7 @@ describe("createSceneRuntime", () => {
       ],
       [1, 2],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     expect(runtime.setAssemblyVisible(1, false).changedInstanceIds).toEqual([0, 1]);
     expect(runtime.visibleCount).toBe(0);
     expect(runtime.setAssemblyVisible(1, true).changedInstanceIds).toEqual([0, 1]);
@@ -477,7 +477,7 @@ describe("createSceneRuntime", () => {
         ],
         [1, 2, 3],
       );
-      const runtime = createSceneRuntime(scene);
+      const runtime = createPackedSceneRuntime(scene);
       expect(runtime.getTransform(0)?.[12]).toBe(101);
       expect(runtime.getTransform(1)?.[12]).toBe(111);
       expect(runtime.getTransform(2)?.[12]).toBe(1001);
@@ -519,7 +519,7 @@ describe("createSceneRuntime", () => {
         ],
         [1],
       );
-      const runtime = createSceneRuntime(scene);
+      const runtime = createPackedSceneRuntime(scene);
       expect(runtime.getTransform(0)?.[12]).toBe(5);
       expect(runtime.getTransform(1)?.[12]).toBe(5);
 
@@ -546,7 +546,7 @@ describe("createSceneRuntime", () => {
         ],
         [1, 2],
       );
-      const runtime = createSceneRuntime(scene);
+      const runtime = createPackedSceneRuntime(scene);
       expect(runtime.setNodeTransform(0, translation(10, 0, 0))).toEqual({
         changedInstanceIds: [0, 1],
         valid: true,
@@ -572,7 +572,7 @@ describe("createSceneRuntime", () => {
         ],
         [1, 2],
       );
-      const runtime = createSceneRuntime(scene);
+      const runtime = createPackedSceneRuntime(scene);
       expect(runtime.setNodeTransform(1, translation(100, 0, 0))).toEqual({
         changedInstanceIds: [],
         valid: true,
@@ -608,7 +608,7 @@ describe("createSceneRuntime", () => {
         ],
         [1],
       );
-      const runtime = createSceneRuntime(scene);
+      const runtime = createPackedSceneRuntime(scene);
       expect(runtime.setInstanceTransform(0, translation(10, 0, 0))).toEqual({
         changedInstanceIds: [0],
         valid: true,
@@ -635,7 +635,7 @@ describe("createSceneRuntime", () => {
         [1],
         [1],
       );
-      const runtime = createSceneRuntime(scene);
+      const runtime = createPackedSceneRuntime(scene);
       expect(runtime.visibleCount).toBe(0);
       expect(runtime.instanceCount).toBe(1);
       expect(runtime.setNodeTransform(1, translation(200, 0, 0))).toEqual({
@@ -662,7 +662,7 @@ describe("createSceneRuntime", () => {
       ],
       [1],
     );
-    const runtime = createSceneRuntime(scene);
+    const runtime = createPackedSceneRuntime(scene);
     const initial = Array.from(runtime.getDrawList());
     expect(initial).toEqual([0, 1, 2]);
     expect(runtime.setNodeTransform(0, translation(5, 0, 0)).changedInstanceIds).toEqual([0, 1, 2]);

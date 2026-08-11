@@ -23,19 +23,17 @@ export function selectedWorldBounds(
 
   const selectedParts = interaction.selectedPartIds;
   const bounds = emptyBounds();
-  for (let slot = 0; slot < runtime.instanceCount; slot++) {
-    const instanceId = runtime.getInstanceId(slot);
-    const partId = runtime.instancePartIds[slot];
+  for (const instanceId of runtime.getInstanceIds()) {
+    const partId = runtime.getPartId(instanceId);
     if (
-      instanceId === undefined ||
       partId === undefined ||
       (!selectedInstances.has(instanceId) && !selectedParts.has(partId)) ||
-      !runtime.isInstanceVisible(slot)
+      !runtime.isInstanceVisible(instanceId)
     ) {
       continue;
     }
     const part = scene.parts.get(partId);
-    const transform = runtime.getTransform(slot);
+    const transform = runtime.getTransform(instanceId);
     if (part === undefined || transform === undefined) continue;
     for (const corner of boundCorners(part.bounds)) {
       include(bounds, transformPoint(transform, corner[0], corner[1], corner[2]));

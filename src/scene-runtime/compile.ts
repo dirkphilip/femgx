@@ -1,5 +1,5 @@
 import type { Scene } from "../scene/scene";
-import type { AssemblyId } from "../scene/types";
+import type { AssemblyId, AssemblyNodeId } from "../scene/types";
 import { buildSceneDrafts, type InstanceDraft, type NodeDraft } from "./drafts";
 
 /**
@@ -11,6 +11,7 @@ import { buildSceneDrafts, type InstanceDraft, type NodeDraft } from "./drafts";
 export interface RuntimeState {
   readonly rootAssemblyId: AssemblyId;
   readonly nodeCount: number;
+  readonly nodeNodeIds: readonly AssemblyNodeId[];
   readonly instanceCount: number;
   readonly nodeAssemblyIds: Uint32Array;
   readonly nodeParents: Int32Array;
@@ -43,6 +44,7 @@ export interface RuntimeState {
 type PackedNodes = Pick<
   RuntimeState,
   | "nodeCount"
+  | "nodeNodeIds"
   | "nodeAssemblyIds"
   | "nodeParents"
   | "nodeFirstChild"
@@ -75,6 +77,7 @@ interface KeyedGroupIndex {
 
 function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
   const count = nodes.length;
+  const nodeNodeIds: AssemblyNodeId[] = [];
   const nodeAssemblyIds = new Uint32Array(count);
   const nodeParents = new Int32Array(count);
   const nodeFirstChild = new Int32Array(count);
@@ -91,6 +94,7 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
       continue;
     }
     nodeAssemblyIds[i] = node.assemblyId;
+    nodeNodeIds.push(node.nodeId);
     nodeParents[i] = node.parent;
     nodeFirstChild[i] = node.firstChild;
     nodeNextSibling[i] = node.nextSibling;
@@ -103,6 +107,7 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
   }
   return {
     nodeCount: count,
+    nodeNodeIds,
     nodeAssemblyIds,
     nodeParents,
     nodeFirstChild,

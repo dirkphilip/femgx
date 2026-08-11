@@ -9,7 +9,7 @@ import {
 import { emphasizedBodyRefs, isBodyVisible } from "../interaction/bodies";
 import { emphasizedFaceRefs, resolveFaceStyle } from "../interaction/faces";
 import { emphasizedNodeRefs, resolveNodeStyle } from "../interaction/nodes";
-import type { SceneRuntime } from "../scene-runtime/runtime";
+import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Instance, InstanceId, PartId } from "../scene/types";
 import { BODY_HIGHLIGHT_MARKER } from "./gpu-highlight-table";
 import { defaultStyle } from "./gpu-support";
@@ -154,7 +154,7 @@ export function encodeBodyHighlight(
  * the GPU.
  */
 export function collectEmphasisUpdates(
-  runtime: SceneRuntime,
+  runtime: PackedSceneRuntime,
   layout: InstanceLayout,
   slotByInstanceId: ReadonlyMap<InstanceId, number>,
   parts: ReadonlyMap<PartId, Part>,
@@ -201,7 +201,7 @@ function collectBodyEmphasis(
 
 /** The occurrence-resolution inputs shared by every emphasis collector. */
 interface EmphasisContext {
-  readonly runtime: SceneRuntime;
+  readonly runtime: PackedSceneRuntime;
   readonly layout: InstanceLayout;
   readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
 }

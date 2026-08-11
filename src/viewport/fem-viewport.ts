@@ -13,9 +13,10 @@ import type { PickGranularity } from "../picking/pick";
 import { defaultDeformation } from "../renderer/gpu-deform";
 import { createWebGpuRenderer, type WebGpuRenderer } from "../renderer/gpu-renderer";
 import { changedInstanceSlots } from "../renderer/interaction-diff";
-import { createSceneRuntime, type SceneRuntime } from "../scene-runtime/runtime";
+import { createPackedSceneRuntime, type PackedSceneRuntime } from "../scene-runtime/runtime";
+import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/public-runtime";
 import type { Scene } from "../scene/scene";
-import type { AssemblyId, PartId, PickTarget } from "../scene/types";
+import type { AssemblyId, AssemblyNodeId, InstanceId, PartId, PickTarget } from "../scene/types";
 import { sceneWorldBounds } from "./scene-bounds";
 import {
   applyViewportResultInteraction,
@@ -58,9 +59,9 @@ export interface FemViewport {
   setEdgeDepthTest(enabled: boolean): void;
   setNodeOverlay(enabled: boolean): void;
   setPartVisible(partId: PartId, visible: boolean): void;
-  setAssemblyNodeVisible(nodeId: number, visible: boolean): void;
+  setAssemblyNodeVisible(nodeId: AssemblyNodeId, visible: boolean): void;
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void;
-  setInstanceVisible(instanceId: number, visible: boolean): void;
+  setInstanceVisible(instanceId: InstanceId, visible: boolean): void;
   pick(x: number, y: number, granularity?: PickGranularity): Promise<PickTarget | undefined>;
   pickPoint(x: number, y: number): Promise<Vec3 | undefined>;
   resize(): void;
@@ -92,7 +93,8 @@ export async function createFemViewport(options: FemViewportOptions): Promise<Fe
 
 class FemViewportCore implements FemViewport {
   private currentScene: Scene;
-  private currentRuntime: SceneRuntime;
+  private currentRuntime: PackedSceneRuntime;
+  private currentPublicRuntime: SceneRuntime;
   private cameraRef: { camera: Camera };
   private baseInteraction: InteractionState;
   private currentInteraction: InteractionState;
@@ -111,7 +113,8 @@ class FemViewportCore implements FemViewport {
     private readonly renderer: WebGpuRenderer,
   ) {
     this.currentScene = options.scene;
-    this.currentRuntime = createSceneRuntime(options.scene);
+    this.currentRuntime = createPackedSceneRuntime(options.scene);
+    this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
     this.baseInteraction = options.interaction ?? createInteractionState();
     this.currentInteraction = this.baseInteraction;
     this.cameraRef = { camera: options.camera ?? createCamera() };
@@ -140,7 +143,7 @@ class FemViewportCore implements FemViewport {
     return this.currentScene;
   }
   get runtime(): SceneRuntime {
-    return this.currentRuntime;
+    return this.currentPublicRuntime;
   }
   get camera(): Camera {
     return this.cameraRef.camera;
@@ -155,7 +158,8 @@ class FemViewportCore implements FemViewport {
   setScene(scene: Scene): void {
     this.ensureAlive();
     this.currentScene = scene;
-    this.currentRuntime = createSceneRuntime(scene);
+    this.currentRuntime = createPackedSceneRuntime(scene);
+    this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
     this.pendingVisibility.clear();
     this.currentResults = undefined;
     this.currentInteraction = this.baseInteraction;
@@ -241,21 +245,23 @@ class FemViewportCore implements FemViewport {
   }
 
   setPartVisible(partId: PartId, visible: boolean): void {
-    this.applyVisibility(this.currentRuntime.setPartVisible(partId, visible).changedInstanceIds);
-  }
-  setAssemblyNodeVisible(nodeId: number, visible: boolean): void {
     this.applyVisibility(
-      this.currentRuntime.setAssemblyNodeVisible(nodeId, visible).changedInstanceIds,
+      this.currentPublicRuntime.setPartVisible(partId, visible).changedInstanceIds,
+    );
+  }
+  setAssemblyNodeVisible(nodeId: AssemblyNodeId, visible: boolean): void {
+    this.applyVisibility(
+      this.currentPublicRuntime.setAssemblyNodeVisible(nodeId, visible).changedInstanceIds,
     );
   }
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void {
     this.applyVisibility(
-      this.currentRuntime.setAssemblyVisible(assemblyId, visible).changedInstanceIds,
+      this.currentPublicRuntime.setAssemblyVisible(assemblyId, visible).changedInstanceIds,
     );
   }
-  setInstanceVisible(instanceId: number, visible: boolean): void {
+  setInstanceVisible(instanceId: InstanceId, visible: boolean): void {
     this.applyVisibility(
-      this.currentRuntime.setInstanceVisible(instanceId, visible).changedInstanceIds,
+      this.currentPublicRuntime.setInstanceVisible(instanceId, visible).changedInstanceIds,
     );
   }
 
@@ -344,13 +350,17 @@ class FemViewportCore implements FemViewport {
     };
   }
 
-  private applyVisibility(changed: readonly number[]): void {
+  private applyVisibility(changed: readonly InstanceId[]): void {
     this.ensureAlive();
     if (changed.length === 0) return;
+    const changedSlots = changed.flatMap((instanceId) => {
+      const slot = this.currentRuntime.getInstanceSlot(instanceId);
+      return slot === undefined ? [] : [slot];
+    });
     if (this.batchDepth > 0) {
-      for (const slot of changed) this.pendingVisibility.add(slot);
+      for (const slot of changedSlots) this.pendingVisibility.add(slot);
     } else {
-      this.renderer.updateVisibility(this.currentRuntime, changed);
+      this.renderer.updateVisibility(this.currentRuntime, changedSlots);
     }
     this.invalidate();
   }

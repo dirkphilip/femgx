@@ -1,4 +1,4 @@
-import type { SceneRuntime } from "../scene-runtime/runtime";
+import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Instance, InstanceId, PartId } from "../scene/types";
 import type { DrawCall } from "./gpu-draw";
 
@@ -24,7 +24,7 @@ export interface InstanceLayout {
 }
 
 /** Builds the stable slot/part layout and current visibility counts. */
-export function buildInstanceLayout(runtime: SceneRuntime): InstanceLayout {
+export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout {
   const instanceCount = runtime.instanceCount;
   const slotPartLocal = new Int32Array(instanceCount).fill(-1);
   const grouped = new Map<PartId, number[]>();
@@ -70,7 +70,7 @@ export function buildInstanceLayout(runtime: SceneRuntime): InstanceLayout {
 /** Returns the visible part-local slots of a part in ascending draw order. */
 export function buildDrawOrder(
   layout: InstanceLayout,
-  runtime: SceneRuntime,
+  runtime: PackedSceneRuntime,
   partId: PartId,
 ): Uint32Array {
   const slots = layout.partSlots.get(partId);
@@ -91,7 +91,7 @@ export function buildDrawOrder(
  */
 export function buildEdgeOrder(
   layout: InstanceLayout,
-  runtime: SceneRuntime,
+  runtime: PackedSceneRuntime,
   partId: PartId,
   edgeFlags: readonly boolean[],
 ): Uint32Array {
@@ -113,7 +113,7 @@ export function buildEdgeOrder(
 }
 
 /** Describes one placed part with a world-transform view into the runtime. */
-export function instanceAt(runtime: SceneRuntime, slot: number, partId: PartId): Instance {
+export function instanceAt(runtime: PackedSceneRuntime, slot: number, partId: PartId): Instance {
   return {
     index: slot,
     instanceId: runtime.getInstanceId(slot) ?? String(slot),
@@ -129,7 +129,7 @@ export interface InstanceSnapshot {
 }
 
 /** Snapshots every placed instance for CPU-side pick resolution. */
-export function buildInstanceSnapshot(runtime: SceneRuntime): InstanceSnapshot {
+export function buildInstanceSnapshot(runtime: PackedSceneRuntime): InstanceSnapshot {
   const instances: Instance[] = [];
   const slotByInstanceId = new Map<InstanceId, number>();
   for (let slot = 0; slot < runtime.instanceCount; slot++) {

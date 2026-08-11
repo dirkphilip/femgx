@@ -1,11 +1,11 @@
 import {
   createCamera,
-  createSceneRuntime,
   createWebGpuRenderer,
   fitCamera,
   type Camera,
   type WebGpuRenderer,
 } from "../src/index";
+import { createPackedSceneRuntime } from "../src/scene-runtime/runtime";
 import {
   benchmarkCaseSpecs,
   createBenchmarkCase,
@@ -118,7 +118,7 @@ async function measureCase(
   device: GPUDevice,
   benchmarkCase: WebGpuBenchmarkCase,
 ): Promise<WebGpuBenchmarkCaseResult> {
-  const runtime = createSceneRuntime(benchmarkCase.scene);
+  const runtime = createPackedSceneRuntime(benchmarkCase.scene);
   const part = benchmarkCase.scene.parts.values().next().value;
   if (part === undefined) throw new Error(`${benchmarkCase.id} has no part`);
   const uniqueTriangles = part.geometry.indices.length / 3;
@@ -149,7 +149,7 @@ async function measureIteration(
   canvas: HTMLCanvasElement,
   device: GPUDevice,
   benchmarkCase: WebGpuBenchmarkCase,
-  runtime: ReturnType<typeof createSceneRuntime>,
+  runtime: ReturnType<typeof createPackedSceneRuntime>,
   camera: Camera,
 ): Promise<Record<keyof SampleSet, number>> {
   const renderer = await createWebGpuRenderer({ canvas, device });

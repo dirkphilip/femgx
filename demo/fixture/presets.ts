@@ -3,7 +3,7 @@ import type { Bounds } from "../../src/geometry/part";
 import type { Color } from "../../src/interaction/interaction";
 import { transformPoint } from "../../src/math/mat4";
 import type { Scene } from "../../src/scene/scene";
-import { createSceneRuntime } from "../../src/scene-runtime/runtime";
+import { createSceneRuntime } from "../../src/index";
 import type { PartId } from "../../src/scene/types";
 import type { ViewportResultsConfig } from "../../src/viewport/results";
 import { createBoltedPlateFixture } from "./bolted-plate";
@@ -195,9 +195,9 @@ export function createDefaultPreset(): ModelPreset {
 function fixtureBounds(scene: Scene): Bounds {
   const runtime = createSceneRuntime(scene);
   let result: Bounds | undefined;
-  for (const slot of runtime.getDrawList()) {
-    const partId = runtime.getPartId(slot);
-    const transform = runtime.getTransform(slot);
+  for (const instanceId of runtime.getDrawList()) {
+    const partId = runtime.getPartId(instanceId);
+    const transform = runtime.getTransform(instanceId);
     const part = partId === undefined ? undefined : scene.parts.get(partId);
     if (part === undefined || transform === undefined) continue;
     const bounds = transformBounds(part.bounds, transform);

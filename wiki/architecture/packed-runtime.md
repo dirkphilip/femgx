@@ -6,8 +6,17 @@ visibility updates.
 
 ## What it provides
 
-`createSceneRuntime(scene)` (in `src/scene-runtime/`) returns a `SceneRuntime`
-that stores, in typed arrays indexed by stable **instance id**:
+`createSceneRuntime(scene)` returns the stable-handle `SceneRuntime` public
+boundary. Its renderer-owned packed counterpart is created internally by
+`createPackedSceneRuntime` and is not part of the package root API.
+
+The public runtime exposes stable instance and assembly-occurrence handles via
+`getInstances()`, `getNodes()`, `getInstance(instanceId)`, and
+`getNode(nodeId)`. Visibility and transform mutations accept those same
+handles, and `getDrawList()` returns stable instance handles.
+
+The internal packed representation stores, in typed arrays indexed by private
+slots:
 
 - world transforms (`instanceWorldTransforms`, 16 floats per instance),
 - local placement transforms (`instanceLocalTransforms`) and composed node
@@ -18,22 +27,21 @@ that stores, in typed arrays indexed by stable **instance id**:
 - per-instance visibility bits (`instanceVisible`) plus a contiguous subtree
   instance range per node (`nodeInstanceStart/End`).
 
-Instance ids are slots over the **full** depth-first placement list, including
-currently hidden placements, so they never change when visibility changes. This
-decouples the stable pick identity from the compacted draw list. The packed
-compiler is the only placement-path algorithm and updates persistent runtime
-state in place after the initial compile.
+The packed compiler is the only placement-path algorithm and updates persistent
+runtime state in place after the initial compile. Stable placement paths are
+resolved through runtime-owned reverse maps; callers never need to know the
+slot layout.
 
 ## Visibility deltas
 
-Updates apply immediately and return a `VisibilityDelta`:
+Updates apply immediately and return a stable-handle visibility delta:
 
 - `setPartVisible(partId, visible)` — flips the authoring part flag of that
   part's instance slots.
 - `setAssemblyVisible(assemblyId, visible)` — flips node authoring visibility
   and recomputes the affected subtree (short-circuits when effective visibility
   is unchanged).
-- `setInstanceVisible(instanceId, visible)` — per-slot override.
+- `setInstanceVisible(instanceId, visible)` — per-placement override.
 
 Effective visibility is `instanceOverride && partVisible && every ancestor node
 visible` (bottom-up inheritance, unchanged from the authoring model). Hiding an
@@ -42,8 +50,9 @@ hidden ancestor. Updates touch only the affected instance slots and report the
 changed ids plus before/after `visibleCount`; geometry and the instance list are
 never rebuilt.
 
-`getDrawList()` returns the visible instance slots in deterministic depth-first
-placement order.
+The internal renderer receives affected packed slots derived from the stable
+delta. Public callers receive visible instance handles in deterministic
+depth-first placement order.
 
 ## Transform updates
 
@@ -67,8 +76,8 @@ touched by transform edits, so `getDrawList()` stays deterministic and
 `VisibilityDelta`s remain consistent. Hidden instances keep valid world
 transforms so they render correctly when shown later.
 
-`getInstanceId(slot)` resolves a stable instance slot back to its authoring
-placement handle, which lets
+The internal runtime maintains both slot → handle and handle → slot maps. This
+lets
 the [[rendering/renderer-subrange-updates|renderer]] map interaction state and pick hits
 back to slots.
 
@@ -80,12 +89,6 @@ back to slots.
   valid input but still skips missing assemblies defensively.
 - The typed arrays are read-only views; mutating them desynchronizes
   `visibleCount`.
-
-## Future work
-
-- Add a reverse `instanceId` → slot lookup so apps can map interaction changes
-  (keyed by stable handle) to slots for `updateInstances` without iterating all
-  slots. Today `getInstanceId(slot)` resolves slot → handle only.
 
 Visibility deltas are now wired to GPU subrange updates in the
 [[rendering/renderer-subrange-updates|renderer]].

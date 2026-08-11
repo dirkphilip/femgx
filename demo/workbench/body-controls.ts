@@ -2,7 +2,7 @@ import type { BodyId, InstanceId } from "../../src/index";
 
 /** Creates the compact part-level control for a multi-body placement. */
 export function createBodyGroupAction(
-  slot: number,
+  displayId: number,
   instanceId: InstanceId,
   bodyIds: readonly BodyId[],
 ): HTMLButtonElement {
@@ -10,10 +10,9 @@ export function createBodyGroupAction(
   button.type = "button";
   button.className = "visibility-body-group-action";
   button.dataset["bodyGroupAction"] = "visibility";
-  button.dataset["bodyInstanceSlot"] = String(slot);
   button.dataset["bodyInstanceId"] = instanceId;
   button.dataset["bodyGroupBodyIds"] = bodyIds.join(",");
-  button.dataset["testid"] = `body-group-${slot}`;
+  button.dataset["testid"] = `body-group-${displayId}`;
   button.setAttribute("aria-label", "Toggle all bodies");
   return button;
 }
