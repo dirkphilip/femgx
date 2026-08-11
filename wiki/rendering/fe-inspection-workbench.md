@@ -64,13 +64,16 @@ controller, so camera and interaction behavior is stable
   demo-side `emphasis.ts` fold was removed. `elementOverrides` now holds only
   explicit element highlights set through `setElementOverride`
   ([[architecture/demo-library-boundary|Demo / library boundary]]).
-- Display toggles (edges, diagnostics) flip renderer state only; they never
+- Display toggles (edges, nodes, diagnostics) flip renderer state only; they never
   rebuild reusable geometry or drop selection state. The `edges` overlay is a
   real WebGPU pass with a depth-test control that stays live. Coplanar overlay
   edges are offset in clip space in their vertex shader, rather than using a
   second surface or a backend-dependent pipeline depth bias. Shell triangles
   are two-sided by default, so a genuine 2D FE surface remains visible from
-  either side
+  either side. Every ordinary product story starts with edges and finite-element
+  node annotations enabled; startup, preset switches, and Reset use the same
+  inspection-first defaults and reapply per-part edge overrides after replacing
+  the scene
   ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
 - Part rows with multiple placements expose a collapsed `Instance` list. Each
   instance checkbox updates that one runtime slot, preserving the ability to

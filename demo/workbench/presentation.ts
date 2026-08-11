@@ -77,6 +77,7 @@ export class WorkbenchPresentation {
     this.options.view.edgeOverlayToggle.dataset["active"] = String(enabled);
     this.options.view.edgeOverlayToggle.setAttribute("aria-pressed", String(enabled));
     this.options.view.edgeOverlayToggle.textContent = enabled ? "Hide edges" : "Overlay edges";
+    this.options.canvas.dataset["edges"] = String(enabled);
   }
 
   reflectNodes(): void {
@@ -88,6 +89,7 @@ export class WorkbenchPresentation {
     this.options.view.nodeOverlayToggle.textContent = enabled
       ? "Hide element nodes"
       : "Show element nodes";
+    this.options.canvas.dataset["nodes"] = String(enabled);
   }
 
   reflectDepthTest(enabled: boolean): void {

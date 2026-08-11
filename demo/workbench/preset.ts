@@ -8,12 +8,10 @@ import {
 import type { ModelPreset } from "../fixture/presets";
 
 /** Creates the deterministic palette state for one demo model preset. */
-export function createPresetInteraction(preset: ModelPreset): InteractionState {
+export function createPresetInteraction(preset: ModelPreset, edges = false): InteractionState {
   let state = createInteractionState();
   for (const partId of preset.scene.parts.keys()) {
-    state = setPartOverride(state, partId, {
-      color: preset.partColors.get(partId) ?? preset.fallbackColor,
-    });
+    state = setPartOverride(state, partId, partStyleOverride(preset, partId, edges));
   }
   return state;
 }

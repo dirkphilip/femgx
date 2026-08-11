@@ -23,7 +23,12 @@ import {
 import { WorkbenchPresentation } from "./workbench/presentation";
 import { WorkbenchVisibilityActions } from "./workbench/visibility-actions";
 import { createPresetInteraction, partStyleOverride } from "./workbench/preset";
-import type { DisplayToggles, ResultDisplayMode, WorkbenchOptions } from "./workbench/types";
+import {
+  createDefaultDisplayToggles,
+  type DisplayToggles,
+  type ResultDisplayMode,
+  type WorkbenchOptions,
+} from "./workbench/types";
 
 export type {
   DisplayToggles,
@@ -152,15 +157,11 @@ export class WorkbenchController {
     if (initialPreset === undefined) throw new Error("Workbench requires at least one preset");
     this.preset = initialPreset;
     this.mode = "solid";
-    this.toggles = {
-      edges: false,
-      nodes: false,
-      diagnostics: false,
-    };
+    this.toggles = createDefaultDisplayToggles();
     this.resultMode = this.preset.results === undefined ? "base" : "deformed";
-    this.interaction = createPresetInteraction(this.preset);
+    this.interaction = createPresetInteraction(this.preset, true);
     this.applyResultMode(false);
-    this.viewport.setInteraction(this.interaction);
+    this.applyCurrentDisplayState();
     this.applyModeVisibility();
     this.presentation.populateModelSelect(this.presets);
     this.visibilityPanel.rebuild();
@@ -183,9 +184,7 @@ export class WorkbenchController {
   setViewport(viewport: FemViewport): void {
     this.viewport = viewport;
     this.applyResultMode(false);
-    this.viewport.setInteraction(this.interaction);
-    this.viewport.setEdgeDepthTest(this.depthTestEnabled);
-    this.viewport.setNodeOverlay(this.toggles.nodes);
+    this.applyCurrentDisplayState();
     this.applyModeVisibility();
     this.visibilityPanel.rebuild();
     this.render();
@@ -214,12 +213,13 @@ export class WorkbenchController {
     if (preset === undefined) return;
     this.preset = preset;
     this.mode = "solid";
+    this.toggles = createDefaultDisplayToggles();
     this.resultMode = preset.results === undefined ? "base" : "deformed";
-    this.interaction = createPresetInteraction(preset);
+    this.interaction = createPresetInteraction(preset, true);
     this.interactionController.clearContext();
     this.viewport.setScene(preset.scene);
     this.applyResultMode(false);
-    this.viewport.setInteraction(this.interaction);
+    this.applyCurrentDisplayState();
     this.applyModeVisibility();
     this.visibilityPanel.rebuild();
     this.presentation.populateModelSelect(this.presets);
@@ -253,12 +253,7 @@ export class WorkbenchController {
   setEdges(enabled: boolean): void {
     if (this.toggles.edges === enabled) return;
     this.toggles.edges = enabled;
-    let state = this.interaction;
-    for (const partId of this.preset.scene.parts.keys()) {
-      state = setPartOverride(state, partId, partStyleOverride(this.preset, partId, enabled));
-    }
-    this.interaction = state;
-    this.presentation.reflectEdges();
+    this.applyCurrentDisplayState();
     this.render();
   }
 
@@ -266,8 +261,7 @@ export class WorkbenchController {
   setNodes(enabled: boolean): void {
     if (this.toggles.nodes === enabled) return;
     this.toggles.nodes = enabled;
-    this.viewport.setNodeOverlay(enabled);
-    this.presentation.reflectNodes();
+    this.applyCurrentDisplayState();
     this.render();
   }
 
@@ -294,10 +288,10 @@ export class WorkbenchController {
   /** Restores the complete initial workbench state for the active preset. */
   reset(): void {
     this.mode = "solid";
-    this.toggles = { edges: false, nodes: false, diagnostics: false };
+    this.toggles = createDefaultDisplayToggles();
     this.depthTestEnabled = true;
     this.resultMode = this.preset.results === undefined ? "base" : "deformed";
-    this.interaction = createPresetInteraction(this.preset);
+    this.interaction = createPresetInteraction(this.preset, true);
     this.interactionController.clearContext();
     this.applyResultMode(false);
     for (const nodeId of this.runtime.getNodeIds()) {
@@ -308,15 +302,10 @@ export class WorkbenchController {
       this.viewport.setInstanceVisible(instanceId, true);
     }
     this.applyModeVisibility();
-    this.viewport.setEdgeDepthTest(true);
-    this.viewport.setNodeOverlay(false);
+    this.applyCurrentDisplayState();
     this.viewport.fitView();
     this.viewport.setCamera(setProjection(this.viewport.camera, "perspective"));
     this.visibilityPanel.rebuild();
-    this.presentation.reflectEdges();
-    this.presentation.reflectResults();
-    this.presentation.reflectNodes();
-    this.presentation.reflectDepthTest(this.depthTestEnabled);
     this.canvas.dataset["mode"] = this.mode;
     this.canvas.dataset["hovered"] = "";
     this.canvas.dataset["selected"] = "";
@@ -375,9 +364,7 @@ export class WorkbenchController {
         this.setPreset(id);
       },
     });
-    this.presentation.reflectEdges();
-    this.presentation.reflectDepthTest(this.depthTestEnabled);
-    this.presentation.reflectNodes();
+    this.reflectDisplayControls();
   }
 
   /** Cycles the results preset through base, colored, and deformed states. */
@@ -406,6 +393,31 @@ export class WorkbenchController {
     }
     this.presentation.reflectResults();
     if (render) this.render();
+  }
+
+  /** Applies all model/display state to the active viewport before rendering. */
+  private applyCurrentDisplayState(): void {
+    let state = this.interaction;
+    for (const partId of this.preset.scene.parts.keys()) {
+      state = setPartOverride(
+        state,
+        partId,
+        partStyleOverride(this.preset, partId, this.toggles.edges),
+      );
+    }
+    this.interaction = state;
+    this.viewport.setInteraction(state);
+    this.viewport.setEdgeDepthTest(this.depthTestEnabled);
+    this.viewport.setNodeOverlay(this.toggles.nodes);
+    this.reflectDisplayControls();
+  }
+
+  /** Reflects every display control from authoritative controller/viewport state. */
+  private reflectDisplayControls(): void {
+    this.presentation.reflectEdges();
+    this.presentation.reflectNodes();
+    this.presentation.reflectResults();
+    this.presentation.reflectDepthTest(this.depthTestEnabled);
   }
 
   private applyMenuAction(action: string): void {

@@ -8,6 +8,7 @@ import {
   createVtkPreset,
   visiblePartIdsForPreset,
 } from "../../../demo/fixture/presets";
+import { createPresetInteraction } from "../../../demo/workbench/preset";
 
 describe("createModelPresets", () => {
   it("offers the five supported product stories in stable order", () => {
@@ -77,6 +78,19 @@ describe("createBoltedPlatePreset", () => {
     const preset = createBoltedPlatePreset();
     expect(preset.modePartIds.get("solid")).toEqual([1, 4, 7, 10]);
     expect(preset.partNames.get(4)).toBe("Bolts");
+  });
+});
+
+describe("createPresetInteraction", () => {
+  it("can seed the per-part edge override for a new scene", () => {
+    const preset = createBoltedPlatePreset();
+    const withoutEdges = createPresetInteraction(preset);
+    const withEdges = createPresetInteraction(preset, true);
+
+    for (const partId of preset.scene.parts.keys()) {
+      expect(withoutEdges.partOverrides.get(partId)?.edge).toBeUndefined();
+      expect(withEdges.partOverrides.get(partId)?.edge).toBe(true);
+    }
   });
 });
 
