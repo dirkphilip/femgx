@@ -1,6 +1,8 @@
+import { viewProjectionMatrix, type Camera, type Vec3 } from "../camera/camera";
+import { transformPoint } from "../math/mat4";
 import { COLOR_SAMPLE_COUNT } from "./gpu-support";
 
-/** GPU resources for the library-owned screen-space camera-pivot indicator. */
+/** GPU resources for the library-owned screen-space camera-pivot widget. */
 export interface OrbitPivotResources {
   readonly buffer: GPUBuffer;
   readonly bindGroup: GPUBindGroup;
@@ -8,7 +10,47 @@ export interface OrbitPivotResources {
   readonly pipeline: GPURenderPipeline;
 }
 
-/** Creates the always-visible ring rendered at an active camera pivot. */
+/** Pixel dimensions for one high-DPI-stable axis widget. */
+export interface OrbitPivotMetrics {
+  readonly axisLength: number;
+  readonly lineWidth: number;
+  readonly arrowLength: number;
+  readonly arrowWidth: number;
+}
+
+/** Returns the widget dimensions in device pixels for the current point size. */
+export function orbitPivotMetrics(pointSizeDevicePixels: number): OrbitPivotMetrics {
+  const scale = Math.max(1, pointSizeDevicePixels) / 8;
+  return {
+    axisLength: 32 * scale,
+    lineWidth: 4 * scale,
+    arrowLength: 9 * scale,
+    arrowWidth: 7 * scale,
+  };
+}
+
+/** Returns a normalized screen direction for a world-space axis at a pivot. */
+export function orbitPivotAxisDirection(
+  camera: Camera,
+  pivot: Vec3,
+  axis: Vec3,
+): readonly [number, number] {
+  const projection = viewProjectionMatrix(camera);
+  const origin = transformPoint(projection, pivot[0], pivot[1], pivot[2]);
+  const tip = transformPoint(
+    projection,
+    pivot[0] + axis[0],
+    pivot[1] + axis[1],
+    pivot[2] + axis[2],
+  );
+  const x = tip[0] - origin[0];
+  const y = tip[1] - origin[1];
+  const length = Math.hypot(x, y);
+  if (length > 1e-6) return [x / length, y / length];
+  return axis[1] !== 0 ? [0, 1] : [1, 0];
+}
+
+/** Creates the always-visible three-axis widget rendered at an active pivot. */
 export function createOrbitPivotResources(
   device: GPUDevice,
   format: GPUTextureFormat,
@@ -26,7 +68,9 @@ export function createOrbitPivotResources(
     entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } }],
   });
   const buffer = device.createBuffer({
-    size: 16,
+    // Pivot data is 56 bytes; uniform structures are rounded to a 16-byte
+    // boundary for the implementations used by the supported browsers.
+    size: 64,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const pipeline = device.createRenderPipeline({
@@ -58,23 +102,50 @@ export function createOrbitPivotResources(
   };
 }
 
-/** Draws the pivot after scene geometry as an always-visible screen-space overlay. */
+/** Draws the pivot after scene geometry as an always-visible screen-space widget. */
+interface OrbitPivotDrawOptions {
+  readonly point: readonly [number, number, number] | undefined;
+  readonly camera: Camera;
+  readonly pointSizeDevicePixels: number;
+}
+
+/** Writes current pivot orientation and draws the three colored axis arrows. */
 export function drawOrbitPivot(
   pass: GPURenderPassEncoder,
   resources: OrbitPivotResources,
-  point: readonly [number, number, number] | undefined,
+  options: OrbitPivotDrawOptions,
   device: GPUDevice,
 ): void {
+  const { point, camera, pointSizeDevicePixels } = options;
   if (point === undefined) return;
+  const metrics = orbitPivotMetrics(pointSizeDevicePixels);
+  const xAxis = orbitPivotAxisDirection(camera, point, [1, 0, 0]);
+  const yAxis = orbitPivotAxisDirection(camera, point, [0, 1, 0]);
+  const zAxis = orbitPivotAxisDirection(camera, point, [0, 0, 1]);
   device.queue.writeBuffer(
     resources.buffer,
     0,
-    new Float32Array([point[0], point[1], point[2], 1]),
+    new Float32Array([
+      point[0],
+      point[1],
+      point[2],
+      1,
+      xAxis[0],
+      xAxis[1],
+      yAxis[0],
+      yAxis[1],
+      zAxis[0],
+      zAxis[1],
+      metrics.axisLength,
+      metrics.lineWidth,
+      metrics.arrowLength,
+      metrics.arrowWidth,
+    ]),
   );
   pass.setPipeline(resources.pipeline);
   pass.setBindGroup(0, resources.bindGroup);
   pass.setBindGroup(1, resources.pivotBindGroup);
-  pass.draw(6);
+  pass.draw(27);
 }
 
 const blendState: GPUBlendState = {
@@ -84,32 +155,68 @@ const blendState: GPUBlendState = {
 
 const pivotShader = /* wgsl */ `
 struct Camera { viewProjection: mat4x4<f32>, viewport: vec2<f32>, pointSize: f32, nearPlane: f32, farPlane: f32, ortho: f32, depthSlack: f32, _pad: f32 };
-struct Pivot { position: vec3<f32>, enabled: f32 };
+struct Pivot {
+  position: vec3<f32>,
+  _padding: f32,
+  xAxis: vec2<f32>,
+  yAxis: vec2<f32>,
+  zAxis: vec2<f32>,
+  axisLength: f32,
+  lineWidth: f32,
+  arrowLength: f32,
+  arrowWidth: f32,
+};
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(1) @binding(0) var<uniform> pivot: Pivot;
-struct Output { @builtin(position) position: vec4<f32>, @location(0) local: vec2<f32> };
-const corners = array<vec2<f32>, 6>(vec2(-1., -1.), vec2(1., -1.), vec2(-1., 1.), vec2(-1., 1.), vec2(1., -1.), vec2(1., 1.));
+struct Output {
+  @builtin(position) position: vec4<f32>,
+  @location(0) @interpolate(flat) axis: u32,
+};
+
+fn axisDirection(axis: u32) -> vec2<f32> {
+  switch axis {
+    case 0u: { return pivot.xAxis; }
+    case 1u: { return pivot.yAxis; }
+    default: { return pivot.zAxis; }
+  }
+}
+
+fn axisColor(axis: u32) -> vec3<f32> {
+  switch axis {
+    case 0u: { return vec3<f32>(.95, .18, .16); }
+    case 1u: { return vec3<f32>(.2, .82, .28); }
+    default: { return vec3<f32>(.18, .42, .98); }
+  }
+}
+
+fn pixelPosition(axis: u32, vertex: u32) -> vec2<f32> {
+  let direction = axisDirection(axis);
+  let normal = vec2<f32>(-direction.y, direction.x);
+  let lineEnd = pivot.axisLength - pivot.arrowLength;
+  let halfWidth = pivot.lineWidth * .5;
+  switch vertex % 9u {
+    case 0u: { return normal * halfWidth; }
+    case 1u: { return direction * lineEnd + normal * halfWidth; }
+    case 2u: { return direction * lineEnd - normal * halfWidth; }
+    case 3u: { return normal * halfWidth; }
+    case 4u: { return direction * lineEnd - normal * halfWidth; }
+    case 5u: { return -normal * halfWidth; }
+    case 6u: { return direction * pivot.axisLength; }
+    case 7u: { return direction * lineEnd + normal * pivot.arrowWidth; }
+    default: { return direction * lineEnd - normal * pivot.arrowWidth; }
+  }
+}
+
 @vertex fn vertexMain(@builtin(vertex_index) index: u32) -> Output {
-  let local = corners[index];
   let clip = camera.viewProjection * vec4<f32>(pivot.position, 1.);
-  // 36 CSS px at the default pointSize of 8 CSS px; scales with DPR via pointSize.
-  let extentPx = 36. * camera.pointSize / 8.;
-  let halfExtent = vec2<f32>(extentPx / camera.viewport.x, extentPx / camera.viewport.y);
+  let axis = index / 9u;
+  let pixels = pixelPosition(axis, index);
+  let offset = pixels * 2. / camera.viewport;
   var output: Output;
-  output.position = vec4<f32>(clip.xy + local * halfExtent * clip.w, 0., clip.w);
-  output.local = local;
+  output.position = vec4<f32>(clip.xy + offset * clip.w, 0., clip.w);
+  output.axis = axis;
   return output;
 }
 @fragment fn fragmentMain(input: Output) -> @location(0) vec4<f32> {
-  let radial = length(input.local);
-  let crossOutline = (abs(input.local.x) < .11 && abs(input.local.y) < .95)
-    || (abs(input.local.y) < .11 && abs(input.local.x) < .95);
-  let crossFill = (abs(input.local.x) < .055 && abs(input.local.y) < .9)
-    || (abs(input.local.y) < .055 && abs(input.local.x) < .9);
-  let ring = radial > .48 && radial < .63;
-  let ringOutline = radial > .42 && radial < .69;
-  let center = radial < .13;
-  if (!crossOutline && !ringOutline && !center) { discard; }
-  if (crossFill || ring || center) { return vec4<f32>(1., .72, .05, 1.); }
-  return vec4<f32>(.035, .045, .06, 1.);
+  return vec4<f32>(axisColor(input.axis), 1.);
 }`;

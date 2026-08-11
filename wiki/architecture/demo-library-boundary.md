@@ -25,7 +25,7 @@ presentation and interaction policy only.
   exact visible-surface points (`WebGpuRenderer.pickPoint`).
 - Opinionated SpaceClaim-style mouse/touch navigation
   (`installCameraControls`), camera math, asynchronous orbit-pivot handling,
-  and the renderer-owned pivot marker.
+  and the renderer-owned rotation-origin axis widget.
 - The canonical `FemViewport`: runtime compilation, camera fit/resize,
   standard controls, render invalidation, interaction/visibility GPU deltas,
   picking, scene replacement, device recovery, and teardown.

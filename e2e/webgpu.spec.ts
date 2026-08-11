@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { sweepForHit } from "./helpers";
+import { requireHit, sweepForHit } from "./helpers";
 
 /**
  * Required WebGPU browser coverage (category 1 in
@@ -400,6 +400,39 @@ test("uses SpaceClaim middle-button spin, pan, and zoom gestures", async ({ page
   const beforeZoom = await cameraKey();
   await dragCamera(page, canvas, { x: 0, y: -90 }, "Control");
   await expect.poll(cameraKey).not.toBe(beforeZoom);
+});
+
+test("shows a camera-oriented rotation-origin widget only during orbit", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const hit = await requireHit(
+    page,
+    canvas,
+    { attribute: "hovered", prefix: "f:", fresh: true },
+    "GPU picking must resolve an orbit pivot for the widget test",
+  );
+  const x = hit.x;
+  const y = hit.y;
+
+  const before = await stableCanvasPixels(page, canvas);
+  const framesBefore = await canvas.getAttribute("data-frames");
+  await page.mouse.down({ button: "middle" });
+  await expect.poll(() => canvas.getAttribute("data-dragging")).toBe("true");
+  await expect.poll(() => canvas.getAttribute("data-frames")).not.toBe(framesBefore);
+  const during = await stableCanvasPixels(page, canvas);
+  expect(during.equals(before), "the active orbit widget must affect the rendered frame").toBe(
+    false,
+  );
+
+  await page.mouse.move(x + 90, y + 35);
+  await page.waitForTimeout(100);
+
+  await page.mouse.up({ button: "middle" });
+  await expect.poll(() => canvas.getAttribute("data-dragging")).toBe("false");
+  const after = await stableCanvasPixels(page, canvas);
+  expect(after.equals(during), "the temporary orbit widget must disappear after the gesture").toBe(
+    false,
+  );
 });
 
 test("keeps the depth-test toggle working on the WebGPU renderer", async ({ page }) => {

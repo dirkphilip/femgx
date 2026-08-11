@@ -94,7 +94,7 @@ describe("camera controls", () => {
     await pivotPromise;
     await Promise.resolve();
 
-    expect(marker).toHaveBeenCalledWith([1, 0, 0]);
+    expect(marker).toHaveBeenCalledWith(undefined);
     expect(render).toHaveBeenCalledTimes(2);
     expect(cameraRef.camera).not.toBe(initial);
     expect(distance(cameraRef.camera.position, [1, 0, 0])).toBeCloseTo(
@@ -132,6 +132,32 @@ describe("camera controls", () => {
 
     expect(render).toHaveBeenCalledOnce();
     expect(cameraRef.camera.position).not.toEqual(initial.position);
+  });
+
+  it("clears the orbit widget when the pointer gesture ends", async () => {
+    const canvas = new FakeCanvas();
+    const cameraRef = {
+      camera: resizeCamera(createCamera({ position: [0, 0, 5], target: [0, 0, 0] }), 200, 100),
+    };
+    const marker = vi.fn<(pivot: Vec3 | undefined) => void>();
+    installCameraControls({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      cameraRef,
+      navigation: {
+        pickPoint: () => Promise.resolve([1, 0, 0] as Vec3),
+        setOrbitPivot: marker,
+      },
+      onRender: vi.fn(),
+    });
+
+    canvas.dispatch("pointerdown", pointer(100, 50));
+    await Promise.resolve();
+    expect(marker).toHaveBeenLastCalledWith([1, 0, 0]);
+    canvas.dispatch("pointermove", pointer(130, 65));
+    canvas.dispatch("pointerup", pointer(130, 65));
+    await Promise.resolve();
+
+    expect(marker).toHaveBeenLastCalledWith(undefined);
   });
 });
 

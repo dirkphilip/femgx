@@ -115,6 +115,9 @@ closed; the list is historical scope memory, not an open implementation queue.
 - [x] Add Playwright tests for initial
       rendering, projection changes, pointer controls, reset, and the WebGPU
       product contract on the default e2e lane.
+- [x] Replace the temporary rotation-origin marker with a camera-oriented,
+      device-pixel-stable three-axis widget (see
+      [[rendering/camera-presentation|Camera presentation]]).
 - [x] Add benchmarks for hierarchy compilation, updates, draw batching, and
       picking at representative model sizes (see [[engineering/benchmarks|Benchmarks]]).
 - [x] Add performance budgets and regression checks to CI (see

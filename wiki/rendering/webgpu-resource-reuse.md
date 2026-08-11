@@ -33,7 +33,7 @@ Per-frame allocations were removed from `src/renderer/`:
   `pick()` or `pickPoint()` after camera, canvas, geometry/placement,
   visibility, or deformation changes renders one current ID/depth snapshot;
   later readbacks reuse it. Interaction colors, edge/node overlays, and the
-  orbit marker do not invalidate the snapshot because they do not change hit
+  rotation-origin widget does not invalidate the snapshot because it does not change hit
   geometry.
 
 ## Synchronization constraints
