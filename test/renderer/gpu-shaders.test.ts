@@ -102,7 +102,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
   it("overrides triangle colors from the emphasis records", () => {
     expect(instanceVertexShader).not.toMatch(/\bvar match\b/);
     expect(instanceVertexShader).toMatch(/primitiveElementPickIds\[vertexIndex \/ 3u\]/);
-    expect(instanceVertexShader).toMatch(/primitiveFaceBodyPickIds\[vertexIndex \/ 3u\]/);
+    expect(instanceVertexShader).toMatch(/primitiveFaceBodyPickIds\(vertexIndex \/ 3u\)/);
     expect(instanceVertexShader).toMatch(/highlightHash\(/);
     expect(instanceVertexShader).toMatch(/elementHighlights\.records\[base \+ offset\]/);
     expect(instanceVertexShader).not.toMatch(/index < elementHighlights\.count/);
@@ -111,8 +111,8 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(instanceVertexShader).toMatch(/@location\(3\) @interpolate\(flat\) elementPickId: u32/);
     expect(instanceVertexShader).toMatch(/@location\(4\) @interpolate\(flat\) facePickId: u32/);
     expect(lineVertexShader).toMatch(/primitiveElementPickIds\[vertexIndex \/ 2u\]/);
-    expect(lineVertexShader).toMatch(/primitiveFaceBodyPickIds\[vertexIndex \/ 2u\]/);
-    expect(edgeVertexShader).toMatch(/topologyBodyRanges\[topologyIndex\]/);
+    expect(lineVertexShader).toMatch(/primitiveFaceBodyPickIds\(vertexIndex \/ 2u\)/);
+    expect(edgeVertexShader).toMatch(/topologyBodyRange\(topologyIndex\)/);
     expect(edgeVertexShader).toMatch(/highlight\.hidden == 0u/);
     expect(pointVertexShader).toMatch(/topologyBodyVisible\(/);
   });
@@ -191,7 +191,7 @@ describe("GPU deformation shader contract", () => {
         /@group\(1\) @binding\(6\) var<storage, read> vertexNodePickIds: array<u32>/,
       );
       expect(source).toMatch(
-        /@group\(1\) @binding\(8\) var<storage, read> topologyBodyRanges: array<vec2<u32>>/,
+        /@group\(1\) @binding\(5\) var<storage, read> topologyData: array<u32>/,
       );
       expect(source).toMatch(/fn displaced\(position: vec3<f32>, vertexIndex: u32\)/);
     },

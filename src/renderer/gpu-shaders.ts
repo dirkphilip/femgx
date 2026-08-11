@@ -94,15 +94,30 @@ export const instanceBindings = /* wgsl */ `
 @group(1) @binding(1) var<storage, read> drawOrder: array<u32>;
 @group(1) @binding(4) var<storage, read> displacements: array<f32>;
 @group(1) @binding(6) var<storage, read> vertexNodePickIds: array<u32>;
-@group(1) @binding(8) var<storage, read> topologyBodyRanges: array<vec2<u32>>;
-@group(1) @binding(9) var<storage, read> topologyBodyIds: array<u32>;
 `;
 
 /** Per-primitive and per-vertex pick data bindings used by draw stages. */
 export const pickDataBindings = /* wgsl */ `
 @group(1) @binding(2) var<storage, read> primitiveElementPickIds: array<u32>;
 @group(1) @binding(3) var<storage, read> elementHighlights: ElementHighlights;
-@group(1) @binding(5) var<storage, read> primitiveFaceBodyPickIds: array<vec2<u32>>;
+// Packed header: face/body pair count, topology range count, then face/body
+// pairs, topology ranges, and topology body ids.
+@group(1) @binding(5) var<storage, read> topologyData: array<u32>;
+
+fn primitiveFaceBodyPickIds(index: u32) -> vec2<u32> {
+  let base = 2u + index * 2u;
+  return vec2<u32>(topologyData[base], topologyData[base + 1u]);
+}
+
+fn topologyBodyRange(index: u32) -> vec2<u32> {
+  let base = 2u + topologyData[0] * 2u + index * 2u;
+  return vec2<u32>(topologyData[base], topologyData[base + 1u]);
+}
+
+fn topologyBodyId(index: u32) -> u32 {
+  let base = 2u + topologyData[0] * 2u + topologyData[1] * 2u;
+  return topologyData[base + index];
+}
 `;
 
 /**
@@ -206,6 +221,7 @@ ${emphasisHash}
 
 ${frameBindings}
 ${instanceBindings}
+${pickDataBindings}
 
 ${displacementFn}
 
@@ -232,12 +248,12 @@ fn bodyVisible(slot: u32, bodyPickId: u32) -> bool {
 }
 
 fn topologyVisible(slot: u32, topologyIndex: u32) -> bool {
-  let range = topologyBodyRanges[topologyIndex];
+  let range = topologyBodyRange(topologyIndex);
   if (range.y == 0u) {
     return true;
   }
   for (var owner = 0u; owner < range.y; owner++) {
-    if (bodyVisible(slot, topologyBodyIds[range.x + owner])) {
+    if (bodyVisible(slot, topologyBodyId(range.x + owner))) {
       return true;
     }
   }

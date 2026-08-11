@@ -70,6 +70,7 @@ Body emphasis still uses immutable state and the existing diffed
   flows through `updateElements`
   ([[rendering/renderer-subrange-updates|Renderer subrange updates]]).
 - Body records are included in the same `updateElements` path. Surface geometry
-  stores interleaved `(facePickId, bodyPickId)` pairs so the renderer stays within
-  the WebGPU vertex-stage storage-buffer limit; authored node sprites use the
-  same pair layout for body-aware visibility and emphasis.
+  stores face/body pairs together with topology ownership ranges in the existing
+  pick-data buffer, so the renderer stays within the portable WebGPU
+  vertex-stage storage-buffer limit; authored node sprites use the same packed
+  layout for body-aware visibility and emphasis.
