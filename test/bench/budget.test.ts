@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 import { batchInstancesByPart } from "../../src/runtime/batch";
 import { cullInstances } from "../../src/runtime/culling";
 import { flattenAssembly } from "../../src/runtime/flatten";
+import { createElement, type Element } from "../../src/elements/element";
+import { createElementModel } from "../../src/elements/model";
+import {
+  HEX8_SHAPE,
+  LINE_SHAPE,
+  POINT_SHAPE,
+  QUAD_SHAPE,
+  TRIANGLE_SHAPE,
+  TET4_SHAPE,
+} from "../../src/elements/shapes";
+import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
 import { translation } from "../../src/math/mat4";
 import { resolvePick } from "../../src/picking/pick";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
@@ -55,10 +66,41 @@ const grownGrowth = computeRuntimeGrowth(runtime, grownRuntime, baseLayout, grow
 
 const viewProjection = makeViewProjection();
 
+const heterogeneousModel = makeHeterogeneousModel(100);
+
 const PICK_COUNT = 50_000;
 const pickIds: number[] = [];
 for (let i = 0; i < PICK_COUNT; i++) {
   pickIds.push(i % flattened.length);
+}
+
+function makeHeterogeneousModel(repetitions: number) {
+  const nodes: number[] = [];
+  const elements: Element[] = [];
+  let nextElementId = 1;
+  const addElement = (shape: Parameters<typeof createElement>[1], nodeCount: number): void => {
+    const start = nodes.length / 3;
+    for (let node = 0; node < nodeCount; node += 1) {
+      nodes.push(start + node, 0, node % 2);
+    }
+    elements.push(
+      createElement(
+        nextElementId,
+        shape,
+        Array.from({ length: nodeCount }, (_, node) => start + node),
+      ),
+    );
+    nextElementId += 1;
+  };
+  for (let repetition = 0; repetition < repetitions; repetition += 1) {
+    addElement(TRIANGLE_SHAPE, 3);
+    addElement(QUAD_SHAPE, 4);
+    addElement(TET4_SHAPE, 4);
+    addElement(HEX8_SHAPE, 8);
+    addElement(LINE_SHAPE, 2);
+    addElement(POINT_SHAPE, 1);
+  }
+  return createElementModel(nodes, elements);
 }
 
 interface BudgetCase {
@@ -174,6 +216,14 @@ const budgets: readonly BudgetCase[] = [
       for (const pickId of pickIds) {
         resolvePick(flattened, pickId);
       }
+    },
+  },
+  {
+    name: "heterogeneousElementParts",
+    description: "600 mixed linear elements grouped into reusable primitive parts",
+    budgetMs: 500,
+    run: () => {
+      heterogeneousElementParts({ triangle: 901, line: 902, point: 903 }, heterogeneousModel);
     },
   },
   {

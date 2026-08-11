@@ -14,20 +14,21 @@ several multiples, so budgets are only meaningful on clean timing runs.
 
 ### Covered workloads
 
-| Case                                | Model                            | Workload                     |
-| ----------------------------------- | -------------------------------- | ---------------------------- |
-| `flattenAssembly`                   | shallow 200 000 instances        | full depth-first flatten     |
-| `createSceneRuntime`                | shallow 200 000 instances        | packed compile               |
-| `createSceneRuntime` (deep)         | balanced tree, 204 800 instances | nested transform composition |
-| `batchInstancesByPart`              | 200 000 instances / 200 parts    | group by part                |
-| `cullInstances`                     | 200 000 instances                | sphere-in-frustum test       |
-| `setPartVisible` toggle             | part with 1 000 instances        | hide then show               |
-| `setAssemblyVisible` toggle         | subcase with 2 000 instances     | hide then show               |
-| `setInstanceVisible` toggle         | single instance                  | override, hide then show     |
-| `setNodeTransform`                  | 2 000-instance subtree           | recompose subtree worlds     |
-| `getDrawList`                       | 200 000 visible                  | rebuild draw list            |
-| `resolvePick`                       | 50 000 lookups on 200 000        | O(1) index resolution        |
-| `progressive renderer attach delta` | 200 000 instances + 10 subcases  | layout + growth delta        |
+| Case                                | Model                            | Workload                                 |
+| ----------------------------------- | -------------------------------- | ---------------------------------------- |
+| `flattenAssembly`                   | shallow 200 000 instances        | full depth-first flatten                 |
+| `createSceneRuntime`                | shallow 200 000 instances        | packed compile                           |
+| `createSceneRuntime` (deep)         | balanced tree, 204 800 instances | nested transform composition             |
+| `batchInstancesByPart`              | 200 000 instances / 200 parts    | group by part                            |
+| `cullInstances`                     | 200 000 instances                | sphere-in-frustum test                   |
+| `setPartVisible` toggle             | part with 1 000 instances        | hide then show                           |
+| `setAssemblyVisible` toggle         | subcase with 2 000 instances     | hide then show                           |
+| `setInstanceVisible` toggle         | single instance                  | override, hide then show                 |
+| `setNodeTransform`                  | 2 000-instance subtree           | recompose subtree worlds                 |
+| `getDrawList`                       | 200 000 visible                  | rebuild draw list                        |
+| `resolvePick`                       | 50 000 lookups on 200 000        | O(1) index resolution                    |
+| `heterogeneousElementParts`         | 600 mixed linear elements        | grouped triangle/line/point tessellation |
+| `progressive renderer attach delta` | 200 000 instances + 10 subcases  | layout + growth delta                    |
 
 ### Stable model sizes and warmup rules
 

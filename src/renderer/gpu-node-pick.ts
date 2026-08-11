@@ -12,12 +12,11 @@ import {
 import { emphasisHash } from "./gpu-highlight-shader";
 
 /**
- * Triangle pick pass shaders. In addition to the instance, element, and face
- * pick ids they pass each triangle's three corner positions and node pick ids
- * as flat varyings plus the interpolated local position, so the fragment stage
- * can report the node id of the corner nearest to the hit when the hit is
- * close enough to that corner. Hits farther from every corner write node id 0
- * so `resolvePickTarget` falls through to face/element. Corner and local
+ * Element/node pick pass shaders. In addition to the instance, element, and
+ * face pick ids they pass primitive corner positions and node pick ids as flat
+ * varyings plus the interpolated local position, so the fragment stage can
+ * report a nearby node. Hits farther from every corner write node id 0 so
+ * `resolvePickTarget` falls through to face/element. Corner and local
  * positions are displaced by the deformation state so node picking stays
  * consistent on deformed shapes.
  */
@@ -63,7 +62,7 @@ fn vertexMain(
   let instance = instances[drawOrder[instanceIndex]];
   let base = (vertexIndex / 3u) * 3u;
   let base3 = base * 3u;
-  let faceBodyPickIds = triangleFaceBodyPickIds[vertexIndex / 3u];
+  let faceBodyPickIds = primitiveFaceBodyPickIds[vertexIndex / 3u];
   let bodyPickId = faceBodyPickIds.y;
   var hidden = false;
   if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
@@ -85,7 +84,7 @@ fn vertexMain(
   output.color = instance.color;
   output.pickId = instance.pickId;
   output.emissive = instance.emissive;
-  output.elementPickId = triangleElementPickIds[vertexIndex / 3u];
+  output.elementPickId = primitiveElementPickIds[vertexIndex / 3u];
   output.facePickId = faceBodyPickIds.x;
   output.localPosition = displaced(position, vertexIndex);
   output.cornerA = displaced(
@@ -113,6 +112,119 @@ fn vertexMain(
     vertexNodePickIds[base + 1u],
     vertexNodePickIds[base + 2u],
   );
+  return output;
+}
+`;
+
+/** Line-list node-pick vertex stage using two corners per logical primitive. */
+export const lineNodePickVertexShader = nodePickVertexShader
+  .replace("let base = (vertexIndex / 3u) * 3u;", "let base = (vertexIndex / 2u) * 2u;")
+  .replaceAll("vertexIndex / 3u", "vertexIndex / 2u")
+  .replace(
+    `vec3<f32>(
+      positions[base3 + 6u],
+      positions[base3 + 7u],
+      positions[base3 + 8u],
+    ),
+    base + 2u,
+  );`,
+    `vec3<f32>(
+      positions[base3 + 3u],
+      positions[base3 + 4u],
+      positions[base3 + 5u],
+    ),
+    base + 1u,
+  );`,
+  )
+  .replace("vertexNodePickIds[base + 2u],", "0u,");
+
+/** Point-sprite node-pick vertex stage; every sprite fragment belongs to its node. */
+export const pointNodePickVertexShader = /* wgsl */ `
+${cameraStruct}
+
+${deformationStruct}
+
+${instanceStruct}
+
+${emphasisStructs}
+${emphasisHash}
+
+${frameBindings}
+${instanceBindings}
+${pickDataBindings}
+@group(1) @binding(7) var<storage, read> positions: array<f32>;
+
+${displacementFn}
+
+struct NodeVertexOutput {
+  @builtin(position) position: vec4<f32>,
+  @location(0) color: vec4<f32>,
+  @location(1) @interpolate(flat) pickId: u32,
+  @location(2) @interpolate(flat) emissive: f32,
+  @location(3) @interpolate(flat) elementPickId: u32,
+  @location(4) @interpolate(flat) facePickId: u32,
+  @location(5) localPosition: vec3<f32>,
+  @location(6) @interpolate(flat) cornerA: vec3<f32>,
+  @location(7) @interpolate(flat) cornerB: vec3<f32>,
+  @location(8) @interpolate(flat) cornerC: vec3<f32>,
+  @location(9) @interpolate(flat) nodePickIds: vec3<u32>,
+};
+
+fn spriteCorner(corner: u32) -> vec2<f32> {
+  switch corner {
+    case 0u: { return vec2<f32>(-1.0, -1.0); }
+    case 1u: { return vec2<f32>(1.0, -1.0); }
+    case 2u: { return vec2<f32>(1.0, 1.0); }
+    default: { return vec2<f32>(-1.0, 1.0); }
+  }
+}
+
+@vertex
+fn pointVertexMain(
+  @location(0) position: vec3<f32>,
+  @builtin(instance_index) instanceIndex: u32,
+  @builtin(vertex_index) vertexIndex: u32,
+) -> NodeVertexOutput {
+  let instance = instances[drawOrder[instanceIndex]];
+  let center = displaced(position, vertexIndex);
+  let clip = camera.viewProjection * instance.transform * vec4<f32>(center, 1.0);
+  let corner = spriteCorner(vertexIndex % 4u);
+  let offset = (corner * camera.pointSize) / camera.viewport;
+  let elementPickId = primitiveElementPickIds[vertexIndex / 4u];
+  let bodyPickId = primitiveFaceBodyPickIds[vertexIndex / 4u].y;
+  var hidden = false;
+  if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
+    let bucket = highlightHash(drawOrder[instanceIndex], bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
+    let base = bucket * 4u;
+    for (var offsetIndex = 0u; offsetIndex < 4u; offsetIndex++) {
+      let highlight = elementHighlights.records[base + offsetIndex];
+      if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
+        hidden = highlight.hidden != 0u;
+        break;
+      }
+    }
+  }
+  var output: NodeVertexOutput;
+  output.position = vec4<f32>(
+    clip.x + offset.x * clip.w,
+    clip.y + offset.y * clip.w,
+    clip.z,
+    clip.w,
+  );
+  if (hidden) {
+    output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
+  }
+  output.color = instance.color;
+  output.pickId = instance.pickId;
+  output.emissive = instance.emissive;
+  output.elementPickId = elementPickId;
+  output.facePickId = 0u;
+  output.localPosition = center;
+  output.cornerA = center;
+  output.cornerB = center;
+  output.cornerC = center;
+  let nodePickId = vertexNodePickIds[vertexIndex];
+  output.nodePickIds = vec3<u32>(nodePickId, nodePickId, nodePickId);
   return output;
 }
 `;

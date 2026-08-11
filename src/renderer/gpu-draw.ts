@@ -100,7 +100,10 @@ function uploadNodePart(draw: DrawResources, part: Part): PartResource {
       GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
     ),
     indexBuffer: createBuffer(draw.device, indices, GPUBufferUsage.INDEX),
-    elementPickIdsBuffer: createBuffer(draw.device, new Uint32Array(1), GPUBufferUsage.STORAGE),
+    // The node overlay reuses the point vertex shader. It indexes this map by
+    // node sprite, so provide one explicit zero entry per sprite instead of a
+    // single placeholder that would be out of bounds for larger models.
+    elementPickIdsBuffer: createBuffer(draw.device, new Uint32Array(count), GPUBufferUsage.STORAGE),
     facePickIdsBuffer: createBuffer(
       draw.device,
       buildNodeBodyPickData(part.geometry),

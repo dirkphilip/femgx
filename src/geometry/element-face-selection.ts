@@ -38,7 +38,12 @@ export function faceNeighbors(elements: readonly Element[]): Map<FaceKey, Elemen
 
 /** Returns every face in deterministic element/topology order. */
 export function allFaces(model: ElementModel, family: ElementFamily): readonly ElementRenderFace[] {
-  return elementsOf(model, family).flatMap((element) =>
+  return allFacesForElements(elementsOf(model, family));
+}
+
+/** Returns every face in deterministic element/topology order. */
+export function allFacesForElements(elements: readonly Element[]): readonly ElementRenderFace[] {
+  return elements.flatMap((element) =>
     facesOfElement(element).map(({ face, faceIndex }) => ({ element, face, faceIndex })),
   );
 }
@@ -48,9 +53,15 @@ export function boundaryFaces(
   model: ElementModel,
   family: ElementFamily,
 ): readonly ElementRenderFace[] {
-  const elements = elementsOf(model, family);
+  return boundaryFacesForElements(elementsOf(model, family));
+}
+
+/** Returns only boundary faces for a pre-partitioned element list. */
+export function boundaryFacesForElements(
+  elements: readonly Element[],
+): readonly ElementRenderFace[] {
   const classified = classifyFaces(elements);
-  const faces = allFaces(model, family);
+  const faces = allFacesForElements(elements);
   return faces.filter((_, index) => classified[index]?.boundary === true);
 }
 
@@ -60,7 +71,15 @@ export function validateFaceSelection(
   family: ElementFamily,
   selection: readonly FaceIdRef[],
 ): ReadonlySet<string> {
-  const elements = elementsOf(model, family);
+  return validateFaceSelectionForElements(elementsOf(model, family), selection, family);
+}
+
+/** Validates face identities against one pre-partitioned element list. */
+export function validateFaceSelectionForElements(
+  elements: readonly Element[],
+  selection: readonly FaceIdRef[],
+  family = "heterogeneous",
+): ReadonlySet<string> {
   const byId = new Map(elements.map((element) => [element.id, element]));
   const identities = new Set<string>();
   for (const ref of selection) {

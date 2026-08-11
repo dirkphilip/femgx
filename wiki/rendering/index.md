@@ -8,6 +8,8 @@
   one-finger orbit, pinch zoom, two-finger pan, and gesture cancellation.
 - [[rendering/element-interaction|Element-level interaction]] — element
   picking, selection, highlighting, and edge overlays.
+- [[rendering/heterogeneous-elements|Heterogeneous element parts]] — one mixed
+  element model compiled into deterministic triangle, line, and point parts.
 - [[rendering/fe-inspection-workbench|FE inspection workbench]] — the demo's
   model presets, GPU picking, shared workbench controller, and e2e
   coverage.
