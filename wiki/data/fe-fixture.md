@@ -50,3 +50,7 @@ the VTK import and element-topology examples.
 Related: [[data/elements-topology|Element topology]],
 [[data/io-import-export|IO import/export]],
 [[rendering/element-rendering|Element rendering]].
+
+[data/elements-topology|Element topology]: elements-topology.md
+[data/io-import-export|IO import/export]: io-import-export.md
+[rendering/element-rendering|Element rendering]: ../rendering/element-rendering.md

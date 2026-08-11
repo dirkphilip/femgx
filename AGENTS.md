@@ -297,17 +297,17 @@ Agents must actively report problems, not silently work around them:
 
 ## Internal Wiki (Knowledge Base)
 
-Maintain an internal, plain-markdown wiki under `wiki/` using Foam/Obsidian-style
-conventions so notes are linkable and navigable. It is written for **both humans and
-future agents**: it is the project's durable product and engineering memory, browseable
-by anyone reading the repo (open it as a Foam/Obsidian vault, or follow the index files
-in a plain editor). GitHub issues and pull requests are the authoritative work tracker;
+Maintain an internal, plain-markdown wiki under `wiki/` using Foam wikilinks and
+GitHub-compatible link-reference definitions so notes are linkable and navigable.
+It is written for **both humans and future agents**: it is the project's durable
+product and engineering memory, browseable in Foam or as GitHub-rendered Markdown.
+GitHub issues and pull requests are the authoritative work tracker;
 the wiki is not an implementation checklist or backlog mirror:
 
 - **One markdown file per topic** (a design decision, a gotcha, an API note, an issue,
   a known limitation). Name files with `kebab-case` under the owning area, e.g.
   `wiki/architecture/instancing-strategy.md`.
-- **Use path-qualified `[[area/note|wiki-link]]` style links** to reference related notes, and prefer cross-linking
+- **Use path-qualified Foam links** such as `[[area/note|wiki-link]]` to reference related notes, and prefer cross-linking
   over duplicating content.
 - **Maintain index files** at `wiki/index.md` and under each topical area; they list and
   link the notes so the wiki is navigable without a search tool. Add every new note to
@@ -317,3 +317,12 @@ the wiki is not an implementation checklist or backlog mirror:
 - Record: architecture decisions and rationale, scope classifications, issues/gotchas found,
   WebGPU/instancing pitfalls, API design notes, and anything a future agent would otherwise
   have to rediscover.
+
+[#decision-gate-for-proposed-additions|decision gate]: AGENTS.md#decision-gate-for-proposed-additions
+[architecture/api-design|API design north star]: wiki/architecture/api-design.md
+[engineering/benchmarks|Benchmarks]: wiki/engineering/benchmarks.md
+[engineering/packaging|Packaging]: wiki/engineering/packaging.md
+[engineering/pre-commit-hooks|Pre-commit hooks]: wiki/engineering/pre-commit-hooks.md
+[operations/ci-authority|CI authority]: wiki/operations/ci-authority.md
+[rendering/platform-support|Platform support]: wiki/rendering/platform-support.md
+[requirements/product-scope|product scope]: wiki/requirements/product-scope.md

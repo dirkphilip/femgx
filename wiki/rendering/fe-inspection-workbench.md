@@ -111,3 +111,9 @@ horizontal overflow, primary controls stay reachable with 44px hit areas, and
 the context menu fits inside the viewport. The default Playwright lane runs the
 real WebGPU renderer through the same controller
 ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
+
+[architecture/demo-library-boundary|Demo / library boundary]: ../architecture/demo-library-boundary.md
+[rendering/element-interaction|Element-level interaction]: element-interaction.md
+[rendering/interactive-state|Interactive state]: interactive-state.md
+[rendering/platform-support|Platform support]: platform-support.md
+[rendering/webgpu-e2e|WebGPU browser e2e lane]: webgpu-e2e.md

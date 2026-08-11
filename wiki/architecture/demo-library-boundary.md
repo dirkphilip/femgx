@@ -59,3 +59,8 @@ The demo passes presentation state to `FemViewport`; it never calls renderer
 upload or draw methods. The viewport derives interaction and visibility deltas,
 owns the packed runtime, and resets its upload baseline after scene replacement
 or recovery. This keeps the public host path and the demo test bench identical.
+
+[architecture/packed-runtime|Packed scene runtime]: packed-runtime.md
+[rendering/interactive-state|Interactive state]: ../rendering/interactive-state.md
+[rendering/node-face-interaction|Node and face interaction]: ../rendering/node-face-interaction.md
+[rendering/renderer-subrange-updates|Renderer subrange updates]: ../rendering/renderer-subrange-updates.md

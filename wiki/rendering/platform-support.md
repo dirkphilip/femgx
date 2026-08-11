@@ -113,3 +113,8 @@ version, platform, driver, and policy differences can make WebGPU unavailable,
 so callers should use `queryWebGpuSupport()` or handle the typed creation error.
 Unsupported behavior is always explicit: a typed reason plus guidance text,
 never a silent fallback. Callers branch on `status`/`reason`.
+
+[architecture/architecture-overview|Architecture overview]: ../architecture/architecture-overview.md
+[architecture/source-organization|Source organization]: ../architecture/source-organization.md
+[rendering/webgpu-e2e|WebGPU browser e2e lane]: webgpu-e2e.md
+[requirements/product-scope|product scope contract]: ../requirements/product-scope.md

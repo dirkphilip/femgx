@@ -53,3 +53,5 @@ Migration for existing configurations:
   token or runtime URL.
 
 Related: [[operations/supervisor-workflow|Supervisor workflow]].
+
+[operations/supervisor-workflow|Supervisor workflow]: supervisor-workflow.md

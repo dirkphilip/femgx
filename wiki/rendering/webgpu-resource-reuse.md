@@ -70,3 +70,7 @@ designed around:
   (deferred destruction is future work, see the file-improvement notes in the
   #29 implementation).
 - The camera uniform buffer and its bind group are created once per renderer.
+
+[architecture/architecture-overview|Architecture overview]: ../architecture/architecture-overview.md
+[architecture/instancing-strategy|Instancing strategy]: ../architecture/instancing-strategy.md
+[engineering/performance-issues|Performance issues and risks]: ../engineering/performance-issues.md

@@ -69,3 +69,11 @@ design-review threshold, not an automatic split requirement. Per-function
 length remains 60 lines and `max-depth` remains 4. Split modules when that
 improves cohesion and ownership. Rules are scoped to `src/`; tests and demo are exempt. See the
 [[engineering/scaffold-decisions|scaffold decisions]] gotchas for why.
+
+[engineering/benchmarks|Benchmarks]: benchmarks.md
+[engineering/e2e-policy|E2E test classification and skip policy]: e2e-policy.md
+[engineering/pre-commit-hooks|Pre-commit hooks]: pre-commit-hooks.md
+[engineering/scaffold-decisions|scaffold decisions]: scaffold-decisions.md
+[operations/ci-authority|CI authority and base-health intake]: ../operations/ci-authority.md
+[operations/supervisor-workflow|Supervisor workflow]: ../operations/supervisor-workflow.md
+[rendering/webgpu-e2e|WebGPU browser e2e lane]: ../rendering/webgpu-e2e.md

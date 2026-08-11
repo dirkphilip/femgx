@@ -242,3 +242,6 @@ triaging. Leave the repository clean except for intentionally uncommitted user
 work. Update [[engineering/performance-issues|Performance issues and risks]] or
 a more specific wiki note whenever the implementation changes a durable
 contract or exposes a reusable pitfall. Keep current work state in GitHub.
+
+[engineering/performance-issues|Performance issues and risks]: ../engineering/performance-issues.md
+[operations/ci-authority|CI authority and base-health intake]: ci-authority.md

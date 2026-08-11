@@ -28,6 +28,8 @@ fallback rendering path.
 
 Design decisions, gotchas, and open issues live in [`wiki/`](wiki/index.md).
 The development workflow is documented in [`wiki/operations/development-loop.md`](wiki/operations/development-loop.md).
+The wiki uses Foam `[[wikilinks]]`; committed link-reference definitions keep
+those links navigable in GitHub-rendered Markdown.
 
 ## Development
 

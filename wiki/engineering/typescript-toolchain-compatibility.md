@@ -7,3 +7,6 @@ under npm's strict peer-dependency resolution. The resolved TypeScript target is
 `typescript-eslint` release supports TypeScript 7.
 
 Related: [[engineering/quality-gate|quality gate]] and [[engineering/scaffold-decisions|scaffold decisions]].
+
+[engineering/quality-gate|quality gate]: quality-gate.md
+[engineering/scaffold-decisions|scaffold decisions]: scaffold-decisions.md

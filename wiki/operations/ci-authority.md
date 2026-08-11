@@ -64,3 +64,5 @@ failing required check as not merge-ready and only all-passing as merge-ready;
 and the intake decision permits feature work only on a healthy base.
 `test/supervisor/supervisor-config.test.ts` and
 `test/supervisor/worker-contract.test.ts` lock the config and prompt contract.
+
+[operations/supervisor-workflow|Supervisor workflow]: supervisor-workflow.md

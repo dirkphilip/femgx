@@ -19,3 +19,13 @@
   storage and delta-oriented visibility and transform updates.
 - [[architecture/source-organization|Source organization]] — subsystem layout
   and deliberate public boundaries.
+
+[architecture/api-design|API design north star]: api-design.md
+[architecture/architecture-overview|Architecture overview]: architecture-overview.md
+[architecture/bodies|Part bodies]: bodies.md
+[architecture/core-api|Core API review]: core-api.md
+[architecture/demo-library-boundary|Demo / library boundary]: demo-library-boundary.md
+[architecture/instancing-strategy|Instancing strategy]: instancing-strategy.md
+[architecture/packed-runtime|Packed scene runtime]: packed-runtime.md
+[architecture/public-api-audit|Public API audit]: public-api-audit.md
+[architecture/source-organization|Source organization]: source-organization.md

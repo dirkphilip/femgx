@@ -25,3 +25,5 @@ Body visibility and styling build on this metadata in
 [[rendering/interactive-state|Interactive state]]. Face subsets and polygon
 authoring preserve the same body/element ownership rather than introducing a
 second grouping model.
+
+[rendering/interactive-state|Interactive state]: ../rendering/interactive-state.md

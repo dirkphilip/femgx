@@ -37,3 +37,6 @@ as a [[architecture/architecture-overview|Part]] and drawn many times via GPU in
 Depth-first, placement-order compilation keeps source placement handles stable
 between frames. Compact draw-list indices can change after culling; GPU picking
 is resolved against the current packed runtime and returns the stable handle.
+
+[architecture/architecture-overview|Part]: architecture-overview.md
+[rendering/renderer-subrange-updates|Renderer subrange updates]: ../rendering/renderer-subrange-updates.md

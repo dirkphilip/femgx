@@ -100,3 +100,10 @@ oriented element faces are the finest-grained pickable units under
   prefixed by granularity (`n:instance:node`, `f:instance:element:faceKey`,
   `e:instance:element`, `i:instance`, `p:part`). See
   [[rendering/fe-inspection-workbench|FE inspection workbench]].
+
+[architecture/demo-library-boundary|Demo / library boundary]: ../architecture/demo-library-boundary.md
+[rendering/element-interaction|element-interaction]: element-interaction.md
+[rendering/element-interaction|Element-level interaction]: element-interaction.md
+[rendering/fe-inspection-workbench|FE inspection workbench]: fe-inspection-workbench.md
+[rendering/interactive-state|Interactive state]: interactive-state.md
+[rendering/pick-format|Pick texture format]: pick-format.md

@@ -76,3 +76,8 @@ facade to expose its underlying `GPUDevice` solely for a browser-test hook.
 
 Related: [[engineering/quality-gate|Quality gate]], [[engineering/e2e-policy|E2E policy]],
 [[engineering/benchmarks|Benchmarks]].
+
+[engineering/benchmarks|Benchmarks]: ../engineering/benchmarks.md
+[engineering/e2e-policy|E2E policy]: ../engineering/e2e-policy.md
+[engineering/quality-gate|Quality gate]: ../engineering/quality-gate.md
+[requirements/product-scope|product scope contract]: ../requirements/product-scope.md

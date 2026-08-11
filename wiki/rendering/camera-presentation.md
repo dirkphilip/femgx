@@ -37,3 +37,6 @@ background and restrained material colors so geometry edges and selection
 emphasis remain legible. Its lower-left orientation gizmo follows the camera's
 screen-space world-axis projection, and pressing `Z` fits the selected visible
 occurrences (or the complete scene when there is no selection).
+
+[rendering/element-rendering|Element rendering]: element-rendering.md
+[rendering/interactive-state|Interactive state]: interactive-state.md

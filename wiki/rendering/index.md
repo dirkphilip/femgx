@@ -38,3 +38,22 @@
   shader identifiers that only Tint rejects, and how to validate them.
 - [[rendering/coordinate-spaces|Coordinate spaces]] — browser input, render
   pixels, WebGPU NDC depth, and displayed world positions.
+
+[rendering/camera-depth-convention|Camera depth convention]: camera-depth-convention.md
+[rendering/camera-presentation|Camera presentation]: camera-presentation.md
+[rendering/camera-touch-controls|Camera touch controls]: camera-touch-controls.md
+[rendering/coordinate-spaces|Coordinate spaces]: coordinate-spaces.md
+[rendering/element-interaction|Element-level interaction]: element-interaction.md
+[rendering/element-rendering|Element rendering]: element-rendering.md
+[rendering/face-subsets|Face subsets]: face-subsets.md
+[rendering/fe-inspection-workbench|FE inspection workbench]: fe-inspection-workbench.md
+[rendering/heterogeneous-elements|Heterogeneous element parts]: heterogeneous-elements.md
+[rendering/interaction-selection-menu|Selection and view context menu]: interaction-selection-menu.md
+[rendering/interactive-state|Interactive state]: interactive-state.md
+[rendering/node-face-interaction|Node and face interaction]: node-face-interaction.md
+[rendering/pick-format|Pick texture format]: pick-format.md
+[rendering/platform-support|Platform support]: platform-support.md
+[rendering/renderer-subrange-updates|Renderer subrange updates]: renderer-subrange-updates.md
+[rendering/webgpu-e2e|WebGPU browser e2e lane]: webgpu-e2e.md
+[rendering/webgpu-resource-reuse|WebGPU resource reuse]: webgpu-resource-reuse.md
+[rendering/wgsl-reserved-keywords|WGSL reserved keywords vs wgsl_reflect]: wgsl-reserved-keywords.md

@@ -21,3 +21,6 @@ textures use render-pixel dimensions.
 
 Related: [[rendering/camera-presentation|Camera presentation]],
 [[rendering/fe-inspection-workbench|FE inspection workbench]].
+
+[rendering/camera-presentation|Camera presentation]: camera-presentation.md
+[rendering/fe-inspection-workbench|FE inspection workbench]: fe-inspection-workbench.md

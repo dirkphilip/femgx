@@ -52,3 +52,7 @@ Recorded decisions from the initial toolchain setup.
 - `@webgpu/types` is a devDependency only: the source needs its value
   namespaces, but TS 6's DOM lib covers the WebGPU globals in emitted
   declarations (see [[engineering/packaging|Packaging]]).
+
+[architecture/source-organization|Source organization]: ../architecture/source-organization.md
+[engineering/packaging|Packaging]: packaging.md
+[engineering/typescript-toolchain-compatibility|TypeScript toolchain compatibility]: typescript-toolchain-compatibility.md

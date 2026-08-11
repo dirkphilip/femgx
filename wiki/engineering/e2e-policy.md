@@ -97,3 +97,8 @@ only pins the vertical and the runtime-error surface, so a partially broken app
 visible redraw) can no longer pass a green required run.
 
 Related: [[engineering/quality-gate|Quality gate]], [[rendering/webgpu-e2e|WebGPU browser e2e lane]].
+
+[engineering/benchmarks|Benchmarks]: benchmarks.md
+[engineering/quality-gate|Quality gate]: quality-gate.md
+[rendering/webgpu-e2e|WebGPU browser e2e lane]: ../rendering/webgpu-e2e.md
+[requirements/product-scope|product scope]: ../requirements/product-scope.md

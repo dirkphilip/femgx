@@ -144,3 +144,8 @@ elements. They preserve element ids, node ids, face ownership, deformation,
 results, and GPU picking through `elementGeometry`/`elementPart`. Polygon loops
 that are not already typed elements belong to the separate geometry-owned
 authoring path in [[data/polygon-input|Polygon input]].
+
+[data/io-import-export|IO: VTK legacy import/export]: io-import-export.md
+[data/polygon-input|Polygon input]: polygon-input.md
+[rendering/face-subsets|face subset]: ../rendering/face-subsets.md
+[rendering/heterogeneous-elements|Heterogeneous element parts]: ../rendering/heterogeneous-elements.md
