@@ -12,6 +12,7 @@ import type { InstanceStorage } from "./gpu-instance-storage";
 import {
   buildElementTrianglePickIds,
   buildNodeBodyPickData,
+  buildNodeSpritePickIds,
   buildTriangleFaceBodyPickData,
   buildVertexNodePickIds,
 } from "./gpu-pick-ids";
@@ -76,19 +77,21 @@ function uploadNodePart(draw: DrawResources, part: Part): PartResource {
   const existing = draw.nodeParts.get(part.id);
   if (existing !== undefined) return existing;
   const nodes = part.geometry.nodePositions ?? new Float32Array(0);
-  const count = nodes.length / 3;
+  const spritePickIds = buildNodeSpritePickIds(part.geometry);
+  const count = spritePickIds.length;
   const positions = new Float32Array(count * 12);
   const ids = new Uint32Array(count * 4);
   const indices = new Uint32Array(count * 6);
-  for (let node = 0; node < count; node += 1) {
-    const source = node * 3;
+  for (let sprite = 0; sprite < count; sprite += 1) {
+    const pickId = spritePickIds[sprite] ?? 0;
+    const source = (pickId - 1) * 3;
     for (let corner = 0; corner < 4; corner += 1) {
-      positions.set(nodes.subarray(source, source + 3), (node * 4 + corner) * 3);
-      ids[node * 4 + corner] = node + 1;
+      positions.set(nodes.subarray(source, source + 3), (sprite * 4 + corner) * 3);
+      ids[sprite * 4 + corner] = pickId;
     }
     indices.set(
-      [0, 1, 2, 0, 2, 3].map((index) => index + node * 4),
-      node * 6,
+      [0, 1, 2, 0, 2, 3].map((index) => index + sprite * 4),
+      sprite * 6,
     );
   }
   const resource: PartResource = {
@@ -104,7 +107,7 @@ function uploadNodePart(draw: DrawResources, part: Part): PartResource {
     elementPickIdsBuffer: createBuffer(draw.device, new Uint32Array(count), GPUBufferUsage.STORAGE),
     facePickIdsBuffer: createBuffer(
       draw.device,
-      buildNodeBodyPickData(part.geometry),
+      buildNodeBodyPickData(part.geometry, spritePickIds),
       GPUBufferUsage.STORAGE,
     ),
     nodePickIdsBuffer: createBuffer(draw.device, ids, GPUBufferUsage.STORAGE),

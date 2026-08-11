@@ -32,6 +32,7 @@ import {
   buildElementTrianglePickIds,
   buildFaceTrianglePickIds,
   buildNodeBodyPickData,
+  buildNodeSpritePickIds,
   buildTriangleFaceBodyPickData,
   buildVertexNodePickIds,
 } from "../../src/renderer/gpu-pick-ids";
@@ -180,6 +181,32 @@ describe("buildNodeBodyPickData", () => {
       bodies: [{ id: 7, elementIds: [4] }],
     };
     expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([0, 8, 0, 8, 0, 8]);
+  });
+
+  it("maps filtered sprite ids to their original body slots", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array(18),
+      indices: new Uint32Array(6),
+      nodePickIds: new Uint32Array([2, 2, 4, 4, 0, 0]),
+      nodePositions: new Float32Array(12),
+      elements: [{ id: 4, triangleStart: 0, triangleCount: 2, bodyId: 7 }],
+      bodies: [{ id: 7, elementIds: [4] }],
+    };
+    expect(Array.from(buildNodeBodyPickData(geometry, new Uint32Array([2, 4])))).toEqual([
+      0, 8, 0, 8,
+    ]);
+  });
+});
+
+describe("buildNodeSpritePickIds", () => {
+  it("returns unique ascending original ids and skips interpolated vertices", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array(18),
+      indices: new Uint32Array(6),
+      nodePickIds: new Uint32Array([4, 2, 4, 0, 2, 0]),
+      nodePositions: new Float32Array(12),
+    };
+    expect(Array.from(buildNodeSpritePickIds(geometry))).toEqual([2, 4]);
   });
 });
 
