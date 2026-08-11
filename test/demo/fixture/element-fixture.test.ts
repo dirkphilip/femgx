@@ -87,8 +87,9 @@ describe("createElementFixture", () => {
 
   it("builds a curved Hex20 cylinder with a bounded height", () => {
     const fixture = createHex20CylinderFixture();
-    expect(fixture.scene.parts.size).toBe(2);
-    expect(flatten(fixture).map((instance) => instance.worldTransform[12])).toEqual([0, 0]);
+    expect(fixture.scene.parts.size).toBe(1);
+    expect(fixture.overlayPartIds).toEqual([]);
+    expect(flatten(fixture).map((instance) => instance.worldTransform[12])).toEqual([0]);
     expect(fixture.bounds.minZ).toBeCloseTo(-0.9);
     expect(fixture.bounds.maxZ).toBeCloseTo(0.9);
   });
