@@ -90,10 +90,18 @@ export function buildNodeBodyOwnerData(
   const bodyRanges = new Uint32Array(spritePickIds.length * 2);
   for (let sprite = 0; sprite < spritePickIds.length; sprite += 1) {
     const pickId = spritePickIds[sprite] ?? 0;
-    const ownerIds = [...(owners.get(pickId - 1) ?? [])].sort((a, b) => a - b);
+    const rawOwnerIds = [...(owners.get(pickId - 1) ?? [])];
+    const hasNamedOwner = rawOwnerIds.some((bodyId) => bodyId !== undefined);
+    const ownerIds = (hasNamedOwner ? rawOwnerIds : [])
+      .map((bodyId) => ({ bodyId }))
+      .sort((a, b) => {
+        if (a.bodyId === undefined) return b.bodyId === undefined ? 0 : -1;
+        if (b.bodyId === undefined) return 1;
+        return a.bodyId - b.bodyId;
+      });
     bodyRanges[sprite * 2] = bodyIds.length;
     bodyRanges[sprite * 2 + 1] = ownerIds.length;
-    bodyIds.push(...ownerIds.map((bodyId) => bodyId + 1));
+    bodyIds.push(...ownerIds.map(({ bodyId }) => (bodyId === undefined ? 0 : bodyId + 1)));
   }
   return {
     bodyRanges: bodyRanges.length === 0 ? new Uint32Array([0, 0]) : bodyRanges,
@@ -101,11 +109,10 @@ export function buildNodeBodyOwnerData(
   };
 }
 
-function nodeBodyOwners(geometry: Geometry): Map<number, Set<number>> {
-  const owners = new Map<number, Set<number>>();
+function nodeBodyOwners(geometry: Geometry): Map<number, Set<number | undefined>> {
+  const owners = new Map<number, Set<number | undefined>>();
   for (const element of geometry.elements ?? []) {
     const bodyId = bodyIdForElement(geometry, element.id);
-    if (bodyId === undefined) continue;
     const range = primitiveRangeForElement(element);
     const verticesPerPrimitive =
       geometry.primitive === "lines" ? 2 : geometry.primitive === "points" ? 1 : 3;
@@ -114,7 +121,7 @@ function nodeBodyOwners(geometry: Geometry): Map<number, Set<number>> {
     for (let vertex = start; vertex < end; vertex += 1) {
       const pickId = geometry.nodePickIds?.[vertex] ?? 0;
       if (pickId === 0) continue;
-      const bodyIds = owners.get(pickId - 1) ?? new Set<number>();
+      const bodyIds = owners.get(pickId - 1) ?? new Set<number | undefined>();
       bodyIds.add(bodyId);
       owners.set(pickId - 1, bodyIds);
     }
