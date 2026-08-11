@@ -1,11 +1,15 @@
-import type { ElementId } from "../elements/element";
-import type { FaceKey } from "../elements/faces";
-import type { InstanceId } from "../scene/types";
 import type { InteractionState } from "./interaction";
 import type { BodyId } from "../geometry/part";
 import { resolveBodyStyle, resolveInstanceStyle, type ResolvedStyle } from "./interaction";
 import type { FaceRef } from "./refs";
 import type { Instance } from "../scene/types";
+import {
+  applyStyleLayers,
+  collectUniqueRefs,
+  sameRef,
+  sortedStrings,
+  updateNestedMap,
+} from "./mechanics";
 
 function updateFaceSet(
   state: InteractionState,
@@ -13,15 +17,13 @@ function updateFaceSet(
   ref: FaceRef,
   enabled: boolean,
 ): InteractionState {
-  const current = state[key].get(ref.instanceId);
-  const has = current?.has(ref.faceKey) ?? false;
-  if (has === enabled) return state;
-  const faces = new Map(current ?? []);
-  if (enabled) faces.set(ref.faceKey, ref.elementId);
-  else faces.delete(ref.faceKey);
-  const map = new Map(state[key]);
-  if (faces.size === 0) map.delete(ref.instanceId);
-  else map.set(ref.instanceId, faces);
+  const map = updateNestedMap(
+    state[key],
+    ref.instanceId,
+    ref.faceKey,
+    enabled ? ref.elementId : undefined,
+  );
+  if (map === state[key]) return state;
   return { ...state, [key]: map };
 }
 
@@ -48,14 +50,8 @@ export function setHoveredFace(
   state: InteractionState,
   ref: FaceRef | undefined,
 ): InteractionState {
-  const current = state.hoveredFace;
-  if (current === ref) return state;
   if (
-    current !== undefined &&
-    ref !== undefined &&
-    current.instanceId === ref.instanceId &&
-    current.elementId === ref.elementId &&
-    current.faceKey === ref.faceKey
+    sameRef(state.hoveredFace, ref, (value) => [value.instanceId, value.elementId, value.faceKey])
   ) {
     return state;
   }
@@ -89,24 +85,21 @@ export function resolveFaceStyle(
   state: InteractionState,
   bodyId?: BodyId,
 ): ResolvedStyle {
-  let style =
+  const style =
     bodyId === undefined
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
-  if (state.highlightedFaces.get(ref.instanceId)?.has(ref.faceKey) === true) {
-    style = { ...style, ...state.theme.highlighted };
-  }
-  if (
-    state.hoveredFace?.instanceId === ref.instanceId &&
-    state.hoveredFace.elementId === ref.elementId &&
-    state.hoveredFace.faceKey === ref.faceKey
-  ) {
-    style = { ...style, ...state.theme.hoveredFace };
-  }
-  if (state.selectedFaces.get(ref.instanceId)?.has(ref.faceKey) === true) {
-    style = { ...style, ...state.theme.selectedFace };
-  }
-  return style;
+  return applyStyleLayers(style, [
+    state.highlightedFaces.get(ref.instanceId)?.has(ref.faceKey) === true
+      ? state.theme.highlighted
+      : undefined,
+    sameRef(state.hoveredFace, ref, (value) => [value.instanceId, value.elementId, value.faceKey])
+      ? state.theme.hoveredFace
+      : undefined,
+    state.selectedFaces.get(ref.instanceId)?.has(ref.faceKey) === true
+      ? state.theme.selectedFace
+      : undefined,
+  ]);
 }
 
 /**
@@ -115,31 +108,22 @@ export function resolveFaceStyle(
  * duplicates.
  */
 export function emphasizedFaceRefs(state: InteractionState): readonly FaceRef[] {
-  const refs: FaceRef[] = [];
-  const seen = new Set<string>();
-  const push = (instanceId: InstanceId, elementId: ElementId, faceKey: FaceKey): void => {
-    const key = `${instanceId}/${faceKey}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    refs.push({ instanceId, elementId, faceKey });
-  };
-  const hovered = state.hoveredFace;
-  if (hovered !== undefined) push(hovered.instanceId, hovered.elementId, hovered.faceKey);
-  for (const [instanceId, faces] of state.highlightedFaces) {
-    for (const faceKey of sortedKeys(faces)) {
-      const elementId = faces.get(faceKey);
-      if (elementId !== undefined) push(instanceId, elementId, faceKey);
-    }
-  }
-  for (const [instanceId, faces] of state.selectedFaces) {
-    for (const faceKey of sortedKeys(faces)) {
-      const elementId = faces.get(faceKey);
-      if (elementId !== undefined) push(instanceId, elementId, faceKey);
-    }
-  }
-  return refs;
-}
-
-function sortedKeys(faces: ReadonlyMap<FaceKey, ElementId>): FaceKey[] {
-  return Array.from(faces.keys()).sort();
+  return collectUniqueRefs(
+    state.hoveredFace,
+    (ref) => `${ref.instanceId}/${ref.faceKey}`,
+    (push) => {
+      for (const [instanceId, faces] of state.highlightedFaces) {
+        for (const faceKey of sortedStrings(faces.keys())) {
+          const elementId = faces.get(faceKey);
+          if (elementId !== undefined) push({ instanceId, elementId, faceKey });
+        }
+      }
+      for (const [instanceId, faces] of state.selectedFaces) {
+        for (const faceKey of sortedStrings(faces.keys())) {
+          const elementId = faces.get(faceKey);
+          if (elementId !== undefined) push({ instanceId, elementId, faceKey });
+        }
+      }
+    },
+  );
 }

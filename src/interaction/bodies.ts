@@ -2,6 +2,13 @@ import type { BodyId } from "../geometry/part";
 import type { InstanceId } from "../scene/types";
 import type { BodyRef } from "./refs";
 import type { InteractionState, StyleOverride } from "./interaction";
+import {
+  collectUniqueRefs,
+  sameRef,
+  sortedNumbers,
+  updateNestedMap,
+  updateNestedSet,
+} from "./mechanics";
 
 /** Sets or clears one body selection without mutating the previous state. */
 export function setBodySelected(
@@ -26,8 +33,7 @@ export function setHoveredBody(
   state: InteractionState,
   ref: BodyRef | undefined,
 ): InteractionState {
-  const current = state.hoveredBody;
-  if (current?.instanceId === ref?.instanceId && current?.bodyId === ref?.bodyId) {
+  if (sameRef(state.hoveredBody, ref, (value) => [value.instanceId, value.bodyId])) {
     return state;
   }
   if (ref === undefined) {
@@ -43,14 +49,8 @@ export function setBodyOverride(
   ref: BodyRef,
   override: StyleOverride | undefined,
 ): InteractionState {
-  const current = state.bodyOverrides.get(ref.instanceId)?.get(ref.bodyId);
-  if (current === override) return state;
-  const overrides = new Map(state.bodyOverrides.get(ref.instanceId) ?? []);
-  if (override === undefined) overrides.delete(ref.bodyId);
-  else overrides.set(ref.bodyId, override);
-  const bodyOverrides = new Map(state.bodyOverrides);
-  if (overrides.size === 0) bodyOverrides.delete(ref.instanceId);
-  else bodyOverrides.set(ref.instanceId, overrides);
+  const bodyOverrides = updateNestedMap(state.bodyOverrides, ref.instanceId, ref.bodyId, override);
+  if (bodyOverrides === state.bodyOverrides) return state;
   return { ...state, bodyOverrides };
 }
 
@@ -81,28 +81,23 @@ export function isBodyEmphasized(state: InteractionState, ref: BodyRef): boolean
 
 /** Collects body occurrences in stable instance/body order without duplicates. */
 export function emphasizedBodyRefs(state: InteractionState): readonly BodyRef[] {
-  const refs: BodyRef[] = [];
-  const seen = new Set<string>();
-  const push = (instanceId: InstanceId, bodyId: BodyId): void => {
-    const key = `${instanceId}/${bodyId}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    refs.push({ instanceId, bodyId });
-  };
-  const hovered = state.hoveredBody;
-  if (hovered !== undefined) push(hovered.instanceId, hovered.bodyId);
-  const maps: readonly ReadonlyMap<InstanceId, BodyValues>[] = [
-    state.highlightedBodyIds,
-    state.selectedBodyIds,
-    state.bodyOverrides,
-    state.hiddenBodyIds,
-  ];
-  for (const map of maps) {
-    for (const [instanceId, values] of sortedMap(map)) {
-      for (const bodyId of sortedNumbers(values.keys())) push(instanceId, bodyId);
-    }
-  }
-  return refs;
+  return collectUniqueRefs(
+    state.hoveredBody,
+    (ref) => `${ref.instanceId}/${ref.bodyId}`,
+    (push) => {
+      const maps: readonly ReadonlyMap<InstanceId, BodyValues>[] = [
+        state.highlightedBodyIds,
+        state.selectedBodyIds,
+        state.bodyOverrides,
+        state.hiddenBodyIds,
+      ];
+      for (const map of maps) {
+        for (const [instanceId, values] of sortedMap(map)) {
+          for (const bodyId of sortedNumbers(values.keys())) push({ instanceId, bodyId });
+        }
+      }
+    },
+  );
 }
 
 function updateBodySet(
@@ -111,15 +106,8 @@ function updateBodySet(
   ref: BodyRef,
   enabled: boolean,
 ): InteractionState {
-  const current = state[key].get(ref.instanceId);
-  const has = current?.has(ref.bodyId) ?? false;
-  if (has === enabled) return state;
-  const ids = new Set(current ?? []);
-  if (enabled) ids.add(ref.bodyId);
-  else ids.delete(ref.bodyId);
-  const next = new Map(state[key]);
-  if (ids.size === 0) next.delete(ref.instanceId);
-  else next.set(ref.instanceId, ids);
+  const next = updateNestedSet(state[key], ref.instanceId, ref.bodyId, enabled);
+  if (next === state[key]) return state;
   return { ...state, [key]: next };
 }
 
@@ -129,8 +117,4 @@ function sortedMap<V extends BodyValues>(
   map: ReadonlyMap<InstanceId, V>,
 ): Array<readonly [InstanceId, V]> {
   return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
-}
-
-function sortedNumbers(values: Iterable<BodyId>): number[] {
-  return [...values].sort((a, b) => a - b);
 }
