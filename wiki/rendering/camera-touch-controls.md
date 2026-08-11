@@ -7,9 +7,9 @@ toolbars, or inspection panels.
 
 ## Gestures
 
-- **Middle drag** spins (`orbitCamera`); **Shift+middle drag** pans
-  (`panCamera`); **Ctrl+middle drag** zooms vertically (`zoomCamera`). This
-  matches the default SpaceClaim desktop navigation.
+- **Middle drag** spins (`orbitCamera`); **Ctrl/Meta+middle drag** pans
+  (`panCamera`) in the drag direction; **Shift+middle drag** zooms vertically
+  (`zoomCamera`).
 - **Wheel** zooms toward the visible world point under the cursor
   (`zoomCameraAtPoint`); an upward wheel/drag motion zooms in and a downward
   motion zooms out. Empty space falls back to the target-anchored `zoomCamera`.

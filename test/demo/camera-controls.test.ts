@@ -7,6 +7,7 @@ interface PointerInput {
   readonly button: number;
   readonly shiftKey: boolean;
   readonly ctrlKey: boolean;
+  readonly metaKey: boolean;
   readonly clientX: number;
   readonly clientY: number;
 }
@@ -53,6 +54,7 @@ const pointer = (clientX: number, clientY: number): PointerInput => ({
   button: 1,
   shiftKey: false,
   ctrlKey: false,
+  metaKey: false,
   clientX,
   clientY,
 });
@@ -158,6 +160,55 @@ describe("camera controls", () => {
     await Promise.resolve();
 
     expect(marker).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it.each([
+    ["Control", { ctrlKey: true }],
+    ["Meta", { metaKey: true }],
+  ])("pans the scene right with %s+middle drag", (_modifier, modifiers) => {
+    const canvas = new FakeCanvas();
+    const initial = resizeCamera(
+      createCamera({ position: [0, 0, 5], target: [0, 0, 0] }),
+      200,
+      100,
+    );
+    const cameraRef = { camera: initial };
+    const pickPoint = vi.fn(() => Promise.resolve(undefined));
+    installCameraControls({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      cameraRef,
+      navigation: { pickPoint, setOrbitPivot: vi.fn() },
+      onRender: vi.fn(),
+    });
+
+    canvas.dispatch("pointerdown", { ...pointer(100, 50), ...modifiers });
+    canvas.dispatch("pointermove", { ...pointer(130, 50), ...modifiers });
+
+    expect(cameraRef.camera.position).toEqual([-0.3, 0, 5]);
+    expect(cameraRef.camera.target).toEqual([-0.3, 0, 0]);
+    expect(pickPoint).not.toHaveBeenCalled();
+  });
+
+  it("moves the former Control zoom drag to Shift+middle drag", () => {
+    const canvas = new FakeCanvas();
+    const initial = resizeCamera(
+      createCamera({ position: [0, 0, 5], target: [0, 0, 0] }),
+      200,
+      100,
+    );
+    const cameraRef = { camera: initial };
+    installCameraControls({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      cameraRef,
+      navigation: { pickPoint: vi.fn(() => Promise.resolve(undefined)), setOrbitPivot: vi.fn() },
+      onRender: vi.fn(),
+    });
+
+    canvas.dispatch("pointerdown", { ...pointer(100, 50), shiftKey: true });
+    canvas.dispatch("pointermove", { ...pointer(100, 80), shiftKey: true });
+
+    expect(cameraRef.camera.position).toEqual([0, 0, Math.exp(0.1) * 5]);
+    expect(cameraRef.camera.target).toEqual(initial.target);
   });
 });
 
