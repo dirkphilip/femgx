@@ -1,9 +1,7 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const CONFIG_PATH = fileURLToPath(new URL("../../.supervisor/config.toml", import.meta.url));
 
 type CheckState =
