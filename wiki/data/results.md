@@ -81,7 +81,7 @@ colored/deformed state by adding `deformation`.
 `deformPositions(positions, nodePickIds, displacements, scale)` / `deformGeometry(geometry,
 displacements, scale)` displace a geometry by a nodal displacement vector field times a `scale`
 factor. Vertices are mapped back to their model node through the per-vertex `nodePickIds` map
-(`nodeId + 1`, `0` = interpolated), so tessellated geometry that duplicates vertices per
+(`nodeId + 1`, `0` = vertex without a node), so tessellated geometry that duplicates vertices per
 triangle/segment deforms like its FE nodes instead of assuming vertex `i` is node `i`.
 Vertices without a node, without a matching displacement, or whose displacement is missing
 (`NaN`) keep their original position. `deformGeometry` requires a node-mapped geometry
@@ -108,8 +108,8 @@ The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
 - The WGSL vertex shaders (`gpu-shaders.ts`) resolve each vertex to its FE node through the
   part's per-vertex node pick ids and add `displacement * scale` to the model-space vertex in
   the triangle, point-sprite, and edge-overlay passes, so the wireframe and picking stay
-  aligned with the deformed solid. Interpolated tessellation vertices (e.g. quadratic quad
-  centers) have no node and stay in place.
+  aligned with the deformed solid. Supported Line3, Tet10, and Hex20 tessellation
+  vertices are all authored nodes, so no quadratic face center can remain stationary.
 - Geometry upload stays amortized: only the tiny uniform (and a compact displacement buffer on load-case change) is rewritten, matching the delta-oriented architecture — see [[rendering/renderer-subrange-updates|Renderer subrange updates]].
 
 ## Status / follow-ups

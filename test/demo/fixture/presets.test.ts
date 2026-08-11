@@ -70,6 +70,8 @@ describe("createHex20CylinderPreset", () => {
     expect(preset.overlayPartIds).toEqual([]);
     expect(preset.bounds.minZ).toBeCloseTo(-0.9);
     expect(preset.bounds.maxZ).toBeCloseTo(0.9);
+    expect(preset.results?.deformation?.field.count).toBeGreaterThan(20);
+    expect(preset.results?.field.shape).toBe("scalar");
   });
 });
 

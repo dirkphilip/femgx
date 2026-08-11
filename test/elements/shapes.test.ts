@@ -97,6 +97,49 @@ describe("topologyFor", () => {
     expect(hex20.edgeNodes).toEqual([8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
   });
 
+  it.each([
+    ["line3", LINE3_SHAPE, [[0, 1]], [2]],
+    [
+      "tet10",
+      TET10_SHAPE,
+      [
+        [0, 1],
+        [1, 2],
+        [2, 0],
+        [0, 3],
+        [1, 3],
+        [2, 3],
+      ],
+      [4, 5, 6, 7, 8, 9],
+    ],
+    [
+      "hex20",
+      HEX20_SHAPE,
+      [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [4, 5],
+        [5, 6],
+        [6, 7],
+        [7, 4],
+        [0, 4],
+        [1, 5],
+        [2, 6],
+        [3, 7],
+      ],
+      [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+    ],
+  ] as const)(
+    "matches the documented %s corner and mid-edge order",
+    (_name, shape, edges, mids) => {
+      const topology = topologyFor(shape);
+      expect(topology.edges).toEqual(edges);
+      expect(topology.edgeNodes).toEqual(mids);
+    },
+  );
+
   it("assigns every connectivity position as either a corner or a mid-edge node", () => {
     for (const [_name, shape] of ALL_SHAPES) {
       const topology = topologyFor(shape);

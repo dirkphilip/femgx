@@ -125,7 +125,7 @@ fn topologyBodyId(index: u32) -> u32 {
  * Displaces a model-space vertex by the active load case's nodal displacement,
  * scaled by the deformation uniform. Each vertex is mapped to the model node
  * it came from through the per-vertex `vertexNodePickIds` storage buffer
- * (`nodeId + 1`, `0` = interpolated vertex with no node), so tessellated
+ * (`nodeId + 1`, `0` = vertex without a node), so tessellated
  * geometry that duplicates vertices per triangle/segment deforms like its FE
  * nodes rather than assuming `vertexIndex == nodeIndex`. The `displacements`
  * buffer is indexed by node id. Vertices without a node, whose node id falls

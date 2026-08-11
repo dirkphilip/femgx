@@ -85,14 +85,17 @@ through its authored mid-edge nodes:
 
 - Tet10 faces are each subdivided into 4 triangles through the three mid-edge
   nodes (one center triangle + three corner triangles).
-- Hex20 quads are each subdivided into 8 triangles through the mid-edge nodes
-  (a center vertex joined to the 8 quad-edge halves).
+- Hex20 quads are each subdivided into 6 triangles through the four corners and
+  four mid-edge nodes: four corner triangles plus two inner-quad triangles split
+  by the deterministic diagonal from the first to the third mid-edge node.
 - LINE3 edges are emitted as two straight segments through the mid-edge node.
   No quadratic curve interpolation or adaptive subdivision is part of the
   rendering contract.
 
-This keeps geometry conforming: adjacent quadratic elements share mid-edge
-nodes, and the mesh generator only needs the element's own connectivity.
+This keeps geometry conforming: adjacent quadratic elements share authored
+mid-edge nodes, every tessellation vertex follows the existing nodal deformation
+and node-picking paths, and the mesh generator only needs the element's own
+connectivity.
 
 ## Tessellation cost
 

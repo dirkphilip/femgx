@@ -11,7 +11,7 @@ export interface PartResource {
   readonly elementPickIdsBuffer: GPUBuffer;
   /** Interleaved per-triangle face/body pick ids (`faceId + 1`, `bodyId + 1`). */
   readonly facePickIdsBuffer: GPUBuffer;
-  /** Per-vertex node pick ids (`nodeId + 1`, 0 = interpolated vertex). */
+  /** Per-vertex node pick ids (`nodeId + 1`, 0 = vertex without a node). */
   readonly nodePickIdsBuffer: GPUBuffer;
   /** Line-list of the deduplicated mesh edges for the wireframe pass. */
   readonly edgeIndexBuffer: GPUBuffer;

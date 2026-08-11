@@ -2,6 +2,7 @@ import type { ElementModel } from "../../src/elements/model";
 import type { Bounds } from "../../src/geometry/part";
 import type { Color } from "../../src/interaction/interaction";
 import { transformPoint } from "../../src/math/mat4";
+import { createResultField } from "../../src/results/fields";
 import type { Scene } from "../../src/scene/scene";
 import { createSceneRuntime } from "../../src/index";
 import type { PartId } from "../../src/geometry/part";
@@ -101,6 +102,23 @@ export function createVtkPreset(): ModelPreset {
 export function createHex20CylinderPreset(): ModelPreset {
   const fixture = createHex20CylinderFixture();
   const partId = fixture.partIds.hex20;
+  const model = fixture.elementModels.get(partId);
+  if (model === undefined) throw new Error("Hex20 cylinder fixture has no element model");
+  const elementCount = Math.max(...model.elements.map((element) => element.id)) + 1;
+  const stressValues = new Float32Array(elementCount);
+  for (const [index, element] of model.elements.entries()) {
+    stressValues[element.id] = 0.5 + index / Math.max(1, model.elements.length - 1);
+  }
+  const displacementValues = new Float32Array(model.nodes.length);
+  for (let node = 0; node < model.nodes.length / 3; node += 1) {
+    const offset = node * 3;
+    const x = model.nodes[offset] ?? 0;
+    const y = model.nodes[offset + 1] ?? 0;
+    const z = model.nodes[offset + 2] ?? 0;
+    displacementValues[offset] = x * 0.08 + z * 0.03;
+    displacementValues[offset + 1] = y * 0.08;
+    displacementValues[offset + 2] = x * 0.04;
+  }
   return {
     id: "hex20-cylinder",
     name: "Hex20 cylinder",
@@ -108,11 +126,34 @@ export function createHex20CylinderPreset(): ModelPreset {
     elementModels: fixture.elementModels,
     partColors: new Map<PartId, Color>([[partId, { r: 0.76, g: 0.34, b: 0.84, a: 1 }]]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
-    partNames: new Map<PartId, string>([[partId, "Hex20 cylinder · linear mid-edge tessellation"]]),
+    partNames: new Map<PartId, string>([[partId, "Hex20 cylinder · authored-node facets"]]),
     modePartIds: fixture.modePartIds,
     overlayPartIds: fixture.overlayPartIds,
     defaultMode: "solid",
     bounds: fixture.bounds,
+    results: {
+      field: createResultField({
+        id: "hex20-cylinder-stress",
+        name: "Hex20 cylinder stress",
+        location: "elemental",
+        shape: "scalar",
+        count: elementCount,
+        unit: "MPa",
+        values: stressValues,
+      }),
+      deformation: {
+        field: createResultField({
+          id: "hex20-cylinder-displacement",
+          name: "Hex20 cylinder displacement",
+          location: "nodal",
+          shape: "vector",
+          count: model.nodes.length / 3,
+          unit: "mm",
+          values: displacementValues,
+        }),
+        scale: 1,
+      },
+    },
   };
 }
 

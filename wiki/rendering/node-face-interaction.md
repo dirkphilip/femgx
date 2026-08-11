@@ -10,9 +10,9 @@ oriented element faces are the finest-grained pickable units under
 
 - **Nodes**: `NodeId` already indexes `ElementModel.nodes` densely. The
   tessellation records a `nodePickIds` array (one `u32` per mesh vertex,
-  `nodeId + 1`, `0` for interpolated quadratic vertices such as the center of a
-  quadratic quad) plus `nodePositions` (per `NodeId`, three floats) so picks
-  resolve to local/world positions on the CPU.
+  `nodeId + 1`) plus `nodePositions` (per `NodeId`, three floats) so picks
+  resolve to local/world positions on the CPU. Supported element tessellation
+  emits authored nodes only; `0` remains reserved for node-less custom geometry.
 - **Faces**: `facesOfElement` pairs every `facesOf(element)` result with a
   stable `faceIndex` (canonical order). The tessellation assigns each oriented
   face a part-local `FaceTessellation` (stable `id`, `elementId`,

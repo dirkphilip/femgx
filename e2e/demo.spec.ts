@@ -219,8 +219,61 @@ test("switches between deterministic model presets", async ({ page }) => {
     await expect(canvas).toHaveAttribute("data-nodes", "true");
     await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
-    await expect(canvas).toHaveAttribute("data-results", id === "results" ? "deformed" : "base");
+    await expect(canvas).toHaveAttribute(
+      "data-results",
+      id === "results" || id === "hex20-cylinder" ? "deformed" : "base",
+    );
   }
+});
+
+test("keeps the deformed Hex20 cylinder connected and pickable", async ({ page }) => {
+  await page.goto("/");
+  const select = page.getByTestId("model-select");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await select.selectOption("hex20-cylinder");
+  await expect(canvas).toHaveAttribute("data-results", "deformed");
+  await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
+
+  const nodeHit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:", fresh: true },
+    "the deformed Hex20 cylinder must resolve authored node picks",
+  );
+  expect(nodeHit.key).toMatch(/^n:.+:\d+$/);
+  await page.mouse.click(nodeHit.x, nodeHit.y);
+  await expect(page.getByTestId("inspection-panel")).toContainText("Node");
+  await expect(page.getByTestId("inspection-panel")).toContainText("Position");
+
+  const faceHit = await requireHit(
+    page,
+    canvas,
+    { prefix: "f:", fresh: true },
+    "the deformed Hex20 cylinder must resolve face picks",
+  );
+  await page.mouse.click(faceHit.x, faceHit.y);
+  await expect(page.getByTestId("inspection-panel")).toContainText("Face");
+  await expect(page.getByTestId("inspection-panel")).toContainText("Hit");
+
+  const canvasBox = await canvas.boundingBox();
+  if (canvasBox === null) throw new Error("canvas has no bounding box");
+  const point = await page.evaluate(
+    async ({ x, y }) => {
+      const demo = (
+        window as typeof window & {
+          femgxDemo?: {
+            pickPoint?: (x: number, y: number) => Promise<readonly number[] | undefined>;
+          };
+        }
+      ).femgxDemo;
+      return (await demo?.pickPoint?.(x, y)) ?? undefined;
+    },
+    { x: faceHit.x - canvasBox.x, y: faceHit.y - canvasBox.y },
+  );
+  expect(point).toHaveLength(3);
+  expect(point?.every(Number.isFinite)).toBe(true);
+  expect(await canvas.screenshot()).not.toHaveLength(0);
 });
 
 test("refits cleanly after switching from a larger gallery to the bolted model", async ({

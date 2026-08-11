@@ -8,9 +8,9 @@ import { average, cross, dot, length, subtract, type Vec3 } from "../math/vec3";
 /**
  * Subdivides an oriented element face into triangles, each wound to face
  * outward. Linear faces fan from the first corner; quadratic faces are
- * subdivided through their mid-edge nodes. Every vertex keeps the model node
- * it came from (`undefined` only for interpolated quad centers), which the
- * renderer uses to make the mesh node-pickable.
+ * subdivided through their mid-edge nodes. Every vertex keeps the authored
+ * model node it came from, which the renderer uses to make the mesh
+ * node-pickable and deformation-attached.
  */
 
 /** Splits an interleaved face loop into separate corner and mid-edge nodes. */
@@ -90,21 +90,14 @@ function quadraticQuad(
 ): ReadonlyArray<readonly [MeshVertex, MeshVertex, MeshVertex]> {
   const [a, b, c, d] = corners as readonly [MeshVertex, MeshVertex, MeshVertex, MeshVertex];
   const [mab, mbc, mcd, mda] = mids as readonly [MeshVertex, MeshVertex, MeshVertex, MeshVertex];
-  const center: MeshVertex = {
-    point: average([...corners.map((corner) => corner.point), ...mids.map((mid) => mid.point)]),
-    nodeId: undefined,
-  };
-  const pairs: ReadonlyArray<readonly [MeshVertex, MeshVertex]> = [
-    [a, mab],
-    [mab, b],
-    [b, mbc],
-    [mbc, c],
-    [c, mcd],
-    [mcd, d],
-    [d, mda],
-    [mda, a],
+  return [
+    orient(outward, a, mab, mda),
+    orient(outward, b, mbc, mab),
+    orient(outward, c, mcd, mbc),
+    orient(outward, d, mda, mcd),
+    orient(outward, mab, mbc, mcd),
+    orient(outward, mab, mcd, mda),
   ];
-  return pairs.map(([from, to]) => orient(outward, center, from, to));
 }
 
 /** Direction from the element interior toward the face (for outward winding). */

@@ -143,7 +143,7 @@ export function buildNodeSpritePickIds(geometry: Geometry): Uint32Array {
   return Uint32Array.from([...ids].sort((a, b) => a - b));
 }
 
-/** Builds the per-vertex node pick id map (`nodeId + 1`, 0 = interpolated). */
+/** Builds the per-vertex node pick id map (`nodeId + 1`, 0 = vertex without a node). */
 export function buildVertexNodePickIds(geometry: {
   readonly positions: Float32Array;
   readonly nodePickIds?: Uint32Array | undefined;
