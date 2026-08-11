@@ -4,7 +4,7 @@ import type { Color } from "../../src/interaction/interaction";
 import { transformPoint } from "../../src/math/mat4";
 import type { Scene } from "../../src/scene/scene";
 import { createSceneRuntime } from "../../src/index";
-import type { PartId } from "../../src/scene/types";
+import type { PartId } from "../../src/geometry/part";
 import type { ViewportResultsConfig } from "../../src/viewport/results";
 import { createBoltedPlateFixture } from "./bolted-plate";
 import { createElementFixture, createHex20CylinderFixture } from "./element-fixture";

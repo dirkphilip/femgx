@@ -1,5 +1,6 @@
 import type { Mat4 } from "../math/mat4";
-import { viewProjectionMatrix, type Camera, type Vec3 } from "./camera";
+import type { Vec3 } from "../math/vec3";
+import { viewProjectionMatrix, type Camera } from "./camera";
 
 /** A point in homogeneous clip space: x, y, z, w. */
 type ClipPoint = readonly [number, number, number, number];

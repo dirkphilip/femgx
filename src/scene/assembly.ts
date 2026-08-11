@@ -1,5 +1,6 @@
 import type { Mat4 } from "../math/mat4";
-import type { AssemblyId, PartId } from "./types";
+import type { PartId } from "../geometry/part";
+import type { AssemblyId } from "./types";
 
 /** A placement of a part inside an assembly. */
 export interface PartPlacement {

@@ -1,7 +1,8 @@
 import { identity, multiply, type Mat4 } from "../math/mat4";
 import type { Assembly, PartPlacement } from "../scene/assembly";
 import type { Scene } from "../scene/scene";
-import type { AssemblyId, AssemblyNodeId, PartId } from "../scene/types";
+import type { PartId } from "../geometry/part";
+import type { AssemblyId, AssemblyNodeId } from "../scene/types";
 
 /** Mutable intermediate for a compiled assembly expansion. */
 export interface NodeDraft {

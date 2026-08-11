@@ -1,7 +1,7 @@
 import type { PickGranularity, PickContext } from "../picking/pick";
 import { resolvePickTarget } from "../picking/pick";
 import { canvasCssToRenderPixel } from "../camera/coordinates";
-import type { PickTarget } from "../scene/types";
+import type { PickTarget } from "../picking/types";
 import { decodePickId, PICK_TEXTURE_FORMAT } from "./pick-format";
 import { WebGpuPickReadbackError } from "./gpu-pick-error";
 import {

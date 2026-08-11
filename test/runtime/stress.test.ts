@@ -5,7 +5,8 @@ import { resolvePick } from "../../src/picking/pick";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { Assembly, Placement } from "../../src/scene/assembly";
 import type { Scene } from "../../src/scene/scene";
-import type { AssemblyId, Instance, PartId } from "../../src/scene/types";
+import type { PartId } from "../../src/geometry/part";
+import type { AssemblyId, Instance } from "../../src/scene/types";
 
 /**
  * Large-model stress coverage: verifies that the CPU scene pipeline preserves

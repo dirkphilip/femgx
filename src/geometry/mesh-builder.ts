@@ -7,7 +7,7 @@ import type {
   Primitive,
   TriangleGeometry,
 } from "./part";
-import type { Vec3 } from "./vec-math";
+import type { Vec3 } from "../math/vec3";
 
 /** A tessellated triangle vertex plus the model node it came from, if any. */
 export interface MeshVertex {

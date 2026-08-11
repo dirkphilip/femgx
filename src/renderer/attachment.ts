@@ -1,7 +1,8 @@
 import type { Part } from "../geometry/part";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { Instance, InstanceId, PartId } from "../scene/types";
+import type { PartId } from "../geometry/part";
+import type { Instance, InstanceId } from "../scene/types";
 import { syncElementHighlights } from "./gpu-elements";
 import {
   createDrawResources,

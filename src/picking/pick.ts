@@ -1,6 +1,8 @@
-import type { Vec3 } from "../camera/camera";
+import { average, type Vec3 } from "../math/vec3";
 import { bodyIdForElement, type Geometry, type Part } from "../geometry/part";
-import type { FacePickTarget, Instance, NodePickTarget, PartId, PickTarget } from "../scene/types";
+import type { PartId } from "../geometry/part";
+import type { Instance } from "../scene/types";
+import type { FacePickTarget, NodePickTarget, PickTarget } from "./types";
 
 /** The inputs every pick resolution needs: the drawn instances and their parts. */
 export interface PickContext {
@@ -252,19 +254,6 @@ function transformPosition(instance: Instance, point: Vec3): Vec3 {
       (transform[14] ?? 0)) /
       divisor,
   ];
-}
-
-function average(points: readonly Vec3[]): Vec3 {
-  if (points.length === 0) return [0, 0, 0];
-  let x = 0;
-  let y = 0;
-  let z = 0;
-  for (const point of points) {
-    x += point[0];
-    y += point[1];
-    z += point[2];
-  }
-  return [x / points.length, y / points.length, z / points.length];
 }
 
 /** Newell's polygon normal, oriented by the vertex loop winding. */

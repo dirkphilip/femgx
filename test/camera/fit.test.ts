@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createCamera, projectPoint, type Camera, type Vec3 } from "../../src/camera/camera";
+import { createCamera, projectPoint, type Camera } from "../../src/camera/camera";
+import type { Vec3 } from "../../src/math/vec3";
 import { fitCamera } from "../../src/camera/fit";
 import type { Bounds } from "../../src/geometry/part";
 

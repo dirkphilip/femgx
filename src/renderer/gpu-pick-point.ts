@@ -1,4 +1,5 @@
-import { unprojectPoint, type Camera, type Vec3 } from "../camera/camera";
+import { unprojectPoint, type Camera } from "../camera/camera";
+import type { Vec3 } from "../math/vec3";
 import { pickPixelCoordinates, readPickPixel, type PickTargets } from "./gpu-pick";
 
 /** Reads and unprojects the exact nearest displayed fragment under a CSS point. */

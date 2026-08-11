@@ -18,7 +18,7 @@ import {
 } from "./part";
 import { tessellateFace } from "./face-tessellation";
 import { LineMeshBuilder, TriangleMeshBuilder, type MeshVertex } from "./mesh-builder";
-import type { Vec3 } from "./vec-math";
+import type { Vec3 } from "../math/vec3";
 import {
   allFacesForElements,
   boundaryFacesForElements,

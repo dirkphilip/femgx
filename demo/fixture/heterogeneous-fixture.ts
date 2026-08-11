@@ -3,7 +3,8 @@ import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-elem
 import type { Bounds, Part } from "../../src/geometry/part";
 import { identity } from "../../src/math/mat4";
 import { createScene, type Scene } from "../../src/scene/scene";
-import type { AssemblyId, PartId } from "../../src/scene/types";
+import type { PartId } from "../../src/geometry/part";
+import type { AssemblyId } from "../../src/scene/types";
 import type { ElementDisplayMode } from "./types";
 import { buildHeterogeneousModel } from "./element-models";
 

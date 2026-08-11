@@ -1,7 +1,7 @@
 import type { InteractionState } from "../interaction/interaction";
 import { resolveInstanceStyle } from "../interaction/interaction";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { PartId } from "../scene/types";
+import type { PartId } from "../geometry/part";
 import { encodeInstanceRecord, type InstanceUpdate } from "./gpu-draw";
 import { defaultStyle } from "./gpu-support";
 import { instanceAt, type InstanceLayout } from "./runtime-state";

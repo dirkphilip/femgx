@@ -1,4 +1,4 @@
-import type { PartId } from "../scene/types";
+import type { PartId } from "../geometry/part";
 
 /** Bytes of the deformation uniform (scale + loadCase + loadCaseCount + padding). */
 export const DEFORMATION_UNIFORM_SIZE = 16;

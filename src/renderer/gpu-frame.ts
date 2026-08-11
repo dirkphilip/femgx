@@ -1,6 +1,6 @@
 import { viewProjectionMatrix, type Camera } from "../camera/camera";
 import type { Part } from "../geometry/part";
-import type { PartId } from "../scene/types";
+import type { PartId } from "../geometry/part";
 import type { DeformationState } from "./gpu-deform";
 import { writeDeformationUniform } from "./gpu-deform";
 import type { DrawCall, DrawCallContext, DrawResources } from "./gpu-draw";

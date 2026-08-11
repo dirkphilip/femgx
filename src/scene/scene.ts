@@ -1,6 +1,6 @@
 import type { Assembly, NamedAssembly, Placement } from "./assembly";
-import type { Part } from "../geometry/part";
-import type { AssemblyId, PartId } from "./types";
+import type { Part, PartId } from "../geometry/part";
+import type { AssemblyId } from "./types";
 
 /**
  * The authoritative CPU-side scene: parts, assemblies, and their visibility.

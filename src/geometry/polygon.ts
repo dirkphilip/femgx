@@ -1,6 +1,6 @@
 import type { ElementId, NodeId } from "../elements/element";
 import type { FaceKey } from "../elements/faces";
-import type { PartId } from "../scene/types";
+import type { PartId } from "./part";
 import {
   createPart,
   validateBodies,

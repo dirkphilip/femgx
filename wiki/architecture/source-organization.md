@@ -7,15 +7,19 @@ canonical description.
 
 ## Layout
 
-- `src/math/` — matrix/vector math (`mat4`).
-- `src/geometry/` — reusable part geometry and computed bounds.
+- `src/math/` — foundational matrix/vector math (`mat4`, `vec3`). `Vec3` and
+  general vector operations live here so geometry, camera, picking, and scene
+  share one owner.
+- `src/geometry/` — reusable part geometry, the `PartId` identity, and computed
+  bounds; it depends on math and elements, never on scene.
 - `src/elements/` — typed finite-element model: shape/topology definitions
   (`shapes.ts`), validated element construction (`element.ts`), oriented face
   extraction and classification (`faces.ts`), unique edge extraction
   (`edges.ts`), plus internal helpers (`keys.ts`, `indices.ts`); pure CPU-side
   data with no WebGPU coupling (see [[data/elements-topology|Element topology]]).
-- `src/scene/` — authoritative CPU model: part/assembly/instance identities
-  (`types.ts`), assemblies, and the scene builder.
+- `src/scene/` — authoritative CPU model: assembly/instance identities
+  (`types.ts`), assemblies, and the scene builder. `PartId` remains owned by
+  geometry because it identifies reusable geometry.
 - `src/scene-runtime/` — packed CPU-side scene runtime with delta-oriented
   visibility updates (`createSceneRuntime`).
 - `src/camera/` — immutable orbit camera and projection math.
@@ -24,7 +28,9 @@ canonical description.
   nodes or elements), derived quantities (magnitude, von Mises, principal
   values), value ranges, scalar color mapping with thresholds, and
   deformed-shape geometry; pure CPU-side data (see [[data/results|Results]]).
-- `src/picking/` — GPU pick-id resolution (`resolvePick` / `resolvePickTarget`).
+- `src/picking/` — GPU pick-id resolution (`resolvePick` / `resolvePickTarget`)
+  and renderer-independent pick target types. It may depend on scene,
+  geometry, elements, and math.
 - `src/platform/` — explicit WebGPU unsupported/error reporting with typed reasons (`capabilities.ts`), plus device request, loss reporting, and re-creation focused on the supported path (`device.ts`); see [[rendering/platform-support|Platform support]].
 - `src/renderer/` — WebGPU renderer split into focused modules:
   `gpu-renderer.ts` (thin orchestrator and public API),
@@ -49,8 +55,14 @@ matching subsystem directory.
 - The single public entry point is `src/index.ts`; anything it does not
   re-export is internal. Do not widen the public API by exporting internals from
   a new location.
-- Prefer intra-subsystem imports; import across subsystems through `src/index.ts`
-  or the owning module's exported surface, not another subsystem's internals.
+- Prefer intra-subsystem imports; import across subsystems through the owning
+  module's deliberate surface, not another subsystem's internals. Type-only
+  imports count as dependencies just like runtime imports. `src/index.ts` is
+  the consumer-facing re-export boundary, never an internal dependency hub.
+- The intended lower-level direction is `math` → nothing, `geometry` → math and
+  elements, `scene` → geometry/elements/math, and `picking` → scene,
+  geometry/elements/math. Any cycle or upward edge is an ownership problem to
+  fix at the source, not an import exception to hide.
 
 Related: [[engineering/scaffold-decisions|Scaffold decisions]], [[engineering/quality-gate|Quality gate]].
 
