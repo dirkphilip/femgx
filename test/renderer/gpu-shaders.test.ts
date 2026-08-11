@@ -222,19 +222,10 @@ describe("GPU deformation shader contract", () => {
     expect(colorFragmentShader).toMatch(/dot\(local, local\) > 1\.0/);
   });
 
-  it("classifies complete node glyphs from their center scene depth", () => {
-    expect(pointVertexShader).toMatch(/output\.centerPixel = vec2<f32>/);
+  it("draws circular node glyphs at model depth", () => {
     expect(pointVertexShader).toMatch(/output\.nodeDepth = clip\.z \/ clip\.w/);
-    expect(nodeOverlayFragmentShader).toMatch(/texture_depth_multisampled_2d/);
-    expect(nodeOverlayFragmentShader).toMatch(/@interpolate\(flat\) centerPixel: vec2<f32>/);
-    expect(nodeOverlayFragmentShader).toMatch(/@interpolate\(flat\) nodeDepth: f32/);
-    expect(nodeOverlayFragmentShader).toMatch(/textureLoad\(sceneDepth, center, 0\)/);
-    expect(nodeOverlayFragmentShader).toMatch(/fn sampleOccludes\(sceneZ: f32, nodeEye: f32\)/);
-    expect(nodeOverlayFragmentShader).toMatch(/fn eyeDepth\(z: f32\)/);
-    expect(nodeOverlayFragmentShader).toMatch(
-      /sampleOccludes\(textureLoad\(sceneDepth, center, 0\), nodeEye\) &&/,
-    );
-    expect(pointVertexShader).toMatch(/depthSlack: f32/);
+    expect(nodeOverlayFragmentShader).toMatch(/dot\(local, local\) > 1\.0/);
+    expect(nodeOverlayFragmentShader).toMatch(/color\.rgb \+ vec3<f32>\(emissive\)/);
   });
 
   it("uses neutral black for element nodes and edges", () => {

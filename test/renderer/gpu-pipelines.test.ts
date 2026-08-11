@@ -33,10 +33,12 @@ describe("GPU render resources", () => {
         (descriptor) => descriptor.vertex.entryPoint === "nodeOverlayVertexMain",
       );
       expect(nodePipeline?.depthStencil).toMatchObject({
-        depthCompare: "always",
+        depthCompare: "less-equal",
         depthWriteEnabled: false,
       });
       expect(nodePipeline?.multisample?.count).toBe(COLOR_SAMPLE_COUNT);
+      expect(nodePipeline?.multisample?.alphaToCoverageEnabled).toBe(true);
+      expect(nodePipeline?.fragment?.targets[0]?.blend).toBeUndefined();
       expect(gpu.renderPipelineDescriptors[0]?.multisample?.count).toBe(COLOR_SAMPLE_COUNT);
       expect(gpu.renderPipelineDescriptors[1]?.multisample?.count ?? 1).toBe(1);
       expect(resources.instanceLayout).toBeDefined();

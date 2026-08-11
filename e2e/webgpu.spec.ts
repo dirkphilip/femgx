@@ -91,6 +91,21 @@ function differingPixelCount(a: Buffer, b: Buffer, threshold = 8): number {
   return count;
 }
 
+/** Counts pixels with enough luminance to reject an all-black presented frame. */
+function visiblePixelCount(rgba: Buffer, threshold = 32): number {
+  let count = 0;
+  for (let index = 0; index + 2 < rgba.length; index += 4) {
+    if (
+      (rgba[index] ?? 0) > threshold ||
+      (rgba[index + 1] ?? 0) > threshold ||
+      (rgba[index + 2] ?? 0) > threshold
+    ) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 /** Node-on vs node-off pixel contribution for the current camera. */
 async function nodeContribution(page: Page): Promise<number> {
   const canvas = page.getByTestId("view-canvas");
@@ -297,6 +312,7 @@ test("element emphasis changes the rendered pixels and toggles off again", async
 
 test("renders element nodes as a separate visible annotation pass", async ({ page }) => {
   await loadWebGpuPage(page);
+  await page.getByTestId("model-select").selectOption("gallery");
 
   const canvas = page.getByTestId("view-canvas");
   const baseline = await stableCanvasPixels(page, canvas);
@@ -306,6 +322,11 @@ test("renders element nodes as a separate visible annotation pass", async ({ pag
   await expect(nodeToggle).toHaveText("Hide element nodes");
   const withNodes = await stableCanvasPixels(page, canvas);
   expect(withNodes.equals(baseline), "node glyphs must change the rendered pixels").toBe(false);
+  const withNodesRgba = await canvasRgba(page, canvas);
+  expect(
+    visiblePixelCount(withNodesRgba),
+    "the node pass must preserve the resolved surface instead of presenting black",
+  ).toBeGreaterThan(withNodesRgba.length / 16);
 
   await nodeToggle.click();
   await expect(page.getByTestId("node-overlay-label")).toHaveText("Off");
@@ -343,7 +364,7 @@ test("keeps depth-tested node annotations stable across fine zoom steps", async 
     .getByTestId("model-select")
     .selectOption({ label: "Element gallery · all supported shapes" });
   // Hide the gallery's hardware point/line overlays so the measured delta is
-  // only the center-depth node annotation pass.
+  // only the depth-tested node annotation pass.
   await page.getByTestId("instance-vis-0").uncheck();
   await page.getByTestId("instance-vis-1").uncheck();
   await page.getByTestId("fit-view").click();

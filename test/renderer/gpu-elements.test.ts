@@ -162,6 +162,14 @@ describe("buildTriangleFaceBodyPickData", () => {
 });
 
 describe("buildNodeBodyPickData", () => {
+  it("keeps an empty node binding large enough for one vec2 storage element", () => {
+    expect(
+      Array.from(
+        buildNodeBodyPickData({ positions: new Float32Array(), indices: new Uint32Array() }),
+      ),
+    ).toEqual([0, 0]);
+  });
+
   it("assigns a body to nodes that belong to exactly one body", () => {
     const geometry: Geometry = {
       positions: new Float32Array(18),

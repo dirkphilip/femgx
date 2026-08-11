@@ -45,7 +45,6 @@ export interface DrawResources {
   /** Multisampled color target resolved to the canvas each visible frame. */
   msaaColorTexture: GPUTexture | undefined;
   depthTexture: GPUTexture | undefined;
-  nodeDepthBindGroup: GPUBindGroup | undefined;
   depthWidth: number;
   depthHeight: number;
 }
@@ -68,7 +67,6 @@ export function createDrawResources(device: GPUDevice): DrawResources {
     deformations: new Map(),
     msaaColorTexture: undefined,
     depthTexture: undefined,
-    nodeDepthBindGroup: undefined,
     depthWidth: 0,
     depthHeight: 0,
   };
