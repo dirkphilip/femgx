@@ -19,7 +19,7 @@ oriented API map, and the root [[../index|wiki index]] is the navigation map.
 | Part instance       | `PartPlacement`        | A reference to a part definition plus a local transform                            |
 | Assembly definition | `NamedAssembly`        | Ordered hierarchy of part and assembly placements                                  |
 | Scene registry      | `Scene`                | Authoritative maps of parts and assemblies plus visibility state                   |
-| Scene runtime       | `SceneRuntime`         | Stable placement/assembly-occurrence queries, transforms, visibility, and deltas  |
+| Scene runtime       | `SceneRuntime`         | Stable placement/assembly-occurrence queries, transforms, visibility, and deltas   |
 | Renderer            | `WebGpuRenderer`       | GPU resources, draw submission, interaction attributes, and picking                |
 
 The API may eventually introduce explicit `PartDefinition` and
