@@ -32,6 +32,7 @@ import {
   buildElementTrianglePickIds,
   buildFaceTrianglePickIds,
   buildNodeBodyPickData,
+  buildNodeBodyOwnerData,
   buildNodeSpritePickIds,
   buildTriangleFaceBodyPickData,
   buildVertexNodePickIds,
@@ -195,6 +196,28 @@ describe("buildNodeBodyPickData", () => {
     expect(Array.from(buildNodeBodyPickData(geometry, new Uint32Array([2, 4])))).toEqual([
       0, 8, 0, 8,
     ]);
+  });
+
+  it("keeps every owner for shared nodes so all-hidden topology can disappear", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array(18),
+      indices: new Uint32Array(6),
+      nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
+      nodePositions: new Float32Array(9),
+      elements: [
+        { id: 4, triangleStart: 0, triangleCount: 1, bodyId: 7 },
+        { id: 5, triangleStart: 1, triangleCount: 1, bodyId: 8 },
+      ],
+      bodies: [
+        { id: 7, elementIds: [4] },
+        { id: 8, elementIds: [5] },
+      ],
+    };
+    expect(buildNodeBodyOwnerData(geometry, new Uint32Array([1, 2, 3]))).toEqual({
+      bodyRanges: new Uint32Array([0, 2, 2, 2, 4, 2]),
+      bodyIds: new Uint32Array([8, 9, 8, 9, 8, 9]),
+    });
+    expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([0, 0, 0, 0, 0, 0]);
   });
 });
 

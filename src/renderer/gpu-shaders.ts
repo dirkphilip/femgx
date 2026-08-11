@@ -94,6 +94,8 @@ export const instanceBindings = /* wgsl */ `
 @group(1) @binding(1) var<storage, read> drawOrder: array<u32>;
 @group(1) @binding(4) var<storage, read> displacements: array<f32>;
 @group(1) @binding(6) var<storage, read> vertexNodePickIds: array<u32>;
+@group(1) @binding(8) var<storage, read> topologyBodyRanges: array<vec2<u32>>;
+@group(1) @binding(9) var<storage, read> topologyBodyIds: array<u32>;
 `;
 
 /** Per-primitive and per-vertex pick data bindings used by draw stages. */
@@ -199,6 +201,9 @@ ${deformationStruct}
 
 ${instanceStruct}
 
+${emphasisStructs}
+${emphasisHash}
+
 ${frameBindings}
 ${instanceBindings}
 
@@ -211,15 +216,47 @@ struct EdgeOutput {
   @location(5) local: vec2<f32>,
 };
 
+fn bodyVisible(slot: u32, bodyPickId: u32) -> bool {
+  if (elementHighlights.bucketCount == 0u) {
+    return true;
+  }
+  let bucket = highlightHash(slot, bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
+  let base = bucket * 4u;
+  for (var offset = 0u; offset < 4u; offset++) {
+    let highlight = elementHighlights.records[base + offset];
+    if (highlight.slot == slot && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
+      return highlight.hidden == 0u;
+    }
+  }
+  return true;
+}
+
+fn topologyVisible(slot: u32, topologyIndex: u32) -> bool {
+  let range = topologyBodyRanges[topologyIndex];
+  if (range.y == 0u) {
+    return true;
+  }
+  for (var owner = 0u; owner < range.y; owner++) {
+    if (bodyVisible(slot, topologyBodyIds[range.x + owner])) {
+      return true;
+    }
+  }
+  return false;
+}
+
 @vertex
 fn vertexMain(
   @location(0) position: vec3<f32>,
   @builtin(instance_index) instanceIndex: u32,
   @builtin(vertex_index) vertexIndex: u32,
 ) -> EdgeOutput {
-  let instance = instances[drawOrder[instanceIndex]];
+  let slot = drawOrder[instanceIndex];
+  let instance = instances[slot];
   var output: EdgeOutput;
   output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
+  if (!topologyVisible(slot, vertexIndex / 2u)) {
+    output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
+  }
   output.color = vec4<f32>(0.0, 0.0, 0.0, 0.45);
   output.emissive = 0.0;
   output.local = vec2<f32>(0.0);
@@ -258,3 +295,4 @@ fn fragmentMain(
   return output;
 }
 `;
+import { emphasisHash } from "./gpu-highlight-shader";

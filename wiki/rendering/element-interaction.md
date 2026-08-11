@@ -81,9 +81,11 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 
 - `StyleOverride` supports an `edge` flag (part- or instance-level). When the
   resolved style of a visible instance requests it, the renderer draws that
-  instance's deduplicated mesh edges (`buildMeshEdges`) as a line overlay on
+  instance's deduplicated mesh edges (`buildMeshEdgeData`) as a line overlay on
   top of its solid surface pass — so a wireframe look does not hide the solid
-  fill underneath.
+  fill underneath. FE edges are deduplicated by their authored node ids, so
+  tessellation vertices and quadratic mid-edge segments do not create duplicate
+  lines or triangulation diagonals.
 - The overlay is addressed by a second compacted per-part draw-order list (the
   **edge order**, `writeEdgeOrder`), a subset of the surface draw order holding
   only the edge-styled visible slots. `updateInstances` tracks which parts'
@@ -98,6 +100,11 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   `gpu-pipelines.ts`.
 - Element edges use translucent neutral black rather than inheriting each
   part's fill color, so topology stays readable without obscuring the model.
+- Edge and node topology records carry all owning body ids. A topology record is
+  drawn when it is unowned or at least one owner is visible; it is hidden only
+  when every owner is hidden. This makes body visibility consistent for filled
+  faces, derived edges, and node glyphs, including shared topology, without
+  cloning geometry or materials.
 - The demo drives the overlay by applying an `{ edge: true }` part override to
   every part (`Edge overlay` toggle) and flips the overlay depth compare with
   the `Depth test` toggle (see

@@ -8,6 +8,9 @@ export interface PartDrawInputs {
   readonly deformation: GPUBuffer;
   /** Node glyph geometry is transient relative to the cached surface bind group. */
   readonly cache?: boolean;
+  /** Optional topology body buffers, used for face subsets. */
+  readonly topologyBodyRangesBuffer?: GPUBuffer | undefined;
+  readonly topologyBodyIdsBuffer?: GPUBuffer | undefined;
 }
 
 /**
@@ -50,6 +53,16 @@ function instanceBindGroup(
       // The vertex buffer is also a read-only storage binding for the node-pick
       // pass, avoiding a second GPU copy of the same position array.
       { binding: 7, resource: { buffer: part.geometry.vertexBuffer } },
+      {
+        binding: 8,
+        resource: {
+          buffer: part.topologyBodyRangesBuffer ?? part.geometry.topologyBodyRangesBuffer,
+        },
+      },
+      {
+        binding: 9,
+        resource: { buffer: part.topologyBodyIdsBuffer ?? part.geometry.topologyBodyIdsBuffer },
+      },
     ],
   });
 }

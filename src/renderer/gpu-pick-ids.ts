@@ -69,9 +69,47 @@ export function buildNodeBodyPickData(
   spritePickIds?: ArrayLike<number>,
 ): Uint32Array {
   const nodeCount = (geometry.nodePositions?.length ?? 0) / 3;
-  const nodeBodies = new Map<number, number | null>();
+  const owners = nodeBodyOwners(geometry);
+  // The shared binding is array<vec2<u32>>, whose minimum valid storage
+  // binding is one complete 8-byte pair even when this part has no nodes.
+  const sprites =
+    spritePickIds ?? Uint32Array.from({ length: nodeCount }, (_, nodeId) => nodeId + 1);
+  const data = new Uint32Array(Math.max(2, sprites.length * 2));
+  for (let sprite = 0; sprite < sprites.length; sprite += 1) {
+    const pickId = sprites[sprite] ?? 0;
+    const bodyIds = owners.get(pickId - 1);
+    const bodyId = bodyIds?.size === 1 ? [...bodyIds][0] : undefined;
+    if (bodyId !== undefined) data[sprite * 2 + 1] = bodyId + 1;
+  }
+  return data;
+}
+
+/** Builds variable-length body-owner ranges for each authored node sprite. */
+export function buildNodeBodyOwnerData(
+  geometry: Geometry,
+  spritePickIds: ArrayLike<number>,
+): { readonly bodyRanges: Uint32Array; readonly bodyIds: Uint32Array } {
+  const owners = nodeBodyOwners(geometry);
+  const bodyIds: number[] = [];
+  const bodyRanges = new Uint32Array(spritePickIds.length * 2);
+  for (let sprite = 0; sprite < spritePickIds.length; sprite += 1) {
+    const pickId = spritePickIds[sprite] ?? 0;
+    const ownerIds = [...(owners.get(pickId - 1) ?? [])].sort((a, b) => a - b);
+    bodyRanges[sprite * 2] = bodyIds.length;
+    bodyRanges[sprite * 2 + 1] = ownerIds.length;
+    bodyIds.push(...ownerIds.map((bodyId) => bodyId + 1));
+  }
+  return {
+    bodyRanges: bodyRanges.length === 0 ? new Uint32Array([0, 0]) : bodyRanges,
+    bodyIds: bodyIds.length === 0 ? new Uint32Array([0]) : new Uint32Array(bodyIds),
+  };
+}
+
+function nodeBodyOwners(geometry: Geometry): Map<number, Set<number>> {
+  const owners = new Map<number, Set<number>>();
   for (const element of geometry.elements ?? []) {
     const bodyId = bodyIdForElement(geometry, element.id);
+    if (bodyId === undefined) continue;
     const range = primitiveRangeForElement(geometry.primitive ?? "triangles", element);
     if (range === undefined) continue;
     const verticesPerPrimitive =
@@ -81,26 +119,12 @@ export function buildNodeBodyPickData(
     for (let vertex = start; vertex < end; vertex += 1) {
       const pickId = geometry.nodePickIds?.[vertex] ?? 0;
       if (pickId === 0) continue;
-      const nodeId = pickId - 1;
-      const previous = nodeBodies.get(nodeId);
-      if (bodyId === undefined || (previous !== undefined && previous !== bodyId)) {
-        nodeBodies.set(nodeId, null);
-      } else {
-        nodeBodies.set(nodeId, bodyId);
-      }
+      const bodyIds = owners.get(pickId - 1) ?? new Set<number>();
+      bodyIds.add(bodyId);
+      owners.set(pickId - 1, bodyIds);
     }
   }
-  // The shared binding is array<vec2<u32>>, whose minimum valid storage
-  // binding is one complete 8-byte pair even when this part has no nodes.
-  const sprites =
-    spritePickIds ?? Uint32Array.from({ length: nodeCount }, (_, nodeId) => nodeId + 1);
-  const data = new Uint32Array(Math.max(2, sprites.length * 2));
-  for (let sprite = 0; sprite < sprites.length; sprite += 1) {
-    const pickId = sprites[sprite] ?? 0;
-    const bodyId = nodeBodies.get(pickId - 1);
-    if (bodyId !== undefined && bodyId !== null) data[sprite * 2 + 1] = bodyId + 1;
-  }
-  return data;
+  return owners;
 }
 
 /** Builds deterministic, ascending 1-based ids for the node sprites a part uses. */
