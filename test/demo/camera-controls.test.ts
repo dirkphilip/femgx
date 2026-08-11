@@ -136,6 +136,44 @@ describe("camera controls", () => {
     expect(cameraRef.camera.position).not.toEqual(initial.position);
   });
 
+  it("uses current navigation bounds instead of clip planes for zoom safety", async () => {
+    const canvas = new FakeCanvas();
+    const cameraRef = {
+      camera: resizeCamera(
+        createCamera({ position: [0, 0, 5], target: [0, 0, 0], near: 0.01, far: 8 }),
+        200,
+        100,
+      ),
+    };
+    const bounds = {
+      minX: -1,
+      minY: -1,
+      minZ: -1,
+      maxX: 1,
+      maxY: 1,
+      maxZ: 1,
+    };
+    installCameraControls({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      cameraRef,
+      bounds: () => bounds,
+      navigation: { pickPoint: () => Promise.resolve(undefined), setOrbitPivot: vi.fn() },
+      onRender: vi.fn(),
+    });
+
+    canvas.dispatch("wheel", {
+      clientX: 100,
+      clientY: 50,
+      deltaY: -20_000,
+      preventDefault: vi.fn(),
+    });
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    expect(cameraRef.camera.position[2]).toBeGreaterThan(1);
+    expect(cameraRef.camera.near).toBeLessThan(cameraRef.camera.position[2] - 1);
+    expect(cameraRef.camera.far).toBeGreaterThan(cameraRef.camera.position[2] + 1);
+  });
+
   it("clears the orbit widget when the pointer gesture ends", async () => {
     const canvas = new FakeCanvas();
     const cameraRef = {
@@ -209,6 +247,38 @@ describe("camera controls", () => {
 
     expect(cameraRef.camera.position).toEqual([0, 0, Math.exp(0.1) * 5]);
     expect(cameraRef.camera.target).toEqual(initial.target);
+  });
+
+  it("uses bounds safety for Shift+middle zoom as well as the wheel", () => {
+    const canvas = new FakeCanvas();
+    const cameraRef = {
+      camera: resizeCamera(
+        createCamera({ position: [0, 0, 5], target: [0, 0, 0], near: 0.01, far: 8 }),
+        200,
+        100,
+      ),
+    };
+    installCameraControls({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      cameraRef,
+      bounds: () => ({
+        minX: -1,
+        minY: -1,
+        minZ: -1,
+        maxX: 1,
+        maxY: 1,
+        maxZ: 1,
+      }),
+      navigation: { pickPoint: () => Promise.resolve(undefined), setOrbitPivot: vi.fn() },
+      onRender: vi.fn(),
+    });
+
+    canvas.dispatch("pointerdown", { ...pointer(100, 50), shiftKey: true });
+    canvas.dispatch("pointermove", { ...pointer(100, -10_000), shiftKey: true });
+
+    expect(cameraRef.camera.position[2]).toBeGreaterThan(1);
+    expect(cameraRef.camera.near).toBeLessThan(cameraRef.camera.position[2] - 1);
+    expect(cameraRef.camera.far).toBeGreaterThan(cameraRef.camera.position[2] + 1);
   });
 });
 

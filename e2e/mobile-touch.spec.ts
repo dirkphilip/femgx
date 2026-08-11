@@ -1,5 +1,10 @@
 import { expect, test, type CDPSession } from "@playwright/test";
-import { requireHit } from "./helpers";
+import {
+  cameraDistance,
+  expectBoundsClippedSafely,
+  readNavigationState,
+  requireHit,
+} from "./helpers";
 
 const BASE_URL = "http://127.0.0.1:5173";
 
@@ -82,6 +87,49 @@ test("touch gestures orbit, pinch-zoom, and pan without leaving dragging stuck",
   await dispatchTouch(client, "touchCancel", []);
   await expect.poll(dragging).toBe("false");
 
+  await context.close();
+});
+
+test("keeps repeated mobile pinch zoom inside the model bounds", async ({ browser }) => {
+  const context = await browser.newContext({
+    baseURL: BASE_URL,
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toBeVisible();
+  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await page.getByTestId("fit-view").click();
+
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  const center = {
+    x: Math.round(box.x + box.width / 2),
+    y: Math.round(box.y + box.height / 2),
+  };
+  const before = await readNavigationState(canvas);
+  const client = await context.newCDPSession(page);
+  await dispatchTouch(client, "touchStart", [
+    { x: center.x - 35, y: center.y, id: 0 },
+    { x: center.x + 35, y: center.y, id: 1 },
+  ]);
+  for (let step = 1; step <= 8; step += 1) {
+    const radius = 35 + step * 24;
+    await dispatchTouch(client, "touchMove", [
+      { x: center.x - radius, y: center.y, id: 0 },
+      { x: center.x + radius, y: center.y, id: 1 },
+    ]);
+  }
+  await dispatchTouch(client, "touchEnd", []);
+  await expect.poll(() => canvas.getAttribute("data-dragging")).toBe("false");
+
+  const closest = await readNavigationState(canvas);
+  expectBoundsClippedSafely(closest.camera, closest.bounds);
+  expect(cameraDistance(closest.camera)).toBeLessThan(cameraDistance(before.camera));
+  expect(await canvas.screenshot()).not.toHaveLength(0);
   await context.close();
 });
 

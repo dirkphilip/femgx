@@ -1,6 +1,8 @@
 import { orbitCamera, panCamera, type Camera, zoomCamera, zoomCameraAtPoint } from "./camera";
 import { clientToCanvasCss } from "./coordinates";
 import { CameraGestureTracker, type GestureStep } from "./gestures";
+import { zoomCameraAtPointWithinBounds, zoomCameraWithinBounds } from "./navigation";
+import type { Bounds } from "../geometry/part";
 import type { Vec3 } from "../math/vec3";
 
 /** Mutable camera holder replaced by the immutable camera operations. */
@@ -19,6 +21,7 @@ export interface CameraControlOptions {
   readonly canvas: HTMLCanvasElement;
   readonly cameraRef: CameraRef;
   readonly navigation: CameraNavigationTarget;
+  readonly bounds?: () => Bounds;
   readonly onRender: () => void;
   readonly onGestureChange?: (active: boolean) => void;
 }
@@ -141,9 +144,7 @@ class CameraControls {
       }
       if (this.disposed) return;
       this.options.cameraRef.camera =
-        pivot === undefined
-          ? zoomCamera(this.options.cameraRef.camera, amount)
-          : zoomCameraAtPoint(this.options.cameraRef.camera, amount, pivot);
+        pivot === undefined ? this.zoom(amount) : this.zoom(amount, pivot);
       this.options.onRender();
     });
   };
@@ -172,7 +173,7 @@ class CameraControls {
         -step.deltaY / PAN_SCALE,
       );
     } else if (event.pointerType !== "touch" && event.shiftKey) {
-      cameraRef.camera = zoomCamera(cameraRef.camera, step.deltaY / ZOOM_DRAG_SCALE);
+      cameraRef.camera = this.zoom(step.deltaY / ZOOM_DRAG_SCALE);
     } else {
       this.applyOrbit(event.pointerId, step);
     }
@@ -187,7 +188,20 @@ class CameraControls {
         -step.deltaY / PAN_SCALE,
       );
     }
-    if (step.zoom !== 0) cameraRef.camera = zoomCamera(cameraRef.camera, -step.zoom);
+    if (step.zoom !== 0) cameraRef.camera = this.zoom(-step.zoom);
+  }
+
+  private zoom(amount: number, pivot?: Vec3): Camera {
+    const camera = this.options.cameraRef.camera;
+    const bounds = this.options.bounds?.();
+    if (bounds === undefined) {
+      return pivot === undefined
+        ? zoomCamera(camera, amount)
+        : zoomCameraAtPoint(camera, amount, pivot);
+    }
+    return pivot === undefined
+      ? zoomCameraWithinBounds(camera, amount, bounds)
+      : zoomCameraAtPointWithinBounds(camera, amount, pivot, bounds);
   }
 
   private applyOrbit(pointerId: number, step: GestureStep): void {

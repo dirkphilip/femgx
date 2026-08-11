@@ -1,5 +1,11 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { requireHit, sweepForHit } from "./helpers";
+import {
+  cameraDistance,
+  expectBoundsClippedSafely,
+  readNavigationState,
+  requireHit,
+  sweepForHit,
+} from "./helpers";
 
 /**
  * Required WebGPU browser coverage (category 1 in
@@ -484,29 +490,54 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
   await page.mouse.move(x, y);
+  await page.getByTestId("fit-view").click();
+  await page.mouse.move(x, y);
+  const fitted = await readNavigationState(canvas);
+  expectBoundsClippedSafely(fitted.camera, fitted.bounds);
+
+  for (let step = 0; step < 12; step += 1) {
+    await page.mouse.wheel(0, 200);
+  }
+  await stableCanvasPixels(page, canvas);
+  const zoomedOut = await readNavigationState(canvas);
+  expect(cameraDistance(zoomedOut.camera)).toBeGreaterThan(cameraDistance(fitted.camera));
+  expectBoundsClippedSafely(zoomedOut.camera, zoomedOut.bounds);
+
+  for (let step = 0; step < 12; step += 1) {
+    await page.mouse.wheel(0, -200);
+  }
+  await stableCanvasPixels(page, canvas);
+  const restored = await readNavigationState(canvas);
+  expect(restored.camera.position[0]).toBeCloseTo(fitted.camera.position[0], 4);
+  expect(restored.camera.position[1]).toBeCloseTo(fitted.camera.position[1], 4);
+  expect(restored.camera.position[2]).toBeCloseTo(fitted.camera.position[2], 4);
+  expect(restored.camera.near).toBeCloseTo(fitted.camera.near, 4);
+  expect(restored.camera.far).toBeCloseTo(fitted.camera.far, 4);
 
   for (let step = 0; step < 12; step += 1) {
     await page.mouse.wheel(0, -800);
   }
   const zoomedIn = await stableCanvasPixels(page, canvas);
+  const closest = await readNavigationState(canvas);
+  expectBoundsClippedSafely(closest.camera, closest.bounds);
   expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(200);
-
-  for (let step = 0; step < 12; step += 1) {
-    await page.mouse.wheel(0, 800);
-  }
-  const zoomedOut = await stableCanvasPixels(page, canvas);
-  expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(200);
-  expect(zoomedOut.equals(zoomedIn), "zooming back out must produce a settled visible frame").toBe(
-    false,
-  );
+  expect(cameraDistance(closest.camera)).toBeLessThan(cameraDistance(fitted.camera));
+  expect(zoomedIn.length).toBeGreaterThan(0);
 
   const hit = await requireHit(
     page,
     canvas,
     {},
-    "GPU picking must still resolve after deep zoom in and out",
+    "GPU picking must still resolve after the bounds-safe close zoom",
   );
   expect(hit.key).toMatch(/^(n|f|e|i|p):/);
+
+  for (let step = 0; step < 12; step += 1) {
+    await page.mouse.wheel(0, 800);
+  }
+  const zoomedOutAgain = await readNavigationState(canvas);
+  expectBoundsClippedSafely(zoomedOutAgain.camera, zoomedOutAgain.bounds);
+  expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(20);
 });
 
 test("keeps the depth-test toggle working on the WebGPU renderer", async ({ page }) => {

@@ -66,7 +66,8 @@ export class WorkbenchPresentation {
       },
     );
     this.options.canvas.dataset["selected"] = selectedKeys(this.options.getInteraction()).join(",");
-    this.options.canvas.dataset["camera"] = cameraKey(camera);
+    this.options.canvas.dataset["camera"] = JSON.stringify(cameraSnapshot(camera));
+    this.options.canvas.dataset["cameraBounds"] = JSON.stringify(preset.bounds);
     updateAxisGizmo(this.options.view.axisGizmo, camera);
   }
 
@@ -112,8 +113,20 @@ export class WorkbenchPresentation {
   }
 }
 
-function cameraKey(camera: Camera): string {
-  const position = camera.position.map((value) => value.toFixed(3)).join(",");
-  const target = camera.target.map((value) => value.toFixed(3)).join(",");
-  return `p:${position} t:${target} o:${camera.orthoHeight.toFixed(3)}`;
+function cameraSnapshot(camera: Camera): {
+  readonly mode: Camera["mode"];
+  readonly position: Camera["position"];
+  readonly target: Camera["target"];
+  readonly orthoHeight: number;
+  readonly near: number;
+  readonly far: number;
+} {
+  return {
+    mode: camera.mode,
+    position: camera.position,
+    target: camera.target,
+    orthoHeight: camera.orthoHeight,
+    near: camera.near,
+    far: camera.far,
+  };
 }

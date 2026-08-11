@@ -90,6 +90,95 @@ type Box = {
   readonly height: number;
 };
 
+export interface CameraSnapshot {
+  readonly position: readonly [number, number, number];
+  readonly target: readonly [number, number, number];
+  readonly near: number;
+  readonly far: number;
+}
+
+export interface BoundsSnapshot {
+  readonly minX: number;
+  readonly minY: number;
+  readonly minZ: number;
+  readonly maxX: number;
+  readonly maxY: number;
+  readonly maxZ: number;
+}
+
+/** Reads the demo's current camera and the active scene navigation bounds. */
+export async function readNavigationState(
+  canvas: Locator,
+): Promise<{ readonly camera: CameraSnapshot; readonly bounds: BoundsSnapshot }> {
+  const camera = await canvas.getAttribute("data-camera");
+  const bounds = await canvas.getAttribute("data-camera-bounds");
+  if (camera === null || bounds === null) throw new Error("camera navigation metadata is missing");
+  return {
+    camera: JSON.parse(camera) as CameraSnapshot,
+    bounds: JSON.parse(bounds) as BoundsSnapshot,
+  };
+}
+
+/** Asserts the bounds/clip invariant exposed by the camera navigation contract. */
+export function expectBoundsClippedSafely(camera: CameraSnapshot, bounds: BoundsSnapshot): void {
+  const depths = boundsDepths(camera, bounds);
+  expect(Math.min(...depths), "all model bounds must stay beyond the near plane").toBeGreaterThan(
+    camera.near,
+  );
+  expect(Math.max(...depths), "the far plane must contain the model bounds").toBeLessThan(
+    camera.far,
+  );
+}
+
+/** Returns the eye-target distance from a captured camera snapshot. */
+export function cameraDistance(camera: CameraSnapshot): number {
+  return Math.hypot(
+    camera.position[0] - camera.target[0],
+    camera.position[1] - camera.target[1],
+    camera.position[2] - camera.target[2],
+  );
+}
+
+function boundsDepths(camera: CameraSnapshot, bounds: BoundsSnapshot): readonly number[] {
+  const forward = normalize([
+    camera.target[0] - camera.position[0],
+    camera.target[1] - camera.position[1],
+    camera.target[2] - camera.position[2],
+  ]);
+  return boundsCorners(bounds).map((corner) =>
+    dot(
+      [
+        corner[0] - camera.position[0],
+        corner[1] - camera.position[1],
+        corner[2] - camera.position[2],
+      ],
+      forward,
+    ),
+  );
+}
+
+function boundsCorners(bounds: BoundsSnapshot): readonly (readonly [number, number, number])[] {
+  return [
+    [bounds.minX, bounds.minY, bounds.minZ],
+    [bounds.minX, bounds.minY, bounds.maxZ],
+    [bounds.minX, bounds.maxY, bounds.minZ],
+    [bounds.minX, bounds.maxY, bounds.maxZ],
+    [bounds.maxX, bounds.minY, bounds.minZ],
+    [bounds.maxX, bounds.minY, bounds.maxZ],
+    [bounds.maxX, bounds.maxY, bounds.minZ],
+    [bounds.maxX, bounds.maxY, bounds.maxZ],
+  ];
+}
+
+function dot(a: readonly number[], b: readonly number[]): number {
+  return (a[0] ?? 0) * (b[0] ?? 0) + (a[1] ?? 0) * (b[1] ?? 0) + (a[2] ?? 0) * (b[2] ?? 0);
+}
+
+function normalize(vector: readonly number[]): readonly number[] {
+  const length = Math.hypot(vector[0] ?? 0, vector[1] ?? 0, vector[2] ?? 0);
+  return [(vector[0] ?? 0) / length, (vector[1] ?? 0) / length, (vector[2] ?? 0) / length];
+}
+
 /**
  * Polls the canvas dataset after a move until a key appears, matches the
  * prefix, or `settleMs` elapses. Non-matching non-empty keys settle early so

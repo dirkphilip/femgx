@@ -326,6 +326,7 @@ test("temporarily highlights exact tree occurrences without changing selection",
     "node GPU picking must resolve before tree-hover assertions",
   );
   await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => canvas.getAttribute("data-selected")).toMatch(/^n:/);
   const selected = await dataset(page, "selected");
   const baseline = await canvas.screenshot();
   const visibility = page.getByTestId("visibility-panel");
@@ -336,13 +337,16 @@ test("temporarily highlights exact tree occurrences without changing selection",
     .getByTestId("assembly-node-vis-4")
     .locator("xpath=ancestor::div[contains(@class, 'visibility-row')]");
   await firstOccurrence.hover();
+  await expect.poll(() => canvas.getAttribute("data-tree-hover")).not.toBe("");
   await expect
     .poll(async () => Buffer.compare(baseline, await canvas.screenshot()) !== 0)
     .toBe(true);
   const firstHighlight = await canvas.screenshot();
+  const firstTreeHover = await canvas.getAttribute("data-tree-hover");
   expect(await dataset(page, "selected")).toBe(selected);
 
   await secondOccurrence.hover();
+  await expect.poll(() => canvas.getAttribute("data-tree-hover")).not.toBe(firstTreeHover);
   await expect
     .poll(async () => Buffer.compare(firstHighlight, await canvas.screenshot()) !== 0)
     .toBe(true);

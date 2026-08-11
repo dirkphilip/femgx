@@ -25,12 +25,14 @@ WebGPU clips at `[0, 1]`. Consequences that are now fixed:
 The depth convention is exercised by regression tests in `test/camera/` and
 `test/camera/project-polygon.test.ts`.
 
-Perspective zoom preserves the configured `near` and `far` clip planes. The
-eye-target distance is clamped to `[2 * near, far / 2]`, so deep zoom cannot
-ratchet the near plane toward zero and destroy depth precision. Cursor-centered
-zoom applies the same distance clamp while scaling the eye and target around
-the world-space pivot; ordinary orthographic zoom retains its existing scale
-behavior.
+Perspective zoom is bounds-aware when driven through the installed camera
+controls. The controller admits the largest requested transition that keeps
+all scene-bounds corners in front of the camera, then derives a finite near/far
+interval from those accepted depths. Cursor-centered zoom uses the same
+bounds admission while scaling around its world-space pivot. Low-level camera
+zoom remains a pure framing operation and does not couple eye distance or
+orthographic screen scale to stale clip values; this keeps projection changes
+and orthographic framing independent of the current depth range.
 
 Explicit fitting has a separate responsibility: `fitCamera` derives the pose
 and clip interval from the current bounds and orientation, with a small finite

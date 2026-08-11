@@ -95,14 +95,10 @@ export function setProjection(camera: Camera, mode: ProjectionMode): Camera {
     return {
       ...camera,
       mode,
-      orthoHeight: clamp(distance * 2 * Math.tan(camera.fovY / 2), 0.01, camera.far),
+      orthoHeight: Math.max(distance * 2 * Math.tan(camera.fovY / 2), 0.000001),
     };
   }
-  const distance = clamp(
-    camera.orthoHeight / (2 * Math.tan(camera.fovY / 2)),
-    camera.near * 2,
-    camera.far / 2,
-  );
+  const distance = Math.max(camera.orthoHeight / (2 * Math.tan(camera.fovY / 2)), 0.000001);
   const offset = normalize(subtract(camera.position, camera.target));
   return {
     ...camera,
@@ -144,11 +140,11 @@ export function zoomCamera(camera: Camera, amount: number): Camera {
   if (camera.mode === "orthographic") {
     return {
       ...camera,
-      orthoHeight: clamp(camera.orthoHeight * Math.exp(amount), 0.000001, camera.far),
+      orthoHeight: Math.max(camera.orthoHeight * Math.exp(amount), 0.000001),
     };
   }
   const offset = subtract(camera.position, camera.target);
-  const distance = clamp(length(offset) * Math.exp(amount), camera.near * 2, camera.far / 2);
+  const distance = length(offset) * Math.exp(amount);
   return {
     ...camera,
     position: add(camera.target, scale(normalize(offset), distance)),
@@ -167,12 +163,10 @@ export function zoomCameraAtPoint(camera: Camera, amount: number, pivot: Vec3): 
       ...camera,
       position,
       target,
-      orthoHeight: clamp(camera.orthoHeight * factor, 0.000001, camera.far),
+      orthoHeight: Math.max(camera.orthoHeight * factor, 0.000001),
     };
   }
-  const currentDistance = length(subtract(camera.position, camera.target));
-  const distance = clamp(currentDistance * factor, camera.near * 2, camera.far / 2);
-  const appliedFactor = distance / currentDistance;
+  const appliedFactor = factor;
   const position = add(pivot, scale(subtract(camera.position, pivot), appliedFactor));
   const target = add(pivot, scale(subtract(camera.target, pivot), appliedFactor));
   return {
