@@ -3,6 +3,16 @@ import type { NodeId } from "../elements/element";
 import type { FaceKey } from "../elements/faces";
 import type { BodyId, PartId } from "../geometry/part";
 import type { BodyRef, FaceRef, NodeRef } from "./refs";
+import {
+  applyStyleLayers,
+  collectUniqueRefs,
+  sameRef,
+  sortedNumbers,
+  updateMapValue,
+  updateNestedMap,
+  updateNestedSet,
+  updateSet,
+} from "./mechanics";
 
 /** RGBA color with normalized channels. */
 export interface Color {
@@ -157,15 +167,13 @@ export function setElementSelected(
   ref: ElementRef,
   selected: boolean,
 ): InteractionState {
-  const current = state.selectedElementIds.get(ref.instanceId);
-  const has = current?.has(ref.elementId) ?? false;
-  if (has === selected) return state;
-  const ids = new Set(current ?? []);
-  if (selected) ids.add(ref.elementId);
-  else ids.delete(ref.elementId);
-  const selectedElementIds = new Map(state.selectedElementIds);
-  if (ids.size === 0) selectedElementIds.delete(ref.instanceId);
-  else selectedElementIds.set(ref.instanceId, ids);
+  const selectedElementIds = updateNestedSet(
+    state.selectedElementIds,
+    ref.instanceId,
+    ref.elementId,
+    selected,
+  );
+  if (selectedElementIds === state.selectedElementIds) return state;
   return { ...state, selectedElementIds };
 }
 
@@ -174,14 +182,7 @@ export function setHoveredElement(
   state: InteractionState,
   ref: ElementRef | undefined,
 ): InteractionState {
-  const current = state.hoveredElement;
-  if (current === ref) return state;
-  if (
-    current !== undefined &&
-    ref !== undefined &&
-    current.instanceId === ref.instanceId &&
-    current.elementId === ref.elementId
-  ) {
+  if (sameRef(state.hoveredElement, ref, (value) => [value.instanceId, value.elementId])) {
     return state;
   }
   if (ref === undefined) {
@@ -197,14 +198,13 @@ export function setElementOverride(
   ref: ElementRef,
   override: StyleOverride | undefined,
 ): InteractionState {
-  const current = state.elementOverrides.get(ref.instanceId)?.get(ref.elementId);
-  if (current === override) return state;
-  const instanceOverrides = new Map(state.elementOverrides.get(ref.instanceId) ?? []);
-  if (override === undefined) instanceOverrides.delete(ref.elementId);
-  else instanceOverrides.set(ref.elementId, override);
-  const elementOverrides = new Map(state.elementOverrides);
-  if (instanceOverrides.size === 0) elementOverrides.delete(ref.instanceId);
-  else elementOverrides.set(ref.instanceId, instanceOverrides);
+  const elementOverrides = updateNestedMap(
+    state.elementOverrides,
+    ref.instanceId,
+    ref.elementId,
+    override,
+  );
+  if (elementOverrides === state.elementOverrides) return state;
   return { ...state, elementOverrides };
 }
 
@@ -243,7 +243,7 @@ export function resolveInstanceStyle(
   if (partOverride !== undefined) overrides.push(partOverride);
   const instanceOverride = state.instanceOverrides.get(instance.instanceId);
   if (instanceOverride !== undefined) overrides.push(instanceOverride);
-  return overrides.reduce<ResolvedStyle>((style, override) => ({ ...style, ...override }), base);
+  return applyStyleLayers(base, overrides);
 }
 
 /** Resolves one body occurrence after part and instance styles. */
@@ -253,22 +253,22 @@ export function resolveBodyStyle(
   base: ResolvedStyle,
   state: InteractionState,
 ): ResolvedStyle {
-  let style = resolveInstanceStyle(instance, base, state);
-  if (state.highlightedBodyIds.get(instance.instanceId)?.has(bodyId) === true) {
-    style = { ...style, ...state.theme.highlighted };
-  }
-  if (
-    state.hoveredBody?.instanceId === instance.instanceId &&
-    state.hoveredBody.bodyId === bodyId
-  ) {
-    style = { ...style, ...state.theme.hovered };
-  }
-  if (state.selectedBodyIds.get(instance.instanceId)?.has(bodyId) === true) {
-    style = { ...style, ...state.theme.selected };
-  }
-  const override = state.bodyOverrides.get(instance.instanceId)?.get(bodyId);
-  if (override !== undefined) style = { ...style, ...override };
-  return style;
+  const style = resolveInstanceStyle(instance, base, state);
+  return applyStyleLayers(style, [
+    state.highlightedBodyIds.get(instance.instanceId)?.has(bodyId) === true
+      ? state.theme.highlighted
+      : undefined,
+    sameRef(state.hoveredBody, { instanceId: instance.instanceId, bodyId }, (value) => [
+      value.instanceId,
+      value.bodyId,
+    ])
+      ? state.theme.hovered
+      : undefined,
+    state.selectedBodyIds.get(instance.instanceId)?.has(bodyId) === true
+      ? state.theme.selected
+      : undefined,
+    state.bodyOverrides.get(instance.instanceId)?.get(bodyId),
+  ]);
 }
 
 /**
@@ -284,24 +284,22 @@ export function resolveElementStyle(
   state: InteractionState,
   bodyId?: BodyId,
 ): ResolvedStyle {
-  let style =
+  const style =
     bodyId === undefined
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
-  const hovered = state.hoveredElement;
-  if (
-    hovered !== undefined &&
-    hovered.instanceId === instance.instanceId &&
-    hovered.elementId === elementId
-  ) {
-    style = { ...style, ...state.theme.hovered };
-  }
-  if (state.selectedElementIds.get(instance.instanceId)?.has(elementId) === true) {
-    style = { ...style, ...state.theme.selected };
-  }
-  const override = state.elementOverrides.get(instance.instanceId)?.get(elementId);
-  if (override !== undefined) style = { ...style, ...override };
-  return style;
+  return applyStyleLayers(style, [
+    sameRef(state.hoveredElement, { instanceId: instance.instanceId, elementId }, (value) => [
+      value.instanceId,
+      value.elementId,
+    ])
+      ? state.theme.hovered
+      : undefined,
+    state.selectedElementIds.get(instance.instanceId)?.has(elementId) === true
+      ? state.theme.selected
+      : undefined,
+    state.elementOverrides.get(instance.instanceId)?.get(elementId),
+  ]);
 }
 
 /**
@@ -310,27 +308,18 @@ export function resolveElementStyle(
  * order with no duplicates.
  */
 export function emphasizedElementRefs(state: InteractionState): readonly ElementRef[] {
-  const refs: ElementRef[] = [];
-  const seen = new Set<string>();
-  const push = (instanceId: InstanceId, elementId: ElementId): void => {
-    const key = `${instanceId}/${elementId}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    refs.push({ instanceId, elementId });
-  };
-  const hovered = state.hoveredElement;
-  if (hovered !== undefined) push(hovered.instanceId, hovered.elementId);
-  for (const [instanceId, ids] of state.selectedElementIds) {
-    for (const elementId of sortedNumbers(ids)) push(instanceId, elementId);
-  }
-  for (const [instanceId, overrides] of state.elementOverrides) {
-    for (const elementId of sortedNumbers(overrides.keys())) push(instanceId, elementId);
-  }
-  return refs;
-}
-
-function sortedNumbers(values: Iterable<ElementId>): number[] {
-  return Array.from(values).sort((a, b) => a - b);
+  return collectUniqueRefs(
+    state.hoveredElement,
+    (ref) => `${ref.instanceId}/${ref.elementId}`,
+    (push) => {
+      for (const [instanceId, ids] of state.selectedElementIds) {
+        for (const elementId of sortedNumbers(ids)) push({ instanceId, elementId });
+      }
+      for (const [instanceId, overrides] of state.elementOverrides) {
+        for (const elementId of sortedNumbers(overrides.keys())) push({ instanceId, elementId });
+      }
+    },
+  );
 }
 
 function updatePartSet(
@@ -339,11 +328,8 @@ function updatePartSet(
   value: PartId,
   enabled: boolean,
 ): InteractionState {
-  const current = state[key];
-  if (current.has(value) === enabled) return state;
-  const next = new Set(current);
-  if (enabled) next.add(value);
-  else next.delete(value);
+  const next = updateSet(state[key], value, enabled);
+  if (next === state[key]) return state;
   return { ...state, [key]: next };
 }
 
@@ -353,11 +339,8 @@ function updateInstanceSet(
   value: InstanceId,
   enabled: boolean,
 ): InteractionState {
-  const current = state[key];
-  if (current.has(value) === enabled) return state;
-  const next = new Set(current);
-  if (enabled) next.add(value);
-  else next.delete(value);
+  const next = updateSet(state[key], value, enabled);
+  if (next === state[key]) return state;
   return { ...state, [key]: next };
 }
 
@@ -366,11 +349,8 @@ function updatePartOverride(
   value: PartId,
   override: StyleOverride | undefined,
 ): InteractionState {
-  const current = state.partOverrides;
-  if (current.get(value) === override) return state;
-  const next = new Map(current);
-  if (override === undefined) next.delete(value);
-  else next.set(value, override);
+  const next = updateMapValue(state.partOverrides, value, override);
+  if (next === state.partOverrides) return state;
   return { ...state, partOverrides: next };
 }
 
@@ -379,10 +359,7 @@ function updateInstanceOverride(
   value: InstanceId,
   override: StyleOverride | undefined,
 ): InteractionState {
-  const current = state.instanceOverrides;
-  if (current.get(value) === override) return state;
-  const next = new Map(current);
-  if (override === undefined) next.delete(value);
-  else next.set(value, override);
+  const next = updateMapValue(state.instanceOverrides, value, override);
+  if (next === state.instanceOverrides) return state;
   return { ...state, instanceOverrides: next };
 }

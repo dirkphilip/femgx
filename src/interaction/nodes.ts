@@ -1,9 +1,15 @@
-import type { NodeId } from "../elements/element";
-import type { Instance, InstanceId } from "../scene/types";
+import type { Instance } from "../scene/types";
 import type { InteractionState } from "./interaction";
 import type { BodyId } from "../geometry/part";
 import { resolveBodyStyle, resolveInstanceStyle, type ResolvedStyle } from "./interaction";
 import type { NodeRef } from "./refs";
+import {
+  applyStyleLayers,
+  collectUniqueRefs,
+  sameRef,
+  sortedNumbers,
+  updateNestedSet,
+} from "./mechanics";
 
 function updateNodeSet(
   state: InteractionState,
@@ -11,15 +17,8 @@ function updateNodeSet(
   ref: NodeRef,
   enabled: boolean,
 ): InteractionState {
-  const current = state[key].get(ref.instanceId);
-  const has = current?.has(ref.nodeId) ?? false;
-  if (has === enabled) return state;
-  const ids = new Set(current ?? []);
-  if (enabled) ids.add(ref.nodeId);
-  else ids.delete(ref.nodeId);
-  const map = new Map(state[key]);
-  if (ids.size === 0) map.delete(ref.instanceId);
-  else map.set(ref.instanceId, ids);
+  const map = updateNestedSet(state[key], ref.instanceId, ref.nodeId, enabled);
+  if (map === state[key]) return state;
   return { ...state, [key]: map };
 }
 
@@ -46,14 +45,7 @@ export function setHoveredNode(
   state: InteractionState,
   ref: NodeRef | undefined,
 ): InteractionState {
-  const current = state.hoveredNode;
-  if (current === ref) return state;
-  if (
-    current !== undefined &&
-    ref !== undefined &&
-    current.instanceId === ref.instanceId &&
-    current.nodeId === ref.nodeId
-  ) {
+  if (sameRef(state.hoveredNode, ref, (value) => [value.instanceId, value.nodeId])) {
     return state;
   }
   if (ref === undefined) {
@@ -84,20 +76,21 @@ export function resolveNodeStyle(
   state: InteractionState,
   bodyId?: BodyId,
 ): ResolvedStyle {
-  let style =
+  const style =
     bodyId === undefined
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
-  if (state.highlightedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true) {
-    style = { ...style, ...state.theme.highlighted };
-  }
-  if (state.hoveredNode?.instanceId === ref.instanceId && state.hoveredNode.nodeId === ref.nodeId) {
-    style = { ...style, ...state.theme.hoveredNode };
-  }
-  if (state.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true) {
-    style = { ...style, ...state.theme.selectedNode };
-  }
-  return style;
+  return applyStyleLayers(style, [
+    state.highlightedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
+      ? state.theme.highlighted
+      : undefined,
+    sameRef(state.hoveredNode, ref, (value) => [value.instanceId, value.nodeId])
+      ? state.theme.hoveredNode
+      : undefined,
+    state.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
+      ? state.theme.selectedNode
+      : undefined,
+  ]);
 }
 
 /**
@@ -106,25 +99,16 @@ export function resolveNodeStyle(
  * duplicates.
  */
 export function emphasizedNodeRefs(state: InteractionState): readonly NodeRef[] {
-  const refs: NodeRef[] = [];
-  const seen = new Set<string>();
-  const push = (instanceId: InstanceId, nodeId: NodeId): void => {
-    const key = `${instanceId}/${nodeId}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    refs.push({ instanceId, nodeId });
-  };
-  const hovered = state.hoveredNode;
-  if (hovered !== undefined) push(hovered.instanceId, hovered.nodeId);
-  for (const [instanceId, ids] of state.highlightedNodeIds) {
-    for (const nodeId of sortedNumbers(ids)) push(instanceId, nodeId);
-  }
-  for (const [instanceId, ids] of state.selectedNodeIds) {
-    for (const nodeId of sortedNumbers(ids)) push(instanceId, nodeId);
-  }
-  return refs;
-}
-
-function sortedNumbers(values: Iterable<NodeId>): number[] {
-  return Array.from(values).sort((a, b) => a - b);
+  return collectUniqueRefs(
+    state.hoveredNode,
+    (ref) => `${ref.instanceId}/${ref.nodeId}`,
+    (push) => {
+      for (const [instanceId, ids] of state.highlightedNodeIds) {
+        for (const nodeId of sortedNumbers(ids)) push({ instanceId, nodeId });
+      }
+      for (const [instanceId, ids] of state.selectedNodeIds) {
+        for (const nodeId of sortedNumbers(ids)) push({ instanceId, nodeId });
+      }
+    },
+  );
 }

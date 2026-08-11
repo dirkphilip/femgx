@@ -23,6 +23,10 @@ material clones.
   [[rendering/renderer-subrange-updates|Renderer subrange updates]]).
 - Body selection, highlight, hover, and explicit style overrides use the same
   immutable interaction state pattern, keyed by `(instanceId, bodyId)`.
+- The private `interaction/mechanics.ts` module centralizes immutable nested
+  collection updates, reference equality, deterministic ordering, deduplication,
+  and style-layer merging; domain modules retain explicit body/element/face/node
+  vocabulary.
 - Body emphasis is recorded in the element-highlight table and resolved on the
   GPU before element, face, or node emphasis. Body visibility is a GPU hidden
   bit, not a CPU material clone or geometry rewrite.
