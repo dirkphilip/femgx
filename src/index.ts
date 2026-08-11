@@ -6,13 +6,7 @@ export type {
   SubAssemblyPlacement,
 } from "./scene/assembly";
 export {
-  bodyIdForElement,
-  computeBounds,
   GeometryValidationError,
-  validateBodies,
-  validateElements,
-  validateFaceSubset,
-  validatePickIds,
   type Bounds,
   type Body,
   type BodyId,
@@ -282,16 +276,5 @@ export {
 } from "./io/model";
 export { createModelBuilder, type FemModelBuilder } from "./io/build";
 export { createElementModelFromFemModel } from "./io/element-model";
-export {
-  createParseSession,
-  finishParse,
-  parse,
-  parseVtk,
-  write,
-  writeVtk,
-  type IoFormat,
-  type ParseOptions,
-  type ParseResult,
-  type ParseSession,
-} from "./io/parse";
+export { parseVtk, writeVtk, type ParseOptions, type ParseResult } from "./io/parse";
 export { validateModel } from "./io/validate";

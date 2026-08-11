@@ -30,8 +30,9 @@ used by the VTK reader and by tests when constructing models.
 | ---------- | ---------- | ---------- | ------------------------------ |
 | VTK legacy | `parseVtk` | `writeVtk` | ASCII `UNSTRUCTURED_GRID` only |
 
-`parse()` / `write()` are thin aliases for the VTK helpers. Unknown keywords
-are skipped; unsupported cell types produce warnings and are omitted;
+The package root deliberately exposes only these explicit VTK entry points;
+parser sessions and generic aliases remain internal. Unknown keywords are
+skipped; unsupported cell types produce warnings and are omitted;
 malformed records produce actionable `Issue`s with stable `code`s (see
 `io/diagnostics.ts`).
 
