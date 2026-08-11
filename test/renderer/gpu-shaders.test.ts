@@ -214,9 +214,11 @@ describe("GPU deformation shader contract", () => {
   });
 
   it("keeps regular points at model depth and draws node annotations smaller", () => {
-    expect(pointVertexShader).toMatch(/pointVertex\(position, instanceIndex, vertexIndex, 1\.0\)/);
     expect(pointVertexShader).toMatch(
-      /nodeOverlayVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, 0\.75\)/,
+      /pointVertex\(position, instanceIndex, vertexIndex, 1\.0, false\)/,
+    );
+    expect(pointVertexShader).toMatch(
+      /nodeOverlayVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, 0\.75, true\)/,
     );
     expect(pointVertexShader).toMatch(/clip\.z,/);
     expect(colorFragmentShader).toMatch(/dot\(local, local\) > 1\.0/);
@@ -229,7 +231,12 @@ describe("GPU deformation shader contract", () => {
   });
 
   it("uses neutral black for element nodes and edges", () => {
-    expect(pointVertexShader).toMatch(/var color = vec4<f32>\(0\.0, 0\.0, 0\.0, 0\.45\)/);
+    expect(pointVertexShader).toMatch(
+      /var color = select\(instance\.color, vec4<f32>\(0\.0, 0\.0, 0\.0, 0\.45\), nodeOverlay\)/,
+    );
+    expect(pointVertexShader).toMatch(
+      /pointVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, 1\.0, false\)/,
+    );
     expect(edgeVertexShader).toMatch(/output\.color = vec4<f32>\(0\.0, 0\.0, 0\.0, 0\.45\)/);
     expect(edgeVertexShader).toMatch(/output\.emissive = 0\.0/);
   });
