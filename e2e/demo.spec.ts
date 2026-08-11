@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { distinctColors, drawnPixels, requireHit } from "./helpers";
 
 /** The stable status summary the workbench reports for a model + renderer. */
@@ -23,6 +23,67 @@ test("renders the demo canvas with instanced geometry", async ({ page }) => {
   }
 
   await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
+});
+
+/** Drags the primary button past the box threshold inside the canvas bounds. */
+async function primaryBoxDrag(
+  page: Page,
+  canvas: Locator,
+  start: { readonly fx: number; readonly fy: number },
+  end: { readonly fx: number; readonly fy: number },
+): Promise<void> {
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  await page.mouse.move(
+    Math.round(box.x + start.fx * box.width),
+    Math.round(box.y + start.fy * box.height),
+  );
+  await page.mouse.down({ button: "left" });
+  await page.mouse.move(
+    Math.round(box.x + end.fx * box.width),
+    Math.round(box.y + end.fy * box.height),
+  );
+}
+
+test("draws a normalized box rectangle during a primary drag and clears it on release", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  const overlay = page.getByTestId("box-selection-overlay");
+  await expect(overlay).toBeHidden();
+  expect(await dataset(page, "selected")).toBe("");
+
+  await primaryBoxDrag(page, canvas, { fx: 0.2, fy: 0.35 }, { fx: 0.65, fy: 0.6 });
+  await page.waitForTimeout(50);
+  const overlayBox = await overlay.boundingBox();
+  expect(overlayBox, "the box rectangle must be visible while the button is held").not.toBeNull();
+  expect(overlayBox?.width ?? 0).toBeGreaterThan(0);
+  expect(overlayBox?.height ?? 0).toBeGreaterThan(0);
+
+  await page.mouse.up({ button: "left" });
+  await expect(overlay).toBeHidden();
+  expect(await dataset(page, "selected")).toBe("");
+});
+
+test("cancels a box selection with Escape and never changes selection", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  const overlay = page.getByTestId("box-selection-overlay");
+
+  await primaryBoxDrag(page, canvas, { fx: 0.25, fy: 0.4 }, { fx: 0.7, fy: 0.65 });
+  await page.waitForTimeout(50);
+  await expect(overlay).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(overlay).toBeHidden();
+  expect(await dataset(page, "selected")).toBe("");
+
+  await page.mouse.up({ button: "left" });
+  expect(await dataset(page, "selected")).toBe("");
+  await expect(overlay).toBeHidden();
 });
 
 test("reports the active model, renderer, instances, parts, and batches", async ({ page }) => {

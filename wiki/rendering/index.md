@@ -1,5 +1,7 @@
 # Rendering and interaction
 
+- [[rendering/box-selection-gesture|Box-selection gesture]] — the primary
+  mouse/pen box-drag lifecycle and its screen-space rectangle preview.
 - [[rendering/camera-depth-convention|Camera depth convention]] — WebGPU
   depth-range and projection conventions.
 - [[rendering/camera-presentation|Camera presentation]] — perspective framing,
@@ -42,6 +44,7 @@
 [rendering/camera-depth-convention|Camera depth convention]: camera-depth-convention.md
 [rendering/camera-presentation|Camera presentation]: camera-presentation.md
 [rendering/camera-touch-controls|Camera touch controls]: camera-touch-controls.md
+[rendering/box-selection-gesture|Box-selection gesture]: box-selection-gesture.md
 [rendering/coordinate-spaces|Coordinate spaces]: coordinate-spaces.md
 [rendering/element-interaction|Element-level interaction]: element-interaction.md
 [rendering/element-rendering|Element rendering]: element-rendering.md
