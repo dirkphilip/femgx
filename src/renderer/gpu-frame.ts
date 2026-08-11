@@ -1,6 +1,7 @@
 import { viewProjectionMatrix, type Camera } from "../camera/camera";
 import type { Part } from "../geometry/part";
 import type { PartId } from "../geometry/part";
+import { add, normalize, scale, subtract, type Vec3 } from "../math/vec3";
 import type { DeformationState } from "../results/deform";
 import { writeDeformationUniform } from "./gpu-deform";
 import type { DrawCall, DrawCallContext, DrawResources } from "./gpu-draw";
@@ -45,6 +46,12 @@ export interface FrameOptions {
 /** Converts a CSS-pixel point diameter into device pixels for the GPU uniform. */
 export function pointSizeDevicePixels(cssPixels: number, dpr = devicePixelRatio): number {
   return Math.max(1, cssPixels * dpr);
+}
+
+/** Returns a finite camera-following key direction with a slight world-up bias. */
+export function cameraKeyLightDirection(camera: Camera): Vec3 {
+  const viewDirection = normalize(subtract(camera.position, camera.target), [0, 0, 1], 1e-6);
+  return normalize(add(scale(viewDirection, 1), [0, 0.35, 0]), [0, 1, 0], 1e-6);
 }
 
 /** Encodes and submits one visible color frame without any picking work. */
@@ -116,7 +123,7 @@ function drawContext(frame: FrameOptions, parts: ReadonlyMap<PartId, Part>): Dra
 }
 
 function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
-  const uniform = new Float32Array(24);
+  const uniform = new Float32Array(28);
   uniform.set(viewProjectionMatrix(camera), 0);
   uniform[16] = frame.canvas.width;
   uniform[17] = frame.canvas.height;
@@ -125,6 +132,7 @@ function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
   uniform[20] = camera.far;
   uniform[21] = camera.mode === "orthographic" ? 1 : 0;
   uniform[22] = 0;
+  uniform.set(cameraKeyLightDirection(camera), 24);
   frame.device.queue.writeBuffer(frame.resources.cameraBuffer, 0, uniform);
   writeDeformationUniform(frame.device, frame.resources.deformationBuffer, frame.deformation);
 }
