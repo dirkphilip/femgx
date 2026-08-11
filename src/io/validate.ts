@@ -132,6 +132,13 @@ function validateResult(
   issues: Issue[],
 ): void {
   const known = result.location === "node" ? nodeIds : elementIds;
+  if (!Number.isInteger(result.components) || result.components < 1) {
+    issues.push({
+      code: "result-components",
+      severity: "error",
+      message: `Result ${result.name} has invalid component count ${String(result.components)}`,
+    });
+  }
   if (result.values.length !== result.ids.length * result.components) {
     issues.push({
       code: "result-shape",

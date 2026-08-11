@@ -44,9 +44,12 @@ malformed records produce actionable `Issue`s with stable `code`s (see
   associations remain intact.
 - **Sets / metadata**: VTK legacy has no set or metadata concept.
 - **Results**: complete node and element fields are reordered by identity to
-  POINT_DATA and CELL_DATA row order. Partial, duplicate, unknown, or
-  non-finite fields fail with `VtkWriteError`; unsupported component counts are
-  rejected instead of being silently omitted.
+  POINT_DATA and CELL_DATA row order. One-component fields use `SCALARS`,
+  three-component fields use `VECTORS`, and nine-component fields use
+  `TENSORS`. Every other positive component width uses a deterministic `FIELD`
+  array, including six-component fields. Partial, duplicate, unknown, or
+  non-finite fields, invalid component counts, and names that are not one
+  representable VTK token fail with `VtkWriteError` rather than being omitted.
 
 The dense ids after parsing are an unavoidable VTK limitation, not a loss of
 the original associations. Callers should match entities by coordinate and
@@ -58,6 +61,7 @@ connectivity position when comparing a written model with its parsed result.
 - `vtk-cells.ts` — POINTS / CELLS / CELL_TYPES assembly.
 - `vtk-data.ts` — POINT_DATA / CELL_DATA arrays.
 - `vtk-write.ts` — deterministic ASCII export.
+- `vtk-write-results.ts` — result identity remapping and component-shape output.
 - `session.ts` — shared parse session + `finishParse` validation.
 - `validate.ts` / `diagnostics.ts` / `numbers.ts` / `growable.ts` — shared
   helpers.
