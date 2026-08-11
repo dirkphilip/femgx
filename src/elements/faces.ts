@@ -33,6 +33,20 @@ export interface FaceIdRef {
   readonly faceIndex: number;
 }
 
+/** Machine-readable validation failure for an explicit element-face subset. */
+export type FaceSelectionErrorCode = "invalid-element-id" | "invalid-face-index" | "duplicate-face";
+
+/** Typed error raised when a face subset does not resolve to model topology. */
+export class FaceSelectionError extends Error {
+  readonly code: FaceSelectionErrorCode;
+
+  constructor(code: FaceSelectionErrorCode, message: string) {
+    super(message);
+    this.name = "FaceSelectionError";
+    this.code = code;
+  }
+}
+
 /** An element face together with its stable identity. */
 export interface ElementFaceRef extends FaceIdRef {
   readonly face: ElementFace;
@@ -161,4 +175,21 @@ export function classifyFaces(elements: readonly Element[]): readonly Classified
     }
   }
   return classified;
+}
+
+/** Returns stable element-face identities for the exterior of a mesh. */
+export function boundaryFaceRefs(elements: readonly Element[]): readonly FaceIdRef[] {
+  const classified = classifyFaces(elements);
+  const refs: FaceIdRef[] = [];
+  let index = 0;
+  for (const element of elements) {
+    for (const [faceIndex, face] of facesOf(element).entries()) {
+      const result = classified[index];
+      if (result?.boundary && result.key === face.key) {
+        refs.push({ elementId: element.id, faceIndex });
+      }
+      index += 1;
+    }
+  }
+  return refs;
 }

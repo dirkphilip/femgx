@@ -16,12 +16,15 @@ describe("public root API", () => {
     expect(publicApi.polygonGeometry).toBeTypeOf("function");
     expect(publicApi.polygonPart).toBeTypeOf("function");
     expect(publicApi.PolygonGeometryError).toBeTypeOf("function");
+    expect(publicApi.boundaryFaceRefs).toBeTypeOf("function");
+    expect(publicApi.FaceSelectionError).toBeTypeOf("function");
   });
 
   it("exposes validated part-body metadata helpers", () => {
     expect(publicApi.validateBodies).toBeTypeOf("function");
     expect(publicApi.bodyIdForElement).toBeTypeOf("function");
     expect(publicApi.GeometryValidationError).toBeTypeOf("function");
+    expect(publicApi.validateFaceSubset).toBeTypeOf("function");
   });
 
   it("exposes body interaction helpers through the root API", () => {

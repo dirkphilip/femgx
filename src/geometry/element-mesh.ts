@@ -1,28 +1,35 @@
-import {
-  classifyFaces,
-  facesOf,
-  facesOfElement,
-  type ElementFace,
-  type FaceKey,
-} from "../elements/faces";
+import { type FaceIdRef, type ElementFace } from "../elements/faces";
 import { edgesOf, uniqueEdges, type ElementEdge } from "../elements/edges";
 import type { Element, ElementId, NodeId } from "../elements/element";
 import type { ElementModel } from "../elements/model";
 import type { ElementFamily } from "../elements/shapes";
 import {
   computeBounds,
+  type FaceId,
+  type FaceSubset,
   type ElementTessellation,
   type Body,
   type BodyId,
   type FaceTessellation,
   type Geometry,
   type Part,
+  validateElements,
+  validatePickIds,
   validateBodies,
 } from "./part";
 import type { PartId } from "../scene/types";
 import { tessellateFace } from "./face-tessellation";
 import { LineMeshBuilder, TriangleMeshBuilder, type MeshVertex } from "./mesh-builder";
 import { quadraticPoint, type Vec3 } from "./vec-math";
+import {
+  allFaces,
+  boundaryFaces,
+  elementsOf,
+  faceIdentity,
+  faceNeighbors,
+  validateFaceSelection,
+  type ElementRenderFace,
+} from "./element-face-selection";
 
 /**
  * Tessellates an {@link ElementModel} into reusable part geometry per render
@@ -44,6 +51,8 @@ export interface TessellationOptions {
   readonly edgeSegments?: number;
   /** Optional stable body metadata for the generated triangle part. */
   readonly bodies?: readonly Body[];
+  /** Optional element-face identities to draw in solid/surface modes. */
+  readonly faceSubset?: readonly FaceIdRef[];
 }
 
 /** Returns the render modes supported by an element family. */
@@ -86,11 +95,14 @@ export function elementGeometry(
   if (!elementRenderModes(family).includes(mode)) {
     throw new Error(`Render mode ${mode} is not supported for ${family} elements`);
   }
+  if (options.faceSubset !== undefined && mode !== "solid" && mode !== "surface") {
+    throw new Error("faceSubset is supported only for solid and surface modes");
+  }
   const segments = Math.max(1, options.edgeSegments ?? 2);
   switch (mode) {
     case "solid":
     case "surface":
-      return volumeGeometry(model, family, options.bodies);
+      return volumeGeometry(model, family, options.bodies, options.faceSubset);
     case "edges":
       return edgeGeometry(model, family, segments);
     case "lines":
@@ -104,30 +116,62 @@ function volumeGeometry(
   model: ElementModel,
   family: ElementFamily,
   bodies: readonly Body[] | undefined,
+  faceSubset: readonly FaceIdRef[] | undefined,
 ): Geometry {
   const bodyIds = bodyAssignments(model, bodies);
-  const faces: ReadonlyArray<{
-    readonly element: Element;
-    readonly face: ElementFace;
-    readonly faceIndex: number;
-  }> = boundaryFaces(model, family);
+  const selected =
+    faceSubset === undefined ? undefined : validateFaceSelection(model, family, faceSubset);
+  const faces = selected === undefined ? boundaryFaces(model, family) : allFaces(model, family);
   const neighbors = faceNeighbors(elementsOf(model, family));
+  const tessellation = tessellateVolumeFaces(model, faces, neighbors, bodyIds, selected);
+  const subset = selected === undefined ? undefined : { faceIds: tessellation.selectedFaceIds };
+  return buildVolumeGeometry({
+    ...tessellation,
+    bodies,
+    faceSubset: subset,
+  });
+}
+
+interface VolumeGeometryOptions {
+  readonly mesh: TriangleMeshBuilder;
+  readonly elements: readonly ElementTessellation[];
+  readonly faces: readonly FaceTessellation[];
+  readonly nodePositions: readonly number[];
+  readonly bodies: readonly Body[] | undefined;
+  readonly faceSubset: FaceSubset | undefined;
+}
+
+interface VolumeTessellation {
+  readonly mesh: TriangleMeshBuilder;
+  readonly elements: readonly ElementTessellation[];
+  readonly faces: readonly FaceTessellation[];
+  readonly nodePositions: readonly number[];
+  readonly selectedFaceIds: readonly FaceId[];
+}
+
+function tessellateVolumeFaces(
+  model: ElementModel,
+  faces: readonly ElementRenderFace[],
+  neighbors: ReadonlyMap<string, readonly ElementId[]>,
+  bodyIds: ReadonlyMap<ElementId, BodyId>,
+  selected: ReadonlySet<string> | undefined,
+): VolumeTessellation {
   const mesh = new TriangleMeshBuilder();
   const elements: ElementTessellation[] = [];
   const faceTessellations: FaceTessellation[] = [];
   const nodePositions: number[] = [...model.nodes];
+  const selectedFaceIds: FaceId[] = [];
   let current: { readonly id: ElementId; readonly start: number } | undefined;
   let faceId = 0;
   const flush = (): void => {
-    if (current !== undefined) {
-      const tessellation: ElementTessellation = {
-        id: current.id,
-        triangleStart: current.start,
-        triangleCount: mesh.triangleCount - current.start,
-      };
-      const bodyId = bodyIds.get(current.id);
-      elements.push(bodyId === undefined ? tessellation : { ...tessellation, bodyId });
-    }
+    if (current === undefined) return;
+    const tessellation: ElementTessellation = {
+      id: current.id,
+      triangleStart: current.start,
+      triangleCount: mesh.triangleCount - current.start,
+    };
+    const bodyId = bodyIds.get(current.id);
+    elements.push(bodyId === undefined ? tessellation : { ...tessellation, bodyId });
   };
   for (const { element, face, faceIndex } of faces) {
     if (current === undefined || current.id !== element.id) {
@@ -147,25 +191,24 @@ function volumeGeometry(
     };
     const bodyId = bodyIds.get(element.id);
     faceTessellations.push(bodyId === undefined ? tessellation : { ...tessellation, bodyId });
+    if (selected?.has(faceIdentity(element.id, faceIndex))) selectedFaceIds.push(faceId);
     faceId += 1;
   }
   flush();
-  return buildVolumeGeometry(mesh, elements, faceTessellations, nodePositions, bodies);
+  return { mesh, elements, faces: faceTessellations, nodePositions, selectedFaceIds };
 }
 
-function buildVolumeGeometry(
-  mesh: TriangleMeshBuilder,
-  elements: readonly ElementTessellation[],
-  faces: readonly FaceTessellation[],
-  nodePositions: readonly number[],
-  bodies: readonly Body[] | undefined,
-): Geometry {
+function buildVolumeGeometry(options: VolumeGeometryOptions): Geometry {
+  const { mesh, elements, faces, nodePositions, bodies, faceSubset } = options;
   const renderedElementIds = new Set(elements.map((element) => element.id));
   const renderedBodies = bodies?.flatMap((body) => {
     const elementIds = body.elementIds.filter((id) => renderedElementIds.has(id));
     return elementIds.length === 0 ? [] : [{ ...body, elementIds }];
   });
-  const geometry = mesh.build("triangles", elements, faces, nodePositions, renderedBodies);
+  const base = mesh.build("triangles", elements, faces, nodePositions, renderedBodies);
+  const geometry = faceSubset === undefined ? base : { ...base, faceSubset };
+  validateElements(geometry);
+  validatePickIds(geometry);
   validateBodies(geometry);
   return geometry;
 }
@@ -192,60 +235,6 @@ function bodyAssignments(
     bodies,
   });
   return assignments;
-}
-
-/** Maps every canonical face key to the elements incident to it. */
-function faceNeighbors(elements: readonly Element[]): Map<FaceKey, ElementId[]> {
-  const neighbors = new Map<FaceKey, ElementId[]>();
-  for (const element of elements) {
-    for (const face of facesOf(element)) {
-      const list = neighbors.get(face.key);
-      if (list === undefined) neighbors.set(face.key, [element.id]);
-      else list.push(element.id);
-    }
-  }
-  return neighbors;
-}
-
-/**
- * Returns the boundary faces of a volume family: faces shared by exactly one
- * element. Interior faces (shared by two elements) are culled so hidden
- * internal geometry is never drawn.
- */
-function boundaryFaces(
-  model: ElementModel,
-  family: ElementFamily,
-): ReadonlyArray<{
-  readonly element: Element;
-  readonly face: ElementFace;
-  readonly faceIndex: number;
-}> {
-  const elements = elementsOf(model, family);
-  const elementById = new Map<ElementId, Element>();
-  const faceIndexByElement = new Map<ElementId, Map<FaceKey, number>>();
-  for (const element of elements) {
-    elementById.set(element.id, element);
-    const indexByKey = new Map<FaceKey, number>();
-    for (const { face, faceIndex } of facesOfElement(element)) {
-      indexByKey.set(face.key, faceIndex);
-    }
-    faceIndexByElement.set(element.id, indexByKey);
-  }
-  const boundary: Array<{
-    readonly element: Element;
-    readonly face: ElementFace;
-    readonly faceIndex: number;
-  }> = [];
-  for (const face of classifyFaces(elements)) {
-    const element = elementById.get(face.elementId);
-    if (!face.boundary || element === undefined) continue;
-    const faceIndex = faceIndexByElement.get(element.id)?.get(face.key);
-    if (faceIndex === undefined) {
-      throw new Error(`Element ${element.id} has no face index for ${face.key}`);
-    }
-    boundary.push({ element, face: { key: face.key, nodeIds: face.nodeIds }, faceIndex });
-  }
-  return boundary;
 }
 
 function edgeGeometry(model: ElementModel, family: ElementFamily, segments: number): Geometry {
@@ -300,10 +289,6 @@ function pointGeometry(model: ElementModel): Geometry {
     primitive: "points",
     nodePickIds: new Uint32Array(nodePickIds),
   };
-}
-
-function elementsOf(model: ElementModel, family: ElementFamily): readonly Element[] {
-  return model.elements.filter((element) => element.shape.family === family);
 }
 
 /**

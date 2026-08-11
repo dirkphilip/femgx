@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { createElementModel, type ElementModel } from "../../src/elements/model";
+import { boundaryFaceRefs, FaceSelectionError } from "../../src/elements/faces";
 import {
   HEX20_SHAPE,
   HEX8_SHAPE,
@@ -380,6 +381,51 @@ describe("elementGeometry", () => {
     const surface = elementGeometry(sharedTetPairModel(), "tet", "surface");
     expect(surface.faces).toHaveLength(6);
     expect(surface.faces?.every((face) => face.neighborElementIds.length === 0)).toBe(true);
+  });
+
+  it("keeps full geometry while drawing an explicit stable face subset", () => {
+    const geometry = elementGeometry(sharedTetPairModel(), "tet", "surface", {
+      faceSubset: [{ elementId: 1, faceIndex: 3 }],
+    });
+    expect(geometry.indices.length).toBe(8 * 3);
+    expect(geometry.faceSubset).toEqual({ faceIds: [3] });
+    expect(geometry.faces).toHaveLength(8);
+    expect(geometry.faces?.[3]).toMatchObject({
+      elementId: 1,
+      faceIndex: 3,
+      neighborElementIds: [2],
+    });
+  });
+
+  it("accepts an empty face subset and rejects unresolved identities", () => {
+    const empty = elementGeometry(sharedTetPairModel(), "tet", "solid", { faceSubset: [] });
+    expect(empty.faceSubset).toEqual({ faceIds: [] });
+    expect(() =>
+      elementGeometry(sharedTetPairModel(), "tet", "solid", {
+        faceSubset: [{ elementId: 1, faceIndex: 8 }],
+      }),
+    ).toThrow(FaceSelectionError);
+    expect(() =>
+      elementGeometry(sharedTetPairModel(), "tet", "solid", {
+        faceSubset: [{ elementId: 99, faceIndex: 0 }],
+      }),
+    ).toThrow(/outside tet elements/);
+    expect(() =>
+      elementGeometry(sharedTetPairModel(), "tet", "solid", {
+        faceSubset: [
+          { elementId: 1, faceIndex: 0 },
+          { elementId: 1, faceIndex: 0 },
+        ],
+      }),
+    ).toThrow(/repeats element 1 face 0/);
+  });
+
+  it("derives stable exterior identities from face classification", () => {
+    const elements = sharedTetPairModel().elements;
+    const refs = boundaryFaceRefs(elements);
+    expect(refs).toHaveLength(6);
+    expect(refs).not.toContainEqual({ elementId: 1, faceIndex: 3 });
+    expect(refs).not.toContainEqual({ elementId: 2, faceIndex: 3 });
   });
 
   it("generates point sprites for point elements", () => {

@@ -1,4 +1,4 @@
-import type { Part, Primitive } from "../geometry/part";
+import { validateFaceSubset, type Part, type Primitive } from "../geometry/part";
 import type { PartId } from "../scene/types";
 import { orderBindGroup } from "./gpu-bind-groups";
 import {
@@ -7,6 +7,7 @@ import {
   type DeformationStorage,
 } from "./gpu-deform";
 import { buildMeshEdges } from "./gpu-edge";
+import { buildFaceSubsetIndices } from "./gpu-face-subset";
 import type { InstanceStorage } from "./gpu-instance-storage";
 import {
   buildElementTrianglePickIds,
@@ -109,6 +110,8 @@ function uploadNodePart(draw: DrawResources, part: Part): PartResource {
     edgeIndexBuffer: createBuffer(draw.device, new Uint32Array(1), GPUBufferUsage.INDEX),
     indexCount: indices.length,
     edgeIndexCount: 0,
+    subsetIndexCount: 0,
+    subsetEdgeIndexCount: 0,
   };
   draw.nodeParts.set(part.id, resource);
   return resource;
@@ -122,6 +125,7 @@ function uploadNodePart(draw: DrawResources, part: Part): PartResource {
 export function uploadPart(draw: DrawResources, part: Part): PartResource {
   const existing = draw.parts.get(part.id);
   if (existing !== undefined) return existing;
+  validateFaceSubset(part.geometry);
   const vertexBuffer = createBuffer(
     draw.device,
     part.geometry.positions,
@@ -129,39 +133,70 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
   );
   const indexBuffer = createBuffer(draw.device, part.geometry.indices, GPUBufferUsage.INDEX);
   const triangles = part.geometry.primitive !== "lines" && part.geometry.primitive !== "points";
-  const edges = triangles ? buildMeshEdges(part.geometry) : new Uint32Array(0);
-  const elementPickIdsBuffer = createBuffer(
-    draw.device,
-    buildElementTrianglePickIds(part.geometry),
-    GPUBufferUsage.STORAGE,
-  );
-  const facePickIdsBuffer = createBuffer(
-    draw.device,
-    buildTriangleFaceBodyPickData(part.geometry),
-    GPUBufferUsage.STORAGE,
-  );
-  const nodePickIdsBuffer = createBuffer(
-    draw.device,
-    buildVertexNodePickIds(part.geometry),
-    GPUBufferUsage.STORAGE,
-  );
-  const edgeIndexBuffer = createBuffer(
-    draw.device,
-    edges.length > 0 ? edges : new Uint32Array(1),
-    GPUBufferUsage.INDEX,
-  );
+  const subsetIndices =
+    part.geometry.faceSubset === undefined ? undefined : buildFaceSubsetIndices(part.geometry);
+  const edges = triangles
+    ? buildMeshEdges(part.geometry, subsetIndices ?? part.geometry.indices)
+    : new Uint32Array(0);
+  const picks = uploadPickBuffers(draw, part);
+  const edgeIndexBuffer = createIndexBuffer(draw.device, edges);
+  const subsetBuffers = createSubsetBuffers(draw.device, subsetIndices, edges);
   const resource: PartResource = {
     vertexBuffer,
     indexBuffer,
-    elementPickIdsBuffer,
-    facePickIdsBuffer,
-    nodePickIdsBuffer,
+    ...picks,
     edgeIndexBuffer,
     indexCount: part.geometry.indices.length,
     edgeIndexCount: edges.length,
+    ...subsetBuffers,
+    subsetIndexCount: subsetIndices?.length ?? 0,
+    subsetEdgeIndexCount: part.geometry.faceSubset === undefined ? 0 : edges.length,
   };
   draw.parts.set(part.id, resource);
   return resource;
+}
+
+function uploadPickBuffers(
+  draw: DrawResources,
+  part: Part,
+): Pick<PartResource, "elementPickIdsBuffer" | "facePickIdsBuffer" | "nodePickIdsBuffer"> {
+  return {
+    elementPickIdsBuffer: createBuffer(
+      draw.device,
+      buildElementTrianglePickIds(part.geometry),
+      GPUBufferUsage.STORAGE,
+    ),
+    facePickIdsBuffer: createBuffer(
+      draw.device,
+      buildTriangleFaceBodyPickData(part.geometry),
+      GPUBufferUsage.STORAGE,
+    ),
+    nodePickIdsBuffer: createBuffer(
+      draw.device,
+      buildVertexNodePickIds(part.geometry),
+      GPUBufferUsage.STORAGE,
+    ),
+  };
+}
+
+function createIndexBuffer(device: GPUDevice, indices: Uint32Array): GPUBuffer {
+  return createBuffer(
+    device,
+    indices.length > 0 ? indices : new Uint32Array(1),
+    GPUBufferUsage.INDEX,
+  );
+}
+
+function createSubsetBuffers(
+  device: GPUDevice,
+  indices: Uint32Array | undefined,
+  edges: Uint32Array,
+): Pick<PartResource, "subsetIndexBuffer" | "subsetEdgeIndexBuffer"> {
+  if (indices === undefined) return {};
+  return {
+    subsetIndexBuffer: createIndexBuffer(device, indices),
+    subsetEdgeIndexBuffer: createIndexBuffer(device, edges),
+  };
 }
 
 /** Which fragment pass a batch targets. */
@@ -207,7 +242,11 @@ export function drawBatches(
     const storage = draw.storages.get(call.partId);
     if (part === undefined || storage === undefined) continue;
     const geometry = nodes ? uploadNodePart(draw, part) : uploadPart(draw, part);
-    if (overlay && geometry.edgeIndexCount === 0) continue;
+    const subset = !nodes && part.geometry.faceSubset !== undefined;
+    if (overlay && (subset ? geometry.subsetEdgeIndexCount : geometry.edgeIndexCount) === 0) {
+      continue;
+    }
+    if (!overlay && subset && geometry.subsetIndexCount === 0) continue;
     const pipeline =
       options.pipeline ??
       pipelineFor(
@@ -227,8 +266,21 @@ export function drawBatches(
     });
     pass.setBindGroup(1, group);
     pass.setVertexBuffer(0, geometry.vertexBuffer);
-    const buffer = overlay ? geometry.edgeIndexBuffer : geometry.indexBuffer;
-    const count = overlay ? geometry.edgeIndexCount : geometry.indexCount;
+    const buffer = overlay
+      ? subset
+        ? geometry.subsetEdgeIndexBuffer
+        : geometry.edgeIndexBuffer
+      : subset
+        ? geometry.subsetIndexBuffer
+        : geometry.indexBuffer;
+    const count = overlay
+      ? subset
+        ? geometry.subsetEdgeIndexCount
+        : geometry.edgeIndexCount
+      : subset
+        ? geometry.subsetIndexCount
+        : geometry.indexCount;
+    if (buffer === undefined) continue;
     pass.setIndexBuffer(buffer, "uint32");
     pass.drawIndexed(count, call.instanceCount);
   }
@@ -267,6 +319,8 @@ export function destroyDrawResources(draw: DrawResources): void {
     resource.facePickIdsBuffer.destroy();
     resource.nodePickIdsBuffer.destroy();
     resource.edgeIndexBuffer.destroy();
+    resource.subsetIndexBuffer?.destroy();
+    resource.subsetEdgeIndexBuffer?.destroy();
   }
   for (const resource of draw.nodeParts.values()) {
     resource.vertexBuffer.destroy();
@@ -275,6 +329,8 @@ export function destroyDrawResources(draw: DrawResources): void {
     resource.facePickIdsBuffer.destroy();
     resource.nodePickIdsBuffer.destroy();
     resource.edgeIndexBuffer.destroy();
+    resource.subsetIndexBuffer?.destroy();
+    resource.subsetEdgeIndexBuffer?.destroy();
   }
   for (const storage of draw.storages.values()) {
     storage.buffer.destroy();

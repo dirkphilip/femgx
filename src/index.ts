@@ -11,6 +11,7 @@ export {
   GeometryValidationError,
   validateBodies,
   validateElements,
+  validateFaceSubset,
   validatePickIds,
   type Bounds,
   type Body,
@@ -18,6 +19,7 @@ export {
   type ElementTessellation,
   type FaceId,
   type FaceTessellation,
+  type FaceSubset,
   type Geometry,
   type GeometryValidationCode,
   type Part,
@@ -58,12 +60,16 @@ export {
 } from "./elements/shapes";
 export {
   classifyFaces,
+  boundaryFaceRefs,
+  FaceSelectionError,
   facesOf,
   facesOfElement,
   type ClassifiedFace,
   type ElementFace,
   type ElementFaceRef,
+  type FaceIdRef,
   type FaceKey,
+  type FaceSelectionErrorCode,
 } from "./elements/faces";
 export { edgesOf, uniqueEdges, type EdgeKey, type ElementEdge } from "./elements/edges";
 export {

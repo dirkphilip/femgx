@@ -4,8 +4,8 @@ import type { Geometry } from "../geometry/part";
  * Builds a deduplicated line-list of FE edges for the wireframe overlay.
  * Tessellated triangle diagonals are excluded when face/node metadata exists.
  */
-export function buildMeshEdges(geometry: Geometry): Uint32Array {
-  const indices = geometry.indices;
+export function buildMeshEdges(geometry: Geometry, sourceIndices = geometry.indices): Uint32Array {
+  const indices = sourceIndices;
   const triangleCount = Math.floor(indices.length / 3);
   const elementEdges = elementEdgeKeys(geometry);
   const seen = new Set<string>();

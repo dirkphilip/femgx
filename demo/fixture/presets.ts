@@ -84,7 +84,7 @@ export function createVtkPreset(): ModelPreset {
   const { solid, surface, edges } = fixture.partIds;
   return {
     id: "vtk",
-    name: "VTK sample block",
+    name: "VTK sample block · exterior subset",
     scene: fixture.scene,
     elementModels: fixture.elementModels,
     partColors: new Map<PartId, Color>([
