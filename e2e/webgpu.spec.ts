@@ -37,7 +37,7 @@ async function stableCanvasPixels(page: Page, canvas: Locator): Promise<Buffer> 
   let streak = 0;
   for (let attempt = 0; attempt < 30; attempt++) {
     const shot = await canvas.screenshot({
-      mask: [page.locator(".toolbar, #performance-overlay, #inspection-panel, #status")],
+      mask: [page.locator(".toolbar, #inspection-panel, #status")],
     });
     if (previous !== undefined && shot.equals(previous)) streak += 1;
     else streak = 0;
@@ -385,9 +385,7 @@ test("keeps element edges and nodes visible after orbiting", async ({ page }) =>
 
 test("keeps depth-tested node annotations stable across fine zoom steps", async ({ page }) => {
   await loadWebGpuPage(page);
-  await page
-    .getByTestId("model-select")
-    .selectOption({ label: "Element gallery · all supported shapes" });
+  await page.getByTestId("model-select").selectOption({ label: "Supported element gallery" });
   // Hide the gallery's hardware point/line overlays so the measured delta is
   // only the depth-tested node annotation pass.
   await page.getByTestId("instance-vis-0").uncheck();

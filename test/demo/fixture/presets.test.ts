@@ -3,7 +3,6 @@ import {
   createBoltedPlatePreset,
   createDefaultPreset,
   createGalleryPreset,
-  createHeterogeneousPreset,
   createHex20CylinderPreset,
   createModelPresets,
   createVtkPreset,
@@ -11,17 +10,23 @@ import {
 } from "../../../demo/fixture/presets";
 
 describe("createModelPresets", () => {
-  it("offers the showcase, imported, heterogeneous, gallery, cylinder, and results workflow", () => {
+  it("offers the five supported product stories in stable order", () => {
     const presets = createModelPresets();
     expect(presets.map((preset) => preset.id)).toEqual([
       "bolted",
       "vtk",
-      "heterogeneous",
       "gallery",
       "hex20-cylinder",
       "results",
     ]);
-    expect(new Set(presets.map((preset) => preset.name)).size).toBe(6);
+    expect(presets.map((preset) => preset.name)).toEqual([
+      "Bolted plate assembly",
+      "Imported VTK sample",
+      "Supported element gallery",
+      "Hex20 cylinder",
+      "Static results · stress + deformation",
+    ]);
+    expect(new Set(presets.map((preset) => preset.name)).size).toBe(5);
   });
 
   it("keeps the bolted plate as the default showcase", () => {
@@ -51,21 +56,9 @@ describe("createGalleryPreset", () => {
 describe("createVtkPreset", () => {
   it("imports the checked-in VTK sample mesh", () => {
     const preset = createVtkPreset();
-    expect(preset.name).toBe("VTK sample block · exterior subset");
+    expect(preset.name).toBe("Imported VTK sample");
     expect(preset.scene.parts.size).toBe(1);
     expect(preset.bounds).toEqual({ minX: 0, minY: 0, minZ: 0, maxX: 2, maxY: 2, maxZ: 1 });
-  });
-});
-
-describe("createHeterogeneousPreset", () => {
-  it("uses one source model for triangle, line, and point primitive parts", () => {
-    const preset = createHeterogeneousPreset();
-    expect(preset.scene.parts.size).toBe(3);
-    expect(preset.modePartIds.get("solid")).toEqual([30]);
-    expect(preset.overlayPartIds).toEqual([31, 32]);
-    expect(preset.scene.parts.get(30)?.geometry.elements).toHaveLength(4);
-    expect(preset.scene.parts.get(31)?.geometry.elements?.[0]?.shape?.family).toBe("line");
-    expect(preset.scene.parts.get(32)?.geometry.elements?.[0]?.shape?.family).toBe("point");
   });
 });
 

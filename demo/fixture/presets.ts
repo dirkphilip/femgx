@@ -8,7 +8,6 @@ import type { PartId } from "../../src/geometry/part";
 import type { ViewportResultsConfig } from "../../src/viewport/results";
 import { createBoltedPlateFixture } from "./bolted-plate";
 import { createElementFixture, createHex20CylinderFixture } from "./element-fixture";
-import { createHeterogeneousFixture } from "./heterogeneous-fixture";
 import { createResultsPreset } from "./results-preset";
 import { createVtkFixture } from "./vtk-fixture";
 import type { ElementDisplayMode } from "./types";
@@ -44,7 +43,7 @@ export function createGalleryPreset(): ModelPreset {
   const partIds = fixture.partIds;
   return {
     id: "gallery",
-    name: "Element gallery · all supported shapes",
+    name: "Supported element gallery",
     scene: fixture.scene,
     elementModels: fixture.elementModels,
     partColors: new Map<PartId, Color>([
@@ -79,40 +78,13 @@ export function createGalleryPreset(): ModelPreset {
   };
 }
 
-/** Builds the recommended one-model heterogeneous linear-element workflow. */
-export function createHeterogeneousPreset(): ModelPreset {
-  const fixture = createHeterogeneousFixture();
-  const { triangle, line, point } = fixture.partIds;
-  return {
-    id: "heterogeneous",
-    name: "Heterogeneous linear model · grouped primitives",
-    scene: fixture.scene,
-    elementModels: fixture.elementModels,
-    partColors: new Map<PartId, Color>([
-      [triangle, { r: 0.28, g: 0.55, b: 0.95, a: 1 }],
-      [line, { r: 0.18, g: 0.78, b: 0.94, a: 1 }],
-      [point, { r: 0.98, g: 0.72, b: 0.2, a: 1 }],
-    ]),
-    fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
-    partNames: new Map<PartId, string>([
-      [triangle, "Triangle / quad / Tet4 / Hex8"],
-      [line, "Line elements"],
-      [point, "Point elements"],
-    ]),
-    modePartIds: fixture.modePartIds,
-    overlayPartIds: fixture.overlayPartIds,
-    defaultMode: fixture.defaultMode,
-    bounds: fixture.bounds,
-  };
-}
-
 /** Builds the imported ASCII VTK finite-element sample. */
 export function createVtkPreset(): ModelPreset {
   const fixture = createVtkFixture();
   const { solid } = fixture.partIds;
   return {
     id: "vtk",
-    name: "VTK sample block · exterior subset",
+    name: "Imported VTK sample",
     scene: fixture.scene,
     elementModels: fixture.elementModels,
     partColors: new Map<PartId, Color>([[solid, { r: 0.23, g: 0.57, b: 0.84, a: 1 }]]),
@@ -180,7 +152,6 @@ export function createModelPresets(): readonly ModelPreset[] {
   return [
     createBoltedPlatePreset(),
     createVtkPreset(),
-    createHeterogeneousPreset(),
     createGalleryPreset(),
     createHex20CylinderPreset(),
     createResultsPreset(),

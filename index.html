@@ -307,23 +307,6 @@
         box-shadow: 0 10px 30px #06101ea8;
         backdrop-filter: blur(8px);
       }
-      #performance-overlay {
-        position: absolute;
-        z-index: 4;
-        right: 14px;
-        top: 88px;
-        min-width: 160px;
-        border: 1px solid #2c405a;
-        border-radius: 9px;
-        padding: 10px 12px;
-        color: #e5edf8;
-        background: #0b1728df;
-        box-shadow: 0 10px 30px #06101ea8;
-        backdrop-filter: blur(8px);
-        font-size: 12px;
-        line-height: 1.55;
-        white-space: pre-line;
-      }
       .inspection {
         bottom: 14px;
         width: min(330px, calc(100% - 28px));
@@ -445,9 +428,6 @@
         #depth-test,
         #node-overlay-label,
         #node-overlay {
-          display: none;
-        }
-        #performance-overlay {
           display: none;
         }
         .inspection {
@@ -603,9 +583,6 @@
             </button>
           </div>
           <button id="reset" data-testid="reset" type="button">Reset</button>
-        </div>
-        <div id="performance-overlay" data-testid="performance-overlay">
-          Idle · render on change
         </div>
         <div class="hud inspection">
           <h2>Inspection</h2>
