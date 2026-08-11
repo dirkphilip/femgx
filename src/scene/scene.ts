@@ -1,5 +1,5 @@
 import type { Assembly, NamedAssembly, Placement } from "./assembly";
-import type { Part } from "../geometry/part";
+import { validateBodies, type Part } from "../geometry/part";
 import type { AssemblyId, PartId } from "./types";
 
 /**
@@ -43,6 +43,7 @@ function createBuilder(state: SceneState): SceneBuilder {
       if (state.parts.has(part.id)) {
         throw new Error(`Part ${part.id} is already registered`);
       }
+      validateBodies(part.geometry);
       const parts = new Map(state.parts);
       parts.set(part.id, part);
       const visiblePartIds = new Set(state.visiblePartIds);

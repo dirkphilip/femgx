@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  bodyIdForElement,
   computeBounds,
   isFiniteBounds,
+  validateBodies,
   validateElements,
   type Geometry,
   type Part,
@@ -132,5 +134,70 @@ describe("validateElements", () => {
         elements: [{ id: 0, triangleStart: 0, triangleCount: 2 }],
       });
     }).toThrow(/not covered by any element/);
+  });
+});
+
+describe("body metadata", () => {
+  const geometry: Geometry = {
+    positions: new Float32Array(9),
+    indices: new Uint32Array(6),
+    elements: [
+      { id: 2, triangleStart: 0, triangleCount: 1, bodyId: 4 },
+      { id: 8, triangleStart: 1, triangleCount: 1 },
+    ],
+    bodies: [{ id: 4, name: "housing", elementIds: [2] }],
+  };
+
+  it("validates and resolves stable body membership", () => {
+    expect(() => {
+      validateBodies(geometry);
+    }).not.toThrow();
+    expect(bodyIdForElement(geometry, 2)).toBe(4);
+    expect(bodyIdForElement(geometry, 8)).toBeUndefined();
+    expect(bodyIdForElement(geometry, 99)).toBeUndefined();
+  });
+
+  it("reports typed duplicate and unknown membership failures", () => {
+    expect(() => {
+      validateBodies({
+        ...geometry,
+        bodies: [
+          { id: 4, elementIds: [2] },
+          { id: 4, elementIds: [8] },
+        ],
+      });
+    }).toThrow(expect.objectContaining({ code: "duplicate-body-id" }));
+    expect(() => {
+      validateBodies({ ...geometry, bodies: [{ id: 4, elementIds: [7] }] });
+    }).toThrow(expect.objectContaining({ code: "unknown-body-element" }));
+  });
+
+  it("rejects duplicate memberships, mismatches, and non-deterministic order", () => {
+    expect(() => {
+      validateBodies({
+        ...geometry,
+        bodies: [
+          { id: 4, elementIds: [2] },
+          { id: 5, elementIds: [2] },
+        ],
+      });
+    }).toThrow(/more than one body/);
+    expect(() => {
+      validateBodies({
+        ...geometry,
+        elements: (geometry.elements ?? []).map((element) =>
+          element.id === 8 ? { ...element, bodyId: 4 } : element,
+        ),
+      });
+    }).toThrow(/body membership does not match/);
+    expect(() => {
+      validateBodies({
+        ...geometry,
+        bodies: [
+          { id: 9, elementIds: [] },
+          { id: 4, elementIds: [] },
+        ],
+      });
+    }).toThrow(/strictly ascending/);
   });
 });

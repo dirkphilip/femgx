@@ -83,7 +83,7 @@ range and can participate in element picking and interaction.
 
 | Area        | Core API                                                                                                     | Owns                                                                                                               |
 | ----------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| Geometry    | `Geometry`, `Part`, `computeBounds`, `validateElements`, `validatePickIds`                                   | Immutable local positions, indices, optional element/node/face metadata, and local bounds.                         |
+| Geometry    | `Geometry`, `Part`, `Body`, `computeBounds`, `validateBodies`, `validateElements`, `validatePickIds`         | Immutable local positions, indices, optional body/element/node/face metadata, and local bounds.                    |
 | Elements    | `createElement`, `ElementModel`, `elementPart`, `ElementShape`                                               | Validated linear FE connectivity and canonical topology/tessellation inputs.                                       |
 | Assemblies  | `NamedAssembly`, `PartPlacement`, `SubAssemblyPlacement`                                                     | Reusable hierarchical placement definitions and local transforms.                                                  |
 | Scene       | `createScene`, `SceneBuilder`, `Scene`                                                                       | Authoritative part/assembly registries, root identity, and authoring visibility state.                             |
@@ -203,8 +203,8 @@ concepts.
 The following are intentionally not implied by today's API and are tracked as
 separate proposals:
 
-- Body grouping and body-level state: [#232](https://github.com/dirkphilip/femgx/issues/232),
-  [#233](https://github.com/dirkphilip/femgx/issues/233), and
+- Body-level state and batching remain tracked separately in
+  [#233](https://github.com/dirkphilip/femgx/issues/233) and
   [#234](https://github.com/dirkphilip/femgx/issues/234).
 - Test-suite value and redundancy audit: [#236](https://github.com/dirkphilip/femgx/issues/236).
 - Validated face subsets and exterior-only rendering: [#237](https://github.com/dirkphilip/femgx/issues/237).
