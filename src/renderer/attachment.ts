@@ -3,7 +3,7 @@ import { createInteractionState, type InteractionState } from "../interaction/in
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
-import { syncElementHighlights } from "./gpu-elements";
+import { syncElementHighlights } from "./gpu-highlight-storage";
 import {
   createDrawResources,
   destroyDrawResources,

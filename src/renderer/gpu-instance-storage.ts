@@ -1,6 +1,5 @@
 import type { ResolvedStyle } from "../interaction/interaction";
-import { createHighlightStorage, type HighlightStorage } from "./gpu-elements";
-import type { DrawResources } from "./gpu-draw";
+import { createHighlightStorage, type HighlightStorage } from "./gpu-highlight-storage";
 import { writeDiffedRange, writeOrderBuffer } from "./gpu-writes";
 
 /** Byte size of one instance record in the per-part storage buffer. */
@@ -58,6 +57,11 @@ export interface InstanceStorage {
   edgeBindGroup: GPUBindGroup | undefined;
 }
 
+interface InstanceStorageOwner {
+  readonly device: GPUDevice;
+  readonly storages: Map<number, InstanceStorage>;
+}
+
 /**
  * Encodes one instance record: column-major world transform, resolved color
  * (with opacity folded into alpha), a stable pick id derived from the
@@ -82,7 +86,7 @@ export function encodeInstanceRecord(
  * coalescing adjacent changed slots into single buffer writes.
  */
 export function patchInstances(
-  draw: DrawResources,
+  draw: InstanceStorageOwner,
   partId: number,
   updates: readonly InstanceUpdate[],
 ): void {
@@ -116,7 +120,11 @@ export function patchInstances(
  * subranges are uploaded, so a visibility delta touches at most the affected
  * part buffers.
  */
-export function writeDrawOrder(draw: DrawResources, partId: number, order: Uint32Array): void {
+export function writeDrawOrder(
+  draw: InstanceStorageOwner,
+  partId: number,
+  order: Uint32Array,
+): void {
   const storage = ensureStorage(draw, partId, Math.max(1, order.length));
   storage.orderLength = writeOrderBuffer(
     draw.device,
@@ -132,7 +140,11 @@ export function writeDrawOrder(draw: DrawResources, partId: number, order: Uint3
  * whose resolved style requests the line overlay). Like `writeDrawOrder`, only
  * the changed u32 subranges reach the GPU.
  */
-export function writeEdgeOrder(draw: DrawResources, partId: number, order: Uint32Array): void {
+export function writeEdgeOrder(
+  draw: InstanceStorageOwner,
+  partId: number,
+  order: Uint32Array,
+): void {
   const storage = ensureStorage(draw, partId, Math.max(1, order.length));
   storage.edgeOrderLength = writeOrderBuffer(
     draw.device,
@@ -144,7 +156,11 @@ export function writeEdgeOrder(draw: DrawResources, partId: number, order: Uint3
 }
 
 /** Returns the existing per-part storage, creating or growing it as needed. */
-function ensureStorage(draw: DrawResources, partId: number, capacity: number): InstanceStorage {
+function ensureStorage(
+  draw: InstanceStorageOwner,
+  partId: number,
+  capacity: number,
+): InstanceStorage {
   const existing = draw.storages.get(partId);
   if (existing !== undefined && existing.capacity >= capacity) return existing;
   const size = Math.max(capacity, existing === undefined ? 1 : existing.capacity * 2);

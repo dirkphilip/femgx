@@ -64,6 +64,9 @@ matching subsystem directory.
   another subsystem's implementation internals. A boundary module may
   re-export an owned helper without adding it to the package root. Type-only
   imports count as dependencies just like runtime imports.
+- The mandatory dependency-cruiser gate encodes this direction as a subsystem
+  matrix. A new matrix edge is an architecture decision: it must provide
+  concrete product value and be documented at the owning boundary.
 - The intended lower-level direction is `math` → nothing, `geometry` → math and
   elements, `scene` → geometry/elements/math, and `picking` → scene,
   geometry/elements/math. Any cycle or upward edge is an ownership problem to
@@ -78,6 +81,9 @@ matching subsystem directory.
   synchronization remain private to `renderer/gpu-deform.ts`.
 - `renderer/gpu-renderer.ts` is the viewport's renderer boundary. The viewport
   does not import renderer implementation modules.
+- The renderer may depend on shared `math` types such as `Vec3` in its public
+  and internal signatures; this is a deliberate type-level downward edge, not
+  a second math or renderer abstraction.
 - `viewport/interaction-diff.ts` owns `changedInstanceSlots` because it is a
   pure orchestration helper used only while the viewport synchronizes state.
 

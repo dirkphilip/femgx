@@ -26,6 +26,11 @@ clock timing; CI runs it as its own step. `npm run bench` is the opt-in trend
 suite, not part of the gate. Merge CI runs `npm run test:e2e:ci` (no-GPU
 unsupported contract only) until a GPU runner hosts the full Chrome lane.
 
+`npm run lint:dependencies` runs the production dependency-cruiser gate. It
+checks cycles, root-barrel imports, renderer and geometry boundaries, and the
+explicit subsystem DAG. Type-only imports are included because they still
+encode ownership and can create declaration-build cycles.
+
 ## Coverage
 
 - v8 provider, thresholds enforced: lines/functions 80%, branches 70%.

@@ -14,7 +14,10 @@ import type { PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
 import { BODY_HIGHLIGHT_MARKER } from "./gpu-highlight-table";
 import { defaultStyle } from "./gpu-support";
-import type { InstanceLayout } from "./runtime-state";
+
+interface InstanceLayout {
+  readonly slotPartLocal: Int32Array;
+}
 
 /**
  * Byte stride of one emphasis record. The layout mirrors the `ElementHighlight`
@@ -310,10 +313,3 @@ function occurrenceAt(
     local,
   };
 }
-
-export {
-  createHighlightStorage,
-  syncElementHighlights,
-  writeElementHighlights,
-} from "./gpu-highlight-storage";
-export type { ElementHighlightSync, HighlightStorage } from "./gpu-highlight-storage";

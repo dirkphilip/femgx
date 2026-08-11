@@ -14,7 +14,6 @@ import {
 } from "./gpu-pick-ids";
 import type { DrawPipelines } from "./gpu-pipelines";
 import { createBuffer, type PartResource } from "./gpu-support";
-import { drawOneBatch, type BatchDrawOptions } from "./gpu-batch";
 
 export {
   INSTANCE_STRIDE,
@@ -273,56 +272,6 @@ function emptyMeshEdgeData(): MeshEdgeData {
     bodyRanges: new Uint32Array([0, 0]),
     bodyIds: new Uint32Array([0]),
   };
-}
-
-/** Which fragment pass a batch targets. */
-export type PipelinePass = "color" | "pick";
-
-/** Options controlling one instanced draw pass. */
-export interface DrawBatchOptions {
-  /** Which fragment pass the batch targets; selects color vs pick pipelines. */
-  readonly pass?: PipelinePass;
-  /** Explicit pipeline override for overlay passes such as the wireframe edges. */
-  readonly pipeline?: GPURenderPipeline;
-  /**
-   * Draws through the part's edge-overlay order and edge index buffers instead
-   * of the surface draw order, addressing only the instances whose style
-   * requests the line overlay.
-   */
-  readonly overlay?: boolean;
-  /** Draws one small point sprite for every FE node of each visible part. */
-  readonly nodes?: boolean;
-}
-
-/**
- * Issues all instanced draws for the cached per-part calls. The pipeline is
- * switched per part to match its primitive topology (triangle/line/point
- * sprite), so one pass can mix element solids, edges, and point elements. The
- * storage record buffer is addressed through the compacted draw-order buffer so
- * hidden slots are never drawn; bind groups are cached per storage.
- */
-export function drawBatches(
-  pass: GPURenderPassEncoder,
-  draw: DrawResources,
-  context: DrawCallContext,
-  calls: readonly DrawCall[],
-  options: DrawBatchOptions = {},
-): void {
-  const passKind = options.pass ?? "color";
-  const overlay = options.overlay === true;
-  const nodes = options.nodes === true;
-  pass.setBindGroup(0, context.frameBindGroup);
-  let current: GPURenderPipeline | undefined;
-  for (const call of calls) {
-    const batchOptions: BatchDrawOptions = {
-      passKind,
-      overlay,
-      nodes,
-      pipelineOverride: options.pipeline,
-      current,
-    };
-    current = drawOneBatch(pass, draw, context, call, batchOptions);
-  }
 }
 
 /** Releases every part, storage, and depth resource owned by the draw path. */

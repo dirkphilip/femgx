@@ -17,7 +17,6 @@ import {
 import { createScene, type Scene } from "../../src/scene/scene";
 import {
   collectEmphasisUpdates,
-  createHighlightStorage,
   ELEMENT_RECORD_STRIDE,
   encodeBodyHighlight,
   encodeElementHighlight,
@@ -26,10 +25,13 @@ import {
   encodeNodeHighlight,
   HIGHLIGHT_HEADER,
   INITIAL_ELEMENT_HIGHLIGHTS,
-  syncElementHighlights,
-  writeElementHighlights,
   type EmphasisUpdate,
 } from "../../src/renderer/gpu-elements";
+import {
+  createHighlightStorage,
+  syncElementHighlights,
+  writeElementHighlights,
+} from "../../src/renderer/gpu-highlight-storage";
 import {
   buildBodyPrimitivePickIds,
   buildElementPrimitivePickIds,

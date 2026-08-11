@@ -4,7 +4,7 @@ import type { PartId } from "../geometry/part";
 import type { DeformationState } from "../results/deform";
 import { writeDeformationUniform } from "./gpu-deform";
 import type { DrawCall, DrawCallContext, DrawResources } from "./gpu-draw";
-import { drawBatches } from "./gpu-draw";
+import { drawBatches } from "./gpu-batch";
 import type { PickTargets } from "./gpu-pick";
 import { ensurePickTargets } from "./gpu-pick";
 import { beginPickPass } from "./gpu-pick-pass";
