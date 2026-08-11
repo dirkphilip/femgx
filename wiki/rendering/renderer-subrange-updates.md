@@ -58,9 +58,9 @@ Pick ids are `global slot + 1`, so they are **stable across visibility changes**
 - Style/transform/visibility updates are explicit: the app applies a runtime
   delta (or interaction change) and passes the affected slots. The renderer
   does not rescan the whole scene per frame.
-- Interaction changes reach the renderer through the library helper
+- Interaction changes reach the renderer through the viewport helper
   `changedInstanceSlots(runtime, previous, next)`
-  (`src/renderer/interaction-diff.ts`), which diffs the part/instance-level
+  (`src/viewport/interaction-diff.ts`), which diffs the part/instance-level
   interaction state against the previous state and returns the affected
   instance slots in ascending order. Body/element/node/face emphasis is excluded —
   it flows through `updateElements`, which diffs its own buffers. The demo

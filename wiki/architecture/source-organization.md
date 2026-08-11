@@ -27,7 +27,8 @@ canonical description.
 - `src/results/` — typed engineering result fields (scalar/vector/tensor over
   nodes or elements), derived quantities (magnitude, von Mises, principal
   values), value ranges, scalar color mapping with thresholds, and
-  deformed-shape geometry; pure CPU-side data (see [[data/results|Results]]).
+  deformed-shape geometry. It owns the CPU-side `DeformationState` contract
+  consumed by the viewport and renderer (see [[data/results|Results]]).
 - `src/picking/` — GPU pick-id resolution (`resolvePick` / `resolvePickTarget`)
   and renderer-independent pick target types. It may depend on scene,
   geometry, elements, and math.
@@ -42,7 +43,8 @@ canonical description.
   and resource re-creation), and `runtime-state.ts` (CPU bridge from packed
   runtime slots to part-local storage).
 - `src/viewport/` — canonical host-facing ownership of scene runtime, fitted
-  camera, renderer, controls, resize, interaction synchronization, and teardown.
+  camera, renderer, controls, resize, interaction synchronization, the pure
+  `changedInstanceSlots` orchestration helper, and teardown.
 
 `test/` mirrors `src/` one-to-one: each source module has its suite in the
 matching subsystem directory.
@@ -55,14 +57,29 @@ matching subsystem directory.
 - The single public entry point is `src/index.ts`; anything it does not
   re-export is internal. Do not widen the public API by exporting internals from
   a new location.
-- Prefer intra-subsystem imports; import across subsystems through the owning
-  module's deliberate surface, not another subsystem's internals. Type-only
-  imports count as dependencies just like runtime imports. `src/index.ts` is
-  the consumer-facing re-export boundary, never an internal dependency hub.
+- Prefer intra-subsystem imports. External consumers use `src/index.ts` through
+  the package; production modules under `src/` never import `src/index.ts`.
+  Cross-subsystem imports use a deliberate owner module such as
+  `geometry/part.ts`, `renderer/gpu-renderer.ts`, or `results/deform.ts`, not
+  another subsystem's implementation internals. A boundary module may
+  re-export an owned helper without adding it to the package root. Type-only
+  imports count as dependencies just like runtime imports.
 - The intended lower-level direction is `math` → nothing, `geometry` → math and
   elements, `scene` → geometry/elements/math, and `picking` → scene,
   geometry/elements/math. Any cycle or upward edge is an ownership problem to
   fix at the source, not an import exception to hide.
+
+## Deliberate boundaries
+
+- `geometry/part.ts` owns the `Part` data contract and re-exports the geometry
+  validation queries used by renderer code; `part-validation.ts` remains an
+  implementation module.
+- `results/deform.ts` owns the plain CPU `DeformationState`; GPU buffers and
+  synchronization remain private to `renderer/gpu-deform.ts`.
+- `renderer/gpu-renderer.ts` is the viewport's renderer boundary. The viewport
+  does not import renderer implementation modules.
+- `viewport/interaction-diff.ts` owns `changedInstanceSlots` because it is a
+  pure orchestration helper used only while the viewport synchronizes state.
 
 Related: [[engineering/scaffold-decisions|Scaffold decisions]], [[engineering/quality-gate|Quality gate]].
 

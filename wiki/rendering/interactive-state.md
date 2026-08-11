@@ -65,7 +65,7 @@ Body emphasis still uses immutable state and the existing diffed
   `emphasizedNodeRefs`/`emphasizedFaceRefs` and `resolveNodeStyle`/
   `resolveFaceStyle`
   ([[rendering/node-face-interaction|Node and face interaction]]).
-- Interaction changes patch only the affected instance slots via
+- Interaction changes patch only the affected instance slots via the viewport's
   `changedInstanceSlots` feeding `updateInstances`; element/node/face emphasis
   flows through `updateElements`
   ([[rendering/renderer-subrange-updates|Renderer subrange updates]]).

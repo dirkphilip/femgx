@@ -19,8 +19,8 @@ presentation and interaction policy only.
   [[rendering/interactive-state|Interactive state]] and
   [[rendering/node-face-interaction|Node and face interaction]].
 - GPU renderer and its delta-oriented subrange sync
-  (`updateInstances`, `updateElements`, `updateVisibility`) plus the
-  interaction-diff helper `changedInstanceSlots`
+  (`updateInstances`, `updateElements`, `updateVisibility`) plus the viewport's
+  pure interaction-diff helper `changedInstanceSlots`
   ([[rendering/renderer-subrange-updates|Renderer subrange updates]]).
 - GPU picking (`WebGpuRenderer.pick`, `resolvePick` / `resolvePickTarget`) and
   exact visible-surface points (`WebGpuRenderer.pickPoint`).

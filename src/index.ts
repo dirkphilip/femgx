@@ -256,7 +256,12 @@ export {
   type ScalarColorMap,
   type ScalarColorMapOptions,
 } from "./results/mapping";
-export { deformGeometry, deformPositions, nodalDisplacements } from "./results/deform";
+export {
+  deformGeometry,
+  deformPositions,
+  nodalDisplacements,
+  type DeformationState,
+} from "./results/deform";
 export {
   IoError,
   type Issue,

@@ -1,15 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
-  defaultDeformation,
   destroyDeformationBuffers,
   ensureDeformationBuffer,
   syncDeformations,
   validateDeformation,
   writeDeformationUniform,
-  type DeformationState,
   type DeformationStorage,
   type DeformationSync,
 } from "../../src/renderer/gpu-deform";
+import type { DeformationState } from "../../src/results/deform";
 import { fakeGpuDevice, installGpuGlobals, type FakeGpu } from "./fake-gpu";
 
 type StorageMap = Map<
@@ -67,16 +66,6 @@ describe("validateDeformation", () => {
     const displacements = new Map<number, Float32Array>([[1, new Float32Array(2 * 2 * 3)]]);
     expect(() => {
       validateDeformation(state({ loadCaseCount: 2, loadCase: 1, displacements }));
-    }).not.toThrow();
-  });
-});
-
-describe("defaultDeformation", () => {
-  it("disables deformation with an empty displacement map", () => {
-    expect(defaultDeformation.loadCaseCount).toBe(0);
-    expect(defaultDeformation.displacements.size).toBe(0);
-    expect(() => {
-      validateDeformation(defaultDeformation);
     }).not.toThrow();
   });
 });
