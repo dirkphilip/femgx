@@ -1,6 +1,5 @@
 import { bench, describe } from "vitest";
 import { batchInstancesByPart } from "../../src/runtime/batch";
-import { cullInstances } from "../../src/runtime/culling";
 import { flattenAssembly } from "../../src/runtime/flatten";
 import { translation } from "../../src/math/mat4";
 import { instanceToTarget, resolvePick } from "../../src/picking/pick";
@@ -16,7 +15,6 @@ import {
   BENCH_SUBCASE_COUNT,
   makeHierarchyScene,
   makeScene,
-  makeViewProjection,
 } from "./fixtures";
 
 const shallowScene = makeScene({
@@ -40,8 +38,6 @@ const flattened = flattenAssembly({
 });
 
 const runtime = createSceneRuntime(shallowScene);
-const viewProjection = makeViewProjection();
-
 const PICK_COUNT = 50_000;
 const pickIds: number[] = [];
 for (let i = 0; i < PICK_COUNT; i++) {
@@ -67,13 +63,9 @@ describe("hierarchy compile", () => {
   });
 });
 
-describe("batching and culling", () => {
+describe("batching", () => {
   bench(`batchInstancesByPart ${BENCH_INSTANCE_COUNT} over ${BENCH_PART_COUNT} parts`, () => {
     batchInstancesByPart(flattened);
-  });
-
-  bench(`cullInstances ${BENCH_INSTANCE_COUNT}`, () => {
-    cullInstances(flattened, shallowScene.parts, viewProjection);
   });
 });
 

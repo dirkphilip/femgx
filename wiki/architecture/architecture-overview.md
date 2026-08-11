@@ -18,8 +18,6 @@ scene is authoritative; the renderer syncs deltas from it.
 - `src/scene-runtime/runtime.ts` — packed scene runtime: `createSceneRuntime(scene)`
   compiles the scene into typed arrays with delta-oriented visibility updates
   (see [[architecture/packed-runtime|Packed scene runtime]]).
-- `src/runtime/culling.ts` — extracts frustum planes and culls transformed part
-  bounds before batching while preserving stable placement handles.
 - `src/interaction/interaction.ts` — immutable centralized selection, highlight,
   hover, and style override state with explicit precedence.
 - `src/camera/camera.ts` — immutable orbit camera math for perspective and

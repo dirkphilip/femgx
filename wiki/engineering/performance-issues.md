@@ -26,8 +26,8 @@ delta-oriented update path keep the current product path practical.
 ## Flattening cost
 
 `flattenAssembly` allocates a matrix for every visited placement and creates a new
-instance object for every visible placement. It now uses an iterative walk,
-deterministic per-part batching, and optional frustum culling. The packed scene
+instance object for every visible placement. It now uses an iterative walk and
+deterministic per-part batching. The packed scene
 runtime keeps authoring storage in typed arrays and updates visibility in place;
 transform edits now recompose world transforms only within the affected subtree
 (see [[architecture/packed-runtime|Packed scene runtime]]), keeping frame work proportional to

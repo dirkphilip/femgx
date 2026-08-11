@@ -38,8 +38,8 @@ requirements contract]]. Read it before starting any task; this section is the s
   deformed-shape geometry.
 - **IO.** A single interchange format (VTK legacy) with validation and
   diagnostics.
-- **Deterministic compile pipeline.** Iterative flattening, deterministic
-  per-part batching, and frustum culling with stable placement handles.
+- **Deterministic compile pipeline.** Iterative flattening and deterministic
+  per-part batching with stable placement handles.
 
 ### Non-goals and deferred capabilities
 
@@ -101,8 +101,8 @@ under `test/`. Tags reflect the [[requirements/product-scope|product scope]]:
   the supported linear and quadratic shapes.**
 - `src/scene/` — authoritative CPU model: part/assembly/instance identities,
   assemblies, and the scene builder. **Core.**
-- `src/runtime/` — internal helpers: flattening, frustum culling, and per-part
-  batching (not the public product path; prefer `createSceneRuntime`). **Core.**
+- `src/runtime/` — internal helpers: flattening and per-part batching (not the
+  public product path; prefer `createSceneRuntime`). **Core.**
 - `src/scene-runtime/` — packed CPU-side scene runtime with delta-oriented
   visibility updates (`createSceneRuntime`). **Core.**
 - `src/camera/` — immutable orbit camera and projection math. **Core.**

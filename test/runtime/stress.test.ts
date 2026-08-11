@@ -3,7 +3,6 @@ import { computeBounds, type Part } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import { resolvePick } from "../../src/picking/pick";
 import { batchInstancesByPart } from "../../src/runtime/batch";
-import { cullInstances } from "../../src/runtime/culling";
 import { flattenAssembly } from "../../src/runtime/flatten";
 import { createSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { Assembly, Placement } from "../../src/scene/assembly";
@@ -58,37 +57,6 @@ function stressScene(): Scene {
 }
 
 const scene = stressScene();
-
-/** A scene whose placements all lie inside the unit-cube identity frustum. */
-function cullingScene(): Scene {
-  const parts = new Map<PartId, Part>();
-  for (let id = 1; id <= STRESS_PART_COUNT; id += 1) {
-    parts.set(id, part(id));
-  }
-  const assemblies = new Map<AssemblyId, Assembly>();
-  const rootPlacements: Placement[] = [];
-  for (let subcase = 0; subcase < STRESS_SUBCASES; subcase += 1) {
-    const subcaseId = subcase + 2;
-    const placements: Placement[] = [];
-    for (let i = 0; i < STRESS_PLACEMENTS_PER_SUBCASE; i += 1) {
-      placements.push({
-        kind: "part",
-        partId: (i % STRESS_PART_COUNT) + 1,
-        transform: identity(),
-      });
-    }
-    assemblies.set(subcaseId, { id: subcaseId, placements });
-    rootPlacements.push({ kind: "assembly", assemblyId: subcaseId, transform: identity() });
-  }
-  assemblies.set(1, { id: 1, placements: rootPlacements });
-  return {
-    rootAssemblyId: 1,
-    parts,
-    assemblies,
-    visiblePartIds: new Set(parts.keys()),
-    visibleAssemblyIds: new Set(assemblies.keys()),
-  };
-}
 
 describe("large-model stress", () => {
   it("flattens the full model with a deterministic instance list", () => {
@@ -155,27 +123,6 @@ describe("large-model stress", () => {
     expect(runtime.instanceCount).toBe(STRESS_INSTANCE_COUNT);
     expect(runtime.visibleCount).toBe(STRESS_INSTANCE_COUNT);
     expect(runtime.getDrawList()).toHaveLength(STRESS_INSTANCE_COUNT);
-  });
-
-  it("culling preserves instance identity and part distribution", () => {
-    const cullScene = cullingScene();
-    const culledList = flattenAssembly({
-      assemblyId: cullScene.rootAssemblyId,
-      assemblies: cullScene.assemblies,
-      visibleAssemblyIds: cullScene.visibleAssemblyIds,
-      visiblePartIds: cullScene.visiblePartIds,
-    });
-    const viewProjection = new Float32Array(16);
-    viewProjection[0] = 1;
-    viewProjection[5] = 1;
-    viewProjection[10] = 1;
-    viewProjection[15] = 1;
-    const culled = cullInstances(culledList, cullScene.parts, viewProjection);
-    expect(culled.length).toBe(STRESS_INSTANCE_COUNT);
-    expect(culled.map((instance) => instance.instanceId)).toEqual(
-      culledList.map((instance) => instance.instanceId),
-    );
-    expect(countsByPart(culled)).toEqual(countsByPart(culledList));
   });
 
   it("the packed runtime matches the flattened model at scale", () => {

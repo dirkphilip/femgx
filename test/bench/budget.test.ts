@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { batchInstancesByPart } from "../../src/runtime/batch";
-import { cullInstances } from "../../src/runtime/culling";
 import { flattenAssembly } from "../../src/runtime/flatten";
 import { createElement, type Element } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
@@ -28,7 +27,6 @@ import {
   BENCH_SUBCASE_COUNT,
   makeHierarchyScene,
   makeScene,
-  makeViewProjection,
 } from "./fixtures";
 import { measureMs } from "./measure";
 
@@ -63,8 +61,6 @@ const grownScene = makeScene({
 const grownRuntime = createSceneRuntime(grownScene);
 const grownLayout = buildInstanceLayout(grownRuntime);
 const grownGrowth = computeRuntimeGrowth(runtime, grownRuntime, baseLayout, grownLayout);
-
-const viewProjection = makeViewProjection();
 
 const heterogeneousModel = makeHeterogeneousModel(100);
 
@@ -154,14 +150,6 @@ const budgets: readonly BudgetCase[] = [
     budgetMs: 100,
     run: () => {
       batchInstancesByPart(flattened);
-    },
-  },
-  {
-    name: "cullInstances",
-    description: `${BENCH_INSTANCE_COUNT} instances against one frustum`,
-    budgetMs: 300,
-    run: () => {
-      cullInstances(flattened, shallowScene.parts, viewProjection);
     },
   },
   {

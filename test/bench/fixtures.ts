@@ -1,6 +1,5 @@
 import { computeBounds, type Part } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
-import { createCamera, viewProjectionMatrix } from "../../src/camera/camera";
 import type { Assembly, Placement } from "../../src/scene/assembly";
 import type { Scene } from "../../src/scene/scene";
 import type { AssemblyId, PartId } from "../../src/scene/types";
@@ -40,7 +39,7 @@ function partMap(count: number): ReadonlyMap<PartId, Part> {
 
 /**
  * Deterministic part placements cycling over `partCount` parts. The transform
- * spreads instances along x so they do not alias within the default frustum.
+ * spreads instances along x so they remain spatially separated.
  */
 function partPlacements(count: number, partCount: number, row: number): Placement[] {
   const placements: Placement[] = [];
@@ -132,9 +131,4 @@ export function makeHierarchyScene(options: {
     visiblePartIds: new Set(parts.keys()),
     visibleAssemblyIds: new Set(assemblies.keys()),
   };
-}
-
-/** A deterministic view-projection matrix for culling benchmarks. */
-export function makeViewProjection(): Float32Array {
-  return viewProjectionMatrix(createCamera());
 }

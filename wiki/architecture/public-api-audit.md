@@ -30,9 +30,8 @@ inventory readable without turning the wiki into a second generated file.
 | `io/*`                                | `IoError`, `Issue`, `IssueCode`, `IssueSeverity`, `SourcePosition`, `FEMGX_FORMAT_VERSION`, `FemModel`, `MetadataValue`, `ModelElementBlock`, `ModelMetadata`, `ModelNodes`, `ModelResultField`, `ModelSet`, `ModelSetKind`, `createModelBuilder`, `FemModelBuilder`, `createElementModelFromFemModel`, `createParseSession`, `finishParse`, `parse`, `parseVtk`, `write`, `writeVtk`, `IoFormat`, `ParseOptions`, `ParseResult`, `ParseSession`, `validateModel`                                                                                                                                                                                                                      | The single supported VTK-backed interchange boundary, diagnostics, and one allocation-conscious bridge into the dense render model.                               |
 
 The following accidental implementation exports were removed in this audit:
-`TransformDelta`, `VisibilityDelta`, `cullInstances`, `extractFrustum`,
-`isSphereVisible`, `Frustum`, `FrustumPlane`, `changedInstanceSlots`,
-`faceTriangles`, and the low-level `DeformationState` type. Their owning
+`TransformDelta`, `VisibilityDelta`, `changedInstanceSlots`, `faceTriangles`,
+and the low-level `DeformationState` type. Their owning
 modules remain internal and are tested directly. No compatibility aliases were
 added; this is an experimental 0.x product and the smaller surface is the
 intentional contract.
