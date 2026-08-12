@@ -42,6 +42,7 @@ export class RendererAttachment {
   public instances: Instance[] = [];
   public slotByInstanceId = new Map<InstanceId, number>();
   private edgeFlags: boolean[] = [];
+  private appliedHiddenBodyIds: InteractionState["hiddenBodyIds"] | undefined;
 
   /**
    * Ensures the attachment matches `runtime`, rebuilding the attachment when
@@ -104,6 +105,7 @@ export class RendererAttachment {
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
     if (layout === undefined) return attached;
+    const bodyVisibilityChanged = this.appliedHiddenBodyIds !== interaction.hiddenBodyIds;
     syncElementHighlights(
       {
         device: bundle.device,
@@ -115,7 +117,8 @@ export class RendererAttachment {
       },
       interaction,
     );
-    return attached;
+    this.appliedHiddenBodyIds = interaction.hiddenBodyIds;
+    return attached || bodyVisibilityChanged;
   }
 
   /** Rebuilds GPU draw order after runtime visibility changed. */
@@ -135,6 +138,7 @@ export class RendererAttachment {
   public clear(): void {
     this.runtime = this.layout = undefined;
     this.calls = this.edgeCalls = [];
+    this.appliedHiddenBodyIds = undefined;
   }
 
   private fullAttach(runtime: PackedSceneRuntime, layout: InstanceLayout, bundle: GpuBundle): void {
@@ -144,6 +148,7 @@ export class RendererAttachment {
     this.instances = snapshot.instances;
     this.slotByInstanceId = snapshot.slotByInstanceId;
     this.edgeFlags = new Array<boolean>(runtime.instanceCount).fill(false);
+    this.appliedHiddenBodyIds = undefined;
     const allSlots = Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
     const { updates } = collectInstanceUpdates(
       runtime,
