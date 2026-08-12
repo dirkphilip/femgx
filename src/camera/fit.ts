@@ -1,4 +1,4 @@
-import type { Bounds } from "../geometry/part";
+import { boundsCorners, type Bounds } from "../geometry/part";
 import { cross, dot, normalize, scale, subtract, type Vec3 } from "../math/vec3";
 import type { Camera } from "./camera";
 import { cameraDepthMargin } from "./navigation";
@@ -133,19 +133,6 @@ function viewOrientation(camera: Camera): ViewOrientation {
   const forward = normalize(subtract(camera.target, camera.position), [0, 0, -1], 1e-8);
   const right = normalize(cross(forward, camera.up), [1, 0, 0], 1e-8);
   return { forward, right, up: normalize(cross(right, forward), [0, 1, 0], 1e-8) };
-}
-
-function boundsCorners(bounds: Bounds): readonly Vec3[] {
-  return [
-    [bounds.minX, bounds.minY, bounds.minZ],
-    [bounds.minX, bounds.minY, bounds.maxZ],
-    [bounds.minX, bounds.maxY, bounds.minZ],
-    [bounds.minX, bounds.maxY, bounds.maxZ],
-    [bounds.maxX, bounds.minY, bounds.minZ],
-    [bounds.maxX, bounds.minY, bounds.maxZ],
-    [bounds.maxX, bounds.maxY, bounds.minZ],
-    [bounds.maxX, bounds.maxY, bounds.maxZ],
-  ];
 }
 
 function projectedDimensions(corners: readonly Vec3[], orientation: ViewOrientation) {

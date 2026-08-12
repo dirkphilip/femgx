@@ -1,4 +1,4 @@
-import { isFiniteBounds, type Bounds } from "../geometry/part";
+import { boundsCorners, isFiniteBounds, type Bounds } from "../geometry/part";
 import { transformPoint } from "../math/mat4";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
@@ -16,7 +16,7 @@ interface MutableBounds {
 export function sceneWorldBounds(scene: Scene, runtime: PackedSceneRuntime): Bounds {
   const bounds = emptyBounds();
   for (const partBounds of sceneWorldBoundsList(scene, runtime)) {
-    for (const corner of boundCorners(partBounds)) include(bounds, corner);
+    for (const corner of boundsCorners(partBounds)) include(bounds, corner);
   }
   return isFiniteBounds(bounds)
     ? bounds
@@ -47,19 +47,6 @@ function emptyBounds(): MutableBounds {
   };
 }
 
-function boundCorners(bounds: Bounds): ReadonlyArray<readonly [number, number, number]> {
-  return [
-    [bounds.minX, bounds.minY, bounds.minZ],
-    [bounds.maxX, bounds.minY, bounds.minZ],
-    [bounds.minX, bounds.maxY, bounds.minZ],
-    [bounds.maxX, bounds.maxY, bounds.minZ],
-    [bounds.minX, bounds.minY, bounds.maxZ],
-    [bounds.maxX, bounds.minY, bounds.maxZ],
-    [bounds.minX, bounds.maxY, bounds.maxZ],
-    [bounds.maxX, bounds.maxY, bounds.maxZ],
-  ];
-}
-
 function include(bounds: MutableBounds, point: readonly [number, number, number]): void {
   bounds.minX = Math.min(bounds.minX, point[0]);
   bounds.minY = Math.min(bounds.minY, point[1]);
@@ -74,7 +61,7 @@ function transformedBounds(
   transform: Parameters<typeof transformPoint>[0],
 ): Bounds {
   const transformed = emptyBounds();
-  for (const corner of boundCorners(bounds)) {
+  for (const corner of boundsCorners(bounds)) {
     include(transformed, transformPoint(transform, corner[0], corner[1], corner[2]));
   }
   return transformed;

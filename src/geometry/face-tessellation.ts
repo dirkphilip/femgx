@@ -4,6 +4,7 @@ import type { ElementModel } from "../elements/model";
 import { topologyFor } from "../elements/shapes";
 import { type MeshVertex } from "./mesh-builder";
 import { average, cross, dot, length, subtract, type Vec3 } from "../math/vec3";
+import { elementNodePosition } from "./node-position";
 
 /**
  * Subdivides an oriented element face into triangles, each wound to face
@@ -41,7 +42,10 @@ export function tessellateFace(
   face: ElementFace,
 ): ReadonlyArray<readonly [MeshVertex, MeshVertex, MeshVertex]> {
   const { cornerNodeIds, midNodeIds } = faceNodeIds(element, face);
-  const corners = cornerNodeIds.map((id) => ({ point: nodePosition(model, id), nodeId: id }));
+  const corners = cornerNodeIds.map((id) => ({
+    point: elementNodePosition(model, id),
+    nodeId: id,
+  }));
   const outward = outwardDirection(
     model,
     element,
@@ -61,7 +65,7 @@ export function tessellateFace(
     }
     return triangles;
   }
-  const mids = midNodeIds.map((id) => ({ point: nodePosition(model, id), nodeId: id }));
+  const mids = midNodeIds.map((id) => ({ point: elementNodePosition(model, id), nodeId: id }));
   if (corners.length === 3) {
     return quadraticTriangle(corners, mids, outward);
   }
@@ -105,7 +109,7 @@ function outwardDirection(model: ElementModel, element: Element, corners: readon
   if (element.shape.family === "triangle" || element.shape.family === "quad") {
     return faceNormal(corners);
   }
-  const elementCentroid = average(element.nodeIds.map((id) => nodePosition(model, id)));
+  const elementCentroid = average(element.nodeIds.map((id) => elementNodePosition(model, id)));
   const faceCentroid = average(corners);
   const outward = subtract(faceCentroid, elementCentroid);
   return length(outward) > 0 ? outward : faceNormal(corners);
@@ -121,15 +125,6 @@ function orient(
   return dot(cross(subtract(b.point, a.point), subtract(c.point, a.point)), outward) < 0
     ? [a, c, b]
     : [a, b, c];
-}
-
-function nodePosition(model: ElementModel, nodeId: NodeId): Vec3 {
-  const offset = nodeId * 3;
-  const x = model.nodes[offset];
-  if (x === undefined) {
-    throw new Error(`Model has no position for node ${nodeId}`);
-  }
-  return [x, model.nodes[offset + 1] ?? 0, model.nodes[offset + 2] ?? 0];
 }
 
 function faceNormal(corners: readonly Vec3[]): Vec3 {

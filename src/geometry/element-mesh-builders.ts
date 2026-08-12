@@ -1,6 +1,6 @@
 import type { FaceIdRef } from "../elements/faces";
 import { edgesOf, type ElementEdge } from "../elements/edges";
-import type { Element, ElementId, NodeId } from "../elements/element";
+import type { Element, ElementId } from "../elements/element";
 import type { ElementModel } from "../elements/model";
 import {
   type Body,
@@ -16,7 +16,7 @@ import {
 } from "./part";
 import { tessellateFace } from "./face-tessellation";
 import { LineMeshBuilder, TriangleMeshBuilder, type MeshVertex } from "./mesh-builder";
-import type { Vec3 } from "../math/vec3";
+import { elementNodePosition } from "./node-position";
 import {
   allFacesForElements,
   faceIdentity,
@@ -189,7 +189,7 @@ export function pointGeometry(
   for (const element of elements) {
     const nodeId = element.nodeIds[0];
     if (nodeId === undefined) throw new Error("Point element must reference exactly one node");
-    const point = nodePosition(model, nodeId);
+    const point = elementNodePosition(model, nodeId);
     const primitiveStart = positions.length / 3;
     const base = positions.length / 3;
     positions.push(point[0], point[1], point[2]);
@@ -259,8 +259,8 @@ function edgePoints(model: ElementModel, edge: ElementEdge): readonly MeshVertex
   const last = edge.nodeIds[edge.nodeIds.length - 1];
   if (first === undefined || last === undefined)
     throw new Error("Edge must have at least two nodes");
-  const a = nodePosition(model, first);
-  const b = nodePosition(model, last);
+  const a = elementNodePosition(model, first);
+  const b = elementNodePosition(model, last);
   if (edge.nodeIds.length === 2) {
     return [
       { point: a, nodeId: first },
@@ -269,17 +269,10 @@ function edgePoints(model: ElementModel, edge: ElementEdge): readonly MeshVertex
   }
   const midNodeId = edge.nodeIds[1];
   if (midNodeId === undefined) throw new Error("Quadratic edge must carry its mid-edge node");
-  const mid = nodePosition(model, midNodeId);
+  const mid = elementNodePosition(model, midNodeId);
   return [
     { point: a, nodeId: first },
     { point: mid, nodeId: midNodeId },
     { point: b, nodeId: last },
   ];
-}
-
-function nodePosition(model: ElementModel, nodeId: NodeId): Vec3 {
-  const offset = nodeId * 3;
-  const x = model.nodes[offset];
-  if (x === undefined) throw new Error(`Model has no position for node ${nodeId}`);
-  return [x, model.nodes[offset + 1] ?? 0, model.nodes[offset + 2] ?? 0];
 }

@@ -64,6 +64,20 @@ export function computeBounds(geometry: Geometry): Bounds {
   return computePositionsBounds(geometry.positions);
 }
 
+/** Returns all eight corners of a bounds box in deterministic order. */
+export function boundsCorners(bounds: Bounds): ReadonlyArray<readonly [number, number, number]> {
+  return [
+    [bounds.minX, bounds.minY, bounds.minZ],
+    [bounds.minX, bounds.minY, bounds.maxZ],
+    [bounds.minX, bounds.maxY, bounds.minZ],
+    [bounds.minX, bounds.maxY, bounds.maxZ],
+    [bounds.maxX, bounds.minY, bounds.minZ],
+    [bounds.maxX, bounds.minY, bounds.maxZ],
+    [bounds.maxX, bounds.maxY, bounds.minZ],
+    [bounds.maxX, bounds.maxY, bounds.maxZ],
+  ];
+}
+
 const EMPTY_PART_BOUNDS: Bounds = {
   minX: 0,
   minY: 0,
