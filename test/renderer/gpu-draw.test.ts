@@ -663,13 +663,39 @@ describe("GPU draw path", () => {
       expect(gpu.textures[4]?.descriptor.sampleCount).toBe(4);
       expect(gpu.textures[5]?.descriptor.sampleCount).toBeUndefined();
       expect(gpu.textures[6]?.descriptor.sampleCount).toBe(4);
+      draw.targets.compositeBindGroup = {} as GPUBindGroup;
       const resized = ensureColorTargets(draw, 400, 300, "bgra8unorm", "depth24plus-stencil8");
       expect(resized.depth).not.toBe(first.depth);
       expect(gpu.textureCreations).toBe(14);
       expect(gpu.textures[0]?.destroyed).toBe(true);
       expect(gpu.textures[1]?.destroyed).toBe(true);
+      expect(draw.targets.compositeBindGroup).toBeUndefined();
+      destroyDrawResources(draw);
       destroyDrawResources(draw);
       expect(gpu.textures.slice(7).every((texture) => texture.destroyed)).toBe(true);
+      expect(gpu.textures.every((texture) => texture.destroyCount === 1)).toBe(true);
+    } finally {
+      restore();
+    }
+  });
+
+  it("cleans partial visible-target allocation without publishing half-state", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice({ textureCreationErrorAt: 4 });
+      const draw = createDrawResources(gpu.device);
+
+      expect(() => {
+        ensureColorTargets(draw, 800, 600, "bgra8unorm", "depth24plus-stencil8");
+      }).toThrow("fake texture allocation failed at 4");
+      expect(gpu.textureCreations).toBe(3);
+      expect(gpu.textures.every((texture) => texture.destroyCount === 1)).toBe(true);
+      expect(draw.targets.msaaColorTexture).toBeUndefined();
+      expect(draw.targets.opaqueColorTexture).toBeUndefined();
+      expect(draw.targets.depthTexture).toBeUndefined();
+      expect(draw.targets.depthWidth).toBe(0);
+      expect(draw.targets.depthHeight).toBe(0);
+      expect(draw.targets.compositeBindGroup).toBeUndefined();
     } finally {
       restore();
     }

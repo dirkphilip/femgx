@@ -173,6 +173,7 @@ describe("WebGPU renderer", () => {
     renderer.destroy();
     renderer.destroy();
     expect(gpu.buffers.every((buffer) => buffer.destroyed)).toBe(true);
+    expect(gpu.textures.every((texture) => texture.destroyCount === 1)).toBe(true);
     expect(() => {
       renderer.render(runtime, camera, scene.parts);
     }).toThrow("destroyed");

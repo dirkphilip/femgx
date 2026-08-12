@@ -28,6 +28,7 @@ export interface PipelineDraw extends DrawCall {
 export interface FakeTexture {
   readonly descriptor: GPUTextureDescriptor;
   destroyed: boolean;
+  destroyCount: number;
 }
 
 export interface BufferCopy {
@@ -128,6 +129,7 @@ export function fakeGpuDevice(
     readonly shaderCompilationInfo?: () => Promise<GPUCompilationInfo>;
     readonly renderPipelineError?: string;
     readonly computePipelineError?: string;
+    readonly textureCreationErrorAt?: number;
   } = {},
 ): FakeGpu {
   const writes: RecordedWrite[] = [];
@@ -263,12 +265,17 @@ export function fakeGpuDevice(
     pushErrorScope: () => undefined,
     popErrorScope: () => Promise.resolve(null),
     createTexture: (descriptor: GPUTextureDescriptor) => {
-      const record: FakeTexture = { descriptor, destroyed: false };
+      const creation = textures.length + 1;
+      if (options.textureCreationErrorAt === creation) {
+        throw new Error(`fake texture allocation failed at ${creation}`);
+      }
+      const record: FakeTexture = { descriptor, destroyed: false, destroyCount: 0 };
       textures.push(record);
       return {
         createView: () => ({}),
         destroy: () => {
           record.destroyed = true;
+          record.destroyCount += 1;
         },
       };
     },

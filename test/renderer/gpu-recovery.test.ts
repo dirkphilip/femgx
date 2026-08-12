@@ -5,6 +5,7 @@ import {
   GpuDeviceLifecycle,
   rebuildGpuBundle,
 } from "../../src/renderer/gpu-recovery";
+import { ensureColorTargets } from "../../src/renderer/gpu-pipelines";
 import type { GpuValidationOptions } from "../../src/renderer/gpu-validation";
 import {
   fakeGpuDevice,
@@ -117,8 +118,10 @@ describe("GpuDeviceLifecycle", () => {
     const first = fakeGpuDevice();
     const gpus = installFreshDeviceNavigator(first);
     const onLost = vi.fn();
+    const firstBundle = await createGpuBundle(first.device, "bgra8unorm", "depth24plus");
+    ensureColorTargets(firstBundle.draw, 800, 600, "bgra8unorm", "depth24plus");
     const lifecycle = new GpuDeviceLifecycle({
-      bundle: await createGpuBundle(first.device, "bgra8unorm", "depth24plus"),
+      bundle: firstBundle,
       context: fakeContext(),
       format: "bgra8unorm",
       depthFormat: "depth24plus",
@@ -144,6 +147,7 @@ describe("GpuDeviceLifecycle", () => {
     expect(() => {
       lifecycle.ensureUsable();
     }).not.toThrow();
+    expect(first.textures.every((texture) => texture.destroyCount === 1)).toBe(true);
     second.lose();
     await second.lost;
     expect(lifecycle.lost).toBe(true);
