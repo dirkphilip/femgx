@@ -16,6 +16,13 @@
   "engines": {
     "node": ">=24.0.0"
   },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=24.0.0",
+      "onFail": "error"
+    }
+  },
   "files": [
     "dist"
   ],
@@ -39,33 +46,12 @@
     "access": "public"
   },
   "scripts": {
-    "check-node": "node scripts/check-node-version.mjs",
-    "predev": "npm run check-node",
-    "prebuild": "npm run check-node",
-    "pretypecheck": "npm run check-node",
-    "prelint": "npm run check-node",
-    "prelint:fix": "npm run check-node",
-    "prelint:dependencies": "npm run check-node",
-    "preformat": "npm run check-node",
-    "preformat:check": "npm run check-node",
-    "pretest": "npm run check-node",
-    "pretest:watch": "npm run check-node",
-    "pretest:coverage": "npm run check-node",
-    "prebench": "npm run check-node",
-    "prebench:budget": "npm run check-node",
-    "prebench:webgpu": "npm run check-node",
-    "pretest:e2e": "npm run check-node",
-    "pretest:e2e:install": "npm run check-node",
-    "prepreview": "npm run check-node",
-    "prepre-commit": "npm run check-node",
-    "prelint:actions": "npm run check-node",
     "prepare": "husky",
     "pre-commit": "lint-staged",
-    "test:package": "npm run check-node && node scripts/package-smoke.mjs",
+    "test:package": "node scripts/package-smoke.mjs",
     "prepublishOnly": "npm run test:package",
     "dev": "vite",
     "build": "npm run typecheck && vite build",
-    "prebuild:demo": "npm run check-node",
     "build:demo": "npm run typecheck && vite build --config vite.demo.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "npm run lint:actions && eslint src test demo e2e --max-warnings 0 && npm run lint:dependencies",
