@@ -65,6 +65,11 @@ export function cameraKeyLightDirection(camera: Camera): Vec3 {
   return normalize(add(add(scale(right, -0.5), scale(up, 1)), scale(forward, -0.4)));
 }
 
+/** Returns the normalized world-space direction from the camera toward the scene. */
+export function cameraViewDirection(camera: Camera): Vec3 {
+  return normalize(subtract(camera.position, camera.target));
+}
+
 /** Encodes and submits one visible color frame without any picking work. */
 export function encodeVisibleFrame(
   camera: Camera,
@@ -182,7 +187,7 @@ function drawContext(frame: FrameOptions, parts: ReadonlyMap<PartId, Part>): Dra
 }
 
 function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
-  const uniform = new Float32Array(28);
+  const uniform = new Float32Array(32);
   uniform.set(viewProjectionMatrix(camera), 0);
   uniform[16] = frame.canvas.width;
   uniform[17] = frame.canvas.height;
@@ -192,6 +197,7 @@ function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
   uniform[21] = camera.mode === "orthographic" ? 1 : 0;
   uniform[22] = 0;
   uniform.set(cameraKeyLightDirection(camera), 24);
+  uniform.set(cameraViewDirection(camera), 28);
   frame.device.queue.writeBuffer(frame.resources.cameraBuffer, 0, uniform);
   writeDeformationUniform(frame.device, frame.resources.deformationBuffer, frame.deformation);
 }

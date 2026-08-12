@@ -1,7 +1,7 @@
 import {
   cameraStruct,
   deformationStruct,
-  flatLightingFunction,
+  surfaceLightingFunction,
   frameBindings,
 } from "./gpu-shaders";
 import { COLOR_SAMPLE_COUNT } from "./gpu-support";
@@ -67,7 +67,7 @@ export const triangleTransparencyFragmentShader = /* wgsl */ `
 ${cameraStruct}
 ${deformationStruct}
 ${frameBindings}
-${flatLightingFunction}
+${surfaceLightingFunction}
 ${transparencyOutput}
 
 @fragment
@@ -78,8 +78,13 @@ fn fragmentMain(
   @location(8) worldPosition: vec3<f32>,
 ) -> TransparencyOutput {
   if (dot(local, local) > 1.0 || color.a <= 0.0 || color.a >= 1.0) { discard; }
-  let diffuse = flatDiffuse(worldPosition, camera.keyLightDirection.xyz);
-  return weightedTransparency(color.rgb * diffuse + vec3<f32>(emissive), color.a);
+  let litColor = surfaceLighting(
+    worldPosition,
+    color.rgb,
+    camera.keyLightDirection.xyz,
+    camera.viewDirection.xyz,
+  );
+  return weightedTransparency(litColor + vec3<f32>(emissive), color.a);
 }
 `;
 

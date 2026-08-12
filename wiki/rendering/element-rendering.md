@@ -47,7 +47,13 @@ highlight records, making elements and nodes selectable through GPU picking
 
 ## Flat-lighting numerical contract
 
-The opaque and translucent triangle passes use the same `flatDiffuse` helper.
+The opaque and translucent triangle passes use the same displayed-geometry
+`surfaceLighting` helper. It combines two-sided derivative-normal diffuse
+lighting with a small neutral camera-relative specular lobe, then adds the
+existing interaction emissive. Lines, points, edges, node annotations, and
+picking remain unlit. The view direction is uploaded in the shared camera
+uniform, and the helper returns ambient-only color for invalid or degenerate
+derivatives so deformation and strong zoom remain finite.
 It first divides each screen-space world-position derivative by its own largest
 absolute component, then forms and normalizes their cross product. This makes
 the geometric normal invariant when perspective zoom or pan changes derivative
