@@ -3,9 +3,9 @@
 CI (`.github/workflows/ci.yml`) enforces the full gate on every push/PR and is
 the authoritative merge gate. Local checks provide fast feedback, but required
 GitHub checks decide mergeability (see [[operations/ci-authority|CI
-authority]]). Pre-commit framework hooks
-([[engineering/pre-commit-hooks|Pre-commit hooks]]) run via CI in addition to
-the npm gate.
+authority]]). Husky runs lint-staged followed by the staged-file pre-commit
+framework check locally; CI independently runs the framework across all tracked
+files in addition to the npm gate.
 
 ## Local gate
 
