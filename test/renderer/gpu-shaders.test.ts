@@ -140,8 +140,8 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(nodePickVertexShader).toMatch(
       /@location\(9\) @interpolate\(flat\) nodePickIds: vec3<u32>/,
     );
-    expect(nodePickVertexShader).toMatch(/positions: array<f32>/);
-    expect(nodePickVertexShader).toMatch(/positions\[base3\]/);
+    expect(nodePickVertexShader).toMatch(/geometryData: array<u32>/);
+    expect(nodePickVertexShader).toMatch(/geometryPosition\(base3\)/);
     expect(nodePickVertexShader).toMatch(/vertexNodePickIds\[base\]/);
     expect(nodePickFragmentShader).toMatch(
       /nearestNode\(localPosition, cornerA, cornerB, cornerC, nodePickIds\)/,
@@ -150,7 +150,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(nodePickFragmentShader).toMatch(/bestDist > threshold/);
     expect(lineNodePickVertexShader).toMatch(/let base = \(vertexIndex \/ 2u\) \* 2u/);
     expect(lineNodePickVertexShader).toMatch(/vertexNodePickIds\[base \+ 1u\]/);
-    expect(lineNodePickVertexShader).not.toMatch(/positions\[base3 \+ 6u\]/);
+    expect(lineNodePickVertexShader).not.toMatch(/geometryPosition\(base3 \+ 6u\)/);
     expect(pointNodePickVertexShader).toMatch(/primitiveElementPickIds\[vertexIndex \/ 4u\]/);
     expect(pointNodePickVertexShader).toMatch(/output\.nodePickIds = vec3<u32>/);
   });
@@ -267,9 +267,13 @@ describe("GPU deformation shader contract", () => {
     expect(edgeVertexShader).toMatch(/output\.emissive = 0\.0/);
   });
 
-  it("displaces the edge overlay through the vertex buffer index", () => {
-    expect(edgeVertexShader).toMatch(/@builtin\(vertex_index\) vertexIndex: u32/);
-    expect(edgeVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
+  it("displaces edge endpoints through explicit source and logical ids", () => {
+    expect(edgeVertexShader).toMatch(/let endpoint = edgeEndpoint\(vertexIndex\)/);
+    expect(edgeVertexShader).toMatch(/let sourceVertexIndex = endpoint\.x/);
+    expect(edgeVertexShader).toMatch(/let topologyIndex = endpoint\.y/);
+    expect(edgeVertexShader).toMatch(/displaced\(position, sourceVertexIndex\)/);
+    expect(edgeVertexShader).toMatch(/topologyOwnersVisible\(slot, topologyIndex\)/);
+    expect(edgeVertexShader).not.toMatch(/topologyOwnersVisible\(slot, vertexIndex \/ 2u\)/);
   });
 
   it("keeps overlay vertices at their model depth", () => {

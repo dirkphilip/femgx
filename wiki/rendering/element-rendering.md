@@ -82,6 +82,13 @@ pulls the final line depth forward by one 24-bit depth-buffer unit. Do not pull
 overlay vertices toward the camera in clip space: the larger pre-rasterization
 offset can move a genuinely occluded edge in front of a nearby surface.
 
+Edge visibility is keyed by an explicit expanded-endpoint record. Each line
+endpoint carries its original source-vertex index for nodal deformation and its
+logical edge index for the body owner/neighbor predicate. The edge draw must not
+derive topology identity from the indexed surface `vertex_index`: that builtin
+identifies a referenced surface vertex, not the edge ordinal. Face-subset edge
+orders use the same mapping with subset-local logical edge ids.
+
 ## Quadratic tessellation
 
 Quadratic element connectivity is accepted and deterministically linearized

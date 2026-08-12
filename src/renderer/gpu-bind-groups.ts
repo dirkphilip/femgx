@@ -68,9 +68,7 @@ function instanceBindGroup(
       { binding: 4, resource: { buffer: part.deformation } },
       { binding: 5, resource: { buffer: part.geometry.facePickIdsBuffer } },
       { binding: 6, resource: { buffer: part.geometry.nodePickIdsBuffer } },
-      // The vertex buffer is also a read-only storage binding for the node-pick
-      // pass, avoiding a second GPU copy of the same position array.
-      { binding: 7, resource: { buffer: part.geometry.vertexBuffer } },
+      { binding: 7, resource: { buffer: part.geometry.geometryDataBuffer } },
     ],
   });
 }
