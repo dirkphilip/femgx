@@ -13,10 +13,10 @@ WebGPU-only ([[requirements/product-scope|product scope]]).
    the feature is unavailable and never call `test.skip` unless the environment
    genuinely cannot initialize WebGPU.
 2. **Environment capability coverage** — WebGPU-specific product-contract tests
-   (`e2e/webgpu.spec.ts`) on the same Chrome lane. These may skip only when the
-   environment genuinely lacks the capability (the demo reported
-   `data-renderer="unsupported"`, or GPU picking did not resolve). Every skip
-   carries an explicit reason.
+   (`e2e/webgpu-lifecycle.spec.ts` and `e2e/webgpu-rendering.spec.ts`) on the
+   same Chrome lane. These may skip only when the environment genuinely lacks
+   the capability (the demo reported `data-renderer="unsupported"`, or GPU
+   picking did not resolve). Every skip carries an explicit reason.
 3. **Optional performance/experimental coverage** — `e2e/perf.spec.ts`,
    opt-in via `RUN_PERF=1`. Excluded from the default correctness gate by
    design, never run by default CI.
@@ -42,7 +42,7 @@ The only `test.skip` calls left are capability or opt-in gates:
   RUN_PERF=1" (category 3; the fixed-resolution capacity benchmark runs only
   through the local system-Chrome command; see
   [[engineering/benchmarks|Benchmarks]]).
-- `e2e/webgpu.spec.ts`, `e2e/demo.spec.ts` — per-test:
+- `e2e/webgpu-lifecycle.spec.ts` and the partitioned demo suites — per-test:
   "WebGPU renderer unavailable in this browser environment" and "picking is not
   functional in this browser environment" (category 2; genuine environment
   capability gates when the demo reports its unsupported state).
@@ -60,8 +60,30 @@ never be mistaken for a clean required-journey run.
 
 ## Required journeys
 
+The large browser surfaces are partitioned by ownership rather than by runner:
+
+- `demo-lifecycle.spec.ts` — startup, model selection, layout, diagnostics,
+  camera-control labels, and box-selection DOM behavior.
+- `demo-results.spec.ts` — results states, deformed picking, and fit/reset state
+  preservation.
+- `demo-visibility.spec.ts` — hierarchy, body/part/instance visibility, and
+  target/view context-menu semantics.
+- `demo-interaction.spec.ts` — selection, inspection, edge controls, and
+  selection persistence through gestures.
+- `webgpu-lifecycle.spec.ts` — renderer startup, GPU interaction seams,
+  teardown/recreation, and unsupported WebGPU behavior.
+- `webgpu-rendering.spec.ts` — rendered pixels, overlays, node/face behavior,
+  transparency, and selection appearance.
+- `webgpu-camera.spec.ts` — camera fitting, orbit/pan/zoom, orientation gizmo,
+  and clip/depth invariants.
+- `webgpu-visibility.spec.ts` — body visibility and visible-interface picking.
+
+Shared support modules contain only reusable browser mechanics; they do not own
+additional product journeys. A DOM semantic contract is not repeated in a GPU
+suite merely because both use system Chrome.
+
 At least one required journey covers each interactive concern, all in
-`e2e/demo.spec.ts` (plus mobile coverage in `e2e/mobile.spec.ts` and
+the partitioned demo suites above (plus mobile coverage in `e2e/mobile.spec.ts` and
 `e2e/mobile-touch.spec.ts`):
 
 - **picking** — "picks and selects a node", "picks and selects a face";

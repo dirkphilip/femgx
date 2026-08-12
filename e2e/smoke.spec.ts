@@ -11,8 +11,8 @@ import { drawnPixels, pixelHash, requireHit } from "./helpers";
  * console error, state updated without a visible redraw) fails this test and
  * therefore fails the required e2e job.
  *
- * Feature-specific behavior stays in the owning suites (`demo.spec.ts` and
- * `webgpu.spec.ts`); this contract only pins the vertical.
+ * Feature-specific behavior stays in the owning partitioned demo and WebGPU
+ * suites; this contract only pins the vertical.
  */
 
 interface RuntimeFailure {
