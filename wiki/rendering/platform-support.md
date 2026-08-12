@@ -52,8 +52,9 @@ validation failures are distinct `data-renderer="error"` outcomes with the
 labelled compiler diagnostic in the status line. No failure is silently
 swallowed: renderer creation, the first frame, and re-creation failures all
 report the explicit message and clean up the renderer on the failure path.
-Diagnostics live in the status UI and the dataset; they never depend on console
-output.
+The opt-in diagnostics HUD is presentation-only telemetry refreshed from the
+workbench after state changes; renderer failure messages remain in the prominent
+status UI. Neither path depends on console output.
 (The pre-P0 hidden-probe machinery was removed with the CPU fallback. Demo
 interaction picking uses the renderer's GPU pick readback path.)
 

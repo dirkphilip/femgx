@@ -12,20 +12,7 @@ export interface StatusTextOptions {
 
 /** Formats the diagnostics block for the current scene/runtime snapshot. */
 export function statsText(context: WorkbenchSceneContext, options: StatusTextOptions): string {
-  const partLines: string[] = [];
-  const firstInstances = new Map<PartId, { readonly visible: boolean }>();
-  for (const instance of context.runtime.getInstances()) {
-    if (!firstInstances.has(instance.partId)) {
-      firstInstances.set(instance.partId, instance);
-    }
-  }
-  for (const partId of sortedNumbers(firstInstances.keys())) {
-    const visible = firstInstances.get(partId)?.visible ?? false;
-    partLines.push(
-      `Part ${partId} ${context.preset.partNames.get(partId) ?? ""} · ${visible ? "shown" : "hidden"}`,
-    );
-  }
-  const diagnostics = options.toggles.diagnostics ? `\n\n${partLines.join("\n")}` : "";
+  const diagnostics = options.toggles.diagnostics ? `\n\n${partLines(context).join("\n")}` : "";
   return (
     `Model ${context.preset.name} (${context.preset.id})\n` +
     `Renderer ${options.rendererName}\n` +
@@ -36,6 +23,21 @@ export function statsText(context: WorkbenchSceneContext, options: StatusTextOpt
     `Selections ${options.selectedCount}` +
     diagnostics
   );
+}
+
+function partLines(context: WorkbenchSceneContext): string[] {
+  const lines: string[] = [];
+  const firstInstances = new Map<PartId, { readonly visible: boolean }>();
+  for (const instance of context.runtime.getInstances()) {
+    if (!firstInstances.has(instance.partId)) firstInstances.set(instance.partId, instance);
+  }
+  for (const partId of sortedNumbers(firstInstances.keys())) {
+    const visible = firstInstances.get(partId)?.visible ?? false;
+    lines.push(
+      `Part ${partId} ${context.preset.partNames.get(partId) ?? ""} · ${visible ? "shown" : "hidden"}`,
+    );
+  }
+  return lines;
 }
 
 /** Triangle count after runtime visibility, including every instance draw. */

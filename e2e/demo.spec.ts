@@ -99,9 +99,7 @@ test("reports the active model, renderer, instances, parts, and batches", async 
     /Bolted plate assembly · webgpu · \d+ visible · 4 parts · \d+ batches · (perspective|orthographic) camera/,
   );
   await expect(page.getByTestId("renderer-status")).toHaveText(/Renderer webgpu/);
-  await expect(page.getByTestId("stats-panel")).toContainText("Visible instances");
-  await expect(page.getByTestId("stats-panel")).toContainText("Reusable parts 4");
-  await expect(page.getByTestId("stats-panel")).toContainText("Draw batches");
+  await expect(page.getByTestId("stats-panel")).toBeHidden();
 });
 
 test("defaults to the bolted plate assembly showcase", async ({ page }) => {
@@ -110,7 +108,69 @@ test("defaults to the bolted plate assembly showcase", async ({ page }) => {
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "bolted");
   await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
   await expect(page.getByTestId("status")).toContainText("34 visible");
-  await expect(page.getByTestId("stats-panel")).toContainText("Reusable parts 4");
+});
+
+test("shows diagnostics from target and empty-scene context menus", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  const diagnostics = page.getByTestId("stats-panel");
+  await expect(diagnostics).toBeHidden();
+
+  const hit = await requireHit(
+    page,
+    canvas,
+    {},
+    "GPU picking must resolve before opening the target diagnostics menu",
+  );
+  await page.mouse.click(hit.x, hit.y, { button: "right" });
+  const menu = page.getByTestId("context-menu");
+  await expect(menu).toBeVisible();
+  await expect(menu.getByText("Show diagnostics")).toBeVisible();
+  await menu.getByText("Show diagnostics").click();
+
+  await expect(diagnostics).toBeVisible();
+  await expect(diagnostics.locator("h2")).toHaveText("Diagnostics");
+  await expect(diagnostics).toContainText("Visible instances");
+  const panelBox = await diagnostics.boundingBox();
+  const sceneBox = await page.locator(".scene").boundingBox();
+  const toolbarBox = await page.locator(".toolbar").boundingBox();
+  expect(panelBox).not.toBeNull();
+  expect(sceneBox).not.toBeNull();
+  expect(toolbarBox).not.toBeNull();
+  if (panelBox === null || sceneBox === null || toolbarBox === null) {
+    throw new Error("diagnostics layout has no measurable bounds");
+  }
+  expect(panelBox.x).toBeGreaterThanOrEqual(sceneBox.x);
+  expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(sceneBox.x + sceneBox.width);
+  expect(panelBox.y).toBeGreaterThanOrEqual(toolbarBox.y + toolbarBox.height);
+
+  const beforeVisibility = await diagnostics.textContent();
+  const partCheckbox = page
+    .getByTestId("visibility-panel")
+    .locator("input[data-instance-id]")
+    .first();
+  await partCheckbox.uncheck();
+  await expect.poll(() => diagnostics.textContent()).not.toBe(beforeVisibility);
+
+  const canvasBox = await canvas.boundingBox();
+  if (canvasBox === null) throw new Error("canvas has no bounding box");
+  await page.mouse.click(
+    Math.round(canvasBox.x + canvasBox.width - 12),
+    Math.round(canvasBox.y + canvasBox.height - 12),
+    { button: "right" },
+  );
+  await expect(menu).toBeVisible();
+  await expect(menu.getByText("Hide diagnostics")).toBeVisible();
+  await menu.getByText("Hide diagnostics").click();
+  await expect(diagnostics).toBeHidden();
+
+  await page.getByTestId("reset").click();
+  await page.mouse.click(
+    Math.round(canvasBox.x + canvasBox.width - 12),
+    Math.round(canvasBox.y + canvasBox.height - 12),
+    { button: "right" },
+  );
+  await expect(menu.getByText("Show diagnostics")).toBeVisible();
 });
 
 test("shows a camera-aligned world coordinate gizmo", async ({ page }) => {

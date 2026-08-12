@@ -47,7 +47,7 @@ export class WorkbenchPresentation {
       parts: preset.scene.parts.size,
       batches: stats.batches,
     });
-    this.options.view.statsPanel.textContent = statsText(
+    this.options.view.statsContent.textContent = statsText(
       {
         preset,
         runtime: this.options.getRuntime(),
@@ -60,7 +60,7 @@ export class WorkbenchPresentation {
         selectedCount: selectedKeys(this.options.getInteraction()).length,
       },
     );
-    this.options.view.statsPanel.dataset["visible"] = String(this.options.getToggles().diagnostics);
+    this.options.view.statsPanel.hidden = !this.options.getToggles().diagnostics;
     this.options.canvas.dataset["selected"] = selectedKeys(this.options.getInteraction()).join(",");
     this.options.canvas.dataset["camera"] = JSON.stringify(cameraSnapshot(camera));
     this.options.canvas.dataset["cameraBounds"] = JSON.stringify(preset.bounds);

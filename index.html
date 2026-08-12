@@ -301,8 +301,22 @@
         letter-spacing: 0.09em;
         text-transform: uppercase;
       }
+      .diagnostics {
+        top: 78px;
+        width: min(360px, calc(100% - 28px));
+        max-height: min(300px, calc(100% - 176px));
+        padding: 10px 12px;
+        overflow: auto;
+      }
+      .diagnostics h2 {
+        margin: 0 0 6px;
+        color: #93a9c3;
+        font-size: 10px;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
       .inspection pre,
-      #stats-panel {
+      .diagnostics pre {
         margin: 0;
         color: #d5e0ee;
         font:
@@ -313,7 +327,7 @@
         white-space: pre-wrap;
       }
       #status,
-      #stats-panel {
+      #stats-panel[hidden] {
         display: none;
       }
       .context-menu {
@@ -351,9 +365,6 @@
         font-size: 10px;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-      }
-      #stats-panel[data-visible="true"] {
-        display: block;
       }
       @media (max-width: 720px) {
         body {
@@ -423,6 +434,12 @@
         .inspection {
           display: none;
         }
+        .diagnostics {
+          top: 122px;
+          width: min(360px, calc(100% - 16px));
+          max-height: min(280px, calc(100% - 144px));
+          right: 8px;
+        }
         .renderer-alert,
         .status-alert {
           left: 8px;
@@ -479,7 +496,16 @@
         </div>
         <div id="renderer-status" data-testid="renderer-status" class="renderer-alert" hidden></div>
         <div id="status" data-testid="status" class="status-alert" hidden></div>
-        <pre id="stats-panel" data-testid="stats-panel"></pre>
+        <section
+          id="stats-panel"
+          data-testid="stats-panel"
+          class="hud diagnostics"
+          aria-labelledby="diagnostics-heading"
+          hidden
+        >
+          <h2 id="diagnostics-heading">Diagnostics</h2>
+          <pre id="diagnostics-content"></pre>
+        </section>
       </section>
       <div id="context-menu" class="context-menu" data-testid="context-menu" hidden></div>
     </main>

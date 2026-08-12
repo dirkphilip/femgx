@@ -174,4 +174,16 @@ test("keeps the empty-scene view menu inside a phone-sized viewport", async ({ p
   expect(menuBox.x + menuBox.width, "view menu right edge").toBeLessThanOrEqual(viewport.width);
   expect(menuBox.y, "view menu top edge").toBeGreaterThanOrEqual(0);
   expect(menuBox.y + menuBox.height, "view menu bottom edge").toBeLessThanOrEqual(viewport.height);
+
+  await menu.getByText("Show diagnostics").click();
+  const diagnostics = page.getByTestId("stats-panel");
+  await expect(diagnostics).toBeVisible();
+  await expect(diagnostics.locator("h2")).toHaveText("Diagnostics");
+  const diagnosticsBox = await diagnostics.boundingBox();
+  const sceneBox = await page.locator(".scene").boundingBox();
+  if (diagnosticsBox === null || sceneBox === null) {
+    throw new Error("mobile diagnostics layout has no measurable bounds");
+  }
+  expect(diagnosticsBox.x).toBeGreaterThanOrEqual(sceneBox.x);
+  expect(diagnosticsBox.x + diagnosticsBox.width).toBeLessThanOrEqual(sceneBox.x + sceneBox.width);
 });
