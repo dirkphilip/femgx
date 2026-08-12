@@ -157,9 +157,18 @@ function classifyElements(model: ElementModel): ElementGroups {
 }
 
 function supportedGroup(shape: ElementShape): "triangle" | "line" | "point" | undefined {
-  if (shape.family === "point") return shape.order === 0 ? "point" : undefined;
-  if (shape.family === "line") return shape.order === 1 || shape.order === 2 ? "line" : undefined;
-  return shape.order === 1 || shape.order === 2 ? "triangle" : undefined;
+  switch (shape.family) {
+    case "point":
+      return shape.order === 0 ? "point" : undefined;
+    case "line":
+      return shape.order === 1 || shape.order === 2 ? "line" : undefined;
+    case "triangle":
+    case "quad":
+      return shape.order === 1 ? "triangle" : undefined;
+    case "tet":
+    case "hex":
+      return shape.order === 1 || shape.order === 2 ? "triangle" : undefined;
+  }
 }
 
 function validatePartIds(partIds: HeterogeneousElementPartIds, groups: ElementGroups): void {

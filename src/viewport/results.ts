@@ -57,7 +57,7 @@ export function resolveViewportResults(
   const colorMap = config.colorMap ?? createScalarColorMap(range);
   validateMapRange(range, colorMap);
   validateResultCoverage(scalarField, scene, runtime);
-  const deformation = resolveDeformation(config.deformation, scene);
+  const deformation = resolveDeformation(config.deformation, scene, runtime);
   return { config, scalarField, range, colorMap, deformation };
 }
 
@@ -86,7 +86,6 @@ export function applyViewportResultInteraction(
     mappedParts += 1;
     const overrides = new Map(elementOverrides.get(instanceId) ?? []);
     for (const element of elements) {
-      validateElementId(scalarField, partId, element.id);
       const existing = overrides.get(element.id);
       overrides.set(element.id, {
         color: mapScalar(colorMap, scalarAt(scalarField, element.id)),
@@ -202,6 +201,7 @@ function validateResultCoverage(
 function resolveDeformation(
   config: ViewportDeformationConfig | undefined,
   scene: Scene,
+  runtime: PackedSceneRuntime,
 ): DeformationState | undefined {
   if (config === undefined) return undefined;
   const scale = config.scale ?? 1;
@@ -209,7 +209,14 @@ function resolveDeformation(
     throw new Error(`Viewport deformation scale must be finite, got ${scale}`);
   }
   const displacements = new Map<PartId, Float32Array>();
-  for (const part of scene.parts.values()) {
+  const renderedPartIds = new Set<PartId>();
+  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
+    const partId = runtime.getPartId(slot);
+    if (partId !== undefined) renderedPartIds.add(partId);
+  }
+  for (const partId of renderedPartIds) {
+    const part = scene.parts.get(partId);
+    if (part === undefined) continue;
     const nodePickIds = part.geometry.nodePickIds;
     if (nodePickIds === undefined) {
       throw new Error(

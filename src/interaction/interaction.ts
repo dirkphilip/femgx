@@ -66,9 +66,28 @@ export function createInteractionState(theme: InteractionTheme = defaultTheme): 
     highlightedNodeIds: new Map(),
     selectedFaces: new Map(),
     highlightedFaces: new Map(),
-    theme,
+    theme: copyTheme(theme),
   };
   return createInteractionStateValue(data);
+}
+
+function copyTheme(theme: InteractionTheme): InteractionTheme {
+  return Object.freeze({
+    highlighted: copyPrimitiveStyle(theme.highlighted),
+    selected: copyPrimitiveStyle(theme.selected),
+    hovered: copyPrimitiveStyle(theme.hovered),
+    hoveredFace: copyPrimitiveStyle(theme.hoveredFace),
+    selectedFace: copyPrimitiveStyle(theme.selectedFace),
+    hoveredNode: copyPrimitiveStyle(theme.hoveredNode),
+    selectedNode: copyPrimitiveStyle(theme.selectedNode),
+  });
+}
+
+function copyPrimitiveStyle(style: PrimitiveStyleOverride): PrimitiveStyleOverride {
+  return Object.freeze({
+    ...style,
+    ...(style.color === undefined ? {} : { color: Object.freeze({ ...style.color }) }),
+  });
 }
 
 /** Sets or clears a part highlight without mutating the previous state. */

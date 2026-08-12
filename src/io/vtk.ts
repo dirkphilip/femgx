@@ -199,9 +199,32 @@ function handleVtkKeyword(
       return;
     case "LOOKUP_TABLE":
       return;
-    default:
+    case "COLOR_SCALARS":
+      startColorArray(state, tokens, line);
+      return;
+    case "METADATA":
+      state.session.report(
+        "unsupported-section",
+        "VTK METADATA sections are not supported; remaining metadata was not imported",
+        { line },
+      );
       state.mode = "skip";
+      return;
   }
+}
+
+function startColorArray(state: VtkState, tokens: readonly string[], line: number): void {
+  const components = Number(tokens[2]);
+  if (!Number.isInteger(components) || components < 1) {
+    state.session.report(
+      "bad-color-scalars-declaration",
+      "COLOR_SCALARS must declare a positive component count",
+      { line },
+    );
+    state.mode = "skip";
+    return;
+  }
+  startArray(state, components, tokens[1] ?? "", line);
 }
 
 function scalarComponents(tokens: readonly string[]): number {

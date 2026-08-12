@@ -30,9 +30,7 @@ export function selectTarget(
   },
 ): SelectTarget | undefined {
   const granularity: InteractionGranularity = modifiers.altKey
-    ? hit.kind === "part"
-      ? "part"
-      : "instance"
+    ? "instance"
     : modifiers.shiftKey
       ? "element"
       : hit.kind;

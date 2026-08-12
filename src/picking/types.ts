@@ -51,12 +51,6 @@ export interface NodePickHit {
 /** A physical hit reported by the GPU picking pass. */
 export type PickHit =
   | {
-      readonly kind: "part";
-      readonly partId: PartId;
-      readonly instanceId: InstanceId;
-      readonly worldPosition: Vec3;
-    }
-  | {
       readonly kind: "instance";
       readonly partId: PartId;
       readonly instanceId: InstanceId;

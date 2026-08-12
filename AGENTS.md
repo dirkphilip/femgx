@@ -31,8 +31,8 @@ requirements contract]]. Read it before starting any task; this section is the s
   by `devicePixelRatio`) preserve the underlying surface. Dense overlaps must
   not accumulate toward black, and visibility must not depend on a geometric
   depth offset or zoom level.
-- **Linear elements.** Points, lines, triangles, quads, Tet4, Hex8 with
-  canonical topology and validated `createElement` construction.
+- **Elements.** Point, Line, Line3, Triangle, Quad, Tet4, Tet10, Hex8, and Hex20
+  with canonical topology and validated `createElement` construction.
 - **Results.** Typed scalar/vector/tensor fields, derived quantities (magnitude,
   von Mises, principal values), value ranges, scalar color mapping, and
   deformed-shape geometry.
@@ -119,8 +119,8 @@ under `test/`. Tags reflect the [[requirements/product-scope|product scope]]:
 - `src/io/` — versioned FE interchange model, VTK legacy read/write, the
   bytes-only GLB display-scene importer, and shared validation/diagnostics.
   **Core.**
-- `src/picking/` — GPU pick-id resolution (`resolvePick` / `resolvePickTarget`)
-  for part/instance/element/face/node targets. **Core** (CPU raycast stack
+- `src/picking/` — internal GPU pick-id resolution for
+  instance/element/face/node hits. **Core** (CPU raycast stack
   removed; multi-hit `pickMany` is future).
 - `src/platform/` — WebGPU device request and loss reporting with typed
   unsupported reasons, plus capability probing (`queryWebGpuSupport`) and

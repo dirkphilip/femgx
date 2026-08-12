@@ -31,10 +31,12 @@ used by the VTK reader and by tests when constructing models.
 | VTK legacy | `parseVtk` | `writeVtk` | ASCII `UNSTRUCTURED_GRID` only |
 
 The package root deliberately exposes only these explicit VTK entry points;
-parser sessions and generic aliases remain internal. Unknown keywords are
-skipped; unsupported cell types produce warnings and are omitted;
-malformed records produce actionable `Issue`s with stable `code`s (see
-`io/diagnostics.ts`).
+parser sessions and generic aliases remain internal. Supported attribute
+sections include `SCALARS`, `VECTORS`, `NORMALS`, `TENSORS`, `FIELD`, and
+`COLOR_SCALARS`. Unsupported `METADATA` produces an explicit error instead of
+silently truncating the import. Unsupported cell types are omitted with errors;
+malformed or under-delivered records produce actionable `Issue`s with stable
+`code`s (see `io/diagnostics.ts`).
 
 The separate bytes-only GLB display-scene boundary is documented in
 [[data/glb-import|GLB display-scene import]]. It returns the canonical
@@ -55,6 +57,8 @@ sets, metadata, and results.
   array, including six-component fields. Partial, duplicate, unknown, or
   non-finite fields, invalid component counts, and names that are not one
   representable VTK token fail with `VtkWriteError` rather than being omitted.
+  Names containing comma or VTK comment delimiters (`#` and `!`) are rejected
+  because the reader would otherwise tokenize them differently on round-trip.
 
 The dense ids after parsing are an unavoidable VTK limitation, not a loss of
 the original associations. Callers should match entities by coordinate and

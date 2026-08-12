@@ -101,6 +101,13 @@ export function readFieldLine(state: VtkState, text: string, line: number): void
   const values = numbersOf(text);
   if (values === undefined) {
     closeArray(state);
+    if (state.fieldRemaining <= 0) {
+      state.session.report("extra-field-array", "FIELD contains more arrays than declared", {
+        line,
+      });
+      state.mode = "skip";
+      return;
+    }
     const tokens = tokensOf(text);
     const name = tokens[0] ?? "";
     const components = Number(tokens[1]);

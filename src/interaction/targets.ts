@@ -33,11 +33,11 @@ export function interactionTargetFromHit(
     case "instance":
       return { kind: "instance", instanceId: hit.instanceId };
     case "body":
-      return hit.kind !== "part" && hit.kind !== "instance" && hit.bodyId !== undefined
+      return hit.kind !== "instance" && hit.bodyId !== undefined
         ? { kind: "body", instanceId: hit.instanceId, bodyId: hit.bodyId }
         : undefined;
     case "element":
-      return hit.kind !== "part" && hit.kind !== "instance"
+      return hit.kind !== "instance"
         ? { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId }
         : undefined;
     case "face":

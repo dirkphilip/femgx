@@ -24,7 +24,7 @@ export interface StyleOverride {
 }
 
 /** Style fields supported by body, element, and interaction-theme layers. */
-export type PrimitiveStyleOverride = Omit<StyleOverride, "nodes">;
+export type PrimitiveStyleOverride = Omit<StyleOverride, "edge" | "nodes">;
 
 /** Validates a public style override without normalizing caller-owned values. */
 export function validateStyleOverride(override: StyleOverride | undefined): void {
@@ -44,10 +44,10 @@ export function validateStyleOverride(override: StyleOverride | undefined): void
   }
 }
 
-/** Rejects instance-level node membership from primitive-specific layers. */
+/** Rejects instance-level overlay membership from primitive-specific layers. */
 export function validatePrimitiveStyleOverride(override: PrimitiveStyleOverride | undefined): void {
-  if (override !== undefined && "nodes" in override) {
-    throw new TypeError("nodes is only supported on part and instance overrides");
+  if (override !== undefined && ("edge" in override || "nodes" in override)) {
+    throw new TypeError("edge and nodes are only supported on part and instance overrides");
   }
   validateStyleOverride(override);
 }

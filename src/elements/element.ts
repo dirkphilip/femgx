@@ -38,7 +38,7 @@ export function createElement(
 
 function validateElement(id: ElementId, shape: ElementShape, nodeIds: readonly NodeId[]): void {
   if (!Number.isSafeInteger(id) || id < 0 || id > MAX_ELEMENT_ID) {
-    throw new Error(`Element id must be a finite integer in [0, ${MAX_ELEMENT_ID}], got ${id}`);
+    throw new Error(`Element id must be a safe integer in [0, ${MAX_ELEMENT_ID}], got ${id}`);
   }
   const topology = topologyFor(shape);
   if (nodeIds.length !== topology.nodeCount) {

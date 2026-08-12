@@ -79,13 +79,17 @@ describe("createElement", () => {
 
   it("rejects negative and non-integer element ids", () => {
     expect(() => createElement(-1, TET4_SHAPE, [0, 1, 2, 3])).toThrow(
-      "Element id must be a finite integer",
+      "Element id must be a safe integer",
     );
     expect(() => createElement(1.5, TET4_SHAPE, [0, 1, 2, 3])).toThrow(
-      "Element id must be a finite integer",
+      "Element id must be a safe integer",
     );
     expect(() => createElement(0xffff_ffff, TET4_SHAPE, [0, 1, 2, 3])).toThrow(
-      "Element id must be a finite integer",
+      "Element id must be a safe integer",
     );
+  });
+
+  it("accepts the largest element id representable by one-based GPU picking", () => {
+    expect(createElement(0xffff_fffe, TET4_SHAPE, [0, 1, 2, 3]).id).toBe(0xffff_fffe);
   });
 });

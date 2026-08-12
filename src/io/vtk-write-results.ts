@@ -178,13 +178,13 @@ function validateResultName(name: string): void {
   if (
     name.length === 0 ||
     name.trim() !== name ||
-    /\s/u.test(name) ||
+    /[\s,#!]/u.test(name) ||
     VTK_KEYWORDS.has(name) ||
     numericToken.test(name)
   ) {
     throw new VtkWriteError(
       "unsupported-writer-state",
-      `VTK result name '${name}' must be one non-keyword token without whitespace`,
+      `VTK result name '${name}' must be one non-keyword token without separators or comments`,
     );
   }
 }

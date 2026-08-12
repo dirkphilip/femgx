@@ -12,7 +12,7 @@ import {
   type ElementShape,
 } from "../elements/shapes";
 import { VtkWriteError, type Issue } from "./diagnostics";
-import type { FemModel, ModelElementBlock } from "./model";
+import { FEMGX_FORMAT_VERSION, type FemModel, type ModelElementBlock } from "./model";
 import { validateModel } from "./validate";
 import { prepareResults, writeAttributes, type PreparedResult } from "./vtk-write-results";
 
@@ -90,10 +90,10 @@ function validateForWrite(model: FemModel): void {
       errors,
     );
   }
-  if (model.formatVersion !== 1) {
+  if (model.formatVersion !== FEMGX_FORMAT_VERSION) {
     throw new VtkWriteError(
       "unsupported-writer-state",
-      `VTK writer supports FemModel format version 1, got ${String(model.formatVersion)}`,
+      `VTK writer supports FemModel format version ${String(FEMGX_FORMAT_VERSION)}, got ${String(model.formatVersion)}`,
     );
   }
 }

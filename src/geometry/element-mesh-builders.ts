@@ -13,8 +13,6 @@ import {
   type PointGeometry,
   type TriangleGeometry,
   validateBodies,
-  validateElements,
-  validatePickIds,
 } from "./part";
 import { tessellateFace } from "./face-tessellation";
 import { LineMeshBuilder, TriangleMeshBuilder, type MeshVertex } from "./mesh-builder";
@@ -157,9 +155,6 @@ function buildVolumeGeometry(options: VolumeGeometryOptions): TriangleGeometry {
   });
   const base = mesh.build("triangles", elements, faces, nodePositions, renderedBodies);
   const geometry = faceSubset === undefined ? base : { ...base, faceSubset };
-  validateElements(geometry);
-  validatePickIds(geometry);
-  validateBodies(geometry);
   return geometry;
 }
 
@@ -189,9 +184,6 @@ export function lineGeometry(
     ...mesh.build("lines", descriptors, model.nodes),
     ...(renderedBodies === undefined ? {} : { bodies: renderedBodies }),
   };
-  validateElements(geometry);
-  validatePickIds(geometry);
-  validateBodies(geometry);
   return geometry;
 }
 
@@ -234,9 +226,6 @@ export function pointGeometry(
     nodePositions: new Float32Array(model.nodes),
     ...(renderedBodies === undefined ? {} : { bodies: renderedBodies }),
   };
-  validateElements(geometry);
-  validatePickIds(geometry);
-  validateBodies(geometry);
   return geometry;
 }
 

@@ -181,6 +181,30 @@ export function readCellTypesLine(state: VtkState, text: string, line: number): 
 /** Finalizes geometry: assembles element blocks and appends attribute results. */
 export function finalizeGeometry(state: VtkState): void {
   flushPoints(state);
+  if (state.pointsRemaining > 0) {
+    state.session.report(
+      "point-count-mismatch",
+      `POINTS is missing ${String(state.pointsRemaining / 3)} declared point(s)`,
+    );
+  }
+  if (state.cellsRemaining > 0) {
+    state.session.report(
+      "cell-count-mismatch",
+      `CELLS is missing ${String(state.cellsRemaining)} declared cell(s)`,
+    );
+  }
+  if (state.cellTypesRemaining > 0) {
+    state.session.report(
+      "cell-type-count-mismatch",
+      `CELL_TYPES is missing ${String(state.cellTypesRemaining)} declared entry or entries`,
+    );
+  }
+  if (state.fieldRemaining > 0) {
+    state.session.report(
+      "field-array-count-mismatch",
+      `FIELD is missing ${String(state.fieldRemaining)} declared array(s)`,
+    );
+  }
   if (state.cellTypes.size !== state.cellCount) {
     state.session.report(
       "cell-type-count-mismatch",

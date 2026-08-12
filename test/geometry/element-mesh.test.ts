@@ -624,6 +624,19 @@ describe("heterogeneousElementParts", () => {
     expect(quadratic.triangle?.geometry.primitive).toBe("triangles");
   });
 
+  it.each([
+    ["triangle", 2],
+    ["quad", 2],
+  ] as const)("rejects unsupported %s order %s before tessellation", (family, order) => {
+    const model: ElementModel = {
+      nodes: new Float32Array(TET_NODES),
+      elements: [{ id: 1, shape: { family, order }, nodeIds: [0, 1, 2, 3] }],
+    };
+    expect(() => heterogeneousElementParts({ triangle: 20 }, model)).toThrow(
+      expect.objectContaining({ code: "unsupported-shape" }),
+    );
+  });
+
   it("keeps repeated builds deterministic and carries body membership to each group", () => {
     const model = heterogeneousModel();
     const options = {
