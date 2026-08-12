@@ -74,7 +74,11 @@ effective render state and never appear in that getter or in
 `ViewportResultsState`. Replacing results reuses the same scene/runtime and
 only updates the effective interaction colors and deformation state.
 
-The `results` demo preset exercises this workflow with a static Hex8 stress field:
+The `results` demo preset exercises this workflow with a static 4-by-2 Hex8 stress
+strip. Its eight elements share the 30 nodes of one conforming block, use dense
+element ids aligned directly with the eight tensor values, and apply a small
+curved/tapered nodal displacement. This makes the `results` demo visibly show
+multiple scalar bands while retaining the same static viewport path:
 the public API supports the undeformed/base state via `clearResults()`, the
 colored state via `setResults({ field, derive: "vonMises" })`, and the combined
 colored/deformed state by adding `deformation`.

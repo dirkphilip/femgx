@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { distinctColors, drawnPixels, requireHit } from "./helpers";
+import { distinctColors, drawnPixels, pixelHash, requireHit } from "./helpers";
 
 /** The stable status summary the workbench reports for a model + renderer. */
 async function status(page: Page): Promise<string> {
@@ -350,6 +350,64 @@ test("cycles the canonical static results preset through base, colored, and defo
   await expect(canvas).toHaveAttribute("data-results", "colored");
   await resultsToggle.click();
   await expect(canvas).toHaveAttribute("data-results", "deformed");
+});
+
+test("shows distinct scalar contours and deformation in every results state", async ({ page }) => {
+  await page.goto("/");
+  await waitForRenderer(page);
+  await page.getByTestId("model-select").selectOption("results");
+  const canvas = page.getByTestId("view-canvas");
+  const resultsToggle = page.getByTestId("results-toggle");
+
+  await resultsToggle.click();
+  await expect(canvas).toHaveAttribute("data-results", "base");
+  const baseHash = await pixelHash(canvas);
+  expect(await distinctColors(canvas), "base must render a visible neutral mesh").toBeGreaterThan(
+    3,
+  );
+
+  await resultsToggle.click();
+  await expect(canvas).toHaveAttribute("data-results", "colored");
+  await expect.poll(() => distinctColors(canvas), { timeout: 10_000 }).toBeGreaterThanOrEqual(4);
+  const coloredHash = await pixelHash(canvas);
+  expect(coloredHash, "colored results must change the canvas pixels").not.toBe(baseHash);
+
+  await resultsToggle.click();
+  await expect(canvas).toHaveAttribute("data-results", "deformed");
+  await expect.poll(() => distinctColors(canvas), { timeout: 10_000 }).toBeGreaterThanOrEqual(4);
+  expect(await pixelHash(canvas), "deformed results must change the canvas pixels").not.toBe(
+    coloredHash,
+  );
+});
+
+test("keeps result-strip node and face picks on original ids after deformation", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await waitForRenderer(page);
+  await page.getByTestId("model-select").selectOption("results");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toHaveAttribute("data-results", "deformed");
+
+  const nodeHit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:", fresh: true },
+    "the deformed results strip must resolve authored node picks",
+  );
+  await page.mouse.click(nodeHit.x, nodeHit.y);
+  await expect(page.getByTestId("inspection-panel")).toContainText("Node");
+  expect(await canvas.getAttribute("data-pick")).toMatch(/^n:/);
+
+  const faceHit = await requireHit(
+    page,
+    canvas,
+    { prefix: "f:", reverse: true, fresh: true },
+    "the deformed results strip must resolve authored face picks",
+  );
+  await page.mouse.click(faceHit.x, faceHit.y);
+  await expect(page.getByTestId("inspection-panel")).toContainText("Face");
+  expect(await canvas.getAttribute("data-pick")).toMatch(/^f:/);
 });
 
 test("toggles the element edge overlay independently of solid geometry", async ({ page }) => {
