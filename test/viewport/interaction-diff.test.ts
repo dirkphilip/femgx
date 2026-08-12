@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createPart } from "../../src/geometry/part";
 import {
   createInteractionState,
@@ -58,6 +58,26 @@ describe("changedInstanceSlots", () => {
     expect(changedInstanceSlots(rt, createInteractionState(), createInteractionState())).toEqual(
       [],
     );
+  });
+
+  it("reuses runtime identity indexes instead of scanning instance ids", () => {
+    const rt = runtime();
+    const getInstanceId = vi.spyOn(rt, "getInstanceId");
+    const empty = createInteractionState();
+    const highlighted = setPartHighlighted(empty, 1, true);
+
+    expect(changedInstanceSlots(rt, empty, highlighted)).toEqual([0, 1, 2]);
+    expect(getInstanceId).not.toHaveBeenCalled();
+  });
+
+  it("reuses runtime identity indexes instead of scanning instance ids", () => {
+    const rt = runtime();
+    const getInstanceId = vi.spyOn(rt, "getInstanceId");
+    const empty = createInteractionState();
+    const highlighted = setPartHighlighted(empty, 1, true);
+
+    expect(changedInstanceSlots(rt, empty, highlighted)).toEqual([0, 1, 2]);
+    expect(getInstanceId).not.toHaveBeenCalled();
   });
 
   it("returns every slot of a part when a part highlight is added or cleared", () => {
