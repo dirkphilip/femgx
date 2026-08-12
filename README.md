@@ -138,7 +138,13 @@ const scene = createScene()
   })
   .withRoot(1)
   .build();
-const viewport = await createFemViewport({ canvas, scene });
+const viewportContainer = document.querySelector<HTMLElement>("#viewport");
+if (viewportContainer === null) throw new Error("Missing viewport container");
+const viewport = await createFemViewport({
+  canvas,
+  scene,
+  orientationGizmo: { container: viewportContainer },
+});
 viewport.setInteraction(interaction);
 viewport.setResults({
   field: stress,
@@ -149,6 +155,11 @@ viewport.setPartVisible(part.id, false);
 viewport.clearResults();
 viewport.destroy();
 ```
+
+`orientationGizmo` is optional. When enabled, femgx creates the accessible,
+non-interactive orientation SVG inside the supplied container, keeps it aligned
+with the viewport camera, and removes it when `viewport.destroy()` runs. The
+container must contain the canvas; the caller does not provide SVG markup.
 
 Static results use the same viewport and authoritative scene. Elemental tensor values can be
 derived and colored while a nodal displacement field drives the existing GPU deformation path:

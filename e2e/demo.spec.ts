@@ -115,7 +115,7 @@ test("defaults to the bolted plate assembly showcase", async ({ page }) => {
 
 test("shows a camera-aligned world coordinate gizmo", async ({ page }) => {
   await page.goto("/");
-  const gizmo = page.getByTestId("axis-gizmo");
+  const gizmo = page.locator('[data-femgx-orientation-gizmo="true"]');
   await expect(gizmo).toBeVisible();
   await expect(gizmo.locator("circle")).toHaveCount(1);
   await expect(gizmo.locator("line")).toHaveCount(6);
@@ -126,6 +126,28 @@ test("shows a camera-aligned world coordinate gizmo", async ({ page }) => {
   await expect(gizmo).toContainText("−Y");
   await expect(gizmo).toContainText("+Z");
   await expect(gizmo).toContainText("−Z");
+});
+
+test("updates the existing orientation gizmo nodes after camera movement", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  const positiveX = page.locator('[data-femgx-orientation-gizmo="true"] line[data-axis="+x"]');
+  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  const before = await positiveX.evaluate((line) => ({
+    x2: line.getAttribute("x2"),
+    y2: line.getAttribute("y2"),
+  }));
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
+  await page.mouse.down({ button: "middle" });
+  await page.mouse.move(box.x + box.width * 0.62, box.y + box.height * 0.42);
+  await page.mouse.up({ button: "middle" });
+  await expect
+    .poll(() =>
+      positiveX.evaluate((line) => ({ x2: line.getAttribute("x2"), y2: line.getAttribute("y2") })),
+    )
+    .not.toEqual(before);
 });
 
 test("zooms toward the point under the mouse and fits selection with Z", async ({ page }) => {

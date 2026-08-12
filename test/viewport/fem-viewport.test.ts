@@ -75,6 +75,21 @@ function scene(offset = 0) {
 }
 
 describe("FemViewport", () => {
+  it("rejects an orientation gizmo container that does not contain the canvas before setup", async () => {
+    const canvas = fakeCanvas();
+    const contains = vi.fn(() => false);
+    const container = { contains } as unknown as HTMLElement;
+
+    await expect(
+      createFemViewport({
+        canvas,
+        scene: scene(),
+        orientationGizmo: { container },
+      }),
+    ).rejects.toThrow("orientationGizmo.container must contain the canvas");
+    expect(contains).toHaveBeenCalledWith(canvas);
+  });
+
   it("owns fitted camera, runtime, interaction, visibility, resize, and teardown", async () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();

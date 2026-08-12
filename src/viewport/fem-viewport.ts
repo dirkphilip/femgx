@@ -14,6 +14,12 @@ import type { PartId } from "../geometry/part";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { sceneWorldBounds } from "./scene-bounds";
+import { cssSize, installResize, validateOrientationGizmo } from "./dom";
+import {
+  createOrientationGizmo,
+  type OrientationGizmoHandle,
+  type OrientationGizmoOptions,
+} from "./orientation-gizmo";
 import {
   applyViewportResultInteraction,
   resolveViewportResults,
@@ -25,6 +31,7 @@ import {
 export interface FemViewportOptions {
   readonly canvas: HTMLCanvasElement;
   readonly scene: Scene;
+  readonly orientationGizmo?: OrientationGizmoOptions;
   readonly camera?: Camera;
   readonly interaction?: InteractionState;
   readonly results?: ViewportResultsConfig;
@@ -73,6 +80,7 @@ export interface FemViewport {
 
 /** Creates a fitted, interactive FEM viewport backed only by WebGPU. */
 export async function createFemViewport(options: FemViewportOptions): Promise<FemViewport> {
+  validateOrientationGizmo(options.canvas, options.orientationGizmo);
   const owner: { viewport?: FemViewportCore } = {};
   let pendingLoss: DeviceLostInfo | undefined;
   const renderer = await createWebGpuRenderer({
@@ -101,6 +109,7 @@ class FemViewportCore implements FemViewport {
   private appliedInteraction = createInteractionState();
   private readonly removeControls: () => void;
   private readonly removeResize: () => void;
+  private orientationGizmo: OrientationGizmoHandle | undefined;
   private frame: number | undefined;
   private recoveryPromise: Promise<void> | undefined;
   private batchDepth = 0;
@@ -136,8 +145,17 @@ class FemViewportCore implements FemViewport {
     this.removeResize = installResize(options.canvas, () => {
       this.resize();
     });
-    if (options.results !== undefined) this.applyResults(options.results);
-    this.render();
+    this.orientationGizmo =
+      options.orientationGizmo === undefined
+        ? undefined
+        : createOrientationGizmo(options.orientationGizmo);
+    try {
+      if (options.results !== undefined) this.applyResults(options.results);
+      this.render();
+    } catch (error) {
+      this.destroy();
+      throw error;
+    }
   }
 
   get scene(): Scene {
@@ -307,6 +325,7 @@ class FemViewportCore implements FemViewport {
     );
     this.renderer.updateInstances(this.currentRuntime, this.effectiveInteraction, changed);
     this.renderer.updateElements(this.currentRuntime, this.effectiveInteraction);
+    this.orientationGizmo?.update(this.cameraRef.camera);
     this.renderer.render(this.currentRuntime, this.cameraRef.camera, this.currentScene.parts);
     this.appliedInteraction = this.effectiveInteraction;
     this.options.onRender?.();
@@ -352,6 +371,7 @@ class FemViewportCore implements FemViewport {
     }
     this.removeControls();
     this.removeResize();
+    this.orientationGizmo?.destroy();
     this.renderer.destroy();
   }
 
@@ -408,24 +428,4 @@ class FemViewportCore implements FemViewport {
   private ensureAlive(): void {
     if (this.destroyed) throw new Error("FemViewport has been destroyed");
   }
-}
-
-function cssSize(canvas: HTMLCanvasElement): { readonly width: number; readonly height: number } {
-  const rect = canvas.getBoundingClientRect();
-  return { width: Math.max(1, rect.width), height: Math.max(1, rect.height) };
-}
-
-function installResize(canvas: HTMLCanvasElement, resize: () => void): () => void {
-  if (typeof ResizeObserver !== "undefined") {
-    const observer = new ResizeObserver(resize);
-    observer.observe(canvas);
-    return () => {
-      observer.disconnect();
-    };
-  }
-  if (typeof window === "undefined") return () => {};
-  window.addEventListener("resize", resize);
-  return () => {
-    window.removeEventListener("resize", resize);
-  };
 }

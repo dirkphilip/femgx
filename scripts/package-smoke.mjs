@@ -179,6 +179,7 @@ function main() {
     const smokeTs = [
       'import { createElement, createElementModel, createFemViewport, createInteractionState, createPart, createResultField, createScene, heterogeneousElementParts, identity, LINE_SHAPE, POINT_SHAPE, TRIANGLE_SHAPE, parseVtk, setTargetHighlighted, setTargetSelected, translation, writeVtk, type FemViewport, type InteractionTarget } from "femgx";',
       "declare const canvas: HTMLCanvasElement;",
+      "declare const viewportContainer: HTMLElement;",
       "const geometry = {",
       '  primitive: "triangles" as const,',
       "  positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),",
@@ -228,7 +229,7 @@ function main() {
       "interaction = setTargetHighlighted(interaction, bodyTarget, true);",
       'const stress = createResultField({ id: "stress", name: "Stress", location: "elemental", shape: "scalar", count: 1, unit: "MPa", values: new Float32Array([1]) });',
       'const displacement = createResultField({ id: "displacement", name: "Displacement", location: "nodal", shape: "vector", count: 3, unit: "mm", values: new Float32Array(9) });',
-      "const viewportPromise = createFemViewport({ canvas, scene });",
+      "const viewportPromise = createFemViewport({ canvas, scene, orientationGizmo: { container: viewportContainer } });",
       "async function exerciseViewport(viewport: FemViewport): Promise<void> {",
       "  viewport.setCamera(viewport.camera);",
       "  viewport.fitView();",

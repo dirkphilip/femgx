@@ -1,5 +1,4 @@
 import { type Camera, type InteractionState, type SceneRuntime } from "../../src/index";
-import { updateAxisGizmo } from "../axis-gizmo";
 import { type ModelPreset } from "../fixture/presets";
 import type { ElementDisplayMode } from "../fixture/types";
 import { updateStatus, type DemoView } from "../view";
@@ -68,7 +67,6 @@ export class WorkbenchPresentation {
     this.options.canvas.dataset["selected"] = selectedKeys(this.options.getInteraction()).join(",");
     this.options.canvas.dataset["camera"] = JSON.stringify(cameraSnapshot(camera));
     this.options.canvas.dataset["cameraBounds"] = JSON.stringify(preset.bounds);
-    updateAxisGizmo(this.options.view.axisGizmo, camera);
   }
 
   reflectEdges(): void {
