@@ -9,6 +9,7 @@ import {
   type ViewCubeRotation,
 } from "../camera/view-cube";
 import { dot, normalize, subtract, type Vec3 } from "../math/vec3";
+import { transformDirection } from "../math/mat4";
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 const CENTER = 50;
@@ -350,12 +351,9 @@ interface ProjectedPoint {
 }
 
 function projectPoint(matrix: ReturnType<typeof viewMatrix>, point: Vec3): ProjectedPoint {
-  const x = finite(
-    (matrix[0] ?? 0) * point[0] + (matrix[4] ?? 0) * point[1] + (matrix[8] ?? 0) * point[2],
-  );
-  const y = finite(
-    -((matrix[1] ?? 0) * point[0] + (matrix[5] ?? 0) * point[1] + (matrix[9] ?? 0) * point[2]),
-  );
+  const projected = transformDirection(matrix, point);
+  const x = finite(projected[0]);
+  const y = finite(-projected[1]);
   return { x: CENTER + x * CUBE_SCALE, y: CENTER + y * CUBE_SCALE };
 }
 

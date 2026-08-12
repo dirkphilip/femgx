@@ -69,9 +69,10 @@ repository-level suites under `test/demo`, `test/public-api`, `test/runtime`,
   matrix. A new matrix edge is an architecture decision: it must provide
   concrete product value and be documented at the owning boundary.
 - The intended lower-level direction is `math` → nothing, `geometry` → math and
-  elements, `scene` → geometry/elements/math, and `picking` → scene,
-  geometry/elements/math. Any cycle or upward edge is an ownership problem to
-  fix at the source, not an import exception to hide.
+  elements, `scene` → geometry/elements/math, `interaction` → camera/math and
+  its domain owners, and `picking` → scene, geometry/elements/math. Any cycle
+  or upward edge is an ownership problem to fix at the source, not an import
+  exception to hide.
 
 ## Deliberate boundaries
 

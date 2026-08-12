@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   identity,
+  matricesEqual,
   multiply,
   rotationZ,
   scale,
+  transformDirection,
   transformPoint,
+  transformPoint4,
   translation,
 } from "../../src/math/mat4";
 
@@ -44,5 +47,24 @@ describe("mat4", () => {
 
   it("creates scale matrices", () => {
     expect(transformPoint(scale(2, 3, 4), 1, 1, 1)).toEqual([2, 3, 4]);
+  });
+
+  it("shares homogeneous point and direction transforms", () => {
+    const matrix = new Float32Array(identity());
+    matrix[12] = 4;
+    matrix[13] = 5;
+    matrix[14] = 6;
+    matrix[15] = 2;
+    expect(transformPoint4(matrix, 1, 2, 3)).toEqual([5, 7, 9, 2]);
+    expect(transformPoint(matrix, 1, 2, 3)).toEqual([2.5, 3.5, 4.5]);
+    expect(transformDirection(matrix, [1, 2, 3])).toEqual([1, 2, 3]);
+  });
+
+  it("compares exact matrix components and rejects short views", () => {
+    expect(matricesEqual(identity(), identity())).toBe(true);
+    const changed = identity();
+    changed[0] = 2;
+    expect(matricesEqual(identity(), changed)).toBe(false);
+    expect(() => matricesEqual(new Float32Array(15), identity())).toThrow("sixteen components");
   });
 });

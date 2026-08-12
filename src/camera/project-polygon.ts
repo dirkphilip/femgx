@@ -1,4 +1,4 @@
-import type { Mat4 } from "../math/mat4";
+import { transformPoint4 } from "../math/mat4";
 import type { Vec3 } from "../math/vec3";
 import { viewProjectionMatrix, type Camera } from "./camera";
 
@@ -31,26 +31,14 @@ const CLIP_PLANES: readonly (readonly [number, number, number, number])[] = [
 export function projectPolygon(camera: Camera, points: readonly Vec3[]): readonly ScreenPoint[] {
   if (points.length === 0) return [];
   const viewProjection = viewProjectionMatrix(camera);
-  let polygon: readonly ClipPoint[] = points.map((point) => toClipPoint(viewProjection, point));
+  let polygon: readonly ClipPoint[] = points.map((point) =>
+    transformPoint4(viewProjection, point[0], point[1], point[2]),
+  );
   for (const plane of CLIP_PLANES) {
     polygon = clipAgainstPlane(polygon, plane);
     if (polygon.length === 0) return [];
   }
   return polygon.map((point) => toScreenPoint(camera, point));
-}
-
-/** Transforms a world point by a column-major matrix into clip space. */
-function toClipPoint(matrix: Mat4, point: Vec3): ClipPoint {
-  const x = point[0];
-  const y = point[1];
-  const z = point[2];
-  const cell = (row: number, column: number): number => matrix[column * 4 + row] ?? 0;
-  return [
-    cell(0, 0) * x + cell(0, 1) * y + cell(0, 2) * z + cell(0, 3),
-    cell(1, 0) * x + cell(1, 1) * y + cell(1, 2) * z + cell(1, 3),
-    cell(2, 0) * x + cell(2, 1) * y + cell(2, 2) * z + cell(2, 3),
-    cell(3, 0) * x + cell(3, 1) * y + cell(3, 2) * z + cell(3, 3),
-  ];
 }
 
 /** Cuts a polygon against one clip plane with the Sutherland-Hodgman pass. */

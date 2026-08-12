@@ -1,4 +1,5 @@
 import { viewMatrix, type Camera } from "../camera/camera";
+import { transformDirection } from "../math/mat4";
 import type { Vec3 } from "../math/vec3";
 import { COLOR_SAMPLE_COUNT } from "./gpu-support";
 import {
@@ -56,11 +57,8 @@ export function orbitPivotMetrics(pointSizeDevicePixels: number): OrbitPivotMetr
 
 /** Returns the foreshortened screen projection for a world-space axis. */
 export function orbitPivotAxisProjection(camera: Camera, axis: Vec3): readonly [number, number] {
-  const matrix = viewMatrix(camera);
-  return [
-    (matrix[0] ?? 0) * axis[0] + (matrix[4] ?? 0) * axis[1] + (matrix[8] ?? 0) * axis[2],
-    (matrix[1] ?? 0) * axis[0] + (matrix[5] ?? 0) * axis[1] + (matrix[9] ?? 0) * axis[2],
-  ];
+  const projected = transformDirection(viewMatrix(camera), axis);
+  return [projected[0], projected[1]];
 }
 
 /** Validates the always-visible three-axis widget's shader and pipeline. */

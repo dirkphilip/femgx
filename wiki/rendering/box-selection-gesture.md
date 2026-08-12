@@ -42,9 +42,10 @@ offsets. Every rectangle is normalized (`left <= right`, `top <= bottom`) with
 `width = right - left` and `height = bottom - top`, independent of drag
 direction. Nothing is converted to backing-store/device pixels here.
 
-The interaction subsystem depends on the camera-owned coordinate helpers; the
-subsystem DAG was widened (interaction → camera) so the helper reuses them
-instead of duplicating the conversion.
+The interaction subsystem depends on camera-owned view-basis helpers and
+math-owned vector operations; the subsystem DAG allows interaction → camera
+and interaction → math so this code reuses those owners instead of duplicating
+the operations.
 
 ## Demo ownership
 

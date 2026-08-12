@@ -1,4 +1,4 @@
-import { multiply, type Mat4 } from "../math/mat4";
+import { multiply, transformPoint4, type Mat4 } from "../math/mat4";
 import { add, cross, dot, length, normalize, scale, subtract, type Vec3 } from "../math/vec3";
 
 /** Supported camera projection modes. */
@@ -268,7 +268,7 @@ export function projectPoint(
   camera: Camera,
   point: Vec3,
 ): readonly [number, number, number] | undefined {
-  const clip = multiplyPoint(viewProjectionMatrix(camera), point);
+  const clip = transformPoint4(viewProjectionMatrix(camera), point[0], point[1], point[2]);
   if (clip[3] <= 0) return undefined;
   return [
     ((clip[0] / clip[3] + 1) * camera.width) / 2,
@@ -305,31 +305,6 @@ export function unprojectPoint(camera: Camera, point: Vec3): Vec3 {
     add(add(camera.position, scale(forward, distance)), scale(right, ndcX * halfWidth)),
     scale(up, ndcY * halfHeight),
   );
-}
-
-function multiplyPoint(matrix: Mat4, point: Vec3): readonly [number, number, number, number] {
-  return [
-    entry(matrix, 0) * point[0] +
-      entry(matrix, 4) * point[1] +
-      entry(matrix, 8) * point[2] +
-      entry(matrix, 12),
-    entry(matrix, 1) * point[0] +
-      entry(matrix, 5) * point[1] +
-      entry(matrix, 9) * point[2] +
-      entry(matrix, 13),
-    entry(matrix, 2) * point[0] +
-      entry(matrix, 6) * point[1] +
-      entry(matrix, 10) * point[2] +
-      entry(matrix, 14),
-    entry(matrix, 3) * point[0] +
-      entry(matrix, 7) * point[1] +
-      entry(matrix, 11) * point[2] +
-      entry(matrix, 15),
-  ];
-}
-
-function entry(matrix: Mat4, index: number): number {
-  return matrix[index] ?? 0;
 }
 
 function assertFiniteNumber(name: string, value: number): void {
