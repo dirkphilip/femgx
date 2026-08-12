@@ -12,14 +12,16 @@ runner exists, CI only runs the no-GPU unsupported-contract smoke
 ## How it runs
 
 - `playwright.config.ts` defines:
-  - **`chrome`** — `channel: "chrome"` (system Google Chrome), **headed**.
-    Hardware WebGPU. Used by `npm run test:e2e` with one worker because parallel
-    headed contexts compete for the physical GPU and can yield blank captures
-    or stalled readbacks. (Headless Chrome injects SwiftShader; we do not treat
-    that as the product lane.)
+  - **`chrome`** — `channel: "chrome"` (system Google Chrome), headless with
+    `--enable-gpu` and Playwright's `--enable-unsafe-swiftshader` default
+    removed. Hardware WebGPU without a visible browser window. Used by
+    `npm run test:e2e` with one worker because parallel contexts compete for the
+    physical GPU and can yield blank captures or stalled readbacks. The lane
+    also asserts that Chrome did not select a fallback or SwiftShader adapter.
   - **`chromium`** — Playwright Chromium for the CI no-GPU contract
     (`npm run test:e2e:ci`).
 - One-time install: `npm run test:e2e:install` (Chrome + Chromium).
+- Add Playwright's `--headed` option for an intentionally visible debugging run.
 - `e2e/webgpu-lifecycle.spec.ts` owns initialization, one instanced render,
   interaction/picking, clean teardown, re-initialization, and the WebGPU-only
   unsupported contract. CI runs only its unsupported-contract test with

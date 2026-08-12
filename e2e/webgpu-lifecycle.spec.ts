@@ -3,6 +3,27 @@
 import { expect, test } from "@playwright/test";
 import { rendererMode, loadWebGpuPage } from "./webgpu-support";
 
+test("uses a hardware adapter for the authoritative WebGPU lane", async ({ page }) => {
+  await loadWebGpuPage(page);
+
+  const adapter = await page.evaluate(async () => {
+    const resolved = await navigator.gpu.requestAdapter();
+    if (resolved === null) return null;
+    const { architecture, description, device, isFallbackAdapter, vendor } = resolved.info;
+    return { architecture, description, device, isFallbackAdapter, vendor };
+  });
+
+  expect(adapter, "the WebGPU lane must resolve an adapter").not.toBeNull();
+  expect(
+    adapter?.isFallbackAdapter,
+    `expected a hardware adapter, received ${JSON.stringify(adapter)}`,
+  ).toBe(false);
+  expect(
+    [adapter?.vendor, adapter?.architecture, adapter?.device, adapter?.description].join(" "),
+    `expected a hardware adapter, received ${JSON.stringify(adapter)}`,
+  ).not.toMatch(/swiftshader|software/i);
+});
+
 test("initializes the WebGPU renderer and renders an instanced frame", async ({ page }) => {
   await loadWebGpuPage(page);
   await expect

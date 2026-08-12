@@ -26,9 +26,11 @@ WebGPU-only ([[requirements/product-scope|product scope]]).
 
 ## Why the Chrome lane must assert, not skip
 
-The local `chrome` project uses headed system Chrome so the demo commits to
-hardware WebGPU. Picking is asynchronous GPU readback through
-`FemViewport.pick`.
+The local `chrome` project uses headless system Chrome with `--enable-gpu`,
+removes Playwright's unsafe SwiftShader fallback, and asserts that the resolved
+adapter is neither a fallback nor SwiftShader. The demo therefore commits to
+hardware WebGPU without opening a visible window. Picking is asynchronous GPU
+readback through `FemViewport.pick`.
 `requireHit` skips when a sweep finds no target — Playwright automation can
 still fail to complete pick readback even on a healthy GPU — and merge CI does
 not run the full Chrome lane until a GPU runner exists (`npm run test:e2e:ci`

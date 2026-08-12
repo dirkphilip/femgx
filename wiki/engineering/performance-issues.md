@@ -69,16 +69,17 @@ mocked device could not catch:
   alignment in `gpu-draw.ts`.
 - Integral user-defined vertex outputs and fragment inputs (the pick `u32`)
   require the `@interpolate(flat)` attribute in WGSL.
-- On some headless SwiftShader builds the canvas swapchain texture is invalid
-  unless `--enable-gpu` is passed (see [[rendering/webgpu-e2e|WebGPU browser e2e lane]]);
-  the e2e lane passes both `--enable-unsafe-webgpu` and `--enable-gpu`.
+- Earlier SwiftShader experiments required `--enable-gpu` for a valid canvas
+  swapchain. SwiftShader is no longer an authoritative product lane; the local
+  e2e suite runs headless system Chrome against hardware WebGPU (see
+  [[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
 
 The demo requires WebGPU and reports an explicit unsupported state when it
-cannot initialize, instead of failing silently; the e2e lane launches Chromium
-with `--enable-unsafe-webgpu --enable-gpu` (software WebGPU) so the default CI
-gate exercises the real renderer. A broken WebGPU environment must get a typed
-unsupported result instead of a second renderer (see
-[[rendering/platform-support|Platform support]]).
+cannot initialize, instead of failing silently. The local system-Chrome lane
+removes Playwright's unsafe SwiftShader fallback and asserts that it resolved a
+hardware adapter. Hosted CI covers only the explicit unsupported contract until
+a GPU runner is available. A broken WebGPU environment must get a typed
+unsupported result instead of a second renderer (see [[rendering/platform-support|Platform support]]).
 
 ### SwiftShader r32uint picking reliability
 
@@ -90,8 +91,8 @@ environment the `r32uint` pick readback returned corrupted values (float bit
 patterns such as `0x3F800000`) for some instances even though the GPU
 record/draw-order buffers were verified correct and a minimal r32uint pipeline
 rendered cleanly — a software rasterizer quirk rather than a renderer bug. The
-WebGPU lane stays capability-gated as a safety net: environments whose picking
-is unreliable skip the picking test instead of failing.
+historical software-rasterizer behavior is not accepted as product evidence;
+required picking journeys run against the hardware WebGPU lane.
 
 ### Remaining GPU allocation risks
 

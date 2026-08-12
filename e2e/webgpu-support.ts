@@ -13,11 +13,10 @@ export {
 /**
  * Required WebGPU browser coverage (category 1 in
  * `wiki/engineering/e2e-policy.md`). WebGPU is the product's only renderer, so
- * the default e2e lane exercises the real WebGPU path. It launches Chromium
- * with software WebGPU flags (`--enable-unsafe-webgpu --enable-gpu`) so it
- * needs no GPU hardware. On an environment that genuinely cannot initialize
- * WebGPU the demo reports an explicit unsupported state and these tests skip
- * with a reason instead of failing.
+ * the default e2e lane exercises headless system Chrome with its hardware GPU.
+ * On an environment that genuinely cannot initialize WebGPU the demo reports
+ * an explicit unsupported state and these tests skip with a reason instead of
+ * failing.
  */
 export async function rendererMode(page: Page): Promise<string> {
   return (await page.getByTestId("view-canvas").getAttribute("data-renderer")) ?? "";

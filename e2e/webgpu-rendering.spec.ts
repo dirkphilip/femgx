@@ -131,6 +131,9 @@ test("renders complete point sprites with authored node picks", async ({ page })
   await page.getByTestId("model-select").selectOption("gallery");
   await page.getByTestId("node-overlay").click();
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "false");
+  await page
+    .locator('[data-femgx-orientation-gizmo="true"]')
+    .evaluate((gizmo) => ((gizmo as HTMLElement).style.visibility = "hidden"));
 
   const pointVisibility = page.locator("input[data-instance-id]");
   await expect(pointVisibility).toHaveCount(10);
