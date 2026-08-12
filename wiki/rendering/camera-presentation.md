@@ -30,8 +30,9 @@ recomputes it under the current two-pointer midpoint after midpoint pan.
 All control-driven zoom and orbit transitions are admitted against the current
 compiled scene bounds. Empty-space wheel, Shift+middle, and pinch gestures stop
 at the conservative front-of-model pose. A GPU-picked displayed point becomes
-the local approach limit for wheel and Shift+middle, allowing close inspection
-past empty AABB corners while keeping that point in front of the near plane.
+the local approach limit for wheel and Shift+middle; each transformed placed-part
+bound is protected independently, so empty space inside the union AABB remains
+inspectable without letting a separate occurrence cross the camera plane.
 Every accepted transition recomputes a finite clip interval from the live
 positive scene depths. Orbit admission searches the requested yaw/pitch as one
 immutable prefix and uses the live bounds supplier when queued GPU-pivot input

@@ -3,6 +3,7 @@ import { createCamera, orbitCamera, projectPoint } from "../../src/camera/camera
 import { fitCamera } from "../../src/camera/fit";
 import {
   cameraDepthMargin,
+  minimumCameraDepth,
   orbitCameraWithinBounds,
   zoomCameraAtPointWithinBounds,
   zoomCameraWithinBounds,
@@ -144,7 +145,9 @@ describe("bounds-aware camera navigation", () => {
       );
       const anchor: Vec3 = [0, 3, 0];
       const conservative = zoomCameraWithinBounds(fitted, -100, fixtureBounds);
-      const zoomed = zoomCameraAtPointWithinBounds(fitted, -100, anchor, fixtureBounds, anchor);
+      const zoomed = zoomCameraAtPointWithinBounds(fitted, -100, anchor, fixtureBounds, {
+        approachPoint: anchor,
+      });
       const fittedScreen = projectPoint(fitted, anchor);
       const zoomedScreen = projectPoint(zoomed, anchor);
 
@@ -159,6 +162,55 @@ describe("bounds-aware camera navigation", () => {
     },
   );
 
+  it("protects each placed bound without stopping at empty union space", () => {
+    const anchorBounds: Bounds = {
+      minX: -0.1,
+      minY: -0.1,
+      minZ: -0.1,
+      maxX: 0.1,
+      maxY: 0.1,
+      maxZ: 0.1,
+    };
+    const remoteBounds: Bounds = {
+      minX: 9.9,
+      minY: -0.1,
+      minZ: -5.1,
+      maxX: 10.1,
+      maxY: 0.1,
+      maxZ: -4.9,
+    };
+    const unionBounds: Bounds = {
+      minX: anchorBounds.minX,
+      minY: anchorBounds.minY,
+      minZ: remoteBounds.minZ,
+      maxX: remoteBounds.maxX,
+      maxY: anchorBounds.maxY,
+      maxZ: anchorBounds.maxZ,
+    };
+    const camera = createCamera({
+      mode: "perspective",
+      position: [10, 0, 10],
+      target: [0, 0, 0],
+      width: 1152,
+      height: 900,
+    });
+    const unionOnly = zoomCameraWithinBounds(camera, -100, unionBounds);
+    const protectedByOccurrence = zoomCameraAtPointWithinBounds(
+      camera,
+      -100,
+      [0, 0, 0],
+      unionBounds,
+      { approachPoint: [0, 0, 0], protectedBounds: [anchorBounds, remoteBounds] },
+    );
+
+    expect(distance(protectedByOccurrence.position, camera.target)).toBeLessThan(
+      distance(unionOnly.position, camera.target) * 0.75,
+    );
+    expect(minimumCameraDepth(protectedByOccurrence, remoteBounds)).toBeGreaterThan(
+      cameraDepthMargin(remoteBounds),
+    );
+  });
+
   it("does not let a local approach pass through a dense solid bound", () => {
     const solidBounds: Bounds = {
       minX: -1,
@@ -170,14 +222,20 @@ describe("bounds-aware camera navigation", () => {
     };
     const fitted = fitCamera(createCamera({ width: 1152, height: 900 }), solidBounds, 1152, 900);
     const anchor: Vec3 = [0, 0, 1];
-    const zoomed = zoomCameraAtPointWithinBounds(fitted, -100, anchor, solidBounds, anchor);
+    const zoomed = zoomCameraAtPointWithinBounds(fitted, -100, anchor, solidBounds, {
+      approachPoint: anchor,
+    });
 
     let closest = zoomed;
     for (let step = 0; step < 20; step += 1) {
-      closest = zoomCameraAtPointWithinBounds(closest, -1, anchor, solidBounds, anchor);
+      closest = zoomCameraAtPointWithinBounds(closest, -1, anchor, solidBounds, {
+        approachPoint: anchor,
+      });
     }
     expect(pointDepth(closest, anchor)).toBeGreaterThan(cameraDepthMargin(solidBounds));
-    expect(zoomCameraAtPointWithinBounds(closest, -1, anchor, solidBounds, anchor)).toBe(closest);
+    expect(
+      zoomCameraAtPointWithinBounds(closest, -1, anchor, solidBounds, { approachPoint: anchor }),
+    ).toBe(closest);
   });
 
   it.each([

@@ -63,6 +63,20 @@ export function installCameraControls(options: CameraControlOptions): () => void
   };
 }
 
+interface ProtectedCameraControlOptions extends CameraControlOptions {
+  readonly protectedBounds: () => readonly Bounds[];
+}
+
+/** Installs viewport-owned controls with per-occurrence close-zoom protection. */
+export function installCameraControlsWithProtectedBounds(
+  options: ProtectedCameraControlOptions,
+): () => void {
+  const controls = new CameraControls(options, options.protectedBounds);
+  return () => {
+    controls.dispose();
+  };
+}
+
 class CameraControls {
   private readonly abortController = new AbortController();
   private readonly tracker = new CameraGestureTracker();
@@ -72,7 +86,10 @@ class CameraControls {
   private wheelQueue: Promise<void> = Promise.resolve();
   private disposed = false;
 
-  constructor(private readonly options: CameraControlOptions) {
+  constructor(
+    private readonly options: CameraControlOptions,
+    private readonly protectedBounds?: () => readonly Bounds[],
+  ) {
     const signal = { signal: this.abortController.signal };
     options.canvas.addEventListener("pointerdown", this.pointerDown, signal);
     options.canvas.addEventListener("pointermove", this.pointerMove, signal);
@@ -226,9 +243,16 @@ class CameraControls {
         ? zoomCamera(camera, amount)
         : zoomCameraAtPoint(camera, amount, pivot);
     }
+    const protectedBounds = this.protectedBounds?.();
+    const protection =
+      approachPoint === undefined
+        ? undefined
+        : protectedBounds === undefined
+          ? { approachPoint }
+          : { approachPoint, protectedBounds };
     return pivot === undefined
       ? zoomCameraWithinBounds(camera, amount, bounds)
-      : zoomCameraAtPointWithinBounds(camera, amount, pivot, bounds, approachPoint);
+      : zoomCameraAtPointWithinBounds(camera, amount, pivot, bounds, protection);
   }
 
   private applyOrbit(pointerId: number, step: GestureStep): boolean {
