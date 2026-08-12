@@ -9,6 +9,7 @@ import type { BoxSelectionRect } from "../../src/interaction/box-selection";
 import { dot, length, type Vec3 } from "../../src/math/vec3";
 
 const perspective = createCamera({
+  mode: "perspective",
   position: [0, 0, 5],
   target: [0, 0, 0],
   fovY: Math.PI / 2,

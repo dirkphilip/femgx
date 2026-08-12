@@ -118,13 +118,13 @@ test("reset restores the complete workbench display state", async ({ page }) => 
   await expect(firstPart).not.toBeChecked();
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "false");
-  await expect(page.getByTestId("projection-toggle")).toHaveText("Orthographic");
+  await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
 
   await page.getByTestId("reset").click();
   await expect(firstPart).toBeChecked();
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
+  await expect(page.getByTestId("projection-toggle")).toHaveText("Orthographic");
 });
 
 test("switches projection, fits to view, and resets camera controls", async ({ page }) => {
@@ -137,15 +137,15 @@ test("switches projection, fits to view, and resets camera controls", async ({ p
   await expect(fit).toHaveAttribute("aria-label", "Fit model");
   await expect(reset).toHaveText("Reset all");
   await expect(reset).toHaveAttribute("aria-label", "Reset all");
-  await expect(button).toHaveText("Perspective");
-  await page.getByTestId("projection-toggle").click();
   await expect(button).toHaveText("Orthographic");
+  await page.getByTestId("projection-toggle").click();
+  await expect(button).toHaveText("Perspective");
 
   await fit.click();
-  await expect(button).toHaveText("Orthographic");
+  await expect(button).toHaveText("Perspective");
 
   await reset.click();
-  await expect(button).toHaveText("Perspective");
+  await expect(button).toHaveText("Orthographic");
 });
 
 test("Fit model preserves workbench state while Reset all restores preset defaults", async ({
@@ -191,7 +191,7 @@ test("Fit model preserves workbench state while Reset all restores preset defaul
 
   await page.getByTestId("fit-view").click();
   await expect.poll(() => canvas.getAttribute("data-camera")).not.toBe(zoomedCamera);
-  await expect(page.getByTestId("projection-toggle")).toHaveText("Orthographic");
+  await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByTestId("results-toggle")).toHaveText("Results: Base");
@@ -200,7 +200,7 @@ test("Fit model preserves workbench state while Reset all restores preset defaul
   await expect.poll(() => dataset(page, "selected")).toBe(beforeFitSelection);
 
   await page.getByTestId("reset").click();
-  await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
+  await expect(page.getByTestId("projection-toggle")).toHaveText("Orthographic");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("results-toggle")).toHaveText("Results: Deformed");

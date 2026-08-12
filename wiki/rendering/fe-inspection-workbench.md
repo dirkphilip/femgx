@@ -107,7 +107,7 @@ controller, so camera and interaction behavior is stable
   the demo callbacks ([[rendering/platform-support|Platform support]]).
 - The toolbar **Reset all** action restores the active preset's complete initial
   state: all runtime hierarchy/part/instance visibility, palette
-  interaction state, perspective camera fitted to the scene, edge/node toggles,
+  interaction state, orthographic camera fitted to the scene, edge/node toggles,
   diagnostics, selection/hover/pick datasets, and the inspection
   panel. It does not switch the selected model preset.
 

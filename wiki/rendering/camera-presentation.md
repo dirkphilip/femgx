@@ -1,12 +1,13 @@
 # Camera presentation
 
-The demo uses a perspective-first isometric pose so the wide element gallery
-fits without the compressed look of a near orthographic camera. Perspective
-framing is calculated from all eight bounds corners and the viewport aspect
-ratio. `fitCamera` preserves the current view direction/up vector, retargets to
-the bounds center, and solves a 90% frame margin for perspective distance or
-orthographic height. The same policy serves fit-to-view, preset changes, reset,
-and fit-to-selection; no preset-specific distance is needed.
+The demo starts in an orthographic isometric pose so the wide element gallery
+reads as a dimensionally stable CAD view. Perspective remains an explicit
+supported mode. Framing is calculated from all eight bounds corners and the
+viewport aspect ratio. `fitCamera` preserves the current view direction/up
+vector, retargets to the bounds center, and solves a 90% frame margin for
+perspective distance or orthographic height. The same policy serves fit-to-view,
+preset changes, reset, and fit-to-selection; no preset-specific distance is
+needed.
 
 Projection changes preserve vertical framing: converting from perspective derives
 an orthographic height from camera distance, while converting back derives a

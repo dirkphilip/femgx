@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createCamera, projectPoint, type Camera } from "../../src/camera/camera";
 import type { Vec3 } from "../../src/math/vec3";
 import { fitCamera } from "../../src/camera/fit";
+import { orbitCameraWithinBounds } from "../../src/camera/navigation";
 import type { Bounds } from "../../src/geometry/part";
 
 const bounds: Bounds = { minX: -2, minY: -1, minZ: -3, maxX: 4, maxY: 3, maxZ: 2 };
@@ -33,11 +34,23 @@ describe("fitCamera", () => {
       1152,
       900,
     );
-    expect(direction(fitted)).toEqual(direction(initial));
+    const fittedDirection = direction(fitted);
+    const initialDirection = direction(initial);
+    expect(fittedDirection[0]).toBeCloseTo(initialDirection[0], 12);
+    expect(fittedDirection[1]).toBeCloseTo(initialDirection[1], 12);
+    expect(fittedDirection[2]).toBeCloseTo(initialDirection[2], 12);
     const projected = boundsCorners({ minX: -20, minY: -1, minZ: -1, maxX: 20, maxY: 1, maxZ: 1 })
       .map((corner) => projectPoint(fitted, corner))
       .filter((point): point is readonly [number, number, number] => point !== undefined);
     expect(Math.max(...projected.map((point) => point[0]))).toBeGreaterThan(1152 * 0.85);
+  });
+
+  it("leaves orthographic fits clear for bounded orbiting", () => {
+    const fitted = fitCamera(createCamera({ mode: "orthographic" }), bounds, 1152, 900);
+    const rotated = orbitCameraWithinBounds(fitted, Math.PI / 2, 0, fitted.target, bounds);
+    expect(rotated.position).not.toEqual(fitted.position);
+    expect(rotated.near).toBeGreaterThan(0);
+    expect(rotated.far).toBeGreaterThan(rotated.near);
   });
 
   it.each(["perspective", "orthographic"] as const)(
