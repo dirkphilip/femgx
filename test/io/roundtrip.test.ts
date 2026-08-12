@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { required } from "./helpers";
-import { parse, write } from "../../src/io/parse";
+import { parseVtk } from "../../src/io/vtk";
+import { writeVtk } from "../../src/io/vtk-write";
 import { createModelBuilder } from "../../src/io/build";
 import {
   HEX20_SHAPE,
@@ -36,9 +37,9 @@ function sampleModel() {
 describe("VTK round-trips", () => {
   it("round-trips VTK legacy deterministically", () => {
     const model = sampleModel();
-    const written = write(model);
-    expect(write(model)).toBe(written);
-    const parsed = parse(written);
+    const written = writeVtk(model);
+    expect(writeVtk(model)).toBe(written);
+    const parsed = parseVtk(written);
     expect(parsed.issues).toEqual([]);
     expect(parsed.model.nodes.count).toBe(model.nodes.count);
     expect([...parsed.model.nodes.coordinates]).toEqual([...model.nodes.coordinates]);
@@ -105,10 +106,10 @@ describe("VTK round-trips", () => {
     });
     const model = builder.build();
 
-    const written = write(model);
-    expect(write(model)).toBe(written);
+    const written = writeVtk(model);
+    expect(writeVtk(model)).toBe(written);
     expect(written).toContain("CELL_TYPES 11\n1\n3\n21\n5\n22\n9\n23\n10\n24\n12\n25");
-    const parsed = parse(written);
+    const parsed = parseVtk(written);
     expect(parsed.issues).toEqual([]);
     expect(parsed.model.elementBlocks.map((block) => block.shape)).toEqual([...shapes]);
     for (const [index, shape] of shapes.entries()) {
@@ -150,7 +151,7 @@ describe("large VTK parse", () => {
     }
     lines.push(`CELL_TYPES ${String(cellCount)}`, "12\n".repeat(cellCount));
 
-    const result = parse(lines.join("\n"));
+    const result = parseVtk(lines.join("\n"));
     expect(result.issues).toEqual([]);
     expect(result.model.elementBlocks).toHaveLength(1);
     expect(result.model.elementBlocks[0]?.count).toBe(cellCount);

@@ -1,22 +1,6 @@
 import { VtkWriteError } from "./diagnostics";
 import type { ModelResultField } from "./model";
-
-const VTK_KEYWORDS = new Set([
-  "DATASET",
-  "POINTS",
-  "CELLS",
-  "CELL_TYPES",
-  "POINT_DATA",
-  "CELL_DATA",
-  "SCALARS",
-  "VECTORS",
-  "NORMALS",
-  "TENSORS",
-  "FIELD",
-  "LOOKUP_TABLE",
-  "COLOR_SCALARS",
-  "METADATA",
-]);
+import { VTK_KEYWORDS } from "./vtk-keywords";
 
 /** A result field reordered into the deterministic VTK entity-row order. */
 export interface PreparedResult {

@@ -31,7 +31,7 @@ used by the VTK reader and by tests when constructing models.
 | VTK legacy | `parseVtk` | `writeVtk` | ASCII `UNSTRUCTURED_GRID` only |
 
 The package root deliberately exposes only these explicit VTK entry points;
-parser sessions and generic aliases remain internal. Supported attribute
+parser sessions remain internal. Supported attribute
 sections include `SCALARS`, `VECTORS`, `NORMALS`, `TENSORS`, `FIELD`, and
 `COLOR_SCALARS`. Unsupported `METADATA` produces an explicit error instead of
 silently truncating the import. Unsupported cell types are omitted with errors;
