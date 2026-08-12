@@ -6,8 +6,7 @@ import type {
   PartId,
   SceneRuntime,
 } from "../../src/index";
-import { visiblePartIdsForPreset, type ModelPreset } from "../fixture/presets";
-import type { ElementDisplayMode } from "../fixture/types";
+import type { ModelPreset } from "../fixture/presets";
 import { assemblyName } from "../visibility-tree";
 import type { VisibilityRowTarget } from "./tree-hover";
 import { installVisibilityTreeHover } from "./tree-hover-events";
@@ -18,7 +17,6 @@ export interface VisibilityPanelOptions {
   readonly panel: HTMLElement;
   readonly getPreset: () => ModelPreset;
   readonly getRuntime: () => SceneRuntime;
-  readonly getMode: () => ElementDisplayMode;
   readonly partName: (partId: PartId) => string | undefined;
   readonly partVisible: (partId: PartId) => boolean;
   readonly bodyVisible: (instanceId: InstanceId, bodyId: BodyId) => boolean;
@@ -72,9 +70,7 @@ export class VisibilityPanelController {
     panel.appendChild(context);
     const rootNodeId = this.options.getRuntime().getNodeIds()[0];
     if (rootNodeId !== undefined) {
-      panel.appendChild(
-        this.assemblyNode(rootNodeId, visiblePartIdsForPreset(preset, this.options.getMode())),
-      );
+      panel.appendChild(this.assemblyNode(rootNodeId));
     }
     this.sync();
   }
@@ -168,7 +164,7 @@ export class VisibilityPanelController {
     }
   }
 
-  private assemblyNode(nodeId: AssemblyNodeId, visibleParts: ReadonlySet<PartId>): HTMLElement {
+  private assemblyNode(nodeId: AssemblyNodeId): HTMLElement {
     const preset = this.options.getPreset();
     const runtime = this.options.getRuntime();
     const node = runtime.getNode(nodeId);
@@ -193,14 +189,14 @@ export class VisibilityPanelController {
     const children = document.createElement("div");
     children.className = "visibility-children";
     children.hidden = !expanded;
-    const directInstances = this.directPartInstances(nodeId, visibleParts);
+    const directInstances = this.directPartInstances(nodeId);
     for (let index = 0; index < directInstances.length; index++) {
       const instanceId = directInstances[index];
       if (instanceId !== undefined)
         children.appendChild(this.partNode(instanceId, index + 1, directInstances));
     }
     for (const childId of node.childIds) {
-      children.appendChild(this.assemblyNode(childId, visibleParts));
+      children.appendChild(this.assemblyNode(childId));
     }
     expander.textContent = expanded ? "▾" : "▸";
     expander.addEventListener("click", () => {
@@ -296,16 +292,11 @@ export class VisibilityPanelController {
     return row;
   }
 
-  private directPartInstances(
-    nodeId: AssemblyNodeId,
-    visibleParts: ReadonlySet<PartId>,
-  ): InstanceId[] {
+  private directPartInstances(nodeId: AssemblyNodeId): InstanceId[] {
     const runtime = this.options.getRuntime();
     return (
       runtime.getNode(nodeId)?.instanceIds.filter((instanceId) => {
-        if (runtime.getInstance(instanceId)?.nodeId !== nodeId) return false;
-        const partId = runtime.getPartId(instanceId);
-        return partId !== undefined && visibleParts.has(partId);
+        return runtime.getInstance(instanceId)?.nodeId === nodeId;
       }) ?? []
     );
   }

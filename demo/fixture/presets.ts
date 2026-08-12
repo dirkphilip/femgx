@@ -14,7 +14,6 @@ import { createElementFixture, createHex20CylinderFixture } from "./element-fixt
 import { createResultsPreset } from "./results-preset";
 import { createTransparencyFixture } from "./transparency-fixture";
 import { createVtkFixture } from "./vtk-fixture";
-import type { ElementDisplayMode } from "./types";
 
 /** A deterministic demo model and its presentation metadata. */
 export interface ModelPreset {
@@ -26,20 +25,8 @@ export interface ModelPreset {
   readonly fallbackColor: Color;
   readonly partOpacities?: ReadonlyMap<PartId, number>;
   readonly partNames: ReadonlyMap<PartId, string>;
-  readonly modePartIds: ReadonlyMap<ElementDisplayMode, readonly PartId[]>;
-  readonly overlayPartIds: readonly PartId[];
-  readonly defaultMode: ElementDisplayMode;
   readonly bounds: Bounds;
   readonly results?: ViewportResultsConfig;
-}
-
-/** Resolves the active mode to visible parts and preserves point/line overlays. */
-export function visiblePartIdsForPreset(
-  preset: ModelPreset,
-  mode: ElementDisplayMode,
-): ReadonlySet<PartId> {
-  const modeParts = preset.modePartIds.get(mode === "edges" ? "solid" : mode) ?? [];
-  return new Set([...modeParts, ...preset.overlayPartIds]);
 }
 
 /** Builds the gallery containing every currently supported element shape. */
@@ -76,10 +63,7 @@ export function createGalleryPreset(): ModelPreset {
       [partIds.hex8, "Hex8"],
       [partIds.hex20, "Hex20"],
     ]),
-    modePartIds: fixture.modePartIds,
-    overlayPartIds: fixture.overlayPartIds,
-    defaultMode: fixture.defaultMode,
-    bounds: fixture.bounds,
+    bounds: fixtureBounds(fixture.scene),
   };
 }
 
@@ -95,10 +79,7 @@ export function createVtkPreset(): ModelPreset {
     partColors: new Map<PartId, Color>([[solid, { r: 0.23, g: 0.57, b: 0.84, a: 1 }]]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map<PartId, string>([[solid, "VTK Hex8 exterior"]]),
-    modePartIds: fixture.modePartIds,
-    overlayPartIds: [],
-    defaultMode: "solid",
-    bounds: fixture.bounds,
+    bounds: fixtureBounds(fixture.scene),
   };
 }
 
@@ -131,10 +112,7 @@ export function createHex20CylinderPreset(): ModelPreset {
     partColors: new Map<PartId, Color>([[partId, { r: 0.76, g: 0.34, b: 0.84, a: 1 }]]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map<PartId, string>([[partId, "Hex20 cylinder · authored-node facets"]]),
-    modePartIds: fixture.modePartIds,
-    overlayPartIds: fixture.overlayPartIds,
-    defaultMode: "solid",
-    bounds: fixture.bounds,
+    bounds: fixtureBounds(fixture.scene),
     results: {
       field: createResultField({
         id: "hex20-cylinder-stress",
@@ -185,9 +163,6 @@ export function createBoltedPlatePreset(): ModelPreset {
     partColors: colors,
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: names,
-    modePartIds: fixture.modePartIds,
-    overlayPartIds: [],
-    defaultMode: fixture.defaultMode,
     bounds: fixtureBounds(fixture.scene),
   };
 }
@@ -216,10 +191,7 @@ export function createTransparencyPreset(): ModelPreset {
       [interior, "Solid interior"],
       [overlap, "Overlapping translucent placements"],
     ]),
-    modePartIds: fixture.modePartIds,
-    overlayPartIds: fixture.overlayPartIds,
-    defaultMode: fixture.defaultMode,
-    bounds: fixture.bounds,
+    bounds: fixtureBounds(fixture.scene),
   };
 }
 

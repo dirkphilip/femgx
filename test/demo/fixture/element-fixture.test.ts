@@ -74,29 +74,15 @@ describe("createElementFixture", () => {
         [fixture.partIds.hex20, [12, 3]],
       ]),
     );
-    expect(fixture.bounds).toMatchObject({ minX: 0, maxX: 14, minY: 0, maxY: 5 });
   });
 
-  it("keeps all volume shapes visible in each display mode", () => {
+  it("starts with every gallery part in the scene", () => {
     const fixture = createElementFixture();
-    const volumes = [
-      fixture.partIds.tet4,
-      fixture.partIds.tet10,
-      fixture.partIds.hex8,
-      fixture.partIds.hex20,
-      fixture.partIds.triangle,
-      fixture.partIds.quad,
-      fixture.partIds.polygon,
-    ];
-    for (const mode of ["solid", "surface", "edges"] as const) {
-      expect(fixture.modePartIds.get(mode)).toEqual(volumes);
-    }
-    expect(fixture.overlayPartIds).toEqual([
-      fixture.partIds.point,
-      fixture.partIds.line,
-      fixture.partIds.line3,
-    ]);
-    expect(new Set([...volumes, ...fixture.overlayPartIds]).size).toBe(10);
+    expect(
+      runtimeInstances(fixture)
+        .map((instance) => instance.partId)
+        .sort((a, b) => a - b),
+    ).toEqual([...fixture.scene.parts.keys()].sort((a, b) => a - b));
   });
 
   it("produces geometry for points, lines, triangle, Tet4, and Hex20", () => {
@@ -151,10 +137,10 @@ describe("createElementFixture", () => {
   it("builds a linearly tessellated Hex20 cylinder with a bounded height", () => {
     const fixture = createHex20CylinderFixture();
     expect(fixture.scene.parts.size).toBe(1);
-    expect(fixture.overlayPartIds).toEqual([]);
     expect(runtimeInstances(fixture).map((instance) => instance.worldTransform[12])).toEqual([0]);
-    expect(fixture.bounds.minZ).toBeCloseTo(-0.9);
-    expect(fixture.bounds.maxZ).toBeCloseTo(0.9);
+    const part = fixture.scene.parts.get(fixture.partIds.hex20);
+    expect(part?.bounds.minZ).toBeCloseTo(-0.9);
+    expect(part?.bounds.maxZ).toBeCloseTo(0.9);
   });
 
   it("rejects invalid gallery options", () => {

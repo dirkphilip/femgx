@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createBoltedPlateFixture } from "../../demo/fixture/bolted-plate";
-import { createBoltedPlatePreset, visiblePartIdsForPreset } from "../../demo/fixture/presets";
+import { createBoltedPlatePreset } from "../../demo/fixture/presets";
 import {
   createPublicSceneRuntime,
   type SceneRuntime,
@@ -12,14 +12,10 @@ import {
   assemblyVisibilityState,
 } from "../../demo/visibility-tree";
 
-/** A bolted runtime with the solid-mode part visibility the demo starts with. */
+/** A bolted runtime with the fully visible scene the demo starts with. */
 function solidRuntime(): { readonly packed: PackedSceneRuntime; readonly runtime: SceneRuntime } {
   const preset = createBoltedPlatePreset();
   const packed = createPackedSceneRuntime(preset.scene);
-  const visible = visiblePartIdsForPreset(preset, "solid");
-  for (const partId of preset.scene.parts.keys()) {
-    packed.setPartVisible(partId, visible.has(partId));
-  }
   return { packed, runtime: createPublicSceneRuntime(packed) };
 }
 

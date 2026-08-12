@@ -13,7 +13,6 @@ import {
   type Placement,
   type Scene,
 } from "../../src/index";
-import type { ElementDisplayMode } from "./types";
 import {
   createBoltModel,
   createNutModel,
@@ -91,9 +90,6 @@ export interface BoltedPlateFixture {
   readonly assemblyIds: BoltedPlateAssemblies;
   /** The element model each part was tessellated from, keyed by part id. */
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
-  readonly modePartIds: ReadonlyMap<ElementDisplayMode, readonly PartId[]>;
-  /** The volume mode visible by default. */
-  readonly defaultMode: ElementDisplayMode;
   /** Total part placements in the canonical assembly graph. */
   readonly instanceCount: number;
   /** Part placements visible in the default mode. */
@@ -156,8 +152,6 @@ export function createBoltedPlateFixture(options: BoltedPlateOptions = {}): Bolt
   };
   const parts: readonly Part[] = componentParts(COMPONENT_PARTS, models);
   const positions = fastenerPositions();
-  const modePartIds = componentModePartIds();
-
   const washers = washersAssembly(heights);
   const fastener = fastenerAssembly(heights.nut);
   const plateStack = plateStackAssembly(plateThickness, overlapOffset);
@@ -184,19 +178,9 @@ export function createBoltedPlateFixture(options: BoltedPlateOptions = {}): Bolt
       washers: washers.id,
     },
     elementModels: componentModels(COMPONENT_PARTS, models),
-    modePartIds,
-    defaultMode: "solid",
     instanceCount: 2 + positions.length * 4,
     visibleInstanceCount: 2 + positions.length * 4,
   };
-}
-
-function componentModePartIds(): ReadonlyMap<ElementDisplayMode, readonly PartId[]> {
-  return new Map<ElementDisplayMode, readonly PartId[]>([
-    ["solid", [PLATE_PART_ID, BOLT_PART_ID, WASHER_PART_ID, NUT_PART_ID]],
-    ["surface", [PLATE_PART_ID, BOLT_PART_ID, WASHER_PART_ID, NUT_PART_ID]],
-    ["edges", [PLATE_PART_ID, BOLT_PART_ID, WASHER_PART_ID, NUT_PART_ID]],
-  ]);
 }
 
 function validateBoltedPlateOptions(options: {

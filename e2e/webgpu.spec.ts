@@ -769,7 +769,7 @@ test("keeps the solid frame deterministic across page loads", async ({ page }) =
   await expect.poll(() => rendererMode(page)).toBe("webgpu");
   const second = await stableCanvasPixels(page, canvas);
 
-  expect(first.equals(second), "solid mode pixel output must be deterministic").toBe(true);
+  expect(first.equals(second), "base pixel output must be deterministic").toBe(true);
 });
 
 test("renders a distinct edge-overlay frame", async ({ page }) => {
@@ -778,7 +778,6 @@ test("renders a distinct edge-overlay frame", async ({ page }) => {
   const solid = await stableCanvasPixels(page, canvas);
 
   await page.getByTestId("edge-overlay").click();
-  await expect(canvas).toHaveAttribute("data-mode", "solid");
   const edge = await stableCanvasPixels(page, canvas);
 
   expect(edge.equals(solid), "edge mode must render different pixels than solid").toBe(false);

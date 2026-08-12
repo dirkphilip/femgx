@@ -29,12 +29,6 @@ const mocks = vi.hoisted(() => {
     }
 
     setCameraGestureActive(): void {}
-    uniqueTriangleCount(): number {
-      return 0;
-    }
-    submittedTriangleCount(): number {
-      return 0;
-    }
     destroy(): void {
       this.currentViewport.destroy();
     }

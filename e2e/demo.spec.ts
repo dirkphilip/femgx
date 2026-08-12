@@ -96,7 +96,7 @@ test("cancels a box selection with Escape and never changes selection", async ({
 test("reports the active model, renderer, instances, parts, and batches", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("status")).toHaveText(
-    /Bolted plate assembly · webgpu · \d+ visible · 4 parts · \d+ batches · solid · (perspective|orthographic) camera/,
+    /Bolted plate assembly · webgpu · \d+ visible · 4 parts · \d+ batches · (perspective|orthographic) camera/,
   );
   await expect(page.getByTestId("renderer-status")).toHaveText(/Renderer webgpu/);
   await expect(page.getByTestId("stats-panel")).toContainText("Visible instances");
@@ -249,7 +249,6 @@ test("switches between deterministic model presets", async ({ page }) => {
     await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "false");
     await select.selectOption(id);
     await expect(canvas).toHaveAttribute("data-model", id);
-    await expect(canvas).toHaveAttribute("data-mode", "solid");
     await expect(canvas).toHaveAttribute("data-edges", "true");
     await expect(canvas).toHaveAttribute("data-nodes", "true");
     await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
@@ -412,18 +411,14 @@ test("keeps result-strip node and face picks on original ids after deformation",
 
 test("toggles the element edge overlay independently of solid geometry", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByTestId("status")).toContainText("solid");
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-mode", "solid");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
 
   await page.getByTestId("edge-overlay").click();
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-mode", "solid");
 });
 
 test("reset restores the complete workbench display state", async ({ page }) => {
   await page.goto("/");
-  const canvas = page.getByTestId("view-canvas");
   const firstPart = page.locator("#visibility-panel input[data-instance-id]").first();
   await firstPart.uncheck();
   await page.getByTestId("edge-overlay").click();
@@ -440,7 +435,6 @@ test("reset restores the complete workbench display state", async ({ page }) => 
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
-  await expect(canvas).toHaveAttribute("data-mode", "solid");
 });
 
 test("toggles one fastener occurrence and restores it via the visibility panel", async ({

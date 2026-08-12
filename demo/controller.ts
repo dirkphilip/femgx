@@ -10,8 +10,7 @@ import {
   type InteractionTarget,
   type SceneRuntime,
 } from "../src/index";
-import { visiblePartIdsForPreset, type ModelPreset } from "./fixture/presets";
-import type { ElementDisplayMode } from "./fixture/types";
+import type { ModelPreset } from "./fixture/presets";
 import { describePick } from "./inspect";
 import { selectedWorldBounds } from "./selection-bounds";
 import type { DemoView } from "./view";
@@ -19,7 +18,6 @@ import { WorkbenchInteraction } from "./workbench/interaction";
 import { installWorkbenchBindings } from "./workbench/listeners";
 import { WorkbenchBoxPreview } from "./workbench/box-preview";
 import { WorkbenchMenu } from "./workbench/menu";
-import { submittedTriangleCount, uniqueTriangleCount } from "./workbench/status";
 import {
   VisibilityPanelController,
   type VisibilityPanelOptions,
@@ -48,7 +46,6 @@ export class WorkbenchController {
   readonly view: DemoView;
   readonly rendererName: string;
   preset: ModelPreset;
-  mode: ElementDisplayMode;
   toggles: DisplayToggles;
   resultMode: ResultDisplayMode;
   interaction: InteractionState;
@@ -104,7 +101,6 @@ export class WorkbenchController {
       panel: this.view.visibilityPanel,
       getPreset: () => this.preset,
       getRuntime: () => this.runtime,
-      getMode: () => this.mode,
       partName: (partId) => this.preset.partNames.get(partId),
       partVisible: (partId) => this.visibilityActions.partVisible(partId),
       bodyVisible: (instanceId, bodyId) => this.visibilityActions.bodyVisible(instanceId, bodyId),
@@ -149,7 +145,6 @@ export class WorkbenchController {
       canvas: this.canvas,
       rendererName: this.rendererName,
       getPreset: () => this.preset,
-      getMode: () => this.mode,
       getToggles: () => this.toggles,
       getResultMode: () => this.resultMode,
       getInteraction: () => this.interaction,
@@ -159,18 +154,15 @@ export class WorkbenchController {
     const initialPreset = this.presets[0];
     if (initialPreset === undefined) throw new Error("Workbench requires at least one preset");
     this.preset = initialPreset;
-    this.mode = "solid";
     this.toggles = createDefaultDisplayToggles();
     this.resultMode = this.preset.results === undefined ? "base" : "deformed";
     this.interaction = createPresetInteraction(this.preset, true);
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
-    this.applyModeVisibility();
     this.presentation.populateModelSelect(this.presets);
     this.visibilityPanel.rebuild();
     this.installListeners();
     this.canvas.dataset["model"] = this.preset.id;
-    this.canvas.dataset["mode"] = this.mode;
     this.canvas.dataset["dragging"] = "false";
     this.render();
   }
@@ -190,7 +182,6 @@ export class WorkbenchController {
     this.canvas.dataset["treeHover"] = "";
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
-    this.applyModeVisibility();
     this.visibilityPanel.rebuild();
     this.render();
   }
@@ -224,7 +215,6 @@ export class WorkbenchController {
     this.preset = preset;
     this.treeHoverTargets = [];
     this.canvas.dataset["treeHover"] = "";
-    this.mode = "solid";
     this.toggles = createDefaultDisplayToggles();
     this.resultMode = preset.results === undefined ? "base" : "deformed";
     this.interaction = createPresetInteraction(preset, true);
@@ -232,33 +222,10 @@ export class WorkbenchController {
     this.viewport.setScene(preset.scene);
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
-    this.applyModeVisibility();
     this.visibilityPanel.rebuild();
     this.presentation.populateModelSelect(this.presets);
     this.canvas.dataset["model"] = preset.id;
-    this.canvas.dataset["mode"] = this.mode;
     this.render();
-  }
-
-  /** Switches the visible element family through the runtime. */
-  setMode(mode: ElementDisplayMode): void {
-    if (mode === this.mode) return;
-    if (mode === "edges") this.setEdges(true);
-    else if (this.mode === "edges") this.setEdges(false);
-    this.applyModeVisibility(mode);
-    this.mode = mode;
-    this.visibilityPanel.rebuild();
-    this.canvas.dataset["mode"] = mode;
-    this.render();
-  }
-
-  /** Applies the preset's per-mode part visibility to the runtime. */
-  private applyModeVisibility(mode: ElementDisplayMode = this.mode): void {
-    const visible = visiblePartIdsForPreset(this.preset, mode);
-    for (const partId of this.preset.scene.parts.keys()) {
-      this.viewport.setPartVisible(partId, visible.has(partId));
-    }
-    this.visibilityPanel.sync();
   }
 
   /** Applies or clears the wireframe edge overlay across every part. */
@@ -301,7 +268,6 @@ export class WorkbenchController {
   reset(): void {
     this.treeHoverTargets = [];
     this.canvas.dataset["treeHover"] = "";
-    this.mode = "solid";
     this.toggles = createDefaultDisplayToggles();
     this.resultMode = this.preset.results === undefined ? "base" : "deformed";
     this.interaction = createPresetInteraction(this.preset, true);
@@ -314,12 +280,10 @@ export class WorkbenchController {
     for (const instanceId of this.runtime.getInstanceIds()) {
       this.viewport.setInstanceVisible(instanceId, true);
     }
-    this.applyModeVisibility();
     this.applyCurrentDisplayState();
     this.viewport.fitView();
     this.viewport.setCamera(setProjection(this.viewport.camera, "perspective"));
     this.visibilityPanel.rebuild();
-    this.canvas.dataset["mode"] = this.mode;
     this.canvas.dataset["hovered"] = "";
     this.canvas.dataset["selected"] = "";
     this.canvas.dataset["pick"] = "";
@@ -503,16 +467,6 @@ export class WorkbenchController {
     if (this.disposed) return;
     this.applyDisplayedInteraction();
     this.syncViewportPresentation();
-  }
-
-  /** Unique triangles stored across the preset's reusable part definitions. */
-  uniqueTriangleCount(): number {
-    return uniqueTriangleCount(this.preset);
-  }
-
-  /** Submitted triangles authored by this preset, before temporary visibility changes. */
-  submittedTriangleCount(): number {
-    return submittedTriangleCount(this.preset, this.runtime);
   }
 }
 

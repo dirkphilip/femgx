@@ -3,7 +3,7 @@ import {
   createBoltedPlateFixture,
   type BoltedPlateFixture,
 } from "../../../demo/fixture/bolted-plate";
-import { createBoltedPlatePreset, visiblePartIdsForPreset } from "../../../demo/fixture/presets";
+import { createBoltedPlatePreset } from "../../../demo/fixture/presets";
 import { transformPoint } from "../../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import type { Assembly, SubAssemblyPlacement } from "../../../src/scene/assembly";
@@ -286,18 +286,12 @@ describe("createBoltedPlateFixture", () => {
 });
 
 describe("createBoltedPlatePreset", () => {
-  it("resolves the default mode part set plus overlays", () => {
+  it("starts with every reusable component visible", () => {
     const preset = createBoltedPlatePreset();
     expect(preset.id).toBe("bolted");
     expect(preset.name).toBe("Bolted plate assembly");
-    expect(preset.defaultMode).toBe("solid");
-    expect(visiblePartIdsForPreset(preset, "solid")).toEqual(new Set([1, 4, 7, 10]));
     expect(preset.partColors.size).toBe(4);
-    expect(preset.overlayPartIds).toEqual([]);
-    const visible = visiblePartIdsForPreset(preset, "solid");
-    const { scene } = preset;
-    const visibleScene = { ...scene, visiblePartIds: visible };
-    const instances = runtimeInstances(visibleScene);
+    const instances = runtimeInstances(preset.scene);
     expect(instances).toHaveLength(34);
   });
 });

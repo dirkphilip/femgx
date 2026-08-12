@@ -4,13 +4,11 @@ import {
   identity,
   translation,
   type AssemblyId,
-  type Bounds,
   type ElementModel,
   type Part,
   type PartId,
   type Scene,
 } from "../../src/index";
-import type { ElementDisplayMode } from "./types";
 import { buildHexModel } from "./element-models";
 
 /** Stable geometry identities for the order-independent transparency fixture. */
@@ -25,10 +23,6 @@ export interface TransparencyFixture {
   readonly scene: Scene;
   readonly partIds: TransparencyFixtureParts;
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
-  readonly modePartIds: ReadonlyMap<ElementDisplayMode, readonly PartId[]>;
-  readonly overlayPartIds: readonly PartId[];
-  readonly defaultMode: ElementDisplayMode;
-  readonly bounds: Bounds;
   readonly instanceCount: number;
 }
 
@@ -47,7 +41,6 @@ export function createTransparencyFixture(): TransparencyFixture {
     trianglePart(INTERIOR_PART_ID, interiorModel),
     trianglePart(OVERLAP_PART_ID, overlapModel),
   ];
-  const visibleParts = [SHELL_PART_ID, INTERIOR_PART_ID, OVERLAP_PART_ID];
   return {
     scene: transparencyScene(parts),
     partIds: { shell: SHELL_PART_ID, interior: INTERIOR_PART_ID, overlap: OVERLAP_PART_ID },
@@ -56,14 +49,6 @@ export function createTransparencyFixture(): TransparencyFixture {
       [INTERIOR_PART_ID, interiorModel],
       [OVERLAP_PART_ID, overlapModel],
     ]),
-    modePartIds: new Map<ElementDisplayMode, readonly PartId[]>([
-      ["solid", visibleParts],
-      ["surface", visibleParts],
-      ["edges", visibleParts],
-    ]),
-    overlayPartIds: [],
-    defaultMode: "solid",
-    bounds: { minX: 0, minY: 0, minZ: 0, maxX: 2, maxY: 2, maxZ: 2 },
     instanceCount: 4,
   };
 }
