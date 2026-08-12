@@ -2,18 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   setFaceHighlighted,
   setFaceSelected,
-  setHoveredFace,
   emphasizedFaceRefs,
   resolveFaceStyle,
 } from "../../src/interaction/faces";
 import { createInteractionState, type ResolvedStyle } from "../../src/interaction/interaction";
 import {
-  setHoveredNode,
   setNodeHighlighted,
   setNodeSelected,
   emphasizedNodeRefs,
   resolveNodeStyle,
 } from "../../src/interaction/nodes";
+import { setTargetHovered } from "../../src/interaction/targets";
 import { identity } from "../../src/math/mat4";
 import type { Instance } from "../../src/scene/types";
 import { readInteractionState } from "../../src/interaction/state";
@@ -49,10 +48,10 @@ describe("node selection state", () => {
 
   it("sets and clears hover immutably", () => {
     const initial = createInteractionState();
-    const state = setHoveredNode(initial, nodeRef);
+    const state = setTargetHovered(initial, { kind: "node", ...nodeRef });
     expect(readInteractionState(state).hoveredTarget).toEqual({ kind: "node", ...nodeRef });
-    expect(setHoveredNode(state, nodeRef)).toBe(state);
-    expect(setHoveredNode(state, undefined)).not.toHaveProperty("hoveredNode");
+    expect(setTargetHovered(state, { kind: "node", ...nodeRef })).toBe(state);
+    expect(setTargetHovered(state, undefined)).not.toHaveProperty("hoveredTarget");
   });
 });
 
@@ -61,7 +60,7 @@ describe("node emphasis collection", () => {
     let state = createInteractionState();
     state = setNodeSelected(state, nodeRef, true);
     state = setNodeHighlighted(state, otherNodeRef, true);
-    state = setHoveredNode(state, nodeRef);
+    state = setTargetHovered(state, { kind: "node", ...nodeRef });
     expect(emphasizedNodeRefs(state)).toEqual([nodeRef, otherNodeRef]);
   });
 });
@@ -76,15 +75,27 @@ describe("face selection state", () => {
   });
 
   it("sets and clears hover immutably", () => {
-    const state = setHoveredFace(createInteractionState(), faceRef);
+    const state = setTargetHovered(createInteractionState(), {
+      kind: "face",
+      instanceId: faceRef.instanceId,
+      elementId: faceRef.elementId,
+      key: faceRef.faceKey,
+    });
     expect(readInteractionState(state).hoveredTarget).toEqual({
       kind: "face",
       instanceId: faceRef.instanceId,
       elementId: faceRef.elementId,
       key: faceRef.faceKey,
     });
-    expect(setHoveredFace(state, faceRef)).toBe(state);
-    expect(setHoveredFace(state, undefined)).not.toHaveProperty("hoveredFace");
+    expect(
+      setTargetHovered(state, {
+        kind: "face",
+        instanceId: faceRef.instanceId,
+        elementId: faceRef.elementId,
+        key: faceRef.faceKey,
+      }),
+    ).toBe(state);
+    expect(setTargetHovered(state, undefined)).not.toHaveProperty("hoveredTarget");
   });
 });
 
@@ -93,20 +104,29 @@ describe("face emphasis collection", () => {
     let state = createInteractionState();
     state = setFaceSelected(state, faceRef, true);
     state = setFaceHighlighted(state, otherFaceRef, true);
-    state = setHoveredFace(state, faceRef);
+    state = setTargetHovered(state, {
+      kind: "face",
+      instanceId: faceRef.instanceId,
+      elementId: faceRef.elementId,
+      key: faceRef.faceKey,
+    });
     expect(emphasizedFaceRefs(state)).toEqual([faceRef, otherFaceRef]);
   });
 });
 
 describe("resolveNodeStyle", () => {
   it("applies node hover over the base instance style", () => {
-    const state = setHoveredNode(createInteractionState(), nodeRef);
+    const state = setTargetHovered(createInteractionState(), { kind: "node", ...nodeRef });
     expect(resolveNodeStyle(item, nodeRef, base, state)).toMatchObject({ emissive: 0.45 });
     expect(resolveNodeStyle(item, otherNodeRef, base, state)).toBe(base);
   });
 
   it("applies node selection over hover", () => {
-    const state = setNodeSelected(setHoveredNode(createInteractionState(), nodeRef), nodeRef, true);
+    const state = setNodeSelected(
+      setTargetHovered(createInteractionState(), { kind: "node", ...nodeRef }),
+      nodeRef,
+      true,
+    );
     expect(resolveNodeStyle(item, nodeRef, base, state)).toMatchObject({
       color: { r: 1, g: 0.42, b: 0.12, a: 1 },
       emissive: 0.7,
@@ -121,13 +141,27 @@ describe("resolveNodeStyle", () => {
 
 describe("resolveFaceStyle", () => {
   it("applies face hover over the base instance style", () => {
-    const state = setHoveredFace(createInteractionState(), faceRef);
+    const state = setTargetHovered(createInteractionState(), {
+      kind: "face",
+      instanceId: faceRef.instanceId,
+      elementId: faceRef.elementId,
+      key: faceRef.faceKey,
+    });
     expect(resolveFaceStyle(item, faceRef, base, state)).toMatchObject({ emissive: 0.3 });
     expect(resolveFaceStyle(item, otherFaceRef, base, state)).toBe(base);
   });
 
   it("applies face selection over hover", () => {
-    const state = setFaceSelected(setHoveredFace(createInteractionState(), faceRef), faceRef, true);
+    const state = setFaceSelected(
+      setTargetHovered(createInteractionState(), {
+        kind: "face",
+        instanceId: faceRef.instanceId,
+        elementId: faceRef.elementId,
+        key: faceRef.faceKey,
+      }),
+      faceRef,
+      true,
+    );
     expect(resolveFaceStyle(item, faceRef, base, state)).toMatchObject({
       color: { r: 0.45, g: 1, b: 0.4, a: 1 },
       emissive: 0.5,

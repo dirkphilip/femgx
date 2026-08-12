@@ -5,11 +5,11 @@ import {
   setElementHighlighted,
   setElementOverride,
   setElementSelected,
-  setHoveredElement,
 } from "../../src/interaction/interaction";
 import { setBodyOverride, setBodyVisible } from "../../src/interaction/bodies";
 import { setFaceSelected } from "../../src/interaction/faces";
 import { setNodeSelected } from "../../src/interaction/nodes";
+import { setTargetHovered } from "../../src/interaction/targets";
 import { translation } from "../../src/math/mat4";
 import {
   createPackedSceneRuntime,
@@ -19,11 +19,7 @@ import { createScene, type Scene } from "../../src/scene/scene";
 import {
   collectEmphasisUpdates,
   ELEMENT_RECORD_STRIDE,
-  encodeBodyHighlight,
-  encodeElementHighlight,
   encodeEmphasisRecord,
-  encodeFaceHighlight,
-  encodeNodeHighlight,
   HIGHLIGHT_HEADER,
   INITIAL_ELEMENT_HIGHLIGHTS,
   type EmphasisUpdate,
@@ -319,33 +315,61 @@ describe("encodeEmphasisRecord", () => {
     expect(floats[8]).toBeCloseTo(style.emissive);
   });
 
-  it("encodes a 1-based element pick id", () => {
-    const ids = new Uint32Array(encodeElementHighlight(2, 3, style));
+  it("encodes explicit element, face, node, and body emphasis records", () => {
+    const ids = new Uint32Array(
+      encodeEmphasisRecord({
+        slot: 2,
+        elementPickId: 4,
+        facePickId: 0,
+        nodePickId: 0,
+        style,
+      }),
+    );
     expect(ids[1]).toBe(4);
     expect(ids[2]).toBe(0);
     expect(ids[3]).toBe(0);
-  });
 
-  it("encodes a 1-based face pick id", () => {
-    const ids = new Uint32Array(encodeFaceHighlight(2, 3, style));
-    expect(ids[1]).toBe(0);
-    expect(ids[2]).toBe(4);
-    expect(ids[3]).toBe(0);
-  });
+    const faceIds = new Uint32Array(
+      encodeEmphasisRecord({
+        slot: 2,
+        elementPickId: 0,
+        facePickId: 4,
+        nodePickId: 0,
+        style,
+      }),
+    );
+    expect(faceIds[1]).toBe(0);
+    expect(faceIds[2]).toBe(4);
+    expect(faceIds[3]).toBe(0);
 
-  it("encodes a 1-based node pick id", () => {
-    const ids = new Uint32Array(encodeNodeHighlight(2, 3, style));
-    expect(ids[1]).toBe(0);
-    expect(ids[2]).toBe(0);
-    expect(ids[3]).toBe(4);
-  });
+    const nodeIds = new Uint32Array(
+      encodeEmphasisRecord({
+        slot: 2,
+        elementPickId: 0,
+        facePickId: 0,
+        nodePickId: 4,
+        style,
+      }),
+    );
+    expect(nodeIds[1]).toBe(0);
+    expect(nodeIds[2]).toBe(0);
+    expect(nodeIds[3]).toBe(4);
 
-  it("encodes a body key with a distinct marker and hidden flag", () => {
-    const ids = new Uint32Array(encodeBodyHighlight(2, 3, style, true));
-    expect(ids[0]).toBe(2);
-    expect(ids[1]).toBe(4);
-    expect(ids[2]).toBe(0xffffffff);
-    expect(ids[9]).toBe(1);
+    const bodyIds = new Uint32Array(
+      encodeEmphasisRecord({
+        slot: 2,
+        elementPickId: 0,
+        facePickId: 0,
+        nodePickId: 0,
+        bodyPickId: 4,
+        hidden: true,
+        style,
+      }),
+    );
+    expect(bodyIds[0]).toBe(2);
+    expect(bodyIds[1]).toBe(4);
+    expect(bodyIds[2]).toBe(0xffffffff);
+    expect(bodyIds[9]).toBe(1);
   });
 });
 
@@ -708,7 +732,11 @@ describe("collectEmphasisUpdates", () => {
         emissive: 0.9,
       },
     );
-    interaction = setHoveredElement(interaction, { instanceId: "1/0", elementId: 0 });
+    interaction = setTargetHovered(interaction, {
+      kind: "element",
+      instanceId: "1/0",
+      elementId: 0,
+    });
     const updates = collectEmphasisUpdates(
       runtime,
       layout,

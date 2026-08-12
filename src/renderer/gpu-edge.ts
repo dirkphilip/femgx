@@ -23,14 +23,6 @@ interface MeshEdge {
   readonly conditions: Set<string>;
 }
 
-/**
- * Builds a deduplicated line-list of FE edges for the wireframe overlay.
- * Tessellated triangle diagonals are excluded when face/node metadata exists.
- */
-export function buildMeshEdges(geometry: Geometry, sourceIndices = geometry.indices): Uint32Array {
-  return buildMeshEdgeData(geometry, sourceIndices).sourceVertexIndices;
-}
-
 /** Builds mesh edges and deterministic body ownership for each edge. */
 export function buildMeshEdgeData(
   geometry: Geometry,

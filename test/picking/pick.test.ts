@@ -5,7 +5,6 @@ import { LINE_SHAPE, POINT_SHAPE, TET4_SHAPE } from "../../src/elements/shapes";
 import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
 import {
   createPart,
-  MAX_PART_ID,
   validatePickIds,
   type Geometry,
   type Part,
@@ -14,7 +13,6 @@ import {
 import { identity, type Mat4 } from "../../src/math/mat4";
 import {
   geometryAdjacency,
-  instanceToTarget,
   resolvePick,
   resolvePickHit,
   type PickContext,
@@ -56,25 +54,6 @@ describe("resolvePick", () => {
   it("returns undefined for out-of-range pick ids", () => {
     expect(resolvePick([instanceAt(0)], -1)).toBeUndefined();
     expect(resolvePick([instanceAt(0)], 99)).toBeUndefined();
-  });
-});
-
-describe("instanceToTarget", () => {
-  it("preserves a maximum part id through pick target resolution", () => {
-    const instance = instanceAt(0, MAX_PART_ID);
-    expect(instanceToTarget(instance, true)).toEqual({ kind: "part", partId: MAX_PART_ID });
-  });
-
-  it("maps to a part target when preferPart is set", () => {
-    const instance = resolvePick([instanceAt(0)], 0);
-    if (instance === undefined) throw new Error("expected instance");
-    expect(instanceToTarget(instance, true)).toEqual({ kind: "part", partId: 1 });
-  });
-
-  it("maps to an instance target by default", () => {
-    const instance = resolvePick([instanceAt(0)], 0);
-    if (instance === undefined) throw new Error("expected instance");
-    expect(instanceToTarget(instance, false)).toEqual({ kind: "instance", instanceId: "1/0" });
   });
 });
 

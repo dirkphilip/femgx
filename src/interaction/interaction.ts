@@ -4,7 +4,6 @@ import type { InteractionTarget } from "./target-types";
 import {
   createInteractionStateValue,
   readInteractionState,
-  setHoveredTarget,
   updateInteractionState,
   type InteractionState,
   type InteractionStateData,
@@ -108,17 +107,6 @@ export function setInstanceSelected(
   return updateInstanceSet(state, "selectedInstanceIds", instanceId, selected);
 }
 
-/** Sets the currently hovered instance, or clears hover with `undefined`. */
-export function setHoveredInstance(
-  state: InteractionState,
-  instanceId: InstanceId | undefined,
-): InteractionState {
-  return setHoveredTarget(
-    state,
-    instanceId === undefined ? undefined : { kind: "instance", instanceId },
-  );
-}
-
 /** Sets or clears an element selection without mutating the previous state. */
 export function setElementSelected(
   state: InteractionState,
@@ -151,14 +139,6 @@ export function setElementHighlighted(
   );
   if (highlightedElementIds === data.highlightedElementIds) return state;
   return updateInteractionState(state, { highlightedElementIds });
-}
-
-/** Sets the currently hovered element, or clears hover with `undefined`. */
-export function setHoveredElement(
-  state: InteractionState,
-  ref: ElementRef | undefined,
-): InteractionState {
-  return setHoveredTarget(state, ref === undefined ? undefined : { kind: "element", ...ref });
 }
 
 /** Adds or replaces an explicit element style override. */

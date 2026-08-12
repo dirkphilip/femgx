@@ -1,6 +1,6 @@
 import { bench, describe } from "vitest";
 import { translation } from "../../src/math/mat4";
-import { instanceToTarget, resolvePick } from "../../src/picking/pick";
+import { resolvePick } from "../../src/picking/pick";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import {
   BENCH_HIERARCHY_DEPTH,
@@ -84,15 +84,6 @@ describe("CPU picking", () => {
   bench(`resolvePick ${PICK_COUNT} lookups`, () => {
     for (const pickId of pickIds) {
       resolvePick(runtimeInstances, pickId);
-    }
-  });
-
-  bench(`instanceToTarget ${PICK_COUNT} lookups`, () => {
-    for (const pickId of pickIds) {
-      const instance = resolvePick(runtimeInstances, pickId);
-      if (instance !== undefined) {
-        instanceToTarget(instance, true);
-      }
     }
   });
 });
