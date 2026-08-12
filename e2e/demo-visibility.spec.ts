@@ -239,7 +239,7 @@ test("context menu selects a target and toggles display without losing selection
             ? "i:"
             : "p:";
 
-  await page.getByTestId("context-menu").getByText("Select / Deselect").click();
+  await page.getByTestId("context-menu").locator('button[data-action="select"]').click();
   await expect.poll(() => dataset(page, "selected")).toMatch(new RegExp(`^${keyPrefix}`));
   const selected = await dataset(page, "selected");
 
@@ -281,6 +281,7 @@ test("opens a view context menu on empty scene space", async ({ page }) => {
   const menu = page.getByTestId("context-menu");
   await expect(menu).toBeVisible();
   await expect(menu.locator(".menu-title").first()).toHaveText("View");
+  await expect(menu.locator('button[data-action="select-element"]')).toHaveCount(0);
   for (const action of ["fit-view", "clear-selection", "show-all", "reset"]) {
     await expect(menu.locator(`button[data-action="${action}"]`)).toBeVisible();
   }

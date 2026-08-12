@@ -93,15 +93,17 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
   });
   window.addEventListener(
     "click",
-    () => {
-      options.menu.hide();
+    (event) => {
+      if (view.contextMenu.hidden) return;
+      if (event.target instanceof Node && view.contextMenu.contains(event.target)) return;
+      options.interaction.clearContext();
     },
     { signal },
   );
   window.addEventListener(
     "keydown",
     (event) => {
-      if (event.key === "Escape") options.menu.hide();
+      if (event.key === "Escape") options.interaction.clearContext();
       else if (event.key.toLowerCase() === "z" && !isEditableTarget(event.target)) {
         event.preventDefault();
         options.fitSelection();
