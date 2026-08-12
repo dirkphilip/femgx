@@ -15,6 +15,11 @@ import {
 import { cross, dot, length, normalize, subtract, type Vec3 } from "../../src/math/vec3";
 
 describe("camera", () => {
+  it("defaults to orthographic while retaining explicit perspective", () => {
+    expect(createCamera().mode).toBe("orthographic");
+    expect(createCamera({ mode: "perspective" }).mode).toBe("perspective");
+  });
+
   it.each(["perspective", "orthographic"] as const)(
     "round-trips displayed world points through %s projection",
     (mode) => {
@@ -44,7 +49,7 @@ describe("camera", () => {
   });
 
   it("supports orthographic projection and resize", () => {
-    const camera = setProjection(resizeCamera(createCamera(), 800, 600), "orthographic");
+    const camera = resizeCamera(createCamera({ mode: "orthographic" }), 800, 600);
     const before = projectPoint(camera, [1, 0, 0]);
     const after = projectPoint(resizeCamera(camera, 400, 600), [1, 0, 0]);
     expect(before?.[0]).toBeGreaterThan(400);
@@ -53,7 +58,7 @@ describe("camera", () => {
   });
 
   it("preserves framing when switching projection modes", () => {
-    const perspective = resizeCamera(createCamera(), 800, 600);
+    const perspective = resizeCamera(createCamera({ mode: "perspective" }), 800, 600);
     const orthographic = setProjection(perspective, "orthographic");
     const restored = setProjection(orthographic, "perspective");
     expect(restored.position[0]).toBeCloseTo(perspective.position[0]);
@@ -205,7 +210,13 @@ describe("camera", () => {
   });
 
   it("does not use clip planes as a perspective distance clamp", () => {
-    const camera = createCamera({ position: [0, 0, 1], target: [0, 0, 0], near: 0.01, far: 100 });
+    const camera = createCamera({
+      mode: "perspective",
+      position: [0, 0, 1],
+      target: [0, 0, 0],
+      near: 0.01,
+      far: 100,
+    });
     const zoomed = zoomCamera(camera, -20);
     expect(zoomed.position[2]).toBeCloseTo(Math.exp(-20));
     expect(zoomed.near).toBe(camera.near);
@@ -213,7 +224,13 @@ describe("camera", () => {
   });
 
   it("round-trips non-clamped perspective zoom", () => {
-    const camera = createCamera({ position: [0, 0, 10], target: [0, 0, 0], near: 0.1, far: 100 });
+    const camera = createCamera({
+      mode: "perspective",
+      position: [0, 0, 10],
+      target: [0, 0, 0],
+      near: 0.1,
+      far: 100,
+    });
     const zoomed = zoomCamera(camera, 0.4);
     const restored = zoomCamera(zoomed, -0.4);
     expect(restored.position[2]).toBeCloseTo(camera.position[2]);
@@ -224,6 +241,7 @@ describe("camera", () => {
 
   it("round-trips non-clamped cursor-centered perspective zoom", () => {
     const camera = createCamera({
+      mode: "perspective",
       position: [4, 3, 10],
       target: [1, 0, 0],
       near: 0.1,
@@ -243,7 +261,13 @@ describe("camera", () => {
   });
 
   it("allows cursor-centered zoom beyond the configured clip interval", () => {
-    const camera = createCamera({ position: [0, 0, 10], target: [0, 0, 0], near: 0.1, far: 100 });
+    const camera = createCamera({
+      mode: "perspective",
+      position: [0, 0, 10],
+      target: [0, 0, 0],
+      near: 0.1,
+      far: 100,
+    });
     const pivot = [2, 0, 0] as const;
     const directNear = zoomCamera(camera, -20);
     const directFar = zoomCamera(camera, 20);
@@ -311,7 +335,13 @@ describe("camera", () => {
 
   it("maps the perspective near and far planes to WebGPU [0, 1] depth", () => {
     const camera = resizeCamera(
-      createCamera({ position: [0, 0, 0], target: [0, 0, -1], near: 1, far: 100 }),
+      createCamera({
+        mode: "perspective",
+        position: [0, 0, 0],
+        target: [0, 0, -1],
+        near: 1,
+        far: 100,
+      }),
       800,
       600,
     );

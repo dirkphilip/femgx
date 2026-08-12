@@ -255,10 +255,10 @@ test("opens a view context menu on empty scene space", async ({ page }) => {
   await expect(partCheckbox).toBeChecked();
 
   await page.getByTestId("projection-toggle").click();
-  await expect(page.getByTestId("projection-toggle")).toHaveText("Orthographic");
+  await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
   await page.mouse.click(empty.x, empty.y, { button: "right" });
   await menu.getByText("Reset all").click();
-  await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
+  await expect(page.getByTestId("projection-toggle")).toHaveText("Orthographic");
 
   await page.mouse.click(empty.x, empty.y, { button: "right" });
   await expect(menu).toBeVisible();

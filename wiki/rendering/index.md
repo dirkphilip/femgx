@@ -4,7 +4,7 @@
   mouse/pen box-drag lifecycle and its screen-space rectangle preview.
 - [[rendering/camera-depth-convention|Camera depth convention]] — WebGPU
   depth-range and projection conventions.
-- [[rendering/camera-presentation|Camera presentation]] — perspective framing,
+- [[rendering/camera-presentation|Camera presentation]] — orthographic-default framing,
   projection transitions, and CAD-style navigation.
 - [[rendering/camera-touch-controls|Camera touch controls]] — pointer-driven
   one-finger orbit, pinch zoom, two-finger pan, and gesture cancellation.

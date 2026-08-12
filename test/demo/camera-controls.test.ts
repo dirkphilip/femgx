@@ -81,7 +81,7 @@ describe("camera controls", () => {
   it("queues an early drag until the picked orbit point resolves", async () => {
     const canvas = new FakeCanvas();
     const initial = resizeCamera(
-      createCamera({ position: [0, 0, 5], target: [0, 0, 0] }),
+      createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
       200,
       100,
     );
@@ -125,7 +125,7 @@ describe("camera controls", () => {
   it("zooms around the world point under the mouse", async () => {
     const canvas = new FakeCanvas();
     const initial = resizeCamera(
-      createCamera({ position: [0, 0, 5], target: [0, 0, 0] }),
+      createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
       200,
       100,
     );
@@ -159,7 +159,7 @@ describe("camera controls", () => {
     async (pickResult) => {
       const canvas = new FakeCanvas();
       const initial = resizeCamera(
-        createCamera({ position: [0, 0, 5], target: [0, 0, 0] }),
+        createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
         200,
         100,
       );
@@ -199,7 +199,13 @@ describe("camera controls", () => {
     const canvas = new FakeCanvas();
     const cameraRef = {
       camera: resizeCamera(
-        createCamera({ position: [0, 0, 5], target: [0, 0, 0], near: 0.01, far: 8 }),
+        createCamera({
+          mode: "perspective",
+          position: [0, 0, 5],
+          target: [0, 0, 0],
+          near: 0.01,
+          far: 8,
+        }),
         200,
         100,
       ),
@@ -236,7 +242,11 @@ describe("camera controls", () => {
   it("lets a picked wheel point pass an empty bounds corner", async () => {
     const canvas = new FakeCanvas();
     const cameraRef = {
-      camera: resizeCamera(createCamera({ position: [0, 0, 5], target: [0, 0, 0] }), 200, 100),
+      camera: resizeCamera(
+        createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
+        200,
+        100,
+      ),
     };
     const anchor: Vec3 = [0, 0, 0];
     installCameraControls({
@@ -270,7 +280,13 @@ describe("camera controls", () => {
   it("uses current navigation bounds for immediate orbit safety", async () => {
     const canvas = new FakeCanvas();
     const initial = resizeCamera(
-      createCamera({ position: [0, 0, 5], target: [0, 0, 0], near: 0.01, far: 1000 }),
+      createCamera({
+        mode: "perspective",
+        position: [0, 0, 5],
+        target: [0, 0, 0],
+        near: 0.01,
+        far: 1000,
+      }),
       200,
       100,
     );
@@ -304,7 +320,13 @@ describe("camera controls", () => {
   it("applies queued orbit deltas with the live bounds supplier", async () => {
     const canvas = new FakeCanvas();
     const initial = resizeCamera(
-      createCamera({ position: [0, 0, 5], target: [0, 0, 0], near: 0.01, far: 1000 }),
+      createCamera({
+        mode: "perspective",
+        position: [0, 0, 5],
+        target: [0, 0, 0],
+        near: 0.01,
+        far: 1000,
+      }),
       200,
       100,
     );
@@ -346,7 +368,11 @@ describe("camera controls", () => {
   it("clears the orbit widget when the pointer gesture ends", async () => {
     const canvas = new FakeCanvas();
     const cameraRef = {
-      camera: resizeCamera(createCamera({ position: [0, 0, 5], target: [0, 0, 0] }), 200, 100),
+      camera: resizeCamera(
+        createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
+        200,
+        100,
+      ),
     };
     const marker = vi.fn<(pivot: Vec3 | undefined) => void>();
     installCameraControls({
@@ -374,7 +400,11 @@ describe("camera controls", () => {
     (mode) => {
       const canvas = new FakeCanvas();
       const initial = setProjection(
-        resizeCamera(createCamera({ position: [0, 0, 5], target: [0, 0, 0] }), 200, 100),
+        resizeCamera(
+          createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
+          200,
+          100,
+        ),
         mode,
       );
       const cameraRef = { camera: initial };
@@ -408,7 +438,7 @@ describe("camera controls", () => {
   it("keeps mouse pan pace after zoom and composes multiple events", () => {
     const canvas = new FakeCanvas();
     const initial = resizeCamera(
-      zoomCamera(createCamera({ position: [0, 0, 5], target: [0, 0, 0] }), -1),
+      zoomCamera(createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }), -1),
       200,
       100,
     );
@@ -458,7 +488,7 @@ describe("camera controls", () => {
   ])("pans the scene right with %s+middle drag", (_modifier, modifiers) => {
     const canvas = new FakeCanvas();
     const initial = resizeCamera(
-      createCamera({ position: [0, 0, 5], target: [0, 0, 0] }),
+      createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
       200,
       100,
     );
@@ -488,7 +518,7 @@ describe("camera controls", () => {
   it("captures one target-plane anchor for Shift+middle drag", async () => {
     const canvas = new FakeCanvas();
     const initial = resizeCamera(
-      createCamera({ position: [0, 0, 5], target: [0, 0, 0] }),
+      createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
       200,
       100,
     );
@@ -523,7 +553,7 @@ describe("camera controls", () => {
   it("anchors pinch zoom at the current local midpoint after panning", () => {
     const canvas = new FakeCanvas();
     const initial = resizeCamera(
-      createCamera({ position: [0, 0, 5], target: [0, 0, 0] }),
+      createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
       200,
       100,
     );
@@ -560,7 +590,13 @@ describe("camera controls", () => {
     const canvas = new FakeCanvas();
     const cameraRef = {
       camera: resizeCamera(
-        createCamera({ position: [0, 0, 5], target: [0, 0, 0], near: 0.01, far: 8 }),
+        createCamera({
+          mode: "perspective",
+          position: [0, 0, 5],
+          target: [0, 0, 0],
+          near: 0.01,
+          far: 8,
+        }),
         200,
         100,
       ),

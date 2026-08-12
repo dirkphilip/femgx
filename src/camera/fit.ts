@@ -65,7 +65,13 @@ function fitOrthographic(inputs: FitInputs): Camera {
     dimensions.height / FIT_FRAME_FRACTION,
     dimensions.width / (aspect * FIT_FRAME_FRACTION),
   );
-  const distance = Math.max(-Math.min(...depth) + FIT_POSITION_MARGIN, FIT_POSITION_MARGIN);
+  const orbitClearance =
+    Math.hypot(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY, bounds.maxZ - bounds.minZ) / 2;
+  const distance = Math.max(
+    -Math.min(...depth) + FIT_POSITION_MARGIN,
+    orbitClearance + cameraDepthMargin(bounds),
+    FIT_POSITION_MARGIN,
+  );
   const fittedDepth = depth.map((value) => value + distance);
   const near = fittedNear(fittedDepth);
   return {

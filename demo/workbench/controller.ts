@@ -244,8 +244,8 @@ export class WorkbenchController {
       this.viewport.setInstanceVisible(instanceId, true);
     }
     this.applyCurrentDisplayState();
+    this.viewport.setCamera(setProjection(this.viewport.camera, "orthographic"));
     this.viewport.fitView();
-    this.viewport.setCamera(setProjection(this.viewport.camera, "perspective"));
     this.visibilityPanel.rebuild();
     this.canvas.dataset["hovered"] = "";
     this.canvas.dataset["selected"] = "";

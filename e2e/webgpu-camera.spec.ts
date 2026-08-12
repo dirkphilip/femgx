@@ -126,7 +126,9 @@ test("snaps every named face and signed corner through the view cube", async ({ 
     await target.focus();
     await page.keyboard.press("Enter");
     await expect
-      .poll(async () => directionAlignment(await readNavigationState(canvas), direction))
+      .poll(async () => directionAlignment(await readNavigationState(canvas), direction), {
+        message: `${id} face alignment`,
+      })
       .toBeGreaterThan(0.99999);
   }
 
@@ -141,7 +143,9 @@ test("snaps every named face and signed corner through the view cube", async ({ 
     await target.focus();
     await page.keyboard.press("Enter");
     await expect
-      .poll(async () => directionAlignment(await readNavigationState(canvas), direction))
+      .poll(async () => directionAlignment(await readNavigationState(canvas), direction), {
+        message: `${corner} corner alignment`,
+      })
       .toBeGreaterThan(0.99999);
   }
 });
@@ -370,6 +374,9 @@ function dotVector(a: readonly number[], b: readonly number[]): number {
 test("keeps empty-canvas wheel zoom anchored at the cursor", async ({ page }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
+  const projection = page.getByTestId("projection-toggle");
+  await projection.click();
+  await expect(projection).toHaveText("Perspective");
   await page.getByTestId("fit-view").click();
   const box = await canvas.boundingBox();
   if (box === null) throw new Error("canvas has no bounding box");

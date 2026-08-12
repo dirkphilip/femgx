@@ -61,10 +61,10 @@ export function assertValidCamera(camera: Camera): void {
   }
 }
 
-/** Creates a camera with useful defaults for a model viewer. */
+/** Creates an orthographic camera by default; pass `mode: "perspective"` to opt into perspective. */
 export function createCamera(options: Partial<Camera> = {}): Camera {
   const camera = {
-    mode: options.mode ?? "perspective",
+    mode: options.mode ?? "orthographic",
     position: options.position ?? [3, 3, 5],
     target: options.target ?? [0, 0, 0],
     up: options.up ?? [0, 1, 0],

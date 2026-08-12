@@ -62,7 +62,7 @@ test("cancels a box selection with Escape and never changes selection", async ({
 test("reports the active model, renderer, instances, parts, and batches", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("status")).toHaveText(
-    /Bolted plate assembly · webgpu · \d+ visible · 4 parts · \d+ batches · (perspective|orthographic) camera/,
+    /Bolted plate assembly · webgpu · \d+ visible · 4 parts · \d+ batches · orthographic camera/,
   );
   await expect(page.getByTestId("renderer-status")).toHaveText(/Renderer webgpu/);
   await expect(page.getByTestId("stats-panel")).toBeHidden();

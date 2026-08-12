@@ -64,7 +64,12 @@ describe("view-cube camera actions", () => {
   });
 
   it("moves only outward when an exact perspective pose would clip", () => {
-    const initial = createCamera({ position: [0, 0, 1], target: [0, 0, 0], far: 100 });
+    const initial = createCamera({
+      mode: "perspective",
+      position: [0, 0, 1],
+      target: [0, 0, 0],
+      far: 100,
+    });
     const snapped = snapCameraToDirection(initial, bounds, [0, 0, 1]);
     expect(eyeDirection(snapped)).toEqual([0, 0, 1]);
     expect(snapped.position[2]).toBeGreaterThan(2);

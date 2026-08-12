@@ -114,7 +114,8 @@ const { createScene, createFemViewport, createResultField } = require("femgx");
 - `InteractionTarget`, `setTargetSelected()`, and `setTargetHighlighted()` provide
   immutable dispatch for any part, instance, body, element, face, or node identity;
   `clearSelection()` preserves non-selection state.
-- `createCamera()` supports perspective/orthographic projection, orbit, pan, zoom, and resize.
+- `createCamera()` defaults to orthographic projection and supports perspective as an explicit
+  mode, plus orbit, pan, zoom, and resize.
 - `installCameraControls()` adds the library's SpaceClaim-style mouse/touch behavior and
   renderer-owned rotation-origin axis widget without requiring the demo's tree, toolbar, or info panels.
 - `createFemViewport()` is the canonical application path: it owns the packed runtime, fitted
