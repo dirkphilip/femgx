@@ -26,11 +26,14 @@ reconstructing an undeformed CPU face plane.
 The picked orbit point is a fixed world-space pivot for the gesture. Orbit
 rotates the existing camera frame around it without first translating the eye
 or `camera.target`, so the first movement is proportional to the pointer delta
-instead of recentering sharply. If pointer movement begins before the GPU pick
-resolves, the gesture uses the current model-bounds center and ignores the late
-result. Wheel, Shift+middle-drag, and pinch change only eye distance or
-orthographic scale around the current stable target. Zoom therefore never
-scales or re-picks the target away from the model, and equal unclamped
+instead of recentering sharply. While the asynchronous GPU pick is pending,
+pointer movement advances the gesture baseline but does not change the camera or
+publish a pivot marker. Once the pick resolves, subsequent movement uses the
+picked point; a model-bounds center is used only for a definitive miss or
+failure while the gesture remains active. A result after release, cancellation,
+or replacement is ignored. Wheel, Shift+middle-drag, and pinch change only eye
+distance or orthographic scale around the current stable target. Zoom therefore
+never scales or re-picks the target away from the model, and equal unclamped
 zoom-out/zoom-in sequences are reversible.
 
 The scene bound is a conservative orbit collision volume, while zoom protects
