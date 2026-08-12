@@ -99,11 +99,11 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   `gpu-pipelines.ts`.
 - Element edges use translucent neutral black rather than inheriting each
   part's fill color, so topology stays readable without obscuring the model.
-- Edge and node topology records carry all owning body ids. A topology record is
-  drawn when it is unowned or at least one owner is visible; it is hidden only
-  when every owner is hidden. This makes body visibility consistent for filled
-  faces, derived edges, and node glyphs, including shared topology, without
-  cloning geometry or materials.
+- Edge and node topology records carry owner/neighbor body conditions. Exterior
+  and unowned topology stays visible under the existing rules; a cross-body
+  interface is drawn only when its owner is visible and its neighbor is hidden.
+  The same predicate drives filled faces, depth, picking, deformation, edges,
+  and node glyphs, without cloning geometry or materials.
 - The demo drives the overlay by applying an `{ edge: true }` part override to
   every part (`Edge overlay` toggle) and flips the overlay depth compare with
   the `Depth test` toggle (see

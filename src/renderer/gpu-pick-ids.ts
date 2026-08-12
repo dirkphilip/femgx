@@ -51,35 +51,45 @@ export function buildFacePrimitivePickIds(geometry: Geometry): Uint32Array {
   return pickIds;
 }
 
-/** Builds interleaved per-triangle face/body pick ids for one storage binding. */
+/** Builds interleaved per-triangle face/owner/neighbor ids for one storage binding. */
 export function buildPrimitiveFaceBodyPickData(geometry: Geometry): Uint32Array {
   const facePickIds = buildFacePrimitivePickIds(geometry);
   const bodyPickIds = buildBodyPrimitivePickIds(geometry);
-  const data = new Uint32Array(facePickIds.length * 2);
+  const data = new Uint32Array(facePickIds.length * 3);
   for (let triangle = 0; triangle < facePickIds.length; triangle += 1) {
-    data[triangle * 2] = facePickIds[triangle] ?? 0;
-    data[triangle * 2 + 1] = bodyPickIds[triangle] ?? 0;
+    const facePickId = facePickIds[triangle] ?? 0;
+    const face = geometry.primitive === "triangles" ? geometry.faces?.[facePickId - 1] : undefined;
+    data[triangle * 3] = facePickId;
+    data[triangle * 3 + 1] = bodyPickIds[triangle] ?? 0;
+    const neighborElementId = face?.neighborElementIds[0];
+    const neighborBody =
+      neighborElementId === undefined ? undefined : bodyIdForElement(geometry, neighborElementId);
+    data[triangle * 3 + 2] =
+      neighborBody === undefined || neighborBody + 1 === data[triangle * 3 + 1]
+        ? 0
+        : neighborBody + 1;
   }
   return data;
 }
 
-/** Builds one face/body pair per authored node sprite for the node passes. */
+/** Builds one face/owner/neighbor record per authored node sprite. */
 export function buildNodeBodyPickData(
   geometry: Geometry,
   spritePickIds?: ArrayLike<number>,
 ): Uint32Array {
   const nodeCount = (geometry.nodePositions?.length ?? 0) / 3;
   const owners = nodeBodyOwners(geometry);
-  // The shared binding is array<vec2<u32>>, whose minimum valid storage
-  // binding is one complete 8-byte pair even when this part has no nodes.
+  // The shared binding is array<vec3<u32>>, whose minimum valid storage
+  // is one complete 12-byte record even when this part has no nodes. Node
+  // topology ownership remains an array of owner/neighbor pairs below.
   const sprites =
     spritePickIds ?? Uint32Array.from({ length: nodeCount }, (_, nodeId) => nodeId + 1);
-  const data = new Uint32Array(Math.max(2, sprites.length * 2));
+  const data = new Uint32Array(Math.max(3, sprites.length * 3));
   for (let sprite = 0; sprite < sprites.length; sprite += 1) {
     const pickId = sprites[sprite] ?? 0;
     const bodyIds = owners.get(pickId - 1);
     const bodyId = bodyIds?.size === 1 ? [...bodyIds][0] : undefined;
-    if (bodyId !== undefined) data[sprite * 2 + 1] = bodyId + 1;
+    if (bodyId !== undefined) data[sprite * 3 + 1] = bodyId + 1;
   }
   return data;
 }
@@ -103,13 +113,15 @@ export function buildNodeBodyOwnerData(
         if (b.bodyId === undefined) return 1;
         return a.bodyId - b.bodyId;
       });
-    bodyRanges[sprite * 2] = bodyIds.length;
+    bodyRanges[sprite * 2] = bodyIds.length / 2;
     bodyRanges[sprite * 2 + 1] = ownerIds.length;
-    bodyIds.push(...ownerIds.map(({ bodyId }) => (bodyId === undefined ? 0 : bodyId + 1)));
+    for (const { bodyId } of ownerIds) {
+      bodyIds.push(bodyId === undefined ? 0 : bodyId + 1, 0);
+    }
   }
   return {
     bodyRanges: bodyRanges.length === 0 ? new Uint32Array([0, 0]) : bodyRanges,
-    bodyIds: bodyIds.length === 0 ? new Uint32Array([0]) : new Uint32Array(bodyIds),
+    bodyIds: bodyIds.length === 0 ? new Uint32Array([0, 0]) : new Uint32Array(bodyIds),
   };
 }
 

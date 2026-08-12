@@ -10,6 +10,7 @@ import {
 import type { Element, ElementId } from "../elements/element";
 import type { ElementModel } from "../elements/model";
 import type { ElementFamily } from "../elements/shapes";
+import type { BodyId } from "./part";
 
 /** One source element face selected for tessellation. */
 export interface ElementRenderFace {
@@ -63,6 +64,38 @@ export function boundaryFacesForElements(
   const classified = classifyFaces(elements);
   const faces = allFacesForElements(elements);
   return faces.filter((_, index) => classified[index]?.boundary === true);
+}
+
+/**
+ * Returns the ordinary exterior plus cross-body interface faces. Every
+ * non-manifold face is rejected before render metadata can become ambiguous.
+ */
+export function renderFacesForElements(
+  elements: readonly Element[],
+  bodyIds: ReadonlyMap<ElementId, BodyId>,
+): readonly ElementRenderFace[] {
+  const faces = allFacesForElements(elements);
+  const neighbors = faceNeighbors(elements);
+  validateManifoldFaces(elements);
+  return faces.filter(({ element, face }) => {
+    const incident = neighbors.get(face.key) ?? [];
+    if (incident.length < 2) return true;
+    const neighborId = incident.find((id) => id !== element.id);
+    if (neighborId === undefined) return false;
+    const ownerBody = bodyIds.get(element.id);
+    const neighborBody = bodyIds.get(neighborId);
+    return ownerBody !== undefined && neighborBody !== undefined && ownerBody !== neighborBody;
+  });
+}
+
+/** Rejects ambiguous face incidence before any render subset is constructed. */
+export function validateManifoldFaces(elements: readonly Element[]): void {
+  const neighbors = faceNeighbors(elements);
+  for (const [key, incident] of neighbors) {
+    if (incident.length > 2) {
+      throw new Error(`Non-manifold face ${key} has ${incident.length} incident elements`);
+    }
+  }
 }
 
 /** Validates face identities and returns a deterministic lookup set. */

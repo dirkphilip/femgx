@@ -21,9 +21,10 @@ import { LineMeshBuilder, TriangleMeshBuilder, type MeshVertex } from "./mesh-bu
 import type { Vec3 } from "../math/vec3";
 import {
   allFacesForElements,
-  boundaryFacesForElements,
   faceIdentity,
   faceNeighbors,
+  renderFacesForElements,
+  validateManifoldFaces,
   validateFaceSelectionForElements,
   type ElementRenderFace,
 } from "./element-face-selection";
@@ -54,8 +55,11 @@ export function volumeGeometry(input: VolumeGeometryInput): TriangleGeometry {
     faceSubset === undefined
       ? undefined
       : validateFaceSelectionForElements(elements, faceSubset, family);
+  if (selected !== undefined) validateManifoldFaces(elements);
   const faces =
-    selected === undefined ? boundaryFacesForElements(elements) : allFacesForElements(elements);
+    selected === undefined
+      ? renderFacesForElements(elements, assignedBodies)
+      : allFacesForElements(elements);
   const tessellation = tessellateVolumeFaces({
     model,
     faces,

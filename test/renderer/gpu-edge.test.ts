@@ -56,7 +56,7 @@ describe("buildMeshEdges", () => {
     const data = buildMeshEdgeData(geometry);
     expect(data.indices.length).toBe(10);
     expect(data.bodyRanges.slice(0, 2)).toEqual(new Uint32Array([0, 2]));
-    expect(data.bodyIds).toEqual(new Uint32Array([8, 9, 8, 8, 9, 9]));
+    expect(data.bodyIds).toEqual(new Uint32Array([8, 0, 9, 0, 8, 0, 8, 0, 9, 0, 9, 0]));
   });
 
   it("retains an unowned contributor on a shared edge", () => {
@@ -91,6 +91,6 @@ describe("buildMeshEdges", () => {
 
     const data = buildMeshEdgeData(geometry);
     expect(data.bodyRanges.slice(0, 2)).toEqual(new Uint32Array([0, 2]));
-    expect(data.bodyIds.slice(0, 2)).toEqual(new Uint32Array([0, 8]));
+    expect(data.bodyIds.slice(0, 4)).toEqual(new Uint32Array([0, 0, 8, 0]));
   });
 });

@@ -171,12 +171,12 @@ describe("buildPrimitiveFaceBodyPickData", () => {
       elements: [{ id: 4, primitiveStart: 0, primitiveCount: 2, bodyId: 7 }],
       bodies: [{ id: 7, elementIds: [4] }],
     };
-    expect(Array.from(buildPrimitiveFaceBodyPickData(geometry))).toEqual([5, 8, 0, 8]);
+    expect(Array.from(buildPrimitiveFaceBodyPickData(geometry))).toEqual([5, 8, 0, 0, 8, 0]);
   });
 });
 
 describe("buildNodeBodyPickData", () => {
-  it("keeps an empty node binding large enough for one vec2 storage element", () => {
+  it("keeps an empty node binding large enough for one record", () => {
     expect(
       Array.from(
         buildNodeBodyPickData({
@@ -185,7 +185,7 @@ describe("buildNodeBodyPickData", () => {
           primitive: "triangles" as const,
         }),
       ),
-    ).toEqual([0, 0]);
+    ).toEqual([0, 0, 0]);
   });
 
   it("assigns a body to nodes that belong to exactly one body", () => {
@@ -198,7 +198,7 @@ describe("buildNodeBodyPickData", () => {
       elements: [{ id: 4, primitiveStart: 0, primitiveCount: 2, bodyId: 7 }],
       bodies: [{ id: 7, elementIds: [4] }],
     };
-    expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([0, 8, 0, 8, 0, 8]);
+    expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([0, 8, 0, 0, 8, 0, 0, 8, 0]);
   });
 
   it("maps filtered sprite ids to their original body slots", () => {
@@ -212,7 +212,7 @@ describe("buildNodeBodyPickData", () => {
       bodies: [{ id: 7, elementIds: [4] }],
     };
     expect(Array.from(buildNodeBodyPickData(geometry, new Uint32Array([2, 4])))).toEqual([
-      0, 8, 0, 8,
+      0, 8, 0, 0, 8, 0,
     ]);
   });
 
@@ -234,9 +234,9 @@ describe("buildNodeBodyPickData", () => {
     };
     expect(buildNodeBodyOwnerData(geometry, new Uint32Array([1, 2, 3]))).toEqual({
       bodyRanges: new Uint32Array([0, 2, 2, 2, 4, 2]),
-      bodyIds: new Uint32Array([8, 9, 8, 9, 8, 9]),
+      bodyIds: new Uint32Array([8, 0, 9, 0, 8, 0, 9, 0, 8, 0, 9, 0]),
     });
-    expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([0, 0, 0, 0, 0, 0]);
+    expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0]);
   });
 
   it("keeps unowned contributors for shared node visibility", () => {
@@ -255,9 +255,11 @@ describe("buildNodeBodyPickData", () => {
 
     expect(buildNodeBodyOwnerData(geometry, new Uint32Array([1, 2, 3, 4]))).toEqual({
       bodyRanges: new Uint32Array([0, 2, 2, 2, 4, 1, 5, 0]),
-      bodyIds: new Uint32Array([0, 8, 0, 8, 8]),
+      bodyIds: new Uint32Array([0, 0, 8, 0, 0, 0, 8, 0, 8, 0]),
     });
-    expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([0, 0, 0, 0, 0, 8, 0, 0]);
+    expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([
+      0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0,
+    ]);
   });
 });
 

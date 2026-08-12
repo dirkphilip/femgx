@@ -81,6 +81,9 @@ fn vertexMain(
   if (hidden) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
+  if (!primitiveVisible(drawOrder[instanceIndex], vertexIndex / 3u)) {
+    output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
+  }
   output.color = instance.color;
   output.pickId = instance.pickId;
   output.emissive = instance.emissive;
@@ -212,6 +215,9 @@ fn pointVertexMain(
     clip.w,
   );
   if (hidden) {
+    output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
+  }
+  if (!topologyOwnersVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
   output.color = instance.color;

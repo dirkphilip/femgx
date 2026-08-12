@@ -877,3 +877,61 @@ test("exposes body visibility, color, and highlight controls", async ({ page }) 
   const styled = await stableCanvasPixels(page, canvas);
   expect(styled.equals(baseline), "body styling must change the WebGPU frame").toBe(false);
 });
+
+test("exposes and restores body interfaces in visible picking", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  const rect = {
+    left: 0,
+    top: 0,
+    right: box.width,
+    bottom: box.height,
+    width: box.width,
+    height: box.height,
+  };
+  const region = async (granularity: string): Promise<readonly Record<string, unknown>[]> =>
+    page.evaluate(
+      async ({ rect: value, granularity: level }) => {
+        const demo = (
+          window as typeof window & {
+            femgxDemo?: {
+              pickRegion?: (
+                selection: typeof value,
+                requested: string,
+              ) => Promise<readonly Record<string, unknown>[]>;
+            };
+          }
+        ).femgxDemo;
+        return (await demo?.pickRegion?.(value, level)) ?? [];
+      },
+      { rect, granularity },
+    );
+  const baselineFaces = await region("face");
+  const baselineFrame = await stableCanvasPixels(page, canvas);
+  const body = page.getByTestId("body-vis-6-2");
+  await body.uncheck();
+  await expect(body).not.toBeChecked();
+  const exposedFrame = await stableCanvasPixels(page, canvas);
+  expect(
+    differingPixelCount(baselineFrame, exposedFrame),
+    "hiding a body should change the rendered visible surface",
+  ).toBeGreaterThan(200);
+  const exposedFaces = await region("face");
+  expect(exposedFaces.length, "hiding a body should preserve visible face coverage").toBe(
+    baselineFaces.length,
+  );
+  expect(exposedFaces.every((target) => target["kind"] === "face")).toBe(true);
+
+  await body.check();
+  await expect(body).toBeChecked();
+  const restoredFrame = await stableCanvasPixels(page, canvas);
+  expect(
+    differingPixelCount(exposedFrame, restoredFrame),
+    "restoring the body should bring the hidden surface back",
+  ).toBeGreaterThan(200);
+  await expect
+    .poll(async () => JSON.stringify(await region("face")))
+    .toBe(JSON.stringify(baselineFaces));
+});

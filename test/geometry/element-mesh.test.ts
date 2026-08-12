@@ -359,6 +359,37 @@ describe("heterogeneousElementParts geometry", () => {
     expect(geometryFor(model, "triangle").indices.length).toBe(6 * 3);
   });
 
+  it("retains both oriented cross-body interface faces", () => {
+    const geometry = geometryFor(sharedTetPairModel(), "triangle", {
+      bodies: [
+        { id: 1, elementIds: [1] },
+        { id: 2, elementIds: [2] },
+      ],
+    });
+    const interfaces = (geometry.faces ?? []).filter((face) => face.neighborElementIds.length > 0);
+    expect(interfaces).toHaveLength(2);
+    expect(interfaces.map((face) => [face.bodyId, face.neighborElementIds])).toEqual([
+      [1, [2]],
+      [2, [1]],
+    ]);
+    expect(geometry.indices.length).toBe(8 * 3);
+  });
+
+  it("keeps same-body and named/unowned interfaces culled", () => {
+    const model = sharedTetPairModel();
+    const sameBody = geometryFor(model, "triangle", {
+      bodies: [{ id: 1, elementIds: [1, 2] }],
+    });
+    expect(sameBody.indices.length).toBe(6 * 3);
+    expect(sameBody.faces?.some((face) => face.neighborElementIds.length > 0)).toBe(false);
+
+    const namedAndUnowned = geometryFor(model, "triangle", {
+      bodies: [{ id: 1, elementIds: [1] }],
+    });
+    expect(namedAndUnowned.indices.length).toBe(6 * 3);
+    expect(namedAndUnowned.faces?.some((face) => face.neighborElementIds.length > 0)).toBe(false);
+  });
+
   it("records element tessellations so every triangle is element-pickable", () => {
     const hex = geometryFor(hex8Model(), "triangle");
     expect(hex.elements).toEqual([

@@ -278,4 +278,15 @@ describe("pick metadata", () => {
       });
     }).toThrow(/outside nodePositions/);
   });
+
+  it("rejects non-manifold face metadata", () => {
+    expect(() => {
+      validatePickIds({
+        positions: new Float32Array(9),
+        indices: new Uint32Array(3),
+        primitive: "triangles" as const,
+        faces: [{ ...face, neighborElementIds: [5, 6] }],
+      });
+    }).toThrow(/non-manifold faces are unsupported/);
+  });
 });

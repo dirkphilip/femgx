@@ -351,6 +351,11 @@ function validateFaceMetadata(geometry: Geometry): void {
       throw new Error(`Face ${face.id} references undeclared element ${face.elementId}`);
     }
     validateFaceNodes(face.id, face.nodeIds, nodeCount);
+    if (face.neighborElementIds.length > 1) {
+      throw new Error(
+        `Face ${face.id} has ${face.neighborElementIds.length} neighbors; non-manifold faces are unsupported`,
+      );
+    }
     for (const neighbor of face.neighborElementIds) {
       if (!Number.isInteger(neighbor) || neighbor < 0) {
         throw new Error(`Face ${face.id} has invalid neighbor element ${neighbor}`);

@@ -116,7 +116,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(lineVertexShader).toMatch(/primitiveFaceBodyPickIds\(vertexIndex \/ 2u\)/);
     expect(edgeVertexShader).toMatch(/topologyBodyRange\(topologyIndex\)/);
     expect(edgeVertexShader).toMatch(/highlight\.hidden == 0u/);
-    expect(pointVertexShader).toMatch(/topologyBodyVisible\(/);
+    expect(pointVertexShader).toMatch(/topologyOwnersVisible\(/);
   });
 
   it("reports a proximity-gated nearest corner node in the node pick pass", () => {

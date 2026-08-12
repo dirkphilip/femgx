@@ -114,7 +114,7 @@ describe("GPU draw path", () => {
       expect(gpu.buffers[2]?.size).toBe(4);
       expect(gpu.buffers[3]?.size).toBe(12);
       expect(gpu.buffers[4]?.size).toBe(24);
-      expect(gpu.buffers[5]?.size).toBe(44);
+      expect(gpu.buffers[5]?.size).toBe(68);
     } finally {
       restore();
     }
