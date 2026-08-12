@@ -43,7 +43,6 @@ export interface ViewportResultsState {
   readonly range: ValueRange;
   readonly colorMap: ScalarColorMap;
   readonly deformation: DeformationState | undefined;
-  readonly interaction: InteractionState;
 }
 
 /** Resolves a viewport result configuration against one scene/runtime pair. */
@@ -51,21 +50,14 @@ export function resolveViewportResults(
   config: ViewportResultsConfig,
   scene: Scene,
   runtime: PackedSceneRuntime,
-  baseInteraction: InteractionState,
 ): ViewportResultsState {
   const scalarField = deriveScalarField(config.field, config.derive);
   const range = resolveRange(scalarField, config.range, config.colorMap);
   const colorMap = config.colorMap ?? createScalarColorMap(range);
   validateMapRange(range, colorMap);
-  const interaction = applyViewportResultInteraction(
-    baseInteraction,
-    scalarField,
-    colorMap,
-    scene,
-    runtime,
-  );
+  validateResultCoverage(scalarField, scene, runtime);
   const deformation = resolveDeformation(config.deformation, scene);
-  return { config, scalarField, range, colorMap, deformation, interaction };
+  return { config, scalarField, range, colorMap, deformation };
 }
 
 /** Re-applies only the result colors while preserving an already-built deformation state. */
@@ -189,6 +181,19 @@ function validateElementId(
     throw new Error(
       `Viewport results field ${field.id} (count ${field.count}) has no value for element ${elementId} in part ${partId}`,
     );
+  }
+}
+
+function validateResultCoverage(
+  scalarField: ScalarField<"elemental">,
+  scene: Scene,
+  runtime: PackedSceneRuntime,
+): void {
+  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
+    const partId = runtime.getPartId(slot);
+    if (partId === undefined) continue;
+    const elements = scene.parts.get(partId)?.geometry.elements ?? [];
+    for (const element of elements) validateElementId(scalarField, partId, element.id);
   }
 }
 

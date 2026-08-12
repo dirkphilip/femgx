@@ -93,7 +93,7 @@ class FemViewportCore implements FemViewport {
   private currentPublicRuntime: SceneRuntime;
   private cameraRef: { camera: Camera };
   private baseInteraction: InteractionState;
-  private currentInteraction: InteractionState;
+  private effectiveInteraction: InteractionState;
   private currentResults: ViewportResultsState | undefined;
   private appliedInteraction = createInteractionState();
   private readonly removeControls: () => void;
@@ -113,7 +113,7 @@ class FemViewportCore implements FemViewport {
     this.currentRuntime = createPackedSceneRuntime(options.scene);
     this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
     this.baseInteraction = options.interaction ?? createInteractionState();
-    this.currentInteraction = this.baseInteraction;
+    this.effectiveInteraction = this.baseInteraction;
     this.cameraRef = { camera: options.camera ?? createCamera() };
     assertValidCamera(this.cameraRef.camera);
     this.resize(false);
@@ -147,7 +147,7 @@ class FemViewportCore implements FemViewport {
     return this.cameraRef.camera;
   }
   get interaction(): InteractionState {
-    return this.currentInteraction;
+    return this.baseInteraction;
   }
   get results(): ViewportResultsState | undefined {
     return this.currentResults;
@@ -160,7 +160,7 @@ class FemViewportCore implements FemViewport {
     this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
     this.pendingVisibility.clear();
     this.currentResults = undefined;
-    this.currentInteraction = this.baseInteraction;
+    this.effectiveInteraction = this.baseInteraction;
     this.appliedInteraction = createInteractionState();
     this.renderer.setDeformation(undefined);
     this.fitView(false);
@@ -189,19 +189,7 @@ class FemViewportCore implements FemViewport {
   setInteraction(interaction: InteractionState): void {
     this.ensureAlive();
     this.baseInteraction = interaction;
-    this.currentInteraction =
-      this.currentResults === undefined
-        ? interaction
-        : applyViewportResultInteraction(
-            interaction,
-            this.currentResults.scalarField,
-            this.currentResults.colorMap,
-            this.currentScene,
-            this.currentRuntime,
-          );
-    if (this.currentResults !== undefined) {
-      this.currentResults = { ...this.currentResults, interaction: this.currentInteraction };
-    }
+    this.effectiveInteraction = this.resolveEffectiveInteraction();
     this.invalidate();
   }
 
@@ -225,7 +213,7 @@ class FemViewportCore implements FemViewport {
   clearResults(): void {
     this.ensureAlive();
     this.currentResults = undefined;
-    this.currentInteraction = this.baseInteraction;
+    this.effectiveInteraction = this.baseInteraction;
     this.renderer.setDeformation(undefined);
     this.invalidate();
   }
@@ -306,12 +294,12 @@ class FemViewportCore implements FemViewport {
     const changed = changedInstanceSlots(
       this.currentRuntime,
       this.appliedInteraction,
-      this.currentInteraction,
+      this.effectiveInteraction,
     );
-    this.renderer.updateInstances(this.currentRuntime, this.currentInteraction, changed);
-    this.renderer.updateElements(this.currentRuntime, this.currentInteraction);
+    this.renderer.updateInstances(this.currentRuntime, this.effectiveInteraction, changed);
+    this.renderer.updateElements(this.currentRuntime, this.effectiveInteraction);
     this.renderer.render(this.currentRuntime, this.cameraRef.camera, this.currentScene.parts);
-    this.appliedInteraction = this.currentInteraction;
+    this.appliedInteraction = this.effectiveInteraction;
     this.options.onRender?.();
   }
 
@@ -393,15 +381,23 @@ class FemViewportCore implements FemViewport {
   }
 
   private applyResults(results: ViewportResultsConfig): void {
-    const resolved = resolveViewportResults(
-      results,
-      this.currentScene,
-      this.currentRuntime,
-      this.baseInteraction,
-    );
+    const resolved = resolveViewportResults(results, this.currentScene, this.currentRuntime);
     this.currentResults = resolved;
-    this.currentInteraction = resolved.interaction;
+    this.effectiveInteraction = this.resolveEffectiveInteraction();
     this.renderer.setDeformation(resolved.deformation);
+  }
+
+  private resolveEffectiveInteraction(): InteractionState {
+    const results = this.currentResults;
+    return results === undefined
+      ? this.baseInteraction
+      : applyViewportResultInteraction(
+          this.baseInteraction,
+          results.scalarField,
+          results.colorMap,
+          this.currentScene,
+          this.currentRuntime,
+        );
   }
 
   private ensureAlive(): void {

@@ -4,12 +4,12 @@ import { createElementModel } from "../../src/elements/model";
 import { HEX20_SHAPE } from "../../src/elements/shapes";
 import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
 import { createPart } from "../../src/geometry/part";
-import { createInteractionState } from "../../src/interaction/interaction";
+import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
 import { identity } from "../../src/math/mat4";
 import { createResultField } from "../../src/results/fields";
 import { createScene } from "../../src/scene/scene";
 import { createFemViewport } from "../../src/viewport/fem-viewport";
-import { resolveViewportResults } from "../../src/viewport/results";
+import { applyViewportResultInteraction, resolveViewportResults } from "../../src/viewport/results";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
 
 let restoreGpuGlobals: (() => void) | undefined;
@@ -131,14 +131,20 @@ describe("viewport results workflow", () => {
       },
       scene,
       runtime,
-      createInteractionState(),
     );
 
     expect(resolved.scalarField.name).toBe("Stress von Mises");
     expect(resolved.scalarField.values[0]).toBeCloseTo(3);
     expect(resolved.range.min).toBeLessThan(3);
     expect(resolved.range.max).toBeGreaterThan(3);
-    expect(resolved.interaction.elementOverrides.get("1/0")?.get(0)?.color).toMatchObject({
+    const effective = applyViewportResultInteraction(
+      createInteractionState(),
+      resolved.scalarField,
+      resolved.colorMap,
+      scene,
+      runtime,
+    );
+    expect(effective.elementOverrides.get("1/0")?.get(0)?.color).toMatchObject({
       r: 0.95,
       g: 0.85,
       a: 1,
@@ -168,6 +174,7 @@ describe("viewport results workflow", () => {
 
     expect(viewport.results?.scalarField.name).toBe("Stress von Mises");
     expect(viewport.results?.deformation?.loadCaseCount).toBe(1);
+    expect(viewport.interaction).toBe(base);
     expect(
       gpu.writes.some((write) => write.bytes.byteLength === nodalDisplacement().values.byteLength),
     ).toBe(true);
@@ -175,6 +182,32 @@ describe("viewport results workflow", () => {
     viewport.clearResults();
     expect(viewport.results).toBeUndefined();
     expect(viewport.interaction).toBe(base);
+    viewport.destroy();
+  });
+
+  it("keeps the host interaction stable while result rendering is active", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const base = setPartOverride(createInteractionState(), 1, {
+      color: { r: 1, g: 0, b: 0, a: 1 },
+    });
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: createTestScene(),
+      device: fakeGpuDevice().device,
+      interaction: base,
+      results: { field: elementalTensor(), derive: "vonMises" },
+    });
+
+    expect(viewport.interaction).toBe(base);
+    expect(viewport.results).not.toHaveProperty("interaction");
+    const next = setPartOverride(base, 1, { emissive: 0.4 });
+    viewport.setInteraction(next);
+    expect(viewport.interaction).toBe(next);
+    expect(viewport.results).not.toHaveProperty("interaction");
+
+    viewport.clearResults();
+    expect(viewport.interaction).toBe(next);
     viewport.destroy();
   });
 
@@ -235,12 +268,7 @@ describe("viewport results workflow", () => {
     });
 
     expect(() =>
-      resolveViewportResults(
-        { field, range: { min: 0, max: 1 } },
-        scene,
-        runtime,
-        createInteractionState(),
-      ),
+      resolveViewportResults({ field, range: { min: 0, max: 1 } }, scene, runtime),
     ).toThrow("has no value for element 0 in part 1");
   });
 });

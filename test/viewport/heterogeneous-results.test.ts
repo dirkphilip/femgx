@@ -15,7 +15,7 @@ import { createInteractionState } from "../../src/interaction/interaction";
 import { identity } from "../../src/math/mat4";
 import { createResultField } from "../../src/results/fields";
 import { createScene } from "../../src/scene/scene";
-import { resolveViewportResults } from "../../src/viewport/results";
+import { applyViewportResultInteraction, resolveViewportResults } from "../../src/viewport/results";
 
 function mixedModel() {
   const nodes: number[] = [];
@@ -88,14 +88,18 @@ describe("heterogeneous viewport results", () => {
       },
       scene,
       runtime,
-      createInteractionState(),
     );
 
-    expect([...(result.interaction.elementOverrides.get("1/0")?.keys() ?? [])]).toEqual([
-      1, 2, 3, 4,
-    ]);
-    expect([...(result.interaction.elementOverrides.get("1/1")?.keys() ?? [])]).toEqual([5]);
-    expect([...(result.interaction.elementOverrides.get("1/2")?.keys() ?? [])]).toEqual([6]);
+    const effective = applyViewportResultInteraction(
+      createInteractionState(),
+      result.scalarField,
+      result.colorMap,
+      scene,
+      runtime,
+    );
+    expect([...(effective.elementOverrides.get("1/0")?.keys() ?? [])]).toEqual([1, 2, 3, 4]);
+    expect([...(effective.elementOverrides.get("1/1")?.keys() ?? [])]).toEqual([5]);
+    expect([...(effective.elementOverrides.get("1/2")?.keys() ?? [])]).toEqual([6]);
     expect(result.deformation?.displacements.size).toBe(3);
     expect(result.deformation?.displacements.get(32)?.length).toBe(22 * 3);
   });
