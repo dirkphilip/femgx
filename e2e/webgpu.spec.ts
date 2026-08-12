@@ -114,6 +114,78 @@ function visiblePixelCount(rgba: Buffer, threshold = 32): number {
   return count;
 }
 
+interface PixelBounds {
+  readonly minX: number;
+  readonly minY: number;
+  readonly maxX: number;
+  readonly maxY: number;
+}
+
+function yellowPixel(rgba: Buffer, offset: number): boolean {
+  const red = rgba[offset] ?? 0;
+  const green = rgba[offset + 1] ?? 0;
+  const blue = rgba[offset + 2] ?? 0;
+  return red > 180 && green > 120 && blue < 140 && red - blue > 70;
+}
+
+function yellowComponents(rgba: Buffer, width: number): PixelBounds[] {
+  const height = Math.floor(rgba.length / 4 / width);
+  const visited = new Uint8Array(width * height);
+  const components: PixelBounds[] = [];
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const seed = y * width + x;
+      if (visited[seed] === 1 || !yellowPixel(rgba, seed * 4)) continue;
+      components.push(collectYellowComponent(rgba, width, height, seed, visited));
+    }
+  }
+  return components;
+}
+
+function collectYellowComponent(
+  rgba: Buffer,
+  width: number,
+  height: number,
+  seed: number,
+  visited: Uint8Array,
+): PixelBounds {
+  visited[seed] = 1;
+  const queue = [seed];
+  let minX = seed % width;
+  let minY = Math.floor(seed / width);
+  let maxX = minX;
+  let maxY = minY;
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    const pixel = queue[cursor] ?? seed;
+    const pixelX = pixel % width;
+    const pixelY = Math.floor(pixel / width);
+    minX = Math.min(minX, pixelX);
+    minY = Math.min(minY, pixelY);
+    maxX = Math.max(maxX, pixelX);
+    maxY = Math.max(maxY, pixelY);
+    for (const [nextX, nextY] of [
+      [pixelX - 1, pixelY],
+      [pixelX + 1, pixelY],
+      [pixelX, pixelY - 1],
+      [pixelX, pixelY + 1],
+    ] as const) {
+      const inBounds = nextX >= 0 && nextY >= 0 && nextX < width && nextY < height;
+      const next = nextY * width + nextX;
+      if (inBounds && visited[next] !== 1 && yellowPixel(rgba, next * 4)) {
+        visited[next] = 1;
+        queue.push(next);
+      }
+    }
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+function hasYellowPixel(rgba: Buffer, width: number, x: number, y: number): boolean {
+  if (x < 0 || y < 0 || x >= width) return false;
+  const offset = (y * width + x) * 4;
+  return offset + 2 < rgba.length && yellowPixel(rgba, offset);
+}
+
 /** Measures the central luminance spread across pixels changed by selection. */
 function selectedLuminanceSpread(baseline: Buffer, selected: Buffer): number {
   const luminances: number[] = [];
@@ -388,6 +460,61 @@ test("renders element nodes as a separate visible annotation pass", async ({ pag
   expect(restored.equals(withoutNodes), "showing node glyphs must change the plain frame").toBe(
     false,
   );
+});
+
+test("renders complete point sprites with authored node picks", async ({ page }) => {
+  await loadWebGpuPage(page);
+  await page.getByTestId("model-select").selectOption("gallery");
+  await page.getByTestId("node-overlay").click();
+  await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "false");
+
+  const pointVisibility = page.locator("input[data-instance-id]");
+  await expect(pointVisibility).toHaveCount(10);
+  for (let index = 1; index < 10; index += 1) await pointVisibility.nth(index).uncheck();
+  await page.getByTestId("fit-view").click();
+
+  const canvas = page.getByTestId("view-canvas");
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  const rgba = await canvasRgba(page, canvas);
+  const width = Math.round(box.width);
+  const components = yellowComponents(rgba, width);
+  expect(components.length, "gallery point elements must produce separate glyphs").toBeGreaterThan(
+    4,
+  );
+  for (const [index, bounds] of components.entries()) {
+    const centerX = Math.round((bounds.minX + bounds.maxX) / 2);
+    const centerY = Math.round((bounds.minY + bounds.maxY) / 2);
+    expect(
+      bounds.maxX - bounds.minX,
+      `point ${index} must have horizontal coverage`,
+    ).toBeGreaterThan(5);
+    expect(bounds.maxY - bounds.minY, `point ${index} must have vertical coverage`).toBeGreaterThan(
+      5,
+    );
+    for (const [label, x, y] of [
+      ["left", bounds.minX + 2, centerY],
+      ["right", bounds.maxX - 2, centerY],
+      ["top", centerX, bounds.minY + 2],
+      ["bottom", centerX, bounds.maxY - 2],
+    ] as const) {
+      expect(
+        hasYellowPixel(rgba, width, x, y),
+        `point ${index} must cover its ${label} cardinal`,
+      ).toBe(true);
+    }
+  }
+
+  const firstPoint = components[0];
+  if (firstPoint === undefined) throw new Error("point sprite coverage has no first glyph");
+  await canvas.evaluate((node) => {
+    (node as HTMLElement).dataset["hovered"] = "";
+  });
+  await page.mouse.move(
+    box.x + (firstPoint.minX + firstPoint.maxX) / 2,
+    box.y + (firstPoint.minY + firstPoint.maxY) / 2,
+  );
+  await expect.poll(() => canvas.getAttribute("data-hovered"), { timeout: 2_000 }).toMatch(/^n:/);
 });
 
 test("composes the transparency fixture and picks its nearest translucent face", async ({

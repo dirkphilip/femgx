@@ -15,6 +15,8 @@ import {
 import type { DrawPipelines } from "./gpu-pipelines";
 import { createBuffer, type PartResource } from "./gpu-support";
 
+const POINT_SPRITE_INDICES = [0, 1, 2, 0, 2, 3] as const;
+
 export {
   INSTANCE_STRIDE,
   EMISSIVE_BYTE_OFFSET,
@@ -105,10 +107,7 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
       positions.set(nodes.subarray(source, source + 3), (sprite * 4 + corner) * 3);
       ids[sprite * 4 + corner] = pickId;
     }
-    indices.set(
-      [0, 1, 2, 0, 2, 3].map((index) => index + sprite * 4),
-      sprite * 6,
-    );
+    writePointSpriteIndices(indices, sprite);
   }
   const resource: PartResource = {
     vertexBuffer: createBuffer(
@@ -247,10 +246,16 @@ function expandPointGeometry(
       positions[offset + 2] = z;
       nodePickIds[point * 4 + corner] = geometry.nodePickIds?.[sourceIndex] ?? 0;
     }
-    const vertex = point * 4;
-    indices.set([vertex, vertex + 1, vertex + 2, vertex + 2, vertex + 1, vertex + 3], point * 6);
+    writePointSpriteIndices(indices, point);
   }
   return { positions, indices, nodePickIds };
+}
+
+function writePointSpriteIndices(indices: Uint32Array, sprite: number): void {
+  indices.set(
+    POINT_SPRITE_INDICES.map((index) => index + sprite * 4),
+    sprite * POINT_SPRITE_INDICES.length,
+  );
 }
 
 function createIndexBuffer(device: GPUDevice, indices: Uint32Array): GPUBuffer {
