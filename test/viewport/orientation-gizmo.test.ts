@@ -8,6 +8,7 @@ import {
 class FakeNode {
   readonly children: FakeNode[] = [];
   readonly attributes = new Map<string, string>();
+  readonly listeners = new Map<string, Array<(event: unknown) => void>>();
   readonly dataset: Record<string, string> = {};
   readonly style = {
     opacity: "",
@@ -46,6 +47,16 @@ class FakeNode {
   setAttribute(name: string, value: string): void {
     this.attributes.set(name, value);
   }
+
+  addEventListener(name: string, listener: (event: unknown) => void): void {
+    const listeners = this.listeners.get(name) ?? [];
+    listeners.push(listener);
+    this.listeners.set(name, listeners);
+  }
+
+  dispatchEvent(name: string, event: unknown): void {
+    for (const listener of this.listeners.get(name) ?? []) listener(event);
+  }
 }
 
 class FakeDocument {
@@ -73,7 +84,7 @@ function options(container: HTMLElement): OrientationGizmoOptions {
 }
 
 describe("orientation gizmo", () => {
-  it("creates one accessible root with a center marker and signed axes", () => {
+  it("creates one accessible root with six faces, eight corners, and four arrows", () => {
     installDocument();
     const container = new FakeNode();
     const canvas = new FakeNode();
@@ -83,30 +94,69 @@ describe("orientation gizmo", () => {
     const root = container.children[1];
     expect(root?.className).toBe("femgx-orientation-gizmo");
     expect(root?.attributes.get("data-femgx-orientation-gizmo")).toBe("true");
-    expect(root?.attributes.get("aria-label")).toBe("World coordinate orientation");
-    expect(root?.children[0]?.children).toHaveLength(13);
-    expect(root?.children[0]?.children[0]?.attributes.get("data-center-marker")).toBe("true");
-    expect(
-      root?.children[0]?.children.slice(1).map((child) => child.attributes.get("data-axis")),
-    ).toEqual(["+x", "+x", "-x", "-x", "+y", "+y", "-y", "-y", "+z", "+z", "-z", "-z"]);
+    expect(root?.attributes.get("role")).toBe("group");
+    expect(root?.attributes.get("aria-label")).toContain("View cube");
+    const svg = root?.children[0];
+    const targets = svg?.children.filter((child) => child.attributes.has("data-view-cube-target"));
+    expect(targets).toHaveLength(18);
+    expect(svg?.children.filter((child) => child.attributes.has("data-view-face"))).toHaveLength(6);
+    expect(svg?.children.filter((child) => child.attributes.has("data-view-corner"))).toHaveLength(
+      8,
+    );
+    expect(svg?.children.filter((child) => child.attributes.has("data-rotate"))).toHaveLength(4);
     gizmo.destroy();
   });
 
-  it("updates existing axis nodes and restores owned container positioning", () => {
+  it("updates existing face nodes and restores owned container positioning", () => {
     installDocument();
     const container = new FakeNode();
     const canvas = new FakeNode();
     container.appendChild(canvas);
     const gizmo = createOrientationGizmo(options(container as unknown as HTMLElement));
     const root = container.children[1];
-    const line = root?.children[0]?.children[1];
+    const face = root?.children[0]?.children.find(
+      (child) => child.attributes.get("data-view-face") === "right",
+    );
+    const before = face?.children[0]?.attributes.get("points");
     gizmo.update(createCamera({ position: [5, 0, 0], target: [0, 0, 0] }));
-    expect(line?.attributes.get("x2")).toBe("50.00");
+    expect(face?.children[0]?.attributes.get("points")).not.toBe(before);
+    expect(face?.attributes.get("aria-label")).toBe("View Right (+X)");
     expect(container.style.position).toBe("relative");
     gizmo.destroy();
     gizmo.destroy();
     expect(container.children).toHaveLength(1);
     expect(container.style.position).toBe("");
+  });
+
+  it("maps keyboard and modifier actions, then ignores destroyed controls", () => {
+    installDocument();
+    const container = new FakeNode();
+    const canvas = new FakeNode();
+    container.appendChild(canvas);
+    const actions: unknown[] = [];
+    const gizmo = createOrientationGizmo(options(container as unknown as HTMLElement), (action) => {
+      actions.push(action);
+    });
+    const arrow = container.children[1]?.children[0]?.children.find(
+      (child) => child.attributes.get("data-rotate") === "left",
+    );
+    if (arrow === undefined) throw new Error("left arrow is missing");
+    arrow.dispatchEvent("click", { shiftKey: false, ctrlKey: true, metaKey: false });
+    arrow.dispatchEvent("keydown", {
+      key: "Enter",
+      shiftKey: true,
+      ctrlKey: false,
+      metaKey: false,
+      preventDefault: () => undefined,
+    });
+    expect(actions).toEqual([
+      { kind: "rotate", rotation: "left", stepDegrees: 5 },
+      { kind: "rotate", rotation: "left", stepDegrees: 90 },
+    ]);
+
+    gizmo.destroy();
+    arrow.dispatchEvent("click", { shiftKey: false, ctrlKey: false, metaKey: false });
+    expect(actions).toHaveLength(2);
   });
 
   it("preserves an existing positioning context", () => {

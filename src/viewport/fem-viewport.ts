@@ -1,6 +1,7 @@
 import { assertValidCamera, createCamera, resizeCamera, type Camera } from "../camera/camera";
 import { installCameraControls } from "../camera/controls";
 import { fitCamera } from "../camera/fit";
+import { applyViewCubeAction, type ViewCubeAction } from "../camera/view-cube";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionTarget } from "../interaction/target-types";
@@ -147,7 +148,9 @@ class FemViewportCore implements FemViewport {
     this.orientationGizmo =
       options.orientationGizmo === undefined
         ? undefined
-        : createOrientationGizmo(options.orientationGizmo);
+        : createOrientationGizmo(options.orientationGizmo, (action) => {
+            this.applyOrientationAction(action);
+          });
     try {
       if (options.results !== undefined) this.applyResults(options.results);
       this.render();
@@ -378,11 +381,8 @@ class FemViewportCore implements FemViewport {
   private applyVisibility(changed: readonly number[]): void {
     this.ensureAlive();
     if (changed.length === 0) return;
-    if (this.batchDepth > 0) {
-      for (const slot of changed) this.pendingVisibility.add(slot);
-    } else {
-      this.renderer.updateVisibility(this.currentRuntime, changed);
-    }
+    if (this.batchDepth > 0) for (const slot of changed) this.pendingVisibility.add(slot);
+    else this.renderer.updateVisibility(this.currentRuntime, changed);
     this.invalidate();
   }
 
@@ -403,6 +403,15 @@ class FemViewportCore implements FemViewport {
     this.currentResults = resolved;
     this.effectiveInteraction = this.resolveEffectiveInteraction();
     this.renderer.setDeformation(resolved.deformation);
+  }
+
+  private applyOrientationAction(action: ViewCubeAction): void {
+    this.cameraRef.camera = applyViewCubeAction(
+      this.cameraRef.camera,
+      sceneWorldBounds(this.currentScene, this.currentRuntime),
+      action,
+    );
+    this.invalidate();
   }
 
   private resolveEffectiveInteraction(): InteractionState {
