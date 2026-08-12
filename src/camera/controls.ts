@@ -38,10 +38,10 @@ const ZOOM_DRAG_SCALE = 300;
 
 /**
  * Installs SpaceClaim-style mouse/touch navigation and returns its disposer.
- * Middle drag spins around the nearest visible point when it resolves before
- * movement, otherwise around the model-bounds center. The pivot stays fixed
- * for the gesture. Ctrl/Meta+middle pans, Shift+middle zooms, and touch provides
- * orbit/pan/pinch gestures.
+ * Middle drag spins around the nearest visible point after it resolves, falling
+ * back to the model-bounds center only when the pick misses or fails. The pivot
+ * stays fixed for the gesture. Ctrl/Meta+middle pans, Shift+middle zooms, and
+ * touch provides orbit/pan/pinch gestures.
  */
 export function installCameraControls(options: CameraControlOptions): () => void {
   const controls = new CameraControls(options);
@@ -201,10 +201,7 @@ class CameraControls {
 
   private applyOrbit(pointerId: number, step: GestureStep): boolean {
     const gesture = this.orbitGestures.get(pointerId);
-    if (gesture !== undefined && !gesture.resolved) {
-      gesture.resolved = true;
-      this.options.navigation.setOrbitPivot(gesture.fallbackPivot);
-    }
+    if (gesture !== undefined && !gesture.resolved) return false;
     const { cameraRef } = this.options;
     const before = cameraRef.camera;
     cameraRef.camera = orbitCameraWithOptionalBounds(
