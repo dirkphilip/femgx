@@ -98,7 +98,7 @@ function transitionWithinBounds(
       ? 1
       : safeProgress(camera, bounds, margin, transition, approachPoint);
   if (progress === 0) return camera;
-  return updateClipPlanes(transition(camera, progress), bounds, margin, approachPoint);
+  return updateCameraClipPlanes(transition(camera, progress), bounds, margin, approachPoint);
 }
 
 function safeProgress(
@@ -119,10 +119,11 @@ function safeProgress(
   return low;
 }
 
-function updateClipPlanes(
+/** Recomputes the bounds-safe clip interval after a camera transition. */
+export function updateCameraClipPlanes(
   camera: Camera,
   bounds: Bounds,
-  margin: number,
+  margin = cameraDepthMargin(bounds),
   approachPoint?: Vec3,
 ): Camera {
   const depths = boundsDepths(camera, bounds);
@@ -141,13 +142,14 @@ function updateClipPlanes(
   return { ...camera, near, far };
 }
 
-function minimumDepth(camera: Camera, bounds: Bounds): number {
+/** Returns the nearest signed depth of the world bounds in camera space. */
+export function minimumCameraDepth(camera: Camera, bounds: Bounds): number {
   return Math.min(...boundsDepths(camera, bounds));
 }
 
 function transitionMinimumDepth(camera: Camera, bounds: Bounds, approachPoint?: Vec3): number {
   return approachPoint === undefined
-    ? minimumDepth(camera, bounds)
+    ? minimumCameraDepth(camera, bounds)
     : pointDepth(camera, approachPoint);
 }
 

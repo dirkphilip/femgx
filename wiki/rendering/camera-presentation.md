@@ -49,9 +49,11 @@ clamp or a singular-frame fallback. Both spin and pan use the SpaceClaim
 direction convention. Left-drag is reserved for selection, including its
 shift-based inspection modifiers. The demo presentation uses a light studio
 background and restrained material colors so geometry edges and selection
-emphasis remain legible. Its lower-left orientation gizmo follows the camera's
-screen-space world-axis projection, and pressing `Z` fits the selected visible
-occurrences (or the complete scene when there is no selection).
+emphasis remain legible. Its lower-left viewport-owned view cube follows the
+camera's screen-space world-axis projection: six named faces and eight signed
+corners snap the camera, while surrounding arrows rotate by 15° (90° with
+Shift, 5° with Ctrl/Meta). Pressing `Z` fits the selected visible occurrences
+(or the complete scene when there is no selection).
 
 Camera admission through `createCamera` and `FemViewport.setCamera` rejects
 non-finite vectors/scalars, degenerate view bases, invalid field of view or

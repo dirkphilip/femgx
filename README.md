@@ -157,9 +157,10 @@ viewport.destroy();
 ```
 
 `orientationGizmo` is optional. When enabled, femgx creates the accessible,
-non-interactive orientation SVG inside the supplied container, keeps it aligned
-with the viewport camera, and removes it when `viewport.destroy()` runs. The
-container must contain the canvas; the caller does not provide SVG markup.
+interactive view-cube SVG inside the supplied container. Its six named faces,
+eight signed corners, and four step arrows stay aligned with the viewport
+camera; it is removed when `viewport.destroy()` runs. The container must contain
+the canvas; the caller does not provide SVG markup.
 
 Static results use the same viewport and authoritative scene. Elemental tensor values can be
 derived and colored while a nodal displacement field drives the existing GPU deformation path:

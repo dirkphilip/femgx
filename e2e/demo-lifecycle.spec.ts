@@ -136,12 +136,15 @@ test("shows diagnostics from target and empty-scene context menus", async ({ pag
   );
   await expect(menu.getByText("Show diagnostics")).toBeVisible();
 });
-test("shows a camera-aligned world coordinate gizmo", async ({ page }) => {
+test("shows an accessible interactive view cube", async ({ page }) => {
   await page.goto("/");
   const gizmo = page.locator('[data-femgx-orientation-gizmo="true"]');
   await expect(gizmo).toBeVisible();
-  await expect(gizmo.locator("circle")).toHaveCount(1);
-  await expect(gizmo.locator("line")).toHaveCount(6);
+  await expect(gizmo).toHaveAttribute("role", "group");
+  await expect(gizmo.locator("[data-view-face]")).toHaveCount(6);
+  await expect(gizmo.locator("[data-view-corner]")).toHaveCount(8);
+  await expect(gizmo.locator("[data-rotate]")).toHaveCount(4);
+  await expect(gizmo.locator("circle")).toHaveCount(8);
   await expect(gizmo.locator("text")).toHaveCount(6);
   await expect(gizmo).toContainText("+X");
   await expect(gizmo).toContainText("−X");
@@ -150,26 +153,19 @@ test("shows a camera-aligned world coordinate gizmo", async ({ page }) => {
   await expect(gizmo).toContainText("+Z");
   await expect(gizmo).toContainText("−Z");
 });
-test("updates the existing orientation gizmo nodes after camera movement", async ({ page }) => {
+test("updates existing view-cube nodes after camera movement", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  const positiveX = page.locator('[data-femgx-orientation-gizmo="true"] line[data-axis="+x"]');
+  const front = page.locator('[data-femgx-orientation-gizmo="true"] [data-view-face="front"]');
   await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
-  const before = await positiveX.evaluate((line) => ({
-    x2: line.getAttribute("x2"),
-    y2: line.getAttribute("y2"),
-  }));
+  const before = await front.locator("polygon").getAttribute("points");
   const box = await canvas.boundingBox();
   if (box === null) throw new Error("canvas has no bounding box");
   await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
   await page.mouse.down({ button: "middle" });
   await page.mouse.move(box.x + box.width * 0.62, box.y + box.height * 0.42);
   await page.mouse.up({ button: "middle" });
-  await expect
-    .poll(() =>
-      positiveX.evaluate((line) => ({ x2: line.getAttribute("x2"), y2: line.getAttribute("y2") })),
-    )
-    .not.toEqual(before);
+  await expect.poll(() => front.locator("polygon").getAttribute("points")).not.toBe(before);
 });
 test("zooms toward the point under the mouse and fits selection with Z", async ({ page }) => {
   await page.goto("/");

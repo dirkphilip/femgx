@@ -260,6 +260,26 @@ test("a one-finger tap still performs picking and selection", async ({ browser }
   await context.close();
 });
 
+test("a view-cube tap changes the camera without starting canvas dragging", async ({ browser }) => {
+  const context = await browser.newContext({
+    baseURL: BASE_URL,
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toBeVisible();
+  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  const before = await canvas.getAttribute("data-camera");
+
+  await page.locator('[data-view-face="front"]').tap();
+  await expect.poll(() => canvas.getAttribute("data-camera")).not.toBe(before);
+  await expect.poll(() => canvas.getAttribute("data-dragging")).toBe("false");
+  await context.close();
+});
+
 function normalizeVector(vector: readonly number[]): readonly [number, number, number] {
   const magnitude = Math.hypot(...vector);
   return [(vector[0] ?? 0) / magnitude, (vector[1] ?? 0) / magnitude, (vector[2] ?? 0) / magnitude];

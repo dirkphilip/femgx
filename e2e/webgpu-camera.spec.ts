@@ -104,6 +104,83 @@ test("crosses both orbit poles through repeated full rotations", async ({ page }
   await expect(page.locator('[data-femgx-orientation-gizmo="true"]')).toBeVisible();
 });
 
+test("snaps every named face and signed corner through the view cube", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("fit-view").click();
+
+  const faces = {
+    front: [0, 0, 1],
+    back: [0, 0, -1],
+    right: [1, 0, 0],
+    left: [-1, 0, 0],
+    top: [0, 1, 0],
+    bottom: [0, -1, 0],
+  } as const;
+  await page.locator('[data-view-face="front"]').click();
+  await expect
+    .poll(async () => directionAlignment(await readNavigationState(canvas), faces.front))
+    .toBeGreaterThan(0.99999);
+  for (const [id, direction] of Object.entries(faces)) {
+    const target = page.locator(`[data-view-face="${id}"]`);
+    await target.focus();
+    await page.keyboard.press("Enter");
+    await expect
+      .poll(async () => directionAlignment(await readNavigationState(canvas), direction))
+      .toBeGreaterThan(0.99999);
+  }
+
+  const corners = ["+++", "++-", "+-+", "+--", "-++", "-+-", "--+", "---"] as const;
+  for (const corner of corners) {
+    const direction = corner.split("").map((sign) => (sign === "+" ? 1 : -1)) as [
+      number,
+      number,
+      number,
+    ];
+    const target = page.locator(`[data-view-corner="${corner}"]`);
+    await target.focus();
+    await page.keyboard.press("Enter");
+    await expect
+      .poll(async () => directionAlignment(await readNavigationState(canvas), direction))
+      .toBeGreaterThan(0.99999);
+  }
+});
+
+test("rotates the current view cube by default, Shift, and Control/Meta steps", async ({
+  page,
+}) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const modifier = process.platform === "darwin" ? "Meta" : "Control";
+  const cases = [
+    { name: "default", key: undefined, degrees: 15 },
+    { name: "Shift", key: "Shift" as const, degrees: 90 },
+    { name: "modifier", key: modifier, degrees: 5 },
+  ];
+
+  for (const testCase of cases) {
+    await page.getByTestId("fit-view").click();
+    const before = await readNavigationState(canvas);
+    const arrow = page.locator('[data-rotate="left"]');
+    await arrow.focus();
+    if (testCase.key === undefined) {
+      await page.keyboard.press("Enter");
+    } else {
+      await page.keyboard.down(testCase.key);
+      await page.keyboard.press("Enter");
+      await page.keyboard.up(testCase.key);
+    }
+    await expect
+      .poll(async () => cameraStepDegrees(before, await readNavigationState(canvas)))
+      .toBeCloseTo(testCase.degrees, 1);
+    const after = await readNavigationState(canvas);
+    expect(cameraStepDegrees(before, after), `${testCase.name} arrow step`).toBeCloseTo(
+      testCase.degrees,
+      1,
+    );
+  }
+});
+
 test("shows a camera-oriented rotation-origin widget only during orbit", async ({ page }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
@@ -239,6 +316,35 @@ function expectCameraFrame(
   expect(dotVector(crossVector(right, forward), up)).toBeCloseTo(1, 5);
   expect(camera.near).toBeGreaterThan(0);
   expect(camera.far).toBeGreaterThan(camera.near);
+}
+
+function directionAlignment(
+  navigation: Awaited<ReturnType<typeof readNavigationState>>,
+  expected: readonly [number, number, number],
+): number {
+  const direction = normalizeVector([
+    navigation.camera.position[0] - navigation.camera.target[0],
+    navigation.camera.position[1] - navigation.camera.target[1],
+    navigation.camera.position[2] - navigation.camera.target[2],
+  ]);
+  return dotVector(direction, normalizeVector(expected));
+}
+
+function cameraStepDegrees(
+  before: Awaited<ReturnType<typeof readNavigationState>>,
+  after: Awaited<ReturnType<typeof readNavigationState>>,
+): number {
+  const first = normalizeVector([
+    before.camera.position[0] - before.camera.target[0],
+    before.camera.position[1] - before.camera.target[1],
+    before.camera.position[2] - before.camera.target[2],
+  ]);
+  const second = normalizeVector([
+    after.camera.position[0] - after.camera.target[0],
+    after.camera.position[1] - after.camera.target[1],
+    after.camera.position[2] - after.camera.target[2],
+  ]);
+  return (Math.acos(Math.max(-1, Math.min(1, dotVector(first, second)))) * 180) / Math.PI;
 }
 
 function normalizeVector(vector: readonly number[]): readonly [number, number, number] {
