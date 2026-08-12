@@ -42,6 +42,11 @@ const SAFE_MARGIN_FRACTION = 1e-5;
 const MIN_NEAR_FRACTION = 1e-7;
 const SEARCH_STEPS = 32;
 
+interface ZoomProtection {
+  readonly approachPoint?: Vec3;
+  readonly protectedBounds?: readonly Bounds[];
+}
+
 /** Zooms toward the target while keeping the supplied bounds in front of the camera. */
 export function zoomCameraWithinBounds(camera: Camera, amount: number, bounds: Bounds): Camera {
   assertFinite("zoom amount", amount);
@@ -61,16 +66,19 @@ export function zoomCameraAtPointWithinBounds(
   amount: number,
   pivot: Vec3,
   bounds: Bounds,
-  approachPoint?: Vec3,
+  protection?: ZoomProtection,
 ): Camera {
   assertFinite("zoom amount", amount);
   if (amount === 0) return camera;
+  const approachPoint = protection?.approachPoint;
+  const protectedBounds = protection?.protectedBounds;
   if (approachPoint !== undefined) assertFiniteVector("zoom approach point", approachPoint);
   return transitionWithinBounds(
     camera,
     bounds,
     (value, progress) => zoomCameraAtPoint(value, amount * progress, pivot),
     approachPoint,
+    protectedBounds,
   );
 }
 
@@ -89,31 +97,37 @@ function transitionWithinBounds(
   bounds: Bounds,
   transition: (camera: Camera, progress: number) => Camera,
   approachPoint?: Vec3,
+  protectedBounds?: readonly Bounds[],
 ): Camera {
-  const margin = cameraDepthMargin(bounds);
-  if (transitionMinimumDepth(camera, bounds, approachPoint) <= margin) return camera;
+  if (transitionSafety(camera, bounds, approachPoint, protectedBounds) <= 0) return camera;
   const requested = transition(camera, 1);
   const progress =
-    transitionMinimumDepth(requested, bounds, approachPoint) > margin
+    transitionSafety(requested, bounds, approachPoint, protectedBounds) > 0
       ? 1
-      : safeProgress(camera, bounds, margin, transition, approachPoint);
+      : safeProgress(camera, bounds, transition, approachPoint, protectedBounds);
   if (progress === 0) return camera;
-  return updateCameraClipPlanes(transition(camera, progress), bounds, margin, approachPoint);
+  return updateCameraClipPlanes(
+    transition(camera, progress),
+    bounds,
+    cameraDepthMargin(bounds),
+    approachPoint,
+    protectedBounds,
+  );
 }
 
 function safeProgress(
   camera: Camera,
   bounds: Bounds,
-  margin: number,
   transition: (camera: Camera, progress: number) => Camera,
   approachPoint?: Vec3,
+  protectedBounds?: readonly Bounds[],
 ): number {
   let low = 0;
   let high = 1;
   for (let step = 0; step < SEARCH_STEPS; step += 1) {
     const middle = (low + high) / 2;
     const candidate = transition(camera, middle);
-    if (transitionMinimumDepth(candidate, bounds, approachPoint) > margin) low = middle;
+    if (transitionSafety(candidate, bounds, approachPoint, protectedBounds) > 0) low = middle;
     else high = middle;
   }
   return low;
@@ -125,9 +139,11 @@ export function updateCameraClipPlanes(
   bounds: Bounds,
   margin = cameraDepthMargin(bounds),
   approachPoint?: Vec3,
+  protectedBounds?: readonly Bounds[],
 ): Camera {
-  const depths = boundsDepths(camera, bounds);
-  const positiveDepths = depths.filter((depth) => depth > 0);
+  const protectedDepthValues = protectedDepths(camera, bounds, protectedBounds);
+  const allDepths = [...boundsDepths(camera, bounds), ...protectedDepthValues];
+  const positiveDepths = allDepths.filter((depth) => depth > 0);
   const nearest = Math.min(...(positiveDepths.length > 0 ? positiveDepths : [margin]));
   const farthest = Math.max(...(positiveDepths.length > 0 ? positiveDepths : [margin]));
   const scale = boundsScale(bounds);
@@ -147,10 +163,49 @@ export function minimumCameraDepth(camera: Camera, bounds: Bounds): number {
   return Math.min(...boundsDepths(camera, bounds));
 }
 
-function transitionMinimumDepth(camera: Camera, bounds: Bounds, approachPoint?: Vec3): number {
-  return approachPoint === undefined
-    ? minimumCameraDepth(camera, bounds)
-    : pointDepth(camera, approachPoint);
+function transitionSafety(
+  camera: Camera,
+  bounds: Bounds,
+  approachPoint: Vec3 | undefined,
+  protectedBounds: readonly Bounds[] | undefined,
+): number {
+  const candidates = safetyBounds(bounds, approachPoint, protectedBounds);
+  const geometrySafety = Math.min(
+    ...candidates.map(
+      (candidate) => minimumCameraDepth(camera, candidate) - cameraDepthMargin(candidate),
+    ),
+  );
+  const approachSafety =
+    approachPoint === undefined
+      ? Number.POSITIVE_INFINITY
+      : pointDepth(camera, approachPoint) - cameraDepthMargin(bounds);
+  return Math.min(geometrySafety, approachSafety);
+}
+
+function safetyBounds(
+  bounds: Bounds,
+  approachPoint: Vec3 | undefined,
+  protectedBounds: readonly Bounds[] | undefined,
+): readonly Bounds[] {
+  if (protectedBounds === undefined) return approachPoint === undefined ? [bounds] : [];
+  return protectedBounds.length === 0 ? [bounds] : protectedBounds;
+}
+
+function protectedDepths(
+  camera: Camera,
+  bounds: Bounds,
+  protectedBounds: readonly Bounds[] | undefined,
+): number[] {
+  return usableProtectedBounds(bounds, protectedBounds).flatMap((candidate) =>
+    boundsDepths(camera, candidate),
+  );
+}
+
+function usableProtectedBounds(
+  bounds: Bounds,
+  protectedBounds: readonly Bounds[] | undefined,
+): readonly Bounds[] {
+  return protectedBounds === undefined || protectedBounds.length === 0 ? [bounds] : protectedBounds;
 }
 
 function boundsDepths(camera: Camera, bounds: Bounds): number[] {

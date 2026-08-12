@@ -1,5 +1,5 @@
 import { assertValidCamera, createCamera, resizeCamera, type Camera } from "../camera/camera";
-import { installCameraControls } from "../camera/controls";
+import { installCameraControlsWithProtectedBounds } from "../camera/controls";
 import { fitCamera } from "../camera/fit";
 import { applyViewCubeAction, type ViewCubeAction } from "../camera/view-cube";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
@@ -14,7 +14,7 @@ import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
-import { sceneWorldBounds } from "./scene-bounds";
+import { sceneWorldBounds, sceneWorldBoundsList } from "./scene-bounds";
 import { cssSize, installResize, validateOrientationGizmo } from "./dom";
 import {
   createOrientationGizmo,
@@ -124,20 +124,19 @@ class FemViewportCore implements FemViewport {
     this.currentScene = options.scene;
     this.currentRuntime = createPackedSceneRuntime(options.scene);
     this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
-    this.baseInteraction = options.interaction ?? createInteractionState();
-    this.effectiveInteraction = this.baseInteraction;
+    this.effectiveInteraction = this.baseInteraction =
+      options.interaction ?? createInteractionState();
     this.cameraRef = { camera: options.camera ?? createCamera() };
     assertValidCamera(this.cameraRef.camera);
     this.resize(false);
     if (options.camera === undefined) this.fitView(false);
-    this.removeControls = installCameraControls({
+    this.removeControls = installCameraControlsWithProtectedBounds({
       canvas: options.canvas,
       cameraRef: this.cameraRef,
       navigation: renderer,
       bounds: () => sceneWorldBounds(this.currentScene, this.currentRuntime),
-      onRender: () => {
-        this.invalidate();
-      },
+      protectedBounds: () => sceneWorldBoundsList(this.currentScene, this.currentRuntime),
+      onRender: this.invalidate.bind(this),
       ...(options.onGestureChange === undefined
         ? {}
         : { onGestureChange: options.onGestureChange }),
