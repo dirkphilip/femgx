@@ -25,6 +25,7 @@ export {
   writeDrawOrder,
   writeTransparentOrder,
   writeEdgeOrder,
+  writeNodeOrder,
   type InstanceStorage,
   type InstanceUpdate,
 } from "./gpu-instance-storage";
@@ -365,6 +366,7 @@ export function destroyDrawResources(draw: DrawResources): void {
     storage.orderBuffer.destroy();
     storage.transparentOrderBuffer.destroy();
     storage.edgeOrderBuffer.destroy();
+    storage.nodeOrderBuffer.destroy();
     storage.highlight.buffer.destroy();
   }
   destroyDeformationBuffers(draw.deformations);

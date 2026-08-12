@@ -53,16 +53,19 @@ export function drawOneBatch(
 ): GPURenderPipeline | undefined {
   const { intent, current } = options;
   const orderKind =
-    intent.kind === "edge"
-      ? "edge"
-      : intent.kind === "surface" && intent.pass === "transparent"
-        ? "transparent"
-        : "opaque";
+    intent.kind === "nodes"
+      ? "node"
+      : intent.kind === "edge"
+        ? "edge"
+        : intent.pass === "transparent"
+          ? "transparent"
+          : "opaque";
   const overlay = orderKind === "edge";
   const nodes = intent.kind === "nodes";
   const part = context.parts.get(call.partId);
   const storage = draw.storages.get(call.partId);
   if (part === undefined || storage === undefined) return current;
+  if (nodes && part.geometry.primitive === "points") return current;
   const geometry = nodes ? uploadNodePart(draw, part) : uploadPart(draw, part);
   const subset =
     !nodes && part.geometry.primitive === "triangles" && part.geometry.faceSubset !== undefined;

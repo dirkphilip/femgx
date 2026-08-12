@@ -19,15 +19,17 @@ export function orderBindGroup(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   storage: InstanceStorage,
-  orderKind: "opaque" | "transparent" | "edge",
+  orderKind: "opaque" | "transparent" | "edge" | "node",
   part: PartDrawInputs,
 ): GPUBindGroup {
   const orderBuffer =
     orderKind === "edge"
       ? storage.edgeOrderBuffer
-      : orderKind === "transparent"
-        ? storage.transparentOrderBuffer
-        : storage.orderBuffer;
+      : orderKind === "node"
+        ? storage.nodeOrderBuffer
+        : orderKind === "transparent"
+          ? storage.transparentOrderBuffer
+          : storage.orderBuffer;
   if (part.cache === false) return instanceBindGroup(device, layout, storage, orderBuffer, part);
   if (orderKind === "edge") {
     return (storage.edgeBindGroup ??= instanceBindGroup(

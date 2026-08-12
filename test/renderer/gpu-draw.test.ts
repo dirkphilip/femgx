@@ -10,6 +10,7 @@ import {
   uploadPart,
   writeDrawOrder,
   writeEdgeOrder,
+  writeNodeOrder,
   type DrawCallContext,
 } from "../../src/renderer/gpu-draw";
 import { drawBatches } from "../../src/renderer/gpu-batch";
@@ -66,6 +67,14 @@ const logicalPointPart: Part = createPart(3, {
     { id: 11, primitiveStart: 1, primitiveCount: 1 },
   ],
   nodePickIds: new Uint32Array([1, 2]),
+});
+
+const nodePart: Part = createPart(4, {
+  positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+  indices: new Uint32Array([0, 1, 2]),
+  primitive: "triangles",
+  nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+  nodePickIds: new Uint32Array([1, 2, 3]),
 });
 
 function record(x: number): ArrayBuffer {
@@ -198,7 +207,13 @@ describe("GPU draw path", () => {
   it("encodes transform, style, emissive, and stable pick id into a record", () => {
     const data = encodeInstanceRecord(
       translation(1, 2, 3),
-      { color: { r: 1, g: 0.5, b: 0.25, a: 1 }, emissive: 0.4, opacity: 0.5, edge: false },
+      {
+        color: { r: 1, g: 0.5, b: 0.25, a: 1 },
+        emissive: 0.4,
+        opacity: 0.5,
+        edge: false,
+        nodes: false,
+      },
       7,
     );
     const floats = new Float32Array(data);
@@ -257,7 +272,13 @@ describe("GPU draw path", () => {
       const styled = (emissive: number) =>
         encodeInstanceRecord(
           translation(1, 0, 0),
-          { color: { r: 0.23, g: 0.51, b: 0.96, a: 1 }, emissive, opacity: 1, edge: false },
+          {
+            color: { r: 0.23, g: 0.51, b: 0.96, a: 1 },
+            emissive,
+            opacity: 1,
+            edge: false,
+            nodes: false,
+          },
           1,
         );
       patchInstances(draw, part.id, [{ slot: 0, data: styled(0) }]);
@@ -295,17 +316,18 @@ describe("GPU draw path", () => {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
       patchInstances(draw, part.id, [{ slot: 5, data: record(1) }]);
-      expect(gpu.buffers).toHaveLength(5);
+      expect(gpu.buffers).toHaveLength(6);
       expect(gpu.buffers[0]?.size).toBe(6 * 96);
       expect(gpu.buffers[1]?.size).toBe(6 * 4);
       expect(gpu.buffers[2]?.size).toBe(6 * 4);
       expect(gpu.buffers[3]?.size).toBe(6 * 4);
-      expect(gpu.buffers[4]?.size).toBe(HIGHLIGHT_BUFFER_SIZE);
+      expect(gpu.buffers[4]?.size).toBe(6 * 4);
+      expect(gpu.buffers[5]?.size).toBe(HIGHLIGHT_BUFFER_SIZE);
       patchInstances(draw, part.id, [{ slot: 10, data: record(2) }]);
-      expect(gpu.buffers[5]?.size).toBe(12 * 96);
-      expect(gpu.buffers[6]?.size).toBe(12 * 4);
+      expect(gpu.buffers[6]?.size).toBe(12 * 96);
       expect(gpu.buffers[7]?.size).toBe(12 * 4);
       expect(gpu.buffers[8]?.size).toBe(12 * 4);
+      expect(gpu.buffers[9]?.size).toBe(12 * 4);
     } finally {
       restore();
     }
@@ -335,6 +357,22 @@ describe("GPU draw path", () => {
       writeEdgeOrder(draw, part.id, new Uint32Array([0, 1, 2]));
       expect(gpu.writes.length).toBe(afterInitial);
       writeEdgeOrder(draw, part.id, new Uint32Array([0, 2]));
+      expect(writeRanges(gpu, afterInitial)).toEqual([[4, 8]]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("writes the node annotation order to its own buffer", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      writeNodeOrder(draw, part.id, new Uint32Array([0, 1, 2]));
+      const afterInitial = gpu.writes.length;
+      writeNodeOrder(draw, part.id, new Uint32Array([0, 1, 2]));
+      expect(gpu.writes.length).toBe(afterInitial);
+      writeNodeOrder(draw, part.id, new Uint32Array([0, 2]));
       expect(writeRanges(gpu, afterInitial)).toEqual([[4, 8]]);
     } finally {
       restore();
@@ -374,6 +412,38 @@ describe("GPU draw path", () => {
         { indexCount: 6, instanceCount: 2 },
       ]);
       expect(gpu.bindGroupCreations).toBe(2);
+    } finally {
+      restore();
+    }
+  });
+
+  it("draws node annotations through the node order buffer", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, nodePart.id, [
+        { slot: 0, data: record(0) },
+        { slot: 1, data: record(1) },
+      ]);
+      writeNodeOrder(draw, nodePart.id, new Uint32Array([0, 1]));
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[nodePart.id, nodePart]]) },
+        [{ partId: nodePart.id, instanceCount: 2 }],
+        { kind: "nodes", pipeline: {} as GPURenderPipeline },
+      );
+      pass.end();
+      expect(gpu.drawCalls).toEqual([{ indexCount: 18, instanceCount: 2 }]);
+      expect(gpu.bindGroupCreations).toBe(1);
     } finally {
       restore();
     }

@@ -70,7 +70,10 @@ unsupported result — never a second renderer.
 
 Core style opacity uses order-independent weighted transparency for fractional
 alpha while preserving instanced batching and nearest-geometry picking; alpha
-zero is visually absent but remains pickable.
+zero is visually absent but remains pickable. Edge overlays inherit that
+resolved opacity, while node annotation membership is controlled by
+part/instance style flags and Point parts use their primary glyph without a
+duplicate overlay.
 
 Everything outside the "Core now" rows is **not** a requirement of the minimum
 product.

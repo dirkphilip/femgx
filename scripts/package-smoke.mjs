@@ -236,7 +236,6 @@ function main() {
       "  viewport.resize();",
       "  viewport.setInteraction(interaction);",
       "  viewport.setEdgeDepthTest(true);",
-      "  viewport.setNodeOverlay(true);",
       "  viewport.setPartVisible(part.id, true);",
       "  const runtime = viewport.runtime;",
       "  runtime.getInstanceIds();",

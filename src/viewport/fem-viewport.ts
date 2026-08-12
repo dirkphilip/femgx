@@ -60,7 +60,6 @@ export interface FemViewport {
   setResults(results: ViewportResultsConfig): void;
   clearResults(): void;
   setEdgeDepthTest(enabled: boolean): void;
-  setNodeOverlay(enabled: boolean): void;
   setPartVisible(partId: PartId, visible: boolean): void;
   setAssemblyNodeVisible(nodeId: AssemblyNodeId, visible: boolean): void;
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void;
@@ -242,12 +241,6 @@ class FemViewportCore implements FemViewport {
   setEdgeDepthTest(enabled: boolean): void {
     this.ensureAlive();
     this.renderer.setEdgeDepthTest(enabled);
-    this.invalidate();
-  }
-
-  setNodeOverlay(enabled: boolean): void {
-    this.ensureAlive();
-    this.renderer.setNodeOverlay(enabled);
     this.invalidate();
   }
 

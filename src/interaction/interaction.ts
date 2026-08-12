@@ -9,8 +9,10 @@ import {
   type InteractionState,
   type InteractionStateData,
   type InteractionTheme,
+  type PrimitiveStyleOverride,
   type ResolvedStyle,
   type StyleOverride,
+  validatePrimitiveStyleOverride,
   validateStyleOverride,
 } from "./state";
 import {
@@ -27,6 +29,7 @@ export type {
   Color,
   InteractionState,
   InteractionTheme,
+  PrimitiveStyleOverride,
   ResolvedStyle,
   StyleOverride,
 } from "./state";
@@ -43,8 +46,8 @@ const defaultTheme: InteractionTheme = {
 
 /** Creates an empty interaction state. */
 export function createInteractionState(theme: InteractionTheme = defaultTheme): InteractionState {
-  for (const style of Object.values(theme) as readonly StyleOverride[]) {
-    validateStyleOverride(style);
+  for (const style of Object.values(theme) as readonly PrimitiveStyleOverride[]) {
+    validatePrimitiveStyleOverride(style);
   }
   const data: InteractionStateData = {
     highlightedPartIds: new Set(),
@@ -162,9 +165,9 @@ export function setHoveredElement(
 export function setElementOverride(
   state: InteractionState,
   ref: ElementRef,
-  override: StyleOverride | undefined,
+  override: PrimitiveStyleOverride | undefined,
 ): InteractionState {
-  validateStyleOverride(override);
+  validatePrimitiveStyleOverride(override);
   const data = readInteractionState(state);
   const elementOverrides = updateNestedMap(
     data.elementOverrides,

@@ -17,6 +17,7 @@ import {
   writeDrawOrder,
   writeTransparentOrder,
   writeEdgeOrder,
+  writeNodeOrder,
   INSTANCE_STRIDE,
   type DrawCall,
   type DrawResources,
@@ -28,6 +29,7 @@ import { defaultStyle } from "./gpu-support";
 import {
   buildDrawOrder,
   buildEdgeOrder,
+  buildNodeOrder,
   buildTransparentOrder,
   buildDrawCalls,
   buildInstanceLayout,
@@ -51,9 +53,11 @@ export class RendererAttachment {
   public calls: readonly DrawCall[] = [];
   public transparentCalls: readonly DrawCall[] = [];
   public edgeCalls: readonly DrawCall[] = [];
+  public nodeCalls: readonly DrawCall[] = [];
   public instances: Instance[] = [];
   public slotByInstanceId = new Map<InstanceId, number>();
   private edgeFlags: boolean[] = [];
+  private nodeFlags: boolean[] = [];
   private transparentFlags: boolean[] = [];
   private appliedHiddenBodyIds: ReadonlyMap<string, ReadonlySet<number>> | undefined;
 
@@ -84,7 +88,7 @@ export class RendererAttachment {
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
     if (layout === undefined) return attached;
-    const { updates, edgeChanged, transparentChanged } = collectInstanceUpdates(
+    const { updates, edgeChanged, nodeChanged, transparentChanged } = collectInstanceUpdates(
       runtime,
       layout,
       interaction,
@@ -105,7 +109,7 @@ export class RendererAttachment {
     const visibilityChanged = runtime.visibleCount !== layout.visibleCount;
     if (visibilityChanged) {
       this.rebuildVisibleOrders(runtime, layout, changedInstanceIds, bundle);
-    } else if (edgeChanged.size > 0 || transparentChanged.size > 0) {
+    } else if (edgeChanged.size > 0 || nodeChanged.size > 0 || transparentChanged.size > 0) {
       this.rebuildCalls();
     }
     return (
@@ -113,8 +117,22 @@ export class RendererAttachment {
       transformChanged ||
       visibilityChanged ||
       edgeChanged.size > 0 ||
+      nodeChanged.size > 0 ||
       transparentChanged.size > 0
     );
+  }
+
+  /** Rebuilds node orders after the renderer supplies the current part map. */
+  public updateNodeOrders(parts: ReadonlyMap<PartId, Part>, bundle: GpuBundle): void {
+    const runtime = this.runtime;
+    const layout = this.layout;
+    if (runtime === undefined || layout === undefined) return;
+    for (const partId of layout.partOrder) {
+      const order = buildNodeOrder(layout, runtime, partId, this.nodeFlags, parts);
+      writeNodeOrder(bundle.draw, partId, order);
+      layout.partNodeCounts.set(partId, order.length);
+    }
+    this.rebuildCalls();
   }
 
   /** Writes the per-part element-highlight buffers as diffed records. */
@@ -171,8 +189,9 @@ export class RendererAttachment {
   /** Clears the attachment so the next frame re-uploads everything. */
   public clear(): void {
     this.runtime = this.layout = undefined;
-    this.calls = this.transparentCalls = this.edgeCalls = [];
+    this.calls = this.transparentCalls = this.edgeCalls = this.nodeCalls = [];
     this.edgeFlags = [];
+    this.nodeFlags = [];
     this.transparentFlags = [];
     this.appliedHiddenBodyIds = undefined;
   }
@@ -184,6 +203,7 @@ export class RendererAttachment {
     this.instances = snapshot.instances;
     this.slotByInstanceId = snapshot.slotByInstanceId;
     this.edgeFlags = new Array<boolean>(runtime.instanceCount).fill(false);
+    this.nodeFlags = new Array<boolean>(runtime.instanceCount).fill(false);
     this.transparentFlags = new Array<boolean>(runtime.instanceCount).fill(false);
     this.appliedHiddenBodyIds = undefined;
     const allSlots = Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
@@ -235,7 +255,11 @@ export class RendererAttachment {
   }
 
   private styleFlags(): InstanceStyleFlags {
-    return { edgeFlags: this.edgeFlags, transparentFlags: this.transparentFlags };
+    return {
+      edgeFlags: this.edgeFlags,
+      nodeFlags: this.nodeFlags,
+      transparentFlags: this.transparentFlags,
+    };
   }
 
   private rebuildTransparentOrders(
@@ -270,12 +294,14 @@ export class RendererAttachment {
       this.calls = [];
       this.transparentCalls = [];
       this.edgeCalls = [];
+      this.nodeCalls = [];
       return;
     }
     const calls = buildDrawCalls(layout);
     this.calls = calls.calls;
     this.transparentCalls = calls.transparentCalls;
     this.edgeCalls = calls.edgeCalls;
+    this.nodeCalls = calls.nodeCalls;
   }
 }
 

@@ -34,6 +34,7 @@ export const defaultStyle: ResolvedStyle = {
   emissive: 0,
   opacity: 1,
   edge: false,
+  nodes: false,
 };
 
 export const vertexLayout: GPUVertexBufferLayout = {

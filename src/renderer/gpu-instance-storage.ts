@@ -29,7 +29,7 @@ export interface InstanceUpdate {
 
 /**
  * Persistent per-part GPU storage: a slot-stable record buffer, compacted
- * opaque and transparent draw-order buffers, a compacted edge-overlay order buffer, and a
+ * opaque, transparent, edge-overlay, and node-annotation order buffers, and a
  * bounded-bucket emphasis buffer. Hidden instances stay in the record buffer
  * but are removed from the draw-order lists, so only visible geometry is ever
  * drawn. The edge order holds the subset of visible instances whose resolved
@@ -40,6 +40,7 @@ export interface InstanceStorage {
   readonly orderBuffer: GPUBuffer;
   readonly transparentOrderBuffer: GPUBuffer;
   readonly edgeOrderBuffer: GPUBuffer;
+  readonly nodeOrderBuffer: GPUBuffer;
   highlight: HighlightStorage;
   readonly capacity: number;
   /** CPU mirror of the record buffer, kept in sync by the patch functions. */
@@ -56,6 +57,10 @@ export interface InstanceStorage {
   edgeOrderData: Uint32Array;
   /** Number of meaningful edge-overlay order entries. */
   edgeOrderLength: number;
+  /** CPU mirror of the node-annotation order buffer. */
+  nodeOrderData: Uint32Array;
+  /** Number of meaningful node-annotation order entries. */
+  nodeOrderLength: number;
   /** Cached bind group; invalidated whenever the storage buffers grow. */
   bindGroup: GPUBindGroup | undefined;
   /** Cached bind group addressing the edge-order buffer; invalidated on growth. */
@@ -178,6 +183,22 @@ export function writeEdgeOrder(
   );
 }
 
+/** Replaces the compacted node-annotation order list of a part. */
+export function writeNodeOrder(
+  draw: InstanceStorageOwner,
+  partId: number,
+  order: Uint32Array,
+): void {
+  const storage = ensureStorage(draw, partId, Math.max(1, order.length));
+  storage.nodeOrderLength = writeOrderBuffer(
+    draw.device,
+    storage.nodeOrderBuffer,
+    storage.nodeOrderData,
+    order,
+    storage.nodeOrderLength,
+  );
+}
+
 /** Returns the existing per-part storage, creating or growing it as needed. */
 function ensureStorage(
   draw: InstanceStorageOwner,
@@ -205,6 +226,7 @@ function createStorage(
   const orderLength = existing?.orderLength ?? 0;
   const transparentOrderLength = existing?.transparentOrderLength ?? 0;
   const edgeOrderLength = existing?.edgeOrderLength ?? 0;
+  const nodeOrderLength = existing?.nodeOrderLength ?? 0;
   return {
     buffer: draw.device.createBuffer({
       size: size * INSTANCE_STRIDE,
@@ -213,6 +235,7 @@ function createStorage(
     orderBuffer: createOrderBuffer(draw.device, size),
     transparentOrderBuffer: createOrderBuffer(draw.device, size),
     edgeOrderBuffer: createOrderBuffer(draw.device, size),
+    nodeOrderBuffer: createOrderBuffer(draw.device, size),
     highlight: existing?.highlight ?? createHighlightStorage(draw.device),
     capacity: size,
     data: mirror.buffer,
@@ -222,6 +245,8 @@ function createStorage(
     transparentOrderLength,
     edgeOrderData: new Uint32Array(size),
     edgeOrderLength,
+    nodeOrderData: new Uint32Array(size),
+    nodeOrderLength,
     bindGroup: undefined,
     edgeBindGroup: undefined,
     transparentBindGroup: undefined,
@@ -239,6 +264,7 @@ function copyStorageData(
     existing.transparentOrderData.subarray(0, existing.transparentOrderLength),
   );
   storage.edgeOrderData.set(existing.edgeOrderData.subarray(0, existing.edgeOrderLength));
+  storage.nodeOrderData.set(existing.nodeOrderData.subarray(0, existing.nodeOrderLength));
   draw.device.queue.writeBuffer(storage.buffer, 0, storage.data);
   writeExistingOrder(draw, storage.orderBuffer, storage.orderData, existing.orderLength);
   writeExistingOrder(
@@ -252,6 +278,12 @@ function copyStorageData(
     storage.edgeOrderBuffer,
     storage.edgeOrderData,
     existing.edgeOrderLength,
+  );
+  writeExistingOrder(
+    draw,
+    storage.nodeOrderBuffer,
+    storage.nodeOrderData,
+    existing.nodeOrderLength,
   );
 }
 
@@ -269,6 +301,7 @@ function destroyStorageBuffers(storage: InstanceStorage): void {
   storage.orderBuffer.destroy();
   storage.transparentOrderBuffer.destroy();
   storage.edgeOrderBuffer.destroy();
+  storage.nodeOrderBuffer.destroy();
 }
 
 /** Creates a u32 storage buffer sized to the part's slot capacity. */

@@ -7,8 +7,8 @@ import {
   setHoveredTarget,
   updateInteractionState,
   type InteractionState,
-  type StyleOverride,
-  validateStyleOverride,
+  type PrimitiveStyleOverride,
+  validatePrimitiveStyleOverride,
 } from "./state";
 import { collectUniqueRefs, sortedNumbers, updateNestedMap, updateNestedSet } from "./mechanics";
 
@@ -42,9 +42,9 @@ export function setHoveredBody(
 export function setBodyOverride(
   state: InteractionState,
   ref: BodyRef,
-  override: StyleOverride | undefined,
+  override: PrimitiveStyleOverride | undefined,
 ): InteractionState {
-  validateStyleOverride(override);
+  validatePrimitiveStyleOverride(override);
   const data = readInteractionState(state);
   const bodyOverrides = updateNestedMap(data.bodyOverrides, ref.instanceId, ref.bodyId, override);
   if (bodyOverrides === data.bodyOverrides) return state;

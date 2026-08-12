@@ -37,8 +37,6 @@ export interface WebGpuRenderer {
   updateElements(runtime: PackedSceneRuntime, interaction: InteractionState): void;
   /** Controls whether the edge overlay compares against the depth buffer. */
   setEdgeDepthTest(enabled: boolean): void;
-  /** Controls the screen-space glyphs for finite-element nodes. */
-  setNodeOverlay(enabled: boolean): void;
   /** Shows the library-styled world-space rotation pivot, or clears it. */
   setOrbitPivot(pivot: Vec3 | undefined): void;
   /** Rebuilds draw order after runtime visibility changes. */

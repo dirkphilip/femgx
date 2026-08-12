@@ -476,6 +476,14 @@ test("renders complete point sprites with authored node picks", async ({ page })
   const canvas = page.getByTestId("view-canvas");
   const box = await canvas.boundingBox();
   if (box === null) throw new Error("canvas has no bounding box");
+  const withoutNodeOverlay = await stableCanvasPixels(page, canvas);
+  await page.getByTestId("node-overlay").click();
+  await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
+  const withNodeOverlay = await stableCanvasPixels(page, canvas);
+  expect(
+    withNodeOverlay.equals(withoutNodeOverlay),
+    "Point parts must not receive a duplicate node annotation overlay",
+  ).toBe(true);
   const rgba = await canvasRgba(page, canvas);
   const width = Math.round(box.width);
   const components = yellowComponents(rgba, width);

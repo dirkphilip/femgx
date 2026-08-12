@@ -1,5 +1,5 @@
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { PartId } from "../geometry/part";
+import type { Part, PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
 import type { DrawCall } from "./gpu-draw";
 
@@ -20,6 +20,8 @@ export interface InstanceLayout {
   readonly partVisibleCounts: Map<PartId, number>;
   /** Edge-overlay visible instance count per part. */
   readonly partEdgeCounts: Map<PartId, number>;
+  /** Node-annotation visible instance count per part. */
+  readonly partNodeCounts: Map<PartId, number>;
   /** Transparent visible instance count per part. */
   readonly partTransparentCounts: Map<PartId, number>;
   /** Total visible instance count, kept in sync with the runtime. */
@@ -50,6 +52,7 @@ export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout
   }
   const partVisibleCounts = new Map<PartId, number>();
   const partEdgeCounts = new Map<PartId, number>();
+  const partNodeCounts = new Map<PartId, number>();
   const partTransparentCounts = new Map<PartId, number>();
   const drawList = runtime.getDrawList();
   for (const slot of drawList) {
@@ -59,6 +62,7 @@ export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout
   }
   for (const partId of partOrder) {
     partEdgeCounts.set(partId, 0);
+    partNodeCounts.set(partId, 0);
     partTransparentCounts.set(partId, 0);
   }
   return {
@@ -68,9 +72,40 @@ export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout
     partOrder,
     partVisibleCounts,
     partEdgeCounts,
+    partNodeCounts,
     partTransparentCounts,
     visibleCount: drawList.length,
   };
+}
+
+/**
+ * Returns the visible part-local slots whose resolved style requests node
+ * annotations. Point parts are excluded because their primary glyph already
+ * represents the authored node.
+ */
+export function buildNodeOrder(
+  layout: InstanceLayout,
+  runtime: PackedSceneRuntime,
+  partId: PartId,
+  nodeFlags: readonly boolean[],
+  parts: ReadonlyMap<PartId, Part>,
+): Uint32Array {
+  if (parts.get(partId)?.geometry.primitive === "points") return new Uint32Array();
+  const slots = layout.partSlots.get(partId);
+  if (slots === undefined) return new Uint32Array();
+  const nodes: number[] = [];
+  for (const slot of slots) {
+    const local = layout.slotPartLocal[slot];
+    if (
+      local !== undefined &&
+      local >= 0 &&
+      nodeFlags[slot] === true &&
+      runtime.isInstanceVisible(slot)
+    ) {
+      nodes.push(local);
+    }
+  }
+  return new Uint32Array(nodes);
 }
 
 /** Returns the visible part-local slots of a part in ascending draw order. */
@@ -177,6 +212,7 @@ export interface DrawCallLists {
   readonly calls: DrawCall[];
   readonly transparentCalls: DrawCall[];
   readonly edgeCalls: DrawCall[];
+  readonly nodeCalls: DrawCall[];
 }
 
 /** Builds the deterministic per-part draw calls from the layout's counts. */
@@ -184,6 +220,7 @@ export function buildDrawCalls(layout: InstanceLayout): DrawCallLists {
   const calls: DrawCall[] = [];
   const transparentCalls: DrawCall[] = [];
   const edgeCalls: DrawCall[] = [];
+  const nodeCalls: DrawCall[] = [];
   for (const partId of layout.partOrder) {
     const count = layout.partVisibleCounts.get(partId);
     if (count !== undefined && count > 0) {
@@ -197,6 +234,10 @@ export function buildDrawCalls(layout: InstanceLayout): DrawCallLists {
     if (transparentCount !== undefined && transparentCount > 0) {
       transparentCalls.push({ partId, instanceCount: transparentCount });
     }
+    const nodeCount = layout.partNodeCounts.get(partId);
+    if (nodeCount !== undefined && nodeCount > 0) {
+      nodeCalls.push({ partId, instanceCount: nodeCount });
+    }
   }
-  return { calls, transparentCalls, edgeCalls };
+  return { calls, transparentCalls, edgeCalls, nodeCalls };
 }

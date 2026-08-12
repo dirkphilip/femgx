@@ -113,7 +113,6 @@ describe("FemViewport", () => {
     });
     viewport.setInteraction(interaction);
     viewport.setEdgeDepthTest(false);
-    viewport.setNodeOverlay(true);
     viewport.render();
     expect(viewport.interaction).toBe(interaction);
 

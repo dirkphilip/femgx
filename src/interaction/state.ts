@@ -19,11 +19,22 @@ export interface StyleOverride {
   readonly opacity?: number;
   /** Whether the instance's mesh edges are overlaid as lines on its surface. */
   readonly edge?: boolean;
+  /** Whether the instance's authored node annotations are overlaid. */
+  readonly nodes?: boolean;
 }
+
+/** Style fields supported by body, element, and interaction-theme layers. */
+export type PrimitiveStyleOverride = Omit<StyleOverride, "nodes">;
 
 /** Validates a public style override without normalizing caller-owned values. */
 export function validateStyleOverride(override: StyleOverride | undefined): void {
   if (override === undefined) return;
+  if (override.edge !== undefined && typeof override.edge !== "boolean") {
+    throw new TypeError("edge must be a boolean");
+  }
+  if (override.nodes !== undefined && typeof override.nodes !== "boolean") {
+    throw new TypeError("nodes must be a boolean");
+  }
   if (override.opacity !== undefined) validateUnit("opacity", override.opacity);
   if (override.color !== undefined) {
     validateUnit("color.r", override.color.r);
@@ -31,6 +42,14 @@ export function validateStyleOverride(override: StyleOverride | undefined): void
     validateUnit("color.b", override.color.b);
     validateUnit("color.a", override.color.a);
   }
+}
+
+/** Rejects instance-level node membership from primitive-specific layers. */
+export function validatePrimitiveStyleOverride(override: PrimitiveStyleOverride | undefined): void {
+  if (override !== undefined && "nodes" in override) {
+    throw new TypeError("nodes is only supported on part and instance overrides");
+  }
+  validateStyleOverride(override);
 }
 
 function validateUnit(name: string, value: number): void {
@@ -46,17 +65,19 @@ export interface ResolvedStyle {
   readonly opacity: number;
   /** Whether the instance's mesh edges are overlaid as lines on its surface. */
   readonly edge: boolean;
+  /** Whether the instance's authored node annotations are overlaid. */
+  readonly nodes: boolean;
 }
 
 /** Visual defaults for interaction states. */
 export interface InteractionTheme {
-  readonly highlighted: StyleOverride;
-  readonly selected: StyleOverride;
-  readonly hovered: StyleOverride;
-  readonly hoveredFace: StyleOverride;
-  readonly selectedFace: StyleOverride;
-  readonly hoveredNode: StyleOverride;
-  readonly selectedNode: StyleOverride;
+  readonly highlighted: PrimitiveStyleOverride;
+  readonly selected: PrimitiveStyleOverride;
+  readonly hovered: PrimitiveStyleOverride;
+  readonly hoveredFace: PrimitiveStyleOverride;
+  readonly selectedFace: PrimitiveStyleOverride;
+  readonly hoveredNode: PrimitiveStyleOverride;
+  readonly selectedNode: PrimitiveStyleOverride;
 }
 
 /** Opaque immutable interaction value exposed by the public API. */
@@ -73,11 +94,14 @@ export interface InteractionStateData {
   readonly selectedInstanceIds: ReadonlySet<InstanceId>;
   readonly selectedBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
   readonly highlightedBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
-  readonly bodyOverrides: ReadonlyMap<InstanceId, ReadonlyMap<BodyId, StyleOverride>>;
+  readonly bodyOverrides: ReadonlyMap<InstanceId, ReadonlyMap<BodyId, PrimitiveStyleOverride>>;
   readonly hiddenBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
   readonly selectedElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
   readonly highlightedElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
-  readonly elementOverrides: ReadonlyMap<InstanceId, ReadonlyMap<ElementId, StyleOverride>>;
+  readonly elementOverrides: ReadonlyMap<
+    InstanceId,
+    ReadonlyMap<ElementId, PrimitiveStyleOverride>
+  >;
   readonly partOverrides: ReadonlyMap<PartId, StyleOverride>;
   readonly instanceOverrides: ReadonlyMap<InstanceId, StyleOverride>;
   readonly selectedNodeIds: ReadonlyMap<InstanceId, ReadonlySet<NodeId>>;

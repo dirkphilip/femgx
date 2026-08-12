@@ -92,6 +92,10 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   parts' edge orders; visibility deltas rebuild both orders for the affected
   parts. The edge pass uses a second cached bind group per part that addresses
   the edge order buffer.
+- Node annotations use the same instance-order mechanism: the resolved
+  `nodes` flag creates a compacted per-part node order and a node draw call.
+  Point parts are excluded because their primary point sprites already draw
+  their authored nodes; node order membership is not a per-element filter.
 - The overlay draws with depth writes off and `depthCompare` selected by
   `FemViewport.setEdgeDepthTest`: on (default) uses `less` so edges
   occluded by nearer geometry are culled; off uses `always` so every edge shows
@@ -99,6 +103,10 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   `gpu-pipelines.ts`.
 - Element edges use translucent neutral black rather than inheriting each
   part's fill color, so topology stays readable without obscuring the model.
+- Edge overlays inherit the resolved instance alpha, so their neutral black is
+  also transparent when a part or instance has fractional opacity. Alpha-zero
+  edges contribute no color while remaining available to the normal GPU pick
+  path.
 - Edge and node topology records carry owner/neighbor body conditions. Exterior
   and unowned topology stays visible under the existing rules; a cross-body
   interface is drawn only when its owner is visible and its neighbor is hidden.
