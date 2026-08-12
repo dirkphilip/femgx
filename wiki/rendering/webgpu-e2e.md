@@ -20,23 +20,15 @@ runner exists, CI only runs the no-GPU unsupported-contract smoke
   - **`chromium`** — Playwright Chromium for the CI no-GPU contract
     (`npm run test:e2e:ci`).
 - One-time install: `npm run test:e2e:install` (Chrome + Chromium).
-- `e2e/webgpu.spec.ts` asserts the WebGPU product contract on the Chrome lane:
-  - **initialization** — the demo commits to the WebGPU renderer;
-  - **one instanced render** — the demo's frame counter advances;
-  - **interaction/picking** — pointer hover/click drives picking and updates
-    the demo's hover/selection state;
-  - **clean teardown** — the demo's `window.femgxDemo` seam destroys and
-    re-initializes the renderer without page errors;
-  - **WebGPU-only unsupported contract** — with `navigator.gpu` hidden before
-    page load, the demo must report `data-renderer="unsupported"`, state that
-    femgx requires a usable WebGPU renderer, include the probe diagnostic, and
-    never start a 2D CPU renderer for the model view. This test is what CI runs.
-  - **display toggles** — the depth-test control stays live, and the removed
-    CPU-renderer-only node/normal/face-boundary/ID overlays are no longer
-    advertised in the context menu.
-  - **rendered pixels** — element emphasis, edge-overlay changes, selection,
-    and reload determinism must visibly change or stabilize the presented
-    canvas pixels. Captures use settled `canvas.screenshot()` comparisons.
+- `e2e/webgpu-lifecycle.spec.ts` owns initialization, one instanced render,
+  interaction/picking, clean teardown, re-initialization, and the WebGPU-only
+  unsupported contract. CI runs only its unsupported-contract test with
+  `navigator.gpu` hidden before page load; the demo must report
+  `data-renderer="unsupported"`, state that femgx requires a usable WebGPU
+  renderer, include the probe diagnostic, and never start a 2D CPU renderer.
+- `e2e/webgpu-rendering.spec.ts` owns rendered pixels, display toggles,
+  transparency, overlays, selection, and reload determinism. Captures use
+  settled `canvas.screenshot()` comparisons.
 
 ## Capability gating (non-flakiness)
 

@@ -30,4 +30,10 @@ describe("browser suite ownership", () => {
     ].map((suite) => readFileSync(join(root, "e2e", suite), "utf8"));
     expect(webGpuSources.join("\n")).not.toContain("does not advertise CPU-only");
   });
+
+  it("keeps the CI unsupported-contract command on the lifecycle owner", () => {
+    const packageJson = readFileSync(join(root, "package.json"), "utf8");
+    expect(packageJson).toContain("e2e/webgpu-lifecycle.spec.ts");
+    expect(packageJson).not.toContain("e2e/webgpu.spec.ts");
+  });
 });

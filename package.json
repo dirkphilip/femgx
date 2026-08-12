@@ -68,7 +68,7 @@
     "bench:budget": "vitest run --config vitest.budget.config.ts",
     "bench:webgpu": "RUN_PERF=1 playwright test --project=chrome e2e/perf.spec.ts",
     "test:e2e": "playwright test --project=chrome",
-    "test:e2e:ci": "playwright test --project=chromium e2e/webgpu.spec.ts -g \"WebGPU-only contract\"",
+    "test:e2e:ci": "playwright test --project=chromium e2e/webgpu-lifecycle.spec.ts -g \"WebGPU-only contract\"",
     "test:e2e:install": "playwright install chrome chromium",
     "preview": "vite preview"
   },

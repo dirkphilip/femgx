@@ -13,10 +13,10 @@ WebGPU-only ([[requirements/product-scope|product scope]]).
    the feature is unavailable and never call `test.skip` unless the environment
    genuinely cannot initialize WebGPU.
 2. **Environment capability coverage** — WebGPU-specific product-contract tests
-   (`e2e/webgpu.spec.ts`) on the same Chrome lane. These may skip only when the
-   environment genuinely lacks the capability (the demo reported
-   `data-renderer="unsupported"`, or GPU picking did not resolve). Every skip
-   carries an explicit reason.
+   (`e2e/webgpu-lifecycle.spec.ts` and `e2e/webgpu-rendering.spec.ts`) on the
+   same Chrome lane. These may skip only when the environment genuinely lacks
+   the capability (the demo reported `data-renderer="unsupported"`, or GPU
+   picking did not resolve). Every skip carries an explicit reason.
 3. **Optional performance/experimental coverage** — `e2e/perf.spec.ts`,
    opt-in via `RUN_PERF=1`. Excluded from the default correctness gate by
    design, never run by default CI.
@@ -42,7 +42,7 @@ The only `test.skip` calls left are capability or opt-in gates:
   RUN_PERF=1" (category 3; the fixed-resolution capacity benchmark runs only
   through the local system-Chrome command; see
   [[engineering/benchmarks|Benchmarks]]).
-- `e2e/webgpu.spec.ts`, `e2e/demo.spec.ts` — per-test:
+- `e2e/webgpu-lifecycle.spec.ts` and the partitioned demo suites — per-test:
   "WebGPU renderer unavailable in this browser environment" and "picking is not
   functional in this browser environment" (category 2; genuine environment
   capability gates when the demo reports its unsupported state).
