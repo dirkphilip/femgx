@@ -4,7 +4,7 @@ import {
   type FemViewport,
   type InteractionState,
   type PartId,
-  type PickTarget,
+  type PickHit,
 } from "../../src/index";
 import { describePick } from "../inspect";
 import { selectTarget, targetKey, type SelectTarget } from "../pick";
@@ -25,7 +25,6 @@ export interface WorkbenchInteractionOptions {
   readonly viewport: () => FemViewport;
   readonly getInteraction: () => InteractionState;
   readonly setInteraction: (interaction: InteractionState) => void;
-  readonly partIdForInstance: (instanceId: string) => PartId | undefined;
   readonly partName: (partId: PartId) => string | undefined;
   readonly menu: WorkbenchMenu;
   readonly render: () => void;
@@ -136,17 +135,15 @@ export class WorkbenchInteraction {
   private async resolve(event: {
     readonly clientX: number;
     readonly clientY: number;
-  }): Promise<PickTarget | undefined> {
+  }): Promise<PickHit | undefined> {
     const rect = this.options.canvas.getBoundingClientRect();
     const point = clientToCanvasCss(event.clientX, event.clientY, rect);
     return this.options.viewport().pick(point.x, point.y);
   }
 
   private showPick(hit: Parameters<typeof describePick>[0]): void {
-    this.options.view.inspectionPanel.textContent = describePick(
-      hit,
-      (partId) => this.options.partName(partId),
-      (id) => this.options.partIdForInstance(id),
+    this.options.view.inspectionPanel.textContent = describePick(hit, (partId) =>
+      this.options.partName(partId),
     );
   }
 }

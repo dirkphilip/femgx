@@ -1,5 +1,4 @@
-import type { PartId, PickTarget } from "../src/index";
-import type { PartIdForInstance } from "./pick";
+import type { PartId, PickHit } from "../src/index";
 
 /**
  * Optional resolver for a part's display name, so the inspection panel can
@@ -10,14 +9,13 @@ export type PartNameResolver = (partId: number) => string | undefined;
 
 /** Formats a GPU pick target for the inspection panel. */
 export function describePick(
-  hit: PickTarget | undefined,
+  hit: PickHit | undefined,
   partName: PartNameResolver = () => undefined,
-  partIdForInstance: PartIdForInstance = () => undefined,
 ): string {
   if (hit === undefined) {
     return "Click or right-click a visible element, face, or node to inspect it.";
   }
-  const partId = partIdOf(hit, partIdForInstance);
+  const partId = partIdOf(hit);
   const context = partId === undefined ? "Part ?" : partContext(partId, partName);
   if (hit.kind === "node") {
     const adjacency =
@@ -40,7 +38,7 @@ export function describePick(
       bodyDescription(hit) +
       (hit.bodyId === undefined ? "" : "\n") +
       `Normal ${formatVec(hit.normal)}\n` +
-      `Hit ${formatVec(hit.hitPosition)}\n` +
+      `Hit ${formatVec(hit.worldPosition)}\n` +
       `Adjacent elements ${owners || "none"}\n` +
       `Vertices ${hit.nodeIds.length}`
     );
@@ -64,10 +62,8 @@ function partContext(partId: PartId, partName: PartNameResolver): string {
   return name === undefined ? `Part ${partId}` : `Part ${partId} · ${name}`;
 }
 
-function partIdOf(hit: PickTarget, partIdForInstance: PartIdForInstance): PartId | undefined {
-  if (hit.kind === "part") return hit.partId;
-  if ("partId" in hit) return hit.partId;
-  return partIdForInstance(hit.instanceId);
+function partIdOf(hit: PickHit): PartId | undefined {
+  return hit.partId;
 }
 
 function formatVec(vector: readonly [number, number, number]): string {

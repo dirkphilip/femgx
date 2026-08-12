@@ -1,4 +1,10 @@
-import type { BodyId, InstanceId, InteractionTarget, PartId, PickTarget } from "../src/index";
+import {
+  interactionTargetFromHit,
+  type BodyId,
+  type InteractionGranularity,
+  type InteractionTarget,
+  type PickHit,
+} from "../src/index";
 
 /** The interaction granularity a modifier key can select at. */
 export type PickLevel = "node" | "face" | "element" | "instance" | "part";
@@ -8,9 +14,6 @@ export type SelectTarget = Exclude<InteractionTarget, { readonly kind: "body" }>
   readonly bodyId?: BodyId;
 };
 
-/** Resolves an instance id to its part id for inspection and target labeling. */
-export type PartIdForInstance = (instanceId: InstanceId) => PartId | undefined;
-
 /**
  * Maps a GPU pick target to the selection target the modifier keys select at:
  * no modifier keeps the most specific hit, shift promotes to the element,
@@ -18,7 +21,7 @@ export type PartIdForInstance = (instanceId: InstanceId) => PartId | undefined;
  * not change the target granularity.
  */
 export function selectTarget(
-  hit: PickTarget,
+  hit: PickHit,
   modifiers: {
     readonly shiftKey: boolean;
     readonly altKey: boolean;
@@ -26,64 +29,21 @@ export function selectTarget(
     readonly metaKey: boolean;
   },
 ): SelectTarget | undefined {
-  if (modifiers.altKey) {
-    if (hit.kind === "part") return { kind: "part", partId: hit.partId };
-    return { kind: "instance", instanceId: hit.instanceId };
-  }
-  if (modifiers.shiftKey) {
-    if (hit.kind === "node") {
-      const elementId = hit.neighborElementIds[0] ?? hit.elementId;
-      return {
-        kind: "element",
-        instanceId: hit.instanceId,
-        elementId,
-        ...optionalBodyId(hit.bodyId),
-      };
-    }
-    if (hit.kind === "face") {
-      return {
-        kind: "element",
-        instanceId: hit.instanceId,
-        elementId: hit.elementId,
-        ...optionalBodyId(hit.bodyId),
-      };
-    }
-    if (hit.kind === "element") {
-      return {
-        kind: "element",
-        instanceId: hit.instanceId,
-        elementId: hit.elementId,
-        ...optionalBodyId(hit.bodyId),
-      };
-    }
-  }
-  if (hit.kind === "node") {
-    return {
-      kind: "node",
-      instanceId: hit.instanceId,
-      nodeId: hit.nodeId,
-      ...optionalBodyId(hit.bodyId),
-    };
-  }
-  if (hit.kind === "face") {
-    return {
-      kind: "face",
-      instanceId: hit.instanceId,
-      elementId: hit.elementId,
-      key: hit.key,
-      ...optionalBodyId(hit.bodyId),
-    };
-  }
-  if (hit.kind === "element") {
-    return {
-      kind: "element",
-      instanceId: hit.instanceId,
-      elementId: hit.elementId,
-      ...optionalBodyId(hit.bodyId),
-    };
-  }
-  if (hit.kind === "instance") return { kind: "instance", instanceId: hit.instanceId };
-  return { kind: "part", partId: hit.partId };
+  const granularity: InteractionGranularity = modifiers.altKey
+    ? hit.kind === "part"
+      ? "part"
+      : "instance"
+    : modifiers.shiftKey
+      ? "element"
+      : hit.kind;
+  const target = interactionTargetFromHit(hit, granularity);
+  if (target === undefined || target.kind === "body") return undefined;
+  return {
+    ...target,
+    ...(target.kind === "element" || target.kind === "face" || target.kind === "node"
+      ? optionalBodyId("bodyId" in hit ? hit.bodyId : undefined)
+      : {}),
+  };
 }
 
 function optionalBodyId(
@@ -93,7 +53,7 @@ function optionalBodyId(
 }
 
 /** Stable dataset key for a resolved pick or selection target. */
-export function targetKey(target: PickTarget | SelectTarget | undefined): string {
+export function targetKey(target: PickHit | SelectTarget | undefined): string {
   if (target === undefined) return "";
   switch (target.kind) {
     case "node":

@@ -1,6 +1,6 @@
-import { unprojectPoint, type Camera } from "../camera/camera";
+import type { Camera } from "../camera/camera";
 import type { Vec3 } from "../math/vec3";
-import { pickPixelCoordinates, readPickPixel, type PickTargets } from "./gpu-pick";
+import { pickWorldPosition, readPickPixel, type PickTargets } from "./gpu-pick";
 
 /** Reads and unprojects the exact nearest displayed fragment under a CSS point. */
 export async function displayedPointFromPixel(options: {
@@ -16,16 +16,5 @@ export async function displayedPointFromPixel(options: {
   if (hit.instancePickId === 0 || !Number.isFinite(hit.ndcDepth) || hit.ndcDepth >= 1) {
     return undefined;
   }
-  const pixel = pickPixelCoordinates(
-    x,
-    y,
-    canvas.getBoundingClientRect(),
-    canvas.width,
-    canvas.height,
-  );
-  return unprojectPoint(camera, [
-    ((pixel.x + 0.5) / canvas.width) * camera.width,
-    ((pixel.y + 0.5) / canvas.height) * camera.height,
-    hit.ndcDepth,
-  ]);
+  return pickWorldPosition(canvas, camera, x, y, hit.ndcDepth);
 }

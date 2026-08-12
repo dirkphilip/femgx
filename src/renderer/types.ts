@@ -3,11 +3,10 @@ import type { Vec3 } from "../math/vec3";
 import type { Part } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
 import type { DeviceLostInfo } from "../platform/device";
-import type { PickGranularity } from "../picking/pick";
 import type { DeformationState } from "../results/deform";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
-import type { PickTarget } from "../picking/types";
+import type { PickHit } from "../picking/types";
 
 /** Options for creating a WebGPU renderer. */
 export interface WebGpuRendererOptions {
@@ -41,8 +40,8 @@ export interface WebGpuRenderer {
   setOrbitPivot(pivot: Vec3 | undefined): void;
   /** Rebuilds draw order after runtime visibility changes. */
   updateVisibility(runtime: PackedSceneRuntime, changedInstanceIds: readonly number[]): void;
-  /** Picks the most specific target under a CSS-local canvas pixel. */
-  pick(x: number, y: number, granularity?: PickGranularity): Promise<PickTarget | undefined>;
+  /** Picks the deepest physical hit under a CSS-local canvas pixel. */
+  pick(x: number, y: number): Promise<PickHit | undefined>;
   /** Returns the exact displayed world-space point under a CSS-local pixel. */
   pickPoint(camera: Camera, x: number, y: number): Promise<Vec3 | undefined>;
   resize(width?: number, height?: number): void;

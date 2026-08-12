@@ -5,9 +5,10 @@ face, and node ids into four dedicated `rgba8unorm` textures and stores the
 winning fragment in its normal depth attachment. Readback copies the four ID
 pixels and uses a one-invocation compute pass to load the requested depth texel
 into the same pooled readback buffer. One `mapAsync` then yields all four ids
-plus depth; `pickPoint` unprojects that depth into the displayed world position.
+plus depth; `PickHit.worldPosition` unprojects that depth into the displayed world position.
 ID packing lives in `src/renderer/pick-format.ts`, with the packing mirrored in
-WGSL `packPickId`.
+WGSL `packPickId`. The public `PickHit.worldPosition` is reconstructed from this
+same one-readback depth value; there is no separate public point-picking call.
 
 Four `rgba8unorm` attachments already consume the WebGPU device default of 32
 color-attachment bytes per sample. Depth therefore cannot be a fifth color

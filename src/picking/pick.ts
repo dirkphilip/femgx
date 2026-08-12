@@ -1,8 +1,8 @@
-import { average, type Vec3 } from "../math/vec3";
+import type { Vec3 } from "../math/vec3";
 import { bodyIdForElement, type Geometry, type Part } from "../geometry/part";
 import type { PartId } from "../geometry/part";
 import type { Instance } from "../scene/types";
-import type { FacePickTarget, NodePickTarget, PickTarget } from "./types";
+import type { FacePickHit, NodePickHit, PickHit } from "./types";
 
 /** The inputs every pick resolution needs: the drawn instances and their parts. */
 export interface PickContext {
@@ -18,18 +18,6 @@ export interface ResolvedPickIds {
   readonly nodePickId: number;
 }
 
-/** The granularity levels a pick target can be reported at. */
-export type PickGranularity = "part" | "instance" | "element" | "face" | "node";
-
-/** Deeper levels are more specific; used to compare granularity. */
-const GRANULARITY_DEPTH: Record<PickGranularity, number> = {
-  part: 0,
-  instance: 1,
-  element: 2,
-  face: 3,
-  node: 4,
-};
-
 /** Resolves a 0-based instance slot back to the instance it was drawn from. */
 export function resolvePick(instances: readonly Instance[], pickId: number): Instance | undefined {
   if (pickId < 0 || pickId >= instances.length) {
@@ -39,54 +27,50 @@ export function resolvePick(instances: readonly Instance[], pickId: number): Ins
 }
 
 /**
- * Resolves GPU pick ids to a pick target. By default the most specific level
- * the hit supports (`node` > `face` > `element` > `instance` > `part`) is
- * returned. Passing a `granularity` narrows or promotes the hit to that level:
- * requesting a deeper level than the hit supports falls back to the deepest
- * available, requesting a shallower level returns that level derived from the
- * same hit.
+ * Resolves GPU pick ids to the deepest physical hit supported by the pick
+ * attachments. `worldPosition` is reconstructed from the same depth readback
+ * and is therefore the displayed point under the pointer, not a face centroid.
  */
-export function resolvePickTarget(
+export function resolvePickHit(
   context: PickContext,
   ids: ResolvedPickIds,
-  granularity: PickGranularity = "node",
-): PickTarget | undefined {
+  worldPosition: Vec3,
+): PickHit | undefined {
   const instance = resolvePick(context.instances, ids.instancePickId - 1);
   if (instance === undefined) {
     return undefined;
   }
   const geometry = context.parts.get(instance.partId)?.geometry;
-  const deepest = deepestTarget(instance, geometry, ids);
-  if (deepest === undefined) {
-    return undefined;
-  }
-  if (GRANULARITY_DEPTH[deepest.kind] <= GRANULARITY_DEPTH[granularity]) {
-    return deepest;
-  }
-  return targetAtGranularity(instance, geometry, ids, granularity);
+  return deepestHit(instance, geometry, ids, worldPosition);
 }
 
 /**
  * Maps a resolved instance to a pick target. When a part has multiple
  * instances the caller may prefer the part-level target.
  */
-export function instanceToTarget(instance: Instance, preferPart: boolean): PickTarget {
+export function instanceToTarget(
+  instance: Instance,
+  preferPart: boolean,
+):
+  | { readonly kind: "part"; readonly partId: PartId }
+  | { readonly kind: "instance"; readonly instanceId: Instance["instanceId"] } {
   return preferPart
     ? { kind: "part", partId: instance.partId }
     : { kind: "instance", instanceId: instance.instanceId };
 }
 
-/** Returns the most specific target a hit supports. */
-function deepestTarget(
+/** Returns the most specific physical hit a pixel supports. */
+function deepestHit(
   instance: Instance,
   geometry: Geometry | undefined,
   ids: ResolvedPickIds,
-): PickTarget | undefined {
+  worldPosition: Vec3,
+): PickHit {
   if (geometry !== undefined && ids.nodePickId > 0) {
-    return nodeTarget(instance, geometry, ids);
+    return nodeHit(instance, geometry, ids, worldPosition);
   }
   if (geometry?.primitive === "triangles" && ids.facePickId > 0) {
-    return faceTarget(instance, geometry, ids);
+    return faceHit(instance, geometry, ids, worldPosition);
   }
   if (ids.elementPickId > 0) {
     const elementId = ids.elementPickId - 1;
@@ -96,44 +80,23 @@ function deepestTarget(
       instanceId: instance.instanceId,
       elementId,
       ...bodyFields(geometry, elementId),
+      worldPosition,
     };
   }
-  return { kind: "instance", instanceId: instance.instanceId };
+  return {
+    kind: "instance",
+    partId: instance.partId,
+    instanceId: instance.instanceId,
+    worldPosition,
+  };
 }
 
-/** Returns the target at an explicit granularity, when the hit supports it. */
-function targetAtGranularity(
+function nodeHit(
   instance: Instance,
-  geometry: Geometry | undefined,
+  geometry: Geometry,
   ids: ResolvedPickIds,
-  granularity: PickGranularity,
-): PickTarget | undefined {
-  switch (granularity) {
-    case "part":
-      return { kind: "part", partId: instance.partId };
-    case "instance":
-      return { kind: "instance", instanceId: instance.instanceId };
-    case "element": {
-      if (ids.elementPickId <= 0) return undefined;
-      const elementId = ids.elementPickId - 1;
-      return {
-        kind: "element",
-        partId: instance.partId,
-        instanceId: instance.instanceId,
-        elementId,
-        ...bodyFields(geometry, elementId),
-      };
-    }
-    case "face":
-      if (geometry?.primitive !== "triangles" || ids.facePickId <= 0) return undefined;
-      return faceTarget(instance, geometry, ids);
-    case "node":
-      if (geometry === undefined || ids.nodePickId <= 0) return undefined;
-      return nodeTarget(instance, geometry, ids);
-  }
-}
-
-function nodeTarget(instance: Instance, geometry: Geometry, ids: ResolvedPickIds): NodePickTarget {
+  worldPosition: Vec3,
+): NodePickHit {
   const nodeId = ids.nodePickId - 1;
   const localPosition = nodePosition(geometry, nodeId);
   const elementId =
@@ -147,17 +110,18 @@ function nodeTarget(instance: Instance, geometry: Geometry, ids: ResolvedPickIds
     nodeId,
     ...bodyFields(geometry, elementId),
     localPosition,
-    worldPosition: transformPosition(instance, localPosition),
+    worldPosition,
     neighborElementIds: adjacency.neighborElementIds,
     neighborNodeIds: adjacency.neighborNodeIds,
   };
 }
 
-function faceTarget(
+function faceHit(
   instance: Instance,
   geometry: Extract<Geometry, { primitive: "triangles" }>,
   ids: ResolvedPickIds,
-): FacePickTarget {
+  worldPosition: Vec3,
+): FacePickHit {
   const faceId = ids.facePickId - 1;
   const face = geometry.faces?.[faceId];
   if (face === undefined) {
@@ -177,7 +141,7 @@ function faceTarget(
     key: face.key,
     nodeIds: face.nodeIds,
     neighborElementIds: face.neighborElementIds,
-    hitPosition: average(worldPoints),
+    worldPosition,
     normal: polygonNormal(worldPoints),
   };
 }

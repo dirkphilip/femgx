@@ -26,12 +26,12 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   `rgba8unorm` packing of [[rendering/pick-format|pick-format]] (see
   [[rendering/node-face-interaction|node and face interaction]]).
 - `readPickPixel` copies all attachments into one pooled readback buffer and
-  decodes the ids; `resolvePickTarget` turns a hit into the most specific
+  decodes the ids; the private resolver turns a hit into the deepest physical
   target the ids support (`node` > `face` > `element` > `instance`). A
-  `PickTarget` therefore distinguishes `part`, `instance`, `element`, `face`,
+  `PickHit` therefore distinguishes `part`, `instance`, `element`, `face`,
   and `node`.
 - The demo and library share one pick path: the renderer's asynchronous
-  `pick(x, y, granularity)` GPU readback (see
+  `pick(x, y)` GPU readback (see
   [[rendering/fe-inspection-workbench|FE inspection workbench]] and
   [[rendering/node-face-interaction|node and face interaction]]). Hover/
   selection keys are prefixed by granularity (`n:instance:node`,

@@ -15,11 +15,13 @@ import {
   geometryAdjacency,
   instanceToTarget,
   resolvePick,
-  resolvePickTarget,
+  resolvePickHit,
   type PickContext,
   type ResolvedPickIds,
 } from "../../src/picking/pick";
 import type { Instance } from "../../src/scene/types";
+import type { PickHit } from "../../src/picking/types";
+import { interactionTargetFromHit } from "../../src/interaction/targets";
 
 const TET_NODES: readonly number[] = [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1];
 
@@ -70,24 +72,29 @@ describe("instanceToTarget", () => {
   });
 });
 
-describe("resolvePickTarget", () => {
+describe("resolvePickHit", () => {
   const geometry = triangleGeometry(tetModel());
   const part = partWithGeometry(geometry);
   const context: PickContext = { instances: [instanceAt(0)], parts: new Map([[1, part]]) };
 
   it("resolves an instance-only hit to an instance target", () => {
-    expect(resolvePickTarget(context, ids({ instancePickId: 1 }))).toEqual({
+    expect(resolvePickHit(context, ids({ instancePickId: 1 }), [0, 0, 0])).toEqual({
       kind: "instance",
+      partId: 1,
       instanceId: "1/0",
+      worldPosition: [0, 0, 0],
     });
   });
 
   it("resolves an element hit to an element target", () => {
-    expect(resolvePickTarget(context, ids({ instancePickId: 1, elementPickId: 2 }))).toEqual({
+    expect(
+      resolvePickHit(context, ids({ instancePickId: 1, elementPickId: 2 }), [0, 0, 0]),
+    ).toEqual({
       kind: "element",
       partId: 1,
       instanceId: "1/0",
       elementId: 1,
+      worldPosition: [0, 0, 0],
     });
   });
 
@@ -103,32 +110,38 @@ describe("resolvePickTarget", () => {
       parts: new Map([[1, partWithGeometry(bodyGeometry)]]),
     };
     expect(
-      resolvePickTarget(bodyContext, ids({ instancePickId: 1, elementPickId: 2 })),
+      resolvePickHit(bodyContext, ids({ instancePickId: 1, elementPickId: 2 }), [0, 0, 0]),
     ).toMatchObject({ kind: "element", bodyId: 6 });
     expect(
-      resolvePickTarget(bodyContext, ids({ instancePickId: 1, elementPickId: 2, facePickId: 2 })),
+      resolvePickHit(
+        bodyContext,
+        ids({ instancePickId: 1, elementPickId: 2, facePickId: 2 }),
+        [0, 0, 0],
+      ),
     ).toMatchObject({ kind: "face", bodyId: 6 });
     expect(
-      resolvePickTarget(
+      resolvePickHit(
         bodyContext,
         ids({ instancePickId: 1, elementPickId: 2, facePickId: 3, nodePickId: 2 }),
+        [0, 0, 0],
       ),
     ).toMatchObject({ kind: "node", bodyId: 6 });
   });
 
   it("returns undefined when the instance pick id misses", () => {
     expect(
-      resolvePickTarget(context, ids({ instancePickId: 0, elementPickId: 3 })),
+      resolvePickHit(context, ids({ instancePickId: 0, elementPickId: 3 }), [0, 0, 0]),
     ).toBeUndefined();
     expect(
-      resolvePickTarget(context, ids({ instancePickId: 99, elementPickId: 3 })),
+      resolvePickHit(context, ids({ instancePickId: 99, elementPickId: 3 }), [0, 0, 0]),
     ).toBeUndefined();
   });
 
   it("resolves a face hit to a face target with ordered vertices and normal", () => {
-    const target = resolvePickTarget(
+    const target = resolvePickHit(
       context,
       ids({ instancePickId: 1, elementPickId: 2, facePickId: 2 }),
+      [0.25, 0.2, 0],
     );
     expect(target?.kind).toBe("face");
     if (target?.kind !== "face") return;
@@ -136,44 +149,22 @@ describe("resolvePickTarget", () => {
     expect(target.elementId).toBe(1);
     expect(target.nodeIds).toEqual([1, 2, 3]);
     expect(target.neighborElementIds).toEqual([]);
-    expect(target.hitPosition).toEqual([1 / 3, 1 / 3, 1 / 3]);
+    expect(target.worldPosition).toEqual([0.25, 0.2, 0]);
     expect(target.normal[0]).toBeGreaterThan(0);
   });
 
   it("resolves a node hit to the most specific target", () => {
-    const target = resolvePickTarget(
+    const target = resolvePickHit(
       context,
       ids({ instancePickId: 1, elementPickId: 2, facePickId: 3, nodePickId: 2 }),
+      [0, 0, 0],
     );
     expect(target?.kind).toBe("node");
     if (target?.kind !== "node") return;
     expect(target.nodeId).toBe(1);
     expect(target.elementId).toBe(1);
     expect(target.localPosition).toEqual([1, 0, 0]);
-    expect(target.worldPosition).toEqual([1, 0, 0]);
-  });
-
-  it("narrows a node hit to a requested shallower granularity", () => {
-    const target = resolvePickTarget(
-      context,
-      ids({ instancePickId: 1, elementPickId: 2, facePickId: 3, nodePickId: 2 }),
-      "element",
-    );
-    expect(target).toEqual({ kind: "element", partId: 1, instanceId: "1/0", elementId: 1 });
-  });
-
-  it("promotes a node hit to a part target", () => {
-    const target = resolvePickTarget(
-      context,
-      ids({ instancePickId: 1, elementPickId: 2, facePickId: 3, nodePickId: 2 }),
-      "part",
-    );
-    expect(target).toEqual({ kind: "part", partId: 1 });
-  });
-
-  it("falls back to the deepest available target for a deeper request", () => {
-    const target = resolvePickTarget(context, ids({ instancePickId: 1, elementPickId: 2 }), "node");
-    expect(target).toEqual({ kind: "element", partId: 1, instanceId: "1/0", elementId: 1 });
+    expect(target.worldPosition).toEqual([0, 0, 0]);
   });
 
   it("transforms node positions by the instance transform", () => {
@@ -183,27 +174,29 @@ describe("resolvePickTarget", () => {
       ],
       parts: new Map([[1, part]]),
     };
-    const target = resolvePickTarget(
+    const target = resolvePickHit(
       transformed,
       ids({ instancePickId: 1, elementPickId: 1, facePickId: 1, nodePickId: 1 }),
+      [10, 0, 0],
     );
     if (target?.kind !== "node") throw new Error("expected node target");
     expect(target.worldPosition).toEqual([10, 0, 0]);
   });
 
-  it("reports the face centroid and normal in world space", () => {
+  it("preserves the exact world hit and computes the normal in world space", () => {
     const transformed: PickContext = {
       instances: [
         instanceAt(0, 1, new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 0, 0, 1])),
       ],
       parts: new Map([[1, part]]),
     };
-    const target = resolvePickTarget(
+    const target = resolvePickHit(
       transformed,
       ids({ instancePickId: 1, elementPickId: 2, facePickId: 2 }),
+      [9, 0, 0],
     );
     if (target?.kind !== "face") throw new Error("expected face target");
-    expect(target.hitPosition).toEqual([5 + 1 / 3, 1 / 3, 1 / 3]);
+    expect(target.worldPosition).toEqual([9, 0, 0]);
   });
 
   it("resolves element and node ids from heterogeneous line and point parts", () => {
@@ -220,14 +213,21 @@ describe("resolvePickTarget", () => {
       ]),
     };
 
-    expect(resolvePickTarget(mixedContext, ids({ instancePickId: 1, elementPickId: 6 }))).toEqual({
+    expect(
+      resolvePickHit(mixedContext, ids({ instancePickId: 1, elementPickId: 6 }), [0, 0, 0]),
+    ).toEqual({
       kind: "element",
       partId: 2,
       instanceId: "1/0",
       elementId: 5,
+      worldPosition: [0, 0, 0],
     });
     expect(
-      resolvePickTarget(mixedContext, ids({ instancePickId: 2, elementPickId: 9, nodePickId: 2 })),
+      resolvePickHit(
+        mixedContext,
+        ids({ instancePickId: 2, elementPickId: 9, nodePickId: 2 }),
+        [0, 0, 0],
+      ),
     ).toMatchObject({
       kind: "node",
       partId: 3,
@@ -259,6 +259,54 @@ describe("geometryAdjacency", () => {
       neighborElementIds: [],
       neighborNodeIds: [],
     });
+  });
+});
+
+describe("interactionTargetFromHit", () => {
+  const hit: PickHit = {
+    kind: "face",
+    partId: 4,
+    instanceId: "1/2",
+    elementId: 7,
+    bodyId: 9,
+    faceId: 3,
+    faceIndex: 1,
+    key: "0,1,2",
+    nodeIds: [0, 1, 2],
+    neighborElementIds: [8],
+    worldPosition: [2, 3, 4],
+    normal: [0, 0, 1],
+  };
+
+  it.each([
+    ["part", { kind: "part", partId: 4 }],
+    ["instance", { kind: "instance", instanceId: "1/2" }],
+    ["body", { kind: "body", instanceId: "1/2", bodyId: 9 }],
+    ["element", { kind: "element", instanceId: "1/2", elementId: 7 }],
+    ["face", { kind: "face", instanceId: "1/2", elementId: 7, key: "0,1,2" }],
+  ] as const)("maps a face hit to %s", (granularity, expected) => {
+    expect(interactionTargetFromHit(hit, granularity)).toEqual(expected);
+  });
+
+  it("maps a node hit to a node target and rejects unsupported precision", () => {
+    const node: PickHit = {
+      kind: "node",
+      partId: 4,
+      instanceId: "1/2",
+      elementId: 7,
+      nodeId: 2,
+      localPosition: [0, 0, 0],
+      worldPosition: [2, 3, 4],
+      neighborElementIds: [7],
+      neighborNodeIds: [1],
+    };
+    expect(interactionTargetFromHit(node, "node")).toEqual({
+      kind: "node",
+      instanceId: "1/2",
+      nodeId: 2,
+    });
+    expect(interactionTargetFromHit(node, "face")).toBeUndefined();
+    expect(interactionTargetFromHit(node, "body")).toBeUndefined();
   });
 });
 

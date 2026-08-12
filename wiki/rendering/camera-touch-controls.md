@@ -64,7 +64,7 @@ Playwright's `touchscreen` API is single-touch only.
 
 - `touch-action: none` remains scoped to the canvas elements only, so the rest
   of the page keeps native scrolling.
-- Middle-button orbit asks `FemViewport.pickPoint` for the exact visible
+- Middle-button orbit asks the renderer's camera-navigation pick-point seam for the exact visible
   surface point. Drag deltas wait for the asynchronous GPU readback, then apply
   once around that point, so the camera never starts around a stale target and
   switches pivots mid-gesture. Shift+middle zoom uses the same one-time

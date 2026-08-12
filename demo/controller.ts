@@ -146,7 +146,6 @@ export class WorkbenchController {
       setInteraction: (interaction) => {
         this.interaction = interaction;
       },
-      partIdForInstance: (instanceId) => this.runtime.getPartId(instanceId),
       partName: (partId) => this.preset.partNames.get(partId),
       menu: this.menu,
       render: () => {

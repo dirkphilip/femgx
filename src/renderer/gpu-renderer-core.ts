@@ -2,16 +2,15 @@ import type { Camera } from "../camera/camera";
 import type { Vec3 } from "../math/vec3";
 import type { Part } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
-import type { PickGranularity } from "../picking/pick";
 import type { DeformationState } from "../results/deform";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
-import type { PickTarget } from "../picking/types";
+import type { PickHit } from "../picking/types";
 import { RendererAttachment } from "./attachment";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
 import { syncDeformations, validateDeformation } from "./gpu-deform";
 import { encodePickSnapshot, encodeVisibleFrame } from "./gpu-frame";
-import { pickTargetFromPixel, resetPickTargets } from "./gpu-pick";
+import { pickHitFromPixel, resetPickTargets } from "./gpu-pick";
 import { displayedPointFromPixel } from "./gpu-pick-point";
 import { GpuDeviceLifecycle, type GpuBundle } from "./gpu-recovery";
 import type { GpuValidationOptions } from "./gpu-validation";
@@ -140,22 +139,20 @@ export class GpuRenderer implements WebGpuRenderer {
     }
   }
 
-  public async pick(
-    x: number,
-    y: number,
-    granularity?: PickGranularity,
-  ): Promise<PickTarget | undefined> {
+  public async pick(x: number, y: number): Promise<PickHit | undefined> {
     this.ensureAlive();
     if (this.attachment.runtime === undefined) return undefined;
     if (!this.ensurePickSnapshot()) return undefined;
-    return pickTargetFromPixel({
+    const camera = this.lastCamera;
+    if (camera === undefined) return undefined;
+    return pickHitFromPixel({
       device: this.lifecycle.bundle.device,
       canvas: this.canvas,
       pick: this.lifecycle.bundle.pickTargets,
       context: { instances: this.attachment.instances, parts: this.parts },
+      camera,
       x,
       y,
-      granularity,
     });
   }
 
