@@ -14,7 +14,7 @@ import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
-import { sceneWorldBounds, sceneWorldBoundsList } from "./scene-bounds";
+import { protectSceneCamera, sceneWorldBounds, sceneWorldBoundsList } from "./scene-bounds";
 import { cssSize, installResize, validateOrientationGizmo } from "./dom";
 import {
   createOrientationGizmo,
@@ -192,7 +192,7 @@ class FemViewportCore implements FemViewport {
   setCamera(camera: Camera): void {
     this.ensureAlive();
     assertValidCamera(camera);
-    this.cameraRef.camera = camera;
+    this.cameraRef.camera = protectSceneCamera(camera, this.currentScene, this.currentRuntime);
     this.invalidate();
   }
 

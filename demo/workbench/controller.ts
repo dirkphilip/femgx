@@ -2,7 +2,6 @@ import {
   setPartOverride,
   setTargetsHighlighted,
   setProjection,
-  fitCamera,
   importGlb,
   type Camera,
   type InteractionState,
@@ -11,6 +10,7 @@ import {
   type SceneRuntime,
 } from "../../src/index";
 import { selectedWorldBounds } from "./selection-bounds";
+import { WorkbenchCameraTransition } from "./camera-transition";
 import type { DemoView } from "./view";
 import { installWorkbenchLifecycle } from "./lifecycle";
 import { createModelInteraction } from "./preset";
@@ -58,6 +58,7 @@ export class WorkbenchController {
   private readonly interactionController: WorkbenchFeatures["interactionController"];
   private readonly presentation: WorkbenchFeatures["presentation"];
   private readonly boxPreview: WorkbenchFeatures["boxPreview"];
+  private readonly cameraTransition: WorkbenchCameraTransition;
   private boxSelectionDisposer: (() => void) | undefined;
   private dragging = false;
   private treeHoverTargets: readonly InteractionTarget[] = [];
@@ -69,6 +70,14 @@ export class WorkbenchController {
     this.canvas = options.canvas;
     this.rendererName = options.rendererName;
     this.viewport = options.viewport;
+    this.cameraTransition = new WorkbenchCameraTransition(
+      this.canvas,
+      () => this.viewport,
+      () => {
+        this.render();
+      },
+      this.listenerController.signal,
+    );
     this.examples = options.presets;
     const initialModel = this.examples[0];
     if (initialModel === undefined) throw new Error("Workbench requires at least one preset");
@@ -192,6 +201,7 @@ export class WorkbenchController {
   }
 
   setCameraGestureActive(active: boolean): void {
+    if (active) this.cameraTransition.cancel();
     this.dragging = active;
     this.canvas.dataset["dragging"] = active ? "true" : "false";
   }
@@ -265,11 +275,7 @@ export class WorkbenchController {
       this.fitView();
       return;
     }
-    const rect = this.canvas.getBoundingClientRect();
-    this.viewport.setCamera(
-      fitCamera(this.viewport.camera, bounds, Math.max(1, rect.width), Math.max(1, rect.height)),
-    );
-    this.render();
+    this.cameraTransition.fit(bounds);
   }
 
   reset(): void {
@@ -280,10 +286,8 @@ export class WorkbenchController {
     if (this.disposed) return;
     this.disposed = true;
     this.boxSelectionDisposer?.();
-    this.boxSelectionDisposer = undefined;
-    this.treeHoverTargets = [];
-    this.canvas.dataset["treeHover"] = "";
     this.listenerController.abort();
+    this.cameraTransition.cancel();
     this.interactionController.destroy();
     this.boxPreview.dispose();
     this.viewport.destroy();

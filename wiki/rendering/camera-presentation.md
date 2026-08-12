@@ -23,10 +23,14 @@ under its start point as the rotation target; the renderer's camera-navigation p
 reads the winning fragment's NDC depth and unprojects the exact displayed world
 position. This follows GPU deformation and non-planar tessellation instead of
 reconstructing an undeformed CPU face plane.
-The picked orbit point becomes `camera.target`; empty-space orbit falls back to
-the current model-bounds center. Wheel, Shift+middle-drag, and pinch change only
-eye distance or orthographic scale around that current target. Zoom therefore
-never scales or re-picks the target away from the model, and equal unclamped
+The picked orbit point is a fixed world-space pivot for the gesture. Orbit
+rotates the existing camera frame around it without first translating the eye
+or `camera.target`, so the first movement is proportional to the pointer delta
+instead of recentering sharply. If pointer movement begins before the GPU pick
+resolves, the gesture uses the current model-bounds center and ignores the late
+result. Wheel, Shift+middle-drag, and pinch change only eye distance or
+orthographic scale around the current stable target. Zoom therefore never
+scales or re-picks the target away from the model, and equal unclamped
 zoom-out/zoom-in sequences are reversible.
 
 The scene bound is a conservative orbit collision volume, while zoom protects
@@ -35,13 +39,14 @@ and zoom applies the full requested angular or scale change, then moves the eye
 outward along its new view direction only when a protected bound would
 otherwise reach or cross the camera plane. This keeps rotation available at
 close range without reviving a CPU mesh-raycast path.
+Externally supplied viewport cameras receive the same full-scene protection,
+so fitting one selected occurrence cannot place the eye inside another or clip
+the rest of the model.
 Orthographic scale stops at 5% of the scene scale. Every transition recomputes a
 finite clip interval from the live positive scene depths; the near plane is no
 farther than one quarter of the nearest protected depth or one thousandth of
 the target distance, whichever is smaller.
-Early drag deltas wait for
-the asynchronous GPU hit, so the gesture uses one pivot from its first visible
-movement onward. The WebGPU renderer projects its active pivot to a
+The WebGPU renderer projects its active pivot to a
 high-contrast three-axis screen-space widget at that world-space position. The X/Y/Z
 directions follow the current camera projection, while the widget dimensions scale
 with device pixels and stay stable through perspective, orthographic, and resize changes.
@@ -61,7 +66,9 @@ visible result: clockwise moves a point above the target to the right, and
 counterclockwise moves it to the left, without changing the line of sight,
 target, framing, or clip planes. Face and corner snaps restore their canonical
 up direction. Pressing `Z` fits the selected visible occurrences (or the
-complete scene when there is no selection).
+complete scene when there is no selection) through an interruptible one-second
+eased transition. Its final framing targets the selection while its eye
+position and clip interval continue to protect the complete displayed scene.
 
 Camera admission through `createCamera` and `FemViewport.setCamera` rejects
 non-finite vectors/scalars, degenerate view bases, invalid field of view or

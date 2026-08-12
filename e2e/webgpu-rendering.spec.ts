@@ -199,7 +199,9 @@ function isFullSizePointSprite(bounds: {
   readonly maxX: number;
   readonly maxY: number;
 }): boolean {
-  return bounds.maxX - bounds.minX > 5 && bounds.maxY - bounds.minY > 5;
+  const width = bounds.maxX - bounds.minX;
+  const height = bounds.maxY - bounds.minY;
+  return width > 5 && width <= 10 && height > 5 && height <= 10;
 }
 
 test("composes the transparency fixture and picks its nearest translucent face", async ({
