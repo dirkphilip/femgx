@@ -1,4 +1,4 @@
-import type { Bounds } from "../geometry/part";
+import { boundsCorners, type Bounds } from "../geometry/part";
 import { dot, normalize, subtract, type Vec3 } from "../math/vec3";
 import {
   orbitCamera,
@@ -230,19 +230,6 @@ function boundsScale(bounds: Bounds): number {
     Math.abs(bounds.maxZ - bounds.minZ),
     1e-9,
   );
-}
-
-function boundsCorners(bounds: Bounds): readonly Vec3[] {
-  return [
-    [bounds.minX, bounds.minY, bounds.minZ],
-    [bounds.minX, bounds.minY, bounds.maxZ],
-    [bounds.minX, bounds.maxY, bounds.minZ],
-    [bounds.minX, bounds.maxY, bounds.maxZ],
-    [bounds.maxX, bounds.minY, bounds.minZ],
-    [bounds.maxX, bounds.minY, bounds.maxZ],
-    [bounds.maxX, bounds.maxY, bounds.minZ],
-    [bounds.maxX, bounds.maxY, bounds.maxZ],
-  ];
 }
 
 function assertFinite(name: string, value: number): void {

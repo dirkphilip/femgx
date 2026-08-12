@@ -3,7 +3,7 @@ import { createCamera, projectPoint, type Camera } from "../../src/camera/camera
 import type { Vec3 } from "../../src/math/vec3";
 import { fitCamera } from "../../src/camera/fit";
 import { orbitCameraWithinBounds } from "../../src/camera/navigation";
-import type { Bounds } from "../../src/geometry/part";
+import { boundsCorners, type Bounds } from "../../src/geometry/part";
 
 const bounds: Bounds = { minX: -2, minY: -1, minZ: -3, maxX: 4, maxY: 3, maxZ: 2 };
 
@@ -134,17 +134,4 @@ function direction(camera: Camera): Vec3 {
   const z = camera.target[2] - camera.position[2];
   const length = Math.hypot(x, y, z);
   return [x / length, y / length, z / length];
-}
-
-function boundsCorners(value: Bounds): readonly Vec3[] {
-  return [
-    [value.minX, value.minY, value.minZ],
-    [value.minX, value.minY, value.maxZ],
-    [value.minX, value.maxY, value.minZ],
-    [value.minX, value.maxY, value.maxZ],
-    [value.maxX, value.minY, value.minZ],
-    [value.maxX, value.minY, value.maxZ],
-    [value.maxX, value.maxY, value.minZ],
-    [value.maxX, value.maxY, value.maxZ],
-  ];
 }

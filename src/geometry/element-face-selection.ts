@@ -8,8 +8,6 @@ import {
   type FaceKey,
 } from "../elements/faces";
 import type { Element, ElementId } from "../elements/element";
-import type { ElementModel } from "../elements/model";
-import type { ElementFamily } from "../elements/shapes";
 import type { BodyId } from "./part";
 
 /** One source element face selected for tessellation. */
@@ -17,11 +15,6 @@ export interface ElementRenderFace {
   readonly element: Element;
   readonly face: ElementFace;
   readonly faceIndex: number;
-}
-
-/** Returns model elements belonging to one renderable family. */
-export function elementsOf(model: ElementModel, family: ElementFamily): readonly Element[] {
-  return model.elements.filter((element) => element.shape.family === family);
 }
 
 /** Maps each canonical face key to every element incident to it. */
@@ -38,23 +31,10 @@ export function faceNeighbors(elements: readonly Element[]): Map<FaceKey, Elemen
 }
 
 /** Returns every face in deterministic element/topology order. */
-export function allFaces(model: ElementModel, family: ElementFamily): readonly ElementRenderFace[] {
-  return allFacesForElements(elementsOf(model, family));
-}
-
-/** Returns every face in deterministic element/topology order. */
 export function allFacesForElements(elements: readonly Element[]): readonly ElementRenderFace[] {
   return elements.flatMap((element) =>
     facesOfElement(element).map(({ face, faceIndex }) => ({ element, face, faceIndex })),
   );
-}
-
-/** Returns only boundary faces, preserving the source element/topology order. */
-export function boundaryFaces(
-  model: ElementModel,
-  family: ElementFamily,
-): readonly ElementRenderFace[] {
-  return boundaryFacesForElements(elementsOf(model, family));
 }
 
 /** Returns only boundary faces for a pre-partitioned element list. */
@@ -96,15 +76,6 @@ export function validateManifoldFaces(elements: readonly Element[]): void {
       throw new Error(`Non-manifold face ${key} has ${incident.length} incident elements`);
     }
   }
-}
-
-/** Validates face identities and returns a deterministic lookup set. */
-export function validateFaceSelection(
-  model: ElementModel,
-  family: ElementFamily,
-  selection: readonly FaceIdRef[],
-): ReadonlySet<string> {
-  return validateFaceSelectionForElements(elementsOf(model, family), selection, family);
 }
 
 /** Validates face identities against one pre-partitioned element list. */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bodyIdForElement,
+  boundsCorners,
   computeBounds,
   createPart,
   isFiniteBounds,
@@ -23,6 +24,19 @@ function part(id: number, positions: number[]): Part {
 }
 
 describe("computeBounds", () => {
+  it("enumerates all corners in deterministic order", () => {
+    expect(boundsCorners({ minX: -1, minY: -2, minZ: -3, maxX: 4, maxY: 5, maxZ: 6 })).toEqual([
+      [-1, -2, -3],
+      [-1, -2, 6],
+      [-1, 5, -3],
+      [-1, 5, 6],
+      [4, -2, -3],
+      [4, -2, 6],
+      [4, 5, -3],
+      [4, 5, 6],
+    ]);
+  });
+
   it("computes the bounding box of positions", () => {
     const b = computeBounds({
       positions: new Float32Array([-1, 0, 0, 3, 2, 5]),
