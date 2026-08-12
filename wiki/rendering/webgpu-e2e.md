@@ -62,6 +62,21 @@ the authoritative WebGPU interaction/pixel gate.
 
 ## Demo test surface
 
+The browser contracts have one semantic owner per feature. Workbench DOM and
+interaction journeys live in `e2e/demo-lifecycle.spec.ts`,
+`e2e/demo-results.spec.ts`, `e2e/demo-visibility.spec.ts`, and
+`e2e/demo-interaction.spec.ts`. Real GPU
+behavior is partitioned into `e2e/webgpu-lifecycle.spec.ts`,
+`e2e/webgpu-rendering.spec.ts`, `e2e/webgpu-camera.spec.ts`, and
+`e2e/webgpu-visibility.spec.ts`; their shared settled-pixel and navigation
+helpers live in `e2e/webgpu-support.ts`. Mobile layout and touch contracts keep
+their deliberate independent suites, while performance remains opt-in.
+
+The former monolithic `demo.spec.ts` and `webgpu.spec.ts` suites were removed so
+failure names identify the owning product contract. DOM-only CPU-overlay menu
+coverage belongs to the demo interaction suite and is not duplicated in the
+WebGPU rendering suite.
+
 - `data-renderer="webgpu" | "unsupported" | "destroyed"` on the `#view` canvas.
 - `data-frames` — successful render count.
 - `data-recovery="recovered" | "error"` — outcome reported by the viewport after device loss.

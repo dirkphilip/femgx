@@ -60,8 +60,30 @@ never be mistaken for a clean required-journey run.
 
 ## Required journeys
 
+The large browser surfaces are partitioned by ownership rather than by runner:
+
+- `demo-lifecycle.spec.ts` — startup, model selection, layout, diagnostics,
+  camera-control labels, and box-selection DOM behavior.
+- `demo-results.spec.ts` — results states, deformed picking, and fit/reset state
+  preservation.
+- `demo-visibility.spec.ts` — hierarchy, body/part/instance visibility, and
+  target/view context-menu semantics.
+- `demo-interaction.spec.ts` — selection, inspection, edge controls, and
+  selection persistence through gestures.
+- `webgpu-lifecycle.spec.ts` — renderer startup, GPU interaction seams,
+  teardown/recreation, and unsupported WebGPU behavior.
+- `webgpu-rendering.spec.ts` — rendered pixels, overlays, node/face behavior,
+  transparency, and selection appearance.
+- `webgpu-camera.spec.ts` — camera fitting, orbit/pan/zoom, orientation gizmo,
+  and clip/depth invariants.
+- `webgpu-visibility.spec.ts` — body visibility and visible-interface picking.
+
+Shared support modules contain only reusable browser mechanics; they do not own
+additional product journeys. A DOM semantic contract is not repeated in a GPU
+suite merely because both use system Chrome.
+
 At least one required journey covers each interactive concern, all in
-`e2e/demo.spec.ts` (plus mobile coverage in `e2e/mobile.spec.ts` and
+the partitioned demo suites above (plus mobile coverage in `e2e/mobile.spec.ts` and
 `e2e/mobile-touch.spec.ts`):
 
 - **picking** — "picks and selects a node", "picks and selects a face";
