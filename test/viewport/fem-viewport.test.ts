@@ -197,6 +197,29 @@ describe("FemViewport", () => {
     viewport.destroy();
   });
 
+  it("keeps runtime visibility isolated between viewports", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const first = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: fakeGpuDevice().device,
+    });
+    const second = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: fakeGpuDevice().device,
+    });
+
+    first.setPartVisible(1, false);
+    expect(first.runtime.visibleCount).toBe(0);
+    expect(second.runtime.visibleCount).toBe(1);
+    expect(second.runtime.isInstanceVisible("1/0")).toBe(true);
+
+    first.destroy();
+    second.destroy();
+  });
+
   it("owns unrecoverable device-loss cleanup and error reporting", async () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();

@@ -15,14 +15,14 @@ oriented API map, and the root [[../index|wiki index]] is the navigation map.
 
 ## Canonical concepts
 
-| Concept             | Current representation | Responsibility                                                                     |
-| ------------------- | ---------------------- | ---------------------------------------------------------------------------------- |
-| Part definition     | `Part` / `createPart`  | Validated immutable reusable geometry, derived bounds, and optional element ranges |
-| Part instance       | `PartPlacement`        | A reference to a part definition plus a local transform                            |
-| Assembly definition | `NamedAssembly`        | Ordered hierarchy of part and assembly placements                                  |
-| Scene registry      | `Scene`                | Authoritative maps of parts and assemblies plus visibility state                   |
-| Scene runtime       | `SceneRuntime`         | Stable placement/assembly-occurrence queries, transforms, visibility, and deltas   |
-| Viewport            | `FemViewport`          | Public scene lifecycle, GPU rendering, interaction attributes, and picking         |
+| Concept             | Current representation | Responsibility                                                                       |
+| ------------------- | ---------------------- | ------------------------------------------------------------------------------------ |
+| Part definition     | `Part` / `createPart`  | Validated immutable reusable geometry, derived bounds, and optional element ranges   |
+| Part instance       | `PartPlacement`        | A reference to a part definition plus a local transform                              |
+| Assembly definition | `NamedAssembly`        | Ordered hierarchy of part and assembly placements                                    |
+| Scene registry      | `Scene`                | Authoritative maps of parts and assemblies plus visibility state                     |
+| Scene runtime       | `SceneRuntime`         | Stable placement/assembly-occurrence queries; live mutations belong to `FemViewport` |
+| Viewport            | `FemViewport`          | Public scene lifecycle, GPU rendering, interaction attributes, and picking           |
 
 The API may eventually introduce explicit `PartDefinition` and
 `PartInstance` names, but it must preserve this semantic distinction even
@@ -63,7 +63,8 @@ metadata for render and pick paths.
   leak into the authoring API.
 - The authoritative CPU representation owns the model data; typed arrays in
   the private packed runtime and GPU buffers are compiled representations. The
-  public `SceneRuntime` exposes stable handles and query objects, not slots.
+  public `SceneRuntime` exposes stable handles and query objects, not slots or
+  mutation deltas. Live visibility changes go through `FemViewport`.
 
 ## Public API boundary
 

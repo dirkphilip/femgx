@@ -3,7 +3,7 @@ import { createBoltedPlateFixture } from "../../demo/fixture/bolted-plate";
 import { createSceneRuntime } from "../../src/index";
 
 describe("public scene runtime", () => {
-  it("resolves visibility through stable placement and occurrence handles", () => {
+  it("exposes stable placement and occurrence queries", () => {
     const runtime = createSceneRuntime(createBoltedPlateFixture().scene);
     const instanceId = runtime.getInstanceIds()[0];
     const nodeId = runtime.getNodeIds()[0];
@@ -13,13 +13,13 @@ describe("public scene runtime", () => {
     expect(runtime.getInstance(instanceId ?? "missing")?.instanceId).toBe(instanceId);
     expect(runtime.getNode(nodeId ?? "missing")?.nodeId).toBe(nodeId);
 
-    const hidden = runtime.setInstanceVisible(instanceId ?? "missing", false);
-    expect(hidden.changedInstanceIds).toEqual([instanceId]);
-    expect(runtime.isInstanceVisible(instanceId ?? "missing")).toBe(false);
-
-    const shown = runtime.setInstanceVisible(instanceId ?? "missing", true);
-    expect(shown.changedInstanceIds).toEqual([instanceId]);
     expect(runtime.isInstanceVisible(instanceId ?? "missing")).toBe(true);
+    expect(runtime).not.toHaveProperty("setInstanceVisible");
+    expect(runtime).not.toHaveProperty("setPartVisible");
+    expect(runtime).not.toHaveProperty("setAssemblyNodeVisible");
+    expect(runtime).not.toHaveProperty("setAssemblyVisible");
+    expect(runtime).not.toHaveProperty("setInstanceTransform");
+    expect(runtime).not.toHaveProperty("setNodeTransform");
   });
 
   it("keeps repeated assembly occurrences independently addressable", () => {
@@ -33,8 +33,7 @@ describe("public scene runtime", () => {
     const second = occurrenceIds[1];
     expect(first).toBeDefined();
     expect(second).toBeDefined();
-    runtime.setAssemblyNodeVisible(first ?? "missing", false);
-    expect(runtime.getNode(first ?? "missing")?.effectiveVisible).toBe(false);
+    expect(runtime.getNode(first ?? "missing")?.effectiveVisible).toBe(true);
     expect(runtime.getNode(second ?? "missing")?.effectiveVisible).toBe(true);
   });
 });

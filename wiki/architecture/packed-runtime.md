@@ -12,8 +12,9 @@ boundary. Its renderer-owned packed counterpart is created internally by
 
 The public runtime exposes stable instance and assembly-occurrence handles via
 `getInstances()`, `getNodes()`, `getInstance(instanceId)`, and
-`getNode(nodeId)`. Visibility and transform mutations accept those same
-handles, and `getDrawList()` returns stable instance handles.
+`getNode(nodeId)`. It is query-only; live visibility mutations go through
+`FemViewport`, which keeps CPU runtime state, GPU buffers, invalidation, and
+picking synchronized. `getDrawList()` returns stable instance handles.
 
 The internal packed representation stores, in typed arrays indexed by private
 slots:
@@ -32,9 +33,10 @@ runtime state in place after the initial compile. Stable placement paths are
 resolved through runtime-owned reverse maps; callers never need to know the
 slot layout.
 
-## Visibility deltas
+## Internal visibility deltas
 
-Updates apply immediately and return a stable-handle visibility delta:
+Private packed-runtime updates apply immediately and return a slot-oriented
+visibility delta:
 
 - `setPartVisible(partId, visible)` — flips the authoring part flag of that
   part's instance slots.
@@ -50,11 +52,11 @@ hidden ancestor. Updates touch only the affected instance slots and report the
 changed ids plus before/after `visibleCount`; geometry and the instance list are
 never rebuilt.
 
-The internal renderer receives affected packed slots derived from the stable
-delta. Public callers receive visible instance handles in deterministic
-depth-first placement order.
+The viewport maps those affected slots directly to renderer uploads. Public
+callers use the viewport visibility methods and read the resulting state from
+`viewport.runtime`; they do not receive or apply mutation deltas.
 
-## Transform updates
+## Internal transform updates
 
 The runtime keeps the **local placement transform** and the composed **world
 transform** for every node (assembly expansion) and instance (part placement).
