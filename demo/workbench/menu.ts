@@ -46,7 +46,7 @@ export class WorkbenchMenu {
     this.menuSection("Display");
     this.menuButton(this.edgesEnabled() ? "Hide edges" : "Overlay edges", "edges");
     this.menuButton(
-      this.diagnosticsEnabled() ? "Diagnostics off" : "Diagnostics on",
+      this.diagnosticsEnabled() ? "Hide diagnostics" : "Show diagnostics",
       "diagnostics",
     );
     this.menuSection("View");
@@ -65,6 +65,11 @@ export class WorkbenchMenu {
     this.menuButton("Clear selection", "clear-selection");
     this.menuButton("Show all", "show-all");
     this.menuButton("Reset view", "reset");
+    this.menuSection("Display");
+    this.menuButton(
+      this.diagnosticsEnabled() ? "Hide diagnostics" : "Show diagnostics",
+      "diagnostics",
+    );
     this.menu.style.left = `${x}px`;
     this.menu.style.top = `${y}px`;
     this.menu.hidden = false;

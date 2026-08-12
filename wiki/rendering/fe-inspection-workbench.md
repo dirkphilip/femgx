@@ -69,8 +69,11 @@ controller, so camera and interaction behavior is stable
   demo-side `emphasis.ts` fold was removed. `elementOverrides` now holds only
   explicit element highlights set through `setElementOverride`
   ([[architecture/demo-library-boundary|Demo / library boundary]]).
-- Display toggles (edges, nodes, diagnostics) update interaction state only; they
-  never rebuild reusable geometry or drop selection state. The `nodes` toggle
+- Display toggles (edges, nodes, diagnostics) update workbench presentation and
+  interaction state only; they never rebuild reusable geometry or drop selection
+  state. Diagnostics are an opt-in, bounded HUD with `hidden` as its authoritative
+  visibility state, and the same action is available from target and empty-scene
+  context menus. The `nodes` toggle
   bulk-applies the part-level node membership flag to eligible non-Point parts;
   Point parts keep their primary glyphs without a duplicate annotation pass. The
   `edges` overlay is a real WebGPU pass with depth testing kept as an implementation
@@ -92,8 +95,10 @@ controller, so camera and interaction behavior is stable
   left rail; the WebGPU canvas owns the remaining space. The toolbar is one calm
   surface with model, fit, projection, edges, nodes, results, and reset controls.
   Healthy renderer/status telemetry and inspection details stay hidden until
-  explicitly needed; renderer failures remain prominent. On mobile the scene is
-  first and the hierarchy follows it, while the toolbar uses exactly two rows.
+  explicitly needed; renderer failures remain prominent. Diagnostics stay within
+  the scene, scroll internally when needed, and remain visible in the compact
+  mobile scene. On mobile the scene is first and the hierarchy follows it, while
+  the toolbar uses exactly two rows.
 - The controller exposes a `rendererState` note (e.g. `recovered`) for status
   presentation. `FemViewport` performs recovery and reports success/failure to
   the demo callbacks ([[rendering/platform-support|Platform support]]).
