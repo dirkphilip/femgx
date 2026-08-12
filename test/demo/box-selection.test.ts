@@ -236,9 +236,8 @@ describe("workbench hover suppression", () => {
 });
 
 describe("workbench click selection", () => {
-  function harness() {
+  function harness(pick = vi.fn(() => Promise.resolve(undefined))) {
     const canvas = new FakeElement();
-    const pick = vi.fn(() => Promise.resolve(undefined));
     let interaction = createInteractionState();
     const render = vi.fn();
     const inspectionPanel = { textContent: "" };
@@ -274,5 +273,49 @@ describe("workbench click selection", () => {
     expect(pick).toHaveBeenCalledOnce();
     // An empty pick clears selection and refreshes the inspection panel.
     expect(render).toHaveBeenCalledOnce();
+  });
+
+  it("keeps overlapping picks independent and skips stale results", async () => {
+    let resolveFirst: ((value: undefined) => void) | undefined;
+    let resolveSecond: ((value: undefined) => void) | undefined;
+    const first = new Promise<undefined>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const second = new Promise<undefined>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const pick = vi.fn().mockReturnValueOnce(first).mockReturnValueOnce(second);
+    const { workbench } = harness(pick);
+
+    const firstClick = workbench.click({ clientX: 100, clientY: 100 } as MouseEvent);
+    const secondClick = workbench.click({ clientX: 110, clientY: 110 } as MouseEvent);
+    await vi.waitFor(() => {
+      expect(pick).toHaveBeenCalledTimes(2);
+    });
+
+    resolveFirst?.(undefined);
+    resolveSecond?.(undefined);
+    await firstClick;
+    await secondClick;
+  });
+
+  it("ignores an in-flight pick rejected after destruction", async () => {
+    let rejectPick: ((reason?: unknown) => void) | undefined;
+    const pick = vi.fn(
+      () =>
+        new Promise<undefined>((_resolve, reject) => {
+          rejectPick = reject;
+        }),
+    );
+    const { workbench } = harness(pick);
+
+    const click = workbench.click({ clientX: 100, clientY: 100 } as MouseEvent);
+    await vi.waitFor(() => {
+      expect(pick).toHaveBeenCalledOnce();
+    });
+    workbench.destroy();
+    rejectPick?.(new Error("viewport destroyed"));
+
+    await expect(click).resolves.toBeUndefined();
   });
 });

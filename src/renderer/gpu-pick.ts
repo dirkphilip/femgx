@@ -7,6 +7,7 @@ import type { Vec3 } from "../math/vec3";
 import { decodePickId, PICK_TEXTURE_FORMAT } from "./pick-format";
 import { WebGpuPickReadbackError } from "./gpu-pick-error";
 import {
+  acquirePickDepthReadback,
   bindPickDepth,
   destroyPickDepthReadback,
   encodePickDepthReadback,
@@ -162,8 +163,14 @@ export async function readPickPixel(
     canvas.height,
   );
   const buffer = acquirePickReadback(device, pick.readback, READBACK_SIZE);
+  let releaseDepth: (() => void) | undefined;
   let mapped = false;
   try {
+    const acquiredDepth = acquirePickDepthReadback(textures.readback);
+    releaseDepth = acquiredDepth instanceof Promise ? await acquiredDepth : acquiredDepth;
+    if (releaseDepth === undefined) {
+      throw new Error("WebGPU picking depth resources were destroyed");
+    }
     submitPickCopies(device, textures, buffer, pixel);
     await buffer.mapAsync(GPUMapMode.READ);
     mapped = true;
@@ -182,6 +189,7 @@ export async function readPickPixel(
     );
   } finally {
     if (mapped) buffer.unmap();
+    releaseDepth?.();
     releasePickReadback(pick.readback, buffer, READBACK_SIZE);
   }
 }

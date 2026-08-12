@@ -30,6 +30,9 @@ export interface PickDepthReadback {
   readonly bindGroupLayout: GPUBindGroupLayout;
   readonly pipeline: GPUComputePipeline;
   bindGroup: GPUBindGroup | undefined;
+  busy: boolean;
+  readonly waiters: Array<() => void>;
+  closed: boolean;
 }
 
 /** Creates the reusable compute pipeline and storage used for depth extraction. */
@@ -57,7 +60,31 @@ export async function createPickDepthReadback(
     size: 16,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
-  return { requestBuffer, bindGroupLayout, pipeline, bindGroup: undefined };
+  return {
+    requestBuffer,
+    bindGroupLayout,
+    pipeline,
+    bindGroup: undefined,
+    busy: false,
+    waiters: [],
+    closed: false,
+  };
+}
+
+/** Acquires exclusive ownership of the shared depth request buffer. */
+export function acquirePickDepthReadback(
+  readback: PickDepthReadback,
+): (() => void) | Promise<(() => void) | undefined> | undefined {
+  if (readback.closed) return undefined;
+  if (readback.busy) {
+    return new Promise<(() => void) | undefined>((resolve) => {
+      readback.waiters.push(() => {
+        resolve(readback.closed ? undefined : createDepthRelease(readback));
+      });
+    });
+  }
+  readback.busy = true;
+  return createDepthRelease(readback);
 }
 
 /** Rebinds the depth extractor to a newly created or resized pick depth texture. */
@@ -103,6 +130,21 @@ export function encodePickDepthReadback(
 
 /** Releases the storage buffer owned by the depth extractor. */
 export function destroyPickDepthReadback(readback: PickDepthReadback): void {
+  readback.closed = true;
+  readback.busy = false;
+  const waiters = readback.waiters.splice(0);
+  for (const waiter of waiters) waiter();
   readback.requestBuffer.destroy();
   readback.bindGroup = undefined;
+}
+
+function createDepthRelease(readback: PickDepthReadback): () => void {
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    const waiter = readback.waiters.shift();
+    if (waiter === undefined) readback.busy = false;
+    else waiter();
+  };
 }
