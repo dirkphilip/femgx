@@ -1,5 +1,5 @@
 import type { Bounds } from "../geometry/part";
-import { add, dot, length, normalize, scale, subtract, type Vec3 } from "../math/vec3";
+import { add, cross, dot, length, normalize, scale, subtract, type Vec3 } from "../math/vec3";
 import {
   cameraDepthMargin,
   minimumCameraDepth,
@@ -14,8 +14,8 @@ export type ViewCubeFace = "front" | "back" | "right" | "left" | "top" | "bottom
 /** The eight signed trimetric view-cube corners, ordered X/Y/Z. */
 export type ViewCubeCorner = "+++" | "++-" | "+-+" | "+--" | "-++" | "-+-" | "--+" | "---";
 
-/** The four stepped view-cube rotation targets. */
-export type ViewCubeRotation = "left" | "right" | "up" | "down";
+/** The six stepped view-cube rotation targets. */
+export type ViewCubeRotation = "left" | "right" | "up" | "down" | "clockwise" | "counterclockwise";
 
 /** An action emitted by the internal orientation-gizmo controls. */
 export type ViewCubeAction =
@@ -115,9 +115,34 @@ export function rotateCameraByStep(
   stepDegrees: 5 | 15 | 90,
 ): Camera {
   const radians = (stepDegrees * Math.PI) / 180;
+  if (rotation === "clockwise" || rotation === "counterclockwise") {
+    return rollCameraByStep(camera, rotation, radians);
+  }
   const yaw = rotation === "left" ? radians : rotation === "right" ? -radians : 0;
   const pitch = rotation === "up" ? -radians : rotation === "down" ? radians : 0;
   return orbitCameraWithinBounds(camera, yaw, pitch, camera.target, bounds);
+}
+
+/** Rolls the screen basis around the unchanged line of sight. */
+function rollCameraByStep(
+  camera: Camera,
+  rotation: "clockwise" | "counterclockwise",
+  radians: number,
+): Camera {
+  const forward = normalize(subtract(camera.target, camera.position));
+  const currentRight = normalize(cross(forward, camera.up));
+  const currentUp = normalize(cross(currentRight, forward));
+  const angle = rotation === "clockwise" ? -radians : radians;
+  const cosine = Math.cos(angle);
+  const sine = Math.sin(angle);
+  const rotated = add(
+    add(scale(currentUp, cosine), scale(cross(forward, currentUp), sine)),
+    scale(forward, dot(forward, currentUp) * (1 - cosine)),
+  );
+  const up = normalize(subtract(rotated, scale(forward, dot(rotated, forward))));
+  const next = { ...camera, up };
+  assertValidCamera(next);
+  return next;
 }
 
 function cameraAtDirection(camera: Camera, eyeDirection: Vec3, distance: number): Camera {

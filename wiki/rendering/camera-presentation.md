@@ -53,9 +53,13 @@ shift-based inspection modifiers. The demo presentation uses a light studio
 background and restrained material colors so geometry edges and selection
 emphasis remain legible. Its lower-left viewport-owned view cube follows the
 camera's screen-space world-axis projection: six named faces and eight signed
-corners snap the camera, while surrounding arrows rotate by 15° (90° with
-Shift, 5° with Ctrl/Meta). Pressing `Z` fits the selected visible occurrences
-(or the complete scene when there is no selection).
+corners snap the camera, while four pitch/yaw arrows and two curved roll arrows
+rotate by 15° (90° with Shift, 5° with Ctrl/Meta). Roll is defined by the
+visible result: clockwise moves a point above the target to the right, and
+counterclockwise moves it to the left, without changing the line of sight,
+target, framing, or clip planes. Face and corner snaps restore their canonical
+up direction. Pressing `Z` fits the selected visible occurrences (or the
+complete scene when there is no selection).
 
 Camera admission through `createCamera` and `FemViewport.setCamera` rejects
 non-finite vectors/scalars, degenerate view bases, invalid field of view or

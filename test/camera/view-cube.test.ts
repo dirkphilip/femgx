@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCamera } from "../../src/camera/camera";
+import { createCamera, projectPoint } from "../../src/camera/camera";
 import {
   VIEW_CUBE_CORNERS,
   VIEW_CUBE_FACES,
@@ -8,7 +8,7 @@ import {
   rotateCameraByStep,
   snapCameraToDirection,
 } from "../../src/camera/view-cube";
-import { length, normalize, subtract, dot, type Vec3 } from "../../src/math/vec3";
+import { cross, dot, length, normalize, subtract, type Vec3 } from "../../src/math/vec3";
 
 const bounds = {
   minX: -2,
@@ -31,6 +31,12 @@ function expectCameraBasis(camera: ReturnType<typeof createCamera>): void {
   expect(camera.up.every(Number.isFinite)).toBe(true);
   expect(camera.near).toBeGreaterThan(0);
   expect(camera.far).toBeGreaterThan(camera.near);
+}
+
+function effectiveUp(camera: ReturnType<typeof createCamera>): Vec3 {
+  const forward = normalize(subtract(camera.target, camera.position));
+  const right = normalize(cross(forward, camera.up));
+  return normalize(cross(right, forward));
 }
 
 describe("view-cube camera actions", () => {
@@ -117,6 +123,49 @@ describe("view-cube camera actions", () => {
     expect(restored.position[0]).toBeCloseTo(initial.position[0], 8);
     expect(restored.position[1]).toBeCloseTo(initial.position[1], 8);
     expect(restored.position[2]).toBeCloseTo(initial.position[2], 8);
+  });
+
+  it.each(["clockwise", "counterclockwise"] as const)(
+    "rolls the view %s in the projected screen direction",
+    (rotation) => {
+      const initial = createCamera({
+        position: [0, 0, 5],
+        target: [0, 0, 0],
+        width: 100,
+        height: 100,
+        orthoHeight: 10,
+      });
+      const rolled = rotateCameraByStep(initial, bounds, rotation, 90);
+      const probe = projectPoint(rolled, [0, 1, 0]);
+      expect(probe?.[0]).toBeCloseTo(50 + (rotation === "clockwise" ? 10 : -10), 6);
+      expect(probe?.[1]).toBeCloseTo(50, 6);
+      expect(rolled.position).toEqual(initial.position);
+      expect(rolled.target).toEqual(initial.target);
+      expect(rolled.mode).toBe(initial.mode);
+      expect(rolled.orthoHeight).toBe(initial.orthoHeight);
+      expect(rolled.fovY).toBe(initial.fovY);
+      expect(rolled.near).toBe(initial.near);
+      expect(rolled.far).toBe(initial.far);
+      expect(rolled.width).toBe(initial.width);
+      expect(rolled.height).toBe(initial.height);
+      expectCameraBasis(rolled);
+    },
+  );
+
+  it.each([5, 15, 90] as const)("recovers after a full %d-degree roll revolution", (degrees) => {
+    const initial = createCamera({ position: [4, 3, 6], target: [0.5, -0.25, 0.75] });
+    const initialUp = effectiveUp(initial);
+    const count = 360 / degrees;
+    let rolled = initial;
+    for (let index = 0; index < count; index += 1) {
+      rolled = rotateCameraByStep(rolled, bounds, "clockwise", degrees);
+    }
+    expect(rolled.position).toEqual(initial.position);
+    expect(rolled.target).toEqual(initial.target);
+    expect(rolled.up[0]).toBeCloseTo(initialUp[0], 8);
+    expect(rolled.up[1]).toBeCloseTo(initialUp[1], 8);
+    expect(rolled.up[2]).toBeCloseTo(initialUp[2], 8);
+    expectCameraBasis(rolled);
   });
 
   it("does not mutate the source camera and rejects invalid directions", () => {
