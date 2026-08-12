@@ -1,10 +1,6 @@
 import {
   clientToCanvasCss,
-  setHoveredBody,
-  setHoveredElement,
-  setHoveredFace,
-  setHoveredInstance,
-  setHoveredNode,
+  setTargetHovered,
   type FemViewport,
   type InteractionState,
   type PartId,
@@ -64,34 +60,7 @@ export class WorkbenchInteraction {
     if (generation !== this.generation) return;
     const target = hit === undefined ? undefined : selectTarget(hit, event);
     let interaction = this.options.getInteraction();
-    interaction = setHoveredBody(
-      interaction,
-      target === undefined || target.kind === "part" || target.bodyId === undefined
-        ? undefined
-        : { instanceId: target.instanceId, bodyId: target.bodyId },
-    );
-    interaction = setHoveredNode(
-      interaction,
-      target?.kind === "node"
-        ? { instanceId: target.instanceId, nodeId: target.nodeId }
-        : undefined,
-    );
-    interaction = setHoveredFace(
-      interaction,
-      target?.kind === "face"
-        ? { instanceId: target.instanceId, elementId: target.elementId, faceKey: target.key }
-        : undefined,
-    );
-    interaction = setHoveredElement(
-      interaction,
-      target?.kind === "element"
-        ? { instanceId: target.instanceId, elementId: target.elementId }
-        : undefined,
-    );
-    interaction = setHoveredInstance(
-      interaction,
-      target === undefined || target.kind === "part" ? undefined : target.instanceId,
-    );
+    interaction = setTargetHovered(interaction, target);
     this.options.setInteraction(interaction);
     this.options.canvas.dataset["hovered"] = targetKey(target);
     this.options.canvas.dataset["pick"] = targetKey(hit);

@@ -1,5 +1,8 @@
 import {
   clearSelection,
+  isTargetHighlighted,
+  isTargetSelected,
+  selectedTargets,
   setTargetHighlighted,
   setTargetSelected,
   type InteractionState,
@@ -37,67 +40,32 @@ export function toggleHighlight(
 /** Stable selection keys used by demo diagnostics and e2e assertions. */
 export function selectedKeys(interaction: InteractionState): string[] {
   const keys: string[] = [];
-  for (const [instanceId, ids] of sortedMap(interaction.selectedNodeIds)) {
-    for (const nodeId of sortedNumbers(ids)) keys.push(`n:${instanceId}:${nodeId}`);
-  }
-  for (const [instanceId, faces] of sortedMap(interaction.selectedFaces)) {
-    for (const [faceKey, elementId] of sortedFaces(faces)) {
-      keys.push(`f:${instanceId}:${elementId}:${faceKey}`);
+  for (const target of selectedTargets(interaction)) {
+    switch (target.kind) {
+      case "node":
+        keys.push(`n:${target.instanceId}:${target.nodeId}`);
+        break;
+      case "face":
+        keys.push(`f:${target.instanceId}:${target.elementId}:${target.key}`);
+        break;
+      case "element":
+        keys.push(`e:${target.instanceId}:${target.elementId}`);
+        break;
+      case "instance":
+        keys.push(`i:${target.instanceId}`);
+        break;
+      case "part":
+        keys.push(`p:${target.partId}`);
+        break;
     }
   }
-  for (const [instanceId, ids] of sortedMap(interaction.selectedElementIds)) {
-    for (const elementId of sortedNumbers(ids)) keys.push(`e:${instanceId}:${elementId}`);
-  }
-  for (const instanceId of sortedStrings(interaction.selectedInstanceIds))
-    keys.push(`i:${instanceId}`);
-  for (const partId of sortedNumbers(interaction.selectedPartIds)) keys.push(`p:${partId}`);
   return keys;
 }
 
 function isSelected(interaction: InteractionState, target: SelectTarget): boolean {
-  switch (target.kind) {
-    case "node":
-      return interaction.selectedNodeIds.get(target.instanceId)?.has(target.nodeId) ?? false;
-    case "face":
-      return interaction.selectedFaces.get(target.instanceId)?.has(target.key) ?? false;
-    case "element":
-      return interaction.selectedElementIds.get(target.instanceId)?.has(target.elementId) ?? false;
-    case "instance":
-      return interaction.selectedInstanceIds.has(target.instanceId);
-    case "part":
-      return interaction.selectedPartIds.has(target.partId);
-  }
+  return isTargetSelected(interaction, target);
 }
 
 function isHighlighted(interaction: InteractionState, target: SelectTarget): boolean {
-  switch (target.kind) {
-    case "node":
-      return interaction.highlightedNodeIds.get(target.instanceId)?.has(target.nodeId) ?? false;
-    case "face":
-      return interaction.highlightedFaces.get(target.instanceId)?.has(target.key) ?? false;
-    case "element":
-      return (
-        interaction.highlightedElementIds.get(target.instanceId)?.has(target.elementId) ?? false
-      );
-    case "instance":
-      return interaction.highlightedInstanceIds.has(target.instanceId);
-    case "part":
-      return interaction.highlightedPartIds.has(target.partId);
-  }
-}
-
-function sortedMap<K, V>(map: ReadonlyMap<K, V>): Array<readonly [K, V]> {
-  return [...map.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
-}
-
-function sortedNumbers(values: Iterable<number>): number[] {
-  return [...values].sort((a, b) => a - b);
-}
-
-function sortedStrings(values: Iterable<string>): string[] {
-  return [...values].sort((a, b) => a.localeCompare(b));
-}
-
-function sortedFaces(faces: ReadonlyMap<string, number>): Array<readonly [string, number]> {
-  return [...faces.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  return isTargetHighlighted(interaction, target);
 }

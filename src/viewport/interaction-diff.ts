@@ -1,5 +1,7 @@
 import type { PartId } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
+import type { InteractionTarget } from "../interaction/target-types";
+import { readInteractionState } from "../interaction/state";
 import type { InstanceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 
@@ -23,6 +25,8 @@ export function changedInstanceSlots(
   if (previous === next) {
     return [];
   }
+  const previousData = readInteractionState(previous);
+  const nextData = readInteractionState(next);
   const slotByInstanceId = new Map<InstanceId, number>();
   const slotsByPartId = new Map<PartId, number[]>();
   for (let slot = 0; slot < runtime.instanceCount; slot++) {
@@ -56,18 +60,26 @@ export function changedInstanceSlots(
       changed.add(slot);
     }
   };
-  diffSetMembers(previous.highlightedPartIds, next.highlightedPartIds, addPart);
-  diffSetMembers(previous.selectedPartIds, next.selectedPartIds, addPart);
-  diffOverrideKeys(previous.partOverrides, next.partOverrides, addPart);
-  diffSetMembers(previous.highlightedInstanceIds, next.highlightedInstanceIds, addInstance);
-  diffSetMembers(previous.selectedInstanceIds, next.selectedInstanceIds, addInstance);
-  diffOverrideKeys(previous.instanceOverrides, next.instanceOverrides, addInstance);
-  diffNestedSetMembers(previous.highlightedElementIds, next.highlightedElementIds, addInstance);
-  if (previous.hoveredInstanceId !== next.hoveredInstanceId) {
-    addInstance(previous.hoveredInstanceId);
-    addInstance(next.hoveredInstanceId);
+  diffSetMembers(previousData.highlightedPartIds, nextData.highlightedPartIds, addPart);
+  diffSetMembers(previousData.selectedPartIds, nextData.selectedPartIds, addPart);
+  diffOverrideKeys(previousData.partOverrides, nextData.partOverrides, addPart);
+  diffSetMembers(previousData.highlightedInstanceIds, nextData.highlightedInstanceIds, addInstance);
+  diffSetMembers(previousData.selectedInstanceIds, nextData.selectedInstanceIds, addInstance);
+  diffOverrideKeys(previousData.instanceOverrides, nextData.instanceOverrides, addInstance);
+  diffNestedSetMembers(
+    previousData.highlightedElementIds,
+    nextData.highlightedElementIds,
+    addInstance,
+  );
+  if (previousData.hoveredTarget !== nextData.hoveredTarget) {
+    addInstance(hoveredInstanceId(previousData.hoveredTarget));
+    addInstance(hoveredInstanceId(nextData.hoveredTarget));
   }
   return Array.from(changed).sort((a, b) => a - b);
+}
+
+function hoveredInstanceId(target: InteractionTarget | undefined): InstanceId | undefined {
+  return target === undefined || target.kind === "part" ? undefined : target.instanceId;
 }
 
 function diffNestedSetMembers<OuterKey, InnerKey>(

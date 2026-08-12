@@ -43,11 +43,11 @@ presentation and interaction policy only.
 ## Emphasis rendering
 
 Node/face emphasis is represented and rendered entirely through library APIs,
-never by deriving `elementOverrides`. `InteractionState.elementOverrides` holds
-only explicit element overrides (set via `setElementOverride`); node/face
-emphasis stays in `selectedNodeIds`/`highlightedNodeIds`/`hoveredNode` and the
-face equivalents. The WebGPU renderer maps those refs to emphasis records
-directly ([[rendering/node-face-interaction|Node and face interaction]]).
+never by deriving `elementOverrides`. The public `InteractionState` is opaque;
+target queries and `setTarget*` operations cover selection, highlighting, and
+the single hovered target, while explicit element overrides remain separate.
+The WebGPU renderer maps those refs to emphasis records directly
+([[rendering/node-face-interaction|Node and face interaction]]).
 
 This removes the former demo-side `emphasis.ts` fold (node/face emphasis →
 per-element overrides); emphasis appears through the renderer's node/face

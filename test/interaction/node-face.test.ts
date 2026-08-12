@@ -16,6 +16,7 @@ import {
 } from "../../src/interaction/nodes";
 import { identity } from "../../src/math/mat4";
 import type { Instance } from "../../src/scene/types";
+import { readInteractionState } from "../../src/interaction/state";
 
 const base: ResolvedStyle = {
   color: { r: 0.2, g: 0.3, b: 0.4, a: 1 },
@@ -33,22 +34,22 @@ const otherFaceRef = { instanceId: "2/0", elementId: 5, faceKey: "4,5,6,7" };
 describe("node selection state", () => {
   it("tracks selections per instance immutably", () => {
     const state = setNodeSelected(createInteractionState(), nodeRef, true);
-    expect(state.selectedNodeIds.get("1/0")?.has(7)).toBe(true);
+    expect(readInteractionState(state).selectedNodeIds.get("1/0")?.has(7)).toBe(true);
     expect(setNodeSelected(state, nodeRef, true)).toBe(state);
     const cleared = setNodeSelected(state, nodeRef, false);
-    expect(cleared.selectedNodeIds.get("1/0")).toBeUndefined();
+    expect(readInteractionState(cleared).selectedNodeIds.get("1/0")).toBeUndefined();
   });
 
   it("removes the per-instance entry when the last node is deselected", () => {
     const state = setNodeSelected(createInteractionState(), nodeRef, true);
     const cleared = setNodeSelected(state, nodeRef, false);
-    expect(cleared.selectedNodeIds.has("1/0")).toBe(false);
+    expect(readInteractionState(cleared).selectedNodeIds.has("1/0")).toBe(false);
   });
 
   it("sets and clears hover immutably", () => {
     const initial = createInteractionState();
     const state = setHoveredNode(initial, nodeRef);
-    expect(state.hoveredNode).toEqual(nodeRef);
+    expect(readInteractionState(state).hoveredTarget).toEqual({ kind: "node", ...nodeRef });
     expect(setHoveredNode(state, nodeRef)).toBe(state);
     expect(setHoveredNode(state, undefined)).not.toHaveProperty("hoveredNode");
   });
@@ -67,15 +68,20 @@ describe("node emphasis collection", () => {
 describe("face selection state", () => {
   it("tracks selections per instance immutably with their element", () => {
     const state = setFaceSelected(createInteractionState(), faceRef, true);
-    expect(state.selectedFaces.get("1/0")?.get("0,1,2,3")).toBe(3);
+    expect(readInteractionState(state).selectedFaces.get("1/0")?.get("0,1,2,3")).toBe(3);
     expect(setFaceSelected(state, faceRef, true)).toBe(state);
     const cleared = setFaceSelected(state, faceRef, false);
-    expect(cleared.selectedFaces.has("1/0")).toBe(false);
+    expect(readInteractionState(cleared).selectedFaces.has("1/0")).toBe(false);
   });
 
   it("sets and clears hover immutably", () => {
     const state = setHoveredFace(createInteractionState(), faceRef);
-    expect(state.hoveredFace).toEqual(faceRef);
+    expect(readInteractionState(state).hoveredTarget).toEqual({
+      kind: "face",
+      instanceId: faceRef.instanceId,
+      elementId: faceRef.elementId,
+      key: faceRef.faceKey,
+    });
     expect(setHoveredFace(state, faceRef)).toBe(state);
     expect(setHoveredFace(state, undefined)).not.toHaveProperty("hoveredFace");
   });

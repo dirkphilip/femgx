@@ -1,10 +1,14 @@
-import type { ElementId, NodeId } from "../elements/element";
-import type { FaceKey } from "../elements/faces";
-import type { BodyId, PartId } from "../geometry/part";
-import type { InstanceId } from "../scene/types";
+import type { BodyRef } from "./refs";
+import type { StyleOverride } from "./state";
 import { setBodyHighlighted, setBodySelected } from "./bodies";
 import { setFaceHighlighted, setFaceSelected } from "./faces";
 import { setNodeHighlighted, setNodeSelected } from "./nodes";
+import {
+  readInteractionState,
+  setHoveredTarget,
+  updateInteractionState,
+  type InteractionState,
+} from "./state";
 import {
   setElementHighlighted,
   setElementSelected,
@@ -12,22 +16,10 @@ import {
   setInstanceSelected,
   setPartHighlighted,
   setPartSelected,
-  type InteractionState,
 } from "./interaction";
-
-/** One stable identity that can be selected or highlighted. */
-export type InteractionTarget =
-  | { readonly kind: "part"; readonly partId: PartId }
-  | { readonly kind: "instance"; readonly instanceId: InstanceId }
-  | { readonly kind: "body"; readonly instanceId: InstanceId; readonly bodyId: BodyId }
-  | { readonly kind: "element"; readonly instanceId: InstanceId; readonly elementId: ElementId }
-  | {
-      readonly kind: "face";
-      readonly instanceId: InstanceId;
-      readonly elementId: ElementId;
-      readonly key: FaceKey;
-    }
-  | { readonly kind: "node"; readonly instanceId: InstanceId; readonly nodeId: NodeId };
+import { hoveredTarget, isHoveredTarget } from "./state";
+export type { InteractionTarget } from "./target-types";
+import type { InteractionTarget } from "./target-types";
 
 /** Sets or clears selection for any supported stable interaction target. */
 export function setTargetSelected(
@@ -86,25 +78,117 @@ export function setTargetsHighlighted(
   return next;
 }
 
+/** Sets the single hovered target, replacing any previous hover. */
+export function setTargetHovered(
+  state: InteractionState,
+  target: InteractionTarget | undefined,
+): InteractionState {
+  return setHoveredTarget(state, target);
+}
+
+/** Returns whether a target is selected. */
+export function isTargetSelected(state: InteractionState, target: InteractionTarget): boolean {
+  const data = readInteractionState(state);
+  switch (target.kind) {
+    case "part":
+      return data.selectedPartIds.has(target.partId);
+    case "instance":
+      return data.selectedInstanceIds.has(target.instanceId);
+    case "body":
+      return data.selectedBodyIds.get(target.instanceId)?.has(target.bodyId) === true;
+    case "element":
+      return data.selectedElementIds.get(target.instanceId)?.has(target.elementId) === true;
+    case "face":
+      return data.selectedFaces.get(target.instanceId)?.has(target.key) === true;
+    case "node":
+      return data.selectedNodeIds.get(target.instanceId)?.has(target.nodeId) === true;
+  }
+}
+
+/** Returns whether a target is highlighted. */
+export function isTargetHighlighted(state: InteractionState, target: InteractionTarget): boolean {
+  const data = readInteractionState(state);
+  switch (target.kind) {
+    case "part":
+      return data.highlightedPartIds.has(target.partId);
+    case "instance":
+      return data.highlightedInstanceIds.has(target.instanceId);
+    case "body":
+      return data.highlightedBodyIds.get(target.instanceId)?.has(target.bodyId) === true;
+    case "element":
+      return data.highlightedElementIds.get(target.instanceId)?.has(target.elementId) === true;
+    case "face":
+      return data.highlightedFaces.get(target.instanceId)?.has(target.key) === true;
+    case "node":
+      return data.highlightedNodeIds.get(target.instanceId)?.has(target.nodeId) === true;
+  }
+}
+
+/** Returns whether a target is the one currently hovered target. */
+export { hoveredTarget, isHoveredTarget };
+
+/** Returns selected targets in stable kind and identity order. */
+export function selectedTargets(state: InteractionState): InteractionTarget[] {
+  const data = readInteractionState(state);
+  const targets: InteractionTarget[] = [];
+  for (const partId of [...data.selectedPartIds].sort((a, b) => a - b)) {
+    targets.push({ kind: "part", partId });
+  }
+  for (const instanceId of [...data.selectedInstanceIds].sort()) {
+    targets.push({ kind: "instance", instanceId });
+  }
+  for (const [instanceId, ids] of [...data.selectedBodyIds.entries()].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    for (const bodyId of [...ids].sort((a, b) => a - b))
+      targets.push({ kind: "body", instanceId, bodyId });
+  }
+  for (const [instanceId, ids] of [...data.selectedElementIds.entries()].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    for (const elementId of [...ids].sort((a, b) => a - b))
+      targets.push({ kind: "element", instanceId, elementId });
+  }
+  for (const [instanceId, faces] of [...data.selectedFaces.entries()].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    for (const [key, elementId] of [...faces.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+      targets.push({ kind: "face", instanceId, elementId, key });
+    }
+  }
+  for (const [instanceId, ids] of [...data.selectedNodeIds.entries()].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    for (const nodeId of [...ids].sort((a, b) => a - b))
+      targets.push({ kind: "node", instanceId, nodeId });
+  }
+  return targets;
+}
+
+/** Returns an explicit body style override, if one is present. */
+export function bodyOverride(state: InteractionState, ref: BodyRef): StyleOverride | undefined {
+  return readInteractionState(state).bodyOverrides.get(ref.instanceId)?.get(ref.bodyId);
+}
+
 /** Clears all six selection collections while preserving every other state layer. */
 export function clearSelection(state: InteractionState): InteractionState {
+  const data = readInteractionState(state);
   if (
-    state.selectedPartIds.size === 0 &&
-    state.selectedInstanceIds.size === 0 &&
-    state.selectedBodyIds.size === 0 &&
-    state.selectedElementIds.size === 0 &&
-    state.selectedFaces.size === 0 &&
-    state.selectedNodeIds.size === 0
+    data.selectedPartIds.size === 0 &&
+    data.selectedInstanceIds.size === 0 &&
+    data.selectedBodyIds.size === 0 &&
+    data.selectedElementIds.size === 0 &&
+    data.selectedFaces.size === 0 &&
+    data.selectedNodeIds.size === 0
   ) {
     return state;
   }
-  return {
-    ...state,
+  return updateInteractionState(state, {
     selectedPartIds: new Set(),
     selectedInstanceIds: new Set(),
     selectedBodyIds: new Map(),
     selectedElementIds: new Map(),
     selectedFaces: new Map(),
     selectedNodeIds: new Map(),
-  };
+  });
 }

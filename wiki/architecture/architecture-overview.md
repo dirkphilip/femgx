@@ -13,8 +13,9 @@ scene is authoritative; the renderer syncs deltas from it.
   compiler performs the iterative, deterministic depth-first compile into
   typed arrays with delta-oriented visibility updates (see
   [[architecture/packed-runtime|Packed scene runtime]]).
-- `src/interaction/interaction.ts` — immutable centralized selection, highlight,
-  hover, and style override state with explicit precedence.
+- `src/interaction/interaction.ts` and `src/interaction/state.ts` — opaque
+  immutable centralized target selection, highlight, single-hover, and style
+  override state with explicit precedence.
 - `src/camera/camera.ts` — immutable orbit camera math for perspective and
   orthographic projection, shared by the demo and future renderers.
 - `src/renderer/gpu-renderer.ts` — WebGPU lifecycle, one-time part uploads,

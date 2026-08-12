@@ -9,6 +9,7 @@ import {
   visiblePartIdsForPreset,
 } from "../../../demo/fixture/presets";
 import { createPresetInteraction } from "../../../demo/workbench/preset";
+import { readInteractionState } from "../../../src/interaction/state";
 
 describe("createModelPresets", () => {
   it("offers the five supported product stories in stable order", () => {
@@ -90,8 +91,8 @@ describe("createPresetInteraction", () => {
     const withEdges = createPresetInteraction(preset, true);
 
     for (const partId of preset.scene.parts.keys()) {
-      expect(withoutEdges.partOverrides.get(partId)?.edge).toBeUndefined();
-      expect(withEdges.partOverrides.get(partId)?.edge).toBe(true);
+      expect(readInteractionState(withoutEdges).partOverrides.get(partId)?.edge).toBeUndefined();
+      expect(readInteractionState(withEdges).partOverrides.get(partId)?.edge).toBe(true);
     }
   });
 });

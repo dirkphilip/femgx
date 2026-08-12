@@ -5,6 +5,7 @@ import { HEX20_SHAPE } from "../../src/elements/shapes";
 import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
 import { createPart } from "../../src/geometry/part";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
+import { readInteractionState } from "../../src/interaction/state";
 import { identity } from "../../src/math/mat4";
 import { createResultField } from "../../src/results/fields";
 import { createScene } from "../../src/scene/scene";
@@ -144,7 +145,9 @@ describe("viewport results workflow", () => {
       scene,
       runtime,
     );
-    expect(effective.elementOverrides.get("1/0")?.get(0)?.color).toMatchObject({
+    expect(
+      readInteractionState(effective).elementOverrides.get("1/0")?.get(0)?.color,
+    ).toMatchObject({
       r: 0.95,
       g: 0.85,
       a: 1,

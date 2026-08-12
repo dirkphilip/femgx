@@ -1,15 +1,16 @@
 import type { Instance } from "../scene/types";
-import type { InteractionState } from "./interaction";
 import type { BodyId } from "../geometry/part";
-import { resolveBodyStyle, resolveInstanceStyle, type ResolvedStyle } from "./interaction";
-import type { NodeRef } from "./refs";
 import {
-  applyStyleLayers,
-  collectUniqueRefs,
-  sameRef,
-  sortedNumbers,
-  updateNestedSet,
-} from "./mechanics";
+  isHoveredTarget,
+  readInteractionState,
+  setHoveredTarget,
+  updateInteractionState,
+  type InteractionState,
+  type ResolvedStyle,
+} from "./state";
+import { resolveBodyStyle, resolveInstanceStyle } from "./interaction";
+import type { NodeRef } from "./refs";
+import { applyStyleLayers, collectUniqueRefs, sortedNumbers, updateNestedSet } from "./mechanics";
 
 function updateNodeSet(
   state: InteractionState,
@@ -17,9 +18,10 @@ function updateNodeSet(
   ref: NodeRef,
   enabled: boolean,
 ): InteractionState {
-  const map = updateNestedSet(state[key], ref.instanceId, ref.nodeId, enabled);
-  if (map === state[key]) return state;
-  return { ...state, [key]: map };
+  const data = readInteractionState(state);
+  const map = updateNestedSet(data[key], ref.instanceId, ref.nodeId, enabled);
+  if (map === data[key]) return state;
+  return updateInteractionState(state, { [key]: map });
 }
 
 /** Sets or clears a node selection without mutating the previous state. */
@@ -45,22 +47,16 @@ export function setHoveredNode(
   state: InteractionState,
   ref: NodeRef | undefined,
 ): InteractionState {
-  if (sameRef(state.hoveredNode, ref, (value) => [value.instanceId, value.nodeId])) {
-    return state;
-  }
-  if (ref === undefined) {
-    const { hoveredNode: _, ...withoutHover } = state;
-    return withoutHover;
-  }
-  return { ...state, hoveredNode: ref };
+  return setHoveredTarget(state, ref === undefined ? undefined : { kind: "node", ...ref });
 }
 
 /** Returns whether a node occurrence carries emphasis (hover, highlight, selection). */
 export function isNodeEmphasized(state: InteractionState, ref: NodeRef): boolean {
+  const data = readInteractionState(state);
   return (
-    (state.hoveredNode?.instanceId === ref.instanceId && state.hoveredNode.nodeId === ref.nodeId) ||
-    state.highlightedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true ||
-    state.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
+    isHoveredTarget(state, { kind: "node", ...ref }) ||
+    data.highlightedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true ||
+    data.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
   );
 }
 
@@ -76,19 +72,18 @@ export function resolveNodeStyle(
   state: InteractionState,
   bodyId?: BodyId,
 ): ResolvedStyle {
+  const data = readInteractionState(state);
   const style =
     bodyId === undefined
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
   return applyStyleLayers(style, [
-    state.highlightedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
-      ? state.theme.highlighted
+    data.highlightedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
+      ? data.theme.highlighted
       : undefined,
-    sameRef(state.hoveredNode, ref, (value) => [value.instanceId, value.nodeId])
-      ? state.theme.hoveredNode
-      : undefined,
-    state.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
-      ? state.theme.selectedNode
+    isHoveredTarget(state, { kind: "node", ...ref }) ? data.theme.hoveredNode : undefined,
+    data.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
+      ? data.theme.selectedNode
       : undefined,
   ]);
 }
@@ -99,14 +94,17 @@ export function resolveNodeStyle(
  * duplicates.
  */
 export function emphasizedNodeRefs(state: InteractionState): readonly NodeRef[] {
+  const data = readInteractionState(state);
   return collectUniqueRefs(
-    state.hoveredNode,
+    data.hoveredTarget?.kind === "node"
+      ? { instanceId: data.hoveredTarget.instanceId, nodeId: data.hoveredTarget.nodeId }
+      : undefined,
     (ref) => `${ref.instanceId}/${ref.nodeId}`,
     (push) => {
-      for (const [instanceId, ids] of state.highlightedNodeIds) {
+      for (const [instanceId, ids] of data.highlightedNodeIds) {
         for (const nodeId of sortedNumbers(ids)) push({ instanceId, nodeId });
       }
-      for (const [instanceId, ids] of state.selectedNodeIds) {
+      for (const [instanceId, ids] of data.selectedNodeIds) {
         for (const nodeId of sortedNumbers(ids)) push({ instanceId, nodeId });
       }
     },

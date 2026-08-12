@@ -12,6 +12,7 @@ import {
 import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
 import { computeBounds } from "../../src/geometry/part";
 import { createInteractionState } from "../../src/interaction/interaction";
+import { readInteractionState } from "../../src/interaction/state";
 import { identity } from "../../src/math/mat4";
 import { createResultField } from "../../src/results/fields";
 import { createScene } from "../../src/scene/scene";
@@ -97,9 +98,10 @@ describe("heterogeneous viewport results", () => {
       scene,
       runtime,
     );
-    expect([...(effective.elementOverrides.get("1/0")?.keys() ?? [])]).toEqual([1, 2, 3, 4]);
-    expect([...(effective.elementOverrides.get("1/1")?.keys() ?? [])]).toEqual([5]);
-    expect([...(effective.elementOverrides.get("1/2")?.keys() ?? [])]).toEqual([6]);
+    const effectiveData = readInteractionState(effective);
+    expect([...(effectiveData.elementOverrides.get("1/0")?.keys() ?? [])]).toEqual([1, 2, 3, 4]);
+    expect([...(effectiveData.elementOverrides.get("1/1")?.keys() ?? [])]).toEqual([5]);
+    expect([...(effectiveData.elementOverrides.get("1/2")?.keys() ?? [])]).toEqual([6]);
     expect(result.deformation?.displacements.size).toBe(3);
     expect(result.deformation?.displacements.get(32)?.length).toBe(22 * 3);
   });

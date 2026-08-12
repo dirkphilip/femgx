@@ -1,12 +1,20 @@
 import type { ElementId, ElementRef, InstanceId, Instance } from "../scene/types";
-import type { NodeId } from "../elements/element";
-import type { FaceKey } from "../elements/faces";
 import type { BodyId, PartId } from "../geometry/part";
-import type { BodyRef, FaceRef, NodeRef } from "./refs";
+import type { InteractionTarget } from "./target-types";
+import {
+  createInteractionStateValue,
+  readInteractionState,
+  setHoveredTarget,
+  updateInteractionState,
+  type InteractionState,
+  type InteractionStateData,
+  type InteractionTheme,
+  type ResolvedStyle,
+  type StyleOverride,
+} from "./state";
 import {
   applyStyleLayers,
   collectUniqueRefs,
-  sameRef,
   sortedNumbers,
   updateMapValue,
   updateNestedMap,
@@ -14,69 +22,13 @@ import {
   updateSet,
 } from "./mechanics";
 
-/** RGBA color with normalized channels. */
-export interface Color {
-  readonly r: number;
-  readonly g: number;
-  readonly b: number;
-  readonly a: number;
-}
-
-/** Partial per-instance style written into the GPU instance buffer. */
-export interface StyleOverride {
-  readonly color?: Color;
-  readonly emissive?: number;
-  readonly opacity?: number;
-  /** Whether the instance's mesh edges are overlaid as lines on its surface. */
-  readonly edge?: boolean;
-}
-
-/** Complete style consumed by a renderer. */
-export interface ResolvedStyle {
-  readonly color: Color;
-  readonly emissive: number;
-  readonly opacity: number;
-  /** Whether the instance's mesh edges are overlaid as lines on its surface. */
-  readonly edge: boolean;
-}
-
-/** Visual defaults for interaction states. */
-export interface InteractionTheme {
-  readonly highlighted: StyleOverride;
-  readonly selected: StyleOverride;
-  readonly hovered: StyleOverride;
-  readonly hoveredFace: StyleOverride;
-  readonly selectedFace: StyleOverride;
-  readonly hoveredNode: StyleOverride;
-  readonly selectedNode: StyleOverride;
-}
-
-/** Centralized interactive state for parts, placements, and finite elements. */
-export interface InteractionState {
-  readonly highlightedPartIds: ReadonlySet<PartId>;
-  readonly highlightedInstanceIds: ReadonlySet<InstanceId>;
-  readonly selectedPartIds: ReadonlySet<PartId>;
-  readonly selectedInstanceIds: ReadonlySet<InstanceId>;
-  readonly hoveredInstanceId?: InstanceId;
-  readonly selectedBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
-  readonly highlightedBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
-  readonly hoveredBody?: BodyRef;
-  readonly bodyOverrides: ReadonlyMap<InstanceId, ReadonlyMap<BodyId, StyleOverride>>;
-  readonly hiddenBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
-  readonly selectedElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
-  readonly highlightedElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
-  readonly hoveredElement?: ElementRef;
-  readonly elementOverrides: ReadonlyMap<InstanceId, ReadonlyMap<ElementId, StyleOverride>>;
-  readonly partOverrides: ReadonlyMap<PartId, StyleOverride>;
-  readonly instanceOverrides: ReadonlyMap<InstanceId, StyleOverride>;
-  readonly selectedNodeIds: ReadonlyMap<InstanceId, ReadonlySet<NodeId>>;
-  readonly highlightedNodeIds: ReadonlyMap<InstanceId, ReadonlySet<NodeId>>;
-  readonly hoveredNode?: NodeRef;
-  readonly selectedFaces: ReadonlyMap<InstanceId, ReadonlyMap<FaceKey, ElementId>>;
-  readonly highlightedFaces: ReadonlyMap<InstanceId, ReadonlyMap<FaceKey, ElementId>>;
-  readonly hoveredFace?: FaceRef;
-  readonly theme: InteractionTheme;
-}
+export type {
+  Color,
+  InteractionState,
+  InteractionTheme,
+  ResolvedStyle,
+  StyleOverride,
+} from "./state";
 
 const defaultTheme: InteractionTheme = {
   highlighted: { emissive: 0.35 },
@@ -90,7 +42,7 @@ const defaultTheme: InteractionTheme = {
 
 /** Creates an empty interaction state. */
 export function createInteractionState(theme: InteractionTheme = defaultTheme): InteractionState {
-  return {
+  const data: InteractionStateData = {
     highlightedPartIds: new Set(),
     highlightedInstanceIds: new Set(),
     selectedPartIds: new Set(),
@@ -110,6 +62,7 @@ export function createInteractionState(theme: InteractionTheme = defaultTheme): 
     highlightedFaces: new Map(),
     theme,
   };
+  return createInteractionStateValue(data);
 }
 
 /** Sets or clears a part highlight without mutating the previous state. */
@@ -153,14 +106,10 @@ export function setHoveredInstance(
   state: InteractionState,
   instanceId: InstanceId | undefined,
 ): InteractionState {
-  if (state.hoveredInstanceId === instanceId) {
-    return state;
-  }
-  if (instanceId === undefined) {
-    const { hoveredInstanceId: _, ...withoutHover } = state;
-    return withoutHover;
-  }
-  return { ...state, hoveredInstanceId: instanceId };
+  return setHoveredTarget(
+    state,
+    instanceId === undefined ? undefined : { kind: "instance", instanceId },
+  );
 }
 
 /** Sets or clears an element selection without mutating the previous state. */
@@ -169,14 +118,15 @@ export function setElementSelected(
   ref: ElementRef,
   selected: boolean,
 ): InteractionState {
+  const data = readInteractionState(state);
   const selectedElementIds = updateNestedSet(
-    state.selectedElementIds,
+    data.selectedElementIds,
     ref.instanceId,
     ref.elementId,
     selected,
   );
-  if (selectedElementIds === state.selectedElementIds) return state;
-  return { ...state, selectedElementIds };
+  if (selectedElementIds === data.selectedElementIds) return state;
+  return updateInteractionState(state, { selectedElementIds });
 }
 
 /** Sets or clears an element highlight without mutating the previous state. */
@@ -185,14 +135,15 @@ export function setElementHighlighted(
   ref: ElementRef,
   highlighted: boolean,
 ): InteractionState {
+  const data = readInteractionState(state);
   const highlightedElementIds = updateNestedSet(
-    state.highlightedElementIds,
+    data.highlightedElementIds,
     ref.instanceId,
     ref.elementId,
     highlighted,
   );
-  if (highlightedElementIds === state.highlightedElementIds) return state;
-  return { ...state, highlightedElementIds };
+  if (highlightedElementIds === data.highlightedElementIds) return state;
+  return updateInteractionState(state, { highlightedElementIds });
 }
 
 /** Sets the currently hovered element, or clears hover with `undefined`. */
@@ -200,14 +151,7 @@ export function setHoveredElement(
   state: InteractionState,
   ref: ElementRef | undefined,
 ): InteractionState {
-  if (sameRef(state.hoveredElement, ref, (value) => [value.instanceId, value.elementId])) {
-    return state;
-  }
-  if (ref === undefined) {
-    const { hoveredElement: _, ...withoutHover } = state;
-    return withoutHover;
-  }
-  return { ...state, hoveredElement: ref };
+  return setHoveredTarget(state, ref === undefined ? undefined : { kind: "element", ...ref });
 }
 
 /** Adds or replaces an explicit element style override. */
@@ -216,14 +160,15 @@ export function setElementOverride(
   ref: ElementRef,
   override: StyleOverride | undefined,
 ): InteractionState {
+  const data = readInteractionState(state);
   const elementOverrides = updateNestedMap(
-    state.elementOverrides,
+    data.elementOverrides,
     ref.instanceId,
     ref.elementId,
     override,
   );
-  if (elementOverrides === state.elementOverrides) return state;
-  return { ...state, elementOverrides };
+  if (elementOverrides === data.elementOverrides) return state;
+  return updateInteractionState(state, { elementOverrides });
 }
 
 /** Adds or replaces an explicit part style override. */
@@ -250,18 +195,28 @@ export function resolveInstanceStyle(
   base: ResolvedStyle,
   state: InteractionState,
 ): ResolvedStyle {
+  const data = readInteractionState(state);
   const overrides: StyleOverride[] = [];
-  if (state.highlightedPartIds.has(instance.partId)) overrides.push(state.theme.highlighted);
-  if (state.highlightedInstanceIds.has(instance.instanceId))
-    overrides.push(state.theme.highlighted);
-  if (state.hoveredInstanceId === instance.instanceId) overrides.push(state.theme.hovered);
-  if (state.selectedPartIds.has(instance.partId)) overrides.push(state.theme.selected);
-  if (state.selectedInstanceIds.has(instance.instanceId)) overrides.push(state.theme.selected);
-  const partOverride = state.partOverrides.get(instance.partId);
+  if (data.highlightedPartIds.has(instance.partId)) overrides.push(data.theme.highlighted);
+  if (data.highlightedInstanceIds.has(instance.instanceId)) overrides.push(data.theme.highlighted);
+  if (hoveredInstanceId(data.hoveredTarget, instance) !== undefined)
+    overrides.push(data.theme.hovered);
+  if (data.selectedPartIds.has(instance.partId)) overrides.push(data.theme.selected);
+  if (data.selectedInstanceIds.has(instance.instanceId)) overrides.push(data.theme.selected);
+  const partOverride = data.partOverrides.get(instance.partId);
   if (partOverride !== undefined) overrides.push(partOverride);
-  const instanceOverride = state.instanceOverrides.get(instance.instanceId);
+  const instanceOverride = data.instanceOverrides.get(instance.instanceId);
   if (instanceOverride !== undefined) overrides.push(instanceOverride);
   return applyStyleLayers(base, overrides);
+}
+
+function hoveredInstanceId(
+  target: InteractionTarget | undefined,
+  instance: Instance,
+): InstanceId | undefined {
+  return target?.kind === "instance" && target.instanceId === instance.instanceId
+    ? instance.instanceId
+    : undefined;
 }
 
 /** Resolves one body occurrence after part and instance styles. */
@@ -271,21 +226,21 @@ export function resolveBodyStyle(
   base: ResolvedStyle,
   state: InteractionState,
 ): ResolvedStyle {
+  const data = readInteractionState(state);
   const style = resolveInstanceStyle(instance, base, state);
   return applyStyleLayers(style, [
-    state.highlightedBodyIds.get(instance.instanceId)?.has(bodyId) === true
-      ? state.theme.highlighted
+    data.highlightedBodyIds.get(instance.instanceId)?.has(bodyId) === true
+      ? data.theme.highlighted
       : undefined,
-    sameRef(state.hoveredBody, { instanceId: instance.instanceId, bodyId }, (value) => [
-      value.instanceId,
-      value.bodyId,
-    ])
-      ? state.theme.hovered
+    data.hoveredTarget?.kind === "body" &&
+    data.hoveredTarget.instanceId === instance.instanceId &&
+    data.hoveredTarget.bodyId === bodyId
+      ? data.theme.hovered
       : undefined,
-    state.selectedBodyIds.get(instance.instanceId)?.has(bodyId) === true
-      ? state.theme.selected
+    data.selectedBodyIds.get(instance.instanceId)?.has(bodyId) === true
+      ? data.theme.selected
       : undefined,
-    state.bodyOverrides.get(instance.instanceId)?.get(bodyId),
+    data.bodyOverrides.get(instance.instanceId)?.get(bodyId),
   ]);
 }
 
@@ -303,24 +258,24 @@ export function resolveElementStyle(
   state: InteractionState,
   bodyId?: BodyId,
 ): ResolvedStyle {
+  const data = readInteractionState(state);
   const style =
     bodyId === undefined
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
   return applyStyleLayers(style, [
-    state.highlightedElementIds.get(instance.instanceId)?.has(elementId) === true
-      ? state.theme.highlighted
+    data.highlightedElementIds.get(instance.instanceId)?.has(elementId) === true
+      ? data.theme.highlighted
       : undefined,
-    sameRef(state.hoveredElement, { instanceId: instance.instanceId, elementId }, (value) => [
-      value.instanceId,
-      value.elementId,
-    ])
-      ? state.theme.hovered
+    data.hoveredTarget?.kind === "element" &&
+    data.hoveredTarget.instanceId === instance.instanceId &&
+    data.hoveredTarget.elementId === elementId
+      ? data.theme.hovered
       : undefined,
-    state.selectedElementIds.get(instance.instanceId)?.has(elementId) === true
-      ? state.theme.selected
+    data.selectedElementIds.get(instance.instanceId)?.has(elementId) === true
+      ? data.theme.selected
       : undefined,
-    state.elementOverrides.get(instance.instanceId)?.get(elementId),
+    data.elementOverrides.get(instance.instanceId)?.get(elementId),
   ]);
 }
 
@@ -330,17 +285,20 @@ export function resolveElementStyle(
  * order with no duplicates.
  */
 export function emphasizedElementRefs(state: InteractionState): readonly ElementRef[] {
+  const data = readInteractionState(state);
   return collectUniqueRefs(
-    state.hoveredElement,
+    data.hoveredTarget?.kind === "element"
+      ? { instanceId: data.hoveredTarget.instanceId, elementId: data.hoveredTarget.elementId }
+      : undefined,
     (ref) => `${ref.instanceId}/${ref.elementId}`,
     (push) => {
-      for (const [instanceId, ids] of state.highlightedElementIds) {
+      for (const [instanceId, ids] of data.highlightedElementIds) {
         for (const elementId of sortedNumbers(ids)) push({ instanceId, elementId });
       }
-      for (const [instanceId, ids] of state.selectedElementIds) {
+      for (const [instanceId, ids] of data.selectedElementIds) {
         for (const elementId of sortedNumbers(ids)) push({ instanceId, elementId });
       }
-      for (const [instanceId, overrides] of state.elementOverrides) {
+      for (const [instanceId, overrides] of data.elementOverrides) {
         for (const elementId of sortedNumbers(overrides.keys())) push({ instanceId, elementId });
       }
     },
@@ -353,9 +311,10 @@ function updatePartSet(
   value: PartId,
   enabled: boolean,
 ): InteractionState {
-  const next = updateSet(state[key], value, enabled);
-  if (next === state[key]) return state;
-  return { ...state, [key]: next };
+  const data = readInteractionState(state);
+  const next = updateSet(data[key], value, enabled);
+  if (next === data[key]) return state;
+  return updateInteractionState(state, { [key]: next });
 }
 
 function updateInstanceSet(
@@ -364,9 +323,10 @@ function updateInstanceSet(
   value: InstanceId,
   enabled: boolean,
 ): InteractionState {
-  const next = updateSet(state[key], value, enabled);
-  if (next === state[key]) return state;
-  return { ...state, [key]: next };
+  const data = readInteractionState(state);
+  const next = updateSet(data[key], value, enabled);
+  if (next === data[key]) return state;
+  return updateInteractionState(state, { [key]: next });
 }
 
 function updatePartOverride(
@@ -374,9 +334,10 @@ function updatePartOverride(
   value: PartId,
   override: StyleOverride | undefined,
 ): InteractionState {
-  const next = updateMapValue(state.partOverrides, value, override);
-  if (next === state.partOverrides) return state;
-  return { ...state, partOverrides: next };
+  const data = readInteractionState(state);
+  const next = updateMapValue(data.partOverrides, value, override);
+  if (next === data.partOverrides) return state;
+  return updateInteractionState(state, { partOverrides: next });
 }
 
 function updateInstanceOverride(
@@ -384,7 +345,8 @@ function updateInstanceOverride(
   value: InstanceId,
   override: StyleOverride | undefined,
 ): InteractionState {
-  const next = updateMapValue(state.instanceOverrides, value, override);
-  if (next === state.instanceOverrides) return state;
-  return { ...state, instanceOverrides: next };
+  const data = readInteractionState(state);
+  const next = updateMapValue(data.instanceOverrides, value, override);
+  if (next === data.instanceOverrides) return state;
+  return updateInteractionState(state, { instanceOverrides: next });
 }

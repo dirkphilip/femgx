@@ -2,25 +2,20 @@ import { describe, expect, it } from "vitest";
 import {
   clearSelection,
   createInteractionState,
+  isTargetHighlighted,
+  isTargetSelected,
   resolveElementStyle,
-  setBodySelected,
   setElementOverride,
-  setElementHighlighted,
-  setElementSelected,
-  setFaceSelected,
-  setHoveredElement,
-  setInstanceSelected,
-  setNodeSelected,
-  setPartHighlighted,
-  setPartSelected,
   setTargetHighlighted,
   setTargetsHighlighted,
   setTargetSelected,
+  setTargetHovered,
   type InteractionTarget,
   type PickTarget,
 } from "../../src/index";
 import { identity } from "../../src/math/mat4";
 import type { Instance } from "../../src/scene/types";
+import { readInteractionState } from "../../src/interaction/state";
 
 const targets = [
   { kind: "part", partId: 1 },
@@ -47,6 +42,8 @@ describe("InteractionTarget helpers", () => {
     expect(highlighted).not.toBe(initial);
     expect(setTargetHighlighted(highlighted, target, true)).toBe(highlighted);
     const cleared = setTargetHighlighted(highlighted, target, false);
+    expect(isTargetHighlighted(highlighted, target)).toBe(true);
+    expect(isTargetHighlighted(cleared, target)).toBe(false);
     expect(setTargetHighlighted(cleared, target, false)).toBe(cleared);
   });
 
@@ -54,34 +51,32 @@ describe("InteractionTarget helpers", () => {
     const first = targets[1];
     const second = targets[3];
     const state = setTargetsHighlighted(createInteractionState(), [second, first, second], true);
-    expect(state.highlightedInstanceIds).toEqual(new Set(["1/0"]));
-    expect(state.highlightedElementIds.get("1/0")).toEqual(new Set([3]));
+    expect(isTargetHighlighted(state, first)).toBe(true);
+    expect(isTargetHighlighted(state, second)).toBe(true);
     expect(setTargetsHighlighted(state, [first, second], true)).toBe(state);
   });
 
   it("clears only selection state and preserves every other layer", () => {
     let state = createInteractionState();
-    state = setPartSelected(state, 1, true);
-    state = setInstanceSelected(state, "1/0", true);
-    state = setBodySelected(state, { instanceId: "1/0", bodyId: 2 }, true);
-    state = setElementSelected(state, { instanceId: "1/0", elementId: 3 }, true);
-    state = setFaceSelected(state, { instanceId: "1/0", elementId: 3, faceKey: "0,1,2" }, true);
-    state = setNodeSelected(state, { instanceId: "1/0", nodeId: 4 }, true);
-    state = setPartHighlighted(state, 1, true);
-    state = setElementHighlighted(state, { instanceId: "1/0", elementId: 5 }, true);
-    state = setHoveredElement(state, { instanceId: "1/0", elementId: 5 });
+    for (const target of targets) state = setTargetSelected(state, target, true);
+    state = setTargetHighlighted(state, { kind: "part", partId: 1 }, true);
+    state = setTargetHighlighted(state, { kind: "element", instanceId: "1/0", elementId: 5 }, true);
+    state = setTargetHovered(state, { kind: "element", instanceId: "1/0", elementId: 5 });
     state = setElementOverride(state, { instanceId: "1/0", elementId: 5 }, { emissive: 0.8 });
     const cleared = clearSelection(state);
-    expect(cleared.selectedPartIds.size).toBe(0);
-    expect(cleared.selectedInstanceIds.size).toBe(0);
-    expect(cleared.selectedBodyIds.size).toBe(0);
-    expect(cleared.selectedElementIds.size).toBe(0);
-    expect(cleared.selectedFaces.size).toBe(0);
-    expect(cleared.selectedNodeIds.size).toBe(0);
-    expect(cleared.highlightedPartIds).toEqual(new Set([1]));
-    expect(cleared.highlightedElementIds.get("1/0")).toEqual(new Set([5]));
-    expect(cleared.hoveredElement).toEqual({ instanceId: "1/0", elementId: 5 });
-    expect(cleared.elementOverrides.get("1/0")?.get(5)).toEqual({ emissive: 0.8 });
+    for (const target of targets) expect(isTargetSelected(cleared, target)).toBe(false);
+    expect(isTargetHighlighted(cleared, { kind: "part", partId: 1 })).toBe(true);
+    expect(isTargetHighlighted(cleared, { kind: "element", instanceId: "1/0", elementId: 5 })).toBe(
+      true,
+    );
+    expect(readInteractionState(cleared).hoveredTarget).toEqual({
+      kind: "element",
+      instanceId: "1/0",
+      elementId: 5,
+    });
+    expect(readInteractionState(cleared).elementOverrides.get("1/0")?.get(5)).toEqual({
+      emissive: 0.8,
+    });
   });
 
   it("accepts rich PickTarget values directly", () => {
@@ -136,15 +131,15 @@ describe("element highlight state", () => {
   const ref = { instanceId: "1/0", elementId: 3 } as const;
 
   it("uses highlighted styling, then selection, hover, and explicit override precedence", () => {
-    let state = setElementHighlighted(createInteractionState(), ref, true);
+    let state = setTargetHighlighted(createInteractionState(), { kind: "element", ...ref }, true);
     expect(resolveElementStyle(instance, ref.elementId, base, state)).toMatchObject({
       emissive: 0.35,
     });
-    state = setElementSelected(state, ref, true);
+    state = setTargetSelected(state, { kind: "element", ...ref }, true);
     expect(resolveElementStyle(instance, ref.elementId, base, state)).toMatchObject({
       emissive: 0.06,
     });
-    state = setHoveredElement(state, ref);
+    state = setTargetHovered(state, { kind: "element", ...ref });
     expect(resolveElementStyle(instance, ref.elementId, base, state)).toMatchObject({
       emissive: 0.06,
     });
@@ -155,8 +150,12 @@ describe("element highlight state", () => {
   });
 
   it("prunes the nested collection when the final highlight is cleared", () => {
-    const highlighted = setElementHighlighted(createInteractionState(), ref, true);
-    const cleared = setElementHighlighted(highlighted, ref, false);
-    expect(cleared.highlightedElementIds).toEqual(new Map());
+    const highlighted = setTargetHighlighted(
+      createInteractionState(),
+      { kind: "element", ...ref },
+      true,
+    );
+    const cleared = setTargetHighlighted(highlighted, { kind: "element", ...ref }, false);
+    expect(isTargetHighlighted(cleared, { kind: "element", ...ref })).toBe(false);
   });
 });
