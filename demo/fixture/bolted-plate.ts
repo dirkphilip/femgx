@@ -1,11 +1,18 @@
-import type { ElementModel } from "../../src/elements/model";
-import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
-import type { Body, Part } from "../../src/geometry/part";
-import { identity, translation, type Mat4 } from "../../src/math/mat4";
-import type { NamedAssembly, Placement } from "../../src/scene/assembly";
-import { createScene, type Scene } from "../../src/scene/scene";
-import type { PartId } from "../../src/geometry/part";
-import type { AssemblyId } from "../../src/scene/types";
+import {
+  createScene,
+  heterogeneousElementParts,
+  identity,
+  translation,
+  type AssemblyId,
+  type Body,
+  type ElementModel,
+  type Mat4,
+  type NamedAssembly,
+  type Part,
+  type PartId,
+  type Placement,
+  type Scene,
+} from "../../src/index";
 import type { ElementDisplayMode } from "./types";
 import {
   createBoltModel,

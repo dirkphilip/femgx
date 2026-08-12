@@ -1,10 +1,14 @@
-import type { ElementModel } from "../../src/elements/model";
-import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
-import type { Bounds, Part } from "../../src/geometry/part";
-import { identity } from "../../src/math/mat4";
-import { createScene, type Scene } from "../../src/scene/scene";
-import type { PartId } from "../../src/geometry/part";
-import type { AssemblyId } from "../../src/scene/types";
+import {
+  createScene,
+  heterogeneousElementParts,
+  identity,
+  type AssemblyId,
+  type Bounds,
+  type ElementModel,
+  type Part,
+  type PartId,
+  type Scene,
+} from "../../src/index";
 import type { ElementDisplayMode } from "./types";
 import { buildHeterogeneousModel } from "./element-models";
 

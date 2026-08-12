@@ -1,12 +1,13 @@
-import { createElement } from "../../src/elements/element";
-import { createElementModel } from "../../src/elements/model";
-import { HEX8_SHAPE } from "../../src/elements/shapes";
-import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
-import { computeBounds } from "../../src/geometry/part";
-import { identity } from "../../src/math/mat4";
-import { createResultField } from "../../src/results/fields";
-import { createScene } from "../../src/scene/scene";
-import type { PartId } from "../../src/geometry/part";
+import {
+  createElement,
+  createElementModel,
+  createResultField,
+  createScene,
+  HEX8_SHAPE,
+  heterogeneousElementParts,
+  identity,
+  type PartId,
+} from "../../src/index";
 import type { ModelPreset } from "./presets";
 
 const RESULTS_PART_ID: PartId = 20;
@@ -63,7 +64,7 @@ export function createResultsPreset(): ModelPreset {
     ]),
     overlayPartIds: [],
     defaultMode: "solid",
-    bounds: computeBounds(part.geometry),
+    bounds: part.bounds,
     results: {
       field: stress,
       derive: "vonMises",

@@ -1,10 +1,10 @@
 import {
   createFemViewport,
+  WebGpuUnsupportedError,
   type BoxSelectionRect,
   type FemViewport,
   type InteractionGranularity,
 } from "../src/index";
-import { GpuValidationError } from "../src/renderer/gpu-validation";
 import { createModelPresets, type ModelPreset } from "./fixture/presets";
 import { WorkbenchController } from "./controller";
 import type { DemoView } from "./view";
@@ -26,14 +26,16 @@ export async function startWebGpuDemo(
 
   let viewport: FemViewport | undefined;
   let controller: WorkbenchController | undefined;
-  const reportRendererFailure = (error: unknown): void => {
+  const reportRendererFailure = (error: unknown, unsupportedByDefault = false): void => {
     const detail = error instanceof Error ? error.message : String(error);
-    const validationFailure = error instanceof GpuValidationError;
-    canvas.dataset["renderer"] = validationFailure ? "error" : "unsupported";
-    view.rendererStatus.textContent = validationFailure ? "Renderer error" : "Renderer unsupported";
-    view.status.textContent = validationFailure
-      ? `femgx could not validate the WebGPU renderer. ${detail}`
-      : `femgx requires a usable WebGPU renderer. ${detail}`;
+    const unsupported =
+      error instanceof WebGpuUnsupportedError ||
+      (unsupportedByDefault && error instanceof Error && error.name !== "GpuValidationError");
+    canvas.dataset["renderer"] = unsupported ? "unsupported" : "error";
+    view.rendererStatus.textContent = unsupported ? "Renderer unsupported" : "Renderer error";
+    view.status.textContent = unsupported
+      ? `femgx requires a usable WebGPU renderer. ${detail}`
+      : `femgx could not validate the WebGPU renderer. ${detail}`;
   };
 
   const createViewport = async (preset: ModelPreset): Promise<FemViewport> =>
@@ -79,10 +81,11 @@ export async function startWebGpuDemo(
     });
     viewport.render();
   } catch (error) {
+    const viewportWasCreated = viewport !== undefined;
     viewport?.destroy();
     viewport = undefined;
     controller?.destroy();
-    reportRendererFailure(error);
+    reportRendererFailure(error, !viewportWasCreated);
     return undefined;
   }
   canvas.dataset["renderer"] = "webgpu";
@@ -110,7 +113,7 @@ export async function startWebGpuDemo(
       } catch (error) {
         viewport?.destroy();
         viewport = undefined;
-        reportRendererFailure(error);
+        reportRendererFailure(error, true);
       }
     },
     runBenchmark: async (includeLarge: boolean) => {
