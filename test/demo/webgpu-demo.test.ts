@@ -102,6 +102,7 @@ function fakeViewport(): FakeViewport {
       batch: <T>(operation: () => T): T => operation(),
       setResults: vi.fn(),
       clearResults: vi.fn(),
+      setBackground: vi.fn(),
       setEdgeDepthTest: vi.fn(),
       setPartVisible: vi.fn(),
       setAssemblyNodeVisible: vi.fn(),

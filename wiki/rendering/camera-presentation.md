@@ -59,9 +59,13 @@ view-frame up direction as one rigid basis, so the view never needs a pole
 clamp or a singular-frame fallback. Both spin and pan use the SpaceClaim
 direction convention. One-finger touch resolves the same picked model target.
 Left-drag is reserved for selection, including its
-shift-based inspection modifiers. The demo presentation uses a light studio
-background and restrained material colors so geometry edges and selection
-emphasis remain legible. Its lower-left viewport-owned view cube follows the
+shift-based inspection modifiers. The renderer owns the opaque viewport
+background: `FemViewportOptions.background` and `FemViewport.setBackground()`
+select the built-in `studio`, `white`, or `dark` WebGPU presentation without a
+second pass or DOM fallback. Studio is the default subtle top-to-bottom gradient;
+the presets do not affect depth, picking, interaction, or result rendering. The
+demo uses the studio preset and restrained material colors so geometry edges and
+selection emphasis remain legible. Its lower-left viewport-owned view cube follows the
 camera's screen-space world-axis projection: six named faces and eight signed
 corners snap the camera, while four pitch/yaw arrows and two curved roll arrows
 rotate by 15° (90° with Shift, 5° with Ctrl/Meta). Each face visibly names its

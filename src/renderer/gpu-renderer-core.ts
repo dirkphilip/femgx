@@ -16,6 +16,8 @@ import { pickHitFromPixel, resetPickTargets } from "./gpu-pick";
 import { pickTargetsFromRegion } from "./gpu-pick-region";
 import { displayedPointFromPixel } from "./gpu-pick-point";
 import { GpuDeviceLifecycle, type GpuBundle } from "./gpu-recovery";
+import { writeBackgroundColors } from "./gpu-background";
+import type { ViewportBackground } from "./types";
 import type { GpuValidationOptions } from "./gpu-validation";
 
 export interface GpuRendererConstruction {
@@ -33,6 +35,7 @@ export class GpuRenderer implements WebGpuRenderer {
   private readonly depthFormat: GPUTextureFormat;
   private readonly lifecycle: GpuDeviceLifecycle;
   private readonly pointSize: number;
+  private background: ViewportBackground;
   private readonly attachment = new RendererAttachment();
   private parts = new Map<PartId, Part>();
   private sourceParts: ReadonlyMap<PartId, Part> | undefined;
@@ -52,6 +55,7 @@ export class GpuRenderer implements WebGpuRenderer {
     this.format = construction.format;
     this.depthFormat = construction.depthFormat;
     this.pointSize = Math.max(1, options.pointSizePixels ?? 8);
+    this.background = options.background ?? "studio";
     this.lifecycle = new GpuDeviceLifecycle({
       bundle: construction.bundle,
       context: construction.context,
@@ -64,6 +68,11 @@ export class GpuRenderer implements WebGpuRenderer {
         if (!this.destroyed) options.onDeviceLost?.(info);
       },
     });
+    writeBackgroundColors(
+      this.lifecycle.bundle.device,
+      this.lifecycle.bundle.resources.background,
+      this.background,
+    );
     this.resize();
   }
 
@@ -120,6 +129,17 @@ export class GpuRenderer implements WebGpuRenderer {
   public setEdgeDepthTest(enabled: boolean): void {
     this.ensureAlive();
     this.edgeDepthTest = enabled;
+  }
+
+  public setBackground(background: ViewportBackground): void {
+    this.ensureAlive();
+    if (this.background === background) return;
+    writeBackgroundColors(
+      this.lifecycle.bundle.device,
+      this.lifecycle.bundle.resources.background,
+      background,
+    );
+    this.background = background;
   }
 
   public setOrbitPivot(pivot: Vec3 | undefined): void {
@@ -222,6 +242,11 @@ export class GpuRenderer implements WebGpuRenderer {
     if (await this.lifecycle.recover()) {
       this.attachment.clear();
       this.pickSnapshotValid = false;
+      writeBackgroundColors(
+        this.lifecycle.bundle.device,
+        this.lifecycle.bundle.resources.background,
+        this.background,
+      );
     }
   }
 

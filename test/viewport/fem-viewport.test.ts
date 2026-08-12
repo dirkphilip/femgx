@@ -75,6 +75,36 @@ function scene(offset = 0) {
 }
 
 describe("FemViewport", () => {
+  it("validates and switches the renderer-owned background without rebuilding the viewport", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const onRender = vi.fn();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      background: "white",
+      device: gpu.device,
+      onRender,
+    });
+    expect(onRender).toHaveBeenCalledOnce();
+    const pipelineCount = gpu.renderPipelineDescriptors.length;
+    viewport.setBackground("dark");
+    expect(onRender).toHaveBeenCalledTimes(2);
+    expect(gpu.renderPipelineDescriptors).toHaveLength(pipelineCount);
+    viewport.setBackground("dark");
+    expect(onRender).toHaveBeenCalledTimes(2);
+    expect(() => {
+      viewport.setBackground("invalid" as never);
+    }).toThrow("Invalid viewport background");
+    expect(onRender).toHaveBeenCalledTimes(2);
+    viewport.destroy();
+
+    await expect(
+      createFemViewport({ canvas: fakeCanvas(), scene: scene(), background: "invalid" as never }),
+    ).rejects.toThrow("Invalid viewport background");
+  });
+
   it("rejects an orientation gizmo container that does not contain the canvas before setup", async () => {
     const canvas = fakeCanvas();
     const contains = vi.fn(() => false);

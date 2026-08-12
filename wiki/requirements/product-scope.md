@@ -65,8 +65,9 @@ part. The renderer provides GPU picking with host-mappable part/instance/
 element/face/node ids (node and element strict; face Core), readable
 depth-tested node annotations, selection/
 highlight/hover, visibility, camera control, results fields with derived
-quantities and scalar color mapping, and deformed-shape geometry. Interchange
-is a single format (VTK legacy) with validation and diagnostics. Browsers without
+quantities and scalar color mapping, deformed-shape geometry, and renderer-owned
+`studio`, `white`, and `dark` viewport backgrounds. Interchange is a single
+format (VTK legacy) with validation and diagnostics. Browsers without
 a working WebGPU device receive a typed
 unsupported result — never a second renderer.
 

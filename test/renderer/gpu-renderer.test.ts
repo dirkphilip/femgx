@@ -155,7 +155,7 @@ describe("WebGPU renderer", () => {
       { indexCount: 3, instanceCount: 3 },
     ]);
     expect(gpu.textureCreations).toBe(7);
-    expect(gpu.bindGroupCreations).toBe(5);
+    expect(gpu.bindGroupCreations).toBe(6);
     expect(gpu.submissionCount).toBe(2);
     await expect(renderer.pick(400, 300)).resolves.toEqual({
       kind: "instance",

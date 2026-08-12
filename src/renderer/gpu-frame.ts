@@ -9,14 +9,9 @@ import { drawBatches } from "./gpu-batch";
 import type { PickTargets } from "./gpu-pick";
 import { ensurePickTargets } from "./gpu-pick";
 import { beginPickPass } from "./gpu-pick-pass";
+import { beginColorPass, beginCompositePass, beginTransparencyPass } from "./gpu-passes";
 import type { RenderResources } from "./gpu-pipelines";
-import {
-  beginColorPass,
-  beginCompositePass,
-  beginTransparencyPass,
-  ensureColorTargets,
-  ensureCompositeBindGroup,
-} from "./gpu-pipelines";
+import { ensureColorTargets, ensureCompositeBindGroup } from "./gpu-pipelines";
 import { drawOrbitPivot } from "./gpu-orbit-pivot";
 
 /** Everything the per-frame command encoding needs from the renderer. */
@@ -92,6 +87,10 @@ export function encodeVisibleFrame(
     targets.depth.createView(),
     targets.opaqueColor.createView(),
   );
+  opaquePass.setPipeline(frame.resources.background.pipeline);
+  opaquePass.setBindGroup(0, frame.resources.frameBindGroup);
+  opaquePass.setBindGroup(1, frame.resources.background.bindGroup);
+  opaquePass.draw(3);
   drawBatches(opaquePass, frame.draw, context, frame.calls, { kind: "surface", pass: "color" });
   opaquePass.end();
   drawTransparencyPass(colorEncoder, frame, context, targets);

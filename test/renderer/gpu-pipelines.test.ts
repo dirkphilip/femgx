@@ -56,6 +56,19 @@ describe("GPU render resources", () => {
         ),
       ).toBeDefined();
       expect(resources.nodeOverlayPipelines.visible).toBeDefined();
+      expect(resources.background.pipeline).toBeDefined();
+      expect(resources.background.bindGroup).toBeDefined();
+      expect(resources.background.buffer).toBeDefined();
+      expect(
+        gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === "viewport background",
+        )?.depthStencil,
+      ).toMatchObject({
+        format: "depth24plus",
+        depthWriteEnabled: false,
+        depthCompare: "always",
+        stencilWriteMask: 0,
+      });
       const nodePipeline = gpu.renderPipelineDescriptors.find(
         (descriptor) => descriptor.vertex.entryPoint === "nodeOverlayVertexMain",
       );
@@ -71,7 +84,8 @@ describe("GPU render resources", () => {
       expect(resources.instanceLayout).toBeDefined();
       expect(gpu.renderPipelineDescriptors[0]?.primitive?.cullMode).toBe("none");
       expect(gpu.renderPipelineDescriptors[1]?.primitive?.cullMode).toBe("none");
-      expect(gpu.buffers).toHaveLength(3);
+      expect(resources.background.buffer).toHaveProperty("size", 32);
+      expect(gpu.buffers).toHaveLength(4);
       destroyRenderResources(resources);
       expect(gpu.buffers.every((buffer) => buffer.destroyed)).toBe(true);
     } finally {

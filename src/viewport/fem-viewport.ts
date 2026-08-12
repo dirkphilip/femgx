@@ -16,70 +16,19 @@ import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { protectSceneCamera, sceneWorldBounds, sceneWorldBoundsList } from "./scene-bounds";
 import { cssSize, installResize, validateOrientationGizmo } from "./dom";
-import {
-  createOrientationGizmo,
-  type OrientationGizmoHandle,
-  type OrientationGizmoOptions,
-} from "./orientation-gizmo";
+import { createOrientationGizmo, type OrientationGizmoHandle } from "./orientation-gizmo";
 import {
   applyViewportResultInteraction,
   resolveViewportResults,
   type ViewportResultsConfig,
   type ViewportResultsState,
 } from "./results";
-
-/** Inputs for the opinionated WebGPU FEM viewport. */
-export interface FemViewportOptions {
-  readonly canvas: HTMLCanvasElement;
-  readonly scene: Scene;
-  readonly orientationGizmo?: OrientationGizmoOptions;
-  readonly camera?: Camera;
-  readonly interaction?: InteractionState;
-  readonly results?: ViewportResultsConfig;
-  readonly device?: GPUDevice;
-  readonly powerPreference?: GPUPowerPreference;
-  readonly onDeviceLost?: (info: DeviceLostInfo) => void;
-  readonly onRecovered?: () => void;
-  readonly onError?: (error: unknown) => void;
-  readonly onGestureChange?: (active: boolean) => void;
-  readonly onRender?: () => void;
-}
-
-/** Canonical scene, camera, interaction, rendering, and lifecycle owner. */
-export interface FemViewport {
-  readonly scene: Scene;
-  readonly runtime: SceneRuntime;
-  readonly camera: Camera;
-  readonly interaction: InteractionState;
-  readonly results: ViewportResultsState | undefined;
-  setScene(scene: Scene): void;
-  setCamera(camera: Camera): void;
-  fitView(): void;
-  setInteraction(interaction: InteractionState): void;
-  /** Groups synchronous mutations into one deferred invalidation and render. */
-  batch<T>(operation: () => T): T;
-  setResults(results: ViewportResultsConfig): void;
-  clearResults(): void;
-  setEdgeDepthTest(enabled: boolean): void;
-  setPartVisible(partId: PartId, visible: boolean): void;
-  setAssemblyNodeVisible(nodeId: AssemblyNodeId, visible: boolean): void;
-  setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void;
-  setInstanceVisible(instanceId: InstanceId, visible: boolean): void;
-  pick(x: number, y: number): Promise<PickHit | undefined>;
-  pickRegion(
-    rect: BoxSelectionRect,
-    granularity: InteractionGranularity,
-  ): Promise<readonly InteractionTarget[]>;
-  resize(): void;
-  invalidate(): void;
-  render(): void;
-  recover(): Promise<void>;
-  destroy(): void;
-  stats(): { readonly visibleInstances: number; readonly drawBatches: number };
-}
+import type { FemViewport, FemViewportOptions, ViewportBackground } from "./types";
+export type { FemViewport, FemViewportOptions, ViewportBackground } from "./types";
 
 /** Creates a fitted, interactive FEM viewport backed only by WebGPU. */
 export async function createFemViewport(options: FemViewportOptions): Promise<FemViewport> {
+  assertViewportBackground(options.background);
   validateOrientationGizmo(options.canvas, options.orientationGizmo);
   const owner: { viewport?: FemViewportCore } = {};
   let pendingLoss: DeviceLostInfo | undefined;
@@ -92,6 +41,7 @@ export async function createFemViewport(options: FemViewportOptions): Promise<Fe
       if (owner.viewport === undefined) pendingLoss = info;
       else owner.viewport.handleDeviceLoss();
     },
+    ...(options.background === undefined ? {} : { background: options.background }),
   });
   owner.viewport = new FemViewportCore(options, renderer);
   if (pendingLoss !== undefined) owner.viewport.handleDeviceLoss();
@@ -116,12 +66,14 @@ class FemViewportCore implements FemViewport {
   private batchDirty = false;
   private readonly pendingVisibility = new Set<number>();
   private destroyed = false;
+  private background: ViewportBackground;
 
   constructor(
     private readonly options: FemViewportOptions,
     private readonly renderer: WebGpuRenderer,
   ) {
     this.currentScene = options.scene;
+    this.background = options.background ?? "studio";
     this.currentRuntime = createPackedSceneRuntime(options.scene);
     this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
     this.effectiveInteraction = this.baseInteraction =
@@ -237,6 +189,15 @@ class FemViewportCore implements FemViewport {
     this.currentResults = undefined;
     this.effectiveInteraction = this.baseInteraction;
     this.renderer.setDeformation(undefined);
+    this.invalidate();
+  }
+
+  setBackground(background: ViewportBackground): void {
+    this.ensureAlive();
+    assertViewportBackground(background);
+    if (this.background === background) return;
+    this.background = background;
+    this.renderer.setBackground(background);
     this.invalidate();
   }
 
@@ -429,4 +390,9 @@ class FemViewportCore implements FemViewport {
   private ensureAlive(): void {
     if (this.destroyed) throw new Error("FemViewport has been destroyed");
   }
+}
+
+function assertViewportBackground(value: unknown): asserts value is ViewportBackground | undefined {
+  if (value === undefined || value === "studio" || value === "white" || value === "dark") return;
+  throw new Error("Invalid viewport background; expected studio, white, or dark");
 }

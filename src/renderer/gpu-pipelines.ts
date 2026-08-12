@@ -1,5 +1,10 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import { COLOR_SAMPLE_COUNT } from "./gpu-support";
+import {
+  createBackgroundResources,
+  destroyBackgroundResources,
+  type BackgroundResources,
+} from "./gpu-background";
 import { DEFORMATION_UNIFORM_SIZE } from "./gpu-deform";
 import { createNodeOverlayPipelines } from "./gpu-node-overlay";
 import type { NodeOverlayPipelines } from "./gpu-node-overlay";
@@ -23,6 +28,8 @@ import {
   type ColorTargets,
 } from "./gpu-targets";
 import type { GpuValidationOptions } from "./gpu-validation";
+
+export { beginColorPass, beginCompositePass, beginTransparencyPass } from "./gpu-passes";
 
 export { COLOR_SAMPLE_COUNT } from "./gpu-support";
 export type { DrawPipelines } from "./gpu-pipeline-builders";
@@ -50,6 +57,7 @@ export interface RenderResources {
   /** Library-owned world-space camera-pivot indicator. */
   readonly orbitPivot: OrbitPivotResources;
   readonly instanceLayout: GPUBindGroupLayout;
+  readonly background: BackgroundResources;
 }
 
 export const CAMERA_UNIFORM_SIZE = 128;
@@ -110,10 +118,18 @@ export async function createRenderResources(
     depthFormat,
     validation,
   });
+  let background: BackgroundResources | undefined;
   let cameraBuffer: GPUBuffer | undefined;
   let deformationBuffer: GPUBuffer | undefined;
   let orbitPivot: OrbitPivotResources | undefined;
   try {
+    background = await createBackgroundResources(
+      device,
+      cameraLayout,
+      format,
+      depthFormat,
+      validation,
+    );
     cameraBuffer = device.createBuffer({
       size: CAMERA_UNIFORM_SIZE,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -146,8 +162,10 @@ export async function createRenderResources(
       edgeAlwaysPipeline: pipelineResources.edgeAlwaysPipeline,
       nodeOverlayPipelines,
       orbitPivot,
+      background,
     };
   } catch (error) {
+    if (background !== undefined) destroyBackgroundResources(background);
     orbitPivot?.buffer.destroy();
     cameraBuffer?.destroy();
     deformationBuffer?.destroy();
@@ -159,6 +177,7 @@ export function destroyRenderResources(resources: RenderResources): void {
   resources.cameraBuffer.destroy();
   resources.deformationBuffer.destroy();
   resources.orbitPivot.buffer.destroy();
+  destroyBackgroundResources(resources.background);
 }
 
 /** Allocates or reuses the multisampled color + depth targets for a visible frame. */
@@ -316,99 +335,4 @@ export function ensureCompositeBindGroup(
     draw.targets.revealageTexture.createView(),
   );
   return draw.targets.compositeBindGroup;
-}
-
-/** Begins the visible color render pass with a cleared multisampled depth attachment. */
-export function beginColorPass(
-  encoder: GPUCommandEncoder,
-  colorView: GPUTextureView,
-  depthView: GPUTextureView,
-  resolveTarget: GPUTextureView | undefined,
-): GPURenderPassEncoder {
-  const colorAttachment: GPURenderPassColorAttachment = {
-    view: colorView,
-    clearValue: { r: 0.91, g: 0.93, b: 0.95, a: 1 },
-    loadOp: "clear",
-    storeOp: resolveTarget === undefined ? "store" : "discard",
-  };
-  if (resolveTarget !== undefined) colorAttachment.resolveTarget = resolveTarget;
-  return encoder.beginRenderPass({
-    colorAttachments: [colorAttachment],
-    depthStencilAttachment: {
-      view: depthView,
-      depthClearValue: 1,
-      depthLoadOp: "clear",
-      depthStoreOp: "store",
-      stencilClearValue: 0,
-      stencilLoadOp: "clear",
-      stencilStoreOp: "discard",
-    },
-  });
-}
-
-/** Begins the weighted transparency accumulation pass over the opaque depth. */
-export interface TransparencyPassTargets {
-  readonly accumulationView: GPUTextureView;
-  readonly accumulationResolve: GPUTextureView;
-  readonly revealageView: GPUTextureView;
-  readonly revealageResolve: GPUTextureView;
-}
-
-export function beginTransparencyPass(
-  encoder: GPUCommandEncoder,
-  targets: TransparencyPassTargets,
-  depthView: GPUTextureView,
-): GPURenderPassEncoder {
-  return encoder.beginRenderPass({
-    colorAttachments: [
-      {
-        view: targets.accumulationView,
-        resolveTarget: targets.accumulationResolve,
-        clearValue: { r: 0, g: 0, b: 0, a: 0 },
-        loadOp: "clear",
-        storeOp: "discard",
-      },
-      {
-        view: targets.revealageView,
-        resolveTarget: targets.revealageResolve,
-        clearValue: { r: 1, g: 1, b: 1, a: 1 },
-        loadOp: "clear",
-        storeOp: "discard",
-      },
-    ],
-    depthStencilAttachment: {
-      view: depthView,
-      depthLoadOp: "load",
-      depthStoreOp: "store",
-      stencilLoadOp: "load",
-      stencilStoreOp: "discard",
-    },
-  });
-}
-
-/** Begins the final composite pass and leaves its depth available for overlays. */
-export function beginCompositePass(
-  encoder: GPUCommandEncoder,
-  colorView: GPUTextureView,
-  resolveTarget: GPUTextureView,
-  depthView: GPUTextureView,
-): GPURenderPassEncoder {
-  return encoder.beginRenderPass({
-    colorAttachments: [
-      {
-        view: colorView,
-        resolveTarget,
-        clearValue: { r: 0.91, g: 0.93, b: 0.95, a: 1 },
-        loadOp: "clear",
-        storeOp: "discard",
-      },
-    ],
-    depthStencilAttachment: {
-      view: depthView,
-      depthLoadOp: "load",
-      depthStoreOp: "store",
-      stencilLoadOp: "load",
-      stencilStoreOp: "discard",
-    },
-  });
 }
