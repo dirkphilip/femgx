@@ -1,0 +1,31 @@
+import type { BoxSelectionRect, InteractionGranularity } from "../../src/index";
+
+export interface DemoHarnessOptions {
+  readonly testAlphaZero: boolean;
+}
+
+export interface DemoHarness {
+  readonly destroyRenderer: () => void;
+  readonly recreateRenderer: () => Promise<void>;
+  readonly runBenchmark: (includeLarge: boolean) => Promise<unknown>;
+  readonly pickPoint: (x: number, y: number) => Promise<readonly number[] | undefined>;
+  readonly pickRegion: (
+    rect: BoxSelectionRect,
+    granularity: InteractionGranularity,
+  ) => Promise<readonly unknown[]>;
+}
+
+/** Reads deterministic test-only query inputs and installs the shader failure seam. */
+export function readDemoHarnessOptions(): DemoHarnessOptions {
+  const query = new URLSearchParams(window.location.search);
+  const shaderFailure = query.get("testShaderFailure");
+  if (shaderFailure !== null) {
+    (globalThis as Record<string, unknown>)["__FEMGX_TEST_SHADER_FAILURE__"] = shaderFailure;
+  }
+  return { testAlphaZero: query.has("testAlphaZero") };
+}
+
+/** Installs the explicitly test/developer-only lifecycle and query seam. */
+export function installDemoHarness(harness: DemoHarness): void {
+  (window as typeof window & { femgxDemo?: DemoHarness }).femgxDemo = harness;
+}

@@ -1,4 +1,4 @@
-import type { Camera } from "../src/index";
+import type { Camera } from "../../src/index";
 
 /** Typed handles to the demo's DOM nodes. */
 export interface DemoView {

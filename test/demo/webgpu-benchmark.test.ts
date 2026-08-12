@@ -3,7 +3,7 @@ import {
   benchmarkCaseSpecs,
   createBenchmarkCase,
   estimateBenchmarkMemory,
-} from "../../demo/webgpu-benchmark-model";
+} from "../../demo/benchmark/model";
 
 describe("WebGPU benchmark models", () => {
   it("keeps instanced and bounded unique-geometry cases distinct", () => {

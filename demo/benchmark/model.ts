@@ -1,7 +1,7 @@
-import { createPart, type Geometry, type Part } from "../src/geometry/part";
-import { translation } from "../src/math/mat4";
-import { createScene, type Scene } from "../src/scene/scene";
-import { createPerformancePreset } from "./fixture/performance-fixture";
+import { createPart, type Geometry, type Part } from "../../src/geometry/part";
+import { translation } from "../../src/math/mat4";
+import { createScene, type Scene } from "../../src/scene/scene";
+import { createPerformancePreset } from "../fixture/performance-fixture";
 
 const PART_ID = 1;
 const ROOT_ASSEMBLY_ID = 1;

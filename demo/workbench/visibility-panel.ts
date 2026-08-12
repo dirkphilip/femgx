@@ -7,7 +7,7 @@ import type {
   SceneRuntime,
 } from "../../src/index";
 import type { ModelPreset } from "../fixture/presets";
-import { assemblyName } from "../visibility-tree";
+import { assemblyName } from "./visibility-tree";
 import type { VisibilityRowTarget } from "./tree-hover";
 import { installVisibilityTreeHover } from "./tree-hover-events";
 import { visibilityRowLabel } from "./visibility-row";

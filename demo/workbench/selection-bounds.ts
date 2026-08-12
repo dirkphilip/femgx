@@ -1,5 +1,5 @@
-import type { Bounds, InteractionState, Scene, SceneRuntime } from "../src/index";
-import { selectedTargets, transformPoint } from "../src/index";
+import type { Bounds, InteractionState, Scene, SceneRuntime } from "../../src/index";
+import { selectedTargets, transformPoint } from "../../src/index";
 
 interface MutableBounds {
   minX: number;

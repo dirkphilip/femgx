@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FemViewport } from "../../src/viewport/fem-viewport";
-import type { DemoView } from "../../demo/view";
-import type { WorkbenchOptions } from "../../demo/controller";
-import { startWebGpuDemo } from "../../demo/webgpu-demo";
+import type { DemoView } from "../../demo/workbench/view";
+import type { WorkbenchOptions } from "../../demo/workbench/controller";
+import { startWebGpuDemo } from "../../demo/workbench/start";
 
 const mocks = vi.hoisted(() => {
   class FakeWorkbenchController {
@@ -40,14 +40,14 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../demo/controller", () => ({
+vi.mock("../../demo/workbench/controller", () => ({
   WorkbenchController: mocks.FakeWorkbenchController,
 }));
 vi.mock("../../src/index", async (importOriginal) => ({
   ...(await importOriginal()),
   createFemViewport: mocks.createFemViewport,
 }));
-vi.mock("../../demo/webgpu-benchmark", () => ({
+vi.mock("../../demo/benchmark/runner", () => ({
   runWebGpuBenchmark: mocks.runWebGpuBenchmark,
 }));
 

@@ -8,9 +8,9 @@ import {
   setPartOverride,
   type InteractionTarget,
 } from "../../src/index";
-import { selectTarget } from "../../demo/pick";
+import { selectTarget } from "../../demo/workbench/pick";
 import { clearSelection, replaceSelection, toggleSelection } from "../../demo/workbench/selection";
-import type { SelectTarget } from "../../demo/pick";
+import type { SelectTarget } from "../../demo/workbench/pick";
 import type { PickHit } from "../../src/index";
 
 const part: SelectTarget = { kind: "part", partId: 4 };

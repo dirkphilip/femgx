@@ -4,7 +4,7 @@ import {
   type InteractionGranularity,
   type InteractionTarget,
   type PickHit,
-} from "../src/index";
+} from "../../src/index";
 
 /** The interaction granularity a modifier key can select at. */
 export type PickLevel = "node" | "face" | "element" | "instance" | "part";

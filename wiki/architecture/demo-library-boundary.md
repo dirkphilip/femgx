@@ -33,11 +33,11 @@ presentation and interaction policy only.
 **Demo-only policy (stays in `demo/`):**
 
 - DOM control wiring, the workbench controller, context menu, visibility
-  panel, inspection text, status formatting, deterministic model fixtures
-  (`demo/fixture/`), fixture/model selection, and modifier-key target policy
-  (`controller.ts`, `view.ts`, `inspect.ts`, `pick.ts`).
-- Unsupported-state wording, performance telemetry, and the browser-test
-  lifecycle seam (`webgpu-demo.ts`).
+  panel, inspection text, deterministic model fixtures (`demo/fixture/`),
+  fixture/model selection, and modifier-key target policy (`demo/workbench/`).
+- Unsupported-state wording, diagnostics formatting, and the browser-test
+  lifecycle seam (`demo/devtools/`).
+- Performance telemetry and internal benchmark fixtures (`demo/benchmark/`).
 
 ## Emphasis rendering
 
@@ -66,11 +66,11 @@ Ordinary demo code and retained product fixtures import library capabilities onl
 from `src/index.ts`. The repository lint gate checks this boundary so a new demo
 deep import cannot quietly couple presentation code to implementation details.
 
-Three benchmark-only files are explicit exemptions because they measure or inspect
+Two benchmark-only files plus the performance fixture are explicit exemptions because they measure or inspect
 internal GPU/runtime representations rather than model normal host usage:
 
-- `demo/webgpu-benchmark.ts`
-- `demo/webgpu-benchmark-model.ts`
+- `demo/benchmark/runner.ts`
+- `demo/benchmark/model.ts`
 - `demo/fixture/performance-fixture.ts`
 
 These exemptions are intentionally narrow. Packed runtime slots, renderer records,

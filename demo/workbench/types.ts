@@ -1,5 +1,5 @@
 import type { FemViewport, InteractionState, SceneRuntime } from "../../src/index";
-import type { DemoView } from "../view";
+import type { DemoView } from "./view";
 import type { ModelPreset } from "../fixture/presets";
 
 /** Current draw statistics reported by the active renderer. */

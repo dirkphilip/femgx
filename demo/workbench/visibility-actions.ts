@@ -10,7 +10,7 @@ import {
   type PartId,
   type SceneRuntime,
 } from "../../src/index";
-import type { SelectTarget } from "../pick";
+import type { SelectTarget } from "./pick";
 
 /** Runtime hooks used by menu and visibility-panel visibility actions. */
 export interface VisibilityActionOptions {

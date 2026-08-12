@@ -3,42 +3,28 @@ import {
   setTargetsHighlighted,
   setProjection,
   fitCamera,
-  installBoxSelection,
   type Camera,
   type InteractionState,
   type FemViewport,
   type InteractionTarget,
   type SceneRuntime,
-} from "../src/index";
-import type { ModelPreset } from "./fixture/presets";
+} from "../../src/index";
+import type { ModelPreset } from "../fixture/presets";
 import { describePick } from "./inspect";
 import { selectedWorldBounds } from "./selection-bounds";
 import type { DemoView } from "./view";
-import { WorkbenchInteraction } from "./workbench/interaction";
-import { installWorkbenchBindings } from "./workbench/listeners";
-import { WorkbenchBoxPreview } from "./workbench/box-preview";
-import { WorkbenchMenu } from "./workbench/menu";
-import {
-  VisibilityPanelController,
-  type VisibilityPanelOptions,
-} from "./workbench/visibility-panel";
-import { WorkbenchPresentation } from "./workbench/presentation";
-import { WorkbenchVisibilityActions } from "./workbench/visibility-actions";
-import { createPresetInteraction, partStyleOverride } from "./workbench/preset";
-import { interactionTargetsForRow, type VisibilityRowTarget } from "./workbench/tree-hover";
+import { installWorkbenchLifecycle } from "./lifecycle";
+import { createPresetInteraction, partStyleOverride } from "./preset";
+import { interactionTargetsForRow, type VisibilityRowTarget } from "./tree-hover";
+import { createWorkbenchFeatures, type WorkbenchFeatures } from "./features";
 import {
   createDefaultDisplayToggles,
   type DisplayToggles,
   type ResultDisplayMode,
   type WorkbenchOptions,
-} from "./workbench/types";
+} from "./types";
 
-export type {
-  DisplayToggles,
-  RendererStats,
-  ResultDisplayMode,
-  WorkbenchOptions,
-} from "./workbench/types";
+export type { DisplayToggles, RendererStats, ResultDisplayMode, WorkbenchOptions } from "./types";
 
 /** Presentation policy for the demo workbench; rendering/picking stays in FemViewport. */
 export class WorkbenchController {
@@ -49,17 +35,16 @@ export class WorkbenchController {
   toggles: DisplayToggles;
   resultMode: ResultDisplayMode;
   interaction: InteractionState;
-  /** Renderer-state note shown in the status line (e.g. "recovered"). */
   rendererState = "";
   private viewport: FemViewport;
   private readonly presets: readonly ModelPreset[];
   private readonly listenerController = new AbortController();
-  private readonly menu: WorkbenchMenu;
-  private readonly visibilityPanel: VisibilityPanelController;
-  private readonly visibilityActions: WorkbenchVisibilityActions;
-  private readonly interactionController: WorkbenchInteraction;
-  private readonly presentation: WorkbenchPresentation;
-  private readonly boxPreview: WorkbenchBoxPreview;
+  private readonly menu: WorkbenchFeatures["menu"];
+  private readonly visibilityPanel: WorkbenchFeatures["visibilityPanel"];
+  private readonly visibilityActions: WorkbenchFeatures["visibilityActions"];
+  private readonly interactionController: WorkbenchFeatures["interactionController"];
+  private readonly presentation: WorkbenchFeatures["presentation"];
+  private readonly boxPreview: WorkbenchFeatures["boxPreview"];
   private boxSelectionDisposer: (() => void) | undefined;
   private dragging = false;
   private treeHoverTargets: readonly InteractionTarget[] = [];
@@ -71,97 +56,81 @@ export class WorkbenchController {
     this.rendererName = options.rendererName;
     this.viewport = options.viewport;
     this.presets = options.presets;
-    this.menu = new WorkbenchMenu(
-      this.view.contextMenu,
-      () => this.toggles.edges,
-      () => this.toggles.diagnostics,
-      (action) => {
-        this.applyMenuAction(action);
-      },
-    );
-    this.visibilityActions = new WorkbenchVisibilityActions({
-      viewport: () => this.viewport,
-      runtime: () => this.runtime,
-      interaction: () => this.interaction,
-      setInteraction: (interaction) => {
-        this.interaction = interaction;
-      },
-      applyInteraction: (interaction) => {
-        this.interaction = interaction;
-        this.applyDisplayedInteraction();
-      },
-      syncPanel: () => {
-        this.visibilityPanel.sync();
-      },
-      render: () => {
-        this.render();
-      },
-    });
-    const visibilityOptions: VisibilityPanelOptions = {
-      panel: this.view.visibilityPanel,
-      getPreset: () => this.preset,
-      getRuntime: () => this.runtime,
-      partName: (partId) => this.preset.partNames.get(partId),
-      partVisible: (partId) => this.visibilityActions.partVisible(partId),
-      bodyVisible: (instanceId, bodyId) => this.visibilityActions.bodyVisible(instanceId, bodyId),
-      bodyHighlighted: (instanceId, bodyId) =>
-        this.visibilityActions.bodyHighlighted(instanceId, bodyId),
-      onPartVisibility: (partId, visible) => {
-        this.visibilityActions.setPart(partId, visible);
-      },
-      onBodyVisibility: (instanceId, bodyId, visible) => {
-        this.visibilityActions.setBody(instanceId, bodyId, visible);
-      },
-      onBodyHighlight: (instanceId, bodyId) => {
-        this.visibilityActions.bodyHighlight(instanceId, bodyId);
-      },
-      onInstanceVisibility: (instanceId, visible) => {
-        this.visibilityActions.setInstance(instanceId, visible);
-      },
-      onAssemblyVisibility: (nodeId, visible) => {
-        this.visibilityActions.setAssemblyNode(nodeId, visible);
-      },
-      onTreeHover: (target) => {
-        this.setTreeHover(target);
-      },
-    };
-    this.visibilityPanel = new VisibilityPanelController(visibilityOptions);
-    this.interactionController = new WorkbenchInteraction({
-      canvas: this.canvas,
-      view: this.view,
-      viewport: () => this.viewport,
-      getInteraction: () => this.interaction,
-      setInteraction: (interaction) => {
-        this.interaction = interaction;
-      },
-      partName: (partId) => this.preset.partNames.get(partId),
-      menu: this.menu,
-      render: () => {
-        this.render();
-      },
-    });
-    this.presentation = new WorkbenchPresentation({
-      view: this.view,
-      canvas: this.canvas,
-      rendererName: this.rendererName,
-      getPreset: () => this.preset,
-      getToggles: () => this.toggles,
-      getResultMode: () => this.resultMode,
-      getInteraction: () => this.interaction,
-      getRuntime: () => this.runtime,
-    });
-    this.boxPreview = new WorkbenchBoxPreview(this.view.boxSelectionOverlay);
     const initialPreset = this.presets[0];
     if (initialPreset === undefined) throw new Error("Workbench requires at least one preset");
     this.preset = initialPreset;
     this.toggles = createDefaultDisplayToggles();
     this.resultMode = this.preset.results === undefined ? "base" : "deformed";
     this.interaction = createPresetInteraction(this.preset, true, true);
+    const features = createWorkbenchFeatures({
+      view: this.view,
+      canvas: this.canvas,
+      rendererName: this.rendererName,
+      viewport: () => this.viewport,
+      runtime: () => this.runtime,
+      preset: () => this.preset,
+      presets: this.presets,
+      toggles: () => this.toggles,
+      resultMode: () => this.resultMode,
+      interaction: () => this.interaction,
+      setInteraction: (interaction) => {
+        this.interaction = interaction;
+      },
+      applyDisplayedInteraction: () => {
+        this.applyDisplayedInteraction();
+      },
+      render: () => {
+        this.render();
+      },
+      setTreeHover: (target) => {
+        this.setTreeHover(target);
+      },
+      applyMenuAction: (action) => {
+        this.applyMenuAction(action);
+      },
+    });
+    this.menu = features.menu;
+    this.visibilityPanel = features.visibilityPanel;
+    this.visibilityActions = features.visibilityActions;
+    this.interactionController = features.interactionController;
+    this.presentation = features.presentation;
+    this.boxPreview = features.boxPreview;
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
     this.presentation.populateModelSelect(this.presets);
     this.visibilityPanel.rebuild();
-    this.installListeners();
+    this.boxSelectionDisposer = installWorkbenchLifecycle({
+      view: this.view,
+      canvas: this.canvas,
+      signal: this.listenerController.signal,
+      viewport: () => this.viewport,
+      interaction: this.interactionController,
+      menu: this.menu,
+      visibilityPanel: this.visibilityPanel,
+      boxPreview: this.boxPreview,
+      dragging: () => this.isPointerGestureActive(),
+      setEdges: () => {
+        this.setEdges(!this.toggles.edges);
+      },
+      setNodes: () => {
+        this.setNodes(!this.toggles.nodes);
+      },
+      setResults: () => {
+        this.cycleResultMode();
+      },
+      reset: () => {
+        this.reset();
+      },
+      fitView: () => {
+        this.fitView();
+      },
+      fitSelection: () => {
+        this.fitSelection();
+      },
+      setPreset: (id) => {
+        this.setPreset(id);
+      },
+    });
     this.canvas.dataset["model"] = this.preset.id;
     this.canvas.dataset["dragging"] = "false";
     this.render();
@@ -175,7 +144,6 @@ export class WorkbenchController {
     return this.viewport.camera;
   }
 
-  /** Reattaches the presentation shell after the e2e lifecycle seam recreates the viewport. */
   setViewport(viewport: FemViewport): void {
     this.viewport = viewport;
     this.treeHoverTargets = [];
@@ -186,18 +154,15 @@ export class WorkbenchController {
     this.render();
   }
 
-  /** Mirrors the core camera gesture state into demo-only hover policy and diagnostics. */
   setCameraGestureActive(active: boolean): void {
     this.dragging = active;
     this.canvas.dataset["dragging"] = active ? "true" : "false";
   }
 
-  /** True while a camera or box drag is suppressing asynchronous hover. */
   isPointerGestureActive(): boolean {
     return this.dragging || this.boxPreview.isActive();
   }
 
-  /** Refreshes demo-only status after a viewport-owned camera/render update. */
   syncViewportPresentation(): void {
     if (this.disposed) return;
     const viewportStats = this.viewport.stats();
@@ -228,7 +193,6 @@ export class WorkbenchController {
     this.render();
   }
 
-  /** Applies or clears the wireframe edge overlay across every part. */
   setEdges(enabled: boolean): void {
     if (this.toggles.edges === enabled) return;
     this.toggles.edges = enabled;
@@ -236,7 +200,6 @@ export class WorkbenchController {
     this.render();
   }
 
-  /** Shows one small glyph at every visible finite-element node. */
   setNodes(enabled: boolean): void {
     if (this.toggles.nodes === enabled) return;
     this.toggles.nodes = enabled;
@@ -306,51 +269,6 @@ export class WorkbenchController {
     this.interactionController.destroy();
     this.boxPreview.dispose();
     this.viewport.destroy();
-  }
-
-  private installListeners(): void {
-    const signal = this.listenerController.signal;
-    // Install before the workbench hover listener so the threshold-crossing
-    // move marks box interaction active before hover handling runs.
-    this.boxSelectionDisposer = installBoxSelection({
-      canvas: this.canvas,
-      onEvent: (event) => {
-        this.boxPreview.handleEvent(event);
-      },
-    });
-    this.visibilityPanel.install(signal);
-    this.menu.install(signal);
-    installWorkbenchBindings({
-      view: this.view,
-      canvas: this.canvas,
-      signal,
-      viewport: () => this.viewport,
-      interaction: this.interactionController,
-      menu: this.menu,
-      dragging: () => this.isPointerGestureActive(),
-      setEdges: () => {
-        this.setEdges(!this.toggles.edges);
-      },
-      setNodes: () => {
-        this.setNodes(!this.toggles.nodes);
-      },
-      setResults: () => {
-        this.cycleResultMode();
-      },
-      reset: () => {
-        this.reset();
-      },
-      fitView: () => {
-        this.fitView();
-      },
-      fitSelection: () => {
-        this.fitSelection();
-      },
-      setPreset: (id) => {
-        this.setPreset(id);
-      },
-    });
-    this.reflectDisplayControls();
   }
 
   /** Cycles the results preset through base, colored, and deformed states. */

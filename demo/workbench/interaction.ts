@@ -6,8 +6,8 @@ import {
   type PartId,
   type PickHit,
 } from "../../src/index";
-import { describePick } from "../inspect";
-import { selectTarget, targetKey, type SelectTarget } from "../pick";
+import { describePick } from "./inspect";
+import { selectTarget, targetKey, type SelectTarget } from "./pick";
 import {
   clearSelection as clearSelectedTargets,
   replaceSelection,
