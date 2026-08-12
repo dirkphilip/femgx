@@ -21,6 +21,7 @@ import { collectInstanceUpdates } from "./instance-updates";
 import {
   buildDrawOrder,
   buildEdgeOrder,
+  buildDrawCalls,
   buildInstanceLayout,
   buildInstanceSnapshot,
   type InstanceLayout,
@@ -213,20 +214,9 @@ export class RendererAttachment {
       this.edgeCalls = [];
       return;
     }
-    const calls: DrawCall[] = [];
-    const edgeCalls: DrawCall[] = [];
-    for (const partId of layout.partOrder) {
-      const count = layout.partVisibleCounts.get(partId);
-      if (count !== undefined && count > 0) {
-        calls.push({ partId, instanceCount: count });
-      }
-      const edgeCount = layout.partEdgeCounts.get(partId);
-      if (edgeCount !== undefined && edgeCount > 0) {
-        edgeCalls.push({ partId, instanceCount: edgeCount });
-      }
-    }
-    this.calls = calls;
-    this.edgeCalls = edgeCalls;
+    const calls = buildDrawCalls(layout);
+    this.calls = calls.calls;
+    this.edgeCalls = calls.edgeCalls;
   }
 }
 

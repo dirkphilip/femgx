@@ -22,46 +22,7 @@ import {
  * never change when visibility changes. The typed arrays are read-only views
  * into the runtime: do not mutate them, or visibleCount desynchronizes.
  */
-export interface PackedSceneRuntime {
-  readonly rootAssemblyId: AssemblyId;
-  /** Number of compiled assembly expansions. */
-  readonly nodeCount: number;
-  /** Number of part placements; each is a stable instance id in `[0, count)`. */
-  readonly instanceCount: number;
-  readonly nodeNodeIds: readonly AssemblyNodeId[];
-  /** Number of currently visible instances. */
-  readonly visibleCount: number;
-  readonly nodeAssemblyIds: Uint32Array;
-  /** Parent node id per node, `-1` for the root. */
-  readonly nodeParents: Int32Array;
-  /** First child node id per node, `-1` if none. */
-  readonly nodeFirstChild: Int32Array;
-  /** Next sibling node id per node, `-1` if none. */
-  readonly nodeNextSibling: Int32Array;
-  /** Subtree instance range `[start, end)` per node, contiguous depth-first. */
-  readonly nodeInstanceStart: Uint32Array;
-  readonly nodeInstanceEnd: Uint32Array;
-  /** Authoring (explicit) visibility per node. */
-  readonly nodeVisible: Uint8Array;
-  /** Authoring visibility AND every ancestor node. */
-  readonly nodeEffectiveVisible: Uint8Array;
-  /** Local placement transform per node (16 floats); root is identity. */
-  readonly nodeLocalTransforms: Float32Array;
-  /** Column-major world transform per node (16 floats). */
-  readonly nodeWorldTransforms: Float32Array;
-  readonly instancePartIds: Uint32Array;
-  /** Owning node id per instance. */
-  readonly instanceOwningNode: Uint32Array;
-  /** Authoring part visibility per instance. */
-  readonly instancePartVisible: Uint8Array;
-  /** Per-instance override; gates effective visibility. */
-  readonly instanceOverrideVisible: Uint8Array;
-  /** Effective visibility per instance (override AND part AND hierarchy). */
-  readonly instanceVisible: Uint8Array;
-  /** Local placement transform per instance (16 floats). */
-  readonly instanceLocalTransforms: Float32Array;
-  /** Column-major world transform per instance (16 floats). */
-  readonly instanceWorldTransforms: Float32Array;
+interface RuntimeMethods {
   /** Resolves an instance id to its part id. */
   getPartId(instanceId: number): PartId | undefined;
   /** Resolves a stable instance slot to its authoring placement handle. */
@@ -79,6 +40,8 @@ export interface PackedSceneRuntime {
   /** Returns the world transform of a node as a matrix view. */
   getNodeWorldTransform(nodeId: number): Mat4 | undefined;
   isInstanceVisible(instanceId: number): boolean;
+  /** Returns the precomputed instance slots belonging to a part. */
+  getPartInstanceSlots(partId: PartId): ArrayLike<number>;
   /** Returns visible instance ids in deterministic depth-first order. */
   getDrawList(): Uint32Array;
   setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta;
@@ -92,37 +55,14 @@ export interface PackedSceneRuntime {
   setNodeTransform(nodeId: number, transform: Mat4): TransformDelta;
 }
 
+/** Packed scene storage plus internal behavior and stable identity indexes. */
+export type PackedSceneRuntime = RuntimeState & RuntimeMethods;
+
 function matrixView(transforms: Float32Array, count: number, index: number): Mat4 | undefined {
   if (index < 0 || index >= count) {
     return undefined;
   }
   return transforms.subarray(index * 16, index * 16 + 16);
-}
-
-function runtimeArrays(state: RuntimeState) {
-  return {
-    rootAssemblyId: state.rootAssemblyId,
-    nodeCount: state.nodeCount,
-    nodeNodeIds: state.nodeNodeIds,
-    instanceCount: state.instanceCount,
-    nodeAssemblyIds: state.nodeAssemblyIds,
-    nodeParents: state.nodeParents,
-    nodeFirstChild: state.nodeFirstChild,
-    nodeNextSibling: state.nodeNextSibling,
-    nodeInstanceStart: state.nodeInstanceStart,
-    nodeInstanceEnd: state.nodeInstanceEnd,
-    nodeVisible: state.nodeVisible,
-    nodeEffectiveVisible: state.nodeEffectiveVisible,
-    nodeLocalTransforms: state.nodeLocalTransforms,
-    nodeWorldTransforms: state.nodeWorldTransforms,
-    instancePartIds: state.instancePartIds,
-    instanceOwningNode: state.instanceOwningNode,
-    instancePartVisible: state.instancePartVisible,
-    instanceOverrideVisible: state.instanceOverrideVisible,
-    instanceVisible: state.instanceVisible,
-    instanceLocalTransforms: state.instanceLocalTransforms,
-    instanceWorldTransforms: state.instanceWorldTransforms,
-  };
 }
 
 interface RuntimeMaps {
@@ -151,11 +91,29 @@ export function createPackedSceneRuntime(scene: Scene): PackedSceneRuntime {
 }
 
 function createPackedRuntime(state: RuntimeState, maps: RuntimeMaps): PackedSceneRuntime {
+  return Object.assign(state, createRuntimeMethods(state, maps));
+}
+
+function createRuntimeMethods(state: RuntimeState, maps: RuntimeMaps): RuntimeMethods {
   return {
-    ...runtimeArrays(state),
-    get visibleCount(): number {
-      return state.visibleCount;
-    },
+    ...createRuntimeQueries(state, maps),
+    ...createRuntimeMutations(state),
+  };
+}
+
+function createRuntimeQueries(
+  state: RuntimeState,
+  maps: RuntimeMaps,
+): Omit<
+  RuntimeMethods,
+  | "setInstanceVisible"
+  | "setPartVisible"
+  | "setAssemblyNodeVisible"
+  | "setAssemblyVisible"
+  | "setInstanceTransform"
+  | "setNodeTransform"
+> {
+  return {
     getPartId(instanceId: number): PartId | undefined {
       return state.instancePartIds[instanceId];
     },
@@ -170,6 +128,12 @@ function createPackedRuntime(state: RuntimeState, maps: RuntimeMaps): PackedScen
     },
     getNodeSlot(nodeId: AssemblyNodeId): number | undefined {
       return maps.nodeSlots.get(nodeId);
+    },
+    getPartInstanceSlots(partId: PartId): ArrayLike<number> {
+      const range = findPartRange(state, partId);
+      return range === undefined
+        ? new Uint32Array()
+        : state.partInstanceList.subarray(range[0], range[1]);
     },
     getTransform(instanceId: number): Mat4 | undefined {
       return matrixView(state.instanceWorldTransforms, state.instanceCount, instanceId);
@@ -190,6 +154,21 @@ function createPackedRuntime(state: RuntimeState, maps: RuntimeMaps): PackedScen
     getDrawList(): Uint32Array {
       return computeDrawList(state);
     },
+  };
+}
+
+function createRuntimeMutations(
+  state: RuntimeState,
+): Pick<
+  RuntimeMethods,
+  | "setInstanceVisible"
+  | "setPartVisible"
+  | "setAssemblyNodeVisible"
+  | "setAssemblyVisible"
+  | "setInstanceTransform"
+  | "setNodeTransform"
+> {
+  return {
     setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta {
       return setInstanceVisible(state, instanceId, visible);
     },
@@ -209,4 +188,20 @@ function createPackedRuntime(state: RuntimeState, maps: RuntimeMaps): PackedScen
       return setNodeTransform(state, nodeId, transform);
     },
   };
+}
+
+function findPartRange(state: RuntimeState, partId: PartId): readonly [number, number] | undefined {
+  let low = 0;
+  let high = state.sortedPartIds.length;
+  while (low < high) {
+    const mid = low + ((high - low) >> 1);
+    const value = state.sortedPartIds[mid];
+    if (value === undefined) break;
+    if (value < partId) low = mid + 1;
+    else high = mid;
+  }
+  if (low >= state.sortedPartIds.length || state.sortedPartIds[low] !== partId) return undefined;
+  const start = state.partInstanceOffset[low];
+  const end = state.partInstanceOffset[low + 1];
+  return start === undefined || end === undefined ? undefined : [start, end];
 }

@@ -28,6 +28,12 @@ slots:
 - per-instance visibility bits (`instanceVisible`) plus a contiguous subtree
   instance range per node (`nodeInstanceStart/End`).
 
+`RuntimeState` is the single owner of those compiled fields. The internal
+`PackedSceneRuntime` augments that state with behavior and stable identity
+indexes; it does not copy the field schema into a second runtime projection.
+Renderer attachments derive draw calls from their existing layout builder, and
+interaction diffs reuse the runtime's identity/group indexes.
+
 The packed compiler is the only placement-path algorithm and updates persistent
 runtime state in place after the initial compile. Stable placement paths are
 resolved through runtime-owned reverse maps; callers never need to know the

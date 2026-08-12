@@ -9,8 +9,7 @@ import type { PackedSceneRuntime } from "../scene-runtime/runtime";
  * Computes the instance slots whose GPU record may change when an interaction
  * state moves from `previous` to `next`, so the viewport can feed exactly
  * those slots to `WebGpuRenderer.updateInstances` instead of rescanning the
- * whole runtime. Body-, element-, node-, and face-level emphasis is
- * Most element-, node-, and face-level emphasis is intentionally excluded: it
+ * whole runtime. Most element-, node-, and face-level emphasis is intentionally excluded: it
  * flows through `updateElements`, which diffs its own buffers. Element
  * highlights also mark their owning slot here so consumers can observe the
  * complete interaction transition through the instance diff.
@@ -27,35 +26,19 @@ export function changedInstanceSlots(
   }
   const previousData = readInteractionState(previous);
   const nextData = readInteractionState(next);
-  const slotByInstanceId = new Map<InstanceId, number>();
-  const slotsByPartId = new Map<PartId, number[]>();
-  for (let slot = 0; slot < runtime.instanceCount; slot++) {
-    const instanceId = runtime.getInstanceId(slot);
-    if (instanceId !== undefined) {
-      slotByInstanceId.set(instanceId, slot);
-    }
-    const partId = runtime.instancePartIds[slot];
-    if (partId === undefined) {
-      continue;
-    }
-    let partSlots = slotsByPartId.get(partId);
-    if (partSlots === undefined) {
-      partSlots = [];
-      slotsByPartId.set(partId, partSlots);
-    }
-    partSlots.push(slot);
-  }
   const changed = new Set<number>();
   const addPart = (partId: PartId): void => {
-    for (const slot of slotsByPartId.get(partId) ?? []) {
-      changed.add(slot);
+    const slots = runtime.getPartInstanceSlots(partId);
+    for (let index = 0; index < slots.length; index++) {
+      const slot = slots[index];
+      if (slot !== undefined) changed.add(slot);
     }
   };
   const addInstance = (instanceId: InstanceId | undefined): void => {
     if (instanceId === undefined) {
       return;
     }
-    const slot = slotByInstanceId.get(instanceId);
+    const slot = runtime.getInstanceSlot(instanceId);
     if (slot !== undefined) {
       changed.add(slot);
     }
