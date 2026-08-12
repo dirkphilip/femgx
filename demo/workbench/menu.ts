@@ -50,8 +50,8 @@ export class WorkbenchMenu {
       "diagnostics",
     );
     this.menuSection("View");
-    this.menuButton("Fit to view", "fit-view");
-    this.menuButton("Reset", "reset");
+    this.menuButton("Fit model", "fit-view");
+    this.menuButton("Reset all", "reset");
     this.menu.style.left = `${x}px`;
     this.menu.style.top = `${y}px`;
     this.menu.hidden = false;
@@ -61,10 +61,10 @@ export class WorkbenchMenu {
   showView(x: number, y: number): void {
     this.menu.textContent = "";
     this.menuSection("View");
-    this.menuButton("Fit to view", "fit-view");
+    this.menuButton("Fit model", "fit-view");
     this.menuButton("Clear selection", "clear-selection");
     this.menuButton("Show all", "show-all");
-    this.menuButton("Reset view", "reset");
+    this.menuButton("Reset all", "reset");
     this.menuSection("Display");
     this.menuButton(
       this.diagnosticsEnabled() ? "Hide diagnostics" : "Show diagnostics",
@@ -96,6 +96,11 @@ export class WorkbenchMenu {
     button.type = "button";
     button.textContent = label;
     button.dataset["action"] = action;
+    const help = actionHelp(action);
+    if (help !== undefined) {
+      button.setAttribute("aria-label", label);
+      button.title = help;
+    }
     this.menu.appendChild(button);
   }
 
@@ -108,6 +113,16 @@ export class WorkbenchMenu {
     section.appendChild(label);
     this.menu.appendChild(section);
   }
+}
+
+function actionHelp(action: string): string | undefined {
+  if (action === "fit-view") {
+    return "Frame the complete model without changing visibility, selection, display, results, or projection.";
+  }
+  if (action === "reset") {
+    return "Restore this model's initial visibility, selection, display, results, projection, and camera.";
+  }
+  return undefined;
 }
 
 function targetLabel(target: SelectTarget): string {
