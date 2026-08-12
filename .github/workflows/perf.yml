@@ -2,8 +2,9 @@ name: Performance
 
 # Opt-in performance runs. Not part of the default CI gate: CPU budgets are
 # enforced by `npm run bench:budget` in ci.yml, while this workflow runs the
-# full benchmark suite and the real-WebGPU capacity benchmark for human review and
-# trend tracking. Run it manually via workflow_dispatch.
+# CPU benchmark suite for human review and trend tracking. Real-WebGPU capacity
+# measurements remain a local system-Chrome workflow until a hardware runner is
+# explicitly owned. Run the CPU workflow manually via workflow_dispatch.
 on:
   workflow_dispatch:
 
@@ -24,33 +25,3 @@ jobs:
 
       - name: Run benchmark suite
         run: npm run bench
-
-  browser-perf:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      RUN_PERF: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install system Chrome
-        run: npx playwright install --with-deps chrome
-
-      - name: Run WebGPU benchmark
-        run: xvfb-run --auto-servernum npm run bench:webgpu
-
-      - name: Upload WebGPU benchmark report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: webgpu-benchmark
-          path: test-results/**/webgpu-benchmark.json
-          if-no-files-found: warn
