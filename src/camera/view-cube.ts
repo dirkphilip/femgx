@@ -11,6 +11,9 @@ import { assertValidCamera, type Camera } from "./camera";
 /** The six named view-cube face targets. */
 export type ViewCubeFace = "front" | "back" | "right" | "left" | "top" | "bottom";
 
+/** The world-coordinate plane shown by a view-cube face. */
+export type ViewCubePlane = "XY" | "YZ" | "XZ";
+
 /** The eight signed trimetric view-cube corners, ordered X/Y/Z. */
 export type ViewCubeCorner = "+++" | "++-" | "+-+" | "+--" | "-++" | "-+-" | "--+" | "---";
 
@@ -29,16 +32,17 @@ export type ViewCubeAction =
 
 /** Stable face metadata shared by camera math and the SVG view cube. */
 export const VIEW_CUBE_FACES = [
-  { id: "front", label: "Front", axis: "+Z", direction: [0, 0, 1] },
-  { id: "back", label: "Back", axis: "−Z", direction: [0, 0, -1] },
-  { id: "right", label: "Right", axis: "+X", direction: [1, 0, 0] },
-  { id: "left", label: "Left", axis: "−X", direction: [-1, 0, 0] },
-  { id: "top", label: "Top", axis: "+Y", direction: [0, 1, 0] },
-  { id: "bottom", label: "Bottom", axis: "−Y", direction: [0, -1, 0] },
+  { id: "front", label: "Front", axis: "+Z", plane: "XY", direction: [0, 0, 1] },
+  { id: "back", label: "Back", axis: "−Z", plane: "XY", direction: [0, 0, -1] },
+  { id: "right", label: "Right", axis: "+X", plane: "YZ", direction: [1, 0, 0] },
+  { id: "left", label: "Left", axis: "−X", plane: "YZ", direction: [-1, 0, 0] },
+  { id: "top", label: "Top", axis: "+Y", plane: "XZ", direction: [0, 1, 0] },
+  { id: "bottom", label: "Bottom", axis: "−Y", plane: "XZ", direction: [0, -1, 0] },
 ] as const satisfies ReadonlyArray<{
   readonly id: ViewCubeFace;
   readonly label: string;
   readonly axis: string;
+  readonly plane: ViewCubePlane;
   readonly direction: Vec3;
 }>;
 
