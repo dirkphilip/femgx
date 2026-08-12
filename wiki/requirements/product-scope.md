@@ -34,6 +34,7 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | Area                                                                                                                               | src                | test       | Decision     | Rationale                                                                                                                                                                                                                                                                                                                                 |
 | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ---------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | WebGPU rendering (parts, assemblies, instancing, visibility, camera, element-level picking, selection/highlight/hover)             | ~7.7k              | ~5.9k      | **Core now** | The product: draw reusable part geometry once, instance it across assembly placements, and drive interaction through per-instance GPU state.                                                                                                                                                                                              |
+| Viewport camera transitions, fit-to-selection, and host-scoped `Z` control                                                         | camera + viewport  | same       | **Core now** | One interruptible viewport-owned transition path serves programmatic camera focus and selection fit. Core keyboard interpretation attaches only to a host-supplied event target; the demo delegates instead of owning parallel animation and shortcut logic.                                                                              |
 | CPU fallback rendering (2D canvas)                                                                                                 | demo ~0.6k         | e2e lanes  | **Remove**   | A second renderer for non-target environments. WebGPU is a hard product requirement; without it the caller gets a typed unsupported result. Removed in #171.                                                                                                                                                                              |
 | Capability probing + device-loss recovery                                                                                          | ~0.4k              | ~0.6k      | **Core now** | Typed unsupported reporting (`queryWebGpuSupport`) and device-loss recovery (`recover()`) are supported-path features of the WebGPU contract, retained in #171; do not turn them into fallback machinery.                                                                                                                                 |
 | Linear element shapes (point, line, triangle, quad, Tet4, Hex8) + canonical topology                                               | ~0.6k              | ~1.2k      | **Core now** | The minimum FE geometry the product must render.                                                                                                                                                                                                                                                                                          |
@@ -68,6 +69,30 @@ quantities and scalar color mapping, and deformed-shape geometry. Interchange
 is a single format (VTK legacy) with validation and diagnostics. Browsers without
 a working WebGPU device receive a typed
 unsupported result — never a second renderer.
+
+## Core camera focus contract
+
+`FemViewport` owns one interruptible camera-transition path for programmatic
+camera changes and fit-to-selection. An omitted or zero duration applies the
+destination immediately; a positive finite duration interpolates smoothly and
+lands on the exact protected destination. The default `Z` action fits the
+selected visible occurrences, or the complete scene when no eligible selection
+exists, over approximately one second. Selection determines the framing target,
+while the complete displayed scene remains protected from camera-plane crossing
+and clipping throughout the transition.
+
+Keyboard interpretation is core behavior, but listener ownership is explicit:
+the host supplies an event target and the library installs no implicit global
+listener. Editable targets, modified shortcuts, and key repeat must not trigger
+or restart the action. Direct manipulation, a subsequent camera command, scene
+replacement, or viewport destruction interrupts the active transition without
+jumping to either endpoint. The demo delegates to this contract and removes its
+parallel transition scheduler, selection-bounds calculation, and `Z` handler.
+
+This requirement does not introduce a generic timeline, spring system, camera
+path editor, shortcut manager, or finer-than-occurrence selection bounds. The
+detailed implementation work and acceptance criteria are tracked in
+[issue #475](https://github.com/dirkphilip/femgx/issues/475).
 
 Core style opacity uses order-independent weighted transparency for fractional
 alpha while preserving instanced batching and nearest-geometry picking; alpha
