@@ -136,6 +136,27 @@ export function expectBoundsClippedSafely(camera: CameraSnapshot, bounds: Bounds
   );
 }
 
+/** Asserts the positive-depth clip interval and one displayed approach point. */
+export function expectDisplayedPointClippedSafely(
+  camera: CameraSnapshot,
+  bounds: BoundsSnapshot,
+  point: readonly [number, number, number],
+): void {
+  const depths = boundsDepths(camera, bounds).filter((depth) => depth > 0);
+  expect(depths.length, "the camera must retain a positive scene depth").toBeGreaterThan(0);
+  expect(
+    Math.min(...depths),
+    "positive scene depths must stay beyond the near plane",
+  ).toBeGreaterThan(camera.near);
+  expect(Math.max(...depths), "the far plane must contain positive scene depths").toBeLessThan(
+    camera.far,
+  );
+  expect(
+    pointDepth(camera, point),
+    "the displayed approach point must stay beyond the near plane",
+  ).toBeGreaterThan(camera.near);
+}
+
 /** Returns the eye-target distance from a captured camera snapshot. */
 export function cameraDistance(camera: CameraSnapshot): number {
   return Math.hypot(
@@ -219,6 +240,11 @@ function boundsDepths(camera: CameraSnapshot, bounds: BoundsSnapshot): readonly 
       forward,
     ),
   );
+}
+
+function pointDepth(camera: CameraSnapshot, point: readonly [number, number, number]): number {
+  const forward = normalize(subtract(camera.target, camera.position));
+  return dot(subtract(point, camera.position), forward);
 }
 
 function boundsCorners(bounds: BoundsSnapshot): readonly (readonly [number, number, number])[] {

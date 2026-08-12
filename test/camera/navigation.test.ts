@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { createCamera, orbitCamera } from "../../src/camera/camera";
+import { createCamera, orbitCamera, projectPoint } from "../../src/camera/camera";
 import { fitCamera } from "../../src/camera/fit";
-import { orbitCameraWithinBounds, zoomCameraWithinBounds } from "../../src/camera/navigation";
+import {
+  cameraDepthMargin,
+  orbitCameraWithinBounds,
+  zoomCameraAtPointWithinBounds,
+  zoomCameraWithinBounds,
+} from "../../src/camera/navigation";
 import type { Bounds } from "../../src/geometry/part";
+import type { Vec3 } from "../../src/math/vec3";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createBoltedPlateFixture } from "../../demo/fixture/bolted-plate";
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
@@ -124,6 +130,56 @@ describe("bounds-aware camera navigation", () => {
     }
   });
 
+  it.each(["perspective", "orthographic"] as const)(
+    "allows a displayed %s point to pass empty AABB corners safely",
+    (mode) => {
+      const fixture = createBoltedPlateFixture();
+      const runtime = createPackedSceneRuntime(fixture.scene);
+      const fixtureBounds = sceneWorldBounds(fixture.scene, runtime);
+      const fitted = fitCamera(
+        createCamera({ mode, width: 1152, height: 900 }),
+        fixtureBounds,
+        1152,
+        900,
+      );
+      const anchor: Vec3 = [0, 3, 0];
+      const conservative = zoomCameraWithinBounds(fitted, -100, fixtureBounds);
+      const zoomed = zoomCameraAtPointWithinBounds(fitted, -100, anchor, fixtureBounds, anchor);
+      const fittedScreen = projectPoint(fitted, anchor);
+      const zoomedScreen = projectPoint(zoomed, anchor);
+
+      expect(distance(zoomed.position, anchor)).toBeLessThan(
+        distance(conservative.position, anchor) * 0.1,
+      );
+      expect(pointDepth(zoomed, anchor)).toBeGreaterThan(cameraDepthMargin(fixtureBounds));
+      expect(zoomed.near).toBeGreaterThan(0);
+      expect(zoomed.far).toBeGreaterThan(zoomed.near);
+      expect(Math.abs((zoomedScreen?.[0] ?? NaN) - (fittedScreen?.[0] ?? NaN))).toBeLessThan(1);
+      expect(Math.abs((zoomedScreen?.[1] ?? NaN) - (fittedScreen?.[1] ?? NaN))).toBeLessThan(1);
+    },
+  );
+
+  it("does not let a local approach pass through a dense solid bound", () => {
+    const solidBounds: Bounds = {
+      minX: -1,
+      minY: -1,
+      minZ: -1,
+      maxX: 1,
+      maxY: 1,
+      maxZ: 1,
+    };
+    const fitted = fitCamera(createCamera({ width: 1152, height: 900 }), solidBounds, 1152, 900);
+    const anchor: Vec3 = [0, 0, 1];
+    const zoomed = zoomCameraAtPointWithinBounds(fitted, -100, anchor, solidBounds, anchor);
+
+    let closest = zoomed;
+    for (let step = 0; step < 20; step += 1) {
+      closest = zoomCameraAtPointWithinBounds(closest, -1, anchor, solidBounds, anchor);
+    }
+    expect(pointDepth(closest, anchor)).toBeGreaterThan(cameraDepthMargin(solidBounds));
+    expect(zoomCameraAtPointWithinBounds(closest, -1, anchor, solidBounds, anchor)).toBe(closest);
+  });
+
   it.each([
     ["wide", { minX: -100, minY: -1, minZ: -1, maxX: 100, maxY: 1, maxZ: 1 }],
     ["tall", { minX: -1, minY: -100, minZ: -1, maxX: 1, maxY: 100, maxZ: 1 }],
@@ -201,5 +257,17 @@ function distance(a: readonly number[], b: readonly number[]): number {
     (a[0] ?? 0) - (b[0] ?? 0),
     (a[1] ?? 0) - (b[1] ?? 0),
     (a[2] ?? 0) - (b[2] ?? 0),
+  );
+}
+
+function pointDepth(camera: ReturnType<typeof createCamera>, point: Vec3): number {
+  const forward = normalize([
+    camera.target[0] - camera.position[0],
+    camera.target[1] - camera.position[1],
+    camera.target[2] - camera.position[2],
+  ]);
+  return dot(
+    [point[0] - camera.position[0], point[1] - camera.position[1], point[2] - camera.position[2]],
+    forward,
   );
 }

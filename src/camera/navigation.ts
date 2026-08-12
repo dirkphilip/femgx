@@ -51,17 +51,26 @@ export function zoomCameraWithinBounds(camera: Camera, amount: number, bounds: B
   );
 }
 
-/** Zooms around a point while keeping the supplied bounds in front of the camera. */
+/**
+ * Zooms around a point while keeping the supplied bounds in front of the camera.
+ * A confirmed displayed point can provide the local approach limit; omitting it
+ * retains conservative whole-AABB admission for empty-space anchors.
+ */
 export function zoomCameraAtPointWithinBounds(
   camera: Camera,
   amount: number,
   pivot: Vec3,
   bounds: Bounds,
+  approachPoint?: Vec3,
 ): Camera {
   assertFinite("zoom amount", amount);
   if (amount === 0) return camera;
-  return transitionWithinBounds(camera, bounds, (value, progress) =>
-    zoomCameraAtPoint(value, amount * progress, pivot),
+  if (approachPoint !== undefined) assertFiniteVector("zoom approach point", approachPoint);
+  return transitionWithinBounds(
+    camera,
+    bounds,
+    (value, progress) => zoomCameraAtPoint(value, amount * progress, pivot),
+    approachPoint,
   );
 }
 
@@ -79,14 +88,17 @@ function transitionWithinBounds(
   camera: Camera,
   bounds: Bounds,
   transition: (camera: Camera, progress: number) => Camera,
+  approachPoint?: Vec3,
 ): Camera {
   const margin = cameraDepthMargin(bounds);
-  if (minimumDepth(camera, bounds) <= margin) return camera;
+  if (transitionMinimumDepth(camera, bounds, approachPoint) <= margin) return camera;
   const requested = transition(camera, 1);
   const progress =
-    minimumDepth(requested, bounds) > margin ? 1 : safeProgress(camera, bounds, margin, transition);
+    transitionMinimumDepth(requested, bounds, approachPoint) > margin
+      ? 1
+      : safeProgress(camera, bounds, margin, transition, approachPoint);
   if (progress === 0) return camera;
-  return updateClipPlanes(transition(camera, progress), bounds, margin);
+  return updateClipPlanes(transition(camera, progress), bounds, margin, approachPoint);
 }
 
 function safeProgress(
@@ -94,24 +106,37 @@ function safeProgress(
   bounds: Bounds,
   margin: number,
   transition: (camera: Camera, progress: number) => Camera,
+  approachPoint?: Vec3,
 ): number {
   let low = 0;
   let high = 1;
   for (let step = 0; step < SEARCH_STEPS; step += 1) {
     const middle = (low + high) / 2;
     const candidate = transition(camera, middle);
-    if (minimumDepth(candidate, bounds) > margin) low = middle;
+    if (transitionMinimumDepth(candidate, bounds, approachPoint) > margin) low = middle;
     else high = middle;
   }
   return low;
 }
 
-function updateClipPlanes(camera: Camera, bounds: Bounds, margin: number): Camera {
+function updateClipPlanes(
+  camera: Camera,
+  bounds: Bounds,
+  margin: number,
+  approachPoint?: Vec3,
+): Camera {
   const depths = boundsDepths(camera, bounds);
-  const nearest = Math.min(...depths);
-  const farthest = Math.max(...depths);
+  const positiveDepths = depths.filter((depth) => depth > 0);
+  const nearest = Math.min(...(positiveDepths.length > 0 ? positiveDepths : [margin]));
+  const farthest = Math.max(...(positiveDepths.length > 0 ? positiveDepths : [margin]));
   const scale = boundsScale(bounds);
-  const near = Math.max(scale * MIN_NEAR_FRACTION, nearest * 0.25);
+  const approachDepth =
+    approachPoint === undefined ? Number.POSITIVE_INFINITY : pointDepth(camera, approachPoint);
+  const depthLimit = Math.min(nearest, approachDepth) * 0.25;
+  const near = Math.max(
+    Number.MIN_VALUE,
+    Math.min(Math.max(scale * MIN_NEAR_FRACTION, nearest * 0.25), depthLimit),
+  );
   const far = Math.max(farthest + margin, near + margin);
   return { ...camera, near, far };
 }
@@ -120,9 +145,20 @@ function minimumDepth(camera: Camera, bounds: Bounds): number {
   return Math.min(...boundsDepths(camera, bounds));
 }
 
+function transitionMinimumDepth(camera: Camera, bounds: Bounds, approachPoint?: Vec3): number {
+  return approachPoint === undefined
+    ? minimumDepth(camera, bounds)
+    : pointDepth(camera, approachPoint);
+}
+
 function boundsDepths(camera: Camera, bounds: Bounds): number[] {
   const forward = normalize(subtract(camera.target, camera.position));
   return boundsCorners(bounds).map((corner) => dot(subtract(corner, camera.position), forward));
+}
+
+function pointDepth(camera: Camera, point: Vec3): number {
+  const forward = normalize(subtract(camera.target, camera.position));
+  return dot(subtract(point, camera.position), forward);
 }
 
 /** Returns the scale-aware depth margin shared by fitting and navigation. */
@@ -154,4 +190,10 @@ function boundsCorners(bounds: Bounds): readonly Vec3[] {
 
 function assertFinite(name: string, value: number): void {
   if (!Number.isFinite(value)) throw new Error(`Camera ${name} must be finite`);
+}
+
+function assertFiniteVector(name: string, value: Vec3): void {
+  if (value.some((component) => !Number.isFinite(component))) {
+    throw new Error(`Camera ${name} must contain three finite components`);
+  }
 }
