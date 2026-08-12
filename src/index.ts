@@ -122,6 +122,11 @@ export {
   type BoxSelectionRect,
 } from "./interaction/box-selection";
 export {
+  boxSelectionFrustum,
+  type BoxSelectionFrustum,
+  type FrustumPlane,
+} from "./interaction/box-frustum";
+export {
   createSceneRuntime,
   type RuntimeInstance,
   type RuntimeNode,

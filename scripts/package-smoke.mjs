@@ -151,9 +151,11 @@ function main() {
     writeFileSync(
       join(consumer, "smoke.mjs"),
       [
-        'import { createCamera, createScene, identity } from "femgx";',
+        'import { boxSelectionFrustum, createCamera, createScene, identity } from "femgx";',
         "const scene = createScene();",
         "const camera = createCamera();",
+        "const frustum = boxSelectionFrustum(camera, { left: 0, top: 0, right: camera.width, bottom: camera.height, width: camera.width, height: camera.height });",
+        'if (frustum.near.normal.length !== 3) throw new Error("frustum export failed");',
         "const m = identity();",
         'if (m.length !== 16) throw new Error("identity() is not a 4x4 matrix");',
         'console.log("ESM import OK");',
@@ -177,7 +179,7 @@ function main() {
     // 8. Type-level consumption under each supported moduleResolution.
     const tsc = join(repoRoot, "node_modules", ".bin", "tsc");
     const smokeTs = [
-      'import { createElement, createElementModel, createFemViewport, createInteractionState, createPart, createResultField, createScene, heterogeneousElementParts, identity, LINE_SHAPE, POINT_SHAPE, TRIANGLE_SHAPE, parseVtk, setTargetHighlighted, setTargetSelected, translation, writeVtk, type FemViewport, type InteractionTarget } from "femgx";',
+      'import { boxSelectionFrustum, createElement, createElementModel, createFemViewport, createInteractionState, createPart, createResultField, createScene, heterogeneousElementParts, identity, LINE_SHAPE, POINT_SHAPE, TRIANGLE_SHAPE, parseVtk, setTargetHighlighted, setTargetSelected, translation, writeVtk, type FemViewport, type InteractionTarget } from "femgx";',
       "declare const canvas: HTMLCanvasElement;",
       "declare const viewportContainer: HTMLElement;",
       "const geometry = {",
@@ -236,6 +238,8 @@ function main() {
       "  viewport.resize();",
       "  viewport.setInteraction(interaction);",
       "  viewport.setEdgeDepthTest(true);",
+      "  const frustum = boxSelectionFrustum(viewport.camera, { left: 0, top: 0, right: viewport.camera.width, bottom: viewport.camera.height, width: viewport.camera.width, height: viewport.camera.height });",
+      "  frustum.far.distance;",
       "  viewport.setPartVisible(part.id, true);",
       "  const runtime = viewport.runtime;",
       "  runtime.getInstanceIds();",

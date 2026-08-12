@@ -26,6 +26,7 @@ describe("public root API", () => {
       "WebGpuUnsupportedError",
       "bodyOverride",
       "boundaryFaceRefs",
+      "boxSelectionFrustum",
       "canvasCssToRenderPixel",
       "classifyFaces",
       "clearSelection",
