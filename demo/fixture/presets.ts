@@ -1,12 +1,14 @@
-import type { ElementModel } from "../../src/elements/model";
-import type { Bounds } from "../../src/geometry/part";
-import type { Color } from "../../src/interaction/interaction";
-import { transformPoint } from "../../src/math/mat4";
-import { createResultField } from "../../src/results/fields";
-import type { Scene } from "../../src/scene/scene";
-import { createSceneRuntime } from "../../src/index";
-import type { PartId } from "../../src/geometry/part";
-import type { ViewportResultsConfig } from "../../src/viewport/results";
+import {
+  createResultField,
+  createSceneRuntime,
+  transformPoint,
+  type Bounds,
+  type Color,
+  type ElementModel,
+  type PartId,
+  type Scene,
+  type ViewportResultsConfig,
+} from "../../src/index";
 import { createBoltedPlateFixture } from "./bolted-plate";
 import { createElementFixture, createHex20CylinderFixture } from "./element-fixture";
 import { createResultsPreset } from "./results-preset";

@@ -60,6 +60,23 @@ upload or draw methods. The viewport derives interaction and visibility deltas,
 owns the packed runtime, and resets its upload baseline after scene replacement
 or recovery. This keeps the public host path and the demo test bench identical.
 
+## Import enforcement
+
+Ordinary demo code and retained product fixtures import library capabilities only
+from `src/index.ts`. The repository lint gate checks this boundary so a new demo
+deep import cannot quietly couple presentation code to implementation details.
+
+Three benchmark-only files are explicit exemptions because they measure or inspect
+internal GPU/runtime representations rather than model normal host usage:
+
+- `demo/webgpu-benchmark.ts`
+- `demo/webgpu-benchmark-model.ts`
+- `demo/fixture/performance-fixture.ts`
+
+These exemptions are intentionally narrow. Packed runtime slots, renderer records,
+capacities, and other benchmark internals remain non-public; ordinary demo code
+must use the canonical `createFemViewport` workflow.
+
 [architecture/packed-runtime|Packed scene runtime]: packed-runtime.md
 [rendering/interactive-state|Interactive state]: ../rendering/interactive-state.md
 [rendering/node-face-interaction|Node and face interaction]: ../rendering/node-face-interaction.md

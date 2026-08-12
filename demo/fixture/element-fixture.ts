@@ -1,12 +1,18 @@
-import { createElementModel, type ElementModel } from "../../src/elements/model";
-import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
-import { polygonPart } from "../../src/geometry/polygon";
-import type { Bounds, Part } from "../../src/geometry/part";
-import { transformPoint, translation } from "../../src/math/mat4";
-import { createScene, type Scene } from "../../src/scene/scene";
-import { createSceneRuntime } from "../../src/index";
-import type { PartId } from "../../src/geometry/part";
-import type { AssemblyId } from "../../src/scene/types";
+import {
+  createElementModel,
+  createScene,
+  createSceneRuntime,
+  heterogeneousElementParts,
+  polygonPart,
+  transformPoint,
+  translation,
+  type AssemblyId,
+  type Bounds,
+  type ElementModel,
+  type Part,
+  type PartId,
+  type Scene,
+} from "../../src/index";
 import type { ElementDisplayMode } from "./types";
 import {
   buildHex20CylinderModel,

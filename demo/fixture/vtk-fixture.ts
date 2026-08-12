@@ -1,13 +1,19 @@
 import sampleBlockVtk from "./sample-block.vtk?raw";
-import type { ElementModel } from "../../src/elements/model";
-import { boundaryFaceRefs } from "../../src/elements/faces";
-import { createElementModelFromFemModel, parseVtk, type FemModel } from "../../src/index";
-import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
-import type { Bounds, Part } from "../../src/geometry/part";
-import { identity } from "../../src/math/mat4";
-import { createScene, type Scene } from "../../src/scene/scene";
-import type { PartId } from "../../src/geometry/part";
-import type { AssemblyId } from "../../src/scene/types";
+import {
+  boundaryFaceRefs,
+  createElementModelFromFemModel,
+  createScene,
+  heterogeneousElementParts,
+  identity,
+  parseVtk,
+  type AssemblyId,
+  type Bounds,
+  type ElementModel,
+  type FemModel,
+  type Part,
+  type PartId,
+  type Scene,
+} from "../../src/index";
 import type { ElementDisplayMode } from "./types";
 
 /** The imported VTK asset and its canonical triangle part. */
