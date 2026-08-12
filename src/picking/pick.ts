@@ -1,3 +1,4 @@
+import { transformPoint } from "../math/mat4";
 import type { Vec3 } from "../math/vec3";
 import { bodyIdForElement, type Geometry, type Part } from "../geometry/part";
 import type { PartId } from "../geometry/part";
@@ -128,7 +129,7 @@ function faceHit(
     throw new Error(`Part ${instance.partId} has no face descriptor ${faceId}`);
   }
   const worldPoints = face.nodeIds.map((nodeId) =>
-    transformPosition(instance, nodePosition(geometry, nodeId)),
+    transformPoint(instance.worldTransform, ...nodePosition(geometry, nodeId)),
   );
   return {
     kind: "face",
@@ -190,34 +191,6 @@ function nodePosition(geometry: Geometry, nodeId: number): Vec3 {
     return [0, 0, 0];
   }
   return [positions[offset] ?? 0, positions[offset + 1] ?? 0, positions[offset + 2] ?? 0];
-}
-
-function transformPosition(instance: Instance, point: Vec3): Vec3 {
-  const [x, y, z] = point;
-  const transform = instance.worldTransform;
-  const w =
-    (transform[3] ?? 0) * x +
-    (transform[7] ?? 0) * y +
-    (transform[11] ?? 0) * z +
-    (transform[15] ?? 0);
-  const divisor = w === 0 ? 1 : w;
-  return [
-    ((transform[0] ?? 0) * x +
-      (transform[4] ?? 0) * y +
-      (transform[8] ?? 0) * z +
-      (transform[12] ?? 0)) /
-      divisor,
-    ((transform[1] ?? 0) * x +
-      (transform[5] ?? 0) * y +
-      (transform[9] ?? 0) * z +
-      (transform[13] ?? 0)) /
-      divisor,
-    ((transform[2] ?? 0) * x +
-      (transform[6] ?? 0) * y +
-      (transform[10] ?? 0) * z +
-      (transform[14] ?? 0)) /
-      divisor,
-  ];
 }
 
 /** Newell's polygon normal, oriented by the vertex loop winding. */

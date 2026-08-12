@@ -1,7 +1,6 @@
 import { assertValidCamera, viewMatrix, type Camera } from "../camera/camera";
+import { dot, length, scale, subtract, type Vec3 } from "../math/vec3";
 import type { BoxSelectionRect } from "./box-selection";
-
-type Vec3 = readonly [number, number, number];
 
 /** One normalized world-space plane using `dot(normal, point) + distance >= 0`. */
 export interface FrustumPlane {
@@ -122,28 +121,9 @@ function planeFromCamera(basis: CameraBasis, lateral: Vec3, forwardSlope: number
 }
 
 function plane(normal: Vec3, distance: number): FrustumPlane {
-  const unit = normalize(normal);
-  return { normal: unit, distance: distance / Math.max(Number.EPSILON, lengthOf(normal)) };
-}
-
-function lengthOf(vector: Vec3): number {
-  return Math.hypot(vector[0], vector[1], vector[2]);
-}
-
-function dot(a: Vec3, b: Vec3): number {
-  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-}
-
-function normalize(vector: Vec3): Vec3 {
-  return scale(vector, 1 / lengthOf(vector));
-}
-
-function scale(vector: Vec3, amount: number): Vec3 {
-  return [vector[0] * amount, vector[1] * amount, vector[2] * amount];
-}
-
-function subtract(a: Vec3, b: Vec3): Vec3 {
-  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const magnitude = length(normal);
+  const unit = scale(normal, 1 / magnitude);
+  return { normal: unit, distance: distance / Math.max(Number.EPSILON, magnitude) };
 }
 
 function horizontalHalfExtentFor(camera: Camera): number {

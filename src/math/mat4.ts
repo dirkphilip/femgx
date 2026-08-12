@@ -1,3 +1,5 @@
+import type { Vec3 } from "./vec3";
+
 /** 4x4 column-major matrix stored as a 16-element Float32Array. */
 export type Mat4 = Float32Array;
 
@@ -40,26 +42,55 @@ export function transformPoint(
   y: number,
   z: number,
 ): readonly [number, number, number] {
-  const w =
-    cell(matrix, 3, 0) * x + cell(matrix, 3, 1) * y + cell(matrix, 3, 2) * z + cell(matrix, 3, 3);
+  const [transformedX, transformedY, transformedZ, w] = transformPoint4(matrix, x, y, z);
   const divisor = w === 0 ? 1 : w;
+  return [transformedX / divisor, transformedY / divisor, transformedZ / divisor];
+}
+
+/** Transforms a point by a column-major matrix without dividing by `w`. */
+export function transformPoint4(
+  matrix: Mat4,
+  x: number,
+  y: number,
+  z: number,
+): readonly [number, number, number, number] {
   return [
-    (cell(matrix, 0, 0) * x +
-      cell(matrix, 0, 1) * y +
-      cell(matrix, 0, 2) * z +
-      cell(matrix, 0, 3)) /
-      divisor,
-    (cell(matrix, 1, 0) * x +
-      cell(matrix, 1, 1) * y +
-      cell(matrix, 1, 2) * z +
-      cell(matrix, 1, 3)) /
-      divisor,
-    (cell(matrix, 2, 0) * x +
-      cell(matrix, 2, 1) * y +
-      cell(matrix, 2, 2) * z +
-      cell(matrix, 2, 3)) /
-      divisor,
+    cell(matrix, 0, 0) * x + cell(matrix, 0, 1) * y + cell(matrix, 0, 2) * z + cell(matrix, 0, 3),
+    cell(matrix, 1, 0) * x + cell(matrix, 1, 1) * y + cell(matrix, 1, 2) * z + cell(matrix, 1, 3),
+    cell(matrix, 2, 0) * x + cell(matrix, 2, 1) * y + cell(matrix, 2, 2) * z + cell(matrix, 2, 3),
+    cell(matrix, 3, 0) * x + cell(matrix, 3, 1) * y + cell(matrix, 3, 2) * z + cell(matrix, 3, 3),
   ];
+}
+
+/** Applies only the rotational 3×3 portion of a matrix to a direction. */
+export function transformDirection(matrix: Mat4, direction: Vec3): Vec3 {
+  return [
+    cell(matrix, 0, 0) * direction[0] +
+      cell(matrix, 0, 1) * direction[1] +
+      cell(matrix, 0, 2) * direction[2],
+    cell(matrix, 1, 0) * direction[0] +
+      cell(matrix, 1, 1) * direction[1] +
+      cell(matrix, 1, 2) * direction[2],
+    cell(matrix, 2, 0) * direction[0] +
+      cell(matrix, 2, 1) * direction[1] +
+      cell(matrix, 2, 2) * direction[2],
+  ];
+}
+
+/** Compares the sixteen matrix components exactly. */
+export function matricesEqual(a: ArrayLike<number>, b: ArrayLike<number>): boolean {
+  if (a.length < 16 || b.length < 16) {
+    throw new Error("Matrices must contain sixteen components");
+  }
+  for (let index = 0; index < 16; index += 1) {
+    const first = a[index];
+    const second = b[index];
+    if (first === undefined || second === undefined) {
+      throw new Error(`Matrix component ${index} is missing`);
+    }
+    if (first !== second) return false;
+  }
+  return true;
 }
 
 /** Multiplies two matrices and returns a new matrix (a * b). */

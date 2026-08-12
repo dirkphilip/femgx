@@ -1,4 +1,4 @@
-import { multiply, type Mat4 } from "../math/mat4";
+import { matricesEqual, multiply, type Mat4 } from "../math/mat4";
 import type { RuntimeState } from "./compile";
 import { invariantValue } from "./invariants";
 
@@ -16,18 +16,6 @@ function noopDelta(): TransformDelta {
 
 function invalidDelta(): TransformDelta {
   return { changedInstanceIds: [], valid: false };
-}
-
-function matricesEqual(a: Mat4, b: Float32Array): boolean {
-  for (let i = 0; i < 16; i++) {
-    if (
-      invariantValue(a[i], `matrix component at ${i}`) !==
-      invariantValue(b[i], `matrix component at ${i}`)
-    ) {
-      return false;
-    }
-  }
-  return true;
 }
 
 function nodeWorldView(state: RuntimeState, nodeId: number): Float32Array {
