@@ -168,6 +168,28 @@ describe("GPU draw path", () => {
       expect(gpu.buffers[0]?.size).toBe(96);
       expect(gpu.buffers[1]?.size).toBe(48);
       expect(gpu.buffers[3]?.size).toBe(32);
+
+      const indexWrite = gpu.writes.find((write) => write.buffer === resource.indexBuffer);
+      expect(indexWrite).toBeDefined();
+      expect(
+        Array.from(
+          new Uint32Array(
+            indexWrite?.bytes.buffer ?? new ArrayBuffer(0),
+            indexWrite?.bytes.byteOffset ?? 0,
+          ),
+        ),
+      ).toEqual([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
+
+      const nodePickWrite = gpu.writes.find((write) => write.buffer === resource.nodePickIdsBuffer);
+      expect(nodePickWrite).toBeDefined();
+      expect(
+        Array.from(
+          new Uint32Array(
+            nodePickWrite?.bytes.buffer ?? new ArrayBuffer(0),
+            nodePickWrite?.bytes.byteOffset ?? 0,
+          ),
+        ),
+      ).toEqual([1, 1, 1, 1, 2, 2, 2, 2]);
     } finally {
       restore();
     }

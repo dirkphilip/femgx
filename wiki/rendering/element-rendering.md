@@ -52,8 +52,9 @@ highlight records, making elements and nodes selectable through GPU picking
   ids, so only the owner-visible side is exposed when the neighbor is hidden;
   all-visible rendering remains the ordinary exterior-only skin.
 - Points are authored as one center and one index per logical point. GPU upload
-  expands each center into a screen-space sprite quad (4 vertices per point);
-  the point vertex shader sizes it to a constant CSS-pixel diameter
+  expands each center into a screen-space sprite quad (4 vertices per point)
+  using the complete `[0,1,2, 0,2,3]` triangle split; the point vertex shader
+  sizes it to a constant CSS-pixel diameter
   (`WebGpuRendererOptions.pointSizePixels`, default 8), scaled by
   `devicePixelRatio` into device pixels so apparent size is stable across
   displays. The visible color path renders at 4× MSAA and resolves to the
