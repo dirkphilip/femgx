@@ -52,7 +52,7 @@ export interface RenderResources {
   readonly instanceLayout: GPUBindGroupLayout;
 }
 
-export const CAMERA_UNIFORM_SIZE = 112;
+export const CAMERA_UNIFORM_SIZE = 128;
 
 /** Creates validated pipelines before allocating the remaining frame resources. */
 // eslint-disable-next-line max-lines-per-function -- pipeline creation is one validated resource transaction.

@@ -8,7 +8,7 @@ import {
   colorFragmentShader,
   edgeFragmentShader,
   edgeVertexShader,
-  flatLightingFunction,
+  surfaceLightingFunction,
   pickFragmentShader,
   triangleColorFragmentShader,
   vertexOutput,
@@ -55,6 +55,44 @@ function normalizedDerivativeNormal(
   return Number.isFinite(normalLength) && normalLength > 1e-6
     ? (normal.map((value) => value / normalLength) as [number, number, number])
     : undefined;
+}
+
+function mirroredSurfaceLighting(
+  normal: readonly [number, number, number] | undefined,
+  baseColor: readonly [number, number, number],
+  light: readonly [number, number, number],
+  viewer: readonly [number, number, number],
+): readonly [number, number, number] {
+  const ambient = 0.55;
+  const diffuseCoefficient = 0.35;
+  const specularStrength = 0.14;
+  const exponent = 48;
+  if (normal === undefined) {
+    return [baseColor[0] * ambient, baseColor[1] * ambient, baseColor[2] * ambient];
+  }
+  const unit = (value: readonly [number, number, number]): typeof value => {
+    const length = Math.hypot(...value);
+    return length > 1e-6 ? [value[0] / length, value[1] / length, value[2] / length] : [0, 0, 0];
+  };
+  const unitLight = unit(light);
+  const unitViewer = unit(viewer);
+  const half = unit([
+    unitLight[0] + unitViewer[0],
+    unitLight[1] + unitViewer[1],
+    unitLight[2] + unitViewer[2],
+  ]);
+  const response = Math.abs(
+    normal[0] * unitLight[0] + normal[1] * unitLight[1] + normal[2] * unitLight[2],
+  );
+  const halfResponse = Math.abs(normal[0] * half[0] + normal[1] * half[1] + normal[2] * half[2]);
+  const diffuse = ambient + diffuseCoefficient * Math.min(1, response);
+  const specular =
+    Math.hypot(...half) > 0 ? specularStrength * Math.pow(Math.min(1, halfResponse), exponent) : 0;
+  return [
+    baseColor[0] * diffuse + specular,
+    baseColor[1] * diffuse + specular,
+    baseColor[2] * diffuse + specular,
+  ];
 }
 
 /** Returns the named struct's layout as computed by the wgsl_reflect parser. */
@@ -123,6 +161,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
       expect(offsets.get("ortho")).toBe(84);
       expect(offsets.get("depthSlack")).toBe(88);
       expect(offsets.get("keyLightDirection")).toBe(96);
+      expect(offsets.get("viewDirection")).toBe(112);
       expect(info.size).toBe(CAMERA_UNIFORM_SIZE);
     },
   );
@@ -228,28 +267,38 @@ describe("GPU record struct layout vs CPU record encoders", () => {
 
   it("lights only triangle surfaces from displayed world-space derivatives", () => {
     expect(triangleColorFragmentShader).toContain("@location(8) worldPosition: vec3<f32>");
-    expect(triangleColorFragmentShader).toContain(
-      "flatDiffuse(worldPosition, camera.keyLightDirection.xyz)",
-    );
-    expect(flatLightingFunction).toContain("abs(dot(normal, normalize(keyLightDirection)))");
-    expect(triangleColorFragmentShader).toContain("color.rgb * diffuse + vec3<f32>(emissive)");
+    expect(triangleColorFragmentShader).toContain("surfaceLighting(");
+    expect(surfaceLightingFunction).toContain("abs(dot(normal, light))");
+    expect(surfaceLightingFunction).toContain("SURFACE_SPECULAR_STRENGTH");
+    expect(triangleColorFragmentShader).toContain("litColor + vec3<f32>(emissive)");
     expect(triangleColorFragmentShader).toContain("color.a");
     expect(colorFragmentShader).not.toContain("keyLightDirection");
     expect(colorFragmentShader).not.toContain("dpdx");
   });
 
   it("normalizes flat derivatives after scale normalization and shares the lighting helper", () => {
-    expect(flatLightingFunction).toContain("normalizedFirst = first / firstScale");
-    expect(flatLightingFunction).toContain("normalizedSecond = second / secondScale");
-    expect(flatLightingFunction).toContain("return vec3<f32>(0.0)");
-    expect(flatLightingFunction).toContain("return 0.65");
-    expect(triangleColorFragmentShader).toContain(flatLightingFunction);
-    expect(triangleTransparencyFragmentShader).toContain(flatLightingFunction);
+    expect(surfaceLightingFunction).toContain("normalizedFirst = first / firstScale");
+    expect(surfaceLightingFunction).toContain("normalizedSecond = second / secondScale");
+    expect(surfaceLightingFunction).toContain("return vec3<f32>(0.0)");
+    expect(surfaceLightingFunction).toContain("return baseColor * SURFACE_AMBIENT");
+    expect(surfaceLightingFunction).toContain("safeDirection(light + viewer)");
+    expect(triangleColorFragmentShader).toContain(surfaceLightingFunction);
+    expect(triangleTransparencyFragmentShader).toContain(surfaceLightingFunction);
+    expect(triangleTransparencyFragmentShader).toContain("surfaceLighting(");
+    expect(triangleColorFragmentShader.match(/fn surfaceLighting\(/g)).toHaveLength(1);
+    expect(triangleTransparencyFragmentShader.match(/fn surfaceLighting\(/g)).toHaveLength(1);
+  });
+
+  it("keeps the highlight neutral, bounded, and after surface lighting", () => {
+    expect(surfaceLightingFunction).toContain("vec3<f32>(specular)");
+    expect(surfaceLightingFunction).toContain("pow(clamp(halfResponse, 0.0, 1.0)");
+    expect(triangleColorFragmentShader).toContain("litColor + vec3<f32>(emissive)");
     expect(triangleTransparencyFragmentShader).toContain(
-      "flatDiffuse(worldPosition, camera.keyLightDirection.xyz)",
+      "weightedTransparency(litColor + vec3<f32>(emissive), color.a)",
     );
-    expect(triangleColorFragmentShader.match(/fn flatDiffuse\(/g)).toHaveLength(1);
-    expect(triangleTransparencyFragmentShader.match(/fn flatDiffuse\(/g)).toHaveLength(1);
+    expect(colorFragmentShader).not.toContain("surfaceLighting");
+    expect(edgeFragmentShader).not.toContain("surfaceLighting");
+    expect(nodeOverlayFragmentShader).not.toContain("surfaceLighting");
   });
 
   it("keeps the mirrored derivative normal invariant across scale and finite fallbacks", () => {
@@ -265,6 +314,23 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(normalizedDerivativeNormal([1, 0, 0], [2, 0, 0])).toBeUndefined();
     expect(normalizedDerivativeNormal([Number.NaN, 0, 0], [0, 1, 0])).toBeUndefined();
     expect(normalizedDerivativeNormal([Number.POSITIVE_INFINITY, 0, 0], [0, 1, 0])).toBeUndefined();
+  });
+
+  it("keeps the highlight neutral, two-sided, and absent for invalid normals", () => {
+    const color: readonly [number, number, number] = [0.2, 0.4, 0.6];
+    const front = mirroredSurfaceLighting([0, 0, 1], color, [0, 0, 1], [0, 0, 1]);
+    const back = mirroredSurfaceLighting([0, 0, -1], color, [0, 0, 1], [0, 0, 1]);
+    const side = mirroredSurfaceLighting([1, 0, 0], color, [0, 0, 1], [0, 0, 1]);
+    const invalid = mirroredSurfaceLighting(undefined, color, [0, 0, 1], [0, 0, 1]);
+    expect(back).toEqual(front);
+    expect(front[0] - color[0] * 0.9).toBeCloseTo(front[1] - color[1] * 0.9, 12);
+    expect(front[1] - color[1] * 0.9).toBeCloseTo(front[2] - color[2] * 0.9, 12);
+    expect(side[0]).toBeCloseTo(0.11);
+    expect(side[1]).toBeCloseTo(0.22);
+    expect(side[2]).toBeCloseTo(0.33);
+    expect(invalid[0]).toBeCloseTo(0.11);
+    expect(invalid[1]).toBeCloseTo(0.22);
+    expect(invalid[2]).toBeCloseTo(0.33);
   });
 });
 

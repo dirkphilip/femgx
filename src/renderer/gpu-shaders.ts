@@ -24,6 +24,7 @@ struct Camera {
   depthSlack: f32,
   _pad: f32,
   keyLightDirection: vec4<f32>,
+  viewDirection: vec4<f32>,
 };
 `;
 
@@ -232,8 +233,13 @@ struct VertexOutput {
 };
 `;
 
-/** Shared scale-robust two-sided flat lighting for opaque and transparent triangles. */
-export const flatLightingFunction = /* wgsl */ `
+/** Shared scale-robust two-sided surface lighting for opaque and transparent triangles. */
+export const surfaceLightingFunction = /* wgsl */ `
+const SURFACE_AMBIENT: f32 = 0.55;
+const SURFACE_DIFFUSE: f32 = 0.35;
+const SURFACE_SPECULAR_STRENGTH: f32 = 0.14;
+const SURFACE_SPECULAR_EXPONENT: f32 = 48.0;
+
 fn finiteDerivativeNormal(first: vec3<f32>, second: vec3<f32>) -> vec3<f32> {
   let firstScale = max(max(abs(first.x), abs(first.y)), abs(first.z));
   let secondScale = max(max(abs(second.x), abs(second.y)), abs(second.z));
@@ -253,14 +259,38 @@ fn finiteDerivativeNormal(first: vec3<f32>, second: vec3<f32>) -> vec3<f32> {
   return geometricNormal / normalLength;
 }
 
-fn flatDiffuse(worldPosition: vec3<f32>, keyLightDirection: vec3<f32>) -> f32 {
+fn safeDirection(direction: vec3<f32>) -> vec3<f32> {
+  let directionLength = length(direction);
+  if (directionLength != directionLength || directionLength <= 1e-6 ||
+      directionLength >= 3.402823466e38) {
+    return vec3<f32>(0.0);
+  }
+  return direction / directionLength;
+}
+
+fn surfaceLighting(
+  worldPosition: vec3<f32>,
+  baseColor: vec3<f32>,
+  keyLightDirection: vec3<f32>,
+  viewDirection: vec3<f32>,
+) -> vec3<f32> {
   let normal = finiteDerivativeNormal(dpdx(worldPosition), dpdy(worldPosition));
   let normalLength = length(normal);
   if (normalLength <= 0.0) {
-    return 0.65;
+    return baseColor * SURFACE_AMBIENT;
   }
-  let keyResponse = abs(dot(normal, normalize(keyLightDirection)));
-  return 0.65 + 0.35 * clamp(keyResponse, 0.0, 1.0);
+  let light = safeDirection(keyLightDirection);
+  let viewer = safeDirection(viewDirection);
+  let keyResponse = abs(dot(normal, light));
+  let diffuse = SURFACE_AMBIENT + SURFACE_DIFFUSE * clamp(keyResponse, 0.0, 1.0);
+  let halfVector = safeDirection(light + viewer);
+  let halfResponse = abs(dot(normal, halfVector));
+  let specular = select(
+    0.0,
+    SURFACE_SPECULAR_STRENGTH * pow(clamp(halfResponse, 0.0, 1.0), SURFACE_SPECULAR_EXPONENT),
+    length(halfVector) > 0.0,
+  );
+  return baseColor * diffuse + vec3<f32>(specular);
 }
 `;
 
@@ -290,7 +320,7 @@ export const triangleColorFragmentShader = /* wgsl */ `
 ${cameraStruct}
 ${deformationStruct}
 ${frameBindings}
-${flatLightingFunction}
+${surfaceLightingFunction}
 
 @fragment
 fn fragmentMain(
@@ -300,8 +330,13 @@ fn fragmentMain(
   @location(8) worldPosition: vec3<f32>,
 ) -> @location(0) vec4<f32> {
   if (dot(local, local) > 1.0 || color.a < 1.0) { discard; }
-  let diffuse = flatDiffuse(worldPosition, camera.keyLightDirection.xyz);
-  return vec4<f32>(color.rgb * diffuse + vec3<f32>(emissive), color.a);
+  let litColor = surfaceLighting(
+    worldPosition,
+    color.rgb,
+    camera.keyLightDirection.xyz,
+    camera.viewDirection.xyz,
+  );
+  return vec4<f32>(litColor + vec3<f32>(emissive), color.a);
 }
 `;
 

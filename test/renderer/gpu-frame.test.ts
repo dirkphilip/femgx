@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cameraKeyLightDirection, pointSizeDevicePixels } from "../../src/renderer/gpu-frame";
+import {
+  cameraKeyLightDirection,
+  cameraViewDirection,
+  pointSizeDevicePixels,
+} from "../../src/renderer/gpu-frame";
 import { orbitPivotAxisProjection, orbitPivotMetrics } from "../../src/renderer/gpu-orbit-pivot";
 import {
   createCamera,
@@ -92,6 +96,38 @@ describe("cameraKeyLightDirection", () => {
       for (let index = 0; index < 3; index += 1) {
         expect(direction[index]).toBeCloseTo(baseline[index] ?? NaN, 12);
       }
+    }
+  });
+});
+
+describe("cameraViewDirection", () => {
+  it("returns a finite normalized direction from the camera toward its target", () => {
+    const camera = createCamera({ position: [4, 3, 6], target: [0, 0, 0] });
+    const direction = cameraViewDirection(camera);
+    expect(direction.every(Number.isFinite)).toBe(true);
+    expect(Math.hypot(...direction)).toBeCloseTo(1);
+    expect(direction).toEqual([
+      expect.closeTo(4 / Math.sqrt(61), 12),
+      expect.closeTo(3 / Math.sqrt(61), 12),
+      expect.closeTo(6 / Math.sqrt(61), 12),
+    ]);
+  });
+
+  it("changes with orbit but remains invariant under pan, zoom, and projection changes", () => {
+    const camera = resizeCamera(
+      createCamera({ position: [4, 3, 6], target: [0, 0, 0] }),
+      1440,
+      900,
+    );
+    const baseline = cameraViewDirection(camera);
+    const rotated = cameraViewDirection(orbitCamera(camera, Math.PI / 2, 0));
+    expect(rotated).not.toEqual(baseline);
+    for (const variant of [
+      panCamera(camera, 2, -1),
+      zoomCamera(camera, -0.75),
+      setProjection(camera, "orthographic"),
+    ]) {
+      expect(cameraViewDirection(variant)).toEqual(baseline);
     }
   });
 });
