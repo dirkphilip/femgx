@@ -120,7 +120,6 @@ Configured workflows may use `when_labels` to skip optional stages and
 waits appear as `awaiting_approval`, retain a capacity slot, and resume when an
 allow label appears; denied or closed issues become terminal.
 
-
 ## Report critical issues
 
 When you encounter a critical issue that requires maintainer attention, check

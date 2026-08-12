@@ -12,7 +12,14 @@ export function runCommand(command, args, cwd, env = process.env) {
   const stderr = result.stderr ?? "";
   if (result.error !== undefined || result.status !== 0) {
     throw new Error(
-      formatCommandFailure(command, args, result.status, stdout, stderr, result.error),
+      formatCommandFailure({
+        command,
+        args,
+        status: result.status,
+        stdout,
+        stderr,
+        error: result.error,
+      }),
     );
   }
   return { stdout, stderr };
@@ -26,6 +33,7 @@ export function parsePackResult(stdout, stderr = "") {
   } catch (error) {
     throw new Error(
       `npm pack did not produce valid JSON: ${errorMessage(error)}\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+      { cause: error },
     );
   }
   if (!Array.isArray(parsed) || parsed.length !== 1) {
@@ -52,7 +60,7 @@ export function parsePackResult(stdout, stderr = "") {
   return result;
 }
 
-function formatCommandFailure(command, args, status, stdout, stderr, error) {
+function formatCommandFailure({ command, args, status, stdout, stderr, error }) {
   return [
     `Command failed: ${[command, ...args].join(" ")}`,
     `exit status: ${String(status ?? "spawn-error")}`,

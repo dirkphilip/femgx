@@ -3,7 +3,6 @@ dist
 coverage
 .husky/_
 *.local.toml
-.supervisor/run
 .DS_Store
 *.log
 .vite
@@ -11,7 +10,6 @@ playwright-report
 test-results
 
 # Local supervisor state
-.supervisor/config.local.toml
 .supervisor/issues.json
 .supervisor/run/
 .supervisor/supervisor-ownership.json

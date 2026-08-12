@@ -8,6 +8,7 @@ Issue URL: $issue_url
 
 Issue description:
 ---
+
 $issue_body
 ---
 
