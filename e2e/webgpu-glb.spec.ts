@@ -31,7 +31,7 @@ test("opens an uncompressed GLB and resets the imported model in desktop Chrome"
   await page.getByTestId("reset").click();
   await expect(page.getByTestId("model-select")).toHaveValue("opened-glb");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
-  await expect(canvas).toHaveAttribute("data-camera", /perspective/);
+  await expect(canvas).toHaveAttribute("data-camera", /orthographic/);
   await page.screenshot({ path: "test-results/glb-desktop.png", fullPage: true });
 });
 

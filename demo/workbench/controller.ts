@@ -377,7 +377,7 @@ export class WorkbenchController {
       for (const instanceId of this.runtime.getInstanceIds()) {
         this.viewport.setInstanceVisible(instanceId, true);
       }
-      this.viewport.setCamera(setProjection(this.viewport.camera, "perspective"));
+      this.viewport.setCamera(setProjection(this.viewport.camera, "orthographic"));
       this.viewport.fitView();
     });
     this.visibilityPanel.rebuild();
