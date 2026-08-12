@@ -179,6 +179,7 @@ export {
   type FemViewport,
   type FemViewportOptions,
 } from "./viewport/fem-viewport";
+export type { OrientationGizmoOptions } from "./viewport/orientation-gizmo";
 export type {
   ViewportDeformationConfig,
   ViewportResultDerivation,

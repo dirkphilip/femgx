@@ -103,6 +103,20 @@ menu clamps its position inside the viewport (see
 `WorkbenchMenu` in `demo/workbench/menu.ts`) so it never
 opens past the right or bottom edge.
 
+## Orientation gizmo and viewport boundary
+
+The fixed signed-axis orientation display is owned by `FemViewport`, not by the
+demo. Hosts opt in during `createFemViewport` with
+`orientationGizmo: { container }`, where the container contains the canvas. The
+viewport creates one non-interactive SVG root, updates its axis projections from
+the exact camera during the normal render lifecycle, and removes it during
+`destroy()`; recovery and scene changes reuse the same DOM. The demo passes its
+`.scene` wrapper and owns only the surrounding toolbar/status presentation.
+
+The demo's `.scene` wrapper also owns the restrained perimeter outline. It uses
+an outline rather than a canvas border so CSS content dimensions and pointer,
+resize, and GPU-picking coordinates remain unchanged.
+
 ## Demo e2e coverage
 
 `e2e/demo.spec.ts` covers preset switching, mode visibility, the hierarchical

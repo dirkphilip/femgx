@@ -76,6 +76,10 @@ function fakeCanvas(): HTMLCanvasElement {
   return { dataset: {} } as unknown as HTMLCanvasElement;
 }
 
+function fakeScene(): HTMLElement {
+  return {} as HTMLElement;
+}
+
 interface FakeViewport {
   readonly viewport: FemViewport;
   readonly render: ReturnType<typeof vi.fn>;
@@ -123,6 +127,7 @@ function startOptions(canvas: HTMLCanvasElement): Parameters<typeof startWebGpuD
   return {
     view: {
       canvas,
+      scene: fakeScene(),
       rendererStatus: { textContent: "" },
       status: { textContent: "" },
     } as unknown as DemoView,
