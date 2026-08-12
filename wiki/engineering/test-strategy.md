@@ -49,10 +49,12 @@ does not gate correctness.
   state design]].
 
 Related: [[engineering/e2e-policy|E2E policy]],
-[[engineering/quality-gate|Quality gate]], and
+[[engineering/quality-gate|Quality gate]],
+[[engineering/viewer-conformance-matrix|Viewer conformance matrix]], and
 [[requirements/product-scope|Product scope]].
 
 [engineering/e2e-policy|E2E policy]: e2e-policy.md
 [engineering/quality-gate|Quality gate]: quality-gate.md
 [engineering/state-invariants|Invariant-driven state design]: state-invariants.md
+[engineering/viewer-conformance-matrix|Viewer conformance matrix]: viewer-conformance-matrix.md
 [requirements/product-scope|Product scope]: ../requirements/product-scope.md

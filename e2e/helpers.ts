@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 /** RGBA pixel data of the presented canvas, decoded in the browser. */
 async function pixelData(canvas: Locator): Promise<number[]> {
@@ -30,8 +30,16 @@ export async function drawnPixels(canvas: Locator): Promise<boolean> {
 
 /** A deterministic fingerprint of the presented canvas pixels. */
 export async function pixelHash(canvas: Locator): Promise<string> {
+  return (await pixelMetrics(canvas)).hash;
+}
+
+/** One screenshot's deterministic hash and distinct-color count. */
+export async function pixelMetrics(
+  canvas: Locator,
+): Promise<{ readonly distinctColors: number; readonly hash: string }> {
   const data = await pixelData(canvas);
   let hash = 0;
+  const colors = new Set<string>();
   for (let index = 0; index < data.length; index += 4) {
     hash =
       ((hash * 31 + (data[index] ?? 0)) * 31 +
@@ -39,18 +47,14 @@ export async function pixelHash(canvas: Locator): Promise<string> {
         (data[index + 2] ?? 0) * 3 +
         (data[index + 3] ?? 0)) >>>
       0;
+    colors.add(`${data[index] ?? 0},${data[index + 1] ?? 0},${data[index + 2] ?? 0}`);
   }
-  return hash.toString(16);
+  return { distinctColors: colors.size, hash: hash.toString(16) };
 }
 
 /** The number of distinct RGB colors in the presented canvas. */
 export async function distinctColors(canvas: Locator): Promise<number> {
-  const data = await pixelData(canvas);
-  const colors = new Set<string>();
-  for (let index = 0; index < data.length; index += 4) {
-    colors.add(`${data[index] ?? 0},${data[index + 1] ?? 0},${data[index + 2] ?? 0}`);
-  }
-  return colors.size;
+  return (await pixelMetrics(canvas)).distinctColors;
 }
 
 /** A resolved canvas point whose dataset key matched the sweep. */
@@ -456,12 +460,7 @@ export async function sweepForHit(
   return sweep(coarse);
 }
 
-/**
- * A sweep that must resolve on a healthy hardware-WebGPU Chrome run. When the
- * environment cannot complete GPU pick readback (common under automation even
- * with system Chrome), skips with `message` instead of failing the merge gate.
- * CI does not run this path; see `npm run test:e2e:ci`.
- */
+/** A sweep that must resolve on the required hardware-WebGPU Chrome lane. */
 export async function requireHit(
   page: Page,
   canvas: Locator,
@@ -469,9 +468,6 @@ export async function requireHit(
   message: string,
 ): Promise<SweepHit> {
   const hit = await sweepForHit(page, canvas, options);
-  if (hit === undefined) {
-    test.skip(true, message);
-  }
   expect(hit, message).toBeDefined();
   return hit as SweepHit;
 }

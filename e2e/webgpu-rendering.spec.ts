@@ -33,16 +33,12 @@ test("keeps selection feedback visible in edge overlay mode", async ({ page }) =
 
   // Sweep until GPU pick resolves any target; the selected key encodes its
   // granularity as a prefix (n:/f:/e:/i:/p:).
-  const hoverPoint = await sweepForHit(page, canvas, {
-    attribute: "hovered",
-    settleMs: 150,
-    fresh: true,
-  });
-
-  if (hoverPoint === undefined) {
-    test.skip(true, "picking is not functional in this browser environment");
-    return;
-  }
+  const hoverPoint = await requireHit(
+    page,
+    canvas,
+    { attribute: "hovered", settleMs: 150, fresh: true },
+    "GPU picking must resolve selection feedback on the hardware WebGPU lane",
+  );
 
   await page.mouse.click(hoverPoint.x, hoverPoint.y);
   await expect.poll(() => canvas.getAttribute("data-selected")).not.toBe("");
@@ -69,15 +65,12 @@ test("element emphasis changes the rendered pixels and toggles off again", async
   // Baseline: no interaction, so the canvas holds only the deterministic model.
   const baseline = await stableCanvasPixels(page, canvas);
 
-  const hoverPoint = await sweepForHit(page, canvas, {
-    attribute: "hovered",
-    settleMs: 150,
-    fresh: true,
-  });
-  if (hoverPoint === undefined) {
-    test.skip(true, "picking is not functional in this browser environment");
-    return;
-  }
+  const hoverPoint = await requireHit(
+    page,
+    canvas,
+    { attribute: "hovered", settleMs: 150, fresh: true },
+    "GPU picking must resolve element emphasis on the hardware WebGPU lane",
+  );
 
   // Emphasize the element under the pointer, then clear the hover so the
   // pixel comparison isolates the emphasis. If element emphasis ever renders
@@ -442,15 +435,12 @@ test("keeps selected volume faces lit, distinct, and reversible with overlays", 
   await page.getByTestId("results-toggle").click();
   await expect(page.getByTestId("results-toggle")).toHaveText("Results: Base");
   await dragCamera(page, canvas, { x: 64, y: 24 });
-  const hoverPoint = await sweepForHit(page, canvas, {
-    attribute: "hovered",
-    settleMs: 150,
-    fresh: true,
-  });
-  if (hoverPoint === undefined) {
-    test.skip(true, "picking is not functional in this browser environment");
-    return;
-  }
+  const hoverPoint = await requireHit(
+    page,
+    canvas,
+    { attribute: "hovered", settleMs: 150, fresh: true },
+    "GPU picking must resolve selected-face lighting on the hardware WebGPU lane",
+  );
 
   await clearHover(page, canvas);
   const before = await stableCanvasPixels(page, canvas);

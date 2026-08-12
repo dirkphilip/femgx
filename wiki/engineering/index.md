@@ -21,6 +21,8 @@
   redundancy decisions, and current contract inventory.
 - [[engineering/typescript-toolchain-compatibility|TS compatibility]] — compiler
   and lint-tool constraints.
+- [[engineering/viewer-conformance-matrix|Viewer conformance matrix]] — minimum
+  CAD/FEM viewer contracts mapped to non-visual, GPU, and browser evidence.
 
 [engineering/benchmarks|Benchmarks and performance budgets]: benchmarks.md
 [engineering/compatibility-matrix|WebGPU compatibility notes]: compatibility-matrix.md
@@ -33,3 +35,4 @@
 [engineering/state-invariants|Invariant-driven state design]: state-invariants.md
 [engineering/test-strategy|Test strategy and audit]: test-strategy.md
 [engineering/typescript-toolchain-compatibility|TS compatibility]: typescript-toolchain-compatibility.md
+[engineering/viewer-conformance-matrix|Viewer conformance matrix]: viewer-conformance-matrix.md

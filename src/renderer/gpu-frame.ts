@@ -62,7 +62,7 @@ export function cameraKeyLightDirection(camera: Camera): Vec3 {
   const forward = normalize(subtract(camera.target, camera.position));
   const right = normalize(cross(forward, camera.up));
   const up = cross(right, forward);
-  return normalize(add(add(scale(right, -0.45), scale(up, 0.55)), scale(forward, -1)));
+  return normalize(add(add(scale(right, -0.5), scale(up, 1)), scale(forward, -0.4)));
 }
 
 /** Encodes and submits one visible color frame without any picking work. */

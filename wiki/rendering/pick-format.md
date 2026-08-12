@@ -56,9 +56,9 @@ supported pick-id range without a backend-specific integer-texture quirk.
 
 - `test/renderer/pick-format.test.ts` covers encode/decode boundaries (id 0/1,
   per-byte boundaries, `MAX_PICK_ID`) and the little-endian channel order.
-- The e2e lane renders and picks through the real WebGPU renderer, and the
-  picking tests skip only when the environment cannot resolve a pick (see
-  [[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
+- The e2e lane renders and picks through the real WebGPU renderer. A failed pick
+  sweep fails the required hardware lane; it is not treated as a capability
+  skip (see [[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
 
 Related: [[rendering/interactive-state|Interactive state]],
 [[rendering/webgpu-e2e|WebGPU browser e2e lane]],
