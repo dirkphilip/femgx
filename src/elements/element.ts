@@ -3,6 +3,9 @@ import { topologyFor, type ElementShape } from "./shapes";
 /** A globally stable identifier for an element within a model. */
 export type ElementId = number;
 
+/** Largest element id that can be encoded as the one-based GPU pick id. */
+const MAX_ELEMENT_ID = 0xffff_fffe;
+
 /** A globally stable identifier for a node within a model. */
 export type NodeId = number;
 
@@ -34,8 +37,8 @@ export function createElement(
 }
 
 function validateElement(id: ElementId, shape: ElementShape, nodeIds: readonly NodeId[]): void {
-  if (!Number.isInteger(id) || id < 0) {
-    throw new Error(`Element id must be a non-negative integer, got ${id}`);
+  if (!Number.isSafeInteger(id) || id < 0 || id > MAX_ELEMENT_ID) {
+    throw new Error(`Element id must be a finite integer in [0, ${MAX_ELEMENT_ID}], got ${id}`);
   }
   const topology = topologyFor(shape);
   if (nodeIds.length !== topology.nodeCount) {

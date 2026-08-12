@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPart, type Part } from "../../src/geometry/part";
+import { createPart, MAX_PART_ID, type Part } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import {
   createDrawResources,
@@ -186,6 +186,13 @@ describe("GPU draw path", () => {
     expect(floats[19]).toBeCloseTo(0.5);
     expect(ids[20]).toBe(7);
     expect(new Float32Array(data, EMISSIVE_BYTE_OFFSET, 1)[0]).toBeCloseTo(0.4);
+  });
+
+  it("preserves the maximum direct-u32 part identity in instance storage", () => {
+    const ids = new Uint32Array(
+      encodeInstanceRecord(translation(0, 0, 0), defaultStyle, MAX_PART_ID),
+    );
+    expect(ids[20]).toBe(MAX_PART_ID);
   });
 
   it("writes only the changed subranges of patched slots", () => {

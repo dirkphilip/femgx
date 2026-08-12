@@ -1,5 +1,6 @@
 import type { ElementId } from "../elements/element";
 import type { Body, BodyId, ElementTessellation, FaceId, Geometry } from "./types";
+import { MAX_ONE_BASED_ID, isValidOneBasedId, validateOneBasedId } from "./id-validation";
 
 /** Machine-readable geometry validation failure. */
 export type GeometryValidationCode =
@@ -40,6 +41,8 @@ export function validateElements(geometry: {
   const coverage = new Uint8Array(primitiveCount);
   const seenIds = new Set<ElementId>();
   for (const element of elements) {
+    validateOneBasedId(element.id, "Element");
+    if (element.bodyId !== undefined) validateOneBasedId(element.bodyId, "Body");
     const range = primitiveRangeForElement(element);
     if (range.count <= 0)
       throw new Error(`Element ${element.id} has no ${primitiveLabel(primitive)}`);
@@ -165,10 +168,10 @@ function validateBodyOrder(
   previousBodyId: BodyId | undefined,
   declaredBodies: ReadonlySet<BodyId>,
 ): void {
-  if (!Number.isInteger(body.id) || body.id < 0) {
+  if (!isValidOneBasedId(body.id)) {
     throw new GeometryValidationError(
       "invalid-body-id",
-      `Body id ${body.id} must be a non-negative integer`,
+      `Body id ${body.id} must be a finite integer in [0, ${MAX_ONE_BASED_ID}]`,
     );
   }
   if (declaredBodies.has(body.id)) {
@@ -344,9 +347,8 @@ function validateFaceMetadata(geometry: Geometry): void {
   const nodeCount =
     geometry.nodePositions === undefined ? undefined : geometry.nodePositions.length / 3;
   for (const face of faces) {
-    if (!Number.isInteger(face.elementId) || face.elementId < 0) {
-      throw new Error(`Face ${face.id} has invalid element owner ${face.elementId}`);
-    }
+    validateOneBasedId(face.elementId, "Face element owner");
+    if (face.bodyId !== undefined) validateOneBasedId(face.bodyId, "Body");
     if (elementIds !== undefined && !elementIds.has(face.elementId)) {
       throw new Error(`Face ${face.id} references undeclared element ${face.elementId}`);
     }
@@ -357,9 +359,7 @@ function validateFaceMetadata(geometry: Geometry): void {
       );
     }
     for (const neighbor of face.neighborElementIds) {
-      if (!Number.isInteger(neighbor) || neighbor < 0) {
-        throw new Error(`Face ${face.id} has invalid neighbor element ${neighbor}`);
-      }
+      validateOneBasedId(neighbor, "Face neighbor element");
     }
   }
 }

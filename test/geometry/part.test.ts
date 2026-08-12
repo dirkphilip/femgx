@@ -4,6 +4,7 @@ import {
   computeBounds,
   createPart,
   isFiniteBounds,
+  MAX_PART_ID,
   validateBodies,
   validateElements,
   validatePickIds,
@@ -90,6 +91,43 @@ describe("part", () => {
       }),
     ).toThrow(/outside positions/);
   });
+
+  it("accepts the largest direct u32 part id", () => {
+    expect(
+      createPart(MAX_PART_ID, {
+        positions: new Float32Array(),
+        indices: new Uint32Array(),
+        primitive: "triangles",
+      }).id,
+    ).toBe(MAX_PART_ID);
+  });
+
+  it("rejects part ids that cannot survive direct u32 storage", () => {
+    for (const id of [
+      -1,
+      1.5,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.MAX_SAFE_INTEGER + 1,
+      MAX_PART_ID + 1,
+    ]) {
+      expect(() =>
+        createPart(id, {
+          positions: new Float32Array(),
+          indices: new Uint32Array(),
+          primitive: "triangles",
+        }),
+      ).toThrow(/Part id .*finite integer/);
+    }
+  });
+
+  it("retains caller arrays as owned geometry without copying", () => {
+    const positions = new Float32Array([0, 0, 0]);
+    const indices = new Uint32Array();
+    const created = createPart(1, { positions, indices, primitive: "triangles" });
+    expect(created.geometry.positions).toBe(positions);
+    expect(created.geometry.indices).toBe(indices);
+  });
 });
 
 function twoElementGeometry(): Geometry {
@@ -145,6 +183,16 @@ describe("validateElements", () => {
         ],
       });
     }).toThrow(/Duplicate element id 1/);
+  });
+
+  it("rejects an element id that would wrap its one-based pick id", () => {
+    expect(() => {
+      validateElements({
+        indices: new Uint32Array(3),
+        primitive: "triangles",
+        elements: [{ id: MAX_PART_ID, primitiveStart: 0, primitiveCount: 1 }],
+      });
+    }).toThrow(/Element id .*finite integer/);
   });
 
   it("rejects triangles shared by more than one element", () => {
@@ -203,6 +251,15 @@ describe("body metadata", () => {
     expect(() => {
       validateBodies({ ...geometry, bodies: [{ id: 4, elementIds: [7] }] });
     }).toThrow(expect.objectContaining({ code: "unknown-body-element" }));
+  });
+
+  it("rejects a body id that would wrap its one-based pick id", () => {
+    expect(() => {
+      validateBodies({
+        ...geometry,
+        bodies: [{ id: 0xffff_ffff, elementIds: [2] }],
+      });
+    }).toThrow(/Body id .*finite integer/);
   });
 
   it("rejects duplicate memberships, mismatches, and non-deterministic order", () => {
