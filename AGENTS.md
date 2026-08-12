@@ -231,6 +231,8 @@ These exist in `package.json`:
   dependency DAG gate.
 - `npm run lint:dependencies` — dependency-cruiser validation of the production
   subsystem DAG, including type-only imports.
+- `npm run review:diff` — show the current status and tracked diff summary for a
+  quick ready-to-commit review.
 - `npm run format` — Prettier write on the whole repo.
 - `npm run format:check` — Prettier check (agents should use `format`).
 - `npm test` — Vitest unit tests (`test/**/*.test.ts`).
@@ -262,6 +264,8 @@ automatically on every push/PR (see `.github/workflows/ci.yml`).
   deletion candidates, non-goals, and whether a new abstraction is necessary.
 - For interactive edits, run `npm run lint`, `npm run typecheck`, `npm test`,
   and format, then leave the repo clean.
+- Before finishing work that is ready to commit, run `npm run review:diff` and
+  check for unnecessary code, duplication, obsolete paths, and weakened tests.
 - Keep changes small and reviewable; one logical change per PR/commit.
 - Follow the existing file/type conventions — do not introduce parallel abstractions.
 - Do not add comments to code unless they explain non-obvious design decisions.
