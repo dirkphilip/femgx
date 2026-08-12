@@ -5,7 +5,7 @@ const subsystemDependencies = {
   elements: [],
   platform: [],
   geometry: ["math", "elements"],
-  io: ["elements"],
+  io: ["elements", "geometry", "interaction", "math", "scene"],
   camera: ["math", "geometry"],
   scene: ["math", "elements", "geometry"],
   "scene-runtime": ["math", "geometry", "scene"],

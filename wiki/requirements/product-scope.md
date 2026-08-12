@@ -46,6 +46,7 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | Results fields + derived quantities (magnitude, von Mises, principal), value ranges, scalar color mapping, deformed-shape geometry | ~0.8k              | ~0.9k      | **Core now** | Typed result visualization is core FE value.                                                                                                                                                                                                                                                                                              |
 | Advanced results playback (CasePlayer, interpolation) and legends                                                                  | —                  | —          | **Remove**   | Deleted; core results keep fields, derived quantities, scalar color mapping, and deformed shape without playback or legend helpers.                                                                                                                                                                                                       |
 | IO: VTK legacy read/write + shared validation and diagnostics                                                                      | ~1.0k              | ~0.9k      | **Core now** | One interchange format is the minimum; VTK legacy is the smallest faithful FE format.                                                                                                                                                                                                                                                     |
+| IO: GLB 2.0 display-scene import                                                                                                   | new                | new        | **Core now** | Explicit narrow CAD-display addition from #422: bytes-only import into existing `Part`/`Scene`/`FemViewport` concepts, with hierarchy, reusable tessellated triangles, names, basic color/alpha, and verified Onshape compression coverage. It does not add FE semantics or a second scene graph.                                         |
 | IO: VTU, Gmsh, Abaqus adapters, cancellation/progress                                                                              | —                  | —          | **Remove**   | Deleted; product keeps a single VTK legacy interchange path.                                                                                                                                                                                                                                                                              |
 | Large-model streaming (spatial partitioning, LOD, upload budgets, worker parsing, coordinate rebasing)                             | —                  | —          | **Remove**   | Deleted; in-memory models are the product path.                                                                                                                                                                                                                                                                                           |
 | Deformation (per-vertex displacement)                                                                                              | renderer + results | renderer   | **Core now** | Part of results visualization.                                                                                                                                                                                                                                                                                                            |
@@ -77,6 +78,13 @@ duplicate overlay.
 
 Everything outside the "Core now" rows is **not** a requirement of the minimum
 product.
+
+The GLB row is a deliberate exception to the single-FE-format rule. VTK remains
+the only interchange format for nodes, elements, sets, metadata, and results;
+GLB is only a display-scene source for tessellated CAD geometry. The importer
+accepts self-contained GLB 2.0 bytes, maps into the canonical scene hierarchy,
+and leaves textures, PBR extras, animation, lights, FE identities, and unit
+conversion out of scope.
 
 ## Decision gate
 

@@ -151,7 +151,7 @@ function main() {
     writeFileSync(
       join(consumer, "smoke.mjs"),
       [
-        'import { boxSelectionFrustum, createCamera, createScene, identity } from "femgx";',
+        'import { boxSelectionFrustum, createCamera, createScene, identity, importGlb } from "femgx";',
         "const scene = createScene();",
         "const camera = createCamera();",
         'if (camera.mode !== "orthographic") throw new Error("orthographic default failed");',
@@ -159,6 +159,7 @@ function main() {
         'if (frustum.near.normal.length !== 3) throw new Error("frustum export failed");',
         "const m = identity();",
         'if (m.length !== 16) throw new Error("identity() is not a 4x4 matrix");',
+        'if (typeof importGlb !== "function") throw new Error("GLB import export failed");',
         'console.log("ESM import OK");',
       ].join("\n"),
     );
@@ -168,11 +169,12 @@ function main() {
     writeFileSync(
       join(consumer, "smoke.cjs"),
       [
-        'const { createCamera, createScene, identity } = require("femgx");',
+        'const { createCamera, createScene, identity, importGlb } = require("femgx");',
         "const scene = createScene();",
         "const camera = createCamera();",
         'if (camera.mode !== "orthographic") throw new Error("orthographic default failed");',
         'if (identity().length !== 16) throw new Error("identity() is not a 4x4 matrix");',
+        'if (typeof importGlb !== "function") throw new Error("GLB import export failed");',
         'console.log("CJS require OK");',
       ].join("\n"),
     );

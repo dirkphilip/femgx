@@ -36,6 +36,11 @@ skipped; unsupported cell types produce warnings and are omitted;
 malformed records produce actionable `Issue`s with stable `code`s (see
 `io/diagnostics.ts`).
 
+The separate bytes-only GLB display-scene boundary is documented in
+[[data/glb-import|GLB display-scene import]]. It returns the canonical
+`Scene`, not this FE `FemModel`; VTK remains the only format for FE entities,
+sets, metadata, and results.
+
 ## Format capabilities
 
 - **IDs**: VTK has implicit ids. `writeVtk` preserves coordinate row order and
