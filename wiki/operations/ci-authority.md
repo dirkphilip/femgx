@@ -4,6 +4,9 @@ GitHub's required checks are the authoritative merge gate. Local validation
 provides feedback before publication, but it does not replace the checks
 configured in `.github/workflows/ci.yml`.
 
+External workflow actions are pinned to immutable commit SHAs; `npm run lint:actions`
+guards that policy across every workflow file.
+
 ## Merge decision
 
 - **Pending or missing checks** keep a pull request unmergeable.
