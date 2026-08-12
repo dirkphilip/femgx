@@ -59,6 +59,7 @@
     "lint:actions": "node scripts/check-github-actions.mjs",
     "lint:demo-boundary": "node scripts/check-demo-import-boundary.mjs",
     "lint:dependencies": "depcruise src --config .dependency-cruiser.mjs",
+    "review:diff": "node scripts/review-diff.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
