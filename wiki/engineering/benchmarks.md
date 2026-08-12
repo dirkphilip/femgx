@@ -60,8 +60,9 @@ commit message.
 `npm run bench` runs the Vitest `bench` suite in `test/bench/cpu.bench.ts` over
 the same models plus a few extra update cases. It reports ops/sec / time per
 case for human review and trend comparison and is **not** part of the default
-gate. The opt-in `.github/workflows/perf.yml` (`workflow_dispatch`) runs it and
-the real-WebGPU benchmark on demand.
+gate. The opt-in `.github/workflows/perf.yml` (`workflow_dispatch`) runs the CPU
+suite on GitHub-hosted infrastructure. It does not claim real-WebGPU
+measurements.
 
 `test/bench/body-batch.bench.ts` compares 64 body visibility mutations issued
 individually with the same ordered mutations inside `FemViewport.batch`. The
@@ -107,10 +108,10 @@ WebGPU timestamp queries are not required.
 The JSON report identifies the browser user agent, adapter identity and fallback
 status, enabled features, resolution, DPR, triangle counts, timings, and an
 estimated GPU-buffer/render-target memory breakdown. Playwright writes it as
-`webgpu-benchmark.json` in the test output and the manual `perf.yml` workflow
-uploads it as the `webgpu-benchmark` artifact. Compare reports only between
+`webgpu-benchmark.json` in the local test output. Compare reports only between
 similar browser/adapter configurations; the numbers are a capacity envelope,
-not a universal triangle limit.
+not a universal triangle limit. GitHub-hosted Actions does not run this browser
+benchmark until an explicitly owned real-GPU runner exists.
 
 ## Interactive WebGPU inspection case
 
