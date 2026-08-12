@@ -47,6 +47,7 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
   );
   const visibilityActions = new WorkbenchVisibilityActions({
     viewport: options.viewport,
+    scene: () => options.model().scene,
     runtime: options.runtime,
     interaction: options.interaction,
     setInteraction: options.setInteraction,
