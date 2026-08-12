@@ -121,6 +121,7 @@ describe("element highlight state", () => {
     emissive: 0,
     opacity: 1,
     edge: false,
+    nodes: false,
   } as const;
   const instance: Instance = {
     index: 0,

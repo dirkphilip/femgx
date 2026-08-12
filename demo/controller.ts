@@ -156,7 +156,7 @@ export class WorkbenchController {
     this.preset = initialPreset;
     this.toggles = createDefaultDisplayToggles();
     this.resultMode = this.preset.results === undefined ? "base" : "deformed";
-    this.interaction = createPresetInteraction(this.preset, true);
+    this.interaction = createPresetInteraction(this.preset, true, true);
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
     this.presentation.populateModelSelect(this.presets);
@@ -217,7 +217,7 @@ export class WorkbenchController {
     this.canvas.dataset["treeHover"] = "";
     this.toggles = createDefaultDisplayToggles();
     this.resultMode = preset.results === undefined ? "base" : "deformed";
-    this.interaction = createPresetInteraction(preset, true);
+    this.interaction = createPresetInteraction(preset, true, true);
     this.interactionController.clearContext();
     this.viewport.setScene(preset.scene);
     this.applyResultMode(false);
@@ -270,7 +270,7 @@ export class WorkbenchController {
     this.canvas.dataset["treeHover"] = "";
     this.toggles = createDefaultDisplayToggles();
     this.resultMode = this.preset.results === undefined ? "base" : "deformed";
-    this.interaction = createPresetInteraction(this.preset, true);
+    this.interaction = createPresetInteraction(this.preset, true, true);
     this.interactionController.clearContext();
     this.applyResultMode(false);
     for (const nodeId of this.runtime.getNodeIds()) {
@@ -388,13 +388,12 @@ export class WorkbenchController {
       state = setPartOverride(
         state,
         partId,
-        partStyleOverride(this.preset, partId, this.toggles.edges),
+        partStyleOverride(this.preset, partId, this.toggles.edges, this.toggles.nodes),
       );
     }
     this.interaction = state;
     this.applyDisplayedInteraction();
     this.viewport.setEdgeDepthTest(true);
-    this.viewport.setNodeOverlay(this.toggles.nodes);
     this.reflectDisplayControls();
   }
 

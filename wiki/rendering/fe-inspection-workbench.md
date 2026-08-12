@@ -66,10 +66,12 @@ controller, so camera and interaction behavior is stable
   demo-side `emphasis.ts` fold was removed. `elementOverrides` now holds only
   explicit element highlights set through `setElementOverride`
   ([[architecture/demo-library-boundary|Demo / library boundary]]).
-- Display toggles (edges, nodes, diagnostics) flip renderer state only; they never
-  rebuild reusable geometry or drop selection state. The `edges` overlay is a
-  real WebGPU pass with depth testing kept as an implementation invariant rather
-  than exposed as a persistent user control. Coplanar overlay
+- Display toggles (edges, nodes, diagnostics) update interaction state only; they
+  never rebuild reusable geometry or drop selection state. The `nodes` toggle
+  bulk-applies the part-level node membership flag to eligible non-Point parts;
+  Point parts keep their primary glyphs without a duplicate annotation pass. The
+  `edges` overlay is a real WebGPU pass with depth testing kept as an implementation
+  invariant rather than exposed as a persistent user control. Coplanar overlay
   edges are offset in clip space in their vertex shader, rather than using a
   second surface or a backend-dependent pipeline depth bias. Shell triangles
   are two-sided by default, so a genuine 2D FE surface remains visible from

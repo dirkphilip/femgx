@@ -71,7 +71,14 @@ oriented element faces are the finest-grained pickable units under
 
 ## Node glyph overlay
 
-- The demo's `Show element nodes` control draws one small screen-space circle
+- `StyleOverride.nodes` is an instance-level display flag. A part override
+  enables annotations for every placement of that part; an instance override
+  wins for one placement. The renderer compacts enabled visible instances into
+  a per-part node order and skips Point parts because their primary point
+  sprite already represents the authored node.
+- The demo's `Show element nodes` control bulk-updates this part/instance style
+  path for every eligible non-Point part. It does not call a renderer-owned
+  global overlay switch. Annotation circles are 6 CSS pixels in diameter
   for every visible FE node. Annotation circles are 6 CSS pixels in diameter
   (three-quarters of the regular point-element diameter), scaled by
   `devicePixelRatio` so they stay the same apparent size on Retina and 1×
@@ -86,6 +93,8 @@ oriented element faces are the finest-grained pickable units under
 - Node emphasis is resolved only in this glyph pass, where a matching
   `nodePickId` changes the circle's color/emissive. This keeps node selection
   local and avoids surface z-fighting.
+- Primitive-specific body, element, face, and node interaction layers cannot
+  set `nodes`; node membership is deliberately not a per-primitive filter.
 - Default node glyphs are translucent black. The pipeline uses MSAA
   alpha-to-coverage without color blending: uncovered samples preserve the
   surface below, while overlapping glyphs reuse the same coverage mask instead

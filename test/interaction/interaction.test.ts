@@ -26,6 +26,7 @@ const base: ResolvedStyle = {
   emissive: 0,
   opacity: 1,
   edge: false,
+  nodes: false,
 };
 const item: Instance = { index: 0, instanceId: "1/0", partId: 1, worldTransform: identity() };
 const other: Instance = { index: 1, instanceId: "2/0", partId: 2, worldTransform: identity() };
@@ -97,6 +98,33 @@ describe("opaque interaction state", () => {
 describe("instance style resolution", () => {
   it("returns the base style for an empty state", () => {
     expect(resolveInstanceStyle(item, base, createInteractionState())).toBe(base);
+  });
+
+  it("resolves node membership from part to instance with instance precedence", () => {
+    let state = setPartOverride(createInteractionState(), item.partId, { nodes: true });
+    expect(resolveInstanceStyle(item, base, state).nodes).toBe(true);
+    state = setInstanceOverride(state, item.instanceId, { nodes: false });
+    expect(resolveInstanceStyle(item, base, state).nodes).toBe(false);
+    state = setInstanceOverride(state, item.instanceId, { nodes: true });
+    expect(resolveInstanceStyle(item, base, state).nodes).toBe(true);
+  });
+
+  it("rejects node membership on primitive-specific override boundaries", () => {
+    const invalid = { nodes: true } as never;
+    expect(() =>
+      setElementOverride(createInteractionState(), { instanceId: "1/0", elementId: 2 }, invalid),
+    ).toThrow("nodes is only supported on part and instance overrides");
+    expect(() =>
+      createInteractionState({
+        highlighted: invalid,
+        selected: {},
+        hovered: {},
+        hoveredFace: {},
+        selectedFace: {},
+        hoveredNode: {},
+        selectedNode: {},
+      }),
+    ).toThrow("nodes is only supported on part and instance overrides");
   });
 
   it("rejects non-finite and out-of-range alpha values at override boundaries", () => {

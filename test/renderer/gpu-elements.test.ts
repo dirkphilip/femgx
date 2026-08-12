@@ -60,6 +60,7 @@ const style = {
   emissive: 0.5,
   opacity: 1,
   edge: false,
+  nodes: false,
 };
 
 function elementUpdate(slot: number, elementId: number): EmphasisUpdate {

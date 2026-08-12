@@ -39,7 +39,6 @@ export class GpuRenderer implements WebGpuRenderer {
   private lastCamera: Camera | undefined;
   private pickSnapshotValid = false;
   private edgeDepthTest = true;
-  private nodeOverlay = false;
   private orbitPivot: Vec3 | undefined;
   private deformation: DeformationState | undefined;
   private destroyed = false;
@@ -80,6 +79,7 @@ export class GpuRenderer implements WebGpuRenderer {
     this.lastCamera = camera;
     this.parts = new Map(parts);
     const attachmentChanged = this.attachment.attach(runtime, this.lifecycle.bundle);
+    this.attachment.updateNodeOrders(this.parts, this.lifecycle.bundle);
     syncDeformations(this.lifecycle.bundle.draw, this.deformation);
     if (partsChanged || cameraChanged || attachmentChanged) this.pickSnapshotValid = false;
     encodeVisibleFrame(camera, parts, this.frameOptions());
@@ -120,11 +120,6 @@ export class GpuRenderer implements WebGpuRenderer {
   public setEdgeDepthTest(enabled: boolean): void {
     this.ensureAlive();
     this.edgeDepthTest = enabled;
-  }
-
-  public setNodeOverlay(enabled: boolean): void {
-    this.ensureAlive();
-    this.nodeOverlay = enabled;
   }
 
   public setOrbitPivot(pivot: Vec3 | undefined): void {
@@ -259,11 +254,11 @@ export class GpuRenderer implements WebGpuRenderer {
       calls: this.attachment.calls,
       transparentCalls: this.attachment.transparentCalls,
       edgeCalls: this.attachment.edgeCalls,
+      nodeCalls: this.attachment.nodeCalls,
       pickTargets: this.lifecycle.bundle.pickTargets,
       colorFormat: this.format,
       depthFormat: this.depthFormat,
       edgeDepthTest: this.edgeDepthTest,
-      showNodes: this.nodeOverlay,
       pointSize: this.pointSize,
       deformation: this.deformation,
       orbitPivot: this.orbitPivot,

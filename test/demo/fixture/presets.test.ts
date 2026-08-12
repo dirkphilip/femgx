@@ -117,6 +117,14 @@ describe("createPresetInteraction", () => {
       expect(readInteractionState(withEdges).partOverrides.get(partId)?.edge).toBe(true);
     }
   });
+
+  it("enables node overlays for eligible parts but not point glyph parts", () => {
+    const preset = createGalleryPreset();
+    const state = createPresetInteraction(preset, false, true);
+    const data = readInteractionState(state);
+    expect(data.partOverrides.get(1)?.nodes).toBeUndefined();
+    expect(data.partOverrides.get(8)?.nodes).toBe(true);
+  });
 });
 
 describe("results preset", () => {

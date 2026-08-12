@@ -25,6 +25,7 @@ const base: ResolvedStyle = {
   emissive: 0,
   opacity: 1,
   edge: false,
+  nodes: false,
 };
 const item: Instance = { index: 0, instanceId: "1/0", partId: 1, worldTransform: identity() };
 const ref = { instanceId: "1/0", bodyId: 3 } as const;
@@ -47,6 +48,12 @@ describe("body interaction state", () => {
     expect(data.hoveredTarget).toEqual({ kind: "body", ...ref });
     expect(isBodyVisible(state, ref)).toBe(false);
     expect(isBodyEmphasized(state, ref)).toBe(true);
+  });
+
+  it("rejects node membership on body overrides", () => {
+    expect(() => setBodyOverride(createInteractionState(), ref, { nodes: true } as never)).toThrow(
+      "nodes is only supported on part and instance overrides",
+    );
   });
 
   it("collects body refs deterministically and clears the last state", () => {
@@ -72,6 +79,7 @@ describe("resolveBodyStyle", () => {
       emissive: 0.05,
       opacity: 0.25,
       edge: false,
+      nodes: false,
     });
   });
 

@@ -34,11 +34,12 @@ export interface FrameOptions {
   readonly transparentCalls: readonly DrawCall[];
   /** Per-part edge-overlay draw calls over the edge-styled visible instances. */
   readonly edgeCalls: readonly DrawCall[];
+  /** Per-part node-annotation draw calls over the node-styled visible instances. */
+  readonly nodeCalls: readonly DrawCall[];
   readonly pickTargets: PickTargets;
   readonly depthFormat: GPUTextureFormat;
   /** Whether the edge overlay culls edges occluded by depth (`less`). */
   readonly edgeDepthTest: boolean;
-  readonly showNodes: boolean;
   /**
    * Screen-space diameter of point elements in CSS pixels; node annotations use
    * three-quarters. Written to the camera uniform as device pixels
@@ -140,7 +141,7 @@ function drawCompositePass(
         : frame.resources.edgeAlwaysPipeline,
     });
   }
-  if (frame.showNodes) {
+  if (frame.nodeCalls.length > 0) {
     drawNodeOverlay(pass, frame, context);
   }
   drawFrameOrbitPivot(pass, camera, frame);
@@ -198,7 +199,7 @@ function drawNodeOverlay(
   frame: FrameOptions,
   context: DrawCallContext,
 ): void {
-  drawBatches(pass, frame.draw, context, frame.calls, {
+  drawBatches(pass, frame.draw, context, frame.nodeCalls, {
     kind: "nodes",
     pipeline: frame.resources.nodeOverlayPipelines.visible,
   });

@@ -5,6 +5,7 @@ import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createScene } from "../../src/scene/scene";
 import {
   buildDrawOrder,
+  buildNodeOrder,
   buildInstanceLayout,
   buildTransparentOrder,
 } from "../../src/renderer/runtime-state";
@@ -100,6 +101,43 @@ describe("renderer runtime state", () => {
     const layout = buildInstanceLayout(runtime);
     expect(Array.from(buildDrawOrder(layout, runtime, 1))).toEqual([0, 1]);
     expect(Array.from(buildTransparentOrder(layout, runtime, 1, [false, true]))).toEqual([1]);
+  });
+
+  it("builds node orders from visible node-styled instances and skips points", () => {
+    const triangle = part(1);
+    const point = createPart(2, {
+      positions: new Float32Array([0, 0, 0]),
+      indices: new Uint32Array([0]),
+      primitive: "points",
+    });
+    const scene = createScene()
+      .addPart(triangle)
+      .addPart(point)
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [
+          { kind: "part", partId: 1, transform: identity() },
+          { kind: "part", partId: 1, transform: identity() },
+          { kind: "part", partId: 2, transform: identity() },
+        ],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    const parts = new Map([
+      [triangle.id, triangle],
+      [point.id, point],
+    ]);
+    expect(Array.from(buildNodeOrder(layout, runtime, 1, [true, false, true], parts))).toEqual([0]);
+    expect(buildNodeOrder(layout, runtime, 2, [true, false, true], parts)).toEqual(
+      new Uint32Array(),
+    );
+    runtime.setInstanceVisible(0, false);
+    expect(buildNodeOrder(layout, runtime, 1, [true, false, true], parts)).toEqual(
+      new Uint32Array(),
+    );
   });
 
   it("keeps hidden slots addressable and omits parts without visible slots", () => {
