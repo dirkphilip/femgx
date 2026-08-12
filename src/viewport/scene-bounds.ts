@@ -1,3 +1,5 @@
+import type { Camera } from "../camera/camera";
+import { protectCameraWithinBounds } from "../camera/navigation";
 import { boundsCorners, isFiniteBounds, type Bounds } from "../geometry/part";
 import { transformPoint } from "../math/mat4";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
@@ -10,6 +12,16 @@ interface MutableBounds {
   maxX: number;
   maxY: number;
   maxZ: number;
+}
+
+/** Keeps an externally positioned camera in front of every placed part bound. */
+export function protectSceneCamera(
+  camera: Camera,
+  scene: Scene,
+  runtime: PackedSceneRuntime,
+): Camera {
+  const bounds = sceneWorldBounds(scene, runtime);
+  return protectCameraWithinBounds(camera, bounds, sceneWorldBoundsList(scene, runtime));
 }
 
 /** Returns the union of every placed part bound in displayed world space. */
