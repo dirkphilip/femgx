@@ -1,5 +1,4 @@
 import type { Camera } from "../src/index";
-import type { ElementDisplayMode } from "./fixture/types";
 
 /** Typed handles to the demo's DOM nodes. */
 export interface DemoView {
@@ -30,7 +29,6 @@ export interface StatusInfo {
   readonly visibleInstances: number;
   readonly parts: number;
   readonly batches: number;
-  readonly mode: ElementDisplayMode;
 }
 
 /** Locates the demo's DOM nodes, throwing when the page is misconfigured. */
@@ -99,7 +97,7 @@ export function updateStatus(view: DemoView, camera: Camera, info: StatusInfo): 
   view.rendererStatus.textContent = `Renderer ${renderer}`;
   view.status.textContent =
     `${info.model} · ${renderer} · ${info.visibleInstances} visible · ` +
-    `${info.parts} parts · ${info.batches} batches · ${info.mode} · ${cameraMode} camera`;
+    `${info.parts} parts · ${info.batches} batches · ${cameraMode} camera`;
   view.projectionToggle.textContent = cameraMode === "perspective" ? "Perspective" : "Orthographic";
   view.projectionToggle.setAttribute("aria-label", `Projection: ${cameraMode}`);
 }

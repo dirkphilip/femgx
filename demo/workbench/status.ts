@@ -1,12 +1,10 @@
 import type { PartId } from "../../src/index";
 import type { ModelPreset } from "../fixture/presets";
-import type { ElementDisplayMode } from "../fixture/types";
 import type { DisplayToggles, RendererStats, WorkbenchSceneContext } from "./types";
 
 /** Display inputs used to format one status snapshot. */
 export interface StatusTextOptions {
   readonly rendererName: string;
-  readonly mode: ElementDisplayMode;
   readonly toggles: DisplayToggles;
   readonly stats: RendererStats;
   readonly selectedCount: number;
@@ -35,7 +33,6 @@ export function statsText(context: WorkbenchSceneContext, options: StatusTextOpt
     `Visible triangles ${formatCount(visibleTriangleCount(context))}\n` +
     `Reusable parts ${context.preset.scene.parts.size}\n` +
     `Draw batches ${options.stats.batches}\n` +
-    `Mode ${options.mode}\n` +
     `Selections ${options.selectedCount}` +
     diagnostics
   );
@@ -47,26 +44,6 @@ export function visibleTriangleCount(context: WorkbenchSceneContext): number {
   for (const instance of context.runtime.getInstances()) {
     if (!instance.visible) continue;
     triangles += triangleCount(context.preset, instance.partId);
-  }
-  return triangles;
-}
-
-/** Unique triangles stored across the preset's reusable part definitions. */
-export function uniqueTriangleCount(preset: ModelPreset): number {
-  let triangles = 0;
-  for (const part of preset.scene.parts.values())
-    triangles += Math.floor(part.geometry.indices.length / 3);
-  return triangles;
-}
-
-/** Submitted triangles authored by the preset before visibility changes. */
-export function submittedTriangleCount(
-  preset: ModelPreset,
-  runtime: WorkbenchSceneContext["runtime"],
-): number {
-  let triangles = 0;
-  for (const instance of runtime.getInstances()) {
-    triangles += triangleCount(preset, instance.partId);
   }
   return triangles;
 }

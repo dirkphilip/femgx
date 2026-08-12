@@ -7,23 +7,19 @@ import {
   identity,
   parseVtk,
   type AssemblyId,
-  type Bounds,
   type ElementModel,
   type FemModel,
   type Part,
   type PartId,
   type Scene,
 } from "../../src/index";
-import type { ElementDisplayMode } from "./types";
 
 /** The imported VTK asset and its canonical triangle part. */
 export interface VtkFixture {
   readonly scene: Scene;
   readonly vtkModel: FemModel;
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
-  readonly modePartIds: ReadonlyMap<ElementDisplayMode, readonly PartId[]>;
   readonly partIds: { readonly solid: PartId };
-  readonly bounds: Bounds;
 }
 
 const SOLID_PART_ID: PartId = 1;
@@ -61,16 +57,6 @@ export function createVtkFixture(): VtkFixture {
     scene,
     vtkModel,
     elementModels,
-    modePartIds: new Map<ElementDisplayMode, readonly PartId[]>([
-      ["solid", [SOLID_PART_ID]],
-      ["surface", [SOLID_PART_ID]],
-      ["edges", [SOLID_PART_ID]],
-    ]),
     partIds: { solid: SOLID_PART_ID },
-    bounds: parts[0]?.bounds ?? emptyBounds(),
   };
-}
-
-function emptyBounds(): Bounds {
-  return { minX: 0, minY: 0, minZ: 0, maxX: 0, maxY: 0, maxZ: 0 };
 }

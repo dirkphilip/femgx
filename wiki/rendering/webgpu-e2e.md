@@ -34,7 +34,7 @@ runner exists, CI only runs the no-GPU unsupported-contract smoke
   - **display toggles** — the depth-test control stays live, and the removed
     CPU-renderer-only node/normal/face-boundary/ID overlays are no longer
     advertised in the context menu.
-  - **rendered pixels** — element emphasis, solid/edge mode changes, selection,
+  - **rendered pixels** — element emphasis, edge-overlay changes, selection,
     and reload determinism must visibly change or stabilize the presented
     canvas pixels. Captures use settled `canvas.screenshot()` comparisons.
 

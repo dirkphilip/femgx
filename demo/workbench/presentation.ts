@@ -1,6 +1,5 @@
 import { type Camera, type InteractionState, type SceneRuntime } from "../../src/index";
 import { type ModelPreset } from "../fixture/presets";
-import type { ElementDisplayMode } from "../fixture/types";
 import { updateStatus, type DemoView } from "../view";
 import { selectedKeys } from "./selection";
 import { statsText } from "./status";
@@ -12,7 +11,6 @@ export interface WorkbenchPresentationOptions {
   readonly canvas: HTMLCanvasElement;
   readonly rendererName: string;
   readonly getPreset: () => ModelPreset;
-  readonly getMode: () => ElementDisplayMode;
   readonly getToggles: () => DisplayToggles;
   readonly getResultMode: () => ResultDisplayMode;
   readonly getInteraction: () => InteractionState;
@@ -48,7 +46,6 @@ export class WorkbenchPresentation {
       visibleInstances: stats.visibleInstances,
       parts: preset.scene.parts.size,
       batches: stats.batches,
-      mode: this.options.getMode(),
     });
     this.options.view.statsPanel.textContent = statsText(
       {
@@ -58,7 +55,6 @@ export class WorkbenchPresentation {
       },
       {
         rendererName: this.options.rendererName,
-        mode: this.options.getMode(),
         toggles: this.options.getToggles(),
         stats,
         selectedCount: selectedKeys(this.options.getInteraction()).length,

@@ -7,7 +7,6 @@ import {
   createModelPresets,
   createTransparencyPreset,
   createVtkPreset,
-  visiblePartIdsForPreset,
 } from "../../../demo/fixture/presets";
 import { createResultsPreset } from "../../../demo/fixture/results-preset";
 import { deformGeometry } from "../../../src/results/deform";
@@ -58,9 +57,7 @@ describe("createGalleryPreset", () => {
   it("includes all supported shapes and a polygon-authored face", () => {
     const preset = createGalleryPreset();
     expect(preset.partColors.size).toBe(10);
-    expect(preset.overlayPartIds.length).toBe(3);
-    const visible = visiblePartIdsForPreset(preset, "solid");
-    expect(visible.size).toBe(10);
+    expect(createPackedSceneRuntime(preset.scene).getDrawList()).toHaveLength(10);
   });
 });
 
@@ -77,7 +74,6 @@ describe("createHex20CylinderPreset", () => {
   it("builds a small linearly tessellated Hex20 cylinder", () => {
     const preset = createHex20CylinderPreset();
     expect(preset.scene.parts.size).toBe(1);
-    expect(preset.overlayPartIds).toEqual([]);
     expect(preset.bounds.minZ).toBeCloseTo(-0.9);
     expect(preset.bounds.maxZ).toBeCloseTo(0.9);
     expect(preset.results?.deformation?.field.count).toBeGreaterThan(20);
@@ -86,10 +82,10 @@ describe("createHex20CylinderPreset", () => {
 });
 
 describe("createBoltedPlatePreset", () => {
-  it("keeps the bolted assembly mode mapping", () => {
+  it("starts with every reusable component visible", () => {
     const preset = createBoltedPlatePreset();
-    expect(preset.modePartIds.get("solid")).toEqual([1, 4, 7, 10]);
     expect(preset.partNames.get(4)).toBe("Bolts");
+    expect(createPackedSceneRuntime(preset.scene).visibleCount).toBe(34);
   });
 });
 

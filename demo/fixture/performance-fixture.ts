@@ -9,7 +9,6 @@ import {
 import { translation } from "../../src/math/mat4";
 import { createScene } from "../../src/scene/scene";
 import type { PartId } from "../../src/index";
-import type { ElementDisplayMode } from "./types";
 
 const PART_ID: PartId = 1;
 const ROOT_ASSEMBLY_ID = 1;
@@ -36,11 +35,6 @@ export function createPerformancePreset(): ModelPreset {
     })),
   });
   const scene = builder.withRoot(ROOT_ASSEMBLY_ID).build();
-  const modes = new Map<ElementDisplayMode, readonly PartId[]>([
-    ["solid", [PART_ID]],
-    ["surface", [PART_ID]],
-    ["edges", [PART_ID]],
-  ]);
   return {
     id: "performance",
     name: "Performance · 2.10M triangles",
@@ -49,9 +43,6 @@ export function createPerformancePreset(): ModelPreset {
     partColors: new Map([[PART_ID, { r: 0.24, g: 0.58, b: 0.93, a: 1 }]]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map([[PART_ID, "128 × 128 reusable shell"]]),
-    modePartIds: modes,
-    overlayPartIds: [],
-    defaultMode: "solid",
     bounds: {
       minX: 0,
       minY: 0,

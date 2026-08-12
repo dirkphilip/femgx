@@ -52,13 +52,6 @@ export function createResultsPreset(): ModelPreset {
     partColors: new Map([[RESULTS_PART_ID, { r: 0.48, g: 0.55, b: 0.68, a: 1 }]]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map([[RESULTS_PART_ID, "Results block"]]),
-    modePartIds: new Map([
-      ["solid", [RESULTS_PART_ID]],
-      ["surface", [RESULTS_PART_ID]],
-      ["edges", [RESULTS_PART_ID]],
-    ]),
-    overlayPartIds: [],
-    defaultMode: "solid",
     bounds: part.bounds,
     results: {
       field: stress,

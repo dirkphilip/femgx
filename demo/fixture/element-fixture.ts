@@ -1,19 +1,15 @@
 import {
   createElementModel,
   createScene,
-  createSceneRuntime,
   heterogeneousElementParts,
   polygonPart,
-  transformPoint,
   translation,
   type AssemblyId,
-  type Bounds,
   type ElementModel,
   type Part,
   type PartId,
   type Scene,
 } from "../../src/index";
-import type { ElementDisplayMode } from "./types";
 import {
   buildHex20CylinderModel,
   buildHexModel,
@@ -50,12 +46,8 @@ export interface ElementFixtureOptions {
 export interface ElementFixture {
   readonly scene: Scene;
   readonly partIds: ElementFixtureParts;
-  readonly modePartIds: ReadonlyMap<ElementDisplayMode, readonly PartId[]>;
-  readonly overlayPartIds: readonly PartId[];
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
-  readonly defaultMode: ElementDisplayMode;
   readonly instanceCount: number;
-  readonly bounds: Bounds;
 }
 
 const POINT_PART_ID: PartId = 1;
@@ -151,15 +143,6 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     }),
   ];
   const scene = galleryScene(parts, blockSize, GALLERY_LAYOUT);
-  const volumePartIds = [
-    TET4_PART_ID,
-    TET10_PART_ID,
-    HEX8_PART_ID,
-    HEX20_PART_ID,
-    TRIANGLE_PART_ID,
-    QUAD_PART_ID,
-    POLYGON_PART_ID,
-  ];
   return {
     scene,
     partIds: {
@@ -175,15 +158,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
       polygon: POLYGON_PART_ID,
     },
     elementModels: models,
-    modePartIds: new Map<ElementDisplayMode, readonly PartId[]>([
-      ["solid", volumePartIds],
-      ["surface", volumePartIds],
-      ["edges", volumePartIds],
-    ]),
-    overlayPartIds: [POINT_PART_ID, LINE_PART_ID, LINE3_PART_ID],
-    defaultMode: "solid",
     instanceCount: parts.length,
-    bounds: sceneBounds(scene),
   };
 }
 
@@ -204,11 +179,6 @@ export function createHex20CylinderFixture(): Hex20CylinderFixture {
   );
   const parts = [part];
   const scene = galleryScene(parts, 0, SINGLE_PART_LAYOUT);
-  const modePartIds = new Map<ElementDisplayMode, readonly PartId[]>([
-    ["solid", [HEX20_PART_ID]],
-    ["surface", [HEX20_PART_ID]],
-    ["edges", [HEX20_PART_ID]],
-  ]);
   return {
     scene,
     partIds: {
@@ -221,11 +191,7 @@ export function createHex20CylinderFixture(): Hex20CylinderFixture {
       hex20: HEX20_PART_ID,
     },
     elementModels: new Map([[HEX20_PART_ID, model]]),
-    modePartIds,
-    overlayPartIds: [],
-    defaultMode: "solid",
     instanceCount: parts.length,
-    bounds: sceneBounds(scene),
   };
 }
 
@@ -279,56 +245,4 @@ function validateFixtureOptions(gridSize: number, cellSize: number): void {
   if (!Number.isFinite(cellSize) || cellSize <= 0) {
     throw new Error("cellSize must be a positive finite number");
   }
-}
-
-function sceneBounds(scene: Scene): Bounds {
-  const runtime = createSceneRuntime(scene);
-  let bounds: Bounds | undefined;
-  for (const instanceId of runtime.getDrawList()) {
-    const partId = runtime.getPartId(instanceId);
-    const transform = runtime.getTransform(instanceId);
-    const part = partId === undefined ? undefined : scene.parts.get(partId);
-    if (part === undefined || transform === undefined) continue;
-    bounds = mergeBounds(bounds, transformBounds(part.bounds, transform));
-  }
-  return bounds ?? { minX: 0, minY: 0, minZ: 0, maxX: 0, maxY: 0, maxZ: 0 };
-}
-
-function transformBounds(bounds: Bounds, transform: Float32Array): Bounds {
-  let result: Bounds = {
-    minX: Infinity,
-    minY: Infinity,
-    minZ: Infinity,
-    maxX: -Infinity,
-    maxY: -Infinity,
-    maxZ: -Infinity,
-  };
-  for (const x of [bounds.minX, bounds.maxX]) {
-    for (const y of [bounds.minY, bounds.maxY]) {
-      for (const z of [bounds.minZ, bounds.maxZ]) {
-        const [px, py, pz] = transformPoint(transform, x, y, z);
-        result = {
-          minX: Math.min(result.minX, px),
-          minY: Math.min(result.minY, py),
-          minZ: Math.min(result.minZ, pz),
-          maxX: Math.max(result.maxX, px),
-          maxY: Math.max(result.maxY, py),
-          maxZ: Math.max(result.maxZ, pz),
-        };
-      }
-    }
-  }
-  return result;
-}
-
-function mergeBounds(first: Bounds | undefined, second: Bounds): Bounds {
-  if (first === undefined) return second;
-  return {
-    minX: Math.min(first.minX, second.minX),
-    minY: Math.min(first.minY, second.minY),
-    minZ: Math.min(first.minZ, second.minZ),
-    maxX: Math.max(first.maxX, second.maxX),
-    maxY: Math.max(first.maxY, second.maxY),
-    maxZ: Math.max(first.maxZ, second.maxZ),
-  };
 }

@@ -19,7 +19,7 @@ applies it after asynchronous GPU picks in `WorkbenchInteraction`.
 
 Visibility changes continue through `FemViewport` and the packed runtime. The
 view-level show-all action restores authored assembly, part, and instance
-visibility without changing the current selection or display mode.
+visibility without changing the current selection or overlay state.
 
 Related: [[rendering/interactive-state|Interactive state]],
 [[rendering/element-interaction|Element interaction]].

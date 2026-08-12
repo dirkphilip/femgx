@@ -10,14 +10,15 @@ controller, so camera and interaction behavior is stable
 
 ## Model presets
 
-- `demo/fixture/presets.ts` builds exactly five deterministic product stories from fixed data:
+- `demo/fixture/presets.ts` builds six deterministic product stories from fixed data:
   the **bolted plate assembly**, imported **VTK sample**, **supported element gallery**,
-  linearly tessellated **Hex20 cylinder**, and **static results** workflow. Every preset is
-  derived from fixed data, so the demo and tests share identical structure.
+  linearly tessellated **Hex20 cylinder**, **static results** workflow, and
+  **order-independent transparency** demonstration. Every preset is derived from fixed
+  data, so the demo and tests share identical structure.
 - Each preset carries `elementModels` (per-part element topology used for
-  node/face picking and emphasis), a part theme, per-mode part visibility, and
-  overall bounds. The demo's model `<select>` switches presets without editing
-  source.
+  node/face picking and emphasis), a part theme, and overall bounds. All scene
+  parts start visible; the demo's model `<select>` switches presets without
+  editing source.
 - `demo/fixture/performance-fixture.ts` owns a demo-only stress scenario rather than
   extending the library: one generated 128 × 128 shell is instanced 64 times
   for exactly 2,097,152 triangles. The opt-in benchmark lane consumes it directly;
@@ -92,7 +93,7 @@ controller, so camera and interaction behavior is stable
   presentation. `FemViewport` performs recovery and reports success/failure to
   the demo callbacks ([[rendering/platform-support|Platform support]]).
 - The toolbar **Reset** action restores the active preset's complete initial
-  state: solid mode, all runtime hierarchy/part/instance visibility, palette
+  state: all runtime hierarchy/part/instance visibility, palette
   interaction state, perspective camera fitted to the scene, edge/node toggles,
   diagnostics, selection/hover/pick datasets, and the inspection
   panel. It does not switch the selected model preset.
@@ -123,7 +124,7 @@ resize, and GPU-picking coordinates remain unchanged.
 
 ## Demo e2e coverage
 
-`e2e/demo.spec.ts` covers preset switching, mode visibility, the hierarchical
+`e2e/demo.spec.ts` covers preset switching, initial visibility, the hierarchical
 assembly tree (collapse/expand, plate-stack/fastener/fastener-subassembly hides,
 mixed parent state, and restoring a subtree from its parent), fit-to-view,
 projection, the context menu, node/face picking and selection, and stable
