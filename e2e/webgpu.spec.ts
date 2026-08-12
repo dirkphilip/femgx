@@ -430,6 +430,31 @@ test("keeps depth-tested node annotations stable across fine zoom steps", async 
   }
 });
 
+test("keeps every supported gallery occurrence inside clip planes while orbiting", async ({
+  page,
+}) => {
+  await loadWebGpuPage(page);
+  await page.getByTestId("model-select").selectOption({ label: "Supported element gallery" });
+  await page.getByTestId("fit-view").click();
+
+  const canvas = page.getByTestId("view-canvas");
+  await expect(page.getByTestId("status")).toContainText("10 visible");
+  const initialNavigation = await readNavigationState(canvas);
+  expectBoundsClippedSafely(initialNavigation.camera, initialNavigation.bounds);
+
+  for (const delta of [
+    { x: 160, y: 60 },
+    { x: -280, y: 90 },
+    { x: 200, y: -140 },
+  ]) {
+    await dragCamera(page, canvas, delta);
+    const navigation = await readNavigationState(canvas);
+    expectBoundsClippedSafely(navigation.camera, navigation.bounds);
+    await expect(page.getByTestId("status")).toContainText("10 visible");
+    expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(200);
+  }
+});
+
 test("uses SpaceClaim middle-button spin, pan, and zoom gestures", async ({ page }) => {
   await loadWebGpuPage(page);
 

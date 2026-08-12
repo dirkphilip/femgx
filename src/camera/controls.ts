@@ -1,7 +1,8 @@
-import { orbitCamera, panCamera, type Camera, zoomCamera, zoomCameraAtPoint } from "./camera";
+import { panCamera, type Camera, zoomCamera, zoomCameraAtPoint } from "./camera";
 import { clientToCanvasCss } from "./coordinates";
 import { CameraGestureTracker, type GestureStep } from "./gestures";
 import {
+  orbitCameraWithOptionalBounds,
   targetPlanePoint,
   zoomCameraAtPointWithinBounds,
   zoomCameraWithinBounds,
@@ -237,13 +238,15 @@ class CameraControls {
       return false;
     }
     const { cameraRef } = this.options;
-    cameraRef.camera = orbitCamera(
+    const before = cameraRef.camera;
+    cameraRef.camera = orbitCameraWithOptionalBounds(
       cameraRef.camera,
       step.deltaX / ORBIT_SCALE,
       step.deltaY / ORBIT_SCALE,
       gesture?.pivot,
+      this.options.bounds?.(),
     );
-    return true;
+    return cameraRef.camera !== before;
   }
 
   private beginOrbit(event: PointerEvent): void {
@@ -350,11 +353,12 @@ class CameraControls {
   private applyQueuedOrbit(gesture: OrbitGesture, pivot: Vec3 | undefined): void {
     if (gesture.deltaX === 0 && gesture.deltaY === 0) return;
     const { cameraRef } = this.options;
-    cameraRef.camera = orbitCamera(
+    cameraRef.camera = orbitCameraWithOptionalBounds(
       cameraRef.camera,
       gesture.deltaX / ORBIT_SCALE,
       gesture.deltaY / ORBIT_SCALE,
       pivot ?? gesture.fallbackPivot,
+      this.options.bounds?.(),
     );
     gesture.deltaX = 0;
     gesture.deltaY = 0;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createCamera } from "../../src/camera/camera";
+import { createCamera, orbitCamera } from "../../src/camera/camera";
 import { fitCamera } from "../../src/camera/fit";
-import { zoomCameraWithinBounds } from "../../src/camera/navigation";
+import { orbitCameraWithinBounds, zoomCameraWithinBounds } from "../../src/camera/navigation";
 import type { Bounds } from "../../src/geometry/part";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createBoltedPlateFixture } from "../../demo/fixture/bolted-plate";
@@ -17,6 +17,49 @@ const bounds: Bounds = {
 };
 
 describe("bounds-aware camera navigation", () => {
+  it.each(["perspective", "orthographic"] as const)(
+    "recomputes clip planes after a safe %s orbit",
+    (mode) => {
+      const initial = fitCamera(
+        createCamera({ mode, near: 0.01, far: 10_000, width: 1152, height: 900 }),
+        bounds,
+        1152,
+        900,
+      );
+      const orbited = orbitCameraWithinBounds(initial, 0.4, 0.2, undefined, bounds);
+
+      expect(orbited).not.toBe(initial);
+      expect(orbited.far).not.toBe(initial.far);
+      expect(safelyFramesBounds(orbited, bounds)).toBe(true);
+    },
+  );
+
+  it("limits an unsafe off-center orbit to a safe prefix", () => {
+    const modelBounds = {
+      minX: -100,
+      minY: -1,
+      minZ: -1,
+      maxX: 100,
+      maxY: 1,
+      maxZ: 1,
+    };
+    const initial = fitCamera(createCamera({ width: 1152, height: 900 }), modelBounds, 1152, 900);
+    const requested = orbitCamera(initial, Math.PI, 0, [1000, 0, 0]);
+    const limited = orbitCameraWithinBounds(initial, Math.PI, 0, [1000, 0, 0], modelBounds);
+
+    expect(limited).not.toBe(initial);
+    expect(limited.position).not.toEqual(requested.position);
+    expect(safelyFramesBounds(limited, modelBounds)).toBe(true);
+  });
+
+  it("preserves identity for no-op and fully blocked orbits", () => {
+    const noOp = fitCamera(createCamera(), bounds, 1152, 900);
+    expect(orbitCameraWithinBounds(noOp, 0, 0, undefined, bounds)).toBe(noOp);
+
+    const blocked = createCamera({ position: [0, 0, 0.5], target: [0, 0, 0] });
+    expect(orbitCameraWithinBounds(blocked, 0.2, 0.1, undefined, bounds)).toBe(blocked);
+  });
+
   it("keeps a small fitted zoom step continuous", () => {
     const camera = fitCamera(createCamera({ width: 1152, height: 900 }), bounds, 1152, 900);
     const zoomed = zoomCameraWithinBounds(camera, -0.1, bounds);
