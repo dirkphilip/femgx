@@ -28,15 +28,19 @@ export default defineConfig({
   projects: [
     {
       name: "chrome",
-      // Multiple headed WebGPU contexts compete for the same physical device
-      // and can produce blank captures or stalled readbacks under load.
+      // Multiple WebGPU contexts compete for the same physical device and can
+      // produce blank captures or stalled readbacks under load.
       workers: 1,
       use: {
         ...devices["Desktop Chrome"],
         channel: "chrome",
-        // Headless Chrome injects `--enable-unsafe-swiftshader`, which is not a
-        // faithful WebGPU stand-in. Headed system Chrome uses the real GPU.
-        headless: false,
+        // Branded Chrome's current headless mode uses the regular browser. Let
+        // it select the system GPU and remove Playwright's software fallback.
+        headless: true,
+        launchOptions: {
+          args: ["--enable-gpu"],
+          ignoreDefaultArgs: ["--enable-unsafe-swiftshader"],
+        },
       },
     },
     {
