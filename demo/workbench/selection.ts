@@ -7,7 +7,7 @@ import {
   setTargetSelected,
   type InteractionState,
 } from "../../src/index";
-import type { SelectTarget } from "./pick";
+import { elementTarget, type SelectTarget } from "./pick";
 
 /** Applies one selection toggle without coupling it to the DOM or renderer. */
 export function toggleSelection(
@@ -27,6 +27,17 @@ export function replaceSelection(
 ): InteractionState {
   if (isSelected(interaction, target)) return clearSelection(interaction);
   return toggleSelection(clearSelection(interaction), target);
+}
+
+/** Selects an owning element directly, or removes only that element if selected. */
+export function toggleElementSelection(
+  interaction: InteractionState,
+  target: SelectTarget,
+): InteractionState {
+  const element = elementTarget(target);
+  if (element === undefined) return interaction;
+  if (isSelected(interaction, element)) return setTargetSelected(interaction, element, false);
+  return replaceSelection(interaction, element);
 }
 
 /** Applies one highlight toggle without coupling it to the DOM or renderer. */

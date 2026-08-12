@@ -1,5 +1,6 @@
 import {
   clientToCanvasCss,
+  isTargetSelected,
   setTargetHovered,
   type FemViewport,
   type InteractionState,
@@ -7,14 +8,15 @@ import {
   type PickHit,
 } from "../../src/index";
 import { describePick } from "./inspect";
-import { selectTarget, targetKey, type SelectTarget } from "./pick";
+import { elementTarget, selectTarget, targetKey, type SelectTarget } from "./pick";
 import {
   clearSelection as clearSelectedTargets,
   replaceSelection,
   toggleHighlight,
+  toggleElementSelection,
   toggleSelection,
 } from "./selection";
-import type { WorkbenchMenu } from "./menu";
+import type { WorkbenchMenu, WorkbenchMenuSelectionOptions } from "./menu";
 
 /** View and state hooks used by the asynchronous picking interaction layer. */
 export interface WorkbenchInteractionOptions {
@@ -92,6 +94,11 @@ export class WorkbenchInteraction {
     this.options.render();
   }
 
+  selectElement(target: SelectTarget): void {
+    this.options.setInteraction(toggleElementSelection(this.options.getInteraction(), target));
+    this.options.render();
+  }
+
   replace(target: SelectTarget): void {
     this.options.setInteraction(replaceSelection(this.options.getInteraction(), target));
     this.options.render();
@@ -119,7 +126,12 @@ export class WorkbenchInteraction {
       return;
     }
     this.showPick(hit);
-    this.options.menu.show(this.target, event.clientX, event.clientY);
+    this.options.menu.show(
+      this.target,
+      event.clientX,
+      event.clientY,
+      contextMenuSelectionOptions(this.target, this.options.getInteraction()),
+    );
   }
 
   clearContext(): void {
@@ -159,4 +171,25 @@ export class WorkbenchInteraction {
       HTMLElement | null | undefined;
     if (surface !== null && surface !== undefined) surface.hidden = hit === undefined;
   }
+}
+
+function contextMenuSelectionOptions(
+  target: SelectTarget,
+  interaction: InteractionState,
+): WorkbenchMenuSelectionOptions {
+  const element = elementTarget(target);
+  return {
+    selectionLabel: target.kind === "element" ? undefined : selectionLabel(target, interaction),
+    elementSelectionLabel:
+      element === undefined
+        ? undefined
+        : isTargetSelected(interaction, element)
+          ? "Deselect element"
+          : "Select element",
+  };
+}
+
+function selectionLabel(target: SelectTarget, interaction: InteractionState): string {
+  if (target.kind !== "node" && target.kind !== "face") return "Select / Deselect";
+  return `${isTargetSelected(interaction, target) ? "Deselect" : "Select"} ${target.kind}`;
 }

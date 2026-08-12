@@ -130,6 +130,7 @@ export class WorkbenchController {
             this.reset();
           },
         });
+        this.interactionController.clearContext();
       },
     });
     this.menu = features.menu;

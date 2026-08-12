@@ -1,5 +1,11 @@
 import type { SelectTarget } from "./pick";
 
+/** Labels for target-specific selection actions rendered by the context menu. */
+export interface WorkbenchMenuSelectionOptions {
+  readonly selectionLabel?: string | undefined;
+  readonly elementSelectionLabel?: string | undefined;
+}
+
 /** Small context-menu renderer owned by the demo workbench. */
 export class WorkbenchMenu {
   private readonly menu: HTMLElement;
@@ -33,14 +39,24 @@ export class WorkbenchMenu {
     );
   }
 
-  show(target: SelectTarget, x: number, y: number): void {
+  show(
+    target: SelectTarget,
+    x: number,
+    y: number,
+    options: WorkbenchMenuSelectionOptions = { selectionLabel: "Select / Deselect" },
+  ): void {
     this.menu.textContent = "";
     const title = document.createElement("div");
     title.className = "menu-title";
     title.textContent = targetLabel(target);
     this.menu.appendChild(title);
     this.menuButton("Highlight / Clear", "highlight");
-    this.menuButton("Select / Deselect", "select");
+    if (options.selectionLabel !== undefined) {
+      this.menuButton(options.selectionLabel, "select");
+    }
+    if (options.elementSelectionLabel !== undefined) {
+      this.menuButton(options.elementSelectionLabel, "select-element");
+    }
     this.menuButton("Hide / Show instance", "hide-instance");
     this.menuButton("Hide / Show part", "hide-part");
     this.menuSection("Display");

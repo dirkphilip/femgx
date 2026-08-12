@@ -8,6 +8,7 @@ import {
   type InstanceId,
   type InteractionState,
   type PartId,
+  type Scene,
   type SceneRuntime,
 } from "../../src/index";
 import type { SelectTarget } from "./pick";
@@ -15,6 +16,7 @@ import type { SelectTarget } from "./pick";
 /** Runtime hooks used by menu and visibility-panel visibility actions. */
 export interface VisibilityActionOptions {
   readonly viewport: () => FemViewport;
+  readonly scene: () => Scene;
   readonly runtime: () => SceneRuntime;
   readonly interaction: () => InteractionState;
   readonly setInteraction: (interaction: InteractionState) => void;
@@ -75,20 +77,34 @@ export class WorkbenchVisibilityActions {
     this.setPart(partId, !this.partVisible(partId));
   }
 
-  /** Restores every authored assembly, part, and instance visibility bit. */
+  /** Restores every current model-visibility bit without changing interaction emphasis. */
   showAll(): void {
     const viewport = this.options.viewport();
+    const scene = this.options.scene();
+    const runtime = this.options.runtime();
+    let interaction = this.options.interaction();
+    for (const instance of runtime.getInstances()) {
+      const part = scene.parts.get(instance.partId);
+      for (const body of part?.geometry.bodies ?? []) {
+        interaction = setBodyVisible(
+          interaction,
+          { instanceId: instance.instanceId, bodyId: body.id },
+          true,
+        );
+      }
+    }
     viewport.batch(() => {
-      for (const nodeId of this.options.runtime().getNodeIds()) {
+      this.options.applyInteraction(interaction);
+      for (const assemblyId of scene.assemblies.keys()) {
+        viewport.setAssemblyVisible(assemblyId, true);
+      }
+      for (const nodeId of runtime.getNodeIds()) {
         viewport.setAssemblyNodeVisible(nodeId, true);
       }
-      for (const partId of this.options
-        .runtime()
-        .getInstances()
-        .map((instance) => instance.partId)) {
+      for (const partId of scene.parts.keys()) {
         viewport.setPartVisible(partId, true);
       }
-      for (const instanceId of this.options.runtime().getInstanceIds()) {
+      for (const instanceId of runtime.getInstanceIds()) {
         viewport.setInstanceVisible(instanceId, true);
       }
     });
