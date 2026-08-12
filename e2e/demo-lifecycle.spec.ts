@@ -143,7 +143,7 @@ test("shows an accessible interactive view cube", async ({ page }) => {
   await expect(gizmo).toHaveAttribute("role", "group");
   await expect(gizmo.locator("[data-view-face]")).toHaveCount(6);
   await expect(gizmo.locator("[data-view-corner]")).toHaveCount(8);
-  await expect(gizmo.locator("[data-rotate]")).toHaveCount(4);
+  await expect(gizmo.locator("[data-rotate]")).toHaveCount(6);
   await expect(gizmo.locator("circle")).toHaveCount(8);
   await expect(gizmo.locator("text")).toHaveCount(6);
   await expect(gizmo).toContainText("+X");

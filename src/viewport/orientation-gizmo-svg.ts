@@ -81,6 +81,19 @@ interface ArrowElements {
   readonly group: SVGGElement;
 }
 
+const ROLL_GLYPHS = {
+  clockwise: {
+    path: "M 10 25 A 15 15 0 0 1 25 10",
+    head: "25 10 21 11 24 14",
+  },
+  counterclockwise: {
+    path: "M 90 75 A 15 15 0 0 1 75 90",
+    head: "75 90 79 89 76 86",
+  },
+} as const satisfies Readonly<
+  Record<"clockwise" | "counterclockwise", { readonly path: string; readonly head: string }>
+>;
+
 /** DOM retained by one viewport-owned view cube across camera updates. */
 export interface OrientationGizmoElements {
   readonly root: HTMLDivElement;
@@ -146,7 +159,7 @@ function createRoot(): HTMLDivElement {
   root.setAttribute("role", "group");
   root.setAttribute(
     "aria-label",
-    "View cube. Faces and corners snap the view. Arrow buttons rotate 15 degrees; Shift rotates 90 degrees; Control or Command rotates 5 degrees.",
+    "View cube. Faces and corners snap the view. Arrow buttons pitch or yaw the view; clockwise and counterclockwise buttons rotate in-plane. All buttons rotate 15 degrees; Shift rotates 90 degrees; Control or Command rotates 5 degrees.",
   );
   Object.assign(root.style, {
     position: "absolute",
@@ -179,9 +192,11 @@ function createSvg(): SVGSVGElement {
   const style = document.createElementNS(SVG_NAMESPACE, "style");
   style.textContent = `
     [data-view-cube-target]:focus polygon,
-    [data-view-cube-target]:focus circle { stroke: #ffffff; stroke-width: 2; }
+    [data-view-cube-target]:focus circle,
+    [data-view-cube-target]:focus path[data-view-cube-glyph] { stroke: #ffffff; stroke-width: 2; }
     [data-view-cube-target]:hover polygon,
-    [data-view-cube-target]:hover circle { filter: brightness(1.25); }
+    [data-view-cube-target]:hover circle,
+    [data-view-cube-target]:hover path[data-view-cube-glyph] { filter: brightness(1.25); }
   `;
   svg.appendChild(style);
   return svg;
@@ -251,10 +266,11 @@ function createArrows(
       ["right", "Rotate view right"],
       ["up", "Rotate view up"],
       ["down", "Rotate view down"],
+      ["clockwise", "Rotate view clockwise"],
+      ["counterclockwise", "Rotate view counterclockwise"],
     ] as const
   ).map(([rotation, label]) => {
     const group = document.createElementNS(SVG_NAMESPACE, "g");
-    const polygon = document.createElementNS(SVG_NAMESPACE, "polygon");
     group.setAttribute("data-rotate", rotation);
     configureTarget(
       group,
@@ -262,14 +278,49 @@ function createArrows(
       (event) => ({ kind: "rotate", rotation, stepDegrees: stepDegrees(event) }),
       onAction,
     );
-    polygon.setAttribute("points", arrowPoints(rotation));
-    polygon.setAttribute("fill", "#a9bbd1");
-    polygon.setAttribute("stroke", "#0b1728");
-    polygon.setAttribute("stroke-width", "0.8");
-    group.appendChild(polygon);
+    if (rotation === "clockwise" || rotation === "counterclockwise") {
+      appendRollGlyph(group, rotation);
+    } else {
+      appendPitchYawGlyph(group, rotation);
+    }
     svg.appendChild(group);
     return { rotation, group };
   });
+}
+
+function appendPitchYawGlyph(group: SVGGElement, rotation: "left" | "right" | "up" | "down"): void {
+  const polygon = document.createElementNS(SVG_NAMESPACE, "polygon");
+  polygon.setAttribute("points", arrowPoints(rotation));
+  polygon.setAttribute("fill", "#a9bbd1");
+  polygon.setAttribute("stroke", "#0b1728");
+  polygon.setAttribute("stroke-width", "0.8");
+  group.appendChild(polygon);
+}
+
+function appendRollGlyph(group: SVGGElement, rotation: "clockwise" | "counterclockwise"): void {
+  const glyph = ROLL_GLYPHS[rotation];
+  const hitPath = document.createElementNS(SVG_NAMESPACE, "path");
+  hitPath.setAttribute("d", glyph.path);
+  hitPath.setAttribute("fill", "none");
+  hitPath.setAttribute("stroke", "#ffffff");
+  hitPath.setAttribute("stroke-opacity", "0.001");
+  hitPath.setAttribute("stroke-width", "10");
+  const path = document.createElementNS(SVG_NAMESPACE, "path");
+  path.setAttribute("d", glyph.path);
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "#a9bbd1");
+  path.setAttribute("stroke-linecap", "round");
+  path.setAttribute("stroke-width", "2.5");
+  path.setAttribute("data-view-cube-glyph", "true");
+  path.setAttribute("pointer-events", "none");
+  const head = document.createElementNS(SVG_NAMESPACE, "polygon");
+  head.setAttribute("points", glyph.head);
+  head.setAttribute("fill", "#a9bbd1");
+  head.setAttribute("data-view-cube-glyph", "true");
+  head.setAttribute("pointer-events", "none");
+  group.appendChild(hitPath);
+  group.appendChild(path);
+  group.appendChild(head);
 }
 
 function configureTarget(
@@ -316,7 +367,7 @@ function axisColor(axis: string): string {
   return axis.includes("X") ? AXIS_COLORS.x : axis.includes("Y") ? AXIS_COLORS.y : AXIS_COLORS.z;
 }
 
-function arrowPoints(rotation: ViewCubeRotation): string {
+function arrowPoints(rotation: "left" | "right" | "up" | "down"): string {
   switch (rotation) {
     case "left":
       return "17,44 17,56 8,50";

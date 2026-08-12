@@ -84,7 +84,7 @@ function options(container: HTMLElement): OrientationGizmoOptions {
 }
 
 describe("orientation gizmo", () => {
-  it("creates one accessible root with six faces, eight corners, and four arrows", () => {
+  it("creates one accessible root with six faces, eight corners, and six arrows", () => {
     installDocument();
     const container = new FakeNode();
     const canvas = new FakeNode();
@@ -98,12 +98,19 @@ describe("orientation gizmo", () => {
     expect(root?.attributes.get("aria-label")).toContain("View cube");
     const svg = root?.children[0];
     const targets = svg?.children.filter((child) => child.attributes.has("data-view-cube-target"));
-    expect(targets).toHaveLength(18);
+    expect(targets).toHaveLength(20);
     expect(svg?.children.filter((child) => child.attributes.has("data-view-face"))).toHaveLength(6);
     expect(svg?.children.filter((child) => child.attributes.has("data-view-corner"))).toHaveLength(
       8,
     );
-    expect(svg?.children.filter((child) => child.attributes.has("data-rotate"))).toHaveLength(4);
+    expect(svg?.children.filter((child) => child.attributes.has("data-rotate"))).toHaveLength(6);
+    expect(
+      svg?.children.filter(
+        (child) =>
+          child.attributes.get("data-rotate") === "clockwise" ||
+          child.attributes.get("data-rotate") === "counterclockwise",
+      ),
+    ).toHaveLength(2);
     gizmo.destroy();
   });
 
@@ -154,9 +161,34 @@ describe("orientation gizmo", () => {
       { kind: "rotate", rotation: "left", stepDegrees: 90 },
     ]);
 
+    const clockwise = container.children[1]?.children[0]?.children.find(
+      (child) => child.attributes.get("data-rotate") === "clockwise",
+    );
+    if (clockwise === undefined) throw new Error("clockwise arrow is missing");
+    clockwise.dispatchEvent("click", { shiftKey: false, ctrlKey: false, metaKey: false });
+    clockwise.dispatchEvent("keydown", {
+      key: " ",
+      shiftKey: false,
+      ctrlKey: false,
+      metaKey: true,
+      preventDefault: () => undefined,
+    });
+    expect(actions.slice(-2)).toEqual([
+      { kind: "rotate", rotation: "clockwise", stepDegrees: 15 },
+      { kind: "rotate", rotation: "clockwise", stepDegrees: 5 },
+    ]);
+
+    const counterclockwise = container.children[1]?.children[0]?.children.find(
+      (child) => child.attributes.get("data-rotate") === "counterclockwise",
+    );
+    expect(counterclockwise?.attributes.get("aria-label")).toBe(
+      "Rotate view counterclockwise 15 degrees; Shift 90 degrees; Control or Command 5 degrees",
+    );
+
+    const actionCount = actions.length;
     gizmo.destroy();
     arrow.dispatchEvent("click", { shiftKey: false, ctrlKey: false, metaKey: false });
-    expect(actions).toHaveLength(2);
+    expect(actions).toHaveLength(actionCount);
   });
 
   it("preserves an existing positioning context", () => {

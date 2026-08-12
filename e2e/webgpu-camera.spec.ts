@@ -185,6 +185,61 @@ test("rotates the current view cube by default, Shift, and Control/Meta steps", 
   }
 });
 
+test("rolls the current view in-plane without changing its line of sight", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("fit-view").click();
+  await page.locator('[data-view-face="front"]').click();
+  await expect
+    .poll(async () => directionAlignment(await readNavigationState(canvas), [0, 0, 1]))
+    .toBeGreaterThan(0.99999);
+  const before = await readNavigationState(canvas);
+  const probe = [
+    before.camera.target[0] + before.camera.up[0],
+    before.camera.target[1] + before.camera.up[1],
+    before.camera.target[2] + before.camera.up[2],
+  ] as const;
+  const beforeProbe = projectCameraPoint(before.camera, probe);
+  const beforeTarget = projectCameraPoint(before.camera, before.camera.target);
+  if (beforeProbe === undefined || beforeTarget === undefined) {
+    throw new Error("front view probe must be projectable");
+  }
+
+  const clockwise = page.locator('[data-rotate="clockwise"]');
+  await clockwise.focus();
+  await page.keyboard.down("Shift");
+  await page.keyboard.press("Enter");
+  await page.keyboard.up("Shift");
+  await expect
+    .poll(async () => (await readNavigationState(canvas)).camera.up[0])
+    .not.toBeCloseTo(before.camera.up[0], 3);
+
+  const after = await readNavigationState(canvas);
+  const afterProbe = projectCameraPoint(after.camera, probe);
+  const afterTarget = projectCameraPoint(after.camera, after.camera.target);
+  if (afterProbe === undefined || afterTarget === undefined) {
+    throw new Error("rolled view probe must be projectable");
+  }
+  expect(after.camera.position).toEqual(before.camera.position);
+  expect(after.camera.target).toEqual(before.camera.target);
+  expect(afterProbe[0]).toBeGreaterThan(beforeProbe[0]);
+  expect(afterProbe[1]).toBeCloseTo(afterTarget[1], 1);
+  expect(afterTarget[0]).toBeCloseTo(beforeTarget[0], 1);
+
+  const counterclockwise = page.locator('[data-rotate="counterclockwise"]');
+  await counterclockwise.focus();
+  await page.keyboard.down("Shift");
+  await page.keyboard.press("Enter");
+  await page.keyboard.up("Shift");
+  await expect
+    .poll(async () => (await readNavigationState(canvas)).camera.up[0])
+    .toBeCloseTo(before.camera.up[0], 4);
+  const restored = await readNavigationState(canvas);
+  expect(restored.camera.up[0]).toBeCloseTo(before.camera.up[0], 4);
+  expect(restored.camera.up[1]).toBeCloseTo(before.camera.up[1], 4);
+  expect(restored.camera.up[2]).toBeCloseTo(before.camera.up[2], 4);
+});
+
 test("shows a camera-oriented rotation-origin widget only during orbit", async ({ page }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
