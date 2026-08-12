@@ -357,6 +357,34 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
   expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(20);
 });
 
+test("keeps the whole model inside clip planes after fitting a selection", async ({ page }) => {
+  await loadWebGpuPage(page);
+  await page.getByTestId("model-select").selectOption({ label: "Supported element gallery" });
+  await page.getByTestId("fit-view").click();
+  const canvas = page.getByTestId("view-canvas");
+  const hit = await requireHit(
+    page,
+    canvas,
+    {},
+    "GPU picking must resolve before fitting the selected target",
+  );
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => canvas.getAttribute("data-selected")).not.toBe("");
+
+  const beforeFit = await canvas.getAttribute("data-camera");
+  await page.keyboard.press("z");
+  await page.waitForTimeout(100);
+  const earlyFit = await canvas.getAttribute("data-camera");
+  expect(earlyFit).not.toBe(beforeFit);
+  await page.waitForTimeout(150);
+  expect(await canvas.getAttribute("data-camera")).not.toBe(earlyFit);
+  await page.waitForTimeout(900);
+  const navigation = await readNavigationState(canvas);
+
+  expectBoundsClippedSafely(navigation.camera, navigation.bounds);
+  expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(200);
+});
+
 function expectCameraFrame(
   camera: Awaited<ReturnType<typeof readNavigationState>>["camera"],
 ): void {

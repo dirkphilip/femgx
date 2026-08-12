@@ -310,6 +310,32 @@ describe("camera controls", () => {
     expect(marker).toHaveBeenLastCalledWith(undefined);
   });
 
+  it("does not recenter the camera on the picked pivot at first movement", async () => {
+    const canvas = new FakeCanvas();
+    const initial = resizeCamera(
+      createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
+      200,
+      100,
+    );
+    const cameraRef = { camera: initial };
+    installCameraControls({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      cameraRef,
+      navigation: {
+        pickPoint: () => Promise.resolve([1, 0, 0]),
+        setOrbitPivot: vi.fn(),
+      },
+      onRender: vi.fn(),
+    });
+
+    canvas.dispatch("pointerdown", pointer(100, 50));
+    await Promise.resolve();
+    canvas.dispatch("pointermove", pointer(101, 50));
+
+    expect(distance(cameraRef.camera.target, initial.target)).toBeLessThan(0.01);
+    expect(cameraRef.camera.target).not.toEqual([1, 0, 0]);
+  });
+
   it.each(["perspective", "orthographic"] as const)(
     "pans target-plane content at CSS-pixel pace in %s projection",
     (mode) => {

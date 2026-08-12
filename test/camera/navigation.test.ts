@@ -5,6 +5,7 @@ import {
   cameraDepthMargin,
   minimumCameraDepth,
   orbitCameraWithinBounds,
+  protectCameraWithinBounds,
   zoomCameraWithinBounds,
 } from "../../src/camera/navigation";
 import type { Bounds } from "../../src/geometry/part";
@@ -58,11 +59,31 @@ describe("bounds-aware camera navigation", () => {
     const limited = orbitCameraWithinBounds(initial, Math.PI, 0, [1000, 0, 0], modelBounds);
 
     expect(limited).not.toBe(initial);
-    expect(limited.target).toEqual([1000, 0, 0]);
+    expect(distance(limited.target, [1000, 0, 0])).toBeCloseTo(
+      distance(initial.target, [1000, 0, 0]),
+    );
     expect(distance(limited.position, limited.target)).toBeGreaterThanOrEqual(
       distance(initial.position, initial.target),
     );
     expect(safelyFramesBounds(limited, modelBounds)).toBe(true);
+  });
+
+  it("keeps the first off-center orbit step proportional to pointer movement", () => {
+    const initial = fitCamera(
+      createCamera({ mode: "perspective", width: 1152, height: 900 }),
+      bounds,
+      1152,
+      900,
+    );
+    const pivot: Vec3 = [1, 0, 0];
+    const rotated = orbitCameraWithinBounds(initial, 0.001, 0, pivot, bounds);
+
+    expect(distance(rotated.target, initial.target)).toBeLessThan(0.01);
+    expect(rotated.target).not.toEqual(pivot);
+    const beforePivot = projectPoint(initial, pivot);
+    const afterPivot = projectPoint(rotated, pivot);
+    expect(afterPivot?.[0]).toBeCloseTo(beforePivot?.[0] ?? NaN, 4);
+    expect(afterPivot?.[1]).toBeCloseTo(beforePivot?.[1] ?? NaN, 4);
   });
 
   it("preserves identity for a no-op and never blocks an unsafe orbit", () => {
@@ -259,6 +280,48 @@ describe("bounds-aware camera navigation", () => {
     expect(zoomCameraWithinBounds(closest, -1, solidBounds, anchor).position).toEqual(
       closest.position,
     );
+  });
+
+  it("moves a selection-fitted camera before the full model instead of clipping it", () => {
+    const selectedBounds: Bounds = {
+      minX: -0.5,
+      minY: -0.5,
+      minZ: -0.5,
+      maxX: 0.5,
+      maxY: 0.5,
+      maxZ: 0.5,
+    };
+    const fullBounds: Bounds = {
+      minX: -1,
+      minY: -1,
+      minZ: -0.5,
+      maxX: 1,
+      maxY: 1,
+      maxZ: 5.5,
+    };
+    const remoteBounds: Bounds = {
+      minX: -1,
+      minY: -1,
+      minZ: 4.5,
+      maxX: 1,
+      maxY: 1,
+      maxZ: 5.5,
+    };
+    const selectionFit = fitCamera(
+      createCamera({ mode: "perspective", position: [0, 0, 10], width: 800, height: 600 }),
+      selectedBounds,
+      800,
+      600,
+    );
+    const protectedCamera = protectCameraWithinBounds(selectionFit, fullBounds, [
+      selectedBounds,
+      remoteBounds,
+    ]);
+
+    expect(protectedCamera.position[2]).toBeGreaterThan(selectionFit.position[2]);
+    expect(protectedCamera.target).toEqual(selectionFit.target);
+    expect(safelyFramesBounds(protectedCamera, selectedBounds)).toBe(true);
+    expect(safelyFramesBounds(protectedCamera, fullBounds)).toBe(true);
   });
 
   it.each([

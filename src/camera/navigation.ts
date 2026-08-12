@@ -5,7 +5,7 @@ import { orbitCamera, zoomCamera, type Camera } from "./camera";
 const SAFE_MARGIN_FRACTION = 1e-5;
 const MIN_ORTHO_HEIGHT_FRACTION = 0.05;
 
-/** Orbits fully around a fixed target and moves the eye out of protected bounds when necessary. */
+/** Orbits continuously around a fixed pivot and moves the eye out of protected bounds when necessary. */
 export function orbitCameraWithinBounds(
   camera: Camera,
   yawDelta: number,
@@ -17,8 +17,7 @@ export function orbitCameraWithinBounds(
   assertFinite("orbit pitch", pitchDelta);
   if (target !== undefined) assertFiniteVector("orbit target", target);
   if (yawDelta === 0 && pitchDelta === 0) return camera;
-  const focused = target === undefined ? camera : focusCamera(camera, target);
-  return constrainCamera(orbitCamera(focused, yawDelta, pitchDelta), bounds, undefined);
+  return constrainCamera(orbitCamera(camera, yawDelta, pitchDelta, target), bounds, undefined);
 }
 
 /** Selects bounded or generic orbiting for controls with an optional bounds supplier. */
@@ -32,8 +31,7 @@ export function orbitCameraWithOptionalBounds(
   if (bounds !== undefined) {
     return orbitCameraWithinBounds(camera, yawDelta, pitchDelta, target, bounds);
   }
-  const focused = target === undefined ? camera : focusCamera(camera, target);
-  return orbitCamera(focused, yawDelta, pitchDelta);
+  return orbitCamera(camera, yawDelta, pitchDelta, target);
 }
 
 /** Zooms toward a fixed target without allowing protected bounds to cross the camera plane. */
@@ -50,6 +48,15 @@ export function zoomCameraWithinBounds(
   const focused = target === undefined ? camera : focusCamera(camera, target);
   const forward = normalize(subtract(focused.target, focused.position));
   return constrainCamera(zoomCamera(focused, amount), bounds, protectedBounds, forward);
+}
+
+/** Keeps all protected bounds in front of an externally positioned camera. */
+export function protectCameraWithinBounds(
+  camera: Camera,
+  bounds: Bounds,
+  protectedBounds?: readonly Bounds[],
+): Camera {
+  return constrainCamera(camera, bounds, protectedBounds);
 }
 
 /** Returns the center of finite navigation bounds. */
