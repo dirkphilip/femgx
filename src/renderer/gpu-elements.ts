@@ -88,69 +88,6 @@ export function encodeEmphasisRecord(update: EmphasisUpdate): ArrayBuffer {
   return data;
 }
 
-/** Encodes an element-emphasis record (`elementId + 1` pick id). */
-export function encodeElementHighlight(
-  slot: number,
-  elementId: number,
-  style: ResolvedStyle,
-): ArrayBuffer {
-  return encodeEmphasisRecord({
-    slot,
-    elementPickId: elementId + 1,
-    facePickId: 0,
-    nodePickId: 0,
-    style,
-  });
-}
-
-/** Encodes a face-emphasis record (`faceId + 1` pick id). */
-export function encodeFaceHighlight(
-  slot: number,
-  faceId: number,
-  style: ResolvedStyle,
-): ArrayBuffer {
-  return encodeEmphasisRecord({
-    slot,
-    elementPickId: 0,
-    facePickId: faceId + 1,
-    nodePickId: 0,
-    style,
-  });
-}
-
-/** Encodes a node-emphasis record (`nodeId + 1` pick id). */
-export function encodeNodeHighlight(
-  slot: number,
-  nodeId: number,
-  style: ResolvedStyle,
-): ArrayBuffer {
-  return encodeEmphasisRecord({
-    slot,
-    elementPickId: 0,
-    facePickId: 0,
-    nodePickId: nodeId + 1,
-    style,
-  });
-}
-
-/** Encodes a body-emphasis record (`bodyId + 1` plus the body marker). */
-export function encodeBodyHighlight(
-  slot: number,
-  bodyId: number,
-  style: ResolvedStyle,
-  hidden = false,
-): ArrayBuffer {
-  return encodeEmphasisRecord({
-    slot,
-    elementPickId: 0,
-    facePickId: 0,
-    nodePickId: 0,
-    bodyPickId: bodyId + 1,
-    hidden,
-    style,
-  });
-}
-
 /**
  * Maps the currently emphasized occurrences (elements, faces, nodes) to
  * per-part emphasis updates, in deterministic order. Refs whose instance is

@@ -14,8 +14,8 @@ import {
   setBodyOverride,
   setBodySelected,
   setBodyVisible,
-  setHoveredBody,
 } from "../../src/interaction/bodies";
+import { setTargetHovered } from "../../src/interaction/targets";
 import { readInteractionState } from "../../src/interaction/state";
 import { identity } from "../../src/math/mat4";
 import type { Instance } from "../../src/scene/types";
@@ -35,7 +35,7 @@ describe("body interaction state", () => {
     const initial = createInteractionState();
     let state = setBodySelected(initial, ref, true);
     state = setBodyHighlighted(state, ref, true);
-    state = setHoveredBody(state, ref);
+    state = setTargetHovered(state, { kind: "body", ...ref });
     state = setBodyOverride(state, ref, { opacity: 0.5 });
     state = setBodyVisible(state, ref, false);
 
@@ -86,7 +86,7 @@ describe("resolveBodyStyle", () => {
   it("uses body highlight and hover themes in deterministic order", () => {
     let state = createInteractionState();
     state = setBodyHighlighted(state, ref, true);
-    state = setHoveredBody(state, ref);
+    state = setTargetHovered(state, { kind: "body", ...ref });
     expect(resolveBodyStyle(item, 3, base, state)).toMatchObject({ emissive: 0.2 });
   });
 });

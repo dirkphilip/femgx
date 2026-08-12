@@ -44,21 +44,6 @@ export function resolvePickHit(
   return deepestHit(instance, geometry, ids, worldPosition);
 }
 
-/**
- * Maps a resolved instance to a pick target. When a part has multiple
- * instances the caller may prefer the part-level target.
- */
-export function instanceToTarget(
-  instance: Instance,
-  preferPart: boolean,
-):
-  | { readonly kind: "part"; readonly partId: PartId }
-  | { readonly kind: "instance"; readonly instanceId: Instance["instanceId"] } {
-  return preferPart
-    ? { kind: "part", partId: instance.partId }
-    : { kind: "instance", instanceId: instance.instanceId };
-}
-
 /** Returns the most specific physical hit a pixel supports. */
 function deepestHit(
   instance: Instance,

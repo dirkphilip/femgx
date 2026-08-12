@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { buildMeshEdgeData, buildMeshEdges } from "../../src/renderer/gpu-edge";
+import { buildMeshEdgeData } from "../../src/renderer/gpu-edge";
 
-describe("buildMeshEdges", () => {
+describe("buildMeshEdgeData", () => {
   it("uses element boundary edges instead of triangulation diagonals", () => {
     const geometry = {
       positions: new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0]),
@@ -20,7 +20,9 @@ describe("buildMeshEdges", () => {
       ],
     };
 
-    expect(Array.from(buildMeshEdges(geometry))).toEqual([0, 1, 1, 2, 2, 3, 3, 0]);
+    expect(Array.from(buildMeshEdgeData(geometry).sourceVertexIndices)).toEqual([
+      0, 1, 1, 2, 2, 3, 3, 0,
+    ]);
   });
 
   it("deduplicates shared quadratic-ready topology and retains all body owners", () => {

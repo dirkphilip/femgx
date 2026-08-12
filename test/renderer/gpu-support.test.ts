@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createBuffer, createDefaultInteraction } from "../../src/renderer/gpu-support";
+import { createBuffer } from "../../src/renderer/gpu-support";
+import { createInteractionState } from "../../src/interaction/interaction";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 import { readInteractionState } from "../../src/interaction/state";
 
 describe("GPU support helpers", () => {
   it("creates an empty interaction state with all overrides unset", () => {
-    const state = createDefaultInteraction();
+    const state = createInteractionState();
     const data = readInteractionState(state);
     expect(data.highlightedPartIds.size).toBe(0);
     expect(data.highlightedInstanceIds.size).toBe(0);

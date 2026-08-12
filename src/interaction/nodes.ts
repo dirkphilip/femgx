@@ -3,7 +3,6 @@ import type { BodyId } from "../geometry/part";
 import {
   isHoveredTarget,
   readInteractionState,
-  setHoveredTarget,
   updateInteractionState,
   type InteractionState,
   type ResolvedStyle,
@@ -40,14 +39,6 @@ export function setNodeHighlighted(
   highlighted: boolean,
 ): InteractionState {
   return updateNodeSet(state, "highlightedNodeIds", ref, highlighted);
-}
-
-/** Sets the currently hovered node, or clears hover with `undefined`. */
-export function setHoveredNode(
-  state: InteractionState,
-  ref: NodeRef | undefined,
-): InteractionState {
-  return setHoveredTarget(state, ref === undefined ? undefined : { kind: "node", ...ref });
 }
 
 /** Returns whether a node occurrence carries emphasis (hover, highlight, selection). */

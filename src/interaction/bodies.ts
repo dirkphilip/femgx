@@ -4,7 +4,6 @@ import type { BodyRef } from "./refs";
 import {
   isHoveredTarget,
   readInteractionState,
-  setHoveredTarget,
   updateInteractionState,
   type InteractionState,
   type PrimitiveStyleOverride,
@@ -28,14 +27,6 @@ export function setBodyHighlighted(
   highlighted: boolean,
 ): InteractionState {
   return updateBodySet(state, "highlightedBodyIds", ref, highlighted);
-}
-
-/** Sets the currently hovered body, or clears hover with `undefined`. */
-export function setHoveredBody(
-  state: InteractionState,
-  ref: BodyRef | undefined,
-): InteractionState {
-  return setHoveredTarget(state, ref === undefined ? undefined : { kind: "body", ...ref });
 }
 
 /** Adds or replaces an explicit body style override. */

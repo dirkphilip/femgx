@@ -1,8 +1,4 @@
-import {
-  createInteractionState,
-  type InteractionState,
-  type ResolvedStyle,
-} from "../interaction/interaction";
+import type { ResolvedStyle } from "../interaction/interaction";
 
 export interface PartResource {
   readonly vertexBuffer: GPUBuffer;
@@ -59,9 +55,4 @@ export function createBuffer(
   bytes.set(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
   device.queue.writeBuffer(buffer, 0, bytes);
   return buffer;
-}
-
-/** Creates the empty interaction state used when no overrides are supplied. */
-export function createDefaultInteraction(): InteractionState {
-  return createInteractionState();
 }

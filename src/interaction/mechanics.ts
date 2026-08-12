@@ -55,22 +55,6 @@ export function updateMapValue<Key, Value>(
   return next;
 }
 
-/** Compares the identity fields of two optional interaction references. */
-export function sameRef<T>(
-  left: T | undefined,
-  right: T | undefined,
-  identity: (value: T) => readonly unknown[],
-): boolean {
-  if (left === right) return true;
-  if (left === undefined || right === undefined) return false;
-  const leftIdentity = identity(left);
-  const rightIdentity = identity(right);
-  return (
-    leftIdentity.length === rightIdentity.length &&
-    leftIdentity.every((value, index) => value === rightIdentity[index])
-  );
-}
-
 /** Collects references in caller-defined order without duplicate identities. */
 export function collectUniqueRefs<T>(
   hovered: T | undefined,

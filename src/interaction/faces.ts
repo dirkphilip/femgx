@@ -2,7 +2,6 @@ import type { BodyId } from "../geometry/part";
 import {
   isHoveredTarget,
   readInteractionState,
-  setHoveredTarget,
   updateInteractionState,
   type InteractionState,
   type ResolvedStyle,
@@ -45,19 +44,6 @@ export function setFaceHighlighted(
   highlighted: boolean,
 ): InteractionState {
   return updateFaceSet(state, "highlightedFaces", ref, highlighted);
-}
-
-/** Sets the currently hovered face, or clears hover with `undefined`. */
-export function setHoveredFace(
-  state: InteractionState,
-  ref: FaceRef | undefined,
-): InteractionState {
-  return setHoveredTarget(
-    state,
-    ref === undefined
-      ? undefined
-      : { kind: "face", instanceId: ref.instanceId, elementId: ref.elementId, key: ref.faceKey },
-  );
 }
 
 /** Returns whether a face occurrence carries emphasis (hover, highlight, selection). */

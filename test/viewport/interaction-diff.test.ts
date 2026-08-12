@@ -8,9 +8,9 @@ import {
   setInstanceSelected,
   setPartOverride,
   setPartHighlighted,
-  setHoveredInstance,
   type InteractionState,
 } from "../../src/interaction/interaction";
+import { setTargetHovered } from "../../src/interaction/targets";
 import { setFaceHighlighted } from "../../src/interaction/faces";
 import { setNodeSelected } from "../../src/interaction/nodes";
 import { translation } from "../../src/math/mat4";
@@ -118,8 +118,11 @@ describe("changedInstanceSlots", () => {
 
   it("returns the previous and next slots when the hovered instance changes", () => {
     const rt = runtime();
-    const hovered = setHoveredInstance(createInteractionState(), "1/0");
-    const moved = setHoveredInstance(hovered, "1/4");
+    const hovered = setTargetHovered(createInteractionState(), {
+      kind: "instance",
+      instanceId: "1/0",
+    });
+    const moved = setTargetHovered(hovered, { kind: "instance", instanceId: "1/4" });
     expect(changedInstanceSlots(rt, hovered, moved)).toEqual([0, 4]);
     expect(changedInstanceSlots(rt, moved, hovered)).toEqual([0, 4]);
   });
