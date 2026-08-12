@@ -35,7 +35,9 @@ material clones.
   vocabulary.
 - Body emphasis is recorded in the element-highlight table and resolved on the
   GPU before element, face, or node emphasis. Body visibility is a GPU hidden
-  bit, not a CPU material clone or geometry rewrite.
+  bit, not a CPU material clone or geometry rewrite. Cached pick snapshots track
+  the applied hidden-body collection, so hiding or showing a body invalidates
+  the snapshot while selection and highlight changes reuse it.
 
 ## Picking
 

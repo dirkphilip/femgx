@@ -3,6 +3,7 @@ import { createWebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import { createPart } from "../../src/geometry/part";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
+import { setBodyHighlighted, setBodySelected, setBodyVisible } from "../../src/interaction/bodies";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { identity, translation } from "../../src/math/mat4";
 import { projectPoint, unprojectPoint, type Camera } from "../../src/camera/camera";
@@ -80,6 +81,25 @@ function buildFaceScene(): Scene {
         neighborElementIds: [],
       },
     ],
+  };
+  return createScene()
+    .addPart(createPart(1, geometry))
+    .addAssembly({
+      id: 1,
+      name: "root",
+      placements: [{ kind: "part", partId: 1, transform: identity() }],
+    })
+    .withRoot(1)
+    .build();
+}
+
+function buildBodyScene(): Scene {
+  const geometry = {
+    positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
+    indices: new Uint32Array([0, 1, 2]),
+    primitive: "triangles" as const,
+    elements: [{ id: 0, primitiveStart: 0, primitiveCount: 1, bodyId: 3 }],
+    bodies: [{ id: 3, name: "body", elementIds: [0] }],
   };
   return createScene()
     .addPart(createPart(1, geometry))
@@ -200,6 +220,53 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, movedCamera, scene.parts);
     await renderer.pick(150, 100);
     expect(gpu.drawCalls).toHaveLength(12);
+    renderer.destroy();
+  });
+
+  it("invalidates pick snapshots when body visibility changes", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice({ pickValue: 1 });
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildBodyScene();
+    const runtime = createPackedSceneRuntime(scene);
+    const body = { instanceId: "1/0", bodyId: 3 } as const;
+    let interaction = createInteractionState();
+
+    renderer.render(runtime, camera, scene.parts);
+    renderer.updateElements(runtime, interaction);
+    await renderer.pick(100, 100);
+    expect(gpu.drawCalls).toHaveLength(2);
+
+    interaction = setBodyVisible(interaction, body, false);
+    renderer.updateElements(runtime, interaction);
+    renderer.render(runtime, camera, scene.parts);
+    await renderer.pick(100, 100);
+    expect(gpu.drawCalls).toHaveLength(4);
+
+    renderer.updateElements(runtime, interaction);
+    renderer.render(runtime, camera, scene.parts);
+    await renderer.pick(100, 100);
+    expect(gpu.drawCalls).toHaveLength(5);
+
+    interaction = setBodyVisible(interaction, body, true);
+    renderer.updateElements(runtime, interaction);
+    renderer.render(runtime, camera, scene.parts);
+    await renderer.pick(100, 100);
+    expect(gpu.drawCalls).toHaveLength(7);
+
+    interaction = setBodySelected(interaction, body, true);
+    renderer.updateElements(runtime, interaction);
+    renderer.render(runtime, camera, scene.parts);
+    await renderer.pick(100, 100);
+    expect(gpu.drawCalls).toHaveLength(8);
+
+    interaction = setBodyHighlighted(interaction, body, true);
+    renderer.updateElements(runtime, interaction);
+    renderer.render(runtime, camera, scene.parts);
+    await renderer.pick(100, 100);
+    expect(gpu.drawCalls).toHaveLength(9);
+
     renderer.destroy();
   });
 
