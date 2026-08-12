@@ -187,3 +187,30 @@ test("keeps the empty-scene view menu inside a phone-sized viewport", async ({ p
   expect(diagnosticsBox.x).toBeGreaterThanOrEqual(sceneBox.x);
   expect(diagnosticsBox.x + diagnosticsBox.width).toBeLessThanOrEqual(sceneBox.x + sceneBox.width);
 });
+
+test("restores hidden body and placement visibility through Show all on a phone", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+
+  const body = page.locator('input[data-testid^="body-vis-"]').first();
+  const instance = page.locator("input[data-instance-id]").first();
+  await body.uncheck();
+  await instance.uncheck();
+  await expect(body).not.toBeChecked();
+  await expect(instance).not.toBeChecked();
+
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  await page.mouse.click(box.x + box.width - 20, box.y + box.height - 100, { button: "right" });
+  const menu = page.getByTestId("context-menu");
+  await expect(menu).toBeVisible();
+  await menu.getByText("Show all").click();
+
+  await expect(body).toBeChecked();
+  await expect(body).toBeEnabled();
+  await expect(instance).toBeChecked();
+});

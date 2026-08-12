@@ -165,6 +165,48 @@ test("keeps body overlays rendered while hiding a named body", async ({ page }) 
   await expect(body).toBeChecked();
   await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
 });
+test("Show all restores bodies and other visibility layers without clearing selection", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await waitForRenderer(page);
+  const canvas = page.getByTestId("view-canvas");
+  const hit = await requireHit(
+    page,
+    canvas,
+    {},
+    "GPU picking must resolve on the deterministic WebGPU lane",
+  );
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => dataset(page, "selected")).not.toBe("");
+  const selected = await dataset(page, "selected");
+  expect(selected).not.toBe("");
+
+  const body = page.locator('input[data-testid^="body-vis-"]').first();
+  const instance = page.locator("input[data-instance-id]").first();
+  const assembly = page.getByTestId("assembly-node-vis-1");
+  await body.uncheck();
+  await instance.uncheck();
+  await assembly.uncheck();
+  await expect(body).not.toBeChecked();
+  await expect(instance).not.toBeChecked();
+  await expect(assembly).not.toBeChecked();
+
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  await page.mouse.click(box.x + box.width - 12, box.y + box.height - 12, { button: "right" });
+  const menu = page.getByTestId("context-menu");
+  await expect(menu).toBeVisible();
+  await menu.getByText("Show all").click();
+
+  await expect(body).toBeChecked();
+  await expect(body).toBeEnabled();
+  await expect(instance).toBeChecked();
+  await expect(assembly).toBeChecked();
+  expect(await status(page)).toContain("34 visible");
+  expect(await dataset(page, "selected")).toBe(selected);
+  await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
+});
 test("context menu selects a target and toggles display without losing selection", async ({
   page,
 }) => {

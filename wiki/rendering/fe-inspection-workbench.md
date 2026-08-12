@@ -91,6 +91,10 @@ controller, so camera and interaction behavior is stable
   highlighting cannot interfere. Part rows with multiple placements expose a collapsed `Instance` list. Each
   instance checkbox updates that one runtime slot, preserving the ability to
   hide or restore individual placements without expanding the assembly model.
+  The context-menu **Show all** action restores assembly definitions and
+  occurrences, parts, placements, and every body occurrence in one batched
+  visibility update. It preserves selection, highlights, hover state, explicit
+  styles, results, and camera state.
 - The full-screen layout keeps the hierarchical visibility tree in a 340–380px
   left rail; the WebGPU canvas owns the remaining space. The toolbar is one calm
   surface with model, **Fit model**, projection, edges, nodes, results, and
