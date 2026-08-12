@@ -26,6 +26,11 @@ requirements contract]]. Read it before starting any task; this section is the s
   definition. GPU picking (`FemViewport.pick`) returns host-mappable
   part/instance/element/face/node ids; selection/highlight/hover and hide/show
   are driven by per-instance GPU attributes, not CPU material clones.
+- **Core camera focus.** `FemViewport` owns interruptible camera transitions and
+  fit-to-selection. Core keyboard handling maps `Z` to that operation only when
+  the host supplies an event target; the library installs no implicit global
+  listener. Selected framing must keep the complete displayed scene in front
+  of the camera and inside the clip interval.
 - **Readable node annotations.** FE node glyphs respect scene depth: nearer
   faces hide occluded samples, while translucent 6 CSS-px front circles (scaled
   by `devicePixelRatio`) preserve the underlying surface. Dense overlaps must
