@@ -20,7 +20,10 @@ projection modes. Camera width and height are CSS viewport dimensions; renderer
 textures use render-pixel dimensions. Empty-space navigation reuses the target's
 projected depth with the requested CSS x/y, producing a point on the
 view-aligned plane through `camera.target` without adding a ray or ground-plane
-abstraction.
+abstraction. Camera panning consumes those same CSS deltas: at the target plane,
+one pixel maps to `2 * distance * tan(fovY / 2) / height` world units in
+perspective mode and `orthoHeight / height` in orthographic mode. Backing-store
+size and devicePixelRatio do not enter the gesture conversion.
 
 Related: [[rendering/camera-presentation|Camera presentation]],
 [[rendering/fe-inspection-workbench|FE inspection workbench]].

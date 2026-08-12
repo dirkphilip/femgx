@@ -207,7 +207,7 @@ test("anchors an off-center empty-space pinch at its midpoint", async ({ browser
     { x: midpoint.x + 28, y: midpoint.y, id: 1 },
   ]);
   const currentMidpoint = { x: midpoint.x - 17, y: midpoint.y };
-  const afterPan = panCameraSnapshot(before.camera, -17 / 100, 0);
+  const afterPan = panCameraSnapshot(before.camera, -17, 0);
   const anchor = targetPlanePoint(afterPan, currentMidpoint.x - box.x, currentMidpoint.y - box.y);
   await dispatchTouch(client, "touchEnd", []);
   await expect.poll(() => canvas.getAttribute("data-dragging")).toBe("false");

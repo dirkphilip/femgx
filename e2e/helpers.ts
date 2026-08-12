@@ -187,16 +187,23 @@ export function targetPlanePoint(
   );
 }
 
-/** Applies the camera's existing view-plane pan convention to a snapshot. */
+/** Applies a CSS-pixel pan to a snapshot using the current target-plane scale. */
 export function panCameraSnapshot(
   camera: CameraSnapshot,
-  horizontal: number,
-  vertical: number,
+  deltaX: number,
+  deltaY: number,
 ): CameraSnapshot {
   const forward = normalize(subtract(camera.target, camera.position));
   const right = normalize(cross(forward, camera.up));
   const up = normalize(cross(right, forward));
-  const delta = add(scale(right, -horizontal), scale(up, vertical));
+  const worldUnitsPerPixel =
+    camera.mode === "perspective"
+      ? (2 * cameraDistance(camera) * Math.tan(camera.fovY / 2)) / camera.height
+      : camera.orthoHeight / camera.height;
+  const delta = add(
+    scale(right, -deltaX * worldUnitsPerPixel),
+    scale(up, deltaY * worldUnitsPerPixel),
+  );
   return {
     ...camera,
     position: add(camera.position, delta),

@@ -8,7 +8,8 @@ toolbars, or inspection panels.
 ## Gestures
 
 - **Middle drag** spins (`orbitCamera`); **Ctrl/Meta+middle drag** pans
-  (`panCamera`) in the drag direction; **Shift+middle drag** zooms vertically
+  (`panCamera`) in the drag direction at the target plane's current
+  CSS-pixel scale; **Shift+middle drag** zooms vertically
   around the pointer-down position.
 - **Wheel** zooms toward the visible world point under the cursor
   (`zoomCameraAtPoint`); an upward wheel/drag motion zooms in and a downward
@@ -70,8 +71,9 @@ Playwright's `touchscreen` API is single-touch only.
   once around that point, so the camera never starts around a stale target and
   switches pivots mid-gesture. Shift+middle zoom uses the same one-time
   readback, falling back to the target plane and buffering early deltas.
-- Pinch applies midpoint pan first, then recomputes the target-plane anchor
-  under the current midpoint for each zoom step. Every accepted zoom
+- Pinch applies midpoint pan first, using the current target-plane CSS scale,
+  then recomputes the target-plane anchor under the current midpoint for each
+  zoom step. Every accepted zoom
   recomputes clip planes from the current scene bounds, so the same safety
   policy applies to desktop and touch.
 

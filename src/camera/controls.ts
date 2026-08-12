@@ -8,7 +8,7 @@ import {
   zoomCameraWithinBounds,
 } from "./navigation";
 import type { Bounds } from "../geometry/part";
-import type { Vec3 } from "../math/vec3";
+import { length, subtract, type Vec3 } from "../math/vec3";
 
 /** Mutable camera holder replaced by the immutable camera operations. */
 export interface CameraRef {
@@ -48,7 +48,6 @@ interface ZoomGesture {
   pendingAmount: number;
 }
 
-const PAN_SCALE = 100;
 const ORBIT_SCALE = 180;
 const ZOOM_DRAG_SCALE = 300;
 
@@ -190,11 +189,7 @@ class CameraControls {
     if (step.pointerCount !== 1 || (step.deltaX === 0 && step.deltaY === 0)) return false;
     const { cameraRef } = this.options;
     if (event.pointerType !== "touch" && isPanModifier(event)) {
-      cameraRef.camera = panCamera(
-        cameraRef.camera,
-        step.deltaX / PAN_SCALE,
-        -step.deltaY / PAN_SCALE,
-      );
+      cameraRef.camera = panCameraByCssDelta(cameraRef.camera, step.deltaX, step.deltaY);
       return true;
     } else if (
       event.pointerType !== "touch" &&
@@ -210,11 +205,7 @@ class CameraControls {
     const { cameraRef } = this.options;
     const beforePan = cameraRef.camera;
     if (step.deltaX !== 0 || step.deltaY !== 0) {
-      cameraRef.camera = panCamera(
-        cameraRef.camera,
-        step.deltaX / PAN_SCALE,
-        -step.deltaY / PAN_SCALE,
-      );
+      cameraRef.camera = panCameraByCssDelta(cameraRef.camera, step.deltaX, step.deltaY);
     }
     if (step.zoom !== 0 && step.midpoint !== undefined) {
       const pivot = targetPlanePoint(cameraRef.camera, step.midpoint.x, step.midpoint.y);
@@ -391,6 +382,17 @@ class CameraControls {
       this.orbitGestures.delete(pointerId);
     }
   }
+}
+
+/** Translates view-plane content by a CSS-pixel gesture at the target depth. */
+function panCameraByCssDelta(camera: Camera, deltaX: number, deltaY: number): Camera {
+  if (deltaX === 0 && deltaY === 0) return camera;
+  const worldUnitsPerPixel =
+    camera.mode === "perspective"
+      ? (2 * length(subtract(camera.position, camera.target)) * Math.tan(camera.fovY / 2)) /
+        camera.height
+      : camera.orthoHeight / camera.height;
+  return panCamera(camera, deltaX * worldUnitsPerPixel, deltaY * worldUnitsPerPixel);
 }
 
 function eventPoint(
