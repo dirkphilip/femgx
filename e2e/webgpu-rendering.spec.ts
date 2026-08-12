@@ -150,10 +150,11 @@ test("renders complete point sprites with authored node picks", async ({ page })
   ).toBe(true);
   const rgba = await canvasRgba(page, canvas);
   const width = Math.round(box.width);
-  const components = yellowComponents(rgba, width);
-  expect(components.length, "gallery point elements must produce separate glyphs").toBeGreaterThan(
-    4,
-  );
+  const components = yellowComponents(rgba, width).filter(isFullSizePointSprite);
+  expect(
+    components,
+    "gallery point elements must produce one full-size glyph per authored point",
+  ).toHaveLength(27);
   for (const [index, bounds] of components.entries()) {
     const centerX = Math.round((bounds.minX + bounds.maxX) / 2);
     const centerY = Math.round((bounds.minY + bounds.maxY) / 2);
@@ -188,6 +189,15 @@ test("renders complete point sprites with authored node picks", async ({ page })
   );
   await expect.poll(() => canvas.getAttribute("data-hovered"), { timeout: 2_000 }).toMatch(/^n:/);
 });
+
+function isFullSizePointSprite(bounds: {
+  readonly minX: number;
+  readonly minY: number;
+  readonly maxX: number;
+  readonly maxY: number;
+}): boolean {
+  return bounds.maxX - bounds.minX > 5 && bounds.maxY - bounds.minY > 5;
+}
 
 test("composes the transparency fixture and picks its nearest translucent face", async ({
   page,
