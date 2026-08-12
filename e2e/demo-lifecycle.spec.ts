@@ -164,14 +164,16 @@ test("shows an accessible interactive view cube", async ({ page }) => {
   await expect(gizmo.locator("[data-view-face]")).toHaveCount(6);
   await expect(gizmo.locator("[data-view-corner]")).toHaveCount(8);
   await expect(gizmo.locator("[data-rotate]")).toHaveCount(6);
-  await expect(gizmo.locator("circle")).toHaveCount(8);
-  await expect(gizmo.locator("text")).toHaveCount(6);
-  await expect(gizmo).toContainText("+X");
-  await expect(gizmo).toContainText("−X");
-  await expect(gizmo).toContainText("+Y");
-  await expect(gizmo).toContainText("−Y");
-  await expect(gizmo).toContainText("+Z");
-  await expect(gizmo).toContainText("−Z");
+  await expect(gizmo.locator("circle")).toHaveCount(9);
+  await expect(gizmo.locator("text")).toHaveCount(9);
+  await expect(gizmo).toContainText("XY");
+  await expect(gizmo).toContainText("YZ");
+  await expect(gizmo).toContainText("XZ");
+  await expect(gizmo.locator("[data-view-axis-triad]")).toHaveAttribute("aria-hidden", "true");
+  await expect(gizmo.locator('[data-view-face="right"]')).toHaveAttribute(
+    "aria-label",
+    "View Right · YZ plane (+X)",
+  );
 });
 test("updates existing view-cube nodes after camera movement", async ({ page }) => {
   await page.goto("/");

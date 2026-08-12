@@ -40,6 +40,10 @@ function effectiveUp(camera: ReturnType<typeof createCamera>): Vec3 {
 }
 
 describe("view-cube camera actions", () => {
+  it("maps each signed face to its world-coordinate plane", () => {
+    expect(VIEW_CUBE_FACES.map((face) => face.plane)).toEqual(["XY", "XY", "YZ", "YZ", "XZ", "XZ"]);
+  });
+
   it("snaps all six faces with the documented signed directions", () => {
     const initial = createCamera({ position: [4, 3, 6], target: [0.5, -0.25, 0.75] });
     const distance = length(subtract(initial.position, initial.target));

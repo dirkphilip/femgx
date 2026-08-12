@@ -64,7 +64,12 @@ background and restrained material colors so geometry edges and selection
 emphasis remain legible. Its lower-left viewport-owned view cube follows the
 camera's screen-space world-axis projection: six named faces and eight signed
 corners snap the camera, while four pitch/yaw arrows and two curved roll arrows
-rotate by 15° (90° with Shift, 5° with Ctrl/Meta). Roll is defined by the
+rotate by 15° (90° with Shift, 5° with Ctrl/Meta). Each face visibly names its
+world-coordinate plane (`XY`, `YZ`, or `XZ`) while retaining the signed side in
+its accessible label and stable face attributes. The same retained SVG contains
+a non-interactive projected positive X/Y/Z triad; its arms follow the current
+camera basis, collapse deterministically when viewed end-on, and never change
+navigation hit regions. Roll is defined by the
 visible result: clockwise moves a point above the target to the right, and
 counterclockwise moves it to the left, without changing the line of sight,
 target, framing, or clip planes. Face and corner snaps restore their canonical

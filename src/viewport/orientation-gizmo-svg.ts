@@ -10,17 +10,12 @@ import {
 } from "../camera/view-cube";
 import { dot, normalize, subtract, type Vec3 } from "../math/vec3";
 import { transformDirection } from "../math/mat4";
+import { axisColor, createAxes, updateAxes, type AxisElements } from "./orientation-gizmo-axis";
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 const CENTER = 50;
 const CUBE_SCALE = 16;
 const CORNER_RADIUS = 4;
-
-const AXIS_COLORS = {
-  x: "#ef6b6b",
-  y: "#67c587",
-  z: "#6fa8ed",
-} as const;
 
 type CubePoint = readonly [number, number, number];
 
@@ -102,6 +97,7 @@ export interface OrientationGizmoElements {
   readonly faces: readonly FaceElements[];
   readonly corners: readonly CornerElements[];
   readonly arrows: readonly ArrowElements[];
+  readonly axes: AxisElements;
 }
 
 /** Creates the retained SVG nodes for the viewport-owned view cube. */
@@ -113,8 +109,9 @@ export function createOrientationGizmoElements(
   const faces = createFaces(svg, onAction);
   const corners = createCorners(svg, onAction);
   const arrows = createArrows(svg, onAction);
+  const axes = createAxes(svg);
   root.appendChild(svg);
-  return { root, svg, faces, corners, arrows };
+  return { root, svg, faces, corners, arrows, axes };
 }
 
 /** Updates retained face/corner geometry and hit-region visibility. */
@@ -151,6 +148,8 @@ export function updateOrientationGizmoElements(
     corner.group.style.pointerEvents = visible ? "auto" : "none";
     elements.svg.appendChild(corner.group);
   }
+  updateAxes(elements.axes, matrix);
+  elements.svg.appendChild(elements.axes.group);
 }
 
 function createRoot(): HTMLDivElement {
@@ -211,6 +210,14 @@ function createSvg(): SVGSVGElement {
     [data-rotate]:focus-visible [data-view-cube-arrow] {
       stroke: #f59e0b;
     }
+    [data-view-axis-triad] text {
+      font-size: 6px;
+      font-weight: 800;
+      paint-order: stroke;
+      stroke: #0b1728;
+      stroke-width: 1.4px;
+      stroke-linejoin: round;
+    }
   `;
   svg.appendChild(style);
   return svg;
@@ -228,10 +235,12 @@ function createFaces(
     group.setAttribute("data-view-face", face.id);
     configureTarget(
       group,
-      `View ${face.label} (${face.axis})`,
+      `View ${face.label} · ${face.plane} plane (${face.axis})`,
       () => ({ kind: "face", face: face.id }),
       onAction,
     );
+    group.setAttribute("data-view-plane", face.plane);
+    group.setAttribute("data-view-side", face.axis);
     polygon.setAttribute("fill", color);
     polygon.setAttribute("fill-opacity", "0.82");
     polygon.setAttribute("stroke", "#0b1728");
@@ -242,7 +251,7 @@ function createFaces(
     label.setAttribute("text-anchor", "middle");
     label.setAttribute("dominant-baseline", "middle");
     label.setAttribute("pointer-events", "none");
-    label.textContent = face.axis;
+    label.textContent = face.plane;
     group.appendChild(polygon);
     group.appendChild(label);
     svg.appendChild(group);
@@ -376,10 +385,6 @@ function projectPoint(matrix: ReturnType<typeof viewMatrix>, point: Vec3): Proje
 
 function formatPoint(point: ProjectedPoint): string {
   return `${point.x.toFixed(2)},${point.y.toFixed(2)}`;
-}
-
-function axisColor(axis: string): string {
-  return axis.includes("X") ? AXIS_COLORS.x : axis.includes("Y") ? AXIS_COLORS.y : AXIS_COLORS.z;
 }
 
 function arrowPoints(rotation: "left" | "right" | "up" | "down"): string {
