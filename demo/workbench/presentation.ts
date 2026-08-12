@@ -64,6 +64,7 @@ export class WorkbenchPresentation {
         selectedCount: selectedKeys(this.options.getInteraction()).length,
       },
     );
+    this.options.view.statsPanel.dataset["visible"] = String(this.options.getToggles().diagnostics);
     this.options.canvas.dataset["selected"] = selectedKeys(this.options.getInteraction()).join(",");
     this.options.canvas.dataset["camera"] = JSON.stringify(cameraSnapshot(camera));
     this.options.canvas.dataset["cameraBounds"] = JSON.stringify(preset.bounds);
@@ -71,44 +72,32 @@ export class WorkbenchPresentation {
 
   reflectEdges(): void {
     const enabled = this.options.getToggles().edges;
-    this.options.view.edgeOverlayLabel.textContent = enabled ? "On" : "Off";
-    this.options.view.edgeOverlayLabel.dataset["state"] = enabled ? "on" : "off";
-    this.options.view.edgeOverlayToggle.dataset["active"] = String(enabled);
     this.options.view.edgeOverlayToggle.setAttribute("aria-pressed", String(enabled));
-    this.options.view.edgeOverlayToggle.textContent = enabled ? "Hide edges" : "Overlay edges";
+    this.options.view.edgeOverlayToggle.textContent = "Edges";
     this.options.canvas.dataset["edges"] = String(enabled);
   }
 
   reflectNodes(): void {
     const enabled = this.options.getToggles().nodes;
-    this.options.view.nodeOverlayLabel.textContent = enabled ? "On" : "Off";
-    this.options.view.nodeOverlayLabel.dataset["state"] = enabled ? "on" : "off";
-    this.options.view.nodeOverlayToggle.dataset["active"] = String(enabled);
     this.options.view.nodeOverlayToggle.ariaPressed = String(enabled);
-    this.options.view.nodeOverlayToggle.textContent = enabled
-      ? "Hide element nodes"
-      : "Show element nodes";
+    this.options.view.nodeOverlayToggle.textContent = "Nodes";
     this.options.canvas.dataset["nodes"] = String(enabled);
-  }
-
-  reflectDepthTest(enabled: boolean): void {
-    this.options.view.depthTestLabel.textContent = enabled ? "On" : "Off";
-    this.options.view.depthTestLabel.dataset["state"] = enabled ? "on" : "off";
-    this.options.view.depthTestToggle.dataset["active"] = String(enabled);
-    this.options.view.depthTestToggle.setAttribute("aria-pressed", String(enabled));
-    this.options.view.depthTestToggle.textContent = enabled ? "Depth test off" : "Depth test on";
   }
 
   reflectResults(): void {
     const enabled = this.options.getPreset().results !== undefined;
     const mode = this.options.getResultMode();
     this.options.view.resultsToggle.disabled = !enabled;
-    this.options.view.resultsLabel.textContent = mode;
-    this.options.view.resultsLabel.dataset["state"] = mode;
-    this.options.view.resultsToggle.dataset["active"] = String(enabled && mode !== "base");
-    this.options.view.resultsToggle.textContent = enabled ? "Cycle results" : "No results";
+    this.options.view.resultsToggle.hidden = !enabled;
+    this.options.view.resultsToggle.textContent = `Results: ${resultLabel(mode)}`;
+    this.options.view.resultsToggle.setAttribute("aria-label", `Results: ${resultLabel(mode)}`);
     this.options.canvas.dataset["results"] = mode;
   }
+}
+
+function resultLabel(mode: ResultDisplayMode): string {
+  if (mode === "colored") return "Color";
+  return mode === "base" ? "Base" : "Deformed";
 }
 
 function cameraSnapshot(camera: Camera): {

@@ -10,15 +10,9 @@ export interface DemoView {
   readonly modelSelect: HTMLSelectElement;
   readonly fitView: HTMLButtonElement;
   readonly projectionToggle: HTMLButtonElement;
-  readonly projectionLabel: HTMLElement;
   readonly edgeOverlayToggle: HTMLButtonElement;
-  readonly edgeOverlayLabel: HTMLElement;
   readonly resultsToggle: HTMLButtonElement;
-  readonly resultsLabel: HTMLElement;
-  readonly depthTestToggle: HTMLButtonElement;
-  readonly depthTestLabel: HTMLElement;
   readonly nodeOverlayToggle: HTMLButtonElement;
-  readonly nodeOverlayLabel: HTMLElement;
   readonly resetButton: HTMLButtonElement;
   readonly status: HTMLElement;
   readonly visibilityPanel: HTMLElement;
@@ -48,15 +42,9 @@ export function queryDemoView(): DemoView {
   const modelSelect = document.querySelector<HTMLSelectElement>("#model-select");
   const fitView = document.querySelector<HTMLButtonElement>("#fit-view");
   const projectionToggle = document.querySelector<HTMLButtonElement>("#projection-toggle");
-  const projectionLabel = document.querySelector<HTMLElement>("#projection-label");
   const edgeOverlayToggle = document.querySelector<HTMLButtonElement>("#edge-overlay");
-  const edgeOverlayLabel = document.querySelector<HTMLElement>("#edge-overlay-label");
   const resultsToggle = document.querySelector<HTMLButtonElement>("#results-toggle");
-  const resultsLabel = document.querySelector<HTMLElement>("#results-label");
-  const depthTestToggle = document.querySelector<HTMLButtonElement>("#depth-test");
-  const depthTestLabel = document.querySelector<HTMLElement>("#depth-test-label");
   const nodeOverlayToggle = document.querySelector<HTMLButtonElement>("#node-overlay");
-  const nodeOverlayLabel = document.querySelector<HTMLElement>("#node-overlay-label");
   const resetButton = document.querySelector<HTMLButtonElement>("#reset");
   const status = document.querySelector<HTMLElement>("#status");
   const visibilityPanel = document.querySelector<HTMLElement>("#visibility-panel");
@@ -71,15 +59,9 @@ export function queryDemoView(): DemoView {
     modelSelect === null ||
     fitView === null ||
     projectionToggle === null ||
-    projectionLabel === null ||
     edgeOverlayToggle === null ||
-    edgeOverlayLabel === null ||
     resultsToggle === null ||
-    resultsLabel === null ||
-    depthTestToggle === null ||
-    depthTestLabel === null ||
     nodeOverlayToggle === null ||
-    nodeOverlayLabel === null ||
     resetButton === null ||
     status === null ||
     visibilityPanel === null ||
@@ -97,15 +79,9 @@ export function queryDemoView(): DemoView {
     modelSelect,
     fitView,
     projectionToggle,
-    projectionLabel,
     edgeOverlayToggle,
-    edgeOverlayLabel,
     resultsToggle,
-    resultsLabel,
-    depthTestToggle,
-    depthTestLabel,
     nodeOverlayToggle,
-    nodeOverlayLabel,
     resetButton,
     status,
     visibilityPanel,
@@ -121,10 +97,9 @@ export function updateStatus(view: DemoView, camera: Camera, info: StatusInfo): 
   const hasRendererState = info.rendererState !== undefined && info.rendererState !== "";
   const renderer = hasRendererState ? `${info.renderer} · ${info.rendererState}` : info.renderer;
   view.rendererStatus.textContent = `Renderer ${renderer}`;
-  view.projectionLabel.textContent = camera.mode === "perspective" ? "Perspective" : "Orthographic";
-  view.projectionToggle.textContent =
-    camera.mode === "perspective" ? "Orthographic" : "Perspective";
   view.status.textContent =
     `${info.model} · ${renderer} · ${info.visibleInstances} visible · ` +
     `${info.parts} parts · ${info.batches} batches · ${info.mode} · ${cameraMode} camera`;
+  view.projectionToggle.textContent = cameraMode === "perspective" ? "Perspective" : "Orthographic";
+  view.projectionToggle.setAttribute("aria-label", `Projection: ${cameraMode}`);
 }

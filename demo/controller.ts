@@ -64,7 +64,6 @@ export class WorkbenchController {
   private readonly presentation: WorkbenchPresentation;
   private readonly boxPreview: WorkbenchBoxPreview;
   private boxSelectionDisposer: (() => void) | undefined;
-  private depthTestEnabled = true;
   private dragging = false;
   private treeHoverTargets: readonly InteractionTarget[] = [];
   private disposed = false;
@@ -109,23 +108,16 @@ export class WorkbenchController {
       partName: (partId) => this.preset.partNames.get(partId),
       partVisible: (partId) => this.visibilityActions.partVisible(partId),
       bodyVisible: (instanceId, bodyId) => this.visibilityActions.bodyVisible(instanceId, bodyId),
-      bodyGroupVisible: (instanceId, bodyIds) =>
-        this.visibilityActions.bodyGroupVisible(instanceId, bodyIds),
       bodyHighlighted: (instanceId, bodyId) =>
         this.visibilityActions.bodyHighlighted(instanceId, bodyId),
-      bodyColorActive: (instanceId, bodyId) =>
-        this.visibilityActions.bodyColorActive(instanceId, bodyId),
       onPartVisibility: (partId, visible) => {
         this.visibilityActions.setPart(partId, visible);
       },
       onBodyVisibility: (instanceId, bodyId, visible) => {
         this.visibilityActions.setBody(instanceId, bodyId, visible);
       },
-      onBodyGroupVisibility: (instanceId, bodyIds, visible) => {
-        this.visibilityActions.setBodyGroup(instanceId, bodyIds, visible);
-      },
-      onBodyAction: (instanceId, bodyId, action) => {
-        this.visibilityActions.bodyAction(instanceId, bodyId, action);
+      onBodyHighlight: (instanceId, bodyId) => {
+        this.visibilityActions.bodyHighlight(instanceId, bodyId);
       },
       onInstanceVisibility: (instanceId, visible) => {
         this.visibilityActions.setInstance(instanceId, visible);
@@ -311,7 +303,6 @@ export class WorkbenchController {
     this.canvas.dataset["treeHover"] = "";
     this.mode = "solid";
     this.toggles = createDefaultDisplayToggles();
-    this.depthTestEnabled = true;
     this.resultMode = this.preset.results === undefined ? "base" : "deformed";
     this.interaction = createPresetInteraction(this.preset, true);
     this.interactionController.clearContext();
@@ -335,6 +326,7 @@ export class WorkbenchController {
     this.view.inspectionPanel.textContent = describePick(undefined, (partId) =>
       this.preset.partNames.get(partId),
     );
+    this.view.inspectionPanel.closest<HTMLElement>(".inspection")?.setAttribute("hidden", "");
     this.render();
   }
 
@@ -372,11 +364,6 @@ export class WorkbenchController {
       interaction: this.interactionController,
       menu: this.menu,
       dragging: () => this.isPointerGestureActive(),
-      setDepthTest: () => {
-        this.depthTestEnabled = !this.depthTestEnabled;
-        this.viewport.setEdgeDepthTest(this.depthTestEnabled);
-        this.presentation.reflectDepthTest(this.depthTestEnabled);
-      },
       setEdges: () => {
         this.setEdges(!this.toggles.edges);
       },
@@ -442,7 +429,7 @@ export class WorkbenchController {
     }
     this.interaction = state;
     this.applyDisplayedInteraction();
-    this.viewport.setEdgeDepthTest(this.depthTestEnabled);
+    this.viewport.setEdgeDepthTest(true);
     this.viewport.setNodeOverlay(this.toggles.nodes);
     this.reflectDisplayControls();
   }
@@ -452,7 +439,6 @@ export class WorkbenchController {
     this.presentation.reflectEdges();
     this.presentation.reflectNodes();
     this.presentation.reflectResults();
-    this.presentation.reflectDepthTest(this.depthTestEnabled);
   }
 
   private setTreeHover(target: VisibilityRowTarget | undefined): void {
