@@ -38,7 +38,7 @@ test("loads, renders, and reacts to a user action without runtime errors", async
   await page.goto("/");
 
   // Load: WebGPU is the product's only renderer, so the demo commits to the
-  // WebGPU renderer on the default lane (launched with software WebGPU flags).
+  // hardware WebGPU renderer on the default lane.
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
   await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
