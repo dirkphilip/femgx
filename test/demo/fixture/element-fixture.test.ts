@@ -43,19 +43,29 @@ describe("createElementFixture", () => {
     expect(runtimeInstances(fixture)).toHaveLength(10);
   });
 
-  it("places every shape example at a stable x offset", () => {
+  it("places every shape example in a stable two-row comparison grid", () => {
     const fixture = createElementFixture();
     const origins = new Map(
-      runtimeInstances(fixture).map((instance) => [instance.partId, instance.worldTransform[12]]),
+      runtimeInstances(fixture).map((instance) => [
+        instance.partId,
+        [instance.worldTransform[12], instance.worldTransform[13]],
+      ]),
     );
-    expect(origins.get(fixture.partIds.point)).toBe(0);
-    expect(origins.get(fixture.partIds.line)).toBe(3);
-    expect(origins.get(fixture.partIds.line3)).toBe(6);
-    expect(origins.get(fixture.partIds.tet4)).toBe(9);
-    expect(origins.get(fixture.partIds.hex20)).toBe(18);
-    expect(origins.get(fixture.partIds.triangle)).toBe(21);
-    expect(origins.get(fixture.partIds.quad)).toBe(24);
-    expect(origins.get(fixture.partIds.polygon)).toBe(27);
+    expect(origins).toEqual(
+      new Map([
+        [fixture.partIds.point, [0, 0]],
+        [fixture.partIds.line, [3, 0]],
+        [fixture.partIds.line3, [6, 0]],
+        [fixture.partIds.triangle, [9, 0]],
+        [fixture.partIds.quad, [12, 0]],
+        [fixture.partIds.polygon, [0, 3]],
+        [fixture.partIds.tet4, [3, 3]],
+        [fixture.partIds.tet10, [6, 3]],
+        [fixture.partIds.hex8, [9, 3]],
+        [fixture.partIds.hex20, [12, 3]],
+      ]),
+    );
+    expect(fixture.bounds).toMatchObject({ minX: 0, maxX: 14, minY: 0, maxY: 5 });
   });
 
   it("keeps all volume shapes visible in each display mode", () => {

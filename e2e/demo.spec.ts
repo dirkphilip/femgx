@@ -219,6 +219,19 @@ test("renders the bolted showcase with distinct part colors and a screenshot", a
   expect(screenshot, "the bolted showcase must produce a non-empty screenshot").not.toHaveLength(0);
 });
 
+test("renders all ten supported element examples in the gallery grid", async ({ page }) => {
+  await page.goto("/");
+  await waitForRenderer(page);
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("model-select").selectOption("gallery");
+  await expect(canvas).toHaveAttribute("data-model", "gallery");
+  await expect(page.getByTestId("status")).toContainText("10 visible");
+  await expect.poll(() => distinctColors(canvas), { timeout: 10_000 }).toBeGreaterThanOrEqual(6);
+
+  const screenshot = await canvas.screenshot();
+  expect(screenshot, "the element gallery must produce a non-empty screenshot").not.toHaveLength(0);
+});
+
 test("switches between deterministic model presets", async ({ page }) => {
   await page.goto("/");
   const select = page.getByTestId("model-select");
