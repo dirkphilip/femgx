@@ -6,7 +6,6 @@ import {
   projectPoint,
   resizeCamera,
   setProjection,
-  unprojectPoint,
   zoomCamera,
   type Vec3,
 } from "../../src";
@@ -117,12 +116,13 @@ describe("camera controls", () => {
     expect(marker).toHaveBeenCalledWith(undefined);
     expect(render).toHaveBeenCalledOnce();
     expect(cameraRef.camera).not.toBe(initial);
+    expect(cameraRef.camera.target).toEqual([1, 0, 0]);
     expect(distance(cameraRef.camera.position, [1, 0, 0])).toBeCloseTo(
-      distance(initial.position, [1, 0, 0]),
+      distance(initial.position, initial.target),
     );
   });
 
-  it("zooms around the world point under the mouse", async () => {
+  it("zooms around the fixed target without issuing a pick", () => {
     const canvas = new FakeCanvas();
     const initial = resizeCamera(
       createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
@@ -132,68 +132,22 @@ describe("camera controls", () => {
     const cameraRef = { camera: initial };
     const render = vi.fn();
     const preventDefault = vi.fn();
-    const pivot: Vec3 = [1, 0, 0];
+    const pickPoint = vi.fn(() => Promise.resolve([1, 0, 0] as Vec3));
     installCameraControls({
       canvas: canvas as unknown as HTMLCanvasElement,
       cameraRef,
-      navigation: {
-        pickPoint: (_camera, x, y) => {
-          expect([x, y]).toEqual([90, 30]);
-          return Promise.resolve(pivot);
-        },
-        setOrbitPivot: vi.fn(),
-      },
+      navigation: { pickPoint, setOrbitPivot: vi.fn() },
       onRender: render,
     });
 
     canvas.dispatch("wheel", { clientX: 100, clientY: 50, deltaY: -100, preventDefault });
     expect(preventDefault).toHaveBeenCalledOnce();
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-
     expect(render).toHaveBeenCalledOnce();
+    expect(pickPoint).not.toHaveBeenCalled();
     expect(cameraRef.camera.position).not.toEqual(initial.position);
+    expect(cameraRef.camera.target).toEqual(initial.target);
+    expect(projectPoint(cameraRef.camera, initial.target)?.slice(0, 2)).toEqual([100, 50]);
   });
-
-  it.each(["miss", "rejection"] as const)(
-    "anchors wheel zoom on the target plane after a pick %s",
-    async (pickResult) => {
-      const canvas = new FakeCanvas();
-      const initial = resizeCamera(
-        createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
-        200,
-        100,
-      );
-      const cameraRef = { camera: initial };
-      installCameraControls({
-        canvas: canvas as unknown as HTMLCanvasElement,
-        cameraRef,
-        navigation: {
-          pickPoint: () =>
-            pickResult === "miss"
-              ? Promise.resolve(undefined)
-              : Promise.reject(new Error("device lost")),
-          setOrbitPivot: vi.fn(),
-        },
-        onRender: vi.fn(),
-      });
-
-      const point = { x: 90, y: 30 };
-      const targetDepth = projectPoint(initial, initial.target)?.[2] ?? NaN;
-      const anchor = unprojectPoint(initial, [point.x, point.y, targetDepth]);
-      canvas.dispatch("wheel", {
-        clientX: 100,
-        clientY: 50,
-        deltaY: -100,
-        preventDefault: vi.fn(),
-      });
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-
-      const projected = projectPoint(cameraRef.camera, anchor);
-      expect(projected?.[0]).toBeCloseTo(point.x, 5);
-      expect(projected?.[1]).toBeCloseTo(point.y, 5);
-      expect(cameraRef.camera.target).not.toEqual(initial.target);
-    },
-  );
 
   it("uses current navigation bounds instead of clip planes for zoom safety", async () => {
     const canvas = new FakeCanvas();
@@ -239,7 +193,7 @@ describe("camera controls", () => {
     expect(cameraRef.camera.far).toBeGreaterThan(cameraRef.camera.position[2] + 1);
   });
 
-  it("lets a picked wheel point pass an empty bounds corner", async () => {
+  it("keeps the fixed wheel target while stopping before the model bounds", () => {
     const canvas = new FakeCanvas();
     const cameraRef = {
       camera: resizeCamera(
@@ -248,7 +202,7 @@ describe("camera controls", () => {
         100,
       ),
     };
-    const anchor: Vec3 = [0, 0, 0];
+    const pickPoint = vi.fn(() => Promise.resolve([1, 0, 0] as Vec3));
     installCameraControls({
       canvas: canvas as unknown as HTMLCanvasElement,
       cameraRef,
@@ -260,7 +214,7 @@ describe("camera controls", () => {
         maxY: 1,
         maxZ: 1,
       }),
-      navigation: { pickPoint: () => Promise.resolve(anchor), setOrbitPivot: vi.fn() },
+      navigation: { pickPoint, setOrbitPivot: vi.fn() },
       onRender: vi.fn(),
     });
 
@@ -270,9 +224,9 @@ describe("camera controls", () => {
       deltaY: -20_000,
       preventDefault: vi.fn(),
     });
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-
-    expect(cameraRef.camera.position[2]).toBeLessThan(0.1);
+    expect(pickPoint).not.toHaveBeenCalled();
+    expect(cameraRef.camera.target).toEqual([0, 0, 0]);
+    expect(cameraRef.camera.position[2]).toBeGreaterThan(1);
     expect(cameraRef.camera.near).toBeGreaterThan(0);
     expect(cameraRef.camera.far).toBeGreaterThan(cameraRef.camera.near);
   });
@@ -312,9 +266,13 @@ describe("camera controls", () => {
     await Promise.resolve();
     canvas.dispatch("pointermove", pointer(280, 50));
 
-    expect(getBounds).toHaveBeenCalledOnce();
+    expect(getBounds).toHaveBeenCalledTimes(2);
     expect(cameraRef.camera.far).toBeLessThan(initial.far);
     expect(cameraRef.camera.near).toBeGreaterThan(0);
+    expect(distance(cameraRef.camera.position, cameraRef.camera.target)).toBeCloseTo(
+      distance(initial.position, initial.target),
+    );
+    expect(cameraRef.camera.target).toEqual([0, 0, 0]);
   });
 
   it("applies queued orbit deltas with the live bounds supplier", async () => {
@@ -360,7 +318,7 @@ describe("camera controls", () => {
     await pivotPromise;
     await Promise.resolve();
 
-    expect(getBounds).toHaveBeenCalledOnce();
+    expect(getBounds).toHaveBeenCalledTimes(2);
     expect(cameraRef.camera.far).toBeLessThan(initial.far);
     expect(cameraRef.camera.near).toBeGreaterThan(0);
   });
@@ -515,7 +473,7 @@ describe("camera controls", () => {
     expect(pickPoint).not.toHaveBeenCalled();
   });
 
-  it("captures one target-plane anchor for Shift+middle drag", async () => {
+  it("keeps the fixed target for Shift+middle drag", () => {
     const canvas = new FakeCanvas();
     const initial = resizeCamera(
       createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
@@ -523,34 +481,25 @@ describe("camera controls", () => {
       100,
     );
     const cameraRef = { camera: initial };
-    let resolvePivot: ((pivot: Vec3 | undefined) => void) | undefined;
-    const pivotPromise = new Promise<Vec3 | undefined>((resolve) => {
-      resolvePivot = resolve;
-    });
+    const pickPoint = vi.fn(() => Promise.resolve([1, 0, 0] as Vec3));
     installCameraControls({
       canvas: canvas as unknown as HTMLCanvasElement,
       cameraRef,
-      navigation: { pickPoint: vi.fn(() => pivotPromise), setOrbitPivot: vi.fn() },
+      navigation: { pickPoint, setOrbitPivot: vi.fn() },
       onRender: vi.fn(),
     });
 
     canvas.dispatch("pointerdown", { ...pointer(100, 50), shiftKey: true });
     canvas.dispatch("pointermove", { ...pointer(100, 80), shiftKey: true });
-    expect(cameraRef.camera).toBe(initial);
-
-    const targetDepth = projectPoint(initial, initial.target)?.[2] ?? NaN;
-    const anchor = unprojectPoint(initial, [90, 30, targetDepth]);
-    resolvePivot?.(anchor);
-    await pivotPromise;
-    await Promise.resolve();
-
     expect(cameraRef.camera).not.toBe(initial);
-    const projected = projectPoint(cameraRef.camera, anchor);
-    expect(projected?.[0]).toBeCloseTo(90, 5);
-    expect(projected?.[1]).toBeCloseTo(30, 5);
+    expect(pickPoint).not.toHaveBeenCalled();
+    expect(cameraRef.camera.target).toEqual(initial.target);
+    const projected = projectPoint(cameraRef.camera, initial.target);
+    expect(projected?.[0]).toBeCloseTo(100, 5);
+    expect(projected?.[1]).toBeCloseTo(50, 5);
   });
 
-  it("anchors pinch zoom at the current local midpoint after panning", () => {
+  it("keeps the panned view target fixed during pinch zoom", () => {
     const canvas = new FakeCanvas();
     const initial = resizeCamera(
       createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
@@ -575,14 +524,12 @@ describe("camera controls", () => {
         Math.tan(beforeFinalZoom.fovY / 2)) /
       beforeFinalZoom.height;
     const afterPan = panCamera(beforeFinalZoom, 15 * worldUnitsPerPixel, 10 * worldUnitsPerPixel);
-    const midpoint = { x: 100, y: 50 };
-    const targetDepth = projectPoint(afterPan, afterPan.target)?.[2] ?? NaN;
-    const anchor = unprojectPoint(afterPan, [midpoint.x, midpoint.y, targetDepth]);
     canvas.dispatch("pointermove", touch(2, 180, 70));
 
-    const projected = projectPoint(cameraRef.camera, anchor);
-    expect(projected?.[0]).toBeCloseTo(midpoint.x, 5);
-    expect(projected?.[1]).toBeCloseTo(midpoint.y, 5);
+    expect(cameraRef.camera.target).toEqual(afterPan.target);
+    expect(distance(cameraRef.camera.position, cameraRef.camera.target)).toBeLessThan(
+      distance(beforeFinalZoom.position, beforeFinalZoom.target),
+    );
     expect(cameraRef.camera).not.toBe(initial);
   });
 

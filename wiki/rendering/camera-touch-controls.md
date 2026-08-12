@@ -9,18 +9,18 @@ toolbars, or inspection panels.
 
 - **Middle drag** spins (`orbitCamera`); **Ctrl/Meta+middle drag** pans
   (`panCamera`) in the drag direction at the target plane's current
-  CSS-pixel scale; **Shift+middle drag** zooms vertically
-  around the pointer-down position.
-- **Wheel** zooms toward the visible world point under the cursor
-  (`zoomCameraAtPoint`); an upward wheel/drag motion zooms in and a downward
-  motion zooms out. Empty space uses the point under the cursor on the
-  view-aligned plane through `camera.target`.
+  CSS-pixel scale; **Shift+middle drag** zooms vertically around the current
+  camera target.
+- **Wheel** and **Shift+middle drag** change eye distance or orthographic scale
+  around the current fixed camera target; an upward wheel/drag motion zooms in
+  and a downward motion zooms out.
 - **Left mouse drag** is not a camera gesture, preserving click and
   shift-click inspection selection.
-- **One finger** continues to orbit on touch devices.
+- **One finger** resolves the visible model point under the touch and orbits it.
 - **Spin** rotates the complete view frame, including its orthonormal `up`
   direction, so it has no pole clamp and can turn through repeated full circles.
-- **Two fingers** pinch-zoom and pan together: the pinch distance change maps
+- **Two fingers** pinch-zoom and pan together around the current panned target:
+  the pinch distance change maps
   to a log-scale zoom (`zoom = ln(distance / previousDistance)`, so spreading
   zooms in) and the midpoint movement maps to a two-finger pan.
 - **One-finger tap** still performs pick/selection; a camera drag is never
@@ -66,16 +66,15 @@ Playwright's `touchscreen` API is single-touch only.
 
 - `touch-action: none` remains scoped to the canvas elements only, so the rest
   of the page keeps native scrolling.
-- Middle-button orbit asks the renderer's camera-navigation pick-point seam for the exact visible
+- Middle-button and one-finger orbit ask the renderer's camera-navigation pick-point seam for the exact visible
   surface point. Drag deltas wait for the asynchronous GPU readback, then apply
   once around that point, so the camera never starts around a stale target and
-  switches pivots mid-gesture. Shift+middle zoom uses the same one-time
-  readback, falling back to the target plane and buffering early deltas.
+  switches targets mid-gesture. Wheel and Shift+middle zoom do not issue a pick
+  or change the target.
 - Pinch applies midpoint pan first, using the current target-plane CSS scale,
-  then recomputes the target-plane anchor under the current midpoint for each
-  zoom step. Every accepted zoom
-  recomputes clip planes from the current scene bounds, so the same safety
-  policy applies to desktop and touch.
+  and changes zoom without moving that panned target. Every orbit and zoom
+  protects each placed-part bound, moves the eye outward instead of blocking a
+  rotation, and recomputes clip planes from current scene depths.
 
 ## Related demo fixes
 

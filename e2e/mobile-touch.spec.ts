@@ -4,10 +4,8 @@ import {
   drawnPixels,
   expectBoundsClippedSafely,
   panCameraSnapshot,
-  projectCameraPoint,
   readNavigationState,
   requireHit,
-  targetPlanePoint,
 } from "./helpers";
 
 const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
@@ -171,12 +169,12 @@ test("keeps repeated mobile pinch zoom inside the model bounds", async ({ browse
 
   const closest = await readNavigationState(canvas);
   expectBoundsClippedSafely(closest.camera, closest.bounds);
-  expect(cameraDistance(closest.camera)).toBeLessThan(cameraDistance(before.camera));
+  expect(navigationScale(closest.camera)).toBeLessThan(navigationScale(before.camera));
   expect(await canvas.screenshot()).not.toHaveLength(0);
   await context.close();
 });
 
-test("anchors an off-center empty-space pinch at its midpoint", async ({ browser }) => {
+test("keeps the panned model target stable during an off-center pinch", async ({ browser }) => {
   const context = await browser.newContext({
     baseURL: BASE_URL,
     viewport: { width: 390, height: 844 },
@@ -206,22 +204,15 @@ test("anchors an off-center empty-space pinch at its midpoint", async ({ browser
     { x: midpoint.x - 62, y: midpoint.y, id: 0 },
     { x: midpoint.x + 28, y: midpoint.y, id: 1 },
   ]);
-  const currentMidpoint = { x: midpoint.x - 17, y: midpoint.y };
   const afterPan = panCameraSnapshot(before.camera, -17, 0);
-  const anchor = targetPlanePoint(afterPan, currentMidpoint.x - box.x, currentMidpoint.y - box.y);
   await dispatchTouch(client, "touchEnd", []);
   await expect.poll(() => canvas.getAttribute("data-dragging")).toBe("false");
 
   const after = await readNavigationState(canvas);
-  const projected = projectCameraPoint(after.camera, anchor);
-  expect(projected).toBeDefined();
-  expect(
-    Math.hypot(
-      (projected?.[0] ?? 0) - (currentMidpoint.x - box.x),
-      (projected?.[1] ?? 0) - (currentMidpoint.y - box.y),
-    ),
-  ).toBeLessThan(0.2);
-  expect(cameraDistance(after.camera)).toBeLessThan(cameraDistance(before.camera));
+  expect(after.camera.target[0]).toBeCloseTo(afterPan.target[0], 5);
+  expect(after.camera.target[1]).toBeCloseTo(afterPan.target[1], 5);
+  expect(after.camera.target[2]).toBeCloseTo(afterPan.target[2], 5);
+  expect(navigationScale(after.camera)).toBeLessThan(navigationScale(before.camera));
   expectBoundsClippedSafely(after.camera, after.bounds);
   expect(await drawnPixels(canvas)).toBe(true);
   await context.close();
@@ -287,4 +278,10 @@ function normalizeVector(vector: readonly number[]): readonly [number, number, n
 
 function dotVector(a: readonly number[], b: readonly number[]): number {
   return (a[0] ?? 0) * (b[0] ?? 0) + (a[1] ?? 0) * (b[1] ?? 0) + (a[2] ?? 0) * (b[2] ?? 0);
+}
+
+function navigationScale(
+  camera: Awaited<ReturnType<typeof readNavigationState>>["camera"],
+): number {
+  return camera.mode === "orthographic" ? camera.orthoHeight : cameraDistance(camera);
 }
