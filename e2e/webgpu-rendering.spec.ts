@@ -10,10 +10,14 @@ import {
   yellowComponents,
   hasYellowPixel,
   selectedLuminanceSpread,
+  luminancePatch,
   nodeContribution,
   clearHover,
   dragCamera,
   toggleElementHighlight,
+  projectCameraPoint,
+  readNavigationState,
+  requireHit,
   rendererMode,
   loadWebGpuPage,
 } from "./webgpu-support";
@@ -292,6 +296,93 @@ test("keeps depth-tested node annotations stable across fine zoom steps", async 
       count,
       `node contribution must not explode from flicker/leakage (step ${index}: ${String(count)} vs ${String(baseline)})`,
     ).toBeLessThan(baseline * 12);
+  }
+});
+
+test("keeps a picked face's flat lighting stable through close zoom", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const edgeToggle = page.getByTestId("edge-overlay");
+  const nodeToggle = page.getByTestId("node-overlay");
+  if ((await edgeToggle.getAttribute("aria-pressed")) === "true") await edgeToggle.click();
+  if ((await nodeToggle.getAttribute("aria-pressed")) === "true") await nodeToggle.click();
+
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  const width = Math.round(box.width);
+
+  for (const projection of ["Perspective", "Orthographic"] as const) {
+    if ((await page.getByTestId("projection-toggle").textContent()) !== projection) {
+      await page.getByTestId("projection-toggle").click();
+      await expect(page.getByTestId("projection-toggle")).toHaveText(projection);
+    }
+    await page.getByTestId("fit-view").click();
+    const hit = await requireHit(
+      page,
+      canvas,
+      { prefix: "f:", attribute: "hovered", fresh: true },
+      "GPU picking must resolve a face for the close-zoom lighting test",
+    );
+    const point = await page.evaluate(
+      async ({ x, y }) => {
+        const harness = (
+          window as typeof window & {
+            femgxDemo?: {
+              pickPoint: (pointX: number, pointY: number) => Promise<readonly number[] | undefined>;
+            };
+          }
+        ).femgxDemo;
+        return (await harness?.pickPoint(x, y)) ?? null;
+      },
+      { x: hit.x - box.x, y: hit.y - box.y },
+    );
+    if (point === null || point.length !== 3) throw new Error("face pick returned no world point");
+    const worldPoint: readonly [number, number, number] = [
+      point[0] ?? NaN,
+      point[1] ?? NaN,
+      point[2] ?? NaN,
+    ];
+
+    await clearHover(page, canvas);
+    await page.mouse.move(hit.x, hit.y);
+    await expect.poll(() => canvas.getAttribute("data-hovered")).toBe(hit.key);
+
+    const samples = [];
+    for (let step = 0; step < 9; step += 1) {
+      await stableCanvasPixels(page, canvas);
+      const navigation = await readNavigationState(canvas);
+      const projected = projectCameraPoint(navigation.camera, worldPoint);
+      if (projected === undefined)
+        throw new Error(`picked face left the view at zoom step ${step}`);
+      const patch = luminancePatch(
+        await canvasRgba(page, canvas),
+        width,
+        projected[0],
+        projected[1],
+      );
+      samples.push(patch);
+      expect(patch.count).toBeGreaterThan(0);
+      if (step < 8) {
+        await page.mouse.wheel(0, -800);
+        await stableCanvasPixels(page, canvas);
+        await page.mouse.move(hit.x, hit.y);
+        await expect.poll(() => canvas.getAttribute("data-hovered")).toBe(hit.key);
+      }
+    }
+
+    const baseline = samples[0];
+    if (baseline === undefined) throw new Error("lighting sample has no baseline");
+    expect(baseline.mean).toBeGreaterThan(32);
+    for (const [step, sample] of samples.entries()) {
+      expect(
+        sample.mean,
+        `flat-face luminance must remain visible at ${projection} zoom step ${step}`,
+      ).toBeGreaterThan(baseline.mean * 0.8);
+      expect(
+        Math.abs(sample.mean - baseline.mean),
+        `flat-face luminance must remain stable at ${projection} zoom step ${step}`,
+      ).toBeLessThan(Math.max(18, baseline.mean * 0.18));
+    }
   }
 });
 

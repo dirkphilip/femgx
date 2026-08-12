@@ -115,6 +115,42 @@ export function visiblePixelCount(rgba: Buffer, threshold = 32): number {
   return count;
 }
 
+/** Returns tolerant luminance statistics for a small presented-pixel patch. */
+export function luminancePatch(
+  rgba: Buffer,
+  width: number,
+  centerX: number,
+  centerY: number,
+  radius = 3,
+): { readonly count: number; readonly mean: number; readonly spread: number } {
+  const height = Math.floor(rgba.length / 4 / width);
+  const luminances: number[] = [];
+  for (
+    let y = Math.max(0, Math.floor(centerY) - radius);
+    y <= Math.min(height - 1, Math.floor(centerY) + radius);
+    y += 1
+  ) {
+    for (
+      let x = Math.max(0, Math.floor(centerX) - radius);
+      x <= Math.min(width - 1, Math.floor(centerX) + radius);
+      x += 1
+    ) {
+      const offset = (y * width + x) * 4;
+      luminances.push(
+        (rgba[offset] ?? 0) * 0.2126 +
+          (rgba[offset + 1] ?? 0) * 0.7152 +
+          (rgba[offset + 2] ?? 0) * 0.0722,
+      );
+    }
+  }
+  const mean = luminances.reduce((sum, value) => sum + value, 0) / Math.max(1, luminances.length);
+  return {
+    count: luminances.length,
+    mean,
+    spread: Math.max(...luminances, 0) - Math.min(...luminances, 0),
+  };
+}
+
 interface PixelBounds {
   readonly minX: number;
   readonly minY: number;

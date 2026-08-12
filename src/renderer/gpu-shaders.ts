@@ -232,6 +232,38 @@ struct VertexOutput {
 };
 `;
 
+/** Shared scale-robust two-sided flat lighting for opaque and transparent triangles. */
+export const flatLightingFunction = /* wgsl */ `
+fn finiteDerivativeNormal(first: vec3<f32>, second: vec3<f32>) -> vec3<f32> {
+  let firstScale = max(max(abs(first.x), abs(first.y)), abs(first.z));
+  let secondScale = max(max(abs(second.x), abs(second.y)), abs(second.z));
+  // The upper guard is the f32 representable limit, not a scene-scale cutoff.
+  if (firstScale != firstScale || secondScale != secondScale ||
+      firstScale <= 0.0 || secondScale <= 0.0 ||
+      firstScale >= 3.402823466e38 || secondScale >= 3.402823466e38) {
+    return vec3<f32>(0.0);
+  }
+  let normalizedFirst = first / firstScale;
+  let normalizedSecond = second / secondScale;
+  let geometricNormal = cross(normalizedFirst, normalizedSecond);
+  let normalLength = length(geometricNormal);
+  if (normalLength != normalLength || normalLength <= 1e-6) {
+    return vec3<f32>(0.0);
+  }
+  return geometricNormal / normalLength;
+}
+
+fn flatDiffuse(worldPosition: vec3<f32>, keyLightDirection: vec3<f32>) -> f32 {
+  let normal = finiteDerivativeNormal(dpdx(worldPosition), dpdy(worldPosition));
+  let normalLength = length(normal);
+  if (normalLength <= 0.0) {
+    return 0.65;
+  }
+  let keyResponse = abs(dot(normal, normalize(keyLightDirection)));
+  return 0.65 + 0.35 * clamp(keyResponse, 0.0, 1.0);
+}
+`;
+
 /** Packs a u32 pick id into the four RGBA bytes of an `rgba8unorm` target. */
 export const packPickIdFunction = /* wgsl */ `
 fn packPickId(pickId: u32) -> vec4<f32> {
@@ -258,6 +290,7 @@ export const triangleColorFragmentShader = /* wgsl */ `
 ${cameraStruct}
 ${deformationStruct}
 ${frameBindings}
+${flatLightingFunction}
 
 @fragment
 fn fragmentMain(
@@ -267,16 +300,7 @@ fn fragmentMain(
   @location(8) worldPosition: vec3<f32>,
 ) -> @location(0) vec4<f32> {
   if (dot(local, local) > 1.0 || color.a < 1.0) { discard; }
-  let geometricNormal = cross(dpdx(worldPosition), dpdy(worldPosition));
-  let normalLength = length(geometricNormal);
-  var diffuse = 0.65;
-  // WGSL's finite-value built-in is not available in the browser baseline;
-  // NaN is unequal to itself and infinity exceeds this practical bound.
-  if (normalLength == normalLength && normalLength > 1e-6 && normalLength < 1e20) {
-    let normal = geometricNormal / normalLength;
-    let keyResponse = abs(dot(normal, normalize(camera.keyLightDirection.xyz)));
-    diffuse = 0.65 + 0.35 * clamp(keyResponse, 0.0, 1.0);
-  }
+  let diffuse = flatDiffuse(worldPosition, camera.keyLightDirection.xyz);
   return vec4<f32>(color.rgb * diffuse + vec3<f32>(emissive), color.a);
 }
 `;

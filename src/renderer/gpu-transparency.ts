@@ -1,4 +1,9 @@
-import { cameraStruct, deformationStruct, frameBindings } from "./gpu-shaders";
+import {
+  cameraStruct,
+  deformationStruct,
+  flatLightingFunction,
+  frameBindings,
+} from "./gpu-shaders";
 import { COLOR_SAMPLE_COUNT } from "./gpu-support";
 import {
   createValidatedRenderPipeline,
@@ -62,6 +67,7 @@ export const triangleTransparencyFragmentShader = /* wgsl */ `
 ${cameraStruct}
 ${deformationStruct}
 ${frameBindings}
+${flatLightingFunction}
 ${transparencyOutput}
 
 @fragment
@@ -72,14 +78,7 @@ fn fragmentMain(
   @location(8) worldPosition: vec3<f32>,
 ) -> TransparencyOutput {
   if (dot(local, local) > 1.0 || color.a <= 0.0 || color.a >= 1.0) { discard; }
-  let geometricNormal = cross(dpdx(worldPosition), dpdy(worldPosition));
-  let normalLength = length(geometricNormal);
-  var diffuse = 0.65;
-  if (normalLength == normalLength && normalLength > 1e-6 && normalLength < 1e20) {
-    let normal = geometricNormal / normalLength;
-    let keyResponse = abs(dot(normal, normalize(camera.keyLightDirection.xyz)));
-    diffuse = 0.65 + 0.35 * clamp(keyResponse, 0.0, 1.0);
-  }
+  let diffuse = flatDiffuse(worldPosition, camera.keyLightDirection.xyz);
   return weightedTransparency(color.rgb * diffuse + vec3<f32>(emissive), color.a);
 }
 `;

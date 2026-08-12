@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cameraKeyLightDirection, pointSizeDevicePixels } from "../../src/renderer/gpu-frame";
 import { orbitPivotAxisProjection, orbitPivotMetrics } from "../../src/renderer/gpu-orbit-pivot";
-import { createCamera, orbitCamera, resizeCamera } from "../../src/camera/camera";
+import {
+  createCamera,
+  orbitCamera,
+  panCamera,
+  resizeCamera,
+  setProjection,
+  zoomCamera,
+  zoomCameraAtPoint,
+} from "../../src/camera/camera";
 
 const originalDevicePixelRatio = globalThis.devicePixelRatio;
 
@@ -52,6 +60,30 @@ describe("cameraKeyLightDirection", () => {
       const projection = orbitPivotAxisProjection(camera, [1, 0, 0]);
       expect(light.every(Number.isFinite)).toBe(true);
       expect(projection.every(Number.isFinite)).toBe(true);
+    }
+  });
+
+  it("keeps the key direction invariant under view-preserving navigation", () => {
+    const camera = resizeCamera(
+      createCamera({ position: [4, 3, 6], target: [0, 0, 0] }),
+      1440,
+      900,
+    );
+    const baseline = cameraKeyLightDirection(camera);
+    const variants = [
+      panCamera(camera, 2, -1),
+      zoomCamera(camera, -0.75),
+      zoomCameraAtPoint(camera, -0.75, [0.8, -0.3, 0.5]),
+      setProjection(camera, "orthographic"),
+      setProjection(setProjection(camera, "orthographic"), "perspective"),
+    ];
+
+    for (const variant of variants) {
+      const direction = cameraKeyLightDirection(variant);
+      expect(direction.every(Number.isFinite)).toBe(true);
+      for (let index = 0; index < 3; index += 1) {
+        expect(direction[index]).toBeCloseTo(baseline[index] ?? NaN, 12);
+      }
     }
   });
 });

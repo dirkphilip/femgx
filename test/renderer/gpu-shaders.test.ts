@@ -8,6 +8,7 @@ import {
   colorFragmentShader,
   edgeFragmentShader,
   edgeVertexShader,
+  flatLightingFunction,
   pickFragmentShader,
   triangleColorFragmentShader,
   vertexOutput,
@@ -28,6 +29,33 @@ import {
   transparencyFragmentShader,
   triangleTransparencyFragmentShader,
 } from "../../src/renderer/gpu-transparency";
+
+function normalizedDerivativeNormal(
+  first: readonly [number, number, number],
+  second: readonly [number, number, number],
+): readonly [number, number, number] | undefined {
+  const firstScale = Math.max(...first.map(Math.abs));
+  const secondScale = Math.max(...second.map(Math.abs));
+  if (
+    !Number.isFinite(firstScale) ||
+    !Number.isFinite(secondScale) ||
+    firstScale <= 0 ||
+    secondScale <= 0
+  ) {
+    return undefined;
+  }
+  const a = first.map((value) => value / firstScale) as [number, number, number];
+  const b = second.map((value) => value / secondScale) as [number, number, number];
+  const normal: [number, number, number] = [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
+  ];
+  const normalLength = Math.hypot(...normal);
+  return Number.isFinite(normalLength) && normalLength > 1e-6
+    ? (normal.map((value) => value / normalLength) as [number, number, number])
+    : undefined;
+}
 
 /** Returns the named struct's layout as computed by the wgsl_reflect parser. */
 function structInfo(source: string, name: string): StructInfo {
@@ -201,18 +229,42 @@ describe("GPU record struct layout vs CPU record encoders", () => {
   it("lights only triangle surfaces from displayed world-space derivatives", () => {
     expect(triangleColorFragmentShader).toContain("@location(8) worldPosition: vec3<f32>");
     expect(triangleColorFragmentShader).toContain(
-      "cross(dpdx(worldPosition), dpdy(worldPosition))",
+      "flatDiffuse(worldPosition, camera.keyLightDirection.xyz)",
     );
-    expect(triangleColorFragmentShader).toContain(
-      "abs(dot(normal, normalize(camera.keyLightDirection.xyz)))",
-    );
-    expect(triangleColorFragmentShader).toContain(
-      "normalLength == normalLength && normalLength > 1e-6 && normalLength < 1e20",
-    );
+    expect(flatLightingFunction).toContain("abs(dot(normal, normalize(keyLightDirection)))");
     expect(triangleColorFragmentShader).toContain("color.rgb * diffuse + vec3<f32>(emissive)");
     expect(triangleColorFragmentShader).toContain("color.a");
     expect(colorFragmentShader).not.toContain("keyLightDirection");
     expect(colorFragmentShader).not.toContain("dpdx");
+  });
+
+  it("normalizes flat derivatives after scale normalization and shares the lighting helper", () => {
+    expect(flatLightingFunction).toContain("normalizedFirst = first / firstScale");
+    expect(flatLightingFunction).toContain("normalizedSecond = second / secondScale");
+    expect(flatLightingFunction).toContain("return vec3<f32>(0.0)");
+    expect(flatLightingFunction).toContain("return 0.65");
+    expect(triangleColorFragmentShader).toContain(flatLightingFunction);
+    expect(triangleTransparencyFragmentShader).toContain(flatLightingFunction);
+    expect(triangleTransparencyFragmentShader).toContain(
+      "flatDiffuse(worldPosition, camera.keyLightDirection.xyz)",
+    );
+    expect(triangleColorFragmentShader.match(/fn flatDiffuse\(/g)).toHaveLength(1);
+    expect(triangleTransparencyFragmentShader.match(/fn flatDiffuse\(/g)).toHaveLength(1);
+  });
+
+  it("keeps the mirrored derivative normal invariant across scale and finite fallbacks", () => {
+    const base = normalizedDerivativeNormal([1, 0.25, 0], [0, 1, 0.5]);
+    for (const scale of [1e-30, 1e-12, 1, 1e12, 1e30]) {
+      const scaled = normalizedDerivativeNormal([scale, scale * 0.25, 0], [0, scale, scale * 0.5]);
+      expect(scaled).toBeDefined();
+      for (let index = 0; index < 3; index += 1) {
+        expect(scaled?.[index]).toBeCloseTo(base?.[index] ?? NaN, 10);
+      }
+    }
+    expect(normalizedDerivativeNormal([0, 0, 0], [1, 0, 0])).toBeUndefined();
+    expect(normalizedDerivativeNormal([1, 0, 0], [2, 0, 0])).toBeUndefined();
+    expect(normalizedDerivativeNormal([Number.NaN, 0, 0], [0, 1, 0])).toBeUndefined();
+    expect(normalizedDerivativeNormal([Number.POSITIVE_INFINITY, 0, 0], [0, 1, 0])).toBeUndefined();
   });
 });
 
