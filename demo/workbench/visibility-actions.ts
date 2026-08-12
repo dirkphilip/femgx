@@ -1,21 +1,16 @@
 import {
   isBodyVisible,
-  bodyOverride,
   isTargetHighlighted,
   setTargetHighlighted,
-  setBodyOverride,
   setBodyVisible,
   type BodyId,
-  type Color,
   type FemViewport,
   type InstanceId,
   type InteractionState,
   type PartId,
   type SceneRuntime,
-  type StyleOverride,
 } from "../../src/index";
 import type { SelectTarget } from "../pick";
-import type { BodyAction } from "./visibility-panel";
 
 /** Runtime hooks used by menu and visibility-panel visibility actions. */
 export interface VisibilityActionOptions {
@@ -27,8 +22,6 @@ export interface VisibilityActionOptions {
   readonly syncPanel: () => void;
   readonly render: () => void;
 }
-
-const BODY_COLOR: Color = { r: 0.98, g: 0.58, b: 0.16, a: 1 };
 
 /** Keeps all demo visibility mutations on the viewport/runtime path. */
 export class WorkbenchVisibilityActions {
@@ -59,29 +52,13 @@ export class WorkbenchVisibilityActions {
     this.finish();
   }
 
-  setBodyGroup(instanceId: InstanceId, bodyIds: readonly BodyId[], visible: boolean): void {
-    const viewport = this.options.viewport();
-    viewport.batch(() => {
-      let state = this.options.interaction();
-      for (const bodyId of bodyIds) {
-        state = setBodyVisible(state, { instanceId, bodyId }, visible);
-        this.options.applyInteraction(state);
-      }
-    });
-    this.finish(false);
-  }
-
-  bodyAction(instanceId: InstanceId, bodyId: BodyId, action: BodyAction): void {
+  bodyHighlight(instanceId: InstanceId, bodyId: BodyId): void {
     const ref = { instanceId, bodyId };
     const state = this.options.interaction();
-    if (action === "highlight") {
-      const highlighted = isTargetHighlighted(state, { kind: "body", instanceId, bodyId });
-      this.options.setInteraction(
-        setTargetHighlighted(state, { kind: "body", ...ref }, !highlighted),
-      );
-    } else {
-      this.options.setInteraction(setBodyOverride(state, ref, nextBodyOverride(state, ref)));
-    }
+    const highlighted = isTargetHighlighted(state, { kind: "body", instanceId, bodyId });
+    this.options.setInteraction(
+      setTargetHighlighted(state, { kind: "body", ...ref }, !highlighted),
+    );
     this.finish();
   }
 
@@ -130,16 +107,8 @@ export class WorkbenchVisibilityActions {
     return isBodyVisible(this.options.interaction(), { instanceId, bodyId });
   }
 
-  bodyGroupVisible(instanceId: InstanceId, bodyIds: readonly BodyId[]): boolean {
-    return bodyIds.every((bodyId) => this.bodyVisible(instanceId, bodyId));
-  }
-
   bodyHighlighted(instanceId: InstanceId, bodyId: BodyId): boolean {
     return isTargetHighlighted(this.options.interaction(), { kind: "body", instanceId, bodyId });
-  }
-
-  bodyColorActive(instanceId: InstanceId, bodyId: BodyId): boolean {
-    return bodyOverride(this.options.interaction(), { instanceId, bodyId })?.color !== undefined;
   }
 
   private partForTarget(target: SelectTarget): PartId | undefined {
@@ -151,16 +120,4 @@ export class WorkbenchVisibilityActions {
     this.options.syncPanel();
     if (render) this.options.render();
   }
-}
-
-function nextBodyOverride(
-  state: InteractionState,
-  ref: { readonly instanceId: InstanceId; readonly bodyId: BodyId },
-): StyleOverride | undefined {
-  const current = bodyOverride(state, ref);
-  if (current?.color !== undefined) {
-    const { color: _color, ...withoutColor } = current;
-    return Object.keys(withoutColor).length === 0 ? undefined : withoutColor;
-  }
-  return { ...current, color: BODY_COLOR };
 }

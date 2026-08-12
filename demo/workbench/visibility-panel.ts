@@ -9,12 +9,9 @@ import type {
 import { visiblePartIdsForPreset, type ModelPreset } from "../fixture/presets";
 import type { ElementDisplayMode } from "../fixture/types";
 import { assemblyName } from "../visibility-tree";
-import { createBodyGroupAction, parseBodyIds } from "./body-controls";
 import type { VisibilityRowTarget } from "./tree-hover";
 import { installVisibilityTreeHover } from "./tree-hover-events";
 import { visibilityRowLabel } from "./visibility-row";
-
-export type BodyAction = "highlight" | "color";
 
 /** Callbacks that keep the runtime as the single source of visibility truth. */
 export interface VisibilityPanelOptions {
@@ -25,17 +22,10 @@ export interface VisibilityPanelOptions {
   readonly partName: (partId: PartId) => string | undefined;
   readonly partVisible: (partId: PartId) => boolean;
   readonly bodyVisible: (instanceId: InstanceId, bodyId: BodyId) => boolean;
-  readonly bodyGroupVisible: (instanceId: InstanceId, bodyIds: readonly BodyId[]) => boolean;
   readonly bodyHighlighted: (instanceId: InstanceId, bodyId: BodyId) => boolean;
-  readonly bodyColorActive: (instanceId: InstanceId, bodyId: BodyId) => boolean;
   readonly onPartVisibility: (partId: PartId, visible: boolean) => void;
   readonly onBodyVisibility: (instanceId: InstanceId, bodyId: BodyId, visible: boolean) => void;
-  readonly onBodyGroupVisibility: (
-    instanceId: InstanceId,
-    bodyIds: readonly BodyId[],
-    visible: boolean,
-  ) => void;
-  readonly onBodyAction: (instanceId: InstanceId, bodyId: BodyId, action: BodyAction) => void;
+  readonly onBodyHighlight: (instanceId: InstanceId, bodyId: BodyId) => void;
   readonly onInstanceVisibility: (instanceId: InstanceId, visible: boolean) => void;
   readonly onAssemblyVisibility: (nodeId: AssemblyNodeId, visible: boolean) => void;
   readonly onTreeHover?: (target: VisibilityRowTarget | undefined) => void;
@@ -128,29 +118,17 @@ export class VisibilityPanelController {
       }
     }
     for (const button of this.options.panel.querySelectorAll<HTMLButtonElement>(
-      "button[data-body-action]",
+      "button[data-body-highlight]",
     )) {
       const instanceId = button.dataset["bodyInstanceId"];
       const bodyId = button.dataset["bodyId"];
-      const action = button.dataset["bodyAction"] as BodyAction | undefined;
-      if (instanceId === undefined || bodyId === undefined || action === undefined) continue;
+      if (instanceId === undefined || bodyId === undefined) continue;
       button.disabled = !this.instanceVisible(runtime, instanceId);
-      button.dataset["active"] = String(
-        action === "highlight"
-          ? this.options.bodyHighlighted(instanceId, Number(bodyId))
-          : this.options.bodyColorActive(instanceId, Number(bodyId)),
+      button.dataset["active"] = String(this.options.bodyHighlighted(instanceId, Number(bodyId)));
+      button.setAttribute(
+        "aria-pressed",
+        String(this.options.bodyHighlighted(instanceId, Number(bodyId))),
       );
-    }
-    for (const button of this.options.panel.querySelectorAll<HTMLButtonElement>(
-      "button[data-body-group-action]",
-    )) {
-      const instanceId = button.dataset["bodyInstanceId"];
-      const bodyIds = parseBodyIds(button.dataset["bodyGroupBodyIds"]);
-      if (instanceId === undefined || bodyIds.length === 0) continue;
-      const visible = this.options.bodyGroupVisible(instanceId, bodyIds);
-      button.disabled = !this.instanceVisible(runtime, instanceId);
-      button.textContent = visible ? "Hide bodies" : "Show bodies";
-      button.dataset["active"] = String(!visible);
     }
   }
 
@@ -179,26 +157,15 @@ export class VisibilityPanelController {
   private onClick(event: Event): void {
     const target = event.target;
     if (!(target instanceof Element)) return;
-    const button = target.closest<HTMLButtonElement>("button[data-body-action]");
+    const button = target.closest<HTMLButtonElement>("button[data-body-highlight]");
     if (button !== null) {
       const instanceId = button.dataset["bodyInstanceId"];
       const bodyId = button.dataset["bodyId"];
-      const action = button.dataset["bodyAction"] as BodyAction | undefined;
-      if (instanceId !== undefined && bodyId !== undefined && action !== undefined) {
-        this.options.onBodyAction(instanceId, Number(bodyId), action);
+      if (instanceId !== undefined && bodyId !== undefined) {
+        this.options.onBodyHighlight(instanceId, Number(bodyId));
       }
       return;
     }
-    const group = target.closest<HTMLButtonElement>("button[data-body-group-action]");
-    if (group === null) return;
-    const instanceId = group.dataset["bodyInstanceId"];
-    const bodyIds = parseBodyIds(group.dataset["bodyGroupBodyIds"]);
-    if (instanceId === undefined || bodyIds.length === 0) return;
-    this.options.onBodyGroupVisibility(
-      instanceId,
-      bodyIds,
-      !this.options.bodyGroupVisible(instanceId, bodyIds),
-    );
   }
 
   private assemblyNode(nodeId: AssemblyNodeId, visibleParts: ReadonlySet<PartId>): HTMLElement {
@@ -219,11 +186,13 @@ export class VisibilityPanelController {
     expander.type = "button";
     expander.className = "visibility-expander";
     expander.dataset["testid"] = `assembly-expand-${this.nodeDisplayId(nodeId)}`;
-    expander.setAttribute("aria-expanded", "true");
-    expander.setAttribute("aria-label", `Collapse ${displayName}`);
+    const expanded = node.parentId === undefined || node.parentId === runtime.getNodeIds()[0];
+    expander.setAttribute("aria-expanded", String(expanded));
+    expander.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} ${displayName}`);
     expander.textContent = "▾";
     const children = document.createElement("div");
     children.className = "visibility-children";
+    children.hidden = !expanded;
     const directInstances = this.directPartInstances(nodeId, visibleParts);
     for (let index = 0; index < directInstances.length; index++) {
       const instanceId = directInstances[index];
@@ -233,6 +202,7 @@ export class VisibilityPanelController {
     for (const childId of node.childIds) {
       children.appendChild(this.assemblyNode(childId, visibleParts));
     }
+    expander.textContent = expanded ? "▾" : "▸";
     expander.addEventListener("click", () => {
       this.toggleExpanded(expander, children, displayName);
     });
@@ -280,15 +250,6 @@ export class VisibilityPanelController {
         this.instanceDisplayId(instanceId),
       ),
     );
-    if (bodies.length > 1) {
-      row.append(
-        createBodyGroupAction(
-          this.instanceDisplayId(instanceId),
-          instanceId,
-          bodies.map((body) => body.id),
-        ),
-      );
-    }
     const branch = document.createElement("div");
     branch.className = "visibility-body-branch";
     branch.appendChild(row);
@@ -319,25 +280,19 @@ export class VisibilityPanelController {
     badge.className = "visibility-kind";
     badge.textContent = "Body";
     label.append(badge);
-    const text = document.createElement("span");
-    text.className = "visibility-label";
-    text.textContent = body.name ?? `Body ${body.id}`;
-    label.append(text);
-    const actions = document.createElement("span");
-    actions.className = "visibility-body-actions";
-    for (const action of ["highlight", "color"] as const) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "visibility-body-action";
-      button.dataset["bodyAction"] = action;
-      button.dataset["bodyId"] = String(body.id);
-      button.dataset["bodyInstanceId"] = instanceId;
-      button.dataset["testid"] = `body-${action}-${displayId}-${body.id}`;
-      button.setAttribute("aria-label", `${action} ${text.textContent}`);
-      button.textContent = action === "highlight" ? "Glow" : "Color";
-      actions.appendChild(button);
-    }
-    row.append(spacer, label, actions);
+    const bodyName = body.name ?? `Body ${body.id}`;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "visibility-body-name";
+    button.dataset["bodyHighlight"] = "true";
+    button.dataset["bodyId"] = String(body.id);
+    button.dataset["bodyInstanceId"] = instanceId;
+    button.dataset["testid"] = `body-highlight-${displayId}-${body.id}`;
+    button.setAttribute("aria-label", `Highlight ${bodyName}`);
+    button.setAttribute("aria-pressed", "false");
+    button.textContent = bodyName;
+    button.title = bodyName;
+    row.append(spacer, label, button);
     return row;
   }
 

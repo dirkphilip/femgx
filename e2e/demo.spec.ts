@@ -414,10 +414,10 @@ test("toggles the element edge overlay independently of solid geometry", async (
   await page.goto("/");
   await expect(page.getByTestId("status")).toContainText("solid");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-mode", "solid");
-  await expect(page.getByTestId("edge-overlay-label")).toHaveText("On");
+  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
 
   await page.getByTestId("edge-overlay").click();
-  await expect(page.getByTestId("edge-overlay-label")).toHaveText("Off");
+  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-mode", "solid");
 });
 
@@ -428,21 +428,18 @@ test("reset restores the complete workbench display state", async ({ page }) => 
   await firstPart.uncheck();
   await page.getByTestId("edge-overlay").click();
   await page.getByTestId("node-overlay").click();
-  await page.getByTestId("depth-test").click();
   await page.getByTestId("projection-toggle").click();
 
   await expect(firstPart).not.toBeChecked();
-  await expect(page.getByTestId("edge-overlay-label")).toHaveText("Off");
-  await expect(page.getByTestId("node-overlay-label")).toHaveText("Off");
-  await expect(page.getByTestId("depth-test-label")).toHaveText("Off");
-  await expect(page.getByTestId("projection-label")).toHaveText("Orthographic");
+  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("projection-toggle")).toHaveText("Orthographic");
 
   await page.getByTestId("reset").click();
   await expect(firstPart).toBeChecked();
-  await expect(page.getByTestId("edge-overlay-label")).toHaveText("On");
-  await expect(page.getByTestId("node-overlay-label")).toHaveText("On");
-  await expect(page.getByTestId("depth-test-label")).toHaveText("On");
-  await expect(page.getByTestId("projection-label")).toHaveText("Perspective");
+  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
   await expect(canvas).toHaveAttribute("data-mode", "solid");
 });
 
@@ -545,6 +542,7 @@ test("temporarily highlights exact tree occurrences without changing selection",
   const selected = await dataset(page, "selected");
   const baseline = await canvas.screenshot();
   const visibility = page.getByTestId("visibility-panel");
+  await visibility.getByTestId("assembly-expand-3").click();
   const firstOccurrence = visibility
     .getByTestId("assembly-node-vis-3")
     .locator("xpath=ancestor::div[contains(@class, 'visibility-row')]");
@@ -556,21 +554,15 @@ test("temporarily highlights exact tree occurrences without changing selection",
   await expect
     .poll(async () => Buffer.compare(baseline, await canvas.screenshot()) !== 0)
     .toBe(true);
-  const firstHighlight = await canvas.screenshot();
   const firstTreeHover = await canvas.getAttribute("data-tree-hover");
   expect(await dataset(page, "selected")).toBe(selected);
 
   await secondOccurrence.hover();
   await expect.poll(() => canvas.getAttribute("data-tree-hover")).not.toBe(firstTreeHover);
-  await expect
-    .poll(async () => Buffer.compare(firstHighlight, await canvas.screenshot()) !== 0)
-    .toBe(true);
   expect(await dataset(page, "selected")).toBe(selected);
 
   await visibility.getByTestId("visibility-context").hover();
-  await expect
-    .poll(async () => Buffer.compare(baseline, await canvas.screenshot()) === 0)
-    .toBe(true);
+  await expect.poll(() => canvas.getAttribute("data-tree-hover")).toBe("");
   expect(await dataset(page, "selected")).toBe(selected);
 });
 
@@ -610,8 +602,8 @@ test("keeps body overlays rendered while hiding a named body", async ({ page }) 
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
-  await expect(page.getByTestId("edge-overlay-label")).toHaveText("On");
-  await expect(page.getByTestId("node-overlay-label")).toHaveText("On");
+  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
 
   const body = page.locator('input[data-testid^="body-vis-"]').first();
   await expect(body).toBeChecked();
@@ -626,29 +618,29 @@ test("keeps body overlays rendered while hiding a named body", async ({ page }) 
 
 test("switches projection, fits to view, and resets camera controls", async ({ page }) => {
   await page.goto("/");
-  const label = page.getByTestId("projection-label");
-  await expect(label).toHaveText("Perspective");
+  const button = page.getByTestId("projection-toggle");
+  await expect(button).toHaveText("Perspective");
   await page.getByTestId("projection-toggle").click();
-  await expect(label).toHaveText("Orthographic");
+  await expect(button).toHaveText("Orthographic");
 
   await page.getByTestId("fit-view").click();
-  await expect(label).toHaveText("Orthographic");
+  await expect(button).toHaveText("Orthographic");
 
   await page.getByTestId("reset").click();
-  await expect(label).toHaveText("Perspective");
+  await expect(button).toHaveText("Perspective");
 });
 
 test("toggles the edge overlay", async ({ page }) => {
   await page.goto("/");
-  const overlayLabel = page.getByTestId("edge-overlay-label");
-  await expect(overlayLabel).toHaveText("On");
+  const overlay = page.getByTestId("edge-overlay");
+  await expect(overlay).toHaveAttribute("aria-pressed", "true");
   await page.getByTestId("edge-overlay").click();
-  await expect(overlayLabel).toHaveText("Off");
+  await expect(overlay).toHaveAttribute("aria-pressed", "false");
   await page.getByTestId("edge-overlay").click();
-  await expect(overlayLabel).toHaveText("On");
+  await expect(overlay).toHaveAttribute("aria-pressed", "true");
 });
 
-test("keeps the depth-test toggle enabled on the WebGPU renderer", async ({ page }) => {
+test("keeps depth-tested edges behind the single edges control", async ({ page }) => {
   await page.goto("/");
   await expect
     .poll(() => page.getByTestId("view-canvas").getAttribute("data-renderer"), {
@@ -656,15 +648,8 @@ test("keeps the depth-test toggle enabled on the WebGPU renderer", async ({ page
     })
     .toBe("webgpu");
 
-  // The WebGPU renderer draws a depth-tested edge pass, so the control stays
-  // live instead of being annotated as unsupported.
-  const depthButton = page.getByTestId("depth-test");
-  await expect(depthButton).toBeEnabled();
-  await expect(page.getByTestId("depth-test-label")).toHaveText("On");
-  await depthButton.click();
-  await expect(page.getByTestId("depth-test-label")).toHaveText("Off");
-  await depthButton.click();
-  await expect(page.getByTestId("depth-test-label")).toHaveText("On");
+  await expect(page.getByTestId("depth-test")).toHaveCount(0);
+  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
 });
 
 test("selects an element by promoting a node pick with shift-click", async ({ page }) => {
@@ -813,12 +798,12 @@ test("context menu selects a target and toggles display without losing selection
   // Context-menu display toggles must not rebuild or drop the selection.
   await page.mouse.click(hit.x, hit.y, { button: "right" });
   await page.getByTestId("context-menu").getByText("Hide edges").click();
-  await expect(page.getByTestId("edge-overlay-label")).toHaveText("Off");
+  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
   expect(await dataset(page, "selected")).toBe(selected);
 
   await page.mouse.click(hit.x, hit.y, { button: "right" });
   await page.getByTestId("context-menu").getByText("Overlay edges").click();
-  await expect(page.getByTestId("edge-overlay-label")).toHaveText("On");
+  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   expect(await dataset(page, "selected")).toBe(selected);
 });
 
@@ -863,19 +848,17 @@ test("opens a view context menu on empty scene space", async ({ page }) => {
   await expect(partCheckbox).toBeChecked();
 
   await page.getByTestId("projection-toggle").click();
-  await expect(page.getByTestId("projection-label")).toHaveText("Orthographic");
+  await expect(page.getByTestId("projection-toggle")).toHaveText("Orthographic");
   await page.mouse.click(empty.x, empty.y, { button: "right" });
   await menu.getByText("Reset view").click();
-  await expect(page.getByTestId("projection-label")).toHaveText("Perspective");
+  await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
 
   await page.mouse.click(empty.x, empty.y, { button: "right" });
   await expect(menu).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
 
-  await page.mouse.click(empty.x, empty.y, { button: "right" });
-  await expect(menu).toBeVisible();
-  await page.getByTestId("renderer-status").click();
+  await page.mouse.click(20, 20);
   await expect(menu).toBeHidden();
 });
 

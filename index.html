@@ -51,7 +51,7 @@
       }
       .app {
         display: grid;
-        grid-template-columns: 288px minmax(0, 1fr);
+        grid-template-columns: clamp(340px, 26vw, 380px) minmax(0, 1fr);
         height: 100vh;
       }
       .sidebar {
@@ -172,35 +172,19 @@
         color: #b4c4d6;
         font-size: 12px;
       }
-      .visibility-body-actions {
-        display: inline-flex;
-        flex: 0 0 auto;
-        gap: 3px;
+      .visibility-body-name {
+        min-width: 0;
+        overflow: hidden;
+        flex: 1;
+        border: 0;
+        padding: 3px 4px;
+        color: inherit;
+        background: transparent;
+        text-align: left;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
-      .visibility-body-action {
-        padding: 3px 5px;
-        border-color: #2b3c54;
-        color: #91a6be;
-        background: #122033;
-        font-size: 9px;
-        line-height: 1;
-      }
-      .visibility-body-action[data-active="true"] {
-        border-color: #e29a3c;
-        color: #fff0d2;
-        background: #70451b;
-      }
-      .visibility-body-group-action {
-        flex: 0 0 auto;
-        padding: 3px 5px;
-        border-color: #2b3c54;
-        color: #91a6be;
-        background: #122033;
-        font-size: 9px;
-        line-height: 1;
-      }
-      .visibility-body-group-action[data-active="true"] {
-        border-color: #e29a3c;
+      .visibility-body-name[data-active="true"] {
         color: #fff0d2;
         background: #70451b;
       }
@@ -236,44 +220,64 @@
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 6px;
+        gap: 6px 8px;
+        padding: 6px;
+        border: 1px solid #34445c;
+        border-radius: 10px;
+        background: #111d2ddd;
+        backdrop-filter: blur(8px);
         pointer-events: none;
+      }
+      .toolbar-row {
+        display: contents;
       }
       .toolbar > * {
         pointer-events: auto;
       }
-      .control-group {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        padding: 3px;
-        border: 1px solid #34445c;
+      .toolbar select,
+      .toolbar button {
+        min-height: 36px;
+      }
+      #model-select {
+        min-width: 170px;
+        flex: 1 1 280px;
+      }
+      .toolbar button[aria-pressed="true"] {
+        border-color: #60a5fa;
+        color: #fff;
+        background: #2563eb;
+      }
+      .toolbar button[aria-pressed="false"] {
+        color: #a8b7c9;
+        background: #172438;
+      }
+      .toolbar .secondary {
+        color: #b9c7d8;
+        background: #122033;
+      }
+      .renderer-alert,
+      .status-alert {
+        display: none;
+        position: absolute;
+        z-index: 6;
+        left: 14px;
+        right: 14px;
+        border: 1px solid #c77c37;
         border-radius: 9px;
-        background: #111d2ddd;
-        backdrop-filter: blur(8px);
+        padding: 10px 12px;
+        color: #fff0d2;
+        background: #4a2d19ee;
+        box-shadow: 0 10px 30px #06101ea8;
       }
-      .control-label {
-        padding: 0 3px 0 5px;
-        color: #a7b8cc;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        white-space: nowrap;
+      .renderer-alert:not([hidden]),
+      .status-alert:not([hidden]) {
+        display: block;
       }
-      .toggle-label {
-        padding: 3px 7px;
-        border: 1px solid #334860;
-        border-radius: 999px;
-        color: #a8bbd0;
-        background: #18263a;
-        font-size: 10px;
-        font-weight: 700;
+      .renderer-alert {
+        top: 74px;
       }
-      .toggle-label[data-state="on"] {
-        border-color: #2188da;
-        color: #cbeeff;
-        background: #0b4c75;
+      .status-alert {
+        bottom: 14px;
       }
       .hud {
         position: absolute;
@@ -308,15 +312,9 @@
           monospace;
         white-space: pre-wrap;
       }
-      #status {
-        position: absolute;
-        z-index: 4;
-        bottom: 15px;
-        left: 112px;
-        max-width: calc(100% - 380px);
-        color: #d8e1eb;
-        font-size: 12px;
-        text-shadow: 0 1px 2px #09111c;
+      #status,
+      #stats-panel {
+        display: none;
       }
       .context-menu {
         position: fixed;
@@ -354,8 +352,8 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
-      #stats-panel {
-        display: none;
+      #stats-panel[data-visible="true"] {
+        display: block;
       }
       @media (max-width: 720px) {
         body {
@@ -386,36 +384,52 @@
           top: 8px;
           left: 8px;
           right: 8px;
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 4px;
+          padding: 4px;
+        }
+        .toolbar-row {
+          display: flex;
+          width: 100%;
+          flex: 0 0 100%;
+          min-width: 0;
+          align-items: stretch;
+          gap: 4px;
         }
         select,
-        button {
+        button,
+        .toolbar select,
+        .toolbar button {
           min-height: 44px;
         }
         #model-select {
-          max-width: calc(100% - 16px);
+          min-width: 0;
+          width: auto;
+          flex: 1 1 0;
         }
-        .visibility-body-action {
-          min-height: 30px;
+        .toolbar-row-primary > * {
+          min-width: 0;
         }
-        .visibility-body-group-action {
-          min-height: 30px;
+        .toolbar-row-primary #projection-toggle {
+          flex: 0 1 96px;
+          padding-right: 8px;
+          padding-left: 8px;
         }
-        .toolbar .control-group:nth-of-type(n + 3),
-        #results-control,
-        #depth-test-label,
-        #depth-test,
-        #node-overlay-label,
-        #node-overlay {
-          display: none;
+        .toolbar-row-secondary > * {
+          flex: 1 1 0;
         }
         .inspection {
           display: none;
         }
-        #status {
-          bottom: 9px;
-          left: 108px;
-          max-width: calc(100% - 117px);
-          font-size: 11px;
+        .renderer-alert,
+        .status-alert {
+          left: 8px;
+          right: 8px;
+        }
+        .renderer-alert {
+          top: 122px;
         }
       }
     </style>
@@ -439,77 +453,32 @@
           hidden
         ></div>
         <div class="toolbar">
-          <span id="renderer-status" data-testid="renderer-status" class="toggle-label"></span>
-          <select id="model-select" data-testid="model-select" aria-label="Model"></select>
-          <button id="fit-view" data-testid="fit-view" type="button">Fit</button>
-          <div class="control-group">
-            <span id="projection-label" data-testid="projection-label" class="control-label"
-              >Perspective</span
-            ><button id="projection-toggle" data-testid="projection-toggle" type="button">
-              Orthographic
+          <div class="toolbar-row toolbar-row-primary">
+            <select id="model-select" data-testid="model-select" aria-label="Model"></select>
+            <button id="fit-view" data-testid="fit-view" type="button">Fit</button>
+            <button id="projection-toggle" data-testid="projection-toggle" type="button">
+              Perspective
             </button>
           </div>
-          <div class="control-group">
-            <span
-              id="edge-overlay-label"
-              data-testid="edge-overlay-label"
-              class="toggle-label"
-              data-state="off"
-              >Off</span
-            ><button
-              id="edge-overlay"
-              data-testid="edge-overlay"
-              type="button"
-              aria-pressed="false"
-            >
-              Overlay edges
+          <div class="toolbar-row toolbar-row-secondary">
+            <button id="edge-overlay" data-testid="edge-overlay" type="button" aria-pressed="true">
+              Edges
             </button>
-          </div>
-          <div class="control-group" id="results-control">
-            <span
-              id="results-label"
-              data-testid="results-label"
-              class="toggle-label"
-              data-state="base"
-              >base</span
-            ><button id="results-toggle" data-testid="results-toggle" type="button" disabled>
-              No results
+            <button id="node-overlay" data-testid="node-overlay" type="button" aria-pressed="true">
+              Nodes
             </button>
-          </div>
-          <div class="control-group">
-            <span
-              id="depth-test-label"
-              data-testid="depth-test-label"
-              class="toggle-label"
-              data-state="on"
-              >On</span
-            ><button id="depth-test" data-testid="depth-test" type="button" aria-pressed="true">
-              Depth test off
+            <button id="results-toggle" data-testid="results-toggle" type="button" disabled hidden>
+              Results: Base
             </button>
+            <button id="reset" data-testid="reset" class="secondary" type="button">Reset</button>
           </div>
-          <div class="control-group">
-            <span
-              id="node-overlay-label"
-              data-testid="node-overlay-label"
-              class="toggle-label"
-              data-state="off"
-              >Off</span
-            ><button
-              id="node-overlay"
-              data-testid="node-overlay"
-              type="button"
-              aria-pressed="false"
-            >
-              Show nodes
-            </button>
-          </div>
-          <button id="reset" data-testid="reset" type="button">Reset</button>
         </div>
-        <div class="hud inspection">
+        <div class="hud inspection" hidden>
           <h2>Inspection</h2>
           <pre id="inspection-panel" data-testid="inspection-panel"></pre>
         </div>
-        <div id="status" data-testid="status"></div>
+        <div id="renderer-status" data-testid="renderer-status" class="renderer-alert" hidden></div>
+        <div id="status" data-testid="status" class="status-alert" hidden></div>
         <pre id="stats-panel" data-testid="stats-panel"></pre>
       </section>
       <div id="context-menu" class="context-menu" data-testid="context-menu" hidden></div>

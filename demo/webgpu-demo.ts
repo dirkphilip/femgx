@@ -32,6 +32,8 @@ export async function startWebGpuDemo(
       error instanceof WebGpuUnsupportedError ||
       (unsupportedByDefault && error instanceof Error && error.name !== "GpuValidationError");
     canvas.dataset["renderer"] = unsupported ? "unsupported" : "error";
+    view.rendererStatus.hidden = false;
+    view.status.hidden = false;
     view.rendererStatus.textContent = unsupported ? "Renderer unsupported" : "Renderer error";
     view.status.textContent = unsupported
       ? `femgx requires a usable WebGPU renderer. ${detail}`

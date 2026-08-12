@@ -67,7 +67,8 @@ controller, so camera and interaction behavior is stable
   ([[architecture/demo-library-boundary|Demo / library boundary]]).
 - Display toggles (edges, nodes, diagnostics) flip renderer state only; they never
   rebuild reusable geometry or drop selection state. The `edges` overlay is a
-  real WebGPU pass with a depth-test control that stays live. Coplanar overlay
+  real WebGPU pass with depth testing kept as an implementation invariant rather
+  than exposed as a persistent user control. Coplanar overlay
   edges are offset in clip space in their vertex shader, rather than using a
   second surface or a backend-dependent pipeline depth bias. Shell triangles
   are two-sided by default, so a genuine 2D FE surface remains visible from
@@ -76,21 +77,24 @@ controller, so camera and interaction behavior is stable
   inspection-first defaults and reapply per-part edge overrides after replacing
   the scene
   ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
-- Part rows with multiple placements expose a collapsed `Instance` list. Each
+- Body rows expose independent visibility checkboxes and body-name highlight
+  buttons; the name button is outside the checkbox label so visibility and
+  highlighting cannot interfere. Part rows with multiple placements expose a collapsed `Instance` list. Each
   instance checkbox updates that one runtime slot, preserving the ability to
   hide or restore individual placements without expanding the assembly model.
-- The full-screen layout keeps the hierarchical visibility tree in a left rail;
-  the WebGPU canvas owns the remaining space. Inspection and telemetry are
-  compact scene overlays, so there is no separate CPU-canvas results renderer.
-  The control bar shows the active renderer in a `#renderer-status` chip next
-  to the model selector.
+- The full-screen layout keeps the hierarchical visibility tree in a 340–380px
+  left rail; the WebGPU canvas owns the remaining space. The toolbar is one calm
+  surface with model, fit, projection, edges, nodes, results, and reset controls.
+  Healthy renderer/status telemetry and inspection details stay hidden until
+  explicitly needed; renderer failures remain prominent. On mobile the scene is
+  first and the hierarchy follows it, while the toolbar uses exactly two rows.
 - The controller exposes a `rendererState` note (e.g. `recovered`) for status
   presentation. `FemViewport` performs recovery and reports success/failure to
   the demo callbacks ([[rendering/platform-support|Platform support]]).
 - The toolbar **Reset** action restores the active preset's complete initial
   state: solid mode, all runtime hierarchy/part/instance visibility, palette
-  interaction state, perspective camera fitted to the scene, edge/node/depth
-  toggles, diagnostics, selection/hover/pick datasets, and the inspection
+  interaction state, perspective camera fitted to the scene, edge/node toggles,
+  diagnostics, selection/hover/pick datasets, and the inspection
   panel. It does not switch the selected model preset.
 
 ## Mobile / responsive layout

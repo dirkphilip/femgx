@@ -145,5 +145,8 @@ export class WorkbenchInteraction {
     this.options.view.inspectionPanel.textContent = describePick(hit, (partId) =>
       this.options.partName(partId),
     );
+    const surface = Reflect.get(this.options.view.inspectionPanel, "parentElement") as
+      HTMLElement | null | undefined;
+    if (surface !== null && surface !== undefined) surface.hidden = hit === undefined;
   }
 }

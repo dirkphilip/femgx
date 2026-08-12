@@ -13,7 +13,6 @@ export interface WorkbenchBindingOptions {
   readonly menu: WorkbenchMenu;
   /** True while a camera or box pointer gesture suppresses asynchronous hover. */
   readonly dragging: () => boolean;
-  readonly setDepthTest: () => void;
   readonly setEdges: () => void;
   readonly setNodes: () => void;
   readonly setResults: () => void;
@@ -41,7 +40,6 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
   );
   view.edgeOverlayToggle.addEventListener("click", options.setEdges, { signal });
   view.resultsToggle.addEventListener("click", options.setResults, { signal });
-  view.depthTestToggle.addEventListener("click", options.setDepthTest, { signal });
   view.nodeOverlayToggle.addEventListener("click", options.setNodes, { signal });
   view.resetButton.addEventListener("click", options.reset, { signal });
   view.fitView.addEventListener("click", options.fitView, { signal });

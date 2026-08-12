@@ -208,7 +208,6 @@ describe("workbench hover suppression", () => {
       interaction,
       menu: { hide: vi.fn() } as unknown as WorkbenchMenu,
       dragging: () => dragging,
-      setDepthTest: () => undefined,
       setEdges: () => undefined,
       setNodes: () => undefined,
       setResults: () => undefined,
