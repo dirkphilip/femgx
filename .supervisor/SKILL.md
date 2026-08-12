@@ -114,6 +114,16 @@ completion. Failing required checks may trigger PR repair (`github.repair`).
 New feature intake pauses while the base commit's CI is red; see
 `wiki/operations/ci-authority.md`.
 
+## Validate automation contracts
+
+Run the focused automation checks from the repository root:
+
+```sh
+node .supervisor/check-boundary.mjs
+npx tsc --noEmit -p .supervisor/tsconfig.json
+npx vitest run --config .supervisor/vitest.config.ts
+```
+
 Configured workflows may use `when_labels` to skip optional stages and
 `deny_labels` to skip a stage when a label is present. They may also use
 `wait_for_labels` with `allow_labels`/`deny_labels` for human approval. Approval

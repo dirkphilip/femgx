@@ -8,8 +8,3 @@ coverage
 .vite
 playwright-report
 test-results
-
-# Local supervisor state
-.supervisor/issues.json
-.supervisor/run/
-.supervisor/supervisor-ownership.json
