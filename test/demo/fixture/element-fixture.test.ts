@@ -4,6 +4,7 @@ import {
   createHex20CylinderFixture,
   type ElementFixture,
 } from "../../../demo/fixture/element-fixture";
+import { buildMeshEdgeData } from "../../../src/renderer/gpu-edge";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import type { Instance } from "../../../src/scene/types";
 
@@ -21,6 +22,14 @@ function runtimeInstances(fixture: Pick<ElementFixture, "scene">): readonly Inst
     instances.push({ index, instanceId, partId, worldTransform });
   }
   return instances;
+}
+
+function nonZeroNodeIds(part: {
+  readonly geometry: { readonly nodePickIds?: Uint32Array };
+}): number[] {
+  return [...new Set(Array.from(part.geometry.nodePickIds ?? []).filter((id) => id !== 0))].sort(
+    (a, b) => a - b,
+  );
 }
 
 describe("createElementFixture", () => {
@@ -100,6 +109,43 @@ describe("createElementFixture", () => {
     expect(scene.parts.get(partIds.polygon)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.tet4)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.hex20)?.geometry.primitive).toBe("triangles");
+  });
+
+  it("keeps authored triangle and quad nodes and boundary edges separate", () => {
+    const { scene, partIds } = createElementFixture();
+    const triangle = scene.parts.get(partIds.triangle);
+    const quad = scene.parts.get(partIds.quad);
+    if (triangle === undefined || quad === undefined) throw new Error("surface parts are missing");
+    if (triangle.geometry.primitive !== "triangles" || quad.geometry.primitive !== "triangles") {
+      throw new Error("surface parts are not triangle geometry");
+    }
+    const triangleElements = triangle.geometry.elements;
+    const quadElements = quad.geometry.elements;
+    if (triangleElements === undefined || quadElements === undefined) {
+      throw new Error("surface element descriptors are missing");
+    }
+    const triangleElement = triangleElements[0];
+    const quadElement = quadElements[0];
+    if (
+      triangleElement === undefined ||
+      quadElement === undefined ||
+      triangleElement.shape === undefined ||
+      quadElement.shape === undefined
+    ) {
+      throw new Error("surface element descriptors are empty");
+    }
+
+    expect(triangle.geometry.faceSubset).toBeUndefined();
+    expect(quad.geometry.faceSubset).toBeUndefined();
+    expect(triangleElements).toHaveLength(1);
+    expect(quadElements).toHaveLength(1);
+    expect(triangleElement.shape.family).toBe("triangle");
+    expect(quadElement.shape.family).toBe("quad");
+    expect(nonZeroNodeIds(triangle)).toEqual([1, 2, 3]);
+    expect(nonZeroNodeIds(quad)).toEqual([2, 3, 4, 5]);
+
+    expect(buildMeshEdgeData(triangle.geometry).indices).toHaveLength(6);
+    expect(buildMeshEdgeData(quad.geometry).indices).toHaveLength(8);
   });
 
   it("builds a linearly tessellated Hex20 cylinder with a bounded height", () => {
