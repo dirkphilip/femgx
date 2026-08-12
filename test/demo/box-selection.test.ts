@@ -1,9 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createInteractionState, type FemViewport } from "../../src/index";
+import {
+  createInteractionState,
+  isTargetSelected,
+  setTargetSelected,
+  type BoxSelectionModifiers,
+  type BoxSelectionEvent,
+  type FemViewport,
+  type InteractionTarget,
+} from "../../src/index";
 import type { DemoView } from "../../demo/workbench/view";
 import { WorkbenchBoxPreview } from "../../demo/workbench/box-preview";
 import { installWorkbenchBindings } from "../../demo/workbench/listeners";
 import { WorkbenchInteraction } from "../../demo/workbench/interaction";
+import { selectedKeys } from "../../demo/workbench/selection";
 import type { WorkbenchMenu } from "../../demo/workbench/menu";
 import type { BoxSelectionRect } from "../../src/index";
 
@@ -236,15 +245,19 @@ describe("workbench hover suppression", () => {
 });
 
 describe("workbench click selection", () => {
-  function harness(pick = vi.fn(() => Promise.resolve(undefined))) {
+  function harness(
+    pick = vi.fn(() => Promise.resolve(undefined)),
+    pickRegion = vi.fn(() => Promise.resolve([] as readonly InteractionTarget[])),
+    initialInteraction = createInteractionState(),
+  ) {
     const canvas = new FakeElement();
-    let interaction = createInteractionState();
+    let interaction = initialInteraction;
     const render = vi.fn();
     const inspectionPanel = { textContent: "" };
     const workbench = new WorkbenchInteraction({
       canvas: canvas as unknown as HTMLCanvasElement,
       view: { inspectionPanel: inspectionPanel as unknown as HTMLElement },
-      viewport: () => ({ pick }) as unknown as FemViewport,
+      viewport: () => ({ pick, pickRegion }) as unknown as FemViewport,
       getInteraction: () => interaction,
       setInteraction: (next) => {
         interaction = next;
@@ -253,8 +266,30 @@ describe("workbench click selection", () => {
       menu: { hide: vi.fn() } as unknown as WorkbenchMenu,
       render,
     });
-    return { workbench, pick, render, getInteraction: () => interaction };
+    return { workbench, pick, pickRegion, render, getInteraction: () => interaction };
   }
+
+  const element = (instanceId: string, elementId: number): InteractionTarget => ({
+    kind: "element",
+    instanceId,
+    elementId,
+  });
+
+  const complete = (
+    modifiers: Partial<BoxSelectionModifiers> = {},
+  ): BoxSelectionEvent & { readonly type: "complete" } => ({
+    type: "complete",
+    anchor: { x: 20, y: 30 },
+    current: { x: 120, y: 90 },
+    rect: rect(),
+    modifiers: {
+      shift: false,
+      control: false,
+      alt: false,
+      meta: false,
+      ...modifiers,
+    },
+  });
 
   it("does not select or mutate inspection for a drag beyond the threshold", async () => {
     const { workbench, pick, render } = harness();
@@ -297,6 +332,103 @@ describe("workbench click selection", () => {
     resolveSecond?.(undefined);
     await firstClick;
     await secondClick;
+  });
+
+  it("replaces selection with distinct visible elements in one render", async () => {
+    const first = element("instance-a", 2);
+    const second = element("instance-b", 1);
+    const initial = setTargetSelected(createInteractionState(), element("old", 9), true);
+    const pickRegion = vi.fn(() => Promise.resolve([first, second, first]));
+    const { workbench, render, getInteraction } = harness(undefined, pickRegion, initial);
+
+    await workbench.selectBox(complete({ shift: true, alt: true }));
+
+    expect(pickRegion).toHaveBeenCalledOnce();
+    expect(pickRegion).toHaveBeenCalledWith(rect(), "element");
+    expect(selectedKeys(getInteraction())).toEqual(["e:instance-a:2", "e:instance-b:1"]);
+    expect(render).toHaveBeenCalledOnce();
+  });
+
+  it("toggles distinct visible elements for Control or Meta without changing other selection", async () => {
+    const first = element("instance-a", 2);
+    const second = element("instance-b", 1);
+    const initial = setTargetSelected(createInteractionState(), first, true);
+    const pickRegion = vi.fn(() => Promise.resolve([first, second, second]));
+    const { workbench, render, getInteraction } = harness(undefined, pickRegion, initial);
+
+    await workbench.selectBox(complete({ control: true }));
+
+    expect(selectedKeys(getInteraction())).toEqual(["e:instance-b:1"]);
+    expect(isTargetSelected(getInteraction(), first)).toBe(false);
+    expect(render).toHaveBeenCalledOnce();
+  });
+
+  it("clears on an empty plain box and leaves Control or Meta empty boxes alone", async () => {
+    const selected = element("instance-a", 2);
+    const initial = setTargetSelected(createInteractionState(), selected, true);
+    const pickRegion = vi.fn(() => Promise.resolve([] as readonly InteractionTarget[]));
+    const { workbench, render, getInteraction } = harness(undefined, pickRegion, initial);
+
+    await workbench.selectBox(complete());
+    expect(selectedKeys(getInteraction())).toEqual([]);
+    expect(render).toHaveBeenCalledOnce();
+
+    render.mockClear();
+    const preserved = getInteraction();
+    await workbench.selectBox(complete({ meta: true }));
+    expect(getInteraction()).toBe(preserved);
+    expect(render).not.toHaveBeenCalled();
+  });
+
+  it("applies only the newest region result", async () => {
+    let resolveFirst: ((targets: readonly InteractionTarget[]) => void) | undefined;
+    let resolveSecond: ((targets: readonly InteractionTarget[]) => void) | undefined;
+    const first = new Promise<readonly InteractionTarget[]>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const second = new Promise<readonly InteractionTarget[]>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const pickRegion = vi.fn().mockReturnValueOnce(first).mockReturnValueOnce(second);
+    const { workbench, render, getInteraction } = harness(undefined, pickRegion);
+
+    const firstBox = workbench.selectBox(complete());
+    const secondBox = workbench.selectBox(complete());
+    await vi.waitFor(() => {
+      expect(pickRegion).toHaveBeenCalledTimes(2);
+    });
+    resolveFirst?.([element("stale", 1)]);
+    resolveSecond?.([element("current", 2)]);
+    await firstBox;
+    await secondBox;
+
+    expect(selectedKeys(getInteraction())).toEqual(["e:current:2"]);
+    expect(render).toHaveBeenCalledOnce();
+  });
+
+  it("ignores a rejected region query and a result invalidated by a newer click", async () => {
+    const rejected = vi.fn(() => Promise.reject(new Error("region failed")));
+    const rejectedHarness = harness(undefined, rejected);
+    await expect(rejectedHarness.workbench.selectBox(complete())).resolves.toBeUndefined();
+    expect(selectedKeys(rejectedHarness.getInteraction())).toEqual([]);
+    expect(rejectedHarness.render).not.toHaveBeenCalled();
+
+    let resolveRegion: ((targets: readonly InteractionTarget[]) => void) | undefined;
+    const pendingRegion = new Promise<readonly InteractionTarget[]>((resolve) => {
+      resolveRegion = resolve;
+    });
+    const pickRegion = vi.fn(() => pendingRegion);
+    const clickPick = vi.fn(() => Promise.resolve(undefined));
+    const currentHarness = harness(clickPick, pickRegion);
+    const box = currentHarness.workbench.selectBox(complete());
+    await vi.waitFor(() => {
+      expect(pickRegion).toHaveBeenCalledOnce();
+    });
+    await currentHarness.workbench.click({ clientX: 100, clientY: 100 } as MouseEvent);
+    resolveRegion?.([element("stale", 1)]);
+    await box;
+
+    expect(selectedKeys(currentHarness.getInteraction())).toEqual([]);
   });
 
   it("ignores an in-flight pick rejected after destruction", async () => {

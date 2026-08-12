@@ -7,6 +7,7 @@ import {
   type PartId,
   type PickHit,
 } from "../../src/index";
+import type { BoxSelectionEvent, InteractionTarget } from "../../src/index";
 import { describePick } from "./inspect";
 import { elementTarget, selectTarget, targetKey, type SelectTarget } from "./pick";
 import {
@@ -14,6 +15,8 @@ import {
   replaceSelection,
   toggleHighlight,
   toggleElementSelection,
+  replaceElementSelection,
+  toggleElementSelections,
   toggleSelection,
 } from "./selection";
 import type { WorkbenchMenu, WorkbenchMenuSelectionOptions } from "./menu";
@@ -39,6 +42,7 @@ export class WorkbenchInteraction {
   private disposed = false;
   private downPosition: { readonly x: number; readonly y: number } | undefined;
   private target: SelectTarget | undefined;
+  private boxSelectionPending = false;
 
   constructor(options: WorkbenchInteractionOptions) {
     this.options = options;
@@ -54,9 +58,11 @@ export class WorkbenchInteraction {
 
   pointerCancel(): void {
     this.downPosition = undefined;
+    this.invalidatePendingQuery();
   }
 
   async hover(event: PointerEvent): Promise<void> {
+    if (this.boxSelectionPending) return;
     const generation = ++this.generation;
     const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
@@ -75,6 +81,7 @@ export class WorkbenchInteraction {
     this.downPosition = undefined;
     if (down !== undefined && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 10)
       return;
+    this.boxSelectionPending = false;
     const generation = ++this.generation;
     const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
@@ -90,32 +97,38 @@ export class WorkbenchInteraction {
   }
 
   select(target: SelectTarget): void {
+    this.invalidatePendingQuery();
     this.options.setInteraction(toggleSelection(this.options.getInteraction(), target));
     this.options.render();
   }
 
   selectElement(target: SelectTarget): void {
+    this.invalidatePendingQuery();
     this.options.setInteraction(toggleElementSelection(this.options.getInteraction(), target));
     this.options.render();
   }
 
   replace(target: SelectTarget): void {
+    this.invalidatePendingQuery();
     this.options.setInteraction(replaceSelection(this.options.getInteraction(), target));
     this.options.render();
   }
 
   clearSelection(): void {
+    this.invalidatePendingQuery();
     this.options.setInteraction(clearSelectedTargets(this.options.getInteraction()));
     this.options.render();
   }
 
   highlight(target: SelectTarget): void {
+    this.invalidatePendingQuery();
     this.options.setInteraction(toggleHighlight(this.options.getInteraction(), target));
     this.options.render();
   }
 
   async contextMenu(event: MouseEvent): Promise<void> {
     event.preventDefault();
+    this.boxSelectionPending = false;
     const generation = ++this.generation;
     const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
@@ -136,7 +149,7 @@ export class WorkbenchInteraction {
 
   clearContext(): void {
     this.target = undefined;
-    this.generation += 1;
+    this.invalidatePendingQuery();
     this.options.menu.hide();
   }
 
@@ -163,6 +176,35 @@ export class WorkbenchInteraction {
     }
   }
 
+  /** Selects the visible elements returned for one completed primary drag. */
+  async selectBox(event: BoxSelectionEvent): Promise<void> {
+    if (event.type !== "complete") return;
+    const generation = ++this.generation;
+    this.boxSelectionPending = true;
+    try {
+      const targets = await this.options.viewport().pickRegion(event.rect, "element");
+      if (this.disposed || generation !== this.generation) return;
+      const elements = elementTargets(targets);
+      const current = this.options.getInteraction();
+      const next =
+        event.modifiers.control || event.modifiers.meta
+          ? toggleElementSelections(current, elements)
+          : replaceElementSelection(current, elements);
+      if (next === current) return;
+      this.options.setInteraction(next);
+      this.options.render();
+    } catch {
+      // A rejected region query has no selection result to apply.
+    } finally {
+      if (generation === this.generation) this.boxSelectionPending = false;
+    }
+  }
+
+  private invalidatePendingQuery(): void {
+    this.boxSelectionPending = false;
+    this.generation += 1;
+  }
+
   private showPick(hit: Parameters<typeof describePick>[0]): void {
     this.options.view.inspectionPanel.textContent = describePick(hit, (partId) =>
       this.options.partName(partId),
@@ -171,6 +213,10 @@ export class WorkbenchInteraction {
       HTMLElement | null | undefined;
     if (surface !== null && surface !== undefined) surface.hidden = hit === undefined;
   }
+}
+
+function elementTargets(targets: readonly InteractionTarget[]): SelectTarget[] {
+  return targets.filter((target): target is SelectTarget => target.kind === "element");
 }
 
 function contextMenuSelectionOptions(

@@ -33,6 +33,7 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     canvas: options.canvas,
     onEvent: (event) => {
       options.boxPreview.handleEvent(event);
+      if (event.type === "complete") void options.interaction.selectBox(event);
     },
   });
   options.visibilityPanel.install(options.signal);
