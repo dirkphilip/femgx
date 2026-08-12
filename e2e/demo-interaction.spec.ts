@@ -1,14 +1,15 @@
 import { expect, test } from "@playwright/test";
 import { dataset, requireHit } from "./demo-support";
+import { loadWebGpuPage } from "./webgpu-support";
 test("toggles the element edge overlay independently of solid geometry", async ({ page }) => {
-  await page.goto("/");
+  await loadWebGpuPage(page);
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
 
   await page.getByTestId("edge-overlay").click();
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
 });
 test("toggles the edge overlay", async ({ page }) => {
-  await page.goto("/");
+  await loadWebGpuPage(page);
   const overlay = page.getByTestId("edge-overlay");
   await expect(overlay).toHaveAttribute("aria-pressed", "true");
   await page.getByTestId("edge-overlay").click();
@@ -18,18 +19,13 @@ test("toggles the edge overlay", async ({ page }) => {
 });
 
 test("keeps depth-tested edges behind the single edges control", async ({ page }) => {
-  await page.goto("/");
-  await expect
-    .poll(() => page.getByTestId("view-canvas").getAttribute("data-renderer"), {
-      timeout: 10_000,
-    })
-    .toBe("webgpu");
+  await loadWebGpuPage(page);
 
   await expect(page.getByTestId("depth-test")).toHaveCount(0);
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
 });
 test("selects an element by promoting a node pick with shift-click", async ({ page }) => {
-  await page.goto("/");
+  await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
@@ -44,7 +40,7 @@ test("selects an element by promoting a node pick with shift-click", async ({ pa
   await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
 });
 test("clears selection on empty scene clicks but preserves it through orbit", async ({ page }) => {
-  await page.goto("/");
+  await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
@@ -71,7 +67,7 @@ test("clears selection on empty scene clicks but preserves it through orbit", as
   await expect.poll(() => dataset(page, "selected")).toBe(selected);
 });
 test("uses Control/Meta-click for additive and toggle selection", async ({ page }) => {
-  await page.goto("/");
+  await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
   const nodeHit = await requireHit(
     page,
@@ -86,14 +82,14 @@ test("uses Control/Meta-click for additive and toggle selection", async ({ page 
     "face GPU picking must resolve on the deterministic WebGPU lane",
   );
   await page.mouse.click(nodeHit.x, nodeHit.y);
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
   const nodeKey = await dataset(page, "selected");
   const modifier = process.platform === "darwin" ? "Meta" : "Control";
   await page.keyboard.down(modifier);
   await page.mouse.click(faceHit.x, faceHit.y);
   await page.keyboard.up(modifier);
   await expect.poll(() => dataset(page, "selected")).toContain(nodeKey);
-  const additive = await dataset(page, "selected");
-  expect(additive).toContain("f:");
+  await expect.poll(() => dataset(page, "selected")).toContain("f:");
 
   await page.keyboard.down(modifier);
   await page.mouse.click(faceHit.x, faceHit.y);
@@ -101,7 +97,7 @@ test("uses Control/Meta-click for additive and toggle selection", async ({ page 
   await expect.poll(() => dataset(page, "selected")).toBe(nodeKey);
 });
 test("picks and selects a node, exposing adjacency and neighbors", async ({ page }) => {
-  await page.goto("/");
+  await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
@@ -116,7 +112,7 @@ test("picks and selects a node, exposing adjacency and neighbors", async ({ page
   await expect(page.getByTestId("inspection-panel")).toContainText("Neighbors");
 });
 test("picks and selects a face, exposing its normal and ownership", async ({ page }) => {
-  await page.goto("/");
+  await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
@@ -131,7 +127,7 @@ test("picks and selects a face, exposing its normal and ownership", async ({ pag
   await expect(page.getByTestId("inspection-panel")).toContainText("Adjacent elements");
 });
 test("keeps selection stable across repeated orbit interactions", async ({ page }) => {
-  await page.goto("/");
+  await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
