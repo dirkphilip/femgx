@@ -175,6 +175,18 @@ fn edgeEndpoint(index: u32) -> vec2<u32> {
 }
 `;
 
+/** Shared four-corner lookup for visible and node-pick point sprites. */
+export const spriteCornerFn = /* wgsl */ `
+fn spriteCorner(corner: u32) -> vec2<f32> {
+  switch corner {
+    case 0u: { return vec2<f32>(-1.0, -1.0); }
+    case 1u: { return vec2<f32>(1.0, -1.0); }
+    case 2u: { return vec2<f32>(1.0, 1.0); }
+    default: { return vec2<f32>(-1.0, 1.0); }
+  }
+}
+`;
+
 /**
  * Displaces a model-space vertex by the active load case's nodal displacement,
  * scaled by the deformation uniform. Each vertex is mapped to the model node

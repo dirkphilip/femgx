@@ -119,6 +119,17 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(pointVertexShader).toMatch(/topologyOwnersVisible\(/);
   });
 
+  it("builds primitive variants from explicit indexing and shared sprite corners", () => {
+    expect(instanceVertexShader).toContain("vertexIndex / 3u");
+    expect(lineVertexShader).toContain("vertexIndex / 2u");
+    expect(lineVertexShader).not.toContain("vertexIndex / 3u");
+    expect(nodePickVertexShader).toContain("vertexNodePickIds[base + 2u]");
+    expect(lineNodePickVertexShader).toContain("base + 1u");
+    expect(lineNodePickVertexShader).not.toContain("vertexNodePickIds[base + 2u]");
+    expect(pointVertexShader.match(/fn spriteCorner\(/g)).toHaveLength(1);
+    expect(pointNodePickVertexShader.match(/fn spriteCorner\(/g)).toHaveLength(1);
+  });
+
   it("reports a proximity-gated nearest corner node in the node pick pass", () => {
     const memberNames = structInfo(nodePickVertexShader, "NodeVertexOutput").members.map(
       (member) => member.name,
