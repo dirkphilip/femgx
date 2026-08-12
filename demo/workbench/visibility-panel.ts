@@ -6,7 +6,7 @@ import type {
   PartId,
   SceneRuntime,
 } from "../../src/index";
-import type { ModelPreset } from "../fixture/presets";
+import type { WorkbenchModel } from "./model";
 import { assemblyName } from "./visibility-tree";
 import type { VisibilityRowTarget } from "./tree-hover";
 import { installVisibilityTreeHover } from "./tree-hover-events";
@@ -15,7 +15,7 @@ import { visibilityRowLabel } from "./visibility-row";
 /** Callbacks that keep the runtime as the single source of visibility truth. */
 export interface VisibilityPanelOptions {
   readonly panel: HTMLElement;
-  readonly getPreset: () => ModelPreset;
+  readonly getModel: () => WorkbenchModel;
   readonly getRuntime: () => SceneRuntime;
   readonly partName: (partId: PartId) => string | undefined;
   readonly partVisible: (partId: PartId) => boolean;
@@ -60,13 +60,13 @@ export class VisibilityPanelController {
   rebuild(): void {
     const { panel } = this.options;
     this.options.onTreeHover?.(undefined);
-    const preset = this.options.getPreset();
+    const model = this.options.getModel();
     panel.textContent = "";
-    const rootAssemblyId = preset.scene.rootAssemblyId;
+    const rootAssemblyId = model.scene.rootAssemblyId;
     const context = document.createElement("div");
     context.className = "visibility-context";
     context.dataset["testid"] = "visibility-context";
-    context.textContent = `Assembly · ${assemblyName(preset.scene.assemblies.get(rootAssemblyId)) ?? `Assembly ${rootAssemblyId}`}`;
+    context.textContent = `Assembly · ${assemblyName(model.scene.assemblies.get(rootAssemblyId)) ?? `Assembly ${rootAssemblyId}`}`;
     panel.appendChild(context);
     const rootNodeId = this.options.getRuntime().getNodeIds()[0];
     if (rootNodeId !== undefined) {
@@ -165,12 +165,12 @@ export class VisibilityPanelController {
   }
 
   private assemblyNode(nodeId: AssemblyNodeId): HTMLElement {
-    const preset = this.options.getPreset();
+    const model = this.options.getModel();
     const runtime = this.options.getRuntime();
     const node = runtime.getNode(nodeId);
     if (node === undefined) throw new Error(`Missing runtime node ${nodeId}`);
     const assemblyId = node.assemblyId;
-    const name = assemblyName(preset.scene.assemblies.get(assemblyId)) ?? `Assembly ${assemblyId}`;
+    const name = assemblyName(model.scene.assemblies.get(assemblyId)) ?? `Assembly ${assemblyId}`;
     const displayName = this.assemblyOccurrenceName(nodeId, name);
     const branch = document.createElement("div");
     branch.className = "visibility-branch";
@@ -233,8 +233,7 @@ export class VisibilityPanelController {
     const spacer = document.createElement("span");
     spacer.className = "visibility-spacer";
     spacer.setAttribute("aria-hidden", "true");
-    const part =
-      partId === undefined ? undefined : this.options.getPreset().scene.parts.get(partId);
+    const part = partId === undefined ? undefined : this.options.getModel().scene.parts.get(partId);
     const bodies = part?.geometry.bodies ?? [];
     row.append(
       spacer,

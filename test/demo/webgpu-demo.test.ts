@@ -7,13 +7,13 @@ import { startWebGpuDemo } from "../../demo/workbench/start";
 const mocks = vi.hoisted(() => {
   class FakeWorkbenchController {
     readonly interaction = {} as never;
-    readonly preset;
+    readonly model;
     rendererState = "";
     private currentViewport;
 
     constructor(options: WorkbenchOptions) {
       this.currentViewport = options.viewport;
-      this.preset = options.presets[0];
+      this.model = options.presets[0];
     }
 
     get camera() {

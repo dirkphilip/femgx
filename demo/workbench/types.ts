@@ -1,6 +1,6 @@
-import type { FemViewport, InteractionState, SceneRuntime } from "../../src/index";
+import type { FemViewport, GlbSceneImport, InteractionState, SceneRuntime } from "../../src/index";
 import type { DemoView } from "./view";
-import type { ModelPreset } from "../fixture/presets";
+import type { WorkbenchModel } from "./model";
 
 /** Current draw statistics reported by the active renderer. */
 export interface RendererStats {
@@ -29,12 +29,16 @@ export interface WorkbenchOptions {
   readonly canvas: HTMLCanvasElement;
   readonly rendererName: string;
   readonly viewport: FemViewport;
-  readonly presets: readonly ModelPreset[];
+  readonly presets: readonly WorkbenchModel[];
+  readonly importGlb?: (
+    source: ArrayBuffer | Uint8Array,
+    options?: { readonly strict?: boolean },
+  ) => Promise<GlbSceneImport>;
 }
 
 /** Read-only context needed by visibility and status helpers. */
 export interface WorkbenchSceneContext {
-  readonly preset: ModelPreset;
+  readonly model: WorkbenchModel;
   readonly runtime: SceneRuntime;
   readonly interaction: InteractionState;
 }

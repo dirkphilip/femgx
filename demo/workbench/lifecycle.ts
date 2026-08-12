@@ -23,7 +23,8 @@ export interface WorkbenchLifecycleOptions {
   readonly reset: () => void;
   readonly fitView: () => void;
   readonly fitSelection: () => void;
-  readonly setPreset: (id: string) => void;
+  readonly setModel: (id: string) => void;
+  readonly openGlb: (file: File) => void;
 }
 
 /** Installs the complete workbench listener lifetime and returns its box disposer. */
@@ -50,7 +51,8 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     reset: options.reset,
     fitView: options.fitView,
     fitSelection: options.fitSelection,
-    setPreset: options.setPreset,
+    setModel: options.setModel,
+    openGlb: options.openGlb,
   });
   return boxSelectionDisposer;
 }

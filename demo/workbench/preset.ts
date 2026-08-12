@@ -1,11 +1,6 @@
-import {
-  createInteractionState,
-  setPartOverride,
-  type Color,
-  type InteractionState,
-  type PartId,
-} from "../../src/index";
+import { createInteractionState, setPartOverride, type InteractionState } from "../../src/index";
 import type { ModelPreset } from "../fixture/presets";
+import { createExampleModel, partStyleOverride, type WorkbenchModel } from "./model";
 
 /** Creates the deterministic palette state for one demo model preset. */
 export function createPresetInteraction(
@@ -13,26 +8,18 @@ export function createPresetInteraction(
   edges = false,
   nodes = false,
 ): InteractionState {
-  let state = createInteractionState();
-  for (const partId of preset.scene.parts.keys()) {
-    state = setPartOverride(state, partId, partStyleOverride(preset, partId, edges, nodes));
-  }
-  return state;
+  return createModelInteraction(createExampleModel(preset), edges, nodes);
 }
 
-/** Keeps the preset palette intact while optionally enabling display overlays. */
-export function partStyleOverride(
-  preset: ModelPreset,
-  partId: PartId,
-  edges: boolean,
+/** Creates fresh interaction state for the active built-in or imported model. */
+export function createModelInteraction(
+  model: WorkbenchModel,
+  edges = false,
   nodes = false,
-): { color: Color; opacity?: number; edge?: true; nodes?: true } {
-  const opacity = preset.partOpacities?.get(partId);
-  const part = preset.scene.parts.get(partId);
-  return {
-    color: preset.partColors.get(partId) ?? preset.fallbackColor,
-    ...(opacity === undefined ? {} : { opacity }),
-    ...(edges ? { edge: true } : {}),
-    ...(nodes && part?.geometry.primitive !== "points" ? { nodes: true } : {}),
-  };
+): InteractionState {
+  let state = createInteractionState();
+  for (const partId of model.scene.parts.keys()) {
+    state = setPartOverride(state, partId, partStyleOverride(model, partId, edges, nodes));
+  }
+  return state;
 }
