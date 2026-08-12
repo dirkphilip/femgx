@@ -1,4 +1,4 @@
-import type { PartId, PickHit } from "../src/index";
+import type { PartId, PickHit } from "../../src/index";
 
 /**
  * Optional resolver for a part's display name, so the inspection panel can

@@ -1,4 +1,4 @@
-import type { Assembly, AssemblyId, SceneRuntime } from "../src/index";
+import type { Assembly, AssemblyId, SceneRuntime } from "../../src/index";
 
 /**
  * Aggregate visibility of an assembly subtree as a tri-state checkbox value.

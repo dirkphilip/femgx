@@ -140,6 +140,11 @@ Conventions:
   consumer boundary; production modules must use the owning subsystem's
   exported surface and must not import the root barrel.
 
+The demo is split by ownership: `demo/workbench/` contains user-facing
+inspection behavior and DOM lifecycle, `demo/devtools/` contains diagnostics
+formatting and the typed browser-test harness, and `demo/benchmark/` contains
+the opt-in WebGPU benchmark plus its narrowly permitted internal imports.
+
 ## Public API North Star
 
 The canonical public workflow is reusable part definitions and assembly

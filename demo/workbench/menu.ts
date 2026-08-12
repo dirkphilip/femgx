@@ -1,4 +1,4 @@
-import type { SelectTarget } from "../pick";
+import type { SelectTarget } from "./pick";
 
 /** Small context-menu renderer owned by the demo workbench. */
 export class WorkbenchMenu {

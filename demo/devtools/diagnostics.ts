@@ -1,6 +1,6 @@
 import type { PartId } from "../../src/index";
 import type { ModelPreset } from "../fixture/presets";
-import type { DisplayToggles, RendererStats, WorkbenchSceneContext } from "./types";
+import type { DisplayToggles, RendererStats, WorkbenchSceneContext } from "../workbench/types";
 
 /** Display inputs used to format one status snapshot. */
 export interface StatusTextOptions {

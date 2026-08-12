@@ -32,7 +32,8 @@ controller, so camera and interaction behavior is stable
   face / node selection policy.
 - Default granularity prefers the **most specific available target**
   (`node` > `face` > `element` > `instance`). Modifier keys promote/narrow the
-  selection: shift → element, alt → instance, ctrl → part (see `demo/pick.ts`).
+  selection: shift → element, alt → instance, ctrl → part (see
+  `demo/workbench/pick.ts`).
 - The workbench ignores stale readbacks with a pick generation counter so
   hover/click races never apply an older hit.
 - Hit data is stable across visibility changes because ids come from the
@@ -40,13 +41,15 @@ controller, so camera and interaction behavior is stable
 
 ## Workbench controller
 
-- `demo/controller.ts` (`WorkbenchController`) owns active-preset and DOM
-  presentation policy while `FemViewport` owns the packed runtime, camera,
+- `demo/workbench/controller.ts` (`WorkbenchController`) owns active-preset and
+  DOM presentation policy while `FemViewport` owns the packed runtime, camera,
   controls, interaction synchronization, visibility, picking, and renderer
   lifecycle. Focused `demo/workbench/` modules own async picking, selection
   state, visibility actions/tree construction, menu rendering, presentation,
-  status formatting, and abortable DOM bindings; the controller remains the
-  orchestration surface.
+  and abortable DOM bindings; `demo/devtools/diagnostics.ts` owns diagnostics
+  formatting and `demo/workbench/lifecycle.ts` owns listener lifetime. The
+  controller remains the only stateful orchestration surface and is kept below
+  the 400-line implementation ceiling.
 - The **visibility panel is a hierarchical tree** built from the authoritative
   scene graph: expandable assembly rows (with a disclosure button and an
   explicit `Assembly`/`Part` identity-kind badge) nest the parts placed beneath
@@ -57,7 +60,7 @@ controller, so camera and interaction behavior is stable
   no geometry is rebuilt and no material is cloned. Part and assembly controls
   keep separate namespaces (`data-part-id` vs `data-assembly-id`) and never
   infer identity from a shared numeric id. Pure tree helpers live in
-  `demo/visibility-tree.ts` and are unit-tested
+  `demo/workbench/visibility-tree.ts` and are unit-tested
   (`test/demo/visibility-tree.test.ts`).
 - Node/face/element selection is stored in `InteractionState`. Node and face
   emphasis are rendered through the library emphasis APIs
@@ -123,6 +126,21 @@ the exact camera during the normal render lifecycle, and removes it during
 The demo's `.scene` wrapper also owns the restrained perimeter outline. It uses
 an outline rather than a canvas border so CSS content dimensions and pointer,
 resize, and GPU-picking coordinates remain unchanged.
+
+## Ownership boundaries
+
+The demo root contains only the browser entry, deterministic fixtures, and
+explicit ownership directories:
+
+- `demo/workbench/` owns user-facing inspection behavior and DOM lifecycle;
+- `demo/devtools/` owns diagnostics text and the typed browser-test harness;
+- `demo/benchmark/` owns the opt-in WebGPU benchmark and its internal imports.
+
+The workbench controller is intentionally still cohesive because it is the one
+stateful coordinator for preset, interaction, display, and viewport transitions.
+Feature construction, listener lifetime, DOM formatting, and benchmark execution
+are separate owners, so controller changes do not also change the developer
+harness or benchmark contract.
 
 ## Demo e2e coverage
 

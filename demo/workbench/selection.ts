@@ -7,7 +7,7 @@ import {
   setTargetSelected,
   type InteractionState,
 } from "../../src/index";
-import type { SelectTarget } from "../pick";
+import type { SelectTarget } from "./pick";
 
 /** Applies one selection toggle without coupling it to the DOM or renderer. */
 export function toggleSelection(

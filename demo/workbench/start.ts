@@ -4,8 +4,9 @@ import {
   type BoxSelectionRect,
   type FemViewport,
   type InteractionGranularity,
-} from "../src/index";
-import { createModelPresets, type ModelPreset } from "./fixture/presets";
+} from "../../src/index";
+import { createModelPresets, type ModelPreset } from "../fixture/presets";
+import { installDemoHarness } from "../devtools/harness";
 import { WorkbenchController } from "./controller";
 import type { DemoView } from "./view";
 
@@ -103,7 +104,7 @@ export async function startWebGpuDemo(
   });
 
   /** Explicit lifecycle seam used by the e2e lane. */
-  (window as typeof window & { femgxDemo?: unknown }).femgxDemo = {
+  installDemoHarness({
     destroyRenderer: () => {
       viewport?.destroy();
       viewport = undefined;
@@ -126,13 +127,13 @@ export async function startWebGpuDemo(
     runBenchmark: async (includeLarge: boolean) => {
       controller.destroy();
       viewport = undefined;
-      const { runWebGpuBenchmark } = await import("./webgpu-benchmark");
+      const { runWebGpuBenchmark } = await import("../benchmark/runner");
       return runWebGpuBenchmark(canvas, { includeLarge });
     },
     pickPoint: async (x: number, y: number) => (await viewport?.pick(x, y))?.worldPosition,
     pickRegion: async (rect: BoxSelectionRect, granularity: InteractionGranularity) =>
       (await viewport?.pickRegion(rect, granularity)) ?? [],
-  };
+  });
 
   return controller;
 }

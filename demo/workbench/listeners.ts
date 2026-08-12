@@ -1,4 +1,4 @@
-import type { DemoView } from "../view";
+import type { DemoView } from "./view";
 import { setProjection, type FemViewport } from "../../src/index";
 import type { WorkbenchInteraction } from "./interaction";
 import type { WorkbenchMenu } from "./menu";

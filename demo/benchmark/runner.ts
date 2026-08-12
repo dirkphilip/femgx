@@ -1,13 +1,13 @@
-import { createCamera, fitCamera, type Camera } from "../src/index";
-import { createWebGpuRenderer, type WebGpuRenderer } from "../src/renderer/gpu-renderer";
-import { createPackedSceneRuntime } from "../src/scene-runtime/runtime";
+import { createCamera, fitCamera, type Camera } from "../../src/index";
+import { createWebGpuRenderer, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
+import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import {
   benchmarkCaseSpecs,
   createBenchmarkCase,
   estimateBenchmarkMemory,
   type BenchmarkMemoryEstimate,
   type WebGpuBenchmarkCase,
-} from "./webgpu-benchmark-model";
+} from "./model";
 
 const WIDTH = 800;
 const HEIGHT = 600;

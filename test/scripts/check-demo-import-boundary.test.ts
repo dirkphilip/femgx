@@ -50,12 +50,14 @@ describe("check-demo-import-boundary", () => {
 
   it("keeps the named benchmark exemptions narrow", () => {
     const root = makeDemo({
-      "webgpu-benchmark.ts": 'import { createScene } from "../src/scene/scene";\n',
-      "webgpu-benchmark-model.ts": 'import { createPart } from "../src/geometry/part";\n',
+      "benchmark/runner.ts": 'import { createScene } from "../src/scene/scene";\n',
+      "benchmark/model.ts": 'import { createPart } from "../src/geometry/part";\n',
       "fixture/performance-fixture.ts": 'import { createPart } from "../../src/geometry/part";\n',
     });
     const result = runCheck(root);
     expect(result.status).toBe(0);
-    expect(readFileSync(join(root, "demo", "webgpu-benchmark.ts"), "utf8")).toContain("src/scene");
+    expect(readFileSync(join(root, "demo", "benchmark", "runner.ts"), "utf8")).toContain(
+      "src/scene",
+    );
   });
 });

@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
-import type { WebGpuBenchmarkReport } from "../demo/webgpu-benchmark";
+import type { WebGpuBenchmarkReport } from "../demo/benchmark/runner";
 
 const enabled = process.env["RUN_PERF"] === "1";
 const includeLarge = process.env["RUN_PERF_LARGE"] === "1";

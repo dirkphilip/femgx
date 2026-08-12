@@ -10,7 +10,7 @@ import {
   assemblyName,
   assemblySubtreeIds,
   assemblyVisibilityState,
-} from "../../demo/visibility-tree";
+} from "../../demo/workbench/visibility-tree";
 
 /** A bolted runtime with the fully visible scene the demo starts with. */
 function solidRuntime(): { readonly packed: PackedSceneRuntime; readonly runtime: SceneRuntime } {

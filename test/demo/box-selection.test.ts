@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createInteractionState, type FemViewport } from "../../src/index";
-import type { DemoView } from "../../demo/view";
+import type { DemoView } from "../../demo/workbench/view";
 import { WorkbenchBoxPreview } from "../../demo/workbench/box-preview";
 import { installWorkbenchBindings } from "../../demo/workbench/listeners";
 import { WorkbenchInteraction } from "../../demo/workbench/interaction";

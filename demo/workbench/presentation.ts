@@ -1,8 +1,8 @@
 import { type Camera, type InteractionState, type SceneRuntime } from "../../src/index";
 import { type ModelPreset } from "../fixture/presets";
-import { updateStatus, type DemoView } from "../view";
+import { updateStatus, type DemoView } from "./view";
 import { selectedKeys } from "./selection";
-import { statsText } from "./status";
+import { statsText } from "../devtools/diagnostics";
 import type { DisplayToggles, RendererStats, ResultDisplayMode } from "./types";
 
 /** Presentation-only DOM policy for the workbench shell. */
