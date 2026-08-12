@@ -48,7 +48,7 @@ ${transparencyOutput}
 
 @fragment
 fn fragmentMain(
-  @location(0) color: vec4<f32>,
+  @location(0) @interpolate(flat) color: vec4<f32>,
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
 ) -> TransparencyOutput {
@@ -66,7 +66,7 @@ ${transparencyOutput}
 
 @fragment
 fn fragmentMain(
-  @location(0) color: vec4<f32>,
+  @location(0) @interpolate(flat) color: vec4<f32>,
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
   @location(8) worldPosition: vec3<f32>,

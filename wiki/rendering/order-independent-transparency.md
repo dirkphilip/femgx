@@ -16,6 +16,11 @@ still draws all visible instances, so opacity does not create click-through or
 multi-hit semantics. Per-part order buffers remain deterministic; no CPU
 sorting or material clones are needed.
 
+Resolved style color is a flat per-primitive shader varying. This preserves the
+exact alpha written by the CPU: perspective interpolation must not perturb
+opaque alpha below `1` and make the opaque-pass classification discard scattered
+samples on some GPU backends.
+
 The deterministic `transparency` demo preset contains a translucent shell, a
 solid interior, and two overlapping placements of one translucent part. The
 real-Chrome e2e lane checks the composed frame and picks the nearest shell face.

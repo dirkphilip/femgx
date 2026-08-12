@@ -10,6 +10,7 @@ import {
   edgeVertexShader,
   pickFragmentShader,
   triangleColorFragmentShader,
+  vertexOutput,
 } from "../../src/renderer/gpu-shaders";
 import {
   instanceVertexShader,
@@ -23,6 +24,10 @@ import {
   pointNodePickVertexShader,
 } from "../../src/renderer/gpu-node-pick";
 import { nodeOverlayFragmentShader } from "../../src/renderer/gpu-node-overlay";
+import {
+  transparencyFragmentShader,
+  triangleTransparencyFragmentShader,
+} from "../../src/renderer/gpu-transparency";
 
 /** Returns the named struct's layout as computed by the wgsl_reflect parser. */
 function structInfo(source: string, name: string): StructInfo {
@@ -178,6 +183,19 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(colorFragmentShader).toMatch(/@location\(2\) @interpolate\(flat\) emissive: f32/);
     expect(colorFragmentShader).toMatch(/color\.rgb \+ vec3<f32>\(emissive\)/);
     expect(colorFragmentShader).toContain("color.a < 1.0");
+  });
+
+  it("keeps style alpha flat before exact opaque and transparent classification", () => {
+    expect(vertexOutput).toContain("@location(0) @interpolate(flat) color: vec4<f32>");
+    for (const shader of [
+      colorFragmentShader,
+      triangleColorFragmentShader,
+      transparencyFragmentShader,
+      triangleTransparencyFragmentShader,
+      nodeOverlayFragmentShader,
+    ]) {
+      expect(shader).toContain("@location(0) @interpolate(flat) color: vec4<f32>");
+    }
   });
 
   it("lights only triangle surfaces from displayed world-space derivatives", () => {
