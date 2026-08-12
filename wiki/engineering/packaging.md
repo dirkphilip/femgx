@@ -75,11 +75,15 @@ reference no package that consumers must install:
 
 ## Smoke tests
 
-`npm run test:package` (also run in CI after the build):
+`npm run test:package` is the single CI owner of the package build and smoke:
 
-1. Builds, `npm pack`s, and checks the tarball contents (declarations present,
-   no source/demo/wiki leakage).
-2. Runs `@arethetypeswrong/cli` (attw) against the packed tarball, failing on
+1. Builds exactly once, then runs `npm pack --ignore-scripts` with an explicit
+   temporary cache, empty user config, quiet npm settings, and JSON output.
+   The output must parse as exactly one result with a filename and files array;
+   malformed or polluted output reports the command, status, stdout, and stderr.
+2. Checks the tarball contents (declarations present, no source/demo/wiki
+   leakage), then runs `@arethetypeswrong/cli` (attw) against the packed
+   tarball, failing on
    any finding. This catches hazards the bespoke checks do not, notably
    masquerading as CJS/ESM (the UMD bundle sets `Symbol.toStringTag =
 "Module"`), wrong `types`-condition placement, and per-condition
@@ -87,8 +91,9 @@ reference no package that consumers must install:
    The package currently reports "No problems found"; there are no tolerated
    warnings, so the check is a hard gate (see `--ignore-rules` in attw if a
    known-benign rule ever needs to be waived).
-3. Installs the tarball into a clean temp consumer project with **no**
-   `@webgpu/types`, no TypeScript, no dev tooling.
+3. Installs the tarball with lifecycle scripts, audit, funding, lockfile
+   generation, registry access, and inherited npm configuration disabled, using
+   a second temporary cache and empty user config.
 4. Asserts the installed manifest has no runtime deps, is not private, and has
    no `preinstall`.
 5. Runs `node` ESM `import` and CJS `require` of real APIs.

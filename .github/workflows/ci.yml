@@ -39,9 +39,6 @@ jobs:
       - name: Performance budgets
         run: npm run bench:budget
 
-      - name: Build library
-        run: npm run build
-
       - name: Package smoke tests
         run: npm run test:package
 
