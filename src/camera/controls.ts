@@ -160,7 +160,12 @@ class CameraControls {
         pivot = undefined;
       }
       if (this.disposed) return;
-      const next = this.zoom(amount, pivot ?? targetPlanePoint(camera, point.x, point.y), camera);
+      const next = this.zoom(
+        amount,
+        pivot ?? targetPlanePoint(camera, point.x, point.y),
+        camera,
+        pivot,
+      );
       if (next === camera) return;
       this.options.cameraRef.camera = next;
       this.options.onRender();
@@ -218,7 +223,12 @@ class CameraControls {
     return cameraRef.camera !== beforePan;
   }
 
-  private zoom(amount: number, pivot?: Vec3, camera = this.options.cameraRef.camera): Camera {
+  private zoom(
+    amount: number,
+    pivot?: Vec3,
+    camera = this.options.cameraRef.camera,
+    approachPoint?: Vec3,
+  ): Camera {
     const bounds = this.options.bounds?.();
     if (bounds === undefined) {
       return pivot === undefined
@@ -227,7 +237,7 @@ class CameraControls {
     }
     return pivot === undefined
       ? zoomCameraWithinBounds(camera, amount, bounds)
-      : zoomCameraAtPointWithinBounds(camera, amount, pivot, bounds);
+      : zoomCameraAtPointWithinBounds(camera, amount, pivot, bounds, approachPoint);
   }
 
   private applyOrbit(pointerId: number, step: GestureStep): boolean {
@@ -310,7 +320,12 @@ class CameraControls {
       return false;
     }
     const before = this.options.cameraRef.camera;
-    const next = this.zoom(amount, gesture.pivot ?? gesture.fallbackPivot);
+    const next = this.zoom(
+      amount,
+      gesture.pivot ?? gesture.fallbackPivot,
+      undefined,
+      gesture.pivot,
+    );
     this.options.cameraRef.camera = next;
     return next !== before;
   }
@@ -325,6 +340,8 @@ class CameraControls {
       this.options.cameraRef.camera = this.zoom(
         gesture.pendingAmount,
         pivot ?? gesture.fallbackPivot,
+        undefined,
+        pivot,
       );
       changed = this.options.cameraRef.camera !== before;
       gesture.pendingAmount = 0;

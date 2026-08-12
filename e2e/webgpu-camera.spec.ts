@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 import {
   cameraDistance,
   expectBoundsClippedSafely,
+  expectDisplayedPointClippedSafely,
   projectCameraPoint,
   readNavigationState,
   requireHit,
@@ -102,6 +103,33 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
   await page.mouse.move(x, y);
   const fitted = await readNavigationState(canvas);
   expectBoundsClippedSafely(fitted.camera, fitted.bounds);
+  await requireHit(
+    page,
+    canvas,
+    { attribute: "hovered", fresh: true },
+    "GPU picking must resolve the deep-zoom approach point",
+  );
+  const picked = await page.evaluate(
+    async ({ x: localX, y: localY }) => {
+      const harness = (
+        window as typeof window & {
+          femgxDemo?: {
+            pickPoint: (pointX: number, pointY: number) => Promise<readonly number[] | undefined>;
+          };
+        }
+      ).femgxDemo;
+      return (await harness?.pickPoint(localX, localY)) ?? null;
+    },
+    { x: x - box.x, y: y - box.y },
+  );
+  if (picked === null || picked.length !== 3) {
+    throw new Error("GPU picking did not return a displayed world point");
+  }
+  const displayedPoint: readonly [number, number, number] = [
+    picked[0] ?? NaN,
+    picked[1] ?? NaN,
+    picked[2] ?? NaN,
+  ];
 
   for (let step = 0; step < 12; step += 1) {
     await page.mouse.wheel(0, 200);
@@ -127,7 +155,12 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
   }
   const zoomedIn = await stableCanvasPixels(page, canvas);
   const closest = await readNavigationState(canvas);
-  expectBoundsClippedSafely(closest.camera, closest.bounds);
+  expectDisplayedPointClippedSafely(closest.camera, closest.bounds, displayedPoint);
+  const projectedPoint = projectCameraPoint(closest.camera, displayedPoint);
+  expect(projectedPoint).toBeDefined();
+  expect(
+    Math.hypot((projectedPoint?.[0] ?? 0) - (x - box.x), (projectedPoint?.[1] ?? 0) - (y - box.y)),
+  ).toBeLessThan(1);
   expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(200);
   expect(cameraDistance(closest.camera)).toBeLessThan(cameraDistance(fitted.camera));
   expect(zoomedIn.length).toBeGreaterThan(0);
@@ -144,7 +177,7 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
     await page.mouse.wheel(0, 800);
   }
   const zoomedOutAgain = await readNavigationState(canvas);
-  expectBoundsClippedSafely(zoomedOutAgain.camera, zoomedOutAgain.bounds);
+  expectDisplayedPointClippedSafely(zoomedOutAgain.camera, zoomedOutAgain.bounds, displayedPoint);
   expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(20);
 });
 

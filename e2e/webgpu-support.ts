@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 export {
   cameraDistance,
   expectBoundsClippedSafely,
+  expectDisplayedPointClippedSafely,
   projectCameraPoint,
   readNavigationState,
   requireHit,

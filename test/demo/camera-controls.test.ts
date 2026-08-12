@@ -230,6 +230,40 @@ describe("camera controls", () => {
     expect(cameraRef.camera.far).toBeGreaterThan(cameraRef.camera.position[2] + 1);
   });
 
+  it("lets a picked wheel point pass an empty bounds corner", async () => {
+    const canvas = new FakeCanvas();
+    const cameraRef = {
+      camera: resizeCamera(createCamera({ position: [0, 0, 5], target: [0, 0, 0] }), 200, 100),
+    };
+    const anchor: Vec3 = [0, 0, 0];
+    installCameraControls({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      cameraRef,
+      bounds: () => ({
+        minX: -10,
+        minY: -1,
+        minZ: -1,
+        maxX: 10,
+        maxY: 1,
+        maxZ: 1,
+      }),
+      navigation: { pickPoint: () => Promise.resolve(anchor), setOrbitPivot: vi.fn() },
+      onRender: vi.fn(),
+    });
+
+    canvas.dispatch("wheel", {
+      clientX: 100,
+      clientY: 50,
+      deltaY: -20_000,
+      preventDefault: vi.fn(),
+    });
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    expect(cameraRef.camera.position[2]).toBeLessThan(0.1);
+    expect(cameraRef.camera.near).toBeGreaterThan(0);
+    expect(cameraRef.camera.far).toBeGreaterThan(cameraRef.camera.near);
+  });
+
   it("uses current navigation bounds for immediate orbit safety", async () => {
     const canvas = new FakeCanvas();
     const initial = resizeCamera(
