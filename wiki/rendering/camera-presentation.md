@@ -15,7 +15,8 @@ the perspective toggle look broken. See [[rendering/interactive-state|Interactiv
 interaction model and [[rendering/element-rendering|Element rendering]] for the demo geometry modes.
 
 The public `installCameraControls` helper uses middle-drag to spin,
-Ctrl/Meta+middle-drag to pan in the drag direction, Shift+middle-drag to zoom vertically, and the wheel to zoom
+Ctrl/Meta+middle-drag to pan in the drag direction at the target plane's
+CSS-pixel scale, Shift+middle-drag to zoom vertically, and the wheel to zoom
 toward the visible point under the cursor. Spin uses the closest visible GPU-picked face
 under its start point as the rotation pivot; the renderer's camera-navigation pick-point seam
 reads the winning fragment's NDC depth and unprojects the exact displayed world

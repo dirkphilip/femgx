@@ -5,9 +5,12 @@ import {
   panCamera,
   projectPoint,
   resizeCamera,
+  setProjection,
   unprojectPoint,
+  zoomCamera,
   type Vec3,
 } from "../../src";
+import { cameraKeyLightDirection } from "../../src/renderer/gpu-frame";
 
 interface PointerInput {
   readonly pointerId: number;
@@ -366,6 +369,89 @@ describe("camera controls", () => {
     expect(marker).toHaveBeenLastCalledWith(undefined);
   });
 
+  it.each(["perspective", "orthographic"] as const)(
+    "pans target-plane content at CSS-pixel pace in %s projection",
+    (mode) => {
+      const canvas = new FakeCanvas();
+      const initial = setProjection(
+        resizeCamera(createCamera({ position: [0, 0, 5], target: [0, 0, 0] }), 200, 100),
+        mode,
+      );
+      const cameraRef = { camera: initial };
+      installCameraControls({
+        canvas: canvas as unknown as HTMLCanvasElement,
+        cameraRef,
+        navigation: { pickPoint: vi.fn(), setOrbitPivot: vi.fn() },
+        onRender: vi.fn(),
+      });
+      const anchor: Vec3 = [1, 0.5, 0];
+      const before = projectPoint(initial, anchor);
+
+      canvas.dispatch("pointerdown", { ...pointer(100, 50), ctrlKey: true });
+      canvas.dispatch("pointermove", { ...pointer(130, 35), ctrlKey: true });
+
+      const after = projectPoint(cameraRef.camera, anchor);
+      expect(after?.[0]).toBeCloseTo((before?.[0] ?? NaN) + 30, 4);
+      expect(after?.[1]).toBeCloseTo((before?.[1] ?? NaN) - 15, 4);
+      expect(cameraRef.camera.up).toEqual(initial.up);
+      expect(cameraRef.camera.near).toBe(initial.near);
+      expect(cameraRef.camera.far).toBe(initial.far);
+      expect(cameraRef.camera.fovY).toBe(initial.fovY);
+      expect(cameraRef.camera.orthoHeight).toBe(initial.orthoHeight);
+      expect(cameraKeyLightDirection(cameraRef.camera)).toEqual(cameraKeyLightDirection(initial));
+      expect(distance(cameraRef.camera.position, cameraRef.camera.target)).toBeCloseTo(
+        distance(initial.position, initial.target),
+      );
+    },
+  );
+
+  it("keeps mouse pan pace after zoom and composes multiple events", () => {
+    const canvas = new FakeCanvas();
+    const initial = resizeCamera(
+      zoomCamera(createCamera({ position: [0, 0, 5], target: [0, 0, 0] }), -1),
+      200,
+      100,
+    );
+    const cameraRef = { camera: initial };
+    const render = vi.fn();
+    installCameraControls({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      cameraRef,
+      navigation: { pickPoint: vi.fn(), setOrbitPivot: vi.fn() },
+      onRender: render,
+    });
+    const anchor: Vec3 = [1, 0, 0];
+    const before = projectPoint(initial, anchor);
+
+    canvas.dispatch("pointerdown", { ...pointer(100, 50), metaKey: true });
+    canvas.dispatch("pointermove", { ...pointer(110, 60), metaKey: true });
+    canvas.dispatch("pointermove", { ...pointer(130, 50), metaKey: true });
+
+    const after = projectPoint(cameraRef.camera, anchor);
+    expect(after?.[0]).toBeCloseTo((before?.[0] ?? NaN) + 30, 4);
+    expect(after?.[1]).toBeCloseTo(before?.[1] ?? NaN, 4);
+    expect(render).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a zero mouse pan immutable and render-free", () => {
+    const canvas = new FakeCanvas();
+    const initial = resizeCamera(createCamera(), 200, 100);
+    const cameraRef = { camera: initial };
+    const render = vi.fn();
+    installCameraControls({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      cameraRef,
+      navigation: { pickPoint: vi.fn(), setOrbitPivot: vi.fn() },
+      onRender: render,
+    });
+
+    canvas.dispatch("pointerdown", { ...pointer(100, 50), ctrlKey: true });
+    canvas.dispatch("pointermove", { ...pointer(100, 50), ctrlKey: true });
+
+    expect(cameraRef.camera).toBe(initial);
+    expect(render).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["Control", { ctrlKey: true }],
     ["Meta", { metaKey: true }],
@@ -388,8 +474,14 @@ describe("camera controls", () => {
     canvas.dispatch("pointerdown", { ...pointer(100, 50), ...modifiers });
     canvas.dispatch("pointermove", { ...pointer(130, 50), ...modifiers });
 
-    expect(cameraRef.camera.position).toEqual([-0.3, 0, 5]);
-    expect(cameraRef.camera.target).toEqual([-0.3, 0, 0]);
+    expect(projectPoint(cameraRef.camera, [1, 0, 0])?.[0]).toBeCloseTo(
+      (projectPoint(initial, [1, 0, 0])?.[0] ?? NaN) + 30,
+      4,
+    );
+    expect(projectPoint(cameraRef.camera, [1, 0, 0])?.[1]).toBeCloseTo(
+      projectPoint(initial, [1, 0, 0])?.[1] ?? NaN,
+      4,
+    );
     expect(pickPoint).not.toHaveBeenCalled();
   });
 
@@ -447,7 +539,12 @@ describe("camera controls", () => {
     canvas.dispatch("pointerdown", touch(2, 150, 50));
     canvas.dispatch("pointermove", touch(1, 40, 70));
     const beforeFinalZoom = cameraRef.camera;
-    const afterPan = panCamera(beforeFinalZoom, 15 / 100, -10 / 100);
+    const worldUnitsPerPixel =
+      (2 *
+        distance(beforeFinalZoom.position, beforeFinalZoom.target) *
+        Math.tan(beforeFinalZoom.fovY / 2)) /
+      beforeFinalZoom.height;
+    const afterPan = panCamera(beforeFinalZoom, 15 * worldUnitsPerPixel, 10 * worldUnitsPerPixel);
     const midpoint = { x: 100, y: 50 };
     const targetDepth = projectPoint(afterPan, afterPan.target)?.[2] ?? NaN;
     const anchor = unprojectPoint(afterPan, [midpoint.x, midpoint.y, targetDepth]);

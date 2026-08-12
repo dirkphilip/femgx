@@ -62,6 +62,32 @@ test("uses SpaceClaim middle-button spin, pan, and zoom gestures", async ({ page
   await expect.poll(cameraKey).not.toBe(beforeZoom);
 });
 
+test("keeps target-plane panning at the CSS-pixel pace in both projections", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("fit-view").click();
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+
+  for (const projection of ["Perspective", "Orthographic"] as const) {
+    if ((await page.getByTestId("projection-toggle").textContent()) !== projection) {
+      await page.getByTestId("projection-toggle").click();
+      await expect(page.getByTestId("projection-toggle")).toHaveText(projection);
+      await page.getByTestId("fit-view").click();
+    }
+    const before = await readNavigationState(canvas);
+    const anchor = targetPlanePoint(before.camera, box.width / 2, box.height / 2);
+    const beforeProjection = projectCameraPoint(before.camera, anchor);
+    await dragCamera(page, canvas, { x: 64, y: 24 }, "Control");
+    const after = await readNavigationState(canvas);
+    const afterProjection = projectCameraPoint(after.camera, anchor);
+
+    expect(afterProjection?.[0]).toBeCloseTo((beforeProjection?.[0] ?? NaN) + 64, 1);
+    expect(afterProjection?.[1]).toBeCloseTo((beforeProjection?.[1] ?? NaN) + 24, 1);
+    expectBoundsClippedSafely(after.camera, after.bounds);
+  }
+});
+
 test("crosses both orbit poles through repeated full rotations", async ({ page }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
