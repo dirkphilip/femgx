@@ -7,12 +7,13 @@ import {
   instanceBindings,
   instanceStruct,
   pickDataBindings,
+  spriteCornerFn,
   vertexOutput,
 } from "./gpu-shaders";
 import { emphasisHash } from "./gpu-highlight-shader";
 
 /** Shared vertex stage for triangle and line primitives. */
-export const instanceVertexShader = /* wgsl */ `
+const instanceVertexHeader = /* wgsl */ `
 ${cameraStruct}
 
 ${deformationStruct}
@@ -29,16 +30,9 @@ ${pickDataBindings}
 ${displacementFn}
 
 ${vertexOutput}
+`;
 
-@vertex
-fn vertexMain(
-  @location(0) position: vec3<f32>,
-  @builtin(instance_index) instanceIndex: u32,
-  @builtin(vertex_index) vertexIndex: u32,
-) -> VertexOutput {
-  let instance = instances[drawOrder[instanceIndex]];
-  let elementPickId = primitiveElementPickIds[vertexIndex / 3u];
-  let faceBodyPickIds = primitiveFaceBodyPickIds(vertexIndex / 3u);
+const instanceHighlighting = /* wgsl */ `
   let facePickId = faceBodyPickIds.x;
   let bodyPickId = faceBodyPickIds.y;
   var color = instance.color;
@@ -83,6 +77,27 @@ fn vertexMain(
       }
     }
   }
+`;
+
+function createInstanceVertexMain(primitiveIndex: string): string {
+  return /* wgsl */ `
+@vertex
+fn vertexMain(
+  @location(0) position: vec3<f32>,
+  @builtin(instance_index) instanceIndex: u32,
+  @builtin(vertex_index) vertexIndex: u32,
+) -> VertexOutput {
+  let instance = instances[drawOrder[instanceIndex]];
+  let elementPickId = primitiveElementPickIds[${primitiveIndex}];
+  let faceBodyPickIds = primitiveFaceBodyPickIds(${primitiveIndex});
+${instanceHighlighting}
+${createInstanceVertexOutput(primitiveIndex)}
+}
+`;
+}
+
+function createInstanceVertexOutput(primitiveIndex: string): string {
+  return /* wgsl */ `
   var output: VertexOutput;
   let displayedPosition = displaced(position, vertexIndex);
   let worldPosition = (instance.transform * vec4<f32>(displayedPosition, 1.0)).xyz;
@@ -99,19 +114,22 @@ fn vertexMain(
   output.centerPixel = vec2<f32>(0.0);
   output.nodeDepth = 0.0;
   output.worldPosition = worldPosition;
-  if (!primitiveVisible(drawOrder[instanceIndex], vertexIndex / 3u)) {
+  if (!primitiveVisible(drawOrder[instanceIndex], ${primitiveIndex})) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
   return output;
+`;
 }
 
-`;
+function createInstanceVertexShader(verticesPerPrimitive: 2 | 3): string {
+  const primitiveIndex = `vertexIndex / ${verticesPerPrimitive}u`;
+  return `${instanceVertexHeader}${createInstanceVertexMain(primitiveIndex)}`;
+}
+
+export const instanceVertexShader = createInstanceVertexShader(3);
 
 /** Line-list variant of the shared element vertex shader. */
-export const lineVertexShader = instanceVertexShader.replaceAll(
-  "vertexIndex / 3u",
-  "vertexIndex / 2u",
-);
+export const lineVertexShader = createInstanceVertexShader(2);
 
 /**
  * Vertex stage for point-sprite parts. Each point is a quad of four vertices
@@ -137,14 +155,7 @@ ${displacementFn}
 
 ${vertexOutput}
 
-fn spriteCorner(corner: u32) -> vec2<f32> {
-  switch corner {
-    case 0u: { return vec2<f32>(-1.0, -1.0); }
-    case 1u: { return vec2<f32>(1.0, -1.0); }
-    case 2u: { return vec2<f32>(1.0, 1.0); }
-    default: { return vec2<f32>(-1.0, 1.0); }
-  }
-}
+${spriteCornerFn}
 
 fn pointVertex(
   position: vec3<f32>,

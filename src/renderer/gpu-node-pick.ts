@@ -9,6 +9,7 @@ import {
   instanceStruct,
   packPickIdFunction,
   pickDataBindings,
+  spriteCornerFn,
 } from "./gpu-shaders";
 import { emphasisHash } from "./gpu-highlight-shader";
 
@@ -22,8 +23,12 @@ import { emphasisHash } from "./gpu-highlight-shader";
  * consistent on deformed shapes.
  */
 
-/** Vertex stage for the triangle pick pass. */
-export const nodePickVertexShader = /* wgsl */ `
+interface NodePickPrimitiveVariant {
+  readonly verticesPerPrimitive: 2 | 3;
+  readonly cornerC: "second" | "third";
+}
+
+const nodePickVertexHeader = /* wgsl */ `
 ${cameraStruct}
 
 ${deformationStruct}
@@ -53,17 +58,9 @@ struct NodeVertexOutput {
   @location(8) @interpolate(flat) cornerC: vec3<f32>,
   @location(9) @interpolate(flat) nodePickIds: vec3<u32>,
 };
+`;
 
-@vertex
-fn vertexMain(
-  @location(0) position: vec3<f32>,
-  @builtin(instance_index) instanceIndex: u32,
-  @builtin(vertex_index) vertexIndex: u32,
-) -> NodeVertexOutput {
-  let instance = instances[drawOrder[instanceIndex]];
-  let base = (vertexIndex / 3u) * 3u;
-  let base3 = base * 3u;
-  let faceBodyPickIds = primitiveFaceBodyPickIds(vertexIndex / 3u);
+const nodePickVisibility = /* wgsl */ `
   let bodyPickId = faceBodyPickIds.y;
   var hidden = false;
   if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
@@ -77,18 +74,61 @@ fn vertexMain(
       }
     }
   }
+`;
+
+/** Builds the triangle or line node-pick vertex stage from explicit topology inputs. */
+function createNodePickVertexShader(variant: NodePickPrimitiveVariant): string {
+  const primitiveIndex = `vertexIndex / ${variant.verticesPerPrimitive}u`;
+  const primitiveBase = `(${primitiveIndex}) * ${variant.verticesPerPrimitive}u`;
+  const cornerC = cornerData(variant);
+  const nodePickIds = variant.cornerC === "third" ? "vertexNodePickIds[base + 2u]" : "0u";
+  return `${nodePickVertexHeader}${createNodePickVertexMain({
+    primitiveIndex,
+    primitiveBase,
+    cornerC,
+    nodePickIds,
+  })}`;
+}
+
+interface NodePickVertexMainOptions {
+  readonly primitiveIndex: string;
+  readonly primitiveBase: string;
+  readonly cornerC: string;
+  readonly nodePickIds: string;
+}
+
+function createNodePickVertexMain(options: NodePickVertexMainOptions): string {
+  return /* wgsl */ `
+@vertex
+fn vertexMain(
+  @location(0) position: vec3<f32>,
+  @builtin(instance_index) instanceIndex: u32,
+  @builtin(vertex_index) vertexIndex: u32,
+) -> NodeVertexOutput {
+  let instance = instances[drawOrder[instanceIndex]];
+  let base = ${options.primitiveBase};
+  let base3 = base * 3u;
+  let faceBodyPickIds = primitiveFaceBodyPickIds(${options.primitiveIndex});
+${nodePickVisibility}
+${createNodePickVertexOutput(options)}
+}
+`;
+}
+
+function createNodePickVertexOutput(options: NodePickVertexMainOptions): string {
+  return /* wgsl */ `
   var output: NodeVertexOutput;
   output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   if (hidden) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
-  if (!primitiveVisible(drawOrder[instanceIndex], vertexIndex / 3u)) {
+  if (!primitiveVisible(drawOrder[instanceIndex], ${options.primitiveIndex})) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
   output.color = instance.color;
   output.pickId = instance.pickId;
   output.emissive = instance.emissive;
-  output.elementPickId = primitiveElementPickIds[vertexIndex / 3u];
+  output.elementPickId = primitiveElementPickIds[${options.primitiveIndex}];
   output.facePickId = faceBodyPickIds.x;
   output.localPosition = displaced(position, vertexIndex);
   output.cornerA = displaced(
@@ -108,43 +148,38 @@ fn vertexMain(
     base + 1u,
   );
   output.cornerC = displaced(
-    vec3<f32>(
-      geometryPosition(base3 + 6u),
-      geometryPosition(base3 + 7u),
-      geometryPosition(base3 + 8u),
-    ),
-    base + 2u,
+    ${options.cornerC},
   );
   output.nodePickIds = vec3<u32>(
     vertexNodePickIds[base],
     vertexNodePickIds[base + 1u],
-    vertexNodePickIds[base + 2u],
+    ${options.nodePickIds},
   );
   return output;
-}
 `;
+}
+
+function cornerData(variant: NodePickPrimitiveVariant): string {
+  const base = variant.cornerC === "third" ? 6 : 3;
+  const nodeOffset = variant.cornerC === "third" ? 2 : 1;
+  return `vec3<f32>(
+    geometryPosition(base3 + ${base}u),
+    geometryPosition(base3 + ${base + 1}u),
+    geometryPosition(base3 + ${base + 2}u),
+  ),
+  base + ${nodeOffset}u`;
+}
+
+export const nodePickVertexShader = createNodePickVertexShader({
+  verticesPerPrimitive: 3,
+  cornerC: "third",
+});
 
 /** Line-list node-pick vertex stage using two corners per logical primitive. */
-export const lineNodePickVertexShader = nodePickVertexShader
-  .replace("let base = (vertexIndex / 3u) * 3u;", "let base = (vertexIndex / 2u) * 2u;")
-  .replaceAll("vertexIndex / 3u", "vertexIndex / 2u")
-  .replace(
-    `vec3<f32>(
-      geometryPosition(base3 + 6u),
-      geometryPosition(base3 + 7u),
-      geometryPosition(base3 + 8u),
-    ),
-    base + 2u,
-  );`,
-    `vec3<f32>(
-      geometryPosition(base3 + 3u),
-      geometryPosition(base3 + 4u),
-      geometryPosition(base3 + 5u),
-    ),
-    base + 1u,
-  );`,
-  )
-  .replace("vertexNodePickIds[base + 2u],", "0u,");
+export const lineNodePickVertexShader = createNodePickVertexShader({
+  verticesPerPrimitive: 2,
+  cornerC: "second",
+});
 
 /** Point-sprite node-pick vertex stage; every sprite fragment belongs to its node. */
 export const pointNodePickVertexShader = /* wgsl */ `
@@ -178,14 +213,7 @@ struct NodeVertexOutput {
   @location(9) @interpolate(flat) nodePickIds: vec3<u32>,
 };
 
-fn spriteCorner(corner: u32) -> vec2<f32> {
-  switch corner {
-    case 0u: { return vec2<f32>(-1.0, -1.0); }
-    case 1u: { return vec2<f32>(1.0, -1.0); }
-    case 2u: { return vec2<f32>(1.0, 1.0); }
-    default: { return vec2<f32>(-1.0, 1.0); }
-  }
-}
+${spriteCornerFn}
 
 @vertex
 fn pointVertexMain(

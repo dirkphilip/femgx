@@ -35,6 +35,8 @@
   recovery.
 - [[rendering/renderer-subrange-updates|Renderer subrange updates]] — delta
   updates for instance and element GPU state.
+- [[rendering/shader-variants|Explicit shader variants]] — typed construction
+  of triangle, line, and node-pick WGSL sources from shared fragments.
 - [[rendering/webgpu-e2e|WebGPU browser e2e lane]] — real-WebGPU browser
   coverage on the default e2e lane.
 - [[rendering/webgpu-resource-reuse|WebGPU resource reuse]] — cached frame,
@@ -61,6 +63,7 @@
 [rendering/pick-format|Pick texture format]: pick-format.md
 [rendering/platform-support|Platform support]: platform-support.md
 [rendering/renderer-subrange-updates|Renderer subrange updates]: renderer-subrange-updates.md
+[rendering/shader-variants|Explicit shader variants]: shader-variants.md
 [rendering/webgpu-e2e|WebGPU browser e2e lane]: webgpu-e2e.md
 [rendering/webgpu-resource-reuse|WebGPU resource reuse]: webgpu-resource-reuse.md
 [rendering/wgsl-reserved-keywords|WGSL reserved keywords vs wgsl_reflect]: wgsl-reserved-keywords.md
