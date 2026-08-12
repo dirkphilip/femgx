@@ -7,6 +7,10 @@ export interface DemoView {
   readonly boxSelectionOverlay: HTMLElement;
   readonly rendererStatus: HTMLElement;
   readonly modelSelect: HTMLSelectElement;
+  readonly modelSource: HTMLElement;
+  readonly openGlbButton: HTMLButtonElement;
+  readonly glbFileInput: HTMLInputElement;
+  readonly modelFeedback: HTMLElement;
   readonly fitView: HTMLButtonElement;
   readonly projectionToggle: HTMLButtonElement;
   readonly edgeOverlayToggle: HTMLButtonElement;
@@ -39,6 +43,10 @@ export function queryDemoView(): DemoView {
   const boxSelectionOverlay = document.querySelector<HTMLElement>("#box-selection-overlay");
   const rendererStatus = document.querySelector<HTMLElement>("#renderer-status");
   const modelSelect = document.querySelector<HTMLSelectElement>("#model-select");
+  const modelSource = document.querySelector<HTMLElement>("#model-source");
+  const openGlbButton = document.querySelector<HTMLButtonElement>("#open-glb");
+  const glbFileInput = document.querySelector<HTMLInputElement>("#glb-file");
+  const modelFeedback = document.querySelector<HTMLElement>("#model-feedback");
   const fitView = document.querySelector<HTMLButtonElement>("#fit-view");
   const projectionToggle = document.querySelector<HTMLButtonElement>("#projection-toggle");
   const edgeOverlayToggle = document.querySelector<HTMLButtonElement>("#edge-overlay");
@@ -57,6 +65,10 @@ export function queryDemoView(): DemoView {
     boxSelectionOverlay === null ||
     rendererStatus === null ||
     modelSelect === null ||
+    modelSource === null ||
+    openGlbButton === null ||
+    glbFileInput === null ||
+    modelFeedback === null ||
     fitView === null ||
     projectionToggle === null ||
     edgeOverlayToggle === null ||
@@ -78,6 +90,10 @@ export function queryDemoView(): DemoView {
     boxSelectionOverlay,
     rendererStatus,
     modelSelect,
+    modelSource,
+    openGlbButton,
+    glbFileInput,
+    modelFeedback,
     fitView,
     projectionToggle,
     edgeOverlayToggle,

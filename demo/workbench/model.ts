@@ -1,0 +1,196 @@
+import {
+  createSceneRuntime,
+  transformPoint,
+  type Bounds,
+  type Color,
+  type ElementModel,
+  type GlbSceneImport,
+  type Issue,
+  type PartId,
+  type Scene,
+  type StyleOverride,
+} from "../../src/index";
+import type { ModelPreset } from "../fixture/presets";
+import { describePick } from "./inspect";
+import type { DemoView } from "./view";
+
+/** One demo-owned descriptor for built-in and locally opened display models. */
+export interface WorkbenchModel {
+  readonly id: string;
+  readonly name: string;
+  readonly source: "example" | "file";
+  readonly scene: Scene;
+  readonly elementModels: ReadonlyMap<PartId, ElementModel>;
+  readonly partNames: ReadonlyMap<PartId, string>;
+  readonly partStyles: ReadonlyMap<PartId, StyleOverride>;
+  readonly bounds: Bounds;
+  readonly results: ModelPreset["results"];
+  readonly issues: readonly Issue[];
+}
+
+/** Adapts an existing fixture to the common workbench model contract. */
+export function createExampleModel(preset: ModelPreset): WorkbenchModel {
+  const partStyles = new Map<PartId, StyleOverride>();
+  for (const partId of preset.scene.parts.keys()) {
+    const opacity = preset.partOpacities?.get(partId);
+    partStyles.set(partId, {
+      color: preset.partColors.get(partId) ?? preset.fallbackColor,
+      ...(opacity === undefined ? {} : { opacity }),
+    });
+  }
+  return {
+    id: preset.id,
+    name: preset.name,
+    source: "example",
+    scene: preset.scene,
+    elementModels: preset.elementModels,
+    partNames: preset.partNames,
+    partStyles,
+    bounds: preset.bounds,
+    results: preset.results,
+    issues: [],
+  };
+}
+
+/** Creates the active workbench descriptor for one imported GLB file. */
+export function createImportedModel(fileName: string, imported: GlbSceneImport): WorkbenchModel {
+  return {
+    id: "opened-glb",
+    name: fileName,
+    source: "file",
+    scene: imported.scene,
+    elementModels: new Map(),
+    partNames: imported.partNames,
+    partStyles: imported.partStyles,
+    bounds: sceneBounds(imported.scene),
+    results: undefined,
+    issues: imported.issues,
+  };
+}
+
+/** Resolves the part style while applying the workbench's display overlays. */
+export function partStyleOverride(
+  model: WorkbenchModel,
+  partId: PartId,
+  edges: boolean,
+  nodes: boolean,
+): StyleOverride {
+  const authored = model.partStyles.get(partId) ?? { color: fallbackColor };
+  const part = model.scene.parts.get(partId);
+  return {
+    ...authored,
+    ...(edges ? { edge: true } : {}),
+    ...(nodes && part?.geometry.primitive !== "points" ? { nodes: true } : {}),
+  };
+}
+
+/** Returns a safe display name for a browser-provided file name. */
+export function displayFileName(name: string): string {
+  const sanitized = name
+    .split("")
+    .filter((character) => {
+      const code = character.charCodeAt(0);
+      return character !== "\\" && character !== "/" && code >= 32 && code !== 127;
+    })
+    .join("")
+    .trim()
+    .slice(0, 120);
+  return sanitized.length > 0 ? sanitized : "opened.glb";
+}
+
+/** Formats bounded import feedback for the workbench status region. */
+export function importFeedback(fileName: string, imported: GlbSceneImport): string {
+  const warnings = imported.issues.filter((issue) => issue.severity === "warning");
+  if (warnings.length === 0) return `Opened ${fileName}.`;
+  const first = warnings[0];
+  return `Opened ${fileName} with ${warnings.length} warning${warnings.length === 1 ? "" : "s"}: ${first?.message ?? "ignored content"}`;
+}
+
+/** Returns an actionable string for an importer or file-reader failure. */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** Resets model-scoped inspection chrome after an atomic model transition. */
+export function clearModelInspection(view: DemoView, model: WorkbenchModel): void {
+  view.canvas.dataset["hovered"] = "";
+  view.canvas.dataset["selected"] = "";
+  view.canvas.dataset["pick"] = "";
+  view.inspectionPanel.textContent = describePick(undefined, (partId) =>
+    model.partNames.get(partId),
+  );
+  view.inspectionPanel.closest<HTMLElement>(".inspection")?.setAttribute("hidden", "");
+}
+
+/** Reflects the asynchronous file transition state in the model-source group. */
+export function setModelLoading(view: DemoView, loading: boolean): void {
+  view.modelSource.setAttribute("aria-busy", String(loading));
+  view.modelSelect.disabled = loading;
+  view.openGlbButton.disabled = loading;
+}
+
+/** Writes bounded status feedback without changing the active model. */
+export function setModelFeedback(
+  view: DemoView,
+  message: string,
+  kind: "info" | "error" = "info",
+): void {
+  view.modelFeedback.hidden = false;
+  view.modelFeedback.dataset["kind"] = kind;
+  view.modelFeedback.textContent = message;
+}
+
+const fallbackColor: Color = { r: 0.5, g: 0.5, b: 0.5, a: 1 };
+
+function sceneBounds(scene: Scene): Bounds {
+  const runtime = createSceneRuntime(scene);
+  let result: Bounds | undefined;
+  for (const instanceId of runtime.getDrawList()) {
+    const partId = runtime.getPartId(instanceId);
+    const transform = runtime.getTransform(instanceId);
+    const part = partId === undefined ? undefined : scene.parts.get(partId);
+    if (part === undefined || transform === undefined) continue;
+    result = mergeBounds(result, transformBounds(part.bounds, transform));
+  }
+  if (result === undefined) throw new Error("Imported GLB scene must contain drawable geometry");
+  return result;
+}
+
+function transformBounds(bounds: Bounds, transform: Float32Array): Bounds {
+  let result: Bounds = {
+    minX: Infinity,
+    minY: Infinity,
+    minZ: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity,
+    maxZ: -Infinity,
+  };
+  for (const x of [bounds.minX, bounds.maxX]) {
+    for (const y of [bounds.minY, bounds.maxY]) {
+      for (const z of [bounds.minZ, bounds.maxZ]) {
+        const [px, py, pz] = transformPoint(transform, x, y, z);
+        result = {
+          minX: Math.min(result.minX, px),
+          minY: Math.min(result.minY, py),
+          minZ: Math.min(result.minZ, pz),
+          maxX: Math.max(result.maxX, px),
+          maxY: Math.max(result.maxY, py),
+          maxZ: Math.max(result.maxZ, pz),
+        };
+      }
+    }
+  }
+  return result;
+}
+
+function mergeBounds(first: Bounds | undefined, second: Bounds): Bounds {
+  if (first === undefined) return second;
+  return {
+    minX: Math.min(first.minX, second.minX),
+    minY: Math.min(first.minY, second.minY),
+    minZ: Math.min(first.minZ, second.minZ),
+    maxX: Math.max(first.maxX, second.maxX),
+    maxY: Math.max(first.maxY, second.maxY),
+    maxZ: Math.max(first.maxZ, second.maxZ),
+  };
+}

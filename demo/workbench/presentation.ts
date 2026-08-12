@@ -1,5 +1,5 @@
 import { type Camera, type InteractionState, type SceneRuntime } from "../../src/index";
-import { type ModelPreset } from "../fixture/presets";
+import type { WorkbenchModel } from "./model";
 import { updateStatus, type DemoView } from "./view";
 import { selectedKeys } from "./selection";
 import { statsText } from "../devtools/diagnostics";
@@ -10,7 +10,7 @@ export interface WorkbenchPresentationOptions {
   readonly view: DemoView;
   readonly canvas: HTMLCanvasElement;
   readonly rendererName: string;
-  readonly getPreset: () => ModelPreset;
+  readonly getModel: () => WorkbenchModel;
   readonly getToggles: () => DisplayToggles;
   readonly getResultMode: () => ResultDisplayMode;
   readonly getInteraction: () => InteractionState;
@@ -25,31 +25,31 @@ export class WorkbenchPresentation {
     this.options = options;
   }
 
-  populateModelSelect(presets: readonly ModelPreset[]): void {
+  populateModelSelect(models: readonly WorkbenchModel[]): void {
     const select = this.options.view.modelSelect;
     select.textContent = "";
-    for (const preset of presets) {
+    for (const model of models) {
       const option = document.createElement("option");
-      option.value = preset.id;
-      option.textContent = preset.name;
+      option.value = model.id;
+      option.textContent = model.source === "file" ? `Opened · ${model.name}` : model.name;
       select.appendChild(option);
     }
-    select.value = this.options.getPreset().id;
+    select.value = this.options.getModel().id;
   }
 
   refresh(camera: Camera, rendererState: string, stats: RendererStats): void {
-    const preset = this.options.getPreset();
+    const model = this.options.getModel();
     updateStatus(this.options.view, camera, {
-      model: preset.name,
+      model: model.name,
       renderer: this.options.rendererName,
       rendererState,
       visibleInstances: stats.visibleInstances,
-      parts: preset.scene.parts.size,
+      parts: model.scene.parts.size,
       batches: stats.batches,
     });
     this.options.view.statsContent.textContent = statsText(
       {
-        preset,
+        model,
         runtime: this.options.getRuntime(),
         interaction: this.options.getInteraction(),
       },
@@ -63,7 +63,7 @@ export class WorkbenchPresentation {
     this.options.view.statsPanel.hidden = !this.options.getToggles().diagnostics;
     this.options.canvas.dataset["selected"] = selectedKeys(this.options.getInteraction()).join(",");
     this.options.canvas.dataset["camera"] = JSON.stringify(cameraSnapshot(camera));
-    this.options.canvas.dataset["cameraBounds"] = JSON.stringify(preset.bounds);
+    this.options.canvas.dataset["cameraBounds"] = JSON.stringify(model.bounds);
   }
 
   reflectEdges(): void {
@@ -81,7 +81,7 @@ export class WorkbenchPresentation {
   }
 
   reflectResults(): void {
-    const enabled = this.options.getPreset().results !== undefined;
+    const enabled = this.options.getModel().results !== undefined;
     const mode = this.options.getResultMode();
     this.options.view.resultsToggle.disabled = !enabled;
     this.options.view.resultsToggle.hidden = !enabled;

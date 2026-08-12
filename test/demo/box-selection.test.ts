@@ -198,6 +198,9 @@ describe("workbench hover suppression", () => {
       resetButton: new FakeElement(),
       fitView: new FakeElement(),
       modelSelect: new FakeElement(),
+      openGlbButton: new FakeElement(),
+      glbFileInput: new FakeElement(),
+      modelSource: new FakeElement(),
     } as unknown as DemoView;
     let dragging = false;
     installWorkbenchBindings({
@@ -214,7 +217,8 @@ describe("workbench hover suppression", () => {
       reset: () => undefined,
       fitView: () => undefined,
       fitSelection: () => undefined,
-      setPreset: () => undefined,
+      setModel: () => undefined,
+      openGlb: () => undefined,
     });
 
     const move = { clientX: 50, clientY: 50 } as PointerEvent;
