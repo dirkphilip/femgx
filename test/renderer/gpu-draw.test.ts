@@ -271,15 +271,17 @@ describe("GPU draw path", () => {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
       patchInstances(draw, part.id, [{ slot: 5, data: record(1) }]);
-      expect(gpu.buffers).toHaveLength(4);
+      expect(gpu.buffers).toHaveLength(5);
       expect(gpu.buffers[0]?.size).toBe(6 * 96);
       expect(gpu.buffers[1]?.size).toBe(6 * 4);
       expect(gpu.buffers[2]?.size).toBe(6 * 4);
-      expect(gpu.buffers[3]?.size).toBe(HIGHLIGHT_BUFFER_SIZE);
+      expect(gpu.buffers[3]?.size).toBe(6 * 4);
+      expect(gpu.buffers[4]?.size).toBe(HIGHLIGHT_BUFFER_SIZE);
       patchInstances(draw, part.id, [{ slot: 10, data: record(2) }]);
-      expect(gpu.buffers[4]?.size).toBe(12 * 96);
-      expect(gpu.buffers[5]?.size).toBe(12 * 4);
+      expect(gpu.buffers[5]?.size).toBe(12 * 96);
       expect(gpu.buffers[6]?.size).toBe(12 * 4);
+      expect(gpu.buffers[7]?.size).toBe(12 * 4);
+      expect(gpu.buffers[8]?.size).toBe(12 * 4);
     } finally {
       restore();
     }
@@ -556,20 +558,24 @@ describe("GPU draw path", () => {
       const second = ensureColorTargets(draw, 800, 600, "bgra8unorm", "depth24plus-stencil8");
       expect(second.color).toBe(first.color);
       expect(second.depth).toBe(first.depth);
-      expect(gpu.textureCreations).toBe(2);
+      expect(gpu.textureCreations).toBe(7);
       expect(gpu.textures[0]?.descriptor.sampleCount).toBe(4);
-      expect(gpu.textures[1]?.descriptor.sampleCount).toBe(4);
+      expect(gpu.textures[1]?.descriptor.sampleCount).toBeUndefined();
       expect(gpu.textures[1]?.descriptor.usage).toBe(
         GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
       );
+      expect(gpu.textures[2]?.descriptor.sampleCount).toBe(4);
+      expect(gpu.textures[3]?.descriptor.sampleCount).toBeUndefined();
+      expect(gpu.textures[4]?.descriptor.sampleCount).toBe(4);
+      expect(gpu.textures[5]?.descriptor.sampleCount).toBeUndefined();
+      expect(gpu.textures[6]?.descriptor.sampleCount).toBe(4);
       const resized = ensureColorTargets(draw, 400, 300, "bgra8unorm", "depth24plus-stencil8");
       expect(resized.depth).not.toBe(first.depth);
-      expect(gpu.textureCreations).toBe(4);
+      expect(gpu.textureCreations).toBe(14);
       expect(gpu.textures[0]?.destroyed).toBe(true);
       expect(gpu.textures[1]?.destroyed).toBe(true);
       destroyDrawResources(draw);
-      expect(gpu.textures[2]?.destroyed).toBe(true);
-      expect(gpu.textures[3]?.destroyed).toBe(true);
+      expect(gpu.textures.slice(7).every((texture) => texture.destroyed)).toBe(true);
     } finally {
       restore();
     }

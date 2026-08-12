@@ -289,6 +289,7 @@ export function fakeGpuDevice(
               drawCalls.push({ indexCount, instanceCount });
               pipelineDraws.push({ pipeline: currentPipeline, indexCount, instanceCount });
             },
+            draw: () => undefined,
             end: () => undefined,
           };
           return pass as unknown as GPURenderPassEncoder;

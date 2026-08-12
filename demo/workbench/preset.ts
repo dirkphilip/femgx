@@ -21,9 +21,11 @@ export function partStyleOverride(
   preset: ModelPreset,
   partId: PartId,
   edges: boolean,
-): { color: Color; edge?: true } {
+): { color: Color; opacity?: number; edge?: true } {
+  const opacity = preset.partOpacities?.get(partId);
   return {
     color: preset.partColors.get(partId) ?? preset.fallbackColor,
+    ...(opacity === undefined ? {} : { opacity }),
     ...(edges ? { edge: true } : {}),
   };
 }

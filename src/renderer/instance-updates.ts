@@ -10,6 +10,13 @@ import { instanceAt, type InstanceLayout } from "./runtime-state";
 export interface CollectedInstanceUpdates {
   readonly updates: ReadonlyMap<PartId, readonly InstanceUpdate[]>;
   readonly edgeChanged: ReadonlySet<PartId>;
+  readonly transparentChanged: ReadonlySet<PartId>;
+}
+
+/** Mutable mirrors used to detect draw-list membership changes. */
+export interface InstanceStyleFlags {
+  readonly edgeFlags: boolean[];
+  readonly transparentFlags: boolean[];
 }
 
 /**
@@ -21,11 +28,12 @@ export function collectInstanceUpdates(
   runtime: PackedSceneRuntime,
   layout: InstanceLayout,
   interaction: InteractionState,
-  edgeFlags: boolean[],
+  flags: InstanceStyleFlags,
   changedInstanceIds: readonly number[],
 ): CollectedInstanceUpdates {
   const updates = new Map<PartId, InstanceUpdate[]>();
   const edgeChanged = new Set<PartId>();
+  const transparentChanged = new Set<PartId>();
   for (const slot of changedInstanceIds) {
     if (slot < 0 || slot >= runtime.instanceCount) continue;
     const partId = runtime.instancePartIds[slot];
@@ -36,9 +44,14 @@ export function collectInstanceUpdates(
       defaultStyle,
       interaction,
     );
-    if (edgeFlags[slot] !== style.edge) {
-      edgeFlags[slot] = style.edge;
+    if (flags.edgeFlags[slot] !== style.edge) {
+      flags.edgeFlags[slot] = style.edge;
       edgeChanged.add(partId);
+    }
+    const transparent = style.color.a * style.opacity < 1;
+    if (flags.transparentFlags[slot] !== transparent) {
+      flags.transparentFlags[slot] = transparent;
+      transparentChanged.add(partId);
     }
     const update: InstanceUpdate = {
       slot: local,
@@ -55,5 +68,5 @@ export function collectInstanceUpdates(
       list.push(update);
     }
   }
-  return { updates, edgeChanged };
+  return { updates, edgeChanged, transparentChanged };
 }

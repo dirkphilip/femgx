@@ -12,6 +12,7 @@ import {
 import { createBoltedPlateFixture } from "./bolted-plate";
 import { createElementFixture, createHex20CylinderFixture } from "./element-fixture";
 import { createResultsPreset } from "./results-preset";
+import { createTransparencyFixture } from "./transparency-fixture";
 import { createVtkFixture } from "./vtk-fixture";
 import type { ElementDisplayMode } from "./types";
 
@@ -23,6 +24,7 @@ export interface ModelPreset {
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
   readonly partColors: ReadonlyMap<PartId, Color>;
   readonly fallbackColor: Color;
+  readonly partOpacities?: ReadonlyMap<PartId, number>;
   readonly partNames: ReadonlyMap<PartId, string>;
   readonly modePartIds: ReadonlyMap<ElementDisplayMode, readonly PartId[]>;
   readonly overlayPartIds: readonly PartId[];
@@ -190,6 +192,37 @@ export function createBoltedPlatePreset(): ModelPreset {
   };
 }
 
+/** Builds the deterministic shell/interior transparency demonstration. */
+export function createTransparencyPreset(): ModelPreset {
+  const fixture = createTransparencyFixture();
+  const { shell, interior, overlap } = fixture.partIds;
+  return {
+    id: "transparency",
+    name: "Order-independent transparency",
+    scene: fixture.scene,
+    elementModels: fixture.elementModels,
+    partColors: new Map<PartId, Color>([
+      [shell, { r: 0.95, g: 0.25, b: 0.2, a: 1 }],
+      [interior, { r: 0.2, g: 0.45, b: 0.95, a: 1 }],
+      [overlap, { r: 0.2, g: 0.85, b: 0.45, a: 1 }],
+    ]),
+    partOpacities: new Map<PartId, number>([
+      [shell, 0.38],
+      [overlap, 0.3],
+    ]),
+    fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
+    partNames: new Map<PartId, string>([
+      [shell, "Translucent shell"],
+      [interior, "Solid interior"],
+      [overlap, "Overlapping translucent placements"],
+    ]),
+    modePartIds: fixture.modePartIds,
+    overlayPartIds: fixture.overlayPartIds,
+    defaultMode: fixture.defaultMode,
+    bounds: fixture.bounds,
+  };
+}
+
 /** The deterministic presets offered by the demo, in stable order. */
 export function createModelPresets(): readonly ModelPreset[] {
   return [
@@ -198,6 +231,7 @@ export function createModelPresets(): readonly ModelPreset[] {
     createGalleryPreset(),
     createHex20CylinderPreset(),
     createResultsPreset(),
+    createTransparencyPreset(),
   ];
 }
 

@@ -390,6 +390,29 @@ test("renders element nodes as a separate visible annotation pass", async ({ pag
   );
 });
 
+test("composes the transparency fixture and picks its nearest translucent face", async ({
+  page,
+}) => {
+  await loadWebGpuPage(page);
+  await page.getByTestId("model-select").selectOption("transparency");
+
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toHaveAttribute("data-model", "transparency");
+  const frame = await stableCanvasPixels(page, canvas);
+  const rgba = await canvasRgba(page, canvas);
+  expect(
+    visiblePixelCount(rgba),
+    "the transparency composite must preserve visible geometry",
+  ).toBeGreaterThan(rgba.length / 16);
+  expect(frame.equals(await stableCanvasPixels(page, canvas))).toBe(true);
+
+  const hit = await sweepForHit(page, canvas, { prefix: "f:", attribute: "hovered", fresh: true });
+  expect(hit, "the nearest translucent shell face must remain pickable").not.toBeUndefined();
+  expect(hit?.key).toMatch(/^f:31\/1:/);
+  await page.mouse.click(hit?.x ?? 0, hit?.y ?? 0);
+  await expect.poll(() => canvas.getAttribute("data-selected")).toBe(hit?.key);
+});
+
 test("keeps element edges and nodes visible after orbiting", async ({ page }) => {
   await loadWebGpuPage(page);
 

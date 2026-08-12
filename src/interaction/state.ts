@@ -21,6 +21,24 @@ export interface StyleOverride {
   readonly edge?: boolean;
 }
 
+/** Validates a public style override without normalizing caller-owned values. */
+export function validateStyleOverride(override: StyleOverride | undefined): void {
+  if (override === undefined) return;
+  if (override.opacity !== undefined) validateUnit("opacity", override.opacity);
+  if (override.color !== undefined) {
+    validateUnit("color.r", override.color.r);
+    validateUnit("color.g", override.color.g);
+    validateUnit("color.b", override.color.b);
+    validateUnit("color.a", override.color.a);
+  }
+}
+
+function validateUnit(name: string, value: number): void {
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new RangeError(`${name} must be finite and in [0, 1]`);
+  }
+}
+
 /** Complete style consumed by a renderer. */
 export interface ResolvedStyle {
   readonly color: Color;

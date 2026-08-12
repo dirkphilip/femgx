@@ -8,7 +8,7 @@ import {
   type DrawResources,
 } from "./gpu-draw";
 
-type PipelinePass = "color" | "pick";
+type PipelinePass = "color" | "transparent" | "pick";
 
 type DrawIntent =
   | { readonly kind: "surface"; readonly pass: PipelinePass }
@@ -51,7 +51,13 @@ export function drawOneBatch(
   options: BatchDrawOptions,
 ): GPURenderPipeline | undefined {
   const { intent, current } = options;
-  const overlay = intent.kind === "edge";
+  const orderKind =
+    intent.kind === "edge"
+      ? "edge"
+      : intent.kind === "surface" && intent.pass === "transparent"
+        ? "transparent"
+        : "opaque";
+  const overlay = orderKind === "edge";
   const nodes = intent.kind === "nodes";
   const part = context.parts.get(call.partId);
   const storage = draw.storages.get(call.partId);
@@ -69,7 +75,7 @@ export function drawOneBatch(
       : intent.pipeline;
   if (current !== pipeline) pass.setPipeline(pipeline);
   const deformation = ensureDeformationBuffer(draw.device, draw.deformations, call.partId);
-  const group = orderBindGroup(draw.device, context.instanceLayout, storage, overlay, {
+  const group = orderBindGroup(draw.device, context.instanceLayout, storage, orderKind, {
     geometry,
     deformation,
     cache: !nodes,
@@ -103,10 +109,22 @@ function pipelineFor(
 ): GPURenderPipeline {
   switch (primitive) {
     case "triangles":
-      return pass === "color" ? pipelines.trianglesColor : pipelines.trianglesPick;
+      return pass === "color"
+        ? pipelines.trianglesColor
+        : pass === "transparent"
+          ? pipelines.trianglesTransparent
+          : pipelines.trianglesPick;
     case "lines":
-      return pass === "color" ? pipelines.linesColor : pipelines.linesPick;
+      return pass === "color"
+        ? pipelines.linesColor
+        : pass === "transparent"
+          ? pipelines.linesTransparent
+          : pipelines.linesPick;
     case "points":
-      return pass === "color" ? pipelines.pointsColor : pipelines.pointsPick;
+      return pass === "color"
+        ? pipelines.pointsColor
+        : pass === "transparent"
+          ? pipelines.pointsTransparent
+          : pipelines.pointsPick;
   }
 }

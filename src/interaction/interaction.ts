@@ -11,6 +11,7 @@ import {
   type InteractionTheme,
   type ResolvedStyle,
   type StyleOverride,
+  validateStyleOverride,
 } from "./state";
 import {
   applyStyleLayers,
@@ -42,6 +43,9 @@ const defaultTheme: InteractionTheme = {
 
 /** Creates an empty interaction state. */
 export function createInteractionState(theme: InteractionTheme = defaultTheme): InteractionState {
+  for (const style of Object.values(theme) as readonly StyleOverride[]) {
+    validateStyleOverride(style);
+  }
   const data: InteractionStateData = {
     highlightedPartIds: new Set(),
     highlightedInstanceIds: new Set(),
@@ -160,6 +164,7 @@ export function setElementOverride(
   ref: ElementRef,
   override: StyleOverride | undefined,
 ): InteractionState {
+  validateStyleOverride(override);
   const data = readInteractionState(state);
   const elementOverrides = updateNestedMap(
     data.elementOverrides,
@@ -177,6 +182,7 @@ export function setPartOverride(
   partId: PartId,
   override: StyleOverride | undefined,
 ): InteractionState {
+  validateStyleOverride(override);
   return updatePartOverride(state, partId, override);
 }
 
@@ -186,6 +192,7 @@ export function setInstanceOverride(
   instanceId: InstanceId,
   override: StyleOverride | undefined,
 ): InteractionState {
+  validateStyleOverride(override);
   return updateInstanceOverride(state, instanceId, override);
 }
 

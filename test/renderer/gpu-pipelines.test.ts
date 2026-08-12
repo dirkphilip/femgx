@@ -16,18 +16,45 @@ describe("GPU render resources", () => {
       expect(resources.deformationBuffer).toBeDefined();
       expect(resources.frameBindGroup).toBeDefined();
       expect(resources.pipelines.trianglesColor).toBeDefined();
+      expect(resources.pipelines.trianglesTransparent).toBeDefined();
       expect(resources.pipelines.trianglesPick).toBeDefined();
       expect(resources.pipelines.linesColor).toBeDefined();
+      expect(resources.pipelines.linesTransparent).toBeDefined();
       expect(resources.pipelines.linesPick).toBeDefined();
       expect(resources.pipelines.pointsColor).toBeDefined();
+      expect(resources.pipelines.pointsTransparent).toBeDefined();
       expect(resources.pipelines.pointsPick).toBeDefined();
-      for (const index of [1, 3, 5]) {
+      for (const index of [2, 5, 8]) {
         expect(gpu.renderPipelineDescriptors[index]?.fragment?.targets).toHaveLength(4);
       }
+      const transparent = gpu.renderPipelineDescriptors.filter(
+        (descriptor) => descriptor.fragment?.targets.length === 2,
+      );
+      expect(transparent).toHaveLength(3);
+      expect(
+        transparent.every((descriptor) => descriptor.depthStencil?.depthWriteEnabled === false),
+      ).toBe(true);
+      expect(transparent[0]?.fragment?.targets[0]?.blend?.color).toEqual({
+        srcFactor: "one",
+        dstFactor: "one",
+      });
+      expect(transparent[0]?.fragment?.targets[1]?.blend?.color).toEqual({
+        srcFactor: "zero",
+        dstFactor: "one-minus-src",
+      });
+      expect(resources.composite).toBeDefined();
       expect(resources.edgePipeline).toBeDefined();
       expect(resources.edgeAlwaysPipeline).toBeDefined();
-      expect(gpu.renderPipelineDescriptors.at(-4)?.depthStencil?.depthCompare).toBe("less-equal");
-      expect(gpu.renderPipelineDescriptors.at(-3)?.depthStencil?.depthCompare).toBe("always");
+      expect(
+        gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.depthStencil?.depthCompare === "less-equal",
+        ),
+      ).toBeDefined();
+      expect(
+        gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.depthStencil?.depthCompare === "always",
+        ),
+      ).toBeDefined();
       expect(resources.nodeOverlayPipelines.visible).toBeDefined();
       const nodePipeline = gpu.renderPipelineDescriptors.find(
         (descriptor) => descriptor.vertex.entryPoint === "nodeOverlayVertexMain",
@@ -40,7 +67,7 @@ describe("GPU render resources", () => {
       expect(nodePipeline?.multisample?.alphaToCoverageEnabled).toBe(true);
       expect(nodePipeline?.fragment?.targets[0]?.blend).toBeUndefined();
       expect(gpu.renderPipelineDescriptors[0]?.multisample?.count).toBe(COLOR_SAMPLE_COUNT);
-      expect(gpu.renderPipelineDescriptors[1]?.multisample?.count ?? 1).toBe(1);
+      expect(gpu.renderPipelineDescriptors[2]?.multisample?.count ?? 1).toBe(1);
       expect(resources.instanceLayout).toBeDefined();
       expect(gpu.renderPipelineDescriptors[0]?.primitive?.cullMode).toBe("none");
       expect(gpu.renderPipelineDescriptors[1]?.primitive?.cullMode).toBe("none");

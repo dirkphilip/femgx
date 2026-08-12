@@ -30,7 +30,11 @@ export interface DeformationSync {
   readonly deformations: Map<PartId, DeformationStorage>;
   readonly storages: ReadonlyMap<
     PartId,
-    { bindGroup: GPUBindGroup | undefined; edgeBindGroup: GPUBindGroup | undefined }
+    {
+      bindGroup: GPUBindGroup | undefined;
+      edgeBindGroup: GPUBindGroup | undefined;
+      transparentBindGroup?: GPUBindGroup | undefined;
+    }
   >;
 }
 
@@ -74,7 +78,7 @@ export function validateDeformation(state: DeformationState): void {
  * destroyed and removed, so no stale displacement data outlives the state;
  * empty fallback buffers created by the draw path (whose `source` is
  * `undefined`) are left alone. Parts whose buffer was recreated or removed have
- * both cached bind groups (surface and edge overlay) cleared so the next draw
+ * all cached bind groups (surface, transparency, and edge overlay) cleared so the next draw
  * rebinds the fresh buffer. `undefined` resolves to the disabled identity state.
  */
 export function syncDeformations(sync: DeformationSync, state: DeformationState | undefined): void {
@@ -154,10 +158,11 @@ function uploadDeformation(sync: DeformationSync, partId: PartId, values: Float3
   sync.device.queue.writeBuffer(buffer, 0, values);
 }
 
-/** Clears the cached surface and edge-overlay bind groups for a part. */
+/** Clears the cached surface, transparency, and edge-overlay bind groups for a part. */
 function invalidateBindGroups(sync: DeformationSync, partId: PartId): void {
   const storage = sync.storages.get(partId);
   if (storage === undefined) return;
   storage.bindGroup = undefined;
+  storage.transparentBindGroup = undefined;
   storage.edgeBindGroup = undefined;
 }

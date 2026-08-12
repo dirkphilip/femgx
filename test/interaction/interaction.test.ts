@@ -99,6 +99,17 @@ describe("instance style resolution", () => {
     expect(resolveInstanceStyle(item, base, createInteractionState())).toBe(base);
   });
 
+  it("rejects non-finite and out-of-range alpha values at override boundaries", () => {
+    expect(() => setInstanceOverride(createInteractionState(), "1/0", { opacity: -0.1 })).toThrow(
+      /opacity must be finite and in \[0, 1\]/,
+    );
+    expect(() =>
+      setPartOverride(createInteractionState(), 1, {
+        color: { r: 0, g: 0, b: 0, a: Number.NaN },
+      }),
+    ).toThrow(/color\.a must be finite and in \[0, 1\]/);
+  });
+
   it("applies selected, hover, and explicit overrides in precedence order", () => {
     expect(
       resolveInstanceStyle(
