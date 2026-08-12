@@ -30,8 +30,15 @@ export interface PickTargets {
 
 /** Readback buffers pooled across pick calls; one map at a time per buffer. */
 export interface PickReadbackPool {
-  readonly free: GPUBuffer[];
+  readonly free: PickReadbackBuffer[];
   readonly inFlight: Set<GPUBuffer>;
+  readonly capacities: Map<GPUBuffer, number>;
+  closed: boolean;
+}
+
+interface PickReadbackBuffer {
+  readonly buffer: GPUBuffer;
+  readonly size: number;
 }
 
 /** The pick ids decoded from the pick-pass attachments. */
@@ -74,7 +81,7 @@ export function createPickTargets(depthReadback?: PickDepthReadback): PickTarget
     nodeTexture: undefined,
     depthTexture: undefined,
     depthReadback,
-    readback: { free: [], inFlight: new Set() },
+    readback: { free: [], inFlight: new Set(), capacities: new Map(), closed: false },
   };
 }
 
@@ -154,7 +161,7 @@ export async function readPickPixel(
     canvas.width,
     canvas.height,
   );
-  const buffer = acquireReadback(device, pick.readback);
+  const buffer = acquirePickReadback(device, pick.readback, READBACK_SIZE);
   let mapped = false;
   try {
     submitPickCopies(device, textures, buffer, pixel);
@@ -175,7 +182,7 @@ export async function readPickPixel(
     );
   } finally {
     if (mapped) buffer.unmap();
-    releaseReadback(pick.readback, buffer);
+    releasePickReadback(pick.readback, buffer, READBACK_SIZE);
   }
 }
 
@@ -317,32 +324,44 @@ export function resetPickTargets(pick: PickTargets): void {
 
 /** Destroys the pick render targets and pooled readback buffers. */
 export function destroyPickTargets(pick: PickTargets): void {
+  pick.readback.closed = true;
   resetPickTargets(pick);
   if (pick.depthReadback !== undefined) destroyPickDepthReadback(pick.depthReadback);
   pick.depthReadback = undefined;
   for (const buffer of pick.readback.inFlight) buffer.destroy();
-  for (const buffer of pick.readback.free) buffer.destroy();
+  for (const entry of pick.readback.free) entry.buffer.destroy();
   pick.readback.inFlight.clear();
   pick.readback.free.length = 0;
+  pick.readback.capacities.clear();
 }
 
 /** Returns an unmapped readback buffer from the pool, creating one if needed. */
-function acquireReadback(device: GPUDevice, pool: PickReadbackPool): GPUBuffer {
-  const buffer = pool.free.pop();
-  const acquired = buffer ?? createReadback(device);
+export function acquirePickReadback(
+  device: GPUDevice,
+  pool: PickReadbackPool,
+  size: number,
+): GPUBuffer {
+  const reusableIndex = pool.free.findIndex((entry) => entry.size >= size);
+  const entry = reusableIndex < 0 ? undefined : pool.free.splice(reusableIndex, 1)[0];
+  const acquired = entry?.buffer ?? createReadback(device, size);
+  pool.capacities.set(acquired, entry?.size ?? size);
   pool.inFlight.add(acquired);
   return acquired;
 }
 
 /** Returns a readback buffer to the pool once its map is complete. */
-function releaseReadback(pool: PickReadbackPool, buffer: GPUBuffer): void {
+export function releasePickReadback(pool: PickReadbackPool, buffer: GPUBuffer, size: number): void {
   pool.inFlight.delete(buffer);
-  pool.free.push(buffer);
+  if (pool.closed) {
+    buffer.destroy();
+    return;
+  }
+  pool.free.push({ buffer, size: Math.max(size, pool.capacities.get(buffer) ?? size) });
 }
 
-function createReadback(device: GPUDevice): GPUBuffer {
+function createReadback(device: GPUDevice, size: number): GPUBuffer {
   return device.createBuffer({
-    size: READBACK_SIZE,
+    size,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   });
 }

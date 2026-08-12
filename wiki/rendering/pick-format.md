@@ -10,6 +10,13 @@ ID packing lives in `src/renderer/pick-format.ts`, with the packing mirrored in
 WGSL `packPickId`. The public `PickHit.worldPosition` is reconstructed from this
 same one-readback depth value; there is no separate public point-picking call.
 
+`FemViewport.pickRegion` copies only the requested ID attachments. Each
+attachment uses a 256-byte-aligned row stride, and large rectangles are split
+into internal row tiles under a bounded byte budget. Pixels are deduplicated as
+compact ID tuples before rich target resolution; depth is not copied because
+the pick pass already retains the nearest visible rasterized sample. This is
+visible-intersection discovery, not ordered multi-hit or click-through picking.
+
 Four `rgba8unorm` attachments already consume the WebGPU device default of 32
 color-attachment bytes per sample. Depth therefore cannot be a fifth color
 attachment, even when the physical adapter advertises a higher limit. Sampling

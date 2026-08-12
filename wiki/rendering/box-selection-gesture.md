@@ -63,14 +63,12 @@ listener suppresses asynchronous GPU picks while either is active. Completion
 does not change selection, highlight, inspection, camera, visibility, results,
 or the context-menu target.
 
-## Future connection to region picking
+## Connection to region picking
 
-This issue deliberately stops before GPU region picking: events carry the
-rectangle and input data only, never candidate model targets. Region target
-discovery (reading GPU pick textures and returning the part/instance/body/
-element/face targets inside the rectangle) is deferred. The screen-space
-gesture/event shell is accepted core interaction infrastructure; multi-target
-region picking remains deferred in the product-scope contract.
+The gesture remains policy-free. A host that wants model candidates can pass an
+event rectangle to `viewport.pickRegion(event.rect, granularity)`; the promise
+returns unique nearest-visible targets and the host decides whether to preview,
+select, toggle, or ignore them. The gesture itself never mutates selection.
 
 Related: [[rendering/interaction-selection-menu|Selection and view context
 menu]], [[rendering/interactive-state|Interactive state]],

@@ -67,6 +67,7 @@ function deepestHit(
   worldPosition: Vec3,
 ): PickHit {
   if (geometry !== undefined && ids.nodePickId > 0) {
+    if (!validNodeId(geometry, ids.nodePickId - 1)) return instanceHit(instance, worldPosition);
     return nodeHit(instance, geometry, ids, worldPosition);
   }
   if (geometry?.primitive === "triangles" && ids.facePickId > 0) {
@@ -74,6 +75,9 @@ function deepestHit(
   }
   if (ids.elementPickId > 0) {
     const elementId = ids.elementPickId - 1;
+    if (!geometry?.elements?.some((element) => element.id === elementId)) {
+      return instanceHit(instance, worldPosition);
+    }
     return {
       kind: "element",
       partId: instance.partId,
@@ -84,11 +88,22 @@ function deepestHit(
     };
   }
   return {
+    ...instanceHit(instance, worldPosition),
+  };
+}
+
+function instanceHit(instance: Instance, worldPosition: Vec3): PickHit {
+  return {
     kind: "instance",
     partId: instance.partId,
     instanceId: instance.instanceId,
     worldPosition,
   };
+}
+
+function validNodeId(geometry: Geometry, nodeId: number): boolean {
+  const nodeCount = (geometry.nodePositions?.length ?? 0) / 3;
+  return Number.isInteger(nodeId) && nodeId >= 0 && nodeId < nodeCount;
 }
 
 function nodeHit(
