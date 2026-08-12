@@ -102,6 +102,9 @@ function quadraticQuad(
 
 /** Direction from the element interior toward the face (for outward winding). */
 function outwardDirection(model: ElementModel, element: Element, corners: readonly Vec3[]): Vec3 {
+  if (element.shape.family === "triangle" || element.shape.family === "quad") {
+    return faceNormal(corners);
+  }
   const elementCentroid = average(element.nodeIds.map((id) => nodePosition(model, id)));
   const faceCentroid = average(corners);
   const outward = subtract(faceCentroid, elementCentroid);

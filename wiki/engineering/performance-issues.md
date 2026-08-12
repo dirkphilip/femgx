@@ -129,13 +129,13 @@ explicit product decision. In-memory models remain the product path.
 **Core trade-off** — quadratic shapes are part of the minimum product (see
 [[requirements/product-scope|product scope]]).
 
-Quadratic (Tet10/Hex20/LINE3) geometry is tessellated through mid-edge nodes
+Quadratic (Line3/Tri6/Quad8/Tet10/Hex20) geometry is tessellated through mid-edge nodes
 rather than reduced to linear facets (see
 [[rendering/element-rendering|Element rendering]]). The cost is a constant CPU/upload
 factor, never a runtime draw cost:
 
-- A Tet10 solid is 4 triangles per face vs 2 for a Tet4, and a Hex20 quad is 8
-  triangles vs 2 for a Hex8, so quadratic models upload 2-4x the triangle
+- Tri6 and Tet10 faces use 4 triangles; Quad8 and Hex20 faces use 6. Compared
+  with their linear counterparts, quadratic models upload 2-4x the triangle
   geometry per element family.
 - Quadratic shapes use a fixed linearization through authored mid-edge nodes,
   so their upload cost is predictable and the mid-edge node is always honored.

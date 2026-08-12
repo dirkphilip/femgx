@@ -49,6 +49,8 @@ sets, metadata, and results.
   remaps authoritative node and element ids to those emitted rows; a parsed
   file therefore receives dense 0..n-1 ids, while geometry and result
   associations remain intact.
+- **Cells**: Point, Line, Line3, Triangle, Tri6, Quad, Quad8, Tet4, Tet10,
+  Hex8, and Hex20 map to their canonical VTK legacy cell types.
 - **Sets / metadata**: VTK legacy has no set or metadata concept.
 - **Results**: complete node and element fields are reordered by identity to
   POINT_DATA and CELL_DATA row order. One-component fields use `SCALARS`,

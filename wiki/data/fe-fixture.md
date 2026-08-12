@@ -5,9 +5,10 @@ builders used to exercise the WebGPU path and unit tests.
 
 ## Element gallery
 
-`createElementFixture` places one reusable example for every currently
-supported shape: Point, Line, Line3, Triangle, Quad, Tet4, Tet10, Hex8, and
-Hex20. It also includes a concave polygon authored through the geometry-owned
+`createElementFixture` places representative examples for the supported
+primitive and volume paths: Point, Line, Line3, Triangle, Quad, Tet4, Tet10,
+Hex8, and Hex20. Tri6 and Quad8 use the same quadratic face tessellator exercised
+by Tet10 and Hex20. The gallery also includes a concave polygon authored through the geometry-owned
 `polygonPart` path. Triangle, line, and point outputs remain separate only where
 WebGPU primitive topology requires it; edge display is a renderer-owned overlay.
 The gallery is intentionally explicit about quadratic shapes so their linear

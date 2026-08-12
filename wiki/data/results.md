@@ -115,7 +115,7 @@ The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
 - The WGSL vertex shaders (`gpu-shaders.ts`) resolve each vertex to its FE node through the
   part's per-vertex node pick ids and add `displacement * scale` to the model-space vertex in
   the triangle, point-sprite, and edge-overlay passes, so the wireframe and picking stay
-  aligned with the deformed solid. Supported Line3, Tet10, and Hex20 tessellation
+  aligned with the deformed solid. Supported Line3, Tri6, Quad8, Tet10, and Hex20 tessellation
   vertices are all authored nodes, so no quadratic face center can remain stationary.
 - Geometry upload stays amortized: only the tiny uniform (and a compact displacement buffer on load-case change) is rewritten, matching the delta-oriented architecture — see [[rendering/renderer-subrange-updates|Renderer subrange updates]].
 

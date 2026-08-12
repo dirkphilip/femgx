@@ -1,7 +1,7 @@
 # Element rendering
 
-How finite elements become drawable geometry. Point, Line, Line3, Triangle, Quad,
-Tet4, Tet10, Hex8, and Hex20 are Core now, including quadratic tessellation.
+How finite elements become drawable geometry. Point, Line, Line3, Triangle, Tri6,
+Quad, Quad8, Tet4, Tet10, Hex8, and Hex20 are Core now, including quadratic tessellation.
 Related: [[data/elements-topology|Element topology]] and
 [[architecture/instancing-strategy|Instancing strategy]].
 
@@ -17,8 +17,8 @@ Related: [[data/elements-topology|Element topology]] and
    edges they bisect, so geometry is never fabricated.
 3. `heterogeneousElementParts` (`src/geometry/heterogeneous-element-mesh.ts`)
    scans the model once and emits the compatible primitive groups needed by
-   WebGPU: at most one triangle, line, and point part. Triangle, quad, Tet4,
-   Tet10, Hex8, and Hex20 elements share the triangle group; line and point
+   WebGPU: at most one triangle, line, and point part. Triangle, Tri6, Quad,
+   Quad8, Tet4, Tet10, Hex8, and Hex20 elements share the triangle group; line and point
    elements use their own topology groups. Each group is a reusable part with
    computed bounds. Triangle callers can pass a validated `faceSubset` of
    `{ elementId, faceIndex }` identities; the renderer keeps the full reusable
@@ -107,9 +107,9 @@ orders use the same mapping with subset-local logical edge ids.
 Quadratic element connectivity is accepted and deterministically linearized
 through its authored mid-edge nodes:
 
-- Tet10 faces are each subdivided into 4 triangles through the three mid-edge
+- Tri6 surfaces and Tet10 faces are each subdivided into 4 triangles through the three mid-edge
   nodes (one center triangle + three corner triangles).
-- Hex20 quads are each subdivided into 6 triangles through the four corners and
+- Quad8 surfaces and Hex20 faces are each subdivided into 6 triangles through the four corners and
   four mid-edge nodes: four corner triangles plus two inner-quad triangles split
   by the deterministic diagonal from the first to the third mid-edge node.
 - LINE3 edges are emitted as two straight segments through the mid-edge node.

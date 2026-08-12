@@ -8,7 +8,9 @@ import {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  QUAD8_SHAPE,
   QUAD_SHAPE,
+  TRI6_SHAPE,
   TRIANGLE_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
@@ -139,6 +141,21 @@ function surfaceModel(): ElementModel {
     [createElement(1, TRIANGLE_SHAPE, [0, 1, 2]), createElement(2, QUAD_SHAPE, [1, 3, 4, 2])],
   );
 }
+
+const QUADRATIC_SURFACES = [
+  {
+    name: "Tri6",
+    shape: TRI6_SHAPE,
+    nodes: [0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0, 0.2, 0.5, 0.5, 0.1, 0, 0.5, 0.2],
+    triangles: 4,
+  },
+  {
+    name: "Quad8",
+    shape: QUAD8_SHAPE,
+    nodes: [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0.5, 0, 0.2, 1, 0.5, 0.1, 0.5, 1, 0.2, 0, 0.5, 0.1],
+    triangles: 6,
+  },
+] as const;
 
 /** Two tets sharing the face (0,1,2), one mirrored across that face. */
 function sharedTetPairModel(): ElementModel {
@@ -325,6 +342,28 @@ describe("heterogeneousElementParts geometry", () => {
       validatePickIds(quad);
     }).not.toThrow();
   });
+
+  it.each(QUADRATIC_SURFACES)(
+    "tessellates $name through every authored mid-edge node",
+    ({ shape, nodes, triangles: triangleCount }) => {
+      const element = createElement(
+        1,
+        shape,
+        Array.from({ length: nodes.length / 3 }, (_, i) => i),
+      );
+      const geometry = geometryFor(createElementModel(nodes, [element]), "triangle");
+      expect(geometry.indices).toHaveLength(triangleCount * 3);
+      expect(geometry.elements).toEqual([
+        { id: 1, primitiveStart: 0, primitiveCount: triangleCount, shape },
+      ]);
+      expect(new Set(geometry.nodePickIds)).toEqual(
+        new Set(Array.from({ length: nodes.length / 3 }, (_, id) => id + 1)),
+      );
+      for (const triangle of triangles(geometry)) {
+        expect(dot(triangleNormal(triangle), [0, 0, 1])).toBeGreaterThan(0);
+      }
+    },
+  );
 
   it("tessellates a Hex20 solid through its twelve mid-edge nodes", () => {
     const geometry = geometryFor(hex20Model(), "triangle");
@@ -622,19 +661,6 @@ describe("heterogeneousElementParts", () => {
     );
     const quadratic = heterogeneousElementParts({ triangle: 20 }, tet10Model());
     expect(quadratic.triangle?.geometry.primitive).toBe("triangles");
-  });
-
-  it.each([
-    ["triangle", 2],
-    ["quad", 2],
-  ] as const)("rejects unsupported %s order %s before tessellation", (family, order) => {
-    const model: ElementModel = {
-      nodes: new Float32Array(TET_NODES),
-      elements: [{ id: 1, shape: { family, order }, nodeIds: [0, 1, 2, 3] }],
-    };
-    expect(() => heterogeneousElementParts({ triangle: 20 }, model)).toThrow(
-      expect.objectContaining({ code: "unsupported-shape" }),
-    );
   });
 
   it("keeps repeated builds deterministic and carries body membership to each group", () => {

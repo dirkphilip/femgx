@@ -33,26 +33,16 @@ interface VolumeGeometryInput {
   readonly elements: readonly Element[];
   readonly bodies: readonly Body[] | undefined;
   readonly faceSubset: readonly FaceIdRef[] | undefined;
-  readonly includeShapes: boolean;
-  readonly family?: string;
-  readonly assignedBodies?: ReadonlyMap<ElementId, BodyId>;
+  readonly assignedBodies: ReadonlyMap<ElementId, BodyId>;
 }
 
 /** Builds triangle geometry for one or more compatible element shapes. */
 export function volumeGeometry(input: VolumeGeometryInput): TriangleGeometry {
-  const {
-    model,
-    elements,
-    bodies,
-    faceSubset,
-    includeShapes,
-    family = "heterogeneous",
-    assignedBodies = bodyAssignments(model.elements, bodies),
-  } = input;
+  const { model, elements, bodies, faceSubset, assignedBodies } = input;
   const selected =
     faceSubset === undefined
       ? undefined
-      : validateFaceSelectionForElements(elements, faceSubset, family);
+      : validateFaceSelectionForElements(elements, faceSubset, "heterogeneous");
   if (selected !== undefined) validateManifoldFaces(elements);
   const faces =
     selected === undefined
@@ -64,7 +54,6 @@ export function volumeGeometry(input: VolumeGeometryInput): TriangleGeometry {
     neighbors: faceNeighbors(elements),
     bodyIds: assignedBodies,
     selected,
-    includeShapes,
   });
   const subset = selected === undefined ? undefined : { faceIds: tessellation.selectedFaceIds };
   return buildVolumeGeometry({
@@ -98,11 +87,10 @@ interface VolumeFaceInput {
   readonly neighbors: ReadonlyMap<string, readonly ElementId[]>;
   readonly bodyIds: ReadonlyMap<ElementId, BodyId>;
   readonly selected: ReadonlySet<string> | undefined;
-  readonly includeShapes: boolean;
 }
 
 function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
-  const { model, faces, neighbors, bodyIds, selected, includeShapes } = input;
+  const { model, faces, neighbors, bodyIds, selected } = input;
   const mesh = new TriangleMeshBuilder();
   const elements: ElementTessellation[] = [];
   const faceTessellations: FaceTessellation[] = [];
@@ -116,7 +104,7 @@ function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
       id: current.element.id,
       primitiveStart: current.start,
       primitiveCount: mesh.triangleCount - current.start,
-      ...(includeShapes ? { shape: current.element.shape } : {}),
+      shape: current.element.shape,
     };
     const bodyId = bodyIds.get(current.element.id);
     elements.push(bodyId === undefined ? tessellation : { ...tessellation, bodyId });

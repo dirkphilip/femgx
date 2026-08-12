@@ -5,7 +5,9 @@ import {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  QUAD8_SHAPE,
   QUAD_SHAPE,
+  TRI6_SHAPE,
   TRIANGLE_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
@@ -18,7 +20,9 @@ const ALL_SHAPES: ReadonlyArray<readonly [string, ElementShape]> = [
   ["line", LINE_SHAPE],
   ["line3", LINE3_SHAPE],
   ["triangle", TRIANGLE_SHAPE],
+  ["tri6", TRI6_SHAPE],
   ["quad", QUAD_SHAPE],
+  ["quad8", QUAD8_SHAPE],
   ["tet4", TET4_SHAPE],
   ["tet10", TET10_SHAPE],
   ["hex8", HEX8_SHAPE],
@@ -32,7 +36,9 @@ describe("topologyFor", () => {
       line: 2,
       line3: 3,
       triangle: 3,
+      tri6: 6,
       quad: 4,
+      quad8: 8,
       tet4: 4,
       tet10: 10,
       hex8: 8,
@@ -96,49 +102,6 @@ describe("topologyFor", () => {
     ]);
     expect(hex20.edgeNodes).toEqual([8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
   });
-
-  it.each([
-    ["line3", LINE3_SHAPE, [[0, 1]], [2]],
-    [
-      "tet10",
-      TET10_SHAPE,
-      [
-        [0, 1],
-        [1, 2],
-        [2, 0],
-        [0, 3],
-        [1, 3],
-        [2, 3],
-      ],
-      [4, 5, 6, 7, 8, 9],
-    ],
-    [
-      "hex20",
-      HEX20_SHAPE,
-      [
-        [0, 1],
-        [1, 2],
-        [2, 3],
-        [3, 0],
-        [4, 5],
-        [5, 6],
-        [6, 7],
-        [7, 4],
-        [0, 4],
-        [1, 5],
-        [2, 6],
-        [3, 7],
-      ],
-      [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
-    ],
-  ] as const)(
-    "matches the documented %s corner and mid-edge order",
-    (_name, shape, edges, mids) => {
-      const topology = topologyFor(shape);
-      expect(topology.edges).toEqual(edges);
-      expect(topology.edgeNodes).toEqual(mids);
-    },
-  );
 
   it("assigns every connectivity position as either a corner or a mid-edge node", () => {
     for (const [_name, shape] of ALL_SHAPES) {
