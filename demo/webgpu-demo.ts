@@ -13,6 +13,8 @@ import type { DemoView } from "./view";
 export interface WebGpuDemoOptions {
   readonly view: DemoView;
   readonly canvas: HTMLCanvasElement;
+  /** E2E-only fixture override for the zero-alpha overlay contract. */
+  readonly testAlphaZero?: boolean;
 }
 
 /** Starts the presentation-only demo shell around the canonical FEM viewport. */
@@ -20,7 +22,9 @@ export async function startWebGpuDemo(
   options: WebGpuDemoOptions,
 ): Promise<WorkbenchController | undefined> {
   const { view, canvas } = options;
-  const presets = createModelPresets();
+  const presets = createModelPresets(
+    options.testAlphaZero === true ? { transparencyOpacity: 0 } : undefined,
+  );
   const initialPreset = presets[0];
   if (initialPreset === undefined) throw new Error("The demo requires at least one model preset");
 

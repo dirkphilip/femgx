@@ -97,6 +97,13 @@ describe("createTransparencyPreset", () => {
     expect(preset.partOpacities?.get(31)).toBeCloseTo(0.38);
     expect(preset.partOpacities?.get(33)).toBeCloseTo(0.3);
   });
+
+  it("can make only the transparent parts alpha-zero for overlay coverage tests", () => {
+    const preset = createTransparencyPreset({ opacity: 0 });
+    expect(preset.partOpacities?.get(31)).toBe(0);
+    expect(preset.partOpacities?.get(33)).toBe(0);
+    expect(preset.partOpacities?.has(32)).toBe(false);
+  });
 });
 
 describe("createPresetInteraction", () => {

@@ -7,4 +7,8 @@ if (testShaderFailure !== null) {
 }
 
 const view = queryDemoView();
-void startWebGpuDemo({ view, canvas: view.canvas });
+void startWebGpuDemo({
+  view,
+  canvas: view.canvas,
+  testAlphaZero: new URLSearchParams(window.location.search).has("testAlphaZero"),
+});
