@@ -36,6 +36,10 @@ requirements contract]]. Read it before starting any task; this section is the s
 - **Results.** Typed scalar/vector/tensor fields, derived quantities (magnitude,
   von Mises, principal values), value ranges, scalar color mapping, and
   deformed-shape geometry.
+- **Box selection.** `installBoxSelection` remains a rectangle-only gesture,
+  while `boxSelectionFrustum(camera, rect)` exposes six named normalized
+  world-space planes for host-owned volume queries; this is separate from
+  renderer culling.
 - **IO.** A single interchange format (VTK legacy) with validation and
   diagnostics.
 - **Deterministic compile pipeline.** Iterative flattening and deterministic

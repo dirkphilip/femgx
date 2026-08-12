@@ -70,6 +70,18 @@ event rectangle to `viewport.pickRegion(event.rect, granularity)`; the promise
 returns unique nearest-visible targets and the host decides whether to preview,
 select, toggle, or ignore them. The gesture itself never mutates selection.
 
+## World-space consumer volume
+
+`boxSelectionFrustum(camera, event.rect)` converts the same normalized rectangle
+into six named, normalized world-space planes. The planes face inward and use
+the signed-distance rule `dot(plane.normal, point) + plane.distance >= 0` for
+inside or on-plane points. Perspective side planes meet at the camera position;
+orthographic side planes remain parallel. Reversed rectangles are normalized,
+partially out-of-range rectangles are clamped to the camera viewport, and
+non-finite or zero-area inputs throw. This host-owned volume query complements
+`FemViewport.pickRegion`: it does not restore renderer frustum culling or mutate
+selection.
+
 Related: [[rendering/interaction-selection-menu|Selection and view context
 menu]], [[rendering/interactive-state|Interactive state]],
 [[rendering/coordinate-spaces|Coordinate spaces]].
