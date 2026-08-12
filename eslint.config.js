@@ -49,6 +49,17 @@ export default tseslint.config(
     },
   },
   {
+    files: ["*.js", "*.mjs", "*.cjs", "scripts/**/*.js", "scripts/**/*.mjs", "scripts/**/*.cjs"],
+    ...tseslint.configs.disableTypeChecked,
+    languageOptions: {
+      parserOptions: { project: false, projectService: false },
+      globals: {
+        console: "readonly",
+        process: "readonly",
+      },
+    },
+  },
+  {
     files: ["src/**/*.ts"],
     rules: {
       // 300 lines is a design-review threshold; 400 is the hard ceiling so

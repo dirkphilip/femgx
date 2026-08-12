@@ -91,7 +91,9 @@ function main() {
     try {
       attwOutput = runCommand(attw, [tarball, "--no-color", "--no-emoji"], repoRoot, env).stdout;
     } catch (error) {
-      throw new Error(`@arethetypeswrong/cli found type-resolution problems:\n${error.message}`);
+      throw new Error(`@arethetypeswrong/cli found type-resolution problems:\n${error.message}`, {
+        cause: error,
+      });
     }
     console.log(attwOutput.trim());
 

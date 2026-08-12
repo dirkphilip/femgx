@@ -44,7 +44,7 @@ file. Keep each message concise but useful to a future restart: mention what is
 done and the next step when those details are known:
 
 ```json
-{"status":"working","message":"Implementing the requested change"}
+{ "status": "working", "message": "Implementing the requested change" }
 ```
 
 The supervisor journals meaningful changes to the progress history path in the
