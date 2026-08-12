@@ -1,5 +1,6 @@
 import { multiply, type Mat4 } from "../math/mat4";
 import type { RuntimeState } from "./compile";
+import { invariantValue } from "./invariants";
 
 /** Result of a transform update: which instance slots were recomputed. */
 export interface TransformDelta {
@@ -19,7 +20,10 @@ function invalidDelta(): TransformDelta {
 
 function matricesEqual(a: Mat4, b: Float32Array): boolean {
   for (let i = 0; i < 16; i++) {
-    if ((a[i] ?? 0) !== (b[i] ?? 0)) {
+    if (
+      invariantValue(a[i], `matrix component at ${i}`) !==
+      invariantValue(b[i], `matrix component at ${i}`)
+    ) {
       return false;
     }
   }
@@ -31,23 +35,20 @@ function nodeWorldView(state: RuntimeState, nodeId: number): Float32Array {
 }
 
 function recomputeInstanceWorld(state: RuntimeState, instanceId: number): void {
-  const owningNode = state.instanceOwningNode[instanceId];
-  if (owningNode === undefined) {
-    return;
-  }
+  const owningNode = invariantValue(
+    state.instanceOwningNode[instanceId],
+    `owning node at instance ${instanceId}`,
+  );
   const local = state.instanceLocalTransforms.subarray(instanceId * 16, instanceId * 16 + 16);
   const world = multiply(nodeWorldView(state, owningNode), local);
   state.instanceWorldTransforms.set(world, instanceId * 16);
 }
 
 function recomputeNodeWorld(state: RuntimeState, node: number): void {
-  const parent = state.nodeParents[node];
+  const parent = invariantValue(state.nodeParents[node], `parent at node ${node}`);
   const local = state.nodeLocalTransforms.subarray(node * 16, node * 16 + 16);
   if (parent === -1) {
     state.nodeWorldTransforms.set(local, node * 16);
-    return;
-  }
-  if (parent === undefined) {
     return;
   }
   const world = multiply(nodeWorldView(state, parent), local);
@@ -57,22 +58,19 @@ function recomputeNodeWorld(state: RuntimeState, node: number): void {
 function recomputeNodeSubtree(state: RuntimeState, entryNode: number, changed: number[]): void {
   const stack = [entryNode];
   while (stack.length > 0) {
-    const node = stack.pop();
-    if (node === undefined) {
-      break;
-    }
+    const node = invariantValue(stack.pop(), "transform traversal stack entry");
     recomputeNodeWorld(state, node);
-    let child = state.nodeFirstChild[node] ?? -1;
+    let child = invariantValue(state.nodeFirstChild[node], `first child at node ${node}`);
     while (child !== -1) {
       stack.push(child);
-      child = state.nodeNextSibling[child] ?? -1;
+      child = invariantValue(state.nodeNextSibling[child], `next sibling at node ${child}`);
     }
   }
-  const start = state.nodeInstanceStart[entryNode];
-  const end = state.nodeInstanceEnd[entryNode];
-  if (start === undefined || end === undefined) {
-    return;
-  }
+  const start = invariantValue(
+    state.nodeInstanceStart[entryNode],
+    `instance start at node ${entryNode}`,
+  );
+  const end = invariantValue(state.nodeInstanceEnd[entryNode], `instance end at node ${entryNode}`);
   for (let instanceId = start; instanceId < end; instanceId++) {
     recomputeInstanceWorld(state, instanceId);
     changed.push(instanceId);

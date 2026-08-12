@@ -3,6 +3,7 @@ import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "./runtime";
+import { invariantValue } from "./invariants";
 
 /** A stable, query-only description of one placed part. */
 export interface RuntimeInstance {
@@ -54,11 +55,11 @@ class PublicSceneRuntime implements SceneRuntime {
 
   constructor(private readonly packed: PackedSceneRuntime) {
     this.instanceIds = Array.from({ length: packed.instanceCount }, (_, slot) =>
-      packed.getInstanceId(slot),
-    ).filter((id): id is InstanceId => id !== undefined);
+      invariantValue(packed.getInstanceId(slot), `instance id at ${slot}`),
+    );
     this.nodeIds = Array.from({ length: packed.nodeCount }, (_, slot) =>
-      packed.getNodeId(slot),
-    ).filter((id): id is AssemblyNodeId => id !== undefined);
+      invariantValue(packed.getNodeId(slot), `node id at ${slot}`),
+    );
   }
 
   get rootAssemblyId(): AssemblyId {
@@ -80,26 +81,26 @@ class PublicSceneRuntime implements SceneRuntime {
     return this.nodeIds;
   }
   getInstances(): readonly RuntimeInstance[] {
-    return this.instanceIds.flatMap((instanceId) => {
-      const instance = this.getInstance(instanceId);
-      return instance === undefined ? [] : [instance];
-    });
+    return this.instanceIds.map((instanceId) =>
+      invariantValue(this.getInstance(instanceId), `instance ${instanceId}`),
+    );
   }
   getNodes(): readonly RuntimeNode[] {
-    return this.nodeIds.flatMap((nodeId) => {
-      const node = this.getNode(nodeId);
-      return node === undefined ? [] : [node];
-    });
+    return this.nodeIds.map((nodeId) => invariantValue(this.getNode(nodeId), `node ${nodeId}`));
   }
   getInstance(instanceId: InstanceId): RuntimeInstance | undefined {
     const slot = this.packed.getInstanceSlot(instanceId);
     if (slot === undefined) return undefined;
-    const partId = this.packed.instancePartIds[slot];
-    const owningNode = this.packed.instanceOwningNode[slot];
-    if (owningNode === undefined) return undefined;
-    const nodeId = this.packed.getNodeId(owningNode);
-    const transform = this.packed.getTransform(slot);
-    if (partId === undefined || nodeId === undefined || transform === undefined) return undefined;
+    const partId = invariantValue(this.packed.instancePartIds[slot], `part id at instance ${slot}`);
+    const owningNode = invariantValue(
+      this.packed.instanceOwningNode[slot],
+      `owning node at instance ${slot}`,
+    );
+    const nodeId = invariantValue(this.packed.getNodeId(owningNode), `node id at ${owningNode}`);
+    const transform = invariantValue(
+      this.packed.getTransform(slot),
+      `transform at instance ${slot}`,
+    );
     return {
       instanceId,
       partId,
@@ -113,31 +114,41 @@ class PublicSceneRuntime implements SceneRuntime {
   getNode(nodeId: AssemblyNodeId): RuntimeNode | undefined {
     const node = this.packed.getNodeSlot(nodeId);
     if (node === undefined) return undefined;
-    const assemblyId = this.packed.nodeAssemblyIds[node];
-    const localTransform = this.packed.getNodeTransform(node);
-    const worldTransform = this.packed.getNodeWorldTransform(node);
-    if (assemblyId === undefined || localTransform === undefined || worldTransform === undefined) {
-      return undefined;
-    }
-    const parent = this.packed.nodeParents[node];
+    const assemblyId = invariantValue(
+      this.packed.nodeAssemblyIds[node],
+      `assembly id at node ${node}`,
+    );
+    const localTransform = invariantValue(
+      this.packed.getNodeTransform(node),
+      `local transform at node ${node}`,
+    );
+    const worldTransform = invariantValue(
+      this.packed.getNodeWorldTransform(node),
+      `world transform at node ${node}`,
+    );
+    const parent = invariantValue(this.packed.nodeParents[node], `parent at node ${node}`);
     const childIds: AssemblyNodeId[] = [];
-    let child = this.packed.nodeFirstChild[node] ?? -1;
+    let child = invariantValue(this.packed.nodeFirstChild[node], `first child at node ${node}`);
     while (child !== -1) {
-      const childId = this.packed.getNodeId(child);
-      if (childId !== undefined) childIds.push(childId);
-      child = this.packed.nodeNextSibling[child] ?? -1;
+      childIds.push(invariantValue(this.packed.getNodeId(child), `node id at ${child}`));
+      child = invariantValue(this.packed.nodeNextSibling[child], `next sibling at node ${child}`);
     }
     const instanceIds: InstanceId[] = [];
-    const start = this.packed.nodeInstanceStart[node] ?? 0;
-    const end = this.packed.nodeInstanceEnd[node] ?? start;
+    const start = invariantValue(
+      this.packed.nodeInstanceStart[node],
+      `instance start at node ${node}`,
+    );
+    const end = invariantValue(this.packed.nodeInstanceEnd[node], `instance end at node ${node}`);
     for (let slot = start; slot < end; slot++) {
-      const instanceId = this.packed.getInstanceId(slot);
-      if (instanceId !== undefined) instanceIds.push(instanceId);
+      instanceIds.push(invariantValue(this.packed.getInstanceId(slot), `instance id at ${slot}`));
     }
     return {
       nodeId,
       assemblyId,
-      parentId: parent === undefined || parent === -1 ? undefined : this.packed.getNodeId(parent),
+      parentId:
+        parent === -1
+          ? undefined
+          : invariantValue(this.packed.getNodeId(parent), `node id at ${parent}`),
       childIds,
       instanceIds,
       visible: this.packed.nodeVisible[node] === 1,
@@ -148,27 +159,35 @@ class PublicSceneRuntime implements SceneRuntime {
   }
   getPartId(instanceId: InstanceId): PartId | undefined {
     const slot = this.packed.getInstanceSlot(instanceId);
-    return slot === undefined ? undefined : this.packed.instancePartIds[slot];
+    return slot === undefined
+      ? undefined
+      : invariantValue(this.packed.instancePartIds[slot], `part id at instance ${slot}`);
   }
   getTransform(instanceId: InstanceId): Mat4 | undefined {
     const slot = this.packed.getInstanceSlot(instanceId);
-    return slot === undefined ? undefined : this.packed.getTransform(slot);
+    return slot === undefined
+      ? undefined
+      : invariantValue(this.packed.getTransform(slot), `transform at instance ${slot}`);
   }
   getNodeTransform(nodeId: AssemblyNodeId): Mat4 | undefined {
     const slot = this.packed.getNodeSlot(nodeId);
-    return slot === undefined ? undefined : this.packed.getNodeTransform(slot);
+    return slot === undefined
+      ? undefined
+      : invariantValue(this.packed.getNodeTransform(slot), `transform at node ${slot}`);
   }
   getNodeWorldTransform(nodeId: AssemblyNodeId): Mat4 | undefined {
     const slot = this.packed.getNodeSlot(nodeId);
-    return slot === undefined ? undefined : this.packed.getNodeWorldTransform(slot);
+    return slot === undefined
+      ? undefined
+      : invariantValue(this.packed.getNodeWorldTransform(slot), `world transform at node ${slot}`);
   }
   isInstanceVisible(instanceId: InstanceId): boolean {
     const slot = this.packed.getInstanceSlot(instanceId);
     return slot !== undefined && this.packed.isInstanceVisible(slot);
   }
   getDrawList(): readonly InstanceId[] {
-    return Array.from(this.packed.getDrawList(), (slot) => this.packed.getInstanceId(slot)).filter(
-      (id): id is InstanceId => id !== undefined,
+    return Array.from(this.packed.getDrawList(), (slot) =>
+      invariantValue(this.packed.getInstanceId(slot), `instance id at draw slot ${slot}`),
     );
   }
 }

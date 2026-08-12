@@ -1,6 +1,8 @@
 import type { Scene } from "../scene/scene";
 import type { AssemblyId, AssemblyNodeId } from "../scene/types";
 import { buildSceneDrafts, type InstanceDraft, type NodeDraft } from "./drafts";
+import { invariantValue } from "./invariants";
+import type { KeyedGroupIndex } from "./group-index";
 
 /**
  * Packed CPU-side state backing a scene runtime. Every part placement is a
@@ -69,12 +71,6 @@ type PackedInstances = Pick<
   | "instanceInstanceIds"
 > & { readonly visibleCount: number };
 
-interface KeyedGroupIndex {
-  readonly sortedKeys: Uint32Array;
-  readonly offset: Uint32Array;
-  readonly list: Uint32Array;
-}
-
 function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
   const count = nodes.length;
   const nodeNodeIds: AssemblyNodeId[] = [];
@@ -89,10 +85,7 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
   const nodeLocalTransforms = new Float32Array(count * 16);
   const nodeWorldTransforms = new Float32Array(count * 16);
   for (let i = 0; i < count; i++) {
-    const node = nodes[i];
-    if (node === undefined) {
-      continue;
-    }
+    const node = invariantValue(nodes[i], `node draft at ${i}`);
     nodeAssemblyIds[i] = node.assemblyId;
     nodeNodeIds.push(node.nodeId);
     nodeParents[i] = node.parent;
@@ -132,10 +125,7 @@ function packInstances(instances: readonly InstanceDraft[]): PackedInstances {
   const instanceInstanceIds: string[] = [];
   let visibleCount = 0;
   for (let i = 0; i < count; i++) {
-    const draft = instances[i];
-    if (draft === undefined) {
-      continue;
-    }
+    const draft = invariantValue(instances[i], `instance draft at ${i}`);
     instancePartIds[i] = draft.partId;
     instanceOwningNode[i] = draft.owningNode;
     instancePartVisible[i] = draft.partVisible;
@@ -164,21 +154,18 @@ function packInstances(instances: readonly InstanceDraft[]): PackedInstances {
 function buildGroups(keys: ArrayLike<number>): KeyedGroupIndex {
   const order = Array.from(keys, (_, index) => index);
   order.sort((a, b) => {
-    const keyA = keys[a] ?? 0;
-    const keyB = keys[b] ?? 0;
+    const keyA = invariantValue(keys[a], `group key at ${a}`);
+    const keyB = invariantValue(keys[b], `group key at ${b}`);
     return keyA - keyB || a - b;
   });
   const sortedKeys: number[] = [];
   const offset: number[] = [];
   const list: number[] = [];
-  let previousKey = -1;
+  let previousKey: number | undefined;
   for (let i = 0; i < order.length; i++) {
-    const index = order[i];
-    if (index === undefined) {
-      continue;
-    }
-    const key = keys[index] ?? 0;
-    if (i === 0 || key !== previousKey) {
+    const index = invariantValue(order[i], `group order index at ${i}`);
+    const key = invariantValue(keys[index], `group key at ${index}`);
+    if (previousKey === undefined || key !== previousKey) {
       sortedKeys.push(key);
       offset.push(list.length);
       previousKey = key;
@@ -188,7 +175,7 @@ function buildGroups(keys: ArrayLike<number>): KeyedGroupIndex {
   offset.push(list.length);
   return {
     sortedKeys: new Uint32Array(sortedKeys),
-    offset: new Uint32Array(offset),
+    offsets: new Uint32Array(offset),
     list: new Uint32Array(list),
   };
 }
@@ -209,10 +196,10 @@ export function compileSceneState(scene: Scene): RuntimeState {
     ...nodeData,
     ...instanceData,
     sortedPartIds: partGroups.sortedKeys,
-    partInstanceOffset: partGroups.offset,
+    partInstanceOffset: partGroups.offsets,
     partInstanceList: partGroups.list,
     sortedAssemblyIds: assemblyGroups.sortedKeys,
-    assemblyNodeOffset: assemblyGroups.offset,
+    assemblyNodeOffset: assemblyGroups.offsets,
     assemblyNodeList: assemblyGroups.list,
   };
 }
