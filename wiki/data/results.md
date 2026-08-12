@@ -68,8 +68,11 @@ An optional nodal vector field is converted into one GPU deformation buffer per
 scene part. The viewport validates that every rendered part has node pick ids and
 that every referenced element/node has a field value. `clearResults()` restores
 the base interaction state, disables deformation, and leaves the authoritative
-scene geometry untouched. Replacing results reuses the same scene/runtime and
-only updates the derived interaction colors and deformation state.
+scene geometry untouched. `FemViewport.interaction` always returns the exact
+host-supplied base value; result-derived element colors are an internal
+effective render state and never appear in that getter or in
+`ViewportResultsState`. Replacing results reuses the same scene/runtime and
+only updates the effective interaction colors and deformation state.
 
 The `results` demo preset exercises this workflow with a static Hex8 stress field:
 the public API supports the undeformed/base state via `clearResults()`, the

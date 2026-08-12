@@ -141,6 +141,11 @@ as a new `InteractionState` and installed with `setInteraction`. Body visibility
 and emphasis are scoped by placement and body id and use the same immutable
 interaction object.
 
+When result visualization is active, `viewport.interaction` remains the exact
+host-owned value passed to `setInteraction`. The viewport derives a private
+effective render interaction by layering result colors over that base value;
+hosts never receive or need to round-trip the derived element overrides.
+
 Interaction state is immutable and layered. Part and instance state establish
 the base style; body state adds placement-scoped visibility and emphasis; element,
 face, and node state provide more specific emphasis; explicit overrides are
