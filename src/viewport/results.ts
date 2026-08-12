@@ -4,6 +4,7 @@ import { scalarAt, type ScalarField, type TensorField, type VectorField } from "
 import { createScalarColorMap, mapScalar, type ScalarColorMap } from "../results/mapping";
 import { scalarRange, type ValueRange } from "../results/range";
 import type { InteractionState, StyleOverride } from "../interaction/interaction";
+import { createInteractionStateValue, readInteractionState } from "../interaction/state";
 import type { Scene } from "../scene/scene";
 import type { InstanceId } from "../scene/types";
 import type { PartId } from "../geometry/part";
@@ -69,7 +70,8 @@ export function applyViewportResultInteraction(
   runtime: PackedSceneRuntime,
 ): InteractionState {
   const elementOverrides = new Map<InstanceId, ReadonlyMap<number, StyleOverride>>();
-  for (const [instanceId, overrides] of baseInteraction.elementOverrides) {
+  const baseData = readInteractionState(baseInteraction);
+  for (const [instanceId, overrides] of baseData.elementOverrides) {
     elementOverrides.set(instanceId, new Map(overrides));
   }
 
@@ -98,7 +100,7 @@ export function applyViewportResultInteraction(
       `Viewport results field ${scalarField.id} has no element-bearing part in the scene`,
     );
   }
-  return { ...baseInteraction, elementOverrides };
+  return createInteractionStateValue({ ...baseData, elementOverrides });
 }
 
 function deriveScalarField(

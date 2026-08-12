@@ -78,17 +78,9 @@ export {
   resolveBodyStyle,
   resolveElementStyle,
   resolveInstanceStyle,
-  setElementHighlighted,
   setElementOverride,
-  setElementSelected,
-  setHoveredElement,
-  setHoveredInstance,
-  setInstanceHighlighted,
   setInstanceOverride,
-  setInstanceSelected,
-  setPartHighlighted,
   setPartOverride,
-  setPartSelected,
   type Color,
   type InteractionState,
   type InteractionTheme,
@@ -97,7 +89,14 @@ export {
 } from "./interaction/interaction";
 export {
   clearSelection,
+  bodyOverride,
+  hoveredTarget,
+  isHoveredTarget,
+  isTargetHighlighted,
+  isTargetSelected,
+  selectedTargets,
   setTargetHighlighted,
+  setTargetHovered,
   setTargetsHighlighted,
   setTargetSelected,
   type InteractionTarget,
@@ -106,28 +105,11 @@ export {
   emphasizedBodyRefs,
   isBodyEmphasized,
   isBodyVisible,
-  setBodyHighlighted,
   setBodyOverride,
-  setBodySelected,
   setBodyVisible,
-  setHoveredBody,
 } from "./interaction/bodies";
-export {
-  setFaceHighlighted,
-  setFaceSelected,
-  setHoveredFace,
-  emphasizedFaceRefs,
-  isFaceEmphasized,
-  resolveFaceStyle,
-} from "./interaction/faces";
-export {
-  setNodeHighlighted,
-  setNodeSelected,
-  setHoveredNode,
-  emphasizedNodeRefs,
-  isNodeEmphasized,
-  resolveNodeStyle,
-} from "./interaction/nodes";
+export { emphasizedFaceRefs, isFaceEmphasized, resolveFaceStyle } from "./interaction/faces";
+export { emphasizedNodeRefs, isNodeEmphasized, resolveNodeStyle } from "./interaction/nodes";
 export type { BodyRef, FaceRef, NodeRef } from "./interaction/refs";
 export {
   installBoxSelection,

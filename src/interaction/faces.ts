@@ -1,15 +1,16 @@
-import type { InteractionState } from "./interaction";
 import type { BodyId } from "../geometry/part";
-import { resolveBodyStyle, resolveInstanceStyle, type ResolvedStyle } from "./interaction";
+import {
+  isHoveredTarget,
+  readInteractionState,
+  setHoveredTarget,
+  updateInteractionState,
+  type InteractionState,
+  type ResolvedStyle,
+} from "./state";
+import { resolveBodyStyle, resolveInstanceStyle } from "./interaction";
 import type { FaceRef } from "./refs";
 import type { Instance } from "../scene/types";
-import {
-  applyStyleLayers,
-  collectUniqueRefs,
-  sameRef,
-  sortedStrings,
-  updateNestedMap,
-} from "./mechanics";
+import { applyStyleLayers, collectUniqueRefs, sortedStrings, updateNestedMap } from "./mechanics";
 
 function updateFaceSet(
   state: InteractionState,
@@ -17,14 +18,15 @@ function updateFaceSet(
   ref: FaceRef,
   enabled: boolean,
 ): InteractionState {
+  const data = readInteractionState(state);
   const map = updateNestedMap(
-    state[key],
+    data[key],
     ref.instanceId,
     ref.faceKey,
     enabled ? ref.elementId : undefined,
   );
-  if (map === state[key]) return state;
-  return { ...state, [key]: map };
+  if (map === data[key]) return state;
+  return updateInteractionState(state, { [key]: map });
 }
 
 /** Sets or clears a face selection without mutating the previous state. */
@@ -50,26 +52,26 @@ export function setHoveredFace(
   state: InteractionState,
   ref: FaceRef | undefined,
 ): InteractionState {
-  if (
-    sameRef(state.hoveredFace, ref, (value) => [value.instanceId, value.elementId, value.faceKey])
-  ) {
-    return state;
-  }
-  if (ref === undefined) {
-    const { hoveredFace: _, ...withoutHover } = state;
-    return withoutHover;
-  }
-  return { ...state, hoveredFace: ref };
+  return setHoveredTarget(
+    state,
+    ref === undefined
+      ? undefined
+      : { kind: "face", instanceId: ref.instanceId, elementId: ref.elementId, key: ref.faceKey },
+  );
 }
 
 /** Returns whether a face occurrence carries emphasis (hover, highlight, selection). */
 export function isFaceEmphasized(state: InteractionState, ref: FaceRef): boolean {
+  const data = readInteractionState(state);
   return (
-    (state.hoveredFace?.instanceId === ref.instanceId &&
-      state.hoveredFace.elementId === ref.elementId &&
-      state.hoveredFace.faceKey === ref.faceKey) ||
-    state.highlightedFaces.get(ref.instanceId)?.has(ref.faceKey) === true ||
-    state.selectedFaces.get(ref.instanceId)?.has(ref.faceKey) === true
+    isHoveredTarget(state, {
+      kind: "face",
+      instanceId: ref.instanceId,
+      elementId: ref.elementId,
+      key: ref.faceKey,
+    }) ||
+    data.highlightedFaces.get(ref.instanceId)?.has(ref.faceKey) === true ||
+    data.selectedFaces.get(ref.instanceId)?.has(ref.faceKey) === true
   );
 }
 
@@ -85,19 +87,25 @@ export function resolveFaceStyle(
   state: InteractionState,
   bodyId?: BodyId,
 ): ResolvedStyle {
+  const data = readInteractionState(state);
   const style =
     bodyId === undefined
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
   return applyStyleLayers(style, [
-    state.highlightedFaces.get(ref.instanceId)?.has(ref.faceKey) === true
-      ? state.theme.highlighted
+    data.highlightedFaces.get(ref.instanceId)?.has(ref.faceKey) === true
+      ? data.theme.highlighted
       : undefined,
-    sameRef(state.hoveredFace, ref, (value) => [value.instanceId, value.elementId, value.faceKey])
-      ? state.theme.hoveredFace
+    isHoveredTarget(state, {
+      kind: "face",
+      instanceId: ref.instanceId,
+      elementId: ref.elementId,
+      key: ref.faceKey,
+    })
+      ? data.theme.hoveredFace
       : undefined,
-    state.selectedFaces.get(ref.instanceId)?.has(ref.faceKey) === true
-      ? state.theme.selectedFace
+    data.selectedFaces.get(ref.instanceId)?.has(ref.faceKey) === true
+      ? data.theme.selectedFace
       : undefined,
   ]);
 }
@@ -108,17 +116,24 @@ export function resolveFaceStyle(
  * duplicates.
  */
 export function emphasizedFaceRefs(state: InteractionState): readonly FaceRef[] {
+  const data = readInteractionState(state);
   return collectUniqueRefs(
-    state.hoveredFace,
+    data.hoveredTarget?.kind === "face"
+      ? {
+          instanceId: data.hoveredTarget.instanceId,
+          elementId: data.hoveredTarget.elementId,
+          faceKey: data.hoveredTarget.key,
+        }
+      : undefined,
     (ref) => `${ref.instanceId}/${ref.faceKey}`,
     (push) => {
-      for (const [instanceId, faces] of state.highlightedFaces) {
+      for (const [instanceId, faces] of data.highlightedFaces) {
         for (const faceKey of sortedStrings(faces.keys())) {
           const elementId = faces.get(faceKey);
           if (elementId !== undefined) push({ instanceId, elementId, faceKey });
         }
       }
-      for (const [instanceId, faces] of state.selectedFaces) {
+      for (const [instanceId, faces] of data.selectedFaces) {
         for (const faceKey of sortedStrings(faces.keys())) {
           const elementId = faces.get(faceKey);
           if (elementId !== undefined) push({ instanceId, elementId, faceKey });

@@ -1,6 +1,8 @@
 import {
   isBodyVisible,
-  setBodyHighlighted,
+  bodyOverride,
+  isTargetHighlighted,
+  setTargetHighlighted,
   setBodyOverride,
   setBodyVisible,
   type BodyId,
@@ -73,8 +75,10 @@ export class WorkbenchVisibilityActions {
     const ref = { instanceId, bodyId };
     const state = this.options.interaction();
     if (action === "highlight") {
-      const highlighted = state.highlightedBodyIds.get(instanceId)?.has(bodyId) ?? false;
-      this.options.setInteraction(setBodyHighlighted(state, ref, !highlighted));
+      const highlighted = isTargetHighlighted(state, { kind: "body", instanceId, bodyId });
+      this.options.setInteraction(
+        setTargetHighlighted(state, { kind: "body", ...ref }, !highlighted),
+      );
     } else {
       this.options.setInteraction(setBodyOverride(state, ref, nextBodyOverride(state, ref)));
     }
@@ -131,13 +135,11 @@ export class WorkbenchVisibilityActions {
   }
 
   bodyHighlighted(instanceId: InstanceId, bodyId: BodyId): boolean {
-    return this.options.interaction().highlightedBodyIds.get(instanceId)?.has(bodyId) ?? false;
+    return isTargetHighlighted(this.options.interaction(), { kind: "body", instanceId, bodyId });
   }
 
   bodyColorActive(instanceId: InstanceId, bodyId: BodyId): boolean {
-    return (
-      this.options.interaction().bodyOverrides.get(instanceId)?.get(bodyId)?.color !== undefined
-    );
+    return bodyOverride(this.options.interaction(), { instanceId, bodyId })?.color !== undefined;
   }
 
   private partForTarget(target: SelectTarget): PartId | undefined {
@@ -155,7 +157,7 @@ function nextBodyOverride(
   state: InteractionState,
   ref: { readonly instanceId: InstanceId; readonly bodyId: BodyId },
 ): StyleOverride | undefined {
-  const current = state.bodyOverrides.get(ref.instanceId)?.get(ref.bodyId);
+  const current = bodyOverride(state, ref);
   if (current?.color !== undefined) {
     const { color: _color, ...withoutColor } = current;
     return Object.keys(withoutColor).length === 0 ? undefined : withoutColor;

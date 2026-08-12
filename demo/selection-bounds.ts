@@ -1,5 +1,5 @@
 import type { Bounds, InteractionState, Scene, SceneRuntime } from "../src/index";
-import { transformPoint } from "../src/index";
+import { selectedTargets, transformPoint } from "../src/index";
 
 interface MutableBounds {
   minX: number;
@@ -16,12 +16,13 @@ export function selectedWorldBounds(
   runtime: SceneRuntime,
   interaction: InteractionState,
 ): Bounds | undefined {
-  const selectedInstances = new Set<string>(interaction.selectedInstanceIds);
-  for (const instanceId of interaction.selectedElementIds.keys()) selectedInstances.add(instanceId);
-  for (const instanceId of interaction.selectedFaces.keys()) selectedInstances.add(instanceId);
-  for (const instanceId of interaction.selectedNodeIds.keys()) selectedInstances.add(instanceId);
-
-  const selectedParts = interaction.selectedPartIds;
+  const selectedInstances = new Set<string>();
+  const selectedParts = new Set<number>();
+  for (const target of selectedTargets(interaction)) {
+    if (target.kind === "part") selectedParts.add(target.partId);
+    else if (target.kind === "instance") selectedInstances.add(target.instanceId);
+    else selectedInstances.add(target.instanceId);
+  }
   const bounds = emptyBounds();
   for (const instanceId of runtime.getInstanceIds()) {
     const partId = runtime.getPartId(instanceId);

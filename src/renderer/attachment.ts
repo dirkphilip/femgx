@@ -1,5 +1,6 @@
 import type { Part } from "../geometry/part";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
+import { readInteractionState } from "../interaction/state";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
@@ -42,7 +43,7 @@ export class RendererAttachment {
   public instances: Instance[] = [];
   public slotByInstanceId = new Map<InstanceId, number>();
   private edgeFlags: boolean[] = [];
-  private appliedHiddenBodyIds: InteractionState["hiddenBodyIds"] | undefined;
+  private appliedHiddenBodyIds: ReadonlyMap<string, ReadonlySet<number>> | undefined;
 
   /**
    * Ensures the attachment matches `runtime`, rebuilding the attachment when
@@ -105,7 +106,8 @@ export class RendererAttachment {
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
     if (layout === undefined) return attached;
-    const bodyVisibilityChanged = this.appliedHiddenBodyIds !== interaction.hiddenBodyIds;
+    const hiddenBodyIds = readInteractionState(interaction).hiddenBodyIds;
+    const bodyVisibilityChanged = this.appliedHiddenBodyIds !== hiddenBodyIds;
     syncElementHighlights(
       {
         device: bundle.device,
@@ -117,7 +119,7 @@ export class RendererAttachment {
       },
       interaction,
     );
-    this.appliedHiddenBodyIds = interaction.hiddenBodyIds;
+    this.appliedHiddenBodyIds = hiddenBodyIds;
     return attached || bodyVisibilityChanged;
   }
 

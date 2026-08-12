@@ -16,6 +16,7 @@ import {
   setBodyVisible,
   setHoveredBody,
 } from "../../src/interaction/bodies";
+import { readInteractionState } from "../../src/interaction/state";
 import { identity } from "../../src/math/mat4";
 import type { Instance } from "../../src/scene/types";
 
@@ -37,11 +38,13 @@ describe("body interaction state", () => {
     state = setBodyOverride(state, ref, { opacity: 0.5 });
     state = setBodyVisible(state, ref, false);
 
-    expect(initial.selectedBodyIds.size).toBe(0);
-    expect(state.selectedBodyIds.get("1/0")).toEqual(new Set([3]));
-    expect(state.highlightedBodyIds.get("1/0")).toEqual(new Set([3]));
-    expect(state.bodyOverrides.get("1/0")?.get(3)).toEqual({ opacity: 0.5 });
-    expect(state.hoveredBody).toEqual(ref);
+    const initialData = readInteractionState(initial);
+    const data = readInteractionState(state);
+    expect(initialData.selectedBodyIds.size).toBe(0);
+    expect(data.selectedBodyIds.get("1/0")).toEqual(new Set([3]));
+    expect(data.highlightedBodyIds.get("1/0")).toEqual(new Set([3]));
+    expect(data.bodyOverrides.get("1/0")?.get(3)).toEqual({ opacity: 0.5 });
+    expect(data.hoveredTarget).toEqual({ kind: "body", ...ref });
     expect(isBodyVisible(state, ref)).toBe(false);
     expect(isBodyEmphasized(state, ref)).toBe(true);
   });
@@ -53,7 +56,7 @@ describe("body interaction state", () => {
     state = setBodyVisible(state, ref, false);
     expect(emphasizedBodyRefs(state)).toEqual([ref, { instanceId: "2/0", bodyId: 9 }]);
     const cleared = setBodyVisible(state, ref, true);
-    expect(cleared.hiddenBodyIds.get("1/0")).toBeUndefined();
+    expect(readInteractionState(cleared).hiddenBodyIds.get("1/0")).toBeUndefined();
   });
 });
 

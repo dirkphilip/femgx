@@ -24,6 +24,7 @@ describe("public root API", () => {
       "VtkWriteError",
       "WebGpuPickReadbackError",
       "WebGpuUnsupportedError",
+      "bodyOverride",
       "boundaryFaceRefs",
       "canvasCssToRenderPixel",
       "classifyFaces",
@@ -53,6 +54,7 @@ describe("public root API", () => {
       "finiteRange",
       "fitCamera",
       "heterogeneousElementParts",
+      "hoveredTarget",
       "identity",
       "installBoxSelection",
       "installCameraControls",
@@ -60,7 +62,10 @@ describe("public root API", () => {
       "isBodyEmphasized",
       "isBodyVisible",
       "isFaceEmphasized",
+      "isHoveredTarget",
       "isNodeEmphasized",
+      "isTargetHighlighted",
+      "isTargetSelected",
       "magnitude",
       "magnitudeField",
       "magnitudes",
@@ -93,30 +98,15 @@ describe("public root API", () => {
       "scalarAt",
       "scalarRange",
       "scale",
-      "setBodyHighlighted",
+      "selectedTargets",
       "setBodyOverride",
-      "setBodySelected",
       "setBodyVisible",
-      "setElementHighlighted",
       "setElementOverride",
-      "setElementSelected",
-      "setFaceHighlighted",
-      "setFaceSelected",
-      "setHoveredBody",
-      "setHoveredElement",
-      "setHoveredFace",
-      "setHoveredInstance",
-      "setHoveredNode",
-      "setInstanceHighlighted",
       "setInstanceOverride",
-      "setInstanceSelected",
-      "setNodeHighlighted",
-      "setNodeSelected",
-      "setPartHighlighted",
       "setPartOverride",
-      "setPartSelected",
       "setProjection",
       "setTargetHighlighted",
+      "setTargetHovered",
       "setTargetSelected",
       "setTargetsHighlighted",
       "tensorAt",
@@ -165,11 +155,10 @@ describe("public root API", () => {
     expect(publicApi.createPart).toBeTypeOf("function");
   });
 
-  it("exposes body interaction helpers through the root API", () => {
+  it("exposes body visibility and target interaction helpers through the root API", () => {
     expect(publicApi.setBodyVisible).toBeTypeOf("function");
     expect(publicApi.setBodyOverride).toBeTypeOf("function");
-    expect(publicApi.setBodyHighlighted).toBeTypeOf("function");
-    expect(publicApi.setBodySelected).toBeTypeOf("function");
-    expect(publicApi.setHoveredBody).toBeTypeOf("function");
+    expect(publicApi.setTargetSelected).toBeTypeOf("function");
+    expect(publicApi.setTargetHovered).toBeTypeOf("function");
   });
 });
