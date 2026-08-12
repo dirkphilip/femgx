@@ -93,7 +93,10 @@ controller, so camera and interaction behavior is stable
   hide or restore individual placements without expanding the assembly model.
 - The full-screen layout keeps the hierarchical visibility tree in a 340–380px
   left rail; the WebGPU canvas owns the remaining space. The toolbar is one calm
-  surface with model, fit, projection, edges, nodes, results, and reset controls.
+  surface with model, **Fit model**, projection, edges, nodes, results, and
+  **Reset all** controls. Fit model changes only camera framing; Reset all
+  restores the active preset's complete deterministic workbench state. Both
+  actions expose help text describing that scope.
   Healthy renderer/status telemetry and inspection details stay hidden until
   explicitly needed; renderer failures remain prominent. Diagnostics stay within
   the scene, scroll internally when needed, and remain visible in the compact
@@ -102,7 +105,7 @@ controller, so camera and interaction behavior is stable
 - The controller exposes a `rendererState` note (e.g. `recovered`) for status
   presentation. `FemViewport` performs recovery and reports success/failure to
   the demo callbacks ([[rendering/platform-support|Platform support]]).
-- The toolbar **Reset** action restores the active preset's complete initial
+- The toolbar **Reset all** action restores the active preset's complete initial
   state: all runtime hierarchy/part/instance visibility, palette
   interaction state, perspective camera fitted to the scene, edge/node toggles,
   diagnostics, selection/hover/pick datasets, and the inspection

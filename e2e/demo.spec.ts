@@ -672,16 +672,84 @@ test("keeps body overlays rendered while hiding a named body", async ({ page }) 
 
 test("switches projection, fits to view, and resets camera controls", async ({ page }) => {
   await page.goto("/");
+  await waitForRenderer(page);
   const button = page.getByTestId("projection-toggle");
+  const fit = page.getByTestId("fit-view");
+  const reset = page.getByTestId("reset");
+  await expect(fit).toHaveText("Fit model");
+  await expect(fit).toHaveAttribute("aria-label", "Fit model");
+  await expect(reset).toHaveText("Reset all");
+  await expect(reset).toHaveAttribute("aria-label", "Reset all");
   await expect(button).toHaveText("Perspective");
   await page.getByTestId("projection-toggle").click();
   await expect(button).toHaveText("Orthographic");
 
-  await page.getByTestId("fit-view").click();
+  await fit.click();
   await expect(button).toHaveText("Orthographic");
 
-  await page.getByTestId("reset").click();
+  await reset.click();
   await expect(button).toHaveText("Perspective");
+});
+
+test("Fit model preserves workbench state while Reset all restores preset defaults", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByTestId("model-select").selectOption("results");
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "results");
+
+  const canvas = page.getByTestId("view-canvas");
+  const instance = page.getByTestId("visibility-panel").locator("input[data-instance-id]").first();
+  const hit = await requireHit(
+    page,
+    canvas,
+    {},
+    "GPU picking must resolve before comparing Fit model and Reset all",
+  );
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => dataset(page, "selected")).not.toBe("");
+
+  await instance.uncheck();
+  await page.getByTestId("edge-overlay").click();
+  await page.getByTestId("node-overlay").click();
+  await page.getByTestId("projection-toggle").click();
+  await page.getByTestId("results-toggle").click();
+  await expect(page.getByTestId("results-toggle")).toHaveText("Results: Base");
+
+  await page.mouse.click(hit.x, hit.y, { button: "right" });
+  const menu = page.getByTestId("context-menu");
+  await expect(menu.getByText("Show diagnostics")).toBeVisible();
+  await menu.getByText("Show diagnostics").click();
+  const diagnostics = page.getByTestId("stats-panel");
+  await expect(diagnostics).toBeVisible();
+
+  const beforeFitSelection = await dataset(page, "selected");
+  const beforeFitCamera = await canvas.getAttribute("data-camera");
+  const canvasBox = await canvas.boundingBox();
+  if (canvasBox === null) throw new Error("canvas has no bounding box");
+  await page.mouse.move(canvasBox.x + canvasBox.width / 2, canvasBox.y + canvasBox.height / 2);
+  await page.mouse.wheel(0, -160);
+  await expect.poll(() => canvas.getAttribute("data-camera")).not.toBe(beforeFitCamera);
+  const zoomedCamera = await canvas.getAttribute("data-camera");
+
+  await page.getByTestId("fit-view").click();
+  await expect.poll(() => canvas.getAttribute("data-camera")).not.toBe(zoomedCamera);
+  await expect(page.getByTestId("projection-toggle")).toHaveText("Orthographic");
+  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("results-toggle")).toHaveText("Results: Base");
+  await expect(instance).not.toBeChecked();
+  await expect(diagnostics).toBeVisible();
+  await expect.poll(() => dataset(page, "selected")).toBe(beforeFitSelection);
+
+  await page.getByTestId("reset").click();
+  await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
+  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("results-toggle")).toHaveText("Results: Deformed");
+  await expect(instance).toBeChecked();
+  await expect(diagnostics).toBeHidden();
+  await expect.poll(() => dataset(page, "selected")).toBe("");
 });
 
 test("toggles the edge overlay", async ({ page }) => {
@@ -891,6 +959,8 @@ test("opens a view context menu on empty scene space", async ({ page }) => {
   for (const action of ["fit-view", "clear-selection", "show-all", "reset"]) {
     await expect(menu.locator(`button[data-action="${action}"]`)).toBeVisible();
   }
+  await expect(menu.getByText("Fit model")).toHaveAttribute("title", /Frame the complete model/);
+  await expect(menu.getByText("Reset all")).toHaveAttribute("title", /Restore this model/);
   await expect(menu.locator('button[data-action="select"]')).toHaveCount(0);
 
   await menu.getByText("Clear selection").click();
@@ -904,7 +974,7 @@ test("opens a view context menu on empty scene space", async ({ page }) => {
   await page.getByTestId("projection-toggle").click();
   await expect(page.getByTestId("projection-toggle")).toHaveText("Orthographic");
   await page.mouse.click(empty.x, empty.y, { button: "right" });
-  await menu.getByText("Reset view").click();
+  await menu.getByText("Reset all").click();
   await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
 
   await page.mouse.click(empty.x, empty.y, { button: "right" });

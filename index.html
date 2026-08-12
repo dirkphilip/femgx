@@ -472,7 +472,15 @@
         <div class="toolbar">
           <div class="toolbar-row toolbar-row-primary">
             <select id="model-select" data-testid="model-select" aria-label="Model"></select>
-            <button id="fit-view" data-testid="fit-view" type="button">Fit</button>
+            <button
+              id="fit-view"
+              data-testid="fit-view"
+              type="button"
+              aria-label="Fit model"
+              title="Frame the complete model without changing visibility, selection, display, results, or projection."
+            >
+              Fit model
+            </button>
             <button id="projection-toggle" data-testid="projection-toggle" type="button">
               Perspective
             </button>
@@ -487,7 +495,16 @@
             <button id="results-toggle" data-testid="results-toggle" type="button" disabled hidden>
               Results: Base
             </button>
-            <button id="reset" data-testid="reset" class="secondary" type="button">Reset</button>
+            <button
+              id="reset"
+              data-testid="reset"
+              class="secondary"
+              type="button"
+              aria-label="Reset all"
+              title="Restore this model's initial visibility, selection, display, results, projection, and camera."
+            >
+              Reset all
+            </button>
           </div>
         </div>
         <div class="hud inspection" hidden>
