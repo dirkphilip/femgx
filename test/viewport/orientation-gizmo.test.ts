@@ -96,6 +96,8 @@ describe("orientation gizmo", () => {
     expect(root?.attributes.get("data-femgx-orientation-gizmo")).toBe("true");
     expect(root?.attributes.get("role")).toBe("group");
     expect(root?.attributes.get("aria-label")).toContain("View cube");
+    expect(root?.style.background).toBe("transparent");
+    expect(root?.style.width).toBe("clamp(104px, 11vw, 132px)");
     const svg = root?.children[0];
     const targets = svg?.children.filter((child) => child.attributes.has("data-view-cube-target"));
     expect(targets).toHaveLength(20);
@@ -111,6 +113,17 @@ describe("orientation gizmo", () => {
           child.attributes.get("data-rotate") === "counterclockwise",
       ),
     ).toHaveLength(2);
+    const leftArrow = svg?.children.find((child) => child.attributes.get("data-rotate") === "left");
+    expect(leftArrow?.children[1]?.attributes.get("points")).toBe("16,40 5,50 16,60");
+    expect(leftArrow?.children[1]?.attributes.get("data-view-cube-arrow")).toBe("true");
+    expect(svg?.children[0]?.textContent).toContain("[data-rotate]:hover");
+    expect(svg?.children[0]?.textContent).toContain("[data-rotate]:focus-visible");
+    expect(svg?.children[0]?.textContent).toContain("light-dark(#1f2937, #f8fafc)");
+    const clockwise = svg?.children.find(
+      (child) => child.attributes.get("data-rotate") === "clockwise",
+    );
+    expect(clockwise?.children[1]?.attributes.get("d")).toBe("M 8 32 A 24 24 0 0 1 32 8");
+    expect(clockwise?.children[2]?.attributes.get("points")).toBe("26 3 32 8 26 13");
     gizmo.destroy();
   });
 

@@ -13,7 +13,7 @@ import { transformDirection } from "../math/mat4";
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 const CENTER = 50;
-const CUBE_SCALE = 22;
+const CUBE_SCALE = 16;
 const CORNER_RADIUS = 4;
 
 const AXIS_COLORS = {
@@ -84,12 +84,12 @@ interface ArrowElements {
 
 const ROLL_GLYPHS = {
   clockwise: {
-    path: "M 10 25 A 15 15 0 0 1 25 10",
-    head: "25 10 21 11 24 14",
+    path: "M 8 32 A 24 24 0 0 1 32 8",
+    head: "26 3 32 8 26 13",
   },
   counterclockwise: {
-    path: "M 90 75 A 15 15 0 0 1 75 90",
-    head: "75 90 79 89 76 86",
+    path: "M 92 68 A 24 24 0 0 1 68 92",
+    head: "74 87 68 92 74 97",
   },
 } as const satisfies Readonly<
   Record<"clockwise" | "counterclockwise", { readonly path: string; readonly head: string }>
@@ -167,12 +167,9 @@ function createRoot(): HTMLDivElement {
     zIndex: "4",
     left: "14px",
     bottom: "14px",
-    width: "clamp(82px, 10vw, 112px)",
-    height: "clamp(82px, 10vw, 112px)",
-    border: "1px solid #2c405a",
-    borderRadius: "9px",
-    background: "#0b1728df",
-    boxShadow: "0 10px 30px #06101ea8",
+    width: "clamp(104px, 11vw, 132px)",
+    height: "clamp(104px, 11vw, 132px)",
+    background: "transparent",
     pointerEvents: "none",
     userSelect: "none",
   });
@@ -192,12 +189,28 @@ function createSvg(): SVGSVGElement {
   });
   const style = document.createElementNS(SVG_NAMESPACE, "style");
   style.textContent = `
-    [data-view-cube-target]:focus polygon,
-    [data-view-cube-target]:focus circle,
-    [data-view-cube-target]:focus path[data-view-cube-glyph] { stroke: #ffffff; stroke-width: 2; }
-    [data-view-cube-target]:hover polygon,
-    [data-view-cube-target]:hover circle,
-    [data-view-cube-target]:hover path[data-view-cube-glyph] { filter: brightness(1.25); }
+    [data-view-cube-arrow] {
+      fill: none;
+      stroke: light-dark(#1f2937, #f8fafc);
+      stroke-width: 3.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 0 1px light-dark(#ffffff, #111827));
+      transition: stroke 100ms ease;
+    }
+    [data-view-cube-target]:focus { outline: none; }
+    [data-view-corner] circle { fill-opacity: 0; stroke-opacity: 0; }
+    [data-view-corner]:hover circle,
+    [data-view-corner]:focus-visible circle { fill-opacity: .9; stroke-opacity: 1; }
+    [data-view-cube-target]:focus-visible polygon,
+    [data-view-cube-target]:focus-visible circle,
+    [data-view-cube-target]:focus-visible path[data-view-cube-glyph] { stroke: #ffffff; stroke-width: 2; }
+    [data-view-cube-target]:hover polygon:not([data-view-cube-arrow]),
+    [data-view-cube-target]:hover circle { filter: brightness(1.25); }
+    [data-rotate]:hover [data-view-cube-arrow],
+    [data-rotate]:focus-visible [data-view-cube-arrow] {
+      stroke: #f59e0b;
+    }
   `;
   svg.appendChild(style);
   return svg;
@@ -290,12 +303,19 @@ function createArrows(
 }
 
 function appendPitchYawGlyph(group: SVGGElement, rotation: "left" | "right" | "up" | "down"): void {
-  const polygon = document.createElementNS(SVG_NAMESPACE, "polygon");
-  polygon.setAttribute("points", arrowPoints(rotation));
-  polygon.setAttribute("fill", "#a9bbd1");
-  polygon.setAttribute("stroke", "#0b1728");
-  polygon.setAttribute("stroke-width", "0.8");
-  group.appendChild(polygon);
+  const points = arrowPoints(rotation);
+  const hitChevron = document.createElementNS(SVG_NAMESPACE, "polyline");
+  hitChevron.setAttribute("points", points);
+  hitChevron.setAttribute("fill", "none");
+  hitChevron.setAttribute("stroke", "#ffffff");
+  hitChevron.setAttribute("stroke-opacity", "0.001");
+  hitChevron.setAttribute("stroke-width", "16");
+  const chevron = document.createElementNS(SVG_NAMESPACE, "polyline");
+  chevron.setAttribute("points", points);
+  chevron.setAttribute("data-view-cube-arrow", "true");
+  chevron.setAttribute("pointer-events", "none");
+  group.appendChild(hitChevron);
+  group.appendChild(chevron);
 }
 
 function appendRollGlyph(group: SVGGElement, rotation: "clockwise" | "counterclockwise"): void {
@@ -305,19 +325,16 @@ function appendRollGlyph(group: SVGGElement, rotation: "clockwise" | "counterclo
   hitPath.setAttribute("fill", "none");
   hitPath.setAttribute("stroke", "#ffffff");
   hitPath.setAttribute("stroke-opacity", "0.001");
-  hitPath.setAttribute("stroke-width", "10");
+  hitPath.setAttribute("stroke-width", "14");
   const path = document.createElementNS(SVG_NAMESPACE, "path");
   path.setAttribute("d", glyph.path);
-  path.setAttribute("fill", "none");
-  path.setAttribute("stroke", "#a9bbd1");
-  path.setAttribute("stroke-linecap", "round");
-  path.setAttribute("stroke-width", "2.5");
   path.setAttribute("data-view-cube-glyph", "true");
+  path.setAttribute("data-view-cube-arrow", "true");
   path.setAttribute("pointer-events", "none");
-  const head = document.createElementNS(SVG_NAMESPACE, "polygon");
+  const head = document.createElementNS(SVG_NAMESPACE, "polyline");
   head.setAttribute("points", glyph.head);
-  head.setAttribute("fill", "#a9bbd1");
   head.setAttribute("data-view-cube-glyph", "true");
+  head.setAttribute("data-view-cube-arrow", "true");
   head.setAttribute("pointer-events", "none");
   group.appendChild(hitPath);
   group.appendChild(path);
@@ -368,13 +385,13 @@ function axisColor(axis: string): string {
 function arrowPoints(rotation: "left" | "right" | "up" | "down"): string {
   switch (rotation) {
     case "left":
-      return "17,44 17,56 8,50";
+      return "16,40 5,50 16,60";
     case "right":
-      return "83,44 83,56 92,50";
+      return "84,40 95,50 84,60";
     case "up":
-      return "44,17 56,17 50,8";
+      return "40,16 50,5 60,16";
     case "down":
-      return "44,83 56,83 50,92";
+      return "40,84 50,95 60,84";
   }
 }
 
