@@ -324,6 +324,33 @@ test("opens the performance model through the normal demo path", async ({ page }
   await select.selectOption("bolted");
   await expect(canvas).toHaveAttribute("data-model", "bolted");
 });
+test("runs one opt-in continuous render chain and returns to idle", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  const continuous = page.getByTestId("continuous-rendering");
+  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await expect.poll(() => canvas.getAttribute("data-frames")).not.toBeNull();
+  const before = Number(await canvas.getAttribute("data-frames"));
+
+  await continuous.click();
+  await expect(continuous).toHaveAttribute("aria-pressed", "true");
+  await expect
+    .poll(async () => Number(await canvas.getAttribute("data-frames")))
+    .toBeGreaterThan(before + 3);
+
+  await continuous.click();
+  await expect(continuous).toHaveAttribute("aria-pressed", "false");
+  await page.waitForTimeout(100);
+  const after = Number(await canvas.getAttribute("data-frames"));
+  await page.waitForTimeout(100);
+  expect(Number(await canvas.getAttribute("data-frames"))).toBe(after);
+
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("continuous rendering canvas has no bounding box");
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: "right" });
+  await page.getByTestId("context-menu").getByText("Show diagnostics").click();
+  await expect(page.getByTestId("stats-panel")).toContainText("Render loop Idle");
+});
 test("keeps the deformed Hex20 cylinder connected and pickable", async ({ page }) => {
   await page.goto("/");
   const select = page.getByTestId("model-select");

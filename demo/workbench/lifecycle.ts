@@ -19,6 +19,7 @@ export interface WorkbenchLifecycleOptions {
   readonly dragging: () => boolean;
   readonly setEdges: () => void;
   readonly setNodes: () => void;
+  readonly setContinuous: () => void;
   readonly setResults: () => void;
   readonly reset: () => void;
   readonly fitView: () => void;
@@ -48,6 +49,7 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     dragging: options.dragging,
     setEdges: options.setEdges,
     setNodes: options.setNodes,
+    setContinuous: options.setContinuous,
     setResults: options.setResults,
     reset: options.reset,
     fitView: options.fitView,

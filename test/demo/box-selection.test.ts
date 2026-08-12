@@ -201,6 +201,7 @@ describe("workbench hover suppression", () => {
     const view = {
       projectionToggle: new FakeElement(),
       edgeOverlayToggle: new FakeElement(),
+      continuousToggle: new FakeElement(),
       resultsToggle: new FakeElement(),
       depthTestToggle: new FakeElement(),
       nodeOverlayToggle: new FakeElement(),
@@ -222,6 +223,7 @@ describe("workbench hover suppression", () => {
       dragging: () => dragging,
       setEdges: () => undefined,
       setNodes: () => undefined,
+      setContinuous: () => undefined,
       setResults: () => undefined,
       reset: () => undefined,
       fitView: () => undefined,

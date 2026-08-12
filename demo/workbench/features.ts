@@ -20,6 +20,7 @@ export interface WorkbenchFeatureOptions {
   readonly presets: readonly WorkbenchModel[];
   readonly toggles: () => DisplayToggles;
   readonly resultMode: () => ResultDisplayMode;
+  readonly continuous: () => boolean;
   readonly interaction: () => InteractionState;
   readonly setInteraction: (interaction: InteractionState) => void;
   readonly applyDisplayedInteraction: () => void;
@@ -102,6 +103,7 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     getModel: options.model,
     getToggles: options.toggles,
     getResultMode: options.resultMode,
+    getContinuous: options.continuous,
     getInteraction: options.interaction,
     getRuntime: options.runtime,
   });

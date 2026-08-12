@@ -28,6 +28,7 @@ import {
 import { applyMenuAction } from "./menu-actions";
 import { interactionTargetsForRow, type VisibilityRowTarget } from "./tree-hover";
 import { createWorkbenchFeatures, type WorkbenchFeatures } from "./features";
+import { WorkbenchRenderLoop } from "./render-loop";
 import {
   createDefaultDisplayToggles,
   type DisplayToggles,
@@ -59,15 +60,21 @@ export class WorkbenchController {
   private readonly presentation: WorkbenchFeatures["presentation"];
   private readonly boxPreview: WorkbenchFeatures["boxPreview"];
   private readonly cameraTransition: WorkbenchCameraTransition;
+  private readonly renderLoop: WorkbenchRenderLoop;
   private boxSelectionDisposer: (() => void) | undefined;
   private dragging = false;
   private treeHoverTargets: readonly InteractionTarget[] = [];
   private disposed = false;
+  private continuousEnabled = false;
+  private observedViewportSize: { readonly width: number; readonly height: number };
+  private observedDevicePixelRatio: number;
   private loadGeneration = 0;
 
   constructor(options: WorkbenchOptions) {
     this.view = options.view;
     this.canvas = options.canvas;
+    this.observedViewportSize = this.canvasSize();
+    this.observedDevicePixelRatio = this.devicePixelRatio();
     this.rendererName = options.rendererName;
     this.viewport = options.viewport;
     this.cameraTransition = new WorkbenchCameraTransition(
@@ -78,6 +85,7 @@ export class WorkbenchController {
       },
       this.listenerController.signal,
     );
+    this.renderLoop = new WorkbenchRenderLoop(() => this.viewport);
     this.examples = options.presets;
     const initialModel = this.examples[0];
     if (initialModel === undefined) throw new Error("Workbench requires at least one preset");
@@ -97,6 +105,7 @@ export class WorkbenchController {
       presets: this.models,
       toggles: () => this.toggles,
       resultMode: () => this.resultMode,
+      continuous: () => this.continuousEnabled,
       interaction: () => this.interaction,
       setInteraction: (interaction) => {
         this.interaction = interaction;
@@ -159,6 +168,9 @@ export class WorkbenchController {
       setNodes: () => {
         this.setNodes(!this.toggles.nodes);
       },
+      setContinuous: () => {
+        this.setContinuous(!this.continuousEnabled);
+      },
       setResults: () => {
         this.cycleResultMode();
       },
@@ -194,6 +206,7 @@ export class WorkbenchController {
   setViewport(viewport: FemViewport): void {
     this.interactionController.clearContext();
     this.viewport = viewport;
+    this.renderLoop.attach(performance.now());
     this.treeHoverTargets = [];
     this.canvas.dataset["treeHover"] = "";
     this.applyResultMode(false);
@@ -205,6 +218,10 @@ export class WorkbenchController {
   /** Invalidates picks before a temporary renderer teardown. */
   invalidateInteraction(): void {
     this.interactionController.clearContext();
+  }
+
+  detachViewport(): void {
+    this.renderLoop.detach(performance.now());
   }
 
   setCameraGestureActive(active: boolean): void {
@@ -220,10 +237,29 @@ export class WorkbenchController {
   syncViewportPresentation(): void {
     if (this.disposed) return;
     const viewportStats = this.viewport.stats();
-    this.presentation.refresh(this.viewport.camera, this.rendererState, {
-      visibleInstances: viewportStats.visibleInstances,
-      batches: viewportStats.drawBatches,
-    });
+    this.presentation.refresh(
+      this.viewport.camera,
+      this.rendererState,
+      {
+        visibleInstances: viewportStats.visibleInstances,
+        batches: viewportStats.drawBatches,
+      },
+      this.renderLoop.stats,
+    );
+  }
+
+  onViewportRender(timestamp: number): void {
+    if (this.viewportPresentationChanged()) this.renderLoop.reset(timestamp);
+    const publish = this.renderLoop.frameCompleted(timestamp);
+    if (!this.continuousEnabled || publish) this.syncViewportPresentation();
+  }
+
+  setContinuous(enabled: boolean): void {
+    if (this.continuousEnabled === enabled) return;
+    this.continuousEnabled = enabled;
+    this.renderLoop.setEnabled(enabled, performance.now());
+    this.presentation.reflectContinuous();
+    this.syncViewportPresentation();
   }
 
   setModel(id: string): void {
@@ -292,6 +328,7 @@ export class WorkbenchController {
   destroy(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.renderLoop.stop();
     this.boxSelectionDisposer?.();
     this.listenerController.abort();
     this.cameraTransition.cancel();
@@ -346,6 +383,7 @@ export class WorkbenchController {
     this.presentation.reflectEdges();
     this.presentation.reflectNodes();
     this.presentation.reflectResults();
+    this.presentation.reflectContinuous();
   }
 
   private setTreeHover(target: VisibilityRowTarget | undefined): void {
@@ -368,7 +406,29 @@ export class WorkbenchController {
     );
   }
 
+  private viewportPresentationChanged(): boolean {
+    const size = this.canvasSize();
+    const devicePixelRatio = this.devicePixelRatio();
+    const changed =
+      size.width !== this.observedViewportSize.width ||
+      size.height !== this.observedViewportSize.height ||
+      devicePixelRatio !== this.observedDevicePixelRatio;
+    this.observedViewportSize = size;
+    this.observedDevicePixelRatio = devicePixelRatio;
+    return changed;
+  }
+
+  private canvasSize(): { readonly width: number; readonly height: number } {
+    const bounds = this.canvas.getBoundingClientRect();
+    return { width: bounds.width, height: bounds.height };
+  }
+
+  private devicePixelRatio(): number {
+    return typeof window === "undefined" ? 1 : window.devicePixelRatio;
+  }
+
   private activateModel(model: WorkbenchModel): void {
+    this.renderLoop.reset(performance.now());
     this.model = model;
     this.models = model.source === "file" ? [...this.examples, model] : this.examples;
     this.treeHoverTargets = [];

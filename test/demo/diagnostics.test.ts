@@ -4,6 +4,7 @@ import { createBoltedPlatePreset } from "../../demo/fixture/presets";
 import { createPerformancePreset } from "../../demo/fixture/performance-fixture";
 import { statsText } from "../../demo/devtools/diagnostics";
 import { createExampleModel } from "../../demo/workbench/model";
+import { IDLE_RENDER_LOOP_STATS } from "../../demo/workbench/render-loop";
 
 describe("demo diagnostics", () => {
   it("does not build per-part detail while the diagnostics HUD is closed", () => {
@@ -17,6 +18,7 @@ describe("demo diagnostics", () => {
       rendererName: "webgpu",
       toggles: { edges: true, nodes: true, diagnostics: false },
       stats: { visibleInstances: 34, batches: 4 },
+      renderLoop: IDLE_RENDER_LOOP_STATS,
       selectedCount: 0,
     });
 
@@ -35,6 +37,7 @@ describe("demo diagnostics", () => {
       rendererName: "webgpu",
       toggles: { edges: true, nodes: true, diagnostics: true },
       stats: { visibleInstances: 34, batches: 4 },
+      renderLoop: IDLE_RENDER_LOOP_STATS,
       selectedCount: 0,
     });
 
@@ -53,6 +56,7 @@ describe("demo diagnostics", () => {
       rendererName: "webgpu",
       toggles: { edges: true, nodes: true, diagnostics: false },
       stats: { visibleInstances: 64, batches: 1 },
+      renderLoop: IDLE_RENDER_LOOP_STATS,
       selectedCount: 0,
     });
 

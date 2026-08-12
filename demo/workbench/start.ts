@@ -76,7 +76,7 @@ export async function startWebGpuDemo(
       },
       onRender: () => {
         canvas.dataset["frames"] = String(Number(canvas.dataset["frames"] ?? "0") + 1);
-        if (viewport !== undefined) controller?.syncViewportPresentation();
+        if (viewport !== undefined) controller?.onViewportRender(performance.now());
       },
     });
 
@@ -101,6 +101,7 @@ export async function startWebGpuDemo(
   canvas.dataset["renderer"] = "webgpu";
 
   const destroyCurrentViewport = (): void => {
+    controller.detachViewport();
     controller.invalidateInteraction();
     viewport?.destroy();
     viewport = undefined;

@@ -124,5 +124,14 @@ only after viewport invalidation. Its diagnostics distinguish the 32,768 unique
 triangles from 2,097,152 submitted triangles. It is a manual visual inspection
 case; the opt-in benchmark above owns reproducible cost breakdowns.
 
+The toolbar's **Continuous** control is a separate, explicit inspection aid and
+is off by default. While enabled, the demo chains one `FemViewport.invalidate()`
+after each completed frame and reports a bounded rolling sample (warmup state,
+duration, frame count, average FPS, p50/p95 interval, and longest interval) in
+the existing diagnostics HUD. These are refresh-rate-limited RAF/render-loop
+statistics, not queue-drained GPU timings. Disabling the control returns the
+demo to true render-on-demand idle behavior; `npm run bench:webgpu` remains the
+owner of queue-drained capacity measurements.
+
 [engineering/performance-issues|Performance issues]: performance-issues.md
 [engineering/quality-gate|Quality gate]: quality-gate.md
