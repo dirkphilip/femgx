@@ -41,6 +41,26 @@ test("draws a normalized box rectangle during a primary drag and clears it on re
   await expect(overlay).toBeHidden();
   expect(await dataset(page, "selected")).toBe("");
 });
+test("selects visible elements with a primary drag and toggles them with Control", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await expect(page.getByTestId("interaction-help")).toContainText("visible elements");
+
+  await primaryBoxDrag(page, canvas, { fx: 0.08, fy: 0.32 }, { fx: 0.92, fy: 0.92 });
+  await page.mouse.up({ button: "left" });
+  await expect.poll(() => dataset(page, "selected"), { timeout: 10_000 }).toMatch(/^e:/);
+  const selected = await dataset(page, "selected");
+  expect(selected.split(",").every((key) => key.startsWith("e:"))).toBe(true);
+
+  await page.keyboard.down("Control");
+  await primaryBoxDrag(page, canvas, { fx: 0.08, fy: 0.32 }, { fx: 0.92, fy: 0.92 });
+  await page.mouse.up({ button: "left" });
+  await page.keyboard.up("Control");
+  await expect.poll(() => dataset(page, "selected"), { timeout: 10_000 }).toBe("");
+});
 test("cancels a box selection with Escape and never changes selection", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");

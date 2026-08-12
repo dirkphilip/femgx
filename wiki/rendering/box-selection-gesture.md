@@ -60,16 +60,22 @@ teardown hide it and clear its inline geometry.
 listeners so the threshold-crossing move marks box interaction active before
 hover handling runs. Demo-only box activity is tracked separately from camera
 gesture activity; `isPointerGestureActive()` combines the two, and the hover
-listener suppresses asynchronous GPU picks while either is active. Completion
-does not change selection, highlight, inspection, camera, visibility, results,
-or the context-menu target.
+listener suppresses asynchronous GPU picks while either is active. On
+completion, `WorkbenchInteraction` issues one `pickRegion(event.rect,
+"element")` call. Plain completion replaces selection with the distinct visible
+elements returned by that readback; Ctrl/Meta toggles them, while Shift and Alt
+remain reserved without select-through behavior. The pending query is
+generation-checked, so newer clicks, context actions, model changes, resets,
+teardown, and rejected promises cannot mutate selection; cancellation and
+below-threshold gestures never query.
 
 ## Connection to region picking
 
-The gesture remains policy-free. A host that wants model candidates can pass an
-event rectangle to `viewport.pickRegion(event.rect, granularity)`; the promise
-returns unique nearest-visible targets and the host decides whether to preview,
-select, toggle, or ignore them. The gesture itself never mutates selection.
+The gesture remains policy-free. The demo passes completed rectangles to
+`viewport.pickRegion(event.rect, "element")` and applies the returned
+nearest-visible element targets to `InteractionState`; the library gesture
+itself never mutates selection. Other hosts can use the same region API with
+their own selection policy.
 
 ## World-space consumer volume
 

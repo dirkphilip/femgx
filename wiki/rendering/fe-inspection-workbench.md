@@ -39,6 +39,11 @@ controller, so camera and interaction behavior is stable
   action. Selecting an unselected element replaces the ordinary selection;
   deselecting it removes only that element. Instance, part, and empty-scene
   targets never fabricate an element action.
+- A completed primary-button box drag calls `FemViewport.pickRegion` once at
+  element granularity. Plain drags replace selection with the returned visible
+  elements; Ctrl/Meta drags toggle them. Shift and Alt do not add select-through
+  behavior, and stale or rejected region readbacks cannot overwrite newer
+  interaction state.
 - The workbench ignores stale readbacks with a pick generation counter so
   hover/click races never apply an older hit.
 - Hit data is stable across visibility changes because ids come from the
