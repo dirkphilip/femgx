@@ -1,13 +1,9 @@
-import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
+import { parsePackResult, runCommand } from "./package-smoke-helpers.mjs";
 
 const repoRoot = resolve(import.meta.dirname, "..");
-
-function run(cmd, args, cwd) {
-  return execFileSync(cmd, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-}
 
 function expect(condition, message) {
   if (!condition) {
@@ -19,17 +15,42 @@ function main() {
   const tmp = mkdtempSync(join(tmpdir(), "femgx-smoke-"));
   const consumer = join(tmp, "consumer");
   const tarballDir = join(tmp, "pack");
+  const buildCache = join(tmp, "npm-cache-build");
+  const packCache = join(tmp, "npm-cache-pack");
+  const installCache = join(tmp, "npm-cache-install");
+  const userConfig = join(tmp, "npmrc");
   const consumerNodeModules = join(consumer, "node_modules", "femgx");
+  const env = isolatedNpmEnvironment(buildCache, userConfig);
   try {
     mkdirSync(tarballDir);
     mkdirSync(consumer);
+    writeFileSync(userConfig, "\n");
     // 1. Build the library from source.
-    run("npm", ["run", "build"], repoRoot);
+    runCommand("npm", ["run", "build"], repoRoot, env);
 
     // 2. Pack the publishable tarball.
     console.log("Packing package...");
-    const packJson = run("npm", ["pack", "--json", "--pack-destination", tarballDir], repoRoot);
-    const packResult = JSON.parse(packJson)[0];
+    const packOutput = runCommand(
+      "npm",
+      [
+        "pack",
+        "--json",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--progress=false",
+        "--update-notifier=false",
+        "--cache",
+        packCache,
+        "--userconfig",
+        userConfig,
+        "--pack-destination",
+        tarballDir,
+      ],
+      repoRoot,
+      env,
+    );
+    const packResult = parsePackResult(packOutput.stdout, packOutput.stderr);
     const tarball = join(tarballDir, packResult.filename);
     const tarballFiles = packResult.files.map((entry) => entry.path);
     console.log(`Packed ${packResult.filename} (${tarballFiles.length} files)`);
@@ -68,11 +89,9 @@ function main() {
     const attw = join(repoRoot, "node_modules", ".bin", "attw");
     let attwOutput;
     try {
-      attwOutput = run(attw, [tarball, "--no-color", "--no-emoji"], repoRoot);
+      attwOutput = runCommand(attw, [tarball, "--no-color", "--no-emoji"], repoRoot, env).stdout;
     } catch (error) {
-      throw new Error(
-        `@arethetypeswrong/cli found type-resolution problems:\n${error.stdout ?? ""}${error.stderr ?? ""}`,
-      );
+      throw new Error(`@arethetypeswrong/cli found type-resolution problems:\n${error.message}`);
     }
     console.log(attwOutput.trim());
 
@@ -82,7 +101,24 @@ function main() {
       JSON.stringify({ name: "femgx-consumer", private: true, version: "0.0.0", type: "module" }),
     );
     console.log("Installing tarball into clean consumer...");
-    run("npm", ["install", tarball, "--no-audit", "--no-fund", "--no-package-lock"], consumer);
+    runCommand(
+      "npm",
+      [
+        "install",
+        tarball,
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--no-package-lock",
+        "--offline",
+        "--cache",
+        installCache,
+        "--userconfig",
+        userConfig,
+      ],
+      consumer,
+      isolatedNpmEnvironment(installCache, userConfig),
+    );
 
     const installedPkg = JSON.parse(
       readFileSync(join(consumerNodeModules, "package.json"), "utf8"),
@@ -121,7 +157,7 @@ function main() {
         'console.log("ESM import OK");',
       ].join("\n"),
     );
-    console.log(run("node", ["smoke.mjs"], consumer).trim());
+    console.log(runCommand("node", ["smoke.mjs"], consumer).stdout.trim());
 
     // 7. CommonJS require at runtime.
     writeFileSync(
@@ -134,7 +170,7 @@ function main() {
         'console.log("CJS require OK");',
       ].join("\n"),
     );
-    console.log(run("node", ["smoke.cjs"], consumer).trim());
+    console.log(runCommand("node", ["smoke.cjs"], consumer).stdout.trim());
 
     // 8. Type-level consumption under each supported moduleResolution.
     const tsc = join(repoRoot, "node_modules", ".bin", "tsc");
@@ -253,14 +289,35 @@ function main() {
       "tsconfig.node10.json",
       "tsconfig.nodenext.json",
     ]) {
-      run(tsc, ["-p", join(consumer, config)], consumer);
+      runCommand(tsc, ["-p", join(consumer, config)], consumer);
       console.log(`${config} type-check OK`);
     }
 
     console.log("Package smoke tests passed.");
   } finally {
-    rmSync(tmp, { recursive: true, force: true });
+    removeSmokeRoot(tmp);
   }
+}
+
+function isolatedNpmEnvironment(cache, userConfig) {
+  return {
+    ...process.env,
+    npm_config_cache: cache,
+    npm_config_userconfig: userConfig,
+    npm_config_audit: "false",
+    npm_config_fund: "false",
+    npm_config_loglevel: "error",
+    npm_config_progress: "false",
+    npm_config_update_notifier: "false",
+  };
+}
+
+function removeSmokeRoot(root) {
+  const expectedParent = tmpdir();
+  if (dirname(root) !== expectedParent || !basename(root).startsWith("femgx-smoke-")) {
+    throw new Error(`Refusing to remove unexpected package-smoke path ${root}`);
+  }
+  rmSync(root, { recursive: true, force: true });
 }
 
 try {
