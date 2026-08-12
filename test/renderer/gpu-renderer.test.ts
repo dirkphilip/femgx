@@ -3,7 +3,13 @@ import { createWebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import { createPart } from "../../src/geometry/part";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
-import { setBodyHighlighted, setBodySelected, setBodyVisible } from "../../src/interaction/bodies";
+import {
+  setBodyHighlighted,
+  setBodyOverride,
+  setBodySelected,
+  setBodyVisible,
+} from "../../src/interaction/bodies";
+import { setElementOverride } from "../../src/interaction/interaction";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { identity, translation } from "../../src/math/mat4";
 import { projectPoint, unprojectPoint, type Camera } from "../../src/camera/camera";
@@ -148,8 +154,8 @@ describe("WebGPU renderer", () => {
       { indexCount: 3, instanceCount: 3 },
       { indexCount: 3, instanceCount: 3 },
     ]);
-    expect(gpu.textureCreations).toBe(2);
-    expect(gpu.bindGroupCreations).toBe(4);
+    expect(gpu.textureCreations).toBe(7);
+    expect(gpu.bindGroupCreations).toBe(5);
     expect(gpu.submissionCount).toBe(2);
     await expect(renderer.pick(400, 300)).resolves.toEqual({
       kind: "instance",
@@ -158,7 +164,7 @@ describe("WebGPU renderer", () => {
       worldPosition: unprojectPoint(camera, [400.5, 300.5, 0.5]),
     });
     expect(gpu.drawCalls).toHaveLength(3);
-    expect(gpu.textureCreations).toBe(7);
+    expect(gpu.textureCreations).toBe(12);
     expect(gpu.submissionCount).toBe(4);
     await renderer.pick(300, 200);
     expect(gpu.drawCalls).toHaveLength(3);
@@ -373,7 +379,10 @@ describe("WebGPU renderer", () => {
     });
     const beforeStyle = instanceWrites().length;
     renderer.updateInstances(runtime, override, [0]);
-    expect(writeRanges(beforeStyle)).toEqual([[64, 16]]);
+    expect(writeRanges(beforeStyle)).toEqual([
+      [64, 16],
+      [0, 4],
+    ]);
 
     const beforeNoop = instanceWrites().length;
     renderer.updateInstances(runtime, override, [0]);
@@ -393,7 +402,7 @@ describe("WebGPU renderer", () => {
     ]);
 
     renderer.render(runtime, camera, scene.parts);
-    expect(gpu.drawCalls.at(-1)).toEqual({ indexCount: 3, instanceCount: 2 });
+    expect(gpu.drawCalls.at(-1)).toEqual({ indexCount: 3, instanceCount: 1 });
 
     runtime.setInstanceVisible(1, true);
     renderer.updateInstances(runtime, override, [0, 1, 2]);
@@ -487,13 +496,13 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.slice(-2)).toEqual([
       { pipeline: "pipeline-0", indexCount: 3, instanceCount: 3 },
-      { pipeline: "pipeline-6", indexCount: 6, instanceCount: 3 },
+      { pipeline: "pipeline-9", indexCount: 6, instanceCount: 3 },
     ]);
 
     renderer.setEdgeDepthTest(false);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-7",
+      pipeline: "pipeline-10",
       indexCount: 6,
       instanceCount: 3,
     });
@@ -501,11 +510,92 @@ describe("WebGPU renderer", () => {
     renderer.setEdgeDepthTest(true);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-6",
+      pipeline: "pipeline-9",
       indexCount: 6,
       instanceCount: 3,
     });
 
+    renderer.destroy();
+  });
+
+  it("keeps transparent fragments in the OIT pass without removing opaque batches", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildScene();
+    const runtime = createPackedSceneRuntime(scene);
+    renderer.render(runtime, camera, scene.parts);
+
+    const transparent = setPartOverride(createInteractionState(), 1, { opacity: 0.5 });
+    renderer.updateInstances(runtime, transparent, [0, 1, 2]);
+    renderer.render(runtime, camera, scene.parts);
+
+    expect(gpu.pipelineDraws.slice(-2)).toEqual([
+      { pipeline: "pipeline-0", indexCount: 3, instanceCount: 3 },
+      { pipeline: "pipeline-1", indexCount: 3, instanceCount: 3 },
+    ]);
+    renderer.destroy();
+  });
+
+  it("keeps zero-opacity geometry in the pick pass", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice({ pickValue: 1, ndcDepth: 0.5 });
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildScene();
+    const runtime = createPackedSceneRuntime(scene);
+    renderer.render(runtime, camera, scene.parts);
+    renderer.updateInstances(
+      runtime,
+      setPartOverride(createInteractionState(), 1, { opacity: 0 }),
+      [0, 1, 2],
+    );
+    renderer.render(runtime, camera, scene.parts);
+
+    await expect(renderer.pick(400, 300)).resolves.toMatchObject({
+      kind: "instance",
+      partId: 1,
+    });
+    renderer.destroy();
+  });
+
+  it.each([
+    ["instance", () => setPartOverride(createInteractionState(), 1, { opacity: 0.5 })],
+    [
+      "body",
+      () =>
+        setBodyOverride(
+          createInteractionState(),
+          { instanceId: "1/0", bodyId: 3 },
+          { opacity: 0.5 },
+        ),
+    ],
+    [
+      "element",
+      () =>
+        setElementOverride(
+          createInteractionState(),
+          { instanceId: "1/0", elementId: 0 },
+          { opacity: 0.5 },
+        ),
+    ],
+  ])("classifies fractional %s alpha in the transparent pass", async (level, createState) => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = level === "body" ? buildBodyScene() : buildFaceScene();
+    const runtime = createPackedSceneRuntime(scene);
+    renderer.render(runtime, camera, scene.parts);
+    const interaction = createState();
+    if (level === "instance") renderer.updateInstances(runtime, interaction, [0]);
+    else renderer.updateElements(runtime, interaction);
+    renderer.render(runtime, camera, scene.parts);
+    expect(gpu.pipelineDraws.slice(-2)).toEqual([
+      { pipeline: "pipeline-0", indexCount: 3, instanceCount: 1 },
+      { pipeline: "pipeline-1", indexCount: 3, instanceCount: 1 },
+    ]);
     renderer.destroy();
   });
 
@@ -524,7 +614,7 @@ describe("WebGPU renderer", () => {
     renderer.updateInstances(runtime, edge, hidden.changedInstanceIds);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-6",
+      pipeline: "pipeline-9",
       indexCount: 6,
       instanceCount: 2,
     });
@@ -533,7 +623,7 @@ describe("WebGPU renderer", () => {
     renderer.updateInstances(runtime, edge, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-6",
+      pipeline: "pipeline-9",
       indexCount: 6,
       instanceCount: 3,
     });

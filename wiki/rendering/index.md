@@ -26,6 +26,9 @@
   actions.
 - [[rendering/node-face-interaction|Node and face interaction]] — node/face
   picking, selection, and the four-attachment GPU pick pass.
+- [[rendering/order-independent-transparency|Order-independent transparency]]
+  — weighted-blended OIT, effective-alpha classification, and the deterministic
+  shell/interior fixture.
 - [[rendering/pick-format|Pick texture format]] — portable packed GPU pick IDs.
 - [[rendering/platform-support|Platform support]] — WebGPU as the product
   requirement, explicit unsupported behavior, and supported-path device
@@ -54,6 +57,7 @@
 [rendering/interaction-selection-menu|Selection and view context menu]: interaction-selection-menu.md
 [rendering/interactive-state|Interactive state]: interactive-state.md
 [rendering/node-face-interaction|Node and face interaction]: node-face-interaction.md
+[rendering/order-independent-transparency|Order-independent transparency]: order-independent-transparency.md
 [rendering/pick-format|Pick texture format]: pick-format.md
 [rendering/platform-support|Platform support]: platform-support.md
 [rendering/renderer-subrange-updates|Renderer subrange updates]: renderer-subrange-updates.md

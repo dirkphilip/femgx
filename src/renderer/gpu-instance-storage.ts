@@ -28,8 +28,8 @@ export interface InstanceUpdate {
 }
 
 /**
- * Persistent per-part GPU storage: a slot-stable record buffer, a compacted
- * draw-order buffer, a compacted edge-overlay order buffer, and a
+ * Persistent per-part GPU storage: a slot-stable record buffer, compacted
+ * opaque and transparent draw-order buffers, a compacted edge-overlay order buffer, and a
  * bounded-bucket emphasis buffer. Hidden instances stay in the record buffer
  * but are removed from the draw-order lists, so only visible geometry is ever
  * drawn. The edge order holds the subset of visible instances whose resolved
@@ -38,6 +38,7 @@ export interface InstanceUpdate {
 export interface InstanceStorage {
   readonly buffer: GPUBuffer;
   readonly orderBuffer: GPUBuffer;
+  readonly transparentOrderBuffer: GPUBuffer;
   readonly edgeOrderBuffer: GPUBuffer;
   highlight: HighlightStorage;
   readonly capacity: number;
@@ -47,6 +48,10 @@ export interface InstanceStorage {
   orderData: Uint32Array;
   /** Number of meaningful draw-order entries. */
   orderLength: number;
+  /** CPU mirror of the transparent draw-order buffer. */
+  transparentOrderData: Uint32Array;
+  /** Number of meaningful transparent draw-order entries. */
+  transparentOrderLength: number;
   /** CPU mirror of the edge-overlay order buffer. */
   edgeOrderData: Uint32Array;
   /** Number of meaningful edge-overlay order entries. */
@@ -55,6 +60,8 @@ export interface InstanceStorage {
   bindGroup: GPUBindGroup | undefined;
   /** Cached bind group addressing the edge-order buffer; invalidated on growth. */
   edgeBindGroup: GPUBindGroup | undefined;
+  /** Cached bind group addressing the transparent order buffer; invalidated on growth. */
+  transparentBindGroup: GPUBindGroup | undefined;
 }
 
 interface InstanceStorageOwner {
@@ -135,6 +142,22 @@ export function writeDrawOrder(
   );
 }
 
+/** Replaces the compacted transparent draw-order list of a part. */
+export function writeTransparentOrder(
+  draw: InstanceStorageOwner,
+  partId: number,
+  order: Uint32Array,
+): void {
+  const storage = ensureStorage(draw, partId, Math.max(1, order.length));
+  storage.transparentOrderLength = writeOrderBuffer(
+    draw.device,
+    storage.transparentOrderBuffer,
+    storage.transparentOrderData,
+    order,
+    storage.transparentOrderLength,
+  );
+}
+
 /**
  * Replaces the compacted edge-overlay order list of a part (visible instances
  * whose resolved style requests the line overlay). Like `writeDrawOrder`, only
@@ -164,48 +187,88 @@ function ensureStorage(
   const existing = draw.storages.get(partId);
   if (existing !== undefined && existing.capacity >= capacity) return existing;
   const size = Math.max(capacity, existing === undefined ? 1 : existing.capacity * 2);
-  const buffer = draw.device.createBuffer({
-    size: size * INSTANCE_STRIDE,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
-  const orderBuffer = createOrderBuffer(draw.device, size);
-  const edgeOrderBuffer = createOrderBuffer(draw.device, size);
-  const mirror = new Uint8Array(size * INSTANCE_STRIDE);
-  const orderData = new Uint32Array(size);
-  const edgeOrderData = new Uint32Array(size);
-  const orderLength = existing?.orderLength ?? 0;
-  const edgeOrderLength = existing?.edgeOrderLength ?? 0;
-  const highlight = existing?.highlight ?? createHighlightStorage(draw.device);
+  const storage = createStorage(draw, size, existing);
   if (existing !== undefined) {
-    mirror.set(new Uint8Array(existing.data));
-    orderData.set(existing.orderData.subarray(0, orderLength));
-    edgeOrderData.set(existing.edgeOrderData.subarray(0, edgeOrderLength));
-  }
-  const storage: InstanceStorage = {
-    buffer,
-    orderBuffer,
-    edgeOrderBuffer,
-    highlight,
-    capacity: size,
-    data: mirror.buffer,
-    orderData,
-    orderLength,
-    edgeOrderData,
-    edgeOrderLength,
-    bindGroup: undefined,
-    edgeBindGroup: undefined,
-  };
-  if (existing !== undefined && existing.orderLength > 0) {
-    draw.device.queue.writeBuffer(orderBuffer, 0, orderData.subarray(0, orderLength));
-  }
-  if (existing !== undefined && existing.edgeOrderLength > 0) {
-    draw.device.queue.writeBuffer(edgeOrderBuffer, 0, edgeOrderData.subarray(0, edgeOrderLength));
-  }
-  if (existing !== undefined) {
-    draw.device.queue.writeBuffer(buffer, 0, mirror);
+    copyStorageData(draw, existing, storage);
+    destroyStorageBuffers(existing);
   }
   draw.storages.set(partId, storage);
   return storage;
+}
+
+function createStorage(
+  draw: InstanceStorageOwner,
+  size: number,
+  existing: InstanceStorage | undefined,
+): InstanceStorage {
+  const mirror = new Uint8Array(size * INSTANCE_STRIDE);
+  const orderLength = existing?.orderLength ?? 0;
+  const transparentOrderLength = existing?.transparentOrderLength ?? 0;
+  const edgeOrderLength = existing?.edgeOrderLength ?? 0;
+  return {
+    buffer: draw.device.createBuffer({
+      size: size * INSTANCE_STRIDE,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    }),
+    orderBuffer: createOrderBuffer(draw.device, size),
+    transparentOrderBuffer: createOrderBuffer(draw.device, size),
+    edgeOrderBuffer: createOrderBuffer(draw.device, size),
+    highlight: existing?.highlight ?? createHighlightStorage(draw.device),
+    capacity: size,
+    data: mirror.buffer,
+    orderData: new Uint32Array(size),
+    orderLength,
+    transparentOrderData: new Uint32Array(size),
+    transparentOrderLength,
+    edgeOrderData: new Uint32Array(size),
+    edgeOrderLength,
+    bindGroup: undefined,
+    edgeBindGroup: undefined,
+    transparentBindGroup: undefined,
+  };
+}
+
+function copyStorageData(
+  draw: InstanceStorageOwner,
+  existing: InstanceStorage,
+  storage: InstanceStorage,
+): void {
+  new Uint8Array(storage.data).set(new Uint8Array(existing.data));
+  storage.orderData.set(existing.orderData.subarray(0, existing.orderLength));
+  storage.transparentOrderData.set(
+    existing.transparentOrderData.subarray(0, existing.transparentOrderLength),
+  );
+  storage.edgeOrderData.set(existing.edgeOrderData.subarray(0, existing.edgeOrderLength));
+  draw.device.queue.writeBuffer(storage.buffer, 0, storage.data);
+  writeExistingOrder(draw, storage.orderBuffer, storage.orderData, existing.orderLength);
+  writeExistingOrder(
+    draw,
+    storage.transparentOrderBuffer,
+    storage.transparentOrderData,
+    existing.transparentOrderLength,
+  );
+  writeExistingOrder(
+    draw,
+    storage.edgeOrderBuffer,
+    storage.edgeOrderData,
+    existing.edgeOrderLength,
+  );
+}
+
+function writeExistingOrder(
+  draw: InstanceStorageOwner,
+  buffer: GPUBuffer,
+  data: Uint32Array,
+  length: number,
+): void {
+  if (length > 0) draw.device.queue.writeBuffer(buffer, 0, data.subarray(0, length));
+}
+
+function destroyStorageBuffers(storage: InstanceStorage): void {
+  storage.buffer.destroy();
+  storage.orderBuffer.destroy();
+  storage.transparentOrderBuffer.destroy();
+  storage.edgeOrderBuffer.destroy();
 }
 
 /** Creates a u32 storage buffer sized to the part's slot capacity. */

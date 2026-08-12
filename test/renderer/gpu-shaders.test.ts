@@ -166,6 +166,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
   it("applies emissive additively in the color fragment shader", () => {
     expect(colorFragmentShader).toMatch(/@location\(2\) @interpolate\(flat\) emissive: f32/);
     expect(colorFragmentShader).toMatch(/color\.rgb \+ vec3<f32>\(emissive\)/);
+    expect(colorFragmentShader).toContain("color.a < 1.0");
   });
 
   it("lights only triangle surfaces from displayed world-space derivatives", () => {

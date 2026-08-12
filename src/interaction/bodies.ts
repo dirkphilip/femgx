@@ -8,6 +8,7 @@ import {
   updateInteractionState,
   type InteractionState,
   type StyleOverride,
+  validateStyleOverride,
 } from "./state";
 import { collectUniqueRefs, sortedNumbers, updateNestedMap, updateNestedSet } from "./mechanics";
 
@@ -43,6 +44,7 @@ export function setBodyOverride(
   ref: BodyRef,
   override: StyleOverride | undefined,
 ): InteractionState {
+  validateStyleOverride(override);
   const data = readInteractionState(state);
   const bodyOverrides = updateNestedMap(data.bodyOverrides, ref.instanceId, ref.bodyId, override);
   if (bodyOverrides === data.bodyOverrides) return state;

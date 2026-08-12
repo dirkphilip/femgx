@@ -3,7 +3,11 @@ import { createPart, MAX_PART_ID, type Part } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createScene } from "../../src/scene/scene";
-import { buildDrawOrder, buildInstanceLayout } from "../../src/renderer/runtime-state";
+import {
+  buildDrawOrder,
+  buildInstanceLayout,
+  buildTransparentOrder,
+} from "../../src/renderer/runtime-state";
 
 function part(id: number): Part {
   const geometry = {
@@ -77,6 +81,25 @@ describe("renderer runtime state", () => {
     expect(Array.from(buildDrawOrder(layout, runtime, 1))).toEqual([0, 1, 2]);
     runtime.setInstanceVisible(1, false);
     expect(Array.from(buildDrawOrder(layout, runtime, 1))).toEqual([0, 2]);
+  });
+
+  it("keeps transparent classification in a separate visible order", () => {
+    const scene = createScene()
+      .addPart(part(1))
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [
+          { kind: "part", partId: 1, transform: identity() },
+          { kind: "part", partId: 1, transform: identity() },
+        ],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    expect(Array.from(buildDrawOrder(layout, runtime, 1))).toEqual([0, 1]);
+    expect(Array.from(buildTransparentOrder(layout, runtime, 1, [false, true]))).toEqual([1]);
   });
 
   it("keeps hidden slots addressable and omits parts without visible slots", () => {

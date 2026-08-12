@@ -5,6 +5,7 @@ import {
   createGalleryPreset,
   createHex20CylinderPreset,
   createModelPresets,
+  createTransparencyPreset,
   createVtkPreset,
   visiblePartIdsForPreset,
 } from "../../../demo/fixture/presets";
@@ -18,7 +19,7 @@ import { createPresetInteraction } from "../../../demo/workbench/preset";
 import { readInteractionState } from "../../../src/interaction/state";
 
 describe("createModelPresets", () => {
-  it("offers the five supported product stories in stable order", () => {
+  it("offers the six supported product stories in stable order", () => {
     const presets = createModelPresets();
     expect(presets.map((preset) => preset.id)).toEqual([
       "bolted",
@@ -26,6 +27,7 @@ describe("createModelPresets", () => {
       "gallery",
       "hex20-cylinder",
       "results",
+      "transparency",
     ]);
     expect(presets.map((preset) => preset.name)).toEqual([
       "Bolted plate assembly",
@@ -33,8 +35,9 @@ describe("createModelPresets", () => {
       "Supported element gallery",
       "Hex20 cylinder",
       "Static results · stress + deformation",
+      "Order-independent transparency",
     ]);
-    expect(new Set(presets.map((preset) => preset.name)).size).toBe(5);
+    expect(new Set(presets.map((preset) => preset.name)).size).toBe(6);
   });
 
   it("keeps the bolted plate as the default showcase", () => {
@@ -87,6 +90,16 @@ describe("createBoltedPlatePreset", () => {
     const preset = createBoltedPlatePreset();
     expect(preset.modePartIds.get("solid")).toEqual([1, 4, 7, 10]);
     expect(preset.partNames.get(4)).toBe("Bolts");
+  });
+});
+
+describe("createTransparencyPreset", () => {
+  it("keeps a solid interior behind a shell and two transparent placements", () => {
+    const preset = createTransparencyPreset();
+    expect(preset.scene.parts.size).toBe(3);
+    expect(preset.scene.assemblies.get(31)?.placements).toHaveLength(4);
+    expect(preset.partOpacities?.get(31)).toBeCloseTo(0.38);
+    expect(preset.partOpacities?.get(33)).toBeCloseTo(0.3);
   });
 });
 

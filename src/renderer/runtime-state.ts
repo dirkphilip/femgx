@@ -20,6 +20,8 @@ export interface InstanceLayout {
   readonly partVisibleCounts: Map<PartId, number>;
   /** Edge-overlay visible instance count per part. */
   readonly partEdgeCounts: Map<PartId, number>;
+  /** Transparent visible instance count per part. */
+  readonly partTransparentCounts: Map<PartId, number>;
   /** Total visible instance count, kept in sync with the runtime. */
   visibleCount: number;
 }
@@ -48,6 +50,7 @@ export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout
   }
   const partVisibleCounts = new Map<PartId, number>();
   const partEdgeCounts = new Map<PartId, number>();
+  const partTransparentCounts = new Map<PartId, number>();
   const drawList = runtime.getDrawList();
   for (const slot of drawList) {
     const partId = runtime.instancePartIds[slot];
@@ -56,6 +59,7 @@ export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout
   }
   for (const partId of partOrder) {
     partEdgeCounts.set(partId, 0);
+    partTransparentCounts.set(partId, 0);
   }
   return {
     instanceCount,
@@ -64,6 +68,7 @@ export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout
     partOrder,
     partVisibleCounts,
     partEdgeCounts,
+    partTransparentCounts,
     visibleCount: drawList.length,
   };
 }
@@ -113,6 +118,30 @@ export function buildEdgeOrder(
   return new Uint32Array(overlay);
 }
 
+/** Returns the visible part-local slots classified for weighted transparency. */
+export function buildTransparentOrder(
+  layout: InstanceLayout,
+  runtime: PackedSceneRuntime,
+  partId: PartId,
+  transparentFlags: readonly boolean[],
+): Uint32Array {
+  const slots = layout.partSlots.get(partId);
+  if (slots === undefined) return new Uint32Array();
+  const transparent: number[] = [];
+  for (const slot of slots) {
+    const local = layout.slotPartLocal[slot];
+    if (
+      local !== undefined &&
+      local >= 0 &&
+      transparentFlags[slot] === true &&
+      runtime.isInstanceVisible(slot)
+    ) {
+      transparent.push(local);
+    }
+  }
+  return new Uint32Array(transparent);
+}
+
 /** Describes one placed part with a world-transform view into the runtime. */
 export function instanceAt(runtime: PackedSceneRuntime, slot: number, partId: PartId): Instance {
   return {
@@ -146,12 +175,14 @@ export function buildInstanceSnapshot(runtime: PackedSceneRuntime): InstanceSnap
 /** The per-part surface and edge-overlay draw calls of a layout. */
 export interface DrawCallLists {
   readonly calls: DrawCall[];
+  readonly transparentCalls: DrawCall[];
   readonly edgeCalls: DrawCall[];
 }
 
 /** Builds the deterministic per-part draw calls from the layout's counts. */
 export function buildDrawCalls(layout: InstanceLayout): DrawCallLists {
   const calls: DrawCall[] = [];
+  const transparentCalls: DrawCall[] = [];
   const edgeCalls: DrawCall[] = [];
   for (const partId of layout.partOrder) {
     const count = layout.partVisibleCounts.get(partId);
@@ -162,6 +193,10 @@ export function buildDrawCalls(layout: InstanceLayout): DrawCallLists {
     if (edgeCount !== undefined && edgeCount > 0) {
       edgeCalls.push({ partId, instanceCount: edgeCount });
     }
+    const transparentCount = layout.partTransparentCounts.get(partId);
+    if (transparentCount !== undefined && transparentCount > 0) {
+      transparentCalls.push({ partId, instanceCount: transparentCount });
+    }
   }
-  return { calls, edgeCalls };
+  return { calls, transparentCalls, edgeCalls };
 }

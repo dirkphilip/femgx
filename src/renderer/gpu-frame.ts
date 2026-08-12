@@ -10,7 +10,13 @@ import type { PickTargets } from "./gpu-pick";
 import { ensurePickTargets } from "./gpu-pick";
 import { beginPickPass } from "./gpu-pick-pass";
 import type { RenderResources } from "./gpu-pipelines";
-import { beginColorPass, ensureColorTargets } from "./gpu-pipelines";
+import {
+  beginColorPass,
+  beginCompositePass,
+  beginTransparencyPass,
+  ensureColorTargets,
+  ensureCompositeBindGroup,
+} from "./gpu-pipelines";
 import { drawOrbitPivot } from "./gpu-orbit-pivot";
 
 /** Everything the per-frame command encoding needs from the renderer. */
@@ -24,6 +30,8 @@ export interface FrameOptions {
   readonly colorFormat: GPUTextureFormat;
   /** Per-part surface draw calls over the visible instances. */
   readonly calls: readonly DrawCall[];
+  /** Per-part calls containing instances with at least one transparent fragment. */
+  readonly transparentCalls: readonly DrawCall[];
   /** Per-part edge-overlay draw calls over the edge-styled visible instances. */
   readonly edgeCalls: readonly DrawCall[];
   readonly pickTargets: PickTargets;
@@ -62,7 +70,6 @@ export function encodeVisibleFrame(
 ): void {
   writeFrameUniforms(camera, frame);
   const colorEncoder = frame.device.createCommandEncoder();
-  const resolveTarget = frame.context.getCurrentTexture().createView();
   const targets = ensureColorTargets(
     frame.draw,
     frame.canvas.width,
@@ -71,12 +78,62 @@ export function encodeVisibleFrame(
     frame.depthFormat,
   );
   const context = drawContext(frame, parts);
-  const colorView = targets.color.createView();
-  const depthView = targets.depth.createView();
-  const colorPass = beginColorPass(colorEncoder, colorView, depthView, resolveTarget);
-  drawBatches(colorPass, frame.draw, context, frame.calls, { kind: "surface", pass: "color" });
+  const opaquePass = beginColorPass(
+    colorEncoder,
+    targets.color.createView(),
+    targets.depth.createView(),
+    targets.opaqueColor.createView(),
+  );
+  drawBatches(opaquePass, frame.draw, context, frame.calls, { kind: "surface", pass: "color" });
+  opaquePass.end();
+  drawTransparencyPass(colorEncoder, frame, context, targets);
+  drawCompositePass(colorEncoder, camera, frame, context, targets);
+  frame.device.queue.submit([colorEncoder.finish()]);
+}
+
+function drawTransparencyPass(
+  encoder: GPUCommandEncoder,
+  frame: FrameOptions,
+  context: DrawCallContext,
+  targets: ReturnType<typeof ensureColorTargets>,
+): void {
+  const pass = beginTransparencyPass(
+    encoder,
+    {
+      accumulationView: targets.msaaAccumulation.createView(),
+      accumulationResolve: targets.accumulation.createView(),
+      revealageView: targets.msaaRevealage.createView(),
+      revealageResolve: targets.revealage.createView(),
+    },
+    targets.depth.createView(),
+  );
+  if (frame.transparentCalls.length > 0) {
+    drawBatches(pass, frame.draw, context, frame.transparentCalls, {
+      kind: "surface",
+      pass: "transparent",
+    });
+  }
+  pass.end();
+}
+
+function drawCompositePass(
+  encoder: GPUCommandEncoder,
+  camera: Camera,
+  frame: FrameOptions,
+  context: DrawCallContext,
+  targets: ReturnType<typeof ensureColorTargets>,
+): void {
+  const pass = beginCompositePass(
+    encoder,
+    targets.color.createView(),
+    frame.context.getCurrentTexture().createView(),
+    targets.depth.createView(),
+  );
+  pass.setPipeline(frame.resources.composite.pipeline);
+  pass.setBindGroup(0, ensureCompositeBindGroup(frame.draw, frame.resources));
+  pass.draw(3);
   if (frame.edgeCalls.length > 0) {
-    drawBatches(colorPass, frame.draw, context, frame.edgeCalls, {
+    drawBatches(pass, frame.draw, context, frame.edgeCalls, {
       kind: "edge",
       pipeline: frame.edgeDepthTest
         ? frame.resources.edgePipeline
@@ -84,11 +141,10 @@ export function encodeVisibleFrame(
     });
   }
   if (frame.showNodes) {
-    drawNodeOverlay(colorPass, frame, context);
+    drawNodeOverlay(pass, frame, context);
   }
-  drawFrameOrbitPivot(colorPass, camera, frame);
-  colorPass.end();
-  frame.device.queue.submit([colorEncoder.finish()]);
+  drawFrameOrbitPivot(pass, camera, frame);
+  pass.end();
 }
 
 /** Encodes and submits one current pick snapshot for subsequent readbacks. */

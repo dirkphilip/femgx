@@ -19,14 +19,35 @@ export function orderBindGroup(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   storage: InstanceStorage,
-  edgeOverlay: boolean,
+  orderKind: "opaque" | "transparent" | "edge",
   part: PartDrawInputs,
 ): GPUBindGroup {
-  const orderBuffer = edgeOverlay ? storage.edgeOrderBuffer : storage.orderBuffer;
+  const orderBuffer =
+    orderKind === "edge"
+      ? storage.edgeOrderBuffer
+      : orderKind === "transparent"
+        ? storage.transparentOrderBuffer
+        : storage.orderBuffer;
   if (part.cache === false) return instanceBindGroup(device, layout, storage, orderBuffer, part);
-  return edgeOverlay
-    ? (storage.edgeBindGroup ??= instanceBindGroup(device, layout, storage, orderBuffer, part))
-    : (storage.bindGroup ??= instanceBindGroup(device, layout, storage, orderBuffer, part));
+  if (orderKind === "edge") {
+    return (storage.edgeBindGroup ??= instanceBindGroup(
+      device,
+      layout,
+      storage,
+      orderBuffer,
+      part,
+    ));
+  }
+  if (orderKind === "transparent") {
+    return (storage.transparentBindGroup ??= instanceBindGroup(
+      device,
+      layout,
+      storage,
+      orderBuffer,
+      part,
+    ));
+  }
+  return (storage.bindGroup ??= instanceBindGroup(device, layout, storage, orderBuffer, part));
 }
 
 /** Creates the per-part bind group addressing the given order buffer. */

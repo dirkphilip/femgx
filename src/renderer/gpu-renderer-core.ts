@@ -257,6 +257,7 @@ export class GpuRenderer implements WebGpuRenderer {
       draw: this.lifecycle.bundle.draw,
       resources: this.lifecycle.bundle.resources,
       calls: this.attachment.calls,
+      transparentCalls: this.attachment.transparentCalls,
       edgeCalls: this.attachment.edgeCalls,
       pickTargets: this.lifecycle.bundle.pickTargets,
       colorFormat: this.format,

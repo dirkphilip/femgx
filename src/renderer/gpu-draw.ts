@@ -21,6 +21,7 @@ export {
   encodeInstanceRecord,
   patchInstances,
   writeDrawOrder,
+  writeTransparentOrder,
   writeEdgeOrder,
   type InstanceStorage,
   type InstanceUpdate,
@@ -41,9 +42,20 @@ export interface DrawResources {
   readonly deformations: Map<PartId, DeformationStorage>;
   /** Multisampled color target resolved to the canvas each visible frame. */
   msaaColorTexture: GPUTexture | undefined;
+  /** Single-sample opaque color target consumed by the transparency composite. */
+  opaqueColorTexture: GPUTexture | undefined;
+  /** Multisampled weighted transparency accumulation target. */
+  msaaAccumulationTexture: GPUTexture | undefined;
+  /** Resolved weighted transparency accumulation target. */
+  accumulationTexture: GPUTexture | undefined;
+  /** Multisampled weighted transparency revealage target. */
+  msaaRevealageTexture: GPUTexture | undefined;
+  /** Resolved weighted transparency revealage target. */
+  revealageTexture: GPUTexture | undefined;
   depthTexture: GPUTexture | undefined;
   depthWidth: number;
   depthHeight: number;
+  compositeBindGroup: GPUBindGroup | undefined;
 }
 
 /** Per-frame inputs shared by every draw batch of a pass. */
@@ -63,9 +75,15 @@ export function createDrawResources(device: GPUDevice): DrawResources {
     storages: new Map(),
     deformations: new Map(),
     msaaColorTexture: undefined,
+    opaqueColorTexture: undefined,
+    msaaAccumulationTexture: undefined,
+    accumulationTexture: undefined,
+    msaaRevealageTexture: undefined,
+    revealageTexture: undefined,
     depthTexture: undefined,
     depthWidth: 0,
     depthHeight: 0,
+    compositeBindGroup: undefined,
   };
 }
 
@@ -299,10 +317,16 @@ export function destroyDrawResources(draw: DrawResources): void {
   for (const storage of draw.storages.values()) {
     storage.buffer.destroy();
     storage.orderBuffer.destroy();
+    storage.transparentOrderBuffer.destroy();
     storage.edgeOrderBuffer.destroy();
     storage.highlight.buffer.destroy();
   }
   destroyDeformationBuffers(draw.deformations);
   draw.msaaColorTexture?.destroy();
+  draw.opaqueColorTexture?.destroy();
+  draw.msaaAccumulationTexture?.destroy();
+  draw.accumulationTexture?.destroy();
+  draw.msaaRevealageTexture?.destroy();
+  draw.revealageTexture?.destroy();
   draw.depthTexture?.destroy();
 }

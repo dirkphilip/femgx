@@ -1,15 +1,21 @@
 import type { Part } from "../geometry/part";
-import { createInteractionState, type InteractionState } from "../interaction/interaction";
+import {
+  createInteractionState,
+  resolveInstanceStyle,
+  type InteractionState,
+} from "../interaction/interaction";
 import { readInteractionState } from "../interaction/state";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
+import { collectEmphasisUpdates } from "./gpu-elements";
 import { syncElementHighlights } from "./gpu-highlight-storage";
 import {
   createDrawResources,
   destroyDrawResources,
   patchInstances,
   writeDrawOrder,
+  writeTransparentOrder,
   writeEdgeOrder,
   INSTANCE_STRIDE,
   type DrawCall,
@@ -17,13 +23,16 @@ import {
   type InstanceUpdate,
 } from "./gpu-draw";
 import type { GpuBundle } from "./gpu-recovery";
-import { collectInstanceUpdates } from "./instance-updates";
+import { collectInstanceUpdates, type InstanceStyleFlags } from "./instance-updates";
+import { defaultStyle } from "./gpu-support";
 import {
   buildDrawOrder,
   buildEdgeOrder,
+  buildTransparentOrder,
   buildDrawCalls,
   buildInstanceLayout,
   buildInstanceSnapshot,
+  instanceAt,
   type InstanceLayout,
 } from "./runtime-state";
 
@@ -40,10 +49,12 @@ export class RendererAttachment {
   public runtime: PackedSceneRuntime | undefined;
   public layout: InstanceLayout | undefined;
   public calls: readonly DrawCall[] = [];
+  public transparentCalls: readonly DrawCall[] = [];
   public edgeCalls: readonly DrawCall[] = [];
   public instances: Instance[] = [];
   public slotByInstanceId = new Map<InstanceId, number>();
   private edgeFlags: boolean[] = [];
+  private transparentFlags: boolean[] = [];
   private appliedHiddenBodyIds: ReadonlyMap<string, ReadonlySet<number>> | undefined;
 
   /**
@@ -73,11 +84,11 @@ export class RendererAttachment {
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
     if (layout === undefined) return attached;
-    const { updates, edgeChanged } = collectInstanceUpdates(
+    const { updates, edgeChanged, transparentChanged } = collectInstanceUpdates(
       runtime,
       layout,
       interaction,
-      this.edgeFlags,
+      this.styleFlags(),
       changedInstanceIds,
     );
     let transformChanged = false;
@@ -88,13 +99,22 @@ export class RendererAttachment {
     if (edgeChanged.size > 0) {
       this.rebuildEdgeOrders(runtime, layout, edgeChanged, bundle);
     }
+    if (transparentChanged.size > 0) {
+      this.rebuildTransparentOrders(runtime, layout, transparentChanged, bundle);
+    }
     const visibilityChanged = runtime.visibleCount !== layout.visibleCount;
     if (visibilityChanged) {
       this.rebuildVisibleOrders(runtime, layout, changedInstanceIds, bundle);
-    } else if (edgeChanged.size > 0) {
+    } else if (edgeChanged.size > 0 || transparentChanged.size > 0) {
       this.rebuildCalls();
     }
-    return attached || transformChanged || visibilityChanged;
+    return (
+      attached ||
+      transformChanged ||
+      visibilityChanged ||
+      edgeChanged.size > 0 ||
+      transparentChanged.size > 0
+    );
   }
 
   /** Writes the per-part element-highlight buffers as diffed records. */
@@ -121,7 +141,18 @@ export class RendererAttachment {
       interaction,
     );
     this.appliedHiddenBodyIds = hiddenBodyIds;
-    return attached || bodyVisibilityChanged;
+    const transparentChanged = refreshTransparencyFlags(
+      runtime,
+      layout,
+      interaction,
+      parts,
+      this.transparentFlags,
+    );
+    if (transparentChanged.size > 0) {
+      this.rebuildTransparentOrders(runtime, layout, transparentChanged, bundle);
+      this.rebuildCalls();
+    }
+    return attached || bodyVisibilityChanged || transparentChanged.size > 0;
   }
 
   /** Rebuilds GPU draw order after runtime visibility changed. */
@@ -140,7 +171,9 @@ export class RendererAttachment {
   /** Clears the attachment so the next frame re-uploads everything. */
   public clear(): void {
     this.runtime = this.layout = undefined;
-    this.calls = this.edgeCalls = [];
+    this.calls = this.transparentCalls = this.edgeCalls = [];
+    this.edgeFlags = [];
+    this.transparentFlags = [];
     this.appliedHiddenBodyIds = undefined;
   }
 
@@ -151,13 +184,14 @@ export class RendererAttachment {
     this.instances = snapshot.instances;
     this.slotByInstanceId = snapshot.slotByInstanceId;
     this.edgeFlags = new Array<boolean>(runtime.instanceCount).fill(false);
+    this.transparentFlags = new Array<boolean>(runtime.instanceCount).fill(false);
     this.appliedHiddenBodyIds = undefined;
     const allSlots = Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
     const { updates } = collectInstanceUpdates(
       runtime,
       layout,
       createInteractionState(),
-      this.edgeFlags,
+      this.styleFlags(),
       allSlots,
     );
     for (const [partId, partUpdates] of updates) {
@@ -165,6 +199,11 @@ export class RendererAttachment {
     }
     for (const partId of layout.partOrder) {
       writeDrawOrder(bundle.draw, partId, buildDrawOrder(layout, runtime, partId));
+      writeTransparentOrder(
+        bundle.draw,
+        partId,
+        buildTransparentOrder(layout, runtime, partId, this.transparentFlags),
+      );
     }
     this.runtime = runtime;
     this.layout = layout;
@@ -190,8 +229,26 @@ export class RendererAttachment {
       layout.partVisibleCounts.set(partId, order.length);
     }
     this.rebuildEdgeOrders(runtime, layout, rebuild, bundle);
+    this.rebuildTransparentOrders(runtime, layout, rebuild, bundle);
     layout.visibleCount = runtime.visibleCount;
     this.rebuildCalls();
+  }
+
+  private styleFlags(): InstanceStyleFlags {
+    return { edgeFlags: this.edgeFlags, transparentFlags: this.transparentFlags };
+  }
+
+  private rebuildTransparentOrders(
+    runtime: PackedSceneRuntime,
+    layout: InstanceLayout,
+    parts: ReadonlySet<PartId>,
+    bundle: GpuBundle,
+  ): void {
+    for (const partId of parts) {
+      const order = buildTransparentOrder(layout, runtime, partId, this.transparentFlags);
+      writeTransparentOrder(bundle.draw, partId, order);
+      layout.partTransparentCounts.set(partId, order.length);
+    }
   }
 
   private rebuildEdgeOrders(
@@ -211,13 +268,70 @@ export class RendererAttachment {
     const layout = this.layout;
     if (layout === undefined) {
       this.calls = [];
+      this.transparentCalls = [];
       this.edgeCalls = [];
       return;
     }
     const calls = buildDrawCalls(layout);
     this.calls = calls.calls;
+    this.transparentCalls = calls.transparentCalls;
     this.edgeCalls = calls.edgeCalls;
   }
+}
+
+function refreshTransparencyFlags(
+  runtime: PackedSceneRuntime,
+  layout: InstanceLayout,
+  interaction: InteractionState,
+  parts: ReadonlyMap<PartId, Part>,
+  currentFlags: boolean[],
+): ReadonlySet<PartId> {
+  const next = new Array<boolean>(runtime.instanceCount).fill(false);
+  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
+    const partId = runtime.instancePartIds[slot];
+    if (partId === undefined) continue;
+    const style = resolveInstanceStyle(
+      instanceAt(runtime, slot, partId),
+      defaultStyle,
+      interaction,
+    );
+    next[slot] = isTransparent(style.color.a * style.opacity);
+  }
+  const updates = collectEmphasisUpdates(
+    runtime,
+    layout,
+    new Map(
+      Array.from({ length: runtime.instanceCount }, (_, slot) => [
+        runtime.getInstanceId(slot) ?? String(slot),
+        slot,
+      ]),
+    ),
+    parts,
+    interaction,
+  );
+  for (const [partId, emphasis] of updates) {
+    const slots = layout.partSlots.get(partId);
+    if (slots === undefined) continue;
+    for (const update of emphasis) {
+      const slot = slots[update.slot];
+      if (slot !== undefined && isTransparent(update.style.color.a * update.style.opacity)) {
+        next[slot] = true;
+      }
+    }
+  }
+  const changed = new Set<PartId>();
+  for (let slot = 0; slot < next.length; slot += 1) {
+    if (next[slot] !== currentFlags[slot]) {
+      const partId = runtime.instancePartIds[slot];
+      if (partId !== undefined) changed.add(partId);
+    }
+    currentFlags[slot] = next[slot] ?? false;
+  }
+  return changed;
+}
+
+function isTransparent(alpha: number): boolean {
+  return alpha < 1;
 }
 
 function instanceTransformsChanged(
