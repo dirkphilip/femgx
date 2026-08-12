@@ -5,9 +5,10 @@ import {
   type FemViewport,
   type InteractionGranularity,
 } from "../../src/index";
-import { createModelPresets, type ModelPreset } from "../fixture/presets";
+import { createModelPresets } from "../fixture/presets";
 import { installDemoHarness } from "../devtools/harness";
 import { WorkbenchController } from "./controller";
+import { createExampleModel, type WorkbenchModel } from "./model";
 import type { DemoView } from "./view";
 
 /** Inputs for the WebGPU demo path. */
@@ -26,8 +27,9 @@ export async function startWebGpuDemo(
   const presets = createModelPresets(
     options.testAlphaZero === true ? { transparencyOpacity: 0 } : undefined,
   );
-  const initialPreset = presets[0];
-  if (initialPreset === undefined) throw new Error("The demo requires at least one model preset");
+  const models = presets.map(createExampleModel);
+  const initialModel = models[0];
+  if (initialModel === undefined) throw new Error("The demo requires at least one model preset");
 
   let viewport: FemViewport | undefined;
   let controller: WorkbenchController | undefined;
@@ -45,12 +47,12 @@ export async function startWebGpuDemo(
       : `femgx could not validate the WebGPU renderer. ${detail}`;
   };
 
-  const createViewport = async (preset: ModelPreset): Promise<FemViewport> =>
+  const createViewport = async (model: WorkbenchModel): Promise<FemViewport> =>
     createFemViewport({
       canvas,
-      scene: preset.scene,
+      scene: model.scene,
       orientationGizmo: { container: view.scene },
-      ...(preset.results === undefined ? {} : { results: preset.results }),
+      ...(model.results === undefined ? {} : { results: model.results }),
       ...(controller === undefined ? {} : { camera: controller.camera }),
       ...(controller === undefined ? {} : { interaction: controller.interaction }),
       onDeviceLost: () => {
@@ -79,13 +81,13 @@ export async function startWebGpuDemo(
     });
 
   try {
-    viewport = await createViewport(initialPreset);
+    viewport = await createViewport(initialModel);
     controller = new WorkbenchController({
       view,
       canvas,
       rendererName: "webgpu",
       viewport,
-      presets,
+      presets: models,
     });
     viewport.render();
   } catch (error) {
@@ -113,7 +115,7 @@ export async function startWebGpuDemo(
     recreateRenderer: async () => {
       if (viewport !== undefined) return;
       try {
-        const recreated = await createViewport(controller.preset);
+        const recreated = await createViewport(controller.model);
         viewport = recreated;
         controller.setViewport(recreated);
         canvas.dataset["renderer"] = "webgpu";

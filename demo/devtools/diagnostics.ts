@@ -1,5 +1,4 @@
 import type { PartId } from "../../src/index";
-import type { ModelPreset } from "../fixture/presets";
 import type { DisplayToggles, RendererStats, WorkbenchSceneContext } from "../workbench/types";
 
 /** Display inputs used to format one status snapshot. */
@@ -12,13 +11,15 @@ export interface StatusTextOptions {
 
 /** Formats the diagnostics block for the current scene/runtime snapshot. */
 export function statsText(context: WorkbenchSceneContext, options: StatusTextOptions): string {
-  const diagnostics = options.toggles.diagnostics ? `\n\n${partLines(context).join("\n")}` : "";
+  const diagnostics = options.toggles.diagnostics
+    ? `\n\n${[...partLines(context), ...issueLines(context)].join("\n")}`
+    : "";
   return (
-    `Model ${context.preset.name} (${context.preset.id})\n` +
+    `Model ${context.model.name} (${context.model.id})\n` +
     `Renderer ${options.rendererName}\n` +
     `Visible instances ${options.stats.visibleInstances}\n` +
     `Visible triangles ${formatCount(visibleTriangleCount(context))}\n` +
-    `Reusable parts ${context.preset.scene.parts.size}\n` +
+    `Reusable parts ${context.model.scene.parts.size}\n` +
     `Draw batches ${options.stats.batches}\n` +
     `Selections ${options.selectedCount}` +
     diagnostics
@@ -34,10 +35,16 @@ function partLines(context: WorkbenchSceneContext): string[] {
   for (const partId of sortedNumbers(firstInstances.keys())) {
     const visible = firstInstances.get(partId)?.visible ?? false;
     lines.push(
-      `Part ${partId} ${context.preset.partNames.get(partId) ?? ""} · ${visible ? "shown" : "hidden"}`,
+      `Part ${partId} ${context.model.partNames.get(partId) ?? ""} · ${visible ? "shown" : "hidden"}`,
     );
   }
   return lines;
+}
+
+function issueLines(context: WorkbenchSceneContext): string[] {
+  return context.model.issues.map(
+    (issue) => `Import ${issue.severity} · ${issue.code}: ${issue.message}`,
+  );
 }
 
 /** Triangle count after runtime visibility, including every instance draw. */
@@ -45,13 +52,13 @@ export function visibleTriangleCount(context: WorkbenchSceneContext): number {
   let triangles = 0;
   for (const instance of context.runtime.getInstances()) {
     if (!instance.visible) continue;
-    triangles += triangleCount(context.preset, instance.partId);
+    triangles += triangleCount(context.model, instance.partId);
   }
   return triangles;
 }
 
-function triangleCount(preset: ModelPreset, partId: PartId | undefined): number {
-  const part = partId === undefined ? undefined : preset.scene.parts.get(partId);
+function triangleCount(model: WorkbenchSceneContext["model"], partId: PartId | undefined): number {
+  const part = partId === undefined ? undefined : model.scene.parts.get(partId);
   return part === undefined ? 0 : Math.floor(part.geometry.indices.length / 3);
 }
 

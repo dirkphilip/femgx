@@ -3,18 +3,29 @@ import {
   setTargetsHighlighted,
   setProjection,
   fitCamera,
+  importGlb,
   type Camera,
   type InteractionState,
   type FemViewport,
   type InteractionTarget,
   type SceneRuntime,
 } from "../../src/index";
-import type { ModelPreset } from "../fixture/presets";
-import { describePick } from "./inspect";
 import { selectedWorldBounds } from "./selection-bounds";
 import type { DemoView } from "./view";
 import { installWorkbenchLifecycle } from "./lifecycle";
-import { createPresetInteraction, partStyleOverride } from "./preset";
+import { createModelInteraction } from "./preset";
+import {
+  createImportedModel,
+  clearModelInspection,
+  displayFileName,
+  errorMessage,
+  importFeedback,
+  partStyleOverride,
+  setModelFeedback,
+  setModelLoading,
+  type WorkbenchModel,
+} from "./model";
+import { applyMenuAction } from "./menu-actions";
 import { interactionTargetsForRow, type VisibilityRowTarget } from "./tree-hover";
 import { createWorkbenchFeatures, type WorkbenchFeatures } from "./features";
 import {
@@ -26,18 +37,20 @@ import {
 
 export type { DisplayToggles, RendererStats, ResultDisplayMode, WorkbenchOptions } from "./types";
 
-/** Presentation policy for the demo workbench; rendering/picking stays in FemViewport. */
+/** Owns demo presentation state around the canonical FEM viewport. */
 export class WorkbenchController {
   readonly canvas: HTMLCanvasElement;
   readonly view: DemoView;
   readonly rendererName: string;
-  preset: ModelPreset;
+  model: WorkbenchModel;
   toggles: DisplayToggles;
   resultMode: ResultDisplayMode;
   interaction: InteractionState;
   rendererState = "";
   private viewport: FemViewport;
-  private readonly presets: readonly ModelPreset[];
+  private readonly examples: readonly WorkbenchModel[];
+  private models: readonly WorkbenchModel[];
+  private readonly importer: typeof importGlb;
   private readonly listenerController = new AbortController();
   private readonly menu: WorkbenchFeatures["menu"];
   private readonly visibilityPanel: WorkbenchFeatures["visibilityPanel"];
@@ -49,27 +62,30 @@ export class WorkbenchController {
   private dragging = false;
   private treeHoverTargets: readonly InteractionTarget[] = [];
   private disposed = false;
+  private loadGeneration = 0;
 
   constructor(options: WorkbenchOptions) {
     this.view = options.view;
     this.canvas = options.canvas;
     this.rendererName = options.rendererName;
     this.viewport = options.viewport;
-    this.presets = options.presets;
-    const initialPreset = this.presets[0];
-    if (initialPreset === undefined) throw new Error("Workbench requires at least one preset");
-    this.preset = initialPreset;
+    this.examples = options.presets;
+    const initialModel = this.examples[0];
+    if (initialModel === undefined) throw new Error("Workbench requires at least one preset");
+    this.models = this.examples;
+    this.model = initialModel;
+    this.importer = options.importGlb ?? importGlb;
     this.toggles = createDefaultDisplayToggles();
-    this.resultMode = this.preset.results === undefined ? "base" : "deformed";
-    this.interaction = createPresetInteraction(this.preset, true, true);
+    this.resultMode = this.model.results === undefined ? "base" : "deformed";
+    this.interaction = createModelInteraction(this.model, true, true);
     const features = createWorkbenchFeatures({
       view: this.view,
       canvas: this.canvas,
       rendererName: this.rendererName,
       viewport: () => this.viewport,
       runtime: () => this.runtime,
-      preset: () => this.preset,
-      presets: this.presets,
+      model: () => this.model,
+      presets: this.models,
       toggles: () => this.toggles,
       resultMode: () => this.resultMode,
       interaction: () => this.interaction,
@@ -86,7 +102,25 @@ export class WorkbenchController {
         this.setTreeHover(target);
       },
       applyMenuAction: (action) => {
-        this.applyMenuAction(action);
+        applyMenuAction(action, {
+          target: this.interactionController.contextTarget,
+          interaction: this.interactionController,
+          visibilityActions: this.visibilityActions,
+          toggles: this.toggles,
+          setEdges: () => {
+            this.setEdges(!this.toggles.edges);
+          },
+          setDiagnostics: () => {
+            this.toggles.diagnostics = !this.toggles.diagnostics;
+            this.syncViewportPresentation();
+          },
+          fitView: () => {
+            this.fitView();
+          },
+          reset: () => {
+            this.reset();
+          },
+        });
       },
     });
     this.menu = features.menu;
@@ -97,7 +131,7 @@ export class WorkbenchController {
     this.boxPreview = features.boxPreview;
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
-    this.presentation.populateModelSelect(this.presets);
+    this.presentation.populateModelSelect(this.models);
     this.visibilityPanel.rebuild();
     this.boxSelectionDisposer = installWorkbenchLifecycle({
       view: this.view,
@@ -127,11 +161,14 @@ export class WorkbenchController {
       fitSelection: () => {
         this.fitSelection();
       },
-      setPreset: (id) => {
-        this.setPreset(id);
+      setModel: (id) => {
+        this.setModel(id);
+      },
+      openGlb: (file) => {
+        void this.openGlb(file);
       },
     });
-    this.canvas.dataset["model"] = this.preset.id;
+    this.canvas.dataset["model"] = this.model.id;
     this.canvas.dataset["dragging"] = "false";
     this.render();
   }
@@ -172,25 +209,35 @@ export class WorkbenchController {
     });
   }
 
-  /** Switches to another deterministic model preset and rebuilds state. */
-  setPreset(id: string): void {
-    if (id === this.preset.id) return;
-    const preset = this.presets.find((candidate) => candidate.id === id);
-    if (preset === undefined) return;
-    this.preset = preset;
-    this.treeHoverTargets = [];
-    this.canvas.dataset["treeHover"] = "";
-    this.toggles = createDefaultDisplayToggles();
-    this.resultMode = preset.results === undefined ? "base" : "deformed";
-    this.interaction = createPresetInteraction(preset, true, true);
-    this.interactionController.clearContext();
-    this.viewport.setScene(preset.scene);
-    this.applyResultMode(false);
-    this.applyCurrentDisplayState();
-    this.visibilityPanel.rebuild();
-    this.presentation.populateModelSelect(this.presets);
-    this.canvas.dataset["model"] = preset.id;
-    this.render();
+  setModel(id: string): void {
+    const model = this.examples.find((candidate) => candidate.id === id);
+    if (model === undefined || model.id === this.model.id) return;
+    this.activateModel(model);
+  }
+
+  async openGlb(file: File): Promise<void> {
+    const generation = ++this.loadGeneration;
+    setModelLoading(this.view, true);
+    setModelFeedback(this.view, `Opening ${displayFileName(file.name)}…`);
+    try {
+      const imported = await this.importer(await file.arrayBuffer());
+      if (this.disposed || generation !== this.loadGeneration) return;
+      const model = createImportedModel(displayFileName(file.name), imported);
+      this.activateModel(model);
+      setModelFeedback(this.view, importFeedback(model.name, imported));
+    } catch (error) {
+      if (this.disposed || generation !== this.loadGeneration) return;
+      setModelFeedback(
+        this.view,
+        `${displayFileName(file.name)} could not be opened: ${errorMessage(error)}`,
+        "error",
+      );
+    } finally {
+      if (generation === this.loadGeneration) {
+        this.view.glbFileInput.value = "";
+        setModelLoading(this.view, false);
+      }
+    }
   }
 
   setEdges(enabled: boolean): void {
@@ -207,15 +254,13 @@ export class WorkbenchController {
     this.render();
   }
 
-  /** Reframes the camera onto the whole model. */
   fitView(): void {
     this.viewport.fitView();
     this.render();
   }
 
-  /** Fits selected occurrences, or the complete scene when nothing is selected. */
   fitSelection(): void {
-    const bounds = selectedWorldBounds(this.preset.scene, this.runtime, this.interaction);
+    const bounds = selectedWorldBounds(this.model.scene, this.runtime, this.interaction);
     if (bounds === undefined) {
       this.fitView();
       return;
@@ -227,37 +272,10 @@ export class WorkbenchController {
     this.render();
   }
 
-  /** Restores the complete initial workbench state for the active preset. */
   reset(): void {
-    this.treeHoverTargets = [];
-    this.canvas.dataset["treeHover"] = "";
-    this.toggles = createDefaultDisplayToggles();
-    this.resultMode = this.preset.results === undefined ? "base" : "deformed";
-    this.interaction = createPresetInteraction(this.preset, true, true);
-    this.interactionController.clearContext();
-    this.applyResultMode(false);
-    for (const nodeId of this.runtime.getNodeIds()) {
-      this.viewport.setAssemblyNodeVisible(nodeId, true);
-    }
-    for (const partId of this.preset.scene.parts.keys()) this.viewport.setPartVisible(partId, true);
-    for (const instanceId of this.runtime.getInstanceIds()) {
-      this.viewport.setInstanceVisible(instanceId, true);
-    }
-    this.applyCurrentDisplayState();
-    this.viewport.setCamera(setProjection(this.viewport.camera, "orthographic"));
-    this.viewport.fitView();
-    this.visibilityPanel.rebuild();
-    this.canvas.dataset["hovered"] = "";
-    this.canvas.dataset["selected"] = "";
-    this.canvas.dataset["pick"] = "";
-    this.view.inspectionPanel.textContent = describePick(undefined, (partId) =>
-      this.preset.partNames.get(partId),
-    );
-    this.view.inspectionPanel.closest<HTMLElement>(".inspection")?.setAttribute("hidden", "");
-    this.render();
+    this.activateModel(this.model);
   }
 
-  /** Releases listeners owned by the controller and the renderer teardown hook. */
   destroy(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -271,9 +289,8 @@ export class WorkbenchController {
     this.viewport.destroy();
   }
 
-  /** Cycles the results preset through base, colored, and deformed states. */
   setResultMode(mode: ResultDisplayMode): void {
-    if (this.preset.results === undefined && mode !== "base") return;
+    if (this.model.results === undefined && mode !== "base") return;
     this.resultMode = mode;
     this.applyResultMode(true);
   }
@@ -285,7 +302,7 @@ export class WorkbenchController {
   }
 
   private applyResultMode(render: boolean): void {
-    const config = this.preset.results;
+    const config = this.model.results;
     if (config === undefined || this.resultMode === "base") {
       this.resultMode = "base";
       this.viewport.clearResults();
@@ -299,14 +316,13 @@ export class WorkbenchController {
     if (render) this.render();
   }
 
-  /** Applies all model/display state to the active viewport before rendering. */
   private applyCurrentDisplayState(): void {
     let state = this.interaction;
-    for (const partId of this.preset.scene.parts.keys()) {
+    for (const partId of this.model.scene.parts.keys()) {
       state = setPartOverride(
         state,
         partId,
-        partStyleOverride(this.preset, partId, this.toggles.edges, this.toggles.nodes),
+        partStyleOverride(this.model, partId, this.toggles.edges, this.toggles.nodes),
       );
     }
     this.interaction = state;
@@ -315,7 +331,6 @@ export class WorkbenchController {
     this.reflectDisplayControls();
   }
 
-  /** Reflects every display control from authoritative controller/viewport state. */
   private reflectDisplayControls(): void {
     this.presentation.reflectEdges();
     this.presentation.reflectNodes();
@@ -342,44 +357,36 @@ export class WorkbenchController {
     );
   }
 
-  private applyMenuAction(action: string): void {
-    const target = this.interactionController.contextTarget;
-    switch (action) {
-      case "highlight":
-        if (target !== undefined) this.interactionController.highlight(target);
-        break;
-      case "select":
-        if (target !== undefined) this.interactionController.select(target);
-        break;
-      case "hide-instance":
-        if (target !== undefined) this.visibilityActions.toggleInstance(target);
-        break;
-      case "hide-part":
-        if (target !== undefined) this.visibilityActions.togglePart(target);
-        break;
-      case "clear-selection":
-        this.interactionController.clearSelection();
-        break;
-      case "show-all":
-        this.visibilityActions.showAll();
-        break;
-      case "edges":
-        this.setEdges(!this.toggles.edges);
-        break;
-      case "diagnostics":
-        this.toggles.diagnostics = !this.toggles.diagnostics;
-        this.syncViewportPresentation();
-        break;
-      case "fit-view":
-        this.fitView();
-        break;
-      case "reset":
-        this.reset();
-        break;
-    }
+  private activateModel(model: WorkbenchModel): void {
+    this.model = model;
+    this.models = model.source === "file" ? [...this.examples, model] : this.examples;
+    this.treeHoverTargets = [];
+    this.canvas.dataset["treeHover"] = "";
+    this.toggles = createDefaultDisplayToggles();
+    this.resultMode = model.results === undefined ? "base" : "deformed";
+    this.interaction = createModelInteraction(model, true, true);
+    this.interactionController.clearContext();
+    this.viewport.batch(() => {
+      this.viewport.setScene(model.scene);
+      this.applyResultMode(false);
+      this.applyCurrentDisplayState();
+      for (const nodeId of this.runtime.getNodeIds()) {
+        this.viewport.setAssemblyNodeVisible(nodeId, true);
+      }
+      for (const partId of model.scene.parts.keys()) this.viewport.setPartVisible(partId, true);
+      for (const instanceId of this.runtime.getInstanceIds()) {
+        this.viewport.setInstanceVisible(instanceId, true);
+      }
+      this.viewport.setCamera(setProjection(this.viewport.camera, "perspective"));
+      this.viewport.fitView();
+    });
+    this.visibilityPanel.rebuild();
+    this.presentation.populateModelSelect(this.models);
+    this.canvas.dataset["model"] = model.id;
+    clearModelInspection(this.view, model);
+    this.render();
   }
 
-  /** Re-draws the current state and refreshes the status line and datasets. */
   render(): void {
     if (this.disposed) return;
     this.applyDisplayedInteraction();

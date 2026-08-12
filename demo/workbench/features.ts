@@ -1,6 +1,6 @@
 import type { FemViewport, InteractionState, SceneRuntime } from "../../src/index";
-import type { ModelPreset } from "../fixture/presets";
 import type { DemoView } from "./view";
+import type { WorkbenchModel } from "./model";
 import { WorkbenchBoxPreview } from "./box-preview";
 import { WorkbenchInteraction } from "./interaction";
 import { WorkbenchMenu } from "./menu";
@@ -16,8 +16,8 @@ export interface WorkbenchFeatureOptions {
   readonly rendererName: string;
   readonly viewport: () => FemViewport;
   readonly runtime: () => SceneRuntime;
-  readonly preset: () => ModelPreset;
-  readonly presets: readonly ModelPreset[];
+  readonly model: () => WorkbenchModel;
+  readonly presets: readonly WorkbenchModel[];
   readonly toggles: () => DisplayToggles;
   readonly resultMode: () => ResultDisplayMode;
   readonly interaction: () => InteractionState;
@@ -61,9 +61,9 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
   });
   const visibilityPanel = new VisibilityPanelController({
     panel: options.view.visibilityPanel,
-    getPreset: options.preset,
+    getModel: options.model,
     getRuntime: options.runtime,
-    partName: (partId) => options.preset().partNames.get(partId),
+    partName: (partId) => options.model().partNames.get(partId),
     partVisible: (partId) => visibilityActions.partVisible(partId),
     bodyVisible: (instanceId, bodyId) => visibilityActions.bodyVisible(instanceId, bodyId),
     bodyHighlighted: (instanceId, bodyId) => visibilityActions.bodyHighlighted(instanceId, bodyId),
@@ -90,7 +90,7 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     viewport: options.viewport,
     getInteraction: options.interaction,
     setInteraction: options.setInteraction,
-    partName: (partId) => options.preset().partNames.get(partId),
+    partName: (partId) => options.model().partNames.get(partId),
     menu,
     render: options.render,
   });
@@ -98,7 +98,7 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     view: options.view,
     canvas: options.canvas,
     rendererName: options.rendererName,
-    getPreset: options.preset,
+    getModel: options.model,
     getToggles: options.toggles,
     getResultMode: options.resultMode,
     getInteraction: options.interaction,

@@ -19,7 +19,8 @@ export interface WorkbenchBindingOptions {
   readonly reset: () => void;
   readonly fitView: () => void;
   readonly fitSelection: () => void;
-  readonly setPreset: (id: string) => void;
+  readonly setModel: (id: string) => void;
+  readonly openGlb: (file: File) => void;
 }
 
 /** Installs the complete controller lifetime of toolbar/canvas/window listeners. */
@@ -46,7 +47,22 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
   view.modelSelect.addEventListener(
     "change",
     () => {
-      options.setPreset(view.modelSelect.value);
+      options.setModel(view.modelSelect.value);
+    },
+    { signal },
+  );
+  view.openGlbButton.addEventListener(
+    "click",
+    () => {
+      view.glbFileInput.click();
+    },
+    { signal },
+  );
+  view.glbFileInput.addEventListener(
+    "change",
+    () => {
+      const file = view.glbFileInput.files?.[0];
+      if (file !== undefined) options.openGlb(file);
     },
     { signal },
   );
