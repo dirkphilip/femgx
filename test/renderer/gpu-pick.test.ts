@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createPickTargets,
   destroyPickTargets,
@@ -279,7 +279,7 @@ describe("GPU pick targets", () => {
     }
   });
 
-  it("hands out distinct buffers while a map is in flight and reuses them after", async () => {
+  it("serializes depth requests while keeping pooled buffers reusable", async () => {
     const restore = installGpuGlobals();
     try {
       const deferred: Array<() => void> = [];
@@ -296,8 +296,10 @@ describe("GPU pick targets", () => {
       const first = readPickPixel(gpu.device, canvas, pick, 1, 1);
       const second = readPickPixel(gpu.device, canvas, pick, 2, 2);
       expect(gpu.buffers.filter((buffer) => buffer.size === READBACK_SIZE)).toHaveLength(2);
+      await vi.waitFor(() => {
+        expect(gpu.submissionCount).toBe(1);
+      });
       deferred[0]?.();
-      deferred[1]?.();
       await expect(first).resolves.toEqual({
         instancePickId: 1,
         elementPickId: 0,
@@ -305,6 +307,10 @@ describe("GPU pick targets", () => {
         nodePickId: 0,
         ndcDepth: 1,
       });
+      await vi.waitFor(() => {
+        expect(deferred).toHaveLength(2);
+      });
+      deferred[1]?.();
       await expect(second).resolves.toEqual({
         instancePickId: 1,
         elementPickId: 0,

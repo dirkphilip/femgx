@@ -100,16 +100,21 @@ export async function startWebGpuDemo(
   }
   canvas.dataset["renderer"] = "webgpu";
 
-  window.addEventListener("pagehide", () => {
+  const destroyCurrentViewport = (): void => {
+    controller.invalidateInteraction();
     viewport?.destroy();
+    viewport = undefined;
+  };
+
+  window.addEventListener("pagehide", () => {
+    controller.destroy();
     viewport = undefined;
   });
 
   /** Explicit lifecycle seam used by the e2e lane. */
   installDemoHarness({
     destroyRenderer: () => {
-      viewport?.destroy();
-      viewport = undefined;
+      destroyCurrentViewport();
       canvas.dataset["renderer"] = "destroyed";
     },
     recreateRenderer: async () => {

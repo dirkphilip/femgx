@@ -28,6 +28,8 @@ const mocks = vi.hoisted(() => {
       this.currentViewport = viewport;
     }
 
+    invalidateInteraction(): void {}
+
     setCameraGestureActive(): void {}
     destroy(): void {
       this.currentViewport.destroy();

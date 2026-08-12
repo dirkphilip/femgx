@@ -191,6 +191,7 @@ export class WorkbenchController {
   }
 
   setViewport(viewport: FemViewport): void {
+    this.interactionController.clearContext();
     this.viewport = viewport;
     this.treeHoverTargets = [];
     this.canvas.dataset["treeHover"] = "";
@@ -198,6 +199,11 @@ export class WorkbenchController {
     this.applyCurrentDisplayState();
     this.visibilityPanel.rebuild();
     this.render();
+  }
+
+  /** Invalidates picks before a temporary renderer teardown. */
+  invalidateInteraction(): void {
+    this.interactionController.clearContext();
   }
 
   setCameraGestureActive(active: boolean): void {

@@ -34,6 +34,7 @@ export interface WorkbenchInteractionOptions {
 export class WorkbenchInteraction {
   private readonly options: WorkbenchInteractionOptions;
   private generation = 0;
+  private disposed = false;
   private downPosition: { readonly x: number; readonly y: number } | undefined;
   private target: SelectTarget | undefined;
 
@@ -55,7 +56,7 @@ export class WorkbenchInteraction {
 
   async hover(event: PointerEvent): Promise<void> {
     const generation = ++this.generation;
-    const hit = await this.resolve(event);
+    const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
     const target = hit === undefined ? undefined : selectTarget(hit, event);
     let interaction = this.options.getInteraction();
@@ -73,7 +74,7 @@ export class WorkbenchInteraction {
     if (down !== undefined && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 10)
       return;
     const generation = ++this.generation;
-    const hit = await this.resolve(event);
+    const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
     if (hit === undefined) {
       this.clearSelection();
@@ -109,7 +110,7 @@ export class WorkbenchInteraction {
   async contextMenu(event: MouseEvent): Promise<void> {
     event.preventDefault();
     const generation = ++this.generation;
-    const hit = await this.resolve(event);
+    const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
     this.target = hit === undefined ? undefined : selectTarget(hit, event);
     if (this.target === undefined) {
@@ -128,17 +129,26 @@ export class WorkbenchInteraction {
   }
 
   destroy(): void {
+    this.disposed = true;
     this.clearContext();
     this.downPosition = undefined;
   }
 
-  private async resolve(event: {
-    readonly clientX: number;
-    readonly clientY: number;
-  }): Promise<PickHit | undefined> {
+  private async resolve(
+    event: {
+      readonly clientX: number;
+      readonly clientY: number;
+    },
+    generation: number,
+  ): Promise<PickHit | undefined> {
     const rect = this.options.canvas.getBoundingClientRect();
     const point = clientToCanvasCss(event.clientX, event.clientY, rect);
-    return this.options.viewport().pick(point.x, point.y);
+    try {
+      return await this.options.viewport().pick(point.x, point.y);
+    } catch (error: unknown) {
+      if (this.disposed || generation !== this.generation) return undefined;
+      throw error;
+    }
   }
 
   private showPick(hit: Parameters<typeof describePick>[0]): void {
