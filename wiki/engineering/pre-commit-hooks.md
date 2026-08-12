@@ -1,10 +1,10 @@
 # Pre-commit hooks
 
-The repo uses two hook layers. Husky owns the git `pre-commit` hook slot and
-runs lint-staged (eslint `--fix`, prettier, merge-conflict markers) on staged
-files via `npm run pre-commit`. The [pre-commit framework](https://pre-commit.com)
-adds popular validators on top without installing its own git hook (only one
-tool can own `.git/hooks/pre-commit`).
+Husky owns the git `pre-commit` hook slot and composes two staged-file layers:
+it runs lint-staged (eslint `--fix` and prettier) first, then the
+[pre-commit framework](https://pre-commit.com) with `pre-commit run`. The
+framework does not install its own git hook; only Husky owns
+`.git/hooks/pre-commit`.
 
 ## Config
 
@@ -15,8 +15,7 @@ tool can own `.git/hooks/pre-commit`).
   filesystems.
 - `check-json` / `check-yaml` — syntax validation (covers GitHub Actions
   workflow YAML too).
-- `check-merge-conflict` — leftover conflict markers (belt-and-suspenders next
-  to the lint-staged merge-conflict check).
+- `check-merge-conflict` — leftover conflict markers.
 - `detect-private-key` — prevent accidental private-key commits.
 - `end-of-file-fixer` — require final newline (matches `.editorconfig`).
 - `trailing-whitespace` — trim trailing whitespace, with
@@ -29,10 +28,14 @@ toolchain.
 
 ## Where it runs
 
-Pre-commit runs in CI (`.github/workflows/ci.yml`, `pre-commit/action@v3.0.1`
-→ `pre-commit run --all-files`) on every push/PR. It is NOT installed as a git
-hook locally because husky owns that slot. Developers with `pre-commit`
-installed can run `pre-commit run --all-files` manually for local feedback.
+Husky runs both layers locally on every normal commit. The `pre-commit` CLI is
+a contributor prerequisite; install it with
+`python3 -m pip install --user pre-commit`. If it is missing, the hook stops
+with that setup command instead of silently skipping validation.
+
+CI independently runs `pre-commit run --all-files` through
+`.github/workflows/ci.yml` on every push/PR. Developers can run the same
+full-repository check manually when needed.
 
 ## Gotchas
 
