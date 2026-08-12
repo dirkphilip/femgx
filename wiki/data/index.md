@@ -8,6 +8,8 @@
   the demo and tests.
 - [[data/io-import-export|IO import/export]] — versioned interchange model and
   VTK legacy adapter.
+- [[data/glb-import|GLB display-scene import]] — bytes-only CAD scene mapping,
+  diagnostics, styles, and compression evidence.
 - [[data/results|Results, deformation, and scalar visualization]] — typed
   engineering fields, derived quantities, and visualization data.
 

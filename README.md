@@ -65,17 +65,18 @@ npm install femgx
 ```
 
 The package ships ESM and CommonJS builds plus TypeScript declarations for both.
-There are no runtime dependencies. Consumers do **not** need `@webgpu/types`
-(WebGPU types come from the TypeScript 6 DOM lib).
+The package includes the small glTF Transform runtime dependency used by the
+bytes-only GLB display-scene importer. Consumers do **not** need
+`@webgpu/types` (WebGPU types come from the TypeScript 6 DOM lib).
 
 ```js
 // ESM
-import { createScene, createFemViewport, createResultField } from "femgx";
+import { createScene, createFemViewport, createResultField, importGlb } from "femgx";
 ```
 
 ```js
 // CommonJS
-const { createScene, createFemViewport, createResultField } = require("femgx");
+const { createScene, createFemViewport, createResultField, importGlb } = require("femgx");
 ```
 
 ## Supported environments
@@ -128,6 +129,29 @@ const { createScene, createFemViewport, createResultField } = require("femgx");
   results API adds derived quantities (magnitude, von Mises, principal values), value ranges,
   scalar color mapping with optional thresholds, and deformed-shape geometry with a
   configurable scale.
+
+GLB is the narrow CAD display-scene import path. It accepts self-contained GLB 2.0 bytes,
+preserves numeric glTF coordinates (glTF's meter convention is not converted), and returns the
+canonical scene plus presentation metadata. Apply the returned part styles through the existing
+interaction state before creating the viewport:
+
+```ts
+const imported = await importGlb(await file.arrayBuffer());
+let interaction = createInteractionState();
+for (const [partId, style] of imported.partStyles) {
+  interaction = setPartOverride(interaction, partId, style);
+}
+const viewport = await createFemViewport({
+  canvas,
+  scene: imported.scene,
+  interaction,
+});
+```
+
+The library intentionally ignores textures, UVs, normals, PBR extras, animation, lights, and
+FE semantics. Unsupported required extensions fail with `IoError`; optional ignored features are
+reported in `imported.issues`. Mesh compression support is added only after a representative
+compressed Onshape export identifies the extension and decoder.
 
 ```ts
 const scene = createScene()

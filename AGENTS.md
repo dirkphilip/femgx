@@ -40,8 +40,10 @@ requirements contract]]. Read it before starting any task; this section is the s
   while `boxSelectionFrustum(camera, rect)` exposes six named normalized
   world-space planes for host-owned volume queries; this is separate from
   renderer culling.
-- **IO.** A single interchange format (VTK legacy) with validation and
-  diagnostics.
+- **IO.** A single FE interchange format (VTK legacy) with validation and
+  diagnostics, plus the narrow bytes-only GLB 2.0 display-scene importer
+  defined in [[requirements/product-scope|Product scope]]. GLB does not
+  synthesize FE semantics.
 - **Deterministic compile pipeline.** Iterative flattening and deterministic
   per-part batching with stable placement handles.
 
@@ -56,8 +58,10 @@ The following are **not** requirements and must not be expanded as if they were:
   face display overlays.
 - Advanced results playback (CasePlayer, interpolation) and legends
   (removed; do not re-add without an explicit product decision).
-- IO adapters beyond VTK (VTU, Gmsh, Abaqus), cancellation, and progress
-  (removed; do not re-add without an explicit product decision).
+- IO adapters beyond VTK and the narrow GLB display-scene import (VTU, Gmsh,
+  Abaqus, JSON glTF/external resources, GLB writing, cancellation, and
+  progress) (removed or out of scope; do not broaden without an explicit
+  product decision).
 - Large-model streaming (spatial partitioning, LOD, upload budgets, worker
   parsing, coordinate rebasing) and the "hundreds of millions of elements"
   ambition (removed; do not re-add without an explicit product decision).
@@ -112,8 +116,9 @@ under `test/`. Tags reflect the [[requirements/product-scope|product scope]]:
   **Core.**
 - `src/results/` — typed result fields, derived quantities, value ranges,
   scalar color mapping, and deformed-shape geometry. **Core.**
-- `src/io/` — versioned interchange model, VTK legacy read/write, and shared
-  validation/diagnostics. **Core.**
+- `src/io/` — versioned FE interchange model, VTK legacy read/write, the
+  bytes-only GLB display-scene importer, and shared validation/diagnostics.
+  **Core.**
 - `src/picking/` — GPU pick-id resolution (`resolvePick` / `resolvePickTarget`)
   for part/instance/element/face/node targets. **Core** (CPU raycast stack
   removed; multi-hit `pickMany` is future).

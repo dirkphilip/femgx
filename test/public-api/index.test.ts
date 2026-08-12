@@ -57,6 +57,7 @@ describe("public root API", () => {
       "heterogeneousElementParts",
       "hoveredTarget",
       "identity",
+      "importGlb",
       "installBoxSelection",
       "installCameraControls",
       "interactionTargetFromHit",
@@ -147,6 +148,7 @@ describe("public root API", () => {
     expect(publicApi.heterogeneousElementParts).toBeTypeOf("function");
     expect(publicApi.HeterogeneousElementError).toBeTypeOf("function");
     expect(publicApi.createElementModelFromFemModel).toBeTypeOf("function");
+    expect(publicApi.importGlb).toBeTypeOf("function");
   });
 
   it("exposes validated part-body metadata helpers", () => {
