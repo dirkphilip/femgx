@@ -161,6 +161,20 @@ fn topologyOwnersVisible(slot: u32, topologyIndex: u32) -> bool {
 }
 `;
 
+/** Shared packed geometry data: float position bits followed by edge metadata. */
+export const geometryDataBindings = /* wgsl */ `
+@group(1) @binding(7) var<storage, read> geometryData: array<u32>;
+
+fn geometryPosition(index: u32) -> f32 {
+  return bitcast<f32>(geometryData[1u + index]);
+}
+
+fn edgeEndpoint(index: u32) -> vec2<u32> {
+  let base = 1u + geometryData[0] + index * 2u;
+  return vec2<u32>(geometryData[base], geometryData[base + 1u]);
+}
+`;
+
 /**
  * Displaces a model-space vertex by the active load case's nodal displacement,
  * scaled by the deformation uniform. Each vertex is mapped to the model node
@@ -292,6 +306,7 @@ ${emphasisHash}
 ${frameBindings}
 ${instanceBindings}
 ${pickDataBindings}
+${geometryDataBindings}
 
 ${displacementFn}
 
@@ -310,9 +325,12 @@ fn vertexMain(
 ) -> EdgeOutput {
   let slot = drawOrder[instanceIndex];
   let instance = instances[slot];
+  let endpoint = edgeEndpoint(vertexIndex);
+  let sourceVertexIndex = endpoint.x;
+  let topologyIndex = endpoint.y;
   var output: EdgeOutput;
-  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
-  if (!topologyOwnersVisible(slot, vertexIndex / 2u)) {
+  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, sourceVertexIndex), 1.0);
+  if (!topologyOwnersVisible(slot, topologyIndex)) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
   output.color = vec4<f32>(0.0, 0.0, 0.0, 0.45);

@@ -7,6 +7,7 @@ import {
   type DrawCallContext,
   type DrawResources,
 } from "./gpu-draw";
+import type { PartResource } from "./gpu-support";
 
 type PipelinePass = "color" | "transparent" | "pick";
 
@@ -81,8 +82,24 @@ export function drawOneBatch(
     cache: !nodes,
   });
   pass.setBindGroup(1, group);
-  pass.setVertexBuffer(0, geometry.vertexBuffer);
-  const buffer = overlay
+  const count = bindDrawGeometry(pass, geometry, overlay, subset);
+  if (count === undefined) return current;
+  pass.drawIndexed(count, call.instanceCount);
+  return pipeline;
+}
+
+function bindDrawGeometry(
+  pass: GPURenderPassEncoder,
+  geometry: PartResource,
+  overlay: boolean,
+  subset: boolean,
+): number | undefined {
+  const vertexBuffer = overlay
+    ? subset
+      ? (geometry.subsetEdgeVertexBuffer ?? geometry.edgeVertexBuffer)
+      : geometry.edgeVertexBuffer
+    : geometry.vertexBuffer;
+  const indexBuffer = overlay
     ? subset
       ? geometry.subsetEdgeIndexBuffer
       : geometry.edgeIndexBuffer
@@ -96,10 +113,10 @@ export function drawOneBatch(
     : subset
       ? geometry.subsetIndexCount
       : geometry.indexCount;
-  if (buffer === undefined) return current;
-  pass.setIndexBuffer(buffer, "uint32");
-  pass.drawIndexed(count, call.instanceCount);
-  return pipeline;
+  if (indexBuffer === undefined) return undefined;
+  pass.setVertexBuffer(0, vertexBuffer);
+  pass.setIndexBuffer(indexBuffer, "uint32");
+  return count;
 }
 
 function pipelineFor(

@@ -1,13 +1,26 @@
 import { bodyIdForElement, type Geometry } from "../geometry/part";
 import { buildBodyPrimitivePickIds } from "./gpu-pick-ids";
 
-/** Indexed edge geometry plus the body owners of each logical edge. */
+/** Expanded edge endpoints plus the body owners of each logical edge. */
 export interface MeshEdgeData {
+  /** Sequential indices into the expanded endpoint arrays. */
   readonly indices: Uint32Array;
-  /** Interleaved owner-array start/count for each edge in `indices`. */
+  /** Original geometry vertex index for each expanded endpoint. */
+  readonly sourceVertexIndices: Uint32Array;
+  /** Logical edge index for each expanded endpoint. */
+  readonly edgeIds: Uint32Array;
+  /** Expanded endpoint positions, in the same order as `sourceVertexIndices`. */
+  readonly positions: Float32Array;
+  /** Interleaved owner-array start/count for each logical edge. */
   readonly bodyRanges: Uint32Array;
   /** 1-based owner/neighbor body pick-id pairs referenced by `bodyRanges`. */
   readonly bodyIds: Uint32Array;
+}
+
+interface MeshEdge {
+  readonly a: number;
+  readonly b: number;
+  readonly conditions: Set<string>;
 }
 
 /**
@@ -15,7 +28,7 @@ export interface MeshEdgeData {
  * Tessellated triangle diagonals are excluded when face/node metadata exists.
  */
 export function buildMeshEdges(geometry: Geometry, sourceIndices = geometry.indices): Uint32Array {
-  return buildMeshEdgeData(geometry, sourceIndices).indices;
+  return buildMeshEdgeData(geometry, sourceIndices).sourceVertexIndices;
 }
 
 /** Builds mesh edges and deterministic body ownership for each edge. */
@@ -23,15 +36,21 @@ export function buildMeshEdgeData(
   geometry: Geometry,
   sourceIndices = geometry.indices,
 ): MeshEdgeData {
-  const triangleCount = Math.floor(sourceIndices.length / 3);
   const elementEdges = elementEdgeKeys(geometry);
   const bodyPickIds = buildBodyPrimitivePickIds(geometry);
   const sourceBodyPairs = triangleBodyPairs(geometry, sourceIndices, bodyPickIds);
-  const edges: Array<{
-    readonly a: number;
-    readonly b: number;
-    readonly conditions: Set<string>;
-  }> = [];
+  const edges = collectEdges(geometry, sourceIndices, elementEdges, sourceBodyPairs);
+  return finalizeEdges(geometry, edges);
+}
+
+function collectEdges(
+  geometry: Geometry,
+  sourceIndices: Uint32Array,
+  elementEdges: Set<string> | undefined,
+  sourceBodyPairs: Array<readonly [number, number]>,
+): MeshEdge[] {
+  const triangleCount = Math.floor(sourceIndices.length / 3);
+  const edges: MeshEdge[] = [];
   const byKey = new Map<string, (typeof edges)[number]>();
   for (let triangle = 0; triangle < triangleCount; triangle++) {
     const base = triangle * 3;
@@ -59,14 +78,28 @@ export function buildMeshEdgeData(
       edge.conditions.add(`${owner},${neighbor}`);
     }
   }
+  return edges;
+}
+
+function finalizeEdges(geometry: Geometry, edges: readonly MeshEdge[]): MeshEdgeData {
   const bodyIds: number[] = [];
   const bodyRanges = new Uint32Array(edges.length * 2);
   const indices = new Uint32Array(edges.length * 2);
+  const sourceVertexIndices = new Uint32Array(edges.length * 2);
+  const edgeIds = new Uint32Array(edges.length * 2);
+  const positions = new Float32Array(edges.length * 2 * 3);
   for (let index = 0; index < edges.length; index++) {
     const edge = edges[index];
     if (edge === undefined) continue;
-    indices[index * 2] = edge.a;
-    indices[index * 2 + 1] = edge.b;
+    const endpoint = index * 2;
+    indices[endpoint] = endpoint;
+    indices[endpoint + 1] = endpoint + 1;
+    sourceVertexIndices[endpoint] = edge.a;
+    sourceVertexIndices[endpoint + 1] = edge.b;
+    edgeIds[endpoint] = index;
+    edgeIds[endpoint + 1] = index;
+    copyPosition(geometry.positions, edge.a, positions, endpoint);
+    copyPosition(geometry.positions, edge.b, positions, endpoint + 1);
     const conditions = [...edge.conditions]
       .map((value) => value.split(",").map(Number) as [number, number])
       .sort(([ownerA, neighborA], [ownerB, neighborB]) => ownerA - ownerB || neighborA - neighborB);
@@ -76,9 +109,22 @@ export function buildMeshEdgeData(
   }
   return {
     indices,
+    sourceVertexIndices,
+    edgeIds,
+    positions,
     bodyRanges: bodyRanges.length === 0 ? new Uint32Array([0, 0]) : bodyRanges,
     bodyIds: bodyIds.length === 0 ? new Uint32Array([0]) : new Uint32Array(bodyIds),
   };
+}
+
+function copyPosition(
+  source: Float32Array,
+  sourceVertexIndex: number,
+  target: Float32Array,
+  endpointIndex: number,
+): void {
+  const sourceOffset = sourceVertexIndex * 3;
+  target.set(source.subarray(sourceOffset, sourceOffset + 3), endpointIndex * 3);
 }
 
 function triangleBodyPairs(

@@ -13,12 +13,17 @@ export interface PartResource {
   readonly facePickIdsBuffer: GPUBuffer;
   /** Per-vertex node pick ids (`nodeId + 1`, 0 = vertex without a node). */
   readonly nodePickIdsBuffer: GPUBuffer;
-  /** Line-list of the deduplicated mesh edges for the wireframe pass. */
+  /** Packed float position bits and expanded edge metadata for shader reads. */
+  readonly geometryDataBuffer: GPUBuffer;
+  /** Expanded endpoint positions for the wireframe pass. */
+  readonly edgeVertexBuffer: GPUBuffer;
+  /** Sequential line-list indices for the expanded wireframe endpoints. */
   readonly edgeIndexBuffer: GPUBuffer;
   readonly indexCount: number;
   readonly edgeIndexCount: number;
   /** Optional compact index orders for a validated face subset. */
   readonly subsetIndexBuffer?: GPUBuffer;
+  readonly subsetEdgeVertexBuffer?: GPUBuffer;
   readonly subsetEdgeIndexBuffer?: GPUBuffer;
   readonly subsetIndexCount: number;
   readonly subsetEdgeIndexCount: number;

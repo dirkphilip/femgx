@@ -4,6 +4,7 @@ import {
   displacementFn,
   emphasisStructs,
   frameBindings,
+  geometryDataBindings,
   instanceBindings,
   instanceStruct,
   packPickIdFunction,
@@ -35,7 +36,7 @@ ${emphasisHash}
 ${frameBindings}
 ${instanceBindings}
 ${pickDataBindings}
-@group(1) @binding(7) var<storage, read> positions: array<f32>;
+${geometryDataBindings}
 
 ${displacementFn}
 
@@ -91,22 +92,26 @@ fn vertexMain(
   output.facePickId = faceBodyPickIds.x;
   output.localPosition = displaced(position, vertexIndex);
   output.cornerA = displaced(
-    vec3<f32>(positions[base3], positions[base3 + 1u], positions[base3 + 2u]),
+    vec3<f32>(
+      geometryPosition(base3),
+      geometryPosition(base3 + 1u),
+      geometryPosition(base3 + 2u),
+    ),
     base,
   );
   output.cornerB = displaced(
     vec3<f32>(
-      positions[base3 + 3u],
-      positions[base3 + 4u],
-      positions[base3 + 5u],
+      geometryPosition(base3 + 3u),
+      geometryPosition(base3 + 4u),
+      geometryPosition(base3 + 5u),
     ),
     base + 1u,
   );
   output.cornerC = displaced(
     vec3<f32>(
-      positions[base3 + 6u],
-      positions[base3 + 7u],
-      positions[base3 + 8u],
+      geometryPosition(base3 + 6u),
+      geometryPosition(base3 + 7u),
+      geometryPosition(base3 + 8u),
     ),
     base + 2u,
   );
@@ -125,16 +130,16 @@ export const lineNodePickVertexShader = nodePickVertexShader
   .replaceAll("vertexIndex / 3u", "vertexIndex / 2u")
   .replace(
     `vec3<f32>(
-      positions[base3 + 6u],
-      positions[base3 + 7u],
-      positions[base3 + 8u],
+      geometryPosition(base3 + 6u),
+      geometryPosition(base3 + 7u),
+      geometryPosition(base3 + 8u),
     ),
     base + 2u,
   );`,
     `vec3<f32>(
-      positions[base3 + 3u],
-      positions[base3 + 4u],
-      positions[base3 + 5u],
+      geometryPosition(base3 + 3u),
+      geometryPosition(base3 + 4u),
+      geometryPosition(base3 + 5u),
     ),
     base + 1u,
   );`,
@@ -155,7 +160,7 @@ ${emphasisHash}
 ${frameBindings}
 ${instanceBindings}
 ${pickDataBindings}
-@group(1) @binding(7) var<storage, read> positions: array<f32>;
+${geometryDataBindings}
 
 ${displacementFn}
 

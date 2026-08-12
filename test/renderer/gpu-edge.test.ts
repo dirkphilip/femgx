@@ -93,4 +93,24 @@ describe("buildMeshEdges", () => {
     expect(data.bodyRanges.slice(0, 2)).toEqual(new Uint32Array([0, 2]));
     expect(data.bodyIds.slice(0, 4)).toEqual(new Uint32Array([0, 0, 8, 0]));
   });
+
+  it("maps expanded endpoints to source vertices and one logical edge", () => {
+    const geometry = {
+      positions: new Float32Array([0, 0, 0, 10, 0, 0, 20, 0, 0, 30, 0, 0, 40, 0, 0, 50, 0, 0]),
+      indices: new Uint32Array([5, 1, 3, 4, 2, 0]),
+      primitive: "triangles" as const,
+    };
+
+    const data = buildMeshEdgeData(geometry);
+
+    expect(data.indices).toEqual(new Uint32Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]));
+    expect(data.sourceVertexIndices).toEqual(new Uint32Array([5, 1, 1, 3, 3, 5, 4, 2, 2, 0, 0, 4]));
+    expect(data.edgeIds).toEqual(new Uint32Array([0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]));
+    expect(data.positions).toEqual(
+      new Float32Array([
+        50, 0, 0, 10, 0, 0, 10, 0, 0, 30, 0, 0, 30, 0, 0, 50, 0, 0, 40, 0, 0, 20, 0, 0, 20, 0, 0, 0,
+        0, 0, 0, 0, 0, 40, 0, 0,
+      ]),
+    );
+  });
 });
