@@ -46,9 +46,11 @@ highlight records, making elements and nodes selectable through GPU picking
 
 ## Primitive groups and overlays
 
-- Triangle geometry tessellates only boundary faces: faces whose corner-node
-  set is referenced by exactly one element. Shared interior faces are culled at
-  the source, so no coincident triangles compete in the depth buffer.
+- Triangle geometry tessellates the exterior boundary plus both oriented copies
+  of a face shared by two differently named bodies. Same-body interior faces
+  remain culled. The packed face record carries the owner and neighboring body
+  ids, so only the owner-visible side is exposed when the neighbor is hidden;
+  all-visible rendering remains the ordinary exterior-only skin.
 - Points are authored as one center and one index per logical point. GPU upload
   expands each center into a screen-space sprite quad (4 vertices per point);
   the point vertex shader sizes it to a constant CSS-pixel diameter
@@ -66,8 +68,10 @@ lines on its solid surface, with an optional depth-test toggle — so a model ca
 be shown solid with a wireframe overlay instead of edges-only.
 
 The inspection demo presents a single `Solid` display and optional edge
-overlay. Solid geometry is a boundary skin, so selection remains a color change
-on the selected element/node's existing triangles—never a highlight pass.
+overlay. Solid geometry is a dynamic body-aware boundary skin, so selection
+remains a color change on the selected element/node's existing triangles—never
+a highlight pass. Exposed interfaces reuse the same owner/neighbor predicate
+for filled surfaces, GPU picking, deformation, edges, and node annotations.
 Triangle pipelines do not cull back faces by default: 2D FE shells are valid
 geometry and must remain inspectable from either side. The edge shader applies
 the same transform as the surface shader, and the depth-tested edge pipeline

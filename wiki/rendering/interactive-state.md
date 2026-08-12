@@ -84,10 +84,10 @@ Body emphasis still uses immutable state and the existing diffed
   their owning slot in the interaction diff
   ([[rendering/renderer-subrange-updates|Renderer subrange updates]]).
 - Body records are included in the same `updateElements` path. Surface geometry
-  stores face/body pairs together with topology ownership ranges in the existing
-  pick-data buffer, so the renderer stays within the portable WebGPU
-  vertex-stage storage-buffer limit; authored node sprites use the same packed
-  layout for body-aware visibility and emphasis.
+  stores face/owner/neighbor records together with topology condition ranges in
+  the existing pick-data buffer, so the renderer stays within the portable
+  WebGPU vertex-stage storage-buffer limit; authored node sprites use the same
+  packed layout for body-aware visibility and emphasis.
 
 [architecture/architecture-overview|InteractionTarget]: ../architecture/architecture-overview.md
 [rendering/node-face-interaction|Node and face interaction]: node-face-interaction.md

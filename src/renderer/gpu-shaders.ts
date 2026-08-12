@@ -4,7 +4,7 @@
  * can mix triangle, line, and point-sprite primitives within one frame.
  * Every vertex shader reads the per-vertex node pick ids so displacement maps
  * vertices back to their FE nodes (see `displacementFn`); triangle geometry
- * additionally reads the per-triangle element and face/body pick ids plus the
+ * additionally reads the per-triangle element and face/body visibility ids plus the
  * runtime-sized emphasis records, so body, element, and face emphasis can
  * override the resolved instance color. The node-overlay point sprites read
  * the same records for body and node emphasis. The
@@ -101,23 +101,63 @@ export const instanceBindings = /* wgsl */ `
 export const pickDataBindings = /* wgsl */ `
 @group(1) @binding(2) var<storage, read> primitiveElementPickIds: array<u32>;
 @group(1) @binding(3) var<storage, read> elementHighlights: ElementHighlights;
-// Packed header: face/body pair count, topology range count, then face/body
-// pairs, topology ranges, and topology body ids.
+// Packed header: face-record count, topology range count, then face/owner/
+// neighbor records, topology ranges, and topology owner/neighbor ids.
 @group(1) @binding(5) var<storage, read> topologyData: array<u32>;
 
-fn primitiveFaceBodyPickIds(index: u32) -> vec2<u32> {
-  let base = 2u + index * 2u;
-  return vec2<u32>(topologyData[base], topologyData[base + 1u]);
+fn primitiveFaceBodyPickIds(index: u32) -> vec3<u32> {
+  let base = 2u + index * 3u;
+  return vec3<u32>(topologyData[base], topologyData[base + 1u], topologyData[base + 2u]);
 }
 
 fn topologyBodyRange(index: u32) -> vec2<u32> {
-  let base = 2u + topologyData[0] * 2u + index * 2u;
+  let base = 2u + topologyData[0] * 3u + index * 2u;
   return vec2<u32>(topologyData[base], topologyData[base + 1u]);
 }
 
 fn topologyBodyId(index: u32) -> u32 {
-  let base = 2u + topologyData[0] * 2u + topologyData[1] * 2u;
-  return topologyData[base + index];
+  let base = 2u + topologyData[0] * 3u + topologyData[1] * 2u;
+  return topologyData[base + index * 2u];
+}
+
+fn topologyBodyNeighborId(index: u32) -> u32 {
+  let base = 2u + topologyData[0] * 3u + topologyData[1] * 2u;
+  return topologyData[base + index * 2u + 1u];
+}
+
+fn bodyOwnerVisible(slot: u32, bodyPickId: u32) -> bool {
+  if (bodyPickId == 0u || elementHighlights.bucketCount == 0u) {
+    return true;
+  }
+  let bucket = highlightHash(slot, bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
+  let base = bucket * 4u;
+  for (var offset = 0u; offset < 4u; offset++) {
+    let highlight = elementHighlights.records[base + offset];
+    if (highlight.slot == slot && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
+      return highlight.hidden == 0u;
+    }
+  }
+  return true;
+}
+
+fn primitiveVisible(slot: u32, primitiveIndex: u32) -> bool {
+  let ids = primitiveFaceBodyPickIds(primitiveIndex);
+  return bodyOwnerVisible(slot, ids.y) && (ids.z == 0u || !bodyOwnerVisible(slot, ids.z));
+}
+
+fn topologyOwnersVisible(slot: u32, topologyIndex: u32) -> bool {
+  let range = topologyBodyRange(topologyIndex);
+  if (range.y == 0u) {
+    return true;
+  }
+  for (var condition = 0u; condition < range.y; condition++) {
+    let owner = topologyBodyId(range.x + condition);
+    let neighbor = topologyBodyNeighborId(range.x + condition);
+    if (bodyOwnerVisible(slot, owner) && (neighbor == 0u || !bodyOwnerVisible(slot, neighbor))) {
+      return true;
+    }
+  }
+  return false;
 }
 `;
 
@@ -262,34 +302,6 @@ struct EdgeOutput {
   @location(5) local: vec2<f32>,
 };
 
-fn bodyVisible(slot: u32, bodyPickId: u32) -> bool {
-  if (elementHighlights.bucketCount == 0u) {
-    return true;
-  }
-  let bucket = highlightHash(slot, bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
-  let base = bucket * 4u;
-  for (var offset = 0u; offset < 4u; offset++) {
-    let highlight = elementHighlights.records[base + offset];
-    if (highlight.slot == slot && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
-      return highlight.hidden == 0u;
-    }
-  }
-  return true;
-}
-
-fn topologyVisible(slot: u32, topologyIndex: u32) -> bool {
-  let range = topologyBodyRange(topologyIndex);
-  if (range.y == 0u) {
-    return true;
-  }
-  for (var owner = 0u; owner < range.y; owner++) {
-    if (bodyVisible(slot, topologyBodyId(range.x + owner))) {
-      return true;
-    }
-  }
-  return false;
-}
-
 @vertex
 fn vertexMain(
   @location(0) position: vec3<f32>,
@@ -300,7 +312,7 @@ fn vertexMain(
   let instance = instances[slot];
   var output: EdgeOutput;
   output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
-  if (!topologyVisible(slot, vertexIndex / 2u)) {
+  if (!topologyOwnersVisible(slot, vertexIndex / 2u)) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
   output.color = vec4<f32>(0.0, 0.0, 0.0, 0.45);

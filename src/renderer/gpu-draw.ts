@@ -255,10 +255,10 @@ function packTopologyData(
   bodyRanges: Uint32Array,
   bodyIds: Uint32Array,
 ): Uint32Array {
-  const facePairCount = Math.floor(faceBodyPickIds.length / 2);
+  const faceRecordCount = Math.floor(faceBodyPickIds.length / 3);
   const rangeCount = Math.floor(bodyRanges.length / 2);
   const data = new Uint32Array(2 + faceBodyPickIds.length + bodyRanges.length + bodyIds.length);
-  data[0] = facePairCount;
+  data[0] = faceRecordCount;
   data[1] = rangeCount;
   data.set(faceBodyPickIds, 2);
   data.set(bodyRanges, 2 + faceBodyPickIds.length);
