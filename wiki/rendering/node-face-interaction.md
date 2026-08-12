@@ -94,7 +94,7 @@ oriented element faces are the finest-grained pickable units under
 
 ## Demo
 
-- The demo's workbench uses `renderer.pick(x, y, granularity)` for interaction;
+- The demo's workbench uses `viewport.pick(x, y, granularity)` for interaction;
   plain click selects the most specific hit (node), Shift promotes to the
   element, Alt to the instance, Ctrl to the part. Hover/selection datasets are
   prefixed by granularity (`n:instance:node`, `f:instance:element:faceKey`,

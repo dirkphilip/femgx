@@ -23,7 +23,7 @@ requirements contract]]. Read it before starting any task; this section is the s
 - **Parts, assemblies, instancing, visibility, camera, picking, interaction.**
   Reusable part geometry is drawn once and instanced across hierarchical
   assembly placements, including repeated placements of one reusable assembly
-  definition. GPU picking (`renderer.pick`) returns host-mappable
+  definition. GPU picking (`FemViewport.pick`) returns host-mappable
   part/instance/element/face/node ids; selection/highlight/hover and hide/show
   are driven by per-instance GPU attributes, not CPU material clones.
 - **Readable node annotations.** FE node glyphs respect scene depth: nearer
@@ -140,7 +140,7 @@ Conventions:
 
 The canonical public workflow is reusable part definitions and assembly
 placements registered in a `Scene`, compiled into one `SceneRuntime`, and
-consumed by the renderer. Preserve the semantic distinction between part
+consumed by `FemViewport`. Preserve the semantic distinction between part
 definitions, part instances, assembly definitions, registries, and runtime
 slots; see [[architecture/api-design|API design north star]].
 

@@ -1,7 +1,7 @@
 # FE inspection workbench
 
 The demo is an FE model inspection workbench: deterministic model presets,
-GPU picking via `WebGpuRenderer.pick` (node → face → element), a shared
+GPU picking via `FemViewport.pick` (node → face → element), a shared
 workbench controller, and per-node/face/element selection and highlighting that
 never rebuilds geometry or clones materials. The WebGPU renderer drives the
 controller, so camera and interaction behavior is stable
@@ -26,7 +26,7 @@ controller, so camera and interaction behavior is stable
 ## GPU picking
 
 - Interaction picking is asynchronous GPU readback: `RendererHooks.pick` →
-  `WebGpuRenderer.pick(x, y)` → `resolvePickTarget`, returning a host-mappable
+  `FemViewport.pick(x, y)` → `resolvePickTarget`, returning a host-mappable
   `PickTarget` (part / instance / element / face / node).
 - Default granularity prefers the **most specific available target**
   (`node` > `face` > `element` > `instance`). Modifier keys promote/narrow the

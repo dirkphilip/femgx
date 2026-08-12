@@ -41,7 +41,6 @@ describe("public root API", () => {
       "createScalarColorMap",
       "createScene",
       "createSceneRuntime",
-      "createWebGpuRenderer",
       "deformGeometry",
       "deformPositions",
       "edgesOf",
@@ -142,6 +141,7 @@ describe("public root API", () => {
   });
 
   it("does not expose renderer/runtime implementation helpers", () => {
+    expect(publicApi).not.toHaveProperty("createWebGpuRenderer");
     expect(publicApi).not.toHaveProperty("changedInstanceSlots");
     expect(publicApi).not.toHaveProperty("faceTriangles");
   });

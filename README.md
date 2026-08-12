@@ -92,18 +92,18 @@ const { createScene, createFemViewport, createResultField } = require("femgx");
 
 ### WebGPU capability behavior
 
-- `createWebGpuRenderer(options)` is `async`: it checks `navigator.gpu`, requests an
-  adapter, and (unless `options.device` is provided) requests a device. It throws a
-  descriptive error when WebGPU is unavailable or the adapter/device request fails.
+- `createFemViewport(options)` is `async`: it checks `navigator.gpu`, requests an
+  adapter and device, and throws a descriptive error when WebGPU is unavailable or
+  the adapter/device request fails.
 - `queryWebGpuSupport()` is a non-throwing probe that returns a typed
   "supported"/"unsupported" report for applications that want to branch up front.
 - The CPU scene, camera, stable-handle runtime (`createSceneRuntime`), and pick-id
   resolution (`resolvePick` / `resolvePickTarget`) APIs are WebGPU-independent
-  and work in any JavaScript environment. GPU renderer picking (`pick` and
-  `pickPoint`) requires a working WebGPU renderer.
-- Interaction picking goes through the renderer: asynchronous GPU readback via
-  `pick(x, y)` returns a `Promise<PickTarget | undefined>` with host-mappable
-  part/instance/element/face/node ids.
+  and work in any JavaScript environment. Viewport picking (`pick` and
+  `pickPoint`) requires a working WebGPU device.
+- Interaction picking goes through `FemViewport`: asynchronous GPU readback via
+  `viewport.pick(x, y)` returns a `Promise<PickTarget | undefined>` with
+  host-mappable part/instance/element/face/node ids.
 
 ## Public API highlights
 
@@ -115,8 +115,6 @@ const { createScene, createFemViewport, createResultField } = require("femgx");
   immutable dispatch for any part, instance, body, element, face, or node identity;
   `clearSelection()` preserves non-selection state.
 - `createCamera()` supports perspective/orthographic projection, orbit, pan, zoom, and resize.
-- `createWebGpuRenderer()` uploads geometry once, renders instanced batches, applies styles,
-  and exposes asynchronous `pick(x, y)` and exact-surface `pickPoint(camera, x, y)` readback.
 - `installCameraControls()` adds the library's SpaceClaim-style mouse/touch behavior and
   renderer-owned rotation-origin axis widget without requiring the demo's tree, toolbar, or info panels.
 - `createFemViewport()` is the canonical application path: it owns the packed runtime, fitted
@@ -177,21 +175,4 @@ viewport.setResults({
 });
 // Return to the base part styles and undeformed geometry.
 viewport.clearResults();
-```
-
-Advanced consumers can still compose the lower-level renderer directly:
-
-```ts
-const renderer = await createWebGpuRenderer({ canvas });
-const cameraRef = { camera: createCamera() };
-const render = () => renderer.render(runtime, cameraRef.camera, scene.parts);
-
-const removeCameraControls = installCameraControls({
-  canvas,
-  cameraRef,
-  navigation: renderer,
-  onRender: render,
-});
-render();
-// Call removeCameraControls() when the viewport is disposed.
 ```

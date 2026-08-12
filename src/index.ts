@@ -144,11 +144,6 @@ export {
   type RuntimeVisibilityDelta,
   type SceneRuntime,
 } from "./scene-runtime/public-runtime";
-export {
-  createWebGpuRenderer,
-  type WebGpuRenderer,
-  type WebGpuRendererOptions,
-} from "./renderer/gpu-renderer";
 export { WebGpuPickReadbackError } from "./renderer/gpu-pick";
 export {
   queryWebGpuSupport,

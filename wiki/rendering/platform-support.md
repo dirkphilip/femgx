@@ -25,18 +25,18 @@ applications call when they want to branch up front. It returns a
   - `"adapter-unavailable"` — `requestAdapter` returned `null` or rejected.
   - `"device-unavailable"` — an adapter exists but `requestDevice` failed.
 
-The throwing entry points (`requestWebGpuDevice`, and `createWebGpuRenderer`)
-throw `WebGpuUnsupportedError`, which carries the same typed `reason`. All entry
-points accept an optional `powerPreference`.
+The throwing entry points (`requestWebGpuDevice` and `createFemViewport`)
+throw `WebGpuUnsupportedError`, which carries the same typed `reason`. The
+viewport accepts an optional `powerPreference` and owns renderer creation.
 
 ## Explicit unsupported
 
 There is deliberately **no second rendering backend**: no WebGL2, no software
 renderer, no CPU fallback, and no hidden capability-probe canvas in the library
-or the demo. A caller that cannot create a WebGPU renderer receives a
+or the demo. A caller that cannot create a WebGPU viewport receives a
 `WebGpuUnsupportedError` (or the typed `queryWebGpuSupport` report) and decides
 how to present that to its user. The demo is a thin consumer: it starts the
-WebGPU renderer directly and, when WebGPU is unavailable, sets
+canonical viewport and, when WebGPU is unavailable, sets
 `data-renderer="unsupported"` and reports that femgx requires a usable WebGPU
 renderer, including the probe diagnostic, in its status line. The e2e lane
 asserts this contract by hiding `navigator.gpu` before page load and verifying
