@@ -6,7 +6,7 @@ import {
   type PolygonGeometryInput,
 } from "../../src/geometry/polygon";
 import { createPart } from "../../src/geometry/part";
-import { resolvePickTarget, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
+import { resolvePickHit, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
 import { identity } from "../../src/math/mat4";
 import { deformGeometry } from "../../src/results/deform";
 import { createResultField } from "../../src/results/fields";
@@ -124,7 +124,7 @@ describe("polygonGeometry", () => {
     const part = createPart(1, geometry);
     const context: PickContext = { instances: [instance()], parts: new Map([[1, part]]) };
     expect(
-      resolvePickTarget(context, ids({ elementPickId: 8, facePickId: 1 }), "face"),
+      resolvePickHit(context, ids({ elementPickId: 8, facePickId: 1 }), [0, 0, 0]),
     ).toMatchObject({ kind: "face", elementId: 7, faceId: 0, key: "source-face" });
 
     const displacement = createResultField({

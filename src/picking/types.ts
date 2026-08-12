@@ -4,8 +4,11 @@ import type { BodyId, FaceId, PartId } from "../geometry/part";
 import type { Vec3 } from "../math/vec3";
 import type { InstanceId } from "../scene/types";
 
-/** The most-specific resolved face pick with renderer-independent data. */
-export interface FacePickTarget {
+/** A selection granularity that a host may derive from a physical hit. */
+export type InteractionGranularity = "part" | "instance" | "body" | "element" | "face" | "node";
+
+/** The most-specific resolved face hit with renderer-independent data. */
+export interface FacePickHit {
   readonly kind: "face";
   readonly partId: PartId;
   readonly instanceId: InstanceId;
@@ -21,14 +24,14 @@ export interface FacePickTarget {
   readonly nodeIds: readonly NodeId[];
   /** Other elements incident to the same canonical face. */
   readonly neighborElementIds: readonly ElementId[];
-  /** World-space hit position (the face centroid for rasterized picks). */
-  readonly hitPosition: Vec3;
+  /** Exact displayed world-space position under the pointer. */
+  readonly worldPosition: Vec3;
   /** World-space oriented face normal. */
   readonly normal: Vec3;
 }
 
-/** The most-specific resolved node pick with renderer-independent data. */
-export interface NodePickTarget {
+/** The most-specific resolved node hit with renderer-independent data. */
+export interface NodePickHit {
   readonly kind: "node";
   readonly partId: PartId;
   readonly instanceId: InstanceId;
@@ -45,10 +48,20 @@ export interface NodePickTarget {
   readonly neighborNodeIds: readonly NodeId[];
 }
 
-/** A resolveable reference to something the user can highlight/select. */
-export type PickTarget =
-  | { readonly kind: "part"; readonly partId: PartId }
-  | { readonly kind: "instance"; readonly instanceId: InstanceId }
+/** A physical hit reported by the GPU picking pass. */
+export type PickHit =
+  | {
+      readonly kind: "part";
+      readonly partId: PartId;
+      readonly instanceId: InstanceId;
+      readonly worldPosition: Vec3;
+    }
+  | {
+      readonly kind: "instance";
+      readonly partId: PartId;
+      readonly instanceId: InstanceId;
+      readonly worldPosition: Vec3;
+    }
   | {
       readonly kind: "element";
       readonly partId: PartId;
@@ -56,6 +69,8 @@ export type PickTarget =
       readonly elementId: ElementId;
       /** Optional logical body owning the element. */
       readonly bodyId?: BodyId;
+      /** Exact displayed world-space position under the pointer. */
+      readonly worldPosition: Vec3;
     }
-  | FacePickTarget
-  | NodePickTarget;
+  | FacePickHit
+  | NodePickHit;

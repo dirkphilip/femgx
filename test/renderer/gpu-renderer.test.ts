@@ -135,7 +135,7 @@ describe("WebGPU renderer", () => {
 
   it("renders, uploads, picks, resizes, and destroys with a mocked device", async () => {
     restoreGpuGlobals = installGpuGlobals();
-    const gpu = fakeGpuDevice({ pickValue: 1 });
+    const gpu = fakeGpuDevice({ pickValue: 1, ndcDepth: 0.5 });
     installNavigator(gpu.device);
 
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
@@ -151,7 +151,12 @@ describe("WebGPU renderer", () => {
     expect(gpu.textureCreations).toBe(2);
     expect(gpu.bindGroupCreations).toBe(4);
     expect(gpu.submissionCount).toBe(2);
-    await expect(renderer.pick(400, 300)).resolves.toEqual({ kind: "instance", instanceId: "1/0" });
+    await expect(renderer.pick(400, 300)).resolves.toEqual({
+      kind: "instance",
+      partId: 1,
+      instanceId: "1/0",
+      worldPosition: unprojectPoint(camera, [400.5, 300.5, 0.5]),
+    });
     expect(gpu.drawCalls).toHaveLength(3);
     expect(gpu.textureCreations).toBe(7);
     expect(gpu.submissionCount).toBe(4);
@@ -292,6 +297,16 @@ describe("WebGPU renderer", () => {
       const scene = buildFaceScene();
       const runtime = createPackedSceneRuntime(scene);
       renderer.render(runtime, faceCamera, scene.parts);
+
+      await expect(renderer.pick(400, 300)).resolves.toMatchObject({
+        kind: "face",
+        partId: 1,
+        instanceId: "1/0",
+        elementId: 0,
+        faceId: 0,
+        key: "0:1:2",
+        worldPosition: unprojectPoint(faceCamera, [400.5, 300.5, depth]),
+      });
 
       await expect(renderer.pickPoint(faceCamera, 400, 300)).resolves.toEqual(
         unprojectPoint(faceCamera, [400.5, 300.5, depth]),

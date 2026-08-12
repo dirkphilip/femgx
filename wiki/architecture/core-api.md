@@ -85,7 +85,7 @@ range and can participate in element picking and interaction.
 | Viewport    | `createFemViewport`, `FemViewport`, `FemViewportOptions`                                                                                                                                                        | Runtime compilation, camera, WebGPU renderer, controls, resize, interaction sync, results, recovery, and teardown.                                                                         |
 | Interaction | `createInteractionState`, `InteractionTarget`, `setTargetSelected`, `setTargetHighlighted`, `setTargetHovered`, `isTargetSelected`, `isTargetHighlighted`, `isHoveredTarget`, `clearSelection`, `resolve*Style` | Opaque immutable selection, highlight, and single-hover state. Body visibility and explicit style overrides remain separate target-scoped layers.                                          |
 | Camera      | `createCamera`, `setProjection`, `orbitCamera`, `panCamera`, `zoomCamera`, `fitCamera`                                                                                                                          | Immutable camera values and projection/navigation math.                                                                                                                                    |
-| Picking     | `FemViewport.pick`, `FemViewport.pickPoint`, `PickTarget`, `PickGranularity`                                                                                                                                    | GPU readback and stable part/instance/element/face/node target resolution.                                                                                                                 |
+| Picking     | `FemViewport.pick`, `PickHit`, `interactionTargetFromHit`, `InteractionGranularity`                                                                                                                             | One complete side-effect-free GPU hit plus explicit host-owned interaction-target conversion.                                                                                              |
 | Results     | `createResultField`, derived-field helpers, `ViewportResultsConfig`                                                                                                                                             | Typed nodal/elemental values, derivations, ranges, maps, and deformation configuration.                                                                                                    |
 | IO          | `parseVtk`, `writeVtk`, `validateModel`                                                                                                                                                                         | The single supported VTK legacy interchange boundary and diagnostics.                                                                                                                      |
 | Platform    | `queryWebGpuSupport`, `WebGpuUnsupportedError`, `requestWebGpuDevice`                                                                                                                                           | Capability probing, typed unsupported results, device creation, and loss information.                                                                                                      |
@@ -157,19 +157,19 @@ rather than CPU material clones.
 ### Picking
 
 ```ts
-const target = await viewport.pick(x, y, "face");
-if (target?.kind === "face") {
-  console.log(target.partId, target.instanceId, target.faceId, target.normal);
+const hit = await viewport.pick(x, y);
+if (hit?.kind === "face") {
+  console.log(hit.partId, hit.instanceId, hit.faceId, hit.normal, hit.worldPosition);
 }
-
-const point = await viewport.pickPoint(x, y);
+const target = hit === undefined ? undefined : interactionTargetFromHit(hit, "face");
 ```
 
-`pick` returns one `PickTarget` or `undefined`. Element, face, and node targets
-include the owning `bodyId` when the geometry provides one. The optional granularity can
-request `part`, `instance`, `element`, `face`, or `node`; requesting a level
-that the hit cannot support resolves to the deepest available target. There is
-no multi-hit pick-list API in the current contract.
+`pick` returns one deepest `PickHit` or `undefined`, including the exact displayed
+world point reconstructed from the same GPU depth readback. Element, face, and node
+hits include the owning `bodyId` when the geometry provides one. Hosts choose a
+selection identity separately with `interactionTargetFromHit`; unsupported requests
+return `undefined` and body identity is never guessed. There is no multi-hit pick-list
+API in the current contract.
 
 ### Static results
 
@@ -210,7 +210,7 @@ These exports are supported utilities around the canonical viewport path:
   runtime compilation and stable-handle queries.
 - `installCameraControls` and the lower-level camera math for custom viewport
   shells.
-- `resolvePick` / `resolvePickTarget` for host-side pick-id resolution.
+- `interactionTargetFromHit` for pure host-side selection policy.
 
 The low-level WebGPU renderer is internal to `FemViewport` and is not exported
 from the package root. A custom renderer lifecycle requires a separate product

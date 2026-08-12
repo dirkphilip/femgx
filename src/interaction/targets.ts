@@ -20,6 +20,36 @@ import {
 import { hoveredTarget, isHoveredTarget } from "./state";
 export type { InteractionTarget } from "./target-types";
 import type { InteractionTarget } from "./target-types";
+import type { InteractionGranularity, PickHit } from "../picking/types";
+
+/** Converts a complete physical hit to a host-owned interaction identity. */
+export function interactionTargetFromHit(
+  hit: PickHit,
+  granularity: InteractionGranularity,
+): InteractionTarget | undefined {
+  switch (granularity) {
+    case "part":
+      return { kind: "part", partId: hit.partId };
+    case "instance":
+      return { kind: "instance", instanceId: hit.instanceId };
+    case "body":
+      return hit.kind !== "part" && hit.kind !== "instance" && hit.bodyId !== undefined
+        ? { kind: "body", instanceId: hit.instanceId, bodyId: hit.bodyId }
+        : undefined;
+    case "element":
+      return hit.kind !== "part" && hit.kind !== "instance"
+        ? { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId }
+        : undefined;
+    case "face":
+      return hit.kind === "face"
+        ? { kind: "face", instanceId: hit.instanceId, elementId: hit.elementId, key: hit.key }
+        : undefined;
+    case "node":
+      return hit.kind === "node"
+        ? { kind: "node", instanceId: hit.instanceId, nodeId: hit.nodeId }
+        : undefined;
+  }
+}
 
 /** Sets or clears selection for any supported stable interaction target. */
 export function setTargetSelected(

@@ -99,6 +99,7 @@ export {
   setTargetHovered,
   setTargetsHighlighted,
   setTargetSelected,
+  interactionTargetFromHit,
   type InteractionTarget,
 } from "./interaction/targets";
 export {
@@ -196,16 +197,8 @@ export {
   translation,
   type Mat4,
 } from "./math/mat4";
-export {
-  instanceToTarget,
-  resolvePick,
-  resolvePickTarget,
-  type PickContext,
-  type PickGranularity,
-  type ResolvedPickIds,
-} from "./picking/pick";
 export type { AssemblyId, AssemblyNodeId, ElementRef, Instance, InstanceId } from "./scene/types";
-export type { FacePickTarget, NodePickTarget, PickTarget } from "./picking/types";
+export type { FacePickHit, InteractionGranularity, NodePickHit, PickHit } from "./picking/types";
 export {
   FIELD_COMPONENT_COUNT,
   TENSOR_COMPONENT,

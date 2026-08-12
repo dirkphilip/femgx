@@ -247,7 +247,6 @@ describe("workbench click selection", () => {
       setInteraction: (next) => {
         interaction = next;
       },
-      partIdForInstance: () => undefined,
       partName: () => undefined,
       menu: { hide: vi.fn() } as unknown as WorkbenchMenu,
       render,

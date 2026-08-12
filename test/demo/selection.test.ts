@@ -11,7 +11,7 @@ import {
 import { selectTarget } from "../../demo/pick";
 import { clearSelection, replaceSelection, toggleSelection } from "../../demo/workbench/selection";
 import type { SelectTarget } from "../../demo/pick";
-import type { PickTarget } from "../../src/index";
+import type { PickHit } from "../../src/index";
 
 const part: SelectTarget = { kind: "part", partId: 4 };
 const instance: SelectTarget = { kind: "instance", instanceId: "1/0" };
@@ -51,7 +51,7 @@ describe("demo selection policy", () => {
   });
 
   it("keeps Control/Meta as selection modifiers instead of changing pick depth", () => {
-    const hit: PickTarget = {
+    const hit: PickHit = {
       kind: "node",
       partId: 4,
       instanceId: "1/0",

@@ -11,7 +11,7 @@ import {
   setTargetSelected,
   setTargetHovered,
   type InteractionTarget,
-  type PickTarget,
+  type PickHit,
 } from "../../src/index";
 import { identity } from "../../src/math/mat4";
 import type { Instance } from "../../src/scene/types";
@@ -79,11 +79,11 @@ describe("InteractionTarget helpers", () => {
     });
   });
 
-  it("accepts rich PickTarget values directly", () => {
-    const hits: PickTarget[] = [
-      { kind: "part", partId: 1 },
-      { kind: "instance", instanceId: "1/0" },
-      { kind: "element", partId: 1, instanceId: "1/0", elementId: 3 },
+  it("accepts rich PickHit values directly", () => {
+    const hits: PickHit[] = [
+      { kind: "part", partId: 1, instanceId: "1/0", worldPosition: [0, 0, 0] },
+      { kind: "instance", partId: 1, instanceId: "1/0", worldPosition: [0, 0, 0] },
+      { kind: "element", partId: 1, instanceId: "1/0", elementId: 3, worldPosition: [0, 0, 0] },
       {
         kind: "face",
         partId: 1,
@@ -94,7 +94,7 @@ describe("InteractionTarget helpers", () => {
         key: "0,1,2",
         nodeIds: [0, 1, 2],
         neighborElementIds: [],
-        hitPosition: [0, 0, 0],
+        worldPosition: [0, 0, 0],
         normal: [0, 0, 1],
       },
       {

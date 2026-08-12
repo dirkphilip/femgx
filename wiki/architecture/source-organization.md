@@ -29,7 +29,7 @@ canonical description.
   values), value ranges, scalar color mapping with thresholds, and
   deformed-shape geometry. It owns the CPU-side `DeformationState` contract
   consumed by the viewport and renderer (see [[data/results|Results]]).
-- `src/picking/` — GPU pick-id resolution (`resolvePick` / `resolvePickTarget`)
+- `src/picking/` — complete GPU hit reporting and pure interaction-target conversion
   and renderer-independent pick target types. It may depend on scene,
   geometry, elements, and math.
 - `src/platform/` — explicit WebGPU unsupported/error reporting with typed reasons (`capabilities.ts`), plus device request, loss reporting, and re-creation focused on the supported path (`device.ts`); see [[rendering/platform-support|Platform support]].

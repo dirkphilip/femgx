@@ -114,7 +114,7 @@ export async function startWebGpuDemo(
       const { runWebGpuBenchmark } = await import("./webgpu-benchmark");
       return runWebGpuBenchmark(canvas, { includeLarge });
     },
-    pickPoint: (x: number, y: number) => viewport?.pickPoint(x, y),
+    pickPoint: async (x: number, y: number) => (await viewport?.pick(x, y))?.worldPosition,
   };
 
   return controller;

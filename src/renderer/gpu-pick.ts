@@ -1,7 +1,9 @@
-import type { PickGranularity, PickContext } from "../picking/pick";
-import { resolvePickTarget } from "../picking/pick";
+import type { PickContext } from "../picking/pick";
+import { resolvePickHit } from "../picking/pick";
 import { canvasCssToRenderPixel } from "../camera/coordinates";
-import type { PickTarget } from "../picking/types";
+import { unprojectPoint, type Camera } from "../camera/camera";
+import type { PickHit } from "../picking/types";
+import type { Vec3 } from "../math/vec3";
 import { decodePickId, PICK_TEXTURE_FORMAT } from "./pick-format";
 import { WebGpuPickReadbackError } from "./gpu-pick-error";
 import {
@@ -251,26 +253,51 @@ function decodePickPixel(pixels: Uint8Array): PickPixelResult {
 }
 
 /** Inputs for resolving a pixel to a pick target. */
-export interface PickTargetFromPixelOptions {
+export interface PickHitFromPixelOptions {
   readonly device: GPUDevice;
   readonly canvas: HTMLCanvasElement;
   readonly pick: PickTargets;
   readonly context: PickContext;
+  readonly camera: Camera;
   readonly x: number;
   readonly y: number;
-  readonly granularity?: PickGranularity | undefined;
 }
 
 /**
  * Reads the four pick ids under a pixel and resolves them to a pick target.
  * `undefined` when nothing was hit.
  */
-export async function pickTargetFromPixel(
-  options: PickTargetFromPixelOptions,
-): Promise<PickTarget | undefined> {
-  const { device, canvas, pick, context, x, y, granularity } = options;
+export async function pickHitFromPixel(
+  options: PickHitFromPixelOptions,
+): Promise<PickHit | undefined> {
+  const { device, canvas, pick, context, camera, x, y } = options;
   const ids = await readPickPixel(device, canvas, pick, x, y);
-  return resolvePickTarget(context, ids, granularity);
+  if (ids.instancePickId === 0 || !Number.isFinite(ids.ndcDepth) || ids.ndcDepth >= 1) {
+    return undefined;
+  }
+  return resolvePickHit(context, ids, pickWorldPosition(canvas, camera, x, y, ids.ndcDepth));
+}
+
+/** Unprojects a normalized depth from the pick pass at a CSS-local canvas point. */
+export function pickWorldPosition(
+  canvas: HTMLCanvasElement,
+  camera: Camera,
+  x: number,
+  y: number,
+  ndcDepth: number,
+): Vec3 {
+  const pixel = pickPixelCoordinates(
+    x,
+    y,
+    canvas.getBoundingClientRect(),
+    canvas.width,
+    canvas.height,
+  );
+  return unprojectPoint(camera, [
+    ((pixel.x + 0.5) / canvas.width) * camera.width,
+    ((pixel.y + 0.5) / canvas.height) * camera.height,
+    ndcDepth,
+  ]);
 }
 
 /** Clears the pick render targets, keeping the size-independent readback pool. */

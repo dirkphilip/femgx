@@ -16,7 +16,7 @@ import { emphasisHash } from "./gpu-highlight-shader";
  * face pick ids they pass primitive corner positions and node pick ids as flat
  * varyings plus the interpolated local position, so the fragment stage can
  * report a nearby node. Hits farther from every corner write node id 0 so
- * `resolvePickTarget` falls through to face/element. Corner and local
+ * The physical hit resolver falls through to face/element. Corner and local
  * positions are displaced by the deformation state so node picking stays
  * consistent on deformed shapes.
  */

@@ -40,13 +40,12 @@ oriented element faces are the finest-grained pickable units under
   not `array<vec3<f32>>` — a vec3 storage array strides at 16 bytes, which
   would misalign the packed `positions` buffer. Lines and points report
   element/face/node = 0.
-- `resolvePickTarget(context, ids, granularity)` returns the most specific
-  level the hit supports (`node` > `face` > `element` > `instance` > `part`).
-  Passing a `granularity` promotes/narrows the hit to that level, falling back
-  to the deepest available when a deeper level is requested. Node targets carry
-  local/world position and geometry-derived adjacency; face targets carry the
-  oriented node loop, world-space normal, neighbor elements, and a hit position
-  (the face centroid for rasterized picks).
+- The private resolver returns the deepest physical level the hit supports
+  (`node` > `face` > `element` > `instance`). `PickHit` carries exact displayed
+  world position from the same depth readback; node hits carry local position and
+  geometry-derived adjacency, while face hits carry the oriented node loop,
+  world-space normal, and neighbor elements. Hosts use
+  `interactionTargetFromHit` for explicit granularity policy.
 
 ## Interaction state and emphasis
 
@@ -94,7 +93,7 @@ oriented element faces are the finest-grained pickable units under
 
 ## Demo
 
-- The demo's workbench uses `viewport.pick(x, y, granularity)` for interaction;
+- The demo's workbench uses `viewport.pick(x, y)` followed by its host policy for interaction;
   plain click selects the most specific hit (node), Shift promotes to the
   element, Alt to the instance, Ctrl to the part. Hover/selection datasets are
   prefixed by granularity (`n:instance:node`, `f:instance:element:faceKey`,

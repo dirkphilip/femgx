@@ -1,17 +1,15 @@
 import { assertValidCamera, createCamera, resizeCamera, type Camera } from "../camera/camera";
-import type { Vec3 } from "../math/vec3";
 import { installCameraControls } from "../camera/controls";
 import { fitCamera } from "../camera/fit";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { DeviceLostInfo } from "../platform/device";
-import type { PickGranularity } from "../picking/pick";
 import { createWebGpuRenderer, type WebGpuRenderer } from "../renderer/gpu-renderer";
 import { changedInstanceSlots } from "./interaction-diff";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "../scene-runtime/runtime";
 import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/public-runtime";
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
-import type { PickTarget } from "../picking/types";
+import type { PickHit } from "../picking/types";
 import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { sceneWorldBounds } from "./scene-bounds";
 import {
@@ -58,8 +56,7 @@ export interface FemViewport {
   setAssemblyNodeVisible(nodeId: AssemblyNodeId, visible: boolean): void;
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void;
   setInstanceVisible(instanceId: InstanceId, visible: boolean): void;
-  pick(x: number, y: number, granularity?: PickGranularity): Promise<PickTarget | undefined>;
-  pickPoint(x: number, y: number): Promise<Vec3 | undefined>;
+  pick(x: number, y: number): Promise<PickHit | undefined>;
   resize(): void;
   invalidate(): void;
   render(): void;
@@ -251,15 +248,10 @@ class FemViewportCore implements FemViewport {
     );
   }
 
-  pick(x: number, y: number, granularity?: PickGranularity): Promise<PickTarget | undefined> {
+  pick(x: number, y: number): Promise<PickHit | undefined> {
     this.ensureAlive();
-    return this.renderer.pick(x, y, granularity);
+    return this.renderer.pick(x, y);
   }
-  pickPoint(x: number, y: number): Promise<Vec3 | undefined> {
-    this.ensureAlive();
-    return this.renderer.pickPoint(this.cameraRef.camera, x, y);
-  }
-
   resize(invalidate = true): void {
     this.ensureAlive();
     const size = cssSize(this.options.canvas);

@@ -108,7 +108,6 @@ function fakeViewport(): FakeViewport {
       setAssemblyVisible: vi.fn(),
       setInstanceVisible: vi.fn(),
       pick: vi.fn(),
-      pickPoint: vi.fn(),
       resize: vi.fn(),
       invalidate: vi.fn(),
       render,

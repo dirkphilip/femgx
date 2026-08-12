@@ -26,8 +26,9 @@ controller, so camera and interaction behavior is stable
 ## GPU picking
 
 - Interaction picking is asynchronous GPU readback: `RendererHooks.pick` →
-  `FemViewport.pick(x, y)` → `resolvePickTarget`, returning a host-mappable
-  `PickTarget` (part / instance / element / face / node).
+  `FemViewport.pick(x, y)` returning a complete host-mappable `PickHit`; hosts
+  use `interactionTargetFromHit` to choose part / instance / body / element /
+  face / node selection policy.
 - Default granularity prefers the **most specific available target**
   (`node` > `face` > `element` > `instance`). Modifier keys promote/narrow the
   selection: shift → element, alt → instance, ctrl → part (see `demo/pick.ts`).

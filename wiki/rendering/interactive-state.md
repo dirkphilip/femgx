@@ -43,8 +43,8 @@ material clones.
 
 - GPU-based: render instance indices into a pick buffer and read back a single
   value on pointer events.
-- CPU side resolves that id via `resolvePick` / `resolvePickTarget` and
-  maps it to a [[architecture/architecture-overview|PickTarget]] (part, instance,
+- CPU side receives a complete `PickHit` and maps it with
+  `interactionTargetFromHit` to a [[architecture/architecture-overview|InteractionTarget]] (part, instance,
   element, face, or node).
 
 ## Precedence
@@ -89,6 +89,6 @@ Body emphasis still uses immutable state and the existing diffed
   vertex-stage storage-buffer limit; authored node sprites use the same packed
   layout for body-aware visibility and emphasis.
 
-[architecture/architecture-overview|PickTarget]: ../architecture/architecture-overview.md
+[architecture/architecture-overview|InteractionTarget]: ../architecture/architecture-overview.md
 [rendering/node-face-interaction|Node and face interaction]: node-face-interaction.md
 [rendering/renderer-subrange-updates|Renderer subrange updates]: renderer-subrange-updates.md

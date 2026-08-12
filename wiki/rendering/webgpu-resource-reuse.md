@@ -30,7 +30,7 @@ Per-frame allocations were removed from `src/renderer/`:
   size-independent readback pool and depth-extraction pipeline; `destroy`
   releases every pooled and intermediate buffer.
 - **Pick snapshot** — visible rendering does not encode pick geometry. The first
-  `pick()` or `pickPoint()` after camera, canvas, geometry/placement,
+  `pick()` after camera, canvas, geometry/placement,
   visibility, or deformation changes renders one current ID/depth snapshot;
   later readbacks reuse it. Interaction colors, edge/node overlays, and the
   rotation-origin widget does not invalidate the snapshot because it does not change hit
