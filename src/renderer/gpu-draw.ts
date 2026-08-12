@@ -14,6 +14,7 @@ import {
 } from "./gpu-pick-ids";
 import type { DrawPipelines } from "./gpu-pipelines";
 import { createBuffer, type PartResource } from "./gpu-support";
+import { createColorTargets, destroyColorTargets, type ColorTargets } from "./gpu-targets";
 
 const POINT_SPRITE_INDICES = [0, 1, 2, 0, 2, 3] as const;
 
@@ -43,22 +44,8 @@ export interface DrawResources {
   readonly nodeParts: Map<PartId, PartResource>;
   readonly storages: Map<PartId, InstanceStorage>;
   readonly deformations: Map<PartId, DeformationStorage>;
-  /** Multisampled color target resolved to the canvas each visible frame. */
-  msaaColorTexture: GPUTexture | undefined;
-  /** Single-sample opaque color target consumed by the transparency composite. */
-  opaqueColorTexture: GPUTexture | undefined;
-  /** Multisampled weighted transparency accumulation target. */
-  msaaAccumulationTexture: GPUTexture | undefined;
-  /** Resolved weighted transparency accumulation target. */
-  accumulationTexture: GPUTexture | undefined;
-  /** Multisampled weighted transparency revealage target. */
-  msaaRevealageTexture: GPUTexture | undefined;
-  /** Resolved weighted transparency revealage target. */
-  revealageTexture: GPUTexture | undefined;
-  depthTexture: GPUTexture | undefined;
-  depthWidth: number;
-  depthHeight: number;
-  compositeBindGroup: GPUBindGroup | undefined;
+  /** The complete visible-frame target state and its composite cache. */
+  readonly targets: ColorTargets;
 }
 
 /** Per-frame inputs shared by every draw batch of a pass. */
@@ -77,16 +64,7 @@ export function createDrawResources(device: GPUDevice): DrawResources {
     nodeParts: new Map(),
     storages: new Map(),
     deformations: new Map(),
-    msaaColorTexture: undefined,
-    opaqueColorTexture: undefined,
-    msaaAccumulationTexture: undefined,
-    accumulationTexture: undefined,
-    msaaRevealageTexture: undefined,
-    revealageTexture: undefined,
-    depthTexture: undefined,
-    depthWidth: 0,
-    depthHeight: 0,
-    compositeBindGroup: undefined,
+    targets: createColorTargets(),
   };
 }
 
@@ -370,11 +348,5 @@ export function destroyDrawResources(draw: DrawResources): void {
     storage.highlight.buffer.destroy();
   }
   destroyDeformationBuffers(draw.deformations);
-  draw.msaaColorTexture?.destroy();
-  draw.opaqueColorTexture?.destroy();
-  draw.msaaAccumulationTexture?.destroy();
-  draw.accumulationTexture?.destroy();
-  draw.msaaRevealageTexture?.destroy();
-  draw.revealageTexture?.destroy();
-  draw.depthTexture?.destroy();
+  destroyColorTargets(draw.targets);
 }

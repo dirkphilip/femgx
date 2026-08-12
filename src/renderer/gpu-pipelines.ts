@@ -1,4 +1,4 @@
-/* eslint-disable jsdoc/require-jsdoc, max-lines-per-function */
+/* eslint-disable jsdoc/require-jsdoc */
 import { COLOR_SAMPLE_COUNT } from "./gpu-support";
 import { DEFORMATION_UNIFORM_SIZE } from "./gpu-deform";
 import { createNodeOverlayPipelines } from "./gpu-node-overlay";
@@ -16,10 +16,26 @@ import {
   TRANSPARENCY_ACCUMULATION_FORMAT,
   TRANSPARENCY_REVEALAGE_FORMAT,
 } from "./gpu-transparency";
+import {
+  createColorTargets,
+  destroyColorTargets,
+  type ColorTargetOwner,
+  type ColorTargets,
+} from "./gpu-targets";
 import type { GpuValidationOptions } from "./gpu-validation";
 
 export { COLOR_SAMPLE_COUNT } from "./gpu-support";
 export type { DrawPipelines } from "./gpu-pipeline-builders";
+
+interface ReadyColorTargets {
+  readonly color: GPUTexture;
+  readonly depth: GPUTexture;
+  readonly opaqueColor: GPUTexture;
+  readonly accumulation: GPUTexture;
+  readonly revealage: GPUTexture;
+  readonly msaaAccumulation: GPUTexture;
+  readonly msaaRevealage: GPUTexture;
+}
 
 export interface RenderResources {
   readonly cameraBuffer: GPUBuffer;
@@ -36,23 +52,10 @@ export interface RenderResources {
   readonly instanceLayout: GPUBindGroupLayout;
 }
 
-interface DrawTargets {
-  readonly device: GPUDevice;
-  msaaColorTexture: GPUTexture | undefined;
-  opaqueColorTexture: GPUTexture | undefined;
-  msaaAccumulationTexture: GPUTexture | undefined;
-  accumulationTexture: GPUTexture | undefined;
-  msaaRevealageTexture: GPUTexture | undefined;
-  revealageTexture: GPUTexture | undefined;
-  depthTexture: GPUTexture | undefined;
-  depthWidth: number;
-  depthHeight: number;
-  compositeBindGroup: GPUBindGroup | undefined;
-}
-
 export const CAMERA_UNIFORM_SIZE = 112;
 
 /** Creates validated pipelines before allocating the remaining frame resources. */
+// eslint-disable-next-line max-lines-per-function -- pipeline creation is one validated resource transaction.
 export async function createRenderResources(
   device: GPUDevice,
   format: GPUTextureFormat,
@@ -160,122 +163,159 @@ export function destroyRenderResources(resources: RenderResources): void {
 
 /** Allocates or reuses the multisampled color + depth targets for a visible frame. */
 export function ensureColorTargets(
-  draw: DrawTargets,
+  draw: ColorTargetOwner,
   width: number,
   height: number,
   colorFormat: GPUTextureFormat,
   depthFormat: GPUTextureFormat,
-): {
-  readonly color: GPUTexture;
-  readonly depth: GPUTexture;
-  readonly opaqueColor: GPUTexture;
-  readonly accumulation: GPUTexture;
-  readonly revealage: GPUTexture;
-  readonly msaaAccumulation: GPUTexture;
-  readonly msaaRevealage: GPUTexture;
-} {
-  if (
-    draw.msaaColorTexture !== undefined &&
-    draw.opaqueColorTexture !== undefined &&
-    draw.msaaAccumulationTexture !== undefined &&
-    draw.accumulationTexture !== undefined &&
-    draw.msaaRevealageTexture !== undefined &&
-    draw.revealageTexture !== undefined &&
-    draw.depthTexture !== undefined &&
-    draw.depthWidth === width &&
-    draw.depthHeight === height
-  ) {
-    return {
-      color: draw.msaaColorTexture,
-      depth: draw.depthTexture,
-      opaqueColor: draw.opaqueColorTexture,
-      accumulation: draw.accumulationTexture,
-      revealage: draw.revealageTexture,
-      msaaAccumulation: draw.msaaAccumulationTexture,
-      msaaRevealage: draw.msaaRevealageTexture,
-    };
+): ReadyColorTargets {
+  const cached = cachedColorTargets(draw.targets, width, height);
+  if (cached !== undefined) return cached;
+  destroyColorTargets(draw.targets);
+  const next = allocateColorTargets(draw, width, height, colorFormat, depthFormat);
+  publishColorTargets(draw.targets, next, width, height);
+  return next;
+}
+
+function cachedColorTargets(
+  targets: ColorTargets,
+  width: number,
+  height: number,
+): ReadyColorTargets | undefined {
+  if (targets.depthWidth !== width || targets.depthHeight !== height) return undefined;
+  try {
+    return readyColorTargets(targets);
+  } catch {
+    return undefined;
   }
-  draw.msaaColorTexture?.destroy();
-  draw.opaqueColorTexture?.destroy();
-  draw.msaaAccumulationTexture?.destroy();
-  draw.accumulationTexture?.destroy();
-  draw.msaaRevealageTexture?.destroy();
-  draw.revealageTexture?.destroy();
-  draw.depthTexture?.destroy();
-  draw.msaaColorTexture = draw.device.createTexture({
-    size: [width, height],
-    sampleCount: COLOR_SAMPLE_COUNT,
-    format: colorFormat,
-    usage: GPUTextureUsage.RENDER_ATTACHMENT,
-  });
-  draw.opaqueColorTexture = draw.device.createTexture({
-    size: [width, height],
-    format: colorFormat,
-    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-  });
-  draw.msaaAccumulationTexture = draw.device.createTexture({
-    size: [width, height],
-    sampleCount: COLOR_SAMPLE_COUNT,
-    format: TRANSPARENCY_ACCUMULATION_FORMAT,
-    usage: GPUTextureUsage.RENDER_ATTACHMENT,
-  });
-  draw.accumulationTexture = draw.device.createTexture({
-    size: [width, height],
-    format: TRANSPARENCY_ACCUMULATION_FORMAT,
-    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-  });
-  draw.msaaRevealageTexture = draw.device.createTexture({
-    size: [width, height],
-    sampleCount: COLOR_SAMPLE_COUNT,
-    format: TRANSPARENCY_REVEALAGE_FORMAT,
-    usage: GPUTextureUsage.RENDER_ATTACHMENT,
-  });
-  draw.revealageTexture = draw.device.createTexture({
-    size: [width, height],
-    format: TRANSPARENCY_REVEALAGE_FORMAT,
-    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-  });
-  draw.depthTexture = draw.device.createTexture({
-    size: [width, height],
-    sampleCount: COLOR_SAMPLE_COUNT,
-    format: depthFormat,
-    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-  });
-  draw.depthWidth = width;
-  draw.depthHeight = height;
-  draw.compositeBindGroup = undefined;
+}
+
+function allocateColorTargets(
+  draw: ColorTargetOwner,
+  width: number,
+  height: number,
+  colorFormat: GPUTextureFormat,
+  depthFormat: GPUTextureFormat,
+): ReadyColorTargets {
+  const next = createColorTargets();
+  try {
+    next.msaaColorTexture = draw.device.createTexture({
+      size: [width, height],
+      sampleCount: COLOR_SAMPLE_COUNT,
+      format: colorFormat,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    next.opaqueColorTexture = draw.device.createTexture({
+      size: [width, height],
+      format: colorFormat,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+    });
+    next.msaaAccumulationTexture = draw.device.createTexture({
+      size: [width, height],
+      sampleCount: COLOR_SAMPLE_COUNT,
+      format: TRANSPARENCY_ACCUMULATION_FORMAT,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    next.accumulationTexture = draw.device.createTexture({
+      size: [width, height],
+      format: TRANSPARENCY_ACCUMULATION_FORMAT,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+    });
+    next.msaaRevealageTexture = draw.device.createTexture({
+      size: [width, height],
+      sampleCount: COLOR_SAMPLE_COUNT,
+      format: TRANSPARENCY_REVEALAGE_FORMAT,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    next.revealageTexture = draw.device.createTexture({
+      size: [width, height],
+      format: TRANSPARENCY_REVEALAGE_FORMAT,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+    });
+    next.depthTexture = draw.device.createTexture({
+      size: [width, height],
+      sampleCount: COLOR_SAMPLE_COUNT,
+      format: depthFormat,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+    });
+    return readyColorTargets(next);
+  } catch (error) {
+    destroyColorTargets(next);
+    throw error;
+  }
+}
+
+function readyColorTargets(targets: ColorTargets): ReadyColorTargets {
+  const {
+    msaaColorTexture,
+    opaqueColorTexture,
+    msaaAccumulationTexture,
+    accumulationTexture,
+    msaaRevealageTexture,
+    revealageTexture,
+    depthTexture,
+  } = targets;
+  if (
+    msaaColorTexture === undefined ||
+    opaqueColorTexture === undefined ||
+    msaaAccumulationTexture === undefined ||
+    accumulationTexture === undefined ||
+    msaaRevealageTexture === undefined ||
+    revealageTexture === undefined ||
+    depthTexture === undefined
+  ) {
+    throw new Error("Visible color targets are incomplete");
+  }
   return {
-    color: draw.msaaColorTexture,
-    depth: draw.depthTexture,
-    opaqueColor: draw.opaqueColorTexture,
-    accumulation: draw.accumulationTexture,
-    revealage: draw.revealageTexture,
-    msaaAccumulation: draw.msaaAccumulationTexture,
-    msaaRevealage: draw.msaaRevealageTexture,
+    color: msaaColorTexture,
+    depth: depthTexture,
+    opaqueColor: opaqueColorTexture,
+    accumulation: accumulationTexture,
+    revealage: revealageTexture,
+    msaaAccumulation: msaaAccumulationTexture,
+    msaaRevealage: msaaRevealageTexture,
   };
+}
+
+function publishColorTargets(
+  targets: ColorTargets,
+  next: ReadyColorTargets,
+  width: number,
+  height: number,
+): void {
+  targets.msaaColorTexture = next.color;
+  targets.opaqueColorTexture = next.opaqueColor;
+  targets.msaaAccumulationTexture = next.msaaAccumulation;
+  targets.accumulationTexture = next.accumulation;
+  targets.msaaRevealageTexture = next.msaaRevealage;
+  targets.revealageTexture = next.revealage;
+  targets.depthTexture = next.depth;
+  targets.depthWidth = width;
+  targets.depthHeight = height;
+  targets.compositeBindGroup = undefined;
 }
 
 /** Ensures the composite bind group addresses the current-size resolved targets. */
 export function ensureCompositeBindGroup(
-  draw: DrawTargets,
+  draw: ColorTargetOwner,
   resources: RenderResources,
 ): GPUBindGroup {
-  if (draw.compositeBindGroup !== undefined) return draw.compositeBindGroup;
+  if (draw.targets.compositeBindGroup !== undefined) return draw.targets.compositeBindGroup;
   if (
-    draw.opaqueColorTexture === undefined ||
-    draw.accumulationTexture === undefined ||
-    draw.revealageTexture === undefined
+    draw.targets.opaqueColorTexture === undefined ||
+    draw.targets.accumulationTexture === undefined ||
+    draw.targets.revealageTexture === undefined
   ) {
     throw new Error("Transparency targets are not initialized");
   }
-  draw.compositeBindGroup = createCompositeBindGroup(
+  draw.targets.compositeBindGroup = createCompositeBindGroup(
     draw.device,
     resources.composite.layout,
-    draw.opaqueColorTexture.createView(),
-    draw.accumulationTexture.createView(),
-    draw.revealageTexture.createView(),
+    draw.targets.opaqueColorTexture.createView(),
+    draw.targets.accumulationTexture.createView(),
+    draw.targets.revealageTexture.createView(),
   );
-  return draw.compositeBindGroup;
+  return draw.targets.compositeBindGroup;
 }
 
 /** Begins the visible color render pass with a cleared multisampled depth attachment. */
