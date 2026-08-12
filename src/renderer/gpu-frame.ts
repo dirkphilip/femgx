@@ -74,13 +74,13 @@ export function encodeVisibleFrame(
   const colorView = targets.color.createView();
   const depthView = targets.depth.createView();
   const colorPass = beginColorPass(colorEncoder, colorView, depthView, resolveTarget);
-  drawBatches(colorPass, frame.draw, context, frame.calls, { pass: "color" });
+  drawBatches(colorPass, frame.draw, context, frame.calls, { kind: "surface", pass: "color" });
   if (frame.edgeCalls.length > 0) {
     drawBatches(colorPass, frame.draw, context, frame.edgeCalls, {
+      kind: "edge",
       pipeline: frame.edgeDepthTest
         ? frame.resources.edgePipeline
         : frame.resources.edgeAlwaysPipeline,
-      overlay: true,
     });
   }
   if (frame.showNodes) {
@@ -108,7 +108,7 @@ export function encodePickSnapshot(
   const context = drawContext(frame, parts);
   const pickEncoder = frame.device.createCommandEncoder();
   const pickPass = beginPickPass(pickEncoder, frame.pickTargets);
-  drawBatches(pickPass, frame.draw, context, frame.calls, { pass: "pick" });
+  drawBatches(pickPass, frame.draw, context, frame.calls, { kind: "surface", pass: "pick" });
   pickPass.end();
   frame.device.queue.submit([pickEncoder.finish()]);
 }
@@ -143,7 +143,7 @@ function drawNodeOverlay(
   context: DrawCallContext,
 ): void {
   drawBatches(pass, frame.draw, context, frame.calls, {
-    nodes: true,
+    kind: "nodes",
     pipeline: frame.resources.nodeOverlayPipelines.visible,
   });
 }
