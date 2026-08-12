@@ -1,12 +1,5 @@
 import { expect, test } from "@playwright/test";
-import {
-  dataset,
-  distinctColors,
-  drawnPixels,
-  pixelHash,
-  requireHit,
-  waitForRenderer,
-} from "./demo-support";
+import { dataset, drawnPixels, pixelMetrics, requireHit, waitForRenderer } from "./demo-support";
 
 test("refits cleanly after switching from a larger gallery to the bolted model", async ({
   page,
@@ -56,25 +49,34 @@ test("shows distinct scalar contours and deformation in every results state", as
   const canvas = page.getByTestId("view-canvas");
   const resultsToggle = page.getByTestId("results-toggle");
 
+  let frame = await canvas.getAttribute("data-frames");
   await resultsToggle.click();
   await expect(canvas).toHaveAttribute("data-results", "base");
-  const baseHash = await pixelHash(canvas);
-  expect(await distinctColors(canvas), "base must render a visible neutral mesh").toBeGreaterThan(
-    3,
-  );
+  await expect.poll(() => canvas.getAttribute("data-frames")).not.toBe(frame);
+  const base = await pixelMetrics(canvas);
+  expect(base.distinctColors, "base must render a visible neutral mesh").toBeGreaterThan(3);
 
+  frame = await canvas.getAttribute("data-frames");
   await resultsToggle.click();
   await expect(canvas).toHaveAttribute("data-results", "colored");
-  await expect.poll(() => distinctColors(canvas), { timeout: 10_000 }).toBeGreaterThanOrEqual(4);
-  const coloredHash = await pixelHash(canvas);
-  expect(coloredHash, "colored results must change the canvas pixels").not.toBe(baseHash);
+  await expect.poll(() => canvas.getAttribute("data-frames")).not.toBe(frame);
+  const colored = await pixelMetrics(canvas);
+  expect(
+    colored.distinctColors,
+    "colored results must show distinct contours",
+  ).toBeGreaterThanOrEqual(4);
+  expect(colored.hash, "colored results must change the canvas pixels").not.toBe(base.hash);
 
+  frame = await canvas.getAttribute("data-frames");
   await resultsToggle.click();
   await expect(canvas).toHaveAttribute("data-results", "deformed");
-  await expect.poll(() => distinctColors(canvas), { timeout: 10_000 }).toBeGreaterThanOrEqual(4);
-  expect(await pixelHash(canvas), "deformed results must change the canvas pixels").not.toBe(
-    coloredHash,
-  );
+  await expect.poll(() => canvas.getAttribute("data-frames")).not.toBe(frame);
+  const deformed = await pixelMetrics(canvas);
+  expect(
+    deformed.distinctColors,
+    "deformed results must retain distinct contours",
+  ).toBeGreaterThanOrEqual(4);
+  expect(deformed.hash, "deformed results must change the canvas pixels").not.toBe(colored.hash);
 });
 
 test("keeps result-strip node and face picks on original ids after deformation", async ({

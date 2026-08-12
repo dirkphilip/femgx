@@ -8,7 +8,7 @@ export {
   sweepForHit,
   targetPlanePoint,
 } from "./helpers";
-export { distinctColors, drawnPixels, pixelHash } from "./helpers";
+export { distinctColors, drawnPixels, pixelHash, pixelMetrics } from "./helpers";
 
 /** Reads the stable workbench status summary. */
 export async function status(page: Page): Promise<string> {
