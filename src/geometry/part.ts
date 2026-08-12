@@ -1,4 +1,5 @@
 import { validateElements, validatePickIds } from "./part-validation";
+import { validatePartId } from "./id-validation";
 import type { Bounds, Geometry } from "./types";
 
 export type {
@@ -20,6 +21,8 @@ export type {
 /** A globally stable identifier for a reusable part within a scene. */
 export type PartId = number;
 
+export { MAX_PART_ID, validatePartId } from "./id-validation";
+
 /**
  * Reusable, immutable drawable geometry. Parts never own world transforms;
  * they are shared and instanced many times by assemblies.
@@ -34,14 +37,17 @@ export interface Part {
 const partBrand: unique symbol = Symbol("Part");
 
 /**
- * Validates and constructs one immutable part boundary. Bounds are always
- * derived from the supplied geometry, including the finite zero box for an
- * empty part, so callers cannot provide stale bounds.
+ * Validates and constructs one immutable part boundary. `createPart` retains
+ * the supplied typed arrays without defensive copies and takes ownership of
+ * them; callers must not mutate or reuse those arrays after this call. Bounds
+ * are always derived from the supplied geometry, including the finite zero box
+ * for an empty part, so callers cannot provide stale bounds.
  */
 export function createPart<T extends Geometry>(
   id: PartId,
   geometry: T,
 ): Part & { readonly geometry: T } {
+  validatePartId(id);
   validateGeometryArrays(geometry);
   validateElements(geometry);
   validatePickIds(geometry);

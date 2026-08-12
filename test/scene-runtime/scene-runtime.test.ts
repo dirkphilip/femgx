@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Assembly } from "../../src/scene/assembly";
 import { identity, translation } from "../../src/math/mat4";
-import { createPart, type Part } from "../../src/geometry/part";
+import { createPart, MAX_PART_ID, type Part } from "../../src/geometry/part";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 
@@ -42,6 +42,18 @@ function buildScene(
 }
 
 describe("createPackedSceneRuntime", () => {
+  it("preserves the largest supported part id in packed runtime and grouping", () => {
+    const scene = buildScene(
+      1,
+      [{ id: 1, placements: [{ kind: "part", partId: MAX_PART_ID, transform: identity() }] }],
+      [MAX_PART_ID],
+    );
+    const runtime = createPackedSceneRuntime(scene);
+    expect(runtime.instancePartIds[0]).toBe(MAX_PART_ID);
+    expect(runtime.sortedPartIds[0]).toBe(MAX_PART_ID);
+    expect(runtime.getPartId(0)).toBe(MAX_PART_ID);
+  });
+
   it("compiles parts, nested assemblies, and composed transforms", () => {
     const scene = buildScene(
       1,

@@ -19,6 +19,12 @@ cannot combine incompatible primitive topologies in one draw. The caller
 registers the returned parts in one scene; it never filters or rebuilds the
 source model by family.
 
+Each returned `Part` is homogeneous for one WebGPU draw topology. The
+`Assembly` is the composition boundary for a mixed model: register every
+present group as a part, then place those reusable definitions together (and
+repeat that assembly when needed). No generated part copies another group's
+geometry.
+
 Each generated descriptor preserves the source `ElementId` and `ElementShape`.
 Triangle descriptors use `primitiveStart`/`primitiveCount`; line and point
 descriptors use `primitiveStart`/`primitiveCount`. These ranges drive element

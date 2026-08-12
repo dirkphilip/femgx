@@ -119,6 +119,10 @@ const { createScene, createFemViewport, createResultField } = require("femgx");
   renderer-owned rotation-origin axis widget without requiring the demo's tree, toolbar, or info panels.
 - `createFemViewport()` is the canonical application path: it owns the packed runtime, fitted
   camera, renderer, controls, resize, interaction synchronization, recovery, and teardown.
+- `createPart()` retains supplied typed arrays without copying and takes ownership of them; do
+  not mutate or reuse those arrays after construction. For a mixed finite-element model, use
+  `heterogeneousElementParts()` to create one homogeneous reusable part per GPU topology, then
+  compose and place those parts in an `Assembly`.
 - `createResultField()` builds typed nodal/elemental scalar, vector, and tensor fields; the
   results API adds derived quantities (magnitude, von Mises, principal values), value ranges,
   scalar color mapping with optional thresholds, and deformed-shape geometry with a

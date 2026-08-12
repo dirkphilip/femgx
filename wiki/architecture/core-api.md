@@ -70,9 +70,10 @@ viewport.clearResults();
 viewport.destroy();
 ```
 
-`positions` and `indices` are application-owned typed arrays. `elements` is
-optional; when present, each triangle belongs to exactly one stable element
-range and can participate in element picking and interaction.
+`createPart` retains the supplied typed arrays without defensive copies and
+takes ownership of them; callers must not mutate or reuse them afterward.
+`elements` is optional; when present, each triangle belongs to exactly one
+stable element range and can participate in element picking and interaction.
 
 ## Core vocabulary and owners
 
@@ -114,8 +115,9 @@ range and can participate in element picking and interaction.
 For imported data, `createElementModelFromFemModel` is the one validated
 conversion from the serializable VTK-backed `FemModel` into the dense
 `ElementModel` consumed by element tessellation. Hosts then call
-`heterogeneousElementParts` once and register its explicit primitive parts in
-the scene.
+`heterogeneousElementParts` once and register its explicit homogeneous
+primitive parts in an `Assembly`, which is the logical mixed-model composition
+and placement boundary.
 
 ## Viewport surface
 

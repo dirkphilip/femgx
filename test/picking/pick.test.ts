@@ -5,6 +5,7 @@ import { LINE_SHAPE, POINT_SHAPE, TET4_SHAPE } from "../../src/elements/shapes";
 import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
 import {
   createPart,
+  MAX_PART_ID,
   validatePickIds,
   type Geometry,
   type Part,
@@ -59,6 +60,11 @@ describe("resolvePick", () => {
 });
 
 describe("instanceToTarget", () => {
+  it("preserves a maximum part id through pick target resolution", () => {
+    const instance = instanceAt(0, MAX_PART_ID);
+    expect(instanceToTarget(instance, true)).toEqual({ kind: "part", partId: MAX_PART_ID });
+  });
+
   it("maps to a part target when preferPart is set", () => {
     const instance = resolvePick([instanceAt(0)], 0);
     if (instance === undefined) throw new Error("expected instance");

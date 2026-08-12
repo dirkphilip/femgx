@@ -4,6 +4,7 @@ import type { ElementModel } from "../elements/model";
 import type { ElementShape } from "../elements/shapes";
 import {
   createPart,
+  validatePartId,
   type Body,
   type Geometry,
   type LineGeometry,
@@ -170,6 +171,7 @@ function validatePartIds(partIds: HeterogeneousElementPartIds, groups: ElementGr
   const seen = new Set<PartId>();
   for (const [group, partId] of entries) {
     if (partId !== undefined) {
+      validatePartId(partId);
       if (seen.has(partId)) {
         throw new HeterogeneousElementError(
           "duplicate-part-id",

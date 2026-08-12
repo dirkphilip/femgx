@@ -47,9 +47,40 @@ of truth for scene data.
 
 `createPart(id, geometry)` is the construction boundary for reusable parts. It
 validates primitive arrays and element/pick/body metadata, derives bounds from
-the supplied positions, and uses a finite zero box for an empty part. The
-authoring body list owns membership; descriptor body ids are validated derived
-metadata for render and pick paths.
+the supplied positions, and uses a finite zero box for an empty part. It
+retains the supplied typed arrays without defensive copies and takes ownership
+of them, so callers must not mutate or reuse them afterward. `PartId` is a
+direct unsigned 32-bit identity; element and body ids are one-based GPU pick
+identities and reserve the top raw value because `0` is the no-hit sentinel.
+The authoring body list owns membership; descriptor body ids are validated
+derived metadata for render and pick paths.
+
+Raw geometry follows this boundary directly:
+
+```ts
+const part = createPart(10, { positions, indices, primitive: "triangles" });
+```
+
+Typed FE data uses the same reusable-part path. A mixed `ElementModel` is
+grouped into one homogeneous `Part` per compatible GPU topology, and an
+`Assembly` composes and places those parts without copying their geometry:
+
+```ts
+const parts = heterogeneousElementParts({ triangle: 10, line: 11 }, model);
+const scene = createScene()
+  .addPart(parts.triangle!)
+  .addPart(parts.line!)
+  .addAssembly({
+    id: 1,
+    name: "model",
+    placements: [
+      { kind: "part", partId: 10, transform: identity() },
+      { kind: "part", partId: 11, transform: identity() },
+    ],
+  })
+  .withRoot(1)
+  .build();
+```
 
 ## Registry and identity rules
 

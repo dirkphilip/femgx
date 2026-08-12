@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPart, type Part } from "../../src/geometry/part";
+import { createPart, MAX_PART_ID, type Part } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createScene } from "../../src/scene/scene";
@@ -15,6 +15,22 @@ function part(id: number): Part {
 }
 
 describe("renderer runtime state", () => {
+  it("keeps the largest part id addressable through GPU draw derivation", () => {
+    const scene = createScene()
+      .addPart(part(MAX_PART_ID))
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [{ kind: "part", partId: MAX_PART_ID, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    expect(layout.partOrder).toEqual([MAX_PART_ID]);
+    expect(buildDrawOrder(layout, runtime, MAX_PART_ID)).toEqual(new Uint32Array([0]));
+  });
+
   it("maps stable slots to part-local slots and counts visible instances", () => {
     const scene = createScene()
       .addPart(part(1))

@@ -75,6 +75,11 @@ export interface FaceTessellation {
 export type Primitive = "triangles" | "lines" | "points";
 
 interface GeometryBase {
+  /**
+   * `createPart` retains these typed arrays without copying and owns them for
+   * the lifetime of the returned part. Callers must not mutate or reuse them
+   * after construction.
+   */
   readonly positions: Float32Array;
   readonly indices: Uint32Array;
   /** Optional element tessellations covering the logical primitives. */
