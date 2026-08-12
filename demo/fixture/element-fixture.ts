@@ -18,7 +18,9 @@ import {
   buildHex20CylinderModel,
   buildHexModel,
   buildPointLineModel,
+  buildQuadModel,
   buildSurfaceModel,
+  buildTriangleModel,
   buildTetModel,
 } from "./element-models";
 
@@ -106,6 +108,8 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   const tet10Model = buildTetModel(gridSize, cellSize, true);
   const hex8Model = buildHexModel(gridSize, cellSize, false);
   const hex20Model = buildHexModel(gridSize, cellSize, true);
+  const triangleModel = buildTriangleModel();
+  const quadModel = buildQuadModel();
   const surfaceModel = buildSurfaceModel();
   const models = new Map<PartId, ElementModel>([
     [POINT_PART_ID, pointLineModel],
@@ -115,8 +119,8 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     [TET10_PART_ID, tet10Model],
     [HEX8_PART_ID, hex8Model],
     [HEX20_PART_ID, hex20Model],
-    [TRIANGLE_PART_ID, surfaceModel],
-    [QUAD_PART_ID, surfaceModel],
+    [TRIANGLE_PART_ID, triangleModel],
+    [QUAD_PART_ID, quadModel],
     [POLYGON_PART_ID, surfaceModel],
   ]);
   const parts: readonly Part[] = [
@@ -137,17 +141,10 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     requireGroup(heterogeneousElementParts({ triangle: HEX8_PART_ID }, hex8Model), "triangle"),
     requireGroup(heterogeneousElementParts({ triangle: HEX20_PART_ID }, hex20Model), "triangle"),
     requireGroup(
-      heterogeneousElementParts({ triangle: TRIANGLE_PART_ID }, surfaceModel, {
-        faceSubset: [{ elementId: 1, faceIndex: 0 }],
-      }),
+      heterogeneousElementParts({ triangle: TRIANGLE_PART_ID }, triangleModel),
       "triangle",
     ),
-    requireGroup(
-      heterogeneousElementParts({ triangle: QUAD_PART_ID }, surfaceModel, {
-        faceSubset: [{ elementId: 2, faceIndex: 0 }],
-      }),
-      "triangle",
-    ),
+    requireGroup(heterogeneousElementParts({ triangle: QUAD_PART_ID }, quadModel), "triangle"),
     polygonPart(POLYGON_PART_ID, {
       positions: [0, 0, 0, 2, 0, 0, 2, 2, 0, 1, 1, 0, 0, 2, 0],
       faces: [{ nodeIds: [0, 1, 2, 3, 4], elementId: 1, key: "gallery-polygon" }],

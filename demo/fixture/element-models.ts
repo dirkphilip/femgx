@@ -236,12 +236,24 @@ export function buildPointLineModel(
   return createElementModel(builder.positions, elements);
 }
 
+const SURFACE_NODES = [0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0, 0, 2, 1, 0] as const;
+
+/** Builds the authored triangle example with the original node ids. */
+export function buildTriangleModel(): ElementModel {
+  return createElementModel(SURFACE_NODES, [createElement(1, TRIANGLE_SHAPE, [0, 1, 2])]);
+}
+
+/** Builds the authored quad example with the original node ids. */
+export function buildQuadModel(): ElementModel {
+  return createElementModel(SURFACE_NODES, [createElement(2, QUAD_SHAPE, [1, 3, 4, 2])]);
+}
+
 /** Builds a planar pair that demonstrates typed triangle and quad surfaces. */
 export function buildSurfaceModel(): ElementModel {
-  return createElementModel(
-    [0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0, 0, 2, 1, 0],
-    [createElement(1, TRIANGLE_SHAPE, [0, 1, 2]), createElement(2, QUAD_SHAPE, [1, 3, 4, 2])],
-  );
+  return createElementModel(SURFACE_NODES, [
+    createElement(1, TRIANGLE_SHAPE, [0, 1, 2]),
+    createElement(2, QUAD_SHAPE, [1, 3, 4, 2]),
+  ]);
 }
 
 /** Builds one mixed linear model for the recommended heterogeneous API path. */
