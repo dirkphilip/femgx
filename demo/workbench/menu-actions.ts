@@ -25,6 +25,9 @@ export function applyMenuAction(action: string, context: WorkbenchMenuActionCont
     case "select":
       if (target !== undefined) context.interaction.select(target);
       break;
+    case "select-element":
+      if (target !== undefined) context.interaction.selectElement(target);
+      break;
     case "hide-instance":
       if (target !== undefined) context.visibilityActions.toggleInstance(target);
       break;

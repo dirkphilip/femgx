@@ -1,5 +1,6 @@
 import {
   interactionTargetFromHit,
+  type ElementId,
   type BodyId,
   type InteractionGranularity,
   type InteractionTarget,
@@ -12,6 +13,8 @@ export type PickLevel = "node" | "face" | "element" | "instance" | "part";
 /** A stable selection identity at any supported granularity. */
 export type SelectTarget = Exclude<InteractionTarget, { readonly kind: "body" }> & {
   readonly bodyId?: BodyId;
+  /** The exact element owning a node pick, retained for context actions. */
+  readonly elementId?: ElementId;
 };
 
 /**
@@ -29,25 +32,47 @@ export function selectTarget(
     readonly metaKey: boolean;
   },
 ): SelectTarget | undefined {
-  const granularity: InteractionGranularity = modifiers.altKey
-    ? "instance"
-    : modifiers.shiftKey
-      ? "element"
-      : hit.kind;
+  const granularity: InteractionGranularity = modifiers.altKey ? "instance" : hit.kind;
   const target = interactionTargetFromHit(hit, granularity);
   if (target === undefined || target.kind === "body") return undefined;
-  return {
+  const selectedTarget: SelectTarget = {
     ...target,
     ...(target.kind === "element" || target.kind === "face" || target.kind === "node"
       ? optionalBodyId("bodyId" in hit ? hit.bodyId : undefined)
       : {}),
+    ...(target.kind === "node"
+      ? optionalElementId("elementId" in hit ? hit.elementId : undefined)
+      : {}),
   };
+  return modifiers.shiftKey && !modifiers.altKey ? elementTarget(selectedTarget) : selectedTarget;
 }
 
 function optionalBodyId(
   bodyId: BodyId | undefined,
 ): { readonly bodyId: BodyId } | Record<never, never> {
   return bodyId === undefined ? {} : { bodyId };
+}
+
+function optionalElementId(
+  elementId: ElementId | undefined,
+): { readonly elementId: ElementId } | Record<never, never> {
+  return elementId === undefined ? {} : { elementId };
+}
+
+/** Promotes an element-owned pick to its exact owning element identity. */
+export function elementTarget(target: SelectTarget): SelectTarget | undefined {
+  switch (target.kind) {
+    case "node":
+      return target.elementId === undefined
+        ? undefined
+        : { kind: "element", instanceId: target.instanceId, elementId: target.elementId };
+    case "face":
+    case "element":
+      return { kind: "element", instanceId: target.instanceId, elementId: target.elementId };
+    case "instance":
+    case "part":
+      return undefined;
+  }
 }
 
 /** Stable dataset key for a resolved pick or selection target. */

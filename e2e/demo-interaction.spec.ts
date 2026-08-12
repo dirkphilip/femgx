@@ -39,6 +39,68 @@ test("selects an element by promoting a node pick with shift-click", async ({ pa
   await page.keyboard.up("Shift");
   await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
 });
+
+test("selects and deselects the owning element from a node context menu", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node GPU picking must resolve on the deterministic WebGPU lane",
+  );
+  const menu = page.getByTestId("context-menu");
+
+  expect(await dataset(page, "selected")).toBe("");
+  await page.mouse.click(hit.x, hit.y, { button: "right" });
+  await expect(menu).toBeVisible();
+  expect(await dataset(page, "selected")).toBe("");
+  await expect(menu.locator('button[data-action="select-element"]')).toHaveText("Select element");
+  await expect(menu.locator('button[data-action="select"]')).toHaveText("Select node");
+  await menu.locator('button[data-action="select-element"]').click();
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
+
+  await page.mouse.click(hit.x, hit.y, { button: "right" });
+  await expect(menu.locator('button[data-action="select-element"]')).toHaveText("Deselect element");
+  await menu.locator('button[data-action="select-element"]').click();
+  await expect.poll(() => dataset(page, "selected")).toBe("");
+});
+
+test("promotes face and element context targets to the exact element", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const menu = page.getByTestId("context-menu");
+  const faceHit = await requireHit(
+    page,
+    canvas,
+    { prefix: "f:", fresh: true },
+    "face GPU picking must resolve on the deterministic WebGPU lane",
+  );
+
+  await page.mouse.click(faceHit.x, faceHit.y, { button: "right" });
+  await expect(menu.locator(".menu-title").first()).toHaveText(/^Face /);
+  await expect(menu.locator('button[data-action="select-element"]')).toHaveText("Select element");
+  await menu.locator('button[data-action="select-element"]').click();
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
+
+  await page.mouse.click(faceHit.x, faceHit.y, { button: "right" });
+  await expect(menu.locator('button[data-action="select-element"]')).toHaveText("Deselect element");
+  await menu.locator('button[data-action="select-element"]').click();
+  await expect.poll(() => dataset(page, "selected")).toBe("");
+
+  const nodeHit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:", fresh: true },
+    "node GPU picking must resolve on the deterministic WebGPU lane",
+  );
+  await page.keyboard.down("Shift");
+  await page.mouse.click(nodeHit.x, nodeHit.y, { button: "right" });
+  await page.keyboard.up("Shift");
+  await expect(menu.locator(".menu-title").first()).toHaveText(/^Element /);
+  await menu.locator('button[data-action="select-element"]').click();
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
+});
 test("clears selection on empty scene clicks but preserves it through orbit", async ({ page }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");

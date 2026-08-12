@@ -34,6 +34,11 @@ controller, so camera and interaction behavior is stable
   (`node` > `face` > `element` > `instance`). Modifier keys promote/narrow the
   selection: shift → element, alt → instance, ctrl → part (see
   `demo/workbench/pick.ts`).
+- A node or face context menu keeps its exact owning element and exposes
+  **Select element** / **Deselect element** alongside an unambiguous target
+  action. Selecting an unselected element replaces the ordinary selection;
+  deselecting it removes only that element. Instance, part, and empty-scene
+  targets never fabricate an element action.
 - The workbench ignores stale readbacks with a pick generation counter so
   hover/click races never apply an older hit.
 - Hit data is stable across visibility changes because ids come from the

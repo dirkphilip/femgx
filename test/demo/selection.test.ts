@@ -8,8 +8,13 @@ import {
   setPartOverride,
   type InteractionTarget,
 } from "../../src/index";
-import { selectTarget } from "../../demo/workbench/pick";
-import { clearSelection, replaceSelection, toggleSelection } from "../../demo/workbench/selection";
+import { elementTarget, selectTarget } from "../../demo/workbench/pick";
+import {
+  clearSelection,
+  replaceSelection,
+  toggleElementSelection,
+  toggleSelection,
+} from "../../demo/workbench/selection";
 import type { SelectTarget } from "../../demo/workbench/pick";
 import type { PickHit } from "../../src/index";
 
@@ -72,5 +77,55 @@ describe("demo selection policy", () => {
       kind: "element",
       elementId: 7,
     });
+    expect(selectTarget(hit, { ...modifiers, shiftKey: true, altKey: true })).toMatchObject({
+      kind: "instance",
+      instanceId: "1/0",
+    });
+
+    const directElement: PickHit = {
+      kind: "element",
+      partId: 4,
+      instanceId: "1/0",
+      elementId: 7,
+      worldPosition: [0, 0, 0],
+    };
+    expect(selectTarget(directElement, modifiers)).toMatchObject({
+      kind: "element",
+      instanceId: "1/0",
+      elementId: 7,
+    });
+  });
+
+  it("maps element-owned targets to one exact element without fabricating instance or part targets", () => {
+    const node: SelectTarget = {
+      kind: "node",
+      instanceId: "1/0",
+      nodeId: 3,
+      elementId: 7,
+    };
+    const face: SelectTarget = { kind: "face", instanceId: "1/0", elementId: 7, key: "0/1/2" };
+    expect(elementTarget(node)).toEqual(element);
+    expect(elementTarget(face)).toEqual(element);
+    expect(elementTarget(element)).toEqual(element);
+    expect(elementTarget(instance)).toBeUndefined();
+    expect(elementTarget(part)).toBeUndefined();
+  });
+
+  it("replaces selection when selecting an element and removes only it when deselecting", () => {
+    const node: SelectTarget = {
+      kind: "node",
+      instanceId: "1/0",
+      nodeId: 3,
+      elementId: 7,
+    };
+    const other: SelectTarget = { kind: "part", partId: 9 };
+    let state = setTargetSelected(createInteractionState(), other, true);
+    state = toggleElementSelection(state, node);
+    expect(isTargetSelected(state, other)).toBe(false);
+    expect(isTargetSelected(state, element)).toBe(true);
+    state = setTargetSelected(state, other, true);
+    state = toggleElementSelection(state, node);
+    expect(isTargetSelected(state, element)).toBe(false);
+    expect(isTargetSelected(state, other)).toBe(true);
   });
 });

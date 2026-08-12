@@ -147,6 +147,35 @@ test("keeps the context menu inside a phone-sized viewport", async ({ page }) =>
   expect(menu.y + menu.height, "menu bottom edge").toBeLessThanOrEqual(viewport.height);
 });
 
+test("selects the owning element from a node context menu on a phone", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:", fresh: true },
+    "node GPU picking must resolve on the deterministic WebGPU lane",
+  );
+  const menu = page.getByTestId("context-menu");
+
+  await page.mouse.click(hit.x, hit.y, { button: "right" });
+  await expect(menu).toBeVisible();
+  await expect(menu.locator('button[data-action="select-element"]')).toHaveText("Select element");
+  const menuBox = await menu.boundingBox();
+  const viewport = await page.evaluate(() => ({
+    width: document.documentElement.clientWidth,
+    height: document.documentElement.clientHeight,
+  }));
+  if (menuBox === null) throw new Error("context menu has no bounding box");
+  expect(menuBox.x).toBeGreaterThanOrEqual(0);
+  expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(viewport.width);
+  expect(menuBox.y + menuBox.height).toBeLessThanOrEqual(viewport.height);
+
+  await menu.locator('button[data-action="select-element"]').click();
+  await expect.poll(() => canvas.getAttribute("data-selected")).toMatch(/^e:/);
+});
+
 test("keeps the empty-scene view menu inside a phone-sized viewport", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto("/");
