@@ -1,6 +1,8 @@
 import type { PartId } from "../geometry/part";
 import type { AssemblyId } from "../scene/types";
 import type { RuntimeState } from "./compile";
+import { findGroupRange } from "./group-index";
+import { invariantValue } from "./invariants";
 
 /** Result of a visibility update: the affected instance slots and counts. */
 export interface VisibilityDelta {
@@ -20,52 +22,29 @@ function makeDelta(
   return { changedInstanceIds: changed, previousVisibleCount, visibleCount: state.visibleCount };
 }
 
-function lowerBound(sorted: Uint32Array, key: number): number {
-  let low = 0;
-  let high = sorted.length;
-  while (low < high) {
-    const mid = low + ((high - low) >> 1);
-    const value = sorted[mid];
-    if (value === undefined) {
-      break;
-    }
-    if (value < key) {
-      low = mid + 1;
-    } else {
-      high = mid;
-    }
-  }
-  return low;
-}
-
-function findGroup(
-  sortedKeys: Uint32Array,
-  offsets: Uint32Array,
-  key: number,
-): readonly [number, number] | undefined {
-  const position = lowerBound(sortedKeys, key);
-  if (position >= sortedKeys.length || sortedKeys[position] !== key) {
-    return undefined;
-  }
-  const start = offsets[position];
-  const end = offsets[position + 1];
-  if (start === undefined || end === undefined) {
-    return undefined;
-  }
-  return [start, end];
-}
-
 function parentEffectiveVisible(state: RuntimeState, node: number): 0 | 1 {
-  const parent = state.nodeParents[node];
+  const parent = invariantValue(state.nodeParents[node], `parent at node ${node}`);
   if (parent === -1) {
     return 1;
   }
-  return parent !== undefined && state.nodeEffectiveVisible[parent] === 1 ? 1 : 0;
+  return invariantValue(
+    state.nodeEffectiveVisible[parent],
+    `effective visibility at parent ${parent}`,
+  ) === 1
+    ? 1
+    : 0;
 }
 
 function recomputeInstance(state: RuntimeState, instanceId: number, changed: number[]): void {
-  const owningNode = state.instanceOwningNode[instanceId];
-  const hierarchyVisible = owningNode !== undefined && state.nodeEffectiveVisible[owningNode] === 1;
+  const owningNode = invariantValue(
+    state.instanceOwningNode[instanceId],
+    `owning node at instance ${instanceId}`,
+  );
+  const hierarchyVisible =
+    invariantValue(
+      state.nodeEffectiveVisible[owningNode],
+      `effective visibility at node ${owningNode}`,
+    ) === 1;
   const effective =
     state.instanceOverrideVisible[instanceId] === 1 &&
     state.instancePartVisible[instanceId] === 1 &&
@@ -87,27 +66,24 @@ function recomputeInstance(state: RuntimeState, instanceId: number, changed: num
 function recomputeSubtree(state: RuntimeState, entryNode: number, changed: number[]): void {
   const stack = [entryNode];
   while (stack.length > 0) {
-    const node = stack.pop();
-    if (node === undefined) {
-      break;
-    }
+    const node = invariantValue(stack.pop(), "visibility traversal stack entry");
     const effective =
       state.nodeVisible[node] === 1 && parentEffectiveVisible(state, node) === 1 ? 1 : 0;
     if (effective === state.nodeEffectiveVisible[node]) {
       continue;
     }
     state.nodeEffectiveVisible[node] = effective;
-    let child = state.nodeFirstChild[node] ?? -1;
+    let child = invariantValue(state.nodeFirstChild[node], `first child at node ${node}`);
     while (child !== -1) {
       stack.push(child);
-      child = state.nodeNextSibling[child] ?? -1;
+      child = invariantValue(state.nodeNextSibling[child], `next sibling at node ${child}`);
     }
   }
-  const start = state.nodeInstanceStart[entryNode];
-  const end = state.nodeInstanceEnd[entryNode];
-  if (start === undefined || end === undefined) {
-    return;
-  }
+  const start = invariantValue(
+    state.nodeInstanceStart[entryNode],
+    `instance start at node ${entryNode}`,
+  );
+  const end = invariantValue(state.nodeInstanceEnd[entryNode], `instance end at node ${entryNode}`);
   for (let instanceId = start; instanceId < end; instanceId++) {
     recomputeInstance(state, instanceId, changed);
   }
@@ -163,17 +139,19 @@ export function setPartVisible(
   visible: boolean,
 ): VisibilityDelta {
   const previousVisibleCount = state.visibleCount;
-  const range = findGroup(state.sortedPartIds, state.partInstanceOffset, partId);
+  const range = findGroupRange(
+    state.sortedPartIds,
+    state.partInstanceOffset,
+    state.partInstanceList.length,
+    partId,
+  );
   if (range === undefined) {
     return makeDelta(state, [], previousVisibleCount);
   }
   const flag = visible ? 1 : 0;
   const changed: number[] = [];
   for (let index = range[0]; index < range[1]; index++) {
-    const instanceId = state.partInstanceList[index];
-    if (instanceId === undefined) {
-      continue;
-    }
+    const instanceId = invariantValue(state.partInstanceList[index], `part instance at ${index}`);
     if (state.instancePartVisible[instanceId] === flag) {
       continue;
     }
@@ -190,17 +168,19 @@ export function setAssemblyVisible(
   visible: boolean,
 ): VisibilityDelta {
   const previousVisibleCount = state.visibleCount;
-  const range = findGroup(state.sortedAssemblyIds, state.assemblyNodeOffset, assemblyId);
+  const range = findGroupRange(
+    state.sortedAssemblyIds,
+    state.assemblyNodeOffset,
+    state.assemblyNodeList.length,
+    assemblyId,
+  );
   if (range === undefined) {
     return makeDelta(state, [], previousVisibleCount);
   }
   const flag = visible ? 1 : 0;
   const changed: number[] = [];
   for (let index = range[0]; index < range[1]; index++) {
-    const node = state.assemblyNodeList[index];
-    if (node === undefined) {
-      continue;
-    }
+    const node = invariantValue(state.assemblyNodeList[index], `assembly node at ${index}`);
     if (state.nodeVisible[node] === flag) {
       continue;
     }

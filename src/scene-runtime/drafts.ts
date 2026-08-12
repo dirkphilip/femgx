@@ -3,6 +3,7 @@ import type { Assembly, PartPlacement } from "../scene/assembly";
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { AssemblyId, AssemblyNodeId } from "../scene/types";
+import { invariantValue } from "./invariants";
 
 /** Mutable intermediate for a compiled assembly expansion. */
 export interface NodeDraft {
@@ -32,17 +33,15 @@ export interface InstanceDraft {
 }
 
 function linkChild(nodes: NodeDraft[], parent: number, nodeIndex: number): void {
-  const parentNode = nodes[parent];
-  if (parentNode === undefined) {
-    return;
-  }
+  const parentNode = invariantValue(nodes[parent], `parent node at ${parent}`);
   if (parentNode.firstChild === -1) {
     parentNode.firstChild = nodeIndex;
   } else {
-    const previousSibling = nodes[parentNode.lastChild];
-    if (previousSibling !== undefined) {
-      previousSibling.nextSibling = nodeIndex;
-    }
+    const previousSibling = invariantValue(
+      nodes[parentNode.lastChild],
+      `last sibling at parent ${parent}`,
+    );
+    previousSibling.nextSibling = nodeIndex;
   }
   parentNode.lastChild = nodeIndex;
 }
@@ -91,7 +90,8 @@ class DraftWriter {
     if (this.assemblies.get(assemblyId) === undefined) {
       return undefined;
     }
-    const parentEffective: 0 | 1 = parent === -1 ? 1 : (this.nodes[parent]?.effective ?? 1);
+    const parentEffective: 0 | 1 =
+      parent === -1 ? 1 : invariantValue(this.nodes[parent], `parent node at ${parent}`).effective;
     const visible: 0 | 1 = this.visibleAssemblyIds.has(assemblyId) ? 1 : 0;
     const effective: 0 | 1 = visible === 1 && parentEffective === 1 ? 1 : 0;
     const nodeIndex = this.nodes.length;
@@ -123,37 +123,34 @@ class DraftWriter {
     }
     const stack: WalkItem[] = [{ nodeIndex: root, assemblyId, world, path, nextPlacement: 0 }];
     while (stack.length > 0) {
-      const item = stack[stack.length - 1];
-      if (item === undefined) {
-        stack.pop();
-        continue;
-      }
-      const assembly = this.assemblies.get(item.assemblyId);
-      if (assembly === undefined || item.nextPlacement >= assembly.placements.length) {
-        const node = this.nodes[item.nodeIndex];
-        if (node !== undefined) {
-          node.instanceEnd = this.instances.length;
-        }
+      const item = invariantValue(stack[stack.length - 1], "assembly walk stack entry");
+      const assembly = invariantValue(
+        this.assemblies.get(item.assemblyId),
+        `assembly ${item.assemblyId}`,
+      );
+      if (item.nextPlacement >= assembly.placements.length) {
+        const node = invariantValue(
+          this.nodes[item.nodeIndex],
+          `assembly node at ${item.nodeIndex}`,
+        );
+        node.instanceEnd = this.instances.length;
         stack.pop();
         continue;
       }
       const placementIndex = item.nextPlacement;
       item.nextPlacement += 1;
-      const placement = assembly.placements[placementIndex];
-      if (placement === undefined) {
-        continue;
-      }
+      const placement = invariantValue(
+        assembly.placements[placementIndex],
+        `placement ${placementIndex} in assembly ${item.assemblyId}`,
+      );
       const placementWorld = multiply(item.world, placement.transform);
       const placementPath = `${item.path}/${placementIndex}`;
       if (placement.kind === "part") {
-        const node = this.nodes[item.nodeIndex];
-        this.pushPart(
-          item.nodeIndex,
-          placement,
-          placementWorld,
-          placementPath,
-          node?.effective ?? 0,
+        const node = invariantValue(
+          this.nodes[item.nodeIndex],
+          `assembly node at ${item.nodeIndex}`,
         );
+        this.pushPart(item.nodeIndex, placement, placementWorld, placementPath, node.effective);
         continue;
       }
       const child = this.pushNode(

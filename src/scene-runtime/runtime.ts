@@ -3,6 +3,8 @@ import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { compileSceneState, type RuntimeState } from "./compile";
+import { findGroupRange } from "./group-index";
+import { invariantValue } from "./invariants";
 import { setInstanceTransform, setNodeTransform, type TransformDelta } from "./transforms";
 import {
   getDrawList as computeDrawList,
@@ -73,13 +75,13 @@ interface RuntimeMaps {
 function runtimeMaps(state: RuntimeState): RuntimeMaps {
   const instanceSlots = new Map<InstanceId, number>();
   for (let slot = 0; slot < state.instanceInstanceIds.length; slot++) {
-    const instanceId = state.instanceInstanceIds[slot];
-    if (instanceId !== undefined) instanceSlots.set(instanceId, slot);
+    const instanceId = invariantValue(state.instanceInstanceIds[slot], `instance id at ${slot}`);
+    instanceSlots.set(instanceId, slot);
   }
   const nodeSlots = new Map<AssemblyNodeId, number>();
   for (let node = 0; node < state.nodeNodeIds.length; node++) {
-    const nodeId = state.nodeNodeIds[node];
-    if (nodeId !== undefined) nodeSlots.set(nodeId, node);
+    const nodeId = invariantValue(state.nodeNodeIds[node], `node id at ${node}`);
+    nodeSlots.set(nodeId, node);
   }
   return { instanceSlots, nodeSlots };
 }
@@ -130,7 +132,12 @@ function createRuntimeQueries(
       return maps.nodeSlots.get(nodeId);
     },
     getPartInstanceSlots(partId: PartId): ArrayLike<number> {
-      const range = findPartRange(state, partId);
+      const range = findGroupRange(
+        state.sortedPartIds,
+        state.partInstanceOffset,
+        state.partInstanceList.length,
+        partId,
+      );
       return range === undefined
         ? new Uint32Array()
         : state.partInstanceList.subarray(range[0], range[1]);
@@ -188,20 +195,4 @@ function createRuntimeMutations(
       return setNodeTransform(state, nodeId, transform);
     },
   };
-}
-
-function findPartRange(state: RuntimeState, partId: PartId): readonly [number, number] | undefined {
-  let low = 0;
-  let high = state.sortedPartIds.length;
-  while (low < high) {
-    const mid = low + ((high - low) >> 1);
-    const value = state.sortedPartIds[mid];
-    if (value === undefined) break;
-    if (value < partId) low = mid + 1;
-    else high = mid;
-  }
-  if (low >= state.sortedPartIds.length || state.sortedPartIds[low] !== partId) return undefined;
-  const start = state.partInstanceOffset[low];
-  const end = state.partInstanceOffset[low + 1];
-  return start === undefined || end === undefined ? undefined : [start, end];
 }
