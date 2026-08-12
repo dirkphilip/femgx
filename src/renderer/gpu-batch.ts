@@ -10,22 +10,19 @@ import {
 
 type PipelinePass = "color" | "pick";
 
+type DrawIntent =
+  | { readonly kind: "surface"; readonly pass: PipelinePass }
+  | { readonly kind: "edge"; readonly pipeline: GPURenderPipeline }
+  | { readonly kind: "nodes"; readonly pipeline: GPURenderPipeline };
+
 /** Inputs shared by one instanced batch draw. */
 export interface BatchDrawOptions {
-  readonly passKind: PipelinePass;
-  readonly overlay: boolean;
-  readonly nodes: boolean;
-  readonly pipelineOverride: GPURenderPipeline | undefined;
+  readonly intent: DrawIntent;
   readonly current: GPURenderPipeline | undefined;
 }
 
 /** Options controlling one collection of instanced draws. */
-export interface DrawBatchOptions {
-  readonly pass?: PipelinePass;
-  readonly pipeline?: GPURenderPipeline;
-  readonly overlay?: boolean;
-  readonly nodes?: boolean;
-}
+export type DrawBatchOptions = DrawIntent;
 
 /** Issues all instanced draws for the cached per-part calls. */
 export function drawBatches(
@@ -33,19 +30,13 @@ export function drawBatches(
   draw: DrawResources,
   context: DrawCallContext,
   calls: readonly DrawCall[],
-  options: DrawBatchOptions = {},
+  options: DrawBatchOptions = { kind: "surface", pass: "color" },
 ): void {
-  const passKind = options.pass ?? "color";
-  const overlay = options.overlay === true;
-  const nodes = options.nodes === true;
   pass.setBindGroup(0, context.frameBindGroup);
   let current: GPURenderPipeline | undefined;
   for (const call of calls) {
     current = drawOneBatch(pass, draw, context, call, {
-      passKind,
-      overlay,
-      nodes,
-      pipelineOverride: options.pipeline,
+      intent: options,
       current,
     });
   }
@@ -59,7 +50,9 @@ export function drawOneBatch(
   call: DrawCall,
   options: BatchDrawOptions,
 ): GPURenderPipeline | undefined {
-  const { passKind, overlay, nodes, pipelineOverride, current } = options;
+  const { intent, current } = options;
+  const overlay = intent.kind === "edge";
+  const nodes = intent.kind === "nodes";
   const part = context.parts.get(call.partId);
   const storage = draw.storages.get(call.partId);
   if (part === undefined || storage === undefined) return current;
@@ -71,8 +64,9 @@ export function drawOneBatch(
   }
   if (!overlay && subset && geometry.subsetIndexCount === 0) return current;
   const pipeline =
-    pipelineOverride ??
-    pipelineFor(nodes ? "points" : part.geometry.primitive, passKind, context.pipelines);
+    intent.kind === "surface"
+      ? pipelineFor(part.geometry.primitive, intent.pass, context.pipelines)
+      : intent.pipeline;
   if (current !== pipeline) pass.setPipeline(pipeline);
   const deformation = ensureDeformationBuffer(draw.device, draw.deformations, call.partId);
   const group = orderBindGroup(draw.device, context.instanceLayout, storage, overlay, {

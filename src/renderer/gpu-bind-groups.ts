@@ -19,12 +19,12 @@ export function orderBindGroup(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   storage: InstanceStorage,
-  overlay: boolean,
+  edgeOverlay: boolean,
   part: PartDrawInputs,
 ): GPUBindGroup {
-  const orderBuffer = overlay ? storage.edgeOrderBuffer : storage.orderBuffer;
+  const orderBuffer = edgeOverlay ? storage.edgeOrderBuffer : storage.orderBuffer;
   if (part.cache === false) return instanceBindGroup(device, layout, storage, orderBuffer, part);
-  return overlay
+  return edgeOverlay
     ? (storage.edgeBindGroup ??= instanceBindGroup(device, layout, storage, orderBuffer, part))
     : (storage.bindGroup ??= instanceBindGroup(device, layout, storage, orderBuffer, part));
 }

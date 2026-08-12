@@ -147,7 +147,7 @@ describe("GPU draw path", () => {
         draw,
         { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) },
         [{ partId: subsetPart.id, instanceCount: 1 }],
-        { pass: "color" },
+        { kind: "surface", pass: "color" },
       );
       pass.end();
       expect(gpu.drawCalls).toEqual([{ indexCount: 3, instanceCount: 1 }]);
@@ -328,11 +328,12 @@ describe("GPU draw path", () => {
         {} as GPUTextureView,
       );
       drawBatches(pass, draw, drawContext(), [{ partId: part.id, instanceCount: 3 }], {
+        kind: "surface",
         pass: "color",
       });
       drawBatches(pass, draw, drawContext(), [{ partId: part.id, instanceCount: 2 }], {
+        kind: "edge",
         pipeline: {} as GPURenderPipeline,
-        overlay: true,
       });
       pass.end();
       expect(gpu.drawCalls).toEqual([
@@ -366,8 +367,8 @@ describe("GPU draw path", () => {
       );
       const context = { ...drawContext(), parts: new Map([[linePart.id, linePart]]) };
       drawBatches(pass, draw, context, [{ partId: linePart.id, instanceCount: 1 }], {
+        kind: "edge",
         pipeline: {} as GPURenderPipeline,
-        overlay: true,
       });
       pass.end();
       expect(gpu.drawCalls).toEqual([]);
@@ -395,6 +396,7 @@ describe("GPU draw path", () => {
         {} as GPUTextureView,
       );
       drawBatches(pass, draw, drawContext(), [{ partId: part.id, instanceCount: 2 }], {
+        kind: "surface",
         pass: "color",
       });
       pass.end();
@@ -455,7 +457,7 @@ describe("GPU draw path", () => {
           { partId: linePart.id, instanceCount: 1 },
           { partId: pointPart.id, instanceCount: 1 },
         ],
-        { pass: "color" },
+        { kind: "surface", pass: "color" },
       );
       pass.end();
       expect(gpu.pipelineCalls).toEqual([
@@ -485,7 +487,7 @@ describe("GPU draw path", () => {
           {} as GPUTextureView,
           {} as GPUTextureView,
         );
-        drawBatches(pass, draw, drawContext(), calls, { pass: "color" });
+        drawBatches(pass, draw, drawContext(), calls, { kind: "surface", pass: "color" });
         pass.end();
       }
       expect(gpu.bindGroupCreations).toBe(1);
@@ -510,6 +512,7 @@ describe("GPU draw path", () => {
         {} as GPUTextureView,
       );
       drawBatches(pass, draw, drawContext(), [{ partId: part.id, instanceCount: 1 }], {
+        kind: "surface",
         pass: "color",
       });
       pass.end();
@@ -527,6 +530,7 @@ describe("GPU draw path", () => {
         {} as GPUTextureView,
       );
       drawBatches(pass2, draw, drawContext(), [{ partId: part.id, instanceCount: 3 }], {
+        kind: "surface",
         pass: "color",
       });
       pass2.end();
