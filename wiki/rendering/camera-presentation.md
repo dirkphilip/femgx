@@ -26,9 +26,12 @@ camera target. Wheel zoom uses the picked world point when available and this
 target-plane point otherwise, preserving the chosen screen position while
 zooming. Shift+middle-drag captures the same anchor at pointer-down; pinch
 recomputes it under the current two-pointer midpoint after midpoint pan.
-All control-driven zoom transitions are admitted against the current compiled
-scene bounds, so an aggressive wheel, drag, or pinch gesture stops at a safe
-front-of-model depth and updates the clip interval to the accepted range.
+All control-driven zoom and orbit transitions are admitted against the current
+compiled scene bounds, so aggressive wheel, drag, pinch, or off-center pivot
+gestures stop at a safe front-of-model pose and update the clip interval to the
+accepted range. Orbit admission searches the requested yaw/pitch as one
+immutable prefix and uses the live bounds supplier when queued GPU-pivot input
+resolves; standalone controls without bounds retain generic orbit behavior.
 Early drag deltas wait for
 the asynchronous GPU hit, so the gesture uses one pivot from its first visible
 movement onward. The WebGPU renderer projects its active pivot to a

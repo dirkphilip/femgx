@@ -230,6 +230,82 @@ describe("camera controls", () => {
     expect(cameraRef.camera.far).toBeGreaterThan(cameraRef.camera.position[2] + 1);
   });
 
+  it("uses current navigation bounds for immediate orbit safety", async () => {
+    const canvas = new FakeCanvas();
+    const initial = resizeCamera(
+      createCamera({ position: [0, 0, 5], target: [0, 0, 0], near: 0.01, far: 1000 }),
+      200,
+      100,
+    );
+    const cameraRef = { camera: initial };
+    const bounds = {
+      minX: -1,
+      minY: -1,
+      minZ: -1,
+      maxX: 1,
+      maxY: 1,
+      maxZ: 1,
+    };
+    const getBounds = vi.fn(() => bounds);
+    installCameraControls({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      cameraRef,
+      bounds: getBounds,
+      navigation: { pickPoint: () => Promise.resolve(undefined), setOrbitPivot: vi.fn() },
+      onRender: vi.fn(),
+    });
+
+    canvas.dispatch("pointerdown", pointer(100, 50));
+    await Promise.resolve();
+    canvas.dispatch("pointermove", pointer(280, 50));
+
+    expect(getBounds).toHaveBeenCalledOnce();
+    expect(cameraRef.camera.far).toBeLessThan(initial.far);
+    expect(cameraRef.camera.near).toBeGreaterThan(0);
+  });
+
+  it("applies queued orbit deltas with the live bounds supplier", async () => {
+    const canvas = new FakeCanvas();
+    const initial = resizeCamera(
+      createCamera({ position: [0, 0, 5], target: [0, 0, 0], near: 0.01, far: 1000 }),
+      200,
+      100,
+    );
+    const cameraRef = { camera: initial };
+    let resolvePivot: ((pivot: Vec3 | undefined) => void) | undefined;
+    const pivotPromise = new Promise<Vec3 | undefined>((resolve) => {
+      resolvePivot = resolve;
+    });
+    const bounds = {
+      minX: -1,
+      minY: -1,
+      minZ: -1,
+      maxX: 1,
+      maxY: 1,
+      maxZ: 1,
+    };
+    const getBounds = vi.fn(() => bounds);
+    installCameraControls({
+      canvas: canvas as unknown as HTMLCanvasElement,
+      cameraRef,
+      bounds: getBounds,
+      navigation: { pickPoint: () => pivotPromise, setOrbitPivot: vi.fn() },
+      onRender: vi.fn(),
+    });
+
+    canvas.dispatch("pointerdown", pointer(100, 50));
+    canvas.dispatch("pointermove", pointer(280, 50));
+    expect(cameraRef.camera).toBe(initial);
+
+    resolvePivot?.(undefined);
+    await pivotPromise;
+    await Promise.resolve();
+
+    expect(getBounds).toHaveBeenCalledOnce();
+    expect(cameraRef.camera.far).toBeLessThan(initial.far);
+    expect(cameraRef.camera.near).toBeGreaterThan(0);
+  });
+
   it("clears the orbit widget when the pointer gesture ends", async () => {
     const canvas = new FakeCanvas();
     const cameraRef = {

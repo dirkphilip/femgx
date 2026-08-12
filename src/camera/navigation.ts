@@ -1,6 +1,42 @@
 import type { Bounds } from "../geometry/part";
 import { dot, normalize, subtract, type Vec3 } from "../math/vec3";
-import { projectPoint, unprojectPoint, zoomCamera, zoomCameraAtPoint, type Camera } from "./camera";
+import {
+  orbitCamera,
+  projectPoint,
+  unprojectPoint,
+  zoomCamera,
+  zoomCameraAtPoint,
+  type Camera,
+} from "./camera";
+
+/** Orbits around a pivot while keeping the supplied bounds in front of the camera. */
+export function orbitCameraWithinBounds(
+  camera: Camera,
+  yawDelta: number,
+  pitchDelta: number,
+  pivot: Vec3 | undefined,
+  bounds: Bounds,
+): Camera {
+  assertFinite("orbit yaw", yawDelta);
+  assertFinite("orbit pitch", pitchDelta);
+  if (yawDelta === 0 && pitchDelta === 0) return camera;
+  return transitionWithinBounds(camera, bounds, (value, progress) =>
+    orbitCamera(value, yawDelta * progress, pitchDelta * progress, pivot),
+  );
+}
+
+/** Selects bounded or generic orbiting for controls with an optional bounds supplier. */
+export function orbitCameraWithOptionalBounds(
+  camera: Camera,
+  yawDelta: number,
+  pitchDelta: number,
+  pivot: Vec3 | undefined,
+  bounds: Bounds | undefined,
+): Camera {
+  return bounds === undefined
+    ? orbitCamera(camera, yawDelta, pitchDelta, pivot)
+    : orbitCameraWithinBounds(camera, yawDelta, pitchDelta, pivot, bounds);
+}
 
 const SAFE_MARGIN_FRACTION = 1e-5;
 const MIN_NEAR_FRACTION = 1e-7;
@@ -8,7 +44,11 @@ const SEARCH_STEPS = 32;
 
 /** Zooms toward the target while keeping the supplied bounds in front of the camera. */
 export function zoomCameraWithinBounds(camera: Camera, amount: number, bounds: Bounds): Camera {
-  return zoomWithinBounds(camera, amount, bounds, (value, step) => zoomCamera(value, step));
+  assertFinite("zoom amount", amount);
+  if (amount === 0) return camera;
+  return transitionWithinBounds(camera, bounds, (value, progress) =>
+    zoomCamera(value, amount * progress),
+  );
 }
 
 /** Zooms around a point while keeping the supplied bounds in front of the camera. */
@@ -18,8 +58,10 @@ export function zoomCameraAtPointWithinBounds(
   pivot: Vec3,
   bounds: Bounds,
 ): Camera {
-  return zoomWithinBounds(camera, amount, bounds, (value, step) =>
-    zoomCameraAtPoint(value, step, pivot),
+  assertFinite("zoom amount", amount);
+  if (amount === 0) return camera;
+  return transitionWithinBounds(camera, bounds, (value, progress) =>
+    zoomCameraAtPoint(value, amount * progress, pivot),
   );
 }
 
@@ -33,37 +75,31 @@ export function targetPlanePoint(camera: Camera, x: number, y: number): Vec3 {
   return unprojectPoint(camera, [x, y, targetScreen[2]]);
 }
 
-function zoomWithinBounds(
+function transitionWithinBounds(
   camera: Camera,
-  amount: number,
   bounds: Bounds,
-  transition: (camera: Camera, amount: number) => Camera,
+  transition: (camera: Camera, progress: number) => Camera,
 ): Camera {
-  assertFinite("zoom amount", amount);
-  if (amount === 0) return camera;
   const margin = cameraDepthMargin(bounds);
   if (minimumDepth(camera, bounds) <= margin) return camera;
-  const requested = transition(camera, amount);
+  const requested = transition(camera, 1);
   const progress =
-    minimumDepth(requested, bounds) > margin
-      ? 1
-      : safeProgress(camera, amount, bounds, margin, transition);
+    minimumDepth(requested, bounds) > margin ? 1 : safeProgress(camera, bounds, margin, transition);
   if (progress === 0) return camera;
-  return updateClipPlanes(transition(camera, amount * progress), bounds, margin);
+  return updateClipPlanes(transition(camera, progress), bounds, margin);
 }
 
 function safeProgress(
   camera: Camera,
-  amount: number,
   bounds: Bounds,
   margin: number,
-  transition: (camera: Camera, amount: number) => Camera,
+  transition: (camera: Camera, progress: number) => Camera,
 ): number {
   let low = 0;
   let high = 1;
   for (let step = 0; step < SEARCH_STEPS; step += 1) {
     const middle = (low + high) / 2;
-    const candidate = transition(camera, amount * middle);
+    const candidate = transition(camera, middle);
     if (minimumDepth(candidate, bounds) > margin) low = middle;
     else high = middle;
   }
