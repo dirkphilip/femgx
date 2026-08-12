@@ -1,7 +1,7 @@
 import { viewProjectionMatrix, type Camera } from "../camera/camera";
 import type { Part } from "../geometry/part";
 import type { PartId } from "../geometry/part";
-import { add, normalize, scale, subtract, type Vec3 } from "../math/vec3";
+import { add, cross, normalize, scale, subtract, type Vec3 } from "../math/vec3";
 import type { DeformationState } from "../results/deform";
 import { writeDeformationUniform } from "./gpu-deform";
 import type { DrawCall, DrawCallContext, DrawResources } from "./gpu-draw";
@@ -57,10 +57,12 @@ export function pointSizeDevicePixels(cssPixels: number, dpr = devicePixelRatio)
   return Math.max(1, cssPixels * dpr);
 }
 
-/** Returns a finite camera-following key direction with an asymmetric world-space bias. */
+/** Returns the world-space key direction for a fixed upper-left camera-space light. */
 export function cameraKeyLightDirection(camera: Camera): Vec3 {
-  const viewDirection = normalize(subtract(camera.position, camera.target), [0, 0, 1], 1e-6);
-  return normalize(add(scale(viewDirection, 1), [0.7, 0.4, -0.55]), [0, 1, 0], 1e-6);
+  const forward = normalize(subtract(camera.target, camera.position));
+  const right = normalize(cross(forward, camera.up));
+  const up = cross(right, forward);
+  return normalize(add(add(scale(right, -0.45), scale(up, 0.55)), scale(forward, -1)));
 }
 
 /** Encodes and submits one visible color frame without any picking work. */
