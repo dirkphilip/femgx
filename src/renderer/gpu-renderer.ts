@@ -4,7 +4,7 @@ import { createGpuBundle } from "./gpu-recovery";
 import { readGpuValidationOptions } from "./gpu-validation";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
 
-export type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
+export type { ViewportBackground, WebGpuRenderer, WebGpuRendererOptions } from "./types";
 
 /** Creates a WebGPU renderer, or throws a typed error when unavailable. */
 export async function createWebGpuRenderer(

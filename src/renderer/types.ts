@@ -11,6 +11,9 @@ import type { PickHit } from "../picking/types";
 import type { InteractionGranularity } from "../picking/types";
 import type { InteractionTarget } from "../interaction/target-types";
 
+/** Built-in WebGPU viewport background presentations. */
+export type ViewportBackground = "studio" | "white" | "dark";
+
 /** Options for creating a WebGPU renderer. */
 export interface WebGpuRendererOptions {
   readonly canvas: HTMLCanvasElement;
@@ -18,6 +21,8 @@ export interface WebGpuRendererOptions {
   readonly powerPreference?: GPUPowerPreference;
   /** Screen-space diameter of point elements in CSS pixels (default 8). */
   readonly pointSizePixels?: number;
+  /** Initial WebGPU-rendered viewport background (default `studio`). */
+  readonly background?: ViewportBackground;
   /** Called with a typed reason when the underlying GPU device is lost. */
   readonly onDeviceLost?: (info: DeviceLostInfo) => void;
 }
@@ -37,6 +42,8 @@ export interface WebGpuRenderer {
   updateElements(runtime: PackedSceneRuntime, interaction: InteractionState): void;
   /** Controls whether the edge overlay compares against the depth buffer. */
   setEdgeDepthTest(enabled: boolean): void;
+  /** Changes the WebGPU-rendered viewport background presentation. */
+  setBackground(background: ViewportBackground): void;
   /** Shows the library-styled world-space rotation pivot, or clears it. */
   setOrbitPivot(pivot: Vec3 | undefined): void;
   /** Rebuilds draw order after runtime visibility changes. */

@@ -79,6 +79,7 @@ describe("GPU validation", () => {
         "transparency composite",
         "node annotation fragment",
         "orbit pivot overlay",
+        "viewport background",
         "pick-depth compute/readback",
       ]);
     } finally {

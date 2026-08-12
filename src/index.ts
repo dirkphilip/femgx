@@ -186,6 +186,7 @@ export {
   createFemViewport,
   type FemViewport,
   type FemViewportOptions,
+  type ViewportBackground,
 } from "./viewport/fem-viewport";
 export type { OrientationGizmoOptions } from "./viewport/orientation-gizmo";
 export type {

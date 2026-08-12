@@ -169,7 +169,9 @@ const viewport = await createFemViewport({
   canvas,
   scene,
   orientationGizmo: { container: viewportContainer },
+  background: "studio",
 });
+viewport.setBackground("dark");
 viewport.setInteraction(interaction);
 viewport.setResults({
   field: stress,
@@ -180,6 +182,10 @@ viewport.setPartVisible(part.id, false);
 viewport.clearResults();
 viewport.destroy();
 ```
+
+`background` selects the renderer-owned WebGPU presentation (`"studio"`, `"white"`,
+or `"dark"`); it defaults to `"studio"`. `setBackground()` changes that preset without
+rebuilding the viewport or affecting depth, picking, interaction, or result rendering.
 
 `orientationGizmo` is optional. When enabled, femgx creates the accessible,
 interactive view-cube SVG inside the supplied container. Its six named faces,

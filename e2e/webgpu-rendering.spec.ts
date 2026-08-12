@@ -1,6 +1,7 @@
 /** rendering ownership: GPU pixels, overlays, and visual contracts. */
 
 import { expect, test } from "@playwright/test";
+import type * as Api from "../src/index";
 import {
   sweepForHit,
   stableCanvasPixels,
@@ -54,6 +55,71 @@ test("keeps selection feedback visible in edge overlay mode", async ({ page }) =
   await page.getByTestId("edge-overlay").click();
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   expect(await canvas.getAttribute("data-selected")).toBe(selected);
+});
+
+test("renders and switches the built-in viewport backgrounds", async ({ page }) => {
+  await page.goto("/");
+  const hasWebGpu = await page.evaluate(() => "gpu" in navigator);
+  if (!hasWebGpu) test.skip(true, "WebGPU is unavailable in this browser environment");
+
+  await page.evaluate(async () => {
+    const modulePath = "/src/index.ts";
+    const api = (await import(/* @vite-ignore */ modulePath)) as typeof Api;
+    document.body.innerHTML =
+      '<canvas id="background-test" style="display:block;width:640px;height:420px"></canvas>';
+    const canvas = document.getElementById("background-test");
+    if (!(canvas instanceof HTMLCanvasElement)) throw new Error("background canvas missing");
+    const part = api.createPart(1, {
+      positions: new Float32Array([-0.8, -0.6, 0, 0.8, -0.6, 0, 0, 0.7, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+      primitive: "triangles",
+    });
+    const scene = api
+      .createScene()
+      .addPart(part)
+      .addAssembly({
+        id: 1,
+        name: "background-test",
+        placements: [{ kind: "part", partId: 1, transform: api.identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const viewport = await api.createFemViewport({ canvas, scene, background: "studio" });
+    (window as Window & { __backgroundViewport?: typeof viewport }).__backgroundViewport = viewport;
+  });
+
+  const canvas = page.locator("#background-test");
+  await expect(canvas).toBeVisible();
+  await page.waitForTimeout(150);
+  const studio = await canvasRgba(page, canvas);
+  await page.evaluate(() =>
+    (
+      window as Window & { __backgroundViewport?: { setBackground: (background: "white") => void } }
+    ).__backgroundViewport?.setBackground("white"),
+  );
+  await page.waitForTimeout(150);
+  const white = await canvasRgba(page, canvas);
+  await page.evaluate(() =>
+    (
+      window as Window & { __backgroundViewport?: { setBackground: (background: "dark") => void } }
+    ).__backgroundViewport?.setBackground("dark"),
+  );
+  await page.waitForTimeout(150);
+  const dark = await canvasRgba(page, canvas);
+
+  expect(
+    differingPixelCount(studio, white),
+    "studio and white must present different pixels",
+  ).toBeGreaterThan(1000);
+  expect(
+    differingPixelCount(white, dark),
+    "white and dark must present different pixels",
+  ).toBeGreaterThan(1000);
+  await page.evaluate(() =>
+    (
+      window as Window & { __backgroundViewport?: { destroy: () => void } }
+    ).__backgroundViewport?.destroy(),
+  );
 });
 
 test("element emphasis changes the rendered pixels and toggles off again", async ({ page }) => {
