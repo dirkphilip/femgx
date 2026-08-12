@@ -62,6 +62,22 @@ test("uses SpaceClaim middle-button spin, pan, and zoom gestures", async ({ page
   await expect.poll(cameraKey).not.toBe(beforeZoom);
 });
 
+test("crosses both orbit poles through repeated full rotations", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("fit-view").click();
+
+  for (let step = 0; step < 8; step += 1) {
+    await dragCamera(page, canvas, { x: 0, y: 160 });
+    const navigation = await readNavigationState(canvas);
+    expectCameraFrame(navigation.camera);
+    expectBoundsClippedSafely(navigation.camera, navigation.bounds);
+  }
+
+  expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(200);
+  await expect(page.locator('[data-femgx-orientation-gizmo="true"]')).toBeVisible();
+});
+
 test("shows a camera-oriented rotation-origin widget only during orbit", async ({ page }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
@@ -180,6 +196,44 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
   expectDisplayedPointClippedSafely(zoomedOutAgain.camera, zoomedOutAgain.bounds, displayedPoint);
   expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(20);
 });
+
+function expectCameraFrame(
+  camera: Awaited<ReturnType<typeof readNavigationState>>["camera"],
+): void {
+  const forward = normalizeVector([
+    camera.target[0] - camera.position[0],
+    camera.target[1] - camera.position[1],
+    camera.target[2] - camera.position[2],
+  ]);
+  const up = normalizeVector(camera.up);
+  const right = normalizeVector(crossVector(forward, up));
+  expect(Math.hypot(...camera.up)).toBeCloseTo(1, 5);
+  expect(dotVector(forward, up)).toBeCloseTo(0, 5);
+  expect(dotVector(forward, right)).toBeCloseTo(0, 5);
+  expect(dotVector(crossVector(right, forward), up)).toBeCloseTo(1, 5);
+  expect(camera.near).toBeGreaterThan(0);
+  expect(camera.far).toBeGreaterThan(camera.near);
+}
+
+function normalizeVector(vector: readonly number[]): readonly [number, number, number] {
+  const magnitude = Math.hypot(...vector);
+  return [(vector[0] ?? 0) / magnitude, (vector[1] ?? 0) / magnitude, (vector[2] ?? 0) / magnitude];
+}
+
+function crossVector(
+  a: readonly number[],
+  b: readonly number[],
+): readonly [number, number, number] {
+  return [
+    (a[1] ?? 0) * (b[2] ?? 0) - (a[2] ?? 0) * (b[1] ?? 0),
+    (a[2] ?? 0) * (b[0] ?? 0) - (a[0] ?? 0) * (b[2] ?? 0),
+    (a[0] ?? 0) * (b[1] ?? 0) - (a[1] ?? 0) * (b[0] ?? 0),
+  ];
+}
+
+function dotVector(a: readonly number[], b: readonly number[]): number {
+  return (a[0] ?? 0) * (b[0] ?? 0) + (a[1] ?? 0) * (b[1] ?? 0) + (a[2] ?? 0) * (b[2] ?? 0);
+}
 
 test("keeps empty-canvas wheel zoom anchored at the cursor", async ({ page }) => {
   await loadWebGpuPage(page);

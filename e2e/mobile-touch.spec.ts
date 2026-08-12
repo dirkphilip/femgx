@@ -94,6 +94,45 @@ test("touch gestures orbit, pinch-zoom, and pan without leaving dragging stuck",
   await context.close();
 });
 
+test("one-finger orbit crosses a camera pole without corrupting the frame", async ({ browser }) => {
+  const context = await browser.newContext({
+    baseURL: BASE_URL,
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toBeVisible();
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  const x = Math.round(box.x + box.width / 2);
+  const startY = Math.round(box.y + box.height * 0.2);
+  const client = await context.newCDPSession(page);
+
+  await dispatchTouch(client, "touchStart", [{ x, y: startY, id: 0 }]);
+  for (const fraction of [0.4, 0.6, 0.8] as const) {
+    await dispatchTouch(client, "touchMove", [
+      { x, y: Math.round(box.y + box.height * fraction), id: 0 },
+    ]);
+  }
+  await dispatchTouch(client, "touchEnd", []);
+  await expect.poll(() => canvas.getAttribute("data-dragging")).toBe("false");
+
+  const camera = await readNavigationState(canvas);
+  const forward = normalizeVector([
+    camera.camera.target[0] - camera.camera.position[0],
+    camera.camera.target[1] - camera.camera.position[1],
+    camera.camera.target[2] - camera.camera.position[2],
+  ]);
+  expect(Math.hypot(...camera.camera.up)).toBeCloseTo(1, 5);
+  expect(dotVector(forward, normalizeVector(camera.camera.up))).toBeCloseTo(0, 5);
+  expectBoundsClippedSafely(camera.camera, camera.bounds);
+  expect(await canvas.screenshot()).not.toHaveLength(0);
+  await context.close();
+});
+
 test("keeps repeated mobile pinch zoom inside the model bounds", async ({ browser }) => {
   const context = await browser.newContext({
     baseURL: BASE_URL,
@@ -220,3 +259,12 @@ test("a one-finger tap still performs picking and selection", async ({ browser }
 
   await context.close();
 });
+
+function normalizeVector(vector: readonly number[]): readonly [number, number, number] {
+  const magnitude = Math.hypot(...vector);
+  return [(vector[0] ?? 0) / magnitude, (vector[1] ?? 0) / magnitude, (vector[2] ?? 0) / magnitude];
+}
+
+function dotVector(a: readonly number[], b: readonly number[]): number {
+  return (a[0] ?? 0) * (b[0] ?? 0) + (a[1] ?? 0) * (b[1] ?? 0) + (a[2] ?? 0) * (b[2] ?? 0);
+}

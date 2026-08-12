@@ -17,7 +17,8 @@ toolbars, or inspection panels.
 - **Left mouse drag** is not a camera gesture, preserving click and
   shift-click inspection selection.
 - **One finger** continues to orbit on touch devices.
-- **Spin** has no pole clamp, so it can turn through and beyond a full circle.
+- **Spin** rotates the complete view frame, including its orthonormal `up`
+  direction, so it has no pole clamp and can turn through repeated full circles.
 - **Two fingers** pinch-zoom and pan together: the pinch distance change maps
   to a log-scale zoom (`zoom = ln(distance / previousDistance)`, so spreading
   zooms in) and the midpoint movement maps to a two-finger pan.

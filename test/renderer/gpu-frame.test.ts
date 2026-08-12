@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cameraKeyLightDirection, pointSizeDevicePixels } from "../../src/renderer/gpu-frame";
 import { orbitPivotAxisProjection, orbitPivotMetrics } from "../../src/renderer/gpu-orbit-pivot";
-import { createCamera, resizeCamera } from "../../src/camera/camera";
+import { createCamera, orbitCamera, resizeCamera } from "../../src/camera/camera";
 
 const originalDevicePixelRatio = globalThis.devicePixelRatio;
 
@@ -42,6 +42,17 @@ describe("cameraKeyLightDirection", () => {
     );
     expect(direction[2]).toBeGreaterThan(direction[1]);
     expect(direction[1]).toBeGreaterThan(0);
+  });
+
+  it("stays finite through continuous pole-crossing camera frames", () => {
+    let camera = createCamera({ position: [0, 0, 4], target: [0, 0, 0] });
+    for (let step = 0; step < 8; step += 1) {
+      camera = orbitCamera(camera, 0.2, Math.PI / 2);
+      const light = cameraKeyLightDirection(camera);
+      const projection = orbitPivotAxisProjection(camera, [1, 0, 0]);
+      expect(light.every(Number.isFinite)).toBe(true);
+      expect(projection.every(Number.isFinite)).toBe(true);
+    }
   });
 });
 

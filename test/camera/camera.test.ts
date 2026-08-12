@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertValidCamera,
   createCamera,
   orbitCamera,
   panCamera,
@@ -11,6 +12,7 @@ import {
   zoomCamera,
   zoomCameraAtPoint,
 } from "../../src/camera/camera";
+import { cross, dot, length, normalize, subtract, type Vec3 } from "../../src/math/vec3";
 
 describe("camera", () => {
   it.each(["perspective", "orthographic"] as const)(
@@ -133,14 +135,73 @@ describe("camera", () => {
     expect(rotated.target).not.toEqual(camera.target);
   });
 
-  it("stops short of the poles so the orbit frame never flips", () => {
+  it("rotates a complete camera frame through the poles and full revolutions", () => {
     const camera = createCamera({ position: [0, 0, 5], target: [0, 0, 0] });
-    const atPoleLimit = orbitCamera(camera, 0, Math.PI);
-    const beyondPoleLimit = orbitCamera(atPoleLimit, 0, Math.PI);
-    expect(atPoleLimit.position[1]).toBeLessThan(-4.9);
-    expect(atPoleLimit.position[2]).toBeGreaterThan(0);
-    expect(distance(beyondPoleLimit.position, atPoleLimit.position)).toBeLessThan(1e-9);
-    expect(distance(beyondPoleLimit.target, atPoleLimit.target)).toBeLessThan(1e-9);
+    const atPole = orbitCamera(camera, 0, Math.PI / 2);
+    const opposite = orbitCamera(atPole, 0, Math.PI / 2);
+    expect(atPole.position[1]).toBeCloseTo(-5);
+    expect(opposite.position[2]).toBeCloseTo(-5);
+    expectFrame(atPole);
+    expectFrame(opposite);
+
+    let revolved = camera;
+    for (let step = 0; step < 8; step += 1) {
+      revolved = orbitCamera(revolved, 0, Math.PI / 2);
+      expectFrame(revolved);
+    }
+    expectVector(revolved.position, camera.position);
+    expectVector(revolved.target, camera.target);
+    expectVector(revolved.up, camera.up);
+  });
+
+  it("restores a combined orbit when its pitch and yaw are reversed", () => {
+    const camera = createCamera({ position: [0, 0, 5], target: [0, 0, 0] });
+    const pivot: Vec3 = [1, -2, 0.5];
+    const moved = orbitCamera(camera, 0.6, 0.4, pivot);
+    const restored = orbitCamera(orbitCamera(moved, 0, -0.4, pivot), -0.6, 0, pivot);
+    expectVector(restored.position, camera.position);
+    expectVector(restored.target, camera.target);
+    expectVector(restored.up, camera.up);
+    expectFrame(restored);
+  });
+
+  it("keeps projection round trips valid after an upside-down orbit", () => {
+    for (const mode of ["perspective", "orthographic"] as const) {
+      const camera = setProjection(
+        resizeCamera(createCamera({ position: [4, 3, 7], target: [0, 0, 0] }), 973, 611),
+        mode,
+      );
+      const upsideDown = orbitCamera(camera, 0, Math.PI);
+      const forward = normalize(subtract(upsideDown.target, upsideDown.position));
+      const world = [
+        upsideDown.target[0] + forward[0] * 2,
+        upsideDown.target[1] + forward[1] * 2,
+        upsideDown.target[2] + forward[2] * 2,
+      ] as const;
+      const screen = projectPoint(upsideDown, world);
+      expect(screen).toBeDefined();
+      const restored = unprojectPoint(upsideDown, screen ?? [0, 0, 0]);
+      expectVector(restored, world, 3);
+      expectFrame(upsideDown);
+    }
+  });
+
+  it.each([1e-6, 1e12])("keeps a rigid frame finite at coordinate scale %s", (scale) => {
+    const camera = createCamera({
+      position: [scale, scale, scale + 5],
+      target: [scale, scale, scale],
+    });
+    const rotated = orbitCamera(camera, 1.2, -2.4, camera.target);
+    expectFrame(rotated);
+    expect(distance(rotated.position, camera.target)).toBeCloseTo(
+      distance(camera.position, camera.target),
+      scale > 1 ? 3 : 8,
+    );
+  });
+
+  it("returns the same camera for a zero orbit delta", () => {
+    const camera = createCamera();
+    expect(orbitCamera(camera, 0, 0)).toBe(camera);
   });
 
   it("does not use clip planes as a perspective distance clamp", () => {
@@ -281,4 +342,22 @@ function distance(
   b: readonly [number, number, number],
 ): number {
   return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}
+
+function expectFrame(camera: ReturnType<typeof createCamera>): void {
+  assertValidCamera(camera);
+  const forward = normalize(subtract(camera.target, camera.position));
+  const up = normalize(camera.up);
+  const right = normalize(cross(forward, up));
+  expect(length(up)).toBeCloseTo(1);
+  expect(length(right)).toBeCloseTo(1);
+  expect(dot(forward, up)).toBeCloseTo(0);
+  expect(dot(forward, right)).toBeCloseTo(0);
+  expect(dot(cross(right, forward), up)).toBeCloseTo(1);
+}
+
+function expectVector(actual: readonly number[], expected: readonly number[], precision = 8): void {
+  for (let index = 0; index < 3; index += 1) {
+    expect(actual[index]).toBeCloseTo(expected[index] ?? NaN, precision);
+  }
 }
