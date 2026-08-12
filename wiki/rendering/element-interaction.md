@@ -27,9 +27,9 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   [[rendering/node-face-interaction|node and face interaction]]).
 - `readPickPixel` copies all attachments into one pooled readback buffer and
   decodes the ids; the private resolver turns a hit into the deepest physical
-  target the ids support (`node` > `face` > `element` > `instance`). A
-  `PickHit` therefore distinguishes `part`, `instance`, `element`, `face`,
-  and `node`.
+  target the ids support (`node` > `face` > `element` > `instance`). Hosts can
+  promote any `PickHit` to a part target through `interactionTargetFromHit`;
+  a physical hit itself is never reported as `kind: "part"`.
 - The demo and library share one pick path: the renderer's asynchronous
   `pick(x, y)` GPU readback (see
   [[rendering/fe-inspection-workbench|FE inspection workbench]] and
@@ -40,7 +40,7 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 ## Interaction state and precedence
 
 - `InteractionState` adds `highlightedElementIds` and `selectedElementIds` (per
-  instance), `hoveredElement`, and `elementOverrides`.
+  instance), one `hoveredTarget`, and `elementOverrides`.
 - `resolveElementStyle` resolves the instance style first, then applies element
   highlight, hover, selection, and an explicit element override. Element state
   beats instance/part state; selection beats hover; explicit overrides win last.
@@ -78,7 +78,9 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 
 ## Edge overlay
 
-- `StyleOverride` supports an `edge` flag (part- or instance-level). When the
+- `StyleOverride` supports an `edge` flag at the part or instance layer. Body,
+  element, face, and node layers reject it because the GPU has no unambiguous
+  primitive-owned edge representation. When the
   resolved style of a visible instance requests it, the renderer draws that
   instance's deduplicated mesh edges (`buildMeshEdgeData`) as a line overlay on
   top of its solid surface pass — so a wireframe look does not hide the solid

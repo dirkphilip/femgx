@@ -2,7 +2,7 @@
 
 The `src/elements/` subsystem is the typed finite-element foundation for polygon
 extraction, renderer support, and element-level picking. Point, Line, Line3,
-Triangle, Quad, Tet4, Tet10, Hex8, and Hex20 are Core now. The subsystem is pure
+Triangle, Tri6, Quad, Quad8, Tet4, Tet10, Hex8, and Hex20 are Core now. The subsystem is pure
 CPU-side data with **no dependency on
 the renderer or WebGPU**.
 
@@ -17,8 +17,8 @@ the renderer or WebGPU**.
   `nodeIds` so each element owns its connectivity.
 
 An `ElementModel` may contain any supported families in one ordered element
-list. `heterogeneousElementParts` is the render boundary that groups linear
-triangle/quad/Tet4/Hex8 geometry into one triangle part and emits explicit
+list. `heterogeneousElementParts` is the render boundary that groups supported
+surface and volume geometry into one triangle part and emits explicit
 line/point parts without dropping source ids (see
 [[rendering/heterogeneous-elements|Heterogeneous element parts]]). A
 serializable `FemModel` can be converted once with
@@ -33,7 +33,9 @@ the render model indexes coordinates directly.
 | `LINE_SHAPE`     | `line`     | 1     | 2     | 2       | 0              |
 | `LINE3_SHAPE`    | `line`     | 2     | 3     | 2       | 1              |
 | `TRIANGLE_SHAPE` | `triangle` | 1     | 3     | 3       | 0              |
+| `TRI6_SHAPE`     | `triangle` | 2     | 6     | 3       | 3              |
 | `QUAD_SHAPE`     | `quad`     | 1     | 4     | 4       | 0              |
+| `QUAD8_SHAPE`    | `quad`     | 2     | 8     | 4       | 4              |
 | `TET4_SHAPE`     | `tet`      | 1     | 4     | 4       | 0              |
 | `TET10_SHAPE`    | `tet`      | 2     | 10    | 4       | 6              |
 | `HEX8_SHAPE`     | `hex`      | 1     | 8     | 8       | 0              |
@@ -43,6 +45,9 @@ the render model indexes coordinates directly.
 
 Connectivity lists corners first, then mid-edge nodes in canonical edge order.
 
+- **Tri6** corners: `0 1 2`; mid-edge nodes: `3` on `0-1`, `4` on `1-2`, and
+  `5` on `2-0`.
+- **Quad8** corners: `0 1 2 3`; mid-edge nodes `4..7` follow the perimeter.
 - **Tet4/Tet10** corners: `0 1 2 3`. Tet10 mid-edge nodes: `4` on `0-1`, `5` on
   `1-2`, `6` on `2-0`, `7` on `0-3`, `8` on `1-3`, `9` on `2-3`.
 - **Hex8/Hex20** corners: `0 1 2 3 4 5 6 7` (bottom `0-1-2-3` counter-clockwise,
@@ -63,10 +68,10 @@ extract deterministic polygon and line output:
   right-hand-rule winding, so a face loop gives an outward normal for a
   right-handed (positive-Jacobian) element; in conforming meshes a shared face
   appears with opposite windings in its two incident elements.
-- Quadratic shapes expand each face/edge with their mid-edge nodes, so a Tet10
-  face is a six-node loop and a Hex20 face an eight-node loop, interleaving
+- Quadratic shapes expand each face/edge with their mid-edge nodes. Tri6 and
+  Tet10 faces are six-node loops; Quad8 and Hex20 faces are eight-node loops, interleaving
   `[corner, mid, corner, ...]`.
-- A linear triangle or quad exposes its complete surface as one oriented face;
+- A triangle or quad exposes its complete surface as one oriented face;
   that face owns all triangles emitted by the surface tessellator.
 - Point and line elements have no faces; `edgesOf` exposes a line's single edge
   (including its mid node for `LINE3_SHAPE`), while triangle and quad edges use
@@ -139,8 +144,8 @@ WebGPU.
 
 ## Surface authoring
 
-`TRIANGLE_SHAPE` and `QUAD_SHAPE` are the typed path for linear surface finite
-elements. They preserve element ids, node ids, face ownership, deformation,
+`TRIANGLE_SHAPE`, `TRI6_SHAPE`, `QUAD_SHAPE`, and `QUAD8_SHAPE` are the typed
+surface finite elements. They preserve element ids, node ids, face ownership, deformation,
 results, and GPU picking through `heterogeneousElementParts`. Polygon loops
 that are not already typed elements belong to the separate geometry-owned
 authoring path in [[data/polygon-input|Polygon input]].

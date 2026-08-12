@@ -1,12 +1,11 @@
 import type { FaceIdRef } from "../elements/faces";
 import type { Element, ElementId } from "../elements/element";
 import type { ElementModel } from "../elements/model";
-import type { ElementShape } from "../elements/shapes";
+import { topologyFor, type ElementShape } from "../elements/shapes";
 import {
   createPart,
   validatePartId,
   type Body,
-  type Geometry,
   type LineGeometry,
   type Part,
   type PointGeometry,
@@ -72,8 +71,8 @@ interface ElementGroups {
 }
 
 /**
- * Builds all render-compatible primitive groups from one model scan. Triangle,
- * quad, Tet4, and Hex8 share one triangle part; lines and points use explicit
+ * Builds all render-compatible primitive groups from one model scan. Surface
+ * and volume elements share one triangle part; lines and points use explicit
  * primitive parts because WebGPU cannot mix their topologies in one draw.
  */
 export function heterogeneousElementParts(
@@ -88,15 +87,13 @@ export function heterogeneousElementParts(
     ...(groups.triangle.length === 0
       ? {}
       : {
-          triangle: buildPart(
+          triangle: createPart(
             partIds.triangle as PartId,
             volumeGeometry({
               model,
               elements: groups.triangle,
               bodies: options.bodies,
               faceSubset: options.faceSubset,
-              includeShapes: true,
-              family: "heterogeneous",
               assignedBodies: bodyIds,
             }),
           ),
@@ -104,7 +101,7 @@ export function heterogeneousElementParts(
     ...(groups.line.length === 0
       ? {}
       : {
-          line: buildPart(
+          line: createPart(
             partIds.line as PartId,
             lineGeometry(model, groups.line, bodyIds, options.bodies),
           ),
@@ -112,19 +109,12 @@ export function heterogeneousElementParts(
     ...(groups.point.length === 0
       ? {}
       : {
-          point: buildPart(
+          point: createPart(
             partIds.point as PartId,
             pointGeometry(model, groups.point, bodyIds, options.bodies),
           ),
         }),
   };
-}
-
-function buildPart<T extends Geometry>(
-  partId: PartId,
-  geometry: T,
-): Part & { readonly geometry: T } {
-  return createPart(partId, geometry);
 }
 
 function classifyElements(model: ElementModel): ElementGroups {
@@ -141,7 +131,7 @@ function classifyElements(model: ElementModel): ElementGroups {
       );
     }
     seen.add(element.id);
-    const group = supportedGroup(element.shape);
+    const group = supportedGroup(element);
     if (group === "triangle") triangle.push(element);
     else if (group === "line") line.push(element);
     else if (group === "point") point.push(element);
@@ -156,10 +146,23 @@ function classifyElements(model: ElementModel): ElementGroups {
   return { triangle, line, point };
 }
 
-function supportedGroup(shape: ElementShape): "triangle" | "line" | "point" | undefined {
-  if (shape.family === "point") return shape.order === 0 ? "point" : undefined;
-  if (shape.family === "line") return shape.order === 1 || shape.order === 2 ? "line" : undefined;
-  return shape.order === 1 || shape.order === 2 ? "triangle" : undefined;
+function supportedGroup(element: Element): "triangle" | "line" | "point" | undefined {
+  try {
+    topologyFor(element.shape);
+  } catch {
+    return undefined;
+  }
+  switch (element.shape.family) {
+    case "point":
+      return "point";
+    case "line":
+      return "line";
+    case "triangle":
+    case "quad":
+    case "tet":
+    case "hex":
+      return "triangle";
+  }
 }
 
 function validatePartIds(partIds: HeterogeneousElementPartIds, groups: ElementGroups): void {

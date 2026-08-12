@@ -4,7 +4,9 @@ import {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  QUAD8_SHAPE,
   QUAD_SHAPE,
+  TRI6_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
   TRIANGLE_SHAPE,
@@ -12,7 +14,7 @@ import {
   type ElementShape,
 } from "../elements/shapes";
 import { VtkWriteError, type Issue } from "./diagnostics";
-import type { FemModel, ModelElementBlock } from "./model";
+import { FEMGX_FORMAT_VERSION, type FemModel, type ModelElementBlock } from "./model";
 import { validateModel } from "./validate";
 import { prepareResults, writeAttributes, type PreparedResult } from "./vtk-write-results";
 
@@ -20,7 +22,9 @@ const VTK_TYPES: ReadonlyMap<string, number> = new Map([
   [shapeKey(POINT_SHAPE), 1],
   [shapeKey(LINE_SHAPE), 3],
   [shapeKey(TRIANGLE_SHAPE), 5],
+  [shapeKey(TRI6_SHAPE), 22],
   [shapeKey(QUAD_SHAPE), 9],
+  [shapeKey(QUAD8_SHAPE), 23],
   [shapeKey(LINE3_SHAPE), 21],
   [shapeKey(TET4_SHAPE), 10],
   [shapeKey(TET10_SHAPE), 24],
@@ -90,10 +94,10 @@ function validateForWrite(model: FemModel): void {
       errors,
     );
   }
-  if (model.formatVersion !== 1) {
+  if (model.formatVersion !== FEMGX_FORMAT_VERSION) {
     throw new VtkWriteError(
       "unsupported-writer-state",
-      `VTK writer supports FemModel format version 1, got ${String(model.formatVersion)}`,
+      `VTK writer supports FemModel format version ${String(FEMGX_FORMAT_VERSION)}, got ${String(model.formatVersion)}`,
     );
   }
 }

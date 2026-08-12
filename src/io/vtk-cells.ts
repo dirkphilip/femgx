@@ -4,7 +4,9 @@ import {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  QUAD8_SHAPE,
   QUAD_SHAPE,
+  TRI6_SHAPE,
   TRIANGLE_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
@@ -19,7 +21,9 @@ const VTK_TYPES: ReadonlyMap<number, ElementShape> = new Map([
   [1, POINT_SHAPE],
   [3, LINE_SHAPE],
   [5, TRIANGLE_SHAPE],
+  [22, TRI6_SHAPE],
   [9, QUAD_SHAPE],
+  [23, QUAD8_SHAPE],
   [21, LINE3_SHAPE],
   [10, TET4_SHAPE],
   [24, TET10_SHAPE],
@@ -181,6 +185,30 @@ export function readCellTypesLine(state: VtkState, text: string, line: number): 
 /** Finalizes geometry: assembles element blocks and appends attribute results. */
 export function finalizeGeometry(state: VtkState): void {
   flushPoints(state);
+  if (state.pointsRemaining > 0) {
+    state.session.report(
+      "point-count-mismatch",
+      `POINTS is missing ${String(state.pointsRemaining / 3)} declared point(s)`,
+    );
+  }
+  if (state.cellsRemaining > 0) {
+    state.session.report(
+      "cell-count-mismatch",
+      `CELLS is missing ${String(state.cellsRemaining)} declared cell(s)`,
+    );
+  }
+  if (state.cellTypesRemaining > 0) {
+    state.session.report(
+      "cell-type-count-mismatch",
+      `CELL_TYPES is missing ${String(state.cellTypesRemaining)} declared entry or entries`,
+    );
+  }
+  if (state.fieldRemaining > 0) {
+    state.session.report(
+      "field-array-count-mismatch",
+      `FIELD is missing ${String(state.fieldRemaining)} declared array(s)`,
+    );
+  }
   if (state.cellTypes.size !== state.cellCount) {
     state.session.report(
       "cell-type-count-mismatch",

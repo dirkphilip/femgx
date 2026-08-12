@@ -118,9 +118,7 @@ export function isFiniteBounds(bounds: Bounds): boolean {
 }
 
 /**
- * Computes the bounding box of raw positions (single or double precision).
- * Streaming parses untrusted model data that may arrive as doubles, so bounds
- * are computed before the positions are converted to near-origin float32.
+ * Computes the bounding box of raw positions in single or double precision.
  */
 export function computePositionsBounds(positions: Float32Array | Float64Array): Bounds {
   const mins = { minX: Infinity, minY: Infinity, minZ: Infinity };

@@ -37,7 +37,7 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | CPU fallback rendering (2D canvas)                                                                                                 | demo ~0.6k         | e2e lanes  | **Remove**   | A second renderer for non-target environments. WebGPU is a hard product requirement; without it the caller gets a typed unsupported result. Removed in #171.                                                                                                                                                                              |
 | Capability probing + device-loss recovery                                                                                          | ~0.4k              | ~0.6k      | **Core now** | Typed unsupported reporting (`queryWebGpuSupport`) and device-loss recovery (`recover()`) are supported-path features of the WebGPU contract, retained in #171; do not turn them into fallback machinery.                                                                                                                                 |
 | Linear element shapes (point, line, triangle, quad, Tet4, Hex8) + canonical topology                                               | ~0.6k              | ~1.2k      | **Core now** | The minimum FE geometry the product must render.                                                                                                                                                                                                                                                                                          |
-| Quadratic element shapes (Line3/Tet10/Hex20) + linear mid-edge tessellation                                                        | elements/renderer  | same       | **Core now** | Higher-order connectivity is supported and rendered as deterministic straight segments/facets through authored mid-edge nodes; exact curved interpolation is out of scope.                                                                                                                                                                |
+| Quadratic element shapes (Line3/Tri6/Quad8/Tet10/Hex20) + linear mid-edge tessellation                                             | elements/renderer  | same       | **Core now** | Higher-order connectivity is supported and rendered as deterministic straight segments/facets through authored mid-edge nodes; exact curved interpolation is out of scope.                                                                                                                                                                |
 | FE node annotations                                                                                                                | renderer + demo    | same       | **Core now** | Depth testing hides occluded node samples; translucent 6 CSS-px front circles (DPR-scaled) preserve surfaces without overlap accumulation or zoom-dependent depth offsets.                                                                                                                                                                |
 | Optional edge / face display overlays                                                                                              | renderer + demo    | same       | **Deferred** | Display polish beyond the renderer-owned edge overlay and core node annotations is not the minimum product.                                                                                                                                                                                                                               |
 | GPU picking (element + node strict; face Core) with host-mappable ids                                                              | viewport + picking | same       | **Core now** | `FemViewport.pick` returns a complete `PickHit`; hosts map it with `interactionTargetFromHit`. Node and element ids are strict product requirements; face is Core. Multi-hit `pickMany` is future (below), not Core-now.                                                                                                                  |
@@ -57,8 +57,8 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 ## Recommended smallest supported product
 
 femgx 0.x renders finite-element models in a **modern WebGPU browser**. A model
-is defined as reusable part geometry (Point, Line, Line3, Triangle, Quad,
-Tet4, Tet10, Hex8, and Hex20) placed by hierarchical assemblies, compiled once
+is defined as reusable part geometry (Point, Line, Line3, Triangle, Tri6, Quad,
+Quad8, Tet4, Tet10, Hex8, and Hex20) placed by hierarchical assemblies, compiled once
 into a packed scene runtime, and drawn with instanced WebGPU draws batched by
 part. The renderer provides GPU picking with host-mappable part/instance/
 element/face/node ids (node and element strict; face Core), readable
@@ -138,8 +138,8 @@ Removals are implemented by their owning issues, not speculatively here:
 - Flat `compileScene` snapshot and CPU raycast stack (`createPickScene` /
   `pick()`) → **removed**; the product path is `createSceneRuntime` + GPU
   `FemViewport.pick`.
-- Element families beyond the supported Point, Line, Line3, Triangle, Quad,
-  Tet4, Tet10, Hex8, and Hex20 set remain outside the product and require an
+- Element families beyond the supported Point, Line, Line3, Triangle, Tri6,
+  Quad, Quad8, Tet4, Tet10, Hex8, and Hex20 set remain outside the product and require an
   explicit decision before implementation.
 - Results playback / legends, IO breadth beyond VTK, and large-model streaming
   → **removed** (explicit product cleanup).

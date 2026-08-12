@@ -17,12 +17,12 @@ compact ID tuples before rich target resolution; depth is not copied because
 the pick pass already retains the nearest visible rasterized sample. This is
 visible-intersection discovery, not ordered multi-hit or click-through picking.
 
-Four `rgba8unorm` attachments already consume the WebGPU device default of 32
-color-attachment bytes per sample. Depth therefore cannot be a fifth color
-attachment, even when the physical adapter advertises a higher limit. Sampling
-the existing depth attachment avoids both that limit and a second geometry
-pass. The visible color pass is submitted independently before the pick pass,
-so a pick-path validation failure cannot invalidate the displayed frame.
+Depth remains in the pick pass's normal depth attachment and is copied through
+a one-invocation compute pass. Sampling that existing attachment avoids a
+redundant color target and keeps ids plus exact winning-fragment depth in one
+geometry pass. The visible color pass is submitted independently before the
+pick pass, so a pick-path validation failure cannot invalidate the displayed
+frame.
 
 ## Why `rgba8unorm` instead of `r32uint`
 

@@ -37,8 +37,12 @@ export const LINE_SHAPE: ElementShape = { family: "line", order: 1 };
 export const LINE3_SHAPE: ElementShape = { family: "line", order: 2 };
 /** Linear triangle surface element: three corner nodes. */
 export const TRIANGLE_SHAPE: ElementShape = { family: "triangle", order: 1 };
+/** Quadratic triangle (Tri6): three corners plus three mid-edge nodes. */
+export const TRI6_SHAPE: ElementShape = { family: "triangle", order: 2 };
 /** Linear quadrilateral surface element: four corner nodes. */
 export const QUAD_SHAPE: ElementShape = { family: "quad", order: 1 };
+/** Quadratic quadrilateral (Quad8): four corners plus four mid-edge nodes. */
+export const QUAD8_SHAPE: ElementShape = { family: "quad", order: 2 };
 /** Linear tetrahedron (Tet4): four corner nodes. */
 export const TET4_SHAPE: ElementShape = { family: "tet", order: 1 };
 /** Quadratic tetrahedron (Tet10): four corners plus six mid-edge nodes. */
@@ -69,6 +73,19 @@ export interface ElementTopology {
   readonly edgeNodes: readonly number[];
 }
 
+const TRIANGLE_EDGES: ReadonlyArray<readonly [number, number]> = [
+  [0, 1],
+  [1, 2],
+  [2, 0],
+];
+
+const QUAD_EDGES: ReadonlyArray<readonly [number, number]> = [
+  [0, 1],
+  [1, 2],
+  [2, 3],
+  [3, 0],
+];
+
 const TET_EDGES: ReadonlyArray<readonly [number, number]> = [
   [0, 1],
   [1, 2],
@@ -97,8 +114,8 @@ const HEX_EDGES: ReadonlyArray<readonly [number, number]> = [
 type SupportedOrder = {
   point: 0;
   line: 1 | 2;
-  triangle: 1;
-  quad: 1;
+  triangle: 1 | 2;
+  quad: 1 | 2;
   tet: 1 | 2;
   hex: 1 | 2;
 };
@@ -166,25 +183,32 @@ const TOPOLOGY_REGISTRY = {
     order: 1,
     nodeCount: 3,
     corners: [0, 1, 2],
-    edges: [
-      [0, 1],
-      [1, 2],
-      [2, 0],
-    ],
+    edges: TRIANGLE_EDGES,
     edgeNodes: [],
+  },
+  "triangle:2": {
+    family: "triangle",
+    order: 2,
+    nodeCount: 6,
+    corners: [0, 1, 2],
+    edges: TRIANGLE_EDGES,
+    edgeNodes: [3, 4, 5],
   },
   "quad:1": {
     family: "quad",
     order: 1,
     nodeCount: 4,
     corners: [0, 1, 2, 3],
-    edges: [
-      [0, 1],
-      [1, 2],
-      [2, 3],
-      [3, 0],
-    ],
+    edges: QUAD_EDGES,
     edgeNodes: [],
+  },
+  "quad:2": {
+    family: "quad",
+    order: 2,
+    nodeCount: 8,
+    corners: [0, 1, 2, 3],
+    edges: QUAD_EDGES,
+    edgeNodes: [4, 5, 6, 7],
   },
   "tet:1": {
     family: "tet",

@@ -15,8 +15,7 @@ export function describePick(
   if (hit === undefined) {
     return "Click or right-click a visible element, face, or node to inspect it.";
   }
-  const partId = partIdOf(hit);
-  const context = partId === undefined ? "Part ?" : partContext(partId, partName);
+  const context = partContext(hit.partId, partName);
   if (hit.kind === "node") {
     const adjacency =
       hit.neighborElementIds.length === 0 ? "none" : hit.neighborElementIds.join(", ");
@@ -46,10 +45,7 @@ export function describePick(
   if (hit.kind === "element") {
     return `Element ${hit.elementId}\n${context} · Instance ${hit.instanceId}${bodyDescription(hit)}`;
   }
-  if (hit.kind === "instance") {
-    return `Instance ${hit.instanceId}\n${context}`;
-  }
-  return `Part ${hit.partId}${partName(hit.partId) === undefined ? "" : ` · ${partName(hit.partId)}`}`;
+  return `Instance ${hit.instanceId}\n${context}`;
 }
 
 function bodyDescription(hit: { readonly bodyId?: number }): string {
@@ -60,10 +56,6 @@ function bodyDescription(hit: { readonly bodyId?: number }): string {
 function partContext(partId: PartId, partName: PartNameResolver): string {
   const name = partName(partId);
   return name === undefined ? `Part ${partId}` : `Part ${partId} · ${name}`;
-}
-
-function partIdOf(hit: PickHit): PartId | undefined {
-  return hit.partId;
 }
 
 function formatVec(vector: readonly [number, number, number]): string {

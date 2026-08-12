@@ -54,7 +54,7 @@ describe("opaque interaction state", () => {
     });
   });
 
-  it("keeps the supplied theme by reference", () => {
+  it("owns an immutable copy of the supplied theme", () => {
     const theme = {
       highlighted: { emissive: 0.9 },
       selected: { color: { r: 1, g: 0, b: 0, a: 1 } },
@@ -64,7 +64,13 @@ describe("opaque interaction state", () => {
       hoveredNode: { emissive: 0.9 },
       selectedNode: { color: { r: 1, g: 0, b: 0, a: 1 } },
     };
-    expect(readInteractionState(createInteractionState(theme)).theme).toBe(theme);
+    const stored = readInteractionState(createInteractionState(theme)).theme;
+    expect(stored).toEqual(theme);
+    expect(stored).not.toBe(theme);
+    theme.highlighted.emissive = 0.1;
+    expect(stored.highlighted.emissive).toBe(0.9);
+    expect(Object.isFrozen(stored)).toBe(true);
+    expect(Object.isFrozen(stored.selected.color)).toBe(true);
   });
 
   it("keeps no-op target updates referentially stable", () => {
@@ -109,11 +115,11 @@ describe("instance style resolution", () => {
     expect(resolveInstanceStyle(item, base, state).nodes).toBe(true);
   });
 
-  it("rejects node membership on primitive-specific override boundaries", () => {
+  it("rejects overlay membership on primitive-specific override boundaries", () => {
     const invalid = { nodes: true } as never;
     expect(() =>
       setElementOverride(createInteractionState(), { instanceId: "1/0", elementId: 2 }, invalid),
-    ).toThrow("nodes is only supported on part and instance overrides");
+    ).toThrow("edge and nodes are only supported on part and instance overrides");
     expect(() =>
       createInteractionState({
         highlighted: invalid,
@@ -124,7 +130,12 @@ describe("instance style resolution", () => {
         hoveredNode: {},
         selectedNode: {},
       }),
-    ).toThrow("nodes is only supported on part and instance overrides");
+    ).toThrow("edge and nodes are only supported on part and instance overrides");
+    expect(() =>
+      setElementOverride(createInteractionState(), { instanceId: "1/0", elementId: 2 }, {
+        edge: true,
+      } as never),
+    ).toThrow("edge and nodes are only supported on part and instance overrides");
   });
 
   it("rejects non-finite and out-of-range alpha values at override boundaries", () => {

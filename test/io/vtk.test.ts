@@ -168,6 +168,44 @@ describe("parseVtk", () => {
     expect(result.issues.map((issue) => issue.code)).toContain("array-shape");
   });
 
+  it.each([
+    ["POINTS", "POINTS 5 double", "point-count-mismatch"],
+    ["CELLS", "CELLS 2 10", "cell-count-mismatch"],
+    ["CELL_TYPES", "CELL_TYPES 2", "cell-type-count-mismatch"],
+  ] as const)("reports an under-delivered %s declaration", (_section, replacement, code) => {
+    const declaration =
+      _section === "POINTS"
+        ? "POINTS 4 double"
+        : _section === "CELLS"
+          ? "CELLS 1 5"
+          : "CELL_TYPES 1";
+    const result = parseVtk(TET_VTK.replace(declaration, replacement));
+    expect(result.issues.map((issue) => issue.code)).toContain(code);
+  });
+
+  it("imports COLOR_SCALARS instead of silently abandoning the document", () => {
+    const source = `${TET_VTK.trim()}\nPOINT_DATA 4\nCOLOR_SCALARS rgba 4\n1 0 0 1\n0 1 0 1\n0 0 1 1\n1 1 1 1\n`;
+    const result = parseVtk(source);
+    expect(result.issues).toEqual([]);
+    expect(result.model.results[0]).toMatchObject({ name: "rgba", components: 4 });
+  });
+
+  it("reports unsupported METADATA instead of silently truncating", () => {
+    const result = parseVtk(`${TET_VTK.trim()}\nMETADATA\nINFORMATION 0\n`);
+    expect(result.issues.map((issue) => issue.code)).toContain("unsupported-section");
+  });
+
+  it("reports under- and over-delivered FIELD array declarations", () => {
+    const under = parseVtk(
+      `${TET_VTK.trim()}\nPOINT_DATA 4\nFIELD FieldData 2\nfirst 1 4 double\n1 2 3 4\n`,
+    );
+    expect(under.issues.map((issue) => issue.code)).toContain("field-array-count-mismatch");
+    const over = parseVtk(
+      `${TET_VTK.trim()}\nPOINT_DATA 4\nFIELD FieldData 1\nfirst 1 4 double\n1 2 3 4\nsecond 1 4 double\n1 2 3 4\n`,
+    );
+    expect(over.issues.map((issue) => issue.code)).toContain("extra-field-array");
+  });
+
   it("reports a cell type count that outnumbers the declared cells", () => {
     const source = TET_VTK.replace("CELL_TYPES 1\n10", "CELL_TYPES 2\n10\n10");
     const result = parseVtk(source);
@@ -519,7 +557,7 @@ describe("writeVtk", () => {
     );
   });
 
-  it.each(["bad name", "SCALARS", "1.0"] as const)(
+  it.each(["bad name", "bad,name", "bad#name", "bad!name", "SCALARS", "1.0"] as const)(
     "rejects unrepresentable VTK result name %s",
     (name) => {
       const builder = createModelBuilder();

@@ -6,7 +6,9 @@ import {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  QUAD8_SHAPE,
   QUAD_SHAPE,
+  TRI6_SHAPE,
   TRIANGLE_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
@@ -19,7 +21,9 @@ const ALL_SHAPES: ReadonlyArray<readonly [string, ElementShape]> = [
   ["line", LINE_SHAPE],
   ["line3", LINE3_SHAPE],
   ["triangle", TRIANGLE_SHAPE],
+  ["tri6", TRI6_SHAPE],
   ["quad", QUAD_SHAPE],
+  ["quad8", QUAD8_SHAPE],
   ["tet4", TET4_SHAPE],
   ["tet10", TET10_SHAPE],
   ["hex8", HEX8_SHAPE],
@@ -79,13 +83,17 @@ describe("createElement", () => {
 
   it("rejects negative and non-integer element ids", () => {
     expect(() => createElement(-1, TET4_SHAPE, [0, 1, 2, 3])).toThrow(
-      "Element id must be a finite integer",
+      "Element id must be a safe integer",
     );
     expect(() => createElement(1.5, TET4_SHAPE, [0, 1, 2, 3])).toThrow(
-      "Element id must be a finite integer",
+      "Element id must be a safe integer",
     );
     expect(() => createElement(0xffff_ffff, TET4_SHAPE, [0, 1, 2, 3])).toThrow(
-      "Element id must be a finite integer",
+      "Element id must be a safe integer",
     );
+  });
+
+  it("accepts the largest element id representable by one-based GPU picking", () => {
+    expect(createElement(0xffff_fffe, TET4_SHAPE, [0, 1, 2, 3]).id).toBe(0xffff_fffe);
   });
 });

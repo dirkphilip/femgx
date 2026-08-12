@@ -158,6 +158,50 @@ describe("viewport results workflow", () => {
     );
   });
 
+  it("validates deformation only for parts placed in the compiled runtime", () => {
+    const scene = createScene()
+      .addPart(
+        createPart(1, {
+          positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+          indices: new Uint32Array([0, 1, 2]),
+          primitive: "triangles",
+          elements: [{ id: 0, primitiveStart: 0, primitiveCount: 1 }],
+          nodePickIds: new Uint32Array([1, 2, 3]),
+        }),
+      )
+      .addPart(
+        createPart(2, {
+          positions: new Float32Array([5, 5, 5]),
+          indices: new Uint32Array([0]),
+          primitive: "points",
+        }),
+      )
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [{ kind: "part", partId: 1, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = {
+      instanceCount: 1,
+      getPartId: () => 1,
+      getInstanceId: () => "1/0",
+    } as never;
+
+    expect(() =>
+      resolveViewportResults(
+        {
+          field: elementalTensor(),
+          derive: "vonMises",
+          deformation: { field: nodalDisplacement() },
+        },
+        scene,
+        runtime,
+      ),
+    ).not.toThrow();
+  });
+
   it("drives the renderer and restores base interaction when cleared", async () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();

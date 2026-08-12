@@ -31,8 +31,9 @@ requirements contract]]. Read it before starting any task; this section is the s
   by `devicePixelRatio`) preserve the underlying surface. Dense overlaps must
   not accumulate toward black, and visibility must not depend on a geometric
   depth offset or zoom level.
-- **Linear elements.** Points, lines, triangles, quads, Tet4, Hex8 with
-  canonical topology and validated `createElement` construction.
+- **Elements.** Point, Line, Line3, Triangle, Tri6, Quad, Quad8, Tet4, Tet10,
+  Hex8, and Hex20 with canonical topology and validated `createElement`
+  construction.
 - **Results.** Typed scalar/vector/tensor fields, derived quantities (magnitude,
   von Mises, principal values), value ranges, scalar color mapping, and
   deformed-shape geometry.
@@ -52,8 +53,8 @@ requirements contract]]. Read it before starting any task; this section is the s
 The following are **not** requirements and must not be expanded as if they were:
 
 - CPU fallback rendering (removed in #171; do not re-add a second renderer).
-- Element families beyond Point, Line, Line3, Triangle, Quad, Tet4, Tet10,
-  Hex8, and Hex20.
+- Element families beyond Point, Line, Line3, Triangle, Tri6, Quad, Quad8,
+  Tet4, Tet10, Hex8, and Hex20.
 - Multi-hit pick lists (`pickMany`), adjacency inspection polish, and optional
   face display overlays.
 - Advanced results playback (CasePlayer, interpolation) and legends
@@ -119,8 +120,8 @@ under `test/`. Tags reflect the [[requirements/product-scope|product scope]]:
 - `src/io/` — versioned FE interchange model, VTK legacy read/write, the
   bytes-only GLB display-scene importer, and shared validation/diagnostics.
   **Core.**
-- `src/picking/` — GPU pick-id resolution (`resolvePick` / `resolvePickTarget`)
-  for part/instance/element/face/node targets. **Core** (CPU raycast stack
+- `src/picking/` — internal GPU pick-id resolution for
+  instance/element/face/node hits. **Core** (CPU raycast stack
   removed; multi-hit `pickMany` is future).
 - `src/platform/` — WebGPU device request and loss reporting with typed
   unsupported reasons, plus capability probing (`queryWebGpuSupport`) and
@@ -188,6 +189,16 @@ and reviewable.
   Keep WebGPU code behind thin interfaces so it can be tested/mocked. Vitest with
   enforced v8 coverage thresholds (lines/functions 80%, branches 70%). Playwright
   e2e tests cover the WebGPU demo contract against a local dev server.
+- **Test value**: Every new test must protect a distinct public contract,
+  regression, boundary, or invariant. Prefer extending an existing table-driven
+  or golden test over adding a parallel case. Do not mirror implementation,
+  repeat equivalent assertions across subsystem suites, or add tests solely to
+  raise coverage. Delete superseded tests when a stronger test subsumes them.
+- **Guard discipline**: Add runtime guards only at public, untrusted, or
+  ownership boundaries where invalid state is representable and the failure is
+  actionable. Do not re-check invariants already established by a validated
+  constructor or lower boundary. A new guard must identify its caller-visible
+  failure mode; speculative defensive branches are rejected.
 - **Docs**: Document the public API surface (typedoc or JSDoc on exported symbols).
 - **Small modules**: ESLint enforces a 400-line implementation-file ceiling;
   300 lines is a review threshold. Per-function length remains 60 lines and
@@ -267,6 +278,9 @@ automatically on every push/PR (see `.github/workflows/ci.yml`).
 - Before finishing work that is ready to commit, run `npm run review:diff` and
   check for unnecessary code, duplication, obsolete paths, and weakened tests.
 - Keep changes small and reviewable; one logical change per PR/commit.
+- Report production-source and test/documentation line deltas separately. A
+  coverage increase does not justify growing core code, guard count, or test
+  count without distinct product value.
 - Follow the existing file/type conventions — do not introduce parallel abstractions.
 - Do not add comments to code unless they explain non-obvious design decisions.
 - Update this file when the architecture or commands materially change.

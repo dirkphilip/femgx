@@ -81,7 +81,6 @@ describe("InteractionTarget helpers", () => {
 
   it("accepts rich PickHit values directly", () => {
     const hits: PickHit[] = [
-      { kind: "part", partId: 1, instanceId: "1/0", worldPosition: [0, 0, 0] },
       { kind: "instance", partId: 1, instanceId: "1/0", worldPosition: [0, 0, 0] },
       { kind: "element", partId: 1, instanceId: "1/0", elementId: 3, worldPosition: [0, 0, 0] },
       {

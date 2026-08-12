@@ -8,7 +8,9 @@ import {
   LINE_SHAPE,
   LINE3_SHAPE,
   POINT_SHAPE,
+  QUAD8_SHAPE,
   QUAD_SHAPE,
+  TRI6_SHAPE,
   TET4_SHAPE,
   TET10_SHAPE,
   TRIANGLE_SHAPE,
@@ -71,7 +73,9 @@ describe("VTK round-trips", () => {
       LINE_SHAPE,
       LINE3_SHAPE,
       TRIANGLE_SHAPE,
+      TRI6_SHAPE,
       QUAD_SHAPE,
+      QUAD8_SHAPE,
       TET4_SHAPE,
       TET10_SHAPE,
       HEX8_SHAPE,
@@ -103,6 +107,7 @@ describe("VTK round-trips", () => {
 
     const written = write(model);
     expect(write(model)).toBe(written);
+    expect(written).toContain("CELL_TYPES 11\n1\n3\n21\n5\n22\n9\n23\n10\n24\n12\n25");
     const parsed = parse(written);
     expect(parsed.issues).toEqual([]);
     expect(parsed.model.elementBlocks.map((block) => block.shape)).toEqual([...shapes]);

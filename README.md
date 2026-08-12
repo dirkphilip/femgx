@@ -98,12 +98,12 @@ const { createScene, createFemViewport, createResultField, importGlb } = require
   the adapter/device request fails.
 - `queryWebGpuSupport()` is a non-throwing probe that returns a typed
   "supported"/"unsupported" report for applications that want to branch up front.
-- The CPU scene, camera, stable-handle runtime (`createSceneRuntime`), and pick-id
-  resolution (`resolvePick` / `resolvePickTarget`) APIs are WebGPU-independent
-  and work in any JavaScript environment. Viewport picking (`pick` and
-  `pickPoint`) requires a working WebGPU device.
+- The CPU scene, camera, stable-handle runtime (`createSceneRuntime`), and
+  interaction-target mapping (`interactionTargetFromHit`) are WebGPU-independent
+  and work in any JavaScript environment. Public viewport picking (`pick` and
+  `pickRegion`) requires a working WebGPU device.
 - Interaction picking goes through `FemViewport`: asynchronous GPU readback via
-  `viewport.pick(x, y)` returns a `Promise<PickTarget | undefined>` with
+  `viewport.pick(x, y)` returns a `Promise<PickHit | undefined>` with
   host-mappable part/instance/element/face/node ids.
 
 ## Public API highlights
