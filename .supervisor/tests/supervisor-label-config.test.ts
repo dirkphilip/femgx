@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const CONFIG_PATH = fileURLToPath(new URL("../../.supervisor/config.toml", import.meta.url));
+const CONFIG_PATH = fileURLToPath(new URL("../config.toml", import.meta.url));
 
 function parseTomlValue(raw: string): unknown {
   const inlineComment = raw.indexOf("#");

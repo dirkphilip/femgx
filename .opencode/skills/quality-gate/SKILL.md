@@ -1,13 +1,13 @@
 ---
 name: quality-gate
-description: Run the full femgx quality gate during final integration or CI parity checks: typecheck, lint, unit tests with coverage, performance budget, format, build, package smoke, and Playwright e2e. Supervisor implementation, review, and repair workers use focused checks instead; CI owns the full product gate.
+description: Run the full femgx quality gate during final integration or CI parity checks: typecheck, lint, unit tests with coverage, performance budget, format, build, package smoke, and Playwright e2e. Specialized implementation, review, and repair workers use focused checks instead; CI owns the full product gate.
 ---
 
 # Full quality gate
 
 Run this gate only during final integration or an explicit CI-parity check from
-the repo root. Supervisor implementation, review, and repair workers must follow
-`.supervisor/WORKER_PROTOCOL.md` and use focused checks instead. The reviewer
+the repo root. Specialized implementation, review, and repair workers must use
+focused checks instead. The reviewer
 records focused local validation but is not a merge authority; GitHub's required
 checks decide mergeability (see `wiki/operations/ci-authority.md`).
 

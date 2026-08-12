@@ -77,7 +77,6 @@ function main() {
         path.startsWith("e2e/") ||
         path.startsWith("wiki/") ||
         path.startsWith("scripts/") ||
-        path.startsWith(".supervisor/") ||
         (path.endsWith(".ts") && !path.endsWith(".d.ts")),
     );
     expect(leaked.length === 0, `tarball leaks non-publishable files: ${leaked.join(", ")}`);

@@ -48,7 +48,7 @@ canonical description.
 
 `test/` mirrors `src/` for product subsystem ownership, with deliberate
 repository-level suites under `test/demo`, `test/public-api`, `test/runtime`,
-`test/scripts`, and `test/supervisor`.
+and `test/scripts`.
 
 ## Conventions
 

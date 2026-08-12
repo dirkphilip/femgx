@@ -141,7 +141,7 @@ Conventions:
   location.
 - `test/` mirrors source ownership for product subsystems, while deliberate
   repository-level suites also live under `test/demo`, `test/public-api`,
-  `test/runtime`, `test/scripts`, and `test/supervisor`.
+  `test/runtime`, and `test/scripts`.
 - Prefer intra-subsystem imports. `src/index.ts` is the external and demo
   consumer boundary; production modules must use the owning subsystem's
   exported surface and must not import the root barrel.

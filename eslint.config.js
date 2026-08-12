@@ -4,7 +4,8 @@ import jsdoc from "eslint-plugin-jsdoc";
 
 export default tseslint.config(
   {
-    ignores: ["dist", "coverage", "node_modules", ".supervisor"],
+    // Repository metadata and hidden tool directories are not product code.
+    ignores: ["dist", "coverage", "node_modules", "**/.*"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
@@ -49,7 +50,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["*.js", "*.mjs", "*.cjs", "scripts/**/*.js", "scripts/**/*.mjs", "scripts/**/*.cjs"],
+    files: ["**/*.js", "**/*.mjs", "**/*.cjs"],
     ...tseslint.configs.disableTypeChecked,
     languageOptions: {
       parserOptions: { project: false, projectService: false },
