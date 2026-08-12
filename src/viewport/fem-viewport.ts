@@ -2,6 +2,8 @@ import { assertValidCamera, createCamera, resizeCamera, type Camera } from "../c
 import { installCameraControls } from "../camera/controls";
 import { fitCamera } from "../camera/fit";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
+import type { BoxSelectionRect } from "../interaction/box-selection";
+import type { InteractionTarget } from "../interaction/target-types";
 import type { DeviceLostInfo } from "../platform/device";
 import { createWebGpuRenderer, type WebGpuRenderer } from "../renderer/gpu-renderer";
 import { changedInstanceSlots } from "./interaction-diff";
@@ -9,7 +11,7 @@ import { createPackedSceneRuntime, type PackedSceneRuntime } from "../scene-runt
 import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/public-runtime";
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
-import type { PickHit } from "../picking/types";
+import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { sceneWorldBounds } from "./scene-bounds";
 import {
@@ -57,6 +59,10 @@ export interface FemViewport {
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void;
   setInstanceVisible(instanceId: InstanceId, visible: boolean): void;
   pick(x: number, y: number): Promise<PickHit | undefined>;
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: InteractionGranularity,
+  ): Promise<readonly InteractionTarget[]>;
   resize(): void;
   invalidate(): void;
   render(): void;
@@ -251,6 +257,13 @@ class FemViewportCore implements FemViewport {
   pick(x: number, y: number): Promise<PickHit | undefined> {
     this.ensureAlive();
     return this.renderer.pick(x, y);
+  }
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: InteractionGranularity,
+  ): Promise<readonly InteractionTarget[]> {
+    this.ensureAlive();
+    return this.renderer.pickRegion(rect, granularity);
   }
   resize(invalidate = true): void {
     this.ensureAlive();

@@ -1,4 +1,9 @@
-import { createFemViewport, type FemViewport } from "../src/index";
+import {
+  createFemViewport,
+  type BoxSelectionRect,
+  type FemViewport,
+  type InteractionGranularity,
+} from "../src/index";
 import { GpuValidationError } from "../src/renderer/gpu-validation";
 import { createModelPresets, type ModelPreset } from "./fixture/presets";
 import { WorkbenchController } from "./controller";
@@ -115,6 +120,8 @@ export async function startWebGpuDemo(
       return runWebGpuBenchmark(canvas, { includeLarge });
     },
     pickPoint: async (x: number, y: number) => (await viewport?.pick(x, y))?.worldPosition,
+    pickRegion: async (rect: BoxSelectionRect, granularity: InteractionGranularity) =>
+      (await viewport?.pickRegion(rect, granularity)) ?? [],
   };
 
   return controller;

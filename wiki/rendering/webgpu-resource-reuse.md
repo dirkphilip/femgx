@@ -26,6 +26,9 @@ Per-frame allocations were removed from `src/renderer/`:
   destroying one per pick. Buffers reserve five 256-byte lanes: four satisfy
   the texture-copy `bytesPerRow` alignment and the fifth receives the scalar
   depth extracted by compute. They are reused across picks and resizes.
+  `pickRegion` borrows the same pool with capacity-aware buffers, copies only
+  the requested ID attachments, and tiles large rectangles under a bounded
+  byte budget; region reads never copy depth.
   `resize` resets only the render targets (`resetPickTargets`) and keeps the
   size-independent readback pool and depth-extraction pipeline; `destroy`
   releases every pooled and intermediate buffer.

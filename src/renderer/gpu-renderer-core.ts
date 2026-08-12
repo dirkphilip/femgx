@@ -2,15 +2,18 @@ import type { Camera } from "../camera/camera";
 import type { Vec3 } from "../math/vec3";
 import type { Part } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
+import type { BoxSelectionRect } from "../interaction/box-selection";
+import type { InteractionTarget } from "../interaction/target-types";
+import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { DeformationState } from "../results/deform";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
-import type { PickHit } from "../picking/types";
 import { RendererAttachment } from "./attachment";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
 import { syncDeformations, validateDeformation } from "./gpu-deform";
 import { encodePickSnapshot, encodeVisibleFrame } from "./gpu-frame";
 import { pickHitFromPixel, resetPickTargets } from "./gpu-pick";
+import { pickTargetsFromRegion } from "./gpu-pick-region";
 import { displayedPointFromPixel } from "./gpu-pick-point";
 import { GpuDeviceLifecycle, type GpuBundle } from "./gpu-recovery";
 import type { GpuValidationOptions } from "./gpu-validation";
@@ -153,6 +156,24 @@ export class GpuRenderer implements WebGpuRenderer {
       camera,
       x,
       y,
+    });
+  }
+
+  public async pickRegion(
+    rect: BoxSelectionRect,
+    granularity: InteractionGranularity,
+  ): Promise<readonly InteractionTarget[]> {
+    this.ensureAlive();
+    if (this.attachment.runtime === undefined) return [];
+    if (!this.ensurePickSnapshot()) return [];
+    return pickTargetsFromRegion({
+      device: this.lifecycle.bundle.device,
+      canvas: this.canvas,
+      pick: this.lifecycle.bundle.pickTargets,
+      readback: this.lifecycle.bundle.pickTargets.readback,
+      context: { instances: this.attachment.instances, parts: this.parts },
+      rect,
+      granularity,
     });
   }
 

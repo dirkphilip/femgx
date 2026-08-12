@@ -139,6 +139,15 @@ export function fakeGpuDevice(
   const renderPipelineDescriptors: GPURenderPipelineDescriptor[] = [];
   const shaderModuleDescriptors: GPUShaderModuleDescriptor[] = [];
   const bufferCopies: BufferCopy[] = [];
+  const textureCopies = new Map<
+    GPUBuffer,
+    Array<{
+      readonly destinationOffset: number;
+      readonly bytesPerRow: number;
+      readonly width: number;
+      readonly height: number;
+    }>
+  >();
   let bindGroupCreations = 0;
   let computeDispatchCount = 0;
   let submissionCount = 0;
@@ -190,11 +199,23 @@ export function fakeGpuDevice(
         },
         mapAsync: options.mapAsync ?? (() => Promise.resolve()),
         getMappedRange: () => {
-          const bytes = new Uint8Array(READBACK_BYTE_STRIDE * 5);
-          bytes.set(encodePickId(pickValue));
-          bytes.set(encodePickId(elementPickValue), READBACK_BYTE_STRIDE);
-          bytes.set(encodePickId(facePickValue), READBACK_BYTE_STRIDE * 2);
-          bytes.set(encodePickId(nodePickValue), READBACK_BYTE_STRIDE * 3);
+          const bytes = new Uint8Array(descriptor.size);
+          const copies = textureCopies.get(buffer) ?? [];
+          const values = [pickValue, elementPickValue, facePickValue, nodePickValue];
+          for (const [index, copy] of copies.entries()) {
+            const value = encodePickId(values[index] ?? 0);
+            for (let y = 0; y < copy.height; y += 1) {
+              for (let x = 0; x < copy.width; x += 1) {
+                bytes.set(value, copy.destinationOffset + y * copy.bytesPerRow + x * 4);
+              }
+            }
+          }
+          if (copies.length === 0) {
+            bytes.set(encodePickId(pickValue));
+            bytes.set(encodePickId(elementPickValue), READBACK_BYTE_STRIDE);
+            bytes.set(encodePickId(facePickValue), READBACK_BYTE_STRIDE * 2);
+            bytes.set(encodePickId(nodePickValue), READBACK_BYTE_STRIDE * 3);
+          }
           new DataView(bytes.buffer).setFloat32(READBACK_BYTE_STRIDE * 4, ndcDepth, true);
           return bytes.buffer;
         },
@@ -251,48 +272,72 @@ export function fakeGpuDevice(
         },
       };
     },
-    createCommandEncoder: () => ({
-      beginRenderPass: () => {
-        const pass = {
-          setPipeline: (pipeline: { readonly __tag?: string }) => {
-            pipelineCalls.push(pipeline);
-            currentPipeline = pipeline.__tag ?? "unknown";
-          },
-          setBindGroup: () => undefined,
-          setStencilReference: () => undefined,
-          setVertexBuffer: () => undefined,
-          setIndexBuffer: () => undefined,
-          drawIndexed: (indexCount: number, instanceCount: number) => {
-            drawCalls.push({ indexCount, instanceCount });
-            pipelineDraws.push({ pipeline: currentPipeline, indexCount, instanceCount });
-          },
-          end: () => undefined,
-        };
-        return pass as unknown as GPURenderPassEncoder;
-      },
-      beginComputePass: () =>
-        ({
-          setPipeline: () => undefined,
-          setBindGroup: () => undefined,
-          dispatchWorkgroups: () => {
-            computeDispatchCount += 1;
-          },
-          end: () => undefined,
-        }) as unknown as GPUComputePassEncoder,
-      finish: () => ({}),
-      copyTextureToBuffer: (source: GPUTexelCopyTextureInfo) => {
-        options.onCopyTextureToBuffer?.(source);
-      },
-      copyBufferToBuffer: (
-        _source: GPUBuffer,
-        sourceOffset: number,
-        _destination: GPUBuffer,
-        destinationOffset: number,
-        size: number,
-      ) => {
-        bufferCopies.push({ sourceOffset, destinationOffset, size });
-      },
-    }),
+    createCommandEncoder: () => {
+      const textureCopyBuffers = new Set<GPUBuffer>();
+      return {
+        beginRenderPass: () => {
+          const pass = {
+            setPipeline: (pipeline: { readonly __tag?: string }) => {
+              pipelineCalls.push(pipeline);
+              currentPipeline = pipeline.__tag ?? "unknown";
+            },
+            setBindGroup: () => undefined,
+            setStencilReference: () => undefined,
+            setVertexBuffer: () => undefined,
+            setIndexBuffer: () => undefined,
+            drawIndexed: (indexCount: number, instanceCount: number) => {
+              drawCalls.push({ indexCount, instanceCount });
+              pipelineDraws.push({ pipeline: currentPipeline, indexCount, instanceCount });
+            },
+            end: () => undefined,
+          };
+          return pass as unknown as GPURenderPassEncoder;
+        },
+        beginComputePass: () =>
+          ({
+            setPipeline: () => undefined,
+            setBindGroup: () => undefined,
+            dispatchWorkgroups: () => {
+              computeDispatchCount += 1;
+            },
+            end: () => undefined,
+          }) as unknown as GPUComputePassEncoder,
+        finish: () => ({}),
+        copyTextureToBuffer: (
+          source: GPUTexelCopyTextureInfo,
+          destination: GPUTexelCopyBufferInfo,
+          copySize: GPUExtent3DStrict,
+        ) => {
+          options.onCopyTextureToBuffer?.(source);
+          const target = destination.buffer;
+          if (!textureCopyBuffers.has(target)) {
+            textureCopies.set(target, []);
+            textureCopyBuffers.add(target);
+          }
+          const copies = textureCopies.get(target) ?? [];
+          const extent = copySize as unknown as {
+            readonly width?: number;
+            readonly height?: number;
+          };
+          copies.push({
+            destinationOffset: destination.offset ?? 0,
+            bytesPerRow: destination.bytesPerRow ?? 0,
+            width: Array.isArray(copySize) ? Number(copySize[0]) : Number(extent.width),
+            height: Array.isArray(copySize) ? Number(copySize[1]) : Number(extent.height),
+          });
+          textureCopies.set(target, copies);
+        },
+        copyBufferToBuffer: (
+          _source: GPUBuffer,
+          sourceOffset: number,
+          _destination: GPUBuffer,
+          destinationOffset: number,
+          size: number,
+        ) => {
+          bufferCopies.push({ sourceOffset, destinationOffset, size });
+        },
+      };
+    },
   };
   return {
     device: device as unknown as GPUDevice,

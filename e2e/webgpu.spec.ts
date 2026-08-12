@@ -264,6 +264,28 @@ test("drives interaction and picking through the demo path", async ({ page }) =>
   await expect.poll(() => canvas.getAttribute("data-selected")).toBe("");
 });
 
+test("discovers visible region targets without mutating selection", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  const targets = await page.evaluate(
+    async (rect) => {
+      const demo = (
+        window as typeof window & {
+          femgxDemo?: {
+            pickRegion?: (value: unknown, granularity: string) => Promise<readonly unknown[]>;
+          };
+        }
+      ).femgxDemo;
+      return demo?.pickRegion?.(rect, "part") ?? [];
+    },
+    { left: 0, top: 0, right: box.width, bottom: box.height, width: box.width, height: box.height },
+  );
+  expect(targets.length, "the full visible canvas should discover a part").toBeGreaterThan(0);
+  await expect(canvas).toHaveAttribute("data-selected", "");
+});
+
 test("keeps selection feedback visible in edge overlay mode", async ({ page }) => {
   await loadWebGpuPage(page);
 

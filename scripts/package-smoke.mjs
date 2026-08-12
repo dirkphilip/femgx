@@ -223,6 +223,8 @@ function main() {
       "  await viewport.pick(0, 0);",
       "  const hit = await viewport.pick(0, 0);",
       "  if (hit !== undefined) hit.worldPosition;",
+      '  const regionTargets = await viewport.pickRegion({ left: 0, top: 0, right: 1, bottom: 1, width: 1, height: 1 }, "part");',
+      "  regionTargets satisfies readonly InteractionTarget[];",
       "  viewport.render();",
       "  viewport.invalidate();",
       "  viewport.stats();",

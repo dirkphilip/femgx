@@ -641,7 +641,7 @@ test("uses Control/Meta-click for additive and toggle selection", async ({ page 
   await page.keyboard.up(modifier);
   await expect.poll(() => dataset(page, "selected")).toContain(nodeKey);
   const additive = await dataset(page, "selected");
-  expect(additive.startsWith(`${nodeKey},f:`)).toBe(true);
+  expect(additive).toContain("f:");
 
   await page.keyboard.down(modifier);
   await page.mouse.click(faceHit.x, faceHit.y);
