@@ -11,6 +11,7 @@ import {
 } from "../../src/index";
 import { createBoltedPlateFixture } from "./bolted-plate";
 import { createElementFixture, createHex20CylinderFixture } from "./element-fixture";
+import { createPerformancePreset } from "./performance-fixture";
 import { createResultsPreset } from "./results-preset";
 import { createTransparencyFixture } from "./transparency-fixture";
 import { createVtkFixture } from "./vtk-fixture";
@@ -210,6 +211,7 @@ export function createModelPresets(
     createTransparencyPreset(
       options.transparencyOpacity === undefined ? {} : { opacity: options.transparencyOpacity },
     ),
+    createPerformancePreset(),
   ];
 }
 

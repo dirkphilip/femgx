@@ -115,16 +115,14 @@ benchmark until an explicitly owned real-GPU runner exists.
 
 ## Interactive WebGPU inspection case
 
-The full-screen demo includes a deliberately demo-owned `Performance · 2.10M
-triangles` model. `demo/fixture/performance-fixture.ts` generates one 128 × 128 shell
-and places it 64 times, exercising reusable geometry and GPU instancing at
-exactly 2,097,152 triangles without a second renderer or a checked-in mesh
-asset. The demo is idle by default and renders only after viewport invalidation.
-Its overlay distinguishes the 32,768 unique triangles from 2,097,152 submitted
-triangles, reports the actual rendered-frame count, and clearly marks the idle
-state. Selecting this performance preset runs one bounded 500 ms FPS sample,
-reports the result, and then returns to idle. It remains a manual visual check;
-the opt-in benchmark above owns reproducible cost breakdowns.
+The full-screen demo exposes a deliberately demo-owned `Performance · 2.10M
+triangles` model through the normal model selector. `demo/fixture/performance-fixture.ts`
+generates one 128 × 128 shell and places it 64 times, exercising reusable geometry
+and GPU instancing at exactly 2,097,152 submitted triangles without a second
+renderer or a checked-in mesh asset. The demo remains idle by default and renders
+only after viewport invalidation. Its diagnostics distinguish the 32,768 unique
+triangles from 2,097,152 submitted triangles. It is a manual visual inspection
+case; the opt-in benchmark above owns reproducible cost breakdowns.
 
 [engineering/performance-issues|Performance issues]: performance-issues.md
 [engineering/quality-gate|Quality gate]: quality-gate.md

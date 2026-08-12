@@ -18,7 +18,8 @@ export function statsText(context: WorkbenchSceneContext, options: StatusTextOpt
     `Model ${context.model.name} (${context.model.id})\n` +
     `Renderer ${options.rendererName}\n` +
     `Visible instances ${options.stats.visibleInstances}\n` +
-    `Visible triangles ${formatCount(visibleTriangleCount(context))}\n` +
+    `Unique triangles ${formatCount(uniqueTriangleCount(context))}\n` +
+    `Submitted triangles ${formatCount(submittedTriangleCount(context))}\n` +
     `Reusable parts ${context.model.scene.parts.size}\n` +
     `Draw batches ${options.stats.batches}\n` +
     `Selections ${options.selectedCount}` +
@@ -47,8 +48,17 @@ function issueLines(context: WorkbenchSceneContext): string[] {
   );
 }
 
-/** Triangle count after runtime visibility, including every instance draw. */
-export function visibleTriangleCount(context: WorkbenchSceneContext): number {
+/** Triangle count in the reusable part definitions, independent of placement count. */
+function uniqueTriangleCount(context: WorkbenchSceneContext): number {
+  let triangles = 0;
+  for (const part of context.model.scene.parts.values()) {
+    triangles += Math.floor(part.geometry.indices.length / 3);
+  }
+  return triangles;
+}
+
+/** Triangle count after runtime visibility, including every visible instance draw. */
+function submittedTriangleCount(context: WorkbenchSceneContext): number {
   let triangles = 0;
   for (const instance of context.runtime.getInstances()) {
     if (!instance.visible) continue;
