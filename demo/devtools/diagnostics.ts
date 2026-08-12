@@ -1,11 +1,17 @@
 import type { PartId } from "../../src/index";
-import type { DisplayToggles, RendererStats, WorkbenchSceneContext } from "../workbench/types";
+import type {
+  DisplayToggles,
+  RenderLoopStats,
+  RendererStats,
+  WorkbenchSceneContext,
+} from "../workbench/types";
 
 /** Display inputs used to format one status snapshot. */
 export interface StatusTextOptions {
   readonly rendererName: string;
   readonly toggles: DisplayToggles;
   readonly stats: RendererStats;
+  readonly renderLoop: RenderLoopStats;
   readonly selectedCount: number;
 }
 
@@ -22,8 +28,22 @@ export function statsText(context: WorkbenchSceneContext, options: StatusTextOpt
     `Submitted triangles ${formatCount(submittedTriangleCount(context))}\n` +
     `Reusable parts ${context.model.scene.parts.size}\n` +
     `Draw batches ${options.stats.batches}\n` +
-    `Selections ${options.selectedCount}` +
+    `Selections ${options.selectedCount}\n` +
+    renderLoopLines(options.renderLoop) +
     diagnostics
+  );
+}
+
+function renderLoopLines(stats: RenderLoopStats): string {
+  return (
+    `Render loop ${stats.state}\n` +
+    `Sample duration ${formatMilliseconds(stats.sampleDurationMs)}\n` +
+    `Sample frames ${stats.sampleFrameCount}\n` +
+    `Average FPS ${formatRate(stats.averageFps)}\n` +
+    `p50 frame interval ${formatOptionalMilliseconds(stats.p50FrameIntervalMs)}\n` +
+    `p95 frame interval ${formatOptionalMilliseconds(stats.p95FrameIntervalMs)}\n` +
+    `Longest frame interval ${formatOptionalMilliseconds(stats.longestFrameIntervalMs)}\n` +
+    "Note: RAF FPS is refresh-rate-limited render-loop behavior, not queue-drained GPU time."
   );
 }
 
@@ -78,4 +98,16 @@ function sortedNumbers(values: Iterable<number>): number[] {
 
 function formatCount(value: number): string {
   return new Intl.NumberFormat("en-US").format(value);
+}
+
+function formatMilliseconds(value: number): string {
+  return `${value.toFixed(0)} ms`;
+}
+
+function formatOptionalMilliseconds(value: number | undefined): string {
+  return value === undefined ? "—" : formatMilliseconds(value);
+}
+
+function formatRate(value: number): string {
+  return value.toFixed(1);
 }

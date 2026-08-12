@@ -42,3 +42,5 @@ export interface WorkbenchSceneContext {
   readonly runtime: SceneRuntime;
   readonly interaction: InteractionState;
 }
+
+export type { RenderLoopStats } from "./render-loop";

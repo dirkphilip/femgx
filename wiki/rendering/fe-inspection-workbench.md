@@ -81,7 +81,7 @@ controller, so camera and interaction behavior is stable
   demo-side `emphasis.ts` fold was removed. `elementOverrides` now holds only
   explicit element highlights set through `setElementOverride`
   ([[architecture/demo-library-boundary|Demo / library boundary]]).
-- Display toggles (edges, nodes, diagnostics) update workbench presentation and
+- Display toggles (edges, nodes, diagnostics, and explicit Continuous rendering) update workbench presentation and
   interaction state only; they never rebuild reusable geometry or drop selection
   state. Diagnostics are an opt-in, bounded HUD with `hidden` as its authoritative
   visibility state, and the same action is available from target and empty-scene

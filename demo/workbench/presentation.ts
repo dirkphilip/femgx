@@ -3,7 +3,7 @@ import type { WorkbenchModel } from "./model";
 import { updateStatus, type DemoView } from "./view";
 import { selectedKeys } from "./selection";
 import { statsText } from "../devtools/diagnostics";
-import type { DisplayToggles, RendererStats, ResultDisplayMode } from "./types";
+import type { DisplayToggles, RenderLoopStats, RendererStats, ResultDisplayMode } from "./types";
 
 /** Presentation-only DOM policy for the workbench shell. */
 export interface WorkbenchPresentationOptions {
@@ -15,6 +15,7 @@ export interface WorkbenchPresentationOptions {
   readonly getResultMode: () => ResultDisplayMode;
   readonly getInteraction: () => InteractionState;
   readonly getRuntime: () => SceneRuntime;
+  readonly getContinuous: () => boolean;
 }
 
 /** Keeps status, toolbar reflection, model selection, and camera chrome in sync. */
@@ -37,7 +38,12 @@ export class WorkbenchPresentation {
     select.value = this.options.getModel().id;
   }
 
-  refresh(camera: Camera, rendererState: string, stats: RendererStats): void {
+  refresh(
+    camera: Camera,
+    rendererState: string,
+    stats: RendererStats,
+    renderLoop: RenderLoopStats,
+  ): void {
     const model = this.options.getModel();
     updateStatus(this.options.view, camera, {
       model: model.name,
@@ -57,6 +63,7 @@ export class WorkbenchPresentation {
         rendererName: this.options.rendererName,
         toggles: this.options.getToggles(),
         stats,
+        renderLoop,
         selectedCount: selectedKeys(this.options.getInteraction()).length,
       },
     );
@@ -78,6 +85,17 @@ export class WorkbenchPresentation {
     this.options.view.nodeOverlayToggle.ariaPressed = String(enabled);
     this.options.view.nodeOverlayToggle.textContent = "Nodes";
     this.options.canvas.dataset["nodes"] = String(enabled);
+  }
+
+  reflectContinuous(): void {
+    const enabled = this.options.getContinuous();
+    this.options.view.continuousToggle.setAttribute("aria-pressed", String(enabled));
+    this.options.view.continuousToggle.textContent = "Continuous";
+    this.options.view.continuousToggle.setAttribute("aria-label", "Continuous rendering");
+    this.options.view.continuousToggle.title = enabled
+      ? "Stop the recurring render-loop sample."
+      : "Start a recurring render-loop sample for manual inspection.";
+    this.options.canvas.dataset["continuous"] = String(enabled);
   }
 
   reflectResults(): void {
