@@ -168,9 +168,11 @@ export function createBoltedPlatePreset(): ModelPreset {
 }
 
 /** Builds the deterministic shell/interior transparency demonstration. */
-export function createTransparencyPreset(): ModelPreset {
+export function createTransparencyPreset(options: { readonly opacity?: number } = {}): ModelPreset {
   const fixture = createTransparencyFixture();
   const { shell, interior, overlap } = fixture.partIds;
+  const shellOpacity = options.opacity ?? 0.38;
+  const overlapOpacity = options.opacity ?? 0.3;
   return {
     id: "transparency",
     name: "Order-independent transparency",
@@ -182,8 +184,8 @@ export function createTransparencyPreset(): ModelPreset {
       [overlap, { r: 0.2, g: 0.85, b: 0.45, a: 1 }],
     ]),
     partOpacities: new Map<PartId, number>([
-      [shell, 0.38],
-      [overlap, 0.3],
+      [shell, shellOpacity],
+      [overlap, overlapOpacity],
     ]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map<PartId, string>([
@@ -196,14 +198,18 @@ export function createTransparencyPreset(): ModelPreset {
 }
 
 /** The deterministic presets offered by the demo, in stable order. */
-export function createModelPresets(): readonly ModelPreset[] {
+export function createModelPresets(
+  options: { readonly transparencyOpacity?: number } = {},
+): readonly ModelPreset[] {
   return [
     createBoltedPlatePreset(),
     createVtkPreset(),
     createGalleryPreset(),
     createHex20CylinderPreset(),
     createResultsPreset(),
-    createTransparencyPreset(),
+    createTransparencyPreset(
+      options.transparencyOpacity === undefined ? {} : { opacity: options.transparencyOpacity },
+    ),
   ];
 }
 

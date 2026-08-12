@@ -23,8 +23,8 @@ async function rendererMode(page: Page): Promise<string> {
 }
 
 /** Loads the demo and skips when the environment cannot run WebGPU. */
-async function loadWebGpuPage(page: Page): Promise<void> {
-  await page.goto("/");
+async function loadWebGpuPage(page: Page, path = "/"): Promise<void> {
+  await page.goto(path);
   await expect(page.getByTestId("view-canvas")).toBeVisible();
   await expect
     .poll(() => rendererMode(page), { timeout: 10_000 })
@@ -411,6 +411,32 @@ test("composes the transparency fixture and picks its nearest translucent face",
   expect(hit?.key).toMatch(/^f:31\/1:/);
   await page.mouse.click(hit?.x ?? 0, hit?.y ?? 0);
   await expect.poll(() => canvas.getAttribute("data-selected")).toBe(hit?.key);
+});
+
+test("removes zero-alpha shell overlays without removing their picks", async ({ page }) => {
+  await loadWebGpuPage(page, "/?testAlphaZero");
+  await page.getByTestId("model-select").selectOption("transparency");
+
+  const canvas = page.getByTestId("view-canvas");
+  const instanceVisibility = page.locator("input[data-instance-id]");
+  await expect(instanceVisibility).toHaveCount(4);
+
+  // The transparency fixture orders its opaque interior first, followed by
+  // the shell and the two overlapping zero-alpha placements. Hiding the
+  // latter gives a pixel baseline for the interior's own overlays.
+  for (const index of [1, 2, 3]) await instanceVisibility.nth(index).uncheck();
+  const interiorOnly = await stableCanvasPixels(page, canvas);
+
+  for (const index of [1, 2, 3]) await instanceVisibility.nth(index).check();
+  const alphaZeroFrame = await stableCanvasPixels(page, canvas);
+  expect(
+    alphaZeroFrame.equals(interiorOnly),
+    "zero-alpha shell and overlap parts must add no edge or node pixels",
+  ).toBe(true);
+
+  const hit = await sweepForHit(page, canvas, { prefix: "f:", attribute: "hovered", fresh: true });
+  expect(hit, "zero-alpha shell geometry must remain pickable").not.toBeUndefined();
+  expect(hit?.key).toMatch(/^f:31\/1:/);
 });
 
 test("keeps element edges and nodes visible after orbiting", async ({ page }) => {

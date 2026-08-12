@@ -169,7 +169,11 @@ fn pointVertex(
     clip.z,
     clip.w,
   );
-  var color = select(instance.color, vec4<f32>(0.0, 0.0, 0.0, 0.45), nodeOverlay);
+  var color = select(
+    instance.color,
+    vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a),
+    nodeOverlay,
+  );
   var emissive = 0.0;
   var hidden = false;
   if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {

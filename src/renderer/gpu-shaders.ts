@@ -333,7 +333,7 @@ fn vertexMain(
   if (!topologyOwnersVisible(slot, topologyIndex)) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
-  output.color = vec4<f32>(0.0, 0.0, 0.0, 0.45);
+  output.color = vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a);
   output.emissive = 0.0;
   output.local = vec2<f32>(0.0);
   return output;

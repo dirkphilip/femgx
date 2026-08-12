@@ -256,14 +256,16 @@ describe("GPU deformation shader contract", () => {
     expect(nodeOverlayFragmentShader).toMatch(/color\.rgb \+ vec3<f32>\(emissive\)/);
   });
 
-  it("uses neutral black for element nodes and edges", () => {
-    expect(pointVertexShader).toMatch(
-      /var color = select\(instance\.color, vec4<f32>\(0\.0, 0\.0, 0\.0, 0\.45\), nodeOverlay\)/,
-    );
+  it("uses resolved instance opacity for neutral node and edge overlays", () => {
+    expect(pointVertexShader).toContain("var color = select(");
+    expect(pointVertexShader).toContain("vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a)");
+    expect(pointVertexShader).toContain("nodeOverlay,");
     expect(pointVertexShader).toMatch(
       /pointVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, 1\.0, false\)/,
     );
-    expect(edgeVertexShader).toMatch(/output\.color = vec4<f32>\(0\.0, 0\.0, 0\.0, 0\.45\)/);
+    expect(edgeVertexShader).toMatch(
+      /output\.color = vec4<f32>\(0\.0, 0\.0, 0\.0, 0\.45 \* instance\.color\.a\)/,
+    );
     expect(edgeVertexShader).toMatch(/output\.emissive = 0\.0/);
   });
 
