@@ -69,9 +69,10 @@ reference no package that consumers must install:
 - `files: ["dist"]` — source, demo, tests, e2e, wiki, and `scripts/` are never
   packed; README and LICENSE are included automatically.
 - No runtime `dependencies`; the published package installs with nothing extra.
-- No `preinstall` hook in the published manifest — `scripts/check-node-version.mjs`
-  is a dev-repo preflight only (`predev`, `prebuild`, …), and a `preinstall`
-  would fail for consumers who do not receive `scripts/`.
+- No `preinstall` hook or runtime dependency is introduced for the published
+  package. `.nvmrc` selects the exact local development runtime,
+  `devEngines.runtime` lets npm 11 enforce the repository's Node 24 boundary,
+  and `engines.node` declares compatibility for package consumers.
 
 ## Smoke tests
 

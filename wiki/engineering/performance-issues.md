@@ -111,12 +111,11 @@ second geometry traversal and `r32float` color target.
 
 ## Toolchain reproducibility
 
-The repository pins Node 24.18.0 in `.nvmrc`, and the package engine declaration
-uses a full semver lower bound so local tooling can select a compatible Node
-runtime. Every npm lifecycle command now runs the lightweight
-`check-node` preflight, so a shell that resolves an older Node binary fails with
-the selected executable path instead of producing an unrelated Vite/Rolldown
-error. Node 21 is unsupported by the current toolchain.
+The repository pins Node 24.18.0 in `.nvmrc` as the exact convenient local
+selection. `package.json.devEngines.runtime` is the npm-owned development
+boundary: npm 11 rejects repository install and run commands on a Node runtime
+older than 24. `engines.node` remains the published package's consumer
+compatibility declaration. Node 21 is unsupported by the current toolchain.
 
 ## Large-model streaming
 
