@@ -269,13 +269,21 @@ test("switches between deterministic model presets", async ({ page }) => {
   await page.goto("/");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
-  await expect(select.locator("option")).toHaveCount(6);
+  await expect(select.locator("option")).toHaveCount(7);
   await expect(select).toHaveValue("bolted");
   await expect(canvas).toHaveAttribute("data-model", "bolted");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
 
-  for (const id of ["vtk", "gallery", "hex20-cylinder", "results", "transparency", "bolted"]) {
+  for (const id of [
+    "vtk",
+    "gallery",
+    "hex20-cylinder",
+    "results",
+    "transparency",
+    "performance",
+    "bolted",
+  ]) {
     await page.getByTestId("edge-overlay").click();
     await page.getByTestId("node-overlay").click();
     await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
@@ -291,6 +299,30 @@ test("switches between deterministic model presets", async ({ page }) => {
       id === "results" || id === "hex20-cylinder" ? "deformed" : "base",
     );
   }
+});
+test("opens the performance model through the normal demo path", async ({ page }) => {
+  await page.goto("/");
+  const select = page.getByTestId("model-select");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+
+  await select.selectOption("performance");
+  await expect(canvas).toHaveAttribute("data-model", "performance");
+  await expect(page.getByTestId("status")).toContainText("64 visible");
+  await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
+
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("performance canvas has no bounding box");
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: "right" });
+  const menu = page.getByTestId("context-menu");
+  await expect(menu).toBeVisible();
+  await menu.getByText("Show diagnostics").click();
+  const diagnostics = page.getByTestId("stats-panel");
+  await expect(diagnostics).toContainText("Unique triangles 32,768");
+  await expect(diagnostics).toContainText("Submitted triangles 2,097,152");
+
+  await select.selectOption("bolted");
+  await expect(canvas).toHaveAttribute("data-model", "bolted");
 });
 test("keeps the deformed Hex20 cylinder connected and pickable", async ({ page }) => {
   await page.goto("/");

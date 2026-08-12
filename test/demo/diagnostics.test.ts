@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInteractionState, createSceneRuntime } from "../../src/index";
 import { createBoltedPlatePreset } from "../../demo/fixture/presets";
+import { createPerformancePreset } from "../../demo/fixture/performance-fixture";
 import { statsText } from "../../demo/devtools/diagnostics";
 import { createExampleModel } from "../../demo/workbench/model";
 
@@ -39,5 +40,23 @@ describe("demo diagnostics", () => {
 
     expect(text).toContain("Part ");
     expect(text).toContain("shown");
+  });
+
+  it("distinguishes reusable triangles from submitted instance triangles", () => {
+    const preset = createPerformancePreset();
+    const context = {
+      model: createExampleModel(preset),
+      runtime: createSceneRuntime(preset.scene),
+      interaction: createInteractionState(),
+    };
+    const text = statsText(context, {
+      rendererName: "webgpu",
+      toggles: { edges: true, nodes: true, diagnostics: false },
+      stats: { visibleInstances: 64, batches: 1 },
+      selectedCount: 0,
+    });
+
+    expect(text).toContain("Unique triangles 32,768");
+    expect(text).toContain("Submitted triangles 2,097,152");
   });
 });

@@ -18,7 +18,7 @@ import { createPresetInteraction } from "../../../demo/workbench/preset";
 import { readInteractionState } from "../../../src/interaction/state";
 
 describe("createModelPresets", () => {
-  it("offers the six supported product stories in stable order", () => {
+  it("offers the supported product stories and performance case in stable order", () => {
     const presets = createModelPresets();
     expect(presets.map((preset) => preset.id)).toEqual([
       "bolted",
@@ -27,6 +27,7 @@ describe("createModelPresets", () => {
       "hex20-cylinder",
       "results",
       "transparency",
+      "performance",
     ]);
     expect(presets.map((preset) => preset.name)).toEqual([
       "Bolted plate assembly",
@@ -35,8 +36,9 @@ describe("createModelPresets", () => {
       "Hex20 cylinder",
       "Static results · stress + deformation",
       "Order-independent transparency",
+      "Performance · 2.10M triangles",
     ]);
-    expect(new Set(presets.map((preset) => preset.name)).size).toBe(6);
+    expect(new Set(presets.map((preset) => preset.name)).size).toBe(7);
   });
 
   it("keeps the bolted plate as the default showcase", () => {
@@ -44,8 +46,10 @@ describe("createModelPresets", () => {
     expect(createModelPresets()[0]).toEqual(createDefaultPreset());
   });
 
-  it("exposes element models for every part", () => {
-    for (const preset of createModelPresets()) {
+  it("exposes element models for every FE preset part", () => {
+    for (const preset of createModelPresets().filter(
+      (candidate) => candidate.id !== "performance",
+    )) {
       for (const partId of preset.scene.parts.keys()) {
         expect(preset.elementModels.get(partId), `${preset.id} part ${partId}`).toBeDefined();
       }
