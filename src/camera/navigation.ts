@@ -1,28 +1,24 @@
 import { boundsCorners, type Bounds } from "../geometry/part";
-import { dot, normalize, subtract, type Vec3 } from "../math/vec3";
-import {
-  orbitCamera,
-  projectPoint,
-  unprojectPoint,
-  zoomCamera,
-  zoomCameraAtPoint,
-  type Camera,
-} from "./camera";
+import { add, dot, length, normalize, scale, subtract, type Vec3 } from "../math/vec3";
+import { orbitCamera, zoomCamera, type Camera } from "./camera";
 
-/** Orbits around a pivot while keeping the supplied bounds in front of the camera. */
+const SAFE_MARGIN_FRACTION = 1e-5;
+const MIN_ORTHO_HEIGHT_FRACTION = 0.05;
+
+/** Orbits fully around a fixed target and moves the eye out of protected bounds when necessary. */
 export function orbitCameraWithinBounds(
   camera: Camera,
   yawDelta: number,
   pitchDelta: number,
-  pivot: Vec3 | undefined,
+  target: Vec3 | undefined,
   bounds: Bounds,
 ): Camera {
   assertFinite("orbit yaw", yawDelta);
   assertFinite("orbit pitch", pitchDelta);
+  if (target !== undefined) assertFiniteVector("orbit target", target);
   if (yawDelta === 0 && pitchDelta === 0) return camera;
-  return transitionWithinBounds(camera, bounds, (value, progress) =>
-    orbitCamera(value, yawDelta * progress, pitchDelta * progress, pivot),
-  );
+  const focused = target === undefined ? camera : focusCamera(camera, target);
+  return constrainCamera(orbitCamera(focused, yawDelta, pitchDelta), bounds, undefined);
 }
 
 /** Selects bounded or generic orbiting for controls with an optional bounds supplier. */
@@ -30,130 +26,59 @@ export function orbitCameraWithOptionalBounds(
   camera: Camera,
   yawDelta: number,
   pitchDelta: number,
-  pivot: Vec3 | undefined,
+  target: Vec3 | undefined,
   bounds: Bounds | undefined,
 ): Camera {
-  return bounds === undefined
-    ? orbitCamera(camera, yawDelta, pitchDelta, pivot)
-    : orbitCameraWithinBounds(camera, yawDelta, pitchDelta, pivot, bounds);
+  if (bounds !== undefined) {
+    return orbitCameraWithinBounds(camera, yawDelta, pitchDelta, target, bounds);
+  }
+  const focused = target === undefined ? camera : focusCamera(camera, target);
+  return orbitCamera(focused, yawDelta, pitchDelta);
 }
 
-const SAFE_MARGIN_FRACTION = 1e-5;
-const MIN_NEAR_FRACTION = 1e-7;
-const SEARCH_STEPS = 32;
-
-interface ZoomProtection {
-  readonly approachPoint?: Vec3;
-  readonly protectedBounds?: readonly Bounds[];
-}
-
-/** Zooms toward the target while keeping the supplied bounds in front of the camera. */
-export function zoomCameraWithinBounds(camera: Camera, amount: number, bounds: Bounds): Camera {
-  assertFinite("zoom amount", amount);
-  if (amount === 0) return camera;
-  return transitionWithinBounds(camera, bounds, (value, progress) =>
-    zoomCamera(value, amount * progress),
-  );
-}
-
-/**
- * Zooms around a point while keeping the supplied bounds in front of the camera.
- * A confirmed displayed point can provide the local approach limit; omitting it
- * retains conservative whole-AABB admission for empty-space anchors.
- */
-export function zoomCameraAtPointWithinBounds(
+/** Zooms toward a fixed target without allowing protected bounds to cross the camera plane. */
+export function zoomCameraWithinBounds(
   camera: Camera,
   amount: number,
-  pivot: Vec3,
   bounds: Bounds,
-  protection?: ZoomProtection,
+  target?: Vec3,
+  protectedBounds?: readonly Bounds[],
 ): Camera {
   assertFinite("zoom amount", amount);
+  if (target !== undefined) assertFiniteVector("zoom target", target);
   if (amount === 0) return camera;
-  const approachPoint = protection?.approachPoint;
-  const protectedBounds = protection?.protectedBounds;
-  if (approachPoint !== undefined) assertFiniteVector("zoom approach point", approachPoint);
-  return transitionWithinBounds(
-    camera,
-    bounds,
-    (value, progress) => zoomCameraAtPoint(value, amount * progress, pivot),
-    approachPoint,
-    protectedBounds,
-  );
+  const focused = target === undefined ? camera : focusCamera(camera, target);
+  const forward = normalize(subtract(focused.target, focused.position));
+  return constrainCamera(zoomCamera(focused, amount), bounds, protectedBounds, forward);
 }
 
-/** Returns the world point under a CSS pixel on the view-aligned target plane. */
-export function targetPlanePoint(camera: Camera, x: number, y: number): Vec3 {
-  if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    throw new Error("Camera target-plane coordinates must be finite");
-  }
-  const targetScreen = projectPoint(camera, camera.target);
-  if (targetScreen === undefined) throw new Error("Camera target must be projectable");
-  return unprojectPoint(camera, [x, y, targetScreen[2]]);
+/** Returns the center of finite navigation bounds. */
+export function boundsCenter(bounds: Bounds): Vec3 {
+  return [
+    (bounds.minX + bounds.maxX) / 2,
+    (bounds.minY + bounds.maxY) / 2,
+    (bounds.minZ + bounds.maxZ) / 2,
+  ];
 }
 
-function transitionWithinBounds(
-  camera: Camera,
-  bounds: Bounds,
-  transition: (camera: Camera, progress: number) => Camera,
-  approachPoint?: Vec3,
-  protectedBounds?: readonly Bounds[],
-): Camera {
-  if (transitionSafety(camera, bounds, approachPoint, protectedBounds) <= 0) return camera;
-  const requested = transition(camera, 1);
-  const progress =
-    transitionSafety(requested, bounds, approachPoint, protectedBounds) > 0
-      ? 1
-      : safeProgress(camera, bounds, transition, approachPoint, protectedBounds);
-  if (progress === 0) return camera;
-  return updateCameraClipPlanes(
-    transition(camera, progress),
-    bounds,
-    cameraDepthMargin(bounds),
-    approachPoint,
-    protectedBounds,
-  );
-}
-
-function safeProgress(
-  camera: Camera,
-  bounds: Bounds,
-  transition: (camera: Camera, progress: number) => Camera,
-  approachPoint?: Vec3,
-  protectedBounds?: readonly Bounds[],
-): number {
-  let low = 0;
-  let high = 1;
-  for (let step = 0; step < SEARCH_STEPS; step += 1) {
-    const middle = (low + high) / 2;
-    const candidate = transition(camera, middle);
-    if (transitionSafety(candidate, bounds, approachPoint, protectedBounds) > 0) low = middle;
-    else high = middle;
-  }
-  return low;
-}
-
-/** Recomputes the bounds-safe clip interval after a camera transition. */
+/** Recomputes a bounds-safe clip interval after a camera transition. */
 export function updateCameraClipPlanes(
   camera: Camera,
   bounds: Bounds,
   margin = cameraDepthMargin(bounds),
-  approachPoint?: Vec3,
   protectedBounds?: readonly Bounds[],
 ): Camera {
-  const protectedDepthValues = protectedDepths(camera, bounds, protectedBounds);
-  const allDepths = [...boundsDepths(camera, bounds), ...protectedDepthValues];
+  const allDepths = [
+    ...boundsDepths(camera, bounds),
+    ...usableProtectedBounds(bounds, protectedBounds).flatMap((candidate) =>
+      boundsDepths(camera, candidate),
+    ),
+  ];
   const positiveDepths = allDepths.filter((depth) => depth > 0);
   const nearest = Math.min(...(positiveDepths.length > 0 ? positiveDepths : [margin]));
   const farthest = Math.max(...(positiveDepths.length > 0 ? positiveDepths : [margin]));
-  const scale = boundsScale(bounds);
-  const approachDepth =
-    approachPoint === undefined ? Number.POSITIVE_INFINITY : pointDepth(camera, approachPoint);
-  const depthLimit = Math.min(nearest, approachDepth) * 0.25;
-  const near = Math.max(
-    Number.MIN_VALUE,
-    Math.min(Math.max(scale * MIN_NEAR_FRACTION, nearest * 0.25), depthLimit),
-  );
+  const targetDistance = length(subtract(camera.position, camera.target));
+  const near = Math.max(Number.MIN_VALUE, Math.min(nearest * 0.25, targetDistance * 0.001));
   const far = Math.max(farthest + margin, near + margin);
   return { ...camera, near, far };
 }
@@ -163,42 +88,59 @@ export function minimumCameraDepth(camera: Camera, bounds: Bounds): number {
   return Math.min(...boundsDepths(camera, bounds));
 }
 
-function transitionSafety(
-  camera: Camera,
-  bounds: Bounds,
-  approachPoint: Vec3 | undefined,
-  protectedBounds: readonly Bounds[] | undefined,
-): number {
-  const candidates = safetyBounds(bounds, approachPoint, protectedBounds);
-  const geometrySafety = Math.min(
-    ...candidates.map(
-      (candidate) => minimumCameraDepth(camera, candidate) - cameraDepthMargin(candidate),
-    ),
-  );
-  const approachSafety =
-    approachPoint === undefined
-      ? Number.POSITIVE_INFINITY
-      : pointDepth(camera, approachPoint) - cameraDepthMargin(bounds);
-  return Math.min(geometrySafety, approachSafety);
+/** Returns the scale-aware depth margin shared by fitting and navigation. */
+export function cameraDepthMargin(bounds: Bounds): number {
+  return boundsScale(bounds) * SAFE_MARGIN_FRACTION;
 }
 
-function safetyBounds(
-  bounds: Bounds,
-  approachPoint: Vec3 | undefined,
-  protectedBounds: readonly Bounds[] | undefined,
-): readonly Bounds[] {
-  if (protectedBounds === undefined) return approachPoint === undefined ? [bounds] : [];
-  return protectedBounds.length === 0 ? [bounds] : protectedBounds;
+function focusCamera(camera: Camera, target: Vec3): Camera {
+  const translation = subtract(target, camera.target);
+  return { ...camera, position: add(camera.position, translation), target };
 }
 
-function protectedDepths(
+function constrainCamera(
   camera: Camera,
   bounds: Bounds,
   protectedBounds: readonly Bounds[] | undefined,
-): number[] {
-  return usableProtectedBounds(bounds, protectedBounds).flatMap((candidate) =>
-    boundsDepths(camera, candidate),
+  fallbackForward?: Vec3,
+): Camera {
+  const framed =
+    camera.mode === "orthographic"
+      ? {
+          ...camera,
+          orthoHeight: Math.max(
+            camera.orthoHeight,
+            boundsScale(bounds) * MIN_ORTHO_HEIGHT_FRACTION,
+          ),
+        }
+      : camera;
+  const adjusted = moveEyeBeforeBounds(
+    framed,
+    usableProtectedBounds(bounds, protectedBounds),
+    fallbackForward,
   );
+  return updateCameraClipPlanes(adjusted, bounds, cameraDepthMargin(bounds), protectedBounds);
+}
+
+function moveEyeBeforeBounds(
+  camera: Camera,
+  protectedBounds: readonly Bounds[],
+  fallbackForward: Vec3 = [0, 0, -1],
+): Camera {
+  const forward = normalize(subtract(camera.target, camera.position), fallbackForward, 1e-12);
+  const currentDistance = length(subtract(camera.position, camera.target));
+  let requiredDistance = currentDistance;
+  for (const candidate of protectedBounds) {
+    const margin = cameraDepthMargin(candidate) * 1.01;
+    for (const corner of boundsCorners(candidate)) {
+      requiredDistance = Math.max(
+        requiredDistance,
+        margin - dot(subtract(corner, camera.target), forward),
+      );
+    }
+  }
+  if (requiredDistance === currentDistance) return camera;
+  return { ...camera, position: subtract(camera.target, scale(forward, requiredDistance)) };
 }
 
 function usableProtectedBounds(
@@ -211,16 +153,6 @@ function usableProtectedBounds(
 function boundsDepths(camera: Camera, bounds: Bounds): number[] {
   const forward = normalize(subtract(camera.target, camera.position));
   return boundsCorners(bounds).map((corner) => dot(subtract(corner, camera.position), forward));
-}
-
-function pointDepth(camera: Camera, point: Vec3): number {
-  const forward = normalize(subtract(camera.target, camera.position));
-  return dot(subtract(point, camera.position), forward);
-}
-
-/** Returns the scale-aware depth margin shared by fitting and navigation. */
-export function cameraDepthMargin(bounds: Bounds): number {
-  return boundsScale(bounds) * SAFE_MARGIN_FRACTION;
 }
 
 function boundsScale(bounds: Bounds): number {

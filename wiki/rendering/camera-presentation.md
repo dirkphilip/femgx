@@ -18,26 +18,27 @@ interaction model and [[rendering/element-rendering|Element rendering]] for the 
 The public `installCameraControls` helper uses middle-drag to spin,
 Ctrl/Meta+middle-drag to pan in the drag direction at the target plane's
 CSS-pixel scale, Shift+middle-drag to zoom vertically, and the wheel to zoom
-toward the visible point under the cursor. Spin uses the closest visible GPU-picked face
-under its start point as the rotation pivot; the renderer's camera-navigation pick-point seam
+around the current stable target. Spin uses the closest visible GPU-picked face
+under its start point as the rotation target; the renderer's camera-navigation pick-point seam
 reads the winning fragment's NDC depth and unprojects the exact displayed world
 position. This follows GPU deformation and non-planar tessellation instead of
 reconstructing an undeformed CPU face plane.
-Empty space uses the point under the cursor on the view-aligned plane through the
-camera target. Wheel zoom uses the picked world point when available and this
-target-plane point otherwise, preserving the chosen screen position while
-zooming. Shift+middle-drag captures the same anchor at pointer-down; pinch
-recomputes it under the current two-pointer midpoint after midpoint pan.
-All control-driven zoom and orbit transitions are admitted against the current
-compiled scene bounds. Empty-space wheel, Shift+middle, and pinch gestures stop
-at the conservative front-of-model pose. A GPU-picked displayed point becomes
-the local approach limit for wheel and Shift+middle; each transformed placed-part
-bound is protected independently, so empty space inside the union AABB remains
-inspectable without letting a separate occurrence cross the camera plane.
-Every accepted transition recomputes a finite clip interval from the live
-positive scene depths. Orbit admission searches the requested yaw/pitch as one
-immutable prefix and uses the live bounds supplier when queued GPU-pivot input
-resolves; standalone controls without bounds retain generic orbit behavior.
+The picked orbit point becomes `camera.target`; empty-space orbit falls back to
+the current model-bounds center. Wheel, Shift+middle-drag, and pinch change only
+eye distance or orthographic scale around that current target. Zoom therefore
+never scales or re-picks the target away from the model, and equal unclamped
+zoom-out/zoom-in sequences are reversible.
+
+The scene bound is a conservative orbit collision volume, while zoom protects
+each transformed placed-part bound independently. Every control-driven orbit
+and zoom applies the full requested angular or scale change, then moves the eye
+outward along its new view direction only when a protected bound would
+otherwise reach or cross the camera plane. This keeps rotation available at
+close range without reviving a CPU mesh-raycast path.
+Orthographic scale stops at 5% of the scene scale. Every transition recomputes a
+finite clip interval from the live positive scene depths; the near plane is no
+farther than one quarter of the nearest protected depth or one thousandth of
+the target distance, whichever is smaller.
 Early drag deltas wait for
 the asynchronous GPU hit, so the gesture uses one pivot from its first visible
 movement onward. The WebGPU renderer projects its active pivot to a
@@ -48,7 +49,8 @@ The widget is visible only while the orbit gesture is active. Spin is
 continuous through the poles: orbit rotates the eye, target, and orthonormal
 view-frame up direction as one rigid basis, so the view never needs a pole
 clamp or a singular-frame fallback. Both spin and pan use the SpaceClaim
-direction convention. Left-drag is reserved for selection, including its
+direction convention. One-finger touch resolves the same picked model target.
+Left-drag is reserved for selection, including its
 shift-based inspection modifiers. The demo presentation uses a light studio
 background and restrained material colors so geometry edges and selection
 emphasis remain legible. Its lower-left viewport-owned view cube follows the

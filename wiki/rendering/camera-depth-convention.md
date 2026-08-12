@@ -26,17 +26,20 @@ The depth convention is exercised by regression tests in `test/camera/` and
 `test/camera/project-polygon.test.ts`.
 
 Perspective zoom and orbit are bounds-aware when driven through the installed
-camera controls. Empty-space anchors and target-centered transitions admit the largest
-requested prefix that keeps every scene-bounds corner in front of the camera.
-When GPU picking supplies a displayed world point, cursor-centered zoom uses
-that point as the local approach limit and protects every transformed placed-part
-bound independently. This allows the camera through empty space inside the union
-AABB without allowing another displayed occurrence to cross the camera plane.
-The accepted camera still derives a finite clip interval from positive scene
-depths, with the near plane no farther than the displayed point. A point or
-protected occurrence is never accepted at or behind its scale-aware safety margin.
-Off-center-pivot orbit continues to use the whole-AABB admission because it
-changes the view direction and can expose a different surface.
+camera controls. Orbit GPU picking supplies a displayed world point as the
+fixed camera target; an empty-space orbit uses the model-bounds center. Zoom
+preserves that current target. Orbit conservatively protects the scene union
+bound; zoom protects each transformed placed-part bound independently. The full
+requested orbit is applied, then the eye moves outward along the new view
+direction when needed to keep the model in front of the camera. Zoom uses the
+same constraint, so a target never drifts away from the model and the camera
+never enters a protected occurrence.
+
+The resulting clip interval comes from positive scene depths. The near plane is
+the smaller of one quarter of the nearest protected depth and one thousandth of
+the orbit-target distance; the far plane includes the farthest protected depth
+plus a scale-aware margin. Orthographic zoom has a 5%-of-scene-scale floor to
+avoid numerically meaningless magnification.
 
 Low-level camera zoom and orbit remain pure framing operations; they do not
 couple eye distance, orthographic screen scale, or clip values to scene bounds

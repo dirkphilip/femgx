@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { distinctColors, requireHit } from "./helpers";
 
-const BASE_URL = "http://127.0.0.1:5173";
+const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 
 /**
  * Phone-sized regression coverage for the demo layout: no horizontal page

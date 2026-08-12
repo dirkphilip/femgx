@@ -310,7 +310,12 @@ export async function dragCamera(
   const y = box.y + box.height / 2;
   await page.mouse.move(x, y);
   if (modifier !== undefined) await page.keyboard.down(modifier);
+  const framesBefore = modifier === undefined ? await canvas.getAttribute("data-frames") : null;
   await page.mouse.down({ button: "middle" });
+  await expect.poll(() => canvas.getAttribute("data-dragging")).toBe("true");
+  if (modifier === undefined) {
+    await expect.poll(() => canvas.getAttribute("data-frames")).not.toBe(framesBefore);
+  }
   await page.mouse.move(x + delta.x, y + delta.y);
   await page.mouse.up({ button: "middle" });
   if (modifier !== undefined) await page.keyboard.up(modifier);

@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createCamera, orbitCamera, projectPoint } from "../../src/camera/camera";
+import { createCamera, projectPoint } from "../../src/camera/camera";
 import { fitCamera } from "../../src/camera/fit";
 import {
   cameraDepthMargin,
   minimumCameraDepth,
   orbitCameraWithinBounds,
-  zoomCameraAtPointWithinBounds,
   zoomCameraWithinBounds,
 } from "../../src/camera/navigation";
 import type { Bounds } from "../../src/geometry/part";
@@ -41,7 +40,7 @@ describe("bounds-aware camera navigation", () => {
     },
   );
 
-  it("limits an unsafe off-center orbit to a safe prefix", () => {
+  it("applies a full off-center orbit and moves the eye outward when needed", () => {
     const modelBounds = {
       minX: -100,
       minY: -1,
@@ -56,15 +55,17 @@ describe("bounds-aware camera navigation", () => {
       1152,
       900,
     );
-    const requested = orbitCamera(initial, Math.PI, 0, [1000, 0, 0]);
     const limited = orbitCameraWithinBounds(initial, Math.PI, 0, [1000, 0, 0], modelBounds);
 
     expect(limited).not.toBe(initial);
-    expect(limited.position).not.toEqual(requested.position);
+    expect(limited.target).toEqual([1000, 0, 0]);
+    expect(distance(limited.position, limited.target)).toBeGreaterThanOrEqual(
+      distance(initial.position, initial.target),
+    );
     expect(safelyFramesBounds(limited, modelBounds)).toBe(true);
   });
 
-  it("preserves identity for no-op and fully blocked orbits", () => {
+  it("preserves identity for a no-op and never blocks an unsafe orbit", () => {
     const noOp = fitCamera(createCamera({ mode: "perspective" }), bounds, 1152, 900);
     expect(orbitCameraWithinBounds(noOp, 0, 0, undefined, bounds)).toBe(noOp);
 
@@ -73,7 +74,10 @@ describe("bounds-aware camera navigation", () => {
       position: [0, 0, 0.5],
       target: [0, 0, 0],
     });
-    expect(orbitCameraWithinBounds(blocked, 0.2, 0.1, undefined, bounds)).toBe(blocked);
+    const rotated = orbitCameraWithinBounds(blocked, 0.2, 0.1, undefined, bounds);
+    expect(rotated).not.toBe(blocked);
+    expect(rotated.target).toEqual(blocked.target);
+    expect(safelyFramesBounds(rotated, bounds)).toBe(true);
   });
 
   it("keeps a small fitted zoom step continuous", () => {
@@ -106,7 +110,7 @@ describe("bounds-aware camera navigation", () => {
     expect(restored.position[0]).toBeCloseTo(camera.position[0], 5);
     expect(restored.position[1]).toBeCloseTo(camera.position[1], 5);
     expect(restored.position[2]).toBeCloseTo(camera.position[2], 5);
-    expect(restored.near).toBeCloseTo(camera.near, 5);
+    expect(restored.near).toBeLessThanOrEqual(distance(restored.position, restored.target) * 0.001);
     expect(restored.far).toBeCloseTo(camera.far, 5);
     expect(safelyFramesBounds(restored, bounds)).toBe(true);
   });
@@ -156,7 +160,7 @@ describe("bounds-aware camera navigation", () => {
   });
 
   it.each(["perspective", "orthographic"] as const)(
-    "allows a displayed %s point to pass empty AABB corners safely",
+    "keeps a displayed %s point as the stable zoom target",
     (mode) => {
       const fixture = createBoltedPlateFixture();
       const runtime = createPackedSceneRuntime(fixture.scene);
@@ -168,21 +172,15 @@ describe("bounds-aware camera navigation", () => {
         900,
       );
       const anchor: Vec3 = [0, 3, 0];
-      const conservative = zoomCameraWithinBounds(fitted, -100, fixtureBounds);
-      const zoomed = zoomCameraAtPointWithinBounds(fitted, -100, anchor, fixtureBounds, {
-        approachPoint: anchor,
-      });
-      const fittedScreen = projectPoint(fitted, anchor);
+      const zoomed = zoomCameraWithinBounds(fitted, -100, fixtureBounds, anchor);
       const zoomedScreen = projectPoint(zoomed, anchor);
 
-      expect(distance(zoomed.position, anchor)).toBeLessThan(
-        distance(conservative.position, anchor) * 0.1,
-      );
-      expect(pointDepth(zoomed, anchor)).toBeGreaterThan(cameraDepthMargin(fixtureBounds));
+      expect(zoomed.target).toEqual(anchor);
+      expect(safelyFramesBounds(zoomed, fixtureBounds)).toBe(true);
       expect(zoomed.near).toBeGreaterThan(0);
       expect(zoomed.far).toBeGreaterThan(zoomed.near);
-      expect(Math.abs((zoomedScreen?.[0] ?? NaN) - (fittedScreen?.[0] ?? NaN))).toBeLessThan(1);
-      expect(Math.abs((zoomedScreen?.[1] ?? NaN) - (fittedScreen?.[1] ?? NaN))).toBeLessThan(1);
+      expect(zoomedScreen?.[0]).toBeCloseTo(1152 / 2, 3);
+      expect(zoomedScreen?.[1]).toBeCloseTo(900 / 2, 3);
     },
   );
 
@@ -219,12 +217,12 @@ describe("bounds-aware camera navigation", () => {
       height: 900,
     });
     const unionOnly = zoomCameraWithinBounds(camera, -100, unionBounds);
-    const protectedByOccurrence = zoomCameraAtPointWithinBounds(
+    const protectedByOccurrence = zoomCameraWithinBounds(
       camera,
       -100,
-      [0, 0, 0],
       unionBounds,
-      { approachPoint: [0, 0, 0], protectedBounds: [anchorBounds, remoteBounds] },
+      [0, 0, 0],
+      [anchorBounds, remoteBounds],
     );
 
     expect(distance(protectedByOccurrence.position, camera.target)).toBeLessThan(
@@ -251,20 +249,16 @@ describe("bounds-aware camera navigation", () => {
       900,
     );
     const anchor: Vec3 = [0, 0, 1];
-    const zoomed = zoomCameraAtPointWithinBounds(fitted, -100, anchor, solidBounds, {
-      approachPoint: anchor,
-    });
+    const zoomed = zoomCameraWithinBounds(fitted, -100, solidBounds, anchor);
 
     let closest = zoomed;
     for (let step = 0; step < 20; step += 1) {
-      closest = zoomCameraAtPointWithinBounds(closest, -1, anchor, solidBounds, {
-        approachPoint: anchor,
-      });
+      closest = zoomCameraWithinBounds(closest, -1, solidBounds, anchor);
     }
     expect(pointDepth(closest, anchor)).toBeGreaterThan(cameraDepthMargin(solidBounds));
-    expect(
-      zoomCameraAtPointWithinBounds(closest, -1, anchor, solidBounds, { approachPoint: anchor }),
-    ).toBe(closest);
+    expect(zoomCameraWithinBounds(closest, -1, solidBounds, anchor).position).toEqual(
+      closest.position,
+    );
   });
 
   it.each([
@@ -283,14 +277,14 @@ describe("bounds-aware camera navigation", () => {
     expect(safelyFramesBounds(zoomed, modelBounds)).toBe(true);
   });
 
-  it("preserves identity for no-op and already-clamped transitions", () => {
+  it("preserves identity for no-op and keeps an already-clamped eye fixed", () => {
     const fitted = fitCamera(createCamera({ mode: "perspective" }), bounds, 1152, 900);
     expect(zoomCameraWithinBounds(fitted, 0, bounds)).toBe(fitted);
     let closest = fitted;
     for (let step = 0; step < 100; step += 1) {
       closest = zoomCameraWithinBounds(closest, -0.2, bounds);
     }
-    expect(zoomCameraWithinBounds(closest, -1e6, bounds)).toBe(closest);
+    expect(zoomCameraWithinBounds(closest, -1e6, bounds).position).toEqual(closest.position);
   });
 });
 

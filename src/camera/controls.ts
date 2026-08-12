@@ -1,12 +1,7 @@
-import { panCamera, type Camera, zoomCamera, zoomCameraAtPoint } from "./camera";
+import { panCamera, type Camera, zoomCamera } from "./camera";
 import { clientToCanvasCss } from "./coordinates";
 import { CameraGestureTracker, type GestureStep } from "./gestures";
-import {
-  orbitCameraWithOptionalBounds,
-  targetPlanePoint,
-  zoomCameraAtPointWithinBounds,
-  zoomCameraWithinBounds,
-} from "./navigation";
+import { boundsCenter, orbitCameraWithOptionalBounds, zoomCameraWithinBounds } from "./navigation";
 import type { Bounds } from "../geometry/part";
 import { length, subtract, type Vec3 } from "../math/vec3";
 
@@ -40,21 +35,14 @@ interface OrbitGesture {
   deltaY: number;
 }
 
-interface ZoomGesture {
-  readonly fallbackPivot: Vec3;
-  active: boolean;
-  resolved: boolean;
-  pivot: Vec3 | undefined;
-  pendingAmount: number;
-}
-
 const ORBIT_SCALE = 180;
 const ZOOM_DRAG_SCALE = 300;
 
 /**
  * Installs SpaceClaim-style mouse/touch navigation and returns its disposer.
  * Middle drag spins around the nearest visible point, Ctrl/Meta+middle pans,
- * Shift+middle zooms, and touch provides orbit/pan/pinch gestures.
+ * Shift+middle zooms, and touch provides orbit/pan/pinch gestures. An orbit
+ * miss re-anchors to the model-bounds center when bounds are supplied.
  */
 export function installCameraControls(options: CameraControlOptions): () => void {
   const controls = new CameraControls(options);
@@ -82,9 +70,6 @@ class CameraControls {
   private readonly tracker = new CameraGestureTracker();
   private readonly trackedPointerIds = new Set<number>();
   private readonly orbitGestures = new Map<number, OrbitGesture>();
-  private readonly zoomGestures = new Map<number, ZoomGesture>();
-  private wheelQueue: Promise<void> = Promise.resolve();
-  private disposed = false;
 
   constructor(
     private readonly options: CameraControlOptions,
@@ -104,7 +89,6 @@ class CameraControls {
   }
 
   dispose(): void {
-    this.disposed = true;
     this.abortController.abort();
     try {
       this.options.navigation.setOrbitPivot(undefined);
@@ -113,7 +97,6 @@ class CameraControls {
     }
     this.trackedPointerIds.clear();
     this.orbitGestures.clear();
-    this.zoomGestures.clear();
     this.tracker.clear();
   }
 
@@ -122,12 +105,12 @@ class CameraControls {
     this.trackedPointerIds.add(event.pointerId);
     const point = eventPoint(event, this.options.canvas.getBoundingClientRect());
     const step = this.tracker.begin(event.pointerId, point);
-    if (event.pointerType !== "touch" && event.shiftKey && !isPanModifier(event)) {
-      this.beginZoom(event, point);
-    } else if (event.pointerType !== "touch" && !isPanModifier(event)) {
+    if (event.pointerType !== "touch" && !event.shiftKey && !isPanModifier(event)) {
+      this.beginOrbit(event);
+    } else if (event.pointerType === "touch" && step.pointerCount === 1) {
       this.beginOrbit(event);
     } else if (event.pointerType === "touch") {
-      this.orbitGestures.delete(event.pointerId);
+      this.orbitGestures.clear();
       this.options.navigation.setOrbitPivot(undefined);
     }
     if (step.pointerCount === 1) this.options.onGestureChange?.(true);
@@ -163,35 +146,17 @@ class CameraControls {
 
   private readonly wheel = (event: WheelEvent): void => {
     event.preventDefault();
-    const rect = this.options.canvas.getBoundingClientRect();
-    const point = clientToCanvasCss(event.clientX, event.clientY, rect);
     const amount = event.deltaY / 1000;
-    this.wheelQueue = this.wheelQueue.then(async () => {
-      if (this.abortController.signal.aborted) return;
-      const camera = this.options.cameraRef.camera;
-      let pivot: Vec3 | undefined;
-      try {
-        pivot = await this.options.navigation.pickPoint(camera, point.x, point.y);
-      } catch {
-        pivot = undefined;
-      }
-      if (this.disposed) return;
-      const next = this.zoom(
-        amount,
-        pivot ?? targetPlanePoint(camera, point.x, point.y),
-        camera,
-        pivot,
-      );
-      if (next === camera) return;
-      this.options.cameraRef.camera = next;
-      this.options.onRender();
-    });
+    const camera = this.options.cameraRef.camera;
+    const next = this.zoom(amount, camera);
+    if (next === camera) return;
+    this.options.cameraRef.camera = next;
+    this.options.onRender();
   };
 
   private endPointer(event: PointerEvent, releaseCapture: boolean): void {
     if (!this.trackedPointerIds.delete(event.pointerId)) return;
     this.releaseOrbit(event.pointerId);
-    this.releaseZoom(event.pointerId);
     const step = this.tracker.end(event.pointerId);
     if (releaseCapture && this.options.canvas.hasPointerCapture(event.pointerId)) {
       this.options.canvas.releasePointerCapture(event.pointerId);
@@ -208,11 +173,10 @@ class CameraControls {
     if (event.pointerType !== "touch" && isPanModifier(event)) {
       cameraRef.camera = panCameraByCssDelta(cameraRef.camera, step.deltaX, step.deltaY);
       return true;
-    } else if (
-      event.pointerType !== "touch" &&
-      (event.shiftKey || this.zoomGestures.has(event.pointerId))
-    ) {
-      return this.applyZoom(event.pointerId, step.deltaY / ZOOM_DRAG_SCALE);
+    } else if (event.pointerType !== "touch" && event.shiftKey) {
+      const before = cameraRef.camera;
+      cameraRef.camera = this.zoom(step.deltaY / ZOOM_DRAG_SCALE);
+      return cameraRef.camera !== before;
     } else {
       return this.applyOrbit(event.pointerId, step);
     }
@@ -225,34 +189,15 @@ class CameraControls {
       cameraRef.camera = panCameraByCssDelta(cameraRef.camera, step.deltaX, step.deltaY);
     }
     if (step.zoom !== 0 && step.midpoint !== undefined) {
-      const pivot = targetPlanePoint(cameraRef.camera, step.midpoint.x, step.midpoint.y);
-      cameraRef.camera = this.zoom(-step.zoom, pivot);
+      cameraRef.camera = this.zoom(-step.zoom);
     }
     return cameraRef.camera !== beforePan;
   }
 
-  private zoom(
-    amount: number,
-    pivot?: Vec3,
-    camera = this.options.cameraRef.camera,
-    approachPoint?: Vec3,
-  ): Camera {
+  private zoom(amount: number, camera = this.options.cameraRef.camera): Camera {
     const bounds = this.options.bounds?.();
-    if (bounds === undefined) {
-      return pivot === undefined
-        ? zoomCamera(camera, amount)
-        : zoomCameraAtPoint(camera, amount, pivot);
-    }
-    const protectedBounds = this.protectedBounds?.();
-    const protection =
-      approachPoint === undefined
-        ? undefined
-        : protectedBounds === undefined
-          ? { approachPoint }
-          : { approachPoint, protectedBounds };
-    return pivot === undefined
-      ? zoomCameraWithinBounds(camera, amount, bounds)
-      : zoomCameraAtPointWithinBounds(camera, amount, pivot, bounds, protection);
+    if (bounds === undefined) return zoomCamera(camera, amount);
+    return zoomCameraWithinBounds(camera, amount, bounds, undefined, this.protectedBounds?.());
   }
 
   private applyOrbit(pointerId: number, step: GestureStep): boolean {
@@ -268,7 +213,7 @@ class CameraControls {
       cameraRef.camera,
       step.deltaX / ORBIT_SCALE,
       step.deltaY / ORBIT_SCALE,
-      gesture?.pivot,
+      gesture === undefined ? undefined : (gesture.pivot ?? gesture.fallbackPivot),
       this.options.bounds?.(),
     );
     return cameraRef.camera !== before;
@@ -276,7 +221,7 @@ class CameraControls {
 
   private beginOrbit(event: PointerEvent): void {
     const gesture: OrbitGesture = {
-      fallbackPivot: this.options.cameraRef.camera.target,
+      fallbackPivot: this.fallbackTarget(this.options.cameraRef.camera),
       active: true,
       resolved: false,
       pivot: undefined,
@@ -286,11 +231,13 @@ class CameraControls {
     this.orbitGestures.set(event.pointerId, gesture);
     const rect = this.options.canvas.getBoundingClientRect();
     const point = clientToCanvasCss(event.clientX, event.clientY, rect);
-    const pivot = this.options.navigation.pickPoint(
-      this.options.cameraRef.camera,
-      point.x,
-      point.y,
-    );
+    let pivot: Promise<Vec3 | undefined>;
+    try {
+      pivot = this.options.navigation.pickPoint(this.options.cameraRef.camera, point.x, point.y);
+    } catch {
+      this.resolveOrbit(event.pointerId, gesture, undefined);
+      return;
+    }
     void pivot.then(
       (result) => {
         this.resolveOrbit(event.pointerId, gesture, result);
@@ -301,83 +248,13 @@ class CameraControls {
     );
   }
 
-  private beginZoom(event: PointerEvent, point: { readonly x: number; readonly y: number }): void {
-    const camera = this.options.cameraRef.camera;
-    const gesture: ZoomGesture = {
-      fallbackPivot: targetPlanePoint(camera, point.x, point.y),
-      active: true,
-      resolved: false,
-      pivot: undefined,
-      pendingAmount: 0,
-    };
-    this.zoomGestures.set(event.pointerId, gesture);
-    let pivot: Promise<Vec3 | undefined>;
-    try {
-      pivot = this.options.navigation.pickPoint(camera, point.x, point.y);
-    } catch {
-      this.resolveZoom(event.pointerId, gesture, undefined);
-      return;
-    }
-    void pivot.then(
-      (result) => {
-        this.resolveZoom(event.pointerId, gesture, result);
-      },
-      () => {
-        this.resolveZoom(event.pointerId, gesture, undefined);
-      },
-    );
-  }
-
-  private applyZoom(pointerId: number, amount: number): boolean {
-    const gesture = this.zoomGestures.get(pointerId);
-    if (gesture === undefined || !gesture.resolved) {
-      if (gesture !== undefined) gesture.pendingAmount += amount;
-      return false;
-    }
-    const before = this.options.cameraRef.camera;
-    const next = this.zoom(
-      amount,
-      gesture.pivot ?? gesture.fallbackPivot,
-      undefined,
-      gesture.pivot,
-    );
-    this.options.cameraRef.camera = next;
-    return next !== before;
-  }
-
-  private resolveZoom(pointerId: number, gesture: ZoomGesture, pivot: Vec3 | undefined): void {
-    if (this.zoomGestures.get(pointerId) !== gesture) return;
-    gesture.resolved = true;
-    gesture.pivot = pivot;
-    let changed = false;
-    if (gesture.pendingAmount !== 0) {
-      const before = this.options.cameraRef.camera;
-      this.options.cameraRef.camera = this.zoom(
-        gesture.pendingAmount,
-        pivot ?? gesture.fallbackPivot,
-        undefined,
-        pivot,
-      );
-      changed = this.options.cameraRef.camera !== before;
-      gesture.pendingAmount = 0;
-    }
-    if (changed) this.options.onRender();
-    if (!gesture.active) this.zoomGestures.delete(pointerId);
-  }
-
-  private releaseZoom(pointerId: number): void {
-    const gesture = this.zoomGestures.get(pointerId);
-    if (gesture === undefined) return;
-    gesture.active = false;
-    if (gesture.resolved) this.zoomGestures.delete(pointerId);
-  }
-
   private resolveOrbit(pointerId: number, gesture: OrbitGesture, pivot: Vec3 | undefined): void {
     if (this.orbitGestures.get(pointerId) !== gesture) return;
     gesture.resolved = true;
     gesture.pivot = pivot;
-    this.applyQueuedOrbit(gesture, pivot);
-    this.options.navigation.setOrbitPivot(gesture.active ? pivot : undefined);
+    const target = pivot ?? gesture.fallbackPivot;
+    this.applyQueuedOrbit(gesture, target);
+    this.options.navigation.setOrbitPivot(gesture.active ? target : undefined);
     this.options.onRender();
     if (!gesture.active) this.orbitGestures.delete(pointerId);
   }
@@ -405,6 +282,11 @@ class CameraControls {
       this.options.onRender();
       this.orbitGestures.delete(pointerId);
     }
+  }
+
+  private fallbackTarget(camera: Camera): Vec3 {
+    const bounds = this.options.bounds?.();
+    return bounds === undefined ? camera.target : boundsCenter(bounds);
   }
 }
 

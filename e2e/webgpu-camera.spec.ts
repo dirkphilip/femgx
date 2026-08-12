@@ -33,8 +33,10 @@ test("keeps every supported gallery occurrence inside clip planes while orbiting
     { x: -280, y: 90 },
     { x: 200, y: -140 },
   ]) {
+    const before = await readNavigationState(canvas);
     await dragCamera(page, canvas, delta);
     const navigation = await readNavigationState(canvas);
+    expect(cameraStepDegrees(before, navigation)).toBeGreaterThan(5);
     expectBoundsClippedSafely(navigation.camera, navigation.bounds);
     await expect(page.getByTestId("status")).toContainText("10 visible");
     expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(200);
@@ -53,12 +55,12 @@ test("uses SpaceClaim middle-button spin, pan, and zoom gestures", async ({ page
 
   await page.getByTestId("reset").click();
   const beforePan = await cameraKey();
-  await dragCamera(page, canvas, { x: 90, y: 35 }, "Shift");
+  await dragCamera(page, canvas, { x: 90, y: 35 }, "Control");
   await expect.poll(cameraKey).not.toBe(beforePan);
 
   await page.getByTestId("reset").click();
   const beforeZoom = await cameraKey();
-  await dragCamera(page, canvas, { x: 0, y: -90 }, "Control");
+  await dragCamera(page, canvas, { x: 0, y: -90 }, "Shift");
   await expect.poll(cameraKey).not.toBe(beforeZoom);
 });
 
@@ -123,8 +125,7 @@ test("snaps every named face and signed corner through the view cube", async ({ 
     .toBeGreaterThan(0.99999);
   for (const [id, direction] of Object.entries(faces)) {
     const target = page.locator(`[data-view-face="${id}"]`);
-    await target.focus();
-    await page.keyboard.press("Enter");
+    await target.dispatchEvent("keydown", { key: "Enter" });
     await expect
       .poll(async () => directionAlignment(await readNavigationState(canvas), direction), {
         message: `${id} face alignment`,
@@ -140,8 +141,7 @@ test("snaps every named face and signed corner through the view cube", async ({ 
       number,
     ];
     const target = page.locator(`[data-view-corner="${corner}"]`);
-    await target.focus();
-    await page.keyboard.press("Enter");
+    await target.dispatchEvent("keydown", { key: "Enter" });
     await expect
       .poll(async () => directionAlignment(await readNavigationState(canvas), direction), {
         message: `${corner} corner alignment`,
@@ -314,7 +314,7 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
   }
   await stableCanvasPixels(page, canvas);
   const zoomedOut = await readNavigationState(canvas);
-  expect(cameraDistance(zoomedOut.camera)).toBeGreaterThan(cameraDistance(fitted.camera));
+  expect(navigationScale(zoomedOut.camera)).toBeGreaterThan(navigationScale(fitted.camera));
   expectBoundsClippedSafely(zoomedOut.camera, zoomedOut.bounds);
 
   for (let step = 0; step < 12; step += 1) {
@@ -325,8 +325,7 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
   expect(restored.camera.position[0]).toBeCloseTo(fitted.camera.position[0], 3);
   expect(restored.camera.position[1]).toBeCloseTo(fitted.camera.position[1], 3);
   expect(restored.camera.position[2]).toBeCloseTo(fitted.camera.position[2], 3);
-  expect(restored.camera.near).toBeCloseTo(fitted.camera.near, 3);
-  expect(restored.camera.far).toBeCloseTo(fitted.camera.far, 3);
+  expectBoundsClippedSafely(restored.camera, restored.bounds);
 
   for (let step = 0; step < 12; step += 1) {
     await page.mouse.wheel(0, -800);
@@ -334,13 +333,12 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
   const zoomedIn = await stableCanvasPixels(page, canvas);
   const closest = await readNavigationState(canvas);
   expectDisplayedPointClippedSafely(closest.camera, closest.bounds, displayedPoint);
-  const projectedPoint = projectCameraPoint(closest.camera, displayedPoint);
-  expect(projectedPoint).toBeDefined();
-  expect(
-    Math.hypot((projectedPoint?.[0] ?? 0) - (x - box.x), (projectedPoint?.[1] ?? 0) - (y - box.y)),
-  ).toBeLessThan(1);
+  expect(closest.camera.target).toEqual(fitted.camera.target);
+  const projectedTarget = projectCameraPoint(closest.camera, closest.camera.target);
+  expect(projectedTarget?.[0]).toBeCloseTo(box.width / 2, 3);
+  expect(projectedTarget?.[1]).toBeCloseTo(box.height / 2, 3);
   expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(200);
-  expect(cameraDistance(closest.camera)).toBeLessThan(cameraDistance(fitted.camera));
+  expect(navigationScale(closest.camera)).toBeLessThan(navigationScale(fitted.camera));
   expect(zoomedIn.length).toBeGreaterThan(0);
 
   const hit = await requireHit(
@@ -426,7 +424,13 @@ function dotVector(a: readonly number[], b: readonly number[]): number {
   return (a[0] ?? 0) * (b[0] ?? 0) + (a[1] ?? 0) * (b[1] ?? 0) + (a[2] ?? 0) * (b[2] ?? 0);
 }
 
-test("keeps empty-canvas wheel zoom anchored at the cursor", async ({ page }) => {
+function navigationScale(
+  camera: Awaited<ReturnType<typeof readNavigationState>>["camera"],
+): number {
+  return camera.mode === "orthographic" ? camera.orthoHeight : cameraDistance(camera);
+}
+
+test("re-anchors empty-canvas wheel zoom to the model center", async ({ page }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
   const projection = page.getByTestId("projection-toggle");
@@ -454,40 +458,28 @@ test("keeps empty-canvas wheel zoom anchored at the cursor", async ({ page }) =>
   }
   if (empty === undefined) throw new Error("could not find an empty canvas corner");
 
-  const local = [empty[0] - box.x, empty[1] - box.y] as const;
   const before = await readNavigationState(canvas);
-  const anchor = targetPlanePoint(before.camera, local[0], local[1]);
   for (let step = 0; step < 2; step += 1) await page.mouse.wheel(0, -180);
   await stableCanvasPixels(page, canvas);
   await page.waitForTimeout(500);
 
   const zoomed = await readNavigationState(canvas);
-  const projected = projectCameraPoint(zoomed.camera, anchor);
-  expect(projected).toBeDefined();
-  expect(
-    Math.hypot((projected?.[0] ?? 0) - local[0], (projected?.[1] ?? 0) - local[1]),
-  ).toBeLessThan(1);
+  const center = [
+    (zoomed.bounds.minX + zoomed.bounds.maxX) / 2,
+    (zoomed.bounds.minY + zoomed.bounds.maxY) / 2,
+    (zoomed.bounds.minZ + zoomed.bounds.maxZ) / 2,
+  ] as const;
+  expect(zoomed.camera.target).toEqual(center);
+  const projected = projectCameraPoint(zoomed.camera, center);
+  expect(projected?.[0]).toBeCloseTo(box.width / 2, 3);
+  expect(projected?.[1]).toBeCloseTo(box.height / 2, 3);
   expect(cameraDistance(zoomed.camera)).toBeLessThan(cameraDistance(before.camera));
-  expect(
-    Math.hypot(
-      zoomed.camera.target[0] - before.camera.target[0],
-      zoomed.camera.target[1] - before.camera.target[1],
-      zoomed.camera.target[2] - before.camera.target[2],
-    ),
-  ).toBeGreaterThan(0.01);
   expectBoundsClippedSafely(zoomed.camera, zoomed.bounds);
 
   for (let step = 0; step < 2; step += 1) await page.mouse.wheel(0, 180);
   await stableCanvasPixels(page, canvas);
   await page.waitForTimeout(500);
   const restored = await readNavigationState(canvas);
-  const restoredProjection = projectCameraPoint(restored.camera, anchor);
-  expect(restoredProjection).toBeDefined();
-  expect(
-    Math.hypot(
-      (restoredProjection?.[0] ?? 0) - local[0],
-      (restoredProjection?.[1] ?? 0) - local[1],
-    ),
-  ).toBeLessThan(1);
+  expect(restored.camera.target).toEqual(center);
   expect(cameraDistance(restored.camera)).toBeCloseTo(cameraDistance(before.camera), 4);
 });
