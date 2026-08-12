@@ -274,5 +274,7 @@ export { createModelBuilder, type FemModelBuilder } from "./io/build";
 export { createElementModelFromFemModel } from "./io/element-model";
 export { importGlb } from "./io/glb";
 export type { GlbImportOptions, GlbIssueCode, GlbSceneImport } from "./io/glb-types";
-export { parseVtk, writeVtk, type ParseOptions, type ParseResult } from "./io/parse";
+export { parseVtk } from "./io/vtk";
+export { writeVtk } from "./io/vtk-write";
+export type { ParseOptions, ParseResult } from "./io/session";
 export { validateModel } from "./io/validate";

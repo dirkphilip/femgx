@@ -13,23 +13,7 @@ import {
   startCellTypes,
   startPoints,
 } from "./vtk-cells";
-
-const VTK_KEYWORDS = new Set([
-  "DATASET",
-  "POINTS",
-  "CELLS",
-  "CELL_TYPES",
-  "POINT_DATA",
-  "CELL_DATA",
-  "SCALARS",
-  "VECTORS",
-  "NORMALS",
-  "TENSORS",
-  "FIELD",
-  "LOOKUP_TABLE",
-  "COLOR_SCALARS",
-  "METADATA",
-]);
+import { VTK_KEYWORDS } from "./vtk-keywords";
 
 /**
  * Reads an ASCII VTK legacy dataset. Only `DATASET UNSTRUCTURED_GRID` is
