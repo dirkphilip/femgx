@@ -3,7 +3,6 @@ import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "./runtime";
-import type { TransformDelta } from "./transforms";
 
 /** A stable, query-only description of one placed part. */
 export interface RuntimeInstance {
@@ -29,14 +28,7 @@ export interface RuntimeNode {
   readonly worldTransform: Mat4;
 }
 
-/** Stable visibility result returned by the public runtime boundary. */
-export interface RuntimeVisibilityDelta {
-  readonly changedInstanceIds: readonly InstanceId[];
-  readonly previousVisibleCount: number;
-  readonly visibleCount: number;
-}
-
-/** Public scene-runtime queries and mutations expressed only in stable handles. */
+/** Public scene-runtime queries expressed only in stable handles. */
 export interface SceneRuntime {
   readonly rootAssemblyId: AssemblyId;
   readonly nodeCount: number;
@@ -54,37 +46,6 @@ export interface SceneRuntime {
   getNodeWorldTransform(nodeId: AssemblyNodeId): Mat4 | undefined;
   isInstanceVisible(instanceId: InstanceId): boolean;
   getDrawList(): readonly InstanceId[];
-  setInstanceVisible(instanceId: InstanceId, visible: boolean): RuntimeVisibilityDelta;
-  setPartVisible(partId: PartId, visible: boolean): RuntimeVisibilityDelta;
-  setAssemblyNodeVisible(nodeId: AssemblyNodeId, visible: boolean): RuntimeVisibilityDelta;
-  setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): RuntimeVisibilityDelta;
-  setInstanceTransform(instanceId: InstanceId, transform: Mat4): TransformDelta;
-  setNodeTransform(nodeId: AssemblyNodeId, transform: Mat4): TransformDelta;
-}
-
-function mapChangedInstances(
-  packed: PackedSceneRuntime,
-  changedSlots: readonly number[],
-): readonly InstanceId[] {
-  return changedSlots.flatMap((slot) => {
-    const instanceId = packed.getInstanceId(slot);
-    return instanceId === undefined ? [] : [instanceId];
-  });
-}
-
-function publicDelta(
-  packed: PackedSceneRuntime,
-  delta: {
-    readonly changedInstanceIds: readonly number[];
-    readonly previousVisibleCount: number;
-    readonly visibleCount: number;
-  },
-): RuntimeVisibilityDelta {
-  return {
-    changedInstanceIds: mapChangedInstances(packed, delta.changedInstanceIds),
-    previousVisibleCount: delta.previousVisibleCount,
-    visibleCount: delta.visibleCount,
-  };
 }
 
 class PublicSceneRuntime implements SceneRuntime {
@@ -209,50 +170,6 @@ class PublicSceneRuntime implements SceneRuntime {
     return Array.from(this.packed.getDrawList(), (slot) => this.packed.getInstanceId(slot)).filter(
       (id): id is InstanceId => id !== undefined,
     );
-  }
-  setInstanceVisible(instanceId: InstanceId, visible: boolean): RuntimeVisibilityDelta {
-    const slot = this.packed.getInstanceSlot(instanceId);
-    return publicDelta(
-      this.packed,
-      slot === undefined
-        ? {
-            changedInstanceIds: [],
-            previousVisibleCount: this.packed.visibleCount,
-            visibleCount: this.packed.visibleCount,
-          }
-        : this.packed.setInstanceVisible(slot, visible),
-    );
-  }
-  setPartVisible(partId: PartId, visible: boolean): RuntimeVisibilityDelta {
-    return publicDelta(this.packed, this.packed.setPartVisible(partId, visible));
-  }
-  setAssemblyNodeVisible(nodeId: AssemblyNodeId, visible: boolean): RuntimeVisibilityDelta {
-    const node = this.packed.getNodeSlot(nodeId);
-    return publicDelta(
-      this.packed,
-      node === undefined
-        ? {
-            changedInstanceIds: [],
-            previousVisibleCount: this.packed.visibleCount,
-            visibleCount: this.packed.visibleCount,
-          }
-        : this.packed.setAssemblyNodeVisible(node, visible),
-    );
-  }
-  setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): RuntimeVisibilityDelta {
-    return publicDelta(this.packed, this.packed.setAssemblyVisible(assemblyId, visible));
-  }
-  setInstanceTransform(instanceId: InstanceId, transform: Mat4): TransformDelta {
-    const slot = this.packed.getInstanceSlot(instanceId);
-    return slot === undefined
-      ? { changedInstanceIds: [], valid: false }
-      : this.packed.setInstanceTransform(slot, transform);
-  }
-  setNodeTransform(nodeId: AssemblyNodeId, transform: Mat4): TransformDelta {
-    const node = this.packed.getNodeSlot(nodeId);
-    return node === undefined
-      ? { changedInstanceIds: [], valid: false }
-      : this.packed.setNodeTransform(node, transform);
   }
 }
 

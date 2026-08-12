@@ -134,8 +134,9 @@ the scene.
 ### Visibility and interaction
 
 `setPartVisible`, `setAssemblyNodeVisible`, `setAssemblyVisible`, and
-`setInstanceVisible` update the derived runtime using stable part, assembly,
-and placement handles, then synchronize only affected instance records. Style,
+`setInstanceVisible` update the viewport-owned derived runtime using stable part,
+assembly, and placement handles, then synchronize only affected instance records.
+Style,
 selection, highlight, and hover changes are expressed as a new opaque
 `InteractionState` and installed with `setInteraction`. Use target-level
 operations for all six supported target kinds; query helpers provide state

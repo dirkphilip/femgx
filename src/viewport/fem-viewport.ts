@@ -234,23 +234,27 @@ class FemViewportCore implements FemViewport {
   }
 
   setPartVisible(partId: PartId, visible: boolean): void {
-    this.applyVisibility(
-      this.currentPublicRuntime.setPartVisible(partId, visible).changedInstanceIds,
-    );
+    this.applyVisibility(this.currentRuntime.setPartVisible(partId, visible).changedInstanceIds);
   }
   setAssemblyNodeVisible(nodeId: AssemblyNodeId, visible: boolean): void {
+    const node = this.currentRuntime.getNodeSlot(nodeId);
     this.applyVisibility(
-      this.currentPublicRuntime.setAssemblyNodeVisible(nodeId, visible).changedInstanceIds,
+      node === undefined
+        ? []
+        : this.currentRuntime.setAssemblyNodeVisible(node, visible).changedInstanceIds,
     );
   }
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void {
     this.applyVisibility(
-      this.currentPublicRuntime.setAssemblyVisible(assemblyId, visible).changedInstanceIds,
+      this.currentRuntime.setAssemblyVisible(assemblyId, visible).changedInstanceIds,
     );
   }
   setInstanceVisible(instanceId: InstanceId, visible: boolean): void {
+    const slot = this.currentRuntime.getInstanceSlot(instanceId);
     this.applyVisibility(
-      this.currentPublicRuntime.setInstanceVisible(instanceId, visible).changedInstanceIds,
+      slot === undefined
+        ? []
+        : this.currentRuntime.setInstanceVisible(slot, visible).changedInstanceIds,
     );
   }
 
@@ -358,17 +362,13 @@ class FemViewportCore implements FemViewport {
     };
   }
 
-  private applyVisibility(changed: readonly InstanceId[]): void {
+  private applyVisibility(changed: readonly number[]): void {
     this.ensureAlive();
     if (changed.length === 0) return;
-    const changedSlots = changed.flatMap((instanceId) => {
-      const slot = this.currentRuntime.getInstanceSlot(instanceId);
-      return slot === undefined ? [] : [slot];
-    });
     if (this.batchDepth > 0) {
-      for (const slot of changedSlots) this.pendingVisibility.add(slot);
+      for (const slot of changed) this.pendingVisibility.add(slot);
     } else {
-      this.renderer.updateVisibility(this.currentRuntime, changedSlots);
+      this.renderer.updateVisibility(this.currentRuntime, changed);
     }
     this.invalidate();
   }

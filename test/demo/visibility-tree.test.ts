@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createBoltedPlateFixture } from "../../demo/fixture/bolted-plate";
 import { createBoltedPlatePreset, visiblePartIdsForPreset } from "../../demo/fixture/presets";
-import { createSceneRuntime, type SceneRuntime } from "../../src/index";
+import {
+  createPublicSceneRuntime,
+  type SceneRuntime,
+} from "../../src/scene-runtime/public-runtime";
+import { createPackedSceneRuntime, type PackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import {
   assemblyName,
   assemblySubtreeIds,
@@ -9,14 +13,14 @@ import {
 } from "../../demo/visibility-tree";
 
 /** A bolted runtime with the solid-mode part visibility the demo starts with. */
-function solidRuntime(): SceneRuntime {
+function solidRuntime(): { readonly packed: PackedSceneRuntime; readonly runtime: SceneRuntime } {
   const preset = createBoltedPlatePreset();
-  const runtime = createSceneRuntime(preset.scene);
+  const packed = createPackedSceneRuntime(preset.scene);
   const visible = visiblePartIdsForPreset(preset, "solid");
   for (const partId of preset.scene.parts.keys()) {
-    runtime.setPartVisible(partId, visible.has(partId));
+    packed.setPartVisible(partId, visible.has(partId));
   }
-  return runtime;
+  return { packed, runtime: createPublicSceneRuntime(packed) };
 }
 
 describe("assemblySubtreeIds", () => {
@@ -31,7 +35,7 @@ describe("assemblySubtreeIds", () => {
 
 describe("assemblyVisibilityState", () => {
   it("reports every assembly checked when the scene starts fully visible", () => {
-    const runtime = solidRuntime();
+    const { runtime } = solidRuntime();
     const { scene, assemblyIds } = createBoltedPlateFixture();
     for (const id of assemblySubtreeIds(scene.assemblies, assemblyIds.root)) {
       expect(assemblyVisibilityState(runtime, id)).toBe("checked");
@@ -40,8 +44,8 @@ describe("assemblyVisibilityState", () => {
 
   it("hides the plate stack and leaves the joint mixed", () => {
     const { assemblyIds } = createBoltedPlateFixture();
-    const runtime = solidRuntime();
-    runtime.setAssemblyVisible(assemblyIds.plateStack, false);
+    const { packed, runtime } = solidRuntime();
+    packed.setAssemblyVisible(assemblyIds.plateStack, false);
     expect(assemblyVisibilityState(runtime, assemblyIds.plateStack)).toBe("unchecked");
     expect(assemblyVisibilityState(runtime, assemblyIds.fasteners)).toBe("checked");
     expect(assemblyVisibilityState(runtime, assemblyIds.root)).toBe("mixed");
@@ -50,8 +54,8 @@ describe("assemblyVisibilityState", () => {
 
   it("hides all fasteners and leaves only the plates visible", () => {
     const { assemblyIds } = createBoltedPlateFixture();
-    const runtime = solidRuntime();
-    runtime.setAssemblyVisible(assemblyIds.fasteners, false);
+    const { packed, runtime } = solidRuntime();
+    packed.setAssemblyVisible(assemblyIds.fasteners, false);
     expect(assemblyVisibilityState(runtime, assemblyIds.fasteners)).toBe("unchecked");
     expect(assemblyVisibilityState(runtime, assemblyIds.root)).toBe("mixed");
     expect(runtime.visibleCount).toBe(2);
@@ -59,8 +63,8 @@ describe("assemblyVisibilityState", () => {
 
   it("hides every placement of a reusable assembly definition", () => {
     const { assemblyIds } = createBoltedPlateFixture();
-    const runtime = solidRuntime();
-    runtime.setAssemblyVisible(assemblyIds.fastener, false);
+    const { packed, runtime } = solidRuntime();
+    packed.setAssemblyVisible(assemblyIds.fastener, false);
     expect(assemblyVisibilityState(runtime, assemblyIds.fastener)).toBe("unchecked");
     expect(assemblyVisibilityState(runtime, assemblyIds.fasteners)).toBe("mixed");
     expect(assemblyVisibilityState(runtime, assemblyIds.root)).toBe("mixed");
@@ -69,12 +73,12 @@ describe("assemblyVisibilityState", () => {
 
   it("restores a mixed subtree by showing every descendant assembly", () => {
     const { scene, assemblyIds } = createBoltedPlateFixture();
-    const runtime = solidRuntime();
-    runtime.setAssemblyVisible(assemblyIds.washers, false);
+    const { packed, runtime } = solidRuntime();
+    packed.setAssemblyVisible(assemblyIds.washers, false);
     expect(assemblyVisibilityState(runtime, assemblyIds.fasteners)).toBe("mixed");
 
     for (const id of assemblySubtreeIds(scene.assemblies, assemblyIds.fasteners)) {
-      runtime.setAssemblyVisible(id, true);
+      packed.setAssemblyVisible(id, true);
     }
     expect(assemblyVisibilityState(runtime, assemblyIds.fasteners)).toBe("checked");
     expect(assemblyVisibilityState(runtime, assemblyIds.root)).toBe("checked");
@@ -83,9 +87,9 @@ describe("assemblyVisibilityState", () => {
 
   it("does not restore an author-hidden descendant with a single parent toggle", () => {
     const { assemblyIds } = createBoltedPlateFixture();
-    const runtime = solidRuntime();
-    runtime.setAssemblyVisible(assemblyIds.washers, false);
-    runtime.setAssemblyVisible(assemblyIds.fasteners, true);
+    const { packed, runtime } = solidRuntime();
+    packed.setAssemblyVisible(assemblyIds.washers, false);
+    packed.setAssemblyVisible(assemblyIds.fasteners, true);
     expect(assemblyVisibilityState(runtime, assemblyIds.washers)).toBe("unchecked");
     expect(assemblyVisibilityState(runtime, assemblyIds.fasteners)).toBe("mixed");
     expect(runtime.visibleCount).toBe(18);

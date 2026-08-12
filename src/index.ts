@@ -124,7 +124,6 @@ export {
   createSceneRuntime,
   type RuntimeInstance,
   type RuntimeNode,
-  type RuntimeVisibilityDelta,
   type SceneRuntime,
 } from "./scene-runtime/public-runtime";
 export { WebGpuPickReadbackError } from "./renderer/gpu-pick";
