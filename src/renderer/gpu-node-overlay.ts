@@ -74,7 +74,7 @@ async function createNodePipeline(options: NodePipelineOptions): Promise<GPURend
 export const nodeOverlayFragmentShader = /* wgsl */ `
 @fragment
 fn nodeOverlayFragmentMain(
-  @location(0) color: vec4<f32>,
+  @location(0) @interpolate(flat) color: vec4<f32>,
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
 ) -> @location(0) vec4<f32> {

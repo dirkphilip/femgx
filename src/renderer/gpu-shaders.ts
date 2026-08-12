@@ -220,7 +220,7 @@ fn displaced(position: vec3<f32>, vertexIndex: u32) -> vec3<f32> {
 export const vertexOutput = /* wgsl */ `
 struct VertexOutput {
   @builtin(position) position: vec4<f32>,
-  @location(0) color: vec4<f32>,
+  @location(0) @interpolate(flat) color: vec4<f32>,
   @location(1) @interpolate(flat) pickId: u32,
   @location(2) @interpolate(flat) emissive: f32,
   @location(3) @interpolate(flat) elementPickId: u32,
@@ -247,7 +247,7 @@ fn packPickId(pickId: u32) -> vec4<f32> {
 /** Fragment stage for the visible color pass; emissive adds a white glow. */
 export const colorFragmentShader = /* wgsl */ `
 @fragment
-fn fragmentMain(@location(0) color: vec4<f32>, @location(2) @interpolate(flat) emissive: f32, @location(5) local: vec2<f32>) -> @location(0) vec4<f32> {
+fn fragmentMain(@location(0) @interpolate(flat) color: vec4<f32>, @location(2) @interpolate(flat) emissive: f32, @location(5) local: vec2<f32>) -> @location(0) vec4<f32> {
   if (dot(local, local) > 1.0 || color.a < 1.0) { discard; }
   return vec4<f32>(color.rgb + vec3<f32>(emissive), color.a);
 }
@@ -261,7 +261,7 @@ ${frameBindings}
 
 @fragment
 fn fragmentMain(
-  @location(0) color: vec4<f32>,
+  @location(0) @interpolate(flat) color: vec4<f32>,
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
   @location(8) worldPosition: vec3<f32>,
