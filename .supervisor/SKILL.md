@@ -120,8 +120,6 @@ Run the focused automation checks from the repository root:
 
 ```sh
 node .supervisor/check-boundary.mjs
-npx tsc --noEmit -p .supervisor/tsconfig.json
-npx vitest run --config .supervisor/vitest.config.ts
 ```
 
 Configured workflows may use `when_labels` to skip optional stages and
