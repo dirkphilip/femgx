@@ -109,7 +109,8 @@ export function setProjection(camera: Camera, mode: ProjectionMode): Camera {
 
 /**
  * Orbits in radians around the target, or around an explicit world-space
- * pivot. Pitch stops just short of the poles so the view frame cannot invert.
+ * pivot. The complete camera frame rotates together, including `up`, so
+ * pitch remains continuous through both poles and full revolutions.
  */
 export function orbitCamera(
   camera: Camera,
@@ -120,6 +121,7 @@ export function orbitCamera(
   assertFiniteNumber("orbit yaw", yawDelta);
   assertFiniteNumber("orbit pitch", pitchDelta);
   if (pivot !== undefined) assertFiniteVector("orbit pivot", pivot);
+  if (yawDelta === 0 && pitchDelta === 0) return camera;
   return orbitAroundPivot(camera, yawDelta, pitchDelta, pivot ?? camera.target);
 }
 
@@ -349,22 +351,21 @@ function assertProjectionMode(value: unknown): asserts value is ProjectionMode {
 
 /** Rotates both eye and look target around a picked point without an initial jump. */
 function orbitAroundPivot(camera: Camera, yaw: number, pitch: number, pivot: Vec3): Camera {
-  const yawedPosition = rotateAround(camera.position, pivot, camera.up, yaw);
-  const yawedTarget = rotateAround(camera.target, pivot, camera.up, yaw);
+  const initialForward = normalize(subtract(camera.target, camera.position));
+  const initialRight = normalize(cross(initialForward, normalize(camera.up)));
+  const initialUp = normalize(cross(initialRight, initialForward));
+  const yawedPosition = rotateAround(camera.position, pivot, initialUp, yaw);
+  const yawedTarget = rotateAround(camera.target, pivot, initialUp, yaw);
+  const yawedUp = initialUp;
   const forward = normalize(subtract(yawedTarget, yawedPosition));
-  const up = normalize(camera.up);
-  const right = normalize(cross(forward, up));
-  const elevation = Math.asin(clamp(dot(forward, up), -1, 1));
-  const limitedPitch = clamp(pitch, -ORBIT_POLE_LIMIT - elevation, ORBIT_POLE_LIMIT - elevation);
+  const right = normalize(cross(forward, yawedUp));
   return {
     ...camera,
-    position: rotateAround(yawedPosition, pivot, right, limitedPitch),
-    target: rotateAround(yawedTarget, pivot, right, limitedPitch),
+    position: rotateAround(yawedPosition, pivot, right, pitch),
+    target: rotateAround(yawedTarget, pivot, right, pitch),
+    up: normalize(rotateDirection(yawedUp, right, pitch)),
   };
 }
-
-// Keeping a non-zero horizontal component makes the view matrix well-defined.
-const ORBIT_POLE_LIMIT = Math.PI / 2 - 0.01;
 
 /** Rodrigues rotation of a point around an axis through a pivot. */
 function rotateAround(point: Vec3, pivot: Vec3, axis: Vec3, angle: number): Vec3 {
@@ -379,6 +380,7 @@ function rotateAround(point: Vec3, pivot: Vec3, axis: Vec3, angle: number): Vec3
   return add(pivot, rotated);
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
+/** Rodrigues rotation of a direction around an axis through the origin. */
+function rotateDirection(direction: Vec3, axis: Vec3, angle: number): Vec3 {
+  return rotateAround(direction, [0, 0, 0], axis, angle);
 }

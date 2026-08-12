@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCamera, unprojectPoint } from "../../src/camera/camera";
+import { createCamera, orbitCamera, unprojectPoint } from "../../src/camera/camera";
 import {
   boxSelectionFrustum,
   type BoxSelectionFrustum,
@@ -102,6 +102,26 @@ describe("boxSelectionFrustum", () => {
     expect(signedDistance(frustum.right, pointAtScreen(orthographic, 700, 300, 5))).toBeLessThan(0);
     expectUnitPlanes(frustum);
   });
+
+  it.each(["perspective", "orthographic"] as const)(
+    "keeps %s selection planes valid after pole-crossing orbit",
+    (mode) => {
+      const camera = orbitCamera(
+        mode === "perspective" ? perspective : orthographic,
+        0.4,
+        Math.PI * 1.75,
+      );
+      const frustum = boxSelectionFrustum(
+        camera,
+        rect({ left: 120, top: 80, right: 680, bottom: 520 }),
+      );
+      expectUnitPlanes(frustum);
+      expect(frustumPlanes(frustum).every((plane) => plane.normal.every(Number.isFinite))).toBe(
+        true,
+      );
+      expect(frustumPlanes(frustum).every((plane) => Number.isFinite(plane.distance))).toBe(true);
+    },
+  );
 
   it("normalizes reversed and partially out-of-range rectangles", () => {
     const reversed = boxSelectionFrustum(
