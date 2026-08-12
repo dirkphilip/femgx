@@ -44,6 +44,18 @@ turns all ranges into per-primitive pick ids and
 highlight records, making elements and nodes selectable through GPU picking
 (see [[rendering/element-interaction|Element interaction]]).
 
+## Flat-lighting numerical contract
+
+The opaque and translucent triangle passes use the same `flatDiffuse` helper.
+It first divides each screen-space world-position derivative by its own largest
+absolute component, then forms and normalizes their cross product. This makes
+the geometric normal invariant when perspective zoom or pan changes derivative
+magnitude. The only remaining magnitude check is on the normalized cross
+product, so nearly parallel or non-finite derivatives return the ambient-only
+response instead of producing NaN pixels; there is no scene-scale derivative
+cutoff. Lighting remains two-sided and camera-following, so zoom, pan, and
+projection changes do not alter a face's orientation response.
+
 ## Primitive groups and overlays
 
 - Triangle geometry tessellates the exterior boundary plus both oriented copies
