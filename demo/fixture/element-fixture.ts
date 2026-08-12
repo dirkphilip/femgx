@@ -69,6 +69,29 @@ const HEX20_PART_ID: PartId = 7;
 const ROOT_ASSEMBLY_ID: AssemblyId = 1;
 const GAP = 1;
 
+interface GalleryPlacement {
+  readonly partId: PartId;
+  readonly column: number;
+  readonly row: number;
+}
+
+const GALLERY_LAYOUT: readonly GalleryPlacement[] = [
+  { partId: POINT_PART_ID, column: 0, row: 0 },
+  { partId: LINE_PART_ID, column: 1, row: 0 },
+  { partId: LINE3_PART_ID, column: 2, row: 0 },
+  { partId: TRIANGLE_PART_ID, column: 3, row: 0 },
+  { partId: QUAD_PART_ID, column: 4, row: 0 },
+  { partId: POLYGON_PART_ID, column: 0, row: 1 },
+  { partId: TET4_PART_ID, column: 1, row: 1 },
+  { partId: TET10_PART_ID, column: 2, row: 1 },
+  { partId: HEX8_PART_ID, column: 3, row: 1 },
+  { partId: HEX20_PART_ID, column: 4, row: 1 },
+];
+
+const SINGLE_PART_LAYOUT: readonly GalleryPlacement[] = [
+  { partId: HEX20_PART_ID, column: 0, row: 0 },
+];
+
 /** Builds the element gallery with all point, line, surface, Tet, and Hex shapes. */
 export function createElementFixture(options: ElementFixtureOptions = {}): ElementFixture {
   const gridSize = options.gridSize ?? 2;
@@ -130,7 +153,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
       faces: [{ nodeIds: [0, 1, 2, 3, 4], elementId: 1, key: "gallery-polygon" }],
     }),
   ];
-  const scene = galleryScene(parts, blockSize);
+  const scene = galleryScene(parts, blockSize, GALLERY_LAYOUT);
   const volumePartIds = [
     TET4_PART_ID,
     TET10_PART_ID,
@@ -183,7 +206,7 @@ export function createHex20CylinderFixture(): Hex20CylinderFixture {
     "triangle",
   );
   const parts = [part];
-  const scene = galleryScene(parts, 0);
+  const scene = galleryScene(parts, 0, SINGLE_PART_LAYOUT);
   const modePartIds = new Map<ElementDisplayMode, readonly PartId[]>([
     ["solid", [HEX20_PART_ID]],
     ["surface", [HEX20_PART_ID]],
@@ -228,18 +251,26 @@ function requireGroup(
   return part;
 }
 
-function galleryScene(parts: readonly Part[], blockSize: number): Scene {
+function galleryScene(
+  parts: readonly Part[],
+  blockSize: number,
+  layout: readonly GalleryPlacement[],
+): Scene {
   let builder = createScene();
   for (const part of parts) builder = builder.addPart(part);
-  const spacing = blockSize === 0 ? 0 : blockSize + GAP;
+  const partById = new Map(parts.map((part) => [part.id, part]));
+  const spacing = blockSize + GAP;
   const root = {
     id: ROOT_ASSEMBLY_ID,
     name: "element-gallery",
-    placements: parts.map((part, index) => ({
-      kind: "part" as const,
-      partId: part.id,
-      transform: translation(index * spacing, 0, 0),
-    })),
+    placements: layout.map(({ partId, column, row }) => {
+      if (!partById.has(partId)) throw new Error(`Element fixture layout has no part ${partId}`);
+      return {
+        kind: "part" as const,
+        partId,
+        transform: translation(column * spacing, row * spacing, 0),
+      };
+    }),
   };
   return builder.addAssembly(root).withRoot(root.id).build();
 }

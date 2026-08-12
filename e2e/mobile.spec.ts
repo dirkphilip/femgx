@@ -82,6 +82,23 @@ test("renders the bolted showcase with distinct part colors on a phone", async (
   ).not.toHaveLength(0);
 });
 
+test("fits the supported element gallery into a phone-sized viewport", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("model-select").selectOption("gallery");
+  await expect(canvas).toHaveAttribute("data-model", "gallery");
+  await expect(page.getByTestId("status")).toContainText("10 visible");
+  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await expect.poll(() => distinctColors(canvas), { timeout: 10_000 }).toBeGreaterThanOrEqual(6);
+
+  const screenshot = await canvas.screenshot();
+  expect(
+    screenshot,
+    "the element gallery must produce a non-empty phone screenshot",
+  ).not.toHaveLength(0);
+});
+
 test("keeps primary controls reachable and touch-sized on a phone", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto("/");

@@ -14,6 +14,11 @@ The gallery is intentionally explicit about quadratic shapes so their linear
 mid-edge tessellation is inspectable without introducing another renderer or
 API.
 
+The ten examples use a deterministic 2-row × 5-column comparison grid: Point,
+Line, Line3, Triangle, and Quad occupy the first row; Polygon, Tet4, Tet10,
+Hex8, and Hex20 occupy the second. The explicit layout keeps each topology
+readable after camera fitting at desktop and phone-sized viewports.
+
 ## VTK sample
 
 `demo/fixture/sample-block.vtk` is a checked-in ASCII legacy VTK unstructured
