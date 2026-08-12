@@ -77,7 +77,7 @@ const touch = (pointerId: number, clientX: number, clientY: number): PointerInpu
 });
 
 describe("camera controls", () => {
-  it("queues an early drag until the picked orbit point resolves", async () => {
+  it("keeps a moving orbit continuous when its picked point resolves late", async () => {
     const canvas = new FakeCanvas();
     const initial = resizeCamera(
       createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
@@ -106,20 +106,25 @@ describe("camera controls", () => {
 
     canvas.dispatch("pointerdown", pointer(100, 50));
     canvas.dispatch("pointermove", pointer(130, 65));
-    canvas.dispatch("pointerup", pointer(130, 65));
-    expect(cameraRef.camera).toBe(initial);
+    expect(cameraRef.camera).not.toBe(initial);
+    expect(marker).toHaveBeenLastCalledWith(initial.target);
+    const movingCamera = cameraRef.camera;
+    const renderCount = render.mock.calls.length;
 
     resolvePivot?.([1, 0, 0]);
     await pivotPromise;
     await Promise.resolve();
 
-    expect(marker).toHaveBeenCalledWith(undefined);
-    expect(render).toHaveBeenCalledOnce();
-    expect(cameraRef.camera).not.toBe(initial);
-    expect(cameraRef.camera.target).toEqual([1, 0, 0]);
-    expect(distance(cameraRef.camera.position, [1, 0, 0])).toBeCloseTo(
-      distance(initial.position, initial.target),
-    );
+    expect(cameraRef.camera).toBe(movingCamera);
+    expect(cameraRef.camera.target).toEqual(initial.target);
+    expect(marker).toHaveBeenLastCalledWith(initial.target);
+    expect(marker).not.toHaveBeenCalledWith([1, 0, 0]);
+    expect(render).toHaveBeenCalledTimes(renderCount);
+
+    canvas.dispatch("pointermove", pointer(145, 75));
+    expect(cameraRef.camera).not.toBe(movingCamera);
+    canvas.dispatch("pointerup", pointer(145, 75));
+    expect(marker).toHaveBeenLastCalledWith(undefined);
   });
 
   it("zooms around the fixed target without issuing a pick", () => {
@@ -273,54 +278,6 @@ describe("camera controls", () => {
       distance(initial.position, initial.target),
     );
     expect(cameraRef.camera.target).toEqual([0, 0, 0]);
-  });
-
-  it("applies queued orbit deltas with the live bounds supplier", async () => {
-    const canvas = new FakeCanvas();
-    const initial = resizeCamera(
-      createCamera({
-        mode: "perspective",
-        position: [0, 0, 5],
-        target: [0, 0, 0],
-        near: 0.01,
-        far: 1000,
-      }),
-      200,
-      100,
-    );
-    const cameraRef = { camera: initial };
-    let resolvePivot: ((pivot: Vec3 | undefined) => void) | undefined;
-    const pivotPromise = new Promise<Vec3 | undefined>((resolve) => {
-      resolvePivot = resolve;
-    });
-    const bounds = {
-      minX: -1,
-      minY: -1,
-      minZ: -1,
-      maxX: 1,
-      maxY: 1,
-      maxZ: 1,
-    };
-    const getBounds = vi.fn(() => bounds);
-    installCameraControls({
-      canvas: canvas as unknown as HTMLCanvasElement,
-      cameraRef,
-      bounds: getBounds,
-      navigation: { pickPoint: () => pivotPromise, setOrbitPivot: vi.fn() },
-      onRender: vi.fn(),
-    });
-
-    canvas.dispatch("pointerdown", pointer(100, 50));
-    canvas.dispatch("pointermove", pointer(280, 50));
-    expect(cameraRef.camera).toBe(initial);
-
-    resolvePivot?.(undefined);
-    await pivotPromise;
-    await Promise.resolve();
-
-    expect(getBounds).toHaveBeenCalledTimes(2);
-    expect(cameraRef.camera.far).toBeLessThan(initial.far);
-    expect(cameraRef.camera.near).toBeGreaterThan(0);
   });
 
   it("clears the orbit widget when the pointer gesture ends", async () => {

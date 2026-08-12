@@ -31,8 +31,6 @@ interface OrbitGesture {
   active: boolean;
   resolved: boolean;
   pivot: Vec3 | undefined;
-  deltaX: number;
-  deltaY: number;
 }
 
 const ORBIT_SCALE = 180;
@@ -40,9 +38,10 @@ const ZOOM_DRAG_SCALE = 300;
 
 /**
  * Installs SpaceClaim-style mouse/touch navigation and returns its disposer.
- * Middle drag spins around the nearest visible point, Ctrl/Meta+middle pans,
- * Shift+middle zooms, and touch provides orbit/pan/pinch gestures. An orbit
- * miss re-anchors to the model-bounds center when bounds are supplied.
+ * Middle drag spins around the nearest visible point when it resolves before
+ * movement, otherwise around the model-bounds center. The pivot stays fixed
+ * for the gesture. Ctrl/Meta+middle pans, Shift+middle zooms, and touch provides
+ * orbit/pan/pinch gestures.
  */
 export function installCameraControls(options: CameraControlOptions): () => void {
   const controls = new CameraControls(options);
@@ -203,9 +202,8 @@ class CameraControls {
   private applyOrbit(pointerId: number, step: GestureStep): boolean {
     const gesture = this.orbitGestures.get(pointerId);
     if (gesture !== undefined && !gesture.resolved) {
-      gesture.deltaX += step.deltaX;
-      gesture.deltaY += step.deltaY;
-      return false;
+      gesture.resolved = true;
+      this.options.navigation.setOrbitPivot(gesture.fallbackPivot);
     }
     const { cameraRef } = this.options;
     const before = cameraRef.camera;
@@ -225,8 +223,6 @@ class CameraControls {
       active: true,
       resolved: false,
       pivot: undefined,
-      deltaX: 0,
-      deltaY: 0,
     };
     this.orbitGestures.set(event.pointerId, gesture);
     const rect = this.options.canvas.getBoundingClientRect();
@@ -249,28 +245,15 @@ class CameraControls {
   }
 
   private resolveOrbit(pointerId: number, gesture: OrbitGesture, pivot: Vec3 | undefined): void {
-    if (this.orbitGestures.get(pointerId) !== gesture) return;
+    if (this.orbitGestures.get(pointerId) !== gesture || gesture.resolved) return;
     gesture.resolved = true;
     gesture.pivot = pivot;
-    const target = pivot ?? gesture.fallbackPivot;
-    this.applyQueuedOrbit(gesture, target);
-    this.options.navigation.setOrbitPivot(gesture.active ? target : undefined);
+    if (!gesture.active) {
+      this.orbitGestures.delete(pointerId);
+      return;
+    }
+    this.options.navigation.setOrbitPivot(pivot ?? gesture.fallbackPivot);
     this.options.onRender();
-    if (!gesture.active) this.orbitGestures.delete(pointerId);
-  }
-
-  private applyQueuedOrbit(gesture: OrbitGesture, pivot: Vec3 | undefined): void {
-    if (gesture.deltaX === 0 && gesture.deltaY === 0) return;
-    const { cameraRef } = this.options;
-    cameraRef.camera = orbitCameraWithOptionalBounds(
-      cameraRef.camera,
-      gesture.deltaX / ORBIT_SCALE,
-      gesture.deltaY / ORBIT_SCALE,
-      pivot ?? gesture.fallbackPivot,
-      this.options.bounds?.(),
-    );
-    gesture.deltaX = 0;
-    gesture.deltaY = 0;
   }
 
   private releaseOrbit(pointerId: number): void {
