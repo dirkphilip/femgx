@@ -7,9 +7,11 @@ import {
   panCamera,
   resizeCamera,
   setProjection,
+  type Camera,
   zoomCamera,
   zoomCameraAtPoint,
 } from "../../src/camera/camera";
+import { cross, dot, normalize, scale, subtract, type Vec3 } from "../../src/math/vec3";
 
 const originalDevicePixelRatio = globalThis.devicePixelRatio;
 
@@ -44,12 +46,18 @@ describe("cameraKeyLightDirection", () => {
     expect(Math.hypot(...direction)).toBeCloseTo(1);
   });
 
-  it("follows the view while retaining a small upward bias", () => {
-    const direction = cameraKeyLightDirection(
-      createCamera({ position: [0, 0, 4], target: [0, 0, 0] }),
-    );
-    expect(direction[2]).toBeGreaterThan(direction[1]);
-    expect(direction[1]).toBeGreaterThan(0);
+  it("keeps a constant upper-left direction in camera space through a 180-degree orbit", () => {
+    const initial = createCamera({ position: [0, 0, 4], target: [0, 0, 0] });
+    const rotated = orbitCamera(initial, Math.PI, 0);
+    const baseline = cameraSpaceDirection(initial, cameraKeyLightDirection(initial));
+    const afterOrbit = cameraSpaceDirection(rotated, cameraKeyLightDirection(rotated));
+
+    expect(baseline[0]).toBeLessThan(0);
+    expect(baseline[1]).toBeGreaterThan(0);
+    expect(baseline[2]).toBeGreaterThan(0);
+    for (let index = 0; index < 3; index += 1) {
+      expect(afterOrbit[index]).toBeCloseTo(baseline[index] ?? NaN, 12);
+    }
   });
 
   it("stays finite through continuous pole-crossing camera frames", () => {
@@ -87,6 +95,13 @@ describe("cameraKeyLightDirection", () => {
     }
   });
 });
+
+function cameraSpaceDirection(camera: Camera, direction: Vec3): Vec3 {
+  const forward = normalize(subtract(camera.target, camera.position));
+  const right = normalize(cross(forward, camera.up));
+  const up = normalize(cross(right, forward));
+  return [dot(direction, right), dot(direction, up), dot(direction, scale(forward, -1))];
+}
 
 describe("orbit pivot widget", () => {
   it("keeps its dimensions in device pixels across display densities", () => {
