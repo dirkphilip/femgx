@@ -24,13 +24,16 @@ describe("GPU render resources", () => {
       expect(resources.pipelines.pointsColor).toBeDefined();
       expect(resources.pipelines.pointsTransparent).toBeDefined();
       expect(resources.pipelines.pointsPick).toBeDefined();
-      for (const index of [2, 5, 8]) {
-        expect(gpu.renderPipelineDescriptors[index]?.fragment?.targets).toHaveLength(4);
+      for (const label of ["triangle picking", "line picking", "point picking"]) {
+        const picking = gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === label,
+        );
+        expect(picking?.fragment?.targets).toHaveLength(4);
       }
       const transparent = gpu.renderPipelineDescriptors.filter(
         (descriptor) => descriptor.fragment?.targets.length === 2,
       );
-      expect(transparent).toHaveLength(5);
+      expect(transparent).toHaveLength(8);
       expect(
         transparent.every((descriptor) => descriptor.depthStencil?.depthWriteEnabled === false),
       ).toBe(true);
@@ -77,6 +80,26 @@ describe("GPU render resources", () => {
         stencilWriteMask: 0,
       });
       expect(originHidden?.fragment?.targets).toHaveLength(2);
+      const selectionVisible = gpu.renderPipelineDescriptors.find(
+        (descriptor) => descriptor.label === "triangle selection visible",
+      );
+      expect(selectionVisible?.depthStencil).toMatchObject({
+        depthCompare: "less-equal",
+        depthWriteEnabled: true,
+        stencilFront: { compare: "always", passOp: "replace" },
+        stencilReadMask: 2,
+        stencilWriteMask: 2,
+      });
+      const selectionHidden = gpu.renderPipelineDescriptors.find(
+        (descriptor) => descriptor.label === "triangle selection hidden",
+      );
+      expect(selectionHidden?.depthStencil).toMatchObject({
+        depthCompare: "greater",
+        depthWriteEnabled: false,
+        stencilFront: { compare: "not-equal", passOp: "keep" },
+        stencilReadMask: 2,
+        stencilWriteMask: 0,
+      });
       expect(resources.orbitPivot.visiblePipeline).toBeDefined();
       expect(resources.orbitPivot.hiddenPipeline).toBeDefined();
       const pivotVisible = gpu.renderPipelineDescriptors.find(

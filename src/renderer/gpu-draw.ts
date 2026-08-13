@@ -25,6 +25,8 @@ export {
   patchInstances,
   writeDrawOrder,
   writeTransparentOrder,
+  writeSelectionOrder,
+  writeNodeSelectionOrder,
   writeEdgeOrder,
   writeNodeOrder,
   type InstanceStorage,
@@ -342,6 +344,8 @@ export function destroyDrawResources(draw: DrawResources): void {
   for (const storage of draw.storages.values()) {
     storage.buffer.destroy();
     storage.orderBuffer.destroy();
+    storage.selectionOrderBuffer.destroy();
+    storage.nodeSelectionOrderBuffer.destroy();
     storage.transparentOrderBuffer.destroy();
     storage.edgeOrderBuffer.destroy();
     storage.nodeOrderBuffer.destroy();

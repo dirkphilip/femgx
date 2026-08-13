@@ -271,13 +271,13 @@ describe("WebGPU renderer", () => {
     renderer.updateElements(runtime, interaction);
     renderer.render(runtime, camera, scene.parts);
     await renderer.pick(100, 100);
-    expect(gpu.drawCalls).toHaveLength(8);
+    expect(gpu.drawCalls).toHaveLength(11);
 
     interaction = setBodyHighlighted(interaction, body, true);
     renderer.updateElements(runtime, interaction);
     renderer.render(runtime, camera, scene.parts);
     await renderer.pick(100, 100);
-    expect(gpu.drawCalls).toHaveLength(9);
+    expect(gpu.drawCalls).toHaveLength(14);
 
     renderer.destroy();
   });
@@ -497,13 +497,13 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.slice(-2)).toEqual([
       { pipeline: "pipeline-0", indexCount: 3, instanceCount: 3 },
-      { pipeline: "pipeline-9", indexCount: 6, instanceCount: 3 },
+      { pipeline: "pipeline-15", indexCount: 6, instanceCount: 3 },
     ]);
 
     renderer.setEdgeDepthTest(false);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-10",
+      pipeline: "pipeline-16",
       indexCount: 6,
       instanceCount: 3,
     });
@@ -511,7 +511,7 @@ describe("WebGPU renderer", () => {
     renderer.setEdgeDepthTest(true);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-9",
+      pipeline: "pipeline-15",
       indexCount: 6,
       instanceCount: 3,
     });
@@ -615,7 +615,7 @@ describe("WebGPU renderer", () => {
     renderer.updateInstances(runtime, edge, hidden.changedInstanceIds);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-9",
+      pipeline: "pipeline-15",
       indexCount: 6,
       instanceCount: 2,
     });
@@ -624,7 +624,7 @@ describe("WebGPU renderer", () => {
     renderer.updateInstances(runtime, edge, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-9",
+      pipeline: "pipeline-15",
       indexCount: 6,
       instanceCount: 3,
     });

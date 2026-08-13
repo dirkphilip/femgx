@@ -9,7 +9,7 @@ import {
 } from "./gpu-draw";
 import type { PartResource } from "./gpu-support";
 
-type PipelinePass = "color" | "transparent" | "pick";
+type PipelinePass = "color" | "transparent" | "pick" | "selection-visible" | "selection-hidden";
 
 type DrawIntent =
   | {
@@ -18,7 +18,7 @@ type DrawIntent =
       readonly primitive?: "triangles" | "lines" | "points";
     }
   | { readonly kind: "edge"; readonly pipeline: GPURenderPipeline }
-  | { readonly kind: "nodes"; readonly pipeline: GPURenderPipeline };
+  | { readonly kind: "nodes"; readonly pipeline: GPURenderPipeline; readonly selection?: boolean };
 
 /** Inputs shared by one instanced batch draw. */
 export interface BatchDrawOptions {
@@ -38,6 +38,12 @@ export function drawBatches(
   options: DrawBatchOptions = { kind: "surface", pass: "color" },
 ): void {
   pass.setBindGroup(0, context.frameBindGroup);
+  if (
+    (options.kind === "surface" && options.pass.startsWith("selection-")) ||
+    (options.kind === "nodes" && options.selection === true)
+  ) {
+    pass.setStencilReference(2);
+  }
   let current: GPURenderPipeline | undefined;
   for (const call of calls) {
     current = drawOneBatch(pass, draw, context, call, {
@@ -58,12 +64,16 @@ export function drawOneBatch(
   const { intent, current } = options;
   const orderKind =
     intent.kind === "nodes"
-      ? "node"
+      ? intent.selection === true
+        ? "node-selection"
+        : "node"
       : intent.kind === "edge"
         ? "edge"
         : intent.pass === "transparent"
           ? "transparent"
-          : "opaque";
+          : intent.pass.startsWith("selection-")
+            ? "selection"
+            : "opaque";
   const overlay = orderKind === "edge";
   const nodes = intent.kind === "nodes";
   const part = context.parts.get(call.partId);
@@ -144,18 +154,30 @@ function pipelineFor(
         ? pipelines.trianglesColor
         : pass === "transparent"
           ? pipelines.trianglesTransparent
-          : pipelines.trianglesPick;
+          : pass === "selection-visible"
+            ? pipelines.trianglesSelectionVisible
+            : pass === "selection-hidden"
+              ? pipelines.trianglesSelectionHidden
+              : pipelines.trianglesPick;
     case "lines":
       return pass === "color"
         ? pipelines.linesColor
         : pass === "transparent"
           ? pipelines.linesTransparent
-          : pipelines.linesPick;
+          : pass === "selection-visible"
+            ? pipelines.linesSelectionVisible
+            : pass === "selection-hidden"
+              ? pipelines.linesSelectionHidden
+              : pipelines.linesPick;
     case "points":
       return pass === "color"
         ? pipelines.pointsColor
         : pass === "transparent"
           ? pipelines.pointsTransparent
-          : pipelines.pointsPick;
+          : pass === "selection-visible"
+            ? pipelines.pointsSelectionVisible
+            : pass === "selection-hidden"
+              ? pipelines.pointsSelectionHidden
+              : pipelines.pointsPick;
   }
 }

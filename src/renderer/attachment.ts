@@ -17,7 +17,6 @@ import {
   writeDrawOrder,
   writeTransparentOrder,
   writeEdgeOrder,
-  writeNodeOrder,
   INSTANCE_STRIDE,
   type DrawCall,
   type DrawResources,
@@ -29,7 +28,6 @@ import { defaultStyle } from "./gpu-support";
 import {
   buildDrawOrder,
   buildEdgeOrder,
-  buildNodeOrder,
   buildTransparentOrder,
   buildDrawCalls,
   buildInstanceLayout,
@@ -37,6 +35,12 @@ import {
   instanceAt,
   type InstanceLayout,
 } from "./runtime-state";
+import {
+  syncSelectionState,
+  syncVisibleSelectionOrders,
+  writeNodeOrders,
+  type SelectionState,
+} from "./selection-state";
 
 /**
  * The renderer's CPU-side attachment to a packed scene runtime: the instance
@@ -54,11 +58,15 @@ export class RendererAttachment {
   public transparentCalls: readonly DrawCall[] = [];
   public edgeCalls: readonly DrawCall[] = [];
   public nodeCalls: readonly DrawCall[] = [];
+  public selectionCalls: readonly DrawCall[] = [];
+  public selectedNodeCalls: readonly DrawCall[] = [];
   public instances: Instance[] = [];
   public slotByInstanceId = new Map<InstanceId, number>();
   private edgeFlags: boolean[] = [];
   private nodeFlags: boolean[] = [];
   private transparentFlags: boolean[] = [];
+  private readonly selection: SelectionState = { selectedNodeFlags: [], nodeFlags: this.nodeFlags };
+  private interactionState = createInteractionState();
   private appliedHiddenBodyIds: ReadonlyMap<string, ReadonlySet<number>> | undefined;
 
   /**
@@ -85,6 +93,7 @@ export class RendererAttachment {
     changedInstanceIds: readonly number[],
     bundle: GpuBundle,
   ): boolean {
+    this.interactionState = interaction;
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
     if (layout === undefined) return attached;
@@ -122,26 +131,21 @@ export class RendererAttachment {
     );
   }
 
-  /** Rebuilds node orders after the renderer supplies the current part map. */
   public updateNodeOrders(parts: ReadonlyMap<PartId, Part>, bundle: GpuBundle): void {
     const runtime = this.runtime;
     const layout = this.layout;
     if (runtime === undefined || layout === undefined) return;
-    for (const partId of layout.partOrder) {
-      const order = buildNodeOrder(layout, runtime, partId, this.nodeFlags, parts);
-      writeNodeOrder(bundle.draw, partId, order);
-      layout.partNodeCounts.set(partId, order.length);
-    }
+    writeNodeOrders({ runtime, layout, parts, selection: this.selection, bundle });
     this.rebuildCalls();
   }
 
-  /** Writes the per-part element-highlight buffers as diffed records. */
   public updateElements(
     runtime: PackedSceneRuntime,
     interaction: InteractionState,
     bundle: GpuBundle,
     parts: ReadonlyMap<PartId, Part>,
   ): boolean {
+    this.interactionState = interaction;
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
     if (layout === undefined) return attached;
@@ -166,14 +170,22 @@ export class RendererAttachment {
       parts,
       this.transparentFlags,
     );
+    const selectionChanged = syncSelectionState({
+      runtime,
+      layout,
+      interaction,
+      parts,
+      slotByInstanceId: this.slotByInstanceId,
+      selection: this.selection,
+      bundle,
+    });
     if (transparentChanged.size > 0) {
       this.rebuildTransparentOrders(runtime, layout, transparentChanged, bundle);
-      this.rebuildCalls();
     }
-    return attached || bodyVisibilityChanged || transparentChanged.size > 0;
+    this.rebuildCalls();
+    return attached || bodyVisibilityChanged || transparentChanged.size > 0 || selectionChanged;
   }
 
-  /** Rebuilds GPU draw order after runtime visibility changed. */
   public updateVisibility(
     runtime: PackedSceneRuntime,
     changedInstanceIds: readonly number[],
@@ -186,13 +198,16 @@ export class RendererAttachment {
     return attached || changedInstanceIds.length > 0;
   }
 
-  /** Clears the attachment so the next frame re-uploads everything. */
   public clear(): void {
     this.runtime = this.layout = undefined;
     this.calls = this.transparentCalls = this.edgeCalls = this.nodeCalls = [];
+    this.selectionCalls = [];
+    this.selectedNodeCalls = [];
     this.edgeFlags = [];
-    this.nodeFlags = [];
+    this.nodeFlags.length = 0;
     this.transparentFlags = [];
+    this.selection.selectedNodeFlags.length = 0;
+    this.interactionState = createInteractionState();
     this.appliedHiddenBodyIds = undefined;
   }
 
@@ -203,8 +218,11 @@ export class RendererAttachment {
     this.instances = snapshot.instances;
     this.slotByInstanceId = snapshot.slotByInstanceId;
     this.edgeFlags = new Array<boolean>(runtime.instanceCount).fill(false);
-    this.nodeFlags = new Array<boolean>(runtime.instanceCount).fill(false);
+    this.nodeFlags.length = runtime.instanceCount;
+    this.nodeFlags.fill(false);
     this.transparentFlags = new Array<boolean>(runtime.instanceCount).fill(false);
+    this.selection.selectedNodeFlags.length = runtime.instanceCount;
+    this.selection.selectedNodeFlags.fill(false);
     this.appliedHiddenBodyIds = undefined;
     const allSlots = Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
     const { updates } = collectInstanceUpdates(
@@ -250,6 +268,7 @@ export class RendererAttachment {
     }
     this.rebuildEdgeOrders(runtime, layout, rebuild, bundle);
     this.rebuildTransparentOrders(runtime, layout, rebuild, bundle);
+    syncVisibleSelectionOrders(runtime, layout, this.interactionState, bundle, rebuild);
     layout.visibleCount = runtime.visibleCount;
     this.rebuildCalls();
   }
@@ -295,6 +314,7 @@ export class RendererAttachment {
       this.transparentCalls = [];
       this.edgeCalls = [];
       this.nodeCalls = [];
+      this.selectionCalls = [];
       return;
     }
     const calls = buildDrawCalls(layout);
@@ -302,6 +322,8 @@ export class RendererAttachment {
     this.transparentCalls = calls.transparentCalls;
     this.edgeCalls = calls.edgeCalls;
     this.nodeCalls = calls.nodeCalls;
+    this.selectionCalls = calls.selectionCalls;
+    this.selectedNodeCalls = calls.selectedNodeCalls;
   }
 }
 

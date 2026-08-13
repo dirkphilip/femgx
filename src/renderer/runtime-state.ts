@@ -1,6 +1,7 @@
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Part, PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
+import { readInteractionState, type InteractionState } from "../interaction/state";
 import type { DrawCall } from "./gpu-draw";
 
 /**
@@ -24,6 +25,10 @@ export interface InstanceLayout {
   readonly partNodeCounts: Map<PartId, number>;
   /** Transparent visible instance count per part. */
   readonly partTransparentCounts: Map<PartId, number>;
+  /** Visible selected-instance count per part. */
+  readonly partSelectionCounts: Map<PartId, number>;
+  /** Visible selected-node-instance count per part. */
+  readonly partSelectedNodeCounts: Map<PartId, number>;
   /** Total visible instance count, kept in sync with the runtime. */
   visibleCount: number;
 }
@@ -54,6 +59,8 @@ export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout
   const partEdgeCounts = new Map<PartId, number>();
   const partNodeCounts = new Map<PartId, number>();
   const partTransparentCounts = new Map<PartId, number>();
+  const partSelectionCounts = new Map<PartId, number>();
+  const partSelectedNodeCounts = new Map<PartId, number>();
   const drawList = runtime.getDrawList();
   for (const slot of drawList) {
     const partId = runtime.instancePartIds[slot];
@@ -64,6 +71,8 @@ export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout
     partEdgeCounts.set(partId, 0);
     partNodeCounts.set(partId, 0);
     partTransparentCounts.set(partId, 0);
+    partSelectionCounts.set(partId, 0);
+    partSelectedNodeCounts.set(partId, 0);
   }
   return {
     instanceCount,
@@ -74,6 +83,8 @@ export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout
     partEdgeCounts,
     partNodeCounts,
     partTransparentCounts,
+    partSelectionCounts,
+    partSelectedNodeCounts,
     visibleCount: drawList.length,
   };
 }
@@ -106,6 +117,74 @@ export function buildNodeOrder(
     }
   }
   return new Uint32Array(nodes);
+}
+
+/** Returns visible part-local slots with an explicitly selected node. */
+export function buildNodeSelectionOrder(
+  layout: InstanceLayout,
+  runtime: PackedSceneRuntime,
+  partId: PartId,
+  selectedNodeFlags: readonly boolean[],
+  parts: ReadonlyMap<PartId, Part>,
+): Uint32Array {
+  if (parts.get(partId)?.geometry.primitive === "points") return new Uint32Array();
+  const slots = layout.partSlots.get(partId);
+  if (slots === undefined) return new Uint32Array();
+  const selected: number[] = [];
+  for (const slot of slots) {
+    const local = layout.slotPartLocal[slot];
+    if (
+      local !== undefined &&
+      local >= 0 &&
+      selectedNodeFlags[slot] === true &&
+      runtime.isInstanceVisible(slot)
+    ) {
+      selected.push(local);
+    }
+  }
+  return new Uint32Array(selected);
+}
+
+/** Returns visible part-local slots that carry any selected target. */
+export function buildSelectionOrder(
+  layout: InstanceLayout,
+  runtime: PackedSceneRuntime,
+  partId: PartId,
+  interaction: InteractionState,
+): Uint32Array {
+  const slots = layout.partSlots.get(partId);
+  if (slots === undefined) return new Uint32Array();
+  const data = readInteractionState(interaction);
+  const selected: number[] = [];
+  for (const slot of slots) {
+    const instanceId = runtime.getInstanceId(slot);
+    const local = layout.slotPartLocal[slot];
+    if (
+      instanceId !== undefined &&
+      local !== undefined &&
+      local >= 0 &&
+      runtime.isInstanceVisible(slot) &&
+      hasSelectedTarget(data, instanceId, partId)
+    ) {
+      selected.push(local);
+    }
+  }
+  return new Uint32Array(selected);
+}
+
+function hasSelectedTarget(
+  data: ReturnType<typeof readInteractionState>,
+  instanceId: InstanceId,
+  partId: PartId,
+): boolean {
+  return (
+    data.selectedPartIds.has(partId) ||
+    data.selectedInstanceIds.has(instanceId) ||
+    (data.selectedBodyIds.get(instanceId)?.size ?? 0) > 0 ||
+    (data.selectedElementIds.get(instanceId)?.size ?? 0) > 0 ||
+    (data.selectedFaces.get(instanceId)?.size ?? 0) > 0 ||
+    (data.selectedNodeIds.get(instanceId)?.size ?? 0) > 0
+  );
 }
 
 /** Returns the visible part-local slots of a part in ascending draw order. */
@@ -213,6 +292,8 @@ export interface DrawCallLists {
   readonly transparentCalls: DrawCall[];
   readonly edgeCalls: DrawCall[];
   readonly nodeCalls: DrawCall[];
+  readonly selectionCalls: DrawCall[];
+  readonly selectedNodeCalls: DrawCall[];
 }
 
 /** Builds the deterministic per-part draw calls from the layout's counts. */
@@ -221,6 +302,8 @@ export function buildDrawCalls(layout: InstanceLayout): DrawCallLists {
   const transparentCalls: DrawCall[] = [];
   const edgeCalls: DrawCall[] = [];
   const nodeCalls: DrawCall[] = [];
+  const selectionCalls: DrawCall[] = [];
+  const selectedNodeCalls: DrawCall[] = [];
   for (const partId of layout.partOrder) {
     const count = layout.partVisibleCounts.get(partId);
     if (count !== undefined && count > 0) {
@@ -238,6 +321,14 @@ export function buildDrawCalls(layout: InstanceLayout): DrawCallLists {
     if (nodeCount !== undefined && nodeCount > 0) {
       nodeCalls.push({ partId, instanceCount: nodeCount });
     }
+    const selectionCount = layout.partSelectionCounts.get(partId);
+    if (selectionCount !== undefined && selectionCount > 0) {
+      selectionCalls.push({ partId, instanceCount: selectionCount });
+    }
+    const selectedNodeCount = layout.partSelectedNodeCounts.get(partId);
+    if (selectedNodeCount !== undefined && selectedNodeCount > 0) {
+      selectedNodeCalls.push({ partId, instanceCount: selectedNodeCount });
+    }
   }
-  return { calls, transparentCalls, edgeCalls, nodeCalls };
+  return { calls, transparentCalls, edgeCalls, nodeCalls, selectionCalls, selectedNodeCalls };
 }
