@@ -8,6 +8,7 @@ import {
   type FemViewport,
   type InteractionTarget,
   type SceneRuntime,
+  type ViewportBackground,
 } from "../../src/index";
 import { selectedWorldBounds } from "./selection-bounds";
 import { WorkbenchCameraTransition } from "./camera-transition";
@@ -66,6 +67,7 @@ export class WorkbenchController {
   private treeHoverTargets: readonly InteractionTarget[] = [];
   private disposed = false;
   private continuousEnabled = false;
+  private background: ViewportBackground = "studio";
   private observedViewportSize: { readonly width: number; readonly height: number };
   private observedDevicePixelRatio: number;
   private loadGeneration = 0;
@@ -150,6 +152,7 @@ export class WorkbenchController {
     this.boxPreview = features.boxPreview;
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
+    this.presentation.reflectBackground(this.background);
     this.presentation.populateModelSelect(this.models);
     this.visibilityPanel.rebuild();
     this.boxSelectionDisposer = installWorkbenchLifecycle({
@@ -162,6 +165,9 @@ export class WorkbenchController {
       visibilityPanel: this.visibilityPanel,
       boxPreview: this.boxPreview,
       dragging: () => this.isPointerGestureActive(),
+      setBackground: (background) => {
+        this.setBackground(background);
+      },
       setEdges: () => {
         this.setEdges(!this.toggles.edges);
       },
@@ -206,6 +212,15 @@ export class WorkbenchController {
   setViewport(viewport: FemViewport): void {
     this.interactionController.clearContext();
     this.viewport = viewport;
+    try {
+      viewport.setBackground(this.background);
+    } catch (error) {
+      setModelFeedback(
+        this.view,
+        `Background could not be restored: ${errorMessage(error)}`,
+        "error",
+      );
+    }
     this.renderLoop.attach(performance.now());
     this.treeHoverTargets = [];
     this.canvas.dataset["treeHover"] = "";
@@ -260,6 +275,28 @@ export class WorkbenchController {
     this.renderLoop.setEnabled(enabled, performance.now());
     this.presentation.reflectContinuous();
     this.syncViewportPresentation();
+  }
+
+  setBackground(value: string): void {
+    const background = parseViewportBackground(value);
+    if (background === undefined) {
+      this.presentation.reflectBackground(this.background);
+      return;
+    }
+    try {
+      this.viewport.setBackground(background);
+    } catch (error) {
+      this.presentation.reflectBackground(this.background);
+      setModelFeedback(
+        this.view,
+        `Background could not be changed: ${errorMessage(error)}`,
+        "error",
+      );
+      return;
+    }
+    this.background = background;
+    this.presentation.reflectBackground(background);
+    this.render();
   }
 
   setModel(id: string): void {
@@ -384,6 +421,7 @@ export class WorkbenchController {
     this.presentation.reflectNodes();
     this.presentation.reflectResults();
     this.presentation.reflectContinuous();
+    this.presentation.reflectBackground(this.background);
   }
 
   private setTreeHover(target: VisibilityRowTarget | undefined): void {
@@ -467,4 +505,9 @@ export class WorkbenchController {
 
 function isDestroyedViewportError(error: unknown): boolean {
   return error instanceof Error && error.message === "FemViewport has been destroyed";
+}
+
+function parseViewportBackground(value: string): ViewportBackground | undefined {
+  if (value === "studio" || value === "white" || value === "dark") return value;
+  return undefined;
 }

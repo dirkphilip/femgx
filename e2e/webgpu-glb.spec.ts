@@ -1,8 +1,68 @@
 import { expect, test } from "@playwright/test";
 import { drawnPixels, waitForRenderer } from "./demo-support";
+import { loadWebGpuPage } from "./webgpu-support";
 
 const fixture = "test/io/fixtures/glb/onshape-cylinder-uncompressed.glb";
 const phone = { width: 390, height: 844 };
+
+test("selects an accessible background preset and preserves it across workbench transitions", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const background = page.getByLabel("Background");
+
+  await expect(background).toHaveValue("studio");
+  await expect(background.locator("option")).toHaveText(["Studio", "White", "Dark"]);
+  await expect(page.locator('label[for="background-select"]')).toContainText("Background");
+
+  await background.selectOption("dark");
+  await expect(background).toHaveValue("dark");
+  await expect(canvas).toHaveAttribute("data-background", "dark");
+
+  await page.getByTestId("model-select").selectOption("gallery");
+  await expect(canvas).toHaveAttribute("data-model", "gallery");
+  await expect(background).toHaveValue("dark");
+
+  await page.getByTestId("reset").click();
+  await expect(background).toHaveValue("dark");
+
+  await page.getByTestId("glb-file").setInputFiles(fixture);
+  await expect(canvas).toHaveAttribute("data-model", "opened-glb");
+  await expect(background).toHaveValue("dark");
+
+  await page.evaluate(() => {
+    (window as { femgxDemo?: { destroyRenderer: () => void } }).femgxDemo?.destroyRenderer();
+  });
+  await expect(canvas).toHaveAttribute("data-renderer", "destroyed");
+  await page.evaluate(() => {
+    void (
+      window as {
+        femgxDemo?: { recreateRenderer: () => Promise<void> };
+      }
+    ).femgxDemo?.recreateRenderer();
+  });
+  await expect(canvas).toHaveAttribute("data-renderer", "webgpu");
+  await expect(background).toHaveValue("dark");
+  await page.screenshot({ path: "test-results/background-selector-desktop.png", fullPage: true });
+});
+
+test("keeps the background selector reachable without mobile toolbar overflow", async ({
+  page,
+}) => {
+  await page.setViewportSize(phone);
+  await loadWebGpuPage(page);
+  const background = page.getByLabel("Background");
+  await expect(background).toBeVisible();
+  await background.selectOption("white");
+  await expect(background).toHaveValue("white");
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+  await page.screenshot({ path: "test-results/background-selector-mobile.png", fullPage: true });
+});
 
 test("opens an uncompressed GLB and resets the imported model in desktop Chrome", async ({
   page,

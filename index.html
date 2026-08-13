@@ -255,6 +255,27 @@
       .model-source button {
         flex: 0 0 auto;
       }
+      .toolbar-background {
+        display: flex;
+        min-width: 150px;
+        align-items: center;
+        gap: 5px;
+        border: 1px solid #34445c;
+        border-radius: 6px;
+        padding: 0 6px;
+        color: #b9c7d8;
+        background: #172438;
+        font-size: 12px;
+      }
+      .toolbar-background select {
+        min-width: 0;
+        flex: 1 1 auto;
+        border: 0;
+        padding-right: 2px;
+        padding-left: 2px;
+        color: #fff;
+        background: transparent;
+      }
       .visually-hidden {
         position: absolute;
         width: 1px;
@@ -342,7 +363,7 @@
         text-transform: uppercase;
       }
       .diagnostics {
-        top: 92px;
+        top: 140px;
         width: min(360px, calc(100% - 28px));
         max-height: min(300px, calc(100% - 176px));
         padding: 10px 12px;
@@ -484,14 +505,34 @@
         }
         .toolbar-row-secondary > * {
           flex: 1 1 0;
+          min-width: 0;
+        }
+        .toolbar-row-secondary > button,
+        .toolbar-background select {
+          padding-right: 4px;
+          padding-left: 4px;
+          font-size: 12px;
+        }
+        .toolbar-background {
+          min-width: 0;
+          padding: 0;
+        }
+        .toolbar-background-name {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip: rect(0 0 0 0);
+          white-space: nowrap;
+          clip-path: inset(50%);
         }
         .inspection {
           display: none;
         }
         .diagnostics {
-          top: 122px;
+          top: 206px;
           width: min(360px, calc(100% - 16px));
-          max-height: min(280px, calc(100% - 144px));
+          max-height: min(280px, calc(100% - 228px));
           right: 8px;
         }
         .renderer-alert,
@@ -562,6 +603,18 @@
             </button>
           </div>
           <div class="toolbar-row toolbar-row-secondary">
+            <label class="toolbar-background" for="background-select">
+              <span class="toolbar-background-name">Background</span>
+              <select
+                id="background-select"
+                data-testid="background-select"
+                aria-label="Background"
+              >
+                <option value="studio">Studio</option>
+                <option value="white">White</option>
+                <option value="dark">Dark</option>
+              </select>
+            </label>
             <button id="edge-overlay" data-testid="edge-overlay" type="button" aria-pressed="true">
               Edges
             </button>

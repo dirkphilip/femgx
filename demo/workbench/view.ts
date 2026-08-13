@@ -13,6 +13,7 @@ export interface DemoView {
   readonly modelFeedback: HTMLElement;
   readonly fitView: HTMLButtonElement;
   readonly projectionToggle: HTMLButtonElement;
+  readonly backgroundSelect: HTMLSelectElement;
   readonly edgeOverlayToggle: HTMLButtonElement;
   readonly continuousToggle: HTMLButtonElement;
   readonly resultsToggle: HTMLButtonElement;
@@ -50,6 +51,7 @@ export function queryDemoView(): DemoView {
   const modelFeedback = document.querySelector<HTMLElement>("#model-feedback");
   const fitView = document.querySelector<HTMLButtonElement>("#fit-view");
   const projectionToggle = document.querySelector<HTMLButtonElement>("#projection-toggle");
+  const backgroundSelect = document.querySelector<HTMLSelectElement>("#background-select");
   const edgeOverlayToggle = document.querySelector<HTMLButtonElement>("#edge-overlay");
   const continuousToggle = document.querySelector<HTMLButtonElement>("#continuous-rendering");
   const resultsToggle = document.querySelector<HTMLButtonElement>("#results-toggle");
@@ -73,6 +75,7 @@ export function queryDemoView(): DemoView {
     modelFeedback === null ||
     fitView === null ||
     projectionToggle === null ||
+    backgroundSelect === null ||
     edgeOverlayToggle === null ||
     continuousToggle === null ||
     resultsToggle === null ||
@@ -99,6 +102,7 @@ export function queryDemoView(): DemoView {
     modelFeedback,
     fitView,
     projectionToggle,
+    backgroundSelect,
     edgeOverlayToggle,
     continuousToggle,
     resultsToggle,
