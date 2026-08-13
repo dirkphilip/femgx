@@ -158,6 +158,7 @@ describe("WebGPU renderer", () => {
     expect(cost.writes.instance).toEqual({ calls: 0, bytes: 0 });
     expect(cost.writes.order).toEqual({ calls: 0, bytes: 0 });
     expect(cost.cpu["instance-scan"]).toBe(0);
+    expect(cost.cpu["order-rebuild"]).toBe(0);
     expect(cost.targets).toEqual({
       width: 800,
       height: 600,
