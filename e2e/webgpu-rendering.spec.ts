@@ -447,6 +447,7 @@ test("renders element nodes as a separate visible annotation pass", async ({ pag
 test("renders complete point sprites with authored node picks", async ({ page }) => {
   await loadWebGpuPage(page);
   await page.getByTestId("model-select").selectOption("gallery");
+  await setSelectionGranularity(page, "node");
   await page.getByTestId("node-overlay").click();
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "false");
   await page
