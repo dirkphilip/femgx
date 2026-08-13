@@ -1,5 +1,6 @@
 import {
   createSceneRuntime,
+  createScene,
   transformPoint,
   type Bounds,
   type Color,
@@ -11,6 +12,7 @@ import {
   type StyleOverride,
 } from "../../src/index";
 import type { ModelPreset } from "../fixture/presets";
+import { createBenchmarkCase, type WebGpuBenchmarkSpec } from "../benchmark/model";
 import { describePick } from "./inspect";
 import type { DemoView } from "./view";
 
@@ -26,6 +28,8 @@ export interface WorkbenchModel {
   readonly bounds: Bounds;
   readonly results: ModelPreset["results"];
   readonly issues: readonly Issue[];
+  /** Builds an opt-in large model only after the user selects it. */
+  readonly deferredLoad?: () => Promise<WorkbenchModel>;
 }
 
 /** Adapts an existing fixture to the common workbench model contract. */
@@ -48,6 +52,46 @@ export function createExampleModel(preset: ModelPreset): WorkbenchModel {
     partStyles,
     bounds: preset.bounds,
     results: preset.results,
+    issues: [],
+  };
+}
+
+/** Returns a selector entry whose bounded benchmark geometry is lazy. */
+export function createLazyBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchModel {
+  const placeholderScene = createSceneRuntimePlaceholder();
+  return {
+    id: spec.id,
+    name: spec.name,
+    source: "example",
+    scene: placeholderScene,
+    elementModels: new Map(),
+    partNames: new Map(),
+    partStyles: new Map(),
+    bounds: placeholderBounds,
+    results: undefined,
+    issues: [],
+    deferredLoad: () => Promise.resolve(createBenchmarkModel(spec)),
+  };
+}
+
+function createBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchModel {
+  const benchmarkCase = createBenchmarkCase(spec);
+  const partStyles = new Map<PartId, StyleOverride>();
+  const partNames = new Map<PartId, string>();
+  for (const partId of benchmarkCase.scene.parts.keys()) {
+    partStyles.set(partId, { color: benchmarkColor });
+    partNames.set(partId, `${spec.name} · Part ${partId}`);
+  }
+  return {
+    id: spec.id,
+    name: spec.name,
+    source: "example",
+    scene: benchmarkCase.scene,
+    elementModels: new Map(),
+    partNames,
+    partStyles,
+    bounds: sceneBounds(benchmarkCase.scene),
+    results: undefined,
     issues: [],
   };
 }
@@ -140,7 +184,29 @@ export function setModelFeedback(
   view.modelFeedback.textContent = message;
 }
 
+/** Hides transient model feedback after a successful model transition. */
+export function clearModelFeedback(view: DemoView): void {
+  view.modelFeedback.hidden = true;
+  view.modelFeedback.textContent = "";
+}
+
 const fallbackColor: Color = { r: 0.5, g: 0.5, b: 0.5, a: 1 };
+const benchmarkColor: Color = { r: 0.2, g: 0.55, b: 0.9, a: 1 };
+const placeholderBounds: Bounds = {
+  minX: -0.5,
+  minY: -0.5,
+  minZ: -0.5,
+  maxX: 0.5,
+  maxY: 0.5,
+  maxZ: 0.5,
+};
+
+function createSceneRuntimePlaceholder(): Scene {
+  return createScene()
+    .addAssembly({ id: 1, name: "lazy-benchmark-placeholder", placements: [] })
+    .withRoot(1)
+    .build();
+}
 
 function sceneBounds(scene: Scene): Bounds {
   const runtime = createSceneRuntime(scene);

@@ -1,12 +1,14 @@
 import { createCamera, fitCamera, type Camera } from "../../src/index";
 import { createWebGpuRenderer, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
+import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
 import {
   benchmarkCaseSpecs,
   createBenchmarkCase,
   estimateBenchmarkMemory,
   type BenchmarkMemoryEstimate,
   type WebGpuBenchmarkCase,
+  type WebGpuBenchmarkKind,
 } from "./model";
 
 const WIDTH = 800;
@@ -30,7 +32,13 @@ interface BenchmarkTimings {
 
 export interface WebGpuBenchmarkCaseResult {
   readonly id: string;
-  readonly kind: WebGpuBenchmarkCase["kind"];
+  readonly name: string;
+  readonly kind: WebGpuBenchmarkKind;
+  readonly partCount: number;
+  readonly drawBatchCount: number;
+  readonly bodyCount: number;
+  readonly elementCount: number;
+  readonly uniqueVertices: number;
   readonly uniqueTriangles: number;
   readonly submittedTriangles: number;
   readonly visibleTriangles: number;
@@ -114,10 +122,9 @@ async function measureCase(
   benchmarkCase: WebGpuBenchmarkCase,
 ): Promise<WebGpuBenchmarkCaseResult> {
   const runtime = createPackedSceneRuntime(benchmarkCase.scene);
-  const part = benchmarkCase.scene.parts.values().next().value;
-  if (part === undefined) throw new Error(`${benchmarkCase.id} has no part`);
-  const uniqueTriangles = part.geometry.indices.length / 3;
-  const camera = fitCamera(createCamera(), part.bounds, WIDTH, HEIGHT);
+  const bounds = sceneWorldBounds(benchmarkCase.scene, runtime);
+  const camera = fitCamera(createCamera(), bounds, WIDTH, HEIGHT);
+  const uniqueTriangles = countUniqueTriangles(benchmarkCase);
   const samples = emptySamples();
   for (let index = 0; index < WARMUP_SAMPLES + TIMED_SAMPLES; index++) {
     const sample = await measureIteration(canvas, device, benchmarkCase, runtime, camera);
@@ -125,10 +132,16 @@ async function measureCase(
   }
   return {
     id: benchmarkCase.id,
+    name: benchmarkCase.name,
     kind: benchmarkCase.kind,
+    partCount: benchmarkCase.scene.parts.size,
+    drawBatchCount: benchmarkCase.scene.parts.size,
+    bodyCount: countBodies(benchmarkCase),
+    elementCount: countElements(benchmarkCase),
+    uniqueVertices: countUniqueVertices(benchmarkCase),
     uniqueTriangles,
-    submittedTriangles: uniqueTriangles * runtime.instanceCount,
-    visibleTriangles: uniqueTriangles * runtime.visibleCount,
+    submittedTriangles: submittedTriangleCount(benchmarkCase, runtime, false),
+    visibleTriangles: submittedTriangleCount(benchmarkCase, runtime, true),
     instanceCount: runtime.instanceCount,
     timings: summarize(samples),
     estimatedMemory: estimateBenchmarkMemory(
@@ -136,8 +149,52 @@ async function measureCase(
       runtime.instanceCount,
       WIDTH,
       HEIGHT,
+      benchmarkCase.partCount,
     ),
   };
+}
+
+function countUniqueVertices(benchmarkCase: WebGpuBenchmarkCase): number {
+  let count = 0;
+  for (const part of benchmarkCase.scene.parts.values())
+    count += part.geometry.positions.length / 3;
+  return count;
+}
+
+function countUniqueTriangles(benchmarkCase: WebGpuBenchmarkCase): number {
+  let count = 0;
+  for (const part of benchmarkCase.scene.parts.values()) {
+    count += part.geometry.indices.length / 3;
+  }
+  return count;
+}
+
+function countElements(benchmarkCase: WebGpuBenchmarkCase): number {
+  let count = 0;
+  for (const part of benchmarkCase.scene.parts.values())
+    count += part.geometry.elements?.length ?? 0;
+  return count;
+}
+
+function countBodies(benchmarkCase: WebGpuBenchmarkCase): number {
+  let count = 0;
+  for (const part of benchmarkCase.scene.parts.values()) count += part.geometry.bodies?.length ?? 0;
+  return count;
+}
+
+function submittedTriangleCount(
+  benchmarkCase: WebGpuBenchmarkCase,
+  runtime: ReturnType<typeof createPackedSceneRuntime>,
+  visibleOnly: boolean,
+): number {
+  let count = 0;
+  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
+    if (visibleOnly && !runtime.isInstanceVisible(slot)) continue;
+    const partId = runtime.instancePartIds[slot];
+    const part = partId === undefined ? undefined : benchmarkCase.scene.parts.get(partId);
+    if (part !== undefined) count += part.geometry.indices.length / 3;
+  }
+  return count;
 }
 
 async function measureIteration(

@@ -1,17 +1,33 @@
-import { createPart, type Geometry, type Part } from "../../src/geometry/part";
+import { createPart, type Part } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { createScene, type Scene } from "../../src/scene/scene";
+import { createPlanarGridGeometry } from "../fixture/planar-grid";
 import { createPerformancePreset } from "../fixture/performance-fixture";
 
-const PART_ID = 1;
 const ROOT_ASSEMBLY_ID = 1;
 
-export interface WebGpuBenchmarkCase {
+export type WebGpuBenchmarkKind =
+  "instancing-heavy" | "unique-geometry" | "many-parts" | "placement-heavy" | "body-heavy";
+
+export interface WebGpuBenchmarkSpec {
   readonly id: string;
-  readonly kind: "instancing-heavy" | "unique-geometry";
+  readonly name: string;
+  readonly kind: WebGpuBenchmarkKind;
+  readonly gridCells: number;
+  readonly partCount: number;
+  readonly instanceCount: number;
+  readonly bodyCount: number;
+}
+
+export interface WebGpuBenchmarkCase {
+  readonly id: WebGpuBenchmarkSpec["id"];
+  readonly name: WebGpuBenchmarkSpec["name"];
+  readonly kind: WebGpuBenchmarkKind;
   readonly scene: Scene;
   readonly gridCells: number;
+  readonly partCount: number;
   readonly instanceCount: number;
+  readonly bodyCount: number;
 }
 
 export interface BenchmarkMemoryEstimate {
@@ -28,23 +44,81 @@ export interface BenchmarkMemoryEstimate {
 }
 
 /** Returns the fixed benchmark matrix, optionally including the larger local case. */
-export function benchmarkCaseSpecs(includeLarge: boolean): readonly {
-  readonly id: string;
-  readonly kind: WebGpuBenchmarkCase["kind"];
-  readonly gridCells: number;
-  readonly instanceCount: number;
-}[] {
+export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchmarkSpec[] {
   return [
-    { id: "instanced-2.10m", kind: "instancing-heavy", gridCells: 128, instanceCount: 64 },
-    { id: "unique-250k", kind: "unique-geometry", gridCells: 354, instanceCount: 1 },
-    { id: "unique-1m", kind: "unique-geometry", gridCells: 707, instanceCount: 1 },
+    {
+      id: "instanced-2.10m",
+      name: "Performance Lab · 2.10M instanced triangles",
+      kind: "instancing-heavy",
+      gridCells: 128,
+      partCount: 1,
+      instanceCount: 64,
+      bodyCount: 0,
+    },
+    {
+      id: "unique-250k",
+      name: "Performance Lab · 250K unique triangles",
+      kind: "unique-geometry",
+      gridCells: 354,
+      partCount: 1,
+      instanceCount: 1,
+      bodyCount: 0,
+    },
+    {
+      id: "unique-1m",
+      name: "Performance Lab · 1M unique triangles",
+      kind: "unique-geometry",
+      gridCells: 707,
+      partCount: 1,
+      instanceCount: 1,
+      bodyCount: 0,
+    },
+    {
+      id: "many-parts-100",
+      name: "Performance Lab · 100 distinct parts",
+      kind: "many-parts",
+      gridCells: 71,
+      partCount: 100,
+      instanceCount: 100,
+      bodyCount: 0,
+    },
+    {
+      id: "many-parts-1000",
+      name: "Performance Lab · 1,000 distinct parts",
+      kind: "many-parts",
+      gridCells: 22,
+      partCount: 1_000,
+      instanceCount: 1_000,
+      bodyCount: 0,
+    },
+    {
+      id: "placements-10k",
+      name: "Performance Lab · 10K placements",
+      kind: "placement-heavy",
+      gridCells: 8,
+      partCount: 1,
+      instanceCount: 10_000,
+      bodyCount: 0,
+    },
+    {
+      id: "bodies-256",
+      name: "Performance Lab · 256 bodies",
+      kind: "body-heavy",
+      gridCells: 32,
+      partCount: 1,
+      instanceCount: 1,
+      bodyCount: 256,
+    },
     ...(includeLarge
       ? [
           {
             id: "unique-2m-local",
+            name: "Performance Lab · 2M unique triangles (local)",
             kind: "unique-geometry" as const,
             gridCells: 1_000,
+            partCount: 1,
             instanceCount: 1,
+            bodyCount: 0,
           },
         ]
       : []),
@@ -52,24 +126,16 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly {
 }
 
 /** Builds one deterministic benchmark scene without including generation in its timings. */
-export function createBenchmarkCase(spec: {
-  readonly id: string;
-  readonly kind: WebGpuBenchmarkCase["kind"];
-  readonly gridCells: number;
-  readonly instanceCount: number;
-}): WebGpuBenchmarkCase {
+export function createBenchmarkCase(spec: WebGpuBenchmarkSpec): WebGpuBenchmarkCase {
   if (spec.kind === "instancing-heavy") {
     return { ...spec, scene: createPerformancePreset().scene };
   }
-  const geometry = createGridGeometry(spec.gridCells);
-  const part: Part = createPart(PART_ID, geometry);
-  const scene = createScene()
-    .addPart(part)
-    .addAssembly({
-      id: ROOT_ASSEMBLY_ID,
-      name: spec.id,
-      placements: [{ kind: "part", partId: PART_ID, transform: translation(0, 0, 0) }],
-    })
+  const parts = createBenchmarkParts(spec);
+  const placements = createPlacements(spec, parts);
+  let builder = createScene();
+  for (const part of parts) builder = builder.addPart(part);
+  const scene = builder
+    .addAssembly({ id: ROOT_ASSEMBLY_ID, name: spec.id, placements })
     .withRoot(ROOT_ASSEMBLY_ID)
     .build();
   return { ...spec, scene };
@@ -81,13 +147,14 @@ export function estimateBenchmarkMemory(
   instanceCount: number,
   width: number,
   height: number,
+  partCount = 1,
 ): BenchmarkMemoryEstimate {
   const vertices = (gridCells + 1) ** 2;
   const triangles = gridCells * gridCells * 2;
   const edges = gridCells * gridCells * 3 + gridCells * 2;
-  const geometryBytes = vertices * 3 * 4 * 2 + triangles * 3 * 4;
-  const pickMetadataBytes = triangles * 4 * 2 + vertices * 4;
-  const edgeIndexBytes = edges * 2 * 4;
+  const geometryBytes = (vertices * 3 * 4 * 2 + triangles * 3 * 4) * partCount;
+  const pickMetadataBytes = (triangles * 4 * 2 + vertices * 4) * partCount;
+  const edgeIndexBytes = edges * 2 * 4 * partCount;
   const instanceBytes = instanceCount * (96 + 4 + 4);
   const fixedBufferBytes = 80 + 16 + 4 + (16 + 128 * 48);
   const totalBufferBytes =
@@ -110,35 +177,29 @@ export function estimateBenchmarkMemory(
   };
 }
 
-function createGridGeometry(cells: number): Geometry {
-  const positions = new Float32Array((cells + 1) * (cells + 1) * 3);
-  const indices = new Uint32Array(cells * cells * 6);
-  for (let y = 0; y <= cells; y++) {
-    for (let x = 0; x <= cells; x++) {
-      const offset = (y * (cells + 1) + x) * 3;
-      positions[offset] = x / cells;
-      positions[offset + 1] = y / cells;
-      positions[offset + 2] = 0;
-    }
+function createBenchmarkParts(spec: WebGpuBenchmarkSpec): Part[] {
+  const withFaces = spec.kind === "body-heavy";
+  return Array.from({ length: spec.partCount }, (_, index) => {
+    const bodyCount = index === 0 && spec.bodyCount > 0 ? spec.bodyCount : undefined;
+    const options = bodyCount === undefined ? { withFaces } : { withFaces, bodyCount };
+    return createPart(index + 1, createPlanarGridGeometry(spec.gridCells, options));
+  });
+}
+
+function createPlacements(
+  spec: WebGpuBenchmarkSpec,
+  parts: readonly Part[],
+): { readonly kind: "part"; readonly partId: number; readonly transform: Float32Array }[] {
+  if (spec.kind === "placement-heavy") {
+    return Array.from({ length: spec.instanceCount }, (_, index) => ({
+      kind: "part" as const,
+      partId: parts[0]?.id ?? 1,
+      transform: translation((index % 100) * 1.2, Math.floor(index / 100) * 1.2, 0),
+    }));
   }
-  for (let y = 0; y < cells; y++) {
-    for (let x = 0; x < cells; x++) {
-      const cell = y * cells + x;
-      const bottomLeft = y * (cells + 1) + x;
-      const bottomRight = bottomLeft + 1;
-      const topLeft = bottomLeft + cells + 1;
-      const topRight = topLeft + 1;
-      indices.set([bottomLeft, bottomRight, topRight, bottomLeft, topRight, topLeft], cell * 6);
-    }
-  }
-  const nodePickIds = new Uint32Array(positions.length / 3);
-  for (let node = 0; node < nodePickIds.length; node++) nodePickIds[node] = node + 1;
-  return {
-    positions,
-    indices,
-    primitive: "triangles",
-    elements: [{ id: 0, primitiveStart: 0, primitiveCount: indices.length / 3 }],
-    nodePickIds,
-    nodePositions: positions,
-  };
+  return parts.map((part, index) => ({
+    kind: "part" as const,
+    partId: part.id,
+    transform: translation((index % 32) * 1.2, Math.floor(index / 32) * 1.2, 0),
+  }));
 }

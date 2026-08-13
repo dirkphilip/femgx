@@ -6,9 +6,10 @@ import {
   type InteractionGranularity,
 } from "../../src/index";
 import { createModelPresets } from "../fixture/presets";
+import { benchmarkCaseSpecs } from "../benchmark/model";
 import { installDemoHarness } from "../devtools/harness";
 import { WorkbenchController } from "./controller";
-import { createExampleModel, type WorkbenchModel } from "./model";
+import { createExampleModel, createLazyBenchmarkModel, type WorkbenchModel } from "./model";
 import type { DemoView } from "./view";
 
 /** Inputs for the WebGPU demo path. */
@@ -27,7 +28,10 @@ export async function startWebGpuDemo(
   const presets = createModelPresets(
     options.testAlphaZero === true ? { transparencyOpacity: 0 } : undefined,
   );
-  const models = presets.map(createExampleModel);
+  const models: WorkbenchModel[] = [
+    ...presets.map(createExampleModel),
+    ...benchmarkCaseSpecs(false).map(createLazyBenchmarkModel),
+  ];
   const initialModel = models[0];
   if (initialModel === undefined) throw new Error("The demo requires at least one model preset");
 

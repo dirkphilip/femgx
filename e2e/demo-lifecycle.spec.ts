@@ -271,7 +271,7 @@ test("switches between deterministic model presets", async ({ page }) => {
   await page.goto("/");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
-  await expect(select.locator("option")).toHaveCount(7);
+  await expect(select.locator("option")).toHaveCount(14);
   await expect(select).toHaveValue("bolted");
   await expect(canvas).toHaveAttribute("data-model", "bolted");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
@@ -301,6 +301,17 @@ test("switches between deterministic model presets", async ({ page }) => {
       id === "results" || id === "hex20-cylinder" ? "deformed" : "base",
     );
   }
+});
+test("builds a benchmark matrix model only after explicit selection", async ({ page }) => {
+  await page.goto("/");
+  const select = page.getByTestId("model-select");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toHaveAttribute("data-model", "bolted");
+  await select.selectOption("bodies-256");
+  await expect(canvas).toHaveAttribute("data-model", "bodies-256");
+  await expect(page.getByTestId("model-feedback")).toBeHidden();
+  await expect(page.getByTestId("status")).toContainText("1 visible");
+  await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
 });
 test("opens the performance model through the normal demo path", async ({ page }) => {
   await page.goto("/");
