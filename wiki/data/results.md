@@ -67,6 +67,13 @@ host-supplied base value; result colors are an internal effective render state
 and never appear in that getter or in
 `ViewportResultsState`. Replacing results reuses the same scene/runtime and
 only updates the effective interaction colors and deformation state.
+Repeated `setResults()` calls are the host-owned load-step boundary: derived
+nodal color tables and per-part displacement arrays are reused when their
+authored typed-array references are unchanged, while a scale-only deformation
+change rewrites only the small deformation uniform. A new same-sized array is
+written into the existing GPU storage; device recovery retains and re-uploads
+only the latest active step. femgx does not store cases, own playback, or
+interpolate between fields.
 
 The `results` demo preset exercises this workflow with a static 4-by-2 Hex8 stress
 strip. Its eight elements share the 30 nodes of one conforming block, use dense

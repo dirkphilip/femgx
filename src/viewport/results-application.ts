@@ -10,19 +10,35 @@ import {
   type ViewportResultsState,
 } from "./results";
 
+interface ViewportResultsApplication {
+  readonly results: ViewportResultsConfig;
+  readonly scene: Scene;
+  readonly runtime: PackedSceneRuntime;
+  readonly interaction: InteractionState;
+  readonly renderer: WebGpuRenderer;
+  readonly previous?: ViewportResultsState;
+}
+
 /** Applies authored results to the renderer and returns the effective interaction state. */
-export function applyViewportResults(
-  results: ViewportResultsConfig,
-  scene: Scene,
-  runtime: PackedSceneRuntime,
-  interaction: InteractionState,
-  renderer: WebGpuRenderer,
-): { readonly results: ViewportResultsState; readonly interaction: InteractionState } {
-  const resolved = resolveViewportResults(results, scene, runtime);
-  renderer.setDeformation(resolved.deformation);
-  renderer.setResultColors(viewportResultColors(resolved));
+export function applyViewportResults(application: ViewportResultsApplication): {
+  readonly results: ViewportResultsState;
+  readonly interaction: InteractionState;
+} {
+  const resolved = resolveViewportResults(
+    application.results,
+    application.scene,
+    application.runtime,
+    application.previous,
+  );
+  application.renderer.setDeformation(resolved.deformation);
+  application.renderer.setResultColors(viewportResultColors(resolved));
   return {
     results: resolved,
-    interaction: resolveViewportInteraction(interaction, resolved, scene, runtime),
+    interaction: resolveViewportInteraction(
+      application.interaction,
+      resolved,
+      application.scene,
+      application.runtime,
+    ),
   };
 }

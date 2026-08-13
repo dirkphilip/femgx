@@ -427,13 +427,14 @@ class FemViewportCore implements FemViewport {
   }
 
   private applyResults(results: ViewportResultsConfig): void {
-    const applied = applyViewportResults(
+    const applied = applyViewportResults({
       results,
-      this.currentScene,
-      this.currentRuntime,
-      this.baseInteraction,
-      this.renderer,
-    );
+      scene: this.currentScene,
+      runtime: this.currentRuntime,
+      interaction: this.baseInteraction,
+      renderer: this.renderer,
+      ...(this.currentResults === undefined ? {} : { previous: this.currentResults }),
+    });
     this.currentResults = applied.results;
     this.effectiveInteraction = applied.interaction;
   }
