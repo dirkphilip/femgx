@@ -6,6 +6,7 @@ import { setTargetSelected } from "../../src/interaction/targets";
 import { translation } from "../../src/math/mat4";
 import { createScene } from "../../src/scene/scene";
 import { createFemViewport } from "../../src/viewport/fem-viewport";
+import type { FemViewport } from "../../src/viewport/types";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
 
 let restoreGpuGlobals: (() => void) | undefined;
@@ -199,6 +200,54 @@ describe("FemViewport", () => {
     expect(() => {
       viewport.render();
     }).toThrow("destroyed");
+  });
+
+  it("rejects every visibility mutation after destruction without changing state", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: gpu.device,
+    });
+    const visibilitySetters: readonly ((current: FemViewport) => void)[] = [
+      (current) => {
+        current.setPartVisible(1, false);
+      },
+      (current) => {
+        current.setAssemblyNodeVisible("1", false);
+      },
+      (current) => {
+        current.setAssemblyVisible(1, false);
+      },
+      (current) => {
+        current.setInstanceVisible("1/0", false);
+      },
+    ];
+    const before = {
+      drawList: viewport.runtime.getDrawList(),
+      instances: viewport.runtime.getInstances(),
+      nodes: viewport.runtime.getNodes(),
+      submissions: gpu.submissionCount,
+      writes: gpu.writes.length,
+    };
+
+    viewport.destroy();
+
+    for (const setVisible of visibilitySetters) {
+      expect(() => {
+        setVisible(viewport);
+      }).toThrow("FemViewport has been destroyed");
+    }
+    expect(viewport.runtime.getDrawList()).toEqual(before.drawList);
+    expect(viewport.runtime.getInstances()).toEqual(before.instances);
+    expect(viewport.runtime.getNodes()).toEqual(before.nodes);
+    expect(gpu.submissionCount).toBe(before.submissions);
+    expect(gpu.writes).toHaveLength(before.writes);
+    expect(() => {
+      viewport.destroy();
+    }).not.toThrow();
   });
 
   it("includes instance transforms when fitting the scene", async () => {
