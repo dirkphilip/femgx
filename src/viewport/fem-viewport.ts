@@ -26,8 +26,12 @@ import { flushViewportBatch } from "./batch";
 import { assertOriginTriad, sceneOriginTriadScale } from "./origin-triad";
 import type { DeformationState } from "../results/deform";
 import { createOrientationGizmo, type OrientationGizmoHandle } from "./orientation-gizmo";
-import { type ViewportResultsConfig, type ViewportResultsState } from "./results";
-import { applyViewportResults, resolveViewportInteractionState } from "./results-application";
+import {
+  resolveViewportInteraction,
+  type ViewportResultsConfig,
+  type ViewportResultsState,
+} from "./results";
+import { applyViewportResults } from "./results-application";
 import type {
   CameraTransitionOptions,
   FemViewport,
@@ -217,7 +221,7 @@ class FemViewportCore implements FemViewport {
   setInteraction(interaction: InteractionState): void {
     this.ensureAlive();
     this.baseInteraction = interaction;
-    this.effectiveInteraction = resolveViewportInteractionState(
+    this.effectiveInteraction = resolveViewportInteraction(
       interaction,
       this.currentResults,
       this.currentScene,

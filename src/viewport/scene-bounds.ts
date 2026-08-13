@@ -8,16 +8,13 @@ import { transformPoint } from "../math/mat4";
 import type { DeformationState } from "../results/deform";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
-import { displayedPartBounds, selectedGeometryBounds } from "./geometry-bounds";
-
-interface MutableBounds {
-  minX: number;
-  minY: number;
-  minZ: number;
-  maxX: number;
-  maxY: number;
-  maxZ: number;
-}
+import {
+  displayedPartBounds,
+  emptyBounds,
+  include,
+  selectedGeometryBounds,
+  type MutableBounds,
+} from "./geometry-bounds";
 
 /** Keeps an externally positioned camera in front of every placed part bound. */
 export function protectSceneCamera(
@@ -125,26 +122,6 @@ export function selectedSceneBounds(
     }
   }
   return isFiniteBounds(bounds) ? bounds : undefined;
-}
-
-function emptyBounds(): MutableBounds {
-  return {
-    minX: Infinity,
-    minY: Infinity,
-    minZ: Infinity,
-    maxX: -Infinity,
-    maxY: -Infinity,
-    maxZ: -Infinity,
-  };
-}
-
-function include(bounds: MutableBounds, point: readonly [number, number, number]): void {
-  bounds.minX = Math.min(bounds.minX, point[0]);
-  bounds.minY = Math.min(bounds.minY, point[1]);
-  bounds.minZ = Math.min(bounds.minZ, point[2]);
-  bounds.maxX = Math.max(bounds.maxX, point[0]);
-  bounds.maxY = Math.max(bounds.maxY, point[1]);
-  bounds.maxZ = Math.max(bounds.maxZ, point[2]);
 }
 
 function transformedBounds(

@@ -34,7 +34,6 @@ import {
 } from "./gpu-targets";
 import type { GpuValidationOptions } from "./gpu-validation";
 
-export { COLOR_SAMPLE_COUNT } from "./gpu-support";
 export type { DrawPipelines } from "./gpu-pipeline-builders";
 
 interface ReadyColorTargets {

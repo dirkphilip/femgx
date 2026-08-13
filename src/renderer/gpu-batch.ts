@@ -21,22 +21,13 @@ type DrawIntent =
   | { readonly kind: "edge"; readonly pipeline: GPURenderPipeline }
   | { readonly kind: "nodes"; readonly pipeline: GPURenderPipeline; readonly selection?: boolean };
 
-/** Inputs shared by one instanced batch draw. */
-export interface BatchDrawOptions {
-  readonly intent: DrawIntent;
-  readonly current: GPURenderPipeline | undefined;
-}
-
-/** Options controlling one collection of instanced draws. */
-export type DrawBatchOptions = DrawIntent;
-
 /** Issues all instanced draws for the cached per-part calls. */
 export function drawBatches(
   pass: GPURenderPassEncoder,
   draw: DrawResources,
   context: DrawCallContext,
   calls: readonly DrawCall[],
-  options: DrawBatchOptions = { kind: "surface", pass: "color" },
+  options: DrawIntent = { kind: "surface", pass: "color" },
 ): void {
   pass.setBindGroup(0, context.frameBindGroup);
   if (
@@ -55,12 +46,12 @@ export function drawBatches(
 }
 
 /** Uploads and draws one part batch, retaining the previous pipeline when skipped. */
-export function drawOneBatch(
+function drawOneBatch(
   pass: GPURenderPassEncoder,
   draw: DrawResources,
   context: DrawCallContext,
   call: DrawCall,
-  options: BatchDrawOptions,
+  options: { readonly intent: DrawIntent; readonly current: GPURenderPipeline | undefined },
 ): GPURenderPipeline | undefined {
   const { intent, current } = options;
   const orderKind =

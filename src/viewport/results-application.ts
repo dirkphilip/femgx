@@ -23,16 +23,6 @@ export function applyViewportResults(
   renderer.setResultColors(viewportResultColors(resolved));
   return {
     results: resolved,
-    interaction: resolveViewportInteractionState(interaction, resolved, scene, runtime),
+    interaction: resolveViewportInteraction(interaction, resolved, scene, runtime),
   };
-}
-
-/** Reconciles base interaction with the currently authored result presentation. */
-export function resolveViewportInteractionState(
-  interaction: InteractionState,
-  results: ViewportResultsState | undefined,
-  scene: Scene,
-  runtime: PackedSceneRuntime,
-): InteractionState {
-  return resolveViewportInteraction(interaction, results, scene, runtime);
 }

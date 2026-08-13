@@ -33,7 +33,6 @@ interface SelectionPipelineOptions {
   readonly depthFormat: GPUTextureFormat;
   readonly validation: GpuValidationOptions | undefined;
   readonly triangleVertex: GPUShaderModule;
-  readonly lineVertex: GPUShaderModule;
   readonly pointVertex: GPUShaderModule;
 }
 
@@ -83,7 +82,7 @@ export async function createSelectionPipelines(
     createPrimitiveSelectionPipelines({
       ...options,
       label: "line",
-      vertexModule: options.lineVertex,
+      vertexModule: options.triangleVertex,
       vertexEntry: "vertexMain",
       primitive: "line-list",
       visibleFragment: lineSelection,

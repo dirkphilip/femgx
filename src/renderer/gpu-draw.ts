@@ -17,10 +17,6 @@ import { createColorTargets, destroyColorTargets, type ColorTargets } from "./gp
 
 const POINT_SPRITE_INDICES = [0, 1, 2, 0, 2, 3] as const;
 
-function createGeometryBuffer(device: GPUDevice, data: Float32Array): GPUBuffer {
-  return createBuffer(device, data, GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE);
-}
-
 export {
   INSTANCE_STRIDE,
   EMISSIVE_BYTE_OFFSET,
@@ -100,7 +96,11 @@ export function uploadNodePart(
   }
   const resultTail = createResultColorTail(ids, resultColors);
   const vertexWithResults = appendResultColorTail(positions, resultTail);
-  const vertexBuffer = createGeometryBuffer(draw.device, vertexWithResults.data);
+  const vertexBuffer = createBuffer(
+    draw.device,
+    vertexWithResults.data,
+    GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
+  );
   const resource: PartResource = {
     vertexBuffer,
     indexBuffer: createBuffer(draw.device, indices, GPUBufferUsage.INDEX),

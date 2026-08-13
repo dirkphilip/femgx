@@ -151,8 +151,16 @@ function createSubsetBuffers(
   if (vertexData === undefined) return {};
   const subsetVertexWithResults = appendResultColorTail(vertexData.positions, resultTail);
   const subsetEdgeWithResults = appendResultColorTail(edgeData.positions, resultTail);
-  const subsetVertexBuffer = createGeometryBuffer(device, subsetVertexWithResults.data);
-  const subsetEdgeVertexBuffer = createGeometryBuffer(device, subsetEdgeWithResults.data);
+  const subsetVertexBuffer = createBuffer(
+    device,
+    subsetVertexWithResults.data,
+    GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
+  );
+  const subsetEdgeVertexBuffer = createBuffer(
+    device,
+    subsetEdgeWithResults.data,
+    GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
+  );
   return {
     subsetIndexBuffer: createIndexBuffer(device, vertexData.indices),
     subsetVertexBuffer,
@@ -186,7 +194,11 @@ function createEdgeBuffers(
   readonly resultColorBinding: { readonly buffer: GPUBuffer; readonly offset: number };
 } {
   const edgeWithResults = appendResultColorTail(edgeData.positions, resultTail);
-  const edgeVertexBuffer = createGeometryBuffer(device, edgeWithResults.data);
+  const edgeVertexBuffer = createBuffer(
+    device,
+    edgeWithResults.data,
+    GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
+  );
   return {
     edgeVertexBuffer,
     edgeIndexBuffer: createIndexBuffer(device, edgeData.indices),
@@ -205,8 +217,4 @@ function createIndexBuffer(device: GPUDevice, indices: Uint32Array): GPUBuffer {
     indices.length > 0 ? indices : new Uint32Array(1),
     GPUBufferUsage.INDEX,
   );
-}
-
-function createGeometryBuffer(device: GPUDevice, data: Float32Array): GPUBuffer {
-  return createBuffer(device, data, GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE);
 }

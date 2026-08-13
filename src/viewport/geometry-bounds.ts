@@ -12,7 +12,8 @@ import type { DeformationState } from "../results/deform";
 
 type EntityTarget = Extract<InteractionTarget, { kind: "body" | "element" | "face" | "node" }>;
 
-interface MutableBounds {
+/** Mutable bounds accumulator shared by viewport bounds calculations. */
+export interface MutableBounds {
   minX: number;
   minY: number;
   minZ: number;
@@ -227,7 +228,8 @@ function pointBounds(point: readonly [number, number, number]): Bounds {
   };
 }
 
-function emptyBounds(): MutableBounds {
+/** Creates an empty mutable bounds accumulator. */
+export function emptyBounds(): MutableBounds {
   return {
     minX: Infinity,
     minY: Infinity,
@@ -238,7 +240,8 @@ function emptyBounds(): MutableBounds {
   };
 }
 
-function include(bounds: MutableBounds, point: readonly [number, number, number]): void {
+/** Includes one point in a mutable bounds accumulator. */
+export function include(bounds: MutableBounds, point: readonly [number, number, number]): void {
   bounds.minX = Math.min(bounds.minX, point[0]);
   bounds.minY = Math.min(bounds.minY, point[1]);
   bounds.minZ = Math.min(bounds.minZ, point[2]);

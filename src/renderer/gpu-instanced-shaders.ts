@@ -157,9 +157,6 @@ function createInstanceVertexShader(): string {
 
 export const instanceVertexShader = createInstanceVertexShader();
 
-/** Line-list variant of the shared element vertex shader. */
-export const lineVertexShader = createInstanceVertexShader();
-
 /**
  * Vertex stage for point-sprite parts. Each point is a quad of four vertices
  * with the same center; `vertex_index % 4` selects the sprite corner, which

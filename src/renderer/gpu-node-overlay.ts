@@ -1,4 +1,3 @@
-import { pointVertexShader } from "./gpu-instanced-shaders";
 import { COLOR_SAMPLE_COUNT, vertexLayout } from "./gpu-support";
 import {
   createValidatedRenderPipeline,
@@ -16,7 +15,7 @@ interface NodeOverlayOptions {
   readonly instanceLayout: GPUBindGroupLayout;
   readonly format: GPUTextureFormat;
   readonly depthFormat: GPUTextureFormat;
-  readonly pointVertexModule: GPUShaderModule | undefined;
+  readonly pointVertexModule: GPUShaderModule;
   readonly validation: GpuValidationOptions | undefined;
 }
 
@@ -35,14 +34,6 @@ interface NodePipelineOptions extends NodeOverlayOptions {
 }
 
 async function createNodePipeline(options: NodePipelineOptions): Promise<GPURenderPipeline> {
-  const vertexModule =
-    options.pointVertexModule ??
-    (await createValidatedShaderModule(
-      options.device,
-      "node annotation vertex",
-      pointVertexShader,
-      options.validation,
-    ));
   const fragmentModule = await createValidatedShaderModule(
     options.device,
     "node annotation fragment",
@@ -52,7 +43,7 @@ async function createNodePipeline(options: NodePipelineOptions): Promise<GPURend
   return createValidatedRenderPipeline(options.device, "node annotation overlay", {
     layout: options.layout,
     vertex: {
-      module: vertexModule,
+      module: options.pointVertexModule,
       entryPoint: "nodeOverlayVertexMain",
       buffers: [vertexLayout],
     },

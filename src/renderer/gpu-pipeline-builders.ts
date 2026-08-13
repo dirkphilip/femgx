@@ -4,7 +4,7 @@ import {
   edgeVertexShader,
   triangleColorFragmentShader,
 } from "./gpu-shaders";
-import { instanceVertexShader, lineVertexShader, pointVertexShader } from "./gpu-instanced-shaders";
+import { instanceVertexShader, pointVertexShader } from "./gpu-instanced-shaders";
 import {
   lineNodePickVertexShader,
   nodePickFragmentShader,
@@ -68,7 +68,6 @@ interface PipelineSpec {
 
 interface PipelineShaders {
   readonly triangleVertex: GPUShaderModule;
-  readonly lineVertex: GPUShaderModule;
   readonly pointVertex: GPUShaderModule;
   readonly lineNodeVertex: GPUShaderModule;
   readonly pointNodeVertex: GPUShaderModule;
@@ -141,7 +140,6 @@ export async function createPipelineResources(
     depthFormat,
     validation,
     triangleVertex: shaders.triangleVertex,
-    lineVertex: shaders.lineVertex,
     pointVertex: shaders.pointVertex,
   });
   const pipelines: DrawPipelines = { ...basePipelines, ...selectionPipelines };
@@ -155,9 +153,8 @@ async function createPipelineShaders(
 ): Promise<PipelineShaders> {
   const compile = (label: string, code: string) =>
     createValidatedShaderModule(device, label, code, validation);
-  const [triangleVertex, lineVertex, pointVertex] = await Promise.all([
+  const [triangleVertex, pointVertex] = await Promise.all([
     compile("triangle color vertex", instanceVertexShader),
-    compile("line color vertex", lineVertexShader),
     compile("point color vertex", pointVertexShader),
   ]);
   const [lineNodeVertex, pointNodeVertex] = await Promise.all([
@@ -177,7 +174,6 @@ async function createPipelineShaders(
   ]);
   return {
     triangleVertex,
-    lineVertex,
     pointVertex,
     lineNodeVertex,
     pointNodeVertex,
@@ -199,7 +195,7 @@ function pipelineVariants(shaders: PipelineShaders): PipelineVariants {
       cullMode: "none",
     },
     lines: {
-      vertexModule: shaders.lineVertex,
+      vertexModule: shaders.triangleVertex,
       vertexEntry: "vertexMain",
       primitive: "line-list",
       cullMode: "none",
