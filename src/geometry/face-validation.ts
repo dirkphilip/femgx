@@ -1,5 +1,6 @@
 import type { FaceIdRef } from "../elements/faces";
 import { validateOneBasedId } from "./id-validation";
+import { faceIdentity } from "./element-face-selection";
 import type { ElementTessellation, FaceTessellation, Geometry, TriangleGeometry } from "./types";
 
 /** Validates that a render-time face subset resolves to declared face ranges. */
@@ -11,7 +12,7 @@ export function validateFaceSubset(geometry: Geometry): void {
   if (faces === undefined) throw new Error("faceSubset requires declared faces");
   const seen = new Set<string>();
   for (const ref of subset.faceIds) {
-    const identity = faceIdentity(ref);
+    const identity = faceIdentity(ref.elementId, ref.faceIndex);
     if (seen.has(identity)) {
       throw new Error(`faceSubset repeats element ${ref.elementId} face ${ref.faceIndex}`);
     }
@@ -44,7 +45,7 @@ export function validateFaceMetadata(geometry: Geometry): void {
     if (elementIds !== undefined && element === undefined) {
       throw new Error(`Face references undeclared element ${face.elementId}`);
     }
-    const identity = faceIdentity(face);
+    const identity = faceIdentity(face.elementId, face.faceIndex);
     if (identities.has(identity)) throw new Error(`Duplicate oriented face ${identity}`);
     identities.add(identity);
     validateFaceRange(face, geometry.indices.length / 3, element);
@@ -132,10 +133,6 @@ export function faceForPrimitive(
     (face) =>
       primitive >= face.primitiveStart && primitive < face.primitiveStart + face.primitiveCount,
   );
-}
-
-function faceIdentity(face: FaceIdRef): string {
-  return `${face.elementId}/${face.faceIndex}`;
 }
 
 function sameFace(face: FaceTessellation, ref: FaceIdRef): boolean {

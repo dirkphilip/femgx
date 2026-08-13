@@ -1,5 +1,6 @@
 import type { ElementId, NodeId } from "../elements/element";
 import type { FaceKey } from "../elements/faces";
+import { canonicalKey } from "../elements/keys";
 import type { PartId } from "./part";
 import {
   createPart,
@@ -158,7 +159,7 @@ function createRecord(
     input,
     triangles,
     faceIndex,
-    key: input.key ?? canonicalFaceKey(input.nodeIds),
+    key: input.key ?? canonicalKey(input.nodeIds),
   };
 }
 
@@ -270,8 +271,4 @@ function faceTessellation(
     neighborElementIds: [...(record.input.neighborElementIds ?? [])],
   };
   return bodyId === undefined ? face : { ...face, bodyId };
-}
-
-function canonicalFaceKey(nodeIds: readonly NodeId[]): FaceKey {
-  return [...nodeIds].sort((a, b) => a - b).join(",");
 }
