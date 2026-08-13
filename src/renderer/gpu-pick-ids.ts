@@ -84,20 +84,19 @@ export function buildNodeBodyPickData(
   spritePickIds?: ArrayLike<number>,
 ): Uint32Array {
   const nodeCount = (geometry.nodePositions?.length ?? 0) / 3;
-  const owners = nodeBodyOwners(geometry);
+  const elementOwners = nodeElementOwners(geometry);
   // The shared binding is array<vec3<u32>>, whose minimum valid storage
   // is one complete 12-byte record even when this part has no nodes. Node
   // topology ownership remains an array of owner/neighbor pairs below.
   const sprites =
     spritePickIds ?? Uint32Array.from({ length: nodeCount }, (_, nodeId) => nodeId + 1);
   const data = new Uint32Array(Math.max(5, sprites.length * 5));
-  const elementOwners = nodeElementOwners(geometry);
   for (let sprite = 0; sprite < sprites.length; sprite += 1) {
     const pickId = sprites[sprite] ?? 0;
-    const bodyIds = owners.get(pickId - 1);
     const elements = elementOwners.get(pickId - 1);
+    const bodyIds = new Set((elements ?? []).map((owner) => owner.bodyId));
     const base = sprite * 5;
-    const bodyId = bodyIds?.size === 1 ? [...bodyIds][0] : undefined;
+    const bodyId = bodyIds.size === 1 ? [...bodyIds][0] : undefined;
     const elementId = elements?.length === 1 ? elements[0]?.elementId : undefined;
     if (bodyId !== undefined) data[base + 1] = bodyId + 1;
     if (elementId !== undefined) data[base + 3] = elementId + 1;
@@ -152,7 +151,9 @@ function nodeElementOwners(geometry: Geometry): Map<number, NodeElementOwner[]> 
     const start = range.start * verticesPerPrimitive;
     const end = (range.start + range.count) * verticesPerPrimitive;
     for (let vertex = start; vertex < end; vertex += 1) {
-      const pickId = geometry.nodePickIds?.[vertex] ?? 0;
+      const vertexIndex = geometry.indices[vertex];
+      if (vertexIndex === undefined) continue;
+      const pickId = geometry.nodePickIds?.[vertexIndex] ?? 0;
       if (pickId === 0) continue;
       const byElement = owners.get(pickId - 1) ?? new Map<string, NodeElementOwner>();
       byElement.set(`${bodyId ?? "unowned"}/${element.id}`, { bodyId, elementId: element.id });
@@ -160,26 +161,6 @@ function nodeElementOwners(geometry: Geometry): Map<number, NodeElementOwner[]> 
     }
   }
   return new Map([...owners].map(([nodeId, values]) => [nodeId, [...values.values()]]));
-}
-
-function nodeBodyOwners(geometry: Geometry): Map<number, Set<number | undefined>> {
-  const owners = new Map<number, Set<number | undefined>>();
-  for (const element of geometry.elements ?? []) {
-    const bodyId = element.bodyId;
-    const range = primitiveRangeForElement(element);
-    const verticesPerPrimitive =
-      geometry.primitive === "lines" ? 2 : geometry.primitive === "points" ? 1 : 3;
-    const start = range.start * verticesPerPrimitive;
-    const end = (range.start + range.count) * verticesPerPrimitive;
-    for (let vertex = start; vertex < end; vertex += 1) {
-      const pickId = geometry.nodePickIds?.[vertex] ?? 0;
-      if (pickId === 0) continue;
-      const bodyIds = owners.get(pickId - 1) ?? new Set<number | undefined>();
-      bodyIds.add(bodyId);
-      owners.set(pickId - 1, bodyIds);
-    }
-  }
-  return owners;
 }
 
 /** Builds deterministic, ascending 1-based ids for the node sprites a part uses. */
