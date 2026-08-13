@@ -1,9 +1,9 @@
 import type { BoxSelectionRect } from "../interaction/box-selection";
-import { interactionTargetFromHit } from "../interaction/targets";
 import type { InteractionTarget } from "../interaction/target-types";
 import type { InteractionGranularity } from "../picking/types";
-import { resolvePickHit, type PickContext } from "../picking/pick";
+import type { PickContext } from "../picking/pick";
 import { decodePickId } from "./pick-format";
+import { createPickRegionTargetResolver } from "./gpu-pick-region-resolve";
 import {
   acquirePickReadback,
   READBACK_BYTE_STRIDE,
@@ -287,12 +287,11 @@ function resolveTargets(
   identities: Iterable<RawIdentity>,
   options: PickRegionOptions,
 ): readonly InteractionTarget[] {
+  const resolveTarget = createPickRegionTargetResolver(options.context, options.granularity);
   const resolved = new Map<string, ResolvedTarget>();
   for (const ids of identities) {
     try {
-      const hit = resolvePickHit(options.context, ids, [0, 0, 0]);
-      if (hit === undefined) continue;
-      const target = interactionTargetFromHit(hit, options.granularity);
+      const target = resolveTarget(ids);
       if (target === undefined) continue;
       const key = JSON.stringify(target);
       resolved.set(key, { target, order: targetOrder(target, ids.instancePickId) });
