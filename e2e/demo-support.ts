@@ -27,6 +27,13 @@ export async function waitForRenderer(page: Page): Promise<void> {
   });
 }
 
+/** Enables or disables the demo-private owning-element click policy. */
+export async function setElementSelection(page: Page, enabled: boolean): Promise<void> {
+  const toggle = page.getByTestId("element-select");
+  if ((await toggle.getAttribute("aria-pressed")) !== String(enabled)) await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", String(enabled));
+}
+
 /** Drags the primary button far enough to enter box-selection mode. */
 export async function primaryBoxDrag(
   page: Page,

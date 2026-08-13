@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { dataset, drawnPixels, pixelMetrics, requireHit, waitForRenderer } from "./demo-support";
+import {
+  dataset,
+  drawnPixels,
+  pixelMetrics,
+  requireHit,
+  setElementSelection,
+  waitForRenderer,
+} from "./demo-support";
 
 test("refits cleanly after switching from a larger gallery to the bolted model", async ({
   page,
@@ -85,6 +92,7 @@ test("keeps result-strip node and face picks on original ids after deformation",
   await page.goto("/");
   await waitForRenderer(page);
   await page.getByTestId("model-select").selectOption("results");
+  await setElementSelection(page, false);
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toHaveAttribute("data-results", "deformed");
 

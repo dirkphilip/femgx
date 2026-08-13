@@ -24,6 +24,7 @@ export interface WorkbenchFeatureOptions {
   readonly toggles: () => DisplayToggles;
   readonly resultMode: () => ResultDisplayMode;
   readonly continuous: () => boolean;
+  readonly elementSelectionEnabled: () => boolean;
   readonly interaction: () => InteractionState;
   readonly setInteraction: (interaction: InteractionState) => void;
   readonly applyDisplayedInteraction: () => void;
@@ -99,6 +100,7 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     partName: (partId) => options.model().partNames.get(partId),
     menu,
     render: options.render,
+    elementSelectionEnabled: options.elementSelectionEnabled,
     selectionFeedback: (message) => {
       setModelFeedback(options.view, message);
     },
@@ -111,6 +113,7 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     getToggles: options.toggles,
     getResultMode: options.resultMode,
     getContinuous: options.continuous,
+    getElementSelectionEnabled: options.elementSelectionEnabled,
     getInteraction: options.interaction,
     getRuntime: options.runtime,
   });

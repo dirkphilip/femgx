@@ -9,6 +9,7 @@ export {
   sweepForHit,
   targetPlanePoint,
 } from "./helpers";
+export { setElementSelection } from "./demo-support";
 
 /**
  * Required WebGPU browser coverage (category 1 in

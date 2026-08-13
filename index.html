@@ -552,6 +552,8 @@
           flex: 1 1 100%;
         }
         .toolbar-row-primary > #fit-view,
+        .toolbar-row-primary > #element-select,
+        .toolbar-row-primary > #viewport-toggle,
         .toolbar-row-primary > #projection-toggle {
           flex: 1 1 0;
         }
@@ -667,6 +669,16 @@
                 Fit model
               </button>
               <button
+                id="element-select"
+                data-testid="element-select"
+                type="button"
+                aria-pressed="true"
+                aria-label="Element select"
+                title="Select owning elements with click or box drag."
+              >
+                Element select
+              </button>
+              <button
                 id="viewport-toggle"
                 data-testid="viewport-toggle"
                 type="button"
@@ -745,7 +757,7 @@
               hidden
             ></div>
             <p id="interaction-help" data-testid="interaction-help" class="interaction-help">
-              Primary-button drag selects visible elements. Hold Ctrl or ⌘ while dragging to toggle.
+              Element select: click or drag to replace. Hold Ctrl or ⌘ to toggle.
             </p>
           </div>
           <div class="hud inspection" hidden>
@@ -784,6 +796,7 @@
             data-testid="secondary-view-canvas"
             width="800"
             height="600"
+            aria-describedby="interaction-help"
             aria-label="Secondary finite-element model view"
           ></canvas>
           <div

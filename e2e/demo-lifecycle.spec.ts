@@ -7,6 +7,7 @@ import {
   primaryBoxDrag,
   readNavigationState,
   requireHit,
+  setElementSelection,
   waitForRenderer,
 } from "./demo-support";
 test("renders the demo canvas with instanced geometry", async ({ page }) => {
@@ -49,7 +50,7 @@ test("selects visible elements with a primary drag and toggles them with Control
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
-  await expect(page.getByTestId("interaction-help")).toContainText("visible elements");
+  await expect(page.getByTestId("interaction-help")).toContainText("Element select");
 
   await primaryBoxDrag(page, canvas, { fx: 0.08, fy: 0.32 }, { fx: 0.92, fy: 0.92 });
   await page.mouse.up({ button: "left" });
@@ -154,6 +155,11 @@ test("opens two shared-state viewports with independent cameras and exact teardo
     "data-active",
     "true",
   );
+  await expect(primary).toHaveAttribute("data-selection-mode", "element");
+  await expect(secondary).toHaveAttribute("data-selection-mode", "element");
+  await setElementSelection(page, false);
+  await expect(primary).toHaveAttribute("data-selection-mode", "exact");
+  await expect(secondary).toHaveAttribute("data-selection-mode", "exact");
   expect(await drawnPixels(primary)).toBe(true);
   expect(await drawnPixels(secondary)).toBe(true);
 

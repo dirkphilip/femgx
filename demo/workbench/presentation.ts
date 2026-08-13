@@ -21,6 +21,7 @@ export interface WorkbenchPresentationOptions {
   readonly getInteraction: () => InteractionState;
   readonly getRuntime: () => SceneRuntime;
   readonly getContinuous: () => boolean;
+  readonly getElementSelectionEnabled: () => boolean;
 }
 
 /** Keeps status, toolbar reflection, model selection, and camera chrome in sync. */
@@ -101,6 +102,16 @@ export class WorkbenchPresentation {
       ? "Stop the recurring render-loop sample."
       : "Start a recurring render-loop sample for manual inspection.";
     this.options.canvas.dataset["continuous"] = String(enabled);
+  }
+
+  reflectElementSelection(): void {
+    const enabled = this.options.getElementSelectionEnabled();
+    this.options.view.elementSelectionToggle.setAttribute("aria-pressed", String(enabled));
+    this.options.view.elementSelectionToggle.setAttribute("aria-label", "Element select");
+    this.options.view.elementSelectionToggle.title = enabled
+      ? "Select owning elements with click or box drag."
+      : "Select exact nodes, faces, or elements with click.";
+    this.options.canvas.dataset["selectionMode"] = enabled ? "element" : "exact";
   }
 
   reflectBackground(background: ViewportBackground): void {

@@ -35,6 +35,7 @@ export interface DemoView {
   readonly glbFileInput: HTMLInputElement;
   readonly modelFeedback: HTMLElement;
   readonly fitView: HTMLButtonElement;
+  readonly elementSelectionToggle: HTMLButtonElement;
   readonly projectionToggle: HTMLButtonElement;
   readonly backgroundSelect: HTMLSelectElement;
   readonly edgeOverlayToggle: HTMLButtonElement;
@@ -80,6 +81,7 @@ export function queryDemoView(): DemoView {
   const glbFileInput = document.querySelector<HTMLInputElement>("#glb-file");
   const modelFeedback = document.querySelector<HTMLElement>("#model-feedback");
   const fitView = document.querySelector<HTMLButtonElement>("#fit-view");
+  const elementSelectionToggle = document.querySelector<HTMLButtonElement>("#element-select");
   const projectionToggle = document.querySelector<HTMLButtonElement>("#projection-toggle");
   const backgroundSelect = document.querySelector<HTMLSelectElement>("#background-select");
   const edgeOverlayToggle = document.querySelector<HTMLButtonElement>("#edge-overlay");
@@ -109,6 +111,7 @@ export function queryDemoView(): DemoView {
     glbFileInput === null ||
     modelFeedback === null ||
     fitView === null ||
+    elementSelectionToggle === null ||
     projectionToggle === null ||
     backgroundSelect === null ||
     edgeOverlayToggle === null ||
@@ -140,6 +143,7 @@ export function queryDemoView(): DemoView {
     glbFileInput,
     modelFeedback,
     fitView,
+    elementSelectionToggle,
     projectionToggle,
     backgroundSelect,
     edgeOverlayToggle,
