@@ -5,14 +5,17 @@ reads as a dimensionally stable CAD view. Perspective remains an explicit
 supported mode. Framing is calculated from all eight bounds corners and the
 viewport aspect ratio. `fitCamera` preserves the current view direction/up
 vector, retargets to the bounds center, and solves a 90% frame margin for
-perspective distance or orthographic height. The same policy serves fit-to-view,
+perspective distance or orthographic height. Hosts may provide a CSS-pixel
+`fitContentInset` callback when overlays obscure part of the canvas; fitting
+then uses and centers within the remaining rectangle. The same policy serves fit-to-view,
 preset changes, reset, and fit-to-selection; no preset-specific distance is
 needed.
 
 Projection changes preserve vertical framing: converting from perspective derives
 an orthographic height from camera distance, while converting back derives a
-distance from that height. This avoids the apparent zoom jump that previously made
-the perspective toggle look broken. See [[rendering/interactive-state|Interactive state]] for the related
+distance from that height. The demo refits after each explicit projection toggle,
+so a previously complete model remains complete under the new projection and
+overlay inset. See [[rendering/interactive-state|Interactive state]] for the related
 interaction model and [[rendering/element-rendering|Element rendering]] for the demo geometry modes.
 
 The public `installCameraControls` helper uses middle-drag to spin,
@@ -113,7 +116,11 @@ interruptible by direct camera manipulation, another camera command, scene
 replacement, resize, or destruction. Hosts opt into the core `Z` shortcut by
 passing `FemViewportOptions.keyboardTarget`; no global listener is installed,
 and repeat, modifiers, and editable targets are ignored. Reduced-motion
-preferences make transitions immediate.
+preferences make transitions immediate. A viewport created without an explicit
+camera tracks an auto-fitted presentation: responsive `resize()` refits that
+presentation using the current canvas size and `fitContentInset`, while direct
+camera manipulation opts out until the host calls `fitView()` again. This keeps
+user-authored zoom/orbit state intact during layout changes.
 
 Camera admission through `createCamera` and `FemViewport.setCamera` rejects
 non-finite vectors/scalars, degenerate view bases, invalid field of view or

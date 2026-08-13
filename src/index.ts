@@ -175,7 +175,7 @@ export {
   type RenderPixel,
 } from "./camera/coordinates";
 export { projectPolygon, type ScreenPoint } from "./camera/project-polygon";
-export { fitCamera } from "./camera/fit";
+export { fitCamera, type CameraContentInset } from "./camera/fit";
 export {
   installCameraControls,
   type CameraControlOptions,

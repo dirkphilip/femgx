@@ -104,6 +104,7 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
           viewport.camera.mode === "perspective" ? "orthographic" : "perspective",
         ),
       );
+      viewport.fitView();
     },
     { signal },
   );

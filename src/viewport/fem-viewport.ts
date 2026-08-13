@@ -15,6 +15,7 @@ import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { sceneWorldBounds, sceneWorldBoundsList } from "./scene-bounds";
 import { cssSize, installResize, installViewportKeyboard, validateOrientationGizmo } from "./dom";
 import { CameraFocusController } from "./camera-focus";
+import type { DeformationState } from "../results/deform";
 import { createOrientationGizmo, type OrientationGizmoHandle } from "./orientation-gizmo";
 import {
   resolveViewportInteraction,
@@ -73,6 +74,7 @@ class FemViewportCore implements FemViewport {
   private batchDirty = false;
   private readonly pendingVisibility = new Set<number>();
   private destroyed = false;
+  private autoFitOnResize = false;
   private background: ViewportBackground;
 
   constructor(
@@ -87,21 +89,16 @@ class FemViewportCore implements FemViewport {
       options.interaction ?? createInteractionState();
     this.cameraRef = { camera: options.camera ?? createCamera() };
     const deformation = () => this.currentResults?.deformation;
-    this.cameraFocus = new CameraFocusController({
-      cameraRef: this.cameraRef,
-      canvas: options.canvas,
-      scene: () => this.currentScene,
-      runtime: () => this.currentRuntime,
-      interaction: () => this.baseInteraction,
-      deformation,
-      invalidate: this.invalidate.bind(this),
-    });
+    this.cameraFocus = this.createCameraFocus(options, deformation);
     this.removeKeyboard = installViewportKeyboard(options.keyboardTarget, () => {
       this.fitSelection();
     });
     assertValidCamera(this.cameraRef.camera);
     this.resize(false);
-    if (options.camera === undefined) this.cameraFocus.fitView(undefined, false);
+    if (options.camera === undefined) {
+      this.autoFitOnResize = true;
+      this.cameraFocus.fitView(undefined, false);
+    }
     this.removeControls = installCameraControlsWithProtectedBounds({
       canvas: options.canvas,
       cameraRef: this.cameraRef,
@@ -111,7 +108,10 @@ class FemViewportCore implements FemViewport {
         sceneWorldBoundsList(this.currentScene, this.currentRuntime, deformation()),
       onRender: this.invalidate.bind(this),
       onGestureChange: (active) => {
-        if (active) this.cameraFocus.cancel();
+        if (active) {
+          this.autoFitOnResize = false;
+          this.cameraFocus.cancel();
+        }
         options.onGestureChange?.(active);
       },
     });
@@ -131,6 +131,24 @@ class FemViewportCore implements FemViewport {
       this.destroy();
       throw error;
     }
+  }
+
+  private createCameraFocus(
+    options: FemViewportOptions,
+    deformation: () => DeformationState | undefined,
+  ): CameraFocusController {
+    return new CameraFocusController({
+      cameraRef: this.cameraRef,
+      canvas: options.canvas,
+      scene: () => this.currentScene,
+      runtime: () => this.currentRuntime,
+      interaction: () => this.baseInteraction,
+      deformation,
+      ...(options.fitContentInset === undefined
+        ? {}
+        : { fitContentInset: options.fitContentInset }),
+      invalidate: this.invalidate.bind(this),
+    });
   }
 
   get scene(): Scene {
@@ -159,6 +177,7 @@ class FemViewportCore implements FemViewport {
     this.currentResults = undefined;
     this.effectiveInteraction = this.baseInteraction;
     this.appliedInteraction = createInteractionState();
+    this.autoFitOnResize = true;
     this.renderer.setDeformation(undefined);
     this.renderer.setResultColors(undefined);
     this.cameraFocus.fitView(undefined, false);
@@ -167,16 +186,19 @@ class FemViewportCore implements FemViewport {
 
   setCamera(camera: Camera, transitionOptions?: CameraTransitionOptions): void {
     this.ensureAlive();
+    this.autoFitOnResize = false;
     this.cameraFocus.setCamera(camera, transitionOptions);
   }
 
   fitView(transitionOptions?: CameraTransitionOptions): void {
     this.ensureAlive();
+    this.autoFitOnResize = true;
     this.cameraFocus.fitView(transitionOptions, true);
   }
 
   fitSelection(transitionOptions?: CameraTransitionOptions): void {
     this.ensureAlive();
+    this.autoFitOnResize = false;
     this.cameraFocus.fitSelection(transitionOptions);
   }
 
@@ -271,10 +293,12 @@ class FemViewportCore implements FemViewport {
   }
   resize(invalidate = true): void {
     this.ensureAlive();
+    const refit = this.autoFitOnResize;
     this.cameraFocus.cancel();
     const size = cssSize(this.options.canvas);
     this.renderer.resize(size.width, size.height);
     this.cameraRef.camera = resizeCamera(this.cameraRef.camera, size.width, size.height);
+    if (refit) this.cameraFocus.fitView(undefined, false);
     if (invalidate) this.invalidate();
   }
 

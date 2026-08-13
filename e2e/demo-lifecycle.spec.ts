@@ -3,7 +3,9 @@ import {
   dataset,
   distinctColors,
   drawnPixels,
+  expectBoundsClippedSafely,
   primaryBoxDrag,
+  readNavigationState,
   requireHit,
   waitForRenderer,
 } from "./demo-support";
@@ -93,6 +95,44 @@ test("defaults to the bolted plate assembly showcase", async ({ page }) => {
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "bolted");
   await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
   await expect(page.getByTestId("status")).toContainText("34 visible");
+});
+test("preserves useful framing across projection and phone resize", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await page.getByTestId("model-select").selectOption("transparency");
+  await expect(canvas).toHaveAttribute("data-model", "transparency");
+
+  await expect
+    .poll(async () => (await readNavigationState(canvas)).camera.mode)
+    .toBe("orthographic");
+  await page.getByTestId("projection-toggle").click();
+  await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
+  await expect
+    .poll(async () => (await readNavigationState(canvas)).camera.mode)
+    .toBe("perspective");
+  let navigation = await readNavigationState(canvas);
+  expect(navigation.camera.mode).toBe("perspective");
+  expectBoundsClippedSafely(navigation.camera, navigation.bounds);
+  expect(await drawnPixels(canvas)).toBe(true);
+
+  await page.getByTestId("projection-toggle").click();
+  await expect(page.getByTestId("projection-toggle")).toHaveText("Orthographic");
+  await expect
+    .poll(async () => (await readNavigationState(canvas)).camera.mode)
+    .toBe("orthographic");
+  navigation = await readNavigationState(canvas);
+  expectBoundsClippedSafely(navigation.camera, navigation.bounds);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(async () => (await readNavigationState(canvas)).camera.width)
+    .toBeGreaterThan(300);
+  navigation = await readNavigationState(canvas);
+  expect(navigation.camera.height).toBeGreaterThan(400);
+  expectBoundsClippedSafely(navigation.camera, navigation.bounds);
+  expect(await drawnPixels(canvas)).toBe(true);
 });
 test("opens two shared-state viewports with independent cameras and exact teardown", async ({
   page,
@@ -267,6 +307,8 @@ test("updates existing view-cube nodes after camera movement", async ({ page }) 
   if (box === null) throw new Error("canvas has no bounding box");
   await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
   await page.mouse.down({ button: "middle" });
+  await expect(canvas).toHaveAttribute("data-dragging", "true");
+  await page.waitForTimeout(100);
   await page.mouse.move(box.x + box.width * 0.62, box.y + box.height * 0.42);
   await page.mouse.up({ button: "middle" });
   await expect.poll(() => front.locator("polygon").getAttribute("points")).not.toBe(before);
