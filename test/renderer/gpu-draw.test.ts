@@ -105,6 +105,7 @@ function drawContext(): DrawCallContext {
     instanceLayout: {} as GPUBindGroupLayout,
     parts: new Map([[part.id, part]]),
     pipelines: {} as DrawPipelines,
+    resultColors: undefined,
   };
 }
 
@@ -119,12 +120,12 @@ describe("GPU draw path", () => {
       expect(second).toBe(first);
       expect(second.indexCount).toBe(3);
       expect(gpu.buffers).toHaveLength(8);
-      expect(gpu.buffers[0]?.size).toBe(36);
+      expect(gpu.buffers[0]?.size).toBe(68);
       expect(gpu.buffers[1]?.size).toBe(12);
       expect(gpu.buffers[2]?.size).toBe(4);
       expect(gpu.buffers[3]?.size).toBe(12);
       expect(gpu.buffers[4]?.size).toBe(144);
-      expect(gpu.buffers[5]?.size).toBe(72);
+      expect(gpu.buffers[5]?.size).toBe(104);
       expect(gpu.buffers[6]?.size).toBe(24);
       expect(gpu.buffers[7]?.size).toBe(24);
     } finally {
@@ -175,7 +176,7 @@ describe("GPU draw path", () => {
       const draw = createDrawResources(gpu.device);
       const resource = uploadPart(draw, logicalPointPart);
       expect(resource.indexCount).toBe(12);
-      expect(gpu.buffers[0]?.size).toBe(96);
+      expect(gpu.buffers[0]?.size).toBe(160);
       expect(gpu.buffers[1]?.size).toBe(48);
       expect(gpu.buffers[2]?.size).toBe(8);
       expect(gpu.buffers[3]?.size).toBe(32);
@@ -547,6 +548,7 @@ describe("GPU draw path", () => {
           [pointPart.id, pointPart],
         ]),
         pipelines,
+        resultColors: undefined,
       };
       const encoder = gpu.device.createCommandEncoder();
       const pass = beginColorPass(

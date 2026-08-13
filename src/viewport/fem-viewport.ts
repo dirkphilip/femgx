@@ -19,6 +19,7 @@ import { createOrientationGizmo, type OrientationGizmoHandle } from "./orientati
 import {
   resolveViewportInteraction,
   resolveViewportResults,
+  viewportResultColors,
   type ViewportResultsConfig,
   type ViewportResultsState,
 } from "./results";
@@ -159,6 +160,7 @@ class FemViewportCore implements FemViewport {
     this.effectiveInteraction = this.baseInteraction;
     this.appliedInteraction = createInteractionState();
     this.renderer.setDeformation(undefined);
+    this.renderer.setResultColors(undefined);
     this.cameraFocus.fitView(undefined, false);
     this.invalidate();
   }
@@ -212,6 +214,7 @@ class FemViewportCore implements FemViewport {
     this.currentResults = undefined;
     this.effectiveInteraction = this.baseInteraction;
     this.renderer.setDeformation(undefined);
+    this.renderer.setResultColors(undefined);
     this.invalidate();
   }
 
@@ -386,6 +389,7 @@ class FemViewportCore implements FemViewport {
       this.currentRuntime,
     );
     this.renderer.setDeformation(resolved.deformation);
+    this.renderer.setResultColors(viewportResultColors(resolved));
   }
 
   private ensureAlive(): void {

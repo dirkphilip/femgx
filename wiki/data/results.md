@@ -2,37 +2,25 @@
 
 Engineering analysis results are first-class CPU-side data in `src/results/`
 (no WebGPU coupling), exported through `src/index.ts`. They describe values per
-node or per element and derive scalar quantities for visualization.
+node or per element and map authored scalar values for visualization.
 
 ## Result fields
 
 `createResultField` builds a typed `ResultField<shape, location>`:
 
-- Locations are `nodal` or `elemental`; shapes are `scalar`, `vector`, or
-  `tensor` (a symmetric 3x3 in Voigt order `[xx, yy, zz, xy, yz, zx]`).
+- Locations are `nodal` or `elemental`; retained result shapes are `scalar` and
+  `vector`. Viewport coloring accepts authored scalar fields at either location;
+  authored nodal vectors remain the deformation input.
 - `values` is `count * FIELD_COMPONENT_COUNT[shape]` floats, one entity after
   another, index-aligned with the owning model's node/element numbering. The
   array is referenced (not copied) so large models stay cheap; treat it as
   immutable after construction.
 - `unit` is an opaque display string ("mm", "MPa", ...); the library never
-  converts units and derived fields inherit the source unit.
-- Missing values are `NaN` anywhere a component is unknown. Derived quantities,
-  ranges, and the color map all skip or propagate `NaN` rather than treating it
-  as zero.
-- Accessors `scalarAt` / `vectorAt` / `tensorAt` read one entity and throw on
+  converts units.
+- Missing values are `NaN` anywhere a component is unknown. Ranges and the color
+  map treat `NaN` as missing rather than as zero.
+- Accessors `scalarAt` / `vectorAt` read one entity and throw on
   out-of-range indices.
-
-## Derived quantities (`derived.ts`)
-
-- `magnitude` / `tensorMagnitude` — vector length and tensor Frobenius norm.
-- `vonMises` — von Mises equivalent stress of a symmetric stress tensor.
-- `principalValues` — eigenvalues of a symmetric 3x3 tensor, sorted descending,
-  via the analytic trigonometric (Cardano) solution; exact for diagonal tensors
-  and NaN-safe. `principals` returns all three per entity; `maxPrincipalField`
-  exposes the largest.
-- Field-level helpers return `Float32Array`s (`magnitudes`, `vonMisesValues`,
-  `principals`) and field builders (`magnitudeField`, `vonMisesField`,
-  `maxPrincipalField`) that keep the source location and unit.
 
 ## Ranges (`range.ts`)
 
@@ -50,38 +38,39 @@ default blue-cyan-yellow-red ramp. `mapScalar`:
 - optionally maps into discrete bands via ascending `thresholds`,
 - returns `missingColor` (default gray) for `NaN`.
 
-Mapped colors are plain `Color` values, so they feed the existing per-instance
-GPU color attribute path (via interaction style overrides) without renderer
-changes — see [[rendering/interactive-state|Interactive state]].
+Mapped colors are plain `Color` values. Elemental results layer them into the
+viewport's private element styles; nodal results upload one color table per part
+indexed by exact one-based node pick id, and the existing tessellation
+interpolates those colors on the GPU. Both paths preserve host interaction state.
 
 ## Canonical viewport workflow
 
-`FemViewport.setResults({ field, derive, range, colorMap, deformation })` composes
-these helpers into the supported static visualization path. The field must be
-elemental so each part element occurrence receives one mapped color. Scalar
-fields are used directly; vector fields support `magnitude`, and tensor fields
-support `magnitude`, `vonMises`, or `maxPrincipal`. An omitted range is computed
-from finite values (constant fields receive a small expanded range), while an
-explicit color map must use the same range.
+`FemViewport.setResults({ field, range, colorMap, deformation })` composes these
+helpers into the supported static visualization path. An authored scalar field
+may be nodal or elemental. Nodal values map through exact node pick ids and
+interpolate over existing tessellation nodes; elemental values map directly to
+element ids and render flat. An omitted range is computed from finite values
+(constant fields receive a small expanded range), while an explicit color map
+must use the same range.
 
 An optional nodal vector field is converted into one GPU deformation buffer per
 scene part. The viewport validates that every rendered part has node pick ids and
 that every referenced element/node has a field value. `clearResults()` restores
 the base interaction state, disables deformation, and leaves the authoritative
 scene geometry untouched. `FemViewport.interaction` always returns the exact
-host-supplied base value; result-derived element colors are an internal
-effective render state and never appear in that getter or in
+host-supplied base value; result colors are an internal effective render state
+and never appear in that getter or in
 `ViewportResultsState`. Replacing results reuses the same scene/runtime and
 only updates the effective interaction colors and deformation state.
 
 The `results` demo preset exercises this workflow with a static 4-by-2 Hex8 stress
 strip. Its eight elements share the 30 nodes of one conforming block, use dense
-element ids aligned directly with the eight tensor values, and apply a small
+element ids aligned directly with eight authored scalar values, and apply a small
 curved/tapered nodal displacement. This makes the `results` demo visibly show
 multiple scalar bands while retaining the same static viewport path:
 the public API supports the undeformed/base state via `clearResults()`, the
-colored state via `setResults({ field, derive: "vonMises" })`, and the combined
-colored/deformed state by adding `deformation`.
+colored state via `setResults({ field })`, and the combined colored/deformed
+state by adding `deformation`.
 
 ## Deformation (`deform.ts`)
 

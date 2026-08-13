@@ -11,7 +11,7 @@
 - [[data/glb-import|GLB display-scene import]] — bytes-only CAD scene mapping,
   diagnostics, styles, and compression evidence.
 - [[data/results|Results, deformation, and scalar visualization]] — typed
-  engineering fields, derived quantities, and visualization data.
+  authored result fields, scalar mapping, deformation, and visualization data.
 
 [data/elements-topology|Element topology]: elements-topology.md
 [data/fe-fixture|FE fixture]: fe-fixture.md

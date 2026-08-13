@@ -104,6 +104,29 @@ export const instanceBindings = /* wgsl */ `
 @group(1) @binding(6) var<storage, read> vertexNodePickIds: array<u32>;
 `;
 
+/** Shared lookup for renderer-owned nodal scalar colors. */
+export const resultColorFunctions = /* wgsl */ `
+fn resultColorActive(nodePickId: u32) -> bool {
+  let metadata = arrayLength(&geometryPositions) - 4u;
+  return nodePickId != 0u && geometryPositions[metadata] >= 0.0;
+}
+
+fn resultColorForNode(nodePickId: u32, fallback: vec4<f32>) -> vec4<f32> {
+  if (!resultColorActive(nodePickId)) {
+    return fallback;
+  }
+  let metadata = arrayLength(&geometryPositions) - 4u;
+  let nodeCount = u32(geometryPositions[metadata + 1u]);
+  let base = metadata - nodeCount * 4u + nodePickId * 4u;
+  return vec4<f32>(
+    geometryPositions[base],
+    geometryPositions[base + 1u],
+    geometryPositions[base + 2u],
+    geometryPositions[base + 3u],
+  );
+}
+`;
+
 /** Shared geometry position buffer and topology-backed primitive lookup. */
 export const geometryPositionBindings = /* wgsl */ `
 @group(1) @binding(7) var<storage, read> geometryPositions: array<f32>;
@@ -177,6 +200,8 @@ struct VertexOutput {
   @location(7) @interpolate(flat) nodeDepth: f32,
   @location(8) worldPosition: vec3<f32>,
   @location(9) @interpolate(flat) selected: u32,
+  @location(10) resultColor: vec4<f32>,
+  @location(11) @interpolate(flat) resultColorEnabled: u32,
 };
 `;
 
@@ -256,9 +281,16 @@ fn packPickId(pickId: u32) -> vec4<f32> {
 /** Fragment stage for the visible color pass; emissive adds a white glow. */
 export const colorFragmentShader = /* wgsl */ `
 @fragment
-fn fragmentMain(@location(0) @interpolate(flat) color: vec4<f32>, @location(2) @interpolate(flat) emissive: f32, @location(5) local: vec2<f32>) -> @location(0) vec4<f32> {
-  if (dot(local, local) > 1.0 || color.a < 1.0) { discard; }
-  return vec4<f32>(color.rgb + vec3<f32>(emissive), color.a);
+fn fragmentMain(
+  @location(0) @interpolate(flat) color: vec4<f32>,
+  @location(2) @interpolate(flat) emissive: f32,
+  @location(5) local: vec2<f32>,
+  @location(10) resultColor: vec4<f32>,
+  @location(11) @interpolate(flat) resultColorEnabled: u32,
+) -> @location(0) vec4<f32> {
+  let displayedColor = select(color, resultColor, resultColorEnabled != 0u);
+  if (dot(local, local) > 1.0 || displayedColor.a < 1.0) { discard; }
+  return vec4<f32>(displayedColor.rgb + vec3<f32>(emissive), displayedColor.a);
 }
 `;
 
@@ -275,15 +307,18 @@ fn fragmentMain(
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
   @location(8) worldPosition: vec3<f32>,
+  @location(10) resultColor: vec4<f32>,
+  @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> @location(0) vec4<f32> {
-  if (dot(local, local) > 1.0 || color.a < 1.0) { discard; }
+  let displayedColor = select(color, resultColor, resultColorEnabled != 0u);
+  if (dot(local, local) > 1.0 || displayedColor.a < 1.0) { discard; }
   let litColor = surfaceLighting(
     worldPosition,
-    color.rgb,
+    displayedColor.rgb,
     camera.keyLightDirection.xyz,
     camera.viewDirection.xyz,
   );
-  return vec4<f32>(litColor + vec3<f32>(emissive), color.a);
+  return vec4<f32>(litColor + vec3<f32>(emissive), displayedColor.a);
 }
 `;
 

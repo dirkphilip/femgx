@@ -12,7 +12,7 @@ import type { ModelPreset } from "./presets";
 
 const RESULTS_PART_ID: PartId = 20;
 
-/** Builds the demo's small static stress/deformation results workflow. */
+/** Builds the demo's small authored-scalar/deformation results workflow. */
 export function createResultsPreset(): ModelPreset {
   const model = createResultsModel();
   const part = heterogeneousElementParts({ triangle: RESULTS_PART_ID }, model).triangle;
@@ -30,7 +30,7 @@ export function createResultsPreset(): ModelPreset {
     id: "demo-stress",
     name: "Demo stress",
     location: "elemental",
-    shape: "tensor",
+    shape: "scalar",
     count: model.elements.length,
     unit: "MPa",
     values: createStressValues(model.elements.length),
@@ -46,7 +46,7 @@ export function createResultsPreset(): ModelPreset {
   });
   return {
     id: "results",
-    name: "Static results · stress + deformation",
+    name: "Static results · scalar + deformation",
     scene,
     elementModels: new Map([[RESULTS_PART_ID, model]]),
     partColors: new Map([[RESULTS_PART_ID, { r: 0.48, g: 0.55, b: 0.68, a: 1 }]]),
@@ -55,7 +55,6 @@ export function createResultsPreset(): ModelPreset {
     bounds: part.bounds,
     results: {
       field: stress,
-      derive: "vonMises",
       deformation: { field: displacement, scale: 1 },
     },
   };
@@ -93,9 +92,9 @@ function createResultsModel() {
 }
 
 function createStressValues(elementCount: number): Float32Array {
-  const values = new Float32Array(elementCount * 6);
+  const values = new Float32Array(elementCount);
   for (let element = 0; element < elementCount; element += 1) {
-    values[element * 6] = 10 + element * 10;
+    values[element] = 10 + element * 10;
   }
   return values;
 }

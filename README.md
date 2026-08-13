@@ -125,10 +125,9 @@ const { createScene, createFemViewport, createResultField, importGlb } = require
   not mutate or reuse those arrays after construction. For a mixed finite-element model, use
   `heterogeneousElementParts()` to create one homogeneous reusable part per GPU topology, then
   compose and place those parts in an `Assembly`.
-- `createResultField()` builds typed nodal/elemental scalar, vector, and tensor fields; the
-  results API adds derived quantities (magnitude, von Mises, principal values), value ranges,
-  scalar color mapping with optional thresholds, and deformed-shape geometry with a
-  configurable scale.
+- `createResultField()` builds typed nodal/elemental scalar and nodal vector fields; the
+  results API maps authored scalar values, supports optional thresholds, and keeps
+  authored nodal deformation on the existing GPU path with a configurable scale.
 
 GLB is the narrow CAD display-scene import path. It accepts self-contained GLB 2.0 bytes,
 preserves numeric glTF coordinates (glTF's meter convention is not converted), and returns the
@@ -173,11 +172,7 @@ const viewport = await createFemViewport({
 });
 viewport.setBackground("dark");
 viewport.setInteraction(interaction);
-viewport.setResults({
-  field: stress,
-  derive: "vonMises",
-  deformation: { field: displacement, scale: 1.5 },
-});
+viewport.setResults({ field: stress, deformation: { field: displacement, scale: 1.5 } });
 viewport.setPartVisible(part.id, false);
 viewport.clearResults();
 viewport.destroy();
@@ -195,18 +190,18 @@ default, 90° with Shift, or 5° with Control/Command. It is removed when
 `viewport.destroy()` runs. The container must contain the canvas; the caller
 does not provide SVG markup.
 
-Static results use the same viewport and authoritative scene. Elemental tensor values can be
-derived and colored while a nodal displacement field drives the existing GPU deformation path:
+Static results use the same viewport and authoritative scene. Authored elemental scalar values
+are colored directly while a nodal displacement field drives the existing GPU deformation path:
 
 ```ts
 const stress = createResultField({
   id: "stress",
   name: "Stress",
   location: "elemental",
-  shape: "tensor",
+  shape: "scalar",
   count: elementCount,
   unit: "MPa",
-  values: stressValues,
+  values: authoredScalarValues,
 });
 const displacement = createResultField({
   id: "displacement",
@@ -219,7 +214,6 @@ const displacement = createResultField({
 });
 viewport.setResults({
   field: stress,
-  derive: "vonMises",
   deformation: { field: displacement, scale: 1.5 },
 });
 // Return to the base part styles and undeformed geometry.

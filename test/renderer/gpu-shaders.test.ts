@@ -255,8 +255,8 @@ describe("GPU record struct layout vs CPU record encoders", () => {
 
   it("applies emissive additively in the color fragment shader", () => {
     expect(colorFragmentShader).toMatch(/@location\(2\) @interpolate\(flat\) emissive: f32/);
-    expect(colorFragmentShader).toMatch(/color\.rgb \+ vec3<f32>\(emissive\)/);
-    expect(colorFragmentShader).toContain("color.a < 1.0");
+    expect(colorFragmentShader).toMatch(/displayedColor\.rgb \+ vec3<f32>\(emissive\)/);
+    expect(colorFragmentShader).toContain("displayedColor.a < 1.0");
   });
 
   it("keeps style alpha flat before exact opaque and transparent classification", () => {
@@ -278,7 +278,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(surfaceLightingFunction).toContain("abs(dot(normal, light))");
     expect(surfaceLightingFunction).toContain("SURFACE_SPECULAR_STRENGTH");
     expect(triangleColorFragmentShader).toContain("litColor + vec3<f32>(emissive)");
-    expect(triangleColorFragmentShader).toContain("color.a");
+    expect(triangleColorFragmentShader).toContain("displayedColor.a");
     expect(colorFragmentShader).not.toContain("keyLightDirection");
     expect(colorFragmentShader).not.toContain("dpdx");
   });
@@ -301,7 +301,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(surfaceLightingFunction).toContain("pow(clamp(halfResponse, 0.0, 1.0)");
     expect(triangleColorFragmentShader).toContain("litColor + vec3<f32>(emissive)");
     expect(triangleTransparencyFragmentShader).toContain(
-      "weightedTransparency(litColor + vec3<f32>(emissive), color.a)",
+      "weightedTransparency(litColor + vec3<f32>(emissive), displayedColor.a)",
     );
     expect(colorFragmentShader).not.toContain("surfaceLighting");
     expect(edgeFragmentShader).not.toContain("surfaceLighting");

@@ -1,27 +1,25 @@
 import type { Part } from "../geometry/part";
 import type { PartId } from "../geometry/part";
 import { destroyDeformationBuffers, type DeformationStorage } from "./gpu-deform";
-import { buildMeshEdgeData, type MeshEdgeData } from "./gpu-edge";
-import { buildFaceSubsetIndices } from "./gpu-face-subset";
-import { emptyMeshEdgeData, packTopologyData } from "./gpu-geometry-buffers";
+import { packTopologyData } from "./gpu-geometry-buffers";
 import type { InstanceStorage } from "./gpu-instance-storage";
 import {
-  buildElementPrimitivePickIds,
   buildNodeBodyPickData,
   buildNodeBodyOwnerData,
   buildNodeSpritePickIds,
-  buildPrimitiveFaceBodyPickData,
 } from "./gpu-pick-ids";
 import type { DrawPipelines } from "./gpu-pipelines";
-import {
-  buildEdgeNodePickIds,
-  expandSurfaceGeometry,
-  type SurfaceVertexData,
-} from "./gpu-surface-geometry";
+import { expandSurfaceGeometry, type SurfaceVertexData } from "./gpu-surface-geometry";
 import { createBuffer, type PartResource } from "./gpu-support";
+import { appendResultColorTail, createResultColorTail } from "./gpu-result-colors";
+import { buildPartGeometryData } from "./gpu-geometry-upload";
 import { createColorTargets, destroyColorTargets, type ColorTargets } from "./gpu-targets";
 
 const POINT_SPRITE_INDICES = [0, 1, 2, 0, 2, 3] as const;
+
+function createGeometryBuffer(device: GPUDevice, data: Float32Array): GPUBuffer {
+  return createBuffer(device, data, GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE);
+}
 
 export {
   INSTANCE_STRIDE,
@@ -61,6 +59,7 @@ export interface DrawCallContext {
   readonly instanceLayout: GPUBindGroupLayout;
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly pipelines: DrawPipelines;
+  readonly resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
 }
 
 /** Creates the draw-path resource owner. */
@@ -76,7 +75,11 @@ export function createDrawResources(device: GPUDevice): DrawResources {
 }
 
 /** Uploads the transient node-sprite geometry and its body-owner metadata. */
-export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
+export function uploadNodePart(
+  draw: DrawResources,
+  part: Part,
+  resultColors?: Float32Array,
+): PartResource {
   const existing = draw.nodeParts.get(part.id);
   if (existing !== undefined) return existing;
   const nodes = part.geometry.nodePositions ?? new Float32Array(0);
@@ -95,13 +98,16 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
     }
     writePointSpriteIndices(indices, sprite);
   }
+  const resultTail = createResultColorTail(ids, resultColors);
+  const vertexWithResults = appendResultColorTail(positions, resultTail);
+  const vertexBuffer = createGeometryBuffer(draw.device, vertexWithResults.data);
   const resource: PartResource = {
-    vertexBuffer: createBuffer(
-      draw.device,
-      positions,
-      GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
-    ),
+    vertexBuffer,
     indexBuffer: createBuffer(draw.device, indices, GPUBufferUsage.INDEX),
+    resultColorBuffers: [{ buffer: vertexBuffer, offset: vertexWithResults.offset }],
+    resultColorNodeCount: resultTail.resultColorNodeCount,
+    resultColorsSource: resultColors,
+    resultColorsActive: resultColors !== undefined,
     // The node overlay reuses the point vertex shader. It indexes this map by
     // node sprite, so provide one explicit zero entry per sprite instead of a
     // single placeholder that would be out of bounds for larger models.
@@ -134,92 +140,53 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
  * triangle parts carry a deduplicated edge list, so the edge overlay never
  * draws spurious edges for line or point primitives.
  */
-export function uploadPart(draw: DrawResources, part: Part): PartResource {
+export function uploadPart(
+  draw: DrawResources,
+  part: Part,
+  resultColors?: Float32Array,
+): PartResource {
   const existing = draw.parts.get(part.id);
   if (existing !== undefined) return existing;
   const vertexData: SurfaceVertexData | PointVertexData =
     part.geometry.primitive === "points"
       ? expandPointGeometry(part.geometry)
       : expandSurfaceGeometry(part.geometry);
+  const resultTail = createResultColorTail(vertexData.nodePickIds, resultColors);
+  const vertexWithResults = appendResultColorTail(vertexData.positions, resultTail);
   const vertexBuffer = createBuffer(
     draw.device,
-    vertexData.positions,
+    vertexWithResults.data,
     GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
   );
   const indexBuffer = createBuffer(draw.device, vertexData.indices, GPUBufferUsage.INDEX);
-  const triangleGeometry = part.geometry.primitive === "triangles" ? part.geometry : undefined;
-  const subsetIndices =
-    triangleGeometry?.faceSubset === undefined
-      ? undefined
-      : buildFaceSubsetIndices(triangleGeometry);
-  const edgeData = triangleGeometry
-    ? buildMeshEdgeData(triangleGeometry, subsetIndices ?? triangleGeometry.indices)
-    : emptyMeshEdgeData();
-  const picks = uploadPickBuffers(draw, part, vertexData.nodePickIds);
-  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(part.geometry);
-  const facePickIdsBuffer = createTopologyBuffer(draw.device, faceBodyPickIds, edgeData, {
-    primitiveIds: vertexData.primitiveIds,
-    edgeIds: edgeData.edgeIds,
-  });
-  const edgeBuffers = createEdgeBuffers(draw.device, edgeData, part.geometry.nodePickIds);
-  const subsetVertexData =
-    triangleGeometry === undefined || subsetIndices === undefined
-      ? undefined
-      : expandSurfaceGeometry(triangleGeometry, subsetIndices);
-  const subsetBuffers = createSubsetBuffers(
-    draw.device,
-    subsetVertexData,
-    edgeData,
-    faceBodyPickIds,
-  );
+  const geometryData = buildPartGeometryData(draw.device, part, vertexData, resultTail);
   const resource: PartResource = {
     vertexBuffer,
     indexBuffer,
-    ...picks,
-    facePickIdsBuffer,
-    ...edgeBuffers,
+    resultColorBuffers: [
+      { buffer: vertexBuffer, offset: vertexWithResults.offset },
+      geometryData.edgeResultColorBinding,
+      ...(geometryData.subsetResultColorBinding === undefined
+        ? []
+        : [geometryData.subsetResultColorBinding]),
+      ...(geometryData.subsetEdgeResultColorBinding === undefined
+        ? []
+        : [geometryData.subsetEdgeResultColorBinding]),
+    ],
+    resultColorNodeCount: resultTail.resultColorNodeCount,
+    resultColorsSource: resultColors,
+    resultColorsActive: resultColors !== undefined,
+    ...geometryData.picks,
+    facePickIdsBuffer: geometryData.facePickIdsBuffer,
+    ...geometryData.edgeBuffers,
     indexCount: vertexData.indices.length,
-    edgeIndexCount: edgeData.indices.length,
-    ...subsetBuffers,
-    subsetIndexCount: subsetIndices?.length ?? 0,
-    subsetEdgeIndexCount: triangleGeometry?.faceSubset === undefined ? 0 : edgeData.indices.length,
+    edgeIndexCount: geometryData.edgeData.indices.length,
+    ...geometryData.subsetBuffers,
+    subsetIndexCount: geometryData.subsetIndices?.length ?? 0,
+    subsetEdgeIndexCount: geometryData.hasSubset ? geometryData.edgeData.indices.length : 0,
   };
   draw.parts.set(part.id, resource);
   return resource;
-}
-
-function uploadPickBuffers(
-  draw: DrawResources,
-  part: Part,
-  nodePickIds: Uint32Array,
-): Pick<PartResource, "elementPickIdsBuffer" | "nodePickIdsBuffer"> {
-  return {
-    elementPickIdsBuffer: createBuffer(
-      draw.device,
-      buildElementPrimitivePickIds(part.geometry),
-      GPUBufferUsage.STORAGE,
-    ),
-    nodePickIdsBuffer: createBuffer(draw.device, nodePickIds, GPUBufferUsage.STORAGE),
-  };
-}
-
-function createTopologyBuffer(
-  device: GPUDevice,
-  faceBodyPickIds: Uint32Array,
-  edgeData: MeshEdgeData,
-  metadata: { readonly primitiveIds: ArrayLike<number>; readonly edgeIds: ArrayLike<number> },
-): GPUBuffer {
-  return createBuffer(
-    device,
-    packTopologyData(
-      faceBodyPickIds,
-      edgeData.bodyRanges,
-      edgeData.bodyIds,
-      edgeData.elementIds,
-      metadata,
-    ),
-    GPUBufferUsage.STORAGE,
-  );
 }
 
 interface PointVertexData {
@@ -263,70 +230,6 @@ function writePointSpriteIndices(indices: Uint32Array, sprite: number): void {
     POINT_SPRITE_INDICES.map((index) => index + sprite * 4),
     sprite * POINT_SPRITE_INDICES.length,
   );
-}
-
-function createIndexBuffer(device: GPUDevice, indices: Uint32Array): GPUBuffer {
-  return createBuffer(
-    device,
-    indices.length > 0 ? indices : new Uint32Array(1),
-    GPUBufferUsage.INDEX,
-  );
-}
-
-function createSubsetBuffers(
-  device: GPUDevice,
-  vertexData: SurfaceVertexData | undefined,
-  edgeData: MeshEdgeData,
-  faceBodyPickIds: Uint32Array,
-): Pick<
-  PartResource,
-  | "subsetIndexBuffer"
-  | "subsetVertexBuffer"
-  | "subsetNodePickIdsBuffer"
-  | "subsetTopologyBuffer"
-  | "subsetEdgeVertexBuffer"
-  | "subsetEdgeIndexBuffer"
-> {
-  if (vertexData === undefined) return {};
-  return {
-    subsetIndexBuffer: createIndexBuffer(device, vertexData.indices),
-    subsetVertexBuffer: createBuffer(
-      device,
-      vertexData.positions,
-      GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
-    ),
-    subsetNodePickIdsBuffer: createBuffer(device, vertexData.nodePickIds, GPUBufferUsage.STORAGE),
-    subsetTopologyBuffer: createTopologyBuffer(device, faceBodyPickIds, edgeData, {
-      primitiveIds: vertexData.primitiveIds,
-      edgeIds: edgeData.edgeIds,
-    }),
-    subsetEdgeVertexBuffer: createBuffer(
-      device,
-      edgeData.positions,
-      GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
-    ),
-    subsetEdgeIndexBuffer: createIndexBuffer(device, edgeData.indices),
-  };
-}
-
-function createEdgeBuffers(
-  device: GPUDevice,
-  edgeData: MeshEdgeData,
-  sourceNodePickIds: Uint32Array | undefined,
-): Pick<PartResource, "edgeVertexBuffer" | "edgeIndexBuffer" | "edgeNodePickIdsBuffer"> {
-  return {
-    edgeVertexBuffer: createBuffer(
-      device,
-      edgeData.positions,
-      GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
-    ),
-    edgeIndexBuffer: createIndexBuffer(device, edgeData.indices),
-    edgeNodePickIdsBuffer: createBuffer(
-      device,
-      buildEdgeNodePickIds(edgeData.sourceVertexIndices, sourceNodePickIds),
-      GPUBufferUsage.STORAGE,
-    ),
-  };
 }
 
 /** Releases every part, storage, and depth resource owned by the draw path. */

@@ -62,9 +62,12 @@ fn fragmentMain(
   @location(0) @interpolate(flat) color: vec4<f32>,
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
+  @location(10) resultColor: vec4<f32>,
+  @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> TransparencyOutput {
-  if (dot(local, local) > 1.0 || color.a <= 0.0 || color.a >= 1.0) { discard; }
-  return weightedTransparency(color.rgb + vec3<f32>(emissive), color.a);
+  let displayedColor = select(color, resultColor, resultColorEnabled != 0u);
+  if (dot(local, local) > 1.0 || displayedColor.a <= 0.0 || displayedColor.a >= 1.0) { discard; }
+  return weightedTransparency(displayedColor.rgb + vec3<f32>(emissive), displayedColor.a);
 }
 `;
 
@@ -82,15 +85,18 @@ fn fragmentMain(
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
   @location(8) worldPosition: vec3<f32>,
+  @location(10) resultColor: vec4<f32>,
+  @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> TransparencyOutput {
-  if (dot(local, local) > 1.0 || color.a <= 0.0 || color.a >= 1.0) { discard; }
+  let displayedColor = select(color, resultColor, resultColorEnabled != 0u);
+  if (dot(local, local) > 1.0 || displayedColor.a <= 0.0 || displayedColor.a >= 1.0) { discard; }
   let litColor = surfaceLighting(
     worldPosition,
-    color.rgb,
+    displayedColor.rgb,
     camera.keyLightDirection.xyz,
     camera.viewDirection.xyz,
   );
-  return weightedTransparency(litColor + vec3<f32>(emissive), color.a);
+  return weightedTransparency(litColor + vec3<f32>(emissive), displayedColor.a);
 }
 `;
 

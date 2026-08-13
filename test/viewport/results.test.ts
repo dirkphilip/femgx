@@ -10,7 +10,11 @@ import { identity } from "../../src/math/mat4";
 import { createResultField } from "../../src/results/fields";
 import { createScene } from "../../src/scene/scene";
 import { createFemViewport } from "../../src/viewport/fem-viewport";
-import { applyViewportResultInteraction, resolveViewportResults } from "../../src/viewport/results";
+import {
+  applyViewportResultInteraction,
+  resolveViewportResults,
+  viewportResultColors,
+} from "../../src/viewport/results";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
 
 let restoreGpuGlobals: (() => void) | undefined;
@@ -92,15 +96,15 @@ function createHex20ViewportScene() {
   return { model, scene, part };
 }
 
-function elementalTensor() {
+function elementalScalar() {
   return createResultField({
-    id: "stress",
-    name: "Stress",
+    id: "authored-stress",
+    name: "Authored stress",
     location: "elemental",
-    shape: "tensor",
+    shape: "scalar",
     count: 1,
     unit: "MPa",
-    values: new Float32Array([3, 0, 0, 0, 0, 0]),
+    values: new Float32Array([3]),
   });
 }
 
@@ -116,8 +120,20 @@ function nodalDisplacement() {
   });
 }
 
+function nodalScalar() {
+  return createResultField({
+    id: "temperature",
+    name: "Temperature",
+    location: "nodal",
+    shape: "scalar",
+    count: 3,
+    unit: "C",
+    values: new Float32Array([0, 5, 10]),
+  });
+}
+
 describe("viewport results workflow", () => {
-  it("derives, maps, and validates one elemental result", () => {
+  it("maps and validates one authored elemental result", () => {
     const scene = createTestScene();
     const runtime = {
       instanceCount: 1,
@@ -126,18 +142,18 @@ describe("viewport results workflow", () => {
     } as never;
     const resolved = resolveViewportResults(
       {
-        field: elementalTensor(),
-        derive: "vonMises",
+        field: elementalScalar(),
         deformation: { field: nodalDisplacement(), scale: 2 },
       },
       scene,
       runtime,
     );
 
-    expect(resolved.scalarField.name).toBe("Stress von Mises");
+    expect(resolved.scalarField.name).toBe("Authored stress");
     expect(resolved.scalarField.values[0]).toBeCloseTo(3);
     expect(resolved.range.min).toBeLessThan(3);
     expect(resolved.range.max).toBeGreaterThan(3);
+    if (resolved.scalarField.location !== "elemental") throw new Error("Expected elemental field");
     const effective = applyViewportResultInteraction(
       createInteractionState(),
       resolved.scalarField,
@@ -156,6 +172,25 @@ describe("viewport results workflow", () => {
     expect(resolved.deformation?.displacements.get(1)).toEqual(
       new Float32Array([0.1, 0, 0, 0, 0.2, 0, 0, 0, 0.3]),
     );
+  });
+
+  it("maps nodal scalars by exact node pick id without averaging", () => {
+    const scene = createTestScene();
+    const runtime = {
+      instanceCount: 1,
+      getPartId: () => 1,
+      getInstanceId: () => "1/0",
+    } as never;
+    const resolved = resolveViewportResults(
+      { field: nodalScalar(), range: { min: 0, max: 10 } },
+      scene,
+      runtime,
+    );
+    const colors = viewportResultColors(resolved)?.get(1);
+    expect(colors?.slice(0, 4)).toEqual(new Float32Array([0, 0, 0, 0]));
+    expect(colors?.slice(4, 8)).toEqual(new Float32Array([0.12, 0.34, 0.95, 1]));
+    expect(colors?.slice(8, 12)).toEqual(new Float32Array([0.95, 0.85, 0.2, 1]));
+    expect(colors?.slice(12, 16)).toEqual(new Float32Array([0.75, 0.05, 0.1, 1]));
   });
 
   it("validates deformation only for parts placed in the compiled runtime", () => {
@@ -192,8 +227,7 @@ describe("viewport results workflow", () => {
     expect(() =>
       resolveViewportResults(
         {
-          field: elementalTensor(),
-          derive: "vonMises",
+          field: elementalScalar(),
           deformation: { field: nodalDisplacement() },
         },
         scene,
@@ -213,13 +247,12 @@ describe("viewport results workflow", () => {
       device: gpu.device,
       interaction: base,
       results: {
-        field: elementalTensor(),
-        derive: "vonMises",
+        field: elementalScalar(),
         deformation: { field: nodalDisplacement(), scale: 2 },
       },
     });
 
-    expect(viewport.results?.scalarField.name).toBe("Stress von Mises");
+    expect(viewport.results?.scalarField.name).toBe("Authored stress");
     expect(viewport.results?.deformation?.loadCaseCount).toBe(1);
     expect(viewport.interaction).toBe(base);
     expect(
@@ -243,7 +276,7 @@ describe("viewport results workflow", () => {
       scene: createTestScene(),
       device: fakeGpuDevice().device,
       interaction: base,
-      results: { field: elementalTensor(), derive: "vonMises" },
+      results: { field: elementalScalar() },
     });
 
     expect(viewport.interaction).toBe(base);

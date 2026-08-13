@@ -91,6 +91,7 @@ describe("heterogeneous viewport results", () => {
       runtime,
     );
 
+    if (result.scalarField.location !== "elemental") throw new Error("Expected elemental field");
     const effective = applyViewportResultInteraction(
       createInteractionState(),
       result.scalarField,

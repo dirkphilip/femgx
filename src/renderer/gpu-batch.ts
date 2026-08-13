@@ -1,5 +1,6 @@
 import { orderBindGroup } from "./gpu-bind-groups";
 import { ensureDeformationBuffer } from "./gpu-deform";
+import type { Part } from "../geometry/part";
 import {
   uploadNodePart,
   uploadPart,
@@ -87,7 +88,7 @@ export function drawOneBatch(
     return current;
   }
   if (nodes && part.geometry.primitive === "points") return current;
-  const geometry = nodes ? uploadNodePart(draw, part) : uploadPart(draw, part);
+  const geometry = uploadBatchGeometry(draw, context, part, nodes);
   const subset =
     !nodes && part.geometry.primitive === "triangles" && part.geometry.faceSubset !== undefined;
   if (overlay && (subset ? geometry.subsetEdgeIndexCount : geometry.edgeIndexCount) === 0) {
@@ -112,6 +113,16 @@ export function drawOneBatch(
   if (count === undefined) return current;
   pass.drawIndexed(count, call.instanceCount);
   return pipeline;
+}
+
+function uploadBatchGeometry(
+  draw: DrawResources,
+  context: DrawCallContext,
+  part: Part,
+  nodes: boolean,
+): PartResource {
+  const colors = context.resultColors?.get(part.id);
+  return nodes ? uploadNodePart(draw, part, colors) : uploadPart(draw, part, colors);
 }
 
 function bindDrawGeometry(

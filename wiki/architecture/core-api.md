@@ -87,7 +87,7 @@ stable element range and can participate in element picking and interaction.
 | Interaction | `createInteractionState`, `InteractionTarget`, `setTargetSelected`, `setTargetHighlighted`, `setTargetHovered`, `isTargetSelected`, `isTargetHighlighted`, `isHoveredTarget`, `clearSelection`, `resolve*Style` | Opaque immutable selection, highlight, and single-hover state. Body visibility and explicit style overrides remain separate target-scoped layers.                                          |
 | Camera      | `createCamera`, `setProjection`, `orbitCamera`, `panCamera`, `zoomCamera`, `fitCamera`                                                                                                                          | Immutable camera values and projection/navigation math.                                                                                                                                    |
 | Picking     | `FemViewport.pick`, `PickHit`, `interactionTargetFromHit`, `InteractionGranularity`                                                                                                                             | One complete side-effect-free GPU hit plus explicit host-owned interaction-target conversion.                                                                                              |
-| Results     | `createResultField`, derived-field helpers, `ViewportResultsConfig`                                                                                                                                             | Typed nodal/elemental values, derivations, ranges, maps, and deformation configuration.                                                                                                    |
+| Results     | `createResultField`, `ViewportResultsConfig`                                                                                                                                                                    | Authored nodal/elemental scalar values, ranges, maps, and optional nodal deformation configuration.                                                                                        |
 | IO          | `parseVtk`, `writeVtk`, `validateModel`                                                                                                                                                                         | The single supported VTK legacy interchange boundary and diagnostics.                                                                                                                      |
 | Platform    | `queryWebGpuSupport`, `WebGpuUnsupportedError`, `requestWebGpuDevice`                                                                                                                                           | Capability probing, typed unsupported results, device creation, and loss information.                                                                                                      |
 
@@ -177,34 +177,34 @@ API in the current contract.
 
 ### Static results
 
-Result fields are typed by location (`"nodal"` or `"elemental"`) and shape
-(`"scalar"`, `"vector"`, or `"tensor"`). Tensor values use Voigt order
-`[xx, yy, zz, xy, yz, zx]`; missing values are `NaN`.
+Result fields are typed by location (`"nodal"` or `"elemental"`). Viewport
+results accept authored scalar fields; authored nodal vector fields remain the
+separate deformation input. Missing scalar values are `NaN` and map to the
+configured missing color.
 
 ```ts
 const stress = createResultField({
   id: "stress",
-  name: "Stress",
+  name: "Authored stress",
   location: "elemental",
-  shape: "tensor",
+  shape: "scalar",
   count: elementCount,
   unit: "MPa",
-  values: stressValues,
+  values: authoredScalarValues,
 });
 
 viewport.setResults({
   field: stress,
-  derive: "vonMises",
   deformation: { field: displacement, scale: 1.5 },
 });
 
 viewport.clearResults();
 ```
 
-`ViewportResultsConfig` supports scalar fields directly, vector magnitude,
-tensor magnitude/von Mises/maximum principal derivations, explicit or observed
-ranges, scalar color maps, and optional one-load-case nodal deformation.
-Playback, interpolation, and legends are outside the current core API.
+`ViewportResultsConfig` supports authored scalar fields at nodal or elemental
+locations, explicit or observed ranges, scalar color maps, and optional
+one-load-case nodal deformation. Derived engineering quantities, result glyphs,
+playback, interpolation, and legends are outside the current core API.
 
 ## Additional supported APIs
 

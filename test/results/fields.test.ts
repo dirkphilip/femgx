@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   createResultField,
   scalarAt,
-  tensorAt,
   vectorAt,
   type AnyResultField,
   type FieldLocation,
@@ -30,19 +29,19 @@ describe("createResultField", () => {
     expect(field.values).toEqual(new Float32Array([1, 2, NaN]));
   });
 
-  it("creates an elemental tensor field", () => {
+  it("creates an elemental vector field", () => {
     const field = createResultField({
       id: "stress",
       name: "Stress",
       location: "elemental",
-      shape: "tensor",
+      shape: "vector",
       count: 2,
       unit: "MPa",
-      values: new Float32Array([1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0]),
+      values: new Float32Array([1, 2, 3, 4, 5, 6]),
     });
     expect(field.location).toBe("elemental");
-    expect(field.shape).toBe("tensor");
-    expect(field.values.length).toBe(12);
+    expect(field.shape).toBe("vector");
+    expect(field.values.length).toBe(6);
   });
 
   it("preserves the reference to the value array for large models", () => {
@@ -192,15 +191,6 @@ describe("entity accessors", () => {
     unit: "mm",
     values: new Float32Array([1, 2, 3, 4, 5, 6]),
   });
-  const tensor = createResultField({
-    id: "t",
-    name: "T",
-    location: "elemental",
-    shape: "tensor",
-    count: 1,
-    unit: "MPa",
-    values: new Float32Array([10, 20, 30, 40, 50, 60]),
-  });
 
   it("reads a scalar value, returning NaN for missing data", () => {
     expect(scalarAt(scalar, 0)).toBe(1);
@@ -211,15 +201,10 @@ describe("entity accessors", () => {
     expect(vectorAt(vector, 1)).toEqual([4, 5, 6]);
   });
 
-  it("reads a tensor in Voigt order", () => {
-    expect(tensorAt(tensor, 0)).toEqual([10, 20, 30, 40, 50, 60]);
-  });
-
   it("throws for an out-of-range entity", () => {
     expect(() => scalarAt(scalar, 3)).toThrow(/out of range/);
     expect(() => scalarAt(scalar, -1)).toThrow(/out of range/);
     expect(() => vectorAt(vector, 2)).toThrow(/out of range/);
-    expect(() => tensorAt(tensor, 1)).toThrow(/out of range/);
   });
 
   it("exposes a field typed as AnyResultField", () => {

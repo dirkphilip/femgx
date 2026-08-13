@@ -2,28 +2,17 @@
 export type FieldLocation = "nodal" | "elemental";
 
 /** The shape of a field's per-entity values. */
-export type FieldShape = "scalar" | "vector" | "tensor";
+export type FieldShape = "scalar" | "vector";
 
 /** Number of scalar components each shape stores per entity. */
 export const FIELD_COMPONENT_COUNT: Readonly<Record<FieldShape, number>> = {
   scalar: 1,
   vector: 3,
-  tensor: 6,
 };
 
 /**
- * Component indices for the symmetric tensor layout `[xx, yy, zz, xy, yz, zx]`.
- * Tensors are stored in Voigt order: the three direct components followed by
- * the three independent shear components.
- */
-export const TENSOR_COMPONENT = { xx: 0, yy: 1, zz: 2, xy: 3, yz: 4, zx: 5 } as const;
-
-/** The six independent components of a symmetric 3x3 tensor, in Voigt order. */
-export type Tensor6 = readonly [number, number, number, number, number, number];
-
-/**
- * A typed engineering result field: a scalar, vector, or symmetric tensor
- * value per node or per element, all in one unit.
+ * A typed authored result field: a scalar or vector value per node or per
+ * element, all in one unit.
  *
  * Value conventions:
  *
@@ -31,10 +20,9 @@ export type Tensor6 = readonly [number, number, number, number, number, number];
  *   entity index aligns with the owning model's node or element numbering
  *   (the field does not copy the model, it is index-aligned to it).
  * - Missing values are encoded as `NaN` anywhere a component is unknown. All
- *   derived quantities and range helpers skip or propagate `NaN` rather than
- *   treating it as zero.
+ *   range helpers skip `NaN` rather than treating it as zero.
  * - `unit` is an opaque, human-readable unit string ("mm", "MPa", ...). The
- *   library never converts units; derived fields inherit the source unit.
+ *   library never converts units.
  *
  * `values` is referenced, not copied, so it stays cheap for large models.
  * Treat the returned field (and its array) as immutable after construction.
@@ -42,7 +30,7 @@ export type Tensor6 = readonly [number, number, number, number, number, number];
 export interface ResultField<S extends FieldShape, L extends FieldLocation> {
   /** Stable, application-addressable identifier. */
   readonly id: string;
-  /** Human-readable display name, e.g. "von Mises stress". */
+  /** Human-readable display name, e.g. "Temperature" or "Authored stress". */
   readonly name: string;
   readonly location: L;
   readonly shape: S;
@@ -60,10 +48,7 @@ export type ScalarField<L extends FieldLocation> = ResultField<"scalar", L>;
 /** A three-component vector field over nodes or elements. */
 export type VectorField<L extends FieldLocation> = ResultField<"vector", L>;
 
-/** A symmetric tensor field over nodes or elements. */
-export type TensorField<L extends FieldLocation> = ResultField<"tensor", L>;
-
-/** Any scalar, vector, or tensor field at either location. */
+/** Any scalar or vector field at either location. */
 export type AnyResultField = ResultField<FieldShape, FieldLocation>;
 
 /** Inputs for {@link createResultField}. */
@@ -105,22 +90,6 @@ export function vectorAt<L extends FieldLocation>(
   return [field.values[base] ?? NaN, field.values[base + 1] ?? NaN, field.values[base + 2] ?? NaN];
 }
 
-/** Returns the six tensor components of an entity in Voigt order (may contain `NaN`). */
-export function tensorAt<L extends FieldLocation>(
-  field: ResultField<"tensor", L>,
-  entity: number,
-): Tensor6 {
-  const base = assertEntity(field, entity) * 6;
-  return [
-    field.values[base] ?? NaN,
-    field.values[base + 1] ?? NaN,
-    field.values[base + 2] ?? NaN,
-    field.values[base + 3] ?? NaN,
-    field.values[base + 4] ?? NaN,
-    field.values[base + 5] ?? NaN,
-  ];
-}
-
 function validateResultField<S extends FieldShape, L extends FieldLocation>(
   options: ResultFieldOptions<S, L>,
 ): void {
@@ -129,7 +98,7 @@ function validateResultField<S extends FieldShape, L extends FieldLocation>(
   if (options.location !== "nodal" && options.location !== "elemental") {
     throw new Error(`Unknown result field location "${String(options.location)}"`);
   }
-  if (options.shape !== "scalar" && options.shape !== "vector" && options.shape !== "tensor") {
+  if (options.shape !== "scalar" && options.shape !== "vector") {
     throw new Error(`Unknown result field shape "${String(options.shape)}"`);
   }
   if (!Number.isInteger(options.count) || options.count < 0) {
