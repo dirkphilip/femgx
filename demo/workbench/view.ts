@@ -36,6 +36,8 @@ export interface DemoView {
   readonly modelFeedback: HTMLElement;
   readonly fitView: HTMLButtonElement;
   readonly elementSelectionToggle: HTMLButtonElement;
+  readonly hideSelectedButton: HTMLButtonElement;
+  readonly showAllButton: HTMLButtonElement;
   readonly projectionToggle: HTMLButtonElement;
   readonly backgroundSelect: HTMLSelectElement;
   readonly edgeOverlayToggle: HTMLButtonElement;
@@ -82,6 +84,8 @@ export function queryDemoView(): DemoView {
   const modelFeedback = document.querySelector<HTMLElement>("#model-feedback");
   const fitView = document.querySelector<HTMLButtonElement>("#fit-view");
   const elementSelectionToggle = document.querySelector<HTMLButtonElement>("#element-select");
+  const hideSelectedButton = document.querySelector<HTMLButtonElement>("#hide-selected");
+  const showAllButton = document.querySelector<HTMLButtonElement>("#show-all");
   const projectionToggle = document.querySelector<HTMLButtonElement>("#projection-toggle");
   const backgroundSelect = document.querySelector<HTMLSelectElement>("#background-select");
   const edgeOverlayToggle = document.querySelector<HTMLButtonElement>("#edge-overlay");
@@ -112,6 +116,8 @@ export function queryDemoView(): DemoView {
     modelFeedback === null ||
     fitView === null ||
     elementSelectionToggle === null ||
+    hideSelectedButton === null ||
+    showAllButton === null ||
     projectionToggle === null ||
     backgroundSelect === null ||
     edgeOverlayToggle === null ||
@@ -144,6 +150,8 @@ export function queryDemoView(): DemoView {
     modelFeedback,
     fitView,
     elementSelectionToggle,
+    hideSelectedButton,
+    showAllButton,
     projectionToggle,
     backgroundSelect,
     edgeOverlayToggle,

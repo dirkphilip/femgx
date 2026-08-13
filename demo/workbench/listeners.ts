@@ -20,6 +20,8 @@ export interface WorkbenchBindingOptions {
   readonly setContinuous: () => void;
   readonly setResults: () => void;
   readonly setElementSelection: () => void;
+  readonly hideSelected: () => void;
+  readonly showAll: () => void;
   readonly reset: () => void;
   readonly fitView: () => void;
   readonly setModel: (id: string) => void;
@@ -121,6 +123,8 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
   view.nodeOverlayToggle.addEventListener("click", options.setNodes, { signal });
   view.continuousToggle.addEventListener("click", options.setContinuous, { signal });
   view.elementSelectionToggle.addEventListener("click", options.setElementSelection, { signal });
+  view.hideSelectedButton.addEventListener("click", options.hideSelected, { signal });
+  view.showAllButton.addEventListener("click", options.showAll, { signal });
   view.resetButton.addEventListener("click", options.reset, { signal });
   view.fitView.addEventListener("click", options.fitView, { signal });
   if (options.toggleViewport !== undefined) {

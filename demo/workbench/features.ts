@@ -65,6 +65,9 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
       visibilityPanel.sync();
     },
     render: options.render,
+    feedback: (message) => {
+      setModelFeedback(options.view, message);
+    },
   });
   const visibilityPanel = new VisibilityPanelController({
     panel: options.view.visibilityPanel,

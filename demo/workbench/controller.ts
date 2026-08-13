@@ -213,6 +213,12 @@ export class WorkbenchController {
       setElementSelection: () => {
         this.setElementSelection(!this.elementSelectionEnabled);
       },
+      hideSelected: () => {
+        this.visibilityActions.hideSelected();
+      },
+      showAll: () => {
+        this.visibilityActions.showAll();
+      },
       setResults: () => {
         this.cycleResultMode();
       },
