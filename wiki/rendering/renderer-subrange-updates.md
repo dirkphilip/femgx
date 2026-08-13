@@ -49,6 +49,29 @@ Pick ids are `global slot + 1`, so they are **stable across visibility changes**
 - Steady-state `render(runtime, camera, parts)` reuses cached buffers and issues
   zero instance writes.
 
+## Part geometry ownership
+
+The reusable surface upload keeps the authoritative expanded draw positions in
+one buffer with both `VERTEX` and `STORAGE` usage. Vertex shaders read that same
+buffer for deformed node-pick corner positions; binding 5 carries topology plus
+compact primitive and edge ids, and binding 7 addresses the selected position
+buffer.
+This avoids copying every expanded position into a second packed storage buffer.
+
+The compact metadata is appended to the existing topology buffer as
+`[primitiveIdCount, primitiveIds..., edgeIds...]`. Primitive ids preserve
+face-subset remapping, while edge ids are the only per-endpoint topology values
+needed by the edge shader. Face/body ownership and neighbor conditions remain in
+that same topology buffer, where face ranges can share one retained record
+across all of a face's triangles. Subset surface positions and edge endpoints
+use the same bindings with their cached subset buffers; placements never
+receive geometry or topology copies.
+
+Edge endpoint positions remain optional to the edge draw path, but their
+expanded resource is currently created with the part attachment so the existing
+edge activation and recovery lifecycle stays deterministic. The surface
+position/metadata split is the measured baseline for subsequent lazy-edge work.
+
 ## Design notes
 
 - Visibility is expressed entirely by the draw-order buffer; hiding/showing

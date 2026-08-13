@@ -104,21 +104,20 @@ export const instanceBindings = /* wgsl */ `
 @group(1) @binding(6) var<storage, read> vertexNodePickIds: array<u32>;
 `;
 
-/** Shared packed geometry data: float position bits followed by edge metadata. */
-export const geometryDataBindings = /* wgsl */ `
-@group(1) @binding(7) var<storage, read> geometryData: array<u32>;
+/** Shared geometry position buffer and topology-backed primitive lookup. */
+export const geometryPositionBindings = /* wgsl */ `
+@group(1) @binding(7) var<storage, read> geometryPositions: array<f32>;
 
 fn geometryPosition(index: u32) -> f32 {
-  return bitcast<f32>(geometryData[2u + index]);
+  return geometryPositions[index];
 }
 
 fn primitiveDrawId(index: u32) -> u32 {
-  return geometryData[2u + geometryData[0] + index];
+  return topologyPrimitiveId(index);
 }
 
-fn edgeEndpoint(index: u32) -> vec2<u32> {
-  let base = 2u + geometryData[0] + geometryData[1] + index * 2u;
-  return vec2<u32>(geometryData[base], geometryData[base + 1u]);
+fn edgeId(index: u32) -> u32 {
+  return topologyEdgeId(index);
 }
 `;
 
@@ -325,7 +324,7 @@ ${emphasisHash}
 ${frameBindings}
 ${instanceBindings}
 ${pickDataBindings}
-${geometryDataBindings}
+${geometryPositionBindings}
 
 ${displacementFn}
 
@@ -344,8 +343,7 @@ fn vertexMain(
 ) -> EdgeOutput {
   let slot = drawOrder[instanceIndex];
   let instance = instances[slot];
-  let endpoint = edgeEndpoint(vertexIndex);
-  let topologyIndex = endpoint.y;
+  let topologyIndex = edgeId(vertexIndex);
   var output: EdgeOutput;
   output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   if (!topologyOwnersVisible(slot, topologyIndex)) {

@@ -17,6 +17,9 @@ fn primitiveFaceElementPickIds(index: u32) -> vec2<u32> {
 }
 
 fn topologyBodyRange(index: u32) -> vec2<u32> {
+  if (index >= topologyData[1]) {
+    return vec2<u32>(0u, 0u);
+  }
   let base = 3u + topologyData[0] * 5u + index * 2u;
   return vec2<u32>(topologyData[base], topologyData[base + 1u]);
 }
@@ -39,6 +42,16 @@ fn topologyElementId(index: u32) -> u32 {
 fn topologyElementNeighborId(index: u32) -> u32 {
   let base = 3u + topologyData[0] * 5u + topologyData[1] * 2u + topologyData[2] * 2u;
   return topologyData[base + index * 2u + 1u];
+}
+
+fn topologyPrimitiveId(index: u32) -> u32 {
+  let base = 3u + topologyData[0] * 5u + topologyData[1] * 2u + topologyData[2] * 4u;
+  return topologyData[base + 1u + index];
+}
+
+fn topologyEdgeId(index: u32) -> u32 {
+  let base = 3u + topologyData[0] * 5u + topologyData[1] * 2u + topologyData[2] * 4u;
+  return topologyData[base + 1u + topologyData[base] + index];
 }
 
 fn bodyOwnerVisible(slot: u32, bodyPickId: u32) -> bool {

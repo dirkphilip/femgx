@@ -4,7 +4,7 @@ import {
   displacementFn,
   emphasisStructs,
   frameBindings,
-  geometryDataBindings,
+  geometryPositionBindings,
   instanceBindings,
   instanceStruct,
   pickDataBindings,
@@ -27,7 +27,7 @@ ${emphasisHash}
 ${frameBindings}
 ${instanceBindings}
 ${pickDataBindings}
-${geometryDataBindings}
+${geometryPositionBindings}
 
 ${displacementFn}
 

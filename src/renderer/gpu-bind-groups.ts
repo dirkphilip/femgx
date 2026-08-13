@@ -92,9 +92,16 @@ function instanceBindGroup(
     : part.surfaceSubset
       ? (geometry.subsetNodePickIdsBuffer ?? geometry.nodePickIdsBuffer)
       : geometry.nodePickIdsBuffer;
-  const geometryDataBuffer = part.surfaceSubset
-    ? (geometry.subsetGeometryDataBuffer ?? geometry.geometryDataBuffer)
-    : geometry.geometryDataBuffer;
+  const topologyBuffer = part.surfaceSubset
+    ? (geometry.subsetTopologyBuffer ?? geometry.facePickIdsBuffer)
+    : geometry.facePickIdsBuffer;
+  const geometryPositionsBuffer = part.edge
+    ? part.surfaceSubset
+      ? (geometry.subsetEdgeVertexBuffer ?? geometry.edgeVertexBuffer)
+      : geometry.edgeVertexBuffer
+    : part.surfaceSubset
+      ? (geometry.subsetVertexBuffer ?? geometry.vertexBuffer)
+      : geometry.vertexBuffer;
   return device.createBindGroup({
     layout,
     entries: [
@@ -103,9 +110,9 @@ function instanceBindGroup(
       { binding: 2, resource: { buffer: geometry.elementPickIdsBuffer } },
       { binding: 3, resource: { buffer: storage.highlight.buffer } },
       { binding: 4, resource: { buffer: part.deformation } },
-      { binding: 5, resource: { buffer: geometry.facePickIdsBuffer } },
+      { binding: 5, resource: { buffer: topologyBuffer } },
       { binding: 6, resource: { buffer: nodePickIdsBuffer } },
-      { binding: 7, resource: { buffer: geometryDataBuffer } },
+      { binding: 7, resource: { buffer: geometryPositionsBuffer } },
     ],
   });
 }
