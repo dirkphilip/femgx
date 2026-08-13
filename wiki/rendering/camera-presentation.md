@@ -77,11 +77,16 @@ navigation hit regions. Roll is defined by the
 visible result: clockwise moves a point above the target to the right, and
 counterclockwise moves it to the left, without changing the line of sight,
 target, framing, or clip planes. Face and corner snaps restore their canonical
-up direction. Pressing `Z` fits the selected visible occurrences (or the
-complete scene when there is no selection) through an interruptible approximately
-400-millisecond
-eased transition. Its final framing targets the selection while its eye
-position and clip interval continue to protect the complete displayed scene.
+up direction. Pressing `Z` frames the selected visible geometry (or the complete
+scene when there is no selection) through an interruptible approximately
+400-millisecond eased transition. Part selection includes every visible
+occurrence; instance selection frames one occurrence; body, element, face, and
+node selection frame the exact displayed geometry, including active deformation;
+and multiple selections frame their visible union. Hidden or stale selections
+with no displayed geometry leave the camera unchanged. Degenerate point, line,
+and flat selections receive deterministic scene-scale padding. Its final framing
+targets the selection while its eye position and clip interval continue to
+protect the complete displayed scene.
 
 `FemViewport.setCamera`, `fitView`, and `fitSelection` accept an optional
 `durationMs`. Omitted or zero duration applies immediately; `fitSelection`

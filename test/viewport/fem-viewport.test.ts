@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createPart } from "../../src/geometry/part";
 import { setBodyOverride, setBodyVisible } from "../../src/interaction/bodies";
 import { setPartOverride } from "../../src/interaction/interaction";
+import { setTargetSelected } from "../../src/interaction/targets";
 import { translation } from "../../src/math/mat4";
 import { createScene } from "../../src/scene/scene";
 import { createFemViewport } from "../../src/viewport/fem-viewport";
@@ -258,6 +259,26 @@ describe("FemViewport", () => {
 
     viewport.destroy();
     keyboard.dispatch({ key: "z", preventDefault: vi.fn() } as unknown as Event);
+  });
+
+  it("leaves the camera unchanged when selected geometry is hidden or stale", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: fakeGpuDevice().device,
+    });
+    viewport.setInstanceVisible("1/0", false);
+    viewport.setInteraction(
+      setTargetSelected(viewport.interaction, { kind: "instance", instanceId: "1/0" }, true),
+    );
+    const before = viewport.camera;
+
+    viewport.fitSelection({ durationMs: 0 });
+
+    expect(viewport.camera).toBe(before);
+    viewport.destroy();
   });
 
   it("coalesces body and visibility mutations inside one batch", async () => {

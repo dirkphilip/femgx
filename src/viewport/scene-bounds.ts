@@ -3,9 +3,12 @@ import { protectCameraWithinBounds } from "../camera/navigation";
 import { boundsCorners, isFiniteBounds, type Bounds } from "../geometry/part";
 import { selectedTargets } from "../interaction/targets";
 import type { InteractionState } from "../interaction/interaction";
+import type { InteractionTarget } from "../interaction/target-types";
 import { transformPoint } from "../math/mat4";
+import type { DeformationState } from "../results/deform";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
+import { displayedPartBounds, selectedGeometryBounds } from "./geometry-bounds";
 
 interface MutableBounds {
   minX: number;
@@ -21,15 +24,24 @@ export function protectSceneCamera(
   camera: Camera,
   scene: Scene,
   runtime: PackedSceneRuntime,
+  deformation?: DeformationState,
 ): Camera {
-  const bounds = sceneWorldBounds(scene, runtime);
-  return protectCameraWithinBounds(camera, bounds, sceneWorldBoundsList(scene, runtime));
+  const bounds = sceneWorldBounds(scene, runtime, deformation);
+  return protectCameraWithinBounds(
+    camera,
+    bounds,
+    sceneWorldBoundsList(scene, runtime, deformation),
+  );
 }
 
 /** Returns the union of every placed part bound in displayed world space. */
-export function sceneWorldBounds(scene: Scene, runtime: PackedSceneRuntime): Bounds {
+export function sceneWorldBounds(
+  scene: Scene,
+  runtime: PackedSceneRuntime,
+  deformation?: DeformationState,
+): Bounds {
   const bounds = emptyBounds();
-  for (const partBounds of sceneWorldBoundsList(scene, runtime)) {
+  for (const partBounds of sceneWorldBoundsList(scene, runtime, deformation)) {
     for (const corner of boundsCorners(partBounds)) include(bounds, corner);
   }
   return isFiniteBounds(bounds)
@@ -38,15 +50,21 @@ export function sceneWorldBounds(scene: Scene, runtime: PackedSceneRuntime): Bou
 }
 
 /** Returns each placed part bound separately in displayed world space. */
-export function sceneWorldBoundsList(scene: Scene, runtime: PackedSceneRuntime): readonly Bounds[] {
+export function sceneWorldBoundsList(
+  scene: Scene,
+  runtime: PackedSceneRuntime,
+  deformation?: DeformationState,
+): readonly Bounds[] {
   const bounds: Bounds[] = [];
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
     if (!runtime.isInstanceVisible(slot)) continue;
     const partId = runtime.instancePartIds[slot];
     const transform = runtime.getTransform(slot);
     const part = partId === undefined ? undefined : scene.parts.get(partId);
-    if (part === undefined || transform === undefined || !isFiniteBounds(part.bounds)) continue;
-    bounds.push(transformedBounds(part.bounds, transform));
+    const partBounds = part === undefined ? undefined : displayedPartBounds(part, deformation);
+    if (partBounds === undefined || transform === undefined || !isFiniteBounds(partBounds))
+      continue;
+    bounds.push(transformedBounds(partBounds, transform));
   }
   return bounds;
 }
@@ -56,29 +74,43 @@ export function selectedSceneBounds(
   scene: Scene,
   runtime: PackedSceneRuntime,
   interaction: InteractionState,
+  deformation?: DeformationState,
 ): Bounds | undefined {
-  const selectedInstances = new Set<string>();
+  const selectedInstances = new Map<string, Exclude<InteractionTarget, { kind: "part" }>[]>();
   const selectedParts = new Set<number>();
   for (const target of selectedTargets(interaction)) {
-    if (target.kind === "part") selectedParts.add(target.partId);
-    else selectedInstances.add(target.instanceId);
+    if (target.kind === "part") {
+      selectedParts.add(target.partId);
+      continue;
+    }
+    const targets = selectedInstances.get(target.instanceId) ?? [];
+    targets.push(target);
+    selectedInstances.set(target.instanceId, targets);
   }
   const bounds = emptyBounds();
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
     if (!runtime.isInstanceVisible(slot)) continue;
     const instanceId = runtime.getInstanceId(slot);
     const partId = runtime.instancePartIds[slot];
-    if (
-      instanceId === undefined ||
-      partId === undefined ||
-      (!selectedInstances.has(instanceId) && !selectedParts.has(partId))
-    ) {
+    const transform = runtime.getTransform(slot);
+    const part = partId === undefined ? undefined : scene.parts.get(partId);
+    if (part === undefined || transform === undefined) continue;
+    if (partId !== undefined && selectedParts.has(partId)) {
+      const partBounds = displayedPartBounds(part, deformation);
+      if (partBounds !== undefined) includeBounds(bounds, partBounds, transform);
+    }
+    const targets = instanceId === undefined ? undefined : selectedInstances.get(instanceId);
+    if (targets === undefined) continue;
+    if (targets.some((target) => target.kind === "instance")) {
+      const partBounds = displayedPartBounds(part, deformation);
+      if (partBounds !== undefined) includeBounds(bounds, partBounds, transform);
       continue;
     }
-    const transform = runtime.getTransform(slot);
-    const part = scene.parts.get(partId);
-    if (part === undefined || transform === undefined || !isFiniteBounds(part.bounds)) continue;
-    includeBounds(bounds, part.bounds, transform);
+    for (const target of targets) {
+      if (target.kind === "instance") continue;
+      const targetBounds = selectedGeometryBounds(part, target, deformation);
+      if (targetBounds !== undefined) includeBounds(bounds, targetBounds, transform);
+    }
   }
   return isFiniteBounds(bounds) ? bounds : undefined;
 }

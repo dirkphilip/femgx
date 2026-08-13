@@ -76,11 +76,16 @@ unsupported result — never a second renderer.
 `FemViewport` owns one interruptible camera-transition path for programmatic
 camera changes and fit-to-selection. An omitted or zero duration applies the
 destination immediately; a positive finite duration interpolates smoothly and
-lands on the exact protected destination. The default `Z` action fits the
-selected visible occurrences, or the complete scene when no eligible selection
-exists, over approximately 400 milliseconds. Selection determines the framing target,
-while the complete displayed scene remains protected from camera-plane crossing
-and clipping throughout the transition.
+lands on the exact protected destination. The default `Z` action frames the
+selected visible geometry, or the complete scene when no selection exists, over
+approximately 400 milliseconds. Part selection frames all visible occurrences;
+instance selection frames that occurrence; and body, element, face, or node
+selection frames the exact displayed geometry, including active authored
+deformation. Multiple selections frame their visible union. Hidden or stale
+selections with no resolvable displayed geometry leave the camera unchanged.
+Point, line, and flat selections receive deterministic scene-scale padding on
+degenerate axes. The complete displayed scene remains protected from
+camera-plane crossing and clipping throughout the transition.
 
 Keyboard interpretation is core behavior, but listener ownership is explicit:
 the host supplies an event target and the library installs no implicit global
@@ -91,9 +96,9 @@ jumping to either endpoint. The demo delegates to this contract and removes its
 parallel transition scheduler, selection-bounds calculation, and `Z` handler.
 
 This requirement does not introduce a generic timeline, spring system, camera
-path editor, shortcut manager, or finer-than-occurrence selection bounds. The
-detailed implementation work and acceptance criteria are tracked in
-[issue #475](https://github.com/dirkphilip/femgx/issues/475).
+path editor, shortcut manager, automatic fit on selection, or a public geometry
+query service. The ownership work is tracked in [issue #475](https://github.com/dirkphilip/femgx/issues/475)
+and exact selected-geometry framing in [issue #438](https://github.com/dirkphilip/femgx/issues/438).
 
 Core style opacity uses order-independent weighted transparency for fractional
 alpha while preserving instanced batching and nearest-geometry picking; alpha
