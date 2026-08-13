@@ -83,8 +83,8 @@ const ROLL_GLYPHS = {
     head: "26 3 32 8 26 13",
   },
   counterclockwise: {
-    path: "M 92 68 A 24 24 0 0 1 68 92",
-    head: "74 87 68 92 74 97",
+    path: "M 68 92 A 24 24 0 0 0 92 68",
+    head: "87 74 92 68 97 74",
   },
 } as const satisfies Readonly<
   Record<"clockwise" | "counterclockwise", { readonly path: string; readonly head: string }>
