@@ -4,7 +4,9 @@ import {
   createBenchmarkCase,
   estimateBenchmarkMemory,
 } from "../../demo/benchmark/model";
+import { summarizeInteractiveSample } from "../../demo/benchmark/interactive";
 import { createLazyBenchmarkModel } from "../../demo/workbench/model";
+import { createCamera } from "../../src/index";
 
 describe("WebGPU benchmark models", () => {
   it("keeps instanced and bounded unique-geometry cases distinct", () => {
@@ -33,12 +35,7 @@ describe("WebGPU benchmark models", () => {
     const part = benchmarkCase.scene.parts.get(1);
     expect(part?.geometry.positions).toHaveLength(27);
     expect(part?.geometry.indices).toHaveLength(24);
-    expect(part?.geometry.elements).toEqual([
-      { id: 1, primitiveStart: 0, primitiveCount: 2 },
-      { id: 2, primitiveStart: 2, primitiveCount: 2 },
-      { id: 3, primitiveStart: 4, primitiveCount: 2 },
-      { id: 4, primitiveStart: 6, primitiveCount: 2 },
-    ]);
+    expect(part?.geometry.elements).toEqual([{ id: 1, primitiveStart: 0, primitiveCount: 8 }]);
   });
 
   it("keeps many-part and body-heavy cases structurally distinct", () => {
@@ -104,6 +101,22 @@ describe("WebGPU benchmark models", () => {
       partCount: 1,
       bodyCount: 256,
     });
+  });
+
+  it("summarizes interactive frame intervals and thresholds", () => {
+    const sample = summarizeInteractiveSample([100, 116, 150, 190], 100, 200, createCamera());
+    expect(sample).toMatchObject({
+      durationMs: 100,
+      frameCount: 4,
+      fps: 40,
+      p50FrameIntervalMs: 34,
+      p95FrameIntervalMs: 39.4,
+      maxFrameIntervalMs: 40,
+      intervalsOver16_7Ms: 2,
+      intervalsOver33_3Ms: 2,
+    });
+    expect(sample.intervalsOver16_7Percent).toBeCloseTo((2 / 3) * 100, 10);
+    expect(sample.intervalsOver33_3Percent).toBeCloseTo((2 / 3) * 100, 10);
   });
 
   it("does not construct lazy visual cases during selector setup", async () => {

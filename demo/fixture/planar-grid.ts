@@ -3,17 +3,19 @@ import type { Body, ElementTessellation, FaceTessellation, Geometry } from "../.
 export interface PlanarGridOptions {
   readonly withFaces?: boolean;
   readonly bodyCount?: number;
+  readonly elementMode?: "cell" | "aggregate";
 }
 
 /** Builds one deterministic indexed planar grid for demo and benchmark owners. */
 export function createPlanarGridGeometry(cells: number, options: PlanarGridOptions = {}): Geometry {
-  validateGridOptions(cells, options.bodyCount);
+  validateGridOptions(cells, options.bodyCount, options.elementMode);
   const side = cells + 1;
   const positions = new Float32Array(side * side * 3);
   const indices = new Uint32Array(cells * cells * 6);
-  const elements: ElementTessellation[] = [];
-  const faces: FaceTessellation[] = [];
-  const facePickIds = new Uint32Array(cells * cells * 2);
+  const elementMode = options.elementMode ?? "cell";
+  const elements = elementMode === "cell" ? [] : undefined;
+  const faces = options.withFaces === true ? [] : undefined;
+  const facePickIds = faces === undefined ? undefined : new Uint32Array(cells * cells * 2);
   const bodyElements = createBodyElementLists(options.bodyCount);
 
   for (let y = 0; y <= cells; y += 1) {
@@ -43,10 +45,12 @@ export function createPlanarGridGeometry(cells: number, options: PlanarGridOptio
     positions,
     indices,
     primitive: "triangles",
-    elements,
     nodePickIds,
     nodePositions: positions,
-    ...(options.withFaces === true ? { faces, facePickIds } : {}),
+    ...(elements === undefined
+      ? { elements: [{ id: 1, primitiveStart: 0, primitiveCount: cells * cells * 2 }] }
+      : { elements }),
+    ...(faces === undefined || facePickIds === undefined ? {} : { faces, facePickIds }),
     ...(bodyElements === undefined ? {} : { bodies: bodyElements.map(toBody) }),
   };
 }
@@ -56,9 +60,9 @@ interface CellOptions {
   readonly x: number;
   readonly y: number;
   readonly indices: Uint32Array;
-  readonly elements: ElementTessellation[];
-  readonly faces: FaceTessellation[];
-  readonly facePickIds: Uint32Array;
+  readonly elements: ElementTessellation[] | undefined;
+  readonly faces: FaceTessellation[] | undefined;
+  readonly facePickIds: Uint32Array | undefined;
   readonly bodyElements: number[][] | undefined;
 }
 
@@ -74,7 +78,7 @@ function appendCell(options: CellOptions): void {
   indices.set([bottomLeft, bottomRight, topRight, bottomLeft, topRight, topLeft], indexOffset);
   const elementId = cell + 1;
   const bodyId = bodyElements === undefined ? undefined : (cell % bodyElements.length) + 1;
-  elements.push({
+  elements?.push({
     id: elementId,
     primitiveStart: cell * 2,
     primitiveCount: 2,
@@ -86,7 +90,7 @@ function appendCell(options: CellOptions): void {
     .slice()
     .sort((a, b) => a - b)
     .join(":");
-  faces.push({
+  faces?.push({
     id: cell,
     elementId,
     faceIndex: 0,
@@ -95,8 +99,10 @@ function appendCell(options: CellOptions): void {
     neighborElementIds: [],
     ...(bodyId === undefined ? {} : { bodyId }),
   });
-  facePickIds[cell * 2] = cell + 1;
-  facePickIds[cell * 2 + 1] = cell + 1;
+  if (facePickIds !== undefined) {
+    facePickIds[cell * 2] = cell + 1;
+    facePickIds[cell * 2 + 1] = cell + 1;
+  }
 }
 
 function createBodyElementLists(bodyCount: number | undefined): number[][] | undefined {
@@ -107,10 +113,17 @@ function toBody(elementIds: readonly number[], index: number): Body {
   return { id: index + 1, name: `Body ${index + 1}`, elementIds };
 }
 
-function validateGridOptions(cells: number, bodyCount: number | undefined): void {
+function validateGridOptions(
+  cells: number,
+  bodyCount: number | undefined,
+  elementMode: PlanarGridOptions["elementMode"],
+): void {
   if (!Number.isInteger(cells) || cells < 1)
     throw new Error("grid cells must be a positive integer");
   if (bodyCount === undefined) return;
+  if (elementMode === "aggregate") {
+    throw new Error("body count requires cell elements");
+  }
   if (!Number.isInteger(bodyCount) || bodyCount < 1 || bodyCount > cells * cells) {
     throw new Error("body count must be a positive integer no greater than the element count");
   }

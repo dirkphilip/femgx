@@ -1,7 +1,18 @@
-import { createCamera, fitCamera, type Camera } from "../../src/index";
+import {
+  createCamera,
+  fitCamera,
+  projectPoint,
+  transformPoint,
+  type Camera,
+} from "../../src/index";
 import { createWebGpuRenderer, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
+import {
+  hasInteractiveSample,
+  measureInteractiveSamples,
+  type InteractiveSamples,
+} from "./interactive";
 import {
   benchmarkCaseSpecs,
   createBenchmarkCase,
@@ -44,6 +55,7 @@ export interface WebGpuBenchmarkCaseResult {
   readonly visibleTriangles: number;
   readonly instanceCount: number;
   readonly timings: BenchmarkTimings;
+  readonly interactive?: InteractiveSamples;
   readonly estimatedMemory: BenchmarkMemoryEstimate;
 }
 
@@ -125,11 +137,30 @@ async function measureCase(
   const bounds = sceneWorldBounds(benchmarkCase.scene, runtime);
   const camera = fitCamera(createCamera(), bounds, WIDTH, HEIGHT);
   const uniqueTriangles = countUniqueTriangles(benchmarkCase);
+  const pickPoint = benchmarkPickPoint(canvas, benchmarkCase, runtime, camera);
   const samples = emptySamples();
   for (let index = 0; index < WARMUP_SAMPLES + TIMED_SAMPLES; index++) {
-    const sample = await measureIteration(canvas, device, benchmarkCase, runtime, camera);
+    const sample = await measureIteration({
+      canvas,
+      device,
+      benchmarkCase,
+      runtime,
+      camera,
+      pickPoint,
+    });
     if (index >= WARMUP_SAMPLES) pushSample(samples, sample);
   }
+  const interactive = hasInteractiveSample(benchmarkCase)
+    ? await measureInteractiveSamples({
+        canvas,
+        device,
+        benchmarkCase,
+        runtime,
+        camera,
+        width: WIDTH,
+        height: HEIGHT,
+      })
+    : undefined;
   return {
     id: benchmarkCase.id,
     name: benchmarkCase.name,
@@ -144,6 +175,7 @@ async function measureCase(
     visibleTriangles: submittedTriangleCount(benchmarkCase, runtime, true),
     instanceCount: runtime.instanceCount,
     timings: summarize(samples),
+    ...(interactive === undefined ? {} : { interactive }),
     estimatedMemory: estimateBenchmarkMemory(
       benchmarkCase.gridCells,
       runtime.instanceCount,
@@ -182,6 +214,33 @@ function countBodies(benchmarkCase: WebGpuBenchmarkCase): number {
   return count;
 }
 
+function benchmarkPickPoint(
+  canvas: HTMLCanvasElement,
+  benchmarkCase: WebGpuBenchmarkCase,
+  runtime: ReturnType<typeof createPackedSceneRuntime>,
+  camera: Camera,
+): readonly [number, number] {
+  const instance = runtime.getDrawList()[0];
+  const partId = instance === undefined ? undefined : runtime.getPartId(instance);
+  const part = partId === undefined ? undefined : benchmarkCase.scene.parts.get(partId);
+  const transform = instance === undefined ? undefined : runtime.getTransform(instance);
+  if (part === undefined || transform === undefined) {
+    throw new Error(`${benchmarkCase.id} has no drawable benchmark instance`);
+  }
+  const localCenter: [number, number, number] = [
+    (part.bounds.minX + part.bounds.maxX) / 2,
+    (part.bounds.minY + part.bounds.maxY) / 2,
+    (part.bounds.minZ + part.bounds.maxZ) / 2,
+  ];
+  const worldCenter = transformPoint(transform, localCenter[0], localCenter[1], localCenter[2]);
+  const projected = projectPoint(camera, worldCenter);
+  if (projected === undefined)
+    throw new Error(`${benchmarkCase.id} pick point is behind the camera`);
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) throw new Error("Benchmark canvas has no visible size");
+  return [(projected[0] * rect.width) / camera.width, (projected[1] * rect.height) / camera.height];
+}
+
 function submittedTriangleCount(
   benchmarkCase: WebGpuBenchmarkCase,
   runtime: ReturnType<typeof createPackedSceneRuntime>,
@@ -197,13 +256,19 @@ function submittedTriangleCount(
   return count;
 }
 
+interface IterationOptions {
+  readonly canvas: HTMLCanvasElement;
+  readonly device: GPUDevice;
+  readonly benchmarkCase: WebGpuBenchmarkCase;
+  readonly runtime: ReturnType<typeof createPackedSceneRuntime>;
+  readonly camera: Camera;
+  readonly pickPoint: readonly [number, number];
+}
+
 async function measureIteration(
-  canvas: HTMLCanvasElement,
-  device: GPUDevice,
-  benchmarkCase: WebGpuBenchmarkCase,
-  runtime: ReturnType<typeof createPackedSceneRuntime>,
-  camera: Camera,
+  options: IterationOptions,
 ): Promise<Record<keyof SampleSet, number>> {
+  const { canvas, device, benchmarkCase, runtime, camera, pickPoint } = options;
   const renderer = await createWebGpuRenderer({ canvas, device });
   renderer.resize(WIDTH, HEIGHT);
   try {
@@ -213,12 +278,12 @@ async function measureIteration(
     const visible = await timeGpu(device, () => {
       renderer.render(runtime, camera, benchmarkCase.scene.parts);
     });
-    await timePick(renderer, WIDTH / 2, HEIGHT / 2);
+    await timePick(renderer, pickPoint[0], pickPoint[1]);
     const invalidatingCamera = { ...camera };
     renderer.render(runtime, invalidatingCamera, benchmarkCase.scene.parts);
     await device.queue.onSubmittedWorkDone();
-    const pickCombined = await timePick(renderer, WIDTH / 2, HEIGHT / 2);
-    const pickReadback = await timePick(renderer, WIDTH / 2, HEIGHT / 2);
+    const pickCombined = await timePick(renderer, pickPoint[0], pickPoint[1]);
+    const pickReadback = await timePick(renderer, pickPoint[0], pickPoint[1]);
     return {
       upload: Math.max(0, firstFrame - visible),
       firstFrame,
@@ -241,7 +306,17 @@ async function timeGpu(device: GPUDevice, submit: () => void): Promise<number> {
 
 async function timePick(renderer: WebGpuRenderer, x: number, y: number): Promise<number> {
   const start = performance.now();
-  const target = await renderer.pick(x, y);
+  let target: Awaited<ReturnType<WebGpuRenderer["pick"]>>;
+  try {
+    target = await renderer.pick(x, y);
+  } catch (error) {
+    const cause = error instanceof Error && "cause" in error ? error.cause : error;
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    throw new Error(
+      `Benchmark pick readback failed at (${x.toFixed(1)}, ${y.toFixed(1)}): ${detail}`,
+      { cause: error },
+    );
+  }
   if (target === undefined) throw new Error("Benchmark pick coordinate did not hit the model");
   return performance.now() - start;
 }

@@ -122,6 +122,22 @@ similar browser/adapter configurations; the numbers are a capacity envelope,
 not a universal triangle limit. GitHub-hosted Actions does not run this browser
 benchmark until an explicitly owned real-GPU runner exists.
 
+Three representative cases (`instanced-2.10m`, `unique-1m`, and
+`many-parts-100`) also include bounded interactive samples under
+`case.interactive`. Each case reports a fixed-camera sample and a deterministic
+moving-camera sample, with a 500 ms untimed warmup followed by a 2 second RAF
+sample. The sample contains duration, frame count, FPS, p50/p95/maximum frame
+intervals, and counts and percentages of intervals over 16.7 ms and 33.3 ms;
+the final camera snapshot makes the moving-camera path observable. These are
+refresh-rate and browser-loop measurements, not queue-drained GPU timings, and
+the opt-in benchmark intentionally applies no FPS pass/fail threshold. The
+existing queue-drained fields remain the source of capacity measurements.
+
+Non-body geometry stress cases use one aggregate element record so element
+metadata does not dominate the large-model benchmark. Body-interaction cases
+retain per-cell elements and faces, which keeps their visibility and picking
+semantics representative of the product path.
+
 ## Interactive WebGPU inspection case
 
 The full-screen demo exposes the bounded benchmark matrix through the normal
