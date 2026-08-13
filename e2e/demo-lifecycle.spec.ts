@@ -395,7 +395,7 @@ test("switches between deterministic model presets", async ({ page }) => {
   await page.goto("/");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
-  await expect(select.locator("option")).toHaveCount(18);
+  await expect(select.locator("option")).toHaveCount(12);
   await expect(select).toHaveValue("bolted");
   await expect(canvas).toHaveAttribute("data-model", "bolted");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
@@ -430,8 +430,9 @@ test("builds a benchmark matrix model only after explicit selection", async ({ p
   await page.goto("/");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
-  await expect(select.locator('option[value="unique-1m"]')).toContainText(
-    "999,698 unique Triangle elements",
+  await expect(select.locator('option[value="unique-1m"]')).toHaveCount(0);
+  await expect(select.locator('option[value="fe-hex20-solid-visual"]')).toContainText(
+    "FE Hex20 solid",
   );
   await expect(canvas).toHaveAttribute("data-model", "bolted");
   await select.selectOption("bodies-256");
@@ -448,6 +449,35 @@ test("builds a benchmark matrix model only after explicit selection", async ({ p
   await expect(diagnostics).toContainText("Element family quad");
   await expect(diagnostics).toContainText("Unique elements 1,024");
   await expect(diagnostics).toContainText("Submitted element occurrences 1,024");
+});
+test("keeps a stale opt-in capacity load from replacing a newer model", async ({ page }) => {
+  await page.goto("/?performanceLab=1");
+  const select = page.getByTestId("model-select");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(select.locator('option[value="unique-250k"]')).toContainText(
+    "250,632 unique Triangle elements",
+  );
+
+  const loadingState = await page.evaluate(() => {
+    const select = document.querySelector<HTMLSelectElement>("#model-select");
+    if (select === null) throw new Error("model selector missing");
+    select.value = "unique-250k";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    const message = document.querySelector<HTMLElement>("#model-feedback")?.textContent ?? "";
+    const busy = document.querySelector<HTMLElement>("#model-source")?.ariaBusy ?? "";
+    const disabled = select.disabled;
+    select.value = "bolted";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    return { busy, disabled, message };
+  });
+  expect(loadingState.message).toMatch(/Building .*250,632 unique/);
+  expect(loadingState.busy).toBe("true");
+  expect(loadingState.disabled).toBe(false);
+  await expect(canvas).toHaveAttribute("data-model", "bolted");
+  await expect(page.getByTestId("model-feedback")).toBeHidden();
+  await page.waitForTimeout(100);
+  await expect(canvas).toHaveAttribute("data-model", "bolted");
+  await expect(page.locator("#model-source")).toHaveAttribute("aria-busy", "false");
 });
 test("opens the performance model through the normal demo path", async ({ page }) => {
   await page.goto("/");

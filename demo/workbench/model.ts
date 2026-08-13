@@ -172,10 +172,14 @@ export function clearModelInspection(view: DemoView, model: WorkbenchModel): voi
   view.inspectionPanel.closest<HTMLElement>(".inspection")?.setAttribute("hidden", "");
 }
 
-/** Reflects the asynchronous file transition state in the model-source group. */
-export function setModelLoading(view: DemoView, loading: boolean): void {
+/** Reflects an asynchronous model transition in the model-source group. */
+export function setModelLoading(
+  view: DemoView,
+  loading: boolean,
+  options: { readonly allowModelSelection?: boolean } = {},
+): void {
   view.modelSource.setAttribute("aria-busy", String(loading));
-  view.modelSelect.disabled = loading;
+  view.modelSelect.disabled = loading && options.allowModelSelection !== true;
   view.openGlbButton.disabled = loading;
 }
 

@@ -341,31 +341,41 @@ export class WorkbenchController {
 
   setModel(id: string): void {
     const model = this.examples.find((candidate) => candidate.id === id);
-    if (model === undefined || model.id === this.model.id) return;
+    if (model === undefined) return;
+    const generation = ++this.loadGeneration;
+    if (model.id === this.model.id) {
+      setModelLoading(this.view, false, { allowModelSelection: true });
+      clearModelFeedback(this.view);
+      return;
+    }
     if (model.deferredLoad !== undefined) {
-      void this.loadDeferredModel(model);
+      void this.loadDeferredModel(model, generation);
       return;
     }
     this.activateModel(model);
   }
 
-  private async loadDeferredModel(model: WorkbenchModel): Promise<void> {
-    const generation = ++this.loadGeneration;
-    setModelLoading(this.view, true);
+  private async loadDeferredModel(model: WorkbenchModel, generation: number): Promise<void> {
+    const deferredLoad = model.deferredLoad;
+    if (deferredLoad === undefined) return;
+    setModelLoading(this.view, true, { allowModelSelection: true });
     setModelFeedback(this.view, `Building ${model.name}…`);
     try {
-      const loaded = await model.deferredLoad?.();
-      if (loaded === undefined || this.disposed || generation !== this.loadGeneration) return;
+      await yieldToBrowser();
+      if (!this.isCurrentLoad(generation)) return;
+      const loaded = await deferredLoad();
+      if (!this.isCurrentLoad(generation)) return;
       this.activateModel(loaded);
     } catch (error) {
-      if (this.disposed || generation !== this.loadGeneration) return;
+      if (!this.isCurrentLoad(generation)) return;
       setModelFeedback(
         this.view,
         `${model.name} could not be built: ${errorMessage(error)}`,
         "error",
       );
     } finally {
-      if (generation === this.loadGeneration) setModelLoading(this.view, false);
+      if (generation === this.loadGeneration)
+        setModelLoading(this.view, false, { allowModelSelection: true });
     }
   }
 
@@ -521,6 +531,7 @@ export class WorkbenchController {
   }
 
   private activateModel(model: WorkbenchModel): void {
+    setModelLoading(this.view, false);
     const now = performance.now();
     for (const slot of this.slots.values()) slot.renderLoop.reset(now);
     this.model = model;
@@ -557,6 +568,10 @@ export class WorkbenchController {
     clearModelFeedback(this.view);
     clearModelInspection(this.view, model);
     this.render();
+  }
+
+  private isCurrentLoad(generation: number): boolean {
+    return !this.disposed && generation === this.loadGeneration;
   }
 
   render(): void {
@@ -725,6 +740,12 @@ export class WorkbenchController {
     slot.boxPreview.dispose();
     slot.viewport.destroy();
   }
+}
+
+function yieldToBrowser(): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, 0);
+  });
 }
 
 function isDestroyedViewportError(error: unknown): boolean {
