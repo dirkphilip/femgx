@@ -193,6 +193,75 @@ describe("viewport results workflow", () => {
     expect(colors?.slice(12, 16)).toEqual(new Float32Array([0.75, 0.05, 0.1, 1]));
   });
 
+  it("reuses derived result buffers when authored arrays are unchanged", () => {
+    const scene = createTestScene();
+    const runtime = {
+      instanceCount: 1,
+      getPartId: () => 1,
+      getInstanceId: () => "1/0",
+    } as never;
+    const scalarValues = new Float32Array([0, 5, 10]);
+    const displacementValues = new Float32Array([0.1, 0, 0, 0, 0.2, 0, 0, 0, 0.3]);
+    const first = resolveViewportResults(
+      {
+        field: createResultField({
+          id: "temperature-a",
+          name: "Temperature A",
+          location: "nodal",
+          shape: "scalar",
+          count: 3,
+          unit: "C",
+          values: scalarValues,
+        }),
+        deformation: {
+          field: createResultField({
+            id: "displacement-a",
+            name: "Displacement A",
+            location: "nodal",
+            shape: "vector",
+            count: 3,
+            unit: "mm",
+            values: displacementValues,
+          }),
+        },
+      },
+      scene,
+      runtime,
+    );
+    const second = resolveViewportResults(
+      {
+        field: createResultField({
+          id: "temperature-b",
+          name: "Temperature B",
+          location: "nodal",
+          shape: "scalar",
+          count: 3,
+          unit: "C",
+          values: scalarValues,
+        }),
+        deformation: {
+          field: createResultField({
+            id: "displacement-b",
+            name: "Displacement B",
+            location: "nodal",
+            shape: "vector",
+            count: 3,
+            unit: "mm",
+            values: displacementValues,
+          }),
+          scale: 3,
+        },
+      },
+      scene,
+      runtime,
+      first,
+    );
+
+    expect(viewportResultColors(second)?.get(1)).toBe(viewportResultColors(first)?.get(1));
+    expect(second.deformation?.displacements.get(1)).toBe(first.deformation?.displacements.get(1));
+    expect(second.deformation?.scale).toBe(3);
+  });
+
   it("validates deformation only for parts placed in the compiled runtime", () => {
     const scene = createScene()
       .addPart(
@@ -261,6 +330,86 @@ describe("viewport results workflow", () => {
     viewport.clearResults();
     expect(viewport.results).toBeUndefined();
     expect(viewport.interaction).toBe(base);
+    viewport.destroy();
+  });
+
+  it("keeps load-step resources bounded and makes scale-only updates uniform-only", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const scene = createTestScene();
+    const scalarA = nodalScalar();
+    const scalarB = createResultField({
+      id: "temperature-b",
+      name: "Temperature B",
+      location: "nodal",
+      shape: "scalar",
+      count: 3,
+      unit: "C",
+      values: new Float32Array([10, 5, 0]),
+    });
+    const displacementA = nodalDisplacement();
+    const displacementB = createResultField({
+      id: "displacement-b",
+      name: "Displacement B",
+      location: "nodal",
+      shape: "vector",
+      count: 3,
+      unit: "mm",
+      values: new Float32Array([0.2, 0, 0, 0, 0.1, 0, 0, 0, 0.4]),
+    });
+    const elementalA = elementalScalar();
+    const elementalB = createResultField({
+      id: "stress-b",
+      name: "Authored stress B",
+      location: "elemental",
+      shape: "scalar",
+      count: 1,
+      unit: "MPa",
+      values: new Float32Array([6]),
+    });
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene,
+      device: gpu.device,
+      results: { field: scalarA, deformation: { field: displacementA } },
+    });
+    const runtime = viewport.runtime;
+    const displacementBuffer = gpu.buffers.find(
+      (buffer) => buffer.size === displacementA.values.byteLength && (buffer.usage & 16) !== 0,
+    );
+    const displacementWrites = (): number =>
+      gpu.writes.filter((write) => write.buffer === displacementBuffer?.resource).length;
+    const uniformBuffer = gpu.buffers.find(
+      (buffer) => buffer.size === 16 && (buffer.usage & 1) !== 0,
+    );
+    const uniformWrites = (): number =>
+      gpu.writes.filter((write) => write.buffer === uniformBuffer?.resource).length;
+    const beforeScale = displacementWrites();
+    const beforeUniform = uniformWrites();
+
+    viewport.setResults({ field: scalarA, deformation: { field: displacementA, scale: 2 } });
+
+    expect(displacementWrites()).toBe(beforeScale);
+    expect(uniformWrites()).toBeGreaterThan(beforeUniform);
+    viewport.setResults({ field: elementalA, deformation: { field: displacementA } });
+    viewport.setResults({ field: elementalB, deformation: { field: displacementB } });
+    const bufferCount = gpu.buffers.length;
+    for (let step = 0; step < 100; step += 1) {
+      const alternate = step % 2 === 1;
+      viewport.setResults({
+        field: alternate ? scalarB : scalarA,
+        deformation: {
+          field: alternate ? displacementB : displacementA,
+          scale: 1 + (step % 3) * 0.5,
+        },
+      });
+    }
+
+    expect(gpu.buffers.length).toBe(bufferCount);
+    expect(displacementBuffer?.destroyed).toBe(false);
+    expect(viewport.scene).toBe(scene);
+    expect(viewport.runtime).toBe(runtime);
     viewport.destroy();
   });
 

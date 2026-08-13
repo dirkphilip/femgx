@@ -22,6 +22,7 @@ export interface WorkbenchLifecycleOptions {
   readonly setNodes: () => void;
   readonly setContinuous: () => void;
   readonly setResults: () => void;
+  readonly setElementSelection: () => void;
   readonly reset: () => void;
   readonly fitView: () => void;
   readonly setModel: (id: string) => void;
@@ -80,6 +81,7 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     setNodes: options.setNodes,
     setContinuous: options.setContinuous,
     setResults: options.setResults,
+    setElementSelection: options.setElementSelection,
     reset: options.reset,
     fitView: options.fitView,
     setModel: options.setModel,

@@ -11,7 +11,13 @@ import {
 } from "../../src/index";
 import type { BoxSelectionEvent, InteractionTarget } from "../../src/index";
 import { describePick } from "./inspect";
-import { elementTarget, selectTarget, targetKey, type SelectTarget } from "./pick";
+import {
+  elementSelectTarget,
+  elementTarget,
+  selectTarget,
+  targetKey,
+  type SelectTarget,
+} from "./pick";
 import {
   clearSelection as clearSelectedTargets,
   replaceSelection,
@@ -43,6 +49,7 @@ export interface WorkbenchInteractionOptions {
   readonly partName: (partId: PartId) => string | undefined;
   readonly menu: WorkbenchMenu;
   readonly render: () => void;
+  readonly elementSelectionEnabled: () => boolean;
   /** Optional concise feedback sink for completed box-selection results. */
   readonly selectionFeedback?: (message: string) => void;
 }
@@ -103,11 +110,18 @@ export class WorkbenchInteraction {
     const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
     if (hit === undefined) {
+      if (event.ctrlKey || event.metaKey) {
+        this.showPick(undefined);
+        return;
+      }
       this.clearSelection();
       this.showPick(undefined);
       return;
     }
-    const target = selectTarget(hit, event);
+    this.showPick(hit);
+    const target = this.options.elementSelectionEnabled()
+      ? elementSelectTarget(hit)
+      : selectTarget(hit, event);
     if (target === undefined) return;
     if (event.ctrlKey || event.metaKey) this.select(target);
     else this.replace(target);

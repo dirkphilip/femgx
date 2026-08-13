@@ -38,6 +38,12 @@ Per-frame allocations were removed from `src/renderer/`:
   later readbacks reuse it. Interaction colors, edge/node overlays, and the
   rotation-origin widget does not invalidate the snapshot because it does not change hit
   geometry.
+- **Authored results** — repeated `setResults()` calls reuse derived nodal color
+  tables and per-part displacement arrays when their source typed-array
+  references are unchanged. Scale-only deformation changes rewrite only the
+  small uniform; changed same-sized arrays write into existing storage. Device
+  recovery retains the latest result/deformation state and re-uploads only that
+  active step.
 
 ## Synchronization constraints
 

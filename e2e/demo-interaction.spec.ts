@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { dataset, requireHit } from "./demo-support";
+import { dataset, requireHit, setElementSelection } from "./demo-support";
 import { loadWebGpuPage } from "./webgpu-support";
 test("toggles the element edge overlay independently of solid geometry", async ({ page }) => {
   await loadWebGpuPage(page);
@@ -24,6 +24,38 @@ test("keeps depth-tested edges behind the single edges control", async ({ page }
   await expect(page.getByTestId("depth-test")).toHaveCount(0);
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
 });
+
+test("defaults to owning-element selection and can restore exact picks", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const toggle = page.getByTestId("element-select");
+  await expect(toggle).toHaveAttribute("aria-label", "Element select");
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("interaction-help")).toContainText("Element select");
+
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node GPU picking must resolve on the deterministic WebGPU lane",
+  );
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
+  await expect(page.getByTestId("inspection-panel")).toContainText("Node");
+
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  const modifier = process.platform === "darwin" ? "Meta" : "Control";
+  await page.keyboard.down(modifier);
+  await page.mouse.click(box.x + box.width - 12, box.y + box.height - 12);
+  await page.keyboard.up(modifier);
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
+
+  await setElementSelection(page, false);
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
+});
+
 test("selects an element by promoting a node pick with shift-click", async ({ page }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
@@ -103,6 +135,7 @@ test("promotes face and element context targets to the exact element", async ({ 
 });
 test("clears selection on empty scene clicks but preserves it through orbit", async ({ page }) => {
   await loadWebGpuPage(page);
+  await setElementSelection(page, false);
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
@@ -130,6 +163,7 @@ test("clears selection on empty scene clicks but preserves it through orbit", as
 });
 test("uses Control/Meta-click for additive and toggle selection", async ({ page }) => {
   await loadWebGpuPage(page);
+  await setElementSelection(page, false);
   const canvas = page.getByTestId("view-canvas");
   const nodeHit = await requireHit(
     page,
@@ -160,6 +194,7 @@ test("uses Control/Meta-click for additive and toggle selection", async ({ page 
 });
 test("picks and selects a node, exposing adjacency and neighbors", async ({ page }) => {
   await loadWebGpuPage(page);
+  await setElementSelection(page, false);
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
@@ -175,6 +210,7 @@ test("picks and selects a node, exposing adjacency and neighbors", async ({ page
 });
 test("picks and selects a face, exposing its normal and ownership", async ({ page }) => {
   await loadWebGpuPage(page);
+  await setElementSelection(page, false);
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
@@ -191,6 +227,7 @@ test("picks and selects a face, exposing its normal and ownership", async ({ pag
 
 test("keeps the generic mapped element face identity through selection", async ({ page }) => {
   await loadWebGpuPage(page);
+  await setElementSelection(page, false);
   await page.getByTestId("model-select").selectOption("gallery");
   const canvas = page.getByTestId("view-canvas");
   const genericRow = page
@@ -228,6 +265,7 @@ test("keeps the generic mapped element face identity through selection", async (
 });
 test("keeps selection stable across repeated orbit interactions", async ({ page }) => {
   await loadWebGpuPage(page);
+  await setElementSelection(page, false);
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,

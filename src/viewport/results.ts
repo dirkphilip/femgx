@@ -52,18 +52,20 @@ export function resolveViewportResults(
   config: ViewportResultsConfig,
   scene: Scene,
   runtime: PackedSceneRuntime,
+  previous?: ViewportResultsState,
 ): ViewportResultsState {
   const scalarField = config.field;
   const range = resolveRange(scalarField, config.range, config.colorMap);
-  const colorMap = config.colorMap ?? createScalarColorMap(range);
+  const colorMap = resolveColorMap(config, scalarField, range, previous);
   validateMapRange(range, colorMap);
   validateResultCoverage(scalarField, scene, runtime);
-  const deformation = resolveDeformation(config.deformation, scene, runtime);
+  const deformation = resolveDeformation(config.deformation, scene, runtime, previous);
   const state = { config, scalarField, range, colorMap, deformation };
+  const reusableColors = reusableNodalResultColors(previous, scalarField, colorMap);
   nodalResultColors.set(
     state,
     scalarField.location === "nodal"
-      ? buildNodalResultColors(scalarField, colorMap, scene, runtime)
+      ? (reusableColors ?? buildNodalResultColors(scalarField, colorMap, scene, runtime))
       : undefined,
   );
   return state;
@@ -144,6 +146,48 @@ function resolveRange(
     );
   }
   return observed.min === observed.max ? expandConstantRange(observed.min) : observed;
+}
+
+function resolveColorMap(
+  config: ViewportResultsConfig,
+  field: ViewportResultField,
+  range: ValueRange,
+  previous: ViewportResultsState | undefined,
+): ScalarColorMap {
+  if (config.colorMap !== undefined) return config.colorMap;
+  if (
+    previous !== undefined &&
+    previous.config.colorMap === undefined &&
+    sameFieldSource(previous.scalarField, field) &&
+    previous.range.min === range.min &&
+    previous.range.max === range.max
+  ) {
+    return previous.colorMap;
+  }
+  return createScalarColorMap(range);
+}
+
+function reusableNodalResultColors(
+  previous: ViewportResultsState | undefined,
+  field: ViewportResultField,
+  colorMap: ScalarColorMap,
+): ResultColorMap | undefined {
+  if (
+    previous === undefined ||
+    previous.scalarField.location !== "nodal" ||
+    field.location !== "nodal" ||
+    previous.colorMap !== colorMap ||
+    !sameFieldSource(previous.scalarField, field)
+  ) {
+    return undefined;
+  }
+  return viewportResultColors(previous);
+}
+
+function sameFieldSource(left: ViewportResultField, right: ViewportResultField): boolean {
+  return (
+    left.location === right.location && left.count === right.count && left.values === right.values
+  );
 }
 
 function expandConstantRange(value: number): ValueRange {
@@ -260,12 +304,15 @@ function resolveDeformation(
   config: ViewportDeformationConfig | undefined,
   scene: Scene,
   runtime: PackedSceneRuntime,
+  previous: ViewportResultsState | undefined,
 ): DeformationState | undefined {
   if (config === undefined) return undefined;
   const scale = config.scale ?? 1;
   if (!Number.isFinite(scale)) {
     throw new Error(`Viewport deformation scale must be finite, got ${scale}`);
   }
+  const reusable = reusableDeformation(previous, config);
+  if (reusable !== undefined) return { scale, displacements: reusable };
   const displacements = new Map<PartId, Float32Array>();
   const renderedPartIds = new Set<PartId>();
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
@@ -295,4 +342,21 @@ function resolveDeformation(
     displacements.set(part.id, nodalDisplacements(maxNodeId + 1, config.field));
   }
   return { scale, displacements };
+}
+
+function reusableDeformation(
+  previous: ViewportResultsState | undefined,
+  config: ViewportDeformationConfig,
+): ReadonlyMap<PartId, Float32Array> | undefined {
+  const previousConfig = previous?.config.deformation;
+  const previousState = previous?.deformation;
+  if (
+    previousConfig === undefined ||
+    previousState === undefined ||
+    previousConfig.field.count !== config.field.count ||
+    previousConfig.field.values !== config.field.values
+  ) {
+    return undefined;
+  }
+  return previousState.displacements;
 }

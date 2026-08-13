@@ -7,6 +7,7 @@ import {
   type BoxSelectionEvent,
   type FemViewport,
   type InteractionTarget,
+  type PickHit,
 } from "../../src/index";
 import type { DemoView } from "../../demo/workbench/view";
 import { WorkbenchBoxPreview } from "../../demo/workbench/box-preview";
@@ -210,6 +211,7 @@ describe("workbench hover suppression", () => {
       nodeOverlayToggle: new FakeElement(),
       resetButton: new FakeElement(),
       fitView: new FakeElement(),
+      elementSelectionToggle: new FakeElement(),
       modelSelect: new FakeElement(),
       openGlbButton: new FakeElement(),
       glbFileInput: new FakeElement(),
@@ -230,6 +232,7 @@ describe("workbench hover suppression", () => {
       setNodes: () => undefined,
       setContinuous: () => undefined,
       setResults: () => undefined,
+      setElementSelection: () => undefined,
       reset: () => undefined,
       fitView: () => undefined,
       setModel: () => undefined,
@@ -256,9 +259,10 @@ describe("workbench hover suppression", () => {
 
 describe("workbench click selection", () => {
   function harness(
-    pick = vi.fn(() => Promise.resolve(undefined)),
+    pick: ReturnType<typeof vi.fn> = vi.fn(() => Promise.resolve(undefined)),
     pickRegion = vi.fn(() => Promise.resolve([] as readonly InteractionTarget[])),
     initialInteraction = createInteractionState(),
+    elementSelectionEnabled = true,
   ) {
     const canvas = new FakeElement();
     let interaction = initialInteraction;
@@ -276,6 +280,7 @@ describe("workbench click selection", () => {
       partName: () => undefined,
       menu: { hide: vi.fn() } as unknown as WorkbenchMenu,
       render,
+      elementSelectionEnabled: () => elementSelectionEnabled,
       selectionFeedback,
     });
     return {
@@ -284,6 +289,7 @@ describe("workbench click selection", () => {
       pickRegion,
       render,
       selectionFeedback,
+      inspectionPanel,
       getInteraction: () => interaction,
     };
   }
@@ -293,6 +299,18 @@ describe("workbench click selection", () => {
     instanceId,
     elementId,
   });
+
+  const nodeHit: PickHit = {
+    kind: "node",
+    partId: 1,
+    instanceId: "instance-a",
+    elementId: 2,
+    nodeId: 3,
+    localPosition: [0, 0, 0],
+    worldPosition: [0, 0, 0],
+    neighborElementIds: [2],
+    neighborNodeIds: [4],
+  };
 
   const complete = (
     modifiers: Partial<BoxSelectionModifiers> = {},
@@ -327,6 +345,35 @@ describe("workbench click selection", () => {
     expect(pick).toHaveBeenCalledOnce();
     // An empty pick clears selection and refreshes the inspection panel.
     expect(render).toHaveBeenCalledOnce();
+  });
+
+  it("selects an owning element while keeping the exact pick in inspection", async () => {
+    const pick = vi.fn(() => Promise.resolve(nodeHit));
+    const { workbench, getInteraction, inspectionPanel } = harness(pick);
+
+    await workbench.click({ clientX: 100, clientY: 100 } as MouseEvent);
+
+    expect(selectedKeys(getInteraction())).toEqual(["e:instance-a:2"]);
+    expect(inspectionPanel.textContent).toContain("Node 3");
+  });
+
+  it("keeps a modified empty click from clearing element selection", async () => {
+    const selected = element("instance-a", 2);
+    const initial = setTargetSelected(createInteractionState(), selected, true);
+    const { workbench, getInteraction } = harness(undefined, undefined, initial);
+
+    await workbench.click({ clientX: 100, clientY: 100, ctrlKey: true } as MouseEvent);
+
+    expect(selectedKeys(getInteraction())).toEqual(["e:instance-a:2"]);
+  });
+
+  it("restores exact node selection when Element select is disabled", async () => {
+    const pick = vi.fn(() => Promise.resolve(nodeHit));
+    const { workbench, getInteraction } = harness(pick, undefined, createInteractionState(), false);
+
+    await workbench.click({ clientX: 100, clientY: 100 } as MouseEvent);
+
+    expect(selectedKeys(getInteraction())).toEqual(["n:instance-a:3"]);
   });
 
   it("keeps overlapping picks independent and skips stale results", async () => {

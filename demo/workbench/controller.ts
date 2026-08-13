@@ -83,6 +83,7 @@ export class WorkbenchController {
   private treeHoverTargets: readonly InteractionTarget[] = [];
   private disposed = false;
   private continuousEnabled = false;
+  private elementSelectionEnabled = true;
   private background: ViewportBackground = "studio";
   private readonly observedPaneSizes = new Map<
     ViewportSlotId,
@@ -123,6 +124,7 @@ export class WorkbenchController {
       toggles: () => this.toggles,
       resultMode: () => this.resultMode,
       continuous: () => this.continuousEnabled,
+      elementSelectionEnabled: () => this.elementSelectionEnabled,
       interaction: () => this.interaction,
       setInteraction: (interaction) => {
         this.interaction = interaction;
@@ -177,6 +179,7 @@ export class WorkbenchController {
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
     this.presentation.reflectBackground(this.background);
+    this.presentation.reflectElementSelection();
     this.presentation.populateModelSelect(this.models);
     this.visibilityPanel.rebuild();
     this.boxSelectionDisposer = installWorkbenchLifecycle({
@@ -206,6 +209,9 @@ export class WorkbenchController {
       },
       setContinuous: () => {
         this.setContinuous(!this.continuousEnabled);
+      },
+      setElementSelection: () => {
+        this.setElementSelection(!this.elementSelectionEnabled);
       },
       setResults: () => {
         this.cycleResultMode();
@@ -318,6 +324,13 @@ export class WorkbenchController {
       slot.renderLoop.setEnabled(enabled, performance.now());
     }
     this.presentation.reflectContinuous();
+    this.syncViewportPresentation();
+  }
+
+  setElementSelection(enabled: boolean): void {
+    if (this.elementSelectionEnabled === enabled) return;
+    this.elementSelectionEnabled = enabled;
+    this.presentation.reflectElementSelection();
     this.syncViewportPresentation();
   }
 
@@ -617,6 +630,7 @@ export class WorkbenchController {
     canvas.dataset["edges"] = String(this.toggles.edges);
     canvas.dataset["nodes"] = String(this.toggles.nodes);
     canvas.dataset["continuous"] = String(this.continuousEnabled);
+    canvas.dataset["selectionMode"] = this.elementSelectionEnabled ? "element" : "exact";
     canvas.dataset["results"] = this.resultMode;
     canvas.dataset["background"] = this.background;
   }
@@ -643,6 +657,7 @@ export class WorkbenchController {
         canvas: this.view.secondaryPane.canvas,
         view: this.view,
         viewport: () => viewport,
+        elementSelectionEnabled: () => this.elementSelectionEnabled,
         getInteraction: () => this.interaction,
         setInteraction: (value) => {
           this.interaction = value;
