@@ -60,22 +60,6 @@ struct NodeVertexOutput {
 };
 `;
 
-const nodePickVisibility = /* wgsl */ `
-  let bodyPickId = faceBodyPickIds.y;
-  var hidden = false;
-  if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
-    let bucket = highlightHash(drawOrder[instanceIndex], bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
-    let highlightBase = bucket * 4u;
-    for (var offset = 0u; offset < 4u; offset++) {
-      let highlight = elementHighlights.records[highlightBase + offset];
-      if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
-        hidden = highlight.hidden != 0u;
-        break;
-      }
-    }
-  }
-`;
-
 /** Builds the triangle or line node-pick vertex stage from explicit topology inputs. */
 function createNodePickVertexShader(variant: NodePickPrimitiveVariant): string {
   const primitiveIndex = `vertexIndex / ${variant.verticesPerPrimitive}u`;
@@ -109,7 +93,6 @@ fn vertexMain(
   let base = ${options.primitiveBase};
   let base3 = base * 3u;
   let faceBodyPickIds = primitiveFaceBodyPickIds(${options.primitiveIndex});
-${nodePickVisibility}
 ${createNodePickVertexOutput(options)}
 }
 `;
@@ -119,9 +102,6 @@ function createNodePickVertexOutput(options: NodePickVertexMainOptions): string 
   return /* wgsl */ `
   var output: NodeVertexOutput;
   output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
-  if (hidden) {
-    output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
-  }
   if (!primitiveVisible(drawOrder[instanceIndex], ${options.primitiveIndex})) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
@@ -227,19 +207,6 @@ fn pointVertexMain(
   let corner = spriteCorner(vertexIndex % 4u);
   let offset = (corner * camera.pointSize) / camera.viewport;
   let elementPickId = primitiveElementPickIds[vertexIndex / 4u];
-  let bodyPickId = primitiveFaceBodyPickIds(vertexIndex / 4u).y;
-  var hidden = false;
-  if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
-    let bucket = highlightHash(drawOrder[instanceIndex], bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
-    let base = bucket * 4u;
-    for (var offsetIndex = 0u; offsetIndex < 4u; offsetIndex++) {
-      let highlight = elementHighlights.records[base + offsetIndex];
-      if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
-        hidden = highlight.hidden != 0u;
-        break;
-      }
-    }
-  }
   var output: NodeVertexOutput;
   output.position = vec4<f32>(
     clip.x + offset.x * clip.w,
@@ -247,9 +214,6 @@ fn pointVertexMain(
     clip.z,
     clip.w,
   );
-  if (hidden) {
-    output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
-  }
   if (!topologyOwnersVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }

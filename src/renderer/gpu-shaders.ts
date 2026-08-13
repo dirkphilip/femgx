@@ -1,3 +1,5 @@
+import { emphasisHash } from "./gpu-highlight-shader";
+
 /**
  * Shared WGSL for the instanced render passes. All vertex shaders read the
  * same camera and deformation uniforms and per-part instance storage, so parts
@@ -410,36 +412,3 @@ fn vertexMain(
   return output;
 }
 `;
-
-/**
- * Fragment stage for the picking pass. Packs the u32 pick ids across the four
- * RGBA bytes of an `rgba8unorm` target, mirroring `encodePickId` in
- * `pick-format.ts`; the byte order of both must stay in sync. Target 0 holds
- * the instance pick id, target 1 the element pick id, target 2 the face pick
- * id, and target 3 the node pick id.
- */
-export const pickFragmentShader = /* wgsl */ `
-${packPickIdFunction}
-
-struct PickOutput {
-  @location(0) instance: vec4<f32>,
-  @location(1) element: vec4<f32>,
-  @location(2) face: vec4<f32>,
-  @location(3) node: vec4<f32>,
-};
-
-@fragment
-fn fragmentMain(
-  @location(1) @interpolate(flat) pickId: u32,
-  @location(3) @interpolate(flat) elementPickId: u32,
-  @location(4) @interpolate(flat) facePickId: u32,
-) -> PickOutput {
-  var output: PickOutput;
-  output.instance = packPickId(pickId);
-  output.element = packPickId(elementPickId);
-  output.face = packPickId(facePickId);
-  output.node = packPickId(0u);
-  return output;
-}
-`;
-import { emphasisHash } from "./gpu-highlight-shader";

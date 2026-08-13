@@ -9,7 +9,6 @@ import {
   edgeFragmentShader,
   edgeVertexShader,
   surfaceLightingFunction,
-  pickFragmentShader,
   triangleColorFragmentShader,
   vertexOutput,
 } from "../../src/renderer/gpu-shaders";
@@ -189,6 +188,11 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(edgeVertexShader).toMatch(/topologyBodyRange\(topologyIndex\)/);
     expect(edgeVertexShader).toMatch(/highlight\.hidden == 0u/);
     expect(pointVertexShader).toMatch(/topologyOwnersVisible\(/);
+    expect(nodePickVertexShader).toMatch(/primitiveVisible\(/);
+    expect(lineNodePickVertexShader).toMatch(/primitiveVisible\(/);
+    expect(pointNodePickVertexShader).toMatch(/topologyOwnersVisible\(/);
+    expect(nodePickVertexShader).not.toMatch(/highlightHash\(drawOrder\[instanceIndex\]/);
+    expect(pointNodePickVertexShader).not.toMatch(/highlightHash\(drawOrder\[instanceIndex\]/);
   });
 
   it("builds primitive variants from explicit indexing and shared sprite corners", () => {
@@ -238,13 +242,10 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(pointNodePickVertexShader).toMatch(/output\.nodePickIds = vec3<u32>/);
   });
 
-  it.each([pickFragmentShader, nodePickFragmentShader])(
-    "keeps depth out of the bounded pick color attachments",
-    (shader) => {
-      expect(shader).not.toMatch(/@location\(4\) displayedDepth/);
-      expect(shader).not.toMatch(/@builtin\(position\) fragmentPosition/);
-    },
-  );
+  it("keeps depth out of the bounded node-pick color attachments", () => {
+    expect(nodePickFragmentShader).not.toMatch(/@location\(4\) displayedDepth/);
+    expect(nodePickFragmentShader).not.toMatch(/@builtin\(position\) fragmentPosition/);
+  });
 
   it("applies emissive additively in the color fragment shader", () => {
     expect(colorFragmentShader).toMatch(/@location\(2\) @interpolate\(flat\) emissive: f32/);
