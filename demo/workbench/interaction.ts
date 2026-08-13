@@ -12,10 +12,11 @@ import {
 import type { BoxSelectionEvent, InteractionTarget } from "../../src/index";
 import { describePick } from "./inspect";
 import {
-  elementSelectTarget,
+  exactTarget,
   elementTarget,
   selectTarget,
   targetKey,
+  type SelectionGranularity,
   type SelectTarget,
 } from "./pick";
 import {
@@ -23,8 +24,8 @@ import {
   replaceSelection,
   toggleHighlight,
   toggleElementSelection,
-  replaceElementSelection,
-  toggleElementSelections,
+  replaceTargets,
+  toggleTargets,
   toggleSelection,
 } from "./selection";
 import type { WorkbenchMenu, WorkbenchMenuSelectionOptions } from "./menu";
@@ -49,7 +50,7 @@ export interface WorkbenchInteractionOptions {
   readonly partName: (partId: PartId) => string | undefined;
   readonly menu: WorkbenchMenu;
   readonly render: () => void;
-  readonly elementSelectionEnabled: () => boolean;
+  readonly selectionGranularity: () => SelectionGranularity;
   /** Optional concise feedback sink for completed box-selection results. */
   readonly selectionFeedback?: (message: string) => void;
 }
@@ -90,7 +91,8 @@ export class WorkbenchInteraction {
     const generation = ++this.generation;
     const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
-    const target = hit === undefined ? undefined : selectTarget(hit, event);
+    const target =
+      hit === undefined ? undefined : selectTarget(hit, this.options.selectionGranularity(), event);
     let interaction = this.options.getInteraction();
     interaction = setTargetHovered(interaction, target);
     this.options.setInteraction(interaction);
@@ -119,10 +121,11 @@ export class WorkbenchInteraction {
       return;
     }
     this.showPick(hit);
-    const target = this.options.elementSelectionEnabled()
-      ? elementSelectTarget(hit)
-      : selectTarget(hit, event);
-    if (target === undefined) return;
+    const target = selectTarget(hit, this.options.selectionGranularity(), event);
+    if (target === undefined) {
+      if (!(event.ctrlKey || event.metaKey)) this.clearSelection();
+      return;
+    }
     if (event.ctrlKey || event.metaKey) this.select(target);
     else this.replace(target);
   }
@@ -151,6 +154,14 @@ export class WorkbenchInteraction {
     this.options.render();
   }
 
+  /** Clears transient hover and invalidates an older asynchronous hover query. */
+  clearHover(): void {
+    this.invalidatePendingQuery();
+    const current = this.options.getInteraction();
+    const next = setTargetHovered(current, undefined);
+    if (next !== current) this.options.setInteraction(next);
+  }
+
   highlight(target: SelectTarget): void {
     this.invalidatePendingQuery();
     this.options.setInteraction(toggleHighlight(this.options.getInteraction(), target));
@@ -163,7 +174,7 @@ export class WorkbenchInteraction {
     const generation = ++this.generation;
     const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
-    this.target = hit === undefined ? undefined : selectTarget(hit, event);
+    this.target = hit === undefined ? undefined : exactTarget(hit, event);
     if (this.target === undefined) {
       this.showPick(undefined);
       this.options.menu.showView(event.clientX, event.clientY);
@@ -253,7 +264,9 @@ export class WorkbenchInteraction {
         const generation = this.generation;
         let targets: readonly InteractionTarget[];
         try {
-          targets = await this.options.viewport().pickRegion(event.rect, "element");
+          targets = await this.options
+            .viewport()
+            .pickRegion(event.rect, this.options.selectionGranularity());
         } catch {
           if (this.isCurrentQuery(generation)) {
             this.options.selectionFeedback?.(
@@ -276,17 +289,18 @@ export class WorkbenchInteraction {
     event: CompletedBoxSelectionEvent,
     targets: readonly InteractionTarget[],
   ): void {
-    const elements = elementTargets(targets);
+    const selectable = selectableTargets(targets);
+    const granularity = this.options.selectionGranularity();
     const current = this.options.getInteraction();
     const next =
       event.modifiers.control || event.modifiers.meta
-        ? toggleElementSelections(current, elements)
-        : replaceElementSelection(current, elements);
-    const selectedElementCount = selectedTargets(next).filter(
-      (target) => target.kind === "element",
+        ? toggleTargets(current, selectable)
+        : replaceTargets(current, selectable);
+    const selectedTargetCount = selectedTargets(next).filter(
+      (target) => target.kind === granularity,
     ).length;
     this.options.selectionFeedback?.(
-      `Box selection: ${selectedElementCount} FE element${selectedElementCount === 1 ? "" : "s"}`,
+      `Box selection: ${selectedTargetCount} ${selectionNoun(granularity, selectedTargetCount)}`,
     );
     if (next === current) return;
     this.options.setInteraction(next);
@@ -307,8 +321,13 @@ export class WorkbenchInteraction {
   }
 }
 
-function elementTargets(targets: readonly InteractionTarget[]): SelectTarget[] {
-  return targets.filter((target): target is SelectTarget => target.kind === "element");
+function selectableTargets(targets: readonly InteractionTarget[]): SelectTarget[] {
+  return targets.filter((target): target is SelectTarget => target.kind !== "body");
+}
+
+function selectionNoun(granularity: SelectionGranularity, count: number): string {
+  const noun = granularity === "element" ? "FE element" : granularity;
+  return `${noun}${count === 1 ? "" : "s"}`;
 }
 
 function contextMenuSelectionOptions(

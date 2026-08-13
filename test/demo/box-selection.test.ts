@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createInteractionState,
+  hoveredTarget,
+  isTargetHighlighted,
   isTargetSelected,
+  setTargetHighlighted,
   setTargetSelected,
+  setTargetHovered,
   type BoxSelectionModifiers,
   type BoxSelectionEvent,
   type FemViewport,
@@ -14,6 +18,7 @@ import { WorkbenchBoxPreview } from "../../demo/workbench/box-preview";
 import { installWorkbenchBindings } from "../../demo/workbench/listeners";
 import { WorkbenchInteraction } from "../../demo/workbench/interaction";
 import { selectedKeys } from "../../demo/workbench/selection";
+import type { SelectionGranularity } from "../../demo/workbench/pick";
 import type { WorkbenchMenu } from "../../demo/workbench/menu";
 import type { BoxSelectionRect } from "../../src/index";
 
@@ -211,7 +216,8 @@ describe("workbench hover suppression", () => {
       nodeOverlayToggle: new FakeElement(),
       resetButton: new FakeElement(),
       fitView: new FakeElement(),
-      elementSelectionToggle: new FakeElement(),
+      selectionGranularity: new FakeElement(),
+      interactionHelp: new FakeElement(),
       hideSelectedButton: new FakeElement(),
       showAllButton: new FakeElement(),
       modelSelect: new FakeElement(),
@@ -234,7 +240,7 @@ describe("workbench hover suppression", () => {
       setNodes: () => undefined,
       setContinuous: () => undefined,
       setResults: () => undefined,
-      setElementSelection: () => undefined,
+      setSelectionGranularity: () => undefined,
       hideSelected: () => undefined,
       showAll: () => undefined,
       reset: () => undefined,
@@ -266,7 +272,7 @@ describe("workbench click selection", () => {
     pick: ReturnType<typeof vi.fn> = vi.fn(() => Promise.resolve(undefined)),
     pickRegion = vi.fn(() => Promise.resolve([] as readonly InteractionTarget[])),
     initialInteraction = createInteractionState(),
-    elementSelectionEnabled = true,
+    selectionGranularity: SelectionGranularity = "element",
   ) {
     const canvas = new FakeElement();
     let interaction = initialInteraction;
@@ -284,7 +290,7 @@ describe("workbench click selection", () => {
       partName: () => undefined,
       menu: { hide: vi.fn() } as unknown as WorkbenchMenu,
       render,
-      elementSelectionEnabled: () => elementSelectionEnabled,
+      selectionGranularity: () => selectionGranularity,
       selectionFeedback,
     });
     return {
@@ -371,13 +377,38 @@ describe("workbench click selection", () => {
     expect(selectedKeys(getInteraction())).toEqual(["e:instance-a:2"]);
   });
 
-  it("restores exact node selection when Element select is disabled", async () => {
+  it("selects an exact node in Node granularity", async () => {
     const pick = vi.fn(() => Promise.resolve(nodeHit));
-    const { workbench, getInteraction } = harness(pick, undefined, createInteractionState(), false);
+    const { workbench, getInteraction } = harness(
+      pick,
+      undefined,
+      createInteractionState(),
+      "node",
+    );
 
     await workbench.click({ clientX: 100, clientY: 100 } as MouseEvent);
 
     expect(selectedKeys(getInteraction())).toEqual(["n:instance-a:3"]);
+  });
+
+  it("clears transient hover without changing selection or highlights", () => {
+    const selected = element("instance-a", 2);
+    const initial = setTargetHovered(
+      setTargetHighlighted(
+        setTargetSelected(createInteractionState(), selected, true),
+        selected,
+        true,
+      ),
+      selected,
+    );
+    const { workbench, getInteraction, render } = harness(undefined, undefined, initial);
+
+    workbench.clearHover();
+
+    expect(hoveredTarget(getInteraction())).toBeUndefined();
+    expect(isTargetSelected(getInteraction(), selected)).toBe(true);
+    expect(isTargetHighlighted(getInteraction(), selected)).toBe(true);
+    expect(render).not.toHaveBeenCalled();
   });
 
   it("keeps overlapping picks independent and skips stale results", async () => {
@@ -421,6 +452,28 @@ describe("workbench click selection", () => {
     expect(pickRegion).toHaveBeenCalledWith(rect(), "element");
     expect(selectedKeys(getInteraction())).toEqual(["e:instance-a:2", "e:instance-b:1"]);
     expect(selectionFeedback).toHaveBeenLastCalledWith("Box selection: 2 FE elements");
+    expect(render).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["face", { kind: "face", instanceId: "instance-a", elementId: 2, faceIndex: 1 }],
+    ["node", { kind: "node", instanceId: "instance-a", nodeId: 3 }],
+  ] as const)("box selection uses %s targets", async (granularity, target) => {
+    const pickRegion = vi.fn(() => Promise.resolve([target, target] as const));
+    const { workbench, render, selectionFeedback, getInteraction } = harness(
+      undefined,
+      pickRegion,
+      createInteractionState(),
+      granularity,
+    );
+
+    await workbench.selectBox(complete());
+
+    expect(pickRegion).toHaveBeenCalledWith(rect(), granularity);
+    expect(selectedKeys(getInteraction())).toEqual([
+      granularity === "face" ? "f:instance-a:2:1" : "n:instance-a:3",
+    ]);
+    expect(selectionFeedback).toHaveBeenLastCalledWith(`Box selection: 1 ${granularity}`);
     expect(render).toHaveBeenCalledOnce();
   });
 

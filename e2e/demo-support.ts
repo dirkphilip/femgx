@@ -27,11 +27,18 @@ export async function waitForRenderer(page: Page): Promise<void> {
   });
 }
 
-/** Enables or disables the demo-private owning-element click policy. */
-export async function setElementSelection(page: Page, enabled: boolean): Promise<void> {
-  const toggle = page.getByTestId("element-select");
-  if ((await toggle.getAttribute("aria-pressed")) !== String(enabled)) await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-pressed", String(enabled));
+/** Selects the demo-private click and box-selection granularity. */
+export async function setSelectionGranularity(
+  page: Page,
+  granularity: "element" | "face" | "node",
+): Promise<void> {
+  const select = page.getByTestId("selection-granularity");
+  await select.selectOption(granularity);
+  await expect(select).toHaveValue(granularity);
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute(
+    "data-selection-granularity",
+    granularity,
+  );
 }
 
 /** Drags the primary button far enough to enter box-selection mode. */

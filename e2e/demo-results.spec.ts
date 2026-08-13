@@ -4,7 +4,7 @@ import {
   drawnPixels,
   pixelMetrics,
   requireHit,
-  setElementSelection,
+  setSelectionGranularity,
   waitForRenderer,
 } from "./demo-support";
 
@@ -92,7 +92,7 @@ test("keeps result-strip node and face picks on original ids after deformation",
   await page.goto("/");
   await waitForRenderer(page);
   await page.getByTestId("model-select").selectOption("results");
-  await setElementSelection(page, false);
+  await setSelectionGranularity(page, "node");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toHaveAttribute("data-results", "deformed");
 
@@ -106,6 +106,7 @@ test("keeps result-strip node and face picks on original ids after deformation",
   await expect(page.getByTestId("inspection-panel")).toContainText("Node");
   expect(await canvas.getAttribute("data-pick")).toMatch(/^n:/);
 
+  await setSelectionGranularity(page, "face");
   const faceHit = await requireHit(
     page,
     canvas,

@@ -10,6 +10,7 @@ import { selectedKeys } from "./selection";
 import { selectedElementTargets } from "./visibility-actions";
 import { statsText } from "../devtools/diagnostics";
 import type { DisplayToggles, RenderLoopStats, RendererStats, ResultDisplayMode } from "./types";
+import type { SelectionGranularity } from "./pick";
 
 /** Presentation-only DOM policy for the workbench shell. */
 export interface WorkbenchPresentationOptions {
@@ -22,7 +23,7 @@ export interface WorkbenchPresentationOptions {
   readonly getInteraction: () => InteractionState;
   readonly getRuntime: () => SceneRuntime;
   readonly getContinuous: () => boolean;
-  readonly getElementSelectionEnabled: () => boolean;
+  readonly getSelectionGranularity: () => SelectionGranularity;
 }
 
 /** Keeps status, toolbar reflection, model selection, and camera chrome in sync. */
@@ -106,14 +107,12 @@ export class WorkbenchPresentation {
     this.options.canvas.dataset["continuous"] = String(enabled);
   }
 
-  reflectElementSelection(): void {
-    const enabled = this.options.getElementSelectionEnabled();
-    this.options.view.elementSelectionToggle.setAttribute("aria-pressed", String(enabled));
-    this.options.view.elementSelectionToggle.setAttribute("aria-label", "Element select");
-    this.options.view.elementSelectionToggle.title = enabled
-      ? "Select owning elements with click or box drag."
-      : "Select exact nodes, faces, or elements with click.";
-    this.options.canvas.dataset["selectionMode"] = enabled ? "element" : "exact";
+  reflectSelectionGranularity(): void {
+    const granularity = this.options.getSelectionGranularity();
+    this.options.view.selectionGranularity.value = granularity;
+    this.options.view.selectionGranularity.setAttribute("aria-label", "Selection granularity");
+    this.options.canvas.dataset["selectionGranularity"] = granularity;
+    this.options.view.interactionHelp.textContent = selectionHelp(granularity);
   }
 
   reflectVisibilityActions(): void {
@@ -150,6 +149,18 @@ export class WorkbenchPresentation {
 function resultLabel(mode: ResultDisplayMode): string {
   if (mode === "colored") return "Color";
   return mode === "base" ? "Base" : "Deformed";
+}
+
+function selectionHelp(granularity: SelectionGranularity): string {
+  const promotion =
+    granularity === "element"
+      ? "Shift keeps element selection."
+      : `Shift selects the owning element from a ${granularity} hit.`;
+  return `${capitalize(granularity)}: click or drag to replace. Hold Ctrl or ⌘ to toggle. ${promotion} Alt selects an instance.`;
+}
+
+function capitalize(value: string): string {
+  return `${value[0]?.toUpperCase() ?? ""}${value.slice(1)}`;
 }
 
 /** Serializes the camera state used by demo diagnostics and browser tests. */
