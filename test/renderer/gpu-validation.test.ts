@@ -65,7 +65,6 @@ describe("GPU validation", () => {
       await createGpuBundle(gpu.device, "bgra8unorm", "depth24plus");
       expect(gpu.shaderModuleDescriptors.map((descriptor) => descriptor.label)).toEqual([
         "triangle color vertex",
-        "line color vertex",
         "point color vertex",
         "line node picking vertex",
         "point node picking vertex",

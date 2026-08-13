@@ -1,5 +1,6 @@
 import { assertValidCamera, type Camera } from "../camera/camera";
 import { fitCamera, type CameraContentInset } from "../camera/fit";
+import type { CameraRef } from "../camera/controls";
 import { applyViewCubeAction, type ViewCubeAction } from "../camera/view-cube";
 import { type Bounds } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
@@ -12,10 +13,6 @@ import { protectSceneCamera, sceneWorldBounds, selectedSceneBounds } from "./sce
 import type { CameraTransitionOptions } from "./types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
-
-export interface CameraRef {
-  camera: Camera;
-}
 
 export interface CameraFocusOptions {
   readonly cameraRef: CameraRef;

@@ -12,11 +12,7 @@ import {
   triangleColorFragmentShader,
   vertexOutput,
 } from "../../src/renderer/gpu-shaders";
-import {
-  instanceVertexShader,
-  lineVertexShader,
-  pointVertexShader,
-} from "../../src/renderer/gpu-instanced-shaders";
+import { instanceVertexShader, pointVertexShader } from "../../src/renderer/gpu-instanced-shaders";
 import {
   lineNodePickVertexShader,
   nodePickFragmentShader,
@@ -193,8 +189,6 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(pointVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
     expect(instanceVertexShader).toMatch(/@location\(3\) @interpolate\(flat\) elementPickId: u32/);
     expect(instanceVertexShader).toMatch(/@location\(4\) @interpolate\(flat\) facePickId: u32/);
-    expect(lineVertexShader).toMatch(/primitiveElementPickIds\[primitiveDrawId\(vertexIndex\)\]/);
-    expect(lineVertexShader).toMatch(/primitiveFaceBodyPickIds\(primitiveDrawId\(vertexIndex\)\)/);
     expect(edgeVertexShader).toMatch(/topologyBodyRange\(topologyIndex\)/);
     expect(edgeVertexShader).toMatch(/highlight\.hidden == 0u/);
     expect(pointVertexShader).toMatch(/topologyOwnersVisible\(/);
@@ -207,9 +201,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
 
   it("uses explicit primitive maps for indexed surfaces and shared sprite corners", () => {
     expect(instanceVertexShader).toContain("primitiveDrawId(vertexIndex)");
-    expect(lineVertexShader).toContain("primitiveDrawId(vertexIndex)");
     expect(instanceVertexShader).not.toContain("vertexIndex / 3u");
-    expect(lineVertexShader).not.toContain("vertexIndex / 2u");
     expect(nodePickVertexShader).toContain("vertexNodePickIds[base + 2u]");
     expect(lineNodePickVertexShader).toContain("base + 1u");
     expect(lineNodePickVertexShader).not.toContain("vertexNodePickIds[base + 2u]");

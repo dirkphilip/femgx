@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  COLOR_SAMPLE_COUNT,
-  createRenderResources,
-  destroyRenderResources,
-} from "../../src/renderer/gpu-pipelines";
+import { createRenderResources, destroyRenderResources } from "../../src/renderer/gpu-pipelines";
+import { COLOR_SAMPLE_COUNT } from "../../src/renderer/gpu-support";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
 describe("GPU render resources", () => {
@@ -24,6 +21,13 @@ describe("GPU render resources", () => {
       expect(resources.pipelines.pointsColor).toBeDefined();
       expect(resources.pipelines.pointsTransparent).toBeDefined();
       expect(resources.pipelines.pointsPick).toBeDefined();
+      const pipelineVertex = (label: string): GPUShaderModule | undefined =>
+        gpu.renderPipelineDescriptors.find((descriptor) => descriptor.label === label)?.vertex
+          .module;
+      expect(pipelineVertex("triangle color")).toBe(pipelineVertex("line color"));
+      expect(pipelineVertex("triangle selection visible")).toBe(
+        pipelineVertex("line selection visible"),
+      );
       for (const label of ["triangle picking", "line picking", "point picking"]) {
         const picking = gpu.renderPipelineDescriptors.find(
           (descriptor) => descriptor.label === label,
