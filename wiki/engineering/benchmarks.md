@@ -92,16 +92,20 @@ default matrix is bounded but covers separate geometry, part/batch,
 placement/instance, and body-interaction dimensions; the local-only case is
 kept out of normal runs:
 
-| Case              | Dimension                    |                 Geometry/parts | Instances | Submitted triangles |
-| ----------------- | ---------------------------- | -----------------------------: | --------: | ------------------: |
-| `instanced-2.10m` | reusable geometry            |        32,768 unique triangles |        64 |           2,097,152 |
-| `unique-250k`     | unique geometry              |     250,632 triangles / 1 part |         1 |             250,632 |
-| `unique-1m`       | unique geometry              |     999,698 triangles / 1 part |         1 |             999,698 |
-| `many-parts-100`  | distinct parts               |   ~1.01M triangles / 100 parts |       100 |              ~1.01M |
-| `many-parts-1000` | distinct parts               | ~0.97M triangles / 1,000 parts |     1,000 |              ~0.97M |
-| `placements-10k`  | placements/instances         |         128 triangles / 1 part |    10,000 |           1,280,000 |
-| `bodies-256`      | body interaction             |   2,048 triangles / 256 bodies |         1 |               2,048 |
-| `unique-2m-local` | unique geometry (local-only) |   2,000,000 triangles / 1 part |         1 |           2,000,000 |
+| Case                    | Dimension                    |                   Geometry/parts | Instances | Submitted triangles |
+| ----------------------- | ---------------------------- | -------------------------------: | --------: | ------------------: |
+| `instanced-2.10m`       | reusable geometry            |          32,768 unique triangles |        64 |           2,097,152 |
+| `unique-250k`           | unique geometry              |       250,632 triangles / 1 part |         1 |             250,632 |
+| `unique-1m`             | unique geometry              |       999,698 triangles / 1 part |         1 |             999,698 |
+| `many-parts-100`        | distinct parts               |     ~1.01M triangles / 100 parts |       100 |              ~1.01M |
+| `many-parts-1000`       | distinct parts               |   ~0.97M triangles / 1,000 parts |     1,000 |              ~0.97M |
+| `placements-10k`        | placements/instances         |           128 triangles / 1 part |    10,000 |           1,280,000 |
+| `bodies-256`            | body interaction             |     2,048 triangles / 256 bodies |         1 |               2,048 |
+| `fe-quad-shell-visual`  | structured Quad shell        |    576 Quad elements / 625 nodes |         1 |               1,152 |
+| `fe-quad8-shell-visual` | structured Quad8 shell       |   256 Quad8 elements / 833 nodes |         1 |               1,536 |
+| `fe-hex8-solid-visual`  | structured Hex8 solid        |    512 Hex8 elements / 729 nodes |         1 |                 768 |
+| `fe-hex20-solid-visual` | structured Hex20 solid       | 216 Hex20 elements / 1,225 nodes |         1 |               1,296 |
+| `unique-2m-local`       | unique geometry (local-only) |     2,000,000 triangles / 1 part |         1 |           2,000,000 |
 
 The planar-grid generator is shared by the visual performance fixture and the
 benchmark case factory, so their geometry/count conventions cannot drift. Each
@@ -113,6 +117,15 @@ invalidation, it measures the combined lazy pick snapshot plus readback and then
 a cached-snapshot readback; the pick-snapshot estimate is their difference. The
 report retains both directly measured totals alongside the estimates. Portable
 WebGPU timestamp queries are not required.
+
+The structured FE cases use the validated `createElement` and
+`heterogeneousElementParts` path with shared corner and mid-edge node ids. The
+report adds `structuredFamily`, `nodeCount`, `elementCount`, `faceCount`,
+`modelBuildMs`, and `runtimeCompileMs` so FE construction/tessellation and
+runtime compilation remain separate from first-upload and steady visible-frame
+GPU timings. Quad and Quad8 shells retain every surface face; Hex8 and Hex20
+solids cull interior faces before tessellation. The 12×12×12 Hex20 capacity
+tier is local-only under `RUN_PERF_LARGE=1`.
 
 The JSON report identifies the browser user agent, adapter identity and fallback
 status, enabled features, resolution, DPR, triangle counts, timings, and an

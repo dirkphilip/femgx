@@ -48,16 +48,43 @@ test("reports real WebGPU geometry and picking costs", async ({ browser }, testI
     "unique-1m",
     "many-parts-100",
   ]);
+  const structuredCases = report.cases.filter((entry) => entry.kind === "structured-fe");
+  expect(structuredCases.map((entry) => entry.id)).toEqual(
+    includeLarge
+      ? [
+          "fe-quad-shell-visual",
+          "fe-quad8-shell-visual",
+          "fe-hex8-solid-visual",
+          "fe-hex20-solid-visual",
+          "fe-hex20-solid-local",
+        ]
+      : [
+          "fe-quad-shell-visual",
+          "fe-quad8-shell-visual",
+          "fe-hex8-solid-visual",
+          "fe-hex20-solid-visual",
+        ],
+  );
+  expect(structuredCases.map((entry) => entry.elementCount)).toEqual(
+    includeLarge ? [576, 256, 512, 216, 1_728] : [576, 256, 512, 216],
+  );
   for (const entry of report.cases) {
     expect(entry.uniqueTriangles).toBeGreaterThan(0);
     expect(entry.submittedTriangles).toBeGreaterThanOrEqual(entry.uniqueTriangles);
     expect(entry.visibleTriangles).toBe(entry.submittedTriangles);
+    expect(entry.modelBuildMs).toBeGreaterThanOrEqual(0);
+    expect(entry.runtimeCompileMs).toBeGreaterThanOrEqual(0);
     for (const timing of Object.values(entry.timings) as Array<{
       readonly p50: number;
       readonly p95: number;
     }>) {
       expect(timing.p50).toBeGreaterThanOrEqual(0);
       expect(timing.p95).toBeGreaterThanOrEqual(timing.p50);
+    }
+    if (entry.kind === "structured-fe") {
+      expect(entry.structuredFamily).toBeDefined();
+      expect(entry.nodeCount).toBeGreaterThan(entry.elementCount);
+      expect(entry.faceCount).toBeGreaterThan(0);
     }
     if (entry.interactive === undefined) continue;
     for (const sample of [entry.interactive.fixedCamera, entry.interactive.movingCamera]) {
