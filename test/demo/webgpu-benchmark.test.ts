@@ -137,18 +137,33 @@ describe("WebGPU benchmark models", () => {
       elementFamily: "triangle",
     }).scene;
     const memory = estimateBenchmarkMemory(scene, 3, 800, 600);
-    expect(memory.geometryBytes).toBe(312);
-    expect(memory.pickMetadataBytes).toBe(100);
+    expect(memory.geometryBytes).toBe(960);
+    expect(memory.resultColorBytes).toBe(352);
+    expect(memory.pickMetadataBytes).toBe(1936);
     expect(memory.edgeIndexBytes).toBe(192);
+    expect(memory.subsetBytes).toBe(0);
+    expect(memory.deformationBytes).toBe(4);
+    expect(memory.pickReadbackBytes).toBe(1280);
+    expect(memory.cpuSceneTypedArrayBytes).toBe(412);
     expect(memory.totalBufferBytes).toBe(
       memory.geometryBytes +
+        memory.resultColorBytes +
         memory.pickMetadataBytes +
         memory.edgeIndexBytes +
+        memory.subsetBytes +
+        memory.deformationBytes +
         memory.instanceBytes +
-        memory.fixedBufferBytes,
+        memory.highlightBytes +
+        memory.fixedBufferBytes +
+        memory.pickReadbackBytes,
     );
+    expect(memory.retainedBufferBytes).toBe(memory.totalBufferBytes);
+    expect(memory.peakRendererBytes).toBe(memory.retainedBufferBytes + memory.uploadStagingBytes);
     expect(memory.totalRenderTargetBytes).toBe(
-      memory.visibleDepthBytes + memory.pickIdTargetBytes + memory.pickDepthBytes,
+      memory.visibleColorBytes +
+        memory.visibleDepthBytes +
+        memory.pickIdTargetBytes +
+        memory.pickDepthBytes,
     );
   });
 

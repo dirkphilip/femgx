@@ -155,11 +155,14 @@ export async function startWebGpuDemo(
         reportRendererFailure(error);
       }
     },
-    runBenchmark: async (includeLarge: boolean) => {
+    runBenchmark: async (includeLarge: boolean, caseId?: string) => {
       controller.destroy();
       viewport = undefined;
       const { runWebGpuBenchmark } = await import("../benchmark/runner");
-      return runWebGpuBenchmark(canvas, { includeLarge });
+      return runWebGpuBenchmark(canvas, {
+        includeLarge,
+        ...(caseId === undefined ? {} : { caseId }),
+      });
     },
     pickPoint: async (x: number, y: number) => (await viewport?.pick(x, y))?.worldPosition,
     pickRegion: async (rect: BoxSelectionRect, granularity: InteractionGranularity) =>

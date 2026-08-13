@@ -1,4 +1,4 @@
-import { createPart, logicalPrimitiveCount, type Part } from "../../src/geometry/part";
+import { createPart, type Part } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { createStructuredFePart, type StructuredFeFamily } from "./structured-fe";
@@ -8,6 +8,7 @@ import {
   type PlanarGridOptions,
 } from "../fixture/planar-grid";
 import { createPerformancePreset } from "../fixture/performance-fixture";
+export { estimateBenchmarkMemory, type BenchmarkMemoryEstimate } from "./memory";
 
 const ROOT_ASSEMBLY_ID = 1;
 
@@ -46,19 +47,6 @@ export interface WebGpuBenchmarkCase {
   readonly bodyCount: number;
   readonly elementFamily: WebGpuBenchmarkElementFamily;
   readonly structuredFamily?: StructuredFeFamily;
-}
-
-export interface BenchmarkMemoryEstimate {
-  readonly geometryBytes: number;
-  readonly pickMetadataBytes: number;
-  readonly edgeIndexBytes: number;
-  readonly instanceBytes: number;
-  readonly fixedBufferBytes: number;
-  readonly totalBufferBytes: number;
-  readonly visibleDepthBytes: number;
-  readonly pickIdTargetBytes: number;
-  readonly pickDepthBytes: number;
-  readonly totalRenderTargetBytes: number;
 }
 
 /** Returns the fixed benchmark matrix, optionally including the larger local case. */
@@ -250,57 +238,6 @@ function structuredFamily(spec: WebGpuBenchmarkSpec): StructuredFeFamily {
     throw new Error(`${spec.id} requires a structured FE family`);
   }
   return spec.structuredFamily;
-}
-
-/**
- * Estimates renderer-owned buffers and render targets from the built scene.
- * The edge category is an upper-bound endpoint-index estimate; CPU scene data,
- * transient staging allocations, and driver allocations are excluded.
- */
-export function estimateBenchmarkMemory(
-  scene: Scene,
-  instanceCount: number,
-  width: number,
-  height: number,
-): BenchmarkMemoryEstimate {
-  let geometryBytes = 0;
-  let pickMetadataBytes = 0;
-  let edgeIndexBytes = 0;
-  for (const part of scene.parts.values()) {
-    const { geometry } = part;
-    const primitiveCount = logicalPrimitiveCount(geometry);
-    const nodeCount = (geometry.nodePositions?.length ?? geometry.positions.length) / 3;
-    geometryBytes +=
-      geometry.positions.byteLength +
-      (geometry.nodePositions?.byteLength ?? 0) +
-      geometry.indices.byteLength;
-    pickMetadataBytes +=
-      primitiveCount * Uint32Array.BYTES_PER_ELEMENT * 2 +
-      (geometry.nodePickIds?.byteLength ?? nodeCount * Uint32Array.BYTES_PER_ELEMENT);
-    if (geometry.primitive === "triangles") {
-      edgeIndexBytes += primitiveCount * 3 * 2 * Uint32Array.BYTES_PER_ELEMENT;
-    }
-  }
-  const instanceBytes = instanceCount * (96 + 4 + 4);
-  const fixedBufferBytes = 80 + 16 + 4 + (16 + 128 * 48);
-  const totalBufferBytes =
-    geometryBytes + pickMetadataBytes + edgeIndexBytes + instanceBytes + fixedBufferBytes;
-  const pixels = width * height;
-  const visibleDepthBytes = pixels * 4;
-  const pickIdTargetBytes = pixels * 4 * 4;
-  const pickDepthBytes = pixels * 4;
-  return {
-    geometryBytes,
-    pickMetadataBytes,
-    edgeIndexBytes,
-    instanceBytes,
-    fixedBufferBytes,
-    totalBufferBytes,
-    visibleDepthBytes,
-    pickIdTargetBytes,
-    pickDepthBytes,
-    totalRenderTargetBytes: visibleDepthBytes + pickIdTargetBytes + pickDepthBytes,
-  };
 }
 
 function createBenchmarkParts(spec: WebGpuBenchmarkSpec): Part[] {

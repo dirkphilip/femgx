@@ -1,6 +1,6 @@
 import { orbitCamera } from "../../src/index";
 import type { Camera } from "../../src/index";
-import { createWebGpuRenderer, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
+import type { WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import type { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { calculateRenderLoopStats } from "../workbench/render-loop";
 import type { WebGpuBenchmarkCase } from "./model";
@@ -39,13 +39,10 @@ export interface InteractiveSamples {
 }
 
 interface InteractiveMeasureOptions {
-  readonly canvas: HTMLCanvasElement;
-  readonly device: GPUDevice;
+  readonly renderer: WebGpuRenderer;
   readonly benchmarkCase: WebGpuBenchmarkCase;
   readonly runtime: ReturnType<typeof createPackedSceneRuntime>;
   readonly camera: Camera;
-  readonly width: number;
-  readonly height: number;
 }
 
 /** Returns true for the bounded representative cases that receive RAF samples. */
@@ -57,16 +54,10 @@ export function hasInteractiveSample(benchmarkCase: WebGpuBenchmarkCase): boolea
 export async function measureInteractiveSamples(
   options: InteractiveMeasureOptions,
 ): Promise<InteractiveSamples> {
-  const { canvas, device, benchmarkCase, runtime, camera, width, height } = options;
-  const renderer = await createWebGpuRenderer({ canvas, device });
-  renderer.resize(width, height);
-  try {
-    const fixedCamera = await measureSample(renderer, benchmarkCase, runtime, camera, false);
-    const movingCamera = await measureSample(renderer, benchmarkCase, runtime, camera, true);
-    return { fixedCamera, movingCamera };
-  } finally {
-    renderer.destroy();
-  }
+  const { renderer, benchmarkCase, runtime, camera } = options;
+  const fixedCamera = await measureSample(renderer, benchmarkCase, runtime, camera, false);
+  const movingCamera = await measureSample(renderer, benchmarkCase, runtime, camera, true);
+  return { fixedCamera, movingCamera };
 }
 
 async function measureSample(
