@@ -23,7 +23,6 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `setPartVisible` toggle     | part with 1 000 instances        | hide then show                           |
 | `setAssemblyVisible` toggle | subcase with 2 000 instances     | hide then show                           |
 | `setInstanceVisible` toggle | single instance                  | override, hide then show                 |
-| `setNodeTransform`          | 2 000-instance subtree           | recompose subtree worlds                 |
 | `getDrawList`               | 200 000 visible                  | rebuild draw list                        |
 | `resolvePick`               | 50 000 lookups on 200 000        | O(1) index resolution                    |
 | `heterogeneousElementParts` | 600 mixed linear elements        | grouped triangle/line/point tessellation |
@@ -35,7 +34,7 @@ several multiples, so budgets are only meaningful on clean timing runs.
   whose immutable copies are intentionally quadratic for authoring convenience).
 - `test/bench/measure.ts` defines the timing rules: **2 untimed warmup runs**,
   **7 timed samples**, **median** reported in milliseconds per iteration.
-- Mutating workloads (visibility/transform updates) are written as toggles that
+- Mutating workloads (visibility updates) are written as toggles that
   restore state, so every sample does the same amount of work instead of
   short-circuiting on a second no-op call.
 

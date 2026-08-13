@@ -229,21 +229,15 @@ describe("WebGPU renderer", () => {
     await renderer.pick(300, 300);
     expect(gpu.drawCalls).toHaveLength(5);
 
-    runtime.setInstanceTransform(0, translation(1, 0, 0));
-    renderer.updateInstances(runtime, styled, [0]);
-    renderer.render(runtime, movedCamera, scene.parts);
-    await renderer.pick(300, 300);
-    expect(gpu.drawCalls).toHaveLength(7);
-
     const hidden = runtime.setInstanceVisible(1, false);
     renderer.updateVisibility(runtime, hidden.changedInstanceIds);
     renderer.render(runtime, movedCamera, scene.parts);
     await renderer.pick(300, 300);
-    expect(gpu.drawCalls).toHaveLength(9);
+    expect(gpu.drawCalls).toHaveLength(7);
 
     renderer.resize(400, 300);
     await renderer.pick(150, 100);
-    expect(gpu.drawCalls).toHaveLength(10);
+    expect(gpu.drawCalls).toHaveLength(8);
 
     renderer.setDeformation({
       scale: 1,
@@ -253,7 +247,7 @@ describe("WebGPU renderer", () => {
     });
     renderer.render(runtime, movedCamera, scene.parts);
     await renderer.pick(150, 100);
-    expect(gpu.drawCalls).toHaveLength(12);
+    expect(gpu.drawCalls).toHaveLength(10);
     renderer.destroy();
   });
 
@@ -409,11 +403,6 @@ describe("WebGPU renderer", () => {
     const beforeNoop = instanceWrites().length;
     renderer.updateInstances(runtime, override, [0]);
     expect(instanceWrites().length).toBe(beforeNoop);
-
-    runtime.setInstanceTransform(0, translation(10, 0, 0));
-    const beforeTransform = instanceWrites().length;
-    renderer.updateInstances(runtime, override, [0]);
-    expect(writeRanges(beforeTransform)).toEqual([[48, 4]]);
 
     const hidden = runtime.setInstanceVisible(1, false);
     const beforeVisibility = instanceWrites().length;

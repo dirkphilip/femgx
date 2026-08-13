@@ -26,10 +26,8 @@ current product path practical.
 
 The packed scene runtime uses one explicit iterative walk for every assembly
 expansion, preserving placement order and stable paths without recursion. It
-keeps authoring storage in typed arrays and updates visibility in place; transform
-edits recompose world transforms only within the affected subtree (see
-[[architecture/packed-runtime|Packed scene runtime]]), keeping frame work
-proportional to changed state.
+keeps authoring storage in typed arrays and updates visibility in place, keeping
+frame work proportional to changed state.
 
 ## Matrix layout correctness
 
