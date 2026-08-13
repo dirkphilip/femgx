@@ -43,6 +43,7 @@ class FakeOverlay {
 }
 
 class FakeElement {
+  value = "";
   private readonly listeners = new Map<string, (event: unknown) => void>();
 
   getBoundingClientRect(): DOMRect {
@@ -198,8 +199,10 @@ describe("workbench hover suppression", () => {
       click: vi.fn(),
       contextMenu: vi.fn(),
     } as unknown as WorkbenchInteraction;
+    const backgroundSelect = new FakeElement();
     const view = {
       projectionToggle: new FakeElement(),
+      backgroundSelect,
       edgeOverlayToggle: new FakeElement(),
       continuousToggle: new FakeElement(),
       resultsToggle: new FakeElement(),
@@ -213,6 +216,7 @@ describe("workbench hover suppression", () => {
       modelSource: new FakeElement(),
     } as unknown as DemoView;
     let dragging = false;
+    const setBackground = vi.fn();
     installWorkbenchBindings({
       view,
       canvas: canvas as unknown as HTMLCanvasElement,
@@ -221,6 +225,7 @@ describe("workbench hover suppression", () => {
       interaction,
       menu: { hide: vi.fn() } as unknown as WorkbenchMenu,
       dragging: () => dragging,
+      setBackground,
       setEdges: () => undefined,
       setNodes: () => undefined,
       setContinuous: () => undefined,
@@ -231,6 +236,10 @@ describe("workbench hover suppression", () => {
       setModel: () => undefined,
       openGlb: () => undefined,
     });
+
+    backgroundSelect.value = "dark";
+    backgroundSelect.dispatch("change");
+    expect(setBackground).toHaveBeenCalledWith("dark");
 
     const move = { clientX: 50, clientY: 50 } as PointerEvent;
     canvas.dispatch("pointermove", move);

@@ -17,6 +17,7 @@ export interface WorkbenchLifecycleOptions {
   readonly visibilityPanel: VisibilityPanelController;
   readonly boxPreview: WorkbenchBoxPreview;
   readonly dragging: () => boolean;
+  readonly setBackground: (background: string) => void;
   readonly setEdges: () => void;
   readonly setNodes: () => void;
   readonly setContinuous: () => void;
@@ -47,6 +48,7 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     interaction: options.interaction,
     menu: options.menu,
     dragging: options.dragging,
+    setBackground: options.setBackground,
     setEdges: options.setEdges,
     setNodes: options.setNodes,
     setContinuous: options.setContinuous,

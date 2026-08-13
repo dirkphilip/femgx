@@ -109,10 +109,15 @@ controller, so camera and interaction behavior is stable
   styles, results, and camera state.
 - The full-screen layout keeps the hierarchical visibility tree in a 340–380px
   left rail; the WebGPU canvas owns the remaining space. The toolbar is one calm
-  surface with model, **Fit model**, projection, edges, nodes, results, and
-  **Reset all** controls. Fit model changes only camera framing; Reset all
-  restores the active preset's complete deterministic workbench state. Both
-  actions expose help text describing that scope.
+  surface with model, **Fit model**, projection, a labeled **Background** select
+  (`Studio`, `White`, or `Dark`), edges, nodes, results, and **Reset all** controls.
+  The selector is demo-owned presentation state and calls the public viewport
+  background setter; it survives model, GLB, reset, resize, recovery, and viewport
+  replacement transitions, while a failed setter restores the last successful value
+  through the existing model-feedback status region. Fit model changes only camera
+  framing; Reset all restores the active preset's complete deterministic workbench
+  state without changing the selected background. Both actions expose help text
+  describing that scope.
   Healthy renderer/status telemetry and inspection details stay hidden until
   explicitly needed; renderer failures remain prominent. Diagnostics stay within
   the scene, scroll internally when needed, and remain visible in the compact

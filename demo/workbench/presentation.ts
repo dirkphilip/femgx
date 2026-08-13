@@ -1,4 +1,9 @@
-import { type Camera, type InteractionState, type SceneRuntime } from "../../src/index";
+import {
+  type Camera,
+  type InteractionState,
+  type SceneRuntime,
+  type ViewportBackground,
+} from "../../src/index";
 import type { WorkbenchModel } from "./model";
 import { updateStatus, type DemoView } from "./view";
 import { selectedKeys } from "./selection";
@@ -96,6 +101,11 @@ export class WorkbenchPresentation {
       ? "Stop the recurring render-loop sample."
       : "Start a recurring render-loop sample for manual inspection.";
     this.options.canvas.dataset["continuous"] = String(enabled);
+  }
+
+  reflectBackground(background: ViewportBackground): void {
+    this.options.view.backgroundSelect.value = background;
+    this.options.canvas.dataset["background"] = background;
   }
 
   reflectResults(): void {

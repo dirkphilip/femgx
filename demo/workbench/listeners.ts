@@ -13,6 +13,7 @@ export interface WorkbenchBindingOptions {
   readonly menu: WorkbenchMenu;
   /** True while a camera or box pointer gesture suppresses asynchronous hover. */
   readonly dragging: () => boolean;
+  readonly setBackground: (background: string) => void;
   readonly setEdges: () => void;
   readonly setNodes: () => void;
   readonly setContinuous: () => void;
@@ -37,6 +38,13 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
           viewport.camera.mode === "perspective" ? "orthographic" : "perspective",
         ),
       );
+    },
+    { signal },
+  );
+  view.backgroundSelect.addEventListener(
+    "change",
+    () => {
+      options.setBackground(view.backgroundSelect.value);
     },
     { signal },
   );
