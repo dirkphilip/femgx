@@ -12,7 +12,7 @@ import {
   type Part,
   type TriangleGeometry,
 } from "./part";
-import { TriangleMeshBuilder, type MeshVertex } from "./mesh-builder";
+import { TriangleMeshAssembler, type MeshVertex } from "./mesh-builder";
 import {
   PolygonGeometryError,
   triangulatePolygon,
@@ -76,7 +76,7 @@ export function polygonGeometry(input: PolygonGeometryInput): TriangleGeometry {
   validateFaceIndices(records);
   const groups = groupByElement(records);
   const bodyIds = bodyAssignments(groups, input.bodies);
-  const mesh = new TriangleMeshBuilder();
+  const mesh = new TriangleMeshAssembler();
   const elements: ElementTessellation[] = [];
   const ranges = new Map<number, PrimitiveRange>();
   for (const group of groups) {

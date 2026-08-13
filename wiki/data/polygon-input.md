@@ -25,6 +25,12 @@ grouped by element so element picking and results can use the existing
 `ElementTessellation` contract. Node pick ids and source node positions are
 also preserved for node picking and nodal deformation.
 
+Polygon triangles use the same internal shared-index assembler as typed finite
+elements. Repeated authored node ids reuse one output vertex, while coincident
+coordinates with different node ids remain separate. Ear-clipping order is
+preserved in the index buffer, so element and face primitive ranges stay
+contiguous and deterministic.
+
 The builder validates finite positions, node references, duplicate or too-short
 loops, planarity, zero area, self-intersection, and face metadata before any
 geometry is returned. A deterministic ear-clipping pass preserves the input

@@ -14,27 +14,51 @@ export interface MeshVertex {
   readonly point: Vec3;
   /** The authored model node this vertex came from. */
   readonly nodeId: number | undefined;
+  /** Optional explicit identity for a generated vertex without a node. */
+  readonly sourceId?: string | number;
 }
 
-/** Accumulates oriented triangles into flat position/index arrays. */
-export class TriangleMeshBuilder {
+/** Assembles oriented triangles into shared indexed geometry. */
+export class TriangleMeshAssembler {
   readonly positions: number[] = [];
   readonly indices: number[] = [];
   /** Per-vertex node pick ids (`nodeId + 1`). */
   readonly nodePickIds: number[] = [];
+  private readonly vertexBySource = new Map<string, number>();
+  private generatedVertexCount = 0;
 
   append(triangle: readonly [MeshVertex, MeshVertex, MeshVertex]): void {
-    const base = this.positions.length / 3;
-    for (const vertex of triangle) {
-      this.positions.push(vertex.point[0], vertex.point[1], vertex.point[2]);
-      this.nodePickIds.push(vertex.nodeId === undefined ? 0 : vertex.nodeId + 1);
-    }
-    this.indices.push(base, base + 1, base + 2);
+    this.indices.push(
+      this.vertexIndex(triangle[0]),
+      this.vertexIndex(triangle[1]),
+      this.vertexIndex(triangle[2]),
+    );
   }
 
   /** Number of triangles accumulated so far. */
   get triangleCount(): number {
     return Math.floor(this.indices.length / 3);
+  }
+
+  private vertexIndex(vertex: MeshVertex): number {
+    const source = this.sourceKey(vertex);
+    const existing = this.vertexBySource.get(source);
+    if (existing !== undefined) return existing;
+    const index = this.positions.length / 3;
+    this.positions.push(vertex.point[0], vertex.point[1], vertex.point[2]);
+    this.nodePickIds.push(vertex.nodeId === undefined ? 0 : vertex.nodeId + 1);
+    this.vertexBySource.set(source, index);
+    return index;
+  }
+
+  private sourceKey(vertex: MeshVertex): string {
+    if (vertex.sourceId !== undefined) {
+      return `source:${typeof vertex.sourceId}:${String(vertex.sourceId)}`;
+    }
+    if (vertex.nodeId !== undefined) return `node:${vertex.nodeId}`;
+    const generated = `generated:${this.generatedVertexCount}`;
+    this.generatedVertexCount += 1;
+    return generated;
   }
 
   build(

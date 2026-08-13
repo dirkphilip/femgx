@@ -28,6 +28,16 @@ Related: [[data/elements-topology|Element topology]] and
    primitive, batches instances by part, and draws with the part's primitive
    (see [[rendering/renderer-subrange-updates|Renderer subrange updates]]).
 
+Typed finite-element faces and authored polygon faces converge on one internal
+triangle assembler. It keys each output vertex by explicit source identity
+(authored `NodeId` for FE and polygon inputs, or an explicit generated-vertex
+identity for node-less geometry), preserves first-seen triangle order, and emits
+one compact indexed surface. Coincident positions with different source
+identities remain distinct; coordinates are never welded. The assembler copies
+scalar coordinates and node mappings into the part-owned typed arrays before
+the source tessellation data is released. Line and point builders remain
+separate because their primitive and expansion contracts differ.
+
 Indexed line and triangle surfaces are expanded once at GPU upload into
 renderer-owned corner vertices. A packed primitive-id range maps every draw
 corner back to its logical element/face record, so shared or non-monotonic
