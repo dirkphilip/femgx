@@ -292,7 +292,7 @@ function resolveDeformation(
       }
       maxNodeId = Math.max(maxNodeId, nodeId);
     }
-    displacements.set(part.id, nodalDisplacements(maxNodeId + 1, [config.field]));
+    displacements.set(part.id, nodalDisplacements(maxNodeId + 1, config.field));
   }
-  return { scale, loadCase: 0, loadCaseCount: 1, displacements };
+  return { scale, displacements };
 }

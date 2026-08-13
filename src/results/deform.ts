@@ -3,17 +3,12 @@ import type { PartId } from "../geometry/part";
 import type { ResultField, VectorField } from "./fields";
 
 /**
- * CPU-side deformation data consumed by the viewport and renderer. The
- * displacement arrays are laid out load-case major, with three floats per
- * model node, as produced by {@link nodalDisplacements}.
+ * CPU-side deformation data consumed by the viewport and renderer. Each
+ * displacement array stores three floats per model node.
  */
 export interface DeformationState {
-  /** Multiplier applied to the active load case's displacement. */
+  /** Multiplier applied to the authored nodal displacement field. */
   readonly scale: number;
-  /** Active load case index (`0 <= loadCase < loadCaseCount`). */
-  readonly loadCase: number;
-  /** Number of load cases stored per part displacement buffer. */
-  readonly loadCaseCount: number;
   /** Per-part nodal displacement arrays used by GPU vertex deformation. */
   readonly displacements: ReadonlyMap<PartId, Float32Array>;
 }
@@ -89,8 +84,7 @@ export function deformGeometry(
 
 /**
  * Builds a per-node nodal displacement buffer for GPU-side deformation: one
- * vec3 per model node per load case, laid out load-case major (`[case 0 node
- * 0, case 0 node 1, ..., case 1 node 0, ...]`) and indexed by `NodeId`. The
+ * vec3 per model node, indexed by `NodeId`. The
  * renderer maps each vertex to its node through the part's per-vertex node
  * pick ids, so `nodeCount` is the owning model's node count (the largest node
  * id used by the part's vertices plus one). Nodes beyond a field's entity
@@ -100,21 +94,16 @@ export function deformGeometry(
  */
 export function nodalDisplacements(
   nodeCount: number,
-  cases: readonly VectorField<"nodal">[],
+  field: VectorField<"nodal"> | undefined,
 ): Float32Array {
-  const displacements = new Float32Array(nodeCount * cases.length * 3);
-  for (let loadCase = 0; loadCase < cases.length; loadCase++) {
-    const field = cases[loadCase];
-    if (field === undefined) continue;
-    const covered = Math.min(nodeCount, field.count);
-    const caseOffset = loadCase * nodeCount * 3;
-    for (let node = 0; node < covered; node++) {
-      const source = node * 3;
-      const target = caseOffset + node * 3;
-      displacements[target] = finiteOrZero(field.values[source]);
-      displacements[target + 1] = finiteOrZero(field.values[source + 1]);
-      displacements[target + 2] = finiteOrZero(field.values[source + 2]);
-    }
+  const displacements = new Float32Array(nodeCount * 3);
+  if (field === undefined) return displacements;
+  const covered = Math.min(nodeCount, field.count);
+  for (let node = 0; node < covered; node++) {
+    const source = node * 3;
+    displacements[source] = finiteOrZero(field.values[source]);
+    displacements[source + 1] = finiteOrZero(field.values[source + 1]);
+    displacements[source + 2] = finiteOrZero(field.values[source + 2]);
   }
   return displacements;
 }

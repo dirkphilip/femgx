@@ -202,11 +202,10 @@ function displacedNode(
 ): readonly [number, number, number] {
   const state = deformation;
   const values = state?.displacements.get(partId);
-  if (values === undefined || state === undefined || state.loadCaseCount <= 0) {
+  if (values === undefined || state === undefined) {
     return [finiteOrZero(point[0]), finiteOrZero(point[1]), finiteOrZero(point[2])];
   }
-  const nodeCount = values.length / (state.loadCaseCount * 3);
-  const offset = (state.loadCase * nodeCount + nodeId) * 3;
+  const offset = nodeId * 3;
   const dx = values[offset];
   const dy = values[offset + 1];
   const dz = values[offset + 2];

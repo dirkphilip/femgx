@@ -32,13 +32,11 @@ struct Camera {
 };
 `;
 
-/** Per-frame deformation uniform: displacement scale plus the active load case. */
+/** Per-frame deformation uniform: displacement scale plus alignment padding. */
 export const deformationStruct = /* wgsl */ `
 struct Deformation {
   scale: f32,
-  loadCase: u32,
-  loadCaseCount: u32,
-  _padding: u32,
+  _padding: array<u32, 3>,
 };
 `;
 
@@ -157,7 +155,7 @@ fn spriteCorner(corner: u32) -> vec2<f32> {
 `;
 
 /**
- * Displaces a model-space vertex by the active load case's nodal displacement,
+ * Displaces a model-space vertex by the authored nodal displacement,
  * scaled by the deformation uniform. Each vertex is mapped to the model node
  * it came from through the per-vertex `vertexNodePickIds` storage buffer
  * (`nodeId + 1`, `0` = vertex without a node), so indexed tessellated
@@ -169,10 +167,11 @@ fn spriteCorner(corner: u32) -> vec2<f32> {
  */
 export const displacementFn = /* wgsl */ `
 fn displaced(position: vec3<f32>, vertexIndex: u32) -> vec3<f32> {
-  if (deformation.loadCaseCount == 0u) {
+  let displacementCount = arrayLength(&displacements);
+  if (displacementCount == 0u) {
     return position;
   }
-  let nodeCount = arrayLength(&displacements) / (3u * deformation.loadCaseCount);
+  let nodeCount = displacementCount / 3u;
   if (nodeCount == 0u) {
     return position;
   }
@@ -180,7 +179,7 @@ fn displaced(position: vec3<f32>, vertexIndex: u32) -> vec3<f32> {
   if (nodePickId == 0u || nodePickId > nodeCount) {
     return position;
   }
-  let base = (deformation.loadCase * nodeCount + nodePickId - 1u) * 3u;
+  let base = (nodePickId - 1u) * 3u;
   let delta = vec3<f32>(displacements[base], displacements[base + 1u], displacements[base + 2u]);
   return position + delta * deformation.scale;
 }

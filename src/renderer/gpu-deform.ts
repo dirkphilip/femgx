@@ -1,14 +1,13 @@
 import type { PartId } from "../geometry/part";
 import type { DeformationState } from "../results/deform";
 
-/** Bytes of the deformation uniform (scale + loadCase + loadCaseCount + padding). */
+/** Bytes of the deformation uniform (scale plus alignment padding). */
 export const DEFORMATION_UNIFORM_SIZE = 16;
 
 /**
  * Per-part nodal displacement storage for GPU-side vertex deformation. The
- * buffer holds `loadCaseCount * nodeCount * 3` floats laid out load-case
- * major and indexed by `NodeId`, mirroring the `displacements` storage
- * binding in `gpu-shaders.ts`.
+ * buffer holds `nodeCount * 3` floats indexed by `NodeId`, mirroring the
+ * `displacements` storage binding in `gpu-shaders.ts`.
  */
 export interface DeformationStorage {
   readonly buffer: GPUBuffer;
@@ -19,8 +18,6 @@ export interface DeformationStorage {
 /** Concrete uniform state used internally when the viewport passes `undefined`. */
 const disabledDeformation: DeformationState = {
   scale: 0,
-  loadCase: 0,
-  loadCaseCount: 0,
   displacements: new Map(),
 };
 
@@ -41,33 +38,14 @@ export interface DeformationSync {
 }
 
 /**
- * Validates a deformation state: the load-case count must be a non-negative
- * integer, the active load case must index into it, and every displacement
- * buffer must hold whole per-vertex vec3s for every load case.
+ * Validates a deformation state: every displacement buffer must hold whole
+ * per-node vec3s.
  */
 export function validateDeformation(state: DeformationState): void {
-  if (!Number.isInteger(state.loadCaseCount) || state.loadCaseCount < 0) {
-    throw new Error(
-      `Deformation loadCaseCount must be a non-negative integer, got ${state.loadCaseCount}`,
-    );
-  }
-  if (state.loadCaseCount === 0) {
-    return;
-  }
-  if (
-    !Number.isInteger(state.loadCase) ||
-    state.loadCase < 0 ||
-    state.loadCase >= state.loadCaseCount
-  ) {
-    throw new Error(
-      `Deformation loadCase ${state.loadCase} is out of range for ${state.loadCaseCount} load cases`,
-    );
-  }
-  const components = 3 * state.loadCaseCount;
   for (const [partId, values] of state.displacements) {
-    if (values.length % components !== 0) {
+    if (values.length % 3 !== 0) {
       throw new Error(
-        `Part ${partId} displacement buffer length ${values.length} is not a multiple of ${components}`,
+        `Part ${partId} displacement buffer length ${values.length} is not a multiple of 3`,
       );
     }
   }
@@ -125,8 +103,6 @@ export function writeDeformationUniform(
   const uniform = new Uint32Array(4);
   const floats = new Float32Array(uniform.buffer);
   floats[0] = resolved.scale;
-  uniform[1] = resolved.loadCase;
-  uniform[2] = resolved.loadCaseCount;
   device.queue.writeBuffer(buffer, 0, uniform);
 }
 
