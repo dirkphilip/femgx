@@ -53,11 +53,13 @@ export function createScalarColorMap(options: ScalarColorMapOptions): ScalarColo
     options.thresholds === undefined
       ? undefined
       : validateThresholds(options.thresholds, options.min, options.max);
+  const missingColor = options.missingColor === undefined ? DEFAULT_MISSING : options.missingColor;
+  validateColor("missingColor", missingColor);
   return {
     min: options.min,
     max: options.max,
     stops,
-    missingColor: options.missingColor ?? DEFAULT_MISSING,
+    missingColor,
     thresholds,
   };
 }
@@ -125,15 +127,36 @@ function lerpColor(a: Color, b: Color, t: number): Color {
 }
 
 function sortStops(stops: readonly ColorStop[]): readonly ColorStop[] {
-  return [...stops].sort((a, b) => a.offset - b.offset);
+  if (stops.length === 0) {
+    throw new RangeError("Scalar color map stops must contain at least one stop");
+  }
+  for (let index = 0; index < stops.length; index++) {
+    const stop = stops[index] as ColorStop | null | undefined;
+    if (stop === null || stop === undefined) {
+      throw new TypeError(`stops[${index}] must be a color stop`);
+    }
+    validateUnit(`stops[${index}].offset`, stop.offset);
+    validateColor(`stops[${index}].color`, stop.color);
+  }
+  const sorted = [...stops].sort((a, b) => a.offset - b.offset);
+  for (let index = 1; index < sorted.length; index++) {
+    const previous = sorted[index - 1];
+    const current = sorted[index];
+    if (previous !== undefined && current !== undefined && previous.offset >= current.offset) {
+      throw new RangeError(
+        `Scalar color map stop offsets must be strictly increasing (stops[${index - 1}].offset and stops[${index}].offset)`,
+      );
+    }
+  }
+  return sorted;
 }
 
 function validateRange(min: number, max: number): void {
   if (!Number.isFinite(min) || !Number.isFinite(max)) {
-    throw new Error("Scalar color map range must be finite");
+    throw new RangeError("Scalar color map range must be finite");
   }
   if (min >= max) {
-    throw new Error(`Scalar color map range must satisfy min < max, got [${min}, ${max}]`);
+    throw new RangeError(`Scalar color map range must satisfy min < max, got [${min}, ${max}]`);
   }
 }
 
@@ -142,13 +165,50 @@ function validateThresholds(
   min: number,
   max: number,
 ): readonly number[] {
+  for (let index = 0; index < thresholds.length; index++) {
+    const threshold = thresholds[index];
+    if (
+      threshold === undefined ||
+      !Number.isFinite(threshold) ||
+      threshold <= min ||
+      threshold >= max
+    ) {
+      throw new RangeError(
+        `thresholds[${index}] must be finite and strictly inside (${min}, ${max})`,
+      );
+    }
+  }
   const sorted = [...thresholds].sort((a, b) => a - b);
-  for (const threshold of sorted) {
-    if (!Number.isFinite(threshold) || threshold <= min || threshold >= max) {
-      throw new Error(
-        `Scalar color map thresholds must be finite and strictly inside (${min}, ${max})`,
+  for (let index = 1; index < sorted.length; index++) {
+    const previous = sorted[index - 1];
+    const current = sorted[index];
+    if (previous !== undefined && current !== undefined && previous >= current) {
+      throw new RangeError(
+        `Scalar color map thresholds must be strictly increasing (thresholds[${index - 1}] and thresholds[${index}])`,
       );
     }
   }
   return sorted;
+}
+
+function validateColor(name: string, color: unknown): void {
+  if (typeof color !== "object" || color === null) {
+    throw new TypeError(`${name} must be an RGBA color`);
+  }
+  const channels = color as {
+    readonly r?: unknown;
+    readonly g?: unknown;
+    readonly b?: unknown;
+    readonly a?: unknown;
+  };
+  validateUnit(`${name}.r`, channels.r);
+  validateUnit(`${name}.g`, channels.g);
+  validateUnit(`${name}.b`, channels.b);
+  validateUnit(`${name}.a`, channels.a);
+}
+
+function validateUnit(name: string, value: unknown): void {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) {
+    throw new RangeError(`${name} must be finite and in [0, 1]`);
+  }
 }

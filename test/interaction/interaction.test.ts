@@ -17,6 +17,7 @@ import {
   setTargetHovered,
   setTargetSelected,
 } from "../../src/interaction/targets";
+import { setBodyOverride } from "../../src/interaction/bodies";
 import { readInteractionState } from "../../src/interaction/state";
 import { isElementVisible, setElementVisible } from "../../src/interaction/elements";
 import { identity } from "../../src/math/mat4";
@@ -148,6 +149,56 @@ describe("instance style resolution", () => {
         color: { r: 0, g: 0, b: 0, a: Number.NaN },
       }),
     ).toThrow(/color\.a must be finite and in \[0, 1\]/);
+  });
+
+  it("rejects invalid emissive values through every style boundary", () => {
+    const theme = (emissive: number) => ({
+      highlighted: { emissive },
+      selected: {},
+      hovered: {},
+      hoveredFace: {},
+      selectedFace: {},
+      hoveredNode: {},
+      selectedNode: {},
+    });
+    const setOverrides = [
+      (emissive: number) => {
+        setPartOverride(createInteractionState(), 1, { emissive });
+      },
+      (emissive: number) => {
+        setInstanceOverride(createInteractionState(), "1/0", { emissive });
+      },
+      (emissive: number) => {
+        setBodyOverride(createInteractionState(), { instanceId: "1/0", bodyId: 3 }, { emissive });
+      },
+      (emissive: number) => {
+        setElementOverride(
+          createInteractionState(),
+          { instanceId: "1/0", elementId: 2 },
+          { emissive },
+        );
+      },
+    ] satisfies readonly ((emissive: number) => void)[];
+    const invalidValues = [NaN, Infinity, -Infinity, -0.1, 1.1];
+
+    for (const value of invalidValues) {
+      expect(() => createInteractionState(theme(value))).toThrow(
+        /emissive must be finite and in \[0, 1\]/,
+      );
+      for (const setOverride of setOverrides) {
+        expect(() => {
+          setOverride(value);
+        }).toThrow(/emissive must be finite and in \[0, 1\]/);
+      }
+    }
+    for (const value of [0, 1]) {
+      expect(() => createInteractionState(theme(value))).not.toThrow();
+      for (const setOverride of setOverrides) {
+        expect(() => {
+          setOverride(value);
+        }).not.toThrow();
+      }
+    }
   });
 
   it("applies selected, hover, and explicit overrides in precedence order", () => {
