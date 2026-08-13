@@ -32,11 +32,13 @@ struct Camera {
 };
 `;
 
-/** Per-frame deformation uniform: displacement scale plus alignment padding. */
+/** Per-frame deformation uniform: displacement scale plus explicit alignment padding. */
 export const deformationStruct = /* wgsl */ `
 struct Deformation {
   scale: f32,
-  _padding: array<u32, 3>,
+  _padding0: u32,
+  _padding1: u32,
+  _padding2: u32,
 };
 `;
 
