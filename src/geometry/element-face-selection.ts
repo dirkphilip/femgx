@@ -1,5 +1,4 @@
 import {
-  classifyFaces,
   facesOf,
   facesOfElement,
   FaceSelectionError,
@@ -34,15 +33,6 @@ export function allFacesForElements(elements: readonly Element[]): readonly Elem
   return elements.flatMap((element) =>
     facesOfElement(element).map(({ face, faceIndex }) => ({ element, face, faceIndex })),
   );
-}
-
-/** Returns only boundary faces for a pre-partitioned element list. */
-export function boundaryFacesForElements(
-  elements: readonly Element[],
-): readonly ElementRenderFace[] {
-  const classified = classifyFaces(elements);
-  const faces = allFacesForElements(elements);
-  return faces.filter((_, index) => classified[index]?.boundary === true);
 }
 
 /**
