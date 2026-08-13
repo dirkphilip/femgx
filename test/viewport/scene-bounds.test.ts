@@ -4,6 +4,7 @@ import { createInteractionState, setTargetSelected } from "../../src/index";
 import { translation } from "../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createScene } from "../../src/scene/scene";
+import { padDegenerateBounds } from "../../src/viewport/geometry-bounds";
 import {
   sceneWorldBounds,
   sceneWorldBoundsList,
@@ -15,6 +16,22 @@ function sceneWithRepeatedPart() {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
     primitive: "triangles",
+    elements: [{ id: 8, primitiveStart: 0, primitiveCount: 1, bodyId: 4 }],
+    nodePickIds: new Uint32Array([1, 2, 3]),
+    nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    facePickIds: new Uint32Array([1]),
+    faces: [
+      {
+        id: 0,
+        elementId: 8,
+        faceIndex: 0,
+        key: "0/1/2",
+        nodeIds: [0, 1, 2],
+        neighborElementIds: [],
+        bodyId: 4,
+      },
+    ],
+    bodies: [{ id: 4, elementIds: [8] }],
   });
   return createScene()
     .addPart(part)
@@ -31,15 +48,30 @@ function sceneWithRepeatedPart() {
 }
 
 describe("viewport scene bounds", () => {
-  it("frames every visible occurrence for part selection and one occurrence for entity targets", () => {
+  it("frames every visible occurrence for part selection and exact entity targets", () => {
     const scene = sceneWithRepeatedPart();
     const runtime = createPackedSceneRuntime(scene);
     const entityTargets = [
-      { kind: "instance", instanceId: "1/1" },
-      { kind: "body", instanceId: "1/1", bodyId: 4 },
-      { kind: "element", instanceId: "1/1", elementId: 8 },
-      { kind: "face", instanceId: "1/1", elementId: 8, key: "0/1/2" },
-      { kind: "node", instanceId: "1/1", nodeId: 2 },
+      {
+        target: { kind: "instance", instanceId: "1/1" },
+        expected: { minX: 10, maxX: 11, minY: 0, maxY: 1 },
+      },
+      {
+        target: { kind: "body", instanceId: "1/1", bodyId: 4 },
+        expected: { minX: 10, maxX: 11, minY: 0, maxY: 1 },
+      },
+      {
+        target: { kind: "element", instanceId: "1/1", elementId: 8 },
+        expected: { minX: 10, maxX: 11, minY: 0, maxY: 1 },
+      },
+      {
+        target: { kind: "face", instanceId: "1/1", elementId: 8, key: "0/1/2" },
+        expected: { minX: 10, maxX: 11, minY: 0, maxY: 1 },
+      },
+      {
+        target: { kind: "node", instanceId: "1/1", nodeId: 2 },
+        expected: { minX: 10, maxX: 10, minY: 1, maxY: 1 },
+      },
     ] as const;
 
     let interaction = createInteractionState();
@@ -49,13 +81,33 @@ describe("viewport scene bounds", () => {
       maxX: 11,
     });
 
-    for (const target of entityTargets) {
+    for (const { target, expected } of entityTargets) {
       const selected = setTargetSelected(createInteractionState(), target, true);
-      expect(selectedSceneBounds(scene, runtime, selected)).toMatchObject({
-        minX: 10,
-        maxX: 11,
-      });
+      expect(selectedSceneBounds(scene, runtime, selected)).toMatchObject(expected);
     }
+  });
+
+  it("includes active nodal deformation in exact bounds", () => {
+    const scene = sceneWithRepeatedPart();
+    const runtime = createPackedSceneRuntime(scene);
+    const selected = setTargetSelected(
+      createInteractionState(),
+      { kind: "element", instanceId: "1/1", elementId: 8 },
+      true,
+    );
+    const deformation = {
+      scale: 2,
+      loadCase: 0,
+      loadCaseCount: 1,
+      displacements: new Map([[1, new Float32Array([0, 0, 0, 5, 0, 0, 0, 0, 0])]]),
+    };
+
+    expect(selectedSceneBounds(scene, runtime, selected, deformation)).toMatchObject({
+      minX: 10,
+      maxX: 21,
+      minY: 0,
+      maxY: 1,
+    });
   });
 
   it("unions multiple selected occurrences and ignores hidden ones", () => {
@@ -92,5 +144,14 @@ describe("viewport scene bounds", () => {
     );
 
     expect(selectedSceneBounds(scene, runtime, selected)).toBeUndefined();
+  });
+
+  it("pads only degenerate selected axes using the complete scene scale", () => {
+    expect(
+      padDegenerateBounds(
+        { minX: 2, minY: 3, minZ: 4, maxX: 2, maxY: 8, maxZ: 4 },
+        { minX: 0, minY: 0, minZ: 0, maxX: 10, maxY: 0, maxZ: 0 },
+      ),
+    ).toMatchObject({ minX: 1.99, maxX: 2.01, minY: 3, maxY: 8, minZ: 3.99, maxZ: 4.01 });
   });
 });

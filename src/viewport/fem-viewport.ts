@@ -85,12 +85,14 @@ class FemViewportCore implements FemViewport {
     this.effectiveInteraction = this.baseInteraction =
       options.interaction ?? createInteractionState();
     this.cameraRef = { camera: options.camera ?? createCamera() };
+    const deformation = () => this.currentResults?.deformation;
     this.cameraFocus = new CameraFocusController({
       cameraRef: this.cameraRef,
       canvas: options.canvas,
       scene: () => this.currentScene,
       runtime: () => this.currentRuntime,
       interaction: () => this.baseInteraction,
+      deformation,
       invalidate: this.invalidate.bind(this),
     });
     this.removeKeyboard = installViewportKeyboard(options.keyboardTarget, () => {
@@ -103,8 +105,9 @@ class FemViewportCore implements FemViewport {
       canvas: options.canvas,
       cameraRef: this.cameraRef,
       navigation: renderer,
-      bounds: () => sceneWorldBounds(this.currentScene, this.currentRuntime),
-      protectedBounds: () => sceneWorldBoundsList(this.currentScene, this.currentRuntime),
+      bounds: () => sceneWorldBounds(this.currentScene, this.currentRuntime, deformation()),
+      protectedBounds: () =>
+        sceneWorldBoundsList(this.currentScene, this.currentRuntime, deformation()),
       onRender: this.invalidate.bind(this),
       onGestureChange: (active) => {
         if (active) this.cameraFocus.cancel();
@@ -317,14 +320,10 @@ class FemViewportCore implements FemViewport {
       this.options.onRecovered?.();
     });
     this.recoveryPromise = recovery;
-    recovery.then(
-      () => {
-        if (this.recoveryPromise === recovery) this.recoveryPromise = undefined;
-      },
-      () => {
-        if (this.recoveryPromise === recovery) this.recoveryPromise = undefined;
-      },
-    );
+    const clearRecovery = (): void => {
+      if (this.recoveryPromise === recovery) this.recoveryPromise = undefined;
+    };
+    recovery.then(clearRecovery, clearRecovery);
     return recovery;
   }
   handleDeviceLoss(): void {

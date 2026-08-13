@@ -3,8 +3,11 @@ import { fitCamera } from "../camera/fit";
 import { applyViewCubeAction, type ViewCubeAction } from "../camera/view-cube";
 import { type Bounds } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
+import { selectedTargets } from "../interaction/targets";
+import type { DeformationState } from "../results/deform";
 import { createCameraTransition } from "./camera-transition";
 import { cssSize } from "./dom";
+import { padDegenerateBounds } from "./geometry-bounds";
 import { protectSceneCamera, sceneWorldBounds, selectedSceneBounds } from "./scene-bounds";
 import type { CameraTransitionOptions } from "./types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
@@ -20,6 +23,7 @@ export interface CameraFocusOptions {
   readonly scene: () => Scene;
   readonly runtime: () => PackedSceneRuntime;
   readonly interaction: () => InteractionState;
+  readonly deformation: () => DeformationState | undefined;
   readonly invalidate: () => void;
 }
 
@@ -43,7 +47,7 @@ export class CameraFocusController {
     this.transition.cancel();
     const target = fitCameraForBounds(
       this.options.cameraRef.camera,
-      sceneWorldBounds(this.options.scene(), this.options.runtime()),
+      sceneWorldBounds(this.options.scene(), this.options.runtime(), this.options.deformation()),
       this.options.canvas,
     );
     this.apply(target, duration, invalidate);
@@ -54,10 +58,23 @@ export class CameraFocusController {
     this.transition.cancel();
     const scene = this.options.scene();
     const runtime = this.options.runtime();
-    const bounds = selectedSceneBounds(scene, runtime, this.options.interaction());
+    const deformation = this.options.deformation();
+    const sceneBounds = sceneWorldBounds(scene, runtime, deformation);
+    const targets = selectedTargets(this.options.interaction());
+    const selectedBounds = selectedSceneBounds(
+      scene,
+      runtime,
+      this.options.interaction(),
+      deformation,
+    );
+    let fitBounds = sceneBounds;
+    if (targets.length > 0) {
+      if (selectedBounds === undefined) return;
+      fitBounds = padDegenerateBounds(selectedBounds, sceneBounds);
+    }
     const target = fitCameraForBounds(
       this.options.cameraRef.camera,
-      bounds ?? sceneWorldBounds(scene, runtime),
+      fitBounds,
       this.options.canvas,
     );
     this.apply(target, duration, invalidate);
@@ -74,7 +91,7 @@ export class CameraFocusController {
   applyOrientationAction(action: ViewCubeAction): void {
     const camera = applyViewCubeAction(
       this.options.cameraRef.camera,
-      sceneWorldBounds(this.options.scene(), this.options.runtime()),
+      sceneWorldBounds(this.options.scene(), this.options.runtime(), this.options.deformation()),
       action,
     );
     this.setCamera(camera, undefined);
@@ -83,7 +100,7 @@ export class CameraFocusController {
   private apply(camera: Camera, durationMs: number, invalidate = true): void {
     const scene = this.options.scene();
     const runtime = this.options.runtime();
-    const target = protectSceneCamera(camera, scene, runtime);
+    const target = protectSceneCamera(camera, scene, runtime, this.options.deformation());
     if (durationMs === 0) {
       this.options.cameraRef.camera = target;
       if (invalidate) this.options.invalidate();
@@ -92,7 +109,12 @@ export class CameraFocusController {
     const update = (next: Camera, complete: boolean): void => {
       this.options.cameraRef.camera = complete
         ? target
-        : protectSceneCamera(next, this.options.scene(), this.options.runtime());
+        : protectSceneCamera(
+            next,
+            this.options.scene(),
+            this.options.runtime(),
+            this.options.deformation(),
+          );
       this.options.invalidate();
     };
     this.transition.start(this.options.cameraRef.camera, target, durationMs, update);
