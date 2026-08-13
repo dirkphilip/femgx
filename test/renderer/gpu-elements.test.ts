@@ -37,7 +37,6 @@ import {
   buildNodeBodyOwnerData,
   buildNodeSpritePickIds,
   buildPrimitiveFaceBodyPickData,
-  buildVertexNodePickIds,
 } from "../../src/renderer/gpu-pick-ids";
 import { HIGHLIGHT_BUCKET_SIZE } from "../../src/renderer/gpu-highlight-table";
 import {
@@ -307,27 +306,6 @@ describe("buildNodeSpritePickIds", () => {
       nodePositions: new Float32Array(12),
     };
     expect(Array.from(buildNodeSpritePickIds(geometry))).toEqual([2, 4]);
-  });
-});
-
-describe("buildVertexNodePickIds", () => {
-  it("returns the per-vertex node pick ids when present", () => {
-    const geometry: Geometry = {
-      positions: new Float32Array(12),
-      indices: new Uint32Array(12),
-      primitive: "triangles" as const,
-      nodePickIds: new Uint32Array([1, 2, 3, 0]),
-    };
-    expect(Array.from(buildVertexNodePickIds(geometry))).toEqual([1, 2, 3, 0]);
-  });
-
-  it("produces all-zero ids when the geometry has no node data", () => {
-    const geometry: Geometry = {
-      positions: new Float32Array(12),
-      indices: new Uint32Array(12),
-      primitive: "triangles" as const,
-    };
-    expect(Array.from(buildVertexNodePickIds(geometry))).toEqual([0, 0, 0, 0]);
   });
 });
 
