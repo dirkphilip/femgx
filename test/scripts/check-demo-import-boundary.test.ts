@@ -51,6 +51,9 @@ describe("check-demo-import-boundary", () => {
   it("keeps the named benchmark exemptions narrow", () => {
     const root = makeDemo({
       "benchmark/runner.ts": 'import { createScene } from "../src/scene/scene";\n',
+      "benchmark/measurement.ts":
+        'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
+      "benchmark/memory.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "benchmark/model.ts": 'import { createPart } from "../src/geometry/part";\n',
       "fixture/performance-fixture.ts": 'import { createPart } from "../../src/geometry/part";\n',
     });

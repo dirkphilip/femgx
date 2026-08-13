@@ -87,8 +87,9 @@ default unit suite without coverage-distorted timing.
 `npm run bench:webgpu` runs `e2e/perf.spec.ts` in system Chrome. It is skipped
 by the normal e2e gate and has no device-dependent pass/fail timing threshold.
 The benchmark fixes the canvas at 800×600 device pixels and DPR 1, requests a
-high-performance WebGPU adapter, performs two untimed warmups, and reports p50
-and p95 from seven timed samples. Set `RUN_PERF_LARGE=1` to include the bounded
+high-performance WebGPU adapter, records one cold sample, performs two untimed
+steady-state warmups, and reports p50 and p95 from seven timed steady-state
+samples. Set `RUN_PERF_LARGE=1` to include the bounded
 2-million-unique-triangle local case in addition to the default cases. The
 default matrix is bounded but covers separate geometry, part/batch,
 placement/instance, and body-interaction dimensions; the local-only case is
@@ -111,14 +112,15 @@ kept out of normal runs:
 
 The planar-grid generator is shared by the visual performance fixture and the
 benchmark case factory, so their geometry/count conventions cannot drift. Each
-iteration creates a fresh renderer over the same deterministic scene. It
-drains `GPUQueue.onSubmittedWorkDone()` around the initial upload/first frame
-and steady visible frame. The upload/attachment estimate is their difference.
-After priming reusable pick targets and applying a camera-reference
-invalidation, it measures the combined lazy pick snapshot plus readback and then
-a cached-snapshot readback; the pick-snapshot estimate is their difference. The
-report retains both directly measured totals alongside the estimates. Portable
-WebGPU timestamp queries are not required.
+case creates one renderer over the same deterministic scene, drains
+`GPUQueue.onSubmittedWorkDone()` for a cold upload/first frame, then reuses that
+renderer through warmup and timed steady-state samples. The upload/attachment
+estimate is the cold first-frame and visible-frame difference. After priming
+reusable pick targets and applying a camera-reference invalidation, it measures
+the combined lazy pick snapshot plus readback and then a cached-snapshot
+readback; the pick-snapshot estimate is their difference. The report retains
+both directly measured totals alongside the estimates. Portable WebGPU
+timestamp queries are not required.
 
 The structured FE cases use the validated `createElement` and
 `heterogeneousElementParts` path with shared corner and mid-edge node ids. The
@@ -146,11 +148,21 @@ values are relevant; a generic triangle count alone is insufficient evidence.
 The JSON report identifies the browser user agent, adapter identity and fallback
 status, enabled features, resolution, DPR, FE family, unique/submitted element
 counts, triangle counts, timings, and an estimated renderer-owned
-buffer/render-target memory breakdown. `memoryEstimateScope` documents that the
-estimate excludes CPU scene data, transient staging allocations, and driver
-allocations; its edge category is an upper-bound endpoint-index estimate.
-Playwright writes the report as `webgpu-benchmark.json` in the local test
-output. Compare reports only between similar browser/adapter configurations; the
+buffer/render-target memory breakdown. The breakdown includes appended inactive
+result-color tails, expanded main/edge geometry, topology/pick metadata,
+face-subset buffers, per-part deformation and highlight storage, six
+instance-order buffers, pooled pick readback, and the multisampled visible color
+targets. It separately reports retained GPU buffers, measurable CPU scene typed
+arrays, and an upload-staging upper bound; `memoryEstimateScope` documents that
+the renderer estimate excludes driver allocations. Edge/topology categories
+remain explicit upper bounds where exact deduplication is performed during the
+renderer upload.
+The opt-in Playwright lane runs one case per test/context/device, gives each case
+an explicit bounded timeout, writes one `webgpu-benchmark.json` artifact as soon
+as its report returns, and aggregates only completed artifacts afterward. A
+later capacity failure therefore preserves earlier evidence and names its
+case/phase; a timeout is isolated to the titled case and its context is closed.
+Compare reports only between similar browser/adapter configurations; the
 numbers are a capacity envelope, not a universal triangle limit. GitHub-hosted
 Actions does not run this browser benchmark until an explicitly owned real-GPU
 runner exists.
