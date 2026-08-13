@@ -3,7 +3,7 @@ import {
   dataset,
   drawnPixels,
   requireHit,
-  setElementSelection,
+  setSelectionGranularity,
   status,
   waitForRenderer,
 } from "./demo-support";
@@ -125,7 +125,7 @@ test("temporarily highlights exact tree occurrences without changing selection",
     { prefix: "n:" },
     "node GPU picking must resolve before tree-hover assertions",
   );
-  await setElementSelection(page, false);
+  await setSelectionGranularity(page, "node");
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => canvas.getAttribute("data-selected")).toMatch(/^n:/);
   const selected = await dataset(page, "selected");

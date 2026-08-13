@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInteractionState, isTargetSelected, setTargetSelected } from "../../src/index";
-import { elementSelectTarget, elementTarget, selectTarget } from "../../demo/workbench/pick";
+import { elementTarget, exactTarget, selectTarget } from "../../demo/workbench/pick";
 import {
   replaceSelection,
   toggleElementSelection,
@@ -40,16 +40,16 @@ describe("demo selection policy", () => {
       neighborNodeIds: [1, 2],
     };
     const modifiers = { shiftKey: false, altKey: false, ctrlKey: true, metaKey: false };
-    expect(selectTarget(hit, modifiers)).toMatchObject({ kind: "node", nodeId: 3 });
-    expect(selectTarget(hit, { ...modifiers, ctrlKey: false, metaKey: true })).toMatchObject({
+    expect(exactTarget(hit, modifiers)).toMatchObject({ kind: "node", nodeId: 3 });
+    expect(exactTarget(hit, { ...modifiers, ctrlKey: false, metaKey: true })).toMatchObject({
       kind: "node",
       nodeId: 3,
     });
-    expect(selectTarget(hit, { ...modifiers, shiftKey: true })).toMatchObject({
+    expect(exactTarget(hit, { ...modifiers, shiftKey: true })).toMatchObject({
       kind: "element",
       elementId: 7,
     });
-    expect(selectTarget(hit, { ...modifiers, shiftKey: true, altKey: true })).toMatchObject({
+    expect(exactTarget(hit, { ...modifiers, shiftKey: true, altKey: true })).toMatchObject({
       kind: "instance",
       instanceId: "1/0",
     });
@@ -61,11 +61,60 @@ describe("demo selection policy", () => {
       elementId: 7,
       worldPosition: [0, 0, 0],
     };
-    expect(selectTarget(directElement, modifiers)).toMatchObject({
+    expect(exactTarget(directElement, modifiers)).toMatchObject({
       kind: "element",
       instanceId: "1/0",
       elementId: 7,
     });
+  });
+
+  it.each([
+    ["element", { kind: "element", instanceId: "1/0", elementId: 7 }],
+    ["face", { kind: "face", instanceId: "1/0", elementId: 7, faceIndex: 1 }],
+    ["node", { kind: "node", instanceId: "1/0", nodeId: 3 }],
+  ] as const)("maps a %s mode to its matching target kind", (granularity, expected) => {
+    const hit: PickHit =
+      granularity === "node"
+        ? {
+            kind: "node",
+            partId: 4,
+            instanceId: "1/0",
+            elementId: 7,
+            nodeId: 3,
+            localPosition: [0, 0, 0],
+            worldPosition: [0, 0, 0],
+            neighborElementIds: [7],
+            neighborNodeIds: [1, 2],
+          }
+        : {
+            kind: "face",
+            partId: 4,
+            instanceId: "1/0",
+            elementId: 7,
+            faceIndex: 1,
+            key: "face-key",
+            nodeIds: [1, 2, 3],
+            neighborElementIds: [],
+            worldPosition: [0, 0, 0],
+            normal: [0, 0, 1],
+          };
+    expect(selectTarget(hit, granularity, modifiersForTest())).toMatchObject(expected);
+  });
+
+  it("rejects a face or node hit when the selected mode cannot own it", () => {
+    const face: PickHit = {
+      kind: "face",
+      partId: 4,
+      instanceId: "1/0",
+      elementId: 7,
+      faceIndex: 1,
+      key: "face-key",
+      nodeIds: [1, 2, 3],
+      neighborElementIds: [],
+      worldPosition: [0, 0, 0],
+      normal: [0, 0, 1],
+    };
+    expect(selectTarget(face, "node", modifiersForTest())).toBeUndefined();
   });
 
   it("maps element-owned targets to one exact element without fabricating instance or part targets", () => {
@@ -108,8 +157,8 @@ describe("demo selection policy", () => {
       normal: [0, 0, 1],
     };
 
-    expect(elementSelectTarget(node)).toEqual(element);
-    expect(elementSelectTarget(face)).toEqual(element);
+    expect(selectTarget(node, "element", modifiersForTest())).toEqual(element);
+    expect(selectTarget(face, "element", modifiersForTest())).toEqual(element);
   });
 
   it("replaces selection when selecting an element and removes only it when deselecting", () => {
@@ -130,3 +179,12 @@ describe("demo selection policy", () => {
     expect(isTargetSelected(state, other)).toBe(true);
   });
 });
+
+function modifiersForTest(): {
+  readonly shiftKey: boolean;
+  readonly altKey: boolean;
+  readonly ctrlKey: boolean;
+  readonly metaKey: boolean;
+} {
+  return { shiftKey: false, altKey: false, ctrlKey: false, metaKey: false };
+}

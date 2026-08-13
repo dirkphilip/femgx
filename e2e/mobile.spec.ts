@@ -179,7 +179,7 @@ test("keeps primary controls reachable and touch-sized on a phone", async ({ pag
   for (const testId of [
     "model-select",
     "fit-view",
-    "element-select",
+    "selection-granularity",
     "hide-selected",
     "show-all",
     "projection-toggle",

@@ -10,6 +10,7 @@ import { VisibilityPanelController } from "./visibility-panel";
 import { WorkbenchVisibilityActions } from "./visibility-actions";
 import type { VisibilityRowTarget } from "./tree-hover";
 import { setModelFeedback } from "./model";
+import type { SelectionGranularity } from "./pick";
 
 export interface WorkbenchFeatureOptions {
   readonly view: DemoView;
@@ -24,7 +25,7 @@ export interface WorkbenchFeatureOptions {
   readonly toggles: () => DisplayToggles;
   readonly resultMode: () => ResultDisplayMode;
   readonly continuous: () => boolean;
-  readonly elementSelectionEnabled: () => boolean;
+  readonly selectionGranularity: () => SelectionGranularity;
   readonly interaction: () => InteractionState;
   readonly setInteraction: (interaction: InteractionState) => void;
   readonly applyDisplayedInteraction: () => void;
@@ -103,7 +104,7 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     partName: (partId) => options.model().partNames.get(partId),
     menu,
     render: options.render,
-    elementSelectionEnabled: options.elementSelectionEnabled,
+    selectionGranularity: options.selectionGranularity,
     selectionFeedback: (message) => {
       setModelFeedback(options.view, message);
     },
@@ -116,7 +117,7 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     getToggles: options.toggles,
     getResultMode: options.resultMode,
     getContinuous: options.continuous,
-    getElementSelectionEnabled: options.elementSelectionEnabled,
+    getSelectionGranularity: options.selectionGranularity,
     getInteraction: options.interaction,
     getRuntime: options.runtime,
   });

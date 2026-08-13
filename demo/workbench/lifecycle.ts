@@ -22,7 +22,7 @@ export interface WorkbenchLifecycleOptions {
   readonly setNodes: () => void;
   readonly setContinuous: () => void;
   readonly setResults: () => void;
-  readonly setElementSelection: () => void;
+  readonly setSelectionGranularity: (value: string) => void;
   readonly hideSelected: () => void;
   readonly showAll: () => void;
   readonly reset: () => void;
@@ -83,7 +83,7 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     setNodes: options.setNodes,
     setContinuous: options.setContinuous,
     setResults: options.setResults,
-    setElementSelection: options.setElementSelection,
+    setSelectionGranularity: options.setSelectionGranularity,
     hideSelected: options.hideSelected,
     showAll: options.showAll,
     reset: options.reset,

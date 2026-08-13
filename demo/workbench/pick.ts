@@ -7,6 +7,9 @@ import {
   type PickHit,
 } from "../../src/index";
 
+/** The user-selectable workbench interaction granularities. */
+export type SelectionGranularity = Extract<InteractionGranularity, "element" | "face" | "node">;
+
 /** A stable selection identity at any supported granularity. */
 export type SelectTarget = Exclude<InteractionTarget, { readonly kind: "body" }> & {
   readonly bodyId?: BodyId;
@@ -15,13 +18,13 @@ export type SelectTarget = Exclude<InteractionTarget, { readonly kind: "body" }>
 };
 
 /**
- * Maps a GPU pick target to the selection target the modifier keys select at:
- * no modifier keeps the most specific hit, shift promotes to the element,
- * and alt to the instance. Control/Meta are selection-mode modifiers and do
- * not change the target granularity.
+ * Maps a GPU pick target to the active selection granularity. Shift promotes
+ * to the owning element and Alt to the instance; Control/Meta remain additive
+ * selection modifiers and do not change the target granularity.
  */
 export function selectTarget(
   hit: PickHit,
+  granularity: SelectionGranularity,
   modifiers: {
     readonly shiftKey: boolean;
     readonly altKey: boolean;
@@ -29,7 +32,27 @@ export function selectTarget(
     readonly metaKey: boolean;
   },
 ): SelectTarget | undefined {
+  return mapTarget(
+    hit,
+    modifiers.altKey ? "instance" : modifiers.shiftKey ? "element" : granularity,
+    modifiers,
+  );
+}
+
+/** Maps a context-menu hit at its physical granularity, independent of the toolbar. */
+export function exactTarget(
+  hit: PickHit,
+  modifiers: Parameters<typeof selectTarget>[2],
+): SelectTarget | undefined {
   const granularity: InteractionGranularity = modifiers.altKey ? "instance" : hit.kind;
+  return mapTarget(hit, granularity, modifiers);
+}
+
+function mapTarget(
+  hit: PickHit,
+  granularity: InteractionGranularity,
+  modifiers: Parameters<typeof selectTarget>[2],
+): SelectTarget | undefined {
   const target = interactionTargetFromHit(hit, granularity);
   if (target === undefined || target.kind === "body") return undefined;
   const selectedTarget: SelectTarget = {
@@ -42,12 +65,6 @@ export function selectTarget(
       : {}),
   };
   return modifiers.shiftKey && !modifiers.altKey ? elementTarget(selectedTarget) : selectedTarget;
-}
-
-/** Returns the exact owning element used by the demo's Element select mode. */
-export function elementSelectTarget(hit: PickHit): SelectTarget | undefined {
-  const target = interactionTargetFromHit(hit, "element");
-  return target?.kind === "element" ? target : undefined;
 }
 
 function optionalBodyId(

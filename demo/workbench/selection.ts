@@ -40,8 +40,8 @@ export function toggleElementSelection(
   return replaceSelection(interaction, element);
 }
 
-/** Replaces the selection with the visible elements returned by one box pick. */
-export function replaceElementSelection(
+/** Replaces the selection with the visible targets returned by one box pick. */
+export function replaceTargets(
   interaction: InteractionState,
   targets: readonly SelectTarget[],
 ): InteractionState {
@@ -50,8 +50,8 @@ export function replaceElementSelection(
   return next;
 }
 
-/** Toggles each distinct visible element returned by one box pick. */
-export function toggleElementSelections(
+/** Toggles each distinct visible target returned by one box pick. */
+export function toggleTargets(
   interaction: InteractionState,
   targets: readonly SelectTarget[],
 ): InteractionState {

@@ -35,7 +35,7 @@ export interface DemoView {
   readonly glbFileInput: HTMLInputElement;
   readonly modelFeedback: HTMLElement;
   readonly fitView: HTMLButtonElement;
-  readonly elementSelectionToggle: HTMLButtonElement;
+  readonly selectionGranularity: HTMLSelectElement;
   readonly hideSelectedButton: HTMLButtonElement;
   readonly showAllButton: HTMLButtonElement;
   readonly projectionToggle: HTMLButtonElement;
@@ -51,6 +51,7 @@ export interface DemoView {
   readonly statsPanel: HTMLElement;
   readonly statsContent: HTMLElement;
   readonly contextMenu: HTMLElement;
+  readonly interactionHelp: HTMLElement;
 }
 
 /** The model/renderer summary written into the status bar. */
@@ -83,7 +84,7 @@ export function queryDemoView(): DemoView {
   const glbFileInput = document.querySelector<HTMLInputElement>("#glb-file");
   const modelFeedback = document.querySelector<HTMLElement>("#model-feedback");
   const fitView = document.querySelector<HTMLButtonElement>("#fit-view");
-  const elementSelectionToggle = document.querySelector<HTMLButtonElement>("#element-select");
+  const selectionGranularity = document.querySelector<HTMLSelectElement>("#selection-granularity");
   const hideSelectedButton = document.querySelector<HTMLButtonElement>("#hide-selected");
   const showAllButton = document.querySelector<HTMLButtonElement>("#show-all");
   const projectionToggle = document.querySelector<HTMLButtonElement>("#projection-toggle");
@@ -99,6 +100,7 @@ export function queryDemoView(): DemoView {
   const statsPanel = document.querySelector<HTMLElement>("#stats-panel");
   const statsContent = document.querySelector<HTMLElement>("#diagnostics-content");
   const contextMenu = document.querySelector<HTMLElement>("#context-menu");
+  const interactionHelp = document.querySelector<HTMLElement>("#interaction-help");
   if (
     canvas === null ||
     scene === null ||
@@ -115,7 +117,7 @@ export function queryDemoView(): DemoView {
     glbFileInput === null ||
     modelFeedback === null ||
     fitView === null ||
-    elementSelectionToggle === null ||
+    selectionGranularity === null ||
     hideSelectedButton === null ||
     showAllButton === null ||
     projectionToggle === null ||
@@ -130,7 +132,8 @@ export function queryDemoView(): DemoView {
     inspectionPanel === null ||
     statsPanel === null ||
     statsContent === null ||
-    contextMenu === null
+    contextMenu === null ||
+    interactionHelp === null
   ) {
     throw new Error("missing demo controls");
   }
@@ -149,7 +152,7 @@ export function queryDemoView(): DemoView {
     glbFileInput,
     modelFeedback,
     fitView,
-    elementSelectionToggle,
+    selectionGranularity,
     hideSelectedButton,
     showAllButton,
     projectionToggle,
@@ -165,6 +168,7 @@ export function queryDemoView(): DemoView {
     statsPanel,
     statsContent,
     contextMenu,
+    interactionHelp,
   };
 }
 

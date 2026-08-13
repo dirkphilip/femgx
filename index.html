@@ -552,7 +552,7 @@
           flex: 1 1 100%;
         }
         .toolbar-row-primary > #fit-view,
-        .toolbar-row-primary > #element-select,
+        .toolbar-row-primary > #selection-granularity,
         .toolbar-row-primary > #hide-selected,
         .toolbar-row-primary > #show-all,
         .toolbar-row-primary > #viewport-toggle,
@@ -670,16 +670,17 @@
               >
                 Fit model
               </button>
-              <button
-                id="element-select"
-                data-testid="element-select"
-                type="button"
-                aria-pressed="true"
-                aria-label="Element select"
-                title="Select owning elements with click or box drag."
+              <select
+                id="selection-granularity"
+                data-testid="selection-granularity"
+                aria-label="Selection granularity"
+                aria-describedby="interaction-help"
+                title="Choose whether click and box selection targets elements, faces, or nodes."
               >
-                Element select
-              </button>
+                <option value="element">Element</option>
+                <option value="face">Face</option>
+                <option value="node">Node</option>
+              </select>
               <button
                 id="hide-selected"
                 data-testid="hide-selected"
@@ -778,7 +779,8 @@
               hidden
             ></div>
             <p id="interaction-help" data-testid="interaction-help" class="interaction-help">
-              Element select: click or drag to replace. Hold Ctrl or ⌘ to toggle.
+              Element: click or drag to replace. Hold Ctrl or ⌘ to toggle. Shift keeps element
+              selection. Alt selects an instance.
             </p>
           </div>
           <div class="hud inspection" hidden>

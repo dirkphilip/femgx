@@ -33,6 +33,7 @@ import { WorkbenchInteraction } from "./interaction";
 import { WorkbenchBoxPreview } from "./box-preview";
 import { cameraSnapshot } from "./presentation";
 import { selectedKeys } from "./selection";
+import type { SelectionGranularity } from "./pick";
 import {
   createDefaultDisplayToggles,
   type DisplayToggles,
@@ -83,7 +84,7 @@ export class WorkbenchController {
   private treeHoverTargets: readonly InteractionTarget[] = [];
   private disposed = false;
   private continuousEnabled = false;
-  private elementSelectionEnabled = true;
+  private selectionGranularity: SelectionGranularity = "element";
   private background: ViewportBackground = "studio";
   private readonly observedPaneSizes = new Map<
     ViewportSlotId,
@@ -124,7 +125,7 @@ export class WorkbenchController {
       toggles: () => this.toggles,
       resultMode: () => this.resultMode,
       continuous: () => this.continuousEnabled,
-      elementSelectionEnabled: () => this.elementSelectionEnabled,
+      selectionGranularity: () => this.selectionGranularity,
       interaction: () => this.interaction,
       setInteraction: (interaction) => {
         this.interaction = interaction;
@@ -179,7 +180,7 @@ export class WorkbenchController {
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
     this.presentation.reflectBackground(this.background);
-    this.presentation.reflectElementSelection();
+    this.presentation.reflectSelectionGranularity();
     this.presentation.populateModelSelect(this.models);
     this.visibilityPanel.rebuild();
     this.boxSelectionDisposer = installWorkbenchLifecycle({
@@ -210,8 +211,8 @@ export class WorkbenchController {
       setContinuous: () => {
         this.setContinuous(!this.continuousEnabled);
       },
-      setElementSelection: () => {
-        this.setElementSelection(!this.elementSelectionEnabled);
+      setSelectionGranularity: (value) => {
+        this.setSelectionGranularity(value);
       },
       hideSelected: () => {
         this.visibilityActions.hideSelected();
@@ -333,11 +334,17 @@ export class WorkbenchController {
     this.syncViewportPresentation();
   }
 
-  setElementSelection(enabled: boolean): void {
-    if (this.elementSelectionEnabled === enabled) return;
-    this.elementSelectionEnabled = enabled;
-    this.presentation.reflectElementSelection();
-    this.syncViewportPresentation();
+  setSelectionGranularity(value: string): void {
+    const granularity = parseSelectionGranularity(value);
+    if (granularity === undefined) {
+      this.presentation.reflectSelectionGranularity();
+      return;
+    }
+    if (this.selectionGranularity === granularity) return;
+    this.selectionGranularity = granularity;
+    for (const slot of this.slots.values()) slot.interaction.clearHover();
+    this.presentation.reflectSelectionGranularity();
+    this.render();
   }
 
   setBackground(value: string): void {
@@ -636,7 +643,7 @@ export class WorkbenchController {
     canvas.dataset["edges"] = String(this.toggles.edges);
     canvas.dataset["nodes"] = String(this.toggles.nodes);
     canvas.dataset["continuous"] = String(this.continuousEnabled);
-    canvas.dataset["selectionMode"] = this.elementSelectionEnabled ? "element" : "exact";
+    canvas.dataset["selectionGranularity"] = this.selectionGranularity;
     canvas.dataset["results"] = this.resultMode;
     canvas.dataset["background"] = this.background;
   }
@@ -663,7 +670,7 @@ export class WorkbenchController {
         canvas: this.view.secondaryPane.canvas,
         view: this.view,
         viewport: () => viewport,
-        elementSelectionEnabled: () => this.elementSelectionEnabled,
+        selectionGranularity: () => this.selectionGranularity,
         getInteraction: () => this.interaction,
         setInteraction: (value) => {
           this.interaction = value;
@@ -780,4 +787,8 @@ function isDestroyedViewportError(error: unknown): boolean {
 function parseViewportBackground(value: string): ViewportBackground | undefined {
   if (value === "studio" || value === "white" || value === "dark") return value;
   return undefined;
+}
+
+function parseSelectionGranularity(value: string): SelectionGranularity | undefined {
+  return value === "element" || value === "face" || value === "node" ? value : undefined;
 }

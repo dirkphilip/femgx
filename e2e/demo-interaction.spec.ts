@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { dataset, requireHit, setElementSelection } from "./demo-support";
+import { dataset, requireHit, setSelectionGranularity } from "./demo-support";
 import { loadWebGpuPage } from "./webgpu-support";
 test("toggles the edge overlay", async ({ page }) => {
   await loadWebGpuPage(page);
@@ -11,13 +11,14 @@ test("toggles the edge overlay", async ({ page }) => {
   await expect(overlay).toHaveAttribute("aria-pressed", "true");
 });
 
-test("defaults to owning-element selection and can restore exact picks", async ({ page }) => {
+test("defaults to element selection and can switch to exact node picks", async ({ page }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
-  const toggle = page.getByTestId("element-select");
-  await expect(toggle).toHaveAttribute("aria-label", "Element select");
-  await expect(toggle).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("interaction-help")).toContainText("Element select");
+  const select = page.getByTestId("selection-granularity");
+  await expect(select).toHaveAttribute("aria-label", "Selection granularity");
+  await expect(select).toHaveValue("element");
+  await expect(canvas).toHaveAttribute("data-selection-granularity", "element");
+  await expect(page.getByTestId("interaction-help")).toContainText("Element:");
 
   const hit = await requireHit(
     page,
@@ -37,7 +38,7 @@ test("defaults to owning-element selection and can restore exact picks", async (
   await page.keyboard.up(modifier);
   await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
 
-  await setElementSelection(page, false);
+  await setSelectionGranularity(page, "node");
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
 });
@@ -121,7 +122,7 @@ test("promotes face and element context targets to the exact element", async ({ 
 });
 test("clears selection on empty scene clicks but preserves it through orbit", async ({ page }) => {
   await loadWebGpuPage(page);
-  await setElementSelection(page, false);
+  await setSelectionGranularity(page, "node");
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
@@ -147,40 +148,27 @@ test("clears selection on empty scene clicks but preserves it through orbit", as
   await page.mouse.up({ button: "middle" });
   await expect.poll(() => dataset(page, "selected")).toBe(selected);
 });
-test("uses Control/Meta-click for additive and toggle selection", async ({ page }) => {
+test("uses Control/Meta-click to toggle an exact face selection", async ({ page }) => {
   await loadWebGpuPage(page);
-  await setElementSelection(page, false);
+  await setSelectionGranularity(page, "face");
   const canvas = page.getByTestId("view-canvas");
-  const nodeHit = await requireHit(
-    page,
-    canvas,
-    { prefix: "n:" },
-    "node GPU picking must resolve on the deterministic WebGPU lane",
-  );
   const faceHit = await requireHit(
     page,
     canvas,
-    { prefix: "f:", reverse: true, fresh: true },
+    { prefix: "f:" },
     "face GPU picking must resolve on the deterministic WebGPU lane",
   );
-  await page.mouse.click(nodeHit.x, nodeHit.y);
-  await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
-  const nodeKey = await dataset(page, "selected");
+  await page.mouse.click(faceHit.x, faceHit.y);
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^f:/);
   const modifier = process.platform === "darwin" ? "Meta" : "Control";
   await page.keyboard.down(modifier);
   await page.mouse.click(faceHit.x, faceHit.y);
   await page.keyboard.up(modifier);
-  await expect.poll(() => dataset(page, "selected")).toContain(nodeKey);
-  await expect.poll(() => dataset(page, "selected")).toContain("f:");
-
-  await page.keyboard.down(modifier);
-  await page.mouse.click(faceHit.x, faceHit.y);
-  await page.keyboard.up(modifier);
-  await expect.poll(() => dataset(page, "selected")).toBe(nodeKey);
+  await expect.poll(() => dataset(page, "selected")).toBe("");
 });
 test("picks and selects a node, exposing adjacency and neighbors", async ({ page }) => {
   await loadWebGpuPage(page);
-  await setElementSelection(page, false);
+  await setSelectionGranularity(page, "node");
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
@@ -196,7 +184,7 @@ test("picks and selects a node, exposing adjacency and neighbors", async ({ page
 });
 test("picks and selects a face, exposing its normal and ownership", async ({ page }) => {
   await loadWebGpuPage(page);
-  await setElementSelection(page, false);
+  await setSelectionGranularity(page, "face");
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
@@ -213,7 +201,7 @@ test("picks and selects a face, exposing its normal and ownership", async ({ pag
 
 test("keeps the generic mapped element face identity through selection", async ({ page }) => {
   await loadWebGpuPage(page);
-  await setElementSelection(page, false);
+  await setSelectionGranularity(page, "face");
   await page.getByTestId("model-select").selectOption("gallery");
   const canvas = page.getByTestId("view-canvas");
   const genericRow = page
@@ -251,7 +239,7 @@ test("keeps the generic mapped element face identity through selection", async (
 });
 test("keeps selection stable across repeated orbit interactions", async ({ page }) => {
   await loadWebGpuPage(page);
-  await setElementSelection(page, false);
+  await setSelectionGranularity(page, "node");
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
