@@ -265,9 +265,11 @@ class FemViewportCore implements FemViewport {
   }
 
   setPartVisible(partId: PartId, visible: boolean): void {
+    this.ensureAlive();
     this.applyVisibility(this.currentRuntime.setPartVisible(partId, visible).changedInstanceIds);
   }
   setAssemblyNodeVisible(nodeId: AssemblyNodeId, visible: boolean): void {
+    this.ensureAlive();
     const node = this.currentRuntime.getNodeSlot(nodeId);
     this.applyVisibility(
       node === undefined
@@ -276,11 +278,13 @@ class FemViewportCore implements FemViewport {
     );
   }
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void {
+    this.ensureAlive();
     this.applyVisibility(
       this.currentRuntime.setAssemblyVisible(assemblyId, visible).changedInstanceIds,
     );
   }
   setInstanceVisible(instanceId: InstanceId, visible: boolean): void {
+    this.ensureAlive();
     const slot = this.currentRuntime.getInstanceSlot(instanceId);
     this.applyVisibility(
       slot === undefined
@@ -398,7 +402,6 @@ class FemViewportCore implements FemViewport {
   }
 
   private applyVisibility(changed: readonly number[]): void {
-    this.ensureAlive();
     if (changed.length === 0) return;
     if (this.batchDepth > 0) for (const slot of changed) this.pendingVisibility.add(slot);
     else this.renderer.updateVisibility(this.currentRuntime, changed);
