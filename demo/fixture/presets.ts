@@ -81,6 +81,7 @@ export function createVtkPreset(): ModelPreset {
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map<PartId, string>([[solid, "VTK Hex8 exterior"]]),
     bounds: fixtureBounds(fixture.scene),
+    results: fixture.results,
   };
 }
 

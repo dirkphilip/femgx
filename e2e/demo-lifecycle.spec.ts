@@ -422,7 +422,7 @@ test("switches between deterministic model presets", async ({ page }) => {
     await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
     await expect(canvas).toHaveAttribute(
       "data-results",
-      id === "results" || id === "hex20-cylinder" ? "deformed" : "base",
+      id === "results" || id === "hex20-cylinder" || id === "vtk" ? "deformed" : "base",
     );
   }
 });

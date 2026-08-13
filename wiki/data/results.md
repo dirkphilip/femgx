@@ -22,6 +22,11 @@ node or per element and map authored scalar values for visualization.
 - Accessors `scalarAt` / `vectorAt` read one entity and throw on
   out-of-range indices.
 
+Parsed VTK results enter this same authored-field path through
+`createResultFieldFromModelResult`. It maps model node identities to dense
+coordinate rows, keeps element ids aligned with picking, and fills absent rows
+with `NaN`; it does not derive or average any engineering quantity.
+
 ## Ranges (`range.ts`)
 
 `finiteRange` / `scalarRange` compute `{ min, max }` over finite values only,

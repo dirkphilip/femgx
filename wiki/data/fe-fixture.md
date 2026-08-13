@@ -29,9 +29,11 @@ edge display is a renderer-owned overlay.
 ## VTK sample
 
 `demo/fixture/sample-block.vtk` is a checked-in ASCII legacy VTK unstructured
-grid containing four Hex8 cells, nodal temperature data, and elemental stress
-data. `createVtkFixture` parses it through the public `parseVtk` path and turns
-the imported element block into one reusable exterior triangle part.
+grid containing four Hex8 cells, nodal temperature data, elemental stress data,
+and a nodal displacement vector. `createVtkFixture` parses it through the
+public `parseVtk` path, converts the imported stress and displacement through
+`createResultFieldFromModelResult`, and turns the imported element block into
+one reusable exterior triangle part.
 This is the demo's small real-file import smoke fixture; VTK remains the only
 interchange format in product scope.
 
