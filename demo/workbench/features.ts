@@ -21,7 +21,6 @@ export interface WorkbenchFeatureOptions {
   readonly viewports: () => readonly FemViewport[];
   readonly runtime: () => SceneRuntime;
   readonly model: () => WorkbenchModel;
-  readonly presets: readonly WorkbenchModel[];
   readonly toggles: () => DisplayToggles;
   readonly resultMode: () => ResultDisplayMode;
   readonly continuous: () => boolean;
@@ -51,50 +50,7 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     () => options.toggles().diagnostics,
     options.applyMenuAction,
   );
-  const visibilityActions = new WorkbenchVisibilityActions({
-    viewport: options.viewport,
-    viewports: options.viewports,
-    scene: () => options.model().scene,
-    runtime: options.runtime,
-    interaction: options.interaction,
-    setInteraction: options.setInteraction,
-    applyInteraction: (interaction) => {
-      options.setInteraction(interaction);
-      options.applyDisplayedInteraction();
-    },
-    syncPanel: () => {
-      visibilityPanel.sync();
-    },
-    render: options.render,
-    feedback: (message) => {
-      setModelFeedback(options.view, message);
-    },
-  });
-  const visibilityPanel = new VisibilityPanelController({
-    panel: options.view.visibilityPanel,
-    getModel: options.model,
-    getRuntime: options.runtime,
-    partName: (partId) => options.model().partNames.get(partId),
-    partVisible: (partId) => visibilityActions.partVisible(partId),
-    bodyVisible: (instanceId, bodyId) => visibilityActions.bodyVisible(instanceId, bodyId),
-    bodyHighlighted: (instanceId, bodyId) => visibilityActions.bodyHighlighted(instanceId, bodyId),
-    onPartVisibility: (partId, visible) => {
-      visibilityActions.setPart(partId, visible);
-    },
-    onBodyVisibility: (instanceId, bodyId, visible) => {
-      visibilityActions.setBody(instanceId, bodyId, visible);
-    },
-    onBodyHighlight: (instanceId, bodyId) => {
-      visibilityActions.bodyHighlight(instanceId, bodyId);
-    },
-    onInstanceVisibility: (instanceId, visible) => {
-      visibilityActions.setInstance(instanceId, visible);
-    },
-    onAssemblyVisibility: (nodeId, visible) => {
-      visibilityActions.setAssemblyNode(nodeId, visible);
-    },
-    onTreeHover: options.setTreeHover,
-  });
+  const visibility = createVisibilityFeatures(options);
   const interactionController = new WorkbenchInteraction({
     canvas: options.canvas,
     view: options.view,
@@ -123,10 +79,61 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
   });
   return {
     menu,
-    visibilityPanel,
-    visibilityActions,
+    visibilityPanel: visibility.panel,
+    visibilityActions: visibility.actions,
     interactionController,
     presentation,
     boxPreview: new WorkbenchBoxPreview(options.view.boxSelectionOverlay),
   };
+}
+
+function createVisibilityFeatures(options: WorkbenchFeatureOptions): {
+  readonly actions: WorkbenchVisibilityActions;
+  readonly panel: VisibilityPanelController;
+} {
+  const actions = new WorkbenchVisibilityActions({
+    viewport: options.viewport,
+    viewports: options.viewports,
+    scene: () => options.model().scene,
+    runtime: options.runtime,
+    interaction: options.interaction,
+    setInteraction: options.setInteraction,
+    applyInteraction: (interaction) => {
+      options.setInteraction(interaction);
+      options.applyDisplayedInteraction();
+    },
+    syncPanel: () => {
+      panel.sync();
+    },
+    render: options.render,
+    feedback: (message) => {
+      setModelFeedback(options.view, message);
+    },
+  });
+  const panel = new VisibilityPanelController({
+    panel: options.view.visibilityPanel,
+    getModel: options.model,
+    getRuntime: options.runtime,
+    partName: (partId) => options.model().partNames.get(partId),
+    partVisible: (partId) => actions.partVisible(partId),
+    bodyVisible: (instanceId, bodyId) => actions.bodyVisible(instanceId, bodyId),
+    bodyHighlighted: (instanceId, bodyId) => actions.bodyHighlighted(instanceId, bodyId),
+    onPartVisibility: (partId, visible) => {
+      actions.setPart(partId, visible);
+    },
+    onBodyVisibility: (instanceId, bodyId, visible) => {
+      actions.setBody(instanceId, bodyId, visible);
+    },
+    onBodyHighlight: (instanceId, bodyId) => {
+      actions.bodyHighlight(instanceId, bodyId);
+    },
+    onInstanceVisibility: (instanceId, visible) => {
+      actions.setInstance(instanceId, visible);
+    },
+    onAssemblyVisibility: (nodeId, visible) => {
+      actions.setAssemblyNode(nodeId, visible);
+    },
+    onTreeHover: options.setTreeHover,
+  });
+  return { actions, panel };
 }

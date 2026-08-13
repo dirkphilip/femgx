@@ -1,0 +1,129 @@
+@media (max-width: 720px) {
+  body {
+    overflow: auto;
+  }
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    height: auto;
+    min-height: 100vh;
+  }
+  #viewport-workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(480px, 72vh);
+  }
+  #viewport-workspace[data-secondary-open="true"] {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(2, minmax(480px, 72vh));
+  }
+  .scene,
+  .scene-pane {
+    min-height: 480px;
+  }
+  .sidebar {
+    grid-row: 2;
+    border-top: 1px solid #223149;
+    border-right: 0;
+  }
+  .brand {
+    padding: 13px 16px;
+  }
+  #visibility-panel {
+    max-height: 300px;
+  }
+  .toolbar {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 4px;
+  }
+  .toolbar-row {
+    display: flex;
+    width: 100%;
+    flex: 0 0 100%;
+    min-width: 0;
+    align-items: stretch;
+    gap: 4px;
+  }
+  select,
+  button,
+  .toolbar select,
+  .toolbar button {
+    min-height: 44px;
+  }
+  #model-select {
+    min-width: 0;
+    width: auto;
+    flex: 1 1 0;
+  }
+  .toolbar-row-primary > * {
+    min-width: 0;
+  }
+  .toolbar-row-primary {
+    flex-wrap: wrap;
+  }
+  .model-source {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+  .toolbar-row-primary > #fit-view,
+  .toolbar-row-primary > #selection-granularity,
+  .toolbar-row-primary > #hide-selected,
+  .toolbar-row-primary > #show-all,
+  .toolbar-row-primary > #viewport-toggle,
+  .toolbar-row-primary > #projection-toggle {
+    flex: 1 1 0;
+  }
+  .model-source button {
+    flex: 0 1 128px;
+  }
+  .toolbar-row-primary #projection-toggle {
+    flex: 1 1 0;
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+  .toolbar-row-secondary > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .toolbar-row-secondary > button,
+  .toolbar-background select {
+    padding-right: 4px;
+    padding-left: 4px;
+    font-size: 12px;
+  }
+  .toolbar-background {
+    min-width: 0;
+    padding: 0;
+  }
+  .toolbar-background-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+  .inspection {
+    display: none;
+  }
+  .diagnostics {
+    top: 206px;
+    width: min(360px, calc(100% - 16px));
+    max-height: min(280px, calc(100% - 228px));
+    right: 8px;
+  }
+  .renderer-alert,
+  .status-alert {
+    left: 8px;
+    right: 8px;
+  }
+  .renderer-alert {
+    top: 122px;
+  }
+}

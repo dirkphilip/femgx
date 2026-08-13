@@ -77,4 +77,11 @@ export default tseslint.config(
       "max-lines": "off",
     },
   },
+  {
+    files: ["demo/workbench/**/*.ts"],
+    rules: {
+      "max-lines": ["error", { max: 400, skipBlankLines: true, skipComments: true }],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
+    },
+  },
 );

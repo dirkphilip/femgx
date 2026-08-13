@@ -1,9 +1,6 @@
 import {
-  setPartOverride,
   setTargetsHighlighted,
-  setProjection,
   importGlb,
-  type Camera,
   type InteractionState,
   type FemViewport,
   type InteractionTarget,
@@ -11,28 +8,11 @@ import {
   type ViewportBackground,
 } from "../../src/index";
 import type { DemoView } from "./view";
-import { installWorkbenchLifecycle, installWorkbenchPaneLifecycle } from "./lifecycle";
 import { createModelInteraction } from "./preset";
-import {
-  createImportedModel,
-  clearModelFeedback,
-  clearModelInspection,
-  displayFileName,
-  errorMessage,
-  importFeedback,
-  partStyleOverride,
-  setModelFeedback,
-  setModelLoading,
-  type WorkbenchModel,
-} from "./model";
-import { applyMenuAction } from "./menu-actions";
+import { errorMessage, setModelFeedback, type WorkbenchModel } from "./model";
 import { interactionTargetsForRow, type VisibilityRowTarget } from "./tree-hover";
-import { createWorkbenchFeatures, type WorkbenchFeatures } from "./features";
-import { WorkbenchRenderLoop } from "./render-loop";
-import { WorkbenchInteraction } from "./interaction";
-import { WorkbenchBoxPreview } from "./box-preview";
-import { cameraSnapshot } from "./presentation";
-import { selectedKeys } from "./selection";
+import type { WorkbenchFeatures } from "./features";
+import type { WorkbenchInteraction } from "./interaction";
 import type { SelectionGranularity } from "./pick";
 import {
   createDefaultDisplayToggles,
@@ -40,20 +20,24 @@ import {
   type ResultDisplayMode,
   type WorkbenchOptions,
 } from "./types";
-import type { WorkbenchPane, ViewportSlotId } from "./view";
+import type { ViewportSlotId } from "./view";
+import { type WorkbenchViewportSlots, type WorkbenchViewportSlot } from "./viewport-slots";
+import { WorkbenchModelSession } from "./model-session";
+import { activateControllerModel, type WorkbenchModelState } from "./model-activation";
+import { applyDisplayState, applyResultState } from "./display-state";
+import {
+  syncViewportPresentation,
+  viewportPresentationChanged,
+  type ObservedPaneSize,
+} from "./viewport-presentation";
+import { createControllerInfrastructure, installControllerLifecycle } from "./controller-wiring";
+import {
+  isDestroyedViewportError,
+  parseSelectionGranularity,
+  parseViewportBackground,
+} from "./workbench-values";
 
 export type { DisplayToggles, RendererStats, ResultDisplayMode, WorkbenchOptions } from "./types";
-
-interface ViewportSlot {
-  readonly id: ViewportSlotId;
-  readonly pane: WorkbenchPane;
-  readonly interaction: WorkbenchInteraction;
-  readonly boxPreview: WorkbenchBoxPreview;
-  readonly renderLoop: WorkbenchRenderLoop;
-  viewport: FemViewport;
-  dragging: boolean;
-  removePaneBindings?: () => void;
-}
 
 /** Owns demo presentation state around the canonical FEM viewport. */
 export class WorkbenchController {
@@ -65,188 +49,84 @@ export class WorkbenchController {
   resultMode: ResultDisplayMode;
   interaction: InteractionState;
   rendererState = "";
-  private viewport: FemViewport;
-  private readonly createViewport: WorkbenchOptions["createViewport"];
-  private readonly slots = new Map<ViewportSlotId, ViewportSlot>();
-  private activeSlotId: ViewportSlotId = "primary";
+  viewport: FemViewport;
+  private viewportSlots!: WorkbenchViewportSlots;
+  private readonly modelSession: WorkbenchModelSession;
   private readonly examples: readonly WorkbenchModel[];
-  private models: readonly WorkbenchModel[];
-  private readonly importer: typeof importGlb;
-  private readonly listenerController = new AbortController();
-  private readonly menu: WorkbenchFeatures["menu"];
-  private readonly visibilityPanel: WorkbenchFeatures["visibilityPanel"];
-  private readonly visibilityActions: WorkbenchFeatures["visibilityActions"];
-  private readonly interactionController: WorkbenchFeatures["interactionController"];
-  private readonly presentation: WorkbenchFeatures["presentation"];
-  private readonly boxPreview: WorkbenchFeatures["boxPreview"];
-  private readonly renderLoop: WorkbenchRenderLoop;
+  models: readonly WorkbenchModel[];
+  readonly listenerController = new AbortController();
+  menu!: WorkbenchFeatures["menu"];
+  visibilityPanel!: WorkbenchFeatures["visibilityPanel"];
+  visibilityActions!: WorkbenchFeatures["visibilityActions"];
+  interactionController!: WorkbenchFeatures["interactionController"];
+  presentation!: WorkbenchFeatures["presentation"];
+  boxPreview!: WorkbenchFeatures["boxPreview"];
   private boxSelectionDisposer: (() => void) | undefined;
   private treeHoverTargets: readonly InteractionTarget[] = [];
   private disposed = false;
-  private continuousEnabled = false;
-  private selectionGranularity: SelectionGranularity = "element";
-  private background: ViewportBackground = "studio";
-  private readonly observedPaneSizes = new Map<
-    ViewportSlotId,
-    {
-      readonly size: { readonly width: number; readonly height: number };
-      readonly devicePixelRatio: number;
-    }
-  >();
-  private loadGeneration = 0;
-  private secondaryGeneration = 0;
+  continuousEnabled = false;
+  selectionGranularity: SelectionGranularity = "element";
+  background: ViewportBackground = "studio";
+  private readonly observedPaneSizes = new Map<ViewportSlotId, ObservedPaneSize>();
 
   constructor(options: WorkbenchOptions) {
     this.view = options.view;
     this.canvas = options.canvas;
     this.rendererName = options.rendererName;
     this.viewport = options.viewport;
-    this.createViewport = options.createViewport;
-    this.renderLoop = new WorkbenchRenderLoop(() => this.activeViewport());
     this.examples = options.presets;
     const initialModel = this.examples[0];
     if (initialModel === undefined) throw new Error("Workbench requires at least one preset");
     this.models = this.examples;
     this.model = initialModel;
-    this.importer = options.importGlb ?? importGlb;
     this.toggles = createDefaultDisplayToggles();
     this.resultMode = this.model.results === undefined ? "base" : "deformed";
     this.interaction = createModelInteraction(this.model, true, true);
-    const features = createWorkbenchFeatures({
+    this.initializeInfrastructure(options);
+    this.modelSession = new WorkbenchModelSession({
       view: this.view,
-      canvas: this.canvas,
-      rendererName: this.rendererName,
-      viewport: () => this.activeViewport(),
-      interactionViewport: () => this.slots.get("primary")?.viewport ?? this.viewport,
-      viewports: () => this.viewports(),
-      runtime: () => this.runtime,
-      model: () => this.model,
-      presets: this.models,
-      toggles: () => this.toggles,
-      resultMode: () => this.resultMode,
-      continuous: () => this.continuousEnabled,
-      selectionGranularity: () => this.selectionGranularity,
-      interaction: () => this.interaction,
-      setInteraction: (interaction) => {
-        this.interaction = interaction;
-      },
-      applyDisplayedInteraction: () => {
-        this.applyDisplayedInteraction();
-      },
-      render: () => {
-        this.render();
-      },
-      setTreeHover: (target) => {
-        this.setTreeHover(target);
-      },
-      applyMenuAction: (action) => {
-        applyMenuAction(action, {
-          target: this.activeSlot().interaction.contextTarget,
-          interaction: this.activeSlot().interaction,
-          visibilityActions: this.visibilityActions,
-          toggles: this.toggles,
-          setEdges: () => {
-            this.setEdges(!this.toggles.edges);
-          },
-          setDiagnostics: () => {
-            this.toggles.diagnostics = !this.toggles.diagnostics;
-            this.syncViewportPresentation();
-          },
-          fitView: () => {
-            this.fitView();
-          },
-          reset: () => {
-            this.reset();
-          },
-        });
-        this.activeSlot().interaction.clearContext();
+      examples: this.examples,
+      importer: options.importGlb ?? importGlb,
+      getModel: () => this.model,
+      isDisposed: () => this.disposed,
+      activate: (model) => {
+        this.activateModel(model);
       },
     });
+    this.initializePresentation();
+    this.installLifecycle();
+    this.canvas.dataset["model"] = this.model.id;
+    this.canvas.dataset["dragging"] = "false";
+    this.render();
+  }
+
+  private initializeInfrastructure(options: WorkbenchOptions): void {
+    const infrastructure = createControllerInfrastructure(this, options);
+    this.viewportSlots = infrastructure.viewportSlots;
+    const features = infrastructure.features;
     this.menu = features.menu;
     this.visibilityPanel = features.visibilityPanel;
     this.visibilityActions = features.visibilityActions;
     this.interactionController = features.interactionController;
     this.presentation = features.presentation;
     this.boxPreview = features.boxPreview;
-    this.slots.set("primary", {
-      id: "primary",
-      pane: this.view.primaryPane,
-      interaction: this.interactionController,
-      boxPreview: this.boxPreview,
-      renderLoop: this.renderLoop,
-      viewport: this.viewport,
-      dragging: false,
-    });
+  }
+
+  private initializePresentation(): void {
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
     this.presentation.reflectBackground(this.background);
     this.presentation.reflectSelectionGranularity();
     this.presentation.populateModelSelect(this.models);
     this.visibilityPanel.rebuild();
-    this.boxSelectionDisposer = installWorkbenchLifecycle({
-      view: this.view,
-      canvas: this.canvas,
-      signal: this.listenerController.signal,
-      viewport: () => this.activeViewport(),
-      interaction: this.interactionController,
-      menu: this.menu,
-      visibilityPanel: this.visibilityPanel,
-      boxPreview: this.boxPreview,
-      dragging: () => this.isPointerGestureActive(),
-      setActive: () => {
-        this.setActiveSlot("primary");
-      },
-      toggleViewport: () => {
-        void this.toggleSecondaryViewport();
-      },
-      setBackground: (background) => {
-        this.setBackground(background);
-      },
-      setEdges: () => {
-        this.setEdges(!this.toggles.edges);
-      },
-      setNodes: () => {
-        this.setNodes(!this.toggles.nodes);
-      },
-      setContinuous: () => {
-        this.setContinuous(!this.continuousEnabled);
-      },
-      setSelectionGranularity: (value) => {
-        this.setSelectionGranularity(value);
-      },
-      hideSelected: () => {
-        this.visibilityActions.hideSelected();
-      },
-      showAll: () => {
-        this.visibilityActions.showAll();
-      },
-      setResults: () => {
-        this.cycleResultMode();
-      },
-      reset: () => {
-        this.reset();
-      },
-      fitView: () => {
-        this.fitView();
-      },
-      setModel: (id) => {
-        this.setModel(id);
-      },
-      openGlb: (file) => {
-        void this.openGlb(file);
-      },
-    });
-    this.canvas.dataset["model"] = this.model.id;
-    this.canvas.dataset["dragging"] = "false";
-    this.render();
+  }
+
+  private installLifecycle(): void {
+    this.boxSelectionDisposer = installControllerLifecycle(this);
   }
 
   get runtime(): SceneRuntime {
     return this.activeViewport().runtime;
-  }
-
-  get camera(): Camera {
-    return this.activeViewport().camera;
   }
 
   getBoxSelectionStats(): ReturnType<WorkbenchInteraction["getBoxSelectionStats"]> {
@@ -254,10 +134,9 @@ export class WorkbenchController {
   }
 
   setViewport(viewport: FemViewport): void {
-    for (const slot of this.slots.values()) slot.interaction.clearContext();
+    this.viewportSlots.invalidateInteraction();
     this.viewport = viewport;
-    const primary = this.slots.get("primary");
-    if (primary !== undefined) primary.viewport = viewport;
+    this.viewportSlots.setPrimaryViewport(viewport);
     try {
       viewport.setBackground(this.background);
     } catch (error) {
@@ -267,8 +146,6 @@ export class WorkbenchController {
         "error",
       );
     }
-    this.activeSlotId = "primary";
-    this.renderLoop.attach(performance.now());
     this.treeHoverTargets = [];
     this.canvas.dataset["treeHover"] = "";
     this.applyResultMode(false);
@@ -279,57 +156,52 @@ export class WorkbenchController {
 
   /** Invalidates picks before a temporary renderer teardown. */
   invalidateInteraction(): void {
-    for (const slot of this.slots.values()) slot.interaction.clearContext();
+    this.viewportSlots.invalidateInteraction();
   }
 
   detachViewport(): void {
-    this.slots.get("primary")?.renderLoop.detach(performance.now());
+    this.viewportSlots.detachPrimary();
   }
 
   setCameraGestureActive(slotId: ViewportSlotId, active: boolean): void {
-    const slot = this.slots.get(slotId);
-    if (slot === undefined) return;
-    slot.dragging = active;
-    slot.pane.canvas.dataset["dragging"] = active ? "true" : "false";
+    this.viewportSlots.setCameraGestureActive(slotId, active);
   }
 
   isPointerGestureActive(): boolean {
-    const slot = this.activeSlot();
-    return slot.dragging || slot.boxPreview.isActive();
+    return this.viewportSlots.isPointerGestureActive();
   }
 
   syncViewportPresentation(): void {
     if (this.disposed) return;
-    const slot = this.activeSlot();
-    const viewportStats = slot.viewport.stats();
-    this.presentation.refresh(
-      slot.viewport.camera,
-      this.rendererState,
-      {
-        visibleInstances: viewportStats.visibleInstances,
-        batches: viewportStats.drawBatches,
-      },
-      slot.renderLoop.stats,
-    );
-    for (const candidate of this.slots.values()) this.syncPaneDataset(candidate);
+    syncViewportPresentation({
+      activeSlot: this.viewportSlots.activeSlot(),
+      slots: this.viewportSlots.all(),
+      presentation: this.presentation,
+      rendererState: this.rendererState,
+      model: this.model,
+      interaction: this.interaction,
+      toggles: this.toggles,
+      continuous: this.continuousEnabled,
+      selectionGranularity: this.selectionGranularity,
+      resultMode: this.resultMode,
+      background: this.background,
+    });
   }
 
   onViewportRender(slotId: ViewportSlotId, timestamp: number): void {
-    const slot = this.slots.get(slotId);
+    const slot = this.viewportSlots.get(slotId);
     if (slot === undefined) return;
-    if (this.viewportPresentationChanged(slot)) slot.renderLoop.reset(timestamp);
-    const publish = slot.renderLoop.frameCompleted(timestamp);
-    if (slot.id === this.activeSlotId && (!this.continuousEnabled || publish)) {
+    if (viewportPresentationChanged(slot, this.observedPaneSizes)) slot.renderLoop.reset(timestamp);
+    const publish = this.viewportSlots.onRender(slotId, timestamp);
+    if (!this.continuousEnabled || publish) {
       this.syncViewportPresentation();
     }
   }
 
-  setContinuous(enabled: boolean): void {
+  setContinuous(enabled = !this.continuousEnabled): void {
     if (this.continuousEnabled === enabled) return;
     this.continuousEnabled = enabled;
-    for (const slot of this.slots.values()) {
-      slot.renderLoop.setEnabled(enabled, performance.now());
-    }
+    this.viewportSlots.setContinuous(enabled, performance.now());
     this.presentation.reflectContinuous();
     this.syncViewportPresentation();
   }
@@ -342,7 +214,7 @@ export class WorkbenchController {
     }
     if (this.selectionGranularity === granularity) return;
     this.selectionGranularity = granularity;
-    for (const slot of this.slots.values()) slot.interaction.clearHover();
+    for (const slot of this.viewportSlots.all()) slot.interaction.clearHover();
     this.presentation.reflectSelectionGranularity();
     this.render();
   }
@@ -369,79 +241,48 @@ export class WorkbenchController {
     this.render();
   }
 
-  setModel(id: string): void {
-    const model = this.examples.find((candidate) => candidate.id === id);
-    if (model === undefined) return;
-    const generation = ++this.loadGeneration;
-    if (model.id === this.model.id) {
-      setModelLoading(this.view, false, { allowModelSelection: true });
-      clearModelFeedback(this.view);
-      return;
-    }
-    if (model.deferredLoad !== undefined) {
-      void this.loadDeferredModel(model, generation);
-      return;
-    }
-    this.activateModel(model);
+  setInteraction(interaction: InteractionState): void {
+    this.interaction = interaction;
   }
 
-  private async loadDeferredModel(model: WorkbenchModel, generation: number): Promise<void> {
-    const deferredLoad = model.deferredLoad;
-    if (deferredLoad === undefined) return;
-    setModelLoading(this.view, true, { allowModelSelection: true });
-    setModelFeedback(this.view, `Building ${model.name}…`);
-    try {
-      await yieldToBrowser();
-      if (!this.isCurrentLoad(generation)) return;
-      const loaded = await deferredLoad();
-      if (!this.isCurrentLoad(generation)) return;
-      this.activateModel(loaded);
-    } catch (error) {
-      if (!this.isCurrentLoad(generation)) return;
-      setModelFeedback(
-        this.view,
-        `${model.name} could not be built: ${errorMessage(error)}`,
-        "error",
-      );
-    } finally {
-      if (generation === this.loadGeneration)
-        setModelLoading(this.view, false, { allowModelSelection: true });
-    }
+  setDiagnostics(): void {
+    this.toggles.diagnostics = !this.toggles.diagnostics;
+    this.syncViewportPresentation();
+  }
+
+  applySharedState(): void {
+    this.applyResultMode(false);
+    this.applyCurrentDisplayState();
+  }
+
+  rebuildVisibility(): void {
+    this.visibilityPanel.rebuild();
+  }
+
+  feedback(message: string): void {
+    setModelFeedback(this.view, message, "error");
+  }
+
+  onActiveSlotChanged(): void {
+    this.syncViewportPresentation();
+  }
+
+  setModel(id: string): void {
+    this.modelSession.setModel(id);
   }
 
   async openGlb(file: File): Promise<void> {
-    const generation = ++this.loadGeneration;
-    setModelLoading(this.view, true);
-    setModelFeedback(this.view, `Opening ${displayFileName(file.name)}…`);
-    try {
-      const imported = await this.importer(await file.arrayBuffer());
-      if (this.disposed || generation !== this.loadGeneration) return;
-      const model = createImportedModel(displayFileName(file.name), imported);
-      this.activateModel(model);
-      setModelFeedback(this.view, importFeedback(model.name, imported));
-    } catch (error) {
-      if (this.disposed || generation !== this.loadGeneration) return;
-      setModelFeedback(
-        this.view,
-        `${displayFileName(file.name)} could not be opened: ${errorMessage(error)}`,
-        "error",
-      );
-    } finally {
-      if (generation === this.loadGeneration) {
-        this.view.glbFileInput.value = "";
-        setModelLoading(this.view, false);
-      }
-    }
+    await this.modelSession.openGlb(file);
   }
 
-  setEdges(enabled: boolean): void {
+  setEdges(enabled = !this.toggles.edges): void {
     if (this.toggles.edges === enabled) return;
     this.toggles.edges = enabled;
     this.applyCurrentDisplayState();
     this.render();
   }
 
-  setNodes(enabled: boolean): void {
+  setNodes(enabled = !this.toggles.nodes): void {
     if (this.toggles.nodes === enabled) return;
     this.toggles.nodes = enabled;
     this.applyCurrentDisplayState();
@@ -462,7 +303,7 @@ export class WorkbenchController {
     this.disposed = true;
     this.boxSelectionDisposer?.();
     this.listenerController.abort();
-    for (const slot of this.slots.values()) this.destroySlot(slot);
+    this.viewportSlots.destroy();
   }
 
   setResultMode(mode: ResultDisplayMode): void {
@@ -471,42 +312,40 @@ export class WorkbenchController {
     this.applyResultMode(true);
   }
 
-  private cycleResultMode(): void {
+  cycleResultMode(): void {
     const next: ResultDisplayMode =
       this.resultMode === "base" ? "colored" : this.resultMode === "colored" ? "deformed" : "base";
     this.setResultMode(next);
   }
 
   private applyResultMode(render: boolean): void {
-    const config = this.model.results;
-    for (const viewport of this.viewports()) {
-      if (config === undefined || this.resultMode === "base") {
-        this.resultMode = "base";
-        viewport.clearResults();
-      } else if (this.resultMode === "colored") {
-        const { deformation: _, ...coloredConfig } = config;
-        viewport.setResults(coloredConfig);
-      } else {
-        viewport.setResults(config);
-      }
-    }
-    this.presentation.reflectResults();
+    applyResultState({
+      viewports: this.viewports(),
+      model: this.model,
+      mode: this.resultMode,
+      reflect: () => {
+        this.presentation.reflectResults();
+      },
+    });
     if (render) this.render();
   }
 
   private applyCurrentDisplayState(): void {
-    let state = this.interaction;
-    for (const partId of this.model.scene.parts.keys()) {
-      state = setPartOverride(
-        state,
-        partId,
-        partStyleOverride(this.model, partId, this.toggles.edges, this.toggles.nodes),
-      );
-    }
-    this.interaction = state;
-    this.applyDisplayedInteraction();
-    for (const viewport of this.viewports()) viewport.setEdgeDepthTest(true);
-    this.reflectDisplayControls();
+    applyDisplayState({
+      viewports: this.viewports(),
+      model: this.model,
+      toggles: this.toggles,
+      interaction: this.interaction,
+      setInteraction: (interaction) => {
+        this.interaction = interaction;
+      },
+      applyDisplayedInteraction: () => {
+        this.applyDisplayedInteraction();
+      },
+      reflect: () => {
+        this.reflectDisplayControls();
+      },
+    });
   }
 
   private reflectDisplayControls(): void {
@@ -517,12 +356,12 @@ export class WorkbenchController {
     this.presentation.reflectBackground(this.background);
   }
 
-  private setTreeHover(target: VisibilityRowTarget | undefined): void {
+  setTreeHover(target: VisibilityRowTarget | undefined): void {
     if (this.disposed) return;
     this.treeHoverTargets =
       target === undefined ? [] : interactionTargetsForRow(this.runtime, target);
     const encoded = this.treeHoverTargets.map((value) => JSON.stringify(value)).join("|");
-    for (const slot of this.slots.values()) slot.pane.canvas.dataset["treeHover"] = encoded;
+    for (const slot of this.viewportSlots.all()) slot.pane.canvas.dataset["treeHover"] = encoded;
     try {
       this.render();
     } catch (error) {
@@ -530,78 +369,50 @@ export class WorkbenchController {
     }
   }
 
-  private applyDisplayedInteraction(): void {
+  applyDisplayedInteraction(): void {
     const effective = setTargetsHighlighted(this.interaction, this.treeHoverTargets, true);
     for (const viewport of this.viewports()) viewport.setInteraction(effective);
   }
 
-  private viewportPresentationChanged(slot: ViewportSlot): boolean {
-    const size = this.canvasSize(slot.pane.canvas);
-    const devicePixelRatio = this.devicePixelRatio();
-    const previous = this.observedPaneSizes.get(slot.id);
-    this.observedPaneSizes.set(slot.id, { size, devicePixelRatio });
-    if (previous === undefined) return true;
-    const changed =
-      size.width !== previous.size.width ||
-      size.height !== previous.size.height ||
-      devicePixelRatio !== previous.devicePixelRatio;
-    return changed;
-  }
-
-  private canvasSize(canvas: HTMLCanvasElement): {
-    readonly width: number;
-    readonly height: number;
-  } {
-    const bounds = canvas.getBoundingClientRect();
-    return { width: bounds.width, height: bounds.height };
-  }
-
-  private devicePixelRatio(): number {
-    return typeof window === "undefined" ? 1 : window.devicePixelRatio;
-  }
-
   private activateModel(model: WorkbenchModel): void {
-    setModelLoading(this.view, false);
-    const now = performance.now();
-    for (const slot of this.slots.values()) slot.renderLoop.reset(now);
-    this.model = model;
-    this.models = model.source === "file" ? [...this.examples, model] : this.examples;
-    this.treeHoverTargets = [];
-    this.canvas.dataset["treeHover"] = "";
-    this.toggles = createDefaultDisplayToggles();
-    this.resultMode = model.results === undefined ? "base" : "deformed";
-    this.interaction = createModelInteraction(model, true, true);
-    for (const slot of this.slots.values()) {
-      slot.interaction.clearContext();
-      slot.viewport.batch(() => {
-        slot.viewport.setScene(model.scene);
-      });
-    }
-    this.applyResultMode(false);
-    this.applyCurrentDisplayState();
-    for (const slot of this.slots.values()) {
-      const runtime = slot.viewport.runtime;
-      slot.viewport.batch(() => {
-        for (const nodeId of runtime.getNodeIds())
-          slot.viewport.setAssemblyNodeVisible(nodeId, true);
-        for (const partId of model.scene.parts.keys()) slot.viewport.setPartVisible(partId, true);
-        for (const instanceId of runtime.getInstanceIds()) {
-          slot.viewport.setInstanceVisible(instanceId, true);
-        }
-        slot.viewport.setCamera(setProjection(slot.viewport.camera, "orthographic"));
-        slot.viewport.fitView();
-      });
-    }
-    this.visibilityPanel.rebuild();
-    this.presentation.populateModelSelect(this.models);
-    for (const slot of this.slots.values()) slot.pane.canvas.dataset["model"] = model.id;
-    clearModelFeedback(this.view);
-    clearModelInspection(this.view, model);
-    this.render();
-  }
-
-  private isCurrentLoad(generation: number): boolean {
-    return !this.disposed && generation === this.loadGeneration;
+    const state: WorkbenchModelState = {
+      model: this.model,
+      models: this.models,
+      toggles: this.toggles,
+      resultMode: this.resultMode,
+      interaction: this.interaction,
+      treeHoverTargets: this.treeHoverTargets,
+    };
+    activateControllerModel(model, {
+      view: this.view,
+      examples: this.examples,
+      slots: this.viewportSlots.all(),
+      state,
+      setControllerState: (next) => {
+        this.model = next.model;
+        this.models = next.models;
+        this.toggles = next.toggles;
+        this.resultMode = next.resultMode;
+        this.interaction = next.interaction;
+        this.treeHoverTargets = next.treeHoverTargets;
+        this.canvas.dataset["treeHover"] = "";
+      },
+      applyResultMode: () => {
+        this.applyResultMode(false);
+      },
+      applyDisplayState: () => {
+        this.applyCurrentDisplayState();
+      },
+      rebuildVisibility: () => {
+        this.visibilityPanel.rebuild();
+      },
+      populateModelSelect: (models) => {
+        this.presentation.populateModelSelect(models);
+      },
+      render: () => {
+        this.render();
+      },
+    });
   }
 
   render(): void {
@@ -610,185 +421,27 @@ export class WorkbenchController {
     this.syncViewportPresentation();
   }
 
-  private activeSlot(): ViewportSlot {
-    const slot = this.slots.get(this.activeSlotId) ?? this.slots.get("primary");
-    if (slot === undefined) throw new Error("Workbench has no primary viewport");
-    return slot;
+  activeSlot(): WorkbenchViewportSlot {
+    return this.viewportSlots.activeSlot();
   }
 
-  private activeViewport(): FemViewport {
-    return this.activeSlot().viewport;
+  activeViewport(): FemViewport {
+    return this.viewportSlots.activeViewport();
   }
 
-  private viewports(): readonly FemViewport[] {
-    return [...this.slots.values()].map((slot) => slot.viewport);
+  viewports(): readonly FemViewport[] {
+    return this.viewportSlots.viewports();
   }
 
-  private setActiveSlot(slotId: ViewportSlotId): void {
-    if (this.slots.get(slotId) === undefined) return;
-    this.activeSlotId = slotId;
-    for (const slot of this.slots.values()) {
-      slot.pane.scene.dataset["active"] = String(slot.id === slotId);
-    }
-    this.syncViewportPresentation();
-  }
-
-  private syncPaneDataset(slot: ViewportSlot): void {
-    const canvas = slot.pane.canvas;
-    canvas.dataset["model"] = this.model.id;
-    canvas.dataset["dragging"] = String(slot.dragging);
-    canvas.dataset["selected"] = selectedKeys(this.interaction).join(",");
-    canvas.dataset["camera"] = JSON.stringify(cameraSnapshot(slot.viewport.camera));
-    canvas.dataset["cameraBounds"] = JSON.stringify(this.model.bounds);
-    canvas.dataset["edges"] = String(this.toggles.edges);
-    canvas.dataset["nodes"] = String(this.toggles.nodes);
-    canvas.dataset["continuous"] = String(this.continuousEnabled);
-    canvas.dataset["selectionGranularity"] = this.selectionGranularity;
-    canvas.dataset["results"] = this.resultMode;
-    canvas.dataset["background"] = this.background;
+  setActiveSlot(slotId: ViewportSlotId): void {
+    this.viewportSlots.setActiveSlot(slotId);
   }
 
   async toggleSecondaryViewport(): Promise<void> {
-    if (this.slots.has("secondary")) {
-      this.closeSecondaryViewport();
-      return;
-    }
-    const generation = ++this.secondaryGeneration;
-    this.view.viewportToggle.disabled = true;
-    this.view.viewportToggle.textContent = "Opening…";
-    this.view.secondaryPane.scene.hidden = false;
-    this.view.viewportWorkspace.dataset["secondaryOpen"] = "true";
-    let createdViewport: FemViewport | undefined;
-    try {
-      const viewport = await this.createViewport("secondary", this.view.secondaryPane, this.model);
-      createdViewport = viewport;
-      if (this.disposed || generation !== this.secondaryGeneration) {
-        viewport.destroy();
-        return;
-      }
-      const interaction = new WorkbenchInteraction({
-        canvas: this.view.secondaryPane.canvas,
-        view: this.view,
-        viewport: () => viewport,
-        selectionGranularity: () => this.selectionGranularity,
-        getInteraction: () => this.interaction,
-        setInteraction: (value) => {
-          this.interaction = value;
-        },
-        partName: (partId) => this.model.partNames.get(partId),
-        menu: this.menu,
-        render: () => {
-          this.render();
-        },
-      });
-      const boxPreview = new WorkbenchBoxPreview(this.view.secondaryPane.boxSelectionOverlay);
-      const slot: ViewportSlot = {
-        id: "secondary",
-        pane: this.view.secondaryPane,
-        interaction,
-        boxPreview,
-        renderLoop: new WorkbenchRenderLoop(() => viewport),
-        viewport,
-        dragging: false,
-      };
-      this.slots.set("secondary", slot);
-      slot.pane.canvas.dataset["renderer"] = "webgpu";
-      const paneController = new AbortController();
-      const removePaneBindings = installWorkbenchPaneLifecycle({
-        pane: slot.pane,
-        signal: paneController.signal,
-        interaction,
-        boxPreview,
-        dragging: () => slot.dragging || boxPreview.isActive(),
-        setActive: () => {
-          this.setActiveSlot("secondary");
-        },
-      });
-      slot.removePaneBindings = () => {
-        paneController.abort();
-        removePaneBindings();
-      };
-      this.setActiveSlot("secondary");
-      this.applyResultMode(false);
-      this.applyCurrentDisplayState();
-      this.visibilityPanel.rebuild();
-      viewport.render();
-      this.updateViewportToggle();
-      this.render();
-    } catch (error) {
-      if (this.slots.has("secondary")) {
-        this.closeSecondaryViewport();
-      } else if (createdViewport !== undefined) {
-        createdViewport.destroy();
-      }
-      this.view.secondaryPane.scene.hidden = true;
-      this.view.viewportWorkspace.dataset["secondaryOpen"] = "false";
-      setModelFeedback(
-        this.view,
-        `Secondary viewport could not be opened: ${errorMessage(error)}`,
-        "error",
-      );
-    } finally {
-      if (generation === this.secondaryGeneration) {
-        this.view.viewportToggle.disabled = false;
-        this.updateViewportToggle();
-      }
-    }
+    await this.viewportSlots.toggleSecondaryViewport();
   }
 
   handleSecondaryViewportError(error: unknown): void {
-    const detail = error instanceof Error ? error.message : String(error);
-    this.closeSecondaryViewport();
-    setModelFeedback(this.view, `Secondary viewport failed: ${detail}`, "error");
+    this.viewportSlots.handleSecondaryViewportError(error);
   }
-
-  private closeSecondaryViewport(): void {
-    const slot = this.slots.get("secondary");
-    if (slot === undefined) return;
-    this.secondaryGeneration += 1;
-    this.setActiveSlot("primary");
-    this.destroySlot(slot);
-    this.slots.delete("secondary");
-    this.view.secondaryPane.scene.hidden = true;
-    this.view.viewportWorkspace.dataset["secondaryOpen"] = "false";
-    this.updateViewportToggle();
-    this.render();
-  }
-
-  private updateViewportToggle(): void {
-    const open = this.slots.has("secondary");
-    this.view.viewportToggle.textContent = open ? "Close viewport" : "Add viewport";
-    this.view.viewportToggle.setAttribute(
-      "aria-label",
-      open ? "Close secondary viewport" : "Add secondary viewport",
-    );
-    this.view.viewportToggle.setAttribute("aria-pressed", String(open));
-  }
-
-  private destroySlot(slot: ViewportSlot): void {
-    slot.removePaneBindings?.();
-    slot.renderLoop.stop();
-    slot.interaction.destroy();
-    slot.boxPreview.dispose();
-    slot.viewport.destroy();
-  }
-}
-
-function yieldToBrowser(): Promise<void> {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, 0);
-  });
-}
-
-function isDestroyedViewportError(error: unknown): boolean {
-  return error instanceof Error && error.message === "FemViewport has been destroyed";
-}
-
-function parseViewportBackground(value: string): ViewportBackground | undefined {
-  if (value === "studio" || value === "white" || value === "dark") return value;
-  return undefined;
-}
-
-function parseSelectionGranularity(value: string): SelectionGranularity | undefined {
-  return value === "element" || value === "face" || value === "node" ? value : undefined;
 }

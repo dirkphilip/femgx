@@ -1,0 +1,111 @@
+.renderer-alert,
+.status-alert {
+  display: none;
+  position: absolute;
+  z-index: 6;
+  left: 14px;
+  right: 14px;
+  border: 1px solid #c77c37;
+  border-radius: 9px;
+  padding: 10px 12px;
+  color: #fff0d2;
+  background: #4a2d19ee;
+  box-shadow: 0 10px 30px #06101ea8;
+}
+.renderer-alert:not([hidden]),
+.status-alert:not([hidden]) {
+  display: block;
+}
+.renderer-alert {
+  top: 74px;
+}
+.status-alert {
+  bottom: 14px;
+}
+.hud {
+  position: absolute;
+  z-index: 4;
+  right: 14px;
+  border: 1px solid #2c405a;
+  border-radius: 9px;
+  background: #0b1728df;
+  box-shadow: 0 10px 30px #06101ea8;
+  backdrop-filter: blur(8px);
+}
+.inspection {
+  bottom: 14px;
+  width: min(330px, calc(100% - 28px));
+  padding: 10px 12px;
+}
+.inspection h2 {
+  margin: 0 0 6px;
+  color: #93a9c3;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.diagnostics {
+  top: 140px;
+  width: min(360px, calc(100% - 28px));
+  max-height: min(300px, calc(100% - 176px));
+  padding: 10px 12px;
+  overflow: auto;
+}
+.diagnostics h2 {
+  margin: 0 0 6px;
+  color: #93a9c3;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.inspection pre,
+.diagnostics pre {
+  margin: 0;
+  color: #d5e0ee;
+  font:
+    12px/1.5 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  white-space: pre-wrap;
+}
+#status[hidden],
+#stats-panel[hidden] {
+  display: none;
+}
+.context-menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 220px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  border: 1px solid #475d79;
+  border-radius: 8px;
+  padding: 6px;
+  background: #101d2e;
+  box-shadow: 0 16px 48px #000c;
+}
+.context-menu button {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  box-shadow: none;
+}
+.context-menu button:hover {
+  background: #263a56;
+}
+.context-menu .menu-section {
+  margin: 4px 0;
+  border-top: 1px solid #263a55;
+  padding-top: 4px;
+}
+.context-menu .menu-title {
+  padding: 4px 10px 2px;
+  color: #93a9c3;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
