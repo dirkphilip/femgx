@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createBoltedPlateFixture } from "../../demo/fixture/bolted-plate";
+import { identity } from "../../src/math/mat4";
 import { createSceneRuntime } from "../../src/index";
 
 describe("public scene runtime", () => {
@@ -33,5 +34,20 @@ describe("public scene runtime", () => {
     expect(second).toBeDefined();
     expect(runtime.getNode(first ?? "missing")?.effectiveVisible).toBe(true);
     expect(runtime.getNode(second ?? "missing")?.effectiveVisible).toBe(true);
+  });
+
+  it("rejects a structurally forged scene before public runtime admission", () => {
+    const source = createBoltedPlateFixture().scene;
+    const root = source.assemblies.get(source.rootAssemblyId);
+    expect(root).toBeDefined();
+    const invalid = {
+      ...source,
+      assemblies: new Map(source.assemblies).set(source.rootAssemblyId, {
+        ...(root as NonNullable<typeof root>),
+        placements: [{ kind: "assembly", assemblyId: 999, transform: identity() }],
+      }),
+    };
+
+    expect(() => createSceneRuntime(invalid)).toThrow(/references missing assembly 999/);
   });
 });

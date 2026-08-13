@@ -4,7 +4,7 @@ import { setBodyOverride, setBodyVisible } from "../../src/interaction/bodies";
 import { setPartOverride } from "../../src/interaction/interaction";
 import { setTargetSelected } from "../../src/interaction/targets";
 import { translation } from "../../src/math/mat4";
-import { createScene } from "../../src/scene/scene";
+import { createScene, type Scene } from "../../src/scene/scene";
 import { createFemViewport } from "../../src/viewport/fem-viewport";
 import type { FemViewport } from "../../src/viewport/types";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
@@ -94,6 +94,18 @@ function scene(offset = 0) {
     })
     .withRoot(1)
     .build();
+}
+
+function invalidScene(): Scene {
+  const current = scene();
+  const root = current.assemblies.get(1);
+  if (root === undefined) throw new Error("test root assembly is missing");
+  return {
+    ...current,
+    assemblies: new Map([
+      [1, { ...root, placements: [{ kind: "part", partId: 1, transform: new Float32Array(15) }] }],
+    ]),
+  };
 }
 
 describe("FemViewport", () => {
@@ -280,6 +292,42 @@ describe("FemViewport", () => {
     }).toThrow(/near\/far/);
     expect(viewport.camera).toBe(previous);
     expect(onRender).toHaveBeenCalledOnce();
+    viewport.destroy();
+  });
+
+  it("rejects an invalid scene replacement transactionally", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: gpu.device,
+    });
+    const interaction = setPartOverride(viewport.interaction, 1, { emissive: 0.4 });
+    viewport.setInteraction(interaction);
+    const previous = {
+      camera: viewport.camera,
+      interaction: viewport.interaction,
+      runtime: viewport.runtime,
+      scene: viewport.scene,
+      submissions: gpu.submissionCount,
+      writes: gpu.writes.length,
+    };
+
+    expect(() => {
+      viewport.setScene(invalidScene());
+    }).toThrow(/transform must contain exactly 16 components/);
+    expect(viewport.camera).toBe(previous.camera);
+    expect(viewport.interaction).toBe(previous.interaction);
+    expect(viewport.runtime).toBe(previous.runtime);
+    expect(viewport.scene).toBe(previous.scene);
+    expect(gpu.submissionCount).toBe(previous.submissions);
+    expect(gpu.writes).toHaveLength(previous.writes);
+
+    expect(() => {
+      viewport.render();
+    }).not.toThrow();
     viewport.destroy();
   });
 

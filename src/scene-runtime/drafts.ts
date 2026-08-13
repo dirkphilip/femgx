@@ -86,10 +86,7 @@ class DraftWriter {
     local: Mat4,
     world: Mat4,
     nodeId: AssemblyNodeId,
-  ): number | undefined {
-    if (this.assemblies.get(assemblyId) === undefined) {
-      return undefined;
-    }
+  ): number {
     const parentEffective: 0 | 1 =
       parent === -1 ? 1 : invariantValue(this.nodes[parent], `parent node at ${parent}`).effective;
     const visible: 0 | 1 = this.visibleAssemblyIds.has(assemblyId) ? 1 : 0;
@@ -118,9 +115,6 @@ class DraftWriter {
   /** Compiles every assembly expansion with an explicit depth-first stack. */
   public walk(assemblyId: AssemblyId, local: Mat4, world: Mat4, path: string): void {
     const root = this.pushNode(assemblyId, -1, local, world, path);
-    if (root === undefined) {
-      return;
-    }
     const stack: WalkItem[] = [{ nodeIndex: root, assemblyId, world, path, nextPlacement: 0 }];
     while (stack.length > 0) {
       const item = invariantValue(stack[stack.length - 1], "assembly walk stack entry");
@@ -160,15 +154,13 @@ class DraftWriter {
         placementWorld,
         placementPath,
       );
-      if (child !== undefined) {
-        stack.push({
-          nodeIndex: child,
-          assemblyId: placement.assemblyId,
-          world: placementWorld,
-          path: placementPath,
-          nextPlacement: 0,
-        });
-      }
+      stack.push({
+        nodeIndex: child,
+        assemblyId: placement.assemblyId,
+        world: placementWorld,
+        path: placementPath,
+        nextPlacement: 0,
+      });
     }
   }
 }
