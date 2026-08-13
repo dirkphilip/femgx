@@ -1,7 +1,15 @@
 import { bench, describe } from "vitest";
+import { createStructuredFeModel } from "../../demo/benchmark/structured-fe";
+import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
+import { createPart } from "../../src/geometry/part";
 import { resolvePick } from "../../src/picking/pick";
+import { buildMeshEdgeData } from "../../src/renderer/gpu-edge";
+import { buildPrimitiveFaceBodyPickData } from "../../src/renderer/gpu-pick-ids";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import {
+  BENCH_BODY_COUNT,
+  BENCH_BODY_ELEMENT_COUNT,
+  BENCH_BODY_GRID_CELLS,
   BENCH_HIERARCHY_DEPTH,
   BENCH_HIERARCHY_FANOUT,
   BENCH_HIERARCHY_INSTANCE_COUNT,
@@ -10,6 +18,8 @@ import {
   BENCH_PART_COUNT,
   BENCH_PLACEMENTS_PER_SUBCASE,
   BENCH_SUBCASE_COUNT,
+  makeBodies,
+  makeBodyGeometry,
   makeHierarchyScene,
   makeScene,
 } from "./fixtures";
@@ -28,6 +38,9 @@ const deepScene = makeHierarchyScene({
 });
 
 const runtime = createPackedSceneRuntime(shallowScene);
+const bodyGeometry = makeBodyGeometry();
+const bodyModel = createStructuredFeModel("quad", BENCH_BODY_GRID_CELLS);
+const bodies = makeBodies(bodyModel.elements.length, BENCH_BODY_COUNT);
 const runtimeInstances = Array.from(runtime.getDrawList(), (slot, index) => ({
   index,
   instanceId: runtime.getInstanceId(slot) ?? "",
@@ -79,5 +92,26 @@ describe("CPU picking", () => {
     for (const pickId of pickIds) {
       resolvePick(runtimeInstances, pickId);
     }
+  });
+});
+
+describe("FE geometry preparation", () => {
+  bench(`createPart ${BENCH_BODY_ELEMENT_COUNT} elements across ${BENCH_BODY_COUNT} bodies`, () => {
+    createPart(904, bodyGeometry);
+  });
+
+  bench(
+    `heterogeneousElementParts ${BENCH_BODY_ELEMENT_COUNT} FE quads across ${BENCH_BODY_COUNT} bodies`,
+    () => {
+      heterogeneousElementParts({ triangle: 905 }, bodyModel, { bodies });
+    },
+  );
+
+  bench(`buildPrimitiveFaceBodyPickData ${BENCH_BODY_ELEMENT_COUNT} elements`, () => {
+    buildPrimitiveFaceBodyPickData(bodyGeometry);
+  });
+
+  bench(`buildMeshEdgeData ${BENCH_BODY_ELEMENT_COUNT} body-owned elements`, () => {
+    buildMeshEdgeData(bodyGeometry);
   });
 });

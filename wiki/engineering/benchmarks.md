@@ -26,6 +26,10 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `getDrawList`               | 200 000 visible                  | rebuild draw list                        |
 | `resolvePick`               | 50 000 lookups on 200 000        | O(1) index resolution                    |
 | `heterogeneousElementParts` | 600 mixed linear elements        | grouped triangle/line/point tessellation |
+| `createPart`                | 16 384 quads / 256 bodies        | element/body/face validation             |
+| `heterogeneousElementParts` | 16 384 FE quads / 256 bodies     | body-aware canonical tessellation        |
+| primitive topology ids      | 16 384 quads / 256 bodies        | face/body/element GPU-id preparation     |
+| body-aware mesh edges       | 16 384 quads / 256 bodies        | edge topology and ownership preparation  |
 
 ### Stable model sizes and warmup rules
 
@@ -37,6 +41,10 @@ several multiples, so budgets are only meaningful on clean timing runs.
 - Mutating workloads (visibility updates) are written as toggles that
   restore state, so every sample does the same amount of work instead of
   short-circuiting on a second no-op call.
+- The body-heavy CPU fixture uses complete element, oriented-face, node, and
+  body membership metadata. It guards the cold renderer-preparation path that
+  previously performed repeated element/face scans and became quadratic as the
+  element count grew.
 
 ### Interpreting budgets
 
@@ -56,14 +64,28 @@ The printed medians are the reference numbers; update `budgetMs` in
 `test/bench/budget.test.ts` to ~10x them and keep the old regression in the
 commit message.
 
+When a budget identifies unexplained scaling, capture a V8 CPU profile of only
+that case before changing the algorithm:
+
+```sh
+mkdir -p /tmp/femgx-profile
+node --cpu-prof --cpu-prof-dir=/tmp/femgx-profile \
+  node_modules/vitest/vitest.mjs run --config vitest.budget.config.ts \
+  --pool=threads --maxWorkers=1 -t "case name"
+```
+
+Vitest emits a runner profile and a worker profile; the worker profile contains
+the measured workload. Open the latter in Chrome DevTools' Performance panel.
+
 ## Benchmark suite (opt-in, trend tracking)
 
 `npm run bench` runs the Vitest `bench` suite in `test/bench/cpu.bench.ts` over
-the same models plus a few extra update cases. It reports ops/sec / time per
-case for human review and trend comparison and is **not** part of the default
-gate. The opt-in `.github/workflows/perf.yml` (`workflow_dispatch`) runs the CPU
-suite on GitHub-hosted infrastructure. It does not claim real-WebGPU
-measurements.
+the same models plus a few extra update cases, including the large FE/body
+validation, tessellation, topology-id, and edge-preparation stages. It reports
+ops/sec / time per case for human review and trend comparison and is **not**
+part of the default gate. The opt-in `.github/workflows/perf.yml`
+(`workflow_dispatch`) runs the CPU suite on GitHub-hosted infrastructure. It
+does not claim real-WebGPU measurements.
 
 `test/bench/body-batch.bench.ts` compares 64 body visibility mutations issued
 individually with the same ordered mutations inside `FemViewport.batch`. The

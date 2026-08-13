@@ -1,9 +1,11 @@
 import { createPart, type Part } from "../../src/geometry/part";
+import type { Body, TriangleGeometry } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import type { Assembly, Placement } from "../../src/scene/assembly";
 import type { Scene } from "../../src/scene/scene";
 import type { PartId } from "../../src/geometry/part";
 import type { AssemblyId } from "../../src/scene/types";
+import { createPlanarGridGeometry } from "../../demo/fixture/planar-grid";
 
 /**
  * Deterministic benchmark model sizes. These are fixed so measurements stay
@@ -21,6 +23,10 @@ export const BENCH_HIERARCHY_FANOUT = 8;
 export const BENCH_HIERARCHY_PARTS_PER_LEAF = 50;
 export const BENCH_HIERARCHY_INSTANCE_COUNT =
   BENCH_HIERARCHY_FANOUT ** BENCH_HIERARCHY_DEPTH * BENCH_HIERARCHY_PARTS_PER_LEAF;
+/** Body-heavy geometry: 16,384 quad elements split across 256 logical bodies. */
+export const BENCH_BODY_GRID_CELLS = 128;
+export const BENCH_BODY_COUNT = 256;
+export const BENCH_BODY_ELEMENT_COUNT = BENCH_BODY_GRID_CELLS ** 2;
 
 function part(id: PartId): Part {
   const geometry = {
@@ -133,4 +139,22 @@ export function makeHierarchyScene(options: {
     visiblePartIds: new Set(parts.keys()),
     visibleAssemblyIds: new Set(assemblies.keys()),
   };
+}
+
+/** Body-heavy indexed mesh shared by metadata and renderer-preparation benchmarks. */
+export function makeBodyGeometry(): TriangleGeometry {
+  return createPlanarGridGeometry(BENCH_BODY_GRID_CELLS, {
+    elementFamily: "quad",
+    bodyCount: BENCH_BODY_COUNT,
+    withFaces: true,
+  });
+}
+
+/** Returns deterministic round-robin body memberships for a dense element-id range. */
+export function makeBodies(elementCount: number, bodyCount: number): readonly Body[] {
+  const memberships = Array.from({ length: bodyCount }, () => [] as number[]);
+  for (let elementId = 1; elementId <= elementCount; elementId += 1) {
+    memberships[(elementId - 1) % bodyCount]?.push(elementId);
+  }
+  return memberships.map((elementIds, index) => ({ id: index + 1, elementIds }));
 }

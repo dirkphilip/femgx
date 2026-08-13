@@ -20,8 +20,7 @@ import {
   allFacesForElements,
   faceIdentity,
   faceNeighbors,
-  renderFacesForElements,
-  validateManifoldFaces,
+  validateManifoldFaceNeighbors,
   validateFaceSelectionForElements,
   type ElementRenderFace,
 } from "./element-face-selection";
@@ -42,13 +41,13 @@ export function volumeGeometry(input: VolumeGeometryInput): TriangleGeometry {
     faceSubset === undefined
       ? undefined
       : validateFaceSelectionForElements(elements, faceSubset, "heterogeneous");
-  if (selected !== undefined) validateManifoldFaces(elements);
-  const faces =
-    selected === undefined ? renderFacesForElements(elements) : allFacesForElements(elements);
+  const neighbors = faceNeighbors(elements);
+  validateManifoldFaceNeighbors(neighbors);
+  const faces = allFacesForElements(elements);
   const tessellation = tessellateVolumeFaces({
     model,
     faces,
-    neighbors: faceNeighbors(elements),
+    neighbors,
     bodyIds: assignedBodies,
     selected,
   });
@@ -226,13 +225,8 @@ export function bodyAssignments(
   }
   validateBodies({
     elements: elements.map((element) => {
-      const tessellation: ElementTessellation = {
-        id: element.id,
-        primitiveStart: 0,
-        primitiveCount: 1,
-      };
       const bodyId = assignments.get(element.id);
-      return bodyId === undefined ? tessellation : { ...tessellation, bodyId };
+      return bodyId === undefined ? { id: element.id } : { id: element.id, bodyId };
     }),
     bodies,
   });

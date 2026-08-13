@@ -47,7 +47,13 @@ export function renderFacesForElements(elements: readonly Element[]): readonly E
 
 /** Rejects ambiguous face incidence before any render subset is constructed. */
 export function validateManifoldFaces(elements: readonly Element[]): void {
-  const neighbors = faceNeighbors(elements);
+  validateManifoldFaceNeighbors(faceNeighbors(elements));
+}
+
+/** Rejects ambiguous incidence in an already-built face-neighbor index. */
+export function validateManifoldFaceNeighbors(
+  neighbors: ReadonlyMap<FaceKey, readonly ElementId[]>,
+): void {
   for (const [key, incident] of neighbors) {
     if (incident.length > 2) {
       throw new Error(`Non-manifold face ${key} has ${incident.length} incident elements`);
