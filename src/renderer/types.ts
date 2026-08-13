@@ -32,6 +32,8 @@ export interface WebGpuRenderer {
   render(runtime: PackedSceneRuntime, camera: Camera, parts: ReadonlyMap<PartId, Part>): void;
   /** Sets or clears the per-frame CPU deformation state. */
   setDeformation(deformation: DeformationState | undefined): void;
+  /** Sets or clears renderer-owned nodal scalar color buffers. */
+  setResultColors(colors: ReadonlyMap<PartId, Float32Array> | undefined): void;
   /** Writes only GPU subranges affected by changed instance slots. */
   updateInstances(
     runtime: PackedSceneRuntime,

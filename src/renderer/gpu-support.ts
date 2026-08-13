@@ -3,6 +3,11 @@ import type { ResolvedStyle } from "../interaction/interaction";
 export interface PartResource {
   readonly vertexBuffer: GPUBuffer;
   readonly indexBuffer: GPUBuffer;
+  /** Geometry-position buffers carrying the appended per-node result table. */
+  readonly resultColorBuffers: readonly { readonly buffer: GPUBuffer; readonly offset: number }[];
+  readonly resultColorNodeCount: number;
+  resultColorsSource: Float32Array | undefined;
+  resultColorsActive: boolean;
   /** Per-triangle element pick ids (`elementId + 1`, 0 = none). */
   readonly elementPickIdsBuffer: GPUBuffer;
   /** Interleaved per-triangle face/owner/neighbor body ids. */

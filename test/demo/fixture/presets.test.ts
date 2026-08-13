@@ -34,7 +34,7 @@ describe("createModelPresets", () => {
       "Imported VTK sample",
       "Element tessellation and mapping gallery",
       "Hex20 cylinder",
-      "Static results · stress + deformation",
+      "Static results · scalar + deformation",
       "Order-independent transparency",
       "Performance · 2.10M triangles",
     ]);
@@ -139,10 +139,10 @@ describe("createPresetInteraction", () => {
 });
 
 describe("results preset", () => {
-  it("connects a tensor field and nodal deformation to one FE part", () => {
+  it("connects an authored scalar field and nodal deformation to one FE part", () => {
     const preset = createResultsPreset();
     const model = preset.elementModels.get(20);
-    expect(preset.results?.derive).toBe("vonMises");
+    expect(preset.results?.field.shape).toBe("scalar");
     expect(preset.results?.deformation?.field.location).toBe("nodal");
     expect(model?.elements).toHaveLength(8);
     expect(model?.nodes).toHaveLength(90);
@@ -160,7 +160,7 @@ describe("results preset", () => {
     expect(deformedBounds.maxZ).toBeCloseTo(1.47);
   });
 
-  it("uses exact monotone von Mises bands for the results strip", () => {
+  it("uses exact monotone authored scalar bands for the results strip", () => {
     const preset = createResultsPreset();
     const config = preset.results;
     if (config === undefined) throw new Error("Results preset has no results config");

@@ -23,6 +23,9 @@ Hard boundaries worth repeating:
   origin. It is scaled from complete placed-scene bounds, remains out of scene
   identity, bounds, picking, and interaction, and is opaque when depth-visible
   with a fixed-alpha weighted-transparency ghost behind opaque model geometry.
+- Near-term results are authored scalar fields at nodal or elemental locations,
+  with authored nodal vectors retained for deformation. Femgx-derived
+  engineering quantities and vector/tensor glyphs are out of scope.
 - Do not expand deferred or removed capabilities. Existing deferred code is
   removed only through an explicit product decision, not to improve a diff.
 - Do not add a public API, subsystem, fallback, compatibility layer, or optional
@@ -81,8 +84,8 @@ Production ownership under `src/`:
   packed runtime.
 - `camera/`, `interaction/`, `picking/` — camera math, interaction state, and
   internal GPU pick-id resolution.
-- `results/` — typed fields, derived quantities, ranges, color mapping, and
-  deformation.
+- `results/` — authored scalar/vector fields, ranges, color mapping, and
+  nodal deformation.
 - `io/` — validation, diagnostics, VTK legacy interchange, and the narrow GLB
   display-scene importer defined by the scope contract.
 - `platform/`, `renderer/`, `viewport/` — WebGPU lifecycle, rendering, and the

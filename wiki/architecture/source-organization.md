@@ -24,9 +24,8 @@ canonical description.
   visibility updates (`createSceneRuntime`).
 - `src/camera/` — immutable orbit camera and projection math.
 - `src/interaction/` — centralized highlight/selection/hover/override state.
-- `src/results/` — typed engineering result fields (scalar/vector/tensor over
-  nodes or elements), derived quantities (magnitude, von Mises, principal
-  values), value ranges, scalar color mapping with thresholds, and
+- `src/results/` — authored scalar fields over nodes or elements, nodal vector
+  deformation fields, value ranges, scalar color mapping with thresholds, and
   deformed-shape geometry. It owns the CPU-side `DeformationState` contract
   consumed by the viewport and renderer (see [[data/results|Results]]).
 - `src/picking/` — complete GPU hit reporting and pure interaction-target conversion

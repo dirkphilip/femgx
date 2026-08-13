@@ -192,7 +192,6 @@ export type { CameraTransitionOptions } from "./viewport/types";
 export type { OrientationGizmoOptions } from "./viewport/orientation-gizmo";
 export type {
   ViewportDeformationConfig,
-  ViewportResultDerivation,
   ViewportResultField,
   ViewportResultsConfig,
   ViewportResultsState,
@@ -211,10 +210,8 @@ export type { AssemblyId, AssemblyNodeId, ElementRef, Instance, InstanceId } fro
 export type { FacePickHit, InteractionGranularity, NodePickHit, PickHit } from "./picking/types";
 export {
   FIELD_COMPONENT_COUNT,
-  TENSOR_COMPONENT,
   createResultField,
   scalarAt,
-  tensorAt,
   vectorAt,
   type AnyResultField,
   type FieldLocation,
@@ -222,23 +219,9 @@ export {
   type ResultField,
   type ResultFieldOptions,
   type ScalarField,
-  type Tensor6,
-  type TensorField,
   type VectorField,
 } from "./results/fields";
 export { finiteRange, scalarRange, type ValueRange } from "./results/range";
-export {
-  magnitude,
-  magnitudeField,
-  magnitudes,
-  maxPrincipalField,
-  principalValues,
-  principals,
-  tensorMagnitude,
-  vonMises,
-  vonMisesField,
-  vonMisesValues,
-} from "./results/derived";
 export {
   createScalarColorMap,
   mapScalar,

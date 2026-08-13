@@ -8,6 +8,7 @@ import {
   instanceBindings,
   instanceStruct,
   pickDataBindings,
+  resultColorFunctions,
   spriteCornerFn,
   vertexOutput,
 } from "./gpu-shaders";
@@ -30,6 +31,7 @@ ${pickDataBindings}
 ${geometryPositionBindings}
 
 ${displacementFn}
+${resultColorFunctions}
 
 ${vertexOutput}
 `;
@@ -37,7 +39,9 @@ ${vertexOutput}
 const instanceHighlighting = /* wgsl */ `
   let facePickId = faceBodyPickIds.x;
   let bodyPickId = faceBodyPickIds.y;
-  var color = instance.color;
+  let nodePickId = vertexNodePickIds[vertexIndex];
+  var color = resultColorForNode(nodePickId, instance.color);
+  var resultColorEnabled = resultColorActive(nodePickId);
   var emissive = instance.emissive;
   var hidden = false;
   var matched = false;
@@ -49,6 +53,7 @@ const instanceHighlighting = /* wgsl */ `
       let highlight = elementHighlights.records[base + offset];
       if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
         color = highlight.color;
+        resultColorEnabled = false;
         emissive = highlight.emissive;
         hidden = highlight.hidden != 0u;
         selected = selected || highlight.selected != 0u;
@@ -63,6 +68,7 @@ const instanceHighlighting = /* wgsl */ `
       let highlight = elementHighlights.records[base + offset];
       if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == elementPickId && highlight.facePickId == 0u) {
         color = highlight.color;
+        resultColorEnabled = false;
         emissive = highlight.emissive;
         hidden = hidden || highlight.hidden != 0u;
         matched = true;
@@ -78,6 +84,7 @@ const instanceHighlighting = /* wgsl */ `
       let highlight = elementHighlights.records[base + offset];
       if (highlight.slot == drawOrder[instanceIndex] && highlight.facePickId == facePickId) {
         color = highlight.color;
+        resultColorEnabled = false;
         emissive = highlight.emissive;
         selected = selected || highlight.selected != 0u;
         break;
@@ -122,6 +129,8 @@ function createInstanceVertexOutput(primitiveIndex: string): string {
   output.nodeDepth = 0.0;
   output.worldPosition = worldPosition;
   output.selected = select(0u, 1u, selected);
+  output.resultColor = resultColorForNode(nodePickId, color);
+  output.resultColorEnabled = select(0u, 1u, resultColorEnabled);
   if (!primitiveVisible(drawOrder[instanceIndex], ${primitiveIndex})) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
@@ -158,8 +167,10 @@ ${emphasisHash}
 ${frameBindings}
 ${instanceBindings}
 ${pickDataBindings}
+${geometryPositionBindings}
 
 ${displacementFn}
+${resultColorFunctions}
 
 ${vertexOutput}
 
@@ -181,6 +192,7 @@ fn pointVertex(
   let ndc = clip.xy / clip.w;
   let elementPickId = primitiveElementPickIds[vertexIndex / 4u];
   let bodyPickId = primitiveFaceBodyPickIds(vertexIndex / 4u).y;
+  let nodePickId = vertexNodePickIds[vertexIndex];
   var output: VertexOutput;
   output.position = vec4<f32>(
     clip.x + offset.x * clip.w,
@@ -189,10 +201,11 @@ fn pointVertex(
     clip.w,
   );
   var color = select(
-    instance.color,
+    resultColorForNode(nodePickId, instance.color),
     vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a),
     nodeOverlay,
   );
+  var resultColorEnabled = !nodeOverlay && resultColorActive(nodePickId);
   if (nodeOverlay && instance.selected != 0u) {
     color = instance.color;
   }
@@ -206,6 +219,7 @@ fn pointVertex(
       let highlight = elementHighlights.records[base + offset];
       if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
         color = highlight.color;
+        resultColorEnabled = false;
         emissive = highlight.emissive;
         hidden = highlight.hidden != 0u;
         selected = selected || highlight.selected != 0u;
@@ -220,6 +234,7 @@ fn pointVertex(
       let highlight = elementHighlights.records[base + offset];
       if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == elementPickId && highlight.facePickId == 0u) {
         color = highlight.color;
+        resultColorEnabled = false;
         emissive = highlight.emissive;
         hidden = hidden || highlight.hidden != 0u;
         selected = selected || highlight.selected != 0u;
@@ -227,7 +242,6 @@ fn pointVertex(
       }
     }
   }
-  let nodePickId = vertexNodePickIds[vertexIndex];
   if (nodePickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], 0u, 0u, nodePickId, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;
@@ -235,6 +249,7 @@ fn pointVertex(
       let highlight = elementHighlights.records[base + offset];
       if (highlight.slot == drawOrder[instanceIndex] && highlight.nodePickId == nodePickId) {
         color = highlight.color;
+        resultColorEnabled = false;
         emissive = highlight.emissive;
         selected = selected || highlight.selected != 0u;
         break;
@@ -263,6 +278,8 @@ fn pointVertex(
   output.nodeDepth = clip.z / clip.w;
   output.worldPosition = worldPosition;
   output.selected = select(0u, 1u, selected);
+  output.resultColor = resultColorForNode(nodePickId, color);
+  output.resultColorEnabled = select(0u, 1u, resultColorEnabled);
   return output;
 }
 

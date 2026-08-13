@@ -11,6 +11,7 @@ import type { PartId } from "../geometry/part";
 import { RendererAttachment } from "./attachment";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
 import { syncDeformations, validateDeformation } from "./gpu-deform";
+import { syncResultColors } from "./gpu-result-colors";
 import { encodePickSnapshot, encodeVisibleFrame } from "./gpu-frame";
 import { pickHitFromPixel, resetPickTargets } from "./gpu-pick";
 import { pickTargetsFromRegion } from "./gpu-pick-region";
@@ -44,6 +45,7 @@ export class GpuRenderer implements WebGpuRenderer {
   private edgeDepthTest = true;
   private orbitPivot: Vec3 | undefined;
   private deformation: DeformationState | undefined;
+  private resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
   private destroyed = false;
 
   public constructor(
@@ -90,6 +92,7 @@ export class GpuRenderer implements WebGpuRenderer {
     const attachmentChanged = this.attachment.attach(runtime, this.lifecycle.bundle);
     this.attachment.updateNodeOrders(this.parts, this.lifecycle.bundle);
     syncDeformations(this.lifecycle.bundle.draw, this.deformation);
+    syncResultColors(this.lifecycle.bundle.draw, this.resultColors);
     if (partsChanged || cameraChanged || attachmentChanged) this.pickSnapshotValid = false;
     encodeVisibleFrame(camera, parts, this.frameOptions());
   }
@@ -99,6 +102,13 @@ export class GpuRenderer implements WebGpuRenderer {
     if (deformation !== undefined) validateDeformation(deformation);
     if (this.deformation !== deformation) this.pickSnapshotValid = false;
     this.deformation = deformation;
+  }
+
+  public setResultColors(colors: ReadonlyMap<PartId, Float32Array> | undefined): void {
+    this.ensureAlive();
+    this.resultColors = colors;
+    syncResultColors(this.lifecycle.bundle.draw, colors);
+    this.pickSnapshotValid = false;
   }
 
   public updateInstances(
@@ -288,6 +298,7 @@ export class GpuRenderer implements WebGpuRenderer {
       edgeDepthTest: this.edgeDepthTest,
       pointSize: this.pointSize,
       deformation: this.deformation,
+      resultColors: this.resultColors,
       orbitPivot: this.orbitPivot,
       devicePixelRatio,
     };

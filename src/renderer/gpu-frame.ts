@@ -48,6 +48,8 @@ export interface FrameOptions {
   readonly pointSize: number;
   /** Per-frame deformation state; `undefined` disables GPU deformation. */
   readonly deformation: DeformationState | undefined;
+  /** Per-part nodal scalar colors, or `undefined` when result coloring is off. */
+  readonly resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
   /** Active world-space camera spin pivot. */
   readonly orbitPivot: readonly [number, number, number] | undefined;
   /** Current display density used by fixed-size presentation helpers. */
@@ -229,6 +231,7 @@ function drawContext(frame: FrameOptions, parts: ReadonlyMap<PartId, Part>): Dra
     instanceLayout: frame.resources.instanceLayout,
     parts,
     pipelines: frame.resources.pipelines,
+    resultColors: frame.resultColors,
   };
 }
 

@@ -11,7 +11,7 @@ performance budget is measured separately without coverage instrumentation.
 | --------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | Math, camera, controls      | `test/math`, `test/camera`, `test/demo/camera-*`         | Contract and regression protection                                                 |
 | Elements and topology       | `test/elements`                                          | Canonical ordering, validation, faces, edges, and golden fixtures                  |
-| Geometry and results        | `test/geometry`, `test/results`                          | Tessellation, metadata, deformation, derived values, and mapping                   |
+| Geometry and results        | `test/geometry`, `test/results`                          | Tessellation, metadata, authored scalar mapping, and nodal deformation             |
 | Scene and runtime           | `test/scene`, `test/scene-runtime`, `test/runtime`       | Hierarchy validation, packed state, culling, batching, and stress budgets          |
 | Interaction and picking     | `test/interaction`, `test/picking`                       | Immutable state, precedence, adjacency, and GPU-id resolution                      |
 | Renderer and platform       | `test/renderer`, `test/platform`                         | Fake-device lifecycle, buffer writes, shaders, picking, and unsupported paths      |
