@@ -1,45 +1,53 @@
 import type { GpuCostAccumulator, GpuCostWrite } from "./gpu-cost";
 
-interface DiffWriteOptions {
-  readonly buffer: GPUBuffer;
-  readonly baseOffset: number;
-  readonly next: Uint8Array<ArrayBuffer>;
-  readonly previous: Uint8Array<ArrayBuffer>;
-  readonly cost?: GpuCostAccumulator;
-  readonly category?: GpuCostWrite;
-}
-
 interface OrderWriteOptions {
   readonly previousLength: number;
   readonly cost?: GpuCostAccumulator;
 }
 
+interface RecordWriteOptions {
+  readonly buffer: GPUBuffer;
+  readonly next: Uint8Array;
+  readonly recordOffset: number;
+  readonly recordStride: number;
+  readonly recordIndices: readonly number[];
+  readonly cost?: GpuCostAccumulator | undefined;
+  readonly category?: GpuCostWrite;
+}
+
+/** Small fixed gap accepted when joining changed records into one upload. */
+const MAX_UNCHANGED_RECORDS_TO_BRIDGE = 2;
+
 /**
- * Writes the changed contiguous byte ranges of a region into a GPU buffer.
- * Each written range is expanded outward to a 4-byte boundary because
- * `GPUQueue.writeBuffer` rejects byte lengths and offsets that are not a
- * multiple of 4, and instance records change in sub-float byte increments
- * (for example a single alpha byte).
+ * Writes changed fixed-size records as contiguous, aligned upload ranges.
+ * A small deterministic gap is included to trade a few unchanged records for
+ * fewer queue submissions without ever spanning a large sparse interval.
  */
-export function writeDiffedRange(device: GPUDevice, options: DiffWriteOptions): void {
-  const { baseOffset, buffer, next, previous } = options;
+export function writeChangedRecordRanges(device: GPUDevice, options: RecordWriteOptions): void {
+  const changed = [...new Set(options.recordIndices)].sort((left, right) => left - right);
   let rangeStart = -1;
-  for (let index = 0; index < next.length; index++) {
-    const changed = next[index] !== previous[index];
-    if (changed && rangeStart < 0) rangeStart = index;
-    if ((!changed || index === next.length - 1) && rangeStart >= 0) {
-      const rangeEnd = changed && index === next.length - 1 ? index + 1 : index;
-      const alignedStart = rangeStart - (rangeStart % 4);
-      const alignedEnd = Math.min(next.length, rangeEnd + ((4 - (rangeEnd % 4)) % 4));
-      device.queue.writeBuffer(
-        buffer,
-        baseOffset + alignedStart,
-        next.subarray(alignedStart, alignedEnd),
-      );
-      options.cost?.write(options.category ?? "other", alignedEnd - alignedStart);
-      rangeStart = -1;
+  let previousIndex = -2;
+  for (const index of changed) {
+    const gap = index - previousIndex - 1;
+    if (rangeStart < 0 || gap > MAX_UNCHANGED_RECORDS_TO_BRIDGE) {
+      if (rangeStart >= 0) writeRecordRange(device, options, rangeStart, previousIndex + 1);
+      rangeStart = index;
     }
+    previousIndex = index;
   }
+  if (rangeStart >= 0) writeRecordRange(device, options, rangeStart, previousIndex + 1);
+}
+
+function writeRecordRange(
+  device: GPUDevice,
+  options: RecordWriteOptions,
+  startRecord: number,
+  endRecord: number,
+): void {
+  const start = options.recordOffset + startRecord * options.recordStride;
+  const end = options.recordOffset + endRecord * options.recordStride;
+  device.queue.writeBuffer(options.buffer, start, options.next.subarray(start, end));
+  options.cost?.write(options.category ?? "other", end - start);
 }
 
 /**

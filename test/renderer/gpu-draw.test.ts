@@ -272,7 +272,7 @@ describe("GPU draw path", () => {
     expect(ids[20]).toBe(MAX_PART_ID);
   });
 
-  it("writes only the changed subranges of patched slots", () => {
+  it("writes one complete record for a changed slot", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
@@ -282,7 +282,7 @@ describe("GPU draw path", () => {
       patchInstances(draw, part.id, [{ slot: 0, data: record(1) }]);
       expect(gpu.writes.length).toBe(afterInitial);
       patchInstances(draw, part.id, [{ slot: 0, data: record(9) }]);
-      expect(writeRanges(gpu, afterInitial)).toEqual([[48, 4]]);
+      expect(writeRanges(gpu, afterInitial)).toEqual([[0, 96]]);
     } finally {
       restore();
     }
@@ -296,13 +296,13 @@ describe("GPU draw path", () => {
       patchInstances(draw, part.id, [{ slot: 2, data: record(1) }]);
       const afterInitial = gpu.writes.length;
       patchInstances(draw, part.id, [{ slot: 2, data: record(9) }]);
-      expect(writeRanges(gpu, afterInitial)).toEqual([[2 * 96 + 48, 4]]);
+      expect(writeRanges(gpu, afterInitial)).toEqual([[2 * 96, 96]]);
     } finally {
       restore();
     }
   });
 
-  it("patches only the emissive float when only emissive changes", () => {
+  it("writes the complete record when only emissive changes", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
@@ -323,7 +323,7 @@ describe("GPU draw path", () => {
       patchInstances(draw, part.id, [{ slot: 0, data: styled(0) }]);
       const afterInitial = gpu.writes.length;
       patchInstances(draw, part.id, [{ slot: 0, data: styled(0.5) }]);
-      expect(writeRanges(gpu, afterInitial)).toEqual([[EMISSIVE_BYTE_OFFSET, 4]]);
+      expect(writeRanges(gpu, afterInitial)).toEqual([[0, 96]]);
     } finally {
       restore();
     }
@@ -344,6 +344,34 @@ describe("GPU draw path", () => {
       expect(writes[0]?.bytes.byteLength).toBe(192);
       expect(writes[1]?.offset).toBe(0);
       expect(writes[1]?.bytes.byteLength).toBe(96);
+    } finally {
+      restore();
+    }
+  });
+
+  it("keeps distant changed slots in separate bounded writes", () => {
+    const restore = installGpuGlobals();
+    try {
+      const coalescedGpu = fakeGpuDevice();
+      const coalescedDraw = createDrawResources(coalescedGpu.device);
+      patchInstances(coalescedDraw, part.id, [
+        { slot: 0, data: denseRecord(1) },
+        { slot: 3, data: denseRecord(1) },
+      ]);
+      expect(
+        instanceWrites(coalescedGpu).map((write) => [write.offset, write.bytes.byteLength]),
+      ).toEqual([[0, 4 * 96]]);
+
+      const sparseGpu = fakeGpuDevice();
+      const sparseDraw = createDrawResources(sparseGpu.device);
+      patchInstances(sparseDraw, part.id, [
+        { slot: 0, data: denseRecord(1) },
+        { slot: 4, data: denseRecord(1) },
+      ]);
+      expect(sparseGpu.writes.map((write) => [write.offset, write.bytes.byteLength])).toEqual([
+        [0, 96],
+        [4 * 96, 96],
+      ]);
     } finally {
       restore();
     }

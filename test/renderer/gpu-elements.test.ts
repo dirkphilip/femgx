@@ -451,7 +451,7 @@ describe("writeElementHighlights", () => {
     } as unknown as InstanceStorage;
   }
 
-  it("writes only the changed subranges across selection deltas", () => {
+  it("writes one complete record across selection deltas", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
@@ -463,13 +463,13 @@ describe("writeElementHighlights", () => {
       writeElementHighlights(gpu.device, storage, [elementUpdate(1, 7)]);
       expect(
         gpu.writes.slice(afterFirst).map((write) => [write.offset, write.bytes.byteLength]),
-      ).toEqual([[20, 4]]);
+      ).toEqual([[HIGHLIGHT_HEADER, ELEMENT_RECORD_STRIDE]]);
     } finally {
       restore();
     }
   });
 
-  it("coalesces many changed records into one GPU write", () => {
+  it("coalesces dense emphasis changes into fixed-record ranges", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
@@ -484,13 +484,24 @@ describe("writeElementHighlights", () => {
         updates.map((update) => ({ ...update, style: { ...style, emissive: 0.25 } })),
       );
 
-      expect(gpu.writes.slice(afterFirst)).toHaveLength(1);
+      const writes = gpu.writes.slice(afterFirst);
+      expect(writes.length).toBeLessThan(updates.length);
+      expect(
+        writes.every(
+          (write) =>
+            (write.offset - HIGHLIGHT_HEADER) % ELEMENT_RECORD_STRIDE === 0 &&
+            write.bytes.byteLength % ELEMENT_RECORD_STRIDE === 0,
+        ),
+      ).toBe(true);
+      expect(
+        writes.reduce((bytes, write) => bytes + write.bytes.byteLength, 0),
+      ).toBeGreaterThanOrEqual(updates.length * ELEMENT_RECORD_STRIDE);
     } finally {
       restore();
     }
   });
 
-  it("skips unchanged body records and writes only the changed body range", () => {
+  it("skips unchanged body records and writes one complete changed record", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
@@ -502,7 +513,7 @@ describe("writeElementHighlights", () => {
       writeElementHighlights(gpu.device, storage, [bodyUpdate(1, 7)]);
       expect(
         gpu.writes.slice(afterFirst).map((write) => [write.offset, write.bytes.byteLength]),
-      ).toEqual([[20, 4]]);
+      ).toEqual([[HIGHLIGHT_HEADER, ELEMENT_RECORD_STRIDE]]);
     } finally {
       restore();
     }
