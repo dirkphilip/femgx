@@ -3,6 +3,8 @@
 Deterministic performance validation for the CPU-side scene pipeline. See
 [[engineering/quality-gate|Quality gate]] for how budgets fit into CI and
 [[engineering/performance-issues|Performance issues]] for known renderer/GPU gaps.
+FE demo and benchmark topology follows [[requirements/demo-fixtures|the demo
+fixture requirements contract]].
 
 ## Budget gate (runs in default CI)
 
@@ -92,20 +94,20 @@ default matrix is bounded but covers separate geometry, part/batch,
 placement/instance, and body-interaction dimensions; the local-only case is
 kept out of normal runs:
 
-| Case                    | Dimension                    |                   Geometry/parts | Instances | Submitted triangles |
-| ----------------------- | ---------------------------- | -------------------------------: | --------: | ------------------: |
-| `instanced-2.10m`       | reusable geometry            |          32,768 unique triangles |        64 |           2,097,152 |
-| `unique-250k`           | unique geometry              |       250,632 triangles / 1 part |         1 |             250,632 |
-| `unique-1m`             | unique geometry              |       999,698 triangles / 1 part |         1 |             999,698 |
-| `many-parts-100`        | distinct parts               |     ~1.01M triangles / 100 parts |       100 |              ~1.01M |
-| `many-parts-1000`       | distinct parts               |   ~0.97M triangles / 1,000 parts |     1,000 |              ~0.97M |
-| `placements-10k`        | placements/instances         |           128 triangles / 1 part |    10,000 |           1,280,000 |
-| `bodies-256`            | body interaction             |     2,048 triangles / 256 bodies |         1 |               2,048 |
-| `fe-quad-shell-visual`  | structured Quad shell        |    576 Quad elements / 625 nodes |         1 |               1,152 |
-| `fe-quad8-shell-visual` | structured Quad8 shell       |   256 Quad8 elements / 833 nodes |         1 |               1,536 |
-| `fe-hex8-solid-visual`  | structured Hex8 solid        |    512 Hex8 elements / 729 nodes |         1 |                 768 |
-| `fe-hex20-solid-visual` | structured Hex20 solid       | 216 Hex20 elements / 1,225 nodes |         1 |               1,296 |
-| `unique-2m-local`       | unique geometry (local-only) |     2,000,000 triangles / 1 part |         1 |           2,000,000 |
+| Case                    | Dimension                    | FE family | Unique elements | Submitted element occurrences | Instances | Unique triangles | Submitted triangles |
+| ----------------------- | ---------------------------- | --------- | --------------: | ----------------------------- | --------: | ---------------: | ------------------: |
+| `instanced-2.10m`       | reusable geometry            | —         |               — | no FE elements                |        64 |           32,768 |           2,097,152 |
+| `unique-250k`           | unique geometry              | —         |               — | no FE elements                |         1 |          250,632 |             250,632 |
+| `unique-1m`             | unique geometry              | —         |               — | no FE elements                |         1 |          999,698 |             999,698 |
+| `many-parts-100`        | distinct parts               | —         |               — | no FE elements                |       100 |           ~1.01M |              ~1.01M |
+| `many-parts-1000`       | distinct parts               | —         |               — | no FE elements                |     1,000 |           ~0.97M |              ~0.97M |
+| `placements-10k`        | placements/instances         | —         |               — | no FE elements                |    10,000 |              128 |           1,280,000 |
+| `bodies-256`            | body interaction             | —         |               — | no FE elements                |         1 |            2,048 |               2,048 |
+| `fe-quad-shell-visual`  | structured surface shell     | Quad      |             576 | one occurrence / element      |         1 |            1,152 |               1,152 |
+| `fe-quad8-shell-visual` | structured surface shell     | Quad8     |             256 | one occurrence / element      |         1 |            1,536 |               1,536 |
+| `fe-hex8-solid-visual`  | structured volume solid      | Hex8      |             512 | one occurrence / element      |         1 |              768 |                 768 |
+| `fe-hex20-solid-visual` | structured volume solid      | Hex20     |             216 | one occurrence / element      |         1 |            1,296 |               1,296 |
+| `unique-2m-local`       | unique geometry (local-only) | —         |               — | no FE elements                |         1 |        2,000,000 |           2,000,000 |
 
 The planar-grid generator is shared by the visual performance fixture and the
 benchmark case factory, so their geometry/count conventions cannot drift. Each
@@ -126,6 +128,19 @@ runtime compilation remain separate from first-upload and steady visible-frame
 GPU timings. Quad and Quad8 shells retain every surface face; Hex8 and Hex20
 solids cull interior faces before tessellation. The 12×12×12 Hex20 capacity
 tier is local-only under `RUN_PERF_LARGE=1`.
+In this matrix, **unique elements** means authored logical element records,
+while **submitted element occurrences** means the number of element occurrences
+represented by the submitted visible topology; it must not be replaced with
+one aggregate record for a grid or body. The matrix deliberately keeps unique
+triangles and submitted triangles as separate columns because instancing
+changes the latter only.
+
+Triangle/Tri6 and Tet4/Tet10 belong to the same contract even when they are not
+in the bounded default matrix: Triangle families represent authored surface
+elements, and Tet families represent authored volume elements whose intended
+faces are exposed. Quadratic variants retain their authored mid-edge node ids.
+The fixture must report the family and logical-element count whenever those
+values are relevant; a generic triangle count alone is insufficient evidence.
 
 The JSON report identifies the browser user agent, adapter identity and fallback
 status, enabled features, resolution, DPR, triangle counts, timings, and an
@@ -146,10 +161,12 @@ refresh-rate and browser-loop measurements, not queue-drained GPU timings, and
 the opt-in benchmark intentionally applies no FPS pass/fail threshold. The
 existing queue-drained fields remain the source of capacity measurements.
 
-Non-body geometry stress cases use one aggregate element record so element
-metadata does not dominate the large-model benchmark. Body-interaction cases
-retain per-cell elements and faces, which keeps their visibility and picking
-semantics representative of the product path.
+The realistic-topology migration is tracked in [issue #526](https://github.com/dirkphilip/femgx/issues/526). Until it is complete, any
+legacy large non-FE case that still uses aggregate metadata is a known
+non-conforming migration gap and must not be described as representative FE
+evidence. Realistic topology makes model build, tessellation, runtime
+compilation, retained metadata, upload, rendering, and picking costs visible;
+those costs are part of the performance question rather than overhead to hide.
 
 ## Interactive WebGPU inspection case
 
@@ -162,7 +179,10 @@ it through the normal `Scene` → runtime → `FemViewport` path. The existing
 `Performance · 2.10M triangles` preset remains the small eagerly registered
 showcase; its diagnostics distinguish the 32,768 unique triangles from
 2,097,152 submitted triangles. The selector entries are for visual inspection;
-the opt-in benchmark above owns reproducible cost breakdowns.
+the opt-in benchmark above owns reproducible cost breakdowns. The selector and
+benchmark are subject to [[requirements/demo-fixtures|the same fixture
+contract]]; issue #526 remains the work tracker until the migration is complete,
+after which the linked requirement is the durable source of truth.
 
 The toolbar's **Continuous** control is a separate, explicit inspection aid and
 is off by default. While enabled, the demo chains one `FemViewport.invalidate()`

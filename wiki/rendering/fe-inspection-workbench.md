@@ -25,6 +25,13 @@ controller, so camera and interaction behavior is stable
   for exactly 2,097,152 submitted triangles. The model is selectable for visual
   inspection and the opt-in benchmark lane consumes the same fixture directly;
   it is not a live-demo measurement loop.
+- The Performance Lab selector and benchmark cases are governed by
+  [[requirements/demo-fixtures|the demo fixture requirements]]. Structured FE
+  cases provide authored elements, shared node identities, stable primitive
+  ownership, and separate logical-element, unique-triangle, and
+  submitted-triangle counts. Large cases are lazy or opt-in; the migration of
+  legacy aggregate cases is tracked in
+  [issue #526](https://github.com/dirkphilip/femgx/issues/526).
 
 ## GPU picking
 
