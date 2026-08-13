@@ -36,7 +36,8 @@ export class GpuRenderer implements WebGpuRenderer {
   private readonly format: GPUTextureFormat;
   private readonly depthFormat: GPUTextureFormat;
   private readonly lifecycle: GpuDeviceLifecycle;
-  private readonly pointSize: number;
+  private pointSize: number;
+  private nodeSize: number;
   private readonly originTriadEnabled: boolean;
   private background: ViewportBackground;
   private readonly attachment = new RendererAttachment();
@@ -60,7 +61,8 @@ export class GpuRenderer implements WebGpuRenderer {
     this.context = construction.context;
     this.format = construction.format;
     this.depthFormat = construction.depthFormat;
-    this.pointSize = Math.max(1, options.pointSizePixels ?? 8);
+    this.pointSize = options.pointSizePixels ?? 8;
+    this.nodeSize = options.nodeSizePixels ?? 6;
     this.originTriadEnabled = options.originTriad ?? true;
     this.background = options.background ?? "studio";
     this.lifecycle = new GpuDeviceLifecycle({
@@ -164,6 +166,19 @@ export class GpuRenderer implements WebGpuRenderer {
       background,
     );
     this.background = background;
+  }
+
+  public setPointSizePixels(size: number): void {
+    this.ensureAlive();
+    if (this.pointSize === size) return;
+    this.pointSize = size;
+    this.pickSnapshotValid = false;
+  }
+
+  public setNodeSizePixels(size: number): void {
+    this.ensureAlive();
+    if (this.nodeSize === size) return;
+    this.nodeSize = size;
   }
 
   public setOrbitPivot(pivot: Vec3 | undefined): void {
@@ -318,6 +333,7 @@ export class GpuRenderer implements WebGpuRenderer {
       depthFormat: this.depthFormat,
       edgeDepthTest: this.edgeDepthTest,
       pointSize: this.pointSize,
+      nodeSize: this.nodeSize,
       deformation: this.deformation,
       resultColors: this.resultColors,
       orbitPivot: this.orbitPivot,

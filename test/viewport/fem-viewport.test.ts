@@ -26,6 +26,15 @@ function installNavigator(): void {
   });
 }
 
+function latestCameraUniform(gpu: ReturnType<typeof fakeGpuDevice>): Float32Array {
+  const cameraBuffer = gpu.buffers.find(
+    (buffer) => buffer.size === 128 && (buffer.usage & 1) !== 0,
+  );
+  const write = gpu.writes.filter((entry) => entry.buffer === cameraBuffer?.resource).at(-1);
+  if (write === undefined) throw new Error("camera uniform was not written");
+  return new Float32Array(write.bytes.buffer, write.bytes.byteOffset, write.bytes.byteLength / 4);
+}
+
 function deferred<T>(): {
   readonly promise: Promise<T>;
   readonly resolve: (value: T) => void;
@@ -132,6 +141,52 @@ describe("FemViewport", () => {
     expect(updateInstances).toHaveBeenCalledOnce();
     expect(updateElements).toHaveBeenCalledTimes(2);
     viewport.destroy();
+  });
+
+  it("validates and updates independent point and node diameters", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const onRender = vi.fn();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: gpu.device,
+      pointSizePixels: 12.5,
+      nodeSizePixels: 3.25,
+      onRender,
+    });
+
+    expect(latestCameraUniform(gpu).slice(18, 22)).toEqual(new Float32Array([12.5, 3.25, 1, 0]));
+    expect(() => {
+      viewport.setPointSizePixels(0);
+    }).toThrow(/pointSizePixels/);
+    expect(() => {
+      viewport.setNodeSizePixels(Number.POSITIVE_INFINITY);
+    }).toThrow(/nodeSizePixels/);
+    expect(onRender).toHaveBeenCalledOnce();
+
+    viewport.setPointSizePixels(16);
+    expect(onRender).toHaveBeenCalledTimes(2);
+    viewport.setPointSizePixels(16);
+    expect(onRender).toHaveBeenCalledTimes(2);
+    viewport.setNodeSizePixels(12);
+    expect(onRender).toHaveBeenCalledTimes(3);
+    viewport.batch(() => {
+      viewport.setPointSizePixels(20);
+      viewport.setNodeSizePixels(24);
+    });
+    expect(onRender).toHaveBeenCalledTimes(4);
+    expect(latestCameraUniform(gpu).slice(18, 22)).toEqual(new Float32Array([20, 24, 1, 0]));
+    viewport.resize();
+    viewport.setScene(scene(10));
+    viewport.render();
+    expect(latestCameraUniform(gpu).slice(18, 22)).toEqual(new Float32Array([20, 24, 1, 0]));
+    viewport.destroy();
+
+    await expect(
+      createFemViewport({ canvas: fakeCanvas(), scene: scene(), pointSizePixels: 65 }),
+    ).rejects.toThrow(/pointSizePixels/);
   });
 
   it("validates and switches the renderer-owned background without rebuilding the viewport", async () => {

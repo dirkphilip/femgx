@@ -196,7 +196,8 @@ fn pointVertexMain(
   let center = displaced(position, vertexIndex);
   let clip = camera.viewProjection * instance.transform * vec4<f32>(center, 1.0);
   let corner = spriteCorner(vertexIndex % 4u);
-  let offset = (corner * camera.pointSize) / camera.viewport;
+  let diameter = max(camera.pointSize, 8.0 * camera.devicePixelRatio);
+  let offset = (corner * diameter) / camera.viewport;
   let elementPickId = primitiveElementPickIds[vertexIndex / 4u];
   var output: NodeVertexOutput;
   output.position = vec4<f32>(
