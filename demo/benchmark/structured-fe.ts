@@ -31,8 +31,9 @@ export function createStructuredFePart(
     elementIds: model.elements.map((element) => element.id),
   };
   const faceSubset = family === "quad" || family === "quad8" ? allSurfaceFaces(model) : undefined;
-  const options = faceSubset === undefined ? { bodies: [body] } : { bodies: [body], faceSubset };
-  const triangle = heterogeneousElementParts({ triangle: partId }, model, options).triangle;
+  const authoredModel = createElementModel([...model.nodes], model.elements, { bodies: [body] });
+  const options = faceSubset === undefined ? {} : { faceSubset };
+  const triangle = heterogeneousElementParts({ triangle: partId }, authoredModel, options).triangle;
   if (triangle === undefined) throw new Error(`${family} structured model has no triangle part`);
   return triangle;
 }

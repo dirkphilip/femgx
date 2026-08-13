@@ -9,7 +9,7 @@ describe("createModelBuilder", () => {
     const model = createModelBuilder().build();
     expect(model.formatVersion).toBe(1);
     expect(model.nodes.count).toBe(0);
-    expect(model.elementBlocks).toEqual([]);
+    expect(model.elementShapeBlocks).toEqual([]);
     expect(model.sets).toEqual([]);
     expect(model.metadata).toEqual({});
     expect(model.results).toEqual([]);
@@ -28,14 +28,14 @@ describe("createModelBuilder", () => {
 
   it("groups elements into shape blocks, closing the open block implicitly", () => {
     const builder = createModelBuilder();
-    builder.openElementBlock(TET4_SHAPE);
+    builder.openElementShapeBlock(TET4_SHAPE);
     builder.appendElements([1], [0, 1, 2, 3]);
-    builder.openElementBlock(HEX8_SHAPE);
+    builder.openElementShapeBlock(HEX8_SHAPE);
     builder.appendElements([2], [0, 1, 2, 3, 4, 5, 6, 7]);
     const model = builder.build();
-    expect(model.elementBlocks.map((block) => block.shape.family)).toEqual(["tet", "hex"]);
-    expect(model.elementBlocks[0]?.count).toBe(1);
-    expect(model.elementBlocks[1]?.count).toBe(1);
+    expect(model.elementShapeBlocks.map((block) => block.shape.family)).toEqual(["tet", "hex"]);
+    expect(model.elementShapeBlocks[0]?.count).toBe(1);
+    expect(model.elementShapeBlocks[1]?.count).toBe(1);
     expect(builder.elementCount).toBe(2);
   });
 
@@ -48,7 +48,7 @@ describe("createModelBuilder", () => {
 
   it("rejects element connectivity that does not match the block shape", () => {
     const builder = createModelBuilder();
-    builder.openElementBlock(TET4_SHAPE);
+    builder.openElementShapeBlock(TET4_SHAPE);
     expect(() => {
       builder.appendElements([1], [0, 1, 2]);
     }).toThrow(IoError);
@@ -136,7 +136,7 @@ describe("createModelBuilder", () => {
   it("builds deterministically: repeated builds are equal", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0], [0, 0, 0]);
-    builder.openElementBlock(TET4_SHAPE);
+    builder.openElementShapeBlock(TET4_SHAPE);
     builder.appendElements([1], [0, 0, 0, 0]);
     const first = builder.build();
     const second = builder.build();

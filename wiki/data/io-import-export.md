@@ -9,7 +9,7 @@ single supported format adapter: VTK legacy ASCII. See also
 `FemModel` is the versioned, fully serializable interchange format:
 
 - `nodes` — `ids: Uint32Array` + `coordinates: Float64Array` (3 per node).
-- `elementBlocks` — rows grouped by `ElementShape`; ids unique across blocks.
+- `elementShapeBlocks` — rows grouped by `ElementShape`; ids unique across blocks.
 - `sets` — named node/element id groups.
 - `metadata` — string-keyed record, insertion order preserved.
 - `results` — named fields aligned to node/element ids with `components`.
@@ -21,7 +21,7 @@ changes field semantics.
 ## Model builder (`io/build.ts`)
 
 `createModelBuilder()` accumulates typed-array chunks (`appendNodes`,
-`openElementBlock`, `appendElements`, `addSet`, `setMetadata`, `addResult`)
+`openElementShapeBlock`, `appendElements`, `addSet`, `setMetadata`, `addResult`)
 used by the VTK reader and by tests when constructing models.
 
 ## Result composition

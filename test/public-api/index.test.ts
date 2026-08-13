@@ -4,6 +4,7 @@ import * as publicApi from "../../src/index";
 describe("public root API", () => {
   it("keeps an exact runtime export inventory", () => {
     expect(Object.keys(publicApi).sort()).toEqual([
+      "ElementModelValidationError",
       "FEMGX_FORMAT_VERSION",
       "FIELD_COMPONENT_COUNT",
       "FaceSelectionError",

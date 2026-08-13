@@ -1,8 +1,9 @@
 import type {
-  Body,
   ElementTessellation,
   FaceTessellation,
   Geometry,
+  GeometryBody,
+  GeometryElementBlock,
   LineGeometry,
   Primitive,
   TriangleGeometry,
@@ -16,6 +17,15 @@ export interface MeshVertex {
   readonly nodeId: number | undefined;
   /** Optional explicit identity for a generated vertex without a node. */
   readonly sourceId?: string | number;
+}
+
+/** Optional ownership and source metadata attached to assembled geometry. */
+export interface MeshMetadata {
+  readonly elements?: readonly ElementTessellation[];
+  readonly faces?: readonly FaceTessellation[];
+  readonly nodePositions?: ArrayLike<number>;
+  readonly bodies?: readonly GeometryBody[];
+  readonly blocks?: readonly GeometryElementBlock[];
 }
 
 /** Assembles oriented triangles into shared indexed geometry. */
@@ -61,20 +71,9 @@ export class TriangleMeshAssembler {
     return generated;
   }
 
-  build(
-    primitive: "triangles",
-    elements?: readonly ElementTessellation[],
-    faces?: readonly FaceTessellation[],
-    nodePositions?: ArrayLike<number>,
-    bodies?: readonly Body[],
-  ): TriangleGeometry;
-  build(
-    primitive: Primitive,
-    elements?: readonly ElementTessellation[],
-    faces?: readonly FaceTessellation[],
-    nodePositions?: ArrayLike<number>,
-    bodies?: readonly Body[],
-  ): Geometry {
+  build(primitive: "triangles", metadata?: MeshMetadata): TriangleGeometry;
+  build(primitive: Primitive, metadata: MeshMetadata = {}): Geometry {
+    const { elements, faces, nodePositions, bodies, blocks } = metadata;
     const hasNodeIds = this.nodePickIds.some((id) => id !== 0);
     return {
       positions: new Float32Array(this.positions),
@@ -91,6 +90,7 @@ export class TriangleMeshAssembler {
         : {}),
       ...(faces !== undefined && faces.length > 0 ? { faces } : {}),
       ...(bodies !== undefined && bodies.length > 0 ? { bodies } : {}),
+      ...(blocks !== undefined && blocks.length > 0 ? { blocks } : {}),
     };
   }
 }

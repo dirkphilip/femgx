@@ -25,7 +25,7 @@ export interface ModelNodes {
  * has id `ids[i]` and connectivity at `connectivity[nodeCount * i .. +nodeCount)`.
  * Element ids must be unique across the whole model, not just within a block.
  */
-export interface ModelElementBlock {
+export interface ModelElementShapeBlock {
   readonly shape: ElementShape;
   readonly count: number;
   readonly ids: Uint32Array;
@@ -69,7 +69,7 @@ export interface ModelResultField {
 export interface FemModel {
   readonly formatVersion: number;
   readonly nodes: ModelNodes;
-  readonly elementBlocks: readonly ModelElementBlock[];
+  readonly elementShapeBlocks: readonly ModelElementShapeBlock[];
   readonly sets: readonly ModelSet[];
   readonly metadata: ModelMetadata;
   readonly results: readonly ModelResultField[];

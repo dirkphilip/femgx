@@ -1,5 +1,5 @@
 import type {
-  Body,
+  GeometryBody,
   ElementTessellation,
   FaceTessellation,
   TriangleGeometry,
@@ -200,7 +200,7 @@ function createBodyElementLists(bodyCount: number | undefined): number[][] | und
   return bodyCount === undefined ? undefined : Array.from({ length: bodyCount }, () => []);
 }
 
-function toBody(elementIds: readonly number[], index: number): Body {
+function toBody(elementIds: readonly number[], index: number): GeometryBody {
   return { id: index + 1, name: `Body ${index + 1}`, elementIds };
 }
 

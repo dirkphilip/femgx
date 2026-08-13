@@ -17,7 +17,7 @@ export function createElementModelFromFemModel(model: FemModel): ElementModel {
   if (errors.length > 0) {
     throw new IoError("Cannot convert FemModel to ElementModel", errors);
   }
-  const elements = model.elementBlocks.flatMap((block) => {
+  const elements = model.elementShapeBlocks.flatMap((block) => {
     const nodeCount = topologyFor(block.shape).nodeCount;
     return Array.from({ length: block.count }, (_, index) => {
       const start = index * nodeCount;

@@ -25,6 +25,23 @@ serializable `FemModel` can be converted once with
 `createElementModelFromFemModel`; its node ids must already be dense because
 the render model indexes coordinates directly.
 
+## Authored blocks and bodies
+
+`createElementModel(nodes, elements, options)` is the authoritative in-memory
+model boundary. `options.blocks` contains optional stable `ElementBlock`s, each
+with a strictly ascending one-based id and a non-overlapping ascending list of
+element ids. `options.bodies` contains stable bodies that use exactly one of:
+
+- `elementIds` for the direct blockless path;
+- `blockIds` to aggregate semantic blocks.
+
+The constructor rejects duplicate or unsorted ids, empty groups, unknown
+references, overlapping membership, and block/body ownership mismatches. It
+copies the authored arrays. Omitting `blocks` does not create synthetic
+metadata or indexes. `heterogeneousElementParts` derives filtered block
+descriptors and flattened body descriptors per emitted primitive family, while
+the source model remains the only authoring owner.
+
 ## Shapes
 
 | Shape            | Family     | Order | Nodes | Corners | Mid-edge nodes |

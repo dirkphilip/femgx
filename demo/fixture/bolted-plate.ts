@@ -1,4 +1,5 @@
 import {
+  createElementModel,
   createScene,
   heterogeneousElementParts,
   identity,
@@ -206,9 +207,8 @@ function componentParts(
     bodyNames: readonly string[],
   ): readonly Part[] => {
     const bodies = bodyGroups(model, bodyNames);
-    const part = heterogeneousElementParts({ triangle: component.partId }, model, {
-      bodies,
-    }).triangle;
+    const authoredModel = createElementModel([...model.nodes], model.elements, { bodies });
+    const part = heterogeneousElementParts({ triangle: component.partId }, authoredModel).triangle;
     if (part === undefined) throw new Error("Bolted plate component has no triangle part");
     return [part];
   };

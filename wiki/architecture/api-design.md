@@ -31,7 +31,7 @@ while the implementation uses the shorter current names.
 ## Canonical data flow
 
 ```text
-part definitions + assembly placements
+ElementModel → derived Parts + assembly placements
               ↓
            Scene
               ↓
@@ -45,15 +45,17 @@ stable part key and carry only placement-specific state such as transform,
 visibility, and interaction style. The renderer must never become the source
 of truth for scene data.
 
-`createPart(id, geometry)` is the construction boundary for reusable parts. It
-validates primitive arrays and element/pick/body metadata, derives bounds from
-the supplied positions, and uses a finite zero box for an empty part. It
-retains the supplied typed arrays without defensive copies and takes ownership
-of them, so callers must not mutate or reuse them afterward. `PartId` is a
-direct unsigned 32-bit identity; element and body ids are one-based GPU pick
-identities and reserve the top raw value because `0` is the no-hit sentinel.
-The authoring body list owns membership; descriptor body ids are validated
-derived metadata for render and pick paths.
+`createElementModel(nodes, elements, options)` is the authoring boundary for
+typed finite-element data. It owns optional semantic element blocks and bodies,
+validates their stable identities and exclusive membership, and keeps omitted
+blocks on the zero-block fast path. A body uses direct element membership or
+aggregates blocks; it cannot use both. `createPart(id, geometry)` remains the
+construction boundary for reusable parts: it validates primitive arrays and
+derived element/pick/body/block metadata, derives bounds from positions, and
+uses a finite zero box for an empty part. `PartId` is a direct unsigned 32-bit
+identity; element, block, and body ids reserve the top raw value because `0` is
+the no-hit sentinel. Derived descriptors never become a second authoring
+source.
 
 Raw geometry follows this boundary directly:
 

@@ -31,11 +31,11 @@ const ROOT_ASSEMBLY_ID: AssemblyId = 1;
 /** Parses the checked-in ASCII legacy VTK sample into the demo scene. */
 export function createVtkFixture(): VtkFixture {
   const vtkModel = parseVtk(sampleBlockVtk, { strict: true }).model;
-  if (vtkModel.elementBlocks.length !== 1) {
-    throw new Error("The sample VTK asset must contain exactly one element block");
+  if (vtkModel.elementShapeBlocks.length !== 1) {
+    throw new Error("The sample VTK asset must contain exactly one shape block");
   }
-  const block = vtkModel.elementBlocks[0];
-  if (block === undefined) throw new Error("The sample VTK asset has no element block");
+  const block = vtkModel.elementShapeBlocks[0];
+  if (block === undefined) throw new Error("The sample VTK asset has no shape block");
   const elementModel = createElementModelFromFemModel(vtkModel);
   const exteriorFaces = boundaryFaceRefs(elementModel.elements);
   const triangle = heterogeneousElementParts({ triangle: SOLID_PART_ID }, elementModel, {

@@ -1,7 +1,7 @@
 import { topologyFor } from "../elements/shapes";
 import type { Issue } from "./diagnostics";
 import type { ElementId, NodeId } from "../elements/element";
-import type { FemModel, ModelElementBlock, ModelSet, ModelResultField } from "./model";
+import type { FemModel, ModelElementShapeBlock, ModelSet, ModelResultField } from "./model";
 
 /**
  * Validates an interchange model and returns typed diagnostics. Checks cover
@@ -13,7 +13,7 @@ export function validateModel(model: FemModel): readonly Issue[] {
   const nodeIds = new Set<NodeId>();
   const elementIds = new Set<ElementId>();
   validateNodes(model, nodeIds, issues);
-  for (const block of model.elementBlocks) {
+  for (const block of model.elementShapeBlocks) {
     validateBlock(block, nodeIds, elementIds, issues);
   }
   for (const set of model.sets) {
@@ -55,7 +55,7 @@ function validateNodes(model: FemModel, nodeIds: Set<NodeId>, issues: Issue[]): 
 }
 
 function validateBlock(
-  block: ModelElementBlock,
+  block: ModelElementShapeBlock,
   nodeIds: Set<NodeId>,
   elementIds: Set<ElementId>,
   issues: Issue[],
@@ -66,7 +66,7 @@ function validateBlock(
       code: "element-block-shape",
       severity: "error",
       message:
-        `Element block ${block.shape.family} order ${block.shape.order} holds ` +
+        `Element shape block ${block.shape.family} order ${block.shape.order} holds ` +
         `${block.ids.length} ids for ${block.count} elements`,
     });
     return;
@@ -76,7 +76,7 @@ function validateBlock(
       code: "element-block-shape",
       severity: "error",
       message:
-        `Element block ${block.shape.family} order ${block.shape.order} holds ` +
+        `Element shape block ${block.shape.family} order ${block.shape.order} holds ` +
         `${block.connectivity.length} connectivity values for ${block.count} elements`,
     });
     return;

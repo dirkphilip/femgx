@@ -1,5 +1,5 @@
 import { createPart, type Part } from "../../src/geometry/part";
-import type { Body, TriangleGeometry } from "../../src/geometry/part";
+import type { GeometryBody, TriangleGeometry } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import type { Assembly, Placement } from "../../src/scene/assembly";
 import type { Scene } from "../../src/scene/scene";
@@ -151,7 +151,7 @@ export function makeBodyGeometry(): TriangleGeometry {
 }
 
 /** Returns deterministic round-robin body memberships for a dense element-id range. */
-export function makeBodies(elementCount: number, bodyCount: number): readonly Body[] {
+export function makeBodies(elementCount: number, bodyCount: number): readonly GeometryBody[] {
   const memberships = Array.from({ length: bodyCount }, () => [] as number[]);
   for (let elementId = 1; elementId <= elementCount; elementId += 1) {
     memberships[(elementId - 1) % bodyCount]?.push(elementId);

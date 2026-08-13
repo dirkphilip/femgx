@@ -1,3 +1,4 @@
+import type { BodyId, ElementBlockId } from "../elements/model";
 import type { ElementId, NodeId } from "../elements/element";
 import type { FaceIdRef, FaceKey } from "../elements/faces";
 import type { ElementShape } from "../elements/shapes";
@@ -8,14 +9,19 @@ export interface FaceSubset {
   readonly faceIds: readonly FaceIdRef[];
 }
 
-/** Stable identity of one logical body within a reusable part. */
-export type BodyId = number;
-
-/** Read-only logical body metadata owned by a part's geometry. */
-export interface Body {
+/** Derived body metadata carried by a renderable part. */
+export interface GeometryBody {
   readonly id: BodyId;
   readonly name?: string;
   /** Element ids belonging to this body, in ascending order. */
+  readonly elementIds: readonly ElementId[];
+}
+
+/** Derived semantic block metadata carried by a renderable part. */
+export interface GeometryElementBlock {
+  readonly id: ElementBlockId;
+  readonly name?: string;
+  /** Elements from the source block present in this primitive group. */
   readonly elementIds: readonly ElementId[];
 }
 
@@ -44,6 +50,8 @@ export interface ElementTessellation {
   readonly shape?: ElementShape;
   /** Optional logical body owning this element. */
   readonly bodyId?: BodyId;
+  /** Optional semantic element block owning this element. */
+  readonly blockId?: ElementBlockId;
 }
 
 /**
@@ -68,6 +76,8 @@ export interface FaceTessellation {
   readonly neighborElementIds: readonly ElementId[];
   /** Optional logical body owning the face's element. */
   readonly bodyId?: BodyId;
+  /** Optional semantic element block owning this face's element. */
+  readonly blockId?: ElementBlockId;
 }
 
 /** How a part's indexed primitives are drawn on the GPU. */
@@ -96,7 +106,10 @@ interface GeometryBase {
    */
   readonly nodePositions?: Float32Array;
   /** Optional logical bodies in ascending `id` order. */
-  readonly bodies?: readonly Body[];
+  /** Derived bodies; block-defined source bodies are flattened to elements. */
+  readonly bodies?: readonly GeometryBody[];
+  /** Derived semantic blocks, omitted on the blockless path. */
+  readonly blocks?: readonly GeometryElementBlock[];
 }
 
 /** CPU-side triangle geometry descriptor; the renderer uploads this once. */
