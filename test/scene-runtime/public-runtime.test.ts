@@ -19,6 +19,10 @@ describe("public scene runtime", () => {
     expect(runtime).not.toHaveProperty("setPartVisible");
     expect(runtime).not.toHaveProperty("setAssemblyNodeVisible");
     expect(runtime).not.toHaveProperty("setAssemblyVisible");
+    expect(runtime).not.toHaveProperty("getNodeTransform");
+    expect(runtime).not.toHaveProperty("getNodeWorldTransform");
+    expect(runtime.getNode(nodeId ?? "missing")).not.toHaveProperty("transform");
+    expect(runtime.getNode(nodeId ?? "missing")).not.toHaveProperty("worldTransform");
   });
 
   it("keeps repeated assembly occurrences independently addressable", () => {

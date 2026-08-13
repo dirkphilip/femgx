@@ -25,8 +25,6 @@ export interface RuntimeNode {
   readonly instanceIds: readonly InstanceId[];
   readonly visible: boolean;
   readonly effectiveVisible: boolean;
-  readonly transform: Mat4;
-  readonly worldTransform: Mat4;
 }
 
 /** Public scene-runtime queries expressed only in stable handles. */
@@ -43,8 +41,6 @@ export interface SceneRuntime {
   getNode(nodeId: AssemblyNodeId): RuntimeNode | undefined;
   getPartId(instanceId: InstanceId): PartId | undefined;
   getTransform(instanceId: InstanceId): Mat4 | undefined;
-  getNodeTransform(nodeId: AssemblyNodeId): Mat4 | undefined;
-  getNodeWorldTransform(nodeId: AssemblyNodeId): Mat4 | undefined;
   isInstanceVisible(instanceId: InstanceId): boolean;
   getDrawList(): readonly InstanceId[];
 }
@@ -118,14 +114,6 @@ class PublicSceneRuntime implements SceneRuntime {
       this.packed.nodeAssemblyIds[node],
       `assembly id at node ${node}`,
     );
-    const localTransform = invariantValue(
-      this.packed.getNodeTransform(node),
-      `local transform at node ${node}`,
-    );
-    const worldTransform = invariantValue(
-      this.packed.getNodeWorldTransform(node),
-      `world transform at node ${node}`,
-    );
     const parent = invariantValue(this.packed.nodeParents[node], `parent at node ${node}`);
     const childIds: AssemblyNodeId[] = [];
     let child = invariantValue(this.packed.nodeFirstChild[node], `first child at node ${node}`);
@@ -153,8 +141,6 @@ class PublicSceneRuntime implements SceneRuntime {
       instanceIds,
       visible: this.packed.nodeVisible[node] === 1,
       effectiveVisible: this.packed.nodeEffectiveVisible[node] === 1,
-      transform: localTransform,
-      worldTransform,
     };
   }
   getPartId(instanceId: InstanceId): PartId | undefined {
@@ -168,18 +154,6 @@ class PublicSceneRuntime implements SceneRuntime {
     return slot === undefined
       ? undefined
       : invariantValue(this.packed.getTransform(slot), `transform at instance ${slot}`);
-  }
-  getNodeTransform(nodeId: AssemblyNodeId): Mat4 | undefined {
-    const slot = this.packed.getNodeSlot(nodeId);
-    return slot === undefined
-      ? undefined
-      : invariantValue(this.packed.getNodeTransform(slot), `transform at node ${slot}`);
-  }
-  getNodeWorldTransform(nodeId: AssemblyNodeId): Mat4 | undefined {
-    const slot = this.packed.getNodeSlot(nodeId);
-    return slot === undefined
-      ? undefined
-      : invariantValue(this.packed.getNodeWorldTransform(slot), `world transform at node ${slot}`);
   }
   isInstanceVisible(instanceId: InstanceId): boolean {
     const slot = this.packed.getInstanceSlot(instanceId);

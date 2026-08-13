@@ -23,14 +23,11 @@ export interface RuntimeState {
   readonly nodeInstanceEnd: Uint32Array;
   readonly nodeVisible: Uint8Array;
   readonly nodeEffectiveVisible: Uint8Array;
-  readonly nodeLocalTransforms: Float32Array;
-  readonly nodeWorldTransforms: Float32Array;
   readonly instancePartIds: Uint32Array;
   readonly instanceOwningNode: Uint32Array;
   readonly instancePartVisible: Uint8Array;
   readonly instanceOverrideVisible: Uint8Array;
   readonly instanceVisible: Uint8Array;
-  readonly instanceLocalTransforms: Float32Array;
   readonly instanceWorldTransforms: Float32Array;
   /** Authoring placement handle per instance, mirroring flatten paths. */
   readonly instanceInstanceIds: readonly string[];
@@ -55,8 +52,6 @@ type PackedNodes = Pick<
   | "nodeInstanceEnd"
   | "nodeVisible"
   | "nodeEffectiveVisible"
-  | "nodeLocalTransforms"
-  | "nodeWorldTransforms"
 >;
 type PackedInstances = Pick<
   RuntimeState,
@@ -66,7 +61,6 @@ type PackedInstances = Pick<
   | "instancePartVisible"
   | "instanceOverrideVisible"
   | "instanceVisible"
-  | "instanceLocalTransforms"
   | "instanceWorldTransforms"
   | "instanceInstanceIds"
 > & { readonly visibleCount: number };
@@ -82,8 +76,6 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
   const nodeInstanceEnd = new Uint32Array(count);
   const nodeVisible = new Uint8Array(count);
   const nodeEffectiveVisible = new Uint8Array(count);
-  const nodeLocalTransforms = new Float32Array(count * 16);
-  const nodeWorldTransforms = new Float32Array(count * 16);
   for (let i = 0; i < count; i++) {
     const node = invariantValue(nodes[i], `node draft at ${i}`);
     nodeAssemblyIds[i] = node.assemblyId;
@@ -95,8 +87,6 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
     nodeInstanceEnd[i] = node.instanceEnd;
     nodeVisible[i] = node.visible;
     nodeEffectiveVisible[i] = node.effective;
-    nodeLocalTransforms.set(node.local, i * 16);
-    nodeWorldTransforms.set(node.world, i * 16);
   }
   return {
     nodeCount: count,
@@ -109,8 +99,6 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
     nodeInstanceEnd,
     nodeVisible,
     nodeEffectiveVisible,
-    nodeLocalTransforms,
-    nodeWorldTransforms,
   };
 }
 
@@ -120,7 +108,6 @@ function packInstances(instances: readonly InstanceDraft[]): PackedInstances {
   const instanceOwningNode = new Uint32Array(count);
   const instancePartVisible = new Uint8Array(count);
   const instanceVisible = new Uint8Array(count);
-  const instanceLocalTransforms = new Float32Array(count * 16);
   const instanceWorldTransforms = new Float32Array(count * 16);
   const instanceInstanceIds: string[] = [];
   let visibleCount = 0;
@@ -133,7 +120,6 @@ function packInstances(instances: readonly InstanceDraft[]): PackedInstances {
     if (draft.effective === 1) {
       visibleCount++;
     }
-    instanceLocalTransforms.set(draft.local, i * 16);
     instanceWorldTransforms.set(draft.world, i * 16);
     instanceInstanceIds.push(draft.instanceId);
   }
@@ -145,7 +131,6 @@ function packInstances(instances: readonly InstanceDraft[]): PackedInstances {
     instancePartVisible,
     instanceOverrideVisible: new Uint8Array(count).fill(1),
     instanceVisible,
-    instanceLocalTransforms,
     instanceWorldTransforms,
     instanceInstanceIds,
   };
