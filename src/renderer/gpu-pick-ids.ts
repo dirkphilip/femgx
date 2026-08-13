@@ -1,10 +1,4 @@
-import {
-  bodyIdForElement,
-  logicalPrimitiveCount,
-  primitiveRangeForElement,
-  faceForPrimitive,
-  type Geometry,
-} from "../geometry/part";
+import { logicalPrimitiveCount, primitiveRangeForElement, type Geometry } from "../geometry/part";
 
 /**
  * Builders for the per-primitive and per-vertex pick-id buffers uploaded with a
@@ -31,7 +25,7 @@ export function buildBodyPrimitivePickIds(geometry: Geometry): Uint32Array {
   const primitiveCount = logicalPrimitiveCount(geometry);
   const pickIds = new Uint32Array(primitiveCount);
   for (const element of geometry.elements ?? []) {
-    const bodyId = bodyIdForElement(geometry, element.id);
+    const bodyId = element.bodyId;
     if (bodyId === undefined) continue;
     const range = primitiveRangeForElement(element);
     const end = range.start + range.count;
@@ -47,11 +41,12 @@ export function buildFacePrimitivePickIds(geometry: Geometry): Uint32Array {
   const primitiveCount = logicalPrimitiveCount(geometry);
   const pickIds = new Uint32Array(primitiveCount);
   if (geometry.primitive !== "triangles") return pickIds;
-  for (let primitive = 0; primitive < primitiveCount; primitive += 1) {
-    const face = faceForPrimitive(geometry, primitive);
-    if (face !== undefined) {
-      const denseId = geometry.faces?.indexOf(face);
-      if (denseId !== undefined && denseId >= 0) pickIds[primitive] = denseId + 1;
+  for (let face = 0; face < (geometry.faces?.length ?? 0); face += 1) {
+    const range = geometry.faces?.[face];
+    if (range === undefined) continue;
+    const end = range.primitiveStart + range.primitiveCount;
+    for (let primitive = range.primitiveStart; primitive < end; primitive += 1) {
+      pickIds[primitive] = face + 1;
     }
   }
   return pickIds;
@@ -62,6 +57,9 @@ export function buildPrimitiveFaceBodyPickData(geometry: Geometry): Uint32Array 
   const facePickIds = buildFacePrimitivePickIds(geometry);
   const bodyPickIds = buildBodyPrimitivePickIds(geometry);
   const elementPickIds = buildElementPrimitivePickIds(geometry);
+  const bodyByElement = new Map(
+    (geometry.elements ?? []).map((element) => [element.id, element.bodyId] as const),
+  );
   const data = new Uint32Array(facePickIds.length * 5);
   for (let triangle = 0; triangle < facePickIds.length; triangle += 1) {
     const facePickId = facePickIds[triangle] ?? 0;
@@ -71,7 +69,7 @@ export function buildPrimitiveFaceBodyPickData(geometry: Geometry): Uint32Array 
     data[base + 1] = bodyPickIds[triangle] ?? 0;
     const neighborElementId = face?.neighborElementIds[0];
     const neighborBody =
-      neighborElementId === undefined ? undefined : bodyIdForElement(geometry, neighborElementId);
+      neighborElementId === undefined ? undefined : bodyByElement.get(neighborElementId);
     data[base + 2] =
       neighborBody === undefined || neighborBody + 1 === data[base + 1] ? 0 : neighborBody + 1;
     data[base + 3] = elementPickIds[triangle] ?? 0;
@@ -147,7 +145,7 @@ interface NodeElementOwner {
 function nodeElementOwners(geometry: Geometry): Map<number, NodeElementOwner[]> {
   const owners = new Map<number, Map<string, NodeElementOwner>>();
   for (const element of geometry.elements ?? []) {
-    const bodyId = bodyIdForElement(geometry, element.id);
+    const bodyId = element.bodyId;
     const range = primitiveRangeForElement(element);
     const verticesPerPrimitive =
       geometry.primitive === "lines" ? 2 : geometry.primitive === "points" ? 1 : 3;
@@ -167,7 +165,7 @@ function nodeElementOwners(geometry: Geometry): Map<number, NodeElementOwner[]> 
 function nodeBodyOwners(geometry: Geometry): Map<number, Set<number | undefined>> {
   const owners = new Map<number, Set<number | undefined>>();
   for (const element of geometry.elements ?? []) {
-    const bodyId = bodyIdForElement(geometry, element.id);
+    const bodyId = element.bodyId;
     const range = primitiveRangeForElement(element);
     const verticesPerPrimitive =
       geometry.primitive === "lines" ? 2 : geometry.primitive === "points" ? 1 : 3;

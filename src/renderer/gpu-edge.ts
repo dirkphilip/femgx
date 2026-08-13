@@ -1,4 +1,4 @@
-import { bodyIdForElement, type Geometry } from "../geometry/part";
+import type { Geometry } from "../geometry/part";
 import {
   buildBodyPrimitivePickIds,
   buildElementPrimitivePickIds,
@@ -260,6 +260,9 @@ function triangleBodyPairs(
 ): Array<readonly [number, number, number, number]> {
   const facePickIds =
     geometry.primitive === "triangles" ? buildFacePrimitivePickIds(geometry) : undefined;
+  const bodyByElement = new Map(
+    (geometry.elements ?? []).map((element) => [element.id, element.bodyId] as const),
+  );
   const pairFor = (triangle: number): readonly [number, number, number, number] => {
     const owner = bodyPickIds[triangle] ?? 0;
     const element = elementPickIds[triangle] ?? 0;
@@ -269,7 +272,7 @@ function triangleBodyPairs(
         ? geometry.faces?.[faceId]?.neighborElementIds[0]
         : undefined;
     const neighborBody =
-      neighborElementId === undefined ? undefined : bodyIdForElement(geometry, neighborElementId);
+      neighborElementId === undefined ? undefined : bodyByElement.get(neighborElementId);
     const neighborPickId = neighborBody === undefined ? 0 : neighborBody + 1;
     const neighborElementPickId = neighborElementId === undefined ? 0 : neighborElementId + 1;
     return [owner, neighborPickId === owner ? 0 : neighborPickId, element, neighborElementPickId];

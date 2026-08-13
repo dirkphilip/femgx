@@ -688,6 +688,42 @@ describe("collectEmphasisUpdates", () => {
     expect(updates.get(1)).toMatchObject([{ slot: 0, elementPickId: 1 }]);
   });
 
+  it("maps a selected point node without element ownership", () => {
+    const point = createPart(2, {
+      positions: new Float32Array([0, 0, 0]),
+      indices: new Uint32Array([0]),
+      primitive: "points",
+      nodePickIds: new Uint32Array([1]),
+      nodePositions: new Float32Array([0, 0, 0]),
+    });
+    const scene = createScene()
+      .addPart(point)
+      .addAssembly({
+        id: 1,
+        name: "standalone-node",
+        placements: [{ kind: "part", partId: 2, transform: translation(0, 0, 0) }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    const interaction = setNodeSelected(
+      createInteractionState(),
+      { instanceId: "1/0", nodeId: 0 },
+      true,
+    );
+
+    expect(
+      collectEmphasisUpdates(
+        runtime,
+        layout,
+        new Map([["1/0", 0]]),
+        new Map([[point.id, point]]),
+        interaction,
+      ).get(point.id),
+    ).toMatchObject([{ slot: 0, elementPickId: 0, nodePickId: 1, selected: true }]);
+  });
+
   it("maps emphasized face and node occurrences to face and node records", () => {
     const { scene, runtime } = elementScene();
     const layout = buildInstanceLayout(runtime);

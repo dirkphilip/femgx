@@ -150,6 +150,8 @@ describe("renderer runtime state", () => {
       positions: new Float32Array([0, 0, 0]),
       indices: new Uint32Array([0]),
       primitive: "points",
+      nodePickIds: new Uint32Array([1]),
+      nodePositions: new Float32Array([0, 0, 0]),
     });
     const scene = createScene()
       .addPart(triangle)
@@ -173,6 +175,18 @@ describe("renderer runtime state", () => {
     ]);
     expect(Array.from(buildNodeOrder(layout, runtime, 1, [true, false, true], parts))).toEqual([0]);
     expect(buildNodeOrder(layout, runtime, 2, [true, false, true], parts)).toEqual(
+      new Uint32Array(),
+    );
+    const selectedPoint = setNodeSelected(
+      createInteractionState(),
+      {
+        instanceId: "1/2",
+        nodeId: 0,
+      },
+      true,
+    );
+    expect(Array.from(buildSelectionOrder(layout, runtime, 2, selectedPoint))).toEqual([0]);
+    expect(buildNodeSelectionOrder(layout, runtime, 2, [false, false, true], parts)).toEqual(
       new Uint32Array(),
     );
     runtime.setInstanceVisible(0, false);

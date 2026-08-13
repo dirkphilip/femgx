@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createStructuredFeModel } from "../../demo/benchmark/structured-fe";
 import { createElement, type Element } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
 import {
@@ -10,9 +11,15 @@ import {
   TET4_SHAPE,
 } from "../../src/elements/shapes";
 import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
+import { createPart } from "../../src/geometry/part";
 import { resolvePick } from "../../src/picking/pick";
+import { buildMeshEdgeData } from "../../src/renderer/gpu-edge";
+import { buildPrimitiveFaceBodyPickData } from "../../src/renderer/gpu-pick-ids";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import {
+  BENCH_BODY_COUNT,
+  BENCH_BODY_ELEMENT_COUNT,
+  BENCH_BODY_GRID_CELLS,
   BENCH_HIERARCHY_DEPTH,
   BENCH_HIERARCHY_FANOUT,
   BENCH_HIERARCHY_INSTANCE_COUNT,
@@ -22,6 +29,8 @@ import {
   BENCH_PLACEMENTS_PER_SUBCASE,
   BENCH_SUBCASE_COUNT,
   makeHierarchyScene,
+  makeBodyGeometry,
+  makeBodies,
   makeScene,
 } from "./fixtures";
 import { measureMs } from "./measure";
@@ -48,6 +57,9 @@ const runtimeInstances = Array.from(runtime.getDrawList(), (slot, index) => ({
 }));
 
 const heterogeneousModel = makeHeterogeneousModel(100);
+const bodyGeometry = makeBodyGeometry();
+const bodyModel = createStructuredFeModel("quad", BENCH_BODY_GRID_CELLS);
+const bodies = makeBodies(bodyModel.elements.length, BENCH_BODY_COUNT);
 
 const PICK_COUNT = 50_000;
 const pickIds: number[] = [];
@@ -167,6 +179,38 @@ const budgets: readonly BudgetCase[] = [
     budgetMs: 500,
     run: () => {
       heterogeneousElementParts({ triangle: 901, line: 902, point: 903 }, heterogeneousModel);
+    },
+  },
+  {
+    name: "createPart (body-heavy)",
+    description: `${BENCH_BODY_ELEMENT_COUNT} elements across ${BENCH_BODY_COUNT} bodies`,
+    budgetMs: 100,
+    run: () => {
+      createPart(904, bodyGeometry);
+    },
+  },
+  {
+    name: "buildPrimitiveFaceBodyPickData",
+    description: `${BENCH_BODY_ELEMENT_COUNT} elements across ${BENCH_BODY_COUNT} bodies`,
+    budgetMs: 25,
+    run: () => {
+      buildPrimitiveFaceBodyPickData(bodyGeometry);
+    },
+  },
+  {
+    name: "buildMeshEdgeData (body-heavy)",
+    description: `${BENCH_BODY_ELEMENT_COUNT} elements across ${BENCH_BODY_COUNT} bodies`,
+    budgetMs: 600,
+    run: () => {
+      buildMeshEdgeData(bodyGeometry);
+    },
+  },
+  {
+    name: "heterogeneousElementParts (body-heavy)",
+    description: `${BENCH_BODY_ELEMENT_COUNT} FE quads across ${BENCH_BODY_COUNT} bodies`,
+    budgetMs: 600,
+    run: () => {
+      heterogeneousElementParts({ triangle: 905 }, bodyModel, { bodies });
     },
   },
 ];

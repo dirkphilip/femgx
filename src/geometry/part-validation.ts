@@ -124,7 +124,7 @@ function capitalize(value: string): string {
  * id order so the read-only representation is deterministic.
  */
 export function validateBodies(geometry: {
-  readonly elements?: readonly ElementTessellation[];
+  readonly elements?: readonly Pick<ElementTessellation, "id" | "bodyId">[];
   readonly bodies?: readonly Body[];
 }): void {
   const bodies = geometry.bodies;
@@ -137,7 +137,9 @@ export function validateBodies(geometry: {
   validateElementMembership(geometry.elements ?? [], membership.declaredBodies, membership.ids);
 }
 
-function validateElementsWithoutBodies(elements: readonly ElementTessellation[]): void {
+function validateElementsWithoutBodies(
+  elements: readonly Pick<ElementTessellation, "id" | "bodyId">[],
+): void {
   for (const element of elements) {
     if (element.bodyId === undefined) continue;
     throw new GeometryValidationError(
@@ -219,7 +221,7 @@ function collectBodyElements(
 }
 
 function validateElementMembership(
-  elements: readonly ElementTessellation[],
+  elements: readonly Pick<ElementTessellation, "id" | "bodyId">[],
   declaredBodies: ReadonlySet<BodyId>,
   membership: ReadonlyMap<ElementId, BodyId>,
 ): void {
