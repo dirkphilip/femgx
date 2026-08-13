@@ -20,8 +20,6 @@ The internal packed representation stores, in typed arrays indexed by private
 slots:
 
 - world transforms (`instanceWorldTransforms`, 16 floats per instance),
-- local placement transforms (`instanceLocalTransforms`) and composed node
-  transforms (`nodeLocalTransforms`/`nodeWorldTransforms`, 16 floats each),
 - part references (`instancePartIds`),
 - a compiled assembly tree (`nodeParents`, `nodeFirstChild`, `nodeNextSibling`)
   with per-node authoring/effective visibility, and
@@ -38,6 +36,11 @@ The packed compiler is the only placement-path algorithm and updates persistent
 runtime state in place after the initial compile. Stable placement paths are
 resolved through runtime-owned reverse maps; callers never need to know the
 slot layout.
+
+Node placement transforms are composed transiently while the scene draft is
+walked and are not retained in packed or public runtime state. Instance world
+transforms remain because rendering, bounds, picking, and result deformation
+consume the placed-part transform directly.
 
 ## Internal visibility deltas
 

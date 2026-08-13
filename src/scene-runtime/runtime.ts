@@ -36,10 +36,6 @@ interface RuntimeMethods {
   getNodeSlot(nodeId: AssemblyNodeId): number | undefined;
   /** Returns the world transform of an instance as a matrix view. */
   getTransform(instanceId: number): Mat4 | undefined;
-  /** Returns the local placement transform of a node as a matrix view. */
-  getNodeTransform(nodeId: number): Mat4 | undefined;
-  /** Returns the world transform of a node as a matrix view. */
-  getNodeWorldTransform(nodeId: number): Mat4 | undefined;
   isInstanceVisible(instanceId: number): boolean;
   /** Returns the precomputed instance slots belonging to a part. */
   getPartInstanceSlots(partId: PartId): Uint32Array;
@@ -135,12 +131,6 @@ function createRuntimeQueries(
     },
     getTransform(instanceId: number): Mat4 | undefined {
       return matrixView(state.instanceWorldTransforms, state.instanceCount, instanceId);
-    },
-    getNodeTransform(nodeId: number): Mat4 | undefined {
-      return matrixView(state.nodeLocalTransforms, state.nodeCount, nodeId);
-    },
-    getNodeWorldTransform(nodeId: number): Mat4 | undefined {
-      return matrixView(state.nodeWorldTransforms, state.nodeCount, nodeId);
     },
     isInstanceVisible(instanceId: number): boolean {
       return (

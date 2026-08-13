@@ -17,8 +17,6 @@ export interface NodeDraft {
   instanceEnd: number;
   readonly visible: 0 | 1;
   readonly effective: 0 | 1;
-  readonly local: Mat4;
-  readonly world: Mat4;
 }
 
 /** Mutable intermediate for a part placement, including its placement path. */
@@ -27,7 +25,6 @@ export interface InstanceDraft {
   readonly owningNode: number;
   readonly partVisible: 0 | 1;
   readonly effective: 0 | 1;
-  readonly local: Mat4;
   readonly world: Mat4;
   readonly instanceId: string;
 }
@@ -74,19 +71,12 @@ class DraftWriter {
       owningNode: nodeIndex,
       partVisible,
       effective: effective === 1 && partVisible === 1 ? 1 : 0,
-      local: placement.transform,
       world,
       instanceId: path,
     });
   }
 
-  private pushNode(
-    assemblyId: AssemblyId,
-    parent: number,
-    local: Mat4,
-    world: Mat4,
-    nodeId: AssemblyNodeId,
-  ): number {
+  private pushNode(assemblyId: AssemblyId, parent: number, nodeId: AssemblyNodeId): number {
     const parentEffective: 0 | 1 =
       parent === -1 ? 1 : invariantValue(this.nodes[parent], `parent node at ${parent}`).effective;
     const visible: 0 | 1 = this.visibleAssemblyIds.has(assemblyId) ? 1 : 0;
@@ -103,8 +93,6 @@ class DraftWriter {
       instanceEnd: -1,
       visible,
       effective,
-      local,
-      world,
     });
     if (parent !== -1) {
       linkChild(this.nodes, parent, nodeIndex);
@@ -113,8 +101,8 @@ class DraftWriter {
   }
 
   /** Compiles every assembly expansion with an explicit depth-first stack. */
-  public walk(assemblyId: AssemblyId, local: Mat4, world: Mat4, path: string): void {
-    const root = this.pushNode(assemblyId, -1, local, world, path);
+  public walk(assemblyId: AssemblyId, world: Mat4, path: string): void {
+    const root = this.pushNode(assemblyId, -1, path);
     const stack: WalkItem[] = [{ nodeIndex: root, assemblyId, world, path, nextPlacement: 0 }];
     while (stack.length > 0) {
       const item = invariantValue(stack[stack.length - 1], "assembly walk stack entry");
@@ -147,13 +135,7 @@ class DraftWriter {
         this.pushPart(item.nodeIndex, placement, placementWorld, placementPath, node.effective);
         continue;
       }
-      const child = this.pushNode(
-        placement.assemblyId,
-        item.nodeIndex,
-        placement.transform,
-        placementWorld,
-        placementPath,
-      );
+      const child = this.pushNode(placement.assemblyId, item.nodeIndex, placementPath);
       stack.push({
         nodeIndex: child,
         assemblyId: placement.assemblyId,
@@ -182,6 +164,6 @@ export function buildSceneDrafts(scene: Scene): {
   instances: InstanceDraft[];
 } {
   const writer = new DraftWriter(scene);
-  writer.walk(scene.rootAssemblyId, identity(), identity(), String(scene.rootAssemblyId));
+  writer.walk(scene.rootAssemblyId, identity(), String(scene.rootAssemblyId));
   return { nodes: writer.nodes, instances: writer.instances };
 }
