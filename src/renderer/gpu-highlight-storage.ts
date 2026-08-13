@@ -116,6 +116,7 @@ function growHighlightStorage(
   storage.highlight = grown;
   storage.bindGroup = undefined;
   storage.edgeBindGroup = undefined;
+  storage.transparentBindGroup = undefined;
   storage.selectionBindGroup = undefined;
   storage.nodeSelectionBindGroup = undefined;
 }
@@ -156,6 +157,7 @@ interface HighlightTarget {
   highlight: HighlightStorage;
   bindGroup: GPUBindGroup | undefined;
   edgeBindGroup: GPUBindGroup | undefined;
+  transparentBindGroup: GPUBindGroup | undefined;
   selectionBindGroup: GPUBindGroup | undefined;
   nodeSelectionBindGroup: GPUBindGroup | undefined;
 }
