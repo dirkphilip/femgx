@@ -242,11 +242,18 @@ test("renders complete point sprites with authored node picks", async ({ page })
   await page
     .locator('[data-femgx-orientation-gizmo="true"]')
     .evaluate((gizmo) => ((gizmo as HTMLElement).style.visibility = "hidden"));
-
   const pointVisibility = page.locator("input[data-instance-id]");
   await expect(pointVisibility).toHaveCount(10);
   for (let index = 1; index < 10; index += 1) await pointVisibility.nth(index).uncheck();
   await page.getByTestId("fit-view").click();
+  // The toolbar overlays the canvas and covers the three highest fitted points;
+  // hide it after fitting so this pixel contract measures authored sprites, not
+  // DOM occlusion.
+  await page.locator(".toolbar").evaluate((toolbar) => {
+    const element = toolbar as HTMLElement;
+    element.style.opacity = "0";
+    element.style.pointerEvents = "none";
+  });
 
   const canvas = page.getByTestId("view-canvas");
   const box = await canvas.boundingBox();
@@ -289,7 +296,9 @@ test("renders complete point sprites with authored node picks", async ({ page })
     }
   }
 
-  const firstPoint = components[0];
+  // Keep the pick probe below the transparent toolbar; this checks the same
+  // authored point path without depending on browser hit routing at its edge.
+  const firstPoint = components.find((bounds) => bounds.minY > 132) ?? components[0];
   if (firstPoint === undefined) throw new Error("point sprite coverage has no first glyph");
   await canvas.evaluate((node) => {
     (node as HTMLElement).dataset["hovered"] = "";
