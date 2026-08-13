@@ -15,6 +15,7 @@ export interface Color {
 /** Partial per-instance style written into the GPU instance buffer. */
 export interface StyleOverride {
   readonly color?: Color;
+  /** Normalized emissive boost in the supported range `[0, 1]`. */
   readonly emissive?: number;
   readonly opacity?: number;
   /** Whether the instance's mesh edges are overlaid as lines on its surface. */
@@ -36,6 +37,7 @@ export function validateStyleOverride(override: StyleOverride | undefined): void
     throw new TypeError("nodes must be a boolean");
   }
   if (override.opacity !== undefined) validateUnit("opacity", override.opacity);
+  if (override.emissive !== undefined) validateUnit("emissive", override.emissive);
   if (override.color !== undefined) {
     validateUnit("color.r", override.color.r);
     validateUnit("color.g", override.color.g);

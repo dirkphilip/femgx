@@ -11,17 +11,23 @@ describe("createScalarColorMap", () => {
     expect(map.thresholds).toBeUndefined();
   });
 
-  it("sorts stops by ascending offset", () => {
+  it("canonicalizes valid stops and thresholds without mutating caller arrays", () => {
+    const stops = [
+      { offset: 1, color: { r: 1, g: 0, b: 0, a: 1 } },
+      { offset: 0, color: { r: 0, g: 0, b: 1, a: 1 } },
+    ];
+    const thresholds = [7, 3];
     const map = createScalarColorMap({
       min: 0,
       max: 10,
-      stops: [
-        { offset: 1, color: { r: 1, g: 0, b: 0, a: 1 } },
-        { offset: 0, color: { r: 0, g: 0, b: 1, a: 1 } },
-      ],
+      stops,
+      thresholds,
     });
     expect(map.stops[0]?.offset).toBe(0);
     expect(map.stops[1]?.offset).toBe(1);
+    expect(map.thresholds).toEqual([3, 7]);
+    expect(stops.map((stop) => stop.offset)).toEqual([1, 0]);
+    expect(thresholds).toEqual([7, 3]);
   });
 
   it("keeps a custom missing color", () => {
@@ -50,6 +56,68 @@ describe("createScalarColorMap", () => {
     expect(() => createScalarColorMap({ min: 0, max: 10, thresholds: [NaN] })).toThrow(
       /strictly inside/,
     );
+    expect(() => createScalarColorMap({ min: 0, max: 10, thresholds: [3, 3] })).toThrow(
+      /strictly increasing/,
+    );
+  });
+
+  it("rejects empty and invalid stops or missing colors", () => {
+    const validColor = { r: 0, g: 0, b: 0, a: 1 };
+    expect(() => createScalarColorMap({ min: 0, max: 1, stops: [] })).toThrow(/at least one stop/);
+    for (const offset of [NaN, Infinity, -Infinity, -0.1, 1.1]) {
+      expect(() =>
+        createScalarColorMap({
+          min: 0,
+          max: 1,
+          stops: [{ offset, color: validColor }],
+        }),
+      ).toThrow(/stops\[0\]\.offset must be finite and in \[0, 1\]/);
+    }
+    expect(() =>
+      createScalarColorMap({
+        min: 0,
+        max: 1,
+        stops: [
+          { offset: 0.5, color: validColor },
+          { offset: 0.5, color: validColor },
+        ],
+      }),
+    ).toThrow(/stop offsets must be strictly increasing/);
+
+    for (const channel of ["r", "g", "b", "a"] as const) {
+      for (const value of [NaN, Infinity, -Infinity, -0.1, 1.1]) {
+        const color = { ...validColor, [channel]: value };
+        expect(() =>
+          createScalarColorMap({
+            min: 0,
+            max: 1,
+            stops: [{ offset: 0, color }],
+          }),
+        ).toThrow(new RegExp(`stops\\[0\\]\\.color\\.${channel}`));
+      }
+    }
+    for (const channel of ["r", "g", "b", "a"] as const) {
+      for (const value of [NaN, Infinity, -Infinity, -0.1, 1.1]) {
+        const missingColor = { ...validColor, [channel]: value };
+        expect(() => createScalarColorMap({ min: 0, max: 1, missingColor })).toThrow(
+          new RegExp(`missingColor\\.${channel}`),
+        );
+      }
+    }
+  });
+
+  it("accepts normalized stop and color boundaries", () => {
+    expect(() =>
+      createScalarColorMap({
+        min: 0,
+        max: 1,
+        stops: [
+          { offset: 0, color: { r: 0, g: 0, b: 0, a: 0 } },
+          { offset: 1, color: { r: 1, g: 1, b: 1, a: 1 } },
+        ],
+        missingColor: { r: 0, g: 1, b: 0, a: 1 },
+      }),
+    ).not.toThrow();
   });
 });
 
