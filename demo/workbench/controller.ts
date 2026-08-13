@@ -15,6 +15,7 @@ import { installWorkbenchLifecycle } from "./lifecycle";
 import { createModelInteraction } from "./preset";
 import {
   createImportedModel,
+  clearModelFeedback,
   clearModelInspection,
   displayFileName,
   errorMessage,
@@ -287,7 +288,31 @@ export class WorkbenchController {
   setModel(id: string): void {
     const model = this.examples.find((candidate) => candidate.id === id);
     if (model === undefined || model.id === this.model.id) return;
+    if (model.deferredLoad !== undefined) {
+      void this.loadDeferredModel(model);
+      return;
+    }
     this.activateModel(model);
+  }
+
+  private async loadDeferredModel(model: WorkbenchModel): Promise<void> {
+    const generation = ++this.loadGeneration;
+    setModelLoading(this.view, true);
+    setModelFeedback(this.view, `Building ${model.name}…`);
+    try {
+      const loaded = await model.deferredLoad?.();
+      if (loaded === undefined || this.disposed || generation !== this.loadGeneration) return;
+      this.activateModel(loaded);
+    } catch (error) {
+      if (this.disposed || generation !== this.loadGeneration) return;
+      setModelFeedback(
+        this.view,
+        `${model.name} could not be built: ${errorMessage(error)}`,
+        "error",
+      );
+    } finally {
+      if (generation === this.loadGeneration) setModelLoading(this.view, false);
+    }
   }
 
   async openGlb(file: File): Promise<void> {
@@ -467,6 +492,7 @@ export class WorkbenchController {
     this.visibilityPanel.rebuild();
     this.presentation.populateModelSelect(this.models);
     this.canvas.dataset["model"] = model.id;
+    clearModelFeedback(this.view);
     clearModelInspection(this.view, model);
     this.render();
   }

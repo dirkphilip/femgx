@@ -87,16 +87,25 @@ by the normal e2e gate and has no device-dependent pass/fail timing threshold.
 The benchmark fixes the canvas at 800×600 device pixels and DPR 1, requests a
 high-performance WebGPU adapter, performs two untimed warmups, and reports p50
 and p95 from seven timed samples. Set `RUN_PERF_LARGE=1` to include the bounded
-2-million-unique-triangle local case in addition to the default cases:
+2-million-unique-triangle local case in addition to the default cases. The
+default matrix is bounded but covers separate geometry, part/batch,
+placement/instance, and body-interaction dimensions; the local-only case is
+kept out of normal runs:
 
-| Case              | Unique triangles | Instances | Submitted triangles |
-| ----------------- | ---------------: | --------: | ------------------: |
-| `instanced-2.10m` |           32,768 |        64 |           2,097,152 |
-| `unique-250k`     |          250,632 |         1 |             250,632 |
-| `unique-1m`       |          999,698 |         1 |             999,698 |
-| `unique-2m-local` |        2,000,000 |         1 |           2,000,000 |
+| Case              | Dimension                    |                 Geometry/parts | Instances | Submitted triangles |
+| ----------------- | ---------------------------- | -----------------------------: | --------: | ------------------: |
+| `instanced-2.10m` | reusable geometry            |        32,768 unique triangles |        64 |           2,097,152 |
+| `unique-250k`     | unique geometry              |     250,632 triangles / 1 part |         1 |             250,632 |
+| `unique-1m`       | unique geometry              |     999,698 triangles / 1 part |         1 |             999,698 |
+| `many-parts-100`  | distinct parts               |   ~1.01M triangles / 100 parts |       100 |              ~1.01M |
+| `many-parts-1000` | distinct parts               | ~0.97M triangles / 1,000 parts |     1,000 |              ~0.97M |
+| `placements-10k`  | placements/instances         |         128 triangles / 1 part |    10,000 |           1,280,000 |
+| `bodies-256`      | body interaction             |   2,048 triangles / 256 bodies |         1 |               2,048 |
+| `unique-2m-local` | unique geometry (local-only) |   2,000,000 triangles / 1 part |         1 |           2,000,000 |
 
-Each iteration creates a fresh renderer over the same deterministic scene. It
+The planar-grid generator is shared by the visual performance fixture and the
+benchmark case factory, so their geometry/count conventions cannot drift. Each
+iteration creates a fresh renderer over the same deterministic scene. It
 drains `GPUQueue.onSubmittedWorkDone()` around the initial upload/first frame
 and steady visible frame. The upload/attachment estimate is their difference.
 After priming reusable pick targets and applying a camera-reference
@@ -115,14 +124,16 @@ benchmark until an explicitly owned real-GPU runner exists.
 
 ## Interactive WebGPU inspection case
 
-The full-screen demo exposes a deliberately demo-owned `Performance · 2.10M
-triangles` model through the normal model selector. `demo/fixture/performance-fixture.ts`
-generates one 128 × 128 shell and places it 64 times, exercising reusable geometry
-and GPU instancing at exactly 2,097,152 submitted triangles without a second
-renderer or a checked-in mesh asset. The demo remains idle by default and renders
-only after viewport invalidation. Its diagnostics distinguish the 32,768 unique
-triangles from 2,097,152 submitted triangles. It is a manual visual inspection
-case; the opt-in benchmark above owns reproducible cost breakdowns.
+The full-screen demo exposes the bounded benchmark matrix through the normal
+model selector. `demo/benchmark/model.ts` and the shared
+`demo/fixture/planar-grid.ts` generator define the same deterministic cases for
+the selector and the opt-in benchmark. Matrix entries are lazy selector items:
+ordinary startup creates no large benchmark geometry, and selecting one builds
+it through the normal `Scene` → runtime → `FemViewport` path. The existing
+`Performance · 2.10M triangles` preset remains the small eagerly registered
+showcase; its diagnostics distinguish the 32,768 unique triangles from
+2,097,152 submitted triangles. The selector entries are for visual inspection;
+the opt-in benchmark above owns reproducible cost breakdowns.
 
 The toolbar's **Continuous** control is a separate, explicit inspection aid and
 is off by default. While enabled, the demo chains one `FemViewport.invalidate()`
