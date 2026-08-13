@@ -107,15 +107,19 @@ resolved opacity, while node annotation membership is controlled by
 part/instance style flags and Point parts use their primary glyph without a
 duplicate overlay.
 
-Every viewport also renders one renderer-owned positive world-origin X/Y/Z
-triad. Its nominal positive-axis length is 56 CSS pixels, converted to
-world-space at the origin's current camera depth each visible frame; it remains
-out of scene identity, bounds, interaction, results, and picking, and uses
-opaque depth-visible fragments plus a fixed-alpha weighted-transparency ghost
-behind opaque geometry. World-axis foreshortening remains camera-dependent. The
-triad is presentation behavior, not a public helper-material or visibility API;
-the lower-left orientation gizmo and temporary orbit pivot remain separate
-helpers.
+Every viewport renders one renderer-owned positive world-origin X/Y/Z triad by
+default. Hosts may disable it at construction with
+`FemViewportOptions.originTriad: false`. When enabled, its nominal positive-axis
+length is 12% of the complete placed-scene bounds diagonal, resolved once when
+the scene is attached or replaced; it ignores current visibility, deformation,
+camera motion, projection, resize, and device pixel ratio. Each visible frame
+applies a conservative 56 CSS-pixel maximum to the projected positive-axis
+endpoints while preserving ordinary world-axis foreshortening. The triad
+remains out of scene identity, bounds, interaction, results, and picking, and
+uses opaque depth-visible fragments plus a fixed-alpha weighted-transparency
+ghost behind opaque geometry. The triad is presentation behavior, not a public
+helper-material or visibility API; the lower-left orientation gizmo and
+temporary orbit pivot remain separate helpers.
 
 Everything outside the "Core now" rows is **not** a requirement of the minimum
 product.

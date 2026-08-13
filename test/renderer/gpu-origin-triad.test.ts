@@ -8,7 +8,11 @@ import {
   zoomCamera,
   zoomCameraAtPoint,
 } from "../../src/camera/camera";
-import { originTriadDimensions, originTriadScale } from "../../src/renderer/gpu-origin-triad";
+import {
+  originTriadDimensions,
+  originTriadNominalScale,
+  originTriadScale,
+} from "../../src/renderer/gpu-origin-triad";
 
 describe("world-origin triad", () => {
   it("derives finite dimensions from one camera scale", () => {
@@ -22,7 +26,20 @@ describe("world-origin triad", () => {
     expect(originTriadDimensions(Number.NaN).scale).toBeGreaterThan(0);
   });
 
-  it("keeps a camera-plane axis at 56 CSS pixels in perspective", () => {
+  it("derives nominal scale from complete placed bounds", () => {
+    expect(
+      originTriadNominalScale({
+        minX: -2,
+        minY: -1,
+        minZ: 0,
+        maxX: 2,
+        maxY: 1,
+        maxZ: 3,
+      }),
+    ).toBeCloseTo(Math.hypot(4, 2, 3) * 0.12, 8);
+  });
+
+  it("caps every positive axis at 56 CSS pixels in perspective", () => {
     const camera = resizeCamera(
       createCamera({
         mode: "perspective",
@@ -33,10 +50,10 @@ describe("world-origin triad", () => {
       600,
     );
 
-    expect(projectedAxisLength(camera, [0, 1, 0])).toBeCloseTo(56, 4);
+    expect(maxProjectedAxisLength(camera, 10)).toBeLessThanOrEqual(56);
   });
 
-  it("preserves the CSS-pixel length through perspective depth changes", () => {
+  it("lets a nominal axis shrink when perspective zooms out", () => {
     const camera = resizeCamera(
       createCamera({
         mode: "perspective",
@@ -52,12 +69,17 @@ describe("world-origin triad", () => {
       zoomCameraAtPoint(camera, -0.5, [2, 0, 0]),
     ];
 
-    for (const variant of variants) {
-      expect(projectedAxisLength(variant, [0, 1, 0])).toBeCloseTo(56, 4);
-    }
+    const nominalScale = 1;
+    const zoomedOut = variants[1];
+    if (zoomedOut === undefined) throw new Error("zoomed-out camera is missing");
+    expect(maxProjectedAxisLength(zoomedOut, nominalScale)).toBeLessThan(
+      maxProjectedAxisLength(camera, nominalScale),
+    );
+    for (const variant of variants)
+      expect(maxProjectedAxisLength(variant, 10)).toBeLessThanOrEqual(56);
   });
 
-  it("preserves the CSS-pixel length through orthographic zoom, projection, and resize", () => {
+  it("caps orthographic axes independently of zoom, projection, and resize", () => {
     const perspective = resizeCamera(
       createCamera({
         mode: "perspective",
@@ -75,7 +97,7 @@ describe("world-origin triad", () => {
       zoomCamera(orthographic, 0.8),
       resizeCamera(orthographic, 1200, 900),
     ]) {
-      expect(projectedAxisLength(variant, [0, 1, 0])).toBeCloseTo(56, 4);
+      expect(maxProjectedAxisLength(variant, 10)).toBeLessThanOrEqual(56);
     }
   });
 
@@ -89,10 +111,12 @@ describe("world-origin triad", () => {
       800,
       600,
     );
-    const scale = originTriadScale(camera);
+    const scale = originTriadScale(camera, 10);
 
-    expect(projectedAxisLength(camera, [1, 0, 0], scale)).toBeCloseTo(56, 4);
-    expect(projectedAxisLength(camera, [0, 0, 1], scale)).toBeCloseTo(0, 8);
+    expect(projectedAxisLength(camera, [1, 0, 0], scale)).toBeGreaterThan(
+      projectedAxisLength(camera, [0, 0, 1], scale),
+    );
+    expect(maxProjectedAxisLength(camera, 10)).toBeLessThanOrEqual(56);
   });
 
   it.each([
@@ -120,4 +144,12 @@ function projectedAxisLength(
   const endpoint = projectPoint(camera, [axis[0] * scale, axis[1] * scale, axis[2] * scale]);
   if (origin === undefined || endpoint === undefined) return Number.NaN;
   return Math.hypot(endpoint[0] - origin[0], endpoint[1] - origin[1]);
+}
+
+function maxProjectedAxisLength(camera: Camera, nominalScale: number): number {
+  return Math.max(
+    projectedAxisLength(camera, [1, 0, 0], originTriadScale(camera, nominalScale)),
+    projectedAxisLength(camera, [0, 1, 0], originTriadScale(camera, nominalScale)),
+    projectedAxisLength(camera, [0, 0, 1], originTriadScale(camera, nominalScale)),
+  );
 }

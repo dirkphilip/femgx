@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- the canonical viewport facade keeps lifecycle ownership together. */
 import { assertValidCamera, createCamera, resizeCamera, type Camera } from "../camera/camera";
 import { installCameraControlsWithProtectedBounds } from "../camera/controls";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
@@ -13,17 +14,20 @@ import type { PartId } from "../geometry/part";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { sceneWorldBounds, sceneWorldBoundsList } from "./scene-bounds";
-import { cssSize, installResize, installViewportKeyboard, validateOrientationGizmo } from "./dom";
+import {
+  assertViewportBackground,
+  cssSize,
+  installResize,
+  installViewportKeyboard,
+  validateOrientationGizmo,
+} from "./dom";
 import { CameraFocusController } from "./camera-focus";
+import { flushViewportBatch } from "./batch";
+import { assertOriginTriad, sceneOriginTriadScale } from "./origin-triad";
 import type { DeformationState } from "../results/deform";
 import { createOrientationGizmo, type OrientationGizmoHandle } from "./orientation-gizmo";
-import {
-  resolveViewportInteraction,
-  resolveViewportResults,
-  viewportResultColors,
-  type ViewportResultsConfig,
-  type ViewportResultsState,
-} from "./results";
+import { type ViewportResultsConfig, type ViewportResultsState } from "./results";
+import { applyViewportResults, resolveViewportInteractionState } from "./results-application";
 import type {
   CameraTransitionOptions,
   FemViewport,
@@ -35,6 +39,7 @@ export type { FemViewport, FemViewportOptions, ViewportBackground } from "./type
 /** Creates a fitted, interactive FEM viewport backed only by WebGPU. */
 export async function createFemViewport(options: FemViewportOptions): Promise<FemViewport> {
   assertViewportBackground(options.background);
+  assertOriginTriad(options.originTriad);
   validateOrientationGizmo(options.canvas, options.orientationGizmo);
   const owner: { viewport?: FemViewportCore } = {};
   let pendingLoss: DeviceLostInfo | undefined;
@@ -48,6 +53,7 @@ export async function createFemViewport(options: FemViewportOptions): Promise<Fe
       else owner.viewport.handleDeviceLoss();
     },
     ...(options.background === undefined ? {} : { background: options.background }),
+    ...(options.originTriad === undefined ? {} : { originTriad: options.originTriad }),
   });
   owner.viewport = new FemViewportCore(options, renderer);
   if (pendingLoss !== undefined) owner.viewport.handleDeviceLoss();
@@ -76,6 +82,7 @@ class FemViewportCore implements FemViewport {
   private destroyed = false;
   private autoFitOnResize = false;
   private background: ViewportBackground;
+  private originTriadNominalScale: number;
 
   constructor(
     private readonly options: FemViewportOptions,
@@ -84,6 +91,7 @@ class FemViewportCore implements FemViewport {
     this.currentScene = options.scene;
     this.background = options.background ?? "studio";
     this.currentRuntime = createPackedSceneRuntime(options.scene);
+    this.originTriadNominalScale = sceneOriginTriadScale(options.scene, this.currentRuntime);
     this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
     this.effectiveInteraction = this.baseInteraction =
       options.interaction ?? createInteractionState();
@@ -172,6 +180,7 @@ class FemViewportCore implements FemViewport {
     this.cameraFocus.cancel();
     this.currentScene = scene;
     this.currentRuntime = createPackedSceneRuntime(scene);
+    this.originTriadNominalScale = sceneOriginTriadScale(scene, this.currentRuntime);
     this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
     this.pendingVisibility.clear();
     this.currentResults = undefined;
@@ -205,7 +214,7 @@ class FemViewportCore implements FemViewport {
   setInteraction(interaction: InteractionState): void {
     this.ensureAlive();
     this.baseInteraction = interaction;
-    this.effectiveInteraction = resolveViewportInteraction(
+    this.effectiveInteraction = resolveViewportInteractionState(
       interaction,
       this.currentResults,
       this.currentScene,
@@ -333,7 +342,12 @@ class FemViewportCore implements FemViewport {
     this.renderer.updateInstances(this.currentRuntime, this.effectiveInteraction, changed);
     this.renderer.updateElements(this.currentRuntime, this.effectiveInteraction);
     this.orientationGizmo?.update(this.cameraRef.camera);
-    this.renderer.render(this.currentRuntime, this.cameraRef.camera, this.currentScene.parts);
+    this.renderer.render(
+      this.currentRuntime,
+      this.cameraRef.camera,
+      this.currentScene.parts,
+      this.originTriadNominalScale,
+    );
     this.appliedInteraction = this.effectiveInteraction;
     this.options.onRender?.();
   }
@@ -392,36 +406,29 @@ class FemViewportCore implements FemViewport {
   }
 
   private flushBatch(): void {
-    if (this.pendingVisibility.size > 0) {
-      const changed = [...this.pendingVisibility].sort((a, b) => a - b);
-      this.pendingVisibility.clear();
-      this.renderer.updateVisibility(this.currentRuntime, changed);
-    }
-    if (this.batchDirty) {
-      this.batchDirty = false;
-      this.invalidate();
-    }
+    flushViewportBatch({
+      pendingVisibility: this.pendingVisibility,
+      batchDirty: this.batchDirty,
+      runtime: this.currentRuntime,
+      renderer: this.renderer,
+      invalidate: this.invalidate.bind(this),
+    });
+    this.batchDirty = false;
   }
 
   private applyResults(results: ViewportResultsConfig): void {
-    const resolved = resolveViewportResults(results, this.currentScene, this.currentRuntime);
-    this.currentResults = resolved;
-    this.effectiveInteraction = resolveViewportInteraction(
-      this.baseInteraction,
-      this.currentResults,
+    const applied = applyViewportResults(
+      results,
       this.currentScene,
       this.currentRuntime,
+      this.baseInteraction,
+      this.renderer,
     );
-    this.renderer.setDeformation(resolved.deformation);
-    this.renderer.setResultColors(viewportResultColors(resolved));
+    this.currentResults = applied.results;
+    this.effectiveInteraction = applied.interaction;
   }
 
   private ensureAlive(): void {
     if (this.destroyed) throw new Error("FemViewport has been destroyed");
   }
-}
-
-function assertViewportBackground(value: unknown): asserts value is ViewportBackground | undefined {
-  if (value === undefined || value === "studio" || value === "white" || value === "dark") return;
-  throw new Error("Invalid viewport background; expected studio, white, or dark");
 }

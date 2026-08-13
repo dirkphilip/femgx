@@ -124,6 +124,9 @@ describe("FemViewport", () => {
     await expect(
       createFemViewport({ canvas: fakeCanvas(), scene: scene(), background: "invalid" as never }),
     ).rejects.toThrow("Invalid viewport background");
+    await expect(
+      createFemViewport({ canvas: fakeCanvas(), scene: scene(), originTriad: "invalid" as never }),
+    ).rejects.toThrow("Invalid originTriad");
   });
 
   it("rejects an orientation gizmo container that does not contain the canvas before setup", async () => {

@@ -52,6 +52,10 @@ export interface FrameOptions {
   readonly resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
   /** Active world-space camera spin pivot. */
   readonly orbitPivot: readonly [number, number, number] | undefined;
+  /** Whether the construction-time world-origin triad is enabled. */
+  readonly originTriadEnabled: boolean;
+  /** Stable bounds-derived world scale before the per-camera cap. */
+  readonly originTriadNominalScale: number;
   /** Current display density used by fixed-size presentation helpers. */
   readonly devicePixelRatio: number;
 }
@@ -81,7 +85,13 @@ export function encodeVisibleFrame(
   frame: FrameOptions,
 ): void {
   writeFrameUniforms(camera, frame);
-  writeOriginTriad(frame.device, frame.resources.originTriad, originTriadScale(camera));
+  if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
+    writeOriginTriad(
+      frame.device,
+      frame.resources.originTriad,
+      originTriadScale(camera, frame.originTriadNominalScale),
+    );
+  }
   const orbitPivotActive = writeOrbitPivot(frame.device, frame.resources.orbitPivot, {
     point: frame.orbitPivot,
     camera,
@@ -107,7 +117,9 @@ export function encodeVisibleFrame(
   opaquePass.setBindGroup(1, frame.resources.background.bindGroup);
   opaquePass.draw(3);
   drawBatches(opaquePass, frame.draw, context, frame.calls, { kind: "surface", pass: "color" });
-  drawOriginTriad(opaquePass, frame.resources.originTriad, "visible");
+  if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
+    drawOriginTriad(opaquePass, frame.resources.originTriad, "visible");
+  }
   drawBatches(opaquePass, frame.draw, context, frame.calls, {
     kind: "surface",
     pass: "color",
@@ -145,7 +157,9 @@ function drawTransparencyPass(
     });
   }
   drawSelectionPass(pass, frame, context, "selection-hidden");
-  drawOriginTriad(pass, frame.resources.originTriad, "hidden");
+  if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
+    drawOriginTriad(pass, frame.resources.originTriad, "hidden");
+  }
   if (orbitPivotActive) drawOrbitPivot(pass, frame.resources.orbitPivot, "hidden");
   pass.end();
 }

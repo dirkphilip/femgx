@@ -6,6 +6,7 @@ import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createScene } from "../../src/scene/scene";
 import { padDegenerateBounds } from "../../src/viewport/geometry-bounds";
 import {
+  scenePlacedBounds,
   sceneWorldBounds,
   sceneWorldBoundsList,
   selectedSceneBounds,
@@ -122,6 +123,7 @@ describe("viewport scene bounds", () => {
     runtime.setInstanceVisible(1, false);
     expect(sceneWorldBoundsList(scene, runtime)).toHaveLength(1);
     expect(sceneWorldBounds(scene, runtime)).toMatchObject({ minX: 0, maxX: 1 });
+    expect(scenePlacedBounds(scene, runtime)).toMatchObject({ minX: 0, maxX: 11 });
     expect(selectedSceneBounds(scene, runtime, interaction)).toMatchObject({
       minX: 0,
       maxX: 1,

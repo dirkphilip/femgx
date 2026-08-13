@@ -182,6 +182,11 @@ viewport.destroy();
 or `"dark"`); it defaults to `"studio"`. `setBackground()` changes that preset without
 rebuilding the viewport or affecting depth, picking, interaction, or result rendering.
 
+The renderer-owned world-origin X/Y/Z triad is enabled by default. Set
+`originTriad: false` when creating a viewport to suppress it; the enabled triad
+uses complete placed-scene bounds for its nominal size and caps projected axes at
+56 CSS pixels.
+
 `orientationGizmo` is optional. When enabled, femgx creates the accessible,
 interactive view-cube SVG inside the supplied container. Its six named faces,
 eight signed corners, four pitch/yaw arrows, and two clockwise/counterclockwise

@@ -36,6 +36,7 @@ export class GpuRenderer implements WebGpuRenderer {
   private readonly depthFormat: GPUTextureFormat;
   private readonly lifecycle: GpuDeviceLifecycle;
   private readonly pointSize: number;
+  private readonly originTriadEnabled: boolean;
   private background: ViewportBackground;
   private readonly attachment = new RendererAttachment();
   private parts = new Map<PartId, Part>();
@@ -46,6 +47,7 @@ export class GpuRenderer implements WebGpuRenderer {
   private orbitPivot: Vec3 | undefined;
   private deformation: DeformationState | undefined;
   private resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
+  private originTriadNominalScale = 1;
   private destroyed = false;
 
   public constructor(
@@ -57,6 +59,7 @@ export class GpuRenderer implements WebGpuRenderer {
     this.format = construction.format;
     this.depthFormat = construction.depthFormat;
     this.pointSize = Math.max(1, options.pointSizePixels ?? 8);
+    this.originTriadEnabled = options.originTriad ?? true;
     this.background = options.background ?? "studio";
     this.lifecycle = new GpuDeviceLifecycle({
       bundle: construction.bundle,
@@ -66,6 +69,7 @@ export class GpuRenderer implements WebGpuRenderer {
       powerPreference: options.powerPreference,
       validation: construction.validation,
       ownsDevice: options.device === undefined,
+      originTriad: options.originTriad ?? true,
       onLost: (info) => {
         if (!this.destroyed) options.onDeviceLost?.(info);
       },
@@ -82,8 +86,10 @@ export class GpuRenderer implements WebGpuRenderer {
     runtime: PackedSceneRuntime,
     camera: Camera,
     parts: ReadonlyMap<PartId, Part>,
+    originTriadNominalScale = 1,
   ): void {
     this.ensureAlive();
+    this.originTriadNominalScale = originTriadNominalScale;
     const partsChanged = this.sourceParts !== parts;
     const cameraChanged = this.lastCamera !== camera;
     this.sourceParts = parts;
@@ -300,6 +306,8 @@ export class GpuRenderer implements WebGpuRenderer {
       deformation: this.deformation,
       resultColors: this.resultColors,
       orbitPivot: this.orbitPivot,
+      originTriadEnabled: this.originTriadEnabled,
+      originTriadNominalScale: this.originTriadNominalScale,
       devicePixelRatio,
     };
   }
