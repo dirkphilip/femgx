@@ -15,6 +15,7 @@ import { createPart } from "../../src/geometry/part";
 import { resolvePick } from "../../src/picking/pick";
 import { buildMeshEdgeData } from "../../src/renderer/gpu-edge";
 import { buildPrimitiveFaceBodyPickData } from "../../src/renderer/gpu-pick-ids";
+import { expandSurfaceGeometry } from "../../src/renderer/gpu-surface-geometry";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import {
   BENCH_BODY_COUNT,
@@ -60,6 +61,15 @@ const heterogeneousModel = makeHeterogeneousModel(100);
 const bodyGeometry = makeBodyGeometry();
 const bodyModel = createStructuredFeModel("quad", BENCH_BODY_GRID_CELLS);
 const bodies = makeBodies(bodyModel.elements.length, BENCH_BODY_COUNT);
+const LINE_BENCH_SEGMENTS = 10_000;
+const lineHeavyGeometry = {
+  positions: Float32Array.from({ length: (LINE_BENCH_SEGMENTS + 1) * 3 }, (_, index) => index % 3),
+  indices: Uint32Array.from(
+    { length: LINE_BENCH_SEGMENTS * 2 },
+    (_, index) => Math.floor(index / 2) + (index % 2),
+  ),
+  primitive: "lines" as const,
+};
 
 const PICK_COUNT = 50_000;
 const pickIds: number[] = [];
@@ -179,6 +189,14 @@ const budgets: readonly BudgetCase[] = [
     budgetMs: 500,
     run: () => {
       heterogeneousElementParts({ triangle: 901, line: 902, point: 903 }, heterogeneousModel);
+    },
+  },
+  {
+    name: "expand line geometry",
+    description: `${LINE_BENCH_SEGMENTS} authored segments into reusable quads`,
+    budgetMs: 100,
+    run: () => {
+      expandSurfaceGeometry(lineHeavyGeometry);
     },
   },
   {

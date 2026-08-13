@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { WgslReflect, type StructInfo } from "wgsl_reflect";
-import { EMISSIVE_BYTE_OFFSET, INSTANCE_STRIDE } from "../../src/renderer/gpu-draw";
+import {
+  EMISSIVE_BYTE_OFFSET,
+  INSTANCE_STRIDE,
+  LINE_WIDTH_BYTE_OFFSET,
+} from "../../src/renderer/gpu-draw";
 import { ELEMENT_RECORD_STRIDE, HIGHLIGHT_HEADER } from "../../src/renderer/gpu-elements";
 import { CAMERA_UNIFORM_SIZE } from "../../src/renderer/gpu-pipelines";
 import { DEFORMATION_UNIFORM_SIZE } from "../../src/renderer/gpu-deform";
@@ -14,6 +18,8 @@ import {
 } from "../../src/renderer/gpu-shaders";
 import {
   instanceVertexShader,
+  lineSelectionVertexShader,
+  lineVertexShader,
   pointVertexShader,
   selectionVertexShader,
 } from "../../src/renderer/gpu-instanced-shaders";
@@ -115,6 +121,7 @@ function memberOffsets(info: StructInfo): ReadonlyMap<string, number> {
 /** Vertex shaders that embed the shared camera and instance record structs. */
 const vertexShaders = [
   ["instanceVertexShader", instanceVertexShader],
+  ["lineVertexShader", lineVertexShader],
   ["pointVertexShader", pointVertexShader],
   ["edgeVertexShader", edgeVertexShader],
 ] as const;
@@ -129,6 +136,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
       expect(offsets.get("color")).toBe(64);
       expect(offsets.get("pickId")).toBe(80);
       expect(offsets.get("emissive")).toBe(EMISSIVE_BYTE_OFFSET);
+      expect(offsets.get("lineWidth")).toBe(LINE_WIDTH_BYTE_OFFSET);
       expect(info.size).toBe(INSTANCE_STRIDE);
     },
   );
@@ -163,6 +171,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
       expect(offsets.get("pointSize")).toBe(72);
       expect(offsets.get("nodeSize")).toBe(76);
       expect(offsets.get("devicePixelRatio")).toBe(80);
+      expect(offsets.get("linePickSize")).toBe(84);
       expect(offsets.get("keyLightDirection")).toBe(96);
       expect(offsets.get("viewDirection")).toBe(112);
       expect(info.size).toBe(CAMERA_UNIFORM_SIZE);
@@ -241,10 +250,10 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     );
     expect(nodePickFragmentShader).toMatch(/edgeScale \* 0\.04/);
     expect(nodePickFragmentShader).toMatch(/bestDist > threshold/);
-    expect(lineNodePickVertexShader).toMatch(/let base = \(vertexIndex - \(vertexIndex % 2u\)\)/);
+    expect(lineNodePickVertexShader).toMatch(/let base = \(vertexIndex - \(vertexIndex % 4u\)\)/);
     expect(lineNodePickVertexShader).toMatch(/primitiveDrawId\(vertexIndex\)/);
     expect(lineNodePickVertexShader).toMatch(/vertexNodePickIds\[base \+ 1u\]/);
-    expect(lineNodePickVertexShader).not.toMatch(/geometryPosition\(base3 \+ 6u\)/);
+    expect(lineNodePickVertexShader).toMatch(/lineExpandedPosition\(/);
     expect(pointNodePickVertexShader).toMatch(/primitiveElementPickIds\[vertexIndex \/ 4u\]/);
     expect(pointNodePickVertexShader).toMatch(/output\.nodePickIds = vec3<u32>/);
   });
@@ -475,6 +484,16 @@ describe("GPU deformation shader contract", () => {
     expect(edgeVertexShader).toMatch(/let topologyIndex = edgeId\(vertexIndex\)/);
     expect(edgeVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
     expect(edgeVertexShader).toMatch(/topologyOwnersVisible\(slot, topologyIndex\)/);
+  });
+
+  it("expands authored lines in screen space while preserving the line-list edge shader", () => {
+    expect(lineVertexShader).toContain("lineExpandedPosition(");
+    expect(lineVertexShader).toContain("instance.lineWidth * camera.devicePixelRatio");
+    expect(lineSelectionVertexShader).toContain("primitiveSelectionVisible");
+    expect(lineVertexShader).not.toContain("primitive: line-list");
+    expect(lineNodePickVertexShader).toContain(
+      "max(instance.lineWidth, camera.linePickSize) * camera.devicePixelRatio",
+    );
   });
 
   it("keeps overlay vertices at their model depth", () => {

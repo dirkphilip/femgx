@@ -24,7 +24,7 @@ describe("GPU render resources", () => {
       const pipelineVertex = (label: string): GPUShaderModule | undefined =>
         gpu.renderPipelineDescriptors.find((descriptor) => descriptor.label === label)?.vertex
           .module;
-      expect(pipelineVertex("triangle color")).toBe(pipelineVertex("line color"));
+      expect(pipelineVertex("triangle color")).not.toBe(pipelineVertex("line color"));
       expect(pipelineVertex("triangle selection visible")).not.toBe(
         pipelineVertex("line selection visible"),
       );

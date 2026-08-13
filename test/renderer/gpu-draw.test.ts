@@ -247,6 +247,7 @@ describe("GPU draw path", () => {
         color: { r: 1, g: 0.5, b: 0.25, a: 1 },
         emissive: 0.4,
         opacity: 0.5,
+        lineWidthPixels: 7,
         edge: false,
         nodes: false,
       },
@@ -261,6 +262,7 @@ describe("GPU draw path", () => {
     expect(floats[19]).toBeCloseTo(0.5);
     expect(ids[20]).toBe(7);
     expect(new Float32Array(data, EMISSIVE_BYTE_OFFSET, 1)[0]).toBeCloseTo(0.4);
+    expect(floats[23]).toBeCloseTo(7);
   });
 
   it("preserves the maximum direct-u32 part identity in instance storage", () => {
@@ -312,6 +314,7 @@ describe("GPU draw path", () => {
             color: { r: 0.23, g: 0.51, b: 0.96, a: 1 },
             emissive,
             opacity: 1,
+            lineWidthPixels: 2,
             edge: false,
             nodes: false,
           },

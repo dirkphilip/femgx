@@ -17,9 +17,11 @@ export const INSTANCE_STRIDE = 96;
  * | 80     | 4    | stable pick id (`u32`) |
  * | 84     | 4    | emissive (`f32`) |
  * | 88     | 4    | selected (`u32`) |
- * | 92     | 4    | padding (`u32`) |
+ * | 92     | 4    | line width (`f32`) |
  */
 export const EMISSIVE_BYTE_OFFSET = 84;
+/** Byte offset of the resolved authored line width in CSS pixels. */
+export const LINE_WIDTH_BYTE_OFFSET = 92;
 
 /** One pre-encoded instance record written into a per-part buffer. */
 export interface InstanceUpdate {
@@ -109,6 +111,7 @@ export function encodeInstanceRecord(
   floats.set([style.color.r, style.color.g, style.color.b, style.color.a * style.opacity], 16);
   floats[EMISSIVE_BYTE_OFFSET / 4] = style.emissive;
   new Uint32Array(data)[22] = selected ? 1 : 0;
+  floats[LINE_WIDTH_BYTE_OFFSET / 4] = style.lineWidthPixels;
   return data;
 }
 

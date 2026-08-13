@@ -6,6 +6,8 @@ import {
 } from "./gpu-shaders";
 import {
   instanceVertexShader,
+  lineSelectionVertexShader,
+  lineVertexShader,
   pointVertexShader,
   selectionVertexShader,
 } from "./gpu-instanced-shaders";
@@ -72,6 +74,8 @@ interface PipelineSpec {
 
 interface PipelineShaders {
   readonly triangleVertex: GPUShaderModule;
+  readonly lineVertex: GPUShaderModule;
+  readonly lineSelectionVertex: GPUShaderModule;
   readonly selectionVertex: GPUShaderModule;
   readonly pointVertex: GPUShaderModule;
   readonly lineNodeVertex: GPUShaderModule;
@@ -145,6 +149,7 @@ export async function createPipelineResources(
     depthFormat,
     validation,
     triangleVertex: shaders.triangleVertex,
+    lineSelectionVertex: shaders.lineSelectionVertex,
     selectionVertex: shaders.selectionVertex,
     pointVertex: shaders.pointVertex,
   });
@@ -159,11 +164,14 @@ async function createPipelineShaders(
 ): Promise<PipelineShaders> {
   const compile = (label: string, code: string) =>
     createValidatedShaderModule(device, label, code, validation);
-  const [triangleVertex, pointVertex, selectionVertex] = await Promise.all([
-    compile("triangle color vertex", instanceVertexShader),
-    compile("point color vertex", pointVertexShader),
-    compile("triangle selection vertex", selectionVertexShader),
-  ]);
+  const [triangleVertex, lineVertex, lineSelectionVertex, pointVertex, selectionVertex] =
+    await Promise.all([
+      compile("triangle color vertex", instanceVertexShader),
+      compile("line color vertex", lineVertexShader),
+      compile("line selection vertex", lineSelectionVertexShader),
+      compile("point color vertex", pointVertexShader),
+      compile("triangle selection vertex", selectionVertexShader),
+    ]);
   const [lineNodeVertex, pointNodeVertex] = await Promise.all([
     compile("line node picking vertex", lineNodePickVertexShader),
     compile("point node picking vertex", pointNodePickVertexShader),
@@ -181,6 +189,8 @@ async function createPipelineShaders(
   ]);
   return {
     triangleVertex,
+    lineVertex,
+    lineSelectionVertex,
     selectionVertex,
     pointVertex,
     lineNodeVertex,
@@ -203,9 +213,9 @@ function pipelineVariants(shaders: PipelineShaders): PipelineVariants {
       cullMode: "none",
     },
     lines: {
-      vertexModule: shaders.triangleVertex,
+      vertexModule: shaders.lineVertex,
       vertexEntry: "vertexMain",
-      primitive: "line-list",
+      primitive: "triangle-list",
       cullMode: "none",
     },
     points: {

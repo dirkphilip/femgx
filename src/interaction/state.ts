@@ -18,6 +18,8 @@ export interface StyleOverride {
   /** Normalized emissive boost in the supported range `[0, 1]`. */
   readonly emissive?: number;
   readonly opacity?: number;
+  /** Authored line width in CSS pixels. Supported only on part and instance layers. */
+  readonly lineWidthPixels?: number;
   /** Whether the instance's mesh edges are overlaid as lines on its surface. */
   readonly edge?: boolean;
   /** Whether the instance's authored node annotations are overlaid. */
@@ -25,7 +27,7 @@ export interface StyleOverride {
 }
 
 /** Style fields supported by body, element, and interaction-theme layers. */
-export type PrimitiveStyleOverride = Omit<StyleOverride, "edge" | "nodes">;
+export type PrimitiveStyleOverride = Omit<StyleOverride, "edge" | "nodes" | "lineWidthPixels">;
 
 /** Validates a public style override without normalizing caller-owned values. */
 export function validateStyleOverride(override: StyleOverride | undefined): void {
@@ -36,6 +38,7 @@ export function validateStyleOverride(override: StyleOverride | undefined): void
   if (override.nodes !== undefined && typeof override.nodes !== "boolean") {
     throw new TypeError("nodes must be a boolean");
   }
+  if (override.lineWidthPixels !== undefined) validateLineWidth(override.lineWidthPixels);
   if (override.opacity !== undefined) validateUnit("opacity", override.opacity);
   if (override.emissive !== undefined) validateUnit("emissive", override.emissive);
   if (override.color !== undefined) {
@@ -48,6 +51,9 @@ export function validateStyleOverride(override: StyleOverride | undefined): void
 
 /** Rejects instance-level overlay membership from primitive-specific layers. */
 export function validatePrimitiveStyleOverride(override: PrimitiveStyleOverride | undefined): void {
+  if (override !== undefined && "lineWidthPixels" in override) {
+    throw new TypeError("lineWidthPixels is only supported on part and instance overrides");
+  }
   if (override !== undefined && ("edge" in override || "nodes" in override)) {
     throw new TypeError("edge and nodes are only supported on part and instance overrides");
   }
@@ -60,11 +66,19 @@ function validateUnit(name: string, value: number): void {
   }
 }
 
+function validateLineWidth(value: number): void {
+  if (!Number.isFinite(value) || value < 0.5 || value > 64) {
+    throw new RangeError("lineWidthPixels must be finite and in [0.5, 64]");
+  }
+}
+
 /** Complete style consumed by a renderer. */
 export interface ResolvedStyle {
   readonly color: Color;
   readonly emissive: number;
   readonly opacity: number;
+  /** Authored line width in CSS pixels. */
+  readonly lineWidthPixels: number;
   /** Whether the instance's mesh edges are overlaid as lines on its surface. */
   readonly edge: boolean;
   /** Whether the instance's authored node annotations are overlaid. */

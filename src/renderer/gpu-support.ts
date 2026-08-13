@@ -38,6 +38,7 @@ export const defaultStyle: ResolvedStyle = {
   color: { r: 0.23, g: 0.51, b: 0.96, a: 1 },
   emissive: 0,
   opacity: 1,
+  lineWidthPixels: 2,
   edge: false,
   nodes: false,
 };
