@@ -371,13 +371,23 @@ describe("selection emphasis shaders", () => {
 
 describe("GPU deformation shader contract", () => {
   it.each(vertexShaders)(
-    "declares the Deformation uniform at the offsets the CPU writes in %s",
+    "declares the legal 16-byte Deformation uniform layout in %s",
     (_name, source) => {
       const info = structInfo(source, "Deformation");
       const offsets = memberOffsets(info);
+      expect(info.members.map((member) => member.name)).toEqual([
+        "scale",
+        "_padding0",
+        "_padding1",
+        "_padding2",
+      ]);
       expect(offsets.get("scale")).toBe(0);
-      expect(offsets.get("_padding")).toBe(4);
+      expect(offsets.get("_padding0")).toBe(4);
+      expect(offsets.get("_padding1")).toBe(8);
+      expect(offsets.get("_padding2")).toBe(12);
+      expect(info.members.map((member) => member.type.name)).toEqual(["f32", "u32", "u32", "u32"]);
       expect(info.size).toBe(DEFORMATION_UNIFORM_SIZE);
+      expect(source).not.toContain("array<u32, 3>");
     },
   );
 
