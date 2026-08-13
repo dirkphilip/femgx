@@ -180,6 +180,8 @@ test("keeps primary controls reachable and touch-sized on a phone", async ({ pag
     "model-select",
     "fit-view",
     "element-select",
+    "hide-selected",
+    "show-all",
     "projection-toggle",
     "edge-overlay",
     "reset",

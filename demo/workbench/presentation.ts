@@ -7,6 +7,7 @@ import {
 import type { WorkbenchModel } from "./model";
 import { updateStatus, type DemoView } from "./view";
 import { selectedKeys } from "./selection";
+import { selectedElementTargets } from "./visibility-actions";
 import { statsText } from "../devtools/diagnostics";
 import type { DisplayToggles, RenderLoopStats, RendererStats, ResultDisplayMode } from "./types";
 
@@ -74,6 +75,7 @@ export class WorkbenchPresentation {
       },
     );
     this.options.view.statsPanel.hidden = !this.options.getToggles().diagnostics;
+    this.reflectVisibilityActions();
     this.options.canvas.dataset["selected"] = selectedKeys(this.options.getInteraction()).join(",");
     this.options.canvas.dataset["camera"] = JSON.stringify(cameraSnapshot(camera));
     this.options.canvas.dataset["cameraBounds"] = JSON.stringify(model.bounds);
@@ -112,6 +114,21 @@ export class WorkbenchPresentation {
       ? "Select owning elements with click or box drag."
       : "Select exact nodes, faces, or elements with click.";
     this.options.canvas.dataset["selectionMode"] = enabled ? "element" : "exact";
+  }
+
+  reflectVisibilityActions(): void {
+    const count = selectedElementTargets(this.options.getInteraction()).length;
+    const noun = count === 1 ? "element" : "elements";
+    const button = this.options.view.hideSelectedButton;
+    button.disabled = count === 0;
+    button.textContent = count === 0 ? "Hide selected" : `Hide selected (${count})`;
+    button.setAttribute("aria-label", `Hide selected ${noun}`);
+    button.title =
+      count === 0 ? "Select one or more elements to hide." : `Hide ${count} selected ${noun}.`;
+    this.options.view.showAllButton.textContent = "Show all";
+    this.options.view.showAllButton.setAttribute("aria-label", "Show all");
+    this.options.view.showAllButton.title =
+      "Restore all model visibility without changing selection or display settings.";
   }
 
   reflectBackground(background: ViewportBackground): void {

@@ -553,6 +553,8 @@
         }
         .toolbar-row-primary > #fit-view,
         .toolbar-row-primary > #element-select,
+        .toolbar-row-primary > #hide-selected,
+        .toolbar-row-primary > #show-all,
         .toolbar-row-primary > #viewport-toggle,
         .toolbar-row-primary > #projection-toggle {
           flex: 1 1 0;
@@ -677,6 +679,25 @@
                 title="Select owning elements with click or box drag."
               >
                 Element select
+              </button>
+              <button
+                id="hide-selected"
+                data-testid="hide-selected"
+                type="button"
+                disabled
+                aria-label="Hide selected elements"
+                title="Select one or more elements to hide."
+              >
+                Hide selected
+              </button>
+              <button
+                id="show-all"
+                data-testid="show-all"
+                type="button"
+                aria-label="Show all"
+                title="Restore all model visibility without changing selection or display settings."
+              >
+                Show all
               </button>
               <button
                 id="viewport-toggle"

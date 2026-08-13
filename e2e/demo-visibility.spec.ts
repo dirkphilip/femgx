@@ -243,6 +243,52 @@ test("Show all restores bodies and other visibility layers without clearing sele
   expect(await dataset(page, "selected")).toBe(selected);
   await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
 });
+
+test("hides selected elements and restores them through synchronized toolbar actions", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await waitForRenderer(page);
+  await page.getByTestId("viewport-toggle").click();
+  const canvas = page.getByTestId("view-canvas");
+  const secondary = page.getByTestId("secondary-view-canvas");
+  await expect(secondary).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:" },
+    "node GPU picking must resolve before hiding a selected element",
+  );
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
+  const selected = await dataset(page, "selected");
+  await expect(secondary).toHaveAttribute("data-selected", selected);
+
+  const hideSelected = page.getByTestId("hide-selected");
+  await expect(hideSelected).toHaveText("Hide selected (1)");
+  await expect(hideSelected).toBeEnabled();
+  await hideSelected.click();
+  await expect(page.getByTestId("model-feedback")).toHaveText("Hidden 1 selected element.");
+  await expect(hideSelected).toHaveText("Hide selected (1)");
+  await expect.poll(() => dataset(page, "selected")).toBe(selected);
+  await expect(secondary).toHaveAttribute("data-selected", selected);
+
+  await hideSelected.click();
+  await expect(page.getByTestId("model-feedback")).toHaveText(
+    "Selected elements are already hidden.",
+  );
+
+  await page.getByTestId("show-all").click();
+  await expect(page.getByTestId("model-feedback")).toHaveText(
+    "Selected elements are already hidden.",
+  );
+  await expect(hideSelected).toHaveText("Hide selected (1)");
+  await expect.poll(() => dataset(page, "selected")).toBe(selected);
+  await expect(secondary).toHaveAttribute("data-selected", selected);
+  await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
+});
+
 test("context menu selects a target and toggles display without losing selection", async ({
   page,
 }) => {

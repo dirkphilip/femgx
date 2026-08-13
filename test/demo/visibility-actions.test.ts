@@ -4,14 +4,90 @@ import {
   createSceneRuntime,
   isBodyVisible,
   isElementVisible,
+  isTargetSelected,
+  selectedTargets,
   setElementVisible,
   setBodyVisible,
+  setTargetSelected,
   type FemViewport,
+  type InteractionState,
+  type Scene,
+  type SceneRuntime,
 } from "../../src/index";
 import { createBoltedPlatePreset } from "../../demo/fixture/presets";
 import { WorkbenchVisibilityActions } from "../../demo/workbench/visibility-actions";
 
 describe("WorkbenchVisibilityActions", () => {
+  it("hides selected elements in one update while preserving their selection", () => {
+    const scene = createBoltedPlatePreset().scene;
+    const runtime = createSceneRuntime(scene);
+    const instances = runtime.getInstances();
+    const first = instances[0];
+    const second = instances[1];
+    if (first === undefined || second === undefined) {
+      throw new Error("Fixture must contain two instances");
+    }
+    const firstElement = scene.parts.get(first.partId)?.geometry.elements?.[0];
+    const secondElement = scene.parts.get(second.partId)?.geometry.elements?.[0];
+    if (firstElement === undefined || secondElement === undefined) {
+      throw new Error("Fixture must contain two elements");
+    }
+    const firstTarget = {
+      kind: "element" as const,
+      instanceId: first.instanceId,
+      elementId: firstElement.id,
+    };
+    const secondTarget = {
+      kind: "element" as const,
+      instanceId: second.instanceId,
+      elementId: secondElement.id,
+    };
+    const nodeTarget = { kind: "node" as const, instanceId: first.instanceId, nodeId: 999 };
+    let interaction = createInteractionState();
+    interaction = setTargetSelected(interaction, firstTarget, true);
+    interaction = setTargetSelected(interaction, secondTarget, true);
+    interaction = setTargetSelected(interaction, nodeTarget, true);
+    const harness = createActionHarness(scene, runtime, interaction);
+
+    harness.actions.hideSelected();
+
+    expect(harness.appliedInteractionCount).toBe(1);
+    expect(harness.panelSyncCount).toBe(1);
+    expect(harness.renderCount).toBe(1);
+    expect(harness.feedback).toEqual(["Hidden 2 selected elements."]);
+    expect(isElementVisible(harness.interaction, firstTarget)).toBe(false);
+    expect(isElementVisible(harness.interaction, secondTarget)).toBe(false);
+    expect(isTargetSelected(harness.interaction, firstTarget)).toBe(true);
+    expect(isTargetSelected(harness.interaction, secondTarget)).toBe(true);
+    expect(isTargetSelected(harness.interaction, nodeTarget)).toBe(true);
+    expect(selectedTargets(harness.interaction)).toHaveLength(3);
+  });
+
+  it("reports no-op feedback without rendering when selected elements are already hidden", () => {
+    const scene = createBoltedPlatePreset().scene;
+    const runtime = createSceneRuntime(scene);
+    const instance = runtime.getInstances()[0];
+    if (instance === undefined) throw new Error("Fixture must contain an instance");
+    const element = scene.parts.get(instance.partId)?.geometry.elements?.[0];
+    if (element === undefined) throw new Error("Fixture must contain an element");
+    const target = {
+      kind: "element" as const,
+      instanceId: instance.instanceId,
+      elementId: element.id,
+    };
+    let interaction = setElementVisible(createInteractionState(), target, false);
+    interaction = setTargetSelected(interaction, target, true);
+    const harness = createActionHarness(scene, runtime, interaction);
+
+    harness.actions.hideSelected();
+
+    expect(harness.appliedInteractionCount).toBe(0);
+    expect(harness.panelSyncCount).toBe(0);
+    expect(harness.renderCount).toBe(0);
+    expect(harness.feedback).toEqual(["Selected elements are already hidden."]);
+    expect(isTargetSelected(harness.interaction, target)).toBe(true);
+  });
+
   it("restores every visibility layer while preserving one interaction update", () => {
     const scene = createBoltedPlatePreset().scene;
     const runtime = createSceneRuntime(scene);
@@ -104,3 +180,48 @@ describe("WorkbenchVisibilityActions", () => {
     }
   });
 });
+
+function createActionHarness(scene: Scene, runtime: SceneRuntime, initial: InteractionState) {
+  let interaction = initial;
+  let appliedInteractionCount = 0;
+  let panelSyncCount = 0;
+  let renderCount = 0;
+  const feedback: string[] = [];
+  return {
+    actions: new WorkbenchVisibilityActions({
+      viewport: () => ({}) as FemViewport,
+      scene: () => scene,
+      runtime: () => runtime,
+      interaction: () => interaction,
+      setInteraction: (next) => {
+        interaction = next;
+      },
+      applyInteraction: (next) => {
+        interaction = next;
+        appliedInteractionCount++;
+      },
+      syncPanel: () => {
+        panelSyncCount++;
+      },
+      render: () => {
+        renderCount++;
+      },
+      feedback: (message) => {
+        feedback.push(message);
+      },
+    }),
+    get interaction(): InteractionState {
+      return interaction;
+    },
+    get appliedInteractionCount(): number {
+      return appliedInteractionCount;
+    },
+    get panelSyncCount(): number {
+      return panelSyncCount;
+    },
+    get renderCount(): number {
+      return renderCount;
+    },
+    feedback,
+  };
+}

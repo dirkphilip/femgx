@@ -2,11 +2,13 @@ import {
   isBodyVisible,
   isElementVisible,
   isTargetHighlighted,
+  selectedTargets,
   setElementVisible,
   setTargetHighlighted,
   setBodyVisible,
   type BodyId,
   type FemViewport,
+  type InteractionTarget,
   type InstanceId,
   type InteractionState,
   type PartId,
@@ -27,6 +29,25 @@ export interface VisibilityActionOptions {
   readonly applyInteraction: (interaction: InteractionState) => void;
   readonly syncPanel: () => void;
   readonly render: () => void;
+  readonly feedback?: (message: string) => void;
+}
+
+type SelectedElementTarget = Extract<InteractionTarget, { readonly kind: "element" }>;
+
+/** Returns selected element occurrences without promoting other target kinds. */
+export function selectedElementTargets(
+  interaction: InteractionState,
+): readonly SelectedElementTarget[] {
+  const seen = new Set<string>();
+  const elements: SelectedElementTarget[] = [];
+  for (const target of selectedTargets(interaction)) {
+    if (target.kind !== "element") continue;
+    const key = `${target.instanceId}:${target.elementId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    elements.push(target);
+  }
+  return elements;
 }
 
 /** Keeps all demo visibility mutations on the viewport/runtime path. */
@@ -71,6 +92,33 @@ export class WorkbenchVisibilityActions {
       element.instanceId,
       element.elementId,
       !isElementVisible(this.options.interaction(), element),
+    );
+  }
+
+  /** Hides selected element occurrences in one synchronized interaction update. */
+  hideSelected(): void {
+    const interaction = this.options.interaction();
+    const selected = selectedElementTargets(interaction);
+    const visible = selected.filter((target) => isElementVisible(interaction, target));
+    if (visible.length === 0) {
+      this.options.feedback?.(
+        selected.length === 0
+          ? "No selected elements to hide."
+          : "Selected elements are already hidden.",
+      );
+      return;
+    }
+
+    let next = interaction;
+    for (const target of visible) {
+      next = setElementVisible(next, target, false);
+    }
+    this.options.applyInteraction(next);
+    this.finish();
+    this.options.feedback?.(
+      visible.length === selected.length
+        ? `Hidden ${visible.length} selected element${visible.length === 1 ? "" : "s"}.`
+        : `Hidden ${visible.length} of ${selected.length} selected elements.`,
     );
   }
 
