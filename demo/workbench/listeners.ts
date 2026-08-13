@@ -1,4 +1,5 @@
 import type { DemoView } from "./view";
+import type { WorkbenchPane } from "./view";
 import { setProjection, type FemViewport } from "../../src/index";
 import type { WorkbenchInteraction } from "./interaction";
 import type { WorkbenchMenu } from "./menu";
@@ -22,11 +23,77 @@ export interface WorkbenchBindingOptions {
   readonly fitView: () => void;
   readonly setModel: (id: string) => void;
   readonly openGlb: (file: File) => void;
+  readonly setActive?: () => void;
+  readonly toggleViewport?: () => void;
+}
+
+/** Pane-local pointer and asynchronous inspection bindings. */
+export interface WorkbenchPaneBindingOptions {
+  readonly pane: WorkbenchPane;
+  readonly signal: AbortSignal;
+  readonly interaction: WorkbenchInteraction;
+  readonly dragging: () => boolean;
+  readonly setActive: () => void;
+}
+
+/** Installs the bindings that belong to one viewport pane. */
+export function installWorkbenchPaneBindings(options: WorkbenchPaneBindingOptions): void {
+  const { pane, signal } = options;
+  const activate = (): void => {
+    options.setActive();
+    if (typeof pane.scene.focus === "function") pane.scene.focus({ preventScroll: true });
+  };
+  pane.scene.addEventListener("pointerenter", options.setActive, { signal });
+  pane.scene.addEventListener("focusin", options.setActive, { signal });
+  pane.canvas.addEventListener("pointerdown", activate, { signal });
+  pane.canvas.addEventListener(
+    "pointerdown",
+    (event) => {
+      options.interaction.pointerDown(event);
+    },
+    { signal },
+  );
+  pane.canvas.addEventListener(
+    "pointercancel",
+    () => {
+      options.interaction.pointerCancel();
+    },
+    { signal },
+  );
+  pane.canvas.addEventListener(
+    "pointermove",
+    (event) => {
+      if (!options.dragging()) void options.interaction.hover(event);
+    },
+    { signal },
+  );
+  pane.canvas.addEventListener("click", (event) => void options.interaction.click(event), {
+    signal,
+  });
+  pane.canvas.addEventListener(
+    "contextmenu",
+    (event) => void options.interaction.contextMenu(event),
+    { signal },
+  );
 }
 
 /** Installs the complete controller lifetime of toolbar/canvas/window listeners. */
 export function installWorkbenchBindings(options: WorkbenchBindingOptions): void {
   const { view, canvas, signal } = options;
+  const scene = Reflect.get(view, "scene") as unknown as HTMLElement | undefined;
+  const paneScene = scene ?? canvas;
+  installWorkbenchPaneBindings({
+    pane: {
+      id: "primary",
+      scene: paneScene,
+      canvas,
+      boxSelectionOverlay: Reflect.get(view, "boxSelectionOverlay"),
+    },
+    signal,
+    interaction: options.interaction,
+    dragging: options.dragging,
+    setActive: options.setActive ?? (() => {}),
+  });
   view.projectionToggle.addEventListener(
     "click",
     () => {
@@ -53,6 +120,9 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
   view.continuousToggle.addEventListener("click", options.setContinuous, { signal });
   view.resetButton.addEventListener("click", options.reset, { signal });
   view.fitView.addEventListener("click", options.fitView, { signal });
+  if (options.toggleViewport !== undefined) {
+    view.viewportToggle.addEventListener("click", options.toggleViewport, { signal });
+  }
   view.modelSelect.addEventListener(
     "change",
     () => {
@@ -75,31 +145,6 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
     },
     { signal },
   );
-  canvas.addEventListener(
-    "pointerdown",
-    (event) => {
-      options.interaction.pointerDown(event);
-    },
-    { signal },
-  );
-  canvas.addEventListener(
-    "pointercancel",
-    () => {
-      options.interaction.pointerCancel();
-    },
-    { signal },
-  );
-  canvas.addEventListener(
-    "pointermove",
-    (event) => {
-      if (!options.dragging()) void options.interaction.hover(event);
-    },
-    { signal },
-  );
-  canvas.addEventListener("click", (event) => void options.interaction.click(event), { signal });
-  canvas.addEventListener("contextmenu", (event) => void options.interaction.contextMenu(event), {
-    signal,
-  });
   window.addEventListener(
     "click",
     (event) => {

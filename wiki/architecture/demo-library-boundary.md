@@ -34,7 +34,10 @@ presentation and interaction policy only.
 
 - DOM control wiring, the workbench controller, context menu, visibility
   panel, inspection text, deterministic model fixtures (`demo/fixture/`),
-  fixture/model selection, and modifier-key target policy (`demo/workbench/`).
+  fixture/model selection, modifier-key target policy, and the demo-private
+  two-pane viewport slots that share one authoritative `Scene`
+  (`demo/workbench/`). The two-pane mode must not become a public viewport
+  manager, shared runtime, or renderer pool.
 - Unsupported-state wording, diagnostics formatting, and the browser-test
   lifecycle seam (`demo/devtools/`).
 - Performance telemetry and internal benchmark fixtures (`demo/benchmark/`).

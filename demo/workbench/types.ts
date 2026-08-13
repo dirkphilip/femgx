@@ -1,6 +1,8 @@
 import type { FemViewport, GlbSceneImport, InteractionState, SceneRuntime } from "../../src/index";
-import type { DemoView } from "./view";
+import type { DemoView, WorkbenchPane, ViewportSlotId } from "./view";
 import type { WorkbenchModel } from "./model";
+
+export type { WorkbenchPane, ViewportSlotId } from "./view";
 
 /** Current draw statistics reported by the active renderer. */
 export interface RendererStats {
@@ -30,6 +32,11 @@ export interface WorkbenchOptions {
   readonly rendererName: string;
   readonly viewport: FemViewport;
   readonly presets: readonly WorkbenchModel[];
+  readonly createViewport: (
+    slotId: ViewportSlotId,
+    pane: WorkbenchPane,
+    model: WorkbenchModel,
+  ) => Promise<FemViewport>;
   readonly importGlb?: (
     source: ArrayBuffer | Uint8Array,
     options?: { readonly strict?: boolean },

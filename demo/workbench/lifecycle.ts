@@ -1,9 +1,9 @@
 import { installBoxSelection } from "../../src/index";
 import type { FemViewport } from "../../src/index";
-import type { DemoView } from "./view";
+import type { DemoView, WorkbenchPane } from "./view";
 import type { WorkbenchBoxPreview } from "./box-preview";
 import type { WorkbenchInteraction } from "./interaction";
-import { installWorkbenchBindings } from "./listeners";
+import { installWorkbenchBindings, installWorkbenchPaneBindings } from "./listeners";
 import type { WorkbenchMenu } from "./menu";
 import type { VisibilityPanelController } from "./visibility-panel";
 
@@ -26,6 +26,34 @@ export interface WorkbenchLifecycleOptions {
   readonly fitView: () => void;
   readonly setModel: (id: string) => void;
   readonly openGlb: (file: File) => void;
+  readonly setActive: () => void;
+  readonly toggleViewport?: () => void;
+}
+
+/** Installs box selection and pane-local inspection for a secondary viewport. */
+export function installWorkbenchPaneLifecycle(options: {
+  readonly pane: WorkbenchPane;
+  readonly signal: AbortSignal;
+  readonly interaction: WorkbenchInteraction;
+  readonly boxPreview: WorkbenchBoxPreview;
+  readonly dragging: () => boolean;
+  readonly setActive: () => void;
+}): () => void {
+  const boxSelectionDisposer = installBoxSelection({
+    canvas: options.pane.canvas,
+    onEvent: (event) => {
+      options.boxPreview.handleEvent(event);
+      if (event.type === "complete") void options.interaction.selectBox(event);
+    },
+  });
+  installWorkbenchPaneBindings({
+    pane: options.pane,
+    signal: options.signal,
+    interaction: options.interaction,
+    dragging: options.dragging,
+    setActive: options.setActive,
+  });
+  return boxSelectionDisposer;
 }
 
 /** Installs the complete workbench listener lifetime and returns its box disposer. */
@@ -56,6 +84,8 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     fitView: options.fitView,
     setModel: options.setModel,
     openGlb: options.openGlb,
+    setActive: options.setActive,
+    ...(options.toggleViewport === undefined ? {} : { toggleViewport: options.toggleViewport }),
   });
   return boxSelectionDisposer;
 }
