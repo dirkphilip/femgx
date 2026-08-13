@@ -6,25 +6,27 @@ builders used to exercise the WebGPU path and unit tests.
 ## Element tessellation and mapping gallery
 
 `createElementFixture` places representative examples for the built-in topology
-helpers: Point, Line, Line3, Triangle, Quad, Tet4, Tet10, Hex8, and Hex20. Tri6
-and Quad8 use the same quadratic face tessellator exercised by Tet10 and Hex20.
-These names describe FEMGX's typed tessellation helpers, not an exhaustive
-solver-element catalog.
+helpers: Point, Line, Line3, Triangle, Tri6, Quad, Quad8, Tet4, Tet10, Hex8,
+and Hex20. These names describe FEMGX's typed tessellation helpers, not an
+exhaustive solver-element catalog.
 
-The tenth example is a **Generic solver-mapped element**: temporary solver-style
-node and face records are converted through the generic `polygonPart` input into
-one indexed-triangle `Part` with element `42`, five oriented face identities,
-one non-triangular face, and body ownership. The source records are discarded
-after conversion; the scene retains only the renderer-ready part and the
-presentation metadata needed by the workbench. Face and element picks therefore
-demonstrate the same retained identity contract available to a host that maps a
-solver representation into FEMGX.
+The gallery also includes a **Generic solver-mapped element**: temporary
+solver-style node and face records are converted through the generic
+`polygonPart` input into one indexed-triangle `Part` with element `42`, five
+oriented face identities, one non-triangular face, and body ownership. The source
+records are discarded after conversion; the scene retains only the renderer-ready
+part and the presentation metadata needed by the workbench. Face and element
+picks therefore demonstrate the same retained identity contract available to a
+host that maps a solver representation into FEMGX.
 
-The ten examples use a deterministic 2-row × 5-column comparison grid: Point,
-Line, Line3, Triangle, and Quad occupy the first row; the generic mapped
-element, Tet4, Tet10, Hex8, and Hex20 occupy the second. Triangle, line, and
-point outputs remain separate only where WebGPU primitive topology requires it;
-edge display is a renderer-owned overlay.
+The twelve examples use a deterministic 2-row × 6-column comparison grid:
+Point, Line, Line3, Triangle, Quad, and Tri6 occupy the first row; the generic
+mapped element, Tet4, Tet10, Hex8, Hex20, and Quad8 occupy the second. The
+hardware-WebGPU rendering suite isolates Tri6 and Quad8, checks their exact face,
+element, and authored mid-edge node identities, and repeats the checks at the
+390×844 mobile viewport. Triangle, line, and point outputs remain separate only
+where WebGPU primitive topology requires it; edge display is a renderer-owned
+overlay.
 
 ## VTK sample
 

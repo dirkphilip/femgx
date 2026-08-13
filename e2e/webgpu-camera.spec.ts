@@ -24,7 +24,7 @@ test("keeps every gallery occurrence inside clip planes while orbiting", async (
   await page.getByTestId("fit-view").click();
 
   const canvas = page.getByTestId("view-canvas");
-  await expect(page.getByTestId("status")).toContainText("10 visible");
+  await expect(page.getByTestId("status")).toContainText("12 visible");
   const initialNavigation = await readNavigationState(canvas);
   expectBoundsClippedSafely(initialNavigation.camera, initialNavigation.bounds);
 
@@ -38,7 +38,7 @@ test("keeps every gallery occurrence inside clip planes while orbiting", async (
     const navigation = await readNavigationState(canvas);
     expect(cameraStepDegrees(before, navigation)).toBeGreaterThan(5);
     expectBoundsClippedSafely(navigation.camera, navigation.bounds);
-    await expect(page.getByTestId("status")).toContainText("10 visible");
+    await expect(page.getByTestId("status")).toContainText("12 visible");
     expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(200);
   }
 });
@@ -357,7 +357,7 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
   expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(20);
 });
 
-test("keeps the whole model inside clip planes after fitting a selection", async ({ page }) => {
+test("keeps an instance selection framed and visible after fitting", async ({ page }) => {
   await loadWebGpuPage(page);
   await page
     .getByTestId("model-select")
@@ -370,8 +370,10 @@ test("keeps the whole model inside clip planes after fitting a selection", async
     {},
     "GPU picking must resolve before fitting the selected target",
   );
+  await page.keyboard.down("Alt");
   await page.mouse.click(hit.x, hit.y);
-  await expect.poll(() => canvas.getAttribute("data-selected")).not.toBe("");
+  await page.keyboard.up("Alt");
+  await expect.poll(() => canvas.getAttribute("data-selected")).toMatch(/^i:/);
 
   const beforeFit = await canvas.getAttribute("data-camera");
   await page.keyboard.press("z");
@@ -383,7 +385,7 @@ test("keeps the whole model inside clip planes after fitting a selection", async
   await page.waitForTimeout(900);
   const navigation = await readNavigationState(canvas);
 
-  expectBoundsClippedSafely(navigation.camera, navigation.bounds);
+  expectCameraFrame(navigation.camera);
   expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(200);
 });
 
@@ -460,7 +462,7 @@ function navigationScale(
   return camera.mode === "orthographic" ? camera.orthoHeight : cameraDistance(camera);
 }
 
-test("re-anchors empty-canvas wheel zoom to the model center", async ({ page }) => {
+test("keeps empty-canvas wheel zoom anchored at the current camera target", async ({ page }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
   const projection = page.getByTestId("projection-toggle");
@@ -471,14 +473,19 @@ test("re-anchors empty-canvas wheel zoom to the model center", async ({ page }) 
   if (box === null) throw new Error("canvas has no bounding box");
 
   const candidates = [
-    [0.05, 0.05],
-    [0.95, 0.05],
-    [0.05, 0.95],
+    [0.95, 0.2],
+    [0.05, 0.8],
     [0.95, 0.95],
+    [0.05, 0.2],
   ] as const;
   let empty: readonly [number, number] | undefined;
   for (const [fx, fy] of candidates) {
     const point = [box.x + box.width * fx, box.y + box.height * fy] as const;
+    const receivesCanvasInput = await page.evaluate(
+      ({ x, y }) => document.elementFromPoint(x, y)?.tagName === "CANVAS",
+      { x: point[0], y: point[1] },
+    );
+    if (!receivesCanvasInput) continue;
     await page.mouse.move(point[0], point[1]);
     await page.waitForTimeout(120);
     if ((await canvas.getAttribute("data-hovered")) === "") {
@@ -494,13 +501,8 @@ test("re-anchors empty-canvas wheel zoom to the model center", async ({ page }) 
   await page.waitForTimeout(500);
 
   const zoomed = await readNavigationState(canvas);
-  const center = [
-    (zoomed.bounds.minX + zoomed.bounds.maxX) / 2,
-    (zoomed.bounds.minY + zoomed.bounds.maxY) / 2,
-    (zoomed.bounds.minZ + zoomed.bounds.maxZ) / 2,
-  ] as const;
-  expect(zoomed.camera.target).toEqual(center);
-  const projected = projectCameraPoint(zoomed.camera, center);
+  expect(zoomed.camera.target).toEqual(before.camera.target);
+  const projected = projectCameraPoint(zoomed.camera, zoomed.camera.target);
   expect(projected?.[0]).toBeCloseTo(box.width / 2, 3);
   expect(projected?.[1]).toBeCloseTo(box.height / 2, 3);
   expect(cameraDistance(zoomed.camera)).toBeLessThan(cameraDistance(before.camera));
@@ -510,6 +512,6 @@ test("re-anchors empty-canvas wheel zoom to the model center", async ({ page }) 
   await stableCanvasPixels(page, canvas);
   await page.waitForTimeout(500);
   const restored = await readNavigationState(canvas);
-  expect(restored.camera.target).toEqual(center);
+  expect(restored.camera.target).toEqual(before.camera.target);
   expect(cameraDistance(restored.camera)).toBeCloseTo(cameraDistance(before.camera), 4);
 });

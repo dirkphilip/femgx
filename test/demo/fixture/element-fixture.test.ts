@@ -40,16 +40,18 @@ describe("createElementFixture", () => {
       line: 2,
       line3: 3,
       triangle: 8,
+      tri6: 11,
       quad: 9,
+      quad8: 12,
       generic: 10,
       tet4: 4,
       tet10: 5,
       hex8: 6,
       hex20: 7,
     });
-    expect(fixture.instanceCount).toBe(10);
-    expect(fixture.scene.parts.size).toBe(10);
-    expect(runtimeInstances(fixture)).toHaveLength(10);
+    expect(fixture.instanceCount).toBe(12);
+    expect(fixture.scene.parts.size).toBe(12);
+    expect(runtimeInstances(fixture)).toHaveLength(12);
   });
 
   it("places every shape example in a stable two-row comparison grid", () => {
@@ -67,11 +69,13 @@ describe("createElementFixture", () => {
         [fixture.partIds.line3, [6, 0]],
         [fixture.partIds.triangle, [9, 0]],
         [fixture.partIds.quad, [12, 0]],
+        [fixture.partIds.tri6, [15, 0]],
         [fixture.partIds.generic, [0, 3]],
         [fixture.partIds.tet4, [3, 3]],
         [fixture.partIds.tet10, [6, 3]],
         [fixture.partIds.hex8, [9, 3]],
         [fixture.partIds.hex20, [12, 3]],
+        [fixture.partIds.quad8, [15, 3]],
       ]),
     );
   });
@@ -85,13 +89,15 @@ describe("createElementFixture", () => {
     ).toEqual([...fixture.scene.parts.keys()].sort((a, b) => a - b));
   });
 
-  it("produces geometry for points, lines, triangle, Tet4, and Hex20", () => {
+  it("produces geometry for points, lines, linear/quadratic surfaces, Tet4, and Hex20", () => {
     const { scene, partIds } = createElementFixture();
     expect(scene.parts.get(partIds.point)?.geometry.primitive).toBe("points");
     expect(scene.parts.get(partIds.line)?.geometry.primitive).toBe("lines");
     expect(scene.parts.get(partIds.line3)?.geometry.primitive).toBe("lines");
     expect(scene.parts.get(partIds.triangle)?.geometry.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.tri6)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.quad)?.geometry.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.quad8)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.generic)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.tet4)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.hex20)?.geometry.primitive).toBe("triangles");
@@ -116,26 +122,48 @@ describe("createElementFixture", () => {
     expect(part.bounds).toEqual({ minX: -1, minY: -1, minZ: 0, maxX: 1, maxY: 1, maxZ: 1.5 });
   });
 
-  it("keeps authored triangle and quad nodes and boundary edges separate", () => {
+  it("keeps authored linear and quadratic surface nodes and boundary edges separate", () => {
     const { scene, partIds } = createElementFixture();
     const triangle = scene.parts.get(partIds.triangle);
+    const tri6 = scene.parts.get(partIds.tri6);
     const quad = scene.parts.get(partIds.quad);
-    if (triangle === undefined || quad === undefined) throw new Error("surface parts are missing");
-    if (triangle.geometry.primitive !== "triangles" || quad.geometry.primitive !== "triangles") {
+    const quad8 = scene.parts.get(partIds.quad8);
+    if (triangle === undefined || tri6 === undefined || quad === undefined || quad8 === undefined) {
+      throw new Error("surface parts are missing");
+    }
+    if (
+      triangle.geometry.primitive !== "triangles" ||
+      tri6.geometry.primitive !== "triangles" ||
+      quad.geometry.primitive !== "triangles" ||
+      quad8.geometry.primitive !== "triangles"
+    ) {
       throw new Error("surface parts are not triangle geometry");
     }
     const triangleElements = triangle.geometry.elements;
+    const tri6Elements = tri6.geometry.elements;
     const quadElements = quad.geometry.elements;
-    if (triangleElements === undefined || quadElements === undefined) {
+    const quad8Elements = quad8.geometry.elements;
+    if (
+      triangleElements === undefined ||
+      tri6Elements === undefined ||
+      quadElements === undefined ||
+      quad8Elements === undefined
+    ) {
       throw new Error("surface element descriptors are missing");
     }
     const triangleElement = triangleElements[0];
+    const tri6Element = tri6Elements[0];
     const quadElement = quadElements[0];
+    const quad8Element = quad8Elements[0];
     if (
       triangleElement === undefined ||
+      tri6Element === undefined ||
       quadElement === undefined ||
+      quad8Element === undefined ||
       triangleElement.shape === undefined ||
-      quadElement.shape === undefined
+      tri6Element.shape === undefined ||
+      quadElement.shape === undefined ||
+      quad8Element.shape === undefined
     ) {
       throw new Error("surface element descriptors are empty");
     }
@@ -143,14 +171,22 @@ describe("createElementFixture", () => {
     expect(triangle.geometry.faceSubset).toBeUndefined();
     expect(quad.geometry.faceSubset).toBeUndefined();
     expect(triangleElements).toHaveLength(1);
+    expect(tri6Elements).toHaveLength(1);
     expect(quadElements).toHaveLength(1);
+    expect(quad8Elements).toHaveLength(1);
     expect(triangleElement.shape.family).toBe("triangle");
+    expect(tri6Element.shape).toEqual({ family: "triangle", order: 2 });
     expect(quadElement.shape.family).toBe("quad");
+    expect(quad8Element.shape).toEqual({ family: "quad", order: 2 });
     expect(nonZeroNodeIds(triangle)).toEqual([1, 2, 3]);
+    expect(nonZeroNodeIds(tri6)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(nonZeroNodeIds(quad)).toEqual([2, 3, 4, 5]);
+    expect(nonZeroNodeIds(quad8)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
 
     expect(buildMeshEdgeData(triangle.geometry).indices).toHaveLength(6);
+    expect(buildMeshEdgeData(tri6.geometry).indices).toHaveLength(12);
     expect(buildMeshEdgeData(quad.geometry).indices).toHaveLength(8);
+    expect(buildMeshEdgeData(quad8.geometry).indices).toHaveLength(16);
   });
 
   it("builds a linearly tessellated Hex20 cylinder with a bounded height", () => {

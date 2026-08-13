@@ -238,7 +238,7 @@ test("keeps the generic mapped element face identity through selection", async (
   const genericInstanceId = await genericInput.getAttribute("data-instance-id");
   if (genericInstanceId === null) throw new Error("generic mapping row has no instance identity");
   const instances = page.locator("input[data-instance-id]");
-  await expect(instances).toHaveCount(10);
+  await expect(instances).toHaveCount(12);
   for (const input of await instances.all()) {
     if ((await input.getAttribute("data-instance-id")) !== genericInstanceId) {
       await input.uncheck();

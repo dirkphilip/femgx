@@ -7,7 +7,9 @@ import {
   LINE_SHAPE,
   POINT_SHAPE,
   QUAD_SHAPE,
+  QUAD8_SHAPE,
   TRIANGLE_SHAPE,
+  TRI6_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
   type Element,
@@ -237,6 +239,10 @@ export function buildPointLineModel(
 }
 
 const SURFACE_NODES = [0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0, 0, 2, 1, 0] as const;
+const TRI6_NODES = [0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0.5, 0] as const;
+const QUAD8_NODES = [
+  0, 0, 0, 2, 0, 0, 2, 1, 0, 0, 1, 0, 1, 0, 0, 2, 0.5, 0, 1, 1, 0, 0, 0.5, 0,
+] as const;
 
 /** Builds the authored triangle example with the original node ids. */
 export function buildTriangleModel(): ElementModel {
@@ -246,6 +252,18 @@ export function buildTriangleModel(): ElementModel {
 /** Builds the authored quad example with the original node ids. */
 export function buildQuadModel(): ElementModel {
   return createElementModel(SURFACE_NODES, [createElement(2, QUAD_SHAPE, [1, 3, 4, 2])]);
+}
+
+/** Builds the authored quadratic triangle with explicit mid-edge nodes. */
+export function buildTri6Model(): ElementModel {
+  return createElementModel(TRI6_NODES, [createElement(11, TRI6_SHAPE, [0, 1, 2, 3, 4, 5])]);
+}
+
+/** Builds the authored quadratic quadrilateral with explicit mid-edge nodes. */
+export function buildQuad8Model(): ElementModel {
+  return createElementModel(QUAD8_NODES, [
+    createElement(12, QUAD8_SHAPE, [0, 1, 2, 3, 4, 5, 6, 7]),
+  ]);
 }
 
 /** Optional dimensions for the linearly tessellated Hex20 cylinder fixture. */
