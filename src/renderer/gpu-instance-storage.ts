@@ -1,6 +1,6 @@
 import type { ResolvedStyle } from "../interaction/interaction";
 import { createHighlightStorage, type HighlightStorage } from "./gpu-highlight-storage";
-import { writeDiffedRange, writeOrderBuffer } from "./gpu-writes";
+import { writeChangedRecordRanges, writeOrderBuffer } from "./gpu-writes";
 import type { GpuCostAccumulator } from "./gpu-cost";
 
 /** Byte size of one instance record in the per-part storage buffer. */
@@ -116,8 +116,8 @@ export function encodeInstanceRecord(
 }
 
 /**
- * Writes only the byte subranges whose records changed since the last patch,
- * coalescing adjacent changed slots into single buffer writes.
+ * Writes changed fixed-size records, coalescing adjacent slots into one upload
+ * range without scanning the byte span between distant updates.
  */
 export function patchInstances(
   draw: InstanceStorageOwner,
@@ -125,29 +125,41 @@ export function patchInstances(
   updates: readonly InstanceUpdate[],
 ): void {
   if (updates.length === 0) return;
-  const sorted = [...updates].sort((a, b) => a.slot - b.slot);
-  const first = sorted[0];
-  const last = sorted[sorted.length - 1];
-  if (first === undefined || last === undefined) return;
-  const storage = ensureStorage(draw, partId, last.slot + 1);
-  const startByte = first.slot * INSTANCE_STRIDE;
-  const endByte = (last.slot + 1) * INSTANCE_STRIDE;
-  const mirror = new Uint8Array(storage.data);
-  const region = new Uint8Array(endByte - startByte);
-  region.set(mirror.subarray(startByte, endByte));
-  for (const update of sorted) {
-    const offset = (update.slot - first.slot) * INSTANCE_STRIDE;
-    region.set(new Uint8Array(update.data), offset);
+  const bySlot = new Map<number, Uint8Array<ArrayBuffer>>();
+  for (const update of updates) bySlot.set(update.slot, new Uint8Array(update.data));
+  const slots = [...bySlot.keys()].sort((left, right) => left - right);
+  const lastSlot = slots[slots.length - 1];
+  if (lastSlot === undefined) return;
+  const storage = ensureStorage(draw, partId, lastSlot + 1);
+  const next = new Uint8Array(storage.data);
+  const changedSlots: number[] = [];
+  for (const slot of slots) {
+    const data = bySlot.get(slot);
+    if (data === undefined) continue;
+    const offset = slot * INSTANCE_STRIDE;
+    if (!sameRecord(next, offset, data)) changedSlots.push(slot);
+    next.set(data, offset);
   }
-  writeDiffedRange(draw.device, {
+  writeChangedRecordRanges(draw.device, {
     buffer: storage.buffer,
-    baseOffset: startByte,
-    next: region,
-    previous: mirror.subarray(startByte, endByte),
+    next,
+    recordOffset: 0,
+    recordStride: INSTANCE_STRIDE,
+    recordIndices: changedSlots,
     cost: draw.cost,
     category: "instance",
   });
-  mirror.set(region, startByte);
+}
+
+function sameRecord(
+  bytes: Uint8Array<ArrayBuffer>,
+  offset: number,
+  next: Uint8Array<ArrayBuffer>,
+): boolean {
+  for (let index = 0; index < INSTANCE_STRIDE; index += 1) {
+    if (bytes[offset + index] !== next[index]) return false;
+  }
+  return true;
 }
 
 /**

@@ -207,6 +207,15 @@ write deltas between the baseline and one toggle at a time so a pass or upload
 regression remains attributable. The fixed 800×600 DPR-1 cases are the
 reproducible trend baseline; high-DPR target accounting is a structural check,
 not a normal capacity run.
+
+Dynamic instance and emphasis uploads use their fixed 96-byte and 48-byte GPU
+records as the diffing unit. Changed record indices are sorted and joined when
+separated by at most two unchanged records, so adjacent and dense edits reduce
+queue calls while distant sparse edits never create a first-to-last staging
+span. The structural cost snapshot reports both calls and bytes: the extra
+unchanged records in a joined range are intentional, and whole-buffer uploads
+for capacity growth or device recovery remain separate paths.
+
 The opt-in Playwright lane runs one case per test/context/device, gives each case
 an explicit bounded timeout, writes one `webgpu-benchmark.json` artifact as soon
 as its report returns, and aggregates only completed artifacts afterward. A

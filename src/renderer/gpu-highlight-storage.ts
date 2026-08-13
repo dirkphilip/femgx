@@ -18,6 +18,7 @@ import {
   type EmphasisUpdate,
 } from "./gpu-elements";
 import type { GpuCostAccumulator } from "./gpu-cost";
+import { writeChangedRecordRanges } from "./gpu-writes";
 
 interface InstanceLayout {
   readonly slotPartLocal: Int32Array;
@@ -42,7 +43,7 @@ export function createHighlightStorage(
   return { buffer, data: new Uint8Array(size) };
 }
 
-/** Writes one bounded span covering the changed header and bucket bytes. */
+/** Writes the changed header and fixed-size emphasis record ranges. */
 export function writeElementHighlights(
   device: GPUDevice,
   storage: HighlightTarget,
@@ -77,27 +78,34 @@ function writeChangedRanges(
   const previousView = new Uint32Array(previous.buffer);
   const previousSlots = (previousView[1] ?? 0) * HIGHLIGHT_BUCKET_SIZE;
   const nextSlots = bucketCount * HIGHLIGHT_BUCKET_SIZE;
-  const meaningful = Math.min(
-    next.byteLength,
-    HIGHLIGHT_HEADER + Math.max(previousSlots, nextSlots) * ELEMENT_RECORD_STRIDE,
-  );
-  let firstChanged = -1;
-  let lastChanged = -1;
-  for (let index = 0; index < meaningful; index += 1) {
-    if (next[index] === previous[index]) continue;
-    if (firstChanged < 0) firstChanged = index;
-    lastChanged = index;
+  const header = next.subarray(0, HIGHLIGHT_HEADER);
+  const previousHeader = previous.subarray(0, HIGHLIGHT_HEADER);
+  if (header.some((value, index) => value !== previousHeader[index])) {
+    device.queue.writeBuffer(storage.highlight.buffer, 0, header);
+    cost?.write("highlight", HIGHLIGHT_HEADER);
   }
-  if (firstChanged < 0) return;
-  const alignedStart = firstChanged - (firstChanged % 4);
-  const rangeEnd = lastChanged + 1;
-  const alignedEnd = Math.min(meaningful, rangeEnd + ((4 - (rangeEnd % 4)) % 4));
-  device.queue.writeBuffer(
-    storage.highlight.buffer,
-    alignedStart,
-    next.subarray(alignedStart, alignedEnd),
-  );
-  cost?.write("highlight", alignedEnd - alignedStart);
+  const recordCount = Math.max(previousSlots, nextSlots);
+  const changedRecords: number[] = [];
+  for (let index = 0; index < recordCount; index += 1) {
+    if (recordChanged(next, previous, index)) changedRecords.push(index);
+  }
+  writeChangedRecordRanges(device, {
+    buffer: storage.highlight.buffer,
+    next,
+    recordOffset: HIGHLIGHT_HEADER,
+    recordStride: ELEMENT_RECORD_STRIDE,
+    recordIndices: changedRecords,
+    cost,
+    category: "highlight",
+  });
+}
+
+function recordChanged(next: Uint8Array, previous: Uint8Array, index: number): boolean {
+  const start = HIGHLIGHT_HEADER + index * ELEMENT_RECORD_STRIDE;
+  for (let offset = 0; offset < ELEMENT_RECORD_STRIDE; offset += 1) {
+    if (next[start + offset] !== previous[start + offset]) return true;
+  }
+  return false;
 }
 
 function ensureHighlightStorage(

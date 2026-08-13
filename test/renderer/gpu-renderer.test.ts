@@ -410,7 +410,7 @@ describe("WebGPU renderer", () => {
     renderer.destroy();
   });
 
-  it("patches only the affected GPU subranges from packed deltas", async () => {
+  it("patches affected GPU records and order ranges from packed deltas", async () => {
     restoreGpuGlobals = installGpuGlobals();
     const gpu = fakeGpuDevice();
     installNavigator(gpu.device);
@@ -432,7 +432,7 @@ describe("WebGPU renderer", () => {
     const beforeStyle = instanceWrites().length;
     renderer.updateInstances(runtime, override, [0]);
     expect(writeRanges(beforeStyle)).toEqual([
-      [64, 16],
+      [0, 96],
       [0, 4],
     ]);
 
@@ -444,7 +444,7 @@ describe("WebGPU renderer", () => {
     const beforeVisibility = instanceWrites().length;
     renderer.updateInstances(runtime, override, hidden.changedInstanceIds);
     expect(writeRanges(beforeVisibility)).toEqual([
-      [160, 16],
+      [96, 96],
       [4, 8],
     ]);
 
