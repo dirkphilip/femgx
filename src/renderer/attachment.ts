@@ -174,7 +174,7 @@ export class RendererAttachment {
       parts,
       this.transparentFlags,
     );
-    const selectionChanged = syncSelectionState({
+    syncSelectionState({
       runtime,
       layout,
       interaction,
@@ -187,13 +187,7 @@ export class RendererAttachment {
       this.rebuildTransparentOrders(runtime, layout, transparentChanged, bundle);
     }
     this.rebuildCalls();
-    return (
-      attached ||
-      bodyVisibilityChanged ||
-      elementVisibilityChanged ||
-      transparentChanged.size > 0 ||
-      selectionChanged
-    );
+    return attached || bodyVisibilityChanged || elementVisibilityChanged;
   }
 
   public updateVisibility(

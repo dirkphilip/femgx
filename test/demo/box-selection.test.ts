@@ -404,7 +404,7 @@ describe("workbench click selection", () => {
     expect(render).not.toHaveBeenCalled();
   });
 
-  it("applies only the newest region result", async () => {
+  it("coalesces region work to one active query and the newest queued drag", async () => {
     let resolveFirst: ((targets: readonly InteractionTarget[]) => void) | undefined;
     let resolveSecond: ((targets: readonly InteractionTarget[]) => void) | undefined;
     const first = new Promise<readonly InteractionTarget[]>((resolve) => {
@@ -417,16 +417,20 @@ describe("workbench click selection", () => {
     const { workbench, render, getInteraction } = harness(undefined, pickRegion);
 
     const firstBox = workbench.selectBox(complete());
-    const secondBox = workbench.selectBox(complete());
+    await vi.waitFor(() => {
+      expect(pickRegion).toHaveBeenCalledOnce();
+    });
+    const secondBox = workbench.selectBox(complete({ control: true }));
+    const thirdBox = workbench.selectBox(complete({ meta: true }));
+    expect(pickRegion).toHaveBeenCalledOnce();
+    resolveFirst?.([element("stale", 1)]);
     await vi.waitFor(() => {
       expect(pickRegion).toHaveBeenCalledTimes(2);
     });
-    resolveFirst?.([element("stale", 1)]);
-    resolveSecond?.([element("current", 2)]);
-    await firstBox;
-    await secondBox;
+    resolveSecond?.([element("current", 3)]);
+    await Promise.all([firstBox, secondBox, thirdBox]);
 
-    expect(selectedKeys(getInteraction())).toEqual(["e:current:2"]);
+    expect(selectedKeys(getInteraction())).toEqual(["e:current:3"]);
     expect(render).toHaveBeenCalledOnce();
   });
 
@@ -436,6 +440,9 @@ describe("workbench click selection", () => {
     await expect(rejectedHarness.workbench.selectBox(complete())).resolves.toBeUndefined();
     expect(selectedKeys(rejectedHarness.getInteraction())).toEqual([]);
     expect(rejectedHarness.render).not.toHaveBeenCalled();
+    expect(rejectedHarness.selectionFeedback).toHaveBeenCalledWith(
+      "Box selection failed: GPU pick readback could not be completed",
+    );
 
     let resolveRegion: ((targets: readonly InteractionTarget[]) => void) | undefined;
     const pendingRegion = new Promise<readonly InteractionTarget[]>((resolve) => {
@@ -453,6 +460,7 @@ describe("workbench click selection", () => {
     await box;
 
     expect(selectedKeys(currentHarness.getInteraction())).toEqual([]);
+    expect(currentHarness.selectionFeedback).not.toHaveBeenCalled();
   });
 
   it("ignores an in-flight pick rejected after destruction", async () => {

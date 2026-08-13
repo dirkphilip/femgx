@@ -23,6 +23,14 @@ import {
 } from "./selection";
 import type { WorkbenchMenu, WorkbenchMenuSelectionOptions } from "./menu";
 
+type CompletedBoxSelectionEvent = BoxSelectionEvent & { readonly type: "complete" };
+
+function isCompletedBoxSelectionEvent(
+  event: BoxSelectionEvent,
+): event is CompletedBoxSelectionEvent {
+  return event.type === "complete";
+}
+
 /** View and state hooks used by the asynchronous picking interaction layer. */
 export interface WorkbenchInteractionOptions {
   readonly canvas: HTMLCanvasElement;
@@ -46,7 +54,12 @@ export class WorkbenchInteraction {
   private disposed = false;
   private downPosition: { readonly x: number; readonly y: number } | undefined;
   private target: SelectTarget | undefined;
-  private boxSelectionPending = false;
+  private boxSelectionActive = false;
+  private queuedBoxSelection: CompletedBoxSelectionEvent | undefined;
+  private boxSelectionDrain: Promise<void> | undefined;
+  private boxSelectionQueriesStarted = 0;
+  private boxSelectionQueriesInFlight = 0;
+  private boxSelectionMaxInFlight = 0;
 
   constructor(options: WorkbenchInteractionOptions) {
     this.options = options;
@@ -66,7 +79,7 @@ export class WorkbenchInteraction {
   }
 
   async hover(event: PointerEvent): Promise<void> {
-    if (this.boxSelectionPending) return;
+    if (this.boxSelectionActive || this.queuedBoxSelection !== undefined) return;
     const generation = ++this.generation;
     const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
@@ -85,7 +98,7 @@ export class WorkbenchInteraction {
     this.downPosition = undefined;
     if (down !== undefined && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 10)
       return;
-    this.boxSelectionPending = false;
+    this.invalidatePendingQuery();
     const generation = ++this.generation;
     const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
@@ -132,7 +145,7 @@ export class WorkbenchInteraction {
 
   async contextMenu(event: MouseEvent): Promise<void> {
     event.preventDefault();
-    this.boxSelectionPending = false;
+    this.invalidatePendingQuery();
     const generation = ++this.generation;
     const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
@@ -182,37 +195,92 @@ export class WorkbenchInteraction {
 
   /** Selects the visible elements returned for one completed primary drag. */
   async selectBox(event: BoxSelectionEvent): Promise<void> {
-    if (event.type !== "complete") return;
-    const generation = ++this.generation;
-    this.boxSelectionPending = true;
-    try {
-      const targets = await this.options.viewport().pickRegion(event.rect, "element");
-      if (this.disposed || generation !== this.generation) return;
-      const elements = elementTargets(targets);
-      const current = this.options.getInteraction();
-      const next =
-        event.modifiers.control || event.modifiers.meta
-          ? toggleElementSelections(current, elements)
-          : replaceElementSelection(current, elements);
-      const selectedElementCount = selectedTargets(next).filter(
-        (target) => target.kind === "element",
-      ).length;
-      this.options.selectionFeedback?.(
-        `Box selection: ${selectedElementCount} FE element${selectedElementCount === 1 ? "" : "s"}`,
-      );
-      if (next === current) return;
-      this.options.setInteraction(next);
-      this.options.render();
-    } catch {
-      // A rejected region query has no selection result to apply.
-    } finally {
-      if (generation === this.generation) this.boxSelectionPending = false;
+    if (!isCompletedBoxSelectionEvent(event)) return;
+    if (this.disposed) return;
+    this.queuedBoxSelection = event;
+    this.generation += 1;
+    if (this.boxSelectionDrain === undefined) {
+      this.boxSelectionDrain = this.drainBoxSelections();
     }
+    await this.boxSelectionDrain;
+  }
+
+  getBoxSelectionStats(): {
+    readonly active: boolean;
+    readonly queued: boolean;
+    readonly started: number;
+    readonly maxActive: number;
+  } {
+    return {
+      active: this.boxSelectionActive,
+      queued: this.queuedBoxSelection !== undefined,
+      started: this.boxSelectionQueriesStarted,
+      maxActive: this.boxSelectionMaxInFlight,
+    };
   }
 
   private invalidatePendingQuery(): void {
-    this.boxSelectionPending = false;
+    this.queuedBoxSelection = undefined;
     this.generation += 1;
+  }
+
+  private async drainBoxSelections(): Promise<void> {
+    this.boxSelectionQueriesStarted += 1;
+    this.boxSelectionQueriesInFlight += 1;
+    this.boxSelectionMaxInFlight = Math.max(
+      this.boxSelectionMaxInFlight,
+      this.boxSelectionQueriesInFlight,
+    );
+    this.boxSelectionActive = true;
+    try {
+      while (!this.disposed && this.queuedBoxSelection !== undefined) {
+        const event = this.queuedBoxSelection;
+        this.queuedBoxSelection = undefined;
+        const generation = this.generation;
+        let targets: readonly InteractionTarget[];
+        try {
+          targets = await this.options.viewport().pickRegion(event.rect, "element");
+        } catch {
+          if (this.isCurrentQuery(generation)) {
+            this.options.selectionFeedback?.(
+              "Box selection failed: GPU pick readback could not be completed",
+            );
+          }
+          continue;
+        }
+        if (!this.isCurrentQuery(generation)) continue;
+        this.applyBoxSelection(event, targets);
+      }
+    } finally {
+      this.boxSelectionQueriesInFlight -= 1;
+      this.boxSelectionActive = this.boxSelectionQueriesInFlight > 0;
+      this.boxSelectionDrain = undefined;
+    }
+  }
+
+  private applyBoxSelection(
+    event: CompletedBoxSelectionEvent,
+    targets: readonly InteractionTarget[],
+  ): void {
+    const elements = elementTargets(targets);
+    const current = this.options.getInteraction();
+    const next =
+      event.modifiers.control || event.modifiers.meta
+        ? toggleElementSelections(current, elements)
+        : replaceElementSelection(current, elements);
+    const selectedElementCount = selectedTargets(next).filter(
+      (target) => target.kind === "element",
+    ).length;
+    this.options.selectionFeedback?.(
+      `Box selection: ${selectedElementCount} FE element${selectedElementCount === 1 ? "" : "s"}`,
+    );
+    if (next === current) return;
+    this.options.setInteraction(next);
+    this.options.render();
+  }
+
+  private isCurrentQuery(generation: number): boolean {
+    return !this.disposed && generation === this.generation;
   }
 
   private showPick(hit: Parameters<typeof describePick>[0]): void {

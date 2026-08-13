@@ -167,6 +167,7 @@ export async function startWebGpuDemo(
     pickPoint: async (x: number, y: number) => (await viewport?.pick(x, y))?.worldPosition,
     pickRegion: async (rect: BoxSelectionRect, granularity: InteractionGranularity) =>
       (await viewport?.pickRegion(rect, granularity)) ?? [],
+    getBoxSelectionStats: () => controller.getBoxSelectionStats(),
   });
 
   return controller;
