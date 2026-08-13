@@ -1,5 +1,9 @@
 import { bodyIdForElement, type Geometry } from "../geometry/part";
-import { buildBodyPrimitivePickIds, buildElementPrimitivePickIds } from "./gpu-pick-ids";
+import {
+  buildBodyPrimitivePickIds,
+  buildElementPrimitivePickIds,
+  buildFacePrimitivePickIds,
+} from "./gpu-pick-ids";
 
 /** Expanded edge endpoints plus the body owners of each logical edge. */
 export interface MeshEdgeData {
@@ -142,7 +146,8 @@ function triangleBodyPairs(
   bodyPickIds: Uint32Array,
   elementPickIds: Uint32Array,
 ): Array<readonly [number, number, number, number]> {
-  const facePickIds = geometry.primitive === "triangles" ? geometry.facePickIds : undefined;
+  const facePickIds =
+    geometry.primitive === "triangles" ? buildFacePrimitivePickIds(geometry) : undefined;
   const pairFor = (triangle: number): readonly [number, number, number, number] => {
     const owner = bodyPickIds[triangle] ?? 0;
     const element = elementPickIds[triangle] ?? 0;

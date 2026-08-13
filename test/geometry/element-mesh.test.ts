@@ -327,8 +327,8 @@ describe("heterogeneousElementParts geometry", () => {
     expect(quad.elements).toEqual([
       { id: 2, primitiveStart: 0, primitiveCount: 2, shape: QUAD_SHAPE },
     ]);
-    expect(triangle.faces?.[0]).toMatchObject({ id: 0, elementId: 1, faceIndex: 0 });
-    expect(quad.faces?.[0]).toMatchObject({ id: 0, elementId: 2, faceIndex: 0 });
+    expect(triangle.faces?.[0]).toMatchObject({ elementId: 1, faceIndex: 0 });
+    expect(quad.faces?.[0]).toMatchObject({ elementId: 2, faceIndex: 0 });
     expect(() => {
       validateElements(triangle);
     }).not.toThrow();
@@ -510,12 +510,11 @@ describe("heterogeneousElementParts geometry", () => {
     expect(deformGeometry(geometry, field, 0).positions).toEqual(geometry.positions);
   });
 
-  it("records face pick ids, face descriptors, and neighbors per triangle", () => {
+  it("records exact face ranges, descriptors, and neighbors", () => {
     const solid = geometryFor(sharedTetPairModel(), "triangle");
-    expect(solid.facePickIds?.length).toBe(solid.indices.length / 3);
     expect(solid.faces).toHaveLength(8);
-    solid.faces?.forEach((face, index) => {
-      expect(face.id).toBe(index);
+    solid.faces?.forEach((face) => {
+      expect(face.primitiveCount).toBeGreaterThan(0);
       expect(face.nodeIds.length).toBeGreaterThanOrEqual(3);
       expect(face.key).toBeDefined();
     });
@@ -534,7 +533,7 @@ describe("heterogeneousElementParts geometry", () => {
       faceSubset: [{ elementId: 1, faceIndex: 3 }],
     });
     expect(geometry.indices.length).toBe(8 * 3);
-    expect(geometry.faceSubset).toEqual({ faceIds: [3] });
+    expect(geometry.faceSubset).toEqual({ faceIds: [{ elementId: 1, faceIndex: 3 }] });
     expect(geometry.faces).toHaveLength(8);
     expect(geometry.faces?.[3]).toMatchObject({
       elementId: 1,
@@ -650,7 +649,9 @@ describe("heterogeneousElementParts", () => {
       heterogeneousModel(),
       { faceSubset: [{ elementId: 3, faceIndex: 0 }] },
     );
-    expect(parts.triangle?.geometry.faceSubset).toEqual({ faceIds: [2] });
+    expect(parts.triangle?.geometry.faceSubset).toEqual({
+      faceIds: [{ elementId: 3, faceIndex: 0 }],
+    });
     expect(parts.triangle?.geometry.faces?.[2]).toMatchObject({ elementId: 3, faceIndex: 0 });
     expect(parts.triangle?.geometry.indices.length).toBeGreaterThan(3);
   });

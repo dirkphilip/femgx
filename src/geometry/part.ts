@@ -7,7 +7,6 @@ export type {
   BodyId,
   Bounds,
   ElementTessellation,
-  FaceId,
   FaceSubset,
   FaceTessellation,
   Geometry,
@@ -159,6 +158,7 @@ export {
   validateBodies,
   validateElements,
   validateFaceSubset,
+  faceForPrimitive,
   validatePickIds,
 } from "./part-validation";
 export type { GeometryValidationCode } from "./part-validation";

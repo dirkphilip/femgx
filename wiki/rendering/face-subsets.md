@@ -16,12 +16,12 @@ before rendering. `boundaryFaceRefs` derives the exterior set from the existing
 canonical face classification; an explicit selection may also include interior
 faces. An empty selection is valid and draws no triangles.
 
-The resulting `Geometry` keeps the full vertex/index and pick metadata so face,
-element, node, deformation, and instancing behavior remain unchanged. The
+The resulting `Geometry` keeps the full vertex/index and authored face ranges so
+face, element, node, deformation, and instancing behavior remain unchanged. The
 renderer uploads the reusable vertex buffer once and creates only a compact
 index order for the selected triangles (and its edge order when an edge overlay
 is requested). Selected index values still point into the original triangle
-vertices, so GPU pick ids resolve the original face and element identities.
+vertices, so private GPU ids resolve the authored face and element identities.
 There is no second vertex mesh and no alternate renderer path.
 
 Face subsets apply only to solid/surface triangle modes. They do not add face

@@ -35,7 +35,7 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   [[rendering/fe-inspection-workbench|FE inspection workbench]] and
   [[rendering/node-face-interaction|node and face interaction]]). Hover/
   selection keys are prefixed by granularity (`n:instance:node`,
-  `f:instance:element:faceKey`, `e:instance:element`, `i:instance`, `p:part`).
+  `f:instance:element:faceIndex`, `e:instance:element`, `i:instance`, `p:part`).
 
 ## Interaction state and precedence
 

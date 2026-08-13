@@ -1,14 +1,11 @@
 import type { ElementId, NodeId } from "../elements/element";
-import type { FaceKey } from "../elements/faces";
+import type { FaceIdRef, FaceKey } from "../elements/faces";
 import type { ElementShape } from "../elements/shapes";
-
-/** Stable identity of one oriented element face within a part. */
-export type FaceId = number;
 
 /** Stable set of part-local faces selected for solid/pick rendering. */
 export interface FaceSubset {
-  /** Face ids index the part's declared `faces` array. An empty set draws nothing. */
-  readonly faceIds: readonly FaceId[];
+  /** Oriented element-face identities to draw. An empty set draws nothing. */
+  readonly faceIds: readonly FaceIdRef[];
 }
 
 /** Stable identity of one logical body within a reusable part. */
@@ -50,17 +47,19 @@ export interface ElementTessellation {
 }
 
 /**
- * The tessellation of one oriented element face: a stable part-local face id
- * plus the element, face index, canonical key, ordered node loop, and the
- * elements that share the face's canonical key (its neighbors).
+ * The tessellation of one oriented element face. Its primitive range is the
+ * only renderer-facing mapping needed to resolve triangles back to this
+ * authored identity; dense GPU pick ids are derived privately by the renderer.
  */
 export interface FaceTessellation {
-  /** Stable part-local face id (indexes this list). */
-  readonly id: FaceId;
   /** The element owning this oriented face. */
   readonly elementId: ElementId;
   /** Index of the face within the element's canonical face list. */
   readonly faceIndex: number;
+  /** First logical triangle emitted for this oriented face. */
+  readonly primitiveStart: number;
+  /** Number of logical triangles emitted for this oriented face. */
+  readonly primitiveCount: number;
   /** Canonical identity shared by coincident faces. */
   readonly key: FaceKey;
   /** Outward-oriented node loop; interleaves mid-edge nodes when quadratic. */
@@ -103,9 +102,7 @@ interface GeometryBase {
 /** CPU-side triangle geometry descriptor; the renderer uploads this once. */
 export interface TriangleGeometry extends GeometryBase {
   readonly primitive: "triangles";
-  /** Optional per-triangle face pick ids: `faceId + 1`, `0` = no face. */
-  readonly facePickIds?: Uint32Array;
-  /** Optional face descriptors in ascending `id` order. */
+  /** Optional oriented face descriptors with exact triangle ranges. */
   readonly faces?: readonly FaceTessellation[];
   /** Optional render-time subset of the declared triangle faces. */
   readonly faceSubset?: FaceSubset;

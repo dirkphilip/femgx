@@ -1,6 +1,9 @@
 import type { ElementId } from "../elements/element";
-import type { Body, BodyId, ElementTessellation, FaceId, Geometry } from "./types";
+import type { Body, BodyId, ElementTessellation, Geometry } from "./types";
 import { MAX_ONE_BASED_ID, isValidOneBasedId, validateOneBasedId } from "./id-validation";
+import { validateFaceMetadata, validateFaceSubset } from "./face-validation";
+
+export { faceForPrimitive, validateFaceSubset } from "./face-validation";
 
 /** Machine-readable geometry validation failure. */
 export type GeometryValidationCode =
@@ -261,56 +264,10 @@ export function validatePickIds(geometry: Geometry): void {
       `nodePickIds must have one entry per vertex (${vertexCount}), got ${geometry.nodePickIds.length}`,
     );
   }
-  const primitiveCount = logicalPrimitiveCount(geometry);
-  if (
-    geometry.primitive === "triangles" &&
-    geometry.facePickIds !== undefined &&
-    geometry.facePickIds.length !== primitiveCount
-  ) {
-    throw new Error(
-      `facePickIds must have one entry per triangle (${primitiveCount}), got ${geometry.facePickIds.length}`,
-    );
-  }
   validateNodePickIds(geometry);
   validateFaceMetadata(geometry);
   validateFaceSubset(geometry);
-  if (geometry.primitive === "triangles" && geometry.faces !== undefined) {
-    const seen = new Set<FaceId>();
-    geometry.faces.forEach((face, index) => {
-      if (face.id !== index) {
-        throw new Error(`Face ${face.id} is not at its id index ${index}`);
-      }
-      if (seen.has(face.id)) {
-        throw new Error(`Duplicate face id ${face.id}`);
-      }
-      seen.add(face.id);
-    });
-  }
   validateBodies(geometry);
-}
-
-/** Validates that a render-time face subset resolves to declared face ids. */
-export function validateFaceSubset(geometry: Geometry): void {
-  if (geometry.primitive !== "triangles") return;
-  const subset = geometry.faceSubset;
-  if (subset === undefined) return;
-  if (subset.faceIds.length === 0) return;
-  const faces = geometry.faces;
-  const facePickIds = geometry.facePickIds;
-  if (faces === undefined || facePickIds === undefined) {
-    throw new Error("faceSubset requires declared faces and facePickIds");
-  }
-  const seen = new Set<FaceId>();
-  for (const faceId of subset.faceIds) {
-    if (!Number.isInteger(faceId) || faceId < 0 || faceId >= faces.length) {
-      throw new Error(`faceSubset references undeclared face ${faceId}`);
-    }
-    if (seen.has(faceId)) throw new Error(`faceSubset repeats face ${faceId}`);
-    if (!facePickIds.includes(faceId + 1)) {
-      throw new Error(`faceSubset references face ${faceId} without triangles`);
-    }
-    seen.add(faceId);
-  }
 }
 
 function validateNodePickIds(geometry: Geometry): void {
@@ -323,58 +280,6 @@ function validateNodePickIds(geometry: Geometry): void {
     if (pickId === 0) continue;
     if (nodeCount !== undefined && pickId > nodeCount) {
       throw new Error(`nodePickIds references node ${pickId - 1} outside nodePositions`);
-    }
-  }
-}
-
-function validateFaceMetadata(geometry: Geometry): void {
-  if (geometry.primitive !== "triangles") return;
-  const faces = geometry.faces;
-  const facePickIds = geometry.facePickIds;
-  if (facePickIds !== undefined) {
-    for (const pickId of facePickIds) {
-      if (pickId === 0) continue;
-      if (faces === undefined || pickId > faces.length) {
-        throw new Error(`facePickIds references undeclared face ${pickId - 1}`);
-      }
-    }
-  }
-  if (faces === undefined) return;
-  const elementIds =
-    geometry.elements === undefined
-      ? undefined
-      : new Set(geometry.elements.map((element) => element.id));
-  const nodeCount =
-    geometry.nodePositions === undefined ? undefined : geometry.nodePositions.length / 3;
-  for (const face of faces) {
-    validateOneBasedId(face.elementId, "Face element owner");
-    if (face.bodyId !== undefined) validateOneBasedId(face.bodyId, "Body");
-    if (elementIds !== undefined && !elementIds.has(face.elementId)) {
-      throw new Error(`Face ${face.id} references undeclared element ${face.elementId}`);
-    }
-    validateFaceNodes(face.id, face.nodeIds, nodeCount);
-    if (face.neighborElementIds.length > 1) {
-      throw new Error(
-        `Face ${face.id} has ${face.neighborElementIds.length} neighbors; non-manifold faces are unsupported`,
-      );
-    }
-    for (const neighbor of face.neighborElementIds) {
-      validateOneBasedId(neighbor, "Face neighbor element");
-    }
-  }
-}
-
-function validateFaceNodes(
-  faceId: FaceId,
-  nodeIds: readonly number[],
-  nodeCount: number | undefined,
-): void {
-  for (const nodeId of nodeIds) {
-    if (!Number.isInteger(nodeId) || nodeId < 0) {
-      throw new Error(`Face ${faceId} has invalid node reference ${nodeId}`);
-    }
-    if (nodeCount !== undefined && nodeId >= nodeCount) {
-      throw new Error(`Face ${faceId} references node ${nodeId} outside nodePositions`);
     }
   }
 }

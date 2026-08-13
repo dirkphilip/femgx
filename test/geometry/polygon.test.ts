@@ -73,7 +73,6 @@ describe("polygonGeometry", () => {
     expect(triangleAreaSum(geometry)).toBeCloseTo(1);
     expect(geometry.elements).toEqual([{ id: 2, primitiveStart: 0, primitiveCount: 2 }]);
     expect(geometry.faces?.[0]).toMatchObject({
-      id: 0,
       elementId: 2,
       faceIndex: 0,
       key: "0,1,2,3",
@@ -92,15 +91,15 @@ describe("polygonGeometry", () => {
     expect(first.elements).toEqual([{ id: 7, primitiveStart: 0, primitiveCount: 3 }]);
     expect(first.faces).toEqual([
       {
-        id: 0,
         elementId: 7,
         faceIndex: 3,
+        primitiveStart: 0,
+        primitiveCount: 3,
         key: "source-face",
         nodeIds: [0, 1, 2, 3, 4],
         neighborElementIds: [99],
       },
     ]);
-    expect(first.facePickIds).toEqual(new Uint32Array([1, 1, 1]));
     expect(first.nodePickIds?.every((pickId) => pickId > 0)).toBe(true);
   });
 
@@ -125,7 +124,7 @@ describe("polygonGeometry", () => {
     const context: PickContext = { instances: [instance()], parts: new Map([[1, part]]) };
     expect(
       resolvePickHit(context, ids({ elementPickId: 8, facePickId: 1 }), [0, 0, 0]),
-    ).toMatchObject({ kind: "face", elementId: 7, faceId: 0, key: "source-face" });
+    ).toMatchObject({ kind: "face", elementId: 7, faceIndex: 3, key: "source-face" });
 
     const displacement = createResultField({
       id: "u",

@@ -11,7 +11,6 @@ export {
   type Body,
   type BodyId,
   type ElementTessellation,
-  type FaceId,
   type FaceTessellation,
   type FaceSubset,
   type Geometry,

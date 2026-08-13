@@ -52,6 +52,11 @@ interface PolygonRecord {
   readonly key: FaceKey;
 }
 
+interface PrimitiveRange {
+  readonly primitiveStart: number;
+  readonly primitiveCount: number;
+}
+
 interface ElementGroup {
   readonly elementId: ElementId;
   readonly faces: PolygonRecord[];
@@ -73,12 +78,18 @@ export function polygonGeometry(input: PolygonGeometryInput): TriangleGeometry {
   const bodyIds = bodyAssignments(groups, input.bodies);
   const mesh = new TriangleMeshBuilder();
   const elements: ElementTessellation[] = [];
+  const ranges = new Map<number, PrimitiveRange>();
   for (const group of groups) {
     const primitiveStart = mesh.triangleCount;
     for (const record of group.faces) {
+      const faceStart = mesh.triangleCount;
       for (const triangle of record.triangles) {
-        mesh.append(triangleVertices(triangle, positions), record.id + 1);
+        mesh.append(triangleVertices(triangle, positions));
       }
+      ranges.set(record.id, {
+        primitiveStart: faceStart,
+        primitiveCount: mesh.triangleCount - faceStart,
+      });
     }
     const primitiveCount = mesh.triangleCount - primitiveStart;
     const bodyId = bodyIds.get(group.elementId);
@@ -90,7 +101,7 @@ export function polygonGeometry(input: PolygonGeometryInput): TriangleGeometry {
     elements.push(bodyId === undefined ? tessellation : { ...tessellation, bodyId });
   }
   const faces = records.map((record) =>
-    faceTessellation(record, bodyIds.get(record.input.elementId)),
+    faceTessellation(record, bodyIds.get(record.input.elementId), ranges),
   );
   const geometry = mesh.build("triangles", elements, faces, positions, input.bodies);
   const result: TriangleGeometry = { ...geometry, nodePositions: positions };
@@ -242,11 +253,18 @@ function nodePosition(positions: Float32Array, nodeId: NodeId): readonly [number
   return [positions[offset] ?? 0, positions[offset + 1] ?? 0, positions[offset + 2] ?? 0];
 }
 
-function faceTessellation(record: PolygonRecord, bodyId: number | undefined): FaceTessellation {
+function faceTessellation(
+  record: PolygonRecord,
+  bodyId: number | undefined,
+  ranges: ReadonlyMap<number, PrimitiveRange>,
+): FaceTessellation {
+  const range = ranges.get(record.id);
+  if (range === undefined) throw new Error(`Polygon face ${record.id} has no primitive range`);
   const face: FaceTessellation = {
-    id: record.id,
     elementId: record.input.elementId,
     faceIndex: record.faceIndex,
+    primitiveStart: range.primitiveStart,
+    primitiveCount: range.primitiveCount,
     key: record.key,
     nodeIds: [...record.input.nodeIds],
     neighborElementIds: [...(record.input.neighborElementIds ?? [])],

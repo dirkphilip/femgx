@@ -14,14 +14,15 @@ oriented element faces are the finest-grained pickable units under
   resolve to local/world positions on the CPU. Supported element tessellation
   emits authored nodes only; `0` remains reserved for node-less custom geometry.
 - **Faces**: `facesOfElement` pairs every `facesOf(element)` result with a
-  stable `faceIndex` (canonical order). The tessellation assigns each oriented
-  face a part-local `FaceTessellation` (stable `id`, `elementId`,
-  `faceIndex`, canonical `key`, node loop, `neighborElementIds`) and writes a
-  per-triangle `facePickIds` map (`faceId + 1`, `0` = no face).
-- `Geometry` carries `nodePickIds`, `nodePositions`, `facePickIds`, and
-  `faces`; `validatePickIds` enforces the per-vertex/per-triangle lengths and
-  that face ids are dense. GPU pick readback resolves from the same part
-  geometry, so ids stay stable across culling and compaction.
+  stable `faceIndex` (canonical order). Each `FaceTessellation` carries the
+  authored `(elementId, faceIndex)` identity, canonical `key`, node loop,
+  `neighborElementIds`, and an exact `primitiveStart`/`primitiveCount` range.
+  Face ranges are unique, non-empty, non-overlapping, and cover the declared
+  triangle geometry; face-array order is not identity.
+- `Geometry` carries `nodePickIds`, `nodePositions`, and `faces`; no public
+  per-triangle face-id array is required. The renderer derives dense face ids
+  privately from the validated ranges for GPU storage and resolves readback
+  to the authored oriented face identity.
 
 ## Picking
 
@@ -50,8 +51,8 @@ oriented element faces are the finest-grained pickable units under
 ## Interaction state and emphasis
 
 - `InteractionState` adds `selectedNodeIds`, `highlightedNodeIds`,
-  `hoveredNode`, `selectedFaces` (per instance, mapping `FaceKey` to the owning
-  `ElementId`), `highlightedFaces`, and `hoveredFace` (see
+  `hoveredNode`, `selectedFaces` and `highlightedFaces` keyed by the oriented
+  `(elementId, faceIndex)` occurrence (see
   `interaction/nodes.ts`, `interaction/faces.ts`, and `interaction/refs.ts`).
 - `resolveNodeStyle`/`resolveFaceStyle` apply the same precedence as element
   state (highlight < hover < selection, all above part/instance).
@@ -105,7 +106,7 @@ oriented element faces are the finest-grained pickable units under
 - The demo's workbench uses `viewport.pick(x, y)` followed by its host policy for interaction;
   plain click selects the most specific hit (node), Shift promotes to the
   element, Alt to the instance, Ctrl to the part. Hover/selection datasets are
-  prefixed by granularity (`n:instance:node`, `f:instance:element:faceKey`,
+  prefixed by granularity (`n:instance:node`, `f:instance:element:faceIndex`,
   `e:instance:element`, `i:instance`, `p:part`). See
   [[rendering/fe-inspection-workbench|FE inspection workbench]].
 

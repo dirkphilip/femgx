@@ -24,7 +24,7 @@ const base: ResolvedStyle = {
 const item: Instance = { index: 0, instanceId: "1/0", partId: 1, worldTransform: identity() };
 const bodyRef = { instanceId: "1/0", bodyId: 3 } as const;
 const elementRef = { instanceId: "1/0", elementId: 4 } as const;
-const faceRef = { instanceId: "1/0", elementId: 4, faceKey: "0,1,2,3" } as const;
+const faceRef = { instanceId: "1/0", elementId: 4, faceIndex: 0 } as const;
 const nodeRef = { instanceId: "1/0", nodeId: 7 } as const;
 
 interface PrecedenceCase {

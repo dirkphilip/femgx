@@ -79,7 +79,7 @@ export function selectedKeys(interaction: InteractionState): string[] {
         keys.push(`n:${target.instanceId}:${target.nodeId}`);
         break;
       case "face":
-        keys.push(`f:${target.instanceId}:${target.elementId}:${target.key}`);
+        keys.push(`f:${target.instanceId}:${target.elementId}:${target.faceIndex}`);
         break;
       case "element":
         keys.push(`e:${target.instanceId}:${target.elementId}`);

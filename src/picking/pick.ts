@@ -137,7 +137,6 @@ function faceHit(
     instanceId: instance.instanceId,
     elementId: face.elementId,
     ...bodyFields(geometry, face.elementId, face.bodyId),
-    faceId: face.id,
     faceIndex: face.faceIndex,
     key: face.key,
     nodeIds: face.nodeIds,

@@ -28,8 +28,8 @@ const item: Instance = { index: 0, instanceId: "1/0", partId: 1, worldTransform:
 
 const nodeRef = { instanceId: "1/0", nodeId: 7 };
 const otherNodeRef = { instanceId: "1/0", nodeId: 8 };
-const faceRef = { instanceId: "1/0", elementId: 3, faceKey: "0,1,2,3" };
-const otherFaceRef = { instanceId: "2/0", elementId: 5, faceKey: "4,5,6,7" };
+const faceRef = { instanceId: "1/0", elementId: 3, faceIndex: 0 };
+const otherFaceRef = { instanceId: "2/0", elementId: 5, faceIndex: 1 };
 
 describe("node selection state", () => {
   it("tracks selections per instance immutably", () => {
@@ -68,7 +68,7 @@ describe("node emphasis collection", () => {
 describe("face selection state", () => {
   it("tracks selections per instance immutably with their element", () => {
     const state = setFaceSelected(createInteractionState(), faceRef, true);
-    expect(readInteractionState(state).selectedFaces.get("1/0")?.get("0,1,2,3")).toBe(3);
+    expect(readInteractionState(state).selectedFaces.get("1/0")?.get("3/0")).toEqual(faceRef);
     expect(setFaceSelected(state, faceRef, true)).toBe(state);
     const cleared = setFaceSelected(state, faceRef, false);
     expect(readInteractionState(cleared).selectedFaces.has("1/0")).toBe(false);
@@ -79,20 +79,20 @@ describe("face selection state", () => {
       kind: "face",
       instanceId: faceRef.instanceId,
       elementId: faceRef.elementId,
-      key: faceRef.faceKey,
+      faceIndex: faceRef.faceIndex,
     });
     expect(readInteractionState(state).hoveredTarget).toEqual({
       kind: "face",
       instanceId: faceRef.instanceId,
       elementId: faceRef.elementId,
-      key: faceRef.faceKey,
+      faceIndex: faceRef.faceIndex,
     });
     expect(
       setTargetHovered(state, {
         kind: "face",
         instanceId: faceRef.instanceId,
         elementId: faceRef.elementId,
-        key: faceRef.faceKey,
+        faceIndex: faceRef.faceIndex,
       }),
     ).toBe(state);
     expect(setTargetHovered(state, undefined)).not.toHaveProperty("hoveredTarget");
@@ -108,7 +108,7 @@ describe("face emphasis collection", () => {
       kind: "face",
       instanceId: faceRef.instanceId,
       elementId: faceRef.elementId,
-      key: faceRef.faceKey,
+      faceIndex: faceRef.faceIndex,
     });
     expect(emphasizedFaceRefs(state)).toEqual([faceRef, otherFaceRef]);
   });
@@ -145,7 +145,7 @@ describe("resolveFaceStyle", () => {
       kind: "face",
       instanceId: faceRef.instanceId,
       elementId: faceRef.elementId,
-      key: faceRef.faceKey,
+      faceIndex: faceRef.faceIndex,
     });
     expect(resolveFaceStyle(item, faceRef, base, state)).toMatchObject({ emissive: 0.3 });
     expect(resolveFaceStyle(item, otherFaceRef, base, state)).toBe(base);
@@ -157,7 +157,7 @@ describe("resolveFaceStyle", () => {
         kind: "face",
         instanceId: faceRef.instanceId,
         elementId: faceRef.elementId,
-        key: faceRef.faceKey,
+        faceIndex: faceRef.faceIndex,
       }),
       faceRef,
       true,

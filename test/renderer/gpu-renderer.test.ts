@@ -79,9 +79,10 @@ function buildFaceScene(): Scene {
     nodePositions: positions,
     faces: [
       {
-        id: 0,
         elementId: 0,
         faceIndex: 0,
+        primitiveStart: 0,
+        primitiveCount: 1,
         key: "0:1:2",
         nodeIds: [0, 1, 2],
         neighborElementIds: [],
@@ -331,7 +332,6 @@ describe("WebGPU renderer", () => {
         partId: 1,
         instanceId: "1/0",
         elementId: 0,
-        faceId: 0,
         key: "0:1:2",
         worldPosition: unprojectPoint(faceCamera, [400.5, 300.5, depth]),
       });

@@ -91,7 +91,7 @@ describe("opaque interaction state", () => {
       { kind: "instance", instanceId: "1/0" },
       { kind: "body", instanceId: "1/0", bodyId: 2 },
       { kind: "element", instanceId: "1/0", elementId: 3 },
-      { kind: "face", instanceId: "1/0", elementId: 3, key: "0,1,2" },
+      { kind: "face", instanceId: "1/0", elementId: 3, faceIndex: 0 },
       { kind: "node", instanceId: "1/0", nodeId: 4 },
     ] as const;
     for (const target of targets) {

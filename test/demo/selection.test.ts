@@ -31,7 +31,7 @@ describe("demo selection policy", () => {
       { kind: "body", instanceId: "1/0", bodyId: 2 },
       element,
       { kind: "node", instanceId: "1/0", nodeId: 3 },
-      { kind: "face", instanceId: "1/0", elementId: 7, key: "0/1/2" },
+      { kind: "face", instanceId: "1/0", elementId: 7, faceIndex: 0 },
     ];
     for (const target of targets) state = setTargetSelected(state, target, true);
     state = setTargetHovered(state, instance);
@@ -103,7 +103,7 @@ describe("demo selection policy", () => {
       nodeId: 3,
       elementId: 7,
     };
-    const face: SelectTarget = { kind: "face", instanceId: "1/0", elementId: 7, key: "0/1/2" };
+    const face: SelectTarget = { kind: "face", instanceId: "1/0", elementId: 7, faceIndex: 0 };
     expect(elementTarget(node)).toEqual(element);
     expect(elementTarget(face)).toEqual(element);
     expect(elementTarget(element)).toEqual(element);

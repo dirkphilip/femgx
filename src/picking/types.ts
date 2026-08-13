@@ -1,6 +1,6 @@
 import type { ElementId, NodeId } from "../elements/element";
 import type { FaceKey } from "../elements/faces";
-import type { BodyId, FaceId, PartId } from "../geometry/part";
+import type { BodyId, PartId } from "../geometry/part";
 import type { Vec3 } from "../math/vec3";
 import type { InstanceId } from "../scene/types";
 
@@ -15,8 +15,6 @@ export interface FacePickHit {
   readonly elementId: ElementId;
   /** Optional logical body owning the face's element. */
   readonly bodyId?: BodyId;
-  /** Stable part-local face id (index into the part's face descriptors). */
-  readonly faceId: FaceId;
   readonly faceIndex: number;
   /** Canonical identity shared by coincident faces. */
   readonly key: FaceKey;
