@@ -1,0 +1,13 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "includeVersion": true,
+  "navigationLinks": {
+    "Demo": "../"
+  },
+  "name": "femgx API reference · experimental 0.x",
+  "out": "dist-demo/api",
+  "readme": "docs/api-reference.md"
+}
