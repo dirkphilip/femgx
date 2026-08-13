@@ -61,19 +61,22 @@ listeners so the threshold-crossing move marks box interaction active before
 hover handling runs. Demo-only box activity is tracked separately from camera
 gesture activity; `isPointerGestureActive()` combines the two, and the hover
 listener suppresses asynchronous GPU picks while either is active. On
-completion, `WorkbenchInteraction` issues one `pickRegion(event.rect,
-"element")` call. Plain completion replaces selection with the distinct visible
-elements returned by that readback; Ctrl/Meta toggles them, while Shift and Alt
-remain reserved without select-through behavior. The pending query is
-generation-checked, so newer clicks, context actions, model changes, resets,
-teardown, and rejected promises cannot mutate selection; cancellation and
-below-threshold gestures never query.
+completion, `WorkbenchInteraction` sends one request containing the completed
+event and captured Element/Face/Node granularity to its workbench-private box
+selection resolver. The default visible-surface resolver makes one
+`pickRegion(event.rect, granularity)` call; a workbench-owned resolver may
+replace candidate discovery without taking over selection mutation. Plain completion
+replaces selection with distinct returned targets; Ctrl/Meta toggles them, while
+Shift and Alt remain reserved without select-through behavior. The pending query
+is generation-checked, so newer clicks, context actions, model changes, resets,
+teardown, resolver changes, and rejected promises cannot mutate selection;
+cancellation and below-threshold gestures never query.
 
 ## Connection to region picking
 
-The gesture remains policy-free. The demo passes completed rectangles to
-`viewport.pickRegion(event.rect, "element")` and applies the returned
-nearest-visible element targets to `InteractionState`; the library gesture
+The gesture remains policy-free. The demo's default resolver passes the completed
+rectangle and captured granularity to `viewport.pickRegion` and applies the
+returned nearest-visible targets to `InteractionState`; the library gesture
 itself never mutates selection. Other hosts can use the same region API with
 their own selection policy.
 

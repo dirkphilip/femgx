@@ -17,6 +17,7 @@ import type { DemoView } from "../../demo/workbench/view";
 import { WorkbenchBoxPreview } from "../../demo/workbench/box-preview";
 import { installWorkbenchBindings } from "../../demo/workbench/listeners";
 import { WorkbenchInteraction } from "../../demo/workbench/interaction";
+import type { BoxSelectionResolver } from "../../demo/workbench/box-selection-resolver";
 import { selectedKeys } from "../../demo/workbench/selection";
 import type { SelectionGranularity } from "../../demo/workbench/pick";
 import type { WorkbenchMenu } from "../../demo/workbench/menu";
@@ -273,6 +274,7 @@ describe("workbench click selection", () => {
     pickRegion = vi.fn(() => Promise.resolve([] as readonly InteractionTarget[])),
     initialInteraction = createInteractionState(),
     selectionGranularity: SelectionGranularity = "element",
+    boxSelectionResolver?: BoxSelectionResolver,
   ) {
     const canvas = new FakeElement();
     let interaction = initialInteraction;
@@ -291,6 +293,7 @@ describe("workbench click selection", () => {
       menu: { hide: vi.fn() } as unknown as WorkbenchMenu,
       render,
       selectionGranularity: () => selectionGranularity,
+      ...(boxSelectionResolver === undefined ? {} : { boxSelectionResolver }),
       selectionFeedback,
     });
     return {
@@ -453,6 +456,80 @@ describe("workbench click selection", () => {
     expect(selectedKeys(getInteraction())).toEqual(["e:instance-a:2", "e:instance-b:1"]);
     expect(selectionFeedback).toHaveBeenLastCalledWith("Box selection: 2 FE elements");
     expect(render).toHaveBeenCalledOnce();
+  });
+
+  it("allows a custom resolver to replace visible-region discovery", async () => {
+    const target = { kind: "face", instanceId: "instance-a", elementId: 2, faceIndex: 1 } as const;
+    const pickRegion = vi.fn(() => Promise.resolve([] as readonly InteractionTarget[]));
+    const resolver = vi.fn<BoxSelectionResolver>((request) => {
+      expect(request.event).toEqual(complete());
+      expect(request.granularity).toBe("face");
+      return Promise.resolve([target]);
+    });
+    const { workbench, getInteraction, render } = harness(
+      undefined,
+      pickRegion,
+      createInteractionState(),
+      "face",
+      resolver,
+    );
+
+    await workbench.selectBox(complete());
+
+    expect(resolver).toHaveBeenCalledOnce();
+    expect(pickRegion).not.toHaveBeenCalled();
+    expect(selectedKeys(getInteraction())).toEqual(["f:instance-a:2:1"]);
+    expect(render).toHaveBeenCalledOnce();
+  });
+
+  it("rejects custom targets that do not match the captured granularity", async () => {
+    const resolver = vi.fn<BoxSelectionResolver>(() =>
+      Promise.resolve([{ kind: "element", instanceId: "instance-a", elementId: 2 }]),
+    );
+    const { workbench, getInteraction, render, selectionFeedback } = harness(
+      undefined,
+      undefined,
+      createInteractionState(),
+      "face",
+      resolver,
+    );
+
+    await workbench.selectBox(complete());
+
+    expect(selectedKeys(getInteraction())).toEqual([]);
+    expect(render).not.toHaveBeenCalled();
+    expect(selectionFeedback).toHaveBeenCalledWith(
+      "Box selection failed: Box selection resolver returned element target; expected face target",
+    );
+  });
+
+  it("invalidates an in-flight result when the resolver changes", async () => {
+    let resolveOld: ((targets: readonly InteractionTarget[]) => void) | undefined;
+    const oldResult = new Promise<readonly InteractionTarget[]>((resolve) => {
+      resolveOld = resolve;
+    });
+    const oldResolver = vi.fn<BoxSelectionResolver>(() => oldResult);
+    const current = { kind: "element", instanceId: "current", elementId: 3 } as const;
+    const newResolver = vi.fn<BoxSelectionResolver>(() => Promise.resolve([current]));
+    const { workbench, getInteraction } = harness(
+      undefined,
+      undefined,
+      createInteractionState(),
+      "element",
+      oldResolver,
+    );
+
+    const oldBox = workbench.selectBox(complete());
+    await vi.waitFor(() => {
+      expect(oldResolver).toHaveBeenCalledOnce();
+    });
+    workbench.setBoxSelectionResolver(newResolver);
+    const currentBox = workbench.selectBox(complete());
+    resolveOld?.([{ kind: "element", instanceId: "stale", elementId: 1 }]);
+    await Promise.all([oldBox, currentBox]);
+
+    expect(newResolver).toHaveBeenCalledOnce();
+    expect(selectedKeys(getInteraction())).toEqual(["e:current:3"]);
   });
 
   it.each([
