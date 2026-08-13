@@ -60,6 +60,7 @@ export function writeNodeOrders(options: {
     (enabled, slot) => enabled || options.selection.selectedNodeFlags[slot] === true,
   );
   for (const partId of options.layout.partOrder) {
+    options.bundle.draw.cost.cpu("order-rebuild", 1);
     const order = buildNodeOrder(options.layout, options.runtime, partId, nodeFlags, options.parts);
     writeNodeOrder(options.bundle.draw, partId, order);
     options.layout.partNodeCounts.set(partId, order.length);

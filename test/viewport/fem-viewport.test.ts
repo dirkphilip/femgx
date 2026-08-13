@@ -6,6 +6,7 @@ import { setTargetSelected } from "../../src/interaction/targets";
 import { translation } from "../../src/math/mat4";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { createFemViewport } from "../../src/viewport/fem-viewport";
+import { RendererAttachment } from "../../src/renderer/attachment";
 import type { FemViewport } from "../../src/viewport/types";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
 
@@ -109,6 +110,30 @@ function invalidScene(): Scene {
 }
 
 describe("FemViewport", () => {
+  it("does not resynchronize unchanged interaction state during camera-only frames", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const updateInstances = vi.spyOn(RendererAttachment.prototype, "updateInstances");
+    const updateElements = vi.spyOn(RendererAttachment.prototype, "updateElements");
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: fakeGpuDevice().device,
+    });
+
+    expect(updateInstances).not.toHaveBeenCalled();
+    expect(updateElements).toHaveBeenCalledOnce();
+    viewport.render();
+    viewport.setInteraction(viewport.interaction);
+    expect(updateInstances).not.toHaveBeenCalled();
+    expect(updateElements).toHaveBeenCalledOnce();
+
+    viewport.setInteraction(setPartOverride(viewport.interaction, 1, { emissive: 0.25 }));
+    expect(updateInstances).toHaveBeenCalledOnce();
+    expect(updateElements).toHaveBeenCalledTimes(2);
+    viewport.destroy();
+  });
+
   it("validates and switches the renderer-owned background without rebuilding the viewport", async () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();

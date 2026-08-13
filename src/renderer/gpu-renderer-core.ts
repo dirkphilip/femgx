@@ -49,6 +49,7 @@ export class GpuRenderer implements WebGpuRenderer {
   private deformation: DeformationState | undefined;
   private resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
   private originTriadNominalScale = 1;
+  private nodeOrdersDirty = true;
   private destroyed = false;
 
   public constructor(
@@ -98,7 +99,10 @@ export class GpuRenderer implements WebGpuRenderer {
     this.lastCamera = camera;
     this.parts = new Map(parts);
     const attachmentChanged = this.attachment.attach(runtime, this.lifecycle.bundle);
-    this.attachment.updateNodeOrders(this.parts, this.lifecycle.bundle);
+    if (attachmentChanged || partsChanged || this.nodeOrdersDirty) {
+      this.attachment.updateNodeOrders(this.parts, this.lifecycle.bundle);
+      this.nodeOrdersDirty = false;
+    }
     syncDeformations(this.lifecycle.bundle.draw, this.deformation);
     syncResultColors(this.lifecycle.bundle.draw, this.resultColors);
     if (partsChanged || cameraChanged || attachmentChanged) this.pickSnapshotValid = false;
@@ -125,6 +129,7 @@ export class GpuRenderer implements WebGpuRenderer {
     changedInstanceIds: readonly number[],
   ): void {
     this.ensureAlive();
+    if (changedInstanceIds.length > 0) this.nodeOrdersDirty = true;
     if (
       this.attachment.updateInstances(
         runtime,
@@ -142,6 +147,7 @@ export class GpuRenderer implements WebGpuRenderer {
     if (this.attachment.updateElements(runtime, interaction, this.lifecycle.bundle, this.parts)) {
       this.pickSnapshotValid = false;
     }
+    this.nodeOrdersDirty = false;
   }
 
   public setEdgeDepthTest(enabled: boolean): void {
@@ -170,6 +176,7 @@ export class GpuRenderer implements WebGpuRenderer {
     changedInstanceIds: readonly number[],
   ): void {
     this.ensureAlive();
+    if (changedInstanceIds.length > 0) this.nodeOrdersDirty = true;
     if (this.attachment.updateVisibility(runtime, changedInstanceIds, this.lifecycle.bundle)) {
       this.pickSnapshotValid = false;
     }

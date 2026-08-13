@@ -345,13 +345,20 @@ class FemViewportCore implements FemViewport {
       this.batchDirty = true;
       return;
     }
-    const changed = changedInstanceSlots(
-      this.currentRuntime,
-      this.appliedInteraction,
-      this.effectiveInteraction,
-    );
-    this.renderer.updateInstances(this.currentRuntime, this.effectiveInteraction, changed);
-    this.renderer.updateElements(this.currentRuntime, this.effectiveInteraction);
+    const interactionChanged = this.appliedInteraction !== this.effectiveInteraction;
+    const changed = interactionChanged
+      ? changedInstanceSlots(
+          this.currentRuntime,
+          this.appliedInteraction,
+          this.effectiveInteraction,
+        )
+      : [];
+    if (changed.length > 0) {
+      this.renderer.updateInstances(this.currentRuntime, this.effectiveInteraction, changed);
+    }
+    if (interactionChanged) {
+      this.renderer.updateElements(this.currentRuntime, this.effectiveInteraction);
+    }
     this.orientationGizmo?.update(this.cameraRef.camera);
     this.renderer.render(
       this.currentRuntime,
