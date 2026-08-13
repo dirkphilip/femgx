@@ -88,8 +88,9 @@ colored/deformed state by adding `deformation`.
 `deformPositions(positions, nodePickIds, displacements, scale)` / `deformGeometry(geometry,
 displacements, scale)` displace a geometry by a nodal displacement vector field times a `scale`
 factor. Vertices are mapped back to their model node through the per-vertex `nodePickIds` map
-(`nodeId + 1`, `0` = vertex without a node), so tessellated geometry that duplicates vertices per
-triangle/segment deforms like its FE nodes instead of assuming vertex `i` is node `i`.
+(`nodeId + 1`, `0` = vertex without a node), so indexed tessellated geometry deforms through its
+authored FE nodes instead of assuming vertex `i` is node `i`. The same mapping also supports
+custom geometry that deliberately duplicates a source node at multiple output vertices.
 Vertices without a node, without a matching displacement, or whose displacement is missing
 (`NaN`) keep their original position. `deformGeometry` requires a node-mapped geometry
 (`heterogeneousElementParts` provides one for element-backed geometry) and throws otherwise.

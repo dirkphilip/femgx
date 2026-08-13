@@ -78,7 +78,7 @@ describe("polygonGeometry", () => {
       key: "0,1,2,3",
       nodeIds: [0, 1, 2, 3],
     });
-    expect(geometry.nodePickIds).toEqual(new Uint32Array([4, 1, 2, 2, 3, 4]));
+    expect(geometry.nodePickIds).toEqual(new Uint32Array([4, 1, 2, 3]));
   });
 
   it("triangulates a concave face deterministically and preserves ownership", () => {
@@ -113,6 +113,8 @@ describe("polygonGeometry", () => {
       bodies: [{ id: 2, name: "shell", elementIds: [4] }],
     });
     expect(geometry.elements).toEqual([{ id: 4, primitiveStart: 0, primitiveCount: 2, bodyId: 2 }]);
+    expect(geometry.positions.length / 3).toBe(4);
+    expect(Array.from(geometry.indices)).toEqual([0, 1, 2, 0, 2, 3]);
     expect(geometry.faces?.map((face) => face.faceIndex)).toEqual([0, 1]);
     expect(geometry.faces?.every((face) => face.bodyId === 2)).toBe(true);
     expect(geometry.bodies).toEqual([{ id: 2, name: "shell", elementIds: [4] }]);

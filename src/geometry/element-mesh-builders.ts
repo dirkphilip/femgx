@@ -14,7 +14,7 @@ import {
   validateBodies,
 } from "./part";
 import { tessellateFace } from "./face-tessellation";
-import { LineMeshBuilder, TriangleMeshBuilder, type MeshVertex } from "./mesh-builder";
+import { LineMeshBuilder, TriangleMeshAssembler, type MeshVertex } from "./mesh-builder";
 import { elementNodePosition } from "./node-position";
 import {
   allFacesForElements,
@@ -61,7 +61,7 @@ export function volumeGeometry(input: VolumeGeometryInput): TriangleGeometry {
 }
 
 interface VolumeGeometryOptions {
-  readonly mesh: TriangleMeshBuilder;
+  readonly mesh: TriangleMeshAssembler;
   readonly elements: readonly ElementTessellation[];
   readonly faces: readonly FaceTessellation[];
   readonly nodePositions: readonly number[];
@@ -70,7 +70,7 @@ interface VolumeGeometryOptions {
 }
 
 interface VolumeTessellation {
-  readonly mesh: TriangleMeshBuilder;
+  readonly mesh: TriangleMeshAssembler;
   readonly elements: readonly ElementTessellation[];
   readonly faces: readonly FaceTessellation[];
   readonly nodePositions: readonly number[];
@@ -88,7 +88,7 @@ interface VolumeFaceInput {
 
 function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
   const { model, faces, neighbors, bodyIds, selected } = input;
-  const mesh = new TriangleMeshBuilder();
+  const mesh = new TriangleMeshAssembler();
   const elements: ElementTessellation[] = [];
   const faceTessellations: FaceTessellation[] = [];
   const nodePositions: number[] = [...model.nodes];

@@ -22,10 +22,10 @@ export interface DeformationState {
  * Returns a new position array displaced by a nodal displacement field.
  *
  * Vertices are mapped to their model node through `nodePickIds` (one entry per
- * vertex, `nodeId + 1`, `0` for vertices without a node), so tessellated
- * geometry that duplicates vertices per triangle/segment deforms like its FE
- * nodes instead of assuming vertex `i` is node `i`. Supported element
- * tessellation uses authored nodes only; custom node-less vertices remain fixed.
+ * vertex, `nodeId + 1`, `0` for vertices without a node), so indexed
+ * tessellated geometry deforms through its FE nodes instead of assuming vertex
+ * `i` is node `i`. Custom geometry may still duplicate a source node at
+ * multiple output vertices, while node-less vertices remain fixed.
  * Vertices without a matching displacement, or whose displacement is missing
  * (`NaN`), keep their original position. `scale` multiplies the displacement only.
  */

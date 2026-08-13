@@ -138,9 +138,10 @@ fn spriteCorner(corner: u32) -> vec2<f32> {
  * Displaces a model-space vertex by the active load case's nodal displacement,
  * scaled by the deformation uniform. Each vertex is mapped to the model node
  * it came from through the per-vertex `vertexNodePickIds` storage buffer
- * (`nodeId + 1`, `0` = vertex without a node), so tessellated
- * geometry that duplicates vertices per triangle/segment deforms like its FE
- * nodes rather than assuming `vertexIndex == nodeIndex`. The `displacements`
+ * (`nodeId + 1`, `0` = vertex without a node), so indexed tessellated
+ * geometry deforms through its FE nodes instead of assuming
+ * `vertexIndex == nodeIndex`. Custom geometry may duplicate a source node at
+ * multiple output vertices. The `displacements`
  * buffer is indexed by node id. Vertices without a node, whose node id falls
  * outside the buffer, or under a disabled deformation uniform stay in place.
  */

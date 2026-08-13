@@ -395,7 +395,9 @@ describe("heterogeneousElementParts geometry", () => {
 
   it("retains the shared face between two tets for GPU visibility", () => {
     const model = sharedTetPairModel();
-    expect(geometryFor(model, "triangle").indices.length).toBe(8 * 3);
+    const geometry = geometryFor(model, "triangle");
+    expect(geometry.indices.length).toBe(8 * 3);
+    expect(geometry.positions.length / 3).toBe(5);
   });
 
   it("retains both oriented cross-body interface faces", () => {
