@@ -1,10 +1,19 @@
 import type { ResolvedStyle } from "../interaction/interaction";
 
+interface PartEdgeResource {
+  readonly edgeNodePickIdsBuffer: GPUBuffer;
+  readonly edgeVertexBuffer: GPUBuffer;
+  readonly edgeIndexBuffer: GPUBuffer;
+  readonly edgeTopologyBuffer: GPUBuffer;
+  readonly edgeIndexCount: number;
+  readonly resultColorBinding: { readonly buffer: GPUBuffer; readonly offset: number };
+}
+
 export interface PartResource {
   readonly vertexBuffer: GPUBuffer;
   readonly indexBuffer: GPUBuffer;
   /** Geometry-position buffers carrying the appended per-node result table. */
-  readonly resultColorBuffers: readonly { readonly buffer: GPUBuffer; readonly offset: number }[];
+  resultColorBuffers: readonly { readonly buffer: GPUBuffer; readonly offset: number }[];
   readonly resultColorNodeCount: number;
   resultColorsSource: Float32Array | undefined;
   resultColorsActive: boolean;
@@ -14,24 +23,16 @@ export interface PartResource {
   readonly facePickIdsBuffer: GPUBuffer;
   /** Per-vertex node pick ids (`nodeId + 1`, 0 = vertex without a node). */
   readonly nodePickIdsBuffer: GPUBuffer;
-  /** Per-edge-endpoint node ids used by the expanded wireframe pass. */
-  readonly edgeNodePickIdsBuffer: GPUBuffer;
-  /** Expanded endpoint positions for the wireframe pass. */
-  readonly edgeVertexBuffer: GPUBuffer;
-  /** Sequential line-list indices for the expanded wireframe endpoints. */
-  readonly edgeIndexBuffer: GPUBuffer;
+  /** Edge geometry, topology, and result binding, materialized on first edge use. */
+  edge: PartEdgeResource | undefined;
   readonly indexCount: number;
-  readonly edgeIndexCount: number;
   /** Optional compact index orders for a validated face subset. */
   readonly subsetIndexBuffer?: GPUBuffer;
   readonly subsetVertexBuffer?: GPUBuffer;
   readonly subsetNodePickIdsBuffer?: GPUBuffer;
   /** Optional topology buffer with subset-local primitive remapping. */
   readonly subsetTopologyBuffer?: GPUBuffer;
-  readonly subsetEdgeVertexBuffer?: GPUBuffer;
-  readonly subsetEdgeIndexBuffer?: GPUBuffer;
   readonly subsetIndexCount: number;
-  readonly subsetEdgeIndexCount: number;
 }
 
 export const defaultStyle: ResolvedStyle = {

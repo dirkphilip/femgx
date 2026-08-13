@@ -23,19 +23,10 @@ export interface UploadVertexData {
 export interface PartGeometryData {
   readonly picks: Pick<PartResource, "elementPickIdsBuffer" | "nodePickIdsBuffer">;
   readonly facePickIdsBuffer: GPUBuffer;
-  readonly edgeBuffers: Pick<
-    PartResource,
-    "edgeVertexBuffer" | "edgeIndexBuffer" | "edgeNodePickIdsBuffer"
-  >;
-  readonly edgeResultColorBinding: { readonly buffer: GPUBuffer; readonly offset: number };
-  readonly edgeData: MeshEdgeData;
   readonly subsetBuffers: ReturnType<typeof createSubsetBuffers>;
   readonly subsetResultColorBinding:
     { readonly buffer: GPUBuffer; readonly offset: number } | undefined;
-  readonly subsetEdgeResultColorBinding:
-    { readonly buffer: GPUBuffer; readonly offset: number } | undefined;
   readonly subsetIndices: Uint32Array | undefined;
-  readonly hasSubset: boolean;
 }
 
 /** Builds all non-position buffers and appended result-color bindings for a part. */
@@ -47,36 +38,63 @@ export function buildPartGeometryData(
 ): PartGeometryData {
   const triangleGeometry = part.geometry.primitive === "triangles" ? part.geometry : undefined;
   const subsetIndices = getSubsetIndices(triangleGeometry);
-  const edgeData = getEdgeData(triangleGeometry, subsetIndices);
+  const emptyEdgeData = emptyMeshEdgeData();
   const picks = uploadPickBuffers(device, part, vertexData.nodePickIds);
   const faceBodyPickIds = buildPrimitiveFaceBodyPickData(part.geometry);
-  const facePickIdsBuffer = createTopologyBuffer(device, faceBodyPickIds, edgeData, {
+  const facePickIdsBuffer = createTopologyBuffer(device, faceBodyPickIds, emptyEdgeData, {
     primitiveIds: vertexData.primitiveIds,
-    edgeIds: edgeData.edgeIds,
+    edgeIds: emptyEdgeData.edgeIds,
   });
-  const { resultColorBinding: edgeResultColorBinding, ...edgeBuffers } = createEdgeBuffers(
-    device,
-    edgeData,
-    part.geometry.nodePickIds,
-    resultTail,
-  );
   const subsetVertexData =
     triangleGeometry === undefined || subsetIndices === undefined
       ? undefined
       : expandSurfaceGeometry(triangleGeometry, subsetIndices);
-  const { subsetResultColorBinding, subsetEdgeResultColorBinding, ...subsetBuffers } =
-    createSubsetBuffers(device, subsetVertexData, edgeData, faceBodyPickIds, resultTail);
+  const { subsetResultColorBinding, ...subsetBuffers } = createSubsetBuffers(
+    device,
+    subsetVertexData,
+    faceBodyPickIds,
+    resultTail,
+  );
   return {
     picks,
     facePickIdsBuffer,
-    edgeBuffers,
-    edgeResultColorBinding,
-    edgeData,
     subsetBuffers,
     subsetResultColorBinding,
-    subsetEdgeResultColorBinding,
     subsetIndices,
-    hasSubset: triangleGeometry?.faceSubset !== undefined,
+  };
+}
+
+/** Builds the optional retained edge resource for a triangle part. */
+export function buildPartEdgeResources(
+  device: GPUDevice,
+  part: Part,
+  resultTail: ResultColorTail,
+): NonNullable<PartResource["edge"]> | undefined {
+  if (part.geometry.primitive !== "triangles") return undefined;
+  const subsetIndices = getSubsetIndices(part.geometry);
+  const edgeData = buildMeshEdgeData(part.geometry, subsetIndices ?? part.geometry.indices);
+  const edgeWithResults = appendResultColorTail(edgeData.positions, resultTail);
+  const edgeVertexBuffer = createBuffer(
+    device,
+    edgeWithResults.data,
+    GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
+  );
+  return {
+    edgeVertexBuffer,
+    edgeIndexBuffer: createIndexBuffer(device, edgeData.indices),
+    edgeNodePickIdsBuffer: createBuffer(
+      device,
+      buildEdgeNodePickIds(edgeData.sourceVertexIndices, part.geometry.nodePickIds),
+      GPUBufferUsage.STORAGE,
+    ),
+    edgeTopologyBuffer: createTopologyBuffer(
+      device,
+      buildPrimitiveFaceBodyPickData(part.geometry),
+      edgeData,
+      { primitiveIds: [], edgeIds: edgeData.edgeIds },
+    ),
+    edgeIndexCount: edgeData.indices.length,
+    resultColorBinding: { buffer: edgeVertexBuffer, offset: edgeWithResults.offset },
   };
 }
 
@@ -101,15 +119,6 @@ function getSubsetIndices(
   return geometry?.faceSubset === undefined ? undefined : buildFaceSubsetIndices(geometry);
 }
 
-function getEdgeData(
-  geometry: Extract<Part["geometry"], { primitive: "triangles" }> | undefined,
-  subsetIndices: Uint32Array | undefined,
-): MeshEdgeData {
-  return geometry === undefined
-    ? emptyMeshEdgeData()
-    : buildMeshEdgeData(geometry, subsetIndices ?? geometry.indices);
-}
-
 function createTopologyBuffer(
   device: GPUDevice,
   faceBodyPickIds: Uint32Array,
@@ -132,7 +141,6 @@ function createTopologyBuffer(
 function createSubsetBuffers(
   device: GPUDevice,
   vertexData: SurfaceVertexData | undefined,
-  edgeData: MeshEdgeData,
   faceBodyPickIds: Uint32Array,
   resultTail: ResultColorTail,
 ): {
@@ -140,74 +148,27 @@ function createSubsetBuffers(
   readonly subsetVertexBuffer?: GPUBuffer;
   readonly subsetNodePickIdsBuffer?: GPUBuffer;
   readonly subsetTopologyBuffer?: GPUBuffer;
-  readonly subsetEdgeVertexBuffer?: GPUBuffer;
-  readonly subsetEdgeIndexBuffer?: GPUBuffer;
   readonly subsetResultColorBinding?: { readonly buffer: GPUBuffer; readonly offset: number };
-  readonly subsetEdgeResultColorBinding?: {
-    readonly buffer: GPUBuffer;
-    readonly offset: number;
-  };
 } {
   if (vertexData === undefined) return {};
   const subsetVertexWithResults = appendResultColorTail(vertexData.positions, resultTail);
-  const subsetEdgeWithResults = appendResultColorTail(edgeData.positions, resultTail);
   const subsetVertexBuffer = createBuffer(
     device,
     subsetVertexWithResults.data,
-    GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
-  );
-  const subsetEdgeVertexBuffer = createBuffer(
-    device,
-    subsetEdgeWithResults.data,
     GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
   );
   return {
     subsetIndexBuffer: createIndexBuffer(device, vertexData.indices),
     subsetVertexBuffer,
     subsetNodePickIdsBuffer: createBuffer(device, vertexData.nodePickIds, GPUBufferUsage.STORAGE),
-    subsetTopologyBuffer: createTopologyBuffer(device, faceBodyPickIds, edgeData, {
+    subsetTopologyBuffer: createTopologyBuffer(device, faceBodyPickIds, emptyMeshEdgeData(), {
       primitiveIds: vertexData.primitiveIds,
-      edgeIds: edgeData.edgeIds,
+      edgeIds: [],
     }),
-    subsetEdgeVertexBuffer,
-    subsetEdgeIndexBuffer: createIndexBuffer(device, edgeData.indices),
     subsetResultColorBinding: {
       buffer: subsetVertexBuffer,
       offset: subsetVertexWithResults.offset,
     },
-    subsetEdgeResultColorBinding: {
-      buffer: subsetEdgeVertexBuffer,
-      offset: subsetEdgeWithResults.offset,
-    },
-  };
-}
-
-function createEdgeBuffers(
-  device: GPUDevice,
-  edgeData: MeshEdgeData,
-  sourceNodePickIds: Uint32Array | undefined,
-  resultTail: ResultColorTail,
-): {
-  readonly edgeVertexBuffer: GPUBuffer;
-  readonly edgeIndexBuffer: GPUBuffer;
-  readonly edgeNodePickIdsBuffer: GPUBuffer;
-  readonly resultColorBinding: { readonly buffer: GPUBuffer; readonly offset: number };
-} {
-  const edgeWithResults = appendResultColorTail(edgeData.positions, resultTail);
-  const edgeVertexBuffer = createBuffer(
-    device,
-    edgeWithResults.data,
-    GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
-  );
-  return {
-    edgeVertexBuffer,
-    edgeIndexBuffer: createIndexBuffer(device, edgeData.indices),
-    edgeNodePickIdsBuffer: createBuffer(
-      device,
-      buildEdgeNodePickIds(edgeData.sourceVertexIndices, sourceNodePickIds),
-      GPUBufferUsage.STORAGE,
-    ),
-    resultColorBinding: { buffer: edgeVertexBuffer, offset: edgeWithResults.offset },
   };
 }
 

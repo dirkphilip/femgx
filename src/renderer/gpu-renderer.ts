@@ -1,4 +1,5 @@
 import { requestWebGpuDevice } from "../platform/device";
+import type { PartId } from "../geometry/part";
 import { GpuRenderer } from "./gpu-renderer-core";
 import { createGpuBundle } from "./gpu-recovery";
 import { readGpuValidationOptions } from "./gpu-validation";
@@ -16,6 +17,14 @@ export function readGpuCostSnapshot(renderer: WebGpuRenderer): GpuCostSnapshot {
     throw new Error("GPU cost accounting is unavailable for this renderer implementation");
   }
   return renderer.costSnapshot();
+}
+
+/** Reads internal retained edge-resource state without expanding the public renderer API. */
+export function readMaterializedEdgePartIds(renderer: WebGpuRenderer): ReadonlySet<PartId> {
+  if (!(renderer instanceof GpuRenderer)) {
+    throw new Error("GPU edge-resource accounting is unavailable for this renderer implementation");
+  }
+  return renderer.materializedEdgePartIds();
 }
 
 /** Creates a WebGPU renderer, or throws a typed error when unavailable. */

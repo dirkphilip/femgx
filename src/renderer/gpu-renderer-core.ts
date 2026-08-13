@@ -269,6 +269,16 @@ export class GpuRenderer implements WebGpuRenderer {
     return this.lifecycle.bundle.draw.cost.snapshot();
   }
 
+  /** Returns the internal part ids whose optional edge resources are retained. */
+  public materializedEdgePartIds(): ReadonlySet<PartId> {
+    this.ensureAlive();
+    return new Set(
+      [...this.lifecycle.bundle.draw.parts].flatMap(([partId, resource]) =>
+        resource.edge === undefined ? [] : [partId],
+      ),
+    );
+  }
+
   public destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;

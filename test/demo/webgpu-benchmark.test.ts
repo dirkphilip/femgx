@@ -137,10 +137,10 @@ describe("WebGPU benchmark models", () => {
       elementFamily: "triangle",
     }).scene;
     const memory = estimateBenchmarkMemory(scene, 3, 800, 600);
-    expect(memory.geometryBytes).toBe(960);
-    expect(memory.resultColorBytes).toBe(352);
-    expect(memory.pickMetadataBytes).toBe(1936);
-    expect(memory.edgeIndexBytes).toBe(192);
+    expect(memory.geometryBytes).toBe(384);
+    expect(memory.resultColorBytes).toBe(176);
+    expect(memory.pickMetadataBytes).toBe(400);
+    expect(memory.edgeIndexBytes).toBe(0);
     expect(memory.subsetBytes).toBe(0);
     expect(memory.deformationBytes).toBe(4);
     expect(memory.pickReadbackBytes).toBe(1280);
@@ -165,6 +165,14 @@ describe("WebGPU benchmark models", () => {
         memory.pickIdTargetBytes +
         memory.pickDepthBytes,
     );
+
+    const warmMemory = estimateBenchmarkMemory(scene, 3, 800, 600, {
+      materializedEdgePartIds: new Set([1]),
+    });
+    expect(warmMemory.geometryBytes).toBeGreaterThan(memory.geometryBytes);
+    expect(warmMemory.resultColorBytes).toBeGreaterThan(memory.resultColorBytes);
+    expect(warmMemory.pickMetadataBytes).toBeGreaterThan(memory.pickMetadataBytes);
+    expect(warmMemory.edgeIndexBytes).toBeGreaterThan(0);
   });
 
   it("keeps the matrix dimensions and scaling dimensions explicit", () => {
