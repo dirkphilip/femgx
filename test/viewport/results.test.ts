@@ -253,7 +253,6 @@ describe("viewport results workflow", () => {
     });
 
     expect(viewport.results?.scalarField.name).toBe("Authored stress");
-    expect(viewport.results?.deformation?.loadCaseCount).toBe(1);
     expect(viewport.interaction).toBe(base);
     expect(
       gpu.writes.some((write) => write.bytes.byteLength === nodalDisplacement().values.byteLength),

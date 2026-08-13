@@ -97,8 +97,6 @@ describe("viewport scene bounds", () => {
     );
     const deformation = {
       scale: 2,
-      loadCase: 0,
-      loadCaseCount: 1,
       displacements: new Map([[1, new Float32Array([0, 0, 0, 5, 0, 0, 0, 0, 0])]]),
     };
 

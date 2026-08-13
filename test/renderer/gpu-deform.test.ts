@@ -23,13 +23,10 @@ type StorageMap = Map<
 >;
 
 function state(
-  overrides: Partial<Pick<DeformationState, "scale" | "loadCase" | "loadCaseCount">> &
-    Pick<DeformationState, "displacements">,
+  overrides: Partial<Pick<DeformationState, "scale">> & Pick<DeformationState, "displacements">,
 ): DeformationState {
   return {
     scale: overrides.scale ?? 1,
-    loadCase: overrides.loadCase ?? 0,
-    loadCaseCount: overrides.loadCaseCount ?? 0,
     displacements: overrides.displacements,
   };
 }
@@ -43,35 +40,17 @@ function syncWith(gpu: FakeGpu): { sync: DeformationSync; storages: StorageMap }
 }
 
 describe("validateDeformation", () => {
-  it("rejects a non-integer or negative load case count", () => {
-    expect(() => {
-      validateDeformation(state({ loadCaseCount: -1, displacements: new Map() }));
-    }).toThrow(/loadCaseCount/);
-    expect(() => {
-      validateDeformation(state({ loadCaseCount: 1.5, displacements: new Map() }));
-    }).toThrow(/loadCaseCount/);
-  });
-
-  it("rejects an active load case outside the stored cases", () => {
-    expect(() => {
-      validateDeformation(state({ loadCaseCount: 2, loadCase: 2, displacements: new Map() }));
-    }).toThrow(/out of range/);
-    expect(() => {
-      validateDeformation(state({ loadCaseCount: 2, loadCase: -1, displacements: new Map() }));
-    }).toThrow(/out of range/);
-  });
-
-  it("rejects displacement buffers not divisible by loadCaseCount * 3", () => {
+  it("rejects displacement buffers that do not contain whole vec3 values", () => {
     const displacements = new Map<number, Float32Array>([[1, new Float32Array(5)]]);
     expect(() => {
-      validateDeformation(state({ loadCaseCount: 2, displacements }));
-    }).toThrow(/not a multiple of 6/);
+      validateDeformation(state({ displacements }));
+    }).toThrow(/not a multiple of 3/);
   });
 
-  it("accepts a valid multi-case state", () => {
-    const displacements = new Map<number, Float32Array>([[1, new Float32Array(2 * 2 * 3)]]);
+  it("accepts a valid nodal state", () => {
+    const displacements = new Map<number, Float32Array>([[1, new Float32Array(2 * 3)]]);
     expect(() => {
-      validateDeformation(state({ loadCaseCount: 2, loadCase: 1, displacements }));
+      validateDeformation(state({ displacements }));
     }).not.toThrow();
   });
 });
@@ -85,8 +64,6 @@ describe("syncDeformations", () => {
       const values = new Float32Array([1, 2, 3, 4, 5, 6]);
       syncDeformations(sync, {
         scale: 1,
-        loadCase: 0,
-        loadCaseCount: 1,
         displacements: new Map([[1, values]]),
       });
       const storage = sync.deformations.get(1);
@@ -119,8 +96,6 @@ describe("syncDeformations", () => {
       const { sync } = syncWith(gpu);
       const deformation: DeformationState = {
         scale: 1,
-        loadCase: 0,
-        loadCaseCount: 1,
         displacements: new Map([[1, new Float32Array([1, 2, 3])]]),
       };
       syncDeformations(sync, deformation);
@@ -139,8 +114,6 @@ describe("syncDeformations", () => {
       const { sync, storages } = syncWith(gpu);
       syncDeformations(sync, {
         scale: 1,
-        loadCase: 0,
-        loadCaseCount: 1,
         displacements: new Map([[1, new Float32Array([1, 2, 3])]]),
       });
       storages.set(1, {
@@ -154,8 +127,6 @@ describe("syncDeformations", () => {
       const next = new Float32Array([4, 5, 6]);
       syncDeformations(sync, {
         scale: 1,
-        loadCase: 0,
-        loadCaseCount: 1,
         displacements: new Map([[1, next]]),
       });
       expect(gpu.buffers.length).toBe(before);
@@ -174,8 +145,6 @@ describe("syncDeformations", () => {
       const { sync, storages } = syncWith(gpu);
       const deformation = (length: number): DeformationState => ({
         scale: 1,
-        loadCase: 0,
-        loadCaseCount: length === 3 ? 1 : 2,
         displacements: new Map([[1, new Float32Array(length)]]),
       });
       syncDeformations(sync, deformation(3));
@@ -208,8 +177,6 @@ describe("syncDeformations", () => {
       const { sync, storages } = syncWith(gpu);
       syncDeformations(sync, {
         scale: 1,
-        loadCase: 0,
-        loadCaseCount: 2,
         displacements: new Map([[1, new Float32Array(2 * 3 * 3)]]),
       });
       storages.set(1, {
@@ -222,8 +189,6 @@ describe("syncDeformations", () => {
       const old = gpu.buffers.at(-1);
       syncDeformations(sync, {
         scale: 1,
-        loadCase: 0,
-        loadCaseCount: 1,
         displacements: new Map([[1, new Float32Array(3 * 3)]]),
       });
       const current = gpu.buffers.at(-1);
@@ -245,8 +210,6 @@ describe("syncDeformations", () => {
       const { sync, storages } = syncWith(gpu);
       const deformation = (partIds: readonly number[]): DeformationState => ({
         scale: 1,
-        loadCase: 0,
-        loadCaseCount: 1,
         displacements: new Map(partIds.map((partId) => [partId, new Float32Array(3)])),
       });
       syncDeformations(sync, deformation([1, 2]));
@@ -275,15 +238,13 @@ describe("syncDeformations", () => {
 });
 
 describe("writeDeformationUniform", () => {
-  it("writes scale, load case, and load case count at the documented offsets", () => {
+  it("writes scale and leaves alignment padding zeroed", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
       const buffer = gpu.device.createBuffer({ size: 16, usage: 1 });
       writeDeformationUniform(gpu.device, buffer, {
         scale: 2.5,
-        loadCase: 1,
-        loadCaseCount: 2,
         displacements: new Map(),
       });
       const write = gpu.writes.find((entry) => entry.buffer === buffer);
@@ -291,8 +252,8 @@ describe("writeDeformationUniform", () => {
       const floats = new Float32Array(bytes.buffer, bytes.byteOffset, 4);
       const ids = new Uint32Array(bytes.buffer, bytes.byteOffset, 4);
       expect(floats[0]).toBe(2.5);
-      expect(ids[1]).toBe(1);
-      expect(ids[2]).toBe(2);
+      expect(ids[1]).toBe(0);
+      expect(ids[2]).toBe(0);
     } finally {
       restore();
     }
@@ -351,8 +312,6 @@ describe("destroyDeformationBuffers", () => {
       const { sync } = syncWith(gpu);
       syncDeformations(sync, {
         scale: 1,
-        loadCase: 0,
-        loadCaseCount: 1,
         displacements: new Map([[1, new Float32Array([1, 2, 3])]]),
       });
       destroyDeformationBuffers(sync.deformations);

@@ -120,20 +120,19 @@ describe("deformGeometry", () => {
 });
 
 describe("nodalDisplacements", () => {
-  it("packs one vec3 per node per load case, load-case major", () => {
-    const bending = displacements([1, 2, 3, 4, 5, 6]);
-    const twist = displacements([7, 8, 9, 10, 11, 12]);
-    const buffer = nodalDisplacements(2, [bending, twist]);
-    expect(Array.from(buffer)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  it("packs one vec3 per node from the authored field", () => {
+    const field = displacements([1, 2, 3, 4, 5, 6]);
+    const buffer = nodalDisplacements(2, field);
+    expect(Array.from(buffer)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   it("writes zero deltas for missing or out-of-range nodes", () => {
     const field = displacements([1, 1, 1, NaN, NaN, NaN]);
-    const buffer = nodalDisplacements(3, [field]);
+    const buffer = nodalDisplacements(3, field);
     expect(Array.from(buffer)).toEqual([1, 1, 1, 0, 0, 0, 0, 0, 0]);
   });
 
-  it("handles an empty load-case list with a zero-length buffer", () => {
-    expect(nodalDisplacements(2, []).byteLength).toBe(0);
+  it("handles an absent field with a zero-filled buffer", () => {
+    expect(Array.from(nodalDisplacements(2, undefined))).toEqual([0, 0, 0, 0, 0, 0]);
   });
 });

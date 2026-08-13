@@ -84,24 +84,23 @@ Vertices without a node, without a matching displacement, or whose displacement 
 (`NaN`) keep their original position. `deformGeometry` requires a node-mapped geometry
 (`heterogeneousElementParts` provides one for element-backed geometry) and throws otherwise.
 
-`nodalDisplacements(nodeCount, cases)` builds the per-node displacement buffer consumed by the
-GPU renderer's deformed-shape path: one vec3 per model node per load case, load-case major
-(`[case 0 node 0, case 0 node 1, ..., case 1 node 0, ...]`) and indexed by `NodeId`. Pass the
-owning model's node count (the largest node id used by the part's vertices plus one). `NaN`/
-missing values are zeroed so the node stays put. Feed it into
+`nodalDisplacements(nodeCount, field)` builds the per-node displacement buffer consumed by the
+GPU renderer's deformed-shape path: one vec3 per model node indexed by `NodeId`. Pass the owning
+model's node count (the largest node id used by the part's vertices plus one). `NaN`/missing values
+are zeroed so the node stays put. Feed it into
 the renderer's `setDeformation` state for one part.
 
 ## GPU deformed shapes (`gpu-deform.ts`)
 
 The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
 
-- `renderer.setDeformation({ scale, loadCase, loadCaseCount, displacements })`
+- `renderer.setDeformation({ scale, displacements })`
   sets the per-frame deformation state; `render()` rewrites the small
-  deformation uniform (scale + active load case) every frame and uploads each
+  deformation uniform (scale plus alignment padding) every frame and uploads each
   part's displacement buffer once, reusing it until the array reference changes.
 - `displacements` is a `ReadonlyMap<PartId, Float32Array>`; each buffer holds
-  `loadCaseCount * nodeCount * 3` floats indexed by `NodeId` (build them with
-  `nodalDisplacements`). `loadCaseCount` of 0 disables deformation.
+  `nodeCount * 3` floats indexed by `NodeId` (build them with
+  `nodalDisplacements`). An absent state disables deformation.
 - The WGSL vertex shaders (`gpu-shaders.ts`) resolve each vertex to its FE node through the
   part's per-vertex node pick ids and add `displacement * scale` to the model-space vertex in
   the triangle, point-sprite, and edge-overlay passes, so the wireframe and picking stay

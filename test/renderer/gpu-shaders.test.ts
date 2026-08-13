@@ -376,8 +376,7 @@ describe("GPU deformation shader contract", () => {
       const info = structInfo(source, "Deformation");
       const offsets = memberOffsets(info);
       expect(offsets.get("scale")).toBe(0);
-      expect(offsets.get("loadCase")).toBe(4);
-      expect(offsets.get("loadCaseCount")).toBe(8);
+      expect(offsets.get("_padding")).toBe(4);
       expect(info.size).toBe(DEFORMATION_UNIFORM_SIZE);
     },
   );
@@ -407,10 +406,10 @@ describe("GPU deformation shader contract", () => {
 
   it("resolves each vertex to its node before reading the displacement buffer", () => {
     expect(instanceVertexShader).toMatch(/vertexNodePickIds\[vertexIndex\]/);
-    expect(instanceVertexShader).toMatch(/deformation\.loadCaseCount == 0u/);
+    expect(instanceVertexShader).toMatch(/displacementCount == 0u/);
     expect(instanceVertexShader).toMatch(/arrayLength\(&displacements\)/);
     expect(instanceVertexShader).toMatch(/nodePickId == 0u \|\| nodePickId > nodeCount/);
-    expect(instanceVertexShader).toMatch(/deformation\.loadCase \* nodeCount \+ nodePickId - 1u/);
+    expect(instanceVertexShader).toMatch(/\(nodePickId - 1u\) \* 3u/);
     expect(instanceVertexShader).toMatch(/delta \* deformation\.scale/);
   });
 

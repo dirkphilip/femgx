@@ -241,8 +241,6 @@ describe("WebGPU renderer", () => {
 
     renderer.setDeformation({
       scale: 1,
-      loadCase: 0,
-      loadCaseCount: 1,
       displacements: new Map([[1, new Float32Array(9)]]),
     });
     renderer.render(runtime, movedCamera, scene.parts);
@@ -722,18 +720,16 @@ describe("WebGPU renderer deformation", () => {
     const runtime = createPackedSceneRuntime(scene);
     renderer.setDeformation({
       scale: 2,
-      loadCase: 1,
-      loadCaseCount: 2,
-      displacements: new Map([[1, new Float32Array(3 * 2 * 3)]]),
+      displacements: new Map([[1, new Float32Array(3 * 3)]]),
     });
     renderer.render(runtime, camera, scene.parts);
     const write = uniformWrite(gpu);
     const floats = new Float32Array(write?.bytes.buffer ?? new ArrayBuffer(0), 0, 4);
     const ids = new Uint32Array(write?.bytes.buffer ?? new ArrayBuffer(0), 0, 4);
     expect(floats[0]).toBe(2);
-    expect(ids[1]).toBe(1);
-    expect(ids[2]).toBe(2);
-    const storage = gpu.buffers.find((buffer) => buffer.size === 72 && (buffer.usage & 16) !== 0);
+    expect(ids[1]).toBe(0);
+    expect(ids[2]).toBe(0);
+    const storage = gpu.buffers.find((buffer) => buffer.size === 36 && (buffer.usage & 16) !== 0);
     expect(storage).toBeDefined();
     expect(gpu.writes.some((entry) => entry.buffer === storage?.resource)).toBe(true);
     renderer.destroy();
@@ -748,8 +744,6 @@ describe("WebGPU renderer deformation", () => {
     const runtime = createPackedSceneRuntime(scene);
     renderer.setDeformation({
       scale: 2,
-      loadCase: 0,
-      loadCaseCount: 1,
       displacements: new Map([[1, new Float32Array(9)]]),
     });
     renderer.render(runtime, camera, scene.parts);
@@ -781,8 +775,6 @@ describe("WebGPU renderer deformation", () => {
     const runtime = createPackedSceneRuntime(scene);
     const deformation = {
       scale: 1,
-      loadCase: 0,
-      loadCaseCount: 1,
       displacements: new Map([[1, new Float32Array(3 * 3)]]),
     };
     renderer.setDeformation(deformation);
@@ -809,11 +801,9 @@ describe("WebGPU renderer deformation", () => {
     expect(() => {
       renderer.setDeformation({
         scale: 1,
-        loadCase: 5,
-        loadCaseCount: 2,
-        displacements: new Map(),
+        displacements: new Map([[1, new Float32Array(5)]]),
       });
-    }).toThrow(/out of range/);
+    }).toThrow(/not a multiple of 3/);
     renderer.destroy();
   });
 });
