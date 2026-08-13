@@ -6,12 +6,14 @@ import {
   heterogeneousElementParts,
   identity,
   parseVtk,
+  createResultFieldFromModelResult,
   type AssemblyId,
   type ElementModel,
   type FemModel,
   type Part,
   type PartId,
   type Scene,
+  type ViewportResultsConfig,
 } from "../../src/index";
 
 /** The imported VTK asset and its canonical triangle part. */
@@ -20,6 +22,7 @@ export interface VtkFixture {
   readonly vtkModel: FemModel;
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
   readonly partIds: { readonly solid: PartId };
+  readonly results: ViewportResultsConfig;
 }
 
 const SOLID_PART_ID: PartId = 1;
@@ -39,6 +42,26 @@ export function createVtkFixture(): VtkFixture {
     faceSubset: exteriorFaces,
   }).triangle;
   if (triangle === undefined) throw new Error("The sample VTK asset has no triangle part");
+  const stress = vtkModel.results.find((result) => result.name === "stress");
+  const displacement = vtkModel.results.find((result) => result.name === "displacement");
+  if (stress === undefined || displacement === undefined) {
+    throw new Error("The sample VTK asset has no imported stress/displacement results");
+  }
+  const results: ViewportResultsConfig = {
+    field: createResultFieldFromModelResult(vtkModel, stress, {
+      id: "vtk-stress",
+      unit: "MPa",
+      shape: "scalar",
+    }),
+    deformation: {
+      field: createResultFieldFromModelResult(vtkModel, displacement, {
+        id: "vtk-displacement",
+        unit: "mm",
+        shape: "vector",
+      }),
+      scale: 1,
+    },
+  };
   const parts: readonly Part[] = [triangle];
   let builder = createScene();
   for (const part of parts) builder = builder.addPart(part);
@@ -58,5 +81,6 @@ export function createVtkFixture(): VtkFixture {
     vtkModel,
     elementModels,
     partIds: { solid: SOLID_PART_ID },
+    results,
   };
 }

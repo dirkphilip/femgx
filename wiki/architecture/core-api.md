@@ -90,7 +90,7 @@ stable element range and can participate in element picking and interaction.
 | Camera      | `createCamera`, `setProjection`, `orbitCamera`, `panCamera`, `zoomCamera`, `fitCamera`                                                                                                                          | Immutable camera values and projection/navigation math.                                                                                                                                    |
 | Picking     | `FemViewport.pick`, `PickHit`, `interactionTargetFromHit`, `InteractionGranularity`                                                                                                                             | One complete side-effect-free GPU hit plus explicit host-owned interaction-target conversion.                                                                                              |
 | Results     | `createResultField`, `ViewportResultsConfig`                                                                                                                                                                    | Authored nodal/elemental scalar values, ranges, maps, and optional nodal deformation configuration.                                                                                        |
-| IO          | `parseVtk`, `writeVtk`, `validateModel`                                                                                                                                                                         | The single supported VTK legacy interchange boundary and diagnostics.                                                                                                                      |
+| IO          | `parseVtk`, `writeVtk`, `validateModel`, `createResultFieldFromModelResult`                                                                                                                                     | The single supported VTK legacy interchange boundary, diagnostics, and narrow conversion into authored viewport result fields.                                                             |
 | Platform    | `queryWebGpuSupport`, `WebGpuUnsupportedError`, `requestWebGpuDevice`                                                                                                                                           | Capability probing, typed unsupported results, device creation, and loss information.                                                                                                      |
 
 ## Ownership and identity rules
@@ -115,12 +115,14 @@ stable element range and can participate in element picking and interaction.
   renderer; hosts do not manually synchronize packed runtime and renderer
   state.
 
-For imported data, `createElementModelFromFemModel` is the one validated
-conversion from the serializable VTK-backed `FemModel` into the dense
-`ElementModel` consumed by element tessellation. Hosts then call
+For imported data, `createElementModelFromFemModel` is the validated conversion
+from the serializable VTK-backed `FemModel` into the dense `ElementModel`
+consumed by element tessellation. Hosts then call
 `heterogeneousElementParts` once and register its explicit homogeneous
 primitive parts in an `Assembly`, which is the logical mixed-model composition
-and placement boundary.
+and placement boundary. A selected `ModelResultField` enters the authored
+results path through `createResultFieldFromModelResult` before
+`FemViewport.setResults()`.
 
 ## Viewport surface
 

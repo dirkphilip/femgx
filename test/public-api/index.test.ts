@@ -41,6 +41,7 @@ describe("public root API", () => {
       "createModelBuilder",
       "createPart",
       "createResultField",
+      "createResultFieldFromModelResult",
       "createScalarColorMap",
       "createScene",
       "createSceneRuntime",
@@ -132,6 +133,7 @@ describe("public root API", () => {
     expect(publicApi.createScene).toBeTypeOf("function");
     expect(publicApi.createFemViewport).toBeTypeOf("function");
     expect(publicApi.createResultField).toBeTypeOf("function");
+    expect(publicApi.createResultFieldFromModelResult).toBeTypeOf("function");
     expect(publicApi.polygonGeometry).toBeTypeOf("function");
     expect(publicApi.polygonPart).toBeTypeOf("function");
     expect(publicApi.PolygonGeometryError).toBeTypeOf("function");

@@ -80,6 +80,9 @@ and `test/scripts`.
   implementation module.
 - `results/deform.ts` owns the plain CPU `DeformationState`; GPU buffers and
   synchronization remain private to `renderer/gpu-deform.ts`.
+- `io/result-field.ts` is the one narrow IO-to-results boundary: it converts
+  explicit interchange result identities into authored fields without moving
+  interchange types or adding a result registry.
 - `renderer/gpu-renderer.ts` is the viewport's renderer boundary. The viewport
   does not import renderer implementation modules.
 - The renderer may depend on shared `math` types such as `Vec3` in its public

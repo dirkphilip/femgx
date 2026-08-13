@@ -1007,6 +1007,45 @@ test("reveals internal faces for an exactly selected adjacent Hex8 element", asy
   });
 });
 
+test("renders imported VTK scalar and nodal displacement results on desktop and mobile", async ({
+  page,
+}) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("model-select").selectOption("vtk");
+  await expect(canvas).toHaveAttribute("data-results", "deformed");
+  await stableCanvasPixels(page, canvas);
+  const deformed = await canvasRgba(page, canvas);
+  expect(
+    visiblePixelCount(deformed),
+    "imported VTK results must render visible desktop pixels",
+  ).toBeGreaterThan(100);
+
+  await page.getByTestId("results-toggle").click();
+  await expect(canvas).toHaveAttribute("data-results", "base");
+  await stableCanvasPixels(page, canvas);
+  const base = await canvasRgba(page, canvas);
+  expect(
+    differingPixelCount(deformed, base),
+    "clearing imported VTK results must change the rendered frame",
+  ).toBeGreaterThan(100);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await stableCanvasPixels(page, canvas);
+  const mobileBase = await canvasRgba(page, canvas);
+  expect(
+    visiblePixelCount(mobileBase),
+    "imported VTK geometry and result state must remain visible on mobile",
+  ).toBeGreaterThan(100);
+  await page.getByTestId("results-toggle").click();
+  await expect(canvas).toHaveAttribute("data-results", "colored");
+  await stableCanvasPixels(page, canvas);
+  expect(
+    differingPixelCount(mobileBase, await canvasRgba(page, canvas)),
+    "the imported scalar field must remain renderable on mobile",
+  ).toBeGreaterThan(100);
+});
+
 test("keeps result contours readable through face selection", async ({ page }) => {
   await loadWebGpuPage(page);
   await page.getByTestId("model-select").selectOption("results");

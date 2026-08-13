@@ -24,6 +24,25 @@ changes field semantics.
 `openElementBlock`, `appendElements`, `addSet`, `setMetadata`, `addResult`)
 used by the VTK reader and by tests when constructing models.
 
+## Result composition
+
+`createResultFieldFromModelResult(model, result, { id, unit, shape })` is the
+narrow bridge from one parsed `ModelResultField` to the authored field accepted
+by `FemViewport.setResults()`:
+
+- `shape: "scalar"` accepts one-component node or element results;
+- `shape: "vector"` accepts only an explicitly requested three-component node
+  result, the supported deformation input;
+- node ids map through the model node table into dense coordinate-row indices;
+- element ids remain direct field indices so element picking and result values
+  retain the same authored identity;
+- missing rows and components are `NaN`, and duplicate, unknown, malformed, or
+  unsupported identities fail with `IoError` diagnostics.
+
+The complete supported composition is:
+`parseVtk -> createElementModelFromFemModel -> heterogeneousElementParts ->
+createScene -> createResultFieldFromModelResult -> setResults`.
+
 ## Adapter
 
 | Format     | Reader     | Writer     | Notes                          |

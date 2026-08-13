@@ -1,0 +1,172 @@
+import { createResultField, type ScalarField, type VectorField } from "../results/fields";
+import { IoError, type Issue } from "./diagnostics";
+import type { FemModel, ModelResultField } from "./model";
+import { validateModel } from "./validate";
+
+/** Options selecting the authored field shape for an interchange result. */
+export type ModelResultFieldConversionOptions =
+  | {
+      readonly id: string;
+      readonly unit: string;
+      readonly shape: "scalar";
+    }
+  | {
+      readonly id: string;
+      readonly unit: string;
+      readonly shape: "vector";
+    };
+
+/**
+ * Converts one interchange scalar result into the dense field consumed by the
+ * viewport. Node result ids map through the model's node table; element ids
+ * remain direct indices so authored element identity stays pick-aligned.
+ */
+export function createResultFieldFromModelResult(
+  model: FemModel,
+  result: ModelResultField,
+  options: Extract<ModelResultFieldConversionOptions, { readonly shape: "scalar" }>,
+): ScalarField<"nodal"> | ScalarField<"elemental">;
+/**
+ * Converts one explicit three-component nodal interchange result into a
+ * nodal vector field suitable for authored deformation.
+ */
+export function createResultFieldFromModelResult(
+  model: FemModel,
+  result: ModelResultField,
+  options: Extract<ModelResultFieldConversionOptions, { readonly shape: "vector" }>,
+): VectorField<"nodal">;
+export function createResultFieldFromModelResult(
+  model: FemModel,
+  result: ModelResultField,
+  options: ModelResultFieldConversionOptions,
+): ScalarField<"nodal"> | ScalarField<"elemental"> | VectorField<"nodal"> {
+  validateConversion(model, result, options.shape);
+  const entityIndexes = entityIndex(model, result.location);
+  const values = new Float32Array(entityIndexes.count * result.components).fill(Number.NaN);
+  const seen = new Set<number>();
+  for (let row = 0; row < result.ids.length; row += 1) {
+    const sourceId = result.ids[row];
+    if (sourceId === undefined) continue;
+    if (seen.has(sourceId)) {
+      throw conversionError(
+        "duplicate-result-identity",
+        `Result ${result.name} repeats id ${sourceId}`,
+      );
+    }
+    seen.add(sourceId);
+    const targetIndex = entityIndexes.byId.get(sourceId);
+    if (targetIndex === undefined) {
+      throw conversionError(
+        "unknown-result-identity",
+        `Result ${result.name} references unknown ${result.location} id ${sourceId}`,
+      );
+    }
+    const sourceOffset = row * result.components;
+    const targetOffset = targetIndex * result.components;
+    for (let component = 0; component < result.components; component += 1) {
+      values[targetOffset + component] = result.values[sourceOffset + component] ?? Number.NaN;
+    }
+  }
+  return createConvertedField(result, options, entityIndexes.count, values);
+}
+
+function createConvertedField(
+  result: ModelResultField,
+  options: ModelResultFieldConversionOptions,
+  count: number,
+  values: Float32Array,
+): ScalarField<"nodal"> | ScalarField<"elemental"> | VectorField<"nodal"> {
+  if (options.shape === "scalar") {
+    return result.location === "node"
+      ? createResultField({
+          id: options.id,
+          name: result.name,
+          location: "nodal",
+          shape: "scalar",
+          count,
+          unit: options.unit,
+          values,
+        })
+      : createResultField({
+          id: options.id,
+          name: result.name,
+          location: "elemental",
+          shape: "scalar",
+          count,
+          unit: options.unit,
+          values,
+        });
+  }
+  return createResultField({
+    id: options.id,
+    name: result.name,
+    location: "nodal",
+    shape: "vector",
+    count,
+    unit: options.unit,
+    values,
+  });
+}
+
+interface EntityIndex {
+  readonly count: number;
+  readonly byId: ReadonlyMap<number, number>;
+}
+
+function entityIndex(model: FemModel, location: ModelResultField["location"]): EntityIndex {
+  if (location === "node") {
+    const byId = new Map<number, number>();
+    for (let row = 0; row < model.nodes.ids.length; row += 1) {
+      const id = model.nodes.ids[row];
+      if (id !== undefined) byId.set(id, row);
+    }
+    return { count: model.nodes.count, byId };
+  }
+  const byId = new Map<number, number>();
+  let count = 0;
+  for (const block of model.elementBlocks) {
+    for (const id of block.ids) {
+      byId.set(id, id);
+      count = Math.max(count, id + 1);
+    }
+  }
+  return { count, byId };
+}
+
+function validateConversion(
+  model: FemModel,
+  result: ModelResultField,
+  shape: "scalar" | "vector",
+): void {
+  const modelErrors = validateModel(model).filter((issue) => issue.severity === "error");
+  if (modelErrors.length > 0) throw new IoError("Cannot convert ModelResultField", modelErrors);
+  if (!Number.isInteger(result.components) || result.components < 1) {
+    throw conversionError(
+      "result-components",
+      `Result ${result.name} has invalid component count ${result.components}`,
+    );
+  }
+  if (result.values.length !== result.ids.length * result.components) {
+    throw conversionError(
+      "result-shape",
+      `Result ${result.name} has ${result.values.length} values for ${result.ids.length} ids and ${result.components} components`,
+    );
+  }
+  if (shape === "scalar" && result.components !== 1) {
+    throw conversionError(
+      "unsupported-result-shape",
+      `Scalar result ${result.name} requires one component, got ${result.components}`,
+    );
+  }
+  if (shape === "vector" && (result.location !== "node" || result.components !== 3)) {
+    throw conversionError(
+      "unsupported-result-shape",
+      `Vector result ${result.name} requires three nodal components`,
+    );
+  }
+}
+
+function conversionError(code: string, message: string): IoError {
+  const issue: Issue = { code, severity: "error", message };
+  return new IoError(message, [issue]);
+}

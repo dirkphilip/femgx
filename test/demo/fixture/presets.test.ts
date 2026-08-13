@@ -78,6 +78,8 @@ describe("createVtkPreset", () => {
     expect(preset.name).toBe("Imported VTK sample");
     expect(preset.scene.parts.size).toBe(1);
     expect(preset.bounds).toEqual({ minX: 0, minY: 0, minZ: 0, maxX: 2, maxY: 2, maxZ: 1 });
+    expect(preset.results?.field.name).toBe("stress");
+    expect(preset.results?.deformation?.field.name).toBe("displacement");
   });
 });
 
