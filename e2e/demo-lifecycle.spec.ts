@@ -563,24 +563,26 @@ test("bounds rapid performance box drags to one active readback", async ({ page 
   expect(stats?.started).toBeLessThanOrEqual(2);
   await expect(canvas).toHaveAttribute("data-renderer", "webgpu");
 });
-test("survives repeated completed box selections on Quad shells", async ({ page }) => {
+test("survives repeated completed box selections on body-heavy and Quad shell models", async ({
+  page,
+}) => {
   test.setTimeout(60_000);
   await page.goto("/");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
 
-  for (const model of ["fe-quad-shell-visual", "fe-quad8-shell-visual"]) {
+  for (const model of ["bodies-256", "fe-quad-shell-visual", "fe-quad8-shell-visual"]) {
     await select.selectOption(model);
     await expect(canvas).toHaveAttribute("data-model", model);
     await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
     for (let index = 0; index < 10; index += 1) {
-      const inset = (index % 5) * 0.02;
+      const inset = model === "bodies-256" ? 0.02 + (index % 5) * 0.01 : 0.12 + (index % 5) * 0.02;
       await primaryBoxDrag(
         page,
         canvas,
-        { fx: 0.12 + inset, fy: 0.18 },
-        { fx: 0.88 - inset, fy: 0.82 },
+        { fx: inset, fy: model === "bodies-256" ? inset : 0.18 },
+        { fx: 1 - inset, fy: model === "bodies-256" ? 1 - inset : 0.82 },
       );
       await page.mouse.up({ button: "left" });
       await expect
@@ -592,6 +594,11 @@ test("survives repeated completed box selections on Quad shells", async ({ page 
           { timeout: 10_000 },
         )
         .toEqual({ active: false, queued: false });
+      if (model === "bodies-256" && index === 0) {
+        await expect(page.getByTestId("model-feedback")).toHaveText(
+          "Box selection: 1024 FE elements",
+        );
+      }
     }
     await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
     await expect(canvas).toHaveAttribute("data-renderer", "webgpu");

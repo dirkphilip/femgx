@@ -557,6 +557,28 @@ describe("writeElementHighlights", () => {
     }
   });
 
+  it("allocates one exact GPU mirror for a collision-heavy 1,024-element layout", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const storage = makeStorage(gpu);
+      const updates = Array.from({ length: 1_024 }, (_, elementId) => elementUpdate(0, elementId));
+
+      writeElementHighlights(gpu.device, storage, updates);
+
+      const table = new Uint32Array(storage.highlight.data.buffer);
+      expect(table[0]).toBe(updates.length);
+      expect(table[1]).toBe(1_024);
+      expect(gpu.buffers).toHaveLength(2);
+      expect(gpu.buffers[0]?.destroyed).toBe(true);
+      expect(gpu.buffers[1]?.size).toBe(
+        HIGHLIGHT_HEADER + 1_024 * HIGHLIGHT_BUCKET_SIZE * ELEMENT_RECORD_STRIDE,
+      );
+    } finally {
+      restore();
+    }
+  });
+
   it("keeps the GPU bytes and CPU mirror identical when a populated table grows", () => {
     const restore = installGpuGlobals();
     try {

@@ -23,25 +23,21 @@ export interface HighlightTable {
 /**
  * Builds a deterministic bounded-bucket table. A lookup reads one bucket and
  * therefore stays constant-time even when many elements are emphasized. The
- * caller supplies the physical record capacity so a failed layout can trigger
- * one GPU-buffer growth before trying again.
+ * bucket count grows until every record fits, independently of GPU capacity.
  */
-export function buildHighlightTable(
-  entries: readonly HighlightTableEntry[],
-  recordCapacity: number,
-): HighlightTable | undefined {
+export function buildHighlightTable(entries: readonly HighlightTableEntry[]): HighlightTable {
   if (entries.length === 0) return { bucketCount: 0, seed: 0, entries: [] };
   const ordered = [...entries].sort(compareEntries);
-  const maxBucketCount = highestPowerOfTwo(Math.floor(recordCapacity / HIGHLIGHT_BUCKET_SIZE));
   let bucketCount = nextPowerOfTwo(Math.max(1, Math.ceil(entries.length / 2)));
-  while (bucketCount <= maxBucketCount) {
+  const maximumBucketCount = nextPowerOfTwo(entries.length) * HIGHLIGHT_BUCKET_SIZE;
+  while (bucketCount <= maximumBucketCount) {
     for (let seed = 0; seed < 256; seed += 1) {
       const table = placeEntries(ordered, bucketCount, seed);
       if (table !== undefined) return table;
     }
     bucketCount *= 2;
   }
-  return undefined;
+  throw new Error(`Cannot build bounded highlight table for ${entries.length} records`);
 }
 
 /** Returns the same u32 hash used by the WGSL emphasis lookup. */
@@ -98,10 +94,4 @@ function nextPowerOfTwo(value: number): number {
   let result = 1;
   while (result < value) result *= 2;
   return result;
-}
-
-function highestPowerOfTwo(value: number): number {
-  let result = 1;
-  while (result * 2 <= value) result *= 2;
-  return value < 1 ? 0 : result;
 }

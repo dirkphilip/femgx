@@ -50,11 +50,8 @@ export function writeElementHighlights(
   cost?: GpuCostAccumulator,
 ): void {
   const entries = updates.map(toTableEntry);
-  let table = buildHighlightTable(entries, highlightCapacity(storage.highlight.data.byteLength));
-  while (table === undefined) {
-    growHighlightStorage(device, storage, nextTableCapacity(entries.length), cost);
-    table = buildHighlightTable(entries, highlightCapacity(storage.highlight.data.byteLength));
-  }
+  const table = buildHighlightTable(entries);
+  ensureHighlightStorage(device, storage, table.entries.length, cost);
   const next = new Uint8Array(storage.highlight.data.length);
   const view = new Uint32Array(next.buffer);
   view[0] = entries.length;
@@ -103,7 +100,7 @@ function writeChangedRanges(
   cost?.write("highlight", alignedEnd - alignedStart);
 }
 
-function growHighlightStorage(
+function ensureHighlightStorage(
   device: GPUDevice,
   storage: HighlightTarget,
   minimumRecords: number,
@@ -139,13 +136,6 @@ function toTableEntry(update: EmphasisUpdate): HighlightTableEntry {
     nodePickId: update.nodePickId,
     data: encodeEmphasisRecord(update),
   };
-}
-
-function nextTableCapacity(count: number): number {
-  if (count === 0) return 0;
-  let bucketCount = 1;
-  while (bucketCount * 2 < Math.ceil(count / 2)) bucketCount *= 2;
-  return bucketCount * HIGHLIGHT_BUCKET_SIZE * 2;
 }
 
 /** The draw-path inputs needed to sync emphasis buffers. */
