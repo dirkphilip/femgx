@@ -31,6 +31,8 @@ export interface WebGpuBenchmarkSpec {
   readonly bodyCount: number;
   readonly elementFamily: WebGpuBenchmarkElementFamily;
   readonly structuredFamily?: StructuredFeFamily;
+  /** Whether this case is safe for the ordinary interactive workbench. */
+  readonly ordinaryDemo?: boolean;
 }
 
 export interface WebGpuBenchmarkCase {
@@ -71,6 +73,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       instanceCount: 64,
       bodyCount: 0,
       elementFamily: "quad",
+      ordinaryDemo: false,
     },
     {
       id: "unique-250k",
@@ -81,6 +84,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       instanceCount: 1,
       bodyCount: 0,
       elementFamily: "triangle",
+      ordinaryDemo: false,
     },
     {
       id: "unique-1m",
@@ -91,6 +95,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       instanceCount: 1,
       bodyCount: 0,
       elementFamily: "triangle",
+      ordinaryDemo: false,
     },
     {
       id: "many-parts-100",
@@ -101,6 +106,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       instanceCount: 100,
       bodyCount: 0,
       elementFamily: "triangle",
+      ordinaryDemo: false,
     },
     {
       id: "many-parts-1000",
@@ -111,6 +117,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       instanceCount: 1_000,
       bodyCount: 0,
       elementFamily: "triangle",
+      ordinaryDemo: false,
     },
     {
       id: "placements-10k",
@@ -121,6 +128,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       instanceCount: 10_000,
       bodyCount: 0,
       elementFamily: "quad",
+      ordinaryDemo: false,
     },
     {
       id: "bodies-256",
@@ -131,6 +139,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       instanceCount: 1,
       bodyCount: 256,
       elementFamily: "quad",
+      ordinaryDemo: true,
     },
     {
       id: "fe-quad-shell-visual",
@@ -142,6 +151,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       bodyCount: 1,
       elementFamily: "quad",
       structuredFamily: "quad",
+      ordinaryDemo: true,
     },
     {
       id: "fe-quad8-shell-visual",
@@ -153,6 +163,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       bodyCount: 1,
       elementFamily: "quad8",
       structuredFamily: "quad8",
+      ordinaryDemo: true,
     },
     {
       id: "fe-hex8-solid-visual",
@@ -164,6 +175,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       bodyCount: 1,
       elementFamily: "hex8",
       structuredFamily: "hex8",
+      ordinaryDemo: true,
     },
     {
       id: "fe-hex20-solid-visual",
@@ -175,6 +187,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       bodyCount: 1,
       elementFamily: "hex20",
       structuredFamily: "hex20",
+      ordinaryDemo: true,
     },
     ...(includeLarge
       ? [
@@ -188,6 +201,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
             bodyCount: 1,
             elementFamily: "hex20" as const,
             structuredFamily: "hex20" as const,
+            ordinaryDemo: false,
           },
           {
             id: "unique-2m-local",
@@ -198,10 +212,18 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
             instanceCount: 1,
             bodyCount: 0,
             elementFamily: "triangle" as const,
+            ordinaryDemo: false,
           },
         ]
       : []),
   ];
+}
+
+/** Returns benchmark models allowed in the workbench's ordinary selector. */
+export function workbenchBenchmarkSpecs(performanceLab: boolean): readonly WebGpuBenchmarkSpec[] {
+  return benchmarkCaseSpecs(performanceLab).filter(
+    (spec) => performanceLab || spec.ordinaryDemo === true,
+  );
 }
 
 /** Builds one deterministic benchmark scene without including generation in its timings. */

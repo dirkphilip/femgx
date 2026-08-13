@@ -6,7 +6,7 @@ import {
   type InteractionGranularity,
 } from "../../src/index";
 import { createModelPresets } from "../fixture/presets";
-import { benchmarkCaseSpecs } from "../benchmark/model";
+import { workbenchBenchmarkSpecs } from "../benchmark/model";
 import { installDemoHarness } from "../devtools/harness";
 import { WorkbenchController } from "./controller";
 import { createExampleModel, createLazyBenchmarkModel, type WorkbenchModel } from "./model";
@@ -28,9 +28,10 @@ export async function startWebGpuDemo(
   const presets = createModelPresets(
     options.testAlphaZero === true ? { transparencyOpacity: 0 } : undefined,
   );
+  const performanceLab = isPerformanceLabOptIn();
   const models: WorkbenchModel[] = [
     ...presets.map(createExampleModel),
-    ...benchmarkCaseSpecs(false).map(createLazyBenchmarkModel),
+    ...workbenchBenchmarkSpecs(performanceLab).map(createLazyBenchmarkModel),
   ];
   const initialModel = models[0];
   if (initialModel === undefined) throw new Error("The demo requires at least one model preset");
@@ -166,6 +167,14 @@ export async function startWebGpuDemo(
   });
 
   return controller;
+}
+
+function isPerformanceLabOptIn(): boolean {
+  const environment = globalThis as unknown as { readonly location?: unknown };
+  const location = environment.location;
+  if (typeof location !== "object" || location === null || !("search" in location)) return false;
+  const search = location.search;
+  return typeof search === "string" && new URLSearchParams(search).get("performanceLab") === "1";
 }
 
 function isWorkbenchPane(value: unknown): value is WorkbenchPane {

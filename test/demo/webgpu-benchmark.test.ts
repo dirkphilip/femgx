@@ -3,6 +3,7 @@ import {
   benchmarkCaseSpecs,
   createBenchmarkCase,
   estimateBenchmarkMemory,
+  workbenchBenchmarkSpecs,
 } from "../../demo/benchmark/model";
 import { summarizeInteractiveSample } from "../../demo/benchmark/interactive";
 import {
@@ -174,6 +175,19 @@ describe("WebGPU benchmark models", () => {
       bodyCount: 256,
       elementFamily: "quad",
     });
+  });
+
+  it("keeps capacity tiers out of the ordinary workbench selector", () => {
+    expect(workbenchBenchmarkSpecs(false).map((spec) => spec.id)).toEqual([
+      "bodies-256",
+      "fe-quad-shell-visual",
+      "fe-quad8-shell-visual",
+      "fe-hex8-solid-visual",
+      "fe-hex20-solid-visual",
+    ]);
+    expect(workbenchBenchmarkSpecs(false).some((spec) => spec.id === "unique-250k")).toBe(false);
+    expect(workbenchBenchmarkSpecs(true).some((spec) => spec.id === "unique-250k")).toBe(true);
+    expect(workbenchBenchmarkSpecs(true).some((spec) => spec.id === "unique-2m-local")).toBe(true);
   });
 
   it("summarizes interactive frame intervals and thresholds", () => {
