@@ -3,11 +3,7 @@ import type { PartId } from "../geometry/part";
 import { destroyDeformationBuffers, type DeformationStorage } from "./gpu-deform";
 import { buildMeshEdgeData, type MeshEdgeData } from "./gpu-edge";
 import { buildFaceSubsetIndices } from "./gpu-face-subset";
-import {
-  createGeometryDataBuffer,
-  emptyMeshEdgeData,
-  packTopologyData,
-} from "./gpu-geometry-buffers";
+import { emptyMeshEdgeData, packTopologyData } from "./gpu-geometry-buffers";
 import type { InstanceStorage } from "./gpu-instance-storage";
 import {
   buildElementPrimitivePickIds,
@@ -122,12 +118,6 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
     ),
     nodePickIdsBuffer: createBuffer(draw.device, ids, GPUBufferUsage.STORAGE),
     edgeNodePickIdsBuffer: createBuffer(draw.device, ids, GPUBufferUsage.STORAGE),
-    geometryDataBuffer: createGeometryDataBuffer(
-      draw.device,
-      positions,
-      Uint32Array.from({ length: count * 4 }, (_, vertex) => Math.floor(vertex / 4)),
-      emptyMeshEdgeData(),
-    ),
     edgeVertexBuffer: createBuffer(draw.device, new Float32Array(3), GPUBufferUsage.VERTEX),
     edgeIndexBuffer: createBuffer(draw.device, new Uint32Array(1), GPUBufferUsage.INDEX),
     indexCount: indices.length,
@@ -167,29 +157,26 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
     : emptyMeshEdgeData();
   const picks = uploadPickBuffers(draw, part, vertexData.nodePickIds);
   const faceBodyPickIds = buildPrimitiveFaceBodyPickData(part.geometry);
-  const geometryDataBuffer = createGeometryDataBuffer(
-    draw.device,
-    vertexData.positions,
-    vertexData.primitiveIds,
-    edgeData,
-  );
-  const facePickIdsBuffer = createBuffer(
-    draw.device,
-    packTopologyData(faceBodyPickIds, edgeData.bodyRanges, edgeData.bodyIds, edgeData.elementIds),
-    GPUBufferUsage.STORAGE,
-  );
+  const facePickIdsBuffer = createTopologyBuffer(draw.device, faceBodyPickIds, edgeData, {
+    primitiveIds: vertexData.primitiveIds,
+    edgeIds: edgeData.edgeIds,
+  });
   const edgeBuffers = createEdgeBuffers(draw.device, edgeData, part.geometry.nodePickIds);
   const subsetVertexData =
     triangleGeometry === undefined || subsetIndices === undefined
       ? undefined
       : expandSurfaceGeometry(triangleGeometry, subsetIndices);
-  const subsetBuffers = createSubsetBuffers(draw.device, subsetVertexData, edgeData);
+  const subsetBuffers = createSubsetBuffers(
+    draw.device,
+    subsetVertexData,
+    edgeData,
+    faceBodyPickIds,
+  );
   const resource: PartResource = {
     vertexBuffer,
     indexBuffer,
     ...picks,
     facePickIdsBuffer,
-    geometryDataBuffer,
     ...edgeBuffers,
     indexCount: vertexData.indices.length,
     edgeIndexCount: edgeData.indices.length,
@@ -214,6 +201,25 @@ function uploadPickBuffers(
     ),
     nodePickIdsBuffer: createBuffer(draw.device, nodePickIds, GPUBufferUsage.STORAGE),
   };
+}
+
+function createTopologyBuffer(
+  device: GPUDevice,
+  faceBodyPickIds: Uint32Array,
+  edgeData: MeshEdgeData,
+  metadata: { readonly primitiveIds: ArrayLike<number>; readonly edgeIds: ArrayLike<number> },
+): GPUBuffer {
+  return createBuffer(
+    device,
+    packTopologyData(
+      faceBodyPickIds,
+      edgeData.bodyRanges,
+      edgeData.bodyIds,
+      edgeData.elementIds,
+      metadata,
+    ),
+    GPUBufferUsage.STORAGE,
+  );
 }
 
 interface PointVertexData {
@@ -271,12 +277,13 @@ function createSubsetBuffers(
   device: GPUDevice,
   vertexData: SurfaceVertexData | undefined,
   edgeData: MeshEdgeData,
+  faceBodyPickIds: Uint32Array,
 ): Pick<
   PartResource,
   | "subsetIndexBuffer"
   | "subsetVertexBuffer"
   | "subsetNodePickIdsBuffer"
-  | "subsetGeometryDataBuffer"
+  | "subsetTopologyBuffer"
   | "subsetEdgeVertexBuffer"
   | "subsetEdgeIndexBuffer"
 > {
@@ -289,13 +296,15 @@ function createSubsetBuffers(
       GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
     ),
     subsetNodePickIdsBuffer: createBuffer(device, vertexData.nodePickIds, GPUBufferUsage.STORAGE),
-    subsetGeometryDataBuffer: createGeometryDataBuffer(
+    subsetTopologyBuffer: createTopologyBuffer(device, faceBodyPickIds, edgeData, {
+      primitiveIds: vertexData.primitiveIds,
+      edgeIds: edgeData.edgeIds,
+    }),
+    subsetEdgeVertexBuffer: createBuffer(
       device,
-      vertexData.positions,
-      vertexData.primitiveIds,
-      emptyMeshEdgeData(),
+      edgeData.positions,
+      GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
     ),
-    subsetEdgeVertexBuffer: createBuffer(device, edgeData.positions, GPUBufferUsage.VERTEX),
     subsetEdgeIndexBuffer: createIndexBuffer(device, edgeData.indices),
   };
 }
@@ -306,7 +315,11 @@ function createEdgeBuffers(
   sourceNodePickIds: Uint32Array | undefined,
 ): Pick<PartResource, "edgeVertexBuffer" | "edgeIndexBuffer" | "edgeNodePickIdsBuffer"> {
   return {
-    edgeVertexBuffer: createBuffer(device, edgeData.positions, GPUBufferUsage.VERTEX),
+    edgeVertexBuffer: createBuffer(
+      device,
+      edgeData.positions,
+      GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
+    ),
     edgeIndexBuffer: createIndexBuffer(device, edgeData.indices),
     edgeNodePickIdsBuffer: createBuffer(
       device,
@@ -325,13 +338,12 @@ export function destroyDrawResources(draw: DrawResources): void {
     resource.facePickIdsBuffer.destroy();
     resource.nodePickIdsBuffer.destroy();
     resource.edgeNodePickIdsBuffer.destroy();
-    resource.geometryDataBuffer.destroy();
     resource.edgeVertexBuffer.destroy();
     resource.edgeIndexBuffer.destroy();
     resource.subsetIndexBuffer?.destroy();
     resource.subsetVertexBuffer?.destroy();
     resource.subsetNodePickIdsBuffer?.destroy();
-    resource.subsetGeometryDataBuffer?.destroy();
+    resource.subsetTopologyBuffer?.destroy();
     resource.subsetEdgeVertexBuffer?.destroy();
     resource.subsetEdgeIndexBuffer?.destroy();
   }
@@ -342,13 +354,12 @@ export function destroyDrawResources(draw: DrawResources): void {
     resource.facePickIdsBuffer.destroy();
     resource.nodePickIdsBuffer.destroy();
     resource.edgeNodePickIdsBuffer.destroy();
-    resource.geometryDataBuffer.destroy();
     resource.edgeVertexBuffer.destroy();
     resource.edgeIndexBuffer.destroy();
     resource.subsetIndexBuffer?.destroy();
     resource.subsetVertexBuffer?.destroy();
     resource.subsetNodePickIdsBuffer?.destroy();
-    resource.subsetGeometryDataBuffer?.destroy();
+    resource.subsetTopologyBuffer?.destroy();
     resource.subsetEdgeVertexBuffer?.destroy();
     resource.subsetEdgeIndexBuffer?.destroy();
   }

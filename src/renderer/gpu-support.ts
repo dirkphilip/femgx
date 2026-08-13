@@ -11,8 +11,6 @@ export interface PartResource {
   readonly nodePickIdsBuffer: GPUBuffer;
   /** Per-edge-endpoint node ids used by the expanded wireframe pass. */
   readonly edgeNodePickIdsBuffer: GPUBuffer;
-  /** Packed float position bits and expanded edge metadata for shader reads. */
-  readonly geometryDataBuffer: GPUBuffer;
   /** Expanded endpoint positions for the wireframe pass. */
   readonly edgeVertexBuffer: GPUBuffer;
   /** Sequential line-list indices for the expanded wireframe endpoints. */
@@ -23,7 +21,8 @@ export interface PartResource {
   readonly subsetIndexBuffer?: GPUBuffer;
   readonly subsetVertexBuffer?: GPUBuffer;
   readonly subsetNodePickIdsBuffer?: GPUBuffer;
-  readonly subsetGeometryDataBuffer?: GPUBuffer;
+  /** Optional topology buffer with subset-local primitive remapping. */
+  readonly subsetTopologyBuffer?: GPUBuffer;
   readonly subsetEdgeVertexBuffer?: GPUBuffer;
   readonly subsetEdgeIndexBuffer?: GPUBuffer;
   readonly subsetIndexCount: number;

@@ -1,27 +1,11 @@
 import type { MeshEdgeData } from "./gpu-edge";
-import { createBuffer } from "./gpu-support";
 
-/** Packs expanded positions and edge metadata for shader-side geometry reads. */
-export function createGeometryDataBuffer(
-  device: GPUDevice,
-  positions: Float32Array,
-  primitiveIds: Uint32Array,
-  edgeData: MeshEdgeData,
-): GPUBuffer {
-  const data = new Uint32Array(
-    2 + positions.length + primitiveIds.length + edgeData.sourceVertexIndices.length * 2,
-  );
-  data[0] = positions.length;
-  data[1] = primitiveIds.length;
-  data.set(new Uint32Array(positions.buffer, positions.byteOffset, positions.length), 2);
-  data.set(primitiveIds, 2 + positions.length);
-  const metadataOffset = 2 + positions.length + primitiveIds.length;
-  for (let endpoint = 0; endpoint < edgeData.sourceVertexIndices.length; endpoint += 1) {
-    data[metadataOffset + endpoint * 2] = edgeData.sourceVertexIndices[endpoint] ?? 0;
-    data[metadataOffset + endpoint * 2 + 1] = edgeData.edgeIds[endpoint] ?? 0;
-  }
-  return createBuffer(device, data, GPUBufferUsage.STORAGE);
+interface TopologyMetadata {
+  readonly primitiveIds: ArrayLike<number>;
+  readonly edgeIds: ArrayLike<number>;
 }
+
+const EMPTY_TOPOLOGY_METADATA: TopologyMetadata = { primitiveIds: [], edgeIds: [] };
 
 /** Packs face records and variable-length topology ownership into one buffer. */
 export function packTopologyData(
@@ -29,20 +13,33 @@ export function packTopologyData(
   bodyRanges: Uint32Array,
   bodyIds: Uint32Array,
   elementIds: Uint32Array,
+  metadata: TopologyMetadata = EMPTY_TOPOLOGY_METADATA,
 ): Uint32Array {
+  const { primitiveIds, edgeIds } = metadata;
   const faceRecordCount = Math.floor(faceBodyPickIds.length / 5);
   const rangeCount = Math.floor(bodyRanges.length / 2);
   const conditionCount = Math.floor(bodyIds.length / 2);
-  const data = new Uint32Array(
-    3 + faceBodyPickIds.length + bodyRanges.length + bodyIds.length + elementIds.length,
-  );
+  const sentinelOnly =
+    bodyIds.length <= 2 &&
+    elementIds.length <= 2 &&
+    bodyIds.every((value) => value === 0) &&
+    elementIds.every((value) => value === 0);
+  const storedConditionCount = conditionCount > 0 && !sentinelOnly ? conditionCount : 0;
+  const storedBodyIds = storedConditionCount === 0 ? new Uint32Array() : bodyIds;
+  const storedElementIds = storedConditionCount === 0 ? new Uint32Array() : elementIds;
+  const metadataOffset =
+    3 + faceBodyPickIds.length + bodyRanges.length + storedBodyIds.length + storedElementIds.length;
+  const data = new Uint32Array(metadataOffset + 1 + primitiveIds.length + edgeIds.length);
   data[0] = faceRecordCount;
   data[1] = rangeCount;
-  data[2] = conditionCount;
+  data[2] = storedConditionCount;
   data.set(faceBodyPickIds, 3);
   data.set(bodyRanges, 3 + faceBodyPickIds.length);
-  data.set(bodyIds, 3 + faceBodyPickIds.length + bodyRanges.length);
-  data.set(elementIds, 3 + faceBodyPickIds.length + bodyRanges.length + bodyIds.length);
+  data.set(storedBodyIds, 3 + faceBodyPickIds.length + bodyRanges.length);
+  data.set(storedElementIds, 3 + faceBodyPickIds.length + bodyRanges.length + storedBodyIds.length);
+  data[metadataOffset] = primitiveIds.length;
+  data.set(primitiveIds, metadataOffset + 1);
+  data.set(edgeIds, metadataOffset + 1 + primitiveIds.length);
   return data;
 }
 

@@ -232,7 +232,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(nodePickVertexShader).toMatch(
       /@location\(9\) @interpolate\(flat\) nodePickIds: vec3<u32>/,
     );
-    expect(nodePickVertexShader).toMatch(/geometryData: array<u32>/);
+    expect(nodePickVertexShader).toMatch(/geometryPositions: array<f32>/);
     expect(nodePickVertexShader).toMatch(/geometryPosition\(base3\)/);
     expect(nodePickVertexShader).toMatch(/vertexNodePickIds\[base\]/);
     expect(nodePickFragmentShader).toMatch(
@@ -426,11 +426,9 @@ describe("GPU deformation shader contract", () => {
   });
 
   it("displaces expanded edge endpoints through their draw index", () => {
-    expect(edgeVertexShader).toMatch(/let endpoint = edgeEndpoint\(vertexIndex\)/);
-    expect(edgeVertexShader).toMatch(/let topologyIndex = endpoint\.y/);
+    expect(edgeVertexShader).toMatch(/let topologyIndex = edgeId\(vertexIndex\)/);
     expect(edgeVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
     expect(edgeVertexShader).toMatch(/topologyOwnersVisible\(slot, topologyIndex\)/);
-    expect(edgeVertexShader).not.toMatch(/topologyOwnersVisible\(slot, vertexIndex \/ 2u\)/);
   });
 
   it("keeps overlay vertices at their model depth", () => {
