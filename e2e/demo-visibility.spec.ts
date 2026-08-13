@@ -78,6 +78,34 @@ test("exposes assembly occurrence and direct-part identity in the tree", async (
   );
   await expect(page.getByTestId("instance-vis-0")).toHaveAttribute("data-instance-id", "1/0/0");
 });
+test("gives body visibility controls distinct occurrence names", async ({ page }) => {
+  await page.goto("/");
+  await waitForRenderer(page);
+  const bodyCheckboxes = page.locator('input[data-testid^="body-vis-"]');
+  const names = await bodyCheckboxes.evaluateAll((inputs) =>
+    inputs.map((input) => input.getAttribute("aria-label")),
+  );
+  expect(names.length).toBeGreaterThan(0);
+  expect(names.every((name) => name !== null && name.includes(" in "))).toBe(true);
+  const plateRowNames = names.filter((name) => name?.startsWith("Plate row A in "));
+  expect(new Set(plateRowNames).size).toBe(plateRowNames.length);
+  expect(plateRowNames.length).toBe(2);
+  const shaftNames = names.filter((name) => name?.startsWith("Shaft in "));
+  expect(new Set(shaftNames).size).toBe(shaftNames.length);
+  expect(shaftNames.length).toBeGreaterThan(1);
+
+  const firstName = names[0];
+  if (firstName === null || firstName === undefined) throw new Error("body name is missing");
+  await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toBeVisible();
+  const highlight = page.locator("button[data-body-highlight]").first();
+  await expect(highlight).toHaveAttribute("aria-label", /^Highlight /);
+  await expect(highlight).toHaveAttribute("aria-pressed", "false");
+
+  await page.getByTestId("model-select").selectOption("vtk");
+  await page.getByTestId("model-select").selectOption("bolted");
+  await expect(page.locator('input[data-testid^="body-vis-"]')).toHaveCount(names.length);
+  await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toBeVisible();
+});
 test("temporarily highlights exact tree occurrences without changing selection", async ({
   page,
 }) => {
