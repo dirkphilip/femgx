@@ -3,22 +3,28 @@
 The demo fixtures under `demo/fixture/` are deterministic, CPU-only model
 builders used to exercise the WebGPU path and unit tests.
 
-## Element gallery
+## Element tessellation and mapping gallery
 
-`createElementFixture` places representative examples for the supported
-primitive and volume paths: Point, Line, Line3, Triangle, Quad, Tet4, Tet10,
-Hex8, and Hex20. Tri6 and Quad8 use the same quadratic face tessellator exercised
-by Tet10 and Hex20. The gallery also includes a concave polygon authored through the geometry-owned
-`polygonPart` path. Triangle, line, and point outputs remain separate only where
-WebGPU primitive topology requires it; edge display is a renderer-owned overlay.
-The gallery is intentionally explicit about quadratic shapes so their linear
-mid-edge tessellation is inspectable without introducing another renderer or
-API.
+`createElementFixture` places representative examples for the built-in topology
+helpers: Point, Line, Line3, Triangle, Quad, Tet4, Tet10, Hex8, and Hex20. Tri6
+and Quad8 use the same quadratic face tessellator exercised by Tet10 and Hex20.
+These names describe FEMGX's typed tessellation helpers, not an exhaustive
+solver-element catalog.
+
+The tenth example is a **Generic solver-mapped element**: temporary solver-style
+node and face records are converted through the generic `polygonPart` input into
+one indexed-triangle `Part` with element `42`, five oriented face identities,
+one non-triangular face, and body ownership. The source records are discarded
+after conversion; the scene retains only the renderer-ready part and the
+presentation metadata needed by the workbench. Face and element picks therefore
+demonstrate the same retained identity contract available to a host that maps a
+solver representation into FEMGX.
 
 The ten examples use a deterministic 2-row × 5-column comparison grid: Point,
-Line, Line3, Triangle, and Quad occupy the first row; Polygon, Tet4, Tet10,
-Hex8, and Hex20 occupy the second. The explicit layout keeps each topology
-readable after camera fitting at desktop and phone-sized viewports.
+Line, Line3, Triangle, and Quad occupy the first row; the generic mapped
+element, Tet4, Tet10, Hex8, and Hex20 occupy the second. Triangle, line, and
+point outputs remain separate only where WebGPU primitive topology requires it;
+edge display is a renderer-owned overlay.
 
 ## VTK sample
 

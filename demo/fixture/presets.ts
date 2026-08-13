@@ -30,13 +30,13 @@ export interface ModelPreset {
   readonly results?: ViewportResultsConfig;
 }
 
-/** Builds the gallery containing every currently supported element shape. */
+/** Builds the gallery of built-in topology helpers and a generic solver mapping. */
 export function createGalleryPreset(): ModelPreset {
   const fixture = createElementFixture();
   const partIds = fixture.partIds;
   return {
     id: "gallery",
-    name: "Supported element gallery",
+    name: "Element tessellation and mapping gallery",
     scene: fixture.scene,
     elementModels: fixture.elementModels,
     partColors: new Map<PartId, Color>([
@@ -45,7 +45,7 @@ export function createGalleryPreset(): ModelPreset {
       [partIds.line3, { r: 0.15, g: 0.92, b: 0.65, a: 1 }],
       [partIds.triangle, { r: 0.96, g: 0.42, b: 0.2, a: 1 }],
       [partIds.quad, { r: 0.98, g: 0.65, b: 0.2, a: 1 }],
-      [partIds.polygon, { r: 0.95, g: 0.2, b: 0.58, a: 1 }],
+      [partIds.generic, { r: 0.95, g: 0.2, b: 0.58, a: 1 }],
       [partIds.tet4, { r: 0.95, g: 0.36, b: 0.3, a: 1 }],
       [partIds.tet10, { r: 0.98, g: 0.55, b: 0.25, a: 1 }],
       [partIds.hex8, { r: 0.25, g: 0.45, b: 0.96, a: 1 }],
@@ -53,16 +53,16 @@ export function createGalleryPreset(): ModelPreset {
     ]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map<PartId, string>([
-      [partIds.point, "Point"],
-      [partIds.line, "Line"],
-      [partIds.line3, "Line3"],
-      [partIds.triangle, "Triangle"],
-      [partIds.quad, "Quad"],
-      [partIds.polygon, "Polygon face"],
-      [partIds.tet4, "Tet4"],
-      [partIds.tet10, "Tet10"],
-      [partIds.hex8, "Hex8"],
-      [partIds.hex20, "Hex20"],
+      [partIds.point, "Built-in helper · Point"],
+      [partIds.line, "Built-in helper · Line"],
+      [partIds.line3, "Built-in helper · Line3"],
+      [partIds.triangle, "Built-in helper · Triangle"],
+      [partIds.quad, "Built-in helper · Quad"],
+      [partIds.generic, "Generic solver-mapped element"],
+      [partIds.tet4, "Built-in helper · Tet4"],
+      [partIds.tet10, "Built-in helper · Tet10"],
+      [partIds.hex8, "Built-in helper · Hex8"],
+      [partIds.hex20, "Built-in helper · Hex20"],
     ]),
     bounds: fixtureBounds(fixture.scene),
   };

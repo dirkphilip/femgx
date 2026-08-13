@@ -33,7 +33,7 @@ function nonZeroNodeIds(part: {
 }
 
 describe("createElementFixture", () => {
-  it("builds one reusable part for every supported shape", () => {
+  it("builds one reusable part for each helper and mapping example", () => {
     const fixture = createElementFixture();
     expect(fixture.partIds).toEqual({
       point: 1,
@@ -41,7 +41,7 @@ describe("createElementFixture", () => {
       line3: 3,
       triangle: 8,
       quad: 9,
-      polygon: 10,
+      generic: 10,
       tet4: 4,
       tet10: 5,
       hex8: 6,
@@ -67,7 +67,7 @@ describe("createElementFixture", () => {
         [fixture.partIds.line3, [6, 0]],
         [fixture.partIds.triangle, [9, 0]],
         [fixture.partIds.quad, [12, 0]],
-        [fixture.partIds.polygon, [0, 3]],
+        [fixture.partIds.generic, [0, 3]],
         [fixture.partIds.tet4, [3, 3]],
         [fixture.partIds.tet10, [6, 3]],
         [fixture.partIds.hex8, [9, 3]],
@@ -92,9 +92,28 @@ describe("createElementFixture", () => {
     expect(scene.parts.get(partIds.line3)?.geometry.primitive).toBe("lines");
     expect(scene.parts.get(partIds.triangle)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.quad)?.geometry.primitive).toBe("triangles");
-    expect(scene.parts.get(partIds.polygon)?.geometry.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.generic)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.tet4)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.hex20)?.geometry.primitive).toBe("triangles");
+  });
+
+  it("retains one indexed multi-face generic element without a typed shape", () => {
+    const { scene, partIds } = createElementFixture();
+    const part = scene.parts.get(partIds.generic);
+    if (part === undefined || part.geometry.primitive !== "triangles") {
+      throw new Error("generic mapping part is missing");
+    }
+    const elements = part.geometry.elements ?? [];
+    const faces = part.geometry.faces ?? [];
+    expect(elements).toHaveLength(1);
+    expect(elements[0]?.id).toBe(42);
+    expect(elements[0]?.shape).toBeUndefined();
+    expect(faces).toHaveLength(5);
+    expect(faces.map((face) => face.faceIndex)).toEqual([0, 1, 2, 3, 4]);
+    expect(faces.every((face) => face.elementId === 42)).toBe(true);
+    expect(faces[0]?.primitiveCount).toBe(2);
+    expect(new Set(Array.from(part.geometry.nodePickIds ?? []))).toEqual(new Set([1, 2, 3, 4, 5]));
+    expect(part.bounds).toEqual({ minX: -1, minY: -1, minZ: 0, maxX: 1, maxY: 1, maxZ: 1.5 });
   });
 
   it("keeps authored triangle and quad nodes and boundary edges separate", () => {
