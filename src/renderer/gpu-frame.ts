@@ -12,7 +12,7 @@ import { beginPickPass } from "./gpu-pick-pass";
 import { beginColorPass, beginCompositePass, beginTransparencyPass } from "./gpu-passes";
 import type { RenderResources } from "./gpu-pipelines";
 import { ensureColorTargets, ensureCompositeBindGroup } from "./gpu-pipelines";
-import { drawOriginTriad, writeOriginTriad } from "./gpu-origin-triad";
+import { drawOriginTriad, originTriadScale, writeOriginTriad } from "./gpu-origin-triad";
 import { drawOrbitPivot, writeOrbitPivot } from "./gpu-orbit-pivot";
 
 /** Everything the per-frame command encoding needs from the renderer. */
@@ -52,8 +52,6 @@ export interface FrameOptions {
   readonly orbitPivot: readonly [number, number, number] | undefined;
   /** Current display density used by fixed-size presentation helpers. */
   readonly devicePixelRatio: number;
-  /** Stable complete-scene scale for the persistent world-origin triad. */
-  readonly originTriadScale: number;
 }
 
 /** Converts a CSS-pixel point diameter into device pixels for the GPU uniform. */
@@ -81,7 +79,7 @@ export function encodeVisibleFrame(
   frame: FrameOptions,
 ): void {
   writeFrameUniforms(camera, frame);
-  writeOriginTriad(frame.device, frame.resources.originTriad, frame.originTriadScale);
+  writeOriginTriad(frame.device, frame.resources.originTriad, originTriadScale(camera));
   const orbitPivotActive = writeOrbitPivot(frame.device, frame.resources.orbitPivot, {
     point: frame.orbitPivot,
     camera,
