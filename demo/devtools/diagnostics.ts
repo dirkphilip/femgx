@@ -17,9 +17,10 @@ export interface StatusTextOptions {
 
 /** Formats the diagnostics block for the current scene/runtime snapshot. */
 export function statsText(context: WorkbenchSceneContext, options: StatusTextOptions): string {
-  const diagnostics = options.toggles.diagnostics
-    ? `\n\n${[...partLines(context), ...issueLines(context)].join("\n")}`
-    : "";
+  const details = options.toggles.diagnostics
+    ? [...benchmarkLines(context), ...partLines(context), ...issueLines(context)]
+    : [];
+  const diagnostics = options.toggles.diagnostics ? `\n\n${details.join("\n")}` : "";
   return (
     `Model ${context.model.name} (${context.model.id})\n` +
     `Renderer ${options.rendererName}\n` +
@@ -32,6 +33,17 @@ export function statsText(context: WorkbenchSceneContext, options: StatusTextOpt
     renderLoopLines(options.renderLoop) +
     diagnostics
   );
+}
+
+function benchmarkLines(context: WorkbenchSceneContext): string[] {
+  const family = context.model.benchmarkElementFamily;
+  return family === undefined
+    ? []
+    : [
+        `Element family ${family}`,
+        `Unique elements ${formatCount(uniqueElementCount(context))}`,
+        `Submitted element occurrences ${formatCount(submittedElementOccurrences(context))}`,
+      ];
 }
 
 function renderLoopLines(stats: RenderLoopStats): string {
@@ -85,6 +97,22 @@ function submittedTriangleCount(context: WorkbenchSceneContext): number {
     triangles += triangleCount(context.model, instance.partId);
   }
   return triangles;
+}
+
+function uniqueElementCount(context: WorkbenchSceneContext): number {
+  let elements = 0;
+  for (const part of context.model.scene.parts.values()) {
+    elements += part.geometry.elements?.length ?? 0;
+  }
+  return elements;
+}
+
+function submittedElementOccurrences(context: WorkbenchSceneContext): number {
+  let elements = 0;
+  for (const instance of context.runtime.getInstances()) {
+    elements += context.model.scene.parts.get(instance.partId)?.geometry.elements?.length ?? 0;
+  }
+  return elements;
 }
 
 function triangleCount(model: WorkbenchSceneContext["model"], partId: PartId | undefined): number {

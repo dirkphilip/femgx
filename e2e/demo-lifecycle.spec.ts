@@ -306,12 +306,24 @@ test("builds a benchmark matrix model only after explicit selection", async ({ p
   await page.goto("/");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
+  await expect(select.locator('option[value="unique-1m"]')).toContainText(
+    "999,698 unique Triangle elements",
+  );
   await expect(canvas).toHaveAttribute("data-model", "bolted");
   await select.selectOption("bodies-256");
   await expect(canvas).toHaveAttribute("data-model", "bodies-256");
   await expect(page.getByTestId("model-feedback")).toBeHidden();
   await expect(page.getByTestId("status")).toContainText("1 visible");
   await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
+
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("benchmark canvas has no bounding box");
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: "right" });
+  await page.getByTestId("context-menu").getByText("Show diagnostics").click();
+  const diagnostics = page.getByTestId("stats-panel");
+  await expect(diagnostics).toContainText("Element family quad");
+  await expect(diagnostics).toContainText("Unique elements 1,024");
+  await expect(diagnostics).toContainText("Submitted element occurrences 1,024");
 });
 test("opens the performance model through the normal demo path", async ({ page }) => {
   await page.goto("/");

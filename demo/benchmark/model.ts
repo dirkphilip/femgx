@@ -1,4 +1,4 @@
-import { createPart, type Part } from "../../src/geometry/part";
+import { createPart, logicalPrimitiveCount, type Part } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { createStructuredFePart, type StructuredFeFamily } from "./structured-fe";
@@ -64,7 +64,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
   return [
     {
       id: "instanced-2.10m",
-      name: "Performance Lab · 2.10M instanced triangles",
+      name: "Performance Lab · 32,768 unique Quad elements · 2,097,152 submitted triangles",
       kind: "instancing-heavy",
       gridCells: 128,
       partCount: 1,
@@ -74,7 +74,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
     },
     {
       id: "unique-250k",
-      name: "Performance Lab · 250K unique triangles",
+      name: "Performance Lab · 250,632 unique Triangle elements · 250,632 submitted triangles",
       kind: "unique-geometry",
       gridCells: 354,
       partCount: 1,
@@ -84,7 +84,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
     },
     {
       id: "unique-1m",
-      name: "Performance Lab · 1M unique triangles",
+      name: "Performance Lab · 999,698 unique Triangle elements · 999,698 submitted triangles",
       kind: "unique-geometry",
       gridCells: 707,
       partCount: 1,
@@ -94,7 +94,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
     },
     {
       id: "many-parts-100",
-      name: "Performance Lab · 100 distinct parts",
+      name: "Performance Lab · 1,008,200 unique/submitted Triangle elements · 100 parts",
       kind: "many-parts",
       gridCells: 71,
       partCount: 100,
@@ -104,7 +104,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
     },
     {
       id: "many-parts-1000",
-      name: "Performance Lab · 1,000 distinct parts",
+      name: "Performance Lab · 968,000 unique/submitted Triangle elements · 1,000 parts",
       kind: "many-parts",
       gridCells: 22,
       partCount: 1_000,
@@ -114,7 +114,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
     },
     {
       id: "placements-10k",
-      name: "Performance Lab · 10K placements",
+      name: "Performance Lab · 64 unique Quad elements · 640,000 submitted occurrences",
       kind: "placement-heavy",
       gridCells: 8,
       partCount: 1,
@@ -124,7 +124,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
     },
     {
       id: "bodies-256",
-      name: "Performance Lab · 256 bodies",
+      name: "Performance Lab · 1,024 unique/submitted Quad elements · 256 bodies",
       kind: "body-heavy",
       gridCells: 32,
       partCount: 1,
@@ -134,7 +134,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
     },
     {
       id: "fe-quad-shell-visual",
-      name: "Performance Lab · FE Quad shell · 24×24",
+      name: "Performance Lab · FE Quad shell · 576 unique/submitted elements · 1,152 triangles",
       kind: "structured-fe",
       gridCells: 24,
       partCount: 1,
@@ -145,7 +145,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
     },
     {
       id: "fe-quad8-shell-visual",
-      name: "Performance Lab · FE Quad8 shell · 16×16",
+      name: "Performance Lab · FE Quad8 shell · 256 unique/submitted elements · 1,536 triangles",
       kind: "structured-fe",
       gridCells: 16,
       partCount: 1,
@@ -156,7 +156,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
     },
     {
       id: "fe-hex8-solid-visual",
-      name: "Performance Lab · FE Hex8 solid · 8×8×8",
+      name: "Performance Lab · FE Hex8 solid · 512 unique/submitted elements · 768 triangles",
       kind: "structured-fe",
       gridCells: 8,
       partCount: 1,
@@ -167,7 +167,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
     },
     {
       id: "fe-hex20-solid-visual",
-      name: "Performance Lab · FE Hex20 solid · 6×6×6",
+      name: "Performance Lab · FE Hex20 solid · 216 unique/submitted elements · 1,296 triangles",
       kind: "structured-fe",
       gridCells: 6,
       partCount: 1,
@@ -180,7 +180,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       ? [
           {
             id: "fe-hex20-solid-local",
-            name: "Performance Lab · FE Hex20 solid · 12×12×12 (local)",
+            name: "Performance Lab · FE Hex20 solid · 1,728 unique/submitted elements · 10,368 triangles (local)",
             kind: "structured-fe" as const,
             gridCells: 12,
             partCount: 1,
@@ -191,7 +191,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
           },
           {
             id: "unique-2m-local",
-            name: "Performance Lab · 2M unique triangles (local)",
+            name: "Performance Lab · 2,000,000 unique/submitted Triangle elements · 2,000,000 triangles (local)",
             kind: "unique-geometry" as const,
             gridCells: 1_000,
             partCount: 1,
@@ -230,20 +230,35 @@ function structuredFamily(spec: WebGpuBenchmarkSpec): StructuredFeFamily {
   return spec.structuredFamily;
 }
 
-/** Estimates renderer-owned buffers and render targets from their documented layouts. */
+/**
+ * Estimates renderer-owned buffers and render targets from the built scene.
+ * The edge category is an upper-bound endpoint-index estimate; CPU scene data,
+ * transient staging allocations, and driver allocations are excluded.
+ */
 export function estimateBenchmarkMemory(
-  gridCells: number,
+  scene: Scene,
   instanceCount: number,
   width: number,
   height: number,
-  partCount = 1,
 ): BenchmarkMemoryEstimate {
-  const vertices = (gridCells + 1) ** 2;
-  const triangles = gridCells * gridCells * 2;
-  const edges = gridCells * gridCells * 3 + gridCells * 2;
-  const geometryBytes = (vertices * 3 * 4 * 2 + triangles * 3 * 4) * partCount;
-  const pickMetadataBytes = (triangles * 4 * 2 + vertices * 4) * partCount;
-  const edgeIndexBytes = edges * 2 * 4 * partCount;
+  let geometryBytes = 0;
+  let pickMetadataBytes = 0;
+  let edgeIndexBytes = 0;
+  for (const part of scene.parts.values()) {
+    const { geometry } = part;
+    const primitiveCount = logicalPrimitiveCount(geometry);
+    const nodeCount = (geometry.nodePositions?.length ?? geometry.positions.length) / 3;
+    geometryBytes +=
+      geometry.positions.byteLength +
+      (geometry.nodePositions?.byteLength ?? 0) +
+      geometry.indices.byteLength;
+    pickMetadataBytes +=
+      primitiveCount * Uint32Array.BYTES_PER_ELEMENT * 2 +
+      (geometry.nodePickIds?.byteLength ?? nodeCount * Uint32Array.BYTES_PER_ELEMENT);
+    if (geometry.primitive === "triangles") {
+      edgeIndexBytes += primitiveCount * 3 * 2 * Uint32Array.BYTES_PER_ELEMENT;
+    }
+  }
   const instanceBytes = instanceCount * (96 + 4 + 4);
   const fixedBufferBytes = 80 + 16 + 4 + (16 + 128 * 48);
   const totalBufferBytes =

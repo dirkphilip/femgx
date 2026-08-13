@@ -48,13 +48,13 @@ describe("demo diagnostics", () => {
   it("distinguishes reusable triangles from submitted instance triangles", () => {
     const preset = createPerformancePreset();
     const context = {
-      model: createExampleModel(preset),
+      model: { ...createExampleModel(preset), benchmarkElementFamily: "quad" as const },
       runtime: createSceneRuntime(preset.scene),
       interaction: createInteractionState(),
     };
     const text = statsText(context, {
       rendererName: "webgpu",
-      toggles: { edges: true, nodes: true, diagnostics: false },
+      toggles: { edges: true, nodes: true, diagnostics: true },
       stats: { visibleInstances: 64, batches: 1 },
       renderLoop: IDLE_RENDER_LOOP_STATS,
       selectedCount: 0,
@@ -62,5 +62,8 @@ describe("demo diagnostics", () => {
 
     expect(text).toContain("Unique triangles 32,768");
     expect(text).toContain("Submitted triangles 2,097,152");
+    expect(text).toContain("Element family quad");
+    expect(text).toContain("Unique elements 16,384");
+    expect(text).toContain("Submitted element occurrences 1,048,576");
   });
 });

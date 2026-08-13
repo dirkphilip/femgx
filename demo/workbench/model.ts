@@ -12,7 +12,11 @@ import {
   type StyleOverride,
 } from "../../src/index";
 import type { ModelPreset } from "../fixture/presets";
-import { createBenchmarkCase, type WebGpuBenchmarkSpec } from "../benchmark/model";
+import {
+  createBenchmarkCase,
+  type WebGpuBenchmarkElementFamily,
+  type WebGpuBenchmarkSpec,
+} from "../benchmark/model";
 import { describePick } from "./inspect";
 import type { DemoView } from "./view";
 
@@ -28,6 +32,7 @@ export interface WorkbenchModel {
   readonly bounds: Bounds;
   readonly results: ModelPreset["results"];
   readonly issues: readonly Issue[];
+  readonly benchmarkElementFamily?: WebGpuBenchmarkElementFamily;
   /** Builds an opt-in large model only after the user selects it. */
   readonly deferredLoad?: () => Promise<WorkbenchModel>;
 }
@@ -93,6 +98,7 @@ function createBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchModel {
     bounds: sceneBounds(benchmarkCase.scene),
     results: undefined,
     issues: [],
+    benchmarkElementFamily: benchmarkCase.elementFamily,
   };
 }
 

@@ -103,10 +103,10 @@ kept out of normal runs:
 | `many-parts-1000`       | distinct parts               | Triangle  |         968,000 | 968,000                       |     1,000 |          968,000 |             968,000 |
 | `placements-10k`        | placements/instances         | Quad      |              64 | 640,000                       |    10,000 |              128 |           1,280,000 |
 | `bodies-256`            | body interaction             | Quad      |           1,024 | 1,024                         |         1 |            2,048 |               2,048 |
-| `fe-quad-shell-visual`  | structured surface shell     | Quad      |             576 | one occurrence / element      |         1 |            1,152 |               1,152 |
-| `fe-quad8-shell-visual` | structured surface shell     | Quad8     |             256 | one occurrence / element      |         1 |            1,536 |               1,536 |
-| `fe-hex8-solid-visual`  | structured volume solid      | Hex8      |             512 | one occurrence / element      |         1 |              768 |                 768 |
-| `fe-hex20-solid-visual` | structured volume solid      | Hex20     |             216 | one occurrence / element      |         1 |            1,296 |               1,296 |
+| `fe-quad-shell-visual`  | structured surface shell     | Quad      |             576 | 576                           |         1 |            1,152 |               1,152 |
+| `fe-quad8-shell-visual` | structured surface shell     | Quad8     |             256 | 256                           |         1 |            1,536 |               1,536 |
+| `fe-hex8-solid-visual`  | structured volume solid      | Hex8      |             512 | 512                           |         1 |              768 |                 768 |
+| `fe-hex20-solid-visual` | structured volume solid      | Hex20     |             216 | 216                           |         1 |            1,296 |               1,296 |
 | `unique-2m-local`       | unique geometry (local-only) | Triangle  |       2,000,000 | 2,000,000                     |         1 |        2,000,000 |           2,000,000 |
 
 The planar-grid generator is shared by the visual performance fixture and the
@@ -122,8 +122,9 @@ WebGPU timestamp queries are not required.
 
 The structured FE cases use the validated `createElement` and
 `heterogeneousElementParts` path with shared corner and mid-edge node ids. The
-report adds `structuredFamily`, `nodeCount`, `elementCount`, `faceCount`,
-`modelBuildMs`, and `runtimeCompileMs` so FE construction/tessellation and
+report adds `structuredFamily`, `uniqueElementCount`,
+`submittedElementOccurrences`, `nodeCount`, and `faceCount`, alongside
+`modelBuildMs` and `runtimeCompileMs`, so FE construction/tessellation and
 runtime compilation remain separate from first-upload and steady visible-frame
 GPU timings. Quad and Quad8 shells retain every surface face; Hex8 and Hex20
 solids cull interior faces before tessellation. The 12×12×12 Hex20 capacity
@@ -143,12 +144,16 @@ The fixture must report the family and logical-element count whenever those
 values are relevant; a generic triangle count alone is insufficient evidence.
 
 The JSON report identifies the browser user agent, adapter identity and fallback
-status, enabled features, resolution, DPR, triangle counts, timings, and an
-estimated GPU-buffer/render-target memory breakdown. Playwright writes it as
-`webgpu-benchmark.json` in the local test output. Compare reports only between
-similar browser/adapter configurations; the numbers are a capacity envelope,
-not a universal triangle limit. GitHub-hosted Actions does not run this browser
-benchmark until an explicitly owned real-GPU runner exists.
+status, enabled features, resolution, DPR, FE family, unique/submitted element
+counts, triangle counts, timings, and an estimated renderer-owned
+buffer/render-target memory breakdown. `memoryEstimateScope` documents that the
+estimate excludes CPU scene data, transient staging allocations, and driver
+allocations; its edge category is an upper-bound endpoint-index estimate.
+Playwright writes the report as `webgpu-benchmark.json` in the local test
+output. Compare reports only between similar browser/adapter configurations; the
+numbers are a capacity envelope, not a universal triangle limit. GitHub-hosted
+Actions does not run this browser benchmark until an explicitly owned real-GPU
+runner exists.
 
 Three representative cases (`instanced-2.10m`, `unique-1m`, and
 `many-parts-100`) also include bounded interactive samples under
