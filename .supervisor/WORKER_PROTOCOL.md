@@ -17,6 +17,19 @@ deletion-first as the default: a successful implementation may delete code, and
 line count, module count, and abstraction count should not grow without
 justification.
 
+## Issue intake and publication
+
+Workers do not create or modify GitHub issues or pull requests. Fold small,
+clearly related fixes into the current task when they are safe and bounded; do
+not propose a separate issue for ordinary cleanup, documentation gaps, test
+ideas, minor refactors, or observations that belong in the current change.
+
+If an independently actionable critical issue needs maintainer attention, report
+only its impact, evidence, recommended next action, and acceptance criteria in
+the handoff. The supervisor checks for duplicates and owns any external issue
+or pull-request publication. Limit candidates to one per stage and never
+include secrets, credentials, or Supervisor control tokens.
+
 Agents may edit only the issue worktree and own local Git there: fetch, rebase
 onto `origin/<base>`, add, and commit. They must not push, invoke GitHub/`gh`,
 create or update PRs, start the next role, rewrite the base branch, or change
