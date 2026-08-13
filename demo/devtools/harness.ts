@@ -13,6 +13,12 @@ export interface DemoHarness {
     rect: BoxSelectionRect,
     granularity: InteractionGranularity,
   ) => Promise<readonly unknown[]>;
+  readonly getBoxSelectionStats: () => {
+    readonly active: boolean;
+    readonly queued: boolean;
+    readonly started: number;
+    readonly maxActive: number;
+  };
 }
 
 /** Reads deterministic test-only query inputs and installs the shader failure seam. */

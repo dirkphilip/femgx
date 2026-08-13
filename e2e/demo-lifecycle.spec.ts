@@ -503,6 +503,68 @@ test("opens the performance model through the normal demo path", async ({ page }
   await select.selectOption("bolted");
   await expect(canvas).toHaveAttribute("data-model", "bolted");
 });
+test("bounds rapid performance box drags to one active readback", async ({ page }) => {
+  test.setTimeout(30_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const select = page.getByTestId("model-select");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+
+  await select.selectOption("performance");
+  await expect(canvas).toHaveAttribute("data-model", "performance");
+  await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("performance canvas has no bounding box");
+  await page.evaluate(({ x, y, width, height }) => {
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="view-canvas"]');
+    if (canvas === null) throw new Error("performance canvas missing");
+    const point = (fx: number, fy: number): { readonly x: number; readonly y: number } => ({
+      x: x + width * fx,
+      y: y + height * fy,
+    });
+    const dispatch = (type: string, coordinates: { readonly x: number; readonly y: number }) => {
+      canvas.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          button: 0,
+          buttons: type === "pointerup" ? 0 : 1,
+          clientX: coordinates.x,
+          clientY: coordinates.y,
+          pointerId: 1,
+          pointerType: "mouse",
+          isPrimary: true,
+        }),
+      );
+    };
+    for (let index = 0; index < 20; index += 1) {
+      const offset = (index % 5) * 0.04;
+      dispatch("pointerdown", point(0.3 + offset, 0.45));
+      dispatch("pointermove", point(0.7 - offset, 0.65));
+      dispatch("pointerup", point(0.7 - offset, 0.65));
+    }
+  }, box);
+
+  const stats = await page.evaluate(() => {
+    const harness = (
+      window as typeof window & {
+        femgxDemo?: {
+          getBoxSelectionStats: () => {
+            readonly active: boolean;
+            readonly queued: boolean;
+            readonly started: number;
+            readonly maxActive: number;
+          };
+        };
+      }
+    ).femgxDemo;
+    return harness?.getBoxSelectionStats() ?? null;
+  });
+  expect(stats).toMatchObject({ maxActive: 1 });
+  expect(stats?.started).toBeGreaterThan(0);
+  expect(stats?.started).toBeLessThanOrEqual(2);
+  await expect(canvas).toHaveAttribute("data-renderer", "webgpu");
+});
 test("runs one opt-in continuous render chain and returns to idle", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");

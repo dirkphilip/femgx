@@ -302,13 +302,13 @@ describe("WebGPU renderer", () => {
     renderer.updateElements(runtime, interaction);
     renderer.render(runtime, camera, scene.parts);
     await renderer.pick(100, 100);
-    expect(gpu.drawCalls).toHaveLength(11);
+    expect(gpu.drawCalls).toHaveLength(10);
 
     interaction = setBodyHighlighted(interaction, body, true);
     renderer.updateElements(runtime, interaction);
     renderer.render(runtime, camera, scene.parts);
     await renderer.pick(100, 100);
-    expect(gpu.drawCalls).toHaveLength(14);
+    expect(gpu.drawCalls).toHaveLength(13);
 
     renderer.destroy();
   });

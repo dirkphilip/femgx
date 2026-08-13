@@ -236,6 +236,10 @@ export class WorkbenchController {
     return this.activeViewport().camera;
   }
 
+  getBoxSelectionStats(): ReturnType<WorkbenchInteraction["getBoxSelectionStats"]> {
+    return this.interactionController.getBoxSelectionStats();
+  }
+
   setViewport(viewport: FemViewport): void {
     for (const slot of this.slots.values()) slot.interaction.clearContext();
     this.viewport = viewport;
