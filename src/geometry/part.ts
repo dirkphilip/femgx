@@ -3,12 +3,12 @@ import { validatePartId } from "./id-validation";
 import type { Bounds, Geometry } from "./types";
 
 export type {
-  Body,
-  BodyId,
   Bounds,
   ElementTessellation,
   FaceSubset,
   FaceTessellation,
+  GeometryBody,
+  GeometryElementBlock,
   Geometry,
   LineGeometry,
   LinearGeometry,
@@ -16,6 +16,7 @@ export type {
   Primitive,
   TriangleGeometry,
 } from "./types";
+export type { BodyId, ElementBlockId } from "../elements/model";
 
 /** A globally stable identifier for a reusable part within a scene. */
 export type PartId = number;

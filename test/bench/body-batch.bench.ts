@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, bench, describe } from "vitest";
-import { createPart, type Body, type ElementTessellation } from "../../src/geometry/part";
+import { createPart, type ElementTessellation, type GeometryBody } from "../../src/geometry/part";
 import { setBodyVisible } from "../../src/interaction/bodies";
 import { identity } from "../../src/math/mat4";
 import type { FemViewport } from "../../src/viewport/fem-viewport";
@@ -17,7 +17,7 @@ function bodyScene() {
   const positions = new Float32Array(BODY_COUNT * 9);
   const indices = new Uint32Array(BODY_COUNT * 3);
   const elements: ElementTessellation[] = [];
-  const bodies: Body[] = [];
+  const bodies: GeometryBody[] = [];
   for (let bodyId = 0; bodyId < BODY_COUNT; bodyId += 1) {
     const vertex = bodyId * 3;
     const x = bodyId * 2;

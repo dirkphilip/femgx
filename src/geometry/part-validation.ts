@@ -1,5 +1,6 @@
 import type { ElementId } from "../elements/element";
-import type { Body, BodyId, ElementTessellation, Geometry } from "./types";
+import type { BodyId } from "../elements/model";
+import type { ElementTessellation, Geometry, GeometryBody, GeometryElementBlock } from "./types";
 import { MAX_ONE_BASED_ID, isValidOneBasedId, validateOneBasedId } from "./id-validation";
 import { validateFaceMetadata, validateFaceSubset } from "./face-validation";
 
@@ -7,6 +8,12 @@ export { faceForPrimitive, validateFaceSubset } from "./face-validation";
 
 /** Machine-readable geometry validation failure. */
 export type GeometryValidationCode =
+  | "invalid-block-id"
+  | "duplicate-block-id"
+  | "block-order"
+  | "empty-block"
+  | "unknown-block-element"
+  | "duplicate-block-membership"
   | "invalid-body-id"
   | "duplicate-body-id"
   | "body-order"
@@ -46,6 +53,15 @@ export function validateElements(geometry: {
   for (const element of elements) {
     validateOneBasedId(element.id, "Element");
     if (element.bodyId !== undefined) validateOneBasedId(element.bodyId, "Body");
+    if (
+      element.blockId !== undefined &&
+      (!isValidOneBasedId(element.blockId) || element.blockId === 0)
+    ) {
+      throw new GeometryValidationError(
+        "invalid-block-id",
+        `Element block id ${element.blockId} must be a finite integer in [1, ${MAX_ONE_BASED_ID}]`,
+      );
+    }
     const range = primitiveRangeForElement(element);
     if (range.count <= 0)
       throw new Error(`Element ${element.id} has no ${primitiveLabel(primitive)}`);
@@ -125,7 +141,7 @@ function capitalize(value: string): string {
  */
 export function validateBodies(geometry: {
   readonly elements?: readonly Pick<ElementTessellation, "id" | "bodyId">[];
-  readonly bodies?: readonly Body[];
+  readonly bodies?: readonly GeometryBody[];
 }): void {
   const bodies = geometry.bodies;
   if (bodies === undefined || bodies.length === 0) {
@@ -140,7 +156,7 @@ export function validateBodies(geometry: {
 /** Resolves body ownership once against a complete element list. */
 export function bodyAssignments(
   elements: readonly Pick<ElementTessellation, "id">[],
-  bodies: readonly Body[] | undefined,
+  bodies: readonly GeometryBody[] | undefined,
 ): ReadonlyMap<ElementId, BodyId> {
   if (bodies === undefined || bodies.length === 0) return new Map();
   const assignments = new Map<ElementId, BodyId>();
@@ -170,7 +186,7 @@ function validateElementsWithoutBodies(
 }
 
 function collectBodyMembership(
-  bodies: readonly Body[],
+  bodies: readonly GeometryBody[],
   elementIds: ReadonlySet<ElementId>,
 ): {
   readonly declaredBodies: ReadonlySet<BodyId>;
@@ -189,7 +205,7 @@ function collectBodyMembership(
 }
 
 function validateBodyOrder(
-  body: Body,
+  body: GeometryBody,
   previousBodyId: BodyId | undefined,
   declaredBodies: ReadonlySet<BodyId>,
 ): void {
@@ -211,7 +227,7 @@ function validateBodyOrder(
 }
 
 function collectBodyElements(
-  body: Body,
+  body: GeometryBody,
   elementIds: ReadonlySet<ElementId>,
   membership: Map<ElementId, BodyId>,
 ): void {
@@ -289,7 +305,77 @@ export function validatePickIds(geometry: Geometry): void {
   validateNodePickIds(geometry);
   validateFaceMetadata(geometry);
   validateFaceSubset(geometry);
+  validateDerivedBlocks(geometry);
   validateBodies(geometry);
+}
+
+function validateDerivedBlocks(geometry: Geometry): void {
+  const blocks = geometry.blocks;
+  if (blocks === undefined || blocks.length === 0) return;
+  const elementIds = new Set((geometry.elements ?? []).map((element) => element.id));
+  const seenBlocks = new Set<number>();
+  const seenElements = new Set<ElementId>();
+  let previousBlockId: number | undefined;
+  for (const block of blocks) {
+    validateDerivedBlockId(block);
+    if (seenBlocks.has(block.id)) {
+      throw new GeometryValidationError(
+        "duplicate-block-id",
+        `Duplicate element block id ${block.id}`,
+      );
+    }
+    if (previousBlockId !== undefined && block.id <= previousBlockId) {
+      throw new GeometryValidationError(
+        "block-order",
+        `Element block ids must be strictly ascending; ${block.id} follows ${previousBlockId}`,
+      );
+    }
+    if (block.elementIds.length === 0) {
+      throw new GeometryValidationError("empty-block", `Element block ${block.id} is empty`);
+    }
+    validateDerivedBlockElements(block, elementIds, seenElements);
+    seenBlocks.add(block.id);
+    previousBlockId = block.id;
+  }
+}
+
+function validateDerivedBlockId(block: GeometryElementBlock): void {
+  if (!isValidOneBasedId(block.id) || block.id === 0) {
+    throw new GeometryValidationError(
+      "invalid-block-id",
+      `Element block id ${block.id} must be a finite integer in [1, ${MAX_ONE_BASED_ID}]`,
+    );
+  }
+}
+
+function validateDerivedBlockElements(
+  block: GeometryElementBlock,
+  elementIds: ReadonlySet<ElementId>,
+  seenElements: Set<ElementId>,
+): void {
+  let previousElementId: ElementId | undefined;
+  for (const elementId of block.elementIds) {
+    if (previousElementId !== undefined && elementId <= previousElementId) {
+      throw new GeometryValidationError(
+        "block-order",
+        `Element block ${block.id} element ids must be strictly ascending`,
+      );
+    }
+    if (!elementIds.has(elementId)) {
+      throw new GeometryValidationError(
+        "unknown-block-element",
+        `Element block ${block.id} references unknown element ${elementId}`,
+      );
+    }
+    if (seenElements.has(elementId)) {
+      throw new GeometryValidationError(
+        "duplicate-block-membership",
+        `Element ${elementId} belongs to more than one element block`,
+      );
+    }
+    seenElements.add(elementId);
+    previousElementId = elementId;
+  }
 }
 
 function validateNodePickIds(geometry: Geometry): void {

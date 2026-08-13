@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
-import { createElementModel, type ElementModel } from "../../src/elements/model";
+import { createElementModel, type Body, type ElementModel } from "../../src/elements/model";
 import { boundaryFaceRefs, FaceSelectionError } from "../../src/elements/faces";
 import {
   HEX20_SHAPE,
@@ -247,27 +247,31 @@ function containsPosition(geometry: { readonly positions: Float32Array }, point:
 function geometryFor(
   model: ElementModel,
   group: "triangle",
-  options?: TessellationOptions,
+  options?: GeometryOptions,
 ): TriangleGeometry;
-function geometryFor(
-  model: ElementModel,
-  group: "line",
-  options?: TessellationOptions,
-): LineGeometry;
-function geometryFor(
-  model: ElementModel,
-  group: "point",
-  options?: TessellationOptions,
-): PointGeometry;
+function geometryFor(model: ElementModel, group: "line", options?: GeometryOptions): LineGeometry;
+function geometryFor(model: ElementModel, group: "point", options?: GeometryOptions): PointGeometry;
 function geometryFor(
   model: ElementModel,
   group: "triangle" | "line" | "point",
-  options: TessellationOptions = {},
+  options: GeometryOptions = {},
 ): TriangleGeometry | LineGeometry | PointGeometry {
-  const parts = heterogeneousElementParts({ triangle: 20, line: 21, point: 22 }, model, options);
+  const authoredModel =
+    options.bodies === undefined
+      ? model
+      : createElementModel([...model.nodes], model.elements, { bodies: options.bodies });
+  const parts = heterogeneousElementParts(
+    { triangle: 20, line: 21, point: 22 },
+    authoredModel,
+    ...(options.faceSubset === undefined ? [{}] : [{ faceSubset: options.faceSubset }]),
+  );
   const part = parts[group];
   if (part === undefined) throw new Error(`Expected ${group} geometry`);
   return part.geometry;
+}
+
+interface GeometryOptions extends TessellationOptions {
+  readonly bodies?: readonly Body[];
 }
 
 function familyModel(model: ElementModel, family: ElementFamily): ElementModel {
@@ -606,6 +610,33 @@ describe("heterogeneousElementParts metadata", () => {
     expect(geometry.elements?.[0]).toMatchObject({ id: 1, bodyId: 3 });
     expect(geometry.faces?.every((face) => face.bodyId === 3)).toBe(true);
   });
+
+  it("derives block and flattened body metadata for every primitive group", () => {
+    const source = heterogeneousModel();
+    const model = createElementModel([...source.nodes], source.elements, {
+      blocks: [
+        { id: 10, name: "surface and line", elementIds: [1, 5] },
+        { id: 11, elementIds: [2, 3, 4, 6] },
+      ],
+      bodies: [{ id: 20, name: "assembly body", blockIds: [10, 11] }],
+    });
+    const parts = heterogeneousElementParts({ triangle: 20, line: 21, point: 22 }, model);
+
+    expect(parts.triangle?.geometry.blocks).toEqual([
+      { id: 10, name: "surface and line", elementIds: [1] },
+      { id: 11, elementIds: [2, 3, 4] },
+    ]);
+    expect(parts.line?.geometry.blocks).toEqual([
+      { id: 10, name: "surface and line", elementIds: [5] },
+    ]);
+    expect(parts.point?.geometry.blocks).toEqual([{ id: 11, elementIds: [6] }]);
+    expect(parts.triangle?.geometry.bodies).toEqual([
+      { id: 20, name: "assembly body", elementIds: [1, 2, 3, 4] },
+    ]);
+    expect(parts.triangle?.geometry.elements?.every((element) => element.bodyId === 20)).toBe(true);
+    expect(parts.line?.geometry.elements?.[0]?.bodyId).toBe(20);
+    expect(parts.point?.geometry.elements?.[0]?.bodyId).toBe(20);
+  });
 });
 
 describe("heterogeneousElementParts", () => {
@@ -662,12 +693,13 @@ describe("heterogeneousElementParts", () => {
   });
 
   it("keeps repeated builds deterministic and carries body membership to each group", () => {
-    const model = heterogeneousModel();
-    const options = {
-      bodies: [{ id: 2, name: "mixed", elementIds: [1, 2, 3, 4, 5, 6] }],
-    } as const;
-    const first = heterogeneousElementParts({ triangle: 20, line: 21, point: 22 }, model, options);
-    const second = heterogeneousElementParts({ triangle: 20, line: 21, point: 22 }, model, options);
+    const model = createElementModel(
+      [...heterogeneousModel().nodes],
+      heterogeneousModel().elements,
+      { bodies: [{ id: 2, name: "mixed", elementIds: [1, 2, 3, 4, 5, 6] }] },
+    );
+    const first = heterogeneousElementParts({ triangle: 20, line: 21, point: 22 }, model);
+    const second = heterogeneousElementParts({ triangle: 20, line: 21, point: 22 }, model);
     expect(first.triangle?.geometry.positions).toEqual(second.triangle?.geometry.positions);
     expect(first.triangle?.geometry.elements?.every((element) => element.bodyId === 2)).toBe(true);
     expect(first.line?.geometry.elements?.[0]?.bodyId).toBe(2);

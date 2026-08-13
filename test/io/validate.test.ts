@@ -7,7 +7,7 @@ import { TET4_SHAPE } from "../../src/elements/shapes";
 function validModel() {
   const builder = createModelBuilder();
   builder.appendNodes([0, 1, 2, 3], [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
-  builder.openElementBlock(TET4_SHAPE);
+  builder.openElementShapeBlock(TET4_SHAPE);
   builder.appendElements([1], [0, 1, 2, 3]);
   return builder.build();
 }
@@ -36,14 +36,16 @@ describe("validateModel", () => {
     const model = validModel();
     const bad = validateModel({
       ...model,
-      elementBlocks: [{ ...required(model.elementBlocks[0]), connectivity: new Uint32Array(3) }],
+      elementShapeBlocks: [
+        { ...required(model.elementShapeBlocks[0]), connectivity: new Uint32Array(3) },
+      ],
     });
     expect(bad.map((issue) => issue.code)).toContain("element-block-shape");
 
     const unknown = validateModel({
       ...model,
-      elementBlocks: [
-        { ...required(model.elementBlocks[0]), connectivity: new Uint32Array([0, 1, 2, 99]) },
+      elementShapeBlocks: [
+        { ...required(model.elementShapeBlocks[0]), connectivity: new Uint32Array([0, 1, 2, 99]) },
       ],
     });
     expect(unknown.map((issue) => issue.code)).toContain("missing-node");
@@ -51,8 +53,10 @@ describe("validateModel", () => {
 
   it("flags duplicate element ids across blocks", () => {
     const model = validModel();
-    const blocks = [...model.elementBlocks, { ...required(model.elementBlocks[0]) }];
-    const codes = validateModel({ ...model, elementBlocks: blocks }).map((issue) => issue.code);
+    const blocks = [...model.elementShapeBlocks, { ...required(model.elementShapeBlocks[0]) }];
+    const codes = validateModel({ ...model, elementShapeBlocks: blocks }).map(
+      (issue) => issue.code,
+    );
     expect(codes).toContain("duplicate-element-id");
   });
 

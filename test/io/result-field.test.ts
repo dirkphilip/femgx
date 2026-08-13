@@ -8,7 +8,7 @@ import type { FemModel, ModelResultField } from "../../src/io/model";
 function model(): FemModel {
   const builder = createModelBuilder();
   builder.appendNodes([10, 20, 30], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
-  builder.openElementBlock(TRIANGLE_SHAPE);
+  builder.openElementShapeBlock(TRIANGLE_SHAPE);
   builder.appendElements([100, 300], [10, 20, 30, 10, 30, 20]);
   return builder.build();
 }

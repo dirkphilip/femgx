@@ -6,7 +6,7 @@ import {
   createPart,
   validateElements,
   validatePickIds,
-  type Body,
+  type GeometryBody,
   type ElementTessellation,
   type FaceTessellation,
   type Part,
@@ -39,7 +39,7 @@ export interface PolygonGeometryInput {
   /** Ordered, simple, planar polygon faces. An empty list is valid no-draw input. */
   readonly faces: readonly PolygonFaceInput[];
   /** Optional reusable-part body metadata keyed by the owning element ids. */
-  readonly bodies?: readonly Body[];
+  readonly bodies?: readonly GeometryBody[];
 }
 
 export { PolygonGeometryError };
@@ -107,7 +107,12 @@ export function polygonGeometry(input: PolygonGeometryInput): TriangleGeometry {
   const faces = records.map((record) =>
     faceTessellation(record, bodyIds.get(record.input.elementId), ranges),
   );
-  const geometry = mesh.build("triangles", elements, faces, positions, input.bodies);
+  const geometry = mesh.build("triangles", {
+    elements,
+    faces,
+    nodePositions: positions,
+    ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
+  });
   const result: TriangleGeometry = { ...geometry, nodePositions: positions };
   validateElements(result);
   validatePickIds(result);

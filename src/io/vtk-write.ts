@@ -1,6 +1,6 @@
 import { topologyFor, type ElementShape } from "../elements/shapes";
 import { VtkWriteError, type Issue } from "./diagnostics";
-import { FEMGX_FORMAT_VERSION, type FemModel, type ModelElementBlock } from "./model";
+import { FEMGX_FORMAT_VERSION, type FemModel, type ModelElementShapeBlock } from "./model";
 import { validateModel } from "./validate";
 import {
   formatNumber,
@@ -103,7 +103,7 @@ function createNodeRows(model: FemModel): Map<number, number> {
 
 function createCells(model: FemModel, nodeRows: ReadonlyMap<number, number>): EmittedCell[] {
   const cells: EmittedCell[] = [];
-  for (const block of model.elementBlocks) {
+  for (const block of model.elementShapeBlocks) {
     const cellType = VTK_CELL_TYPES.get(shapeKey(block.shape));
     if (cellType === undefined) {
       throw new VtkWriteError(
@@ -118,13 +118,13 @@ function createCells(model: FemModel, nodeRows: ReadonlyMap<number, number>): Em
 
 function appendBlockCells(
   cells: EmittedCell[],
-  block: ModelElementBlock,
+  block: ModelElementShapeBlock,
   vtkType: number,
   nodeRows: ReadonlyMap<number, number>,
 ): void {
   const nodeCount = topologyFor(block.shape).nodeCount;
   for (let row = 0; row < block.count; row += 1) {
-    const id = requiredValue(block.ids[row], `Element block is missing id at row ${row}`);
+    const id = requiredValue(block.ids[row], `Element shape block is missing id at row ${row}`);
     const connectivity: number[] = [];
     for (let node = 0; node < nodeCount; node += 1) {
       const sourceId = requiredValue(

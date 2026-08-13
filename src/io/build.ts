@@ -5,12 +5,12 @@ import {
   FEMGX_FORMAT_VERSION,
   type FemModel,
   type MetadataValue,
-  type ModelElementBlock,
+  type ModelElementShapeBlock,
   type ModelSetKind,
   type ModelResultField,
 } from "./model";
 
-interface PendingBlock {
+interface PendingShapeBlock {
   readonly shape: ElementShape;
   readonly ids: Uint32Buffer;
   readonly connectivity: Uint32Buffer;
@@ -31,10 +31,10 @@ export interface FemModelBuilder {
   /** Appends a chunk of nodes; `coordinates` must hold `3 * ids.length` values. */
   appendNodes(ids: ArrayLike<number>, coordinates: ArrayLike<number>): void;
   /**
-   * Starts a new element block of the given shape. Any previously open block is
+   * Starts a new shape block of the given shape. Any previously open shape block is
    * finalized first, so blocks never need an explicit close.
    */
-  openElementBlock(shape: ElementShape): void;
+  openElementShapeBlock(shape: ElementShape): void;
   /**
    * Appends a chunk of elements to the current block; `connectivity` must hold
    * `ids.length * nodeCount` values for the block's shape.
@@ -50,18 +50,18 @@ export interface FemModelBuilder {
   readonly nodeCount: number;
   /** The number of elements accumulated so far. */
   readonly elementCount: number;
-  /** Finalizes open blocks and returns the immutable interchange model. */
+  /** Finalizes open shape blocks and returns the immutable interchange model. */
   build(): FemModel;
 }
 
 class ModelBuilder implements FemModelBuilder {
   private readonly nodeIds = new Uint32Buffer();
   private readonly coordinates = new Float64Buffer();
-  private readonly blocks: PendingBlock[] = [];
+  private readonly shapeBlocks: PendingShapeBlock[] = [];
   private readonly sets: PendingSet[] = [];
   private readonly metadata: Record<string, MetadataValue> = {};
   private readonly results: ModelResultField[] = [];
-  private openBlock: PendingBlock | undefined;
+  private openShapeBlock: PendingShapeBlock | undefined;
 
   get nodeCount(): number {
     return this.nodeIds.size;
@@ -69,11 +69,11 @@ class ModelBuilder implements FemModelBuilder {
 
   get elementCount(): number {
     let count = 0;
-    for (const block of this.blocks) {
+    for (const block of this.shapeBlocks) {
       count += block.ids.size;
     }
-    if (this.openBlock !== undefined) {
-      count += this.openBlock.ids.size;
+    if (this.openShapeBlock !== undefined) {
+      count += this.openShapeBlock.ids.size;
     }
     return count;
   }
@@ -89,15 +89,15 @@ class ModelBuilder implements FemModelBuilder {
     this.coordinates.append(coords);
   }
 
-  openElementBlock(shape: ElementShape): void {
-    this.closeBlock();
-    this.openBlock = { shape, ids: new Uint32Buffer(), connectivity: new Uint32Buffer() };
+  openElementShapeBlock(shape: ElementShape): void {
+    this.closeShapeBlock();
+    this.openShapeBlock = { shape, ids: new Uint32Buffer(), connectivity: new Uint32Buffer() };
   }
 
   appendElements(ids: ArrayLike<number>, connectivity: ArrayLike<number>): void {
-    const block = this.openBlock;
+    const block = this.openShapeBlock;
     if (block === undefined) {
-      throw new IoError("appendElements called without openElementBlock");
+      throw new IoError("appendElements called without openElementShapeBlock");
     }
     const nodeCount = topologyFor(block.shape).nodeCount;
     if (connectivity.length !== ids.length * nodeCount) {
@@ -133,8 +133,8 @@ class ModelBuilder implements FemModelBuilder {
   }
 
   build(): FemModel {
-    this.closeBlock();
-    const elementBlocks: ModelElementBlock[] = this.blocks.map((block) => ({
+    this.closeShapeBlock();
+    const elementShapeBlocks: ModelElementShapeBlock[] = this.shapeBlocks.map((block) => ({
       shape: block.shape,
       count: block.ids.size,
       ids: block.ids.toArray(),
@@ -147,17 +147,17 @@ class ModelBuilder implements FemModelBuilder {
         ids: this.nodeIds.toArray(),
         coordinates: this.coordinates.toArray(),
       },
-      elementBlocks,
+      elementShapeBlocks,
       sets: [...this.sets],
       metadata: { ...this.metadata },
       results: [...this.results],
     };
   }
 
-  private closeBlock(): void {
-    if (this.openBlock !== undefined) {
-      this.blocks.push(this.openBlock);
-      this.openBlock = undefined;
+  private closeShapeBlock(): void {
+    if (this.openShapeBlock !== undefined) {
+      this.shapeBlocks.push(this.openShapeBlock);
+      this.openShapeBlock = undefined;
     }
   }
 }

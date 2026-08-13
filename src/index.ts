@@ -8,13 +8,13 @@ export type {
 export {
   GeometryValidationError,
   type Bounds,
-  type Body,
-  type BodyId,
   type ElementTessellation,
   type FaceTessellation,
   type FaceSubset,
   type Geometry,
   type GeometryValidationCode,
+  type GeometryBody,
+  type GeometryElementBlock,
   type LineGeometry,
   type Part,
   type PartId,
@@ -24,7 +24,17 @@ export {
 } from "./geometry/part";
 export { createPart } from "./geometry/part";
 export { createElement, type Element, type ElementId, type NodeId } from "./elements/element";
-export { createElementModel, type ElementModel } from "./elements/model";
+export {
+  createElementModel,
+  type Body,
+  type BodyId,
+  type ElementBlock,
+  type ElementBlockId,
+  type ElementModel,
+  type ElementModelOptions,
+  ElementModelValidationError,
+  type ElementModelValidationCode,
+} from "./elements/model";
 export {
   heterogeneousElementParts,
   HeterogeneousElementError,
@@ -248,7 +258,7 @@ export {
   FEMGX_FORMAT_VERSION,
   type FemModel,
   type MetadataValue,
-  type ModelElementBlock,
+  type ModelElementShapeBlock,
   type ModelMetadata,
   type ModelNodes,
   type ModelResultField,

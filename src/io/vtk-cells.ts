@@ -190,7 +190,7 @@ export function readCellTypesLine(state: VtkState, text: string, line: number): 
   }
 }
 
-/** Finalizes geometry: assembles element blocks and appends attribute results. */
+/** Finalizes geometry: assembles shape blocks and appends attribute results. */
 export function finalizeGeometry(state: VtkState): void {
   flushPoints(state);
   if (state.pointsRemaining > 0) {
@@ -263,7 +263,7 @@ function assembleVtkElements(state: VtkState): void {
       continue;
     }
     if (state.openShape !== shape) {
-      state.session.builder.openElementBlock(shape);
+      state.session.builder.openElementShapeBlock(shape);
       state.openShape = shape;
     }
     state.session.builder.appendElements([cell], connectivity);

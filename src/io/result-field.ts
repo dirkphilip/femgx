@@ -124,7 +124,7 @@ function entityIndex(model: FemModel, location: ModelResultField["location"]): E
   }
   const byId = new Map<number, number>();
   let count = 0;
-  for (const block of model.elementBlocks) {
+  for (const block of model.elementShapeBlocks) {
     for (const id of block.ids) {
       byId.set(id, id);
       count = Math.max(count, id + 1);

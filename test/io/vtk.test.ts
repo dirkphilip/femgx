@@ -35,8 +35,8 @@ describe("parseVtk", () => {
     expect(result.issues).toEqual([]);
     expect(result.model.nodes.count).toBe(4);
     expect([...result.model.nodes.coordinates]).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
-    expect(result.model.elementBlocks).toHaveLength(1);
-    const block = required(result.model.elementBlocks[0]);
+    expect(result.model.elementShapeBlocks).toHaveLength(1);
+    const block = required(result.model.elementShapeBlocks[0]);
     expect(block.shape.family).toBe("tet");
     expect([...block.ids]).toEqual([0]);
     expect([...block.connectivity]).toEqual([0, 1, 2, 3]);
@@ -64,11 +64,11 @@ describe("parseVtk", () => {
     ].join("\n");
     const result = parseVtk(source, { strict: true });
     expect(result.issues).toEqual([]);
-    expect(result.model.elementBlocks.map((block) => block.shape)).toEqual([
+    expect(result.model.elementShapeBlocks.map((block) => block.shape)).toEqual([
       TRIANGLE_SHAPE,
       QUAD_SHAPE,
     ]);
-    expect(result.model.elementBlocks.map((block) => block.count)).toEqual([1, 1]);
+    expect(result.model.elementShapeBlocks.map((block) => block.count)).toEqual([1, 1]);
   });
 
   it("reads scalar and vector point data as result fields", () => {
@@ -133,9 +133,12 @@ describe("parseVtk", () => {
     const result = parseVtk(source);
     const codes = result.issues.map((issue) => issue.code);
     expect(codes).toContain("unsupported-cell-type");
-    expect(result.model.elementBlocks.map((block) => block.shape.family)).toEqual(["tet", "line"]);
-    expect([...required(result.model.elementBlocks[0]).ids]).toEqual([1]);
-    expect([...required(result.model.elementBlocks[1]).ids]).toEqual([2]);
+    expect(result.model.elementShapeBlocks.map((block) => block.shape.family)).toEqual([
+      "tet",
+      "line",
+    ]);
+    expect([...required(result.model.elementShapeBlocks[0]).ids]).toEqual([1]);
+    expect([...required(result.model.elementShapeBlocks[1]).ids]).toEqual([2]);
   });
 
   it("reports a missing VTK header", () => {
@@ -211,8 +214,8 @@ describe("parseVtk", () => {
     const source = TET_VTK.replace("CELL_TYPES 1\n10", "CELL_TYPES 2\n10\n10");
     const result = parseVtk(source);
     expect(result.issues.map((issue) => issue.code)).toContain("cell-type-count-mismatch");
-    expect(result.model.elementBlocks[0]?.count).toBe(1);
-    expect([...required(result.model.elementBlocks[0]).connectivity]).toEqual([0, 1, 2, 3]);
+    expect(result.model.elementShapeBlocks[0]?.count).toBe(1);
+    expect([...required(result.model.elementShapeBlocks[0]).connectivity]).toEqual([0, 1, 2, 3]);
   });
 
   it("reports a cell type count below the declared cells", () => {
@@ -235,7 +238,7 @@ describe("parseVtk", () => {
     ].join("\n");
     const result = parseVtk(source);
     expect(result.issues.map((issue) => issue.code)).toContain("cell-type-count-mismatch");
-    expect(result.model.elementBlocks[0]?.count).toBe(1);
+    expect(result.model.elementShapeBlocks[0]?.count).toBe(1);
   });
 
   it("skips cells with fractional or negative node ids and reports bad-cell-shape", () => {
@@ -261,10 +264,10 @@ describe("parseVtk", () => {
     ].join("\n");
     const result = parseVtk(source);
     expect(result.issues.map((issue) => issue.code)).toContain("bad-cell-shape");
-    expect(result.model.elementBlocks).toHaveLength(1);
-    expect(result.model.elementBlocks[0]?.count).toBe(1);
-    expect([...required(result.model.elementBlocks[0]).ids]).toEqual([1]);
-    expect([...required(result.model.elementBlocks[0]).connectivity]).toEqual([0, 1, 2, 3]);
+    expect(result.model.elementShapeBlocks).toHaveLength(1);
+    expect(result.model.elementShapeBlocks[0]?.count).toBe(1);
+    expect([...required(result.model.elementShapeBlocks[0]).ids]).toEqual([1]);
+    expect([...required(result.model.elementShapeBlocks[0]).connectivity]).toEqual([0, 1, 2, 3]);
   });
 
   it("reports fractional and oversized cell types as unsupported instead of truncating", () => {
@@ -292,9 +295,9 @@ describe("parseVtk", () => {
     expect(
       result.issues.map((issue) => issue.code).filter((code) => code === "unsupported-cell-type"),
     ).toHaveLength(2);
-    expect(result.model.elementBlocks).toHaveLength(1);
-    expect(result.model.elementBlocks[0]?.count).toBe(1);
-    expect([...required(result.model.elementBlocks[0]).ids]).toEqual([2]);
+    expect(result.model.elementShapeBlocks).toHaveLength(1);
+    expect(result.model.elementShapeBlocks[0]?.count).toBe(1);
+    expect([...required(result.model.elementShapeBlocks[0]).ids]).toEqual([2]);
   });
 });
 
@@ -362,9 +365,15 @@ describe("parseVtk typed-array accumulation", () => {
 
     const result = parseVtk(lines.join("\n"));
     expect(result.issues).toEqual([]);
-    expect(result.model.elementBlocks.map((block) => block.shape.family)).toEqual(["hex", "tet"]);
-    expect(result.model.elementBlocks.map((block) => block.count)).toEqual([hexCount, tetCount]);
-    for (const block of result.model.elementBlocks) {
+    expect(result.model.elementShapeBlocks.map((block) => block.shape.family)).toEqual([
+      "hex",
+      "tet",
+    ]);
+    expect(result.model.elementShapeBlocks.map((block) => block.count)).toEqual([
+      hexCount,
+      tetCount,
+    ]);
+    for (const block of result.model.elementShapeBlocks) {
       expect(block.ids).toBeInstanceOf(Uint32Array);
       expect(block.connectivity).toBeInstanceOf(Uint32Array);
     }
@@ -375,7 +384,7 @@ describe("writeVtk", () => {
   it("maps structurally equal shapes without relying on object identity", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1, 2, 3], [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
-    builder.openElementBlock({ family: "tet", order: 1 });
+    builder.openElementShapeBlock({ family: "tet", order: 1 });
     builder.appendElements([0], [0, 1, 2, 3]);
 
     expect(writeVtk(builder.build())).toContain("CELL_TYPES 1\n10");
@@ -384,9 +393,9 @@ describe("writeVtk", () => {
   it("round-trips a model with scalar results", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1, 2, 3], [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
-    builder.openElementBlock(TET4_SHAPE);
+    builder.openElementShapeBlock(TET4_SHAPE);
     builder.appendElements([0], [0, 1, 2, 3]);
-    builder.openElementBlock(HEX8_SHAPE);
+    builder.openElementShapeBlock(HEX8_SHAPE);
     builder.appendElements([1], [0, 1, 2, 3, 0, 1, 2, 3]);
     builder.addResult({
       name: "temp",
@@ -405,8 +414,8 @@ describe("writeVtk", () => {
     expect(parsed.issues).toEqual([]);
     expect(parsed.model.nodes.count).toBe(4);
     expect([...parsed.model.nodes.coordinates]).toEqual([...model.nodes.coordinates]);
-    expect(parsed.model.elementBlocks).toHaveLength(2);
-    expect([...required(parsed.model.elementBlocks[0]).connectivity]).toEqual([0, 1, 2, 3]);
+    expect(parsed.model.elementShapeBlocks).toHaveLength(2);
+    expect([...required(parsed.model.elementShapeBlocks[0]).connectivity]).toEqual([0, 1, 2, 3]);
     expect(parsed.model.results).toHaveLength(1);
     expect([...required(parsed.model.results[0]).values]).toEqual([1, 2, 3, 4]);
   });
@@ -438,21 +447,21 @@ describe("writeVtk", () => {
   it("remaps non-dense connectivity without changing coordinate row order", () => {
     const builder = createModelBuilder();
     builder.appendNodes([20, 10, 30], [20, 0, 0, 10, 0, 0, 30, 0, 0]);
-    builder.openElementBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(TRIANGLE_SHAPE);
     builder.appendElements([40], [10, 20, 30]);
 
     const parsed = parseVtk(writeVtk(builder.build()));
     expect(parsed.issues).toEqual([]);
     expect([...parsed.model.nodes.coordinates]).toEqual([20, 0, 0, 10, 0, 0, 30, 0, 0]);
-    expect([...required(parsed.model.elementBlocks[0]).connectivity]).toEqual([1, 0, 2]);
+    expect([...required(parsed.model.elementShapeBlocks[0]).connectivity]).toEqual([1, 0, 2]);
   });
 
   it("reorders element results to the authored block and row cell order", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
-    builder.openElementBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(TRIANGLE_SHAPE);
     builder.appendElements([20], [0, 1, 2]);
-    builder.openElementBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(TRIANGLE_SHAPE);
     builder.appendElements([10], [0, 1, 2]);
     builder.addResult({
       name: "stress",
@@ -498,9 +507,9 @@ describe("writeVtk", () => {
     const builder = createModelBuilder();
     const nodeIds = [20, 10, 30];
     builder.appendNodes(nodeIds, [20, 0, 0, 10, 0, 0, 30, 0, 0]);
-    builder.openElementBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(TRIANGLE_SHAPE);
     builder.appendElements([200], [20, 10, 30]);
-    builder.openElementBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(TRIANGLE_SHAPE);
     builder.appendElements([100], [20, 10, 30]);
 
     for (const components of cases) {
@@ -609,7 +618,7 @@ describe("writeVtk", () => {
   it("rejects invalid models before producing output", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
-    builder.openElementBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(TRIANGLE_SHAPE);
     builder.appendElements([1], [0, 1, 99]);
     expect(() => writeVtk(builder.build())).toThrow(
       expect.objectContaining({ name: "VtkWriteError", code: "invalid-model" }),
@@ -619,7 +628,7 @@ describe("writeVtk", () => {
   it("reports duplicate authoritative node ids through the typed writer error", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 0, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
-    builder.openElementBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(TRIANGLE_SHAPE);
     builder.appendElements([1], [0, 0, 2]);
     try {
       writeVtk(builder.build());

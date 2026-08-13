@@ -45,7 +45,7 @@ describe("VTK round-trips", () => {
     const elementIds = shapes.map((_shape, index) => 1000 + index);
     for (const [index, shape] of shapes.entries()) {
       const nodeCount = topologyFor(shape).nodeCount;
-      builder.openElementBlock(shape);
+      builder.openElementShapeBlock(shape);
       builder.appendElements([elementIds[index] as number], nodeIds.slice(0, nodeCount));
     }
     const shuffledNodeIds = [...nodeIds].reverse();
@@ -71,9 +71,9 @@ describe("VTK round-trips", () => {
     expect(written).toContain("CELL_TYPES 11\n1\n3\n21\n5\n22\n9\n23\n10\n24\n12\n25");
     const parsed = parseVtk(written);
     expect(parsed.issues).toEqual([]);
-    expect(parsed.model.elementBlocks.map((block) => block.shape)).toEqual([...shapes]);
+    expect(parsed.model.elementShapeBlocks.map((block) => block.shape)).toEqual([...shapes]);
     for (const [index, shape] of shapes.entries()) {
-      expect([...required(parsed.model.elementBlocks[index]).connectivity]).toEqual(
+      expect([...required(parsed.model.elementShapeBlocks[index]).connectivity]).toEqual(
         Array.from({ length: topologyFor(shape).nodeCount }, (_value, row) => row),
       );
     }

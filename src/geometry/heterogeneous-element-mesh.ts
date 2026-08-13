@@ -1,11 +1,10 @@
 import type { FaceIdRef } from "../elements/faces";
 import type { Element, ElementId } from "../elements/element";
-import type { ElementModel } from "../elements/model";
+import { elementModelMembership, type ElementModel } from "../elements/model";
 import { topologyFor, type ElementShape } from "../elements/shapes";
 import {
   createPart,
   validatePartId,
-  type Body,
   type LineGeometry,
   type Part,
   type PointGeometry,
@@ -13,12 +12,9 @@ import {
 } from "./part";
 import type { PartId } from "./part";
 import { lineGeometry, pointGeometry, volumeGeometry } from "./element-mesh-builders";
-import { bodyAssignments } from "./part-validation";
 
 /** Tessellation options shared by the single mixed-model compiler. */
 export interface TessellationOptions {
-  /** Optional stable body metadata for generated geometry. */
-  readonly bodies?: readonly Body[];
   /** Optional stable element-face identities to draw in the triangle group. */
   readonly faceSubset?: readonly FaceIdRef[];
 }
@@ -78,7 +74,7 @@ export function heterogeneousElementParts(
 ): HeterogeneousElementPartSet {
   const groups = classifyElements(model);
   validatePartIds(partIds, groups);
-  const bodyIds = bodyAssignments(model.elements, options.bodies);
+  const membership = elementModelMembership(model);
   return {
     ...(groups.triangle.length === 0
       ? {}
@@ -88,9 +84,9 @@ export function heterogeneousElementParts(
             volumeGeometry({
               model,
               elements: groups.triangle,
-              bodies: options.bodies,
               faceSubset: options.faceSubset,
-              assignedBodies: bodyIds,
+              assignedBodies: membership.bodyByElement,
+              assignedBlocks: membership.blockByElement,
             }),
           ),
         }),
@@ -99,7 +95,7 @@ export function heterogeneousElementParts(
       : {
           line: createPart(
             partIds.line as PartId,
-            lineGeometry(model, groups.line, bodyIds, options.bodies),
+            lineGeometry(model, groups.line, membership.bodyByElement, membership.blockByElement),
           ),
         }),
     ...(groups.point.length === 0
@@ -107,7 +103,7 @@ export function heterogeneousElementParts(
       : {
           point: createPart(
             partIds.point as PartId,
-            pointGeometry(model, groups.point, bodyIds, options.bodies),
+            pointGeometry(model, groups.point, membership.bodyByElement, membership.blockByElement),
           ),
         }),
   };

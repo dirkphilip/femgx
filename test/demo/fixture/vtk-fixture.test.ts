@@ -5,7 +5,7 @@ describe("createVtkFixture", () => {
   it("parses the checked-in mesh and its nodal/element results", () => {
     const fixture = createVtkFixture();
     expect(fixture.vtkModel.nodes.count).toBe(18);
-    expect(fixture.vtkModel.elementBlocks[0]?.count).toBe(4);
+    expect(fixture.vtkModel.elementShapeBlocks[0]?.count).toBe(4);
     expect(fixture.vtkModel.results.map((result) => result.name)).toEqual([
       "temperature",
       "displacement",

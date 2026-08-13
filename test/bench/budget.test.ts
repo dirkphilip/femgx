@@ -61,6 +61,9 @@ const heterogeneousModel = makeHeterogeneousModel(100);
 const bodyGeometry = makeBodyGeometry();
 const bodyModel = createStructuredFeModel("quad", BENCH_BODY_GRID_CELLS);
 const bodies = makeBodies(bodyModel.elements.length, BENCH_BODY_COUNT);
+const bodyModelWithBodies = createElementModel([...bodyModel.nodes], bodyModel.elements, {
+  bodies,
+});
 const LINE_BENCH_SEGMENTS = 10_000;
 const lineHeavyGeometry = {
   positions: Float32Array.from({ length: (LINE_BENCH_SEGMENTS + 1) * 3 }, (_, index) => index % 3),
@@ -228,7 +231,7 @@ const budgets: readonly BudgetCase[] = [
     description: `${BENCH_BODY_ELEMENT_COUNT} FE quads across ${BENCH_BODY_COUNT} bodies`,
     budgetMs: 600,
     run: () => {
-      heterogeneousElementParts({ triangle: 905 }, bodyModel, { bodies });
+      heterogeneousElementParts({ triangle: 905 }, bodyModelWithBodies);
     },
   },
 ];
