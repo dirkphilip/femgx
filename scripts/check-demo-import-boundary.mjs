@@ -6,6 +6,7 @@ const repositoryRoot = process.argv[2]
   : resolve(import.meta.dirname, "..");
 const demoRoot = join(repositoryRoot, "demo");
 const benchmarkExemptions = new Set([
+  "demo/benchmark/interactive.ts",
   "demo/benchmark/runner.ts",
   "demo/benchmark/model.ts",
   "demo/fixture/performance-fixture.ts",

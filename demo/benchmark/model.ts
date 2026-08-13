@@ -1,7 +1,7 @@
 import { createPart, type Part } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { createScene, type Scene } from "../../src/scene/scene";
-import { createPlanarGridGeometry } from "../fixture/planar-grid";
+import { createPlanarGridGeometry, type PlanarGridOptions } from "../fixture/planar-grid";
 import { createPerformancePreset } from "../fixture/performance-fixture";
 
 const ROOT_ASSEMBLY_ID = 1;
@@ -179,9 +179,12 @@ export function estimateBenchmarkMemory(
 
 function createBenchmarkParts(spec: WebGpuBenchmarkSpec): Part[] {
   const withFaces = spec.kind === "body-heavy";
+  const elementMode: PlanarGridOptions["elementMode"] =
+    spec.kind === "body-heavy" ? "cell" : "aggregate";
   return Array.from({ length: spec.partCount }, (_, index) => {
     const bodyCount = index === 0 && spec.bodyCount > 0 ? spec.bodyCount : undefined;
-    const options = bodyCount === undefined ? { withFaces } : { withFaces, bodyCount };
+    const options =
+      bodyCount === undefined ? { withFaces, elementMode } : { withFaces, bodyCount, elementMode };
     return createPart(index + 1, createPlanarGridGeometry(spec.gridCells, options));
   });
 }

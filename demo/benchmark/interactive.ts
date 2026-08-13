@@ -1,0 +1,156 @@
+import { orbitCamera } from "../../src/index";
+import type { Camera } from "../../src/index";
+import { createWebGpuRenderer, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
+import type { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
+import { calculateRenderLoopStats } from "../workbench/render-loop";
+import type { WebGpuBenchmarkCase } from "./model";
+
+const WARMUP_MS = 500;
+const SAMPLE_MS = 2_000;
+const YAW_RADIANS = 0.35;
+const PITCH_RADIANS = 0.08;
+const LONG_FRAME_MS = 16.7;
+const VERY_LONG_FRAME_MS = 33.3;
+
+const INTERACTIVE_CASE_IDS = new Set(["instanced-2.10m", "unique-1m", "many-parts-100"]);
+
+export interface InteractiveCameraSnapshot {
+  readonly position: readonly number[];
+  readonly target: readonly number[];
+}
+
+export interface InteractiveSample {
+  readonly durationMs: number;
+  readonly frameCount: number;
+  readonly fps: number;
+  readonly p50FrameIntervalMs: number;
+  readonly p95FrameIntervalMs: number;
+  readonly maxFrameIntervalMs: number;
+  readonly intervalsOver16_7Ms: number;
+  readonly intervalsOver16_7Percent: number;
+  readonly intervalsOver33_3Ms: number;
+  readonly intervalsOver33_3Percent: number;
+  readonly finalCamera: InteractiveCameraSnapshot;
+}
+
+export interface InteractiveSamples {
+  readonly fixedCamera: InteractiveSample;
+  readonly movingCamera: InteractiveSample;
+}
+
+interface InteractiveMeasureOptions {
+  readonly canvas: HTMLCanvasElement;
+  readonly device: GPUDevice;
+  readonly benchmarkCase: WebGpuBenchmarkCase;
+  readonly runtime: ReturnType<typeof createPackedSceneRuntime>;
+  readonly camera: Camera;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** Returns true for the bounded representative cases that receive RAF samples. */
+export function hasInteractiveSample(benchmarkCase: WebGpuBenchmarkCase): boolean {
+  return INTERACTIVE_CASE_IDS.has(benchmarkCase.id);
+}
+
+/** Measures fixed and deterministic-orbit RAF behavior without queue synchronization. */
+export async function measureInteractiveSamples(
+  options: InteractiveMeasureOptions,
+): Promise<InteractiveSamples> {
+  const { canvas, device, benchmarkCase, runtime, camera, width, height } = options;
+  const renderer = await createWebGpuRenderer({ canvas, device });
+  renderer.resize(width, height);
+  try {
+    const fixedCamera = await measureSample(renderer, benchmarkCase, runtime, camera, false);
+    const movingCamera = await measureSample(renderer, benchmarkCase, runtime, camera, true);
+    return { fixedCamera, movingCamera };
+  } finally {
+    renderer.destroy();
+  }
+}
+
+async function measureSample(
+  renderer: WebGpuRenderer,
+  benchmarkCase: WebGpuBenchmarkCase,
+  runtime: ReturnType<typeof createPackedSceneRuntime>,
+  camera: Camera,
+  moveCamera: boolean,
+): Promise<InteractiveSample> {
+  const frameTimes: number[] = [];
+  let sampleStart = 0;
+  let sampleEnd = 0;
+  let finalCamera = camera;
+  await new Promise<void>((resolve) => {
+    const enabledAt = performance.now();
+    sampleStart = enabledAt + WARMUP_MS;
+    const deadline = sampleStart + SAMPLE_MS;
+    const renderFrame = (): void => {
+      const now = performance.now();
+      if (now >= deadline) {
+        sampleEnd = now;
+        resolve();
+        return;
+      }
+      const elapsed = Math.max(0, now - sampleStart);
+      finalCamera = moveCamera ? movingCamera(camera, elapsed) : camera;
+      renderer.render(runtime, finalCamera, benchmarkCase.scene.parts);
+      if (now >= sampleStart) frameTimes.push(now);
+      requestAnimationFrame(renderFrame);
+    };
+    requestAnimationFrame(renderFrame);
+  });
+  return summarizeInteractiveSample(frameTimes, sampleStart, sampleEnd, finalCamera);
+}
+
+function movingCamera(camera: Camera, elapsedMs: number): Camera {
+  const progress = Math.min(1, elapsedMs / SAMPLE_MS);
+  return orbitCamera(camera, progress * YAW_RADIANS, progress * PITCH_RADIANS, camera.target);
+}
+
+/** Summarizes bounded frame timestamps and threshold counts for one sample. */
+export function summarizeInteractiveSample(
+  frameTimes: readonly number[],
+  sampleStart: number,
+  sampleEnd: number,
+  finalCamera: Camera,
+): InteractiveSample {
+  const durationMs = Math.max(0, sampleEnd - sampleStart);
+  const stats = calculateRenderLoopStats(frameTimes, sampleStart, sampleEnd);
+  const intervals = frameIntervals(frameTimes);
+  return {
+    durationMs,
+    frameCount: frameTimes.length,
+    fps: durationMs === 0 ? 0 : (frameTimes.length * 1_000) / durationMs,
+    p50FrameIntervalMs: stats.p50FrameIntervalMs ?? 0,
+    p95FrameIntervalMs: stats.p95FrameIntervalMs ?? 0,
+    maxFrameIntervalMs: stats.longestFrameIntervalMs ?? 0,
+    intervalsOver16_7Ms: countLongIntervals(intervals, LONG_FRAME_MS),
+    intervalsOver16_7Percent: percentageOver(intervals, LONG_FRAME_MS),
+    intervalsOver33_3Ms: countLongIntervals(intervals, VERY_LONG_FRAME_MS),
+    intervalsOver33_3Percent: percentageOver(intervals, VERY_LONG_FRAME_MS),
+    finalCamera: snapshotCamera(finalCamera),
+  };
+}
+
+function snapshotCamera(camera: Camera): InteractiveCameraSnapshot {
+  return { position: [...camera.position], target: [...camera.target] };
+}
+
+function frameIntervals(frameTimes: readonly number[]): number[] {
+  const intervals: number[] = [];
+  for (let index = 1; index < frameTimes.length; index += 1) {
+    const current = frameTimes[index];
+    const previous = frameTimes[index - 1];
+    if (current !== undefined && previous !== undefined) intervals.push(current - previous);
+  }
+  return intervals;
+}
+
+function countLongIntervals(intervals: readonly number[], threshold: number): number {
+  return intervals.filter((interval) => interval > threshold).length;
+}
+
+function percentageOver(intervals: readonly number[], threshold: number): number {
+  if (intervals.length === 0) return 0;
+  return (countLongIntervals(intervals, threshold) * 100) / intervals.length;
+}

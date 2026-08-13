@@ -42,6 +42,12 @@ test("reports real WebGPU geometry and picking costs", async ({ browser }, testI
   expect(report.cases.filter((entry) => entry.kind === "unique-geometry")).toHaveLength(
     includeLarge ? 3 : 2,
   );
+  const interactiveCases = report.cases.filter((entry) => entry.interactive !== undefined);
+  expect(interactiveCases.map((entry) => entry.id)).toEqual([
+    "instanced-2.10m",
+    "unique-1m",
+    "many-parts-100",
+  ]);
   for (const entry of report.cases) {
     expect(entry.uniqueTriangles).toBeGreaterThan(0);
     expect(entry.submittedTriangles).toBeGreaterThanOrEqual(entry.uniqueTriangles);
@@ -53,6 +59,24 @@ test("reports real WebGPU geometry and picking costs", async ({ browser }, testI
       expect(timing.p50).toBeGreaterThanOrEqual(0);
       expect(timing.p95).toBeGreaterThanOrEqual(timing.p50);
     }
+    if (entry.interactive === undefined) continue;
+    for (const sample of [entry.interactive.fixedCamera, entry.interactive.movingCamera]) {
+      expect(sample.durationMs).toBeGreaterThan(0);
+      expect(sample.frameCount).toBeGreaterThan(0);
+      expect(sample.fps).toBeGreaterThan(0);
+      expect(sample.p95FrameIntervalMs).toBeGreaterThanOrEqual(sample.p50FrameIntervalMs);
+      expect(sample.maxFrameIntervalMs).toBeGreaterThanOrEqual(sample.p95FrameIntervalMs);
+      expect(sample.intervalsOver16_7Ms).toBeLessThanOrEqual(sample.frameCount - 1);
+      expect(sample.intervalsOver33_3Ms).toBeLessThanOrEqual(sample.frameCount - 1);
+      expect(sample.intervalsOver16_7Percent).toBeGreaterThanOrEqual(0);
+      expect(sample.intervalsOver33_3Percent).toBeGreaterThanOrEqual(0);
+    }
+    expect(
+      cameraDistance(
+        entry.interactive.fixedCamera.finalCamera,
+        entry.interactive.movingCamera.finalCamera,
+      ),
+    ).toBeGreaterThan(0);
   }
 
   const artifact = testInfo.outputPath("webgpu-benchmark.json");
@@ -64,3 +88,14 @@ test("reports real WebGPU geometry and picking costs", async ({ browser }, testI
   console.log(`WEBGPU_BENCHMARK_JSON ${JSON.stringify(report)}`);
   await context.close();
 });
+
+function cameraDistance(
+  first: { readonly position: readonly number[] },
+  second: { readonly position: readonly number[] },
+): number {
+  return Math.hypot(
+    (first.position[0] ?? 0) - (second.position[0] ?? 0),
+    (first.position[1] ?? 0) - (second.position[1] ?? 0),
+    (first.position[2] ?? 0) - (second.position[2] ?? 0),
+  );
+}
