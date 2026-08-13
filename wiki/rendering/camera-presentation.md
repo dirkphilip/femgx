@@ -75,7 +75,8 @@ Left-drag is reserved for selection, including its
 shift-based inspection modifiers. The renderer owns the opaque viewport
 background: `FemViewportOptions.background` and `FemViewport.setBackground()`
 select the built-in `studio`, `white`, or `dark` WebGPU presentation without a
-second pass or DOM fallback. Studio is the default subtle top-to-bottom gradient;
+second pass or DOM fallback. Studio is the default restrained cool-neutral
+top-to-bottom gradient with a visibly separated upper and lower field;
 the presets do not affect depth, picking, interaction, or result rendering. The
 demo uses the studio preset and restrained material colors so geometry edges and
 selection emphasis remain legible. Its lower-left viewport-owned view cube follows the

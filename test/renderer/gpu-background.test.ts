@@ -8,11 +8,15 @@ import {
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
 describe("viewport background", () => {
-  it("resolves studio as a lighter top and darker bottom gradient", () => {
+  it("resolves studio as a materially separated cool-neutral gradient", () => {
     const studio = resolveBackgroundColors("studio");
-    expect(studio.top[0]).toBeGreaterThan(studio.bottom[0]);
-    expect(studio.top[1]).toBeGreaterThan(studio.bottom[1]);
-    expect(studio.top[2]).toBeGreaterThan(studio.bottom[2]);
+    const luminance = (color: readonly number[]) =>
+      (color[0] ?? 0) * 0.2126 + (color[1] ?? 0) * 0.7152 + (color[2] ?? 0) * 0.0722;
+    const contrast = (luminance(studio.top) - luminance(studio.bottom)) * 255;
+
+    expect(contrast).toBeGreaterThanOrEqual(32);
+    expect(contrast).toBeLessThanOrEqual(80);
+    expect(luminance(studio.top)).toBeLessThan(luminance([1, 1, 1, 1]));
     expect(resolveBackgroundColors("white").top).toEqual([1, 1, 1, 1]);
     expect(resolveBackgroundColors("white").bottom).toEqual([1, 1, 1, 1]);
     expect(resolveBackgroundColors("dark").top[0]).toBeGreaterThan(

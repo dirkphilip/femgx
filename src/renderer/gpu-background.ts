@@ -12,8 +12,8 @@ type BackgroundColorSet = { readonly top: Rgba; readonly bottom: Rgba };
 
 const BACKGROUND_COLORS: Readonly<Record<ViewportBackground, BackgroundColorSet>> = {
   studio: {
-    top: [0.96, 0.97, 0.98, 1],
-    bottom: [0.86, 0.89, 0.93, 1],
+    top: [0.93, 0.95, 0.97, 1],
+    bottom: [0.74, 0.78, 0.84, 1],
   },
   white: {
     top: [1, 1, 1, 1],
