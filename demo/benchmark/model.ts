@@ -2,7 +2,11 @@ import { createPart, type Part } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { createStructuredFePart, type StructuredFeFamily } from "./structured-fe";
-import { createPlanarGridGeometry, type PlanarGridOptions } from "../fixture/planar-grid";
+import {
+  createPlanarGridGeometry,
+  type PlanarGridElementFamily,
+  type PlanarGridOptions,
+} from "../fixture/planar-grid";
 import { createPerformancePreset } from "../fixture/performance-fixture";
 
 const ROOT_ASSEMBLY_ID = 1;
@@ -15,6 +19,8 @@ export type WebGpuBenchmarkKind =
   | "body-heavy"
   | "structured-fe";
 
+export type WebGpuBenchmarkElementFamily = PlanarGridElementFamily | StructuredFeFamily;
+
 export interface WebGpuBenchmarkSpec {
   readonly id: string;
   readonly name: string;
@@ -23,6 +29,7 @@ export interface WebGpuBenchmarkSpec {
   readonly partCount: number;
   readonly instanceCount: number;
   readonly bodyCount: number;
+  readonly elementFamily: WebGpuBenchmarkElementFamily;
   readonly structuredFamily?: StructuredFeFamily;
 }
 
@@ -35,6 +42,7 @@ export interface WebGpuBenchmarkCase {
   readonly partCount: number;
   readonly instanceCount: number;
   readonly bodyCount: number;
+  readonly elementFamily: WebGpuBenchmarkElementFamily;
   readonly structuredFamily?: StructuredFeFamily;
 }
 
@@ -62,6 +70,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       partCount: 1,
       instanceCount: 64,
       bodyCount: 0,
+      elementFamily: "quad",
     },
     {
       id: "unique-250k",
@@ -71,6 +80,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       partCount: 1,
       instanceCount: 1,
       bodyCount: 0,
+      elementFamily: "triangle",
     },
     {
       id: "unique-1m",
@@ -80,6 +90,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       partCount: 1,
       instanceCount: 1,
       bodyCount: 0,
+      elementFamily: "triangle",
     },
     {
       id: "many-parts-100",
@@ -89,6 +100,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       partCount: 100,
       instanceCount: 100,
       bodyCount: 0,
+      elementFamily: "triangle",
     },
     {
       id: "many-parts-1000",
@@ -98,6 +110,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       partCount: 1_000,
       instanceCount: 1_000,
       bodyCount: 0,
+      elementFamily: "triangle",
     },
     {
       id: "placements-10k",
@@ -107,6 +120,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       partCount: 1,
       instanceCount: 10_000,
       bodyCount: 0,
+      elementFamily: "quad",
     },
     {
       id: "bodies-256",
@@ -116,6 +130,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       partCount: 1,
       instanceCount: 1,
       bodyCount: 256,
+      elementFamily: "quad",
     },
     {
       id: "fe-quad-shell-visual",
@@ -125,6 +140,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       partCount: 1,
       instanceCount: 1,
       bodyCount: 1,
+      elementFamily: "quad",
       structuredFamily: "quad",
     },
     {
@@ -135,6 +151,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       partCount: 1,
       instanceCount: 1,
       bodyCount: 1,
+      elementFamily: "quad8",
       structuredFamily: "quad8",
     },
     {
@@ -145,6 +162,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       partCount: 1,
       instanceCount: 1,
       bodyCount: 1,
+      elementFamily: "hex8",
       structuredFamily: "hex8",
     },
     {
@@ -155,6 +173,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       partCount: 1,
       instanceCount: 1,
       bodyCount: 1,
+      elementFamily: "hex20",
       structuredFamily: "hex20",
     },
     ...(includeLarge
@@ -167,6 +186,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
             partCount: 1,
             instanceCount: 1,
             bodyCount: 1,
+            elementFamily: "hex20" as const,
             structuredFamily: "hex20" as const,
           },
           {
@@ -177,6 +197,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
             partCount: 1,
             instanceCount: 1,
             bodyCount: 0,
+            elementFamily: "triangle" as const,
           },
         ]
       : []),
@@ -247,14 +268,22 @@ export function estimateBenchmarkMemory(
 
 function createBenchmarkParts(spec: WebGpuBenchmarkSpec): Part[] {
   const withFaces = spec.kind === "body-heavy";
-  const elementMode: PlanarGridOptions["elementMode"] =
-    spec.kind === "body-heavy" ? "cell" : "aggregate";
+  const elementFamily = planarElementFamily(spec);
   return Array.from({ length: spec.partCount }, (_, index) => {
     const bodyCount = index === 0 && spec.bodyCount > 0 ? spec.bodyCount : undefined;
     const options =
-      bodyCount === undefined ? { withFaces, elementMode } : { withFaces, bodyCount, elementMode };
+      bodyCount === undefined
+        ? { withFaces, elementFamily }
+        : { withFaces, bodyCount, elementFamily };
     return createPart(index + 1, createPlanarGridGeometry(spec.gridCells, options));
   });
+}
+
+function planarElementFamily(spec: WebGpuBenchmarkSpec): PlanarGridOptions["elementFamily"] {
+  if (spec.elementFamily === "triangle" || spec.elementFamily === "quad") {
+    return spec.elementFamily;
+  }
+  throw new Error(`${spec.id} requires a structured FE builder for ${spec.elementFamily}`);
 }
 
 function createPlacements(
