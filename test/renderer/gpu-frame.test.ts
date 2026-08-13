@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   cameraKeyLightDirection,
   cameraViewDirection,
+  nodeSizeDevicePixels,
   pointSizeDevicePixels,
 } from "../../src/renderer/gpu-frame";
 import { orbitPivotAxisProjection, orbitPivotMetrics } from "../../src/renderer/gpu-orbit-pivot";
@@ -36,6 +37,12 @@ describe("pointSizeDevicePixels", () => {
 
   it("never returns less than one device pixel", () => {
     expect(pointSizeDevicePixels(0.1, 1)).toBe(1);
+  });
+});
+
+describe("fixed-size sprite conversions", () => {
+  it("converts fixed-size node diameters using the current DPR", () => {
+    expect(nodeSizeDevicePixels(6, 2)).toBe(12);
   });
 });
 

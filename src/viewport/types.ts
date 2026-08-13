@@ -25,6 +25,10 @@ export type { ViewportBackground } from "../renderer/gpu-renderer";
 export interface FemViewportOptions {
   readonly canvas: HTMLCanvasElement;
   readonly scene: Scene;
+  /** Point-element screen-space diameter in CSS pixels (default 8). */
+  readonly pointSizePixels?: number;
+  /** FE node-annotation screen-space diameter in CSS pixels (default 6). */
+  readonly nodeSizePixels?: number;
   /** Whether to render the default world-origin triad (default `true`). */
   readonly originTriad?: boolean;
   readonly orientationGizmo?: OrientationGizmoOptions;
@@ -52,6 +56,10 @@ export interface FemViewport {
   readonly camera: Camera;
   readonly interaction: InteractionState;
   readonly results: ViewportResultsState | undefined;
+  /** Sets the point-element screen-space diameter in CSS pixels. */
+  setPointSizePixels(size: number): void;
+  /** Sets the FE node-annotation screen-space diameter in CSS pixels. */
+  setNodeSizePixels(size: number): void;
   setScene(scene: Scene): void;
   setCamera(camera: Camera, options?: CameraTransitionOptions): void;
   fitView(options?: CameraTransitionOptions): void;

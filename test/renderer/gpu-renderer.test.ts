@@ -476,9 +476,16 @@ describe("WebGPU renderer", () => {
     restoreGpuGlobals = installGpuGlobals();
     const gpus = installFreshDeviceNavigator();
     const onLost = vi.fn();
-    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas(), onDeviceLost: onLost });
+    const renderer = await createWebGpuRenderer({
+      canvas: fakeCanvas(),
+      onDeviceLost: onLost,
+      pointSizePixels: 12,
+      nodeSizePixels: 5,
+    });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
+    renderer.setPointSizePixels(14);
+    renderer.setNodeSizePixels(7);
     renderer.render(runtime, camera, scene.parts);
     renderer.setDeformation({
       scale: 1,
@@ -514,6 +521,18 @@ describe("WebGPU renderer", () => {
     expect(renderer.device).toBe(second.device);
     renderer.render(runtime, camera, scene.parts);
     expect(second.drawCalls.length).toBeGreaterThan(0);
+    const recoveredCamera = second.buffers.find(
+      (buffer) => buffer.size === 128 && (buffer.usage & 1) !== 0,
+    );
+    const recoveredCameraWrite = second.writes
+      .filter((write) => write.buffer === recoveredCamera?.resource)
+      .at(-1);
+    expect(recoveredCameraWrite).toBeDefined();
+    expect(
+      recoveredCameraWrite === undefined
+        ? undefined
+        : Array.from(new Float32Array(recoveredCameraWrite.bytes.buffer).slice(18, 21)),
+    ).toEqual([14, 7, 1]);
     const recoveredDisplacement = second.buffers.find(
       (buffer) => buffer.size === latestDisplacements.byteLength && (buffer.usage & 16) !== 0,
     );
@@ -555,13 +574,13 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.slice(-2)).toEqual([
       { pipeline: "pipeline-0", indexCount: 3, instanceCount: 3 },
-      { pipeline: "pipeline-15", indexCount: 6, instanceCount: 3 },
+      { pipeline: "pipeline-17", indexCount: 6, instanceCount: 3 },
     ]);
 
     renderer.setEdgeDepthTest(false);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-16",
+      pipeline: "pipeline-18",
       indexCount: 6,
       instanceCount: 3,
     });
@@ -569,7 +588,7 @@ describe("WebGPU renderer", () => {
     renderer.setEdgeDepthTest(true);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-15",
+      pipeline: "pipeline-17",
       indexCount: 6,
       instanceCount: 3,
     });
@@ -673,7 +692,7 @@ describe("WebGPU renderer", () => {
     renderer.updateInstances(runtime, edge, hidden.changedInstanceIds);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-15",
+      pipeline: "pipeline-17",
       indexCount: 6,
       instanceCount: 2,
     });
@@ -682,7 +701,7 @@ describe("WebGPU renderer", () => {
     renderer.updateInstances(runtime, edge, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-15",
+      pipeline: "pipeline-17",
       indexCount: 6,
       instanceCount: 3,
     });

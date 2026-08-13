@@ -161,10 +161,8 @@ describe("GPU record struct layout vs CPU record encoders", () => {
       expect(offsets.get("viewProjection")).toBe(0);
       expect(offsets.get("viewport")).toBe(64);
       expect(offsets.get("pointSize")).toBe(72);
-      expect(offsets.get("nearPlane")).toBe(76);
-      expect(offsets.get("farPlane")).toBe(80);
-      expect(offsets.get("ortho")).toBe(84);
-      expect(offsets.get("depthSlack")).toBe(88);
+      expect(offsets.get("nodeSize")).toBe(76);
+      expect(offsets.get("devicePixelRatio")).toBe(80);
       expect(offsets.get("keyLightDirection")).toBe(96);
       expect(offsets.get("viewDirection")).toBe(112);
       expect(info.size).toBe(CAMERA_UNIFORM_SIZE);
@@ -438,13 +436,12 @@ describe("GPU deformation shader contract", () => {
     expect(pointVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
   });
 
-  it("keeps regular points at model depth and draws node annotations smaller", () => {
+  it("keeps regular points at model depth and gives node annotations an independent size", () => {
+    expect(pointVertexShader).toMatch(/pointVertex\(position, instanceIndex, vertexIndex, false\)/);
     expect(pointVertexShader).toMatch(
-      /pointVertex\(position, instanceIndex, vertexIndex, 1\.0, false\)/,
+      /nodeOverlayVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, true\)/,
     );
-    expect(pointVertexShader).toMatch(
-      /nodeOverlayVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, 0\.75, true\)/,
-    );
+    expect(pointVertexShader).toMatch(/select\(camera\.pointSize, camera\.nodeSize, nodeOverlay\)/);
     expect(pointVertexShader).toMatch(/clip\.z,/);
     expect(colorFragmentShader).toMatch(/dot\(local, local\) > 1\.0/);
   });
@@ -455,12 +452,18 @@ describe("GPU deformation shader contract", () => {
     expect(nodeOverlayFragmentShader).toMatch(/color\.rgb \+ vec3<f32>\(emissive\)/);
   });
 
+  it("uses the minimum point-pick diameter independently of visible point size", () => {
+    expect(pointNodePickVertexShader).toMatch(
+      /max\(camera\.pointSize, 8\.0 \* camera\.devicePixelRatio\)/,
+    );
+  });
+
   it("uses resolved instance opacity for neutral node and edge overlays", () => {
     expect(pointVertexShader).toContain("var color = select(");
     expect(pointVertexShader).toContain("vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a)");
     expect(pointVertexShader).toContain("nodeOverlay,");
     expect(pointVertexShader).toMatch(
-      /pointVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, 1\.0, false\)/,
+      /pointVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, false\)/,
     );
     expect(edgeVertexShader).toMatch(
       /output\.color = vec4<f32>\(0\.0, 0\.0, 0\.0, 0\.45 \* instance\.color\.a\)/,
