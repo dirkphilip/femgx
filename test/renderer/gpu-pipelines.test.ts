@@ -85,10 +85,14 @@ describe("GPU render resources", () => {
       );
       expect(selectionVisible?.depthStencil).toMatchObject({
         depthCompare: "less-equal",
-        depthWriteEnabled: true,
+        depthWriteEnabled: false,
         stencilFront: { compare: "always", passOp: "replace" },
         stencilReadMask: 2,
         stencilWriteMask: 2,
+      });
+      expect(selectionVisible?.fragment?.targets[0]?.blend).toEqual({
+        color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha" },
+        alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" },
       });
       const selectionHidden = gpu.renderPipelineDescriptors.find(
         (descriptor) => descriptor.label === "triangle selection hidden",

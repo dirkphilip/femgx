@@ -514,6 +514,23 @@ test("composes the transparency fixture and picks its nearest translucent face",
   expect(hit?.key).toMatch(/^f:31\/1:/);
   await page.mouse.click(hit?.x ?? 0, hit?.y ?? 0);
   await expect.poll(() => canvas.getAttribute("data-selected")).toBe(hit?.key);
+  await stableCanvasPixels(page, canvas);
+  const selectedRgba = await canvasRgba(page, canvas);
+  expect(
+    differingPixelCount(rgba, selectedRgba),
+    "selected translucent faces must have visible emphasis",
+  ).toBeGreaterThan(100);
+
+  const visibility = page.locator("input[data-instance-id]");
+  await expect(visibility).toHaveCount(4);
+  for (const index of [0, 2, 3]) await visibility.nth(index).uncheck();
+  await stableCanvasPixels(page, canvas);
+  const selectedShellOnlyRgba = await canvasRgba(page, canvas);
+  for (const index of [0, 2, 3]) await visibility.nth(index).check();
+  expect(
+    differingPixelCount(selectedRgba, selectedShellOnlyRgba),
+    "selected translucent shells must preserve interior geometry behind the front face",
+  ).toBeGreaterThan(500);
 });
 
 test("removes zero-alpha shell overlays without removing their picks", async ({ page }) => {
@@ -768,8 +785,12 @@ test("keeps selected volume faces lit, distinct, and reversible with overlays", 
   await page.keyboard.up("Shift");
   await expect.poll(() => canvas.getAttribute("data-selected")).toBe("");
   await clearHover(page, canvas);
+  await canvas.evaluate((element) => {
+    (element.parentElement as HTMLElement).blur();
+  });
+  const deselected = await stableCanvasPixels(page, canvas);
   expect(
-    (await stableCanvasPixels(page, canvas)).equals(before),
+    deselected.equals(before),
     "deselection must restore the ordinary surface appearance",
   ).toBe(true);
 
@@ -786,4 +807,37 @@ test("keeps selected volume faces lit, distinct, and reversible with overlays", 
     differingPixelCount(overlaid, selectedOverlaid),
     "selected volume must remain clear when edges and nodes are enabled",
   ).toBeGreaterThan(200);
+});
+
+test("keeps result contours readable through face selection", async ({ page }) => {
+  await loadWebGpuPage(page);
+  await page.getByTestId("model-select").selectOption("results");
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("results-toggle").click();
+  await page.getByTestId("results-toggle").click();
+  await expect(page.getByTestId("results-toggle")).toHaveText("Results: Color");
+
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "f:", attribute: "hovered", fresh: true },
+    "GPU picking must resolve a result-colored face before selection",
+  );
+  await clearHover(page, canvas);
+  await stableCanvasPixels(page, canvas);
+  const baselineRgba = await canvasRgba(page, canvas);
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => canvas.getAttribute("data-selected")).toBe(hit.key);
+  await clearHover(page, canvas);
+  await stableCanvasPixels(page, canvas);
+  const selectedRgba = await canvasRgba(page, canvas);
+
+  expect(
+    differingPixelCount(baselineRgba, selectedRgba),
+    "face selection must remain visible in results",
+  ).toBeGreaterThan(100);
+  expect(
+    selectedLuminanceSpread(baselineRgba, selectedRgba),
+    "selection must not flatten result-colored face contrast",
+  ).toBeGreaterThan(18);
 });

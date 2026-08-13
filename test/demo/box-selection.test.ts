@@ -263,6 +263,7 @@ describe("workbench click selection", () => {
     const canvas = new FakeElement();
     let interaction = initialInteraction;
     const render = vi.fn();
+    const selectionFeedback = vi.fn();
     const inspectionPanel = { textContent: "" };
     const workbench = new WorkbenchInteraction({
       canvas: canvas as unknown as HTMLCanvasElement,
@@ -275,8 +276,16 @@ describe("workbench click selection", () => {
       partName: () => undefined,
       menu: { hide: vi.fn() } as unknown as WorkbenchMenu,
       render,
+      selectionFeedback,
     });
-    return { workbench, pick, pickRegion, render, getInteraction: () => interaction };
+    return {
+      workbench,
+      pick,
+      pickRegion,
+      render,
+      selectionFeedback,
+      getInteraction: () => interaction,
+    };
   }
 
   const element = (instanceId: string, elementId: number): InteractionTarget => ({
@@ -349,13 +358,18 @@ describe("workbench click selection", () => {
     const second = element("instance-b", 1);
     const initial = setTargetSelected(createInteractionState(), element("old", 9), true);
     const pickRegion = vi.fn(() => Promise.resolve([first, second, first]));
-    const { workbench, render, getInteraction } = harness(undefined, pickRegion, initial);
+    const { workbench, render, selectionFeedback, getInteraction } = harness(
+      undefined,
+      pickRegion,
+      initial,
+    );
 
     await workbench.selectBox(complete({ shift: true, alt: true }));
 
     expect(pickRegion).toHaveBeenCalledOnce();
     expect(pickRegion).toHaveBeenCalledWith(rect(), "element");
     expect(selectedKeys(getInteraction())).toEqual(["e:instance-a:2", "e:instance-b:1"]);
+    expect(selectionFeedback).toHaveBeenLastCalledWith("Box selection: 2 FE elements");
     expect(render).toHaveBeenCalledOnce();
   });
 

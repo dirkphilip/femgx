@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { distinctColors, requireHit } from "./helpers";
+import { dataset } from "./demo-support";
 
 const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 
@@ -141,6 +142,23 @@ test("keeps primary controls reachable and touch-sized on a phone", async ({ pag
     expect(box.x + box.width, `${testId} right edge`).toBeLessThanOrEqual(viewportWidth);
     expect(box.height, `${testId} hit area`).toBeGreaterThanOrEqual(44);
   }
+});
+
+test("reports box-selected FE element granularity on a phone-sized viewport", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.4);
+  await page.mouse.down({ button: "left" });
+  await page.mouse.move(box.x + box.width * 0.8, box.y + box.height * 0.75, { steps: 8 });
+  await page.mouse.up({ button: "left" });
+
+  await expect(page.getByTestId("model-feedback")).toHaveText(/^Box selection: \d+ FE elements?$/);
+  await expect.poll(() => dataset(page, "selected")).toContain("e:");
 });
 
 test("keeps the context menu inside a phone-sized viewport", async ({ page }) => {

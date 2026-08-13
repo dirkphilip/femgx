@@ -76,4 +76,17 @@ describe("interaction precedence", () => {
     const state = createInteractionState();
     expect(setBodySelected(state, bodyRef, false)).toBe(state);
   });
+
+  it("keeps the resolved alpha of a translucent face under selection tint", () => {
+    const translucent: ResolvedStyle = {
+      ...base,
+      color: { ...base.color, a: 0.28 },
+      opacity: 0.6,
+    };
+    const state = setFaceSelected(createInteractionState(), faceRef, true);
+    expect(resolveFaceStyle(item, faceRef, translucent, state)).toMatchObject({
+      color: { r: 0.45, g: 1, b: 0.4, a: 0.28 },
+      opacity: 0.6,
+    });
+  });
 });

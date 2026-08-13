@@ -28,6 +28,12 @@ import {
   transparencyFragmentShader,
   triangleTransparencyFragmentShader,
 } from "../../src/renderer/gpu-transparency";
+import {
+  selectionFragmentShader,
+  selectionTransparencyFragmentShader,
+  triangleSelectionFragmentShader,
+  triangleSelectionTransparencyFragmentShader,
+} from "../../src/renderer/gpu-selection";
 
 function normalizedDerivativeNormal(
   first: readonly [number, number, number],
@@ -338,6 +344,28 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(invalid[0]).toBeCloseTo(0.11);
     expect(invalid[1]).toBeCloseTo(0.22);
     expect(invalid[2]).toBeCloseTo(0.33);
+  });
+});
+
+describe("selection emphasis shaders", () => {
+  it("does not let translucent selected surfaces enter the opaque pass", () => {
+    expect(selectionFragmentShader).toContain("color.a <= 0.0");
+    expect(triangleSelectionFragmentShader).toContain("color.a <= 0.0");
+    expect(triangleSelectionFragmentShader).toContain("), color.a);");
+    expect(triangleSelectionFragmentShader).toContain("mix(resultColor.rgb, tint, 0.38)");
+  });
+
+  it("keeps result colors available in visible and hidden selection passes", () => {
+    for (const source of [
+      selectionFragmentShader,
+      triangleSelectionFragmentShader,
+      selectionTransparencyFragmentShader,
+      triangleSelectionTransparencyFragmentShader,
+    ]) {
+      expect(source).toContain("@location(10) resultColor: vec4<f32>");
+      expect(source).toContain("resultColorEnabled: u32");
+      expect(source).toContain("selectionColor(");
+    }
   });
 });
 
