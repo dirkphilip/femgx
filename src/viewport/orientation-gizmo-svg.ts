@@ -133,8 +133,7 @@ export function updateOrientationGizmoElements(
     const center = project(face.direction);
     face.label.setAttribute("x", center.x.toFixed(2));
     face.label.setAttribute("y", center.y.toFixed(2));
-    face.group.style.opacity = visible ? "1" : "0";
-    face.group.style.pointerEvents = visible ? "auto" : "none";
+    setTargetVisibility(face.group, visible);
     elements.svg.appendChild(face.group);
   }
 
@@ -144,10 +143,10 @@ export function updateOrientationGizmoElements(
     const visible = dot(direction, eyeDirection) > 0;
     corner.circle.setAttribute("cx", point.x.toFixed(2));
     corner.circle.setAttribute("cy", point.y.toFixed(2));
-    corner.group.style.opacity = visible ? "1" : "0";
-    corner.group.style.pointerEvents = visible ? "auto" : "none";
+    setTargetVisibility(corner.group, visible);
     elements.svg.appendChild(corner.group);
   }
+  handoffHiddenTargetFocus(elements);
   updateAxes(elements.axes, matrix);
   elements.svg.appendChild(elements.axes.group);
 }
@@ -359,6 +358,7 @@ function configureTarget(
   target.setAttribute("data-view-cube-target", "true");
   target.setAttribute("role", "button");
   target.setAttribute("tabindex", "0");
+  target.setAttribute("aria-hidden", "false");
   target.setAttribute("aria-label", label);
   target.style.pointerEvents = "auto";
   target.addEventListener("click", (event: MouseEvent) => {
@@ -369,6 +369,25 @@ function configureTarget(
     event.preventDefault();
     onAction(action(event));
   });
+}
+
+function setTargetVisibility(target: SVGGElement, visible: boolean): void {
+  target.style.opacity = visible ? "1" : "0";
+  target.style.pointerEvents = visible ? "auto" : "none";
+  target.setAttribute("tabindex", visible ? "0" : "-1");
+  target.setAttribute("aria-hidden", visible ? "false" : "true");
+}
+
+function handoffHiddenTargetFocus(elements: OrientationGizmoElements): void {
+  const activeElement = document.activeElement;
+  if (activeElement === null) return;
+  const hiddenTarget = [...elements.faces, ...elements.corners].find(
+    ({ group }) =>
+      group.getAttribute("aria-hidden") === "true" &&
+      (group === activeElement || group.contains(activeElement)),
+  );
+  if (hiddenTarget === undefined) return;
+  elements.arrows[0]?.group.focus();
 }
 
 interface ProjectedPoint {

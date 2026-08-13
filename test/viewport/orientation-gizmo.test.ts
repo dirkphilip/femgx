@@ -25,11 +25,15 @@ class FakeNode {
     userSelect: "",
   };
   parent: FakeNode | undefined;
+  ownerDocument: FakeDocument | undefined;
   className = "";
   textContent = "";
 
   appendChild(child: FakeNode): FakeNode {
+    const existingIndex = child.parent?.children.indexOf(child) ?? -1;
+    if (existingIndex >= 0) child.parent?.children.splice(existingIndex, 1);
     child.parent = this;
+    child.ownerDocument = this.ownerDocument;
     this.children.push(child);
     return child;
   }
@@ -48,6 +52,10 @@ class FakeNode {
     this.attributes.set(name, value);
   }
 
+  getAttribute(name: string): string | null {
+    return this.attributes.get(name) ?? null;
+  }
+
   addEventListener(name: string, listener: (event: unknown) => void): void {
     const listeners = this.listeners.get(name) ?? [];
     listeners.push(listener);
@@ -57,15 +65,31 @@ class FakeNode {
   dispatchEvent(name: string, event: unknown): void {
     for (const listener of this.listeners.get(name) ?? []) listener(event);
   }
+
+  focus(): void {
+    this.ownerDocument?.setActiveElement(this);
+  }
 }
 
 class FakeDocument {
+  activeElement: FakeNode | null = null;
+
   createElement(): FakeNode {
-    return new FakeNode();
+    return this.createNode();
   }
 
   createElementNS(): FakeNode {
-    return new FakeNode();
+    return this.createNode();
+  }
+
+  setActiveElement(node: FakeNode): void {
+    this.activeElement = node;
+  }
+
+  private createNode(): FakeNode {
+    const node = new FakeNode();
+    node.ownerDocument = this;
+    return node;
   }
 }
 
@@ -101,6 +125,8 @@ describe("orientation gizmo", () => {
     const svg = root?.children[0];
     const targets = svg?.children.filter((child) => child.attributes.has("data-view-cube-target"));
     expect(targets).toHaveLength(20);
+    expect(targets?.every((target) => target.attributes.get("tabindex") === "0")).toBe(true);
+    expect(targets?.every((target) => target.attributes.get("aria-hidden") === "false")).toBe(true);
     expect(svg?.children.filter((child) => child.attributes.has("data-view-face"))).toHaveLength(6);
     expect(svg?.children.filter((child) => child.attributes.has("data-view-corner"))).toHaveLength(
       8,
@@ -152,6 +178,13 @@ describe("orientation gizmo", () => {
     expect(face?.attributes.get("aria-label")).toBe("View Right · YZ plane (+X)");
     expect(face?.attributes.get("data-view-plane")).toBe("YZ");
     expect(face?.attributes.get("data-view-side")).toBe("+X");
+    expect(face?.attributes.get("tabindex")).toBe("0");
+    expect(face?.attributes.get("aria-hidden")).toBe("false");
+    const hiddenFaces = root?.children[0]?.children.filter(
+      (child) =>
+        child.attributes.has("data-view-face") && child.attributes.get("aria-hidden") === "true",
+    );
+    expect(hiddenFaces).toHaveLength(5);
     const axisGroup = root?.children[0]?.children.find((child) =>
       child.attributes.has("data-view-axis-triad"),
     );
@@ -165,6 +198,30 @@ describe("orientation gizmo", () => {
     gizmo.destroy();
     expect(container.children).toHaveLength(1);
     expect(container.style.position).toBe("");
+  });
+
+  it("removes hidden face and corner targets from accessibility and hands off focus", () => {
+    installDocument();
+    const container = new FakeNode();
+    const canvas = new FakeNode();
+    container.appendChild(canvas);
+    const gizmo = createOrientationGizmo(options(container as unknown as HTMLElement));
+    const svg = container.children[1]?.children[0];
+    const face = svg?.children.find((child) => child.attributes.get("data-view-face") === "front");
+    if (face === undefined) throw new Error("front face is missing");
+    face.focus();
+
+    gizmo.update(createCamera({ position: [5, 0, 0], target: [0, 0, 0] }));
+
+    expect(face.attributes.get("tabindex")).toBe("-1");
+    expect(face.attributes.get("aria-hidden")).toBe("true");
+    const activeElement = (globalThis.document as unknown as FakeDocument).activeElement;
+    expect(activeElement?.attributes.get("data-rotate")).toBe("left");
+
+    const right = svg?.children.find((child) => child.attributes.get("data-view-face") === "right");
+    expect(right?.attributes.get("tabindex")).toBe("0");
+    expect(right?.attributes.get("aria-hidden")).toBe("false");
+    gizmo.destroy();
   });
 
   it("maps keyboard and modifier actions, then ignores destroyed controls", () => {
