@@ -1,5 +1,11 @@
-import type { Assembly, NamedAssembly, Placement } from "./assembly";
-import type { Part, PartId } from "../geometry/part";
+import type {
+  Assembly,
+  NamedAssembly,
+  PartPlacement,
+  Placement,
+  SubAssemblyPlacement,
+} from "./assembly";
+import { MAX_PART_ID, validatePartId, type Part, type PartId } from "../geometry/part";
 import type { AssemblyId } from "./types";
 
 /**
@@ -84,26 +90,52 @@ function createBuilder(state: SceneState): SceneBuilder {
       if (rootAssemblyId === undefined) {
         throw new Error("Scene root assembly is not set");
       }
-      validateScene(rootAssemblyId, parts, assemblies);
-      return { rootAssemblyId, parts, assemblies, visiblePartIds, visibleAssemblyIds };
+      const scene = { rootAssemblyId, parts, assemblies, visiblePartIds, visibleAssemblyIds };
+      validateScene(scene);
+      return scene;
     },
   };
 }
 
-function validateScene(
-  rootAssemblyId: AssemblyId,
-  parts: ReadonlyMap<PartId, Part>,
-  assemblies: ReadonlyMap<AssemblyId, Assembly>,
-): void {
-  if (!assemblies.has(rootAssemblyId)) {
-    throw new Error(`Scene root assembly ${rootAssemblyId} is not registered`);
+/** Validates a complete scene before it enters runtime ownership. */
+export function validateScene(scene: Scene): void {
+  validateAssemblyId(scene.rootAssemblyId, "Scene root assembly");
+  validatePartRegistry(scene.parts);
+  validateAssemblyRegistry(scene.assemblies, scene.parts);
+  if (!scene.assemblies.has(scene.rootAssemblyId)) {
+    throw new Error(`Scene root assembly ${scene.rootAssemblyId} is not registered`);
   }
-  for (const assembly of assemblies.values()) {
-    for (const placement of assembly.placements) {
-      validatePlacement(placement, parts, assemblies, assembly.id);
+  validateVisibleParts(scene.visiblePartIds, scene.parts);
+  validateVisibleAssemblies(scene.visibleAssemblyIds, scene.assemblies);
+  validateAcyclic(scene.assemblies);
+}
+
+function validatePartRegistry(parts: ReadonlyMap<PartId, Part>): void {
+  for (const [key, part] of parts) {
+    validatePartId(key);
+    if (part.id !== key) {
+      throw new Error(`Part registry key ${key} does not match part id ${part.id}`);
     }
   }
-  validateAcyclic(assemblies);
+}
+
+function validateAssemblyRegistry(
+  assemblies: ReadonlyMap<AssemblyId, Assembly>,
+  parts: ReadonlyMap<PartId, Part>,
+): void {
+  for (const [key, assembly] of assemblies) {
+    validateAssemblyId(key, "Assembly");
+    if (assembly.id !== key) {
+      throw new Error(`Assembly registry key ${key} does not match assembly id ${assembly.id}`);
+    }
+    for (let index = 0; index < assembly.placements.length; index++) {
+      const placement = assembly.placements[index];
+      if (placement === undefined) {
+        throw new TypeError(`Assembly ${assembly.id} placement ${index} is missing`);
+      }
+      validatePlacement(placement, parts, assemblies, assembly.id, index);
+    }
+  }
 }
 
 function validatePlacement(
@@ -111,12 +143,89 @@ function validatePlacement(
   parts: ReadonlyMap<PartId, Part>,
   assemblies: ReadonlyMap<AssemblyId, Assembly>,
   ownerId: AssemblyId,
+  index: number,
 ): void {
-  if (placement.kind === "part" && !parts.has(placement.partId)) {
-    throw new Error(`Assembly ${ownerId} references missing part ${placement.partId}`);
+  const kind = (placement as { readonly kind?: unknown }).kind;
+  switch (kind) {
+    case "part": {
+      const partPlacement = placement as PartPlacement;
+      validatePartId(partPlacement.partId);
+      if (!parts.has(partPlacement.partId)) {
+        throw new Error(
+          `Assembly ${ownerId} placement ${index} references missing part ${partPlacement.partId}`,
+        );
+      }
+      validateTransform(partPlacement.transform, ownerId, index);
+      return;
+    }
+    case "assembly": {
+      const assemblyPlacement = placement as SubAssemblyPlacement;
+      validateAssemblyId(assemblyPlacement.assemblyId, `Assembly ${ownerId} placement ${index}`);
+      if (!assemblies.has(assemblyPlacement.assemblyId)) {
+        throw new Error(
+          `Assembly ${ownerId} placement ${index} references missing assembly ${assemblyPlacement.assemblyId}`,
+        );
+      }
+      validateTransform(assemblyPlacement.transform, ownerId, index);
+      return;
+    }
+    default:
+      throw new TypeError(
+        `Assembly ${ownerId} placement ${index} has unsupported kind ${String(kind)}`,
+      );
   }
-  if (placement.kind === "assembly" && !assemblies.has(placement.assemblyId)) {
-    throw new Error(`Assembly ${ownerId} references missing assembly ${placement.assemblyId}`);
+}
+
+function validateVisibleParts(
+  visiblePartIds: ReadonlySet<PartId>,
+  parts: ReadonlyMap<PartId, Part>,
+): void {
+  for (const partId of visiblePartIds) {
+    validatePartId(partId);
+    if (!parts.has(partId)) throw new Error(`Visible part ${partId} is not registered`);
+  }
+}
+
+function validateVisibleAssemblies(
+  visibleAssemblyIds: ReadonlySet<AssemblyId>,
+  assemblies: ReadonlyMap<AssemblyId, Assembly>,
+): void {
+  for (const assemblyId of visibleAssemblyIds) {
+    validateAssemblyId(assemblyId, "Visible assembly");
+    if (!assemblies.has(assemblyId)) {
+      throw new Error(`Visible assembly ${assemblyId} is not registered`);
+    }
+  }
+}
+
+function validateAssemblyId(id: AssemblyId, label: string): void {
+  if (!Number.isSafeInteger(id) || id < 0 || id > MAX_PART_ID) {
+    throw new Error(`${label} id ${id} must be a finite integer in [0, ${MAX_PART_ID}]`);
+  }
+}
+
+function validateTransform(transform: unknown, ownerId: AssemblyId, index: number): void {
+  if (typeof transform !== "object" || transform === null) {
+    throw new TypeError(
+      `Assembly ${ownerId} placement ${index} transform must contain 16 components`,
+    );
+  }
+  const candidate = transform as {
+    readonly length?: unknown;
+    readonly [component: number]: unknown;
+  };
+  if (candidate.length !== 16) {
+    throw new RangeError(
+      `Assembly ${ownerId} placement ${index} transform must contain exactly 16 components`,
+    );
+  }
+  for (let component = 0; component < 16; component++) {
+    const value = candidate[component];
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new RangeError(
+        `Assembly ${ownerId} placement ${index} transform component ${component} must be finite`,
+      );
+    }
   }
 }
 

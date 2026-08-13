@@ -181,9 +181,8 @@ function buildGroups(keys: ArrayLike<number>): KeyedGroupIndex {
 }
 
 /**
- * Compiles an authoring scene into packed, deterministic runtime storage.
- * Missing assemblies are skipped defensively; hierarchy validation and cycle
- * behavior are owned by the scene builder.
+ * Compiles a validated authoring scene into packed, deterministic runtime
+ * storage.
  */
 export function compileSceneState(scene: Scene): RuntimeState {
   const { nodes, instances } = buildSceneDrafts(scene);

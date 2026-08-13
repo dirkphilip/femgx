@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Assembly } from "../../src/scene/assembly";
+import type { Assembly, Placement } from "../../src/scene/assembly";
 import { identity, translation } from "../../src/math/mat4";
 import { createPart, MAX_PART_ID, type Part } from "../../src/geometry/part";
 import { createScene, type Scene } from "../../src/scene/scene";
@@ -39,6 +39,25 @@ function buildScene(
     builder = builder.hideAssembly(id);
   }
   return builder.withRoot(rootAssemblyId).build();
+}
+
+function structuralScene(overrides: Partial<Scene> = {}): Scene {
+  return {
+    rootAssemblyId: 1,
+    parts: new Map([[1, part(1)]]),
+    assemblies: new Map([
+      [1, { id: 1, placements: [{ kind: "part", partId: 1, transform: identity() }] }],
+    ]),
+    visiblePartIds: new Set([1]),
+    visibleAssemblyIds: new Set([1]),
+    ...overrides,
+  };
+}
+
+function sceneWithPlacement(placement: Placement): Scene {
+  return structuralScene({
+    assemblies: new Map([[1, { id: 1, placements: [placement] }]]),
+  });
 }
 
 describe("createPackedSceneRuntime", () => {
@@ -377,21 +396,90 @@ describe("createPackedSceneRuntime", () => {
     expect(runtime.getInstanceId(1)).toBe("1/1/0");
   });
 
-  it("skips missing assembly references in an unvalidated scene", () => {
-    const scene: Scene = {
-      rootAssemblyId: 1,
-      parts: new Map(),
-      assemblies: new Map([
-        [1, { id: 1, placements: [{ kind: "assembly", assemblyId: 99, transform: identity() }] }],
-      ]),
-      visiblePartIds: new Set(),
-      visibleAssemblyIds: new Set([1]),
-    };
-    const runtime = createPackedSceneRuntime(scene);
-    expect(runtime.nodeCount).toBe(1);
-    expect(runtime.instanceCount).toBe(0);
-    expect(runtime.visibleCount).toBe(0);
-    expect(runtime.getDrawList()).toHaveLength(0);
+  it("rejects malformed structural scenes before packing", () => {
+    const nonFiniteTransform = identity();
+    nonFiniteTransform[3] = Number.NaN;
+    const cases: readonly [string, () => Scene, RegExp][] = [
+      [
+        "invalid root",
+        () => structuralScene({ rootAssemblyId: Number.NaN }),
+        /Scene root assembly id/,
+      ],
+      [
+        "invalid assembly identity",
+        () =>
+          structuralScene({
+            assemblies: new Map([[Number.NaN, { id: Number.NaN, placements: [] }]]),
+          }),
+        /Assembly id NaN/,
+      ],
+      [
+        "mismatched part registry key",
+        () => structuralScene({ parts: new Map([[2, part(1)]]) }),
+        /Part registry key 2 does not match part id 1/,
+      ],
+      [
+        "mismatched assembly registry key",
+        () => structuralScene({ assemblies: new Map([[2, { id: 1, placements: [] }]]) }),
+        /Assembly registry key 2 does not match assembly id 1/,
+      ],
+      [
+        "unsupported placement kind",
+        () => sceneWithPlacement({ kind: "mesh", transform: identity() } as never),
+        /unsupported kind mesh/,
+      ],
+      [
+        "missing part reference",
+        () => sceneWithPlacement({ kind: "part", partId: 99, transform: identity() }),
+        /references missing part 99/,
+      ],
+      [
+        "missing assembly reference",
+        () => sceneWithPlacement({ kind: "assembly", assemblyId: 99, transform: identity() }),
+        /references missing assembly 99/,
+      ],
+      [
+        "short transform",
+        () => sceneWithPlacement({ kind: "part", partId: 1, transform: new Float32Array(15) }),
+        /transform must contain exactly 16 components/,
+      ],
+      [
+        "non-finite transform",
+        () => sceneWithPlacement({ kind: "part", partId: 1, transform: nonFiniteTransform }),
+        /transform component 3 must be finite/,
+      ],
+      [
+        "unknown visible part",
+        () => structuralScene({ visiblePartIds: new Set([2]) }),
+        /Visible part 2 is not registered/,
+      ],
+      [
+        "unknown visible assembly",
+        () => structuralScene({ visibleAssemblyIds: new Set([2]) }),
+        /Visible assembly 2 is not registered/,
+      ],
+      [
+        "cyclic hierarchy",
+        () =>
+          structuralScene({
+            assemblies: new Map([
+              [
+                1,
+                { id: 1, placements: [{ kind: "assembly", assemblyId: 2, transform: identity() }] },
+              ],
+              [
+                2,
+                { id: 2, placements: [{ kind: "assembly", assemblyId: 1, transform: identity() }] },
+              ],
+            ]),
+          }),
+        /contains a cycle/,
+      ],
+    ];
+
+    for (const [name, create, message] of cases) {
+      expect(() => createPackedSceneRuntime(create()), name).toThrow(message);
+    }
   });
 
   it("handles an assembly placed more than once as separate expansions", () => {

@@ -1,5 +1,5 @@
 import type { Mat4 } from "../math/mat4";
-import type { Scene } from "../scene/scene";
+import { validateScene, type Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { compileSceneState, type RuntimeState } from "./compile";
@@ -83,6 +83,7 @@ function runtimeMaps(state: RuntimeState): RuntimeMaps {
 
 /** Compiles a scene into packed storage for the renderer and viewport internals. */
 export function createPackedSceneRuntime(scene: Scene): PackedSceneRuntime {
+  validateScene(scene);
   const state: RuntimeState = compileSceneState(scene);
   return createPackedRuntime(state, runtimeMaps(state));
 }
