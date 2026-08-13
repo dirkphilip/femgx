@@ -1,6 +1,7 @@
 import type { ResolvedStyle } from "../interaction/interaction";
 import { createHighlightStorage, type HighlightStorage } from "./gpu-highlight-storage";
 import { writeDiffedRange, writeOrderBuffer } from "./gpu-writes";
+import type { GpuCostAccumulator } from "./gpu-cost";
 
 /** Byte size of one instance record in the per-part storage buffer. */
 export const INSTANCE_STRIDE = 96;
@@ -86,6 +87,7 @@ export interface InstanceStorage {
 
 interface InstanceStorageOwner {
   readonly device: GPUDevice;
+  readonly cost: GpuCostAccumulator;
   readonly storages: Map<number, InstanceStorage>;
 }
 
@@ -134,13 +136,14 @@ export function patchInstances(
     const offset = (update.slot - first.slot) * INSTANCE_STRIDE;
     region.set(new Uint8Array(update.data), offset);
   }
-  writeDiffedRange(
-    draw.device,
-    storage.buffer,
-    startByte,
-    region,
-    mirror.subarray(startByte, endByte),
-  );
+  writeDiffedRange(draw.device, {
+    buffer: storage.buffer,
+    baseOffset: startByte,
+    next: region,
+    previous: mirror.subarray(startByte, endByte),
+    cost: draw.cost,
+    category: "instance",
+  });
   mirror.set(region, startByte);
 }
 
@@ -160,7 +163,7 @@ export function writeDrawOrder(
     storage.orderBuffer,
     storage.orderData,
     order,
-    storage.orderLength,
+    { previousLength: storage.orderLength, cost: draw.cost },
   );
 }
 
@@ -176,7 +179,7 @@ export function writeTransparentOrder(
     storage.transparentOrderBuffer,
     storage.transparentOrderData,
     order,
-    storage.transparentOrderLength,
+    { previousLength: storage.transparentOrderLength, cost: draw.cost },
   );
 }
 
@@ -192,7 +195,7 @@ export function writeSelectionOrder(
     storage.selectionOrderBuffer,
     storage.selectionOrderData,
     order,
-    storage.selectionOrderLength,
+    { previousLength: storage.selectionOrderLength, cost: draw.cost },
   );
 }
 
@@ -208,7 +211,7 @@ export function writeNodeSelectionOrder(
     storage.nodeSelectionOrderBuffer,
     storage.nodeSelectionOrderData,
     order,
-    storage.nodeSelectionOrderLength,
+    { previousLength: storage.nodeSelectionOrderLength, cost: draw.cost },
   );
 }
 
@@ -228,7 +231,7 @@ export function writeEdgeOrder(
     storage.edgeOrderBuffer,
     storage.edgeOrderData,
     order,
-    storage.edgeOrderLength,
+    { previousLength: storage.edgeOrderLength, cost: draw.cost },
   );
 }
 
@@ -244,7 +247,7 @@ export function writeNodeOrder(
     storage.nodeOrderBuffer,
     storage.nodeOrderData,
     order,
-    storage.nodeOrderLength,
+    { previousLength: storage.nodeOrderLength, cost: draw.cost },
   );
 }
 
@@ -329,6 +332,7 @@ function copyStorageData(
   storage.edgeOrderData.set(existing.edgeOrderData.subarray(0, existing.edgeOrderLength));
   storage.nodeOrderData.set(existing.nodeOrderData.subarray(0, existing.nodeOrderLength));
   draw.device.queue.writeBuffer(storage.buffer, 0, storage.data);
+  draw.cost.write("instance", storage.data.byteLength);
   writeExistingOrder(draw, storage.orderBuffer, storage.orderData, existing.orderLength);
   writeExistingOrder(
     draw,
@@ -368,7 +372,11 @@ function writeExistingOrder(
   data: Uint32Array,
   length: number,
 ): void {
-  if (length > 0) draw.device.queue.writeBuffer(buffer, 0, data.subarray(0, length));
+  if (length > 0) {
+    const bytes = data.subarray(0, length);
+    draw.device.queue.writeBuffer(buffer, 0, bytes);
+    draw.cost.write("order", bytes.byteLength);
+  }
 }
 
 function destroyStorageBuffers(storage: InstanceStorage): void {

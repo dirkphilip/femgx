@@ -1,3 +1,19 @@
+import type { GpuCostAccumulator, GpuCostWrite } from "./gpu-cost";
+
+interface DiffWriteOptions {
+  readonly buffer: GPUBuffer;
+  readonly baseOffset: number;
+  readonly next: Uint8Array<ArrayBuffer>;
+  readonly previous: Uint8Array<ArrayBuffer>;
+  readonly cost?: GpuCostAccumulator;
+  readonly category?: GpuCostWrite;
+}
+
+interface OrderWriteOptions {
+  readonly previousLength: number;
+  readonly cost?: GpuCostAccumulator;
+}
+
 /**
  * Writes the changed contiguous byte ranges of a region into a GPU buffer.
  * Each written range is expanded outward to a 4-byte boundary because
@@ -5,13 +21,8 @@
  * multiple of 4, and instance records change in sub-float byte increments
  * (for example a single alpha byte).
  */
-export function writeDiffedRange(
-  device: GPUDevice,
-  buffer: GPUBuffer,
-  baseOffset: number,
-  next: Uint8Array<ArrayBuffer>,
-  previous: Uint8Array<ArrayBuffer>,
-): void {
+export function writeDiffedRange(device: GPUDevice, options: DiffWriteOptions): void {
+  const { baseOffset, buffer, next, previous } = options;
   let rangeStart = -1;
   for (let index = 0; index < next.length; index++) {
     const changed = next[index] !== previous[index];
@@ -25,6 +36,7 @@ export function writeDiffedRange(
         baseOffset + alignedStart,
         next.subarray(alignedStart, alignedEnd),
       );
+      options.cost?.write(options.category ?? "other", alignedEnd - alignedStart);
       rangeStart = -1;
     }
   }
@@ -41,8 +53,9 @@ export function writeOrderBuffer(
   buffer: GPUBuffer,
   mirror: Uint32Array,
   order: Uint32Array,
-  previousLength: number,
+  options: OrderWriteOptions,
 ): number {
+  const { previousLength, cost } = options;
   const length = Math.max(order.length, previousLength);
   let rangeStart = -1;
   for (let index = 0; index < length; index++) {
@@ -57,6 +70,7 @@ export function writeOrderBuffer(
         chunk[i - rangeStart] = i < order.length ? (order[i] ?? 0) : 0;
       }
       device.queue.writeBuffer(buffer, rangeStart * 4, chunk);
+      cost?.write("order", chunk.byteLength);
       rangeStart = -1;
     }
   }

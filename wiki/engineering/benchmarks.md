@@ -178,6 +178,30 @@ arrays, and an upload-staging upper bound; `memoryEstimateScope` documents that
 the renderer estimate excludes driver allocations. Edge/topology categories
 remain explicit upper bounds where exact deduplication is performed during the
 renderer upload.
+
+Each WebGPU case also records an internal structural cost snapshot from its
+final timed iteration. The snapshot is not a public renderer API and separates
+render-pass counts, draw calls/index/instance totals, dynamic write calls/bytes,
+CPU instance/order work, and physical visible-target dimensions and estimated
+bytes. The counters explain timing trends; they are not a replacement for
+queue-drained timings or driver memory reporting. A steady camera-only
+iteration should have draw and uniform work but no instance/order upload or CPU
+scan.
+
+The structural matrix is read as orthogonal scenario dimensions rather than a
+single score:
+
+| Dimension       | Required cases or toggle                                                        |
+| --------------- | ------------------------------------------------------------------------------- |
+| geometry/CPU    | instancing-heavy, unique geometry, many parts                                   |
+| pass features   | opaque, transparent, selected-visible/hidden, edges, nodes, origin triad, pivot |
+| display density | DPR 1 baseline and a high-DPR physical-target estimate                          |
+
+Feature toggles keep the same scene and camera where possible. Compare draw and
+write deltas between the baseline and one toggle at a time so a pass or upload
+regression remains attributable. The fixed 800×600 DPR-1 cases are the
+reproducible trend baseline; high-DPR target accounting is a structural check,
+not a normal capacity run.
 The opt-in Playwright lane runs one case per test/context/device, gives each case
 an explicit bounded timeout, writes one `webgpu-benchmark.json` artifact as soon
 as its report returns, and aggregates only completed artifacts afterward. A

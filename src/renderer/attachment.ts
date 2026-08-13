@@ -95,6 +95,7 @@ export class RendererAttachment {
     bundle: GpuBundle,
   ): boolean {
     this.interactionState = interaction;
+    bundle.draw.cost.cpu("instance-scan", changedInstanceIds.length);
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
     if (layout === undefined) return attached;
@@ -150,6 +151,7 @@ export class RendererAttachment {
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
     if (layout === undefined) return attached;
+    bundle.draw.cost.cpu("instance-scan", runtime.instanceCount);
     const hiddenBodyIds = readInteractionState(interaction).hiddenBodyIds;
     const hiddenElementIds = readInteractionState(interaction).hiddenElementIds;
     const bodyVisibilityChanged = this.appliedHiddenBodyIds !== hiddenBodyIds;
@@ -198,6 +200,7 @@ export class RendererAttachment {
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
     if (layout === undefined) return attached;
+    bundle.draw.cost.cpu("instance-scan", changedInstanceIds.length);
     this.rebuildVisibleOrders(runtime, layout, changedInstanceIds, bundle);
     return attached || changedInstanceIds.length > 0;
   }
@@ -217,8 +220,9 @@ export class RendererAttachment {
   }
 
   private fullAttach(runtime: PackedSceneRuntime, layout: InstanceLayout, bundle: GpuBundle): void {
+    const cost = bundle.draw.cost;
     destroyDrawResources(bundle.draw);
-    bundle.draw = createDrawResources(bundle.device);
+    bundle.draw = createDrawResources(bundle.device, cost);
     const snapshot = buildInstanceSnapshot(runtime);
     this.instances = snapshot.instances;
     this.slotByInstanceId = snapshot.slotByInstanceId;
@@ -231,6 +235,7 @@ export class RendererAttachment {
     this.appliedHiddenBodyIds = undefined;
     this.appliedHiddenElementIds = undefined;
     const allSlots = Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
+    bundle.draw.cost.cpu("instance-scan", allSlots.length);
     const { updates } = collectInstanceUpdates(
       runtime,
       layout,
@@ -268,6 +273,7 @@ export class RendererAttachment {
     }
     const rebuild = affected.size > 0 ? affected : new Set(layout.partOrder);
     for (const partId of rebuild) {
+      bundle.draw.cost.cpu("order-rebuild", 1);
       const order = buildDrawOrder(layout, runtime, partId);
       writeDrawOrder(bundle.draw, partId, order);
       layout.partVisibleCounts.set(partId, order.length);
@@ -294,6 +300,7 @@ export class RendererAttachment {
     bundle: GpuBundle,
   ): void {
     for (const partId of parts) {
+      bundle.draw.cost.cpu("order-rebuild", 1);
       const order = buildTransparentOrder(layout, runtime, partId, this.transparentFlags);
       writeTransparentOrder(bundle.draw, partId, order);
       layout.partTransparentCounts.set(partId, order.length);
@@ -307,6 +314,7 @@ export class RendererAttachment {
     bundle: GpuBundle,
   ): void {
     for (const partId of parts) {
+      bundle.draw.cost.cpu("order-rebuild", 1);
       const order = buildEdgeOrder(layout, runtime, partId, this.edgeFlags);
       writeEdgeOrder(bundle.draw, partId, order);
       layout.partEdgeCounts.set(partId, order.length);

@@ -1,9 +1,11 @@
 import type { PartId } from "../geometry/part";
 import type { PartResource } from "./gpu-support";
+import type { GpuCostAccumulator } from "./gpu-cost";
 
 /** Draw resources needed to synchronize renderer-owned nodal colors. */
 export interface ResultColorDrawResources {
   readonly device: GPUDevice;
+  readonly cost?: GpuCostAccumulator;
   readonly parts: ReadonlyMap<PartId, PartResource>;
   readonly nodeParts: ReadonlyMap<PartId, PartResource>;
 }
@@ -61,6 +63,7 @@ export function syncResultColors(
       if (resource.resultColorsActive && resource.resultColorsSource === next) continue;
       for (const target of resource.resultColorBuffers) {
         draw.device.queue.writeBuffer(target.buffer, target.offset * 4, nextData);
+        draw.cost?.write("result", nextData.byteLength);
       }
       resource.resultColorsSource = next;
       resource.resultColorsActive = true;
@@ -74,6 +77,7 @@ export function syncResultColors(
     );
     for (const target of resource.resultColorBuffers) {
       draw.device.queue.writeBuffer(target.buffer, target.offset * 4, inactive);
+      draw.cost?.write("result", inactive.byteLength);
     }
     resource.resultColorsSource = undefined;
     resource.resultColorsActive = false;

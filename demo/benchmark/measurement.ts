@@ -5,7 +5,11 @@ import {
   transformPoint,
   type Camera,
 } from "../../src/index";
-import { createWebGpuRenderer, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
+import {
+  createWebGpuRenderer,
+  readGpuCostSnapshot,
+  type WebGpuRenderer,
+} from "../../src/renderer/gpu-renderer";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
 import { hasInteractiveSample, measureInteractiveSamples } from "./interactive";
@@ -42,6 +46,7 @@ export async function measureBenchmarkCase(
   let renderer: WebGpuRenderer | undefined;
   let coldSample: Record<keyof SampleSet, number>;
   let interactive: WebGpuBenchmarkCaseResult["interactive"];
+  let gpuCost: WebGpuBenchmarkCaseResult["gpuCost"];
   const samples = emptySamples();
   const uniqueTriangles = countUniqueTriangles(benchmarkCase);
   try {
@@ -76,6 +81,7 @@ export async function measureBenchmarkCase(
       });
       if (index >= WARMUP_SAMPLES) pushSample(samples, sample);
     }
+    gpuCost = readGpuCostSnapshot(renderer);
     phase = "interactive sample";
     interactive = hasInteractiveSample(benchmarkCase)
       ? await measureInteractiveSamples({
@@ -120,6 +126,7 @@ export async function measureBenchmarkCase(
       WIDTH,
       HEIGHT,
     ),
+    gpuCost,
   };
 }
 

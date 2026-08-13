@@ -19,7 +19,11 @@ type DrawIntent =
       readonly primitive?: "triangles" | "lines" | "points";
     }
   | { readonly kind: "edge"; readonly pipeline: GPURenderPipeline }
-  | { readonly kind: "nodes"; readonly pipeline: GPURenderPipeline; readonly selection?: boolean };
+  | {
+      readonly kind: "nodes";
+      readonly pipeline: GPURenderPipeline;
+      readonly selection?: "visible" | "hidden";
+    };
 
 /** Issues all instanced draws for the cached per-part calls. */
 export function drawBatches(
@@ -32,7 +36,7 @@ export function drawBatches(
   pass.setBindGroup(0, context.frameBindGroup);
   if (
     (options.kind === "surface" && options.pass.startsWith("selection-")) ||
-    (options.kind === "nodes" && options.selection === true)
+    (options.kind === "nodes" && options.selection !== undefined)
   ) {
     pass.setStencilReference(2);
   }
@@ -56,7 +60,7 @@ function drawOneBatch(
   const { intent, current } = options;
   const orderKind =
     intent.kind === "nodes"
-      ? intent.selection === true
+      ? intent.selection !== undefined
         ? "node-selection"
         : "node"
       : intent.kind === "edge"
@@ -102,7 +106,32 @@ function drawOneBatch(
   const count = bindDrawGeometry(pass, geometry, overlay, subset);
   if (count === undefined) return current;
   pass.drawIndexed(count, call.instanceCount);
+  draw.cost.draw(drawCostCategory(intent), count, call.instanceCount);
   return pipeline;
+}
+
+function drawCostCategory(
+  intent: DrawIntent,
+):
+  | "opaque"
+  | "point-replay"
+  | "selection-visible"
+  | "selection-hidden"
+  | "transparency"
+  | "edges"
+  | "nodes"
+  | "pick" {
+  if (intent.kind === "edge") return "edges";
+  if (intent.kind === "nodes") {
+    if (intent.selection === "hidden") return "selection-hidden";
+    if (intent.selection === "visible") return "selection-visible";
+    return "nodes";
+  }
+  if (intent.pass === "pick") return "pick";
+  if (intent.pass === "transparent") return "transparency";
+  if (intent.pass === "selection-visible") return "selection-visible";
+  if (intent.pass === "selection-hidden") return "selection-hidden";
+  return intent.primitive === "points" ? "point-replay" : "opaque";
 }
 
 function usesFaceSubset(intent: DrawIntent, part: Part, nodes: boolean): boolean {

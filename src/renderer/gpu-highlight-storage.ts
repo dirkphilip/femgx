@@ -17,6 +17,7 @@ import {
   INITIAL_ELEMENT_HIGHLIGHTS,
   type EmphasisUpdate,
 } from "./gpu-elements";
+import type { GpuCostAccumulator } from "./gpu-cost";
 
 interface InstanceLayout {
   readonly slotPartLocal: Int32Array;
@@ -46,11 +47,12 @@ export function writeElementHighlights(
   device: GPUDevice,
   storage: HighlightTarget,
   updates: readonly EmphasisUpdate[],
+  cost?: GpuCostAccumulator,
 ): void {
   const entries = updates.map(toTableEntry);
   let table = buildHighlightTable(entries, highlightCapacity(storage.highlight.data.byteLength));
   while (table === undefined) {
-    growHighlightStorage(device, storage, nextTableCapacity(entries.length));
+    growHighlightStorage(device, storage, nextTableCapacity(entries.length), cost);
     table = buildHighlightTable(entries, highlightCapacity(storage.highlight.data.byteLength));
   }
   const next = new Uint8Array(storage.highlight.data.length);
@@ -63,7 +65,7 @@ export function writeElementHighlights(
     if (entry === undefined) continue;
     next.set(new Uint8Array(entry.data), HIGHLIGHT_HEADER + index * ELEMENT_RECORD_STRIDE);
   }
-  writeChangedRanges(device, storage, next, table.bucketCount);
+  writeChangedRanges(device, storage, next, table.bucketCount, cost);
   storage.highlight.data.set(next);
 }
 
@@ -72,6 +74,7 @@ function writeChangedRanges(
   storage: HighlightTarget,
   next: Uint8Array,
   bucketCount: number,
+  cost?: GpuCostAccumulator,
 ): void {
   const previous = storage.highlight.data;
   const previousView = new Uint32Array(previous.buffer);
@@ -94,6 +97,7 @@ function writeChangedRanges(
         alignedStart,
         next.subarray(alignedStart, alignedEnd),
       );
+      cost?.write("highlight", alignedEnd - alignedStart);
       rangeStart = -1;
     }
   }
@@ -103,6 +107,7 @@ function growHighlightStorage(
   device: GPUDevice,
   storage: HighlightTarget,
   minimumRecords: number,
+  cost?: GpuCostAccumulator,
 ): void {
   const highlight = storage.highlight;
   const capacity = highlightCapacity(highlight.data.byteLength);
@@ -112,6 +117,7 @@ function growHighlightStorage(
   const mirror = new Uint8Array(grown.data);
   mirror.set(highlight.data);
   device.queue.writeBuffer(grown.buffer, 0, mirror);
+  cost?.write("highlight", mirror.byteLength);
   highlight.buffer.destroy();
   storage.highlight = grown;
   storage.bindGroup = undefined;
@@ -146,7 +152,10 @@ function nextTableCapacity(count: number): number {
 /** The draw-path inputs needed to sync emphasis buffers. */
 export interface ElementHighlightSync {
   readonly device: GPUDevice;
-  readonly draw: { readonly storages: ReadonlyMap<PartId, HighlightTarget> };
+  readonly draw: {
+    readonly storages: ReadonlyMap<PartId, HighlightTarget>;
+    readonly cost: GpuCostAccumulator;
+  };
   readonly runtime: PackedSceneRuntime;
   readonly layout: InstanceLayout;
   readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
@@ -175,6 +184,6 @@ export function syncElementHighlights(
     interaction,
   );
   for (const [partId, storage] of sync.draw.storages) {
-    writeElementHighlights(sync.device, storage, updates.get(partId) ?? []);
+    writeElementHighlights(sync.device, storage, updates.get(partId) ?? [], sync.draw.cost);
   }
 }

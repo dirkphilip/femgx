@@ -20,6 +20,7 @@ import { GpuDeviceLifecycle, type GpuBundle } from "./gpu-recovery";
 import { writeBackgroundColors } from "./gpu-background";
 import type { ViewportBackground } from "./types";
 import type { GpuValidationOptions } from "./gpu-validation";
+import type { GpuCostSnapshot } from "./gpu-cost";
 
 export interface GpuRendererConstruction {
   readonly bundle: GpuBundle;
@@ -89,6 +90,7 @@ export class GpuRenderer implements WebGpuRenderer {
     originTriadNominalScale = 1,
   ): void {
     this.ensureAlive();
+    this.lifecycle.bundle.draw.cost.reset();
     this.originTriadNominalScale = originTriadNominalScale;
     const partsChanged = this.sourceParts !== parts;
     const cameraChanged = this.lastCamera !== camera;
@@ -237,6 +239,12 @@ export class GpuRenderer implements WebGpuRenderer {
   public stats(): { readonly drawBatches: number } {
     this.ensureAlive();
     return { drawBatches: this.attachment.calls.length };
+  }
+
+  /** Returns the latest internal frame-cost snapshot for the benchmark harness. */
+  public costSnapshot(): GpuCostSnapshot {
+    this.ensureAlive();
+    return this.lifecycle.bundle.draw.cost.snapshot();
   }
 
   public destroy(): void {

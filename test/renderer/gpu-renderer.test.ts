@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createWebGpuRenderer } from "../../src/renderer/gpu-renderer";
+import { createWebGpuRenderer, readGpuCostSnapshot } from "../../src/renderer/gpu-renderer";
 import { createPart } from "../../src/geometry/part";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
@@ -151,6 +151,20 @@ describe("WebGPU renderer", () => {
     await expect(renderer.pick(1, 1)).resolves.toBeUndefined();
     renderer.render(runtime, camera, scene.parts);
     renderer.render(runtime, camera, scene.parts);
+    const cost = readGpuCostSnapshot(renderer);
+    expect(cost.passes).toEqual({ opaque: 1, transparency: 1, composite: 1, pick: 0 });
+    expect(cost.draws.background).toEqual({ calls: 1, indices: 3, instances: 1 });
+    expect(cost.draws.opaque).toEqual({ calls: 1, indices: 3, instances: 3 });
+    expect(cost.writes.instance).toEqual({ calls: 0, bytes: 0 });
+    expect(cost.writes.order).toEqual({ calls: 0, bytes: 0 });
+    expect(cost.cpu["instance-scan"]).toBe(0);
+    expect(cost.targets).toEqual({
+      width: 800,
+      height: 600,
+      devicePixelRatio: 1,
+      sampleCount: 4,
+      estimatedBytes: 800 * 600 * 96,
+    });
     expect(gpu.drawCalls).toEqual([
       { indexCount: 3, instanceCount: 3 },
       { indexCount: 3, instanceCount: 3 },
