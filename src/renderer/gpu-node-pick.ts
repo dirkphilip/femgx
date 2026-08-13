@@ -205,7 +205,7 @@ fn pointVertexMain(
     clip.z,
     clip.w,
   );
-  if (!topologyOwnersVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
+  if (!topologyOwnersAllVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
   output.color = instance.color;
