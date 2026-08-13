@@ -20,57 +20,95 @@ export interface WebGpuDemoOptions {
   readonly testAlphaZero?: boolean;
 }
 
-/** Starts the presentation-only demo shell around the canonical FEM viewport. */
+/**
+ *
+ */
 export async function startWebGpuDemo(
   options: WebGpuDemoOptions,
 ): Promise<WorkbenchController | undefined> {
   const { view, canvas } = options;
+  const models = createDemoModels(options);
+  const initialModel = models[0];
+  if (initialModel === undefined) throw new Error("The demo requires at least one model preset");
+  const primaryPane = primaryWorkbenchPane(view, canvas);
+  const state: StartState = { viewport: undefined, controller: undefined };
+  const reportFailure = (error: unknown): void => {
+    reportRendererFailure(view, canvas, error);
+  };
+  const createViewport = createViewportFactory(state, reportFailure);
+  try {
+    state.viewport = await createViewport("primary", primaryPane, initialModel);
+    state.controller = new WorkbenchController({
+      view,
+      canvas,
+      rendererName: "webgpu",
+      viewport: state.viewport,
+      presets: models,
+      createViewport,
+    });
+    state.viewport.render();
+  } catch (error) {
+    state.viewport?.destroy();
+    state.viewport = undefined;
+    state.controller?.destroy();
+    reportFailure(error);
+    return undefined;
+  }
+  canvas.dataset["renderer"] = "webgpu";
+  installWorkbenchHarness(canvas, primaryPane, state, createViewport, reportFailure);
+  return state.controller;
+}
+
+interface StartState {
+  viewport: FemViewport | undefined;
+  controller: WorkbenchController | undefined;
+}
+
+function createDemoModels(options: WebGpuDemoOptions): WorkbenchModel[] {
   const presets = createModelPresets(
     options.testAlphaZero === true ? { transparencyOpacity: 0 } : undefined,
   );
-  const performanceLab = isPerformanceLabOptIn();
-  const models: WorkbenchModel[] = [
+  return [
     ...presets.map(createExampleModel),
-    ...workbenchBenchmarkSpecs(performanceLab).map(createLazyBenchmarkModel),
+    ...workbenchBenchmarkSpecs(isPerformanceLabOptIn()).map(createLazyBenchmarkModel),
   ];
-  const initialModel = models[0];
-  if (initialModel === undefined) throw new Error("The demo requires at least one model preset");
-  const primaryPaneValue: unknown = Reflect.get(view, "primaryPane");
-  const primaryPane: WorkbenchPane = isWorkbenchPane(primaryPaneValue)
-    ? primaryPaneValue
-    : {
-        id: "primary",
-        scene: Reflect.get(view, "scene"),
-        canvas,
-        boxSelectionOverlay: Reflect.get(view, "boxSelectionOverlay"),
-      };
+}
 
-  let viewport: FemViewport | undefined;
-  let controller: WorkbenchController | undefined;
-  const reportRendererFailure = (error: unknown): void => {
-    const detail = error instanceof Error ? error.message : String(error);
-    const unsupported = error instanceof WebGpuUnsupportedError;
-    canvas.dataset["renderer"] = unsupported ? "unsupported" : "error";
-    view.rendererStatus.hidden = false;
-    view.status.hidden = false;
-    view.rendererStatus.textContent = unsupported ? "Renderer unsupported" : "Renderer error";
-    view.status.textContent = unsupported
-      ? `femgx requires a usable WebGPU renderer. ${detail}`
-      : `femgx could not validate the WebGPU renderer. ${detail}`;
+function primaryWorkbenchPane(view: DemoView, canvas: HTMLCanvasElement): WorkbenchPane {
+  const value: unknown = Reflect.get(view, "primaryPane");
+  if (isWorkbenchPane(value)) return value;
+  return {
+    id: "primary",
+    scene: Reflect.get(view, "scene"),
+    canvas,
+    boxSelectionOverlay: Reflect.get(view, "boxSelectionOverlay"),
   };
+}
 
-  const createViewport = async (
-    slotId: ViewportSlotId,
-    pane: WorkbenchPane,
-    model: WorkbenchModel,
-  ): Promise<FemViewport> =>
+function reportRendererFailure(view: DemoView, canvas: HTMLCanvasElement, error: unknown): void {
+  const detail = error instanceof Error ? error.message : String(error);
+  const unsupported = error instanceof WebGpuUnsupportedError;
+  canvas.dataset["renderer"] = unsupported ? "unsupported" : "error";
+  view.rendererStatus.hidden = false;
+  view.status.hidden = false;
+  view.rendererStatus.textContent = unsupported ? "Renderer unsupported" : "Renderer error";
+  view.status.textContent = unsupported
+    ? `femgx requires a usable WebGPU renderer. ${detail}`
+    : `femgx could not validate the WebGPU renderer. ${detail}`;
+}
+
+function createViewportFactory(
+  state: StartState,
+  reportFailure: (error: unknown) => void,
+): (slotId: ViewportSlotId, pane: WorkbenchPane, model: WorkbenchModel) => Promise<FemViewport> {
+  return async (slotId, pane, model) =>
     createFemViewport({
       canvas: pane.canvas,
       scene: model.scene,
       keyboardTarget: pane.scene,
       orientationGizmo: { container: pane.scene },
       ...(model.results === undefined ? {} : { results: model.results }),
-      ...(controller === undefined ? {} : { interaction: controller.interaction }),
+      ...(state.controller === undefined ? {} : { interaction: state.controller.interaction }),
       ...(slotId === "primary"
         ? { fitContentInset: () => contentInset(pane.scene, pane.canvas) }
         : {}),
@@ -79,62 +117,54 @@ export async function startWebGpuDemo(
       },
       onRecovered: () => {
         pane.canvas.dataset["recovery"] = "recovered";
-        if (controller !== undefined) {
-          controller.rendererState = "recovered";
-          controller.render();
+        if (state.controller !== undefined) {
+          state.controller.rendererState = "recovered";
+          state.controller.render();
         }
       },
       onError: (error) => {
         if (slotId === "primary") {
-          controller?.destroy();
-          viewport = undefined;
+          state.controller?.destroy();
+          state.viewport = undefined;
           pane.canvas.dataset["recovery"] = "error";
-          reportRendererFailure(error);
+          reportFailure(error);
         } else {
-          controller?.handleSecondaryViewportError(error);
+          state.controller?.handleSecondaryViewportError(error);
         }
       },
       onGestureChange: (active) => {
-        controller?.setCameraGestureActive(slotId, active);
+        state.controller?.setCameraGestureActive(slotId, active);
       },
       onRender: () => {
         pane.canvas.dataset["frames"] = String(Number(pane.canvas.dataset["frames"] ?? "0") + 1);
-        controller?.onViewportRender(slotId, performance.now());
+        state.controller?.onViewportRender(slotId, performance.now());
       },
     });
+}
 
-  try {
-    viewport = await createViewport("primary", primaryPane, initialModel);
-    controller = new WorkbenchController({
-      view,
-      canvas,
-      rendererName: "webgpu",
-      viewport,
-      presets: models,
-      createViewport,
-    });
-    viewport.render();
-  } catch (error) {
-    viewport?.destroy();
-    viewport = undefined;
-    controller?.destroy();
-    reportRendererFailure(error);
-    return undefined;
-  }
-  canvas.dataset["renderer"] = "webgpu";
-
+function installWorkbenchHarness(
+  canvas: HTMLCanvasElement,
+  primaryPane: WorkbenchPane,
+  state: StartState,
+  createViewport: (
+    slotId: ViewportSlotId,
+    pane: WorkbenchPane,
+    model: WorkbenchModel,
+  ) => Promise<FemViewport>,
+  reportFailure: (error: unknown) => void,
+): void {
+  const controller = state.controller;
+  if (controller === undefined) throw new Error("Workbench controller was not created");
   const destroyCurrentViewport = (): void => {
     controller.detachViewport();
     controller.invalidateInteraction();
-    viewport?.destroy();
-    viewport = undefined;
+    state.viewport?.destroy();
+    state.viewport = undefined;
   };
-
   window.addEventListener("pagehide", () => {
     controller.destroy();
-    viewport = undefined;
+    state.viewport = undefined;
   });
-
   /** Explicit lifecycle seam used by the e2e lane. */
   installDemoHarness({
     destroyRenderer: () => {
@@ -142,35 +172,33 @@ export async function startWebGpuDemo(
       canvas.dataset["renderer"] = "destroyed";
     },
     recreateRenderer: async () => {
-      if (viewport !== undefined) return;
+      if (state.viewport !== undefined) return;
       try {
         const recreated = await createViewport("primary", primaryPane, controller.model);
-        viewport = recreated;
+        state.viewport = recreated;
         controller.setViewport(recreated);
         canvas.dataset["renderer"] = "webgpu";
         recreated.render();
       } catch (error) {
-        viewport?.destroy();
-        viewport = undefined;
-        reportRendererFailure(error);
+        state.viewport?.destroy();
+        state.viewport = undefined;
+        reportFailure(error);
       }
     },
     runBenchmark: async (includeLarge: boolean, caseId?: string) => {
       controller.destroy();
-      viewport = undefined;
+      state.viewport = undefined;
       const { runWebGpuBenchmark } = await import("../benchmark/runner");
       return runWebGpuBenchmark(canvas, {
         includeLarge,
         ...(caseId === undefined ? {} : { caseId }),
       });
     },
-    pickPoint: async (x: number, y: number) => (await viewport?.pick(x, y))?.worldPosition,
+    pickPoint: async (x: number, y: number) => (await state.viewport?.pick(x, y))?.worldPosition,
     pickRegion: async (rect: BoxSelectionRect, granularity: InteractionGranularity) =>
-      (await viewport?.pickRegion(rect, granularity)) ?? [],
+      (await state.viewport?.pickRegion(rect, granularity)) ?? [],
     getBoxSelectionStats: () => controller.getBoxSelectionStats(),
   });
-
-  return controller;
 }
 
 function isPerformanceLabOptIn(): boolean {

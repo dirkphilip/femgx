@@ -84,11 +84,10 @@ export function installWorkbenchPaneBindings(options: WorkbenchPaneBindingOption
 export function installWorkbenchBindings(options: WorkbenchBindingOptions): void {
   const { view, canvas, signal } = options;
   const scene = Reflect.get(view, "scene") as unknown as HTMLElement | undefined;
-  const paneScene = scene ?? canvas;
   installWorkbenchPaneBindings({
     pane: {
       id: "primary",
-      scene: paneScene,
+      scene: scene ?? canvas,
       canvas,
       boxSelectionOverlay: Reflect.get(view, "boxSelectionOverlay"),
     },
@@ -97,6 +96,14 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
     dragging: options.dragging,
     setActive: options.setActive ?? (() => {}),
   });
+  installProjectionBinding(options);
+  installDisplayBindings(options);
+  installModelBindings(options);
+  installWindowBindings(options);
+}
+
+function installProjectionBinding(options: WorkbenchBindingOptions): void {
+  const { view, signal } = options;
   view.projectionToggle.addEventListener(
     "click",
     () => {
@@ -111,6 +118,10 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
     },
     { signal },
   );
+}
+
+function installDisplayBindings(options: WorkbenchBindingOptions): void {
+  const { view, signal } = options;
   view.backgroundSelect.addEventListener(
     "change",
     () => {
@@ -136,6 +147,10 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
   if (options.toggleViewport !== undefined) {
     view.viewportToggle.addEventListener("click", options.toggleViewport, { signal });
   }
+}
+
+function installModelBindings(options: WorkbenchBindingOptions): void {
+  const { view, signal } = options;
   view.modelSelect.addEventListener(
     "change",
     () => {
@@ -158,6 +173,10 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
     },
     { signal },
   );
+}
+
+function installWindowBindings(options: WorkbenchBindingOptions): void {
+  const { view, signal } = options;
   window.addEventListener(
     "click",
     (event) => {

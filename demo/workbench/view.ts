@@ -68,112 +68,87 @@ export interface StatusInfo {
 
 /** Locates the demo's DOM nodes, throwing when the page is misconfigured. */
 export function queryDemoView(): DemoView {
-  const canvas = document.querySelector<HTMLCanvasElement>("#view");
-  const scene = document.querySelector<HTMLElement>(".scene");
-  const boxSelectionOverlay = document.querySelector<HTMLElement>("#box-selection-overlay");
-  const secondaryCanvas = document.querySelector<HTMLCanvasElement>("#secondary-view");
-  const secondaryScene = document.querySelector<HTMLElement>("#secondary-scene");
-  const secondaryBoxSelectionOverlay = document.querySelector<HTMLElement>(
-    "#secondary-box-selection-overlay",
-  );
-  const viewportWorkspace = document.querySelector<HTMLElement>("#viewport-workspace");
-  const viewportToggle = document.querySelector<HTMLButtonElement>("#viewport-toggle");
-  const rendererStatus = document.querySelector<HTMLElement>("#renderer-status");
-  const buildInfo = document.querySelector<HTMLElement>("#build-info");
-  const modelSelect = document.querySelector<HTMLSelectElement>("#model-select");
-  const modelSource = document.querySelector<HTMLElement>("#model-source");
-  const openGlbButton = document.querySelector<HTMLButtonElement>("#open-glb");
-  const glbFileInput = document.querySelector<HTMLInputElement>("#glb-file");
-  const modelFeedback = document.querySelector<HTMLElement>("#model-feedback");
-  const fitView = document.querySelector<HTMLButtonElement>("#fit-view");
-  const selectionGranularity = document.querySelector<HTMLSelectElement>("#selection-granularity");
-  const hideSelectedButton = document.querySelector<HTMLButtonElement>("#hide-selected");
-  const showAllButton = document.querySelector<HTMLButtonElement>("#show-all");
-  const projectionToggle = document.querySelector<HTMLButtonElement>("#projection-toggle");
-  const backgroundSelect = document.querySelector<HTMLSelectElement>("#background-select");
-  const edgeOverlayToggle = document.querySelector<HTMLButtonElement>("#edge-overlay");
-  const continuousToggle = document.querySelector<HTMLButtonElement>("#continuous-rendering");
-  const resultsToggle = document.querySelector<HTMLButtonElement>("#results-toggle");
-  const nodeOverlayToggle = document.querySelector<HTMLButtonElement>("#node-overlay");
-  const resetButton = document.querySelector<HTMLButtonElement>("#reset");
-  const status = document.querySelector<HTMLElement>("#status");
-  const visibilityPanel = document.querySelector<HTMLElement>("#visibility-panel");
-  const inspectionPanel = document.querySelector<HTMLElement>("#inspection-panel");
-  const statsPanel = document.querySelector<HTMLElement>("#stats-panel");
-  const statsContent = document.querySelector<HTMLElement>("#diagnostics-content");
-  const contextMenu = document.querySelector<HTMLElement>("#context-menu");
-  const interactionHelp = document.querySelector<HTMLElement>("#interaction-help");
-  if (
-    canvas === null ||
-    scene === null ||
-    boxSelectionOverlay === null ||
-    secondaryCanvas === null ||
-    secondaryScene === null ||
-    secondaryBoxSelectionOverlay === null ||
-    viewportWorkspace === null ||
-    viewportToggle === null ||
-    rendererStatus === null ||
-    buildInfo === null ||
-    modelSelect === null ||
-    modelSource === null ||
-    openGlbButton === null ||
-    glbFileInput === null ||
-    modelFeedback === null ||
-    fitView === null ||
-    selectionGranularity === null ||
-    hideSelectedButton === null ||
-    showAllButton === null ||
-    projectionToggle === null ||
-    backgroundSelect === null ||
-    edgeOverlayToggle === null ||
-    continuousToggle === null ||
-    resultsToggle === null ||
-    nodeOverlayToggle === null ||
-    resetButton === null ||
-    status === null ||
-    visibilityPanel === null ||
-    inspectionPanel === null ||
-    statsPanel === null ||
-    statsContent === null ||
-    contextMenu === null ||
-    interactionHelp === null
-  ) {
-    throw new Error("missing demo controls");
-  }
-  return {
-    primaryPane: pane("primary", scene, canvas, boxSelectionOverlay),
-    secondaryPane: pane("secondary", secondaryScene, secondaryCanvas, secondaryBoxSelectionOverlay),
-    viewportWorkspace,
-    viewportToggle,
-    canvas,
-    scene,
-    boxSelectionOverlay,
-    rendererStatus,
-    buildInfo,
-    modelSelect,
-    modelSource,
-    openGlbButton,
-    glbFileInput,
-    modelFeedback,
-    fitView,
-    selectionGranularity,
-    hideSelectedButton,
-    showAllButton,
-    projectionToggle,
-    backgroundSelect,
-    edgeOverlayToggle,
-    continuousToggle,
-    resultsToggle,
-    nodeOverlayToggle,
-    resetButton,
-    status,
-    visibilityPanel,
-    inspectionPanel,
-    statsPanel,
-    statsContent,
-    contextMenu,
-    interactionHelp,
+  const elements = {
+    canvas: requiredCanvas("#view"),
+    scene: requiredElement(".scene"),
+    boxSelectionOverlay: requiredElement("#box-selection-overlay"),
+    secondaryCanvas: requiredCanvas("#secondary-view"),
+    secondaryScene: requiredElement("#secondary-scene"),
+    secondaryBoxSelectionOverlay: requiredElement("#secondary-box-selection-overlay"),
+    viewportWorkspace: requiredElement("#viewport-workspace"),
+    viewportToggle: requiredButton("#viewport-toggle"),
+    rendererStatus: requiredElement("#renderer-status"),
+    buildInfo: requiredElement("#build-info"),
+    modelSelect: requiredSelect("#model-select"),
+    modelSource: requiredElement("#model-source"),
+    openGlbButton: requiredButton("#open-glb"),
+    glbFileInput: requiredInput("#glb-file"),
+    modelFeedback: requiredElement("#model-feedback"),
+    fitView: requiredButton("#fit-view"),
+    selectionGranularity: requiredSelect("#selection-granularity"),
+    hideSelectedButton: requiredButton("#hide-selected"),
+    showAllButton: requiredButton("#show-all"),
+    projectionToggle: requiredButton("#projection-toggle"),
+    backgroundSelect: requiredSelect("#background-select"),
+    edgeOverlayToggle: requiredButton("#edge-overlay"),
+    continuousToggle: requiredButton("#continuous-rendering"),
+    resultsToggle: requiredButton("#results-toggle"),
+    nodeOverlayToggle: requiredButton("#node-overlay"),
+    resetButton: requiredButton("#reset"),
+    status: requiredElement("#status"),
+    visibilityPanel: requiredElement("#visibility-panel"),
+    inspectionPanel: requiredElement("#inspection-panel"),
+    statsPanel: requiredElement("#stats-panel"),
+    statsContent: requiredElement("#diagnostics-content"),
+    contextMenu: requiredElement("#context-menu"),
+    interactionHelp: requiredElement("#interaction-help"),
   };
+  return createDemoView(elements);
+}
+
+type DemoViewElements = Omit<DemoView, "primaryPane" | "secondaryPane"> & {
+  readonly secondaryCanvas: HTMLCanvasElement;
+  readonly secondaryScene: HTMLElement;
+  readonly secondaryBoxSelectionOverlay: HTMLElement;
+};
+
+function createDemoView(elements: DemoViewElements): DemoView {
+  return {
+    primaryPane: pane("primary", elements.scene, elements.canvas, elements.boxSelectionOverlay),
+    secondaryPane: pane(
+      "secondary",
+      elements.secondaryScene,
+      elements.secondaryCanvas,
+      elements.secondaryBoxSelectionOverlay,
+    ),
+    ...elements,
+  };
+}
+
+function requiredElement(selector: string): HTMLElement {
+  return required(selector) as HTMLElement;
+}
+
+function requiredCanvas(selector: string): HTMLCanvasElement {
+  return required(selector) as HTMLCanvasElement;
+}
+
+function requiredButton(selector: string): HTMLButtonElement {
+  return required(selector) as HTMLButtonElement;
+}
+
+function requiredSelect(selector: string): HTMLSelectElement {
+  return required(selector) as HTMLSelectElement;
+}
+
+function requiredInput(selector: string): HTMLInputElement {
+  return required(selector) as HTMLInputElement;
+}
+
+function required(selector: string): Element {
+  const element = document.querySelector(selector);
+  if (element === null) throw new Error("missing demo controls");
+  return element;
 }
 
 /** Reflects the camera and model summary in the status bar. */

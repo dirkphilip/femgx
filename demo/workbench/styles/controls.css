@@ -1,0 +1,105 @@
+.toolbar {
+  position: absolute;
+  z-index: 5;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 6px;
+  border: 1px solid var(--workbench-control-border);
+  border-radius: 10px;
+  background: var(--workbench-panel-background);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+.toolbar-row {
+  display: contents;
+}
+.toolbar > * {
+  pointer-events: auto;
+}
+.toolbar select,
+.toolbar button {
+  min-height: 36px;
+}
+#model-select {
+  min-width: 170px;
+  flex: 1 1 280px;
+}
+.model-source {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 420px;
+  gap: 6px;
+}
+.model-source select {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.model-source button {
+  flex: 0 0 auto;
+}
+.toolbar-background {
+  display: flex;
+  min-width: 150px;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--workbench-control-border);
+  border-radius: 6px;
+  padding: 0 6px;
+  color: #b9c7d8;
+  background: var(--workbench-control-background);
+  font-size: 12px;
+}
+.toolbar-background select {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  padding-right: 2px;
+  padding-left: 2px;
+  color: #fff;
+  background: transparent;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+.model-feedback {
+  flex: 1 1 100%;
+  min-width: 0;
+  padding: 4px 6px;
+  color: #b9c7d8;
+  font-size: 12px;
+}
+.model-feedback[data-kind="error"] {
+  color: #ffd4bd;
+}
+.interaction-help {
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 2px 6px;
+  color: #b9c7d8;
+  font-size: 12px;
+}
+.toolbar button[aria-pressed="true"] {
+  border-color: var(--workbench-accent);
+  color: #fff;
+  background: var(--workbench-accent-strong);
+}
+.toolbar button[aria-pressed="false"] {
+  color: #a8b7c9;
+  background: var(--workbench-control-background);
+}
+.toolbar .secondary {
+  color: #b9c7d8;
+  background: #122033;
+}
