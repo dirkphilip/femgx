@@ -39,7 +39,7 @@ const mocks = vi.hoisted(() => {
   return {
     FakeWorkbenchController,
     createFemViewport: vi.fn(),
-    runWebGpuBenchmark: vi.fn(() => Promise.resolve({ schemaVersion: 1 })),
+    runWebGpuBenchmark: vi.fn(() => Promise.resolve({ schemaVersion: 2 })),
   };
 });
 
@@ -250,7 +250,7 @@ describe("startWebGpuDemo", () => {
     const canvas = fakeCanvas();
     await startWebGpuDemo(startOptions(canvas));
 
-    await expect(demoWindow.femgxDemo?.runBenchmark(true)).resolves.toEqual({ schemaVersion: 1 });
+    await expect(demoWindow.femgxDemo?.runBenchmark(true)).resolves.toEqual({ schemaVersion: 2 });
     expect(viewport.destroy).toHaveBeenCalledOnce();
     expect(mocks.runWebGpuBenchmark).toHaveBeenCalledWith(canvas, { includeLarge: true });
   });

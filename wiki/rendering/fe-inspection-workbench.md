@@ -34,6 +34,8 @@ controller, so camera and interaction behavior is stable
   the complete part through fixture aggregation. Large cases are lazy or
   opt-in; the migration of legacy aggregate cases is tracked in
   [issue #526](https://github.com/dirkphilip/femgx/issues/526).
+  Performance Lab names and diagnostics identify the FE family, unique element
+  count, submitted element occurrences, and unique/submitted triangle units.
 
 ## GPU picking
 

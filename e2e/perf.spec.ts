@@ -37,6 +37,8 @@ test("reports real WebGPU geometry and picking costs", async ({ browser }, testI
     includeLarge,
   );
 
+  expect(report.schemaVersion).toBe(2);
+  expect(report.memoryEstimateScope).toContain("renderer-owned");
   expect(report.resolution).toEqual({ width: 800, height: 600, dpr: 1 });
   expect(report.cases.map((entry) => entry.kind)).toContain("instancing-heavy");
   expect(report.cases.filter((entry) => entry.kind === "unique-geometry")).toHaveLength(
@@ -65,11 +67,16 @@ test("reports real WebGPU geometry and picking costs", async ({ browser }, testI
           "fe-hex20-solid-visual",
         ],
   );
-  expect(structuredCases.map((entry) => entry.elementCount)).toEqual(
+  expect(structuredCases.map((entry) => entry.uniqueElementCount)).toEqual(
+    includeLarge ? [576, 256, 512, 216, 1_728] : [576, 256, 512, 216],
+  );
+  expect(structuredCases.map((entry) => entry.submittedElementOccurrences)).toEqual(
     includeLarge ? [576, 256, 512, 216, 1_728] : [576, 256, 512, 216],
   );
   for (const entry of report.cases) {
     expect(entry.elementFamily).toBeDefined();
+    expect(entry.uniqueElementCount).toBeGreaterThan(1);
+    expect(entry.submittedElementOccurrences).toBeGreaterThanOrEqual(entry.uniqueElementCount);
     expect(entry.uniqueTriangles).toBeGreaterThan(0);
     expect(entry.submittedTriangles).toBeGreaterThanOrEqual(entry.uniqueTriangles);
     expect(entry.visibleTriangles).toBe(entry.submittedTriangles);
@@ -84,8 +91,14 @@ test("reports real WebGPU geometry and picking costs", async ({ browser }, testI
     }
     if (entry.kind === "structured-fe") {
       expect(entry.structuredFamily).toBeDefined();
-      expect(entry.nodeCount).toBeGreaterThan(entry.elementCount);
+      expect(entry.nodeCount).toBeGreaterThan(entry.uniqueElementCount);
       expect(entry.faceCount).toBeGreaterThan(0);
+    }
+    if (entry.elementFamily === "triangle") {
+      expect(entry.uniqueElementCount).toBe(entry.uniqueTriangles);
+    }
+    if (entry.elementFamily === "quad") {
+      expect(entry.uniqueTriangles).toBe(entry.uniqueElementCount * 2);
     }
     if (entry.interactive === undefined) continue;
     for (const sample of [entry.interactive.fixedCamera, entry.interactive.movingCamera]) {
@@ -108,7 +121,7 @@ test("reports real WebGPU geometry and picking costs", async ({ browser }, testI
   }
 
   expect(
-    Object.fromEntries(report.cases.map((entry) => [entry.id, entry.elementCount])),
+    Object.fromEntries(report.cases.map((entry) => [entry.id, entry.uniqueElementCount])),
   ).toMatchObject({
     "instanced-2.10m": 16_384,
     "unique-250k": 250_632,
@@ -116,6 +129,17 @@ test("reports real WebGPU geometry and picking costs", async ({ browser }, testI
     "many-parts-100": 1_008_200,
     "many-parts-1000": 968_000,
     "placements-10k": 64,
+    "bodies-256": 1_024,
+  });
+  expect(
+    Object.fromEntries(report.cases.map((entry) => [entry.id, entry.submittedElementOccurrences])),
+  ).toMatchObject({
+    "instanced-2.10m": 1_048_576,
+    "unique-250k": 250_632,
+    "unique-1m": 999_698,
+    "many-parts-100": 1_008_200,
+    "many-parts-1000": 968_000,
+    "placements-10k": 640_000,
     "bodies-256": 1_024,
   });
 

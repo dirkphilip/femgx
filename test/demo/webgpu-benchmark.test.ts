@@ -125,7 +125,20 @@ describe("WebGPU benchmark models", () => {
   });
 
   it("reports buffer and render-target memory as an explicit sum", () => {
-    const memory = estimateBenchmarkMemory(2, 3, 800, 600);
+    const scene = createBenchmarkCase({
+      id: "memory-test",
+      name: "Memory test",
+      kind: "unique-geometry",
+      gridCells: 2,
+      partCount: 1,
+      instanceCount: 1,
+      bodyCount: 0,
+      elementFamily: "triangle",
+    }).scene;
+    const memory = estimateBenchmarkMemory(scene, 3, 800, 600);
+    expect(memory.geometryBytes).toBe(312);
+    expect(memory.pickMetadataBytes).toBe(100);
+    expect(memory.edgeIndexBytes).toBe(192);
     expect(memory.totalBufferBytes).toBe(
       memory.geometryBytes +
         memory.pickMetadataBytes +

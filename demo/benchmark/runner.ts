@@ -27,6 +27,8 @@ const WIDTH = 800;
 const HEIGHT = 600;
 const WARMUP_SAMPLES = 2;
 const TIMED_SAMPLES = 7;
+const MEMORY_ESTIMATE_SCOPE =
+  "renderer-owned buffers and fixed render targets; excludes CPU scene, transient staging, and driver allocations";
 
 interface Percentiles {
   readonly p50: number;
@@ -51,7 +53,8 @@ export interface WebGpuBenchmarkCaseResult {
   readonly partCount: number;
   readonly drawBatchCount: number;
   readonly bodyCount: number;
-  readonly elementCount: number;
+  readonly uniqueElementCount: number;
+  readonly submittedElementOccurrences: number;
   readonly nodeCount: number;
   readonly faceCount: number;
   readonly uniqueVertices: number;
@@ -67,7 +70,7 @@ export interface WebGpuBenchmarkCaseResult {
 }
 
 export interface WebGpuBenchmarkReport {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly generatedAt: string;
   readonly browser: string;
   readonly adapter: {
@@ -79,6 +82,7 @@ export interface WebGpuBenchmarkReport {
   };
   readonly enabledFeatures: readonly string[];
   readonly resolution: { readonly width: number; readonly height: number; readonly dpr: number };
+  readonly memoryEstimateScope: string;
   readonly warmupSamples: number;
   readonly timedSamples: number;
   readonly cases: readonly WebGpuBenchmarkCaseResult[];
@@ -120,7 +124,7 @@ export async function runWebGpuBenchmark(
   }
   const info = adapter.info;
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAt: new Date().toISOString(),
     browser: navigator.userAgent,
     adapter: {
@@ -132,6 +136,7 @@ export async function runWebGpuBenchmark(
     },
     enabledFeatures,
     resolution: { width: WIDTH, height: HEIGHT, dpr: devicePixelRatio },
+    memoryEstimateScope: MEMORY_ESTIMATE_SCOPE,
     warmupSamples: WARMUP_SAMPLES,
     timedSamples: TIMED_SAMPLES,
     cases: results,
@@ -185,7 +190,8 @@ async function measureCase(
     partCount: benchmarkCase.scene.parts.size,
     drawBatchCount: benchmarkCase.scene.parts.size,
     bodyCount: countBodies(benchmarkCase),
-    elementCount: countElements(benchmarkCase),
+    uniqueElementCount: countUniqueElements(benchmarkCase),
+    submittedElementOccurrences: countSubmittedElementOccurrences(benchmarkCase, runtime),
     nodeCount: countNodes(benchmarkCase),
     faceCount: countFaces(benchmarkCase),
     uniqueVertices: countUniqueVertices(benchmarkCase),
@@ -198,11 +204,10 @@ async function measureCase(
     timings: summarize(samples),
     ...(interactive === undefined ? {} : { interactive }),
     estimatedMemory: estimateBenchmarkMemory(
-      benchmarkCase.gridCells,
+      benchmarkCase.scene,
       runtime.instanceCount,
       WIDTH,
       HEIGHT,
-      benchmarkCase.partCount,
     ),
   };
 }
@@ -222,10 +227,22 @@ function countUniqueTriangles(benchmarkCase: WebGpuBenchmarkCase): number {
   return count;
 }
 
-function countElements(benchmarkCase: WebGpuBenchmarkCase): number {
+function countUniqueElements(benchmarkCase: WebGpuBenchmarkCase): number {
   let count = 0;
   for (const part of benchmarkCase.scene.parts.values())
     count += part.geometry.elements?.length ?? 0;
+  return count;
+}
+
+function countSubmittedElementOccurrences(
+  benchmarkCase: WebGpuBenchmarkCase,
+  runtime: ReturnType<typeof createPackedSceneRuntime>,
+): number {
+  let count = 0;
+  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
+    const partId = runtime.instancePartIds[slot];
+    count += benchmarkCase.scene.parts.get(partId ?? 0)?.geometry.elements?.length ?? 0;
+  }
   return count;
 }
 
