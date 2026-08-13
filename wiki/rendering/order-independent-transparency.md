@@ -19,11 +19,11 @@ The visible frame has one deliberate presentation ordering:
 | Presentation helpers                                          | Swap-chain color                   | Explicit helper rule                                     | Helper-specific                                       | Edges, nodes, orientation gizmo                                         |
 
 The origin triad is a renderer-owned two-variant exception. Its positive
-world-space X/Y/Z geometry is anchored at `[0, 0, 0]` and scaled once from the
-complete placed-scene bounds, including hidden occurrences. The opaque scene
+world-space X/Y/Z geometry is anchored at `[0, 0, 0]` and scaled each visible
+frame from the current camera depth for a nominal 56 CSS-pixel axis length. The opaque scene
 draws first; the triad then uses `less-equal` without writing depth and replaces
 one stencil bit for visible samples. Point primitives replay with their exact
-scene depth so a large origin marker does not erase authored point glyphs.
+scene depth so the origin marker does not erase authored point glyphs.
 Opaque-occluded triad fragments use the inverse depth comparison and reject that
 stencil bit before joining the existing weighted targets at one fixed alpha.
 The triad is not scene geometry, is absent from picking and bounds, and has no

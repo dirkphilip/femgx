@@ -225,13 +225,27 @@ test("renders the persistent world-origin triad without scene identity", async (
       .withRoot(1)
       .build();
     const viewport = await api.createFemViewport({ canvas, scene, background: "dark" });
-    (window as Window & { __originTriadViewport?: typeof viewport }).__originTriadViewport =
-      viewport;
+    const state = window as Window & {
+      __originTriadApi?: typeof api;
+      __originTriadViewport?: typeof viewport;
+    };
+    state.__originTriadApi = api;
+    state.__originTriadViewport = viewport;
   });
 
   const canvas = page.locator("#origin-triad-test");
   await expect(canvas).toBeVisible();
-  const pixels = await stableCanvasPixels(page, canvas);
+  const captureTriad = async () => {
+    await stableCanvasPixels(page, canvas);
+    const pixels = await canvasRgba(page, canvas);
+    const width = await canvas.evaluate((element) => {
+      if (!(element instanceof HTMLCanvasElement)) throw new Error("origin triad canvas missing");
+      return element.width;
+    });
+    return triadPixelEnvelope(pixels, width);
+  };
+  const baseline = await captureTriad();
+  const pixels = await canvasRgba(page, canvas);
   const dominantPixels = (channel: number, otherA: number, otherB: number): number => {
     let count = 0;
     for (let index = 0; index + 2 < pixels.length; index += 4) {
@@ -249,12 +263,85 @@ test("renders the persistent world-origin triad without scene identity", async (
   expect(dominantPixels(0, 1, 2), "persistent red X axis").toBeGreaterThan(0);
   expect(dominantPixels(1, 0, 2), "persistent green Y axis").toBeGreaterThan(0);
   expect(dominantPixels(2, 0, 1), "persistent blue Z axis").toBeGreaterThan(0);
+  for (const label of ["zoom in", "zoom out", "orthographic", "perspective", "resize"]) {
+    await page.evaluate(
+      ({ action }: { action: string }) => {
+        const state = window as Window & {
+          __originTriadApi?: typeof Api;
+          __originTriadViewport?: {
+            camera: Api.Camera;
+            setCamera: (camera: Api.Camera, options?: { durationMs?: number }) => void;
+          };
+        };
+        const api = state.__originTriadApi;
+        const viewport = state.__originTriadViewport;
+        if (api === undefined || viewport === undefined)
+          throw new Error("origin triad state missing");
+        if (action === "zoom in") {
+          viewport.setCamera(api.zoomCamera(viewport.camera, -1), { durationMs: 0 });
+        } else if (action === "zoom out") {
+          viewport.setCamera(api.zoomCamera(viewport.camera, 1), { durationMs: 0 });
+        } else if (action === "orthographic") {
+          viewport.setCamera(api.setProjection(viewport.camera, "orthographic"), { durationMs: 0 });
+        } else if (action === "perspective") {
+          viewport.setCamera(api.setProjection(viewport.camera, "perspective"), { durationMs: 0 });
+        } else {
+          const canvas = document.getElementById("origin-triad-test");
+          if (!(canvas instanceof HTMLCanvasElement))
+            throw new Error("origin triad canvas missing");
+          canvas.style.width = "480px";
+          canvas.style.height = "320px";
+        }
+      },
+      { action: label },
+    );
+    const envelope = await captureTriad();
+    expect(Math.abs(envelope.width - baseline.width), `${label} triad width`).toBeLessThanOrEqual(
+      12,
+    );
+    expect(
+      Math.abs(envelope.height - baseline.height),
+      `${label} triad height`,
+    ).toBeLessThanOrEqual(12);
+  }
   await page.evaluate(() =>
     (
       window as Window & { __originTriadViewport?: { destroy: () => void } }
     ).__originTriadViewport?.destroy(),
   );
 });
+
+function triadPixelEnvelope(
+  rgba: Buffer,
+  width: number,
+): { readonly width: number; readonly height: number } {
+  const height = Math.floor(rgba.length / 4 / width);
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      const red = rgba[offset] ?? 0;
+      const green = rgba[offset + 1] ?? 0;
+      const blue = rgba[offset + 2] ?? 0;
+      const axisPixel =
+        (red > 80 && red > green + 24 && red > blue + 24) ||
+        (green > 80 && green > red + 24 && green > blue + 24) ||
+        (blue > 80 && blue > red + 24 && blue > green + 24);
+      if (!axisPixel) continue;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  return {
+    width: maxX >= minX ? maxX - minX + 1 : 0,
+    height: maxY >= minY ? maxY - minY + 1 : 0,
+  };
+}
 
 test("element emphasis changes the rendered pixels and toggles off again", async ({ page }) => {
   await loadWebGpuPage(page);

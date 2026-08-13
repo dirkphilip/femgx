@@ -1,7 +1,5 @@
-import { boundsCorners, isFiniteBounds, type Bounds, type Part } from "../geometry/part";
-import type { Mat4 } from "../math/mat4";
-import { transformPoint } from "../math/mat4";
-import type { PackedSceneRuntime } from "../scene-runtime/runtime";
+import type { Camera } from "../camera/camera";
+import { dot, normalize, subtract } from "../math/vec3";
 import {
   TRANSPARENCY_ACCUMULATION_FORMAT,
   TRANSPARENCY_ACCUMULATION_BLEND_STATE,
@@ -25,7 +23,7 @@ export interface OriginTriadResources {
   readonly hiddenPipeline: GPURenderPipeline;
 }
 
-/** Internal dimensions derived from one complete-scene world-space scale. */
+/** Internal world-space dimensions derived from the fixed CSS-pixel metric. */
 export interface OriginTriadDimensions {
   readonly scale: number;
   readonly shaftRadius: number;
@@ -54,7 +52,9 @@ interface OriginTriadResourceOptions {
   readonly frameBindGroup: GPUBindGroup;
 }
 
-/** Resolves the stable world-space dimensions used by both triad variants. */
+const ORIGIN_TRIAD_AXIS_PIXELS = 56;
+
+/** Resolves the world-space dimensions used by both triad variants. */
 export function originTriadDimensions(scale: number): OriginTriadDimensions {
   const resolved = Math.max(Number.isFinite(scale) ? scale : 0, 1e-6);
   return {
@@ -66,32 +66,22 @@ export function originTriadDimensions(scale: number): OriginTriadDimensions {
   };
 }
 
-/** Returns the complete placed-scene scale, including currently hidden occurrences. */
-export function originTriadScale(
-  runtime: PackedSceneRuntime,
-  parts: ReadonlyMap<number, Part>,
-): number {
-  const bounds = emptyBounds();
-  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
-    const partId = runtime.instancePartIds[slot];
-    const transform = runtime.getTransform(slot);
-    const part = partId === undefined ? undefined : parts.get(partId);
-    if (part === undefined || transform === undefined || !isFiniteBounds(part.bounds)) continue;
-    includeTransformed(bounds, part.bounds, transform);
-  }
-  if (!isFiniteBounds(bounds)) return 0.12;
-  const extent = Math.max(
-    bounds.maxX - bounds.minX,
-    bounds.maxY - bounds.minY,
-    bounds.maxZ - bounds.minZ,
-  );
-  const diagonal = Math.hypot(
-    bounds.maxX - bounds.minX,
-    bounds.maxY - bounds.minY,
-    bounds.maxZ - bounds.minZ,
-  );
-  const span = Math.max(extent, diagonal);
-  return span > 0 ? span * 0.12 : 0.12;
+/** Returns the world scale for the fixed 56 CSS-pixel axis length at the origin. */
+export function originTriadScale(camera: Camera): number {
+  const worldUnitsPerCssPixel =
+    camera.mode === "orthographic"
+      ? camera.orthoHeight / camera.height
+      : perspectiveWorldUnitsPerCssPixel(camera);
+  const scale = ORIGIN_TRIAD_AXIS_PIXELS * worldUnitsPerCssPixel;
+  return Number.isFinite(scale) && scale > 0 ? scale : 1e-6;
+}
+
+function perspectiveWorldUnitsPerCssPixel(camera: Camera): number {
+  const viewDirection = normalize(subtract(camera.target, camera.position));
+  const originDepth = -dot(viewDirection, camera.position);
+  const finiteDepth = Number.isFinite(originDepth) ? originDepth : 0;
+  const depth = Math.max(finiteDepth, camera.near);
+  return (2 * depth * Math.tan(camera.fovY / 2)) / camera.height;
 }
 
 /** Creates visible and weighted-ghost pipelines over one shared shader and layout. */
@@ -249,36 +239,4 @@ function triadPipelineDescriptor(options: {
     },
     multisample: { count: COLOR_SAMPLE_COUNT },
   };
-}
-
-function emptyBounds(): MutableBounds {
-  return {
-    minX: Infinity,
-    minY: Infinity,
-    minZ: Infinity,
-    maxX: -Infinity,
-    maxY: -Infinity,
-    maxZ: -Infinity,
-  };
-}
-
-function includeTransformed(bounds: MutableBounds, partBounds: Bounds, transform: Mat4): void {
-  for (const corner of boundsCorners(partBounds)) {
-    const point = transformPoint(transform, corner[0], corner[1], corner[2]);
-    bounds.minX = Math.min(bounds.minX, point[0]);
-    bounds.minY = Math.min(bounds.minY, point[1]);
-    bounds.minZ = Math.min(bounds.minZ, point[2]);
-    bounds.maxX = Math.max(bounds.maxX, point[0]);
-    bounds.maxY = Math.max(bounds.maxY, point[1]);
-    bounds.maxZ = Math.max(bounds.maxZ, point[2]);
-  }
-}
-
-interface MutableBounds {
-  minX: number;
-  minY: number;
-  minZ: number;
-  maxX: number;
-  maxY: number;
-  maxZ: number;
 }

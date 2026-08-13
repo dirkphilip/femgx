@@ -12,7 +12,7 @@ import {
 import { setElementOverride } from "../../src/interaction/interaction";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { identity, translation } from "../../src/math/mat4";
-import { projectPoint, unprojectPoint, type Camera } from "../../src/camera/camera";
+import { projectPoint, unprojectPoint, type Camera, zoomCamera } from "../../src/camera/camera";
 import {
   fakeCanvas,
   fakeGpuDevice,
@@ -177,6 +177,27 @@ describe("WebGPU renderer", () => {
     expect(() => {
       renderer.render(runtime, camera, scene.parts);
     }).toThrow("destroyed");
+  });
+
+  it("writes the persistent triad scale from the live camera each frame", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildScene();
+    const runtime = createPackedSceneRuntime(scene);
+
+    renderer.render(runtime, camera, scene.parts);
+    renderer.render(runtime, zoomCamera(camera, Math.LN2), scene.parts);
+
+    const triadBuffer = gpu.buffers.find((record) => record.size === 48)?.resource;
+    expect(triadBuffer).toBeDefined();
+    const scales = gpu.writes
+      .filter((write) => write.buffer === triadBuffer)
+      .map((write) => new Float32Array(write.bytes.buffer, write.bytes.byteOffset, 1)[0]);
+    expect(scales).toHaveLength(2);
+    expect(scales[1]).toBeCloseTo((scales[0] ?? 0) * 2, 4);
+    renderer.destroy();
   });
 
   it("reuses pick snapshots until pick-relevant state changes", async () => {

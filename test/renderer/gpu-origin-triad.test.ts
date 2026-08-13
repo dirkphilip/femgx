@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { createPart } from "../../src/geometry/part";
-import { translation } from "../../src/math/mat4";
-import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import { createScene } from "../../src/scene/scene";
+import {
+  createCamera,
+  projectPoint,
+  resizeCamera,
+  setProjection,
+  type Camera,
+  zoomCamera,
+  zoomCameraAtPoint,
+} from "../../src/camera/camera";
 import { originTriadDimensions, originTriadScale } from "../../src/renderer/gpu-origin-triad";
 
 describe("world-origin triad", () => {
-  it("derives finite dimensions from one scene scale", () => {
+  it("derives finite dimensions from one camera scale", () => {
     expect(originTriadDimensions(10)).toEqual({
       scale: 10,
       shaftRadius: 0.25,
@@ -17,29 +22,102 @@ describe("world-origin triad", () => {
     expect(originTriadDimensions(Number.NaN).scale).toBeGreaterThan(0);
   });
 
-  it("uses complete placed bounds even when an occurrence is hidden", () => {
-    const part = createPart(1, {
-      positions: new Float32Array([0, 0, 0, 2, 0, 0, 0, 1, 0]),
-      indices: new Uint32Array([0, 1, 2]),
-      primitive: "triangles",
-    });
-    const scene = createScene()
-      .addPart(part)
-      .addAssembly({
-        id: 1,
-        name: "root",
-        placements: [
-          { kind: "part", partId: 1, transform: translation(0, 0, 0) },
-          { kind: "part", partId: 1, transform: translation(10, 0, 0) },
-        ],
-      })
-      .withRoot(1)
-      .build();
-    const runtime = createPackedSceneRuntime(scene);
-    const completeScale = originTriadScale(runtime, scene.parts);
-    runtime.setInstanceVisible(1, false);
+  it("keeps a camera-plane axis at 56 CSS pixels in perspective", () => {
+    const camera = resizeCamera(
+      createCamera({
+        mode: "perspective",
+        position: [0, 0, 10],
+        target: [0, 0, 0],
+      }),
+      800,
+      600,
+    );
 
-    expect(originTriadScale(runtime, scene.parts)).toBe(completeScale);
-    expect(completeScale).toBeCloseTo(Math.hypot(12, 1) * 0.12);
+    expect(projectedAxisLength(camera, [0, 1, 0])).toBeCloseTo(56, 4);
+  });
+
+  it("preserves the CSS-pixel length through perspective depth changes", () => {
+    const camera = resizeCamera(
+      createCamera({
+        mode: "perspective",
+        position: [0, 0, 10],
+        target: [0, 0, 0],
+      }),
+      800,
+      600,
+    );
+    const variants = [
+      zoomCamera(camera, -0.8),
+      zoomCamera(camera, 0.8),
+      zoomCameraAtPoint(camera, -0.5, [2, 0, 0]),
+    ];
+
+    for (const variant of variants) {
+      expect(projectedAxisLength(variant, [0, 1, 0])).toBeCloseTo(56, 4);
+    }
+  });
+
+  it("preserves the CSS-pixel length through orthographic zoom, projection, and resize", () => {
+    const perspective = resizeCamera(
+      createCamera({
+        mode: "perspective",
+        position: [0, 0, 10],
+        target: [0, 0, 0],
+      }),
+      800,
+      600,
+    );
+    const orthographic = setProjection(perspective, "orthographic");
+
+    for (const variant of [
+      orthographic,
+      zoomCamera(orthographic, -0.8),
+      zoomCamera(orthographic, 0.8),
+      resizeCamera(orthographic, 1200, 900),
+    ]) {
+      expect(projectedAxisLength(variant, [0, 1, 0])).toBeCloseTo(56, 4);
+    }
+  });
+
+  it("retains normal world-axis foreshortening", () => {
+    const camera = resizeCamera(
+      createCamera({
+        mode: "perspective",
+        position: [0, 0, 10],
+        target: [0, 0, 0],
+      }),
+      800,
+      600,
+    );
+    const scale = originTriadScale(camera);
+
+    expect(projectedAxisLength(camera, [1, 0, 0], scale)).toBeCloseTo(56, 4);
+    expect(projectedAxisLength(camera, [0, 0, 1], scale)).toBeCloseTo(0, 8);
+  });
+
+  it.each([
+    createCamera({
+      mode: "perspective",
+      position: [0, 0, 0.001],
+      target: [0, 0, -1],
+      near: 0.01,
+    }),
+    createCamera({ mode: "perspective", position: [0, 0, -1], target: [0, 0, -2] }),
+    createCamera({ mode: "orthographic", orthoHeight: 1e-9 }),
+  ])("keeps near, behind-camera, and tiny-scale configurations finite", (camera) => {
+    const scale = originTriadScale(camera);
+    expect(Number.isFinite(scale)).toBe(true);
+    expect(scale).toBeGreaterThan(0);
   });
 });
+
+function projectedAxisLength(
+  camera: Camera,
+  axis: readonly [number, number, number],
+  scale = originTriadScale(camera),
+): number {
+  const origin = projectPoint(camera, [0, 0, 0]);
+  const endpoint = projectPoint(camera, [axis[0] * scale, axis[1] * scale, axis[2] * scale]);
+  if (origin === undefined || endpoint === undefined) return Number.NaN;
+  return Math.hypot(endpoint[0] - origin[0], endpoint[1] - origin[1]);
+}
