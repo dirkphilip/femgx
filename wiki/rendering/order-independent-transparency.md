@@ -11,6 +11,12 @@ clone materials, and alpha-zero remains visually absent but pickable.
 
 The visible frame has one deliberate presentation ordering:
 
+Within the authored opaque scene stage, the existing single color/pick pass
+submits triangle, line, then point part groups. This only defines exact-depth
+ties; ordinary depth still selects the nearest fragment. Renderer-owned edges
+and node annotations remain post-composite presentation helpers, outside this
+authored primitive precedence.
+
 | Stage                                                         | Color target                       | Depth                                                    | Blend/write                                               | Owner                                                                   |
 | ------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------- |
 | Opaque scene + visible selection + triad/pivot + point replay | MSAA canvas, resolved opaque color | `less` scene, `less-equal` selection/triad/pivot/points  | Alpha-blended selection; triad uses separate stencil bits | Surface batches, selection, world-origin and orbit presentation, points |

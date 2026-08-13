@@ -15,6 +15,10 @@ import { ensureColorTargets, ensureCompositeBindGroup } from "./gpu-pipelines";
 import { drawOriginTriad, originTriadScale, writeOriginTriad } from "./gpu-origin-triad";
 import { drawOrbitPivot, writeOrbitPivot } from "./gpu-orbit-pivot";
 
+/** Internal exact-depth precedence for authored opaque primitive groups. */
+export const AUTHORED_PRIMITIVE_PRECEDENCE = ["triangles", "lines", "points"] as const;
+type PrimitivePass = "color" | "pick" | "selection-visible";
+
 /** Everything the per-frame command encoding needs from the renderer. */
 export interface FrameOptions {
   readonly canvas: HTMLCanvasElement;
@@ -124,7 +128,7 @@ export function encodeVisibleFrame(
   opaquePass.setBindGroup(1, frame.resources.background.bindGroup);
   opaquePass.draw(3);
   frame.draw.cost.draw("background", 3);
-  drawBatches(opaquePass, frame.draw, context, frame.calls, { kind: "surface", pass: "color" });
+  drawAuthoredPrimitiveGroups(opaquePass, frame.draw, context, frame.calls, "color");
   if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
     drawOriginTriad(opaquePass, frame.resources.originTriad, "visible");
     frame.draw.cost.draw("origin-triad", 45);
@@ -184,10 +188,14 @@ function drawSelectionPass(
   variant: "selection-visible" | "selection-hidden",
 ): void {
   if (frame.selectionCalls.length > 0) {
-    drawBatches(pass, frame.draw, context, frame.selectionCalls, {
-      kind: "surface",
-      pass: variant,
-    });
+    if (variant === "selection-visible") {
+      drawAuthoredPrimitiveGroups(pass, frame.draw, context, frame.selectionCalls, variant);
+    } else {
+      drawBatches(pass, frame.draw, context, frame.selectionCalls, {
+        kind: "surface",
+        pass: variant,
+      });
+    }
   }
   if (frame.selectedNodeCalls.length > 0) {
     drawBatches(pass, frame.draw, context, frame.selectedNodeCalls, {
@@ -250,9 +258,26 @@ export function encodePickSnapshot(
   const pickEncoder = frame.device.createCommandEncoder();
   const pickPass = beginPickPass(pickEncoder, frame.pickTargets);
   frame.draw.cost.pass("pick");
-  drawBatches(pickPass, frame.draw, context, frame.calls, { kind: "surface", pass: "pick" });
+  drawAuthoredPrimitiveGroups(pickPass, frame.draw, context, frame.calls, "pick");
   pickPass.end();
   frame.device.queue.submit([pickEncoder.finish()]);
+}
+
+/** Draws authored opaque primitive groups in their deterministic tie order. */
+function drawAuthoredPrimitiveGroups(
+  pass: GPURenderPassEncoder,
+  draw: DrawResources,
+  context: DrawCallContext,
+  calls: readonly DrawCall[],
+  primitivePass: PrimitivePass,
+): void {
+  for (const primitive of AUTHORED_PRIMITIVE_PRECEDENCE) {
+    drawBatches(pass, draw, context, calls, {
+      kind: "surface",
+      pass: primitivePass,
+      primitive,
+    });
+  }
 }
 
 function drawContext(frame: FrameOptions, parts: ReadonlyMap<PartId, Part>): DrawCallContext {

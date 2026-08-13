@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  AUTHORED_PRIMITIVE_PRECEDENCE,
   cameraKeyLightDirection,
   cameraViewDirection,
   nodeSizeDevicePixels,
@@ -37,6 +38,12 @@ describe("pointSizeDevicePixels", () => {
 
   it("never returns less than one device pixel", () => {
     expect(pointSizeDevicePixels(0.1, 1)).toBe(1);
+  });
+});
+
+describe("authored primitive precedence", () => {
+  it("keeps surface, line, and point tie order independent of part ids", () => {
+    expect(AUTHORED_PRIMITIVE_PRECEDENCE).toEqual(["triangles", "lines", "points"]);
   });
 });
 

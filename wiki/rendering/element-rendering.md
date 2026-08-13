@@ -83,6 +83,14 @@ projection changes do not alter a face's orientation response.
 
 ## Primitive groups and overlays
 
+Authored opaque primitives use one deterministic depth-tie precedence inside
+the existing color and pick passes: triangle surfaces establish depth first,
+authored lines resolve exact ties second, and authored points resolve exact ties
+last. The line and point pipelines use `less-equal` for this purpose; a
+genuinely nearer or farther fragment still follows ordinary depth testing.
+This ordering is independent of part ids and scene insertion order. The
+renderer-owned edge and node overlays remain separate post-composite stages.
+
 - Triangle geometry tessellates the exterior boundary plus both oriented copies
   of a face shared by two differently named bodies. Same-body interior faces
   remain culled. The packed face record carries the owner and neighboring body
