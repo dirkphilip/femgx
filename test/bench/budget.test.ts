@@ -12,11 +12,13 @@ import {
 } from "../../src/elements/shapes";
 import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
 import { createPart } from "../../src/geometry/part";
+import { translation } from "../../src/math/mat4";
 import { resolvePick } from "../../src/picking/pick";
 import { buildMeshEdgeData } from "../../src/renderer/gpu-edge";
 import { buildPrimitiveFaceBodyPickData } from "../../src/renderer/gpu-pick-ids";
 import { expandSurfaceGeometry } from "../../src/renderer/gpu-surface-geometry";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
+import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
 import {
   BENCH_BODY_COUNT,
   BENCH_BODY_ELEMENT_COUNT,
@@ -59,6 +61,27 @@ const runtimeInstances = Array.from(runtime.getDrawList(), (slot, index) => ({
 
 const heterogeneousModel = makeHeterogeneousModel(100);
 const bodyGeometry = makeBodyGeometry();
+const boundsPart = createPart(906, bodyGeometry);
+const boundsScene = {
+  rootAssemblyId: 1,
+  parts: new Map([[boundsPart.id, boundsPart]]),
+  assemblies: new Map([
+    [
+      1,
+      {
+        id: 1,
+        placements: Array.from({ length: 64 }, (_, index) => ({
+          kind: "part" as const,
+          partId: boundsPart.id,
+          transform: translation(index, 0, 0),
+        })),
+      },
+    ],
+  ]),
+  visiblePartIds: new Set([boundsPart.id]),
+  visibleAssemblyIds: new Set([1]),
+};
+const boundsRuntime = createPackedSceneRuntime(boundsScene);
 const bodyModel = createStructuredFeModel("quad", BENCH_BODY_GRID_CELLS);
 const bodies = makeBodies(bodyModel.elements.length, BENCH_BODY_COUNT);
 const bodyModelWithBodies = createElementModel([...bodyModel.nodes], bodyModel.elements, {
@@ -174,6 +197,14 @@ const budgets: readonly BudgetCase[] = [
     budgetMs: 20,
     run: () => {
       runtime.getDrawList();
+    },
+  },
+  {
+    name: "sceneWorldBounds",
+    description: "32,768 triangles reused across 64 placements",
+    budgetMs: 100,
+    run: () => {
+      sceneWorldBounds(boundsScene, boundsRuntime);
     },
   },
   {
