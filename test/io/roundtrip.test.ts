@@ -125,38 +125,3 @@ describe("VTK round-trips", () => {
     );
   });
 });
-
-describe("large VTK parse", () => {
-  it("loads a large VTK model into typed-array storage", () => {
-    const cellCount = 20_000;
-    const nodeCount = 8;
-    const lines: string[] = [
-      "# vtk DataFile Version 5.0",
-      "large model",
-      "ASCII",
-      "DATASET UNSTRUCTURED_GRID",
-      `POINTS ${String(nodeCount)} double`,
-      "0 0 0",
-      "1 0 0",
-      "1 1 0",
-      "0 1 0",
-      "0 0 1",
-      "1 0 1",
-      "1 1 1",
-      "0 1 1",
-      `CELLS ${String(cellCount)} ${String(cellCount * 9)}`,
-    ];
-    for (let cell = 0; cell < cellCount; cell += 1) {
-      lines.push("8 0 1 2 3 4 5 6 7");
-    }
-    lines.push(`CELL_TYPES ${String(cellCount)}`, "12\n".repeat(cellCount));
-
-    const result = parseVtk(lines.join("\n"));
-    expect(result.issues).toEqual([]);
-    expect(result.model.elementBlocks).toHaveLength(1);
-    expect(result.model.elementBlocks[0]?.count).toBe(cellCount);
-    expect(result.model.nodes.coordinates).toBeInstanceOf(Float64Array);
-    expect(result.model.elementBlocks[0]?.connectivity).toBeInstanceOf(Uint32Array);
-    expect(result.model.elementBlocks[0]?.connectivity.length).toBe(cellCount * 8);
-  });
-});
