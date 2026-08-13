@@ -69,6 +69,7 @@ test("reports real WebGPU geometry and picking costs", async ({ browser }, testI
     includeLarge ? [576, 256, 512, 216, 1_728] : [576, 256, 512, 216],
   );
   for (const entry of report.cases) {
+    expect(entry.elementFamily).toBeDefined();
     expect(entry.uniqueTriangles).toBeGreaterThan(0);
     expect(entry.submittedTriangles).toBeGreaterThanOrEqual(entry.uniqueTriangles);
     expect(entry.visibleTriangles).toBe(entry.submittedTriangles);
@@ -105,6 +106,18 @@ test("reports real WebGPU geometry and picking costs", async ({ browser }, testI
       ),
     ).toBeGreaterThan(0);
   }
+
+  expect(
+    Object.fromEntries(report.cases.map((entry) => [entry.id, entry.elementCount])),
+  ).toMatchObject({
+    "instanced-2.10m": 16_384,
+    "unique-250k": 250_632,
+    "unique-1m": 999_698,
+    "many-parts-100": 1_008_200,
+    "many-parts-1000": 968_000,
+    "placements-10k": 64,
+    "bodies-256": 1_024,
+  });
 
   const artifact = testInfo.outputPath("webgpu-benchmark.json");
   await writeFile(artifact, `${JSON.stringify(report, undefined, 2)}\n`, "utf8");

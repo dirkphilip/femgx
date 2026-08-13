@@ -1,19 +1,28 @@
-import type { Body, ElementTessellation, FaceTessellation, Geometry } from "../../src/index";
+import type {
+  Body,
+  ElementTessellation,
+  FaceTessellation,
+  TriangleGeometry,
+} from "../../src/index";
+
+export type PlanarGridElementFamily = "triangle" | "quad";
 
 export interface PlanarGridOptions {
   readonly withFaces?: boolean;
   readonly bodyCount?: number;
-  readonly elementMode?: "cell" | "aggregate";
+  readonly elementFamily: PlanarGridElementFamily;
 }
 
 /** Builds one deterministic indexed planar grid for demo and benchmark owners. */
-export function createPlanarGridGeometry(cells: number, options: PlanarGridOptions = {}): Geometry {
-  validateGridOptions(cells, options.bodyCount, options.elementMode);
+export function createPlanarGridGeometry(
+  cells: number,
+  options: PlanarGridOptions,
+): TriangleGeometry {
+  validateGridOptions(cells, options.bodyCount, options.elementFamily);
   const side = cells + 1;
   const positions = new Float32Array(side * side * 3);
   const indices = new Uint32Array(cells * cells * 6);
-  const elementMode = options.elementMode ?? "cell";
-  const elements = elementMode === "cell" ? [] : undefined;
+  const elements: ElementTessellation[] = [];
   const faces = options.withFaces === true ? [] : undefined;
   const bodyElements = createBodyElementLists(options.bodyCount);
 
@@ -31,6 +40,7 @@ export function createPlanarGridGeometry(cells: number, options: PlanarGridOptio
         x,
         y,
         indices,
+        elementFamily: options.elementFamily,
         elements,
         faces,
         bodyElements,
@@ -45,9 +55,7 @@ export function createPlanarGridGeometry(cells: number, options: PlanarGridOptio
     primitive: "triangles",
     nodePickIds,
     nodePositions: positions,
-    ...(elements === undefined
-      ? { elements: [{ id: 1, primitiveStart: 0, primitiveCount: cells * cells * 2 }] }
-      : { elements }),
+    elements,
     ...(faces === undefined ? {} : { faces }),
     ...(bodyElements === undefined ? {} : { bodies: bodyElements.map(toBody) }),
   };
@@ -58,13 +66,14 @@ interface CellOptions {
   readonly x: number;
   readonly y: number;
   readonly indices: Uint32Array;
-  readonly elements: ElementTessellation[] | undefined;
+  readonly elementFamily: PlanarGridElementFamily;
+  readonly elements: ElementTessellation[];
   readonly faces: FaceTessellation[] | undefined;
   readonly bodyElements: number[][] | undefined;
 }
 
 function appendCell(options: CellOptions): void {
-  const { cells, x, y, indices, elements, faces, bodyElements } = options;
+  const { cells, x, y, indices, elementFamily, elements, faces, bodyElements } = options;
   const side = cells + 1;
   const bottomLeft = y * side + x;
   const bottomRight = bottomLeft + 1;
@@ -73,30 +82,118 @@ function appendCell(options: CellOptions): void {
   const cell = y * cells + x;
   const indexOffset = cell * 6;
   indices.set([bottomLeft, bottomRight, topRight, bottomLeft, topRight, topLeft], indexOffset);
-  const elementId = cell + 1;
-  const bodyId = bodyElements === undefined ? undefined : (cell % bodyElements.length) + 1;
-  elements?.push({
-    id: elementId,
+  if (elementFamily === "quad") {
+    const elementId = cell + 1;
+    const bodyId = bodyIdForElement(elementId, bodyElements);
+    elements.push({
+      id: elementId,
+      primitiveStart: cell * 2,
+      primitiveCount: 2,
+      ...(bodyId === undefined ? {} : { bodyId }),
+    });
+    appendFace({
+      elementId,
+      primitiveStart: cell * 2,
+      primitiveCount: 2,
+      nodeIds: [bottomLeft, bottomRight, topRight, topLeft],
+      bodyId,
+      faces,
+    });
+    addBodyElement(elementId, bodyId, bodyElements);
+    return;
+  }
+
+  appendTriangleElement({
+    elementId: cell * 2 + 1,
     primitiveStart: cell * 2,
-    primitiveCount: 2,
+    nodeIds: [bottomLeft, bottomRight, topRight],
+    bodyElements,
+    elements,
+    faces,
+  });
+  appendTriangleElement({
+    elementId: cell * 2 + 2,
+    primitiveStart: cell * 2 + 1,
+    nodeIds: [bottomLeft, topRight, topLeft],
+    bodyElements,
+    elements,
+    faces,
+  });
+}
+
+interface TriangleElementOptions {
+  readonly elementId: number;
+  readonly primitiveStart: number;
+  readonly nodeIds: readonly number[];
+  readonly bodyElements: number[][] | undefined;
+  readonly elements: ElementTessellation[];
+  readonly faces: FaceTessellation[] | undefined;
+}
+
+function appendTriangleElement(options: TriangleElementOptions): void {
+  const { elementId, primitiveStart, nodeIds, bodyElements, elements, faces } = options;
+  const bodyId = bodyIdForElement(elementId, bodyElements);
+  elements.push({
+    id: elementId,
+    primitiveStart,
+    primitiveCount: 1,
     ...(bodyId === undefined ? {} : { bodyId }),
   });
-  bodyElements?.[bodyId === undefined ? 0 : bodyId - 1]?.push(elementId);
-  const nodeIds = [bottomLeft, bottomRight, topRight, topLeft];
-  const key = nodeIds
-    .slice()
-    .sort((a, b) => a - b)
-    .join(":");
+  appendFace({
+    elementId,
+    primitiveStart,
+    primitiveCount: 1,
+    nodeIds,
+    bodyId,
+    faces,
+  });
+  addBodyElement(elementId, bodyId, bodyElements);
+}
+
+interface FaceOptions {
+  readonly elementId: number;
+  readonly primitiveStart: number;
+  readonly primitiveCount: number;
+  readonly nodeIds: readonly number[];
+  readonly bodyId: number | undefined;
+  readonly faces: FaceTessellation[] | undefined;
+}
+
+function appendFace(options: FaceOptions): void {
+  const { elementId, primitiveStart, primitiveCount, nodeIds, bodyId, faces } = options;
   faces?.push({
     elementId,
     faceIndex: 0,
-    primitiveStart: cell * 2,
-    primitiveCount: 2,
-    key,
+    primitiveStart,
+    primitiveCount,
+    key: canonicalNodeKey(nodeIds),
     nodeIds,
     neighborElementIds: [],
     ...(bodyId === undefined ? {} : { bodyId }),
   });
+}
+
+function canonicalNodeKey(nodeIds: readonly number[]): string {
+  return nodeIds
+    .slice()
+    .sort((a, b) => a - b)
+    .join(":");
+}
+
+function bodyIdForElement(
+  elementId: number,
+  bodyElements: number[][] | undefined,
+): number | undefined {
+  return bodyElements === undefined ? undefined : ((elementId - 1) % bodyElements.length) + 1;
+}
+
+function addBodyElement(
+  elementId: number,
+  bodyId: number | undefined,
+  bodyElements: number[][] | undefined,
+): void {
+  if (bodyId === undefined || bodyElements === undefined) return;
+  bodyElements[bodyId - 1]?.push(elementId);
 }
 
 function createBodyElementLists(bodyCount: number | undefined): number[][] | undefined {
@@ -110,15 +207,16 @@ function toBody(elementIds: readonly number[], index: number): Body {
 function validateGridOptions(
   cells: number,
   bodyCount: number | undefined,
-  elementMode: PlanarGridOptions["elementMode"],
+  elementFamily: string,
 ): void {
   if (!Number.isInteger(cells) || cells < 1)
     throw new Error("grid cells must be a positive integer");
-  if (bodyCount === undefined) return;
-  if (elementMode === "aggregate") {
-    throw new Error("body count requires cell elements");
+  if (elementFamily !== "triangle" && elementFamily !== "quad") {
+    throw new Error("planar grid element family must be triangle or quad");
   }
-  if (!Number.isInteger(bodyCount) || bodyCount < 1 || bodyCount > cells * cells) {
+  if (bodyCount === undefined) return;
+  const elementCount = cells * cells * (elementFamily === "triangle" ? 2 : 1);
+  if (!Number.isInteger(bodyCount) || bodyCount < 1 || bodyCount > elementCount) {
     throw new Error("body count must be a positive integer no greater than the element count");
   }
 }

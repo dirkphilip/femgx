@@ -19,6 +19,7 @@ import {
   estimateBenchmarkMemory,
   type BenchmarkMemoryEstimate,
   type WebGpuBenchmarkCase,
+  type WebGpuBenchmarkElementFamily,
   type WebGpuBenchmarkKind,
 } from "./model";
 
@@ -45,6 +46,7 @@ export interface WebGpuBenchmarkCaseResult {
   readonly id: string;
   readonly name: string;
   readonly kind: WebGpuBenchmarkKind;
+  readonly elementFamily: WebGpuBenchmarkElementFamily;
   readonly structuredFamily?: WebGpuBenchmarkCase["structuredFamily"];
   readonly partCount: number;
   readonly drawBatchCount: number;
@@ -176,6 +178,7 @@ async function measureCase(
     id: benchmarkCase.id,
     name: benchmarkCase.name,
     kind: benchmarkCase.kind,
+    elementFamily: benchmarkCase.elementFamily,
     ...(benchmarkCase.structuredFamily === undefined
       ? {}
       : { structuredFamily: benchmarkCase.structuredFamily }),
@@ -220,10 +223,6 @@ function countUniqueTriangles(benchmarkCase: WebGpuBenchmarkCase): number {
 }
 
 function countElements(benchmarkCase: WebGpuBenchmarkCase): number {
-  if (benchmarkCase.structuredFamily !== undefined) {
-    const dimensions = benchmarkCase.structuredFamily.startsWith("hex") ? 3 : 2;
-    return benchmarkCase.gridCells ** dimensions;
-  }
   let count = 0;
   for (const part of benchmarkCase.scene.parts.values())
     count += part.geometry.elements?.length ?? 0;

@@ -96,18 +96,18 @@ kept out of normal runs:
 
 | Case                    | Dimension                    | FE family | Unique elements | Submitted element occurrences | Instances | Unique triangles | Submitted triangles |
 | ----------------------- | ---------------------------- | --------- | --------------: | ----------------------------- | --------: | ---------------: | ------------------: |
-| `instanced-2.10m`       | reusable geometry            | —         |               — | no FE elements                |        64 |           32,768 |           2,097,152 |
-| `unique-250k`           | unique geometry              | —         |               — | no FE elements                |         1 |          250,632 |             250,632 |
-| `unique-1m`             | unique geometry              | —         |               — | no FE elements                |         1 |          999,698 |             999,698 |
-| `many-parts-100`        | distinct parts               | —         |               — | no FE elements                |       100 |           ~1.01M |              ~1.01M |
-| `many-parts-1000`       | distinct parts               | —         |               — | no FE elements                |     1,000 |           ~0.97M |              ~0.97M |
-| `placements-10k`        | placements/instances         | —         |               — | no FE elements                |    10,000 |              128 |           1,280,000 |
-| `bodies-256`            | body interaction             | —         |               — | no FE elements                |         1 |            2,048 |               2,048 |
+| `instanced-2.10m`       | reusable geometry            | Quad      |          16,384 | 1,048,576                     |        64 |           32,768 |           2,097,152 |
+| `unique-250k`           | unique geometry              | Triangle  |         250,632 | 250,632                       |         1 |          250,632 |             250,632 |
+| `unique-1m`             | unique geometry              | Triangle  |         999,698 | 999,698                       |         1 |          999,698 |             999,698 |
+| `many-parts-100`        | distinct parts               | Triangle  |       1,008,200 | 1,008,200                     |       100 |        1,008,200 |           1,008,200 |
+| `many-parts-1000`       | distinct parts               | Triangle  |         968,000 | 968,000                       |     1,000 |          968,000 |             968,000 |
+| `placements-10k`        | placements/instances         | Quad      |              64 | 640,000                       |    10,000 |              128 |           1,280,000 |
+| `bodies-256`            | body interaction             | Quad      |           1,024 | 1,024                         |         1 |            2,048 |               2,048 |
 | `fe-quad-shell-visual`  | structured surface shell     | Quad      |             576 | one occurrence / element      |         1 |            1,152 |               1,152 |
 | `fe-quad8-shell-visual` | structured surface shell     | Quad8     |             256 | one occurrence / element      |         1 |            1,536 |               1,536 |
 | `fe-hex8-solid-visual`  | structured volume solid      | Hex8      |             512 | one occurrence / element      |         1 |              768 |                 768 |
 | `fe-hex20-solid-visual` | structured volume solid      | Hex20     |             216 | one occurrence / element      |         1 |            1,296 |               1,296 |
-| `unique-2m-local`       | unique geometry (local-only) | —         |               — | no FE elements                |         1 |        2,000,000 |           2,000,000 |
+| `unique-2m-local`       | unique geometry (local-only) | Triangle  |       2,000,000 | 2,000,000                     |         1 |        2,000,000 |           2,000,000 |
 
 The planar-grid generator is shared by the visual performance fixture and the
 benchmark case factory, so their geometry/count conventions cannot drift. Each

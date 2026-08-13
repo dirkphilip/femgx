@@ -102,6 +102,24 @@ describe("buildMeshEdgeData", () => {
     expect(data.bodyIds.slice(0, 4)).toEqual(new Uint32Array([0, 0, 8, 0]));
   });
 
+  it("retains element contributors on shared edges without declared faces", () => {
+    const geometry = {
+      positions: new Float32Array(12),
+      indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+      primitive: "triangles" as const,
+      nodePickIds: new Uint32Array([1, 2, 3, 4]),
+      elements: [
+        { id: 4, primitiveStart: 0, primitiveCount: 1 },
+        { id: 5, primitiveStart: 1, primitiveCount: 1 },
+      ],
+    };
+
+    const data = buildMeshEdgeData(geometry);
+
+    expect(data.bodyRanges).toEqual(new Uint32Array([0, 1, 1, 1, 2, 2, 4, 1, 5, 1]));
+    expect(data.elementIds).toEqual(new Uint32Array([5, 0, 5, 0, 5, 0, 6, 0, 6, 0, 6, 0]));
+  });
+
   it("maps expanded endpoints to source vertices and one logical edge", () => {
     const geometry = {
       positions: new Float32Array([0, 0, 0, 10, 0, 0, 20, 0, 0, 30, 0, 0, 40, 0, 0, 50, 0, 0]),
