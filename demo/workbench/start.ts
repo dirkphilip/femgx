@@ -46,11 +46,9 @@ export async function startWebGpuDemo(
 
   let viewport: FemViewport | undefined;
   let controller: WorkbenchController | undefined;
-  const reportRendererFailure = (error: unknown, unsupportedByDefault = false): void => {
+  const reportRendererFailure = (error: unknown): void => {
     const detail = error instanceof Error ? error.message : String(error);
-    const unsupported =
-      error instanceof WebGpuUnsupportedError ||
-      (unsupportedByDefault && error instanceof Error && error.name !== "GpuValidationError");
+    const unsupported = error instanceof WebGpuUnsupportedError;
     canvas.dataset["renderer"] = unsupported ? "unsupported" : "error";
     view.rendererStatus.hidden = false;
     view.status.hidden = false;
@@ -113,11 +111,10 @@ export async function startWebGpuDemo(
     });
     viewport.render();
   } catch (error) {
-    const viewportWasCreated = viewport !== undefined;
     viewport?.destroy();
     viewport = undefined;
     controller?.destroy();
-    reportRendererFailure(error, !viewportWasCreated);
+    reportRendererFailure(error);
     return undefined;
   }
   canvas.dataset["renderer"] = "webgpu";
@@ -151,7 +148,7 @@ export async function startWebGpuDemo(
       } catch (error) {
         viewport?.destroy();
         viewport = undefined;
-        reportRendererFailure(error, true);
+        reportRendererFailure(error);
       }
     },
     runBenchmark: async (includeLarge: boolean) => {
