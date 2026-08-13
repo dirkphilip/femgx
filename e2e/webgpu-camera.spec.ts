@@ -16,11 +16,11 @@ import {
   loadWebGpuPage,
 } from "./webgpu-support";
 
-test("keeps every supported gallery occurrence inside clip planes while orbiting", async ({
-  page,
-}) => {
+test("keeps every gallery occurrence inside clip planes while orbiting", async ({ page }) => {
   await loadWebGpuPage(page);
-  await page.getByTestId("model-select").selectOption({ label: "Supported element gallery" });
+  await page
+    .getByTestId("model-select")
+    .selectOption({ label: "Element tessellation and mapping gallery" });
   await page.getByTestId("fit-view").click();
 
   const canvas = page.getByTestId("view-canvas");
@@ -359,7 +359,9 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
 
 test("keeps the whole model inside clip planes after fitting a selection", async ({ page }) => {
   await loadWebGpuPage(page);
-  await page.getByTestId("model-select").selectOption({ label: "Supported element gallery" });
+  await page
+    .getByTestId("model-select")
+    .selectOption({ label: "Element tessellation and mapping gallery" });
   await page.getByTestId("fit-view").click();
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(

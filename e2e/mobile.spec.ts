@@ -82,7 +82,9 @@ test("renders the bolted showcase with distinct part colors on a phone", async (
   ).not.toHaveLength(0);
 });
 
-test("fits the supported element gallery into a phone-sized viewport", async ({ page }) => {
+test("fits the element tessellation and mapping gallery into a phone-sized viewport", async ({
+  page,
+}) => {
   await page.setViewportSize(PHONE);
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");

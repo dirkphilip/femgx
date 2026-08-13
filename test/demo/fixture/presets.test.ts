@@ -32,7 +32,7 @@ describe("createModelPresets", () => {
     expect(presets.map((preset) => preset.name)).toEqual([
       "Bolted plate assembly",
       "Imported VTK sample",
-      "Supported element gallery",
+      "Element tessellation and mapping gallery",
       "Hex20 cylinder",
       "Static results · stress + deformation",
       "Order-independent transparency",
@@ -46,22 +46,29 @@ describe("createModelPresets", () => {
     expect(createModelPresets()[0]).toEqual(createDefaultPreset());
   });
 
-  it("exposes element models for every FE preset part", () => {
+  it("exposes element models for every typed FE preset part", () => {
     for (const preset of createModelPresets().filter(
       (candidate) => candidate.id !== "performance",
     )) {
       for (const partId of preset.scene.parts.keys()) {
-        expect(preset.elementModels.get(partId), `${preset.id} part ${partId}`).toBeDefined();
+        const part = preset.scene.parts.get(partId);
+        const hasTypedElements = part?.geometry.elements?.some(
+          (element) => element.shape !== undefined,
+        );
+        if (hasTypedElements) {
+          expect(preset.elementModels.get(partId), `${preset.id} part ${partId}`).toBeDefined();
+        }
       }
     }
   });
 });
 
 describe("createGalleryPreset", () => {
-  it("includes all supported shapes and a polygon-authored face", () => {
+  it("includes the helper set and generic mapped element", () => {
     const preset = createGalleryPreset();
     expect(preset.partColors.size).toBe(10);
     expect(createPackedSceneRuntime(preset.scene).getDrawList()).toHaveLength(10);
+    expect(preset.partNames.get(10)).toBe("Generic solver-mapped element");
   });
 });
 

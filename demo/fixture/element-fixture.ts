@@ -15,19 +15,18 @@ import {
   buildHexModel,
   buildPointLineModel,
   buildQuadModel,
-  buildSurfaceModel,
   buildTriangleModel,
   buildTetModel,
 } from "./element-models";
 
-/** Stable part identifiers for every element shape supported by femgx. */
+/** Stable part identifiers for the helper and generic mapping examples. */
 export interface ElementFixtureParts {
   readonly point: PartId;
   readonly line: PartId;
   readonly line3: PartId;
   readonly triangle: PartId;
   readonly quad: PartId;
-  readonly polygon: PartId;
+  readonly generic: PartId;
   readonly tet4: PartId;
   readonly tet10: PartId;
   readonly hex8: PartId;
@@ -42,7 +41,7 @@ export interface ElementFixtureOptions {
   readonly cellSize?: number;
 }
 
-/** A deterministic gallery containing one visible example per supported shape. */
+/** A deterministic gallery of built-in topology helpers and one generic mapping. */
 export interface ElementFixture {
   readonly scene: Scene;
   readonly partIds: ElementFixtureParts;
@@ -55,7 +54,7 @@ const LINE_PART_ID: PartId = 2;
 const LINE3_PART_ID: PartId = 3;
 const TRIANGLE_PART_ID: PartId = 8;
 const QUAD_PART_ID: PartId = 9;
-const POLYGON_PART_ID: PartId = 10;
+const GENERIC_PART_ID: PartId = 10;
 const TET4_PART_ID: PartId = 4;
 const TET10_PART_ID: PartId = 5;
 const HEX8_PART_ID: PartId = 6;
@@ -75,7 +74,7 @@ const GALLERY_LAYOUT: readonly GalleryPlacement[] = [
   { partId: LINE3_PART_ID, column: 2, row: 0 },
   { partId: TRIANGLE_PART_ID, column: 3, row: 0 },
   { partId: QUAD_PART_ID, column: 4, row: 0 },
-  { partId: POLYGON_PART_ID, column: 0, row: 1 },
+  { partId: GENERIC_PART_ID, column: 0, row: 1 },
   { partId: TET4_PART_ID, column: 1, row: 1 },
   { partId: TET10_PART_ID, column: 2, row: 1 },
   { partId: HEX8_PART_ID, column: 3, row: 1 },
@@ -86,7 +85,7 @@ const SINGLE_PART_LAYOUT: readonly GalleryPlacement[] = [
   { partId: HEX20_PART_ID, column: 0, row: 0 },
 ];
 
-/** Builds the element gallery with all point, line, surface, Tet, and Hex shapes. */
+/** Builds the gallery with built-in helpers and a generic solver-mapped element. */
 export function createElementFixture(options: ElementFixtureOptions = {}): ElementFixture {
   const gridSize = options.gridSize ?? 2;
   const cellSize = options.cellSize ?? 1;
@@ -102,7 +101,6 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   const hex20Model = buildHexModel(gridSize, cellSize, true);
   const triangleModel = buildTriangleModel();
   const quadModel = buildQuadModel();
-  const surfaceModel = buildSurfaceModel();
   const models = new Map<PartId, ElementModel>([
     [POINT_PART_ID, pointLineModel],
     [LINE_PART_ID, lineModel],
@@ -113,8 +111,8 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     [HEX20_PART_ID, hex20Model],
     [TRIANGLE_PART_ID, triangleModel],
     [QUAD_PART_ID, quadModel],
-    [POLYGON_PART_ID, surfaceModel],
   ]);
+  const genericPart = createGenericSolverMappedPart();
   const parts: readonly Part[] = [
     requireGroup(
       heterogeneousElementParts({ point: POINT_PART_ID }, elementsOf(pointLineModel, "point")),
@@ -137,10 +135,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
       "triangle",
     ),
     requireGroup(heterogeneousElementParts({ triangle: QUAD_PART_ID }, quadModel), "triangle"),
-    polygonPart(POLYGON_PART_ID, {
-      positions: [0, 0, 0, 2, 0, 0, 2, 2, 0, 1, 1, 0, 0, 2, 0],
-      faces: [{ nodeIds: [0, 1, 2, 3, 4], elementId: 1, key: "gallery-polygon" }],
-    }),
+    genericPart,
   ];
   const scene = galleryScene(parts, blockSize, GALLERY_LAYOUT);
   return {
@@ -155,7 +150,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
       tet10: TET10_PART_ID,
       hex8: HEX8_PART_ID,
       hex20: HEX20_PART_ID,
-      polygon: POLYGON_PART_ID,
+      generic: GENERIC_PART_ID,
     },
     elementModels: models,
     instanceCount: parts.length,
@@ -203,6 +198,23 @@ function elementsOf(model: ElementModel, family: "point" | "line", order?: numbe
         element.shape.family === family && (order === undefined || element.shape.order === order),
     ),
   );
+}
+
+/** Maps temporary solver-style polyhedron records into one retained Part. */
+function createGenericSolverMappedPart(): Part {
+  const solverNodes = [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0, 0.35, 0.2, 1.5];
+  const solverFaces = [
+    { nodeIds: [0, 3, 2, 1], faceIndex: 0, key: "solver-pyramid-base" },
+    { nodeIds: [0, 1, 4], faceIndex: 1, key: "solver-pyramid-front" },
+    { nodeIds: [1, 2, 4], faceIndex: 2, key: "solver-pyramid-right" },
+    { nodeIds: [2, 3, 4], faceIndex: 3, key: "solver-pyramid-back" },
+    { nodeIds: [3, 0, 4], faceIndex: 4, key: "solver-pyramid-left" },
+  ] as const;
+  return polygonPart(GENERIC_PART_ID, {
+    positions: solverNodes,
+    faces: solverFaces.map((face) => ({ ...face, elementId: 42, neighborElementIds: [] })),
+    bodies: [{ id: 1, name: "Mapped solver body", elementIds: [42] }],
+  });
 }
 
 function requireGroup(

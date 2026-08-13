@@ -564,7 +564,9 @@ test("keeps element edges and nodes visible after orbiting", async ({ page }) =>
 
 test("keeps depth-tested node annotations stable across fine zoom steps", async ({ page }) => {
   await loadWebGpuPage(page);
-  await page.getByTestId("model-select").selectOption({ label: "Supported element gallery" });
+  await page
+    .getByTestId("model-select")
+    .selectOption({ label: "Element tessellation and mapping gallery" });
   // Hide the gallery's hardware point/line overlays so the measured delta is
   // only the depth-tested node annotation pass.
   await page.getByTestId("instance-vis-0").uncheck();

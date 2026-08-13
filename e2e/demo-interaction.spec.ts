@@ -188,6 +188,44 @@ test("picks and selects a face, exposing its normal and ownership", async ({ pag
   await expect(page.getByTestId("inspection-panel")).toContainText("Normal");
   await expect(page.getByTestId("inspection-panel")).toContainText("Adjacent elements");
 });
+
+test("keeps the generic mapped element face identity through selection", async ({ page }) => {
+  await loadWebGpuPage(page);
+  await page.getByTestId("model-select").selectOption("gallery");
+  const canvas = page.getByTestId("view-canvas");
+  const genericRow = page
+    .locator(".visibility-row.visibility-part")
+    .filter({ hasText: "Generic solver-mapped element" });
+  const genericInput = genericRow.locator("input[data-instance-id]");
+  await expect(genericInput).toHaveCount(1);
+  const genericInstanceId = await genericInput.getAttribute("data-instance-id");
+  if (genericInstanceId === null) throw new Error("generic mapping row has no instance identity");
+  const instances = page.locator("input[data-instance-id]");
+  await expect(instances).toHaveCount(10);
+  for (const input of await instances.all()) {
+    if ((await input.getAttribute("data-instance-id")) !== genericInstanceId) {
+      await input.uncheck();
+    }
+  }
+  await page.getByTestId("fit-view").click();
+
+  const face = await requireHit(
+    page,
+    canvas,
+    { prefix: "f:", fresh: true },
+    "generic solver-mapped faces must remain GPU-pickable",
+  );
+  expect(face.key).toMatch(/^f:[^:]+:42:[0-4]$/);
+  await page.mouse.click(face.x, face.y);
+  await expect.poll(() => dataset(page, "selected")).toBe(face.key);
+  await expect(page.getByTestId("inspection-panel")).toContainText("Generic solver-mapped element");
+  await expect(page.getByTestId("inspection-panel")).toContainText("Element 42");
+
+  await page.keyboard.down("Shift");
+  await page.mouse.click(face.x, face.y);
+  await page.keyboard.up("Shift");
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^e:[^:]+:42$/);
+});
 test("keeps selection stable across repeated orbit interactions", async ({ page }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");

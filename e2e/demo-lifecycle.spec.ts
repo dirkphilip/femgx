@@ -255,7 +255,7 @@ test("renders the bolted showcase with distinct part colors and a screenshot", a
   const screenshot = await canvas.screenshot();
   expect(screenshot, "the bolted showcase must produce a non-empty screenshot").not.toHaveLength(0);
 });
-test("renders all ten supported element examples in the gallery grid", async ({ page }) => {
+test("renders the helper and mapping examples in the gallery grid", async ({ page }) => {
   await page.goto("/");
   await waitForRenderer(page);
   const canvas = page.getByTestId("view-canvas");
@@ -271,7 +271,7 @@ test("switches between deterministic model presets", async ({ page }) => {
   await page.goto("/");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
-  await expect(select.locator("option")).toHaveCount(14);
+  await expect(select.locator("option")).toHaveCount(18);
   await expect(select).toHaveValue("bolted");
   await expect(canvas).toHaveAttribute("data-model", "bolted");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");

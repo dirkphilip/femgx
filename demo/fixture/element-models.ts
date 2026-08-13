@@ -248,14 +248,6 @@ export function buildQuadModel(): ElementModel {
   return createElementModel(SURFACE_NODES, [createElement(2, QUAD_SHAPE, [1, 3, 4, 2])]);
 }
 
-/** Builds a planar pair that demonstrates typed triangle and quad surfaces. */
-export function buildSurfaceModel(): ElementModel {
-  return createElementModel(SURFACE_NODES, [
-    createElement(1, TRIANGLE_SHAPE, [0, 1, 2]),
-    createElement(2, QUAD_SHAPE, [1, 3, 4, 2]),
-  ]);
-}
-
 /** Optional dimensions for the linearly tessellated Hex20 cylinder fixture. */
 interface Hex20CylinderOptions {
   readonly sectors?: number;
