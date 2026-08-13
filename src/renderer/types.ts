@@ -23,13 +23,20 @@ export interface WebGpuRendererOptions {
   readonly pointSizePixels?: number;
   /** Initial WebGPU-rendered viewport background (default `studio`). */
   readonly background?: ViewportBackground;
+  /** Whether to render the world-origin triad (default `true`). */
+  readonly originTriad?: boolean;
   /** Called with a typed reason when the underlying GPU device is lost. */
   readonly onDeviceLost?: (info: DeviceLostInfo) => void;
 }
 
 /** Public WebGPU renderer contract used by the viewport and advanced hosts. */
 export interface WebGpuRenderer {
-  render(runtime: PackedSceneRuntime, camera: Camera, parts: ReadonlyMap<PartId, Part>): void;
+  render(
+    runtime: PackedSceneRuntime,
+    camera: Camera,
+    parts: ReadonlyMap<PartId, Part>,
+    originTriadNominalScale?: number,
+  ): void;
   /** Sets or clears the per-frame CPU deformation state. */
   setDeformation(deformation: DeformationState | undefined): void;
   /** Sets or clears renderer-owned nodal scalar color buffers. */

@@ -60,7 +60,7 @@ export interface RenderResources {
   /** Library-owned world-space camera-pivot indicator. */
   readonly orbitPivot: OrbitPivotResources;
   /** Persistent world-origin triad with visible and weighted-ghost variants. */
-  readonly originTriad: OriginTriadResources;
+  readonly originTriad: OriginTriadResources | undefined;
   readonly instanceLayout: GPUBindGroupLayout;
   readonly background: BackgroundResources;
 }
@@ -74,6 +74,7 @@ export async function createRenderResources(
   format: GPUTextureFormat,
   depthFormat: GPUTextureFormat,
   validation?: GpuValidationOptions,
+  originTriadEnabled = true,
 ): Promise<RenderResources> {
   const instanceLayout = device.createBindGroupLayout({
     entries: [
@@ -123,13 +124,15 @@ export async function createRenderResources(
     depthFormat,
     validation,
   });
-  const originTriadPipeline = await createOriginTriadPipeline({
-    device,
-    cameraLayout,
-    format,
-    depthFormat,
-    validation,
-  });
+  const originTriadPipeline = originTriadEnabled
+    ? await createOriginTriadPipeline({
+        device,
+        cameraLayout,
+        format,
+        depthFormat,
+        validation,
+      })
+    : undefined;
   let background: BackgroundResources | undefined;
   let cameraBuffer: GPUBuffer | undefined;
   let deformationBuffer: GPUBuffer | undefined;
@@ -164,11 +167,13 @@ export async function createRenderResources(
         { binding: 1, resource: { buffer: deformationBuffer } },
       ],
     });
-    originTriad = createOriginTriadResources({
-      device,
-      pipeline: originTriadPipeline,
-      frameBindGroup,
-    });
+    if (originTriadPipeline !== undefined) {
+      originTriad = createOriginTriadResources({
+        device,
+        pipeline: originTriadPipeline,
+        frameBindGroup,
+      });
+    }
     return {
       cameraBuffer,
       deformationBuffer,
@@ -197,7 +202,7 @@ export function destroyRenderResources(resources: RenderResources): void {
   resources.cameraBuffer.destroy();
   resources.deformationBuffer.destroy();
   resources.orbitPivot.buffer.destroy();
-  resources.originTriad.buffer.destroy();
+  resources.originTriad?.buffer.destroy();
   destroyBackgroundResources(resources.background);
 }
 

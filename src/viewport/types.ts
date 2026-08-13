@@ -25,6 +25,8 @@ export type { ViewportBackground } from "../renderer/gpu-renderer";
 export interface FemViewportOptions {
   readonly canvas: HTMLCanvasElement;
   readonly scene: Scene;
+  /** Whether to render the default world-origin triad (default `true`). */
+  readonly originTriad?: boolean;
   readonly orientationGizmo?: OrientationGizmoOptions;
   readonly camera?: Camera;
   readonly interaction?: InteractionState;

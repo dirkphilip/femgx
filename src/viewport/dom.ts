@@ -1,4 +1,13 @@
 import type { OrientationGizmoOptions } from "./orientation-gizmo";
+import type { ViewportBackground } from "./types";
+
+/** Validates the renderer-owned viewport background option. */
+export function assertViewportBackground(
+  value: unknown,
+): asserts value is ViewportBackground | undefined {
+  if (value === undefined || value === "studio" || value === "white" || value === "dark") return;
+  throw new Error("Invalid viewport background; expected studio, white, or dark");
+}
 
 /** Returns the canvas's usable CSS-pixel dimensions. */
 export function cssSize(canvas: HTMLCanvasElement): {

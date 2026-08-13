@@ -180,7 +180,7 @@ describe("WebGPU renderer", () => {
     }).toThrow("destroyed");
   });
 
-  it("writes the persistent triad scale from the live camera each frame", async () => {
+  it("keeps the bounds-derived triad scale stable while the camera moves", async () => {
     restoreGpuGlobals = installGpuGlobals();
     const gpu = fakeGpuDevice();
     installNavigator(gpu.device);
@@ -188,8 +188,8 @@ describe("WebGPU renderer", () => {
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
 
-    renderer.render(runtime, camera, scene.parts);
-    renderer.render(runtime, zoomCamera(camera, Math.LN2), scene.parts);
+    renderer.render(runtime, camera, scene.parts, 0.1);
+    renderer.render(runtime, zoomCamera(camera, Math.LN2), scene.parts, 0.1);
 
     const triadBuffer = gpu.buffers.find((record) => record.size === 48)?.resource;
     expect(triadBuffer).toBeDefined();
@@ -197,7 +197,24 @@ describe("WebGPU renderer", () => {
       .filter((write) => write.buffer === triadBuffer)
       .map((write) => new Float32Array(write.bytes.buffer, write.bytes.byteOffset, 1)[0]);
     expect(scales).toHaveLength(2);
-    expect(scales[1]).toBeCloseTo((scales[0] ?? 0) * 2, 4);
+    expect(scales[0]).toBeCloseTo(0.1, 5);
+    expect(scales[1]).toBeCloseTo(0.1, 5);
+    renderer.destroy();
+  });
+
+  it("does not write a disabled origin triad", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas(), originTriad: false });
+    const scene = buildScene();
+    renderer.render(createPackedSceneRuntime(scene), camera, scene.parts, 10);
+
+    expect(
+      gpu.renderPipelineDescriptors.some(
+        (descriptor) => descriptor.label === "world-origin triad visible",
+      ),
+    ).toBe(false);
     renderer.destroy();
   });
 

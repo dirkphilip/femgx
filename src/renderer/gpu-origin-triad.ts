@@ -1,5 +1,5 @@
-import type { Camera } from "../camera/camera";
-import { dot, normalize, subtract } from "../math/vec3";
+import { projectPoint, type Camera } from "../camera/camera";
+import type { Bounds } from "../geometry/part";
 import {
   TRANSPARENCY_ACCUMULATION_FORMAT,
   TRANSPARENCY_ACCUMULATION_BLEND_STATE,
@@ -23,7 +23,7 @@ export interface OriginTriadResources {
   readonly hiddenPipeline: GPURenderPipeline;
 }
 
-/** Internal world-space dimensions derived from the fixed CSS-pixel metric. */
+/** Internal world-space dimensions shared by the visible and hidden variants. */
 export interface OriginTriadDimensions {
   readonly scale: number;
   readonly shaftRadius: number;
@@ -52,7 +52,7 @@ interface OriginTriadResourceOptions {
   readonly frameBindGroup: GPUBindGroup;
 }
 
-const ORIGIN_TRIAD_AXIS_PIXELS = 56;
+const ORIGIN_TRIAD_MAX_PIXELS = 56;
 
 /** Resolves the world-space dimensions used by both triad variants. */
 export function originTriadDimensions(scale: number): OriginTriadDimensions {
@@ -66,22 +66,49 @@ export function originTriadDimensions(scale: number): OriginTriadDimensions {
   };
 }
 
-/** Returns the world scale for the fixed 56 CSS-pixel axis length at the origin. */
-export function originTriadScale(camera: Camera): number {
-  const worldUnitsPerCssPixel =
-    camera.mode === "orthographic"
-      ? camera.orthoHeight / camera.height
-      : perspectiveWorldUnitsPerCssPixel(camera);
-  const scale = ORIGIN_TRIAD_AXIS_PIXELS * worldUnitsPerCssPixel;
-  return Number.isFinite(scale) && scale > 0 ? scale : 1e-6;
+/** Returns one deterministic nominal world scale from complete placed bounds. */
+export function originTriadNominalScale(bounds: Bounds): number {
+  const diagonal = Math.hypot(
+    bounds.maxX - bounds.minX,
+    bounds.maxY - bounds.minY,
+    bounds.maxZ - bounds.minZ,
+  );
+  return Number.isFinite(diagonal) && diagonal > 0 ? diagonal * 0.12 : 1e-6;
 }
 
-function perspectiveWorldUnitsPerCssPixel(camera: Camera): number {
-  const viewDirection = normalize(subtract(camera.target, camera.position));
-  const originDepth = -dot(viewDirection, camera.position);
-  const finiteDepth = Number.isFinite(originDepth) ? originDepth : 0;
-  const depth = Math.max(finiteDepth, camera.near);
-  return (2 * depth * Math.tan(camera.fovY / 2)) / camera.height;
+/** Resolves a stable world scale with a conservative projected CSS-pixel cap. */
+export function originTriadScale(camera: Camera, nominalScale = 1): number {
+  const nominal = Number.isFinite(nominalScale) && nominalScale > 0 ? nominalScale : 1e-6;
+  const origin = projectPoint(camera, [0, 0, 0]);
+  if (origin === undefined) return nominal;
+  if (axisPixels(camera, origin, nominal) <= ORIGIN_TRIAD_MAX_PIXELS) return nominal;
+
+  let low = 0;
+  let high = nominal;
+  for (let iteration = 0; iteration < 32; iteration += 1) {
+    const middle = (low + high) / 2;
+    if (axisPixels(camera, origin, middle) <= ORIGIN_TRIAD_MAX_PIXELS) low = middle;
+    else high = middle;
+  }
+  return Math.max(low, 1e-6);
+}
+
+function axisPixels(
+  camera: Camera,
+  origin: readonly [number, number, number],
+  scale: number,
+): number {
+  let maximum = 0;
+  for (const axis of [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+  ] as const) {
+    const endpoint = projectPoint(camera, [axis[0] * scale, axis[1] * scale, axis[2] * scale]);
+    if (endpoint === undefined) return Number.POSITIVE_INFINITY;
+    maximum = Math.max(maximum, Math.hypot(endpoint[0] - origin[0], endpoint[1] - origin[1]));
+  }
+  return maximum;
 }
 
 /** Creates visible and weighted-ghost pipelines over one shared shader and layout. */

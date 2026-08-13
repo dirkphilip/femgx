@@ -49,15 +49,27 @@ export function sceneWorldBounds(
     : { minX: -0.5, minY: -0.5, minZ: -0.5, maxX: 0.5, maxY: 0.5, maxZ: 0.5 };
 }
 
+/** Returns the union of every placed part bound, regardless of visibility. */
+export function scenePlacedBounds(scene: Scene, runtime: PackedSceneRuntime): Bounds {
+  const bounds = emptyBounds();
+  for (const partBounds of sceneWorldBoundsList(scene, runtime, undefined, true)) {
+    for (const corner of boundsCorners(partBounds)) include(bounds, corner);
+  }
+  return isFiniteBounds(bounds)
+    ? bounds
+    : { minX: -0.5, minY: -0.5, minZ: -0.5, maxX: 0.5, maxY: 0.5, maxZ: 0.5 };
+}
+
 /** Returns each placed part bound separately in displayed world space. */
 export function sceneWorldBoundsList(
   scene: Scene,
   runtime: PackedSceneRuntime,
   deformation?: DeformationState,
+  includeHidden = false,
 ): readonly Bounds[] {
   const bounds: Bounds[] = [];
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
-    if (!runtime.isInstanceVisible(slot)) continue;
+    if (!includeHidden && !runtime.isInstanceVisible(slot)) continue;
     const partId = runtime.instancePartIds[slot];
     const transform = runtime.getTransform(slot);
     const part = partId === undefined ? undefined : scene.parts.get(partId);

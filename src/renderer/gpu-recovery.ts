@@ -29,6 +29,7 @@ interface RebuildGpuBundleOptions {
   readonly validation?: GpuValidationOptions | undefined;
   readonly canInstall?: () => boolean;
   readonly onCandidateLost?: (info: DeviceLostInfo) => void;
+  readonly originTriad?: boolean;
 }
 
 /** Creates the initial GPU resource bundle for a device. */
@@ -37,13 +38,14 @@ export async function createGpuBundle(
   format: GPUTextureFormat,
   depthFormat: GPUTextureFormat,
   validation?: GpuValidationOptions,
+  originTriad = true,
 ): Promise<GpuBundle> {
   let resources: RenderResources | undefined;
   let draw: DrawResources | undefined;
   let pickTargets: PickTargets | undefined;
   let depthReadback: Awaited<ReturnType<typeof createPickDepthReadback>> | undefined;
   try {
-    resources = await createRenderResources(device, format, depthFormat, validation);
+    resources = await createRenderResources(device, format, depthFormat, validation, originTriad);
     depthReadback = await createPickDepthReadback(device, validation);
     pickTargets = createPickTargets(depthReadback);
     draw = createDrawResources(device);
@@ -79,7 +81,13 @@ export async function rebuildGpuBundle(
   });
   try {
     context.configure({ device: requested.device, format, alphaMode: "opaque" });
-    const bundle = await createGpuBundle(requested.device, format, depthFormat, options.validation);
+    const bundle = await createGpuBundle(
+      requested.device,
+      format,
+      depthFormat,
+      options.validation,
+      options.originTriad,
+    );
     if (candidateLost !== undefined) {
       destroyGpuBundle(bundle);
       throw new Error("Replacement WebGPU device was lost during recovery");
@@ -107,6 +115,7 @@ export interface GpuDeviceLifecycleOptions {
   readonly validation?: GpuValidationOptions | undefined;
   /** False when the renderer uses a caller-provided device it cannot recreate. */
   readonly ownsDevice: boolean;
+  readonly originTriad?: boolean;
   readonly onLost: ((info: DeviceLostInfo) => void) | undefined;
 }
 
@@ -124,6 +133,7 @@ export class GpuDeviceLifecycle {
   private readonly powerPreference: GPUPowerPreference | undefined;
   private readonly validation: GpuValidationOptions | undefined;
   private readonly ownsDevice: boolean;
+  private readonly originTriad: boolean;
   private readonly onLost: ((info: DeviceLostInfo) => void) | undefined;
   private state: "healthy" | "lost" | "recovering" | "destroyed" = "healthy";
   private generation = 0;
@@ -138,6 +148,7 @@ export class GpuDeviceLifecycle {
     this.powerPreference = options.powerPreference;
     this.validation = options.validation;
     this.ownsDevice = options.ownsDevice;
+    this.originTriad = options.originTriad ?? true;
     this.onLost = options.onLost;
     this.subscribe(this.bundle, this.generation);
   }
@@ -208,6 +219,7 @@ export class GpuDeviceLifecycle {
       const bundle = await rebuildGpuBundle(this.context, this.format, this.depthFormat, {
         query,
         validation: this.validation,
+        originTriad: this.originTriad,
         canInstall: () => this.state !== "destroyed",
         onCandidateLost: (info) => {
           candidateLost.value = true;

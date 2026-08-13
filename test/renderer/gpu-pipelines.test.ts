@@ -59,8 +59,8 @@ describe("GPU render resources", () => {
         ),
       ).toBeDefined();
       expect(resources.nodeOverlayPipelines.visible).toBeDefined();
-      expect(resources.originTriad.visiblePipeline).toBeDefined();
-      expect(resources.originTriad.hiddenPipeline).toBeDefined();
+      expect(resources.originTriad?.visiblePipeline).toBeDefined();
+      expect(resources.originTriad?.hiddenPipeline).toBeDefined();
       const originVisible = gpu.renderPipelineDescriptors.find(
         (descriptor) => descriptor.label === "world-origin triad visible",
       );

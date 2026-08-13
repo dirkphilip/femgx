@@ -246,24 +246,30 @@ test("renders the persistent world-origin triad without scene identity", async (
   };
   const baseline = await captureTriad();
   const pixels = await canvasRgba(page, canvas);
-  const dominantPixels = (channel: number, otherA: number, otherB: number): number => {
+  const dominantPixels = (
+    rgba: Buffer,
+    channel: number,
+    otherA: number,
+    otherB: number,
+  ): number => {
     let count = 0;
-    for (let index = 0; index + 2 < pixels.length; index += 4) {
-      const value = pixels[index + channel] ?? 0;
+    for (let index = 0; index + 2 < rgba.length; index += 4) {
+      const value = rgba[index + channel] ?? 0;
       if (
         value > 100 &&
-        value > (pixels[index + otherA] ?? 0) + 35 &&
-        value > (pixels[index + otherB] ?? 0) + 35
+        value > (rgba[index + otherA] ?? 0) + 35 &&
+        value > (rgba[index + otherB] ?? 0) + 35
       ) {
         count += 1;
       }
     }
     return count;
   };
-  expect(dominantPixels(0, 1, 2), "persistent red X axis").toBeGreaterThan(0);
-  expect(dominantPixels(1, 0, 2), "persistent green Y axis").toBeGreaterThan(0);
-  expect(dominantPixels(2, 0, 1), "persistent blue Z axis").toBeGreaterThan(0);
-  for (const label of ["zoom in", "zoom out", "orthographic", "perspective", "resize"]) {
+  expect(dominantPixels(pixels, 0, 1, 2), "persistent red X axis").toBeGreaterThan(0);
+  expect(dominantPixels(pixels, 1, 0, 2), "persistent green Y axis").toBeGreaterThan(0);
+  expect(dominantPixels(pixels, 2, 0, 1), "persistent blue Z axis").toBeGreaterThan(0);
+  const baselineWidth = baseline.width;
+  for (const label of ["zoom out", "orthographic", "perspective", "resize"]) {
     await page.evaluate(
       ({ action }: { action: string }) => {
         const state = window as Window & {
@@ -296,18 +302,49 @@ test("renders the persistent world-origin triad without scene identity", async (
       { action: label },
     );
     const envelope = await captureTriad();
-    expect(Math.abs(envelope.width - baseline.width), `${label} triad width`).toBeLessThanOrEqual(
-      12,
-    );
-    expect(
-      Math.abs(envelope.height - baseline.height),
-      `${label} triad height`,
-    ).toBeLessThanOrEqual(12);
+    expect(envelope.width, `${label} triad remains visible`).toBeGreaterThan(0);
+    expect(envelope.height, `${label} triad remains visible`).toBeGreaterThan(0);
+    if (label === "zoom out") expect(envelope.width).toBeLessThan(baselineWidth);
   }
   await page.evaluate(() =>
     (
       window as Window & { __originTriadViewport?: { destroy: () => void } }
     ).__originTriadViewport?.destroy(),
+  );
+
+  await page.evaluate(async () => {
+    const modulePath = "/src/index.ts";
+    const api = (await import(/* @vite-ignore */ modulePath)) as typeof Api;
+    document.body.innerHTML =
+      '<canvas id="origin-triad-disabled-test" style="display:block;width:640px;height:420px"></canvas>';
+    const canvas = document.getElementById("origin-triad-disabled-test");
+    if (!(canvas instanceof HTMLCanvasElement)) throw new Error("disabled triad canvas missing");
+    const scene = api
+      .createScene()
+      .addAssembly({ id: 1, name: "empty", placements: [] })
+      .withRoot(1)
+      .build();
+    const viewport = await api.createFemViewport({
+      canvas,
+      scene,
+      originTriad: false,
+      background: "dark",
+    });
+    (
+      window as Window & { __disabledOriginTriadViewport?: typeof viewport }
+    ).__disabledOriginTriadViewport = viewport;
+  });
+  const disabledCanvas = page.locator("#origin-triad-disabled-test");
+  await expect(disabledCanvas).toBeVisible();
+  await stableCanvasPixels(page, disabledCanvas);
+  const disabledPixels = await canvasRgba(page, disabledCanvas);
+  expect(dominantPixels(disabledPixels, 0, 1, 2), "disabled red X axis").toBe(0);
+  expect(dominantPixels(disabledPixels, 1, 0, 2), "disabled green Y axis").toBe(0);
+  expect(dominantPixels(disabledPixels, 2, 0, 1), "disabled blue Z axis").toBe(0);
+  await page.evaluate(() =>
+    (
+      window as Window & { __disabledOriginTriadViewport?: { destroy: () => void } }
+    ).__disabledOriginTriadViewport?.destroy(),
   );
 });
 
