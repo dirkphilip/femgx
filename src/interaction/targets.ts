@@ -21,6 +21,7 @@ import { hoveredTarget, isHoveredTarget } from "./state";
 export type { InteractionTarget } from "./target-types";
 import type { InteractionTarget } from "./target-types";
 import type { InteractionGranularity, PickHit } from "../picking/types";
+import { faceRefKey } from "./refs";
 
 /** Converts a complete physical hit to a host-owned interaction identity. */
 export function interactionTargetFromHit(
@@ -42,7 +43,12 @@ export function interactionTargetFromHit(
         : undefined;
     case "face":
       return hit.kind === "face"
-        ? { kind: "face", instanceId: hit.instanceId, elementId: hit.elementId, key: hit.key }
+        ? {
+            kind: "face",
+            instanceId: hit.instanceId,
+            elementId: hit.elementId,
+            faceIndex: hit.faceIndex,
+          }
         : undefined;
     case "node":
       return hit.kind === "node"
@@ -67,7 +73,7 @@ export function setTargetSelected(
     case "element":
       return setElementSelected(state, target, selected);
     case "face":
-      return setFaceSelected(state, { ...target, faceKey: target.key }, selected);
+      return setFaceSelected(state, target, selected);
     case "node":
       return setNodeSelected(state, target, selected);
   }
@@ -89,7 +95,7 @@ export function setTargetHighlighted(
     case "element":
       return setElementHighlighted(state, target, highlighted);
     case "face":
-      return setFaceHighlighted(state, { ...target, faceKey: target.key }, highlighted);
+      return setFaceHighlighted(state, target, highlighted);
     case "node":
       return setNodeHighlighted(state, target, highlighted);
   }
@@ -129,7 +135,7 @@ export function isTargetSelected(state: InteractionState, target: InteractionTar
     case "element":
       return data.selectedElementIds.get(target.instanceId)?.has(target.elementId) === true;
     case "face":
-      return data.selectedFaces.get(target.instanceId)?.has(target.key) === true;
+      return data.selectedFaces.get(target.instanceId)?.has(faceRefKey(target)) === true;
     case "node":
       return data.selectedNodeIds.get(target.instanceId)?.has(target.nodeId) === true;
   }
@@ -148,7 +154,7 @@ export function isTargetHighlighted(state: InteractionState, target: Interaction
     case "element":
       return data.highlightedElementIds.get(target.instanceId)?.has(target.elementId) === true;
     case "face":
-      return data.highlightedFaces.get(target.instanceId)?.has(target.key) === true;
+      return data.highlightedFaces.get(target.instanceId)?.has(faceRefKey(target)) === true;
     case "node":
       return data.highlightedNodeIds.get(target.instanceId)?.has(target.nodeId) === true;
   }
@@ -179,11 +185,21 @@ export function selectedTargets(state: InteractionState): InteractionTarget[] {
     for (const elementId of [...ids].sort((a, b) => a - b))
       targets.push({ kind: "element", instanceId, elementId });
   }
-  for (const [instanceId, faces] of [...data.selectedFaces.entries()].sort(([a], [b]) =>
+  for (const [, faces] of [...data.selectedFaces.entries()].sort(([a], [b]) =>
     a.localeCompare(b),
   )) {
-    for (const [key, elementId] of [...faces.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-      targets.push({ kind: "face", instanceId, elementId, key });
+    for (const ref of [...faces.values()].sort(
+      (a, b) =>
+        a.instanceId.localeCompare(b.instanceId) ||
+        a.elementId - b.elementId ||
+        a.faceIndex - b.faceIndex,
+    )) {
+      targets.push({
+        kind: "face",
+        instanceId: ref.instanceId,
+        elementId: ref.elementId,
+        faceIndex: ref.faceIndex,
+      });
     }
   }
   for (const [instanceId, ids] of [...data.selectedNodeIds.entries()].sort(([a], [b]) =>

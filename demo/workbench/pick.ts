@@ -82,7 +82,7 @@ export function targetKey(target: PickHit | SelectTarget | undefined): string {
     case "node":
       return `n:${target.instanceId}:${target.nodeId}`;
     case "face":
-      return `f:${target.instanceId}:${target.elementId}:${target.key}`;
+      return `f:${target.instanceId}:${target.elementId}:${target.faceIndex}`;
     case "element":
       return `e:${target.instanceId}:${target.elementId}`;
     case "instance":

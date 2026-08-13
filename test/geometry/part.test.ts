@@ -4,6 +4,7 @@ import {
   boundsCorners,
   computeBounds,
   createPart,
+  faceForPrimitive,
   isFiniteBounds,
   MAX_PART_ID,
   validateBodies,
@@ -308,24 +309,25 @@ describe("body metadata", () => {
 
 describe("pick metadata", () => {
   const face = {
-    id: 0,
     elementId: 4,
     faceIndex: 0,
+    primitiveStart: 0,
+    primitiveCount: 1,
     key: "0,1,2",
     nodeIds: [0, 1, 2],
     neighborElementIds: [],
   };
 
-  it("rejects a face pick id without a declared face", () => {
+  it("rejects a face range without a declared element", () => {
     expect(() => {
       validatePickIds({
         positions: new Float32Array(9),
         indices: new Uint32Array(3),
         primitive: "triangles" as const,
-        facePickIds: new Uint32Array([2]),
+        elements: [{ id: 1, primitiveStart: 0, primitiveCount: 1 }],
         faces: [face],
       });
-    }).toThrow(/undeclared face 1/);
+    }).toThrow(/undeclared element 4/);
   });
 
   it("requires face owners and node references to resolve", () => {
@@ -359,5 +361,69 @@ describe("pick metadata", () => {
         faces: [{ ...face, neighborElementIds: [5, 6] }],
       });
     }).toThrow(/non-manifold faces are unsupported/);
+  });
+
+  it("resolves triangles by ranges rather than face-array order", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array(18),
+      indices: new Uint32Array(6),
+      primitive: "triangles",
+      elements: [{ id: 4, primitiveStart: 0, primitiveCount: 2 }],
+      faces: [
+        {
+          elementId: 4,
+          faceIndex: 1,
+          primitiveStart: 1,
+          primitiveCount: 1,
+          key: "b",
+          nodeIds: [],
+          neighborElementIds: [],
+        },
+        {
+          elementId: 4,
+          faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 1,
+          key: "a",
+          nodeIds: [],
+          neighborElementIds: [],
+        },
+      ],
+    };
+    expect(() => {
+      validatePickIds(geometry);
+    }).not.toThrow();
+    expect(faceForPrimitive(geometry, 0)?.faceIndex).toBe(0);
+    expect(faceForPrimitive(geometry, 1)?.faceIndex).toBe(1);
+  });
+
+  it("rejects overlapping face ranges", () => {
+    expect(() => {
+      validatePickIds({
+        positions: new Float32Array(18),
+        indices: new Uint32Array(6),
+        primitive: "triangles",
+        faces: [
+          {
+            elementId: 4,
+            faceIndex: 0,
+            primitiveStart: 0,
+            primitiveCount: 2,
+            key: "a",
+            nodeIds: [],
+            neighborElementIds: [],
+          },
+          {
+            elementId: 4,
+            faceIndex: 1,
+            primitiveStart: 1,
+            primitiveCount: 1,
+            key: "b",
+            nodeIds: [],
+            neighborElementIds: [],
+          },
+        ],
+      });
+    }).toThrow(/belongs to more than one face/);
   });
 });

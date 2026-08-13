@@ -1,5 +1,4 @@
 import type { ElementId, NodeId } from "../elements/element";
-import type { FaceKey } from "../elements/faces";
 import type { BodyId, PartId } from "../geometry/part";
 import type { InstanceId } from "../scene/types";
 
@@ -13,6 +12,6 @@ export type InteractionTarget =
       readonly kind: "face";
       readonly instanceId: InstanceId;
       readonly elementId: ElementId;
-      readonly key: FaceKey;
+      readonly faceIndex: number;
     }
   | { readonly kind: "node"; readonly instanceId: InstanceId; readonly nodeId: NodeId };

@@ -22,17 +22,14 @@ export class TriangleMeshBuilder {
   readonly indices: number[] = [];
   /** Per-vertex node pick ids (`nodeId + 1`). */
   readonly nodePickIds: number[] = [];
-  /** Per-triangle face pick ids (`faceId + 1`, `0` = no face). */
-  readonly facePickIds: number[] = [];
 
-  append(triangle: readonly [MeshVertex, MeshVertex, MeshVertex], facePickId = 0): void {
+  append(triangle: readonly [MeshVertex, MeshVertex, MeshVertex]): void {
     const base = this.positions.length / 3;
     for (const vertex of triangle) {
       this.positions.push(vertex.point[0], vertex.point[1], vertex.point[2]);
       this.nodePickIds.push(vertex.nodeId === undefined ? 0 : vertex.nodeId + 1);
     }
     this.indices.push(base, base + 1, base + 2);
-    this.facePickIds.push(facePickId);
   }
 
   /** Number of triangles accumulated so far. */
@@ -67,9 +64,6 @@ export class TriangleMeshBuilder {
               ? { nodePositions: new Float32Array(nodePositions) }
               : {}),
           }
-        : {}),
-      ...(this.facePickIds.some((id) => id !== 0)
-        ? { facePickIds: new Uint32Array(this.facePickIds) }
         : {}),
       ...(faces !== undefined && faces.length > 0 ? { faces } : {}),
       ...(bodies !== undefined && bodies.length > 0 ? { bodies } : {}),

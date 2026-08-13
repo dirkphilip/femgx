@@ -7,7 +7,7 @@ import {
   type ResolvedStyle,
 } from "./state";
 import { resolveBodyStyle, resolveInstanceStyle } from "./interaction";
-import type { FaceRef } from "./refs";
+import { faceRefKey, type FaceRef } from "./refs";
 import type { Instance } from "../scene/types";
 import { applyStyleLayers, collectUniqueRefs, sortedStrings, updateNestedMap } from "./mechanics";
 
@@ -21,8 +21,8 @@ function updateFaceSet(
   const map = updateNestedMap(
     data[key],
     ref.instanceId,
-    ref.faceKey,
-    enabled ? ref.elementId : undefined,
+    faceRefKey(ref),
+    enabled ? ref : undefined,
   );
   if (map === data[key]) return state;
   return updateInteractionState(state, { [key]: map });
@@ -54,10 +54,10 @@ export function isFaceEmphasized(state: InteractionState, ref: FaceRef): boolean
       kind: "face",
       instanceId: ref.instanceId,
       elementId: ref.elementId,
-      key: ref.faceKey,
+      faceIndex: ref.faceIndex,
     }) ||
-    data.highlightedFaces.get(ref.instanceId)?.has(ref.faceKey) === true ||
-    data.selectedFaces.get(ref.instanceId)?.has(ref.faceKey) === true
+    data.highlightedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true ||
+    data.selectedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true
   );
 }
 
@@ -79,18 +79,18 @@ export function resolveFaceStyle(
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
   return applyStyleLayers(style, [
-    data.highlightedFaces.get(ref.instanceId)?.has(ref.faceKey) === true
+    data.highlightedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true
       ? data.theme.highlighted
       : undefined,
     isHoveredTarget(state, {
       kind: "face",
       instanceId: ref.instanceId,
       elementId: ref.elementId,
-      key: ref.faceKey,
+      faceIndex: ref.faceIndex,
     })
       ? data.theme.hoveredFace
       : undefined,
-    data.selectedFaces.get(ref.instanceId)?.has(ref.faceKey) === true
+    data.selectedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true
       ? data.theme.selectedFace
       : undefined,
   ]);
@@ -108,21 +108,21 @@ export function emphasizedFaceRefs(state: InteractionState): readonly FaceRef[] 
       ? {
           instanceId: data.hoveredTarget.instanceId,
           elementId: data.hoveredTarget.elementId,
-          faceKey: data.hoveredTarget.key,
+          faceIndex: data.hoveredTarget.faceIndex,
         }
       : undefined,
-    (ref) => `${ref.instanceId}/${ref.faceKey}`,
+    (ref) => `${ref.instanceId}/${faceRefKey(ref)}`,
     (push) => {
-      for (const [instanceId, faces] of data.highlightedFaces) {
-        for (const faceKey of sortedStrings(faces.keys())) {
-          const elementId = faces.get(faceKey);
-          if (elementId !== undefined) push({ instanceId, elementId, faceKey });
+      for (const [, faces] of data.highlightedFaces) {
+        for (const key of sortedStrings(faces.keys())) {
+          const ref = faces.get(key);
+          if (ref !== undefined) push(ref);
         }
       }
-      for (const [instanceId, faces] of data.selectedFaces) {
-        for (const faceKey of sortedStrings(faces.keys())) {
-          const elementId = faces.get(faceKey);
-          if (elementId !== undefined) push({ instanceId, elementId, faceKey });
+      for (const [, faces] of data.selectedFaces) {
+        for (const key of sortedStrings(faces.keys())) {
+          const ref = faces.get(key);
+          if (ref !== undefined) push(ref);
         }
       }
     },

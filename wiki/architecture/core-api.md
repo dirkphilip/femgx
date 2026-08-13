@@ -102,8 +102,9 @@ stable element range and can participate in element picking and interaction.
   visibility or draw-order compaction changes.
 - `AssemblyNodeId` identifies one expanded assembly occurrence, including
   repeated placements of the same assembly definition.
-- `ElementId` is part-local. `FaceId` is part-local and indexes the part's
-  face descriptors. `NodeId` is model-local.
+- `ElementId` is part-local. An oriented face is identified by its
+  `(elementId, faceIndex)` pair; `FaceKey` remains the canonical adjacency
+  identity and is not a substitute for orientation. `NodeId` is model-local.
 - `BodyId` is part-local. A body groups element membership in reusable geometry;
   body interaction state is scoped by the placement `InstanceId`.
 - `Scene` is the authoring source of truth. `SceneRuntime`, typed arrays, draw

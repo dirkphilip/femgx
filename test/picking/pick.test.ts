@@ -130,7 +130,6 @@ describe("resolvePickHit", () => {
     );
     expect(target?.kind).toBe("face");
     if (target?.kind !== "face") return;
-    expect(target.faceId).toBe(1);
     expect(target.elementId).toBe(1);
     expect(target.nodeIds).toEqual([1, 2, 3]);
     expect(target.neighborElementIds).toEqual([]);
@@ -254,7 +253,6 @@ describe("interactionTargetFromHit", () => {
     instanceId: "1/2",
     elementId: 7,
     bodyId: 9,
-    faceId: 3,
     faceIndex: 1,
     key: "0,1,2",
     nodeIds: [0, 1, 2],
@@ -268,7 +266,7 @@ describe("interactionTargetFromHit", () => {
     ["instance", { kind: "instance", instanceId: "1/2" }],
     ["body", { kind: "body", instanceId: "1/2", bodyId: 9 }],
     ["element", { kind: "element", instanceId: "1/2", elementId: 7 }],
-    ["face", { kind: "face", instanceId: "1/2", elementId: 7, key: "0,1,2" }],
+    ["face", { kind: "face", instanceId: "1/2", elementId: 7, faceIndex: 1 }],
   ] as const)("maps a face hit to %s", (granularity, expected) => {
     expect(interactionTargetFromHit(hit, granularity)).toEqual(expected);
   });
@@ -302,12 +300,12 @@ describe("validatePickIds", () => {
       indices: new Uint32Array(9),
       primitive: "triangles" as const,
       nodePickIds: new Uint32Array([1, 2, 3]),
-      facePickIds: new Uint32Array([1, 1, 1]),
       faces: [
         {
-          id: 0,
           elementId: 0,
           faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 3,
           key: "0,1,2",
           nodeIds: [0, 1, 2],
           neighborElementIds: [],
@@ -330,14 +328,24 @@ describe("validatePickIds", () => {
     }).toThrow("nodePickIds must have one entry per vertex");
   });
 
-  it("rejects face pick ids that do not match the triangle count", () => {
+  it("rejects face ranges that do not match the triangle count", () => {
     expect(() => {
       validatePickIds({
         positions: new Float32Array(9),
         indices: new Uint32Array(9),
         primitive: "triangles" as const,
-        facePickIds: new Uint32Array([1, 2]),
+        faces: [
+          {
+            elementId: 0,
+            faceIndex: 0,
+            primitiveStart: 0,
+            primitiveCount: 4,
+            key: "0,1,2",
+            nodeIds: [0, 1, 2],
+            neighborElementIds: [],
+          },
+        ],
       });
-    }).toThrow("facePickIds must have one entry per triangle");
+    }).toThrow("outside the triangle buffer");
   });
 });

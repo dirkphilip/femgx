@@ -15,7 +15,6 @@ export function createPlanarGridGeometry(cells: number, options: PlanarGridOptio
   const elementMode = options.elementMode ?? "cell";
   const elements = elementMode === "cell" ? [] : undefined;
   const faces = options.withFaces === true ? [] : undefined;
-  const facePickIds = faces === undefined ? undefined : new Uint32Array(cells * cells * 2);
   const bodyElements = createBodyElementLists(options.bodyCount);
 
   for (let y = 0; y <= cells; y += 1) {
@@ -34,7 +33,6 @@ export function createPlanarGridGeometry(cells: number, options: PlanarGridOptio
         indices,
         elements,
         faces,
-        facePickIds,
         bodyElements,
       });
     }
@@ -50,7 +48,7 @@ export function createPlanarGridGeometry(cells: number, options: PlanarGridOptio
     ...(elements === undefined
       ? { elements: [{ id: 1, primitiveStart: 0, primitiveCount: cells * cells * 2 }] }
       : { elements }),
-    ...(faces === undefined || facePickIds === undefined ? {} : { faces, facePickIds }),
+    ...(faces === undefined ? {} : { faces }),
     ...(bodyElements === undefined ? {} : { bodies: bodyElements.map(toBody) }),
   };
 }
@@ -62,12 +60,11 @@ interface CellOptions {
   readonly indices: Uint32Array;
   readonly elements: ElementTessellation[] | undefined;
   readonly faces: FaceTessellation[] | undefined;
-  readonly facePickIds: Uint32Array | undefined;
   readonly bodyElements: number[][] | undefined;
 }
 
 function appendCell(options: CellOptions): void {
-  const { cells, x, y, indices, elements, faces, facePickIds, bodyElements } = options;
+  const { cells, x, y, indices, elements, faces, bodyElements } = options;
   const side = cells + 1;
   const bottomLeft = y * side + x;
   const bottomRight = bottomLeft + 1;
@@ -91,18 +88,15 @@ function appendCell(options: CellOptions): void {
     .sort((a, b) => a - b)
     .join(":");
   faces?.push({
-    id: cell,
     elementId,
     faceIndex: 0,
+    primitiveStart: cell * 2,
+    primitiveCount: 2,
     key,
     nodeIds,
     neighborElementIds: [],
     ...(bodyId === undefined ? {} : { bodyId }),
   });
-  if (facePickIds !== undefined) {
-    facePickIds[cell * 2] = cell + 1;
-    facePickIds[cell * 2 + 1] = cell + 1;
-  }
 }
 
 function createBodyElementLists(bodyCount: number | undefined): number[][] | undefined {

@@ -1,5 +1,4 @@
 import type { ElementId, NodeId } from "../elements/element";
-import type { FaceKey } from "../elements/faces";
 import type { BodyId } from "../geometry/part";
 import type { InstanceId } from "../scene/types";
 
@@ -19,5 +18,10 @@ export interface NodeRef {
 export interface FaceRef {
   readonly instanceId: InstanceId;
   readonly elementId: ElementId;
-  readonly faceKey: FaceKey;
+  readonly faceIndex: number;
+}
+
+/** Stable map key for one oriented face occurrence. */
+export function faceRefKey(ref: Pick<FaceRef, "elementId" | "faceIndex">): string {
+  return `${ref.elementId}/${ref.faceIndex}`;
 }

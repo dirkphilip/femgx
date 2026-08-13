@@ -17,10 +17,11 @@ const part = polygonPart(10, {
 });
 ```
 
-Each input face becomes one stable part-local `FaceId` in input order. Its
-`elementId`, optional element-local `faceIndex`, canonical `key`, and neighbor
-element ids are retained in the resulting `FaceTessellation`. Triangle ranges
-are grouped by element so element picking and results can use the existing
+Each input face becomes one oriented `(elementId, faceIndex)` identity. Its
+canonical `key`, neighbor element ids, and exact triangle
+`primitiveStart`/`primitiveCount` range are retained in the resulting
+`FaceTessellation`; face-array order is not identity. Triangle ranges are
+grouped by element so element picking and results can use the existing
 `ElementTessellation` contract. Node pick ids and source node positions are
 also preserved for node picking and nodal deformation.
 

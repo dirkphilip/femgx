@@ -1,5 +1,6 @@
 import {
   bodyIdForElement,
+  faceForPrimitive,
   isFiniteBounds,
   logicalPrimitiveCount,
   primitiveRangeForElement,
@@ -97,11 +98,16 @@ function faceBounds(
 ): Bounds | undefined {
   if (part.geometry.primitive !== "triangles") return undefined;
   const face = part.geometry.faces?.find(
-    (candidate) => candidate.elementId === target.elementId && candidate.key === target.key,
+    (candidate) =>
+      candidate.elementId === target.elementId && candidate.faceIndex === target.faceIndex,
   );
-  const facePickIds = part.geometry.facePickIds;
-  if (face === undefined || facePickIds === undefined) return undefined;
-  return primitiveBounds(part, (primitive) => facePickIds[primitive] === face.id + 1, deformation);
+  if (face === undefined) return undefined;
+  return primitiveBounds(
+    part,
+    (primitive) =>
+      primitive >= face.primitiveStart && primitive < face.primitiveStart + face.primitiveCount,
+    deformation,
+  );
 }
 
 function nodeBounds(
@@ -149,9 +155,15 @@ function primitiveBounds(
 function displayedPrimitive(part: Part): (primitive: number) => boolean {
   const geometry = part.geometry;
   if (geometry.primitive !== "triangles" || geometry.faceSubset === undefined) return () => true;
-  const selected = new Set(geometry.faceSubset.faceIds.map((faceId) => faceId + 1));
-  const facePickIds = geometry.facePickIds ?? new Uint32Array();
-  return (primitive) => selected.has(facePickIds[primitive] ?? 0);
+  return (primitive) => {
+    const face = faceForPrimitive(geometry, primitive);
+    return (
+      face !== undefined &&
+      geometry.faceSubset?.faceIds.some(
+        (ref) => ref.elementId === face.elementId && ref.faceIndex === face.faceIndex,
+      ) === true
+    );
+  };
 }
 
 function primitiveNodePickIds(part: Part, primitive: number): readonly number[] {

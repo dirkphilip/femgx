@@ -309,7 +309,7 @@ function targetOrder(
     case "node":
       return [instancePickId, target.nodeId, ""];
     case "face":
-      return [instancePickId, target.elementId, target.key];
+      return [instancePickId, target.elementId, String(target.faceIndex)];
   }
 }
 

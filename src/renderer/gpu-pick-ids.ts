@@ -2,6 +2,7 @@ import {
   bodyIdForElement,
   logicalPrimitiveCount,
   primitiveRangeForElement,
+  faceForPrimitive,
   type Geometry,
 } from "../geometry/part";
 
@@ -45,8 +46,13 @@ export function buildBodyPrimitivePickIds(geometry: Geometry): Uint32Array {
 export function buildFacePrimitivePickIds(geometry: Geometry): Uint32Array {
   const primitiveCount = logicalPrimitiveCount(geometry);
   const pickIds = new Uint32Array(primitiveCount);
-  if (geometry.primitive === "triangles" && geometry.facePickIds !== undefined) {
-    pickIds.set(geometry.facePickIds.subarray(0, primitiveCount));
+  if (geometry.primitive !== "triangles") return pickIds;
+  for (let primitive = 0; primitive < primitiveCount; primitive += 1) {
+    const face = faceForPrimitive(geometry, primitive);
+    if (face !== undefined) {
+      const denseId = geometry.faces?.indexOf(face);
+      if (denseId !== undefined && denseId >= 0) pickIds[primitive] = denseId + 1;
+    }
   }
   return pickIds;
 }

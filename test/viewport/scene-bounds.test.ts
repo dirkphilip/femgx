@@ -19,12 +19,12 @@ function sceneWithRepeatedPart() {
     elements: [{ id: 8, primitiveStart: 0, primitiveCount: 1, bodyId: 4 }],
     nodePickIds: new Uint32Array([1, 2, 3]),
     nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-    facePickIds: new Uint32Array([1]),
     faces: [
       {
-        id: 0,
         elementId: 8,
         faceIndex: 0,
+        primitiveStart: 0,
+        primitiveCount: 1,
         key: "0/1/2",
         nodeIds: [0, 1, 2],
         neighborElementIds: [],
@@ -65,7 +65,7 @@ describe("viewport scene bounds", () => {
         expected: { minX: 10, maxX: 11, minY: 0, maxY: 1 },
       },
       {
-        target: { kind: "face", instanceId: "1/1", elementId: 8, key: "0/1/2" },
+        target: { kind: "face", instanceId: "1/1", elementId: 8, faceIndex: 0 },
         expected: { minX: 10, maxX: 11, minY: 0, maxY: 1 },
       },
       {

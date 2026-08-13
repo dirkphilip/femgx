@@ -145,7 +145,7 @@ describe("changedInstanceSlots", () => {
       true,
     );
     state = setNodeSelected(state, { instanceId: "1/0", nodeId: 0 }, true);
-    state = setFaceHighlighted(state, { instanceId: "1/0", elementId: 0, faceKey: "0,1,2" }, true);
+    state = setFaceHighlighted(state, { instanceId: "1/0", elementId: 0, faceIndex: 0 }, true);
     expect(changedInstanceSlots(rt, empty, state)).toEqual([]);
   });
 

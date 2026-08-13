@@ -15,7 +15,7 @@ describe("createPerformancePreset", () => {
     if (part.geometry.primitive !== "triangles")
       throw new Error("performance fixture is not triangles");
     expect(part.geometry.faces).toHaveLength(128 * 128);
-    expect(part.geometry.facePickIds).toHaveLength(128 * 128 * 2);
+    expect(part.geometry.faces).toHaveLength(128 * 128);
     expect(preset.scene.assemblies.get(preset.scene.rootAssemblyId)?.placements).toHaveLength(64);
     expect((part.geometry.indices.length / 3) * 64).toBe(2_097_152);
   });

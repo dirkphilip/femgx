@@ -138,14 +138,33 @@ describe("buildBodyPrimitivePickIds", () => {
 });
 
 describe("buildFacePrimitivePickIds", () => {
-  it("copies the per-triangle face pick ids when present", () => {
+  it("derives dense ids from exact face ranges", () => {
     const geometry: Geometry = {
       positions: new Float32Array(9),
       indices: new Uint32Array(9),
       primitive: "triangles" as const,
-      facePickIds: new Uint32Array([5, 0, 5]),
+      faces: [
+        {
+          elementId: 0,
+          faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 1,
+          key: "a",
+          nodeIds: [],
+          neighborElementIds: [],
+        },
+        {
+          elementId: 0,
+          faceIndex: 1,
+          primitiveStart: 2,
+          primitiveCount: 1,
+          key: "b",
+          nodeIds: [],
+          neighborElementIds: [],
+        },
+      ],
     };
-    expect(Array.from(buildFacePrimitivePickIds(geometry))).toEqual([5, 0, 5]);
+    expect(Array.from(buildFacePrimitivePickIds(geometry))).toEqual([1, 0, 2]);
   });
 
   it("produces all-zero ids when the geometry has no faces", () => {
@@ -164,12 +183,22 @@ describe("buildPrimitiveFaceBodyPickData", () => {
       positions: new Float32Array(18),
       indices: new Uint32Array(6),
       primitive: "triangles" as const,
-      facePickIds: new Uint32Array([5, 0]),
       elements: [{ id: 4, primitiveStart: 0, primitiveCount: 2, bodyId: 7 }],
       bodies: [{ id: 7, elementIds: [4] }],
+      faces: [
+        {
+          elementId: 4,
+          faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 2,
+          key: "a",
+          nodeIds: [],
+          neighborElementIds: [],
+        },
+      ],
     };
     expect(Array.from(buildPrimitiveFaceBodyPickData(geometry))).toEqual([
-      5, 8, 0, 5, 0, 0, 8, 0, 5, 0,
+      1, 8, 0, 5, 0, 1, 8, 0, 5, 0,
     ]);
   });
 });
@@ -548,30 +577,32 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
     bodies: [{ id: 3, name: "body", elementIds: [0] }],
     nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
     nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]),
-    facePickIds: new Uint32Array([1, 1, 2, 2, 3, 3]),
     faces: [
       {
-        id: 0,
         elementId: 0,
         faceIndex: 0,
+        primitiveStart: 0,
+        primitiveCount: 2,
         key: "0,1,2",
         nodeIds: [0, 1, 2],
         neighborElementIds: [],
         bodyId: 3,
       },
       {
-        id: 1,
         elementId: 0,
         faceIndex: 1,
+        primitiveStart: 2,
+        primitiveCount: 2,
         key: "0,1,3",
         nodeIds: [0, 1, 3],
         neighborElementIds: [],
         bodyId: 3,
       },
       {
-        id: 2,
         elementId: 0,
         faceIndex: 2,
+        primitiveStart: 4,
+        primitiveCount: 2,
         key: "0,2,3",
         nodeIds: [0, 2, 3],
         neighborElementIds: [],
@@ -689,7 +720,7 @@ describe("collectEmphasisUpdates", () => {
     let interaction = createInteractionState();
     interaction = setFaceSelected(
       interaction,
-      { instanceId: "1/0", elementId: 0, faceKey: "0,1,3" },
+      { instanceId: "1/0", elementId: 0, faceIndex: 1 },
       true,
     );
     interaction = setNodeSelected(interaction, { instanceId: "1/1", nodeId: 2 }, true);
@@ -713,7 +744,7 @@ describe("collectEmphasisUpdates", () => {
     let interaction = createInteractionState();
     interaction = setFaceSelected(
       interaction,
-      { instanceId: "1/0", elementId: 0, faceKey: "9,9,9" },
+      { instanceId: "1/0", elementId: 0, faceIndex: 9 },
       true,
     );
     const updates = collectEmphasisUpdates(

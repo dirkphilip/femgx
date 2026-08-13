@@ -22,7 +22,7 @@ const targets = [
   { kind: "instance", instanceId: "1/0" },
   { kind: "body", instanceId: "1/0", bodyId: 2 },
   { kind: "element", instanceId: "1/0", elementId: 3 },
-  { kind: "face", instanceId: "1/0", elementId: 3, key: "0,1,2" },
+  { kind: "face", instanceId: "1/0", elementId: 3, faceIndex: 0 },
   { kind: "node", instanceId: "1/0", nodeId: 4 },
 ] as const satisfies readonly InteractionTarget[];
 
@@ -88,7 +88,6 @@ describe("InteractionTarget helpers", () => {
         partId: 1,
         instanceId: "1/0",
         elementId: 3,
-        faceId: 0,
         faceIndex: 0,
         key: "0,1,2",
         nodeIds: [0, 1, 2],

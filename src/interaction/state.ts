@@ -1,8 +1,8 @@
 import type { ElementId, InstanceId } from "../scene/types";
 import type { NodeId } from "../elements/element";
-import type { FaceKey } from "../elements/faces";
 import type { BodyId, PartId } from "../geometry/part";
 import type { InteractionTarget } from "./target-types";
+import type { FaceRef } from "./refs";
 
 /** RGBA color with normalized channels. */
 export interface Color {
@@ -107,8 +107,8 @@ export interface InteractionStateData {
   readonly instanceOverrides: ReadonlyMap<InstanceId, StyleOverride>;
   readonly selectedNodeIds: ReadonlyMap<InstanceId, ReadonlySet<NodeId>>;
   readonly highlightedNodeIds: ReadonlyMap<InstanceId, ReadonlySet<NodeId>>;
-  readonly selectedFaces: ReadonlyMap<InstanceId, ReadonlyMap<FaceKey, ElementId>>;
-  readonly highlightedFaces: ReadonlyMap<InstanceId, ReadonlyMap<FaceKey, ElementId>>;
+  readonly selectedFaces: ReadonlyMap<InstanceId, ReadonlyMap<string, FaceRef>>;
+  readonly highlightedFaces: ReadonlyMap<InstanceId, ReadonlyMap<string, FaceRef>>;
   readonly hoveredTarget?: InteractionTarget;
   readonly theme: InteractionTheme;
 }
@@ -190,7 +190,7 @@ function targetsEqual(
         right.kind === "face" &&
         left.instanceId === right.instanceId &&
         left.elementId === right.elementId &&
-        left.key === right.key
+        left.faceIndex === right.faceIndex
       );
     case "node":
       return (

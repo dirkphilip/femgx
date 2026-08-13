@@ -36,26 +36,27 @@ const subsetPart: Part = createPart(2, {
   positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1]),
   indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
   primitive: "triangles" as const,
-  facePickIds: new Uint32Array([1, 2]),
   faces: [
     {
-      id: 0,
       elementId: 1,
       faceIndex: 0,
+      primitiveStart: 0,
+      primitiveCount: 1,
       key: "0,1,2",
       nodeIds: [0, 1, 2],
       neighborElementIds: [],
     },
     {
-      id: 1,
       elementId: 1,
       faceIndex: 1,
+      primitiveStart: 1,
+      primitiveCount: 1,
       key: "3,4,5",
       nodeIds: [3, 4, 5],
       neighborElementIds: [],
     },
   ],
-  faceSubset: { faceIds: [1] },
+  faceSubset: { faceIds: [{ elementId: 1, faceIndex: 1 }] },
 });
 
 const logicalPointPart: Part = createPart(3, {

@@ -11,6 +11,7 @@ import { isElementVisible } from "../interaction/elements";
 import { emphasizedFaceRefs, resolveFaceStyle } from "../interaction/faces";
 import { emphasizedNodeRefs, resolveNodeStyle } from "../interaction/nodes";
 import { readInteractionState } from "../interaction/state";
+import { faceRefKey } from "../interaction/refs";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
@@ -187,7 +188,7 @@ function collectElementEmphasis(
   }
 }
 
-/** Collects face-level emphasis records, resolved to their part-local face id. */
+/** Collects face-level emphasis records, resolving authored identities to private GPU ids. */
 function collectFaceEmphasis(
   context: EmphasisContext,
   parts: ReadonlyMap<PartId, Part>,
@@ -201,23 +202,23 @@ function collectFaceEmphasis(
     const geometry = parts.get(occurrence.instance.partId)?.geometry;
     if (geometry?.primitive !== "triangles") continue;
     const face = geometry.faces?.find(
-      (face) => face.elementId === ref.elementId && face.key === ref.faceKey,
-    )?.id;
-    if (face === undefined) continue;
-    const descriptor = geometry.faces?.[face];
+      (candidate) => candidate.elementId === ref.elementId && candidate.faceIndex === ref.faceIndex,
+    );
+    const faceId = face === undefined ? -1 : (geometry.faces?.indexOf(face) ?? -1);
+    if (face === undefined || faceId < 0) continue;
     const style = resolveFaceStyle(
       occurrence.instance,
       ref,
       defaultStyle,
       interaction,
-      descriptor?.bodyId ?? bodyIdForElement(geometry, ref.elementId),
+      face.bodyId ?? bodyIdForElement(geometry, ref.elementId),
     );
     push(occurrence.instance.partId, {
       slot: occurrence.local,
       elementPickId: 0,
-      facePickId: face + 1,
+      facePickId: faceId + 1,
       nodePickId: 0,
-      selected: data.selectedFaces.get(ref.instanceId)?.has(ref.faceKey) === true,
+      selected: data.selectedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true,
       style,
     });
   }

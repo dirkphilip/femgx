@@ -6,7 +6,6 @@ import {
   type Body,
   type BodyId,
   type ElementTessellation,
-  type FaceId,
   type FaceSubset,
   type FaceTessellation,
   type LineGeometry,
@@ -75,7 +74,7 @@ interface VolumeTessellation {
   readonly elements: readonly ElementTessellation[];
   readonly faces: readonly FaceTessellation[];
   readonly nodePositions: readonly number[];
-  readonly selectedFaceIds: readonly FaceId[];
+  readonly selectedFaceIds: readonly FaceIdRef[];
 }
 
 /** Inputs for one volume-face tessellation pass. */
@@ -93,9 +92,8 @@ function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
   const elements: ElementTessellation[] = [];
   const faceTessellations: FaceTessellation[] = [];
   const nodePositions: number[] = [...model.nodes];
-  const selectedFaceIds: FaceId[] = [];
+  const selectedFaceIds: FaceIdRef[] = [];
   let current: { readonly element: Element; readonly start: number } | undefined;
-  let faceId = 0;
   const flush = (): void => {
     if (current === undefined) return;
     const tessellation: ElementTessellation = {
@@ -112,21 +110,22 @@ function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
       flush();
       current = { element, start: mesh.triangleCount };
     }
-    for (const triangle of tessellateFace(model, element, face)) {
-      mesh.append(triangle, faceId + 1);
-    }
+    const primitiveStart = mesh.triangleCount;
+    for (const triangle of tessellateFace(model, element, face)) mesh.append(triangle);
     const tessellation: FaceTessellation = {
-      id: faceId,
       elementId: element.id,
       faceIndex,
+      primitiveStart,
+      primitiveCount: mesh.triangleCount - primitiveStart,
       key: face.key,
       nodeIds: face.nodeIds,
       neighborElementIds: (neighbors.get(face.key) ?? []).filter((id) => id !== element.id),
     };
     const bodyId = bodyIds.get(element.id);
     faceTessellations.push(bodyId === undefined ? tessellation : { ...tessellation, bodyId });
-    if (selected?.has(faceIdentity(element.id, faceIndex))) selectedFaceIds.push(faceId);
-    faceId += 1;
+    if (selected?.has(faceIdentity(element.id, faceIndex))) {
+      selectedFaceIds.push({ elementId: element.id, faceIndex });
+    }
   }
   flush();
   return { mesh, elements, faces: faceTessellations, nodePositions, selectedFaceIds };

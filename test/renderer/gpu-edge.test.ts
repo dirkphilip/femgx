@@ -10,9 +10,10 @@ describe("buildMeshEdgeData", () => {
       nodePickIds: new Uint32Array([1, 2, 3, 4]),
       faces: [
         {
-          id: 0,
           elementId: 0,
           faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 2,
           key: "0/1/2/3",
           nodeIds: [0, 1, 2, 3],
           neighborElementIds: [],
@@ -37,17 +38,19 @@ describe("buildMeshEdgeData", () => {
       ],
       faces: [
         {
-          id: 0,
           elementId: 4,
           faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 1,
           key: "0/1/2",
           nodeIds: [0, 1, 2],
           neighborElementIds: [],
         },
         {
-          id: 1,
           elementId: 5,
           faceIndex: 0,
+          primitiveStart: 1,
+          primitiveCount: 1,
           key: "0/1/3",
           nodeIds: [0, 1, 3],
           neighborElementIds: [],
@@ -74,17 +77,19 @@ describe("buildMeshEdgeData", () => {
       ],
       faces: [
         {
-          id: 0,
           elementId: 4,
           faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 1,
           key: "0/1/2",
           nodeIds: [0, 1, 2],
           neighborElementIds: [],
         },
         {
-          id: 1,
           elementId: 5,
           faceIndex: 0,
+          primitiveStart: 1,
+          primitiveCount: 1,
           key: "0/1/3",
           nodeIds: [0, 1, 3],
           neighborElementIds: [],
