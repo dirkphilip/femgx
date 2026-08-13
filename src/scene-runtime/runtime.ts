@@ -5,7 +5,6 @@ import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { compileSceneState, type RuntimeState } from "./compile";
 import { findGroupRange } from "./group-index";
 import { invariantValue } from "./invariants";
-import { setInstanceTransform, setNodeTransform, type TransformDelta } from "./transforms";
 import {
   getDrawList as computeDrawList,
   setAssemblyNodeVisible,
@@ -51,10 +50,6 @@ interface RuntimeMethods {
   /** Sets visibility for one expanded assembly occurrence. */
   setAssemblyNodeVisible(nodeId: number, visible: boolean): VisibilityDelta;
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): VisibilityDelta;
-  /** Sets a part instance's local placement transform and recomputes its world. */
-  setInstanceTransform(instanceId: number, transform: Mat4): TransformDelta;
-  /** Sets an assembly expansion's local transform and recomputes its subtree. */
-  setNodeTransform(nodeId: number, transform: Mat4): TransformDelta;
 }
 
 /** Packed scene storage plus internal behavior and stable identity indexes. */
@@ -108,12 +103,7 @@ function createRuntimeQueries(
   maps: RuntimeMaps,
 ): Omit<
   RuntimeMethods,
-  | "setInstanceVisible"
-  | "setPartVisible"
-  | "setAssemblyNodeVisible"
-  | "setAssemblyVisible"
-  | "setInstanceTransform"
-  | "setNodeTransform"
+  "setInstanceVisible" | "setPartVisible" | "setAssemblyNodeVisible" | "setAssemblyVisible"
 > {
   return {
     getPartId(instanceId: number): PartId | undefined {
@@ -168,12 +158,7 @@ function createRuntimeMutations(
   state: RuntimeState,
 ): Pick<
   RuntimeMethods,
-  | "setInstanceVisible"
-  | "setPartVisible"
-  | "setAssemblyNodeVisible"
-  | "setAssemblyVisible"
-  | "setInstanceTransform"
-  | "setNodeTransform"
+  "setInstanceVisible" | "setPartVisible" | "setAssemblyNodeVisible" | "setAssemblyVisible"
 > {
   return {
     setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta {
@@ -187,12 +172,6 @@ function createRuntimeMutations(
     },
     setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): VisibilityDelta {
       return setAssemblyVisible(state, assemblyId, visible);
-    },
-    setInstanceTransform(instanceId: number, transform: Mat4): TransformDelta {
-      return setInstanceTransform(state, instanceId, transform);
-    },
-    setNodeTransform(nodeId: number, transform: Mat4): TransformDelta {
-      return setNodeTransform(state, nodeId, transform);
     },
   };
 }

@@ -18,8 +18,6 @@ describe("public scene runtime", () => {
     expect(runtime).not.toHaveProperty("setPartVisible");
     expect(runtime).not.toHaveProperty("setAssemblyNodeVisible");
     expect(runtime).not.toHaveProperty("setAssemblyVisible");
-    expect(runtime).not.toHaveProperty("setInstanceTransform");
-    expect(runtime).not.toHaveProperty("setNodeTransform");
   });
 
   it("keeps repeated assembly occurrences independently addressable", () => {

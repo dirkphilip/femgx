@@ -16,7 +16,7 @@
 - [[architecture/instancing-strategy|Instancing strategy]] — reusable parts,
   placements, batching, and deterministic identity.
 - [[architecture/packed-runtime|Packed scene runtime]] — packed typed-array
-  storage and delta-oriented visibility and transform updates.
+  storage and delta-oriented visibility updates.
 - [[architecture/source-organization|Source organization]] — subsystem layout
   and deliberate public boundaries.
 

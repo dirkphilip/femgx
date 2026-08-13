@@ -10,7 +10,6 @@ import {
   TET4_SHAPE,
 } from "../../src/elements/shapes";
 import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
-import { translation } from "../../src/math/mat4";
 import { resolvePick } from "../../src/picking/pick";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import {
@@ -142,15 +141,6 @@ const budgets: readonly BudgetCase[] = [
     run: () => {
       runtime.setInstanceVisible(0, false);
       runtime.setInstanceVisible(0, true);
-    },
-  },
-  {
-    name: "setNodeTransform subtree",
-    description: "recompose 2000-instance subtree",
-    budgetMs: 10,
-    run: () => {
-      runtime.setNodeTransform(1, translation(10, 0, 0));
-      runtime.setNodeTransform(1, translation(20, 0, 0));
     },
   },
   {
