@@ -42,7 +42,7 @@ interface RuntimeMethods {
   getNodeWorldTransform(nodeId: number): Mat4 | undefined;
   isInstanceVisible(instanceId: number): boolean;
   /** Returns the precomputed instance slots belonging to a part. */
-  getPartInstanceSlots(partId: PartId): ArrayLike<number>;
+  getPartInstanceSlots(partId: PartId): Uint32Array;
   /** Returns visible instance ids in deterministic depth-first order. */
   getDrawList(): Uint32Array;
   setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta;
@@ -121,7 +121,7 @@ function createRuntimeQueries(
     getNodeSlot(nodeId: AssemblyNodeId): number | undefined {
       return maps.nodeSlots.get(nodeId);
     },
-    getPartInstanceSlots(partId: PartId): ArrayLike<number> {
+    getPartInstanceSlots(partId: PartId): Uint32Array {
       const range = findGroupRange(
         state.sortedPartIds,
         state.partInstanceOffset,
