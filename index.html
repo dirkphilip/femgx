@@ -476,7 +476,7 @@
         }
         .app {
           grid-template-columns: 1fr;
-          grid-template-rows: minmax(480px, 72vh) auto;
+          grid-template-rows: auto auto;
           height: auto;
           min-height: 100vh;
         }
@@ -488,12 +488,8 @@
           grid-template-columns: 1fr;
           grid-template-rows: repeat(2, minmax(480px, 72vh));
         }
-        #viewport-workspace[data-secondary-open="true"] .scene-pane {
-          grid-row: 2;
-        }
         .scene,
         .scene-pane {
-          grid-row: 1;
           min-height: 480px;
         }
         .sidebar {
