@@ -11,12 +11,12 @@ clone materials, and alpha-zero remains visually absent but pickable.
 
 The visible frame has one deliberate presentation ordering:
 
-| Stage                                             | Color target                       | Depth                                          | Blend/write                                 | Owner                                                        |
-| ------------------------------------------------- | ---------------------------------- | ---------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------ |
-| Opaque scene + visible triad/pivot + point replay | MSAA canvas, resolved opaque color | `less` scene, `less-equal` triad/pivot/points  | Opaque; triad stencil marks visible samples | Surface batches, world-origin and orbit presentation, points |
-| Transparency + hidden triad/pivot                 | Accumulation + revealage           | `less` scene, `greater` triad/pivot, no writes | Weighted accumulation/revealage             | Fractional scene and fixed-alpha presentation ghosts         |
-| Composite                                         | Swap-chain color                   | Always, no write                               | Transparent color over opaque color         | Full-screen OIT composite                                    |
-| Presentation helpers                              | Swap-chain color                   | Explicit helper rule                           | Helper-specific                             | Edges, nodes, orientation gizmo                              |
+| Stage                                                         | Color target                       | Depth                                                    | Blend/write                                           | Owner                                                                   |
+| ------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------- |
+| Opaque scene + visible selection + triad/pivot + point replay | MSAA canvas, resolved opaque color | `less` scene, `less-equal` selection/triad/pivot/points  | Opaque; selection and triad use separate stencil bits | Surface batches, selection, world-origin and orbit presentation, points |
+| Transparency + hidden selection/triad/pivot                   | Accumulation + revealage           | `less` scene, `greater` selection/triad/pivot, no writes | Weighted accumulation/revealage                       | Fractional scene and fixed-alpha selection/presentation ghosts          |
+| Composite                                                     | Swap-chain color                   | Always, no write                                         | Transparent color over opaque color                   | Full-screen OIT composite                                               |
+| Presentation helpers                                          | Swap-chain color                   | Explicit helper rule                                     | Helper-specific                                       | Edges, nodes, orientation gizmo                                         |
 
 The origin triad is a renderer-owned two-variant exception. Its positive
 world-space X/Y/Z geometry is anchored at `[0, 0, 0]` and scaled once from the
@@ -30,6 +30,13 @@ The triad is not scene geometry, is absent from picking and bounds, and has no
 public material or visibility mode. The lower-left
 orientation gizmo is a separate screen-space control, while the temporary
 orbit pivot remains an active-gesture helper with its own depth contract.
+
+Selection has the same two-stage depth shape but is derived from the semantic
+selection collections in `InteractionState`. Visible selected fragments are
+opaque, write depth, and mark a separate stencil bit; hidden selected
+fragments use `greater`, do not write depth, and enter weighted transparency at
+a fixed restrained alpha. See [[rendering/selection-occlusion|selection through
+occlusion]] for the record and order-buffer ownership details.
 
 The temporary orbit pivot uses the same screen-space geometry for both variants
 and uploads its world position, camera-projected axis directions, and fixed DPR

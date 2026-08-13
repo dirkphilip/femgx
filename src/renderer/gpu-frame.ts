@@ -32,6 +32,10 @@ export interface FrameOptions {
   readonly edgeCalls: readonly DrawCall[];
   /** Per-part node-annotation draw calls over the node-styled visible instances. */
   readonly nodeCalls: readonly DrawCall[];
+  /** Per-part selected-instance calls for the depth-aware x-ray selection pass. */
+  readonly selectionCalls: readonly DrawCall[];
+  /** Per-part selected-node-instance calls for the exact node glyph pass. */
+  readonly selectedNodeCalls: readonly DrawCall[];
   readonly pickTargets: PickTargets;
   readonly depthFormat: GPUTextureFormat;
   /** Whether the edge overlay culls edges occluded by depth (`less`). */
@@ -109,6 +113,7 @@ export function encodeVisibleFrame(
     pass: "color",
     primitive: "points",
   });
+  drawSelectionPass(opaquePass, frame, context, "selection-visible");
   if (orbitPivotActive) drawOrbitPivot(opaquePass, frame.resources.orbitPivot, "visible");
   opaquePass.end();
   drawTransparencyPass(colorEncoder, frame, context, targets, orbitPivotActive);
@@ -139,9 +144,34 @@ function drawTransparencyPass(
       pass: "transparent",
     });
   }
+  drawSelectionPass(pass, frame, context, "selection-hidden");
   drawOriginTriad(pass, frame.resources.originTriad, "hidden");
   if (orbitPivotActive) drawOrbitPivot(pass, frame.resources.orbitPivot, "hidden");
   pass.end();
+}
+
+function drawSelectionPass(
+  pass: GPURenderPassEncoder,
+  frame: FrameOptions,
+  context: DrawCallContext,
+  variant: "selection-visible" | "selection-hidden",
+): void {
+  if (frame.selectionCalls.length > 0) {
+    drawBatches(pass, frame.draw, context, frame.selectionCalls, {
+      kind: "surface",
+      pass: variant,
+    });
+  }
+  if (frame.selectedNodeCalls.length > 0) {
+    drawBatches(pass, frame.draw, context, frame.selectedNodeCalls, {
+      kind: "nodes",
+      pipeline:
+        variant === "selection-visible"
+          ? frame.resources.pipelines.pointsSelectionVisible
+          : frame.resources.pipelines.pointsSelectionHidden,
+      selection: true,
+    });
+  }
 }
 
 function drawCompositePass(

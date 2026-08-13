@@ -363,6 +363,7 @@ describe("encodeEmphasisRecord", () => {
         nodePickId: 0,
         bodyPickId: 4,
         hidden: true,
+        selected: true,
         style,
       }),
     );
@@ -370,6 +371,7 @@ describe("encodeEmphasisRecord", () => {
     expect(bodyIds[1]).toBe(4);
     expect(bodyIds[2]).toBe(0xffffffff);
     expect(bodyIds[9]).toBe(1);
+    expect(bodyIds[10]).toBe(1);
   });
 });
 
@@ -648,7 +650,7 @@ describe("collectEmphasisUpdates", () => {
     expect(Array.from(updates.keys())).toEqual([1]);
     const list = updates.get(1) ?? [];
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ slot: 1, elementPickId: 1 });
+    expect(list[0]).toMatchObject({ slot: 1, elementPickId: 1, selected: true });
   });
 
   it("maps semantic element highlights to the same GPU records", () => {
@@ -692,8 +694,8 @@ describe("collectEmphasisUpdates", () => {
     );
     const list = updates.get(1) ?? [];
     expect(list).toHaveLength(2);
-    expect(list[0]).toMatchObject({ slot: 0, facePickId: 2 });
-    expect(list[1]).toMatchObject({ slot: 1, nodePickId: 3 });
+    expect(list[0]).toMatchObject({ slot: 0, facePickId: 2, selected: true });
+    expect(list[1]).toMatchObject({ slot: 1, nodePickId: 3, selected: true });
   });
 
   it("drops face refs whose face is absent from the part geometry", () => {

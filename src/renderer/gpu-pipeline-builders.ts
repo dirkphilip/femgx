@@ -18,6 +18,7 @@ import {
   TRANSPARENCY_BLEND_STATES,
   TRANSPARENCY_REVEALAGE_FORMAT,
 } from "./gpu-transparency";
+import { createSelectionPipelines, type SelectionPipelines } from "./gpu-selection-pipelines";
 import { PICK_TEXTURE_FORMAT } from "./pick-format";
 import { COLOR_SAMPLE_COUNT, vertexLayout } from "./gpu-support";
 import {
@@ -26,7 +27,7 @@ import {
   type GpuValidationOptions,
 } from "./gpu-validation";
 
-export interface DrawPipelines {
+export interface DrawPipelines extends SelectionPipelines {
   readonly trianglesColor: GPURenderPipeline;
   readonly trianglesTransparent: GPURenderPipeline;
   readonly trianglesPick: GPURenderPipeline;
@@ -36,6 +37,12 @@ export interface DrawPipelines {
   readonly pointsColor: GPURenderPipeline;
   readonly pointsTransparent: GPURenderPipeline;
   readonly pointsPick: GPURenderPipeline;
+  readonly trianglesSelectionVisible: GPURenderPipeline;
+  readonly trianglesSelectionHidden: GPURenderPipeline;
+  readonly linesSelectionVisible: GPURenderPipeline;
+  readonly linesSelectionHidden: GPURenderPipeline;
+  readonly pointsSelectionVisible: GPURenderPipeline;
+  readonly pointsSelectionHidden: GPURenderPipeline;
 }
 
 export interface PipelineResources {
@@ -126,7 +133,18 @@ export async function createPipelineResources(
   validation?: GpuValidationOptions,
 ): Promise<PipelineResources> {
   const shaders = await createPipelineShaders(device, validation);
-  const pipelines = await buildPipelines(device, layout, format, depthFormat, shaders);
+  const basePipelines = await buildPipelines(device, layout, format, depthFormat, shaders);
+  const selectionPipelines = await createSelectionPipelines({
+    device,
+    layout,
+    format,
+    depthFormat,
+    validation,
+    triangleVertex: shaders.triangleVertex,
+    lineVertex: shaders.lineVertex,
+    pointVertex: shaders.pointVertex,
+  });
+  const pipelines: DrawPipelines = { ...basePipelines, ...selectionPipelines };
   const edges = await createEdgePipelines(device, layout, format, depthFormat, validation);
   return { pipelines, ...edges, pointVertexModule: shaders.pointVertex };
 }
@@ -202,7 +220,7 @@ async function buildPipelines(
   format: GPUTextureFormat,
   depthFormat: GPUTextureFormat,
   shaders: PipelineShaders,
-): Promise<DrawPipelines> {
+): Promise<Omit<DrawPipelines, keyof SelectionPipelines>> {
   const variants = pipelineVariants(shaders);
   const [triangles, lines, points] = await Promise.all([
     createPrimitivePipelines({

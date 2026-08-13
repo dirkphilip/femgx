@@ -43,13 +43,14 @@ struct Deformation {
 /** Instance storage layout shared by every vertex shader. */
 export const instanceStruct = /* wgsl */ `
 // Field layout (byte offsets) must match encodeInstanceRecord in gpu-draw.ts:
-// transform 0, color 64, pickId 80, emissive 84, padding 88.
+// transform 0, color 64, pickId 80, emissive 84, selected 88, padding 92.
 struct Instance {
   transform: mat4x4<f32>,
   color: vec4<f32>,
   pickId: u32,
   emissive: f32,
-  _padding: vec2<u32>,
+  selected: u32,
+  _padding: u32,
 };
 `;
 
@@ -57,7 +58,7 @@ struct Instance {
 export const emphasisStructs = /* wgsl */ `
 // Field layout must match encodeEmphasisRecord in gpu-elements.ts:
 // slot 0, elementPickId 4, facePickId 8, nodePickId 12, color 16, emissive 32,
-// hidden 36.
+// hidden 36, selected 40.
 // The struct has no trailing member so its size stays 48 bytes (vec3 members
 // would force 16-byte alignment and a 64-byte stride that would not match the
 // encoder).
@@ -69,6 +70,7 @@ struct ElementHighlight {
   color: vec4<f32>,
   emissive: f32,
   hidden: u32,
+  selected: u32,
 };
 
 // records starts at byte offset 16 to keep the 16-byte element alignment;
@@ -232,6 +234,7 @@ struct VertexOutput {
   @location(6) @interpolate(flat) centerPixel: vec2<f32>,
   @location(7) @interpolate(flat) nodeDepth: f32,
   @location(8) worldPosition: vec3<f32>,
+  @location(9) @interpolate(flat) selected: u32,
 };
 `;
 

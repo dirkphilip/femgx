@@ -15,7 +15,8 @@ export const INSTANCE_STRIDE = 96;
  * | 64     | 16   | resolved color, opacity folded into alpha (`vec4<f32>`) |
  * | 80     | 4    | stable pick id (`u32`) |
  * | 84     | 4    | emissive (`f32`) |
- * | 88     | 8    | padding (`vec2<u32>`) |
+ * | 88     | 4    | selected (`u32`) |
+ * | 92     | 4    | padding (`u32`) |
  */
 export const EMISSIVE_BYTE_OFFSET = 84;
 
@@ -38,6 +39,8 @@ export interface InstanceUpdate {
 export interface InstanceStorage {
   readonly buffer: GPUBuffer;
   readonly orderBuffer: GPUBuffer;
+  readonly selectionOrderBuffer: GPUBuffer;
+  readonly nodeSelectionOrderBuffer: GPUBuffer;
   readonly transparentOrderBuffer: GPUBuffer;
   readonly edgeOrderBuffer: GPUBuffer;
   readonly nodeOrderBuffer: GPUBuffer;
@@ -49,6 +52,14 @@ export interface InstanceStorage {
   orderData: Uint32Array;
   /** Number of meaningful draw-order entries. */
   orderLength: number;
+  /** CPU mirror of the selected-instance draw-order buffer. */
+  readonly selectionOrderData: Uint32Array;
+  /** Number of meaningful selected-instance draw-order entries. */
+  selectionOrderLength: number;
+  /** CPU mirror of the selected-node draw-order buffer. */
+  readonly nodeSelectionOrderData: Uint32Array;
+  /** Number of meaningful selected-node draw-order entries. */
+  nodeSelectionOrderLength: number;
   /** CPU mirror of the transparent draw-order buffer. */
   transparentOrderData: Uint32Array;
   /** Number of meaningful transparent draw-order entries. */
@@ -67,6 +78,10 @@ export interface InstanceStorage {
   edgeBindGroup: GPUBindGroup | undefined;
   /** Cached bind group addressing the transparent order buffer; invalidated on growth. */
   transparentBindGroup: GPUBindGroup | undefined;
+  /** Cached bind group addressing the selection order buffer; invalidated on growth. */
+  selectionBindGroup: GPUBindGroup | undefined;
+  /** Cached bind group addressing the selected-node order buffer. */
+  nodeSelectionBindGroup: GPUBindGroup | undefined;
 }
 
 interface InstanceStorageOwner {
@@ -83,6 +98,7 @@ export function encodeInstanceRecord(
   transform: Float32Array,
   style: ResolvedStyle,
   pickId: number,
+  selected = false,
 ): ArrayBuffer {
   const data = new ArrayBuffer(INSTANCE_STRIDE);
   const floats = new Float32Array(data);
@@ -90,6 +106,7 @@ export function encodeInstanceRecord(
   floats.set(transform, 0);
   floats.set([style.color.r, style.color.g, style.color.b, style.color.a * style.opacity], 16);
   floats[EMISSIVE_BYTE_OFFSET / 4] = style.emissive;
+  new Uint32Array(data)[22] = selected ? 1 : 0;
   return data;
 }
 
@@ -163,6 +180,38 @@ export function writeTransparentOrder(
   );
 }
 
+/** Replaces the compacted selected-instance draw-order list of a part. */
+export function writeSelectionOrder(
+  draw: InstanceStorageOwner,
+  partId: number,
+  order: Uint32Array,
+): void {
+  const storage = ensureStorage(draw, partId, Math.max(1, order.length));
+  storage.selectionOrderLength = writeOrderBuffer(
+    draw.device,
+    storage.selectionOrderBuffer,
+    storage.selectionOrderData,
+    order,
+    storage.selectionOrderLength,
+  );
+}
+
+/** Replaces the compacted selected-node-instance draw-order list of a part. */
+export function writeNodeSelectionOrder(
+  draw: InstanceStorageOwner,
+  partId: number,
+  order: Uint32Array,
+): void {
+  const storage = ensureStorage(draw, partId, Math.max(1, order.length));
+  storage.nodeSelectionOrderLength = writeOrderBuffer(
+    draw.device,
+    storage.nodeSelectionOrderBuffer,
+    storage.nodeSelectionOrderData,
+    order,
+    storage.nodeSelectionOrderLength,
+  );
+}
+
 /**
  * Replaces the compacted edge-overlay order list of a part (visible instances
  * whose resolved style requests the line overlay). Like `writeDrawOrder`, only
@@ -233,6 +282,8 @@ function createStorage(
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     }),
     orderBuffer: createOrderBuffer(draw.device, size),
+    selectionOrderBuffer: createOrderBuffer(draw.device, size),
+    nodeSelectionOrderBuffer: createOrderBuffer(draw.device, size),
     transparentOrderBuffer: createOrderBuffer(draw.device, size),
     edgeOrderBuffer: createOrderBuffer(draw.device, size),
     nodeOrderBuffer: createOrderBuffer(draw.device, size),
@@ -241,6 +292,10 @@ function createStorage(
     data: mirror.buffer,
     orderData: new Uint32Array(size),
     orderLength,
+    selectionOrderData: new Uint32Array(size),
+    selectionOrderLength: existing?.selectionOrderLength ?? 0,
+    nodeSelectionOrderData: new Uint32Array(size),
+    nodeSelectionOrderLength: existing?.nodeSelectionOrderLength ?? 0,
     transparentOrderData: new Uint32Array(size),
     transparentOrderLength,
     edgeOrderData: new Uint32Array(size),
@@ -250,6 +305,8 @@ function createStorage(
     bindGroup: undefined,
     edgeBindGroup: undefined,
     transparentBindGroup: undefined,
+    selectionBindGroup: undefined,
+    nodeSelectionBindGroup: undefined,
   };
 }
 
@@ -260,6 +317,12 @@ function copyStorageData(
 ): void {
   new Uint8Array(storage.data).set(new Uint8Array(existing.data));
   storage.orderData.set(existing.orderData.subarray(0, existing.orderLength));
+  storage.selectionOrderData.set(
+    existing.selectionOrderData.subarray(0, existing.selectionOrderLength),
+  );
+  storage.nodeSelectionOrderData.set(
+    existing.nodeSelectionOrderData.subarray(0, existing.nodeSelectionOrderLength),
+  );
   storage.transparentOrderData.set(
     existing.transparentOrderData.subarray(0, existing.transparentOrderLength),
   );
@@ -267,6 +330,18 @@ function copyStorageData(
   storage.nodeOrderData.set(existing.nodeOrderData.subarray(0, existing.nodeOrderLength));
   draw.device.queue.writeBuffer(storage.buffer, 0, storage.data);
   writeExistingOrder(draw, storage.orderBuffer, storage.orderData, existing.orderLength);
+  writeExistingOrder(
+    draw,
+    storage.selectionOrderBuffer,
+    storage.selectionOrderData,
+    existing.selectionOrderLength,
+  );
+  writeExistingOrder(
+    draw,
+    storage.nodeSelectionOrderBuffer,
+    storage.nodeSelectionOrderData,
+    existing.nodeSelectionOrderLength,
+  );
   writeExistingOrder(
     draw,
     storage.transparentOrderBuffer,
@@ -299,6 +374,8 @@ function writeExistingOrder(
 function destroyStorageBuffers(storage: InstanceStorage): void {
   storage.buffer.destroy();
   storage.orderBuffer.destroy();
+  storage.selectionOrderBuffer.destroy();
+  storage.nodeSelectionOrderBuffer.destroy();
   storage.transparentOrderBuffer.destroy();
   storage.edgeOrderBuffer.destroy();
   storage.nodeOrderBuffer.destroy();

@@ -6,9 +6,17 @@ import { createScene } from "../../src/scene/scene";
 import {
   buildDrawOrder,
   buildNodeOrder,
+  buildNodeSelectionOrder,
+  buildSelectionOrder,
   buildInstanceLayout,
   buildTransparentOrder,
 } from "../../src/renderer/runtime-state";
+import {
+  createInteractionState,
+  setInstanceSelected,
+  setPartSelected,
+} from "../../src/interaction/interaction";
+import { setNodeSelected } from "../../src/interaction/nodes";
 
 function part(id: number): Part {
   const geometry = {
@@ -101,6 +109,39 @@ describe("renderer runtime state", () => {
     const layout = buildInstanceLayout(runtime);
     expect(Array.from(buildDrawOrder(layout, runtime, 1))).toEqual([0, 1]);
     expect(Array.from(buildTransparentOrder(layout, runtime, 1, [false, true]))).toEqual([1]);
+  });
+
+  it("compacts selected instances and selected-node instances independently", () => {
+    const triangle = part(1);
+    const scene = createScene()
+      .addPart(triangle)
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [
+          { kind: "part", partId: 1, transform: identity() },
+          { kind: "part", partId: 1, transform: identity() },
+          { kind: "part", partId: 1, transform: identity() },
+        ],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    let interaction = setPartSelected(createInteractionState(), 1, true);
+    interaction = setNodeSelected(interaction, { instanceId: "1/1", nodeId: 2 }, true);
+    interaction = setInstanceSelected(interaction, "1/2", true);
+    runtime.setInstanceVisible(1, false);
+    const parts = new Map([[1, triangle]]);
+
+    expect(Array.from(buildSelectionOrder(layout, runtime, 1, interaction))).toEqual([0, 2]);
+    expect(
+      Array.from(buildNodeSelectionOrder(layout, runtime, 1, [false, true, false], parts)),
+    ).toEqual([]);
+    runtime.setInstanceVisible(1, true);
+    expect(
+      Array.from(buildNodeSelectionOrder(layout, runtime, 1, [false, true, false], parts)),
+    ).toEqual([1]);
   });
 
   it("builds node orders from visible node-styled instances and skips points", () => {

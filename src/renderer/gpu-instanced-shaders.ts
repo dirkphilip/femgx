@@ -39,6 +39,7 @@ const instanceHighlighting = /* wgsl */ `
   var emissive = instance.emissive;
   var hidden = false;
   var matched = false;
+  var selected = instance.selected != 0u;
   if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;
@@ -48,6 +49,7 @@ const instanceHighlighting = /* wgsl */ `
         color = highlight.color;
         emissive = highlight.emissive;
         hidden = highlight.hidden != 0u;
+        selected = selected || highlight.selected != 0u;
         break;
       }
     }
@@ -61,6 +63,7 @@ const instanceHighlighting = /* wgsl */ `
         color = highlight.color;
         emissive = highlight.emissive;
         matched = true;
+        selected = selected || highlight.selected != 0u;
         break;
       }
     }
@@ -73,6 +76,7 @@ const instanceHighlighting = /* wgsl */ `
       if (highlight.slot == drawOrder[instanceIndex] && highlight.facePickId == facePickId) {
         color = highlight.color;
         emissive = highlight.emissive;
+        selected = selected || highlight.selected != 0u;
         break;
       }
     }
@@ -114,6 +118,7 @@ function createInstanceVertexOutput(primitiveIndex: string): string {
   output.centerPixel = vec2<f32>(0.0);
   output.nodeDepth = 0.0;
   output.worldPosition = worldPosition;
+  output.selected = select(0u, 1u, selected);
   if (!primitiveVisible(drawOrder[instanceIndex], ${primitiveIndex})) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
@@ -185,8 +190,12 @@ fn pointVertex(
     vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a),
     nodeOverlay,
   );
+  if (nodeOverlay && instance.selected != 0u) {
+    color = instance.color;
+  }
   var emissive = 0.0;
   var hidden = false;
+  var selected = instance.selected != 0u;
   if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;
@@ -196,6 +205,7 @@ fn pointVertex(
         color = highlight.color;
         emissive = highlight.emissive;
         hidden = highlight.hidden != 0u;
+        selected = selected || highlight.selected != 0u;
         break;
       }
     }
@@ -208,6 +218,7 @@ fn pointVertex(
       if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == elementPickId && highlight.facePickId == 0u) {
         color = highlight.color;
         emissive = highlight.emissive;
+        selected = selected || highlight.selected != 0u;
         break;
       }
     }
@@ -221,6 +232,7 @@ fn pointVertex(
       if (highlight.slot == drawOrder[instanceIndex] && highlight.nodePickId == nodePickId) {
         color = highlight.color;
         emissive = highlight.emissive;
+        selected = selected || highlight.selected != 0u;
         break;
       }
     }
@@ -243,6 +255,7 @@ fn pointVertex(
   );
   output.nodeDepth = clip.z / clip.w;
   output.worldPosition = worldPosition;
+  output.selected = select(0u, 1u, selected);
   return output;
 }
 

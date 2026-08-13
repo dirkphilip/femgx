@@ -1,5 +1,6 @@
 import type { InteractionState } from "../interaction/interaction";
 import { resolveInstanceStyle } from "../interaction/interaction";
+import { readInteractionState } from "../interaction/state";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import { encodeInstanceRecord, type InstanceUpdate } from "./gpu-draw";
@@ -37,6 +38,7 @@ export function collectInstanceUpdates(
   const edgeChanged = new Set<PartId>();
   const nodeChanged = new Set<PartId>();
   const transparentChanged = new Set<PartId>();
+  const interactionData = readInteractionState(interaction);
   for (const slot of changedInstanceIds) {
     if (slot < 0 || slot >= runtime.instanceCount) continue;
     const partId = runtime.instancePartIds[slot];
@@ -66,6 +68,8 @@ export function collectInstanceUpdates(
         runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
         style,
         slot + 1,
+        interactionData.selectedPartIds.has(partId) ||
+          interactionData.selectedInstanceIds.has(instanceAt(runtime, slot, partId).instanceId),
       ),
     };
     const list = updates.get(partId);

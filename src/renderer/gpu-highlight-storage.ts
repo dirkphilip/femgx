@@ -116,6 +116,8 @@ function growHighlightStorage(
   storage.highlight = grown;
   storage.bindGroup = undefined;
   storage.edgeBindGroup = undefined;
+  storage.selectionBindGroup = undefined;
+  storage.nodeSelectionBindGroup = undefined;
 }
 
 function highlightCapacity(byteLength: number): number {
@@ -154,6 +156,8 @@ interface HighlightTarget {
   highlight: HighlightStorage;
   bindGroup: GPUBindGroup | undefined;
   edgeBindGroup: GPUBindGroup | undefined;
+  selectionBindGroup: GPUBindGroup | undefined;
+  nodeSelectionBindGroup: GPUBindGroup | undefined;
 }
 
 /** Recomputes every part's emphasis table and writes only changed ranges. */

@@ -9,6 +9,7 @@ import {
 import { emphasizedBodyRefs, isBodyVisible } from "../interaction/bodies";
 import { emphasizedFaceRefs, resolveFaceStyle } from "../interaction/faces";
 import { emphasizedNodeRefs, resolveNodeStyle } from "../interaction/nodes";
+import { readInteractionState } from "../interaction/state";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
@@ -32,7 +33,8 @@ interface InstanceLayout {
  * | 16     | 16   | resolved color with opacity folded into alpha (`vec4<f32>`) |
  * | 32     | 4    | emissive (`f32`) |
  * | 36     | 4    | hidden (`u32`) |
- * | 40     | 8    | trailing alignment padding |
+ * | 40     | 4    | selected (`u32`) |
+ * | 44     | 4    | trailing alignment padding |
  */
 export const ELEMENT_RECORD_STRIDE = 48;
 
@@ -63,6 +65,8 @@ export interface EmphasisUpdate {
   readonly bodyPickId?: number;
   /** Hides the matching body triangles in both color and pick passes. */
   readonly hidden?: boolean;
+  /** Marks the matching primitive for the renderer-owned x-ray selection pass. */
+  readonly selected?: boolean;
   readonly style: ResolvedStyle;
 }
 
@@ -85,6 +89,7 @@ export function encodeEmphasisRecord(update: EmphasisUpdate): ArrayBuffer {
   floats[7] = update.style.color.a * update.style.opacity;
   floats[8] = update.style.emissive;
   ids[9] = update.hidden === true ? 1 : 0;
+  ids[10] = update.selected === true ? 1 : 0;
   return data;
 }
 
@@ -122,6 +127,7 @@ function collectBodyEmphasis(
   interaction: InteractionState,
   push: (partId: PartId, update: EmphasisUpdate) => void,
 ): void {
+  const data = readInteractionState(interaction);
   for (const ref of emphasizedBodyRefs(interaction)) {
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
@@ -135,6 +141,7 @@ function collectBodyEmphasis(
       nodePickId: 0,
       bodyPickId: ref.bodyId + 1,
       hidden: !isBodyVisible(interaction, ref),
+      selected: data.selectedBodyIds.get(ref.instanceId)?.has(ref.bodyId) === true,
       style: resolveBodyStyle(occurrence.instance, ref.bodyId, defaultStyle, interaction),
     });
   }
@@ -154,6 +161,7 @@ function collectElementEmphasis(
   interaction: InteractionState,
   push: (partId: PartId, update: EmphasisUpdate) => void,
 ): void {
+  const data = readInteractionState(interaction);
   for (const ref of emphasizedElementRefs(interaction)) {
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
@@ -171,6 +179,7 @@ function collectElementEmphasis(
       elementPickId: ref.elementId + 1,
       facePickId: 0,
       nodePickId: 0,
+      selected: data.selectedElementIds.get(ref.instanceId)?.has(ref.elementId) === true,
       style,
     });
   }
@@ -183,6 +192,7 @@ function collectFaceEmphasis(
   interaction: InteractionState,
   push: (partId: PartId, update: EmphasisUpdate) => void,
 ): void {
+  const data = readInteractionState(interaction);
   for (const ref of emphasizedFaceRefs(interaction)) {
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
@@ -205,6 +215,7 @@ function collectFaceEmphasis(
       elementPickId: 0,
       facePickId: face + 1,
       nodePickId: 0,
+      selected: data.selectedFaces.get(ref.instanceId)?.has(ref.faceKey) === true,
       style,
     });
   }
@@ -216,6 +227,7 @@ function collectNodeEmphasis(
   interaction: InteractionState,
   push: (partId: PartId, update: EmphasisUpdate) => void,
 ): void {
+  const data = readInteractionState(interaction);
   for (const ref of emphasizedNodeRefs(interaction)) {
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
@@ -225,6 +237,7 @@ function collectNodeEmphasis(
       elementPickId: 0,
       facePickId: 0,
       nodePickId: ref.nodeId + 1,
+      selected: data.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true,
       style,
     });
   }

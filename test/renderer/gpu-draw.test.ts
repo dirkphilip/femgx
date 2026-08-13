@@ -316,18 +316,20 @@ describe("GPU draw path", () => {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
       patchInstances(draw, part.id, [{ slot: 5, data: record(1) }]);
-      expect(gpu.buffers).toHaveLength(6);
+      expect(gpu.buffers).toHaveLength(8);
       expect(gpu.buffers[0]?.size).toBe(6 * 96);
       expect(gpu.buffers[1]?.size).toBe(6 * 4);
       expect(gpu.buffers[2]?.size).toBe(6 * 4);
       expect(gpu.buffers[3]?.size).toBe(6 * 4);
       expect(gpu.buffers[4]?.size).toBe(6 * 4);
-      expect(gpu.buffers[5]?.size).toBe(HIGHLIGHT_BUFFER_SIZE);
+      expect(gpu.buffers[5]?.size).toBe(6 * 4);
+      expect(gpu.buffers[6]?.size).toBe(6 * 4);
+      expect(gpu.buffers[7]?.size).toBe(HIGHLIGHT_BUFFER_SIZE);
       patchInstances(draw, part.id, [{ slot: 10, data: record(2) }]);
-      expect(gpu.buffers[6]?.size).toBe(12 * 96);
-      expect(gpu.buffers[7]?.size).toBe(12 * 4);
-      expect(gpu.buffers[8]?.size).toBe(12 * 4);
+      expect(gpu.buffers[8]?.size).toBe(12 * 96);
       expect(gpu.buffers[9]?.size).toBe(12 * 4);
+      expect(gpu.buffers[10]?.size).toBe(12 * 4);
+      expect(gpu.buffers[11]?.size).toBe(12 * 4);
     } finally {
       restore();
     }
