@@ -25,7 +25,7 @@ describe("GPU render resources", () => {
         gpu.renderPipelineDescriptors.find((descriptor) => descriptor.label === label)?.vertex
           .module;
       expect(pipelineVertex("triangle color")).toBe(pipelineVertex("line color"));
-      expect(pipelineVertex("triangle selection visible")).toBe(
+      expect(pipelineVertex("triangle selection visible")).not.toBe(
         pipelineVertex("line selection visible"),
       );
       for (const label of ["triangle picking", "line picking", "point picking"]) {

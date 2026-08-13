@@ -95,6 +95,16 @@ fn primitiveVisible(slot: u32, primitiveIndex: u32) -> bool {
     ((bodyIds.z == 0u && elementIds.y == 0u) || !ownerVisible(slot, bodyIds.z, elementIds.y));
 }
 
+fn primitiveSelectionVisible(slot: u32, primitiveIndex: u32, exactSelection: bool) -> bool {
+  let bodyIds = primitiveFaceBodyPickIds(primitiveIndex);
+  let elementIds = primitiveFaceElementPickIds(primitiveIndex);
+  if (!ownerVisible(slot, bodyIds.y, elementIds.x)) {
+    return false;
+  }
+  return exactSelection ||
+    ((bodyIds.z == 0u && elementIds.y == 0u) || !ownerVisible(slot, bodyIds.z, elementIds.y));
+}
+
 fn topologyOwnersVisible(slot: u32, topologyIndex: u32) -> bool {
   let range = topologyBodyRange(topologyIndex);
   if (range.y == 0u) {

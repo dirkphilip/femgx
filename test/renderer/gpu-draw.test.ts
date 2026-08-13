@@ -11,6 +11,7 @@ import {
   writeDrawOrder,
   writeEdgeOrder,
   writeNodeOrder,
+  writeSelectionOrder,
   type DrawCallContext,
 } from "../../src/renderer/gpu-draw";
 import { drawBatches } from "../../src/renderer/gpu-batch";
@@ -165,6 +166,37 @@ describe("GPU draw path", () => {
       );
       pass.end();
       expect(gpu.drawCalls).toEqual([{ indexCount: 3, instanceCount: 1 }]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("draws complete geometry for selection when ordinary rendering uses a face subset", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      const resource = uploadPart(draw, subsetPart);
+      expect(resource.subsetIndexCount).toBe(3);
+
+      patchInstances(draw, subsetPart.id, [{ slot: 0, data: record(0) }]);
+      writeSelectionOrder(draw, subsetPart.id, new Uint32Array([0]));
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) },
+        [{ partId: subsetPart.id, instanceCount: 1 }],
+        { kind: "surface", pass: "selection-visible" },
+      );
+      pass.end();
+      expect(gpu.drawCalls).toEqual([{ indexCount: 6, instanceCount: 1 }]);
     } finally {
       restore();
     }
