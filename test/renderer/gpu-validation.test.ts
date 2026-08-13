@@ -6,6 +6,7 @@ import {
   GpuValidationError,
 } from "../../src/renderer/gpu-validation";
 import { createGpuBundle } from "../../src/renderer/gpu-recovery";
+import { cameraStruct } from "../../src/renderer/gpu-shaders";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
 describe("GPU validation", () => {
@@ -82,6 +83,11 @@ describe("GPU validation", () => {
         "viewport background",
         "pick-depth compute/readback",
       ]);
+      const orbitShader = gpu.shaderModuleDescriptors.find(
+        (descriptor) => descriptor.label === "orbit pivot overlay",
+      );
+      expect(orbitShader?.code).toContain(cameraStruct);
+      expect(orbitShader?.code.match(/struct Camera \{/g)).toHaveLength(1);
     } finally {
       restore();
     }

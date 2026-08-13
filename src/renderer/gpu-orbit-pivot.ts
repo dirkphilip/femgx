@@ -7,6 +7,7 @@ import {
   createValidatedShaderModule,
   type GpuValidationOptions,
 } from "./gpu-validation";
+import { cameraStruct } from "./gpu-shaders";
 
 /** GPU resources for the library-owned screen-space camera-pivot widget. */
 export interface OrbitPivotResources {
@@ -193,7 +194,7 @@ const blendState: GPUBlendState = {
 };
 
 const pivotShader = /* wgsl */ `
-struct Camera { viewProjection: mat4x4<f32>, viewport: vec2<f32>, pointSize: f32, nearPlane: f32, farPlane: f32, ortho: f32, depthSlack: f32, _pad: f32, keyLightDirection: vec4<f32>, viewDirection: vec4<f32> };
+${cameraStruct}
 struct Pivot {
   position: vec3<f32>,
   _padding: f32,
