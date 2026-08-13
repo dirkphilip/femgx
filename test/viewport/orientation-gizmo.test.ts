@@ -159,6 +159,11 @@ describe("orientation gizmo", () => {
     );
     expect(clockwise?.children[1]?.attributes.get("d")).toBe("M 8 32 A 24 24 0 0 1 32 8");
     expect(clockwise?.children[2]?.attributes.get("points")).toBe("26 3 32 8 26 13");
+    const counterclockwise = svg?.children.find(
+      (child) => child.attributes.get("data-rotate") === "counterclockwise",
+    );
+    expect(counterclockwise?.children[1]?.attributes.get("d")).toBe("M 68 92 A 24 24 0 0 0 92 68");
+    expect(counterclockwise?.children[2]?.attributes.get("points")).toBe("87 74 92 68 97 74");
     gizmo.destroy();
   });
 
