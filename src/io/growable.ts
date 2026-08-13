@@ -1,6 +1,6 @@
 /**
  * A growable Uint32Array backing store for compact incremental accumulation of
- * integer streams (cell starts, connectivity, types).
+ * integer data (cell starts, connectivity, types).
  */
 export class Uint32Buffer {
   private values = new Uint32Array(1024);
@@ -58,7 +58,7 @@ export class Uint32Buffer {
   }
 }
 
-/** A growable Float64Array backing store for compact incremental accumulation of value streams. */
+/** A growable Float64Array backing store for compact incremental accumulation of values. */
 export class Float64Buffer {
   private values = new Float64Array(1024);
   private length = 0;

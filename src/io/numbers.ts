@@ -5,8 +5,7 @@ export interface SourceLine {
 }
 
 /**
- * Yields the lines of `source` one at a time without materializing an array,
- * so very large documents can be streamed through a parser.
+ * Yields the lines of `source` one at a time without materializing an array.
  * @yields {SourceLine} one `{ text, line }` pair for each line of the source.
  */
 export function* textLines(source: string): Generator<SourceLine, void, void> {

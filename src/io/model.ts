@@ -63,8 +63,8 @@ export interface ModelResultField {
 
 /**
  * The versioned interchange model that all adapters import into and export
- * from. It is fully serializable (typed arrays + plain objects), so it can be
- * passed across Web Worker postMessage boundaries.
+ * from. It is fully serializable because it contains only typed arrays and
+ * plain objects.
  */
 export interface FemModel {
   readonly formatVersion: number;

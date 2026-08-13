@@ -15,8 +15,8 @@ single supported format adapter: VTK legacy ASCII. See also
 - `results` — named fields aligned to node/element ids with `components`.
 
 Because every array is a typed array and every value is a plain object, a
-`FemModel` passes directly across Web Worker `postMessage` boundaries. Bump
-`FEMGX_FORMAT_VERSION` when a writer changes field semantics.
+`FemModel` is fully serializable. Bump `FEMGX_FORMAT_VERSION` when a writer
+changes field semantics.
 
 ## Model builder (`io/build.ts`)
 
