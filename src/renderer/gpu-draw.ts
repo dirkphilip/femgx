@@ -21,6 +21,7 @@ const POINT_SPRITE_INDICES = [0, 1, 2, 0, 2, 3] as const;
 export {
   INSTANCE_STRIDE,
   EMISSIVE_BYTE_OFFSET,
+  LINE_WIDTH_BYTE_OFFSET,
   encodeInstanceRecord,
   patchInstances,
   writeDrawOrder,

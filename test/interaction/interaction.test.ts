@@ -27,6 +27,7 @@ const base: ResolvedStyle = {
   color: { r: 0.2, g: 0.3, b: 0.4, a: 1 },
   emissive: 0,
   opacity: 1,
+  lineWidthPixels: 2,
   edge: false,
   nodes: false,
 };
@@ -115,6 +116,18 @@ describe("instance style resolution", () => {
     expect(resolveInstanceStyle(item, base, state).nodes).toBe(false);
     state = setInstanceOverride(state, item.instanceId, { nodes: true });
     expect(resolveInstanceStyle(item, base, state).nodes).toBe(true);
+  });
+
+  it("resolves line width only through part and instance overrides", () => {
+    let state = setPartOverride(createInteractionState(), item.partId, { lineWidthPixels: 6 });
+    expect(resolveInstanceStyle(item, base, state).lineWidthPixels).toBe(6);
+    state = setInstanceOverride(state, item.instanceId, { lineWidthPixels: 3 });
+    expect(resolveInstanceStyle(item, base, state).lineWidthPixels).toBe(3);
+    expect(() =>
+      setElementOverride(createInteractionState(), { instanceId: "1/0", elementId: 2 }, {
+        lineWidthPixels: 4,
+      } as never),
+    ).toThrow("lineWidthPixels is only supported on part and instance overrides");
   });
 
   it("rejects overlay membership on primitive-specific override boundaries", () => {

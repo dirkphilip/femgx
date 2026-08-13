@@ -108,7 +108,7 @@ export class RendererAttachment {
     );
     let transformChanged = false;
     for (const [partId, partUpdates] of updates) {
-      transformChanged ||= instanceTransformsChanged(bundle.draw, partId, partUpdates);
+      transformChanged ||= instanceRecordsChanged(bundle.draw, partId, partUpdates);
       patchInstances(bundle.draw, partId, partUpdates);
     }
     if (edgeChanged.size > 0) {
@@ -396,7 +396,7 @@ function isTransparent(alpha: number): boolean {
   return alpha < 1;
 }
 
-function instanceTransformsChanged(
+function instanceRecordsChanged(
   draw: DrawResources,
   partId: PartId,
   updates: readonly InstanceUpdate[],
@@ -406,9 +406,14 @@ function instanceTransformsChanged(
   const current = new Uint8Array(storage.data);
   for (const update of updates) {
     const offset = update.slot * INSTANCE_STRIDE;
-    const next = new Uint8Array(update.data, 0, 64);
-    const previous = current.subarray(offset, offset + 64);
-    if (next.some((value, index) => value !== previous[index])) return true;
+    const next = new Uint8Array(update.data);
+    const previous = current.subarray(offset, offset + INSTANCE_STRIDE);
+    for (let byte = 0; byte < 64; byte += 1) {
+      if (next[byte] !== previous[byte]) return true;
+    }
+    for (let byte = 92; byte < 96; byte += 1) {
+      if (next[byte] !== previous[byte]) return true;
+    }
   }
   return false;
 }

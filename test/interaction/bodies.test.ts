@@ -24,6 +24,7 @@ const base: ResolvedStyle = {
   color: { r: 0.2, g: 0.3, b: 0.4, a: 1 },
   emissive: 0,
   opacity: 1,
+  lineWidthPixels: 2,
   edge: false,
   nodes: false,
 };
@@ -81,6 +82,7 @@ describe("resolveBodyStyle", () => {
       color: { r: 0.95, g: 0.5, b: 0.1, a: 1 },
       emissive: 0.05,
       opacity: 0.25,
+      lineWidthPixels: 2,
       edge: false,
       nodes: false,
     });

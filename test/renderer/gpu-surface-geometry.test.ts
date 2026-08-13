@@ -32,4 +32,19 @@ describe("expanded surface geometry", () => {
     expect(Array.from(expanded.primitiveIds)).toEqual([1, 1, 1]);
     expect(Array.from(expanded.indices)).toEqual([0, 1, 2]);
   });
+
+  it("expands authored line segments into indexed screen-space quads", () => {
+    const geometry = {
+      positions: new Float32Array([0, 0, 0, 2, 0, 0, 2, 2, 0]),
+      indices: new Uint32Array([0, 1, 1, 2]),
+      nodePickIds: new Uint32Array([4, 5, 6]),
+      primitive: "lines" as const,
+    };
+
+    const expanded = expandSurfaceGeometry(geometry);
+
+    expect(Array.from(expanded.indices)).toEqual([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
+    expect(Array.from(expanded.primitiveIds)).toEqual([0, 0, 0, 0, 1, 1, 1, 1]);
+    expect(Array.from(expanded.nodePickIds)).toEqual([4, 5, 5, 4, 5, 6, 6, 5]);
+  });
 });

@@ -273,7 +273,7 @@ function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
   uniform[18] = pointSizeDevicePixels(frame.pointSize, frame.devicePixelRatio);
   uniform[19] = nodeSizeDevicePixels(frame.nodeSize, frame.devicePixelRatio);
   uniform[20] = frame.devicePixelRatio;
-  uniform[21] = 0;
+  uniform[21] = 8;
   uniform[22] = 0;
   uniform.set(cameraKeyLightDirection(camera), 24);
   uniform.set(cameraViewDirection(camera), 28);

@@ -24,7 +24,7 @@ struct Camera {
   pointSize: f32,
   nodeSize: f32,
   devicePixelRatio: f32,
-  _reserved: f32,
+  linePickSize: f32,
   _reserved2: f32,
   keyLightDirection: vec4<f32>,
   viewDirection: vec4<f32>,
@@ -51,7 +51,7 @@ struct Instance {
   pickId: u32,
   emissive: f32,
   selected: u32,
-  _padding: u32,
+  lineWidth: f32,
 };
 `;
 
@@ -152,6 +152,43 @@ fn spriteCorner(corner: u32) -> vec2<f32> {
     case 2u: { return vec2<f32>(1.0, 1.0); }
     default: { return vec2<f32>(-1.0, 1.0); }
   }
+}
+`;
+
+/** Shared screen-space expansion for authored line triangle quads. */
+export const lineExpansionFn = /* wgsl */ `
+fn lineExpandedPosition(
+  clipA: vec4<f32>,
+  clipB: vec4<f32>,
+  corner: u32,
+  widthPixels: f32,
+) -> vec4<f32> {
+  if (camera.viewport.x <= 0.0 || camera.viewport.y <= 0.0 ||
+      clipA.w <= 1e-5 || clipB.w <= 1e-5) {
+    return vec4<f32>(2.0, 2.0, 2.0, 1.0);
+  }
+  let ndcA = clipA.xy / clipA.w;
+  let ndcB = clipB.xy / clipB.w;
+  let screenA = ndcA * camera.viewport * 0.5;
+  let screenB = ndcB * camera.viewport * 0.5;
+  let delta = screenB - screenA;
+  let lengthDelta = length(delta);
+  if (lengthDelta != lengthDelta || lengthDelta <= 1e-5) {
+    return vec4<f32>(2.0, 2.0, 2.0, 1.0);
+  }
+  let direction = delta / lengthDelta;
+  let normal = vec2<f32>(-direction.y, direction.x);
+  let halfWidth = max(widthPixels, 0.5) * 0.5;
+  let isB = corner == 1u || corner == 2u;
+  let isPositiveSide = corner >= 2u;
+  let center = select(screenA, screenB, isB);
+  let cap = direction * halfWidth * select(-1.0, 1.0, isB);
+  let side = normal * halfWidth * select(-1.0, 1.0, isPositiveSide);
+  let pixelPosition = center + cap + side;
+  let pixelOffset = pixelPosition - center;
+  let clip = select(clipA, clipB, isB);
+  let ndcOffset = pixelOffset * 2.0 / camera.viewport;
+  return vec4<f32>(clip.xy + ndcOffset * clip.w, clip.z, clip.w);
 }
 `;
 

@@ -157,7 +157,7 @@ describe("FemViewport", () => {
       onRender,
     });
 
-    expect(latestCameraUniform(gpu).slice(18, 22)).toEqual(new Float32Array([12.5, 3.25, 1, 0]));
+    expect(latestCameraUniform(gpu).slice(18, 22)).toEqual(new Float32Array([12.5, 3.25, 1, 8]));
     expect(() => {
       viewport.setPointSizePixels(0);
     }).toThrow(/pointSizePixels/);
@@ -177,11 +177,11 @@ describe("FemViewport", () => {
       viewport.setNodeSizePixels(24);
     });
     expect(onRender).toHaveBeenCalledTimes(4);
-    expect(latestCameraUniform(gpu).slice(18, 22)).toEqual(new Float32Array([20, 24, 1, 0]));
+    expect(latestCameraUniform(gpu).slice(18, 22)).toEqual(new Float32Array([20, 24, 1, 8]));
     viewport.resize();
     viewport.setScene(scene(10));
     viewport.render();
-    expect(latestCameraUniform(gpu).slice(18, 22)).toEqual(new Float32Array([20, 24, 1, 0]));
+    expect(latestCameraUniform(gpu).slice(18, 22)).toEqual(new Float32Array([20, 24, 1, 8]));
     viewport.destroy();
 
     await expect(
