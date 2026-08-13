@@ -106,6 +106,12 @@ default unit suite without coverage-distorted timing.
 
 ## Browser performance (opt-in)
 
+Optional triangle-edge geometry is not part of the cold attachment estimate. The
+benchmark memory estimator accepts the part ids whose edge resources have
+materialized, so edge position, index, topology, node-id, and result-tail bytes
+are counted only after the first edge draw. This mirrors the retained per-part
+cache: toggling additional placements does not multiply those bytes.
+
 `npm run bench:webgpu` runs `e2e/perf.spec.ts` in system Chrome. It is skipped
 by the normal e2e gate and has no device-dependent pass/fail timing threshold.
 The benchmark fixes the canvas at 800×600 device pixels and DPR 1, requests a
@@ -175,8 +181,9 @@ The JSON report identifies the browser user agent, adapter identity and fallback
 status, enabled features, resolution, DPR, FE family, unique/submitted element
 counts, triangle counts, timings, and an estimated renderer-owned
 buffer/render-target memory breakdown. The breakdown includes appended inactive
-result-color tails, expanded main/edge geometry, topology/pick metadata,
-face-subset buffers, per-part deformation and highlight storage, six
+result-color tails, expanded main geometry and materialized optional edge
+geometry, topology/pick metadata, face-subset buffers, per-part deformation and
+highlight storage, six
 instance-order buffers, pooled pick readback, and the multisampled visible color
 targets. It separately reports retained GPU buffers, measurable CPU scene typed
 arrays, and an upload-staging upper bound; `memoryEstimateScope` documents that

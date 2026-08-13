@@ -12,7 +12,7 @@ import type { DrawPipelines } from "./gpu-pipelines";
 import { expandSurfaceGeometry, type SurfaceVertexData } from "./gpu-surface-geometry";
 import { createBuffer, type PartResource } from "./gpu-support";
 import { appendResultColorTail, createResultColorTail } from "./gpu-result-colors";
-import { buildPartGeometryData } from "./gpu-geometry-upload";
+import { buildPartEdgeResources, buildPartGeometryData } from "./gpu-geometry-upload";
 import { createColorTargets, destroyColorTargets, type ColorTargets } from "./gpu-targets";
 import { GpuCostAccumulator } from "./gpu-cost";
 
@@ -130,22 +130,16 @@ export function uploadNodePart(
       GPUBufferUsage.STORAGE,
     ),
     nodePickIdsBuffer: createBuffer(draw.device, ids, GPUBufferUsage.STORAGE),
-    edgeNodePickIdsBuffer: createBuffer(draw.device, ids, GPUBufferUsage.STORAGE),
-    edgeVertexBuffer: createBuffer(draw.device, new Float32Array(3), GPUBufferUsage.VERTEX),
-    edgeIndexBuffer: createBuffer(draw.device, new Uint32Array(1), GPUBufferUsage.INDEX),
+    edge: undefined,
     indexCount: indices.length,
-    edgeIndexCount: 0,
     subsetIndexCount: 0,
-    subsetEdgeIndexCount: 0,
   };
   draw.nodeParts.set(part.id, resource);
   return resource;
 }
 
 /**
- * Returns the cached geometry buffers for a part, uploading them once. Only
- * triangle parts carry a deduplicated edge list, so the edge overlay never
- * draws spurious edges for line or point primitives.
+ * Returns the cached mandatory geometry buffers for a part, uploading them once.
  */
 export function uploadPart(
   draw: DrawResources,
@@ -172,28 +166,41 @@ export function uploadPart(
     indexBuffer,
     resultColorBuffers: [
       { buffer: vertexBuffer, offset: vertexWithResults.offset },
-      geometryData.edgeResultColorBinding,
       ...(geometryData.subsetResultColorBinding === undefined
         ? []
         : [geometryData.subsetResultColorBinding]),
-      ...(geometryData.subsetEdgeResultColorBinding === undefined
-        ? []
-        : [geometryData.subsetEdgeResultColorBinding]),
     ],
     resultColorNodeCount: resultTail.resultColorNodeCount,
     resultColorsSource: resultColors,
     resultColorsActive: resultColors !== undefined,
     ...geometryData.picks,
     facePickIdsBuffer: geometryData.facePickIdsBuffer,
-    ...geometryData.edgeBuffers,
+    edge: undefined,
     indexCount: vertexData.indices.length,
-    edgeIndexCount: geometryData.edgeData.indices.length,
     ...geometryData.subsetBuffers,
     subsetIndexCount: geometryData.subsetIndices?.length ?? 0,
-    subsetEdgeIndexCount: geometryData.hasSubset ? geometryData.edgeData.indices.length : 0,
   };
   draw.parts.set(part.id, resource);
   return resource;
+}
+
+/** Materializes and caches a part's optional edge resource on first use. */
+export function ensureEdgeResources(
+  draw: DrawResources,
+  part: Part,
+  resource: PartResource,
+): NonNullable<PartResource["edge"]> | undefined {
+  if (part.geometry.primitive !== "triangles") return undefined;
+  if (resource.edge !== undefined) return resource.edge;
+  const resultTail = createResultColorTail(
+    new Uint32Array([resource.resultColorNodeCount - 1]),
+    resource.resultColorsSource,
+  );
+  const edge = buildPartEdgeResources(draw.device, part, resultTail);
+  if (edge === undefined) return undefined;
+  resource.edge = edge;
+  resource.resultColorBuffers = [...resource.resultColorBuffers, edge.resultColorBinding];
+  return edge;
 }
 
 interface PointVertexData {
@@ -247,15 +254,14 @@ export function destroyDrawResources(draw: DrawResources): void {
     resource.elementPickIdsBuffer.destroy();
     resource.facePickIdsBuffer.destroy();
     resource.nodePickIdsBuffer.destroy();
-    resource.edgeNodePickIdsBuffer.destroy();
-    resource.edgeVertexBuffer.destroy();
-    resource.edgeIndexBuffer.destroy();
+    resource.edge?.edgeNodePickIdsBuffer.destroy();
+    resource.edge?.edgeVertexBuffer.destroy();
+    resource.edge?.edgeIndexBuffer.destroy();
+    resource.edge?.edgeTopologyBuffer.destroy();
     resource.subsetIndexBuffer?.destroy();
     resource.subsetVertexBuffer?.destroy();
     resource.subsetNodePickIdsBuffer?.destroy();
     resource.subsetTopologyBuffer?.destroy();
-    resource.subsetEdgeVertexBuffer?.destroy();
-    resource.subsetEdgeIndexBuffer?.destroy();
   }
   for (const resource of draw.nodeParts.values()) {
     resource.vertexBuffer.destroy();
@@ -263,15 +269,14 @@ export function destroyDrawResources(draw: DrawResources): void {
     resource.elementPickIdsBuffer.destroy();
     resource.facePickIdsBuffer.destroy();
     resource.nodePickIdsBuffer.destroy();
-    resource.edgeNodePickIdsBuffer.destroy();
-    resource.edgeVertexBuffer.destroy();
-    resource.edgeIndexBuffer.destroy();
+    resource.edge?.edgeNodePickIdsBuffer.destroy();
+    resource.edge?.edgeVertexBuffer.destroy();
+    resource.edge?.edgeIndexBuffer.destroy();
+    resource.edge?.edgeTopologyBuffer.destroy();
     resource.subsetIndexBuffer?.destroy();
     resource.subsetVertexBuffer?.destroy();
     resource.subsetNodePickIdsBuffer?.destroy();
     resource.subsetTopologyBuffer?.destroy();
-    resource.subsetEdgeVertexBuffer?.destroy();
-    resource.subsetEdgeIndexBuffer?.destroy();
   }
   for (const storage of draw.storages.values()) {
     storage.buffer.destroy();

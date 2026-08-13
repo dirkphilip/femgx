@@ -7,6 +7,7 @@ import {
 } from "../../src/index";
 import {
   createWebGpuRenderer,
+  readMaterializedEdgePartIds,
   readGpuCostSnapshot,
   type WebGpuRenderer,
 } from "../../src/renderer/gpu-renderer";
@@ -47,6 +48,7 @@ export async function measureBenchmarkCase(
   let coldSample: Record<keyof SampleSet, number>;
   let interactive: WebGpuBenchmarkCaseResult["interactive"];
   let gpuCost: WebGpuBenchmarkCaseResult["gpuCost"];
+  let materializedEdgePartIds: ReadonlySet<number>;
   const samples = emptySamples();
   const uniqueTriangles = countUniqueTriangles(benchmarkCase);
   try {
@@ -82,6 +84,7 @@ export async function measureBenchmarkCase(
       if (index >= WARMUP_SAMPLES) pushSample(samples, sample);
     }
     gpuCost = readGpuCostSnapshot(renderer);
+    materializedEdgePartIds = readMaterializedEdgePartIds(renderer);
     phase = "interactive sample";
     interactive = hasInteractiveSample(benchmarkCase)
       ? await measureInteractiveSamples({
@@ -125,6 +128,7 @@ export async function measureBenchmarkCase(
       runtime.instanceCount,
       WIDTH,
       HEIGHT,
+      { materializedEdgePartIds },
     ),
     gpuCost,
   };

@@ -4,6 +4,7 @@ import type { Part } from "../geometry/part";
 import {
   uploadNodePart,
   uploadPart,
+  ensureEdgeResources,
   type DrawCall,
   type DrawCallContext,
   type DrawResources,
@@ -85,7 +86,8 @@ function drawOneBatch(
   if (nodes && part.geometry.primitive === "points") return current;
   const geometry = uploadBatchGeometry(draw, context, part, nodes);
   const subset = usesFaceSubset(intent, part, nodes);
-  if (overlay && (subset ? geometry.subsetEdgeIndexCount : geometry.edgeIndexCount) === 0) {
+  if (overlay && ensureEdgeResources(draw, part, geometry) === undefined) return current;
+  if (overlay && (geometry.edge?.edgeIndexCount ?? 0) === 0) {
     return current;
   }
   if (!overlay && subset && geometry.subsetIndexCount === 0) return current;
@@ -160,27 +162,22 @@ function bindDrawGeometry(
   subset: boolean,
 ): number | undefined {
   const vertexBuffer = overlay
-    ? subset
-      ? (geometry.subsetEdgeVertexBuffer ?? geometry.edgeVertexBuffer)
-      : geometry.edgeVertexBuffer
+    ? geometry.edge?.edgeVertexBuffer
     : subset
       ? (geometry.subsetVertexBuffer ?? geometry.vertexBuffer)
       : geometry.vertexBuffer;
   const indexBuffer = overlay
-    ? subset
-      ? geometry.subsetEdgeIndexBuffer
-      : geometry.edgeIndexBuffer
+    ? geometry.edge?.edgeIndexBuffer
     : subset
       ? geometry.subsetIndexBuffer
       : geometry.indexBuffer;
   const count = overlay
-    ? subset
-      ? geometry.subsetEdgeIndexCount
-      : geometry.edgeIndexCount
+    ? geometry.edge?.edgeIndexCount
     : subset
       ? geometry.subsetIndexCount
       : geometry.indexCount;
-  if (indexBuffer === undefined) return undefined;
+  if (indexBuffer === undefined || vertexBuffer === undefined || count === undefined)
+    return undefined;
   pass.setVertexBuffer(0, vertexBuffer);
   pass.setIndexBuffer(indexBuffer, "uint32");
   return count;

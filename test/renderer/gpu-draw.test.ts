@@ -121,21 +121,19 @@ describe("GPU draw path", () => {
       const second = uploadPart(draw, part);
       expect(second).toBe(first);
       expect(second.indexCount).toBe(3);
-      expect(gpu.buffers).toHaveLength(8);
+      expect(gpu.buffers).toHaveLength(5);
       expect(gpu.buffers[0]?.size).toBe(68);
       expect(gpu.buffers[1]?.size).toBe(12);
       expect(gpu.buffers[2]?.size).toBe(4);
       expect(gpu.buffers[3]?.size).toBe(12);
-      expect(gpu.buffers[4]?.size).toBe(144);
-      expect(gpu.buffers[5]?.size).toBe(104);
-      expect(gpu.buffers[6]?.size).toBe(24);
-      expect(gpu.buffers[7]?.size).toBe(24);
+      expect(gpu.buffers[4]?.size).toBe(56);
+      expect(first.edge).toBeUndefined();
     } finally {
       restore();
     }
   });
 
-  it("draws a face subset through compact indices and expanded edge endpoints", () => {
+  it("draws a face subset through compact surface indices", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
@@ -143,10 +141,9 @@ describe("GPU draw path", () => {
       const resource = uploadPart(draw, subsetPart);
       expect(resource.indexCount).toBe(6);
       expect(resource.subsetIndexCount).toBe(3);
-      expect(resource.subsetEdgeIndexCount).toBe(6);
       expect(resource.subsetIndexBuffer).toBeDefined();
-      expect(resource.subsetEdgeIndexBuffer).toBeDefined();
-      expect(gpu.buffers).toHaveLength(14);
+      expect(resource.edge).toBeUndefined();
+      expect(gpu.buffers).toHaveLength(9);
 
       patchInstances(draw, subsetPart.id, [{ slot: 0, data: record(0) }]);
       writeDrawOrder(draw, subsetPart.id, new Uint32Array([0]));
@@ -453,6 +450,9 @@ describe("GPU draw path", () => {
     try {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
+      const resource = uploadPart(draw, part);
+      expect(resource.edge).toBeUndefined();
+      expect(gpu.buffers).toHaveLength(5);
       patchInstances(draw, part.id, [
         { slot: 0, data: record(0) },
         { slot: 1, data: record(1) },
@@ -471,6 +471,7 @@ describe("GPU draw path", () => {
         kind: "surface",
         pass: "color",
       });
+      const buffersBeforeEdge = gpu.buffers.length;
       drawBatches(pass, draw, drawContext(), [{ partId: part.id, instanceCount: 2 }], {
         kind: "edge",
         pipeline: {} as GPURenderPipeline,
@@ -481,6 +482,22 @@ describe("GPU draw path", () => {
         { indexCount: 6, instanceCount: 2 },
       ]);
       expect(gpu.bindGroupCreations).toBe(2);
+      expect(resource.edge).toBeDefined();
+      expect(gpu.buffers).toHaveLength(buffersBeforeEdge + 4);
+      const buffersAfterFirstEdge = gpu.buffers.length;
+      const encoder2 = gpu.device.createCommandEncoder();
+      const pass2 = beginColorPass(
+        encoder2,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+      drawBatches(pass2, draw, drawContext(), [{ partId: part.id, instanceCount: 2 }], {
+        kind: "edge",
+        pipeline: {} as GPURenderPipeline,
+      });
+      pass2.end();
+      expect(gpu.buffers).toHaveLength(buffersAfterFirstEdge);
     } finally {
       restore();
     }

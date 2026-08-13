@@ -8,7 +8,11 @@ import {
   type PlanarGridOptions,
 } from "../fixture/planar-grid";
 import { createPerformancePreset } from "../fixture/performance-fixture";
-export { estimateBenchmarkMemory, type BenchmarkMemoryEstimate } from "./memory";
+export {
+  estimateBenchmarkMemory,
+  type BenchmarkMemoryEstimate,
+  type BenchmarkMemoryOptions,
+} from "./memory";
 
 const ROOT_ASSEMBLY_ID = 1;
 
