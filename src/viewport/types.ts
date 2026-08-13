@@ -12,6 +12,12 @@ import type { SceneRuntime } from "../scene-runtime/public-runtime";
 import type { OrientationGizmoOptions } from "./orientation-gizmo";
 import type { ViewportResultsConfig, ViewportResultsState } from "./results";
 
+/** Options for an interruptible viewport camera transition. */
+export interface CameraTransitionOptions {
+  /** Non-negative transition duration in milliseconds; zero applies immediately. */
+  readonly durationMs?: number;
+}
+
 export type { ViewportBackground } from "../renderer/gpu-renderer";
 
 /** Inputs for the opinionated WebGPU FEM viewport. */
@@ -30,6 +36,8 @@ export interface FemViewportOptions {
   readonly onError?: (error: unknown) => void;
   readonly onGestureChange?: (active: boolean) => void;
   readonly onRender?: () => void;
+  /** Optional host-owned target for the core `Z` fit-selection shortcut. */
+  readonly keyboardTarget?: EventTarget;
 }
 
 /** Canonical scene, camera, interaction, rendering, and lifecycle owner. */
@@ -40,8 +48,9 @@ export interface FemViewport {
   readonly interaction: InteractionState;
   readonly results: ViewportResultsState | undefined;
   setScene(scene: Scene): void;
-  setCamera(camera: Camera): void;
-  fitView(): void;
+  setCamera(camera: Camera, options?: CameraTransitionOptions): void;
+  fitView(options?: CameraTransitionOptions): void;
+  fitSelection(options?: CameraTransitionOptions): void;
   setInteraction(interaction: InteractionState): void;
   /** Groups synchronous mutations into one deferred invalidation and render. */
   batch<T>(operation: () => T): T;

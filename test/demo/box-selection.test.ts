@@ -232,7 +232,6 @@ describe("workbench hover suppression", () => {
       setResults: () => undefined,
       reset: () => undefined,
       fitView: () => undefined,
-      fitSelection: () => undefined,
       setModel: () => undefined,
       openGlb: () => undefined,
     });

@@ -24,7 +24,6 @@ export interface WorkbenchLifecycleOptions {
   readonly setResults: () => void;
   readonly reset: () => void;
   readonly fitView: () => void;
-  readonly fitSelection: () => void;
   readonly setModel: (id: string) => void;
   readonly openGlb: (file: File) => void;
 }
@@ -55,7 +54,6 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     setResults: options.setResults,
     reset: options.reset,
     fitView: options.fitView,
-    fitSelection: options.fitSelection,
     setModel: options.setModel,
     openGlb: options.openGlb,
   });

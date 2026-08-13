@@ -10,8 +10,6 @@ import {
   type SceneRuntime,
   type ViewportBackground,
 } from "../../src/index";
-import { selectedWorldBounds } from "./selection-bounds";
-import { WorkbenchCameraTransition } from "./camera-transition";
 import type { DemoView } from "./view";
 import { installWorkbenchLifecycle } from "./lifecycle";
 import { createModelInteraction } from "./preset";
@@ -60,7 +58,6 @@ export class WorkbenchController {
   private readonly interactionController: WorkbenchFeatures["interactionController"];
   private readonly presentation: WorkbenchFeatures["presentation"];
   private readonly boxPreview: WorkbenchFeatures["boxPreview"];
-  private readonly cameraTransition: WorkbenchCameraTransition;
   private readonly renderLoop: WorkbenchRenderLoop;
   private boxSelectionDisposer: (() => void) | undefined;
   private dragging = false;
@@ -79,14 +76,6 @@ export class WorkbenchController {
     this.observedDevicePixelRatio = this.devicePixelRatio();
     this.rendererName = options.rendererName;
     this.viewport = options.viewport;
-    this.cameraTransition = new WorkbenchCameraTransition(
-      this.canvas,
-      () => this.viewport,
-      () => {
-        this.render();
-      },
-      this.listenerController.signal,
-    );
     this.renderLoop = new WorkbenchRenderLoop(() => this.viewport);
     this.examples = options.presets;
     const initialModel = this.examples[0];
@@ -186,9 +175,6 @@ export class WorkbenchController {
       fitView: () => {
         this.fitView();
       },
-      fitSelection: () => {
-        this.fitSelection();
-      },
       setModel: (id) => {
         this.setModel(id);
       },
@@ -240,7 +226,6 @@ export class WorkbenchController {
   }
 
   setCameraGestureActive(active: boolean): void {
-    if (active) this.cameraTransition.cancel();
     this.dragging = active;
     this.canvas.dataset["dragging"] = active ? "true" : "false";
   }
@@ -349,15 +334,6 @@ export class WorkbenchController {
     this.render();
   }
 
-  fitSelection(): void {
-    const bounds = selectedWorldBounds(this.model.scene, this.runtime, this.interaction);
-    if (bounds === undefined) {
-      this.fitView();
-      return;
-    }
-    this.cameraTransition.fit(bounds);
-  }
-
   reset(): void {
     this.activateModel(this.model);
   }
@@ -368,7 +344,6 @@ export class WorkbenchController {
     this.renderLoop.stop();
     this.boxSelectionDisposer?.();
     this.listenerController.abort();
-    this.cameraTransition.cancel();
     this.interactionController.destroy();
     this.boxPreview.dispose();
     this.viewport.destroy();

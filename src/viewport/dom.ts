@@ -25,6 +25,48 @@ export function installResize(canvas: HTMLCanvasElement, resize: () => void): ()
   };
 }
 
+/** Installs the host-scoped core `Z` shortcut without adding a global listener. */
+export function installViewportKeyboard(
+  target: EventTarget | undefined,
+  fitSelection: () => void,
+): () => void {
+  if (target === undefined) return () => {};
+  const keyDown = (event: Event): void => {
+    const keyboard = event as KeyboardEvent;
+    if (
+      keyboard.key.toLowerCase() !== "z" ||
+      keyboard.repeat ||
+      keyboard.ctrlKey ||
+      keyboard.metaKey ||
+      keyboard.altKey ||
+      isEditableTarget(keyboard.target)
+    ) {
+      return;
+    }
+    keyboard.preventDefault();
+    fitSelection();
+  };
+  target.addEventListener("keydown", keyDown);
+  return () => {
+    target.removeEventListener("keydown", keyDown);
+  };
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (target === null || typeof target !== "object") return false;
+  const element = target as EventTarget & {
+    readonly isContentEditable?: boolean;
+    readonly tagName?: string;
+  };
+  const tagName = element.tagName?.toLowerCase();
+  return (
+    element.isContentEditable === true ||
+    tagName === "input" ||
+    tagName === "textarea" ||
+    tagName === "select"
+  );
+}
+
 /** Validates the host relationship before renderer or overlay setup begins. */
 export function validateOrientationGizmo(
   canvas: HTMLCanvasElement,

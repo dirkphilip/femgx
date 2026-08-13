@@ -102,6 +102,24 @@ export function applyViewportResultInteraction(
   return createInteractionStateValue({ ...baseData, elementOverrides });
 }
 
+/** Resolves base interaction through the currently installed result colors. */
+export function resolveViewportInteraction(
+  baseInteraction: InteractionState,
+  results: ViewportResultsState | undefined,
+  scene: Scene,
+  runtime: PackedSceneRuntime,
+): InteractionState {
+  return results === undefined
+    ? baseInteraction
+    : applyViewportResultInteraction(
+        baseInteraction,
+        results.scalarField,
+        results.colorMap,
+        scene,
+        runtime,
+      );
+}
+
 function deriveScalarField(
   field: ViewportResultField,
   derivation: ViewportResultDerivation | undefined,

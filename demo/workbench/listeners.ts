@@ -20,7 +20,6 @@ export interface WorkbenchBindingOptions {
   readonly setResults: () => void;
   readonly reset: () => void;
   readonly fitView: () => void;
-  readonly fitSelection: () => void;
   readonly setModel: (id: string) => void;
   readonly openGlb: (file: File) => void;
 }
@@ -114,20 +113,7 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
     "keydown",
     (event) => {
       if (event.key === "Escape") options.interaction.clearContext();
-      else if (event.key.toLowerCase() === "z" && !isEditableTarget(event.target)) {
-        event.preventDefault();
-        options.fitSelection();
-      }
     },
     { signal },
-  );
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
-    (target instanceof HTMLElement && target.isContentEditable)
   );
 }

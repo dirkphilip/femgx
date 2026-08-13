@@ -78,7 +78,7 @@ camera changes and fit-to-selection. An omitted or zero duration applies the
 destination immediately; a positive finite duration interpolates smoothly and
 lands on the exact protected destination. The default `Z` action fits the
 selected visible occurrences, or the complete scene when no eligible selection
-exists, over approximately one second. Selection determines the framing target,
+exists, over approximately 400 milliseconds. Selection determines the framing target,
 while the complete displayed scene remains protected from camera-plane crossing
 and clipping throughout the transition.
 
