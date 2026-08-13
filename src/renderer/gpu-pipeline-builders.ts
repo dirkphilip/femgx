@@ -217,6 +217,7 @@ function pipelineVariants(shaders: PipelineShaders): PipelineVariants {
       vertexEntry: "vertexMain",
       primitive: "triangle-list",
       cullMode: "none",
+      depthCompare: "less-equal",
     },
     points: {
       vertexModule: shaders.pointVertex,

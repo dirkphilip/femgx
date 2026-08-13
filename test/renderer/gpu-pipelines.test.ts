@@ -49,6 +49,14 @@ describe("GPU render resources", () => {
         srcFactor: "zero",
         dstFactor: "one-minus-src",
       });
+      expect(
+        gpu.renderPipelineDescriptors.find((descriptor) => descriptor.label === "line color")
+          ?.depthStencil?.depthCompare,
+      ).toBe("less-equal");
+      expect(
+        gpu.renderPipelineDescriptors.find((descriptor) => descriptor.label === "line picking")
+          ?.depthStencil?.depthCompare,
+      ).toBe("less-equal");
       expect(resources.composite).toBeDefined();
       expect(resources.edgePipeline).toBeDefined();
       expect(resources.edgeAlwaysPipeline).toBeDefined();
