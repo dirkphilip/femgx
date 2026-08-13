@@ -122,7 +122,6 @@ export class GpuRenderer implements WebGpuRenderer {
     this.ensureAlive();
     this.resultColors = colors;
     syncResultColors(this.lifecycle.bundle.draw, colors);
-    this.pickSnapshotValid = false;
   }
 
   public updateInstances(

@@ -287,6 +287,31 @@ describe("WebGPU renderer", () => {
     renderer.destroy();
   });
 
+  it("preserves pick snapshots across result color updates", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice({ pickValue: 1 });
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildScene();
+    const runtime = createPackedSceneRuntime(scene);
+
+    renderer.render(runtime, camera, scene.parts);
+    await renderer.pick(100, 100);
+
+    for (const colors of [
+      new Map([[1, new Float32Array([1, 0, 0, 1])]]),
+      new Map([[1, new Float32Array([0, 1, 0, 1])]]),
+      undefined,
+    ]) {
+      renderer.setResultColors(colors);
+      renderer.render(runtime, camera, scene.parts);
+      const drawCallsAfterVisibleRender = gpu.drawCalls.length;
+      await renderer.pick(100, 100);
+      expect(gpu.drawCalls).toHaveLength(drawCallsAfterVisibleRender);
+    }
+    renderer.destroy();
+  });
+
   it("invalidates pick snapshots when body visibility changes", async () => {
     restoreGpuGlobals = installGpuGlobals();
     const gpu = fakeGpuDevice({ pickValue: 1 });
