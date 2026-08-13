@@ -1,5 +1,5 @@
 import { assertValidCamera, type Camera } from "../camera/camera";
-import { fitCamera } from "../camera/fit";
+import { fitCamera, type CameraContentInset } from "../camera/fit";
 import { applyViewCubeAction, type ViewCubeAction } from "../camera/view-cube";
 import { type Bounds } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
@@ -24,6 +24,7 @@ export interface CameraFocusOptions {
   readonly runtime: () => PackedSceneRuntime;
   readonly interaction: () => InteractionState;
   readonly deformation: () => DeformationState | undefined;
+  readonly fitContentInset?: () => CameraContentInset;
   readonly invalidate: () => void;
 }
 
@@ -49,6 +50,7 @@ export class CameraFocusController {
       this.options.cameraRef.camera,
       sceneWorldBounds(this.options.scene(), this.options.runtime(), this.options.deformation()),
       this.options.canvas,
+      this.options.fitContentInset?.(),
     );
     this.apply(target, duration, invalidate);
   }
@@ -76,6 +78,7 @@ export class CameraFocusController {
       this.options.cameraRef.camera,
       fitBounds,
       this.options.canvas,
+      this.options.fitContentInset?.(),
     );
     this.apply(target, duration, invalidate);
   }
@@ -121,9 +124,14 @@ export class CameraFocusController {
   }
 }
 
-function fitCameraForBounds(camera: Camera, bounds: Bounds, canvas: HTMLCanvasElement): Camera {
+function fitCameraForBounds(
+  camera: Camera,
+  bounds: Bounds,
+  canvas: HTMLCanvasElement,
+  contentInset: CameraContentInset | undefined,
+): Camera {
   const size = cssSize(canvas);
-  return fitCamera(camera, bounds, size.width, size.height);
+  return fitCamera(camera, bounds, size.width, size.height, contentInset);
 }
 
 function resolveDuration(

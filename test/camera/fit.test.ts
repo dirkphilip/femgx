@@ -45,6 +45,25 @@ describe("fitCamera", () => {
     expect(Math.max(...projected.map((point) => point[0]))).toBeGreaterThan(1152 * 0.85);
   });
 
+  it.each(["perspective", "orthographic"] as const)(
+    "keeps fitted bounds inside an occlusion inset for %s projection",
+    (mode) => {
+      const fitted = fitCamera(createCamera({ mode }), bounds, 1152, 900, {
+        top: 180,
+        right: 80,
+        bottom: 40,
+        left: 24,
+      });
+      const projected = boundsCorners(bounds)
+        .map((corner) => projectPoint(fitted, corner))
+        .filter((point): point is readonly [number, number, number] => point !== undefined);
+      expect(Math.min(...projected.map((point) => point[0]))).toBeGreaterThanOrEqual(24);
+      expect(Math.max(...projected.map((point) => point[0]))).toBeLessThanOrEqual(1072);
+      expect(Math.min(...projected.map((point) => point[1]))).toBeGreaterThanOrEqual(180);
+      expect(Math.max(...projected.map((point) => point[1]))).toBeLessThanOrEqual(860);
+    },
+  );
+
   it("leaves orthographic fits clear for bounded orbiting", () => {
     const fitted = fitCamera(createCamera({ mode: "orthographic" }), bounds, 1152, 900);
     const rotated = orbitCameraWithinBounds(fitted, Math.PI / 2, 0, fitted.target, bounds);

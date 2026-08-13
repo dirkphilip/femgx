@@ -126,15 +126,15 @@ and placement boundary.
 
 ### Lifecycle and scene
 
-| Method                            | Purpose                                                          |
-| --------------------------------- | ---------------------------------------------------------------- |
-| `setScene(scene)`                 | Replace the authoritative scene and rebuild the derived runtime. |
-| `setCamera(camera)` / `fitView()` | Set or fit the immutable camera value.                           |
-| `resize()`                        | Match WebGPU render size to the canvas and device pixel ratio.   |
-| `invalidate()` / `render()`       | Schedule or perform a render of the current state.               |
-| `batch(operation)`                | Coalesce synchronous mutations into one invalidation and render. |
-| `recover()`                       | Recreate supported WebGPU resources after device loss.           |
-| `destroy()`                       | Release renderer, resize, and camera-control resources.          |
+| Method                            | Purpose                                                                                                       |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `setScene(scene)`                 | Replace the authoritative scene and rebuild the derived runtime.                                              |
+| `setCamera(camera)` / `fitView()` | Set or fit the immutable camera value; `fitContentInset` can keep host overlays outside the fitted rectangle. |
+| `resize()`                        | Match WebGPU render size to the canvas and device pixel ratio.                                                |
+| `invalidate()` / `render()`       | Schedule or perform a render of the current state.                                                            |
+| `batch(operation)`                | Coalesce synchronous mutations into one invalidation and render.                                              |
+| `recover()`                       | Recreate supported WebGPU resources after device loss.                                                        |
+| `destroy()`                       | Release renderer, resize, and camera-control resources.                                                       |
 
 ### Visibility and interaction
 

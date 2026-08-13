@@ -178,6 +178,12 @@ describe("FemViewport", () => {
     viewport.resize();
     expect(viewport.camera.width).toBe(320);
     expect(viewport.camera.height).toBe(200);
+    const manuallyFramed = { ...viewport.camera, orthoHeight: viewport.camera.orthoHeight * 0.5 };
+    viewport.setCamera(manuallyFramed);
+    Object.defineProperty(canvas, "clientWidth", { configurable: true, value: 640 });
+    Object.defineProperty(canvas, "clientHeight", { configurable: true, value: 360 });
+    viewport.resize();
+    expect(viewport.camera.orthoHeight).toBe(manuallyFramed.orthoHeight);
 
     viewport.setScene(scene(10));
     viewport.render();

@@ -1,17 +1,31 @@
 import { boundsCorners, type Bounds } from "../geometry/part";
-import { cross, dot, normalize, scale, subtract, type Vec3 } from "../math/vec3";
+import { add, cross, dot, length, normalize, scale, subtract, type Vec3 } from "../math/vec3";
 import type { Camera } from "./camera";
 import { cameraDepthMargin } from "./navigation";
 
 /** Fraction of the viewport occupied by the fitted bounds on each axis. */
 export const FIT_FRAME_FRACTION = 0.9;
 
+/** CSS-pixel occlusion to leave outside a fitted scene frame. */
+export interface CameraContentInset {
+  readonly top?: number;
+  readonly right?: number;
+  readonly bottom?: number;
+  readonly left?: number;
+}
+
 /** Keeps fitted bounds strictly inside the configured clip interval. */
 const FIT_POSITION_MARGIN = 0.01;
 const FIT_MIN_NEAR = 0.0001;
 
 /** Frames bounds around their center while preserving the camera orientation. */
-export function fitCamera(camera: Camera, bounds: Bounds, width: number, height: number): Camera {
+export function fitCamera(
+  camera: Camera,
+  bounds: Bounds,
+  width: number,
+  height: number,
+  contentInset: CameraContentInset = {},
+): Camera {
   const center: Vec3 = [
     midpoint(bounds.minX, bounds.maxX),
     midpoint(bounds.minY, bounds.maxY),
@@ -22,7 +36,9 @@ export function fitCamera(camera: Camera, bounds: Bounds, width: number, height:
   const dimensions = projectedDimensions(corners, orientation);
   const viewportWidth = Math.max(1, width);
   const viewportHeight = Math.max(1, height);
-  const aspect = viewportWidth / viewportHeight;
+  const inset = normalizedInset(contentInset, viewportWidth, viewportHeight);
+  const fitWidth = Math.max(1, viewportWidth - inset.left - inset.right);
+  const fitHeight = Math.max(1, viewportHeight - inset.top - inset.bottom);
   const depth = projectedDepths(corners, orientation.forward);
   const inputs: FitInputs = {
     camera,
@@ -34,9 +50,12 @@ export function fitCamera(camera: Camera, bounds: Bounds, width: number, height:
     depth,
     width: viewportWidth,
     height: viewportHeight,
-    aspect,
+    fitWidth,
+    fitHeight,
+    inset,
   };
-  return camera.mode === "orthographic" ? fitOrthographic(inputs) : fitPerspective(inputs);
+  const fitted = camera.mode === "orthographic" ? fitOrthographic(inputs) : fitPerspective(inputs);
+  return shiftToContentCenter(fitted, inset);
 }
 
 interface ViewOrientation {
@@ -55,15 +74,28 @@ interface FitInputs {
   readonly depth: readonly number[];
   readonly width: number;
   readonly height: number;
-  readonly aspect: number;
+  readonly fitWidth: number;
+  readonly fitHeight: number;
+  readonly inset: Required<CameraContentInset>;
 }
 
 function fitOrthographic(inputs: FitInputs): Camera {
-  const { camera, center, bounds, orientation, dimensions, depth, width, height, aspect } = inputs;
+  const {
+    camera,
+    center,
+    bounds,
+    orientation,
+    dimensions,
+    depth,
+    width,
+    height,
+    fitWidth,
+    fitHeight,
+  } = inputs;
   const orthoHeight = Math.max(
     0.001,
-    dimensions.height / FIT_FRAME_FRACTION,
-    dimensions.width / (aspect * FIT_FRAME_FRACTION),
+    (dimensions.height * height) / (fitHeight * FIT_FRAME_FRACTION),
+    (dimensions.width * height) / (fitWidth * FIT_FRAME_FRACTION),
   );
   const orbitClearance =
     Math.hypot(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY, bounds.maxZ - bounds.minZ) / 2;
@@ -88,7 +120,18 @@ function fitOrthographic(inputs: FitInputs): Camera {
 }
 
 function fitPerspective(inputs: FitInputs): Camera {
-  const { camera, center, bounds, orientation, corners, depth, width, height, aspect } = inputs;
+  const {
+    camera,
+    center,
+    bounds,
+    orientation,
+    corners,
+    depth,
+    width,
+    height,
+    fitWidth,
+    fitHeight,
+  } = inputs;
   const tangent = Math.tan(clamp(camera.fovY, 0.01, Math.PI - 0.01) / 2);
   const requiredDistance = Math.max(
     ...corners.map((corner, index) => {
@@ -96,8 +139,8 @@ function fitPerspective(inputs: FitInputs): Camera {
       const horizontal = Math.abs(dot(corner, orientation.right));
       const vertical = Math.abs(dot(corner, orientation.up));
       return Math.max(
-        horizontal / (tangent * aspect * FIT_FRAME_FRACTION) - projectedDepth,
-        vertical / (tangent * FIT_FRAME_FRACTION) - projectedDepth,
+        (horizontal * height) / (tangent * fitWidth * FIT_FRAME_FRACTION) - projectedDepth,
+        (vertical * height) / (tangent * fitHeight * FIT_FRAME_FRACTION) - projectedDepth,
       );
     }),
   );
@@ -152,6 +195,56 @@ function projectedDepths(corners: readonly Vec3[], forward: Vec3): readonly numb
 
 function midpoint(min: number, max: number): number {
   return Number.isFinite(min) && Number.isFinite(max) ? (min + max) / 2 : 0;
+}
+
+function normalizedInset(
+  inset: CameraContentInset,
+  width: number,
+  height: number,
+): Required<CameraContentInset> {
+  const normalized = {
+    top: inset.top ?? 0,
+    right: inset.right ?? 0,
+    bottom: inset.bottom ?? 0,
+    left: inset.left ?? 0,
+  };
+  for (const [name, value] of Object.entries(normalized)) {
+    if (!Number.isFinite(value) || value < 0) {
+      throw new RangeError(`Camera content inset ${name} must be finite and non-negative`);
+    }
+  }
+  return {
+    top: Math.min(normalized.top, height - 1),
+    right: Math.min(normalized.right, width - 1),
+    bottom: Math.min(normalized.bottom, height - 1),
+    left: Math.min(normalized.left, width - 1),
+  };
+}
+
+function shiftToContentCenter(camera: Camera, inset: Required<CameraContentInset>): Camera {
+  if (inset.top === 0 && inset.right === 0 && inset.bottom === 0 && inset.left === 0) {
+    return camera;
+  }
+  const forward = normalize(subtract(camera.target, camera.position));
+  const right = normalize(cross(forward, camera.up));
+  const up = cross(right, forward);
+  const pixelsPerWorldUnit =
+    camera.mode === "orthographic"
+      ? camera.height / camera.orthoHeight
+      : camera.height /
+        (2 * Math.tan(camera.fovY / 2)) /
+        length(subtract(camera.position, camera.target));
+  const screenDeltaX = (inset.left - inset.right) / 2;
+  const screenDeltaY = (inset.top - inset.bottom) / 2;
+  const delta = add(
+    scale(right, -screenDeltaX / pixelsPerWorldUnit),
+    scale(up, screenDeltaY / pixelsPerWorldUnit),
+  );
+  return {
+    ...camera,
+    position: add(camera.position, delta),
+    target: add(camera.target, delta),
+  };
 }
 
 function clamp(value: number, min: number, max: number): number {

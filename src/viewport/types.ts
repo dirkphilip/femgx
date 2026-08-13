@@ -11,6 +11,7 @@ import type { Scene } from "../scene/scene";
 import type { SceneRuntime } from "../scene-runtime/public-runtime";
 import type { OrientationGizmoOptions } from "./orientation-gizmo";
 import type { ViewportResultsConfig, ViewportResultsState } from "./results";
+import type { CameraContentInset } from "../camera/fit";
 
 /** Options for an interruptible viewport camera transition. */
 export interface CameraTransitionOptions {
@@ -38,6 +39,8 @@ export interface FemViewportOptions {
   readonly onRender?: () => void;
   /** Optional host-owned target for the core `Z` fit-selection shortcut. */
   readonly keyboardTarget?: EventTarget;
+  /** Optional host-owned occlusion reported when fitting the scene. */
+  readonly fitContentInset?: () => CameraContentInset;
 }
 
 /** Canonical scene, camera, interaction, rendering, and lifecycle owner. */
