@@ -29,8 +29,10 @@ controller, so camera and interaction behavior is stable
   [[requirements/demo-fixtures|the demo fixture requirements]]. Structured FE
   cases provide authored elements, shared node identities, stable primitive
   ownership, and separate logical-element, unique-triangle, and
-  submitted-triangle counts. Large cases are lazy or opt-in; the migration of
-  legacy aggregate cases is tracked in
+  submitted-triangle counts. Every Performance Lab selector entry is
+  inspectable at element granularity, and selecting one element never aliases
+  the complete part through fixture aggregation. Large cases are lazy or
+  opt-in; the migration of legacy aggregate cases is tracked in
   [issue #526](https://github.com/dirkphilip/femgx/issues/526).
 
 ## GPU picking
