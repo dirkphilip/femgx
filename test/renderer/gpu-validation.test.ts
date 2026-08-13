@@ -80,6 +80,7 @@ describe("GPU validation", () => {
         "transparency composite",
         "node annotation fragment",
         "orbit pivot overlay",
+        "world-origin triad",
         "viewport background",
         "pick-depth compute/readback",
       ]);

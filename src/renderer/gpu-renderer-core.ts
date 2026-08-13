@@ -12,6 +12,7 @@ import { RendererAttachment } from "./attachment";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
 import { syncDeformations, validateDeformation } from "./gpu-deform";
 import { encodePickSnapshot, encodeVisibleFrame } from "./gpu-frame";
+import { originTriadScale } from "./gpu-origin-triad";
 import { pickHitFromPixel, resetPickTargets } from "./gpu-pick";
 import { pickTargetsFromRegion } from "./gpu-pick-region";
 import { displayedPointFromPixel } from "./gpu-pick-point";
@@ -43,6 +44,7 @@ export class GpuRenderer implements WebGpuRenderer {
   private pickSnapshotValid = false;
   private edgeDepthTest = true;
   private orbitPivot: Vec3 | undefined;
+  private originScale = 0.12;
   private deformation: DeformationState | undefined;
   private destroyed = false;
 
@@ -87,6 +89,7 @@ export class GpuRenderer implements WebGpuRenderer {
     this.sourceParts = parts;
     this.lastCamera = camera;
     this.parts = new Map(parts);
+    this.originScale = originTriadScale(runtime, parts);
     const attachmentChanged = this.attachment.attach(runtime, this.lifecycle.bundle);
     this.attachment.updateNodeOrders(this.parts, this.lifecycle.bundle);
     syncDeformations(this.lifecycle.bundle.draw, this.deformation);
@@ -287,6 +290,7 @@ export class GpuRenderer implements WebGpuRenderer {
       pointSize: this.pointSize,
       deformation: this.deformation,
       orbitPivot: this.orbitPivot,
+      originTriadScale: this.originScale,
     };
   }
 }

@@ -107,6 +107,14 @@ resolved opacity, while node annotation membership is controlled by
 part/instance style flags and Point parts use their primary glyph without a
 duplicate overlay.
 
+Every viewport also renders one renderer-owned positive world-origin X/Y/Z
+triad. It is scaled from the complete placed-scene bounds, remains out of scene
+identity, bounds, interaction, results, and picking, and uses opaque depth-
+visible fragments plus a fixed-alpha weighted-transparency ghost behind opaque
+geometry. The triad is presentation behavior, not a public helper-material or
+visibility API; the lower-left orientation gizmo and temporary orbit pivot
+remain separate helpers.
+
 Everything outside the "Core now" rows is **not** a requirement of the minimum
 product.
 

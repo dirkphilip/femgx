@@ -30,7 +30,7 @@ describe("GPU render resources", () => {
       const transparent = gpu.renderPipelineDescriptors.filter(
         (descriptor) => descriptor.fragment?.targets.length === 2,
       );
-      expect(transparent).toHaveLength(3);
+      expect(transparent).toHaveLength(4);
       expect(
         transparent.every((descriptor) => descriptor.depthStencil?.depthWriteEnabled === false),
       ).toBe(true);
@@ -56,6 +56,27 @@ describe("GPU render resources", () => {
         ),
       ).toBeDefined();
       expect(resources.nodeOverlayPipelines.visible).toBeDefined();
+      expect(resources.originTriad.visiblePipeline).toBeDefined();
+      expect(resources.originTriad.hiddenPipeline).toBeDefined();
+      const originVisible = gpu.renderPipelineDescriptors.find(
+        (descriptor) => descriptor.label === "world-origin triad visible",
+      );
+      expect(originVisible?.depthStencil).toMatchObject({
+        depthCompare: "less-equal",
+        depthWriteEnabled: false,
+        stencilFront: { compare: "always", passOp: "replace" },
+        stencilWriteMask: 1,
+      });
+      const originHidden = gpu.renderPipelineDescriptors.find(
+        (descriptor) => descriptor.label === "world-origin triad hidden",
+      );
+      expect(originHidden?.depthStencil).toMatchObject({
+        depthCompare: "greater",
+        depthWriteEnabled: false,
+        stencilFront: { compare: "not-equal", passOp: "keep" },
+        stencilWriteMask: 0,
+      });
+      expect(originHidden?.fragment?.targets).toHaveLength(2);
       expect(resources.background.pipeline).toBeDefined();
       expect(resources.background.bindGroup).toBeDefined();
       expect(resources.background.buffer).toBeDefined();
@@ -85,7 +106,7 @@ describe("GPU render resources", () => {
       expect(gpu.renderPipelineDescriptors[0]?.primitive?.cullMode).toBe("none");
       expect(gpu.renderPipelineDescriptors[1]?.primitive?.cullMode).toBe("none");
       expect(resources.background.buffer).toHaveProperty("size", 32);
-      expect(gpu.buffers).toHaveLength(4);
+      expect(gpu.buffers).toHaveLength(5);
       destroyRenderResources(resources);
       expect(gpu.buffers.every((buffer) => buffer.destroyed)).toBe(true);
     } finally {

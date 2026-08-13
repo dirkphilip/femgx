@@ -12,6 +12,7 @@ import { beginPickPass } from "./gpu-pick-pass";
 import { beginColorPass, beginCompositePass, beginTransparencyPass } from "./gpu-passes";
 import type { RenderResources } from "./gpu-pipelines";
 import { ensureColorTargets, ensureCompositeBindGroup } from "./gpu-pipelines";
+import { drawOriginTriad, writeOriginTriad } from "./gpu-origin-triad";
 import { drawOrbitPivot } from "./gpu-orbit-pivot";
 
 /** Everything the per-frame command encoding needs from the renderer. */
@@ -45,6 +46,8 @@ export interface FrameOptions {
   readonly deformation: DeformationState | undefined;
   /** Active world-space camera spin pivot. */
   readonly orbitPivot: readonly [number, number, number] | undefined;
+  /** Stable complete-scene scale for the persistent world-origin triad. */
+  readonly originTriadScale: number;
 }
 
 /** Converts a CSS-pixel point diameter into device pixels for the GPU uniform. */
@@ -72,6 +75,7 @@ export function encodeVisibleFrame(
   frame: FrameOptions,
 ): void {
   writeFrameUniforms(camera, frame);
+  writeOriginTriad(frame.device, frame.resources.originTriad, frame.originTriadScale);
   const colorEncoder = frame.device.createCommandEncoder();
   const targets = ensureColorTargets(
     frame.draw,
@@ -92,6 +96,12 @@ export function encodeVisibleFrame(
   opaquePass.setBindGroup(1, frame.resources.background.bindGroup);
   opaquePass.draw(3);
   drawBatches(opaquePass, frame.draw, context, frame.calls, { kind: "surface", pass: "color" });
+  drawOriginTriad(opaquePass, frame.resources.originTriad, "visible");
+  drawBatches(opaquePass, frame.draw, context, frame.calls, {
+    kind: "surface",
+    pass: "color",
+    primitive: "points",
+  });
   opaquePass.end();
   drawTransparencyPass(colorEncoder, frame, context, targets);
   drawCompositePass(colorEncoder, camera, frame, context, targets);
@@ -120,6 +130,7 @@ function drawTransparencyPass(
       pass: "transparent",
     });
   }
+  drawOriginTriad(pass, frame.resources.originTriad, "hidden");
   pass.end();
 }
 

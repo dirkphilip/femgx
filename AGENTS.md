@@ -19,6 +19,10 @@ Hard boundaries worth repeating:
 - The canonical product path is reusable parts placed through hierarchical
   assemblies, compiled into one packed `SceneRuntime`, and consumed by
   `FemViewport`. Preserve instancing and host-mappable GPU interaction ids.
+- Every viewport also renders one renderer-owned positive X/Y/Z triad at world
+  origin. It is scaled from complete placed-scene bounds, remains out of scene
+  identity, bounds, picking, and interaction, and is opaque when depth-visible
+  with a fixed-alpha weighted-transparency ghost behind opaque model geometry.
 - Do not expand deferred or removed capabilities. Existing deferred code is
   removed only through an explicit product decision, not to improve a diff.
 - Do not add a public API, subsystem, fallback, compatibility layer, or optional

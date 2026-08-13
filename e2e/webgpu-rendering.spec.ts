@@ -122,6 +122,55 @@ test("renders and switches the built-in viewport backgrounds", async ({ page }) 
   );
 });
 
+test("renders the persistent world-origin triad without scene identity", async ({ page }) => {
+  await page.goto("/");
+  const hasWebGpu = await page.evaluate(() => "gpu" in navigator);
+  if (!hasWebGpu) test.skip(true, "WebGPU is unavailable in this browser environment");
+
+  await page.evaluate(async () => {
+    const modulePath = "/src/index.ts";
+    const api = (await import(/* @vite-ignore */ modulePath)) as typeof Api;
+    document.body.innerHTML =
+      '<canvas id="origin-triad-test" style="display:block;width:640px;height:420px"></canvas>';
+    const canvas = document.getElementById("origin-triad-test");
+    if (!(canvas instanceof HTMLCanvasElement)) throw new Error("origin triad canvas missing");
+    const scene = api
+      .createScene()
+      .addAssembly({ id: 1, name: "empty", placements: [] })
+      .withRoot(1)
+      .build();
+    const viewport = await api.createFemViewport({ canvas, scene, background: "dark" });
+    (window as Window & { __originTriadViewport?: typeof viewport }).__originTriadViewport =
+      viewport;
+  });
+
+  const canvas = page.locator("#origin-triad-test");
+  await expect(canvas).toBeVisible();
+  const pixels = await stableCanvasPixels(page, canvas);
+  const dominantPixels = (channel: number, otherA: number, otherB: number): number => {
+    let count = 0;
+    for (let index = 0; index + 2 < pixels.length; index += 4) {
+      const value = pixels[index + channel] ?? 0;
+      if (
+        value > 100 &&
+        value > (pixels[index + otherA] ?? 0) + 35 &&
+        value > (pixels[index + otherB] ?? 0) + 35
+      ) {
+        count += 1;
+      }
+    }
+    return count;
+  };
+  expect(dominantPixels(0, 1, 2), "persistent red X axis").toBeGreaterThan(0);
+  expect(dominantPixels(1, 0, 2), "persistent green Y axis").toBeGreaterThan(0);
+  expect(dominantPixels(2, 0, 1), "persistent blue Z axis").toBeGreaterThan(0);
+  await page.evaluate(() =>
+    (
+      window as Window & { __originTriadViewport?: { destroy: () => void } }
+    ).__originTriadViewport?.destroy(),
+  );
+});
+
 test("element emphasis changes the rendered pixels and toggles off again", async ({ page }) => {
   await loadWebGpuPage(page);
 
