@@ -193,7 +193,7 @@ export class VisibilityPanelController {
     for (let index = 0; index < directInstances.length; index++) {
       const instanceId = directInstances[index];
       if (instanceId !== undefined)
-        children.appendChild(this.partNode(instanceId, index + 1, directInstances));
+        children.appendChild(this.partNode(instanceId, index + 1, directInstances, displayName));
     }
     for (const childId of node.childIds) {
       children.appendChild(this.assemblyNode(childId));
@@ -220,6 +220,7 @@ export class VisibilityPanelController {
     instanceId: InstanceId,
     index: number,
     siblings: readonly InstanceId[],
+    assemblyName: string,
   ): HTMLElement {
     const runtime = this.options.getRuntime();
     const instance = runtime.getInstance(instanceId);
@@ -235,12 +236,13 @@ export class VisibilityPanelController {
     spacer.setAttribute("aria-hidden", "true");
     const part = partId === undefined ? undefined : this.options.getModel().scene.parts.get(partId);
     const bodies = part?.geometry.bodies ?? [];
+    const partDisplayName = repeated ? `${name} ${index}` : name;
     row.append(
       spacer,
       visibilityRowLabel(
         "instance",
         instanceId,
-        repeated ? `${name} ${index}` : name,
+        partDisplayName,
         "Part",
         this.instanceDisplayId(instanceId),
       ),
@@ -249,12 +251,17 @@ export class VisibilityPanelController {
     branch.className = "visibility-body-branch";
     branch.appendChild(row);
     for (const body of bodies) {
-      branch.appendChild(this.bodyNode(instanceId, body));
+      branch.appendChild(this.bodyNode(instanceId, body, partDisplayName, assemblyName));
     }
     return branch;
   }
 
-  private bodyNode(instanceId: InstanceId, body: Body): HTMLElement {
+  private bodyNode(
+    instanceId: InstanceId,
+    body: Body,
+    partName: string,
+    assemblyName: string,
+  ): HTMLElement {
     const displayId = this.instanceDisplayId(instanceId);
     const row = document.createElement("div");
     row.className = "visibility-row visibility-body";
@@ -270,12 +277,13 @@ export class VisibilityPanelController {
     input.dataset["bodyId"] = String(body.id);
     input.dataset["bodyInstanceId"] = instanceId;
     input.dataset["testid"] = `body-vis-${displayId}-${body.id}`;
+    const bodyName = body.name ?? `Body ${body.id}`;
+    input.setAttribute("aria-label", `${bodyName} in ${partName} · ${assemblyName}`);
     label.append(input);
     const badge = document.createElement("span");
     badge.className = "visibility-kind";
     badge.textContent = "Body";
     label.append(badge);
-    const bodyName = body.name ?? `Body ${body.id}`;
     const button = document.createElement("button");
     button.type = "button";
     button.className = "visibility-body-name";
