@@ -70,6 +70,22 @@ correct, readable, and complete.
 Correctness, clarity, and retained useful behavior govern. Raw line count is a
 review signal, not the objective.
 
+### Contracts and negative space
+
+Use [[engineering/state-invariants|invariant-driven state design]] as the
+repository's negative-space programming practice: define forbidden states and
+transitions, state preconditions at public, untrusted, and ownership boundaries,
+and make successful postconditions and preserved invariants testable.
+
+- Keep actionable boundary and lifecycle checks enabled in production. Avoid
+  repeated cost by validating once at the owning boundary, not with a broad
+  development/production contract switch.
+- Put exhaustive or expensive internal invariant verification in focused tests
+  unless silent corruption could cross an ownership boundary. Internal helpers
+  should rely on invariants already established by their caller.
+- Fail with descriptive, domain-appropriate errors or typed results, and test
+  forbidden, boundary, inverse, round-trip, and repeated-operation paths.
+
 ## Architecture and ownership
 
 This TypeScript library renders finite-element models with WebGPU and GPU
@@ -122,9 +138,7 @@ See [[architecture/api-design|API design north star]].
 - Use modern strict TypeScript. Prefer explicit types, `satisfies`, readonly
   data, const objects, pure transitions, and immutable CPU-side state. Avoid
   `any`.
-- Follow [[engineering/state-invariants|invariant-driven state design]]: validate
-  values at real boundaries, preserve documented invariants, and test forbidden,
-  boundary, inverse, and round-trip paths.
+- Follow the contracts and negative-space rules above.
 - Every test must protect a distinct public contract, regression, boundary, or
   invariant. Prefer extending an existing table or golden case; do not mirror
   implementation, duplicate assertions, or add tests only for coverage. Delete
