@@ -218,7 +218,7 @@ describe("buildNodeBodyPickData", () => {
   it("assigns a body to nodes that belong to exactly one body", () => {
     const geometry: Geometry = {
       positions: new Float32Array(18),
-      indices: new Uint32Array(6),
+      indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
       primitive: "triangles" as const,
       nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
       nodePositions: new Float32Array(9),
@@ -233,7 +233,7 @@ describe("buildNodeBodyPickData", () => {
   it("maps filtered sprite ids to their original body slots", () => {
     const geometry: Geometry = {
       positions: new Float32Array(18),
-      indices: new Uint32Array(6),
+      indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
       primitive: "triangles" as const,
       nodePickIds: new Uint32Array([2, 2, 4, 4, 0, 0]),
       nodePositions: new Float32Array(12),
@@ -248,7 +248,7 @@ describe("buildNodeBodyPickData", () => {
   it("keeps every owner for shared nodes so all-hidden topology can disappear", () => {
     const geometry: Geometry = {
       positions: new Float32Array(18),
-      indices: new Uint32Array(6),
+      indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
       primitive: "triangles" as const,
       nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
       nodePositions: new Float32Array(9),
@@ -271,12 +271,36 @@ describe("buildNodeBodyPickData", () => {
     ]);
   });
 
+  it("follows indexed primitive vertices when assigning shared node owners", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array(12),
+      indices: new Uint32Array([0, 1, 2, 1, 3, 2]),
+      primitive: "triangles",
+      nodePickIds: new Uint32Array([1, 2, 3, 4]),
+      nodePositions: new Float32Array(12),
+      elements: [
+        { id: 4, primitiveStart: 0, primitiveCount: 1, bodyId: 7 },
+        { id: 5, primitiveStart: 1, primitiveCount: 1, bodyId: 8 },
+      ],
+      bodies: [
+        { id: 7, elementIds: [4] },
+        { id: 8, elementIds: [5] },
+      ],
+    };
+
+    expect(buildNodeBodyOwnerData(geometry, new Uint32Array([1, 2, 3, 4]))).toEqual({
+      bodyRanges: new Uint32Array([0, 1, 1, 2, 3, 2, 5, 1]),
+      bodyIds: new Uint32Array([8, 0, 8, 0, 9, 0, 8, 0, 9, 0, 9, 0]),
+      elementIds: new Uint32Array([5, 0, 5, 0, 6, 0, 5, 0, 6, 0, 6, 0]),
+    });
+  });
+
   it("keeps unowned contributors for shared node visibility", () => {
     const geometry: Geometry = {
       positions: new Float32Array(12),
       indices: new Uint32Array([0, 1, 2, 0, 1, 3]),
       primitive: "triangles",
-      nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 4]),
+      nodePickIds: new Uint32Array([1, 2, 3, 4]),
       nodePositions: new Float32Array(12),
       elements: [
         { id: 4, primitiveStart: 0, primitiveCount: 1, bodyId: 7 },

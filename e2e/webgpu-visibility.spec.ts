@@ -69,12 +69,10 @@ test("hides shared node annotations with a hidden body or element owner", async 
     const canvas = document.getElementById("node-owner-visibility");
     if (!(canvas instanceof HTMLCanvasElement)) throw new Error("node visibility canvas missing");
     const part = api.createPart(1, {
-      positions: new Float32Array([
-        -1, -0.5, 0, 0, -0.5, 0, -0.5, 0.5, 0, 0, -0.5, 0, 1, -0.5, 0, 0.5, 0.5, 0,
-      ]),
-      indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+      positions: new Float32Array([-1, -0.5, 0, 0, -0.5, 0, -0.5, 0.5, 0, 1, -0.5, 0, 0.5, 0.5, 0]),
+      indices: new Uint32Array([0, 1, 2, 1, 3, 4]),
       primitive: "triangles",
-      nodePickIds: new Uint32Array([1, 2, 3, 2, 4, 5]),
+      nodePickIds: new Uint32Array([1, 2, 3, 4, 5]),
       nodePositions: new Float32Array([
         -1, -0.5, 0, 0, -0.5, 0, -0.5, 0.5, 0, 1, -0.5, 0, 0.5, 0.5, 0,
       ]),
@@ -112,8 +110,8 @@ test("hides shared node annotations with a hidden body or element owner", async 
       }),
     });
     const nodes = api.setPartOverride(api.createInteractionState(), part.id, { nodes: true });
-    const bodyHidden = api.setBodyVisible(nodes, { instanceId: "1/0", bodyId: 1 }, false);
-    const elementHidden = api.setElementVisible(nodes, { instanceId: "1/0", elementId: 1 }, false);
+    const bodyHidden = api.setBodyVisible(nodes, { instanceId: "1/0", bodyId: 2 }, false);
+    const elementHidden = api.setElementVisible(nodes, { instanceId: "1/0", elementId: 2 }, false);
     const withoutNodes = (state: Api.InteractionState) =>
       api.setPartOverride(state, part.id, { nodes: false });
     const state = window as Window & {
