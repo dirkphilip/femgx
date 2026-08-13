@@ -195,10 +195,11 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(instanceVertexShader).toMatch(/@location\(4\) @interpolate\(flat\) facePickId: u32/);
     expect(edgeVertexShader).toMatch(/topologyBodyRange\(topologyIndex\)/);
     expect(edgeVertexShader).toMatch(/highlight\.hidden == 0u/);
-    expect(pointVertexShader).toMatch(/topologyOwnersVisible\(/);
+    expect(edgeVertexShader).toMatch(/topologyOwnersVisible\(/);
+    expect(pointVertexShader).toMatch(/topologyOwnersAllVisible\(/);
     expect(nodePickVertexShader).toMatch(/primitiveVisible\(/);
     expect(lineNodePickVertexShader).toMatch(/primitiveVisible\(/);
-    expect(pointNodePickVertexShader).toMatch(/topologyOwnersVisible\(/);
+    expect(pointNodePickVertexShader).toMatch(/topologyOwnersAllVisible\(/);
     expect(nodePickVertexShader).not.toMatch(/highlightHash\(drawOrder\[instanceIndex\]/);
     expect(pointNodePickVertexShader).not.toMatch(/highlightHash\(drawOrder\[instanceIndex\]/);
   });

@@ -122,4 +122,18 @@ fn topologyOwnersVisible(slot: u32, topologyIndex: u32) -> bool {
   }
   return false;
 }
+
+// Unlike exposed edges, a node annotation belongs to every incident topology
+// item and disappears as soon as any owning body or element is hidden.
+fn topologyOwnersAllVisible(slot: u32, topologyIndex: u32) -> bool {
+  let range = topologyBodyRange(topologyIndex);
+  for (var condition = 0u; condition < range.y; condition++) {
+    let owner = topologyBodyId(range.x + condition);
+    let element = topologyElementId(range.x + condition);
+    if (!ownerVisible(slot, owner, element)) {
+      return false;
+    }
+  }
+  return true;
+}
 `;
