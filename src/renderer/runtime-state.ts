@@ -37,23 +37,15 @@ export interface InstanceLayout {
 export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout {
   const instanceCount = runtime.instanceCount;
   const slotPartLocal = new Int32Array(instanceCount).fill(-1);
-  const grouped = new Map<PartId, number[]>();
-  for (let slot = 0; slot < instanceCount; slot++) {
-    const partId = runtime.instancePartIds[slot];
-    if (partId === undefined) continue;
-    const slots = grouped.get(partId);
-    if (slots === undefined) {
-      grouped.set(partId, [slot]);
-      slotPartLocal[slot] = 0;
-    } else {
-      slots.push(slot);
-      slotPartLocal[slot] = slots.length - 1;
-    }
-  }
-  const partOrder = Array.from(grouped.keys()).sort((a, b) => a - b);
+  const partOrder = Array.from(runtime.sortedPartIds);
   const partSlots = new Map<PartId, Uint32Array>();
   for (const partId of partOrder) {
-    partSlots.set(partId, new Uint32Array(grouped.get(partId) ?? []));
+    const slots = runtime.getPartInstanceSlots(partId);
+    partSlots.set(partId, slots);
+    for (let local = 0; local < slots.length; local += 1) {
+      const slot = slots[local];
+      if (slot !== undefined) slotPartLocal[slot] = local;
+    }
   }
   const partVisibleCounts = new Map<PartId, number>();
   const partEdgeCounts = new Map<PartId, number>();
