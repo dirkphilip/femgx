@@ -137,6 +137,26 @@ export function validateBodies(geometry: {
   validateElementMembership(geometry.elements ?? [], membership.declaredBodies, membership.ids);
 }
 
+/** Resolves body ownership once against a complete element list. */
+export function bodyAssignments(
+  elements: readonly Pick<ElementTessellation, "id">[],
+  bodies: readonly Body[] | undefined,
+): ReadonlyMap<ElementId, BodyId> {
+  if (bodies === undefined || bodies.length === 0) return new Map();
+  const assignments = new Map<ElementId, BodyId>();
+  for (const body of bodies) {
+    for (const elementId of body.elementIds) assignments.set(elementId, body.id);
+  }
+  validateBodies({
+    elements: elements.map((element) => {
+      const bodyId = assignments.get(element.id);
+      return bodyId === undefined ? { id: element.id } : { id: element.id, bodyId };
+    }),
+    bodies,
+  });
+  return assignments;
+}
+
 function validateElementsWithoutBodies(
   elements: readonly Pick<ElementTessellation, "id" | "bodyId">[],
 ): void {
