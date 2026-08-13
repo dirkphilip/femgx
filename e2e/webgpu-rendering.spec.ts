@@ -19,6 +19,7 @@ import {
   projectCameraPoint,
   readNavigationState,
   requireHit,
+  setElementSelection,
   rendererMode,
   loadWebGpuPage,
 } from "./webgpu-support";
@@ -535,6 +536,7 @@ test("composes the transparency fixture and picks its nearest translucent face",
 }) => {
   await loadWebGpuPage(page);
   await page.getByTestId("model-select").selectOption("transparency");
+  await setElementSelection(page, false);
 
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toHaveAttribute("data-model", "transparency");
@@ -1049,6 +1051,7 @@ test("renders imported VTK scalar and nodal displacement results on desktop and 
 test("keeps result contours readable through face selection", async ({ page }) => {
   await loadWebGpuPage(page);
   await page.getByTestId("model-select").selectOption("results");
+  await setElementSelection(page, false);
   const canvas = page.getByTestId("view-canvas");
   await page.getByTestId("results-toggle").click();
   await page.getByTestId("results-toggle").click();
@@ -1082,6 +1085,7 @@ test("keeps result contours readable through face selection", async ({ page }) =
 test("preserves selected nodal result rendering across every display mode", async ({ page }) => {
   await loadWebGpuPage(page);
   await page.getByTestId("model-select").selectOption("results");
+  await setElementSelection(page, false);
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,

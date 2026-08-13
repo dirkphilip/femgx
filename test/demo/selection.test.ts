@@ -8,7 +8,7 @@ import {
   setPartOverride,
   type InteractionTarget,
 } from "../../src/index";
-import { elementTarget, selectTarget } from "../../demo/workbench/pick";
+import { elementSelectTarget, elementTarget, selectTarget } from "../../demo/workbench/pick";
 import {
   clearSelection,
   replaceSelection,
@@ -109,6 +109,35 @@ describe("demo selection policy", () => {
     expect(elementTarget(element)).toEqual(element);
     expect(elementTarget(instance)).toBeUndefined();
     expect(elementTarget(part)).toBeUndefined();
+  });
+
+  it("normalizes node and face picks to elements without modifier promotion", () => {
+    const node: PickHit = {
+      kind: "node",
+      partId: 4,
+      instanceId: "1/0",
+      elementId: 7,
+      nodeId: 3,
+      localPosition: [0, 0, 0],
+      worldPosition: [0, 0, 0],
+      neighborElementIds: [7],
+      neighborNodeIds: [1, 2],
+    };
+    const face: PickHit = {
+      kind: "face",
+      partId: 4,
+      instanceId: "1/0",
+      elementId: 7,
+      faceIndex: 1,
+      key: "face-key",
+      nodeIds: [1, 2, 3],
+      neighborElementIds: [],
+      worldPosition: [0, 0, 0],
+      normal: [0, 0, 1],
+    };
+
+    expect(elementSelectTarget(node)).toEqual(element);
+    expect(elementSelectTarget(face)).toEqual(element);
   });
 
   it("replaces selection when selecting an element and removes only it when deselecting", () => {

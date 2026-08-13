@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { dataset, drawnPixels, requireHit, status, waitForRenderer } from "./demo-support";
+import {
+  dataset,
+  drawnPixels,
+  requireHit,
+  setElementSelection,
+  status,
+  waitForRenderer,
+} from "./demo-support";
 test("toggles one fastener occurrence and restores it via the visibility panel", async ({
   page,
 }) => {
@@ -118,6 +125,7 @@ test("temporarily highlights exact tree occurrences without changing selection",
     { prefix: "n:" },
     "node GPU picking must resolve before tree-hover assertions",
   );
+  await setElementSelection(page, false);
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => canvas.getAttribute("data-selected")).toMatch(/^n:/);
   const selected = await dataset(page, "selected");

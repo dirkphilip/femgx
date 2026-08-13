@@ -47,6 +47,12 @@ export function selectTarget(
   return modifiers.shiftKey && !modifiers.altKey ? elementTarget(selectedTarget) : selectedTarget;
 }
 
+/** Returns the exact owning element used by the demo's Element select mode. */
+export function elementSelectTarget(hit: PickHit): SelectTarget | undefined {
+  const target = interactionTargetFromHit(hit, "element");
+  return target?.kind === "element" ? target : undefined;
+}
+
 function optionalBodyId(
   bodyId: BodyId | undefined,
 ): { readonly bodyId: BodyId } | Record<never, never> {
