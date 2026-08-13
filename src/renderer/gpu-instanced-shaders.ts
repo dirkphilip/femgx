@@ -66,6 +66,7 @@ const bodyAndElementHighlighting = /* wgsl */ `
         hidden = hidden || highlight.hidden != 0u;
         matched = true;
         selected = selected || highlight.selected != 0u;
+        exactSelection = exactSelection || highlight.selected != 0u;
         break;
       }
     }
@@ -84,6 +85,7 @@ const instanceHighlighting = /* wgsl */ `
   var hidden = false;
   var matched = false;
   var selected = instance.selected != 0u;
+  var exactSelection = false;
 ${bodyAndElementHighlighting}
   if (!matched && facePickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], 0u, facePickId, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
@@ -96,6 +98,7 @@ ${bodyAndElementHighlighting}
         if (highlight.selected == 0u) { resultColorEnabled = false; }
         emissive = highlight.emissive;
         selected = selected || highlight.selected != 0u;
+        exactSelection = exactSelection || highlight.selected != 0u;
         break;
       }
     }
@@ -105,7 +108,7 @@ ${bodyAndElementHighlighting}
   }
 `;
 
-function createInstanceVertexMain(primitiveIndex: string): string {
+function createInstanceVertexMain(primitiveIndex: string, selectionPass: boolean): string {
   return /* wgsl */ `
 @vertex
 fn vertexMain(
@@ -117,12 +120,15 @@ fn vertexMain(
   let elementPickId = primitiveElementPickIds[${primitiveIndex}];
   let faceBodyPickIds = primitiveFaceBodyPickIds(${primitiveIndex});
 ${instanceHighlighting}
-${createInstanceVertexOutput(primitiveIndex)}
+${createInstanceVertexOutput(primitiveIndex, selectionPass)}
 }
 `;
 }
 
-function createInstanceVertexOutput(primitiveIndex: string): string {
+function createInstanceVertexOutput(primitiveIndex: string, selectionPass: boolean): string {
+  const visibility = selectionPass
+    ? `primitiveSelectionVisible(drawOrder[instanceIndex], ${primitiveIndex}, exactSelection)`
+    : `primitiveVisible(drawOrder[instanceIndex], ${primitiveIndex})`;
   return /* wgsl */ `
   var output: VertexOutput;
   let displayedPosition = displaced(position, vertexIndex);
@@ -143,19 +149,22 @@ function createInstanceVertexOutput(primitiveIndex: string): string {
   output.selected = select(0u, 1u, selected);
   output.resultColor = baseResultColor;
   output.resultColorEnabled = select(0u, 1u, resultColorEnabled);
-  if (!primitiveVisible(drawOrder[instanceIndex], ${primitiveIndex})) {
+  if (!${visibility}) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
   return output;
 `;
 }
 
-function createInstanceVertexShader(): string {
+function createInstanceVertexShader(selectionPass = false): string {
   const primitiveIndex = "primitiveDrawId(vertexIndex)";
-  return `${instanceVertexHeader}${createInstanceVertexMain(primitiveIndex)}`;
+  return `${instanceVertexHeader}${createInstanceVertexMain(primitiveIndex, selectionPass)}`;
 }
 
 export const instanceVertexShader = createInstanceVertexShader();
+
+/** Triangle selection vertex stage that reveals exact selected internal faces. */
+export const selectionVertexShader = createInstanceVertexShader(true);
 
 /**
  * Vertex stage for point-sprite parts. Each point is a quad of four vertices
@@ -224,6 +233,7 @@ fn pointVertex(
   var hidden = false;
   var matched = false;
   var selected = instance.selected != 0u;
+  var exactSelection = false;
 ${bodyAndElementHighlighting}
   if (nodePickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], 0u, 0u, nodePickId, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);

@@ -12,7 +12,11 @@ import {
   triangleColorFragmentShader,
   vertexOutput,
 } from "../../src/renderer/gpu-shaders";
-import { instanceVertexShader, pointVertexShader } from "../../src/renderer/gpu-instanced-shaders";
+import {
+  instanceVertexShader,
+  pointVertexShader,
+  selectionVertexShader,
+} from "../../src/renderer/gpu-instanced-shaders";
 import {
   lineNodePickVertexShader,
   nodePickFragmentShader,
@@ -340,6 +344,15 @@ describe("GPU record struct layout vs CPU record encoders", () => {
 });
 
 describe("selection emphasis shaders", () => {
+  it("bypasses neighbor suppression only for exact element and face selection", () => {
+    expect(instanceVertexShader).toContain("primitiveVisible(drawOrder[instanceIndex]");
+    expect(instanceVertexShader).not.toContain("if (!primitiveSelectionVisible");
+    expect(selectionVertexShader).toContain("primitiveSelectionVisible(drawOrder[instanceIndex]");
+    expect(selectionVertexShader).toContain(
+      "exactSelection = exactSelection || highlight.selected",
+    );
+  });
+
   it("does not let translucent selected surfaces enter the opaque pass", () => {
     expect(selectionFragmentShader).toContain("color.a <= 0.0");
     expect(triangleSelectionFragmentShader).toContain("color.a <= 0.0");

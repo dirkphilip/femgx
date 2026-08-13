@@ -80,8 +80,7 @@ function drawOneBatch(
   }
   if (nodes && part.geometry.primitive === "points") return current;
   const geometry = uploadBatchGeometry(draw, context, part, nodes);
-  const subset =
-    !nodes && part.geometry.primitive === "triangles" && part.geometry.faceSubset !== undefined;
+  const subset = usesFaceSubset(intent, part, nodes);
   if (overlay && (subset ? geometry.subsetEdgeIndexCount : geometry.edgeIndexCount) === 0) {
     return current;
   }
@@ -104,6 +103,15 @@ function drawOneBatch(
   if (count === undefined) return current;
   pass.drawIndexed(count, call.instanceCount);
   return pipeline;
+}
+
+function usesFaceSubset(intent: DrawIntent, part: Part, nodes: boolean): boolean {
+  return (
+    !nodes &&
+    !(intent.kind === "surface" && intent.pass.startsWith("selection-")) &&
+    part.geometry.primitive === "triangles" &&
+    part.geometry.faceSubset !== undefined
+  );
 }
 
 function uploadBatchGeometry(

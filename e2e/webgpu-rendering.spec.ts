@@ -846,6 +846,167 @@ test("keeps selected volume faces lit, distinct, and reversible with overlays", 
   ).toBeGreaterThan(200);
 });
 
+test("reveals internal faces for an exactly selected adjacent Hex8 element", async ({ page }) => {
+  await page.goto("/");
+  const hasWebGpu = await page.evaluate(() => "gpu" in navigator);
+  if (!hasWebGpu) test.skip(true, "WebGPU is unavailable in this browser environment");
+
+  await page.evaluate(async () => {
+    const modulePath = "/src/index.ts";
+    const api = (await import(/* @vite-ignore */ modulePath)) as typeof Api;
+    document.body.innerHTML =
+      '<canvas id="adjacent-hex-selection" style="display:block;width:640px;height:420px"></canvas>';
+    const canvas = document.getElementById("adjacent-hex-selection");
+    if (!(canvas instanceof HTMLCanvasElement)) throw new Error("adjacent Hex8 canvas missing");
+
+    const nodes: number[] = [];
+    for (let x = 0; x <= 3; x += 1) {
+      nodes.push(x, -0.75, -0.75, x, 0.75, -0.75, x, -0.75, 0.75, x, 0.75, 0.75);
+    }
+    const elements = [0, 1, 2].map((x) => {
+      const left = x * 4;
+      const right = left + 4;
+      return api.createElement(x + 1, api.HEX8_SHAPE, [
+        left,
+        right,
+        right + 1,
+        left + 1,
+        left + 2,
+        right + 2,
+        right + 3,
+        left + 3,
+      ]);
+    });
+    const model = api.createElementModel(nodes, elements);
+    const part = api.heterogeneousElementParts({ triangle: 1 }, model).triangle;
+    if (part === undefined) throw new Error("adjacent Hex8 triangle part missing");
+    const scene = api
+      .createScene()
+      .addPart(part)
+      .addAssembly({
+        id: 1,
+        name: "adjacent-hex-selection",
+        placements: [{ kind: "part", partId: part.id, transform: api.identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const viewport = await api.createFemViewport({
+      canvas,
+      scene,
+      originTriad: false,
+      background: "dark",
+      camera: api.createCamera({
+        position: [5, 0, 0],
+        target: [1.5, 0, 0],
+        up: [0, 1, 0],
+        orthoHeight: 2.5,
+        width: 640,
+        height: 420,
+      }),
+    });
+    const ordinary = api.createInteractionState();
+    const selected = api.setTargetSelected(
+      ordinary,
+      { kind: "element", instanceId: "1/0", elementId: 2 },
+      true,
+    );
+    (window as Window & { __adjacentHexSelection?: typeof viewport }).__adjacentHexSelection =
+      viewport;
+    viewport.setInteraction(ordinary);
+    (window as Window & { __adjacentHexOrdinary?: typeof ordinary }).__adjacentHexOrdinary =
+      ordinary;
+    (window as Window & { __adjacentHexSelected?: typeof selected }).__adjacentHexSelected =
+      selected;
+  });
+
+  const canvas = page.locator("#adjacent-hex-selection");
+  await expect(canvas).toBeVisible();
+  const width = await canvas.evaluate((element) => {
+    if (!(element instanceof HTMLCanvasElement)) throw new Error("adjacent Hex8 canvas missing");
+    return element.width;
+  });
+  await stableCanvasPixels(page, canvas);
+  const ordinary = await canvasRgba(page, canvas);
+  const ordinaryCenter = luminancePatch(ordinary, width, width / 2, 210, 18);
+
+  await page.evaluate(() => {
+    const state = window as Window & {
+      __adjacentHexSelection?: { setInteraction: (interaction: Api.InteractionState) => void };
+      __adjacentHexSelected?: Api.InteractionState;
+    };
+    if (state.__adjacentHexSelection === undefined || state.__adjacentHexSelected === undefined) {
+      throw new Error("adjacent Hex8 selection state missing");
+    }
+    state.__adjacentHexSelection.setInteraction(state.__adjacentHexSelected);
+  });
+  await stableCanvasPixels(page, canvas);
+  const selected = await canvasRgba(page, canvas);
+  const selectedCenter = luminancePatch(selected, width, width / 2, 210, 18);
+
+  expect(
+    Math.abs(selectedCenter.mean - ordinaryCenter.mean),
+    "the selected middle element must reveal its hidden shared faces through the neighboring solids",
+  ).toBeGreaterThan(3);
+  expect(
+    differingPixelCount(ordinary, selected),
+    "exact element selection must produce a visible selection frame",
+  ).toBeGreaterThan(100);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await canvas.evaluate((element) => {
+    element.style.width = "390px";
+    element.style.height = "420px";
+  });
+  const mobileWidth = await canvas.evaluate((element) => {
+    if (!(element instanceof HTMLCanvasElement)) throw new Error("adjacent Hex8 canvas missing");
+    return element.width;
+  });
+  await page.evaluate(() => {
+    const state = window as Window & {
+      __adjacentHexSelection?: { setInteraction: (interaction: Api.InteractionState) => void };
+      __adjacentHexOrdinary?: Api.InteractionState;
+    };
+    if (state.__adjacentHexSelection === undefined || state.__adjacentHexOrdinary === undefined) {
+      throw new Error("adjacent Hex8 ordinary state missing");
+    }
+    state.__adjacentHexSelection.setInteraction(state.__adjacentHexOrdinary);
+  });
+  await stableCanvasPixels(page, canvas);
+  const mobileOrdinary = await canvasRgba(page, canvas);
+  await page.evaluate(() => {
+    const state = window as Window & {
+      __adjacentHexSelection?: { setInteraction: (interaction: Api.InteractionState) => void };
+      __adjacentHexSelected?: Api.InteractionState;
+    };
+    if (state.__adjacentHexSelection === undefined || state.__adjacentHexSelected === undefined) {
+      throw new Error("adjacent Hex8 selected state missing");
+    }
+    state.__adjacentHexSelection.setInteraction(state.__adjacentHexSelected);
+  });
+  await stableCanvasPixels(page, canvas);
+  const mobileSelected = await canvasRgba(page, canvas);
+  expect(
+    visiblePixelCount(mobileSelected),
+    "mobile WebGPU output must remain visible",
+  ).toBeGreaterThan(100);
+  expect(
+    differingPixelCount(mobileOrdinary, mobileSelected),
+    "mobile exact element selection must reveal the internal faces",
+  ).toBeGreaterThan(100);
+  expect(
+    Math.abs(
+      luminancePatch(mobileOrdinary, mobileWidth, mobileWidth / 2, 210, 18).mean -
+        luminancePatch(mobileSelected, mobileWidth, mobileWidth / 2, 210, 18).mean,
+    ),
+  ).toBeGreaterThan(1);
+
+  await page.evaluate(() => {
+    (
+      window as Window & { __adjacentHexSelection?: { destroy: () => void } }
+    ).__adjacentHexSelection?.destroy();
+  });
+});
+
 test("keeps result contours readable through face selection", async ({ page }) => {
   await loadWebGpuPage(page);
   await page.getByTestId("model-select").selectOption("results");
