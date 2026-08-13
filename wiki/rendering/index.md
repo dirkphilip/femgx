@@ -9,7 +9,8 @@
 - [[rendering/camera-touch-controls|Camera touch controls]] — pointer-driven
   one-finger orbit, pinch zoom, two-finger pan, and gesture cancellation.
 - [[rendering/element-interaction|Element-level interaction]] — element
-  picking, selection, highlighting, and edge overlays.
+  picking, selection, occurrence-scoped visibility, highlighting, and edge
+  overlays.
 - [[rendering/heterogeneous-elements|Heterogeneous element parts]] — one mixed
   element model compiled into deterministic triangle, line, and point parts.
 - [[rendering/fe-inspection-workbench|FE inspection workbench]] — the demo's

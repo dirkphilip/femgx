@@ -59,6 +59,7 @@ describe("buildMeshEdgeData", () => {
     expect(data.indices.length).toBe(10);
     expect(data.bodyRanges.slice(0, 2)).toEqual(new Uint32Array([0, 2]));
     expect(data.bodyIds).toEqual(new Uint32Array([8, 0, 9, 0, 8, 0, 8, 0, 9, 0, 9, 0]));
+    expect(data.elementIds).toEqual(new Uint32Array([5, 0, 6, 0, 5, 0, 5, 0, 6, 0, 6, 0]));
   });
 
   it("retains an unowned contributor on a shared edge", () => {

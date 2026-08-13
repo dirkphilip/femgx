@@ -1,4 +1,6 @@
 import { emphasisHash } from "./gpu-highlight-shader";
+export { pickDataBindings } from "./gpu-topology-shader";
+import { pickDataBindings } from "./gpu-topology-shader";
 
 /**
  * Shared WGSL for the instanced render passes. All vertex shaders read the
@@ -100,70 +102,6 @@ export const instanceBindings = /* wgsl */ `
 @group(1) @binding(1) var<storage, read> drawOrder: array<u32>;
 @group(1) @binding(4) var<storage, read> displacements: array<f32>;
 @group(1) @binding(6) var<storage, read> vertexNodePickIds: array<u32>;
-`;
-
-/** Per-primitive and per-vertex pick data bindings used by draw stages. */
-export const pickDataBindings = /* wgsl */ `
-@group(1) @binding(2) var<storage, read> primitiveElementPickIds: array<u32>;
-@group(1) @binding(3) var<storage, read> elementHighlights: ElementHighlights;
-// Packed header: face-record count, topology range count, then face/owner/
-// neighbor records, topology ranges, and topology owner/neighbor ids.
-@group(1) @binding(5) var<storage, read> topologyData: array<u32>;
-
-fn primitiveFaceBodyPickIds(index: u32) -> vec3<u32> {
-  let base = 2u + index * 3u;
-  return vec3<u32>(topologyData[base], topologyData[base + 1u], topologyData[base + 2u]);
-}
-
-fn topologyBodyRange(index: u32) -> vec2<u32> {
-  let base = 2u + topologyData[0] * 3u + index * 2u;
-  return vec2<u32>(topologyData[base], topologyData[base + 1u]);
-}
-
-fn topologyBodyId(index: u32) -> u32 {
-  let base = 2u + topologyData[0] * 3u + topologyData[1] * 2u;
-  return topologyData[base + index * 2u];
-}
-
-fn topologyBodyNeighborId(index: u32) -> u32 {
-  let base = 2u + topologyData[0] * 3u + topologyData[1] * 2u;
-  return topologyData[base + index * 2u + 1u];
-}
-
-fn bodyOwnerVisible(slot: u32, bodyPickId: u32) -> bool {
-  if (bodyPickId == 0u || elementHighlights.bucketCount == 0u) {
-    return true;
-  }
-  let bucket = highlightHash(slot, bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
-  let base = bucket * 4u;
-  for (var offset = 0u; offset < 4u; offset++) {
-    let highlight = elementHighlights.records[base + offset];
-    if (highlight.slot == slot && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
-      return highlight.hidden == 0u;
-    }
-  }
-  return true;
-}
-
-fn primitiveVisible(slot: u32, primitiveIndex: u32) -> bool {
-  let ids = primitiveFaceBodyPickIds(primitiveIndex);
-  return bodyOwnerVisible(slot, ids.y) && (ids.z == 0u || !bodyOwnerVisible(slot, ids.z));
-}
-
-fn topologyOwnersVisible(slot: u32, topologyIndex: u32) -> bool {
-  let range = topologyBodyRange(topologyIndex);
-  if (range.y == 0u) {
-    return true;
-  }
-  for (var condition = 0u; condition < range.y; condition++) {
-    let owner = topologyBodyId(range.x + condition);
-    let neighbor = topologyBodyNeighborId(range.x + condition);
-    if (bodyOwnerVisible(slot, owner) && (neighbor == 0u || !bodyOwnerVisible(slot, neighbor))) {
-      return true;
-    }
-  }
-  return false;
-}
 `;
 
 /** Shared packed geometry data: float position bits followed by edge metadata. */

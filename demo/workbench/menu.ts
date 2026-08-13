@@ -4,6 +4,7 @@ import type { SelectTarget } from "./pick";
 export interface WorkbenchMenuSelectionOptions {
   readonly selectionLabel?: string | undefined;
   readonly elementSelectionLabel?: string | undefined;
+  readonly elementVisibilityLabel?: string | undefined;
 }
 
 /** Small context-menu renderer owned by the demo workbench. */
@@ -56,6 +57,9 @@ export class WorkbenchMenu {
     }
     if (options.elementSelectionLabel !== undefined) {
       this.menuButton(options.elementSelectionLabel, "select-element");
+    }
+    if (options.elementVisibilityLabel !== undefined) {
+      this.menuButton(options.elementVisibilityLabel, "hide-element");
     }
     this.menuButton("Hide / Show instance", "hide-instance");
     this.menuButton("Hide / Show part", "hide-part");

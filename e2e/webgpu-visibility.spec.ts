@@ -1,7 +1,12 @@
 /** visibility ownership: GPU visibility and body-interface contracts. */
 
 import { expect, test } from "@playwright/test";
-import { stableCanvasPixels, differingPixelCount, loadWebGpuPage } from "./webgpu-support";
+import {
+  differingPixelCount,
+  loadWebGpuPage,
+  requireHit,
+  stableCanvasPixels,
+} from "./webgpu-support";
 
 test("exposes independent body visibility and highlight controls", async ({ page }) => {
   await loadWebGpuPage(page);
@@ -83,4 +88,45 @@ test("exposes and restores body interfaces in visible picking", async ({ page })
   await expect
     .poll(async () => JSON.stringify(await region("face")))
     .toBe(JSON.stringify(baselineFaces));
+});
+
+test("hides and restores one element occurrence through the GPU path", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const target = await requireHit(
+    page,
+    canvas,
+    { fresh: true },
+    "GPU picking must resolve an element-owned target",
+  );
+  const baseline = await stableCanvasPixels(page, canvas);
+
+  await page.mouse.move(target.x, target.y);
+  await page.keyboard.down("Shift");
+  await page.mouse.click(target.x, target.y, { button: "right" });
+  await page.keyboard.up("Shift");
+  const menu = page.getByTestId("context-menu");
+  await expect(menu).toBeVisible();
+  await expect(menu.locator(".menu-title").first()).toHaveText(/^Element \d+$/);
+  await menu.locator('button[data-action="hide-element"]').click();
+
+  const hidden = await stableCanvasPixels(page, canvas);
+  expect(
+    differingPixelCount(baseline, hidden),
+    "hiding one element must change the rendered frame",
+  ).toBeGreaterThan(50);
+
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  const emptyPoint = { x: box.x + 5, y: box.y + 5 };
+  await page.mouse.move(emptyPoint.x, emptyPoint.y);
+  await page.waitForTimeout(150);
+  await page.mouse.click(emptyPoint.x, emptyPoint.y, { button: "right" });
+  await expect(menu).toBeVisible();
+  await menu.locator('button[data-action="show-all"]').click();
+  const restored = await stableCanvasPixels(page, canvas);
+  expect(
+    differingPixelCount(hidden, restored),
+    "show all must restore the hidden element surface",
+  ).toBeGreaterThan(50);
 });

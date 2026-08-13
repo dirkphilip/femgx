@@ -18,6 +18,7 @@ import {
   setTargetSelected,
 } from "../../src/interaction/targets";
 import { readInteractionState } from "../../src/interaction/state";
+import { isElementVisible, setElementVisible } from "../../src/interaction/elements";
 import { identity } from "../../src/math/mat4";
 import type { ElementRef, Instance } from "../../src/scene/types";
 
@@ -198,5 +199,22 @@ describe("element interaction", () => {
     const override: StyleOverride = { opacity: 0.5 };
     const state = setElementOverride(createInteractionState(), ref, override);
     expect(setElementOverride(state, ref, override)).toBe(state);
+  });
+
+  it("tracks visibility per element occurrence and preserves no-op identity", () => {
+    const initial = createInteractionState();
+    const hidden = setElementVisible(initial, ref, false);
+    const other = { instanceId: "2/0", elementId: ref.elementId };
+    expect(isElementVisible(initial, ref)).toBe(true);
+    expect(isElementVisible(hidden, ref)).toBe(false);
+    expect(isElementVisible(hidden, other)).toBe(true);
+    expect(setElementVisible(hidden, ref, false)).toBe(hidden);
+    expect(setElementVisible(hidden, ref, true)).not.toBe(hidden);
+    expect(readInteractionState(hidden).hiddenElementIds.get(ref.instanceId)).toEqual(new Set([2]));
+  });
+
+  it("keeps hidden elements in the emphasis stream for GPU updates", () => {
+    const hidden = setElementVisible(createInteractionState(), ref, false);
+    expect(emphasizedElementRefs(hidden)).toEqual([ref]);
   });
 });

@@ -40,12 +40,17 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 ## Interaction state and precedence
 
 - `InteractionState` adds `highlightedElementIds` and `selectedElementIds` (per
-  instance), one `hoveredTarget`, and `elementOverrides`.
+  instance), `hiddenElementIds` (also per instance), one `hoveredTarget`, and
+  `elementOverrides`. `setElementVisible` changes only the referenced
+  `(instanceId, elementId)` occurrence and preserves state identity for no-ops.
 - `resolveElementStyle` resolves the instance style first, then applies element
   highlight, hover, selection, and an explicit element override. Element state
   beats instance/part state; selection beats hover; explicit overrides win last.
 - `emphasizedElementRefs` collects every emphasized occurrence (highlighted,
-  hovered, selected, or overridden) in deterministic order with no duplicates.
+  hovered, selected, overridden, or hidden) in deterministic order with no
+  duplicates. Hidden elements remain selected/highlighted in host state, but
+  the renderer marks their GPU record hidden and excludes them from color,
+  transparency, deformation, and picking.
 
 ## GPU emphasis without material clones
 
@@ -109,11 +114,13 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   also transparent when a part or instance has fractional opacity. Alpha-zero
   edges contribute no color while remaining available to the normal GPU pick
   path.
-- Edge and node topology records carry owner/neighbor body conditions. Exterior
-  and unowned topology stays visible under the existing rules; a cross-body
-  interface is drawn only when its owner is visible and its neighbor is hidden.
-  The same predicate drives filled faces, depth, picking, deformation, edges,
-  and node glyphs, without cloning geometry or materials.
+- Edge and node topology records carry paired owner/neighbor body and element
+  conditions. Volume geometry retains all oriented faces and their neighbor
+  element ids; the GPU predicate suppresses a coincident interior face when
+  both owners are visible and exposes the surviving oriented face when the
+  other owner is hidden. The same predicate drives filled faces, depth,
+  picking, deformation, transparency, edges, and node glyphs, without cloning
+  geometry or materials.
 - The demo drives the overlay by applying an `{ edge: true }` part override to
   every part (`Edge overlay` toggle) and flips the overlay depth compare with
   the `Depth test` toggle (see

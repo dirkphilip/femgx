@@ -54,6 +54,7 @@ export function changedInstanceSlots(
     nextData.highlightedElementIds,
     addInstance,
   );
+  diffNestedSetMembers(previousData.hiddenElementIds, nextData.hiddenElementIds, addInstance);
   if (previousData.hoveredTarget !== nextData.hoveredTarget) {
     addInstance(hoveredInstanceId(previousData.hoveredTarget));
     addInstance(hoveredInstanceId(nextData.hoveredTarget));

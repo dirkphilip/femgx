@@ -62,6 +62,7 @@ const instanceHighlighting = /* wgsl */ `
       if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == elementPickId && highlight.facePickId == 0u) {
         color = highlight.color;
         emissive = highlight.emissive;
+        hidden = hidden || highlight.hidden != 0u;
         matched = true;
         selected = selected || highlight.selected != 0u;
         break;
@@ -218,6 +219,7 @@ fn pointVertex(
       if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == elementPickId && highlight.facePickId == 0u) {
         color = highlight.color;
         emissive = highlight.emissive;
+        hidden = hidden || highlight.hidden != 0u;
         selected = selected || highlight.selected != 0u;
         break;
       }
@@ -238,6 +240,9 @@ fn pointVertex(
     }
   }
   if (nodeOverlay && !topologyOwnersVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
+    hidden = true;
+  }
+  if (!nodeOverlay && !primitiveVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
     hidden = true;
   }
   if (hidden) {

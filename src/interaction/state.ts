@@ -98,6 +98,7 @@ export interface InteractionStateData {
   readonly hiddenBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
   readonly selectedElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
   readonly highlightedElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
+  readonly hiddenElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
   readonly elementOverrides: ReadonlyMap<
     InstanceId,
     ReadonlyMap<ElementId, PrimitiveStyleOverride>

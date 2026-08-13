@@ -105,10 +105,10 @@ describe("WebGPU benchmark models", () => {
     expect(quadPart.geometry.indices).toHaveLength(4 * 2 * 3);
     expect(quad8Part.geometry.faces).toHaveLength(4);
     expect(quad8Part.geometry.indices).toHaveLength(4 * 6 * 3);
-    expect(hex8Part.geometry.faces).toHaveLength(24);
-    expect(hex8Part.geometry.indices).toHaveLength(24 * 2 * 3);
-    expect(hex20Part.geometry.faces).toHaveLength(24);
-    expect(hex20Part.geometry.indices).toHaveLength(24 * 6 * 3);
+    expect(hex8Part.geometry.faces).toHaveLength(48);
+    expect(hex8Part.geometry.indices).toHaveLength(48 * 2 * 3);
+    expect(hex20Part.geometry.faces).toHaveLength(48);
+    expect(hex20Part.geometry.indices).toHaveLength(48 * 6 * 3);
     expect(hex20Part.geometry.bodies).toEqual([
       { id: 1, name: "hex20 structured body", elementIds: [1, 2, 3, 4, 5, 6, 7, 8] },
     ]);

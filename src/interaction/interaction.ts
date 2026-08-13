@@ -59,6 +59,7 @@ export function createInteractionState(theme: InteractionTheme = defaultTheme): 
     hiddenBodyIds: new Map(),
     selectedElementIds: new Map(),
     highlightedElementIds: new Map(),
+    hiddenElementIds: new Map(),
     elementOverrides: new Map(),
     partOverrides: new Map(),
     instanceOverrides: new Map(),
@@ -309,6 +310,9 @@ export function emphasizedElementRefs(state: InteractionState): readonly Element
       }
       for (const [instanceId, overrides] of data.elementOverrides) {
         for (const elementId of sortedNumbers(overrides.keys())) push({ instanceId, elementId });
+      }
+      for (const [instanceId, ids] of data.hiddenElementIds) {
+        for (const elementId of sortedNumbers(ids)) push({ instanceId, elementId });
       }
     },
   );

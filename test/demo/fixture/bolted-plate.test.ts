@@ -226,14 +226,14 @@ describe("createBoltedPlateFixture", () => {
     const { scene, partIds } = createBoltedPlateFixture();
     const plateSolid = scene.parts.get(partIds.plate.partId);
     expect(plateSolid?.geometry.primitive).toBe("triangles");
-    expect(plateSolid?.geometry.indices).toHaveLength(168);
+    expect(plateSolid?.geometry.indices).toHaveLength(216);
     const plateGeometry = plateSolid?.geometry;
     if (plateGeometry?.primitive !== "triangles") throw new Error("expected plate triangles");
     const interfaceFaces = (plateGeometry.faces ?? []).filter(
       (face) => face.neighborElementIds.length > 0,
     );
-    expect(interfaceFaces).toHaveLength(6);
-    expect(new Set(interfaceFaces.map((face) => face.key)).size).toBe(3);
+    expect(interfaceFaces).toHaveLength(14);
+    expect(new Set(interfaceFaces.map((face) => face.key)).size).toBe(7);
     const boltModel = createBoltedPlateFixture().elementModels.get(partIds.bolt.partId);
     expect(boltModel?.elements).toHaveLength(2);
     expect(scene.parts.get(partIds.bolt.partId)?.bounds).toEqual({
