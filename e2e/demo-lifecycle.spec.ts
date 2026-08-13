@@ -94,6 +94,88 @@ test("defaults to the bolted plate assembly showcase", async ({ page }) => {
   await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
   await expect(page.getByTestId("status")).toContainText("34 visible");
 });
+test("opens two shared-state viewports with independent cameras and exact teardown", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const primary = page.getByTestId("view-canvas");
+  const secondary = page.getByTestId("secondary-view-canvas");
+  await expect(primary).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+
+  await page.getByTestId("viewport-toggle").click();
+  await expect(secondary).toBeVisible();
+  await expect(secondary).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await expect(page.getByRole("region", { name: "Primary viewport" })).toHaveAttribute(
+    "data-active",
+    "false",
+  );
+  await expect(page.getByRole("region", { name: "Secondary viewport" })).toHaveAttribute(
+    "data-active",
+    "true",
+  );
+  expect(await drawnPixels(primary)).toBe(true);
+  expect(await drawnPixels(secondary)).toBe(true);
+
+  const firstInstance = page.locator("input[data-instance-id]").first();
+  await expect(firstInstance).toBeChecked();
+  await firstInstance.uncheck();
+  await expect(page.getByTestId("status")).toContainText("33 visible");
+  await page.getByRole("region", { name: "Primary viewport" }).focus();
+  await expect(page.getByRole("region", { name: "Primary viewport" })).toHaveAttribute(
+    "data-active",
+    "true",
+  );
+  await expect(page.getByTestId("status")).toContainText("33 visible");
+
+  const primaryBefore = await primary.getAttribute("data-camera");
+  const secondaryBefore = await secondary.getAttribute("data-camera");
+  const secondaryBox = await secondary.boundingBox();
+  if (secondaryBox === null) throw new Error("secondary canvas has no bounds");
+  await page.mouse.move(
+    secondaryBox.x + secondaryBox.width * 0.5,
+    secondaryBox.y + secondaryBox.height * 0.5,
+  );
+  await expect(page.getByRole("region", { name: "Secondary viewport" })).toHaveAttribute(
+    "data-active",
+    "true",
+  );
+  await page.mouse.down({ button: "middle" });
+  await page.mouse.move(
+    secondaryBox.x + secondaryBox.width * 0.65,
+    secondaryBox.y + secondaryBox.height * 0.4,
+  );
+  await page.mouse.up({ button: "middle" });
+  await expect.poll(() => secondary.getAttribute("data-camera")).not.toBe(secondaryBefore);
+  expect(await primary.getAttribute("data-camera")).toBe(primaryBefore);
+
+  await page.getByTestId("model-select").selectOption("results");
+  await expect(primary).toHaveAttribute("data-model", "results");
+  await expect(secondary).toHaveAttribute("data-model", "results");
+  await expect(primary).toHaveAttribute("data-results", "deformed");
+  await expect(secondary).toHaveAttribute("data-results", "deformed");
+  const selectedHit = await requireHit(
+    page,
+    primary,
+    {},
+    "shared two-pane results scene must remain pickable",
+  );
+  await page.mouse.click(selectedHit.x, selectedHit.y);
+  await expect.poll(() => primary.getAttribute("data-selected")).not.toBe("");
+  const selected = await primary.getAttribute("data-selected");
+  if (selected === null) throw new Error("primary selection was not published");
+  await expect(secondary).toHaveAttribute("data-selected", selected);
+  await page.getByTestId("results-toggle").click();
+  await expect(primary).toHaveAttribute("data-results", "base");
+  await expect(secondary).toHaveAttribute("data-results", "base");
+
+  await page.getByTestId("viewport-toggle").click();
+  await expect(secondary).toBeHidden();
+  await expect(page.getByTestId("viewport-toggle")).toHaveText("Add viewport");
+  await page.getByTestId("viewport-toggle").click();
+  await expect(secondary).toBeVisible();
+  await expect(page.locator('[data-femgx-orientation-gizmo="true"]')).toHaveCount(2);
+});
 test("shows diagnostics from target and empty-scene context menus", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");

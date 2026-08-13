@@ -1,7 +1,30 @@
 import type { Camera } from "../../src/index";
 
+export type ViewportSlotId = "primary" | "secondary";
+
+/** DOM ownership for one demo viewport pane. */
+export interface WorkbenchPane {
+  readonly id: ViewportSlotId;
+  readonly scene: HTMLElement;
+  readonly canvas: HTMLCanvasElement;
+  readonly boxSelectionOverlay: HTMLElement;
+}
+
+function pane(
+  id: WorkbenchPane["id"],
+  scene: HTMLElement,
+  canvas: HTMLCanvasElement,
+  boxSelectionOverlay: HTMLElement,
+): WorkbenchPane {
+  return { id, scene, canvas, boxSelectionOverlay };
+}
+
 /** Typed handles to the demo's DOM nodes. */
 export interface DemoView {
+  readonly primaryPane: WorkbenchPane;
+  readonly secondaryPane: WorkbenchPane;
+  readonly viewportWorkspace: HTMLElement;
+  readonly viewportToggle: HTMLButtonElement;
   readonly canvas: HTMLCanvasElement;
   readonly scene: HTMLElement;
   readonly boxSelectionOverlay: HTMLElement;
@@ -43,6 +66,13 @@ export function queryDemoView(): DemoView {
   const canvas = document.querySelector<HTMLCanvasElement>("#view");
   const scene = document.querySelector<HTMLElement>(".scene");
   const boxSelectionOverlay = document.querySelector<HTMLElement>("#box-selection-overlay");
+  const secondaryCanvas = document.querySelector<HTMLCanvasElement>("#secondary-view");
+  const secondaryScene = document.querySelector<HTMLElement>("#secondary-scene");
+  const secondaryBoxSelectionOverlay = document.querySelector<HTMLElement>(
+    "#secondary-box-selection-overlay",
+  );
+  const viewportWorkspace = document.querySelector<HTMLElement>("#viewport-workspace");
+  const viewportToggle = document.querySelector<HTMLButtonElement>("#viewport-toggle");
   const rendererStatus = document.querySelector<HTMLElement>("#renderer-status");
   const modelSelect = document.querySelector<HTMLSelectElement>("#model-select");
   const modelSource = document.querySelector<HTMLElement>("#model-source");
@@ -67,6 +97,11 @@ export function queryDemoView(): DemoView {
     canvas === null ||
     scene === null ||
     boxSelectionOverlay === null ||
+    secondaryCanvas === null ||
+    secondaryScene === null ||
+    secondaryBoxSelectionOverlay === null ||
+    viewportWorkspace === null ||
+    viewportToggle === null ||
     rendererStatus === null ||
     modelSelect === null ||
     modelSource === null ||
@@ -91,6 +126,10 @@ export function queryDemoView(): DemoView {
     throw new Error("missing demo controls");
   }
   return {
+    primaryPane: pane("primary", scene, canvas, boxSelectionOverlay),
+    secondaryPane: pane("secondary", secondaryScene, secondaryCanvas, secondaryBoxSelectionOverlay),
+    viewportWorkspace,
+    viewportToggle,
     canvas,
     scene,
     boxSelectionOverlay,

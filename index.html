@@ -54,6 +54,17 @@
         grid-template-columns: clamp(340px, 26vw, 380px) minmax(0, 1fr);
         height: 100vh;
       }
+      #viewport-workspace {
+        display: grid;
+        min-width: 0;
+        min-height: 0;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1px;
+        background: #223149;
+      }
+      #viewport-workspace[data-secondary-open="true"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
       .sidebar {
         display: flex;
         min-height: 0;
@@ -196,6 +207,38 @@
         background: #e8edf1;
         outline: 1px solid #53647a;
         outline-offset: -1px;
+      }
+      .scene-pane {
+        position: relative;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        background: #e8edf1;
+        outline: 1px solid #53647a;
+        outline-offset: -1px;
+      }
+      .scene:focus-visible {
+        outline: 2px solid #60a5fa;
+        outline-offset: -2px;
+      }
+      .scene-pane:focus-visible {
+        outline: 2px solid #60a5fa;
+        outline-offset: -2px;
+      }
+      .scene-pane-label {
+        position: absolute;
+        z-index: 4;
+        top: 14px;
+        right: 14px;
+        border: 1px solid #34445c;
+        border-radius: 999px;
+        padding: 5px 9px;
+        color: #dbe7f5;
+        background: #111d2ddd;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        pointer-events: none;
       }
       canvas {
         display: block;
@@ -437,7 +480,19 @@
           height: auto;
           min-height: 100vh;
         }
-        .scene {
+        #viewport-workspace {
+          grid-template-columns: 1fr;
+          grid-template-rows: minmax(480px, 72vh);
+        }
+        #viewport-workspace[data-secondary-open="true"] {
+          grid-template-columns: 1fr;
+          grid-template-rows: repeat(2, minmax(480px, 72vh));
+        }
+        #viewport-workspace[data-secondary-open="true"] .scene-pane {
+          grid-row: 2;
+        }
+        .scene,
+        .scene-pane {
           grid-row: 1;
           min-height: 480px;
         }
@@ -556,122 +611,184 @@
         <h2 class="sidebar-heading">Visibility</h2>
         <div id="visibility-panel" data-testid="visibility-panel"></div>
       </aside>
-      <section class="scene" aria-label="Model scene">
-        <canvas
-          id="view"
-          data-testid="view-canvas"
-          width="800"
-          height="600"
-          aria-describedby="interaction-help"
-          aria-label="Finite-element model view"
-        ></canvas>
-        <div
-          id="box-selection-overlay"
-          data-testid="box-selection-overlay"
-          aria-hidden="true"
-          hidden
-        ></div>
-        <div class="toolbar">
-          <div class="toolbar-row toolbar-row-primary">
-            <div id="model-source" class="model-source" role="group" aria-label="Model source">
-              <select
-                id="model-select"
-                data-testid="model-select"
-                aria-label="Example model"
-              ></select>
-              <button id="open-glb" data-testid="open-glb" type="button">Open GLB…</button>
-              <input
-                id="glb-file"
-                data-testid="glb-file"
-                class="visually-hidden"
-                type="file"
-                accept=".glb,model/gltf-binary"
-                tabindex="-1"
-              />
-            </div>
-            <button
-              id="fit-view"
-              data-testid="fit-view"
-              type="button"
-              aria-label="Fit model"
-              title="Frame the complete model without changing visibility, selection, display, results, or projection."
-            >
-              Fit model
-            </button>
-            <button id="projection-toggle" data-testid="projection-toggle" type="button">
-              Perspective
-            </button>
-          </div>
-          <div class="toolbar-row toolbar-row-secondary">
-            <label class="toolbar-background" for="background-select">
-              <span class="toolbar-background-name">Background</span>
-              <select
-                id="background-select"
-                data-testid="background-select"
-                aria-label="Background"
-              >
-                <option value="studio">Studio</option>
-                <option value="white">White</option>
-                <option value="dark">Dark</option>
-              </select>
-            </label>
-            <button id="edge-overlay" data-testid="edge-overlay" type="button" aria-pressed="true">
-              Edges
-            </button>
-            <button id="node-overlay" data-testid="node-overlay" type="button" aria-pressed="true">
-              Nodes
-            </button>
-            <button
-              id="continuous-rendering"
-              data-testid="continuous-rendering"
-              type="button"
-              aria-pressed="false"
-              title="Start a recurring render-loop sample for manual inspection."
-            >
-              Continuous
-            </button>
-            <button id="results-toggle" data-testid="results-toggle" type="button" disabled hidden>
-              Results: Base
-            </button>
-            <button
-              id="reset"
-              data-testid="reset"
-              class="secondary"
-              type="button"
-              aria-label="Reset all"
-              title="Restore this model's initial visibility, selection, display, results, projection, and camera."
-            >
-              Reset all
-            </button>
-          </div>
+      <div id="viewport-workspace" data-secondary-open="false">
+        <section
+          id="primary-scene"
+          class="scene"
+          aria-label="Primary viewport"
+          data-pane="primary"
+          tabindex="0"
+        >
+          <canvas
+            id="view"
+            data-testid="view-canvas"
+            width="800"
+            height="600"
+            aria-describedby="interaction-help"
+            aria-label="Finite-element model view"
+          ></canvas>
           <div
-            id="model-feedback"
-            data-testid="model-feedback"
-            role="status"
-            aria-live="polite"
+            id="box-selection-overlay"
+            data-testid="box-selection-overlay"
+            aria-hidden="true"
             hidden
           ></div>
-          <p id="interaction-help" data-testid="interaction-help" class="interaction-help">
-            Primary-button drag selects visible elements. Hold Ctrl or ⌘ while dragging to toggle.
-          </p>
-        </div>
-        <div class="hud inspection" hidden>
-          <h2>Inspection</h2>
-          <pre id="inspection-panel" data-testid="inspection-panel"></pre>
-        </div>
-        <div id="renderer-status" data-testid="renderer-status" class="renderer-alert" hidden></div>
-        <div id="status" data-testid="status" class="status-alert" hidden></div>
+          <div class="toolbar">
+            <div class="toolbar-row toolbar-row-primary">
+              <div id="model-source" class="model-source" role="group" aria-label="Model source">
+                <select
+                  id="model-select"
+                  data-testid="model-select"
+                  aria-label="Example model"
+                ></select>
+                <button id="open-glb" data-testid="open-glb" type="button">Open GLB…</button>
+                <input
+                  id="glb-file"
+                  data-testid="glb-file"
+                  class="visually-hidden"
+                  type="file"
+                  accept=".glb,model/gltf-binary"
+                  tabindex="-1"
+                />
+              </div>
+              <button
+                id="fit-view"
+                data-testid="fit-view"
+                type="button"
+                aria-label="Fit model"
+                title="Frame the complete model without changing visibility, selection, display, results, or projection."
+              >
+                Fit model
+              </button>
+              <button
+                id="viewport-toggle"
+                data-testid="viewport-toggle"
+                type="button"
+                aria-pressed="false"
+                aria-label="Add secondary viewport"
+              >
+                Add viewport
+              </button>
+              <button id="projection-toggle" data-testid="projection-toggle" type="button">
+                Perspective
+              </button>
+            </div>
+            <div class="toolbar-row toolbar-row-secondary">
+              <label class="toolbar-background" for="background-select">
+                <span class="toolbar-background-name">Background</span>
+                <select
+                  id="background-select"
+                  data-testid="background-select"
+                  aria-label="Background"
+                >
+                  <option value="studio">Studio</option>
+                  <option value="white">White</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </label>
+              <button
+                id="edge-overlay"
+                data-testid="edge-overlay"
+                type="button"
+                aria-pressed="true"
+              >
+                Edges
+              </button>
+              <button
+                id="node-overlay"
+                data-testid="node-overlay"
+                type="button"
+                aria-pressed="true"
+              >
+                Nodes
+              </button>
+              <button
+                id="continuous-rendering"
+                data-testid="continuous-rendering"
+                type="button"
+                aria-pressed="false"
+                title="Start a recurring render-loop sample for manual inspection."
+              >
+                Continuous
+              </button>
+              <button
+                id="results-toggle"
+                data-testid="results-toggle"
+                type="button"
+                disabled
+                hidden
+              >
+                Results: Base
+              </button>
+              <button
+                id="reset"
+                data-testid="reset"
+                class="secondary"
+                type="button"
+                aria-label="Reset all"
+                title="Restore this model's initial visibility, selection, display, results, projection, and camera."
+              >
+                Reset all
+              </button>
+            </div>
+            <div
+              id="model-feedback"
+              data-testid="model-feedback"
+              role="status"
+              aria-live="polite"
+              hidden
+            ></div>
+            <p id="interaction-help" data-testid="interaction-help" class="interaction-help">
+              Primary-button drag selects visible elements. Hold Ctrl or ⌘ while dragging to toggle.
+            </p>
+          </div>
+          <div class="hud inspection" hidden>
+            <h2>Inspection</h2>
+            <pre id="inspection-panel" data-testid="inspection-panel"></pre>
+          </div>
+          <div
+            id="renderer-status"
+            data-testid="renderer-status"
+            class="renderer-alert"
+            hidden
+          ></div>
+          <div id="status" data-testid="status" class="status-alert" hidden></div>
+          <section
+            id="stats-panel"
+            data-testid="stats-panel"
+            class="hud diagnostics"
+            aria-labelledby="diagnostics-heading"
+            hidden
+          >
+            <h2 id="diagnostics-heading">Diagnostics</h2>
+            <pre id="diagnostics-content"></pre>
+          </section>
+          <div class="scene-pane-label">Primary viewport</div>
+        </section>
         <section
-          id="stats-panel"
-          data-testid="stats-panel"
-          class="hud diagnostics"
-          aria-labelledby="diagnostics-heading"
+          id="secondary-scene"
+          class="scene-pane"
+          aria-label="Secondary viewport"
+          data-pane="secondary"
+          tabindex="0"
           hidden
         >
-          <h2 id="diagnostics-heading">Diagnostics</h2>
-          <pre id="diagnostics-content"></pre>
+          <canvas
+            id="secondary-view"
+            data-testid="secondary-view-canvas"
+            width="800"
+            height="600"
+            aria-label="Secondary finite-element model view"
+          ></canvas>
+          <div
+            id="secondary-box-selection-overlay"
+            data-testid="secondary-box-selection-overlay"
+            aria-hidden="true"
+            hidden
+          ></div>
+          <div class="scene-pane-label">Secondary viewport</div>
         </section>
-      </section>
+      </div>
       <div id="context-menu" class="context-menu" data-testid="context-menu" hidden></div>
     </main>
     <script type="module" src="/demo/main.ts"></script>

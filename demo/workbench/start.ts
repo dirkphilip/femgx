@@ -10,7 +10,7 @@ import { benchmarkCaseSpecs } from "../benchmark/model";
 import { installDemoHarness } from "../devtools/harness";
 import { WorkbenchController } from "./controller";
 import { createExampleModel, createLazyBenchmarkModel, type WorkbenchModel } from "./model";
-import type { DemoView } from "./view";
+import type { DemoView, WorkbenchPane, ViewportSlotId } from "./view";
 
 /** Inputs for the WebGPU demo path. */
 export interface WebGpuDemoOptions {
@@ -34,6 +34,15 @@ export async function startWebGpuDemo(
   ];
   const initialModel = models[0];
   if (initialModel === undefined) throw new Error("The demo requires at least one model preset");
+  const primaryPaneValue: unknown = Reflect.get(view, "primaryPane");
+  const primaryPane: WorkbenchPane = isWorkbenchPane(primaryPaneValue)
+    ? primaryPaneValue
+    : {
+        id: "primary",
+        scene: Reflect.get(view, "scene"),
+        canvas,
+        boxSelectionOverlay: Reflect.get(view, "boxSelectionOverlay"),
+      };
 
   let viewport: FemViewport | undefined;
   let controller: WorkbenchController | undefined;
@@ -51,48 +60,56 @@ export async function startWebGpuDemo(
       : `femgx could not validate the WebGPU renderer. ${detail}`;
   };
 
-  const createViewport = async (model: WorkbenchModel): Promise<FemViewport> =>
+  const createViewport = async (
+    slotId: ViewportSlotId,
+    pane: WorkbenchPane,
+    model: WorkbenchModel,
+  ): Promise<FemViewport> =>
     createFemViewport({
-      canvas,
+      canvas: pane.canvas,
       scene: model.scene,
-      keyboardTarget: window,
-      orientationGizmo: { container: view.scene },
+      keyboardTarget: pane.scene,
+      orientationGizmo: { container: pane.scene },
       ...(model.results === undefined ? {} : { results: model.results }),
-      ...(controller === undefined ? {} : { camera: controller.camera }),
       ...(controller === undefined ? {} : { interaction: controller.interaction }),
       onDeviceLost: () => {
-        canvas.dataset["recovery"] = "recovering";
+        pane.canvas.dataset["recovery"] = "recovering";
       },
       onRecovered: () => {
-        canvas.dataset["recovery"] = "recovered";
+        pane.canvas.dataset["recovery"] = "recovered";
         if (controller !== undefined) {
           controller.rendererState = "recovered";
           controller.render();
         }
       },
       onError: (error) => {
-        controller?.destroy();
-        viewport = undefined;
-        canvas.dataset["recovery"] = "error";
-        reportRendererFailure(error);
+        if (slotId === "primary") {
+          controller?.destroy();
+          viewport = undefined;
+          pane.canvas.dataset["recovery"] = "error";
+          reportRendererFailure(error);
+        } else {
+          controller?.handleSecondaryViewportError(error);
+        }
       },
       onGestureChange: (active) => {
-        controller?.setCameraGestureActive(active);
+        controller?.setCameraGestureActive(slotId, active);
       },
       onRender: () => {
-        canvas.dataset["frames"] = String(Number(canvas.dataset["frames"] ?? "0") + 1);
-        if (viewport !== undefined) controller?.onViewportRender(performance.now());
+        pane.canvas.dataset["frames"] = String(Number(pane.canvas.dataset["frames"] ?? "0") + 1);
+        controller?.onViewportRender(slotId, performance.now());
       },
     });
 
   try {
-    viewport = await createViewport(initialModel);
+    viewport = await createViewport("primary", primaryPane, initialModel);
     controller = new WorkbenchController({
       view,
       canvas,
       rendererName: "webgpu",
       viewport,
       presets: models,
+      createViewport,
     });
     viewport.render();
   } catch (error) {
@@ -126,7 +143,7 @@ export async function startWebGpuDemo(
     recreateRenderer: async () => {
       if (viewport !== undefined) return;
       try {
-        const recreated = await createViewport(controller.model);
+        const recreated = await createViewport("primary", primaryPane, controller.model);
         viewport = recreated;
         controller.setViewport(recreated);
         canvas.dataset["renderer"] = "webgpu";
@@ -149,4 +166,9 @@ export async function startWebGpuDemo(
   });
 
   return controller;
+}
+
+function isWorkbenchPane(value: unknown): value is WorkbenchPane {
+  if (value === null || typeof value !== "object") return false;
+  return "scene" in value && "canvas" in value && "boxSelectionOverlay" in value;
 }

@@ -65,14 +65,16 @@ controller, so camera and interaction behavior is stable
 ## Workbench controller
 
 - `demo/workbench/controller.ts` (`WorkbenchController`) owns active-preset and
-  DOM presentation policy while `FemViewport` owns the packed runtime, camera,
-  controls, interaction synchronization, visibility, picking, and renderer
-  lifecycle. Focused `demo/workbench/` modules own async picking, selection
-  state, visibility actions/tree construction, menu rendering, presentation,
-  and abortable DOM bindings; `demo/devtools/diagnostics.ts` owns diagnostics
-  formatting and `demo/workbench/lifecycle.ts` owns listener lifetime. The
-  controller remains the only stateful orchestration surface and is kept below
-  the 400-line implementation ceiling.
+  DOM presentation policy while `FemViewport` owns each packed runtime,
+  camera, controls, interaction synchronization, visibility, picking, and
+  renderer lifecycle. The controller keeps a small map of at most two
+  demo-private viewport slots: the exact active `Scene` and workbench state are
+  shared, while each slot owns its pane, camera, runtime, renderer, interaction
+  readback generation, orientation gizmo, and render loop. Focused
+  `demo/workbench/` modules own async picking, selection state, visibility
+  actions/tree construction, menu rendering, presentation, and abortable DOM
+  bindings; `demo/devtools/diagnostics.ts` owns diagnostics formatting and
+  `demo/workbench/lifecycle.ts` owns listener lifetime.
 - The **visibility panel is a hierarchical tree** built from the authoritative
   scene graph: expandable assembly rows (with a disclosure button and an
   explicit `Assembly`/`Part` identity-kind badge) nest the parts placed beneath
@@ -119,7 +121,11 @@ controller, so camera and interaction behavior is stable
   visibility update. It preserves selection, highlights, hover state, explicit
   styles, results, and camera state.
 - The full-screen layout keeps the hierarchical visibility tree in a 340–380px
-  left rail; the WebGPU canvas owns the remaining space. The toolbar is one calm
+  left rail; the viewport workspace owns the remaining space. It contains one
+  primary pane by default and an optional secondary pane with equal desktop
+  columns. Both panes use independent cameras and renderers while sharing the
+  authoritative scene, selection, visibility, results, and model transitions.
+  The toolbar is one calm
   surface with model, **Fit model**, projection, a labeled **Background** select
   (`Studio`, `White`, or `Dark`), edges, nodes, results, and **Reset all** controls.
   The selector is demo-owned presentation state and calls the public viewport
@@ -132,7 +138,8 @@ controller, so camera and interaction behavior is stable
   Healthy renderer/status telemetry and inspection details stay hidden until
   explicitly needed; renderer failures remain prominent. Diagnostics stay within
   the scene, scroll internally when needed, and remain visible in the compact
-  mobile scene. On mobile the scene is first and the hierarchy follows it, while
+  mobile scene. On mobile the optional panes stack vertically before the
+  hierarchy follows them, while
   the toolbar uses exactly two rows.
 - The controller exposes a `rendererState` note (e.g. `recovered`) for status
   presentation. `FemViewport` performs recovery and reports success/failure to
@@ -156,16 +163,17 @@ opens past the right or bottom edge.
 ## Orientation gizmo and viewport boundary
 
 The interactive view cube is owned by `FemViewport`, not by the demo. Hosts opt
-in during `createFemViewport` with `orientationGizmo: { container }`, where the
-container contains the canvas. The viewport creates one SVG root with six face,
+in during `createFemViewport` with `orientationGizmo: { container }`, where each
+pane's container contains its canvas. Each viewport creates one SVG root with six face,
 eight corner, four pitch/yaw arrow controls, and two curved in-plane roll
 controls; it updates their projections from the exact camera during the normal
 render lifecycle and removes them during `destroy()`. Face/corner snaps and
 arrow steps return immutable cameras through the viewport owner, while recovery
-and scene changes reuse the same DOM. The demo passes its `.scene` wrapper and
-owns only the surrounding toolbar/status presentation.
+and scene changes reuse the same DOM. The demo passes each pane wrapper and
+owns only the surrounding toolbar/status presentation. The active pane receives
+camera and keyboard commands; the other pane remains independently renderable.
 
-The demo's `.scene` wrapper also owns the restrained perimeter outline. It uses
+Each demo scene-pane wrapper also owns the restrained perimeter outline. It uses
 an outline rather than a canvas border so CSS content dimensions and pointer,
 resize, and GPU-picking coordinates remain unchanged.
 
@@ -178,11 +186,13 @@ explicit ownership directories:
 - `demo/devtools/` owns diagnostics text and the typed browser-test harness;
 - `demo/benchmark/` owns the opt-in WebGPU benchmark and its internal imports.
 
-The workbench controller is intentionally still cohesive because it is the one
-stateful coordinator for preset, interaction, display, and viewport transitions.
-Feature construction, listener lifetime, DOM formatting, and benchmark execution
-are separate owners, so controller changes do not also change the developer
-harness or benchmark contract.
+The workbench controller is intentionally still cohesive because it is the
+stateful coordinator for preset, shared interaction, display, and up-to-two
+viewport transitions. Each viewport slot remains demo-private; no public
+viewport manager, shared runtime, or renderer pool is introduced. Feature
+construction, listener lifetime, DOM formatting, and benchmark execution are
+separate owners, so controller changes do not also change the developer harness
+or benchmark contract.
 
 ## Demo e2e coverage
 
@@ -192,9 +202,9 @@ mixed parent state, and restoring a subtree from its parent), fit-to-view,
 projection, the context menu, node/face picking and selection, and stable
 rendering after repeated orbit interactions.
 `e2e/mobile.spec.ts` asserts at a 390x844 viewport that the page has no
-horizontal overflow, primary controls stay reachable with 44px hit areas, and
-the context menu fits inside the viewport. The default Playwright lane runs the
-real WebGPU renderer through the same controller
+horizontal overflow, primary controls stay reachable with 44px hit areas, the
+optional viewport panes stack, and the context menu fits inside the viewport.
+The default Playwright lane runs the real WebGPU renderer through the same controller
 ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
 
 [architecture/demo-library-boundary|Demo / library boundary]: ../architecture/demo-library-boundary.md

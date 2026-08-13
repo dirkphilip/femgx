@@ -124,7 +124,8 @@ function resultLabel(mode: ResultDisplayMode): string {
   return mode === "base" ? "Base" : "Deformed";
 }
 
-function cameraSnapshot(camera: Camera): {
+/** Serializes the camera state used by demo diagnostics and browser tests. */
+export function cameraSnapshot(camera: Camera): {
   readonly mode: Camera["mode"];
   readonly position: Camera["position"];
   readonly target: Camera["target"];

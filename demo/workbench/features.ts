@@ -15,6 +15,8 @@ export interface WorkbenchFeatureOptions {
   readonly canvas: HTMLCanvasElement;
   readonly rendererName: string;
   readonly viewport: () => FemViewport;
+  readonly interactionViewport: () => FemViewport;
+  readonly viewports: () => readonly FemViewport[];
   readonly runtime: () => SceneRuntime;
   readonly model: () => WorkbenchModel;
   readonly presets: readonly WorkbenchModel[];
@@ -48,6 +50,7 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
   );
   const visibilityActions = new WorkbenchVisibilityActions({
     viewport: options.viewport,
+    viewports: options.viewports,
     scene: () => options.model().scene,
     runtime: options.runtime,
     interaction: options.interaction,
@@ -89,7 +92,7 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
   const interactionController = new WorkbenchInteraction({
     canvas: options.canvas,
     view: options.view,
-    viewport: options.viewport,
+    viewport: options.interactionViewport,
     getInteraction: options.interaction,
     setInteraction: options.setInteraction,
     partName: (partId) => options.model().partNames.get(partId),

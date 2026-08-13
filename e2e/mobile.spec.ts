@@ -64,6 +64,30 @@ test("fits a phone-sized viewport without horizontal overflow", async ({ page })
   expect(overflow, "the page must not scroll horizontally on a phone").toBeLessThanOrEqual(0);
 });
 
+test("stacks the optional secondary viewport without mobile overflow", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.goto("/");
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-renderer", "webgpu", {
+    timeout: 10_000,
+  });
+  await page.getByTestId("viewport-toggle").click();
+  const primary = page.getByTestId("view-canvas");
+  const secondary = page.getByTestId("secondary-view-canvas");
+  await expect(secondary).toBeVisible();
+  await expect(secondary).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  const layout = await page.evaluate(() => ({
+    width: window.innerWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.width);
+  const primaryBox = await primary.boundingBox();
+  const secondaryBox = await secondary.boundingBox();
+  if (primaryBox === null || secondaryBox === null) throw new Error("viewport has no bounds");
+  expect(secondaryBox.y).toBeGreaterThan(primaryBox.y + primaryBox.height - 1);
+  const toggle = await page.getByTestId("viewport-toggle").boundingBox();
+  expect(toggle?.height ?? 0).toBeGreaterThanOrEqual(44);
+});
+
 test("renders the bolted showcase with distinct part colors on a phone", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto("/");
