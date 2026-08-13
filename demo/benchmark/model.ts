@@ -1,13 +1,19 @@
 import { createPart, type Part } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { createScene, type Scene } from "../../src/scene/scene";
+import { createStructuredFePart, type StructuredFeFamily } from "./structured-fe";
 import { createPlanarGridGeometry, type PlanarGridOptions } from "../fixture/planar-grid";
 import { createPerformancePreset } from "../fixture/performance-fixture";
 
 const ROOT_ASSEMBLY_ID = 1;
 
 export type WebGpuBenchmarkKind =
-  "instancing-heavy" | "unique-geometry" | "many-parts" | "placement-heavy" | "body-heavy";
+  | "instancing-heavy"
+  | "unique-geometry"
+  | "many-parts"
+  | "placement-heavy"
+  | "body-heavy"
+  | "structured-fe";
 
 export interface WebGpuBenchmarkSpec {
   readonly id: string;
@@ -17,6 +23,7 @@ export interface WebGpuBenchmarkSpec {
   readonly partCount: number;
   readonly instanceCount: number;
   readonly bodyCount: number;
+  readonly structuredFamily?: StructuredFeFamily;
 }
 
 export interface WebGpuBenchmarkCase {
@@ -28,6 +35,7 @@ export interface WebGpuBenchmarkCase {
   readonly partCount: number;
   readonly instanceCount: number;
   readonly bodyCount: number;
+  readonly structuredFamily?: StructuredFeFamily;
 }
 
 export interface BenchmarkMemoryEstimate {
@@ -109,8 +117,58 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       instanceCount: 1,
       bodyCount: 256,
     },
+    {
+      id: "fe-quad-shell-visual",
+      name: "Performance Lab · FE Quad shell · 24×24",
+      kind: "structured-fe",
+      gridCells: 24,
+      partCount: 1,
+      instanceCount: 1,
+      bodyCount: 1,
+      structuredFamily: "quad",
+    },
+    {
+      id: "fe-quad8-shell-visual",
+      name: "Performance Lab · FE Quad8 shell · 16×16",
+      kind: "structured-fe",
+      gridCells: 16,
+      partCount: 1,
+      instanceCount: 1,
+      bodyCount: 1,
+      structuredFamily: "quad8",
+    },
+    {
+      id: "fe-hex8-solid-visual",
+      name: "Performance Lab · FE Hex8 solid · 8×8×8",
+      kind: "structured-fe",
+      gridCells: 8,
+      partCount: 1,
+      instanceCount: 1,
+      bodyCount: 1,
+      structuredFamily: "hex8",
+    },
+    {
+      id: "fe-hex20-solid-visual",
+      name: "Performance Lab · FE Hex20 solid · 6×6×6",
+      kind: "structured-fe",
+      gridCells: 6,
+      partCount: 1,
+      instanceCount: 1,
+      bodyCount: 1,
+      structuredFamily: "hex20",
+    },
     ...(includeLarge
       ? [
+          {
+            id: "fe-hex20-solid-local",
+            name: "Performance Lab · FE Hex20 solid · 12×12×12 (local)",
+            kind: "structured-fe" as const,
+            gridCells: 12,
+            partCount: 1,
+            instanceCount: 1,
+            bodyCount: 1,
+            structuredFamily: "hex20" as const,
+          },
           {
             id: "unique-2m-local",
             name: "Performance Lab · 2M unique triangles (local)",
@@ -130,7 +188,10 @@ export function createBenchmarkCase(spec: WebGpuBenchmarkSpec): WebGpuBenchmarkC
   if (spec.kind === "instancing-heavy") {
     return { ...spec, scene: createPerformancePreset().scene };
   }
-  const parts = createBenchmarkParts(spec);
+  const parts =
+    spec.kind === "structured-fe"
+      ? [createStructuredFePart(1, structuredFamily(spec), spec.gridCells)]
+      : createBenchmarkParts(spec);
   const placements = createPlacements(spec, parts);
   let builder = createScene();
   for (const part of parts) builder = builder.addPart(part);
@@ -139,6 +200,13 @@ export function createBenchmarkCase(spec: WebGpuBenchmarkSpec): WebGpuBenchmarkC
     .withRoot(ROOT_ASSEMBLY_ID)
     .build();
   return { ...spec, scene };
+}
+
+function structuredFamily(spec: WebGpuBenchmarkSpec): StructuredFeFamily {
+  if (spec.structuredFamily === undefined) {
+    throw new Error(`${spec.id} requires a structured FE family`);
+  }
+  return spec.structuredFamily;
 }
 
 /** Estimates renderer-owned buffers and render targets from their documented layouts. */

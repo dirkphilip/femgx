@@ -5,6 +5,10 @@ import {
   estimateBenchmarkMemory,
 } from "../../demo/benchmark/model";
 import { summarizeInteractiveSample } from "../../demo/benchmark/interactive";
+import {
+  createStructuredFeModel,
+  createStructuredFePart,
+} from "../../demo/benchmark/structured-fe";
 import { createLazyBenchmarkModel } from "../../demo/workbench/model";
 import { createCamera } from "../../src/index";
 
@@ -18,6 +22,10 @@ describe("WebGPU benchmark models", () => {
       { id: "many-parts-1000", kind: "many-parts" },
       { id: "placements-10k", kind: "placement-heavy" },
       { id: "bodies-256", kind: "body-heavy" },
+      { id: "fe-quad-shell-visual", kind: "structured-fe" },
+      { id: "fe-quad8-shell-visual", kind: "structured-fe" },
+      { id: "fe-hex8-solid-visual", kind: "structured-fe" },
+      { id: "fe-hex20-solid-visual", kind: "structured-fe" },
     ]);
     expect(benchmarkCaseSpecs(true).at(-1)?.id).toBe("unique-2m-local");
   });
@@ -66,6 +74,44 @@ describe("WebGPU benchmark models", () => {
         .get(1)
         ?.geometry.elements?.every((element) => element.bodyId !== undefined),
     ).toBe(true);
+  });
+
+  it("builds shared-node shell and solid FE families with truthful metadata", () => {
+    const quad = createStructuredFeModel("quad", 2);
+    const quad8 = createStructuredFeModel("quad8", 2);
+    const hex8 = createStructuredFeModel("hex8", 2);
+    const hex20 = createStructuredFeModel("hex20", 2);
+    expect(quad.nodes).toHaveLength(27);
+    expect(quad.elements).toHaveLength(4);
+    expect(quad8.nodes).toHaveLength(63);
+    expect(quad8.elements).toHaveLength(4);
+    expect(
+      new Set(quad8.elements[0]?.nodeIds.filter((id) => quad8.elements[1]?.nodeIds.includes(id))),
+    ).toHaveLength(3);
+    expect(hex8.nodes).toHaveLength(81);
+    expect(hex8.elements).toHaveLength(8);
+    expect(hex20.nodes).toHaveLength(243);
+    expect(hex20.elements).toHaveLength(8);
+    expect(
+      new Set(hex20.elements[0]?.nodeIds.filter((id) => hex20.elements[1]?.nodeIds.includes(id))),
+    ).toHaveLength(8);
+
+    const quadPart = createStructuredFePart(1, "quad", 2);
+    const quad8Part = createStructuredFePart(2, "quad8", 2);
+    const hex8Part = createStructuredFePart(3, "hex8", 2);
+    const hex20Part = createStructuredFePart(4, "hex20", 2);
+    expect(quadPart.geometry.elements).toHaveLength(4);
+    expect(quadPart.geometry.faces).toHaveLength(4);
+    expect(quadPart.geometry.indices).toHaveLength(4 * 2 * 3);
+    expect(quad8Part.geometry.faces).toHaveLength(4);
+    expect(quad8Part.geometry.indices).toHaveLength(4 * 6 * 3);
+    expect(hex8Part.geometry.faces).toHaveLength(24);
+    expect(hex8Part.geometry.indices).toHaveLength(24 * 2 * 3);
+    expect(hex20Part.geometry.faces).toHaveLength(24);
+    expect(hex20Part.geometry.indices).toHaveLength(24 * 6 * 3);
+    expect(hex20Part.geometry.bodies).toEqual([
+      { id: 1, name: "hex20 structured body", elementIds: [1, 2, 3, 4, 5, 6, 7, 8] },
+    ]);
   });
 
   it("reports buffer and render-target memory as an explicit sum", () => {

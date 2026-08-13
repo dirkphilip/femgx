@@ -45,14 +45,19 @@ export interface WebGpuBenchmarkCaseResult {
   readonly id: string;
   readonly name: string;
   readonly kind: WebGpuBenchmarkKind;
+  readonly structuredFamily?: WebGpuBenchmarkCase["structuredFamily"];
   readonly partCount: number;
   readonly drawBatchCount: number;
   readonly bodyCount: number;
   readonly elementCount: number;
+  readonly nodeCount: number;
+  readonly faceCount: number;
   readonly uniqueVertices: number;
   readonly uniqueTriangles: number;
   readonly submittedTriangles: number;
   readonly visibleTriangles: number;
+  readonly modelBuildMs: number;
+  readonly runtimeCompileMs: number;
   readonly instanceCount: number;
   readonly timings: BenchmarkTimings;
   readonly interactive?: InteractiveSamples;
@@ -102,8 +107,11 @@ export async function runWebGpuBenchmark(
   const results: WebGpuBenchmarkCaseResult[] = [];
   try {
     for (const spec of benchmarkCaseSpecs(options.includeLarge)) {
+      const modelBuildStart = performance.now();
       const benchmarkCase = createBenchmarkCase(spec);
-      results.push(await measureCase(canvas, device, benchmarkCase));
+      results.push(
+        await measureCase(canvas, device, benchmarkCase, performance.now() - modelBuildStart),
+      );
     }
   } finally {
     device.destroy();
@@ -132,8 +140,11 @@ async function measureCase(
   canvas: HTMLCanvasElement,
   device: GPUDevice,
   benchmarkCase: WebGpuBenchmarkCase,
+  modelBuildMs: number,
 ): Promise<WebGpuBenchmarkCaseResult> {
+  const runtimeCompileStart = performance.now();
   const runtime = createPackedSceneRuntime(benchmarkCase.scene);
+  const runtimeCompileMs = performance.now() - runtimeCompileStart;
   const bounds = sceneWorldBounds(benchmarkCase.scene, runtime);
   const camera = fitCamera(createCamera(), bounds, WIDTH, HEIGHT);
   const uniqueTriangles = countUniqueTriangles(benchmarkCase);
@@ -165,14 +176,21 @@ async function measureCase(
     id: benchmarkCase.id,
     name: benchmarkCase.name,
     kind: benchmarkCase.kind,
+    ...(benchmarkCase.structuredFamily === undefined
+      ? {}
+      : { structuredFamily: benchmarkCase.structuredFamily }),
     partCount: benchmarkCase.scene.parts.size,
     drawBatchCount: benchmarkCase.scene.parts.size,
     bodyCount: countBodies(benchmarkCase),
     elementCount: countElements(benchmarkCase),
+    nodeCount: countNodes(benchmarkCase),
+    faceCount: countFaces(benchmarkCase),
     uniqueVertices: countUniqueVertices(benchmarkCase),
     uniqueTriangles,
     submittedTriangles: submittedTriangleCount(benchmarkCase, runtime, false),
     visibleTriangles: submittedTriangleCount(benchmarkCase, runtime, true),
+    modelBuildMs,
+    runtimeCompileMs,
     instanceCount: runtime.instanceCount,
     timings: summarize(samples),
     ...(interactive === undefined ? {} : { interactive }),
@@ -202,6 +220,10 @@ function countUniqueTriangles(benchmarkCase: WebGpuBenchmarkCase): number {
 }
 
 function countElements(benchmarkCase: WebGpuBenchmarkCase): number {
+  if (benchmarkCase.structuredFamily !== undefined) {
+    const dimensions = benchmarkCase.structuredFamily.startsWith("hex") ? 3 : 2;
+    return benchmarkCase.gridCells ** dimensions;
+  }
   let count = 0;
   for (const part of benchmarkCase.scene.parts.values())
     count += part.geometry.elements?.length ?? 0;
@@ -211,6 +233,22 @@ function countElements(benchmarkCase: WebGpuBenchmarkCase): number {
 function countBodies(benchmarkCase: WebGpuBenchmarkCase): number {
   let count = 0;
   for (const part of benchmarkCase.scene.parts.values()) count += part.geometry.bodies?.length ?? 0;
+  return count;
+}
+
+function countNodes(benchmarkCase: WebGpuBenchmarkCase): number {
+  let count = 0;
+  for (const part of benchmarkCase.scene.parts.values()) {
+    count += (part.geometry.nodePositions?.length ?? part.geometry.positions.length) / 3;
+  }
+  return count;
+}
+
+function countFaces(benchmarkCase: WebGpuBenchmarkCase): number {
+  let count = 0;
+  for (const part of benchmarkCase.scene.parts.values()) {
+    if (part.geometry.primitive === "triangles") count += part.geometry.faces?.length ?? 0;
+  }
   return count;
 }
 
@@ -227,13 +265,18 @@ function benchmarkPickPoint(
   if (part === undefined || transform === undefined) {
     throw new Error(`${benchmarkCase.id} has no drawable benchmark instance`);
   }
-  const localCenter: [number, number, number] = [
+  const localPickPoint: readonly [number, number, number] = [
     (part.bounds.minX + part.bounds.maxX) / 2,
     (part.bounds.minY + part.bounds.maxY) / 2,
     (part.bounds.minZ + part.bounds.maxZ) / 2,
   ];
-  const worldCenter = transformPoint(transform, localCenter[0], localCenter[1], localCenter[2]);
-  const projected = projectPoint(camera, worldCenter);
+  const worldPoint = transformPoint(
+    transform,
+    localPickPoint[0],
+    localPickPoint[1],
+    localPickPoint[2],
+  );
+  const projected = projectPoint(camera, worldPoint);
   if (projected === undefined)
     throw new Error(`${benchmarkCase.id} pick point is behind the camera`);
   const rect = canvas.getBoundingClientRect();
