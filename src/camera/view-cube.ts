@@ -123,7 +123,7 @@ export function rotateCameraByStep(
     return rollCameraByStep(camera, rotation, radians);
   }
   const yaw = rotation === "left" ? radians : rotation === "right" ? -radians : 0;
-  const pitch = rotation === "up" ? -radians : rotation === "down" ? radians : 0;
+  const pitch = rotation === "up" ? radians : rotation === "down" ? -radians : 0;
   return orbitCameraWithinBounds(camera, yaw, pitch, camera.target, bounds);
 }
 

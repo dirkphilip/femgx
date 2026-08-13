@@ -95,10 +95,12 @@ world-coordinate plane (`XY`, `YZ`, or `XZ`) while retaining the signed side in
 its accessible label and stable face attributes. The same retained SVG contains
 a non-interactive projected positive X/Y/Z triad; its arms follow the current
 camera basis, collapse deterministically when viewed end-on, and never change
-navigation hit regions. Roll is defined by the
-visible result: clockwise moves a point above the target to the right, and
-counterclockwise moves it to the left, without changing the line of sight,
-target, framing, or clip planes. Face and corner snaps restore their canonical
+navigation hit regions. Pitch and yaw arrow names describe the visible scene
+rotation: up/down move projected content toward smaller/larger viewport Y,
+while left/right retain their corresponding horizontal directions. Roll is
+defined by the visible result: clockwise moves a point above the target to the
+right, and counterclockwise moves it to the left, without changing the line of
+sight, target, framing, or clip planes. Face and corner snaps restore their canonical
 up direction. Pressing `Z` frames the selected visible geometry (or the complete
 scene when there is no selection) through an interruptible approximately
 400-millisecond eased transition. Part selection includes every visible

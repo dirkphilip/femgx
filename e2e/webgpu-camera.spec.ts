@@ -185,6 +185,55 @@ test("rotates the current view cube by default, Shift, and Control/Meta steps", 
   }
 });
 
+test("rotates visible content in the named vertical direction", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("fit-view").click();
+  await page.locator('[data-view-face="front"]').click();
+  await expect
+    .poll(async () => directionAlignment(await readNavigationState(canvas), [0, 0, 1]))
+    .toBeGreaterThan(0.99999);
+
+  const runDirection = async (): Promise<void> => {
+    const before = await readNavigationState(canvas);
+    const towardCamera = normalizeVector([
+      before.camera.position[0] - before.camera.target[0],
+      before.camera.position[1] - before.camera.target[1],
+      before.camera.position[2] - before.camera.target[2],
+    ]);
+    const probe = [
+      before.camera.target[0] + towardCamera[0],
+      before.camera.target[1] + towardCamera[1],
+      before.camera.target[2] + towardCamera[2],
+    ] as const;
+    const beforeProjection = projectCameraPoint(before.camera, probe);
+    if (beforeProjection === undefined)
+      throw new Error("vertical direction probe must be projectable");
+
+    await page.locator('[data-rotate="up"]').click();
+    await expect
+      .poll(async () => cameraStepDegrees(before, await readNavigationState(canvas)))
+      .toBeCloseTo(15, 1);
+    const after = await readNavigationState(canvas);
+    const afterProjection = projectCameraPoint(after.camera, probe);
+    if (afterProjection === undefined)
+      throw new Error("rotated direction probe must be projectable");
+    expect(afterProjection[1]).toBeLessThan(beforeProjection[1]);
+  };
+
+  await runDirection();
+  await page.locator('[data-view-face="front"]').click();
+  await expect
+    .poll(async () => directionAlignment(await readNavigationState(canvas), [0, 0, 1]))
+    .toBeGreaterThan(0.99999);
+  const beforeOblique = await readNavigationState(canvas);
+  await page.locator('[data-rotate="left"]').click();
+  await expect
+    .poll(async () => cameraStepDegrees(beforeOblique, await readNavigationState(canvas)))
+    .toBeCloseTo(15, 1);
+  await runDirection();
+});
+
 test("rolls the current view in-plane without changing its line of sight", async ({ page }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
