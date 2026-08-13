@@ -512,17 +512,25 @@ describe("writeElementHighlights", () => {
     }
   });
 
-  it("invalidates the cached bind group when the buffer grows", () => {
+  it("invalidates every cached bind group when a box-sized selection grows the buffer", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
       const storage = makeStorage(gpu);
       storage.bindGroup = {} as GPUBindGroup;
+      storage.edgeBindGroup = {} as GPUBindGroup;
+      storage.transparentBindGroup = {} as GPUBindGroup;
+      storage.selectionBindGroup = {} as GPUBindGroup;
+      storage.nodeSelectionBindGroup = {} as GPUBindGroup;
       const updates = Array.from({ length: INITIAL_ELEMENT_HIGHLIGHTS + 10 }, (_, index) =>
         elementUpdate(index, index),
       );
       writeElementHighlights(gpu.device, storage, updates);
       expect(storage.bindGroup).toBeUndefined();
+      expect(storage.edgeBindGroup).toBeUndefined();
+      expect(storage.transparentBindGroup).toBeUndefined();
+      expect(storage.selectionBindGroup).toBeUndefined();
+      expect(storage.nodeSelectionBindGroup).toBeUndefined();
     } finally {
       restore();
     }
