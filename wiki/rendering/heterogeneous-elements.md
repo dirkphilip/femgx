@@ -43,8 +43,7 @@ and requires the `FemModel` node ids to already be dense and ordered because
 Tri6, Quad8, Tet10, Hex20, and Line3 are accepted and linearly tessellated; unsupported
 families are rejected by the heterogeneous builder with `HeterogeneousElementError`
 and an element id/shape when available. The builder does not interpolate curved
-quadratic geometry, combine incompatible primitives into one draw, or introduce
-streaming.
+quadratic geometry or combine incompatible primitives into one draw.
 
 Related: [[rendering/element-rendering|Element rendering]],
 [[rendering/element-interaction|Element-level interaction]],

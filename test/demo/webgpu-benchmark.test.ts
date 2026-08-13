@@ -192,7 +192,7 @@ describe("WebGPU benchmark models", () => {
     });
   });
 
-  it("keeps capacity tiers out of the ordinary workbench selector", () => {
+  it("keeps optional benchmark cases out of the ordinary workbench selector", () => {
     expect(workbenchBenchmarkSpecs(false).map((spec) => spec.id)).toEqual([
       "bodies-256",
       "fe-quad-shell-visual",

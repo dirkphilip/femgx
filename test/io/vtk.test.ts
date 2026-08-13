@@ -298,7 +298,7 @@ describe("parseVtk", () => {
   });
 });
 
-describe("parseVtk streaming memory", () => {
+describe("parseVtk typed-array accumulation", () => {
   it("accumulates a large cell table in compact typed-array buffers", () => {
     const cellCount = 2_000;
     const session = createParseSession();
@@ -332,7 +332,7 @@ describe("parseVtk streaming memory", () => {
     const tetCount = cellCount - hexCount;
     const lines: string[] = [
       "# vtk DataFile Version 5.0",
-      "streaming memory",
+      "typed-array buffers",
       "ASCII",
       "DATASET UNSTRUCTURED_GRID",
       "POINTS 8 double",

@@ -196,11 +196,9 @@ or benchmark contract.
 
 ## Demo e2e coverage
 
-`e2e/demo.spec.ts` covers preset switching, initial visibility, the hierarchical
-assembly tree (collapse/expand, plate-stack/fastener/fastener-subassembly hides,
-mixed parent state, and restoring a subtree from its parent), fit-to-view,
-projection, the context menu, node/face picking and selection, and stable
-rendering after repeated orbit interactions.
+The current workbench journeys are split by ownership across
+`e2e/demo-lifecycle.spec.ts`, `e2e/demo-visibility.spec.ts`, and
+`e2e/demo-interaction.spec.ts`.
 `e2e/mobile.spec.ts` asserts at a 390x844 viewport that the page has no
 horizontal overflow, primary controls stay reachable with 44px hit areas, the
 optional viewport panes stack, and the context menu fits inside the viewport.

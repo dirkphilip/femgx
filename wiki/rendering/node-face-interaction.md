@@ -80,7 +80,6 @@ oriented element faces are the finest-grained pickable units under
 - The demo's `Show element nodes` control bulk-updates this part/instance style
   path for every eligible non-Point part. It does not call a renderer-owned
   global overlay switch. Annotation circles are 6 CSS pixels in diameter
-  for every visible FE node. Annotation circles are 6 CSS pixels in diameter
   (three-quarters of the regular point-element diameter), scaled by
   `devicePixelRatio` so they stay the same apparent size on Retina and 1×
   displays. Their default color is black, independent of the part palette. The
