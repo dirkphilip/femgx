@@ -51,9 +51,14 @@ farther than one quarter of the nearest protected depth or one thousandth of
 the target distance, whichever is smaller.
 The WebGPU renderer projects its active pivot to a
 high-contrast three-axis screen-space widget at that world-space position. The X/Y/Z
-directions follow the current camera projection, while the widget dimensions scale
-with device pixels and stay stable through perspective, orthographic, and resize changes.
-The widget is visible only while the orbit gesture is active. Spin is
+directions follow the current camera projection. Its fixed 28/3/8/6 CSS-pixel
+axis, shaft, arrow-length, and arrow-width metrics scale by device pixel ratio and
+stay stable through perspective, orthographic, and resize changes. The projected
+pivot depth is preserved: opaque front fragments use an opaque `less-equal`
+draw, while opaque-hidden fragments use the existing weighted-transparency targets
+with fixed alpha `0.25` and `greater` depth. Transparent model fragments in front
+can therefore blend over the visible marker. The widget is visible only while
+the orbit gesture is active. Spin is
 continuous through the poles: orbit rotates the eye, target, and orthonormal
 view-frame up direction as one rigid basis, so the view never needs a pole
 clamp or a singular-frame fallback. Both spin and pan use the SpaceClaim

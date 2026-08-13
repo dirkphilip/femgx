@@ -3,6 +3,13 @@ import { transformDirection } from "../math/mat4";
 import type { Vec3 } from "../math/vec3";
 import { COLOR_SAMPLE_COUNT } from "./gpu-support";
 import {
+  TRANSPARENCY_ACCUMULATION_BLEND_STATE,
+  TRANSPARENCY_ACCUMULATION_FORMAT,
+  TRANSPARENCY_REVEALAGE_BLEND_STATE,
+  TRANSPARENCY_REVEALAGE_FORMAT,
+  transparencyOutput,
+} from "./gpu-transparency";
+import {
   createValidatedRenderPipeline,
   createValidatedShaderModule,
   type GpuValidationOptions,
@@ -14,7 +21,8 @@ export interface OrbitPivotResources {
   readonly buffer: GPUBuffer;
   readonly bindGroup: GPUBindGroup;
   readonly pivotBindGroup: GPUBindGroup;
-  readonly pipeline: GPURenderPipeline;
+  readonly visiblePipeline: GPURenderPipeline;
+  readonly hiddenPipeline: GPURenderPipeline;
 }
 
 /** Pixel dimensions for one high-DPI-stable axis widget. */
@@ -35,7 +43,8 @@ interface OrbitPivotPipelineOptions {
 export interface OrbitPivotPipeline {
   readonly frameLayout: GPUBindGroupLayout;
   readonly pivotLayout: GPUBindGroupLayout;
-  readonly pipeline: GPURenderPipeline;
+  readonly visiblePipeline: GPURenderPipeline;
+  readonly hiddenPipeline: GPURenderPipeline;
 }
 
 interface OrbitPivotResourceOptions {
@@ -45,14 +54,14 @@ interface OrbitPivotResourceOptions {
   readonly deformationBuffer: GPUBuffer;
 }
 
-/** Returns the widget dimensions in device pixels for the current point size. */
-export function orbitPivotMetrics(pointSizeDevicePixels: number): OrbitPivotMetrics {
-  const scale = Math.max(1, pointSizeDevicePixels) / 8;
+/** Returns the widget dimensions in device pixels for one display density. */
+export function orbitPivotMetrics(devicePixelRatio = 1): OrbitPivotMetrics {
+  const scale = Number.isFinite(devicePixelRatio) ? devicePixelRatio : 1;
   return {
-    axisLength: 32 * scale,
-    lineWidth: 4 * scale,
-    arrowLength: 9 * scale,
-    arrowWidth: 7 * scale,
+    axisLength: 28 * scale,
+    lineWidth: 3 * scale,
+    arrowLength: 8 * scale,
+    arrowWidth: 6 * scale,
   };
 }
 
@@ -62,7 +71,7 @@ export function orbitPivotAxisProjection(camera: Camera, axis: Vec3): readonly [
   return [projected[0], projected[1]];
 }
 
-/** Validates the always-visible three-axis widget's shader and pipeline. */
+/** Validates the visible and weighted-ghost pivot pipelines. */
 export async function createOrbitPivotPipeline(
   options: OrbitPivotPipelineOptions,
 ): Promise<OrbitPivotPipeline> {
@@ -75,8 +84,8 @@ export async function createOrbitPivotPipeline(
   const pivotLayout = options.device.createBindGroupLayout({
     entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } }],
   });
-  const pipeline = await createOrbitPipeline({ ...options, frameLayout, pivotLayout });
-  return { frameLayout, pivotLayout, pipeline };
+  const pipelines = await createOrbitPipelines({ ...options, frameLayout, pivotLayout });
+  return { frameLayout, pivotLayout, ...pipelines };
 }
 
 /** Allocates the widget's buffer and bind groups after its pipeline is valid. */
@@ -91,7 +100,8 @@ export function createOrbitPivotResources(options: OrbitPivotResourceOptions): O
   try {
     return {
       buffer,
-      pipeline: pipeline.pipeline,
+      visiblePipeline: pipeline.visiblePipeline,
+      hiddenPipeline: pipeline.hiddenPipeline,
       bindGroup: device.createBindGroup({
         layout: pipeline.frameLayout,
         entries: [
@@ -115,50 +125,67 @@ interface OrbitPipelineOptions extends OrbitPivotPipelineOptions {
   readonly pivotLayout: GPUBindGroupLayout;
 }
 
-async function createOrbitPipeline(options: OrbitPipelineOptions): Promise<GPURenderPipeline> {
+async function createOrbitPipelines(
+  options: OrbitPipelineOptions,
+): Promise<Pick<OrbitPivotPipeline, "visiblePipeline" | "hiddenPipeline">> {
   const module = await createValidatedShaderModule(
     options.device,
     "orbit pivot overlay",
     pivotShader,
     options.validation,
   );
-  return createValidatedRenderPipeline(options.device, "orbit pivot overlay", {
-    layout: options.device.createPipelineLayout({
-      bindGroupLayouts: [options.frameLayout, options.pivotLayout],
-    }),
-    vertex: { module, entryPoint: "vertexMain" },
-    fragment: {
-      module,
-      entryPoint: "fragmentMain",
-      targets: [{ format: options.format, blend: blendState }],
-    },
-    primitive: { topology: "triangle-list" },
-    depthStencil: {
-      format: options.depthFormat,
-      depthWriteEnabled: false,
-      depthCompare: "always",
-    },
-    multisample: { count: COLOR_SAMPLE_COUNT },
+  const layout = options.device.createPipelineLayout({
+    bindGroupLayouts: [options.frameLayout, options.pivotLayout],
   });
+  const create = (
+    label: string,
+    entryPoint: string,
+    depthCompare: GPUCompareFunction,
+    depthWriteEnabled: boolean,
+    targets: GPUColorTargetState[],
+  ): Promise<GPURenderPipeline> =>
+    createValidatedRenderPipeline(options.device, label, {
+      layout,
+      vertex: { module, entryPoint: "vertexMain" },
+      fragment: { module, entryPoint, targets },
+      primitive: { topology: "triangle-list" },
+      depthStencil: {
+        format: options.depthFormat,
+        depthWriteEnabled,
+        depthCompare,
+      },
+      multisample: { count: COLOR_SAMPLE_COUNT },
+    });
+  const [visiblePipeline, hiddenPipeline] = await Promise.all([
+    create("orbit pivot visible", "visibleFragmentMain", "less-equal", true, [
+      { format: options.format },
+    ]),
+    create("orbit pivot hidden", "hiddenFragmentMain", "greater", false, [
+      {
+        format: TRANSPARENCY_ACCUMULATION_FORMAT,
+        blend: TRANSPARENCY_ACCUMULATION_BLEND_STATE,
+      },
+      { format: TRANSPARENCY_REVEALAGE_FORMAT, blend: TRANSPARENCY_REVEALAGE_BLEND_STATE },
+    ]),
+  ]);
+  return { visiblePipeline, hiddenPipeline };
 }
 
-/** Draws the pivot after scene geometry as an always-visible screen-space widget. */
-interface OrbitPivotDrawOptions {
+interface OrbitPivotWriteOptions {
   readonly point: readonly [number, number, number] | undefined;
   readonly camera: Camera;
-  readonly pointSizeDevicePixels: number;
+  readonly devicePixelRatio: number;
 }
 
-/** Writes current pivot orientation and draws the signed, foreshortened axis arrows. */
-export function drawOrbitPivot(
-  pass: GPURenderPassEncoder,
-  resources: OrbitPivotResources,
-  options: OrbitPivotDrawOptions,
+/** Writes one active pivot orientation and fixed DPR-scaled widget geometry. */
+export function writeOrbitPivot(
   device: GPUDevice,
-): void {
-  const { point, camera, pointSizeDevicePixels } = options;
-  if (point === undefined) return;
-  const metrics = orbitPivotMetrics(pointSizeDevicePixels);
+  resources: OrbitPivotResources,
+  options: OrbitPivotWriteOptions,
+): boolean {
+  const { point, camera, devicePixelRatio } = options;
+  if (point === undefined) return false;
+  const metrics = orbitPivotMetrics(devicePixelRatio);
   const xAxis = orbitPivotAxisProjection(camera, [1, 0, 0]);
   const yAxis = orbitPivotAxisProjection(camera, [0, 1, 0]);
   const zAxis = orbitPivotAxisProjection(camera, [0, 0, 1]);
@@ -182,19 +209,24 @@ export function drawOrbitPivot(
       metrics.arrowWidth,
     ]),
   );
-  pass.setPipeline(resources.pipeline);
+  return true;
+}
+
+/** Draws one prepared pivot depth variant from the shared widget geometry. */
+export function drawOrbitPivot(
+  pass: GPURenderPassEncoder,
+  resources: OrbitPivotResources,
+  variant: "visible" | "hidden",
+): void {
+  pass.setPipeline(variant === "visible" ? resources.visiblePipeline : resources.hiddenPipeline);
   pass.setBindGroup(0, resources.bindGroup);
   pass.setBindGroup(1, resources.pivotBindGroup);
   pass.draw(60);
 }
 
-const blendState: GPUBlendState = {
-  color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha" },
-  alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" },
-};
-
 const pivotShader = /* wgsl */ `
 ${cameraStruct}
+${transparencyOutput}
 struct Pivot {
   position: vec3<f32>,
   _padding: f32,
@@ -279,10 +311,13 @@ fn centerDot(vertex: u32) -> vec2<f32> {
   }
   let offset = pixels * 2. / camera.viewport;
   var output: Output;
-  output.position = vec4<f32>(clip.xy + offset * clip.w, 0., clip.w);
+  output.position = vec4<f32>(clip.xy + offset * clip.w, clip.z, clip.w);
   output.color = color;
   return output;
 }
-@fragment fn fragmentMain(input: Output) -> @location(0) vec4<f32> {
+@fragment fn visibleFragmentMain(input: Output) -> @location(0) vec4<f32> {
   return input.color;
+}
+@fragment fn hiddenFragmentMain(input: Output) -> TransparencyOutput {
+  return weightedTransparency(input.color.rgb, .25);
 }`;

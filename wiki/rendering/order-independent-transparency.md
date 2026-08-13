@@ -11,12 +11,12 @@ clone materials, and alpha-zero remains visually absent but pickable.
 
 The visible frame has one deliberate presentation ordering:
 
-| Stage                                       | Color target                       | Depth                                                   | Blend/write                                 | Owner                                              |
-| ------------------------------------------- | ---------------------------------- | ------------------------------------------------------- | ------------------------------------------- | -------------------------------------------------- |
-| Opaque scene + visible triad + point replay | MSAA canvas, resolved opaque color | `less` scene, `less-equal` triad/points                 | Opaque; triad stencil marks visible samples | Surface batches, world-origin presentation, points |
-| Transparency + hidden origin triad          | Accumulation + revealage           | `less` for scene, `greater` for hidden triad, no writes | Weighted accumulation/revealage             | Fractional scene and fixed-alpha triad ghost       |
-| Composite                                   | Swap-chain color                   | Always, no write                                        | Transparent color over opaque color         | Full-screen OIT composite                          |
-| Presentation helpers                        | Swap-chain color                   | Explicit helper rule                                    | Helper-specific                             | Edges, nodes, orbit pivot, orientation gizmo       |
+| Stage                                             | Color target                       | Depth                                          | Blend/write                                 | Owner                                                        |
+| ------------------------------------------------- | ---------------------------------- | ---------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------ |
+| Opaque scene + visible triad/pivot + point replay | MSAA canvas, resolved opaque color | `less` scene, `less-equal` triad/pivot/points  | Opaque; triad stencil marks visible samples | Surface batches, world-origin and orbit presentation, points |
+| Transparency + hidden triad/pivot                 | Accumulation + revealage           | `less` scene, `greater` triad/pivot, no writes | Weighted accumulation/revealage             | Fractional scene and fixed-alpha presentation ghosts         |
+| Composite                                         | Swap-chain color                   | Always, no write                               | Transparent color over opaque color         | Full-screen OIT composite                                    |
+| Presentation helpers                              | Swap-chain color                   | Explicit helper rule                           | Helper-specific                             | Edges, nodes, orientation gizmo                              |
 
 The origin triad is a renderer-owned two-variant exception. Its positive
 world-space X/Y/Z geometry is anchored at `[0, 0, 0]` and scaled once from the
@@ -30,6 +30,16 @@ The triad is not scene geometry, is absent from picking and bounds, and has no
 public material or visibility mode. The lower-left
 orientation gizmo is a separate screen-space control, while the temporary
 orbit pivot remains an active-gesture helper with its own depth contract.
+
+The temporary orbit pivot uses the same screen-space geometry for both variants
+and uploads its world position, camera-projected axis directions, and fixed DPR
+metrics once per active frame. It draws after the opaque scene with `less-equal`
+and depth writes, then joins the weighted targets with `greater` and no depth
+write after transparent scene batches. The vertex shader preserves the pivot's
+projected clip depth rather than forcing it to the near plane, so transparent
+geometry in front can blend over the visible marker while opaque-hidden segments
+remain a restrained ghost. It is inactive outside an orbit gesture and remains
+outside picking and scene identity.
 
 Effective alpha is resolved after the part, instance, body, and element style
 layers. Alpha `1` stays in the opaque pass, fractional alpha is accumulated,

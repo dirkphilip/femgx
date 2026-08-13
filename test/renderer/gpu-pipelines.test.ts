@@ -30,7 +30,7 @@ describe("GPU render resources", () => {
       const transparent = gpu.renderPipelineDescriptors.filter(
         (descriptor) => descriptor.fragment?.targets.length === 2,
       );
-      expect(transparent).toHaveLength(4);
+      expect(transparent).toHaveLength(5);
       expect(
         transparent.every((descriptor) => descriptor.depthStencil?.depthWriteEnabled === false),
       ).toBe(true);
@@ -77,6 +77,24 @@ describe("GPU render resources", () => {
         stencilWriteMask: 0,
       });
       expect(originHidden?.fragment?.targets).toHaveLength(2);
+      expect(resources.orbitPivot.visiblePipeline).toBeDefined();
+      expect(resources.orbitPivot.hiddenPipeline).toBeDefined();
+      const pivotVisible = gpu.renderPipelineDescriptors.find(
+        (descriptor) => descriptor.label === "orbit pivot visible",
+      );
+      expect(pivotVisible?.depthStencil).toMatchObject({
+        depthCompare: "less-equal",
+        depthWriteEnabled: true,
+      });
+      expect(pivotVisible?.fragment?.targets).toEqual([{ format: "bgra8unorm" }]);
+      const pivotHidden = gpu.renderPipelineDescriptors.find(
+        (descriptor) => descriptor.label === "orbit pivot hidden",
+      );
+      expect(pivotHidden?.depthStencil).toMatchObject({
+        depthCompare: "greater",
+        depthWriteEnabled: false,
+      });
+      expect(pivotHidden?.fragment?.targets).toHaveLength(2);
       expect(resources.background.pipeline).toBeDefined();
       expect(resources.background.bindGroup).toBeDefined();
       expect(resources.background.buffer).toBeDefined();

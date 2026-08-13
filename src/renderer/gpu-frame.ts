@@ -13,7 +13,7 @@ import { beginColorPass, beginCompositePass, beginTransparencyPass } from "./gpu
 import type { RenderResources } from "./gpu-pipelines";
 import { ensureColorTargets, ensureCompositeBindGroup } from "./gpu-pipelines";
 import { drawOriginTriad, writeOriginTriad } from "./gpu-origin-triad";
-import { drawOrbitPivot } from "./gpu-orbit-pivot";
+import { drawOrbitPivot, writeOrbitPivot } from "./gpu-orbit-pivot";
 
 /** Everything the per-frame command encoding needs from the renderer. */
 export interface FrameOptions {
@@ -46,6 +46,8 @@ export interface FrameOptions {
   readonly deformation: DeformationState | undefined;
   /** Active world-space camera spin pivot. */
   readonly orbitPivot: readonly [number, number, number] | undefined;
+  /** Current display density used by fixed-size presentation helpers. */
+  readonly devicePixelRatio: number;
   /** Stable complete-scene scale for the persistent world-origin triad. */
   readonly originTriadScale: number;
 }
@@ -76,6 +78,11 @@ export function encodeVisibleFrame(
 ): void {
   writeFrameUniforms(camera, frame);
   writeOriginTriad(frame.device, frame.resources.originTriad, frame.originTriadScale);
+  const orbitPivotActive = writeOrbitPivot(frame.device, frame.resources.orbitPivot, {
+    point: frame.orbitPivot,
+    camera,
+    devicePixelRatio: frame.devicePixelRatio,
+  });
   const colorEncoder = frame.device.createCommandEncoder();
   const targets = ensureColorTargets(
     frame.draw,
@@ -102,9 +109,10 @@ export function encodeVisibleFrame(
     pass: "color",
     primitive: "points",
   });
+  if (orbitPivotActive) drawOrbitPivot(opaquePass, frame.resources.orbitPivot, "visible");
   opaquePass.end();
-  drawTransparencyPass(colorEncoder, frame, context, targets);
-  drawCompositePass(colorEncoder, camera, frame, context, targets);
+  drawTransparencyPass(colorEncoder, frame, context, targets, orbitPivotActive);
+  drawCompositePass(colorEncoder, frame, context, targets);
   frame.device.queue.submit([colorEncoder.finish()]);
 }
 
@@ -113,6 +121,7 @@ function drawTransparencyPass(
   frame: FrameOptions,
   context: DrawCallContext,
   targets: ReturnType<typeof ensureColorTargets>,
+  orbitPivotActive: boolean,
 ): void {
   const pass = beginTransparencyPass(
     encoder,
@@ -131,12 +140,12 @@ function drawTransparencyPass(
     });
   }
   drawOriginTriad(pass, frame.resources.originTriad, "hidden");
+  if (orbitPivotActive) drawOrbitPivot(pass, frame.resources.orbitPivot, "hidden");
   pass.end();
 }
 
 function drawCompositePass(
   encoder: GPUCommandEncoder,
-  camera: Camera,
   frame: FrameOptions,
   context: DrawCallContext,
   targets: ReturnType<typeof ensureColorTargets>,
@@ -161,7 +170,6 @@ function drawCompositePass(
   if (frame.nodeCalls.length > 0) {
     drawNodeOverlay(pass, frame, context);
   }
-  drawFrameOrbitPivot(pass, camera, frame);
   pass.end();
 }
 
@@ -221,22 +229,4 @@ function drawNodeOverlay(
     kind: "nodes",
     pipeline: frame.resources.nodeOverlayPipelines.visible,
   });
-}
-
-/** Draws the temporary camera-pivot widget in whichever overlay pass is active. */
-function drawFrameOrbitPivot(
-  pass: GPURenderPassEncoder,
-  camera: Camera,
-  frame: FrameOptions,
-): void {
-  drawOrbitPivot(
-    pass,
-    frame.resources.orbitPivot,
-    {
-      point: frame.orbitPivot,
-      camera,
-      pointSizeDevicePixels: pointSizeDevicePixels(frame.pointSize),
-    },
-    frame.device,
-  );
 }

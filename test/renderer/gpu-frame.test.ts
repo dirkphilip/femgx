@@ -141,17 +141,17 @@ function cameraSpaceDirection(camera: Camera, direction: Vec3): Vec3 {
 
 describe("orbit pivot widget", () => {
   it("keeps its dimensions in device pixels across display densities", () => {
-    expect(orbitPivotMetrics(8)).toEqual({
-      axisLength: 32,
-      lineWidth: 4,
-      arrowLength: 9,
-      arrowWidth: 7,
+    expect(orbitPivotMetrics(1)).toEqual({
+      axisLength: 28,
+      lineWidth: 3,
+      arrowLength: 8,
+      arrowWidth: 6,
     });
-    expect(orbitPivotMetrics(16)).toEqual({
-      axisLength: 64,
-      lineWidth: 8,
-      arrowLength: 18,
-      arrowWidth: 14,
+    expect(orbitPivotMetrics(2)).toEqual({
+      axisLength: 56,
+      lineWidth: 6,
+      arrowLength: 16,
+      arrowWidth: 12,
     });
   });
 
