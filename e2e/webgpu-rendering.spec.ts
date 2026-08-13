@@ -841,3 +841,206 @@ test("keeps result contours readable through face selection", async ({ page }) =
     "selection must not flatten result-colored face contrast",
   ).toBeGreaterThan(18);
 });
+
+test("preserves selected nodal result rendering across every display mode", async ({ page }) => {
+  await loadWebGpuPage(page);
+  await page.getByTestId("model-select").selectOption("results");
+  const canvas = page.getByTestId("view-canvas");
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "f:", attribute: "hovered", fresh: true },
+    "GPU picking must resolve a face before cycling nodal result modes",
+  );
+  await clearHover(page, canvas);
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => canvas.getAttribute("data-selected")).toBe(hit.key);
+
+  const modes = ["deformed", "base", "colored", "deformed"] as const;
+  for (const [index, expectedMode] of modes.entries()) {
+    await expect(canvas).toHaveAttribute("data-results", expectedMode);
+    await expect.poll(() => canvas.getAttribute("data-selected")).toBe(hit.key);
+    await stableCanvasPixels(page, canvas);
+    expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(100);
+    if (index < modes.length - 1) await page.getByTestId("results-toggle").click();
+  }
+});
+
+test("preserves selected nodal colors when results are replaced after upload", async ({ page }) => {
+  await page.goto("/");
+  const hasWebGpu = await page.evaluate(() => "gpu" in navigator);
+  if (!hasWebGpu) test.skip(true, "WebGPU is unavailable in this browser environment");
+
+  await page.evaluate(async () => {
+    const modulePath = "/src/index.ts";
+    const api = (await import(/* @vite-ignore */ modulePath)) as typeof Api;
+    document.body.innerHTML =
+      '<canvas id="nodal-results-test" style="display:block;width:640px;height:420px"></canvas>';
+    const canvas = document.getElementById("nodal-results-test");
+    if (!(canvas instanceof HTMLCanvasElement)) throw new Error("nodal-results canvas missing");
+    const part = api.createPart(1, {
+      positions: new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]),
+      indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+      primitive: "triangles",
+      nodePickIds: new Uint32Array([1, 2, 3, 4]),
+      nodePositions: new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]),
+      elements: [{ id: 10, primitiveStart: 0, primitiveCount: 2 }],
+      faces: [
+        {
+          elementId: 10,
+          faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 2,
+          key: "0,1,2,3",
+          nodeIds: [0, 1, 2, 3],
+          neighborElementIds: [],
+        },
+      ],
+    });
+    const scene = api
+      .createScene()
+      .addPart(part)
+      .addAssembly({
+        id: 1,
+        name: "nodal-results",
+        placements: [{ kind: "part", partId: 1, transform: api.identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const scalar = api.createResultField({
+      id: "nodal-scalar",
+      name: "Nodal scalar",
+      location: "nodal",
+      shape: "scalar",
+      count: 4,
+      unit: "u",
+      values: new Float32Array([0, 1, 2, 3]),
+    });
+    const displacement = api.createResultField({
+      id: "nodal-displacement",
+      name: "Nodal displacement",
+      location: "nodal",
+      shape: "vector",
+      count: 4,
+      unit: "u",
+      values: new Float32Array([0, 0, 0, 0.04, 0, 0, 0.04, 0.04, 0, 0, 0.04, 0]),
+    });
+    const selected = api.setTargetSelected(
+      api.createInteractionState(),
+      { kind: "face", instanceId: "1/0", elementId: 10, faceIndex: 0 },
+      true,
+    );
+    const viewport = await api.createFemViewport({
+      canvas,
+      scene,
+      background: "dark",
+      camera: api.createCamera({
+        position: [0, 0, 4],
+        target: [0, 0, 0],
+        up: [0, 1, 0],
+        orthoHeight: 2.8,
+        width: 640,
+        height: 420,
+      }),
+      results: { field: scalar, deformation: { field: displacement } },
+    });
+    viewport.setInteraction(selected);
+    (
+      window as Window & {
+        __nodalResultsTest?: {
+          readonly scalar: typeof scalar;
+          readonly displacement: typeof displacement;
+          readonly selected: typeof selected;
+          readonly ordinary: typeof selected;
+          readonly viewport: typeof viewport;
+        };
+      }
+    ).__nodalResultsTest = {
+      scalar,
+      displacement,
+      selected,
+      ordinary: api.createInteractionState(),
+      viewport,
+    };
+  });
+
+  const canvas = page.locator("#nodal-results-test");
+  const transition = async (mode: "base" | "colored" | "deformed") => {
+    await page.evaluate((nextMode) => {
+      const state = (
+        window as Window & {
+          __nodalResultsTest?: {
+            readonly scalar: Api.ScalarField<"nodal">;
+            readonly displacement: Api.VectorField<"nodal">;
+            readonly viewport: Api.FemViewport;
+          };
+        }
+      ).__nodalResultsTest;
+      if (state === undefined) throw new Error("nodal-results state missing");
+      if (nextMode === "base") state.viewport.clearResults();
+      else if (nextMode === "colored") state.viewport.setResults({ field: state.scalar });
+      else {
+        state.viewport.setResults({
+          field: state.scalar,
+          deformation: { field: state.displacement },
+        });
+      }
+    }, mode);
+  };
+
+  for (const mode of ["deformed", "base", "colored", "deformed"] as const) {
+    await transition(mode);
+    await stableCanvasPixels(page, canvas);
+    const selectedPixels = await canvasRgba(page, canvas);
+    expect(
+      visiblePixelCount(selectedPixels),
+      `${mode} nodal frame must remain visible`,
+    ).toBeGreaterThan(100);
+    expect(
+      await page.evaluate(() => {
+        const state = (
+          window as Window & {
+            __nodalResultsTest?: {
+              readonly selected: Api.InteractionState;
+              readonly ordinary: Api.InteractionState;
+              readonly viewport: Api.FemViewport;
+            };
+          }
+        ).__nodalResultsTest;
+        return state !== undefined && state.viewport.interaction === state.selected;
+      }),
+    ).toBe(true);
+    await page.evaluate(() => {
+      const state = (
+        window as Window & {
+          __nodalResultsTest?: {
+            readonly selected: Api.InteractionState;
+            readonly ordinary: Api.InteractionState;
+            readonly viewport: Api.FemViewport;
+          };
+        }
+      ).__nodalResultsTest;
+      if (state === undefined) throw new Error("nodal-results state missing");
+      state.viewport.setInteraction(state.ordinary);
+    });
+    await stableCanvasPixels(page, canvas);
+    const ordinaryPixels = await canvasRgba(page, canvas);
+    expect(
+      differingPixelCount(ordinaryPixels, selectedPixels),
+      `${mode} nodal selection must remain visible`,
+    ).toBeGreaterThan(100);
+    await page.evaluate(() => {
+      const state = (
+        window as Window & {
+          __nodalResultsTest?: {
+            readonly selected: Api.InteractionState;
+            readonly ordinary: Api.InteractionState;
+            readonly viewport: Api.FemViewport;
+          };
+        }
+      ).__nodalResultsTest;
+      if (state === undefined) throw new Error("nodal-results state missing");
+      state.viewport.setInteraction(state.selected);
+    });
+  }
+});
