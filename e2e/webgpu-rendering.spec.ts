@@ -1153,6 +1153,15 @@ test("preserves selected nodal colors when results are replaced after upload", a
       unit: "u",
       values: new Float32Array([0, 1, 2, 3]),
     });
+    const scalarB = api.createResultField({
+      id: "nodal-scalar-b",
+      name: "Nodal scalar B",
+      location: "nodal",
+      shape: "scalar",
+      count: 4,
+      unit: "u",
+      values: new Float32Array([3, 2, 1, 0]),
+    });
     const displacement = api.createResultField({
       id: "nodal-displacement",
       name: "Nodal displacement",
@@ -1161,6 +1170,15 @@ test("preserves selected nodal colors when results are replaced after upload", a
       count: 4,
       unit: "u",
       values: new Float32Array([0, 0, 0, 0.04, 0, 0, 0.04, 0.04, 0, 0, 0.04, 0]),
+    });
+    const displacementB = api.createResultField({
+      id: "nodal-displacement-b",
+      name: "Nodal displacement B",
+      location: "nodal",
+      shape: "vector",
+      count: 4,
+      unit: "u",
+      values: new Float32Array([0, 0, 0, 0.02, 0, 0, 0.02, 0.03, 0, 0, 0.02, 0]),
     });
     const selected = api.setTargetSelected(
       api.createInteractionState(),
@@ -1186,7 +1204,9 @@ test("preserves selected nodal colors when results are replaced after upload", a
       window as Window & {
         __nodalResultsTest?: {
           readonly scalar: typeof scalar;
+          readonly scalarB: typeof scalarB;
           readonly displacement: typeof displacement;
+          readonly displacementB: typeof displacementB;
           readonly selected: typeof selected;
           readonly ordinary: typeof selected;
           readonly viewport: typeof viewport;
@@ -1194,7 +1214,9 @@ test("preserves selected nodal colors when results are replaced after upload", a
       }
     ).__nodalResultsTest = {
       scalar,
+      scalarB,
       displacement,
+      displacementB,
       selected,
       ordinary: api.createInteractionState(),
       viewport,
@@ -1280,4 +1302,55 @@ test("preserves selected nodal colors when results are replaced after upload", a
       state.viewport.setInteraction(state.selected);
     });
   }
+
+  const retained = await page.evaluate(async () => {
+    const state = (
+      window as Window & {
+        __nodalResultsTest?: {
+          readonly scalar: Api.ScalarField<"nodal">;
+          readonly scalarB: Api.ScalarField<"nodal">;
+          readonly displacement: Api.VectorField<"nodal">;
+          readonly displacementB: Api.VectorField<"nodal">;
+          readonly viewport: Api.FemViewport;
+        };
+      }
+    ).__nodalResultsTest;
+    if (state === undefined) throw new Error("nodal-results state missing");
+    const scene = state.viewport.scene;
+    const runtime = state.viewport.runtime;
+    const camera = state.viewport.camera;
+    const interaction = state.viewport.interaction;
+    const visibleInstances = runtime.visibleCount;
+    for (let step = 0; step < 100; step += 1) {
+      const alternate = step % 2 === 1;
+      state.viewport.setResults({
+        field: alternate ? state.scalarB : state.scalar,
+        deformation: {
+          field: alternate ? state.displacementB : state.displacement,
+          scale: 1 + (step % 3) * 0.25,
+        },
+      });
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve();
+        });
+      });
+    }
+    return {
+      scene: state.viewport.scene === scene,
+      runtime: state.viewport.runtime === runtime,
+      camera: state.viewport.camera === camera,
+      interaction: state.viewport.interaction === interaction,
+      visibleInstances: state.viewport.runtime.visibleCount === visibleInstances,
+    };
+  });
+  expect(retained).toEqual({
+    scene: true,
+    runtime: true,
+    camera: true,
+    interaction: true,
+    visibleInstances: true,
+  });
+  await stableCanvasPixels(page, canvas);
+  expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(100);
 });

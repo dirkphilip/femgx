@@ -465,6 +465,17 @@ describe("WebGPU renderer", () => {
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
+    renderer.setDeformation({
+      scale: 1,
+      displacements: new Map([[1, new Float32Array([1, 0, 0])]]),
+    });
+    renderer.render(runtime, camera, scene.parts);
+    const latestDisplacements = new Float32Array([2, 0, 0, 0, 2, 0]);
+    renderer.setDeformation({
+      scale: 3,
+      displacements: new Map([[1, latestDisplacements]]),
+    });
+    renderer.render(runtime, camera, scene.parts);
     const first = gpus[0];
     if (first === undefined) throw new Error("no fake device created");
     expect(first.drawCalls.length).toBeGreaterThan(0);
@@ -488,6 +499,13 @@ describe("WebGPU renderer", () => {
     expect(renderer.device).toBe(second.device);
     renderer.render(runtime, camera, scene.parts);
     expect(second.drawCalls.length).toBeGreaterThan(0);
+    const recoveredDisplacement = second.buffers.find(
+      (buffer) => buffer.size === latestDisplacements.byteLength && (buffer.usage & 16) !== 0,
+    );
+    expect(recoveredDisplacement).toBeDefined();
+    expect(second.writes.some((write) => write.buffer === recoveredDisplacement?.resource)).toBe(
+      true,
+    );
     renderer.destroy();
   });
 
