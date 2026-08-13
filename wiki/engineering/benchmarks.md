@@ -24,6 +24,7 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `setAssemblyVisible` toggle | subcase with 2 000 instances     | hide then show                                     |
 | `setInstanceVisible` toggle | single instance                  | override, hide then show                           |
 | `getDrawList`               | 200 000 visible                  | rebuild draw list                                  |
+| `sceneWorldBounds`          | 32 768 triangles × 64 placements | reusable-part bounds and world transforms          |
 | `resolvePick`               | 50 000 lookups on 200 000        | O(1) index resolution                              |
 | `heterogeneousElementParts` | 600 mixed linear elements        | grouped triangle/line/point tessellation           |
 | `expand line geometry`      | 10,000 authored line segments    | one reusable four-corner triangle quad per segment |

@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as geometryBounds from "../../src/viewport/geometry-bounds";
+import { createCamera } from "../../src/camera/camera";
 import { createPart } from "../../src/geometry/part";
 import { createInteractionState, setTargetSelected } from "../../src/index";
 import { translation } from "../../src/math/mat4";
@@ -9,10 +11,11 @@ import {
   scenePlacedBounds,
   sceneWorldBounds,
   sceneWorldBoundsList,
+  protectSceneCamera,
   selectedSceneBounds,
 } from "../../src/viewport/scene-bounds";
 
-function sceneWithRepeatedPart() {
+function sceneWithRepeatedPart(placementCount = 2) {
   const part = createPart(1, {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
@@ -39,16 +42,30 @@ function sceneWithRepeatedPart() {
     .addAssembly({
       id: 1,
       name: "root",
-      placements: [
-        { kind: "part", partId: 1, transform: translation(0, 0, 0) },
-        { kind: "part", partId: 1, transform: translation(10, 0, 0) },
-      ],
+      placements: Array.from({ length: placementCount }, (_, index) => ({
+        kind: "part" as const,
+        partId: 1,
+        transform: translation(index * 10, 0, 0),
+      })),
     })
     .withRoot(1)
     .build();
 }
 
 describe("viewport scene bounds", () => {
+  it("evaluates reusable part bounds once per bounds query", () => {
+    const scene = sceneWithRepeatedPart(64);
+    const runtime = createPackedSceneRuntime(scene);
+    const displayedBounds = vi.spyOn(geometryBounds, "displayedPartBounds");
+
+    expect(sceneWorldBoundsList(scene, runtime)).toHaveLength(64);
+    expect(displayedBounds).toHaveBeenCalledTimes(1);
+
+    displayedBounds.mockClear();
+    protectSceneCamera(createCamera(), scene, runtime);
+    expect(displayedBounds).toHaveBeenCalledTimes(1);
+  });
+
   it("frames every visible occurrence for part selection and exact entity targets", () => {
     const scene = sceneWithRepeatedPart();
     const runtime = createPackedSceneRuntime(scene);

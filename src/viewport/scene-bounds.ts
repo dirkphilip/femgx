@@ -1,6 +1,6 @@
 import type { Camera } from "../camera/camera";
 import { protectCameraWithinBounds } from "../camera/navigation";
-import { boundsCorners, isFiniteBounds, type Bounds } from "../geometry/part";
+import { boundsCorners, isFiniteBounds, type Bounds, type PartId } from "../geometry/part";
 import { selectedTargets } from "../interaction/targets";
 import type { InteractionState } from "../interaction/interaction";
 import type { InteractionTarget } from "../interaction/target-types";
@@ -23,12 +23,8 @@ export function protectSceneCamera(
   runtime: PackedSceneRuntime,
   deformation?: DeformationState,
 ): Camera {
-  const bounds = sceneWorldBounds(scene, runtime, deformation);
-  return protectCameraWithinBounds(
-    camera,
-    bounds,
-    sceneWorldBoundsList(scene, runtime, deformation),
-  );
+  const boundsList = sceneWorldBoundsList(scene, runtime, deformation);
+  return protectCameraWithinBounds(camera, sceneBoundsFromList(boundsList), boundsList);
 }
 
 /** Returns the union of every placed part bound in displayed world space. */
@@ -37,24 +33,12 @@ export function sceneWorldBounds(
   runtime: PackedSceneRuntime,
   deformation?: DeformationState,
 ): Bounds {
-  const bounds = emptyBounds();
-  for (const partBounds of sceneWorldBoundsList(scene, runtime, deformation)) {
-    for (const corner of boundsCorners(partBounds)) include(bounds, corner);
-  }
-  return isFiniteBounds(bounds)
-    ? bounds
-    : { minX: -0.5, minY: -0.5, minZ: -0.5, maxX: 0.5, maxY: 0.5, maxZ: 0.5 };
+  return sceneBoundsFromList(sceneWorldBoundsList(scene, runtime, deformation));
 }
 
 /** Returns the union of every placed part bound, regardless of visibility. */
 export function scenePlacedBounds(scene: Scene, runtime: PackedSceneRuntime): Bounds {
-  const bounds = emptyBounds();
-  for (const partBounds of sceneWorldBoundsList(scene, runtime, undefined, true)) {
-    for (const corner of boundsCorners(partBounds)) include(bounds, corner);
-  }
-  return isFiniteBounds(bounds)
-    ? bounds
-    : { minX: -0.5, minY: -0.5, minZ: -0.5, maxX: 0.5, maxY: 0.5, maxZ: 0.5 };
+  return sceneBoundsFromList(sceneWorldBoundsList(scene, runtime, undefined, true));
 }
 
 /** Returns each placed part bound separately in displayed world space. */
@@ -65,17 +49,36 @@ export function sceneWorldBoundsList(
   includeHidden = false,
 ): readonly Bounds[] {
   const bounds: Bounds[] = [];
+  const partBoundsById = new Map<PartId, Bounds | undefined>();
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
     if (!includeHidden && !runtime.isInstanceVisible(slot)) continue;
     const partId = runtime.instancePartIds[slot];
     const transform = runtime.getTransform(slot);
     const part = partId === undefined ? undefined : scene.parts.get(partId);
-    const partBounds = part === undefined ? undefined : displayedPartBounds(part, deformation);
+    let partBounds: Bounds | undefined;
+    if (part !== undefined && partId !== undefined) {
+      if (partBoundsById.has(partId)) {
+        partBounds = partBoundsById.get(partId);
+      } else {
+        partBounds = displayedPartBounds(part, deformation);
+        partBoundsById.set(partId, partBounds);
+      }
+    }
     if (partBounds === undefined || transform === undefined || !isFiniteBounds(partBounds))
       continue;
     bounds.push(transformedBounds(partBounds, transform));
   }
   return bounds;
+}
+
+function sceneBoundsFromList(boundsList: readonly Bounds[]): Bounds {
+  const bounds = emptyBounds();
+  for (const partBounds of boundsList) {
+    for (const corner of boundsCorners(partBounds)) include(bounds, corner);
+  }
+  return isFiniteBounds(bounds)
+    ? bounds
+    : { minX: -0.5, minY: -0.5, minZ: -0.5, maxX: 0.5, maxY: 0.5, maxZ: 0.5 };
 }
 
 /** Returns occurrence bounds for the currently selected visible targets. */
