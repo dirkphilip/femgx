@@ -174,8 +174,12 @@ describe("GPU record struct layout vs CPU record encoders", () => {
 
   it("overrides triangle colors from the emphasis records", () => {
     expect(instanceVertexShader).not.toMatch(/\bvar match\b/);
-    expect(instanceVertexShader).toMatch(/primitiveElementPickIds\[vertexIndex \/ 3u\]/);
-    expect(instanceVertexShader).toMatch(/primitiveFaceBodyPickIds\(vertexIndex \/ 3u\)/);
+    expect(instanceVertexShader).toMatch(
+      /primitiveElementPickIds\[primitiveDrawId\(vertexIndex\)\]/,
+    );
+    expect(instanceVertexShader).toMatch(
+      /primitiveFaceBodyPickIds\(primitiveDrawId\(vertexIndex\)\)/,
+    );
     expect(instanceVertexShader).toMatch(/highlightHash\(/);
     expect(instanceVertexShader).toMatch(/elementHighlights\.records\[base \+ offset\]/);
     expect(instanceVertexShader).not.toMatch(/index < elementHighlights\.count/);
@@ -183,8 +187,8 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(pointVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
     expect(instanceVertexShader).toMatch(/@location\(3\) @interpolate\(flat\) elementPickId: u32/);
     expect(instanceVertexShader).toMatch(/@location\(4\) @interpolate\(flat\) facePickId: u32/);
-    expect(lineVertexShader).toMatch(/primitiveElementPickIds\[vertexIndex \/ 2u\]/);
-    expect(lineVertexShader).toMatch(/primitiveFaceBodyPickIds\(vertexIndex \/ 2u\)/);
+    expect(lineVertexShader).toMatch(/primitiveElementPickIds\[primitiveDrawId\(vertexIndex\)\]/);
+    expect(lineVertexShader).toMatch(/primitiveFaceBodyPickIds\(primitiveDrawId\(vertexIndex\)\)/);
     expect(edgeVertexShader).toMatch(/topologyBodyRange\(topologyIndex\)/);
     expect(edgeVertexShader).toMatch(/highlight\.hidden == 0u/);
     expect(pointVertexShader).toMatch(/topologyOwnersVisible\(/);
@@ -195,10 +199,11 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(pointNodePickVertexShader).not.toMatch(/highlightHash\(drawOrder\[instanceIndex\]/);
   });
 
-  it("builds primitive variants from explicit indexing and shared sprite corners", () => {
-    expect(instanceVertexShader).toContain("vertexIndex / 3u");
-    expect(lineVertexShader).toContain("vertexIndex / 2u");
-    expect(lineVertexShader).not.toContain("vertexIndex / 3u");
+  it("uses explicit primitive maps for indexed surfaces and shared sprite corners", () => {
+    expect(instanceVertexShader).toContain("primitiveDrawId(vertexIndex)");
+    expect(lineVertexShader).toContain("primitiveDrawId(vertexIndex)");
+    expect(instanceVertexShader).not.toContain("vertexIndex / 3u");
+    expect(lineVertexShader).not.toContain("vertexIndex / 2u");
     expect(nodePickVertexShader).toContain("vertexNodePickIds[base + 2u]");
     expect(lineNodePickVertexShader).toContain("base + 1u");
     expect(lineNodePickVertexShader).not.toContain("vertexNodePickIds[base + 2u]");
@@ -235,7 +240,8 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     );
     expect(nodePickFragmentShader).toMatch(/edgeScale \* 0\.04/);
     expect(nodePickFragmentShader).toMatch(/bestDist > threshold/);
-    expect(lineNodePickVertexShader).toMatch(/let base = \(vertexIndex \/ 2u\) \* 2u/);
+    expect(lineNodePickVertexShader).toMatch(/let base = \(vertexIndex - \(vertexIndex % 2u\)\)/);
+    expect(lineNodePickVertexShader).toMatch(/primitiveDrawId\(vertexIndex\)/);
     expect(lineNodePickVertexShader).toMatch(/vertexNodePickIds\[base \+ 1u\]/);
     expect(lineNodePickVertexShader).not.toMatch(/geometryPosition\(base3 \+ 6u\)/);
     expect(pointNodePickVertexShader).toMatch(/primitiveElementPickIds\[vertexIndex \/ 4u\]/);
@@ -367,6 +373,8 @@ describe("GPU deformation shader contract", () => {
 
   it("displaces surface vertices by their vertex buffer index", () => {
     expect(instanceVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
+    expect(instanceVertexShader).toMatch(/fn primitiveDrawId\(index: u32\)/);
+    expect(instanceVertexShader).not.toMatch(/vertexIndex \/ [23]u/);
   });
 
   it("resolves each vertex to its node before reading the displacement buffer", () => {
@@ -417,11 +425,10 @@ describe("GPU deformation shader contract", () => {
     expect(edgeVertexShader).toMatch(/output\.emissive = 0\.0/);
   });
 
-  it("displaces edge endpoints through explicit source and logical ids", () => {
+  it("displaces expanded edge endpoints through their draw index", () => {
     expect(edgeVertexShader).toMatch(/let endpoint = edgeEndpoint\(vertexIndex\)/);
-    expect(edgeVertexShader).toMatch(/let sourceVertexIndex = endpoint\.x/);
     expect(edgeVertexShader).toMatch(/let topologyIndex = endpoint\.y/);
-    expect(edgeVertexShader).toMatch(/displaced\(position, sourceVertexIndex\)/);
+    expect(edgeVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
     expect(edgeVertexShader).toMatch(/topologyOwnersVisible\(slot, topologyIndex\)/);
     expect(edgeVertexShader).not.toMatch(/topologyOwnersVisible\(slot, vertexIndex \/ 2u\)/);
   });

@@ -103,7 +103,9 @@ export function drawOneBatch(
   const group = orderBindGroup(draw.device, context.instanceLayout, storage, orderKind, {
     geometry,
     deformation,
-    cache: !nodes,
+    edge: overlay,
+    surfaceSubset: !overlay && subset,
+    cache: !nodes && !subset,
   });
   pass.setBindGroup(1, group);
   const count = bindDrawGeometry(pass, geometry, overlay, subset);
@@ -122,7 +124,9 @@ function bindDrawGeometry(
     ? subset
       ? (geometry.subsetEdgeVertexBuffer ?? geometry.edgeVertexBuffer)
       : geometry.edgeVertexBuffer
-    : geometry.vertexBuffer;
+    : subset
+      ? (geometry.subsetVertexBuffer ?? geometry.vertexBuffer)
+      : geometry.vertexBuffer;
   const indexBuffer = overlay
     ? subset
       ? geometry.subsetEdgeIndexBuffer

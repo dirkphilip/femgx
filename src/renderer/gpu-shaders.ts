@@ -109,11 +109,15 @@ export const geometryDataBindings = /* wgsl */ `
 @group(1) @binding(7) var<storage, read> geometryData: array<u32>;
 
 fn geometryPosition(index: u32) -> f32 {
-  return bitcast<f32>(geometryData[1u + index]);
+  return bitcast<f32>(geometryData[2u + index]);
+}
+
+fn primitiveDrawId(index: u32) -> u32 {
+  return geometryData[2u + geometryData[0] + index];
 }
 
 fn edgeEndpoint(index: u32) -> vec2<u32> {
-  let base = 1u + geometryData[0] + index * 2u;
+  let base = 2u + geometryData[0] + geometryData[1] + index * 2u;
   return vec2<u32>(geometryData[base], geometryData[base + 1u]);
 }
 `;
@@ -340,10 +344,9 @@ fn vertexMain(
   let slot = drawOrder[instanceIndex];
   let instance = instances[slot];
   let endpoint = edgeEndpoint(vertexIndex);
-  let sourceVertexIndex = endpoint.x;
   let topologyIndex = endpoint.y;
   var output: EdgeOutput;
-  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, sourceVertexIndex), 1.0);
+  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
   if (!topologyOwnersVisible(slot, topologyIndex)) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }

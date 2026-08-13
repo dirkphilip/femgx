@@ -28,6 +28,14 @@ Related: [[data/elements-topology|Element topology]] and
    primitive, batches instances by part, and draws with the part's primitive
    (see [[rendering/renderer-subrange-updates|Renderer subrange updates]]).
 
+Indexed line and triangle surfaces are expanded once at GPU upload into
+renderer-owned corner vertices. A packed primitive-id range maps every draw
+corner back to its logical element/face record, so shared or non-monotonic
+indices never make `vertex_index / verticesPerPrimitive` invent the wrong
+identity. Face subsets use the same mapping while retaining the full part
+metadata. The expansion is per reusable part, not per placement; the edge pass
+uses its own endpoint-aligned node-id buffer for deformation.
+
 Visible triangle surfaces use one internal flat-lighting fragment path. It
 derives a geometric normal from the displayed world position, applies a
 camera-following key direction fixed to the upper-left of the camera frame with
@@ -103,9 +111,10 @@ overlay vertices toward the camera in clip space: the larger pre-rasterization
 offset can move a genuinely occluded edge in front of a nearby surface.
 
 Edge visibility is keyed by an explicit expanded-endpoint record. Each line
-endpoint carries its original source-vertex index for nodal deformation and its
-logical edge index for the body owner/neighbor predicate. The edge draw must not
-derive topology identity from the indexed surface `vertex_index`: that builtin
+endpoint retains its original source-vertex index while upload builds an
+endpoint-aligned node-id buffer for nodal deformation, plus its logical edge
+index for the body owner/neighbor predicate. The edge draw must not derive
+topology identity from the indexed surface `vertex_index`: that builtin
 identifies a referenced surface vertex, not the edge ordinal. Face-subset edge
 orders use the same mapping with subset-local logical edge ids.
 

@@ -4,6 +4,7 @@ import {
   displacementFn,
   emphasisStructs,
   frameBindings,
+  geometryDataBindings,
   instanceBindings,
   instanceStruct,
   pickDataBindings,
@@ -26,6 +27,7 @@ ${emphasisHash}
 ${frameBindings}
 ${instanceBindings}
 ${pickDataBindings}
+${geometryDataBindings}
 
 ${displacementFn}
 
@@ -127,15 +129,15 @@ function createInstanceVertexOutput(primitiveIndex: string): string {
 `;
 }
 
-function createInstanceVertexShader(verticesPerPrimitive: 2 | 3): string {
-  const primitiveIndex = `vertexIndex / ${verticesPerPrimitive}u`;
+function createInstanceVertexShader(): string {
+  const primitiveIndex = "primitiveDrawId(vertexIndex)";
   return `${instanceVertexHeader}${createInstanceVertexMain(primitiveIndex)}`;
 }
 
-export const instanceVertexShader = createInstanceVertexShader(3);
+export const instanceVertexShader = createInstanceVertexShader();
 
 /** Line-list variant of the shared element vertex shader. */
-export const lineVertexShader = createInstanceVertexShader(2);
+export const lineVertexShader = createInstanceVertexShader();
 
 /**
  * Vertex stage for point-sprite parts. Each point is a quad of four vertices
