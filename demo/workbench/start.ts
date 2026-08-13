@@ -51,6 +51,7 @@ export async function startWebGpuDemo(
     createFemViewport({
       canvas,
       scene: model.scene,
+      keyboardTarget: window,
       orientationGizmo: { container: view.scene },
       ...(model.results === undefined ? {} : { results: model.results }),
       ...(controller === undefined ? {} : { camera: controller.camera }),

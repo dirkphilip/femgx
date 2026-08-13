@@ -78,9 +78,19 @@ visible result: clockwise moves a point above the target to the right, and
 counterclockwise moves it to the left, without changing the line of sight,
 target, framing, or clip planes. Face and corner snaps restore their canonical
 up direction. Pressing `Z` fits the selected visible occurrences (or the
-complete scene when there is no selection) through an interruptible one-second
+complete scene when there is no selection) through an interruptible approximately
+400-millisecond
 eased transition. Its final framing targets the selection while its eye
 position and clip interval continue to protect the complete displayed scene.
+
+`FemViewport.setCamera`, `fitView`, and `fitSelection` accept an optional
+`durationMs`. Omitted or zero duration applies immediately; `fitSelection`
+defaults to approximately 400 milliseconds, while a positive finite value is
+interruptible by direct camera manipulation, another camera command, scene
+replacement, resize, or destruction. Hosts opt into the core `Z` shortcut by
+passing `FemViewportOptions.keyboardTarget`; no global listener is installed,
+and repeat, modifiers, and editable targets are ignored. Reduced-motion
+preferences make transitions immediate.
 
 Camera admission through `createCamera` and `FemViewport.setCamera` rejects
 non-finite vectors/scalars, degenerate view bases, invalid field of view or

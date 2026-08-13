@@ -34,6 +34,26 @@ function deferred<T>(): {
   return { promise, resolve: resolvePromise };
 }
 
+class KeyboardTarget {
+  private listener: ((event: Event) => void) | undefined;
+
+  addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+    if (type === "keydown") this.listener = listener as (event: Event) => void;
+  }
+
+  removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+    if (type === "keydown" && this.listener === listener) this.listener = undefined;
+  }
+
+  dispatchEvent(_event: Event): boolean {
+    return false;
+  }
+
+  dispatch(event: Event): void {
+    this.listener?.(event);
+  }
+}
+
 function installTwoPhaseNavigator(first: GPUDevice, candidate: GPUDevice): () => void {
   const candidateRequest = deferred<GPUDevice>();
   let requestCount = 0;
@@ -202,6 +222,42 @@ describe("FemViewport", () => {
     expect(viewport.camera).toBe(previous);
     expect(onRender).toHaveBeenCalledOnce();
     viewport.destroy();
+  });
+
+  it("owns fit selection, validates transition durations, and scopes Z to the host target", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const keyboard = new KeyboardTarget();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: fakeGpuDevice().device,
+      keyboardTarget: keyboard,
+    });
+    const previous = viewport.camera;
+    const invalid = { durationMs: Number.NaN };
+    expect(() => {
+      viewport.fitSelection(invalid);
+    }).toThrow(/durationMs/);
+    expect(() => {
+      viewport.setCamera(previous, invalid);
+    }).toThrow(/durationMs/);
+
+    const preventDefault = vi.fn();
+    keyboard.dispatch({
+      key: "Z",
+      repeat: false,
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+      target: null,
+      preventDefault,
+    } as unknown as Event);
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(viewport.camera.target).toEqual(previous.target);
+
+    viewport.destroy();
+    keyboard.dispatch({ key: "z", preventDefault: vi.fn() } as unknown as Event);
   });
 
   it("coalesces body and visibility mutations inside one batch", async () => {

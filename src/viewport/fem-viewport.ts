@@ -1,7 +1,5 @@
 import { assertValidCamera, createCamera, resizeCamera, type Camera } from "../camera/camera";
 import { installCameraControlsWithProtectedBounds } from "../camera/controls";
-import { fitCamera } from "../camera/fit";
-import { applyViewCubeAction, type ViewCubeAction } from "../camera/view-cube";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionTarget } from "../interaction/target-types";
@@ -14,16 +12,22 @@ import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
-import { protectSceneCamera, sceneWorldBounds, sceneWorldBoundsList } from "./scene-bounds";
-import { cssSize, installResize, validateOrientationGizmo } from "./dom";
+import { sceneWorldBounds, sceneWorldBoundsList } from "./scene-bounds";
+import { cssSize, installResize, installViewportKeyboard, validateOrientationGizmo } from "./dom";
+import { CameraFocusController } from "./camera-focus";
 import { createOrientationGizmo, type OrientationGizmoHandle } from "./orientation-gizmo";
 import {
-  applyViewportResultInteraction,
+  resolveViewportInteraction,
   resolveViewportResults,
   type ViewportResultsConfig,
   type ViewportResultsState,
 } from "./results";
-import type { FemViewport, FemViewportOptions, ViewportBackground } from "./types";
+import type {
+  CameraTransitionOptions,
+  FemViewport,
+  FemViewportOptions,
+  ViewportBackground,
+} from "./types";
 export type { FemViewport, FemViewportOptions, ViewportBackground } from "./types";
 
 /** Creates a fitted, interactive FEM viewport backed only by WebGPU. */
@@ -59,6 +63,8 @@ class FemViewportCore implements FemViewport {
   private appliedInteraction = createInteractionState();
   private readonly removeControls: () => void;
   private readonly removeResize: () => void;
+  private readonly removeKeyboard: () => void;
+  private readonly cameraFocus: CameraFocusController;
   private orientationGizmo: OrientationGizmoHandle | undefined;
   private frame: number | undefined;
   private recoveryPromise: Promise<void> | undefined;
@@ -79,9 +85,20 @@ class FemViewportCore implements FemViewport {
     this.effectiveInteraction = this.baseInteraction =
       options.interaction ?? createInteractionState();
     this.cameraRef = { camera: options.camera ?? createCamera() };
+    this.cameraFocus = new CameraFocusController({
+      cameraRef: this.cameraRef,
+      canvas: options.canvas,
+      scene: () => this.currentScene,
+      runtime: () => this.currentRuntime,
+      interaction: () => this.baseInteraction,
+      invalidate: this.invalidate.bind(this),
+    });
+    this.removeKeyboard = installViewportKeyboard(options.keyboardTarget, () => {
+      this.fitSelection();
+    });
     assertValidCamera(this.cameraRef.camera);
     this.resize(false);
-    if (options.camera === undefined) this.fitView(false);
+    if (options.camera === undefined) this.cameraFocus.fitView(undefined, false);
     this.removeControls = installCameraControlsWithProtectedBounds({
       canvas: options.canvas,
       cameraRef: this.cameraRef,
@@ -89,9 +106,10 @@ class FemViewportCore implements FemViewport {
       bounds: () => sceneWorldBounds(this.currentScene, this.currentRuntime),
       protectedBounds: () => sceneWorldBoundsList(this.currentScene, this.currentRuntime),
       onRender: this.invalidate.bind(this),
-      ...(options.onGestureChange === undefined
-        ? {}
-        : { onGestureChange: options.onGestureChange }),
+      onGestureChange: (active) => {
+        if (active) this.cameraFocus.cancel();
+        options.onGestureChange?.(active);
+      },
     });
     this.removeResize = installResize(options.canvas, () => {
       this.resize();
@@ -100,7 +118,7 @@ class FemViewportCore implements FemViewport {
       options.orientationGizmo === undefined
         ? undefined
         : createOrientationGizmo(options.orientationGizmo, (action) => {
-            this.applyOrientationAction(action);
+            this.cameraFocus.applyOrientationAction(action);
           });
     try {
       if (options.results !== undefined) this.applyResults(options.results);
@@ -129,6 +147,7 @@ class FemViewportCore implements FemViewport {
 
   setScene(scene: Scene): void {
     this.ensureAlive();
+    this.cameraFocus.cancel();
     this.currentScene = scene;
     this.currentRuntime = createPackedSceneRuntime(scene);
     this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
@@ -137,33 +156,34 @@ class FemViewportCore implements FemViewport {
     this.effectiveInteraction = this.baseInteraction;
     this.appliedInteraction = createInteractionState();
     this.renderer.setDeformation(undefined);
-    this.fitView(false);
+    this.cameraFocus.fitView(undefined, false);
     this.invalidate();
   }
 
-  setCamera(camera: Camera): void {
+  setCamera(camera: Camera, transitionOptions?: CameraTransitionOptions): void {
     this.ensureAlive();
-    assertValidCamera(camera);
-    this.cameraRef.camera = protectSceneCamera(camera, this.currentScene, this.currentRuntime);
-    this.invalidate();
+    this.cameraFocus.setCamera(camera, transitionOptions);
   }
 
-  fitView(invalidate = true): void {
+  fitView(transitionOptions?: CameraTransitionOptions): void {
     this.ensureAlive();
-    const size = cssSize(this.options.canvas);
-    this.cameraRef.camera = fitCamera(
-      this.cameraRef.camera,
-      sceneWorldBounds(this.currentScene, this.currentRuntime),
-      size.width,
-      size.height,
-    );
-    if (invalidate) this.invalidate();
+    this.cameraFocus.fitView(transitionOptions, true);
+  }
+
+  fitSelection(transitionOptions?: CameraTransitionOptions): void {
+    this.ensureAlive();
+    this.cameraFocus.fitSelection(transitionOptions);
   }
 
   setInteraction(interaction: InteractionState): void {
     this.ensureAlive();
     this.baseInteraction = interaction;
-    this.effectiveInteraction = this.resolveEffectiveInteraction();
+    this.effectiveInteraction = resolveViewportInteraction(
+      interaction,
+      this.currentResults,
+      this.currentScene,
+      this.currentRuntime,
+    );
     this.invalidate();
   }
 
@@ -245,6 +265,7 @@ class FemViewportCore implements FemViewport {
   }
   resize(invalidate = true): void {
     this.ensureAlive();
+    this.cameraFocus.cancel();
     const size = cssSize(this.options.canvas);
     this.renderer.resize(size.width, size.height);
     this.cameraRef.camera = resizeCamera(this.cameraRef.camera, size.width, size.height);
@@ -290,7 +311,11 @@ class FemViewportCore implements FemViewport {
   recover(): Promise<void> {
     this.ensureAlive();
     if (this.recoveryPromise !== undefined) return this.recoveryPromise;
-    const recovery = this.recoverOnce();
+    const recovery = this.renderer.recover().then(() => {
+      this.appliedInteraction = createInteractionState();
+      this.render();
+      this.options.onRecovered?.();
+    });
     this.recoveryPromise = recovery;
     recovery.then(
       () => {
@@ -302,14 +327,6 @@ class FemViewportCore implements FemViewport {
     );
     return recovery;
   }
-
-  private async recoverOnce(): Promise<void> {
-    await this.renderer.recover();
-    this.appliedInteraction = createInteractionState();
-    this.render();
-    this.options.onRecovered?.();
-  }
-
   handleDeviceLoss(): void {
     if (this.destroyed) return;
     void this.recover().catch((error: unknown) => {
@@ -325,8 +342,10 @@ class FemViewportCore implements FemViewport {
     if (this.frame !== undefined && typeof cancelAnimationFrame !== "undefined") {
       cancelAnimationFrame(this.frame);
     }
+    this.cameraFocus.dispose();
     this.removeControls();
     this.removeResize();
+    this.removeKeyboard();
     this.orientationGizmo?.destroy();
     this.renderer.destroy();
   }
@@ -361,30 +380,13 @@ class FemViewportCore implements FemViewport {
   private applyResults(results: ViewportResultsConfig): void {
     const resolved = resolveViewportResults(results, this.currentScene, this.currentRuntime);
     this.currentResults = resolved;
-    this.effectiveInteraction = this.resolveEffectiveInteraction();
-    this.renderer.setDeformation(resolved.deformation);
-  }
-
-  private applyOrientationAction(action: ViewCubeAction): void {
-    this.cameraRef.camera = applyViewCubeAction(
-      this.cameraRef.camera,
-      sceneWorldBounds(this.currentScene, this.currentRuntime),
-      action,
+    this.effectiveInteraction = resolveViewportInteraction(
+      this.baseInteraction,
+      this.currentResults,
+      this.currentScene,
+      this.currentRuntime,
     );
-    this.invalidate();
-  }
-
-  private resolveEffectiveInteraction(): InteractionState {
-    const results = this.currentResults;
-    return results === undefined
-      ? this.baseInteraction
-      : applyViewportResultInteraction(
-          this.baseInteraction,
-          results.scalarField,
-          results.colorMap,
-          this.currentScene,
-          this.currentRuntime,
-        );
+    this.renderer.setDeformation(resolved.deformation);
   }
 
   private ensureAlive(): void {

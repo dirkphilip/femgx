@@ -145,12 +145,18 @@ class CameraControls {
 
   private readonly wheel = (event: WheelEvent): void => {
     event.preventDefault();
-    const amount = event.deltaY / 1000;
-    const camera = this.options.cameraRef.camera;
-    const next = this.zoom(amount, camera);
-    if (next === camera) return;
-    this.options.cameraRef.camera = next;
-    this.options.onRender();
+    this.options.onGestureChange?.(true);
+    try {
+      const amount = event.deltaY / 1000;
+      const camera = this.options.cameraRef.camera;
+      const next = this.zoom(amount, camera);
+      if (next !== camera) {
+        this.options.cameraRef.camera = next;
+        this.options.onRender();
+      }
+    } finally {
+      this.options.onGestureChange?.(false);
+    }
   };
 
   private endPointer(event: PointerEvent, releaseCapture: boolean): void {

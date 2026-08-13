@@ -1,6 +1,8 @@
 import type { Camera } from "../camera/camera";
 import { protectCameraWithinBounds } from "../camera/navigation";
 import { boundsCorners, isFiniteBounds, type Bounds } from "../geometry/part";
+import { selectedTargets } from "../interaction/targets";
+import type { InteractionState } from "../interaction/interaction";
 import { transformPoint } from "../math/mat4";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
@@ -39,6 +41,7 @@ export function sceneWorldBounds(scene: Scene, runtime: PackedSceneRuntime): Bou
 export function sceneWorldBoundsList(scene: Scene, runtime: PackedSceneRuntime): readonly Bounds[] {
   const bounds: Bounds[] = [];
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
+    if (!runtime.isInstanceVisible(slot)) continue;
     const partId = runtime.instancePartIds[slot];
     const transform = runtime.getTransform(slot);
     const part = partId === undefined ? undefined : scene.parts.get(partId);
@@ -46,6 +49,38 @@ export function sceneWorldBoundsList(scene: Scene, runtime: PackedSceneRuntime):
     bounds.push(transformedBounds(part.bounds, transform));
   }
   return bounds;
+}
+
+/** Returns occurrence bounds for the currently selected visible targets. */
+export function selectedSceneBounds(
+  scene: Scene,
+  runtime: PackedSceneRuntime,
+  interaction: InteractionState,
+): Bounds | undefined {
+  const selectedInstances = new Set<string>();
+  const selectedParts = new Set<number>();
+  for (const target of selectedTargets(interaction)) {
+    if (target.kind === "part") selectedParts.add(target.partId);
+    else selectedInstances.add(target.instanceId);
+  }
+  const bounds = emptyBounds();
+  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
+    if (!runtime.isInstanceVisible(slot)) continue;
+    const instanceId = runtime.getInstanceId(slot);
+    const partId = runtime.instancePartIds[slot];
+    if (
+      instanceId === undefined ||
+      partId === undefined ||
+      (!selectedInstances.has(instanceId) && !selectedParts.has(partId))
+    ) {
+      continue;
+    }
+    const transform = runtime.getTransform(slot);
+    const part = scene.parts.get(partId);
+    if (part === undefined || transform === undefined || !isFiniteBounds(part.bounds)) continue;
+    includeBounds(bounds, part.bounds, transform);
+  }
+  return isFiniteBounds(bounds) ? bounds : undefined;
 }
 
 function emptyBounds(): MutableBounds {
@@ -73,8 +108,16 @@ function transformedBounds(
   transform: Parameters<typeof transformPoint>[0],
 ): Bounds {
   const transformed = emptyBounds();
-  for (const corner of boundsCorners(bounds)) {
-    include(transformed, transformPoint(transform, corner[0], corner[1], corner[2]));
-  }
+  includeBounds(transformed, bounds, transform);
   return transformed;
+}
+
+function includeBounds(
+  target: MutableBounds,
+  bounds: Bounds,
+  transform: Parameters<typeof transformPoint>[0],
+): void {
+  for (const corner of boundsCorners(bounds)) {
+    include(target, transformPoint(transform, corner[0], corner[1], corner[2]));
+  }
 }
