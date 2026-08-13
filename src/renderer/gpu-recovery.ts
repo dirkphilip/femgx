@@ -10,6 +10,7 @@ import {
   type RenderResources,
 } from "./gpu-pipelines";
 import type { GpuValidationOptions } from "./gpu-validation";
+import { GpuCostAccumulator, type GpuCostAccumulator as GpuCostAccumulatorType } from "./gpu-cost";
 
 /** Actionable message when a renderer cannot recreate an external device. */
 export const EXTERNAL_DEVICE_RECOVERY_MESSAGE =
@@ -30,6 +31,12 @@ interface RebuildGpuBundleOptions {
   readonly canInstall?: () => boolean;
   readonly onCandidateLost?: (info: DeviceLostInfo) => void;
   readonly originTriad?: boolean;
+  readonly cost?: GpuCostAccumulatorType;
+}
+
+interface GpuBundleOptions {
+  readonly originTriad?: boolean;
+  readonly cost?: GpuCostAccumulator;
 }
 
 /** Creates the initial GPU resource bundle for a device. */
@@ -38,17 +45,24 @@ export async function createGpuBundle(
   format: GPUTextureFormat,
   depthFormat: GPUTextureFormat,
   validation?: GpuValidationOptions,
-  originTriad = true,
+  options: GpuBundleOptions = {},
 ): Promise<GpuBundle> {
+  const cost = options.cost ?? new GpuCostAccumulator();
   let resources: RenderResources | undefined;
   let draw: DrawResources | undefined;
   let pickTargets: PickTargets | undefined;
   let depthReadback: Awaited<ReturnType<typeof createPickDepthReadback>> | undefined;
   try {
-    resources = await createRenderResources(device, format, depthFormat, validation, originTriad);
+    resources = await createRenderResources(
+      device,
+      format,
+      depthFormat,
+      validation,
+      options.originTriad ?? true,
+    );
     depthReadback = await createPickDepthReadback(device, validation);
     pickTargets = createPickTargets(depthReadback);
-    draw = createDrawResources(device);
+    draw = createDrawResources(device, cost);
     return { device, resources, draw, pickTargets };
   } catch (error) {
     if (resources !== undefined) destroyRenderResources(resources);
@@ -86,7 +100,10 @@ export async function rebuildGpuBundle(
       format,
       depthFormat,
       options.validation,
-      options.originTriad,
+      {
+        ...(options.originTriad === undefined ? {} : { originTriad: options.originTriad }),
+        ...(options.cost === undefined ? {} : { cost: options.cost }),
+      },
     );
     if (candidateLost !== undefined) {
       destroyGpuBundle(bundle);
@@ -225,6 +242,7 @@ export class GpuDeviceLifecycle {
           candidateLost.value = true;
           this.markLost(info);
         },
+        cost: this.bundle.draw.cost,
       });
       if (this.state === "destroyed" || candidateLost.value) {
         destroyGpuBundle(bundle);

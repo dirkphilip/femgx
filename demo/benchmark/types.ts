@@ -6,6 +6,24 @@ import type {
 } from "./model";
 import type { BenchmarkMemoryEstimate } from "./memory";
 
+export interface BenchmarkGpuCostSnapshot {
+  readonly passes: Readonly<Record<string, number>>;
+  readonly draws: Readonly<
+    Record<string, { readonly calls: number; readonly indices: number; readonly instances: number }>
+  >;
+  readonly writes: Readonly<Record<string, { readonly calls: number; readonly bytes: number }>>;
+  readonly cpu: Readonly<Record<string, number>>;
+  readonly targets:
+    | {
+        readonly width: number;
+        readonly height: number;
+        readonly devicePixelRatio: number;
+        readonly sampleCount: number;
+        readonly estimatedBytes: number;
+      }
+    | undefined;
+}
+
 export interface BenchmarkTimings {
   readonly uploadAttachmentEstimateMs: Percentiles;
   readonly uploadAndFirstFrameMs: Percentiles;
@@ -43,10 +61,12 @@ export interface WebGpuBenchmarkCaseResult {
   readonly timings: BenchmarkTimings;
   readonly interactive?: InteractiveSamples;
   readonly estimatedMemory: BenchmarkMemoryEstimate;
+  /** Structural pass/draw/write counters from the final timed iteration. */
+  readonly gpuCost: BenchmarkGpuCostSnapshot;
 }
 
 export interface WebGpuBenchmarkReport {
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 3;
   readonly generatedAt: string;
   readonly browser: string;
   readonly adapter: {

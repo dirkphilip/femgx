@@ -14,6 +14,7 @@ import { createBuffer, type PartResource } from "./gpu-support";
 import { appendResultColorTail, createResultColorTail } from "./gpu-result-colors";
 import { buildPartGeometryData } from "./gpu-geometry-upload";
 import { createColorTargets, destroyColorTargets, type ColorTargets } from "./gpu-targets";
+import { GpuCostAccumulator } from "./gpu-cost";
 
 const POINT_SPRITE_INDICES = [0, 1, 2, 0, 2, 3] as const;
 
@@ -41,6 +42,7 @@ export interface DrawCall {
 /** Per-part geometry and instance storage buffers owned by the draw path. */
 export interface DrawResources {
   readonly device: GPUDevice;
+  readonly cost: GpuCostAccumulator;
   readonly parts: Map<PartId, PartResource>;
   readonly nodeParts: Map<PartId, PartResource>;
   readonly storages: Map<PartId, InstanceStorage>;
@@ -59,9 +61,13 @@ export interface DrawCallContext {
 }
 
 /** Creates the draw-path resource owner. */
-export function createDrawResources(device: GPUDevice): DrawResources {
+export function createDrawResources(
+  device: GPUDevice,
+  cost = new GpuCostAccumulator(),
+): DrawResources {
   return {
     device,
+    cost,
     parts: new Map(),
     nodeParts: new Map(),
     storages: new Map(),

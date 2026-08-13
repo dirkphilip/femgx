@@ -91,12 +91,14 @@ export function encodeVisibleFrame(
       frame.resources.originTriad,
       originTriadScale(camera, frame.originTriadNominalScale),
     );
+    frame.draw.cost.write("uniform", 32);
   }
   const orbitPivotActive = writeOrbitPivot(frame.device, frame.resources.orbitPivot, {
     point: frame.orbitPivot,
     camera,
     devicePixelRatio: frame.devicePixelRatio,
   });
+  if (orbitPivotActive) frame.draw.cost.write("uniform", 56);
   const colorEncoder = frame.device.createCommandEncoder();
   const targets = ensureColorTargets(
     frame.draw,
@@ -105,7 +107,9 @@ export function encodeVisibleFrame(
     frame.colorFormat,
     frame.depthFormat,
   );
+  frame.draw.cost.targets(frame.canvas.width, frame.canvas.height, frame.devicePixelRatio);
   const context = drawContext(frame, parts);
+  frame.draw.cost.pass("opaque");
   const opaquePass = beginColorPass(
     colorEncoder,
     targets.color.createView(),
@@ -116,9 +120,11 @@ export function encodeVisibleFrame(
   opaquePass.setBindGroup(0, frame.resources.frameBindGroup);
   opaquePass.setBindGroup(1, frame.resources.background.bindGroup);
   opaquePass.draw(3);
+  frame.draw.cost.draw("background", 3);
   drawBatches(opaquePass, frame.draw, context, frame.calls, { kind: "surface", pass: "color" });
   if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
     drawOriginTriad(opaquePass, frame.resources.originTriad, "visible");
+    frame.draw.cost.draw("origin-triad", 45);
   }
   drawBatches(opaquePass, frame.draw, context, frame.calls, {
     kind: "surface",
@@ -127,6 +133,7 @@ export function encodeVisibleFrame(
   });
   drawSelectionPass(opaquePass, frame, context, "selection-visible");
   if (orbitPivotActive) drawOrbitPivot(opaquePass, frame.resources.orbitPivot, "visible");
+  if (orbitPivotActive) frame.draw.cost.draw("pivot", 60);
   opaquePass.end();
   drawTransparencyPass(colorEncoder, frame, context, targets, orbitPivotActive);
   drawCompositePass(colorEncoder, frame, context, targets);
@@ -150,6 +157,7 @@ function drawTransparencyPass(
     },
     targets.depth.createView(),
   );
+  frame.draw.cost.pass("transparency");
   if (frame.transparentCalls.length > 0) {
     drawBatches(pass, frame.draw, context, frame.transparentCalls, {
       kind: "surface",
@@ -159,8 +167,10 @@ function drawTransparencyPass(
   drawSelectionPass(pass, frame, context, "selection-hidden");
   if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
     drawOriginTriad(pass, frame.resources.originTriad, "hidden");
+    frame.draw.cost.draw("origin-triad", 45);
   }
   if (orbitPivotActive) drawOrbitPivot(pass, frame.resources.orbitPivot, "hidden");
+  if (orbitPivotActive) frame.draw.cost.draw("pivot", 60);
   pass.end();
 }
 
@@ -183,7 +193,7 @@ function drawSelectionPass(
         variant === "selection-visible"
           ? frame.resources.pipelines.pointsSelectionVisible
           : frame.resources.pipelines.pointsSelectionHidden,
-      selection: true,
+      selection: variant === "selection-visible" ? "visible" : "hidden",
     });
   }
 }
@@ -200,9 +210,11 @@ function drawCompositePass(
     frame.context.getCurrentTexture().createView(),
     targets.depth.createView(),
   );
+  frame.draw.cost.pass("composite");
   pass.setPipeline(frame.resources.composite.pipeline);
   pass.setBindGroup(0, ensureCompositeBindGroup(frame.draw, frame.resources));
   pass.draw(3);
+  frame.draw.cost.draw("composite", 3);
   if (frame.edgeCalls.length > 0) {
     drawBatches(pass, frame.draw, context, frame.edgeCalls, {
       kind: "edge",
@@ -234,6 +246,7 @@ export function encodePickSnapshot(
   const context = drawContext(frame, parts);
   const pickEncoder = frame.device.createCommandEncoder();
   const pickPass = beginPickPass(pickEncoder, frame.pickTargets);
+  frame.draw.cost.pass("pick");
   drawBatches(pickPass, frame.draw, context, frame.calls, { kind: "surface", pass: "pick" });
   pickPass.end();
   frame.device.queue.submit([pickEncoder.finish()]);
@@ -262,7 +275,13 @@ function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
   uniform.set(cameraKeyLightDirection(camera), 24);
   uniform.set(cameraViewDirection(camera), 28);
   frame.device.queue.writeBuffer(frame.resources.cameraBuffer, 0, uniform);
-  writeDeformationUniform(frame.device, frame.resources.deformationBuffer, frame.deformation);
+  frame.draw.cost.write("uniform", uniform.byteLength);
+  writeDeformationUniform(
+    frame.device,
+    frame.resources.deformationBuffer,
+    frame.deformation,
+    frame.draw.cost,
+  );
 }
 
 function drawNodeOverlay(

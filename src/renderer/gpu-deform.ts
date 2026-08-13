@@ -1,5 +1,6 @@
 import type { PartId } from "../geometry/part";
 import type { DeformationState } from "../results/deform";
+import type { GpuCostAccumulator } from "./gpu-cost";
 
 /** Bytes of the deformation uniform (scale plus alignment padding). */
 export const DEFORMATION_UNIFORM_SIZE = 16;
@@ -24,6 +25,7 @@ const disabledDeformation: DeformationState = {
 /** The draw-path inputs the deformation sync needs to upload and rebind. */
 export interface DeformationSync {
   readonly device: GPUDevice;
+  readonly cost?: GpuCostAccumulator;
   readonly deformations: Map<PartId, DeformationStorage>;
   readonly storages: ReadonlyMap<
     PartId,
@@ -98,12 +100,14 @@ export function writeDeformationUniform(
   device: GPUDevice,
   buffer: GPUBuffer,
   state: DeformationState | undefined,
+  cost?: GpuCostAccumulator,
 ): void {
   const resolved = state ?? disabledDeformation;
   const uniform = new Uint32Array(4);
   const floats = new Float32Array(uniform.buffer);
   floats[0] = resolved.scale;
   device.queue.writeBuffer(buffer, 0, uniform);
+  cost?.write("uniform", uniform.byteLength);
 }
 
 /** Destroys every per-part deformation buffer owned by the draw path. */
@@ -122,6 +126,7 @@ function uploadDeformation(sync: DeformationSync, partId: PartId, values: Float3
   if (current !== undefined && current.buffer.size === size) {
     current.source = values;
     sync.device.queue.writeBuffer(current.buffer, 0, values);
+    sync.cost?.write("deformation", values.byteLength);
     return;
   }
   const buffer = sync.device.createBuffer({
@@ -134,6 +139,7 @@ function uploadDeformation(sync: DeformationSync, partId: PartId, values: Float3
   }
   sync.deformations.set(partId, { buffer, source: values });
   sync.device.queue.writeBuffer(buffer, 0, values);
+  sync.cost?.write("deformation", values.byteLength);
 }
 
 /** Clears every cached bind group that references a replaced deformation buffer. */
