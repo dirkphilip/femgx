@@ -31,11 +31,12 @@ export function buildHighlightTable(
   recordCapacity: number,
 ): HighlightTable | undefined {
   if (entries.length === 0) return { bucketCount: 0, seed: 0, entries: [] };
+  const ordered = [...entries].sort(compareEntries);
   const maxBucketCount = highestPowerOfTwo(Math.floor(recordCapacity / HIGHLIGHT_BUCKET_SIZE));
   let bucketCount = nextPowerOfTwo(Math.max(1, Math.ceil(entries.length / 2)));
   while (bucketCount <= maxBucketCount) {
     for (let seed = 0; seed < 256; seed += 1) {
-      const table = placeEntries(entries, bucketCount, seed);
+      const table = placeEntries(ordered, bucketCount, seed);
       if (table !== undefined) return table;
     }
     bucketCount *= 2;
@@ -82,6 +83,15 @@ function placeEntries(
     used[bucket] = (used[bucket] ?? 0) + 1;
   }
   return { bucketCount, seed, entries: table };
+}
+
+function compareEntries(left: HighlightTableEntry, right: HighlightTableEntry): number {
+  return (
+    left.slot - right.slot ||
+    left.elementPickId - right.elementPickId ||
+    left.facePickId - right.facePickId ||
+    left.nodePickId - right.nodePickId
+  );
 }
 
 function nextPowerOfTwo(value: number): number {

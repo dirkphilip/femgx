@@ -42,7 +42,7 @@ export function createHighlightStorage(
   return { buffer, data: new Uint8Array(size) };
 }
 
-/** Writes only changed header and bucket byte ranges to a part's table. */
+/** Writes one bounded span covering the changed header and bucket bytes. */
 export function writeElementHighlights(
   device: GPUDevice,
   storage: HighlightTarget,
@@ -84,23 +84,23 @@ function writeChangedRanges(
     next.byteLength,
     HIGHLIGHT_HEADER + Math.max(previousSlots, nextSlots) * ELEMENT_RECORD_STRIDE,
   );
-  let rangeStart = -1;
+  let firstChanged = -1;
+  let lastChanged = -1;
   for (let index = 0; index < meaningful; index += 1) {
-    const changed = next[index] !== previous[index];
-    if (changed && rangeStart < 0) rangeStart = index;
-    if ((!changed || index === meaningful - 1) && rangeStart >= 0) {
-      const rangeEnd = changed && index === meaningful - 1 ? index + 1 : index;
-      const alignedStart = rangeStart - (rangeStart % 4);
-      const alignedEnd = Math.min(meaningful, rangeEnd + ((4 - (rangeEnd % 4)) % 4));
-      device.queue.writeBuffer(
-        storage.highlight.buffer,
-        alignedStart,
-        next.subarray(alignedStart, alignedEnd),
-      );
-      cost?.write("highlight", alignedEnd - alignedStart);
-      rangeStart = -1;
-    }
+    if (next[index] === previous[index]) continue;
+    if (firstChanged < 0) firstChanged = index;
+    lastChanged = index;
   }
+  if (firstChanged < 0) return;
+  const alignedStart = firstChanged - (firstChanged % 4);
+  const rangeEnd = lastChanged + 1;
+  const alignedEnd = Math.min(meaningful, rangeEnd + ((4 - (rangeEnd % 4)) % 4));
+  device.queue.writeBuffer(
+    storage.highlight.buffer,
+    alignedStart,
+    next.subarray(alignedStart, alignedEnd),
+  );
+  cost?.write("highlight", alignedEnd - alignedStart);
 }
 
 function growHighlightStorage(
@@ -114,10 +114,9 @@ function growHighlightStorage(
   if (minimumRecords <= capacity) return;
   const nextCapacity = Math.max(minimumRecords, capacity * 2);
   const grown = createHighlightStorage(device, nextCapacity);
-  const mirror = new Uint8Array(grown.data);
-  mirror.set(highlight.data);
-  device.queue.writeBuffer(grown.buffer, 0, mirror);
-  cost?.write("highlight", mirror.byteLength);
+  grown.data.set(highlight.data);
+  device.queue.writeBuffer(grown.buffer, 0, grown.data);
+  cost?.write("highlight", grown.data.byteLength);
   highlight.buffer.destroy();
   storage.highlight = grown;
   storage.bindGroup = undefined;

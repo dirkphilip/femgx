@@ -597,6 +597,57 @@ test("survives repeated completed box selections on Quad shells", async ({ page 
     await expect(canvas).toHaveAttribute("data-renderer", "webgpu");
   }
 });
+test.describe("Retina box selection", () => {
+  test.use({ deviceScaleFactor: 2, viewport: { width: 1440, height: 900 } });
+
+  for (const model of ["fe-quad-shell-visual", "fe-quad8-shell-visual"] as const) {
+    test(`keeps ${model} stable through repeated boxes and hover`, async ({ page }) => {
+      test.setTimeout(90_000);
+      await page.goto("/");
+      const select = page.getByTestId("model-select");
+      const canvas = page.getByTestId("view-canvas");
+      await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+      await select.selectOption(model);
+      await expect(canvas).toHaveAttribute("data-model", model);
+      await expect
+        .poll(() => canvas.getAttribute("data-frames"), { timeout: 10_000 })
+        .not.toBeNull();
+      const box = await canvas.boundingBox();
+      if (box === null) throw new Error(`${model} canvas has no bounding box`);
+      for (let index = 0; index < 20; index += 1) {
+        const inset = (index % 5) * 0.02;
+        await primaryBoxDrag(
+          page,
+          canvas,
+          { fx: 0.12 + inset, fy: 0.18 },
+          { fx: 0.88 - inset, fy: 0.82 },
+        );
+        await page.mouse.up({ button: "left" });
+        await expect
+          .poll(
+            async () => {
+              const stats = await boxSelectionStats(page);
+              return { active: stats?.active, queued: stats?.queued };
+            },
+            { timeout: 10_000 },
+          )
+          .toEqual({ active: false, queued: false });
+        const selected = await dataset(page, "selected");
+        expect(selected).toMatch(/^e:/);
+        const frames = Number(await canvas.getAttribute("data-frames"));
+        await page.mouse.move(
+          box.x + box.width * (0.25 + (index % 6) * 0.1),
+          box.y + box.height * (0.35 + (index % 4) * 0.1),
+        );
+        await expect
+          .poll(async () => Number(await canvas.getAttribute("data-frames")), { timeout: 10_000 })
+          .toBeGreaterThan(frames);
+        expect(await dataset(page, "selected")).toBe(selected);
+      }
+      await expect(canvas).toHaveAttribute("data-renderer", "webgpu");
+    });
+  }
+});
 test("runs one opt-in continuous render chain and returns to idle", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
