@@ -85,6 +85,51 @@ test("stacks the optional secondary viewport without mobile overflow", async ({ 
   const secondaryBox = await secondary.boundingBox();
   if (primaryBox === null || secondaryBox === null) throw new Error("viewport has no bounds");
   expect(secondaryBox.y).toBeGreaterThan(primaryBox.y + primaryBox.height - 1);
+  const sidebar = page.locator(".sidebar");
+  const sidebarBox = await sidebar.boundingBox();
+  if (sidebarBox === null) throw new Error("visibility sidebar has no bounds");
+  expect(sidebarBox.y).toBeGreaterThanOrEqual(secondaryBox.y + secondaryBox.height - 1);
+
+  await page.evaluate(() => {
+    window.scrollTo(0, document.documentElement.scrollHeight);
+  });
+  const visibilityPanel = page.getByTestId("visibility-panel");
+  await expect(visibilityPanel).toBeVisible();
+  const checkbox = visibilityPanel.locator('input[type="checkbox"]').first();
+  await expect(checkbox).toBeVisible();
+  const primaryFrames = Number((await primary.getAttribute("data-frames")) ?? "0");
+  const secondaryFrames = Number((await secondary.getAttribute("data-frames")) ?? "0");
+  await checkbox.uncheck();
+  await expect(checkbox).not.toBeChecked();
+  await expect
+    .poll(async () => Number((await primary.getAttribute("data-frames")) ?? "0"))
+    .toBeGreaterThan(primaryFrames);
+  await expect
+    .poll(async () => Number((await secondary.getAttribute("data-frames")) ?? "0"))
+    .toBeGreaterThan(secondaryFrames);
+  const scrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+  expect(scrollHeight).toBeGreaterThan(secondaryBox.y + secondaryBox.height);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+    PHONE.width,
+  );
+
+  await page.getByTestId("viewport-toggle").click();
+  await expect(secondary).toBeHidden();
+  await page.getByTestId("viewport-toggle").click();
+  await expect(secondary).toBeVisible();
+  await expect(secondary).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  const reopenedPrimaryBox = await primary.boundingBox();
+  const reopenedSecondaryBox = await secondary.boundingBox();
+  const reopenedSidebarBox = await sidebar.boundingBox();
+  if (reopenedPrimaryBox === null || reopenedSecondaryBox === null || reopenedSidebarBox === null) {
+    throw new Error("reopened mobile layout has no bounds");
+  }
+  expect(reopenedSecondaryBox.y).toBeGreaterThan(
+    reopenedPrimaryBox.y + reopenedPrimaryBox.height - 1,
+  );
+  expect(reopenedSidebarBox.y).toBeGreaterThanOrEqual(
+    reopenedSecondaryBox.y + reopenedSecondaryBox.height - 1,
+  );
   const toggle = await page.getByTestId("viewport-toggle").boundingBox();
   expect(toggle?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
