@@ -15,7 +15,9 @@ import {
   buildHexModel,
   buildPointLineModel,
   buildQuadModel,
+  buildQuad8Model,
   buildTriangleModel,
+  buildTri6Model,
   buildTetModel,
 } from "./element-models";
 
@@ -25,7 +27,9 @@ export interface ElementFixtureParts {
   readonly line: PartId;
   readonly line3: PartId;
   readonly triangle: PartId;
+  readonly tri6: PartId;
   readonly quad: PartId;
+  readonly quad8: PartId;
   readonly generic: PartId;
   readonly tet4: PartId;
   readonly tet10: PartId;
@@ -55,6 +59,8 @@ const LINE3_PART_ID: PartId = 3;
 const TRIANGLE_PART_ID: PartId = 8;
 const QUAD_PART_ID: PartId = 9;
 const GENERIC_PART_ID: PartId = 10;
+const TRI6_PART_ID: PartId = 11;
+const QUAD8_PART_ID: PartId = 12;
 const TET4_PART_ID: PartId = 4;
 const TET10_PART_ID: PartId = 5;
 const HEX8_PART_ID: PartId = 6;
@@ -74,11 +80,13 @@ const GALLERY_LAYOUT: readonly GalleryPlacement[] = [
   { partId: LINE3_PART_ID, column: 2, row: 0 },
   { partId: TRIANGLE_PART_ID, column: 3, row: 0 },
   { partId: QUAD_PART_ID, column: 4, row: 0 },
+  { partId: TRI6_PART_ID, column: 5, row: 0 },
   { partId: GENERIC_PART_ID, column: 0, row: 1 },
   { partId: TET4_PART_ID, column: 1, row: 1 },
   { partId: TET10_PART_ID, column: 2, row: 1 },
   { partId: HEX8_PART_ID, column: 3, row: 1 },
   { partId: HEX20_PART_ID, column: 4, row: 1 },
+  { partId: QUAD8_PART_ID, column: 5, row: 1 },
 ];
 
 const SINGLE_PART_LAYOUT: readonly GalleryPlacement[] = [
@@ -100,7 +108,9 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   const hex8Model = buildHexModel(gridSize, cellSize, false);
   const hex20Model = buildHexModel(gridSize, cellSize, true);
   const triangleModel = buildTriangleModel();
+  const tri6Model = buildTri6Model();
   const quadModel = buildQuadModel();
+  const quad8Model = buildQuad8Model();
   const models = new Map<PartId, ElementModel>([
     [POINT_PART_ID, pointLineModel],
     [LINE_PART_ID, lineModel],
@@ -110,7 +120,9 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     [HEX8_PART_ID, hex8Model],
     [HEX20_PART_ID, hex20Model],
     [TRIANGLE_PART_ID, triangleModel],
+    [TRI6_PART_ID, tri6Model],
     [QUAD_PART_ID, quadModel],
+    [QUAD8_PART_ID, quad8Model],
   ]);
   const genericPart = createGenericSolverMappedPart();
   const parts: readonly Part[] = [
@@ -135,6 +147,8 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
       "triangle",
     ),
     requireGroup(heterogeneousElementParts({ triangle: QUAD_PART_ID }, quadModel), "triangle"),
+    requireGroup(heterogeneousElementParts({ triangle: TRI6_PART_ID }, tri6Model), "triangle"),
+    requireGroup(heterogeneousElementParts({ triangle: QUAD8_PART_ID }, quad8Model), "triangle"),
     genericPart,
   ];
   const scene = galleryScene(parts, blockSize, GALLERY_LAYOUT);
@@ -145,7 +159,9 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
       line: LINE_PART_ID,
       line3: LINE3_PART_ID,
       triangle: TRIANGLE_PART_ID,
+      tri6: TRI6_PART_ID,
       quad: QUAD_PART_ID,
+      quad8: QUAD8_PART_ID,
       tet4: TET4_PART_ID,
       tet10: TET10_PART_ID,
       hex8: HEX8_PART_ID,

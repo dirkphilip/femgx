@@ -160,7 +160,7 @@ test("fits the element tessellation and mapping gallery into a phone-sized viewp
   const canvas = page.getByTestId("view-canvas");
   await page.getByTestId("model-select").selectOption("gallery");
   await expect(canvas).toHaveAttribute("data-model", "gallery");
-  await expect(page.getByTestId("status")).toContainText("10 visible");
+  await expect(page.getByTestId("status")).toContainText("12 visible");
   await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
   await expect.poll(() => distinctColors(canvas), { timeout: 10_000 }).toBeGreaterThanOrEqual(6);
 
