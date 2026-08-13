@@ -92,10 +92,14 @@ projection changes do not alter a face's orientation response.
   expands each center into a screen-space sprite quad (4 vertices per point)
   using the complete `[0,1,2, 0,2,3]` triangle split; the point vertex shader
   sizes it to a constant CSS-pixel diameter
-  (`WebGpuRendererOptions.pointSizePixels`, default 8), scaled by
+  (`FemViewportOptions.pointSizePixels`, default 8), scaled by
   `devicePixelRatio` into device pixels so apparent size is stable across
-  displays. The visible color path renders at 4× MSAA and resolves to the
-  canvas, so mesh edges and line lists are antialiased.
+  displays. Node annotations use their independent
+  `FemViewportOptions.nodeSizePixels` diameter (default 6); both values are
+  validated in the inclusive `[1,64]` CSS-pixel range. Point picking keeps a
+  minimum 8 CSS-pixel diameter regardless of the visible point size. The
+  visible color path renders at 4× MSAA and resolves to the canvas, so mesh
+  edges and line lists are antialiased.
 - Mixed builds keep triangle, line, and point topologies in explicit reusable
   parts. They share source node and element identities without forcing
   incompatible primitives into one draw.

@@ -44,6 +44,8 @@ export type { FemViewport, FemViewportOptions, ViewportBackground } from "./type
 export async function createFemViewport(options: FemViewportOptions): Promise<FemViewport> {
   assertViewportBackground(options.background);
   assertOriginTriad(options.originTriad);
+  assertPixelSize("pointSizePixels", options.pointSizePixels);
+  assertPixelSize("nodeSizePixels", options.nodeSizePixels);
   validateOrientationGizmo(options.canvas, options.orientationGizmo);
   const owner: { viewport?: FemViewportCore } = {};
   let pendingLoss: DeviceLostInfo | undefined;
@@ -58,6 +60,8 @@ export async function createFemViewport(options: FemViewportOptions): Promise<Fe
     },
     ...(options.background === undefined ? {} : { background: options.background }),
     ...(options.originTriad === undefined ? {} : { originTriad: options.originTriad }),
+    ...(options.pointSizePixels === undefined ? {} : { pointSizePixels: options.pointSizePixels }),
+    ...(options.nodeSizePixels === undefined ? {} : { nodeSizePixels: options.nodeSizePixels }),
   });
   owner.viewport = new FemViewportCore(options, renderer);
   if (pendingLoss !== undefined) owner.viewport.handleDeviceLoss();
@@ -86,6 +90,8 @@ class FemViewportCore implements FemViewport {
   private destroyed = false;
   private autoFitOnResize = false;
   private background: ViewportBackground;
+  private pointSizePixels: number;
+  private nodeSizePixels: number;
   private originTriadNominalScale: number;
 
   constructor(
@@ -94,6 +100,8 @@ class FemViewportCore implements FemViewport {
   ) {
     this.currentScene = options.scene;
     this.background = options.background ?? "studio";
+    this.pointSizePixels = options.pointSizePixels ?? 8;
+    this.nodeSizePixels = options.nodeSizePixels ?? 6;
     this.currentRuntime = createPackedSceneRuntime(options.scene);
     this.originTriadNominalScale = sceneOriginTriadScale(options.scene, this.currentRuntime);
     this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
@@ -262,6 +270,24 @@ class FemViewportCore implements FemViewport {
     if (this.background === background) return;
     this.background = background;
     this.renderer.setBackground(background);
+    this.invalidate();
+  }
+
+  setPointSizePixels(size: number): void {
+    this.ensureAlive();
+    assertPixelSize("pointSizePixels", size);
+    if (this.pointSizePixels === size) return;
+    this.renderer.setPointSizePixels(size);
+    this.pointSizePixels = size;
+    this.invalidate();
+  }
+
+  setNodeSizePixels(size: number): void {
+    this.ensureAlive();
+    assertPixelSize("nodeSizePixels", size);
+    if (this.nodeSizePixels === size) return;
+    this.renderer.setNodeSizePixels(size);
+    this.nodeSizePixels = size;
     this.invalidate();
   }
 
@@ -448,5 +474,12 @@ class FemViewportCore implements FemViewport {
 
   private ensureAlive(): void {
     if (this.destroyed) throw new Error("FemViewport has been destroyed");
+  }
+}
+
+function assertPixelSize(name: string, value: number | undefined): void {
+  if (value === undefined) return;
+  if (!Number.isFinite(value) || value < 1 || value > 64) {
+    throw new RangeError(`${name} must be finite and in [1, 64] CSS pixels`);
   }
 }

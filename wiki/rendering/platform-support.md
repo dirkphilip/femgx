@@ -101,6 +101,9 @@ Device lifetime is centralized in `GpuDeviceLifecycle`
   throws a `WebGpuUnsupportedError` explaining that a new renderer is required.
 - `recover()` is a no-op while the device is healthy; `destroy()` stays
   idempotent and ignores loss callbacks that fire after teardown.
+- Presentation settings, including the independent point and node glyph
+  diameters, remain owned by the renderer across resource replacement and are
+  reapplied to the rebuilt camera uniform.
 
 Re-creating the device after a loss is **intentionally retained**: device loss is
 a normal part of the WebGPU contract on supported hardware (driver resets,

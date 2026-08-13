@@ -105,6 +105,8 @@ function fakeViewport(): FakeViewport {
       setResults: vi.fn(),
       clearResults: vi.fn(),
       setBackground: vi.fn(),
+      setPointSizePixels: vi.fn(),
+      setNodeSizePixels: vi.fn(),
       setEdgeDepthTest: vi.fn(),
       setPartVisible: vi.fn(),
       setAssemblyNodeVisible: vi.fn(),

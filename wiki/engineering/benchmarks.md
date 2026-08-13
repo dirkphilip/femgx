@@ -112,6 +112,10 @@ high-performance WebGPU adapter, records one cold sample, performs two untimed
 steady-state warmups, and reports p50 and p95 from seven timed steady-state
 samples. Set `RUN_PERF_LARGE=1` to include the bounded
 2-million-unique-triangle local case in addition to the default cases. The
+point and node glyph settings are uniform-only presentation inputs (8 and 6 CSS
+pixels by default); changing them does not add geometry, buffers, draw calls, or
+render passes. Browser screenshot validation remains the authority for their
+physical raster diameter across DPR and resize changes.
 default matrix is bounded but covers separate geometry, part/batch,
 placement/instance, and body-interaction dimensions; the local-only case is
 kept out of normal runs:

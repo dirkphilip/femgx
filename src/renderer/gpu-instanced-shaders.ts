@@ -170,8 +170,8 @@ export const selectionVertexShader = createInstanceVertexShader(true);
  * Vertex stage for point-sprite parts. Each point is a quad of four vertices
  * with the same center; `vertex_index % 4` selects the sprite corner, which
  * is offset in clip space so points stay a constant screen size and always
- * face the camera. Node-overlay sprites use a smaller diameter and the same
- * exact-depth path.
+ * face the camera. Node-overlay sprites use the independent node diameter and
+ * the same exact-depth path.
  */
 export const pointVertexShader = /* wgsl */ `
 ${cameraStruct}
@@ -198,7 +198,6 @@ fn pointVertex(
   position: vec3<f32>,
   instanceIndex: u32,
   vertexIndex: u32,
-  sizeScale: f32,
   nodeOverlay: bool,
 ) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
@@ -206,7 +205,8 @@ fn pointVertex(
   let displayedPosition = displaced(position, vertexIndex);
   let worldPosition = (instance.transform * vec4<f32>(displayedPosition, 1.0)).xyz;
   let clip = camera.viewProjection * vec4<f32>(worldPosition, 1.0);
-  let offset = (corner * camera.pointSize * sizeScale) / camera.viewport;
+  let diameter = select(camera.pointSize, camera.nodeSize, nodeOverlay);
+  let offset = (corner * diameter) / camera.viewport;
   let ndc = clip.xy / clip.w;
   let elementPickId = primitiveElementPickIds[vertexIndex / 4u];
   let bodyPickId = primitiveFaceBodyPickIds(vertexIndex / 4u).y;
@@ -282,11 +282,11 @@ ${bodyAndElementHighlighting}
 
 @vertex
 fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-  return pointVertex(position, instanceIndex, vertexIndex, 1.0, false);
+  return pointVertex(position, instanceIndex, vertexIndex, false);
 }
 
 @vertex
 fn nodeOverlayVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-  return pointVertex(position, instanceIndex, vertexIndex, 0.75, true);
+  return pointVertex(position, instanceIndex, vertexIndex, true);
 }
 `;

@@ -24,6 +24,8 @@ export interface SelectionPipelines {
   readonly linesSelectionHidden: GPURenderPipeline;
   readonly pointsSelectionVisible: GPURenderPipeline;
   readonly pointsSelectionHidden: GPURenderPipeline;
+  readonly nodesSelectionVisible: GPURenderPipeline;
+  readonly nodesSelectionHidden: GPURenderPipeline;
 }
 
 interface SelectionPipelineOptions {
@@ -59,17 +61,8 @@ type SelectionPipelineBase = Omit<GPURenderPipelineDescriptor, "fragment" | "dep
 export async function createSelectionPipelines(
   options: SelectionPipelineOptions,
 ): Promise<SelectionPipelines> {
-  const compile = (label: string, code: string) =>
-    createValidatedShaderModule(options.device, label, code, options.validation);
-  const [lineSelection, triangleSelection, lineHidden, triangleHidden] = await Promise.all([
-    compile("selection fragment", selectionFragmentShader),
-    compile("triangle selection fragment", triangleSelectionFragmentShader),
-    compile("selection transparency fragment", selectionTransparencyFragmentShader),
-    compile(
-      "triangle selection transparency fragment",
-      triangleSelectionTransparencyFragmentShader,
-    ),
-  ]);
+  const [lineSelection, triangleSelection, lineHidden, triangleHidden] =
+    await compileSelectionFragments(options);
   const variants = await Promise.all([
     createPrimitiveSelectionPipelines({
       ...options,
@@ -98,8 +91,17 @@ export async function createSelectionPipelines(
       visibleFragment: lineSelection,
       hiddenFragment: lineHidden,
     }),
+    createPrimitiveSelectionPipelines({
+      ...options,
+      label: "node",
+      vertexModule: options.pointVertex,
+      vertexEntry: "nodeOverlayVertexMain",
+      primitive: "triangle-list",
+      visibleFragment: lineSelection,
+      hiddenFragment: lineHidden,
+    }),
   ]);
-  const [triangle, line, point] = variants;
+  const [triangle, line, point, node] = variants;
   return {
     trianglesSelectionVisible: triangle.visible,
     trianglesSelectionHidden: triangle.hidden,
@@ -107,7 +109,25 @@ export async function createSelectionPipelines(
     linesSelectionHidden: line.hidden,
     pointsSelectionVisible: point.visible,
     pointsSelectionHidden: point.hidden,
+    nodesSelectionVisible: node.visible,
+    nodesSelectionHidden: node.hidden,
   };
+}
+
+async function compileSelectionFragments(
+  options: SelectionPipelineOptions,
+): Promise<readonly [GPUShaderModule, GPUShaderModule, GPUShaderModule, GPUShaderModule]> {
+  const compile = (label: string, code: string) =>
+    createValidatedShaderModule(options.device, label, code, options.validation);
+  return Promise.all([
+    compile("selection fragment", selectionFragmentShader),
+    compile("triangle selection fragment", triangleSelectionFragmentShader),
+    compile("selection transparency fragment", selectionTransparencyFragmentShader),
+    compile(
+      "triangle selection transparency fragment",
+      triangleSelectionTransparencyFragmentShader,
+    ),
+  ]);
 }
 
 async function createPrimitiveSelectionPipelines(

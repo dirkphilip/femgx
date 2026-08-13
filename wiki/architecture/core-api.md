@@ -60,7 +60,12 @@ const scene = createScene()
   .withRoot(1)
   .build();
 
-const viewport = await createFemViewport({ canvas, scene });
+const viewport = await createFemViewport({
+  canvas,
+  scene,
+  pointSizePixels: 8,
+  nodeSizePixels: 6,
+});
 
 let interaction = createInteractionState();
 interaction = setPartOverride(interaction, part.id, {
@@ -76,6 +81,10 @@ viewport.destroy();
 takes ownership of them; callers must not mutate or reuse them afterward.
 `elements` is optional; when present, each triangle belongs to exactly one
 stable element range and can participate in element picking and interaction.
+`pointSizePixels` and `nodeSizePixels` are independent screen-space diameters
+in CSS pixels. They default to 8 and 6, accept values in `[1,64]`, and can be
+changed later with `viewport.setPointSizePixels` and
+`viewport.setNodeSizePixels`.
 
 ## Core vocabulary and owners
 
@@ -85,7 +94,7 @@ stable element range and can participate in element picking and interaction.
 | Elements    | `createElement`, `ElementModel`, `heterogeneousElementParts`, `boundaryFaceRefs`, `FaceIdRef`, `ElementShape`                                                                                                   | Validated FE connectivity (Point, Line, Line3, Triangle, Tri6, Quad, Quad8, Tet4, Tet10, Hex8, Hex20), canonical topology, mixed primitive grouping, and face selection inputs.            |
 | Assemblies  | `NamedAssembly`, `PartPlacement`, `SubAssemblyPlacement`                                                                                                                                                        | Reusable hierarchical placement definitions and local transforms.                                                                                                                          |
 | Scene       | `createScene`, `SceneBuilder`, `Scene`                                                                                                                                                                          | Authoritative part/assembly registries, root identity, and authoring visibility state.                                                                                                     |
-| Viewport    | `createFemViewport`, `FemViewport`, `FemViewportOptions`                                                                                                                                                        | Runtime compilation, camera, WebGPU renderer, controls, resize, interaction sync, results, recovery, and teardown.                                                                         |
+| Viewport    | `createFemViewport`, `FemViewport`, `FemViewportOptions`                                                                                                                                                        | Runtime compilation, camera, WebGPU renderer, screen-space point/node sizes, controls, resize, interaction sync, results, recovery, and teardown.                                          |
 | Interaction | `createInteractionState`, `InteractionTarget`, `setTargetSelected`, `setTargetHighlighted`, `setTargetHovered`, `isTargetSelected`, `isTargetHighlighted`, `isHoveredTarget`, `clearSelection`, `resolve*Style` | Opaque immutable selection, highlight, and single-hover state. Body visibility and explicit style overrides remain separate target-scoped layers.                                          |
 | Camera      | `createCamera`, `setProjection`, `orbitCamera`, `panCamera`, `zoomCamera`, `fitCamera`                                                                                                                          | Immutable camera values and projection/navigation math.                                                                                                                                    |
 | Picking     | `FemViewport.pick`, `PickHit`, `interactionTargetFromHit`, `InteractionGranularity`                                                                                                                             | One complete side-effect-free GPU hit plus explicit host-owned interaction-target conversion.                                                                                              |

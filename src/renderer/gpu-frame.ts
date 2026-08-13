@@ -40,12 +40,10 @@ export interface FrameOptions {
   readonly depthFormat: GPUTextureFormat;
   /** Whether the edge overlay culls edges occluded by depth (`less`). */
   readonly edgeDepthTest: boolean;
-  /**
-   * Screen-space diameter of point elements in CSS pixels; node annotations use
-   * three-quarters. Written to the camera uniform as device pixels
-   * (`× devicePixelRatio`).
-   */
+  /** Screen-space diameter of point elements in CSS pixels. */
   readonly pointSize: number;
+  /** Screen-space diameter of FE node annotations in CSS pixels. */
+  readonly nodeSize: number;
   /** Per-frame deformation state; `undefined` disables GPU deformation. */
   readonly deformation: DeformationState | undefined;
   /** Per-part nodal scalar colors, or `undefined` when result coloring is off. */
@@ -62,6 +60,11 @@ export interface FrameOptions {
 
 /** Converts a CSS-pixel point diameter into device pixels for the GPU uniform. */
 export function pointSizeDevicePixels(cssPixels: number, dpr = devicePixelRatio): number {
+  return Math.max(1, cssPixels * dpr);
+}
+
+/** Converts a CSS-pixel node diameter into device pixels for the GPU uniform. */
+export function nodeSizeDevicePixels(cssPixels: number, dpr = devicePixelRatio): number {
   return Math.max(1, cssPixels * dpr);
 }
 
@@ -191,8 +194,8 @@ function drawSelectionPass(
       kind: "nodes",
       pipeline:
         variant === "selection-visible"
-          ? frame.resources.pipelines.pointsSelectionVisible
-          : frame.resources.pipelines.pointsSelectionHidden,
+          ? frame.resources.pipelines.nodesSelectionVisible
+          : frame.resources.pipelines.nodesSelectionHidden,
       selection: variant === "selection-visible" ? "visible" : "hidden",
     });
   }
@@ -267,10 +270,10 @@ function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
   uniform.set(viewProjectionMatrix(camera), 0);
   uniform[16] = frame.canvas.width;
   uniform[17] = frame.canvas.height;
-  uniform[18] = pointSizeDevicePixels(frame.pointSize);
-  uniform[19] = camera.near;
-  uniform[20] = camera.far;
-  uniform[21] = camera.mode === "orthographic" ? 1 : 0;
+  uniform[18] = pointSizeDevicePixels(frame.pointSize, frame.devicePixelRatio);
+  uniform[19] = nodeSizeDevicePixels(frame.nodeSize, frame.devicePixelRatio);
+  uniform[20] = frame.devicePixelRatio;
+  uniform[21] = 0;
   uniform[22] = 0;
   uniform.set(cameraKeyLightDirection(camera), 24);
   uniform.set(cameraViewDirection(camera), 28);

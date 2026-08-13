@@ -21,6 +21,8 @@ export interface WebGpuRendererOptions {
   readonly powerPreference?: GPUPowerPreference;
   /** Screen-space diameter of point elements in CSS pixels (default 8). */
   readonly pointSizePixels?: number;
+  /** Screen-space diameter of FE node annotations in CSS pixels (default 6). */
+  readonly nodeSizePixels?: number;
   /** Initial WebGPU-rendered viewport background (default `studio`). */
   readonly background?: ViewportBackground;
   /** Whether to render the world-origin triad (default `true`). */
@@ -53,6 +55,10 @@ export interface WebGpuRenderer {
   setEdgeDepthTest(enabled: boolean): void;
   /** Changes the WebGPU-rendered viewport background presentation. */
   setBackground(background: ViewportBackground): void;
+  /** Changes the point-element screen-space diameter in CSS pixels. */
+  setPointSizePixels(size: number): void;
+  /** Changes the FE node-annotation screen-space diameter in CSS pixels. */
+  setNodeSizePixels(size: number): void;
   /** Shows the library-styled world-space rotation pivot, or clears it. */
   setOrbitPivot(pivot: Vec3 | undefined): void;
   /** Rebuilds draw order after runtime visibility changes. */

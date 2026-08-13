@@ -37,7 +37,7 @@ describe("GPU render resources", () => {
       const transparent = gpu.renderPipelineDescriptors.filter(
         (descriptor) => descriptor.fragment?.targets.length === 2,
       );
-      expect(transparent).toHaveLength(8);
+      expect(transparent).toHaveLength(9);
       expect(
         transparent.every((descriptor) => descriptor.depthStencil?.depthWriteEnabled === false),
       ).toBe(true);
@@ -63,6 +63,11 @@ describe("GPU render resources", () => {
         ),
       ).toBeDefined();
       expect(resources.nodeOverlayPipelines.visible).toBeDefined();
+      expect(
+        gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === "node selection visible",
+        )?.vertex.entryPoint,
+      ).toBe("nodeOverlayVertexMain");
       expect(resources.originTriad?.visiblePipeline).toBeDefined();
       expect(resources.originTriad?.hiddenPipeline).toBeDefined();
       const originVisible = gpu.renderPipelineDescriptors.find(
@@ -140,7 +145,7 @@ describe("GPU render resources", () => {
         stencilWriteMask: 0,
       });
       const nodePipeline = gpu.renderPipelineDescriptors.find(
-        (descriptor) => descriptor.vertex.entryPoint === "nodeOverlayVertexMain",
+        (descriptor) => descriptor.label === "node annotation overlay",
       );
       expect(nodePipeline?.depthStencil).toMatchObject({
         depthCompare: "less-equal",

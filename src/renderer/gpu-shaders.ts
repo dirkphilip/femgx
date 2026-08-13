@@ -16,17 +16,16 @@ import { pickDataBindings } from "./gpu-topology-shader";
  * nearest node.
  */
 
-/** Camera uniform: view projection, viewport, clip planes, and key light. */
+/** Camera uniform: view projection, fixed-size presentation, and key light. */
 export const cameraStruct = /* wgsl */ `
 struct Camera {
   viewProjection: mat4x4<f32>,
   viewport: vec2<f32>,
   pointSize: f32,
-  nearPlane: f32,
-  farPlane: f32,
-  ortho: f32,
-  depthSlack: f32,
-  _pad: f32,
+  nodeSize: f32,
+  devicePixelRatio: f32,
+  _reserved: f32,
+  _reserved2: f32,
   keyLightDirection: vec4<f32>,
   viewDirection: vec4<f32>,
 };

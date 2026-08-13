@@ -25,6 +25,13 @@ one pixel maps to `2 * distance * tan(fovY / 2) / height` world units in
 perspective mode and `orthoHeight / height` in orthographic mode. Backing-store
 size and devicePixelRatio do not enter the gesture conversion.
 
+Point and node glyph diameters are a separate presentation-space contract: their
+CSS-pixel settings are multiplied by the current `devicePixelRatio` when the
+camera uniform is written. Resize and device recovery rewrite that uniform, so
+zoom, pan, projection changes, and recovery do not change the requested apparent
+diameter. The point-pick sprite uses at least 8 CSS pixels even when the visible
+point setting is smaller.
+
 Related: [[rendering/camera-presentation|Camera presentation]],
 [[rendering/fe-inspection-workbench|FE inspection workbench]].
 
