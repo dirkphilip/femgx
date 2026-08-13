@@ -13,6 +13,7 @@ import {
 import { setTargetHovered } from "../../src/interaction/targets";
 import { setFaceHighlighted } from "../../src/interaction/faces";
 import { setNodeSelected } from "../../src/interaction/nodes";
+import { setElementVisible } from "../../src/interaction/elements";
 import { translation } from "../../src/math/mat4";
 import { changedInstanceSlots } from "../../src/viewport/interaction-diff";
 import {
@@ -154,6 +155,14 @@ describe("changedInstanceSlots", () => {
     const highlighted = setElementHighlighted(empty, { instanceId: "1/3", elementId: 0 }, true);
     expect(changedInstanceSlots(rt, empty, highlighted)).toEqual([3]);
     expect(changedInstanceSlots(rt, highlighted, empty)).toEqual([3]);
+  });
+
+  it("marks an element visibility change's owning instance slot dirty", () => {
+    const rt = runtime();
+    const empty = createInteractionState();
+    const hidden = setElementVisible(empty, { instanceId: "1/3", elementId: 0 }, false);
+    expect(changedInstanceSlots(rt, empty, hidden)).toEqual([3]);
+    expect(changedInstanceSlots(rt, hidden, empty)).toEqual([3]);
   });
 
   it("ignores stale instance handles from a previous preset", () => {

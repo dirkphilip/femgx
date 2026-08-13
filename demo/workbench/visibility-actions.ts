@@ -1,6 +1,8 @@
 import {
   isBodyVisible,
+  isElementVisible,
   isTargetHighlighted,
+  setElementVisible,
   setTargetHighlighted,
   setBodyVisible,
   type BodyId,
@@ -12,6 +14,7 @@ import {
   type SceneRuntime,
 } from "../../src/index";
 import type { SelectTarget } from "./pick";
+import { elementTarget } from "./pick";
 
 /** Runtime hooks used by menu and visibility-panel visibility actions. */
 export interface VisibilityActionOptions {
@@ -54,6 +57,22 @@ export class WorkbenchVisibilityActions {
     this.finish();
   }
 
+  setElement(instanceId: InstanceId, elementId: number, visible: boolean): void {
+    const ref = { instanceId, elementId };
+    this.options.setInteraction(setElementVisible(this.options.interaction(), ref, visible));
+    this.finish();
+  }
+
+  toggleElement(target: SelectTarget): void {
+    const element = elementTarget(target);
+    if (element?.kind !== "element") return;
+    this.setElement(
+      element.instanceId,
+      element.elementId,
+      !isElementVisible(this.options.interaction(), element),
+    );
+  }
+
   bodyHighlight(instanceId: InstanceId, bodyId: BodyId): void {
     const ref = { instanceId, bodyId };
     const state = this.options.interaction();
@@ -89,6 +108,13 @@ export class WorkbenchVisibilityActions {
         interaction = setBodyVisible(
           interaction,
           { instanceId: instance.instanceId, bodyId: body.id },
+          true,
+        );
+      }
+      for (const element of part?.geometry.elements ?? []) {
+        interaction = setElementVisible(
+          interaction,
+          { instanceId: instance.instanceId, elementId: element.id },
           true,
         );
       }

@@ -107,6 +107,7 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
         buildNodeBodyPickData(part.geometry, spritePickIds),
         nodeBodyData.bodyRanges,
         nodeBodyData.bodyIds,
+        nodeBodyData.elementIds,
       ),
       GPUBufferUsage.STORAGE,
     ),
@@ -158,7 +159,7 @@ export function uploadPart(draw: DrawResources, part: Part): PartResource {
   const geometryDataBuffer = createGeometryDataBuffer(draw.device, vertexData.positions, edgeData);
   const facePickIdsBuffer = createBuffer(
     draw.device,
-    packTopologyData(faceBodyPickIds, edgeData.bodyRanges, edgeData.bodyIds),
+    packTopologyData(faceBodyPickIds, edgeData.bodyRanges, edgeData.bodyIds, edgeData.elementIds),
     GPUBufferUsage.STORAGE,
   );
   const edgeBuffers = createEdgeBuffers(draw.device, edgeData);
@@ -290,15 +291,21 @@ function packTopologyData(
   faceBodyPickIds: Uint32Array,
   bodyRanges: Uint32Array,
   bodyIds: Uint32Array,
+  elementIds: Uint32Array,
 ): Uint32Array {
-  const faceRecordCount = Math.floor(faceBodyPickIds.length / 3);
+  const faceRecordCount = Math.floor(faceBodyPickIds.length / 5);
   const rangeCount = Math.floor(bodyRanges.length / 2);
-  const data = new Uint32Array(2 + faceBodyPickIds.length + bodyRanges.length + bodyIds.length);
+  const conditionCount = Math.floor(bodyIds.length / 2);
+  const data = new Uint32Array(
+    3 + faceBodyPickIds.length + bodyRanges.length + bodyIds.length + elementIds.length,
+  );
   data[0] = faceRecordCount;
   data[1] = rangeCount;
-  data.set(faceBodyPickIds, 2);
-  data.set(bodyRanges, 2 + faceBodyPickIds.length);
-  data.set(bodyIds, 2 + faceBodyPickIds.length + bodyRanges.length);
+  data[2] = conditionCount;
+  data.set(faceBodyPickIds, 3);
+  data.set(bodyRanges, 3 + faceBodyPickIds.length);
+  data.set(bodyIds, 3 + faceBodyPickIds.length + bodyRanges.length);
+  data.set(elementIds, 3 + faceBodyPickIds.length + bodyRanges.length + bodyIds.length);
   return data;
 }
 
@@ -310,6 +317,7 @@ function emptyMeshEdgeData(): MeshEdgeData {
     positions: new Float32Array(),
     bodyRanges: new Uint32Array([0, 0]),
     bodyIds: new Uint32Array([0]),
+    elementIds: new Uint32Array([0]),
   };
 }
 

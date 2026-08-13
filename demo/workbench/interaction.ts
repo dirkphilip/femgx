@@ -1,5 +1,6 @@
 import {
   clientToCanvasCss,
+  isElementVisible,
   isTargetSelected,
   setTargetHovered,
   type FemViewport,
@@ -227,11 +228,17 @@ function contextMenuSelectionOptions(
   return {
     selectionLabel: target.kind === "element" ? undefined : selectionLabel(target, interaction),
     elementSelectionLabel:
-      element === undefined
+      element?.kind !== "element"
         ? undefined
         : isTargetSelected(interaction, element)
           ? "Deselect element"
           : "Select element",
+    elementVisibilityLabel:
+      element?.kind !== "element"
+        ? undefined
+        : isElementVisible(interaction, element)
+          ? "Hide element"
+          : "Show element",
   };
 }
 

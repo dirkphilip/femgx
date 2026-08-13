@@ -7,6 +7,7 @@ import {
   type ResolvedStyle,
 } from "../interaction/interaction";
 import { emphasizedBodyRefs, isBodyVisible } from "../interaction/bodies";
+import { isElementVisible } from "../interaction/elements";
 import { emphasizedFaceRefs, resolveFaceStyle } from "../interaction/faces";
 import { emphasizedNodeRefs, resolveNodeStyle } from "../interaction/nodes";
 import { readInteractionState } from "../interaction/state";
@@ -179,6 +180,7 @@ function collectElementEmphasis(
       elementPickId: ref.elementId + 1,
       facePickId: 0,
       nodePickId: 0,
+      hidden: !isElementVisible(interaction, ref),
       selected: data.selectedElementIds.get(ref.instanceId)?.has(ref.elementId) === true,
       style,
     });

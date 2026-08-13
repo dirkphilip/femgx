@@ -45,9 +45,7 @@ export function volumeGeometry(input: VolumeGeometryInput): TriangleGeometry {
       : validateFaceSelectionForElements(elements, faceSubset, "heterogeneous");
   if (selected !== undefined) validateManifoldFaces(elements);
   const faces =
-    selected === undefined
-      ? renderFacesForElements(elements, assignedBodies)
-      : allFacesForElements(elements);
+    selected === undefined ? renderFacesForElements(elements) : allFacesForElements(elements);
   const tessellation = tessellateVolumeFaces({
     model,
     faces,

@@ -112,6 +112,7 @@ export {
   setBodyOverride,
   setBodyVisible,
 } from "./interaction/bodies";
+export { isElementVisible, setElementVisible } from "./interaction/elements";
 export { emphasizedFaceRefs, isFaceEmphasized, resolveFaceStyle } from "./interaction/faces";
 export { emphasizedNodeRefs, isNodeEmphasized, resolveNodeStyle } from "./interaction/nodes";
 export type { BodyRef, FaceRef, NodeRef } from "./interaction/refs";

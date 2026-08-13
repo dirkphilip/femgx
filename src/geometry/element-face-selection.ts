@@ -8,7 +8,6 @@ import {
   type FaceKey,
 } from "../elements/faces";
 import type { Element, ElementId } from "../elements/element";
-import type { BodyId } from "./part";
 
 /** One source element face selected for tessellation. */
 export interface ElementRenderFace {
@@ -47,25 +46,13 @@ export function boundaryFacesForElements(
 }
 
 /**
- * Returns the ordinary exterior plus cross-body interface faces. Every
- * non-manifold face is rejected before render metadata can become ambiguous.
+ * Returns every oriented face after validating manifold topology. The renderer
+ * needs the interior face records so GPU visibility can expose a neighbor when
+ * its owner element is hidden.
  */
-export function renderFacesForElements(
-  elements: readonly Element[],
-  bodyIds: ReadonlyMap<ElementId, BodyId>,
-): readonly ElementRenderFace[] {
-  const faces = allFacesForElements(elements);
-  const neighbors = faceNeighbors(elements);
+export function renderFacesForElements(elements: readonly Element[]): readonly ElementRenderFace[] {
   validateManifoldFaces(elements);
-  return faces.filter(({ element, face }) => {
-    const incident = neighbors.get(face.key) ?? [];
-    if (incident.length < 2) return true;
-    const neighborId = incident.find((id) => id !== element.id);
-    if (neighborId === undefined) return false;
-    const ownerBody = bodyIds.get(element.id);
-    const neighborBody = bodyIds.get(neighborId);
-    return ownerBody !== undefined && neighborBody !== undefined && ownerBody !== neighborBody;
-  });
+  return allFacesForElements(elements);
 }
 
 /** Rejects ambiguous face incidence before any render subset is constructed. */

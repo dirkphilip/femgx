@@ -68,6 +68,7 @@ export class RendererAttachment {
   private readonly selection: SelectionState = { selectedNodeFlags: [], nodeFlags: this.nodeFlags };
   private interactionState = createInteractionState();
   private appliedHiddenBodyIds: ReadonlyMap<string, ReadonlySet<number>> | undefined;
+  private appliedHiddenElementIds: ReadonlyMap<string, ReadonlySet<number>> | undefined;
 
   /**
    * Ensures the attachment matches `runtime`, rebuilding the attachment when
@@ -150,7 +151,9 @@ export class RendererAttachment {
     const layout = this.layout;
     if (layout === undefined) return attached;
     const hiddenBodyIds = readInteractionState(interaction).hiddenBodyIds;
+    const hiddenElementIds = readInteractionState(interaction).hiddenElementIds;
     const bodyVisibilityChanged = this.appliedHiddenBodyIds !== hiddenBodyIds;
+    const elementVisibilityChanged = this.appliedHiddenElementIds !== hiddenElementIds;
     syncElementHighlights(
       {
         device: bundle.device,
@@ -163,6 +166,7 @@ export class RendererAttachment {
       interaction,
     );
     this.appliedHiddenBodyIds = hiddenBodyIds;
+    this.appliedHiddenElementIds = hiddenElementIds;
     const transparentChanged = refreshTransparencyFlags(
       runtime,
       layout,
@@ -183,7 +187,13 @@ export class RendererAttachment {
       this.rebuildTransparentOrders(runtime, layout, transparentChanged, bundle);
     }
     this.rebuildCalls();
-    return attached || bodyVisibilityChanged || transparentChanged.size > 0 || selectionChanged;
+    return (
+      attached ||
+      bodyVisibilityChanged ||
+      elementVisibilityChanged ||
+      transparentChanged.size > 0 ||
+      selectionChanged
+    );
   }
 
   public updateVisibility(
@@ -209,6 +219,7 @@ export class RendererAttachment {
     this.selection.selectedNodeFlags.length = 0;
     this.interactionState = createInteractionState();
     this.appliedHiddenBodyIds = undefined;
+    this.appliedHiddenElementIds = undefined;
   }
 
   private fullAttach(runtime: PackedSceneRuntime, layout: InstanceLayout, bundle: GpuBundle): void {
@@ -224,6 +235,7 @@ export class RendererAttachment {
     this.selection.selectedNodeFlags.length = runtime.instanceCount;
     this.selection.selectedNodeFlags.fill(false);
     this.appliedHiddenBodyIds = undefined;
+    this.appliedHiddenElementIds = undefined;
     const allSlots = Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
     const { updates } = collectInstanceUpdates(
       runtime,

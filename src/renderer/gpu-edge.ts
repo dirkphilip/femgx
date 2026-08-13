@@ -1,5 +1,5 @@
 import { bodyIdForElement, type Geometry } from "../geometry/part";
-import { buildBodyPrimitivePickIds } from "./gpu-pick-ids";
+import { buildBodyPrimitivePickIds, buildElementPrimitivePickIds } from "./gpu-pick-ids";
 
 /** Expanded edge endpoints plus the body owners of each logical edge. */
 export interface MeshEdgeData {
@@ -15,6 +15,8 @@ export interface MeshEdgeData {
   readonly bodyRanges: Uint32Array;
   /** 1-based owner/neighbor body pick-id pairs referenced by `bodyRanges`. */
   readonly bodyIds: Uint32Array;
+  /** 1-based owner/neighbor element pick-id pairs referenced by `bodyRanges`. */
+  readonly elementIds: Uint32Array;
 }
 
 interface MeshEdge {
@@ -30,7 +32,8 @@ export function buildMeshEdgeData(
 ): MeshEdgeData {
   const elementEdges = elementEdgeKeys(geometry);
   const bodyPickIds = buildBodyPrimitivePickIds(geometry);
-  const sourceBodyPairs = triangleBodyPairs(geometry, sourceIndices, bodyPickIds);
+  const elementPickIds = buildElementPrimitivePickIds(geometry);
+  const sourceBodyPairs = triangleBodyPairs(geometry, sourceIndices, bodyPickIds, elementPickIds);
   const edges = collectEdges(geometry, sourceIndices, elementEdges, sourceBodyPairs);
   return finalizeEdges(geometry, edges);
 }
@@ -39,7 +42,7 @@ function collectEdges(
   geometry: Geometry,
   sourceIndices: Uint32Array,
   elementEdges: Set<string> | undefined,
-  sourceBodyPairs: Array<readonly [number, number]>,
+  sourceBodyPairs: Array<readonly [number, number, number, number]>,
 ): MeshEdge[] {
   const triangleCount = Math.floor(sourceIndices.length / 3);
   const edges: MeshEdge[] = [];
@@ -51,7 +54,7 @@ function collectEdges(
       sourceIndices[base + 1] ?? 0,
       sourceIndices[base + 2] ?? 0,
     ];
-    const [owner, neighbor] = sourceBodyPairs[triangle] ?? [0, 0];
+    const [owner, neighbor, element, neighborElement] = sourceBodyPairs[triangle] ?? [0, 0, 0, 0];
     for (let corner = 0; corner < 3; corner++) {
       const a = corners[corner] ?? 0;
       const b = corners[(corner + 1) % 3] ?? 0;
@@ -67,7 +70,7 @@ function collectEdges(
       }
       // Keep `0` as an explicit unowned owner/neighbor id. It makes topology
       // shared with an unowned element visible when every named body is hidden.
-      edge.conditions.add(`${owner},${neighbor}`);
+      edge.conditions.add(`${owner},${neighbor},${element},${neighborElement}`);
     }
   }
   return edges;
@@ -75,6 +78,7 @@ function collectEdges(
 
 function finalizeEdges(geometry: Geometry, edges: readonly MeshEdge[]): MeshEdgeData {
   const bodyIds: number[] = [];
+  const elementIds: number[] = [];
   const bodyRanges = new Uint32Array(edges.length * 2);
   const indices = new Uint32Array(edges.length * 2);
   const sourceVertexIndices = new Uint32Array(edges.length * 2);
@@ -93,11 +97,23 @@ function finalizeEdges(geometry: Geometry, edges: readonly MeshEdge[]): MeshEdge
     copyPosition(geometry.positions, edge.a, positions, endpoint);
     copyPosition(geometry.positions, edge.b, positions, endpoint + 1);
     const conditions = [...edge.conditions]
-      .map((value) => value.split(",").map(Number) as [number, number])
-      .sort(([ownerA, neighborA], [ownerB, neighborB]) => ownerA - ownerB || neighborA - neighborB);
+      .map((value) => value.split(",").map(Number) as [number, number, number, number])
+      .sort(
+        (
+          [ownerA, neighborA, elementA, neighborElementA],
+          [ownerB, neighborB, elementB, neighborElementB],
+        ) =>
+          ownerA - ownerB ||
+          neighborA - neighborB ||
+          elementA - elementB ||
+          neighborElementA - neighborElementB,
+      );
     bodyRanges[index * 2] = bodyIds.length / 2;
     bodyRanges[index * 2 + 1] = conditions.length;
-    for (const [owner, neighbor] of conditions) bodyIds.push(owner, neighbor);
+    for (const [owner, neighbor, element, neighborElement] of conditions) {
+      bodyIds.push(owner, neighbor);
+      elementIds.push(element, neighborElement);
+    }
   }
   return {
     indices,
@@ -106,6 +122,7 @@ function finalizeEdges(geometry: Geometry, edges: readonly MeshEdge[]): MeshEdge
     positions,
     bodyRanges: bodyRanges.length === 0 ? new Uint32Array([0, 0]) : bodyRanges,
     bodyIds: bodyIds.length === 0 ? new Uint32Array([0]) : new Uint32Array(bodyIds),
+    elementIds: elementIds.length === 0 ? new Uint32Array([0]) : new Uint32Array(elementIds),
   };
 }
 
@@ -123,10 +140,12 @@ function triangleBodyPairs(
   geometry: Geometry,
   sourceIndices: Uint32Array,
   bodyPickIds: Uint32Array,
-): Array<readonly [number, number]> {
+  elementPickIds: Uint32Array,
+): Array<readonly [number, number, number, number]> {
   const facePickIds = geometry.primitive === "triangles" ? geometry.facePickIds : undefined;
-  const pairFor = (triangle: number): readonly [number, number] => {
+  const pairFor = (triangle: number): readonly [number, number, number, number] => {
     const owner = bodyPickIds[triangle] ?? 0;
+    const element = elementPickIds[triangle] ?? 0;
     const faceId = (facePickIds?.[triangle] ?? 0) - 1;
     const neighborElementId =
       geometry.primitive === "triangles"
@@ -135,14 +154,15 @@ function triangleBodyPairs(
     const neighborBody =
       neighborElementId === undefined ? undefined : bodyIdForElement(geometry, neighborElementId);
     const neighborPickId = neighborBody === undefined ? 0 : neighborBody + 1;
-    return [owner, neighborPickId === owner ? 0 : neighborPickId];
+    const neighborElementPickId = neighborElementId === undefined ? 0 : neighborElementId + 1;
+    return [owner, neighborPickId === owner ? 0 : neighborPickId, element, neighborElementPickId];
   };
   if (sourceIndices === geometry.indices) {
     return Array.from({ length: Math.floor(sourceIndices.length / 3) }, (_, triangle) =>
       pairFor(triangle),
     );
   }
-  const byTriangle = new Map<string, readonly [number, number]>();
+  const byTriangle = new Map<string, readonly [number, number, number, number]>();
   for (let triangle = 0; triangle < geometry.indices.length / 3; triangle++) {
     const base = triangle * 3;
     byTriangle.set(
@@ -154,7 +174,7 @@ function triangleBodyPairs(
       pairFor(triangle),
     );
   }
-  const result: Array<readonly [number, number]> = [];
+  const result: Array<readonly [number, number, number, number]> = [];
   for (let triangle = 0; triangle < sourceIndices.length / 3; triangle++) {
     const base = triangle * 3;
     result.push(
@@ -164,7 +184,7 @@ function triangleBodyPairs(
           sourceIndices[base + 1] ?? 0,
           sourceIndices[base + 2] ?? 0,
         ),
-      ) ?? [0, 0],
+      ) ?? [0, 0, 0, 0],
     );
   }
   return result;

@@ -3,6 +3,8 @@ import {
   createInteractionState,
   createSceneRuntime,
   isBodyVisible,
+  isElementVisible,
+  setElementVisible,
   setBodyVisible,
   type FemViewport,
 } from "../../src/index";
@@ -21,6 +23,13 @@ describe("WorkbenchVisibilityActions", () => {
     let interaction = setBodyVisible(
       createInteractionState(),
       { instanceId: firstInstance.instanceId, bodyId: firstBody.id },
+      false,
+    );
+    const firstElement = scene.parts.get(firstInstance.partId)?.geometry.elements?.[0];
+    if (firstElement === undefined) throw new Error("Fixture must contain an element");
+    interaction = setElementVisible(
+      interaction,
+      { instanceId: firstInstance.instanceId, elementId: firstElement.id },
       false,
     );
     let appliedInteractionCount = 0;
@@ -85,6 +94,11 @@ describe("WorkbenchVisibilityActions", () => {
       for (const body of bodies) {
         expect(
           isBodyVisible(interaction, { instanceId: instance.instanceId, bodyId: body.id }),
+        ).toBe(true);
+      }
+      for (const element of scene.parts.get(instance.partId)?.geometry.elements ?? []) {
+        expect(
+          isElementVisible(interaction, { instanceId: instance.instanceId, elementId: element.id }),
         ).toBe(true);
       }
     }

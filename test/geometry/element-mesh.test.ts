@@ -393,9 +393,9 @@ describe("heterogeneousElementParts geometry", () => {
     }
   });
 
-  it("culls the shared face between two tets in solid geometry", () => {
+  it("retains the shared face between two tets for GPU visibility", () => {
     const model = sharedTetPairModel();
-    expect(geometryFor(model, "triangle").indices.length).toBe(6 * 3);
+    expect(geometryFor(model, "triangle").indices.length).toBe(8 * 3);
   });
 
   it("retains both oriented cross-body interface faces", () => {
@@ -414,19 +414,19 @@ describe("heterogeneousElementParts geometry", () => {
     expect(geometry.indices.length).toBe(8 * 3);
   });
 
-  it("keeps same-body and named/unowned interfaces culled", () => {
+  it("retains same-body and named/unowned interfaces for GPU visibility", () => {
     const model = sharedTetPairModel();
     const sameBody = geometryFor(model, "triangle", {
       bodies: [{ id: 1, elementIds: [1, 2] }],
     });
-    expect(sameBody.indices.length).toBe(6 * 3);
-    expect(sameBody.faces?.some((face) => face.neighborElementIds.length > 0)).toBe(false);
+    expect(sameBody.indices.length).toBe(8 * 3);
+    expect(sameBody.faces?.some((face) => face.neighborElementIds.length > 0)).toBe(true);
 
     const namedAndUnowned = geometryFor(model, "triangle", {
       bodies: [{ id: 1, elementIds: [1] }],
     });
-    expect(namedAndUnowned.indices.length).toBe(6 * 3);
-    expect(namedAndUnowned.faces?.some((face) => face.neighborElementIds.length > 0)).toBe(false);
+    expect(namedAndUnowned.indices.length).toBe(8 * 3);
+    expect(namedAndUnowned.faces?.some((face) => face.neighborElementIds.length > 0)).toBe(true);
   });
 
   it("records element tessellations so every triangle is element-pickable", () => {
@@ -440,8 +440,8 @@ describe("heterogeneousElementParts geometry", () => {
 
     const solid = geometryFor(sharedTetPairModel(), "triangle");
     expect(solid.elements).toEqual([
-      { id: 1, primitiveStart: 0, primitiveCount: 3, shape: TET4_SHAPE },
-      { id: 2, primitiveStart: 3, primitiveCount: 3, shape: TET4_SHAPE },
+      { id: 1, primitiveStart: 0, primitiveCount: 4, shape: TET4_SHAPE },
+      { id: 2, primitiveStart: 4, primitiveCount: 4, shape: TET4_SHAPE },
     ]);
   });
 
@@ -513,7 +513,7 @@ describe("heterogeneousElementParts geometry", () => {
   it("records face pick ids, face descriptors, and neighbors per triangle", () => {
     const solid = geometryFor(sharedTetPairModel(), "triangle");
     expect(solid.facePickIds?.length).toBe(solid.indices.length / 3);
-    expect(solid.faces).toHaveLength(6);
+    expect(solid.faces).toHaveLength(8);
     solid.faces?.forEach((face, index) => {
       expect(face.id).toBe(index);
       expect(face.nodeIds.length).toBeGreaterThanOrEqual(3);
@@ -524,9 +524,9 @@ describe("heterogeneousElementParts geometry", () => {
     }).not.toThrow();
   });
 
-  it("omits interior faces from solid geometry", () => {
+  it("retains interior face metadata in solid geometry", () => {
     const solid = geometryFor(sharedTetPairModel(), "triangle");
-    expect(solid.faces?.every((face) => face.neighborElementIds.length === 0)).toBe(true);
+    expect(solid.faces?.some((face) => face.neighborElementIds.length > 0)).toBe(true);
   });
 
   it("keeps full geometry while drawing an explicit stable face subset", () => {
