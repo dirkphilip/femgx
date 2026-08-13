@@ -29,6 +29,7 @@ export interface DemoView {
   readonly scene: HTMLElement;
   readonly boxSelectionOverlay: HTMLElement;
   readonly rendererStatus: HTMLElement;
+  readonly buildInfo: HTMLElement;
   readonly modelSelect: HTMLSelectElement;
   readonly modelSource: HTMLElement;
   readonly openGlbButton: HTMLButtonElement;
@@ -78,6 +79,7 @@ export function queryDemoView(): DemoView {
   const viewportWorkspace = document.querySelector<HTMLElement>("#viewport-workspace");
   const viewportToggle = document.querySelector<HTMLButtonElement>("#viewport-toggle");
   const rendererStatus = document.querySelector<HTMLElement>("#renderer-status");
+  const buildInfo = document.querySelector<HTMLElement>("#build-info");
   const modelSelect = document.querySelector<HTMLSelectElement>("#model-select");
   const modelSource = document.querySelector<HTMLElement>("#model-source");
   const openGlbButton = document.querySelector<HTMLButtonElement>("#open-glb");
@@ -111,6 +113,7 @@ export function queryDemoView(): DemoView {
     viewportWorkspace === null ||
     viewportToggle === null ||
     rendererStatus === null ||
+    buildInfo === null ||
     modelSelect === null ||
     modelSource === null ||
     openGlbButton === null ||
@@ -146,6 +149,7 @@ export function queryDemoView(): DemoView {
     scene,
     boxSelectionOverlay,
     rendererStatus,
+    buildInfo,
     modelSelect,
     modelSource,
     openGlbButton,
