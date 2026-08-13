@@ -13,6 +13,11 @@ import {
   createOrbitPivotResources,
   type OrbitPivotResources,
 } from "./gpu-orbit-pivot";
+import {
+  createOriginTriadPipeline,
+  createOriginTriadResources,
+  type OriginTriadResources,
+} from "./gpu-origin-triad";
 import { createPipelineResources, type DrawPipelines } from "./gpu-pipeline-builders";
 import {
   createCompositeBindGroup,
@@ -56,6 +61,8 @@ export interface RenderResources {
   readonly nodeOverlayPipelines: NodeOverlayPipelines;
   /** Library-owned world-space camera-pivot indicator. */
   readonly orbitPivot: OrbitPivotResources;
+  /** Persistent world-origin triad with visible and weighted-ghost variants. */
+  readonly originTriad: OriginTriadResources;
   readonly instanceLayout: GPUBindGroupLayout;
   readonly background: BackgroundResources;
 }
@@ -118,10 +125,18 @@ export async function createRenderResources(
     depthFormat,
     validation,
   });
+  const originTriadPipeline = await createOriginTriadPipeline({
+    device,
+    cameraLayout,
+    format,
+    depthFormat,
+    validation,
+  });
   let background: BackgroundResources | undefined;
   let cameraBuffer: GPUBuffer | undefined;
   let deformationBuffer: GPUBuffer | undefined;
   let orbitPivot: OrbitPivotResources | undefined;
+  let originTriad: OriginTriadResources | undefined;
   try {
     background = await createBackgroundResources(
       device,
@@ -151,6 +166,11 @@ export async function createRenderResources(
         { binding: 1, resource: { buffer: deformationBuffer } },
       ],
     });
+    originTriad = createOriginTriadResources({
+      device,
+      pipeline: originTriadPipeline,
+      frameBindGroup,
+    });
     return {
       cameraBuffer,
       deformationBuffer,
@@ -162,11 +182,13 @@ export async function createRenderResources(
       edgeAlwaysPipeline: pipelineResources.edgeAlwaysPipeline,
       nodeOverlayPipelines,
       orbitPivot,
+      originTriad,
       background,
     };
   } catch (error) {
     if (background !== undefined) destroyBackgroundResources(background);
     orbitPivot?.buffer.destroy();
+    originTriad?.buffer.destroy();
     cameraBuffer?.destroy();
     deformationBuffer?.destroy();
     throw error;
@@ -177,6 +199,7 @@ export function destroyRenderResources(resources: RenderResources): void {
   resources.cameraBuffer.destroy();
   resources.deformationBuffer.destroy();
   resources.orbitPivot.buffer.destroy();
+  resources.originTriad.buffer.destroy();
   destroyBackgroundResources(resources.background);
 }
 

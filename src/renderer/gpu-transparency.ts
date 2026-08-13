@@ -15,16 +15,22 @@ import {
 export const TRANSPARENCY_ACCUMULATION_FORMAT = "rgba16float" as GPUTextureFormat;
 export const TRANSPARENCY_REVEALAGE_FORMAT = "rgba8unorm" as GPUTextureFormat;
 
-/** Blend states for additive color/weight and multiplicative revealage. */
+/** Blend state for additive color/weight accumulation. */
+export const TRANSPARENCY_ACCUMULATION_BLEND_STATE: GPUBlendState = {
+  color: { srcFactor: "one", dstFactor: "one" },
+  alpha: { srcFactor: "one", dstFactor: "one" },
+};
+
+/** Blend state for multiplicative revealage. */
+export const TRANSPARENCY_REVEALAGE_BLEND_STATE: GPUBlendState = {
+  color: { srcFactor: "zero", dstFactor: "one-minus-src" },
+  alpha: { srcFactor: "zero", dstFactor: "one-minus-src-alpha" },
+};
+
+/** Blend states for the two weighted transparency attachments. */
 export const TRANSPARENCY_BLEND_STATES: readonly GPUBlendState[] = [
-  {
-    color: { srcFactor: "one", dstFactor: "one" },
-    alpha: { srcFactor: "one", dstFactor: "one" },
-  },
-  {
-    color: { srcFactor: "zero", dstFactor: "one-minus-src" },
-    alpha: { srcFactor: "zero", dstFactor: "one-minus-src-alpha" },
-  },
+  TRANSPARENCY_ACCUMULATION_BLEND_STATE,
+  TRANSPARENCY_REVEALAGE_BLEND_STATE,
 ];
 
 /** A weighted transparency fragment output with one accumulation and one revealage target. */

@@ -55,6 +55,7 @@ interface PipelineSpec {
   readonly primitive: GPUPrimitiveTopology;
   readonly cullMode: GPUCullMode;
   readonly sampleCount: number;
+  readonly depthCompare?: GPUCompareFunction;
   readonly depthWriteEnabled?: boolean;
 }
 
@@ -77,6 +78,7 @@ interface PrimitiveSpec {
   readonly vertexEntry: string;
   readonly primitive: GPUPrimitiveTopology;
   readonly cullMode: GPUCullMode;
+  readonly depthCompare?: GPUCompareFunction;
 }
 
 interface PipelineVariants {
@@ -189,6 +191,7 @@ function pipelineVariants(shaders: PipelineShaders): PipelineVariants {
       vertexEntry: "pointVertexMain",
       primitive: "triangle-list",
       cullMode: "none",
+      depthCompare: "less-equal",
     },
   };
 }
@@ -321,7 +324,7 @@ async function createPipeline(
     depthStencil: {
       format: spec.depthFormat,
       depthWriteEnabled: spec.depthWriteEnabled ?? true,
-      depthCompare: "less",
+      depthCompare: spec.depthCompare ?? "less",
     },
     multisample: { count: spec.sampleCount },
   });

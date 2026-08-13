@@ -12,7 +12,11 @@ import type { PartResource } from "./gpu-support";
 type PipelinePass = "color" | "transparent" | "pick";
 
 type DrawIntent =
-  | { readonly kind: "surface"; readonly pass: PipelinePass }
+  | {
+      readonly kind: "surface";
+      readonly pass: PipelinePass;
+      readonly primitive?: "triangles" | "lines" | "points";
+    }
   | { readonly kind: "edge"; readonly pipeline: GPURenderPipeline }
   | { readonly kind: "nodes"; readonly pipeline: GPURenderPipeline };
 
@@ -65,6 +69,13 @@ export function drawOneBatch(
   const part = context.parts.get(call.partId);
   const storage = draw.storages.get(call.partId);
   if (part === undefined || storage === undefined) return current;
+  if (
+    intent.kind === "surface" &&
+    intent.primitive !== undefined &&
+    part.geometry.primitive !== intent.primitive
+  ) {
+    return current;
+  }
   if (nodes && part.geometry.primitive === "points") return current;
   const geometry = nodes ? uploadNodePart(draw, part) : uploadPart(draw, part);
   const subset =

@@ -58,6 +58,14 @@ continuous through the poles: orbit rotates the eye, target, and orthonormal
 view-frame up direction as one rigid basis, so the view never needs a pole
 clamp or a singular-frame fallback. Both spin and pan use the SpaceClaim
 direction convention. One-finger touch resolves the same picked model target.
+Separately, every viewport renders one persistent positive X/Y/Z triad at world
+origin `[0, 0, 0]`. Its world-space size is derived from the complete placed
+scene, so hiding occurrences, changing results/deformation, and camera zoom do
+not rescale it. The visible portion is opaque and depth-tested; the portion
+behind opaque model depth is a fixed-alpha ghost accumulated through the normal
+weighted-transparency targets. This is a presentation cue only: it contributes
+to neither scene bounds nor picking and does not replace the lower-left
+orientation gizmo.
 Left-drag is reserved for selection, including its
 shift-based inspection modifiers. The renderer owns the opaque viewport
 background: `FemViewportOptions.background` and `FemViewport.setBackground()`
