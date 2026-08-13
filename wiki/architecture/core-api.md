@@ -86,6 +86,13 @@ in CSS pixels. They default to 8 and 6, accept values in `[1,64]`, and can be
 changed later with `viewport.setPointSizePixels` and
 `viewport.setNodeSizePixels`.
 
+`StyleOverride.lineWidthPixels` controls authored `Line` and `Line3` elements
+in CSS pixels. It is valid on part and instance overrides, where instance
+style wins, defaults to 2, and accepts `[0.5,64]`. Body, element, face, node,
+and theme overrides intentionally do not accept line width; non-line geometry
+ignores it. Authored lines are expanded once into reusable triangle geometry,
+while renderer-owned edge helpers retain their separate line-list path.
+
 ## Core vocabulary and owners
 
 | Area        | Core API                                                                                                                                                                                                        | Owns                                                                                                                                                                                       |

@@ -16,20 +16,21 @@ several multiples, so budgets are only meaningful on clean timing runs.
 
 ### Covered workloads
 
-| Case                        | Model                            | Workload                                 |
-| --------------------------- | -------------------------------- | ---------------------------------------- |
-| `createSceneRuntime`        | shallow 200 000 instances        | packed compile                           |
-| `createSceneRuntime` (deep) | balanced tree, 204 800 instances | nested transform composition             |
-| `setPartVisible` toggle     | part with 1 000 instances        | hide then show                           |
-| `setAssemblyVisible` toggle | subcase with 2 000 instances     | hide then show                           |
-| `setInstanceVisible` toggle | single instance                  | override, hide then show                 |
-| `getDrawList`               | 200 000 visible                  | rebuild draw list                        |
-| `resolvePick`               | 50 000 lookups on 200 000        | O(1) index resolution                    |
-| `heterogeneousElementParts` | 600 mixed linear elements        | grouped triangle/line/point tessellation |
-| `createPart`                | 16 384 quads / 256 bodies        | element/body/face validation             |
-| `heterogeneousElementParts` | 16 384 FE quads / 256 bodies     | body-aware canonical tessellation        |
-| primitive topology ids      | 16 384 quads / 256 bodies        | face/body/element GPU-id preparation     |
-| body-aware mesh edges       | 16 384 quads / 256 bodies        | edge topology and ownership preparation  |
+| Case                        | Model                            | Workload                                           |
+| --------------------------- | -------------------------------- | -------------------------------------------------- |
+| `createSceneRuntime`        | shallow 200 000 instances        | packed compile                                     |
+| `createSceneRuntime` (deep) | balanced tree, 204 800 instances | nested transform composition                       |
+| `setPartVisible` toggle     | part with 1 000 instances        | hide then show                                     |
+| `setAssemblyVisible` toggle | subcase with 2 000 instances     | hide then show                                     |
+| `setInstanceVisible` toggle | single instance                  | override, hide then show                           |
+| `getDrawList`               | 200 000 visible                  | rebuild draw list                                  |
+| `resolvePick`               | 50 000 lookups on 200 000        | O(1) index resolution                              |
+| `heterogeneousElementParts` | 600 mixed linear elements        | grouped triangle/line/point tessellation           |
+| `expand line geometry`      | 10,000 authored line segments    | one reusable four-corner triangle quad per segment |
+| `createPart`                | 16 384 quads / 256 bodies        | element/body/face validation                       |
+| `heterogeneousElementParts` | 16 384 FE quads / 256 bodies     | body-aware canonical tessellation                  |
+| primitive topology ids      | 16 384 quads / 256 bodies        | face/body/element GPU-id preparation               |
+| body-aware mesh edges       | 16 384 quads / 256 bodies        | edge topology and ownership preparation            |
 
 ### Stable model sizes and warmup rules
 

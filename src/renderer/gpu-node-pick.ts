@@ -7,6 +7,7 @@ import {
   geometryPositionBindings,
   instanceBindings,
   instanceStruct,
+  lineExpansionFn,
   packPickIdFunction,
   pickDataBindings,
   spriteCornerFn,
@@ -24,8 +25,9 @@ import { emphasisHash } from "./gpu-highlight-shader";
  */
 
 interface NodePickPrimitiveVariant {
-  readonly verticesPerPrimitive: 2 | 3;
+  readonly verticesPerPrimitive: 3 | 4;
   readonly cornerC: "second" | "third";
+  readonly line: boolean;
 }
 
 const nodeVertexOutput = /* wgsl */ `
@@ -70,11 +72,12 @@ function createNodePickVertexShader(variant: NodePickPrimitiveVariant): string {
   const primitiveBase = `(vertexIndex - (vertexIndex % ${variant.verticesPerPrimitive}u))`;
   const cornerC = cornerData(variant);
   const nodePickIds = variant.cornerC === "third" ? "vertexNodePickIds[base + 2u]" : "0u";
-  return `${nodePickVertexHeader}${createNodePickVertexMain({
+  return `${nodePickVertexHeader}${variant.line ? lineExpansionFn : ""}${createNodePickVertexMain({
     primitiveIndex,
     primitiveBase,
     cornerC,
     nodePickIds,
+    line: variant.line,
   })}`;
 }
 
@@ -83,9 +86,32 @@ interface NodePickVertexMainOptions {
   readonly primitiveBase: string;
   readonly cornerC: string;
   readonly nodePickIds: string;
+  readonly line: boolean;
 }
 
 function createNodePickVertexMain(options: NodePickVertexMainOptions): string {
+  const linePosition = options.line
+    ? `
+  let lineA = vec3<f32>(
+    geometryPosition(base3),
+    geometryPosition(base3 + 1u),
+    geometryPosition(base3 + 2u),
+  );
+  let lineB = vec3<f32>(
+    geometryPosition(base3 + 3u),
+    geometryPosition(base3 + 4u),
+    geometryPosition(base3 + 5u),
+  );
+  let lineClipA = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineA, base), 1.0);
+  let lineClipB = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineB, base + 1u), 1.0);
+  output.position = lineExpandedPosition(
+    lineClipA,
+    lineClipB,
+    vertexIndex % 4u,
+    max(instance.lineWidth, camera.linePickSize) * camera.devicePixelRatio,
+  );`
+    : `
+  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);`;
   return /* wgsl */ `
 @vertex
 fn vertexMain(
@@ -97,15 +123,18 @@ fn vertexMain(
   let base = ${options.primitiveBase};
   let base3 = base * 3u;
   let faceBodyPickIds = primitiveFaceBodyPickIds(${options.primitiveIndex});
-${createNodePickVertexOutput(options)}
+${createNodePickVertexOutput(options, linePosition)}
 }
 `;
 }
 
-function createNodePickVertexOutput(options: NodePickVertexMainOptions): string {
+function createNodePickVertexOutput(
+  options: NodePickVertexMainOptions,
+  linePosition: string,
+): string {
   return /* wgsl */ `
   var output: NodeVertexOutput;
-  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);
+${linePosition}
   if (!primitiveVisible(drawOrder[instanceIndex], ${options.primitiveIndex})) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
@@ -157,12 +186,14 @@ function cornerData(variant: NodePickPrimitiveVariant): string {
 export const nodePickVertexShader = createNodePickVertexShader({
   verticesPerPrimitive: 3,
   cornerC: "third",
+  line: false,
 });
 
-/** Line-list node-pick vertex stage using two corners per logical primitive. */
+/** Authored-line node-pick vertex stage using four corners per logical segment. */
 export const lineNodePickVertexShader = createNodePickVertexShader({
-  verticesPerPrimitive: 2,
+  verticesPerPrimitive: 4,
   cornerC: "second",
+  line: true,
 });
 
 /** Point-sprite node-pick vertex stage; every sprite fragment belongs to its node. */

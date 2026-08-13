@@ -136,11 +136,15 @@ function gpuBufferBytes(bytes: number): number {
 }
 
 function expandedVertexCountFor(geometry: Part["geometry"]): number {
-  return geometry.primitive === "points" ? geometry.indices.length * 4 : geometry.indices.length;
+  if (geometry.primitive === "points") return geometry.indices.length * 4;
+  if (geometry.primitive === "lines") return Math.floor(geometry.indices.length / 2) * 4;
+  return geometry.indices.length;
 }
 
 function expandedIndexCountFor(geometry: Part["geometry"]): number {
-  return geometry.primitive === "points" ? geometry.indices.length * 6 : geometry.indices.length;
+  if (geometry.primitive === "points") return geometry.indices.length * 6;
+  if (geometry.primitive === "lines") return Math.floor(geometry.indices.length / 2) * 6;
+  return geometry.indices.length;
 }
 
 function edgeEndpointUpperBoundFor(geometry: Part["geometry"], primitiveCount: number): number {

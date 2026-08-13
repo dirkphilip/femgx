@@ -29,7 +29,8 @@ export function expandSurfaceGeometry(
   geometry: Exclude<Geometry, Extract<Geometry, { primitive: "points" }>>,
   sourceIndices: Uint32Array = geometry.indices,
 ): SurfaceVertexData {
-  const verticesPerPrimitive = geometry.primitive === "triangles" ? 3 : 2;
+  if (geometry.primitive === "lines") return expandLineGeometry(geometry, sourceIndices);
+  const verticesPerPrimitive = 3;
   const positions = new Float32Array(sourceIndices.length * 3);
   const nodePickIds = new Uint32Array(sourceIndices.length);
   const primitiveIds = new Uint32Array(sourceIndices.length);
@@ -47,6 +48,47 @@ export function expandSurfaceGeometry(
     nodePickIds,
     primitiveIds,
   };
+}
+
+/** Expands each authored segment into one indexed four-corner triangle quad. */
+function expandLineGeometry(
+  geometry: Extract<Geometry, { primitive: "lines" }>,
+  sourceIndices: Uint32Array,
+): SurfaceVertexData {
+  const segmentCount = Math.floor(sourceIndices.length / 2);
+  const positions = new Float32Array(segmentCount * 12);
+  const nodePickIds = new Uint32Array(segmentCount * 4);
+  const primitiveIds = new Uint32Array(segmentCount * 4);
+  const indices = new Uint32Array(segmentCount * 6);
+  for (let segment = 0; segment < segmentCount; segment += 1) {
+    const sourceA = sourceIndices[segment * 2] ?? 0;
+    const sourceB = sourceIndices[segment * 2 + 1] ?? 0;
+    const sourceAOffset = sourceA * 3;
+    const sourceBOffset = sourceB * 3;
+    const vertexBase = segment * 4;
+    positions.set(geometry.positions.subarray(sourceAOffset, sourceAOffset + 3), vertexBase * 3);
+    positions.set(
+      geometry.positions.subarray(sourceBOffset, sourceBOffset + 3),
+      (vertexBase + 1) * 3,
+    );
+    positions.set(
+      geometry.positions.subarray(sourceBOffset, sourceBOffset + 3),
+      (vertexBase + 2) * 3,
+    );
+    positions.set(
+      geometry.positions.subarray(sourceAOffset, sourceAOffset + 3),
+      (vertexBase + 3) * 3,
+    );
+    const nodeA = geometry.nodePickIds?.[sourceA] ?? 0;
+    const nodeB = geometry.nodePickIds?.[sourceB] ?? 0;
+    nodePickIds.set([nodeA, nodeB, nodeB, nodeA], vertexBase);
+    primitiveIds.fill(segment, vertexBase, vertexBase + 4);
+    indices.set(
+      [vertexBase, vertexBase + 1, vertexBase + 2, vertexBase, vertexBase + 2, vertexBase + 3],
+      segment * 6,
+    );
+  }
+  return { positions, indices, nodePickIds, primitiveIds };
 }
 
 function primitiveIdsForSourceIndices(

@@ -7,6 +7,7 @@ import {
   geometryPositionBindings,
   instanceBindings,
   instanceStruct,
+  lineExpansionFn,
   pickDataBindings,
   resultColorFunctions,
   spriteCornerFn,
@@ -108,7 +109,11 @@ ${bodyAndElementHighlighting}
   }
 `;
 
-function createInstanceVertexMain(primitiveIndex: string, selectionPass: boolean): string {
+function createInstanceVertexMain(
+  primitiveIndex: string,
+  selectionPass: boolean,
+  linePass: boolean,
+): string {
   return /* wgsl */ `
 @vertex
 fn vertexMain(
@@ -120,12 +125,16 @@ fn vertexMain(
   let elementPickId = primitiveElementPickIds[${primitiveIndex}];
   let faceBodyPickIds = primitiveFaceBodyPickIds(${primitiveIndex});
 ${instanceHighlighting}
-${createInstanceVertexOutput(primitiveIndex, selectionPass)}
+${createInstanceVertexOutput(primitiveIndex, selectionPass, linePass)}
 }
 `;
 }
 
-function createInstanceVertexOutput(primitiveIndex: string, selectionPass: boolean): string {
+function createInstanceVertexOutput(
+  primitiveIndex: string,
+  selectionPass: boolean,
+  linePass: boolean,
+): string {
   const visibility = selectionPass
     ? `primitiveSelectionVisible(drawOrder[instanceIndex], ${primitiveIndex}, exactSelection)`
     : `primitiveVisible(drawOrder[instanceIndex], ${primitiveIndex})`;
@@ -133,7 +142,7 @@ function createInstanceVertexOutput(primitiveIndex: string, selectionPass: boole
   var output: VertexOutput;
   let displayedPosition = displaced(position, vertexIndex);
   let worldPosition = (instance.transform * vec4<f32>(displayedPosition, 1.0)).xyz;
-  output.position = camera.viewProjection * vec4<f32>(worldPosition, 1.0);
+${linePass ? lineExpandedPosition() : "  output.position = camera.viewProjection * vec4<f32>(worldPosition, 1.0);"}
   if (hidden) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
@@ -158,13 +167,51 @@ function createInstanceVertexOutput(primitiveIndex: string, selectionPass: boole
 
 function createInstanceVertexShader(selectionPass = false): string {
   const primitiveIndex = "primitiveDrawId(vertexIndex)";
-  return `${instanceVertexHeader}${createInstanceVertexMain(primitiveIndex, selectionPass)}`;
+  return `${instanceVertexHeader}${createInstanceVertexMain(primitiveIndex, selectionPass, false)}`;
 }
 
 export const instanceVertexShader = createInstanceVertexShader();
 
 /** Triangle selection vertex stage that reveals exact selected internal faces. */
 export const selectionVertexShader = createInstanceVertexShader(true);
+
+function lineExpandedPosition(): string {
+  return `
+  let lineBase = vertexIndex - (vertexIndex % 4u);
+  let lineA = vec3<f32>(
+    geometryPosition(lineBase * 3u),
+    geometryPosition(lineBase * 3u + 1u),
+    geometryPosition(lineBase * 3u + 2u),
+  );
+  let lineB = vec3<f32>(
+    geometryPosition((lineBase + 1u) * 3u),
+    geometryPosition((lineBase + 1u) * 3u + 1u),
+    geometryPosition((lineBase + 1u) * 3u + 2u),
+  );
+  let lineClipA = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineA, lineBase), 1.0);
+  let lineClipB = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineB, lineBase + 1u), 1.0);
+  output.position = lineExpandedPosition(
+    lineClipA,
+    lineClipB,
+    vertexIndex % 4u,
+    instance.lineWidth * camera.devicePixelRatio,
+  );`;
+}
+
+function createLineVertexShader(selectionPass: boolean): string {
+  const primitiveIndex = "primitiveDrawId(vertexIndex)";
+  return `${instanceVertexHeader}${lineExpansionFn}${createInstanceVertexMain(
+    primitiveIndex,
+    selectionPass,
+    true,
+  )}`;
+}
+
+/** Triangle-list vertex stage for authored, screen-space-width lines. */
+export const lineVertexShader = createLineVertexShader(false);
+
+/** Selection variant of the authored line triangle-list vertex stage. */
+export const lineSelectionVertexShader = createLineVertexShader(true);
 
 /**
  * Vertex stage for point-sprite parts. Each point is a quad of four vertices

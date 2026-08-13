@@ -256,20 +256,26 @@ describe("WebGPU renderer", () => {
     await renderer.pick(300, 300);
     expect(gpu.drawCalls).toHaveLength(3);
 
+    const wider = setPartOverride(interaction, 1, { lineWidthPixels: 12 });
+    renderer.updateInstances(runtime, wider, [0]);
+    renderer.render(runtime, camera, scene.parts);
+    await renderer.pick(300, 300);
+    expect(gpu.drawCalls).toHaveLength(5);
+
     const movedCamera = { ...camera, target: [1, 0, 0] as const };
     renderer.render(runtime, movedCamera, scene.parts);
     await renderer.pick(300, 300);
-    expect(gpu.drawCalls).toHaveLength(5);
+    expect(gpu.drawCalls).toHaveLength(7);
 
     const hidden = runtime.setInstanceVisible(1, false);
     renderer.updateVisibility(runtime, hidden.changedInstanceIds);
     renderer.render(runtime, movedCamera, scene.parts);
     await renderer.pick(300, 300);
-    expect(gpu.drawCalls).toHaveLength(7);
+    expect(gpu.drawCalls).toHaveLength(9);
 
     renderer.resize(400, 300);
     await renderer.pick(150, 100);
-    expect(gpu.drawCalls).toHaveLength(8);
+    expect(gpu.drawCalls).toHaveLength(10);
 
     renderer.setDeformation({
       scale: 1,
@@ -277,7 +283,7 @@ describe("WebGPU renderer", () => {
     });
     renderer.render(runtime, movedCamera, scene.parts);
     await renderer.pick(150, 100);
-    expect(gpu.drawCalls).toHaveLength(10);
+    expect(gpu.drawCalls).toHaveLength(12);
     renderer.destroy();
   });
 
