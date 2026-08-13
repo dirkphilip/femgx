@@ -39,6 +39,7 @@ Commands:
 - `npm run dev` — dev server with demo app
 - `npm run build` — type-check and bundle the library with declarations
 - `npm run build:demo` — type-check and build the demo as a static site
+- `npm run build:docs` — generate the experimental API reference under `dist-demo/api/`
 - `npm run test:package` — package smoke test against a clean consumer install
 - `npm run typecheck` — strict TypeScript check
 - `npm run lint` — ESLint with zero warnings
@@ -55,6 +56,7 @@ Commands:
 The demo is deployed automatically to GitHub Pages on pushes to `main` by the
 `Deploy demo to GitHub Pages` workflow. For a repository named `femgx` under the
 `dirkphilip` account, its URL is <https://dirkphilip.github.io/femgx/>.
+The generated API reference is at <https://dirkphilip.github.io/femgx/api/>.
 
 Use Node 24 or newer; `.nvmrc` matches the CI runtime.
 

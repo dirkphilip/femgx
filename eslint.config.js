@@ -5,7 +5,7 @@ import jsdoc from "eslint-plugin-jsdoc";
 export default tseslint.config(
   {
     // Repository metadata and hidden tool directories are not product code.
-    ignores: ["dist", "coverage", "node_modules", "**/.*"],
+    ignores: ["dist", "dist-demo", "coverage", "node_modules", "**/.*"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
