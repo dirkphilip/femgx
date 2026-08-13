@@ -211,8 +211,10 @@ export function resolveInstanceStyle(
   if (data.highlightedInstanceIds.has(instance.instanceId)) overrides.push(data.theme.highlighted);
   if (hoveredInstanceId(data.hoveredTarget, instance) !== undefined)
     overrides.push(data.theme.hovered);
-  if (data.selectedPartIds.has(instance.partId)) overrides.push(data.theme.selected);
-  if (data.selectedInstanceIds.has(instance.instanceId)) overrides.push(data.theme.selected);
+  if (data.selectedPartIds.has(instance.partId))
+    overrides.push(applySelectionStyle(base, data.theme.selected));
+  if (data.selectedInstanceIds.has(instance.instanceId))
+    overrides.push(applySelectionStyle(base, data.theme.selected));
   const partOverride = data.partOverrides.get(instance.partId);
   if (partOverride !== undefined) overrides.push(partOverride);
   const instanceOverride = data.instanceOverrides.get(instance.instanceId);
@@ -227,6 +229,20 @@ function hoveredInstanceId(
   return target?.kind === "instance" && target.instanceId === instance.instanceId
     ? instance.instanceId
     : undefined;
+}
+
+/** Applies a selection tint without turning a translucent base surface opaque. */
+export function applySelectionStyle(
+  base: ResolvedStyle,
+  selection: PrimitiveStyleOverride,
+): PrimitiveStyleOverride {
+  return {
+    ...selection,
+    ...(selection.color === undefined
+      ? {}
+      : { color: { ...selection.color, a: selection.color.a * base.color.a } }),
+    ...(selection.opacity === undefined ? {} : { opacity: selection.opacity * base.opacity }),
+  };
 }
 
 /** Resolves one body occurrence after part and instance styles. */
@@ -248,7 +264,7 @@ export function resolveBodyStyle(
       ? data.theme.hovered
       : undefined,
     data.selectedBodyIds.get(instance.instanceId)?.has(bodyId) === true
-      ? data.theme.selected
+      ? applySelectionStyle(style, data.theme.selected)
       : undefined,
     data.bodyOverrides.get(instance.instanceId)?.get(bodyId),
   ]);
@@ -283,7 +299,7 @@ export function resolveElementStyle(
       ? data.theme.hovered
       : undefined,
     data.selectedElementIds.get(instance.instanceId)?.has(elementId) === true
-      ? data.theme.selected
+      ? applySelectionStyle(style, data.theme.selected)
       : undefined,
     data.elementOverrides.get(instance.instanceId)?.get(elementId),
   ]);

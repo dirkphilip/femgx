@@ -6,7 +6,7 @@ import {
   type InteractionState,
   type ResolvedStyle,
 } from "./state";
-import { resolveBodyStyle, resolveInstanceStyle } from "./interaction";
+import { applySelectionStyle, resolveBodyStyle, resolveInstanceStyle } from "./interaction";
 import { faceRefKey, type FaceRef } from "./refs";
 import type { Instance } from "../scene/types";
 import { applyStyleLayers, collectUniqueRefs, sortedStrings, updateNestedMap } from "./mechanics";
@@ -91,7 +91,7 @@ export function resolveFaceStyle(
       ? data.theme.hoveredFace
       : undefined,
     data.selectedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true
-      ? data.theme.selectedFace
+      ? applySelectionStyle(style, data.theme.selectedFace)
       : undefined,
   ]);
 }

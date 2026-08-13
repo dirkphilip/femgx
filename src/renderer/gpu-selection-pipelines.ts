@@ -46,6 +46,11 @@ interface PrimitiveSelectionOptions {
   readonly hiddenFragment: GPUShaderModule;
 }
 
+const SELECTION_BLEND_STATE: GPUBlendState = {
+  color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha" },
+  alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" },
+};
+
 type SelectionPipelineBase = Omit<GPURenderPipelineDescriptor, "fragment" | "depthStencil"> & {
   readonly depthStencil: GPUDepthStencilState;
 };
@@ -117,9 +122,13 @@ async function createPrimitiveSelectionPipelines(
       fragment: {
         module: options.visibleFragment,
         entryPoint: "fragmentMain",
-        targets: [{ format: options.format }],
+        targets: [{ format: options.format, blend: SELECTION_BLEND_STATE }],
       },
-      depthStencil: { ...common.depthStencil, depthWriteEnabled: true, depthCompare: "less-equal" },
+      depthStencil: {
+        ...common.depthStencil,
+        depthWriteEnabled: false,
+        depthCompare: "less-equal",
+      },
     },
   );
   const hidden = createValidatedRenderPipeline(

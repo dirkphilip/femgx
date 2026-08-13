@@ -9,6 +9,7 @@ import type { ResultDisplayMode, DisplayToggles } from "./types";
 import { VisibilityPanelController } from "./visibility-panel";
 import { WorkbenchVisibilityActions } from "./visibility-actions";
 import type { VisibilityRowTarget } from "./tree-hover";
+import { setModelFeedback } from "./model";
 
 export interface WorkbenchFeatureOptions {
   readonly view: DemoView;
@@ -98,6 +99,9 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     partName: (partId) => options.model().partNames.get(partId),
     menu,
     render: options.render,
+    selectionFeedback: (message) => {
+      setModelFeedback(options.view, message);
+    },
   });
   const presentation = new WorkbenchPresentation({
     view: options.view,

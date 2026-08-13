@@ -2,6 +2,7 @@ import {
   clientToCanvasCss,
   isElementVisible,
   isTargetSelected,
+  selectedTargets,
   setTargetHovered,
   type FemViewport,
   type InteractionState,
@@ -34,6 +35,8 @@ export interface WorkbenchInteractionOptions {
   readonly partName: (partId: PartId) => string | undefined;
   readonly menu: WorkbenchMenu;
   readonly render: () => void;
+  /** Optional concise feedback sink for completed box-selection results. */
+  readonly selectionFeedback?: (message: string) => void;
 }
 
 /** Owns async pick ordering, hover state, click selection, and context targets. */
@@ -191,6 +194,12 @@ export class WorkbenchInteraction {
         event.modifiers.control || event.modifiers.meta
           ? toggleElementSelections(current, elements)
           : replaceElementSelection(current, elements);
+      const selectedElementCount = selectedTargets(next).filter(
+        (target) => target.kind === "element",
+      ).length;
+      this.options.selectionFeedback?.(
+        `Box selection: ${selectedElementCount} FE element${selectedElementCount === 1 ? "" : "s"}`,
+      );
       if (next === current) return;
       this.options.setInteraction(next);
       this.options.render();

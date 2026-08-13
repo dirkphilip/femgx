@@ -7,7 +7,7 @@ import {
   type InteractionState,
   type ResolvedStyle,
 } from "./state";
-import { resolveBodyStyle, resolveInstanceStyle } from "./interaction";
+import { applySelectionStyle, resolveBodyStyle, resolveInstanceStyle } from "./interaction";
 import type { NodeRef } from "./refs";
 import { applyStyleLayers, collectUniqueRefs, sortedNumbers, updateNestedSet } from "./mechanics";
 
@@ -74,7 +74,7 @@ export function resolveNodeStyle(
       : undefined,
     isHoveredTarget(state, { kind: "node", ...ref }) ? data.theme.hoveredNode : undefined,
     data.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
-      ? data.theme.selectedNode
+      ? applySelectionStyle(style, data.theme.selectedNode)
       : undefined,
   ]);
 }
