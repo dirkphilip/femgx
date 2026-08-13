@@ -12,6 +12,13 @@ import {
 import type { BoxSelectionEvent, InteractionTarget } from "../../src/index";
 import { describePick } from "./inspect";
 import {
+  validateBoxSelectionTargets,
+  visibleSurfaceBoxSelectionResolver,
+  type BoxSelectionRequest,
+  type BoxSelectionResolver,
+  BoxSelectionResolverContractError,
+} from "./box-selection-resolver";
+import {
   exactTarget,
   elementTarget,
   selectTarget,
@@ -30,7 +37,7 @@ import {
 } from "./selection";
 import type { WorkbenchMenu, WorkbenchMenuSelectionOptions } from "./menu";
 
-type CompletedBoxSelectionEvent = BoxSelectionEvent & { readonly type: "complete" };
+type CompletedBoxSelectionEvent = BoxSelectionRequest["event"];
 
 function isCompletedBoxSelectionEvent(
   event: BoxSelectionEvent,
@@ -51,6 +58,7 @@ export interface WorkbenchInteractionOptions {
   readonly menu: WorkbenchMenu;
   readonly render: () => void;
   readonly selectionGranularity: () => SelectionGranularity;
+  readonly boxSelectionResolver?: BoxSelectionResolver;
   /** Optional concise feedback sink for completed box-selection results. */
   readonly selectionFeedback?: (message: string) => void;
 }
@@ -63,7 +71,9 @@ export class WorkbenchInteraction {
   private downPosition: { readonly x: number; readonly y: number } | undefined;
   private target: SelectTarget | undefined;
   private boxSelectionActive = false;
-  private queuedBoxSelection: CompletedBoxSelectionEvent | undefined;
+  private queuedBoxSelection:
+    { readonly request: BoxSelectionRequest; readonly resolver: BoxSelectionResolver } | undefined;
+  private boxSelectionResolver: BoxSelectionResolver;
   private boxSelectionDrain: Promise<void> | undefined;
   private boxSelectionQueriesStarted = 0;
   private boxSelectionQueriesInFlight = 0;
@@ -71,6 +81,8 @@ export class WorkbenchInteraction {
 
   constructor(options: WorkbenchInteractionOptions) {
     this.options = options;
+    this.boxSelectionResolver =
+      options.boxSelectionResolver ?? visibleSurfaceBoxSelectionResolver(options.viewport);
   }
 
   get contextTarget(): SelectTarget | undefined {
@@ -195,6 +207,13 @@ export class WorkbenchInteraction {
     this.options.menu.hide();
   }
 
+  /** Replaces candidate discovery and invalidates work captured for the old resolver. */
+  setBoxSelectionResolver(resolver: BoxSelectionResolver): void {
+    if (this.boxSelectionResolver === resolver) return;
+    this.boxSelectionResolver = resolver;
+    this.invalidatePendingQuery();
+  }
+
   destroy(): void {
     this.disposed = true;
     this.clearContext();
@@ -222,7 +241,10 @@ export class WorkbenchInteraction {
   async selectBox(event: BoxSelectionEvent): Promise<void> {
     if (!isCompletedBoxSelectionEvent(event)) return;
     if (this.disposed) return;
-    this.queuedBoxSelection = event;
+    this.queuedBoxSelection = {
+      request: { event, granularity: this.options.selectionGranularity() },
+      resolver: this.boxSelectionResolver,
+    };
     this.generation += 1;
     if (this.boxSelectionDrain === undefined) {
       this.boxSelectionDrain = this.drainBoxSelections();
@@ -259,24 +281,27 @@ export class WorkbenchInteraction {
     this.boxSelectionActive = true;
     try {
       while (!this.disposed && this.queuedBoxSelection !== undefined) {
-        const event = this.queuedBoxSelection;
+        const queued = this.queuedBoxSelection;
         this.queuedBoxSelection = undefined;
         const generation = this.generation;
         let targets: readonly InteractionTarget[];
         try {
-          targets = await this.options
-            .viewport()
-            .pickRegion(event.rect, this.options.selectionGranularity());
-        } catch {
+          targets = validateBoxSelectionTargets(
+            await queued.resolver(queued.request),
+            queued.request.granularity,
+          );
+        } catch (error: unknown) {
           if (this.isCurrentQuery(generation)) {
             this.options.selectionFeedback?.(
-              "Box selection failed: GPU pick readback could not be completed",
+              error instanceof BoxSelectionResolverContractError
+                ? `Box selection failed: ${error.message}`
+                : "Box selection failed: GPU pick readback could not be completed",
             );
           }
           continue;
         }
         if (!this.isCurrentQuery(generation)) continue;
-        this.applyBoxSelection(event, targets);
+        this.applyBoxSelection(queued.request, targets);
       }
     } finally {
       this.boxSelectionQueriesInFlight -= 1;
@@ -286,14 +311,14 @@ export class WorkbenchInteraction {
   }
 
   private applyBoxSelection(
-    event: CompletedBoxSelectionEvent,
+    request: BoxSelectionRequest,
     targets: readonly InteractionTarget[],
   ): void {
     const selectable = selectableTargets(targets);
-    const granularity = this.options.selectionGranularity();
+    const granularity = request.granularity;
     const current = this.options.getInteraction();
     const next =
-      event.modifiers.control || event.modifiers.meta
+      request.event.modifiers.control || request.event.modifiers.meta
         ? toggleTargets(current, selectable)
         : replaceTargets(current, selectable);
     const selectedTargetCount = selectedTargets(next).filter(
