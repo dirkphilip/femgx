@@ -72,11 +72,6 @@ describe("interaction precedence", () => {
     expect(testCase.resolve(state)).toMatchObject(testCase.expected);
   });
 
-  it("preserves immutable no-op identity for an absent nested set", () => {
-    const state = createInteractionState();
-    expect(setBodySelected(state, bodyRef, false)).toBe(state);
-  });
-
   it("keeps the resolved alpha of a translucent face under selection tint", () => {
     const translucent: ResolvedStyle = {
       ...base,

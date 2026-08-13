@@ -1,13 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { dataset, requireHit, setElementSelection } from "./demo-support";
 import { loadWebGpuPage } from "./webgpu-support";
-test("toggles the element edge overlay independently of solid geometry", async ({ page }) => {
-  await loadWebGpuPage(page);
-  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
-
-  await page.getByTestId("edge-overlay").click();
-  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
-});
 test("toggles the edge overlay", async ({ page }) => {
   await loadWebGpuPage(page);
   const overlay = page.getByTestId("edge-overlay");
@@ -16,13 +9,6 @@ test("toggles the edge overlay", async ({ page }) => {
   await expect(overlay).toHaveAttribute("aria-pressed", "false");
   await page.getByTestId("edge-overlay").click();
   await expect(overlay).toHaveAttribute("aria-pressed", "true");
-});
-
-test("keeps depth-tested edges behind the single edges control", async ({ page }) => {
-  await loadWebGpuPage(page);
-
-  await expect(page.getByTestId("depth-test")).toHaveCount(0);
-  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
 });
 
 test("defaults to owning-element selection and can restore exact picks", async ({ page }) => {

@@ -72,27 +72,9 @@ export function toggleHighlight(
 
 /** Stable selection keys used by demo diagnostics and e2e assertions. */
 export function selectedKeys(interaction: InteractionState): string[] {
-  const keys: string[] = [];
-  for (const target of selectedTargets(interaction)) {
-    switch (target.kind) {
-      case "node":
-        keys.push(`n:${target.instanceId}:${target.nodeId}`);
-        break;
-      case "face":
-        keys.push(`f:${target.instanceId}:${target.elementId}:${target.faceIndex}`);
-        break;
-      case "element":
-        keys.push(`e:${target.instanceId}:${target.elementId}`);
-        break;
-      case "instance":
-        keys.push(`i:${target.instanceId}`);
-        break;
-      case "part":
-        keys.push(`p:${target.partId}`);
-        break;
-    }
-  }
-  return keys;
+  return selectedTargets(interaction)
+    .filter((target): target is SelectTarget => target.kind !== "body")
+    .map(targetKey);
 }
 
 function isSelected(interaction: InteractionState, target: SelectTarget): boolean {

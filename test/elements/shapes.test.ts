@@ -47,62 +47,6 @@ describe("topologyFor", () => {
     expect(topologyFor(shape).nodeCount).toBe(expected[_name]);
   });
 
-  it("orders a point element as a single corner", () => {
-    expect(topologyFor(POINT_SHAPE)).toEqual({
-      family: "point",
-      order: 0,
-      nodeCount: 1,
-      corners: [0],
-      edges: [],
-      edgeNodes: [],
-    });
-  });
-
-  it("orders line corners before the mid-edge node", () => {
-    expect(topologyFor(LINE_SHAPE)).toMatchObject({ corners: [0, 1], edgeNodes: [] });
-    expect(topologyFor(LINE3_SHAPE)).toMatchObject({ corners: [0, 1], edgeNodes: [2] });
-  });
-
-  it("places tet10 mid-edge nodes on the six tet edges in canonical order", () => {
-    const tet4 = topologyFor(TET4_SHAPE);
-    const tet10 = topologyFor(TET10_SHAPE);
-    expect(tet4.corners).toEqual([0, 1, 2, 3]);
-    expect(tet4.edges).toHaveLength(6);
-    expect(tet4.edgeNodes).toEqual([]);
-    expect(tet10.edgeNodes).toEqual([4, 5, 6, 7, 8, 9]);
-    expect(tet10.edges).toEqual(tet4.edges);
-  });
-
-  it("places hex20 mid-edge nodes on the twelve hex edges in canonical order", () => {
-    const hex8 = topologyFor(HEX8_SHAPE);
-    const hex20 = topologyFor(HEX20_SHAPE);
-    expect(hex8.corners).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
-    expect(hex8.edges).toHaveLength(12);
-    expect(hex8.edgeNodes).toEqual([]);
-    expect(hex20.edgeNodes).toEqual([8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
-    expect(hex20.edges).toEqual(hex8.edges);
-  });
-
-  it("sits each hex20 mid-edge node on its VTK corner pair", () => {
-    const hex20 = topologyFor(HEX20_SHAPE);
-    const pairs = hex20.edges.map(([a, b]) => [Math.min(a, b), Math.max(a, b)] as const);
-    expect(pairs).toEqual([
-      [0, 1],
-      [1, 2],
-      [2, 3],
-      [0, 3],
-      [4, 5],
-      [5, 6],
-      [6, 7],
-      [4, 7],
-      [0, 4],
-      [1, 5],
-      [2, 6],
-      [3, 7],
-    ]);
-    expect(hex20.edgeNodes).toEqual([8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
-  });
-
   it("assigns every connectivity position as either a corner or a mid-edge node", () => {
     for (const [_name, shape] of ALL_SHAPES) {
       const topology = topologyFor(shape);

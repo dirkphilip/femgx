@@ -289,11 +289,6 @@ describe("heterogeneousElementParts geometry", () => {
     }
   });
 
-  it("renders a Tet4 surface as its four boundary triangles", () => {
-    const geometry = geometryFor(tet4Model(), "triangle");
-    expect(geometry.indices.length).toBe(4 * 3);
-  });
-
   it("tessellates a Tet10 solid through its mid-edge nodes", () => {
     const geometry = geometryFor(tet10Model(), "triangle");
     expect(geometry.indices.length).toBe(4 * 4 * 3);

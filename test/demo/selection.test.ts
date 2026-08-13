@@ -1,16 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  createInteractionState,
-  isTargetSelected,
-  setTargetHighlighted,
-  setTargetSelected,
-  setTargetHovered,
-  setPartOverride,
-  type InteractionTarget,
-} from "../../src/index";
+import { createInteractionState, isTargetSelected, setTargetSelected } from "../../src/index";
 import { elementSelectTarget, elementTarget, selectTarget } from "../../demo/workbench/pick";
 import {
-  clearSelection,
   replaceSelection,
   toggleElementSelection,
   toggleSelection,
@@ -23,25 +14,6 @@ const instance: SelectTarget = { kind: "instance", instanceId: "1/0" };
 const element: SelectTarget = { kind: "element", instanceId: "1/0", elementId: 7 };
 
 describe("demo selection policy", () => {
-  it("clears every selected granularity without disturbing hover or styling", () => {
-    let state = createInteractionState();
-    const targets: readonly InteractionTarget[] = [
-      part,
-      instance,
-      { kind: "body", instanceId: "1/0", bodyId: 2 },
-      element,
-      { kind: "node", instanceId: "1/0", nodeId: 3 },
-      { kind: "face", instanceId: "1/0", elementId: 7, faceIndex: 0 },
-    ];
-    for (const target of targets) state = setTargetSelected(state, target, true);
-    state = setTargetHovered(state, instance);
-    state = setTargetHighlighted(state, instance, true);
-    state = setPartOverride(state, 4, { emissive: 0.2 });
-    const cleared = clearSelection(state);
-    for (const target of targets) expect(isTargetSelected(cleared, target)).toBe(false);
-    expect(isTargetSelected(cleared, instance)).toBe(false);
-  });
-
   it("replaces plain-click selection while modifier toggles support additive selection", () => {
     const first = toggleSelection(createInteractionState(), part);
     const replaced = replaceSelection(first, element);

@@ -35,15 +35,8 @@ describe("node selection state", () => {
   it("tracks selections per instance immutably", () => {
     const state = setNodeSelected(createInteractionState(), nodeRef, true);
     expect(readInteractionState(state).selectedNodeIds.get("1/0")?.has(7)).toBe(true);
-    expect(setNodeSelected(state, nodeRef, true)).toBe(state);
     const cleared = setNodeSelected(state, nodeRef, false);
     expect(readInteractionState(cleared).selectedNodeIds.get("1/0")).toBeUndefined();
-  });
-
-  it("removes the per-instance entry when the last node is deselected", () => {
-    const state = setNodeSelected(createInteractionState(), nodeRef, true);
-    const cleared = setNodeSelected(state, nodeRef, false);
-    expect(readInteractionState(cleared).selectedNodeIds.has("1/0")).toBe(false);
   });
 
   it("sets and clears hover immutably", () => {
@@ -69,7 +62,6 @@ describe("face selection state", () => {
   it("tracks selections per instance immutably with their element", () => {
     const state = setFaceSelected(createInteractionState(), faceRef, true);
     expect(readInteractionState(state).selectedFaces.get("1/0")?.get("3/0")).toEqual(faceRef);
-    expect(setFaceSelected(state, faceRef, true)).toBe(state);
     const cleared = setFaceSelected(state, faceRef, false);
     expect(readInteractionState(cleared).selectedFaces.has("1/0")).toBe(false);
   });

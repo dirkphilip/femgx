@@ -16,12 +16,8 @@ describe("pick format", () => {
     expect(decodePickId(encodePickId(1))).toBe(1);
   });
 
-  it("round-trips the maximum supported pick id", () => {
-    expect(decodePickId(encodePickId(MAX_PICK_ID))).toBe(MAX_PICK_ID);
-  });
-
   it("round-trips ids at every byte boundary", () => {
-    for (const id of [0, 1, 255, 256, 65_535, 65_536, 16_777_215, 16_777_216]) {
+    for (const id of [0, 1, 255, 256, 65_535, 65_536, 16_777_215, 16_777_216, MAX_PICK_ID]) {
       expect(decodePickId(encodePickId(id))).toBe(id);
     }
   });

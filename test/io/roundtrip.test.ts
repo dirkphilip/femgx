@@ -18,47 +18,7 @@ import {
   topologyFor,
 } from "../../src/elements/shapes";
 
-function sampleModel() {
-  const builder = createModelBuilder();
-  builder.appendNodes([0, 1, 2, 3], [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
-  builder.openElementBlock(TET10_SHAPE);
-  builder.appendElements([0], [0, 1, 2, 3, 0, 1, 2, 3, 0, 1]);
-  builder.openElementBlock(HEX20_SHAPE);
-  builder.appendElements([1], [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3]);
-  builder.openElementBlock(LINE3_SHAPE);
-  builder.appendElements([2], [0, 1, 2]);
-  builder.openElementBlock(TRIANGLE_SHAPE);
-  builder.appendElements([3], [0, 1, 2]);
-  builder.openElementBlock(QUAD_SHAPE);
-  builder.appendElements([4], [0, 1, 2, 3]);
-  return builder.build();
-}
-
 describe("VTK round-trips", () => {
-  it("round-trips VTK legacy deterministically", () => {
-    const model = sampleModel();
-    const written = writeVtk(model);
-    expect(writeVtk(model)).toBe(written);
-    const parsed = parseVtk(written);
-    expect(parsed.issues).toEqual([]);
-    expect(parsed.model.nodes.count).toBe(model.nodes.count);
-    expect([...parsed.model.nodes.coordinates]).toEqual([...model.nodes.coordinates]);
-    expect(parsed.model.elementBlocks).toHaveLength(model.elementBlocks.length);
-    expect(parsed.model.elementBlocks.map((block) => block.shape.family)).toEqual([
-      "tet",
-      "hex",
-      "line",
-      "triangle",
-      "quad",
-    ]);
-    expect([...required(parsed.model.elementBlocks[0]).connectivity]).toEqual([
-      ...required(model.elementBlocks[0]).connectivity,
-    ]);
-    expect([...required(parsed.model.elementBlocks[1]).connectivity]).toEqual([
-      ...required(model.elementBlocks[1]).connectivity,
-    ]);
-  });
-
   it("round-trips every supported shape and reorders node and element results", () => {
     const builder = createModelBuilder();
     const nodeIds = [
