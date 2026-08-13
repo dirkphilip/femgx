@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   dataset,
   distinctColors,
@@ -9,6 +9,25 @@ import {
   requireHit,
   waitForRenderer,
 } from "./demo-support";
+
+interface BoxSelectionStats {
+  readonly active: boolean;
+  readonly queued: boolean;
+  readonly started: number;
+  readonly maxActive: number;
+}
+
+async function boxSelectionStats(page: Page): Promise<BoxSelectionStats | null> {
+  return page.evaluate(() => {
+    const harness = (
+      window as typeof window & {
+        femgxDemo?: { getBoxSelectionStats: () => BoxSelectionStats };
+      }
+    ).femgxDemo;
+    return harness?.getBoxSelectionStats() ?? null;
+  });
+}
+
 test("renders the demo canvas with instanced geometry", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
@@ -545,25 +564,45 @@ test("bounds rapid performance box drags to one active readback", async ({ page 
     }
   }, box);
 
-  const stats = await page.evaluate(() => {
-    const harness = (
-      window as typeof window & {
-        femgxDemo?: {
-          getBoxSelectionStats: () => {
-            readonly active: boolean;
-            readonly queued: boolean;
-            readonly started: number;
-            readonly maxActive: number;
-          };
-        };
-      }
-    ).femgxDemo;
-    return harness?.getBoxSelectionStats() ?? null;
-  });
+  const stats = await boxSelectionStats(page);
   expect(stats).toMatchObject({ maxActive: 1 });
   expect(stats?.started).toBeGreaterThan(0);
   expect(stats?.started).toBeLessThanOrEqual(2);
   await expect(canvas).toHaveAttribute("data-renderer", "webgpu");
+});
+test("survives repeated completed box selections on Quad shells", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/");
+  const select = page.getByTestId("model-select");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+
+  for (const model of ["fe-quad-shell-visual", "fe-quad8-shell-visual"]) {
+    await select.selectOption(model);
+    await expect(canvas).toHaveAttribute("data-model", model);
+    await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
+    for (let index = 0; index < 10; index += 1) {
+      const inset = (index % 5) * 0.02;
+      await primaryBoxDrag(
+        page,
+        canvas,
+        { fx: 0.12 + inset, fy: 0.18 },
+        { fx: 0.88 - inset, fy: 0.82 },
+      );
+      await page.mouse.up({ button: "left" });
+      await expect
+        .poll(
+          async () => {
+            const stats = await boxSelectionStats(page);
+            return { active: stats?.active, queued: stats?.queued };
+          },
+          { timeout: 10_000 },
+        )
+        .toEqual({ active: false, queued: false });
+    }
+    await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
+    await expect(canvas).toHaveAttribute("data-renderer", "webgpu");
+  }
 });
 test("runs one opt-in continuous render chain and returns to idle", async ({ page }) => {
   await page.goto("/");

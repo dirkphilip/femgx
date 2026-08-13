@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { createPart, type Geometry } from "../../src/geometry/part";
 import { identity } from "../../src/math/mat4";
 import { pickTargetsFromRegion, renderPixelRect } from "../../src/renderer/gpu-pick-region";
-import { createPickTargets, ensurePickTargets } from "../../src/renderer/gpu-pick";
+import {
+  createPickTargets,
+  ensurePickTargets,
+  type PickTargets,
+} from "../../src/renderer/gpu-pick";
 import type { PickContext } from "../../src/picking/pick";
 import type { Instance } from "../../src/scene/types";
 import type { BoxSelectionRect } from "../../src/interaction/box-selection";
@@ -39,8 +43,9 @@ async function targets(
   context: PickContext,
   granularity: "part" | "instance" | "element",
   selection = rect(),
+  existingPick?: PickTargets,
 ) {
-  const pick = createPickTargets(await createPickDepthReadback(gpu.device));
+  const pick = existingPick ?? createPickTargets(await createPickDepthReadback(gpu.device));
   ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
   return pickTargetsFromRegion({
     device: gpu.device,
@@ -100,6 +105,36 @@ describe("GPU pick regions", () => {
       expect(copied.length).toBeGreaterThan(0);
       expect(new Set(copied).size).toBe(2);
       expect(gpu.computeDispatchCount).toBe(0);
+    } finally {
+      restore();
+    }
+  });
+
+  it("batches each repeated viewport-sized region into one GPU readback", async () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice({ pickValue: 1, elementPickValue: 5 });
+      const context: PickContext = {
+        instances: [instance()],
+        parts: new Map([[1, createPart(1, triangleGeometry())]]),
+      };
+      const pick = createPickTargets(await createPickDepthReadback(gpu.device));
+      const selection = rect({
+        left: 0,
+        top: 0,
+        right: 800,
+        bottom: 600,
+        width: 800,
+        height: 600,
+      });
+
+      for (let index = 0; index < 3; index += 1) {
+        await expect(targets(gpu, context, "element", selection, pick)).resolves.toEqual([
+          { kind: "element", instanceId: "root/0", elementId: 4 },
+        ]);
+      }
+
+      expect(gpu.submissionCount).toBe(3);
     } finally {
       restore();
     }

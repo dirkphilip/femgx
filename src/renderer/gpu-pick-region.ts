@@ -13,7 +13,8 @@ import {
 } from "./gpu-pick";
 import { WebGpuPickReadbackError } from "./gpu-pick-error";
 
-const REGION_BYTE_BUDGET = 64 * 1024;
+// Keeps common viewport reads in one mapping while bounding high-DPI regions.
+const REGION_BYTE_BUDGET = 4 * 1024 * 1024;
 
 type RegionAttachment = "instance" | "element" | "face" | "node";
 
@@ -37,6 +38,8 @@ interface RawIdentity {
   facePickId: number;
   nodePickId: number;
 }
+
+type RawIdentities = Map<number, Map<number, RawIdentity>>;
 
 interface ResolvedTarget {
   readonly target: InteractionTarget;
@@ -68,11 +71,11 @@ export async function pickTargetsFromRegion(
   const textures = regionTextures(options.pick);
   if (textures === undefined) return [];
   const attachments = attachmentsFor(options.granularity);
-  const identities = new Map<string, RawIdentity>();
+  const identities: RawIdentities = new Map();
   for (const tile of regionTiles(bounds, attachments.length)) {
     await readRegionTile(options, textures, tile, attachments, identities);
   }
-  return resolveTargets(identities.values(), options);
+  return resolveTargets(identityValues(identities), options);
 }
 
 function assertGranularity(value: InteractionGranularity): void {
@@ -149,7 +152,7 @@ function attachmentsFor(granularity: InteractionGranularity): readonly RegionAtt
 function regionTiles(bounds: RenderPixelRect, attachmentCount: number): readonly RenderPixelRect[] {
   const width = bounds.right - bounds.left;
   const maxPixels = Math.max(1, Math.floor(REGION_BYTE_BUDGET / (4 * attachmentCount)));
-  const tileWidth = Math.max(1, Math.min(width, 256, Math.floor(Math.sqrt(maxPixels))));
+  const tileWidth = Math.max(1, Math.min(width, maxPixels));
   const rowStride = alignedRowBytes(tileWidth);
   const tileHeight = Math.max(
     1,
@@ -181,7 +184,7 @@ async function readRegionTile(
   textures: RegionTextures,
   tile: RenderPixelRect,
   attachments: readonly RegionAttachment[],
-  identities: Map<string, RawIdentity>,
+  identities: RawIdentities,
 ): Promise<void> {
   const width = tile.right - tile.left;
   const height = tile.bottom - tile.top;
@@ -223,23 +226,44 @@ function decodeRegion(
   bytesPerRow: number,
   target: {
     readonly attachments: readonly RegionAttachment[];
-    readonly identities: Map<string, RawIdentity>;
+    readonly identities: RawIdentities;
   },
 ): void {
   const { attachments, identities } = target;
+  const secondaryAttachment = attachments[1];
+  const secondaryOffset = secondaryAttachment === undefined ? 0 : bytesPerRow * height;
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const ids = { instancePickId: 0, elementPickId: 0, facePickId: 0, nodePickId: 0 };
-      for (const [index, attachment] of attachments.entries()) {
-        const offset = bytesPerRow * height * index + bytesPerRow * y + x * 4;
-        setPickId(ids, attachment, decodePickId(bytes, offset));
-      }
-      if (ids.instancePickId === 0) continue;
-      const keyParts = attachments.map((attachment) => pickIdFor(ids, attachment));
-      if (keyParts.some((id) => id === 0)) continue;
-      identities.set(JSON.stringify(keyParts), ids);
+      const offset = bytesPerRow * y + x * 4;
+      const instancePickId = decodePickId(bytes, offset);
+      if (instancePickId === 0) continue;
+      const secondaryPickId =
+        secondaryAttachment === undefined ? 0 : decodePickId(bytes, secondaryOffset + offset);
+      if (secondaryAttachment !== undefined && secondaryPickId === 0) continue;
+      recordIdentity(identities, instancePickId, secondaryAttachment, secondaryPickId);
     }
   }
+}
+
+function recordIdentity(
+  identities: RawIdentities,
+  instancePickId: number,
+  secondaryAttachment: RegionAttachment | undefined,
+  secondaryPickId: number,
+): void {
+  let bySecondary = identities.get(instancePickId);
+  if (bySecondary === undefined) {
+    bySecondary = new Map();
+    identities.set(instancePickId, bySecondary);
+  }
+  if (bySecondary.has(secondaryPickId)) return;
+  const ids = { instancePickId, elementPickId: 0, facePickId: 0, nodePickId: 0 };
+  if (secondaryAttachment !== undefined) setPickId(ids, secondaryAttachment, secondaryPickId);
+  bySecondary.set(secondaryPickId, ids);
+}
+
+function* identityValues(identities: RawIdentities): Iterable<RawIdentity> {
+  for (const bySecondary of identities.values()) yield* bySecondary.values();
 }
 
 function setPickId(ids: RawIdentity, attachment: RegionAttachment, value: number): void {
@@ -256,19 +280,6 @@ function setPickId(ids: RawIdentity, attachment: RegionAttachment, value: number
     case "node":
       ids.nodePickId = value;
       return;
-  }
-}
-
-function pickIdFor(pixel: RawIdentity, attachment: RegionAttachment): number {
-  switch (attachment) {
-    case "instance":
-      return pixel.instancePickId;
-    case "element":
-      return pixel.elementPickId;
-    case "face":
-      return pixel.facePickId;
-    case "node":
-      return pixel.nodePickId;
   }
 }
 
