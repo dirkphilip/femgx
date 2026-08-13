@@ -89,6 +89,8 @@ describe("GPU validation", () => {
       );
       expect(orbitShader?.code).toContain(cameraStruct);
       expect(orbitShader?.code.match(/struct Camera \{/g)).toHaveLength(1);
+      expect(orbitShader?.code).toContain("clip.z");
+      expect(orbitShader?.code).not.toContain("clip.xy + offset * clip.w, 0.");
     } finally {
       restore();
     }

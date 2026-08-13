@@ -290,6 +290,7 @@ export class GpuRenderer implements WebGpuRenderer {
       pointSize: this.pointSize,
       deformation: this.deformation,
       orbitPivot: this.orbitPivot,
+      devicePixelRatio,
       originTriadScale: this.originScale,
     };
   }
