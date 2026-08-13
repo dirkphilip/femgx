@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FemViewport } from "../../src/viewport/fem-viewport";
+import { WebGpuUnsupportedError } from "../../src/platform/capabilities";
 import type { DemoView } from "../../demo/workbench/view";
 import type { WorkbenchOptions } from "../../demo/workbench/controller";
 import { startWebGpuDemo } from "../../demo/workbench/start";
@@ -172,7 +173,9 @@ describe("startWebGpuDemo", () => {
   });
 
   it("reports an explicit unsupported message when viewport creation fails", async () => {
-    mocks.createFemViewport.mockRejectedValue(new Error("no WebGPU adapter"));
+    mocks.createFemViewport.mockRejectedValue(
+      new WebGpuUnsupportedError("adapter-unavailable", "no WebGPU adapter"),
+    );
     const canvas = fakeCanvas();
     const status = { textContent: "" };
     const rendererStatus = { textContent: "" };
@@ -186,6 +189,23 @@ describe("startWebGpuDemo", () => {
     expect(canvas.dataset["renderer"]).toBe("unsupported");
     expect(status.textContent).toContain("no WebGPU adapter");
     expect(rendererStatus.textContent).toBe("Renderer unsupported");
+  });
+
+  it("reports an ordinary startup failure as a renderer error", async () => {
+    mocks.createFemViewport.mockRejectedValue(new Error("renderer initialization failed"));
+    const canvas = fakeCanvas();
+    const status = { textContent: "" };
+    const rendererStatus = { textContent: "" };
+
+    const controller = await startWebGpuDemo({
+      view: { canvas, status, rendererStatus } as unknown as DemoView,
+      canvas,
+    });
+
+    expect(controller).toBeUndefined();
+    expect(canvas.dataset["renderer"]).toBe("error");
+    expect(status.textContent).toContain("renderer initialization failed");
+    expect(rendererStatus.textContent).toBe("Renderer error");
   });
 
   it("reports a first-frame failure and destroys the viewport", async () => {
@@ -240,7 +260,7 @@ describe("startWebGpuDemo", () => {
 
     await demoWindow.femgxDemo?.recreateRenderer();
 
-    expect(canvas.dataset["renderer"]).toBe("unsupported");
+    expect(canvas.dataset["renderer"]).toBe("error");
     expect(status.textContent).toContain("recreation failed");
   });
 
