@@ -372,6 +372,15 @@ describe("parseVtk typed-array accumulation", () => {
 });
 
 describe("writeVtk", () => {
+  it("maps structurally equal shapes without relying on object identity", () => {
+    const builder = createModelBuilder();
+    builder.appendNodes([0, 1, 2, 3], [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
+    builder.openElementBlock({ family: "tet", order: 1 });
+    builder.appendElements([0], [0, 1, 2, 3]);
+
+    expect(writeVtk(builder.build())).toContain("CELL_TYPES 1\n10");
+  });
+
   it("round-trips a model with scalar results", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1, 2, 3], [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);

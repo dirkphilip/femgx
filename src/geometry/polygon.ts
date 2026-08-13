@@ -4,7 +4,6 @@ import { canonicalKey } from "../elements/keys";
 import type { PartId } from "./part";
 import {
   createPart,
-  validateBodies,
   validateElements,
   validatePickIds,
   type Body,
@@ -13,6 +12,7 @@ import {
   type Part,
   type TriangleGeometry,
 } from "./part";
+import { bodyAssignments } from "./part-validation";
 import { TriangleMeshAssembler, type MeshVertex } from "./mesh-builder";
 import {
   PolygonGeometryError,
@@ -76,7 +76,10 @@ export function polygonGeometry(input: PolygonGeometryInput): TriangleGeometry {
   });
   validateFaceIndices(records);
   const groups = groupByElement(records);
-  const bodyIds = bodyAssignments(groups, input.bodies);
+  const bodyIds = bodyAssignments(
+    groups.map((group) => ({ id: group.elementId })),
+    input.bodies,
+  );
   const mesh = new TriangleMeshAssembler();
   const elements: ElementTessellation[] = [];
   const ranges = new Map<number, PrimitiveRange>();
@@ -194,30 +197,6 @@ function groupByElement(records: readonly PolygonRecord[]): readonly ElementGrou
     group.faces.push(record);
   }
   return groups;
-}
-
-function bodyAssignments(
-  groups: readonly ElementGroup[],
-  bodies: readonly Body[] | undefined,
-): ReadonlyMap<ElementId, number> {
-  const assignments = new Map<ElementId, number>();
-  for (const body of bodies ?? []) {
-    for (const elementId of body.elementIds) {
-      if (!assignments.has(elementId)) assignments.set(elementId, body.id);
-    }
-  }
-  const provisional: ElementTessellation[] = [];
-  for (const group of groups) {
-    const bodyId = assignments.get(group.elementId);
-    const element: ElementTessellation = {
-      id: group.elementId,
-      primitiveStart: 0,
-      primitiveCount: 1,
-    };
-    provisional.push(bodyId === undefined ? element : { ...element, bodyId });
-  }
-  validateBodies({ elements: provisional, ...(bodies === undefined ? {} : { bodies }) });
-  return assignments;
 }
 
 function validateFaceIndices(records: readonly PolygonRecord[]): void {

@@ -1,36 +1,15 @@
-import {
-  HEX20_SHAPE,
-  HEX8_SHAPE,
-  LINE3_SHAPE,
-  LINE_SHAPE,
-  POINT_SHAPE,
-  QUAD8_SHAPE,
-  QUAD_SHAPE,
-  TRI6_SHAPE,
-  TET10_SHAPE,
-  TET4_SHAPE,
-  TRIANGLE_SHAPE,
-  topologyFor,
-  type ElementShape,
-} from "../elements/shapes";
+import { topologyFor, type ElementShape } from "../elements/shapes";
 import { VtkWriteError, type Issue } from "./diagnostics";
 import { FEMGX_FORMAT_VERSION, type FemModel, type ModelElementBlock } from "./model";
 import { validateModel } from "./validate";
-import { prepareResults, writeAttributes, type PreparedResult } from "./vtk-write-results";
-
-const VTK_TYPES: ReadonlyMap<string, number> = new Map([
-  [shapeKey(POINT_SHAPE), 1],
-  [shapeKey(LINE_SHAPE), 3],
-  [shapeKey(TRIANGLE_SHAPE), 5],
-  [shapeKey(TRI6_SHAPE), 22],
-  [shapeKey(QUAD_SHAPE), 9],
-  [shapeKey(QUAD8_SHAPE), 23],
-  [shapeKey(LINE3_SHAPE), 21],
-  [shapeKey(TET4_SHAPE), 10],
-  [shapeKey(TET10_SHAPE), 24],
-  [shapeKey(HEX8_SHAPE), 12],
-  [shapeKey(HEX20_SHAPE), 25],
-]);
+import {
+  formatNumber,
+  invalidModel,
+  prepareResults,
+  writeAttributes,
+  type PreparedResult,
+} from "./vtk-write-results";
+import { VTK_CELL_TYPES } from "./vtk-cells";
 
 interface EmittedCell {
   readonly id: number;
@@ -125,14 +104,14 @@ function createNodeRows(model: FemModel): Map<number, number> {
 function createCells(model: FemModel, nodeRows: ReadonlyMap<number, number>): EmittedCell[] {
   const cells: EmittedCell[] = [];
   for (const block of model.elementBlocks) {
-    const vtkType = VTK_TYPES.get(shapeKey(block.shape));
-    if (vtkType === undefined) {
+    const cellType = VTK_CELL_TYPES.get(shapeKey(block.shape));
+    if (cellType === undefined) {
       throw new VtkWriteError(
         "unsupported-writer-state",
         `VTK writer has no cell type for ${block.shape.family} order ${block.shape.order}`,
       );
     }
-    appendBlockCells(cells, block, vtkType, nodeRows);
+    appendBlockCells(cells, block, cellType.vtkType, nodeRows);
   }
   return cells;
 }
@@ -211,17 +190,6 @@ function shapeKey(shape: ElementShape): string {
 function requiredValue<T>(value: T | undefined, message: string): T {
   if (value === undefined) throw invalidModel(message);
   return value;
-}
-
-function formatNumber(value: number): string {
-  if (!Number.isFinite(value)) {
-    throw new VtkWriteError("unsupported-writer-state", "VTK cannot represent a non-finite number");
-  }
-  return String(value);
-}
-
-function invalidModel(message: string, issues?: readonly Issue[]): VtkWriteError {
-  return new VtkWriteError("invalid-model", message, issues);
 }
 
 function errorMessage(error: unknown): string {

@@ -12,12 +12,8 @@ import {
   type TriangleGeometry,
 } from "./part";
 import type { PartId } from "./part";
-import {
-  bodyAssignments,
-  lineGeometry,
-  pointGeometry,
-  volumeGeometry,
-} from "./element-mesh-builders";
+import { lineGeometry, pointGeometry, volumeGeometry } from "./element-mesh-builders";
+import { bodyAssignments } from "./part-validation";
 
 /** Tessellation options shared by the single mixed-model compiler. */
 export interface TessellationOptions {

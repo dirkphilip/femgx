@@ -1,4 +1,4 @@
-import { VtkWriteError } from "./diagnostics";
+import { VtkWriteError, type Issue } from "./diagnostics";
 import type { ModelResultField } from "./model";
 import { VTK_KEYWORDS } from "./vtk-keywords";
 
@@ -173,13 +173,15 @@ function validateResultName(name: string): void {
   }
 }
 
-function formatNumber(value: number): string {
+/** Formats one finite value for ASCII VTK output. */
+export function formatNumber(value: number): string {
   if (!Number.isFinite(value)) {
     throw new VtkWriteError("unsupported-writer-state", "VTK cannot represent a non-finite number");
   }
   return String(value);
 }
 
-function invalidModel(message: string): VtkWriteError {
-  return new VtkWriteError("invalid-model", message);
+/** Creates the shared invalid-model writer error with optional diagnostics. */
+export function invalidModel(message: string, issues?: readonly Issue[]): VtkWriteError {
+  return new VtkWriteError("invalid-model", message, issues);
 }

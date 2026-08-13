@@ -17,19 +17,27 @@ import { numbersOf } from "./numbers";
 import { addDataBlocks, closeArray } from "./vtk-data";
 import type { VtkState } from "./vtk-state";
 
-const VTK_TYPES: ReadonlyMap<number, ElementShape> = new Map([
-  [1, POINT_SHAPE],
-  [3, LINE_SHAPE],
-  [5, TRIANGLE_SHAPE],
-  [22, TRI6_SHAPE],
-  [9, QUAD_SHAPE],
-  [23, QUAD8_SHAPE],
-  [21, LINE3_SHAPE],
-  [10, TET4_SHAPE],
-  [24, TET10_SHAPE],
-  [12, HEX8_SHAPE],
-  [25, HEX20_SHAPE],
+/** Canonical structural VTK cell mapping shared by reader and writer. */
+export const VTK_CELL_TYPES: ReadonlyMap<
+  string,
+  { readonly vtkType: number; readonly shape: ElementShape }
+> = new Map([
+  ["point:0", { vtkType: 1, shape: POINT_SHAPE }],
+  ["line:1", { vtkType: 3, shape: LINE_SHAPE }],
+  ["line:2", { vtkType: 21, shape: LINE3_SHAPE }],
+  ["triangle:1", { vtkType: 5, shape: TRIANGLE_SHAPE }],
+  ["triangle:2", { vtkType: 22, shape: TRI6_SHAPE }],
+  ["quad:1", { vtkType: 9, shape: QUAD_SHAPE }],
+  ["quad:2", { vtkType: 23, shape: QUAD8_SHAPE }],
+  ["tet:1", { vtkType: 10, shape: TET4_SHAPE }],
+  ["tet:2", { vtkType: 24, shape: TET10_SHAPE }],
+  ["hex:1", { vtkType: 12, shape: HEX8_SHAPE }],
+  ["hex:2", { vtkType: 25, shape: HEX20_SHAPE }],
 ]);
+
+const VTK_TYPES = new Map<number, ElementShape>(
+  [...VTK_CELL_TYPES.values()].map(({ vtkType, shape }) => [vtkType, shape]),
+);
 
 /** Sentinel `cellStarts` entry marking a cell whose node ids were not valid integers. */
 const MISSING_START = 0xffffffff;

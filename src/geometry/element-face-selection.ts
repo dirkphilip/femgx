@@ -35,16 +35,6 @@ export function allFacesForElements(elements: readonly Element[]): readonly Elem
   );
 }
 
-/**
- * Returns every oriented face after validating manifold topology. The renderer
- * needs the interior face records so GPU visibility can expose a neighbor when
- * its owner element is hidden.
- */
-export function renderFacesForElements(elements: readonly Element[]): readonly ElementRenderFace[] {
-  validateManifoldFaces(elements);
-  return allFacesForElements(elements);
-}
-
 /** Rejects ambiguous face incidence before any render subset is constructed. */
 export function validateManifoldFaces(elements: readonly Element[]): void {
   validateManifoldFaceNeighbors(faceNeighbors(elements));

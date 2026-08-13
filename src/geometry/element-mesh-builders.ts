@@ -11,7 +11,6 @@ import {
   type LineGeometry,
   type PointGeometry,
   type TriangleGeometry,
-  validateBodies,
 } from "./part";
 import { tessellateFace } from "./face-tessellation";
 import { LineMeshBuilder, TriangleMeshAssembler, type MeshVertex } from "./mesh-builder";
@@ -132,12 +131,7 @@ function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
 
 function buildVolumeGeometry(options: VolumeGeometryOptions): TriangleGeometry {
   const { mesh, elements, faces, nodePositions, bodies, faceSubset } = options;
-  const renderedElementIds = new Set(elements.map((element) => element.id));
-  const renderedBodies = bodies?.flatMap((body) => {
-    const elementIds = body.elementIds.filter((id) => renderedElementIds.has(id));
-    return elementIds.length === 0 ? [] : [{ ...body, elementIds }];
-  });
-  const base = mesh.build("triangles", elements, faces, nodePositions, renderedBodies);
+  const base = mesh.build("triangles", elements, faces, nodePositions, bodies);
   const geometry = faceSubset === undefined ? base : { ...base, faceSubset };
   return geometry;
 }
@@ -211,26 +205,6 @@ export function pointGeometry(
     ...(renderedBodies === undefined ? {} : { bodies: renderedBodies }),
   };
   return geometry;
-}
-
-/** Resolves body ownership once against the complete source model. */
-export function bodyAssignments(
-  elements: readonly Element[],
-  bodies: readonly Body[] | undefined,
-): ReadonlyMap<ElementId, BodyId> {
-  if (bodies === undefined || bodies.length === 0) return new Map();
-  const assignments = new Map<ElementId, BodyId>();
-  for (const body of bodies) {
-    for (const elementId of body.elementIds) assignments.set(elementId, body.id);
-  }
-  validateBodies({
-    elements: elements.map((element) => {
-      const bodyId = assignments.get(element.id);
-      return bodyId === undefined ? { id: element.id } : { id: element.id, bodyId };
-    }),
-    bodies,
-  });
-  return assignments;
 }
 
 function bodiesForElements(
