@@ -7,9 +7,6 @@ import {
   type PickHit,
 } from "../../src/index";
 
-/** The interaction granularity a modifier key can select at. */
-export type PickLevel = "node" | "face" | "element" | "instance" | "part";
-
 /** A stable selection identity at any supported granularity. */
 export type SelectTarget = Exclude<InteractionTarget, { readonly kind: "body" }> & {
   readonly bodyId?: BodyId;

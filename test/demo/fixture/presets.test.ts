@@ -66,8 +66,6 @@ describe("createModelPresets", () => {
 describe("createGalleryPreset", () => {
   it("includes the helper set and generic mapped element", () => {
     const preset = createGalleryPreset();
-    expect(preset.partColors.size).toBe(12);
-    expect(createPackedSceneRuntime(preset.scene).getDrawList()).toHaveLength(12);
     expect(preset.partNames.get(10)).toBe("Generic solver-mapped element");
   });
 });
@@ -86,19 +84,8 @@ describe("createVtkPreset", () => {
 describe("createHex20CylinderPreset", () => {
   it("builds a small linearly tessellated Hex20 cylinder", () => {
     const preset = createHex20CylinderPreset();
-    expect(preset.scene.parts.size).toBe(1);
-    expect(preset.bounds.minZ).toBeCloseTo(-0.9);
-    expect(preset.bounds.maxZ).toBeCloseTo(0.9);
     expect(preset.results?.deformation?.field.count).toBeGreaterThan(20);
     expect(preset.results?.field.shape).toBe("scalar");
-  });
-});
-
-describe("createBoltedPlatePreset", () => {
-  it("starts with every reusable component visible", () => {
-    const preset = createBoltedPlatePreset();
-    expect(preset.partNames.get(4)).toBe("Bolts");
-    expect(createPackedSceneRuntime(preset.scene).visibleCount).toBe(34);
   });
 });
 

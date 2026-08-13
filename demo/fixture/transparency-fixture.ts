@@ -23,7 +23,6 @@ export interface TransparencyFixture {
   readonly scene: Scene;
   readonly partIds: TransparencyFixtureParts;
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
-  readonly instanceCount: number;
 }
 
 const ROOT_ASSEMBLY_ID: AssemblyId = 31;
@@ -49,7 +48,6 @@ export function createTransparencyFixture(): TransparencyFixture {
       [INTERIOR_PART_ID, interiorModel],
       [OVERLAP_PART_ID, overlapModel],
     ]),
-    instanceCount: 4,
   };
 }
 

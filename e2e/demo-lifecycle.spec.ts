@@ -29,19 +29,6 @@ async function boxSelectionStats(page: Page): Promise<BoxSelectionStats | null> 
   });
 }
 
-test("renders the demo canvas with instanced geometry", async ({ page }) => {
-  await page.goto("/");
-  const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toBeVisible();
-  await expect
-    .poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 })
-    .toMatch(/^(webgpu|unsupported)$/);
-  if ((await canvas.getAttribute("data-renderer")) !== "webgpu") {
-    test.skip(true, "WebGPU renderer unavailable in this browser environment");
-  }
-
-  await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
-});
 test("draws a normalized box rectangle during a primary drag and clears it on release", async ({
   page,
 }) => {

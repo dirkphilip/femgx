@@ -2,8 +2,6 @@ import type { FemViewport, GlbSceneImport, InteractionState, SceneRuntime } from
 import type { DemoView, WorkbenchPane, ViewportSlotId } from "./view";
 import type { WorkbenchModel } from "./model";
 
-export type { WorkbenchPane, ViewportSlotId } from "./view";
-
 /** Current draw statistics reported by the active renderer. */
 export interface RendererStats {
   readonly visibleInstances: number;
