@@ -90,21 +90,46 @@ test("renders and switches the built-in viewport backgrounds", async ({ page }) 
 
   const canvas = page.locator("#background-test");
   await expect(canvas).toBeVisible();
-  await page.waitForTimeout(150);
+  await stableCanvasPixels(page, canvas);
   const studio = await canvasRgba(page, canvas);
+  const canvasSize = await canvas.evaluate((element) => {
+    if (!(element instanceof HTMLCanvasElement)) throw new Error("background canvas missing");
+    return { width: element.width, height: element.height };
+  });
+  const studioTop = luminancePatch(
+    studio,
+    canvasSize.width,
+    canvasSize.width * 0.1,
+    canvasSize.height * 0.1,
+  );
+  const studioBottom = luminancePatch(
+    studio,
+    canvasSize.width,
+    canvasSize.width * 0.1,
+    canvasSize.height * 0.9,
+  );
+  expect(studioTop.mean, "studio's upper field must be lighter").toBeGreaterThan(studioBottom.mean);
+  expect(
+    studioTop.mean - studioBottom.mean,
+    "studio must retain a visibly meaningful top-to-bottom luminance separation",
+  ).toBeGreaterThanOrEqual(32);
+  expect(
+    studioTop.mean - studioBottom.mean,
+    "studio must remain restrained rather than becoming a high-contrast effect",
+  ).toBeLessThanOrEqual(80);
   await page.evaluate(() =>
     (
       window as Window & { __backgroundViewport?: { setBackground: (background: "white") => void } }
     ).__backgroundViewport?.setBackground("white"),
   );
-  await page.waitForTimeout(150);
+  await stableCanvasPixels(page, canvas);
   const white = await canvasRgba(page, canvas);
   await page.evaluate(() =>
     (
       window as Window & { __backgroundViewport?: { setBackground: (background: "dark") => void } }
     ).__backgroundViewport?.setBackground("dark"),
   );
-  await page.waitForTimeout(150);
+  await stableCanvasPixels(page, canvas);
   const dark = await canvasRgba(page, canvas);
 
   expect(
