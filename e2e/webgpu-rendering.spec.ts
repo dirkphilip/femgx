@@ -122,6 +122,66 @@ test("renders and switches the built-in viewport backgrounds", async ({ page }) 
   );
 });
 
+test("preserves element identity for shared indexed surface corners", async ({ page }) => {
+  await page.goto("/");
+  const hasWebGpu = await page.evaluate(() => "gpu" in navigator);
+  if (!hasWebGpu) test.skip(true, "WebGPU is unavailable in this browser environment");
+
+  const hits = await page.evaluate(async () => {
+    const modulePath = "/src/index.ts";
+    const api = (await import(/* @vite-ignore */ modulePath)) as typeof Api;
+    document.body.innerHTML =
+      '<canvas id="shared-index-test" style="display:block;width:640px;height:420px"></canvas>';
+    const canvas = document.getElementById("shared-index-test");
+    if (!(canvas instanceof HTMLCanvasElement)) throw new Error("shared-index canvas missing");
+    const part = api.createPart(1, {
+      positions: new Float32Array([-0.9, -0.8, 0, 0, -0.8, 0, 0, 0.8, 0, 0.9, 0.8, 0]),
+      indices: new Uint32Array([0, 1, 2, 1, 3, 2]),
+      primitive: "triangles",
+      elements: [
+        { id: 10, primitiveStart: 0, primitiveCount: 1 },
+        { id: 20, primitiveStart: 1, primitiveCount: 1 },
+      ],
+    });
+    const scene = api
+      .createScene()
+      .addPart(part)
+      .addAssembly({
+        id: 1,
+        name: "shared-index-test",
+        placements: [{ kind: "part", partId: 1, transform: api.identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const viewport = await api.createFemViewport({
+      canvas,
+      scene,
+      camera: api.createCamera({
+        position: [0, 0, 2],
+        target: [0, 0, 0],
+        up: [0, 1, 0],
+        orthoHeight: 2.2,
+        width: 640,
+        height: 420,
+      }),
+      background: "dark",
+    });
+    const pickAt = async (point: [number, number, number]) => {
+      const projected = api.projectPoint(viewport.camera, point);
+      if (projected === undefined) throw new Error("shared-index point projected behind camera");
+      const [x, y] = projected;
+      return viewport.pick(x, y);
+    };
+    const left = await pickAt([-0.3, -0.25, 0]);
+    const right = await pickAt([0.3, 0.25, 0]);
+    viewport.destroy();
+    return { left, right };
+  });
+
+  expect(hits.left).toMatchObject({ kind: "element", elementId: 10 });
+  expect(hits.right).toMatchObject({ kind: "element", elementId: 20 });
+});
+
 test("renders the persistent world-origin triad without scene identity", async ({ page }) => {
   await page.goto("/");
   const hasWebGpu = await page.evaluate(() => "gpu" in navigator);

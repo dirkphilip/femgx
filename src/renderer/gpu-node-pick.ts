@@ -62,8 +62,8 @@ struct NodeVertexOutput {
 
 /** Builds the triangle or line node-pick vertex stage from explicit topology inputs. */
 function createNodePickVertexShader(variant: NodePickPrimitiveVariant): string {
-  const primitiveIndex = `vertexIndex / ${variant.verticesPerPrimitive}u`;
-  const primitiveBase = `(${primitiveIndex}) * ${variant.verticesPerPrimitive}u`;
+  const primitiveIndex = "primitiveDrawId(vertexIndex)";
+  const primitiveBase = `(vertexIndex - (vertexIndex % ${variant.verticesPerPrimitive}u))`;
   const cornerC = cornerData(variant);
   const nodePickIds = variant.cornerC === "third" ? "vertexNodePickIds[base + 2u]" : "0u";
   return `${nodePickVertexHeader}${createNodePickVertexMain({

@@ -6,6 +6,10 @@ export interface PartDrawInputs {
   readonly geometry: PartResource;
   /** Nodal displacement buffer; empty for parts without deformation data. */
   readonly deformation: GPUBuffer;
+  /** Binds endpoint-aligned node ids for the wireframe pass. */
+  readonly edge?: boolean;
+  /** Binds expanded face-subset surface data instead of the full part data. */
+  readonly surfaceSubset?: boolean;
   /** Node glyph geometry is transient relative to the cached surface bind group. */
   readonly cache?: boolean;
 }
@@ -82,17 +86,26 @@ function instanceBindGroup(
   orderBuffer: GPUBuffer,
   part: PartDrawInputs,
 ): GPUBindGroup {
+  const geometry = part.geometry;
+  const nodePickIdsBuffer = part.edge
+    ? geometry.edgeNodePickIdsBuffer
+    : part.surfaceSubset
+      ? (geometry.subsetNodePickIdsBuffer ?? geometry.nodePickIdsBuffer)
+      : geometry.nodePickIdsBuffer;
+  const geometryDataBuffer = part.surfaceSubset
+    ? (geometry.subsetGeometryDataBuffer ?? geometry.geometryDataBuffer)
+    : geometry.geometryDataBuffer;
   return device.createBindGroup({
     layout,
     entries: [
       { binding: 0, resource: { buffer: storage.buffer } },
       { binding: 1, resource: { buffer: orderBuffer } },
-      { binding: 2, resource: { buffer: part.geometry.elementPickIdsBuffer } },
+      { binding: 2, resource: { buffer: geometry.elementPickIdsBuffer } },
       { binding: 3, resource: { buffer: storage.highlight.buffer } },
       { binding: 4, resource: { buffer: part.deformation } },
-      { binding: 5, resource: { buffer: part.geometry.facePickIdsBuffer } },
-      { binding: 6, resource: { buffer: part.geometry.nodePickIdsBuffer } },
-      { binding: 7, resource: { buffer: part.geometry.geometryDataBuffer } },
+      { binding: 5, resource: { buffer: geometry.facePickIdsBuffer } },
+      { binding: 6, resource: { buffer: nodePickIdsBuffer } },
+      { binding: 7, resource: { buffer: geometryDataBuffer } },
     ],
   });
 }

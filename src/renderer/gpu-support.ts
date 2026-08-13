@@ -9,6 +9,8 @@ export interface PartResource {
   readonly facePickIdsBuffer: GPUBuffer;
   /** Per-vertex node pick ids (`nodeId + 1`, 0 = vertex without a node). */
   readonly nodePickIdsBuffer: GPUBuffer;
+  /** Per-edge-endpoint node ids used by the expanded wireframe pass. */
+  readonly edgeNodePickIdsBuffer: GPUBuffer;
   /** Packed float position bits and expanded edge metadata for shader reads. */
   readonly geometryDataBuffer: GPUBuffer;
   /** Expanded endpoint positions for the wireframe pass. */
@@ -19,6 +21,9 @@ export interface PartResource {
   readonly edgeIndexCount: number;
   /** Optional compact index orders for a validated face subset. */
   readonly subsetIndexBuffer?: GPUBuffer;
+  readonly subsetVertexBuffer?: GPUBuffer;
+  readonly subsetNodePickIdsBuffer?: GPUBuffer;
+  readonly subsetGeometryDataBuffer?: GPUBuffer;
   readonly subsetEdgeVertexBuffer?: GPUBuffer;
   readonly subsetEdgeIndexBuffer?: GPUBuffer;
   readonly subsetIndexCount: number;
