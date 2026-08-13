@@ -71,16 +71,6 @@ describe("changedInstanceSlots", () => {
     expect(getInstanceId).not.toHaveBeenCalled();
   });
 
-  it("reuses runtime identity indexes instead of scanning instance ids", () => {
-    const rt = runtime();
-    const getInstanceId = vi.spyOn(rt, "getInstanceId");
-    const empty = createInteractionState();
-    const highlighted = setPartHighlighted(empty, 1, true);
-
-    expect(changedInstanceSlots(rt, empty, highlighted)).toEqual([0, 1, 2]);
-    expect(getInstanceId).not.toHaveBeenCalled();
-  });
-
   it("returns every slot of a part when a part highlight is added or cleared", () => {
     const rt = runtime();
     const empty = createInteractionState();

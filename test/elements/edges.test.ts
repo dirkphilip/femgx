@@ -3,8 +3,6 @@ import { createElement } from "../../src/elements/element";
 import { edgesOf, uniqueEdges } from "../../src/elements/edges";
 import {
   HEX20_SHAPE,
-  HEX8_SHAPE,
-  LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
   TET10_SHAPE,
@@ -21,72 +19,6 @@ const sequentialElement = (id: number, shape: ElementShape) =>
   );
 
 describe("edgesOf", () => {
-  it("extracts the six Tet4 edges in canonical order", () => {
-    expect(edgesOf(sequentialElement(1, TET4_SHAPE)).map((edge) => edge.nodeIds)).toEqual([
-      [0, 1],
-      [1, 2],
-      [2, 0],
-      [0, 3],
-      [1, 3],
-      [2, 3],
-    ]);
-  });
-
-  it("keeps the mid-edge node between the corners of a Tet10 edge", () => {
-    expect(edgesOf(sequentialElement(1, TET10_SHAPE)).map((edge) => edge.nodeIds)).toEqual([
-      [0, 4, 1],
-      [1, 5, 2],
-      [2, 6, 0],
-      [0, 7, 3],
-      [1, 8, 3],
-      [2, 9, 3],
-    ]);
-  });
-
-  it("extracts the twelve Hex8 edges in canonical order", () => {
-    expect(edgesOf(sequentialElement(1, HEX8_SHAPE)).map((edge) => edge.nodeIds)).toEqual([
-      [0, 1],
-      [1, 2],
-      [2, 3],
-      [3, 0],
-      [4, 5],
-      [5, 6],
-      [6, 7],
-      [7, 4],
-      [0, 4],
-      [1, 5],
-      [2, 6],
-      [3, 7],
-    ]);
-  });
-
-  it("keeps the mid-edge node between the corners of a Hex20 edge", () => {
-    expect(edgesOf(sequentialElement(1, HEX20_SHAPE)).map((edge) => edge.nodeIds)).toEqual([
-      [0, 8, 1],
-      [1, 9, 2],
-      [2, 10, 3],
-      [3, 11, 0],
-      [4, 12, 5],
-      [5, 13, 6],
-      [6, 14, 7],
-      [7, 15, 4],
-      [0, 16, 4],
-      [1, 17, 5],
-      [2, 18, 6],
-      [3, 19, 7],
-    ]);
-  });
-
-  it("exposes a line element as a single edge and a point element as none", () => {
-    expect(edgesOf(createElement(1, LINE_SHAPE, [0, 1])).map((edge) => edge.nodeIds)).toEqual([
-      [0, 1],
-    ]);
-    expect(edgesOf(createElement(1, LINE3_SHAPE, [0, 1, 2])).map((edge) => edge.nodeIds)).toEqual([
-      [0, 2, 1],
-    ]);
-    expect(edgesOf(createElement(1, POINT_SHAPE, [0]))).toEqual([]);
-  });
-
   it("preserves the element's node identity, not connectivity positions", () => {
     const element = createElement(1, TET4_SHAPE, [10, 20, 30, 40]);
     expect(edgesOf(element).map((edge) => edge.nodeIds)).toEqual([

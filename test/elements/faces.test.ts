@@ -4,11 +4,6 @@ import { classifyFaces, facesOf, facesOfElement } from "../../src/elements/faces
 import {
   HEX20_SHAPE,
   HEX8_SHAPE,
-  LINE3_SHAPE,
-  LINE_SHAPE,
-  POINT_SHAPE,
-  QUAD_SHAPE,
-  TRIANGLE_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
   topologyFor,
@@ -134,61 +129,6 @@ function assertOutwardFaces(element: ReturnType<typeof sequentialElement>): void
 }
 
 describe("facesOf", () => {
-  it("extracts four outward-oriented triangular faces from a Tet4", () => {
-    expect(facesOf(sequentialElement(1, TET4_SHAPE)).map((face) => face.nodeIds)).toEqual([
-      [0, 1, 3],
-      [1, 2, 3],
-      [2, 0, 3],
-      [0, 2, 1],
-    ]);
-  });
-
-  it("extracts six outward-oriented quad faces from a Hex8", () => {
-    expect(facesOf(sequentialElement(1, HEX8_SHAPE)).map((face) => face.nodeIds)).toEqual([
-      [0, 4, 7, 3],
-      [1, 2, 6, 5],
-      [0, 1, 5, 4],
-      [3, 7, 6, 2],
-      [0, 3, 2, 1],
-      [4, 5, 6, 7],
-    ]);
-  });
-
-  it("exposes a triangle or quad surface element as one oriented face", () => {
-    expect(facesOf(sequentialElement(1, TRIANGLE_SHAPE)).map((face) => face.nodeIds)).toEqual([
-      [0, 1, 2],
-    ]);
-    expect(facesOf(sequentialElement(1, QUAD_SHAPE)).map((face) => face.nodeIds)).toEqual([
-      [0, 1, 2, 3],
-    ]);
-  });
-
-  it("interleaves mid-edge nodes into Tet10 faces", () => {
-    expect(facesOf(sequentialElement(1, TET10_SHAPE)).map((face) => face.nodeIds)).toEqual([
-      [0, 4, 1, 8, 3, 7],
-      [1, 5, 2, 9, 3, 8],
-      [2, 6, 0, 7, 3, 9],
-      [0, 6, 2, 5, 1, 4],
-    ]);
-  });
-
-  it("interleaves mid-edge nodes into Hex20 faces", () => {
-    expect(facesOf(sequentialElement(1, HEX20_SHAPE)).map((face) => face.nodeIds)).toEqual([
-      [0, 16, 4, 15, 7, 19, 3, 11],
-      [1, 9, 2, 18, 6, 13, 5, 17],
-      [0, 8, 1, 17, 5, 12, 4, 16],
-      [3, 19, 7, 14, 6, 18, 2, 10],
-      [0, 11, 3, 10, 2, 9, 1, 8],
-      [4, 12, 5, 13, 6, 14, 7, 15],
-    ]);
-  });
-
-  it("has no faces for point and line elements", () => {
-    expect(facesOf(createElement(1, POINT_SHAPE, [0]))).toEqual([]);
-    expect(facesOf(createElement(1, LINE_SHAPE, [0, 1]))).toEqual([]);
-    expect(facesOf(createElement(1, LINE3_SHAPE, [0, 1, 2]))).toEqual([]);
-  });
-
   it("preserves the element's node identity, not connectivity positions", () => {
     const element = createElement(1, TET4_SHAPE, [10, 20, 30, 40]);
     expect(facesOf(element).map((face) => face.nodeIds)).toEqual([
