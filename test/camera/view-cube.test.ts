@@ -8,7 +8,16 @@ import {
   rotateCameraByStep,
   snapCameraToDirection,
 } from "../../src/camera/view-cube";
-import { cross, dot, length, normalize, subtract, type Vec3 } from "../../src/math/vec3";
+import {
+  add,
+  cross,
+  dot,
+  length,
+  normalize,
+  scale,
+  subtract,
+  type Vec3,
+} from "../../src/math/vec3";
 
 const bounds = {
   minX: -2,
@@ -127,6 +136,43 @@ describe("view-cube camera actions", () => {
     expect(restored.position[0]).toBeCloseTo(initial.position[0], 8);
     expect(restored.position[1]).toBeCloseTo(initial.position[1], 8);
     expect(restored.position[2]).toBeCloseTo(initial.position[2], 8);
+  });
+
+  it.each([
+    [
+      "canonical front",
+      createCamera({ position: [0, 0, 5], width: 100, height: 100, orthoHeight: 10 }),
+    ],
+    [
+      "rolled oblique",
+      rotateCameraByStep(
+        rotateCameraByStep(
+          createCamera({
+            position: [4, 3, 6],
+            target: [0.5, -0.25, 0.75],
+            width: 100,
+            height: 100,
+          }),
+          bounds,
+          "clockwise",
+          15,
+        ),
+        bounds,
+        "clockwise",
+        15,
+      ),
+    ],
+  ] as const)("moves visible content in the named vertical direction from a %s", (_, initial) => {
+    const towardCamera = normalize(subtract(initial.position, initial.target));
+    const probe = add(initial.target, scale(towardCamera, 1));
+    const before = projectPoint(initial, probe);
+    const up = projectPoint(rotateCameraByStep(initial, bounds, "up", 15), probe);
+    const down = projectPoint(rotateCameraByStep(initial, bounds, "down", 15), probe);
+    if (before === undefined || up === undefined || down === undefined) {
+      throw new Error("view-cube direction probe must be projectable");
+    }
+    expect(up[1]).toBeLessThan(before[1]);
+    expect(down[1]).toBeGreaterThan(before[1]);
   });
 
   it.each(["clockwise", "counterclockwise"] as const)(
