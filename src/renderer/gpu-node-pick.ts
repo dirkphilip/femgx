@@ -28,6 +28,22 @@ interface NodePickPrimitiveVariant {
   readonly cornerC: "second" | "third";
 }
 
+const nodeVertexOutput = /* wgsl */ `
+struct NodeVertexOutput {
+  @builtin(position) position: vec4<f32>,
+  @location(0) color: vec4<f32>,
+  @location(1) @interpolate(flat) pickId: u32,
+  @location(2) @interpolate(flat) emissive: f32,
+  @location(3) @interpolate(flat) elementPickId: u32,
+  @location(4) @interpolate(flat) facePickId: u32,
+  @location(5) localPosition: vec3<f32>,
+  @location(6) @interpolate(flat) cornerA: vec3<f32>,
+  @location(7) @interpolate(flat) cornerB: vec3<f32>,
+  @location(8) @interpolate(flat) cornerC: vec3<f32>,
+  @location(9) @interpolate(flat) nodePickIds: vec3<u32>,
+};
+`;
+
 const nodePickVertexHeader = /* wgsl */ `
 ${cameraStruct}
 
@@ -45,19 +61,7 @@ ${geometryPositionBindings}
 
 ${displacementFn}
 
-struct NodeVertexOutput {
-  @builtin(position) position: vec4<f32>,
-  @location(0) color: vec4<f32>,
-  @location(1) @interpolate(flat) pickId: u32,
-  @location(2) @interpolate(flat) emissive: f32,
-  @location(3) @interpolate(flat) elementPickId: u32,
-  @location(4) @interpolate(flat) facePickId: u32,
-  @location(5) localPosition: vec3<f32>,
-  @location(6) @interpolate(flat) cornerA: vec3<f32>,
-  @location(7) @interpolate(flat) cornerB: vec3<f32>,
-  @location(8) @interpolate(flat) cornerC: vec3<f32>,
-  @location(9) @interpolate(flat) nodePickIds: vec3<u32>,
-};
+${nodeVertexOutput}
 `;
 
 /** Builds the triangle or line node-pick vertex stage from explicit topology inputs. */
@@ -178,19 +182,7 @@ ${pickDataBindings}
 
 ${displacementFn}
 
-struct NodeVertexOutput {
-  @builtin(position) position: vec4<f32>,
-  @location(0) color: vec4<f32>,
-  @location(1) @interpolate(flat) pickId: u32,
-  @location(2) @interpolate(flat) emissive: f32,
-  @location(3) @interpolate(flat) elementPickId: u32,
-  @location(4) @interpolate(flat) facePickId: u32,
-  @location(5) localPosition: vec3<f32>,
-  @location(6) @interpolate(flat) cornerA: vec3<f32>,
-  @location(7) @interpolate(flat) cornerB: vec3<f32>,
-  @location(8) @interpolate(flat) cornerC: vec3<f32>,
-  @location(9) @interpolate(flat) nodePickIds: vec3<u32>,
-};
+${nodeVertexOutput}
 
 ${spriteCornerFn}
 

@@ -57,13 +57,6 @@ export interface PickPixelResult {
 }
 
 /**
- * Thrown when the asynchronous GPU pick readback fails after rendering already
- * succeeded. The browser renders WebGPU correctly; only the single-pixel
- * readback (copy + `mapAsync`) could not be completed. This is a pick-path
- * failure, not a missing-WebGPU condition, so callers must report it as
- * pick-readback and never mislabel the environment as CPU-only.
- */
-/**
  * Byte stride reserved per pick attachment in a pooled readback buffer. The
  * instance pick id is copied to offset 0, the element pick id to
  * `READBACK_BYTE_STRIDE`, the face pick id to `READBACK_BYTE_STRIDE * 2`, and

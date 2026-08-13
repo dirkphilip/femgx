@@ -36,18 +36,7 @@ ${resultColorFunctions}
 ${vertexOutput}
 `;
 
-const instanceHighlighting = /* wgsl */ `
-  let facePickId = faceBodyPickIds.x;
-  let bodyPickId = faceBodyPickIds.y;
-  let nodePickId = vertexNodePickIds[vertexIndex];
-  let baseResultColor = resultColorForNode(nodePickId, instance.color);
-  var color = baseResultColor;
-  var resultColorEnabled = resultColorActive(nodePickId);
-  var selectionKeepsResult = false;
-  var emissive = instance.emissive;
-  var hidden = false;
-  var matched = false;
-  var selected = instance.selected != 0u;
+const bodyAndElementHighlighting = /* wgsl */ `
   if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;
@@ -81,6 +70,21 @@ const instanceHighlighting = /* wgsl */ `
       }
     }
   }
+`;
+
+const instanceHighlighting = /* wgsl */ `
+  let facePickId = faceBodyPickIds.x;
+  let bodyPickId = faceBodyPickIds.y;
+  let nodePickId = vertexNodePickIds[vertexIndex];
+  let baseResultColor = resultColorForNode(nodePickId, instance.color);
+  var color = baseResultColor;
+  var resultColorEnabled = resultColorActive(nodePickId);
+  var selectionKeepsResult = false;
+  var emissive = instance.emissive;
+  var hidden = false;
+  var matched = false;
+  var selected = instance.selected != 0u;
+${bodyAndElementHighlighting}
   if (!matched && facePickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], 0u, facePickId, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;
@@ -221,39 +225,9 @@ fn pointVertex(
   }
   var emissive = 0.0;
   var hidden = false;
+  var matched = false;
   var selected = instance.selected != 0u;
-  if (bodyPickId != 0u && elementHighlights.bucketCount != 0u) {
-    let bucket = highlightHash(drawOrder[instanceIndex], bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
-    let base = bucket * 4u;
-    for (var offset = 0u; offset < 4u; offset++) {
-      let highlight = elementHighlights.records[base + offset];
-      if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
-        color = highlight.color;
-        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u;
-        if (highlight.selected == 0u) { resultColorEnabled = false; }
-        emissive = highlight.emissive;
-        hidden = highlight.hidden != 0u;
-        selected = selected || highlight.selected != 0u;
-        break;
-      }
-    }
-  }
-  if (elementPickId != 0u && elementHighlights.bucketCount != 0u) {
-    let bucket = highlightHash(drawOrder[instanceIndex], elementPickId, 0u, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
-    let base = bucket * 4u;
-    for (var offset = 0u; offset < 4u; offset++) {
-      let highlight = elementHighlights.records[base + offset];
-      if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == elementPickId && highlight.facePickId == 0u) {
-        color = highlight.color;
-        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u;
-        if (highlight.selected == 0u) { resultColorEnabled = false; }
-        emissive = highlight.emissive;
-        hidden = hidden || highlight.hidden != 0u;
-        selected = selected || highlight.selected != 0u;
-        break;
-      }
-    }
-  }
+${bodyAndElementHighlighting}
   if (nodePickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], 0u, 0u, nodePickId, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;

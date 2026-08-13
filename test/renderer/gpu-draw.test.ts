@@ -14,7 +14,8 @@ import {
   type DrawCallContext,
 } from "../../src/renderer/gpu-draw";
 import { drawBatches } from "../../src/renderer/gpu-batch";
-import { beginColorPass, ensureColorTargets } from "../../src/renderer/gpu-pipelines";
+import { ensureColorTargets } from "../../src/renderer/gpu-pipelines";
+import { beginColorPass } from "../../src/renderer/gpu-passes";
 import {
   ELEMENT_RECORD_STRIDE,
   HIGHLIGHT_HEADER,
