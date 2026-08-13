@@ -43,4 +43,13 @@ describe("buildHighlightTable", () => {
     const entries = Array.from({ length: 65 }, (_, index) => entry(index, index + 1));
     expect(buildHighlightTable(entries, HIGHLIGHT_BUCKET_SIZE * 8)).toBeUndefined();
   });
+
+  it("places the same semantic entries identically regardless of input order", () => {
+    const entries = Array.from({ length: 40 }, (_, index) => entry(index % 5, index + 1));
+    const forward = buildHighlightTable(entries, 128);
+    const reversed = buildHighlightTable([...entries].reverse(), 128);
+
+    expect(reversed?.seed).toBe(forward?.seed);
+    expect(reversed?.entries).toEqual(forward?.entries);
+  });
 });

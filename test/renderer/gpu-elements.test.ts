@@ -468,6 +468,27 @@ describe("writeElementHighlights", () => {
     }
   });
 
+  it("coalesces many changed records into one GPU write", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const storage = makeStorage(gpu);
+      const updates = Array.from({ length: 80 }, (_, index) => elementUpdate(index, index));
+      writeElementHighlights(gpu.device, storage, updates);
+      const afterFirst = gpu.writes.length;
+
+      writeElementHighlights(
+        gpu.device,
+        storage,
+        updates.map((update) => ({ ...update, style: { ...style, emissive: 0.25 } })),
+      );
+
+      expect(gpu.writes.slice(afterFirst)).toHaveLength(1);
+    } finally {
+      restore();
+    }
+  });
+
   it("skips unchanged body records and writes only the changed body range", () => {
     const restore = installGpuGlobals();
     try {
@@ -531,6 +552,28 @@ describe("writeElementHighlights", () => {
       expect(gpu.buffers[1]?.size).toBeGreaterThan(
         HIGHLIGHT_HEADER + INITIAL_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE,
       );
+    } finally {
+      restore();
+    }
+  });
+
+  it("keeps the GPU bytes and CPU mirror identical when a populated table grows", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const storage = makeStorage(gpu);
+      writeElementHighlights(gpu.device, storage, [elementUpdate(1, 1)]);
+      const updates = Array.from({ length: INITIAL_ELEMENT_HIGHLIGHTS + 10 }, (_, index) =>
+        elementUpdate(index, index),
+      );
+
+      writeElementHighlights(gpu.device, storage, updates);
+
+      const actual = new Uint8Array(storage.highlight.data.byteLength);
+      for (const write of gpu.writes) {
+        if (write.buffer === storage.highlight.buffer) actual.set(write.bytes, write.offset);
+      }
+      expect(actual).toEqual(storage.highlight.data);
     } finally {
       restore();
     }
