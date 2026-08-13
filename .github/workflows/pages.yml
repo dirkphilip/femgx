@@ -33,6 +33,11 @@ jobs:
         id: pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
 
+      - name: Capture Pages build identity
+        run: |
+          echo "FEMGX_PAGES_BUILD_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
+          echo "FEMGX_PAGES_BUILD_SHA=$GITHUB_SHA" >> "$GITHUB_ENV"
+
       - name: Build demo
         run: npm run build:demo
         env:
