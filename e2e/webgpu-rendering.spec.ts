@@ -453,8 +453,8 @@ test("renders complete point sprites with authored node picks", async ({ page })
     .locator('[data-femgx-orientation-gizmo="true"]')
     .evaluate((gizmo) => ((gizmo as HTMLElement).style.visibility = "hidden"));
   const pointVisibility = page.locator("input[data-instance-id]");
-  await expect(pointVisibility).toHaveCount(10);
-  for (let index = 1; index < 10; index += 1) await pointVisibility.nth(index).uncheck();
+  await expect(pointVisibility).toHaveCount(12);
+  for (let index = 1; index < 12; index += 1) await pointVisibility.nth(index).uncheck();
   await page.getByTestId("fit-view").click();
   // The toolbar overlays the canvas and covers the three highest fitted points;
   // hide it after fitting so this pixel contract measures authored sprites, not
@@ -518,6 +518,134 @@ test("renders complete point sprites with authored node picks", async ({ page })
     box.y + (firstPoint.minY + firstPoint.maxY) / 2,
   );
   await expect.poll(() => canvas.getAttribute("data-hovered"), { timeout: 2_000 }).toMatch(/^n:/);
+});
+
+interface QuadraticSurfaceTarget {
+  readonly label: string;
+  readonly elementId: number;
+  readonly nodeId: number;
+  readonly worldPoint: readonly [number, number, number];
+}
+
+const QUADRATIC_SURFACE_TARGETS: readonly QuadraticSurfaceTarget[] = [
+  {
+    label: "Built-in helper · Tri6",
+    elementId: 11,
+    nodeId: 3,
+    worldPoint: [15.5, 0, 0],
+  },
+  {
+    label: "Built-in helper · Quad8",
+    elementId: 12,
+    nodeId: 4,
+    worldPoint: [16, 3, 0],
+  },
+];
+
+test("renders and picks authored Tri6 and Quad8 mid-edge nodes on desktop and mobile", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await loadWebGpuPage(page);
+  await page.getByTestId("model-select").selectOption("gallery");
+  const canvas = page.getByTestId("view-canvas");
+  const instances = page.locator("input[data-instance-id]");
+  await expect(instances).toHaveCount(12);
+  await page.locator(".toolbar").evaluate((toolbar) => {
+    const element = toolbar as HTMLElement;
+    element.style.opacity = "0";
+    element.style.pointerEvents = "none";
+  });
+
+  const exerciseTarget = async (target: QuadraticSurfaceTarget): Promise<void> => {
+    const row = page.locator(".visibility-row.visibility-part").filter({ hasText: target.label });
+    const input = row.locator("input[data-instance-id]");
+    await expect(input).toHaveCount(1);
+    const instanceId = await input.getAttribute("data-instance-id");
+    if (instanceId === null) throw new Error(`${target.label} has no instance identity`);
+    for (const instance of await instances.all()) {
+      if ((await instance.getAttribute("data-instance-id")) !== instanceId) {
+        await instance.uncheck();
+      }
+    }
+
+    await input.check();
+    await page.getByTestId("fit-view").click();
+    await stableCanvasPixels(page, canvas);
+    expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(100);
+
+    const face = await requireHit(
+      page,
+      canvas,
+      { prefix: "f:", attribute: "hovered", fresh: true },
+      `${target.label} must resolve a face through GPU picking`,
+    );
+    expect(face.key).toBe(`f:${instanceId}:${target.elementId}:0`);
+    await page.mouse.click(face.x, face.y);
+    await expect.poll(() => canvas.getAttribute("data-selected")).toBe(face.key);
+
+    await page.keyboard.down("Shift");
+    await page.mouse.click(face.x, face.y);
+    await page.keyboard.up("Shift");
+    await expect
+      .poll(() => canvas.getAttribute("data-selected"))
+      .toBe(`e:${instanceId}:${target.elementId}`);
+
+    const navigation = await readNavigationState(canvas);
+    const projected = projectCameraPoint(navigation.camera, target.worldPoint);
+    if (projected === undefined)
+      throw new Error(`${target.label} mid-edge node is behind the camera`);
+    const box = await canvas.boundingBox();
+    if (box === null) throw new Error("canvas has no bounding box");
+    const nodePoint = { x: box.x + projected[0], y: box.y + projected[1] };
+    const nodeKey = `n:${instanceId}:${target.nodeId}`;
+    const offsets: Array<readonly [number, number]> = [[0, 0]];
+    for (let radius = 2; radius <= 20; radius += 2) {
+      for (const [x, y] of [
+        [-1, -1],
+        [0, -1],
+        [1, -1],
+        [-1, 0],
+        [1, 0],
+        [-1, 1],
+        [0, 1],
+        [1, 1],
+      ] as const) {
+        offsets.push([x * radius, y * radius]);
+      }
+    }
+    let node: { readonly x: number; readonly y: number; readonly key: string } | undefined;
+    for (const [offsetX, offsetY] of offsets) {
+      const x = nodePoint.x + offsetX;
+      const y = nodePoint.y + offsetY;
+      await canvas.evaluate((element) => {
+        (element as HTMLElement).dataset["hovered"] = "";
+      });
+      await page.mouse.move(x, y);
+      await page.waitForTimeout(80);
+      if ((await canvas.getAttribute("data-hovered")) === nodeKey) {
+        node = { x, y, key: nodeKey };
+        break;
+      }
+    }
+    if (node === undefined) {
+      throw new Error(`${target.label} did not resolve its projected mid-edge node`);
+    }
+    expect(Math.hypot(node.x - nodePoint.x, node.y - nodePoint.y)).toBeLessThan(32);
+    await page.mouse.click(node.x, node.y);
+    await expect.poll(() => canvas.getAttribute("data-selected")).toBe(nodeKey);
+  };
+
+  for (const target of QUADRATIC_SURFACE_TARGETS) await exerciseTarget(target);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const target of QUADRATIC_SURFACE_TARGETS) {
+    await exerciseTarget(target);
+    expect(
+      visiblePixelCount(await canvasRgba(page, canvas)),
+      `${target.label} must remain visible in the mobile WebGPU frame`,
+    ).toBeGreaterThan(100);
+  }
 });
 
 function isFullSizePointSprite(bounds: {

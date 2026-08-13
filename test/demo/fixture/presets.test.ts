@@ -66,8 +66,8 @@ describe("createModelPresets", () => {
 describe("createGalleryPreset", () => {
   it("includes the helper set and generic mapped element", () => {
     const preset = createGalleryPreset();
-    expect(preset.partColors.size).toBe(10);
-    expect(createPackedSceneRuntime(preset.scene).getDrawList()).toHaveLength(10);
+    expect(preset.partColors.size).toBe(12);
+    expect(createPackedSceneRuntime(preset.scene).getDrawList()).toHaveLength(12);
     expect(preset.partNames.get(10)).toBe("Generic solver-mapped element");
   });
 });
