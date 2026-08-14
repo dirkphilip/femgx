@@ -8,6 +8,7 @@ import {
   type Issue,
   type PartId,
   type Scene,
+  type ScalarField,
   type StyleOverride,
   type VectorField,
 } from "../../src/index";
@@ -29,6 +30,7 @@ export interface WorkbenchModel {
   readonly partStyles: ReadonlyMap<PartId, StyleOverride>;
   readonly bounds: Bounds;
   readonly results: ModelPreset["results"];
+  readonly resultScalarFields?: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
   readonly resultVectorFields?: readonly VectorField<"elemental">[];
   readonly issues: readonly Issue[];
   readonly benchmarkElementFamily?: WebGpuBenchmarkElementFamily;
@@ -44,6 +46,7 @@ export interface ImportedModelData {
   readonly partStyles: ReadonlyMap<PartId, StyleOverride>;
   readonly bounds?: Bounds;
   readonly results: ModelPreset["results"];
+  readonly resultScalarFields?: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
   readonly resultVectorFields?: readonly VectorField<"elemental">[];
   readonly issues: readonly Issue[];
 }
@@ -68,6 +71,9 @@ export function createExampleModel(preset: ModelPreset): WorkbenchModel {
     partStyles,
     bounds: preset.bounds,
     results: preset.results,
+    ...(preset.resultScalarFields === undefined
+      ? {}
+      : { resultScalarFields: preset.resultScalarFields }),
     ...(preset.resultVectorFields === undefined
       ? {}
       : { resultVectorFields: preset.resultVectorFields }),
@@ -128,6 +134,9 @@ export function createImportedModel(fileName: string, imported: ImportedModelDat
     partStyles: imported.partStyles,
     bounds: imported.bounds ?? sceneBounds(imported.scene),
     results: imported.results,
+    ...(imported.resultScalarFields === undefined
+      ? {}
+      : { resultScalarFields: imported.resultScalarFields }),
     ...(imported.resultVectorFields === undefined
       ? {}
       : { resultVectorFields: imported.resultVectorFields }),

@@ -1,8 +1,9 @@
 import {
+  BASE_RESULT_VALUE,
   DEFORMATION_OFF_VALUE,
   parseDeformationScale,
   resultModeForDeformationSelection,
-  resultModeForScalarSelection,
+  resultScalarFieldsForModel,
 } from "./result-controls";
 import type { ResultDisplayMode } from "./types";
 import type { WorkbenchModel } from "./model";
@@ -11,6 +12,7 @@ interface ResultControlOwner {
   readonly model: WorkbenchModel;
   readonly presentation: { reflectResults: () => void };
   resultMode: ResultDisplayMode;
+  scalarFieldId: string;
   deformationScale: number;
   readonly applyResultMode: (render: boolean) => void;
 }
@@ -22,12 +24,19 @@ export function setResultField(owner: ResultControlOwner, value: string): void {
     owner.resultMode === "deformed" && deformation !== undefined
       ? deformation.field.id
       : DEFORMATION_OFF_VALUE;
-  const mode = resultModeForScalarSelection(value, owner.model.results, deformationValue);
-  if (mode === undefined) {
+  if (value === BASE_RESULT_VALUE) {
+    owner.scalarFieldId = BASE_RESULT_VALUE;
+    owner.resultMode = "base";
+    owner.applyResultMode(true);
+    return;
+  }
+  const field = resultScalarFieldsForModel(owner.model).find((candidate) => candidate.id === value);
+  if (field === undefined) {
     owner.presentation.reflectResults();
     return;
   }
-  owner.resultMode = mode;
+  owner.scalarFieldId = field.id;
+  owner.resultMode = deformationValue === DEFORMATION_OFF_VALUE ? "colored" : "deformed";
   owner.applyResultMode(true);
 }
 

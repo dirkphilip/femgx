@@ -5,6 +5,7 @@ import type { WorkbenchPresentation } from "./presentation";
 import type { DisplayToggles, ResultDisplayMode } from "./types";
 import type { WorkbenchViewportSlot, WorkbenchViewportSlots } from "./viewport-slots";
 import {
+  activeScalarFieldIdForModel,
   resultModeForModel,
   vectorDisplayForModel,
   type VectorDisplayState,
@@ -15,6 +16,7 @@ export interface WorkbenchModelState {
   models: readonly WorkbenchModel[];
   toggles: DisplayToggles;
   resultMode: ResultDisplayMode;
+  scalarFieldId: string;
   deformationScale: number;
   vectorDisplay: VectorDisplayState;
   sectionAxis: "off" | "x" | "y" | "z";
@@ -48,6 +50,7 @@ export function activateModelForOwner(
       owner.models = next.models;
       owner.toggles = next.toggles;
       owner.resultMode = next.resultMode;
+      owner.scalarFieldId = next.scalarFieldId;
       owner.deformationScale = next.deformationScale;
       owner.vectorDisplay = next.vectorDisplay;
       owner.sectionAxis = next.sectionAxis;
@@ -133,6 +136,7 @@ export function activateWorkbenchModel(options: ActivateWorkbenchModelOptions): 
   state.models = model.source === "file" ? [...options.examples, model] : options.examples;
   state.toggles = { edges: true, nodes: true, diagnostics: false };
   state.resultMode = resultModeForModel(model);
+  state.scalarFieldId = activeScalarFieldIdForModel(model);
   state.deformationScale = model.results?.deformation?.scale ?? 1;
   const vectorDisplay = vectorDisplayForModel(model);
   state.vectorDisplay = vectorDisplay;

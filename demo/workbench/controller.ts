@@ -32,6 +32,7 @@ import { activateModelForOwner } from "./model-activation";
 import { applyControllerDisplayState, applyControllerResultMode } from "./controller-display";
 import type { ObservedPaneSize } from "./viewport-presentation";
 import {
+  activeScalarFieldIdForModel,
   resultModeForModel,
   vectorDisplayForModel,
   type VectorDisplayState,
@@ -110,6 +111,7 @@ export class WorkbenchController {
   sectionOffset = 0;
   selectionGranularity: SelectionGranularity = "element";
   boxSelectionStrategy: BoxSelectionStrategy = "visible-surface";
+  scalarFieldId: string;
   background: ViewportBackground = "studio";
   readonly observedPaneSizes = new Map<ViewportSlotId, ObservedPaneSize>();
   private readonly snapshotBridge: WorkbenchSnapshotBridge;
@@ -127,9 +129,9 @@ export class WorkbenchController {
     this.model = initialModel;
     this.toggles = createDefaultDisplayToggles();
     this.resultMode = resultModeForModel(this.model);
+    this.scalarFieldId = activeScalarFieldIdForModel(this.model);
     this.deformationScale = this.model.results?.deformation?.scale ?? 1;
-    const vectorDisplay = vectorDisplayForModel(this.model);
-    this.vectorDisplay = vectorDisplay;
+    this.vectorDisplay = vectorDisplayForModel(this.model);
     this.interaction = createModelInteraction(this.model, true, true);
     this.snapshotBridge = new WorkbenchSnapshotBridge(() => snapshotInputFromOwner(this));
     this.commandSurface = createWorkbenchCommands(this);

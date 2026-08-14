@@ -58,6 +58,44 @@ test("cycles the canonical static results preset through base, colored, and defo
   await expect(scale).toHaveValue("2");
 });
 
+test("switches Results and VTK between elemental and nodal scalar fields", async ({ page }) => {
+  await page.goto("/");
+  await waitForRenderer(page);
+  const canvas = page.getByTestId("view-canvas");
+  const resultField = page.getByTestId("result-field");
+
+  await page.getByTestId("model-select").selectOption("results");
+  await expect(resultField.locator("option")).toHaveText([
+    "Base",
+    "Demo stress · Elemental",
+    "Demo temperature · Nodal",
+  ]);
+  await expect(resultField).toHaveValue("demo-stress");
+  const elemental = await pixelMetrics(canvas);
+  await resultField.selectOption("demo-temperature");
+  await expect(resultField).toHaveValue("demo-temperature");
+  await expect(canvas).toHaveAttribute("data-results", "deformed");
+  await expect(page.getByTestId("result-legend")).toContainText("Demo temperature");
+  await expect(page.getByTestId("result-legend")).toContainText("Nodal · Unit C");
+  const nodal = await pixelMetrics(canvas);
+  expect(nodal.hash, "switching authored scalar location must change rendered pixels").not.toBe(
+    elemental.hash,
+  );
+
+  await page.getByTestId("model-select").selectOption("vtk");
+  await expect(resultField.locator("option")).toHaveText([
+    "Base",
+    "stress · Elemental",
+    "temperature · Nodal",
+  ]);
+  await expect(resultField).toHaveValue("vtk-stress");
+  await resultField.selectOption("vtk-temperature");
+  await expect(resultField).toHaveValue("vtk-temperature");
+  await expect(canvas).toHaveAttribute("data-results", "deformed");
+  await expect(page.getByTestId("result-legend")).toContainText("temperature");
+  await expect(page.getByTestId("result-legend")).toContainText("Nodal · Unit C");
+});
+
 test("validates signed normals and sign-invariant fibers in one shared results panel", async ({
   page,
 }, testInfo) => {

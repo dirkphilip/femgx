@@ -5,6 +5,7 @@ import {
   type ElementModel,
   type PartId,
   type Scene,
+  type ScalarField,
   type ViewportResultsConfig,
   type VectorField,
 } from "../../src/index";
@@ -27,6 +28,8 @@ export interface ModelPreset {
   readonly partNames: ReadonlyMap<PartId, string>;
   readonly bounds: Bounds;
   readonly results?: ViewportResultsConfig;
+  /** Authored scalar choices exposed by the workbench; the active result remains in `results`. */
+  readonly resultScalarFields?: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
   readonly resultVectorFields?: readonly VectorField<"elemental">[];
 }
 
@@ -92,6 +95,7 @@ export function createVtkPreset(): ModelPreset {
     partNames: new Map<PartId, string>([[solid, "VTK Hex8 exterior"]]),
     bounds: fixtureBounds(fixture.scene),
     results: fixture.results,
+    resultScalarFields: fixture.resultScalarFields,
   };
 }
 

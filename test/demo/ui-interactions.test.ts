@@ -320,6 +320,7 @@ function createSnapshot(withResults: boolean): WorkbenchSnapshot {
     boxSelectionStrategy: "visible-surface",
     secondaryOpen: false,
     secondaryBusy: false,
+    scalarFieldId: withResults ? "demo-stress" : "__base__",
     resultMode: withResults ? "deformed" : "base",
     deformationScale: 1,
     vectorDisplay: {

@@ -82,6 +82,10 @@ describe("createVtkPreset", () => {
     expect(preset.bounds).toEqual({ minX: 0, minY: 0, minZ: 0, maxX: 2, maxY: 2, maxZ: 1 });
     expect(preset.results?.scalar?.field.name).toBe("stress");
     expect(preset.results?.deformation?.field.name).toBe("displacement");
+    expect(preset.resultScalarFields?.map((field) => field.id)).toEqual([
+      "vtk-stress",
+      "vtk-temperature",
+    ]);
   });
 });
 
@@ -147,6 +151,10 @@ describe("results preset", () => {
     expect(preset.results?.scalar?.field.shape).toBe("scalar");
     expect(preset.results?.deformation?.field.location).toBe("nodal");
     expect(preset.results?.vectors?.field.id).toBe("demo-normals");
+    expect(preset.resultScalarFields?.map((field) => [field.id, field.location])).toEqual([
+      ["demo-stress", "elemental"],
+      ["demo-temperature", "nodal"],
+    ]);
     expect(preset.resultVectorFields?.map((field) => field.id)).toEqual([
       "demo-normals",
       "demo-fibers",
