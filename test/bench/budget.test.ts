@@ -11,10 +11,14 @@ import {
   TET4_SHAPE,
 } from "../../src/elements/shapes";
 import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
-import { createPart } from "../../src/geometry/part";
+import { createPart, type Geometry } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
-import { resolvePick } from "../../src/picking/pick";
+import { resolvePick, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
 import { buildMeshEdgeData } from "../../src/renderer/gpu-edge";
+import {
+  buildPickRegionPartIndex,
+  createPickRegionTargetResolver,
+} from "../../src/renderer/gpu-pick-region-resolve";
 import { buildPrimitiveFaceBodyPickData } from "../../src/renderer/gpu-pick-ids";
 import { expandSurfaceGeometry } from "../../src/renderer/gpu-surface-geometry";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
@@ -102,6 +106,43 @@ const pickIds: number[] = [];
 for (let i = 0; i < PICK_COUNT; i++) {
   pickIds.push(i % runtimeInstances.length);
 }
+
+function makeRegionCase(elementCount: number) {
+  const geometry: Geometry = {
+    positions: new Float32Array(elementCount * 3),
+    indices: Uint32Array.from({ length: elementCount }, (_, index) => index),
+    primitive: "points",
+    elements: Array.from({ length: elementCount }, (_, index) => ({
+      id: index + 1,
+      primitiveStart: index,
+      primitiveCount: 1,
+    })),
+  };
+  const part = createPart(5000 + elementCount, geometry);
+  const context: PickContext = {
+    instances: [
+      {
+        index: 0,
+        instanceId: "benchmark/0",
+        partId: part.id,
+        worldTransform: new Float32Array(16),
+      },
+    ],
+    parts: new Map([[part.id, part]]),
+  };
+  const ids: ResolvedPickIds[] = Array.from({ length: elementCount }, (_, index) => ({
+    instancePickId: 1,
+    elementPickId: index + 1,
+    facePickId: 0,
+    nodePickId: 0,
+  }));
+  return { part, context, ids };
+}
+
+const regionCases = [makeRegionCase(16_384), makeRegionCase(100_000)] as const;
+const regionResolvers = regionCases.map(({ context }) =>
+  createPickRegionTargetResolver(context, "element"),
+);
 
 function makeHeterogeneousModel(repetitions: number) {
   const nodes: number[] = [];
@@ -217,6 +258,29 @@ const budgets: readonly BudgetCase[] = [
       }
     },
   },
+  ...regionCases.flatMap(({ part, ids }, index) => {
+    const count = index === 0 ? 16_384 : 100_000;
+    const resolver = regionResolvers[index];
+    if (resolver === undefined) throw new Error(`Missing region resolver for ${count} elements`);
+    return [
+      {
+        name: `pickRegion index build (${count})`,
+        description: `${count} unique element identities`,
+        budgetMs: index === 0 ? 100 : 500,
+        run: () => {
+          buildPickRegionPartIndex(part, "element");
+        },
+      },
+      {
+        name: `pickRegion target resolve (${count})`,
+        description: `${count} indexed element identities`,
+        budgetMs: index === 0 ? 100 : 700,
+        run: () => {
+          for (const pickIds of ids) resolver(pickIds);
+        },
+      },
+    ];
+  }),
   {
     name: "heterogeneousElementParts",
     description: "600 mixed linear elements grouped into reusable primitive parts",
