@@ -53,7 +53,7 @@ interpolates those colors on the GPU. Both paths preserve host interaction state
 ## Canonical viewport workflow
 
 `FemViewport.setResults({ scalar, deformation, vectors })` composes these
-helpers into one atomic static visualization state. Each role is optional, but
+helpers into one atomic authored result snapshot. Each role is optional, but
 at least one must be present. An authored scalar field may be nodal or
 elemental. Nodal values map through exact node pick ids and interpolate over
 existing tessellation nodes; elemental values map directly to element ids and
@@ -75,13 +75,18 @@ host-supplied base value; result colors are an internal effective render state
 and never appear in that getter or in
 `ViewportResultsState`. Replacing results reuses the same scene/runtime and
 only updates the effective interaction colors and deformation state.
-Repeated `setResults()` calls are the host-owned load-step boundary: derived
+Repeated `setResults()` calls are the host-owned snapshot-sequencing boundary:
+the host may step or play an ordered collection of exact authored states while
+reusing the same scene/runtime. Scalar, deformation, and vector roles change
+atomically, so paired stress and displacement never expose a mixed step. For a
+visually comparable sequence, the host supplies one explicit scalar range for
+every snapshot rather than allowing per-snapshot automatic ranges. Derived
 nodal color tables and per-part displacement arrays are reused when their
 authored typed-array references are unchanged, while a scale-only deformation
 change rewrites only the small deformation uniform. A new same-sized array is
 written into the existing GPU storage; device recovery retains and re-uploads
-only the latest active step. femgx does not store cases, own playback, or
-interpolate between fields.
+only the latest active snapshot. femgx does not store a sequence, own a clock,
+schedule frames, provide playback controls, or interpolate between fields.
 
 The `results` demo preset exercises the scalar/deformation/orientation workflow
 with a static 4-by-2 Hex8 block placed once directly and once through a reflected,
@@ -155,8 +160,9 @@ The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
 - Results are rendered through the WebGPU renderer; the former CPU-canvas demo
   was removed to retain the WebGPU-only product contract. Static viewport
   composition is the supported results path.
-- Load-case playback (`CasePlayer`), interpolation, and legend helpers were
-  removed as out of product scope.
+- Host-driven sequencing of exact authored snapshots is supported through
+  repeated `setResults()` calls. The former library-owned `CasePlayer`, temporal
+  interpolation, and public legend helpers remain out of product scope.
 
 Related: [[data/elements-topology|Element topology]], [[data/fe-fixture|FE fixture]],
 [[data/vector-field-visualization|Authored elemental orientation visualization]],
