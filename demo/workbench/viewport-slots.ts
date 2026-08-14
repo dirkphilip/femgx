@@ -46,6 +46,7 @@ export class WorkbenchViewportSlots {
   private readonly slots = new Map<ViewportSlotId, WorkbenchViewportSlot>();
   private activeSlotId: ViewportSlotId = "primary";
   private secondaryGeneration = 0;
+  private secondaryOpening = false;
 
   constructor(options: WorkbenchViewportSlotsOptions) {
     this.options = options;
@@ -80,6 +81,14 @@ export class WorkbenchViewportSlots {
 
   get(slotId: ViewportSlotId): WorkbenchViewportSlot | undefined {
     return this.slots.get(slotId);
+  }
+
+  isSecondaryVisible(): boolean {
+    return this.secondaryOpening || this.slots.has("secondary");
+  }
+
+  isSecondaryOpening(): boolean {
+    return this.secondaryOpening;
   }
 
   setPrimaryViewport(viewport: FemViewport): void {
@@ -135,8 +144,10 @@ export class WorkbenchViewportSlots {
       this.closeSecondaryViewport();
       return;
     }
+    if (this.secondaryOpening) return;
     const generation = ++this.secondaryGeneration;
     this.prepareSecondaryViewport();
+    await Promise.resolve();
     try {
       const slot = await this.createSecondarySlot();
       if (this.isStaleSecondary(generation, slot.viewport)) return;
@@ -146,14 +157,13 @@ export class WorkbenchViewportSlots {
       this.options.applySharedState();
       this.options.rebuildVisibility();
       slot.viewport.render();
-      this.updateViewportToggle();
       this.options.render();
     } catch (error) {
       this.cleanupFailedSecondary(error);
     } finally {
       if (generation === this.secondaryGeneration) {
-        this.options.view.viewportToggle.disabled = false;
-        this.updateViewportToggle();
+        this.secondaryOpening = false;
+        this.options.render();
       }
     }
   }
@@ -170,11 +180,8 @@ export class WorkbenchViewportSlots {
   }
 
   private prepareSecondaryViewport(): void {
-    const { view } = this.options;
-    view.viewportToggle.disabled = true;
-    view.viewportToggle.textContent = "Opening…";
-    view.secondaryPane.scene.hidden = false;
-    view.viewportWorkspace.dataset["secondaryOpen"] = "true";
+    this.secondaryOpening = true;
+    this.options.render();
   }
 
   private async createSecondarySlot(): Promise<WorkbenchViewportSlot> {
@@ -235,7 +242,6 @@ export class WorkbenchViewportSlots {
   private cleanupFailedSecondary(error: unknown): void {
     const slot = this.slots.get("secondary");
     if (slot !== undefined) this.closeSecondaryViewport();
-    this.hideSecondaryViewport();
     this.options.feedback(`Secondary viewport could not be opened: ${errorMessage(error)}`);
   }
 
@@ -246,24 +252,7 @@ export class WorkbenchViewportSlots {
     this.setActiveSlot("primary");
     this.destroySlot(slot);
     this.slots.delete("secondary");
-    this.hideSecondaryViewport();
-    this.updateViewportToggle();
     this.options.render();
-  }
-
-  private hideSecondaryViewport(): void {
-    this.options.view.secondaryPane.scene.hidden = true;
-    this.options.view.viewportWorkspace.dataset["secondaryOpen"] = "false";
-  }
-
-  private updateViewportToggle(): void {
-    const open = this.slots.has("secondary");
-    this.options.view.viewportToggle.textContent = open ? "Close viewport" : "Add viewport";
-    this.options.view.viewportToggle.setAttribute(
-      "aria-label",
-      open ? "Close secondary viewport" : "Add secondary viewport",
-    );
-    this.options.view.viewportToggle.setAttribute("aria-pressed", String(open));
   }
 
   private destroySlot(slot: WorkbenchViewportSlot): void {

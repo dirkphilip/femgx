@@ -13,6 +13,7 @@ import type { DisplayToggles } from "./types";
 import type { ResultDisplayMode } from "./types";
 import type { VectorDisplayState } from "./result-controls";
 import type { VisibilityRowTarget } from "./tree-hover";
+import type { WorkbenchVisibilitySnapshot } from "./visibility-snapshot";
 
 export type WorkbenchMenuAction =
   | "highlight"
@@ -58,32 +59,6 @@ export interface WorkbenchPresentationSnapshot {
   readonly contextMenu: WorkbenchContextMenuSnapshot;
 }
 
-export type WorkbenchVisibilityRowKind = "assembly" | "instance" | "body";
-
-export interface WorkbenchVisibilityRowSnapshot {
-  readonly key: string;
-  readonly target: VisibilityRowTarget;
-  readonly kind: WorkbenchVisibilityRowKind;
-  readonly depth: number;
-  readonly label: string;
-  readonly badge: "Assembly" | "Part" | "Body";
-  readonly ariaLabel: string | undefined;
-  readonly testId: string;
-  readonly checked: boolean;
-  readonly disabled: boolean;
-  readonly expanded: boolean;
-  readonly expandable: boolean;
-  readonly highlighted: boolean;
-  readonly hidden: boolean;
-  readonly position: number;
-  readonly setSize: number;
-}
-
-export interface WorkbenchVisibilitySnapshot {
-  readonly context: string;
-  readonly rows: readonly WorkbenchVisibilityRowSnapshot[];
-}
-
 export interface WorkbenchSnapshot {
   readonly model: {
     readonly active: {
@@ -110,6 +85,8 @@ export interface WorkbenchSnapshot {
     readonly nodes: boolean;
     readonly continuous: boolean;
     readonly selectionGranularity: SelectionGranularity;
+    readonly secondaryOpen: boolean;
+    readonly secondaryBusy: boolean;
   };
   readonly analysis: {
     readonly resultControlsVisible: boolean;
@@ -176,6 +153,8 @@ export interface WorkbenchSnapshotInput {
   readonly toggles: Readonly<DisplayToggles>;
   readonly continuous: boolean;
   readonly selectionGranularity: SelectionGranularity;
+  readonly secondaryOpen: boolean;
+  readonly secondaryBusy: boolean;
   readonly resultMode: ResultDisplayMode;
   readonly deformationScale: number;
   readonly vectorDisplay: VectorDisplayState;
@@ -203,6 +182,10 @@ export interface WorkbenchSnapshotOwner {
   readonly sectionOffset: number;
   readonly presentation: { snapshot(): WorkbenchPresentationSnapshot };
   readonly visibilityPanel: { snapshot(): WorkbenchVisibilitySnapshot };
+  readonly viewportSlots: {
+    isSecondaryVisible(): boolean;
+    isSecondaryOpening(): boolean;
+  };
   activeViewport(): { readonly camera: Pick<Camera, "mode"> };
 }
 
@@ -214,6 +197,7 @@ export interface WorkbenchCommands {
   toggleNodes(): void;
   toggleContinuous(): void;
   setSelectionGranularity(value: string): void;
+  toggleSecondaryViewport(): void;
   setDeformationField(id: string): void;
   setDeformationScale(value: string): void;
   setVectorField(id: string): void;
@@ -278,6 +262,8 @@ export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): Workbench
     toggles: owner.toggles,
     continuous: owner.continuousEnabled,
     selectionGranularity: owner.selectionGranularity,
+    secondaryOpen: owner.viewportSlots.isSecondaryVisible(),
+    secondaryBusy: owner.viewportSlots.isSecondaryOpening(),
     resultMode: owner.resultMode,
     deformationScale: owner.deformationScale,
     vectorDisplay: owner.vectorDisplay,
@@ -321,6 +307,8 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
       nodes: input.toggles.nodes,
       continuous: input.continuous,
       selectionGranularity: input.selectionGranularity,
+      secondaryOpen: input.secondaryOpen,
+      secondaryBusy: input.secondaryBusy,
     }),
     analysis,
     hierarchy: Object.freeze({

@@ -21,8 +21,6 @@ function pane(
 export interface DemoView {
   readonly primaryPane: WorkbenchPane;
   readonly secondaryPane: WorkbenchPane;
-  readonly viewportWorkspace: HTMLElement;
-  readonly viewportToggle: HTMLButtonElement;
   readonly canvas: HTMLCanvasElement;
   readonly scene: HTMLElement;
   readonly boxSelectionOverlay: HTMLElement;
@@ -42,8 +40,6 @@ export function queryDemoView(): DemoView {
     secondaryCanvas: requiredCanvas("#secondary-view"),
     secondaryScene: requiredElement("#secondary-scene"),
     secondaryBoxSelectionOverlay: requiredElement("#secondary-box-selection-overlay"),
-    viewportWorkspace: requiredElement("#viewport-workspace"),
-    viewportToggle: requiredButton("#viewport-toggle"),
     rendererStatus: requiredElement("#renderer-status"),
     status: requiredElement("#status"),
     buildInfo: requiredElement("#build-info"),
@@ -77,10 +73,6 @@ function requiredElement(selector: string): HTMLElement {
 
 function requiredCanvas(selector: string): HTMLCanvasElement {
   return required(selector) as HTMLCanvasElement;
-}
-
-function requiredButton(selector: string): HTMLButtonElement {
-  return required(selector) as HTMLButtonElement;
 }
 
 function requiredInput(selector: string): HTMLInputElement {

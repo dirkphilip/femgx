@@ -156,8 +156,17 @@
       id="viewport-toggle"
       data-testid="viewport-toggle"
       type="button"
-      aria-pressed="false"
-      aria-label="Add secondary viewport">Add viewport</button
+      aria-pressed={snapshot?.toolbar.secondaryOpen ?? false}
+      aria-label={snapshot?.toolbar.secondaryOpen
+        ? "Close secondary viewport"
+        : "Add secondary viewport"}
+      disabled={snapshot?.toolbar.secondaryBusy ?? false}
+      onclick={() => controller?.commands.toggleSecondaryViewport()}
+      >{snapshot?.toolbar.secondaryBusy
+        ? "Opening…"
+        : snapshot?.toolbar.secondaryOpen
+          ? "Close viewport"
+          : "Add viewport"}</button
     >
     <button
       id="projection-toggle"

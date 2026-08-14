@@ -11,7 +11,6 @@ export interface WorkbenchBindingOptions {
   /** True while a camera or box pointer gesture suppresses asynchronous hover. */
   readonly dragging: () => boolean;
   readonly setActive?: () => void;
-  readonly toggleViewport?: () => void;
 }
 
 /** Pane-local pointer and asynchronous inspection bindings. */
@@ -80,13 +79,4 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
     dragging: options.dragging,
     setActive: options.setActive ?? (() => {}),
   });
-  installViewportBinding(options);
-}
-
-function installViewportBinding(options: WorkbenchBindingOptions): void {
-  if (options.toggleViewport !== undefined) {
-    options.view.viewportToggle.addEventListener("click", options.toggleViewport, {
-      signal: options.signal,
-    });
-  }
 }

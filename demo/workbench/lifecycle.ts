@@ -12,7 +12,6 @@ export interface WorkbenchLifecycleOptions {
   readonly boxPreview: WorkbenchBoxPreview;
   readonly dragging: () => boolean;
   readonly setActive: () => void;
-  readonly toggleViewport?: () => void;
 }
 
 /** Installs box selection and pane-local inspection for a secondary viewport. */
@@ -57,7 +56,6 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     interaction: options.interaction,
     dragging: options.dragging,
     setActive: options.setActive,
-    ...(options.toggleViewport === undefined ? {} : { toggleViewport: options.toggleViewport }),
   });
   return boxSelectionDisposer;
 }

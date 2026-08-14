@@ -37,7 +37,7 @@
     <h2 class="sidebar-heading">Visibility</h2>
     <VisibilityTree {controller} visibility={snapshot?.hierarchy.visibility} />
   </aside>
-  <div id="viewport-workspace" data-secondary-open="false">
+  <div id="viewport-workspace" data-secondary-open={snapshot?.toolbar.secondaryOpen ?? false}>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <section
       id="primary-scene"
@@ -72,7 +72,7 @@
       aria-label="Secondary viewport"
       data-pane="secondary"
       tabindex="0"
-      hidden
+      hidden={!(snapshot?.toolbar.secondaryOpen ?? false)}
     >
       <canvas
         id="secondary-view"

@@ -8,7 +8,10 @@ import type {
 } from "../../src/index";
 import type { WorkbenchModel } from "./model";
 import { assemblyName } from "./visibility-tree";
-import type { WorkbenchVisibilityRowSnapshot, WorkbenchVisibilitySnapshot } from "./snapshot";
+import type {
+  WorkbenchVisibilityRowSnapshot,
+  WorkbenchVisibilitySnapshot,
+} from "./visibility-snapshot";
 
 /** Callbacks that keep the runtime as the single source of visibility truth. */
 export interface VisibilityPanelOptions {
