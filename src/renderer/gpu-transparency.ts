@@ -102,6 +102,7 @@ export const triangleTransparencyFragmentShader = /* wgsl */ `
 ${cameraStruct}
 ${deformationStruct}
 ${frameBindings}
+${sectionPlaneBindings}
 ${surfaceLightingFunction}
 ${sectionPlaneFunction}
 ${transparencyOutput}

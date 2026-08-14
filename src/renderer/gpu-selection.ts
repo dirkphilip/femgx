@@ -46,6 +46,7 @@ export const triangleSelectionFragmentShader = /* wgsl */ `
 ${cameraStruct}
 ${deformationStruct}
 ${frameBindings}
+${sectionPlaneBindings}
 ${surfaceLightingFunction}
 ${selectionColorFunction}
 ${sectionPlaneFunction}
@@ -102,6 +103,7 @@ export const triangleSelectionTransparencyFragmentShader = /* wgsl */ `
 ${cameraStruct}
 ${deformationStruct}
 ${frameBindings}
+${sectionPlaneBindings}
 ${surfaceLightingFunction}
 ${transparencyOutput}
 ${selectionColorFunction}

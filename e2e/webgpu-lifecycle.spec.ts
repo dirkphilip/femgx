@@ -1,7 +1,7 @@
 /** lifecycle ownership: WebGPU startup, interaction, and lifecycle contracts. */
 
 import { expect, test } from "@playwright/test";
-import { rendererMode, loadWebGpuPage } from "./webgpu-support";
+import { rendererMode, loadWebGpuPage, sweepForHit } from "./webgpu-support";
 
 test("uses a hardware adapter for the authoritative WebGPU lane", async ({ page }) => {
   await loadWebGpuPage(page);
@@ -42,16 +42,15 @@ test("drives interaction and picking through the demo path", async ({ page }) =>
     throw new Error("canvas has no bounding box");
   }
 
-  // The fitted fixture intersects the canvas center. Clear the diagnostic first
-  // so the resolved hover proves this exact point is live, rather than reusing
-  // a stale key from a previous asynchronous move.
-  const hoverPoint = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-  await canvas.evaluate((node) => {
-    (node as HTMLElement).dataset["hovered"] = "";
-  });
-  await page.mouse.move(hoverPoint.x - 1, hoverPoint.y);
-  await page.mouse.move(hoverPoint.x, hoverPoint.y);
-  await expect.poll(() => canvas.getAttribute("data-hovered")).not.toBe("");
+  // The toolbar and responsive canvas inset can move the fitted model away
+  // from the geometric center. Find a live model point and reuse it for the
+  // click assertions so this test validates interaction, not fixture layout.
+  const hoverPoint = await sweepForHit(page, canvas, { attribute: "hovered", fresh: true });
+  expect(
+    hoverPoint,
+    "the fitted fixture should expose a hoverable model point",
+  ).not.toBeUndefined();
+  if (hoverPoint === undefined) throw new Error("the fitted fixture has no hoverable model point");
 
   // Click the hovered target to toggle its selection through the pick path.
   await page.mouse.click(hoverPoint.x, hoverPoint.y);

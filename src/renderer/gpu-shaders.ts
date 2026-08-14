@@ -104,10 +104,8 @@ struct ElementHighlights {
 
 /** Frame-uniform binding layout shared by every vertex shader. */
 export const frameBindings = /* wgsl */ `
-${sectionPlaneStruct}
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(0) @binding(1) var<uniform> deformation: Deformation;
-@group(0) @binding(2) var<uniform> sectionPlane: SectionPlane;
 `;
 
 /** Shared positive-half-space test for scene fragments. */
@@ -367,6 +365,7 @@ export const triangleColorFragmentShader = /* wgsl */ `
 ${cameraStruct}
 ${deformationStruct}
 ${frameBindings}
+${sectionPlaneBindings}
 ${sectionPlaneFunction}
 ${surfaceLightingFunction}
 
