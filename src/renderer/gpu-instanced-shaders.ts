@@ -42,7 +42,7 @@ const bodyAndElementHighlighting = /* wgsl */ `
     let bucket = highlightHash(drawOrder[instanceIndex], bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;
     for (var offset = 0u; offset < 4u; offset++) {
-      let highlight = elementHighlights.records[base + offset];
+      let highlight = elementHighlightAt(base + offset);
       if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
         color = highlight.color;
         selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u;
@@ -58,7 +58,7 @@ const bodyAndElementHighlighting = /* wgsl */ `
     let bucket = highlightHash(drawOrder[instanceIndex], blockPickId, 0xfffffffeu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;
     for (var offset = 0u; offset < 4u; offset++) {
-      let highlight = elementHighlights.records[base + offset];
+      let highlight = elementHighlightAt(base + offset);
       if (highlight.slot == drawOrder[instanceIndex] && highlight.blockPickId == blockPickId && highlight.elementPickId == blockPickId && highlight.facePickId == 0xfffffffeu) {
         color = highlight.color;
         selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u;
@@ -72,11 +72,18 @@ const bodyAndElementHighlighting = /* wgsl */ `
       }
     }
   }
+  if (elementOrdinal != 0u && denseElementSelected(drawOrder[instanceIndex], elementOrdinal)) {
+    color = applyDenseSelectionColor(color);
+    emissive = applyDenseSelectionEmissive(emissive);
+    selectionKeepsResult = true;
+    selected = true;
+    exactSelection = true;
+  }
   if (elementPickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], elementPickId, 0u, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;
     for (var offset = 0u; offset < 4u; offset++) {
-      let highlight = elementHighlights.records[base + offset];
+      let highlight = elementHighlightAt(base + offset);
       if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == elementPickId && highlight.facePickId == 0u) {
         color = highlight.color;
         selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u;
@@ -112,7 +119,7 @@ ${bodyAndElementHighlighting}
     let bucket = highlightHash(drawOrder[instanceIndex], 0u, facePickId, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;
     for (var offset = 0u; offset < 4u; offset++) {
-      let highlight = elementHighlights.records[base + offset];
+    let highlight = elementHighlightAt(base + offset);
       if (highlight.slot == drawOrder[instanceIndex] && highlight.facePickId == facePickId) {
         color = highlight.color;
         selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u;
@@ -143,7 +150,8 @@ fn vertexMain(
   @builtin(vertex_index) vertexIndex: u32,
 ) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
-  let elementPickId = primitiveElementPickIds[${primitiveIndex}];
+  let elementPickId = primitiveElementId(${primitiveIndex});
+  let elementOrdinal = primitiveElementOrdinal(${primitiveIndex});
   let faceBodyPickIds = primitiveFaceBodyPickIds(${primitiveIndex});
 ${instanceHighlighting}
 ${createInstanceVertexOutput(primitiveIndex, selectionPass, linePass)}
@@ -276,7 +284,8 @@ fn pointVertex(
   let diameter = select(camera.pointSize, camera.nodeSize, nodeOverlay);
   let offset = (corner * diameter) / camera.viewport;
   let ndc = clip.xy / clip.w;
-  let elementPickId = primitiveElementPickIds[vertexIndex / 4u];
+  let elementPickId = primitiveElementId(vertexIndex / 4u);
+  let elementOrdinal = primitiveElementOrdinal(vertexIndex / 4u);
   let bodyPickId = primitiveFaceBodyPickIds(vertexIndex / 4u).y;
   let blockPickId = primitiveFaceBlockPickIds(vertexIndex / 4u).x;
   let nodePickId = vertexNodePickIds[vertexIndex];
@@ -309,7 +318,7 @@ ${bodyAndElementHighlighting}
     let bucket = highlightHash(drawOrder[instanceIndex], 0u, 0u, nodePickId, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;
     for (var offset = 0u; offset < 4u; offset++) {
-      let highlight = elementHighlights.records[base + offset];
+      let highlight = elementHighlightAt(base + offset);
       if (highlight.slot == drawOrder[instanceIndex] && highlight.nodePickId == nodePickId) {
         color = highlight.color;
         selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u;

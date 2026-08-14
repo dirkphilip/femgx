@@ -31,8 +31,10 @@ import {
   syncElementHighlights,
   writeElementHighlights,
 } from "../../src/renderer/gpu-highlight-storage";
+import { collectDenseElementSelections } from "../../src/renderer/gpu-element-selection";
 import {
   buildBodyPrimitivePickIds,
+  buildElementPrimitiveOrdinals,
   buildElementPrimitivePickIds,
   buildFacePrimitivePickIds,
   buildNodeBodyPickData,
@@ -123,6 +125,21 @@ describe("buildElementPrimitivePickIds", () => {
         }),
       ),
     ).toEqual([9]);
+  });
+});
+
+describe("buildElementPrimitiveOrdinals", () => {
+  it("maps each primitive to its stable geometry-order element ordinal", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array(9),
+      indices: new Uint32Array(9),
+      primitive: "triangles" as const,
+      elements: [
+        { id: 40, primitiveStart: 0, primitiveCount: 2 },
+        { id: 2, primitiveStart: 2, primitiveCount: 1 },
+      ],
+    };
+    expect(Array.from(buildElementPrimitiveOrdinals(geometry))).toEqual([1, 1, 2]);
   });
 });
 
@@ -655,6 +672,64 @@ describe("writeElementHighlights", () => {
       restore();
     }
   });
+
+  it("packs dense selected membership by occurrence and ordinal", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const storage = makeStorage(gpu);
+      writeElementHighlights(gpu.device, storage, [], {
+        selection: {
+          elementCount: 65,
+          occurrences: [
+            { slot: 2, ordinals: [1, 33] },
+            { slot: 5, ordinals: [65] },
+          ],
+        },
+        selectedTheme: {
+          color: { r: 0.9, g: 0.4, b: 0.1, a: 1 },
+          emissive: 0.2,
+          opacity: 0.8,
+        },
+        slotCapacity: 8,
+      });
+      const table = new Uint32Array(storage.highlight.data.buffer);
+      const payload = HIGHLIGHT_HEADER / 4;
+      const offsets = table[4] ?? 0;
+      const bits = table[5] ?? 0;
+      expect(table[3]).toBe(3);
+      expect(table[6]).toBe(2);
+      expect(table[7]).toBe(8);
+      expect(table[payload + offsets + 2]).toBe(0);
+      expect(table[payload + offsets + 5]).toBe(1);
+      expect(table[payload + bits]).toBe(1);
+      expect(table[payload + bits + 1]).toBe(1);
+      expect(table[payload + bits + 5]).toBe(1 << 0);
+      expect(table[8]).toBe(7);
+    } finally {
+      restore();
+    }
+  });
+
+  it("clears dense membership without retaining stale offsets or bits", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const storage = makeStorage(gpu);
+      writeElementHighlights(gpu.device, storage, [], {
+        selection: { elementCount: 2, occurrences: [{ slot: 1, ordinals: [2] }] },
+        slotCapacity: 4,
+      });
+      writeElementHighlights(gpu.device, storage, []);
+      const table = new Uint32Array(storage.highlight.data.buffer);
+      const payload = HIGHLIGHT_HEADER / 4;
+      expect(table[6]).toBe(0);
+      expect(table[payload + (table[4] ?? 0) + 1]).toBe(0xffffffff);
+      expect(table[payload + (table[5] ?? 0)]).toBe(0);
+    } finally {
+      restore();
+    }
+  });
 });
 
 function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime } {
@@ -720,6 +795,53 @@ function partsMap(scene: Scene): Map<number, Part> {
 }
 
 describe("collectEmphasisUpdates", () => {
+  it("chooses dense membership only when it beats sparse selected records", () => {
+    const elements = Array.from({ length: 1_000 }, (_, index) => ({
+      id: 20_000 + index,
+      primitiveStart: index,
+      primitiveCount: 1,
+    }));
+    const part = createPart(99, {
+      positions: new Float32Array(3_000),
+      indices: Uint32Array.from({ length: 3_000 }, (_, index) => index % 1_000),
+      primitive: "triangles",
+      elements,
+    });
+    const scene = createScene()
+      .addPart(part)
+      .addAssembly({
+        id: 1,
+        name: "dense-selection",
+        placements: [{ kind: "part", partId: 99, transform: translation(0, 0, 0) }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    const parts = new Map(scene.parts);
+    let sparseInteraction = createInteractionState();
+    sparseInteraction = setElementSelected(
+      sparseInteraction,
+      { instanceId: "1/0", elementId: 20_000 },
+      true,
+    );
+    expect(
+      collectDenseElementSelections(runtime, layout, parts, sparseInteraction).get(99),
+    ).toBeUndefined();
+    let denseInteraction = sparseInteraction;
+    for (let index = 1; index < 50; index += 1) {
+      denseInteraction = setElementSelected(
+        denseInteraction,
+        { instanceId: "1/0", elementId: 20_000 + index },
+        true,
+      );
+    }
+    const dense = collectDenseElementSelections(runtime, layout, parts, denseInteraction).get(99);
+    expect(dense?.occurrences[0]?.slot).toBe(0);
+    expect(dense?.occurrences[0]?.ordinals.slice(0, 3)).toEqual([1, 2, 3]);
+    expect(dense?.occurrences[0]?.ordinals).toHaveLength(50);
+  });
+
   it("caches sparse element, body, block, and face ownership by part identity", () => {
     const geometry: Geometry = {
       positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),

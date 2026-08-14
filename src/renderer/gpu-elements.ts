@@ -44,11 +44,11 @@ interface InstanceLayout {
 export const ELEMENT_RECORD_STRIDE = 48;
 
 /**
- * Byte offset of the `records` array inside the highlight buffer. The WGSL
- * struct packs `count` at offset 0 and aligns the runtime-sized records array
- * to 16 bytes, so records start at offset 16.
+ * Byte offset of the packed payload inside the highlight buffer. The fixed
+ * header contains sparse-table metadata, dense-selection ranges, and the
+ * selected theme; the payload contains sparse records followed by bitsets.
  */
-export const HIGHLIGHT_HEADER = 16;
+export const HIGHLIGHT_HEADER = 64;
 
 /**
  * Initial emphasis record slots allocated per part. Records are placed in

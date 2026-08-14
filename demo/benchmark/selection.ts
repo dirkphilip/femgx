@@ -102,8 +102,43 @@ async function measureScenario(
     steadySelectedFrameMs: percentiles(steadyFrames),
     clearSelectionMs,
     interactionGpuCost,
+    denseSelectionBytes: denseSelectionBytes(runtime, parts, targets),
     selectedElementRecordBytes: targets.length * ELEMENT_RECORD_STRIDE,
   };
+}
+
+function denseSelectionBytes(
+  runtime: PackedSceneRuntime,
+  parts: ReadonlyMap<PartId, Part>,
+  targets: readonly InteractionTarget[],
+): number {
+  const elementsByPart = new Map<PartId, Map<number, Set<number>>>();
+  for (const target of targets) {
+    if (target.kind !== "element") continue;
+    const slot = runtime.getInstanceSlot(target.instanceId);
+    const partId = slot === undefined ? undefined : runtime.instancePartIds[slot];
+    if (slot === undefined || partId === undefined) continue;
+    let elementsBySlot = elementsByPart.get(partId);
+    if (elementsBySlot === undefined) {
+      elementsBySlot = new Map();
+      elementsByPart.set(partId, elementsBySlot);
+    }
+    let elements = elementsBySlot.get(slot);
+    if (elements === undefined) {
+      elements = new Set();
+      elementsBySlot.set(slot, elements);
+    }
+    elements.add(target.elementId);
+  }
+  let bytes = 0;
+  for (const [partId, elementsBySlot] of elementsByPart) {
+    const elementCount = parts.get(partId)?.geometry.elements?.length ?? 0;
+    const denseBytes = 4 + Math.ceil(elementCount / 32) * 4;
+    for (const elements of elementsBySlot.values()) {
+      if (denseBytes < elements.size * ELEMENT_RECORD_STRIDE) bytes += denseBytes;
+    }
+  }
+  return bytes;
 }
 
 async function renderFrame(

@@ -102,11 +102,10 @@ export function uploadNodePart(
   const nodes = part.geometry.nodePositions ?? new Float32Array(0);
   const spritePickIds = buildNodeSpritePickIds(part.geometry);
   const nodeBodyData = buildNodeBodyOwnerData(part.geometry, spritePickIds);
-  const count = spritePickIds.length;
-  const positions = new Float32Array(count * 12);
-  const ids = new Uint32Array(count * 4);
-  const indices = new Uint32Array(count * 6);
-  for (let sprite = 0; sprite < count; sprite += 1) {
+  const positions = new Float32Array(spritePickIds.length * 12);
+  const ids = new Uint32Array(spritePickIds.length * 4);
+  const indices = new Uint32Array(spritePickIds.length * 6);
+  for (let sprite = 0; sprite < spritePickIds.length; sprite += 1) {
     const pickId = spritePickIds[sprite] ?? 0;
     const source = (pickId - 1) * 3;
     for (let corner = 0; corner < 4; corner += 1) {
@@ -129,10 +128,11 @@ export function uploadNodePart(
     resultColorNodeCount: resultTail.resultColorNodeCount,
     resultColorsSource: resultColors,
     resultColorsActive: resultColors !== undefined,
-    // The node overlay reuses the point vertex shader. It indexes this map by
-    // node sprite, so provide one explicit zero entry per sprite instead of a
-    // single placeholder that would be out of bounds for larger models.
-    elementPickIdsBuffer: createBuffer(draw.device, new Uint32Array(count), GPUBufferUsage.STORAGE),
+    elementOrdinalsBuffer: createBuffer(
+      draw.device,
+      new Uint32Array(spritePickIds.length),
+      GPUBufferUsage.STORAGE,
+    ),
     facePickIdsBuffer: createBuffer(
       draw.device,
       packTopologyData(
@@ -265,7 +265,7 @@ function writePointSpriteIndices(indices: Uint32Array, sprite: number): void {
 export function destroyPartResource(resource: PartResource): void {
   resource.vertexBuffer.destroy();
   resource.indexBuffer.destroy();
-  resource.elementPickIdsBuffer.destroy();
+  resource.elementOrdinalsBuffer.destroy();
   resource.facePickIdsBuffer.destroy();
   resource.nodePickIdsBuffer.destroy();
   resource.edge?.edgeNodePickIdsBuffer.destroy();

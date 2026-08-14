@@ -153,11 +153,11 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(info.size).toBe(ELEMENT_RECORD_STRIDE);
   });
 
-  it("declares a runtime-sized records array at the header offset the CPU allocates", () => {
+  it("declares a packed payload at the header offset the CPU allocates", () => {
     const info = structInfo(instanceVertexShader, "ElementHighlights");
     const offsets = memberOffsets(info);
     expect(offsets.get("count")).toBe(0);
-    expect(offsets.get("records")).toBe(HIGHLIGHT_HEADER);
+    expect(offsets.get("data")).toBe(HIGHLIGHT_HEADER);
     expect(info.size).toBe(HIGHLIGHT_HEADER);
   });
 
@@ -192,14 +192,13 @@ describe("GPU record struct layout vs CPU record encoders", () => {
 
   it("overrides triangle colors from the emphasis records", () => {
     expect(instanceVertexShader).not.toMatch(/\bvar match\b/);
-    expect(instanceVertexShader).toMatch(
-      /primitiveElementPickIds\[primitiveDrawId\(vertexIndex\)\]/,
-    );
+    expect(instanceVertexShader).toMatch(/primitiveElementId\(primitiveDrawId\(vertexIndex\)\)/);
     expect(instanceVertexShader).toMatch(
       /primitiveFaceBodyPickIds\(primitiveDrawId\(vertexIndex\)\)/,
     );
     expect(instanceVertexShader).toMatch(/highlightHash\(/);
-    expect(instanceVertexShader).toMatch(/elementHighlights\.records\[base \+ offset\]/);
+    expect(instanceVertexShader).toMatch(/elementHighlightAt\(base \+ offset\)/);
+    expect(instanceVertexShader).toMatch(/denseElementSelected\(/);
     expect(instanceVertexShader).not.toMatch(/index < elementHighlights\.count/);
     expect(instanceVertexShader).not.toMatch(/highlight\.nodePickId/);
     expect(pointVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
@@ -273,7 +272,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(lineNodePickVertexShader).toMatch(/primitiveDrawId\(vertexIndex\)/);
     expect(lineNodePickVertexShader).toMatch(/vertexNodePickIds\[base \+ 1u\]/);
     expect(lineNodePickVertexShader).toMatch(/lineExpandedPosition\(/);
-    expect(pointNodePickVertexShader).toMatch(/primitiveElementPickIds\[vertexIndex \/ 4u\]/);
+    expect(pointNodePickVertexShader).toMatch(/primitiveElementId\(vertexIndex \/ 4u\)/);
     expect(pointNodePickVertexShader).toMatch(/output\.nodePickIds = vec3<u32>/);
   });
 
