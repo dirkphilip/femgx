@@ -1,7 +1,7 @@
 import {
   createElementModel,
   createScene,
-  heterogeneousElementParts,
+  elementPart,
   polygonPart,
   translation,
   type AssemblyId,
@@ -138,34 +138,19 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   ]);
   const genericPart = createGenericSolverMappedPart();
   const parts: readonly Part[] = [
-    requireGroup(
-      heterogeneousElementParts({ point: POINT_PART_ID }, elementsOf(pointLineModel, "point")),
-      "point",
-    ),
-    requireGroup(
-      heterogeneousElementParts({ line: LINE_PART_ID }, elementsOf(lineModel, "line", 1)),
-      "line",
-    ),
-    requireGroup(
-      heterogeneousElementParts({ line: LINE3_PART_ID }, elementsOf(line3Model, "line", 2)),
-      "line",
-    ),
-    requireGroup(heterogeneousElementParts({ triangle: TET4_PART_ID }, tet4Model), "triangle"),
-    requireGroup(heterogeneousElementParts({ triangle: TET10_PART_ID }, tet10Model), "triangle"),
-    requireGroup(heterogeneousElementParts({ triangle: HEX8_PART_ID }, hex8Model), "triangle"),
-    requireGroup(heterogeneousElementParts({ triangle: HEX20_PART_ID }, hex20Model), "triangle"),
-    requireGroup(heterogeneousElementParts({ triangle: WEDGE6_PART_ID }, wedge6Model), "triangle"),
-    requireGroup(
-      heterogeneousElementParts({ triangle: PYRAMID5_PART_ID }, pyramid5Model),
-      "triangle",
-    ),
-    requireGroup(
-      heterogeneousElementParts({ triangle: TRIANGLE_PART_ID }, triangleModel),
-      "triangle",
-    ),
-    requireGroup(heterogeneousElementParts({ triangle: QUAD_PART_ID }, quadModel), "triangle"),
-    requireGroup(heterogeneousElementParts({ triangle: TRI6_PART_ID }, tri6Model), "triangle"),
-    requireGroup(heterogeneousElementParts({ triangle: QUAD8_PART_ID }, quad8Model), "triangle"),
+    elementPart(POINT_PART_ID, elementsOf(pointLineModel, "point")),
+    elementPart(LINE_PART_ID, elementsOf(lineModel, "line", 1)),
+    elementPart(LINE3_PART_ID, elementsOf(line3Model, "line", 2)),
+    elementPart(TET4_PART_ID, tet4Model),
+    elementPart(TET10_PART_ID, tet10Model),
+    elementPart(HEX8_PART_ID, hex8Model),
+    elementPart(HEX20_PART_ID, hex20Model),
+    elementPart(WEDGE6_PART_ID, wedge6Model),
+    elementPart(PYRAMID5_PART_ID, pyramid5Model),
+    elementPart(TRIANGLE_PART_ID, triangleModel),
+    elementPart(QUAD_PART_ID, quadModel),
+    elementPart(TRI6_PART_ID, tri6Model),
+    elementPart(QUAD8_PART_ID, quad8Model),
     genericPart,
   ];
   const scene = galleryScene(parts, blockSize, GALLERY_LAYOUT);
@@ -203,10 +188,7 @@ type Hex20CylinderFixture = Omit<ElementFixture, "partIds"> & {
 /** Builds the Hex20 cylinder example used by the gallery preset. */
 export function createHex20CylinderFixture(): Hex20CylinderFixture {
   const model = buildHex20CylinderModel();
-  const part = requireGroup(
-    heterogeneousElementParts({ triangle: HEX20_PART_ID }, model),
-    "triangle",
-  );
+  const part = elementPart(HEX20_PART_ID, model);
   const parts = [part];
   const scene = galleryScene(parts, 0, SINGLE_PART_LAYOUT);
   return {
@@ -250,15 +232,6 @@ function createGenericSolverMappedPart(): Part {
     faces: solverFaces.map((face) => ({ ...face, elementId: 42, neighborElementIds: [] })),
     bodies: [{ id: 1, name: "Mapped solver body", elementIds: [42] }],
   });
-}
-
-function requireGroup(
-  parts: ReturnType<typeof heterogeneousElementParts>,
-  group: "triangle" | "line" | "point",
-): Part {
-  const part = parts[group];
-  if (part === undefined) throw new Error(`Element fixture has no ${group} part`);
-  return part;
 }
 
 function galleryScene(

@@ -1,7 +1,7 @@
 import { bench, describe } from "vitest";
 import { createStructuredFeModel } from "../../demo/benchmark/structured-fe";
 import { createElementModel } from "../../src/elements/model";
-import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
+import { elementPart } from "../../src/geometry/heterogeneous-element-mesh";
 import { createPart } from "../../src/geometry/part";
 import { resolvePick } from "../../src/picking/pick";
 import { buildMeshEdgeData } from "../../src/renderer/gpu-edge";
@@ -102,12 +102,9 @@ describe("FE geometry preparation", () => {
   });
 
   bench(
-    `heterogeneousElementParts ${BENCH_BODY_ELEMENT_COUNT} FE quads across ${BENCH_BODY_COUNT} bodies`,
+    `elementPart ${BENCH_BODY_ELEMENT_COUNT} FE quads across ${BENCH_BODY_COUNT} bodies`,
     () => {
-      heterogeneousElementParts(
-        { triangle: 905 },
-        createElementModel([...bodyModel.nodes], bodyModel.elements, { bodies }),
-      );
+      elementPart(905, createElementModel([...bodyModel.nodes], bodyModel.elements, { bodies }));
     },
   );
 

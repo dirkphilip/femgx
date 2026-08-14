@@ -4,7 +4,7 @@ import {
   createResultField,
   createScene,
   HEX8_SHAPE,
-  heterogeneousElementParts,
+  elementPart,
   identity,
   multiply,
   scale,
@@ -20,8 +20,7 @@ const RESULTS_PART_ID: PartId = 20;
 /** Builds the demo's deterministic scalar, deformation, and orientation workflow. */
 export function createResultsPreset(): ModelPreset {
   const model = createResultsModel();
-  const part = heterogeneousElementParts({ triangle: RESULTS_PART_ID }, model).triangle;
-  if (part === undefined) throw new Error("Results fixture has no triangle part");
+  const part = elementPart(RESULTS_PART_ID, model);
   const scene = createScene()
     .addPart(part)
     .addAssembly({

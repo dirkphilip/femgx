@@ -40,7 +40,7 @@ by `FemViewport.setResults()`:
   unsupported identities fail with `IoError` diagnostics.
 
 The complete supported composition is:
-`parseVtk -> createElementModelFromFemModel -> heterogeneousElementParts ->
+`parseVtk -> createElementModelFromFemModel -> elementPart ->
 createScene -> createResultFieldFromModelResult -> setResults`.
 
 ## Adapter

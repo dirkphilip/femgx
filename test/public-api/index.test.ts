@@ -12,7 +12,6 @@ describe("public root API", () => {
       "GeometryValidationError",
       "HEX20_SHAPE",
       "HEX8_SHAPE",
-      "HeterogeneousElementError",
       "IoError",
       "LINE3_SHAPE",
       "LINE_SHAPE",
@@ -64,7 +63,6 @@ describe("public root API", () => {
       "facesOfElement",
       "finiteRange",
       "fitCamera",
-      "heterogeneousElementParts",
       "hoveredTarget",
       "identity",
       "importGlb",
@@ -157,9 +155,7 @@ describe("public root API", () => {
     expect(publicApi.PolygonGeometryError).toBeTypeOf("function");
     expect(publicApi.boundaryFaceRefs).toBeTypeOf("function");
     expect(publicApi.FaceSelectionError).toBeTypeOf("function");
-    expect(publicApi.heterogeneousElementParts).toBeTypeOf("function");
     expect(publicApi.elementPart).toBeTypeOf("function");
-    expect(publicApi.HeterogeneousElementError).toBeTypeOf("function");
     expect(publicApi.createElementModelFromFemModel).toBeTypeOf("function");
     expect(publicApi.importGlb).toBeTypeOf("function");
     expect(publicApi.editElementModel).toBeTypeOf("function");

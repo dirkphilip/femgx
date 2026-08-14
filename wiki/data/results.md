@@ -129,7 +129,7 @@ authored FE nodes instead of assuming vertex `i` is node `i`. The same mapping a
 custom geometry that deliberately duplicates a source node at multiple output vertices.
 Vertices without a node, without a matching displacement, or whose displacement is missing
 (`NaN`) keep their original position. `deformGeometry` requires a node-mapped geometry
-(`heterogeneousElementParts` provides one for element-backed geometry) and throws otherwise.
+(`elementPart` provides one for element-backed geometry) and throws otherwise.
 
 `nodalDisplacements(nodeCount, field)` builds the per-node displacement buffer consumed by the
 GPU renderer's deformed-shape path: one vec3 per model node indexed by `NodeId`. Pass the owning

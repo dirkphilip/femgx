@@ -49,15 +49,7 @@ export {
   type ElementModelEditor,
   type MergeElementBlocksInput,
 } from "./elements/model-edit";
-export {
-  elementPart,
-  heterogeneousElementParts,
-  HeterogeneousElementError,
-  type HeterogeneousElementErrorCode,
-  type HeterogeneousElementPartIds,
-  type HeterogeneousElementPartSet,
-  type TessellationOptions,
-} from "./geometry/heterogeneous-element-mesh";
+export { elementPart, type TessellationOptions } from "./geometry/heterogeneous-element-mesh";
 export {
   polygonGeometry,
   polygonPart,

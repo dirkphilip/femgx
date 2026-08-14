@@ -11,7 +11,7 @@ import {
   TRIANGLE_SHAPE,
   TET4_SHAPE,
 } from "../../src/elements/shapes";
-import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
+import { elementPart } from "../../src/geometry/heterogeneous-element-mesh";
 import { createPart, type Geometry } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { resolvePick, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
@@ -559,11 +559,11 @@ const budgets: readonly BudgetCase[] = [
     ];
   }),
   {
-    name: "heterogeneousElementParts",
-    description: "600 mixed linear elements grouped into reusable primitive parts",
+    name: "elementPart",
+    description: "600 mixed linear elements compiled into one semantic part",
     budgetMs: 500,
     run: () => {
-      heterogeneousElementParts({ triangle: 901, line: 902, point: 903 }, heterogeneousModel);
+      elementPart(901, heterogeneousModel);
     },
   },
   {
@@ -599,11 +599,11 @@ const budgets: readonly BudgetCase[] = [
     },
   },
   {
-    name: "heterogeneousElementParts (body-heavy)",
+    name: "elementPart (body-heavy)",
     description: `${BENCH_BODY_ELEMENT_COUNT} FE quads across ${BENCH_BODY_COUNT} bodies`,
     budgetMs: 600,
     run: () => {
-      heterogeneousElementParts({ triangle: 905 }, bodyModelWithBodies);
+      elementPart(905, bodyModelWithBodies);
     },
   },
 ];

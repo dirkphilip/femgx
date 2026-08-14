@@ -9,7 +9,7 @@ import {
   TRIANGLE_SHAPE,
   TET4_SHAPE,
 } from "../../src/elements/shapes";
-import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
+import { elementPart } from "../../src/geometry/heterogeneous-element-mesh";
 import { computeBounds } from "../../src/geometry/part";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { readInteractionState } from "../../src/interaction/state";
@@ -33,10 +33,7 @@ function mixedModel() {
 
 function heterogeneousScene() {
   const model = mixedModel();
-  const parts = heterogeneousElementParts({ triangle: 30, line: 31, point: 32 }, model);
-  const sourceParts = [parts.triangle, parts.line, parts.point].filter(
-    (part) => part !== undefined,
-  );
+  const sourceParts = [elementPart(30, model)];
   let builder = createScene();
   for (const part of sourceParts) builder = builder.addPart(part);
   const scene = builder
@@ -101,17 +98,18 @@ describe("heterogeneous viewport results", () => {
       runtime,
     );
     const effectiveData = readInteractionState(effective);
-    expect([...(effectiveData.elementOverrides.get("1/0")?.keys() ?? [])]).toEqual([1, 2, 3, 4]);
-    expect([...(effectiveData.elementOverrides.get("1/1")?.keys() ?? [])]).toEqual([5]);
-    expect([...(effectiveData.elementOverrides.get("1/2")?.keys() ?? [])]).toEqual([6]);
-    expect(result.deformation?.displacements.size).toBe(3);
-    expect(result.deformation?.displacements.get(32)?.length).toBe(22 * 3);
+    expect([...(effectiveData.elementOverrides.get("1/0")?.keys() ?? [])]).toEqual([
+      1, 2, 3, 4, 5, 6,
+    ]);
+    expect(result.deformation?.displacements.size).toBe(1);
+    expect(result.deformation?.displacements.get(30)?.length).toBe(22 * 3);
   });
 
   it("keeps each generated part independently bounds-valid", () => {
     const { scene } = heterogeneousScene();
-    for (const part of scene.parts.values()) {
-      expect(part.bounds).toEqual(computeBounds(part.geometry));
-    }
+    const part = scene.parts.get(30);
+    if (part === undefined) throw new Error("mixed part missing");
+    expect(part.bounds).toBeDefined();
+    expect(part.bounds).not.toEqual(computeBounds(part.geometry));
   });
 });

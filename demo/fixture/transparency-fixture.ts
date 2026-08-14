@@ -1,6 +1,6 @@
 import {
   createScene,
-  heterogeneousElementParts,
+  elementPart,
   identity,
   translation,
   type AssemblyId,
@@ -52,9 +52,7 @@ export function createTransparencyFixture(): TransparencyFixture {
 }
 
 function trianglePart(id: PartId, model: ElementModel): Part {
-  const part = heterogeneousElementParts({ triangle: id }, model).triangle;
-  if (part === undefined) throw new Error(`Transparency fixture has no triangle part ${id}`);
-  return part;
+  return elementPart(id, model);
 }
 
 function transparencyScene(parts: readonly Part[]): Scene {
