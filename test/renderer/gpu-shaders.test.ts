@@ -311,7 +311,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(surfaceLightingFunction).toContain("pow(clamp(halfResponse, 0.0, 1.0)");
     expect(triangleColorFragmentShader).toContain("litColor + vec3<f32>(emissive)");
     expect(triangleTransparencyFragmentShader).toContain(
-      "weightedTransparency(litColor + vec3<f32>(emissive), displayedColor.a)",
+      "weightedSceneTransparency(litColor + vec3<f32>(emissive), displayedColor.a, fragmentPosition.z)",
     );
     expect(colorFragmentShader).not.toContain("surfaceLighting");
     expect(edgeFragmentShader).not.toContain("surfaceLighting");

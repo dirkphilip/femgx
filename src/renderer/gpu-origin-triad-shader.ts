@@ -106,6 +106,6 @@ fn visibleFragmentMain(input: Output) -> @location(0) vec4<f32> {
 
 @fragment
 fn hiddenFragmentMain(input: Output) -> TransparencyOutput {
-  return weightedTransparency(input.color.rgb, .25);
+  return weightedPresentationTransparency(input.color.rgb, .25);
 }
 `;

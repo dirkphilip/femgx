@@ -81,7 +81,7 @@ fn fragmentMain(
   @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> TransparencyOutput {
   if (selected == 0u || dot(local, local) > 1.0) { discard; }
-  return weightedTransparency(
+  return weightedPresentationTransparency(
     selectionColor(color, resultColor, resultColorEnabled, emissive),
     0.25,
   );
@@ -115,7 +115,7 @@ fn fragmentMain(
     camera.viewDirection.xyz,
   );
   let emphasized = vec4<f32>(litColor, color.a);
-  return weightedTransparency(
+  return weightedPresentationTransparency(
     selectionColor(emphasized, resultColor, resultColorEnabled, emissive),
     0.25,
   );

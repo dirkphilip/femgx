@@ -57,12 +57,33 @@ outside picking and scene identity.
 
 Effective alpha is resolved after the part, instance, body, and element style
 layers. Alpha `1` stays in the opaque pass, fractional alpha is accumulated,
-and alpha `0` contributes no visible color. The later neutral edge and node
-overlays multiply their base coverage by that same resolved instance alpha, so
-transparent parts do not leave a shell cage or orphan node dots. The pick pass
-still draws all visible instances, so opacity does not create click-through or
-multi-hit semantics. Per-part order buffers remain deterministic; no CPU
-sorting or material clones are needed.
+and alpha `0` contributes no visible color. For authored scene fragments, the
+accumulation weight is the bounded function
+
+```text
+safeAlpha = clamp(alpha, 0, 1), treating NaN as 0
+safeDepth = clamp(fragmentDepth, 0, 1), treating NaN as 0
+weight = clamp(max(0.01, safeAlpha * 8) * (1 - 0.75 * safeDepth), 0.01, 8)
+```
+
+`fragmentDepth` is WebGPU's normalized `@builtin(position).z`: `0` is near
+the viewport's near plane and `1` is near its far plane. Thus equal-alpha
+fragments nearer the camera receive at least as much color influence as
+farther fragments, while revealage remains exactly `alpha` and continues to
+encode the product of `1 - alpha`. Hidden selection, the origin-triad ghost,
+and the orbit-pivot ghost intentionally use the fixed-alpha presentation
+weight; depth-aware scene weighting must not let a helper wash out authored
+geometry. The lower bound protects sparse fragments and the upper bound keeps
+the `rgba16float` accumulation finite under supported overlap. This remains a
+weighted-blended approximation: it improves front/back readability but does
+not recover exact per-pixel ordering, refraction, thickness, or absorption.
+
+The later neutral edge and node overlays multiply their base coverage by that
+same resolved instance alpha, so transparent parts do not leave a shell cage
+or orphan node dots. The pick pass still draws all visible instances, so
+opacity does not create click-through or multi-hit semantics. Per-part order
+buffers remain deterministic; no CPU depth tracking, sorting, or material
+clones are needed.
 
 Resolved style color is a flat per-primitive shader varying. This preserves the
 exact alpha written by the CPU: perspective interpolation must not perturb
