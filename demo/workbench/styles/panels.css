@@ -58,9 +58,9 @@
   text-transform: uppercase;
 }
 .diagnostics {
-  top: 140px;
+  top: 308px;
   width: min(360px, calc(100% - 28px));
-  max-height: min(300px, calc(100% - 176px));
+  max-height: min(300px, calc(100% - 322px));
   padding: 10px 12px;
   overflow: auto;
 }

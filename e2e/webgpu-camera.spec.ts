@@ -294,7 +294,7 @@ test("shows a camera-oriented rotation-origin widget only during orbit", async (
   const hit = await requireHit(
     page,
     canvas,
-    { attribute: "hovered", prefix: "f:", fresh: true },
+    { attribute: "pick", prefix: "f:", fresh: true },
     "GPU picking must resolve an orbit pivot for the widget test",
   );
   const x = hit.x;
@@ -329,7 +329,7 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
   await page.mouse.move(x, y);
   const fitted = await readNavigationState(canvas);
   expectBoundsClippedSafely(fitted.camera, fitted.bounds);
-  await requireHit(
+  const approach = await requireHit(
     page,
     canvas,
     { attribute: "hovered", fresh: true },
@@ -346,7 +346,7 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
       ).femgxDemo;
       return (await harness?.pickPoint(localX, localCoordinateY)) ?? null;
     },
-    { x: x - box.x, y: y - box.y },
+    { x: approach.x - box.x, y: approach.y - box.y },
   );
   if (picked === null || picked.length !== 3) {
     throw new Error("GPU picking did not return a displayed world point");

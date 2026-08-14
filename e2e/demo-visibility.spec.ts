@@ -249,20 +249,20 @@ test("hides selected elements and restores them through synchronized toolbar act
 }) => {
   await page.goto("/");
   await waitForRenderer(page);
-  await page.getByTestId("viewport-toggle").click();
   const canvas = page.getByTestId("view-canvas");
-  const secondary = page.getByTestId("secondary-view-canvas");
-  await expect(secondary).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
-
   const hit = await requireHit(
     page,
     canvas,
     { prefix: "n:" },
-    "node GPU picking must resolve before hiding a selected element",
+    "GPU picking must resolve before hiding a selected element",
   );
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
   const selected = await dataset(page, "selected");
+
+  await page.getByTestId("viewport-toggle").click();
+  const secondary = page.getByTestId("secondary-view-canvas");
+  await expect(secondary).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
   await expect(secondary).toHaveAttribute("data-selected", selected);
 
   const hideSelected = page.getByTestId("hide-selected");
@@ -442,7 +442,7 @@ test("context menu synchronizes instance visibility with the tree", async ({ pag
   await expect(checkbox).not.toBeChecked();
   await expect(page.getByTestId("status")).toContainText("visible");
 
-  await checkbox.check();
+  await page.getByTestId("show-all").click();
   await expect(checkbox).toBeChecked();
   await expect.poll(async () => (await status(page)).includes("visible")).toBe(true);
 });

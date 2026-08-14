@@ -1,12 +1,14 @@
 import { expect, test, type CDPSession } from "@playwright/test";
 import {
   cameraDistance,
+  canvasInteractionBox,
   drawnPixels,
   expectBoundsClippedSafely,
   panCameraSnapshot,
   readNavigationState,
   requireHit,
 } from "./helpers";
+import { setSelectionGranularity } from "./demo-support";
 
 const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 
@@ -40,10 +42,7 @@ test("touch gestures orbit, pinch-zoom, and pan without leaving dragging stuck",
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
-  const box = await canvas.boundingBox();
-  if (box === null) {
-    throw new Error("canvas has no bounding box");
-  }
+  const box = await canvasInteractionBox(canvas);
   const center = {
     x: Math.round(box.x + box.width / 2),
     y: Math.round(box.y + box.height / 2),
@@ -103,8 +102,7 @@ test("one-finger orbit crosses a camera pole without corrupting the frame", asyn
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
-  const box = await canvas.boundingBox();
-  if (box === null) throw new Error("canvas has no bounding box");
+  const box = await canvasInteractionBox(canvas);
   const x = Math.round(box.x + box.width / 2);
   const startY = Math.round(box.y + box.height * 0.2);
   const client = await context.newCDPSession(page);
@@ -145,8 +143,7 @@ test("keeps repeated mobile pinch zoom inside the model bounds", async ({ browse
   await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
   await page.getByTestId("fit-view").click();
 
-  const box = await canvas.boundingBox();
-  if (box === null) throw new Error("canvas has no bounding box");
+  const box = await canvasInteractionBox(canvas);
   const center = {
     x: Math.round(box.x + box.width / 2),
     y: Math.round(box.y + box.height / 2),
@@ -188,8 +185,7 @@ test("keeps the panned model target stable during an off-center pinch", async ({
   await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
   await page.getByTestId("fit-view").click();
 
-  const box = await canvas.boundingBox();
-  if (box === null) throw new Error("canvas has no bounding box");
+  const box = await canvasInteractionBox(canvas);
   const midpoint = {
     x: Math.round(box.x + box.width * 0.78),
     y: Math.round(box.y + box.height * 0.3),
@@ -229,6 +225,8 @@ test("a one-finger tap still performs picking and selection", async ({ browser }
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
+  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await setSelectionGranularity(page, "node");
 
   // Dense step grid so a pointer lands on rasterized node/face pixels. A miss
   // means the GPU pick path is broken, not that the environment lacks a capability.

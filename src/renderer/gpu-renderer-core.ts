@@ -125,12 +125,13 @@ export class GpuRenderer implements WebGpuRenderer {
     encodeVisibleFrame(camera, parts, this.frameOptions());
   }
 
-  public resetScene(): void {
+  public resetScene(parts: ReadonlyMap<PartId, Part>): void {
     this.ensureAlive();
+    this.attachment.prepareParts(parts, this.lifecycle.bundle);
     this.attachment.clear();
     destroyInstanceResources(this.lifecycle.bundle.draw);
     this.parts = new Map();
-    this.sourceParts = undefined;
+    this.sourceParts = parts;
     this.lastCamera = undefined;
     this.deformation = undefined;
     this.resultColors = undefined;
