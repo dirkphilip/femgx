@@ -43,6 +43,7 @@ Commands:
 - `npm run test:package` — package smoke test against a clean consumer install
 - `npm run typecheck` — strict TypeScript check
 - `npm run lint` — ESLint with zero warnings
+- `npm run lint:actionlint` — semantic GitHub Actions workflow validation
 - `npm run lint:fix` — ESLint autofix
 - `npm run format` — Prettier write
 - `npm run format:check` — Prettier check

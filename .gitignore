@@ -7,5 +7,6 @@ coverage
 .DS_Store
 *.log
 .vite
+.cache/actionlint/
 playwright-report
 test-results

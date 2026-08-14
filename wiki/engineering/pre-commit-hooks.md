@@ -21,10 +21,18 @@ framework does not install its own git hook; only Husky owns
 - `trailing-whitespace` — trim trailing whitespace, with
   `--markdown-linebreak-ext=md` so double-space markdown hard breaks survive
   (matches `.editorconfig`, which disables trimming for `*.md`).
+- The local `actionlint` hook — validate GitHub Actions workflow semantics
+  with the pinned release used by `scripts/actionlint.mjs`.
+
+`check-yaml` remains the general YAML syntax owner. `actionlint` validates
+workflow semantics, expressions, action inputs, job dependencies, and runner
+labels. `scripts/check-github-actions.mjs` remains the separate owner of the
+repository's stricter full-commit-SHA policy for external actions.
 
 The hooks are deliberately check-only for code style: eslint/prettier already
-enforce formatting, so pre-commit stays a validation layer that needs no Node
-toolchain.
+enforce formatting, so pre-commit stays a validation layer. The local
+actionlint hook uses the repository's existing Node runtime and adds no global
+tool prerequisite.
 
 ## Where it runs
 
@@ -37,6 +45,8 @@ CI independently runs `pre-commit run --all-files` through
 `.github/workflows/ci.yml` on every push/PR. Developers can run the same
 full-repository check manually when needed.
 
+To run only semantic workflow validation, use `npm run lint:actionlint`.
+
 ## Gotchas
 
 - `pre-commit run --all-files` auto-fixes `end-of-file-fixer` /
@@ -44,5 +54,13 @@ full-repository check manually when needed.
   files are clean — run it once locally to apply the fixes before committing.
 - Pre-commit only sees git-tracked files, so `node_modules`, `dist`, and
   `coverage` are excluded automatically.
+- The first actionlint run downloads the pinned v1.7.12 macOS/Linux archive,
+  verifies its platform-specific SHA-256 checksum, and caches the executable
+  under ignored `.cache/actionlint/`. No Go, Docker, ShellCheck, or Pyflakes
+  installation is required; the optional ShellCheck/Pyflakes integrations are
+  explicitly disabled for deterministic results.
+- To upgrade actionlint, update `version` and every supported platform
+  checksum in `scripts/actionlint.mjs`, clear `.cache/actionlint/`, run
+  `npm run lint:actionlint`, and record the release in this note.
 - Keep `rev` tags current with `pre-commit autoupdate` (CI is green on the
   pinned versions).
