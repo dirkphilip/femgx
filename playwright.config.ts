@@ -1,10 +1,24 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
+const softwareWebGpuArgs = [
+  "--disable-dev-shm-usage",
+  "--disable-gpu-sandbox",
+  "--enable-features=Vulkan",
+  "--enable-accelerated-2d-canvas",
+  "--enable-gpu",
+  "--enable-unsafe-webgpu",
+  "--use-gpu-in-tests",
+  "--use-angle=swiftshader",
+  "--use-gl=angle",
+  "--use-webgpu-adapter=swiftshader",
+  "--use-vulkan=swiftshader",
+];
 
 /**
  * E2E browser projects:
  * - `chrome` — system Google Chrome (hardware WebGPU). Default local lane.
+ * - `chrome-software` — a bounded manual smoke lane using SwiftShader WebGPU.
  * - `chrome-unsupported` — system Google Chrome, used by CI for the no-GPU
  *   unsupported contract only. Full WebGPU pick/pixel coverage is local (or a
  *   future GPU runner), not SwiftShader.
@@ -41,6 +55,44 @@ export default defineConfig({
           args: ["--enable-gpu"],
           ignoreDefaultArgs: ["--enable-unsafe-swiftshader"],
         },
+      },
+    },
+    {
+      name: "chrome-software",
+      testMatch: /software-webgpu\.spec\.ts/,
+      retries: 0,
+      workers: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chrome",
+        headless: true,
+        // This opt-in smoke lane probes hosted CI's SwiftShader path. It is
+        // exploratory evidence, never the authoritative hardware lane.
+        launchOptions: { args: softwareWebGpuArgs },
+      },
+    },
+    {
+      name: "chrome-software-interaction",
+      testMatch: /(mobile|webgpu-glb|smoke)\.spec\.ts/,
+      retries: 0,
+      workers: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chrome",
+        headless: true,
+        launchOptions: { args: softwareWebGpuArgs },
+      },
+    },
+    {
+      name: "chrome-software-rendering",
+      testMatch: /(demo-results|demo-visibility|webgpu-rendering|webgpu-visibility)\.spec\.ts/,
+      retries: 0,
+      workers: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chrome",
+        headless: true,
+        launchOptions: { args: softwareWebGpuArgs },
       },
     },
     {
