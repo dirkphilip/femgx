@@ -1,23 +1,15 @@
 import type { DemoView } from "./view";
 import type { WorkbenchPane } from "./view";
-import { setProjection, type FemViewport } from "../../src/index";
 import type { WorkbenchInteraction } from "./interaction";
-import type { WorkbenchMenu } from "./menu";
 
 /** High-level bindings that keep controller policy out of DOM event plumbing. */
 export interface WorkbenchBindingOptions {
   readonly view: DemoView;
   readonly canvas: HTMLCanvasElement;
   readonly signal: AbortSignal;
-  readonly viewport: () => FemViewport;
   readonly interaction: WorkbenchInteraction;
-  readonly menu: WorkbenchMenu;
   /** True while a camera or box pointer gesture suppresses asynchronous hover. */
   readonly dragging: () => boolean;
-  readonly setBackground: (background: string) => void;
-  readonly setEdges: () => void;
-  readonly setNodes: () => void;
-  readonly setContinuous: () => void;
   readonly setResultField: (value: string) => void;
   readonly setDeformationField: (value: string) => void;
   readonly setDeformationScale: (value: string) => void;
@@ -27,11 +19,6 @@ export interface WorkbenchBindingOptions {
   readonly setVectorLengthScale: (value: string) => void;
   readonly setSectionAxis: (value: string) => void;
   readonly setSectionOffset: (value: string) => void;
-  readonly setSelectionGranularity: (value: string) => void;
-  readonly hideSelected: () => void;
-  readonly showAll: () => void;
-  readonly reset: () => void;
-  readonly fitView: () => void;
   readonly setModel: (id: string) => void;
   readonly openModel: (file: File) => void;
   readonly setActive?: () => void;
@@ -104,40 +91,13 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
     dragging: options.dragging,
     setActive: options.setActive ?? (() => {}),
   });
-  installProjectionBinding(options);
   installDisplayBindings(options);
   installModelBindings(options);
   installWindowBindings(options);
 }
 
-function installProjectionBinding(options: WorkbenchBindingOptions): void {
-  const { view, signal } = options;
-  view.projectionToggle.addEventListener(
-    "click",
-    () => {
-      const viewport = options.viewport();
-      viewport.setCamera(
-        setProjection(
-          viewport.camera,
-          viewport.camera.mode === "perspective" ? "orthographic" : "perspective",
-        ),
-      );
-      viewport.fitView();
-    },
-    { signal },
-  );
-}
-
 function installDisplayBindings(options: WorkbenchBindingOptions): void {
   const { view, signal } = options;
-  view.backgroundSelect.addEventListener(
-    "change",
-    () => {
-      options.setBackground(view.backgroundSelect.value);
-    },
-    { signal },
-  );
-  view.edgeOverlayToggle.addEventListener("click", options.setEdges, { signal });
   view.resultField.addEventListener(
     "change",
     () => {
@@ -161,19 +121,6 @@ function installDisplayBindings(options: WorkbenchBindingOptions): void {
   );
   installVectorBindings(options);
   installSectionBindings(options);
-  view.nodeOverlayToggle.addEventListener("click", options.setNodes, { signal });
-  view.continuousToggle.addEventListener("click", options.setContinuous, { signal });
-  view.selectionGranularity.addEventListener(
-    "change",
-    () => {
-      options.setSelectionGranularity(view.selectionGranularity.value);
-    },
-    { signal },
-  );
-  view.hideSelectedButton.addEventListener("click", options.hideSelected, { signal });
-  view.showAllButton.addEventListener("click", options.showAll, { signal });
-  view.resetButton.addEventListener("click", options.reset, { signal });
-  view.fitView.addEventListener("click", options.fitView, { signal });
   if (options.toggleViewport !== undefined) {
     view.viewportToggle.addEventListener("click", options.toggleViewport, { signal });
   }

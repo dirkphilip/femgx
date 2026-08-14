@@ -1,3 +1,27 @@
+<script lang="ts">
+  import { onDestroy } from "svelte";
+  import type { WorkbenchController } from "../controller";
+  import type { WorkbenchSnapshot } from "../snapshot";
+  import PrimaryToolbar from "./PrimaryToolbar.svelte";
+
+  let controller: WorkbenchController | undefined = $state();
+  let snapshot: WorkbenchSnapshot | undefined = $state();
+  let unsubscribe: (() => void) | undefined;
+
+  /** Connects the presentation root to the already-created plain TypeScript owner. */
+  export function connectWorkbench(next: WorkbenchController): void {
+    unsubscribe?.();
+    controller = next;
+    unsubscribe = next.subscribe((current) => {
+      snapshot = current;
+    });
+  }
+
+  onDestroy(() => {
+    unsubscribe?.();
+  });
+</script>
+
 <main class="app">
   <aside class="sidebar">
     <div class="brand">
@@ -32,224 +56,7 @@
         aria-hidden="true"
         hidden
       ></div>
-      <div class="toolbar">
-        <div class="toolbar-row toolbar-row-primary">
-          <div id="model-source" class="model-source" role="group" aria-label="Model source">
-            <select id="model-select" data-testid="model-select" aria-label="Example model"
-            ></select>
-            <button id="open-model" data-testid="open-model" type="button">Open model…</button>
-            <input
-              id="model-file"
-              data-testid="model-file"
-              class="visually-hidden"
-              type="file"
-              accept=".vtk,.glb,text/plain,model/gltf-binary"
-              tabindex="-1"
-            />
-          </div>
-          <button
-            id="fit-view"
-            data-testid="fit-view"
-            type="button"
-            aria-label="Fit model"
-            title="Frame the complete model without changing visibility, selection, display, results, or projection."
-            >Fit model</button
-          >
-          <select
-            id="selection-granularity"
-            data-testid="selection-granularity"
-            aria-label="Selection granularity"
-            aria-describedby="interaction-help"
-            title="Choose whether click and box selection targets elements, faces, or nodes."
-          >
-            <option value="element">Element</option>
-            <option value="face">Face</option>
-            <option value="node">Node</option>
-          </select>
-          <button
-            id="hide-selected"
-            data-testid="hide-selected"
-            type="button"
-            disabled
-            aria-label="Hide selected elements"
-            title="Select one or more elements to hide.">Hide selected</button
-          >
-          <button
-            id="show-all"
-            data-testid="show-all"
-            type="button"
-            aria-label="Show all"
-            title="Restore all model visibility without changing selection or display settings."
-            >Show all</button
-          >
-          <button
-            id="viewport-toggle"
-            data-testid="viewport-toggle"
-            type="button"
-            aria-pressed="false"
-            aria-label="Add secondary viewport">Add viewport</button
-          >
-          <button id="projection-toggle" data-testid="projection-toggle" type="button">
-            Perspective
-          </button>
-        </div>
-        <div class="toolbar-row toolbar-row-secondary">
-          <label class="toolbar-background" for="background-select">
-            <span class="toolbar-background-name">Background</span>
-            <select id="background-select" data-testid="background-select" aria-label="Background">
-              <option value="studio">Studio</option>
-              <option value="white">White</option>
-              <option value="dark">Dark</option>
-            </select>
-          </label>
-          <button id="edge-overlay" data-testid="edge-overlay" type="button" aria-pressed="true">
-            Edges
-          </button>
-          <button id="node-overlay" data-testid="node-overlay" type="button" aria-pressed="true">
-            Nodes
-          </button>
-          <button
-            id="continuous-rendering"
-            data-testid="continuous-rendering"
-            type="button"
-            aria-pressed="false"
-            title="Start a recurring render-loop sample for manual inspection.">Continuous</button
-          >
-          <div
-            id="result-controls"
-            data-testid="result-controls"
-            class="result-controls"
-            role="group"
-            aria-label="Result display"
-            hidden
-          >
-            <label for="result-field">
-              <span>Scalar</span>
-              <select id="result-field" data-testid="result-field" aria-label="Scalar field">
-                <option value="__base__">Base</option>
-              </select>
-            </label>
-            <label for="deformation-field">
-              <span>Deformation</span>
-              <select
-                id="deformation-field"
-                data-testid="deformation-field"
-                aria-label="Deformation field"
-              >
-                <option value="__off__">Off</option>
-              </select>
-            </label>
-            <label for="deformation-scale">
-              <span>Scale</span>
-              <input
-                id="deformation-scale"
-                data-testid="deformation-scale"
-                type="number"
-                min="0"
-                step="any"
-                inputmode="decimal"
-                value="1"
-                aria-label="Deformation scale"
-              />
-            </label>
-            <label for="vector-field">
-              <span>Vector</span>
-              <select
-                id="vector-field"
-                data-testid="vector-field"
-                aria-label="Elemental vector field"
-              >
-                <option value="__vectors_off__">Off</option>
-              </select>
-            </label>
-            <label for="vector-glyph">
-              <span>Glyph</span>
-              <select id="vector-glyph" data-testid="vector-glyph" aria-label="Vector glyph">
-                <option value="arrow">Arrow</option>
-                <option value="axis">Axis</option>
-              </select>
-            </label>
-            <label for="vector-transform">
-              <span>Transform</span>
-              <select
-                id="vector-transform"
-                data-testid="vector-transform"
-                aria-label="Vector transform"
-              >
-                <option value="direction">Direction</option>
-                <option value="normal">Normal</option>
-              </select>
-            </label>
-            <label for="vector-length-scale">
-              <span>Vector scale</span>
-              <input
-                id="vector-length-scale"
-                data-testid="vector-length-scale"
-                type="number"
-                min="0.01"
-                step="any"
-                inputmode="decimal"
-                value="1"
-                aria-label="Vector length scale"
-              />
-            </label>
-            <span id="vector-help" data-testid="vector-help" class="result-orientation-help">
-              Normalized orientation; magnitude not displayed
-            </span>
-          </div>
-          <div
-            id="section-controls"
-            data-testid="section-controls"
-            class="section-controls"
-            role="group"
-            aria-label="Section plane"
-          >
-            <label for="section-axis">
-              <span>Section</span>
-              <select id="section-axis" data-testid="section-axis" aria-label="Section axis">
-                <option value="off">Off</option>
-                <option value="x">Keep +X</option>
-                <option value="y">Keep +Y</option>
-                <option value="z">Keep +Z</option>
-              </select>
-            </label>
-            <label for="section-offset">
-              <span>Offset</span>
-              <input
-                id="section-offset"
-                data-testid="section-offset"
-                type="range"
-                min="0"
-                max="1"
-                step="any"
-                value="0"
-                aria-label="Section offset"
-              />
-              <output id="section-offset-value" data-testid="section-offset-value">0</output>
-            </label>
-          </div>
-          <button
-            id="reset"
-            data-testid="reset"
-            class="secondary"
-            type="button"
-            aria-label="Reset all"
-            title="Restore this model's initial visibility, selection, display, results, projection, and camera."
-            >Reset all</button
-          >
-        </div>
-        <div
-          id="model-feedback"
-          data-testid="model-feedback"
-          role="status"
-          aria-live="polite"
-          hidden
-        ></div>
-        <p id="interaction-help" data-testid="interaction-help" class="interaction-help">
-          Element: click or drag to replace. Hold Ctrl or ⌘ to toggle. Shift keeps element
-          selection. Alt selects an instance.
-        </p>
-      </div>
+      <PrimaryToolbar {controller} {snapshot} />
       <div class="hud inspection" hidden>
         <h2>Inspection</h2>
         <pre id="inspection-panel" data-testid="inspection-panel"></pre>

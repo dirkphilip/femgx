@@ -190,6 +190,4 @@ export function updateStatus(view: DemoView, camera: Camera, info: StatusInfo): 
   view.status.textContent =
     `${info.model} · ${renderer} · ${info.visibleInstances} visible · ` +
     `${info.parts} parts · ${info.batches} batches · ${cameraMode} camera`;
-  view.projectionToggle.textContent = cameraMode === "perspective" ? "Perspective" : "Orthographic";
-  view.projectionToggle.setAttribute("aria-label", `Projection: ${cameraMode}`);
 }

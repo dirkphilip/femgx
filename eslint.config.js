@@ -65,6 +65,14 @@ export default tseslint.config(
   {
     ...tseslint.configs.disableTypeChecked,
     files: ["**/*.svelte"],
+    languageOptions: {
+      parserOptions: {
+        parser: tseslint.parser,
+        project: false,
+        projectService: false,
+        extraFileExtensions: [".svelte"],
+      },
+    },
     rules: {
       ...tseslint.configs.disableTypeChecked.rules,
       "@typescript-eslint/consistent-type-imports": "off",

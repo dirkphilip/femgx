@@ -4,15 +4,21 @@ import { queryDemoView } from "./workbench/view";
 import { startWebGpuDemo } from "./workbench/start";
 import { readDemoHarnessOptions } from "./devtools/harness";
 import { renderBuildInfo } from "./workbench/build-info";
+import type { WorkbenchController } from "./workbench/controller";
+
+interface WorkbenchAppHandle {
+  connectWorkbench(controller: WorkbenchController): void;
+}
 
 const app = document.querySelector("#app");
 if (!(app instanceof HTMLElement)) throw new Error("The workbench app root is missing");
-mount(WorkbenchApp, { target: app });
+const workbenchApp = mount(WorkbenchApp, { target: app }) as unknown as WorkbenchAppHandle;
 
 const view = queryDemoView();
 renderBuildInfo(view.buildInfo);
-void startWebGpuDemo({
+const controller = await startWebGpuDemo({
   view,
   canvas: view.canvas,
   ...readDemoHarnessOptions(),
 });
+if (controller !== undefined) workbenchApp.connectWorkbench(controller);

@@ -1,5 +1,4 @@
 import { installBoxSelection } from "../../src/index";
-import type { FemViewport } from "../../src/index";
 import type { DemoView, WorkbenchPane } from "./view";
 import type { WorkbenchBoxPreview } from "./box-preview";
 import type { WorkbenchInteraction } from "./interaction";
@@ -11,16 +10,11 @@ export interface WorkbenchLifecycleOptions {
   readonly view: DemoView;
   readonly canvas: HTMLCanvasElement;
   readonly signal: AbortSignal;
-  readonly viewport: () => FemViewport;
   readonly interaction: WorkbenchInteraction;
   readonly menu: WorkbenchMenu;
   readonly visibilityPanel: VisibilityPanelController;
   readonly boxPreview: WorkbenchBoxPreview;
   readonly dragging: () => boolean;
-  readonly setBackground: (background: string) => void;
-  readonly setEdges: () => void;
-  readonly setNodes: () => void;
-  readonly setContinuous: () => void;
   readonly setResultField: (value: string) => void;
   readonly setDeformationField: (value: string) => void;
   readonly setDeformationScale: (value: string) => void;
@@ -30,11 +24,6 @@ export interface WorkbenchLifecycleOptions {
   readonly setVectorLengthScale: (value: string) => void;
   readonly setSectionAxis: (value: string) => void;
   readonly setSectionOffset: (value: string) => void;
-  readonly setSelectionGranularity: (value: string) => void;
-  readonly hideSelected: () => void;
-  readonly showAll: () => void;
-  readonly reset: () => void;
-  readonly fitView: () => void;
   readonly setModel: (id: string) => void;
   readonly openModel: (file: File) => void;
   readonly setActive: () => void;
@@ -82,14 +71,8 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     view: options.view,
     canvas: options.canvas,
     signal: options.signal,
-    viewport: options.viewport,
     interaction: options.interaction,
-    menu: options.menu,
     dragging: options.dragging,
-    setBackground: options.setBackground,
-    setEdges: options.setEdges,
-    setNodes: options.setNodes,
-    setContinuous: options.setContinuous,
     setResultField: options.setResultField,
     setDeformationField: options.setDeformationField,
     setDeformationScale: options.setDeformationScale,
@@ -99,11 +82,6 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     setVectorLengthScale: options.setVectorLengthScale,
     setSectionAxis: options.setSectionAxis,
     setSectionOffset: options.setSectionOffset,
-    setSelectionGranularity: options.setSelectionGranularity,
-    hideSelected: options.hideSelected,
-    showAll: options.showAll,
-    reset: options.reset,
-    fitView: options.fitView,
     setModel: options.setModel,
     openModel: options.openModel,
     setActive: options.setActive,

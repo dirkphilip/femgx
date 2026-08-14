@@ -142,7 +142,6 @@ export function installControllerLifecycle(context: WorkbenchControllerWiringCon
     view: context.view,
     canvas: context.canvas,
     signal: context.listenerController.signal,
-    viewport: () => context.activeViewport(),
     interaction: context.interactionController,
     menu: context.menu,
     visibilityPanel: context.visibilityPanel,
@@ -163,13 +162,6 @@ function lifecycleDisplayBindings(
   context: WorkbenchControllerWiringContext,
 ): Pick<
   WorkbenchLifecycleOptions,
-  | "setBackground"
-  | "setEdges"
-  | "setNodes"
-  | "setContinuous"
-  | "setSelectionGranularity"
-  | "hideSelected"
-  | "showAll"
   | "setResultField"
   | "setDeformationField"
   | "setDeformationScale"
@@ -182,25 +174,6 @@ function lifecycleDisplayBindings(
 > {
   return {
     ...lifecycleVectorBindings(context),
-    setBackground: context.setBackground.bind(context),
-    setEdges: () => {
-      context.setEdges();
-    },
-    setNodes: () => {
-      context.setNodes();
-    },
-    setContinuous: () => {
-      context.setContinuous();
-    },
-    setSelectionGranularity: (value) => {
-      context.setSelectionGranularity(value);
-    },
-    hideSelected: () => {
-      context.visibilityActions.hideSelected();
-    },
-    showAll: () => {
-      context.visibilityActions.showAll();
-    },
     setResultField: (value) => {
       context.setResultField(value);
     },
@@ -243,14 +216,8 @@ function lifecycleVectorBindings(
 
 function lifecycleModelBindings(
   context: WorkbenchControllerWiringContext,
-): Pick<WorkbenchLifecycleOptions, "reset" | "fitView" | "setModel" | "openModel"> {
+): Pick<WorkbenchLifecycleOptions, "setModel" | "openModel"> {
   return {
-    reset: () => {
-      context.reset();
-    },
-    fitView: () => {
-      context.fitView();
-    },
     setModel: (id) => {
       context.setModel(id);
     },
