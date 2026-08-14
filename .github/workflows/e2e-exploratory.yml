@@ -53,10 +53,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - shard: "1/2"
+          - shard: "1/3"
             name: shard-1
-          - shard: "2/2"
+          - shard: "2/3"
             name: shard-2
+          - shard: "3/3"
+            name: shard-3
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
