@@ -35,37 +35,13 @@ export interface DemoView {
   readonly openModelButton: HTMLButtonElement;
   readonly modelFileInput: HTMLInputElement;
   readonly modelFeedback: HTMLElement;
-  readonly fitView: HTMLButtonElement;
-  readonly selectionGranularity: HTMLSelectElement;
-  readonly hideSelectedButton: HTMLButtonElement;
-  readonly showAllButton: HTMLButtonElement;
-  readonly projectionToggle: HTMLButtonElement;
-  readonly backgroundSelect: HTMLSelectElement;
-  readonly edgeOverlayToggle: HTMLButtonElement;
-  readonly continuousToggle: HTMLButtonElement;
-  readonly resultControls: HTMLElement;
-  readonly resultField: HTMLSelectElement;
-  readonly deformationField: HTMLSelectElement;
-  readonly deformationScale: HTMLInputElement;
-  readonly vectorField: HTMLSelectElement;
-  readonly vectorGlyph: HTMLSelectElement;
-  readonly vectorTransform: HTMLSelectElement;
-  readonly vectorLengthScale: HTMLInputElement;
-  readonly vectorHelp: HTMLElement;
   readonly resultLegend: HTMLElement;
-  readonly sectionControls: HTMLElement;
-  readonly sectionAxis: HTMLSelectElement;
-  readonly sectionOffset: HTMLInputElement;
-  readonly sectionOffsetValue: HTMLOutputElement;
-  readonly nodeOverlayToggle: HTMLButtonElement;
-  readonly resetButton: HTMLButtonElement;
   readonly status: HTMLElement;
   readonly visibilityPanel: HTMLElement;
   readonly inspectionPanel: HTMLElement;
   readonly statsPanel: HTMLElement;
   readonly statsContent: HTMLElement;
   readonly contextMenu: HTMLElement;
-  readonly interactionHelp: HTMLElement;
 }
 
 /** The model/renderer summary written into the status bar. */
@@ -97,37 +73,13 @@ export function queryDemoView(): DemoView {
     openModelButton: requiredButton("#open-model"),
     modelFileInput: requiredInput("#model-file"),
     modelFeedback: requiredElement("#model-feedback"),
-    fitView: requiredButton("#fit-view"),
-    selectionGranularity: requiredSelect("#selection-granularity"),
-    hideSelectedButton: requiredButton("#hide-selected"),
-    showAllButton: requiredButton("#show-all"),
-    projectionToggle: requiredButton("#projection-toggle"),
-    backgroundSelect: requiredSelect("#background-select"),
-    edgeOverlayToggle: requiredButton("#edge-overlay"),
-    continuousToggle: requiredButton("#continuous-rendering"),
-    resultControls: requiredElement("#result-controls"),
-    resultField: requiredSelect("#result-field"),
-    deformationField: requiredSelect("#deformation-field"),
-    deformationScale: requiredInput("#deformation-scale"),
-    vectorField: requiredSelect("#vector-field"),
-    vectorGlyph: requiredSelect("#vector-glyph"),
-    vectorTransform: requiredSelect("#vector-transform"),
-    vectorLengthScale: requiredInput("#vector-length-scale"),
-    vectorHelp: requiredElement("#vector-help"),
     resultLegend: requiredElement("#result-legend"),
-    sectionControls: requiredElement("#section-controls"),
-    sectionAxis: requiredSelect("#section-axis"),
-    sectionOffset: requiredInput("#section-offset"),
-    sectionOffsetValue: requiredOutput("#section-offset-value"),
-    nodeOverlayToggle: requiredButton("#node-overlay"),
-    resetButton: requiredButton("#reset"),
     status: requiredElement("#status"),
     visibilityPanel: requiredElement("#visibility-panel"),
     inspectionPanel: requiredElement("#inspection-panel"),
     statsPanel: requiredElement("#stats-panel"),
     statsContent: requiredElement("#diagnostics-content"),
     contextMenu: requiredElement("#context-menu"),
-    interactionHelp: requiredElement("#interaction-help"),
   };
   return createDemoView(elements);
 }
@@ -169,10 +121,6 @@ function requiredSelect(selector: string): HTMLSelectElement {
 
 function requiredInput(selector: string): HTMLInputElement {
   return required(selector) as HTMLInputElement;
-}
-
-function requiredOutput(selector: string): HTMLOutputElement {
-  return required(selector) as HTMLOutputElement;
 }
 
 function required(selector: string): Element {

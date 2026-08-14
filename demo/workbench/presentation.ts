@@ -3,8 +3,6 @@ import {
   type FemViewport,
   type InteractionState,
   type SceneRuntime,
-  type VectorField,
-  type ViewportResultsConfig,
   type ViewportResultsState,
 } from "../../src/index";
 import type { WorkbenchModel } from "./model";
@@ -12,16 +10,9 @@ import { updateStatus, type DemoView } from "./view";
 import { selectedKeys } from "./selection";
 import { statsText } from "../devtools/diagnostics";
 import type { DisplayToggles, RenderLoopStats, RendererStats, ResultDisplayMode } from "./types";
-import type { SelectionGranularity } from "./pick";
-import {
-  BASE_RESULT_VALUE,
-  DEFORMATION_OFF_VALUE,
-  resultVectorFieldsForModel,
-  VECTOR_OFF_VALUE,
-  type VectorGlyph,
-  type VectorTransform,
-} from "./result-controls";
-import { sectionAxisBounds, type SectionAxis } from "./section-controls";
+import { resultVectorFieldsForModel, VECTOR_OFF_VALUE } from "./result-controls";
+import type { VectorGlyph, VectorTransform } from "./result-controls";
+import type { SectionAxis } from "./section-controls";
 
 /** Presentation-only DOM policy for the workbench shell. */
 export interface WorkbenchPresentationOptions {
@@ -31,16 +22,12 @@ export interface WorkbenchPresentationOptions {
   readonly getModel: () => WorkbenchModel;
   readonly getToggles: () => DisplayToggles;
   readonly getResultMode: () => ResultDisplayMode;
-  readonly getDeformationScale: () => number;
   readonly getVectorFieldId: () => string;
   readonly getVectorGlyph: () => VectorGlyph;
   readonly getVectorTransform: () => VectorTransform;
-  readonly getVectorLengthScale: () => number;
   readonly getViewport: () => FemViewport;
   readonly getInteraction: () => InteractionState;
   readonly getRuntime: () => SceneRuntime;
-  readonly getContinuous: () => boolean;
-  readonly getSelectionGranularity: () => SelectionGranularity;
   readonly getSectionAxis: () => SectionAxis;
   readonly getSectionOffset: () => number;
 }
@@ -102,132 +89,23 @@ export class WorkbenchPresentation {
   }
 
   reflectResults(): void {
-    const config = this.options.getModel().results;
-    const mode = this.options.getResultMode();
-    const controls = this.options.view.resultControls;
-    const scalar = config?.scalar;
-    const vectorFields = resultVectorFieldsForModel(this.options.getModel());
-    controls.hidden =
-      scalar === undefined && config?.deformation === undefined && vectorFields.length === 0;
-    if (controls.hidden) {
-      this.options.view.resultLegend.hidden = true;
-      this.options.canvas.dataset["results"] = "base";
-      this.options.canvas.dataset["vectorField"] = VECTOR_OFF_VALUE;
-      return;
-    }
-    this.reflectScalarControls(scalar, mode);
-    this.reflectDeformationControls(config?.deformation, mode);
-    const vectorFieldId = this.reflectVectorControls(vectorFields);
+    const model = this.options.getModel();
+    const fields = resultVectorFieldsForModel(model);
+    const vectorFieldId = fields.some((field) => field.id === this.options.getVectorFieldId())
+      ? this.options.getVectorFieldId()
+      : VECTOR_OFF_VALUE;
     const results = this.options.getViewport().results;
     this.options.view.resultLegend.hidden = results === undefined;
     if (results !== undefined) this.options.view.resultLegend.textContent = resultLegend(results);
-    this.options.canvas.dataset["results"] = mode;
+    this.options.canvas.dataset["results"] = this.options.getResultMode();
     this.options.canvas.dataset["vectorField"] = vectorFieldId;
     this.options.canvas.dataset["vectorGlyph"] = this.options.getVectorGlyph();
     this.options.canvas.dataset["vectorTransform"] = this.options.getVectorTransform();
   }
 
-  private reflectScalarControls(
-    scalar: ViewportResultsConfig["scalar"],
-    mode: ResultDisplayMode,
-  ): void {
-    replaceOptions(this.options.view.resultField, [
-      { value: BASE_RESULT_VALUE, label: "Base" },
-      ...(scalar === undefined
-        ? []
-        : [
-            {
-              value: scalar.field.id,
-              label: `${scalar.field.name} · ${fieldLocation(scalar.field.location)}`,
-            },
-          ]),
-    ]);
-    this.options.view.resultField.value =
-      mode === "base" || scalar === undefined ? BASE_RESULT_VALUE : scalar.field.id;
-    this.options.view.resultField.disabled = scalar === undefined;
-  }
-
-  private reflectDeformationControls(
-    deformation: ViewportResultsConfig["deformation"],
-    mode: ResultDisplayMode,
-  ): void {
-    replaceOptions(this.options.view.deformationField, [
-      { value: DEFORMATION_OFF_VALUE, label: "Off" },
-      ...(deformation === undefined
-        ? []
-        : [{ value: deformation.field.id, label: deformation.field.name }]),
-    ]);
-    this.options.view.deformationField.value =
-      mode === "deformed" && deformation !== undefined
-        ? deformation.field.id
-        : DEFORMATION_OFF_VALUE;
-    this.options.view.deformationField.disabled = mode === "base" || deformation === undefined;
-    this.options.view.deformationScale.disabled = mode !== "deformed" || deformation === undefined;
-    this.options.view.deformationScale.value = String(this.options.getDeformationScale());
-  }
-
-  private reflectVectorControls(fields: readonly VectorField<"elemental">[]): string {
-    replaceOptions(this.options.view.vectorField, [
-      { value: VECTOR_OFF_VALUE, label: "Off" },
-      ...fields.map((field) => ({
-        value: field.id,
-        label: `${field.name} · Elemental`,
-      })),
-    ]);
-    const vectorFieldId = fields.some((field) => field.id === this.options.getVectorFieldId())
-      ? this.options.getVectorFieldId()
-      : VECTOR_OFF_VALUE;
-    this.options.view.vectorField.value = vectorFieldId;
-    const vectorsActive = vectorFieldId !== VECTOR_OFF_VALUE;
-    this.options.view.vectorField.disabled = fields.length === 0;
-    this.options.view.vectorGlyph.value = this.options.getVectorGlyph();
-    this.options.view.vectorTransform.value = this.options.getVectorTransform();
-    this.options.view.vectorLengthScale.value = String(this.options.getVectorLengthScale());
-    this.options.view.vectorGlyph.disabled = !vectorsActive;
-    this.options.view.vectorTransform.disabled = !vectorsActive;
-    this.options.view.vectorLengthScale.disabled = !vectorsActive;
-    this.options.view.vectorHelp.hidden = fields.length === 0;
-    return vectorFieldId;
-  }
-
   reflectSectionPlane(): void {
-    const axis = this.options.getSectionAxis();
-    const offset = this.options.getSectionOffset();
-    const controls = this.options.view.sectionControls;
-    controls.hidden = false;
-    this.options.view.sectionAxis.value = axis;
-    const activeAxis = axis === "off" ? undefined : axis;
-    if (activeAxis === undefined) {
-      this.options.view.sectionOffset.disabled = true;
-      this.options.view.sectionOffset.min = "0";
-      this.options.view.sectionOffset.max = "1";
-    } else {
-      const range = sectionAxisBounds(this.options.getModel().bounds, activeAxis);
-      this.options.view.sectionOffset.disabled = false;
-      this.options.view.sectionOffset.min = String(range.min);
-      this.options.view.sectionOffset.max = String(range.max);
-      this.options.view.sectionOffset.step = String(Math.max((range.max - range.min) / 200, 1e-6));
-    }
-    this.options.view.sectionOffset.value = String(offset);
-    this.options.view.sectionOffsetValue.value = formatNumber(offset);
-    this.options.view.sectionOffsetValue.textContent = formatNumber(offset);
-    this.options.canvas.dataset["sectionAxis"] = axis;
-    this.options.canvas.dataset["sectionOffset"] = String(offset);
-  }
-}
-
-interface SelectOption {
-  readonly value: string;
-  readonly label: string;
-}
-
-function replaceOptions(select: HTMLSelectElement, options: readonly SelectOption[]): void {
-  select.textContent = "";
-  for (const optionData of options) {
-    const option = document.createElement("option");
-    option.value = optionData.value;
-    option.textContent = optionData.label;
-    select.appendChild(option);
+    this.options.canvas.dataset["sectionAxis"] = this.options.getSectionAxis();
+    this.options.canvas.dataset["sectionOffset"] = String(this.options.getSectionOffset());
   }
 }
 

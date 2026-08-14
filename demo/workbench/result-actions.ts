@@ -1,4 +1,5 @@
 import {
+  DEFORMATION_OFF_VALUE,
   parseDeformationScale,
   resultModeForDeformationSelection,
   resultModeForScalarSelection,
@@ -8,7 +9,6 @@ import type { WorkbenchModel } from "./model";
 
 interface ResultControlOwner {
   readonly model: WorkbenchModel;
-  readonly view: { deformationField: { value: string } };
   readonly presentation: { reflectResults: () => void };
   resultMode: ResultDisplayMode;
   deformationScale: number;
@@ -17,11 +17,12 @@ interface ResultControlOwner {
 
 /** Applies a validated scalar-field selection to the shared result state. */
 export function setResultField(owner: ResultControlOwner, value: string): void {
-  const mode = resultModeForScalarSelection(
-    value,
-    owner.model.results,
-    owner.view.deformationField.value,
-  );
+  const deformation = owner.model.results?.deformation;
+  const deformationValue =
+    owner.resultMode === "deformed" && deformation !== undefined
+      ? deformation.field.id
+      : DEFORMATION_OFF_VALUE;
+  const mode = resultModeForScalarSelection(value, owner.model.results, deformationValue);
   if (mode === undefined) {
     owner.presentation.reflectResults();
     return;

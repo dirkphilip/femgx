@@ -140,7 +140,7 @@
       title="Start a recurring render-loop sample for manual inspection."
       onclick={() => controller?.commands.toggleContinuous()}>Continuous</button
     >
-    <AnalysisControls />
+    <AnalysisControls {controller} {snapshot} />
     <button
       id="reset"
       data-testid="reset"

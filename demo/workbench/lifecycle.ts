@@ -15,15 +15,6 @@ export interface WorkbenchLifecycleOptions {
   readonly visibilityPanel: VisibilityPanelController;
   readonly boxPreview: WorkbenchBoxPreview;
   readonly dragging: () => boolean;
-  readonly setResultField: (value: string) => void;
-  readonly setDeformationField: (value: string) => void;
-  readonly setDeformationScale: (value: string) => void;
-  readonly setVectorField: (value: string) => void;
-  readonly setVectorGlyph: (value: string) => void;
-  readonly setVectorTransform: (value: string) => void;
-  readonly setVectorLengthScale: (value: string) => void;
-  readonly setSectionAxis: (value: string) => void;
-  readonly setSectionOffset: (value: string) => void;
   readonly setModel: (id: string) => void;
   readonly openModel: (file: File) => void;
   readonly setActive: () => void;
@@ -73,15 +64,6 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     signal: options.signal,
     interaction: options.interaction,
     dragging: options.dragging,
-    setResultField: options.setResultField,
-    setDeformationField: options.setDeformationField,
-    setDeformationScale: options.setDeformationScale,
-    setVectorField: options.setVectorField,
-    setVectorGlyph: options.setVectorGlyph,
-    setVectorTransform: options.setVectorTransform,
-    setVectorLengthScale: options.setVectorLengthScale,
-    setSectionAxis: options.setSectionAxis,
-    setSectionOffset: options.setSectionOffset,
     setModel: options.setModel,
     openModel: options.openModel,
     setActive: options.setActive,

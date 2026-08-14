@@ -64,15 +64,6 @@ export interface WorkbenchControllerWiringContext {
   readonly setNodes: () => void;
   readonly setContinuous: () => void;
   readonly setSelectionGranularity: (value: string) => void;
-  readonly setResultField: (value: string) => void;
-  readonly setDeformationField: (value: string) => void;
-  readonly setDeformationScale: (value: string) => void;
-  readonly setVectorField: (value: string) => void;
-  readonly setVectorGlyph: (value: string) => void;
-  readonly setVectorTransform: (value: string) => void;
-  readonly setVectorLengthScale: (value: string) => void;
-  readonly setSectionAxis: (value: string) => void;
-  readonly setSectionOffset: (value: string) => void;
   readonly setModel: (id: string) => void;
   readonly openModel: (file: File) => void;
 }
@@ -95,11 +86,9 @@ export function createControllerInfrastructure(
     runtime: () => context.runtime,
     toggles: () => context.toggles,
     resultMode: () => context.resultMode,
-    deformationScale: () => context.deformationScale,
     vectorFieldId: () => context.vectorDisplay.fieldId,
     vectorGlyph: () => context.vectorDisplay.glyph,
     vectorTransform: () => context.vectorDisplay.transform,
-    vectorLengthScale: () => context.vectorDisplay.lengthScale,
     continuous: () => context.continuousEnabled,
     selectionGranularity: () => context.selectionGranularity,
     sectionAxis: () => context.sectionAxis,
@@ -153,65 +142,8 @@ export function installControllerLifecycle(context: WorkbenchControllerWiringCon
     toggleViewport: () => {
       context.toggleSecondaryViewport();
     },
-    ...lifecycleDisplayBindings(context),
     ...lifecycleModelBindings(context),
   });
-}
-
-function lifecycleDisplayBindings(
-  context: WorkbenchControllerWiringContext,
-): Pick<
-  WorkbenchLifecycleOptions,
-  | "setResultField"
-  | "setDeformationField"
-  | "setDeformationScale"
-  | "setVectorField"
-  | "setVectorGlyph"
-  | "setVectorTransform"
-  | "setVectorLengthScale"
-  | "setSectionAxis"
-  | "setSectionOffset"
-> {
-  return {
-    ...lifecycleVectorBindings(context),
-    setResultField: (value) => {
-      context.setResultField(value);
-    },
-    setDeformationField: (value) => {
-      context.setDeformationField(value);
-    },
-    setDeformationScale: (value) => {
-      context.setDeformationScale(value);
-    },
-    setSectionAxis: (value) => {
-      context.setSectionAxis(value);
-    },
-    setSectionOffset: (value) => {
-      context.setSectionOffset(value);
-    },
-  };
-}
-
-function lifecycleVectorBindings(
-  context: WorkbenchControllerWiringContext,
-): Pick<
-  WorkbenchLifecycleOptions,
-  "setVectorField" | "setVectorGlyph" | "setVectorTransform" | "setVectorLengthScale"
-> {
-  return {
-    setVectorField: (value) => {
-      context.setVectorField(value);
-    },
-    setVectorGlyph: (value) => {
-      context.setVectorGlyph(value);
-    },
-    setVectorTransform: (value) => {
-      context.setVectorTransform(value);
-    },
-    setVectorLengthScale: (value) => {
-      context.setVectorLengthScale(value);
-    },
-  };
 }
 
 function lifecycleModelBindings(
