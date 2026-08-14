@@ -173,10 +173,14 @@ describe("renderer runtime state", () => {
       [triangle.id, triangle],
       [point.id, point],
     ]);
-    expect(Array.from(buildNodeOrder(layout, runtime, 1, [true, false, true], parts))).toEqual([0]);
-    expect(buildNodeOrder(layout, runtime, 2, [true, false, true], parts)).toEqual(
-      new Uint32Array(),
-    );
+    expect(
+      Array.from(
+        buildNodeOrder({ layout, runtime, partId: 1, nodeFlags: [true, false, true], parts }),
+      ),
+    ).toEqual([0]);
+    expect(
+      buildNodeOrder({ layout, runtime, partId: 2, nodeFlags: [true, false, true], parts }),
+    ).toEqual(new Uint32Array());
     const selectedPoint = setNodeSelected(
       createInteractionState(),
       {
@@ -190,9 +194,9 @@ describe("renderer runtime state", () => {
       new Uint32Array(),
     );
     runtime.setInstanceVisible(0, false);
-    expect(buildNodeOrder(layout, runtime, 1, [true, false, true], parts)).toEqual(
-      new Uint32Array(),
-    );
+    expect(
+      buildNodeOrder({ layout, runtime, partId: 1, nodeFlags: [true, false, true], parts }),
+    ).toEqual(new Uint32Array());
   });
 
   it("keeps hidden slots addressable and omits parts without visible slots", () => {

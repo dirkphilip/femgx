@@ -143,9 +143,21 @@ export class GpuRenderer implements WebGpuRenderer {
     }
   }
 
-  public updateElements(runtime: PackedSceneRuntime, interaction: InteractionState): void {
+  public updateElements(
+    runtime: PackedSceneRuntime,
+    interaction: InteractionState,
+    changedInstanceIds?: readonly number[],
+  ): void {
     this.ensureAlive();
-    if (this.attachment.updateElements(runtime, interaction, this.lifecycle.bundle, this.parts)) {
+    if (
+      this.attachment.updateElements(
+        runtime,
+        interaction,
+        this.lifecycle.bundle,
+        this.parts,
+        changedInstanceIds,
+      )
+    ) {
       this.pickSnapshotValid = false;
     }
     this.nodeOrdersDirty = false;

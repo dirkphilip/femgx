@@ -172,6 +172,7 @@ interface HighlightTarget {
 export function syncElementHighlights(
   sync: ElementHighlightSync,
   interaction: InteractionState,
+  affectedParts?: ReadonlySet<PartId>,
 ): void {
   const updates = collectEmphasisUpdates(
     sync.runtime,
@@ -181,6 +182,7 @@ export function syncElementHighlights(
     interaction,
   );
   for (const [partId, storage] of sync.draw.storages) {
+    if (affectedParts !== undefined && !affectedParts.has(partId)) continue;
     writeElementHighlights(sync.device, storage, updates.get(partId) ?? [], sync.draw.cost);
   }
 }

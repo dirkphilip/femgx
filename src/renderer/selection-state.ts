@@ -1,6 +1,5 @@
 import type { Part, PartId } from "../geometry/part";
 import { readInteractionState, type InteractionState } from "../interaction/state";
-import type { InstanceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import {
   writeNodeOrder,
@@ -28,24 +27,57 @@ export function syncSelectionState(options: {
   readonly layout: InstanceLayout;
   readonly interaction: InteractionState;
   readonly parts: ReadonlyMap<PartId, Part>;
-  readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
   readonly selection: SelectionState;
   readonly bundle: GpuBundle;
+  readonly selectionParts: ReadonlySet<PartId>;
+  readonly nodeParts: ReadonlySet<PartId>;
+  readonly changedInstanceIds: readonly number[] | undefined;
 }): boolean {
-  options.selection.selectedNodeFlags.fill(false);
-  const data = readInteractionState(options.interaction);
-  for (const [instanceId, nodeIds] of data.selectedNodeIds) {
-    const slot = options.slotByInstanceId.get(instanceId);
-    if (slot !== undefined && nodeIds.size > 0) options.selection.selectedNodeFlags[slot] = true;
+  const interactionData = readInteractionState(options.interaction);
+  if (options.changedInstanceIds === undefined) {
+    options.selection.selectedNodeFlags.fill(false);
+    for (let slot = 0; slot < options.runtime.instanceCount; slot += 1) {
+      updateSelectedNodeFlag(
+        interactionData,
+        options.runtime,
+        options.selection.selectedNodeFlags,
+        slot,
+      );
+    }
+  } else {
+    for (const slot of options.changedInstanceIds) {
+      updateSelectedNodeFlag(
+        interactionData,
+        options.runtime,
+        options.selection.selectedNodeFlags,
+        slot,
+      );
+    }
   }
-  const changed = syncSelectedInstanceOrders(
-    options.runtime,
-    options.layout,
-    options.interaction,
-    options.bundle.draw,
-  );
-  writeNodeOrders(options);
-  return changed;
+  const selectionChanged =
+    options.selectionParts.size > 0 &&
+    syncSelectedInstanceOrders(
+      options.runtime,
+      options.layout,
+      options.interaction,
+      options.bundle.draw,
+      options.selectionParts,
+    );
+  const nodeChanged =
+    options.nodeParts.size > 0 && writeNodeOrders({ ...options, affectedParts: options.nodeParts });
+  return nodeChanged || selectionChanged;
+}
+
+function updateSelectedNodeFlag(
+  data: ReturnType<typeof readInteractionState>,
+  runtime: PackedSceneRuntime,
+  selectedNodeFlags: boolean[],
+  slot: number,
+): void {
+  if (slot < 0 || slot >= runtime.instanceCount) return;
+  const instanceId = runtime.getInstanceId(slot);
+  selectedNodeFlags[slot] =
+    instanceId !== undefined && (data.selectedNodeIds.get(instanceId)?.size ?? 0) > 0;
 }
 
 /** Rewrites node orders after the current part map or runtime visibility changes. */
@@ -55,13 +87,21 @@ export function writeNodeOrders(options: {
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly selection: SelectionState;
   readonly bundle: GpuBundle;
-}): void {
-  const nodeFlags = options.selection.nodeFlags.map(
-    (enabled, slot) => enabled || options.selection.selectedNodeFlags[slot] === true,
-  );
-  for (const partId of options.layout.partOrder) {
+  readonly affectedParts?: ReadonlySet<PartId>;
+}): boolean {
+  const parts = options.affectedParts ?? new Set(options.layout.partOrder);
+  let changed = false;
+  for (const partId of parts) {
     options.bundle.draw.cost.cpu("order-rebuild", 1);
-    const order = buildNodeOrder(options.layout, options.runtime, partId, nodeFlags, options.parts);
+    const order = buildNodeOrder({
+      layout: options.layout,
+      runtime: options.runtime,
+      partId,
+      nodeFlags: options.selection.nodeFlags,
+      parts: options.parts,
+      selectedNodeFlags: options.selection.selectedNodeFlags,
+    });
+    if (options.layout.partNodeCounts.get(partId) !== order.length) changed = true;
     writeNodeOrder(options.bundle.draw, partId, order);
     options.layout.partNodeCounts.set(partId, order.length);
     const selectedNodeOrder = buildNodeSelectionOrder(
@@ -71,9 +111,13 @@ export function writeNodeOrders(options: {
       options.selection.selectedNodeFlags,
       options.parts,
     );
+    if (options.layout.partSelectedNodeCounts.get(partId) !== selectedNodeOrder.length) {
+      changed = true;
+    }
     writeNodeSelectionOrder(options.bundle.draw, partId, selectedNodeOrder);
     options.layout.partSelectedNodeCounts.set(partId, selectedNodeOrder.length);
   }
+  return changed;
 }
 
 function syncSelectedInstanceOrders(

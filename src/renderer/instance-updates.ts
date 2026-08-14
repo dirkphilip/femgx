@@ -3,7 +3,12 @@ import { resolveInstanceStyle } from "../interaction/interaction";
 import { readInteractionState } from "../interaction/state";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
-import { encodeInstanceRecord, type InstanceUpdate } from "./gpu-draw";
+import {
+  encodeInstanceRecord,
+  INSTANCE_STRIDE,
+  type DrawResources,
+  type InstanceUpdate,
+} from "./gpu-draw";
 import { defaultStyle } from "./gpu-support";
 import { instanceAt, type InstanceLayout } from "./runtime-state";
 
@@ -20,6 +25,29 @@ export interface InstanceStyleFlags {
   readonly edgeFlags: boolean[];
   readonly nodeFlags: boolean[];
   readonly transparentFlags: boolean[];
+}
+
+/** Reports whether encoded instance bytes changed in a GPU-backed storage. */
+export function instanceRecordsChanged(
+  draw: DrawResources,
+  partId: PartId,
+  updates: readonly InstanceUpdate[],
+): boolean {
+  const storage = draw.storages.get(partId);
+  if (storage === undefined) return updates.length > 0;
+  const current = new Uint8Array(storage.data);
+  for (const update of updates) {
+    const offset = update.slot * INSTANCE_STRIDE;
+    const next = new Uint8Array(update.data);
+    const previous = current.subarray(offset, offset + INSTANCE_STRIDE);
+    for (let byte = 0; byte < 64; byte += 1) {
+      if (next[byte] !== previous[byte]) return true;
+    }
+    for (let byte = 92; byte < 96; byte += 1) {
+      if (next[byte] !== previous[byte]) return true;
+    }
+  }
+  return false;
 }
 
 /**

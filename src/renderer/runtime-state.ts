@@ -86,24 +86,27 @@ export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout
  * annotations. Point parts are excluded because their primary glyph already
  * represents the authored node.
  */
-export function buildNodeOrder(
-  layout: InstanceLayout,
-  runtime: PackedSceneRuntime,
-  partId: PartId,
-  nodeFlags: readonly boolean[],
-  parts: ReadonlyMap<PartId, Part>,
-): Uint32Array {
-  if (parts.get(partId)?.geometry.primitive === "points") return new Uint32Array();
-  const slots = layout.partSlots.get(partId);
+export function buildNodeOrder(options: {
+  readonly layout: InstanceLayout;
+  readonly runtime: PackedSceneRuntime;
+  readonly partId: PartId;
+  readonly nodeFlags: readonly boolean[];
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly selectedNodeFlags?: readonly boolean[];
+}): Uint32Array {
+  if (options.parts.get(options.partId)?.geometry.primitive === "points") {
+    return new Uint32Array();
+  }
+  const slots = options.layout.partSlots.get(options.partId);
   if (slots === undefined) return new Uint32Array();
   const nodes: number[] = [];
   for (const slot of slots) {
-    const local = layout.slotPartLocal[slot];
+    const local = options.layout.slotPartLocal[slot];
     if (
       local !== undefined &&
       local >= 0 &&
-      nodeFlags[slot] === true &&
-      runtime.isInstanceVisible(slot)
+      (options.nodeFlags[slot] === true || options.selectedNodeFlags?.[slot] === true) &&
+      options.runtime.isInstanceVisible(slot)
     ) {
       nodes.push(local);
     }

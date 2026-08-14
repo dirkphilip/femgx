@@ -50,7 +50,11 @@ export interface WebGpuRenderer {
     changedInstanceIds: readonly number[],
   ): void;
   /** Writes diffed emphasis records for bodies, elements, faces, and nodes. */
-  updateElements(runtime: PackedSceneRuntime, interaction: InteractionState): void;
+  updateElements(
+    runtime: PackedSceneRuntime,
+    interaction: InteractionState,
+    changedInstanceIds?: readonly number[],
+  ): void;
   /** Controls whether the edge overlay compares against the depth buffer. */
   setEdgeDepthTest(enabled: boolean): void;
   /** Changes the WebGPU-rendered viewport background presentation. */
