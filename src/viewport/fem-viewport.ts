@@ -383,7 +383,7 @@ class FemViewportCore implements FemViewport {
       this.renderer.updateInstances(this.currentRuntime, this.effectiveInteraction, changed);
     }
     if (interactionChanged) {
-      this.renderer.updateElements(this.currentRuntime, this.effectiveInteraction);
+      this.renderer.updateElements(this.currentRuntime, this.effectiveInteraction, changed);
     }
     this.orientationGizmo?.update(this.cameraRef.camera);
     this.renderer.render(

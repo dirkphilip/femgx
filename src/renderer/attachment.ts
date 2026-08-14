@@ -1,14 +1,9 @@
 import type { Part } from "../geometry/part";
-import {
-  createInteractionState,
-  resolveInstanceStyle,
-  type InteractionState,
-} from "../interaction/interaction";
+import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import { readInteractionState } from "../interaction/state";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
-import { collectEmphasisUpdates } from "./gpu-elements";
 import { syncElementHighlights } from "./gpu-highlight-storage";
 import {
   createDrawResources,
@@ -17,14 +12,15 @@ import {
   writeDrawOrder,
   writeTransparentOrder,
   writeEdgeOrder,
-  INSTANCE_STRIDE,
   type DrawCall,
-  type DrawResources,
-  type InstanceUpdate,
 } from "./gpu-draw";
 import type { GpuBundle } from "./gpu-recovery";
-import { collectInstanceUpdates, type InstanceStyleFlags } from "./instance-updates";
-import { defaultStyle } from "./gpu-support";
+import type { GpuCostAccumulator } from "./gpu-cost";
+import {
+  collectInstanceUpdates,
+  instanceRecordsChanged,
+  type InstanceStyleFlags,
+} from "./instance-updates";
 import {
   buildDrawOrder,
   buildEdgeOrder,
@@ -32,9 +28,15 @@ import {
   buildDrawCalls,
   buildInstanceLayout,
   buildInstanceSnapshot,
-  instanceAt,
   type InstanceLayout,
 } from "./runtime-state";
+import {
+  interactionAffectedSlots,
+  interactionDirtyParts,
+  partsForSlots,
+  refreshTransparencyFlags,
+  type InteractionElementSyncOptions,
+} from "./interaction-sync";
 import {
   syncSelectionState,
   syncVisibleSelectionOrders,
@@ -67,6 +69,7 @@ export class RendererAttachment {
   private transparentFlags: boolean[] = [];
   private readonly selection: SelectionState = { selectedNodeFlags: [], nodeFlags: this.nodeFlags };
   private interactionState = createInteractionState();
+  private interactionBeforeLastInstanceUpdate: InteractionState | undefined;
   private appliedHiddenBodyIds: ReadonlyMap<string, ReadonlySet<number>> | undefined;
   private appliedHiddenElementIds: ReadonlyMap<string, ReadonlySet<number>> | undefined;
 
@@ -94,6 +97,7 @@ export class RendererAttachment {
     changedInstanceIds: readonly number[],
     bundle: GpuBundle,
   ): boolean {
+    this.interactionBeforeLastInstanceUpdate = this.interactionState;
     this.interactionState = interaction;
     bundle.draw.cost.cpu("instance-scan", changedInstanceIds.length);
     const attached = this.attach(runtime, bundle);
@@ -121,7 +125,7 @@ export class RendererAttachment {
     if (visibilityChanged) {
       this.rebuildVisibleOrders(runtime, layout, changedInstanceIds, bundle);
     } else if (edgeChanged.size > 0 || nodeChanged.size > 0 || transparentChanged.size > 0) {
-      this.rebuildCalls();
+      this.rebuildCalls(bundle.draw.cost);
     }
     return (
       attached ||
@@ -138,7 +142,7 @@ export class RendererAttachment {
     const layout = this.layout;
     if (runtime === undefined || layout === undefined) return;
     writeNodeOrders({ runtime, layout, parts, selection: this.selection, bundle });
-    this.rebuildCalls();
+    this.rebuildCalls(bundle.draw.cost);
   }
 
   public updateElements(
@@ -146,50 +150,132 @@ export class RendererAttachment {
     interaction: InteractionState,
     bundle: GpuBundle,
     parts: ReadonlyMap<PartId, Part>,
+    changedInstanceIds?: readonly number[],
   ): boolean {
-    this.interactionState = interaction;
+    const previousInteraction = this.interactionBeforeLastInstanceUpdate ?? this.interactionState;
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
     if (layout === undefined) return attached;
-    bundle.draw.cost.cpu("instance-scan", runtime.instanceCount);
-    const hiddenBodyIds = readInteractionState(interaction).hiddenBodyIds;
-    const hiddenElementIds = readInteractionState(interaction).hiddenElementIds;
+    const fullSync = attached || changedInstanceIds === undefined;
+    const changedSlots =
+      changedInstanceIds === undefined || attached
+        ? Array.from({ length: runtime.instanceCount }, (_, slot) => slot)
+        : changedInstanceIds;
+    return this.syncInteractionElements({
+      runtime,
+      layout,
+      interaction,
+      previousInteraction,
+      parts,
+      bundle,
+      attached,
+      fullSync,
+      changedSlots,
+    });
+  }
+
+  private syncInteractionElements(options: InteractionElementSyncOptions): boolean {
+    const {
+      runtime,
+      layout,
+      interaction,
+      previousInteraction,
+      parts,
+      bundle,
+      attached,
+      fullSync,
+      changedSlots,
+    } = options;
+    const interactionSlots = interactionAffectedSlots(
+      runtime,
+      previousInteraction,
+      interaction,
+      changedSlots,
+      fullSync,
+    );
+    bundle.draw.cost.cpu("instance-scan", interactionSlots.length);
+    const affectedParts = partsForSlots(runtime, layout, interactionSlots, fullSync);
+    const interactionData = readInteractionState(interaction);
+    const dirtyParts = interactionDirtyParts(
+      runtime,
+      layout,
+      previousInteraction,
+      interaction,
+      fullSync,
+    );
+    const hiddenBodyIds = interactionData.hiddenBodyIds;
+    const hiddenElementIds = interactionData.hiddenElementIds;
     const bodyVisibilityChanged = this.appliedHiddenBodyIds !== hiddenBodyIds;
     const elementVisibilityChanged = this.appliedHiddenElementIds !== hiddenElementIds;
-    syncElementHighlights(
-      {
-        device: bundle.device,
-        draw: bundle.draw,
-        runtime,
-        layout,
-        slotByInstanceId: this.slotByInstanceId,
-        parts,
-      },
-      interaction,
-    );
     this.appliedHiddenBodyIds = hiddenBodyIds;
     this.appliedHiddenElementIds = hiddenElementIds;
-    const transparentChanged = refreshTransparencyFlags(
+    const { transparentChanged, selectionChanged } = this.syncInteractionBuffers({
       runtime,
       layout,
       interaction,
       parts,
-      this.transparentFlags,
-    );
-    syncSelectionState({
-      runtime,
-      layout,
-      interaction,
-      parts,
-      slotByInstanceId: this.slotByInstanceId,
-      selection: this.selection,
       bundle,
+      changedSlots: interactionSlots,
+      affectedParts,
+      selectionParts: dirtyParts.selectionParts,
+      nodeParts: dirtyParts.nodeParts,
+      fullSync,
     });
     if (transparentChanged.size > 0) {
       this.rebuildTransparentOrders(runtime, layout, transparentChanged, bundle);
     }
-    this.rebuildCalls();
+    if (transparentChanged.size > 0 || selectionChanged) this.rebuildCalls(bundle.draw.cost);
+    this.interactionState = interaction;
+    this.interactionBeforeLastInstanceUpdate = undefined;
     return attached || bodyVisibilityChanged || elementVisibilityChanged;
+  }
+
+  private syncInteractionBuffers(options: {
+    readonly runtime: PackedSceneRuntime;
+    readonly layout: InstanceLayout;
+    readonly interaction: InteractionState;
+    readonly parts: ReadonlyMap<PartId, Part>;
+    readonly bundle: GpuBundle;
+    readonly changedSlots: readonly number[];
+    readonly affectedParts: ReadonlySet<PartId>;
+    readonly selectionParts: ReadonlySet<PartId>;
+    readonly nodeParts: ReadonlySet<PartId>;
+    readonly fullSync: boolean;
+  }): { transparentChanged: ReadonlySet<PartId>; selectionChanged: boolean } {
+    syncElementHighlights(
+      {
+        device: options.bundle.device,
+        draw: options.bundle.draw,
+        runtime: options.runtime,
+        layout: options.layout,
+        slotByInstanceId: this.slotByInstanceId,
+        parts: options.parts,
+      },
+      options.interaction,
+      options.affectedParts,
+    );
+    const transparentChanged = refreshTransparencyFlags({
+      runtime: options.runtime,
+      layout: options.layout,
+      interaction: options.interaction,
+      parts: options.parts,
+      currentFlags: this.transparentFlags,
+      slotByInstanceId: this.slotByInstanceId,
+      changedSlots: options.changedSlots,
+      affectedParts: options.affectedParts,
+    });
+    const selectionChanged = syncSelectionState({
+      runtime: options.runtime,
+      layout: options.layout,
+      interaction: options.interaction,
+      parts: options.parts,
+      selection: this.selection,
+      bundle: options.bundle,
+      selectionParts: options.selectionParts,
+      nodeParts: options.nodeParts,
+      changedInstanceIds: options.fullSync ? undefined : options.changedSlots,
+    });
+    return { transparentChanged, selectionChanged };
   }
 
   public updateVisibility(
@@ -208,13 +294,13 @@ export class RendererAttachment {
   public clear(): void {
     this.runtime = this.layout = undefined;
     this.calls = this.transparentCalls = this.edgeCalls = this.nodeCalls = [];
-    this.selectionCalls = [];
-    this.selectedNodeCalls = [];
+    this.selectionCalls = this.selectedNodeCalls = [];
     this.edgeFlags = [];
     this.nodeFlags.length = 0;
     this.transparentFlags = [];
     this.selection.selectedNodeFlags.length = 0;
     this.interactionState = createInteractionState();
+    this.interactionBeforeLastInstanceUpdate = undefined;
     this.appliedHiddenBodyIds = undefined;
     this.appliedHiddenElementIds = undefined;
   }
@@ -256,7 +342,7 @@ export class RendererAttachment {
     }
     this.runtime = runtime;
     this.layout = layout;
-    this.rebuildCalls();
+    this.rebuildCalls(bundle.draw.cost);
   }
 
   private rebuildVisibleOrders(
@@ -282,7 +368,7 @@ export class RendererAttachment {
     this.rebuildTransparentOrders(runtime, layout, rebuild, bundle);
     syncVisibleSelectionOrders(runtime, layout, this.interactionState, bundle, rebuild);
     layout.visibleCount = runtime.visibleCount;
-    this.rebuildCalls();
+    this.rebuildCalls(bundle.draw.cost);
   }
 
   private styleFlags(): InstanceStyleFlags {
@@ -321,7 +407,7 @@ export class RendererAttachment {
     }
   }
 
-  private rebuildCalls(): void {
+  private rebuildCalls(cost: GpuCostAccumulator): void {
     const layout = this.layout;
     if (layout === undefined) {
       this.calls = [];
@@ -331,6 +417,7 @@ export class RendererAttachment {
       this.selectionCalls = [];
       return;
     }
+    cost.cpu("call-rebuild", 1);
     const calls = buildDrawCalls(layout);
     this.calls = calls.calls;
     this.transparentCalls = calls.transparentCalls;
@@ -339,81 +426,4 @@ export class RendererAttachment {
     this.selectionCalls = calls.selectionCalls;
     this.selectedNodeCalls = calls.selectedNodeCalls;
   }
-}
-
-function refreshTransparencyFlags(
-  runtime: PackedSceneRuntime,
-  layout: InstanceLayout,
-  interaction: InteractionState,
-  parts: ReadonlyMap<PartId, Part>,
-  currentFlags: boolean[],
-): ReadonlySet<PartId> {
-  const next = new Array<boolean>(runtime.instanceCount).fill(false);
-  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
-    const partId = runtime.instancePartIds[slot];
-    if (partId === undefined) continue;
-    const style = resolveInstanceStyle(
-      instanceAt(runtime, slot, partId),
-      defaultStyle,
-      interaction,
-    );
-    next[slot] = isTransparent(style.color.a * style.opacity);
-  }
-  const updates = collectEmphasisUpdates(
-    runtime,
-    layout,
-    new Map(
-      Array.from({ length: runtime.instanceCount }, (_, slot) => [
-        runtime.getInstanceId(slot) ?? String(slot),
-        slot,
-      ]),
-    ),
-    parts,
-    interaction,
-  );
-  for (const [partId, emphasis] of updates) {
-    const slots = layout.partSlots.get(partId);
-    if (slots === undefined) continue;
-    for (const update of emphasis) {
-      const slot = slots[update.slot];
-      if (slot !== undefined && isTransparent(update.style.color.a * update.style.opacity)) {
-        next[slot] = true;
-      }
-    }
-  }
-  const changed = new Set<PartId>();
-  for (let slot = 0; slot < next.length; slot += 1) {
-    if (next[slot] !== currentFlags[slot]) {
-      const partId = runtime.instancePartIds[slot];
-      if (partId !== undefined) changed.add(partId);
-    }
-    currentFlags[slot] = next[slot] ?? false;
-  }
-  return changed;
-}
-
-function isTransparent(alpha: number): boolean {
-  return alpha < 1;
-}
-
-function instanceRecordsChanged(
-  draw: DrawResources,
-  partId: PartId,
-  updates: readonly InstanceUpdate[],
-): boolean {
-  const storage = draw.storages.get(partId);
-  if (storage === undefined) return updates.length > 0;
-  const current = new Uint8Array(storage.data);
-  for (const update of updates) {
-    const offset = update.slot * INSTANCE_STRIDE;
-    const next = new Uint8Array(update.data);
-    const previous = current.subarray(offset, offset + INSTANCE_STRIDE);
-    for (let byte = 0; byte < 64; byte += 1) {
-      if (next[byte] !== previous[byte]) return true;
-    }
-    for (let byte = 92; byte < 96; byte += 1) {
-      if (next[byte] !== previous[byte]) return true;
-    }
-  }
-  return false;
 }

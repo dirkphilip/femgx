@@ -2,14 +2,23 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createWebGpuRenderer, readGpuCostSnapshot } from "../../src/renderer/gpu-renderer";
 import { createPart } from "../../src/geometry/part";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
+import {
+  createInteractionState,
+  setElementOverride,
+  setElementSelected,
+  setInstanceOverride,
+  setInstanceSelected,
+  setPartOverride,
+} from "../../src/interaction/interaction";
 import {
   setBodyHighlighted,
   setBodyOverride,
   setBodySelected,
   setBodyVisible,
 } from "../../src/interaction/bodies";
-import { setElementOverride } from "../../src/interaction/interaction";
+import { setElementVisible } from "../../src/interaction/elements";
+import { setNodeSelected } from "../../src/interaction/nodes";
+import { setTargetHovered } from "../../src/interaction/targets";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { identity, translation } from "../../src/math/mat4";
 import { projectPoint, unprojectPoint, type Camera, zoomCamera } from "../../src/camera/camera";
@@ -480,6 +489,83 @@ describe("WebGPU renderer", () => {
     renderer.updateInstances(runtime, override, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.drawCalls.at(-1)).toEqual({ indexCount: 3, instanceCount: 3 });
+  });
+
+  it("bounds interaction synchronization to changed slots and order scopes", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildScene();
+    const runtime = createPackedSceneRuntime(scene);
+    const empty = createInteractionState();
+    renderer.render(runtime, camera, scene.parts);
+    renderer.render(runtime, camera, scene.parts);
+
+    const hovered = setTargetHovered(empty, { kind: "instance", instanceId: "1/1" });
+    renderer.updateElements(runtime, hovered, [1]);
+    expect(readGpuCostSnapshot(renderer).cpu).toMatchObject({
+      "instance-scan": 1,
+      "order-rebuild": 0,
+      "call-rebuild": 0,
+    });
+
+    renderer.render(runtime, camera, scene.parts);
+    const selected = setInstanceSelected(hovered, "1/1", true);
+    renderer.updateElements(runtime, selected, [1]);
+    expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
+
+    renderer.render(runtime, camera, scene.parts);
+    const elementSelected = setElementSelected(selected, { instanceId: "1/1", elementId: 0 }, true);
+    renderer.updateElements(runtime, elementSelected, []);
+    expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
+
+    renderer.render(runtime, camera, scene.parts);
+    const nodeSelected = setNodeSelected(elementSelected, { instanceId: "1/1", nodeId: 0 }, true);
+    renderer.updateElements(runtime, nodeSelected, []);
+    expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
+    expect(readGpuCostSnapshot(renderer).cpu["order-rebuild"]).toBe(1);
+
+    renderer.render(runtime, camera, scene.parts);
+    const alphaOverride = setInstanceOverride(nodeSelected, "1/1", { opacity: 0.5 });
+    renderer.updateElements(runtime, alphaOverride, []);
+    expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
+
+    renderer.render(runtime, camera, scene.parts);
+    const elementOverride = setElementOverride(
+      alphaOverride,
+      {
+        instanceId: "1/1",
+        elementId: 0,
+      },
+      { opacity: 0.25 },
+    );
+    renderer.updateElements(runtime, elementOverride, []);
+    expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
+    renderer.destroy();
+  });
+
+  it("bounds body and element visibility synchronization to their owning slot", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildBodyScene();
+    const runtime = createPackedSceneRuntime(scene);
+    const body = { instanceId: "1/0", bodyId: 3 } as const;
+    let interaction = createInteractionState();
+    renderer.render(runtime, camera, scene.parts);
+    renderer.render(runtime, camera, scene.parts);
+
+    interaction = setBodyVisible(interaction, body, false);
+    renderer.updateElements(runtime, interaction, []);
+    expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
+
+    renderer.render(runtime, camera, scene.parts);
+    interaction = setElementVisible(interaction, { instanceId: "1/0", elementId: 0 }, false);
+    renderer.updateElements(runtime, interaction, []);
+    expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
+    renderer.destroy();
   });
 
   it("culls hidden parts from the draw order without rewriting records", async () => {

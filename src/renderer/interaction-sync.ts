@@ -1,0 +1,255 @@
+import type { Part, PartId } from "../geometry/part";
+import { resolveInstanceStyle, type InteractionState } from "../interaction/interaction";
+import { readInteractionState, type InteractionStateData } from "../interaction/state";
+import type { InteractionTarget } from "../interaction/target-types";
+import type { InstanceId } from "../scene/types";
+import type { PackedSceneRuntime } from "../scene-runtime/runtime";
+import { collectEmphasisUpdates } from "./gpu-elements";
+import { defaultStyle } from "./gpu-support";
+import type { GpuBundle } from "./gpu-recovery";
+import { instanceAt, type InstanceLayout } from "./runtime-state";
+
+export interface TransparencySyncOptions {
+  readonly runtime: PackedSceneRuntime;
+  readonly layout: InstanceLayout;
+  readonly interaction: InteractionState;
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly currentFlags: boolean[];
+  readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
+  readonly changedSlots: readonly number[];
+  readonly affectedParts: ReadonlySet<PartId>;
+}
+
+export interface InteractionElementSyncOptions {
+  readonly runtime: PackedSceneRuntime;
+  readonly layout: InstanceLayout;
+  readonly interaction: InteractionState;
+  readonly previousInteraction: InteractionState;
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly bundle: GpuBundle;
+  readonly attached: boolean;
+  readonly fullSync: boolean;
+  readonly changedSlots: readonly number[];
+}
+
+/** Parts whose order buffers depend on the changed interaction layers. */
+export interface InteractionDirtyParts {
+  readonly selectionParts: ReadonlySet<PartId>;
+  readonly nodeParts: ReadonlySet<PartId>;
+}
+
+/** Adds only slots whose element-level state can affect interaction buffers. */
+export function interactionAffectedSlots(
+  runtime: PackedSceneRuntime,
+  previous: InteractionState,
+  next: InteractionState,
+  changedSlots: readonly number[],
+  fullSync: boolean,
+): number[] {
+  if (fullSync) return Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
+  const affected = new Set(changedSlots);
+  const previousData = readInteractionState(previous);
+  const nextData = readInteractionState(next);
+  const addInstance = (instanceId: InstanceId): void => {
+    const slot = runtime.getInstanceSlot(instanceId);
+    if (slot !== undefined) affected.add(slot);
+  };
+  diffNestedSetMembers(previousData.selectedBodyIds, nextData.selectedBodyIds, addInstance);
+  diffNestedSetMembers(previousData.highlightedBodyIds, nextData.highlightedBodyIds, addInstance);
+  diffNestedSetMembers(previousData.hiddenBodyIds, nextData.hiddenBodyIds, addInstance);
+  diffNestedSetMembers(previousData.selectedElementIds, nextData.selectedElementIds, addInstance);
+  diffNestedSetMembers(
+    previousData.highlightedElementIds,
+    nextData.highlightedElementIds,
+    addInstance,
+  );
+  diffNestedSetMembers(previousData.hiddenElementIds, nextData.hiddenElementIds, addInstance);
+  diffNestedSetMembers(previousData.selectedNodeIds, nextData.selectedNodeIds, addInstance);
+  diffNestedSetMembers(previousData.highlightedNodeIds, nextData.highlightedNodeIds, addInstance);
+  diffNestedMapValues(previousData.bodyOverrides, nextData.bodyOverrides, addInstance);
+  diffNestedMapValues(previousData.elementOverrides, nextData.elementOverrides, addInstance);
+  diffNestedMapValues(previousData.selectedFaces, nextData.selectedFaces, addInstance);
+  diffNestedMapValues(previousData.highlightedFaces, nextData.highlightedFaces, addInstance);
+  addHoveredInstance(previousData.hoveredTarget, addInstance);
+  addHoveredInstance(nextData.hoveredTarget, addInstance);
+  if (!themesEqual(previousData.theme, nextData.theme)) {
+    for (let slot = 0; slot < runtime.instanceCount; slot += 1) affected.add(slot);
+  }
+  return Array.from(affected).sort((a, b) => a - b);
+}
+
+/** Finds the smallest order-buffer scopes for an interaction transition. */
+export function interactionDirtyParts(
+  runtime: PackedSceneRuntime,
+  layout: InstanceLayout,
+  previous: InteractionState,
+  next: InteractionState,
+  fullSync: boolean,
+): InteractionDirtyParts {
+  if (fullSync) {
+    const allParts = new Set(layout.partOrder);
+    return { selectionParts: allParts, nodeParts: allParts };
+  }
+  const selectionParts = new Set<PartId>();
+  const nodeParts = new Set<PartId>();
+  const previousData = readInteractionState(previous);
+  const nextData = readInteractionState(next);
+  const addPart = (partId: PartId, destination: Set<PartId>): void => {
+    destination.add(partId);
+  };
+  const addInstance = (instanceId: InstanceId, destination: Set<PartId>): void => {
+    const slot = runtime.getInstanceSlot(instanceId);
+    const partId = slot === undefined ? undefined : runtime.instancePartIds[slot];
+    if (partId !== undefined) destination.add(partId);
+  };
+  diffSetMembers(previousData.selectedPartIds, nextData.selectedPartIds, (partId) => {
+    addPart(partId, selectionParts);
+  });
+  diffSetMembers(previousData.selectedInstanceIds, nextData.selectedInstanceIds, (instanceId) => {
+    addInstance(instanceId, selectionParts);
+  });
+  diffNestedSetMembers(previousData.selectedBodyIds, nextData.selectedBodyIds, (instanceId) => {
+    addInstance(instanceId, selectionParts);
+  });
+  diffNestedSetMembers(
+    previousData.selectedElementIds,
+    nextData.selectedElementIds,
+    (instanceId) => {
+      addInstance(instanceId, selectionParts);
+    },
+  );
+  diffNestedMapValues(previousData.selectedFaces, nextData.selectedFaces, (instanceId) => {
+    addInstance(instanceId, selectionParts);
+  });
+  diffNestedSetMembers(previousData.selectedNodeIds, nextData.selectedNodeIds, (instanceId) => {
+    addInstance(instanceId, selectionParts);
+    addInstance(instanceId, nodeParts);
+  });
+  return { selectionParts, nodeParts };
+}
+
+/** Updates transparency classification only for slots affected by an interaction transition. */
+export function refreshTransparencyFlags(options: TransparencySyncOptions): ReadonlySet<PartId> {
+  const updates = collectEmphasisUpdates(
+    options.runtime,
+    options.layout,
+    options.slotByInstanceId,
+    options.parts,
+    options.interaction,
+  );
+  const emphasisTransparent = new Set<number>();
+  for (const [partId, emphasis] of updates) {
+    if (!options.affectedParts.has(partId)) continue;
+    const slots = options.layout.partSlots.get(partId);
+    if (slots === undefined) continue;
+    for (const update of emphasis) {
+      const slot = slots[update.slot];
+      if (slot !== undefined && isTransparent(update.style.color.a * update.style.opacity)) {
+        emphasisTransparent.add(slot);
+      }
+    }
+  }
+  const changed = new Set<PartId>();
+  for (const slot of options.changedSlots) {
+    if (slot < 0 || slot >= options.runtime.instanceCount) continue;
+    const partId = options.runtime.instancePartIds[slot];
+    if (partId === undefined) continue;
+    const style = resolveInstanceStyle(
+      instanceAt(options.runtime, slot, partId),
+      defaultStyle,
+      options.interaction,
+    );
+    const next = isTransparent(style.color.a * style.opacity) || emphasisTransparent.has(slot);
+    if (next !== options.currentFlags[slot]) changed.add(partId);
+    options.currentFlags[slot] = next;
+  }
+  return changed;
+}
+
+/** Returns the reusable parts touched by a set of global runtime slots. */
+export function partsForSlots(
+  runtime: PackedSceneRuntime,
+  layout: InstanceLayout,
+  slots: readonly number[],
+  fullSync: boolean,
+): ReadonlySet<PartId> {
+  if (fullSync) return new Set(layout.partOrder);
+  const parts = new Set<PartId>();
+  for (const slot of slots) {
+    if (slot < 0 || slot >= runtime.instanceCount) continue;
+    const partId = runtime.instancePartIds[slot];
+    if (partId !== undefined) parts.add(partId);
+  }
+  return parts;
+}
+
+function isTransparent(alpha: number): boolean {
+  return alpha < 1;
+}
+
+function diffSetMembers<T>(
+  previous: ReadonlySet<T>,
+  next: ReadonlySet<T>,
+  visit: (value: T) => void,
+): void {
+  for (const value of previous) if (!next.has(value)) visit(value);
+  for (const value of next) if (!previous.has(value)) visit(value);
+}
+
+function diffNestedSetMembers<OuterKey, InnerKey>(
+  previous: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
+  next: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
+  visit: (value: OuterKey) => void,
+): void {
+  for (const [outerKey, values] of previous) {
+    const nextValues = next.get(outerKey);
+    if (nextValues === undefined || [...values].some((value) => !nextValues.has(value))) {
+      visit(outerKey);
+    }
+  }
+  for (const [outerKey, values] of next) {
+    const previousValues = previous.get(outerKey);
+    if (previousValues === undefined || [...values].some((value) => !previousValues.has(value))) {
+      visit(outerKey);
+    }
+  }
+}
+
+function diffNestedMapValues<OuterKey, InnerValue>(
+  previous: ReadonlyMap<OuterKey, InnerValue>,
+  next: ReadonlyMap<OuterKey, InnerValue>,
+  visit: (value: OuterKey) => void,
+): void {
+  for (const [key, value] of previous) if (next.get(key) !== value) visit(key);
+  for (const [key, value] of next) if (previous.get(key) !== value) visit(key);
+}
+
+function addHoveredInstance(
+  target: InteractionTarget | undefined,
+  addInstance: (instanceId: InstanceId) => void,
+): void {
+  if (target !== undefined && target.kind !== "part") addInstance(target.instanceId);
+}
+
+function themesEqual(
+  previous: InteractionStateData["theme"],
+  next: InteractionStateData["theme"],
+): boolean {
+  return (Object.keys(previous) as (keyof InteractionStateData["theme"])[]).every((key) =>
+    primitiveStylesEqual(previous[key], next[key]),
+  );
+}
+
+function primitiveStylesEqual(
+  previous: InteractionStateData["theme"][keyof InteractionStateData["theme"]],
+  next: InteractionStateData["theme"][keyof InteractionStateData["theme"]],
+): boolean {
+  return (
+    previous.emissive === next.emissive &&
+    previous.opacity === next.opacity &&
+    previous.color?.r === next.color?.r &&
+    previous.color?.g === next.color?.g &&
+    previous.color?.b === next.color?.b &&
+    previous.color?.a === next.color?.a
+  );
+}
