@@ -17,8 +17,8 @@ export interface PartResource {
   readonly resultColorNodeCount: number;
   resultColorsSource: Float32Array | undefined;
   resultColorsActive: boolean;
-  /** Per-triangle element pick ids (`elementId + 1`, 0 = none). */
-  readonly elementPickIdsBuffer: GPUBuffer;
+  /** Per-primitive private element ordinals (`ordinal + 1`, 0 = none). */
+  readonly elementOrdinalsBuffer: GPUBuffer;
   /** Interleaved per-triangle face/owner/neighbor body ids. */
   readonly facePickIdsBuffer: GPUBuffer;
   /** Per-vertex node pick ids (`nodeId + 1`, 0 = vertex without a node). */

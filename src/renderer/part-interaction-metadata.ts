@@ -17,6 +17,8 @@ interface FaceMetadata {
 /** Immutable lookup tables for semantic metadata used by renderer interaction. */
 export interface PartInteractionMetadata {
   readonly elements: ReadonlyMap<ElementId, ElementTessellation>;
+  /** Stable private ordinal (`1..n`) for each authored element id. */
+  readonly elementOrdinalById: ReadonlyMap<ElementId, number>;
   readonly bodies: ReadonlyMap<BodyId, GeometryBody>;
   readonly blocks: ReadonlyMap<ElementBlockId, GeometryElementBlock>;
   readonly bodyByElement: ReadonlyMap<ElementId, BodyId>;
@@ -39,6 +41,9 @@ export function getPartInteractionMetadata(part: Part): PartInteractionMetadata 
 function buildPartInteractionMetadata(part: Part): PartInteractionMetadata {
   const { geometry } = part;
   const elements = new Map((geometry.elements ?? []).map((element) => [element.id, element]));
+  const elementOrdinalById = new Map(
+    (geometry.elements ?? []).map((element, index) => [element.id, index + 1]),
+  );
   const bodies = new Map((geometry.bodies ?? []).map((body) => [body.id, body]));
   const blocks = new Map((geometry.blocks ?? []).map((block) => [block.id, block]));
   const bodyByElement = new Map<ElementId, BodyId>();
@@ -71,7 +76,16 @@ function buildPartInteractionMetadata(part: Part): PartInteractionMetadata {
       faces.set(faceKey(face.elementId, face.faceIndex), { face, faceId });
     }
   }
-  return { elements, bodies, blocks, bodyByElement, blockByElement, bodyByBlock, faces };
+  return {
+    elements,
+    elementOrdinalById,
+    bodies,
+    blocks,
+    bodyByElement,
+    blockByElement,
+    bodyByBlock,
+    faces,
+  };
 }
 
 function faceKey(elementId: ElementId, faceIndex: number): string {

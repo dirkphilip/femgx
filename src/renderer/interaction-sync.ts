@@ -8,6 +8,7 @@ import type { EmphasisUpdates } from "./gpu-elements";
 import { collectEmphasisUpdates } from "./gpu-elements";
 import { syncElementHighlights } from "./gpu-highlight-storage";
 import { syncInstanceEmphasisAdmission } from "./gpu-instance-emphasis";
+import { collectDenseElementSelections } from "./gpu-element-selection";
 import { defaultStyle } from "./gpu-support";
 import type { GpuBundle } from "./gpu-recovery";
 import { instanceAt, type InstanceLayout } from "./runtime-state";
@@ -199,6 +200,12 @@ export function syncInteractionEmphasis(
     options.parts,
     options.interaction,
   );
+  const denseSelections = collectDenseElementSelections(
+    options.runtime,
+    options.layout,
+    options.parts,
+    options.interaction,
+  );
   syncElementHighlights(
     {
       device: options.bundle.device,
@@ -207,6 +214,7 @@ export function syncInteractionEmphasis(
       layout: options.layout,
       slotByInstanceId: options.slotByInstanceId,
       parts: options.parts,
+      denseSelections,
     },
     options.interaction,
     options.affectedParts,
@@ -220,6 +228,7 @@ export function syncInteractionEmphasis(
     },
     emphasisUpdates,
     options.affectedParts,
+    denseSelections,
   );
   return refreshTransparencyFlags({
     runtime: options.runtime,

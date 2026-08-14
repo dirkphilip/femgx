@@ -7,6 +7,7 @@ import {
 } from "./gpu-instance-storage";
 import { writeChangedRecordRanges } from "./gpu-writes";
 import type { GpuCostAccumulator } from "./gpu-cost";
+import type { DenseElementSelections } from "./gpu-element-selection";
 
 interface InstanceEmphasisSync {
   readonly device: GPUDevice;
@@ -19,10 +20,14 @@ export function syncInstanceEmphasisAdmission(
   sync: InstanceEmphasisSync,
   updates: EmphasisUpdates,
   affectedParts: ReadonlySet<PartId>,
+  denseSelections?: DenseElementSelections,
 ): void {
   for (const [partId, storage] of sync.storages) {
     if (!affectedParts.has(partId)) continue;
     const nextSlots = new Set((updates.get(partId) ?? []).map((update) => update.slot));
+    for (const occurrence of denseSelections?.get(partId)?.occurrences ?? []) {
+      nextSlots.add(occurrence.slot);
+    }
     const changedSlots = changedEmphasisSlots(storage.emphasisSlots, nextSlots);
     if (changedSlots.length === 0) continue;
     const next = new Uint8Array(storage.data);

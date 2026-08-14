@@ -28,6 +28,7 @@ import { defaultStyle } from "../../src/renderer/gpu-support";
 import type { DrawPipelines } from "../../src/renderer/gpu-pipelines";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 import { syncInstanceEmphasisAdmission } from "../../src/renderer/gpu-instance-emphasis";
+import type { DenseElementSelections } from "../../src/renderer/gpu-element-selection";
 
 const HIGHLIGHT_BUFFER_SIZE = HIGHLIGHT_HEADER + INITIAL_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE;
 
@@ -343,6 +344,23 @@ describe("GPU draw path", () => {
       ]);
       const flags = new Uint32Array(draw.storages.get(part.id)?.data ?? new ArrayBuffer(0));
       expect(flags[22]).toBe(INSTANCE_SELECTED_FLAG | INSTANCE_EMPHASIS_FLAG);
+    } finally {
+      restore();
+    }
+  });
+
+  it("admits dense selected occurrences without sparse emphasis records", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, part.id, [{ slot: 0, data: record(0) }]);
+      const denseSelections: DenseElementSelections = new Map([
+        [part.id, { elementCount: 2, occurrences: [{ slot: 0, ordinals: [1] }] }],
+      ]);
+      syncInstanceEmphasisAdmission(draw, new Map(), new Set([part.id]), denseSelections);
+      const flags = new Uint32Array(draw.storages.get(part.id)?.data ?? new ArrayBuffer(0));
+      expect(flags[22]).toBe(INSTANCE_EMPHASIS_FLAG);
     } finally {
       restore();
     }
