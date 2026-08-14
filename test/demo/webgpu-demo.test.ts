@@ -145,10 +145,9 @@ function startOptions(canvas: HTMLCanvasElement): Parameters<typeof startWebGpuD
     view: {
       canvas,
       scene: fakeScene(),
-      rendererStatus: { textContent: "" },
-      status: { textContent: "" },
     } as unknown as DemoView,
     canvas,
+    reportStartupFailure: () => undefined,
   };
 }
 
@@ -195,35 +194,35 @@ describe("startWebGpuDemo", () => {
       new WebGpuUnsupportedError("adapter-unavailable", "no WebGPU adapter"),
     );
     const canvas = fakeCanvas();
-    const status = { textContent: "" };
-    const rendererStatus = { textContent: "" };
+    const startup = { rendererStatus: "", status: "" };
 
     const controller = await startWebGpuDemo({
-      view: { canvas, status, rendererStatus } as unknown as DemoView,
+      view: { canvas } as unknown as DemoView,
       canvas,
+      reportStartupFailure: (next) => Object.assign(startup, next),
     });
 
     expect(controller).toBeUndefined();
     expect(canvas.dataset["renderer"]).toBe("unsupported");
-    expect(status.textContent).toContain("no WebGPU adapter");
-    expect(rendererStatus.textContent).toBe("Renderer unsupported");
+    expect(startup.status).toContain("no WebGPU adapter");
+    expect(startup.rendererStatus).toBe("Renderer unsupported");
   });
 
   it("reports an ordinary startup failure as a renderer error", async () => {
     mocks.createFemViewport.mockRejectedValue(new Error("renderer initialization failed"));
     const canvas = fakeCanvas();
-    const status = { textContent: "" };
-    const rendererStatus = { textContent: "" };
+    const startup = { rendererStatus: "", status: "" };
 
     const controller = await startWebGpuDemo({
-      view: { canvas, status, rendererStatus } as unknown as DemoView,
+      view: { canvas } as unknown as DemoView,
       canvas,
+      reportStartupFailure: (next) => Object.assign(startup, next),
     });
 
     expect(controller).toBeUndefined();
     expect(canvas.dataset["renderer"]).toBe("error");
-    expect(status.textContent).toContain("renderer initialization failed");
-    expect(rendererStatus.textContent).toBe("Renderer error");
+    expect(startup.status).toContain("renderer initialization failed");
+    expect(startup.rendererStatus).toBe("Renderer error");
   });
 
   it("reports a first-frame failure and destroys the viewport", async () => {
@@ -233,16 +232,17 @@ describe("startWebGpuDemo", () => {
     });
     mocks.createFemViewport.mockResolvedValue(viewport.viewport);
     const canvas = fakeCanvas();
-    const status = { textContent: "" };
+    const startup = { rendererStatus: "", status: "" };
 
     const controller = await startWebGpuDemo({
-      view: { canvas, status, rendererStatus: { textContent: "" } } as unknown as DemoView,
+      view: { canvas } as unknown as DemoView,
       canvas,
+      reportStartupFailure: (next) => Object.assign(startup, next),
     });
 
     expect(controller).toBeUndefined();
     expect(viewport.destroy).toHaveBeenCalled();
-    expect(status.textContent).toContain("frame submit exploded");
+    expect(startup.status).toContain("frame submit exploded");
   });
 
   it("tears down and recreates the public viewport", async () => {
@@ -288,10 +288,11 @@ describe("startWebGpuDemo", () => {
     const first = fakeViewport();
     mocks.createFemViewport.mockResolvedValueOnce(first.viewport);
     const canvas = fakeCanvas();
-    const status = { textContent: "" };
+    const startup = { rendererStatus: "", status: "" };
     await startWebGpuDemo({
-      view: { canvas, status, rendererStatus: { textContent: "" } } as unknown as DemoView,
+      view: { canvas } as unknown as DemoView,
       canvas,
+      reportStartupFailure: (next) => Object.assign(startup, next),
     });
     demoWindow.femgxDemo?.destroyRenderer();
     mocks.createFemViewport.mockRejectedValueOnce(new Error("recreation failed"));
@@ -299,7 +300,7 @@ describe("startWebGpuDemo", () => {
     await demoWindow.femgxDemo?.recreateRenderer();
 
     expect(canvas.dataset["renderer"]).toBe("error");
-    expect(status.textContent).toContain("recreation failed");
+    expect(startup.status).toContain("recreation failed");
   });
 
   it("tears down the workbench before running the opt-in benchmark", async () => {
