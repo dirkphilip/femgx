@@ -129,7 +129,7 @@ function createViewportFactory(
           pane.canvas.dataset["recovery"] = "error";
           reportFailure(error);
         } else {
-          state.controller?.handleSecondaryViewportError(error);
+          state.controller?.viewportSlots.handleSecondaryViewportError(error);
         }
       },
       onGestureChange: (active) => {

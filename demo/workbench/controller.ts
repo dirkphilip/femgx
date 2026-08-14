@@ -13,6 +13,12 @@ import type { VisibilityRowTarget } from "./visibility-snapshot";
 import type { WorkbenchFeatures } from "./features";
 import type { WorkbenchInteraction } from "./interaction";
 import type { SelectionGranularity } from "./pick";
+import type { BoxSelectionStrategy } from "./box-selection-resolver";
+import {
+  applyBoxSelectionResolvers,
+  normalizeBoxSelectionStrategyForGranularity,
+  setBoxSelectionStrategy as changeBoxSelectionStrategy,
+} from "./controller-box-selection";
 import {
   createDefaultDisplayToggles,
   type DisplayToggles,
@@ -103,6 +109,7 @@ export class WorkbenchController {
   sectionAxis: SectionAxis = "off";
   sectionOffset = 0;
   selectionGranularity: SelectionGranularity = "element";
+  boxSelectionStrategy: BoxSelectionStrategy = "visible-surface";
   background: ViewportBackground = "studio";
   readonly observedPaneSizes = new Map<ViewportSlotId, ObservedPaneSize>();
   private readonly snapshotBridge: WorkbenchSnapshotBridge;
@@ -171,17 +178,14 @@ export class WorkbenchController {
     return this.activeViewport().runtime;
   }
 
-  /** Returns the current presentation-sized state for the Svelte shell. */
   get snapshot(): WorkbenchSnapshot {
     return this.snapshotBridge.current;
   }
 
-  /** Returns typed commands that delegate to the existing workbench owners. */
   get commands(): WorkbenchCommands {
     return this.commandSurface;
   }
 
-  /** Subscribes to semantic snapshot changes and immediately sends the current value. */
   subscribe(listener: WorkbenchSnapshotListener): () => void {
     return this.snapshotBridge.subscribe(listener);
   }
@@ -194,7 +198,6 @@ export class WorkbenchController {
     setControllerViewport(this, viewport);
   }
 
-  /** Invalidates picks before a temporary renderer teardown. */
   invalidateInteraction(): void {
     this.viewportSlots.invalidateInteraction();
   }
@@ -256,14 +259,15 @@ export class WorkbenchController {
 
   setSelectionGranularity(value: string): void {
     const granularity = parseSelectionGranularity(value);
-    if (granularity === undefined) {
-      return;
-    }
-    if (this.selectionGranularity === granularity) return;
+    if (granularity === undefined || this.selectionGranularity === granularity) return;
     this.selectionGranularity = granularity;
+    normalizeBoxSelectionStrategyForGranularity(this);
+    applyBoxSelectionResolvers(this);
     clearTransientHover(this);
     this.render();
   }
+
+  setBoxSelectionStrategy = changeBoxSelectionStrategy.bind(null, this);
 
   setBackground(value: string): void {
     const background = parseViewportBackground(value);
@@ -454,9 +458,6 @@ export class WorkbenchController {
 
   async toggleSecondaryViewport(): Promise<void> {
     await this.viewportSlots.toggleSecondaryViewport();
-  }
-
-  handleSecondaryViewportError(error: unknown): void {
-    this.viewportSlots.handleSecondaryViewportError(error);
+    applyBoxSelectionResolvers(this);
   }
 }

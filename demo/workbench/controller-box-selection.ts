@@ -1,0 +1,45 @@
+import {
+  visibleSurfaceBoxSelectionResolver,
+  type BoxSelectionStrategy,
+} from "./box-selection-resolver";
+import { throughIntersectionBoxSelectionResolver } from "./through-box-selection";
+import type { SelectionGranularity } from "./pick";
+import type { WorkbenchViewportSlots } from "./viewport-slots";
+
+interface BoxSelectionOwner {
+  boxSelectionStrategy: BoxSelectionStrategy;
+  readonly selectionGranularity: SelectionGranularity;
+  readonly viewportSlots: WorkbenchViewportSlots;
+  render(): void;
+}
+
+/** Applies the element-only strategy rule when selection granularity changes. */
+export function normalizeBoxSelectionStrategyForGranularity(owner: BoxSelectionOwner): void {
+  if (owner.selectionGranularity !== "element") owner.boxSelectionStrategy = "visible-surface";
+}
+
+/** Rebuilds resolver closures for every current viewport and invalidates stale work. */
+export function applyBoxSelectionResolvers(owner: BoxSelectionOwner): void {
+  for (const slot of owner.viewportSlots.all()) {
+    const viewport = () => slot.viewport;
+    slot.interaction.setBoxSelectionResolver(
+      owner.boxSelectionStrategy === "through-intersection"
+        ? throughIntersectionBoxSelectionResolver(viewport)
+        : visibleSurfaceBoxSelectionResolver(viewport),
+    );
+  }
+}
+
+/** Changes the shared strategy while keeping the presentation value truthful. */
+export function setBoxSelectionStrategy(owner: BoxSelectionOwner, value: string): void {
+  const strategy = parseBoxSelectionStrategy(value);
+  if (strategy === undefined) return;
+  owner.boxSelectionStrategy = strategy;
+  normalizeBoxSelectionStrategyForGranularity(owner);
+  applyBoxSelectionResolvers(owner);
+  owner.render();
+}
+
+function parseBoxSelectionStrategy(value: string): BoxSelectionStrategy | undefined {
+  return value === "visible-surface" || value === "through-intersection" ? value : undefined;
+}

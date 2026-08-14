@@ -33,6 +33,11 @@
     if (value !== undefined) controller?.commands.setSelectionGranularity(value);
   }
 
+  function setBoxSelectionStrategy(event: unknown): void {
+    const value = selectValue(event);
+    if (value !== undefined) controller?.commands.setBoxSelectionStrategy(value);
+  }
+
   function selectModel(event: unknown): void {
     const value = selectValue(event);
     if (value !== undefined) controller?.commands.selectModel(value);
@@ -135,6 +140,21 @@
       <option value="element">Element</option>
       <option value="face">Face</option>
       <option value="node">Node</option>
+    </select>
+    <select
+      id="box-selection-strategy"
+      data-testid="box-selection-strategy"
+      aria-label="Box selection"
+      aria-describedby="interaction-help"
+      title="Visible selects nearest visible samples; Through selects intersecting visible elements through occlusion."
+      value={snapshot?.toolbar.boxSelectionStrategy ?? "visible-surface"}
+      onchange={setBoxSelectionStrategy}
+    >
+      <option value="visible-surface">Visible</option>
+      <option
+        value="through-intersection"
+        disabled={snapshot?.toolbar.selectionGranularity !== "element"}>Through</option
+      >
     </select>
     <button
       id="hide-selected"
