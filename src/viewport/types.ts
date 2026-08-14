@@ -23,6 +23,14 @@ export interface CameraTransitionOptions {
 export type { ViewportBackground } from "../renderer/gpu-renderer";
 export type { SectionPlane } from "./section-plane";
 
+/** Outcome of reapplying the active authored results to an updated scene. */
+export interface SceneUpdateOutcome {
+  /** Whether active authored result data remained valid after the update. */
+  readonly results: "none" | "preserved" | "cleared";
+  /** Validation reason when active results were cleared. */
+  readonly reason?: string;
+}
+
 /** Inputs for the opinionated WebGPU FEM viewport. */
 export interface FemViewportOptions {
   readonly canvas: HTMLCanvasElement;
@@ -63,6 +71,14 @@ export interface FemViewport {
   setPointSizePixels(size: number): void;
   /** Sets the FE node-annotation screen-space diameter in CSS pixels. */
   setNodeSizePixels(size: number): void;
+  /**
+   * Applies a structural scene update while preserving the camera and valid
+   * placement-scoped state; invalid interaction references are pruned.
+   *
+   * Unlike {@link setScene}, this revalidates the active results configuration
+   * and reports whether it was preserved or cleared.
+   */
+  updateScene(scene: Scene): SceneUpdateOutcome;
   setScene(scene: Scene): void;
   setCamera(camera: Camera, options?: CameraTransitionOptions): void;
   fitView(options?: CameraTransitionOptions): void;

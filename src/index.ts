@@ -220,6 +220,7 @@ export {
   createFemViewport,
   type FemViewport,
   type FemViewportOptions,
+  type SceneUpdateOutcome,
   type ViewportBackground,
 } from "./viewport/fem-viewport";
 export type { SectionPlane } from "./viewport/section-plane";

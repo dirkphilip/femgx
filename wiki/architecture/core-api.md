@@ -147,15 +147,16 @@ results path through `createResultFieldFromModelResult` before
 
 ### Lifecycle and scene
 
-| Method                            | Purpose                                                                                                       |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `setScene(scene)`                 | Replace the authoritative scene and rebuild the derived runtime.                                              |
-| `setCamera(camera)` / `fitView()` | Set or fit the immutable camera value; `fitContentInset` can keep host overlays outside the fitted rectangle. |
-| `resize()`                        | Match WebGPU render size to the canvas and device pixel ratio.                                                |
-| `invalidate()` / `render()`       | Schedule or perform a render of the current state.                                                            |
-| `batch(operation)`                | Coalesce synchronous mutations into one invalidation and render.                                              |
-| `recover()`                       | Recreate supported WebGPU resources after device loss.                                                        |
-| `destroy()`                       | Release renderer, resize, and camera-control resources.                                                       |
+| Method                            | Purpose                                                                                                                                                                                      |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `updateScene(scene)`              | Apply a structural scene update atomically, preserve the camera and surviving placement state, prune invalid nested references, and report whether active results were preserved or cleared. |
+| `setScene(scene)`                 | Replace the authoritative scene and rebuild the derived runtime, clearing active results.                                                                                                    |
+| `setCamera(camera)` / `fitView()` | Set or fit the immutable camera value; `fitContentInset` can keep host overlays outside the fitted rectangle.                                                                                |
+| `resize()`                        | Match WebGPU render size to the canvas and device pixel ratio.                                                                                                                               |
+| `invalidate()` / `render()`       | Schedule or perform a render of the current state.                                                                                                                                           |
+| `batch(operation)`                | Coalesce synchronous mutations into one invalidation and render.                                                                                                                             |
+| `recover()`                       | Recreate supported WebGPU resources after device loss.                                                                                                                                       |
+| `destroy()`                       | Release renderer, resize, and camera-control resources.                                                                                                                                      |
 
 ### Visibility and interaction
 
@@ -173,6 +174,14 @@ When result visualization is active, `viewport.interaction` remains the exact
 host-owned value passed to `setInteraction`. The viewport derives a private
 effective render interaction by layering result colors over that base value;
 hosts never receive or need to round-trip the derived element overrides.
+
+`updateScene` is the live-edit boundary for a scene whose part definitions or
+placements changed. Stable placement ids retain visibility and surviving
+placement-scoped interaction state; body, block, element, face, and node
+references that no longer exist are removed. The active authored result
+configuration is revalidated against the replacement scene and the returned
+`SceneUpdateOutcome` reports whether it remained usable. `setScene` remains the
+explicit full-replacement path and clears results.
 
 Interaction state is immutable and opaque. It stores at most one hovered target;
 setting a new hover replaces the previous target. Part and instance state establish

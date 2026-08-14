@@ -101,7 +101,8 @@ const scene = createScene()
 - The authoritative CPU representation owns the model data; typed arrays in
   the private packed runtime and GPU buffers are compiled representations. The
   public `SceneRuntime` exposes stable handles and query objects, not slots or
-  mutation deltas. Live visibility changes go through `FemViewport`.
+  mutation deltas. Live visibility changes and transactional structural scene
+  updates go through `FemViewport`.
 
 ## Public API boundary
 
@@ -111,7 +112,16 @@ The main user workflow should be expressible as:
 2. Register part and assembly definitions in a scene.
 3. Place a definition one or more times with transforms.
 4. Create one `FemViewport`.
-5. Apply interaction, visibility, results, and lifecycle operations through it.
+5. Apply interaction, visibility, structural updates, results, and lifecycle
+   operations through it.
+
+`FemViewport.updateScene(scene)` is the transactional structural-update
+boundary. It recompiles the candidate scene before committing it, preserves the
+camera and state tied to surviving placement ids, prunes references to removed
+inner geometry identities, and revalidates active results. Its
+`SceneUpdateOutcome` makes a result clear actionable without exposing runtime
+slots or renderer resources; `setScene` remains the explicit full-replacement
+operation.
 
 Low-level flattening, batching, culling, draw-order buffers, GPU record
 layouts, and storage capacities are renderer/runtime implementation details.
