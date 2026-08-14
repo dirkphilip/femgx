@@ -26,6 +26,12 @@ WebGPU-only ([[requirements/product-scope|product scope]]).
    version before starting Playwright, and does not download a Playwright
    browser. Full pick/pixel e2e is not asserted in merge CI until a GPU runner
    exists; SwiftShader is not used as a faithful stand-in.
+5. **Manual software-WebGPU exploration** — the opt-in
+   `e2e-exploratory.yml` workflow runs only `e2e/software-webgpu.spec.ts` through
+   the dedicated `chrome-software` project. It checks a presented model frame
+   and one exposed-canvas pick with no retries, so runtime and flake signals stay
+   visible. It is exploratory evidence, not a merge gate or a substitute for
+   the supported hardware lane.
 
 ## Why the Chrome lane must assert, not skip
 

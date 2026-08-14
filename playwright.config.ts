@@ -5,6 +5,7 @@ const baseURL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 /**
  * E2E browser projects:
  * - `chrome` — system Google Chrome (hardware WebGPU). Default local lane.
+ * - `chrome-software` — a bounded manual smoke lane using SwiftShader WebGPU.
  * - `chrome-unsupported` — system Google Chrome, used by CI for the no-GPU
  *   unsupported contract only. Full WebGPU pick/pixel coverage is local (or a
  *   future GPU runner), not SwiftShader.
@@ -40,6 +41,28 @@ export default defineConfig({
         launchOptions: {
           args: ["--enable-gpu"],
           ignoreDefaultArgs: ["--enable-unsafe-swiftshader"],
+        },
+      },
+    },
+    {
+      name: "chrome-software",
+      testMatch: /software-webgpu\.spec\.ts/,
+      retries: 0,
+      workers: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chrome",
+        headless: true,
+        // This opt-in smoke lane probes hosted CI's SwiftShader path. It is
+        // exploratory evidence, never the authoritative hardware lane.
+        launchOptions: {
+          args: [
+            "--disable-dev-shm-usage",
+            "--enable-gpu",
+            "--enable-unsafe-webgpu",
+            "--use-gpu-in-tests",
+            "--use-webgpu-adapter=swiftshader",
+          ],
         },
       },
     },
