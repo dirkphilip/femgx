@@ -511,7 +511,12 @@ export async function sweepForHit(
       }
       // Software adapters can expose a stale pick attachment to the direct
       // probe. Give real pointer events a chance before reporting no hit.
-      return sweepCells(page, local, { clearKey, keyOf, matches, settleMs });
+      return sweepCells(page, local.slice(0, 100), {
+        clearKey,
+        keyOf,
+        matches,
+        settleMs: Math.min(settleMs, 100),
+      });
     }
     return sweepCells(page, local, { clearKey, keyOf, matches, settleMs });
   }
