@@ -97,6 +97,7 @@ function fakeViewport(): FakeViewport {
       interaction: {} as FemViewport["interaction"],
       results: undefined,
       sectionPlane: undefined,
+      updateScene: vi.fn(() => ({ results: "none" as const })),
       setScene: vi.fn(),
       setCamera: vi.fn(),
       fitView: vi.fn(),

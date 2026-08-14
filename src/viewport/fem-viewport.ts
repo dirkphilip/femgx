@@ -28,6 +28,8 @@ import type { DeformationState } from "../results/deform";
 import { createOrientationGizmo, type OrientationGizmoHandle } from "./orientation-gizmo";
 import {
   resolveViewportInteraction,
+  resolveViewportResults,
+  viewportResultColors,
   type ViewportResultsConfig,
   type ViewportResultsState,
 } from "./results";
@@ -36,11 +38,17 @@ import type {
   CameraTransitionOptions,
   FemViewport,
   FemViewportOptions,
+  SceneUpdateOutcome,
   ViewportBackground,
 } from "./types";
 import { normalizeSectionPlane, type SectionPlane } from "./section-plane";
 import { preserveRuntimeVisibility, reconcileInteractionState } from "./scene-reconciliation";
-export type { FemViewport, FemViewportOptions, ViewportBackground } from "./types";
+export type {
+  FemViewport,
+  FemViewportOptions,
+  SceneUpdateOutcome,
+  ViewportBackground,
+} from "./types";
 
 /** Creates a fitted, interactive FEM viewport backed only by WebGPU. */
 export async function createFemViewport(options: FemViewportOptions): Promise<FemViewport> {
@@ -218,6 +226,37 @@ class FemViewportCore implements FemViewport {
     this.renderer.setDeformation(undefined);
     this.renderer.setResultColors(undefined);
     this.invalidate();
+  }
+
+  updateScene(scene: Scene): SceneUpdateOutcome {
+    this.ensureAlive();
+    const nextRuntime = createPackedSceneRuntime(scene);
+    preserveRuntimeVisibility(this.currentRuntime, nextRuntime);
+    const nextOriginTriadNominalScale = sceneOriginTriadScale(scene, nextRuntime);
+    const nextPublicRuntime = createPublicSceneRuntime(nextRuntime);
+    const nextInteraction = reconcileInteractionState(
+      this.baseInteraction,
+      nextRuntime,
+      scene.parts,
+    );
+    const resultUpdate = this.prepareSceneResults(scene, nextRuntime, nextInteraction);
+
+    this.cameraFocus.cancel();
+    this.currentScene = scene;
+    this.currentRuntime = nextRuntime;
+    this.originTriadNominalScale = nextOriginTriadNominalScale;
+    this.currentPublicRuntime = nextPublicRuntime;
+    this.pendingVisibility.clear();
+    this.baseInteraction = nextInteraction;
+    this.currentResults = resultUpdate.results;
+    this.effectiveInteraction = resultUpdate.interaction;
+    this.appliedInteraction = createInteractionState();
+    this.renderer.setDeformation(resultUpdate.results?.deformation);
+    this.renderer.setResultColors(
+      resultUpdate.results === undefined ? undefined : viewportResultColors(resultUpdate.results),
+    );
+    this.invalidate();
+    return resultUpdate.outcome;
   }
 
   setCamera(camera: Camera, transitionOptions?: CameraTransitionOptions): void {
@@ -500,9 +539,42 @@ class FemViewportCore implements FemViewport {
     this.effectiveInteraction = applied.interaction;
   }
 
+  private prepareSceneResults(
+    scene: Scene,
+    runtime: PackedSceneRuntime,
+    interaction: InteractionState,
+  ): {
+    readonly results: ViewportResultsState | undefined;
+    readonly interaction: InteractionState;
+    readonly outcome: SceneUpdateOutcome;
+  } {
+    const previous = this.currentResults;
+    if (previous === undefined) {
+      return { results: undefined, interaction, outcome: { results: "none" } };
+    }
+    try {
+      const results = resolveViewportResults(previous.config, scene, runtime, previous);
+      return {
+        results,
+        interaction: resolveViewportInteraction(interaction, results, scene, runtime),
+        outcome: { results: "preserved" },
+      };
+    } catch (error: unknown) {
+      return {
+        results: undefined,
+        interaction,
+        outcome: { results: "cleared", reason: errorMessage(error) },
+      };
+    }
+  }
+
   private ensureAlive(): void {
     if (this.destroyed) throw new Error("FemViewport has been destroyed");
   }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function assertPixelSize(name: string, value: number | undefined): void {

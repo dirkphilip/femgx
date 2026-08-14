@@ -174,6 +174,73 @@ function nodalResult(nodeCount: 3 | 6) {
   };
 }
 
+function identityScene(withSecondElement: boolean): Scene {
+  const geometry = withSecondElement
+    ? {
+        positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0, 1, 1, 0]),
+        indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+        primitive: "triangles" as const,
+        elements: [
+          { id: 10, primitiveStart: 0, primitiveCount: 1, bodyId: 1, blockId: 1 },
+          { id: 11, primitiveStart: 1, primitiveCount: 1, bodyId: 1, blockId: 2 },
+        ],
+        faces: [
+          {
+            elementId: 10,
+            faceIndex: 0,
+            primitiveStart: 0,
+            primitiveCount: 1,
+            key: "0/1/2",
+            nodeIds: [0, 1, 2],
+            neighborElementIds: [],
+            bodyId: 1,
+            blockId: 1,
+          },
+          {
+            elementId: 11,
+            faceIndex: 0,
+            primitiveStart: 1,
+            primitiveCount: 1,
+            key: "0/2/3",
+            nodeIds: [0, 2, 3],
+            neighborElementIds: [],
+            bodyId: 1,
+            blockId: 2,
+          },
+        ],
+        nodePickIds: new Uint32Array([1, 2, 3, 4]),
+        nodePositions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0, 1, 1, 0]),
+        bodies: [{ id: 1, elementIds: [10, 11] }],
+        blocks: [
+          { id: 1, elementIds: [10] },
+          { id: 2, elementIds: [11] },
+        ],
+      }
+    : {
+        positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
+        indices: new Uint32Array([0, 1, 2]),
+        primitive: "triangles" as const,
+        elements: [{ id: 10, primitiveStart: 0, primitiveCount: 1 }],
+        faces: [
+          {
+            elementId: 10,
+            faceIndex: 0,
+            primitiveStart: 0,
+            primitiveCount: 1,
+            key: "0/1/2",
+            nodeIds: [0, 1, 2],
+            neighborElementIds: [],
+          },
+        ],
+        nodePickIds: new Uint32Array([1, 2, 3]),
+        nodePositions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
+      };
+  return explicitScene(
+    [createPart(1, geometry)],
+    [{ kind: "part", placementId: "keep", partId: 1, transform: translation(0, 0, 0) }],
+  );
+}
+
 describe("FemViewport", () => {
   it("does not resynchronize unchanged interaction state during camera-only frames", async () => {
     restoreGpuGlobals = installGpuGlobals();
@@ -324,6 +391,106 @@ describe("FemViewport", () => {
     viewport.destroy();
   });
 
+  it("updates a scene transactionally while preserving surviving state", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const resetScene = vi.spyOn(RendererAttachment.prototype, "clear");
+    const initial = identityScene(true);
+    const replacement = identityScene(false);
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: initial,
+      device: fakeGpuDevice().device,
+    });
+    const camera = viewport.camera;
+    viewport.setInstanceVisible("1/keep", false);
+    viewport.setInteraction(
+      setTargetSelected(viewport.interaction, { kind: "instance", instanceId: "1/keep" }, true),
+    );
+
+    const outcome = viewport.updateScene(replacement);
+
+    expect(outcome).toEqual({ results: "none" });
+    expect(viewport.scene).toBe(replacement);
+    expect(viewport.camera).toBe(camera);
+    expect(viewport.runtime.getInstanceIds()).toEqual(["1/keep"]);
+    expect(viewport.runtime.isInstanceVisible("1/keep")).toBe(false);
+    expect(isTargetSelected(viewport.interaction, { kind: "instance", instanceId: "1/keep" })).toBe(
+      true,
+    );
+    expect(resetScene).not.toHaveBeenCalled();
+    viewport.destroy();
+  });
+
+  it("prunes nested interaction identities that the replacement geometry removed", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: identityScene(true),
+      device: fakeGpuDevice().device,
+    });
+    const instanceId = "1/keep" as const;
+    let interaction = viewport.interaction;
+    interaction = setTargetSelected(interaction, { kind: "body", instanceId, bodyId: 1 }, true);
+    interaction = setTargetSelected(interaction, { kind: "block", instanceId, blockId: 2 }, true);
+    interaction = setTargetSelected(
+      interaction,
+      { kind: "element", instanceId, elementId: 11 },
+      true,
+    );
+    interaction = setTargetSelected(interaction, { kind: "node", instanceId, nodeId: 3 }, true);
+    interaction = setTargetSelected(
+      interaction,
+      { kind: "face", instanceId, elementId: 11, faceIndex: 0 },
+      true,
+    );
+    viewport.setInteraction(interaction);
+
+    viewport.updateScene(identityScene(false));
+
+    expect(isTargetSelected(viewport.interaction, { kind: "body", instanceId, bodyId: 1 })).toBe(
+      false,
+    );
+    expect(isTargetSelected(viewport.interaction, { kind: "block", instanceId, blockId: 2 })).toBe(
+      false,
+    );
+    expect(
+      isTargetSelected(viewport.interaction, { kind: "element", instanceId, elementId: 11 }),
+    ).toBe(false);
+    expect(isTargetSelected(viewport.interaction, { kind: "node", instanceId, nodeId: 3 })).toBe(
+      false,
+    );
+    expect(
+      isTargetSelected(viewport.interaction, {
+        kind: "face",
+        instanceId,
+        elementId: 11,
+        faceIndex: 0,
+      }),
+    ).toBe(false);
+    viewport.destroy();
+  });
+
+  it("preserves compatible results and reports when scene coverage clears them", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: resultScene(3),
+      results: nodalResult(3),
+      device: fakeGpuDevice().device,
+    });
+
+    expect(viewport.updateScene(resultScene(3))).toEqual({ results: "preserved" });
+    expect(viewport.results).toBeDefined();
+    const cleared = viewport.updateScene(resultScene(6));
+    expect(cleared.results).toBe("cleared");
+    expect(cleared.reason).toMatch(/no value/);
+    expect(viewport.results).toBeUndefined();
+    viewport.destroy();
+  });
+
   it("rejects an orientation gizmo container that does not contain the canvas before setup", async () => {
     const canvas = fakeCanvas();
     const contains = vi.fn(() => false);
@@ -406,6 +573,9 @@ describe("FemViewport", () => {
       device: gpu.device,
     });
     const visibilitySetters: readonly ((current: FemViewport) => void)[] = [
+      (current) => {
+        current.updateScene(scene());
+      },
       (current) => {
         current.setPartVisible(1, false);
       },
