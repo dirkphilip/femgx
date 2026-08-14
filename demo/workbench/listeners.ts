@@ -21,6 +21,8 @@ export interface WorkbenchBindingOptions {
   readonly setResultField: (value: string) => void;
   readonly setDeformationField: (value: string) => void;
   readonly setDeformationScale: (value: string) => void;
+  readonly setSectionAxis: (value: string) => void;
+  readonly setSectionOffset: (value: string) => void;
   readonly setSelectionGranularity: (value: string) => void;
   readonly hideSelected: () => void;
   readonly showAll: () => void;
@@ -153,6 +155,7 @@ function installDisplayBindings(options: WorkbenchBindingOptions): void {
     },
     { signal },
   );
+  installSectionBindings(options);
   view.nodeOverlayToggle.addEventListener("click", options.setNodes, { signal });
   view.continuousToggle.addEventListener("click", options.setContinuous, { signal });
   view.selectionGranularity.addEventListener(
@@ -169,6 +172,24 @@ function installDisplayBindings(options: WorkbenchBindingOptions): void {
   if (options.toggleViewport !== undefined) {
     view.viewportToggle.addEventListener("click", options.toggleViewport, { signal });
   }
+}
+
+function installSectionBindings(options: WorkbenchBindingOptions): void {
+  const { view, signal } = options;
+  view.sectionAxis.addEventListener(
+    "change",
+    () => {
+      options.setSectionAxis(view.sectionAxis.value);
+    },
+    { signal },
+  );
+  view.sectionOffset.addEventListener(
+    "input",
+    () => {
+      options.setSectionOffset(view.sectionOffset.value);
+    },
+    { signal },
+  );
 }
 
 function installModelBindings(options: WorkbenchBindingOptions): void {

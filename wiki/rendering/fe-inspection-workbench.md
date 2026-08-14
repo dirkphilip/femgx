@@ -10,9 +10,9 @@ controller, so camera and interaction behavior is stable
 
 ## Model presets
 
-- `demo/fixture/presets.ts` builds seven deterministic selectable cases from fixed data:
+- `demo/fixture/presets.ts` builds eight deterministic selectable cases from fixed data:
   the **bolted plate assembly**, imported **VTK sample**, **element tessellation and mapping gallery**,
-  linearly tessellated **Hex20 cylinder**, **static results** workflow, and
+  linearly tessellated **Hex20 cylinder**, **section-plane volume**, **static results** workflow, and
   **order-independent transparency** demonstration, plus the **Performance · 2.10M
   triangles** inspection case. Every preset is derived from fixed data, so the demo
   and tests share identical structure.
@@ -61,6 +61,20 @@ controller, so camera and interaction behavior is stable
   hover/click races never apply an older hit.
 - Hit data is stable across visibility changes because ids come from the
   packed runtime and part geometry descriptors, not from draw-list order.
+
+## Section-plane inspection
+
+- `FemViewport.setSectionPlane({ normal, distance })` keeps the world-space
+  positive half-space `dot(normal, worldPosition) + distance >= 0`. The viewport
+  validates and normalizes one finite non-zero normal; `clearSectionPlane()`
+  restores the unclipped scene.
+- The same frame uniform is consumed by opaque, weighted-transparent, edge,
+  node-overlay, selection, and GPU-pick fragments. It uses deformed world
+  positions and is retained across scene attachment, resize, and supported
+  device recovery. The renderer-owned origin triad, orientation gizmo, and
+  orbit pivot remain presentation cues outside the clipping contract.
+- The demo's Off / Keep +X / Keep +Y / Keep +Z controls derive the offset range
+  from complete placed-scene bounds and apply the state to both viewport panes.
 
 ## Workbench controller
 

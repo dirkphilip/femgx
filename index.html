@@ -187,6 +187,37 @@
                   />
                 </label>
               </div>
+              <div
+                id="section-controls"
+                data-testid="section-controls"
+                class="section-controls"
+                role="group"
+                aria-label="Section plane"
+              >
+                <label for="section-axis">
+                  <span>Section</span>
+                  <select id="section-axis" data-testid="section-axis" aria-label="Section axis">
+                    <option value="off">Off</option>
+                    <option value="x">Keep +X</option>
+                    <option value="y">Keep +Y</option>
+                    <option value="z">Keep +Z</option>
+                  </select>
+                </label>
+                <label for="section-offset">
+                  <span>Offset</span>
+                  <input
+                    id="section-offset"
+                    data-testid="section-offset"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="any"
+                    value="0"
+                    aria-label="Section offset"
+                  />
+                  <output id="section-offset-value" data-testid="section-offset-value">0</output>
+                </label>
+              </div>
               <button
                 id="reset"
                 data-testid="reset"

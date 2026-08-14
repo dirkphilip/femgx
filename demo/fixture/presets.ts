@@ -149,6 +149,16 @@ export function createHex20CylinderPreset(): ModelPreset {
   };
 }
 
+/** Builds the deterministic multi-layer volume used by section-plane controls. */
+export function createSectionPlanePreset(): ModelPreset {
+  const cylinder = createHex20CylinderPreset();
+  return {
+    ...cylinder,
+    id: "section-volume",
+    name: "Section-plane volume",
+  };
+}
+
 /** Builds the bolted plate assembly showcase preset. */
 export function createBoltedPlatePreset(): ModelPreset {
   const fixture = createBoltedPlateFixture();
@@ -216,6 +226,7 @@ export function createModelPresets(
     createVtkPreset(),
     createGalleryPreset(),
     createHex20CylinderPreset(),
+    createSectionPlanePreset(),
     createResultsPreset(),
     createTransparencyPreset(
       options.transparencyOpacity === undefined ? {} : { opacity: options.transparencyOpacity },

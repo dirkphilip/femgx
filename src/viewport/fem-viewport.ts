@@ -38,6 +38,7 @@ import type {
   FemViewportOptions,
   ViewportBackground,
 } from "./types";
+import { normalizeSectionPlane, type SectionPlane } from "./section-plane";
 export type { FemViewport, FemViewportOptions, ViewportBackground } from "./types";
 
 /** Creates a fitted, interactive FEM viewport backed only by WebGPU. */
@@ -76,6 +77,7 @@ class FemViewportCore implements FemViewport {
   private baseInteraction: InteractionState;
   private effectiveInteraction: InteractionState;
   private currentResults: ViewportResultsState | undefined;
+  private currentSectionPlane: SectionPlane | undefined;
   private appliedInteraction = createInteractionState();
   private readonly removeControls: () => void;
   private readonly removeResize: () => void;
@@ -186,6 +188,9 @@ class FemViewportCore implements FemViewport {
   get results(): ViewportResultsState | undefined {
     return this.currentResults;
   }
+  get sectionPlane(): SectionPlane | undefined {
+    return this.currentSectionPlane;
+  }
 
   setScene(scene: Scene): void {
     this.ensureAlive();
@@ -262,6 +267,22 @@ class FemViewportCore implements FemViewport {
     this.effectiveInteraction = this.baseInteraction;
     this.renderer.setDeformation(undefined);
     this.renderer.setResultColors(undefined);
+    this.invalidate();
+  }
+
+  setSectionPlane(plane: SectionPlane): void {
+    this.ensureAlive();
+    const normalized = normalizeSectionPlane(plane);
+    this.currentSectionPlane = normalized;
+    this.renderer.setSectionPlane(normalized);
+    this.invalidate();
+  }
+
+  clearSectionPlane(): void {
+    this.ensureAlive();
+    if (this.currentSectionPlane === undefined) return;
+    this.currentSectionPlane = undefined;
+    this.renderer.setSectionPlane(undefined);
     this.invalidate();
   }
 

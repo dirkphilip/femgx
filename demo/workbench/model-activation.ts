@@ -17,6 +17,8 @@ export interface WorkbenchModelState {
   toggles: DisplayToggles;
   resultMode: ResultDisplayMode;
   deformationScale: number;
+  sectionAxis: "off" | "x" | "y" | "z";
+  sectionOffset: number;
   interaction: InteractionState;
   treeHoverTargets: readonly InteractionTarget[];
 }
@@ -49,6 +51,8 @@ export function activateModelForOwner(
       owner.toggles = next.toggles;
       owner.resultMode = next.resultMode;
       owner.deformationScale = next.deformationScale;
+      owner.sectionAxis = next.sectionAxis;
+      owner.sectionOffset = next.sectionOffset;
       owner.interaction = next.interaction;
       owner.treeHoverTargets = next.treeHoverTargets;
     },
@@ -139,6 +143,8 @@ export function activateWorkbenchModel(options: ActivateWorkbenchModelOptions): 
   state.toggles = { edges: true, nodes: true, diagnostics: false };
   state.resultMode = resultModeForModel(model);
   state.deformationScale = model.results?.deformation?.scale ?? 1;
+  state.sectionAxis = "off";
+  state.sectionOffset = 0;
   state.interaction = createModelInteraction(model, true, true);
   setModelScene(options.slots, model);
   options.applyResultMode();
@@ -161,6 +167,7 @@ function setModelScene(slots: readonly WorkbenchViewportSlot[], model: Workbench
   for (const slot of slots) {
     slot.interaction.clearContext();
     slot.viewport.batch(() => {
+      slot.viewport.clearSectionPlane();
       slot.viewport.setScene(model.scene);
     });
   }

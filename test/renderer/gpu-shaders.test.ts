@@ -237,11 +237,13 @@ describe("GPU record struct layout vs CPU record encoders", () => {
       "cornerB",
       "cornerC",
       "nodePickIds",
+      "worldPosition",
     ]);
     expect(nodePickVertexShader).toMatch(/@location\(5\) localPosition: vec3<f32>/);
     expect(nodePickVertexShader).toMatch(
       /@location\(9\) @interpolate\(flat\) nodePickIds: vec3<u32>/,
     );
+    expect(nodePickVertexShader).toMatch(/@location\(10\) worldPosition: vec3<f32>/);
     expect(nodePickVertexShader).toMatch(/geometryPositions: array<f32>/);
     expect(nodePickVertexShader).toMatch(/geometryPosition\(base3\)/);
     expect(nodePickVertexShader).toMatch(/vertexNodePickIds\[base\]/);
@@ -249,6 +251,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
       /nearestNode\(localPosition, cornerA, cornerB, cornerC, nodePickIds\)/,
     );
     expect(nodePickFragmentShader).toMatch(/edgeScale \* 0\.04/);
+    expect(nodePickFragmentShader).toMatch(/sectionPlaneVisible\(worldPosition\)/);
     expect(nodePickFragmentShader).toMatch(/bestDist > threshold/);
     expect(lineNodePickVertexShader).toMatch(/let base = \(vertexIndex - \(vertexIndex % 4u\)\)/);
     expect(lineNodePickVertexShader).toMatch(/primitiveDrawId\(vertexIndex\)/);
@@ -267,6 +270,25 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(colorFragmentShader).toMatch(/@location\(2\) @interpolate\(flat\) emissive: f32/);
     expect(colorFragmentShader).toMatch(/displayedColor\.rgb \+ vec3<f32>\(emissive\)/);
     expect(colorFragmentShader).toContain("displayedColor.a < 1.0");
+  });
+
+  it("clips every scene fragment from the same deformed world position", () => {
+    for (const shader of [
+      colorFragmentShader,
+      triangleColorFragmentShader,
+      edgeFragmentShader,
+      transparencyFragmentShader,
+      triangleTransparencyFragmentShader,
+      selectionFragmentShader,
+      triangleSelectionFragmentShader,
+      selectionTransparencyFragmentShader,
+      triangleSelectionTransparencyFragmentShader,
+      nodeOverlayFragmentShader,
+    ]) {
+      expect(shader).toContain("sectionPlaneVisible(worldPosition)");
+    }
+    expect(edgeVertexShader).toContain("output.worldPosition");
+    expect(pointVertexShader).toContain("output.worldPosition = worldPosition");
   });
 
   it("keeps style alpha flat before exact opaque and transparent classification", () => {

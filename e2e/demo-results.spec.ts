@@ -58,6 +58,36 @@ test("cycles the canonical static results preset through base, colored, and defo
   await expect(scale).toHaveValue("2");
 });
 
+test("applies one shared section plane over complete placed-volume bounds", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("model-select").selectOption("section-volume");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toHaveAttribute("data-model", "section-volume");
+  await expect(page.getByTestId("section-axis")).toHaveValue("off");
+
+  const baseline = await pixelMetrics(canvas);
+  await page.getByTestId("section-axis").selectOption("x");
+  await expect(canvas).toHaveAttribute("data-section-axis", "x");
+  await expect(page.getByTestId("section-offset")).toBeEnabled();
+  await expect(page.getByTestId("section-offset")).toHaveAttribute("max", /.+/);
+  await page.getByTestId("section-offset").evaluate((element) => {
+    if (!(element instanceof HTMLInputElement)) throw new Error("section slider missing");
+    element.value = element.max;
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect(canvas).toHaveAttribute(
+    "data-section-offset",
+    await page.getByTestId("section-offset").inputValue(),
+  );
+  const clipped = await pixelMetrics(canvas);
+  expect(clipped.hash, "moving the section plane must change rendered pixels").not.toBe(
+    baseline.hash,
+  );
+
+  await page.getByTestId("viewport-toggle").click();
+  await expect(page.getByTestId("secondary-view-canvas")).toHaveAttribute("data-section-axis", "x");
+});
+
 test("shows distinct scalar contours and deformation in every results state", async ({ page }) => {
   await page.goto("/");
   await waitForRenderer(page);

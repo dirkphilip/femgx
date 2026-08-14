@@ -79,6 +79,15 @@ opaque and depth-tested; the portion behind opaque model depth is a fixed-alpha
 ghost accumulated through the normal weighted-transparency targets. This is a
 presentation cue only: it contributes to neither scene bounds nor picking and
 does not replace the lower-left orientation gizmo.
+The viewport also supports one optional world-space section plane through
+`FemViewport.setSectionPlane({ normal, distance })`. Scene fragments keep the
+positive half-space `dot(normal, worldPosition) + distance >= 0`; the validated
+unit normal and signed distance are applied consistently to opaque, transparent,
+edge, node-overlay, selection, and GPU-pick passes. The plane is presentation
+state only: it does not change scene bounds, fit, identities, visibility, or
+selection, and it never clips the origin triad, orientation gizmo, or orbit
+pivot. `clearSectionPlane()` restores the complete scene, and recovery rewrites
+the retained plane uniform on the rebuilt WebGPU resources.
 Left-drag is reserved for selection, including its
 shift-based inspection modifiers. The renderer owns the opaque viewport
 background: `FemViewportOptions.background` and `FemViewport.setBackground()`

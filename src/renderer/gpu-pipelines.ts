@@ -6,6 +6,7 @@ import {
   type BackgroundResources,
 } from "./gpu-background";
 import { DEFORMATION_UNIFORM_SIZE } from "./gpu-deform";
+import { SECTION_PLANE_UNIFORM_SIZE } from "./gpu-section-plane";
 import { createNodeOverlayPipelines } from "./gpu-node-overlay";
 import type { NodeOverlayPipelines } from "./gpu-node-overlay";
 import {
@@ -49,6 +50,7 @@ interface ReadyColorTargets {
 export interface RenderResources {
   readonly cameraBuffer: GPUBuffer;
   readonly deformationBuffer: GPUBuffer;
+  readonly sectionPlaneBuffer: GPUBuffer;
   readonly frameBindGroup: GPUBindGroup;
   readonly pipelines: DrawPipelines;
   readonly composite: CompositeResources;
@@ -95,6 +97,7 @@ export async function createRenderResources(
         buffer: { type: "uniform" },
       },
       { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } },
+      { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } },
     ],
   });
   const layout = device.createPipelineLayout({
@@ -135,6 +138,7 @@ export async function createRenderResources(
   let background: BackgroundResources | undefined;
   let cameraBuffer: GPUBuffer | undefined;
   let deformationBuffer: GPUBuffer | undefined;
+  let sectionPlaneBuffer: GPUBuffer | undefined;
   let orbitPivot: OrbitPivotResources | undefined;
   let originTriad: OriginTriadResources | undefined;
   try {
@@ -153,6 +157,10 @@ export async function createRenderResources(
       size: DEFORMATION_UNIFORM_SIZE,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
+    sectionPlaneBuffer = device.createBuffer({
+      size: SECTION_PLANE_UNIFORM_SIZE,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
     orbitPivot = createOrbitPivotResources({
       device,
       pipeline: orbitPivotPipeline,
@@ -164,6 +172,7 @@ export async function createRenderResources(
       entries: [
         { binding: 0, resource: { buffer: cameraBuffer } },
         { binding: 1, resource: { buffer: deformationBuffer } },
+        { binding: 2, resource: { buffer: sectionPlaneBuffer } },
       ],
     });
     if (originTriadPipeline !== undefined) {
@@ -176,6 +185,7 @@ export async function createRenderResources(
     return {
       cameraBuffer,
       deformationBuffer,
+      sectionPlaneBuffer,
       frameBindGroup,
       instanceLayout,
       pipelines: pipelineResources.pipelines,
@@ -193,6 +203,7 @@ export async function createRenderResources(
     originTriad?.buffer.destroy();
     cameraBuffer?.destroy();
     deformationBuffer?.destroy();
+    sectionPlaneBuffer?.destroy();
     throw error;
   }
 }
@@ -200,6 +211,7 @@ export async function createRenderResources(
 export function destroyRenderResources(resources: RenderResources): void {
   resources.cameraBuffer.destroy();
   resources.deformationBuffer.destroy();
+  resources.sectionPlaneBuffer.destroy();
   resources.orbitPivot.buffer.destroy();
   resources.originTriad?.buffer.destroy();
   destroyBackgroundResources(resources.background);

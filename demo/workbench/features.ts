@@ -11,6 +11,7 @@ import { WorkbenchVisibilityActions } from "./visibility-actions";
 import type { VisibilityRowTarget } from "./tree-hover";
 import { setModelFeedback } from "./model";
 import type { SelectionGranularity } from "./pick";
+import type { SectionAxis } from "./section-controls";
 
 export interface WorkbenchFeatureOptions {
   readonly view: DemoView;
@@ -26,6 +27,8 @@ export interface WorkbenchFeatureOptions {
   readonly deformationScale: () => number;
   readonly continuous: () => boolean;
   readonly selectionGranularity: () => SelectionGranularity;
+  readonly sectionAxis: () => SectionAxis;
+  readonly sectionOffset: () => number;
   readonly interaction: () => InteractionState;
   readonly setInteraction: (interaction: InteractionState) => void;
   readonly applyDisplayedInteraction: () => void;
@@ -77,6 +80,8 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     getViewport: options.viewport,
     getContinuous: options.continuous,
     getSelectionGranularity: options.selectionGranularity,
+    getSectionAxis: options.sectionAxis,
+    getSectionOffset: options.sectionOffset,
     getInteraction: options.interaction,
     getRuntime: options.runtime,
   });
