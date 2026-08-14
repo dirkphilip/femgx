@@ -89,7 +89,7 @@ fn segmentVertex(
   }
   let direction = delta / lengthDelta;
   let normal = vec2<f32>(-direction.y, direction.x);
-  let halfWidth = max(width, 0.75) * 0.5;
+  let halfWidth = max(width, 0.75 * camera.devicePixelRatio) * 0.5;
   let isB = corner == 1u || corner == 2u;
   let positive = corner >= 2u;
   let center = select(screenPoint(clipA), screenPoint(clipB), isB);
@@ -115,8 +115,8 @@ fn arrowHeadVertex(
   }
   let direction = delta / lengthDelta;
   let normal = vec2<f32>(-direction.y, direction.x);
-  let base = tip - direction * max(width * 3.5, 6.0);
-  let baseWidth = max(width * 2.5, 3.0);
+  let base = tip - direction * max(width * 3.5, 6.0 * camera.devicePixelRatio);
+  let baseWidth = max(width * 2.5, 3.0 * camera.devicePixelRatio);
   if (corner == 0u) { return clipPoint(clipEnd, tip); }
   if (corner == 1u) { return clipPoint(clipEnd, base + normal * baseWidth); }
   return clipPoint(clipEnd, base - normal * baseWidth);
