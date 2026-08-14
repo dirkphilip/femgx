@@ -26,6 +26,7 @@ import {
   validateOrientationGizmo,
 } from "./dom";
 import { CameraFocusController } from "./camera-focus";
+import { normalizeSectionPlane, type SectionPlane } from "../math/section-plane";
 import { flushViewportBatch } from "./batch";
 import { assertOriginTriad, sceneOriginTriadScale } from "./origin-triad";
 import type { DeformationState } from "../results/deform";
@@ -45,7 +46,6 @@ import type {
   SceneUpdateOutcome,
   ViewportBackground,
 } from "./types";
-import { normalizeSectionPlane, type SectionPlane } from "./section-plane";
 import { preserveRuntimeVisibility, reconcileInteractionState } from "./scene-reconciliation";
 export type {
   FemViewport,

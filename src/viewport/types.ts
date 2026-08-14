@@ -12,7 +12,7 @@ import type { SceneRuntime } from "../scene-runtime/public-runtime";
 import type { OrientationGizmoOptions } from "./orientation-gizmo";
 import type { ViewportResultsConfig, ViewportResultsState } from "./results";
 import type { CameraContentInset } from "../camera/fit";
-import type { SectionPlane } from "./section-plane";
+import type { SectionPlane } from "../math/section-plane";
 
 /**
  * Options for an interruptible viewport camera transition.
@@ -24,7 +24,7 @@ export interface CameraTransitionOptions {
 }
 
 export type { ViewportBackground } from "../renderer/gpu-renderer";
-export type { SectionPlane } from "./section-plane";
+export type { SectionPlane } from "../math/section-plane";
 
 /**
  * Outcome of reapplying the active authored results to an updated scene.

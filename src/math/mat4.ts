@@ -95,22 +95,6 @@ export function transformDirection(matrix: Mat4, direction: Vec3): Vec3 {
   ];
 }
 
-/** Compares the sixteen matrix components exactly. */
-export function matricesEqual(a: ArrayLike<number>, b: ArrayLike<number>): boolean {
-  if (a.length < 16 || b.length < 16) {
-    throw new Error("Matrices must contain sixteen components");
-  }
-  for (let index = 0; index < 16; index += 1) {
-    const first = a[index];
-    const second = b[index];
-    if (first === undefined || second === undefined) {
-      throw new Error(`Matrix component ${index} is missing`);
-    }
-    if (first !== second) return false;
-  }
-  return true;
-}
-
 /**
  * Multiplies two matrices and returns a new matrix (a * b).
  * @category Camera and math

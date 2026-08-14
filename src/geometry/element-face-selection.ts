@@ -35,11 +35,6 @@ export function allFacesForElements(elements: readonly Element[]): readonly Elem
   );
 }
 
-/** Rejects ambiguous face incidence before any render subset is constructed. */
-export function validateManifoldFaces(elements: readonly Element[]): void {
-  validateManifoldFaceNeighbors(faceNeighbors(elements));
-}
-
 /** Rejects ambiguous incidence in an already-built face-neighbor index. */
 export function validateManifoldFaceNeighbors(
   neighbors: ReadonlyMap<FaceKey, readonly ElementId[]>,
