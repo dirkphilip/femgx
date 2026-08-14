@@ -10,6 +10,7 @@ import {
 } from "./viewport-presentation";
 import type { DisplayToggles, ResultDisplayMode } from "./types";
 import type { SelectionGranularity } from "./pick";
+import type { BoxSelectionStrategy } from "./box-selection-resolver";
 import type { SectionAxis } from "./section-controls";
 import { applySectionPlane } from "./section-plane-actions";
 
@@ -25,6 +26,7 @@ export interface WorkbenchViewportOwner {
   readonly toggles: DisplayToggles;
   readonly continuousEnabled: boolean;
   readonly selectionGranularity: SelectionGranularity;
+  readonly boxSelectionStrategy: BoxSelectionStrategy;
   readonly resultMode: ResultDisplayMode;
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
@@ -71,6 +73,7 @@ export function syncControllerViewportPresentation(owner: WorkbenchViewportOwner
     toggles: owner.toggles,
     continuous: owner.continuousEnabled,
     selectionGranularity: owner.selectionGranularity,
+    boxSelectionStrategy: owner.boxSelectionStrategy,
     resultMode: owner.resultMode,
     sectionAxis: owner.sectionAxis,
     sectionOffset: owner.sectionOffset,
