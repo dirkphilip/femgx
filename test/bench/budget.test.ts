@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createStructuredFeModel } from "../../demo/benchmark/structured-fe";
 import { createElement, type Element } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
+import { editElementModel } from "../../src/elements/model-edit";
 import {
   HEX8_SHAPE,
   LINE_SHAPE,
@@ -173,6 +174,50 @@ function makeHeterogeneousModel(repetitions: number) {
   return createElementModel(nodes, elements);
 }
 
+const EDIT_BLOCK_COUNT = 128;
+
+function makeEditableModel() {
+  const nodes: number[] = [];
+  const elements: Element[] = [];
+  const blocks: { readonly id: number; readonly elementIds: readonly number[] }[] = [];
+  for (let blockId = 1; blockId <= EDIT_BLOCK_COUNT; blockId += 1) {
+    const nodeStart = (blockId - 1) * 3;
+    nodes.push(nodeStart, 0, 0, nodeStart + 1, 0, 0, nodeStart, 1, 0);
+    elements.push(
+      createElement(blockId, TRIANGLE_SHAPE, [nodeStart, nodeStart + 1, nodeStart + 2]),
+    );
+    blocks.push({ id: blockId, elementIds: [blockId] });
+  }
+  return createElementModel(nodes, elements, {
+    blocks,
+    bodies: [{ id: 1, blockIds: blocks.map(({ id }) => id) }],
+  });
+}
+
+const editableModel = makeEditableModel();
+const editReplacement = {
+  elements: [
+    editableModel.elements[0] as Element,
+    createElement(EDIT_BLOCK_COUNT + 1, TRIANGLE_SHAPE, [
+      EDIT_BLOCK_COUNT * 3,
+      EDIT_BLOCK_COUNT * 3 + 1,
+      EDIT_BLOCK_COUNT * 3 + 2,
+    ]),
+  ],
+  nodes: [0, 2, 0, 1, 2, 0, 0, 3, 0],
+};
+const editReplacementForBlockFour = {
+  elements: [
+    editableModel.elements[3] as Element,
+    createElement(EDIT_BLOCK_COUNT + 2, TRIANGLE_SHAPE, [
+      EDIT_BLOCK_COUNT * 3,
+      EDIT_BLOCK_COUNT * 3 + 1,
+      EDIT_BLOCK_COUNT * 3 + 2,
+    ]),
+  ],
+  nodes: editReplacement.nodes,
+};
+
 interface BudgetCase {
   readonly name: string;
   readonly description: string;
@@ -203,6 +248,51 @@ const budgets: readonly BudgetCase[] = [
     budgetMs: 700,
     run: () => {
       createPackedSceneRuntime(deepScene);
+    },
+  },
+  {
+    name: "editElementModel merge",
+    description: `merge 64 blocks in a ${EDIT_BLOCK_COUNT}-block model`,
+    budgetMs: 700,
+    run: () => {
+      editElementModel(editableModel, (edit) => {
+        edit.mergeBlocks({
+          sourceIds: Array.from({ length: 64 }, (_, index) => index + 2),
+          targetId: 1,
+        });
+      });
+    },
+  },
+  {
+    name: "editElementModel remove",
+    description: `remove one block from a ${EDIT_BLOCK_COUNT}-block model`,
+    budgetMs: 500,
+    run: () => {
+      editElementModel(editableModel, (edit) => {
+        edit.removeBlock(1);
+      });
+    },
+  },
+  {
+    name: "editElementModel replace",
+    description: "retain one element and append one element plus three nodes",
+    budgetMs: 500,
+    run: () => {
+      editElementModel(editableModel, (edit) => {
+        edit.replaceBlock(1, editReplacement);
+      });
+    },
+  },
+  {
+    name: "editElementModel transaction",
+    description: "merge, remove, and replace in one private draft",
+    budgetMs: 700,
+    run: () => {
+      editElementModel(editableModel, (edit) => {
+        edit.mergeBlocks({ sourceIds: [2], targetId: 1 });
+        edit.removeBlock(3);
+        edit.replaceBlock(4, editReplacementForBlockFour);
+      });
     },
   },
   {

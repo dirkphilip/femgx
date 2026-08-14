@@ -4,6 +4,7 @@ import * as publicApi from "../../src/index";
 describe("public root API", () => {
   it("keeps an exact runtime export inventory", () => {
     expect(Object.keys(publicApi).sort()).toEqual([
+      "ElementModelEditError",
       "ElementModelValidationError",
       "FEMGX_FORMAT_VERSION",
       "FIELD_COMPONENT_COUNT",
@@ -51,6 +52,7 @@ describe("public root API", () => {
       "deformGeometry",
       "deformPositions",
       "edgesOf",
+      "editElementModel",
       "emphasizedBodyRefs",
       "emphasizedElementRefs",
       "emphasizedFaceRefs",
@@ -146,6 +148,8 @@ describe("public root API", () => {
     expect(publicApi.HeterogeneousElementError).toBeTypeOf("function");
     expect(publicApi.createElementModelFromFemModel).toBeTypeOf("function");
     expect(publicApi.importGlb).toBeTypeOf("function");
+    expect(publicApi.editElementModel).toBeTypeOf("function");
+    expect(publicApi.ElementModelEditError).toBeTypeOf("function");
   });
 
   it("exposes validated part-body metadata helpers", () => {

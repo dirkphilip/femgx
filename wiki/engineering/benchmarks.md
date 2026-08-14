@@ -16,22 +16,26 @@ several multiples, so budgets are only meaningful on clean timing runs.
 
 ### Covered workloads
 
-| Case                        | Model                            | Workload                                           |
-| --------------------------- | -------------------------------- | -------------------------------------------------- |
-| `createSceneRuntime`        | shallow 200 000 instances        | packed compile                                     |
-| `createSceneRuntime` (deep) | balanced tree, 204 800 instances | nested transform composition                       |
-| `setPartVisible` toggle     | part with 1 000 instances        | hide then show                                     |
-| `setAssemblyVisible` toggle | subcase with 2 000 instances     | hide then show                                     |
-| `setInstanceVisible` toggle | single instance                  | override, hide then show                           |
-| `getDrawList`               | 200 000 visible                  | rebuild draw list                                  |
-| `sceneWorldBounds`          | 32 768 triangles × 64 placements | reusable-part bounds and world transforms          |
-| `resolvePick`               | 50 000 lookups on 200 000        | O(1) index resolution                              |
-| `heterogeneousElementParts` | 600 mixed linear elements        | grouped triangle/line/point tessellation           |
-| `expand line geometry`      | 10,000 authored line segments    | one reusable four-corner triangle quad per segment |
-| `createPart`                | 16 384 quads / 256 bodies        | element/body/face validation                       |
-| `heterogeneousElementParts` | 16 384 FE quads / 256 bodies     | body-aware canonical tessellation                  |
-| primitive topology ids      | 16 384 quads / 256 bodies        | face/body/element GPU-id preparation               |
-| body-aware mesh edges       | 16 384 quads / 256 bodies        | edge topology and ownership preparation            |
+| Case                           | Model                            | Workload                                           |
+| ------------------------------ | -------------------------------- | -------------------------------------------------- |
+| `createSceneRuntime`           | shallow 200 000 instances        | packed compile                                     |
+| `createSceneRuntime` (deep)    | balanced tree, 204 800 instances | nested transform composition                       |
+| `editElementModel` merge       | 128 semantic blocks              | metadata-only merge of 64 blocks                   |
+| `editElementModel` remove      | 128 semantic blocks              | remove one block and its elements                  |
+| `editElementModel` replace     | 128 semantic blocks              | retain/append topology and three nodes             |
+| `editElementModel` transaction | 128 semantic blocks              | merge, remove, and replace in one private draft    |
+| `setPartVisible` toggle        | part with 1 000 instances        | hide then show                                     |
+| `setAssemblyVisible` toggle    | subcase with 2 000 instances     | hide then show                                     |
+| `setInstanceVisible` toggle    | single instance                  | override, hide then show                           |
+| `getDrawList`                  | 200 000 visible                  | rebuild draw list                                  |
+| `sceneWorldBounds`             | 32 768 triangles × 64 placements | reusable-part bounds and world transforms          |
+| `resolvePick`                  | 50 000 lookups on 200 000        | O(1) index resolution                              |
+| `heterogeneousElementParts`    | 600 mixed linear elements        | grouped triangle/line/point tessellation           |
+| `expand line geometry`         | 10,000 authored line segments    | one reusable four-corner triangle quad per segment |
+| `createPart`                   | 16 384 quads / 256 bodies        | element/body/face validation                       |
+| `heterogeneousElementParts`    | 16 384 FE quads / 256 bodies     | body-aware canonical tessellation                  |
+| primitive topology ids         | 16 384 quads / 256 bodies        | face/body/element GPU-id preparation               |
+| body-aware mesh edges          | 16 384 quads / 256 bodies        | edge topology and ownership preparation            |
 
 ### Stable model sizes and warmup rules
 
@@ -47,6 +51,12 @@ several multiples, so budgets are only meaningful on clean timing runs.
   body membership metadata. It guards the cold renderer-preparation path that
   previously performed repeated element/face scans and became quadratic as the
   element count grew.
+- The edit-model fixture uses 128 one-element semantic blocks in one
+  block-defined body. Its four cases cover the issue's required metadata-only
+  merge, small-block removal, retained-plus-appended replacement, and one
+  multi-operation transaction. Each case starts from the same immutable source
+  model, so timing includes draft construction and final validation without
+  measuring a mutated no-op.
 
 ### Interpreting budgets
 
