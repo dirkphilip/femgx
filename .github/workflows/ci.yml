@@ -10,8 +10,9 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Keep these job ids stable: they are the required branch-protection contexts.
-  check:
+  # These two jobs are parallel work shards. The final `check` job below is
+  # the stable branch-protection context.
+  check-static:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -37,6 +38,20 @@ jobs:
       - name: Lint
         run: npm run lint
 
+  check-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Unit tests with coverage
         run: npm run test:coverage
 
@@ -54,6 +69,23 @@ jobs:
           # Coverage is useful for PR review while it is current; keep the
           # longer-lived copy on main for historical investigation.
           retention-days: ${{ github.event_name == 'pull_request' && 7 || 14 }}
+
+  # Keep this job id stable: it is the required branch-protection context.
+  check:
+    if: ${{ always() }}
+    needs: [check-static, check-runtime]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail when a check shard did not succeed
+        if: ${{ needs.check-static.result != 'success' || needs.check-runtime.result != 'success' }}
+        run: |
+          echo "check-static: ${{ needs.check-static.result }}"
+          echo "check-runtime: ${{ needs.check-runtime.result }}"
+          exit 1
+
+      - name: Confirm check shards passed
+        run: echo "check-static and check-runtime passed"
 
   e2e:
     runs-on: ubuntu-latest
