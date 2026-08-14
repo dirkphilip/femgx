@@ -1,9 +1,9 @@
 name: Exploratory software WebGPU
 
 # Hosted runners are not authoritative hardware-WebGPU environments. This
-# manual lane answers a narrower question: can a bounded render-and-pick smoke
-# path execute through Chrome's explicit SwiftShader adapter, and how long does
-# it take? The required hardware evidence remains the local system-Chrome lane.
+# manual lane answers a narrower question: can bounded render-and-pick journeys
+# execute through Chrome's explicit SwiftShader adapter, and how long do they
+# take? The required hardware evidence remains the local system-Chrome lane.
 on:
   workflow_dispatch:
 
@@ -49,6 +49,14 @@ jobs:
   software-rendering:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: "1/2"
+            name: shard-1
+          - shard: "2/2"
+            name: shard-2
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -64,13 +72,13 @@ jobs:
         run: google-chrome --version
 
       - name: Run software-WebGPU rendering suite
-        run: time npx playwright test --project=chrome-software-rendering --reporter=list,html
+        run: time npx playwright test --project=chrome-software-rendering --shard=${{ matrix.shard }} --reporter=list,html
 
       - name: Upload Playwright results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ always() }}
         with:
-          name: exploratory-software-rendering-results
+          name: exploratory-software-rendering-${{ matrix.name }}
           path: |
             playwright-report
             test-results

@@ -27,12 +27,12 @@ WebGPU-only ([[requirements/product-scope|product scope]]).
    browser. Full pick/pixel e2e is not asserted in merge CI until a GPU runner
    exists; SwiftShader is not used as a faithful stand-in.
 5. **Manual software-WebGPU exploration** — the opt-in
-   `e2e-exploratory.yml` workflow runs the bounded smoke plus two parallel,
-   one-worker suites through explicit SwiftShader projects. The interaction
-   suite covers mobile, GLB/VTK, and runtime-error journeys; the rendering suite
-   covers results, visibility, and rendered-pixel contracts. No retries are used,
-   so runtime and flake signals stay visible. It is exploratory evidence, not a
-   merge gate or a substitute for the supported hardware lane.
+   `e2e-exploratory.yml` workflow runs the bounded smoke plus parallel,
+   one-worker SwiftShader suites. The interaction suite covers mobile, GLB/VTK,
+   and runtime-error journeys; the rendering suite is split into two isolated
+   shards covering results, visibility, and rendered-pixel contracts. No retries
+   are used, so runtime and flake signals stay visible. It is exploratory
+   evidence, not a merge gate or a substitute for the supported hardware lane.
 
 ## Why the Chrome lane must assert, not skip
 
