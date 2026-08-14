@@ -25,7 +25,7 @@ export interface WorkbenchBindingOptions {
   readonly reset: () => void;
   readonly fitView: () => void;
   readonly setModel: (id: string) => void;
-  readonly openGlb: (file: File) => void;
+  readonly openModel: (file: File) => void;
   readonly setActive?: () => void;
   readonly toggleViewport?: () => void;
 }
@@ -158,18 +158,18 @@ function installModelBindings(options: WorkbenchBindingOptions): void {
     },
     { signal },
   );
-  view.openGlbButton.addEventListener(
+  view.openModelButton.addEventListener(
     "click",
     () => {
-      view.glbFileInput.click();
+      view.modelFileInput.click();
     },
     { signal },
   );
-  view.glbFileInput.addEventListener(
+  view.modelFileInput.addEventListener(
     "change",
     () => {
-      const file = view.glbFileInput.files?.[0];
-      if (file !== undefined) options.openGlb(file);
+      const file = view.modelFileInput.files?.[0];
+      if (file !== undefined) options.openModel(file);
     },
     { signal },
   );

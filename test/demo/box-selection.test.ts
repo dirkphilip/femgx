@@ -222,8 +222,8 @@ describe("workbench hover suppression", () => {
       hideSelectedButton: new FakeElement(),
       showAllButton: new FakeElement(),
       modelSelect: new FakeElement(),
-      openGlbButton: new FakeElement(),
-      glbFileInput: new FakeElement(),
+      openModelButton: new FakeElement(),
+      modelFileInput: new FakeElement(),
       modelSource: new FakeElement(),
     } as unknown as DemoView;
     let dragging = false;
@@ -247,7 +247,7 @@ describe("workbench hover suppression", () => {
       reset: () => undefined,
       fitView: () => undefined,
       setModel: () => undefined,
-      openGlb: () => undefined,
+      openModel: () => undefined,
     });
 
     backgroundSelect.value = "dark";

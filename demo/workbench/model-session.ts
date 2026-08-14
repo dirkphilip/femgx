@@ -9,6 +9,7 @@ import {
   setModelLoading,
   type WorkbenchModel,
 } from "./model";
+import { importModelFile } from "./model-import";
 import type { DemoView } from "./view";
 
 interface WorkbenchModelSessionOptions {
@@ -20,7 +21,7 @@ interface WorkbenchModelSessionOptions {
   readonly activate: (model: WorkbenchModel) => void;
 }
 
-/** Owns asynchronous preset and GLB loading, including stale-load handling. */
+/** Owns asynchronous preset and local model loading, including stale-load handling. */
 export class WorkbenchModelSession {
   private readonly options: WorkbenchModelSessionOptions;
   private generation = 0;
@@ -43,16 +44,17 @@ export class WorkbenchModelSession {
     }
   }
 
-  async openGlb(file: File): Promise<void> {
+  async openModel(file: File): Promise<void> {
     const generation = ++this.generation;
+    const previous = this.options.getModel();
     const name = displayFileName(file.name);
     setModelLoading(this.options.view, true);
     setModelFeedback(this.options.view, `Opening ${name}…`);
     try {
-      const imported = await this.options.importer(await file.arrayBuffer());
+      const imported = await importModelFile(file, this.options.importer);
       if (!this.isCurrent(generation)) return;
       const model = createImportedModel(name, imported);
-      this.options.activate(model);
+      this.activateImportedModel(model, previous);
       setModelFeedback(this.options.view, importFeedback(model.name, imported));
     } catch (error) {
       if (!this.isCurrent(generation)) return;
@@ -63,9 +65,24 @@ export class WorkbenchModelSession {
       );
     } finally {
       if (generation === this.generation) {
-        this.options.view.glbFileInput.value = "";
+        this.options.view.modelFileInput.value = "";
         setModelLoading(this.options.view, false);
       }
+    }
+  }
+
+  private activateImportedModel(model: WorkbenchModel, previous: WorkbenchModel): void {
+    try {
+      this.options.activate(model);
+    } catch (error) {
+      if (this.options.getModel() !== previous) {
+        try {
+          this.options.activate(previous);
+        } catch {
+          // Preserve the original import failure; the renderer reports any recovery failure.
+        }
+      }
+      throw error;
     }
   }
 

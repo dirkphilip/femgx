@@ -60,7 +60,7 @@ export interface WorkbenchControllerWiringContext {
   readonly setSelectionGranularity: (value: string) => void;
   readonly cycleResultMode: () => void;
   readonly setModel: (id: string) => void;
-  readonly openGlb: (file: File) => void;
+  readonly openModel: (file: File) => void;
 }
 
 /** Builds the feature graph around one controller state owner. */
@@ -174,8 +174,8 @@ export function installControllerLifecycle(context: WorkbenchControllerWiringCon
     setModel: (id) => {
       context.setModel(id);
     },
-    openGlb: (file) => {
-      context.openGlb(file);
+    openModel: (file) => {
+      context.openModel(file);
     },
   });
 }

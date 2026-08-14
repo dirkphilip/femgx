@@ -192,6 +192,7 @@ class FemViewportCore implements FemViewport {
     const nextRuntime = createPackedSceneRuntime(scene);
     const nextOriginTriadNominalScale = sceneOriginTriadScale(scene, nextRuntime);
     const nextPublicRuntime = createPublicSceneRuntime(nextRuntime);
+    this.renderer.resetScene();
     this.cameraFocus.cancel();
     this.currentScene = scene;
     this.currentRuntime = nextRuntime;
