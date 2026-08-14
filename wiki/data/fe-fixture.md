@@ -19,14 +19,19 @@ part and the presentation metadata needed by the workbench. Face and element
 picks therefore demonstrate the same retained identity contract available to a
 host that maps a solver representation into FEMGX.
 
-The fourteen examples use a deterministic comparison grid:
-Point, Line, Line3, Triangle, Quad, and Tri6 occupy the first row; the generic
-mapped element, Tet4, Tet10, Hex8, Hex20, and Quad8 occupy the second; Wedge6
-and Pyramid5 occupy the third. The
-hardware-WebGPU rendering suite isolates Tri6 and Quad8, checks their exact face,
-element, and authored mid-edge node identities, and repeats the checks at the
-390×844 mobile viewport. Triangle, line, and point outputs remain separate only
-where WebGPU primitive topology requires it; edge display is a renderer-owned
+The gallery uses one deterministic presentation table grouped into centered rows:
+Point, Line, and Line3 occupy the first row; Triangle/Tri6, Quad/Quad8, and the
+generic and mixed mapping examples occupy the second; Tet4/Tet10, Wedge6,
+Pyramid5, and Hex8/Hex20 occupy the third. Every entry is centered from its
+authored bounds inside a fixed cell, with Wedge6 and Pyramid5 scaled to the same
+2-unit baseline as the other volume examples. The mixed primitive entry remains a
+single semantic Part with point, line, and triangle leaves; it is an additional
+composition example alongside the fourteen typed shape/mapping entries.
+
+The hardware-WebGPU rendering suite isolates Tri6 and Quad8, checks their exact
+face, element, and authored mid-edge node identities, and repeats the checks at
+the 390×844 mobile viewport. Triangle, line, and point outputs remain separate
+only where WebGPU primitive topology requires it; edge display is a renderer-owned
 overlay.
 
 ## VTK sample

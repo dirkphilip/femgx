@@ -4,11 +4,14 @@ import {
   createScene,
   elementPart,
   LINE_SHAPE,
+  multiply,
   POINT_SHAPE,
   polygonPart,
+  scale,
   translation,
   TRIANGLE_SHAPE,
   type AssemblyId,
+  type Bounds,
   type ElementModel,
   type Part,
   type PartId,
@@ -80,32 +83,147 @@ const MIXED_PART_ID: PartId = 15;
 const ROOT_ASSEMBLY_ID: AssemblyId = 1;
 const GAP = 1;
 
-interface GalleryPlacement {
+export interface ElementGalleryEntry {
   readonly partId: PartId;
-  readonly column: number;
-  readonly row: number;
+  readonly category: "0d-1d" | "2d" | "3d";
+  readonly order: number;
+  readonly cell: readonly [column: number, row: number];
+  readonly displayScale: number;
+  readonly centering: "bounds";
 }
 
-const GALLERY_LAYOUT: readonly GalleryPlacement[] = [
-  { partId: POINT_PART_ID, column: 0, row: 0 },
-  { partId: LINE_PART_ID, column: 1, row: 0 },
-  { partId: LINE3_PART_ID, column: 2, row: 0 },
-  { partId: TRIANGLE_PART_ID, column: 3, row: 0 },
-  { partId: QUAD_PART_ID, column: 4, row: 0 },
-  { partId: TRI6_PART_ID, column: 5, row: 0 },
-  { partId: GENERIC_PART_ID, column: 0, row: 1 },
-  { partId: TET4_PART_ID, column: 1, row: 1 },
-  { partId: TET10_PART_ID, column: 2, row: 1 },
-  { partId: HEX8_PART_ID, column: 3, row: 1 },
-  { partId: HEX20_PART_ID, column: 4, row: 1 },
-  { partId: QUAD8_PART_ID, column: 5, row: 1 },
-  { partId: WEDGE6_PART_ID, column: 1, row: 2 },
-  { partId: PYRAMID5_PART_ID, column: 2, row: 2 },
-  { partId: MIXED_PART_ID, column: 3, row: 2 },
+export const ELEMENT_GALLERY_ENTRIES: readonly ElementGalleryEntry[] = [
+  {
+    partId: POINT_PART_ID,
+    category: "0d-1d",
+    order: 0,
+    cell: [1, 0],
+    displayScale: 1,
+    centering: "bounds",
+  },
+  {
+    partId: LINE_PART_ID,
+    category: "0d-1d",
+    order: 1,
+    cell: [2, 0],
+    displayScale: 1,
+    centering: "bounds",
+  },
+  {
+    partId: LINE3_PART_ID,
+    category: "0d-1d",
+    order: 2,
+    cell: [3, 0],
+    displayScale: 1,
+    centering: "bounds",
+  },
+  {
+    partId: TRIANGLE_PART_ID,
+    category: "2d",
+    order: 0,
+    cell: [0, 1],
+    displayScale: 1,
+    centering: "bounds",
+  },
+  {
+    partId: TRI6_PART_ID,
+    category: "2d",
+    order: 1,
+    cell: [1, 1],
+    displayScale: 1,
+    centering: "bounds",
+  },
+  {
+    partId: QUAD_PART_ID,
+    category: "2d",
+    order: 2,
+    cell: [2, 1],
+    displayScale: 1,
+    centering: "bounds",
+  },
+  {
+    partId: QUAD8_PART_ID,
+    category: "2d",
+    order: 3,
+    cell: [3, 1],
+    displayScale: 1,
+    centering: "bounds",
+  },
+  {
+    partId: GENERIC_PART_ID,
+    category: "2d",
+    order: 4,
+    cell: [4, 1],
+    displayScale: 1,
+    centering: "bounds",
+  },
+  {
+    partId: MIXED_PART_ID,
+    category: "2d",
+    order: 5,
+    cell: [5, 1],
+    displayScale: 1,
+    centering: "bounds",
+  },
+  {
+    partId: TET4_PART_ID,
+    category: "3d",
+    order: 0,
+    cell: [0, 2],
+    displayScale: 1,
+    centering: "bounds",
+  },
+  {
+    partId: TET10_PART_ID,
+    category: "3d",
+    order: 1,
+    cell: [1, 2],
+    displayScale: 1,
+    centering: "bounds",
+  },
+  {
+    partId: WEDGE6_PART_ID,
+    category: "3d",
+    order: 2,
+    cell: [2, 2],
+    displayScale: 2,
+    centering: "bounds",
+  },
+  {
+    partId: PYRAMID5_PART_ID,
+    category: "3d",
+    order: 3,
+    cell: [3, 2],
+    displayScale: 2,
+    centering: "bounds",
+  },
+  {
+    partId: HEX8_PART_ID,
+    category: "3d",
+    order: 4,
+    cell: [4, 2],
+    displayScale: 1,
+    centering: "bounds",
+  },
+  {
+    partId: HEX20_PART_ID,
+    category: "3d",
+    order: 5,
+    cell: [5, 2],
+    displayScale: 1,
+    centering: "bounds",
+  },
 ];
 
+interface GalleryPlacement {
+  readonly partId: PartId;
+  readonly cell: readonly [column: number, row: number];
+  readonly displayScale: number;
+  readonly centering: "bounds" | "none";
+}
+
 const SINGLE_PART_LAYOUT: readonly GalleryPlacement[] = [
-  { partId: HEX20_PART_ID, column: 0, row: 0 },
+  { partId: HEX20_PART_ID, cell: [0, 0], displayScale: 1, centering: "none" },
 ];
 
 /** Builds the gallery with built-in helpers and a generic solver-mapped element. */
@@ -163,7 +281,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     genericPart,
     elementPart(MIXED_PART_ID, mixedModel),
   ];
-  const scene = galleryScene(parts, blockSize, GALLERY_LAYOUT);
+  const scene = galleryScene(parts, blockSize, ELEMENT_GALLERY_ENTRIES);
   return {
     scene,
     partIds: {
@@ -260,7 +378,7 @@ function createGenericSolverMappedPart(): Part {
 function galleryScene(
   parts: readonly Part[],
   blockSize: number,
-  layout: readonly GalleryPlacement[],
+  layout: readonly (ElementGalleryEntry | GalleryPlacement)[],
 ): Scene {
   let builder = createScene();
   for (const part of parts) builder = builder.addPart(part);
@@ -269,16 +387,44 @@ function galleryScene(
   const root = {
     id: ROOT_ASSEMBLY_ID,
     name: "element-gallery",
-    placements: layout.map(({ partId, column, row }) => {
-      if (!partById.has(partId)) throw new Error(`Element fixture layout has no part ${partId}`);
+    placements: layout.map((entry) => {
+      const part = partById.get(entry.partId);
+      if (part === undefined) throw new Error(`Element fixture layout has no part ${entry.partId}`);
+      const [column, row] = entry.cell;
       return {
         kind: "part" as const,
-        partId,
-        transform: translation(column * spacing, row * spacing, 0),
+        partId: entry.partId,
+        transform:
+          entry.centering === "bounds"
+            ? centeredTransform(
+                part.bounds,
+                entry.displayScale,
+                column * spacing,
+                row * spacing,
+                blockSize,
+              )
+            : translation(column * spacing, row * spacing, 0),
       };
     }),
   };
   return builder.addAssembly(root).withRoot(root.id).build();
+}
+
+function centeredTransform(
+  bounds: Bounds,
+  displayScale: number,
+  cellOriginX: number,
+  cellOriginY: number,
+  blockSize: number,
+): Float32Array {
+  const centerX = ((bounds.minX + bounds.maxX) / 2) * displayScale;
+  const centerY = ((bounds.minY + bounds.maxY) / 2) * displayScale;
+  const centerZ = ((bounds.minZ + bounds.maxZ) / 2) * displayScale;
+  const target = cellOriginX + blockSize / 2;
+  return multiply(
+    translation(target - centerX, cellOriginY + blockSize / 2 - centerY, blockSize / 2 - centerZ),
+    scale(displayScale),
+  );
 }
 
 function validateFixtureOptions(gridSize: number, cellSize: number): void {

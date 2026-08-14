@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  ELEMENT_GALLERY_ENTRIES,
   createElementFixture,
   createHex20CylinderFixture,
   type ElementFixture,
 } from "../../../demo/fixture/element-fixture";
 import { buildMeshEdgeData } from "../../../src/renderer/gpu-edge";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import type { Instance } from "../../../src/scene/types";
+import { transformPoint, type Bounds, type Instance } from "../../../src/index";
 
 function runtimeInstances(fixture: Pick<ElementFixture, "scene">): readonly Instance[] {
   const runtime = createPackedSceneRuntime(fixture.scene);
@@ -30,6 +31,33 @@ function nonZeroNodeIds(part: {
   return [...new Set(Array.from(part.geometry.nodePickIds ?? []).filter((id) => id !== 0))].sort(
     (a, b) => a - b,
   );
+}
+
+function transformedBounds(bounds: Bounds, transform: Float32Array): Bounds {
+  let result: Bounds = {
+    minX: Infinity,
+    minY: Infinity,
+    minZ: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity,
+    maxZ: -Infinity,
+  };
+  for (const x of [bounds.minX, bounds.maxX]) {
+    for (const y of [bounds.minY, bounds.maxY]) {
+      for (const z of [bounds.minZ, bounds.maxZ]) {
+        const [px, py, pz] = transformPoint(transform, x, y, z);
+        result = {
+          minX: Math.min(result.minX, px),
+          minY: Math.min(result.minY, py),
+          minZ: Math.min(result.minZ, pz),
+          maxX: Math.max(result.maxX, px),
+          maxY: Math.max(result.maxY, py),
+          maxZ: Math.max(result.maxZ, pz),
+        };
+      }
+    }
+  }
+  return result;
 }
 
 describe("createElementFixture", () => {
@@ -57,33 +85,56 @@ describe("createElementFixture", () => {
     expect(runtimeInstances(fixture)).toHaveLength(15);
   });
 
-  it("places every shape example in a stable comparison grid", () => {
+  it("uses one complete, ordered inventory with unique comparison cells", () => {
     const fixture = createElementFixture();
-    const origins = new Map(
-      runtimeInstances(fixture).map((instance) => [
-        instance.partId,
-        [instance.worldTransform[12], instance.worldTransform[13]],
-      ]),
+    expect(ELEMENT_GALLERY_ENTRIES).toHaveLength(fixture.instanceCount);
+    expect(new Set(ELEMENT_GALLERY_ENTRIES.map((entry) => entry.partId)).size).toBe(
+      ELEMENT_GALLERY_ENTRIES.length,
     );
-    expect(origins).toEqual(
-      new Map([
-        [fixture.partIds.point, [0, 0]],
-        [fixture.partIds.line, [3, 0]],
-        [fixture.partIds.line3, [6, 0]],
-        [fixture.partIds.triangle, [9, 0]],
-        [fixture.partIds.quad, [12, 0]],
-        [fixture.partIds.tri6, [15, 0]],
-        [fixture.partIds.generic, [0, 3]],
-        [fixture.partIds.tet4, [3, 3]],
-        [fixture.partIds.tet10, [6, 3]],
-        [fixture.partIds.hex8, [9, 3]],
-        [fixture.partIds.hex20, [12, 3]],
-        [fixture.partIds.quad8, [15, 3]],
-        [fixture.partIds.wedge6, [3, 6]],
-        [fixture.partIds.pyramid5, [6, 6]],
-        [fixture.partIds.mixed, [9, 6]],
-      ]),
+    expect(
+      new Set(ELEMENT_GALLERY_ENTRIES.map((entry) => entry.cell.join(":")).values()).size,
+    ).toBe(ELEMENT_GALLERY_ENTRIES.length);
+    expect(new Set(ELEMENT_GALLERY_ENTRIES.map((entry) => entry.category))).toEqual(
+      new Set(["0d-1d", "2d", "3d"]),
     );
+    expect(
+      ELEMENT_GALLERY_ENTRIES.filter((entry) => entry.category === "3d").map(
+        (entry) => entry.order,
+      ),
+    ).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(ELEMENT_GALLERY_ENTRIES.map((entry) => entry.partId).sort((a, b) => a - b)).toEqual(
+      [...fixture.scene.parts.keys()].sort((a, b) => a - b),
+    );
+  });
+
+  it("centers every placed bounds within its cell and normalizes the 3D outliers", () => {
+    const fixture = createElementFixture();
+    const instances = new Map(
+      runtimeInstances(fixture).map((instance) => [instance.partId, instance]),
+    );
+    for (const entry of ELEMENT_GALLERY_ENTRIES) {
+      const instance = instances.get(entry.partId);
+      const part = fixture.scene.parts.get(entry.partId);
+      if (instance === undefined || part === undefined) throw new Error(`Missing ${entry.partId}`);
+      const bounds = transformedBounds(part.bounds, instance.worldTransform);
+      const [column, row] = entry.cell;
+      expect((bounds.minX + bounds.maxX) / 2).toBeCloseTo(column * 3 + 1);
+      expect((bounds.minY + bounds.maxY) / 2).toBeCloseTo(row * 3 + 1);
+      expect((bounds.minZ + bounds.maxZ) / 2).toBeCloseTo(1);
+      expect(bounds.maxX - bounds.minX).toBeLessThanOrEqual(2.001);
+      expect(bounds.maxY - bounds.minY).toBeLessThanOrEqual(2.001);
+      expect(bounds.maxZ - bounds.minZ).toBeLessThanOrEqual(2.001);
+    }
+    for (const partId of [fixture.partIds.wedge6, fixture.partIds.pyramid5]) {
+      const instance = instances.get(partId);
+      if (instance === undefined) throw new Error(`Missing 3D outlier ${partId}`);
+      const part = fixture.scene.parts.get(partId);
+      if (part === undefined) throw new Error(`Missing 3D part ${partId}`);
+      const bounds = transformedBounds(part.bounds, instance.worldTransform);
+      expect(bounds.maxX - bounds.minX).toBeCloseTo(2);
+      expect(bounds.maxY - bounds.minY).toBeCloseTo(2);
+      expect(bounds.maxZ - bounds.minZ).toBeCloseTo(2);
+    }
   });
 
   it("includes one semantic element with point, line, and triangle graphics", () => {
