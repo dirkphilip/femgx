@@ -42,7 +42,11 @@ import {
   buildNodeSpritePickIds,
   buildPrimitiveFaceBodyPickData,
 } from "../../src/renderer/gpu-pick-ids";
-import { HIGHLIGHT_BUCKET_SIZE } from "../../src/renderer/gpu-highlight-table";
+import {
+  BLOCK_HIGHLIGHT_MARKER,
+  HIGHLIGHT_BUCKET_SIZE,
+  highlightHash,
+} from "../../src/renderer/gpu-highlight-table";
 import {
   createDrawResources,
   encodeInstanceRecord,
@@ -431,6 +435,23 @@ describe("encodeEmphasisRecord", () => {
     expect(bodyIds[2]).toBe(0xffffffff);
     expect(bodyIds[9]).toBe(1);
     expect(bodyIds[10]).toBe(1);
+
+    const blockIds = new Uint32Array(
+      encodeEmphasisRecord({
+        slot: 2,
+        elementPickId: 0,
+        facePickId: 0,
+        nodePickId: 0,
+        blockPickId: 11,
+        hidden: true,
+        selected: true,
+        style,
+      }),
+    );
+    expect(Array.from(blockIds.slice(0, 4))).toEqual([2, 11, BLOCK_HIGHLIGHT_MARKER, 0]);
+    expect(blockIds[9]).toBe(1);
+    expect(blockIds[10]).toBe(1);
+    expect(blockIds[11]).toBe(11);
   });
 });
 
@@ -533,6 +554,38 @@ describe("writeElementHighlights", () => {
       expect(
         gpu.writes.slice(afterFirst).map((write) => [write.offset, write.bytes.byteLength]),
       ).toEqual([[HIGHLIGHT_HEADER, ELEMENT_RECORD_STRIDE]]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("places block records under the key consumed by WGSL", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const storage = makeStorage(gpu);
+      writeElementHighlights(gpu.device, storage, [
+        {
+          slot: 1,
+          elementPickId: 0,
+          facePickId: 0,
+          nodePickId: 0,
+          blockPickId: 11,
+          style,
+        },
+      ]);
+      const table = new Uint32Array(storage.highlight.data.buffer);
+      const bucketCount = table[1] ?? 0;
+      const seed = table[2] ?? 0;
+      const bucket = highlightHash(1, 11, BLOCK_HIGHLIGHT_MARKER, 0, seed) & (bucketCount - 1);
+      const record = HIGHLIGHT_HEADER / 4 + bucket * HIGHLIGHT_BUCKET_SIZE * 12;
+      expect(Array.from(table.slice(record, record + 4))).toEqual([
+        1,
+        11,
+        BLOCK_HIGHLIGHT_MARKER,
+        0,
+      ]);
+      expect(table[record + 11]).toBe(11);
     } finally {
       restore();
     }

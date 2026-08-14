@@ -18,8 +18,11 @@ import { faceRefKey } from "../interaction/refs";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
-import { BODY_HIGHLIGHT_MARKER } from "./gpu-highlight-table";
-import { EDGE_HIGHLIGHT_MARKER } from "./gpu-highlight-table";
+import {
+  BLOCK_HIGHLIGHT_MARKER,
+  BODY_HIGHLIGHT_MARKER,
+  EDGE_HIGHLIGHT_MARKER,
+} from "./gpu-highlight-table";
 import { defaultStyle } from "./gpu-support";
 import { getPartSemanticIndex } from "../geometry/part-semantic-index";
 
@@ -93,14 +96,19 @@ export function encodeEmphasisRecord(update: EmphasisUpdate): ArrayBuffer {
   const data = new ArrayBuffer(ELEMENT_RECORD_STRIDE);
   const ids = new Uint32Array(data);
   const floats = new Float32Array(data);
+  const keyPickId =
+    update.edgePickId ?? update.bodyPickId ?? update.blockPickId ?? update.elementPickId;
+  const keyMarker =
+    update.edgePickId !== undefined
+      ? EDGE_HIGHLIGHT_MARKER
+      : update.bodyPickId !== undefined
+        ? BODY_HIGHLIGHT_MARKER
+        : update.blockPickId !== undefined
+          ? BLOCK_HIGHLIGHT_MARKER
+          : update.facePickId;
   ids[0] = update.slot;
-  ids[1] = update.edgePickId ?? update.bodyPickId ?? update.elementPickId;
-  ids[2] =
-    update.edgePickId === undefined
-      ? update.bodyPickId === undefined
-        ? update.facePickId
-        : BODY_HIGHLIGHT_MARKER
-      : EDGE_HIGHLIGHT_MARKER;
+  ids[1] = keyPickId;
+  ids[2] = keyMarker;
   ids[3] = update.edgePickId === undefined ? update.nodePickId : 0;
   floats[4] = update.style.color.r;
   floats[5] = update.style.color.g;
