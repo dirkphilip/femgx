@@ -6,6 +6,8 @@ name: Exploratory software WebGPU
 # it take? The required hardware evidence remains the local system-Chrome lane.
 on:
   workflow_dispatch:
+  push:
+    branches: [codex/software-webgpu-exploratory]
 
 permissions:
   contents: read
