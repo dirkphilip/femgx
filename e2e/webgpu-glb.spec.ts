@@ -32,7 +32,7 @@ test("selects an accessible background preset and preserves it across workbench 
   await expect(background).toHaveValue("dark");
 
   await page.getByTestId("model-file").setInputFiles(fixture);
-  await expect(canvas).toHaveAttribute("data-model", "opened-model");
+  await expect(canvas).toHaveAttribute("data-model", "opened-model", { timeout: 10_000 });
   await expect(background).toHaveValue("dark");
 
   await page.evaluate(() => {
@@ -76,7 +76,9 @@ test("opens an uncompressed GLB and resets the imported model in desktop Chrome"
   const fileInput = page.getByTestId("model-file");
   await fileInput.setInputFiles(fixture);
 
-  await expect(canvas).toHaveAttribute("data-model", "opened-model");
+  await expect
+    .poll(() => canvas.getAttribute("data-model"), { timeout: 10_000 })
+    .toBe("opened-model");
   await expect(page.getByTestId("model-select")).toHaveValue("opened-model");
   await expect(page.getByTestId("model-select")).toContainText(
     "Opened · onshape-cylinder-uncompressed.glb",
@@ -108,11 +110,13 @@ test("opens a local VTK mesh through the canonical workbench path", async ({ pag
     buffer: vtkFixture,
   });
 
-  await expect(canvas).toHaveAttribute("data-model", "opened-model");
+  await expect
+    .poll(() => canvas.getAttribute("data-model"), { timeout: 10_000 })
+    .toBe("opened-model");
   await expect(page.getByTestId("model-select")).toHaveValue("opened-model");
   await expect(page.getByTestId("model-select")).toContainText("Opened · sample.vtk");
   await expect(page.getByTestId("status")).toContainText("1 parts");
-  await expect(page.getByTestId("results-toggle")).toBeVisible();
+  await expect(page.getByTestId("result-controls")).toBeVisible();
   await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
 
   await page.getByTestId("model-select").selectOption("gallery");

@@ -21,7 +21,9 @@ export interface WorkbenchLifecycleOptions {
   readonly setEdges: () => void;
   readonly setNodes: () => void;
   readonly setContinuous: () => void;
-  readonly setResults: () => void;
+  readonly setResultField: (value: string) => void;
+  readonly setDeformationField: (value: string) => void;
+  readonly setDeformationScale: (value: string) => void;
   readonly setSelectionGranularity: (value: string) => void;
   readonly hideSelected: () => void;
   readonly showAll: () => void;
@@ -82,7 +84,9 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     setEdges: options.setEdges,
     setNodes: options.setNodes,
     setContinuous: options.setContinuous,
-    setResults: options.setResults,
+    setResultField: options.setResultField,
+    setDeformationField: options.setDeformationField,
+    setDeformationScale: options.setDeformationScale,
     setSelectionGranularity: options.setSelectionGranularity,
     hideSelected: options.hideSelected,
     showAll: options.showAll,

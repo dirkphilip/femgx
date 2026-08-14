@@ -1076,8 +1076,8 @@ test("keeps selected volume faces lit, distinct, and reversible with overlays", 
   const canvas = page.getByTestId("view-canvas");
   await page.getByTestId("model-select").selectOption("results");
   await expect(canvas).toHaveAttribute("data-model", "results");
-  await page.getByTestId("results-toggle").click();
-  await expect(page.getByTestId("results-toggle")).toHaveText("Results: Base");
+  await page.getByTestId("result-field").selectOption("__base__");
+  await expect(page.getByTestId("result-field")).toHaveValue("__base__");
   await dragCamera(page, canvas, { x: 64, y: 24 });
   const hoverPoint = await requireHit(
     page,
@@ -1313,7 +1313,7 @@ test("renders imported VTK scalar and nodal displacement results on desktop and 
     "imported VTK results must render visible desktop pixels",
   ).toBeGreaterThan(100);
 
-  await page.getByTestId("results-toggle").click();
+  await page.getByTestId("result-field").selectOption("__base__");
   await expect(canvas).toHaveAttribute("data-results", "base");
   await stableCanvasPixels(page, canvas);
   const base = await canvasRgba(page, canvas);
@@ -1329,7 +1329,7 @@ test("renders imported VTK scalar and nodal displacement results on desktop and 
     visiblePixelCount(mobileBase),
     "imported VTK geometry and result state must remain visible on mobile",
   ).toBeGreaterThan(100);
-  await page.getByTestId("results-toggle").click();
+  await page.getByTestId("result-field").selectOption("vtk-stress");
   await expect(canvas).toHaveAttribute("data-results", "colored");
   await stableCanvasPixels(page, canvas);
   expect(
@@ -1343,9 +1343,9 @@ test("keeps result contours readable through face selection", async ({ page }) =
   await page.getByTestId("model-select").selectOption("results");
   await setSelectionGranularity(page, "face");
   const canvas = page.getByTestId("view-canvas");
-  await page.getByTestId("results-toggle").click();
-  await page.getByTestId("results-toggle").click();
-  await expect(page.getByTestId("results-toggle")).toHaveText("Results: Color");
+  await page.getByTestId("result-field").selectOption("demo-stress");
+  await page.getByTestId("deformation-field").selectOption("__off__");
+  await expect(page.getByTestId("result-field")).toHaveValue("demo-stress");
 
   const hit = await requireHit(
     page,
@@ -1393,7 +1393,10 @@ test("preserves selected nodal result rendering across every display mode", asyn
     await expect.poll(() => canvas.getAttribute("data-selected")).toBe(hit.key);
     await stableCanvasPixels(page, canvas);
     expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(100);
-    if (index < modes.length - 1) await page.getByTestId("results-toggle").click();
+    if (index === 0) await page.getByTestId("result-field").selectOption("__base__");
+    else if (index === 1) await page.getByTestId("result-field").selectOption("demo-stress");
+    else if (index === 2)
+      await page.getByTestId("deformation-field").selectOption("demo-displacement");
   }
 });
 

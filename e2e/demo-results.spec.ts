@@ -38,15 +38,24 @@ test("cycles the canonical static results preset through base, colored, and defo
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toHaveAttribute("data-model", "results");
   await expect(canvas).toHaveAttribute("data-results", "deformed");
+  await expect(page.getByTestId("result-legend")).toContainText("Demo stress");
+  await expect(page.getByTestId("result-legend")).toContainText("Elemental · Unit MPa");
+  await expect(page.getByTestId("result-legend")).toContainText("Range 10 – 80");
 
-  const resultsToggle = page.getByTestId("results-toggle");
-  await expect(resultsToggle).toBeEnabled();
-  await resultsToggle.click();
+  const resultField = page.getByTestId("result-field");
+  const deformationField = page.getByTestId("deformation-field");
+  await expect(resultField).toHaveValue("demo-stress");
+  await resultField.selectOption("__base__");
   await expect(canvas).toHaveAttribute("data-results", "base");
-  await resultsToggle.click();
+  await resultField.selectOption("demo-stress");
+  await deformationField.selectOption("__off__");
   await expect(canvas).toHaveAttribute("data-results", "colored");
-  await resultsToggle.click();
+  await deformationField.selectOption("demo-displacement");
   await expect(canvas).toHaveAttribute("data-results", "deformed");
+  const scale = page.getByTestId("deformation-scale");
+  await scale.fill("2");
+  await scale.press("Enter");
+  await expect(scale).toHaveValue("2");
 });
 
 test("shows distinct scalar contours and deformation in every results state", async ({ page }) => {
@@ -54,17 +63,19 @@ test("shows distinct scalar contours and deformation in every results state", as
   await waitForRenderer(page);
   await page.getByTestId("model-select").selectOption("results");
   const canvas = page.getByTestId("view-canvas");
-  const resultsToggle = page.getByTestId("results-toggle");
+  const resultField = page.getByTestId("result-field");
+  const deformationField = page.getByTestId("deformation-field");
 
   let frame = await canvas.getAttribute("data-frames");
-  await resultsToggle.click();
+  await resultField.selectOption("__base__");
   await expect(canvas).toHaveAttribute("data-results", "base");
   await expect.poll(() => canvas.getAttribute("data-frames")).not.toBe(frame);
   const base = await pixelMetrics(canvas);
   expect(base.distinctColors, "base must render a visible neutral mesh").toBeGreaterThan(3);
 
   frame = await canvas.getAttribute("data-frames");
-  await resultsToggle.click();
+  await resultField.selectOption("demo-stress");
+  await deformationField.selectOption("__off__");
   await expect(canvas).toHaveAttribute("data-results", "colored");
   await expect.poll(() => canvas.getAttribute("data-frames")).not.toBe(frame);
   const colored = await pixelMetrics(canvas);
@@ -75,7 +86,7 @@ test("shows distinct scalar contours and deformation in every results state", as
   expect(colored.hash, "colored results must change the canvas pixels").not.toBe(base.hash);
 
   frame = await canvas.getAttribute("data-frames");
-  await resultsToggle.click();
+  await deformationField.selectOption("demo-displacement");
   await expect(canvas).toHaveAttribute("data-results", "deformed");
   await expect.poll(() => canvas.getAttribute("data-frames")).not.toBe(frame);
   const deformed = await pixelMetrics(canvas);
@@ -104,6 +115,7 @@ test("keeps result-strip node and face picks on original ids after deformation",
   );
   await page.mouse.click(nodeHit.x, nodeHit.y);
   await expect(page.getByTestId("inspection-panel")).toContainText("Node");
+  await expect(page.getByTestId("inspection-panel")).toContainText("Demo stress (elemental, MPa):");
   expect(await canvas.getAttribute("data-pick")).toMatch(/^n:/);
 
   await setSelectionGranularity(page, "face");
@@ -115,6 +127,7 @@ test("keeps result-strip node and face picks on original ids after deformation",
   );
   await page.mouse.click(faceHit.x, faceHit.y);
   await expect(page.getByTestId("inspection-panel")).toContainText("Face");
+  await expect(page.getByTestId("inspection-panel")).toContainText("Demo stress (elemental, MPa):");
   expect(await canvas.getAttribute("data-pick")).toMatch(/^f:/);
 });
 
@@ -181,8 +194,8 @@ test("Fit model preserves workbench state while Reset all restores preset defaul
   await page.getByTestId("edge-overlay").click();
   await page.getByTestId("node-overlay").click();
   await page.getByTestId("projection-toggle").click();
-  await page.getByTestId("results-toggle").click();
-  await expect(page.getByTestId("results-toggle")).toHaveText("Results: Base");
+  await page.getByTestId("result-field").selectOption("__base__");
+  await expect(page.getByTestId("result-field")).toHaveValue("__base__");
 
   await page.mouse.click(hit.x, hit.y, { button: "right" });
   const menu = page.getByTestId("context-menu");
@@ -205,7 +218,7 @@ test("Fit model preserves workbench state while Reset all restores preset defaul
   await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "false");
-  await expect(page.getByTestId("results-toggle")).toHaveText("Results: Base");
+  await expect(page.getByTestId("result-field")).toHaveValue("__base__");
   await expect(instance).not.toBeChecked();
   await expect(diagnostics).toBeVisible();
   await expect.poll(() => dataset(page, "selected")).toBe(beforeFitSelection);
@@ -214,7 +227,8 @@ test("Fit model preserves workbench state while Reset all restores preset defaul
   await expect(page.getByTestId("projection-toggle")).toHaveText("Orthographic");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("results-toggle")).toHaveText("Results: Deformed");
+  await expect(page.getByTestId("result-field")).toHaveValue("demo-stress");
+  await expect(page.getByTestId("deformation-field")).toHaveValue("demo-displacement");
   await expect(instance).toBeChecked();
   await expect(diagnostics).toBeHidden();
   await expect.poll(() => dataset(page, "selected")).toBe("");

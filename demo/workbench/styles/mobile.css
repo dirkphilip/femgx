@@ -96,6 +96,17 @@
     padding-left: 4px;
     font-size: 12px;
   }
+  .result-controls {
+    flex-wrap: wrap;
+  }
+  .result-controls label {
+    flex: 1 1 100%;
+    min-height: 40px;
+  }
+  .result-controls select,
+  .result-controls input {
+    min-height: 40px;
+  }
   .toolbar-background {
     min-width: 0;
     padding: 0;
@@ -111,6 +122,11 @@
   }
   .inspection {
     display: none;
+  }
+  .result-legend {
+    right: 8px;
+    bottom: 8px;
+    width: min(320px, calc(100% - 16px));
   }
   .diagnostics {
     top: 206px;

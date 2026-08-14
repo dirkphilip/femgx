@@ -23,6 +23,7 @@ export interface WorkbenchFeatureOptions {
   readonly model: () => WorkbenchModel;
   readonly toggles: () => DisplayToggles;
   readonly resultMode: () => ResultDisplayMode;
+  readonly deformationScale: () => number;
   readonly continuous: () => boolean;
   readonly selectionGranularity: () => SelectionGranularity;
   readonly interaction: () => InteractionState;
@@ -72,6 +73,8 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     getModel: options.model,
     getToggles: options.toggles,
     getResultMode: options.resultMode,
+    getDeformationScale: options.deformationScale,
+    getViewport: options.viewport,
     getContinuous: options.continuous,
     getSelectionGranularity: options.selectionGranularity,
     getInteraction: options.interaction,

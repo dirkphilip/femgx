@@ -6,6 +6,7 @@ interface ResultStateOptions {
   readonly viewports: readonly FemViewport[];
   readonly model: WorkbenchModel;
   readonly mode: ResultDisplayMode;
+  readonly deformationScale: number;
   readonly reflect: () => void;
 }
 
@@ -19,7 +20,12 @@ export function applyResultState(options: ResultStateOptions): void {
       const { deformation: _, ...coloredConfig } = config;
       viewport.setResults(coloredConfig);
     } else {
-      viewport.setResults(config);
+      const deformation = config.deformation;
+      viewport.setResults(
+        deformation === undefined
+          ? config
+          : { ...config, deformation: { ...deformation, scale: options.deformationScale } },
+      );
     }
   }
   options.reflect();

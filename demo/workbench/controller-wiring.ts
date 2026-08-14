@@ -1,5 +1,5 @@
 import type { FemViewport, InteractionState, SceneRuntime } from "../../src/index";
-import { installWorkbenchLifecycle } from "./lifecycle";
+import { installWorkbenchLifecycle, type WorkbenchLifecycleOptions } from "./lifecycle";
 import type { WorkbenchFeatures } from "./features";
 import type { WorkbenchInteraction } from "./interaction";
 import type { WorkbenchBoxPreview } from "./box-preview";
@@ -26,6 +26,7 @@ export interface WorkbenchControllerWiringContext {
   readonly models: readonly WorkbenchModel[];
   readonly toggles: DisplayToggles;
   readonly resultMode: ResultDisplayMode;
+  readonly deformationScale: number;
   readonly continuousEnabled: boolean;
   readonly selectionGranularity: SelectionGranularity;
   readonly interaction: InteractionState;
@@ -58,7 +59,9 @@ export interface WorkbenchControllerWiringContext {
   readonly setNodes: () => void;
   readonly setContinuous: () => void;
   readonly setSelectionGranularity: (value: string) => void;
-  readonly cycleResultMode: () => void;
+  readonly setResultField: (value: string) => void;
+  readonly setDeformationField: (value: string) => void;
+  readonly setDeformationScale: (value: string) => void;
   readonly setModel: (id: string) => void;
   readonly openModel: (file: File) => void;
 }
@@ -81,6 +84,7 @@ export function createControllerInfrastructure(
     runtime: () => context.runtime,
     toggles: () => context.toggles,
     resultMode: () => context.resultMode,
+    deformationScale: () => context.deformationScale,
     continuous: () => context.continuousEnabled,
     selectionGranularity: () => context.selectionGranularity,
     interaction: () => context.interaction,
@@ -141,6 +145,27 @@ export function installControllerLifecycle(context: WorkbenchControllerWiringCon
     toggleViewport: () => {
       context.toggleSecondaryViewport();
     },
+    ...lifecycleDisplayBindings(context),
+    ...lifecycleModelBindings(context),
+  });
+}
+
+function lifecycleDisplayBindings(
+  context: WorkbenchControllerWiringContext,
+): Pick<
+  WorkbenchLifecycleOptions,
+  | "setBackground"
+  | "setEdges"
+  | "setNodes"
+  | "setContinuous"
+  | "setSelectionGranularity"
+  | "hideSelected"
+  | "showAll"
+  | "setResultField"
+  | "setDeformationField"
+  | "setDeformationScale"
+> {
+  return {
     setBackground: (value) => {
       context.setBackground(value);
     },
@@ -162,9 +187,22 @@ export function installControllerLifecycle(context: WorkbenchControllerWiringCon
     showAll: () => {
       context.visibilityActions.showAll();
     },
-    setResults: () => {
-      context.cycleResultMode();
+    setResultField: (value) => {
+      context.setResultField(value);
     },
+    setDeformationField: (value) => {
+      context.setDeformationField(value);
+    },
+    setDeformationScale: (value) => {
+      context.setDeformationScale(value);
+    },
+  };
+}
+
+function lifecycleModelBindings(
+  context: WorkbenchControllerWiringContext,
+): Pick<WorkbenchLifecycleOptions, "reset" | "fitView" | "setModel" | "openModel"> {
+  return {
     reset: () => {
       context.reset();
     },
@@ -177,5 +215,5 @@ export function installControllerLifecycle(context: WorkbenchControllerWiringCon
     openModel: (file) => {
       context.openModel(file);
     },
-  });
+  };
 }
