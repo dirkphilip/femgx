@@ -46,6 +46,7 @@ test("draws a normalized box rectangle during a primary drag and clears it on re
   expect(overlayBox?.width ?? 0).toBeGreaterThan(0);
   expect(overlayBox?.height ?? 0).toBeGreaterThan(0);
 
+  await page.keyboard.press("Escape");
   await page.mouse.up({ button: "left" });
   await expect(overlay).toBeHidden();
   expect(await dataset(page, "selected")).toBe("");

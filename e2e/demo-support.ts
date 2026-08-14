@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { canvasInteractionBox } from "./helpers";
 export {
   cameraDistance,
   expectBoundsClippedSafely,
@@ -48,8 +49,7 @@ export async function primaryBoxDrag(
   start: { readonly fx: number; readonly fy: number },
   end: { readonly fx: number; readonly fy: number },
 ): Promise<void> {
-  const box = await canvas.boundingBox();
-  if (box === null) throw new Error("canvas has no bounding box");
+  const box = await canvasInteractionBox(canvas);
   await page.mouse.move(
     Math.round(box.x + start.fx * box.width),
     Math.round(box.y + start.fy * box.height),

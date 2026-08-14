@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { distinctColors, requireHit } from "./helpers";
-import { dataset } from "./demo-support";
+import { canvasInteractionBox, distinctColors, requireHit } from "./helpers";
+import { dataset, primaryBoxDrag } from "./demo-support";
 
 const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 
@@ -224,12 +224,7 @@ test("reports box-selected FE element granularity on a phone-sized viewport", as
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
-  const box = await canvas.boundingBox();
-  if (box === null) throw new Error("canvas has no bounding box");
-
-  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.4);
-  await page.mouse.down({ button: "left" });
-  await page.mouse.move(box.x + box.width * 0.8, box.y + box.height * 0.75, { steps: 8 });
+  await primaryBoxDrag(page, canvas, { fx: 0.2, fy: 0.15 }, { fx: 0.8, fy: 0.85 });
   await page.mouse.up({ button: "left" });
 
   await expect(page.getByTestId("model-feedback")).toHaveText(/^Box selection: \d+ FE elements?$/);
@@ -300,8 +295,7 @@ test("keeps the empty-scene view menu inside a phone-sized viewport", async ({ p
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
-  const box = await canvas.boundingBox();
-  if (box === null) throw new Error("canvas has no bounding box");
+  const box = await canvasInteractionBox(canvas);
 
   // Stay inside the canvas but above the mobile status strip, where the
   // bottom-right canvas point is covered by the status element.
@@ -351,8 +345,7 @@ test("restores hidden body and placement visibility through Show all on a phone"
   await expect(body).not.toBeChecked();
   await expect(instance).not.toBeChecked();
 
-  const box = await canvas.boundingBox();
-  if (box === null) throw new Error("canvas has no bounding box");
+  const box = await canvasInteractionBox(canvas);
   await page.mouse.click(box.x + box.width - 20, box.y + box.height - 100, { button: "right" });
   const menu = page.getByTestId("context-menu");
   await expect(menu).toBeVisible();

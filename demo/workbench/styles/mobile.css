@@ -37,15 +37,19 @@
     right: 8px;
     display: flex;
     flex-direction: column;
+    flex-wrap: nowrap;
     align-items: stretch;
     gap: 4px;
     padding: 4px;
+    max-height: 240px;
+    overflow-x: hidden;
   }
   .toolbar-row {
-    display: flex;
+    display: grid;
     width: 100%;
     flex: 0 0 100%;
     min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: stretch;
     gap: 4px;
   }
@@ -67,16 +71,8 @@
     flex-wrap: wrap;
   }
   .model-source {
+    grid-column: 1 / -1;
     width: 100%;
-    flex: 1 1 100%;
-  }
-  .toolbar-row-primary > #fit-view,
-  .toolbar-row-primary > #selection-granularity,
-  .toolbar-row-primary > #hide-selected,
-  .toolbar-row-primary > #show-all,
-  .toolbar-row-primary > #viewport-toggle,
-  .toolbar-row-primary > #projection-toggle {
-    flex: 1 1 0;
   }
   .model-source button {
     flex: 0 1 128px;
@@ -95,8 +91,8 @@
   }
   .toolbar-row-secondary > .result-controls,
   .toolbar-row-secondary > .section-controls {
+    grid-column: 1 / -1;
     width: 100%;
-    flex: 1 1 100%;
   }
   .toolbar-row-secondary > button,
   .toolbar-background select {
@@ -105,10 +101,9 @@
     font-size: 12px;
   }
   .result-controls {
-    flex-wrap: wrap;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .result-controls label {
-    flex: 1 1 100%;
     min-height: 40px;
   }
   .result-controls select,
@@ -116,10 +111,9 @@
     min-height: 40px;
   }
   .section-controls {
-    flex-wrap: wrap;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .section-controls label {
-    flex: 1 1 100%;
     min-height: 40px;
   }
   .section-controls select,
@@ -148,9 +142,9 @@
     width: min(320px, calc(100% - 16px));
   }
   .diagnostics {
-    top: 206px;
+    top: 256px;
     width: min(360px, calc(100% - 16px));
-    max-height: min(280px, calc(100% - 228px));
+    max-height: min(280px, calc(100% - 272px));
     right: 8px;
   }
   .renderer-alert,

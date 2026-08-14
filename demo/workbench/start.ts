@@ -138,6 +138,7 @@ function createViewportFactory(
       },
       onRender: () => {
         pane.canvas.dataset["frames"] = String(Number(pane.canvas.dataset["frames"] ?? "0") + 1);
+        if (slotId === "primary" && state.viewport === undefined) return;
         state.controller?.onViewportRender(slotId, performance.now());
       },
     });

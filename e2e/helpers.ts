@@ -84,6 +84,39 @@ type Box = {
   readonly height: number;
 };
 
+/** Canvas pixels not covered by the workbench's full-width HUD chrome. */
+export async function canvasInteractionBox(canvas: Locator): Promise<Box> {
+  return canvas.evaluate((element: HTMLCanvasElement) => {
+    const canvasBounds = element.getBoundingClientRect();
+    let top = canvasBounds.top;
+    let bottom = canvasBounds.bottom;
+    const centerX = (canvasBounds.left + canvasBounds.right) / 2;
+    const overlays = element.parentElement?.querySelectorAll<HTMLElement>(
+      ".toolbar, .renderer-alert, .status-alert",
+    );
+    for (const overlay of overlays ?? []) {
+      if (overlay.hidden || getComputedStyle(overlay).display === "none") continue;
+      const bounds = overlay.getBoundingClientRect();
+      if (bounds.width === 0 || bounds.height === 0) continue;
+      if (centerX < bounds.left || centerX > bounds.right) continue;
+      if (bounds.bottom <= canvasBounds.top || bounds.top >= canvasBounds.bottom) continue;
+      const centerY = (bounds.top + bounds.bottom) / 2;
+      if (centerY < canvasBounds.top + canvasBounds.height / 2) {
+        top = Math.max(top, bounds.bottom);
+      } else {
+        bottom = Math.min(bottom, bounds.top);
+      }
+    }
+    if (bottom - top < 16) throw new Error("canvas has no exposed interaction area");
+    return {
+      x: canvasBounds.left,
+      y: top,
+      width: canvasBounds.width,
+      height: bottom - top,
+    };
+  });
+}
+
 export interface CameraSnapshot {
   readonly mode: "perspective" | "orthographic";
   readonly position: readonly [number, number, number];
@@ -369,8 +402,8 @@ async function sweepCells(
 }
 
 async function probeCells(
-  page: Page,
-  box: Box,
+  canvas: Locator,
+  canvasBox: Box,
   cells: ReadonlyArray<readonly [number, number]>,
   attribute: "pick" | "hovered",
   prefix: string,
@@ -378,8 +411,8 @@ async function probeCells(
   // Locate a candidate through the existing devtools viewport seam without
   // paying one pointer-event timeout per empty pixel. The caller still moves
   // the real pointer to the result and verifies the published interaction key.
-  return page.evaluate(
-    async ({ attribute: keyName, boxX, boxY, cells: points, prefix: keyPrefix }) => {
+  return canvas.evaluate(
+    async (element, { attribute: keyName, boxX, boxY, cells: points, prefix: keyPrefix }) => {
       const probe = (
         window as typeof window & {
           femgxDemo?: {
@@ -392,6 +425,7 @@ async function probeCells(
       ).femgxDemo?.probePick;
       if (probe === undefined) return { available: false };
       for (const [x, y] of points) {
+        if (document.elementFromPoint(x, y) !== element) continue;
         const result = await probe(x - boxX, y - boxY);
         const key = keyName === "pick" ? result.pickKey : result.hoveredKey;
         if (key !== "" && (keyPrefix === "" || key.startsWith(keyPrefix))) {
@@ -400,7 +434,7 @@ async function probeCells(
       }
       return { available: true };
     },
-    { attribute, boxX: box.x, boxY: box.y, cells, prefix },
+    { attribute, boxX: canvasBox.x, boxY: canvasBox.y, cells, prefix },
   );
 }
 
@@ -415,10 +449,11 @@ export async function sweepForHit(
   canvas: Locator,
   options: SweepOptions = {},
 ): Promise<SweepHit | undefined> {
-  const box = await canvas.boundingBox();
-  if (box === null) {
+  const canvasBox = await canvas.boundingBox();
+  if (canvasBox === null) {
     throw new Error("canvas has no bounding box");
   }
+  const box = await canvasInteractionBox(canvas);
   const {
     prefix = "",
     attribute = "pick",
@@ -466,7 +501,7 @@ export async function sweepForHit(
         Math.hypot(a[0] - center[0], a[1] - center[1]) -
         Math.hypot(b[0] - center[0], b[1] - center[1]),
     );
-    const direct = await probeCells(page, box, [center, ...local], attribute, prefix);
+    const direct = await probeCells(canvas, canvasBox, [center, ...local], attribute, prefix);
     if (direct.available) {
       if (direct.hit === undefined) return undefined;
       await clearKey();
@@ -491,7 +526,7 @@ export async function sweepForHit(
           Math.hypot(a[0] - center[0], a[1] - center[1]) -
           Math.hypot(b[0] - center[0], b[1] - center[1]),
       );
-  const direct = await probeCells(page, box, directCells, attribute, prefix);
+  const direct = await probeCells(canvas, canvasBox, directCells, attribute, prefix);
   if (direct.available) {
     if (direct.hit === undefined) return undefined;
     await clearKey();

@@ -219,7 +219,7 @@ class FemViewportCore implements FemViewport {
       nextRuntime,
       scene.parts,
     );
-    this.renderer.resetScene();
+    this.renderer.resetScene(scene.parts);
     this.cameraFocus.cancel();
     this.currentScene = scene;
     this.currentRuntime = nextRuntime;

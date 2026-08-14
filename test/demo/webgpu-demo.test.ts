@@ -25,6 +25,10 @@ const mocks = vi.hoisted(() => {
       this.currentViewport.setInteraction(this.interaction);
     }
 
+    onViewportRender(): void {
+      this.render();
+    }
+
     setViewport(viewport: FemViewport): void {
       this.currentViewport = viewport;
     }
@@ -81,14 +85,22 @@ function fakeScene(): HTMLElement {
 interface FakeViewport {
   readonly viewport: FemViewport;
   readonly render: ReturnType<typeof vi.fn>;
+  readonly setInteraction: ReturnType<typeof vi.fn>;
   readonly destroy: ReturnType<typeof vi.fn>;
 }
 
 function fakeViewport(): FakeViewport {
   const render = vi.fn();
-  const destroy = vi.fn();
+  let destroyed = false;
+  const setInteraction = vi.fn(() => {
+    if (destroyed) throw new Error("WebGPU renderer has been destroyed");
+  });
+  const destroy = vi.fn(() => {
+    destroyed = true;
+  });
   return {
     render,
+    setInteraction,
     destroy,
     viewport: {
       scene: {} as FemViewport["scene"],
@@ -102,7 +114,7 @@ function fakeViewport(): FakeViewport {
       setCamera: vi.fn(),
       fitView: vi.fn(),
       fitSelection: vi.fn(),
-      setInteraction: vi.fn(),
+      setInteraction,
       batch: <T>(operation: () => T): T => operation(),
       setResults: vi.fn(),
       clearResults: vi.fn(),
@@ -249,6 +261,26 @@ describe("startWebGpuDemo", () => {
     await demoWindow.femgxDemo?.recreateRenderer();
     expect(mocks.createFemViewport).toHaveBeenCalledTimes(2);
     expect(second.render).toHaveBeenCalled();
+    expect(canvas.dataset["renderer"]).toBe("webgpu");
+  });
+
+  it("attaches a recreated viewport before publishing its initial frame", async () => {
+    const first = fakeViewport();
+    const second = fakeViewport();
+    mocks.createFemViewport
+      .mockResolvedValueOnce(first.viewport)
+      .mockImplementationOnce((options: { readonly onRender?: () => void }) => {
+        options.onRender?.();
+        return Promise.resolve(second.viewport);
+      });
+    const canvas = fakeCanvas();
+    await startWebGpuDemo(startOptions(canvas));
+    demoWindow.femgxDemo?.destroyRenderer();
+
+    await expect(demoWindow.femgxDemo?.recreateRenderer()).resolves.toBeUndefined();
+
+    expect(first.setInteraction).not.toHaveBeenCalled();
+    expect(second.render).toHaveBeenCalledOnce();
     expect(canvas.dataset["renderer"]).toBe("webgpu");
   });
 

@@ -43,8 +43,8 @@ export interface WebGpuRenderer {
     parts: ReadonlyMap<PartId, Part>,
     originTriadNominalScale?: number,
   ): void;
-  /** Invalidates cached geometry before a viewport scene replacement. */
-  resetScene(): void;
+  /** Reconciles cached geometry before a viewport scene replacement. */
+  resetScene(parts: ReadonlyMap<PartId, Part>): void;
   /** Sets or clears the per-frame CPU deformation state. */
   setDeformation(deformation: DeformationState | undefined): void;
   /** Sets or clears renderer-owned nodal scalar color buffers. */
