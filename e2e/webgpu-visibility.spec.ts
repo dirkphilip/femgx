@@ -56,7 +56,7 @@ test("exposes independent body visibility and highlight controls", async ({ page
   expect(styled.equals(baseline), "body highlight must change the WebGPU frame").toBe(false);
 });
 
-test("hides shared node annotations with a hidden body or element owner", async ({ page }) => {
+test("keeps shared node annotations while an incident owner remains visible", async ({ page }) => {
   await page.goto("/");
   const hasWebGpu = await page.evaluate(() => "gpu" in navigator);
   if (!hasWebGpu) test.skip(true, "WebGPU is unavailable in this browser environment");
@@ -172,15 +172,15 @@ test("hides shared node annotations with a hidden body or element owner", async 
       x: sharedNode[0] * size.scaleX,
       y: sharedNode[1] * size.scaleY,
     }),
-    "a node shared with a hidden body must not remain annotated",
-  ).toBe(0);
+    "a node shared with a visible body must remain annotated",
+  ).toBeGreaterThan(0);
   expect(
     nodeAnnotationContributionAt(elementHidden, elementHiddenWithoutNodes, size.width, {
       x: sharedNode[0] * size.scaleX,
       y: sharedNode[1] * size.scaleY,
     }),
-    "a node shared with a hidden element must not remain annotated",
-  ).toBe(0);
+    "a node exposed by hiding one element must remain annotated",
+  ).toBeGreaterThan(0);
 });
 
 test("exposes and restores body interfaces in visible picking", async ({ page }) => {

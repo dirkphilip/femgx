@@ -178,6 +178,22 @@ describe("installBoxSelection", () => {
     disposer();
   });
 
+  it("completes a fast drag when pointer-up is the first event beyond the threshold", () => {
+    const { canvas, events, disposer } = install();
+    canvas.dispatch("pointerdown", pointer({ clientX: 100, clientY: 50 }));
+    canvas.dispatch("pointerup", pointer({ clientX: 130, clientY: 80 }));
+
+    expect(terminalTypes(events)).toEqual(["complete"]);
+    expect(events[0]).toMatchObject({
+      type: "complete",
+      anchor: { x: 90, y: 30 },
+      current: { x: 120, y: 60 },
+      rect: { left: 90, top: 30, right: 120, bottom: 60, width: 30, height: 30 },
+    });
+    expect(canvas.captureCount()).toBe(0);
+    disposer();
+  });
+
   it("ignores touch and non-primary buttons without arming", () => {
     const { canvas, events, disposer } = install();
     canvas.dispatch("pointerdown", pointer({ pointerType: "touch", clientX: 100, clientY: 50 }));

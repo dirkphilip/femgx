@@ -1,7 +1,5 @@
 import {
   clientToCanvasCss,
-  isElementVisible,
-  isTargetSelected,
   selectedTargets,
   setTargetHovered,
   type FemViewport,
@@ -20,7 +18,6 @@ import {
 } from "./box-selection-resolver";
 import {
   exactTarget,
-  elementTarget,
   selectTarget,
   targetKey,
   type SelectionGranularity,
@@ -35,7 +32,7 @@ import {
   toggleTargets,
   toggleSelection,
 } from "./selection";
-import type { WorkbenchMenu, WorkbenchMenuSelectionOptions } from "./menu";
+import { contextMenuSelectionOptions, type WorkbenchMenu } from "./menu";
 import {
   mergeModifiers,
   modifiersOf,
@@ -71,6 +68,7 @@ export interface WorkbenchInteractionOptions {
 export class WorkbenchInteraction {
   private readonly options: WorkbenchInteractionOptions;
   private generation = 0;
+  private boxGeneration = 0;
   private disposed = false;
   private downPosition: { readonly x: number; readonly y: number } | undefined;
   private downModifiers: PointerModifiers | undefined;
@@ -106,6 +104,7 @@ export class WorkbenchInteraction {
     this.downPosition = undefined;
     this.downModifiers = undefined;
     this.hoverPick = undefined;
+    if (this.skipNextClick) return;
     this.invalidatePendingQuery();
   }
 
@@ -250,7 +249,7 @@ export class WorkbenchInteraction {
   clearContext(): void {
     this.target = undefined;
     this.hoverPick = undefined;
-    this.invalidatePendingQuery();
+    this.generation += 1;
     this.options.menu.hide();
   }
 
@@ -299,11 +298,17 @@ export class WorkbenchInteraction {
   async selectBox(event: BoxSelectionEvent): Promise<void> {
     if (!isCompletedBoxSelectionEvent(event)) return;
     if (this.disposed) return;
+    if (this.downPosition !== undefined) {
+      this.downPosition = undefined;
+      this.downModifiers = undefined;
+      this.skipNextClick = true;
+    }
     this.queuedBoxSelection = {
       request: { event, granularity: this.options.selectionGranularity() },
       resolver: this.boxSelectionResolver,
     };
     this.generation += 1;
+    this.boxGeneration += 1;
     if (this.boxSelectionDrain === undefined) {
       this.boxSelectionDrain = this.drainBoxSelections();
     }
@@ -327,6 +332,7 @@ export class WorkbenchInteraction {
   private invalidatePendingQuery(): void {
     this.queuedBoxSelection = undefined;
     this.generation += 1;
+    this.boxGeneration += 1;
   }
 
   private async drainBoxSelections(): Promise<void> {
@@ -341,7 +347,7 @@ export class WorkbenchInteraction {
       while (!this.disposed && this.queuedBoxSelection !== undefined) {
         const queued = this.queuedBoxSelection;
         this.queuedBoxSelection = undefined;
-        const generation = this.generation;
+        const generation = this.boxGeneration;
         let targets: readonly InteractionTarget[];
         try {
           targets = validateBoxSelectionTargets(
@@ -349,7 +355,7 @@ export class WorkbenchInteraction {
             queued.request.granularity,
           );
         } catch (error: unknown) {
-          if (this.isCurrentQuery(generation)) {
+          if (this.isCurrentBoxQuery(generation)) {
             this.options.selectionFeedback?.(
               error instanceof BoxSelectionResolverContractError
                 ? `Box selection failed: ${error.message}`
@@ -358,7 +364,7 @@ export class WorkbenchInteraction {
           }
           continue;
         }
-        if (!this.isCurrentQuery(generation)) continue;
+        if (!this.isCurrentBoxQuery(generation)) continue;
         this.applyBoxSelection(queued.request, targets);
       }
     } finally {
@@ -390,8 +396,8 @@ export class WorkbenchInteraction {
     this.options.render();
   }
 
-  private isCurrentQuery(generation: number): boolean {
-    return !this.disposed && generation === this.generation;
+  private isCurrentBoxQuery(generation: number): boolean {
+    return !this.disposed && generation === this.boxGeneration;
   }
 
   private showPick(hit: Parameters<typeof describePick>[0]): void {
@@ -411,31 +417,4 @@ function selectableTargets(targets: readonly InteractionTarget[]): SelectTarget[
 function selectionNoun(granularity: SelectionGranularity, count: number): string {
   const noun = granularity === "element" ? "FE element" : granularity;
   return `${noun}${count === 1 ? "" : "s"}`;
-}
-
-function contextMenuSelectionOptions(
-  target: SelectTarget,
-  interaction: InteractionState,
-): WorkbenchMenuSelectionOptions {
-  const element = elementTarget(target);
-  return {
-    selectionLabel: target.kind === "element" ? undefined : selectionLabel(target, interaction),
-    elementSelectionLabel:
-      element?.kind !== "element"
-        ? undefined
-        : isTargetSelected(interaction, element)
-          ? "Deselect element"
-          : "Select element",
-    elementVisibilityLabel:
-      element?.kind !== "element"
-        ? undefined
-        : isElementVisible(interaction, element)
-          ? "Hide element"
-          : "Show element",
-  };
-}
-
-function selectionLabel(target: SelectTarget, interaction: InteractionState): string {
-  if (target.kind !== "node" && target.kind !== "face") return "Select / Deselect";
-  return `${isTargetSelected(interaction, target) ? "Deselect" : "Select"} ${target.kind}`;
 }

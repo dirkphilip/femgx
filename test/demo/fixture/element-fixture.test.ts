@@ -50,10 +50,11 @@ describe("createElementFixture", () => {
       hex20: 7,
       wedge6: 13,
       pyramid5: 14,
+      mixed: 15,
     });
-    expect(fixture.instanceCount).toBe(14);
-    expect(fixture.scene.parts.size).toBe(14);
-    expect(runtimeInstances(fixture)).toHaveLength(14);
+    expect(fixture.instanceCount).toBe(15);
+    expect(fixture.scene.parts.size).toBe(15);
+    expect(runtimeInstances(fixture)).toHaveLength(15);
   });
 
   it("places every shape example in a stable comparison grid", () => {
@@ -80,8 +81,28 @@ describe("createElementFixture", () => {
         [fixture.partIds.quad8, [15, 3]],
         [fixture.partIds.wedge6, [3, 6]],
         [fixture.partIds.pyramid5, [6, 6]],
+        [fixture.partIds.mixed, [9, 6]],
       ]),
     );
+  });
+
+  it("includes one semantic element with point, line, and triangle graphics", () => {
+    const { scene, partIds } = createElementFixture();
+    const mixed = scene.parts.get(partIds.mixed);
+
+    expect(mixed?.geometries.map((geometry) => geometry.primitive)).toEqual([
+      "triangles",
+      "lines",
+      "points",
+    ]);
+    expect(
+      mixed?.geometries.flatMap((geometry) => geometry.elements ?? []).map(({ id }) => id),
+    ).toEqual([3, 2, 1]);
+    const nodeIds = mixed?.geometries.map((geometry) =>
+      [...new Set(geometry.nodePickIds ?? [])].filter((id) => id !== 0),
+    );
+    expect(nodeIds).toEqual([[4, 5, 6], [2, 3], [1]]);
+    expect(new Set(nodeIds?.flat()).size).toBe(6);
   });
 
   it("starts with every gallery part in the scene", () => {

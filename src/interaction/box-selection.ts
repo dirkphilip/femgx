@@ -162,6 +162,9 @@ class BoxSelection {
   private readonly pointerUp = (event: PointerEvent): void => {
     const drag = this.drag;
     if (drag === undefined || event.pointerId !== drag.pointerId) return;
+    if (this.phase === "armed" && this.dragDistance(event, drag) > DRAG_THRESHOLD) {
+      this.phase = "active";
+    }
     if (this.phase === "active") {
       const current = this.clampedPoint(event);
       const rect = normalizedRect(drag.anchor, current);
@@ -179,6 +182,13 @@ class BoxSelection {
     this.reset();
     this.releaseCapture(drag.pointerId);
   };
+
+  private dragDistance(
+    event: { readonly clientX: number; readonly clientY: number },
+    drag: BoxDrag,
+  ): number {
+    return Math.hypot(event.clientX - drag.anchorClient.x, event.clientY - drag.anchorClient.y);
+  }
 
   private readonly pointerCancel = (event: PointerEvent): void => {
     if (this.drag === undefined || event.pointerId !== this.drag.pointerId) return;
