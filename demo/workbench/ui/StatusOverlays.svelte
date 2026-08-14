@@ -1,10 +1,12 @@
 <script lang="ts">
-  import type { WorkbenchSnapshot } from "../snapshot";
+  import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../snapshot";
 
   let {
     snapshot,
+    startup,
   }: {
     snapshot: WorkbenchSnapshot | undefined;
+    startup: WorkbenchStartupStatus | undefined;
   } = $props();
 </script>
 
@@ -12,17 +14,17 @@
   id="renderer-status"
   data-testid="renderer-status"
   class="renderer-alert"
-  hidden={!(snapshot?.overlays.rendererStatusVisible ?? false)}
+  hidden={startup === undefined && !(snapshot?.overlays.rendererStatusVisible ?? false)}
 >
-  {snapshot?.overlays.rendererStatus ?? ""}
+  {startup?.rendererStatus ?? snapshot?.overlays.rendererStatus ?? ""}
 </div>
 <div
   id="status"
   data-testid="status"
   class="status-alert"
-  hidden={!(snapshot?.overlays.statusVisible ?? false)}
+  hidden={startup === undefined && !(snapshot?.overlays.statusVisible ?? false)}
 >
-  {snapshot?.overlays.status ?? ""}
+  {startup?.status ?? snapshot?.overlays.status ?? ""}
 </div>
 <div class="hud inspection" hidden={!(snapshot?.overlays.inspection.visible ?? false)}>
   <h2>Inspection</h2>

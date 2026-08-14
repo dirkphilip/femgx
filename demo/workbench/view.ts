@@ -24,9 +24,6 @@ export interface DemoView {
   readonly canvas: HTMLCanvasElement;
   readonly scene: HTMLElement;
   readonly boxSelectionOverlay: HTMLElement;
-  readonly rendererStatus: HTMLElement;
-  /** Initial unsupported-device reporting before the controller exists. */
-  readonly status: HTMLElement;
   readonly buildInfo: HTMLElement;
   readonly modelFileInput: HTMLInputElement;
 }
@@ -40,8 +37,6 @@ export function queryDemoView(): DemoView {
     secondaryCanvas: requiredCanvas("#secondary-view"),
     secondaryScene: requiredElement("#secondary-scene"),
     secondaryBoxSelectionOverlay: requiredElement("#secondary-box-selection-overlay"),
-    rendererStatus: requiredElement("#renderer-status"),
-    status: requiredElement("#status"),
     buildInfo: requiredElement("#build-info"),
     modelFileInput: requiredInput("#model-file"),
   };

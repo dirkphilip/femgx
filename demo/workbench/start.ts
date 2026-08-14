@@ -12,11 +12,13 @@ import { WorkbenchController } from "./controller";
 import { createExampleModel, createLazyBenchmarkModel, type WorkbenchModel } from "./model";
 import { selectTarget, targetKey } from "./pick";
 import type { DemoView, WorkbenchPane, ViewportSlotId } from "./view";
+import type { WorkbenchStartupStatus } from "./snapshot";
 
 /** Inputs for the WebGPU demo path. */
 export interface WebGpuDemoOptions {
   readonly view: DemoView;
   readonly canvas: HTMLCanvasElement;
+  readonly reportStartupFailure: (status: WorkbenchStartupStatus) => void;
   /** E2E-only fixture override for the zero-alpha overlay contract. */
   readonly testAlphaZero?: boolean;
 }
@@ -34,7 +36,7 @@ export async function startWebGpuDemo(
   const primaryPane = primaryWorkbenchPane(view, canvas);
   const state: StartState = { viewport: undefined, controller: undefined };
   const reportFailure = (error: unknown): void => {
-    reportRendererFailure(view, canvas, error);
+    reportRendererFailure(options.reportStartupFailure, canvas, error);
   };
   const createViewport = createViewportFactory(state, reportFailure);
   try {
@@ -86,16 +88,20 @@ function primaryWorkbenchPane(view: DemoView, canvas: HTMLCanvasElement): Workbe
   };
 }
 
-function reportRendererFailure(view: DemoView, canvas: HTMLCanvasElement, error: unknown): void {
+function reportRendererFailure(
+  reportStartupFailure: (status: WorkbenchStartupStatus) => void,
+  canvas: HTMLCanvasElement,
+  error: unknown,
+): void {
   const detail = error instanceof Error ? error.message : String(error);
   const unsupported = error instanceof WebGpuUnsupportedError;
   canvas.dataset["renderer"] = unsupported ? "unsupported" : "error";
-  view.rendererStatus.hidden = false;
-  view.status.hidden = false;
-  view.rendererStatus.textContent = unsupported ? "Renderer unsupported" : "Renderer error";
-  view.status.textContent = unsupported
-    ? `FemGx requires a usable WebGPU renderer. ${detail}`
-    : `FemGx could not validate the WebGPU renderer. ${detail}`;
+  reportStartupFailure({
+    rendererStatus: unsupported ? "Renderer unsupported" : "Renderer error",
+    status: unsupported
+      ? `FemGx requires a usable WebGPU renderer. ${detail}`
+      : `FemGx could not validate the WebGPU renderer. ${detail}`,
+  });
 }
 
 function createViewportFactory(

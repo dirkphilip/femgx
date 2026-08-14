@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import type { WorkbenchController } from "../controller";
-  import type { WorkbenchSnapshot } from "../snapshot";
+  import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../snapshot";
   import PrimaryToolbar from "./PrimaryToolbar.svelte";
   import StatusOverlays from "./StatusOverlays.svelte";
   import ContextMenu from "./ContextMenu.svelte";
@@ -10,6 +10,7 @@
 
   let controller: WorkbenchController | undefined = $state();
   let snapshot: WorkbenchSnapshot | undefined = $state();
+  let startup: WorkbenchStartupStatus | undefined = $state();
   let unsubscribe: (() => void) | undefined;
 
   /** Connects the presentation root to the already-created plain TypeScript owner. */
@@ -19,6 +20,10 @@
     unsubscribe = next.subscribe((current) => {
       snapshot = current;
     });
+  }
+
+  export function reportStartupFailure(status: WorkbenchStartupStatus): void {
+    startup = status;
   }
 
   onDestroy(() => {
@@ -62,7 +67,7 @@
       ></div>
       <PrimaryToolbar {controller} {snapshot} />
       <ResultLegend {snapshot} />
-      <StatusOverlays {snapshot} />
+      <StatusOverlays {snapshot} {startup} />
       <div class="scene-pane-label">Primary viewport</div>
     </section>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->

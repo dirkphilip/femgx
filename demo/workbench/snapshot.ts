@@ -59,6 +59,11 @@ export interface WorkbenchPresentationSnapshot {
   readonly contextMenu: WorkbenchContextMenuSnapshot;
 }
 
+export interface WorkbenchStartupStatus {
+  readonly rendererStatus: string;
+  readonly status: string;
+}
+
 export interface WorkbenchSnapshot {
   readonly model: {
     readonly active: {
