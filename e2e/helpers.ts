@@ -503,11 +503,20 @@ export async function sweepForHit(
     );
     const direct = await probeCells(canvas, canvasBox, [center, ...local], attribute, prefix);
     if (direct.available) {
-      if (direct.hit === undefined) return undefined;
-      await clearKey();
-      await page.mouse.move(direct.hit.x, direct.hit.y);
-      const key = await waitForKey(keyOf, matches, settleMs, page);
-      return matches(key) ? { ...direct.hit, key } : undefined;
+      if (direct.hit !== undefined) {
+        await clearKey();
+        await page.mouse.move(direct.hit.x, direct.hit.y);
+        const key = await waitForKey(keyOf, matches, settleMs, page);
+        if (matches(key)) return { ...direct.hit, key };
+      }
+      // Software adapters can expose a stale pick attachment to the direct
+      // probe. Give real pointer events a chance before reporting no hit.
+      return sweepCells(page, local.slice(0, 100), {
+        clearKey,
+        keyOf,
+        matches,
+        settleMs: Math.min(settleMs, 100),
+      });
     }
     return sweepCells(page, local, { clearKey, keyOf, matches, settleMs });
   }
@@ -528,11 +537,21 @@ export async function sweepForHit(
       );
   const direct = await probeCells(canvas, canvasBox, directCells, attribute, prefix);
   if (direct.available) {
-    if (direct.hit === undefined) return undefined;
-    await clearKey();
-    await page.mouse.move(direct.hit.x, direct.hit.y);
-    const key = await waitForKey(keyOf, matches, settleMs, page);
-    return matches(key) ? { ...direct.hit, key } : undefined;
+    if (direct.hit !== undefined) {
+      await clearKey();
+      await page.mouse.move(direct.hit.x, direct.hit.y);
+      const key = await waitForKey(keyOf, matches, settleMs, page);
+      if (matches(key)) return { ...direct.hit, key };
+    }
+    // A probe can observe a stale or unavailable pick attachment on a
+    // software adapter. Fall back to real pointer events before declaring
+    // that the exposed canvas has no hit.
+    return sweepCells(page, coarse, {
+      ...(fresh ? { clearKey } : {}),
+      keyOf,
+      matches,
+      settleMs,
+    });
   }
   const sweep = (cells: ReadonlyArray<readonly [number, number]>) =>
     sweepCells(page, cells, {
