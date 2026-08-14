@@ -197,12 +197,12 @@ export function encodeVisibleFrame(
   if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
     drawOriginTriad(opaquePass, frame.resources.originTriad, "visible");
     frame.draw.cost.draw("origin-triad", 45);
+    drawBatches(opaquePass, frame.draw, context, frame.calls, {
+      kind: "surface",
+      pass: "color",
+      primitive: "points",
+    });
   }
-  drawBatches(opaquePass, frame.draw, context, frame.calls, {
-    kind: "surface",
-    pass: "color",
-    primitive: "points",
-  });
   drawSelectionPass(opaquePass, frame, context, "selection-visible");
   drawOrientationGlyphs(opaquePass, frame, context, frame.calls, "visible");
   if (orbitPivotActive) drawOrbitPivot(opaquePass, frame.resources.orbitPivot, "visible");

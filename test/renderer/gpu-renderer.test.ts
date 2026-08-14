@@ -79,6 +79,23 @@ function buildScene(): Scene {
     .build();
 }
 
+function buildPointScene(): Scene {
+  const geometry = {
+    positions: new Float32Array([0, 0, 0]),
+    indices: new Uint32Array([0]),
+    primitive: "points" as const,
+  };
+  return createScene()
+    .addPart(createPart(1, geometry))
+    .addAssembly({
+      id: 1,
+      name: "root",
+      placements: [{ kind: "part", partId: 1, transform: identity() }],
+    })
+    .withRoot(1)
+    .build();
+}
+
 function buildFaceScene(): Scene {
   const positions = new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]);
   const geometry = {
@@ -240,6 +257,40 @@ describe("WebGPU renderer", () => {
         (descriptor) => descriptor.label === "world-origin triad visible",
       ),
     ).toBe(false);
+    renderer.destroy();
+  });
+
+  it("replays authored points only when the origin triad is present", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas(), originTriad: false });
+    const scene = buildPointScene();
+
+    renderer.render(createPackedSceneRuntime(scene), camera, scene.parts);
+
+    expect(readGpuCostSnapshot(renderer).draws["point-replay"]).toEqual({
+      calls: 1,
+      indices: 6,
+      instances: 1,
+    });
+    renderer.destroy();
+  });
+
+  it("rebuilds caller parts after reset when the same source map is rendered", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildScene();
+    const runtime = createPackedSceneRuntime(scene);
+
+    renderer.render(runtime, camera, scene.parts);
+    const drawCallsBeforeReset = gpu.drawCalls.length;
+    renderer.resetScene(scene.parts);
+    renderer.render(runtime, camera, scene.parts);
+
+    expect(gpu.drawCalls.length).toBeGreaterThan(drawCallsBeforeReset);
     renderer.destroy();
   });
 
