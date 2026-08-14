@@ -11,3 +11,11 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
+  - repo: local
+    hooks:
+      - id: actionlint
+        name: actionlint (GitHub Actions semantics)
+        entry: node scripts/actionlint.mjs
+        language: system
+        types: [yaml]
+        files: ^\.github/workflows/.*\.(yml|yaml)$

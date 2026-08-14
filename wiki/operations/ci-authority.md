@@ -34,6 +34,10 @@ The aggregator runs even when a dependency is skipped, cancelled, or fails, and
 returns failure unless both shards succeed. `e2e` remains an independent
 required context.
 
+The required `check` job's pre-commit step runs the pinned actionlint semantic
+workflow check. It is intentionally separate from `npm run lint:actions`, which
+enforces femgx's stricter immutable full-SHA policy for external actions.
+
 ## Merge decision
 
 - **Pending or missing checks** keep a pull request unmergeable.
