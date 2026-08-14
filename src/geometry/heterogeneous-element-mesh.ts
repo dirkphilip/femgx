@@ -12,6 +12,7 @@ import {
 } from "./part";
 import type { PartId } from "./part";
 import { lineGeometry, pointGeometry, volumeGeometry } from "./element-mesh-builders";
+import type { ElementTessellation } from "./types";
 
 /**
  * Tessellation options shared by the single mixed-model compiler.
@@ -122,6 +123,70 @@ export function heterogeneousElementParts(
             pointGeometry(model, groups.point, membership.bodyByElement, membership.blockByElement),
           ),
         }),
+  };
+}
+
+/**
+ * Builds one semantic part from a heterogeneous element model. Geometry remains
+ * homogeneous inside each leaf, while element ownership is shared at part level.
+ * @category Scene and geometry
+ */
+export function elementPart(
+  partId: PartId,
+  model: ElementModel,
+  options: TessellationOptions = {},
+): Part {
+  const groups = classifyElements(model);
+  const membership = elementModelMembership(model);
+  const geometries: (TriangleGeometry | LineGeometry | PointGeometry)[] = [];
+  if (groups.triangle.length > 0) {
+    geometries.push(
+      volumeGeometry({
+        model,
+        elements: groups.triangle,
+        faceSubset: options.faceSubset,
+        assignedBodies: membership.bodyByElement,
+        assignedBlocks: membership.blockByElement,
+      }),
+    );
+  }
+  if (groups.line.length > 0) {
+    geometries.push(
+      lineGeometry(model, groups.line, membership.bodyByElement, membership.blockByElement),
+    );
+  }
+  if (groups.point.length > 0) {
+    geometries.push(
+      pointGeometry(model, groups.point, membership.bodyByElement, membership.blockByElement),
+    );
+  }
+  const part = createPart(partId, geometries);
+  const byElement = new Map<ElementId, ElementTessellation>();
+  for (const geometry of geometries) {
+    for (const element of geometry.elements ?? []) {
+      const previous = byElement.get(element.id);
+      const range = {
+        primitive: geometry.primitive,
+        primitiveStart: element.primitiveStart,
+        primitiveCount: element.primitiveCount,
+      } as const;
+      byElement.set(
+        element.id,
+        previous === undefined
+          ? { ...element, primitiveRanges: [range] }
+          : { ...previous, primitiveRanges: [...(previous.primitiveRanges ?? []), range] },
+      );
+    }
+  }
+  return {
+    ...part,
+    elements: [...byElement.values()].sort((left, right) => left.id - right.id),
+    nodePositions: new Float32Array(model.nodes),
+    bodies: (model.bodies ?? []).map((body) => ({
+      id: body.id,
+      ...(body.name === undefined ? {} : { name: body.name }),
+      elementIds: body.elementIds as readonly number[],
+    })),
   };
 }
 

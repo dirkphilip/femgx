@@ -49,6 +49,7 @@ export {
   type MergeElementBlocksInput,
 } from "./elements/model-edit";
 export {
+  elementPart,
   heterogeneousElementParts,
   HeterogeneousElementError,
   type HeterogeneousElementErrorCode,

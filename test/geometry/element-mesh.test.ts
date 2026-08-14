@@ -21,6 +21,7 @@ import {
 import {
   type TessellationOptions,
   HeterogeneousElementError,
+  elementPart,
   heterogeneousElementParts,
 } from "../../src/geometry/heterogeneous-element-mesh";
 import {
@@ -675,6 +676,24 @@ describe("heterogeneousElementParts metadata", () => {
 });
 
 describe("heterogeneousElementParts", () => {
+  it("publishes one semantic part with topology-qualified ranges", () => {
+    const part = elementPart(20, heterogeneousModel());
+    expect(part.geometries.map((geometry) => geometry.primitive)).toEqual([
+      "triangles",
+      "lines",
+      "points",
+    ]);
+    expect(part.elements?.map((element) => element.id)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(part.elements?.map((element) => element.primitiveRanges?.[0]?.primitive)).toEqual([
+      "triangles",
+      "triangles",
+      "triangles",
+      "triangles",
+      "lines",
+      "points",
+    ]);
+  });
+
   it("groups linear surface, volume, line, and point elements without dropping ids", () => {
     const parts = heterogeneousElementParts(
       { triangle: 20, line: 21, point: 22 },

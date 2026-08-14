@@ -1,6 +1,12 @@
 import { validateElements, validatePickIds } from "./part-validation";
 import { validatePartId } from "./id-validation";
-import type { Bounds, Geometry } from "./types";
+import type {
+  Bounds,
+  ElementTessellation,
+  Geometry,
+  GeometryBody,
+  GeometryElementBlock,
+} from "./types";
 
 export type {
   Bounds,
@@ -12,7 +18,6 @@ export type {
   GeometryEdge,
   Geometry,
   LineGeometry,
-  LinearGeometry,
   PointGeometry,
   Primitive,
   TriangleGeometry,
@@ -35,7 +40,13 @@ export { MAX_PART_ID, validatePartId } from "./id-validation";
 export interface Part {
   readonly [partBrand]: true;
   readonly id: PartId;
+  readonly geometries: readonly Geometry[];
+  /** Transitional first-group view for consumers not yet migrated. */
   readonly geometry: Geometry;
+  readonly elements?: readonly ElementTessellation[];
+  readonly nodePositions?: Float32Array;
+  readonly bodies?: readonly GeometryBody[];
+  readonly blocks?: readonly GeometryElementBlock[];
   readonly bounds: Bounds;
 }
 
@@ -51,17 +62,31 @@ const partBrand: unique symbol = Symbol("Part");
  */
 export function createPart<T extends Geometry>(
   id: PartId,
-  geometry: T,
-): Part & { readonly geometry: T } {
+  geometries: readonly T[] | T,
+): Part & { readonly geometry: T; readonly geometries: readonly T[] } {
   validatePartId(id);
-  validateGeometryArrays(geometry);
-  validateElements(geometry);
-  validatePickIds(geometry);
+  const groups: readonly T[] = Array.isArray(geometries) ? geometries : [geometries];
+  if (groups.length === 0) throw new Error("Part must contain at least one geometry group");
+  for (const geometry of groups) {
+    validateGeometryArrays(geometry);
+    validateElements(geometry);
+    validatePickIds(geometry);
+  }
+  const nodePositions = groups.find(
+    (geometry) => geometry.nodePositions !== undefined,
+  )?.nodePositions;
+  const bodies = groups.find((geometry) => geometry.bodies !== undefined)?.bodies;
+  const blocks = groups.find((geometry) => geometry.blocks !== undefined)?.blocks;
   return {
     [partBrand]: true,
     id,
-    geometry,
-    bounds: finitePartBounds(geometry),
+    geometries: groups,
+    geometry: groups[0] as T,
+    elements: groups.flatMap((geometry) => geometry.elements ?? []),
+    ...(nodePositions === undefined ? {} : { nodePositions }),
+    ...(bodies === undefined ? {} : { bodies }),
+    ...(blocks === undefined ? {} : { blocks }),
+    bounds: finitePartBounds(groups),
   };
 }
 
@@ -93,8 +118,11 @@ const EMPTY_PART_BOUNDS: Bounds = {
   maxZ: 0,
 };
 
-function finitePartBounds(geometry: Geometry): Bounds {
-  return geometry.positions.length === 0 ? EMPTY_PART_BOUNDS : computeBounds(geometry);
+function finitePartBounds(geometries: readonly Geometry[]): Bounds {
+  const positions = geometries.flatMap((geometry) => Array.from(geometry.positions));
+  return positions.length === 0
+    ? EMPTY_PART_BOUNDS
+    : computePositionsBounds(new Float32Array(positions));
 }
 
 function validateGeometryArrays(geometry: Geometry): void {

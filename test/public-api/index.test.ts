@@ -53,6 +53,7 @@ describe("public root API", () => {
       "deformPositions",
       "edgesOf",
       "editElementModel",
+      "elementPart",
       "emphasizedBodyRefs",
       "emphasizedEdgeRefs",
       "emphasizedElementBlockRefs",
@@ -157,6 +158,7 @@ describe("public root API", () => {
     expect(publicApi.boundaryFaceRefs).toBeTypeOf("function");
     expect(publicApi.FaceSelectionError).toBeTypeOf("function");
     expect(publicApi.heterogeneousElementParts).toBeTypeOf("function");
+    expect(publicApi.elementPart).toBeTypeOf("function");
     expect(publicApi.HeterogeneousElementError).toBeTypeOf("function");
     expect(publicApi.createElementModelFromFemModel).toBeTypeOf("function");
     expect(publicApi.importGlb).toBeTypeOf("function");
