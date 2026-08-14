@@ -207,6 +207,12 @@ describe("workbench hover suppression", () => {
       contextMenu: vi.fn(),
     } as unknown as WorkbenchInteraction;
     const view = {
+      primaryPane: {
+        id: "primary",
+        scene: canvas as unknown as HTMLElement,
+        canvas: canvas as unknown as HTMLCanvasElement,
+        boxSelectionOverlay: new FakeElement() as unknown as HTMLElement,
+      },
       projectionToggle: new FakeElement(),
       edgeOverlayToggle: new FakeElement(),
       continuousToggle: new FakeElement(),
@@ -239,7 +245,6 @@ describe("workbench hover suppression", () => {
     let dragging = false;
     installWorkbenchBindings({
       view,
-      canvas: canvas as unknown as HTMLCanvasElement,
       signal: new AbortController().signal,
       interaction,
       dragging: () => dragging,

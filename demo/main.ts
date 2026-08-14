@@ -18,7 +18,7 @@ const workbenchApp = mount(WorkbenchApp, { target: app }) as unknown as Workbenc
 const view = queryDemoView();
 const controller = await startWebGpuDemo({
   view,
-  canvas: view.canvas,
+  canvas: view.primaryPane.canvas,
   reportStartupFailure: workbenchApp.reportStartupFailure.bind(workbenchApp),
   ...readDemoHarnessOptions(),
 });

@@ -21,9 +21,6 @@ function pane(
 export interface DemoView {
   readonly primaryPane: WorkbenchPane;
   readonly secondaryPane: WorkbenchPane;
-  readonly canvas: HTMLCanvasElement;
-  readonly scene: HTMLElement;
-  readonly boxSelectionOverlay: HTMLElement;
 }
 
 /** Locates the demo's DOM nodes, throwing when the page is misconfigured. */
@@ -39,11 +36,14 @@ export function queryDemoView(): DemoView {
   return createDemoView(elements);
 }
 
-type DemoViewElements = Omit<DemoView, "primaryPane" | "secondaryPane"> & {
+interface DemoViewElements {
+  readonly canvas: HTMLCanvasElement;
+  readonly scene: HTMLElement;
+  readonly boxSelectionOverlay: HTMLElement;
   readonly secondaryCanvas: HTMLCanvasElement;
   readonly secondaryScene: HTMLElement;
   readonly secondaryBoxSelectionOverlay: HTMLElement;
-};
+}
 
 function createDemoView(elements: DemoViewElements): DemoView {
   return {
@@ -54,7 +54,6 @@ function createDemoView(elements: DemoViewElements): DemoView {
       elements.secondaryCanvas,
       elements.secondaryBoxSelectionOverlay,
     ),
-    ...elements,
   };
 }
 

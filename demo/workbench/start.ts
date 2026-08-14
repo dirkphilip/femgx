@@ -33,7 +33,7 @@ export async function startWebGpuDemo(
   const models = createDemoModels(options);
   const initialModel = models[0];
   if (initialModel === undefined) throw new Error("The demo requires at least one model preset");
-  const primaryPane = primaryWorkbenchPane(view, canvas);
+  const primaryPane = primaryWorkbenchPane(view);
   const state: StartState = { viewport: undefined, controller: undefined };
   const reportFailure = (error: unknown): void => {
     reportRendererFailure(options.reportStartupFailure, canvas, error);
@@ -77,15 +77,8 @@ function createDemoModels(options: WebGpuDemoOptions): WorkbenchModel[] {
   ];
 }
 
-function primaryWorkbenchPane(view: DemoView, canvas: HTMLCanvasElement): WorkbenchPane {
-  const value: unknown = Reflect.get(view, "primaryPane");
-  if (isWorkbenchPane(value)) return value;
-  return {
-    id: "primary",
-    scene: Reflect.get(view, "scene"),
-    canvas,
-    boxSelectionOverlay: Reflect.get(view, "boxSelectionOverlay"),
-  };
+function primaryWorkbenchPane(view: DemoView): WorkbenchPane {
+  return view.primaryPane;
 }
 
 function reportRendererFailure(
@@ -235,11 +228,6 @@ function isPerformanceLabOptIn(): boolean {
   if (typeof location !== "object" || location === null || !("search" in location)) return false;
   const search = location.search;
   return typeof search === "string" && new URLSearchParams(search).get("performanceLab") === "1";
-}
-
-function isWorkbenchPane(value: unknown): value is WorkbenchPane {
-  if (value === null || typeof value !== "object") return false;
-  return "scene" in value && "canvas" in value && "boxSelectionOverlay" in value;
 }
 
 function contentInset(scene: HTMLElement, canvas: HTMLCanvasElement) {

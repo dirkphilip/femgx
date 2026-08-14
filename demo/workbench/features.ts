@@ -91,7 +91,7 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     visibilityActions: visibility.actions,
     interactionController,
     presentation,
-    boxPreview: new WorkbenchBoxPreview(options.view.boxSelectionOverlay),
+    boxPreview: new WorkbenchBoxPreview(options.view.primaryPane.boxSelectionOverlay),
   };
 }
 
