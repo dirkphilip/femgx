@@ -1,26 +1,29 @@
 import { type ElementId } from "./element";
 import {
   attachOwnership,
-  bodySnapshot,
   detachOwnership,
   resolveBlockBody,
   type BodyMembershipKind,
-  type BodySnapshot,
   type BlockBodyResolution,
   type MutableModelParts,
 } from "./model-edit-ownership";
 import { createElementModel, type ElementModel } from "./model";
 import type { Body, BodyId, ElementBlock, ElementBlockId } from "./model-types";
 import {
-  ElementModelEditError,
   type DissolveElementBlockOptions,
-  type ElementModelEditCode,
   type ElementModelEditResult,
   type ElementModelEditor,
   type MergeElementBlocksInput,
 } from "./model-edit-types";
 import { createReport, emptyReport } from "./model-edit-report";
 import { replaceBlock } from "./model-edit-replace";
+import {
+  fail,
+  requireBlock,
+  requireBlocks,
+  requireBodySnapshot,
+  sortedUnique,
+} from "./model-edit-guards";
 
 export { ElementModelEditError } from "./model-edit-types";
 export type {
@@ -199,36 +202,6 @@ function bodyMembershipKind(
   return "elementIds" in body ? "element" : "block";
 }
 
-function requireBodySnapshot(
-  parts: MutableModelParts,
-  bodyId: BodyId,
-  operation: string,
-): BodySnapshot {
-  const snapshot = bodySnapshot(parts.bodies, bodyId);
-  if (snapshot === undefined) {
-    fail("invalid-body", operation, `Body ${bodyId} does not exist in the model`);
-  }
-  return snapshot;
-}
-
-function requireBlocks(parts: MutableModelParts, operation: string): ElementBlock[] {
-  if (parts.blocks === undefined || parts.blocks.length === 0) {
-    fail("no-blocks", operation, "Element-model edit requires authored semantic blocks");
-  }
-  return parts.blocks;
-}
-
-function requireBlock(
-  blocks: readonly ElementBlock[],
-  blockId: ElementBlockId,
-  operation: string,
-): ElementBlock {
-  const block = blocks.find((candidate) => candidate.id === blockId);
-  if (block === undefined)
-    fail("missing-block", operation, `Element block ${blockId} does not exist`);
-  return block;
-}
-
 function uniqueSourceIds(
   sourceIds: readonly ElementBlockId[],
   operation: string,
@@ -312,12 +285,4 @@ function modelOptions(
     ...(blocks === undefined ? {} : { blocks }),
     ...(bodies === undefined ? {} : { bodies }),
   };
-}
-
-function sortedUnique(values: readonly number[]): number[] {
-  return [...new Set(values)].sort((a, b) => a - b);
-}
-
-function fail(code: ElementModelEditCode, operation: string, message: string): never {
-  throw new ElementModelEditError(code, operation, message);
 }
