@@ -1,6 +1,6 @@
 import type { SceneRuntime } from "../../src/index";
 import type { WorkbenchCommands, WorkbenchMenuAction } from "./snapshot";
-import type { VisibilityRowTarget } from "./tree-hover";
+import type { VisibilityRowTarget } from "./visibility-snapshot";
 import type { WorkbenchVisibilityActions } from "./visibility-actions";
 import type { WorkbenchInteraction } from "./interaction";
 import type { WorkbenchMenu } from "./menu";
@@ -33,7 +33,8 @@ interface WorkbenchCommandOwner {
   setResultField(id: string): void;
   setSectionAxis(axis: string): void;
   setSectionOffset(value: string): void;
-  setTreeHover(target: VisibilityRowTarget | undefined): void;
+  setHierarchyHover(target: VisibilityRowTarget): void;
+  clearHierarchyHover(target: VisibilityRowTarget): void;
 }
 
 /** Adapts existing controller methods to the typed presentation command surface. */
@@ -78,7 +79,8 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     toggleBodyHighlight: (target) => {
       owner.visibilityActions.bodyHighlight(target.instanceId, target.bodyId);
     },
-    setTreeHover: owner.setTreeHover.bind(owner),
+    setHierarchyHover: owner.setHierarchyHover.bind(owner),
+    clearHierarchyHover: owner.clearHierarchyHover.bind(owner),
   };
 }
 

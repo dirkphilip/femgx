@@ -29,6 +29,9 @@ interface WorkbenchViewportSlotsOptions {
   readonly getModel: () => WorkbenchModel;
   readonly getInteraction: () => InteractionState;
   readonly setInteraction: (value: InteractionState) => void;
+  readonly canClearCanvasHover: (slotId: ViewportSlotId) => boolean;
+  readonly markCanvasHover: (slotId: ViewportSlotId) => void;
+  readonly clearCanvasHover: (slotId: ViewportSlotId) => void;
   readonly selectionGranularity: () => SelectionGranularity;
   readonly menu: WorkbenchMenu;
   readonly render: () => void;
@@ -101,6 +104,10 @@ export class WorkbenchViewportSlots {
 
   invalidateInteraction(): void {
     for (const slot of this.slots.values()) slot.interaction.clearContext();
+  }
+
+  clearHover(): void {
+    for (const slot of this.slots.values()) slot.interaction.clearHover();
   }
 
   detachPrimary(): void {
@@ -197,6 +204,17 @@ export class WorkbenchViewportSlots {
       selectionGranularity: this.options.selectionGranularity,
       getInteraction: this.options.getInteraction,
       setInteraction: this.options.setInteraction,
+      hoverOwnership: {
+        canClear: () => {
+          return this.options.canClearCanvasHover("secondary");
+        },
+        mark: () => {
+          this.options.markCanvasHover("secondary");
+        },
+        clear: () => {
+          this.options.clearCanvasHover("secondary");
+        },
+      },
       partName: (partId) => this.options.getModel().partNames.get(partId),
       menu: this.options.menu,
       render: this.options.render,

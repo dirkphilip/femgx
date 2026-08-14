@@ -11,6 +11,7 @@ import { WorkbenchVisibilityActions } from "./visibility-actions";
 import type { SelectionGranularity } from "./pick";
 import type { SectionAxis } from "./section-controls";
 import type { VectorGlyph, VectorTransform } from "./result-controls";
+import type { ViewportSlotId } from "./view";
 
 export interface WorkbenchFeatureOptions {
   readonly view: DemoView;
@@ -32,6 +33,10 @@ export interface WorkbenchFeatureOptions {
   readonly sectionOffset: () => number;
   readonly interaction: () => InteractionState;
   readonly setInteraction: (interaction: InteractionState) => void;
+  readonly hoverSlotId: ViewportSlotId;
+  readonly canClearCanvasHover: (slotId: ViewportSlotId) => boolean;
+  readonly markCanvasHover: (slotId: ViewportSlotId) => void;
+  readonly clearCanvasHover: (slotId: ViewportSlotId) => void;
   readonly applyDisplayedInteraction: () => void;
   readonly render: () => void;
   readonly publishSnapshot: () => void;
@@ -84,6 +89,17 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     selectionGranularity: options.selectionGranularity,
     setInspection: presentation.setInspection.bind(presentation),
     selectionFeedback: presentation.setFeedback.bind(presentation),
+    hoverOwnership: {
+      canClear: () => {
+        return options.canClearCanvasHover(options.hoverSlotId);
+      },
+      mark: () => {
+        options.markCanvasHover(options.hoverSlotId);
+      },
+      clear: () => {
+        options.clearCanvasHover(options.hoverSlotId);
+      },
+    },
   });
   return {
     menu,

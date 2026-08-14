@@ -12,7 +12,7 @@ import {
 import type { DisplayToggles } from "./types";
 import type { ResultDisplayMode } from "./types";
 import type { VectorDisplayState } from "./result-controls";
-import type { VisibilityRowTarget } from "./tree-hover";
+import type { VisibilityRowTarget } from "./visibility-snapshot";
 import type { WorkbenchVisibilitySnapshot } from "./visibility-snapshot";
 
 export type WorkbenchMenuAction =
@@ -221,7 +221,8 @@ export interface WorkbenchCommands {
   toggleVisibility(target: VisibilityRowTarget): void;
   toggleVisibilityTree(occurrenceId: string): void;
   toggleBodyHighlight(target: Extract<VisibilityRowTarget, { kind: "body" }>): void;
-  setTreeHover(target: VisibilityRowTarget | undefined): void;
+  setHierarchyHover(target: VisibilityRowTarget): void;
+  clearHierarchyHover(target: VisibilityRowTarget): void;
   contextMenuAction(action: WorkbenchMenuAction): void;
   clearContextMenu(): void;
 }

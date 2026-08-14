@@ -1,9 +1,4 @@
-import type {
-  FemViewport,
-  InteractionState,
-  InteractionTarget,
-  ViewportBackground,
-} from "../../src/index";
+import type { FemViewport, InteractionState, ViewportBackground } from "../../src/index";
 import { errorMessage, type WorkbenchModel } from "./model";
 import type { DemoView, ViewportSlotId } from "./view";
 import type { WorkbenchPresentation } from "./presentation";
@@ -35,7 +30,7 @@ export interface WorkbenchViewportOwner {
   readonly sectionOffset: number;
   readonly observedPaneSizes: Map<ViewportSlotId, ObservedPaneSize>;
   readonly canvas: HTMLCanvasElement;
-  treeHoverTargets: readonly InteractionTarget[];
+  resetHoverOwner(): void;
   viewport: FemViewport;
   applyResultMode(render: boolean): void;
   applyCurrentDisplayState(): void;
@@ -56,8 +51,7 @@ export function setControllerViewport(owner: WorkbenchViewportOwner, viewport: F
       "error",
     );
   }
-  owner.treeHoverTargets = [];
-  owner.canvas.dataset["treeHover"] = "";
+  owner.resetHoverOwner();
   owner.applyResultMode(false);
   owner.applyCurrentDisplayState();
   applySectionPlane(owner, false);

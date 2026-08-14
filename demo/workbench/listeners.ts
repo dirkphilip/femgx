@@ -46,6 +46,13 @@ export function installWorkbenchPaneBindings(options: WorkbenchPaneBindingOption
     { signal },
   );
   pane.canvas.addEventListener(
+    "pointerleave",
+    () => {
+      options.interaction.clearHover(true);
+    },
+    { signal },
+  );
+  pane.canvas.addEventListener(
     "pointerup",
     (event) => {
       options.interaction.pointerUp(event);

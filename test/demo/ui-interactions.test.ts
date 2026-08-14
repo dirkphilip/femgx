@@ -11,7 +11,7 @@ import {
   type WorkbenchSnapshotInput,
 } from "../../demo/workbench/snapshot";
 import type { WorkbenchVisibilityRowSnapshot } from "../../demo/workbench/visibility-snapshot";
-import type { VisibilityRowTarget } from "../../demo/workbench/tree-hover";
+import type { VisibilityRowTarget } from "../../demo/workbench/visibility-snapshot";
 import BuildInfo from "../../demo/workbench/ui/BuildInfo.svelte";
 import ResultLegend from "../../demo/workbench/ui/ResultLegend.svelte";
 import StatusOverlays from "../../demo/workbench/ui/StatusOverlays.svelte";
@@ -203,7 +203,8 @@ describe("workbench Svelte controls", () => {
 
     expect(calls).toEqual(
       expect.arrayContaining([
-        "setTreeHover",
+        "setHierarchyHover",
+        "clearHierarchyHover",
         "toggleVisibilityTree",
         "toggleVisibility",
         "toggleBodyHighlight",
