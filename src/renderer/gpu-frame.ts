@@ -14,6 +14,7 @@ import { beginPickPass } from "./gpu-pick-pass";
 import { beginColorPass, beginCompositePass, beginTransparencyPass } from "./gpu-passes";
 import type { RenderResources } from "./gpu-pipelines";
 import { ensureColorTargets, ensureCompositeBindGroup } from "./gpu-pipelines";
+import type { ReadyColorTargets } from "./gpu-targets";
 import { drawOriginTriad, originTriadScale, writeOriginTriad } from "./gpu-origin-triad";
 import { drawOrbitPivot, writeOrbitPivot } from "./gpu-orbit-pivot";
 
@@ -89,12 +90,40 @@ export function cameraViewDirection(camera: Camera): Vec3 {
   return normalize(subtract(camera.position, camera.target));
 }
 
-/** Encodes and submits one visible color frame without any picking work. */
-export function encodeVisibleFrame(
+/** Returns whether this frame has any producer that requires weighted targets. */
+export function needsWeightedTransparency(
+  frame: {
+    readonly transparentCalls: readonly unknown[];
+    readonly selectionCalls: readonly unknown[];
+    readonly selectedNodeCalls: readonly unknown[];
+    readonly originTriadEnabled: boolean;
+    readonly originTriadAvailable: boolean;
+  },
+  orbitPivotActive: boolean,
+): boolean {
+  return (
+    frame.transparentCalls.length > 0 ||
+    frame.selectionCalls.length > 0 ||
+    frame.selectedNodeCalls.length > 0 ||
+    (frame.originTriadEnabled && frame.originTriadAvailable) ||
+    orbitPivotActive
+  );
+}
+
+interface VisibleFrameSetup {
+  readonly colorEncoder: GPUCommandEncoder;
+  readonly context: DrawCallContext;
+  readonly targets: ReadyColorTargets;
+  readonly swapChainView: GPUTextureView;
+  readonly needsTransparency: boolean;
+  readonly orbitPivotActive: boolean;
+}
+
+function prepareVisibleFrame(
   camera: Camera,
   parts: ReadonlyMap<PartId, Part>,
   frame: FrameOptions,
-): void {
+): VisibleFrameSetup {
   writeFrameUniforms(camera, frame);
   if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
     writeOriginTriad(
@@ -110,22 +139,53 @@ export function encodeVisibleFrame(
     devicePixelRatio: frame.devicePixelRatio,
   });
   if (orbitPivotActive) frame.draw.cost.write("uniform", 56);
-  const colorEncoder = frame.device.createCommandEncoder();
-  const targets = ensureColorTargets(
-    frame.draw,
+  const needsTransparency = needsWeightedTransparency(
+    {
+      transparentCalls: frame.transparentCalls,
+      selectionCalls: frame.selectionCalls,
+      selectedNodeCalls: frame.selectedNodeCalls,
+      originTriadEnabled: frame.originTriadEnabled,
+      originTriadAvailable: frame.resources.originTriad !== undefined,
+    },
+    orbitPivotActive,
+  );
+  const targets = ensureColorTargets(frame.draw, {
+    width: frame.canvas.width,
+    height: frame.canvas.height,
+    colorFormat: frame.colorFormat,
+    depthFormat: frame.depthFormat,
+    requiresTransparency: needsTransparency,
+  });
+  frame.draw.cost.targets(
     frame.canvas.width,
     frame.canvas.height,
-    frame.colorFormat,
-    frame.depthFormat,
+    frame.devicePixelRatio,
+    needsTransparency,
   );
-  frame.draw.cost.targets(frame.canvas.width, frame.canvas.height, frame.devicePixelRatio);
-  const context = drawContext(frame, parts);
+  return {
+    colorEncoder: frame.device.createCommandEncoder(),
+    context: drawContext(frame, parts),
+    targets,
+    swapChainView: frame.context.getCurrentTexture().createView(),
+    needsTransparency,
+    orbitPivotActive,
+  };
+}
+
+/** Encodes and submits one visible color frame without any picking work. */
+export function encodeVisibleFrame(
+  camera: Camera,
+  parts: ReadonlyMap<PartId, Part>,
+  frame: FrameOptions,
+): void {
+  const { colorEncoder, context, targets, swapChainView, needsTransparency, orbitPivotActive } =
+    prepareVisibleFrame(camera, parts, frame);
   frame.draw.cost.pass("opaque");
   const opaquePass = beginColorPass(
     colorEncoder,
     targets.color.createView(),
     targets.depth.createView(),
-    targets.opaqueColor.createView(),
+    needsTransparency ? requireWeightedTargets(targets).opaqueColor.createView() : swapChainView,
   );
   opaquePass.setPipeline(frame.resources.background.pipeline);
   opaquePass.setBindGroup(0, frame.resources.frameBindGroup);
@@ -145,9 +205,13 @@ export function encodeVisibleFrame(
   drawSelectionPass(opaquePass, frame, context, "selection-visible");
   if (orbitPivotActive) drawOrbitPivot(opaquePass, frame.resources.orbitPivot, "visible");
   if (orbitPivotActive) frame.draw.cost.draw("pivot", 60);
+  if (!needsTransparency) drawPresentationOverlays(opaquePass, frame, context);
   opaquePass.end();
-  drawTransparencyPass(colorEncoder, frame, context, targets, orbitPivotActive);
-  drawCompositePass(colorEncoder, frame, context, targets);
+  if (needsTransparency) {
+    const weightedTargets = requireWeightedTargets(targets);
+    drawTransparencyPass(colorEncoder, frame, context, weightedTargets, orbitPivotActive);
+    drawCompositePass(colorEncoder, frame, context, weightedTargets);
+  }
   frame.device.queue.submit([colorEncoder.finish()]);
 }
 
@@ -155,7 +219,7 @@ function drawTransparencyPass(
   encoder: GPUCommandEncoder,
   frame: FrameOptions,
   context: DrawCallContext,
-  targets: ReturnType<typeof ensureColorTargets>,
+  targets: WeightedColorTargets,
   orbitPivotActive: boolean,
 ): void {
   const pass = beginTransparencyPass(
@@ -217,7 +281,7 @@ function drawCompositePass(
   encoder: GPUCommandEncoder,
   frame: FrameOptions,
   context: DrawCallContext,
-  targets: ReturnType<typeof ensureColorTargets>,
+  targets: WeightedColorTargets,
 ): void {
   const pass = beginCompositePass(
     encoder,
@@ -230,6 +294,15 @@ function drawCompositePass(
   pass.setBindGroup(0, ensureCompositeBindGroup(frame.draw, frame.resources));
   pass.draw(3);
   frame.draw.cost.draw("composite", 3);
+  drawPresentationOverlays(pass, frame, context);
+  pass.end();
+}
+
+function drawPresentationOverlays(
+  pass: GPURenderPassEncoder,
+  frame: FrameOptions,
+  context: DrawCallContext,
+): void {
   if (frame.edgeCalls.length > 0) {
     drawBatches(pass, frame.draw, context, frame.edgeCalls, {
       kind: "edge",
@@ -241,7 +314,27 @@ function drawCompositePass(
   if (frame.nodeCalls.length > 0) {
     drawNodeOverlay(pass, frame, context);
   }
-  pass.end();
+}
+
+type WeightedColorTargets = ReadyColorTargets &
+  Required<
+    Pick<
+      ReadyColorTargets,
+      "opaqueColor" | "accumulation" | "revealage" | "msaaAccumulation" | "msaaRevealage"
+    >
+  >;
+
+function requireWeightedTargets(targets: ReadyColorTargets): WeightedColorTargets {
+  if (
+    targets.opaqueColor === undefined ||
+    targets.accumulation === undefined ||
+    targets.revealage === undefined ||
+    targets.msaaAccumulation === undefined ||
+    targets.msaaRevealage === undefined
+  ) {
+    throw new Error("Weighted transparency targets are unavailable");
+  }
+  return targets as WeightedColorTargets;
 }
 
 /** Encodes and submits one current pick snapshot for subsequent readbacks. */

@@ -52,6 +52,7 @@ export interface GpuTargetCost {
   readonly height: number;
   readonly devicePixelRatio: number;
   readonly sampleCount: number;
+  readonly weightedTransparency: boolean;
   readonly estimatedBytes: number;
 }
 
@@ -121,16 +122,23 @@ export class GpuCostAccumulator {
     this.cpuCounts[work] += count;
   }
 
-  public targets(width: number, height: number, devicePixelRatio: number): void {
+  public targets(
+    width: number,
+    height: number,
+    devicePixelRatio: number,
+    weightedTransparency = true,
+  ): void {
     const pixels = width * height;
     this.targetCost = {
       width,
       height,
       devicePixelRatio,
       sampleCount: 4,
-      // msaa color + resolved opaque + msaa/resolved accumulation +
-      // msaa/resolved revealage + msaa depth: 96 bytes per physical pixel.
-      estimatedBytes: pixels * 96,
+      weightedTransparency,
+      // The no-weighted path retains only MSAA color and depth. The weighted
+      // path adds the resolved opaque color, rgba16f accumulation, and r8
+      // revealage targets (81 bytes per physical pixel in total).
+      estimatedBytes: pixels * (weightedTransparency ? 81 : 32),
     };
   }
 

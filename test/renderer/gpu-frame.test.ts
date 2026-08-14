@@ -3,6 +3,7 @@ import {
   AUTHORED_PRIMITIVE_PRECEDENCE,
   cameraKeyLightDirection,
   cameraViewDirection,
+  needsWeightedTransparency,
   nodeSizeDevicePixels,
   pointSizeDevicePixels,
 } from "../../src/renderer/gpu-frame";
@@ -50,6 +51,33 @@ describe("authored primitive precedence", () => {
 describe("fixed-size sprite conversions", () => {
   it("converts fixed-size node diameters using the current DPR", () => {
     expect(nodeSizeDevicePixels(6, 2)).toBe(12);
+  });
+});
+
+describe("weighted transparency contributors", () => {
+  const emptyFrame = {
+    transparentCalls: [],
+    selectionCalls: [],
+    selectedNodeCalls: [],
+    originTriadEnabled: false,
+    originTriadAvailable: false,
+  } as const;
+
+  it("skips weighted targets when no visible contributor is active", () => {
+    expect(needsWeightedTransparency(emptyFrame, false)).toBe(false);
+  });
+
+  it.each([
+    ["transparent scene calls", { transparentCalls: [{}] }],
+    ["selected instances", { selectionCalls: [{}] }],
+    ["selected nodes", { selectedNodeCalls: [{}] }],
+    ["the origin triad", { originTriadEnabled: true, originTriadAvailable: true }],
+  ] as const)("retains weighted targets for %s", (_label, change) => {
+    expect(needsWeightedTransparency({ ...emptyFrame, ...change }, false)).toBe(true);
+  });
+
+  it("retains weighted targets for an active orbit pivot", () => {
+    expect(needsWeightedTransparency(emptyFrame, true)).toBe(true);
   });
 });
 

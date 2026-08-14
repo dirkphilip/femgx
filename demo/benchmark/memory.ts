@@ -29,6 +29,7 @@ export interface BenchmarkMemoryEstimate {
   readonly retainedBufferBytes: number;
   /** Retained buffers plus the upload-staging upper bound. */
   readonly peakRendererBytes: number;
+  /** Weighted visible color targets for the default triad-enabled path. */
   readonly visibleColorBytes: number;
   readonly visibleDepthBytes: number;
   readonly pickIdTargetBytes: number;
@@ -115,7 +116,7 @@ export function estimateBenchmarkMemory(
   const uploadStagingBytes =
     geometryBytes + resultColorBytes + pickMetadataBytes + edgeIndexBytes + subsetBytes;
   const pixels = width * height;
-  const visibleColorBytes = pixels * (16 + 4 + 32 + 8 + 16 + 4);
+  const visibleColorBytes = pixels * (16 + 4 + 32 + 8 + 4 + 1);
   const visibleDepthBytes = pixels * 16;
   const pickIdTargetBytes = pixels * 4 * 4;
   const pickDepthBytes = pixels * 4;

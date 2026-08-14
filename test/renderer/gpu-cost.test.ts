@@ -20,7 +20,8 @@ describe("GPU cost accounting", () => {
       height: 1200,
       devicePixelRatio: 2,
       sampleCount: 4,
-      estimatedBytes: 1600 * 1200 * 96,
+      weightedTransparency: true,
+      estimatedBytes: 1600 * 1200 * 81,
     });
 
     cost.reset();

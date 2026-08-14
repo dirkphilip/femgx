@@ -196,9 +196,14 @@ result-color tails, expanded main geometry and materialized optional edge
 geometry, topology/pick metadata, face-subset buffers, per-part deformation and
 highlight storage, six
 instance-order buffers, pooled pick readback, and the multisampled visible color
-targets. It separately reports retained GPU buffers, measurable CPU scene typed
-arrays, and an upload-staging upper bound; `memoryEstimateScope` documents that
-the renderer estimate excludes driver allocations. Edge/topology categories
+targets. The default triad-enabled weighted path accounts for 81 logical
+render-target bytes per physical pixel: MSAA color/depth, resolved opaque color,
+`rgba16float` accumulation, and scalar `r8unorm` revealage. A frame with no
+weighted contributor retains only the 32-byte MSAA color/depth base and skips OIT
+target allocation and the composite pass. It separately reports retained GPU
+buffers, measurable CPU scene typed arrays, and an upload-staging upper bound;
+`memoryEstimateScope` documents that the renderer estimate excludes driver
+allocations. Edge/topology categories
 remain explicit upper bounds where exact deduplication is performed during the
 renderer upload.
 

@@ -735,23 +735,38 @@ describe("GPU draw path", () => {
     try {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
-      const first = ensureColorTargets(draw, 800, 600, "bgra8unorm", "depth24plus-stencil8");
-      const second = ensureColorTargets(draw, 800, 600, "bgra8unorm", "depth24plus-stencil8");
+      const first = ensureColorTargets(draw, {
+        width: 800,
+        height: 600,
+        colorFormat: "bgra8unorm",
+        depthFormat: "depth24plus-stencil8",
+      });
+      const second = ensureColorTargets(draw, {
+        width: 800,
+        height: 600,
+        colorFormat: "bgra8unorm",
+        depthFormat: "depth24plus-stencil8",
+      });
       expect(second.color).toBe(first.color);
       expect(second.depth).toBe(first.depth);
       expect(gpu.textureCreations).toBe(7);
       expect(gpu.textures[0]?.descriptor.sampleCount).toBe(4);
-      expect(gpu.textures[1]?.descriptor.sampleCount).toBeUndefined();
+      expect(gpu.textures[1]?.descriptor.sampleCount).toBe(4);
       expect(gpu.textures[1]?.descriptor.usage).toBe(
         GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
       );
-      expect(gpu.textures[2]?.descriptor.sampleCount).toBe(4);
-      expect(gpu.textures[3]?.descriptor.sampleCount).toBeUndefined();
-      expect(gpu.textures[4]?.descriptor.sampleCount).toBe(4);
-      expect(gpu.textures[5]?.descriptor.sampleCount).toBeUndefined();
-      expect(gpu.textures[6]?.descriptor.sampleCount).toBe(4);
+      expect(gpu.textures[2]?.descriptor.sampleCount).toBeUndefined();
+      expect(gpu.textures[3]?.descriptor.sampleCount).toBe(4);
+      expect(gpu.textures[4]?.descriptor.sampleCount).toBeUndefined();
+      expect(gpu.textures[5]?.descriptor.sampleCount).toBe(4);
+      expect(gpu.textures[6]?.descriptor.sampleCount).toBeUndefined();
       draw.targets.compositeBindGroup = {} as GPUBindGroup;
-      const resized = ensureColorTargets(draw, 400, 300, "bgra8unorm", "depth24plus-stencil8");
+      const resized = ensureColorTargets(draw, {
+        width: 400,
+        height: 300,
+        colorFormat: "bgra8unorm",
+        depthFormat: "depth24plus-stencil8",
+      });
       expect(resized.depth).not.toBe(first.depth);
       expect(gpu.textureCreations).toBe(14);
       expect(gpu.textures[0]?.destroyed).toBe(true);
@@ -766,6 +781,49 @@ describe("GPU draw path", () => {
     }
   });
 
+  it("allocates and releases weighted targets independently of base color and depth", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      const opaque = ensureColorTargets(draw, {
+        width: 800,
+        height: 600,
+        colorFormat: "bgra8unorm",
+        depthFormat: "depth24plus-stencil8",
+        requiresTransparency: false,
+      });
+      expect(gpu.textureCreations).toBe(2);
+      expect(opaque.opaqueColor).toBeUndefined();
+      expect(opaque.accumulation).toBeUndefined();
+      const weighted = ensureColorTargets(draw, {
+        width: 800,
+        height: 600,
+        colorFormat: "bgra8unorm",
+        depthFormat: "depth24plus-stencil8",
+        requiresTransparency: true,
+      });
+      expect(gpu.textureCreations).toBe(7);
+      expect(weighted.color).toBe(opaque.color);
+      expect(weighted.depth).toBe(opaque.depth);
+      expect(weighted.opaqueColor).toBeDefined();
+      const released = ensureColorTargets(draw, {
+        width: 800,
+        height: 600,
+        colorFormat: "bgra8unorm",
+        depthFormat: "depth24plus-stencil8",
+        requiresTransparency: false,
+      });
+      expect(gpu.textureCreations).toBe(7);
+      expect(released.color).toBe(opaque.color);
+      expect(released.opaqueColor).toBeUndefined();
+      expect(gpu.textures.slice(2).every((texture) => texture.destroyed)).toBe(true);
+      destroyDrawResources(draw);
+    } finally {
+      restore();
+    }
+  });
+
   it("cleans partial visible-target allocation without publishing half-state", () => {
     const restore = installGpuGlobals();
     try {
@@ -773,7 +831,12 @@ describe("GPU draw path", () => {
       const draw = createDrawResources(gpu.device);
 
       expect(() => {
-        ensureColorTargets(draw, 800, 600, "bgra8unorm", "depth24plus-stencil8");
+        ensureColorTargets(draw, {
+          width: 800,
+          height: 600,
+          colorFormat: "bgra8unorm",
+          depthFormat: "depth24plus-stencil8",
+        });
       }).toThrow("fake texture allocation failed at 4");
       expect(gpu.textureCreations).toBe(3);
       expect(gpu.textures.every((texture) => texture.destroyCount === 1)).toBe(true);

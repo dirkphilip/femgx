@@ -3,6 +3,7 @@ import {
   transparencyFragmentShader,
   transparencyOutput,
   triangleTransparencyFragmentShader,
+  TRANSPARENCY_REVEALAGE_FORMAT,
 } from "../../src/renderer/gpu-transparency";
 
 const MIN_WEIGHT = 0.01;
@@ -16,6 +17,11 @@ function mirroredSceneWeight(alpha: number, depth: number): number {
 }
 
 describe("depth-aware transparency weight", () => {
+  it("uses a scalar revealage attachment", () => {
+    expect(TRANSPARENCY_REVEALAGE_FORMAT).toBe("r8unorm");
+    expect(transparencyOutput).toContain("@location(1) revealage: f32");
+  });
+
   it("stays finite and bounded for invalid and boundary inputs", () => {
     for (const alpha of [Number.NaN, Number.NEGATIVE_INFINITY, 0, 0.5, 1, Infinity]) {
       for (const depth of [Number.NaN, Number.NEGATIVE_INFINITY, 0, 0.5, 1, Infinity]) {
@@ -59,6 +65,6 @@ describe("depth-aware transparency weight", () => {
     );
     expect(transparencyFragmentShader).toContain("fragmentPosition.z");
     expect(triangleTransparencyFragmentShader).toContain("fragmentPosition.z");
-    expect(transparencyOutput).toContain("output.revealage = vec4<f32>(alpha)");
+    expect(transparencyOutput).toContain("output.revealage = alpha");
   });
 });
