@@ -6,6 +6,7 @@ import {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  PYRAMID5_SHAPE,
   QUAD8_SHAPE,
   QUAD_SHAPE,
   TRI6_SHAPE,
@@ -14,6 +15,7 @@ import {
   TET4_SHAPE,
   topologyFor,
   type ElementShape,
+  WEDGE6_SHAPE,
 } from "../../src/elements/shapes";
 
 const ALL_SHAPES: ReadonlyArray<readonly [string, ElementShape]> = [
@@ -26,6 +28,8 @@ const ALL_SHAPES: ReadonlyArray<readonly [string, ElementShape]> = [
   ["quad8", QUAD8_SHAPE],
   ["tet4", TET4_SHAPE],
   ["tet10", TET10_SHAPE],
+  ["wedge6", WEDGE6_SHAPE],
+  ["pyramid5", PYRAMID5_SHAPE],
   ["hex8", HEX8_SHAPE],
   ["hex20", HEX20_SHAPE],
 ];

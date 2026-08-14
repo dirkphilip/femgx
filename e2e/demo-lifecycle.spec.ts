@@ -397,7 +397,7 @@ test("renders the helper and mapping examples in the gallery grid", async ({ pag
   const canvas = page.getByTestId("view-canvas");
   await page.getByTestId("model-select").selectOption("gallery");
   await expect(canvas).toHaveAttribute("data-model", "gallery");
-  await expect(page.getByTestId("status")).toContainText("12 visible");
+  await expect(page.getByTestId("status")).toContainText("14 visible");
   await expect.poll(() => distinctColors(canvas), { timeout: 10_000 }).toBeGreaterThanOrEqual(6);
 
   const screenshot = await canvas.screenshot();

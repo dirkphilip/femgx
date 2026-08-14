@@ -40,7 +40,7 @@ and requires the `FemModel` node ids to already be dense and ordered because
 `ElementModel` indexes nodes directly. Invalid interchange data raises an
 `IoError` carrying the validation issues instead of silently dropping a block.
 
-Tri6, Quad8, Tet10, Hex20, and Line3 are accepted and linearly tessellated; unsupported
+Tri6, Quad8, Tet10, Wedge6, Pyramid5, Hex20, and Line3 are accepted and linearly tessellated; unsupported
 families are rejected by the heterogeneous builder with `HeterogeneousElementError`
 and an element id/shape when available. The builder does not interpolate curved
 quadratic geometry or combine incompatible primitives into one draw.

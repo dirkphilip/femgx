@@ -1,7 +1,7 @@
 # Element rendering
 
 How finite elements become drawable geometry. Point, Line, Line3, Triangle, Tri6,
-Quad, Quad8, Tet4, Tet10, Hex8, and Hex20 are Core now, including quadratic tessellation.
+Quad, Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, and Hex20 are Core now, including quadratic tessellation.
 Related: [[data/elements-topology|Element topology]] and
 [[architecture/instancing-strategy|Instancing strategy]].
 
@@ -18,7 +18,7 @@ Related: [[data/elements-topology|Element topology]] and
 3. `heterogeneousElementParts` (`src/geometry/heterogeneous-element-mesh.ts`)
    scans the model once and emits the compatible primitive groups needed by
    WebGPU: at most one triangle, line, and point part. Triangle, Tri6, Quad,
-   Quad8, Tet4, Tet10, Hex8, and Hex20 elements share the triangle group; line and point
+   Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, and Hex20 elements share the triangle group; line and point
    elements use their own topology groups. Each group is a reusable part with
    computed bounds. Triangle callers can pass a validated `faceSubset` of
    `{ elementId, faceIndex }` identities; the renderer keeps the full reusable

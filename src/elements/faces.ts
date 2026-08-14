@@ -1,7 +1,7 @@
 /**
  * Extraction of element faces as oriented polygon loops.
  *
- * Volume shapes (tet/hex) have a fixed set of faces taken from the VTK
+ * Volume shapes (tet/wedge/pyramid/hex) have a fixed set of faces taken from the VTK
  * convention, listed as corner loops whose right-hand-rule winding gives an
  * outward normal for a right-handed (positive-Jacobian) element. Quadratic
  * shapes expand each face with its mid-edge nodes, interleaving corners and
@@ -80,6 +80,22 @@ const TET_FACES: ReadonlyArray<readonly number[]> = [
   [0, 2, 1],
 ];
 
+const WEDGE_FACES: ReadonlyArray<readonly number[]> = [
+  [0, 2, 1],
+  [3, 4, 5],
+  [0, 1, 4, 3],
+  [1, 2, 5, 4],
+  [2, 0, 3, 5],
+];
+
+const PYRAMID_FACES: ReadonlyArray<readonly number[]> = [
+  [0, 3, 2, 1],
+  [0, 1, 4],
+  [1, 2, 4],
+  [2, 3, 4],
+  [3, 0, 4],
+];
+
 const HEX_FACES: ReadonlyArray<readonly number[]> = [
   [0, 4, 7, 3],
   [1, 2, 6, 5],
@@ -97,6 +113,10 @@ function faceCornerLoops(family: ElementFamily): ReadonlyArray<readonly number[]
       return [[0, 1, 2, 3]];
     case "tet":
       return TET_FACES;
+    case "wedge":
+      return WEDGE_FACES;
+    case "pyramid":
+      return PYRAMID_FACES;
     case "hex":
       return HEX_FACES;
     default:

@@ -9,11 +9,13 @@ import {
   LINE_SHAPE,
   LINE3_SHAPE,
   POINT_SHAPE,
+  PYRAMID5_SHAPE,
   QUAD8_SHAPE,
   QUAD_SHAPE,
   TRI6_SHAPE,
   TET4_SHAPE,
   TET10_SHAPE,
+  WEDGE6_SHAPE,
   TRIANGLE_SHAPE,
   topologyFor,
 } from "../../src/elements/shapes";
@@ -39,6 +41,8 @@ describe("VTK round-trips", () => {
       QUAD8_SHAPE,
       TET4_SHAPE,
       TET10_SHAPE,
+      WEDGE6_SHAPE,
+      PYRAMID5_SHAPE,
       HEX8_SHAPE,
       HEX20_SHAPE,
     ] as const;
@@ -68,7 +72,7 @@ describe("VTK round-trips", () => {
 
     const written = writeVtk(model);
     expect(writeVtk(model)).toBe(written);
-    expect(written).toContain("CELL_TYPES 11\n1\n3\n21\n5\n22\n9\n23\n10\n24\n12\n25");
+    expect(written).toContain("CELL_TYPES 13\n1\n3\n21\n5\n22\n9\n23\n10\n24\n13\n14\n12\n25");
     const parsed = parseVtk(written);
     expect(parsed.issues).toEqual([]);
     expect(parsed.model.elementShapeBlocks.map((block) => block.shape)).toEqual([...shapes]);

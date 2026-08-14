@@ -6,8 +6,8 @@ builders used to exercise the WebGPU path and unit tests.
 ## Element tessellation and mapping gallery
 
 `createElementFixture` places representative examples for the built-in topology
-helpers: Point, Line, Line3, Triangle, Tri6, Quad, Quad8, Tet4, Tet10, Hex8,
-and Hex20. These names describe FEMGX's typed tessellation helpers, not an
+helpers: Point, Line, Line3, Triangle, Tri6, Quad, Quad8, Tet4, Tet10, Wedge6,
+Pyramid5, Hex8, and Hex20. These names describe FEMGX's typed tessellation helpers, not an
 exhaustive solver-element catalog.
 
 The gallery also includes a **Generic solver-mapped element**: temporary
@@ -19,9 +19,10 @@ part and the presentation metadata needed by the workbench. Face and element
 picks therefore demonstrate the same retained identity contract available to a
 host that maps a solver representation into FEMGX.
 
-The twelve examples use a deterministic 2-row × 6-column comparison grid:
+The fourteen examples use a deterministic comparison grid:
 Point, Line, Line3, Triangle, Quad, and Tri6 occupy the first row; the generic
-mapped element, Tet4, Tet10, Hex8, Hex20, and Quad8 occupy the second. The
+mapped element, Tet4, Tet10, Hex8, Hex20, and Quad8 occupy the second; Wedge6
+and Pyramid5 occupy the third. The
 hardware-WebGPU rendering suite isolates Tri6 and Quad8, checks their exact face,
 element, and authored mid-edge node identities, and repeats the checks at the
 390×844 mobile viewport. Triangle, line, and point outputs remain separate only

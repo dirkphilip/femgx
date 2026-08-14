@@ -152,6 +152,8 @@ function supportedGroup(element: Element): "triangle" | "line" | "point" | undef
     case "triangle":
     case "quad":
     case "tet":
+    case "wedge":
+    case "pyramid":
     case "hex":
       return "triangle";
   }

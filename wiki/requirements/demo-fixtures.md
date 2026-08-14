@@ -11,7 +11,7 @@ that work is in progress and after it is complete.
 
 Compliant fixtures:
 
-1. Use genuine supported **Triangle**, **Quad**, **Tet**, and **Hex** finite
+1. Use genuine supported **Triangle**, **Quad**, **Tet**, **Wedge**, **Pyramid**, and **Hex** finite
    elements. Their supported quadratic variants — **Tri6**, **Quad8**,
    **Tet10**, and **Hex20** — are valid fixtures too. A family may be surfaced
    as a shell or a solid, but the authored element records remain real.

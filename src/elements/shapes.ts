@@ -18,7 +18,8 @@
  */
 
 /** A family of finite elements with a shared geometric structure. */
-export type ElementFamily = "point" | "line" | "triangle" | "quad" | "tet" | "hex";
+export type ElementFamily =
+  "point" | "line" | "triangle" | "quad" | "tet" | "wedge" | "pyramid" | "hex";
 
 /** Interpolation order: 0 for points, 1 linear, 2 quadratic. */
 export type ElementOrder = 0 | 1 | 2;
@@ -47,6 +48,10 @@ export const QUAD8_SHAPE: ElementShape = { family: "quad", order: 2 };
 export const TET4_SHAPE: ElementShape = { family: "tet", order: 1 };
 /** Quadratic tetrahedron (Tet10): four corners plus six mid-edge nodes. */
 export const TET10_SHAPE: ElementShape = { family: "tet", order: 2 };
+/** Linear triangular prism (Wedge6): six corner nodes. */
+export const WEDGE6_SHAPE: ElementShape = { family: "wedge", order: 1 };
+/** Linear square pyramid (Pyramid5): five corner nodes. */
+export const PYRAMID5_SHAPE: ElementShape = { family: "pyramid", order: 1 };
 /** Linear hexahedron (Hex8): eight corner nodes. */
 export const HEX8_SHAPE: ElementShape = { family: "hex", order: 1 };
 /** Quadratic hexahedron (Hex20): eight corners plus twelve mid-edge nodes. */
@@ -95,6 +100,29 @@ const TET_EDGES: ReadonlyArray<readonly [number, number]> = [
   [2, 3],
 ];
 
+const WEDGE_EDGES: ReadonlyArray<readonly [number, number]> = [
+  [0, 1],
+  [1, 2],
+  [2, 0],
+  [3, 4],
+  [4, 5],
+  [5, 3],
+  [0, 3],
+  [1, 4],
+  [2, 5],
+];
+
+const PYRAMID_EDGES: ReadonlyArray<readonly [number, number]> = [
+  [0, 1],
+  [1, 2],
+  [2, 3],
+  [3, 0],
+  [0, 4],
+  [1, 4],
+  [2, 4],
+  [3, 4],
+];
+
 const HEX_EDGES: ReadonlyArray<readonly [number, number]> = [
   [0, 1],
   [1, 2],
@@ -117,6 +145,8 @@ type SupportedOrder = {
   triangle: 1 | 2;
   quad: 1 | 2;
   tet: 1 | 2;
+  wedge: 1;
+  pyramid: 1;
   hex: 1 | 2;
 };
 
@@ -225,6 +255,22 @@ const TOPOLOGY_REGISTRY = {
     corners: [0, 1, 2, 3],
     edges: TET_EDGES,
     edgeNodes: [4, 5, 6, 7, 8, 9],
+  },
+  "wedge:1": {
+    family: "wedge",
+    order: 1,
+    nodeCount: 6,
+    corners: [0, 1, 2, 3, 4, 5],
+    edges: WEDGE_EDGES,
+    edgeNodes: [],
+  },
+  "pyramid:1": {
+    family: "pyramid",
+    order: 1,
+    nodeCount: 5,
+    corners: [0, 1, 2, 3, 4],
+    edges: PYRAMID_EDGES,
+    edgeNodes: [],
   },
   "hex:1": {
     family: "hex",
