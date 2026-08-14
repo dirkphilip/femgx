@@ -190,6 +190,23 @@ fn topologyOwnersVisible(slot: u32, topologyIndex: u32) -> bool {
   return false;
 }
 
+// Edge picking keeps shared authored edges targetable while requiring at
+// least one incident owner to remain visible.
+fn topologyAnyOwnerVisible(slot: u32, topologyIndex: u32) -> bool {
+  let range = topologyBodyRange(topologyIndex);
+  for (var condition = 0u; condition < range.y; condition++) {
+    let index = range.x + condition;
+    if (ownerVisible(slot, topologyBodyId(index), topologyBlockId(index), topologyElementId(index))) {
+      return true;
+    }
+    let neighbor = topologyElementNeighborId(index);
+    if (neighbor != 0u && ownerVisible(slot, topologyBodyNeighborId(index), topologyBlockNeighborId(index), neighbor)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // A node annotation belongs to every incident topology item and disappears as
 // soon as any owning body, block, or element is hidden.
 fn topologyOwnersAllVisible(slot: u32, topologyIndex: u32) -> bool {

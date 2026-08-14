@@ -20,6 +20,26 @@ export function beginPickPass(encoder: GPUCommandEncoder, pick: PickTargets): GP
   });
 }
 
+/** Begins the lazy authored-edge pass over the ordinary pick depth buffer. */
+export function beginEdgePickPass(
+  encoder: GPUCommandEncoder,
+  pick: PickTargets,
+): GPURenderPassEncoder {
+  if (pick.edgeTexture === undefined || pick.depthTexture === undefined) {
+    throw new Error("Authored-edge picking targets were not created");
+  }
+  return encoder.beginRenderPass({
+    colorAttachments: [attachment(pick.edgeTexture.createView())],
+    depthStencilAttachment: {
+      view: pick.depthTexture.createView(),
+      depthLoadOp: "load",
+      depthStoreOp: "store",
+      stencilLoadOp: "load",
+      stencilStoreOp: "discard",
+    },
+  });
+}
+
 function depthAttachment(texture: GPUTexture): GPURenderPassDepthStencilAttachment {
   return {
     view: texture.createView(),

@@ -73,6 +73,8 @@ function targetForGranularity(
         ? { kind: "node", instanceId, nodeId }
         : undefined;
     }
+    case "edge":
+      return undefined;
   }
 }
 

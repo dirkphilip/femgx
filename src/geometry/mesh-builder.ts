@@ -4,6 +4,7 @@ import type {
   Geometry,
   GeometryBody,
   GeometryElementBlock,
+  GeometryEdge,
   LineGeometry,
   Primitive,
   TriangleGeometry,
@@ -22,6 +23,7 @@ export interface MeshVertex {
 /** Optional ownership and source metadata attached to assembled geometry. */
 export interface MeshMetadata {
   readonly elements?: readonly ElementTessellation[];
+  readonly edges?: readonly GeometryEdge[];
   readonly faces?: readonly FaceTessellation[];
   readonly nodePositions?: ArrayLike<number>;
   readonly bodies?: readonly GeometryBody[];
@@ -73,13 +75,14 @@ export class TriangleMeshAssembler {
 
   build(primitive: "triangles", metadata?: MeshMetadata): TriangleGeometry;
   build(primitive: Primitive, metadata: MeshMetadata = {}): Geometry {
-    const { elements, faces, nodePositions, bodies, blocks } = metadata;
+    const { elements, edges, faces, nodePositions, bodies, blocks } = metadata;
     const hasNodeIds = this.nodePickIds.some((id) => id !== 0);
     return {
       positions: new Float32Array(this.positions),
       indices: new Uint32Array(this.indices),
       primitive,
       ...(elements !== undefined && elements.length > 0 ? { elements } : {}),
+      ...(edges !== undefined && edges.length > 0 ? { edges } : {}),
       ...(hasNodeIds
         ? {
             nodePickIds: new Uint32Array(this.nodePickIds),

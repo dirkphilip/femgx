@@ -51,6 +51,7 @@ export interface RenderResources {
   /** Persistent world-origin triad with visible and weighted-ghost variants. */
   readonly originTriad: OriginTriadResources | undefined;
   readonly instanceLayout: GPUBindGroupLayout;
+  readonly pipelineLayout: GPUPipelineLayout;
   readonly background: BackgroundResources;
 }
 
@@ -183,6 +184,7 @@ export async function createRenderResources(
       sectionPlaneBuffer,
       frameBindGroup,
       instanceLayout,
+      pipelineLayout: layout,
       pipelines: pipelineResources.pipelines,
       orientationGlyphs,
       composite,

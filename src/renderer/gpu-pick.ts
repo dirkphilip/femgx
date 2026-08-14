@@ -24,6 +24,8 @@ export interface PickTargets {
   faceTexture: GPUTexture | undefined;
   /** Fourth attachment holding the per-fragment node pick id. */
   nodeTexture: GPUTexture | undefined;
+  /** Lazy fifth target written only by authored-edge picking. */
+  edgeTexture: GPUTexture | undefined;
   depthTexture: GPUTexture | undefined;
   depthReadback: PickDepthReadback | undefined;
   readonly readback: PickReadbackPool;
@@ -73,10 +75,29 @@ export function createPickTargets(depthReadback?: PickDepthReadback): PickTarget
     elementTexture: undefined,
     faceTexture: undefined,
     nodeTexture: undefined,
+    edgeTexture: undefined,
     depthTexture: undefined,
     depthReadback,
     readback: { free: [], inFlight: new Set(), capacities: new Map(), closed: false },
   };
+}
+
+/** Creates the optional authored-edge target after the ordinary pick targets exist. */
+export function ensureEdgePickTarget(
+  device: GPUDevice,
+  pick: PickTargets,
+  width: number,
+  height: number,
+): void {
+  if (pick.edgeTexture !== undefined) return;
+  if (pick.depthTexture === undefined) {
+    throw new Error("Authored-edge picking requires ordinary pick depth resources");
+  }
+  pick.edgeTexture = device.createTexture({
+    size: [width, height],
+    format: PICK_TEXTURE_FORMAT,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+  });
 }
 
 /** Maps a client-space point to a clamped device-pixel pick coordinate. */
@@ -184,6 +205,45 @@ export async function readPickPixel(
     if (mapped) buffer.unmap();
     releaseDepth?.();
     releasePickReadback(pick.readback, buffer, READBACK_SIZE);
+  }
+}
+
+/** Reads one private authored-edge id from the optional edge target. */
+export async function readEdgePickPixel(
+  device: GPUDevice,
+  canvas: HTMLCanvasElement,
+  pick: PickTargets,
+  x: number,
+  y: number,
+): Promise<number> {
+  const texture = pick.edgeTexture;
+  if (texture === undefined) return 0;
+  const pixel = pickPixelCoordinates(
+    x,
+    y,
+    canvas.getBoundingClientRect(),
+    canvas.width,
+    canvas.height,
+  );
+  const buffer = acquirePickReadback(device, pick.readback, READBACK_BYTE_STRIDE);
+  let mapped = false;
+  try {
+    const encoder = device.createCommandEncoder();
+    copyPickPixel(encoder, buffer, pixel, { texture, offset: 0 });
+    device.queue.submit([encoder.finish()]);
+    await buffer.mapAsync(GPUMapMode.READ);
+    mapped = true;
+    const value = decodePickId(new Uint8Array(buffer.getMappedRange()));
+    buffer.unmap();
+    mapped = false;
+    return value;
+  } catch (error) {
+    throw new WebGpuPickReadbackError("WebGPU authored-edge pick readback failed", {
+      cause: error,
+    });
+  } finally {
+    if (mapped) buffer.unmap();
+    releasePickReadback(pick.readback, buffer, READBACK_BYTE_STRIDE);
   }
 }
 
@@ -314,11 +374,13 @@ export function resetPickTargets(pick: PickTargets): void {
   pick.elementTexture?.destroy();
   pick.faceTexture?.destroy();
   pick.nodeTexture?.destroy();
+  pick.edgeTexture?.destroy();
   pick.depthTexture?.destroy();
   pick.texture = undefined;
   pick.elementTexture = undefined;
   pick.faceTexture = undefined;
   pick.nodeTexture = undefined;
+  pick.edgeTexture = undefined;
   pick.depthTexture = undefined;
   if (pick.depthReadback !== undefined) pick.depthReadback.bindGroup = undefined;
 }

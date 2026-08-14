@@ -15,6 +15,7 @@ export {
   type GeometryValidationCode,
   type GeometryBody,
   type GeometryElementBlock,
+  type GeometryEdge,
   type LineGeometry,
   type Part,
   type PartId,
@@ -148,8 +149,9 @@ export {
 } from "./interaction/blocks";
 export { isElementVisible, setElementVisible } from "./interaction/elements";
 export { emphasizedFaceRefs, isFaceEmphasized, resolveFaceStyle } from "./interaction/faces";
+export { emphasizedEdgeRefs, isEdgeEmphasized, resolveEdgeStyle } from "./interaction/edges";
 export { emphasizedNodeRefs, isNodeEmphasized, resolveNodeStyle } from "./interaction/nodes";
-export type { BodyRef, ElementBlockRef, FaceRef, NodeRef } from "./interaction/refs";
+export type { BodyRef, EdgeRef, ElementBlockRef, FaceRef, NodeRef } from "./interaction/refs";
 export {
   installBoxSelection,
   type BoxSelectionCancelReason,
@@ -248,7 +250,13 @@ export {
   type Mat4,
 } from "./math/mat4";
 export type { AssemblyId, AssemblyNodeId, ElementRef, Instance, InstanceId } from "./scene/types";
-export type { FacePickHit, InteractionGranularity, NodePickHit, PickHit } from "./picking/types";
+export type {
+  EdgePickHit,
+  FacePickHit,
+  InteractionGranularity,
+  NodePickHit,
+  PickHit,
+} from "./picking/types";
 export {
   FIELD_COMPONENT_COUNT,
   createResultField,

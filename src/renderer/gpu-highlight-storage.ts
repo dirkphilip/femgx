@@ -7,6 +7,7 @@ import {
   buildHighlightTable,
   BLOCK_HIGHLIGHT_MARKER,
   BODY_HIGHLIGHT_MARKER,
+  EDGE_HIGHLIGHT_MARKER,
   HIGHLIGHT_BUCKET_SIZE,
   type HighlightTableEntry,
 } from "./gpu-highlight-table";
@@ -204,6 +205,15 @@ function ensureHighlightStorage(
 }
 
 function toTableEntry(update: EmphasisUpdate): HighlightTableEntry {
+  if (update.edgePickId !== undefined) {
+    return {
+      slot: update.slot,
+      elementPickId: update.edgePickId,
+      facePickId: EDGE_HIGHLIGHT_MARKER,
+      nodePickId: 0,
+      data: encodeEmphasisRecord(update),
+    };
+  }
   const bodyPickId = update.bodyPickId ?? 0;
   const blockPickId = update.blockPickId ?? 0;
   return {

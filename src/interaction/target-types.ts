@@ -1,4 +1,5 @@
 import type { ElementId, NodeId } from "../elements/element";
+import type { EdgeKey } from "../elements/edges";
 import type { ElementBlockId } from "../elements/model";
 import type { BodyId, PartId } from "../geometry/part";
 import type { InstanceId } from "../scene/types";
@@ -23,4 +24,5 @@ export type InteractionTarget =
       readonly elementId: ElementId;
       readonly faceIndex: number;
     }
-  | { readonly kind: "node"; readonly instanceId: InstanceId; readonly nodeId: NodeId };
+  | { readonly kind: "node"; readonly instanceId: InstanceId; readonly nodeId: NodeId }
+  | { readonly kind: "edge"; readonly instanceId: InstanceId; readonly key: EdgeKey };

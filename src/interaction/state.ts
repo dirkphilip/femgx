@@ -1,9 +1,10 @@
 import type { ElementId, InstanceId } from "../scene/types";
 import type { ElementBlockId } from "../elements/model";
 import type { NodeId } from "../elements/element";
+import type { EdgeKey } from "../elements/edges";
 import type { BodyId, PartId } from "../geometry/part";
 import type { InteractionTarget } from "./target-types";
-import type { FaceRef } from "./refs";
+import type { EdgeRef, FaceRef } from "./refs";
 
 /**
  * RGBA color with normalized channels.
@@ -147,6 +148,8 @@ export interface InteractionStateData {
   readonly instanceOverrides: ReadonlyMap<InstanceId, StyleOverride>;
   readonly selectedNodeIds: ReadonlyMap<InstanceId, ReadonlySet<NodeId>>;
   readonly highlightedNodeIds: ReadonlyMap<InstanceId, ReadonlySet<NodeId>>;
+  readonly selectedEdges: ReadonlyMap<InstanceId, ReadonlyMap<EdgeKey, EdgeRef>>;
+  readonly highlightedEdges: ReadonlyMap<InstanceId, ReadonlyMap<EdgeKey, EdgeRef>>;
   readonly selectedFaces: ReadonlyMap<InstanceId, ReadonlyMap<string, FaceRef>>;
   readonly highlightedFaces: ReadonlyMap<InstanceId, ReadonlyMap<string, FaceRef>>;
   readonly hoveredTarget?: InteractionTarget;
@@ -249,6 +252,10 @@ function targetsEqual(
         right.kind === "node" &&
         left.instanceId === right.instanceId &&
         left.nodeId === right.nodeId
+      );
+    case "edge":
+      return (
+        right.kind === "edge" && left.instanceId === right.instanceId && left.key === right.key
       );
   }
 }

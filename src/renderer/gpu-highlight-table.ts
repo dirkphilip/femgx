@@ -5,6 +5,8 @@ export const HIGHLIGHT_BUCKET_SIZE = 4;
 export const BODY_HIGHLIGHT_MARKER = 0xffffffff;
 /** Distinguishes semantic block records from element records. */
 export const BLOCK_HIGHLIGHT_MARKER = 0xfffffffe;
+/** Distinguishes authored-edge records from element and face records. */
+export const EDGE_HIGHLIGHT_MARKER = 0xfffffffd;
 
 /** One CPU-side emphasis record ready for placement in the GPU table. */
 export interface HighlightTableEntry {

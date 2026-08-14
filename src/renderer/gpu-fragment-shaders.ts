@@ -60,7 +60,7 @@ fn fragmentMain(
   @location(2) @interpolate(flat) emissive: f32,
   @location(8) worldPosition: vec3<f32>,
 ) -> EdgeFragmentOutput {
-  if (!sectionPlaneVisible(worldPosition)) { discard; }
+  if (color.a <= 0.0 || !sectionPlaneVisible(worldPosition)) { discard; }
   var output: EdgeFragmentOutput;
   output.color = vec4<f32>(color.rgb + vec3<f32>(emissive), color.a);
   output.depth = max(fragmentPosition.z - 1.0 / 16777215.0, 0.0);

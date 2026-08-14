@@ -2,6 +2,7 @@ import type { PartId } from "../geometry/part";
 import type { EmphasisUpdates } from "./gpu-elements";
 import {
   INSTANCE_EMPHASIS_FLAG,
+  INSTANCE_EDGE_EMPHASIS_FLAG,
   INSTANCE_STRIDE,
   type InstanceStorage,
 } from "./gpu-instance-storage";
@@ -24,12 +25,19 @@ export function syncInstanceEmphasisAdmission(
 ): void {
   for (const [partId, storage] of sync.storages) {
     if (!affectedParts.has(partId)) continue;
-    const nextSlots = new Set((updates.get(partId) ?? []).map((update) => update.slot));
+    const partUpdates = updates.get(partId) ?? [];
+    const nextSlots = new Set(partUpdates.map((update) => update.slot));
+    const nextEdgeSlots = new Set(
+      partUpdates.filter((update) => update.edgePickId !== undefined).map((update) => update.slot),
+    );
     for (const occurrence of denseSelections?.get(partId)?.occurrences ?? []) {
       nextSlots.add(occurrence.slot);
     }
-    const changedSlots = changedEmphasisSlots(storage.emphasisSlots, nextSlots);
-    if (changedSlots.length === 0) continue;
+    const changedSlots = new Set([
+      ...changedEmphasisSlots(storage.emphasisSlots, nextSlots),
+      ...changedEmphasisSlots(storage.edgeEmphasisSlots, nextEdgeSlots),
+    ]);
+    if (changedSlots.size === 0) continue;
     const next = new Uint8Array(storage.data);
     const flags = new Uint32Array(next.buffer);
     for (const slot of changedSlots) {
@@ -38,17 +46,21 @@ export function syncInstanceEmphasisAdmission(
       flags[word] = nextSlots.has(slot)
         ? current | INSTANCE_EMPHASIS_FLAG
         : current & ~INSTANCE_EMPHASIS_FLAG;
+      flags[word] = nextEdgeSlots.has(slot)
+        ? (flags[word] ?? 0) | INSTANCE_EDGE_EMPHASIS_FLAG
+        : (flags[word] ?? 0) & ~INSTANCE_EDGE_EMPHASIS_FLAG;
     }
     writeChangedRecordRanges(sync.device, {
       buffer: storage.buffer,
       next,
       recordOffset: 0,
       recordStride: INSTANCE_STRIDE,
-      recordIndices: changedSlots,
+      recordIndices: [...changedSlots],
       cost: sync.cost,
       category: "instance",
     });
     storage.emphasisSlots = nextSlots;
+    storage.edgeEmphasisSlots = nextEdgeSlots;
   }
 }
 

@@ -1,4 +1,5 @@
 import type { ElementId, NodeId } from "../elements/element";
+import type { EdgeKey } from "../elements/edges";
 import type { ElementBlockId } from "../elements/model";
 import type { BodyId } from "../geometry/part";
 import type { InstanceId } from "../scene/types";
@@ -40,7 +41,18 @@ export interface FaceRef {
   readonly faceIndex: number;
 }
 
+/** Stable reference to one authored edge occurrence in a placed part. */
+export interface EdgeRef {
+  readonly instanceId: InstanceId;
+  readonly key: EdgeKey;
+}
+
 /** Stable map key for one oriented face occurrence. */
 export function faceRefKey(ref: Pick<FaceRef, "elementId" | "faceIndex">): string {
   return `${ref.elementId}/${ref.faceIndex}`;
+}
+
+/** Stable map key for one authored edge occurrence. */
+export function edgeRefKey(ref: Pick<EdgeRef, "key">): EdgeKey {
+  return ref.key;
 }

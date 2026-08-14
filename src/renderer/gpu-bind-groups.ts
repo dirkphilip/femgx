@@ -8,6 +8,8 @@ export interface PartDrawInputs {
   readonly deformation: GPUBuffer;
   /** Binds endpoint-aligned node ids for the wireframe pass. */
   readonly edge?: boolean;
+  /** Binds the optional widened authored-edge pick geometry. */
+  readonly edgePick?: boolean;
   /** Binds expanded face-subset surface data instead of the full part data. */
   readonly surfaceSubset?: boolean;
   /** Node glyph geometry is transient relative to the cached surface bind group. */
@@ -88,24 +90,31 @@ function instanceBindGroup(
 ): GPUBindGroup {
   const geometry = part.geometry;
   const edgeResource = part.edge ? requireEdgeResource(geometry) : undefined;
+  const edgePickResource = part.edgePick ? requireEdgePickResource(geometry) : undefined;
   const nodePickIdsBuffer =
-    edgeResource !== undefined
-      ? edgeResource.edgeNodePickIdsBuffer
-      : part.surfaceSubset
-        ? (geometry.subsetNodePickIdsBuffer ?? geometry.nodePickIdsBuffer)
-        : geometry.nodePickIdsBuffer;
+    edgePickResource !== undefined
+      ? edgePickResource.nodePickIdsBuffer
+      : edgeResource !== undefined
+        ? edgeResource.edgeNodePickIdsBuffer
+        : part.surfaceSubset
+          ? (geometry.subsetNodePickIdsBuffer ?? geometry.nodePickIdsBuffer)
+          : geometry.nodePickIdsBuffer;
   const topologyBuffer =
-    edgeResource !== undefined
-      ? edgeResource.edgeTopologyBuffer
-      : part.surfaceSubset
-        ? (geometry.subsetTopologyBuffer ?? geometry.facePickIdsBuffer)
-        : geometry.facePickIdsBuffer;
+    edgePickResource !== undefined
+      ? edgePickResource.topologyBuffer
+      : edgeResource !== undefined
+        ? edgeResource.edgeTopologyBuffer
+        : part.surfaceSubset
+          ? (geometry.subsetTopologyBuffer ?? geometry.facePickIdsBuffer)
+          : geometry.facePickIdsBuffer;
   const geometryPositionsBuffer =
-    edgeResource !== undefined
-      ? edgeResource.edgeVertexBuffer
-      : part.surfaceSubset
-        ? (geometry.subsetVertexBuffer ?? geometry.vertexBuffer)
-        : geometry.vertexBuffer;
+    edgePickResource !== undefined
+      ? edgePickResource.vertexBuffer
+      : edgeResource !== undefined
+        ? edgeResource.edgeVertexBuffer
+        : part.surfaceSubset
+          ? (geometry.subsetVertexBuffer ?? geometry.vertexBuffer)
+          : geometry.vertexBuffer;
   return device.createBindGroup({
     layout,
     entries: [
@@ -126,4 +135,11 @@ function requireEdgeResource(geometry: PartResource): NonNullable<PartResource["
     throw new Error("Edge bind-group creation requires materialized edge resources");
   }
   return geometry.edge;
+}
+
+function requireEdgePickResource(geometry: PartResource): NonNullable<PartResource["edgePick"]> {
+  if (geometry.edgePick === undefined) {
+    throw new Error("Edge pick bind-group creation requires materialized edge pick resources");
+  }
+  return geometry.edgePick;
 }

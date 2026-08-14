@@ -10,6 +10,7 @@ import {
   INSTANCE_SELECTED_FLAG,
   patchInstances,
   uploadPart,
+  ensureEdgePickResources,
   writeDrawOrder,
   writeEdgeOrder,
   writeNodeOrder,
@@ -36,6 +37,45 @@ const part: Part = createPart(1, {
   positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
   indices: new Uint32Array([0, 1, 2]),
   primitive: "triangles" as const,
+});
+
+const authoredEdgePart: Part = createPart(5, {
+  positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+  indices: new Uint32Array([0, 1, 2]),
+  primitive: "triangles" as const,
+  nodePickIds: new Uint32Array([1, 2, 3]),
+  elements: [{ id: 4, primitiveStart: 0, primitiveCount: 1 }],
+  faces: [
+    {
+      elementId: 4,
+      faceIndex: 0,
+      primitiveStart: 0,
+      primitiveCount: 1,
+      key: "face",
+      nodeIds: [0, 1, 2],
+      neighborElementIds: [],
+    },
+  ],
+  edges: [
+    {
+      key: "0,1",
+      nodeIds: [0, 1],
+      incidentElementIds: [4],
+      faceRefs: [{ elementId: 4, faceIndex: 0 }],
+    },
+    {
+      key: "0,2",
+      nodeIds: [0, 2],
+      incidentElementIds: [4],
+      faceRefs: [{ elementId: 4, faceIndex: 0 }],
+    },
+    {
+      key: "1,2",
+      nodeIds: [1, 2],
+      incidentElementIds: [4],
+      faceRefs: [{ elementId: 4, faceIndex: 0 }],
+    },
+  ],
 });
 
 const subsetPart: Part = createPart(2, {
@@ -132,6 +172,28 @@ describe("GPU draw path", () => {
       expect(gpu.buffers[3]?.size).toBe(12);
       expect(gpu.buffers[4]?.size).toBe(56);
       expect(first.edge).toBeUndefined();
+    } finally {
+      restore();
+    }
+  });
+
+  it("keeps authored-edge pick resources lazy and absent for generic parts", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      const generic = uploadPart(draw, part);
+      expect(generic.edge).toBeUndefined();
+      expect(generic.edgePick).toBeUndefined();
+      expect(ensureEdgePickResources(draw, part, generic)).toBeUndefined();
+
+      const authored = uploadPart(draw, authoredEdgePart);
+      expect(authored.edge).toBeUndefined();
+      expect(authored.edgePick).toBeUndefined();
+      const edgePick = ensureEdgePickResources(draw, authoredEdgePart, authored);
+      expect(edgePick?.edgeKeys).toEqual(["0,1", "0,2", "1,2"]);
+      expect(authored.edgePick).toBe(edgePick);
+      expect(authored.edge).toBeUndefined();
     } finally {
       restore();
     }

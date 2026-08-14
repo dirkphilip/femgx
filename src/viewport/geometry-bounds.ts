@@ -12,7 +12,7 @@ import type { DeformationState } from "../results/deform";
 
 type EntityTarget = Extract<
   InteractionTarget,
-  { kind: "body" | "block" | "element" | "face" | "node" }
+  { kind: "body" | "block" | "element" | "face" | "node" | "edge" }
 >;
 
 /** Mutable bounds accumulator shared by viewport bounds calculations. */
@@ -50,6 +50,8 @@ export function selectedGeometryBounds(
       return faceBounds(part, target, deformation);
     case "node":
       return nodeBounds(part, target.nodeId, deformation);
+    case "edge":
+      return edgeBounds(part, target.key, deformation);
   }
 }
 
@@ -154,6 +156,26 @@ function nodeBounds(
     (primitive) => primitiveNodePickIds(part, primitive).includes(nodePickId),
     deformation,
   );
+}
+
+function edgeBounds(
+  part: Part,
+  key: string,
+  deformation: DeformationState | undefined,
+): Bounds | undefined {
+  const edge = part.geometry.edges?.find((candidate) => candidate.key === key);
+  if (edge === undefined) return undefined;
+  const bounds = emptyBounds();
+  for (const nodeId of edge.nodeIds) {
+    const offset = nodeId * 3;
+    const nodePositions = part.geometry.nodePositions;
+    if (nodePositions === undefined || offset + 2 >= nodePositions.length) continue;
+    include(
+      bounds,
+      displacedNode(part.id, nodeId, nodePositions.subarray(offset, offset + 3), deformation),
+    );
+  }
+  return isFiniteBounds(bounds) ? bounds : undefined;
 }
 
 function primitiveBounds(

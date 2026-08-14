@@ -129,7 +129,7 @@ export interface FemViewport {
   /** Changes visibility for one placed-part occurrence. */
   setInstanceVisible(instanceId: InstanceId, visible: boolean): void;
   /** Reads the topmost rendered target at canvas CSS coordinates. */
-  pick(x: number, y: number): Promise<PickHit | undefined>;
+  pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined>;
   /** Resolves every target intersecting a canvas-space selection rectangle. */
   pickRegion(
     rect: BoxSelectionRect,

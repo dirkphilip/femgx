@@ -12,12 +12,14 @@ import { emphasizedElementBlockRefs, isElementBlockVisible } from "../interactio
 import { isElementVisible } from "../interaction/elements";
 import { emphasizedFaceRefs, resolveFaceStyle } from "../interaction/faces";
 import { emphasizedNodeRefs, resolveNodeStyle } from "../interaction/nodes";
+import { emphasizedEdgeRefs, resolveEdgeStyle } from "../interaction/edges";
 import { readInteractionState } from "../interaction/state";
 import { faceRefKey } from "../interaction/refs";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
 import { BODY_HIGHLIGHT_MARKER } from "./gpu-highlight-table";
+import { EDGE_HIGHLIGHT_MARKER } from "./gpu-highlight-table";
 import { defaultStyle } from "./gpu-support";
 import { getPartInteractionMetadata } from "./part-interaction-metadata";
 
@@ -66,6 +68,8 @@ export interface EmphasisUpdate {
   readonly facePickId: number;
   /** 1-based node pick id, `0` when the record emphasizes an element or face. */
   readonly nodePickId: number;
+  /** 1-based private authored-edge id, `0` for non-edge records. */
+  readonly edgePickId?: number;
   /** 1-based body pick id, `0` for element/face/node records. */
   readonly bodyPickId?: number;
   /** 1-based semantic element-block pick id, `0` for other records. */
@@ -90,9 +94,14 @@ export function encodeEmphasisRecord(update: EmphasisUpdate): ArrayBuffer {
   const ids = new Uint32Array(data);
   const floats = new Float32Array(data);
   ids[0] = update.slot;
-  ids[1] = update.bodyPickId ?? update.elementPickId;
-  ids[2] = update.bodyPickId === undefined ? update.facePickId : BODY_HIGHLIGHT_MARKER;
-  ids[3] = update.nodePickId;
+  ids[1] = update.edgePickId ?? update.bodyPickId ?? update.elementPickId;
+  ids[2] =
+    update.edgePickId === undefined
+      ? update.bodyPickId === undefined
+        ? update.facePickId
+        : BODY_HIGHLIGHT_MARKER
+      : EDGE_HIGHLIGHT_MARKER;
+  ids[3] = update.edgePickId === undefined ? update.nodePickId : 0;
   floats[4] = update.style.color.r;
   floats[5] = update.style.color.g;
   floats[6] = update.style.color.b;
@@ -129,7 +138,35 @@ export function collectEmphasisUpdates(
   collectElementEmphasis(context, parts, interaction, push);
   collectFaceEmphasis(context, parts, interaction, push);
   collectNodeEmphasis(context, interaction, push);
+  collectEdgeEmphasis(context, parts, interaction, push);
   return byPart;
+}
+
+/** Collects authored-edge emphasis records using stable geometry metadata. */
+function collectEdgeEmphasis(
+  context: EmphasisContext,
+  parts: ReadonlyMap<PartId, Part>,
+  interaction: InteractionState,
+  push: (partId: PartId, update: EmphasisUpdate) => void,
+): void {
+  for (const ref of emphasizedEdgeRefs(interaction)) {
+    const occurrence = occurrenceAt(context, ref.instanceId);
+    if (occurrence === undefined) continue;
+    const part = parts.get(occurrence.instance.partId);
+    const edge =
+      part === undefined ? undefined : getPartInteractionMetadata(part).edges.get(ref.key);
+    if (edge === undefined) continue;
+    push(occurrence.instance.partId, {
+      slot: occurrence.local,
+      elementPickId: 0,
+      facePickId: 0,
+      nodePickId: 0,
+      edgePickId: edge.edgePickId,
+      selected:
+        readInteractionState(interaction).selectedEdges.get(ref.instanceId)?.has(ref.key) === true,
+      style: resolveEdgeStyle(occurrence.instance, ref, defaultStyle, interaction),
+    });
+  }
 }
 
 /** Collects semantic block style and visibility records. */

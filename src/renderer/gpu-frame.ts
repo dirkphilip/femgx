@@ -380,7 +380,11 @@ function drawAuthoredPrimitiveGroups(
   }
 }
 
-function drawContext(frame: FrameOptions, parts: ReadonlyMap<PartId, Part>): DrawCallContext {
+/** Builds the shared bind-group inputs for one frame pass. */
+export function drawContext(
+  frame: FrameOptions,
+  parts: ReadonlyMap<PartId, Part>,
+): DrawCallContext {
   return {
     frameBindGroup: frame.resources.frameBindGroup,
     instanceLayout: frame.resources.instanceLayout,
@@ -390,7 +394,8 @@ function drawContext(frame: FrameOptions, parts: ReadonlyMap<PartId, Part>): Dra
   };
 }
 
-function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
+/** Writes camera, deformation, and section-plane uniforms for one pass. */
+export function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
   const uniform = new Float32Array(32);
   uniform.set(viewProjectionMatrix(camera), 0);
   uniform[16] = frame.canvas.width;

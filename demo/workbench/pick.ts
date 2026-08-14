@@ -93,6 +93,7 @@ export function elementTarget(target: SelectTarget): SelectTarget | undefined {
       return target;
     case "instance":
     case "part":
+    case "edge":
       return undefined;
   }
 }
@@ -113,5 +114,7 @@ export function targetKey(target: PickHit | SelectTarget | undefined): string {
       return `i:${target.instanceId}`;
     case "part":
       return `p:${target.partId}`;
+    case "edge":
+      return `ed:${target.instanceId}:${target.key}`;
   }
 }

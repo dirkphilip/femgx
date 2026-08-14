@@ -81,7 +81,13 @@ function resultDescription(
   const scalar = results.scalar?.field;
   if (scalar !== undefined) {
     const entity =
-      scalar.location === "nodal" ? (hit.kind === "node" ? hit.nodeId : undefined) : hit.elementId;
+      scalar.location === "nodal"
+        ? hit.kind === "node"
+          ? hit.nodeId
+          : undefined
+        : hit.kind === "edge"
+          ? undefined
+          : hit.elementId;
     if (entity !== undefined && entity >= 0 && entity < scalar.count) {
       const value = scalarAt(scalar, entity);
       descriptions.push(
@@ -90,7 +96,7 @@ function resultDescription(
     }
   }
   const vectors = results.vectors?.field;
-  if (vectors !== undefined && hit.elementId !== undefined) {
+  if (vectors !== undefined && hit.kind !== "edge" && hit.elementId !== undefined) {
     const entity = hit.elementId;
     if (entity >= 0 && entity < vectors.count) {
       const value = vectorAt(vectors, entity);

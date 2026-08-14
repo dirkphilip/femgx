@@ -3,7 +3,7 @@ import type { Vec3 } from "../math/vec3";
 import { bodyIdForElement, type Geometry, type Part } from "../geometry/part";
 import type { PartId } from "../geometry/part";
 import type { Instance } from "../scene/types";
-import type { FacePickHit, NodePickHit, PickHit } from "./types";
+import type { EdgePickHit, FacePickHit, NodePickHit, PickHit } from "./types";
 
 /** The inputs every pick resolution needs: the drawn instances and their parts. */
 export interface PickContext {
@@ -43,6 +43,64 @@ export function resolvePickHit(
   }
   const geometry = context.parts.get(instance.partId)?.geometry;
   return deepestHit(instance, geometry, ids, worldPosition);
+}
+
+/** Resolves one private edge id after the optional authored-edge pick pass. */
+export function resolveEdgePickHit(
+  context: PickContext,
+  instancePickId: number,
+  edgeKey: string,
+  worldPosition: Vec3,
+): EdgePickHit | undefined {
+  const instance = resolvePick(context.instances, instancePickId - 1);
+  const edge =
+    instance === undefined
+      ? undefined
+      : context.parts
+          .get(instance.partId)
+          ?.geometry.edges?.find((candidate) => candidate.key === edgeKey);
+  if (instance === undefined || edge === undefined) return undefined;
+  const first = edge.nodeIds[0];
+  const last = edge.nodeIds[edge.nodeIds.length - 1];
+  const firstPoint =
+    first === undefined
+      ? ([0, 0, 0] as const)
+      : transformNode(instance, context.parts.get(instance.partId)?.geometry.nodePositions, first);
+  const lastPoint =
+    last === undefined
+      ? ([1, 0, 0] as const)
+      : transformNode(instance, context.parts.get(instance.partId)?.geometry.nodePositions, last);
+  const delta: Vec3 = [
+    lastPoint[0] - firstPoint[0],
+    lastPoint[1] - firstPoint[1],
+    lastPoint[2] - firstPoint[2],
+  ];
+  const length = Math.hypot(delta[0], delta[1], delta[2]);
+  return {
+    kind: "edge",
+    partId: instance.partId,
+    instanceId: instance.instanceId,
+    key: edge.key,
+    nodeIds: edge.nodeIds,
+    incidentElementIds: edge.incidentElementIds,
+    faceRefs: edge.faceRefs,
+    worldPosition,
+    tangent: length === 0 ? [1, 0, 0] : [delta[0] / length, delta[1] / length, delta[2] / length],
+  };
+}
+
+function transformNode(
+  instance: Instance,
+  positions: Float32Array | undefined,
+  nodeId: number,
+): Vec3 {
+  const offset = nodeId * 3;
+  return transformPoint(
+    instance.worldTransform,
+    positions?.[offset] ?? 0,
+    positions?.[offset + 1] ?? 0,
+    positions?.[offset + 2] ?? 0,
+  );
 }
 
 /** Returns the most specific physical hit a pixel supports. */

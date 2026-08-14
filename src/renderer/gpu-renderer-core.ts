@@ -24,6 +24,16 @@ import type { GpuValidationOptions } from "./gpu-validation";
 import type { GpuCostSnapshot } from "./gpu-cost";
 import type { SectionPlane } from "../math/section-plane";
 import { syncOrientationGlyphs, type OrientationGlyphState } from "./gpu-orientation-glyph";
+import {
+  createEdgePickContext,
+  createEdgePickState,
+  invalidateEdgePickState,
+  pickEdgePixel,
+  pickEdgeRegion,
+  type EdgePickState,
+} from "./gpu-edge-picking";
+import { buildFrameOptions } from "./gpu-frame-options";
+import { drawCostSnapshot, materializedEdgePartIds } from "./gpu-renderer-diagnostics";
 
 export interface GpuRendererConstruction {
   readonly bundle: GpuBundle;
@@ -48,6 +58,7 @@ export class GpuRenderer implements WebGpuRenderer {
   private sourceParts: ReadonlyMap<PartId, Part> | undefined;
   private lastCamera: Camera | undefined;
   private pickSnapshotValid = false;
+  private readonly edgePick: EdgePickState;
   private edgeDepthTest = true;
   private orbitPivot: Vec3 | undefined;
   private deformation: DeformationState | undefined;
@@ -69,6 +80,7 @@ export class GpuRenderer implements WebGpuRenderer {
     this.pointSize = options.pointSizePixels ?? 8;
     this.nodeSize = options.nodeSizePixels ?? 6;
     this.originTriadEnabled = options.originTriad ?? true;
+    this.edgePick = createEdgePickState(construction.validation);
     this.background = options.background ?? "studio";
     this.lifecycle = new GpuDeviceLifecycle({
       bundle: construction.bundle,
@@ -138,6 +150,7 @@ export class GpuRenderer implements WebGpuRenderer {
     this.orientationGlyphs = undefined;
     this.nodeOrdersDirty = true;
     this.pickSnapshotValid = false;
+    invalidateEdgePickState(this.edgePick);
   }
 
   public setDeformation(deformation: DeformationState | undefined): void {
@@ -221,11 +234,8 @@ export class GpuRenderer implements WebGpuRenderer {
   public setBackground(background: ViewportBackground): void {
     this.ensureAlive();
     if (this.background === background) return;
-    writeBackgroundColors(
-      this.lifecycle.bundle.device,
-      this.lifecycle.bundle.resources.background,
-      background,
-    );
+    const { device, resources } = this.lifecycle.bundle;
+    writeBackgroundColors(device, resources.background, background);
     this.background = background;
   }
 
@@ -240,6 +250,7 @@ export class GpuRenderer implements WebGpuRenderer {
     this.ensureAlive();
     if (this.nodeSize === size) return;
     this.nodeSize = size;
+    this.pickSnapshotValid = false;
   }
 
   public setOrbitPivot(pivot: Vec3 | undefined): void {
@@ -258,12 +269,15 @@ export class GpuRenderer implements WebGpuRenderer {
     }
   }
 
-  public async pick(x: number, y: number): Promise<PickHit | undefined> {
+  public async pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined> {
     this.ensureAlive();
     if (this.attachment.runtime === undefined) return undefined;
     if (!this.ensurePickSnapshot()) return undefined;
     const camera = this.lastCamera;
     if (camera === undefined) return undefined;
+    if (granularity === "edge") {
+      return pickEdgePixel(this.edgePickContext(camera), x, y);
+    }
     return pickHitFromPixel({
       device: this.lifecycle.bundle.device,
       canvas: this.canvas,
@@ -282,6 +296,10 @@ export class GpuRenderer implements WebGpuRenderer {
     this.ensureAlive();
     if (this.attachment.runtime === undefined) return [];
     if (!this.ensurePickSnapshot()) return [];
+    if (granularity === "edge") {
+      const camera = this.lastCamera;
+      return camera === undefined ? [] : pickEdgeRegion(this.edgePickContext(camera), rect);
+    }
     return pickTargetsFromRegion({
       device: this.lifecycle.bundle.device,
       canvas: this.canvas,
@@ -317,6 +335,7 @@ export class GpuRenderer implements WebGpuRenderer {
     });
     resetPickTargets(this.lifecycle.bundle.pickTargets);
     this.pickSnapshotValid = false;
+    invalidateEdgePickState(this.edgePick);
   }
 
   public stats(): { readonly drawBatches: number } {
@@ -324,20 +343,14 @@ export class GpuRenderer implements WebGpuRenderer {
     return { drawBatches: this.attachment.calls.length };
   }
 
-  /** Returns the latest internal frame-cost snapshot for the benchmark harness. */
   public costSnapshot(): GpuCostSnapshot {
     this.ensureAlive();
-    return this.lifecycle.bundle.draw.cost.snapshot();
+    return drawCostSnapshot(this.lifecycle.bundle.draw.cost);
   }
 
-  /** Returns the internal part ids whose optional edge resources are retained. */
   public materializedEdgePartIds(): ReadonlySet<PartId> {
     this.ensureAlive();
-    return new Set(
-      [...this.lifecycle.bundle.draw.parts].flatMap(([partId, resource]) =>
-        resource.edge === undefined ? [] : [partId],
-      ),
-    );
+    return materializedEdgePartIds(this.lifecycle.bundle.draw);
   }
 
   public destroy(): void {
@@ -359,6 +372,9 @@ export class GpuRenderer implements WebGpuRenderer {
     if (await this.lifecycle.recover()) {
       this.attachment.clear();
       this.pickSnapshotValid = false;
+      invalidateEdgePickState(this.edgePick);
+      this.edgePick.pipeline = undefined;
+      this.edgePick.pipelineDevice = undefined;
       writeBackgroundColors(
         this.lifecycle.bundle.device,
         this.lifecycle.bundle.resources.background,
@@ -382,24 +398,17 @@ export class GpuRenderer implements WebGpuRenderer {
       syncDeformations(this.lifecycle.bundle.draw, this.deformation);
       encodePickSnapshot(camera, this.parts, this.frameOptions());
       this.pickSnapshotValid = true;
+      invalidateEdgePickState(this.edgePick);
     }
     return true;
   }
 
   private frameOptions() {
-    return {
+    return buildFrameOptions({
       canvas: this.canvas,
       context: this.context,
-      device: this.lifecycle.bundle.device,
-      draw: this.lifecycle.bundle.draw,
-      resources: this.lifecycle.bundle.resources,
-      calls: this.attachment.calls,
-      transparentCalls: this.attachment.transparentCalls,
-      edgeCalls: this.attachment.edgeCalls,
-      nodeCalls: this.attachment.nodeCalls,
-      selectionCalls: this.attachment.selectionCalls,
-      selectedNodeCalls: this.attachment.selectedNodeCalls,
-      pickTargets: this.lifecycle.bundle.pickTargets,
+      bundle: this.lifecycle.bundle,
+      attachment: this.attachment,
       colorFormat: this.format,
       depthFormat: this.depthFormat,
       edgeDepthTest: this.edgeDepthTest,
@@ -411,7 +420,12 @@ export class GpuRenderer implements WebGpuRenderer {
       orbitPivot: this.orbitPivot,
       originTriadEnabled: this.originTriadEnabled,
       originTriadNominalScale: this.originTriadNominalScale,
-      devicePixelRatio,
-    };
+    });
+  }
+
+  private edgePickContext(camera: Camera) {
+    return createEdgePickContext(this.edgePick, camera, this.parts, this.attachment.instances, () =>
+      this.frameOptions(),
+    );
   }
 }

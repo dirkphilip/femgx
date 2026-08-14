@@ -30,6 +30,7 @@ import {
   pointNodePickVertexShader,
 } from "../../src/renderer/gpu-node-pick";
 import { nodeOverlayFragmentShader } from "../../src/renderer/gpu-node-overlay";
+import { edgePickFragmentShader, edgePickVertexShader } from "../../src/renderer/gpu-edge-pick";
 import {
   transparencyFragmentShader,
   triangleTransparencyFragmentShader,
@@ -523,6 +524,14 @@ describe("GPU deformation shader contract", () => {
     expect(edgeVertexShader).toMatch(/let topologyIndex = edgeId\(vertexIndex\)/);
     expect(edgeVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
     expect(edgeVertexShader).toMatch(/topologyOwnersVisible\(slot, topologyIndex\)/);
+  });
+
+  it("keeps authored-edge picking exact, section-aware, and visibility-aware", () => {
+    expect(edgePickVertexShader).toContain("camera.linePickSize * camera.devicePixelRatio");
+    expect(edgePickVertexShader).toContain("topologyAnyOwnerVisible");
+    expect(edgePickVertexShader).toContain("output.edgePickId = edgeId(vertexIndex) + 1u");
+    expect(edgePickFragmentShader).toContain("sectionPlaneVisible(worldPosition)");
+    expect(edgePickFragmentShader).toContain("return packPickId(edgePickId)");
   });
 
   it("expands authored lines in screen space while preserving the line-list edge shader", () => {

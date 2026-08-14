@@ -9,6 +9,7 @@ import {
   type FaceTessellation,
   type GeometryBody,
   type GeometryElementBlock,
+  type GeometryEdge,
   type LineGeometry,
   type PointGeometry,
   type TriangleGeometry,
@@ -16,6 +17,7 @@ import {
 import { tessellateFace } from "./face-tessellation";
 import { LineMeshBuilder, TriangleMeshAssembler, type MeshVertex } from "./mesh-builder";
 import { elementNodePosition } from "./node-position";
+import { authoredEdgesForElements } from "./authored-edges";
 import {
   allFacesForElements,
   faceIdentity,
@@ -55,6 +57,7 @@ export function volumeGeometry(input: VolumeGeometryInput): TriangleGeometry {
   const subset = selected === undefined ? undefined : { faceIds: tessellation.selectedFaceIds };
   return buildVolumeGeometry({
     ...tessellation,
+    edges: authoredEdgesForElements(elements),
     bodies: bodiesForElements(model, elements),
     blocks: blocksForElements(model, elements),
     faceSubset: subset,
@@ -65,6 +68,7 @@ interface VolumeGeometryOptions {
   readonly mesh: TriangleMeshAssembler;
   readonly elements: readonly ElementTessellation[];
   readonly faces: readonly FaceTessellation[];
+  readonly edges: readonly GeometryEdge[];
   readonly nodePositions: readonly number[];
   readonly bodies: readonly GeometryBody[] | undefined;
   readonly blocks: readonly GeometryElementBlock[] | undefined;
@@ -137,9 +141,10 @@ function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
 }
 
 function buildVolumeGeometry(options: VolumeGeometryOptions): TriangleGeometry {
-  const { mesh, elements, faces, nodePositions, bodies, blocks, faceSubset } = options;
+  const { mesh, elements, edges, faces, nodePositions, bodies, blocks, faceSubset } = options;
   const base = mesh.build("triangles", {
     elements,
+    edges,
     faces,
     nodePositions,
     ...(bodies === undefined ? {} : { bodies }),
@@ -174,6 +179,7 @@ export function lineGeometry(
   const renderedBlocks = blocksForElements(model, elements);
   const geometry = {
     ...mesh.build("lines", descriptors, model.nodes),
+    edges: authoredEdgesForElements(elements),
     ...(renderedBodies === undefined ? {} : { bodies: renderedBodies }),
     ...(renderedBlocks === undefined ? {} : { blocks: renderedBlocks }),
   };

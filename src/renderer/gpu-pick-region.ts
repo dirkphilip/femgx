@@ -2,6 +2,7 @@ import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionTarget } from "../interaction/target-types";
 import type { InteractionGranularity } from "../picking/types";
 import type { PickContext } from "../picking/pick";
+import { resolvePick } from "../picking/pick";
 import { decodePickId } from "./pick-format";
 import { createPickRegionTargetResolver } from "./gpu-pick-region-resolve";
 import {
@@ -13,6 +14,7 @@ import {
 } from "./gpu-pick";
 import { WebGpuPickReadbackError } from "./gpu-pick-error";
 import { createPickRegionTargetCollector } from "./gpu-pick-region-targets";
+import type { DrawResources } from "./gpu-draw";
 
 // Keeps common viewport reads in one mapping while bounding high-DPI regions.
 const REGION_BYTE_BUDGET = 4 * 1024 * 1024;
@@ -53,6 +55,44 @@ export interface PickRegionOptions {
   readonly granularity: InteractionGranularity;
 }
 
+/** Inputs for the lazy authored-edge region query. */
+export interface EdgePickRegionOptions {
+  readonly device: GPUDevice;
+  readonly canvas: HTMLCanvasElement;
+  readonly pick: PickTargets;
+  readonly readback: PickReadbackPool;
+  readonly context: PickContext;
+  readonly draw: DrawResources;
+  readonly rect: BoxSelectionRect;
+}
+
+/** Reads unique nearest-visible authored edges from the optional edge target. */
+export async function pickEdgeTargetsFromRegion(
+  options: EdgePickRegionOptions,
+): Promise<readonly InteractionTarget[]> {
+  const bounds = renderPixelRect(options.rect, options.canvas);
+  const instanceTexture = options.pick.texture;
+  const edgeTexture = options.pick.edgeTexture;
+  if (bounds === undefined || instanceTexture === undefined || edgeTexture === undefined) return [];
+  const found = new Map<number, Set<number>>();
+  for (const tile of regionTiles(bounds, 2)) {
+    await readEdgeRegionTile(options, instanceTexture, edgeTexture, tile, found);
+  }
+  const targets = createPickRegionTargetCollector();
+  for (const [instancePickId, edgeIds] of found) {
+    const instance = resolvePick(options.context.instances, instancePickId - 1);
+    const edgeResource =
+      instance === undefined ? undefined : options.draw.parts.get(instance.partId)?.edgePick;
+    if (instance === undefined || edgeResource === undefined) continue;
+    for (const edgePickId of edgeIds) {
+      const key = edgeResource.edgeKeys[edgePickId - 1];
+      if (key === undefined) continue;
+      targets.add({ kind: "edge", instanceId: instance.instanceId, key }, instancePickId);
+    }
+  }
+  return targets.finish();
+}
+
 /**
  * Reads nearest visible ID-buffer samples in a CSS rectangle and resolves
  * unique host-facing targets. The rectangle is tiled so mapped allocations
@@ -75,7 +115,7 @@ export async function pickTargetsFromRegion(
 }
 
 function assertGranularity(value: InteractionGranularity): void {
-  if (!["part", "instance", "body", "block", "element", "face", "node"].includes(value)) {
+  if (!["part", "instance", "body", "block", "element", "face", "node", "edge"].includes(value)) {
     throw new TypeError(`Unsupported pick-region granularity: ${value}`);
   }
 }
@@ -143,6 +183,8 @@ function attachmentsFor(granularity: InteractionGranularity): readonly RegionAtt
       return ["instance", "face"];
     case "node":
       return ["instance", "node"];
+    case "edge":
+      return ["instance"];
   }
 }
 
@@ -210,6 +252,55 @@ async function readRegionTile(
       "WebGPU pick readback failed: rendering works, but the pick region could not be read back",
       { cause: error },
     );
+  } finally {
+    if (mapped) buffer.unmap();
+    releasePickReadback(options.readback, buffer, bufferSize);
+  }
+}
+
+async function readEdgeRegionTile(
+  options: EdgePickRegionOptions,
+  instanceTexture: GPUTexture,
+  edgeTexture: GPUTexture,
+  tile: RenderPixelRect,
+  found: Map<number, Set<number>>,
+): Promise<void> {
+  const width = tile.right - tile.left;
+  const height = tile.bottom - tile.top;
+  const bytesPerRow = alignedRowBytes(width);
+  const bufferSize = bytesPerRow * height * 2;
+  const buffer = acquirePickReadback(options.device, options.readback, bufferSize);
+  let mapped = false;
+  try {
+    const encoder = options.device.createCommandEncoder();
+    for (const [index, texture] of [instanceTexture, edgeTexture].entries()) {
+      encoder.copyTextureToBuffer(
+        { texture, origin: { x: tile.left, y: tile.top } },
+        { buffer, offset: bytesPerRow * height * index, bytesPerRow },
+        { width, height },
+      );
+    }
+    options.device.queue.submit([encoder.finish()]);
+    await buffer.mapAsync(GPUMapMode.READ);
+    mapped = true;
+    const bytes = new Uint8Array(buffer.getMappedRange());
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const offset = bytesPerRow * y + x * 4;
+        const instancePickId = decodePickId(bytes, offset);
+        const edgePickId = decodePickId(bytes, bytesPerRow * height + offset);
+        if (instancePickId === 0 || edgePickId === 0) continue;
+        const ids = found.get(instancePickId);
+        if (ids === undefined) found.set(instancePickId, new Set([edgePickId]));
+        else ids.add(edgePickId);
+      }
+    }
+    buffer.unmap();
+    mapped = false;
+  } catch (error) {
+    throw new WebGpuPickReadbackError("WebGPU authored-edge region readback failed", {
+      cause: error,
+    });
   } finally {
     if (mapped) buffer.unmap();
     releasePickReadback(options.readback, buffer, bufferSize);

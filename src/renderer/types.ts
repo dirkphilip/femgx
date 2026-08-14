@@ -76,7 +76,7 @@ export interface WebGpuRenderer {
   /** Rebuilds draw order after runtime visibility changes. */
   updateVisibility(runtime: PackedSceneRuntime, changedInstanceIds: readonly number[]): void;
   /** Picks the deepest physical hit under a CSS-local canvas pixel. */
-  pick(x: number, y: number): Promise<PickHit | undefined>;
+  pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined>;
   pickRegion(
     rect: BoxSelectionRect,
     granularity: InteractionGranularity,

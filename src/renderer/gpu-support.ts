@@ -7,6 +7,18 @@ interface PartEdgeResource {
   readonly edgeTopologyBuffer: GPUBuffer;
   readonly edgeIndexCount: number;
   readonly resultColorBinding: { readonly buffer: GPUBuffer; readonly offset: number };
+  readonly edgeKeys: readonly string[] | undefined;
+  readonly edgeNodeIds: readonly (readonly number[])[] | undefined;
+}
+
+/** Lazy resources used only by the authored-edge pick pass. */
+export interface PartEdgePickResource {
+  readonly vertexBuffer: GPUBuffer;
+  readonly indexBuffer: GPUBuffer;
+  readonly nodePickIdsBuffer: GPUBuffer;
+  readonly topologyBuffer: GPUBuffer;
+  readonly indexCount: number;
+  readonly edgeKeys: readonly string[];
 }
 
 export interface PartResource {
@@ -25,6 +37,7 @@ export interface PartResource {
   readonly nodePickIdsBuffer: GPUBuffer;
   /** Edge geometry, topology, and result binding, materialized on first edge use. */
   edge: PartEdgeResource | undefined;
+  edgePick: PartEdgePickResource | undefined;
   readonly indexCount: number;
   /** Optional compact index orders for a validated face subset. */
   readonly subsetIndexBuffer?: GPUBuffer;

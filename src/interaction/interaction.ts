@@ -73,6 +73,8 @@ export function createInteractionState(theme: InteractionTheme = defaultTheme): 
     instanceOverrides: new Map(),
     selectedNodeIds: new Map(),
     highlightedNodeIds: new Map(),
+    selectedEdges: new Map(),
+    highlightedEdges: new Map(),
     selectedFaces: new Map(),
     highlightedFaces: new Map(),
     theme: copyTheme(theme),
