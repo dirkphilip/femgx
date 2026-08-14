@@ -16,28 +16,34 @@ several multiples, so budgets are only meaningful on clean timing runs.
 
 ### Covered workloads
 
-| Case                           | Model                            | Workload                                           |
-| ------------------------------ | -------------------------------- | -------------------------------------------------- |
-| `createSceneRuntime`           | shallow 200 000 instances        | packed compile                                     |
-| `createSceneRuntime` (deep)    | balanced tree, 204 800 instances | nested transform composition                       |
-| `editElementModel` merge       | 128 semantic blocks              | metadata-only merge of 64 blocks                   |
-| `editElementModel` remove      | 128 semantic blocks              | remove one block and its elements                  |
-| `editElementModel` replace     | 128 semantic blocks              | retain/append topology and three nodes             |
-| `editElementModel` transaction | 128 semantic blocks              | merge, remove, and replace in one private draft    |
-| `setPartVisible` toggle        | part with 1 000 instances        | hide then show                                     |
-| `setAssemblyVisible` toggle    | subcase with 2 000 instances     | hide then show                                     |
-| `setInstanceVisible` toggle    | single instance                  | override, hide then show                           |
-| `getDrawList`                  | 200 000 visible                  | rebuild draw list                                  |
-| `sceneWorldBounds`             | 32 768 triangles × 64 placements | reusable-part bounds and world transforms          |
-| `resolvePick`                  | 50 000 lookups on 200 000        | O(1) index resolution                              |
-| `setTargetsSelected`           | 16 384 element targets           | one duplicate-safe immutable bulk transition       |
-| `collectEmphasisUpdates`       | 16 384 selected elements         | cached ownership and one reusable sync snapshot    |
-| `heterogeneousElementParts`    | 600 mixed linear elements        | grouped triangle/line/point tessellation           |
-| `expand line geometry`         | 10,000 authored line segments    | one reusable four-corner triangle quad per segment |
-| `createPart`                   | 16 384 quads / 256 bodies        | element/body/face validation                       |
-| `heterogeneousElementParts`    | 16 384 FE quads / 256 bodies     | body-aware canonical tessellation                  |
-| primitive topology ids         | 16 384 quads / 256 bodies        | face/body/element GPU-id preparation               |
-| body-aware mesh edges          | 16 384 quads / 256 bodies        | edge topology and ownership preparation            |
+| Case                              | Model                            | Workload                                           |
+| --------------------------------- | -------------------------------- | -------------------------------------------------- |
+| `createSceneRuntime`              | shallow 200 000 instances        | packed compile                                     |
+| `createSceneRuntime` (deep)       | balanced tree, 204 800 instances | nested transform composition                       |
+| `editElementModel` merge          | 128 semantic blocks              | metadata-only merge of 64 blocks                   |
+| `editElementModel` remove         | 128 semantic blocks              | remove one block and its elements                  |
+| `editElementModel` replace        | 128 semantic blocks              | retain/append topology and three nodes             |
+| `editElementModel` transaction    | 128 semantic blocks              | merge, remove, and replace in one private draft    |
+| `setPartVisible` toggle           | part with 1 000 instances        | hide then show                                     |
+| `setAssemblyVisible` toggle       | subcase with 2 000 instances     | hide then show                                     |
+| `setInstanceVisible` toggle       | single instance                  | override, hide then show                           |
+| `getDrawList`                     | 200 000 visible                  | rebuild draw list                                  |
+| `sceneWorldBounds`                | 32 768 triangles × 64 placements | reusable-part bounds and world transforms          |
+| `resolvePick`                     | 50 000 lookups on 200 000        | O(1) index resolution                              |
+| `setTargetsSelected`              | 16 384 element targets           | one duplicate-safe immutable bulk transition       |
+| `setTargetsSelected` duplicate    | 16 384 + 1 024 repeated targets  | duplicate-safe bulk transition                     |
+| `setTargetsSelected` phases       | 1 / 1 024 / 4 096 / 16 384       | replacement and toggle across two occurrences      |
+| `selectedTargets` feedback        | 1 / 1 024 / 4 096 / 16 384       | selected-count feedback without DOM timing         |
+| `immutable part ownership lookup` | 16 384 element ids               | cached element-to-body metadata map reads          |
+| `collectEmphasisUpdates`          | 16 384 selected elements         | cached ownership and one reusable sync snapshot    |
+| `buildHighlightTable`             | 16 384 emphasis records          | bounded four-entry hash buckets                    |
+| `encodeEmphasisRecord` mirror     | 16 384 emphasis records          | CPU highlight-buffer preparation                   |
+| `heterogeneousElementParts`       | 600 mixed linear elements        | grouped triangle/line/point tessellation           |
+| `expand line geometry`            | 10,000 authored line segments    | one reusable four-corner triangle quad per segment |
+| `createPart`                      | 16 384 quads / 256 bodies        | element/body/face validation                       |
+| `heterogeneousElementParts`       | 16 384 FE quads / 256 bodies     | body-aware canonical tessellation                  |
+| primitive topology ids            | 16 384 quads / 256 bodies        | face/body/element GPU-id preparation               |
+| body-aware mesh edges             | 16 384 quads / 256 bodies        | edge topology and ownership preparation            |
 
 ### Stable model sizes and warmup rules
 
@@ -118,6 +124,32 @@ model sizes and invariants) rather than wall clock, so the test runs in the
 default unit suite without coverage-distorted timing.
 
 ## Browser performance (opt-in)
+
+### Element box-selection phases
+
+The opt-in `webgpu-benchmark` report (schema version 4) adds `selection.phases`
+for the reusable 64-placement case and the 250k/1m unique-geometry cases. The
+explicit large run also includes the optional 2m-unique local case. Each
+`narrow`, `one-shell`, and `broad` phase validates a non-empty element result
+and records invalid-snapshot timing, cached readback, interaction-state mutation,
+interaction synchronization, first selected frame, steady selected-frame p50/p95,
+clearing, selected occurrence count, renderer cost counters, and selected
+element-record byte count. The case-level `estimatedMemory.highlightBytes` and
+`estimatedMemory.pickReadbackBytes` retain the resident highlight table and
+readback-pool estimates. The browser/adapter metadata and submitted/unique
+triangle counts remain at the case/report level. A focused local reproduction
+is:
+
+```sh
+RUN_PERF=1 E2E_BASE_URL=http://127.0.0.1:5173 \
+  npx playwright test e2e/perf.spec.ts --project=chrome \
+  --grep "instanced-2.10m"
+```
+
+The benchmark builds scenes outside timed regions and uses the real system
+Chrome/WebGPU lane for GPU and frame claims; the default lane is DPR 1 and the
+focused `unique-250k` readback case runs at DPR 2. No-GPU CI is only a contract
+check.
 
 Optional triangle-edge geometry is not part of the cold attachment estimate. The
 benchmark memory estimator accepts the part ids whose edge resources have

@@ -16,6 +16,7 @@ import { createPart, type Geometry } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { resolvePick, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
 import { createInteractionState } from "../../src/interaction/interaction";
+import { selectedTargets } from "../../src/interaction/targets";
 import { setTargetsSelected, type InteractionTarget } from "../../src/interaction/targets";
 import { buildMeshEdgeData } from "../../src/renderer/gpu-edge";
 import {
@@ -24,7 +25,13 @@ import {
 } from "../../src/renderer/gpu-pick-region-resolve";
 import { buildPrimitiveFaceBodyPickData } from "../../src/renderer/gpu-pick-ids";
 import { expandSurfaceGeometry } from "../../src/renderer/gpu-surface-geometry";
-import { collectEmphasisUpdates } from "../../src/renderer/gpu-elements";
+import { collectEmphasisUpdates, encodeEmphasisRecord } from "../../src/renderer/gpu-elements";
+import {
+  buildHighlightTable,
+  type HighlightTableEntry,
+} from "../../src/renderer/gpu-highlight-table";
+import { getPartInteractionMetadata } from "../../src/renderer/part-interaction-metadata";
+import { defaultStyle } from "../../src/renderer/gpu-support";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
@@ -97,6 +104,7 @@ const bodyModelWithBodies = createElementModel([...bodyModel.nodes], bodyModel.e
   bodies,
 });
 const emphasisPart = createPart(907, bodyGeometry);
+getPartInteractionMetadata(emphasisPart);
 const emphasisScene = {
   rootAssemblyId: 1,
   parts: new Map([[emphasisPart.id, emphasisPart]]),
@@ -119,12 +127,16 @@ const emphasisLayout = buildInstanceLayout(emphasisRuntime);
 const emphasisInstanceId = emphasisRuntime.getInstanceId(0);
 if (emphasisInstanceId === undefined) throw new Error("Missing emphasis benchmark instance");
 const emphasisSlotByInstanceId = new Map([[emphasisInstanceId, 0]]);
+const emphasisElementIds = Array.from(
+  { length: BENCH_BODY_ELEMENT_COUNT },
+  (_, index) => index + 1,
+);
 const emphasisInteraction = setTargetsSelected(
   createInteractionState(),
-  Array.from({ length: BENCH_BODY_ELEMENT_COUNT }, (_, index) => ({
+  emphasisElementIds.map((elementId) => ({
     kind: "element" as const,
     instanceId: emphasisInstanceId,
-    elementId: index + 1,
+    elementId,
   })),
   true,
 );
@@ -149,6 +161,47 @@ const bulkSelectionTargets: InteractionTarget[] = Array.from(
   { length: BULK_SELECTION_COUNT },
   (_, index) => ({ kind: "element", instanceId: "bench/0", elementId: index + 1 }),
 );
+const duplicateBulkSelectionTargets = [
+  ...bulkSelectionTargets,
+  ...bulkSelectionTargets.slice(0, 1_024),
+];
+const PHASE_SELECTION_COUNTS = [1, 1_024, 4_096, 16_384] as const;
+const phaseSelectionTargets = new Map(
+  PHASE_SELECTION_COUNTS.map((count) => [count, makeSelectionTargets(count, 2)]),
+);
+const phaseSelectionStates = new Map(
+  PHASE_SELECTION_COUNTS.map((count) => {
+    const targets = phaseSelectionTargets.get(count) ?? [];
+    return [count, setTargetsSelected(createInteractionState(), targets, true)] as const;
+  }),
+);
+const emphasisTableEntries: HighlightTableEntry[] = Array.from(
+  { length: BULK_SELECTION_COUNT },
+  (_, index) => {
+    const update = {
+      slot: index % 64,
+      elementPickId: index + 1,
+      facePickId: 0,
+      nodePickId: 0,
+      style: defaultStyle,
+    };
+    return {
+      slot: update.slot,
+      elementPickId: update.elementPickId,
+      facePickId: 0,
+      nodePickId: 0,
+      data: encodeEmphasisRecord(update),
+    };
+  },
+);
+
+function makeSelectionTargets(count: number, occurrenceCount: number): InteractionTarget[] {
+  return Array.from({ length: count }, (_, index) => ({
+    kind: "element" as const,
+    instanceId: `bench/${index % occurrenceCount}`,
+    elementId: index + 1,
+  }));
+}
 
 function makeRegionCase(elementCount: number) {
   const geometry: Geometry = {
@@ -396,6 +449,79 @@ const budgets: readonly BudgetCase[] = [
     budgetMs: 100,
     run: () => {
       setTargetsSelected(createInteractionState(), bulkSelectionTargets, true);
+    },
+  },
+  {
+    name: "setTargetsSelected duplicate inputs (16,384 elements)",
+    description: "one bulk transition with 1,024 repeated identities",
+    budgetMs: 100,
+    run: () => {
+      setTargetsSelected(createInteractionState(), duplicateBulkSelectionTargets, true);
+    },
+  },
+  ...PHASE_SELECTION_COUNTS.flatMap((count) => {
+    const targets = phaseSelectionTargets.get(count);
+    const selected = phaseSelectionStates.get(count);
+    if (targets === undefined || selected === undefined)
+      throw new Error(`Missing ${count} targets`);
+    return [
+      {
+        name: `setTargetsSelected replace (${count} targets)`,
+        description: "duplicate-safe replacement across two occurrences",
+        budgetMs: count <= 1_024 ? 20 : 100,
+        run: () => {
+          setTargetsSelected(createInteractionState(), targets, true);
+        },
+      },
+      {
+        name: `setTargetsSelected toggle (${count} targets)`,
+        description: "duplicate-safe clear across two occurrences",
+        budgetMs: count <= 1_024 ? 20 : 100,
+        run: () => {
+          setTargetsSelected(selected, targets, false);
+        },
+      },
+      {
+        name: `selectedTargets feedback (${count} targets)`,
+        description: "count selected targets without DOM timing",
+        budgetMs: count <= 1_024 ? 20 : 100,
+        run: () => {
+          expect(selectedTargets(selected)).toHaveLength(count);
+        },
+      },
+    ];
+  }),
+  {
+    name: "buildHighlightTable (16,384 records)",
+    description: "bounded four-entry buckets for repeated placements",
+    budgetMs: 1_500,
+    run: () => {
+      buildHighlightTable(emphasisTableEntries);
+    },
+  },
+  {
+    name: "encodeEmphasisRecord mirror (16,384 records)",
+    description: "CPU mirror preparation for selected element records",
+    budgetMs: 100,
+    run: () => {
+      for (const entry of emphasisTableEntries) {
+        encodeEmphasisRecord({
+          slot: entry.slot,
+          elementPickId: entry.elementPickId,
+          facePickId: entry.facePickId,
+          nodePickId: entry.nodePickId,
+          style: defaultStyle,
+        });
+      }
+    },
+  },
+  {
+    name: "immutable part ownership lookup (16,384 elements)",
+    description: "cached element-to-body metadata map reads",
+    budgetMs: 100,
+    run: () => {
+      const metadata = getPartInteractionMetadata(emphasisPart);
+      for (const elementId of emphasisElementIds) metadata.bodyByElement.get(elementId);
     },
   },
   {

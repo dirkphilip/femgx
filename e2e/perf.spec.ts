@@ -7,6 +7,7 @@ const enabled = process.env["RUN_PERF"] === "1";
 const includeLarge = process.env["RUN_PERF_LARGE"] === "1";
 const baseURL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 const PHONE_FREE_VIEWPORT = { width: 1_000, height: 760 };
+const DPR2_READBACK_CASE_ID = "unique-250k";
 const CASE_TIMEOUT_MS = includeLarge ? 5 * 60_000 : 2 * 60_000;
 let caseArtifactDirectory: string | undefined;
 
@@ -64,7 +65,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
     const context = await browser.newContext({
       baseURL,
       viewport: PHONE_FREE_VIEWPORT,
-      deviceScaleFactor: 1,
+      deviceScaleFactor: spec.id === DPR2_READBACK_CASE_ID ? 2 : 1,
     });
     const page = await context.newPage();
     try {
@@ -92,12 +93,16 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       });
       console.log(`WEBGPU_BENCHMARK_JSON ${JSON.stringify(report)}`);
 
-      expect(report.schemaVersion).toBe(3);
+      expect(report.schemaVersion).toBe(4);
       expect(report.cases).toHaveLength(1);
       const [entry] = report.cases;
       expect(entry?.id).toBe(spec.id);
       expect(report.memoryEstimateScope).toContain("renderer-owned");
-      expect(report.resolution).toEqual({ width: 800, height: 600, dpr: 1 });
+      expect(report.resolution).toEqual({
+        width: 800,
+        height: 600,
+        dpr: spec.id === DPR2_READBACK_CASE_ID ? 2 : 1,
+      });
       expect(entry?.estimatedMemory.resultColorBytes).toBeGreaterThan(0);
       expect(entry?.estimatedMemory.visibleColorBytes).toBeGreaterThan(0);
       if (entry === undefined) throw new Error("Benchmark report case is missing");
@@ -115,6 +120,33 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       }>) {
         expect(timing.p50).toBeGreaterThanOrEqual(0);
         expect(timing.p95).toBeGreaterThanOrEqual(timing.p50);
+      }
+      if (["instanced-2.10m", "unique-250k", "unique-1m", "unique-2m-local"].includes(entry.id)) {
+        const phases = entry.selection?.phases;
+        expect(phases).toHaveLength(3);
+        if (phases === undefined) throw new Error("selection benchmark phases are missing");
+        expect(entry.estimatedMemory.highlightBytes).toBeGreaterThan(0);
+        expect(entry.estimatedMemory.pickReadbackBytes).toBeGreaterThan(0);
+        for (const phase of phases) {
+          expect(phase.returnedTargetCount).toBeGreaterThan(0);
+          expect(phase.selectedOccurrenceCount).toBeGreaterThan(0);
+          expect(phase.invalidSnapshotMs).toBeGreaterThan(0);
+          expect(phase.cachedReadbackMs).toBeGreaterThan(0);
+          expect(phase.interactionStateMs).toBeGreaterThan(0);
+          expect(phase.interactionSyncMs).toBeGreaterThan(0);
+          expect(phase.firstSelectedFrameMs).toBeGreaterThan(0);
+          expect(phase.steadySelectedFrameMs.p95).toBeGreaterThanOrEqual(
+            phase.steadySelectedFrameMs.p50,
+          );
+          expect(phase.clearSelectionMs).toBeGreaterThan(0);
+          expect(phase.interactionGpuCost.writes["highlight"]?.bytes ?? 0).toBeGreaterThanOrEqual(
+            0,
+          );
+          expect(phase.selectedElementRecordBytes).toBeGreaterThan(0);
+          if (entry.id === "instanced-2.10m" && phase.id === "one-shell") {
+            expect(phase.selectedOccurrenceCount).toBe(1);
+          }
+        }
       }
       if (entry.kind === "structured-fe") {
         expect(entry.structuredFamily).toBeDefined();
