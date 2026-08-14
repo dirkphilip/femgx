@@ -63,8 +63,11 @@ export default tseslint.config(
     },
   },
   {
+    ...tseslint.configs.disableTypeChecked,
     files: ["**/*.svelte"],
     rules: {
+      ...tseslint.configs.disableTypeChecked.rules,
+      "@typescript-eslint/consistent-type-imports": "off",
       "jsdoc/require-jsdoc": "off",
     },
   },
