@@ -129,11 +129,11 @@ test("reports the WebGPU-only contract instead of a CPU fallback when WebGPU is 
   await expect(canvas).toBeVisible();
   await expect.poll(() => rendererMode(page), { timeout: 10_000 }).toBe("unsupported");
 
-  // The page clearly reports that femgx requires a usable WebGPU renderer,
+  // The page clearly reports that FemGx requires a usable WebGPU renderer,
   // including the capability-probe diagnostic.
   await expect(page.getByTestId("renderer-status")).toHaveText("Renderer unsupported");
   await expect(page.getByTestId("status")).toBeVisible();
-  await expect(page.getByTestId("status")).toContainText("femgx requires a usable WebGPU renderer");
+  await expect(page.getByTestId("status")).toContainText("FemGx requires a usable WebGPU renderer");
   await expect(page.getByTestId("status")).toContainText("navigator.gpu is not exposed");
 
   // Failed WebGPU startup never creates a 2D CPU renderer for the model view.
