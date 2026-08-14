@@ -5,6 +5,7 @@
   import PrimaryToolbar from "./PrimaryToolbar.svelte";
   import StatusOverlays from "./StatusOverlays.svelte";
   import ContextMenu from "./ContextMenu.svelte";
+  import ResultLegend from "./ResultLegend.svelte";
   import VisibilityTree from "./VisibilityTree.svelte";
 
   let controller: WorkbenchController | undefined = $state();
@@ -60,13 +61,7 @@
         hidden
       ></div>
       <PrimaryToolbar {controller} {snapshot} />
-      <section
-        id="result-legend"
-        data-testid="result-legend"
-        class="hud result-legend"
-        aria-label="Active result legend"
-        hidden
-      ></section>
+      <ResultLegend {snapshot} />
       <StatusOverlays {snapshot} />
       <div class="scene-pane-label">Primary viewport</div>
     </section>

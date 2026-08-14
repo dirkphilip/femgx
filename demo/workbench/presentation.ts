@@ -53,6 +53,7 @@ export class WorkbenchPresentation {
     visible: false,
     text: "Click or right-click a visible element, face, or node to inspect it.",
   };
+  private resultLegend = { visible: false, text: "" };
 
   constructor(options: WorkbenchPresentationOptions) {
     this.options = options;
@@ -73,6 +74,7 @@ export class WorkbenchPresentation {
         visible: this.options.getToggles().diagnostics,
         text: this.diagnosticsText,
       }),
+      resultLegend: Object.freeze({ ...this.resultLegend }),
       contextMenu: this.options.menu.snapshot,
     });
   }
@@ -112,18 +114,6 @@ export class WorkbenchPresentation {
       describePick(undefined, (partId) => model.partNames.get(partId)),
       false,
     );
-  }
-
-  populateModelSelect(models: readonly WorkbenchModel[]): void {
-    const select = this.options.view.modelSelect;
-    select.textContent = "";
-    for (const model of models) {
-      const option = document.createElement("option");
-      option.value = model.id;
-      option.textContent = model.source === "file" ? `Opened · ${model.name}` : model.name;
-      select.appendChild(option);
-    }
-    select.value = this.options.getModel().id;
   }
 
   refresh(
@@ -168,12 +158,15 @@ export class WorkbenchPresentation {
       ? this.options.getVectorFieldId()
       : VECTOR_OFF_VALUE;
     const results = this.options.getViewport().results;
-    this.options.view.resultLegend.hidden = results === undefined;
-    if (results !== undefined) this.options.view.resultLegend.textContent = resultLegend(results);
+    this.resultLegend = {
+      visible: results !== undefined,
+      text: results === undefined ? "" : resultLegend(results),
+    };
     this.options.canvas.dataset["results"] = this.options.getResultMode();
     this.options.canvas.dataset["vectorField"] = vectorFieldId;
     this.options.canvas.dataset["vectorGlyph"] = this.options.getVectorGlyph();
     this.options.canvas.dataset["vectorTransform"] = this.options.getVectorTransform();
+    this.options.publishSnapshot();
   }
 
   reflectSectionPlane(): void {

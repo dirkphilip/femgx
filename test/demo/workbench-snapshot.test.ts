@@ -57,6 +57,7 @@ describe("workbench presentation snapshot", () => {
         statusVisible: true,
         inspection: { visible: true, text: "Element 4" },
         diagnostics: { visible: true, text: "draw calls: 2" },
+        resultLegend: { visible: true, text: "Demo stress\nRange 10 – 80" },
         contextMenu: {
           visible: true,
           x: 24,
@@ -79,6 +80,7 @@ describe("workbench presentation snapshot", () => {
       inspection: { visible: true, text: "Element 4" },
       diagnostics: true,
       diagnosticsText: "draw calls: 2",
+      resultLegend: { visible: true, text: "Demo stress\nRange 10 – 80" },
       contextMenu: { visible: true, title: "Element 4" },
     });
   });

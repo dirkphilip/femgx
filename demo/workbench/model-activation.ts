@@ -65,9 +65,6 @@ export function activateModelForOwner(
     rebuildVisibility: () => {
       owner.visibilityPanel.rebuild();
     },
-    populateModelSelect: (models) => {
-      owner.presentation.populateModelSelect(models);
-    },
     render: () => {
       owner.render();
     },
@@ -83,7 +80,6 @@ export interface WorkbenchModelControllerContext {
   readonly applyResultMode: () => void;
   readonly applyDisplayState: () => void;
   readonly rebuildVisibility: () => void;
-  readonly populateModelSelect: (models: readonly WorkbenchModel[]) => void;
   readonly render: () => void;
 }
 
@@ -110,7 +106,6 @@ export function activateControllerModel(
       context.applyDisplayState();
     },
     rebuildVisibility: context.rebuildVisibility,
-    populateModelSelect: context.populateModelSelect,
     render: () => {
       syncState();
       context.render();
@@ -128,7 +123,6 @@ interface ActivateWorkbenchModelOptions {
   readonly applyResultMode: () => void;
   readonly applyDisplayState: () => void;
   readonly rebuildVisibility: () => void;
-  readonly populateModelSelect: (models: readonly WorkbenchModel[]) => void;
   readonly render: () => void;
 }
 
@@ -153,7 +147,6 @@ export function activateWorkbenchModel(options: ActivateWorkbenchModelOptions): 
   options.applyDisplayState();
   resetSlotVisibility(options.slots, model);
   options.rebuildVisibility();
-  options.populateModelSelect(state.models);
   for (const slot of options.slots) slot.pane.canvas.dataset["model"] = model.id;
   options.presentation.clearFeedback();
   options.presentation.clearInspection(model);
