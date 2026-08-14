@@ -63,6 +63,34 @@
   color: #fff;
   background: transparent;
 }
+.result-controls {
+  display: flex;
+  min-width: min(100%, 420px);
+  flex: 1 1 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+.result-controls label {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 5px;
+  color: #b9c7d8;
+  font-size: 12px;
+}
+.result-controls label span {
+  flex: 0 0 auto;
+}
+.result-controls select,
+.result-controls input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.result-controls input {
+  width: 80px;
+}
 .visually-hidden {
   position: absolute;
   width: 1px;

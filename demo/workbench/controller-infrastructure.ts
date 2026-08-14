@@ -18,6 +18,7 @@ export interface WorkbenchInfrastructureOptions {
   readonly model: () => WorkbenchModel;
   readonly toggles: () => DisplayToggles;
   readonly resultMode: () => ResultDisplayMode;
+  readonly deformationScale: () => number;
   readonly continuous: () => boolean;
   readonly selectionGranularity: () => SelectionGranularity;
   readonly interaction: () => InteractionState;
@@ -60,6 +61,7 @@ export function createWorkbenchInfrastructure(
     model: options.model,
     toggles: options.toggles,
     resultMode: options.resultMode,
+    deformationScale: options.deformationScale,
     continuous: options.continuous,
     selectionGranularity: options.selectionGranularity,
     interaction: options.interaction,

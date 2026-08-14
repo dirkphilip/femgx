@@ -149,15 +149,44 @@
               >
                 Continuous
               </button>
-              <button
-                id="results-toggle"
-                data-testid="results-toggle"
-                type="button"
-                disabled
+              <div
+                id="result-controls"
+                data-testid="result-controls"
+                class="result-controls"
+                role="group"
+                aria-label="Result display"
                 hidden
               >
-                Results: Base
-              </button>
+                <label for="result-field">
+                  <span>Scalar</span>
+                  <select id="result-field" data-testid="result-field" aria-label="Scalar field">
+                    <option value="__base__">Base</option>
+                  </select>
+                </label>
+                <label for="deformation-field">
+                  <span>Deformation</span>
+                  <select
+                    id="deformation-field"
+                    data-testid="deformation-field"
+                    aria-label="Deformation field"
+                  >
+                    <option value="__off__">Off</option>
+                  </select>
+                </label>
+                <label for="deformation-scale">
+                  <span>Scale</span>
+                  <input
+                    id="deformation-scale"
+                    data-testid="deformation-scale"
+                    type="number"
+                    min="0"
+                    step="any"
+                    inputmode="decimal"
+                    value="1"
+                    aria-label="Deformation scale"
+                  />
+                </label>
+              </div>
               <button
                 id="reset"
                 data-testid="reset"
@@ -185,6 +214,13 @@
             <h2>Inspection</h2>
             <pre id="inspection-panel" data-testid="inspection-panel"></pre>
           </div>
+          <section
+            id="result-legend"
+            data-testid="result-legend"
+            class="hud result-legend"
+            aria-label="Active result legend"
+            hidden
+          ></section>
           <div
             id="renderer-status"
             data-testid="renderer-status"

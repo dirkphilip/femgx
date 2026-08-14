@@ -43,7 +43,11 @@ export interface DemoView {
   readonly backgroundSelect: HTMLSelectElement;
   readonly edgeOverlayToggle: HTMLButtonElement;
   readonly continuousToggle: HTMLButtonElement;
-  readonly resultsToggle: HTMLButtonElement;
+  readonly resultControls: HTMLElement;
+  readonly resultField: HTMLSelectElement;
+  readonly deformationField: HTMLSelectElement;
+  readonly deformationScale: HTMLInputElement;
+  readonly resultLegend: HTMLElement;
   readonly nodeOverlayToggle: HTMLButtonElement;
   readonly resetButton: HTMLButtonElement;
   readonly status: HTMLElement;
@@ -92,7 +96,11 @@ export function queryDemoView(): DemoView {
     backgroundSelect: requiredSelect("#background-select"),
     edgeOverlayToggle: requiredButton("#edge-overlay"),
     continuousToggle: requiredButton("#continuous-rendering"),
-    resultsToggle: requiredButton("#results-toggle"),
+    resultControls: requiredElement("#result-controls"),
+    resultField: requiredSelect("#result-field"),
+    deformationField: requiredSelect("#deformation-field"),
+    deformationScale: requiredInput("#deformation-scale"),
+    resultLegend: requiredElement("#result-legend"),
     nodeOverlayToggle: requiredButton("#node-overlay"),
     resetButton: requiredButton("#reset"),
     status: requiredElement("#status"),

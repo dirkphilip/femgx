@@ -337,8 +337,10 @@ export class WorkbenchInteraction {
   }
 
   private showPick(hit: Parameters<typeof describePick>[0]): void {
-    this.options.view.inspectionPanel.textContent = describePick(hit, (partId) =>
-      this.options.partName(partId),
+    this.options.view.inspectionPanel.textContent = describePick(
+      hit,
+      (partId) => this.options.partName(partId),
+      this.options.viewport().results,
     );
     const surface = Reflect.get(this.options.view.inspectionPanel, "parentElement") as
       HTMLElement | null | undefined;

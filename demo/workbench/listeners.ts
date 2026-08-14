@@ -18,7 +18,9 @@ export interface WorkbenchBindingOptions {
   readonly setEdges: () => void;
   readonly setNodes: () => void;
   readonly setContinuous: () => void;
-  readonly setResults: () => void;
+  readonly setResultField: (value: string) => void;
+  readonly setDeformationField: (value: string) => void;
+  readonly setDeformationScale: (value: string) => void;
   readonly setSelectionGranularity: (value: string) => void;
   readonly hideSelected: () => void;
   readonly showAll: () => void;
@@ -130,7 +132,27 @@ function installDisplayBindings(options: WorkbenchBindingOptions): void {
     { signal },
   );
   view.edgeOverlayToggle.addEventListener("click", options.setEdges, { signal });
-  view.resultsToggle.addEventListener("click", options.setResults, { signal });
+  view.resultField.addEventListener(
+    "change",
+    () => {
+      options.setResultField(view.resultField.value);
+    },
+    { signal },
+  );
+  view.deformationField.addEventListener(
+    "change",
+    () => {
+      options.setDeformationField(view.deformationField.value);
+    },
+    { signal },
+  );
+  view.deformationScale.addEventListener(
+    "change",
+    () => {
+      options.setDeformationScale(view.deformationScale.value);
+    },
+    { signal },
+  );
   view.nodeOverlayToggle.addEventListener("click", options.setNodes, { signal });
   view.continuousToggle.addEventListener("click", options.setContinuous, { signal });
   view.selectionGranularity.addEventListener(

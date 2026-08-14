@@ -23,13 +23,19 @@ import {
 import type { ViewportSlotId } from "./view";
 import { type WorkbenchViewportSlots, type WorkbenchViewportSlot } from "./viewport-slots";
 import { WorkbenchModelSession } from "./model-session";
-import { activateControllerModel, type WorkbenchModelState } from "./model-activation";
+import { activateModelForOwner } from "./model-activation";
 import { applyDisplayState, applyResultState } from "./display-state";
 import {
   syncViewportPresentation,
   viewportPresentationChanged,
   type ObservedPaneSize,
 } from "./viewport-presentation";
+import {
+  parseDeformationScale,
+  resultModeForDeformationSelection,
+  resultModeForModel,
+  resultModeForScalarSelection,
+} from "./result-controls";
 import { createControllerInfrastructure, installControllerLifecycle } from "./controller-wiring";
 import {
   isDestroyedViewportError,
@@ -50,9 +56,9 @@ export class WorkbenchController {
   interaction: InteractionState;
   rendererState = "";
   viewport: FemViewport;
-  private viewportSlots!: WorkbenchViewportSlots;
+  viewportSlots!: WorkbenchViewportSlots;
   private readonly modelSession: WorkbenchModelSession;
-  private readonly examples: readonly WorkbenchModel[];
+  readonly examples: readonly WorkbenchModel[];
   models: readonly WorkbenchModel[];
   readonly listenerController = new AbortController();
   menu!: WorkbenchFeatures["menu"];
@@ -62,9 +68,10 @@ export class WorkbenchController {
   presentation!: WorkbenchFeatures["presentation"];
   boxPreview!: WorkbenchFeatures["boxPreview"];
   private boxSelectionDisposer: (() => void) | undefined;
-  private treeHoverTargets: readonly InteractionTarget[] = [];
+  treeHoverTargets: readonly InteractionTarget[] = [];
   private disposed = false;
   continuousEnabled = false;
+  deformationScale: number;
   selectionGranularity: SelectionGranularity = "element";
   background: ViewportBackground = "studio";
   private readonly observedPaneSizes = new Map<ViewportSlotId, ObservedPaneSize>();
@@ -80,7 +87,8 @@ export class WorkbenchController {
     this.models = this.examples;
     this.model = initialModel;
     this.toggles = createDefaultDisplayToggles();
-    this.resultMode = this.model.results === undefined ? "base" : "deformed";
+    this.resultMode = resultModeForModel(this.model);
+    this.deformationScale = this.model.results?.deformation?.scale ?? 1;
     this.interaction = createModelInteraction(this.model, true, true);
     this.initializeInfrastructure(options);
     this.modelSession = new WorkbenchModelSession({
@@ -306,23 +314,47 @@ export class WorkbenchController {
     this.viewportSlots.destroy();
   }
 
-  setResultMode(mode: ResultDisplayMode): void {
-    if (this.model.results === undefined && mode !== "base") return;
+  setResultField(value: string): void {
+    const mode = resultModeForScalarSelection(
+      value,
+      this.model.results,
+      this.view.deformationField.value,
+    );
+    if (mode === undefined) {
+      this.presentation.reflectResults();
+      return;
+    }
     this.resultMode = mode;
     this.applyResultMode(true);
   }
 
-  cycleResultMode(): void {
-    const next: ResultDisplayMode =
-      this.resultMode === "base" ? "colored" : this.resultMode === "colored" ? "deformed" : "base";
-    this.setResultMode(next);
+  setDeformationField(value: string): void {
+    const mode = resultModeForDeformationSelection(value, this.model.results, this.resultMode);
+    if (mode === undefined) {
+      this.presentation.reflectResults();
+      return;
+    }
+    this.resultMode = mode;
+    this.applyResultMode(true);
   }
 
-  private applyResultMode(render: boolean): void {
+  setDeformationScale(value: string): void {
+    const scale = parseDeformationScale(value);
+    if (scale === undefined) {
+      this.presentation.reflectResults();
+      return;
+    }
+    if (this.deformationScale === scale) return;
+    this.deformationScale = scale;
+    this.applyResultMode(this.resultMode === "deformed");
+  }
+
+  applyResultMode(render: boolean): void {
     applyResultState({
       viewports: this.viewports(),
       model: this.model,
       mode: this.resultMode,
+      deformationScale: this.deformationScale,
       reflect: () => {
         this.presentation.reflectResults();
       },
@@ -330,7 +362,7 @@ export class WorkbenchController {
     if (render) this.render();
   }
 
-  private applyCurrentDisplayState(): void {
+  applyCurrentDisplayState(): void {
     applyDisplayState({
       viewports: this.viewports(),
       model: this.model,
@@ -375,44 +407,8 @@ export class WorkbenchController {
   }
 
   private activateModel(model: WorkbenchModel): void {
-    const state: WorkbenchModelState = {
-      model: this.model,
-      models: this.models,
-      toggles: this.toggles,
-      resultMode: this.resultMode,
-      interaction: this.interaction,
-      treeHoverTargets: this.treeHoverTargets,
-    };
-    activateControllerModel(model, {
-      view: this.view,
-      examples: this.examples,
-      slots: this.viewportSlots.all(),
-      state,
-      setControllerState: (next) => {
-        this.model = next.model;
-        this.models = next.models;
-        this.toggles = next.toggles;
-        this.resultMode = next.resultMode;
-        this.interaction = next.interaction;
-        this.treeHoverTargets = next.treeHoverTargets;
-        this.canvas.dataset["treeHover"] = "";
-      },
-      applyResultMode: () => {
-        this.applyResultMode(false);
-      },
-      applyDisplayState: () => {
-        this.applyCurrentDisplayState();
-      },
-      rebuildVisibility: () => {
-        this.visibilityPanel.rebuild();
-      },
-      populateModelSelect: (models) => {
-        this.presentation.populateModelSelect(models);
-      },
-      render: () => {
-        this.render();
-      },
-    });
+    activateModelForOwner(model, this);
+    this.canvas.dataset["treeHover"] = "";
   }
 
   render(): void {

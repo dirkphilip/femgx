@@ -8,15 +8,66 @@ import {
 } from "./model";
 import type { DemoView } from "./view";
 import type { DisplayToggles, ResultDisplayMode } from "./types";
-import type { WorkbenchViewportSlot } from "./viewport-slots";
+import type { WorkbenchViewportSlot, WorkbenchViewportSlots } from "./viewport-slots";
+import { resultModeForModel } from "./result-controls";
 
 export interface WorkbenchModelState {
   model: WorkbenchModel;
   models: readonly WorkbenchModel[];
   toggles: DisplayToggles;
   resultMode: ResultDisplayMode;
+  deformationScale: number;
   interaction: InteractionState;
   treeHoverTargets: readonly InteractionTarget[];
+}
+
+/** State owner used by the controller-facing activation adapter. */
+export interface WorkbenchModelActivationOwner extends WorkbenchModelState {
+  readonly view: DemoView;
+  readonly examples: readonly WorkbenchModel[];
+  readonly viewportSlots: WorkbenchViewportSlots;
+  readonly presentation: { populateModelSelect: (models: readonly WorkbenchModel[]) => void };
+  readonly visibilityPanel: { rebuild: () => void };
+  applyResultMode: (render: boolean) => void;
+  applyCurrentDisplayState: () => void;
+  render: () => void;
+}
+
+/** Activates a model using the controller's state and lifecycle owners. */
+export function activateModelForOwner(
+  model: WorkbenchModel,
+  owner: WorkbenchModelActivationOwner,
+): void {
+  activateControllerModel(model, {
+    view: owner.view,
+    examples: owner.examples,
+    slots: owner.viewportSlots.all(),
+    state: owner,
+    setControllerState: (next) => {
+      owner.model = next.model;
+      owner.models = next.models;
+      owner.toggles = next.toggles;
+      owner.resultMode = next.resultMode;
+      owner.deformationScale = next.deformationScale;
+      owner.interaction = next.interaction;
+      owner.treeHoverTargets = next.treeHoverTargets;
+    },
+    applyResultMode: () => {
+      owner.applyResultMode(false);
+    },
+    applyDisplayState: () => {
+      owner.applyCurrentDisplayState();
+    },
+    rebuildVisibility: () => {
+      owner.visibilityPanel.rebuild();
+    },
+    populateModelSelect: (models) => {
+      owner.presentation.populateModelSelect(models);
+    },
+    render: () => {
+      owner.render();
+    },
+  });
 }
 
 export interface WorkbenchModelControllerContext {
@@ -86,7 +137,8 @@ export function activateWorkbenchModel(options: ActivateWorkbenchModelOptions): 
   state.models = model.source === "file" ? [...options.examples, model] : options.examples;
   state.treeHoverTargets = [];
   state.toggles = { edges: true, nodes: true, diagnostics: false };
-  state.resultMode = model.results === undefined ? "base" : "deformed";
+  state.resultMode = resultModeForModel(model);
+  state.deformationScale = model.results?.deformation?.scale ?? 1;
   state.interaction = createModelInteraction(model, true, true);
   setModelScene(options.slots, model);
   options.applyResultMode();

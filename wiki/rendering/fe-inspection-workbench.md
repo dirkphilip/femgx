@@ -127,7 +127,11 @@ controller, so camera and interaction behavior is stable
   authoritative scene, selection, visibility, results, and model transitions.
   The toolbar is one calm
   surface with model, **Fit model**, projection, a labeled **Background** select
-  (`Studio`, `White`, or `Dark`), edges, nodes, results, and **Reset all** controls.
+  (`Studio`, `White`, or `Dark`), edges, nodes, explicit scalar/deformation result
+  controls, and **Reset all** controls. When a result is active, a compact
+  demo-owned legend shows its field, location, unit, finite range, and color stops;
+  picked node/element/face inspection adds the exact authored scalar when its
+  location permits an unambiguous value.
   The selector is demo-owned presentation state and calls the public viewport
   background setter; it survives model, local-file, reset, resize, recovery, and viewport
   replacement transitions, while a failed setter restores the last successful value

@@ -217,7 +217,7 @@ test("opens two shared-state viewports with independent cameras and exact teardo
   const selected = await primary.getAttribute("data-selected");
   if (selected === null) throw new Error("primary selection was not published");
   await expect(secondary).toHaveAttribute("data-selected", selected);
-  await page.getByTestId("results-toggle").click();
+  await page.getByTestId("result-field").selectOption("__base__");
   await expect(primary).toHaveAttribute("data-results", "base");
   await expect(secondary).toHaveAttribute("data-results", "base");
 

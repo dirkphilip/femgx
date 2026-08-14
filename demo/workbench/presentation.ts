@@ -1,8 +1,10 @@
 import {
   type Camera,
+  type FemViewport,
   type InteractionState,
   type SceneRuntime,
   type ViewportBackground,
+  type ViewportResultsState,
 } from "../../src/index";
 import type { WorkbenchModel } from "./model";
 import { updateStatus, type DemoView } from "./view";
@@ -11,6 +13,7 @@ import { selectedElementTargets } from "./visibility-actions";
 import { statsText } from "../devtools/diagnostics";
 import type { DisplayToggles, RenderLoopStats, RendererStats, ResultDisplayMode } from "./types";
 import type { SelectionGranularity } from "./pick";
+import { BASE_RESULT_VALUE, DEFORMATION_OFF_VALUE } from "./result-controls";
 
 /** Presentation-only DOM policy for the workbench shell. */
 export interface WorkbenchPresentationOptions {
@@ -20,6 +23,8 @@ export interface WorkbenchPresentationOptions {
   readonly getModel: () => WorkbenchModel;
   readonly getToggles: () => DisplayToggles;
   readonly getResultMode: () => ResultDisplayMode;
+  readonly getDeformationScale: () => number;
+  readonly getViewport: () => FemViewport;
   readonly getInteraction: () => InteractionState;
   readonly getRuntime: () => SceneRuntime;
   readonly getContinuous: () => boolean;
@@ -136,19 +141,93 @@ export class WorkbenchPresentation {
   }
 
   reflectResults(): void {
-    const enabled = this.options.getModel().results !== undefined;
+    const config = this.options.getModel().results;
     const mode = this.options.getResultMode();
-    this.options.view.resultsToggle.disabled = !enabled;
-    this.options.view.resultsToggle.hidden = !enabled;
-    this.options.view.resultsToggle.textContent = `Results: ${resultLabel(mode)}`;
-    this.options.view.resultsToggle.setAttribute("aria-label", `Results: ${resultLabel(mode)}`);
+    const controls = this.options.view.resultControls;
+    controls.hidden = config === undefined;
+    if (config === undefined) {
+      this.options.view.resultLegend.hidden = true;
+      this.options.canvas.dataset["results"] = "base";
+      return;
+    }
+    replaceOptions(this.options.view.resultField, [
+      { value: BASE_RESULT_VALUE, label: "Base" },
+      {
+        value: config.field.id,
+        label: `${config.field.name} · ${fieldLocation(config.field.location)}`,
+      },
+    ]);
+    this.options.view.resultField.value = mode === "base" ? BASE_RESULT_VALUE : config.field.id;
+    replaceOptions(this.options.view.deformationField, [
+      { value: DEFORMATION_OFF_VALUE, label: "Off" },
+      ...(config.deformation === undefined
+        ? []
+        : [{ value: config.deformation.field.id, label: config.deformation.field.name }]),
+    ]);
+    this.options.view.deformationField.value =
+      mode === "deformed" && config.deformation !== undefined
+        ? config.deformation.field.id
+        : DEFORMATION_OFF_VALUE;
+    this.options.view.deformationField.disabled =
+      mode === "base" || config.deformation === undefined;
+    this.options.view.deformationScale.disabled =
+      mode !== "deformed" || config.deformation === undefined;
+    this.options.view.deformationScale.value = String(this.options.getDeformationScale());
+    const results = this.options.getViewport().results;
+    this.options.view.resultLegend.hidden = results === undefined;
+    if (results !== undefined) this.options.view.resultLegend.textContent = resultLegend(results);
     this.options.canvas.dataset["results"] = mode;
   }
 }
 
-function resultLabel(mode: ResultDisplayMode): string {
-  if (mode === "colored") return "Color";
-  return mode === "base" ? "Base" : "Deformed";
+interface SelectOption {
+  readonly value: string;
+  readonly label: string;
+}
+
+function replaceOptions(select: HTMLSelectElement, options: readonly SelectOption[]): void {
+  select.textContent = "";
+  for (const optionData of options) {
+    const option = document.createElement("option");
+    option.value = optionData.value;
+    option.textContent = optionData.label;
+    select.appendChild(option);
+  }
+}
+
+function resultLegend(results: ViewportResultsState): string {
+  const field = results.scalarField;
+  const stops = results.colorMap.stops
+    .map((stop) => `${formatNumber(stop.offset * 100)}% ${formatColor(stop.color)}`)
+    .join(" → ");
+  return (
+    `${field.name}\n` +
+    `${fieldLocation(field.location)} · Unit ${field.unit}\n` +
+    `Range ${formatNumber(results.range.min)} – ${formatNumber(results.range.max)}\n` +
+    `Colors ${stops}`
+  );
+}
+
+function fieldLocation(location: "nodal" | "elemental"): string {
+  return location === "nodal" ? "Nodal" : "Elemental";
+}
+
+function formatColor(color: {
+  readonly r: number;
+  readonly g: number;
+  readonly b: number;
+}): string {
+  return `#${componentHex(color.r)}${componentHex(color.g)}${componentHex(color.b)}`;
+}
+
+function componentHex(component: number): string {
+  return Math.round(Math.min(1, Math.max(0, component)) * 255)
+    .toString(16)
+    .padStart(2, "0");
+}
+
+function formatNumber(value: number): string {
+  return String(Math.abs(value) < 1e-9 ? 0 : Number(value.toPrecision(5)));
 }
 
 function selectionHelp(granularity: SelectionGranularity): string {

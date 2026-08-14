@@ -84,6 +84,12 @@ the public API supports the undeformed/base state via `clearResults()`, the
 colored state via `setResults({ field })`, and the combined colored/deformed
 state by adding `deformation`.
 
+The inspection workbench adds a demo-private legend and explicit field,
+deformation, and scale controls on top of this static API. It formats the
+resolved viewport range and color stops without adding a public legend
+subsystem; picked values are shown only when the hit identity matches the
+field's authored location.
+
 ## Deformation (`deform.ts`)
 
 `deformPositions(positions, nodePickIds, displacements, scale)` / `deformGeometry(geometry,
