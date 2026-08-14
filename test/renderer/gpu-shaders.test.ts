@@ -543,6 +543,24 @@ describe("GPU deformation shader contract", () => {
     expect(instanceVertexShader).not.toContain("trianglePickPosition(");
   });
 
+  it("keeps expanded selected triangles in their occurrence transform", () => {
+    expect(selectionVertexShader).toMatch(
+      /let triangleCenterClip = camera\.viewProjection \* instance\.transform/,
+    );
+    expect(selectionVertexShader).toMatch(
+      /trianglePickPosition\([\s\S]*triangleCenterClip,[\s\S]*vertexIndex % 3u/,
+    );
+  });
+
+  it("keeps expanded triangle node picks in their occurrence transform", () => {
+    expect(nodePickVertexShader).toMatch(
+      /let triangleCenterClip = camera\.viewProjection \* instance\.transform/,
+    );
+    expect(nodePickVertexShader).toMatch(
+      /trianglePickPosition\([\s\S]*triangleCenterClip,[\s\S]*vertexIndex % 3u/,
+    );
+  });
+
   it("uses resolved instance opacity for neutral node and edge overlays", () => {
     expect(pointVertexShader).toContain("var color = select(");
     expect(pointVertexShader).toContain("vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a)");

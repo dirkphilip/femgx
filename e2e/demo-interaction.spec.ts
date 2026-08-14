@@ -39,8 +39,45 @@ test("defaults to element selection and can switch to exact node picks", async (
   await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
 
   await setSelectionGranularity(page, "node");
-  await page.mouse.click(hit.x, hit.y);
+  const exactNode = await requireHit(
+    page,
+    canvas,
+    { prefix: "n:", fresh: true },
+    "node GPU picking must refresh after changing selection granularity",
+  );
+  await page.mouse.click(exactNode.x, exactNode.y);
   await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
+});
+
+test("keeps repeated element, face, and node selection stable through orbit", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  for (const [granularity, hitPrefix, selectionPrefix] of [
+    ["element", "n:", "e:"],
+    ["face", "f:", "f:"],
+    ["node", "n:", "n:"],
+  ] as const) {
+    await setSelectionGranularity(page, granularity);
+    const hit = await requireHit(
+      page,
+      canvas,
+      { prefix: hitPrefix, fresh: true },
+      `${granularity} GPU picking must resolve after repeated granularity changes`,
+    );
+    await page.mouse.click(hit.x, hit.y);
+    await expect.poll(() => dataset(page, "selected")).toMatch(new RegExp(`^${selectionPrefix}`));
+  }
+  const selected = await dataset(page, "selected");
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounding box");
+  for (let turn = 0; turn < 3; turn++) {
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down({ button: "middle" });
+    await page.mouse.move(box.x + box.width / 2 + 48, box.y + box.height / 2 + 24);
+    await page.mouse.up({ button: "middle" });
+  }
+  await expect.poll(() => dataset(page, "selected")).toBe(selected);
+  await expect(canvas).toHaveAttribute("data-renderer", "webgpu");
 });
 
 test("selects an element by promoting a node pick with shift-click", async ({ page }) => {

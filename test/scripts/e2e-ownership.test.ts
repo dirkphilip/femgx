@@ -36,4 +36,9 @@ describe("browser suite ownership", () => {
     expect(packageJson).toContain("e2e/webgpu-lifecycle.spec.ts");
     expect(packageJson).not.toContain("e2e/webgpu.spec.ts");
   });
+
+  it("never reuses a dev server from another worktree", () => {
+    const config = readFileSync(join(root, "playwright.config.ts"), "utf8");
+    expect(config).toContain("reuseExistingServer: false");
+  });
 });

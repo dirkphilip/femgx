@@ -194,7 +194,7 @@ fn trianglePickPosition(
   clipA: vec4<f32>,
   clipB: vec4<f32>,
   clipC: vec4<f32>,
-  centerLocal: vec3<f32>,
+  centerClip: vec4<f32>,
   corner: u32,
 ) -> vec4<f32> {
   if (camera.viewport.x <= 0.0 || camera.viewport.y <= 0.0 ||
@@ -224,7 +224,6 @@ fn trianglePickPosition(
       default: { return clipC; }
     }
   }
-  let centerClip = camera.viewProjection * vec4<f32>(centerLocal, 1.0);
   if (centerClip.w <= 1e-5) {
     return centerClip;
   }
