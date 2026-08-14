@@ -31,7 +31,7 @@ export function createResultsPreset(): ModelPreset {
         {
           kind: "part",
           partId: RESULTS_PART_ID,
-          transform: multiply(translation(5.5, 0.25, 0.2), scale(-1.15, 0.8, 1.2)),
+          transform: multiply(translation(9, 2.75, 0.2), scale(-1.15, 0.8, 1.2)),
         },
       ],
     })
