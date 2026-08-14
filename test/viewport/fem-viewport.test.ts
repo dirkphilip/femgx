@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createPart } from "../../src/geometry/part";
+import { createPart, type Part } from "../../src/geometry/part";
 import { createResultField } from "../../src/results/fields";
 import { setBodyOverride, setBodyVisible } from "../../src/interaction/bodies";
 import { setPartOverride } from "../../src/interaction/interaction";
-import { setTargetSelected } from "../../src/interaction/targets";
+import { isTargetSelected, setTargetSelected } from "../../src/interaction/targets";
 import { translation } from "../../src/math/mat4";
+import type { Placement } from "../../src/scene/assembly";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { createFemViewport } from "../../src/viewport/fem-viewport";
 import { RendererAttachment } from "../../src/renderer/attachment";
@@ -113,6 +114,12 @@ function scene(offset = 0) {
     })
     .withRoot(1)
     .build();
+}
+
+function explicitScene(parts: readonly Part[], placements: readonly Placement[]): Scene {
+  let builder = createScene();
+  for (const part of parts) builder = builder.addPart(part);
+  return builder.addAssembly({ id: 1, name: "explicit-root", placements }).withRoot(1).build();
 }
 
 function invalidScene(): Scene {
@@ -378,7 +385,7 @@ describe("FemViewport", () => {
 
     viewport.setScene(scene(10));
     viewport.render();
-    expect(viewport.camera.target[0]).toBeCloseTo(10);
+    expect(viewport.camera.target[0]).toBeCloseTo(0);
     viewport.setCamera({ ...viewport.camera, position: [20, 20, 20] });
     expect(viewport.camera.position).toEqual([20, 20, 20]);
 
@@ -448,6 +455,59 @@ describe("FemViewport", () => {
 
     expect(viewport.camera.target[0]).toBeCloseTo(25);
     expect(viewport.runtime.getTransform("1/0")?.[12]).toBe(25);
+    viewport.destroy();
+  });
+
+  it("preserves surviving placement state across transactional scene replacement", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const geometry = {
+      positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+      primitive: "triangles" as const,
+    };
+    const keep = createPart(1, geometry);
+    const remove = createPart(2, geometry);
+    const added = createPart(3, geometry);
+    const initial = explicitScene(
+      [remove, keep],
+      [
+        { kind: "part", placementId: "remove", partId: 2, transform: translation(0, 0, 0) },
+        { kind: "part", placementId: "keep", partId: 1, transform: translation(1, 0, 0) },
+      ],
+    );
+    const replacement = explicitScene(
+      [keep, added],
+      [
+        { kind: "part", placementId: "keep", partId: 1, transform: translation(10, 0, 0) },
+        { kind: "part", placementId: "added", partId: 3, transform: translation(20, 0, 0) },
+      ],
+    );
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: initial,
+      device: fakeGpuDevice().device,
+    });
+    viewport.setCamera({ ...viewport.camera, target: [4, 5, 6] as [number, number, number] });
+    const camera = viewport.camera;
+    viewport.setInstanceVisible("1/keep", false);
+    let interaction = setTargetSelected(
+      viewport.interaction,
+      { kind: "instance", instanceId: "1/keep" },
+      true,
+    );
+    interaction = setTargetSelected(interaction, { kind: "part", partId: 2 }, true);
+    viewport.setInteraction(interaction);
+
+    viewport.setScene(replacement);
+
+    expect(viewport.camera).toBe(camera);
+    expect(viewport.runtime.getInstanceIds()).toEqual(["1/keep", "1/added"]);
+    expect(viewport.runtime.isInstanceVisible("1/keep")).toBe(false);
+    expect(isTargetSelected(viewport.interaction, { kind: "instance", instanceId: "1/keep" })).toBe(
+      true,
+    );
+    expect(isTargetSelected(viewport.interaction, { kind: "part", partId: 2 })).toBe(false);
     viewport.destroy();
   });
 

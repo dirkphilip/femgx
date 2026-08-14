@@ -9,7 +9,7 @@ import type { DeformationState } from "../results/deform";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import { RendererAttachment } from "./attachment";
-import { createDrawResources, destroyDrawResources } from "./gpu-draw";
+import { destroyInstanceResources } from "./gpu-draw";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
 import { syncDeformations, validateDeformation } from "./gpu-deform";
 import { syncResultColors } from "./gpu-result-colors";
@@ -103,6 +103,7 @@ export class GpuRenderer implements WebGpuRenderer {
     this.sourceParts = parts;
     this.lastCamera = camera;
     this.parts = new Map(parts);
+    this.attachment.prepareParts(this.parts, this.lifecycle.bundle);
     const attachmentChanged = this.attachment.attach(runtime, this.lifecycle.bundle);
     if (attachmentChanged || partsChanged || this.nodeOrdersDirty) {
       this.attachment.updateNodeOrders(this.parts, this.lifecycle.bundle);
@@ -117,9 +118,7 @@ export class GpuRenderer implements WebGpuRenderer {
   public resetScene(): void {
     this.ensureAlive();
     this.attachment.clear();
-    const cost = this.lifecycle.bundle.draw.cost;
-    destroyDrawResources(this.lifecycle.bundle.draw);
-    this.lifecycle.bundle.draw = createDrawResources(this.lifecycle.bundle.device, cost);
+    destroyInstanceResources(this.lifecycle.bundle.draw);
     this.parts = new Map();
     this.sourceParts = undefined;
     this.lastCamera = undefined;
