@@ -1,6 +1,19 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
+const softwareWebGpuArgs = [
+  "--disable-dev-shm-usage",
+  "--disable-gpu-sandbox",
+  "--enable-features=Vulkan",
+  "--enable-accelerated-2d-canvas",
+  "--enable-gpu",
+  "--enable-unsafe-webgpu",
+  "--use-gpu-in-tests",
+  "--use-angle=swiftshader",
+  "--use-gl=angle",
+  "--use-webgpu-adapter=swiftshader",
+  "--use-vulkan=swiftshader",
+];
 
 /**
  * E2E browser projects:
@@ -55,21 +68,32 @@ export default defineConfig({
         headless: true,
         // This opt-in smoke lane probes hosted CI's SwiftShader path. It is
         // exploratory evidence, never the authoritative hardware lane.
-        launchOptions: {
-          args: [
-            "--disable-dev-shm-usage",
-            "--disable-gpu-sandbox",
-            "--enable-features=Vulkan",
-            "--enable-accelerated-2d-canvas",
-            "--enable-gpu",
-            "--enable-unsafe-webgpu",
-            "--use-gpu-in-tests",
-            "--use-angle=swiftshader",
-            "--use-gl=angle",
-            "--use-webgpu-adapter=swiftshader",
-            "--use-vulkan=swiftshader",
-          ],
-        },
+        launchOptions: { args: softwareWebGpuArgs },
+      },
+    },
+    {
+      name: "chrome-software-interaction",
+      testMatch:
+        /(demo-interaction|demo-lifecycle|mobile|mobile-touch|webgpu-camera|webgpu-glb)\.spec\.ts/,
+      retries: 0,
+      workers: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chrome",
+        headless: true,
+        launchOptions: { args: softwareWebGpuArgs },
+      },
+    },
+    {
+      name: "chrome-software-rendering",
+      testMatch: /(demo-results|demo-visibility|webgpu-rendering|webgpu-visibility)\.spec\.ts/,
+      retries: 0,
+      workers: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chrome",
+        headless: true,
+        launchOptions: { args: softwareWebGpuArgs },
       },
     },
     {
