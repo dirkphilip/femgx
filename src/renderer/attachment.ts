@@ -39,6 +39,7 @@ import {
 } from "./selection-state";
 import { rebuildEdgeOrders, rebuildTransparentOrders } from "./attachment-orders";
 import { reconcilePartResources } from "./part-resources";
+import { getPartInteractionMetadata } from "./part-interaction-metadata";
 
 type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
 type HiddenInteractionTuple = readonly [
@@ -79,6 +80,8 @@ export class RendererAttachment {
   /** Retains geometry for unchanged part definitions and drops replaced ones. */
   public prepareParts(parts: ReadonlyMap<PartId, Part>, bundle: GpuBundle): void {
     this.attachedParts = reconcilePartResources(this.attachedParts, parts, bundle.draw);
+    // Region queries reuse this immutable index; prepare it outside their timed readback path.
+    for (const part of parts.values()) getPartInteractionMetadata(part);
   }
 
   /**

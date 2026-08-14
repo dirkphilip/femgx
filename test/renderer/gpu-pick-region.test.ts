@@ -3,6 +3,7 @@ import { createPart, type Geometry } from "../../src/geometry/part";
 import { identity } from "../../src/math/mat4";
 import { pickTargetsFromRegion, renderPixelRect } from "../../src/renderer/gpu-pick-region";
 import { createPickRegionTargetResolver } from "../../src/renderer/gpu-pick-region-resolve";
+import { createPickRegionTargetCollector } from "../../src/renderer/gpu-pick-region-targets";
 import {
   createPickTargets,
   ensurePickTargets,
@@ -14,6 +15,7 @@ import type { Instance } from "../../src/scene/types";
 import type { BoxSelectionRect } from "../../src/interaction/box-selection";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 import { createPickDepthReadback } from "../../src/renderer/gpu-pick-depth";
+import { getPartInteractionMetadata } from "../../src/renderer/part-interaction-metadata";
 
 function rect(overrides: Partial<BoxSelectionRect> = {}): BoxSelectionRect {
   return {
@@ -148,6 +150,53 @@ describe("GPU pick regions", () => {
       instanceId: "root/1",
       elementId: 4,
     });
+  });
+
+  it("resolves sparse authored element ids through prepared metadata", () => {
+    const part = createPart(3, {
+      positions: new Float32Array(6),
+      indices: new Uint32Array([0, 1]),
+      primitive: "points",
+      elements: [
+        { id: 7, primitiveStart: 0, primitiveCount: 1 },
+        { id: 100_000, primitiveStart: 1, primitiveCount: 1 },
+      ],
+    });
+    getPartInteractionMetadata(part);
+    const originalGeometry = part.geometry;
+    Object.defineProperty(part, "geometry", {
+      configurable: true,
+      value: new Proxy(originalGeometry, {
+        get(target, property, _receiver) {
+          if (property === "elements") throw new Error("region resolution scanned the part");
+          return (target as unknown as Record<PropertyKey, unknown>)[property];
+        },
+      }),
+    });
+    const resolve = createPickRegionTargetResolver(
+      { instances: [instance(3)], parts: new Map([[3, part]]) },
+      "element",
+    );
+
+    expect(resolve(ids({ elementPickId: 100_001 }))).toEqual({
+      kind: "element",
+      instanceId: "root/0",
+      elementId: 100_000,
+    });
+  });
+
+  it("deduplicates semantic owners and keeps numeric ordering", () => {
+    const collector = createPickRegionTargetCollector();
+    collector.add({ kind: "body", instanceId: "root/1", bodyId: 8 }, 2);
+    collector.add({ kind: "body", instanceId: "root/0", bodyId: 12 }, 1);
+    collector.add({ kind: "body", instanceId: "root/0", bodyId: 12 }, 1);
+    collector.add({ kind: "body", instanceId: "root/0", bodyId: 3 }, 1);
+
+    expect(collector.finish()).toEqual([
+      { kind: "body", instanceId: "root/0", bodyId: 3 },
+      { kind: "body", instanceId: "root/0", bodyId: 12 },
+      { kind: "body", instanceId: "root/1", bodyId: 8 },
+    ]);
   });
 
   it("does not derive rich face adjacency for node-region targets", async () => {
