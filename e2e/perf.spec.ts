@@ -2,7 +2,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import type { WebGpuBenchmarkReport } from "../demo/benchmark/runner";
-import { benchmarkCaseSpecs } from "../demo/benchmark/model";
 
 const enabled = process.env["RUN_PERF"] === "1";
 const includeLarge = process.env["RUN_PERF_LARGE"] === "1";
@@ -10,6 +9,11 @@ const baseURL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 const PHONE_FREE_VIEWPORT = { width: 1_000, height: 760 };
 const CASE_TIMEOUT_MS = includeLarge ? 5 * 60_000 : 2 * 60_000;
 let caseArtifactDirectory: string | undefined;
+
+// Keep browser-only benchmark dependencies out of ordinary e2e collection.
+const benchmarkCaseSpecs = enabled
+  ? (await import("../demo/benchmark/model")).benchmarkCaseSpecs
+  : () => [];
 
 interface BenchmarkSeam {
   readonly runBenchmark: (

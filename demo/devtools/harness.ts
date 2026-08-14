@@ -4,11 +4,17 @@ export interface DemoHarnessOptions {
   readonly testAlphaZero: boolean;
 }
 
+export interface DemoPickProbe {
+  readonly pickKey: string;
+  readonly hoveredKey: string;
+}
+
 export interface DemoHarness {
   readonly destroyRenderer: () => void;
   readonly recreateRenderer: () => Promise<void>;
   readonly runBenchmark: (includeLarge: boolean, caseId?: string) => Promise<unknown>;
   readonly pickPoint: (x: number, y: number) => Promise<readonly number[] | undefined>;
+  readonly probePick: (x: number, y: number) => Promise<DemoPickProbe>;
   readonly pickRegion: (
     rect: BoxSelectionRect,
     granularity: InteractionGranularity,

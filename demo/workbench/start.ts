@@ -10,6 +10,7 @@ import { workbenchBenchmarkSpecs } from "../benchmark/model";
 import { installDemoHarness } from "../devtools/harness";
 import { WorkbenchController } from "./controller";
 import { createExampleModel, createLazyBenchmarkModel, type WorkbenchModel } from "./model";
+import { selectTarget, targetKey } from "./pick";
 import type { DemoView, WorkbenchPane, ViewportSlotId } from "./view";
 
 /** Inputs for the WebGPU demo path. */
@@ -195,10 +196,30 @@ function installWorkbenchHarness(
       });
     },
     pickPoint: async (x: number, y: number) => (await state.viewport?.pick(x, y))?.worldPosition,
+    probePick: (x: number, y: number) => probePickKeys(state, controller, x, y),
     pickRegion: async (rect: BoxSelectionRect, granularity: InteractionGranularity) =>
       (await state.viewport?.pickRegion(rect, granularity)) ?? [],
     getBoxSelectionStats: () => controller.getBoxSelectionStats(),
   });
+}
+
+async function probePickKeys(
+  state: StartState,
+  controller: WorkbenchController,
+  x: number,
+  y: number,
+) {
+  const hit = await state.viewport?.pick(x, y);
+  const hovered =
+    hit === undefined
+      ? undefined
+      : selectTarget(hit, controller.selectionGranularity, {
+          shiftKey: false,
+          altKey: false,
+          ctrlKey: false,
+          metaKey: false,
+        });
+  return { pickKey: targetKey(hit), hoveredKey: targetKey(hovered) };
 }
 
 function isPerformanceLabOptIn(): boolean {

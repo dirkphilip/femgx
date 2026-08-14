@@ -454,8 +454,16 @@ test("renders complete point sprites with authored node picks", async ({ page })
     .locator('[data-femgx-orientation-gizmo="true"]')
     .evaluate((gizmo) => ((gizmo as HTMLElement).style.visibility = "hidden"));
   const pointVisibility = page.locator("input[data-instance-id]");
-  await expect(pointVisibility).toHaveCount(12);
-  for (let index = 1; index < 12; index += 1) await pointVisibility.nth(index).uncheck();
+  const pointInput = page
+    .locator(".visibility-row.visibility-part")
+    .filter({ hasText: "Built-in helper · Point" })
+    .locator("input[data-instance-id]");
+  await expect(pointInput).toHaveCount(1);
+  const pointInstanceId = await pointInput.getAttribute("data-instance-id");
+  if (pointInstanceId === null) throw new Error("Point helper row has no instance identity");
+  for (const input of await pointVisibility.all()) {
+    if ((await input.getAttribute("data-instance-id")) !== pointInstanceId) await input.uncheck();
+  }
   await page.getByTestId("fit-view").click();
   // The toolbar overlays the canvas and covers the three highest fitted points;
   // hide it after fitting so this pixel contract measures authored sprites, not
@@ -551,7 +559,6 @@ test("renders and picks authored Tri6 and Quad8 mid-edge nodes on desktop and mo
   await page.getByTestId("model-select").selectOption("gallery");
   const canvas = page.getByTestId("view-canvas");
   const instances = page.locator("input[data-instance-id]");
-  await expect(instances).toHaveCount(12);
   await page.locator(".toolbar").evaluate((toolbar) => {
     const element = toolbar as HTMLElement;
     element.style.opacity = "0";

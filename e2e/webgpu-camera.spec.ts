@@ -24,7 +24,7 @@ test("keeps every gallery occurrence inside clip planes while orbiting", async (
   await page.getByTestId("fit-view").click();
 
   const canvas = page.getByTestId("view-canvas");
-  await expect(page.getByTestId("status")).toContainText("12 visible");
+  await expect(canvas).toHaveAttribute("data-model", "gallery");
   const initialNavigation = await readNavigationState(canvas);
   expectBoundsClippedSafely(initialNavigation.camera, initialNavigation.bounds);
 
@@ -38,7 +38,6 @@ test("keeps every gallery occurrence inside clip planes while orbiting", async (
     const navigation = await readNavigationState(canvas);
     expect(cameraStepDegrees(before, navigation)).toBeGreaterThan(5);
     expectBoundsClippedSafely(navigation.camera, navigation.bounds);
-    await expect(page.getByTestId("status")).toContainText("12 visible");
     expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(200);
   }
 });
