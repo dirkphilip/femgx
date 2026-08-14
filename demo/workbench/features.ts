@@ -25,11 +25,9 @@ export interface WorkbenchFeatureOptions {
   readonly model: () => WorkbenchModel;
   readonly toggles: () => DisplayToggles;
   readonly resultMode: () => ResultDisplayMode;
-  readonly deformationScale: () => number;
   readonly vectorFieldId: () => string;
   readonly vectorGlyph: () => VectorGlyph;
   readonly vectorTransform: () => VectorTransform;
-  readonly vectorLengthScale: () => number;
   readonly continuous: () => boolean;
   readonly selectionGranularity: () => SelectionGranularity;
   readonly sectionAxis: () => SectionAxis;
@@ -81,14 +79,10 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     getModel: options.model,
     getToggles: options.toggles,
     getResultMode: options.resultMode,
-    getDeformationScale: options.deformationScale,
     getVectorFieldId: options.vectorFieldId,
     getVectorGlyph: options.vectorGlyph,
     getVectorTransform: options.vectorTransform,
-    getVectorLengthScale: options.vectorLengthScale,
     getViewport: options.viewport,
-    getContinuous: options.continuous,
-    getSelectionGranularity: options.selectionGranularity,
     getSectionAxis: options.sectionAxis,
     getSectionOffset: options.sectionOffset,
     getInteraction: options.interaction,

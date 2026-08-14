@@ -20,11 +20,9 @@ export interface WorkbenchInfrastructureOptions {
   readonly model: () => WorkbenchModel;
   readonly toggles: () => DisplayToggles;
   readonly resultMode: () => ResultDisplayMode;
-  readonly deformationScale: () => number;
   readonly vectorFieldId: () => string;
   readonly vectorGlyph: () => VectorGlyph;
   readonly vectorTransform: () => VectorTransform;
-  readonly vectorLengthScale: () => number;
   readonly continuous: () => boolean;
   readonly selectionGranularity: () => SelectionGranularity;
   readonly sectionAxis: () => SectionAxis;
@@ -69,11 +67,9 @@ export function createWorkbenchInfrastructure(
     model: options.model,
     toggles: options.toggles,
     resultMode: options.resultMode,
-    deformationScale: options.deformationScale,
     vectorFieldId: options.vectorFieldId,
     vectorGlyph: options.vectorGlyph,
     vectorTransform: options.vectorTransform,
-    vectorLengthScale: options.vectorLengthScale,
     continuous: options.continuous,
     selectionGranularity: options.selectionGranularity,
     sectionAxis: options.sectionAxis,

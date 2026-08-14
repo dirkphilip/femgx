@@ -10,15 +10,6 @@ export interface WorkbenchBindingOptions {
   readonly interaction: WorkbenchInteraction;
   /** True while a camera or box pointer gesture suppresses asynchronous hover. */
   readonly dragging: () => boolean;
-  readonly setResultField: (value: string) => void;
-  readonly setDeformationField: (value: string) => void;
-  readonly setDeformationScale: (value: string) => void;
-  readonly setVectorField: (value: string) => void;
-  readonly setVectorGlyph: (value: string) => void;
-  readonly setVectorTransform: (value: string) => void;
-  readonly setVectorLengthScale: (value: string) => void;
-  readonly setSectionAxis: (value: string) => void;
-  readonly setSectionOffset: (value: string) => void;
   readonly setModel: (id: string) => void;
   readonly openModel: (file: File) => void;
   readonly setActive?: () => void;
@@ -91,89 +82,17 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
     dragging: options.dragging,
     setActive: options.setActive ?? (() => {}),
   });
-  installDisplayBindings(options);
+  installViewportBinding(options);
   installModelBindings(options);
   installWindowBindings(options);
 }
 
-function installDisplayBindings(options: WorkbenchBindingOptions): void {
-  const { view, signal } = options;
-  view.resultField.addEventListener(
-    "change",
-    () => {
-      options.setResultField(view.resultField.value);
-    },
-    { signal },
-  );
-  view.deformationField.addEventListener(
-    "change",
-    () => {
-      options.setDeformationField(view.deformationField.value);
-    },
-    { signal },
-  );
-  view.deformationScale.addEventListener(
-    "change",
-    () => {
-      options.setDeformationScale(view.deformationScale.value);
-    },
-    { signal },
-  );
-  installVectorBindings(options);
-  installSectionBindings(options);
+function installViewportBinding(options: WorkbenchBindingOptions): void {
   if (options.toggleViewport !== undefined) {
-    view.viewportToggle.addEventListener("click", options.toggleViewport, { signal });
+    options.view.viewportToggle.addEventListener("click", options.toggleViewport, {
+      signal: options.signal,
+    });
   }
-}
-
-function installVectorBindings(options: WorkbenchBindingOptions): void {
-  const { view, signal } = options;
-  for (const [control, handler] of [
-    [
-      view.vectorField,
-      () => {
-        options.setVectorField(view.vectorField.value);
-      },
-    ],
-    [
-      view.vectorGlyph,
-      () => {
-        options.setVectorGlyph(view.vectorGlyph.value);
-      },
-    ],
-    [
-      view.vectorTransform,
-      () => {
-        options.setVectorTransform(view.vectorTransform.value);
-      },
-    ],
-    [
-      view.vectorLengthScale,
-      () => {
-        options.setVectorLengthScale(view.vectorLengthScale.value);
-      },
-    ],
-  ] as const) {
-    control.addEventListener("change", handler, { signal });
-  }
-}
-
-function installSectionBindings(options: WorkbenchBindingOptions): void {
-  const { view, signal } = options;
-  view.sectionAxis.addEventListener(
-    "change",
-    () => {
-      options.setSectionAxis(view.sectionAxis.value);
-    },
-    { signal },
-  );
-  view.sectionOffset.addEventListener(
-    "input",
-    () => {
-      options.setSectionOffset(view.sectionOffset.value);
-    },
-    { signal },
-  );
 }
 
 function installModelBindings(options: WorkbenchBindingOptions): void {

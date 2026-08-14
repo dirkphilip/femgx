@@ -1,6 +1,5 @@
 import type { SceneRuntime } from "../../src/index";
 import type { WorkbenchCommands } from "./snapshot";
-import type { SectionAxis } from "./section-controls";
 import type { VisibilityRowTarget } from "./tree-hover";
 import type { WorkbenchVisibilityActions } from "./visibility-actions";
 
@@ -13,6 +12,12 @@ interface WorkbenchCommandOwner {
   setNodes(): void;
   setContinuous(): void;
   setSelectionGranularity(value: string): void;
+  setDeformationField(value: string): void;
+  setDeformationScale(value: string): void;
+  setVectorField(value: string): void;
+  setVectorGlyph(value: string): void;
+  setVectorTransform(value: string): void;
+  setVectorLengthScale(value: string): void;
   fitView(): void;
   hideSelected(): void;
   showAll(): void;
@@ -20,50 +25,32 @@ interface WorkbenchCommandOwner {
   setModel(id: string): void;
   setResultField(id: string): void;
   setSectionAxis(axis: string): void;
+  setSectionOffset(value: string): void;
 }
 
 /** Adapts existing controller methods to the typed presentation command surface. */
 export function createWorkbenchCommands(owner: WorkbenchCommandOwner): WorkbenchCommands {
   return {
-    setProjection: () => {
-      owner.setProjection();
-    },
-    setBackground: (value) => {
-      owner.setBackground(value);
-    },
-    toggleEdges: () => {
-      owner.setEdges();
-    },
-    toggleNodes: () => {
-      owner.setNodes();
-    },
-    toggleContinuous: () => {
-      owner.setContinuous();
-    },
-    setSelectionGranularity: (value) => {
-      owner.setSelectionGranularity(value);
-    },
-    fitView: () => {
-      owner.fitView();
-    },
-    hideSelected: () => {
-      owner.hideSelected();
-    },
-    showAll: () => {
-      owner.showAll();
-    },
-    reset: () => {
-      owner.reset();
-    },
-    selectModel: (id) => {
-      owner.setModel(id);
-    },
-    setResultField: (id) => {
-      owner.setResultField(id);
-    },
-    setSectionAxis: (axis: SectionAxis) => {
-      owner.setSectionAxis(axis);
-    },
+    setProjection: owner.setProjection.bind(owner),
+    setBackground: owner.setBackground.bind(owner),
+    toggleEdges: owner.setEdges.bind(owner),
+    toggleNodes: owner.setNodes.bind(owner),
+    toggleContinuous: owner.setContinuous.bind(owner),
+    setSelectionGranularity: owner.setSelectionGranularity.bind(owner),
+    setDeformationField: owner.setDeformationField.bind(owner),
+    setDeformationScale: owner.setDeformationScale.bind(owner),
+    setVectorField: owner.setVectorField.bind(owner),
+    setVectorGlyph: owner.setVectorGlyph.bind(owner),
+    setVectorTransform: owner.setVectorTransform.bind(owner),
+    setVectorLengthScale: owner.setVectorLengthScale.bind(owner),
+    fitView: owner.fitView.bind(owner),
+    hideSelected: owner.hideSelected.bind(owner),
+    showAll: owner.showAll.bind(owner),
+    reset: owner.reset.bind(owner),
+    selectModel: owner.setModel.bind(owner),
+    setResultField: owner.setResultField.bind(owner),
+    setSectionAxis: owner.setSectionAxis.bind(owner),
+    setSectionOffset: owner.setSectionOffset.bind(owner),
     toggleVisibility: (target) => {
       toggleVisibility(owner, target);
     },
