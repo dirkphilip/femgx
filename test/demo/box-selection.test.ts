@@ -51,6 +51,7 @@ class FakeOverlay {
 
 class FakeElement {
   value = "";
+  readonly dataset: Record<string, string> = {};
   private readonly listeners = new Map<string, (event: unknown) => void>();
 
   getBoundingClientRect(): DOMRect {
@@ -403,6 +404,62 @@ describe("workbench click selection", () => {
     await workbench.click({ clientX: 100, clientY: 100 } as MouseEvent);
 
     expect(selectedKeys(getInteraction())).toEqual(["n:instance-a:3"]);
+  });
+
+  it("selects the immediately hovered target without a second GPU readback", async () => {
+    const pick = vi.fn(() => Promise.resolve(nodeHit));
+    const { workbench, getInteraction } = harness(
+      pick,
+      undefined,
+      createInteractionState(),
+      "node",
+    );
+    const event = { clientX: 100, clientY: 100 } as PointerEvent;
+
+    await workbench.hover(event);
+    await workbench.click(event);
+
+    expect(selectedKeys(getInteraction())).toEqual(["n:instance-a:3"]);
+    expect(pick).toHaveBeenCalledOnce();
+  });
+
+  it("promotes a cached face hit to its element when shift-clicked", async () => {
+    const pick = vi.fn(() => Promise.resolve(faceHit));
+    const { workbench, getInteraction } = harness(
+      pick,
+      undefined,
+      createInteractionState(),
+      "face",
+    );
+    const event = { clientX: 100, clientY: 100 } as PointerEvent;
+
+    await workbench.hover(event);
+    await workbench.click(event);
+    await workbench.click({ clientX: 100, clientY: 100, shiftKey: true } as MouseEvent);
+
+    expect(selectedKeys(getInteraction())).toEqual(["e:instance-a:2"]);
+    expect(pick).toHaveBeenCalledOnce();
+  });
+
+  it("selects a touch target on pointer-up and ignores its synthetic click", async () => {
+    const pick = vi.fn(() => Promise.resolve(nodeHit));
+    const { workbench, getInteraction } = harness(
+      pick,
+      undefined,
+      createInteractionState(),
+      "node",
+    );
+    const touch = { clientX: 100, clientY: 100, pointerType: "touch" } as PointerEvent;
+
+    workbench.pointerDown(touch);
+    workbench.pointerUp(touch);
+    await vi.waitFor(() => {
+      expect(selectedKeys(getInteraction())).toEqual(["n:instance-a:3"]);
+    });
+    await workbench.click({ clientX: 100, clientY: 100 } as MouseEvent);
+
+    expect(selectedKeys(getInteraction())).toEqual(["n:instance-a:3"]);
+    expect(pick).toHaveBeenCalledOnce();
   });
 
   it("clears a stale node hover when a plain click selects another node", async () => {

@@ -86,6 +86,8 @@ export interface InstanceStorage {
   nodeOrderLength: number;
   /** Cached bind group; invalidated whenever the storage buffers grow. */
   bindGroup: GPUBindGroup | undefined;
+  /** Cached bind group addressing node-sprite geometry and its node-id table. */
+  nodeBindGroup: GPUBindGroup | undefined;
   /** Cached bind group addressing the edge-order buffer; invalidated on growth. */
   edgeBindGroup: GPUBindGroup | undefined;
   /** Cached bind group addressing the transparent order buffer; invalidated on growth. */
@@ -342,6 +344,7 @@ function createStorage(
     nodeOrderData: new Uint32Array(size),
     nodeOrderLength,
     bindGroup: undefined,
+    nodeBindGroup: undefined,
     edgeBindGroup: undefined,
     transparentBindGroup: undefined,
     selectionBindGroup: undefined,

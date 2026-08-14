@@ -31,6 +31,7 @@ export interface DeformationSync {
     PartId,
     {
       bindGroup: GPUBindGroup | undefined;
+      nodeBindGroup?: GPUBindGroup | undefined;
       edgeBindGroup: GPUBindGroup | undefined;
       transparentBindGroup?: GPUBindGroup | undefined;
       selectionBindGroup?: GPUBindGroup | undefined;
@@ -160,6 +161,7 @@ function invalidateBindGroups(sync: DeformationSync, partId: PartId): void {
   const storage = sync.storages.get(partId);
   if (storage === undefined) return;
   storage.bindGroup = undefined;
+  storage.nodeBindGroup = undefined;
   storage.transparentBindGroup = undefined;
   storage.edgeBindGroup = undefined;
   storage.selectionBindGroup = undefined;

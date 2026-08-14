@@ -198,6 +198,7 @@ function ensureHighlightStorage(
   highlight.buffer.destroy();
   storage.highlight = grown;
   storage.bindGroup = undefined;
+  storage.nodeBindGroup = undefined;
   storage.edgeBindGroup = undefined;
   storage.transparentBindGroup = undefined;
   storage.selectionBindGroup = undefined;
@@ -251,6 +252,7 @@ interface HighlightTarget {
   highlight: HighlightStorage;
   readonly capacity: number;
   bindGroup: GPUBindGroup | undefined;
+  nodeBindGroup: GPUBindGroup | undefined;
   edgeBindGroup: GPUBindGroup | undefined;
   transparentBindGroup: GPUBindGroup | undefined;
   selectionBindGroup: GPUBindGroup | undefined;
