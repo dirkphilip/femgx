@@ -214,7 +214,7 @@ test("keeps the panned model target stable during an off-center pinch", async ({
   await context.close();
 });
 
-test("a one-finger tap still performs picking and selection", async ({ browser }) => {
+test("one-finger taps select node and element targets", async ({ browser }) => {
   const context = await browser.newContext({
     baseURL: BASE_URL,
     viewport: { width: 390, height: 844 },
@@ -240,8 +240,15 @@ test("a one-finger tap still performs picking and selection", async ({ browser }
   await page.touchscreen.tap(hit.x, hit.y);
   await expect.poll(async () => canvas.getAttribute("data-selected")).toMatch(/^n:/);
 
-  await page.touchscreen.tap(hit.x, hit.y);
-  await expect.poll(async () => canvas.getAttribute("data-selected")).toBe("");
+  await setSelectionGranularity(page, "element");
+  const elementHit = await requireHit(
+    page,
+    canvas,
+    { prefix: "f:" },
+    "element GPU picking must resolve on the mobile WebGPU lane",
+  );
+  await page.touchscreen.tap(elementHit.x, elementHit.y);
+  await expect.poll(async () => canvas.getAttribute("data-selected")).toMatch(/^e:/);
 
   // A tap is not a drag: selection must leave no gesture stuck.
   await expect.poll(async () => canvas.getAttribute("data-dragging")).toBe("false");

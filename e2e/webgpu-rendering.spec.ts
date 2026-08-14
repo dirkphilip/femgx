@@ -24,6 +24,25 @@ import {
   loadWebGpuPage,
 } from "./webgpu-support";
 
+function brightenedNodePixelCount(withoutNodes: Buffer, withNodes: Buffer): number {
+  let count = 0;
+  for (let index = 0; index + 2 < Math.min(withoutNodes.length, withNodes.length); index += 4) {
+    const before =
+      (withoutNodes[index] ?? 0) + (withoutNodes[index + 1] ?? 0) + (withoutNodes[index + 2] ?? 0);
+    const after =
+      (withNodes[index] ?? 0) + (withNodes[index + 1] ?? 0) + (withNodes[index + 2] ?? 0);
+    if (
+      after > before + 36 &&
+      (withNodes[index] ?? 0) > 100 &&
+      (withNodes[index + 1] ?? 0) > 100 &&
+      (withNodes[index + 2] ?? 0) > 100
+    ) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 test("keeps selection feedback visible in edge overlay mode", async ({ page }) => {
   await loadWebGpuPage(page);
 
@@ -442,6 +461,27 @@ test("renders element nodes as a separate visible annotation pass", async ({ pag
   expect(restored.equals(withoutNodes), "showing node glyphs must change the plain frame").toBe(
     false,
   );
+});
+
+test("keeps Hex20 node annotations neutral over elemental results", async ({ page }) => {
+  await loadWebGpuPage(page);
+  await page.getByTestId("model-select").selectOption("hex20-cylinder");
+  const canvas = page.getByTestId("view-canvas");
+  const nodeToggle = page.getByTestId("node-overlay");
+  await expect(canvas).toHaveAttribute("data-results", "deformed");
+  await expect(nodeToggle).toHaveAttribute("aria-pressed", "true");
+
+  await nodeToggle.click();
+  await stableCanvasPixels(page, canvas);
+  const withoutNodes = await canvasRgba(page, canvas);
+  await nodeToggle.click();
+  await stableCanvasPixels(page, canvas);
+  const withNodes = await canvasRgba(page, canvas);
+
+  expect(
+    brightenedNodePixelCount(withoutNodes, withNodes),
+    "neutral node annotations must not inject brighter elemental-result colors",
+  ).toBeLessThan(400);
 });
 
 test("renders complete point sprites with authored node picks", async ({ page }) => {

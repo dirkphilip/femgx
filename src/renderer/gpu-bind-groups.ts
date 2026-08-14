@@ -69,6 +69,9 @@ function cachedOrderBindGroup(
   if (orderKind === "node-selection") {
     return (storage.nodeSelectionBindGroup ??= create());
   }
+  if (orderKind === "node") {
+    return (storage.nodeBindGroup ??= create());
+  }
   return (storage.bindGroup ??= create());
 }
 

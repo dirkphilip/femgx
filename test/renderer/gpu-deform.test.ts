@@ -15,6 +15,7 @@ type StorageMap = Map<
   number,
   {
     bindGroup: GPUBindGroup | undefined;
+    nodeBindGroup?: GPUBindGroup | undefined;
     edgeBindGroup: GPUBindGroup | undefined;
     transparentBindGroup?: GPUBindGroup | undefined;
     selectionBindGroup?: GPUBindGroup | undefined;
@@ -120,6 +121,7 @@ describe("syncDeformations", () => {
       });
       storages.set(1, {
         bindGroup: {} as GPUBindGroup,
+        nodeBindGroup: {} as GPUBindGroup,
         edgeBindGroup: {} as GPUBindGroup,
         transparentBindGroup: {} as GPUBindGroup,
         selectionBindGroup: {} as GPUBindGroup,
@@ -154,6 +156,7 @@ describe("syncDeformations", () => {
       syncDeformations(sync, deformation(3));
       storages.set(1, {
         bindGroup: {} as GPUBindGroup,
+        nodeBindGroup: {} as GPUBindGroup,
         edgeBindGroup: {} as GPUBindGroup,
         transparentBindGroup: {} as GPUBindGroup,
         selectionBindGroup: {} as GPUBindGroup,
@@ -167,6 +170,7 @@ describe("syncDeformations", () => {
       expect(current).not.toBe(old);
       expect(old?.destroyed).toBe(true);
       expect(storages.get(1)?.bindGroup).toBeUndefined();
+      expect(storages.get(1)?.nodeBindGroup).toBeUndefined();
       expect(storages.get(1)?.edgeBindGroup).toBeUndefined();
       expect(storages.get(1)?.transparentBindGroup).toBeUndefined();
       expect(storages.get(1)?.selectionBindGroup).toBeUndefined();
@@ -189,6 +193,7 @@ describe("syncDeformations", () => {
       });
       storages.set(1, {
         bindGroup: {} as GPUBindGroup,
+        nodeBindGroup: {} as GPUBindGroup,
         edgeBindGroup: {} as GPUBindGroup,
         transparentBindGroup: {} as GPUBindGroup,
         selectionBindGroup: {} as GPUBindGroup,
@@ -204,6 +209,7 @@ describe("syncDeformations", () => {
       expect(current?.size).toBe(36);
       expect(old?.destroyed).toBe(true);
       expect(storages.get(1)?.bindGroup).toBeUndefined();
+      expect(storages.get(1)?.nodeBindGroup).toBeUndefined();
       expect(storages.get(1)?.selectionBindGroup).toBeUndefined();
       expect(storages.get(1)?.nodeSelectionBindGroup).toBeUndefined();
     } finally {
@@ -223,6 +229,7 @@ describe("syncDeformations", () => {
       syncDeformations(sync, deformation([1, 2]));
       storages.set(1, {
         bindGroup: {} as GPUBindGroup,
+        nodeBindGroup: {} as GPUBindGroup,
         edgeBindGroup: {} as GPUBindGroup,
         transparentBindGroup: {} as GPUBindGroup,
         selectionBindGroup: {} as GPUBindGroup,
@@ -235,6 +242,7 @@ describe("syncDeformations", () => {
       expect(sync.deformations.has(2)).toBe(true);
       expect(droppedRecord?.destroyed).toBe(true);
       expect(storages.get(1)?.bindGroup).toBeUndefined();
+      expect(storages.get(1)?.nodeBindGroup).toBeUndefined();
       expect(storages.get(1)?.edgeBindGroup).toBeUndefined();
       expect(storages.get(1)?.transparentBindGroup).toBeUndefined();
       expect(storages.get(1)?.selectionBindGroup).toBeUndefined();

@@ -492,6 +492,7 @@ describe("GPU deformation shader contract", () => {
   it("keeps node emphasis on the node glyph instead of recoloring surface triangles", () => {
     expect(instanceVertexShader).not.toMatch(/highlight\.nodePickId/);
     expect(pointVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
+    expect(pointVertexShader).toMatch(/if \(!nodeOverlay\) \{\s+if \(bodyPickId != 0u/);
   });
 
   it("keeps regular points at model depth and gives node annotations an independent size", () => {
@@ -507,7 +508,8 @@ describe("GPU deformation shader contract", () => {
   it("draws circular node glyphs at model depth", () => {
     expect(pointVertexShader).toMatch(/output\.nodeDepth = clip\.z \/ clip\.w/);
     expect(nodeOverlayFragmentShader).toMatch(/dot\(local, local\) > 1\.0/);
-    expect(nodeOverlayFragmentShader).toMatch(/color\.rgb \+ vec3<f32>\(emissive\)/);
+    expect(nodeOverlayFragmentShader).toMatch(/selected != 0u \|\| emissive > 0\.0/);
+    expect(nodeOverlayFragmentShader).toMatch(/select\(vec3<f32>\(0\.0\), color\.rgb/);
   });
 
   it("uses the minimum point-pick diameter independently of visible point size", () => {

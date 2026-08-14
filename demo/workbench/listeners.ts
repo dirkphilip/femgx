@@ -46,6 +46,13 @@ export function installWorkbenchPaneBindings(options: WorkbenchPaneBindingOption
     { signal },
   );
   pane.canvas.addEventListener(
+    "pointerup",
+    (event) => {
+      options.interaction.pointerUp(event);
+    },
+    { signal },
+  );
+  pane.canvas.addEventListener(
     "pointermove",
     (event) => {
       if (!options.dragging()) void options.interaction.hover(event);

@@ -715,6 +715,37 @@ describe("GPU draw path", () => {
     }
   });
 
+  it("binds node annotations to their own node-id table after an elemental-result surface draw", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, nodePart.id, [{ slot: 0, data: record(0) }]);
+      writeDrawOrder(draw, nodePart.id, new Uint32Array([0]));
+      writeNodeOrder(draw, nodePart.id, new Uint32Array([0]));
+      const context = { ...drawContext(), parts: new Map([[nodePart.id, nodePart]]) };
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+      drawBatches(pass, draw, context, [{ partId: nodePart.id, instanceCount: 1 }], {
+        kind: "surface",
+        pass: "color",
+      });
+      drawBatches(pass, draw, context, [{ partId: nodePart.id, instanceCount: 1 }], {
+        kind: "nodes",
+        pipeline: {} as GPURenderPipeline,
+      });
+      pass.end();
+      expect(gpu.bindGroupCreations).toBe(2);
+    } finally {
+      restore();
+    }
+  });
+
   it("skips overlay batches that have no edge geometry", () => {
     const restore = installGpuGlobals();
     try {

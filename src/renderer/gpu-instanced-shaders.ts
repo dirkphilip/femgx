@@ -313,7 +313,9 @@ fn pointVertex(
   var selected = instanceSelected(instance.selected);
   var exactSelection = false;
   if (instanceHasPrimitiveEmphasis(instance.selected)) {
+  if (!nodeOverlay) {
 ${bodyAndElementHighlighting}
+  }
   if (nodePickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], 0u, 0u, nodePickId, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;

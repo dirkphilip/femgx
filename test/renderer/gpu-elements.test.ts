@@ -691,6 +691,7 @@ describe("writeElementHighlights", () => {
       const gpu = fakeGpuDevice();
       const storage = makeStorage(gpu);
       storage.bindGroup = {} as GPUBindGroup;
+      storage.nodeBindGroup = {} as GPUBindGroup;
       storage.edgeBindGroup = {} as GPUBindGroup;
       storage.transparentBindGroup = {} as GPUBindGroup;
       storage.selectionBindGroup = {} as GPUBindGroup;
@@ -702,6 +703,7 @@ describe("writeElementHighlights", () => {
       );
       writeElementHighlights(gpu.device, storage, updates);
       expect(storage.bindGroup).toBeUndefined();
+      expect(storage.nodeBindGroup).toBeUndefined();
       expect(storage.edgeBindGroup).toBeUndefined();
       expect(storage.transparentBindGroup).toBeUndefined();
       expect(storage.selectionBindGroup).toBeUndefined();

@@ -73,8 +73,11 @@ fn nodeOverlayFragmentMain(
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
   @location(8) worldPosition: vec3<f32>,
+  @location(9) @interpolate(flat) selected: u32,
 ) -> @location(0) vec4<f32> {
   if (dot(local, local) > 1.0 || !sectionPlaneVisible(worldPosition)) { discard; }
-  return vec4<f32>(color.rgb + vec3<f32>(emissive), color.a);
+  let emphasized = selected != 0u || emissive > 0.0;
+  let displayedColor = select(vec3<f32>(0.0), color.rgb + vec3<f32>(emissive), emphasized);
+  return vec4<f32>(displayedColor, select(0.45, color.a, emphasized));
 }
 `;

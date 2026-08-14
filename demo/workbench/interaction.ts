@@ -36,6 +36,12 @@ import {
   toggleSelection,
 } from "./selection";
 import type { WorkbenchMenu, WorkbenchMenuSelectionOptions } from "./menu";
+import {
+  mergeModifiers,
+  modifiersOf,
+  type HoverPick,
+  type PointerModifiers,
+} from "./interaction-pointer";
 
 type CompletedBoxSelectionEvent = BoxSelectionRequest["event"];
 
@@ -67,6 +73,9 @@ export class WorkbenchInteraction {
   private generation = 0;
   private disposed = false;
   private downPosition: { readonly x: number; readonly y: number } | undefined;
+  private downModifiers: PointerModifiers | undefined;
+  private skipNextClick = false;
+  private hoverPick: HoverPick | undefined;
   private target: SelectTarget | undefined;
   private boxSelectionActive = false;
   private queuedBoxSelection:
@@ -88,12 +97,23 @@ export class WorkbenchInteraction {
   }
 
   pointerDown(event: PointerEvent): void {
+    if (event.pointerType === "touch") this.skipNextClick = false;
     this.downPosition = { x: event.clientX, y: event.clientY };
+    this.downModifiers = modifiersOf(event);
   }
 
   pointerCancel(): void {
     this.downPosition = undefined;
+    this.downModifiers = undefined;
+    this.hoverPick = undefined;
     this.invalidatePendingQuery();
+  }
+
+  /** Completes a touch tap without relying on a browser-synthesized click. */
+  pointerUp(event: PointerEvent): void {
+    if (event.pointerType !== "touch") return;
+    void this.click(event);
+    this.skipNextClick = true;
   }
 
   async hover(event: PointerEvent): Promise<void> {
@@ -101,6 +121,8 @@ export class WorkbenchInteraction {
     const generation = ++this.generation;
     const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
+    this.hoverPick =
+      hit === undefined ? undefined : { clientX: event.clientX, clientY: event.clientY, hit };
     const target =
       hit === undefined ? undefined : selectTarget(hit, this.options.selectionGranularity(), event);
     let interaction = this.options.getInteraction();
@@ -113,19 +135,25 @@ export class WorkbenchInteraction {
   }
 
   async click(event: MouseEvent): Promise<void> {
+    if (this.skipNextClick) {
+      this.skipNextClick = false;
+      return;
+    }
     const down = this.downPosition;
     this.downPosition = undefined;
+    const modifiers = mergeModifiers(event, this.downModifiers);
+    this.downModifiers = undefined;
     if (down !== undefined && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 10)
       return;
     this.invalidatePendingQuery();
     const generation = ++this.generation;
-    const hit = await this.resolve(event, generation);
+    const hit = this.hoverHitAt(event) ?? (await this.resolve(event, generation));
     if (generation !== this.generation) return;
     const current = this.options.getInteraction();
     const withoutHover = setTargetHovered(current, undefined);
     const hoverCleared = withoutHover !== current;
     if (hit === undefined) {
-      if (event.ctrlKey || event.metaKey) {
+      if (modifiers.ctrlKey || modifiers.metaKey) {
         if (hoverCleared) {
           this.options.setInteraction(withoutHover);
           this.options.render();
@@ -139,9 +167,9 @@ export class WorkbenchInteraction {
       return;
     }
     this.showPick(hit);
-    const target = selectTarget(hit, this.options.selectionGranularity(), event);
+    const target = selectTarget(hit, this.options.selectionGranularity(), modifiers);
     if (target === undefined) {
-      if (event.ctrlKey || event.metaKey) {
+      if (modifiers.ctrlKey || modifiers.metaKey) {
         if (hoverCleared) {
           this.options.setInteraction(withoutHover);
           this.options.render();
@@ -153,7 +181,7 @@ export class WorkbenchInteraction {
       return;
     }
     this.options.setInteraction(
-      event.ctrlKey || event.metaKey
+      modifiers.ctrlKey || modifiers.metaKey
         ? toggleSelection(withoutHover, target)
         : replaceSelection(withoutHover, target),
     );
@@ -221,6 +249,7 @@ export class WorkbenchInteraction {
 
   clearContext(): void {
     this.target = undefined;
+    this.hoverPick = undefined;
     this.invalidatePendingQuery();
     this.options.menu.hide();
   }
@@ -253,6 +282,17 @@ export class WorkbenchInteraction {
       if (this.disposed || generation !== this.generation) return undefined;
       throw error;
     }
+  }
+
+  private hoverHitAt(event: {
+    readonly clientX: number;
+    readonly clientY: number;
+  }): HoverPick["hit"] | undefined {
+    const pick = this.hoverPick;
+    if (pick === undefined) return undefined;
+    return Math.hypot(event.clientX - pick.clientX, event.clientY - pick.clientY) <= 2
+      ? pick.hit
+      : undefined;
   }
 
   /** Selects the visible elements returned for one completed primary drag. */
