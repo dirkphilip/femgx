@@ -72,11 +72,8 @@ export function collectInstanceUpdates(
     const partId = runtime.instancePartIds[slot];
     const local = layout.slotPartLocal[slot];
     if (partId === undefined || local === undefined || local < 0) continue;
-    const style = resolveInstanceStyle(
-      instanceAt(runtime, slot, partId),
-      defaultStyle,
-      interaction,
-    );
+    const instance = instanceAt(runtime, slot, partId);
+    const style = resolveInstanceStyle(instance, defaultStyle, interaction);
     if (flags.edgeFlags[slot] !== style.edge) {
       flags.edgeFlags[slot] = style.edge;
       edgeChanged.add(partId);
@@ -97,7 +94,7 @@ export function collectInstanceUpdates(
         style,
         slot + 1,
         interactionData.selectedPartIds.has(partId) ||
-          interactionData.selectedInstanceIds.has(instanceAt(runtime, slot, partId).instanceId),
+          interactionData.selectedInstanceIds.has(instance.instanceId),
       ),
     };
     const list = updates.get(partId);

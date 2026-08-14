@@ -114,9 +114,11 @@ export class GpuRenderer implements WebGpuRenderer {
     this.originTriadNominalScale = originTriadNominalScale;
     const partsChanged = this.sourceParts !== parts;
     const cameraChanged = this.lastCamera !== camera;
-    this.sourceParts = parts;
     this.lastCamera = camera;
-    this.parts = new Map(parts);
+    if (partsChanged) {
+      this.sourceParts = parts;
+      this.parts = new Map(parts);
+    }
     this.attachment.prepareParts(this.parts, this.lifecycle.bundle);
     const attachmentChanged = this.attachment.attach(runtime, this.lifecycle.bundle);
     if (attachmentChanged || partsChanged || this.nodeOrdersDirty) {
@@ -134,7 +136,7 @@ export class GpuRenderer implements WebGpuRenderer {
       );
     }
     if (partsChanged || cameraChanged || attachmentChanged) this.pickSnapshotValid = false;
-    encodeVisibleFrame(camera, parts, this.frameOptions());
+    encodeVisibleFrame(camera, this.parts, this.frameOptions());
   }
 
   public resetScene(parts: ReadonlyMap<PartId, Part>): void {
@@ -143,7 +145,7 @@ export class GpuRenderer implements WebGpuRenderer {
     this.attachment.clear();
     destroyInstanceResources(this.lifecycle.bundle.draw);
     this.parts = new Map();
-    this.sourceParts = parts;
+    this.sourceParts = undefined;
     this.lastCamera = undefined;
     this.deformation = undefined;
     this.resultColors = undefined;
