@@ -5,7 +5,6 @@ import type { WorkbenchInteraction } from "./interaction";
 /** High-level bindings that keep controller policy out of DOM event plumbing. */
 export interface WorkbenchBindingOptions {
   readonly view: DemoView;
-  readonly canvas: HTMLCanvasElement;
   readonly signal: AbortSignal;
   readonly interaction: WorkbenchInteraction;
   /** True while a camera or box pointer gesture suppresses asynchronous hover. */
@@ -65,15 +64,9 @@ export function installWorkbenchPaneBindings(options: WorkbenchPaneBindingOption
 
 /** Installs the complete controller lifetime of toolbar/canvas/window listeners. */
 export function installWorkbenchBindings(options: WorkbenchBindingOptions): void {
-  const { view, canvas, signal } = options;
-  const scene = Reflect.get(view, "scene") as unknown as HTMLElement | undefined;
+  const { view, signal } = options;
   installWorkbenchPaneBindings({
-    pane: {
-      id: "primary",
-      scene: scene ?? canvas,
-      canvas,
-      boxSelectionOverlay: Reflect.get(view, "boxSelectionOverlay"),
-    },
+    pane: view.primaryPane,
     signal,
     interaction: options.interaction,
     dragging: options.dragging,

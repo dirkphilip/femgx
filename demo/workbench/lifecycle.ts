@@ -51,7 +51,6 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
   });
   installWorkbenchBindings({
     view: options.view,
-    canvas: options.canvas,
     signal: options.signal,
     interaction: options.interaction,
     dragging: options.dragging,

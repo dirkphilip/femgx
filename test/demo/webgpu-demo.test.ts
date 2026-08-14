@@ -82,6 +82,17 @@ function fakeScene(): HTMLElement {
   return {} as HTMLElement;
 }
 
+function fakeView(canvas: HTMLCanvasElement): DemoView {
+  return {
+    primaryPane: {
+      id: "primary",
+      scene: fakeScene(),
+      canvas,
+      boxSelectionOverlay: fakeScene(),
+    },
+  } as unknown as DemoView;
+}
+
 interface FakeViewport {
   readonly viewport: FemViewport;
   readonly render: ReturnType<typeof vi.fn>;
@@ -142,10 +153,7 @@ function fakeViewport(): FakeViewport {
 
 function startOptions(canvas: HTMLCanvasElement): Parameters<typeof startWebGpuDemo>[0] {
   return {
-    view: {
-      canvas,
-      scene: fakeScene(),
-    } as unknown as DemoView,
+    view: fakeView(canvas),
     canvas,
     reportStartupFailure: () => undefined,
   };
@@ -197,7 +205,7 @@ describe("startWebGpuDemo", () => {
     const startup = { rendererStatus: "", status: "" };
 
     const controller = await startWebGpuDemo({
-      view: { canvas } as unknown as DemoView,
+      view: fakeView(canvas),
       canvas,
       reportStartupFailure: (next) => Object.assign(startup, next),
     });
@@ -214,7 +222,7 @@ describe("startWebGpuDemo", () => {
     const startup = { rendererStatus: "", status: "" };
 
     const controller = await startWebGpuDemo({
-      view: { canvas } as unknown as DemoView,
+      view: fakeView(canvas),
       canvas,
       reportStartupFailure: (next) => Object.assign(startup, next),
     });
@@ -235,7 +243,7 @@ describe("startWebGpuDemo", () => {
     const startup = { rendererStatus: "", status: "" };
 
     const controller = await startWebGpuDemo({
-      view: { canvas } as unknown as DemoView,
+      view: fakeView(canvas),
       canvas,
       reportStartupFailure: (next) => Object.assign(startup, next),
     });
@@ -290,7 +298,7 @@ describe("startWebGpuDemo", () => {
     const canvas = fakeCanvas();
     const startup = { rendererStatus: "", status: "" };
     await startWebGpuDemo({
-      view: { canvas } as unknown as DemoView,
+      view: fakeView(canvas),
       canvas,
       reportStartupFailure: (next) => Object.assign(startup, next),
     });
