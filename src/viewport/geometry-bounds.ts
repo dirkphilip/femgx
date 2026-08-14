@@ -30,7 +30,11 @@ export function displayedPartBounds(
   part: Part,
   deformation: DeformationState | undefined,
 ): Bounds | undefined {
-  return primitiveBounds(part, displayedPrimitive(part), deformation);
+  return combineBounds(
+    part.geometries.map((geometry) =>
+      primitiveBounds(part, geometry, displayedPrimitive(geometry), deformation),
+    ),
+  );
 }
 
 /** Returns the finite bounds of one exact displayed entity within a part. */
@@ -73,14 +77,19 @@ function bodyBounds(
   bodyId: number,
   deformation: DeformationState | undefined,
 ): Bounds | undefined {
-  const ranges = (part.geometry.elements ?? [])
-    .filter((element) => bodyIdForElement(part.geometry, element.id) === bodyId)
-    .map(primitiveRangeForElement);
-  return primitiveBounds(
-    part,
-    (primitive) =>
-      ranges.some((range) => primitive >= range.start && primitive < range.start + range.count),
-    deformation,
+  return combineBounds(
+    part.geometries.map((geometry) => {
+      const ranges = (geometry.elements ?? [])
+        .filter((element) => bodyIdForElement(geometry, element.id) === bodyId)
+        .map(primitiveRangeForElement);
+      return primitiveBounds(
+        part,
+        geometry,
+        (primitive) =>
+          ranges.some((range) => primitive >= range.start && primitive < range.start + range.count),
+        deformation,
+      );
+    }),
   );
 }
 
@@ -89,13 +98,18 @@ function elementBounds(
   elementId: number,
   deformation: DeformationState | undefined,
 ): Bounds | undefined {
-  const element = part.geometry.elements?.find((candidate) => candidate.id === elementId);
-  if (element === undefined) return undefined;
-  const range = primitiveRangeForElement(element);
-  return primitiveBounds(
-    part,
-    (primitive) => primitive >= range.start && primitive < range.start + range.count,
-    deformation,
+  return combineBounds(
+    part.geometries.map((geometry) => {
+      const element = geometry.elements?.find((candidate) => candidate.id === elementId);
+      if (element === undefined) return undefined;
+      const range = primitiveRangeForElement(element);
+      return primitiveBounds(
+        part,
+        geometry,
+        (primitive) => primitive >= range.start && primitive < range.start + range.count,
+        deformation,
+      );
+    }),
   );
 }
 
@@ -104,17 +118,22 @@ function blockBounds(
   blockId: number,
   deformation: DeformationState | undefined,
 ): Bounds | undefined {
-  const block = part.geometry.blocks?.find((candidate) => candidate.id === blockId);
-  if (block === undefined) return undefined;
-  const ranges = block.elementIds
-    .map((elementId) => part.geometry.elements?.find((element) => element.id === elementId))
-    .filter((element): element is NonNullable<typeof element> => element !== undefined)
-    .map(primitiveRangeForElement);
-  return primitiveBounds(
-    part,
-    (primitive) =>
-      ranges.some((range) => primitive >= range.start && primitive < range.start + range.count),
-    deformation,
+  return combineBounds(
+    part.geometries.map((geometry) => {
+      const block = geometry.blocks?.find((candidate) => candidate.id === blockId);
+      if (block === undefined) return undefined;
+      const ranges = block.elementIds
+        .map((elementId) => geometry.elements?.find((element) => element.id === elementId))
+        .filter((element): element is NonNullable<typeof element> => element !== undefined)
+        .map(primitiveRangeForElement);
+      return primitiveBounds(
+        part,
+        geometry,
+        (primitive) =>
+          ranges.some((range) => primitive >= range.start && primitive < range.start + range.count),
+        deformation,
+      );
+    }),
   );
 }
 
@@ -123,14 +142,16 @@ function faceBounds(
   target: Extract<InteractionTarget, { kind: "face" }>,
   deformation: DeformationState | undefined,
 ): Bounds | undefined {
-  if (part.geometry.primitive !== "triangles") return undefined;
-  const face = part.geometry.faces?.find(
+  const geometry = part.geometries.find((candidate) => candidate.primitive === "triangles");
+  if (geometry?.primitive !== "triangles") return undefined;
+  const face = geometry.faces?.find(
     (candidate) =>
       candidate.elementId === target.elementId && candidate.faceIndex === target.faceIndex,
   );
   if (face === undefined) return undefined;
   return primitiveBounds(
     part,
+    geometry,
     (primitive) =>
       primitive >= face.primitiveStart && primitive < face.primitiveStart + face.primitiveCount,
     deformation,
@@ -143,18 +164,23 @@ function nodeBounds(
   deformation: DeformationState | undefined,
 ): Bounds | undefined {
   const nodePickId = nodeId + 1;
-  const nodePickIds = part.geometry.nodePickIds;
-  if (nodePickIds === undefined || !nodePickIds.includes(nodePickId)) return undefined;
-  const nodePositions = part.geometry.nodePositions;
+  const hasNode = part.geometries.some((geometry) => geometry.nodePickIds?.includes(nodePickId));
+  if (!hasNode) return undefined;
+  const nodePositions = part.nodePositions;
   if (nodePositions !== undefined) {
     const offset = nodeId * 3;
     const point = nodePositions.subarray(offset, offset + 3);
     if (point.length === 3) return pointBounds(displacedNode(part.id, nodeId, point, deformation));
   }
-  return primitiveBounds(
-    part,
-    (primitive) => primitiveNodePickIds(part, primitive).includes(nodePickId),
-    deformation,
+  return combineBounds(
+    part.geometries.map((geometry) =>
+      primitiveBounds(
+        part,
+        geometry,
+        (primitive) => primitiveNodePickIds(geometry, primitive).includes(nodePickId),
+        deformation,
+      ),
+    ),
   );
 }
 
@@ -163,12 +189,14 @@ function edgeBounds(
   key: string,
   deformation: DeformationState | undefined,
 ): Bounds | undefined {
-  const edge = part.geometry.edges?.find((candidate) => candidate.key === key);
+  const edge = part.geometries
+    .flatMap((geometry) => geometry.edges ?? [])
+    .find((candidate) => candidate.key === key);
   if (edge === undefined) return undefined;
   const bounds = emptyBounds();
   for (const nodeId of edge.nodeIds) {
     const offset = nodeId * 3;
-    const nodePositions = part.geometry.nodePositions;
+    const nodePositions = part.nodePositions;
     if (nodePositions === undefined || offset + 2 >= nodePositions.length) continue;
     include(
       bounds,
@@ -180,12 +208,12 @@ function edgeBounds(
 
 function primitiveBounds(
   part: Part,
+  geometry: Part["geometry"],
   includePrimitive: (primitive: number) => boolean,
   deformation: DeformationState | undefined,
 ): Bounds | undefined {
   const bounds = emptyBounds();
-  const geometry = part.geometry;
-  const isDisplayed = displayedPrimitive(part);
+  const isDisplayed = displayedPrimitive(geometry);
   const verticesPerPrimitive =
     geometry.primitive === "triangles" ? 3 : geometry.primitive === "lines" ? 2 : 1;
   const primitiveCount = logicalPrimitiveCount(geometry);
@@ -193,14 +221,13 @@ function primitiveBounds(
     if (!isDisplayed(primitive) || !includePrimitive(primitive)) continue;
     for (let corner = 0; corner < verticesPerPrimitive; corner += 1) {
       const index = geometry.indices[primitive * verticesPerPrimitive + corner];
-      if (index !== undefined) include(bounds, displacedVertex(part, index, deformation));
+      if (index !== undefined) include(bounds, displacedVertex(part, geometry, index, deformation));
     }
   }
   return isFiniteBounds(bounds) ? bounds : undefined;
 }
 
-function displayedPrimitive(part: Part): (primitive: number) => boolean {
-  const geometry = part.geometry;
+function displayedPrimitive(geometry: Part["geometry"]): (primitive: number) => boolean {
   if (geometry.primitive !== "triangles" || geometry.faceSubset === undefined) return () => true;
   return (primitive) => {
     const face = faceForPrimitive(geometry, primitive);
@@ -213,8 +240,7 @@ function displayedPrimitive(part: Part): (primitive: number) => boolean {
   };
 }
 
-function primitiveNodePickIds(part: Part, primitive: number): readonly number[] {
-  const geometry = part.geometry;
+function primitiveNodePickIds(geometry: Part["geometry"], primitive: number): readonly number[] {
   const verticesPerPrimitive =
     geometry.primitive === "triangles" ? 3 : geometry.primitive === "lines" ? 2 : 1;
   const ids: number[] = [];
@@ -227,17 +253,18 @@ function primitiveNodePickIds(part: Part, primitive: number): readonly number[] 
 
 function displacedVertex(
   part: Part,
+  geometry: Part["geometry"],
   vertexIndex: number,
   deformation: DeformationState | undefined,
 ): readonly [number, number, number] {
   const offset = vertexIndex * 3;
-  const positions = part.geometry.positions;
+  const positions = geometry.positions;
   const point: readonly [number, number, number] = [
     positions[offset] ?? 0,
     positions[offset + 1] ?? 0,
     positions[offset + 2] ?? 0,
   ];
-  const nodePickId = part.geometry.nodePickIds?.[vertexIndex] ?? 0;
+  const nodePickId = geometry.nodePickIds?.[vertexIndex] ?? 0;
   return nodePickId === 0 ? point : displacedNode(part.id, nodePickId - 1, point, deformation);
 }
 
@@ -272,6 +299,16 @@ function pointBounds(point: readonly [number, number, number]): Bounds {
     maxY: point[1],
     maxZ: point[2],
   };
+}
+
+function combineBounds(bounds: readonly (Bounds | undefined)[]): Bounds | undefined {
+  const combined = emptyBounds();
+  for (const candidate of bounds) {
+    if (candidate === undefined || !isFiniteBounds(candidate)) continue;
+    include(combined, [candidate.minX, candidate.minY, candidate.minZ]);
+    include(combined, [candidate.maxX, candidate.maxY, candidate.maxZ]);
+  }
+  return isFiniteBounds(combined) ? combined : undefined;
 }
 
 /** Creates an empty mutable bounds accumulator. */

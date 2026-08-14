@@ -7,6 +7,7 @@ export interface ResultColorDrawResources {
   readonly device: GPUDevice;
   readonly cost?: GpuCostAccumulator;
   readonly parts: ReadonlyMap<PartId, PartResource>;
+  readonly primitiveParts?: ReadonlyMap<PartId, ReadonlyMap<string, PartResource>>;
   readonly nodeParts: ReadonlyMap<PartId, PartResource>;
 }
 
@@ -51,7 +52,13 @@ export function syncResultColors(
   draw: ResultColorDrawResources,
   colors: ReadonlyMap<PartId, Float32Array> | undefined,
 ): void {
-  for (const [partId, resource] of [...draw.parts, ...draw.nodeParts]) {
+  const resources =
+    draw.primitiveParts === undefined
+      ? [...draw.parts]
+      : [...draw.primitiveParts].flatMap(([partId, primitiveResources]) =>
+          [...primitiveResources.values()].map((resource) => [partId, resource] as const),
+        );
+  for (const [partId, resource] of [...resources, ...draw.nodeParts]) {
     const next = colors?.get(partId);
     if (next !== undefined) {
       if (next.length !== resource.resultColorNodeCount * 4) {

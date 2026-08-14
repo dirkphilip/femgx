@@ -94,7 +94,11 @@ export function buildNodeOrder(options: {
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly selectedNodeFlags?: readonly boolean[];
 }): Uint32Array {
-  if (options.parts.get(options.partId)?.geometry.primitive === "points") {
+  if (
+    options.parts
+      .get(options.partId)
+      ?.geometries.every((geometry) => geometry.primitive === "points")
+  ) {
     return new Uint32Array();
   }
   const slots = options.layout.partSlots.get(options.partId);
@@ -122,7 +126,8 @@ export function buildNodeSelectionOrder(
   selectedNodeFlags: readonly boolean[],
   parts: ReadonlyMap<PartId, Part>,
 ): Uint32Array {
-  if (parts.get(partId)?.geometry.primitive === "points") return new Uint32Array();
+  if (parts.get(partId)?.geometries.every((geometry) => geometry.primitive === "points"))
+    return new Uint32Array();
   const slots = layout.partSlots.get(partId);
   if (slots === undefined) return new Uint32Array();
   const selected: number[] = [];

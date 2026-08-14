@@ -55,7 +55,7 @@ export function resolveElementalOrientationRecords(
 }
 
 function validateElementCoverage(part: Part, field: VectorField<"elemental">): void {
-  const elements = part.geometry.elements;
+  const elements = part.elements;
   if (elements === undefined || elements.length === 0) {
     if (hasActiveVector(field)) {
       throw new Error(
@@ -96,7 +96,7 @@ function buildVectorRecords(
 ): ElementalOrientationRecords {
   const topology = getOrientationTopology(part);
   const active = topology.elements.filter((element) => hasActiveVectorAt(field, element.id));
-  const nodePositions = part.geometry.nodePositions;
+  const nodePositions = part.nodePositions;
   if (active.length > 0 && nodePositions === undefined) {
     throw new Error(
       `Elemental orientation field ${field.id} cannot anchor part ${part.id}: geometry has no nodePositions`,

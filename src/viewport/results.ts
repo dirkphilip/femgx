@@ -6,7 +6,7 @@ import type { InteractionState, StyleOverride } from "../interaction/interaction
 import { createInteractionStateValue, readInteractionState } from "../interaction/state";
 import type { Scene } from "../scene/scene";
 import type { InstanceId } from "../scene/types";
-import type { PartId } from "../geometry/part";
+import type { Part, PartId } from "../geometry/part";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import {
   renderedPartIds,
@@ -94,7 +94,7 @@ export function applyViewportResultInteraction(
     const instanceId = runtime.getInstanceId(slot);
     if (partId === undefined || instanceId === undefined) continue;
     const part = scene.parts.get(partId);
-    const elements = part?.geometry.elements;
+    const elements = part?.elements;
     if (elements === undefined || elements.length === 0) continue;
     mappedParts += 1;
     const overrides = new Map(elementOverrides.get(instanceId) ?? []);
@@ -246,7 +246,7 @@ function validateResultCoverage(
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
     const partId = runtime.getPartId(slot);
     if (partId === undefined) continue;
-    const elements = scene.parts.get(partId)?.geometry.elements ?? [];
+    const elements = scene.parts.get(partId)?.elements ?? [];
     for (const element of elements) validateElementId(scalarField, partId, element.id);
   }
 }
@@ -258,7 +258,7 @@ function validateNodalCoverage(
 ): void {
   for (const partId of renderedPartIds(runtime)) {
     const part = scene.parts.get(partId);
-    const nodePickIds = part?.geometry.nodePickIds;
+    const nodePickIds = part === undefined ? undefined : mergedNodePickIds(part);
     if (part === undefined || nodePickIds === undefined) {
       throw new Error(
         `Viewport nodal results field ${field.id} cannot map part ${partId}: geometry has no nodePickIds`,
@@ -282,7 +282,8 @@ function buildNodalResultColors(
 ): ResultColorMap {
   const colors = new Map<PartId, Float32Array>();
   for (const partId of renderedPartIds(runtime)) {
-    const nodePickIds = scene.parts.get(partId)?.geometry.nodePickIds;
+    const part = scene.parts.get(partId);
+    const nodePickIds = part === undefined ? undefined : mergedNodePickIds(part);
     if (nodePickIds === undefined) continue;
     const data = new Float32Array((maxNodePickId(nodePickIds) + 1) * 4);
     for (const pickId of nodePickIds) {
@@ -304,6 +305,16 @@ function maxNodePickId(nodePickIds: Uint32Array): number {
   return max;
 }
 
+function mergedNodePickIds(part: Part): Uint32Array | undefined {
+  const ids = new Set<number>();
+  let hasNodeIds = false;
+  for (const geometry of part.geometries) {
+    if (geometry.nodePickIds !== undefined) hasNodeIds = true;
+    for (const pickId of geometry.nodePickIds ?? []) ids.add(pickId);
+  }
+  return hasNodeIds ? Uint32Array.from(ids) : undefined;
+}
+
 function resolveDeformation(
   config: ViewportDeformationConfig | undefined,
   scene: Scene,
@@ -321,7 +332,7 @@ function resolveDeformation(
   for (const partId of renderedPartIds(runtime)) {
     const part = scene.parts.get(partId);
     if (part === undefined) continue;
-    const nodePickIds = part.geometry.nodePickIds;
+    const nodePickIds = mergedNodePickIds(part);
     if (nodePickIds === undefined) {
       throw new Error(
         `Viewport deformation field ${config.field.id} cannot drive part ${part.id}: geometry has no nodePickIds`,

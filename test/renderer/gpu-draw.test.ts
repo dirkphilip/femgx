@@ -124,6 +124,27 @@ const nodePart: Part = createPart(4, {
   nodePickIds: new Uint32Array([1, 2, 3]),
 });
 
+const mixedPart: Part = createPart(6, [
+  {
+    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    indices: new Uint32Array([0, 1, 2]),
+    primitive: "triangles" as const,
+    elements: [{ id: 1, primitiveStart: 0, primitiveCount: 1 }],
+  },
+  {
+    positions: new Float32Array([0, 0, 0, 1, 1, 1]),
+    indices: new Uint32Array([0, 1]),
+    primitive: "lines" as const,
+    elements: [{ id: 2, primitiveStart: 0, primitiveCount: 1 }],
+  },
+  {
+    positions: new Float32Array([0.5, 0.5, 0.5]),
+    indices: new Uint32Array([0]),
+    primitive: "points" as const,
+    elements: [{ id: 3, primitiveStart: 0, primitiveCount: 1 }],
+  },
+]);
+
 function record(x: number): ArrayBuffer {
   return encodeInstanceRecord(translation(x, 0, 0), defaultStyle, 1);
 }
@@ -156,6 +177,35 @@ function drawContext(): DrawCallContext {
 }
 
 describe("GPU draw path", () => {
+  it("draws every primitive leaf from one semantic part", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, mixedPart.id, [{ slot: 0, data: record(0) }]);
+      writeDrawOrder(draw, mixedPart.id, new Uint32Array([0]));
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[mixedPart.id, mixedPart]]) },
+        [{ partId: mixedPart.id, instanceCount: 1 }],
+        { kind: "surface", pass: "color" },
+      );
+      pass.end();
+      expect(gpu.drawCalls.map((call) => call.indexCount)).toEqual([3, 6, 6]);
+      expect(draw.primitiveParts.get(mixedPart.id)?.size).toBe(3);
+    } finally {
+      restore();
+    }
+  });
+
   it("uploads part geometry once and caches it", () => {
     const restore = installGpuGlobals();
     try {

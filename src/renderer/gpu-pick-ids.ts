@@ -1,4 +1,11 @@
-import { logicalPrimitiveCount, primitiveRangeForElement, type Geometry } from "../geometry/part";
+import {
+  logicalPrimitiveCount,
+  primitiveRangeForElement,
+  type Geometry,
+  type Part,
+} from "../geometry/part";
+
+type NodeMetadataSource = Geometry | Part;
 
 /**
  * Builders for the per-primitive and per-vertex pick-id buffers uploaded with a
@@ -132,18 +139,19 @@ function buildBlockPrimitivePickIds(
 
 /** Builds one face/owner/neighbor record per authored node sprite. */
 export function buildNodeBodyPickData(
-  geometry: Geometry,
+  source: NodeMetadataSource,
   spritePickIds?: ArrayLike<number>,
 ): Uint32Array {
-  const nodeCount = (geometry.nodePositions?.length ?? 0) / 3;
-  const elementOwners = nodeElementOwners(geometry);
-  const blockByElement = blockIdsByElement(geometry);
+  const geometries = sourceGeometries(source);
+  const nodeCount = (sourceNodePositions(source)?.length ?? 0) / 3;
+  const elementOwners = nodeElementOwners(source);
+  const blockByElement = blockIdsByElement(source);
   // The shared binding is array<vec3<u32>>, whose minimum valid storage
   // is one complete 12-byte record even when this part has no nodes. Node
   // topology ownership remains an array of owner/neighbor pairs below.
   const sprites =
     spritePickIds ?? Uint32Array.from({ length: nodeCount }, (_, nodeId) => nodeId + 1);
-  const blockAware = geometry.blocks !== undefined && geometry.blocks.length > 0;
+  const blockAware = geometries.some((geometry) => (geometry.blocks?.length ?? 0) > 0);
   const stride = blockAware ? 7 : 5;
   const data = new Uint32Array(Math.max(stride, sprites.length * stride));
   for (let sprite = 0; sprite < sprites.length; sprite += 1) {
@@ -168,7 +176,7 @@ export function buildNodeBodyPickData(
 
 /** Builds variable-length body-owner ranges for each authored node sprite. */
 export function buildNodeBodyOwnerData(
-  geometry: Geometry,
+  source: NodeMetadataSource,
   spritePickIds: ArrayLike<number>,
 ): {
   readonly bodyRanges: Uint32Array;
@@ -176,12 +184,14 @@ export function buildNodeBodyOwnerData(
   readonly elementIds: Uint32Array;
   readonly blockIds?: Uint32Array;
 } {
-  const elementOwners = nodeElementOwners(geometry);
-  const blockByElement = blockIdsByElement(geometry);
+  const elementOwners = nodeElementOwners(source);
+  const blockByElement = blockIdsByElement(source);
   const bodyIds: number[] = [];
   const elementIds: number[] = [];
   const blockIds: number[] = [];
-  const blockAware = geometry.blocks !== undefined && geometry.blocks.length > 0;
+  const blockAware = sourceGeometries(source).some(
+    (geometry) => (geometry.blocks?.length ?? 0) > 0,
+  );
   const bodyRanges = new Uint32Array(spritePickIds.length * 2);
   for (let sprite = 0; sprite < spritePickIds.length; sprite += 1) {
     const pickId = spritePickIds[sprite] ?? 0;
@@ -214,47 +224,61 @@ interface NodeElementOwner {
   readonly elementId: number;
 }
 
-function blockIdsByElement(geometry: Geometry): ReadonlyMap<number, number> {
+function blockIdsByElement(source: NodeMetadataSource): ReadonlyMap<number, number> {
   const blockIds = new Map<number, number>();
-  for (const element of geometry.elements ?? []) {
-    if (element.blockId !== undefined) blockIds.set(element.id, element.blockId);
-  }
-  for (const block of geometry.blocks ?? []) {
-    for (const elementId of block.elementIds) {
-      if (!blockIds.has(elementId)) blockIds.set(elementId, block.id);
+  for (const geometry of sourceGeometries(source)) {
+    for (const element of geometry.elements ?? []) {
+      if (element.blockId !== undefined) blockIds.set(element.id, element.blockId);
+    }
+    for (const block of geometry.blocks ?? []) {
+      for (const elementId of block.elementIds) {
+        if (!blockIds.has(elementId)) blockIds.set(elementId, block.id);
+      }
     }
   }
   return blockIds;
 }
 
-function nodeElementOwners(geometry: Geometry): Map<number, NodeElementOwner[]> {
+function nodeElementOwners(source: NodeMetadataSource): Map<number, NodeElementOwner[]> {
   const owners = new Map<number, Map<string, NodeElementOwner>>();
-  for (const element of geometry.elements ?? []) {
-    const bodyId = element.bodyId;
-    const range = primitiveRangeForElement(element);
-    const verticesPerPrimitive =
-      geometry.primitive === "lines" ? 2 : geometry.primitive === "points" ? 1 : 3;
-    const start = range.start * verticesPerPrimitive;
-    const end = (range.start + range.count) * verticesPerPrimitive;
-    for (let vertex = start; vertex < end; vertex += 1) {
-      const vertexIndex = geometry.indices[vertex];
-      if (vertexIndex === undefined) continue;
-      const pickId = geometry.nodePickIds?.[vertexIndex] ?? 0;
-      if (pickId === 0) continue;
-      const byElement = owners.get(pickId - 1) ?? new Map<string, NodeElementOwner>();
-      byElement.set(`${bodyId ?? "unowned"}/${element.id}`, { bodyId, elementId: element.id });
-      owners.set(pickId - 1, byElement);
+  for (const geometry of sourceGeometries(source)) {
+    for (const element of geometry.elements ?? []) {
+      const bodyId = element.bodyId;
+      const range = primitiveRangeForElement(element);
+      const verticesPerPrimitive =
+        geometry.primitive === "lines" ? 2 : geometry.primitive === "points" ? 1 : 3;
+      const start = range.start * verticesPerPrimitive;
+      const end = (range.start + range.count) * verticesPerPrimitive;
+      for (let vertex = start; vertex < end; vertex += 1) {
+        const vertexIndex = geometry.indices[vertex];
+        if (vertexIndex === undefined) continue;
+        const pickId = geometry.nodePickIds?.[vertexIndex] ?? 0;
+        if (pickId === 0) continue;
+        const byElement = owners.get(pickId - 1) ?? new Map<string, NodeElementOwner>();
+        byElement.set(`${bodyId ?? "unowned"}/${element.id}`, { bodyId, elementId: element.id });
+        owners.set(pickId - 1, byElement);
+      }
     }
   }
   return new Map([...owners].map(([nodeId, values]) => [nodeId, [...values.values()]]));
 }
 
 /** Builds deterministic, ascending 1-based ids for the node sprites a part uses. */
-export function buildNodeSpritePickIds(geometry: Geometry): Uint32Array {
-  const nodeCount = (geometry.nodePositions?.length ?? 0) / 3;
+export function buildNodeSpritePickIds(source: NodeMetadataSource): Uint32Array {
+  const nodeCount = (sourceNodePositions(source)?.length ?? 0) / 3;
   const ids = new Set<number>();
-  for (const pickId of geometry.nodePickIds ?? []) {
-    if (pickId > 0 && pickId <= nodeCount) ids.add(pickId);
+  for (const geometry of sourceGeometries(source)) {
+    for (const pickId of geometry.nodePickIds ?? []) {
+      if (pickId > 0 && pickId <= nodeCount) ids.add(pickId);
+    }
   }
   return Uint32Array.from([...ids].sort((a, b) => a - b));
+}
+
+function sourceGeometries(source: NodeMetadataSource): readonly Geometry[] {
+  return "geometries" in source ? source.geometries : [source];
+}
+
+function sourceNodePositions(source: NodeMetadataSource): Float32Array | undefined {
+  return "geometries" in source ? source.nodePositions : source.nodePositions;
 }

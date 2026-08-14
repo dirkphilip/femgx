@@ -50,10 +50,13 @@ function targetForGranularity(
     }
     case "face": {
       const face = zeroBasedPickId(ids.facePickId);
+      const triangleGeometry = part.geometries.find(
+        (geometry) => geometry.primitive === "triangles",
+      );
       const descriptor =
-        face === undefined || part.geometry.primitive !== "triangles"
+        face === undefined || triangleGeometry?.primitive !== "triangles"
           ? undefined
-          : part.geometry.faces?.[face];
+          : triangleGeometry.faces?.[face];
       return descriptor === undefined
         ? undefined
         : {
@@ -65,7 +68,7 @@ function targetForGranularity(
     }
     case "node": {
       const nodeId = zeroBasedPickId(ids.nodePickId);
-      const nodeCount = (part.geometry.nodePositions?.length ?? 0) / 3;
+      const nodeCount = (part.nodePositions?.length ?? 0) / 3;
       return nodeId !== undefined && nodeId < nodeCount
         ? { kind: "node", instanceId, nodeId }
         : undefined;

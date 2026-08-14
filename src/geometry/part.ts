@@ -72,6 +72,13 @@ export function createPart<T extends Geometry>(
     validateElements(geometry);
     validatePickIds(geometry);
   }
+  const primitives = new Set<Geometry["primitive"]>();
+  for (const geometry of groups) {
+    if (primitives.has(geometry.primitive)) {
+      throw new Error(`Part cannot contain duplicate ${geometry.primitive} geometry groups`);
+    }
+    primitives.add(geometry.primitive);
+  }
   const nodePositions = groups.find(
     (geometry) => geometry.nodePositions !== undefined,
   )?.nodePositions;
@@ -82,12 +89,46 @@ export function createPart<T extends Geometry>(
     id,
     geometries: groups,
     geometry: groups[0] as T,
-    elements: groups.flatMap((geometry) => geometry.elements ?? []),
+    elements: mergeElements(groups),
     ...(nodePositions === undefined ? {} : { nodePositions }),
     ...(bodies === undefined ? {} : { bodies }),
     ...(blocks === undefined ? {} : { blocks }),
     bounds: finitePartBounds(groups),
   };
+}
+
+function mergeElements(geometries: readonly Geometry[]): readonly ElementTessellation[] {
+  if (geometries.length === 1) return geometries[0]?.elements ?? [];
+  const merged = new Map<number, ElementTessellation>();
+  for (const geometry of geometries) {
+    for (const element of geometry.elements ?? []) {
+      const ranges = element.primitiveRanges ?? [
+        {
+          primitive: geometry.primitive,
+          primitiveStart: element.primitiveStart,
+          primitiveCount: element.primitiveCount,
+        },
+      ];
+      const previous = merged.get(element.id);
+      if (previous === undefined) {
+        merged.set(element.id, { ...element, primitiveRanges: ranges });
+        continue;
+      }
+      if (
+        previous.shape?.family !== element.shape?.family ||
+        previous.shape?.order !== element.shape?.order ||
+        previous.bodyId !== element.bodyId ||
+        previous.blockId !== element.blockId
+      ) {
+        throw new Error(`Element ${element.id} has inconsistent semantic metadata across groups`);
+      }
+      merged.set(previous.id, {
+        ...previous,
+        primitiveRanges: [...(previous.primitiveRanges ?? []), ...ranges],
+      });
+    }
+  }
+  return [...merged.values()].sort((left, right) => left.id - right.id);
 }
 
 /** Computes the bounding box of a geometry's positions. */

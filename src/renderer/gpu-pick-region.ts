@@ -14,7 +14,7 @@ import {
 } from "./gpu-pick";
 import { WebGpuPickReadbackError } from "./gpu-pick-error";
 import { createPickRegionTargetCollector } from "./gpu-pick-region-targets";
-import type { DrawResources } from "./gpu-draw";
+import { getPartResource, type DrawResources } from "./gpu-draw";
 
 // Keeps common viewport reads in one mapping while bounding high-DPI regions.
 const REGION_BYTE_BUDGET = 4 * 1024 * 1024;
@@ -82,7 +82,9 @@ export async function pickEdgeTargetsFromRegion(
   for (const [instancePickId, edgeIds] of found) {
     const instance = resolvePick(options.context.instances, instancePickId - 1);
     const edgeResource =
-      instance === undefined ? undefined : options.draw.parts.get(instance.partId)?.edgePick;
+      instance === undefined
+        ? undefined
+        : getPartResource(options.draw, instance.partId, "triangles")?.edgePick;
     if (instance === undefined || edgeResource === undefined) continue;
     for (const edgePickId of edgeIds) {
       const key = edgeResource.edgeKeys[edgePickId - 1];
