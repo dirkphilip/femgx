@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import type { WorkbenchController } from "../controller";
   import type {
     WorkbenchVisibilityRowSnapshot,
@@ -12,6 +13,45 @@
     controller: WorkbenchController | undefined;
     visibility: WorkbenchVisibilitySnapshot | undefined;
   } = $props();
+
+  const ROW_HEIGHT = 30;
+  const OVERSCAN = 8;
+  let panelElement: { clientHeight: number; scrollTop: number } | undefined = $state();
+  let scrollTop = $state(0);
+  let viewportHeight = $state(300);
+
+  let rowWindow = $derived.by(() => {
+    const rows = visibility?.rows.filter((row) => !row.hidden) ?? [];
+    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+    const end = Math.min(
+      rows.length,
+      Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN,
+    );
+    return {
+      rows: rows.slice(start, end),
+      top: start * ROW_HEIGHT,
+      bottom: Math.max(0, rows.length - end) * ROW_HEIGHT,
+    };
+  });
+
+  onMount(() => {
+    const updateViewport = (): void => {
+      if (panelElement !== undefined && panelElement.clientHeight > 0) {
+        viewportHeight = panelElement.clientHeight;
+      }
+    };
+    updateViewport();
+    globalThis.addEventListener("resize", updateViewport);
+    return () => globalThis.removeEventListener("resize", updateViewport);
+  });
+
+  function updateScroll(event: { currentTarget: unknown }): void {
+    const element = event.currentTarget;
+    if (element !== null && typeof element === "object" && "scrollTop" in element) {
+      const value = Reflect.get(element, "scrollTop");
+      if (typeof value === "number") scrollTop = value;
+    }
+  }
 
   function toggleVisibility(row: WorkbenchVisibilityRowSnapshot): void {
     controller?.commands.toggleVisibility(row.target);
@@ -53,10 +93,17 @@
   data-testid="visibility-panel"
   role="tree"
   aria-label="Visibility hierarchy"
+  bind:this={panelElement}
+  onscroll={updateScroll}
 >
   {#if visibility !== undefined}
     <div class="visibility-context" data-testid="visibility-context">{visibility.context}</div>
-    {#each visibility.rows as row (row.key)}
+    <div
+      class="visibility-virtual-spacer"
+      style={`height: ${rowWindow.top}px`}
+      aria-hidden="true"
+    ></div>
+    {#each rowWindow.rows as row (row.key)}
       <div
         class={`visibility-row visibility-${rowClass(row)}`}
         style={`--visibility-depth: ${row.depth}`}
@@ -138,5 +185,10 @@
         {/if}
       </div>
     {/each}
+    <div
+      class="visibility-virtual-spacer"
+      style={`height: ${rowWindow.bottom}px`}
+      aria-hidden="true"
+    ></div>
   {/if}
 </div>
