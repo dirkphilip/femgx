@@ -82,18 +82,7 @@ export function readDataLine(state: VtkState, text: string, line: number): void 
     state.session.report("bad-number", `Expected attribute data, got '${text.trim()}'`, { line });
     return;
   }
-  const expected = state.sectionCount * state.components;
-  for (const value of values) {
-    if (state.arrayValues.size >= expected) {
-      state.session.report(
-        "extra-array-data",
-        `Attribute ${state.arrayName} has more values than expected`,
-        { line },
-      );
-      return;
-    }
-    state.arrayValues.push(value);
-  }
+  appendArrayValues(state, values, line);
 }
 
 /** Consumes a line inside a FIELD block: an array header or array data. */
@@ -132,6 +121,10 @@ export function readFieldLine(state: VtkState, text: string, line: number): void
     state.arrayValues = new Float64Buffer();
     return;
   }
+  appendArrayValues(state, values, line);
+}
+
+function appendArrayValues(state: VtkState, values: readonly number[], line: number): void {
   const expected = state.sectionCount * state.components;
   for (const value of values) {
     if (state.arrayValues.size >= expected) {
