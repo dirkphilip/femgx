@@ -25,11 +25,7 @@ import { type WorkbenchViewportSlots, type WorkbenchViewportSlot } from "./viewp
 import { WorkbenchModelSession } from "./model-session";
 import { activateModelForOwner } from "./model-activation";
 import { applyDisplayState, applyResultState } from "./display-state";
-import {
-  syncViewportPresentation,
-  viewportPresentationChanged,
-  type ObservedPaneSize,
-} from "./viewport-presentation";
+import type { ObservedPaneSize } from "./viewport-presentation";
 import {
   resultModeForModel,
   vectorConfigForDisplay,
@@ -52,6 +48,19 @@ import { parseSelectionGranularity, parseViewportBackground } from "./workbench-
 import { setTreeHover } from "./tree-hover-actions";
 import { applySectionPlane, setSectionAxis, setSectionOffset } from "./section-plane-actions";
 import type { SectionAxis } from "./section-controls";
+import {
+  WorkbenchSnapshotBridge,
+  type WorkbenchCommands,
+  type WorkbenchSnapshot,
+  type WorkbenchSnapshotListener,
+  snapshotInputFromOwner,
+} from "./snapshot";
+import { createWorkbenchCommands } from "./commands";
+import {
+  resetViewportRenderLoop,
+  setControllerViewport,
+  syncControllerViewportPresentation,
+} from "./controller-viewport";
 
 export type { DisplayToggles, RendererStats, ResultDisplayMode, WorkbenchOptions } from "./types";
 
@@ -87,7 +96,9 @@ export class WorkbenchController {
   sectionOffset = 0;
   selectionGranularity: SelectionGranularity = "element";
   background: ViewportBackground = "studio";
-  private readonly observedPaneSizes = new Map<ViewportSlotId, ObservedPaneSize>();
+  readonly observedPaneSizes = new Map<ViewportSlotId, ObservedPaneSize>();
+  private readonly snapshotBridge: WorkbenchSnapshotBridge;
+  private readonly commandSurface: WorkbenchCommands;
 
   constructor(options: WorkbenchOptions) {
     this.view = options.view;
@@ -105,6 +116,8 @@ export class WorkbenchController {
     const vectorDisplay = vectorDisplayForModel(this.model);
     this.vectorDisplay = vectorDisplay;
     this.interaction = createModelInteraction(this.model, true, true);
+    this.snapshotBridge = new WorkbenchSnapshotBridge(() => snapshotInputFromOwner(this));
+    this.commandSurface = createWorkbenchCommands(this);
     this.initializeInfrastructure(options);
     this.modelSession = new WorkbenchModelSession({
       view: this.view,
@@ -153,30 +166,27 @@ export class WorkbenchController {
     return this.activeViewport().runtime;
   }
 
+  /** Returns the current presentation-sized state for the Svelte shell. */
+  get snapshot(): WorkbenchSnapshot {
+    return this.snapshotBridge.current;
+  }
+
+  /** Returns typed commands that delegate to the existing workbench owners. */
+  get commands(): WorkbenchCommands {
+    return this.commandSurface;
+  }
+
+  /** Subscribes to semantic snapshot changes and immediately sends the current value. */
+  subscribe(listener: WorkbenchSnapshotListener): () => void {
+    return this.snapshotBridge.subscribe(listener);
+  }
+
   getBoxSelectionStats(): ReturnType<WorkbenchInteraction["getBoxSelectionStats"]> {
     return this.interactionController.getBoxSelectionStats();
   }
 
   setViewport(viewport: FemViewport): void {
-    this.viewportSlots.invalidateInteraction();
-    this.viewport = viewport;
-    this.viewportSlots.setPrimaryViewport(viewport);
-    try {
-      viewport.setBackground(this.background);
-    } catch (error) {
-      setModelFeedback(
-        this.view,
-        `Background could not be restored: ${errorMessage(error)}`,
-        "error",
-      );
-    }
-    this.treeHoverTargets = [];
-    this.canvas.dataset["treeHover"] = "";
-    this.applyResultMode(false);
-    this.applyCurrentDisplayState();
-    applySectionPlane(this, false);
-    this.visibilityPanel.rebuild();
-    this.render();
+    setControllerViewport(this, viewport);
   }
 
   /** Invalidates picks before a temporary renderer teardown. */
@@ -198,27 +208,13 @@ export class WorkbenchController {
 
   syncViewportPresentation(): void {
     if (this.disposed) return;
-    syncViewportPresentation({
-      activeSlot: this.viewportSlots.activeSlot(),
-      slots: this.viewportSlots.all(),
-      presentation: this.presentation,
-      rendererState: this.rendererState,
-      model: this.model,
-      interaction: this.interaction,
-      toggles: this.toggles,
-      continuous: this.continuousEnabled,
-      selectionGranularity: this.selectionGranularity,
-      resultMode: this.resultMode,
-      sectionAxis: this.sectionAxis,
-      sectionOffset: this.sectionOffset,
-      background: this.background,
-    });
+    syncControllerViewportPresentation(this);
   }
 
   onViewportRender(slotId: ViewportSlotId, timestamp: number): void {
     const slot = this.viewportSlots.get(slotId);
     if (slot === undefined) return;
-    if (viewportPresentationChanged(slot, this.observedPaneSizes)) slot.renderLoop.reset(timestamp);
+    resetViewportRenderLoop(slot, timestamp, this.observedPaneSizes);
     const publish = this.viewportSlots.onRender(slotId, timestamp);
     if (!this.continuousEnabled || publish) {
       this.syncViewportPresentation();
@@ -231,6 +227,7 @@ export class WorkbenchController {
     this.viewportSlots.setContinuous(enabled, performance.now());
     this.presentation.reflectContinuous();
     this.syncViewportPresentation();
+    this.publishSnapshot();
   }
 
   setSelectionGranularity(value: string): void {
@@ -270,11 +267,13 @@ export class WorkbenchController {
 
   setInteraction(interaction: InteractionState): void {
     this.interaction = interaction;
+    this.publishSnapshot();
   }
 
   setDiagnostics(): void {
     this.toggles.diagnostics = !this.toggles.diagnostics;
     this.syncViewportPresentation();
+    this.publishSnapshot();
   }
 
   applySharedState(): void {
@@ -293,6 +292,7 @@ export class WorkbenchController {
 
   onActiveSlotChanged(): void {
     this.syncViewportPresentation();
+    this.publishSnapshot();
   }
 
   setModel(id: string): void {
@@ -426,6 +426,11 @@ export class WorkbenchController {
     if (this.disposed) return;
     this.applyDisplayedInteraction();
     this.syncViewportPresentation();
+    this.publishSnapshot();
+  }
+
+  private publishSnapshot(): void {
+    this.snapshotBridge.publish();
   }
 
   activeSlot(): WorkbenchViewportSlot {

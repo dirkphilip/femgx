@@ -21,7 +21,7 @@ function filesUnder(directory) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) files.push(...filesUnder(path));
-    else if (/\.(?:ts|tsx)$/u.test(entry.name)) files.push(path);
+    else if (/\.(?:ts|tsx|svelte)$/u.test(entry.name)) files.push(path);
   }
   return files.sort();
 }

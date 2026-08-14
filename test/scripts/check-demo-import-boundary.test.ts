@@ -48,6 +48,16 @@ describe("check-demo-import-boundary", () => {
     expect(result.stderr).toContain("unauthorized deep demo import ../src/scene/scene");
   });
 
+  it("rejects deep imports from ordinary Svelte components", () => {
+    const root = makeDemo({
+      "workbench/WorkbenchShell.svelte":
+        '<script lang="ts">\nimport { createScene } from "../../src/scene/scene";\n</script>\n',
+    });
+    const result = runCheck(root);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("unauthorized deep demo import ../../src/scene/scene");
+  });
+
   it("keeps the named benchmark exemptions narrow", () => {
     const retainedExemptions = [
       "demo/benchmark/interactive.ts",

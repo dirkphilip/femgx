@@ -42,6 +42,16 @@ presentation and interaction policy only.
   lifecycle seam (`demo/devtools/`).
 - Performance telemetry and internal benchmark fixtures (`demo/benchmark/`).
 
+## Svelte presentation boundary
+
+The workbench presentation shell is the only Svelte-owned surface. Svelte
+components may render immutable workbench snapshots and dispatch typed
+demo-private commands, but they must not import `src/`, own model or viewport
+state, schedule WebGPU frames, or recreate `FemViewport` or `SceneRuntime` on
+ordinary component updates. The plain TypeScript controller and session core
+remain the lifecycle and state owners; Svelte is a replaceable presentation
+layer.
+
 ## Emphasis rendering
 
 Node/face emphasis is represented and rendered entirely through library APIs,
