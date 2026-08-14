@@ -41,10 +41,14 @@ removes Playwright's unsafe SwiftShader fallback, and asserts that the resolved
 adapter is neither a fallback nor SwiftShader. The demo therefore commits to
 hardware WebGPU without opening a visible window. Picking is asynchronous GPU
 readback through `FemViewport.pick`.
-`requireHit` fails when a sweep finds no target. GPU pick readback is a required
-product contract on this lane, so an automation failure is not reported as a
-green capability skip. Merge CI does not run the full Chrome lane until a GPU
-runner exists (`npm run test:e2e:ci` covers the unsupported contract only).
+`requireHit` first uses the existing `pickRegion` seam to recursively localize
+a matching identity, then verifies the returned coordinate through a real
+pointer move and the normal dataset readback. Its bounded fallback grid is
+capped at 100 probes, and it fails when no target is found. GPU pick readback
+is a required product contract on this lane, so an automation failure is not
+reported as a green capability skip. Merge CI does not run the full Chrome
+lane until a GPU runner exists (`npm run test:e2e:ci` covers the unsupported
+contract only).
 
 ## Remaining conditional skips (audit)
 
