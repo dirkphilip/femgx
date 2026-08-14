@@ -33,6 +33,11 @@ Hard boundaries worth repeating:
   explicit visibility, section planes, deformation, and occurrence transforms;
   it must add no GPU pass, buffer, attachment, readback, renderer fallback, or
   generalized geometry-query subsystem.
+- Stable authored FE-edge interaction is Core now. Exact edge picking,
+  hover/selection/highlight, and visible-region selection use occurrence-scoped
+  authored topology; tessellation diagonals are never targets. Edge-specific GPU
+  resources are created only when edge granularity is requested, leaving the
+  ordinary four-attachment pick path and inactive per-frame cost unchanged.
 - Do not expand deferred or removed capabilities. Existing deferred code is
   removed only through an explicit product decision, not to improve a diff.
 - Do not add a public API, subsystem, fallback, compatibility layer, or optional
