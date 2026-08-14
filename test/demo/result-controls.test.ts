@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { createResultsPreset } from "../../demo/fixture/results-preset";
+import { createBoltedPlatePreset } from "../../demo/fixture/presets";
 import { createExampleModel } from "../../demo/workbench/model";
 import {
+  BASE_RESULT_VALUE,
+  DEFORMATION_OFF_VALUE,
+  parseDeformationScale,
   parseVectorGlyph,
   parseVectorLengthScale,
   parseVectorTransform,
   resultVectorFieldsForModel,
+  resultModeForDeformationSelection,
+  resultModeForModel,
+  resultModeForScalarSelection,
   vectorConfigForDisplay,
   vectorDisplayForModel,
   VECTOR_OFF_VALUE,
@@ -55,5 +62,59 @@ describe("demo orientation result controls", () => {
     expect(parseVectorTransform("direction")).toBe("direction");
     expect(parseVectorTransform("normal")).toBe("normal");
     expect(parseVectorTransform("world")).toBeUndefined();
+  });
+
+  it("keeps scalar, deformation, and base-mode transitions mutually explicit", () => {
+    const resultsModel = createExampleModel(createResultsPreset());
+    const plainModel = createExampleModel(createBoltedPlatePreset());
+    const config = resultsModel.results;
+
+    expect(resultModeForModel(resultsModel)).toBe("deformed");
+    expect(resultModeForModel(plainModel)).toBe("base");
+    expect(resultModeForScalarSelection(BASE_RESULT_VALUE, config, DEFORMATION_OFF_VALUE)).toBe(
+      "base",
+    );
+    expect(resultModeForScalarSelection("demo-stress", config, DEFORMATION_OFF_VALUE)).toBe(
+      "colored",
+    );
+    expect(resultModeForScalarSelection("demo-stress", config, "demo-displacement")).toBe(
+      "deformed",
+    );
+    expect(resultModeForScalarSelection("missing", config, DEFORMATION_OFF_VALUE)).toBeUndefined();
+    expect(resultModeForScalarSelection("demo-stress", undefined, DEFORMATION_OFF_VALUE)).toBe(
+      undefined,
+    );
+    expect(resultModeForDeformationSelection(DEFORMATION_OFF_VALUE, config, "colored")).toBe(
+      "colored",
+    );
+    expect(resultModeForDeformationSelection("demo-displacement", config, "colored")).toBe(
+      "deformed",
+    );
+    expect(resultModeForDeformationSelection("demo-displacement", config, "base")).toBeUndefined();
+    expect(resultModeForDeformationSelection("missing", config, "colored")).toBeUndefined();
+    expect(resultModeForDeformationSelection(DEFORMATION_OFF_VALUE, undefined, "colored")).toBe(
+      undefined,
+    );
+  });
+
+  it("bounds numeric inputs and rejects unknown vector fields", () => {
+    const model = createExampleModel(createResultsPreset());
+    expect(parseDeformationScale("0")).toBe(0);
+    expect(parseDeformationScale("-1")).toBeUndefined();
+    expect(parseDeformationScale("not-a-number")).toBeUndefined();
+    expect(
+      vectorConfigForDisplay(model, {
+        fieldId: "missing",
+        glyph: "arrow",
+        transform: "direction",
+        lengthScale: 1,
+      }),
+    ).toBeUndefined();
+    expect(vectorDisplayForModel(createExampleModel(createBoltedPlatePreset()))).toEqual({
+      fieldId: VECTOR_OFF_VALUE,
+      glyph: "arrow",
+      transform: "direction",
+      lengthScale: 1,
+    });
   });
 });

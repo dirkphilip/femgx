@@ -5,7 +5,11 @@ export default defineConfig({
     include: ["test/**/*.test.ts"],
     // The performance budget gate runs standalone (see vitest.budget.config.ts)
     // so wall-clock budgets are not distorted by coverage instrumentation.
-    exclude: ["test/bench/budget.test.ts"],
+    exclude: [
+      "test/bench/budget.test.ts",
+      // Svelte component tests run with the plugin in the demo component gate.
+      "test/demo/ui*.test.ts",
+    ],
     server: {
       deps: {
         // wgsl_reflect ships a CommonJS "main" that Node misloads under the

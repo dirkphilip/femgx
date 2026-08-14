@@ -228,6 +228,12 @@ optional viewport panes stack, and the context menu fits inside the viewport.
 The default Playwright lane runs the real WebGPU renderer through the same controller
 ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
 
+`e2e/demo-layout.spec.ts` is the focused layout gate. `npm run test:e2e:layout`
+walks every ordinary story at 1440x900 and 390x844, asserting that hidden
+result surfaces have no box or focus target, the toolbar stays inside its pane,
+the canvas retains a useful exposed region, the legend and orientation gizmo
+remain in scene bounds, and every story presents nonblank WebGPU pixels.
+
 [architecture/demo-library-boundary|Demo / library boundary]: ../architecture/demo-library-boundary.md
 [rendering/element-interaction|Element-level interaction]: element-interaction.md
 [rendering/interactive-state|Interactive state]: interactive-state.md
