@@ -11,6 +11,8 @@ import {
   packPickIdFunction,
   pickDataBindings,
   spriteCornerFn,
+  sectionPlaneFunction,
+  sectionPlaneBindings,
 } from "./gpu-shaders";
 import { emphasisHash } from "./gpu-highlight-shader";
 
@@ -43,6 +45,7 @@ struct NodeVertexOutput {
   @location(7) @interpolate(flat) cornerB: vec3<f32>,
   @location(8) @interpolate(flat) cornerC: vec3<f32>,
   @location(9) @interpolate(flat) nodePickIds: vec3<u32>,
+  @location(10) worldPosition: vec3<f32>,
 };
 `;
 
@@ -168,6 +171,7 @@ ${linePosition}
     vertexNodePickIds[base + 1u],
     ${options.nodePickIds},
   );
+  output.worldPosition = (instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0)).xyz;
   return output;
 `;
 }
@@ -251,12 +255,15 @@ fn pointVertexMain(
   output.cornerC = center;
   let nodePickId = vertexNodePickIds[vertexIndex];
   output.nodePickIds = vec3<u32>(nodePickId, nodePickId, nodePickId);
+  output.worldPosition = (instance.transform * vec4<f32>(center, 1.0)).xyz;
   return output;
 }
 `;
 
 /** Fragment stage for the triangle pick pass, adding the nearest-node pick id. */
 export const nodePickFragmentShader = /* wgsl */ `
+${sectionPlaneBindings}
+${sectionPlaneFunction}
 ${packPickIdFunction}
 
 fn distanceSquared(a: vec3<f32>, b: vec3<f32>) -> f32 {
@@ -315,7 +322,9 @@ fn fragmentMain(
   @location(7) @interpolate(flat) cornerB: vec3<f32>,
   @location(8) @interpolate(flat) cornerC: vec3<f32>,
   @location(9) @interpolate(flat) nodePickIds: vec3<u32>,
+  @location(10) worldPosition: vec3<f32>,
 ) -> PickOutput {
+  if (!sectionPlaneVisible(worldPosition)) { discard; }
   var output: PickOutput;
   output.instance = packPickId(pickId);
   output.element = packPickId(elementPickId);

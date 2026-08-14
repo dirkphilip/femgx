@@ -4,6 +4,8 @@ import type { PartId } from "../geometry/part";
 import { add, cross, normalize, scale, subtract, type Vec3 } from "../math/vec3";
 import type { DeformationState } from "../results/deform";
 import { writeDeformationUniform } from "./gpu-deform";
+import { writeSectionPlaneUniform } from "./gpu-section-plane";
+import type { SectionPlane } from "../math/section-plane";
 import type { DrawCall, DrawCallContext, DrawResources } from "./gpu-draw";
 import { drawBatches } from "./gpu-batch";
 import type { PickTargets } from "./gpu-pick";
@@ -50,6 +52,8 @@ export interface FrameOptions {
   readonly nodeSize: number;
   /** Per-frame deformation state; `undefined` disables GPU deformation. */
   readonly deformation: DeformationState | undefined;
+  /** Single world-space section plane; `undefined` leaves the scene unclipped. */
+  readonly sectionPlane: SectionPlane | undefined;
   /** Per-part nodal scalar colors, or `undefined` when result coloring is off. */
   readonly resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
   /** Active world-space camera spin pivot. */
@@ -308,6 +312,12 @@ function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
     frame.device,
     frame.resources.deformationBuffer,
     frame.deformation,
+    frame.draw.cost,
+  );
+  writeSectionPlaneUniform(
+    frame.device,
+    frame.resources.sectionPlaneBuffer,
+    frame.sectionPlane,
     frame.draw.cost,
   );
 }

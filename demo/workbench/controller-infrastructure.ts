@@ -8,6 +8,7 @@ import type { WorkbenchViewportSlot } from "./viewport-slots";
 import type { DisplayToggles, ResultDisplayMode, WorkbenchOptions } from "./types";
 import type { SelectionGranularity } from "./pick";
 import type { VisibilityRowTarget } from "./tree-hover";
+import type { SectionAxis } from "./section-controls";
 
 export interface WorkbenchInfrastructureOptions {
   readonly view: DemoView;
@@ -21,6 +22,8 @@ export interface WorkbenchInfrastructureOptions {
   readonly deformationScale: () => number;
   readonly continuous: () => boolean;
   readonly selectionGranularity: () => SelectionGranularity;
+  readonly sectionAxis: () => SectionAxis;
+  readonly sectionOffset: () => number;
   readonly interaction: () => InteractionState;
   readonly setInteraction: (value: InteractionState) => void;
   readonly activeSlot: () => WorkbenchViewportSlot;
@@ -64,6 +67,8 @@ export function createWorkbenchInfrastructure(
     deformationScale: options.deformationScale,
     continuous: options.continuous,
     selectionGranularity: options.selectionGranularity,
+    sectionAxis: options.sectionAxis,
+    sectionOffset: options.sectionOffset,
     interaction: options.interaction,
     setInteraction: options.setInteraction,
     applyDisplayedInteraction: options.applyDisplayedInteraction,

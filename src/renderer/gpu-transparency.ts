@@ -3,6 +3,8 @@ import {
   deformationStruct,
   surfaceLightingFunction,
   frameBindings,
+  sectionPlaneBindings,
+  sectionPlaneFunction,
 } from "./gpu-shaders";
 import { COLOR_SAMPLE_COUNT } from "./gpu-support";
 import {
@@ -72,6 +74,8 @@ fn weightedPresentationTransparency(color: vec3<f32>, alpha: f32) -> Transparenc
 /** Transparent line and point fragment stage. */
 export const transparencyFragmentShader = /* wgsl */ `
 ${transparencyOutput}
+${sectionPlaneBindings}
+${sectionPlaneFunction}
 
 @fragment
 fn fragmentMain(
@@ -79,11 +83,12 @@ fn fragmentMain(
   @location(0) @interpolate(flat) color: vec4<f32>,
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
+  @location(8) worldPosition: vec3<f32>,
   @location(10) resultColor: vec4<f32>,
   @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> TransparencyOutput {
   let displayedColor = select(color, resultColor, resultColorEnabled != 0u);
-  if (dot(local, local) > 1.0 || displayedColor.a <= 0.0 || displayedColor.a >= 1.0) { discard; }
+  if (dot(local, local) > 1.0 || displayedColor.a <= 0.0 || displayedColor.a >= 1.0 || !sectionPlaneVisible(worldPosition)) { discard; }
   return weightedSceneTransparency(
     displayedColor.rgb + vec3<f32>(emissive),
     displayedColor.a,
@@ -98,6 +103,7 @@ ${cameraStruct}
 ${deformationStruct}
 ${frameBindings}
 ${surfaceLightingFunction}
+${sectionPlaneFunction}
 ${transparencyOutput}
 
 @fragment
@@ -111,7 +117,7 @@ fn fragmentMain(
   @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> TransparencyOutput {
   let displayedColor = select(color, resultColor, resultColorEnabled != 0u);
-  if (dot(local, local) > 1.0 || displayedColor.a <= 0.0 || displayedColor.a >= 1.0) { discard; }
+  if (dot(local, local) > 1.0 || displayedColor.a <= 0.0 || displayedColor.a >= 1.0 || !sectionPlaneVisible(worldPosition)) { discard; }
   let litColor = surfaceLighting(
     worldPosition,
     displayedColor.rgb,

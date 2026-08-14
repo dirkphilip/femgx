@@ -22,6 +22,7 @@ import { writeBackgroundColors } from "./gpu-background";
 import type { ViewportBackground } from "./types";
 import type { GpuValidationOptions } from "./gpu-validation";
 import type { GpuCostSnapshot } from "./gpu-cost";
+import type { SectionPlane } from "../math/section-plane";
 
 export interface GpuRendererConstruction {
   readonly bundle: GpuBundle;
@@ -50,6 +51,7 @@ export class GpuRenderer implements WebGpuRenderer {
   private orbitPivot: Vec3 | undefined;
   private deformation: DeformationState | undefined;
   private resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
+  private sectionPlane: SectionPlane | undefined;
   private originTriadNominalScale = 1;
   private nodeOrdersDirty = true;
   private destroyed = false;
@@ -138,6 +140,13 @@ export class GpuRenderer implements WebGpuRenderer {
     this.ensureAlive();
     this.resultColors = colors;
     syncResultColors(this.lifecycle.bundle.draw, colors);
+  }
+
+  public setSectionPlane(plane: SectionPlane | undefined): void {
+    this.ensureAlive();
+    if (this.sectionPlane === plane) return;
+    this.sectionPlane = plane;
+    this.pickSnapshotValid = false;
   }
 
   public updateInstances(
@@ -372,6 +381,7 @@ export class GpuRenderer implements WebGpuRenderer {
       pointSize: this.pointSize,
       nodeSize: this.nodeSize,
       deformation: this.deformation,
+      sectionPlane: this.sectionPlane,
       resultColors: this.resultColors,
       orbitPivot: this.orbitPivot,
       originTriadEnabled: this.originTriadEnabled,

@@ -4,6 +4,7 @@ import {
   createDefaultPreset,
   createGalleryPreset,
   createHex20CylinderPreset,
+  createSectionPlanePreset,
   createModelPresets,
   createTransparencyPreset,
   createVtkPreset,
@@ -25,6 +26,7 @@ describe("createModelPresets", () => {
       "vtk",
       "gallery",
       "hex20-cylinder",
+      "section-volume",
       "results",
       "transparency",
       "performance",
@@ -34,11 +36,12 @@ describe("createModelPresets", () => {
       "Imported VTK sample",
       "Element tessellation and mapping gallery",
       "Hex20 cylinder",
+      "Section-plane volume",
       "Static results · scalar + deformation",
       "Order-independent transparency",
       "Performance · 2.10M triangles",
     ]);
-    expect(new Set(presets.map((preset) => preset.name)).size).toBe(7);
+    expect(new Set(presets.map((preset) => preset.name)).size).toBe(8);
   });
 
   it("keeps the bolted plate as the default showcase", () => {
@@ -86,6 +89,15 @@ describe("createHex20CylinderPreset", () => {
     const preset = createHex20CylinderPreset();
     expect(preset.results?.deformation?.field.count).toBeGreaterThan(20);
     expect(preset.results?.field.shape).toBe("scalar");
+  });
+});
+
+describe("createSectionPlanePreset", () => {
+  it("uses a deterministic multi-layer volume with solver metadata", () => {
+    const preset = createSectionPlanePreset();
+    expect(preset.id).toBe("section-volume");
+    expect(preset.scene.parts.size).toBe(1);
+    expect(preset.results?.deformation?.field.count).toBeGreaterThan(20);
   });
 });
 

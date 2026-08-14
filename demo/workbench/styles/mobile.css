@@ -90,6 +90,14 @@
     flex: 1 1 0;
     min-width: 0;
   }
+  .toolbar-row-secondary {
+    flex-wrap: wrap;
+  }
+  .toolbar-row-secondary > .result-controls,
+  .toolbar-row-secondary > .section-controls {
+    width: 100%;
+    flex: 1 1 100%;
+  }
   .toolbar-row-secondary > button,
   .toolbar-background select {
     padding-right: 4px;
@@ -105,6 +113,17 @@
   }
   .result-controls select,
   .result-controls input {
+    min-height: 40px;
+  }
+  .section-controls {
+    flex-wrap: wrap;
+  }
+  .section-controls label {
+    flex: 1 1 100%;
+    min-height: 40px;
+  }
+  .section-controls select,
+  .section-controls input {
     min-height: 40px;
   }
   .toolbar-background {

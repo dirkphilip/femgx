@@ -6,6 +6,7 @@ import type { WorkbenchViewportSlot } from "./viewport-slots";
 import type { WorkbenchPresentation } from "./presentation";
 import type { ViewportSlotId } from "./view";
 import type { ResultDisplayMode, DisplayToggles } from "./types";
+import type { SectionAxis } from "./section-controls";
 
 export interface ObservedPaneSize {
   readonly size: { readonly width: number; readonly height: number };
@@ -40,6 +41,8 @@ interface SyncViewportPresentationOptions {
   readonly continuous: boolean;
   readonly selectionGranularity: string;
   readonly resultMode: ResultDisplayMode;
+  readonly sectionAxis: SectionAxis;
+  readonly sectionOffset: number;
   readonly background: string;
 }
 
@@ -74,6 +77,8 @@ function syncPaneDataset(
   canvas.dataset["continuous"] = String(options.continuous);
   canvas.dataset["selectionGranularity"] = options.selectionGranularity;
   canvas.dataset["results"] = options.resultMode;
+  canvas.dataset["sectionAxis"] = options.sectionAxis;
+  canvas.dataset["sectionOffset"] = String(options.sectionOffset);
   canvas.dataset["background"] = options.background;
 }
 

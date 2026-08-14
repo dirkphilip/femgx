@@ -3,6 +3,8 @@ import {
   deformationStruct,
   frameBindings,
   surfaceLightingFunction,
+  sectionPlaneBindings,
+  sectionPlaneFunction,
 } from "./gpu-shaders";
 import { transparencyOutput } from "./gpu-transparency";
 
@@ -21,28 +23,8 @@ fn selectionColor(
 /** Opaque selection output used by the visible depth/stencil pass. */
 export const selectionFragmentShader = /* wgsl */ `
 ${selectionColorFunction}
-
-@fragment
-fn fragmentMain(
-  @location(0) @interpolate(flat) color: vec4<f32>,
-  @location(2) @interpolate(flat) emissive: f32,
-  @location(5) local: vec2<f32>,
-  @location(9) @interpolate(flat) selected: u32,
-  @location(10) resultColor: vec4<f32>,
-  @location(11) @interpolate(flat) resultColorEnabled: u32,
-) -> @location(0) vec4<f32> {
-  if (selected == 0u || dot(local, local) > 1.0 || color.a <= 0.0) { discard; }
-  return vec4<f32>(selectionColor(color, resultColor, resultColorEnabled, emissive), color.a);
-}
-`;
-
-/** Lit opaque selection output used by selected triangle surfaces. */
-export const triangleSelectionFragmentShader = /* wgsl */ `
-${cameraStruct}
-${deformationStruct}
-${frameBindings}
-${surfaceLightingFunction}
-${selectionColorFunction}
+${sectionPlaneBindings}
+${sectionPlaneFunction}
 
 @fragment
 fn fragmentMain(
@@ -54,7 +36,31 @@ fn fragmentMain(
   @location(10) resultColor: vec4<f32>,
   @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> @location(0) vec4<f32> {
-  if (selected == 0u || dot(local, local) > 1.0 || color.a <= 0.0) { discard; }
+  if (selected == 0u || dot(local, local) > 1.0 || color.a <= 0.0 || !sectionPlaneVisible(worldPosition)) { discard; }
+  return vec4<f32>(selectionColor(color, resultColor, resultColorEnabled, emissive), color.a);
+}
+`;
+
+/** Lit opaque selection output used by selected triangle surfaces. */
+export const triangleSelectionFragmentShader = /* wgsl */ `
+${cameraStruct}
+${deformationStruct}
+${frameBindings}
+${surfaceLightingFunction}
+${selectionColorFunction}
+${sectionPlaneFunction}
+
+@fragment
+fn fragmentMain(
+  @location(0) @interpolate(flat) color: vec4<f32>,
+  @location(2) @interpolate(flat) emissive: f32,
+  @location(5) local: vec2<f32>,
+  @location(8) worldPosition: vec3<f32>,
+  @location(9) @interpolate(flat) selected: u32,
+  @location(10) resultColor: vec4<f32>,
+  @location(11) @interpolate(flat) resultColorEnabled: u32,
+) -> @location(0) vec4<f32> {
+  if (selected == 0u || dot(local, local) > 1.0 || color.a <= 0.0 || !sectionPlaneVisible(worldPosition)) { discard; }
   let litColor = surfaceLighting(
     worldPosition,
     color.rgb,
@@ -70,17 +76,20 @@ fn fragmentMain(
 export const selectionTransparencyFragmentShader = /* wgsl */ `
 ${transparencyOutput}
 ${selectionColorFunction}
+${sectionPlaneBindings}
+${sectionPlaneFunction}
 
 @fragment
 fn fragmentMain(
   @location(0) @interpolate(flat) color: vec4<f32>,
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
+  @location(8) worldPosition: vec3<f32>,
   @location(9) @interpolate(flat) selected: u32,
   @location(10) resultColor: vec4<f32>,
   @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> TransparencyOutput {
-  if (selected == 0u || dot(local, local) > 1.0) { discard; }
+  if (selected == 0u || dot(local, local) > 1.0 || !sectionPlaneVisible(worldPosition)) { discard; }
   return weightedPresentationTransparency(
     selectionColor(color, resultColor, resultColorEnabled, emissive),
     0.25,
@@ -96,6 +105,7 @@ ${frameBindings}
 ${surfaceLightingFunction}
 ${transparencyOutput}
 ${selectionColorFunction}
+${sectionPlaneFunction}
 
 @fragment
 fn fragmentMain(
@@ -107,7 +117,7 @@ fn fragmentMain(
   @location(10) resultColor: vec4<f32>,
   @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> TransparencyOutput {
-  if (selected == 0u || dot(local, local) > 1.0) { discard; }
+  if (selected == 0u || dot(local, local) > 1.0 || !sectionPlaneVisible(worldPosition)) { discard; }
   let litColor = surfaceLighting(
     worldPosition,
     color.rgb,

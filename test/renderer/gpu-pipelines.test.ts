@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createRenderResources, destroyRenderResources } from "../../src/renderer/gpu-pipelines";
+import { SECTION_PLANE_UNIFORM_SIZE } from "../../src/renderer/gpu-section-plane";
 import { COLOR_SAMPLE_COUNT } from "../../src/renderer/gpu-support";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
@@ -168,7 +169,8 @@ describe("GPU render resources", () => {
       expect(gpu.renderPipelineDescriptors[0]?.primitive?.cullMode).toBe("none");
       expect(gpu.renderPipelineDescriptors[1]?.primitive?.cullMode).toBe("none");
       expect(resources.background.buffer).toHaveProperty("size", 32);
-      expect(gpu.buffers).toHaveLength(5);
+      expect(resources.sectionPlaneBuffer).toHaveProperty("size", SECTION_PLANE_UNIFORM_SIZE);
+      expect(gpu.buffers).toHaveLength(6);
       destroyRenderResources(resources);
       expect(gpu.buffers.every((buffer) => buffer.destroyed)).toBe(true);
     } finally {

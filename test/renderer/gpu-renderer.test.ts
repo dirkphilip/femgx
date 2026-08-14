@@ -603,6 +603,7 @@ describe("WebGPU renderer", () => {
     const runtime = createPackedSceneRuntime(scene);
     renderer.setPointSizePixels(14);
     renderer.setNodeSizePixels(7);
+    renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.25 });
     renderer.render(runtime, camera, scene.parts);
     renderer.setDeformation({
       scale: 1,
@@ -657,6 +658,18 @@ describe("WebGPU renderer", () => {
     expect(second.writes.some((write) => write.buffer === recoveredDisplacement?.resource)).toBe(
       true,
     );
+    const sectionBuffer = second.buffers
+      .filter((buffer) => buffer.size === 16 && (buffer.usage & 1) !== 0)
+      .at(-1);
+    const recoveredSectionPlane = second.writes
+      .filter((write) => write.buffer === sectionBuffer?.resource)
+      .at(-1);
+    expect(recoveredSectionPlane).toBeDefined();
+    expect(
+      recoveredSectionPlane === undefined
+        ? undefined
+        : Array.from(new Float32Array(recoveredSectionPlane.bytes.buffer)),
+    ).toEqual([0, 0, 1, -0.25]);
     renderer.destroy();
   });
 

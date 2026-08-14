@@ -198,6 +198,27 @@ test("keeps primary controls reachable and touch-sized on a phone", async ({ pag
   }
 });
 
+test("keeps section-plane controls usable on a phone", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.goto("/");
+  await page.getByTestId("model-select").selectOption("section-volume");
+  await page.getByTestId("section-axis").selectOption("z");
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-section-axis", "z");
+  const viewportWidth = await page.evaluate(() => window.innerWidth);
+  for (const testId of ["section-axis", "section-offset"]) {
+    const control = page.getByTestId(testId);
+    await expect(control).toBeVisible();
+    const box = await control.boundingBox();
+    if (box === null) throw new Error(`${testId} has no bounding box`);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewportWidth);
+    expect(box.height).toBeGreaterThanOrEqual(40);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+    viewportWidth,
+  );
+});
+
 test("reports box-selected FE element granularity on a phone-sized viewport", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto("/");

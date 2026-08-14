@@ -12,6 +12,7 @@ import type { DisplayToggles, ResultDisplayMode } from "./types";
 import type { SelectionGranularity } from "./pick";
 import type { WorkbenchViewportSlot } from "./viewport-slots";
 import type { VisibilityRowTarget } from "./tree-hover";
+import type { SectionAxis } from "./section-controls";
 import {
   createWorkbenchInfrastructure,
   type WorkbenchInfrastructure,
@@ -29,6 +30,8 @@ export interface WorkbenchControllerWiringContext {
   readonly deformationScale: number;
   readonly continuousEnabled: boolean;
   readonly selectionGranularity: SelectionGranularity;
+  readonly sectionAxis: SectionAxis;
+  readonly sectionOffset: number;
   readonly interaction: InteractionState;
   readonly activeViewport: () => FemViewport;
   readonly viewports: () => readonly FemViewport[];
@@ -62,6 +65,8 @@ export interface WorkbenchControllerWiringContext {
   readonly setResultField: (value: string) => void;
   readonly setDeformationField: (value: string) => void;
   readonly setDeformationScale: (value: string) => void;
+  readonly setSectionAxis: (value: string) => void;
+  readonly setSectionOffset: (value: string) => void;
   readonly setModel: (id: string) => void;
   readonly openModel: (file: File) => void;
 }
@@ -87,10 +92,10 @@ export function createControllerInfrastructure(
     deformationScale: () => context.deformationScale,
     continuous: () => context.continuousEnabled,
     selectionGranularity: () => context.selectionGranularity,
+    sectionAxis: () => context.sectionAxis,
+    sectionOffset: () => context.sectionOffset,
     interaction: () => context.interaction,
-    setInteraction: (value) => {
-      context.setInteraction(value);
-    },
+    setInteraction: context.setInteraction.bind(context),
     applyDisplayedInteraction: () => {
       context.applyDisplayedInteraction();
     },
@@ -164,6 +169,8 @@ function lifecycleDisplayBindings(
   | "setResultField"
   | "setDeformationField"
   | "setDeformationScale"
+  | "setSectionAxis"
+  | "setSectionOffset"
 > {
   return {
     setBackground: (value) => {
@@ -195,6 +202,12 @@ function lifecycleDisplayBindings(
     },
     setDeformationScale: (value) => {
       context.setDeformationScale(value);
+    },
+    setSectionAxis: (value) => {
+      context.setSectionAxis(value);
+    },
+    setSectionOffset: (value) => {
+      context.setSectionOffset(value);
     },
   };
 }

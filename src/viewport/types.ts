@@ -12,6 +12,7 @@ import type { SceneRuntime } from "../scene-runtime/public-runtime";
 import type { OrientationGizmoOptions } from "./orientation-gizmo";
 import type { ViewportResultsConfig, ViewportResultsState } from "./results";
 import type { CameraContentInset } from "../camera/fit";
+import type { SectionPlane } from "./section-plane";
 
 /** Options for an interruptible viewport camera transition. */
 export interface CameraTransitionOptions {
@@ -20,6 +21,7 @@ export interface CameraTransitionOptions {
 }
 
 export type { ViewportBackground } from "../renderer/gpu-renderer";
+export type { SectionPlane } from "./section-plane";
 
 /** Inputs for the opinionated WebGPU FEM viewport. */
 export interface FemViewportOptions {
@@ -56,6 +58,7 @@ export interface FemViewport {
   readonly camera: Camera;
   readonly interaction: InteractionState;
   readonly results: ViewportResultsState | undefined;
+  readonly sectionPlane: SectionPlane | undefined;
   /** Sets the point-element screen-space diameter in CSS pixels. */
   setPointSizePixels(size: number): void;
   /** Sets the FE node-annotation screen-space diameter in CSS pixels. */
@@ -69,6 +72,10 @@ export interface FemViewport {
   batch<T>(operation: () => T): T;
   setResults(results: ViewportResultsConfig): void;
   clearResults(): void;
+  /** Clips scene geometry to the positive side of one world-space plane. */
+  setSectionPlane(plane: SectionPlane): void;
+  /** Clears the active world-space section plane. */
+  clearSectionPlane(): void;
   setBackground(background: ViewportBackground): void;
   setEdgeDepthTest(enabled: boolean): void;
   setPartVisible(partId: PartId, visible: boolean): void;

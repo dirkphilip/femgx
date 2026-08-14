@@ -91,6 +91,37 @@
 .result-controls input {
   width: 80px;
 }
+.section-controls {
+  display: flex;
+  min-width: min(100%, 320px);
+  flex: 1 1 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+.section-controls label {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 5px;
+  color: #b9c7d8;
+  font-size: 12px;
+}
+.section-controls label span {
+  flex: 0 0 auto;
+}
+.section-controls select,
+.section-controls input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.section-controls output {
+  min-width: 4.5em;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 .visually-hidden {
   position: absolute;
   width: 1px;

@@ -14,6 +14,7 @@ import { statsText } from "../devtools/diagnostics";
 import type { DisplayToggles, RenderLoopStats, RendererStats, ResultDisplayMode } from "./types";
 import type { SelectionGranularity } from "./pick";
 import { BASE_RESULT_VALUE, DEFORMATION_OFF_VALUE } from "./result-controls";
+import { sectionAxisBounds, type SectionAxis } from "./section-controls";
 
 /** Presentation-only DOM policy for the workbench shell. */
 export interface WorkbenchPresentationOptions {
@@ -29,6 +30,8 @@ export interface WorkbenchPresentationOptions {
   readonly getRuntime: () => SceneRuntime;
   readonly getContinuous: () => boolean;
   readonly getSelectionGranularity: () => SelectionGranularity;
+  readonly getSectionAxis: () => SectionAxis;
+  readonly getSectionOffset: () => number;
 }
 
 /** Keeps status, toolbar reflection, model selection, and camera chrome in sync. */
@@ -85,6 +88,7 @@ export class WorkbenchPresentation {
     this.options.canvas.dataset["selected"] = selectedKeys(this.options.getInteraction()).join(",");
     this.options.canvas.dataset["camera"] = JSON.stringify(cameraSnapshot(camera));
     this.options.canvas.dataset["cameraBounds"] = JSON.stringify(model.bounds);
+    this.reflectSectionPlane();
   }
 
   reflectEdges(): void {
@@ -177,6 +181,31 @@ export class WorkbenchPresentation {
     this.options.view.resultLegend.hidden = results === undefined;
     if (results !== undefined) this.options.view.resultLegend.textContent = resultLegend(results);
     this.options.canvas.dataset["results"] = mode;
+  }
+
+  reflectSectionPlane(): void {
+    const axis = this.options.getSectionAxis();
+    const offset = this.options.getSectionOffset();
+    const controls = this.options.view.sectionControls;
+    controls.hidden = false;
+    this.options.view.sectionAxis.value = axis;
+    const activeAxis = axis === "off" ? undefined : axis;
+    if (activeAxis === undefined) {
+      this.options.view.sectionOffset.disabled = true;
+      this.options.view.sectionOffset.min = "0";
+      this.options.view.sectionOffset.max = "1";
+    } else {
+      const range = sectionAxisBounds(this.options.getModel().bounds, activeAxis);
+      this.options.view.sectionOffset.disabled = false;
+      this.options.view.sectionOffset.min = String(range.min);
+      this.options.view.sectionOffset.max = String(range.max);
+      this.options.view.sectionOffset.step = String(Math.max((range.max - range.min) / 200, 1e-6));
+    }
+    this.options.view.sectionOffset.value = String(offset);
+    this.options.view.sectionOffsetValue.value = formatNumber(offset);
+    this.options.view.sectionOffsetValue.textContent = formatNumber(offset);
+    this.options.canvas.dataset["sectionAxis"] = axis;
+    this.options.canvas.dataset["sectionOffset"] = String(offset);
   }
 }
 

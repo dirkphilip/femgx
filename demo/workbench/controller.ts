@@ -10,7 +10,7 @@ import {
 import type { DemoView } from "./view";
 import { createModelInteraction } from "./preset";
 import { errorMessage, setModelFeedback, type WorkbenchModel } from "./model";
-import { interactionTargetsForRow, type VisibilityRowTarget } from "./tree-hover";
+import type { VisibilityRowTarget } from "./tree-hover";
 import type { WorkbenchFeatures } from "./features";
 import type { WorkbenchInteraction } from "./interaction";
 import type { SelectionGranularity } from "./pick";
@@ -37,11 +37,10 @@ import {
   resultModeForScalarSelection,
 } from "./result-controls";
 import { createControllerInfrastructure, installControllerLifecycle } from "./controller-wiring";
-import {
-  isDestroyedViewportError,
-  parseSelectionGranularity,
-  parseViewportBackground,
-} from "./workbench-values";
+import { parseSelectionGranularity, parseViewportBackground } from "./workbench-values";
+import { setTreeHover } from "./tree-hover-actions";
+import { applySectionPlane, setSectionAxis, setSectionOffset } from "./section-plane-actions";
+import type { SectionAxis } from "./section-controls";
 
 export type { DisplayToggles, RendererStats, ResultDisplayMode, WorkbenchOptions } from "./types";
 
@@ -72,6 +71,8 @@ export class WorkbenchController {
   private disposed = false;
   continuousEnabled = false;
   deformationScale: number;
+  sectionAxis: SectionAxis = "off";
+  sectionOffset = 0;
   selectionGranularity: SelectionGranularity = "element";
   background: ViewportBackground = "studio";
   private readonly observedPaneSizes = new Map<ViewportSlotId, ObservedPaneSize>();
@@ -123,6 +124,7 @@ export class WorkbenchController {
   private initializePresentation(): void {
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
+    applySectionPlane(this, false);
     this.presentation.reflectBackground(this.background);
     this.presentation.reflectSelectionGranularity();
     this.presentation.populateModelSelect(this.models);
@@ -158,6 +160,7 @@ export class WorkbenchController {
     this.canvas.dataset["treeHover"] = "";
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
+    applySectionPlane(this, false);
     this.visibilityPanel.rebuild();
     this.render();
   }
@@ -192,6 +195,8 @@ export class WorkbenchController {
       continuous: this.continuousEnabled,
       selectionGranularity: this.selectionGranularity,
       resultMode: this.resultMode,
+      sectionAxis: this.sectionAxis,
+      sectionOffset: this.sectionOffset,
       background: this.background,
     });
   }
@@ -261,6 +266,7 @@ export class WorkbenchController {
   applySharedState(): void {
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
+    applySectionPlane(this, false);
   }
 
   rebuildVisibility(): void {
@@ -349,6 +355,14 @@ export class WorkbenchController {
     this.applyResultMode(this.resultMode === "deformed");
   }
 
+  setSectionAxis(value: string): void {
+    setSectionAxis(this, value);
+  }
+
+  setSectionOffset(value: string): void {
+    setSectionOffset(this, value);
+  }
+
   applyResultMode(render: boolean): void {
     applyResultState({
       viewports: this.viewports(),
@@ -389,16 +403,7 @@ export class WorkbenchController {
   }
 
   setTreeHover(target: VisibilityRowTarget | undefined): void {
-    if (this.disposed) return;
-    this.treeHoverTargets =
-      target === undefined ? [] : interactionTargetsForRow(this.runtime, target);
-    const encoded = this.treeHoverTargets.map((value) => JSON.stringify(value)).join("|");
-    for (const slot of this.viewportSlots.all()) slot.pane.canvas.dataset["treeHover"] = encoded;
-    try {
-      this.render();
-    } catch (error) {
-      if (!isDestroyedViewportError(error)) throw error;
-    }
+    setTreeHover(this, target, () => this.disposed);
   }
 
   applyDisplayedInteraction(): void {

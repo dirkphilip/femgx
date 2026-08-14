@@ -48,6 +48,10 @@ export interface DemoView {
   readonly deformationField: HTMLSelectElement;
   readonly deformationScale: HTMLInputElement;
   readonly resultLegend: HTMLElement;
+  readonly sectionControls: HTMLElement;
+  readonly sectionAxis: HTMLSelectElement;
+  readonly sectionOffset: HTMLInputElement;
+  readonly sectionOffsetValue: HTMLOutputElement;
   readonly nodeOverlayToggle: HTMLButtonElement;
   readonly resetButton: HTMLButtonElement;
   readonly status: HTMLElement;
@@ -101,6 +105,10 @@ export function queryDemoView(): DemoView {
     deformationField: requiredSelect("#deformation-field"),
     deformationScale: requiredInput("#deformation-scale"),
     resultLegend: requiredElement("#result-legend"),
+    sectionControls: requiredElement("#section-controls"),
+    sectionAxis: requiredSelect("#section-axis"),
+    sectionOffset: requiredInput("#section-offset"),
+    sectionOffsetValue: requiredOutput("#section-offset-value"),
     nodeOverlayToggle: requiredButton("#node-overlay"),
     resetButton: requiredButton("#reset"),
     status: requiredElement("#status"),
@@ -151,6 +159,10 @@ function requiredSelect(selector: string): HTMLSelectElement {
 
 function requiredInput(selector: string): HTMLInputElement {
   return required(selector) as HTMLInputElement;
+}
+
+function requiredOutput(selector: string): HTMLOutputElement {
+  return required(selector) as HTMLOutputElement;
 }
 
 function required(selector: string): Element {

@@ -36,6 +36,14 @@ function latestCameraUniform(gpu: ReturnType<typeof fakeGpuDevice>): Float32Arra
   return new Float32Array(write.bytes.buffer, write.bytes.byteOffset, write.bytes.byteLength / 4);
 }
 
+function latestSectionPlaneUniform(gpu: ReturnType<typeof fakeGpuDevice>): Float32Array {
+  const write = gpu.writes
+    .filter((entry) => gpu.buffers.find((buffer) => buffer.resource === entry.buffer)?.size === 16)
+    .at(-1);
+  if (write === undefined) throw new Error("section-plane uniform was not written");
+  return new Float32Array(write.bytes.buffer, write.bytes.byteOffset, write.bytes.byteLength / 4);
+}
+
 function deferred<T>(): {
   readonly promise: Promise<T>;
   readonly resolve: (value: T) => void;
@@ -228,6 +236,32 @@ describe("FemViewport", () => {
     await expect(
       createFemViewport({ canvas: fakeCanvas(), scene: scene(), pointSizePixels: 65 }),
     ).rejects.toThrow(/pointSizePixels/);
+  });
+
+  it("normalizes, persists, and clears one section plane", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: gpu.device,
+    });
+
+    viewport.setSectionPlane({ normal: [0, 0, 2], distance: 4 });
+    expect(viewport.sectionPlane).toEqual({ normal: [0, 0, 1], distance: 2 });
+    expect(latestSectionPlaneUniform(gpu)).toEqual(new Float32Array([0, 0, 1, 2]));
+    expect(() => {
+      viewport.setSectionPlane({ normal: [0, 0, 0], distance: 0 });
+    }).toThrow("Section plane");
+    expect(viewport.sectionPlane).toEqual({ normal: [0, 0, 1], distance: 2 });
+
+    viewport.setScene(scene(10));
+    expect(viewport.sectionPlane).toEqual({ normal: [0, 0, 1], distance: 2 });
+    viewport.clearSectionPlane();
+    expect(viewport.sectionPlane).toBeUndefined();
+    expect(latestSectionPlaneUniform(gpu)).toEqual(new Float32Array([0, 0, 0, 0]));
+    viewport.destroy();
   });
 
   it("validates and switches the renderer-owned background without rebuilding the viewport", async () => {

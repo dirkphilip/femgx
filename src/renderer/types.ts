@@ -10,6 +10,7 @@ import type { PartId } from "../geometry/part";
 import type { PickHit } from "../picking/types";
 import type { InteractionGranularity } from "../picking/types";
 import type { InteractionTarget } from "../interaction/target-types";
+import type { SectionPlane } from "../math/section-plane";
 
 /** Built-in WebGPU viewport background presentations. */
 export type ViewportBackground = "studio" | "white" | "dark";
@@ -45,6 +46,8 @@ export interface WebGpuRenderer {
   setDeformation(deformation: DeformationState | undefined): void;
   /** Sets or clears renderer-owned nodal scalar color buffers. */
   setResultColors(colors: ReadonlyMap<PartId, Float32Array> | undefined): void;
+  /** Sets or clears the single world-space scene clipping plane. */
+  setSectionPlane(plane: SectionPlane | undefined): void;
   /** Writes only GPU subranges affected by changed instance slots. */
   updateInstances(
     runtime: PackedSceneRuntime,

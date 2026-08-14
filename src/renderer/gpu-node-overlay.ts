@@ -1,4 +1,5 @@
 import { COLOR_SAMPLE_COUNT, vertexLayout } from "./gpu-support";
+import { sectionPlaneFunction, sectionPlaneBindings } from "./gpu-shaders";
 import {
   createValidatedRenderPipeline,
   createValidatedShaderModule,
@@ -63,13 +64,17 @@ async function createNodePipeline(options: NodePipelineOptions): Promise<GPURend
 }
 
 export const nodeOverlayFragmentShader = /* wgsl */ `
+${sectionPlaneBindings}
+${sectionPlaneFunction}
+
 @fragment
 fn nodeOverlayFragmentMain(
   @location(0) @interpolate(flat) color: vec4<f32>,
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
+  @location(8) worldPosition: vec3<f32>,
 ) -> @location(0) vec4<f32> {
-  if (dot(local, local) > 1.0) { discard; }
+  if (dot(local, local) > 1.0 || !sectionPlaneVisible(worldPosition)) { discard; }
   return vec4<f32>(color.rgb + vec3<f32>(emissive), color.a);
 }
 `;
