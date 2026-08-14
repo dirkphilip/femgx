@@ -18,6 +18,7 @@ hooks]].
 npm run format
 npm run typecheck
 npm run lint
+npm run build:docs
 npm run test:coverage
 npm run bench:budget
 npm run test:e2e          # system Chrome / hardware WebGPU (local)
@@ -38,6 +39,13 @@ external-action policy.
 checks cycles, root-barrel imports, renderer and geometry boundaries, and the
 explicit subsystem DAG. Type-only imports are included because they still
 encode ownership and can create declaration-build cycles.
+
+`npm run build:docs` is the same TypeDoc validation command required by CI. It
+cleans the ignored API output, validates links and paths, requires documentation
+for selected public declaration kinds, and treats validation warnings as errors.
+Internal union helpers that are intentionally absent from `src/index.ts` are
+listed explicitly in `typedoc.json`; that exception does not weaken public API
+coverage.
 
 ## Coverage
 
@@ -64,8 +72,8 @@ encode ownership and can create declaration-build cycles.
 The `main` branch requires the two stable CI contexts `check` and `e2e`.
 `check` aggregates parallel static/quality and runtime/package jobs containing
 pre-commit validation, formatting, strict type checking, linting,
-coverage-enforced unit tests, the performance budget, the library build, and
-package smoke tests. `e2e` is the required no-GPU unsupported
+API documentation validation, coverage-enforced unit tests, the performance
+budget, the library build, and package smoke tests. `e2e` is the required no-GPU unsupported
 contract lane in hosted CI; the real system-Chrome WebGPU lane remains the
 required local validation for rendering, camera, interaction, demo, and
 responsive-layout changes because hosted runners do not provide deterministic

@@ -105,8 +105,12 @@ export interface ElementModelEditResult {
  * @category Elements and model editing
  */
 export interface ElementModelEditor {
+  /** Merges source blocks into one existing target block. */
   mergeBlocks(input: MergeElementBlocksInput): void;
+  /** Removes one block and reports the resulting identity changes. */
   removeBlock(blockId: ElementBlockId): void;
+  /** Dissolves one block, applying the required body ownership policy. */
   dissolveBlock(blockId: ElementBlockId, options?: DissolveElementBlockOptions): void;
+  /** Replaces one block's elements while preserving the edit transaction boundary. */
   replaceBlock(blockId: ElementBlockId, replacement: ElementBlockReplacement): void;
 }

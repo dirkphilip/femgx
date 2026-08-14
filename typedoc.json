@@ -13,8 +13,10 @@
     "Camera and math",
     "Advanced runtime and WebGPU platform"
   ],
+  "cleanOutputDir": true,
   "excludeInternal": true,
   "excludePrivate": true,
+  "intentionallyNotExported": ["LinearGeometry"],
   "includeVersion": true,
   "navigationLinks": {
     "Demo": "../"
@@ -27,5 +29,23 @@
     "compactFolders": true
   },
   "out": "dist-demo/api",
-  "readme": "docs/api-reference.md"
+  "readme": "docs/api-reference.md",
+  "requiredToBeDocumented": [
+    "Enum",
+    "EnumMember",
+    "Variable",
+    "Function",
+    "Class",
+    "Interface",
+    "TypeAlias"
+  ],
+  "treatValidationWarningsAsErrors": true,
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "invalidPath": true,
+    "rewrittenLink": true,
+    "notDocumented": true,
+    "unusedMergeModuleWith": true
+  }
 }

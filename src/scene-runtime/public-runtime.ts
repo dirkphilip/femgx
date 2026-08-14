@@ -42,15 +42,25 @@ export interface SceneRuntime {
   readonly nodeCount: number;
   readonly instanceCount: number;
   readonly visibleCount: number;
+  /** Returns every stable placed-part id in runtime order. */
   getInstanceIds(): readonly InstanceId[];
+  /** Returns every stable assembly-occurrence id in runtime order. */
   getNodeIds(): readonly AssemblyNodeId[];
+  /** Materializes query records for all placed parts. */
   getInstances(): readonly RuntimeInstance[];
+  /** Materializes query records for all expanded assembly occurrences. */
   getNodes(): readonly RuntimeNode[];
+  /** Returns one placed-part record, or `undefined` for an unknown id. */
   getInstance(instanceId: InstanceId): RuntimeInstance | undefined;
+  /** Returns one assembly-occurrence record, or `undefined` for an unknown id. */
   getNode(nodeId: AssemblyNodeId): RuntimeNode | undefined;
+  /** Resolves a placed-part id to its reusable part id. */
   getPartId(instanceId: InstanceId): PartId | undefined;
+  /** Returns a placed part's world transform, or `undefined` for an unknown id. */
   getTransform(instanceId: InstanceId): Mat4 | undefined;
+  /** Reports effective visibility for one placed part. */
   isInstanceVisible(instanceId: InstanceId): boolean;
+  /** Returns the currently visible placed-part ids in draw order. */
   getDrawList(): readonly InstanceId[];
 }
 

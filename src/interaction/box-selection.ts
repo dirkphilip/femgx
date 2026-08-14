@@ -55,6 +55,7 @@ export type BoxSelectionEvent =
  */
 export interface BoxSelectionOptions {
   readonly canvas: HTMLCanvasElement;
+  /** Receives start, change, complete, and cancellation events. */
   readonly onEvent: (event: BoxSelectionEvent) => void;
 }
 
