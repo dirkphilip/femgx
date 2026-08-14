@@ -11,6 +11,7 @@ import {
   pickDataBindings,
   resultColorFunctions,
   spriteCornerFn,
+  trianglePickExpansionFn,
   vertexOutput,
 } from "./gpu-shaders";
 import { emphasisHash } from "./gpu-highlight-shader";
@@ -171,7 +172,7 @@ function createInstanceVertexOutput(
   var output: VertexOutput;
   let displayedPosition = displaced(position, vertexIndex);
   let worldPosition = (instance.transform * vec4<f32>(displayedPosition, 1.0)).xyz;
-${linePass ? lineExpandedPosition() : "  output.position = camera.viewProjection * vec4<f32>(worldPosition, 1.0);"}
+${linePass ? lineExpandedPosition() : selectionPass ? triangleSelectionPosition() : "  output.position = camera.viewProjection * vec4<f32>(worldPosition, 1.0);"}
   if (hidden) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
@@ -196,7 +197,8 @@ ${linePass ? lineExpandedPosition() : "  output.position = camera.viewProjection
 
 function createInstanceVertexShader(selectionPass = false): string {
   const primitiveIndex = "primitiveDrawId(vertexIndex)";
-  return `${instanceVertexHeader}${createInstanceVertexMain(primitiveIndex, selectionPass, false)}`;
+  const expansion = selectionPass ? trianglePickExpansionFn : "";
+  return `${instanceVertexHeader}${expansion}${createInstanceVertexMain(primitiveIndex, selectionPass, false)}`;
 }
 
 export const instanceVertexShader = createInstanceVertexShader();
@@ -224,6 +226,33 @@ function lineExpandedPosition(): string {
     lineClipB,
     vertexIndex % 4u,
     instance.lineWidth * camera.devicePixelRatio,
+  );`;
+}
+
+function triangleSelectionPosition(): string {
+  return `
+  let triangleBase = vertexIndex - (vertexIndex % 3u);
+  let triangleA = displaced(vec3<f32>(
+    geometryPosition(triangleBase * 3u),
+    geometryPosition(triangleBase * 3u + 1u),
+    geometryPosition(triangleBase * 3u + 2u),
+  ), triangleBase);
+  let triangleB = displaced(vec3<f32>(
+    geometryPosition(triangleBase * 3u + 3u),
+    geometryPosition(triangleBase * 3u + 4u),
+    geometryPosition(triangleBase * 3u + 5u),
+  ), triangleBase + 1u);
+  let triangleC = displaced(vec3<f32>(
+    geometryPosition(triangleBase * 3u + 6u),
+    geometryPosition(triangleBase * 3u + 7u),
+    geometryPosition(triangleBase * 3u + 8u),
+  ), triangleBase + 2u);
+  output.position = trianglePickPosition(
+    camera.viewProjection * instance.transform * vec4<f32>(triangleA, 1.0),
+    camera.viewProjection * instance.transform * vec4<f32>(triangleB, 1.0),
+    camera.viewProjection * instance.transform * vec4<f32>(triangleC, 1.0),
+    (triangleA + triangleB + triangleC) / 3.0,
+    vertexIndex % 3u,
   );`;
 }
 
