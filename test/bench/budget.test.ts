@@ -19,10 +19,7 @@ import { createInteractionState } from "../../src/interaction/interaction";
 import { selectedTargets } from "../../src/interaction/targets";
 import { setTargetsSelected, type InteractionTarget } from "../../src/interaction/targets";
 import { buildMeshEdgeData } from "../../src/renderer/gpu-edge";
-import {
-  buildPickRegionPartIndex,
-  createPickRegionTargetResolver,
-} from "../../src/renderer/gpu-pick-region-resolve";
+import { createPickRegionTargetResolver } from "../../src/renderer/gpu-pick-region-resolve";
 import { buildPrimitiveFaceBodyPickData } from "../../src/renderer/gpu-pick-ids";
 import { expandSurfaceGeometry } from "../../src/renderer/gpu-surface-geometry";
 import { collectEmphasisUpdates, encodeEmphasisRecord } from "../../src/renderer/gpu-elements";
@@ -544,11 +541,11 @@ const budgets: readonly BudgetCase[] = [
     if (resolver === undefined) throw new Error(`Missing region resolver for ${count} elements`);
     return [
       {
-        name: `pickRegion index build (${count})`,
-        description: `${count} unique element identities`,
+        name: `pickRegion cached metadata lookup (${count})`,
+        description: `${count} immutable element identity lookups`,
         budgetMs: index === 0 ? 100 : 500,
         run: () => {
-          buildPickRegionPartIndex(part, "element");
+          getPartInteractionMetadata(part);
         },
       },
       {

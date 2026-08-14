@@ -12,6 +12,7 @@ import {
   type PickTargets,
 } from "./gpu-pick";
 import { WebGpuPickReadbackError } from "./gpu-pick-error";
+import { createPickRegionTargetCollector } from "./gpu-pick-region-targets";
 
 // Keeps common viewport reads in one mapping while bounding high-DPI regions.
 const REGION_BYTE_BUDGET = 4 * 1024 * 1024;
@@ -40,11 +41,6 @@ interface RawIdentity {
 }
 
 type RawIdentities = Map<number, Map<number, RawIdentity>>;
-
-interface ResolvedTarget {
-  readonly target: InteractionTarget;
-  readonly order: readonly [number, number, string];
-}
 
 /** Inputs for the side-effect-free visible-region target query. */
 export interface PickRegionOptions {
@@ -289,46 +285,15 @@ function resolveTargets(
   options: PickRegionOptions,
 ): readonly InteractionTarget[] {
   const resolveTarget = createPickRegionTargetResolver(options.context, options.granularity);
-  const resolved = new Map<string, ResolvedTarget>();
+  const resolved = createPickRegionTargetCollector();
   for (const ids of identities) {
     try {
       const target = resolveTarget(ids);
       if (target === undefined) continue;
-      const key = JSON.stringify(target);
-      resolved.set(key, { target, order: targetOrder(target, ids.instancePickId) });
+      resolved.add(target, ids.instancePickId);
     } catch {
       // Stale or malformed attachment ids are ignored at the ownership boundary.
     }
   }
-  return [...resolved.values()]
-    .sort((a, b) => compareOrder(a.order, b.order))
-    .map(({ target }) => target);
-}
-
-function targetOrder(
-  target: InteractionTarget,
-  instancePickId: number,
-): readonly [number, number, string] {
-  if (target.kind === "part") return [0, target.partId, ""];
-  switch (target.kind) {
-    case "instance":
-      return [instancePickId, 0, ""];
-    case "body":
-      return [instancePickId, target.bodyId, ""];
-    case "block":
-      return [instancePickId, target.blockId, ""];
-    case "element":
-      return [instancePickId, target.elementId, ""];
-    case "node":
-      return [instancePickId, target.nodeId, ""];
-    case "face":
-      return [instancePickId, target.elementId, String(target.faceIndex)];
-  }
-}
-
-function compareOrder(
-  left: readonly [number, number, string],
-  right: readonly [number, number, string],
-): number {
-  return left[0] - right[0] || left[1] - right[1] || left[2].localeCompare(right[2]);
+  return resolved.finish();
 }
