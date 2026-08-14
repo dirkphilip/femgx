@@ -42,7 +42,8 @@ encode ownership and can create declaration-build cycles.
 
 - `e2e/` tests run against the local Vite dev server (see
   `playwright.config.ts`, `webServer`).
-- One-time browser install: `npm run test:e2e:install` (system Chrome + Chromium).
+- One-time browser install: `npm run test:e2e:install` (Playwright Chrome for the
+  local WebGPU lane).
 - **Local / authoritative WebGPU lane:** `npm run test:e2e` (`--project=chrome`).
 - **Merge CI:** `npm run test:e2e:ci` (unsupported-contract smoke only).
 - See [[rendering/webgpu-e2e|WebGPU browser e2e lane]] and

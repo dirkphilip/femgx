@@ -5,9 +5,9 @@ const baseURL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 /**
  * E2E browser projects:
  * - `chrome` — system Google Chrome (hardware WebGPU). Default local lane.
- * - `chromium` — Playwright Chromium, used by CI for the no-GPU unsupported
- *   contract only. Full WebGPU pick/pixel coverage is local (or a future GPU
- *   runner), not SwiftShader.
+ * - `chrome-unsupported` — system Google Chrome, used by CI for the no-GPU
+ *   unsupported contract only. Full WebGPU pick/pixel coverage is local (or a
+ *   future GPU runner), not SwiftShader.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -44,9 +44,17 @@ export default defineConfig({
       },
     },
     {
-      name: "chromium",
+      name: "chrome-unsupported",
       use: {
         ...devices["Desktop Chrome"],
+        channel: "chrome",
+        headless: true,
+        // This project only runs the explicit unsupported-contract smoke. Keep
+        // browser launch independent of Playwright's bundled Chromium and
+        // software-WebGPU fallback.
+        launchOptions: {
+          ignoreDefaultArgs: ["--enable-unsafe-swiftshader"],
+        },
       },
     },
   ],
