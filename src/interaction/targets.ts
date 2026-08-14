@@ -1,4 +1,4 @@
-import type { BodyRef } from "./refs";
+import type { BodyRef, FaceRef } from "./refs";
 import { setElementBlockHighlighted, setElementBlockSelected } from "./blocks";
 import type { StyleOverride } from "./state";
 import { setBodyHighlighted, setBodySelected } from "./bodies";
@@ -19,6 +19,7 @@ import {
   setPartSelected,
 } from "./interaction";
 import { hoveredTarget, isHoveredTarget } from "./state";
+import { updateNestedMaps, updateNestedSets, updateSetValues } from "./mechanics";
 export type { InteractionTarget } from "./target-types";
 import type { InteractionTarget } from "./target-types";
 import type { InteractionGranularity, PickHit } from "../picking/types";
@@ -93,6 +94,158 @@ export function setTargetSelected(
       return setFaceSelected(state, target, selected);
     case "node":
       return setNodeSelected(state, target, selected);
+  }
+}
+
+/**
+ * Sets or clears selection for many targets in one immutable state transition.
+ * Duplicate identities are applied once, and each touched collection is cloned
+ * at most once.
+ * @category Interaction and picking
+ */
+export function setTargetsSelected(
+  state: InteractionState,
+  targets: readonly InteractionTarget[],
+  selected: boolean,
+): InteractionState {
+  const groups = collectSelectionTargets(targets);
+  const data = readInteractionState(state);
+  const selectedPartIds = updateSetValues(data.selectedPartIds, groups.partIds, selected);
+  const selectedInstanceIds = updateSetValues(
+    data.selectedInstanceIds,
+    groups.instanceIds,
+    selected,
+  );
+  const selectedBodyIds = updateNestedSets(data.selectedBodyIds, groups.bodyIds, selected);
+  const selectedBlockIds = updateNestedSets(data.selectedBlockIds, groups.blockIds, selected);
+  const selectedElementIds = updateNestedSets(data.selectedElementIds, groups.elementIds, selected);
+  const selectedFaces = updateNestedMaps(data.selectedFaces, groups.faceRefs, selected);
+  const selectedNodeIds = updateNestedSets(data.selectedNodeIds, groups.nodeIds, selected);
+  if (
+    selectedPartIds === data.selectedPartIds &&
+    selectedInstanceIds === data.selectedInstanceIds &&
+    selectedBodyIds === data.selectedBodyIds &&
+    selectedBlockIds === data.selectedBlockIds &&
+    selectedElementIds === data.selectedElementIds &&
+    selectedFaces === data.selectedFaces &&
+    selectedNodeIds === data.selectedNodeIds
+  ) {
+    return state;
+  }
+  return updateInteractionState(state, {
+    selectedPartIds,
+    selectedInstanceIds,
+    selectedBodyIds,
+    selectedBlockIds,
+    selectedElementIds,
+    selectedFaces,
+    selectedNodeIds,
+  });
+}
+
+type PartTarget = Extract<InteractionTarget, { readonly kind: "part" }>;
+type InstanceTarget = Extract<InteractionTarget, { readonly kind: "instance" }>;
+type BodyTarget = Extract<InteractionTarget, { readonly kind: "body" }>;
+type BlockTarget = Extract<InteractionTarget, { readonly kind: "block" }>;
+type ElementTarget = Extract<InteractionTarget, { readonly kind: "element" }>;
+type FaceTarget = Extract<InteractionTarget, { readonly kind: "face" }>;
+type NodeTarget = Extract<InteractionTarget, { readonly kind: "node" }>;
+
+interface SelectionTargetGroups {
+  readonly partIds: Set<PartTarget["partId"]>;
+  readonly instanceIds: Set<InstanceTarget["instanceId"]>;
+  readonly bodyIds: Map<BodyTarget["instanceId"], Set<BodyTarget["bodyId"]>>;
+  readonly blockIds: Map<BlockTarget["instanceId"], Set<BlockTarget["blockId"]>>;
+  readonly elementIds: Map<ElementTarget["instanceId"], Set<ElementTarget["elementId"]>>;
+  readonly faceRefs: Map<FaceTarget["instanceId"], Map<string, FaceRef>>;
+  readonly nodeIds: Map<NodeTarget["instanceId"], Set<NodeTarget["nodeId"]>>;
+}
+
+function collectSelectionTargets(targets: readonly InteractionTarget[]): SelectionTargetGroups {
+  const groups: SelectionTargetGroups = {
+    partIds: new Set(),
+    instanceIds: new Set(),
+    bodyIds: new Map(),
+    blockIds: new Map(),
+    elementIds: new Map(),
+    faceRefs: new Map(),
+    nodeIds: new Map(),
+  };
+  const seen = new Set<string>();
+  for (const target of targets) {
+    const key = selectionTargetKey(target);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    switch (target.kind) {
+      case "part":
+        groups.partIds.add(target.partId);
+        break;
+      case "instance":
+        groups.instanceIds.add(target.instanceId);
+        break;
+      case "body":
+        addNestedValue(groups.bodyIds, target.instanceId, target.bodyId);
+        break;
+      case "block":
+        addNestedValue(groups.blockIds, target.instanceId, target.blockId);
+        break;
+      case "element":
+        addNestedValue(groups.elementIds, target.instanceId, target.elementId);
+        break;
+      case "face":
+        addNestedValue(groups.faceRefs, target.instanceId, faceRefKey(target), target);
+        break;
+      case "node":
+        addNestedValue(groups.nodeIds, target.instanceId, target.nodeId);
+        break;
+    }
+  }
+  return groups;
+}
+
+function addNestedValue<OuterKey, InnerKey>(
+  groups: Map<OuterKey, Set<InnerKey>>,
+  outerKey: OuterKey,
+  innerKey: InnerKey,
+): void;
+function addNestedValue<OuterKey, InnerKey, Value>(
+  groups: Map<OuterKey, Map<InnerKey, Value>>,
+  outerKey: OuterKey,
+  innerKey: InnerKey,
+  value: Value,
+): void;
+function addNestedValue<OuterKey, InnerKey, Value>(
+  groups: Map<OuterKey, Set<InnerKey> | Map<InnerKey, Value>>,
+  outerKey: OuterKey,
+  innerKey: InnerKey,
+  value?: Value,
+): void {
+  const existing = groups.get(outerKey);
+  if (existing === undefined) {
+    groups.set(outerKey, value === undefined ? new Set([innerKey]) : new Map([[innerKey, value]]));
+  } else if (existing instanceof Set) {
+    existing.add(innerKey);
+  } else if (value !== undefined) {
+    existing.set(innerKey, value);
+  }
+}
+
+function selectionTargetKey(target: InteractionTarget): string {
+  switch (target.kind) {
+    case "part":
+      return `part:${target.partId}`;
+    case "instance":
+      return `instance:${target.instanceId}`;
+    case "body":
+      return `body:${target.instanceId}:${target.bodyId}`;
+    case "block":
+      return `block:${target.instanceId}:${target.blockId}`;
+    case "element":
+      return `element:${target.instanceId}:${target.elementId}`;
+    case "face":
+      return `face:${target.instanceId}:${faceRefKey(target)}`;
+    case "node":
+      return `node:${target.instanceId}:${target.nodeId}`;
   }
 }
 

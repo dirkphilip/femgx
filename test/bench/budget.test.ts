@@ -15,6 +15,8 @@ import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-elem
 import { createPart, type Geometry } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { resolvePick, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
+import { createInteractionState } from "../../src/interaction/interaction";
+import { setTargetsSelected, type InteractionTarget } from "../../src/interaction/targets";
 import { buildMeshEdgeData } from "../../src/renderer/gpu-edge";
 import {
   buildPickRegionPartIndex,
@@ -107,6 +109,12 @@ const pickIds: number[] = [];
 for (let i = 0; i < PICK_COUNT; i++) {
   pickIds.push(i % runtimeInstances.length);
 }
+
+const BULK_SELECTION_COUNT = 16_384;
+const bulkSelectionTargets: InteractionTarget[] = Array.from(
+  { length: BULK_SELECTION_COUNT },
+  (_, index) => ({ kind: "element", instanceId: "bench/0", elementId: index + 1 }),
+);
 
 function makeRegionCase(elementCount: number) {
   const geometry: Geometry = {
@@ -346,6 +354,14 @@ const budgets: readonly BudgetCase[] = [
       for (const pickId of pickIds) {
         resolvePick(runtimeInstances, pickId);
       }
+    },
+  },
+  {
+    name: "setTargetsSelected (16,384 elements)",
+    description: "one immutable bulk transition in one occurrence",
+    budgetMs: 100,
+    run: () => {
+      setTargetsSelected(createInteractionState(), bulkSelectionTargets, true);
     },
   },
   ...regionCases.flatMap(({ part, ids }, index) => {

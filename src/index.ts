@@ -124,6 +124,7 @@ export {
   selectedTargets,
   setTargetHighlighted,
   setTargetHovered,
+  setTargetsSelected,
   setTargetsHighlighted,
   setTargetSelected,
   interactionTargetFromHit,

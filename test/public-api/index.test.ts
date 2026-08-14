@@ -120,6 +120,7 @@ describe("public root API", () => {
       "setTargetHovered",
       "setTargetSelected",
       "setTargetsHighlighted",
+      "setTargetsSelected",
       "topologyFor",
       "transformPoint",
       "translation",
