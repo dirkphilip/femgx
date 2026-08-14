@@ -1,6 +1,6 @@
-# femgx API reference
+# FemGx API reference
 
-This is the generated reference for the experimental femgx 0.x API. The public
+This is the generated reference for the experimental FemGx 0.x API. The public
 API may change without compatibility guarantees.
 
 ## Start here

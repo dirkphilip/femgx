@@ -1,4 +1,4 @@
-# FE Mesh GPU (femgx)
+# FemGx
 
 A TypeScript graphics library for rendering finite element (FE) models at
 interactive frame rates using **WebGPU** and **GPU instancing**.

@@ -94,8 +94,8 @@ function reportRendererFailure(view: DemoView, canvas: HTMLCanvasElement, error:
   view.status.hidden = false;
   view.rendererStatus.textContent = unsupported ? "Renderer unsupported" : "Renderer error";
   view.status.textContent = unsupported
-    ? `femgx requires a usable WebGPU renderer. ${detail}`
-    : `femgx could not validate the WebGPU renderer. ${detail}`;
+    ? `FemGx requires a usable WebGPU renderer. ${detail}`
+    : `FemGx could not validate the WebGPU renderer. ${detail}`;
 }
 
 function createViewportFactory(
