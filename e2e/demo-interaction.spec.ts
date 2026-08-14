@@ -49,6 +49,23 @@ test("defaults to element selection and can switch to exact node picks", async (
   await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
 });
 
+test("keeps the Through box strategy truthful across selection granularities", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const strategy = page.getByTestId("box-selection-strategy");
+  await expect(strategy).toHaveValue("visible-surface");
+  await expect(canvas).toHaveAttribute("data-box-selection-strategy", "visible-surface");
+
+  await strategy.selectOption("through-intersection");
+  await expect(strategy).toHaveValue("through-intersection");
+  await expect(canvas).toHaveAttribute("data-box-selection-strategy", "through-intersection");
+
+  await setSelectionGranularity(page, "face");
+  await expect(strategy).toHaveValue("visible-surface");
+  await expect(strategy.locator('option[value="through-intersection"]')).toBeDisabled();
+  await expect(canvas).toHaveAttribute("data-box-selection-strategy", "visible-surface");
+});
+
 test("keeps repeated element, face, and node selection stable through orbit", async ({ page }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
