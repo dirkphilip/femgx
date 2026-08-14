@@ -27,7 +27,7 @@ import {
   buildHighlightTable,
   type HighlightTableEntry,
 } from "../../src/renderer/gpu-highlight-table";
-import { getPartInteractionMetadata } from "../../src/renderer/part-interaction-metadata";
+import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
 import { defaultStyle } from "../../src/renderer/gpu-support";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
@@ -101,7 +101,7 @@ const bodyModelWithBodies = createElementModel([...bodyModel.nodes], bodyModel.e
   bodies,
 });
 const emphasisPart = createPart(907, bodyGeometry);
-getPartInteractionMetadata(emphasisPart);
+getPartSemanticIndex(emphasisPart);
 const emphasisScene = {
   rootAssemblyId: 1,
   parts: new Map([[emphasisPart.id, emphasisPart]]),
@@ -517,7 +517,7 @@ const budgets: readonly BudgetCase[] = [
     description: "cached element-to-body metadata map reads",
     budgetMs: 100,
     run: () => {
-      const metadata = getPartInteractionMetadata(emphasisPart);
+      const metadata = getPartSemanticIndex(emphasisPart);
       for (const elementId of emphasisElementIds) metadata.bodyByElement.get(elementId);
     },
   },
@@ -545,7 +545,7 @@ const budgets: readonly BudgetCase[] = [
         description: `${count} immutable element identity lookups`,
         budgetMs: index === 0 ? 100 : 500,
         run: () => {
-          getPartInteractionMetadata(part);
+          getPartSemanticIndex(part);
         },
       },
       {

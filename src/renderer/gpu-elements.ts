@@ -21,7 +21,7 @@ import type { Instance, InstanceId } from "../scene/types";
 import { BODY_HIGHLIGHT_MARKER } from "./gpu-highlight-table";
 import { EDGE_HIGHLIGHT_MARKER } from "./gpu-highlight-table";
 import { defaultStyle } from "./gpu-support";
-import { getPartInteractionMetadata } from "./part-interaction-metadata";
+import { getPartSemanticIndex } from "../geometry/part-semantic-index";
 
 interface InstanceLayout {
   readonly slotPartLocal: Int32Array;
@@ -153,8 +153,7 @@ function collectEdgeEmphasis(
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
-    const edge =
-      part === undefined ? undefined : getPartInteractionMetadata(part).edges.get(ref.key);
+    const edge = part === undefined ? undefined : getPartSemanticIndex(part).edges.get(ref.key);
     if (edge === undefined) continue;
     push(occurrence.instance.partId, {
       slot: occurrence.local,
@@ -181,7 +180,7 @@ function collectBlockEmphasis(
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
-    const metadata = part === undefined ? undefined : getPartInteractionMetadata(part);
+    const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
     const block = metadata?.blocks.get(ref.blockId);
     if (block === undefined) continue;
     const bodyId = metadata?.bodyByBlock.get(ref.blockId);
@@ -216,8 +215,7 @@ function collectBodyEmphasis(
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
-    const body =
-      part === undefined ? undefined : getPartInteractionMetadata(part).bodies.get(ref.bodyId);
+    const body = part === undefined ? undefined : getPartSemanticIndex(part).bodies.get(ref.bodyId);
     if (body === undefined) continue;
     push(occurrence.instance.partId, {
       slot: occurrence.local,
@@ -251,7 +249,7 @@ function collectElementEmphasis(
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
-    const metadata = part === undefined ? undefined : getPartInteractionMetadata(part);
+    const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
     const bodyId = metadata?.bodyByElement.get(ref.elementId);
     const blockId = metadata?.blockByElement.get(ref.elementId);
     const style = resolveElementStyle(
@@ -285,7 +283,7 @@ function collectFaceEmphasis(
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
-    const metadata = part === undefined ? undefined : getPartInteractionMetadata(part);
+    const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
     const faceMetadata = metadata?.faces.get(faceRefKey(ref));
     if (faceMetadata === undefined) continue;
     const { face, faceId } = faceMetadata;

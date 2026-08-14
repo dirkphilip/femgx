@@ -1,4 +1,5 @@
 import type { Part, PartId } from "../geometry/part";
+import { getPartSemanticIndex, type PartSemanticIndex } from "../geometry/part-semantic-index";
 import {
   createInteractionStateValue,
   readInteractionState,
@@ -99,16 +100,17 @@ function reconcileOccurrenceState(
   identityFor: (instanceId: InstanceId) => SceneIdentity | undefined,
   keepInstance: (instanceId: InstanceId) => boolean,
 ): ReconciledOccurrenceState {
-  const body = (owner: SceneIdentity, id: number): boolean => owner.bodyIds?.has(id) ?? false;
-  const block = (owner: SceneIdentity, id: number): boolean => owner.blockIds?.has(id) ?? false;
-  const element = (owner: SceneIdentity, id: number): boolean => owner.elementIds.has(id);
-  const node = (owner: SceneIdentity, id: number): boolean => id >= 0 && id < owner.nodeCount;
+  const body = (owner: SceneIdentity, id: number): boolean => owner.semantic.bodies.has(id);
+  const block = (owner: SceneIdentity, id: number): boolean => owner.semantic.blocks.has(id);
+  const element = (owner: SceneIdentity, id: number): boolean => owner.semantic.elements.has(id);
+  const node = (owner: SceneIdentity, id: number): boolean =>
+    id >= 0 && id < owner.semantic.nodeCount;
   const face = (
     owner: SceneIdentity,
     key: string,
     ref: { readonly elementId: number; readonly faceIndex: number },
-  ): boolean => owner.faceKeys.has(key) && faceRefKey(ref) === key;
-  const edge = (owner: SceneIdentity, key: string): boolean => owner.edgeKeys.has(key);
+  ): boolean => owner.semantic.faces.has(key) && faceRefKey(ref) === key;
+  const edge = (owner: SceneIdentity, key: string): boolean => owner.semantic.edges.has(key);
   return {
     highlightedInstanceIds: filterSet(data.highlightedInstanceIds, keepInstance),
     selectedInstanceIds: filterSet(data.selectedInstanceIds, keepInstance),
@@ -144,14 +146,19 @@ function targetInScene(
   const owner = identityFor(target.instanceId);
   if (owner === undefined) return undefined;
   if (target.kind === "instance") return target;
-  if (target.kind === "body") return owner.bodyIds?.has(target.bodyId) ? target : undefined;
-  if (target.kind === "block") return owner.blockIds?.has(target.blockId) ? target : undefined;
-  if (target.kind === "element") return owner.elementIds.has(target.elementId) ? target : undefined;
-  if (target.kind === "node") {
-    return target.nodeId >= 0 && target.nodeId < owner.nodeCount ? target : undefined;
+  if (target.kind === "body") return owner.semantic.bodies.has(target.bodyId) ? target : undefined;
+  if (target.kind === "block")
+    return owner.semantic.blocks.has(target.blockId) ? target : undefined;
+  if (target.kind === "element") {
+    return owner.semantic.elements.has(target.elementId) ? target : undefined;
   }
-  if (target.kind === "face") return owner.faceKeys.has(faceRefKey(target)) ? target : undefined;
-  return owner.edgeKeys.has(target.key) ? target : undefined;
+  if (target.kind === "node") {
+    return target.nodeId >= 0 && target.nodeId < owner.semantic.nodeCount ? target : undefined;
+  }
+  if (target.kind === "face") {
+    return owner.semantic.faces.has(faceRefKey(target)) ? target : undefined;
+  }
+  return owner.semantic.edges.has(target.key) ? target : undefined;
 }
 
 function filterSet<T>(current: ReadonlySet<T>, keep: (value: T) => boolean): ReadonlySet<T> {
@@ -175,12 +182,7 @@ function filterMap<K, V>(current: ReadonlyMap<K, V>, keep: (key: K) => boolean):
 }
 
 interface SceneIdentity {
-  readonly elementIds: ReadonlySet<number>;
-  readonly bodyIds?: ReadonlySet<number>;
-  readonly blockIds?: ReadonlySet<number>;
-  readonly nodeCount: number;
-  readonly faceKeys: ReadonlySet<string>;
-  readonly edgeKeys: ReadonlySet<string>;
+  readonly semantic: PartSemanticIndex;
 }
 
 function sceneIdentity(
@@ -191,32 +193,8 @@ function sceneIdentity(
   const slot = runtime.getInstanceSlot(instanceId);
   if (slot === undefined) return undefined;
   const partId = runtime.getPartId(slot);
-  const geometry = partId === undefined ? undefined : parts.get(partId)?.geometry;
-  if (geometry === undefined) return undefined;
-  const elementIds = new Set(geometry.elements?.map((element) => element.id));
-  const bodyIds = new Set<number>();
-  for (const body of geometry.bodies ?? []) bodyIds.add(body.id);
-  for (const element of geometry.elements ?? []) {
-    if (element.bodyId !== undefined) bodyIds.add(element.bodyId);
-  }
-  const blockIds = new Set<number>();
-  for (const block of geometry.blocks ?? []) blockIds.add(block.id);
-  for (const element of geometry.elements ?? []) {
-    if (element.blockId !== undefined) blockIds.add(element.blockId);
-  }
-  const faceKeys = new Set<string>();
-  if (geometry.primitive === "triangles") {
-    for (const face of geometry.faces ?? []) faceKeys.add(faceRefKey(face));
-  }
-  const edgeKeys = new Set((geometry.edges ?? []).map((edge) => edge.key));
-  return {
-    elementIds,
-    ...(bodyIds.size === 0 ? {} : { bodyIds }),
-    ...(blockIds.size === 0 ? {} : { blockIds }),
-    nodeCount: Math.floor((geometry.nodePositions?.length ?? 0) / 3),
-    faceKeys,
-    edgeKeys,
-  };
+  const part = partId === undefined ? undefined : parts.get(partId);
+  return part === undefined ? undefined : { semantic: getPartSemanticIndex(part) };
 }
 
 function filterNestedMaps<K, V>(

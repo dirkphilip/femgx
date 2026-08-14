@@ -4,7 +4,7 @@ import { readInteractionState } from "../interaction/state";
 import type { InstanceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import { ELEMENT_RECORD_STRIDE } from "./gpu-elements";
-import { getPartInteractionMetadata } from "./part-interaction-metadata";
+import { getPartSemanticIndex } from "../geometry/part-semantic-index";
 
 /** The stable layout fields required to resolve dense element selections. */
 export interface DenseElementLayout {
@@ -46,7 +46,7 @@ export function collectDenseElementSelections(
   for (const [partId, bySlot] of byPart) {
     const part = parts.get(partId);
     if (part === undefined) continue;
-    const metadata = getPartInteractionMetadata(part);
+    const metadata = getPartSemanticIndex(part);
     const occurrences = [...bySlot.entries()]
       .sort(([left], [right]) => left - right)
       .map(([slot, ordinals]) => ({ slot, ordinals: [...ordinals].sort((a, b) => a - b) }))
@@ -92,7 +92,7 @@ function addInstanceSelections(context: DenseSelectionContext): void {
   if (partId === undefined || part === undefined || localSlot === undefined || localSlot < 0) {
     return;
   }
-  const metadata = getPartInteractionMetadata(part);
+  const metadata = getPartSemanticIndex(part);
   for (const elementId of elementIds) {
     const ordinal = metadata.elementOrdinalById.get(elementId);
     if (ordinal === undefined) continue;
