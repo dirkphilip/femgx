@@ -361,10 +361,12 @@ describe("selection emphasis shaders", () => {
     );
   });
 
-  it("does not let translucent selected surfaces enter the opaque pass", () => {
+  it("classifies visible selection alpha from the base surface", () => {
     expect(selectionFragmentShader).toContain("color.a <= 0.0");
     expect(triangleSelectionFragmentShader).toContain("color.a <= 0.0");
-    expect(triangleSelectionFragmentShader).toContain("), color.a);");
+    expect(selectionFragmentShader).toContain("visibleSelectionAlpha(color.a)");
+    expect(triangleSelectionFragmentShader).toContain("visibleSelectionAlpha(color.a)");
+    expect(selectionFragmentShader).toContain("select(baseAlpha, 1.0, baseAlpha >= 1.0)");
     expect(triangleSelectionFragmentShader).toContain("mix(resultColor.rgb, tint, 0.38)");
   });
 

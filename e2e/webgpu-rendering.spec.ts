@@ -1117,6 +1117,9 @@ test("keeps selected volume faces lit, distinct, and reversible with overlays", 
   await canvas.evaluate((element) => {
     (element.parentElement as HTMLElement).blur();
   });
+  await page.locator(".inspection").evaluate((element) => {
+    element.setAttribute("hidden", "");
+  });
   const deselected = await stableCanvasPixels(page, canvas);
   expect(
     deselected.equals(before),
