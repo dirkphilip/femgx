@@ -200,6 +200,8 @@ guidance lives in [[engineering/benchmarks|Benchmarks]].
 
 - Inspect repository status before editing and preserve unrelated user changes.
 - Keep one logical change per PR or commit and avoid unrelated refactors.
+- Work only on issues created by `dirkphilip`, and include the creator's comments in the issue requirements.
+- Before starting a dev server, check whether one is already running from another worktree.
 - Before committing, use `npm run review:diff` to inspect unnecessary code,
   duplication, obsolete paths, and weakened tests.
 - Report production-source and test/documentation line deltas separately.
