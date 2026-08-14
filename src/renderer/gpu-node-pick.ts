@@ -13,6 +13,7 @@ import {
   spriteCornerFn,
   sectionPlaneFunction,
   sectionPlaneBindings,
+  trianglePickExpansionFn,
 } from "./gpu-shaders";
 import { emphasisHash } from "./gpu-highlight-shader";
 
@@ -65,6 +66,7 @@ ${pickDataBindings}
 ${geometryPositionBindings}
 
 ${displacementFn}
+${trianglePickExpansionFn}
 
 ${nodeVertexOutput}
 `;
@@ -114,7 +116,29 @@ function createNodePickVertexMain(options: NodePickVertexMainOptions): string {
     max(instance.lineWidth, camera.linePickSize) * camera.devicePixelRatio,
   );`
     : `
-  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0);`;
+  let triangleBase = base * 3u;
+  let triangleA = displaced(vec3<f32>(
+    geometryPosition(triangleBase),
+    geometryPosition(triangleBase + 1u),
+    geometryPosition(triangleBase + 2u),
+  ), base);
+  let triangleB = displaced(vec3<f32>(
+    geometryPosition(triangleBase + 3u),
+    geometryPosition(triangleBase + 4u),
+    geometryPosition(triangleBase + 5u),
+  ), base + 1u);
+  let triangleC = displaced(vec3<f32>(
+    geometryPosition(triangleBase + 6u),
+    geometryPosition(triangleBase + 7u),
+    geometryPosition(triangleBase + 8u),
+  ), base + 2u);
+  output.position = trianglePickPosition(
+    camera.viewProjection * instance.transform * vec4<f32>(triangleA, 1.0),
+    camera.viewProjection * instance.transform * vec4<f32>(triangleB, 1.0),
+    camera.viewProjection * instance.transform * vec4<f32>(triangleC, 1.0),
+    (triangleA + triangleB + triangleC) / 3.0,
+    vertexIndex % 3u,
+  );`;
   return /* wgsl */ `
 @vertex
 fn vertexMain(

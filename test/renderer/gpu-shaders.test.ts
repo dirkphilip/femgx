@@ -175,6 +175,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
       expect(offsets.get("nodeSize")).toBe(76);
       expect(offsets.get("devicePixelRatio")).toBe(80);
       expect(offsets.get("linePickSize")).toBe(84);
+      expect(offsets.get("trianglePickSize")).toBe(88);
       expect(offsets.get("keyLightDirection")).toBe(96);
       expect(offsets.get("viewDirection")).toBe(112);
       expect(info.size).toBe(CAMERA_UNIFORM_SIZE);
@@ -523,6 +524,13 @@ describe("GPU deformation shader contract", () => {
     expect(pointNodePickVertexShader).toMatch(
       /max\(camera\.pointSize, 8\.0 \* camera\.devicePixelRatio\)/,
     );
+  });
+
+  it("expands only subpixel triangles in pick and selected feedback passes", () => {
+    expect(nodePickVertexShader).toContain("trianglePickPosition(");
+    expect(nodePickVertexShader).toContain("camera.trianglePickSize");
+    expect(selectionVertexShader).toContain("trianglePickPosition(");
+    expect(instanceVertexShader).not.toContain("trianglePickPosition(");
   });
 
   it("uses resolved instance opacity for neutral node and edge overlays", () => {

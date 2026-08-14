@@ -41,7 +41,7 @@ struct Camera {
   nodeSize: f32,
   devicePixelRatio: f32,
   linePickSize: f32,
-  _reserved2: f32,
+  trianglePickSize: f32,
   keyLightDirection: vec4<f32>,
   viewDirection: vec4<f32>,
 };
@@ -185,6 +185,62 @@ fn lineExpandedPosition(
   let clip = select(clipA, clipB, isB);
   let ndcOffset = pixelOffset * 2.0 / camera.viewport;
   return vec4<f32>(clip.xy + ndcOffset * clip.w, clip.z, clip.w);
+}
+`;
+
+/** Expands only subpixel triangles in pick/selection passes to a bounded footprint. */
+export const trianglePickExpansionFn = /* wgsl */ `
+fn trianglePickPosition(
+  clipA: vec4<f32>,
+  clipB: vec4<f32>,
+  clipC: vec4<f32>,
+  centerLocal: vec3<f32>,
+  corner: u32,
+) -> vec4<f32> {
+  if (camera.viewport.x <= 0.0 || camera.viewport.y <= 0.0 ||
+      clipA.w <= 1e-5 || clipB.w <= 1e-5 || clipC.w <= 1e-5 ||
+      camera.trianglePickSize <= 0.0) {
+    switch corner {
+      case 0u: { return clipA; }
+      case 1u: { return clipB; }
+      default: { return clipC; }
+    }
+  }
+  let screenA = (clipA.xy / clipA.w) * camera.viewport * 0.5;
+  let screenB = (clipB.xy / clipB.w) * camera.viewport * 0.5;
+  let screenC = (clipC.xy / clipC.w) * camera.viewport * 0.5;
+  let span = max(
+    max(length(screenA - screenB), length(screenB - screenC)),
+    length(screenC - screenA),
+  );
+  let area = abs(
+    (screenB.x - screenA.x) * (screenC.y - screenA.y) -
+    (screenB.y - screenA.y) * (screenC.x - screenA.x),
+  ) * 0.5;
+  if (span >= camera.trianglePickSize && area >= 1.0) {
+    switch corner {
+      case 0u: { return clipA; }
+      case 1u: { return clipB; }
+      default: { return clipC; }
+    }
+  }
+  let centerClip = camera.viewProjection * vec4<f32>(centerLocal, 1.0);
+  if (centerClip.w <= 1e-5) {
+    return centerClip;
+  }
+  let radius = camera.trianglePickSize * 0.5;
+  var offset = vec2<f32>(0.0, radius);
+  switch corner {
+    case 0u: { offset = vec2<f32>(-radius, -radius * 0.5); }
+    case 1u: { offset = vec2<f32>(radius, -radius * 0.5); }
+    default: {}
+  }
+  let ndcOffset = offset * 2.0 / camera.viewport;
+  return vec4<f32>(
+    centerClip.xy + ndcOffset * centerClip.w,
+    centerClip.z,
+    centerClip.w,
+  );
 }
 `;
 

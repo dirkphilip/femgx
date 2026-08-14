@@ -404,7 +404,7 @@ export function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
   uniform[19] = nodeSizeDevicePixels(frame.nodeSize, frame.devicePixelRatio);
   uniform[20] = frame.devicePixelRatio;
   uniform[21] = 8;
-  uniform[22] = 0;
+  uniform[22] = 8 * frame.devicePixelRatio;
   uniform.set(cameraKeyLightDirection(camera), 24);
   uniform.set(cameraViewDirection(camera), 28);
   frame.device.queue.writeBuffer(frame.resources.cameraBuffer, 0, uniform);
