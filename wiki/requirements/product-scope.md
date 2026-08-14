@@ -56,6 +56,7 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | Package smoke tests, e2e coverage, benchmarks and budgets                                                                    | scripts            | test/bench | **Core now** | Engineering gate stays; the e2e contract becomes WebGPU-only.                                                                                                                                                                                                                                                                             |
 | Compatibility reporting (capability tiers/matrix)                                                                            | wiki               | —          | **Deferred** | Collapses to "modern WebGPU browser or typed unsupported"; no tier ladder.                                                                                                                                                                                                                                                                |
 | Screen-space box-selection gesture/event shell + world-space frustum query (primary mouse/pen drag lifecycle + typed events) | interaction/camera | same       | **Core now** | `installBoxSelection` remains a rectangle-only renderer-independent drag lifecycle. `boxSelectionFrustum(camera, rect)` exposes six named normalized inward planes for host-owned volume queries, while `FemViewport.pickRegion` retains nearest-visible GPU target discovery; both are required and selection policy remains host-owned. |
+| Element through-intersection box selection                                                                                   | demo               | same       | **Core now** | The canonical workbench offers an element-only Through strategy that returns every display-eligible FE element occurrence whose authored tessellation intersects the box frustum, regardless of raster occlusion. It is a host-side query over existing scene data and adds no GPU pass, buffer, attachment, or readback.                 |
 
 ## Recommended smallest supported product
 
@@ -70,7 +71,8 @@ element/face/node ids (node and element strict; face Core), readable
 depth-tested node annotations, selection/
 highlight/hover, visibility, camera control, authored nodal/elemental scalar
 results with scalar color mapping, authored nodal deformation, bounded authored
-elemental orientation glyphs, and renderer-owned `studio`, `white`, and `dark`
+elemental orientation glyphs, visible-surface and element through-intersection
+box selection, and renderer-owned `studio`, `white`, and `dark`
 viewport backgrounds. Interchange is a single
 format (VTK legacy) with validation and diagnostics. Browsers without
 a working WebGPU device receive a typed
@@ -193,6 +195,26 @@ six planes. Perspective side planes converge at the camera; orthographic side
 planes remain parallel. The helper normalizes reversed rectangles, clamps them
 to the camera viewport, and rejects non-finite or zero-area inputs. This is a
 host query helper, not renderer/runtime frustum culling.
+
+## Element through-intersection selection
+
+The canonical workbench's **Through** strategy uses
+`boxSelectionFrustum(camera, rect)` plus authoritative placed FE geometry. It
+returns every explicitly display-eligible element occurrence whose current
+authored tessellation intersects the six-plane frustum, including occurrences
+occluded by nearer geometry. It applies active authored nodal deformation and
+instance transforms, respects assembly, part, instance, body, block, element,
+and section-plane visibility, and returns stable occurrence-scoped element
+targets through the existing selection mutation path.
+
+Visible-surface selection remains the default and continues to use
+`FemViewport.pickRegion`. Through is element-only, is intersection rather than
+full containment, and does not apply to faces, nodes, edges, bodies, parts,
+instances, or GLB display geometry. It is a host-side geometry query and must
+not add a GPU pass, buffer, attachment, readback, CPU rendering fallback,
+spatial index, or public geometry-query subsystem. Ordered multi-hit point
+picking, depth peeling, drag-direction containment rules, and live selection
+preview remain deferred.
 
 ## Deletion tracking
 
