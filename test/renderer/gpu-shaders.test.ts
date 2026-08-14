@@ -185,6 +185,11 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(instanceVertexShader).toMatch(/output\.emissive = emissive;/);
   });
 
+  it("keeps the section-plane uniform out of shared vertex bindings", () => {
+    expect(nodePickVertexShader).not.toMatch(/binding\(2\).*sectionPlane/);
+    expect(triangleColorFragmentShader).toMatch(/binding\(2\).*sectionPlane/);
+  });
+
   it("overrides triangle colors from the emphasis records", () => {
     expect(instanceVertexShader).not.toMatch(/\bvar match\b/);
     expect(instanceVertexShader).toMatch(
