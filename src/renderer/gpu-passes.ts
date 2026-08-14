@@ -21,7 +21,7 @@ export function beginColorPass(
       depthStoreOp: "store",
       stencilClearValue: 0,
       stencilLoadOp: "clear",
-      stencilStoreOp: "discard",
+      stencilStoreOp: "store",
     },
   });
 }
