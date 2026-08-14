@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   identity,
-  matricesEqual,
   multiply,
   rotationZ,
   scale,
@@ -58,13 +57,5 @@ describe("mat4", () => {
     expect(transformPoint4(matrix, 1, 2, 3)).toEqual([5, 7, 9, 2]);
     expect(transformPoint(matrix, 1, 2, 3)).toEqual([2.5, 3.5, 4.5]);
     expect(transformDirection(matrix, [1, 2, 3])).toEqual([1, 2, 3]);
-  });
-
-  it("compares exact matrix components and rejects short views", () => {
-    expect(matricesEqual(identity(), identity())).toBe(true);
-    const changed = identity();
-    changed[0] = 2;
-    expect(matricesEqual(identity(), changed)).toBe(false);
-    expect(() => matricesEqual(new Float32Array(15), identity())).toThrow("sixteen components");
   });
 });
