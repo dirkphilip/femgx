@@ -21,8 +21,10 @@ npm run lint
 npm run build:docs
 npm run review:diff
 npm run test:coverage
+npm run test:demo:coverage
 npm run bench:budget
 npm run test:e2e          # system Chrome / hardware WebGPU (local)
+npm run test:e2e:layout   # ordinary-story desktop/mobile layout contract
 ```
 
 `npm run bench:budget` runs the performance budget gate standalone (see
@@ -59,6 +61,13 @@ a prompt to review semantic ownership, not a requirement to split a directory.
 - v8 provider, thresholds enforced: lines/functions 80%, branches 70%.
 - Reporters `text`/`html`/`lcov` write to `coverage/`; CI uploads it as an
   artifact.
+- `npm run test:demo:coverage` produces two independent reports and thresholds:
+  `coverage/demo-core` covers the unit-tested plain-TypeScript workbench
+  state/presentation core, while `coverage/demo-components` covers the Svelte
+  presentation components through the official Svelte Vite plugin and
+  `happy-dom`. Both reports enforce 80% statements/lines, 70% branches, and
+  85% functions. Browser-owned bootstrap and GPU lifecycle modules remain
+  outside the unit scope and are covered by the Playwright lanes below.
 - Missing coverage is a dead-code audit lead, not a reason to pad tests.
 - `test/renderer/gpu-renderer.test.ts` uses a mocked WebGPU device to exercise adapter
   failure, resource upload/reuse, render passes, pick readback, resize, and teardown.
@@ -70,6 +79,10 @@ a prompt to review semantic ownership, not a requirement to split a directory.
 - One-time browser install: `npm run test:e2e:install` (Playwright Chrome for the
   local WebGPU lane).
 - **Local / authoritative WebGPU lane:** `npm run test:e2e` (`--project=chrome`).
+- **Local / authoritative layout lane:** `npm run test:e2e:layout` checks every
+  ordinary story at 1440×900 and 390×844 for overflow, hidden-surface
+  semantics, toolbar containment, exposed canvas height, legend placement, and
+  nonblank WebGPU output.
 - **Merge CI:** `npm run test:e2e:ci` (unsupported-contract smoke only).
 - See [[rendering/webgpu-e2e|WebGPU browser e2e lane]] and
   [[engineering/e2e-policy|E2E test classification and skip policy]].

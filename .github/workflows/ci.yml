@@ -58,6 +58,9 @@ jobs:
       - name: Unit tests with coverage
         run: npm run test:coverage
 
+      - name: Demo workbench coverage
+        run: npm run test:demo:coverage
+
       - name: Performance budgets
         run: npm run bench:budget
 

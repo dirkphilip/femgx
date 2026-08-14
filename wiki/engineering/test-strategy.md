@@ -7,24 +7,32 @@ performance budget is measured separately without coverage instrumentation.
 
 ## Retained contract coverage
 
-| Area                        | Primary tests                                            | Classification                                                                     |
-| --------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Math, camera, controls      | `test/math`, `test/camera`, `test/demo/camera-*`         | Contract and regression protection                                                 |
-| Elements and topology       | `test/elements`                                          | Canonical ordering, validation, faces, edges, and golden fixtures                  |
-| Geometry and results        | `test/geometry`, `test/results`                          | Tessellation, metadata, authored scalar mapping, and nodal deformation             |
-| Scene and runtime           | `test/scene`, `test/scene-runtime`, `test/runtime`       | Hierarchy validation, packed state, culling, batching, and stress budgets          |
-| Interaction and picking     | `test/interaction`, `test/picking`                       | Immutable state, precedence, adjacency, and GPU-id resolution                      |
-| Renderer and platform       | `test/renderer`, `test/platform`                         | Fake-device lifecycle, buffer writes, shaders, picking, and unsupported paths      |
-| IO                          | `test/io`                                                | VTK round trips, diagnostics, validation, and malformed input                      |
-| Viewport and public API     | `test/viewport`, `test/public-api`                       | Canonical facade workflow and deliberate root exports                              |
-| Demo fixtures and workbench | `test/demo`                                              | Fixture construction, controls, lifecycle, and preset behavior                     |
-| Engineering safeguards      | `test/scripts`, `test/bench`                             | Repository policy and deterministic CPU budgets                                    |
-| Browser product contract    | `e2e/smoke`, `e2e/demo-*`, `e2e/webgpu-*`, `e2e/mobile*` | WebGPU rendering, picking, interaction, responsive behavior, and unsupported state |
+| Area                        | Primary tests                                            | Classification                                                                                        |
+| --------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Math, camera, controls      | `test/math`, `test/camera`, `test/demo/camera-*`         | Contract and regression protection                                                                    |
+| Elements and topology       | `test/elements`                                          | Canonical ordering, validation, faces, edges, and golden fixtures                                     |
+| Geometry and results        | `test/geometry`, `test/results`                          | Tessellation, metadata, authored scalar mapping, and nodal deformation                                |
+| Scene and runtime           | `test/scene`, `test/scene-runtime`, `test/runtime`       | Hierarchy validation, packed state, culling, batching, and stress budgets                             |
+| Interaction and picking     | `test/interaction`, `test/picking`                       | Immutable state, precedence, adjacency, and GPU-id resolution                                         |
+| Renderer and platform       | `test/renderer`, `test/platform`                         | Fake-device lifecycle, buffer writes, shaders, picking, and unsupported paths                         |
+| IO                          | `test/io`                                                | VTK round trips, diagnostics, validation, and malformed input                                         |
+| Viewport and public API     | `test/viewport`, `test/public-api`                       | Canonical facade workflow and deliberate root exports                                                 |
+| Demo fixtures and workbench | `test/demo`, `test/demo/ui-interactions.test.ts`         | Fixture construction, plain-core transitions, Svelte bindings, lifecycle cleanup, and preset behavior |
+| Engineering safeguards      | `test/scripts`, `test/bench`                             | Repository policy and deterministic CPU budgets                                                       |
+| Browser product contract    | `e2e/smoke`, `e2e/demo-*`, `e2e/webgpu-*`, `e2e/mobile*` | WebGPU rendering, picking, interaction, responsive behavior, and unsupported state                    |
 
 The `chrome` project is the real-WebGPU visual and interaction lane. The
 Chromium CI lane runs only the explicit unsupported-contract test; it does not
 pretend that SwiftShader is product evidence. `e2e/perf.spec.ts` is opt-in and
 does not gate correctness.
+
+The demo quality gate is intentionally separate from library coverage:
+`npm run test:demo:coverage:core` reports the bounded unit-tested workbench
+core, and `npm run test:demo:coverage:components` compiles and exercises the
+Svelte presentation shell in `happy-dom`. Browser-owned bootstrap and GPU
+lifecycle behavior remains in the Playwright suites. The local
+`npm run test:e2e:layout` lane then checks all ordinary stories at desktop and
+390×844 with real system Chrome/WebGPU, including nonblank canvas evidence.
 
 ## Audit decisions
 
