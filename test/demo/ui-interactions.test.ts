@@ -114,6 +114,40 @@ describe("workbench Svelte controls", () => {
     await tick();
   });
 
+  it("keeps dependent analysis controls out of layout until their role is active", async () => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const base = createSnapshot(true);
+    const snapshot: WorkbenchSnapshot = {
+      ...base,
+      analysis: {
+        ...base.analysis,
+        resultMode: "colored",
+        deformationDisabled: true,
+        vectorControlsDisabled: true,
+        sectionAxis: "off",
+        sectionRange: undefined,
+      },
+    };
+    const component = mount(PrimaryToolbar, {
+      target,
+      props: { controller: undefined, snapshot },
+    });
+
+    expect(element(target, "#result-controls").hidden).toBe(false);
+    expect(element(target, "#deformation-field").closest("label")?.hidden).toBe(false);
+    expect(element(target, "#deformation-scale").closest("label")?.hidden).toBe(true);
+    expect(element(target, "#vector-field").closest("label")?.hidden).toBe(false);
+    expect(element(target, "#vector-glyph").closest("label")?.hidden).toBe(true);
+    expect(element(target, "#vector-transform").closest("label")?.hidden).toBe(true);
+    expect(element(target, "#vector-length-scale").closest("label")?.hidden).toBe(true);
+    expect(element(target, "#vector-help").hidden).toBe(true);
+    expect(element(target, "#section-offset").closest("label")?.hidden).toBe(true);
+
+    await unmount(component);
+    await tick();
+  });
+
   it("renders conditional overlays, panes, and the root subscription lifecycle", async () => {
     const snapshot = withOverlayState(createSnapshot(true));
     const calls: string[] = [];

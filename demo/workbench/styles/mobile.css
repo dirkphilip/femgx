@@ -68,14 +68,14 @@
     min-width: 0;
   }
   .toolbar-row-primary {
-    flex-wrap: wrap;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
   .model-source {
-    grid-column: 1 / -1;
+    grid-column: span 3;
     width: 100%;
   }
   .model-source button {
-    flex: 0 1 128px;
+    flex: 0 1 104px;
   }
   .toolbar-row-primary #projection-toggle {
     flex: 1 1 0;
@@ -87,10 +87,9 @@
     min-width: 0;
   }
   .toolbar-row-secondary {
-    flex-wrap: wrap;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .toolbar-row-secondary > .result-controls,
-  .toolbar-row-secondary > .section-controls {
+  .toolbar-row-secondary > .analysis-surface {
     grid-column: 1 / -1;
     width: 100%;
   }
@@ -99,6 +98,9 @@
     padding-right: 4px;
     padding-left: 4px;
     font-size: 12px;
+  }
+  .analysis-surface {
+    grid-template-columns: minmax(0, 1fr);
   }
   .result-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -139,7 +141,11 @@
   .result-legend {
     right: 8px;
     bottom: 8px;
-    width: min(320px, calc(100% - 16px));
+    width: min(220px, calc(100% - 16px));
+    max-height: 104px;
+    overflow: auto;
+    padding: 7px 8px;
+    font-size: 10px;
   }
   .diagnostics {
     top: 256px;
