@@ -113,6 +113,6 @@ export default defineConfig({
   webServer: {
     command: `npm run dev -- --host 127.0.0.1 --port ${new URL(baseURL).port || "5173"}`,
     url: baseURL,
-    reuseExistingServer: !process.env["CI"],
+    reuseExistingServer: false,
   },
 });

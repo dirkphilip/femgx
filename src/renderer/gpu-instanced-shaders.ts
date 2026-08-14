@@ -247,11 +247,15 @@ function triangleSelectionPosition(): string {
     geometryPosition(triangleBase * 3u + 7u),
     geometryPosition(triangleBase * 3u + 8u),
   ), triangleBase + 2u);
+  let triangleCenterClip = camera.viewProjection * instance.transform * vec4<f32>(
+    (triangleA + triangleB + triangleC) / 3.0,
+    1.0,
+  );
   output.position = trianglePickPosition(
     camera.viewProjection * instance.transform * vec4<f32>(triangleA, 1.0),
     camera.viewProjection * instance.transform * vec4<f32>(triangleB, 1.0),
     camera.viewProjection * instance.transform * vec4<f32>(triangleC, 1.0),
-    (triangleA + triangleB + triangleC) / 3.0,
+    triangleCenterClip,
     vertexIndex % 3u,
   );`;
 }

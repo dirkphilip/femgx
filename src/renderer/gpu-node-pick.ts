@@ -115,7 +115,25 @@ function createNodePickVertexMain(options: NodePickVertexMainOptions): string {
     vertexIndex % 4u,
     max(instance.lineWidth, camera.linePickSize) * camera.devicePixelRatio,
   );`
-    : `
+    : trianglePickPositionCode();
+  return /* wgsl */ `
+@vertex
+fn vertexMain(
+  @location(0) position: vec3<f32>,
+  @builtin(instance_index) instanceIndex: u32,
+  @builtin(vertex_index) vertexIndex: u32,
+) -> NodeVertexOutput {
+  let instance = instances[drawOrder[instanceIndex]];
+  let base = ${options.primitiveBase};
+  let base3 = base * 3u;
+  let faceBodyPickIds = primitiveFaceBodyPickIds(${options.primitiveIndex});
+${createNodePickVertexOutput(options, linePosition)}
+}
+`;
+}
+
+function trianglePickPositionCode(): string {
+  return `
   let triangleBase = base * 3u;
   let triangleA = displaced(vec3<f32>(
     geometryPosition(triangleBase),
@@ -132,27 +150,14 @@ function createNodePickVertexMain(options: NodePickVertexMainOptions): string {
     geometryPosition(triangleBase + 7u),
     geometryPosition(triangleBase + 8u),
   ), base + 2u);
+  let triangleCenterClip = camera.viewProjection * instance.transform * vec4<f32>((triangleA + triangleB + triangleC) / 3.0, 1.0);
   output.position = trianglePickPosition(
     camera.viewProjection * instance.transform * vec4<f32>(triangleA, 1.0),
     camera.viewProjection * instance.transform * vec4<f32>(triangleB, 1.0),
     camera.viewProjection * instance.transform * vec4<f32>(triangleC, 1.0),
-    (triangleA + triangleB + triangleC) / 3.0,
+    triangleCenterClip,
     vertexIndex % 3u,
   );`;
-  return /* wgsl */ `
-@vertex
-fn vertexMain(
-  @location(0) position: vec3<f32>,
-  @builtin(instance_index) instanceIndex: u32,
-  @builtin(vertex_index) vertexIndex: u32,
-) -> NodeVertexOutput {
-  let instance = instances[drawOrder[instanceIndex]];
-  let base = ${options.primitiveBase};
-  let base3 = base * 3u;
-  let faceBodyPickIds = primitiveFaceBodyPickIds(${options.primitiveIndex});
-${createNodePickVertexOutput(options, linePosition)}
-}
-`;
 }
 
 function createNodePickVertexOutput(
