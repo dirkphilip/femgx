@@ -40,7 +40,7 @@ const cases: readonly PrecedenceCase[] = [
     name: "body",
     apply: (state) => setBodySelected(state, bodyRef, true),
     resolve: (state) => resolveBodyStyle(item, bodyRef.bodyId, base, state),
-    expected: { color: { r: 0.15, g: 0.8, b: 1, a: 1 }, emissive: 0.35 },
+    expected: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 }, emissive: 0.35 },
   },
   {
     name: "element",

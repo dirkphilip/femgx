@@ -35,11 +35,11 @@ export type {
 } from "./state";
 
 const defaultTheme: InteractionTheme = {
-  highlighted: { color: { r: 0.15, g: 0.8, b: 1, a: 1 }, emissive: 0.35 },
+  highlighted: { emissive: 0.35 },
   selected: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 } },
-  hovered: { color: { r: 0.15, g: 0.8, b: 1, a: 1 }, emissive: 0.2 },
-  hoveredFace: { color: { r: 0.15, g: 0.8, b: 1, a: 1 }, emissive: 0.3 },
-  hoveredNode: { color: { r: 0.15, g: 0.8, b: 1, a: 1 }, emissive: 0.45 },
+  hovered: { emissive: 0.2 },
+  hoveredFace: { emissive: 0.3 },
+  hoveredNode: { emissive: 0.45 },
 };
 
 /**

@@ -4,6 +4,7 @@ import {
   resolveElementBlockStyle,
   resolveBodyStyle,
   resolveElementStyle,
+  resolveInstanceStyle,
   type InteractionState,
   type ResolvedStyle,
 } from "../interaction/interaction";
@@ -44,7 +45,7 @@ interface InstanceLayout {
  * | 32     | 4    | emissive (`f32`) |
  * | 36     | 4    | hidden (`u32`) |
  * | 40     | 4    | selected (`u32`) |
- * | 44     | 4    | trailing alignment padding |
+ * | 44     | 4    | block pick id; high bit preserves displayed color |
  */
 export const ELEMENT_RECORD_STRIDE = 48;
 
@@ -81,6 +82,8 @@ export interface EmphasisUpdate {
   readonly hidden?: boolean;
   /** Marks the matching primitive for the renderer-owned x-ray selection pass. */
   readonly selected?: boolean;
+  /** Leaves the instance material or active result color beneath this emphasis. */
+  readonly preservesDisplayedColor?: boolean;
   readonly style: ResolvedStyle;
 }
 
@@ -117,7 +120,7 @@ export function encodeEmphasisRecord(update: EmphasisUpdate): ArrayBuffer {
   floats[8] = update.style.emissive;
   ids[9] = update.hidden === true ? 1 : 0;
   ids[10] = update.selected === true ? 1 : 0;
-  ids[11] = update.blockPickId ?? 0;
+  ids[11] = (update.blockPickId ?? 0) | (update.preservesDisplayedColor === true ? 0x80000000 : 0);
   return data;
 }
 
@@ -192,6 +195,13 @@ function collectBlockEmphasis(
     const block = metadata?.blocks.get(ref.blockId);
     if (block === undefined) continue;
     const bodyId = metadata?.bodyByBlock.get(ref.blockId);
+    const style = resolveElementBlockStyle(
+      occurrence.instance,
+      ref.blockId,
+      defaultStyle,
+      interaction,
+      bodyId,
+    );
     push(occurrence.instance.partId, {
       slot: occurrence.local,
       elementPickId: 0,
@@ -200,13 +210,8 @@ function collectBlockEmphasis(
       blockPickId: ref.blockId + 1,
       hidden: !isElementBlockVisible(interaction, ref),
       selected: data.selectedBlockIds.get(ref.instanceId)?.has(ref.blockId) === true,
-      style: resolveElementBlockStyle(
-        occurrence.instance,
-        ref.blockId,
-        defaultStyle,
-        interaction,
-        bodyId,
-      ),
+      preservesDisplayedColor: preservesDisplayedColor(occurrence.instance, style, interaction),
+      style,
     });
   }
 }
@@ -225,6 +230,7 @@ function collectBodyEmphasis(
     const part = parts.get(occurrence.instance.partId);
     const body = part === undefined ? undefined : getPartSemanticIndex(part).bodies.get(ref.bodyId);
     if (body === undefined) continue;
+    const style = resolveBodyStyle(occurrence.instance, ref.bodyId, defaultStyle, interaction);
     push(occurrence.instance.partId, {
       slot: occurrence.local,
       elementPickId: 0,
@@ -233,7 +239,8 @@ function collectBodyEmphasis(
       bodyPickId: ref.bodyId + 1,
       hidden: !isBodyVisible(interaction, ref),
       selected: data.selectedBodyIds.get(ref.instanceId)?.has(ref.bodyId) === true,
-      style: resolveBodyStyle(occurrence.instance, ref.bodyId, defaultStyle, interaction),
+      preservesDisplayedColor: preservesDisplayedColor(occurrence.instance, style, interaction),
+      style,
     });
   }
 }
@@ -274,6 +281,7 @@ function collectElementEmphasis(
       nodePickId: 0,
       hidden: !isElementVisible(interaction, ref),
       selected: data.selectedElementIds.get(ref.instanceId)?.has(ref.elementId) === true,
+      preservesDisplayedColor: preservesDisplayedColor(occurrence.instance, style, interaction),
       style,
     });
   }
@@ -305,6 +313,7 @@ function collectFaceEmphasis(
       facePickId: faceId + 1,
       nodePickId: 0,
       selected: data.selectedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true,
+      preservesDisplayedColor: preservesDisplayedColor(occurrence.instance, style, interaction),
       style,
     });
   }
@@ -327,9 +336,19 @@ function collectNodeEmphasis(
       facePickId: 0,
       nodePickId: ref.nodeId + 1,
       selected: data.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true,
+      preservesDisplayedColor: preservesDisplayedColor(occurrence.instance, style, interaction),
       style,
     });
   }
+}
+
+function preservesDisplayedColor(
+  instance: Instance,
+  style: ResolvedStyle,
+  interaction: InteractionState,
+): boolean {
+  const base = resolveInstanceStyle(instance, defaultStyle, interaction);
+  return style.color === base.color && style.opacity === base.opacity;
 }
 
 /** Resolves a ref's instance slot to its part-local slot and part id. */

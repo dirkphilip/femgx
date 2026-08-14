@@ -44,9 +44,9 @@ const bodyAndElementHighlighting = /* wgsl */ `
     for (var offset = 0u; offset < 4u; offset++) {
       let highlight = elementHighlightAt(base + offset);
       if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
-        color = highlight.color;
-        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u;
-        if (highlight.selected == 0u) { resultColorEnabled = false; }
+        if (!highlight.preservesDisplayedColor) { color = highlight.color; }
+        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u || highlight.preservesDisplayedColor;
+        if (highlight.selected == 0u && !highlight.preservesDisplayedColor) { resultColorEnabled = false; }
         emissive = highlight.emissive;
         hidden = highlight.hidden != 0u;
         selected = selected || highlight.selected != 0u;
@@ -60,9 +60,9 @@ const bodyAndElementHighlighting = /* wgsl */ `
     for (var offset = 0u; offset < 4u; offset++) {
       let highlight = elementHighlightAt(base + offset);
       if (highlight.slot == drawOrder[instanceIndex] && highlight.blockPickId == blockPickId && highlight.elementPickId == blockPickId && highlight.facePickId == 0xfffffffeu) {
-        color = highlight.color;
-        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u;
-        if (highlight.selected == 0u) { resultColorEnabled = false; }
+        if (!highlight.preservesDisplayedColor) { color = highlight.color; }
+        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u || highlight.preservesDisplayedColor;
+        if (highlight.selected == 0u && !highlight.preservesDisplayedColor) { resultColorEnabled = false; }
         emissive = highlight.emissive;
         hidden = hidden || highlight.hidden != 0u;
         matched = true;
@@ -85,9 +85,9 @@ const bodyAndElementHighlighting = /* wgsl */ `
     for (var offset = 0u; offset < 4u; offset++) {
       let highlight = elementHighlightAt(base + offset);
       if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == elementPickId && highlight.facePickId == 0u) {
-        color = highlight.color;
-        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u;
-        if (highlight.selected == 0u) { resultColorEnabled = false; }
+        if (!highlight.preservesDisplayedColor) { color = highlight.color; }
+        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u || highlight.preservesDisplayedColor;
+        if (highlight.selected == 0u && !highlight.preservesDisplayedColor) { resultColorEnabled = false; }
         emissive = highlight.emissive;
         hidden = hidden || highlight.hidden != 0u;
         matched = true;
@@ -121,9 +121,9 @@ ${bodyAndElementHighlighting}
     for (var offset = 0u; offset < 4u; offset++) {
     let highlight = elementHighlightAt(base + offset);
       if (highlight.slot == drawOrder[instanceIndex] && highlight.facePickId == facePickId) {
-        color = highlight.color;
-        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u;
-        if (highlight.selected == 0u) { resultColorEnabled = false; }
+        if (!highlight.preservesDisplayedColor) { color = highlight.color; }
+        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u || highlight.preservesDisplayedColor;
+        if (highlight.selected == 0u && !highlight.preservesDisplayedColor) { resultColorEnabled = false; }
         emissive = highlight.emissive;
         selected = selected || highlight.selected != 0u;
         exactSelection = exactSelection || highlight.selected != 0u;
@@ -322,9 +322,9 @@ ${bodyAndElementHighlighting}
     for (var offset = 0u; offset < 4u; offset++) {
       let highlight = elementHighlightAt(base + offset);
       if (highlight.slot == drawOrder[instanceIndex] && highlight.nodePickId == nodePickId) {
-        color = highlight.color;
-        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u;
-        if (highlight.selected == 0u) { resultColorEnabled = false; }
+        if (!highlight.preservesDisplayedColor) { color = highlight.color; }
+        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u || highlight.preservesDisplayedColor;
+        if (highlight.selected == 0u && !highlight.preservesDisplayedColor) { resultColorEnabled = false; }
         emissive = highlight.emissive;
         selected = selected || highlight.selected != 0u;
         break;
