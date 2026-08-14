@@ -1,4 +1,5 @@
 import type { ElementId, NodeId } from "../elements/element";
+import type { ElementBlockId } from "../elements/model";
 import type { BodyId } from "../geometry/part";
 import type { InstanceId } from "../scene/types";
 
@@ -6,6 +7,12 @@ import type { InstanceId } from "../scene/types";
 export interface BodyRef {
   readonly instanceId: InstanceId;
   readonly bodyId: BodyId;
+}
+
+/** Stable reference to one semantic element block occurrence. */
+export interface ElementBlockRef {
+  readonly instanceId: InstanceId;
+  readonly blockId: ElementBlockId;
 }
 
 /** Stable reference to one node occurrence (a node placed in the scene). */

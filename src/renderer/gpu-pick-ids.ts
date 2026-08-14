@@ -57,14 +57,18 @@ export function buildPrimitiveFaceBodyPickData(geometry: Geometry): Uint32Array 
   const facePickIds = buildFacePrimitivePickIds(geometry);
   const bodyPickIds = buildBodyPrimitivePickIds(geometry);
   const elementPickIds = buildElementPrimitivePickIds(geometry);
+  const blockAware = geometry.blocks !== undefined && geometry.blocks.length > 0;
   const bodyByElement = new Map(
     (geometry.elements ?? []).map((element) => [element.id, element.bodyId] as const),
   );
-  const data = new Uint32Array(facePickIds.length * 5);
+  const blockByElement = blockIdsByElement(geometry);
+  const blockPickIds = buildBlockPrimitivePickIds(geometry, blockByElement);
+  const stride = blockAware ? 7 : 5;
+  const data = new Uint32Array(facePickIds.length * stride);
   for (let triangle = 0; triangle < facePickIds.length; triangle += 1) {
     const facePickId = facePickIds[triangle] ?? 0;
     const face = geometry.primitive === "triangles" ? geometry.faces?.[facePickId - 1] : undefined;
-    const base = triangle * 5;
+    const base = triangle * stride;
     data[base] = facePickId;
     data[base + 1] = bodyPickIds[triangle] ?? 0;
     const neighborElementId = face?.neighborElementIds[0];
@@ -74,8 +78,38 @@ export function buildPrimitiveFaceBodyPickData(geometry: Geometry): Uint32Array 
       neighborBody === undefined || neighborBody + 1 === data[base + 1] ? 0 : neighborBody + 1;
     data[base + 3] = elementPickIds[triangle] ?? 0;
     data[base + 4] = neighborElementId === undefined ? 0 : neighborElementId + 1;
+    if (blockAware) {
+      const blockId = blockPickIds[triangle] ?? 0;
+      const neighborBlockId =
+        neighborElementId === undefined ? undefined : blockByElement.get(neighborElementId);
+      data[base + 5] = blockId;
+      data[base + 6] =
+        neighborBlockId === undefined || neighborBlockId + 1 === blockId ? 0 : neighborBlockId + 1;
+    }
   }
   return data;
+}
+
+/** Builds the per-primitive semantic block pick ids (`blockId + 1`). */
+function buildBlockPrimitivePickIds(
+  geometry: Geometry,
+  blockByElement: ReadonlyMap<number, number>,
+): Uint32Array {
+  const primitiveCount = logicalPrimitiveCount(geometry);
+  const pickIds = new Uint32Array(primitiveCount);
+  for (const element of geometry.elements ?? []) {
+    const blockId = blockByElement.get(element.id);
+    if (blockId === undefined) continue;
+    const range = primitiveRangeForElement(element);
+    for (
+      let primitiveIndex = range.start;
+      primitiveIndex < range.start + range.count;
+      primitiveIndex++
+    ) {
+      pickIds[primitiveIndex] = blockId + 1;
+    }
+  }
+  return pickIds;
 }
 
 /** Builds one face/owner/neighbor record per authored node sprite. */
@@ -85,21 +119,31 @@ export function buildNodeBodyPickData(
 ): Uint32Array {
   const nodeCount = (geometry.nodePositions?.length ?? 0) / 3;
   const elementOwners = nodeElementOwners(geometry);
+  const blockByElement = blockIdsByElement(geometry);
   // The shared binding is array<vec3<u32>>, whose minimum valid storage
   // is one complete 12-byte record even when this part has no nodes. Node
   // topology ownership remains an array of owner/neighbor pairs below.
   const sprites =
     spritePickIds ?? Uint32Array.from({ length: nodeCount }, (_, nodeId) => nodeId + 1);
-  const data = new Uint32Array(Math.max(5, sprites.length * 5));
+  const blockAware = geometry.blocks !== undefined && geometry.blocks.length > 0;
+  const stride = blockAware ? 7 : 5;
+  const data = new Uint32Array(Math.max(stride, sprites.length * stride));
   for (let sprite = 0; sprite < sprites.length; sprite += 1) {
     const pickId = sprites[sprite] ?? 0;
     const elements = elementOwners.get(pickId - 1);
     const bodyIds = new Set((elements ?? []).map((owner) => owner.bodyId));
-    const base = sprite * 5;
+    const blockIds = new Set(
+      (elements ?? [])
+        .map((owner) => blockByElement.get(owner.elementId))
+        .filter((blockId): blockId is number => blockId !== undefined),
+    );
+    const base = sprite * stride;
     const bodyId = bodyIds.size === 1 ? [...bodyIds][0] : undefined;
     const elementId = elements?.length === 1 ? elements[0]?.elementId : undefined;
     if (bodyId !== undefined) data[base + 1] = bodyId + 1;
     if (elementId !== undefined) data[base + 3] = elementId + 1;
+    const blockId = blockIds.size === 1 ? [...blockIds][0] : undefined;
+    if (blockAware && blockId !== undefined) data[base + 5] = blockId + 1;
   }
   return data;
 }
@@ -112,10 +156,14 @@ export function buildNodeBodyOwnerData(
   readonly bodyRanges: Uint32Array;
   readonly bodyIds: Uint32Array;
   readonly elementIds: Uint32Array;
+  readonly blockIds?: Uint32Array;
 } {
   const elementOwners = nodeElementOwners(geometry);
+  const blockByElement = blockIdsByElement(geometry);
   const bodyIds: number[] = [];
   const elementIds: number[] = [];
+  const blockIds: number[] = [];
+  const blockAware = geometry.blocks !== undefined && geometry.blocks.length > 0;
   const bodyRanges = new Uint32Array(spritePickIds.length * 2);
   for (let sprite = 0; sprite < spritePickIds.length; sprite += 1) {
     const pickId = spritePickIds[sprite] ?? 0;
@@ -127,18 +175,38 @@ export function buildNodeBodyOwnerData(
     for (const { bodyId, elementId } of ownerIds) {
       bodyIds.push(bodyId === undefined ? 0 : bodyId + 1, 0);
       elementIds.push(elementId + 1, 0);
+      if (blockAware) {
+        const blockId = blockByElement.get(elementId);
+        blockIds.push(blockId === undefined ? 0 : blockId + 1, 0);
+      }
     }
   }
   return {
     bodyRanges: bodyRanges.length === 0 ? new Uint32Array([0, 0]) : bodyRanges,
     bodyIds: bodyIds.length === 0 ? new Uint32Array([0, 0]) : new Uint32Array(bodyIds),
     elementIds: elementIds.length === 0 ? new Uint32Array([0, 0]) : new Uint32Array(elementIds),
+    ...(blockAware
+      ? { blockIds: blockIds.length === 0 ? new Uint32Array([0, 0]) : new Uint32Array(blockIds) }
+      : {}),
   };
 }
 
 interface NodeElementOwner {
   readonly bodyId: number | undefined;
   readonly elementId: number;
+}
+
+function blockIdsByElement(geometry: Geometry): ReadonlyMap<number, number> {
+  const blockIds = new Map<number, number>();
+  for (const element of geometry.elements ?? []) {
+    if (element.blockId !== undefined) blockIds.set(element.id, element.blockId);
+  }
+  for (const block of geometry.blocks ?? []) {
+    for (const elementId of block.elementIds) {
+      if (!blockIds.has(elementId)) blockIds.set(elementId, block.id);
+    }
+  }
+  return blockIds;
 }
 
 function nodeElementOwners(geometry: Geometry): Map<number, NodeElementOwner[]> {

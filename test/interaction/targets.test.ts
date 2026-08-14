@@ -21,6 +21,7 @@ const targets = [
   { kind: "part", partId: 1 },
   { kind: "instance", instanceId: "1/0" },
   { kind: "body", instanceId: "1/0", bodyId: 2 },
+  { kind: "block", instanceId: "1/0", blockId: 5 },
   { kind: "element", instanceId: "1/0", elementId: 3 },
   { kind: "face", instanceId: "1/0", elementId: 3, faceIndex: 0 },
   { kind: "node", instanceId: "1/0", nodeId: 4 },

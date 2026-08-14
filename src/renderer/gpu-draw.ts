@@ -126,6 +126,7 @@ export function uploadNodePart(
         nodeBodyData.bodyRanges,
         nodeBodyData.bodyIds,
         nodeBodyData.elementIds,
+        { primitiveIds: [], edgeIds: [], blockIds: nodeBodyData.blockIds },
       ),
       GPUBufferUsage.STORAGE,
     ),

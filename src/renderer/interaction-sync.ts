@@ -57,6 +57,9 @@ export function interactionAffectedSlots(
   diffNestedSetMembers(previousData.selectedBodyIds, nextData.selectedBodyIds, addInstance);
   diffNestedSetMembers(previousData.highlightedBodyIds, nextData.highlightedBodyIds, addInstance);
   diffNestedSetMembers(previousData.hiddenBodyIds, nextData.hiddenBodyIds, addInstance);
+  diffNestedSetMembers(previousData.selectedBlockIds, nextData.selectedBlockIds, addInstance);
+  diffNestedSetMembers(previousData.highlightedBlockIds, nextData.highlightedBlockIds, addInstance);
+  diffNestedSetMembers(previousData.hiddenBlockIds, nextData.hiddenBlockIds, addInstance);
   diffNestedSetMembers(previousData.selectedElementIds, nextData.selectedElementIds, addInstance);
   diffNestedSetMembers(
     previousData.highlightedElementIds,
@@ -67,6 +70,7 @@ export function interactionAffectedSlots(
   diffNestedSetMembers(previousData.selectedNodeIds, nextData.selectedNodeIds, addInstance);
   diffNestedSetMembers(previousData.highlightedNodeIds, nextData.highlightedNodeIds, addInstance);
   diffNestedMapValues(previousData.bodyOverrides, nextData.bodyOverrides, addInstance);
+  diffNestedMapValues(previousData.blockOverrides, nextData.blockOverrides, addInstance);
   diffNestedMapValues(previousData.elementOverrides, nextData.elementOverrides, addInstance);
   diffNestedMapValues(previousData.selectedFaces, nextData.selectedFaces, addInstance);
   diffNestedMapValues(previousData.highlightedFaces, nextData.highlightedFaces, addInstance);
@@ -105,6 +109,12 @@ export function interactionDirtyParts(
   diffSetMembers(previousData.selectedPartIds, nextData.selectedPartIds, (partId) => {
     addPart(partId, selectionParts);
   });
+  diffMapValues(previousData.partOverrides, nextData.partOverrides, (partId) => {
+    addPart(partId, nodeParts);
+  });
+  diffMapValues(previousData.instanceOverrides, nextData.instanceOverrides, (instanceId) => {
+    addInstance(instanceId, nodeParts);
+  });
   diffSetMembers(previousData.selectedInstanceIds, nextData.selectedInstanceIds, (instanceId) => {
     addInstance(instanceId, selectionParts);
   });
@@ -118,6 +128,9 @@ export function interactionDirtyParts(
       addInstance(instanceId, selectionParts);
     },
   );
+  diffNestedSetMembers(previousData.selectedBlockIds, nextData.selectedBlockIds, (instanceId) => {
+    addInstance(instanceId, selectionParts);
+  });
   diffNestedMapValues(previousData.selectedFaces, nextData.selectedFaces, (instanceId) => {
     addInstance(instanceId, selectionParts);
   });
@@ -219,6 +232,15 @@ function diffNestedMapValues<OuterKey, InnerValue>(
   previous: ReadonlyMap<OuterKey, InnerValue>,
   next: ReadonlyMap<OuterKey, InnerValue>,
   visit: (value: OuterKey) => void,
+): void {
+  for (const [key, value] of previous) if (next.get(key) !== value) visit(key);
+  for (const [key, value] of next) if (previous.get(key) !== value) visit(key);
+}
+
+function diffMapValues<Key, Value>(
+  previous: ReadonlyMap<Key, Value>,
+  next: ReadonlyMap<Key, Value>,
+  visit: (value: Key) => void,
 ): void {
   for (const [key, value] of previous) if (next.get(key) !== value) visit(key);
   for (const [key, value] of next) if (previous.get(key) !== value) visit(key);

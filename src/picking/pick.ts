@@ -136,7 +136,7 @@ function faceHit(
     partId: instance.partId,
     instanceId: instance.instanceId,
     elementId: face.elementId,
-    ...bodyFields(geometry, face.elementId, face.bodyId),
+    ...bodyFields(geometry, face.elementId, face.bodyId, face.blockId),
     faceIndex: face.faceIndex,
     key: face.key,
     nodeIds: face.nodeIds,
@@ -150,10 +150,19 @@ function bodyFields(
   geometry: Geometry | undefined,
   elementId: number,
   explicitBodyId?: number,
-): { readonly bodyId: number } | Record<never, never> {
+  explicitBlockId?: number,
+): { readonly bodyId?: number; readonly blockId?: number } {
+  const element = geometry?.elements?.find((candidate) => candidate.id === elementId);
   const bodyId =
     explicitBodyId ?? (geometry === undefined ? undefined : bodyIdForElement(geometry, elementId));
-  return bodyId === undefined ? {} : { bodyId };
+  const blockId =
+    explicitBlockId ??
+    element?.blockId ??
+    geometry?.blocks?.find((block) => block.elementIds.includes(elementId))?.id;
+  return {
+    ...(bodyId === undefined ? {} : { bodyId }),
+    ...(blockId === undefined ? {} : { blockId }),
+  };
 }
 
 /**

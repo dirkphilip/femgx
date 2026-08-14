@@ -3,9 +3,11 @@ import type { MeshEdgeData } from "./gpu-edge";
 interface TopologyMetadata {
   readonly primitiveIds: ArrayLike<number>;
   readonly edgeIds: ArrayLike<number>;
+  readonly blockIds?: Uint32Array | undefined;
 }
 
 const EMPTY_TOPOLOGY_METADATA: TopologyMetadata = { primitiveIds: [], edgeIds: [] };
+const BLOCK_AWARE_FLAG = 0x80000000;
 
 /** Packs face records and variable-length topology ownership into one buffer. */
 export function packTopologyData(
@@ -16,27 +18,42 @@ export function packTopologyData(
   metadata: TopologyMetadata = EMPTY_TOPOLOGY_METADATA,
 ): Uint32Array {
   const { primitiveIds, edgeIds } = metadata;
-  const faceRecordCount = Math.floor(faceBodyPickIds.length / 5);
+  const blockIds = metadata.blockIds;
+  const blockAware = blockIds !== undefined;
+  const faceStride = blockAware ? 7 : 5;
+  const faceRecordCount = Math.floor(faceBodyPickIds.length / faceStride);
   const rangeCount = Math.floor(bodyRanges.length / 2);
   const conditionCount = Math.floor(bodyIds.length / 2);
   const sentinelOnly =
     bodyIds.length <= 2 &&
     elementIds.length <= 2 &&
+    (blockIds === undefined || blockIds.length <= 2) &&
     bodyIds.every((value) => value === 0) &&
     elementIds.every((value) => value === 0);
   const storedConditionCount = conditionCount > 0 && !sentinelOnly ? conditionCount : 0;
   const storedBodyIds = storedConditionCount === 0 ? new Uint32Array() : bodyIds;
   const storedElementIds = storedConditionCount === 0 ? new Uint32Array() : elementIds;
+  const storedBlockIds =
+    storedConditionCount === 0 || blockIds === undefined ? new Uint32Array() : blockIds;
   const metadataOffset =
-    3 + faceBodyPickIds.length + bodyRanges.length + storedBodyIds.length + storedElementIds.length;
+    3 +
+    faceBodyPickIds.length +
+    bodyRanges.length +
+    storedBodyIds.length +
+    storedElementIds.length +
+    storedBlockIds.length;
   const data = new Uint32Array(metadataOffset + 1 + primitiveIds.length + edgeIds.length);
   data[0] = faceRecordCount;
   data[1] = rangeCount;
-  data[2] = storedConditionCount;
+  data[2] = storedConditionCount | (blockAware ? BLOCK_AWARE_FLAG : 0);
   data.set(faceBodyPickIds, 3);
   data.set(bodyRanges, 3 + faceBodyPickIds.length);
   data.set(storedBodyIds, 3 + faceBodyPickIds.length + bodyRanges.length);
   data.set(storedElementIds, 3 + faceBodyPickIds.length + bodyRanges.length + storedBodyIds.length);
+  data.set(
+    storedBlockIds,
+    3 + faceBodyPickIds.length + bodyRanges.length + storedBodyIds.length + storedElementIds.length,
+  );
   data[metadataOffset] = primitiveIds.length;
   data.set(primitiveIds, metadataOffset + 1);
   data.set(edgeIds, metadataOffset + 1 + primitiveIds.length);

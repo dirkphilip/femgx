@@ -153,6 +153,8 @@ function targetLabel(target: SelectTarget): string {
       return `Face ${target.elementId}/${target.faceIndex}`;
     case "element":
       return `Element ${target.elementId}`;
+    case "block":
+      return `Block ${target.blockId}`;
     case "instance":
       return `Instance ${target.instanceId}`;
     case "part":

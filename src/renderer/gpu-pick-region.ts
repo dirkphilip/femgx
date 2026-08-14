@@ -79,7 +79,7 @@ export async function pickTargetsFromRegion(
 }
 
 function assertGranularity(value: InteractionGranularity): void {
-  if (!["part", "instance", "body", "element", "face", "node"].includes(value)) {
+  if (!["part", "instance", "body", "block", "element", "face", "node"].includes(value)) {
     throw new TypeError(`Unsupported pick-region granularity: ${value}`);
   }
 }
@@ -140,6 +140,7 @@ function attachmentsFor(granularity: InteractionGranularity): readonly RegionAtt
     case "instance":
       return ["instance"];
     case "body":
+    case "block":
     case "element":
       return ["instance", "element"];
     case "face":
@@ -314,6 +315,8 @@ function targetOrder(
       return [instancePickId, 0, ""];
     case "body":
       return [instancePickId, target.bodyId, ""];
+    case "block":
+      return [instancePickId, target.blockId, ""];
     case "element":
       return [instancePickId, target.elementId, ""];
     case "node":

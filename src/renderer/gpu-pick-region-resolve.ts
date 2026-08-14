@@ -9,6 +9,7 @@ type BodyId = NonNullable<Part["geometry"]["bodies"]>[number]["id"];
 interface PickRegionPartIndex {
   readonly elementIds?: ReadonlySet<ElementId>;
   readonly bodyByElement?: ReadonlyMap<ElementId, BodyId>;
+  readonly blockByElement?: ReadonlyMap<ElementId, number>;
   readonly faces?: readonly FaceTessellation[];
   readonly nodeCount?: number;
 }
@@ -24,6 +25,8 @@ export function buildPickRegionPartIndex(
       return { elementIds: new Set((geometry.elements ?? []).map(({ id }) => id)) };
     case "body":
       return { bodyByElement: bodyByElement(geometry) };
+    case "block":
+      return { blockByElement: blockByElement(geometry) };
     case "face":
       return geometry.primitive === "triangles" && geometry.faces !== undefined
         ? { faces: geometry.faces }
@@ -74,6 +77,11 @@ function targetForGranularity(
       const bodyId = elementId === undefined ? undefined : index.bodyByElement?.get(elementId);
       return bodyId === undefined ? undefined : { kind: "body", instanceId, bodyId };
     }
+    case "block": {
+      const elementId = zeroBasedPickId(ids.elementPickId);
+      const blockId = elementId === undefined ? undefined : index.blockByElement?.get(elementId);
+      return blockId === undefined ? undefined : { kind: "block", instanceId, blockId };
+    }
     case "element": {
       const elementId = zeroBasedPickId(ids.elementPickId);
       return elementId !== undefined && index.elementIds?.has(elementId)
@@ -109,6 +117,19 @@ function bodyByElement(geometry: Part["geometry"]): ReadonlyMap<ElementId, BodyI
   for (const body of geometry.bodies ?? []) {
     for (const elementId of body.elementIds) {
       if (!result.has(elementId)) result.set(elementId, body.id);
+    }
+  }
+  return result;
+}
+
+function blockByElement(geometry: Part["geometry"]): ReadonlyMap<ElementId, number> {
+  const result = new Map<ElementId, number>();
+  for (const element of geometry.elements ?? []) {
+    if (element.blockId !== undefined) result.set(element.id, element.blockId);
+  }
+  for (const block of geometry.blocks ?? []) {
+    for (const elementId of block.elementIds) {
+      if (!result.has(elementId)) result.set(elementId, block.id);
     }
   }
   return result;
