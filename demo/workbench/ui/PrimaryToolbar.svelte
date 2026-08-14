@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { WorkbenchController } from "../controller";
-  import type { WorkbenchSnapshot } from "../snapshot";
+  import type { WorkbenchCommands, WorkbenchSnapshot } from "../snapshot";
   import AnalysisControls from "./AnalysisControls.svelte";
 
   let {
@@ -10,6 +10,10 @@
     controller: WorkbenchController | undefined;
     snapshot: WorkbenchSnapshot | undefined;
   } = $props();
+
+  type ModelFile = Parameters<WorkbenchCommands["openModel"]>[0];
+
+  let modelFileInput: { click(): void } | undefined;
 
   function selectValue(event: unknown): string | undefined {
     if (typeof event !== "object" || event === null) return undefined;
@@ -28,6 +32,40 @@
     const value = selectValue(event);
     if (value !== undefined) controller?.commands.setSelectionGranularity(value);
   }
+
+  function selectModel(event: unknown): void {
+    const value = selectValue(event);
+    if (value !== undefined) controller?.commands.selectModel(value);
+  }
+
+  function openModel(): void {
+    modelFileInput?.click();
+  }
+
+  function openSelectedModel(event: unknown): void {
+    const currentTarget = eventTarget(event);
+    if (currentTarget === undefined) return;
+    const files = Reflect.get(currentTarget, "files");
+    if (files === null || typeof files !== "object") return;
+    const file = Reflect.get(files, "0");
+    if (isModelFile(file)) controller?.commands.openModel(file);
+  }
+
+  function eventTarget(event: unknown): object | undefined {
+    if (typeof event !== "object" || event === null) return undefined;
+    const target = Reflect.get(event, "currentTarget");
+    return typeof target === "object" && target !== null ? target : undefined;
+  }
+
+  function isModelFile(value: unknown): value is ModelFile {
+    return (
+      typeof value === "object" &&
+      value !== null &&
+      "name" in value &&
+      "size" in value &&
+      "type" in value
+    );
+  }
 </script>
 
 <div class="toolbar">
@@ -45,6 +83,7 @@
         aria-label="Example model"
         value={snapshot?.model.active.id ?? ""}
         disabled={snapshot?.model.selectionDisabled ?? false}
+        onchange={selectModel}
       >
         {#each snapshot?.model.available ?? [] as model (model.id)}
           <option value={model.id}
@@ -56,7 +95,8 @@
         id="open-model"
         data-testid="open-model"
         type="button"
-        disabled={snapshot?.model.openDisabled ?? false}>Open model…</button
+        disabled={snapshot?.model.openDisabled ?? false}
+        onclick={openModel}>Open model…</button
       >
       <input
         id="model-file"
@@ -65,6 +105,8 @@
         type="file"
         accept=".vtk,.glb,text/plain,model/gltf-binary"
         tabindex="-1"
+        bind:this={modelFileInput}
+        onchange={openSelectedModel}
       />
     </div>
     <button

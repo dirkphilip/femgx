@@ -28,6 +28,7 @@ interface WorkbenchCommandOwner {
   showAll(): void;
   reset(): void;
   setModel(id: string): void;
+  openModel(file: File): Promise<void>;
   setResultField(id: string): void;
   setSectionAxis(axis: string): void;
   setSectionOffset(value: string): void;
@@ -54,6 +55,9 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     showAll: owner.showAll.bind(owner),
     reset: owner.reset.bind(owner),
     selectModel: owner.setModel.bind(owner),
+    openModel: (file) => {
+      void owner.openModel(file);
+    },
     setResultField: owner.setResultField.bind(owner),
     setSectionAxis: owner.setSectionAxis.bind(owner),
     setSectionOffset: owner.setSectionOffset.bind(owner),

@@ -1,5 +1,5 @@
 import type { FemViewport, InteractionState, SceneRuntime } from "../../src/index";
-import { installWorkbenchLifecycle, type WorkbenchLifecycleOptions } from "./lifecycle";
+import { installWorkbenchLifecycle } from "./lifecycle";
 import type { WorkbenchFeatures } from "./features";
 import type { WorkbenchInteraction } from "./interaction";
 import type { WorkbenchBoxPreview } from "./box-preview";
@@ -63,8 +63,6 @@ export interface WorkbenchControllerWiringContext {
   readonly setNodes: () => void;
   readonly setContinuous: () => void;
   readonly setSelectionGranularity: (value: string) => void;
-  readonly setModel: (id: string) => void;
-  readonly openModel: (file: File) => void;
 }
 
 /** Builds the feature graph around one controller state owner. */
@@ -139,19 +137,5 @@ export function installControllerLifecycle(context: WorkbenchControllerWiringCon
     toggleViewport: () => {
       context.toggleSecondaryViewport();
     },
-    ...lifecycleModelBindings(context),
   });
-}
-
-function lifecycleModelBindings(
-  context: WorkbenchControllerWiringContext,
-): Pick<WorkbenchLifecycleOptions, "setModel" | "openModel"> {
-  return {
-    setModel: (id) => {
-      context.setModel(id);
-    },
-    openModel: (file) => {
-      context.openModel(file);
-    },
-  };
 }

@@ -30,9 +30,6 @@ export interface DemoView {
   /** Initial unsupported-device reporting before the controller exists. */
   readonly status: HTMLElement;
   readonly buildInfo: HTMLElement;
-  readonly modelSelect: HTMLSelectElement;
-  readonly modelSource: HTMLElement;
-  readonly openModelButton: HTMLButtonElement;
   readonly modelFileInput: HTMLInputElement;
 }
 
@@ -50,9 +47,6 @@ export function queryDemoView(): DemoView {
     rendererStatus: requiredElement("#renderer-status"),
     status: requiredElement("#status"),
     buildInfo: requiredElement("#build-info"),
-    modelSelect: requiredSelect("#model-select"),
-    modelSource: requiredElement("#model-source"),
-    openModelButton: requiredButton("#open-model"),
     modelFileInput: requiredInput("#model-file"),
   };
   return createDemoView(elements);
@@ -87,10 +81,6 @@ function requiredCanvas(selector: string): HTMLCanvasElement {
 
 function requiredButton(selector: string): HTMLButtonElement {
   return required(selector) as HTMLButtonElement;
-}
-
-function requiredSelect(selector: string): HTMLSelectElement {
-  return required(selector) as HTMLSelectElement;
 }
 
 function requiredInput(selector: string): HTMLInputElement {
