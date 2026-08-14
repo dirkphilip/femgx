@@ -98,8 +98,11 @@ export function resolveFaceStyle(
         : resolveBodyStyle(instance, bodyId, base, state)
       : resolveElementBlockStyle(instance, blockId, base, state, bodyId);
   return applyStyleLayers(style, [
+    data.selectedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true
+      ? applySelectionStyle(style, data.theme.selected)
+      : undefined,
     data.highlightedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true
-      ? data.theme.highlighted
+      ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
     isHoveredTarget(state, {
       kind: "face",
@@ -107,10 +110,7 @@ export function resolveFaceStyle(
       elementId: ref.elementId,
       faceIndex: ref.faceIndex,
     })
-      ? data.theme.hoveredFace
-      : undefined,
-    data.selectedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true
-      ? applySelectionStyle(style, data.theme.selectedFace)
+      ? applySelectionStyle(style, data.theme.hoveredFace)
       : undefined,
   ]);
 }

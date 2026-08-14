@@ -413,7 +413,8 @@ describe("selection emphasis shaders", () => {
     expect(selectionFragmentShader).toContain("visibleSelectionAlpha(color.a)");
     expect(triangleSelectionFragmentShader).toContain("visibleSelectionAlpha(color.a)");
     expect(selectionFragmentShader).toContain("select(baseAlpha, 1.0, baseAlpha >= 1.0)");
-    expect(triangleSelectionFragmentShader).toContain("mix(resultColor.rgb, tint, 0.38)");
+    expect(triangleSelectionFragmentShader).not.toContain("mix(resultColor.rgb");
+    expect(triangleSelectionFragmentShader).not.toContain("surfaceLighting(");
   });
 
   it("keeps result colors available in visible and hidden selection passes", () => {

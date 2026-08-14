@@ -5,7 +5,13 @@ import {
   emphasizedFaceRefs,
   resolveFaceStyle,
 } from "../../src/interaction/faces";
-import { createInteractionState, type ResolvedStyle } from "../../src/interaction/interaction";
+import { resolveEdgeStyle, setEdgeSelected } from "../../src/interaction/edges";
+import {
+  createInteractionState,
+  resolveElementStyle,
+  setElementSelected,
+  type ResolvedStyle,
+} from "../../src/interaction/interaction";
 import {
   setNodeHighlighted,
   setNodeSelected,
@@ -31,6 +37,27 @@ const nodeRef = { instanceId: "1/0", nodeId: 7 };
 const otherNodeRef = { instanceId: "1/0", nodeId: 8 };
 const faceRef = { instanceId: "1/0", elementId: 3, faceIndex: 0 };
 const otherFaceRef = { instanceId: "2/0", elementId: 5, faceIndex: 1 };
+const edgeRef = { instanceId: "1/0", key: "7:8" };
+const selectionColor = { r: 0.95, g: 0.5, b: 0.1, a: 1 };
+
+describe("selection color", () => {
+  it("uses one color for nodes, faces, edges, and elements including point elements", () => {
+    let state = createInteractionState();
+    state = setNodeSelected(state, nodeRef, true);
+    state = setFaceSelected(state, faceRef, true);
+    state = setEdgeSelected(state, edgeRef, true);
+    state = setElementSelected(
+      state,
+      { instanceId: item.instanceId, elementId: faceRef.elementId },
+      true,
+    );
+
+    expect(resolveNodeStyle(item, nodeRef, base, state).color).toEqual(selectionColor);
+    expect(resolveFaceStyle(item, faceRef, base, state).color).toEqual(selectionColor);
+    expect(resolveEdgeStyle(item, edgeRef, base, state).color).toEqual(selectionColor);
+    expect(resolveElementStyle(item, faceRef.elementId, base, state).color).toEqual(selectionColor);
+  });
+});
 
 describe("node selection state", () => {
   it("tracks selections per instance immutably", () => {
@@ -114,15 +141,14 @@ describe("resolveNodeStyle", () => {
     expect(resolveNodeStyle(item, otherNodeRef, base, state)).toBe(base);
   });
 
-  it("applies node selection over hover", () => {
+  it("keeps node hover visible over selection", () => {
     const state = setNodeSelected(
       setTargetHovered(createInteractionState(), { kind: "node", ...nodeRef }),
       nodeRef,
       true,
     );
     expect(resolveNodeStyle(item, nodeRef, base, state)).toMatchObject({
-      color: { r: 1, g: 0.42, b: 0.12, a: 1 },
-      emissive: 0.7,
+      color: { r: 0.15, g: 0.8, b: 1, a: 1 },
     });
   });
 
@@ -144,7 +170,7 @@ describe("resolveFaceStyle", () => {
     expect(resolveFaceStyle(item, otherFaceRef, base, state)).toBe(base);
   });
 
-  it("applies face selection over hover", () => {
+  it("keeps face hover visible over selection", () => {
     const state = setFaceSelected(
       setTargetHovered(createInteractionState(), {
         kind: "face",
@@ -156,8 +182,7 @@ describe("resolveFaceStyle", () => {
       true,
     );
     expect(resolveFaceStyle(item, faceRef, base, state)).toMatchObject({
-      color: { r: 0.45, g: 1, b: 0.4, a: 1 },
-      emissive: 0.5,
+      color: { r: 0.15, g: 0.8, b: 1, a: 1 },
     });
   });
 

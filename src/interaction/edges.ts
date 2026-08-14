@@ -60,12 +60,14 @@ export function resolveEdgeStyle(
   const data = readInteractionState(state);
   const style = resolveInstanceStyle(instance, base, state);
   return applyStyleLayers(style, [
-    data.highlightedEdges.get(ref.instanceId)?.has(ref.key) === true
-      ? data.theme.highlighted
-      : undefined,
-    isHoveredTarget(state, { kind: "edge", ...ref }) ? data.theme.hovered : undefined,
     data.selectedEdges.get(ref.instanceId)?.has(ref.key) === true
       ? applySelectionStyle(style, data.theme.selected)
+      : undefined,
+    data.highlightedEdges.get(ref.instanceId)?.has(ref.key) === true
+      ? applySelectionStyle(style, data.theme.highlighted)
+      : undefined,
+    isHoveredTarget(state, { kind: "edge", ...ref })
+      ? applySelectionStyle(style, data.theme.hovered)
       : undefined,
   ]);
 }

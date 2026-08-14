@@ -35,13 +35,11 @@ export type {
 } from "./state";
 
 const defaultTheme: InteractionTheme = {
-  highlighted: { emissive: 0.35 },
-  selected: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 }, emissive: 0.06 },
-  hovered: { emissive: 0.2 },
-  hoveredFace: { emissive: 0.3 },
-  selectedFace: { color: { r: 0.45, g: 1, b: 0.4, a: 1 }, emissive: 0.5 },
-  hoveredNode: { emissive: 0.45 },
-  selectedNode: { color: { r: 1, g: 0.42, b: 0.12, a: 1 }, emissive: 0.7 },
+  highlighted: { color: { r: 0.15, g: 0.8, b: 1, a: 1 }, emissive: 0.35 },
+  selected: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 } },
+  hovered: { color: { r: 0.15, g: 0.8, b: 1, a: 1 }, emissive: 0.2 },
+  hoveredFace: { color: { r: 0.15, g: 0.8, b: 1, a: 1 }, emissive: 0.3 },
+  hoveredNode: { color: { r: 0.15, g: 0.8, b: 1, a: 1 }, emissive: 0.45 },
 };
 
 /**
@@ -88,9 +86,7 @@ function copyTheme(theme: InteractionTheme): InteractionTheme {
     selected: copyPrimitiveStyle(theme.selected),
     hovered: copyPrimitiveStyle(theme.hovered),
     hoveredFace: copyPrimitiveStyle(theme.hoveredFace),
-    selectedFace: copyPrimitiveStyle(theme.selectedFace),
     hoveredNode: copyPrimitiveStyle(theme.hoveredNode),
-    selectedNode: copyPrimitiveStyle(theme.selectedNode),
   });
 }
 
@@ -229,14 +225,16 @@ export function resolveInstanceStyle(
 ): ResolvedStyle {
   const data = readInteractionState(state);
   const overrides: StyleOverride[] = [];
-  if (data.highlightedPartIds.has(instance.partId)) overrides.push(data.theme.highlighted);
-  if (data.highlightedInstanceIds.has(instance.instanceId)) overrides.push(data.theme.highlighted);
-  if (hoveredInstanceId(data.hoveredTarget, instance) !== undefined)
-    overrides.push(data.theme.hovered);
   if (data.selectedPartIds.has(instance.partId))
     overrides.push(applySelectionStyle(base, data.theme.selected));
   if (data.selectedInstanceIds.has(instance.instanceId))
     overrides.push(applySelectionStyle(base, data.theme.selected));
+  if (data.highlightedPartIds.has(instance.partId))
+    overrides.push(applySelectionStyle(base, data.theme.highlighted));
+  if (data.highlightedInstanceIds.has(instance.instanceId))
+    overrides.push(applySelectionStyle(base, data.theme.highlighted));
+  if (hoveredInstanceId(data.hoveredTarget, instance) !== undefined)
+    overrides.push(applySelectionStyle(base, data.theme.hovered));
   const partOverride = data.partOverrides.get(instance.partId);
   if (partOverride !== undefined) overrides.push(partOverride);
   const instanceOverride = data.instanceOverrides.get(instance.instanceId);
@@ -280,16 +278,16 @@ export function resolveBodyStyle(
   const data = readInteractionState(state);
   const style = resolveInstanceStyle(instance, base, state);
   return applyStyleLayers(style, [
+    data.selectedBodyIds.get(instance.instanceId)?.has(bodyId) === true
+      ? applySelectionStyle(style, data.theme.selected)
+      : undefined,
     data.highlightedBodyIds.get(instance.instanceId)?.has(bodyId) === true
-      ? data.theme.highlighted
+      ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
     data.hoveredTarget?.kind === "body" &&
     data.hoveredTarget.instanceId === instance.instanceId &&
     data.hoveredTarget.bodyId === bodyId
-      ? data.theme.hovered
-      : undefined,
-    data.selectedBodyIds.get(instance.instanceId)?.has(bodyId) === true
-      ? applySelectionStyle(style, data.theme.selected)
+      ? applySelectionStyle(style, data.theme.hovered)
       : undefined,
     data.bodyOverrides.get(instance.instanceId)?.get(bodyId),
   ]);
@@ -312,16 +310,16 @@ export function resolveElementBlockStyle(
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
   return applyStyleLayers(style, [
+    data.selectedBlockIds.get(instance.instanceId)?.has(blockId) === true
+      ? applySelectionStyle(style, data.theme.selected)
+      : undefined,
     data.highlightedBlockIds.get(instance.instanceId)?.has(blockId) === true
-      ? data.theme.highlighted
+      ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
     data.hoveredTarget?.kind === "block" &&
     data.hoveredTarget.instanceId === instance.instanceId &&
     data.hoveredTarget.blockId === blockId
-      ? data.theme.hovered
-      : undefined,
-    data.selectedBlockIds.get(instance.instanceId)?.has(blockId) === true
-      ? applySelectionStyle(style, data.theme.selected)
+      ? applySelectionStyle(style, data.theme.hovered)
       : undefined,
     data.blockOverrides.get(instance.instanceId)?.get(blockId),
   ]);
@@ -331,8 +329,8 @@ export function resolveElementBlockStyle(
  * Resolves the style of one element occurrence. Element-level state is more
  * specific than part/instance state, so element highlight, element hover,
  * element selection, and explicit element overrides win over
- * `resolveInstanceStyle` results. Within the element level, selection beats
- * hover and explicit overrides win last.
+ * `resolveInstanceStyle` results. Within the element level, hover and highlight
+ * remain visible over selection, and explicit overrides win last.
  * @category Interaction and picking
  */
 export function resolveElementStyle(
@@ -357,16 +355,16 @@ export function resolveElementStyle(
         : resolveBodyStyle(instance, bodyId, base, state)
       : resolveElementBlockStyle(instance, blockId, base, state, bodyId);
   return applyStyleLayers(style, [
+    data.selectedElementIds.get(instance.instanceId)?.has(elementId) === true
+      ? applySelectionStyle(style, data.theme.selected)
+      : undefined,
     data.highlightedElementIds.get(instance.instanceId)?.has(elementId) === true
-      ? data.theme.highlighted
+      ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
     data.hoveredTarget?.kind === "element" &&
     data.hoveredTarget.instanceId === instance.instanceId &&
     data.hoveredTarget.elementId === elementId
-      ? data.theme.hovered
-      : undefined,
-    data.selectedElementIds.get(instance.instanceId)?.has(elementId) === true
-      ? applySelectionStyle(style, data.theme.selected)
+      ? applySelectionStyle(style, data.theme.hovered)
       : undefined,
     data.elementOverrides.get(instance.instanceId)?.get(elementId),
   ]);

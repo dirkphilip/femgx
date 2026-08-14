@@ -323,6 +323,19 @@ describe("workbench click selection", () => {
     neighborNodeIds: [4],
   };
 
+  const faceHit: PickHit = {
+    kind: "face",
+    partId: 1,
+    instanceId: "instance-a",
+    elementId: 2,
+    faceIndex: 1,
+    key: "1:0:1:2",
+    nodeIds: [1, 2, 3],
+    worldPosition: [0, 0, 0],
+    normal: [0, 0, 1],
+    neighborElementIds: [],
+  };
+
   const complete = (
     modifiers: Partial<BoxSelectionModifiers> = {},
   ): BoxSelectionEvent & { readonly type: "complete" } => ({
@@ -390,6 +403,39 @@ describe("workbench click selection", () => {
     await workbench.click({ clientX: 100, clientY: 100 } as MouseEvent);
 
     expect(selectedKeys(getInteraction())).toEqual(["n:instance-a:3"]);
+  });
+
+  it("clears a stale node hover when a plain click selects another node", async () => {
+    const staleHover = { kind: "node", instanceId: "instance-b", nodeId: 8 } as const;
+    const pick = vi.fn(() => Promise.resolve(nodeHit));
+    const { workbench, getInteraction } = harness(
+      pick,
+      undefined,
+      setTargetHovered(createInteractionState(), staleHover),
+      "node",
+    );
+
+    await workbench.click({ clientX: 100, clientY: 100 } as MouseEvent);
+
+    expect(selectedKeys(getInteraction())).toEqual(["n:instance-a:3"]);
+    expect(hoveredTarget(getInteraction())).toBeUndefined();
+  });
+
+  it("keeps a face hit from becoming a node selection", async () => {
+    const staleHover = { kind: "node", instanceId: "instance-b", nodeId: 8 } as const;
+    const pick = vi.fn(() => Promise.resolve(faceHit));
+    const { workbench, getInteraction, inspectionPanel } = harness(
+      pick,
+      undefined,
+      setTargetHovered(createInteractionState(), staleHover),
+      "node",
+    );
+
+    await workbench.click({ clientX: 100, clientY: 100 } as MouseEvent);
+
+    expect(selectedKeys(getInteraction())).toEqual([]);
+    expect(hoveredTarget(getInteraction())).toBeUndefined();
+    expect(inspectionPanel.textContent).toContain("Face");
   });
 
   it("clears transient hover without changing selection or highlights", () => {

@@ -121,23 +121,43 @@ export class WorkbenchInteraction {
     const generation = ++this.generation;
     const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
+    const current = this.options.getInteraction();
+    const withoutHover = setTargetHovered(current, undefined);
+    const hoverCleared = withoutHover !== current;
     if (hit === undefined) {
       if (event.ctrlKey || event.metaKey) {
+        if (hoverCleared) {
+          this.options.setInteraction(withoutHover);
+          this.options.render();
+        }
         this.showPick(undefined);
         return;
       }
-      this.clearSelection();
+      this.options.setInteraction(clearSelectedTargets(withoutHover));
+      this.options.render();
       this.showPick(undefined);
       return;
     }
     this.showPick(hit);
     const target = selectTarget(hit, this.options.selectionGranularity(), event);
     if (target === undefined) {
-      if (!(event.ctrlKey || event.metaKey)) this.clearSelection();
+      if (event.ctrlKey || event.metaKey) {
+        if (hoverCleared) {
+          this.options.setInteraction(withoutHover);
+          this.options.render();
+        }
+      } else {
+        this.options.setInteraction(clearSelectedTargets(withoutHover));
+        this.options.render();
+      }
       return;
     }
-    if (event.ctrlKey || event.metaKey) this.select(target);
-    else this.replace(target);
+    this.options.setInteraction(
+      event.ctrlKey || event.metaKey
+        ? toggleSelection(withoutHover, target)
+        : replaceSelection(withoutHover, target),
+    );
+    this.options.render();
   }
 
   select(target: SelectTarget): void {

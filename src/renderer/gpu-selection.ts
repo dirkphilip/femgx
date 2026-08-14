@@ -1,11 +1,4 @@
-import {
-  cameraStruct,
-  deformationStruct,
-  frameBindings,
-  surfaceLightingFunction,
-  sectionPlaneBindings,
-  sectionPlaneFunction,
-} from "./gpu-shaders";
+import { sectionPlaneBindings, sectionPlaneFunction } from "./gpu-shaders";
 import { transparencyOutput } from "./gpu-transparency";
 
 const selectionColorFunction = /* wgsl */ `
@@ -16,7 +9,7 @@ fn selectionColor(
   emissive: f32,
 ) -> vec3<f32> {
   let tint = color.rgb + vec3<f32>(emissive);
-  return select(tint, mix(resultColor.rgb, tint, 0.38), resultColorEnabled != 0u);
+  return tint;
 }
 
 fn visibleSelectionAlpha(baseAlpha: f32) -> f32 {
@@ -50,11 +43,7 @@ fn fragmentMain(
 
 /** Lit opaque selection output used by selected triangle surfaces. */
 export const triangleSelectionFragmentShader = /* wgsl */ `
-${cameraStruct}
-${deformationStruct}
-${frameBindings}
 ${sectionPlaneBindings}
-${surfaceLightingFunction}
 ${selectionColorFunction}
 ${sectionPlaneFunction}
 
@@ -69,15 +58,8 @@ fn fragmentMain(
   @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> @location(0) vec4<f32> {
   if (selected == 0u || dot(local, local) > 1.0 || color.a <= 0.0 || !sectionPlaneVisible(worldPosition)) { discard; }
-  let litColor = surfaceLighting(
-    worldPosition,
-    color.rgb,
-    camera.keyLightDirection.xyz,
-    camera.viewDirection.xyz,
-  );
-  let emphasized = vec4<f32>(litColor, color.a);
   return vec4<f32>(
-    selectionColor(emphasized, resultColor, resultColorEnabled, emissive),
+    selectionColor(color, resultColor, resultColorEnabled, emissive),
     visibleSelectionAlpha(color.a),
   );
 }
@@ -110,11 +92,7 @@ fn fragmentMain(
 
 /** Fixed-alpha hidden selection output for lit triangle surfaces. */
 export const triangleSelectionTransparencyFragmentShader = /* wgsl */ `
-${cameraStruct}
-${deformationStruct}
-${frameBindings}
 ${sectionPlaneBindings}
-${surfaceLightingFunction}
 ${transparencyOutput}
 ${selectionColorFunction}
 ${sectionPlaneFunction}
@@ -130,15 +108,8 @@ fn fragmentMain(
   @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> TransparencyOutput {
   if (selected == 0u || dot(local, local) > 1.0 || !sectionPlaneVisible(worldPosition)) { discard; }
-  let litColor = surfaceLighting(
-    worldPosition,
-    color.rgb,
-    camera.keyLightDirection.xyz,
-    camera.viewDirection.xyz,
-  );
-  let emphasized = vec4<f32>(litColor, color.a);
   return weightedPresentationTransparency(
-    selectionColor(emphasized, resultColor, resultColorEnabled, emissive),
+    selectionColor(color, resultColor, resultColorEnabled, emissive),
     0.25,
   );
 }
