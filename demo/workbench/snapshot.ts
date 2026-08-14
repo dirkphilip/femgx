@@ -225,6 +225,7 @@ export interface WorkbenchCommands {
   showAll(): void;
   reset(): void;
   selectModel(id: string): void;
+  openModel(file: File): void;
   setResultField(id: string): void;
   setSectionAxis(axis: SectionAxis): void;
   setSectionOffset(value: string): void;

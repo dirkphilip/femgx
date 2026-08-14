@@ -244,8 +244,6 @@ describe("workbench hover suppression", () => {
       signal: new AbortController().signal,
       interaction,
       dragging: () => dragging,
-      setModel: () => undefined,
-      openModel: () => undefined,
     });
 
     const move = { clientX: 50, clientY: 50 } as PointerEvent;

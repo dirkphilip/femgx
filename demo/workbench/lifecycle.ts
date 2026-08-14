@@ -11,8 +11,6 @@ export interface WorkbenchLifecycleOptions {
   readonly interaction: WorkbenchInteraction;
   readonly boxPreview: WorkbenchBoxPreview;
   readonly dragging: () => boolean;
-  readonly setModel: (id: string) => void;
-  readonly openModel: (file: File) => void;
   readonly setActive: () => void;
   readonly toggleViewport?: () => void;
 }
@@ -58,8 +56,6 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     signal: options.signal,
     interaction: options.interaction,
     dragging: options.dragging,
-    setModel: options.setModel,
-    openModel: options.openModel,
     setActive: options.setActive,
     ...(options.toggleViewport === undefined ? {} : { toggleViewport: options.toggleViewport }),
   });

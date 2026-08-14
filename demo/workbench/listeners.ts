@@ -10,8 +10,6 @@ export interface WorkbenchBindingOptions {
   readonly interaction: WorkbenchInteraction;
   /** True while a camera or box pointer gesture suppresses asynchronous hover. */
   readonly dragging: () => boolean;
-  readonly setModel: (id: string) => void;
-  readonly openModel: (file: File) => void;
   readonly setActive?: () => void;
   readonly toggleViewport?: () => void;
 }
@@ -83,7 +81,6 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
     setActive: options.setActive ?? (() => {}),
   });
   installViewportBinding(options);
-  installModelBindings(options);
 }
 
 function installViewportBinding(options: WorkbenchBindingOptions): void {
@@ -92,30 +89,4 @@ function installViewportBinding(options: WorkbenchBindingOptions): void {
       signal: options.signal,
     });
   }
-}
-
-function installModelBindings(options: WorkbenchBindingOptions): void {
-  const { view, signal } = options;
-  view.modelSelect.addEventListener(
-    "change",
-    () => {
-      options.setModel(view.modelSelect.value);
-    },
-    { signal },
-  );
-  view.openModelButton.addEventListener(
-    "click",
-    () => {
-      view.modelFileInput.click();
-    },
-    { signal },
-  );
-  view.modelFileInput.addEventListener(
-    "change",
-    () => {
-      const file = view.modelFileInput.files?.[0];
-      if (file !== undefined) options.openModel(file);
-    },
-    { signal },
-  );
 }
