@@ -54,6 +54,11 @@ and `test/scripts`.
 - New domain code belongs in the owning subsystem directory. Treat 300
   implementation lines as a design-review threshold and 400 as the hard limit;
   split modules when that improves cohesion and ownership.
+- Treat more than 20 directly contained production TypeScript modules in one
+  `src/` directory as an advisory design-review threshold. `npm run review:diff`
+  reports only additions or renames that increase an affected directory past
+  the threshold; it remains silent for existing outliers, edits, and deletions.
+  A nested directory is justified by coherent ownership, not by hiding a count.
 - The single public entry point is `src/index.ts`; anything it does not
   re-export is internal. Do not widen the public API by exporting internals from
   a new location.

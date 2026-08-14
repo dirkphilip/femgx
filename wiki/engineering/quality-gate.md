@@ -19,6 +19,7 @@ npm run format
 npm run typecheck
 npm run lint
 npm run build:docs
+npm run review:diff
 npm run test:coverage
 npm run bench:budget
 npm run test:e2e          # system Chrome / hardware WebGPU (local)
@@ -46,6 +47,12 @@ for selected public declaration kinds, and treats validation warnings as errors.
 Internal union helpers that are intentionally absent from `src/index.ts` are
 listed explicitly in `typedoc.json`; that exception does not weaken public API
 coverage.
+
+`npm run review:diff` is a successful, advisory review step. It reports when a
+change adds or renames a production TypeScript module that takes a direct `src/`
+directory above 20 modules. Existing outliers, edits, deletions, nested
+directory counts, and non-production paths do not create noise. The message is
+a prompt to review semantic ownership, not a requirement to split a directory.
 
 ## Coverage
 
