@@ -10,8 +10,10 @@ import {
   TRIANGLE_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
+  PYRAMID5_SHAPE,
   topologyFor,
   type ElementShape,
+  WEDGE6_SHAPE,
 } from "../elements/shapes";
 import { numbersOf } from "./numbers";
 import { addDataBlocks, closeArray } from "./vtk-data";
@@ -31,6 +33,8 @@ export const VTK_CELL_TYPES: ReadonlyMap<
   ["quad:2", { vtkType: 23, shape: QUAD8_SHAPE }],
   ["tet:1", { vtkType: 10, shape: TET4_SHAPE }],
   ["tet:2", { vtkType: 24, shape: TET10_SHAPE }],
+  ["wedge:1", { vtkType: 13, shape: WEDGE6_SHAPE }],
+  ["pyramid:1", { vtkType: 14, shape: PYRAMID5_SHAPE }],
   ["hex:1", { vtkType: 12, shape: HEX8_SHAPE }],
   ["hex:2", { vtkType: 25, shape: HEX20_SHAPE }],
 ]);

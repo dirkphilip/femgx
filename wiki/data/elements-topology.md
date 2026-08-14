@@ -2,7 +2,7 @@
 
 The `src/elements/` subsystem is the typed finite-element foundation for polygon
 extraction, renderer support, and element-level picking. Point, Line, Line3,
-Triangle, Tri6, Quad, Quad8, Tet4, Tet10, Hex8, and Hex20 are Core now. The subsystem is pure
+Triangle, Tri6, Quad, Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, and Hex20 are Core now. The subsystem is pure
 CPU-side data with **no dependency on
 the renderer or WebGPU**.
 
@@ -55,6 +55,8 @@ the source model remains the only authoring owner.
 | `QUAD8_SHAPE`    | `quad`     | 2     | 8     | 4       | 4              |
 | `TET4_SHAPE`     | `tet`      | 1     | 4     | 4       | 0              |
 | `TET10_SHAPE`    | `tet`      | 2     | 10    | 4       | 6              |
+| `WEDGE6_SHAPE`   | `wedge`    | 1     | 6     | 6       | 0              |
+| `PYRAMID5_SHAPE` | `pyramid`  | 1     | 5     | 5       | 0              |
 | `HEX8_SHAPE`     | `hex`      | 1     | 8     | 8       | 0              |
 | `HEX20_SHAPE`    | `hex`      | 2     | 20    | 8       | 12             |
 
@@ -67,6 +69,11 @@ Connectivity lists corners first, then mid-edge nodes in canonical edge order.
 - **Quad8** corners: `0 1 2 3`; mid-edge nodes `4..7` follow the perimeter.
 - **Tet4/Tet10** corners: `0 1 2 3`. Tet10 mid-edge nodes: `4` on `0-1`, `5` on
   `1-2`, `6` on `2-0`, `7` on `0-3`, `8` on `1-3`, `9` on `2-3`.
+- **Wedge6** corners: `0 1 2` on the lower triangle, followed by `3 4 5` on
+  the parallel upper triangle. Its nine edges are the three lower, three upper,
+  then the three connecting edges.
+- **Pyramid5** corners: `0 1 2 3` around the quadrilateral base, followed by
+  apex `4`. Its eight edges are the four base edges, then the four apex edges.
 - **Hex8/Hex20** corners: `0 1 2 3 4 5 6 7` (bottom `0-1-2-3` counter-clockwise,
   top `4-5-6-7`, vertical `0-4`, `1-5`, `2-6`, `3-7`). Hex20 mid-edge nodes
   `8..19` follow the same edge order: bottom `8-11`, top `12-15`, vertical `16-19`.

@@ -8,12 +8,14 @@ import {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  PYRAMID5_SHAPE,
   QUAD8_SHAPE,
   QUAD_SHAPE,
   TRI6_SHAPE,
   TRIANGLE_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
+  WEDGE6_SHAPE,
   type ElementFamily,
 } from "../../src/elements/shapes";
 import {
@@ -95,6 +97,20 @@ const HEX8_NODES: readonly number[] = [
 
 function hex8Model(): ElementModel {
   return createElementModel(HEX8_NODES, [createElement(1, HEX8_SHAPE, [0, 1, 2, 3, 4, 5, 6, 7])]);
+}
+
+function wedge6Model(): ElementModel {
+  return createElementModel(
+    [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1],
+    [createElement(1, WEDGE6_SHAPE, [0, 1, 2, 3, 4, 5])],
+  );
+}
+
+function pyramid5Model(): ElementModel {
+  return createElementModel(
+    [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0.5, 0.5, 1],
+    [createElement(1, PYRAMID5_SHAPE, [0, 1, 2, 3, 4])],
+  );
 }
 
 function hex20Model(): ElementModel {
@@ -313,6 +329,25 @@ describe("heterogeneousElementParts geometry", () => {
     expect(geometry.primitive).toBe("triangles");
     expect(geometry.indices.length).toBe(12 * 3);
   });
+
+  it.each([
+    ["Wedge6", wedge6Model, 8, [1 / 3, 1 / 3, 0.5] as const],
+    ["Pyramid5", pyramid5Model, 6, [0.5, 0.5, 0.2] as const],
+  ] as const)(
+    "tessellates a %s with authored nodes and outward facets",
+    (_name, model, count, centroid) => {
+      const geometry = geometryFor(model(), "triangle");
+      expect(geometry.indices).toHaveLength(count * 3);
+      expect(new Set(geometry.nodePickIds)).toEqual(
+        new Set(Array.from({ length: model().nodes.length / 3 }, (_value, id) => id + 1)),
+      );
+      for (const triangle of triangles(geometry)) {
+        expect(
+          dot(triangleNormal(triangle), subtract(triangleCenter(triangle), centroid)),
+        ).toBeGreaterThan(0);
+      }
+    },
+  );
 
   it("tessellates typed triangle and quad surfaces with face ownership", () => {
     const model = surfaceModel();

@@ -14,11 +14,13 @@ import {
   buildHex20CylinderModel,
   buildHexModel,
   buildPointLineModel,
+  buildPyramid5Model,
   buildQuadModel,
   buildQuad8Model,
   buildTriangleModel,
   buildTri6Model,
   buildTetModel,
+  buildWedge6Model,
 } from "./element-models";
 
 /** Stable part identifiers for the helper and generic mapping examples. */
@@ -35,6 +37,8 @@ export interface ElementFixtureParts {
   readonly tet10: PartId;
   readonly hex8: PartId;
   readonly hex20: PartId;
+  readonly wedge6: PartId;
+  readonly pyramid5: PartId;
 }
 
 /** Tuning knobs for the deterministic element gallery. */
@@ -65,6 +69,8 @@ const TET4_PART_ID: PartId = 4;
 const TET10_PART_ID: PartId = 5;
 const HEX8_PART_ID: PartId = 6;
 const HEX20_PART_ID: PartId = 7;
+const WEDGE6_PART_ID: PartId = 13;
+const PYRAMID5_PART_ID: PartId = 14;
 const ROOT_ASSEMBLY_ID: AssemblyId = 1;
 const GAP = 1;
 
@@ -87,6 +93,8 @@ const GALLERY_LAYOUT: readonly GalleryPlacement[] = [
   { partId: HEX8_PART_ID, column: 3, row: 1 },
   { partId: HEX20_PART_ID, column: 4, row: 1 },
   { partId: QUAD8_PART_ID, column: 5, row: 1 },
+  { partId: WEDGE6_PART_ID, column: 1, row: 2 },
+  { partId: PYRAMID5_PART_ID, column: 2, row: 2 },
 ];
 
 const SINGLE_PART_LAYOUT: readonly GalleryPlacement[] = [
@@ -107,6 +115,8 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   const tet10Model = buildTetModel(gridSize, cellSize, true);
   const hex8Model = buildHexModel(gridSize, cellSize, false);
   const hex20Model = buildHexModel(gridSize, cellSize, true);
+  const wedge6Model = buildWedge6Model();
+  const pyramid5Model = buildPyramid5Model();
   const triangleModel = buildTriangleModel();
   const tri6Model = buildTri6Model();
   const quadModel = buildQuadModel();
@@ -119,6 +129,8 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     [TET10_PART_ID, tet10Model],
     [HEX8_PART_ID, hex8Model],
     [HEX20_PART_ID, hex20Model],
+    [WEDGE6_PART_ID, wedge6Model],
+    [PYRAMID5_PART_ID, pyramid5Model],
     [TRIANGLE_PART_ID, triangleModel],
     [TRI6_PART_ID, tri6Model],
     [QUAD_PART_ID, quadModel],
@@ -142,6 +154,11 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     requireGroup(heterogeneousElementParts({ triangle: TET10_PART_ID }, tet10Model), "triangle"),
     requireGroup(heterogeneousElementParts({ triangle: HEX8_PART_ID }, hex8Model), "triangle"),
     requireGroup(heterogeneousElementParts({ triangle: HEX20_PART_ID }, hex20Model), "triangle"),
+    requireGroup(heterogeneousElementParts({ triangle: WEDGE6_PART_ID }, wedge6Model), "triangle"),
+    requireGroup(
+      heterogeneousElementParts({ triangle: PYRAMID5_PART_ID }, pyramid5Model),
+      "triangle",
+    ),
     requireGroup(
       heterogeneousElementParts({ triangle: TRIANGLE_PART_ID }, triangleModel),
       "triangle",
@@ -166,6 +183,8 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
       tet10: TET10_PART_ID,
       hex8: HEX8_PART_ID,
       hex20: HEX20_PART_ID,
+      wedge6: WEDGE6_PART_ID,
+      pyramid5: PYRAMID5_PART_ID,
       generic: GENERIC_PART_ID,
     },
     elementModels: models,

@@ -48,13 +48,15 @@ describe("createElementFixture", () => {
       tet10: 5,
       hex8: 6,
       hex20: 7,
+      wedge6: 13,
+      pyramid5: 14,
     });
-    expect(fixture.instanceCount).toBe(12);
-    expect(fixture.scene.parts.size).toBe(12);
-    expect(runtimeInstances(fixture)).toHaveLength(12);
+    expect(fixture.instanceCount).toBe(14);
+    expect(fixture.scene.parts.size).toBe(14);
+    expect(runtimeInstances(fixture)).toHaveLength(14);
   });
 
-  it("places every shape example in a stable two-row comparison grid", () => {
+  it("places every shape example in a stable comparison grid", () => {
     const fixture = createElementFixture();
     const origins = new Map(
       runtimeInstances(fixture).map((instance) => [
@@ -76,6 +78,8 @@ describe("createElementFixture", () => {
         [fixture.partIds.hex8, [9, 3]],
         [fixture.partIds.hex20, [12, 3]],
         [fixture.partIds.quad8, [15, 3]],
+        [fixture.partIds.wedge6, [3, 6]],
+        [fixture.partIds.pyramid5, [6, 6]],
       ]),
     );
   });
@@ -89,7 +93,7 @@ describe("createElementFixture", () => {
     ).toEqual([...fixture.scene.parts.keys()].sort((a, b) => a - b));
   });
 
-  it("produces geometry for points, lines, linear/quadratic surfaces, Tet4, and Hex20", () => {
+  it("produces geometry for points, lines, surfaces, and linear/quadratic volumes", () => {
     const { scene, partIds } = createElementFixture();
     expect(scene.parts.get(partIds.point)?.geometry.primitive).toBe("points");
     expect(scene.parts.get(partIds.line)?.geometry.primitive).toBe("lines");
@@ -101,6 +105,8 @@ describe("createElementFixture", () => {
     expect(scene.parts.get(partIds.generic)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.tet4)?.geometry.primitive).toBe("triangles");
     expect(scene.parts.get(partIds.hex20)?.geometry.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.wedge6)?.geometry.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.pyramid5)?.geometry.primitive).toBe("triangles");
   });
 
   it("retains one indexed multi-face generic element without a typed shape", () => {

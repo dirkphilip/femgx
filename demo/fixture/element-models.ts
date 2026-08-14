@@ -6,12 +6,14 @@ import {
   LINE3_SHAPE,
   LINE_SHAPE,
   POINT_SHAPE,
+  PYRAMID5_SHAPE,
   QUAD_SHAPE,
   QUAD8_SHAPE,
   TRIANGLE_SHAPE,
   TRI6_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
+  WEDGE6_SHAPE,
   type Element,
   type ElementModel,
   type NodeId,
@@ -163,6 +165,22 @@ export function buildTetModel(
     }
   }
   return createElementModel(builder.positions, elements);
+}
+
+/** Builds one straight-sided Wedge6 gallery element in VTK node order. */
+export function buildWedge6Model(): ElementModel {
+  return createElementModel(
+    [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1],
+    [createElement(13, WEDGE6_SHAPE, [0, 1, 2, 3, 4, 5])],
+  );
+}
+
+/** Builds one straight-sided Pyramid5 gallery element in VTK node order. */
+export function buildPyramid5Model(): ElementModel {
+  return createElementModel(
+    [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0.5, 0.5, 1],
+    [createElement(14, PYRAMID5_SHAPE, [0, 1, 2, 3, 4])],
+  );
 }
 
 /** Splits one hex cell into six conforming tets, linear or quadratic. */

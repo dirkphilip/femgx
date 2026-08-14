@@ -4,11 +4,13 @@ import { classifyFaces, facesOf, facesOfElement } from "../../src/elements/faces
 import {
   HEX20_SHAPE,
   HEX8_SHAPE,
+  PYRAMID5_SHAPE,
   TET10_SHAPE,
   TET4_SHAPE,
   topologyFor,
   type ElementFamily,
   type ElementShape,
+  WEDGE6_SHAPE,
 } from "../../src/elements/shapes";
 
 const sequentialElement = (id: number, shape: ElementShape) =>
@@ -18,7 +20,14 @@ const sequentialElement = (id: number, shape: ElementShape) =>
     Array.from({ length: topologyFor(shape).nodeCount }, (_, index) => index),
   );
 
-const VOLUME_SHAPES: readonly ElementShape[] = [TET4_SHAPE, TET10_SHAPE, HEX8_SHAPE, HEX20_SHAPE];
+const VOLUME_SHAPES: readonly ElementShape[] = [
+  TET4_SHAPE,
+  TET10_SHAPE,
+  WEDGE6_SHAPE,
+  PYRAMID5_SHAPE,
+  HEX8_SHAPE,
+  HEX20_SHAPE,
+];
 
 const CORNER_COORDS: Record<ElementFamily, ReadonlyArray<readonly [number, number, number]>> = {
   point: [],
@@ -39,6 +48,21 @@ const CORNER_COORDS: Record<ElementFamily, ReadonlyArray<readonly [number, numbe
     [1, 0, 0],
     [0, 1, 0],
     [0, 0, 1],
+  ],
+  wedge: [
+    [0, 0, 0],
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+    [1, 0, 1],
+    [0, 1, 1],
+  ],
+  pyramid: [
+    [0, 0, 0],
+    [1, 0, 0],
+    [1, 1, 0],
+    [0, 1, 0],
+    [0.5, 0.5, 1],
   ],
   hex: [
     [0, 0, 0],
@@ -208,6 +232,19 @@ describe("classifyFaces", () => {
     for (const face of shared) {
       expect(face.boundary).toBe(false);
     }
+  });
+
+  it("matches a Wedge6 quadrilateral face with a Pyramid5 base", () => {
+    const wedge = createElement(1, WEDGE6_SHAPE, [0, 1, 2, 3, 4, 5]);
+    const pyramid = createElement(2, PYRAMID5_SHAPE, [0, 1, 4, 3, 6]);
+    const classified = classifyFaces([wedge, pyramid]);
+    const shared = classified.filter((face) => face.key === "0,1,3,4");
+    expect(shared).toHaveLength(2);
+    expect(shared.map((face) => face.nodeIds)).toEqual([
+      [0, 1, 4, 3],
+      [0, 3, 4, 1],
+    ]);
+    expect(shared.every((face) => !face.boundary && face.count === 2)).toBe(true);
   });
 
   it("marks a quadratic face shared by two Tet10 elements as interior", () => {
