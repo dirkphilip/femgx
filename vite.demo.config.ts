@@ -1,7 +1,9 @@
 import { defineConfig } from "vite";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 
 /** Vite configuration for the static demo site, including GitHub Pages. */
 export default defineConfig({
+  plugins: [svelte()],
   base: process.env["PAGES_BASE_PATH"] ?? "/",
   define: {
     __FEMGX_BUILD_TIMESTAMP__: JSON.stringify(

@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import svelte from "eslint-plugin-svelte";
 import tseslint from "typescript-eslint";
 import jsdoc from "eslint-plugin-jsdoc";
 
@@ -10,6 +11,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   ...tseslint.configs.strictTypeChecked,
+  ...svelte.configs["flat/recommended"],
   jsdoc.configs["flat/recommended-typescript-flavor"],
   {
     languageOptions: {
@@ -58,6 +60,12 @@ export default tseslint.config(
         console: "readonly",
         process: "readonly",
       },
+    },
+  },
+  {
+    files: ["**/*.svelte"],
+    rules: {
+      "jsdoc/require-jsdoc": "off",
     },
   },
   {
