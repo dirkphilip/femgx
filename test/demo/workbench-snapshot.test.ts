@@ -23,6 +23,7 @@ describe("workbench presentation snapshot", () => {
     expect(snapshot.toolbar).toMatchObject({
       secondaryOpen: false,
       secondaryBusy: false,
+      boxSelectionStrategy: "visible-surface",
     });
     expect(
       createWorkbenchSnapshot({ ...input, secondaryOpen: true, secondaryBusy: true }).toolbar,
@@ -122,6 +123,7 @@ function createSnapshotInput(): WorkbenchSnapshotInput {
     toggles: { edges: true, nodes: true, diagnostics: false },
     continuous: false,
     selectionGranularity: "element",
+    boxSelectionStrategy: "visible-surface",
     secondaryOpen: false,
     secondaryBusy: false,
     resultMode: "base",

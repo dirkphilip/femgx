@@ -1,6 +1,9 @@
 import type { BoxSelectionEvent, FemViewport, InteractionTarget } from "../../src/index";
 import type { SelectionGranularity } from "./pick";
 
+/** Candidate discovery strategy shared by every workbench viewport. */
+export type BoxSelectionStrategy = "visible-surface" | "through-intersection";
+
 /** A completed box gesture plus the target kind captured for its query. */
 export interface BoxSelectionRequest {
   readonly event: Extract<BoxSelectionEvent, { readonly type: "start" | "change" | "complete" }> & {

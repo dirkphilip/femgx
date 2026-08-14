@@ -40,6 +40,7 @@ describe("workbench Svelte controls", () => {
     });
 
     await change(target, "#background-select", "dark");
+    await change(target, "#box-selection-strategy", "through-intersection");
     await change(target, "#selection-granularity", "face");
     await change(target, "#model-select", "results");
     await change(target, "#result-field", "demo-stress");
@@ -71,6 +72,7 @@ describe("workbench Svelte controls", () => {
       expect.arrayContaining([
         "setBackground",
         "setSelectionGranularity",
+        "setBoxSelectionStrategy",
         "selectModel",
         "setResultField",
         "setDeformationField",
@@ -315,6 +317,7 @@ function createSnapshot(withResults: boolean): WorkbenchSnapshot {
     toggles: { edges: true, nodes: true, diagnostics: false },
     continuous: false,
     selectionGranularity: "element",
+    boxSelectionStrategy: "visible-surface",
     secondaryOpen: false,
     secondaryBusy: false,
     resultMode: withResults ? "deformed" : "base",

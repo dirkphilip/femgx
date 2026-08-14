@@ -2,6 +2,7 @@ import { selectedTargets } from "../../src/index";
 import type { Camera, InteractionState, SceneRuntime, ViewportBackground } from "../../src/index";
 import type { WorkbenchModel } from "./model";
 import type { SelectionGranularity } from "./pick";
+import type { BoxSelectionStrategy } from "./box-selection-resolver";
 import { sectionAxisBounds, type SectionAxis } from "./section-controls";
 import {
   BASE_RESULT_VALUE,
@@ -90,6 +91,7 @@ export interface WorkbenchSnapshot {
     readonly nodes: boolean;
     readonly continuous: boolean;
     readonly selectionGranularity: SelectionGranularity;
+    readonly boxSelectionStrategy: BoxSelectionStrategy;
     readonly secondaryOpen: boolean;
     readonly secondaryBusy: boolean;
   };
@@ -158,6 +160,7 @@ export interface WorkbenchSnapshotInput {
   readonly toggles: Readonly<DisplayToggles>;
   readonly continuous: boolean;
   readonly selectionGranularity: SelectionGranularity;
+  readonly boxSelectionStrategy: BoxSelectionStrategy;
   readonly secondaryOpen: boolean;
   readonly secondaryBusy: boolean;
   readonly resultMode: ResultDisplayMode;
@@ -180,6 +183,7 @@ export interface WorkbenchSnapshotOwner {
   readonly toggles: Readonly<DisplayToggles>;
   readonly continuousEnabled: boolean;
   readonly selectionGranularity: SelectionGranularity;
+  readonly boxSelectionStrategy: BoxSelectionStrategy;
   readonly resultMode: ResultDisplayMode;
   readonly deformationScale: number;
   readonly vectorDisplay: VectorDisplayState;
@@ -194,7 +198,6 @@ export interface WorkbenchSnapshotOwner {
   activeViewport(): { readonly camera: Pick<Camera, "mode"> };
 }
 
-/** Commands exposed to a future presentation shell; each delegates to one existing owner. */
 export interface WorkbenchCommands {
   setProjection(): void;
   setBackground(value: string): void;
@@ -202,6 +205,7 @@ export interface WorkbenchCommands {
   toggleNodes(): void;
   toggleContinuous(): void;
   setSelectionGranularity(value: string): void;
+  setBoxSelectionStrategy(value: string): void;
   toggleSecondaryViewport(): void;
   setDeformationField(id: string): void;
   setDeformationScale(value: string): void;
@@ -268,6 +272,7 @@ export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): Workbench
     toggles: owner.toggles,
     continuous: owner.continuousEnabled,
     selectionGranularity: owner.selectionGranularity,
+    boxSelectionStrategy: owner.boxSelectionStrategy,
     secondaryOpen: owner.viewportSlots.isSecondaryVisible(),
     secondaryBusy: owner.viewportSlots.isSecondaryOpening(),
     resultMode: owner.resultMode,
@@ -313,6 +318,7 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
       nodes: input.toggles.nodes,
       continuous: input.continuous,
       selectionGranularity: input.selectionGranularity,
+      boxSelectionStrategy: input.boxSelectionStrategy,
       secondaryOpen: input.secondaryOpen,
       secondaryBusy: input.secondaryBusy,
     }),
@@ -320,7 +326,7 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
     hierarchy: Object.freeze({
       occurrenceCount: input.runtime.occurrenceCount,
       visibleInstances: input.runtime.visibleCount,
-      selectedCount: selectedTargetCount(input.interaction),
+      selectedCount: selectedTargets(input.interaction).length,
       visibility,
     }),
     overlays: Object.freeze({
@@ -418,8 +424,4 @@ function sectionRange(
     max: range.max,
     step: Math.max((range.max - range.min) / 200, 1e-6),
   });
-}
-
-function selectedTargetCount(interaction: InteractionState): number {
-  return selectedTargets(interaction).length;
 }

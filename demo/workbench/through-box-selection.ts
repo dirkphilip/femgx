@@ -1,6 +1,7 @@
 import {
   boxSelectionFrustum,
   isBodyVisible,
+  isElementBlockVisible,
   isElementVisible,
   transformPoint,
   type BoxSelectionFrustum,
@@ -67,6 +68,12 @@ export function throughIntersectionBoxSelectionResolver(
       if (part === undefined) continue;
       for (const element of sortedElements(part)) {
         if (!isElementVisible(view.interaction, { instanceId, elementId: element.id })) continue;
+        if (
+          element.blockId !== undefined &&
+          !isElementBlockVisible(view.interaction, { instanceId, blockId: element.blockId })
+        ) {
+          continue;
+        }
         if (
           element.bodyId !== undefined &&
           !isBodyVisible(view.interaction, { instanceId, bodyId: element.bodyId })
