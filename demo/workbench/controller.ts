@@ -153,7 +153,6 @@ export class WorkbenchController {
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
     applySectionPlane(this, false);
-    this.presentation.populateModelSelect(this.models);
     this.visibilityPanel.rebuild();
   }
 

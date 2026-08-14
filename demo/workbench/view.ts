@@ -34,7 +34,6 @@ export interface DemoView {
   readonly modelSource: HTMLElement;
   readonly openModelButton: HTMLButtonElement;
   readonly modelFileInput: HTMLInputElement;
-  readonly resultLegend: HTMLElement;
 }
 
 /** Locates the demo's DOM nodes, throwing when the page is misconfigured. */
@@ -55,7 +54,6 @@ export function queryDemoView(): DemoView {
     modelSource: requiredElement("#model-source"),
     openModelButton: requiredButton("#open-model"),
     modelFileInput: requiredInput("#model-file"),
-    resultLegend: requiredElement("#result-legend"),
   };
   return createDemoView(elements);
 }

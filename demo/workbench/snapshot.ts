@@ -54,6 +54,7 @@ export interface WorkbenchPresentationSnapshot {
   readonly statusVisible: boolean;
   readonly inspection: { readonly visible: boolean; readonly text: string };
   readonly diagnostics: { readonly visible: boolean; readonly text: string };
+  readonly resultLegend: { readonly visible: boolean; readonly text: string };
   readonly contextMenu: WorkbenchContextMenuSnapshot;
 }
 
@@ -141,6 +142,7 @@ export interface WorkbenchSnapshot {
     readonly feedback: WorkbenchPresentationSnapshot["feedback"];
     readonly inspection: WorkbenchPresentationSnapshot["inspection"];
     readonly diagnosticsText: string;
+    readonly resultLegend: WorkbenchPresentationSnapshot["resultLegend"];
     readonly contextMenu: WorkbenchContextMenuSnapshot;
   };
 }
@@ -335,6 +337,7 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
       feedback: presentation.feedback,
       inspection: presentation.inspection,
       diagnosticsText: presentation.diagnostics.text,
+      resultLegend: presentation.resultLegend,
       contextMenu: presentation.contextMenu,
     }),
   });
@@ -392,6 +395,7 @@ function defaultPresentationSnapshot(diagnostics: boolean): WorkbenchPresentatio
       text: "Click or right-click a visible element, face, or node to inspect it.",
     },
     diagnostics: { visible: diagnostics, text: "" },
+    resultLegend: { visible: false, text: "" },
     contextMenu: { visible: false, x: 0, y: 0, title: "", entries: [] },
   };
 }

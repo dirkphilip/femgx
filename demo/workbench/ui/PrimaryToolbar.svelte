@@ -43,8 +43,15 @@
         id="model-select"
         data-testid="model-select"
         aria-label="Example model"
+        value={snapshot?.model.active.id ?? ""}
         disabled={snapshot?.model.selectionDisabled ?? false}
-      ></select>
+      >
+        {#each snapshot?.model.available ?? [] as model (model.id)}
+          <option value={model.id}
+            >{model.source === "file" ? `Opened · ${model.name}` : model.name}</option
+          >
+        {/each}
+      </select>
       <button
         id="open-model"
         data-testid="open-model"
