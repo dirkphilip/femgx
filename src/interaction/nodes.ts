@@ -73,12 +73,14 @@ export function resolveNodeStyle(
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
   return applyStyleLayers(style, [
-    data.highlightedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
-      ? data.theme.highlighted
-      : undefined,
-    isHoveredTarget(state, { kind: "node", ...ref }) ? data.theme.hoveredNode : undefined,
     data.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
-      ? applySelectionStyle(style, data.theme.selectedNode)
+      ? applySelectionStyle(style, data.theme.selected)
+      : undefined,
+    data.highlightedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
+      ? applySelectionStyle(style, data.theme.highlighted)
+      : undefined,
+    isHoveredTarget(state, { kind: "node", ...ref })
+      ? applySelectionStyle(style, data.theme.hoveredNode)
       : undefined,
   ]);
 }

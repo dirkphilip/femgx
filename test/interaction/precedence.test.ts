@@ -40,26 +40,26 @@ const cases: readonly PrecedenceCase[] = [
     name: "body",
     apply: (state) => setBodySelected(state, bodyRef, true),
     resolve: (state) => resolveBodyStyle(item, bodyRef.bodyId, base, state),
-    expected: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 }, emissive: 0.06 },
+    expected: { color: { r: 0.15, g: 0.8, b: 1, a: 1 }, emissive: 0.35 },
   },
   {
     name: "element",
     apply: (state) => setElementSelected(state, elementRef, true),
     resolve: (state) =>
       resolveElementStyle(item, elementRef.elementId, base, state, bodyRef.bodyId),
-    expected: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 }, emissive: 0.06 },
+    expected: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 }, emissive: 0.35 },
   },
   {
     name: "face",
     apply: (state) => setFaceSelected(state, faceRef, true),
     resolve: (state) => resolveFaceStyle(item, faceRef, base, state, bodyRef.bodyId),
-    expected: { color: { r: 0.45, g: 1, b: 0.4, a: 1 }, emissive: 0.5 },
+    expected: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 }, emissive: 0.35 },
   },
   {
     name: "node",
     apply: (state) => setNodeSelected(state, nodeRef, true),
     resolve: (state) => resolveNodeStyle(item, nodeRef, base, state, bodyRef.bodyId),
-    expected: { color: { r: 1, g: 0.42, b: 0.12, a: 1 }, emissive: 0.7 },
+    expected: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 }, emissive: 0.35 },
   },
 ];
 
@@ -81,7 +81,7 @@ describe("interaction precedence", () => {
     };
     const state = setFaceSelected(createInteractionState(), faceRef, true);
     expect(resolveFaceStyle(item, faceRef, translucent, state)).toMatchObject({
-      color: { r: 0.45, g: 1, b: 0.4, a: 0.28 },
+      color: { r: 0.95, g: 0.5, b: 0.1, a: 0.28 },
       opacity: 0.6,
     });
   });

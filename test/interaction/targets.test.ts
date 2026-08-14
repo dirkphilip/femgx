@@ -198,18 +198,20 @@ describe("element highlight state", () => {
   };
   const ref = { instanceId: "1/0", elementId: 3 } as const;
 
-  it("uses highlighted styling, then selection, hover, and explicit override precedence", () => {
+  it("keeps highlight and hover emphasis visible over selection color", () => {
     let state = setTargetHighlighted(createInteractionState(), { kind: "element", ...ref }, true);
     expect(resolveElementStyle(instance, ref.elementId, base, state)).toMatchObject({
       emissive: 0.35,
     });
     state = setTargetSelected(state, { kind: "element", ...ref }, true);
     expect(resolveElementStyle(instance, ref.elementId, base, state)).toMatchObject({
-      emissive: 0.06,
+      color: { r: 0.15, g: 0.8, b: 1, a: 1 },
+      emissive: 0.35,
     });
     state = setTargetHovered(state, { kind: "element", ...ref });
     expect(resolveElementStyle(instance, ref.elementId, base, state)).toMatchObject({
-      emissive: 0.06,
+      color: { r: 0.15, g: 0.8, b: 1, a: 1 },
+      emissive: 0.2,
     });
     state = setElementOverride(state, ref, { emissive: 0.8 });
     expect(resolveElementStyle(instance, ref.elementId, base, state)).toMatchObject({

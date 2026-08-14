@@ -108,9 +108,7 @@ export interface InteractionTheme {
   readonly selected: PrimitiveStyleOverride;
   readonly hovered: PrimitiveStyleOverride;
   readonly hoveredFace: PrimitiveStyleOverride;
-  readonly selectedFace: PrimitiveStyleOverride;
   readonly hoveredNode: PrimitiveStyleOverride;
-  readonly selectedNode: PrimitiveStyleOverride;
 }
 
 /** Opaque immutable interaction value exposed by the public API. */

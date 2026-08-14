@@ -53,7 +53,6 @@ describe("opaque interaction state", () => {
     expect(data.selectedPartIds).toEqual(new Set());
     expect(data.theme.selected).toEqual({
       color: { r: 0.95, g: 0.5, b: 0.1, a: 1 },
-      emissive: 0.06,
     });
   });
 
@@ -63,9 +62,7 @@ describe("opaque interaction state", () => {
       selected: { color: { r: 1, g: 0, b: 0, a: 1 } },
       hovered: { opacity: 0.4 },
       hoveredFace: { emissive: 0.9 },
-      selectedFace: { color: { r: 1, g: 0, b: 0, a: 1 } },
       hoveredNode: { emissive: 0.9 },
-      selectedNode: { color: { r: 1, g: 0, b: 0, a: 1 } },
     };
     const stored = readInteractionState(createInteractionState(theme)).theme;
     expect(stored).toEqual(theme);
@@ -141,9 +138,7 @@ describe("instance style resolution", () => {
         selected: {},
         hovered: {},
         hoveredFace: {},
-        selectedFace: {},
         hoveredNode: {},
-        selectedNode: {},
       }),
     ).toThrow("edge and nodes are only supported on part and instance overrides");
     expect(() =>
@@ -170,9 +165,7 @@ describe("instance style resolution", () => {
       selected: {},
       hovered: {},
       hoveredFace: {},
-      selectedFace: {},
       hoveredNode: {},
-      selectedNode: {},
     });
     const setOverrides = [
       (emissive: number) => {
@@ -221,7 +214,7 @@ describe("instance style resolution", () => {
         base,
         setTargetSelected(createInteractionState(), { kind: "instance", instanceId: "1/0" }, true),
       ),
-    ).toMatchObject({ color: { r: 0.95, g: 0.5, b: 0.1, a: 1 }, emissive: 0.06 });
+    ).toMatchObject({ color: { r: 0.95, g: 0.5, b: 0.1, a: 1 }, emissive: 0 });
     const hovered = setTargetHovered(createInteractionState(), {
       kind: "instance",
       instanceId: "1/0",
