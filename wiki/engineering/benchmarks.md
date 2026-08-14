@@ -31,6 +31,7 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `sceneWorldBounds`             | 32 768 triangles × 64 placements | reusable-part bounds and world transforms          |
 | `resolvePick`                  | 50 000 lookups on 200 000        | O(1) index resolution                              |
 | `setTargetsSelected`           | 16 384 element targets           | one duplicate-safe immutable bulk transition       |
+| `collectEmphasisUpdates`       | 16 384 selected elements         | cached ownership and one reusable sync snapshot    |
 | `heterogeneousElementParts`    | 600 mixed linear elements        | grouped triangle/line/point tessellation           |
 | `expand line geometry`         | 10,000 authored line segments    | one reusable four-corner triangle quad per segment |
 | `createPart`                   | 16 384 quads / 256 bodies        | element/body/face validation                       |

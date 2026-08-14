@@ -4,7 +4,9 @@ import { readInteractionState, type InteractionStateData } from "../interaction/
 import type { InteractionTarget } from "../interaction/target-types";
 import type { InstanceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
+import type { EmphasisUpdates } from "./gpu-elements";
 import { collectEmphasisUpdates } from "./gpu-elements";
+import { syncElementHighlights } from "./gpu-highlight-storage";
 import { defaultStyle } from "./gpu-support";
 import type { GpuBundle } from "./gpu-recovery";
 import { instanceAt, type InstanceLayout } from "./runtime-state";
@@ -14,6 +16,19 @@ export interface TransparencySyncOptions {
   readonly layout: InstanceLayout;
   readonly interaction: InteractionState;
   readonly parts: ReadonlyMap<PartId, Part>;
+  readonly currentFlags: boolean[];
+  readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
+  readonly changedSlots: readonly number[];
+  readonly affectedParts: ReadonlySet<PartId>;
+  readonly emphasisUpdates: EmphasisUpdates;
+}
+
+export interface InteractionEmphasisSyncOptions {
+  readonly runtime: PackedSceneRuntime;
+  readonly layout: InstanceLayout;
+  readonly interaction: InteractionState;
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly bundle: GpuBundle;
   readonly currentFlags: boolean[];
   readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
   readonly changedSlots: readonly number[];
@@ -143,15 +158,8 @@ export function interactionDirtyParts(
 
 /** Updates transparency classification only for slots affected by an interaction transition. */
 export function refreshTransparencyFlags(options: TransparencySyncOptions): ReadonlySet<PartId> {
-  const updates = collectEmphasisUpdates(
-    options.runtime,
-    options.layout,
-    options.slotByInstanceId,
-    options.parts,
-    options.interaction,
-  );
   const emphasisTransparent = new Set<number>();
-  for (const [partId, emphasis] of updates) {
+  for (const [partId, emphasis] of options.emphasisUpdates) {
     if (!options.affectedParts.has(partId)) continue;
     const slots = options.layout.partSlots.get(partId);
     if (slots === undefined) continue;
@@ -177,6 +185,43 @@ export function refreshTransparencyFlags(options: TransparencySyncOptions): Read
     options.currentFlags[slot] = next;
   }
   return changed;
+}
+
+/** Derives emphasis once and shares it between highlight and transparency sync. */
+export function syncInteractionEmphasis(
+  options: InteractionEmphasisSyncOptions,
+): ReadonlySet<PartId> {
+  const emphasisUpdates = collectEmphasisUpdates(
+    options.runtime,
+    options.layout,
+    options.slotByInstanceId,
+    options.parts,
+    options.interaction,
+  );
+  syncElementHighlights(
+    {
+      device: options.bundle.device,
+      draw: options.bundle.draw,
+      runtime: options.runtime,
+      layout: options.layout,
+      slotByInstanceId: options.slotByInstanceId,
+      parts: options.parts,
+    },
+    options.interaction,
+    options.affectedParts,
+    emphasisUpdates,
+  );
+  return refreshTransparencyFlags({
+    runtime: options.runtime,
+    layout: options.layout,
+    interaction: options.interaction,
+    parts: options.parts,
+    currentFlags: options.currentFlags,
+    slotByInstanceId: options.slotByInstanceId,
+    changedSlots: options.changedSlots,
+    affectedParts: options.affectedParts,
+    emphasisUpdates,
+  });
 }
 
 /** Returns the reusable parts touched by a set of global runtime slots. */

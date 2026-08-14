@@ -25,6 +25,7 @@ import {
   INITIAL_ELEMENT_HIGHLIGHTS,
   type EmphasisUpdate,
 } from "../../src/renderer/gpu-elements";
+import { getPartInteractionMetadata } from "../../src/renderer/part-interaction-metadata";
 import {
   createHighlightStorage,
   syncElementHighlights,
@@ -719,6 +720,47 @@ function partsMap(scene: Scene): Map<number, Part> {
 }
 
 describe("collectEmphasisUpdates", () => {
+  it("caches sparse element, body, block, and face ownership by part identity", () => {
+    const geometry: Geometry = {
+      positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+      primitive: "triangles",
+      elements: [{ id: 100_000, primitiveStart: 0, primitiveCount: 1, bodyId: 7, blockId: 11 }],
+      bodies: [{ id: 7, elementIds: [100_000] }],
+      blocks: [{ id: 11, elementIds: [100_000] }],
+      faces: [
+        {
+          elementId: 100_000,
+          faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 1,
+          key: "sparse",
+          nodeIds: [],
+          neighborElementIds: [],
+          bodyId: 7,
+          blockId: 11,
+        },
+      ],
+    };
+    const part = createPart(99, geometry);
+    const metadata = getPartInteractionMetadata(part);
+    expect(getPartInteractionMetadata(part)).toBe(metadata);
+    expect(metadata.elements.get(100_000)).toBe(geometry.elements?.[0]);
+    expect(metadata.bodies.get(7)).toBe(geometry.bodies?.[0]);
+    expect(metadata.blocks.get(11)).toBe(geometry.blocks?.[0]);
+    expect(metadata.bodyByElement.get(100_000)).toBe(7);
+    expect(metadata.blockByElement.get(100_000)).toBe(11);
+    expect(metadata.bodyByBlock.get(11)).toBe(7);
+    expect(metadata.faces.get("100000/0")?.faceId).toBe(0);
+
+    const replacement = createPart(99, {
+      ...geometry,
+      positions: new Float32Array(geometry.positions),
+      indices: new Uint32Array(geometry.indices),
+    });
+    expect(getPartInteractionMetadata(replacement)).not.toBe(metadata);
+  });
+
   it("maps authored fixture bodies to reusable part-local records", () => {
     const fixture = createBoltedPlateFixture();
     const runtime = createPackedSceneRuntime(fixture.scene);
