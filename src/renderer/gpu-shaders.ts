@@ -1,4 +1,5 @@
 import { emphasisHash } from "./gpu-highlight-shader";
+import { INSTANCE_EMPHASIS_FLAG, INSTANCE_SELECTED_FLAG } from "./gpu-instance-storage";
 export { pickDataBindings } from "./gpu-topology-shader";
 import { pickDataBindings } from "./gpu-topology-shader";
 
@@ -57,7 +58,8 @@ ${sectionPlaneStruct}
 /** Instance storage layout shared by every vertex shader. */
 export const instanceStruct = /* wgsl */ `
 // Field layout (byte offsets) must match encodeInstanceRecord in gpu-draw.ts:
-// transform 0, color 64, pickId 80, emissive 84, selected 88, padding 92.
+// transform 0, color 64, pickId 80, emissive 84, selected/emphasis flags 88,
+// lineWidth 92.
 struct Instance {
   transform: mat4x4<f32>,
   color: vec4<f32>,
@@ -66,6 +68,14 @@ struct Instance {
   selected: u32,
   lineWidth: f32,
 };
+
+fn instanceSelected(flags: u32) -> bool {
+  return (flags & ${INSTANCE_SELECTED_FLAG}u) != 0u;
+}
+
+fn instanceHasPrimitiveEmphasis(flags: u32) -> bool {
+  return (flags & ${INSTANCE_EMPHASIS_FLAG}u) != 0u;
+}
 `;
 
 /** Emphasis records read by the visible triangle and point vertex stages. */

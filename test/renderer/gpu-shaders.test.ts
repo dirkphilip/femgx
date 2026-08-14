@@ -216,6 +216,17 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(pointNodePickVertexShader).not.toMatch(/highlightHash\(drawOrder\[instanceIndex\]/);
   });
 
+  it("guards primitive emphasis probes with per-occurrence admission", () => {
+    expect(instanceVertexShader).toContain("instanceHasPrimitiveEmphasis(instance.selected)");
+    expect(instanceVertexShader).toContain("instanceSelected(instance.selected)");
+    expect(pointVertexShader).toContain("instanceHasPrimitiveEmphasis(instance.selected)");
+    expect(pointVertexShader).toContain("instanceSelected(instance.selected)");
+    expect(edgeVertexShader).toContain("instanceHasPrimitiveEmphasis(instances[slot].selected)");
+    expect(nodePickVertexShader).toContain(
+      "instanceHasPrimitiveEmphasis(instances[slot].selected)",
+    );
+  });
+
   it("uses explicit primitive maps for indexed surfaces and shared sprite corners", () => {
     expect(instanceVertexShader).toContain("primitiveDrawId(vertexIndex)");
     expect(instanceVertexShader).not.toContain("vertexIndex / 3u");

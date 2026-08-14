@@ -104,8 +104,9 @@ const instanceHighlighting = /* wgsl */ `
   var emissive = instance.emissive;
   var hidden = false;
   var matched = false;
-  var selected = instance.selected != 0u;
+  var selected = instanceSelected(instance.selected);
   var exactSelection = false;
+  if (instanceHasPrimitiveEmphasis(instance.selected)) {
 ${bodyAndElementHighlighting}
   if (!matched && facePickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], 0u, facePickId, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
@@ -122,6 +123,7 @@ ${bodyAndElementHighlighting}
         break;
       }
     }
+  }
   }
   if (selectionKeepsResult) {
     resultColorEnabled = resultColorActive(nodePickId);
@@ -293,14 +295,15 @@ fn pointVertex(
   );
   var resultColorEnabled = !nodeOverlay && resultColorActive(nodePickId);
   var selectionKeepsResult = false;
-  if (nodeOverlay && instance.selected != 0u) {
+  if (nodeOverlay && instanceSelected(instance.selected)) {
     color = instance.color;
   }
   var emissive = 0.0;
   var hidden = false;
   var matched = false;
-  var selected = instance.selected != 0u;
+  var selected = instanceSelected(instance.selected);
   var exactSelection = false;
+  if (instanceHasPrimitiveEmphasis(instance.selected)) {
 ${bodyAndElementHighlighting}
   if (nodePickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], 0u, 0u, nodePickId, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
@@ -316,6 +319,7 @@ ${bodyAndElementHighlighting}
         break;
       }
     }
+  }
   }
   if (nodeOverlay && !topologyOwnersAllVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
     hidden = true;
