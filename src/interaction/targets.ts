@@ -1,4 +1,5 @@
 import type { BodyRef } from "./refs";
+import { setElementBlockHighlighted, setElementBlockSelected } from "./blocks";
 import type { StyleOverride } from "./state";
 import { setBodyHighlighted, setBodySelected } from "./bodies";
 import { setFaceHighlighted, setFaceSelected } from "./faces";
@@ -37,6 +38,10 @@ export function interactionTargetFromHit(
       return hit.kind !== "instance" && hit.bodyId !== undefined
         ? { kind: "body", instanceId: hit.instanceId, bodyId: hit.bodyId }
         : undefined;
+    case "block":
+      return hit.kind !== "instance" && hit.blockId !== undefined
+        ? { kind: "block", instanceId: hit.instanceId, blockId: hit.blockId }
+        : undefined;
     case "element":
       return hit.kind !== "instance"
         ? { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId }
@@ -70,6 +75,8 @@ export function setTargetSelected(
       return setInstanceSelected(state, target.instanceId, selected);
     case "body":
       return setBodySelected(state, target, selected);
+    case "block":
+      return setElementBlockSelected(state, target, selected);
     case "element":
       return setElementSelected(state, target, selected);
     case "face":
@@ -92,6 +99,8 @@ export function setTargetHighlighted(
       return setInstanceHighlighted(state, target.instanceId, highlighted);
     case "body":
       return setBodyHighlighted(state, target, highlighted);
+    case "block":
+      return setElementBlockHighlighted(state, target, highlighted);
     case "element":
       return setElementHighlighted(state, target, highlighted);
     case "face":
@@ -132,6 +141,8 @@ export function isTargetSelected(state: InteractionState, target: InteractionTar
       return data.selectedInstanceIds.has(target.instanceId);
     case "body":
       return data.selectedBodyIds.get(target.instanceId)?.has(target.bodyId) === true;
+    case "block":
+      return data.selectedBlockIds.get(target.instanceId)?.has(target.blockId) === true;
     case "element":
       return data.selectedElementIds.get(target.instanceId)?.has(target.elementId) === true;
     case "face":
@@ -151,6 +162,8 @@ export function isTargetHighlighted(state: InteractionState, target: Interaction
       return data.highlightedInstanceIds.has(target.instanceId);
     case "body":
       return data.highlightedBodyIds.get(target.instanceId)?.has(target.bodyId) === true;
+    case "block":
+      return data.highlightedBlockIds.get(target.instanceId)?.has(target.blockId) === true;
     case "element":
       return data.highlightedElementIds.get(target.instanceId)?.has(target.elementId) === true;
     case "face":
@@ -178,6 +191,12 @@ export function selectedTargets(state: InteractionState): InteractionTarget[] {
   )) {
     for (const bodyId of [...ids].sort((a, b) => a - b))
       targets.push({ kind: "body", instanceId, bodyId });
+  }
+  for (const [instanceId, ids] of [...data.selectedBlockIds.entries()].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    for (const blockId of [...ids].sort((a, b) => a - b))
+      targets.push({ kind: "block", instanceId, blockId });
   }
   for (const [instanceId, ids] of [...data.selectedElementIds.entries()].sort(([a], [b]) =>
     a.localeCompare(b),
@@ -223,6 +242,7 @@ export function clearSelection(state: InteractionState): InteractionState {
     data.selectedPartIds.size === 0 &&
     data.selectedInstanceIds.size === 0 &&
     data.selectedBodyIds.size === 0 &&
+    data.selectedBlockIds.size === 0 &&
     data.selectedElementIds.size === 0 &&
     data.selectedFaces.size === 0 &&
     data.selectedNodeIds.size === 0
@@ -233,6 +253,7 @@ export function clearSelection(state: InteractionState): InteractionState {
     selectedPartIds: new Set(),
     selectedInstanceIds: new Set(),
     selectedBodyIds: new Map(),
+    selectedBlockIds: new Map(),
     selectedElementIds: new Map(),
     selectedFaces: new Map(),
     selectedNodeIds: new Map(),

@@ -6,7 +6,13 @@ import {
   type InteractionState,
   type ResolvedStyle,
 } from "./state";
-import { applySelectionStyle, resolveBodyStyle, resolveInstanceStyle } from "./interaction";
+import {
+  applySelectionStyle,
+  resolveBodyStyle,
+  resolveElementBlockStyle,
+  resolveInstanceStyle,
+} from "./interaction";
+import type { ElementBlockId } from "../elements/model";
 import { faceRefKey, type FaceRef } from "./refs";
 import type { Instance } from "../scene/types";
 import { applyStyleLayers, collectUniqueRefs, sortedStrings, updateNestedMap } from "./mechanics";
@@ -71,13 +77,22 @@ export function resolveFaceStyle(
   ref: FaceRef,
   base: ResolvedStyle,
   state: InteractionState,
-  bodyId?: BodyId,
+  ownership?:
+    | BodyId
+    | {
+        readonly bodyId?: BodyId | undefined;
+        readonly blockId?: ElementBlockId | undefined;
+      },
 ): ResolvedStyle {
   const data = readInteractionState(state);
+  const bodyId = typeof ownership === "number" ? ownership : ownership?.bodyId;
+  const blockId = typeof ownership === "number" ? undefined : ownership?.blockId;
   const style =
-    bodyId === undefined
-      ? resolveInstanceStyle(instance, base, state)
-      : resolveBodyStyle(instance, bodyId, base, state);
+    blockId === undefined
+      ? bodyId === undefined
+        ? resolveInstanceStyle(instance, base, state)
+        : resolveBodyStyle(instance, bodyId, base, state)
+      : resolveElementBlockStyle(instance, blockId, base, state, bodyId);
   return applyStyleLayers(style, [
     data.highlightedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true
       ? data.theme.highlighted

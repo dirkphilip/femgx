@@ -5,6 +5,7 @@ import type { PartId } from "../geometry/part";
 import type { InstanceId } from "../scene/types";
 import {
   buildHighlightTable,
+  BLOCK_HIGHLIGHT_MARKER,
   BODY_HIGHLIGHT_MARKER,
   HIGHLIGHT_BUCKET_SIZE,
   type HighlightTableEntry,
@@ -137,10 +138,17 @@ function highlightCapacity(byteLength: number): number {
 
 function toTableEntry(update: EmphasisUpdate): HighlightTableEntry {
   const bodyPickId = update.bodyPickId ?? 0;
+  const blockPickId = update.blockPickId ?? 0;
   return {
     slot: update.slot,
-    elementPickId: bodyPickId === 0 ? update.elementPickId : bodyPickId,
-    facePickId: bodyPickId === 0 ? update.facePickId : BODY_HIGHLIGHT_MARKER,
+    elementPickId:
+      bodyPickId === 0 ? (blockPickId === 0 ? update.elementPickId : blockPickId) : bodyPickId,
+    facePickId:
+      bodyPickId === 0
+        ? blockPickId === 0
+          ? update.facePickId
+          : BLOCK_HIGHLIGHT_MARKER
+        : BODY_HIGHLIGHT_MARKER,
     nodePickId: update.nodePickId,
     data: encodeEmphasisRecord(update),
   };

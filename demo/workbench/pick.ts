@@ -89,6 +89,8 @@ export function elementTarget(target: SelectTarget): SelectTarget | undefined {
     case "face":
     case "element":
       return { kind: "element", instanceId: target.instanceId, elementId: target.elementId };
+    case "block":
+      return target;
     case "instance":
     case "part":
       return undefined;
@@ -105,6 +107,8 @@ export function targetKey(target: PickHit | SelectTarget | undefined): string {
       return `f:${target.instanceId}:${target.elementId}:${target.faceIndex}`;
     case "element":
       return `e:${target.instanceId}:${target.elementId}`;
+    case "block":
+      return `b:${target.instanceId}:${target.blockId}`;
     case "instance":
       return `i:${target.instanceId}`;
     case "part":

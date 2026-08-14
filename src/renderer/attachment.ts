@@ -10,8 +10,6 @@ import {
   destroyDrawResources,
   patchInstances,
   writeDrawOrder,
-  writeTransparentOrder,
-  writeEdgeOrder,
   type DrawCall,
 } from "./gpu-draw";
 import type { GpuBundle } from "./gpu-recovery";
@@ -23,8 +21,6 @@ import {
 } from "./instance-updates";
 import {
   buildDrawOrder,
-  buildEdgeOrder,
-  buildTransparentOrder,
   buildDrawCalls,
   buildInstanceLayout,
   buildInstanceSnapshot,
@@ -43,6 +39,14 @@ import {
   writeNodeOrders,
   type SelectionState,
 } from "./selection-state";
+import { rebuildEdgeOrders, rebuildTransparentOrders } from "./attachment-orders";
+
+type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
+type HiddenInteractionTuple = readonly [
+  HiddenInteractionIds,
+  HiddenInteractionIds,
+  HiddenInteractionIds,
+];
 
 /**
  * The renderer's CPU-side attachment to a packed scene runtime: the instance
@@ -70,8 +74,7 @@ export class RendererAttachment {
   private readonly selection: SelectionState = { selectedNodeFlags: [], nodeFlags: this.nodeFlags };
   private interactionState = createInteractionState();
   private interactionBeforeLastInstanceUpdate: InteractionState | undefined;
-  private appliedHiddenBodyIds: ReadonlyMap<string, ReadonlySet<number>> | undefined;
-  private appliedHiddenElementIds: ReadonlyMap<string, ReadonlySet<number>> | undefined;
+  private appliedHiddenIds: HiddenInteractionTuple = [undefined, undefined, undefined];
 
   /**
    * Ensures the attachment matches `runtime`, rebuilding the attachment when
@@ -204,11 +207,13 @@ export class RendererAttachment {
       fullSync,
     );
     const hiddenBodyIds = interactionData.hiddenBodyIds;
+    const hiddenBlockIds = interactionData.hiddenBlockIds;
     const hiddenElementIds = interactionData.hiddenElementIds;
-    const bodyVisibilityChanged = this.appliedHiddenBodyIds !== hiddenBodyIds;
-    const elementVisibilityChanged = this.appliedHiddenElementIds !== hiddenElementIds;
-    this.appliedHiddenBodyIds = hiddenBodyIds;
-    this.appliedHiddenElementIds = hiddenElementIds;
+    const [previousBodyIds, previousBlockIds, previousElementIds] = this.appliedHiddenIds;
+    const bodyVisibilityChanged = previousBodyIds !== hiddenBodyIds;
+    const blockVisibilityChanged = previousBlockIds !== hiddenBlockIds;
+    const elementVisibilityChanged = previousElementIds !== hiddenElementIds;
+    this.appliedHiddenIds = [hiddenBodyIds, hiddenBlockIds, hiddenElementIds];
     const { transparentChanged, selectionChanged } = this.syncInteractionBuffers({
       runtime,
       layout,
@@ -227,7 +232,7 @@ export class RendererAttachment {
     if (transparentChanged.size > 0 || selectionChanged) this.rebuildCalls(bundle.draw.cost);
     this.interactionState = interaction;
     this.interactionBeforeLastInstanceUpdate = undefined;
-    return attached || bodyVisibilityChanged || elementVisibilityChanged;
+    return attached || bodyVisibilityChanged || blockVisibilityChanged || elementVisibilityChanged;
   }
 
   private syncInteractionBuffers(options: {
@@ -301,8 +306,6 @@ export class RendererAttachment {
     this.selection.selectedNodeFlags.length = 0;
     this.interactionState = createInteractionState();
     this.interactionBeforeLastInstanceUpdate = undefined;
-    this.appliedHiddenBodyIds = undefined;
-    this.appliedHiddenElementIds = undefined;
   }
 
   private fullAttach(runtime: PackedSceneRuntime, layout: InstanceLayout, bundle: GpuBundle): void {
@@ -318,8 +321,7 @@ export class RendererAttachment {
     this.transparentFlags = new Array<boolean>(runtime.instanceCount).fill(false);
     this.selection.selectedNodeFlags.length = runtime.instanceCount;
     this.selection.selectedNodeFlags.fill(false);
-    this.appliedHiddenBodyIds = undefined;
-    this.appliedHiddenElementIds = undefined;
+    this.appliedHiddenIds = [undefined, undefined, undefined];
     const allSlots = Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
     bundle.draw.cost.cpu("instance-scan", allSlots.length);
     const { updates } = collectInstanceUpdates(
@@ -334,12 +336,14 @@ export class RendererAttachment {
     }
     for (const partId of layout.partOrder) {
       writeDrawOrder(bundle.draw, partId, buildDrawOrder(layout, runtime, partId));
-      writeTransparentOrder(
-        bundle.draw,
-        partId,
-        buildTransparentOrder(layout, runtime, partId, this.transparentFlags),
-      );
     }
+    rebuildTransparentOrders(
+      runtime,
+      layout,
+      new Set(layout.partOrder),
+      this.transparentFlags,
+      bundle.draw,
+    );
     this.runtime = runtime;
     this.layout = layout;
     this.rebuildCalls(bundle.draw.cost);
@@ -385,12 +389,7 @@ export class RendererAttachment {
     parts: ReadonlySet<PartId>,
     bundle: GpuBundle,
   ): void {
-    for (const partId of parts) {
-      bundle.draw.cost.cpu("order-rebuild", 1);
-      const order = buildTransparentOrder(layout, runtime, partId, this.transparentFlags);
-      writeTransparentOrder(bundle.draw, partId, order);
-      layout.partTransparentCounts.set(partId, order.length);
-    }
+    rebuildTransparentOrders(runtime, layout, parts, this.transparentFlags, bundle.draw);
   }
 
   private rebuildEdgeOrders(
@@ -399,12 +398,7 @@ export class RendererAttachment {
     parts: ReadonlySet<PartId>,
     bundle: GpuBundle,
   ): void {
-    for (const partId of parts) {
-      bundle.draw.cost.cpu("order-rebuild", 1);
-      const order = buildEdgeOrder(layout, runtime, partId, this.edgeFlags);
-      writeEdgeOrder(bundle.draw, partId, order);
-      layout.partEdgeCounts.set(partId, order.length);
-    }
+    rebuildEdgeOrders(runtime, layout, parts, this.edgeFlags, bundle.draw);
   }
 
   private rebuildCalls(cost: GpuCostAccumulator): void {

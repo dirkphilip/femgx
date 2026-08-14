@@ -10,7 +10,10 @@ import {
 import type { InteractionTarget } from "../interaction/target-types";
 import type { DeformationState } from "../results/deform";
 
-type EntityTarget = Extract<InteractionTarget, { kind: "body" | "element" | "face" | "node" }>;
+type EntityTarget = Extract<
+  InteractionTarget,
+  { kind: "body" | "block" | "element" | "face" | "node" }
+>;
 
 /** Mutable bounds accumulator shared by viewport bounds calculations. */
 export interface MutableBounds {
@@ -39,6 +42,8 @@ export function selectedGeometryBounds(
   switch (target.kind) {
     case "body":
       return bodyBounds(part, target.bodyId, deformation);
+    case "block":
+      return blockBounds(part, target.blockId, deformation);
     case "element":
       return elementBounds(part, target.elementId, deformation);
     case "face":
@@ -88,6 +93,25 @@ function elementBounds(
   return primitiveBounds(
     part,
     (primitive) => primitive >= range.start && primitive < range.start + range.count,
+    deformation,
+  );
+}
+
+function blockBounds(
+  part: Part,
+  blockId: number,
+  deformation: DeformationState | undefined,
+): Bounds | undefined {
+  const block = part.geometry.blocks?.find((candidate) => candidate.id === blockId);
+  if (block === undefined) return undefined;
+  const ranges = block.elementIds
+    .map((elementId) => part.geometry.elements?.find((element) => element.id === elementId))
+    .filter((element): element is NonNullable<typeof element> => element !== undefined)
+    .map(primitiveRangeForElement);
+  return primitiveBounds(
+    part,
+    (primitive) =>
+      ranges.some((range) => primitive >= range.start && primitive < range.start + range.count),
     deformation,
   );
 }

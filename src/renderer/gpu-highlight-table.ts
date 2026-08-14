@@ -3,6 +3,8 @@ export const HIGHLIGHT_BUCKET_SIZE = 4;
 
 /** Distinguishes body records from element records in the shared table key. */
 export const BODY_HIGHLIGHT_MARKER = 0xffffffff;
+/** Distinguishes semantic block records from element records. */
+export const BLOCK_HIGHLIGHT_MARKER = 0xfffffffe;
 
 /** One CPU-side emphasis record ready for placement in the GPU table. */
 export interface HighlightTableEntry {

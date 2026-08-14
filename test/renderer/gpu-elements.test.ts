@@ -7,6 +7,7 @@ import {
   setElementSelected,
 } from "../../src/interaction/interaction";
 import { setBodyOverride, setBodyVisible } from "../../src/interaction/bodies";
+import { setElementBlockSelected, setElementBlockVisible } from "../../src/interaction/blocks";
 import { setFaceSelected } from "../../src/interaction/faces";
 import { setNodeSelected } from "../../src/interaction/nodes";
 import { setTargetHovered } from "../../src/interaction/targets";
@@ -965,5 +966,83 @@ describe("syncElementHighlights", () => {
     } finally {
       restore();
     }
+  });
+});
+function blockScene(): { readonly scene: Scene; readonly runtime: SceneRuntime } {
+  const part = createPart(3, {
+    positions: new Float32Array(18),
+    indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+    primitive: "triangles" as const,
+    elements: [
+      { id: 4, primitiveStart: 0, primitiveCount: 1, bodyId: 7, blockId: 10 },
+      { id: 5, primitiveStart: 1, primitiveCount: 1, bodyId: 7, blockId: 11 },
+    ],
+    bodies: [{ id: 7, elementIds: [4, 5] }],
+    blocks: [
+      { id: 10, elementIds: [4] },
+      { id: 11, elementIds: [5] },
+    ],
+    faces: [
+      {
+        elementId: 4,
+        faceIndex: 0,
+        primitiveStart: 0,
+        primitiveCount: 1,
+        key: "a",
+        nodeIds: [],
+        neighborElementIds: [],
+        bodyId: 7,
+        blockId: 10,
+      },
+      {
+        elementId: 5,
+        faceIndex: 0,
+        primitiveStart: 1,
+        primitiveCount: 1,
+        key: "b",
+        nodeIds: [],
+        neighborElementIds: [],
+        bodyId: 7,
+        blockId: 11,
+      },
+    ],
+  });
+  const scene = createScene()
+    .addPart(part)
+    .addAssembly({
+      id: 1,
+      name: "blocks",
+      placements: [{ kind: "part", partId: 3, transform: translation(0, 0, 0) }],
+    })
+    .withRoot(1)
+    .build();
+  return { scene, runtime: createPackedSceneRuntime(scene) };
+}
+
+describe("element block emphasis", () => {
+  it("maps block visibility and selection to one bounded occurrence record", () => {
+    const { scene, runtime } = blockScene();
+    const layout = buildInstanceLayout(runtime);
+    const instanceId = runtime.getInstanceId(0);
+    if (instanceId === undefined) throw new Error("expected a block instance");
+    let interaction = setElementBlockVisible(
+      createInteractionState(),
+      {
+        instanceId,
+        blockId: 10,
+      },
+      false,
+    );
+    interaction = setElementBlockSelected(interaction, { instanceId, blockId: 10 }, true);
+    const updates = collectEmphasisUpdates(
+      runtime,
+      layout,
+      new Map([[instanceId, 0]]),
+      partsMap(scene),
+      interaction,
+    );
+    expect(updates.get(3)).toMatchObject([
+      { slot: 0, blockPickId: 11, hidden: true, selected: true },
+    ]);
   });
 });

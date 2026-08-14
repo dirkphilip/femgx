@@ -44,6 +44,7 @@ export function buildPartGeometryData(
   const facePickIdsBuffer = createTopologyBuffer(device, faceBodyPickIds, emptyEdgeData, {
     primitiveIds: vertexData.primitiveIds,
     edgeIds: emptyEdgeData.edgeIds,
+    blockIds: blockAwareIds(part),
   });
   const subsetVertexData =
     triangleGeometry === undefined || subsetIndices === undefined
@@ -54,6 +55,7 @@ export function buildPartGeometryData(
     subsetVertexData,
     faceBodyPickIds,
     resultTail,
+    blockAwareIds(part),
   );
   return {
     picks,
@@ -91,7 +93,7 @@ export function buildPartEdgeResources(
       device,
       buildPrimitiveFaceBodyPickData(part.geometry),
       edgeData,
-      { primitiveIds: [], edgeIds: edgeData.edgeIds },
+      { primitiveIds: [], edgeIds: edgeData.edgeIds, blockIds: edgeData.blockIds },
     ),
     edgeIndexCount: edgeData.indices.length,
     resultColorBinding: { buffer: edgeVertexBuffer, offset: edgeWithResults.offset },
@@ -123,7 +125,11 @@ function createTopologyBuffer(
   device: GPUDevice,
   faceBodyPickIds: Uint32Array,
   edgeData: MeshEdgeData,
-  metadata: { readonly primitiveIds: ArrayLike<number>; readonly edgeIds: ArrayLike<number> },
+  metadata: {
+    readonly primitiveIds: ArrayLike<number>;
+    readonly edgeIds: ArrayLike<number>;
+    readonly blockIds?: Uint32Array | undefined;
+  },
 ): GPUBuffer {
   return createBuffer(
     device,
@@ -143,6 +149,7 @@ function createSubsetBuffers(
   vertexData: SurfaceVertexData | undefined,
   faceBodyPickIds: Uint32Array,
   resultTail: ResultColorTail,
+  blockIds?: Uint32Array,
 ): {
   readonly subsetIndexBuffer?: GPUBuffer;
   readonly subsetVertexBuffer?: GPUBuffer;
@@ -164,12 +171,19 @@ function createSubsetBuffers(
     subsetTopologyBuffer: createTopologyBuffer(device, faceBodyPickIds, emptyMeshEdgeData(), {
       primitiveIds: vertexData.primitiveIds,
       edgeIds: [],
+      blockIds,
     }),
     subsetResultColorBinding: {
       buffer: subsetVertexBuffer,
       offset: subsetVertexWithResults.offset,
     },
   };
+}
+
+function blockAwareIds(part: Part): Uint32Array | undefined {
+  return part.geometry.blocks !== undefined && part.geometry.blocks.length > 0
+    ? new Uint32Array()
+    : undefined;
 }
 
 function createIndexBuffer(device: GPUDevice, indices: Uint32Array): GPUBuffer {

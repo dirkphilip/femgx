@@ -101,6 +101,7 @@ export {
   createInteractionState,
   emphasizedElementRefs,
   resolveBodyStyle,
+  resolveElementBlockStyle,
   resolveElementStyle,
   resolveInstanceStyle,
   setElementOverride,
@@ -135,10 +136,19 @@ export {
   setBodyOverride,
   setBodyVisible,
 } from "./interaction/bodies";
+export {
+  emphasizedElementBlockRefs,
+  isElementBlockEmphasized,
+  isElementBlockVisible,
+  setElementBlockHighlighted,
+  setElementBlockOverride,
+  setElementBlockSelected,
+  setElementBlockVisible,
+} from "./interaction/blocks";
 export { isElementVisible, setElementVisible } from "./interaction/elements";
 export { emphasizedFaceRefs, isFaceEmphasized, resolveFaceStyle } from "./interaction/faces";
 export { emphasizedNodeRefs, isNodeEmphasized, resolveNodeStyle } from "./interaction/nodes";
-export type { BodyRef, FaceRef, NodeRef } from "./interaction/refs";
+export type { BodyRef, ElementBlockRef, FaceRef, NodeRef } from "./interaction/refs";
 export {
   installBoxSelection,
   type BoxSelectionCancelReason,
