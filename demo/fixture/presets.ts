@@ -54,6 +54,7 @@ export function createGalleryPreset(): ModelPreset {
       [partIds.hex20, { r: 0.55, g: 0.35, b: 0.96, a: 1 }],
       [partIds.wedge6, { r: 0.25, g: 0.82, b: 0.48, a: 1 }],
       [partIds.pyramid5, { r: 0.96, g: 0.48, b: 0.18, a: 1 }],
+      [partIds.mixed, { r: 0.28, g: 0.68, b: 0.64, a: 1 }],
     ]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map<PartId, string>([
@@ -71,6 +72,7 @@ export function createGalleryPreset(): ModelPreset {
       [partIds.hex20, "Built-in helper · Hex20"],
       [partIds.wedge6, "Built-in helper · Wedge6"],
       [partIds.pyramid5, "Built-in helper · Pyramid5"],
+      [partIds.mixed, "Mixed point, line, and triangle elements"],
     ]),
     bounds: fixtureBounds(fixture.scene),
   };

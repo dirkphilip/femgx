@@ -10,6 +10,7 @@ import {
 } from "./gpu-surface-geometry";
 import { createBuffer, type PartEdgePickResource, type PartResource } from "./gpu-support";
 import { appendResultColorTail, type ResultColorTail } from "./gpu-result-colors";
+import { getPartSemanticIndex } from "../geometry/part-semantic-index";
 
 /** Expanded vertex data shared by surface and point upload paths. */
 export interface UploadVertexData {
@@ -40,7 +41,7 @@ export function buildPartGeometryData(
   const triangleGeometry = geometry.primitive === "triangles" ? geometry : undefined;
   const subsetIndices = getSubsetIndices(triangleGeometry);
   const emptyEdgeData = emptyMeshEdgeData();
-  const picks = uploadPickBuffers(device, part, vertexData.nodePickIds);
+  const picks = uploadPickBuffers(device, part, geometry, vertexData.nodePickIds);
   const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry);
   const facePickIdsBuffer = createTopologyBuffer(device, faceBodyPickIds, emptyEdgeData, {
     primitiveIds: vertexData.primitiveIds,
@@ -154,12 +155,13 @@ export function buildPartEdgePickResources(
 function uploadPickBuffers(
   device: GPUDevice,
   part: Part,
+  geometry: Geometry,
   nodePickIds: Uint32Array,
 ): Pick<PartResource, "elementOrdinalsBuffer" | "nodePickIdsBuffer"> {
   return {
     elementOrdinalsBuffer: createBuffer(
       device,
-      buildElementPrimitiveOrdinals(part.geometry),
+      buildElementPrimitiveOrdinals(geometry, getPartSemanticIndex(part).elementOrdinalById),
       GPUBufferUsage.STORAGE,
     ),
     nodePickIdsBuffer: createBuffer(device, nodePickIds, GPUBufferUsage.STORAGE),

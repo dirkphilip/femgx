@@ -133,7 +133,7 @@ describe("buildElementPrimitivePickIds", () => {
 });
 
 describe("buildElementPrimitiveOrdinals", () => {
-  it("maps each primitive to its stable geometry-order element ordinal", () => {
+  it("maps each primitive to its stable part-wide element ordinal", () => {
     const geometry: Geometry = {
       positions: new Float32Array(9),
       indices: new Uint32Array(9),
@@ -143,7 +143,17 @@ describe("buildElementPrimitiveOrdinals", () => {
         { id: 2, primitiveStart: 2, primitiveCount: 1 },
       ],
     };
-    expect(Array.from(buildElementPrimitiveOrdinals(geometry))).toEqual([1, 1, 2]);
+    expect(
+      Array.from(
+        buildElementPrimitiveOrdinals(
+          geometry,
+          new Map([
+            [40, 4],
+            [2, 2],
+          ]),
+        ),
+      ),
+    ).toEqual([4, 4, 2]);
   });
 });
 
@@ -354,6 +364,26 @@ describe("buildNodeSpritePickIds", () => {
       nodePositions: new Float32Array(12),
     };
     expect(Array.from(buildNodeSpritePickIds(geometry))).toEqual([2, 4]);
+  });
+
+  it("does not cover authored point elements with node-overlay sprites", () => {
+    const surface: Geometry = {
+      positions: new Float32Array(9),
+      indices: new Uint32Array([0, 1, 2]),
+      primitive: "triangles",
+      nodePickIds: new Uint32Array([1, 2, 3]),
+      nodePositions: new Float32Array(12),
+    };
+    const point: Geometry = {
+      positions: new Float32Array([0, 0, 0]),
+      indices: new Uint32Array([0]),
+      primitive: "points",
+      nodePickIds: new Uint32Array([4]),
+      nodePositions: new Float32Array(12),
+    };
+    const part = createPart(1, [surface, point]);
+
+    expect(Array.from(buildNodeSpritePickIds(part))).toEqual([1, 2, 3]);
   });
 });
 

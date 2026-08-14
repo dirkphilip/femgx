@@ -43,6 +43,30 @@ function brightenedNodePixelCount(withoutNodes: Buffer, withNodes: Buffer): numb
   return count;
 }
 
+function differingPixelsAround(
+  before: Buffer,
+  after: Buffer,
+  width: number,
+  center: readonly [number, number],
+  radius = 10,
+): number {
+  let count = 0;
+  for (let y = Math.round(center[1]) - radius; y <= Math.round(center[1]) + radius; y += 1) {
+    for (let x = Math.round(center[0]) - radius; x <= Math.round(center[0]) + radius; x += 1) {
+      const offset = (y * width + x) * 4;
+      if (offset < 0 || offset + 2 >= before.length || offset + 2 >= after.length) continue;
+      if (
+        Math.abs((before[offset] ?? 0) - (after[offset] ?? 0)) > 8 ||
+        Math.abs((before[offset + 1] ?? 0) - (after[offset + 1] ?? 0)) > 8 ||
+        Math.abs((before[offset + 2] ?? 0) - (after[offset + 2] ?? 0)) > 8
+      ) {
+        count += 1;
+      }
+    }
+  }
+  return count;
+}
+
 test("keeps selection feedback visible in edge overlay mode", async ({ page }) => {
   await loadWebGpuPage(page);
 
@@ -568,6 +592,70 @@ test("renders complete point sprites with authored node picks", async ({ page })
   );
   await expect.poll(() => canvas.getAttribute("data-hovered"), { timeout: 2_000 }).toMatch(/^n:/);
 });
+
+for (const viewport of [
+  { label: "desktop", width: 1280, height: 720 },
+  { label: "mobile", width: 390, height: 844 },
+] as const) {
+  test(`selects every mixed primitive as its FE element without shrinking point elements on ${viewport.label}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await loadWebGpuPage(page);
+    await page.getByTestId("model-select").selectOption("gallery");
+    await setSelectionGranularity(page, "element");
+    const canvas = page.getByTestId("view-canvas");
+    await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
+    const box = await canvas.boundingBox();
+    if (box === null) throw new Error("canvas has no bounding box");
+    const { camera } = await readNavigationState(canvas);
+    const project = (point: readonly [number, number, number]): readonly [number, number] => {
+      const projected = projectCameraPoint(camera, point);
+      if (projected === undefined) throw new Error("mixed primitive projected behind the camera");
+      return projected;
+    };
+    const point = project([9, 6, 0]);
+
+    await clearHover(page, canvas);
+    await stableCanvasPixels(page, canvas);
+    const nodesVisible = await canvasRgba(page, canvas);
+    await page.getByTestId("node-overlay").click();
+    await stableCanvasPixels(page, canvas);
+    const nodesHidden = await canvasRgba(page, canvas);
+    expect(
+      differingPixelsAround(nodesVisible, nodesHidden, Math.round(box.width), point, 2),
+      "an authored point element must not receive a smaller node overlay",
+    ).toBe(0);
+    await page.getByTestId("node-overlay").click();
+
+    const targets = [
+      { elementId: 2, point: project([9.8, 6, 0]), label: "line" },
+      { elementId: 1, point, label: "point" },
+      { elementId: 3, point: project([9.8, 6.63, 0]), label: "triangle" },
+    ] as const;
+    for (const target of targets) {
+      await clearHover(page, canvas);
+      await stableCanvasPixels(page, canvas);
+      const before = await canvasRgba(page, canvas);
+      await page.mouse.move(box.x + target.point[0], box.y + target.point[1]);
+      await expect.poll(() => canvas.getAttribute("data-pick")).not.toBe("");
+      await page.mouse.click(box.x + target.point[0], box.y + target.point[1]);
+      await expect
+        .poll(() => canvas.getAttribute("data-selected"))
+        .toMatch(new RegExp(`^e:[^:]+:${target.elementId}$`));
+      await expect(page.getByTestId("inspection-panel")).toContainText(
+        "Mixed point, line, and triangle elements",
+      );
+      await clearHover(page, canvas);
+      await stableCanvasPixels(page, canvas);
+      const selected = await canvasRgba(page, canvas);
+      expect(
+        differingPixelsAround(before, selected, Math.round(box.width), target.point),
+        `selecting the mixed ${target.label} element must change its rendered pixels`,
+      ).toBeGreaterThan(4);
+    }
+  });
+}
 
 interface QuadraticSurfaceTarget {
   readonly label: string;
