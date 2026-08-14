@@ -18,6 +18,10 @@ fn selectionColor(
   let tint = color.rgb + vec3<f32>(emissive);
   return select(tint, mix(resultColor.rgb, tint, 0.38), resultColorEnabled != 0u);
 }
+
+fn visibleSelectionAlpha(baseAlpha: f32) -> f32 {
+  return select(baseAlpha, 1.0, baseAlpha >= 1.0);
+}
 `;
 
 /** Opaque selection output used by the visible depth/stencil pass. */
@@ -37,7 +41,10 @@ fn fragmentMain(
   @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> @location(0) vec4<f32> {
   if (selected == 0u || dot(local, local) > 1.0 || color.a <= 0.0 || !sectionPlaneVisible(worldPosition)) { discard; }
-  return vec4<f32>(selectionColor(color, resultColor, resultColorEnabled, emissive), color.a);
+  return vec4<f32>(
+    selectionColor(color, resultColor, resultColorEnabled, emissive),
+    visibleSelectionAlpha(color.a),
+  );
 }
 `;
 
@@ -69,7 +76,10 @@ fn fragmentMain(
     camera.viewDirection.xyz,
   );
   let emphasized = vec4<f32>(litColor, color.a);
-  return vec4<f32>(selectionColor(emphasized, resultColor, resultColorEnabled, emissive), color.a);
+  return vec4<f32>(
+    selectionColor(emphasized, resultColor, resultColorEnabled, emissive),
+    visibleSelectionAlpha(color.a),
+  );
 }
 `;
 
