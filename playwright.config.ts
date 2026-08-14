@@ -87,7 +87,7 @@ export default defineConfig({
       name: "chrome-software-rendering",
       testMatch: /(demo-results|demo-visibility|webgpu-rendering|webgpu-visibility)\.spec\.ts/,
       retries: 0,
-      workers: 1,
+      workers: 2,
       use: {
         ...devices["Desktop Chrome"],
         channel: "chrome",
