@@ -100,21 +100,26 @@ function nodeHit(
 ): NodePickHit {
   const nodeId = ids.nodePickId - 1;
   const localPosition = nodePosition(geometry, nodeId);
-  const elementId =
-    ids.elementPickId > 0 ? ids.elementPickId - 1 : (geometry.elements?.[0]?.id ?? 0);
+  const elementId = elementIdFromPick(geometry, ids.elementPickId);
   const adjacency = geometryAdjacency(geometry, nodeId);
   return {
     kind: "node",
     partId: instance.partId,
     instanceId: instance.instanceId,
-    elementId,
+    ...(elementId === undefined ? {} : { elementId }),
     nodeId,
-    ...bodyFields(geometry, elementId),
+    ...(elementId === undefined ? {} : bodyFields(geometry, elementId)),
     localPosition,
     worldPosition,
     neighborElementIds: adjacency.neighborElementIds,
     neighborNodeIds: adjacency.neighborNodeIds,
   };
+}
+
+function elementIdFromPick(geometry: Geometry, elementPickId: number): number | undefined {
+  if (elementPickId <= 0) return undefined;
+  const elementId = elementPickId - 1;
+  return geometry.elements?.some((element) => element.id === elementId) ? elementId : undefined;
 }
 
 function faceHit(
