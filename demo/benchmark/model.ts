@@ -230,9 +230,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
 
 /** Returns benchmark models allowed in the workbench's ordinary selector. */
 export function workbenchBenchmarkSpecs(performanceLab: boolean): readonly WebGpuBenchmarkSpec[] {
-  return benchmarkCaseSpecs(performanceLab).filter(
-    (spec) => performanceLab || spec.ordinaryDemo === true,
-  );
+  return performanceLab ? benchmarkCaseSpecs(true) : [];
 }
 
 /** Builds one deterministic benchmark scene without including generation in its timings. */

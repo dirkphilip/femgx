@@ -303,21 +303,17 @@ those costs are part of the performance question rather than overhead to hide.
 
 ## Interactive WebGPU inspection case
 
-The full-screen demo exposes only the measured-safe FE inspection tiers through
-the normal model selector. `demo/benchmark/model.ts` and the shared
-`demo/fixture/planar-grid.ts` generator define the same deterministic cases for
-the selector and the opt-in benchmark. Ordinary selector entries are lazy items:
-startup creates no benchmark geometry, and selecting one yields to the browser
-before building through the normal `Scene` → runtime → `FemViewport` path. The
-capacity tiers remain available through the explicit local `?performanceLab=1`
-opt-in, which exposes the full matrix including local-only cases. The existing
-`Performance · 2.10M triangles` preset remains the small eagerly registered
-showcase; its diagnostics distinguish the 32,768 unique triangles from
-2,097,152 submitted triangles. The selector entries are for visual inspection;
-the opt-in benchmark above owns reproducible cost breakdowns. The selector and
-benchmark are subject to [[requirements/demo-fixtures|the same fixture
-contract]]; issue #526 remains the work tracker until the migration is complete,
-after which the linked requirement is the durable source of truth.
+The full-screen demo exposes seven user-facing FE/product stories through the
+normal model selector. `demo/benchmark/model.ts` and the shared
+`demo/fixture/planar-grid.ts` generator define deterministic capacity cases for
+the explicit local `?performanceLab=1` opt-in only. Ordinary startup creates no
+benchmark geometry or capacity work; opting in appends the full matrix, including
+local-only cases, through the normal `Scene` → runtime → `FemViewport` path. The
+opt-in benchmark owns reproducible cost breakdowns, while diagnostics may still
+consume the retained `Performance · 2.10M triangles` fixture directly. The
+selector and benchmark are subject to [[requirements/demo-fixtures|the same
+fixture contract]]; issue #526 remains the work tracker until the migration is
+complete, after which the linked requirement is the durable source of truth.
 
 The toolbar's **Continuous** control is a separate, explicit inspection aid and
 is off by default. While enabled, the demo chains one `FemViewport.invalidate()`

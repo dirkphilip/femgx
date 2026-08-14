@@ -219,13 +219,7 @@ describe("WebGPU benchmark models", () => {
   });
 
   it("keeps optional benchmark cases out of the ordinary workbench selector", () => {
-    expect(workbenchBenchmarkSpecs(false).map((spec) => spec.id)).toEqual([
-      "bodies-256",
-      "fe-quad-shell-visual",
-      "fe-quad8-shell-visual",
-      "fe-hex8-solid-visual",
-      "fe-hex20-solid-visual",
-    ]);
+    expect(workbenchBenchmarkSpecs(false)).toEqual([]);
     expect(workbenchBenchmarkSpecs(false).some((spec) => spec.id === "unique-250k")).toBe(false);
     expect(workbenchBenchmarkSpecs(true).some((spec) => spec.id === "unique-250k")).toBe(true);
     expect(workbenchBenchmarkSpecs(true).some((spec) => spec.id === "unique-2m-local")).toBe(true);

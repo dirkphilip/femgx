@@ -10,7 +10,6 @@ import {
 } from "../../src/index";
 import { createBoltedPlateFixture } from "./bolted-plate";
 import { createElementFixture, createHex20CylinderFixture } from "./element-fixture";
-import { createPerformancePreset } from "./performance-fixture";
 import { fixtureBounds } from "./preset-bounds";
 import { createResultsPreset } from "./results-preset";
 import { createTransparencyFixture } from "./transparency-fixture";
@@ -234,7 +233,6 @@ export function createModelPresets(
     createTransparencyPreset(
       options.transparencyOpacity === undefined ? {} : { opacity: options.transparencyOpacity },
     ),
-    createPerformancePreset(),
   ];
 }
 

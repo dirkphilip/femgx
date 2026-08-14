@@ -20,7 +20,7 @@ import { readInteractionState } from "../../../src/interaction/state";
 import { transformPoint } from "../../../src/math/mat4";
 
 describe("createModelPresets", () => {
-  it("offers the supported product stories and performance case in stable order", () => {
+  it("offers the seven supported product stories in stable order", () => {
     const presets = createModelPresets();
     expect(presets.map((preset) => preset.id)).toEqual([
       "bolted",
@@ -30,7 +30,6 @@ describe("createModelPresets", () => {
       "section-volume",
       "results",
       "transparency",
-      "performance",
     ]);
     expect(presets.map((preset) => preset.name)).toEqual([
       "Bolted plate assembly",
@@ -40,9 +39,8 @@ describe("createModelPresets", () => {
       "Section-plane volume",
       "Static results · scalar + deformation + orientation",
       "Order-independent transparency",
-      "Performance · 2.10M triangles",
     ]);
-    expect(new Set(presets.map((preset) => preset.name)).size).toBe(8);
+    expect(new Set(presets.map((preset) => preset.name)).size).toBe(7);
   });
 
   it("keeps the bolted plate as the default showcase", () => {
