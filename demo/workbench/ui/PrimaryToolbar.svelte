@@ -32,9 +32,25 @@
 
 <div class="toolbar">
   <div class="toolbar-row toolbar-row-primary">
-    <div id="model-source" class="model-source" role="group" aria-label="Model source">
-      <select id="model-select" data-testid="model-select" aria-label="Example model"></select>
-      <button id="open-model" data-testid="open-model" type="button">Open model…</button>
+    <div
+      id="model-source"
+      class="model-source"
+      role="group"
+      aria-label="Model source"
+      aria-busy={snapshot?.model.loading ?? false}
+    >
+      <select
+        id="model-select"
+        data-testid="model-select"
+        aria-label="Example model"
+        disabled={snapshot?.model.selectionDisabled ?? false}
+      ></select>
+      <button
+        id="open-model"
+        data-testid="open-model"
+        type="button"
+        disabled={snapshot?.model.openDisabled ?? false}>Open model…</button
+      >
       <input
         id="model-file"
         data-testid="model-file"
@@ -156,8 +172,11 @@
     data-testid="model-feedback"
     role="status"
     aria-live="polite"
-    hidden
-  ></div>
+    data-kind={snapshot?.overlays.feedback?.kind}
+    hidden={snapshot?.overlays.feedback === undefined}
+  >
+    {snapshot?.overlays.feedback?.message ?? ""}
+  </div>
   <p id="interaction-help" data-testid="interaction-help" class="interaction-help">
     Element: click or drag to replace. Hold Ctrl or ⌘ to toggle. Shift keeps element selection. Alt
     selects an instance.

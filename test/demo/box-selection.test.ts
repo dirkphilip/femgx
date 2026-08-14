@@ -277,7 +277,9 @@ describe("workbench click selection", () => {
     const inspectionPanel = { textContent: "" };
     const workbench = new WorkbenchInteraction({
       canvas: canvas as unknown as HTMLCanvasElement,
-      view: { inspectionPanel: inspectionPanel as unknown as HTMLElement },
+      setInspection: (text) => {
+        inspectionPanel.textContent = text;
+      },
       viewport: () => ({ pick, pickRegion }) as unknown as FemViewport,
       getInteraction: () => interaction,
       setInteraction: (next) => {

@@ -17,8 +17,6 @@ import {
   type WebGpuBenchmarkElementFamily,
   type WebGpuBenchmarkSpec,
 } from "../benchmark/model";
-import { describePick } from "./inspect";
-import type { DemoView } from "./view";
 
 /** One demo-owned descriptor for built-in and locally opened display models. */
 export interface WorkbenchModel {
@@ -178,45 +176,6 @@ export function importFeedback(fileName: string, imported: ImportedModelData): s
 /** Returns an actionable string for an importer or file-reader failure. */
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-/** Resets model-scoped inspection chrome after an atomic model transition. */
-export function clearModelInspection(view: DemoView, model: WorkbenchModel): void {
-  view.canvas.dataset["hovered"] = "";
-  view.canvas.dataset["selected"] = "";
-  view.canvas.dataset["pick"] = "";
-  view.inspectionPanel.textContent = describePick(undefined, (partId) =>
-    model.partNames.get(partId),
-  );
-  view.inspectionPanel.closest<HTMLElement>(".inspection")?.setAttribute("hidden", "");
-}
-
-/** Reflects an asynchronous model transition in the model-source group. */
-export function setModelLoading(
-  view: DemoView,
-  loading: boolean,
-  options: { readonly allowModelSelection?: boolean } = {},
-): void {
-  view.modelSource.setAttribute("aria-busy", String(loading));
-  view.modelSelect.disabled = loading && options.allowModelSelection !== true;
-  view.openModelButton.disabled = loading;
-}
-
-/** Writes bounded status feedback without changing the active model. */
-export function setModelFeedback(
-  view: DemoView,
-  message: string,
-  kind: "info" | "error" = "info",
-): void {
-  view.modelFeedback.hidden = false;
-  view.modelFeedback.dataset["kind"] = kind;
-  view.modelFeedback.textContent = message;
-}
-
-/** Hides transient model feedback after a successful model transition. */
-export function clearModelFeedback(view: DemoView): void {
-  view.modelFeedback.hidden = true;
-  view.modelFeedback.textContent = "";
 }
 
 const fallbackColor: Color = { r: 0.5, g: 0.5, b: 0.5, a: 1 };

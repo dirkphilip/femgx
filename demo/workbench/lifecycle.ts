@@ -3,7 +3,6 @@ import type { DemoView, WorkbenchPane } from "./view";
 import type { WorkbenchBoxPreview } from "./box-preview";
 import type { WorkbenchInteraction } from "./interaction";
 import { installWorkbenchBindings, installWorkbenchPaneBindings } from "./listeners";
-import type { WorkbenchMenu } from "./menu";
 import type { VisibilityPanelController } from "./visibility-panel";
 
 export interface WorkbenchLifecycleOptions {
@@ -11,7 +10,6 @@ export interface WorkbenchLifecycleOptions {
   readonly canvas: HTMLCanvasElement;
   readonly signal: AbortSignal;
   readonly interaction: WorkbenchInteraction;
-  readonly menu: WorkbenchMenu;
   readonly visibilityPanel: VisibilityPanelController;
   readonly boxPreview: WorkbenchBoxPreview;
   readonly dragging: () => boolean;
@@ -57,7 +55,6 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     },
   });
   options.visibilityPanel.install(options.signal);
-  options.menu.install(options.signal);
   installWorkbenchBindings({
     view: options.view,
     canvas: options.canvas,

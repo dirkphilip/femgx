@@ -35,6 +35,7 @@ export interface WorkbenchInfrastructureOptions {
   readonly runtime: () => SceneRuntime;
   readonly applyDisplayedInteraction: () => void;
   readonly render: () => void;
+  readonly publishSnapshot: () => void;
   readonly setTreeHover: (target: VisibilityRowTarget | undefined) => void;
   readonly setEdges: () => void;
   readonly setDiagnostics: () => void;
@@ -78,6 +79,7 @@ export function createWorkbenchInfrastructure(
     setInteraction: options.setInteraction,
     applyDisplayedInteraction: options.applyDisplayedInteraction,
     render: options.render,
+    publishSnapshot: options.publishSnapshot,
     setTreeHover: options.setTreeHover,
     applyMenuAction: (action) => {
       applyControllerMenuAction(action, options, features.current);
@@ -129,6 +131,8 @@ function createViewportSlots(
     applySharedState: options.applySharedState,
     rebuildVisibility: options.rebuildVisibility,
     feedback: options.feedback,
+    setInspection: features.presentation.setInspection.bind(features.presentation),
+    selectionFeedback: features.presentation.setFeedback.bind(features.presentation),
     onActiveSlotChanged: options.onActiveSlotChanged,
   });
 }

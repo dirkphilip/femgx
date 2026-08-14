@@ -1,11 +1,15 @@
 import type { SceneRuntime } from "../../src/index";
-import type { WorkbenchCommands } from "./snapshot";
+import type { WorkbenchCommands, WorkbenchMenuAction } from "./snapshot";
 import type { VisibilityRowTarget } from "./tree-hover";
 import type { WorkbenchVisibilityActions } from "./visibility-actions";
+import type { WorkbenchInteraction } from "./interaction";
+import type { WorkbenchMenu } from "./menu";
 
 interface WorkbenchCommandOwner {
   readonly runtime: SceneRuntime;
   readonly visibilityActions: WorkbenchVisibilityActions;
+  readonly menu: WorkbenchMenu;
+  readonly interactionController: WorkbenchInteraction;
   setProjection(): void;
   setBackground(value: string): void;
   setEdges(): void;
@@ -51,6 +55,12 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     setResultField: owner.setResultField.bind(owner),
     setSectionAxis: owner.setSectionAxis.bind(owner),
     setSectionOffset: owner.setSectionOffset.bind(owner),
+    contextMenuAction: (action: WorkbenchMenuAction) => {
+      owner.menu.activate(action);
+    },
+    clearContextMenu: () => {
+      owner.interactionController.clearContext();
+    },
     toggleVisibility: (target) => {
       toggleVisibility(owner, target);
     },
