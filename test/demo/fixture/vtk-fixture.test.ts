@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { createVtkFixture } from "../../../demo/fixture/vtk-fixture";
+import { createVtkScene } from "../../../demo/fixture/vtk-scene";
+import { parseVtk } from "../../../src/index";
+
+const MIXED_VTK = [
+  "# vtk DataFile Version 5.0",
+  "mixed primitive example",
+  "ASCII",
+  "DATASET UNSTRUCTURED_GRID",
+  "POINTS 7 double",
+  "0 0 0",
+  "1 0 0",
+  "2 0 0",
+  "0 1 0",
+  "1 1 0",
+  "0 0 1",
+  "0 0 2",
+  "CELLS 3 9",
+  "1 0",
+  "2 1 2",
+  "3 3 4 5",
+  "CELL_TYPES 3",
+  "1",
+  "3",
+  "5",
+].join("\n");
 
 describe("createVtkFixture", () => {
   it("parses the checked-in mesh and its nodal/element results", () => {
@@ -21,5 +46,16 @@ describe("createVtkFixture", () => {
     if (solid?.primitive !== "triangles") throw new Error("VTK solid fixture is not triangles");
     expect(solid.faceSubset?.faceIds.length).toBeGreaterThan(0);
     expect(solid.faceSubset?.faceIds.length).toBeLessThan(solid.faces?.length ?? 0);
+  });
+
+  it("builds every supported primitive group from mixed VTK cells", () => {
+    const imported = createVtkScene(parseVtk(MIXED_VTK).model);
+    expect([...imported.scene.parts.values()].map((part) => part.geometry.primitive)).toEqual([
+      "triangles",
+      "lines",
+      "points",
+    ]);
+    expect(imported.partNames.size).toBe(3);
+    expect(imported.elementModels.size).toBe(3);
   });
 });

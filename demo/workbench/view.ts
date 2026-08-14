@@ -32,8 +32,8 @@ export interface DemoView {
   readonly buildInfo: HTMLElement;
   readonly modelSelect: HTMLSelectElement;
   readonly modelSource: HTMLElement;
-  readonly openGlbButton: HTMLButtonElement;
-  readonly glbFileInput: HTMLInputElement;
+  readonly openModelButton: HTMLButtonElement;
+  readonly modelFileInput: HTMLInputElement;
   readonly modelFeedback: HTMLElement;
   readonly fitView: HTMLButtonElement;
   readonly selectionGranularity: HTMLSelectElement;
@@ -81,8 +81,8 @@ export function queryDemoView(): DemoView {
     buildInfo: requiredElement("#build-info"),
     modelSelect: requiredSelect("#model-select"),
     modelSource: requiredElement("#model-source"),
-    openGlbButton: requiredButton("#open-glb"),
-    glbFileInput: requiredInput("#glb-file"),
+    openModelButton: requiredButton("#open-model"),
+    modelFileInput: requiredInput("#model-file"),
     modelFeedback: requiredElement("#model-feedback"),
     fitView: requiredButton("#fit-view"),
     selectionGranularity: requiredSelect("#selection-granularity"),

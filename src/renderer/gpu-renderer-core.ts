@@ -9,6 +9,7 @@ import type { DeformationState } from "../results/deform";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import { RendererAttachment } from "./attachment";
+import { createDrawResources, destroyDrawResources } from "./gpu-draw";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
 import { syncDeformations, validateDeformation } from "./gpu-deform";
 import { syncResultColors } from "./gpu-result-colors";
@@ -109,6 +110,21 @@ export class GpuRenderer implements WebGpuRenderer {
     syncResultColors(this.lifecycle.bundle.draw, this.resultColors);
     if (partsChanged || cameraChanged || attachmentChanged) this.pickSnapshotValid = false;
     encodeVisibleFrame(camera, parts, this.frameOptions());
+  }
+
+  public resetScene(): void {
+    this.ensureAlive();
+    this.attachment.clear();
+    const cost = this.lifecycle.bundle.draw.cost;
+    destroyDrawResources(this.lifecycle.bundle.draw);
+    this.lifecycle.bundle.draw = createDrawResources(this.lifecycle.bundle.device, cost);
+    this.parts = new Map();
+    this.sourceParts = undefined;
+    this.lastCamera = undefined;
+    this.deformation = undefined;
+    this.resultColors = undefined;
+    this.nodeOrdersDirty = true;
+    this.pickSnapshotValid = false;
   }
 
   public setDeformation(deformation: DeformationState | undefined): void {

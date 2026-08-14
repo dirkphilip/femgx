@@ -28,7 +28,7 @@ export interface WorkbenchLifecycleOptions {
   readonly reset: () => void;
   readonly fitView: () => void;
   readonly setModel: (id: string) => void;
-  readonly openGlb: (file: File) => void;
+  readonly openModel: (file: File) => void;
   readonly setActive: () => void;
   readonly toggleViewport?: () => void;
 }
@@ -89,7 +89,7 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     reset: options.reset,
     fitView: options.fitView,
     setModel: options.setModel,
-    openGlb: options.openGlb,
+    openModel: options.openModel,
     setActive: options.setActive,
     ...(options.toggleViewport === undefined ? {} : { toggleViewport: options.toggleViewport }),
   });

@@ -271,8 +271,8 @@ export class WorkbenchController {
     this.modelSession.setModel(id);
   }
 
-  async openGlb(file: File): Promise<void> {
-    await this.modelSession.openGlb(file);
+  async openModel(file: File): Promise<void> {
+    await this.modelSession.openModel(file);
   }
 
   setEdges(enabled = !this.toggles.edges): void {

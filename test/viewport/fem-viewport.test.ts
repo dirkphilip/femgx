@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createPart } from "../../src/geometry/part";
+import { createResultField } from "../../src/results/fields";
 import { setBodyOverride, setBodyVisible } from "../../src/interaction/bodies";
 import { setPartOverride } from "../../src/interaction/interaction";
 import { setTargetSelected } from "../../src/interaction/targets";
@@ -118,6 +119,46 @@ function invalidScene(): Scene {
   };
 }
 
+function resultScene(nodeCount: 3 | 6): Scene {
+  const positions = new Float32Array(
+    nodeCount === 3
+      ? [-1, -1, 0, 1, -1, 0, 0, 1, 0]
+      : [-1, -1, 0, 1, -1, 0, 0, 1, 0, 2, -1, 0, 4, -1, 0, 3, 1, 0],
+  );
+  const indices =
+    nodeCount === 3 ? new Uint32Array([0, 1, 2]) : new Uint32Array([0, 1, 2, 3, 4, 5]);
+  return createScene()
+    .addPart(
+      createPart(1, {
+        positions,
+        indices,
+        primitive: "triangles",
+        nodePickIds: new Uint32Array(Array.from({ length: nodeCount }, (_, index) => index + 1)),
+      }),
+    )
+    .addAssembly({
+      id: 1,
+      name: "result-root",
+      placements: [{ kind: "part", partId: 1, transform: translation(0, 0, 0) }],
+    })
+    .withRoot(1)
+    .build();
+}
+
+function nodalResult(nodeCount: 3 | 6) {
+  return {
+    field: createResultField({
+      id: `scene-${nodeCount}-scalar`,
+      name: "scene scalar",
+      location: "nodal" as const,
+      shape: "scalar" as const,
+      count: nodeCount,
+      unit: "source",
+      values: new Float32Array(Array.from({ length: nodeCount }, (_, index) => index + 1)),
+    }),
+  };
+}
+
 describe("FemViewport", () => {
   it("does not resynchronize unchanged interaction state during camera-only frames", async () => {
     restoreGpuGlobals = installGpuGlobals();
@@ -220,6 +261,26 @@ describe("FemViewport", () => {
     await expect(
       createFemViewport({ canvas: fakeCanvas(), scene: scene(), originTriad: "invalid" as never }),
     ).rejects.toThrow("Invalid originTriad");
+  });
+
+  it("invalidates geometry resources before applying results to a replacement scene", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: resultScene(3),
+      results: nodalResult(3),
+      device: fakeGpuDevice().device,
+    });
+
+    viewport.setScene(resultScene(6));
+    expect(() => {
+      viewport.setResults(nodalResult(6));
+    }).not.toThrow();
+    expect(() => {
+      viewport.render();
+    }).not.toThrow();
+    viewport.destroy();
   });
 
   it("rejects an orientation gizmo container that does not contain the canvas before setup", async () => {

@@ -129,7 +129,7 @@ controller, so camera and interaction behavior is stable
   surface with model, **Fit model**, projection, a labeled **Background** select
   (`Studio`, `White`, or `Dark`), edges, nodes, results, and **Reset all** controls.
   The selector is demo-owned presentation state and calls the public viewport
-  background setter; it survives model, GLB, reset, resize, recovery, and viewport
+  background setter; it survives model, local-file, reset, resize, recovery, and viewport
   replacement transitions, while a failed setter restores the last successful value
   through the existing model-feedback status region. Fit model changes only camera
   framing; Reset all restores the active preset's complete deterministic workbench

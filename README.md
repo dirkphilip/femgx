@@ -154,6 +154,10 @@ FE semantics. Unsupported required extensions fail with `IoError`; optional igno
 reported in `imported.issues`. Mesh compression support is added only after a representative
 compressed Onshape export identifies the extension and decoder.
 
+The inspection demo's **Open model…** action accepts local ASCII legacy `.vtk` FE meshes and
+self-contained `.glb` display scenes. VTK files use the canonical FE parser, mixed primitive
+groups, and authored scalar/deformation result path; GLB files remain display-only.
+
 ```ts
 const scene = createScene()
   .addPart(part)

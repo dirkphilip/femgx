@@ -5,7 +5,6 @@ import {
   type Bounds,
   type Color,
   type ElementModel,
-  type GlbSceneImport,
   type Issue,
   type PartId,
   type Scene,
@@ -35,6 +34,17 @@ export interface WorkbenchModel {
   readonly benchmarkElementFamily?: WebGpuBenchmarkElementFamily;
   /** Builds an opt-in large model only after the user selects it. */
   readonly deferredLoad?: () => Promise<WorkbenchModel>;
+}
+
+/** Canonical demo data produced by a supported local model importer. */
+export interface ImportedModelData {
+  readonly scene: Scene;
+  readonly elementModels: ReadonlyMap<PartId, ElementModel>;
+  readonly partNames: ReadonlyMap<PartId, string>;
+  readonly partStyles: ReadonlyMap<PartId, StyleOverride>;
+  readonly bounds?: Bounds;
+  readonly results: ModelPreset["results"];
+  readonly issues: readonly Issue[];
 }
 
 /** Adapts an existing fixture to the common workbench model contract. */
@@ -102,18 +112,18 @@ function createBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchModel {
   };
 }
 
-/** Creates the active workbench descriptor for one imported GLB file. */
-export function createImportedModel(fileName: string, imported: GlbSceneImport): WorkbenchModel {
+/** Creates the active workbench descriptor for one imported local model file. */
+export function createImportedModel(fileName: string, imported: ImportedModelData): WorkbenchModel {
   return {
-    id: "opened-glb",
+    id: "opened-model",
     name: fileName,
     source: "file",
     scene: imported.scene,
-    elementModels: new Map(),
+    elementModels: imported.elementModels,
     partNames: imported.partNames,
     partStyles: imported.partStyles,
-    bounds: sceneBounds(imported.scene),
-    results: undefined,
+    bounds: imported.bounds ?? sceneBounds(imported.scene),
+    results: imported.results,
     issues: imported.issues,
   };
 }
@@ -145,11 +155,11 @@ export function displayFileName(name: string): string {
     .join("")
     .trim()
     .slice(0, 120);
-  return sanitized.length > 0 ? sanitized : "opened.glb";
+  return sanitized.length > 0 ? sanitized : "opened.model";
 }
 
 /** Formats bounded import feedback for the workbench status region. */
-export function importFeedback(fileName: string, imported: GlbSceneImport): string {
+export function importFeedback(fileName: string, imported: ImportedModelData): string {
   const warnings = imported.issues.filter((issue) => issue.severity === "warning");
   if (warnings.length === 0) return `Opened ${fileName}.`;
   const first = warnings[0];
@@ -180,7 +190,7 @@ export function setModelLoading(
 ): void {
   view.modelSource.setAttribute("aria-busy", String(loading));
   view.modelSelect.disabled = loading && options.allowModelSelection !== true;
-  view.openGlbButton.disabled = loading;
+  view.openModelButton.disabled = loading;
 }
 
 /** Writes bounded status feedback without changing the active model. */
