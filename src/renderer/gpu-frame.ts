@@ -8,6 +8,7 @@ import { writeSectionPlaneUniform } from "./gpu-section-plane";
 import type { SectionPlane } from "../math/section-plane";
 import type { DrawCall, DrawCallContext, DrawResources } from "./gpu-draw";
 import { drawBatches } from "./gpu-batch";
+import { drawOrientationGlyphs } from "./gpu-orientation-glyph-draw";
 import type { PickTargets } from "./gpu-pick";
 import { ensurePickTargets } from "./gpu-pick";
 import { beginPickPass } from "./gpu-pick-pass";
@@ -203,6 +204,7 @@ export function encodeVisibleFrame(
     primitive: "points",
   });
   drawSelectionPass(opaquePass, frame, context, "selection-visible");
+  drawOrientationGlyphs(opaquePass, frame, context, frame.calls, "visible");
   if (orbitPivotActive) drawOrbitPivot(opaquePass, frame.resources.orbitPivot, "visible");
   if (orbitPivotActive) frame.draw.cost.draw("pivot", 60);
   if (!needsTransparency) drawPresentationOverlays(opaquePass, frame, context);
@@ -240,6 +242,7 @@ function drawTransparencyPass(
     });
   }
   drawSelectionPass(pass, frame, context, "selection-hidden");
+  drawOrientationGlyphs(pass, frame, context, frame.calls, "hidden");
   if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
     drawOriginTriad(pass, frame.resources.originTriad, "hidden");
     frame.draw.cost.draw("origin-triad", 45);

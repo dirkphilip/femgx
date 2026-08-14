@@ -23,6 +23,7 @@ import type { ViewportBackground } from "./types";
 import type { GpuValidationOptions } from "./gpu-validation";
 import type { GpuCostSnapshot } from "./gpu-cost";
 import type { SectionPlane } from "../math/section-plane";
+import { syncOrientationGlyphs, type OrientationGlyphState } from "./gpu-orientation-glyph";
 
 export interface GpuRendererConstruction {
   readonly bundle: GpuBundle;
@@ -52,6 +53,7 @@ export class GpuRenderer implements WebGpuRenderer {
   private deformation: DeformationState | undefined;
   private resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
   private sectionPlane: SectionPlane | undefined;
+  private orientationGlyphs: OrientationGlyphState | undefined;
   private originTriadNominalScale = 1;
   private nodeOrdersDirty = true;
   private destroyed = false;
@@ -111,6 +113,14 @@ export class GpuRenderer implements WebGpuRenderer {
     }
     syncDeformations(this.lifecycle.bundle.draw, this.deformation);
     syncResultColors(this.lifecycle.bundle.draw, this.resultColors);
+    if (this.attachment.layout !== undefined) {
+      syncOrientationGlyphs(
+        this.lifecycle.bundle.draw.orientationGlyphs,
+        this.orientationGlyphs,
+        runtime,
+        this.attachment.layout,
+      );
+    }
     if (partsChanged || cameraChanged || attachmentChanged) this.pickSnapshotValid = false;
     encodeVisibleFrame(camera, parts, this.frameOptions());
   }
@@ -124,6 +134,7 @@ export class GpuRenderer implements WebGpuRenderer {
     this.lastCamera = undefined;
     this.deformation = undefined;
     this.resultColors = undefined;
+    this.orientationGlyphs = undefined;
     this.nodeOrdersDirty = true;
     this.pickSnapshotValid = false;
   }
@@ -139,6 +150,20 @@ export class GpuRenderer implements WebGpuRenderer {
     this.ensureAlive();
     this.resultColors = colors;
     syncResultColors(this.lifecycle.bundle.draw, colors);
+  }
+
+  /** Installs renderer-owned elemental orientation records without public API leakage. */
+  public setOrientationGlyphs(state: OrientationGlyphState | undefined): void {
+    this.ensureAlive();
+    this.orientationGlyphs = state;
+    if (this.attachment.runtime !== undefined && this.attachment.layout !== undefined) {
+      syncOrientationGlyphs(
+        this.lifecycle.bundle.draw.orientationGlyphs,
+        state,
+        this.attachment.runtime,
+        this.attachment.layout,
+      );
+    }
   }
 
   public setSectionPlane(plane: SectionPlane | undefined): void {

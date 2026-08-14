@@ -19,6 +19,12 @@ import { appendResultColorTail, createResultColorTail } from "./gpu-result-color
 import { buildPartEdgeResources, buildPartGeometryData } from "./gpu-geometry-upload";
 import { createColorTargets, destroyColorTargets, type ColorTargets } from "./gpu-targets";
 import { GpuCostAccumulator } from "./gpu-cost";
+import {
+  createOrientationGlyphDrawResources,
+  destroyOrientationGlyphPart,
+  destroyOrientationGlyphDrawResources,
+  type OrientationGlyphDrawResources,
+} from "./gpu-orientation-glyph";
 
 const POINT_SPRITE_INDICES = [0, 1, 2, 0, 2, 3] as const;
 
@@ -52,6 +58,7 @@ export interface DrawResources {
   readonly nodeParts: Map<PartId, PartResource>;
   readonly storages: Map<PartId, InstanceStorage>;
   readonly deformations: Map<PartId, DeformationStorage>;
+  readonly orientationGlyphs: OrientationGlyphDrawResources;
   /** The complete visible-frame target state and its composite cache. */
   readonly targets: ColorTargets;
 }
@@ -77,6 +84,7 @@ export function createDrawResources(
     nodeParts: new Map(),
     storages: new Map(),
     deformations: new Map(),
+    orientationGlyphs: createOrientationGlyphDrawResources(device, cost),
     targets: createColorTargets(),
   };
 }
@@ -292,6 +300,7 @@ export function destroyDrawResources(draw: DrawResources): void {
   destroyInstanceResources(draw);
   destroyDeformationBuffers(draw.deformations);
   draw.deformations.clear();
+  destroyOrientationGlyphDrawResources(draw.orientationGlyphs);
   destroyColorTargets(draw.targets);
 }
 
@@ -308,4 +317,5 @@ export function destroyPartResources(draw: DrawResources, partId: PartId): void 
     draw.nodeParts.delete(partId);
   }
   destroyDeformationBuffer(draw.deformations, partId);
+  destroyOrientationGlyphPart(draw.orientationGlyphs, partId);
 }
