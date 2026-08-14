@@ -1,17 +1,17 @@
 import {
   createResultField,
-  createSceneRuntime,
-  transformPoint,
   type Bounds,
   type Color,
   type ElementModel,
   type PartId,
   type Scene,
   type ViewportResultsConfig,
+  type VectorField,
 } from "../../src/index";
 import { createBoltedPlateFixture } from "./bolted-plate";
 import { createElementFixture, createHex20CylinderFixture } from "./element-fixture";
 import { createPerformancePreset } from "./performance-fixture";
+import { fixtureBounds } from "./preset-bounds";
 import { createResultsPreset } from "./results-preset";
 import { createTransparencyFixture } from "./transparency-fixture";
 import { createVtkFixture } from "./vtk-fixture";
@@ -28,6 +28,7 @@ export interface ModelPreset {
   readonly partNames: ReadonlyMap<PartId, string>;
   readonly bounds: Bounds;
   readonly results?: ViewportResultsConfig;
+  readonly resultVectorFields?: readonly VectorField<"elemental">[];
 }
 
 /** Builds the gallery of built-in topology helpers and a generic solver mapping. */
@@ -240,58 +241,4 @@ export function createModelPresets(
 /** The demo's default showcase preset (the bolted plate assembly). */
 export function createDefaultPreset(): ModelPreset {
   return createModelPresets()[0] as ModelPreset;
-}
-
-function fixtureBounds(scene: Scene): Bounds {
-  const runtime = createSceneRuntime(scene);
-  let result: Bounds | undefined;
-  for (const instanceId of runtime.getDrawList()) {
-    const partId = runtime.getPartId(instanceId);
-    const transform = runtime.getTransform(instanceId);
-    const part = partId === undefined ? undefined : scene.parts.get(partId);
-    if (part === undefined || transform === undefined) continue;
-    const bounds = transformBounds(part.bounds, transform);
-    result = mergeBounds(result, bounds);
-  }
-  if (result === undefined) throw new Error("Preset scene must contain at least one part");
-  return result;
-}
-
-function transformBounds(bounds: Bounds, transform: Float32Array): Bounds {
-  let result: Bounds = {
-    minX: Infinity,
-    minY: Infinity,
-    minZ: Infinity,
-    maxX: -Infinity,
-    maxY: -Infinity,
-    maxZ: -Infinity,
-  };
-  for (const x of [bounds.minX, bounds.maxX]) {
-    for (const y of [bounds.minY, bounds.maxY]) {
-      for (const z of [bounds.minZ, bounds.maxZ]) {
-        const [px, py, pz] = transformPoint(transform, x, y, z);
-        result = {
-          minX: Math.min(result.minX, px),
-          minY: Math.min(result.minY, py),
-          minZ: Math.min(result.minZ, pz),
-          maxX: Math.max(result.maxX, px),
-          maxY: Math.max(result.maxY, py),
-          maxZ: Math.max(result.maxZ, pz),
-        };
-      }
-    }
-  }
-  return result;
-}
-
-function mergeBounds(first: Bounds | undefined, second: Bounds): Bounds {
-  if (first === undefined) return second;
-  return {
-    minX: Math.min(first.minX, second.minX),
-    minY: Math.min(first.minY, second.minY),
-    minZ: Math.min(first.minZ, second.minZ),
-    maxX: Math.max(first.maxX, second.maxX),
-    maxY: Math.max(first.maxY, second.maxY),
-    maxZ: Math.max(first.maxZ, second.maxZ),
-  };
 }

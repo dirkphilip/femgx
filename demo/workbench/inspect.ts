@@ -1,4 +1,10 @@
-import { scalarAt, type PartId, type PickHit, type ViewportResultsState } from "../../src/index";
+import {
+  scalarAt,
+  vectorAt,
+  type PartId,
+  type PickHit,
+  type ViewportResultsState,
+} from "../../src/index";
 
 /**
  * Optional resolver for a part's display name, so the inspection panel can
@@ -71,13 +77,29 @@ function resultDescription(
   results: ViewportResultsState | undefined,
 ): string | undefined {
   if (results === undefined) return undefined;
-  const field = results.scalar?.field;
-  if (field === undefined) return undefined;
-  const entity =
-    field.location === "nodal" ? (hit.kind === "node" ? hit.nodeId : undefined) : hit.elementId;
-  if (entity === undefined || entity < 0 || entity >= field.count) return undefined;
-  const value = scalarAt(field, entity);
-  return `${field.name} (${field.location}, ${field.unit}): ${Number.isNaN(value) ? "missing" : format(value)}`;
+  const descriptions: string[] = [];
+  const scalar = results.scalar?.field;
+  if (scalar !== undefined) {
+    const entity =
+      scalar.location === "nodal" ? (hit.kind === "node" ? hit.nodeId : undefined) : hit.elementId;
+    if (entity !== undefined && entity >= 0 && entity < scalar.count) {
+      const value = scalarAt(scalar, entity);
+      descriptions.push(
+        `${scalar.name} (${scalar.location}, ${scalar.unit}): ${Number.isNaN(value) ? "missing" : format(value)}`,
+      );
+    }
+  }
+  const vectors = results.vectors?.field;
+  if (vectors !== undefined && hit.elementId !== undefined) {
+    const entity = hit.elementId;
+    if (entity >= 0 && entity < vectors.count) {
+      const value = vectorAt(vectors, entity);
+      descriptions.push(
+        `${vectors.name} (${vectors.location}, ${vectors.unit}): ${vectorValue(value)}`,
+      );
+    }
+  }
+  return descriptions.length === 0 ? undefined : descriptions.join("\n");
 }
 
 function bodyDescription(hit: { readonly bodyId?: number }): string {
@@ -92,6 +114,12 @@ function partContext(partId: PartId, partName: PartNameResolver): string {
 
 function formatVec(vector: readonly [number, number, number]): string {
   return `(${format(vector[0])}, ${format(vector[1])}, ${format(vector[2])})`;
+}
+
+function vectorValue(vector: readonly [number, number, number]): string {
+  if (!vector.every(Number.isFinite)) return "missing (not drawn)";
+  if (vector.every((component) => component === 0)) return "zero (not drawn)";
+  return `[${format(vector[0])}, ${format(vector[1])}, ${format(vector[2])}] · normalized orientation · magnitude not displayed`;
 }
 
 function format(value: number): string {

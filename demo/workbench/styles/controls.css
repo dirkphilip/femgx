@@ -67,6 +67,7 @@
   display: flex;
   min-width: min(100%, 420px);
   flex: 1 1 100%;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   padding: 2px 0;
@@ -74,7 +75,7 @@
 .result-controls label {
   display: flex;
   min-width: 0;
-  flex: 1 1 0;
+  flex: 1 1 180px;
   align-items: center;
   gap: 5px;
   color: #b9c7d8;
@@ -90,6 +91,12 @@
 }
 .result-controls input {
   width: 80px;
+}
+.result-orientation-help {
+  flex: 1 1 100%;
+  min-width: 0;
+  color: #91a6bc;
+  font-size: 11px;
 }
 .section-controls {
   display: flex;

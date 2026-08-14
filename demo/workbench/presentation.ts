@@ -3,7 +3,9 @@ import {
   type FemViewport,
   type InteractionState,
   type SceneRuntime,
+  type VectorField,
   type ViewportBackground,
+  type ViewportResultsConfig,
   type ViewportResultsState,
 } from "../../src/index";
 import type { WorkbenchModel } from "./model";
@@ -13,7 +15,14 @@ import { selectedElementTargets } from "./visibility-actions";
 import { statsText } from "../devtools/diagnostics";
 import type { DisplayToggles, RenderLoopStats, RendererStats, ResultDisplayMode } from "./types";
 import type { SelectionGranularity } from "./pick";
-import { BASE_RESULT_VALUE, DEFORMATION_OFF_VALUE } from "./result-controls";
+import {
+  BASE_RESULT_VALUE,
+  DEFORMATION_OFF_VALUE,
+  resultVectorFieldsForModel,
+  VECTOR_OFF_VALUE,
+  type VectorGlyph,
+  type VectorTransform,
+} from "./result-controls";
 import { sectionAxisBounds, type SectionAxis } from "./section-controls";
 
 /** Presentation-only DOM policy for the workbench shell. */
@@ -25,6 +34,10 @@ export interface WorkbenchPresentationOptions {
   readonly getToggles: () => DisplayToggles;
   readonly getResultMode: () => ResultDisplayMode;
   readonly getDeformationScale: () => number;
+  readonly getVectorFieldId: () => string;
+  readonly getVectorGlyph: () => VectorGlyph;
+  readonly getVectorTransform: () => VectorTransform;
+  readonly getVectorLengthScale: () => number;
   readonly getViewport: () => FemViewport;
   readonly getInteraction: () => InteractionState;
   readonly getRuntime: () => SceneRuntime;
@@ -149,39 +162,88 @@ export class WorkbenchPresentation {
     const mode = this.options.getResultMode();
     const controls = this.options.view.resultControls;
     const scalar = config?.scalar;
-    controls.hidden = scalar === undefined;
-    if (scalar === undefined || config === undefined) {
+    const vectorFields = resultVectorFieldsForModel(this.options.getModel());
+    controls.hidden =
+      scalar === undefined && config?.deformation === undefined && vectorFields.length === 0;
+    if (controls.hidden) {
       this.options.view.resultLegend.hidden = true;
       this.options.canvas.dataset["results"] = "base";
+      this.options.canvas.dataset["vectorField"] = VECTOR_OFF_VALUE;
       return;
     }
-    replaceOptions(this.options.view.resultField, [
-      { value: BASE_RESULT_VALUE, label: "Base" },
-      {
-        value: scalar.field.id,
-        label: `${scalar.field.name} · ${fieldLocation(scalar.field.location)}`,
-      },
-    ]);
-    this.options.view.resultField.value = mode === "base" ? BASE_RESULT_VALUE : scalar.field.id;
-    replaceOptions(this.options.view.deformationField, [
-      { value: DEFORMATION_OFF_VALUE, label: "Off" },
-      ...(config.deformation === undefined
-        ? []
-        : [{ value: config.deformation.field.id, label: config.deformation.field.name }]),
-    ]);
-    this.options.view.deformationField.value =
-      mode === "deformed" && config.deformation !== undefined
-        ? config.deformation.field.id
-        : DEFORMATION_OFF_VALUE;
-    this.options.view.deformationField.disabled =
-      mode === "base" || config.deformation === undefined;
-    this.options.view.deformationScale.disabled =
-      mode !== "deformed" || config.deformation === undefined;
-    this.options.view.deformationScale.value = String(this.options.getDeformationScale());
+    this.reflectScalarControls(scalar, mode);
+    this.reflectDeformationControls(config?.deformation, mode);
+    const vectorFieldId = this.reflectVectorControls(vectorFields);
     const results = this.options.getViewport().results;
     this.options.view.resultLegend.hidden = results === undefined;
     if (results !== undefined) this.options.view.resultLegend.textContent = resultLegend(results);
     this.options.canvas.dataset["results"] = mode;
+    this.options.canvas.dataset["vectorField"] = vectorFieldId;
+    this.options.canvas.dataset["vectorGlyph"] = this.options.getVectorGlyph();
+    this.options.canvas.dataset["vectorTransform"] = this.options.getVectorTransform();
+  }
+
+  private reflectScalarControls(
+    scalar: ViewportResultsConfig["scalar"],
+    mode: ResultDisplayMode,
+  ): void {
+    replaceOptions(this.options.view.resultField, [
+      { value: BASE_RESULT_VALUE, label: "Base" },
+      ...(scalar === undefined
+        ? []
+        : [
+            {
+              value: scalar.field.id,
+              label: `${scalar.field.name} · ${fieldLocation(scalar.field.location)}`,
+            },
+          ]),
+    ]);
+    this.options.view.resultField.value =
+      mode === "base" || scalar === undefined ? BASE_RESULT_VALUE : scalar.field.id;
+    this.options.view.resultField.disabled = scalar === undefined;
+  }
+
+  private reflectDeformationControls(
+    deformation: ViewportResultsConfig["deformation"],
+    mode: ResultDisplayMode,
+  ): void {
+    replaceOptions(this.options.view.deformationField, [
+      { value: DEFORMATION_OFF_VALUE, label: "Off" },
+      ...(deformation === undefined
+        ? []
+        : [{ value: deformation.field.id, label: deformation.field.name }]),
+    ]);
+    this.options.view.deformationField.value =
+      mode === "deformed" && deformation !== undefined
+        ? deformation.field.id
+        : DEFORMATION_OFF_VALUE;
+    this.options.view.deformationField.disabled = mode === "base" || deformation === undefined;
+    this.options.view.deformationScale.disabled = mode !== "deformed" || deformation === undefined;
+    this.options.view.deformationScale.value = String(this.options.getDeformationScale());
+  }
+
+  private reflectVectorControls(fields: readonly VectorField<"elemental">[]): string {
+    replaceOptions(this.options.view.vectorField, [
+      { value: VECTOR_OFF_VALUE, label: "Off" },
+      ...fields.map((field) => ({
+        value: field.id,
+        label: `${field.name} · Elemental`,
+      })),
+    ]);
+    const vectorFieldId = fields.some((field) => field.id === this.options.getVectorFieldId())
+      ? this.options.getVectorFieldId()
+      : VECTOR_OFF_VALUE;
+    this.options.view.vectorField.value = vectorFieldId;
+    const vectorsActive = vectorFieldId !== VECTOR_OFF_VALUE;
+    this.options.view.vectorField.disabled = fields.length === 0;
+    this.options.view.vectorGlyph.value = this.options.getVectorGlyph();
+    this.options.view.vectorTransform.value = this.options.getVectorTransform();
+    this.options.view.vectorLengthScale.value = String(this.options.getVectorLengthScale());
+    this.options.view.vectorGlyph.disabled = !vectorsActive;
+    this.options.view.vectorTransform.disabled = !vectorsActive;
+    this.options.view.vectorLengthScale.disabled = !vectorsActive;
+    this.options.view.vectorHelp.hidden = fields.length === 0;
+    return vectorFieldId;
   }
 
   reflectSectionPlane(): void {
@@ -227,17 +289,30 @@ function replaceOptions(select: HTMLSelectElement, options: readonly SelectOptio
 
 function resultLegend(results: ViewportResultsState): string {
   const scalar = results.scalar;
-  if (scalar === undefined) return "Vector results";
-  const field = scalar.field;
-  const stops = scalar.colorMap.stops
-    .map((stop) => `${formatNumber(stop.offset * 100)}% ${formatColor(stop.color)}`)
-    .join(" → ");
-  return (
-    `${field.name}\n` +
-    `${fieldLocation(field.location)} · Unit ${field.unit}\n` +
-    `Range ${formatNumber(scalar.range.min)} – ${formatNumber(scalar.range.max)}\n` +
-    `Colors ${stops}`
-  );
+  const lines: string[] = [];
+  if (scalar !== undefined) {
+    const field = scalar.field;
+    const stops = scalar.colorMap.stops
+      .map((stop) => `${formatNumber(stop.offset * 100)}% ${formatColor(stop.color)}`)
+      .join(" → ");
+    lines.push(
+      field.name,
+      `${fieldLocation(field.location)} · Unit ${field.unit}`,
+      `Range ${formatNumber(scalar.range.min)} – ${formatNumber(scalar.range.max)}`,
+      `Colors ${stops}`,
+    );
+  }
+  const vectors = results.vectors;
+  if (vectors !== undefined) {
+    if (lines.length > 0) lines.push("");
+    lines.push(
+      vectors.field.name,
+      `${fieldLocation(vectors.field.location)} · Unit ${vectors.field.unit}`,
+      `Normalized orientation · ${capitalize(vectors.glyph)} / ${capitalize(vectors.transform)}`,
+      "Magnitude not displayed",
+    );
+  }
+  return lines.join("\n");
 }
 
 function fieldLocation(location: "nodal" | "elemental"): string {

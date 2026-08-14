@@ -13,6 +13,7 @@ import type { SelectionGranularity } from "./pick";
 import type { WorkbenchViewportSlot } from "./viewport-slots";
 import type { VisibilityRowTarget } from "./tree-hover";
 import type { SectionAxis } from "./section-controls";
+import type { VectorDisplayState } from "./result-controls";
 import {
   createWorkbenchInfrastructure,
   type WorkbenchInfrastructure,
@@ -28,6 +29,7 @@ export interface WorkbenchControllerWiringContext {
   readonly toggles: DisplayToggles;
   readonly resultMode: ResultDisplayMode;
   readonly deformationScale: number;
+  readonly vectorDisplay: VectorDisplayState;
   readonly continuousEnabled: boolean;
   readonly selectionGranularity: SelectionGranularity;
   readonly sectionAxis: SectionAxis;
@@ -65,6 +67,10 @@ export interface WorkbenchControllerWiringContext {
   readonly setResultField: (value: string) => void;
   readonly setDeformationField: (value: string) => void;
   readonly setDeformationScale: (value: string) => void;
+  readonly setVectorField: (value: string) => void;
+  readonly setVectorGlyph: (value: string) => void;
+  readonly setVectorTransform: (value: string) => void;
+  readonly setVectorLengthScale: (value: string) => void;
   readonly setSectionAxis: (value: string) => void;
   readonly setSectionOffset: (value: string) => void;
   readonly setModel: (id: string) => void;
@@ -83,28 +89,26 @@ export function createControllerInfrastructure(
     viewport: context.viewport,
     createViewport: options.createViewport,
     model: () => context.model,
-    activeViewport: () => context.activeViewport(),
-    viewports: () => context.viewports(),
-    activeSlot: () => context.activeSlot(),
+    activeViewport: context.activeViewport.bind(context),
+    viewports: context.viewports.bind(context),
+    activeSlot: context.activeSlot.bind(context),
     runtime: () => context.runtime,
     toggles: () => context.toggles,
     resultMode: () => context.resultMode,
     deformationScale: () => context.deformationScale,
+    vectorFieldId: () => context.vectorDisplay.fieldId,
+    vectorGlyph: () => context.vectorDisplay.glyph,
+    vectorTransform: () => context.vectorDisplay.transform,
+    vectorLengthScale: () => context.vectorDisplay.lengthScale,
     continuous: () => context.continuousEnabled,
     selectionGranularity: () => context.selectionGranularity,
     sectionAxis: () => context.sectionAxis,
     sectionOffset: () => context.sectionOffset,
     interaction: () => context.interaction,
     setInteraction: context.setInteraction.bind(context),
-    applyDisplayedInteraction: () => {
-      context.applyDisplayedInteraction();
-    },
-    render: () => {
-      context.render();
-    },
-    setTreeHover: (target) => {
-      context.setTreeHover(target);
-    },
+    applyDisplayedInteraction: context.applyDisplayedInteraction.bind(context),
+    render: context.render.bind(context),
+    setTreeHover: context.setTreeHover.bind(context),
     setEdges: () => {
       context.setEdges();
     },
@@ -169,13 +173,16 @@ function lifecycleDisplayBindings(
   | "setResultField"
   | "setDeformationField"
   | "setDeformationScale"
+  | "setVectorField"
+  | "setVectorGlyph"
+  | "setVectorTransform"
+  | "setVectorLengthScale"
   | "setSectionAxis"
   | "setSectionOffset"
 > {
   return {
-    setBackground: (value) => {
-      context.setBackground(value);
-    },
+    ...lifecycleVectorBindings(context),
+    setBackground: context.setBackground.bind(context),
     setEdges: () => {
       context.setEdges();
     },
@@ -208,6 +215,28 @@ function lifecycleDisplayBindings(
     },
     setSectionOffset: (value) => {
       context.setSectionOffset(value);
+    },
+  };
+}
+
+function lifecycleVectorBindings(
+  context: WorkbenchControllerWiringContext,
+): Pick<
+  WorkbenchLifecycleOptions,
+  "setVectorField" | "setVectorGlyph" | "setVectorTransform" | "setVectorLengthScale"
+> {
+  return {
+    setVectorField: (value) => {
+      context.setVectorField(value);
+    },
+    setVectorGlyph: (value) => {
+      context.setVectorGlyph(value);
+    },
+    setVectorTransform: (value) => {
+      context.setVectorTransform(value);
+    },
+    setVectorLengthScale: (value) => {
+      context.setVectorLengthScale(value);
     },
   };
 }

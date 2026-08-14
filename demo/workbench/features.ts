@@ -12,6 +12,7 @@ import type { VisibilityRowTarget } from "./tree-hover";
 import { setModelFeedback } from "./model";
 import type { SelectionGranularity } from "./pick";
 import type { SectionAxis } from "./section-controls";
+import type { VectorGlyph, VectorTransform } from "./result-controls";
 
 export interface WorkbenchFeatureOptions {
   readonly view: DemoView;
@@ -25,6 +26,10 @@ export interface WorkbenchFeatureOptions {
   readonly toggles: () => DisplayToggles;
   readonly resultMode: () => ResultDisplayMode;
   readonly deformationScale: () => number;
+  readonly vectorFieldId: () => string;
+  readonly vectorGlyph: () => VectorGlyph;
+  readonly vectorTransform: () => VectorTransform;
+  readonly vectorLengthScale: () => number;
   readonly continuous: () => boolean;
   readonly selectionGranularity: () => SelectionGranularity;
   readonly sectionAxis: () => SectionAxis;
@@ -77,6 +82,10 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     getToggles: options.toggles,
     getResultMode: options.resultMode,
     getDeformationScale: options.deformationScale,
+    getVectorFieldId: options.vectorFieldId,
+    getVectorGlyph: options.vectorGlyph,
+    getVectorTransform: options.vectorTransform,
+    getVectorLengthScale: options.vectorLengthScale,
     getViewport: options.viewport,
     getContinuous: options.continuous,
     getSelectionGranularity: options.selectionGranularity,

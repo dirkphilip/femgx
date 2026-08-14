@@ -186,6 +186,50 @@
                     aria-label="Deformation scale"
                   />
                 </label>
+                <label for="vector-field">
+                  <span>Vector</span>
+                  <select
+                    id="vector-field"
+                    data-testid="vector-field"
+                    aria-label="Elemental vector field"
+                  >
+                    <option value="__vectors_off__">Off</option>
+                  </select>
+                </label>
+                <label for="vector-glyph">
+                  <span>Glyph</span>
+                  <select id="vector-glyph" data-testid="vector-glyph" aria-label="Vector glyph">
+                    <option value="arrow">Arrow</option>
+                    <option value="axis">Axis</option>
+                  </select>
+                </label>
+                <label for="vector-transform">
+                  <span>Transform</span>
+                  <select
+                    id="vector-transform"
+                    data-testid="vector-transform"
+                    aria-label="Vector transform"
+                  >
+                    <option value="direction">Direction</option>
+                    <option value="normal">Normal</option>
+                  </select>
+                </label>
+                <label for="vector-length-scale">
+                  <span>Vector scale</span>
+                  <input
+                    id="vector-length-scale"
+                    data-testid="vector-length-scale"
+                    type="number"
+                    min="0.01"
+                    step="any"
+                    inputmode="decimal"
+                    value="1"
+                    aria-label="Vector length scale"
+                  />
+                </label>
+                <span id="vector-help" data-testid="vector-help" class="result-orientation-help">
+                  Normalized orientation; magnitude not displayed
+                </span>
               </div>
               <div
                 id="section-controls"

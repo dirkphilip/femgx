@@ -158,7 +158,12 @@ controller, so camera and interaction behavior is stable
   the scene, scroll internally when needed, and remain visible in the compact
   mobile scene. On mobile the optional panes stack vertically before the
   hierarchy follows them, while
-  the toolbar uses exactly two rows.
+  the toolbar uses exactly two rows. The results panel also offers demo-private
+  elemental vector selection, `Arrow`/`Axis` glyphs, `Direction`/`Normal`
+  occurrence transforms, and a positive length scale; it states that vectors
+  are normalized for orientation and that magnitude is not displayed. The
+  results example covers signed normals, sign-invariant fibers, missing/zero
+  rows, and a reflected non-uniform repeated placement.
 - The controller exposes a `rendererState` note (e.g. `recovered`) for status
   presentation. `FemViewport` performs recovery and reports success/failure to
   the demo callbacks ([[rendering/platform-support|Platform support]]).

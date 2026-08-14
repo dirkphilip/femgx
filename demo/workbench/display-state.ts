@@ -1,4 +1,10 @@
-import { setPartOverride, type FemViewport, type InteractionState } from "../../src/index";
+import {
+  setPartOverride,
+  type FemViewport,
+  type InteractionState,
+  type ViewportElementVectorConfig,
+  type ViewportResultsConfig,
+} from "../../src/index";
 import { partStyleOverride, type WorkbenchModel } from "./model";
 import type { DisplayToggles, ResultDisplayMode } from "./types";
 
@@ -7,6 +13,7 @@ interface ResultStateOptions {
   readonly model: WorkbenchModel;
   readonly mode: ResultDisplayMode;
   readonly deformationScale: number;
+  readonly vector: ViewportElementVectorConfig | undefined;
   readonly reflect: () => void;
 }
 
@@ -14,21 +21,33 @@ interface ResultStateOptions {
 export function applyResultState(options: ResultStateOptions): void {
   const config = options.model.results;
   for (const viewport of options.viewports) {
-    if (config === undefined || options.mode === "base") {
+    const roles = resultRoles(config, options.mode, options.deformationScale, options.vector);
+    if (roles === undefined) {
       viewport.clearResults();
-    } else if (options.mode === "colored") {
-      const { deformation: _, ...coloredConfig } = config;
-      viewport.setResults(coloredConfig);
     } else {
-      const deformation = config.deformation;
-      viewport.setResults(
-        deformation === undefined
-          ? config
-          : { ...config, deformation: { ...deformation, scale: options.deformationScale } },
-      );
+      viewport.setResults(roles);
     }
   }
   options.reflect();
+}
+
+function resultRoles(
+  config: WorkbenchModel["results"],
+  mode: ResultDisplayMode,
+  deformationScale: number,
+  vector: ViewportElementVectorConfig | undefined,
+): ViewportResultsConfig | undefined {
+  const scalar = mode === "base" ? undefined : config?.scalar;
+  const deformation =
+    mode !== "deformed" || config?.deformation === undefined
+      ? undefined
+      : { ...config.deformation, scale: deformationScale };
+  if (scalar === undefined && deformation === undefined && vector === undefined) return undefined;
+  return {
+    ...(scalar === undefined ? {} : { scalar }),
+    ...(deformation === undefined ? {} : { deformation }),
+    ...(vector === undefined ? {} : { vectors: vector }),
+  };
 }
 
 interface DisplayStateOptions {

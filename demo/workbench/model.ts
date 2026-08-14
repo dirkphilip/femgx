@@ -9,6 +9,7 @@ import {
   type PartId,
   type Scene,
   type StyleOverride,
+  type VectorField,
 } from "../../src/index";
 import type { ModelPreset } from "../fixture/presets";
 import {
@@ -30,6 +31,7 @@ export interface WorkbenchModel {
   readonly partStyles: ReadonlyMap<PartId, StyleOverride>;
   readonly bounds: Bounds;
   readonly results: ModelPreset["results"];
+  readonly resultVectorFields?: readonly VectorField<"elemental">[];
   readonly issues: readonly Issue[];
   readonly benchmarkElementFamily?: WebGpuBenchmarkElementFamily;
   /** Builds an opt-in large model only after the user selects it. */
@@ -44,6 +46,7 @@ export interface ImportedModelData {
   readonly partStyles: ReadonlyMap<PartId, StyleOverride>;
   readonly bounds?: Bounds;
   readonly results: ModelPreset["results"];
+  readonly resultVectorFields?: readonly VectorField<"elemental">[];
   readonly issues: readonly Issue[];
 }
 
@@ -67,6 +70,9 @@ export function createExampleModel(preset: ModelPreset): WorkbenchModel {
     partStyles,
     bounds: preset.bounds,
     results: preset.results,
+    ...(preset.resultVectorFields === undefined
+      ? {}
+      : { resultVectorFields: preset.resultVectorFields }),
     issues: [],
   };
 }
@@ -124,6 +130,9 @@ export function createImportedModel(fileName: string, imported: ImportedModelDat
     partStyles: imported.partStyles,
     bounds: imported.bounds ?? sceneBounds(imported.scene),
     results: imported.results,
+    ...(imported.resultVectorFields === undefined
+      ? {}
+      : { resultVectorFields: imported.resultVectorFields }),
     issues: imported.issues,
   };
 }

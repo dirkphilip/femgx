@@ -47,6 +47,11 @@ export interface DemoView {
   readonly resultField: HTMLSelectElement;
   readonly deformationField: HTMLSelectElement;
   readonly deformationScale: HTMLInputElement;
+  readonly vectorField: HTMLSelectElement;
+  readonly vectorGlyph: HTMLSelectElement;
+  readonly vectorTransform: HTMLSelectElement;
+  readonly vectorLengthScale: HTMLInputElement;
+  readonly vectorHelp: HTMLElement;
   readonly resultLegend: HTMLElement;
   readonly sectionControls: HTMLElement;
   readonly sectionAxis: HTMLSelectElement;
@@ -104,6 +109,11 @@ export function queryDemoView(): DemoView {
     resultField: requiredSelect("#result-field"),
     deformationField: requiredSelect("#deformation-field"),
     deformationScale: requiredInput("#deformation-scale"),
+    vectorField: requiredSelect("#vector-field"),
+    vectorGlyph: requiredSelect("#vector-glyph"),
+    vectorTransform: requiredSelect("#vector-transform"),
+    vectorLengthScale: requiredInput("#vector-length-scale"),
+    vectorHelp: requiredElement("#vector-help"),
     resultLegend: requiredElement("#result-legend"),
     sectionControls: requiredElement("#section-controls"),
     sectionAxis: requiredSelect("#section-axis"),

@@ -9,6 +9,7 @@ import type { DisplayToggles, ResultDisplayMode, WorkbenchOptions } from "./type
 import type { SelectionGranularity } from "./pick";
 import type { VisibilityRowTarget } from "./tree-hover";
 import type { SectionAxis } from "./section-controls";
+import type { VectorGlyph, VectorTransform } from "./result-controls";
 
 export interface WorkbenchInfrastructureOptions {
   readonly view: DemoView;
@@ -20,6 +21,10 @@ export interface WorkbenchInfrastructureOptions {
   readonly toggles: () => DisplayToggles;
   readonly resultMode: () => ResultDisplayMode;
   readonly deformationScale: () => number;
+  readonly vectorFieldId: () => string;
+  readonly vectorGlyph: () => VectorGlyph;
+  readonly vectorTransform: () => VectorTransform;
+  readonly vectorLengthScale: () => number;
   readonly continuous: () => boolean;
   readonly selectionGranularity: () => SelectionGranularity;
   readonly sectionAxis: () => SectionAxis;
@@ -65,6 +70,10 @@ export function createWorkbenchInfrastructure(
     toggles: options.toggles,
     resultMode: options.resultMode,
     deformationScale: options.deformationScale,
+    vectorFieldId: options.vectorFieldId,
+    vectorGlyph: options.vectorGlyph,
+    vectorTransform: options.vectorTransform,
+    vectorLengthScale: options.vectorLengthScale,
     continuous: options.continuous,
     selectionGranularity: options.selectionGranularity,
     sectionAxis: options.sectionAxis,
