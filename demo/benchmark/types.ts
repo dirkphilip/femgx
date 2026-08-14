@@ -19,6 +19,7 @@ export interface BenchmarkGpuCostSnapshot {
         readonly height: number;
         readonly devicePixelRatio: number;
         readonly sampleCount: number;
+        readonly weightedTransparency: boolean;
         readonly estimatedBytes: number;
       }
     | undefined;

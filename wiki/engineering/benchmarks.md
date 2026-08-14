@@ -294,5 +294,48 @@ statistics, not queue-drained GPU timings. Disabling the control returns the
 demo to true render-on-demand idle behavior; `npm run bench:webgpu` remains the
 owner of queue-drained capacity measurements.
 
+## Interactive quality policy decision (2026-08-14)
+
+Issue [#628](https://github.com/dirkphilip/femgx/issues/628) asked whether the
+measured performance envelope justified a new interactive quality mode. The
+opt-in benchmark was run in system Chrome 151 on Apple Metal 3 with a real
+WebGPU adapter (`isFallbackAdapter: false`), at 800×600 and DPR 1, with two
+untimed warmups and seven timed samples across all 11 default cases.
+
+| Measurement                           | Observed result                             |
+| ------------------------------------- | ------------------------------------------- |
+| Settled visible-frame p95             | 1.0–8.6 ms across the matrix                |
+| Representative moving-camera RAF      | 119.5–120 FPS; zero intervals over 16.7 ms  |
+| One-time upload/first-frame p95       | 4.0–417.7 ms, depending on geometry         |
+| Default weighted target estimate      | 38,880,000 bytes at 81 bytes/physical pixel |
+| No-weighted-contributor base estimate | 15,360,000 bytes at 32 bytes/physical pixel |
+| 390×844 DPR 3 weighted/base estimates | 239,957,640 / 94,798,080 bytes              |
+
+All 11 cases completed. The default path retained weighted transparency, while
+focused real-Chrome checks covered the lazy no-OIT path, transparency ordering,
+depth weighting, picking, the origin triad, and the 390×844 mobile viewport.
+The results show an upload-cost envelope worth documenting, but no repeatable
+steady-state interactive miss on the measured device.
+
+The decision gate is therefore:
+
+1. The concrete value of a new control would be recovering interaction on
+   hardware with a broad, repeatable frame-time miss. This evidence does not
+   show that miss.
+2. The minimum useful behavior is the existing optimized default, lazy OIT
+   allocation, and explicit `originTriad: false` for callers that do not want
+   the renderer-owned triad.
+3. No performance mode, DPR cap, render-scale control, hardware tier, or demo
+   switch is needed; removing one would not simplify the current design.
+4. Cross-device universal thresholds, automatic semantic degradation, and
+   fallback rendering remain out of scope.
+5. No new public API or abstraction is necessary. A future regression should
+   open a focused issue with comparable real-adapter evidence.
+
+The interactive quality policy is consequently **no new quality control for
+now**. Re-run the matrix when a supported hardware regression or a new
+rendering cost is introduced; do not infer a universal capacity guarantee from
+this single adapter.
+
 [engineering/performance-issues|Performance issues]: performance-issues.md
 [engineering/quality-gate|Quality gate]: quality-gate.md
