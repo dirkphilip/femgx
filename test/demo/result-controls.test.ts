@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createResultsPreset } from "../../demo/fixture/results-preset";
 import { createBoltedPlatePreset } from "../../demo/fixture/presets";
 import { createExampleModel } from "../../demo/workbench/model";
+import { setVectorField } from "../../demo/workbench/vector-actions";
 import {
   BASE_RESULT_VALUE,
   DEFORMATION_OFF_VALUE,
@@ -14,6 +15,7 @@ import {
   resultModeForModel,
   resultModeForScalarSelection,
   vectorConfigForDisplay,
+  vectorDisplayForField,
   vectorDisplayForModel,
   VECTOR_OFF_VALUE,
 } from "../../demo/workbench/result-controls";
@@ -50,6 +52,48 @@ describe("demo orientation result controls", () => {
     expect(
       vectorConfigForDisplay(model, { ...display, fieldId: VECTOR_OFF_VALUE }),
     ).toBeUndefined();
+  });
+
+  it("installs canonical glyph and transform defaults atomically per vector role", () => {
+    const model = createExampleModel(createResultsPreset());
+    const current = {
+      fieldId: "demo-normals",
+      glyph: "arrow" as const,
+      transform: "normal" as const,
+      lengthScale: 2.5,
+    };
+    expect(vectorDisplayForField(model, "demo-fibers", current)).toEqual({
+      fieldId: "demo-fibers",
+      glyph: "axis",
+      transform: "direction",
+      lengthScale: 2.5,
+    });
+    expect(vectorDisplayForField(model, "demo-normals", current)).toEqual({
+      ...current,
+      fieldId: "demo-normals",
+    });
+  });
+
+  it("applies field defaults in one transition while preserving the user length scale", () => {
+    const model = createExampleModel(createResultsPreset());
+    const owner = {
+      model,
+      vectorDisplay: {
+        fieldId: "demo-normals",
+        glyph: "arrow" as const,
+        transform: "normal" as const,
+        lengthScale: 3,
+      },
+      presentation: { reflectResults: () => undefined },
+      applyResultMode: () => undefined,
+    };
+    setVectorField(owner, "demo-fibers");
+    expect(owner.vectorDisplay).toEqual({
+      fieldId: "demo-fibers",
+      glyph: "axis",
+      transform: "direction",
+      lengthScale: 3,
+    });
   });
 
   it("accepts only positive scales and renderer-owned presentation values", () => {

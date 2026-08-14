@@ -5,6 +5,7 @@ import {
   resultVectorFieldsForModel,
   VECTOR_OFF_VALUE,
   type VectorDisplayState,
+  vectorDisplayForField,
 } from "./result-controls";
 import type { WorkbenchModel } from "./model";
 
@@ -25,7 +26,7 @@ export function setVectorField(owner: VectorControlOwner, value: string): void {
     return;
   }
   if (owner.vectorDisplay.fieldId === value) return;
-  owner.vectorDisplay = { ...owner.vectorDisplay, fieldId: value };
+  owner.vectorDisplay = vectorDisplayForField(owner.model, value, owner.vectorDisplay);
   owner.applyResultMode(true);
 }
 

@@ -20,6 +20,14 @@ export interface VectorDisplayState {
   readonly lengthScale: number;
 }
 
+const CANONICAL_VECTOR_PRESENTATIONS: ReadonlyMap<
+  string,
+  Pick<VectorDisplayState, "glyph" | "transform">
+> = new Map([
+  ["demo-normals", { glyph: "arrow", transform: "normal" }],
+  ["demo-fibers", { glyph: "axis", transform: "direction" }],
+]);
+
 /** Resolves the display mode represented by a scalar-field selection. */
 export function resultModeForScalarSelection(
   value: string,
@@ -76,6 +84,22 @@ export function vectorDisplayForModel(model: WorkbenchModel): VectorDisplayState
     transform: active?.transform ?? "direction",
     lengthScale: active?.lengthScale ?? 1,
   };
+}
+
+/** Applies a demo-owned canonical presentation when switching to a known vector role. */
+export function vectorDisplayForField(
+  model: WorkbenchModel,
+  fieldId: string,
+  current: VectorDisplayState,
+): VectorDisplayState {
+  if (
+    fieldId !== VECTOR_OFF_VALUE &&
+    !resultVectorFieldsForModel(model).some((field) => field.id === fieldId)
+  ) {
+    return current;
+  }
+  const preferred = CANONICAL_VECTOR_PRESENTATIONS.get(fieldId);
+  return preferred === undefined ? { ...current, fieldId } : { ...current, fieldId, ...preferred };
 }
 
 /** Builds the demo's selected orientation role without mutating the model's authored config. */

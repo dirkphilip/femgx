@@ -17,6 +17,7 @@ import { mapScalar } from "../../../src/results/mapping";
 import { resolveViewportResults } from "../../../src/viewport/results";
 import { createPresetInteraction } from "../../../demo/workbench/preset";
 import { readInteractionState } from "../../../src/interaction/state";
+import { transformPoint } from "../../../src/math/mat4";
 
 describe("createModelPresets", () => {
   it("offers the supported product stories and performance case in stable order", () => {
@@ -164,12 +165,35 @@ describe("results preset", () => {
     expect(preset.bounds.minX).toBe(0);
     expect(preset.bounds.minY).toBe(0);
     expect(preset.bounds.minZ).toBe(0);
-    expect(preset.bounds.maxX).toBeCloseTo(5.5);
-    expect(preset.bounds.maxY).toBeCloseTo(2);
+    expect(preset.bounds.maxX).toBeCloseTo(9);
+    expect(preset.bounds.maxY).toBeCloseTo(4.35);
     expect(preset.bounds.maxZ).toBeCloseTo(1.4);
     expect(deformedBounds.maxX).toBeCloseTo(4.08);
     expect(deformedBounds.maxY).toBeCloseTo(2.12);
     expect(deformedBounds.maxZ).toBeCloseTo(1.47);
+  });
+
+  it("keeps deformed results occurrences separated on both layout axes", () => {
+    const preset = createResultsPreset();
+    const part = preset.scene.parts.get(20);
+    const displacement = preset.results?.deformation?.field;
+    if (part === undefined || displacement === undefined) {
+      throw new Error("Results preset has no deformable part");
+    }
+    const bounds = computeBounds(deformGeometry(part.geometry, displacement));
+    const runtime = createPackedSceneRuntime(preset.scene);
+    const instances = runtime.getDrawList();
+    const placed = Array.from(instances, (instanceId) => {
+      const transform = runtime.getTransform(instanceId);
+      if (transform === undefined) throw new Error("Results occurrence has no transform");
+      return transformedBounds(bounds, transform);
+    });
+    const first = placed[0];
+    const second = placed[1];
+    if (first === undefined || second === undefined)
+      throw new Error("Results preset lost occurrence");
+    expect(first.maxX).toBeLessThan(second.minX);
+    expect(first.maxY).toBeLessThan(second.minY);
   });
 
   it("uses exact monotone authored scalar bands for the results strip", () => {
@@ -199,3 +223,31 @@ describe("results preset", () => {
     );
   });
 });
+
+function transformedBounds(
+  bounds: ReturnType<typeof computeBounds>,
+  transform: Float32Array,
+): ReturnType<typeof computeBounds> {
+  const result = {
+    minX: Infinity,
+    minY: Infinity,
+    minZ: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity,
+    maxZ: -Infinity,
+  };
+  for (const x of [bounds.minX, bounds.maxX]) {
+    for (const y of [bounds.minY, bounds.maxY]) {
+      for (const z of [bounds.minZ, bounds.maxZ]) {
+        const [px, py, pz] = transformPoint(transform, x, y, z);
+        result.minX = Math.min(result.minX, px);
+        result.minY = Math.min(result.minY, py);
+        result.minZ = Math.min(result.minZ, pz);
+        result.maxX = Math.max(result.maxX, px);
+        result.maxY = Math.max(result.maxY, py);
+        result.maxZ = Math.max(result.maxZ, pz);
+      }
+    }
+  }
+  return result;
+}
