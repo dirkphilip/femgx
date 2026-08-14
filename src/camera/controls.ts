@@ -18,7 +18,9 @@ export interface CameraRef {
  * @category Camera and math
  */
 export interface CameraNavigationTarget {
+  /** Resolves a canvas pixel to a world-space pivot candidate. */
   pickPoint(camera: Camera, x: number, y: number): Promise<Vec3 | undefined>;
+  /** Stores the pivot used by the next orbit gesture. */
   setOrbitPivot(pivot: Vec3 | undefined): void;
 }
 
@@ -30,8 +32,11 @@ export interface CameraControlOptions {
   readonly canvas: HTMLCanvasElement;
   readonly cameraRef: CameraRef;
   readonly navigation: CameraNavigationTarget;
+  /** Supplies protected scene bounds for close-zoom navigation. */
   readonly bounds?: () => Bounds;
+  /** Invalidates the host after a camera transition or gesture. */
   readonly onRender: () => void;
+  /** Reports whether a pointer or touch gesture is active. */
   readonly onGestureChange?: (active: boolean) => void;
 }
 

@@ -23,13 +23,21 @@ export interface Scene {
 
 /** @category Scene and geometry */
 export interface SceneBuilder {
+  /** Selects the registered root assembly for the scene. */
   withRoot(rootAssemblyId: AssemblyId): SceneBuilder;
+  /** Registers one reusable part definition. */
   addPart(part: Part): SceneBuilder;
+  /** Registers one named assembly definition. */
   addAssembly(assembly: NamedAssembly): SceneBuilder;
+  /** Hides a registered part from the scene. */
   hidePart(partId: PartId): SceneBuilder;
+  /** Shows a registered part in the scene. */
   showPart(partId: PartId): SceneBuilder;
+  /** Hides a registered assembly and its occurrences. */
   hideAssembly(assemblyId: AssemblyId): SceneBuilder;
+  /** Shows a registered assembly and its occurrences. */
   showAssembly(assemblyId: AssemblyId): SceneBuilder;
+  /** Validates and materializes the immutable scene. */
   build(): Scene;
 }
 
