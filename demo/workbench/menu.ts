@@ -1,4 +1,5 @@
-import type { SelectTarget } from "./pick";
+import { isElementVisible, isTargetSelected, type InteractionState } from "../../src/index";
+import { elementTarget, type SelectTarget } from "./pick";
 import type {
   WorkbenchContextMenuSnapshot,
   WorkbenchMenuAction,
@@ -10,6 +11,35 @@ export interface WorkbenchMenuSelectionOptions {
   readonly selectionLabel?: string | undefined;
   readonly elementSelectionLabel?: string | undefined;
   readonly elementVisibilityLabel?: string | undefined;
+}
+
+/** Builds the context actions supported by the exact picked target. */
+export function contextMenuSelectionOptions(
+  target: SelectTarget,
+  interaction: InteractionState,
+): WorkbenchMenuSelectionOptions {
+  const element = elementTarget(target);
+  return {
+    selectionLabel:
+      target.kind === "element" ? undefined : targetSelectionLabel(target, interaction),
+    elementSelectionLabel:
+      element?.kind !== "element"
+        ? undefined
+        : isTargetSelected(interaction, element)
+          ? "Deselect element"
+          : "Select element",
+    elementVisibilityLabel:
+      element?.kind !== "element"
+        ? undefined
+        : isElementVisible(interaction, element)
+          ? "Hide element"
+          : "Show element",
+  };
+}
+
+function targetSelectionLabel(target: SelectTarget, interaction: InteractionState): string {
+  if (target.kind !== "node" && target.kind !== "face") return "Select / Deselect";
+  return `${isTargetSelected(interaction, target) ? "Deselect" : "Select"} ${target.kind}`;
 }
 
 /** Stores context-menu semantics while Svelte owns the menu markup and events. */

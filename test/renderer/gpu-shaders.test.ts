@@ -218,10 +218,10 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(edgeVertexShader).toMatch(/topologyBodyRange\(topologyIndex\)/);
     expect(edgeVertexShader).toMatch(/highlight\.hidden == 0u/);
     expect(edgeVertexShader).toMatch(/topologyOwnersVisible\(/);
-    expect(pointVertexShader).toMatch(/topologyOwnersAllVisible\(/);
+    expect(pointVertexShader).toMatch(/topologyAnyOwnerVisible\(/);
     expect(nodePickVertexShader).toMatch(/primitiveVisible\(/);
     expect(lineNodePickVertexShader).toMatch(/primitiveVisible\(/);
-    expect(pointNodePickVertexShader).toMatch(/topologyOwnersAllVisible\(/);
+    expect(pointNodePickVertexShader).toMatch(/topologyAnyOwnerVisible\(/);
     expect(nodePickVertexShader).not.toMatch(/highlightHash\(drawOrder\[instanceIndex\]/);
     expect(pointNodePickVertexShader).not.toMatch(/highlightHash\(drawOrder\[instanceIndex\]/);
   });
@@ -518,6 +518,16 @@ describe("GPU deformation shader contract", () => {
     expect(nodeOverlayFragmentShader).toMatch(/dot\(local, local\) > 1\.0/);
     expect(nodeOverlayFragmentShader).toMatch(/selected != 0u \|\| emissive > 0\.0/);
     expect(nodeOverlayFragmentShader).toMatch(/select\(vec3<f32>\(0\.0\), color\.rgb/);
+  });
+
+  it("keeps a shared node visible when hiding one incident element exposes it", () => {
+    expect(pointVertexShader).toMatch(
+      /nodeOverlay && !topologyAnyOwnerVisible\(drawOrder\[instanceIndex\], vertexIndex \/ 4u\)/,
+    );
+    expect(pointVertexShader).toMatch(
+      /fn topologyAnyOwnerVisible[\s\S]*if \(ownerVisible[\s\S]*return true;/,
+    );
+    expect(pointVertexShader).not.toContain("topologyOwnersAllVisible");
   });
 
   it("uses the minimum point-pick diameter independently of visible point size", () => {

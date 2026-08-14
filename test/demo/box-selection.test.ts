@@ -559,6 +559,27 @@ describe("workbench click selection", () => {
     expect(render).toHaveBeenCalledOnce();
   });
 
+  it("does not let the click synthesized after a box drag invalidate its readback", async () => {
+    const target = element("instance-a", 2);
+    let resolveRegion: ((targets: readonly InteractionTarget[]) => void) | undefined;
+    const result = new Promise<readonly InteractionTarget[]>((resolve) => {
+      resolveRegion = resolve;
+    });
+    const { workbench, getInteraction } = harness(
+      undefined,
+      vi.fn(() => result),
+    );
+    workbench.pointerDown({ clientX: 10, clientY: 10, pointerType: "mouse" } as PointerEvent);
+
+    const box = workbench.selectBox(complete());
+    workbench.pointerCancel();
+    await workbench.click({ clientX: 80, clientY: 80 } as MouseEvent);
+    resolveRegion?.([target]);
+    await box;
+
+    expect(selectedKeys(getInteraction())).toEqual(["e:instance-a:2"]);
+  });
+
   it("allows a custom resolver to replace visible-region discovery", async () => {
     const target = { kind: "face", instanceId: "instance-a", elementId: 2, faceIndex: 1 } as const;
     const pickRegion = vi.fn(() => Promise.resolve([] as readonly InteractionTarget[]));

@@ -361,7 +361,7 @@ ${bodyAndElementHighlighting}
     }
   }
   }
-  if (nodeOverlay && !topologyOwnersAllVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
+  if (nodeOverlay && !topologyAnyOwnerVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
     hidden = true;
   }
   if (selectionKeepsResult) {

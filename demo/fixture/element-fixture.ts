@@ -1,9 +1,13 @@
 import {
+  createElement,
   createElementModel,
   createScene,
   elementPart,
+  LINE_SHAPE,
+  POINT_SHAPE,
   polygonPart,
   translation,
+  TRIANGLE_SHAPE,
   type AssemblyId,
   type ElementModel,
   type Part,
@@ -39,6 +43,7 @@ export interface ElementFixtureParts {
   readonly hex20: PartId;
   readonly wedge6: PartId;
   readonly pyramid5: PartId;
+  readonly mixed: PartId;
 }
 
 /** Tuning knobs for the deterministic element gallery. */
@@ -71,6 +76,7 @@ const HEX8_PART_ID: PartId = 6;
 const HEX20_PART_ID: PartId = 7;
 const WEDGE6_PART_ID: PartId = 13;
 const PYRAMID5_PART_ID: PartId = 14;
+const MIXED_PART_ID: PartId = 15;
 const ROOT_ASSEMBLY_ID: AssemblyId = 1;
 const GAP = 1;
 
@@ -95,6 +101,7 @@ const GALLERY_LAYOUT: readonly GalleryPlacement[] = [
   { partId: QUAD8_PART_ID, column: 5, row: 1 },
   { partId: WEDGE6_PART_ID, column: 1, row: 2 },
   { partId: PYRAMID5_PART_ID, column: 2, row: 2 },
+  { partId: MIXED_PART_ID, column: 3, row: 2 },
 ];
 
 const SINGLE_PART_LAYOUT: readonly GalleryPlacement[] = [
@@ -121,6 +128,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   const tri6Model = buildTri6Model();
   const quadModel = buildQuadModel();
   const quad8Model = buildQuad8Model();
+  const mixedModel = createMixedPrimitiveModel();
   const models = new Map<PartId, ElementModel>([
     [POINT_PART_ID, pointLineModel],
     [LINE_PART_ID, lineModel],
@@ -135,6 +143,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     [TRI6_PART_ID, tri6Model],
     [QUAD_PART_ID, quadModel],
     [QUAD8_PART_ID, quad8Model],
+    [MIXED_PART_ID, mixedModel],
   ]);
   const genericPart = createGenericSolverMappedPart();
   const parts: readonly Part[] = [
@@ -152,6 +161,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     elementPart(TRI6_PART_ID, tri6Model),
     elementPart(QUAD8_PART_ID, quad8Model),
     genericPart,
+    elementPart(MIXED_PART_ID, mixedModel),
   ];
   const scene = galleryScene(parts, blockSize, GALLERY_LAYOUT);
   return {
@@ -171,10 +181,23 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
       wedge6: WEDGE6_PART_ID,
       pyramid5: PYRAMID5_PART_ID,
       generic: GENERIC_PART_ID,
+      mixed: MIXED_PART_ID,
     },
     elementModels: models,
     instanceCount: parts.length,
   };
+}
+
+/** One semantic FE part rendered through point, line, and triangle leaves. */
+function createMixedPrimitiveModel(): ElementModel {
+  return createElementModel(
+    [0, 0, 0, 0.35, 0, 0, 1.25, 0, 0, 0.35, 0.35, 0, 1.25, 0.35, 0, 0.8, 1.2, 0],
+    [
+      createElement(1, POINT_SHAPE, [0]),
+      createElement(2, LINE_SHAPE, [1, 2]),
+      createElement(3, TRIANGLE_SHAPE, [3, 4, 5]),
+    ],
+  );
 }
 
 /** Fixture shape for the linearly tessellated Hex20 cylinder example. */
