@@ -413,15 +413,7 @@ test("switches between deterministic model presets", async ({ page }) => {
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
 
-  for (const id of [
-    "vtk",
-    "gallery",
-    "hex20-cylinder",
-    "results",
-    "transparency",
-    "performance",
-    "bolted",
-  ]) {
+  for (const id of ["vtk", "gallery", "hex20-cylinder", "results", "transparency", "bolted"]) {
     await page.getByTestId("edge-overlay").click();
     await page.getByTestId("node-overlay").click();
     await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
@@ -440,9 +432,15 @@ test("switches between deterministic model presets", async ({ page }) => {
 });
 test("builds a benchmark matrix model only after explicit selection", async ({ page }) => {
   await page.goto("/");
+  const defaultSelect = page.getByTestId("model-select");
+  await expect(defaultSelect.locator('option[value="performance"]')).toHaveCount(0);
+  await expect(defaultSelect.locator('option[value="bodies-256"]')).toHaveCount(0);
+  await page.goto("/?performanceLab=1");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
-  await expect(select.locator('option[value="unique-1m"]')).toHaveCount(0);
+  await expect(select.locator('option[value="unique-1m"]')).toContainText(
+    "999,698 unique Triangle elements",
+  );
   await expect(select.locator('option[value="fe-hex20-solid-visual"]')).toContainText(
     "FE Hex20 solid",
   );
@@ -492,7 +490,7 @@ test("keeps a stale opt-in capacity load from replacing a newer model", async ({
   await expect(page.locator("#model-source")).toHaveAttribute("aria-busy", "false");
 });
 test("opens the performance model through the normal demo path", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?performanceLab=1");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
@@ -518,7 +516,7 @@ test("opens the performance model through the normal demo path", async ({ page }
 test("bounds rapid performance box drags to one active readback", async ({ page }) => {
   test.setTimeout(30_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/?performanceLab=1");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
@@ -567,7 +565,7 @@ test("survives repeated completed box selections on body-heavy and Quad shell mo
   page,
 }) => {
   test.setTimeout(60_000);
-  await page.goto("/");
+  await page.goto("/?performanceLab=1");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
@@ -610,7 +608,7 @@ test.describe("Retina box selection", () => {
   for (const model of ["fe-quad-shell-visual", "fe-quad8-shell-visual"] as const) {
     test(`keeps ${model} stable through repeated boxes and hover`, async ({ page }) => {
       test.setTimeout(90_000);
-      await page.goto("/");
+      await page.goto("/?performanceLab=1");
       const select = page.getByTestId("model-select");
       const canvas = page.getByTestId("view-canvas");
       await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });

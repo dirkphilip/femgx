@@ -10,11 +10,10 @@ controller, so camera and interaction behavior is stable
 
 ## Model presets
 
-- `demo/fixture/presets.ts` builds eight deterministic selectable cases from fixed data:
+- `demo/fixture/presets.ts` builds seven deterministic product-story cases from fixed data:
   the **bolted plate assembly**, imported **VTK sample**, **element tessellation and mapping gallery**,
   linearly tessellated **Hex20 cylinder**, **section-plane volume**, **static results** workflow, and
-  **order-independent transparency** demonstration, plus the **Performance · 2.10M
-  triangles** inspection case. Every preset is derived from fixed data, so the demo
+  **order-independent transparency** demonstration. Every preset is derived from fixed data, so the demo
   and tests share identical structure.
 - Each preset carries `elementModels` (per-part element topology used for
   node/face picking and emphasis), a part theme, and overall bounds. All scene
@@ -22,9 +21,8 @@ controller, so camera and interaction behavior is stable
   editing source.
 - `demo/fixture/performance-fixture.ts` owns a demo-only stress scenario rather than
   extending the library: one generated 128 × 128 shell is instanced 64 times
-  for exactly 2,097,152 submitted triangles. The model is selectable for visual
-  inspection and the opt-in benchmark lane consumes the same fixture directly;
-  it is not a live-demo measurement loop.
+  for exactly 2,097,152 submitted triangles. It remains available to diagnostics
+  and the opt-in benchmark lane, but is not part of the ordinary model selector.
 - The Performance Lab selector and benchmark cases are governed by
   [[requirements/demo-fixtures|the demo fixture requirements]]. Structured FE
   cases provide authored elements, shared node identities, stable primitive

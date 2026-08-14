@@ -11,7 +11,6 @@ const ORDINARY_MODELS = [
   "section-volume",
   "results",
   "transparency",
-  "performance",
 ] as const;
 const RESULT_MODELS = new Set(["vtk", "hex20-cylinder", "section-volume", "results"]);
 
