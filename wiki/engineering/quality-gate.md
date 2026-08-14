@@ -52,9 +52,10 @@ encode ownership and can create declaration-build cycles.
 ## Protected main
 
 The `main` branch requires the two stable CI contexts `check` and `e2e`.
-`check` contains pre-commit validation, formatting, strict type checking,
-linting, coverage-enforced unit tests, the performance budget, the library
-build, and package smoke tests. `e2e` is the required no-GPU unsupported
+`check` aggregates parallel static/quality and runtime/package jobs containing
+pre-commit validation, formatting, strict type checking, linting,
+coverage-enforced unit tests, the performance budget, the library build, and
+package smoke tests. `e2e` is the required no-GPU unsupported
 contract lane in hosted CI; the real system-Chrome WebGPU lane remains the
 required local validation for rendering, camera, interaction, demo, and
 responsive-layout changes because hosted runners do not provide deterministic

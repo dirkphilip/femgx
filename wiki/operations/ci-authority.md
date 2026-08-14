@@ -27,6 +27,13 @@ version before launching Playwright, and does not download a Playwright browser.
 The full hardware-WebGPU lane remains local until a GPU runner is available;
 the CI smoke must not enable SwiftShader or imply visual WebGPU coverage.
 
+The required `check` context is a small aggregator over two parallel jobs:
+`check-static` owns pre-commit, formatting, type checking, and linting;
+`check-runtime` owns coverage, performance budgets, and package smoke tests.
+The aggregator runs even when a dependency is skipped, cancelled, or fails, and
+returns failure unless both shards succeed. `e2e` remains an independent
+required context.
+
 ## Merge decision
 
 - **Pending or missing checks** keep a pull request unmergeable.
