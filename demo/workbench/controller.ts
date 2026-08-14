@@ -1,17 +1,15 @@
 import {
   setProjection,
-  setTargetsHighlighted,
   importGlb,
   type InteractionState,
   type FemViewport,
-  type InteractionTarget,
   type SceneRuntime,
   type ViewportBackground,
 } from "../../src/index";
 import type { DemoView } from "./view";
 import { createModelInteraction } from "./preset";
 import { errorMessage, type WorkbenchModel } from "./model";
-import type { VisibilityRowTarget } from "./tree-hover";
+import type { VisibilityRowTarget } from "./visibility-snapshot";
 import type { WorkbenchFeatures } from "./features";
 import type { WorkbenchInteraction } from "./interaction";
 import type { SelectionGranularity } from "./pick";
@@ -25,11 +23,10 @@ import type { ViewportSlotId } from "./view";
 import type { WorkbenchViewportSlots, WorkbenchViewportSlot } from "./viewport-slots";
 import { WorkbenchModelSession } from "./model-session";
 import { activateModelForOwner } from "./model-activation";
-import { applyDisplayState, applyResultState } from "./display-state";
+import { applyControllerDisplayState, applyControllerResultMode } from "./controller-display";
 import type { ObservedPaneSize } from "./viewport-presentation";
 import {
   resultModeForModel,
-  vectorConfigForDisplay,
   vectorDisplayForModel,
   type VectorDisplayState,
 } from "./result-controls";
@@ -46,7 +43,6 @@ import {
 } from "./result-actions";
 import { createControllerInfrastructure, installControllerLifecycle } from "./controller-wiring";
 import { parseSelectionGranularity, parseViewportBackground } from "./workbench-values";
-import { setTreeHover } from "./tree-hover-actions";
 import { applySectionPlane, setSectionAxis, setSectionOffset } from "./section-plane-actions";
 import type { SectionAxis } from "./section-controls";
 import {
@@ -62,6 +58,17 @@ import {
   setControllerViewport,
   syncControllerViewportPresentation,
 } from "./controller-viewport";
+import {
+  applyDisplayedInteraction,
+  canClearCanvasHover,
+  clearCanvasHover,
+  clearHierarchyHover,
+  clearTransientHover,
+  markCanvasHover,
+  resetHoverOwner,
+  setHierarchyHover,
+  type WorkbenchHoverOwner,
+} from "./controller-hover";
 
 export type { DisplayToggles, RendererStats, ResultDisplayMode, WorkbenchOptions } from "./types";
 
@@ -88,8 +95,8 @@ export class WorkbenchController {
   presentation!: WorkbenchFeatures["presentation"];
   boxPreview!: WorkbenchFeatures["boxPreview"];
   private boxSelectionDisposer: (() => void) | undefined;
-  treeHoverTargets: readonly InteractionTarget[] = [];
-  private disposed = false;
+  hoverOwner: WorkbenchHoverOwner | undefined;
+  disposed = false;
   continuousEnabled = false;
   deformationScale: number;
   vectorDisplay: VectorDisplayState;
@@ -254,7 +261,7 @@ export class WorkbenchController {
     }
     if (this.selectionGranularity === granularity) return;
     this.selectionGranularity = granularity;
-    for (const slot of this.viewportSlots.all()) slot.interaction.clearHover();
+    clearTransientHover(this);
     this.render();
   }
 
@@ -382,51 +389,44 @@ export class WorkbenchController {
   }
 
   applyResultMode(render: boolean): void {
-    applyResultState({
-      viewports: this.viewports(),
-      model: this.model,
-      mode: this.resultMode,
-      deformationScale: this.deformationScale,
-      vector: vectorConfigForDisplay(this.model, this.vectorDisplay),
-      reflect: this.presentation.reflectResults.bind(this.presentation),
-    });
-    if (render) this.render();
+    applyControllerResultMode(this, render);
   }
 
   applyCurrentDisplayState(): void {
-    applyDisplayState({
-      viewports: this.viewports(),
-      model: this.model,
-      toggles: this.toggles,
-      interaction: this.interaction,
-      setInteraction: (interaction) => {
-        this.interaction = interaction;
-      },
-      applyDisplayedInteraction: () => {
-        this.applyDisplayedInteraction();
-      },
-      reflect: () => {
-        this.reflectDisplayControls();
-      },
-    });
+    applyControllerDisplayState(this);
   }
 
-  private reflectDisplayControls(): void {
-    this.presentation.reflectResults();
+  setHierarchyHover(target: VisibilityRowTarget): void {
+    setHierarchyHover(this, target);
   }
 
-  setTreeHover(target: VisibilityRowTarget | undefined): void {
-    setTreeHover(this, target, () => this.disposed);
+  clearHierarchyHover(target: VisibilityRowTarget): void {
+    clearHierarchyHover(this, target);
   }
 
   applyDisplayedInteraction(): void {
-    const effective = setTargetsHighlighted(this.interaction, this.treeHoverTargets, true);
-    for (const viewport of this.viewports()) viewport.setInteraction(effective);
+    applyDisplayedInteraction(this);
+  }
+
+  canClearCanvasHover(slotId: ViewportSlotId): boolean {
+    return canClearCanvasHover(this, slotId);
+  }
+
+  markCanvasHover(slotId: ViewportSlotId): void {
+    markCanvasHover(this, slotId);
+  }
+
+  clearCanvasHover(slotId: ViewportSlotId): void {
+    clearCanvasHover(this, slotId);
+  }
+
+  resetHoverOwner(): void {
+    resetHoverOwner(this);
   }
 
   private activateModel(model: WorkbenchModel): void {
+    this.resetHoverOwner();
     activateModelForOwner(model, this);
-    this.canvas.dataset["treeHover"] = "";
   }
 
   render(): void {

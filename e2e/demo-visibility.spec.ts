@@ -114,9 +114,7 @@ test("gives body visibility controls distinct occurrence names", async ({ page }
   await expect(page.locator('input[data-testid^="body-vis-"]')).toHaveCount(names.length);
   await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toBeVisible();
 });
-test("temporarily highlights exact tree occurrences without changing selection", async ({
-  page,
-}) => {
+test("uses one transient hierarchy hover without changing selection", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
@@ -124,7 +122,7 @@ test("temporarily highlights exact tree occurrences without changing selection",
     page,
     canvas,
     { prefix: "n:" },
-    "node GPU picking must resolve before tree-hover assertions",
+    "node GPU picking must resolve before hierarchy-hover assertions",
   );
   await setSelectionGranularity(page, "node");
   await page.mouse.click(hit.x, hit.y);
@@ -132,27 +130,32 @@ test("temporarily highlights exact tree occurrences without changing selection",
   const selected = await dataset(page, "selected");
   const baseline = await canvas.screenshot();
   const visibility = page.getByTestId("visibility-panel");
-  await visibility.getByTestId("assembly-expand-3").click();
   const firstOccurrence = visibility
-    .getByTestId("assembly-occurrence-vis-3")
+    .locator("input[data-instance-id]")
+    .first()
     .locator("xpath=ancestor::div[contains(@class, 'visibility-row')]");
   const secondOccurrence = visibility
-    .getByTestId("assembly-occurrence-vis-5")
+    .locator("input[data-instance-id]")
+    .nth(1)
     .locator("xpath=ancestor::div[contains(@class, 'visibility-row')]");
   await firstOccurrence.hover();
-  await expect.poll(() => canvas.getAttribute("data-tree-hover")).not.toBe("");
   await expect
     .poll(async () => Buffer.compare(baseline, await canvas.screenshot()) !== 0)
     .toBe(true);
-  const firstTreeHover = await canvas.getAttribute("data-tree-hover");
+  const firstHierarchyHover = await canvas.screenshot();
+  expect(Buffer.compare(baseline, firstHierarchyHover)).not.toBe(0);
   expect(await dataset(page, "selected")).toBe(selected);
 
   await secondOccurrence.hover();
-  await expect.poll(() => canvas.getAttribute("data-tree-hover")).not.toBe(firstTreeHover);
+  await expect
+    .poll(async () => Buffer.compare(firstHierarchyHover, await canvas.screenshot()) !== 0)
+    .toBe(true);
+  const secondHierarchyHover = await canvas.screenshot();
+  expect(Buffer.compare(firstHierarchyHover, secondHierarchyHover)).not.toBe(0);
   expect(await dataset(page, "selected")).toBe(selected);
 
   await visibility.getByTestId("visibility-context").hover();
-  await expect.poll(() => canvas.getAttribute("data-tree-hover")).toBe("");
+  await expect.poll(async () => Buffer.compare(baseline, await canvas.screenshot())).toBe(0);
   expect(await dataset(page, "selected")).toBe(selected);
 });
 test("hides the plate stack through the assembly tree", async ({ page }) => {

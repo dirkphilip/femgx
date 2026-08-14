@@ -67,12 +67,12 @@
     }
   }
 
-  function setTreeHover(row: WorkbenchVisibilityRowSnapshot): void {
-    controller?.commands.setTreeHover(row.target);
+  function setHierarchyHover(row: WorkbenchVisibilityRowSnapshot): void {
+    controller?.commands.setHierarchyHover(row.target);
   }
 
-  function clearTreeHover(): void {
-    controller?.commands.setTreeHover(undefined);
+  function clearHierarchyHover(row: WorkbenchVisibilityRowSnapshot): void {
+    controller?.commands.clearHierarchyHover(row.target);
   }
 
   function bodyId(row: WorkbenchVisibilityRowSnapshot): number | undefined {
@@ -125,10 +125,10 @@
         aria-selected="false"
         tabindex="-1"
         aria-expanded={row.kind === "assembly" ? row.expanded : undefined}
-        onpointerenter={() => setTreeHover(row)}
-        onpointerleave={clearTreeHover}
-        onfocusin={() => setTreeHover(row)}
-        onfocusout={clearTreeHover}
+        onpointerenter={() => setHierarchyHover(row)}
+        onpointerleave={() => clearHierarchyHover(row)}
+        onfocusin={() => setHierarchyHover(row)}
+        onfocusout={() => clearHierarchyHover(row)}
       >
         {#if row.kind === "assembly"}
           <button

@@ -1,4 +1,4 @@
-import { setProjection, type InteractionState, type InteractionTarget } from "../../src/index";
+import { setProjection, type InteractionState } from "../../src/index";
 import { createModelInteraction } from "./preset";
 import type { WorkbenchModel } from "./model";
 import type { WorkbenchPresentation } from "./presentation";
@@ -20,7 +20,6 @@ export interface WorkbenchModelState {
   sectionAxis: "off" | "x" | "y" | "z";
   sectionOffset: number;
   interaction: InteractionState;
-  treeHoverTargets: readonly InteractionTarget[];
 }
 
 /** State owner used by the controller-facing activation adapter. */
@@ -54,7 +53,6 @@ export function activateModelForOwner(
       owner.sectionAxis = next.sectionAxis;
       owner.sectionOffset = next.sectionOffset;
       owner.interaction = next.interaction;
-      owner.treeHoverTargets = next.treeHoverTargets;
     },
     applyResultMode: () => {
       owner.applyResultMode(false);
@@ -133,7 +131,6 @@ export function activateWorkbenchModel(options: ActivateWorkbenchModelOptions): 
   resetSlotRenderLoops(options.slots);
   state.model = model;
   state.models = model.source === "file" ? [...options.examples, model] : options.examples;
-  state.treeHoverTargets = [];
   state.toggles = { edges: true, nodes: true, diagnostics: false };
   state.resultMode = resultModeForModel(model);
   state.deformationScale = model.results?.deformation?.scale ?? 1;

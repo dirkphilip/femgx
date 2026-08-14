@@ -1,0 +1,52 @@
+import { applyDisplayState, applyResultState } from "./display-state";
+import type { FemViewport } from "../../src/index";
+import type { WorkbenchModel } from "./model";
+import type { DisplayToggles, ResultDisplayMode } from "./types";
+import { vectorConfigForDisplay, type VectorDisplayState } from "./result-controls";
+import type { WorkbenchPresentation } from "./presentation";
+import type { WorkbenchViewportOwner } from "./controller-viewport";
+import type { InteractionState } from "../../src/index";
+
+interface ControllerDisplayOwner extends WorkbenchViewportOwner {
+  readonly viewports: () => readonly FemViewport[];
+  readonly model: WorkbenchModel;
+  readonly resultMode: ResultDisplayMode;
+  readonly deformationScale: number;
+  readonly vectorDisplay: VectorDisplayState;
+  readonly presentation: WorkbenchPresentation;
+  readonly toggles: DisplayToggles;
+  interaction: InteractionState;
+  applyDisplayedInteraction(): void;
+}
+
+/** Applies result presentation state to every active viewport. */
+export function applyControllerResultMode(owner: ControllerDisplayOwner, render: boolean): void {
+  applyResultState({
+    viewports: owner.viewports(),
+    model: owner.model,
+    mode: owner.resultMode,
+    deformationScale: owner.deformationScale,
+    vector: vectorConfigForDisplay(owner.model, owner.vectorDisplay),
+    reflect: owner.presentation.reflectResults.bind(owner.presentation),
+  });
+  if (render) owner.render();
+}
+
+/** Applies visibility and interaction presentation state to every viewport. */
+export function applyControllerDisplayState(owner: ControllerDisplayOwner): void {
+  applyDisplayState({
+    viewports: owner.viewports(),
+    model: owner.model,
+    toggles: owner.toggles,
+    interaction: owner.interaction,
+    setInteraction: (interaction) => {
+      owner.interaction = interaction;
+    },
+    applyDisplayedInteraction: () => {
+      owner.applyDisplayedInteraction();
+    },
+    reflect: () => {
+      owner.presentation.reflectResults();
+    },
+  });
+}

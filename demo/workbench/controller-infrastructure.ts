@@ -1,5 +1,5 @@
 import type { FemViewport, InteractionState, SceneRuntime } from "../../src/index";
-import type { DemoView } from "./view";
+import type { DemoView, ViewportSlotId } from "./view";
 import type { WorkbenchModel } from "./model";
 import { applyMenuAction } from "./menu-actions";
 import { createWorkbenchFeatures, type WorkbenchFeatures } from "./features";
@@ -28,6 +28,9 @@ export interface WorkbenchInfrastructureOptions {
   readonly sectionOffset: () => number;
   readonly interaction: () => InteractionState;
   readonly setInteraction: (value: InteractionState) => void;
+  readonly canClearCanvasHover: (slotId: ViewportSlotId) => boolean;
+  readonly markCanvasHover: (slotId: ViewportSlotId) => void;
+  readonly clearCanvasHover: (slotId: ViewportSlotId) => void;
   readonly activeSlot: () => WorkbenchViewportSlot;
   readonly activeViewport: () => FemViewport;
   readonly viewports: () => readonly FemViewport[];
@@ -75,6 +78,10 @@ export function createWorkbenchInfrastructure(
     sectionOffset: options.sectionOffset,
     interaction: options.interaction,
     setInteraction: options.setInteraction,
+    hoverSlotId: "primary",
+    canClearCanvasHover: options.canClearCanvasHover,
+    markCanvasHover: options.markCanvasHover,
+    clearCanvasHover: options.clearCanvasHover,
     applyDisplayedInteraction: options.applyDisplayedInteraction,
     render: options.render,
     publishSnapshot: options.publishSnapshot,
@@ -122,6 +129,9 @@ function createViewportSlots(
     getModel: options.model,
     getInteraction: options.interaction,
     setInteraction: options.setInteraction,
+    canClearCanvasHover: options.canClearCanvasHover,
+    markCanvasHover: options.markCanvasHover,
+    clearCanvasHover: options.clearCanvasHover,
     selectionGranularity: options.selectionGranularity,
     menu: features.menu,
     render: options.render,

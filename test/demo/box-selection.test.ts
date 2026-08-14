@@ -271,7 +271,14 @@ describe("workbench click selection", () => {
     pickRegion = vi.fn(() => Promise.resolve([] as readonly InteractionTarget[])),
     initialInteraction = createInteractionState(),
     selectionGranularity: SelectionGranularity = "element",
-    boxSelectionResolver?: BoxSelectionResolver,
+    options: {
+      readonly boxSelectionResolver?: BoxSelectionResolver;
+      readonly hoverOwnership?: {
+        readonly canClear: () => boolean;
+        readonly mark: () => void;
+        readonly clear: () => void;
+      };
+    } = {},
   ) {
     const canvas = new FakeElement();
     let interaction = initialInteraction;
@@ -292,8 +299,11 @@ describe("workbench click selection", () => {
       menu: { hide: vi.fn() } as unknown as WorkbenchMenu,
       render,
       selectionGranularity: () => selectionGranularity,
-      ...(boxSelectionResolver === undefined ? {} : { boxSelectionResolver }),
+      ...(options.boxSelectionResolver === undefined
+        ? {}
+        : { boxSelectionResolver: options.boxSelectionResolver }),
       selectionFeedback,
+      ...(options.hoverOwnership === undefined ? {} : { hoverOwnership: options.hoverOwnership }),
     });
     return {
       workbench,
@@ -515,6 +525,28 @@ describe("workbench click selection", () => {
     expect(render).not.toHaveBeenCalled();
   });
 
+  it("does not let a canvas leave clear a hierarchy-owned hover", () => {
+    const hierarchyTarget = { kind: "instance", instanceId: "hierarchy" } as const;
+    const ownership = {
+      canClear: vi.fn(() => false),
+      mark: vi.fn(),
+      clear: vi.fn(),
+    };
+    const { workbench, getInteraction } = harness(
+      undefined,
+      undefined,
+      setTargetHovered(createInteractionState(), hierarchyTarget),
+      "element",
+      { hoverOwnership: ownership },
+    );
+
+    workbench.clearHover();
+
+    expect(hoveredTarget(getInteraction())).toEqual(hierarchyTarget);
+    expect(ownership.canClear).toHaveBeenCalledOnce();
+    expect(ownership.clear).not.toHaveBeenCalled();
+  });
+
   it("keeps overlapping picks independent and skips stale results", async () => {
     let resolveFirst: ((value: undefined) => void) | undefined;
     let resolveSecond: ((value: undefined) => void) | undefined;
@@ -593,7 +625,7 @@ describe("workbench click selection", () => {
       pickRegion,
       createInteractionState(),
       "face",
-      resolver,
+      { boxSelectionResolver: resolver },
     );
 
     await workbench.selectBox(complete());
@@ -613,7 +645,7 @@ describe("workbench click selection", () => {
       undefined,
       createInteractionState(),
       "face",
-      resolver,
+      { boxSelectionResolver: resolver },
     );
 
     await workbench.selectBox(complete());
@@ -638,7 +670,7 @@ describe("workbench click selection", () => {
       undefined,
       createInteractionState(),
       "element",
-      oldResolver,
+      { boxSelectionResolver: oldResolver },
     );
 
     const oldBox = workbench.selectBox(complete());

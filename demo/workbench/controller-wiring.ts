@@ -39,6 +39,9 @@ export interface WorkbenchControllerWiringContext {
   readonly activeSlot: () => WorkbenchViewportSlot;
   readonly runtime: SceneRuntime;
   readonly setInteraction: (value: InteractionState) => void;
+  readonly canClearCanvasHover: (slotId: ViewportSlotId) => boolean;
+  readonly markCanvasHover: (slotId: ViewportSlotId) => void;
+  readonly clearCanvasHover: (slotId: ViewportSlotId) => void;
   readonly applyDisplayedInteraction: () => void;
   readonly render: () => void;
   readonly publishSnapshot: () => void;
@@ -91,6 +94,9 @@ export function createControllerInfrastructure(
     sectionOffset: () => context.sectionOffset,
     interaction: () => context.interaction,
     setInteraction: context.setInteraction.bind(context),
+    canClearCanvasHover: context.canClearCanvasHover.bind(context),
+    markCanvasHover: context.markCanvasHover.bind(context),
+    clearCanvasHover: context.clearCanvasHover.bind(context),
     applyDisplayedInteraction: context.applyDisplayedInteraction.bind(context),
     render: context.render.bind(context),
     publishSnapshot: context.publishSnapshot.bind(context),

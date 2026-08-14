@@ -62,6 +62,12 @@ export interface WorkbenchInteractionOptions {
   readonly boxSelectionResolver?: BoxSelectionResolver;
   /** Optional concise feedback sink for completed box-selection results. */
   readonly selectionFeedback?: (message: string) => void;
+  /** Coordinates transient canvas hover ownership with hierarchy hover. */
+  readonly hoverOwnership?: {
+    readonly canClear: () => boolean;
+    readonly mark: () => void;
+    readonly clear: () => void;
+  };
 }
 
 /** Owns async pick ordering, hover state, click selection, and context targets. */
@@ -105,7 +111,7 @@ export class WorkbenchInteraction {
     this.downModifiers = undefined;
     this.hoverPick = undefined;
     if (this.skipNextClick) return;
-    this.invalidatePendingQuery();
+    this.clearHover(true);
   }
 
   /** Completes a touch tap without relying on a browser-synthesized click. */
@@ -127,6 +133,7 @@ export class WorkbenchInteraction {
     let interaction = this.options.getInteraction();
     interaction = setTargetHovered(interaction, target);
     this.options.setInteraction(interaction);
+    this.options.hoverOwnership?.mark();
     this.options.canvas.dataset["hovered"] = targetKey(target);
     this.options.canvas.dataset["pick"] = targetKey(hit);
     this.showPick(hit);
@@ -212,11 +219,14 @@ export class WorkbenchInteraction {
   }
 
   /** Clears transient hover and invalidates an older asynchronous hover query. */
-  clearHover(): void {
+  clearHover(render = false): void {
     this.invalidatePendingQuery();
+    if (this.options.hoverOwnership?.canClear() === false) return;
     const current = this.options.getInteraction();
     const next = setTargetHovered(current, undefined);
     if (next !== current) this.options.setInteraction(next);
+    this.options.hoverOwnership?.clear();
+    if (render && next !== current) this.options.render();
   }
 
   highlight(target: SelectTarget): void {
