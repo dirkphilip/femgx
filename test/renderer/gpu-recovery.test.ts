@@ -119,7 +119,12 @@ describe("GpuDeviceLifecycle", () => {
     const gpus = installFreshDeviceNavigator(first);
     const onLost = vi.fn();
     const firstBundle = await createGpuBundle(first.device, "bgra8unorm", "depth24plus");
-    ensureColorTargets(firstBundle.draw, 800, 600, "bgra8unorm", "depth24plus");
+    ensureColorTargets(firstBundle.draw, {
+      width: 800,
+      height: 600,
+      colorFormat: "bgra8unorm",
+      depthFormat: "depth24plus",
+    });
     const lifecycle = new GpuDeviceLifecycle({
       bundle: firstBundle,
       context: fakeContext(),

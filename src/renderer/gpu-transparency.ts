@@ -15,7 +15,7 @@ import {
 
 /** Render-target formats used by the weighted blended transparency path. */
 export const TRANSPARENCY_ACCUMULATION_FORMAT = "rgba16float" as GPUTextureFormat;
-export const TRANSPARENCY_REVEALAGE_FORMAT = "rgba8unorm" as GPUTextureFormat;
+export const TRANSPARENCY_REVEALAGE_FORMAT = "r8unorm" as GPUTextureFormat;
 
 /** Blend state for additive color/weight accumulation. */
 export const TRANSPARENCY_ACCUMULATION_BLEND_STATE: GPUBlendState = {
@@ -39,7 +39,7 @@ export const TRANSPARENCY_BLEND_STATES: readonly GPUBlendState[] = [
 export const transparencyOutput = /* wgsl */ `
 struct TransparencyOutput {
   @location(0) accumulation: vec4<f32>,
-  @location(1) revealage: vec4<f32>,
+  @location(1) revealage: f32,
 };
 
 fn sceneTransparencyWeight(alpha: f32, depth: f32) -> f32 {
@@ -58,7 +58,7 @@ fn weightedSceneTransparency(
   let weight = sceneTransparencyWeight(alpha, depth);
   var output: TransparencyOutput;
   output.accumulation = vec4<f32>(color * alpha * weight, alpha * weight);
-  output.revealage = vec4<f32>(alpha);
+  output.revealage = alpha;
   return output;
 }
 
@@ -66,7 +66,7 @@ fn weightedPresentationTransparency(color: vec3<f32>, alpha: f32) -> Transparenc
   let weight = max(0.01, alpha * 8.0);
   var output: TransparencyOutput;
   output.accumulation = vec4<f32>(color * alpha * weight, alpha * weight);
-  output.revealage = vec4<f32>(alpha);
+  output.revealage = alpha;
   return output;
 }
 `;

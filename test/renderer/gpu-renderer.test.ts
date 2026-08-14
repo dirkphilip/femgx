@@ -173,7 +173,8 @@ describe("WebGPU renderer", () => {
       height: 600,
       devicePixelRatio: 1,
       sampleCount: 4,
-      estimatedBytes: 800 * 600 * 96,
+      weightedTransparency: true,
+      estimatedBytes: 800 * 600 * 81,
     });
     expect(gpu.drawCalls).toEqual([
       { indexCount: 3, instanceCount: 3 },

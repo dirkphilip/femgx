@@ -4,10 +4,12 @@
 path. The renderer keeps the existing instanced opaque draw, then accumulates
 fractional-alpha triangle, line, and point fragments into multisampled
 accumulation/revealage targets before compositing them over the resolved opaque
-image. Transparent fragments depth-test against opaque geometry and never write
-depth. This is an approximation for stable intersecting and instanced geometry,
-not physically exact transparency: femgx does not globally sort triangles or
-clone materials, and alpha-zero remains visually absent but pickable.
+image. Accumulation uses `rgba16float`; scalar revealage uses `r8unorm`, including
+its multisampled and resolved targets. Transparent fragments depth-test against
+opaque geometry and never write depth. This is an approximation for stable
+intersecting and instanced geometry, not physically exact transparency: femgx
+does not globally sort triangles or clone materials, and alpha-zero remains
+visually absent but pickable.
 
 The visible frame has one deliberate presentation ordering:
 
@@ -17,12 +19,13 @@ ties; ordinary depth still selects the nearest fragment. Renderer-owned edges
 and node annotations remain post-composite presentation helpers, outside this
 authored primitive precedence.
 
-| Stage                                                         | Color target                       | Depth                                                    | Blend/write                                               | Owner                                                                   |
-| ------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Opaque scene + visible selection + triad/pivot + point replay | MSAA canvas, resolved opaque color | `less` scene, `less-equal` selection/triad/pivot/points  | Alpha-blended selection; triad uses separate stencil bits | Surface batches, selection, world-origin and orbit presentation, points |
-| Transparency + hidden selection/triad/pivot                   | Accumulation + revealage           | `less` scene, `greater` selection/triad/pivot, no writes | Weighted accumulation/revealage                           | Fractional scene and fixed-alpha selection/presentation ghosts          |
-| Composite                                                     | Swap-chain color                   | Always, no write                                         | Transparent color over opaque color                       | Full-screen OIT composite                                               |
-| Presentation helpers                                          | Swap-chain color                   | Explicit helper rule                                     | Helper-specific                                           | Edges, nodes, orientation gizmo                                         |
+| Stage                                                         | Color target                                     | Depth                                                    | Blend/write                                               | Owner                                                                   |
+| ------------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Opaque scene + visible selection + triad/pivot + point replay | MSAA canvas, resolved opaque color               | `less` scene, `less-equal` selection/triad/pivot/points  | Alpha-blended selection; triad uses separate stencil bits | Surface batches, selection, world-origin and orbit presentation, points |
+| Transparency + hidden selection/triad/pivot                   | `rgba16float` accumulation + `r8unorm` revealage | `less` scene, `greater` selection/triad/pivot, no writes | Weighted accumulation/revealage                           | Fractional scene and fixed-alpha selection/presentation ghosts          |
+| Composite                                                     | Swap-chain color                                 | Always, no write                                         | Transparent color over opaque color                       | Full-screen OIT composite                                               |
+| No weighted contributor                                       | Swap-chain color                                 | Existing opaque depth contract                           | Direct MSAA resolve; no OIT targets or composite          | Opaque scene with edge/node helpers                                     |
+| Presentation helpers                                          | Swap-chain color                                 | Explicit helper rule                                     | Helper-specific                                           | Edges, nodes, orientation gizmo                                         |
 
 The origin triad is a renderer-owned two-variant exception. Its positive
 world-space X/Y/Z geometry is anchored at `[0, 0, 0]` and scaled each visible
@@ -74,7 +77,12 @@ encode the product of `1 - alpha`. Hidden selection, the origin-triad ghost,
 and the orbit-pivot ghost intentionally use the fixed-alpha presentation
 weight; depth-aware scene weighting must not let a helper wash out authored
 geometry. The lower bound protects sparse fragments and the upper bound keeps
-the `rgba16float` accumulation finite under supported overlap. This remains a
+the `rgba16float` accumulation finite under supported overlap. The renderer
+derives one internal contributor predicate from fractional scene calls, hidden
+selection/node calls, the origin triad, and the active orbit pivot. When none is
+present, it resolves the opaque MSAA color directly to the swap chain, draws
+edge/node helpers in that same MSAA pass, and retains no OIT-only targets. This
+does not inspect pixels or change product semantics. This remains a
 weighted-blended approximation: it improves front/back readability but does
 not recover exact per-pixel ordering, refraction, thickness, or absorption.
 
