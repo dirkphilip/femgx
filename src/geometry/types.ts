@@ -70,7 +70,10 @@ export interface ElementTessellation {
   readonly blockId?: ElementBlockId;
 }
 
-/** One topology-local primitive range owned by an element. */
+/**
+ * One topology-local primitive range owned by an element.
+ * @category Scene and geometry
+ */
 export interface ElementPrimitiveRange {
   readonly primitive: Primitive;
   readonly primitiveStart: number;

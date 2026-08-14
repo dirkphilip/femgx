@@ -10,6 +10,7 @@ import type {
 
 export type {
   Bounds,
+  ElementPrimitiveRange,
   ElementTessellation,
   FaceSubset,
   FaceTessellation,

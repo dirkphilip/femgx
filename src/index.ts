@@ -8,6 +8,7 @@ export type {
 export {
   GeometryValidationError,
   type Bounds,
+  type ElementPrimitiveRange,
   type ElementTessellation,
   type FaceTessellation,
   type FaceSubset,

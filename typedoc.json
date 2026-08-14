@@ -16,7 +16,6 @@
   "cleanOutputDir": true,
   "excludeInternal": true,
   "excludePrivate": true,
-  "intentionallyNotExported": ["LinearGeometry"],
   "includeVersion": true,
   "navigationLinks": {
     "Demo": "../"
