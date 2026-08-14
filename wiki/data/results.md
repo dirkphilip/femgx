@@ -1,8 +1,9 @@
 # Results: fields, deformation, and scalar visualization
 
 Engineering analysis results are first-class CPU-side data in `src/results/`
-(no WebGPU coupling), exported through `src/index.ts`. They describe values per
-node or per element and map authored scalar values for visualization.
+(no WebGPU coupling), exported through `src/index.ts`. They describe authored
+values per node or per element and map scalar values for visualization; retaining
+a vector field does not by itself enable a viewport glyph presentation.
 
 ## Result fields
 
@@ -10,7 +11,8 @@ node or per element and map authored scalar values for visualization.
 
 - Locations are `nodal` or `elemental`; retained result shapes are `scalar` and
   `vector`. Viewport coloring accepts authored scalar fields at either location;
-  authored nodal vectors remain the deformation input.
+  authored nodal vectors remain the deformation input, while authored elemental
+  vectors are currently data only and are not rendered as glyphs.
 - `values` is `count * FIELD_COMPONENT_COUNT[shape]` floats, one entity after
   another, index-aligned with the owning model's node/element numbering. The
   array is referenced (not copied) so large models stay cheap; treat it as
@@ -90,6 +92,16 @@ resolved viewport range and color stops without adding a public legend
 subsystem; picked values are shown only when the hit identity matches the
 field's authored location.
 
+### Planned elemental orientation vectors
+
+The deferred orientation slice would reuse `VectorField<"elemental">` for
+authored normals and fiber directions. It would be a viewport-owned,
+orthogonal result role rather than a second field model or result manager, with
+`clearResults()` remaining the explicit empty transition. The planned data,
+transform, anchor, instancing, depth, and interaction contract is recorded in
+[[data/vector-field-visualization|Authored elemental orientation visualization]];
+no current `setResults()` call renders these vectors.
+
 ## Deformation (`deform.ts`)
 
 `deformPositions(positions, nodePickIds, displacements, scale)` / `deformGeometry(geometry,
@@ -135,10 +147,12 @@ The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
   removed as out of product scope.
 
 Related: [[data/elements-topology|Element topology]], [[data/fe-fixture|FE fixture]],
+[[data/vector-field-visualization|Authored elemental orientation visualization]],
 [[rendering/interactive-state|Interactive state]], [[architecture/architecture-overview|Architecture
 overview]].
 
 [data/elements-topology|Element topology]: elements-topology.md
 [data/fe-fixture|FE fixture]: fe-fixture.md
+[data/vector-field-visualization|Authored elemental orientation visualization]: vector-field-visualization.md
 [rendering/interactive-state|Interactive state]: ../rendering/interactive-state.md
 [rendering/renderer-subrange-updates|Renderer subrange updates]: ../rendering/renderer-subrange-updates.md

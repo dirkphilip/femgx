@@ -12,9 +12,12 @@
   diagnostics, styles, and compression evidence.
 - [[data/results|Results, deformation, and scalar visualization]] — typed
   authored result fields, scalar mapping, deformation, and visualization data.
+- [[data/vector-field-visualization|Authored elemental orientation visualization]]
+  — the deferred contract for authored normal and fiber-orientation glyphs.
 
 [data/elements-topology|Element topology]: elements-topology.md
 [data/fe-fixture|FE fixture]: fe-fixture.md
 [data/io-import-export|IO import/export]: io-import-export.md
 [data/polygon-input|Polygon input]: polygon-input.md
 [data/results|Results, deformation, and scalar visualization]: results.md
+[data/vector-field-visualization|Authored elemental orientation visualization]: vector-field-visualization.md

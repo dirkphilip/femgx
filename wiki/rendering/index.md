@@ -38,6 +38,8 @@
   updates for instance and element GPU state.
 - [[rendering/selection-occlusion|Selection through occlusion]] — renderer-owned
   visible and weighted-ghost selection presentation.
+- [[data/vector-field-visualization|Authored elemental orientation visualization]]
+  — deferred depth, instancing, and interaction semantics for future glyphs.
 - [[rendering/shader-variants|Explicit shader variants]] — typed construction
   of triangle, line, and node-pick WGSL sources from shared fragments.
 - [[rendering/webgpu-e2e|WebGPU browser e2e lane]] — real-WebGPU browser
@@ -67,6 +69,7 @@
 [rendering/platform-support|Platform support]: platform-support.md
 [rendering/renderer-subrange-updates|Renderer subrange updates]: renderer-subrange-updates.md
 [rendering/selection-occlusion|Selection through occlusion]: selection-occlusion.md
+[data/vector-field-visualization|Authored elemental orientation visualization]: ../data/vector-field-visualization.md
 [rendering/shader-variants|Explicit shader variants]: shader-variants.md
 [rendering/webgpu-e2e|WebGPU browser e2e lane]: webgpu-e2e.md
 [rendering/webgpu-resource-reuse|WebGPU resource reuse]: webgpu-resource-reuse.md

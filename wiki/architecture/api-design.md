@@ -114,6 +114,18 @@ layouts, and storage capacities are renderer/runtime implementation details.
 They remain internal until a concrete host need justifies a separate product
 decision and stable public lifecycle contract.
 
+### Planned elemental orientation results
+
+The current public results boundary supports authored scalar coloring and nodal
+deformation. Elemental vector fields remain authored data only. If the deferred
+orientation slice is implemented, `FemViewport` owns one orthogonal vector
+presentation role in the same atomic result replacement; `Part`, `Scene`, and
+`SceneRuntime` do not own glyph state. The planned role's public vocabulary is
+limited to authored field, `arrow`/`axis` presentation, `direction`/`normal`
+transform semantics, and a finite positive element-relative scale. Anchors,
+records, GPU resources, and fixed presentation policy stay internal; see
+[[data/vector-field-visualization|Authored elemental orientation visualization]].
+
 ## Design test for new features
 
 A new public concept belongs in the API only when it has a clear owner, a
@@ -130,3 +142,4 @@ Related: [[architecture/architecture-overview|Architecture overview]],
 [architecture/core-api|Core API review]: core-api.md
 [architecture/instancing-strategy|Instancing strategy]: instancing-strategy.md
 [architecture/packed-runtime|Packed scene runtime]: packed-runtime.md
+[data/vector-field-visualization|Authored elemental orientation visualization]: ../data/vector-field-visualization.md

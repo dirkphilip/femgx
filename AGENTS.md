@@ -24,8 +24,10 @@ Hard boundaries worth repeating:
   identity, bounds, picking, and interaction, and is opaque when depth-visible
   with a fixed-alpha weighted-transparency ghost behind opaque model geometry.
 - Near-term results are authored scalar fields at nodal or elemental locations,
-  with authored nodal vectors retained for deformation. Femgx-derived
-  engineering quantities and vector/tensor glyphs are out of scope.
+  with authored nodal vectors retained for deformation. Authored elemental
+  orientation glyphs are a bounded planned/deferred direction; femgx-derived
+  engineering quantities, magnitude plots, and nodal/tensor glyphs remain out
+  of scope.
 - Do not expand deferred or removed capabilities. Existing deferred code is
   removed only through an explicit product decision, not to improve a diff.
 - Do not add a public API, subsystem, fallback, compatibility layer, or optional
