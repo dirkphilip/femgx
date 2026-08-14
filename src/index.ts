@@ -36,6 +36,18 @@ export {
   type ElementModelValidationCode,
 } from "./elements/model";
 export {
+  editElementModel,
+  ElementModelEditError,
+  type DissolveBlockBodyPolicy,
+  type DissolveElementBlockOptions,
+  type ElementBlockReplacement,
+  type ElementModelEditCode,
+  type ElementModelEditReport,
+  type ElementModelEditResult,
+  type ElementModelEditor,
+  type MergeElementBlocksInput,
+} from "./elements/model-edit";
+export {
   heterogeneousElementParts,
   HeterogeneousElementError,
   type HeterogeneousElementErrorCode,

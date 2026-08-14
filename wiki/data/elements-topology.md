@@ -42,6 +42,29 @@ metadata or indexes. `heterogeneousElementParts` derives filtered block
 descriptors and flattened body descriptors per emitted primitive family, while
 the source model remains the only authoring owner.
 
+`editElementModel(model, configure)` is the immutable structural-edit boundary
+for models that actually author blocks. One callback can merge blocks, remove a
+block and its elements, dissolve only its grouping, or replace its topology.
+The callback edits a private draft; validation runs once at commit, so a failed
+operation cannot publish a partial model. `removeBlock` retains nodes even when
+they become unused. `dissolveBlock` requires an explicit `bodyPolicy` when a
+block-defined body is affected: `"direct"` keeps all of that body's elements,
+while `"unassigned"` leaves the dissolved elements outside that body.
+
+Replacement elements may reference existing dense nodes or append xyz triples
+whose ids start at the prior node count. Existing element and block ids remain
+stable; new element ids must not collide. The result contains the next
+`ElementModel` and one `ElementModelEditReport` with added, removed, retained,
+and newly-unused semantic ids. No result values are fabricated, and the editor
+does not own viewport or GPU state.
+
+```ts
+const outcome = editElementModel(model, (edit) => {
+  edit.mergeBlocks({ sourceIds: [12], targetId: 10 });
+  edit.replaceBlock(10, { elements: replacementElements, nodes: appendedNodes });
+});
+```
+
 ## Shapes
 
 | Shape            | Family     | Order | Nodes | Corners | Mid-edge nodes |
