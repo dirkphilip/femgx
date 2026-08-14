@@ -39,7 +39,7 @@
 - [[rendering/selection-occlusion|Selection through occlusion]] — renderer-owned
   visible and weighted-ghost selection presentation.
 - [[data/vector-field-visualization|Authored elemental orientation visualization]]
-  — deferred depth, instancing, and interaction semantics for future glyphs.
+  — bounded Core-now depth, instancing, and interaction semantics for authored glyphs.
 - [[rendering/shader-variants|Explicit shader variants]] — typed construction
   of triangle, line, and node-pick WGSL sources from shared fragments.
 - [[rendering/webgpu-e2e|WebGPU browser e2e lane]] — real-WebGPU browser

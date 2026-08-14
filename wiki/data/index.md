@@ -13,7 +13,7 @@
 - [[data/results|Results, deformation, and scalar visualization]] — typed
   authored result fields, scalar mapping, deformation, and visualization data.
 - [[data/vector-field-visualization|Authored elemental orientation visualization]]
-  — the deferred contract for authored normal and fiber-orientation glyphs.
+  — the bounded Core-now contract for authored normal and fiber-orientation glyphs.
 
 [data/elements-topology|Element topology]: elements-topology.md
 [data/fe-fixture|FE fixture]: fe-fixture.md

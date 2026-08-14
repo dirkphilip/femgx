@@ -7,7 +7,7 @@
   topology, identity, count, and scale contract for FE demo and benchmark
   fixtures.
 - [[data/vector-field-visualization|Authored elemental orientation visualization]]
-  — a deferred, bounded direction for authored elemental vector presentation.
+  — the bounded Core-now contract for authored elemental vector presentation.
 
 [requirements/product-scope|Product scope and requirements contract]: product-scope.md
 [requirements/demo-fixtures|Demo fixture requirements]: demo-fixtures.md

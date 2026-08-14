@@ -104,9 +104,11 @@ position/metadata split is the measured baseline for subsequent lazy-edge work.
   into a single `updateInstances` call can skip the draw-order rebuild and leave
   a hidden slot drawn; follow the one-`updateInstances`-per-delta flow until
   per-part visibility tracking replaces the global-count heuristic.
-- Bind groups are still created per batch per frame (see
-  [[engineering/performance-issues|performance risks]]); only the record and order buffers
-  are persistent.
+- Ordinary, transparent, edge, selection, node-selection, and face-subset bind
+  groups are cached per part/storage variant and invalidated when their
+  referenced buffers are replaced or grown. The edge-pick path intentionally
+  creates its request-specific bind group for each batch; only the record and
+  order buffers are persistent beyond that cache.
 - The WGSL record structs (`Instance`, `ElementHighlight`, `ElementHighlights`,
   `Camera`) are verified against the CPU encoder constants (`INSTANCE_STRIDE`,
   `ELEMENT_RECORD_STRIDE`, `HIGHLIGHT_HEADER`, `CAMERA_UNIFORM_SIZE`) by
