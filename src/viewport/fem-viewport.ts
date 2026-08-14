@@ -16,7 +16,7 @@ import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/pu
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { InteractionGranularity, PickHit } from "../picking/types";
-import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId, InstanceId } from "../scene/types";
 import { sceneWorldBounds, sceneWorldBoundsList } from "./scene-bounds";
 import {
   assertViewportBackground,
@@ -376,9 +376,9 @@ class FemViewportCore implements FemViewport {
     this.ensureAlive();
     this.applyVisibility(this.currentRuntime.setPartVisible(partId, visible).changedInstanceIds);
   }
-  setAssemblyNodeVisible(nodeId: AssemblyNodeId, visible: boolean): void {
+  setAssemblyOccurrenceVisible(occurrenceId: AssemblyOccurrenceId, visible: boolean): void {
     this.ensureAlive();
-    const node = this.currentRuntime.getNodeSlot(nodeId);
+    const node = this.currentRuntime.getNodeSlot(occurrenceId);
     this.applyVisibility(
       node === undefined
         ? []

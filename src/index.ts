@@ -168,7 +168,7 @@ export {
 export {
   createSceneRuntime,
   type RuntimeInstance,
-  type RuntimeNode,
+  type RuntimeOccurrence,
   type SceneRuntime,
 } from "./scene-runtime/public-runtime";
 export { WebGpuPickReadbackError } from "./renderer/gpu-pick";
@@ -249,7 +249,13 @@ export {
   translation,
   type Mat4,
 } from "./math/mat4";
-export type { AssemblyId, AssemblyNodeId, ElementRef, Instance, InstanceId } from "./scene/types";
+export type {
+  AssemblyId,
+  AssemblyOccurrenceId,
+  ElementRef,
+  Instance,
+  InstanceId,
+} from "./scene/types";
 export type {
   EdgePickHit,
   FacePickHit,

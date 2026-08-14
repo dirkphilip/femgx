@@ -1,5 +1,5 @@
 import type {
-  AssemblyNodeId,
+  AssemblyOccurrenceId,
   Body,
   BodyId,
   InstanceId,
@@ -25,7 +25,7 @@ export interface VisibilityPanelOptions {
   readonly onBodyVisibility: (instanceId: InstanceId, bodyId: BodyId, visible: boolean) => void;
   readonly onBodyHighlight: (instanceId: InstanceId, bodyId: BodyId) => void;
   readonly onInstanceVisibility: (instanceId: InstanceId, visible: boolean) => void;
-  readonly onAssemblyVisibility: (nodeId: AssemblyNodeId, visible: boolean) => void;
+  readonly onAssemblyVisibility: (occurrenceId: AssemblyOccurrenceId, visible: boolean) => void;
   readonly onTreeHover?: (target: VisibilityRowTarget | undefined) => void;
 }
 
@@ -68,9 +68,9 @@ export class VisibilityPanelController {
     context.dataset["testid"] = "visibility-context";
     context.textContent = `Assembly · ${assemblyName(model.scene.assemblies.get(rootAssemblyId)) ?? `Assembly ${rootAssemblyId}`}`;
     panel.appendChild(context);
-    const rootNodeId = this.options.getRuntime().getNodeIds()[0];
-    if (rootNodeId !== undefined) {
-      panel.appendChild(this.assemblyNode(rootNodeId));
+    const rootOccurrenceId = this.options.getRuntime().getOccurrenceIds()[0];
+    if (rootOccurrenceId !== undefined) {
+      panel.appendChild(this.assemblyOccurrence(rootOccurrenceId));
     }
     this.sync();
   }
@@ -94,12 +94,15 @@ export class VisibilityPanelController {
         input.disabled = false;
         continue;
       }
-      const assemblyNodeId = input.dataset["assemblyNodeId"];
-      if (assemblyNodeId !== undefined) {
-        const node = runtime.getNode(assemblyNodeId);
-        input.checked = node?.effectiveVisible ?? false;
+      const occurrenceId = input.dataset["assemblyOccurrenceId"];
+      if (occurrenceId !== undefined) {
+        const occurrence = runtime.getOccurrence(occurrenceId);
+        input.checked = occurrence?.effectiveVisible ?? false;
         input.indeterminate = false;
-        const parent = node?.parentId === undefined ? undefined : runtime.getNode(node.parentId);
+        const parent =
+          occurrence?.parentId === undefined
+            ? undefined
+            : runtime.getOccurrence(occurrence.parentId);
         input.disabled = parent !== undefined && !parent.effectiveVisible;
         continue;
       }
@@ -108,9 +111,12 @@ export class VisibilityPanelController {
         const instance = runtime.getInstance(instanceId);
         input.checked = instance?.visible ?? false;
         input.indeterminate = false;
-        const node = instance === undefined ? undefined : runtime.getNode(instance.nodeId);
+        const occurrence =
+          instance === undefined ? undefined : runtime.getOccurrence(instance.occurrenceId);
         input.disabled =
-          node === undefined || !node.effectiveVisible || instance?.partVisible !== true;
+          occurrence === undefined ||
+          !occurrence.effectiveVisible ||
+          instance?.partVisible !== true;
       }
     }
     for (const button of this.options.panel.querySelectorAll<HTMLButtonElement>(
@@ -140,10 +146,10 @@ export class VisibilityPanelController {
       return;
     }
     const partId = target.dataset["partId"];
-    const assemblyNodeId = target.dataset["assemblyNodeId"];
+    const occurrenceId = target.dataset["assemblyOccurrenceId"];
     if (partId !== undefined) this.options.onPartVisibility(Number(partId), target.checked);
-    else if (assemblyNodeId !== undefined) {
-      this.options.onAssemblyVisibility(assemblyNodeId, target.checked);
+    else if (occurrenceId !== undefined) {
+      this.options.onAssemblyVisibility(occurrenceId, target.checked);
     } else {
       const instanceId = target.dataset["instanceId"];
       if (instanceId !== undefined) this.options.onInstanceVisibility(instanceId, target.checked);
@@ -164,39 +170,40 @@ export class VisibilityPanelController {
     }
   }
 
-  private assemblyNode(nodeId: AssemblyNodeId): HTMLElement {
+  private assemblyOccurrence(occurrenceId: AssemblyOccurrenceId): HTMLElement {
     const model = this.options.getModel();
     const runtime = this.options.getRuntime();
-    const node = runtime.getNode(nodeId);
-    if (node === undefined) throw new Error(`Missing runtime node ${nodeId}`);
-    const assemblyId = node.assemblyId;
+    const occurrence = runtime.getOccurrence(occurrenceId);
+    if (occurrence === undefined) throw new Error(`Missing runtime occurrence ${occurrenceId}`);
+    const assemblyId = occurrence.assemblyId;
     const name = assemblyName(model.scene.assemblies.get(assemblyId)) ?? `Assembly ${assemblyId}`;
-    const displayName = this.assemblyOccurrenceName(nodeId, name);
+    const displayName = this.assemblyOccurrenceName(occurrenceId, name);
     const branch = document.createElement("div");
     branch.className = "visibility-branch";
     const row = document.createElement("div");
     row.className = "visibility-row visibility-assembly";
     row.dataset["visibilityTargetKind"] = "assembly";
-    row.dataset["visibilityTargetNodeId"] = nodeId;
+    row.dataset["visibilityTargetOccurrenceId"] = occurrenceId;
     const expander = document.createElement("button");
     expander.type = "button";
     expander.className = "visibility-expander";
-    expander.dataset["testid"] = `assembly-expand-${this.nodeDisplayId(nodeId)}`;
-    const expanded = node.parentId === undefined || node.parentId === runtime.getNodeIds()[0];
+    expander.dataset["testid"] = `assembly-expand-${this.occurrenceDisplayId(occurrenceId)}`;
+    const expanded =
+      occurrence.parentId === undefined || occurrence.parentId === runtime.getOccurrenceIds()[0];
     expander.setAttribute("aria-expanded", String(expanded));
     expander.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} ${displayName}`);
     expander.textContent = "▾";
     const children = document.createElement("div");
     children.className = "visibility-children";
     children.hidden = !expanded;
-    const directInstances = this.directPartInstances(nodeId);
+    const directInstances = this.directPartInstances(occurrenceId);
     for (let index = 0; index < directInstances.length; index++) {
       const instanceId = directInstances[index];
       if (instanceId !== undefined)
         children.appendChild(this.partNode(instanceId, index + 1, directInstances, displayName));
     }
-    for (const childId of node.childIds) {
-      children.appendChild(this.assemblyNode(childId));
+    for (const childId of occurrence.childIds) {
+      children.appendChild(this.assemblyOccurrence(childId));
     }
     expander.textContent = expanded ? "▾" : "▸";
     expander.addEventListener("click", () => {
@@ -205,11 +212,11 @@ export class VisibilityPanelController {
     row.append(
       expander,
       visibilityRowLabel(
-        "assembly-node",
-        nodeId,
+        "assembly-occurrence",
+        occurrenceId,
         displayName,
         undefined,
-        this.nodeDisplayId(nodeId),
+        this.occurrenceDisplayId(occurrenceId),
       ),
     );
     branch.append(row, children);
@@ -299,38 +306,39 @@ export class VisibilityPanelController {
     return row;
   }
 
-  private directPartInstances(nodeId: AssemblyNodeId): InstanceId[] {
+  private directPartInstances(occurrenceId: AssemblyOccurrenceId): InstanceId[] {
     const runtime = this.options.getRuntime();
     return (
-      runtime.getNode(nodeId)?.instanceIds.filter((instanceId) => {
-        return runtime.getInstance(instanceId)?.nodeId === nodeId;
+      runtime.getOccurrence(occurrenceId)?.instanceIds.filter((instanceId) => {
+        return runtime.getInstance(instanceId)?.occurrenceId === occurrenceId;
       }) ?? []
     );
   }
 
-  private assemblyOccurrenceName(nodeId: AssemblyNodeId, name: string): string {
+  private assemblyOccurrenceName(occurrenceId: AssemblyOccurrenceId, name: string): string {
     const runtime = this.options.getRuntime();
-    const node = runtime.getNode(nodeId);
-    const parent = node?.parentId === undefined ? undefined : runtime.getNode(node.parentId);
-    if (parent === undefined || node === undefined) return name;
-    let occurrence = 0;
+    const occurrence = runtime.getOccurrence(occurrenceId);
+    const parent =
+      occurrence?.parentId === undefined ? undefined : runtime.getOccurrence(occurrence.parentId);
+    if (parent === undefined || occurrence === undefined) return name;
+    let occurrenceNumber = 0;
     let total = 0;
     for (const siblingId of parent.childIds) {
-      const sibling = runtime.getNode(siblingId);
-      if (sibling?.assemblyId === node.assemblyId) {
+      const sibling = runtime.getOccurrence(siblingId);
+      if (sibling?.assemblyId === occurrence.assemblyId) {
         total += 1;
-        if (siblingId === nodeId) occurrence = total;
+        if (siblingId === occurrenceId) occurrenceNumber = total;
       }
     }
-    return total > 1 ? `${name} ${occurrence}` : name;
+    return total > 1 ? `${name} ${occurrenceNumber}` : name;
   }
 
   private instanceVisible(runtime: SceneRuntime, instanceId: InstanceId | undefined): boolean {
     return instanceId !== undefined && runtime.isInstanceVisible(instanceId);
   }
 
-  private nodeDisplayId(nodeId: AssemblyNodeId): number {
-    return this.options.getRuntime().getNodeIds().indexOf(nodeId);
+  private occurrenceDisplayId(occurrenceId: AssemblyOccurrenceId): number {
+    return this.options.getRuntime().getOccurrenceIds().indexOf(occurrenceId);
   }
 
   private instanceDisplayId(instanceId: InstanceId): number {

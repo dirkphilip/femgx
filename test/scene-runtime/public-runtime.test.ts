@@ -7,37 +7,38 @@ describe("public scene runtime", () => {
   it("exposes stable placement and occurrence queries", () => {
     const runtime = createSceneRuntime(createBoltedPlateFixture().scene);
     const instanceId = runtime.getInstanceIds()[0];
-    const nodeId = runtime.getNodeIds()[0];
+    const occurrenceId = runtime.getOccurrenceIds()[0];
 
     expect(instanceId).toBe("1/0/0");
-    expect(nodeId).toBe("1");
+    expect(occurrenceId).toBe("1");
+    expect(runtime.occurrenceCount).toBe(runtime.getOccurrenceIds().length);
     expect(runtime.getInstance(instanceId ?? "missing")?.instanceId).toBe(instanceId);
-    expect(runtime.getNode(nodeId ?? "missing")?.nodeId).toBe(nodeId);
+    expect(runtime.getOccurrence(occurrenceId ?? "missing")?.occurrenceId).toBe(occurrenceId);
 
     expect(runtime.isInstanceVisible(instanceId ?? "missing")).toBe(true);
     expect(runtime).not.toHaveProperty("setInstanceVisible");
     expect(runtime).not.toHaveProperty("setPartVisible");
-    expect(runtime).not.toHaveProperty("setAssemblyNodeVisible");
+    expect(runtime).not.toHaveProperty("setAssemblyOccurrenceVisible");
     expect(runtime).not.toHaveProperty("setAssemblyVisible");
     expect(runtime).not.toHaveProperty("getNodeTransform");
     expect(runtime).not.toHaveProperty("getNodeWorldTransform");
-    expect(runtime.getNode(nodeId ?? "missing")).not.toHaveProperty("transform");
-    expect(runtime.getNode(nodeId ?? "missing")).not.toHaveProperty("worldTransform");
+    expect(runtime.getOccurrence(occurrenceId ?? "missing")).not.toHaveProperty("transform");
+    expect(runtime.getOccurrence(occurrenceId ?? "missing")).not.toHaveProperty("worldTransform");
   });
 
   it("keeps repeated assembly occurrences independently addressable", () => {
     const runtime = createSceneRuntime(createBoltedPlateFixture().scene);
     const occurrenceIds = runtime
-      .getNodeIds()
-      .filter((nodeId) => runtime.getNode(nodeId)?.assemblyId === 4);
+      .getOccurrenceIds()
+      .filter((occurrenceId) => runtime.getOccurrence(occurrenceId)?.assemblyId === 4);
 
     expect(occurrenceIds.length).toBeGreaterThan(1);
     const first = occurrenceIds[0];
     const second = occurrenceIds[1];
     expect(first).toBeDefined();
     expect(second).toBeDefined();
-    expect(runtime.getNode(first ?? "missing")?.effectiveVisible).toBe(true);
-    expect(runtime.getNode(second ?? "missing")?.effectiveVisible).toBe(true);
+    expect(runtime.getOccurrence(first ?? "missing")?.effectiveVisible).toBe(true);
+    expect(runtime.getOccurrence(second ?? "missing")?.effectiveVisible).toBe(true);
   });
 
   it("rejects a structurally forged scene before public runtime admission", () => {

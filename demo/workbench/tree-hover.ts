@@ -1,5 +1,5 @@
 import type {
-  AssemblyNodeId,
+  AssemblyOccurrenceId,
   BodyId,
   InstanceId,
   InteractionTarget,
@@ -8,7 +8,7 @@ import type {
 
 /** Semantic identity carried by one visibility-tree row. */
 export type VisibilityRowTarget =
-  | { readonly kind: "assembly"; readonly nodeId: AssemblyNodeId }
+  | { readonly kind: "assembly"; readonly occurrenceId: AssemblyOccurrenceId }
   | { readonly kind: "instance"; readonly instanceId: InstanceId }
   | { readonly kind: "body"; readonly instanceId: InstanceId; readonly bodyId: BodyId };
 
@@ -23,30 +23,30 @@ export function interactionTargetsForRow(
     case "body":
       return [row];
     case "assembly":
-      return descendantInstanceTargets(runtime, row.nodeId);
+      return descendantInstanceTargets(runtime, row.occurrenceId);
   }
 }
 
 function descendantInstanceTargets(
   runtime: SceneRuntime,
-  rootNodeId: AssemblyNodeId,
+  rootOccurrenceId: AssemblyOccurrenceId,
 ): readonly InteractionTarget[] {
   const targets: InteractionTarget[] = [];
   const seenInstances = new Set<InstanceId>();
-  const pending: AssemblyNodeId[] = [rootNodeId];
+  const pending: AssemblyOccurrenceId[] = [rootOccurrenceId];
   while (pending.length > 0) {
-    const nodeId = pending.pop();
-    if (nodeId === undefined) continue;
-    const node = runtime.getNode(nodeId);
-    if (node === undefined) continue;
-    for (const instanceId of node.instanceIds) {
+    const occurrenceId = pending.pop();
+    if (occurrenceId === undefined) continue;
+    const occurrence = runtime.getOccurrence(occurrenceId);
+    if (occurrence === undefined) continue;
+    for (const instanceId of occurrence.instanceIds) {
       const instance = runtime.getInstance(instanceId);
-      if (instance?.nodeId !== nodeId || seenInstances.has(instanceId)) continue;
+      if (instance?.occurrenceId !== occurrenceId || seenInstances.has(instanceId)) continue;
       seenInstances.add(instanceId);
       targets.push({ kind: "instance", instanceId });
     }
-    for (let index = node.childIds.length - 1; index >= 0; index--) {
-      const childId = node.childIds[index];
+    for (let index = occurrence.childIds.length - 1; index >= 0; index--) {
+      const childId = occurrence.childIds[index];
       if (childId !== undefined) pending.push(childId);
     }
   }

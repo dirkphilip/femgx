@@ -246,7 +246,7 @@ function main() {
       "  viewport.setPartVisible(part.id, true);",
       "  const runtime = viewport.runtime;",
       "  runtime.getInstanceIds();",
-      "  runtime.getNodes();",
+      "  runtime.getOccurrences();",
       "  runtime.getDrawList();",
       "  viewport.setResults({ scalar: { field: stress }, deformation: { field: displacement, scale: 1 } });",
       "  viewport.clearResults();",

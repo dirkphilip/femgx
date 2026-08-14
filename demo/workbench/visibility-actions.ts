@@ -68,8 +68,10 @@ export class WorkbenchVisibilityActions {
     this.finish();
   }
 
-  setAssemblyNode(nodeId: string, visible: boolean): void {
-    for (const viewport of this.viewports()) viewport.setAssemblyNodeVisible(nodeId, visible);
+  setAssemblyOccurrence(occurrenceId: string, visible: boolean): void {
+    for (const viewport of this.viewports()) {
+      viewport.setAssemblyOccurrenceVisible(occurrenceId, visible);
+    }
     this.finish();
   }
 
@@ -173,8 +175,8 @@ export class WorkbenchVisibilityActions {
         for (const assemblyId of scene.assemblies.keys()) {
           viewport.setAssemblyVisible(assemblyId, true);
         }
-        for (const nodeId of runtime.getNodeIds()) {
-          viewport.setAssemblyNodeVisible(nodeId, true);
+        for (const occurrenceId of runtime.getOccurrenceIds()) {
+          viewport.setAssemblyOccurrenceVisible(occurrenceId, true);
         }
         for (const partId of scene.parts.keys()) {
           viewport.setPartVisible(partId, true);
