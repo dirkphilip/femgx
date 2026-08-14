@@ -13,7 +13,9 @@ parallel runtime graph.
 - A synthetic root assembly contains one named assembly per reachable glTF node. Node matrix/TRS
   transforms are preserved as column-major femgx matrices, and node order is deterministic.
 - Each supported indexed or non-indexed `TRIANGLES` primitive with a FLOAT `POSITION` VEC3 becomes
-  one reusable `Part`. Unsigned byte, short, and int indices are promoted to `Uint32Array`.
+  one reusable `Part`. Primitive boundaries preserve glTF material/style boundaries; they do not
+  infer CAD or FE part semantics. Unsigned byte, short, and int indices are promoted to
+  `Uint32Array`.
 - Repeated glTF mesh references reuse those Parts through multiple assembly placements. No FE
   topology or pick ids are synthesized.
 - `baseColorFactor` maps to the existing `StyleOverride.color`. OPAQUE ignores source alpha,
@@ -25,13 +27,12 @@ parallel runtime graph.
 
 ## Extension boundary
 
-The checked-in `onshape-cylinder-uncompressed.glb` fixture was supplied from Onshape and identifies
-`ONSHAPE BY PTC INC, 1.219`; it uses the optional `PTC_onshape_metadata` extension and no mesh
-compression. That extension is intentionally ignored with one warning. Onshape's public export
-documentation exposes a **Compress** switch for GLTF/GLB but does not identify the extension. A
-current compressed Onshape export must identify and validate the decoder before the importer can
-claim compressed-export coverage or close issue #423. Required unsupported extensions are fatal;
-optional ignored extensions are warnings, and `strict: true` promotes warnings to rejection.
+The checked-in `onshape-cylinder-uncompressed.glb` and `onshape-cylinder-compressed.glb` fixtures
+were supplied from Onshape and identify `ONSHAPE BY PTC INC, 1.219`. The compressed export requires
+`KHR_draco_mesh_compression`, which is decoded before the scene is mapped. The optional
+`PTC_onshape_metadata` extension is intentionally ignored with one warning. Required unsupported
+extensions are fatal; optional ignored extensions are warnings, and `strict: true` promotes warnings
+to rejection.
 
 ## Diagnostics
 

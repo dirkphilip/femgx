@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { drawnPixels, waitForRenderer } from "./demo-support";
 import { loadWebGpuPage } from "./webgpu-support";
 
-const fixture = "test/io/fixtures/glb/onshape-cylinder-uncompressed.glb";
+const fixture = "test/io/fixtures/glb/onshape-cylinder-compressed.glb";
 const vtkFixture = readFileSync(join(process.cwd(), "demo/fixture/sample-block.vtk"));
 const phone = { width: 390, height: 844 };
 
@@ -67,7 +67,7 @@ test("keeps the background selector reachable without mobile toolbar overflow", 
   await page.screenshot({ path: "test-results/background-selector-mobile.png", fullPage: true });
 });
 
-test("opens an uncompressed GLB and resets the imported model in desktop Chrome", async ({
+test("opens a Draco-compressed GLB and resets the imported model in desktop Chrome", async ({
   page,
 }) => {
   await page.goto("/");
@@ -81,9 +81,9 @@ test("opens an uncompressed GLB and resets the imported model in desktop Chrome"
     .toBe("opened-model");
   await expect(page.getByTestId("model-select")).toHaveValue("opened-model");
   await expect(page.getByTestId("model-select")).toContainText(
-    "Opened · onshape-cylinder-uncompressed.glb",
+    "Opened · onshape-cylinder-compressed.glb",
   );
-  await expect(page.getByTestId("status")).toContainText("onshape-cylinder-uncompressed.glb");
+  await expect(page.getByTestId("status")).toContainText("onshape-cylinder-compressed.glb");
   await expect(page.getByTestId("status")).toContainText("4 parts");
   await expect(page.getByTestId("visibility-panel")).toContainText("Part 1");
   await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
