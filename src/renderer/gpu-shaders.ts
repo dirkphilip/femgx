@@ -1,5 +1,15 @@
 import { emphasisHash } from "./gpu-highlight-shader";
 import { INSTANCE_EMPHASIS_FLAG, INSTANCE_SELECTED_FLAG } from "./gpu-instance-storage";
+import { emphasisStructs } from "./gpu-emphasis-shader";
+export { emphasisStructs } from "./gpu-emphasis-shader";
+export {
+  colorFragmentShader,
+  edgeFragmentShader,
+  sectionPlaneBindings,
+  sectionPlaneFunction,
+  sectionPlaneStruct,
+} from "./gpu-fragment-shaders";
+import { sectionPlaneBindings, sectionPlaneFunction } from "./gpu-fragment-shaders";
 export { pickDataBindings } from "./gpu-topology-shader";
 import { pickDataBindings } from "./gpu-topology-shader";
 
@@ -42,19 +52,6 @@ struct Deformation {
 };
 `;
 
-/** Per-frame world-space clipping plane; a zero normal disables clipping. */
-export const sectionPlaneStruct = /* wgsl */ `
-struct SectionPlane {
-  normalDistance: vec4<f32>,
-};
-`;
-
-/** Standalone section-plane binding for unlit scene fragment stages. */
-export const sectionPlaneBindings = /* wgsl */ `
-${sectionPlaneStruct}
-@group(0) @binding(2) var<uniform> sectionPlane: SectionPlane;
-`;
-
 /** Instance storage layout shared by every vertex shader. */
 export const instanceStruct = /* wgsl */ `
 // Field layout (byte offsets) must match encodeInstanceRecord in gpu-draw.ts:
@@ -79,56 +76,10 @@ fn instanceHasPrimitiveEmphasis(flags: u32) -> bool {
 `;
 
 /** Emphasis records read by the visible triangle and point vertex stages. */
-export const emphasisStructs = /* wgsl */ `
-// Field layout must match encodeEmphasisRecord in gpu-elements.ts:
-// slot 0, elementPickId 4, facePickId 8, nodePickId 12, color 16, emissive 32,
-// hidden 36, selected 40, blockPickId 44.
-// The struct has no trailing member so its size stays 48 bytes (vec3 members
-// would force 16-byte alignment and a 64-byte stride that would not match the
-// encoder).
-struct ElementHighlight {
-  slot: u32,
-  elementPickId: u32,
-  facePickId: u32,
-  nodePickId: u32,
-  color: vec4<f32>,
-  emissive: f32,
-  hidden: u32,
-  selected: u32,
-  blockPickId: u32,
-};
-
-// records starts at byte offset 16 to keep the 16-byte element alignment;
-// matches HIGHLIGHT_HEADER in gpu-elements.ts. The header padding is a plain
-// array so it stays 4-byte aligned (a vec3 would move records to offset 32).
-// records is a runtime-sized array of four-entry buckets. The CPU chooses a
-// deterministic seed so each emphasis lookup probes one bounded bucket instead
-// of scanning every emphasized record (see wiki/element-interaction.md).
-struct ElementHighlights {
-  count: u32,
-  bucketCount: u32,
-  seed: u32,
-  _padding: u32,
-  records: array<ElementHighlight>,
-};
-`;
-
 /** Frame-uniform binding layout shared by every vertex shader. */
 export const frameBindings = /* wgsl */ `
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(0) @binding(1) var<uniform> deformation: Deformation;
-`;
-
-/** Shared positive-half-space test for scene fragments. */
-export const sectionPlaneFunction = /* wgsl */ `
-fn sectionPlaneVisible(worldPosition: vec3<f32>) -> bool {
-  let normal = sectionPlane.normalDistance.xyz;
-  let normalLength = length(normal);
-  if (normalLength != normalLength || normalLength <= 1e-6) {
-    return true;
-  }
-  return dot(normal, worldPosition) + sectionPlane.normalDistance.w >= -1e-5;
-}
 `;
 
 /** Instance storage binding layout shared by every vertex shader. */
@@ -351,26 +302,6 @@ fn packPickId(pickId: u32) -> vec4<f32> {
 }
 `;
 
-/** Fragment stage for the visible color pass; emissive adds a white glow. */
-export const colorFragmentShader = /* wgsl */ `
-${sectionPlaneBindings}
-${sectionPlaneFunction}
-
-@fragment
-fn fragmentMain(
-  @location(0) @interpolate(flat) color: vec4<f32>,
-  @location(2) @interpolate(flat) emissive: f32,
-  @location(5) local: vec2<f32>,
-  @location(8) worldPosition: vec3<f32>,
-  @location(10) resultColor: vec4<f32>,
-  @location(11) @interpolate(flat) resultColorEnabled: u32,
-) -> @location(0) vec4<f32> {
-  let displayedColor = select(color, resultColor, resultColorEnabled != 0u);
-  if (dot(local, local) > 1.0 || displayedColor.a < 1.0 || !sectionPlaneVisible(worldPosition)) { discard; }
-  return vec4<f32>(displayedColor.rgb + vec3<f32>(emissive), displayedColor.a);
-}
-`;
-
 /** Lit triangle fragment stage; overlays, lines, and points remain unlit. */
 export const triangleColorFragmentShader = /* wgsl */ `
 ${cameraStruct}
@@ -398,31 +329,6 @@ fn fragmentMain(
     camera.viewDirection.xyz,
   );
   return vec4<f32>(litColor + vec3<f32>(emissive), displayedColor.a);
-}
-`;
-
-/** Edge color pass with the minimum depth24 offset needed for coplanar lines. */
-export const edgeFragmentShader = /* wgsl */ `
-${sectionPlaneBindings}
-${sectionPlaneFunction}
-
-struct EdgeFragmentOutput {
-  @location(0) color: vec4<f32>,
-  @builtin(frag_depth) depth: f32,
-};
-
-@fragment
-fn fragmentMain(
-  @builtin(position) fragmentPosition: vec4<f32>,
-  @location(0) color: vec4<f32>,
-  @location(2) @interpolate(flat) emissive: f32,
-  @location(8) worldPosition: vec3<f32>,
-) -> EdgeFragmentOutput {
-  if (!sectionPlaneVisible(worldPosition)) { discard; }
-  var output: EdgeFragmentOutput;
-  output.color = vec4<f32>(color.rgb + vec3<f32>(emissive), color.a);
-  output.depth = max(fragmentPosition.z - 1.0 / 16777215.0, 0.0);
-  return output;
 }
 `;
 

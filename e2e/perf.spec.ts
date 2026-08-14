@@ -142,7 +142,11 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
           expect(phase.interactionGpuCost.writes["highlight"]?.bytes ?? 0).toBeGreaterThanOrEqual(
             0,
           );
+          expect(phase.denseSelectionBytes).toBeGreaterThanOrEqual(0);
           expect(phase.selectedElementRecordBytes).toBeGreaterThan(0);
+          if (phase.denseSelectionBytes > 0) {
+            expect(phase.denseSelectionBytes).toBeLessThan(phase.selectedElementRecordBytes);
+          }
           if (entry.id === "instanced-2.10m" && phase.id === "one-shell") {
             expect(phase.selectedOccurrenceCount).toBe(1);
           }

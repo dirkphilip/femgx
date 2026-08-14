@@ -20,6 +20,24 @@ export function buildElementPrimitivePickIds(geometry: Geometry): Uint32Array {
   return pickIds;
 }
 
+/** Builds the per-primitive private dense element ordinal map (`ordinal + 1`). */
+export function buildElementPrimitiveOrdinals(geometry: Geometry): Uint32Array {
+  const primitiveCount = logicalPrimitiveCount(geometry);
+  const ordinals = new Uint32Array(primitiveCount);
+  for (const [index, element] of (geometry.elements ?? []).entries()) {
+    const range = primitiveRangeForElement(element);
+    const ordinal = index + 1;
+    for (
+      let primitiveIndex = range.start;
+      primitiveIndex < range.start + range.count;
+      primitiveIndex++
+    ) {
+      ordinals[primitiveIndex] = ordinal;
+    }
+  }
+  return ordinals;
+}
+
 /** Builds the per-primitive body pick id map (`bodyId + 1`, 0 = ungrouped). */
 export function buildBodyPrimitivePickIds(geometry: Geometry): Uint32Array {
   const primitiveCount = logicalPrimitiveCount(geometry);

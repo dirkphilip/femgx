@@ -51,6 +51,9 @@ export interface SelectionBenchmarkPhase {
   readonly steadySelectedFrameMs: BenchmarkPercentiles;
   readonly clearSelectionMs: number;
   readonly interactionGpuCost: BenchmarkGpuCostSnapshot;
+  /** Dense offset-table and per-occurrence bitset bytes for this selection. */
+  readonly denseSelectionBytes: number;
+  /** Comparison estimate if every selected target used a sparse record. */
   readonly selectedElementRecordBytes: number;
 }
 

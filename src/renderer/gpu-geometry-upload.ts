@@ -2,7 +2,7 @@ import type { Part } from "../geometry/part";
 import { buildMeshEdgeData, type MeshEdgeData } from "./gpu-edge";
 import { buildFaceSubsetIndices } from "./gpu-face-subset";
 import { emptyMeshEdgeData, packTopologyData } from "./gpu-geometry-buffers";
-import { buildElementPrimitivePickIds, buildPrimitiveFaceBodyPickData } from "./gpu-pick-ids";
+import { buildElementPrimitiveOrdinals, buildPrimitiveFaceBodyPickData } from "./gpu-pick-ids";
 import {
   buildEdgeNodePickIds,
   expandSurfaceGeometry,
@@ -21,7 +21,7 @@ export interface UploadVertexData {
 
 /** Geometry buffers and metadata assembled for one cached part resource. */
 export interface PartGeometryData {
-  readonly picks: Pick<PartResource, "elementPickIdsBuffer" | "nodePickIdsBuffer">;
+  readonly picks: Pick<PartResource, "elementOrdinalsBuffer" | "nodePickIdsBuffer">;
   readonly facePickIdsBuffer: GPUBuffer;
   readonly subsetBuffers: ReturnType<typeof createSubsetBuffers>;
   readonly subsetResultColorBinding:
@@ -104,11 +104,11 @@ function uploadPickBuffers(
   device: GPUDevice,
   part: Part,
   nodePickIds: Uint32Array,
-): Pick<PartResource, "elementPickIdsBuffer" | "nodePickIdsBuffer"> {
+): Pick<PartResource, "elementOrdinalsBuffer" | "nodePickIdsBuffer"> {
   return {
-    elementPickIdsBuffer: createBuffer(
+    elementOrdinalsBuffer: createBuffer(
       device,
-      buildElementPrimitivePickIds(part.geometry),
+      buildElementPrimitiveOrdinals(part.geometry),
       GPUBufferUsage.STORAGE,
     ),
     nodePickIdsBuffer: createBuffer(device, nodePickIds, GPUBufferUsage.STORAGE),

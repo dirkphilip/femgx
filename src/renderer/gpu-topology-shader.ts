@@ -7,7 +7,7 @@ fn bodyOwnerVisible(slot: u32, bodyPickId: u32) -> bool {
   let bucket = highlightHash(slot, bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
   let base = bucket * 4u;
   for (var offset = 0u; offset < 4u; offset++) {
-    let highlight = elementHighlights.records[base + offset];
+    let highlight = elementHighlightAt(base + offset);
     if (highlight.slot == slot && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu && highlight.blockPickId == 0u) {
       return highlight.hidden == 0u;
     }
@@ -20,7 +20,7 @@ fn blockOwnerVisible(slot: u32, blockPickId: u32) -> bool {
   let bucket = highlightHash(slot, blockPickId, 0xfffffffeu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
   let base = bucket * 4u;
   for (var offset = 0u; offset < 4u; offset++) {
-    let highlight = elementHighlights.records[base + offset];
+    let highlight = elementHighlightAt(base + offset);
     if (highlight.slot == slot && highlight.elementPickId == blockPickId && highlight.facePickId == 0xfffffffeu && highlight.blockPickId == blockPickId) {
       return highlight.hidden == 0u;
     }
@@ -33,7 +33,7 @@ fn elementOwnerVisible(slot: u32, elementPickId: u32) -> bool {
   let bucket = highlightHash(slot, elementPickId, 0u, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
   let base = bucket * 4u;
   for (var offset = 0u; offset < 4u; offset++) {
-    let highlight = elementHighlights.records[base + offset];
+    let highlight = elementHighlightAt(base + offset);
     if (highlight.slot == slot && highlight.elementPickId == elementPickId && highlight.facePickId == 0u && highlight.blockPickId == 0u) {
       return highlight.hidden == 0u;
     }
@@ -50,7 +50,7 @@ fn ownerVisible(slot: u32, bodyPickId: u32, blockPickId: u32, elementPickId: u32
 
 /** WGSL visibility lookup for per-primitive and per-topology ownership data. */
 export const pickDataBindings = /* wgsl */ `
-@group(1) @binding(2) var<storage, read> primitiveElementPickIds: array<u32>;
+@group(1) @binding(2) var<storage, read> primitiveElementOrdinals: array<u32>;
 // Header: face-record count, topology range count, condition count. Block-aware
 // parts set the high bit of condition count and use seven-word face records and
 // six-word ownership conditions; blockless parts retain their five/four-word layout.
@@ -92,6 +92,14 @@ fn primitiveFaceBlockPickIds(index: u32) -> vec2<u32> {
 fn primitiveFaceElementPickIds(index: u32) -> vec2<u32> {
   let base = primitiveFaceBase(index);
   return vec2<u32>(topologyData[base + 3u], topologyData[base + 4u]);
+}
+
+fn primitiveElementId(index: u32) -> u32 {
+  return primitiveFaceElementPickIds(index).x;
+}
+
+fn primitiveElementOrdinal(index: u32) -> u32 {
+  return primitiveElementOrdinals[index];
 }
 
 fn topologyBodyRange(index: u32) -> vec2<u32> {

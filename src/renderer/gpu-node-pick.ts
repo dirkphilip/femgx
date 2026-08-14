@@ -144,7 +144,7 @@ ${linePosition}
   output.color = instance.color;
   output.pickId = instance.pickId;
   output.emissive = instance.emissive;
-  output.elementPickId = primitiveElementPickIds[${options.primitiveIndex}];
+  output.elementPickId = primitiveElementId(${options.primitiveIndex});
   output.facePickId = faceBodyPickIds.x;
   output.localPosition = displaced(position, vertexIndex);
   output.cornerA = displaced(
@@ -233,7 +233,7 @@ fn pointVertexMain(
   let corner = spriteCorner(vertexIndex % 4u);
   let diameter = max(camera.pointSize, 8.0 * camera.devicePixelRatio);
   let offset = (corner * diameter) / camera.viewport;
-  let elementPickId = primitiveElementPickIds[vertexIndex / 4u];
+  let elementPickId = primitiveElementId(vertexIndex / 4u);
   var output: NodeVertexOutput;
   output.position = vec4<f32>(
     clip.x + offset.x * clip.w,
