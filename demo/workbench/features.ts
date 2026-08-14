@@ -56,7 +56,6 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     options.publishSnapshot,
   );
   const presentation = new WorkbenchPresentation({
-    view: options.view,
     canvas: options.canvas,
     rendererName: options.rendererName,
     getModel: options.model,

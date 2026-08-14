@@ -6,7 +6,6 @@ import {
   type ViewportResultsState,
 } from "../../src/index";
 import type { WorkbenchModel } from "./model";
-import type { DemoView } from "./view";
 import { selectedKeys } from "./selection";
 import { statsText } from "../devtools/diagnostics";
 import type { DisplayToggles, RenderLoopStats, RendererStats, ResultDisplayMode } from "./types";
@@ -19,7 +18,6 @@ import type { WorkbenchPresentationSnapshot } from "./snapshot";
 
 /** Presentation-only DOM policy for the workbench shell. */
 export interface WorkbenchPresentationOptions {
-  readonly view: DemoView;
   readonly canvas: HTMLCanvasElement;
   readonly rendererName: string;
   readonly getModel: () => WorkbenchModel;
@@ -95,10 +93,6 @@ export class WorkbenchPresentation {
     if (this.feedback === undefined) return;
     this.feedback = undefined;
     this.options.publishSnapshot();
-  }
-
-  clearModelFileInput(): void {
-    this.options.view.modelFileInput.value = "";
   }
 
   setInspection(text: string, visible: boolean): void {

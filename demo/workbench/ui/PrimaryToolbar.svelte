@@ -13,7 +13,7 @@
 
   type ModelFile = Parameters<WorkbenchCommands["openModel"]>[0];
 
-  let modelFileInput: { click(): void } | undefined;
+  let modelFileInput: { click(): void; value: string } | undefined;
 
   function selectValue(event: unknown): string | undefined {
     if (typeof event !== "object" || event === null) return undefined;
@@ -48,7 +48,13 @@
     const files = Reflect.get(currentTarget, "files");
     if (files === null || typeof files !== "object") return;
     const file = Reflect.get(files, "0");
-    if (isModelFile(file)) controller?.commands.openModel(file);
+    if (!isModelFile(file)) return;
+    const command = controller?.commands.openModel(file);
+    if (command !== undefined) void command.then(resetModelFileInput, resetModelFileInput);
+  }
+
+  function resetModelFileInput(): void {
+    if (modelFileInput !== undefined && "value" in modelFileInput) modelFileInput.value = "";
   }
 
   function eventTarget(event: unknown): object | undefined {

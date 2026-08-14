@@ -59,9 +59,7 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     showAll: owner.showAll.bind(owner),
     reset: owner.reset.bind(owner),
     selectModel: owner.setModel.bind(owner),
-    openModel: (file) => {
-      void owner.openModel(file);
-    },
+    openModel: owner.openModel.bind(owner),
     setResultField: owner.setResultField.bind(owner),
     setSectionAxis: owner.setSectionAxis.bind(owner),
     setSectionOffset: owner.setSectionOffset.bind(owner),

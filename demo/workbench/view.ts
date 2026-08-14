@@ -24,7 +24,6 @@ export interface DemoView {
   readonly canvas: HTMLCanvasElement;
   readonly scene: HTMLElement;
   readonly boxSelectionOverlay: HTMLElement;
-  readonly modelFileInput: HTMLInputElement;
 }
 
 /** Locates the demo's DOM nodes, throwing when the page is misconfigured. */
@@ -36,7 +35,6 @@ export function queryDemoView(): DemoView {
     secondaryCanvas: requiredCanvas("#secondary-view"),
     secondaryScene: requiredElement("#secondary-scene"),
     secondaryBoxSelectionOverlay: requiredElement("#secondary-box-selection-overlay"),
-    modelFileInput: requiredInput("#model-file"),
   };
   return createDemoView(elements);
 }
@@ -66,10 +64,6 @@ function requiredElement(selector: string): HTMLElement {
 
 function requiredCanvas(selector: string): HTMLCanvasElement {
   return required(selector) as HTMLCanvasElement;
-}
-
-function requiredInput(selector: string): HTMLInputElement {
-  return required(selector) as HTMLInputElement;
 }
 
 function required(selector: string): Element {
