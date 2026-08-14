@@ -7,6 +7,11 @@ authority]]). Husky runs lint-staged followed by the staged-file pre-commit
 framework check locally; CI independently runs the framework across all tracked
 files in addition to the npm gate.
 
+The pre-commit framework includes check-only codespell validation for tracked
+repository text, TOML syntax validation for supervisor configuration, and the
+semantic workflow checks documented in [[engineering/pre-commit-hooks|Pre-commit
+hooks]].
+
 ## Local gate
 
 ```sh

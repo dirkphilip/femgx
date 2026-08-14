@@ -181,13 +181,13 @@ function adjacentEdges(first: number, second: number, count: number): boolean {
 
 function segmentsIntersect(a: Vec2, b: Vec2, c: Vec2, d: Vec2, epsilon: number): boolean {
   const ab = cross2(a, b, c);
-  const abD = cross2(a, b, d);
+  const abAtD = cross2(a, b, d);
   const cdA = cross2(c, d, a);
   const cdB = cross2(c, d, b);
-  if (opposite(ab, abD, epsilon) && opposite(cdA, cdB, epsilon)) return true;
+  if (opposite(ab, abAtD, epsilon) && opposite(cdA, cdB, epsilon)) return true;
   return (
     (nearZero(ab, epsilon) && onSegment(a, b, c, epsilon)) ||
-    (nearZero(abD, epsilon) && onSegment(a, b, d, epsilon)) ||
+    (nearZero(abAtD, epsilon) && onSegment(a, b, d, epsilon)) ||
     (nearZero(cdA, epsilon) && onSegment(c, d, a, epsilon)) ||
     (nearZero(cdB, epsilon) && onSegment(c, d, b, epsilon))
   );

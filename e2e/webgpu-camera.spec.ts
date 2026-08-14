@@ -337,7 +337,7 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
     "GPU picking must resolve the deep-zoom approach point",
   );
   const picked = await page.evaluate(
-    async ({ x: localX, y: localY }) => {
+    async ({ x: localX, y: localCoordinateY }) => {
       const harness = (
         window as typeof window & {
           femgxDemo?: {
@@ -345,7 +345,7 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
           };
         }
       ).femgxDemo;
-      return (await harness?.pickPoint(localX, localY)) ?? null;
+      return (await harness?.pickPoint(localX, localCoordinateY)) ?? null;
     },
     { x: x - box.x, y: y - box.y },
   );

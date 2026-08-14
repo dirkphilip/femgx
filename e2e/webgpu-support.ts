@@ -196,17 +196,17 @@ function collectYellowComponent(
   let maxY = minY;
   for (let cursor = 0; cursor < queue.length; cursor += 1) {
     const pixel = queue[cursor] ?? seed;
-    const pixelX = pixel % width;
+    const pixelCoordinateX = pixel % width;
     const pixelY = Math.floor(pixel / width);
-    minX = Math.min(minX, pixelX);
+    minX = Math.min(minX, pixelCoordinateX);
     minY = Math.min(minY, pixelY);
-    maxX = Math.max(maxX, pixelX);
+    maxX = Math.max(maxX, pixelCoordinateX);
     maxY = Math.max(maxY, pixelY);
     for (const [nextX, nextY] of [
-      [pixelX - 1, pixelY],
-      [pixelX + 1, pixelY],
-      [pixelX, pixelY - 1],
-      [pixelX, pixelY + 1],
+      [pixelCoordinateX - 1, pixelY],
+      [pixelCoordinateX + 1, pixelY],
+      [pixelCoordinateX, pixelY - 1],
+      [pixelCoordinateX, pixelY + 1],
     ] as const) {
       const inBounds = nextX >= 0 && nextY >= 0 && nextX < width && nextY < height;
       const next = nextY * width + nextX;
