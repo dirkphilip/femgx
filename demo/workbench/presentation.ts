@@ -148,8 +148,9 @@ export class WorkbenchPresentation {
     const config = this.options.getModel().results;
     const mode = this.options.getResultMode();
     const controls = this.options.view.resultControls;
-    controls.hidden = config === undefined;
-    if (config === undefined) {
+    const scalar = config?.scalar;
+    controls.hidden = scalar === undefined;
+    if (scalar === undefined || config === undefined) {
       this.options.view.resultLegend.hidden = true;
       this.options.canvas.dataset["results"] = "base";
       return;
@@ -157,11 +158,11 @@ export class WorkbenchPresentation {
     replaceOptions(this.options.view.resultField, [
       { value: BASE_RESULT_VALUE, label: "Base" },
       {
-        value: config.field.id,
-        label: `${config.field.name} · ${fieldLocation(config.field.location)}`,
+        value: scalar.field.id,
+        label: `${scalar.field.name} · ${fieldLocation(scalar.field.location)}`,
       },
     ]);
-    this.options.view.resultField.value = mode === "base" ? BASE_RESULT_VALUE : config.field.id;
+    this.options.view.resultField.value = mode === "base" ? BASE_RESULT_VALUE : scalar.field.id;
     replaceOptions(this.options.view.deformationField, [
       { value: DEFORMATION_OFF_VALUE, label: "Off" },
       ...(config.deformation === undefined
@@ -225,14 +226,16 @@ function replaceOptions(select: HTMLSelectElement, options: readonly SelectOptio
 }
 
 function resultLegend(results: ViewportResultsState): string {
-  const field = results.scalarField;
-  const stops = results.colorMap.stops
+  const scalar = results.scalar;
+  if (scalar === undefined) return "Vector results";
+  const field = scalar.field;
+  const stops = scalar.colorMap.stops
     .map((stop) => `${formatNumber(stop.offset * 100)}% ${formatColor(stop.color)}`)
     .join(" → ");
   return (
     `${field.name}\n` +
     `${fieldLocation(field.location)} · Unit ${field.unit}\n` +
-    `Range ${formatNumber(results.range.min)} – ${formatNumber(results.range.max)}\n` +
+    `Range ${formatNumber(scalar.range.min)} – ${formatNumber(scalar.range.max)}\n` +
     `Colors ${stops}`
   );
 }

@@ -46,7 +46,7 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | CPU raycast picking (`createPickScene` / `pick()`)                                                                           | —                  | —          | **Remove**   | Replaced by the GPU pick path; deleted with the flat-compile cleanup.                                                                                                                                                                                                                                                                     |
 | Adjacency inspection overlays / pick-list UI polish                                                                          | demo               | e2e        | **Deferred** | Host-mappable neighbor ids on `PickHit` stay; rich adjacency workbench polish is optional.                                                                                                                                                                                                                                                |
 | Authored scalar results at nodal or elemental locations, scalar color mapping, and authored nodal deformation                | ~0.8k              | ~0.9k      | **Core now** | The minimum static FE results path: exact authored values map to existing tessellation nodes or element ids; deformation remains a separate authored nodal vector path.                                                                                                                                                                   |
-| Authored elemental orientation glyphs                                                                                        | —                  | —          | **Deferred** | A bounded planned direction for authored normals and fiber orientations. It does not make glyph rendering part of the current product or add derived mechanics.                                                                                                                                                                           |
+| Authored elemental orientation glyphs                                                                                        | renderer + results | viewport   | **Core now** | A bounded authored `VectorField<"elemental">` role with renderer-owned `arrow`/`axis` glyphs, `direction`/`normal` transforms, and positive element-relative scale. It adds no derived mechanics, glyph picking, or public renderer data.                                                                                                 |
 | Derived engineering quantities, other vector/tensor glyphs, magnitude plots, results playback, interpolation, and legends    | —                  | —          | **Deferred** | No femgx-derived values or generalized result-glyph subsystem is in the current product.                                                                                                                                                                                                                                                  |
 | IO: VTK legacy read/write + shared validation and diagnostics                                                                | ~1.0k              | ~0.9k      | **Core now** | One interchange format is the minimum; VTK legacy is the smallest faithful FE format.                                                                                                                                                                                                                                                     |
 | IO: GLB 2.0 display-scene import                                                                                             | new                | new        | **Core now** | Explicit narrow CAD-display addition from #422: bytes-only import into existing `Part`/`Scene`/`FemViewport` concepts, with hierarchy, reusable tessellated triangles, names, basic color/alpha, and verified Onshape compression coverage. It does not add FE semantics or a second scene graph.                                         |
@@ -69,8 +69,9 @@ part. The renderer provides GPU picking with host-mappable part/instance/
 element/face/node ids (node and element strict; face Core), readable
 depth-tested node annotations, selection/
 highlight/hover, visibility, camera control, authored nodal/elemental scalar
-results with scalar color mapping, authored nodal deformation, and renderer-owned
-`studio`, `white`, and `dark` viewport backgrounds. Interchange is a single
+results with scalar color mapping, authored nodal deformation, bounded authored
+elemental orientation glyphs, and renderer-owned `studio`, `white`, and `dark`
+viewport backgrounds. Interchange is a single
 format (VTK legacy) with validation and diagnostics. Browsers without
 a working WebGPU device receive a typed
 unsupported result — never a second renderer.
@@ -143,14 +144,14 @@ accepts self-contained GLB 2.0 bytes, maps into the canonical scene hierarchy,
 and leaves textures, PBR extras, animation, lights, FE identities, and unit
 conversion out of scope.
 
-Authored elemental orientation glyphs are a separate **Deferred** direction,
-not a current API. The planned slice uses the existing
-`VectorField<"elemental">` as authored data, gives `FemViewport` one
+Authored elemental orientation glyphs are now a bounded **Core now** role. The
+slice uses the existing `VectorField<"elemental">` as authored data, gives `FemViewport` one
 orthogonal vector-presentation role alongside scalar coloring and nodal
 deformation, and keeps glyph records, anchors, and renderer policy internal.
 Its durable semantics and explicit non-goals live in
 [[data/vector-field-visualization|Authored elemental orientation visualization]]
-and the delivery plan in [issue #665](https://github.com/dirkphilip/femgx/issues/665).
+and the delivery plan in [issue #665](https://github.com/dirkphilip/femgx/issues/665), completed
+through #670.
 
 ## Decision gate
 

@@ -11,9 +11,10 @@ export function resultModeForScalarSelection(
   config: ViewportResultsConfig | undefined,
   deformationValue: string,
 ): ResultDisplayMode | undefined {
-  if (config === undefined) return undefined;
+  const scalar = config?.scalar;
+  if (scalar === undefined) return undefined;
   if (value === BASE_RESULT_VALUE) return "base";
-  if (value !== config.field.id) return undefined;
+  if (value !== scalar.field.id) return undefined;
   return deformationValue === DEFORMATION_OFF_VALUE ? "colored" : "deformed";
 }
 
@@ -36,6 +37,6 @@ export function parseDeformationScale(value: string): number | undefined {
 
 /** Returns the initial display mode for a model's authored result config. */
 export function resultModeForModel(model: WorkbenchModel): ResultDisplayMode {
-  if (model.results === undefined) return "base";
+  if (model.results?.scalar === undefined) return "base";
   return model.results.deformation === undefined ? "colored" : "deformed";
 }

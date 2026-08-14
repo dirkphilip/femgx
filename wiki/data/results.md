@@ -1,4 +1,4 @@
-# Results: fields, deformation, and scalar visualization
+# Results: fields, deformation, and visualization
 
 Engineering analysis results are first-class CPU-side data in `src/results/`
 (no WebGPU coupling), exported through `src/index.ts`. They describe authored
@@ -11,8 +11,8 @@ a vector field does not by itself enable a viewport glyph presentation.
 
 - Locations are `nodal` or `elemental`; retained result shapes are `scalar` and
   `vector`. Viewport coloring accepts authored scalar fields at either location;
-  authored nodal vectors remain the deformation input, while authored elemental
-  vectors are currently data only and are not rendered as glyphs.
+  authored nodal vectors drive deformation, while authored elemental vectors can
+  drive the bounded orientation glyph role.
 - `values` is `count * FIELD_COMPONENT_COUNT[shape]` floats, one entity after
   another, index-aligned with the owning model's node/element numbering. The
   array is referenced (not copied) so large models stay cheap; treat it as
@@ -52,19 +52,25 @@ interpolates those colors on the GPU. Both paths preserve host interaction state
 
 ## Canonical viewport workflow
 
-`FemViewport.setResults({ field, range, colorMap, deformation })` composes these
-helpers into the supported static visualization path. An authored scalar field
-may be nodal or elemental. Nodal values map through exact node pick ids and
-interpolate over existing tessellation nodes; elemental values map directly to
-element ids and render flat. An omitted range is computed from finite values
-(constant fields receive a small expanded range), while an explicit color map
-must use the same range.
+`FemViewport.setResults({ scalar, deformation, vectors })` composes these
+helpers into one atomic static visualization state. Each role is optional, but
+at least one must be present. An authored scalar field may be nodal or
+elemental. Nodal values map through exact node pick ids and interpolate over
+existing tessellation nodes; elemental values map directly to element ids and
+render flat. An omitted range is computed from finite values (constant fields
+receive a small expanded range), while an explicit color map must use the same
+range.
 
 An optional nodal vector field is converted into one GPU deformation buffer per
 scene part. The viewport validates that every rendered part has node pick ids and
-that every referenced element/node has a field value. `clearResults()` restores
-the base interaction state, disables deformation, and leaves the authoritative
-scene geometry untouched. `FemViewport.interaction` always returns the exact
+that every referenced element/node has a field value. `vectors` accepts an
+authored elemental vector field plus renderer-owned `arrow`/`axis`,
+`direction`/`normal`, and optional positive `lengthScale` semantics. It
+does not expose anchors, records, glyph meshes, or GPU resources. All configured
+roles are resolved and validated before the renderer or public state changes; a
+failed replacement preserves the previous state. `clearResults()` restores the
+base interaction state, disables deformation and glyphs, and leaves the
+authoritative scene geometry untouched. `FemViewport.interaction` always returns the exact
 host-supplied base value; result colors are an internal effective render state
 and never appear in that getter or in
 `ViewportResultsState`. Replacing results reuses the same scene/runtime and
@@ -77,14 +83,15 @@ written into the existing GPU storage; device recovery retains and re-uploads
 only the latest active step. femgx does not store cases, own playback, or
 interpolate between fields.
 
-The `results` demo preset exercises this workflow with a static 4-by-2 Hex8 stress
+The `results` demo preset exercises the scalar/deformation workflow with a static 4-by-2 Hex8 stress
 strip. Its eight elements share the 30 nodes of one conforming block, use dense
 element ids aligned directly with eight authored scalar values, and apply a small
 curved/tapered nodal displacement. This makes the `results` demo visibly show
 multiple scalar bands while retaining the same static viewport path:
 the public API supports the undeformed/base state via `clearResults()`, the
-colored state via `setResults({ field })`, and the combined colored/deformed
-state by adding `deformation`.
+colored state via `setResults({ scalar: { field } })`, and the combined
+colored/deformed state by adding `deformation`. Vector-only and combined
+vector states use the same replacement boundary.
 
 The inspection workbench adds a demo-private legend and explicit field,
 deformation, and scale controls on top of this static API. It formats the
@@ -92,15 +99,14 @@ resolved viewport range and color stops without adding a public legend
 subsystem; picked values are shown only when the hit identity matches the
 field's authored location.
 
-### Planned elemental orientation vectors
+### Elemental orientation vectors
 
-The deferred orientation slice would reuse `VectorField<"elemental">` for
-authored normals and fiber directions. It would be a viewport-owned,
-orthogonal result role rather than a second field model or result manager, with
-`clearResults()` remaining the explicit empty transition. The planned data,
-transform, anchor, instancing, depth, and interaction contract is recorded in
+The implemented orientation slice reuses `VectorField<"elemental">` for
+authored normals and fiber directions. It is a viewport-owned, orthogonal
+result role rather than a second field model or result manager, with
+`clearResults()` remaining the explicit empty transition. The data, transform,
+anchor, instancing, depth, and interaction contract is recorded in
 [[data/vector-field-visualization|Authored elemental orientation visualization]];
-no current `setResults()` call renders these vectors.
 
 ## Deformation (`deform.ts`)
 

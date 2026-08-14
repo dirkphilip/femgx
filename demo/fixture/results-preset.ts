@@ -54,7 +54,7 @@ export function createResultsPreset(): ModelPreset {
     partNames: new Map([[RESULTS_PART_ID, "Results block"]]),
     bounds: part.bounds,
     results: {
-      field: stress,
+      scalar: { field: stress },
       deformation: { field: displacement, scale: 1 },
     },
   };

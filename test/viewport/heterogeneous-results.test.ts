@@ -83,19 +83,20 @@ describe("heterogeneous viewport results", () => {
 
     const result = resolveViewportResults(
       {
-        field: scalar,
-        range: { min: 0, max: 60 },
+        scalar: { field: scalar, range: { min: 0, max: 60 } },
         deformation: { field: displacement },
       },
       scene,
       runtime,
     );
 
-    if (result.scalarField.location !== "elemental") throw new Error("Expected elemental field");
+    const resolvedScalar = result.scalar;
+    if (resolvedScalar?.field.location !== "elemental") {
+      throw new Error("Expected elemental field");
+    }
     const effective = applyViewportResultInteraction(
       createInteractionState(),
-      result.scalarField,
-      result.colorMap,
+      resolvedScalar,
       scene,
       runtime,
     );

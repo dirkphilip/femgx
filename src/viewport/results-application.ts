@@ -1,10 +1,11 @@
 import type { InteractionState } from "../interaction/interaction";
-import type { WebGpuRenderer } from "../renderer/gpu-renderer";
+import { setRendererOrientationGlyphs, type WebGpuRenderer } from "../renderer/gpu-renderer";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
 import {
   resolveViewportInteraction,
   resolveViewportResults,
+  viewportOrientationRecords,
   viewportResultColors,
   type ViewportResultsConfig,
   type ViewportResultsState,
@@ -30,15 +31,28 @@ export function applyViewportResults(application: ViewportResultsApplication): {
     application.runtime,
     application.previous,
   );
+  const interaction = resolveViewportInteraction(
+    application.interaction,
+    resolved,
+    application.scene,
+    application.runtime,
+  );
+  const vectors = resolved.vectors;
+  setRendererOrientationGlyphs(
+    application.renderer,
+    vectors === undefined
+      ? undefined
+      : {
+          parts: viewportOrientationRecords(resolved) ?? new Map(),
+          mode: vectors.glyph,
+          transform: vectors.transform,
+          lengthScale: vectors.lengthScale,
+        },
+  );
   application.renderer.setDeformation(resolved.deformation);
   application.renderer.setResultColors(viewportResultColors(resolved));
   return {
     results: resolved,
-    interaction: resolveViewportInteraction(
-      application.interaction,
-      resolved,
-      application.scene,
-      application.runtime,
-    ),
+    interaction,
   };
 }

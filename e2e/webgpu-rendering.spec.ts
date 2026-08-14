@@ -1500,7 +1500,7 @@ test("preserves selected nodal colors when results are replaced after upload", a
         width: 640,
         height: 420,
       }),
-      results: { field: scalar, deformation: { field: displacement } },
+      results: { scalar: { field: scalar }, deformation: { field: displacement } },
     });
     viewport.setInteraction(selected);
     (
@@ -1540,10 +1540,11 @@ test("preserves selected nodal colors when results are replaced after upload", a
       ).__nodalResultsTest;
       if (state === undefined) throw new Error("nodal-results state missing");
       if (nextMode === "base") state.viewport.clearResults();
-      else if (nextMode === "colored") state.viewport.setResults({ field: state.scalar });
+      else if (nextMode === "colored")
+        state.viewport.setResults({ scalar: { field: state.scalar } });
       else {
         state.viewport.setResults({
-          field: state.scalar,
+          scalar: { field: state.scalar },
           deformation: { field: state.displacement },
         });
       }
@@ -1627,7 +1628,7 @@ test("preserves selected nodal colors when results are replaced after upload", a
     for (let step = 0; step < 100; step += 1) {
       const alternate = step % 2 === 1;
       state.viewport.setResults({
-        field: alternate ? state.scalarB : state.scalar,
+        scalar: { field: alternate ? state.scalarB : state.scalar },
         deformation: {
           field: alternate ? state.displacementB : state.displacement,
           scale: 1 + (step % 3) * 0.25,

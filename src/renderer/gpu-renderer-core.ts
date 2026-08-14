@@ -155,7 +155,6 @@ export class GpuRenderer implements WebGpuRenderer {
   /** Installs renderer-owned elemental orientation records without public API leakage. */
   public setOrientationGlyphs(state: OrientationGlyphState | undefined): void {
     this.ensureAlive();
-    this.orientationGlyphs = state;
     if (this.attachment.runtime !== undefined && this.attachment.layout !== undefined) {
       syncOrientationGlyphs(
         this.lifecycle.bundle.draw.orientationGlyphs,
@@ -164,6 +163,7 @@ export class GpuRenderer implements WebGpuRenderer {
         this.attachment.layout,
       );
     }
+    this.orientationGlyphs = state;
   }
 
   public setSectionPlane(plane: SectionPlane | undefined): void {
