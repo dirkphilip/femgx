@@ -15,7 +15,7 @@ Related: [[data/elements-topology|Element topology]] and
    edges in the element's own node ids. Face loops use the
    canonical VTK corner order; quadratic mid-edge nodes are aligned with the
    edges they bisect, so geometry is never fabricated.
-3. `heterogeneousElementParts` (`src/geometry/heterogeneous-element-mesh.ts`)
+3. `elementPart` (`src/geometry/heterogeneous-element-mesh.ts`)
    scans the model once and emits the compatible primitive groups needed by
    WebGPU: at most one triangle, line, and point part. Triangle, Tri6, Quad,
    Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, and Hex20 elements share the triangle group; line and point

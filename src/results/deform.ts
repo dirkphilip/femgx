@@ -64,7 +64,7 @@ export function deformPositions(
 /**
  * Returns the geometry with deformed positions. The part must carry a
  * per-vertex node map (`nodePickIds`) to resolve vertices back to their model
- * nodes, which `heterogeneousElementParts` provides for element-backed geometry. All other
+ * nodes, which `elementPart` provides for element-backed geometry. All other
  * geometry data (indices and any element tessellations) is preserved.
  * @category Results
  */
@@ -76,7 +76,7 @@ export function deformGeometry(
   const nodePickIds = geometry.nodePickIds;
   if (nodePickIds === undefined) {
     throw new Error(
-      "Cannot deform geometry without per-vertex node ids; build it with heterogeneousElementParts or supply nodePickIds",
+      "Cannot deform geometry without per-vertex node ids; build it with elementPart or supply nodePickIds",
     );
   }
   return {

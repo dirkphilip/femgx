@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
 import { HEX20_SHAPE } from "../../src/elements/shapes";
-import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-element-mesh";
+import { elementPart } from "../../src/geometry/heterogeneous-element-mesh";
 import { createPart } from "../../src/geometry/part";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
 import { readInteractionState } from "../../src/interaction/state";
@@ -85,8 +85,7 @@ function createHex20ViewportScene() {
       Array.from({ length: 20 }, (_, index) => index),
     ),
   ]);
-  const part = heterogeneousElementParts({ triangle: 7 }, model).triangle;
-  if (part === undefined) throw new Error("Hex20 viewport fixture has no triangle part");
+  const part = elementPart(7, model);
   const scene = createScene()
     .addPart(part)
     .addAssembly({

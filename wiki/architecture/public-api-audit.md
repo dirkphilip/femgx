@@ -20,9 +20,8 @@ barrel.
 
 Categories in TypeDoc organize the complete root surface for readers; they do
 not create subpath imports or add stability guarantees. The root barrel remains
-the only public entry point. `LinearGeometry` is an internal union helper used
-by the geometry descriptor and is intentionally excluded from TypeDoc because
-it is not exported from that entry point.
+the only public entry point. Primitive-specific geometry leaves are represented
+by the public `Geometry` union; GPU resource layouts remain internal.
 
 The package smoke suite must consume the canonical viewport, scene, and results
 contracts rather than renderer records or derived runtime storage. No

@@ -48,14 +48,15 @@ describe("createVtkFixture", () => {
     expect(solid.faceSubset?.faceIds.length).toBeLessThan(solid.faces?.length ?? 0);
   });
 
-  it("builds every supported primitive group from mixed VTK cells", () => {
+  it("builds mixed VTK cells into one semantic part", () => {
     const imported = createVtkScene(parseVtk(MIXED_VTK).model);
-    expect([...imported.scene.parts.values()].map((part) => part.geometry.primitive)).toEqual([
+    const part = [...imported.scene.parts.values()][0];
+    expect(part?.geometries.map((geometry) => geometry.primitive)).toEqual([
       "triangles",
       "lines",
       "points",
     ]);
-    expect(imported.partNames.size).toBe(3);
-    expect(imported.elementModels.size).toBe(3);
+    expect(imported.partNames.size).toBe(1);
+    expect(imported.elementModels.size).toBe(1);
   });
 });

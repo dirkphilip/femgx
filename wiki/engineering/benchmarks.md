@@ -38,10 +38,10 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `collectEmphasisUpdates`          | 16 384 selected elements         | cached ownership and one reusable sync snapshot    |
 | `buildHighlightTable`             | 16 384 emphasis records          | bounded four-entry hash buckets                    |
 | `encodeEmphasisRecord` mirror     | 16 384 emphasis records          | CPU highlight-buffer preparation                   |
-| `heterogeneousElementParts`       | 600 mixed linear elements        | grouped triangle/line/point tessellation           |
+| `elementPart`                     | 600 mixed linear elements        | grouped triangle/line/point tessellation           |
 | `expand line geometry`            | 10,000 authored line segments    | one reusable four-corner triangle quad per segment |
 | `createPart`                      | 16 384 quads / 256 bodies        | element/body/face validation                       |
-| `heterogeneousElementParts`       | 16 384 FE quads / 256 bodies     | body-aware canonical tessellation                  |
+| `elementPart`                     | 16 384 FE quads / 256 bodies     | body-aware canonical tessellation                  |
 | primitive topology ids            | 16 384 quads / 256 bodies        | face/body/element GPU-id preparation               |
 | body-aware mesh edges             | 16 384 quads / 256 bodies        | edge topology and ownership preparation            |
 
@@ -200,7 +200,7 @@ both directly measured totals alongside the estimates. Portable WebGPU
 timestamp queries are not required.
 
 The structured FE cases use the validated `createElement` and
-`heterogeneousElementParts` path with shared corner and mid-edge node ids. The
+`elementPart` path with shared corner and mid-edge node ids. The
 report adds `structuredFamily`, `uniqueElementCount`,
 `submittedElementOccurrences`, `nodeCount`, and `faceCount`, alongside
 `modelBuildMs` and `runtimeCompileMs`, so FE construction/tessellation and

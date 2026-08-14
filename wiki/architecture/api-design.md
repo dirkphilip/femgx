@@ -64,21 +64,17 @@ const part = createPart(10, { positions, indices, primitive: "triangles" });
 ```
 
 Typed FE data uses the same reusable-part path. A mixed `ElementModel` is
-grouped into one homogeneous `Part` per compatible GPU topology, and an
-`Assembly` composes and places those parts without copying their geometry:
+compiled into one semantic `Part` with homogeneous primitive leaves, and an
+`Assembly` places that part without copying its geometry:
 
 ```ts
-const parts = heterogeneousElementParts({ triangle: 10, line: 11 }, model);
+const part = elementPart(10, model);
 const scene = createScene()
-  .addPart(parts.triangle!)
-  .addPart(parts.line!)
+  .addPart(part)
   .addAssembly({
     id: 1,
     name: "model",
-    placements: [
-      { kind: "part", partId: 10, transform: identity() },
-      { kind: "part", partId: 11, transform: identity() },
-    ],
+    placements: [{ kind: "part", partId: 10, transform: identity() }],
   })
   .withRoot(1)
   .build();

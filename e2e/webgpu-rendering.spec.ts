@@ -1217,8 +1217,7 @@ test("reveals internal faces for an exactly selected adjacent Hex8 element", asy
       ]);
     });
     const model = api.createElementModel(nodes, elements);
-    const part = api.heterogeneousElementParts({ triangle: 1 }, model).triangle;
-    if (part === undefined) throw new Error("adjacent Hex8 triangle part missing");
+    const part = api.elementPart(1, model);
     const scene = api
       .createScene()
       .addPart(part)

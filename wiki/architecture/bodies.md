@@ -21,7 +21,7 @@ The blockless path omits `blocks` entirely. It does not synthesize one block per
 body or allocate block indexes. Direct body membership remains the common,
 zero-block representation.
 
-`heterogeneousElementParts` derives filtered block descriptors for every
+`elementPart` derives filtered block descriptors for every
 triangle, line, and point group. Block-defined bodies are flattened to their
 resolved element ids in derived geometry so the existing renderer/picking path
 can keep its compact body records. Derived descriptors never become a second
