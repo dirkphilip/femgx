@@ -90,6 +90,10 @@ const scene = createScene()
 - `Scene.assemblies` is the assembly-definition registry, keyed by
   `AssemblyId`.
 - A placement references a registry entry; it does not copy geometry.
+- A placement may provide a unique `placementId` within its owning assembly;
+  compiled instance and assembly-occurrence handles use it so reorder and
+  transform edits preserve identity. Legacy placements use their validated
+  sibling index as the deterministic fallback.
 - An instance identity must remain stable when visibility or draw-order
   compaction changes.
 - Runtime slots and GPU-local slots are implementation details and must not

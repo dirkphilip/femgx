@@ -399,6 +399,44 @@ describe("createPackedSceneRuntime", () => {
     expect(runtime.getInstanceId(1)).toBe("1/1/0");
   });
 
+  it("keeps explicit placement handles stable across reorder and transform edits", () => {
+    const first = buildScene(
+      1,
+      [
+        {
+          id: 1,
+          placements: [
+            { kind: "part", placementId: "left", partId: 1, transform: translation(1, 0, 0) },
+            { kind: "part", placementId: "right", partId: 2, transform: translation(2, 0, 0) },
+          ],
+        },
+      ],
+      [1, 2],
+    );
+    const reordered = buildScene(
+      1,
+      [
+        {
+          id: 1,
+          placements: [
+            { kind: "part", placementId: "right", partId: 2, transform: translation(20, 0, 0) },
+            { kind: "part", placementId: "left", partId: 1, transform: translation(10, 0, 0) },
+          ],
+        },
+      ],
+      [1, 2],
+    );
+    const firstRuntime = createPackedSceneRuntime(first);
+    const nextRuntime = createPackedSceneRuntime(reordered);
+
+    expect(firstRuntime.getInstanceSlot("1/left")).toBe(0);
+    expect(firstRuntime.getInstanceSlot("1/right")).toBe(1);
+    expect(nextRuntime.getInstanceSlot("1/right")).toBe(0);
+    expect(nextRuntime.getInstanceSlot("1/left")).toBe(1);
+    expect(nextRuntime.getTransform(nextRuntime.getInstanceSlot("1/left") ?? -1)?.[12]).toBe(10);
+    expect(nextRuntime.getTransform(nextRuntime.getInstanceSlot("1/right") ?? -1)?.[12]).toBe(20);
+  });
+
   it("rejects malformed structural scenes before packing", () => {
     const nonFiniteTransform = identity();
     nonFiniteTransform[3] = Number.NaN;
@@ -407,6 +445,17 @@ describe("createPackedSceneRuntime", () => {
         "invalid root",
         () => structuralScene({ rootAssemblyId: Number.NaN }),
         /Scene root assembly id/,
+      ],
+      [
+        "invalid placement identity",
+        () =>
+          sceneWithPlacement({
+            kind: "part",
+            partId: 1,
+            placementId: "invalid/id",
+            transform: identity(),
+          }),
+        /placement 0 id must be a non-empty string without '\/'/,
       ],
       [
         "invalid assembly identity",

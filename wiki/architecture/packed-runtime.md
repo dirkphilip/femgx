@@ -33,9 +33,10 @@ Renderer attachments derive draw calls from their existing layout builder, and
 interaction diffs reuse the runtime's identity/group indexes.
 
 The packed compiler is the only placement-path algorithm and updates persistent
-runtime state in place after the initial compile. Stable placement paths are
-resolved through runtime-owned reverse maps; callers never need to know the
-slot layout.
+runtime state in place after the initial compile. Explicit placement ids are
+used as path segments when present; otherwise the validated sibling index is
+the deterministic fallback. Stable placement paths are resolved through
+runtime-owned reverse maps; callers never need to know the slot layout.
 
 Node placement transforms are composed transiently while the scene draft is
 walked and are not retained in packed or public runtime state. Instance world

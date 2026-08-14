@@ -867,6 +867,7 @@ describe("WebGPU renderer", () => {
     const runtime1 = createPackedSceneRuntime(wrapped);
     renderer.render(runtime1, camera, wrapped.parts);
     expect(gpu.buffers.every((buffer) => !buffer.destroyed)).toBe(true);
+    const geometryBuffers = gpu.buffers.filter((buffer) => (buffer.usage & 4) !== 0);
 
     const replacementScene = createScene()
       .addPart(part1)
@@ -884,6 +885,7 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime2, camera, replacementScene.parts);
 
     expect(gpu.buffers.some((buffer) => buffer.destroyed)).toBe(true);
+    expect(geometryBuffers.every((buffer) => !buffer.destroyed)).toBe(true);
     renderer.destroy();
   });
 });

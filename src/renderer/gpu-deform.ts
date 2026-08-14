@@ -117,6 +117,17 @@ export function destroyDeformationBuffers(deformations: Map<PartId, DeformationS
   }
 }
 
+/** Releases one cached per-part deformation buffer when its geometry changes. */
+export function destroyDeformationBuffer(
+  deformations: Map<PartId, DeformationStorage>,
+  partId: PartId,
+): void {
+  const storage = deformations.get(partId);
+  if (storage === undefined) return;
+  storage.buffer.destroy();
+  deformations.delete(partId);
+}
+
 function uploadDeformation(sync: DeformationSync, partId: PartId, values: Float32Array): void {
   const size = Math.max(4, values.byteLength);
   const current = sync.deformations.get(partId);

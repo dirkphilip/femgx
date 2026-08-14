@@ -76,11 +76,13 @@ position/metadata split is the measured baseline for subsequent lazy-edge work.
 
 - Visibility is expressed entirely by the draw-order buffer; hiding/showing
   never rewrites record buffers.
-- `attach` runs one full geometry/layout upload for each runtime identity. A
-  fresh runtime replacement destroys the previous attachment and uploads the
-  new scene through `RendererAttachment` in `src/renderer/attachment.ts`.
-  Transform, visibility, interaction, deformation, and highlight changes within
-  the attached runtime remain subrange-oriented.
+- `attach` rebuilds packed instance/layout state for each runtime identity, but
+  retains geometry and optional per-part resources for unchanged `Part` object
+  identities. A changed or removed part releases its cached resources through
+  `RendererAttachment` in `src/renderer/attachment.ts`; per-placement instance
+  and order buffers are replaceable. Transform, visibility, interaction,
+  deformation, and highlight changes within the attached runtime remain
+  subrange-oriented.
 - Style/transform/visibility updates are explicit: the app applies a runtime
   delta (or interaction change) and passes the affected slots. The renderer
   does not rescan the whole scene per frame.

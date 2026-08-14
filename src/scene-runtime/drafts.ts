@@ -126,7 +126,7 @@ class DraftWriter {
         `placement ${placementIndex} in assembly ${item.assemblyId}`,
       );
       const placementWorld = multiply(item.world, placement.transform);
-      const placementPath = `${item.path}/${placementIndex}`;
+      const placementPath = `${item.path}/${placement.placementId ?? placementIndex}`;
       if (placement.kind === "part") {
         const node = invariantValue(
           this.nodes[item.nodeIndex],

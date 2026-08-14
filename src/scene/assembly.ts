@@ -6,6 +6,8 @@ import type { AssemblyId } from "./types";
 export interface PartPlacement {
   readonly kind: "part";
   readonly partId: PartId;
+  /** Optional stable identity within the owning assembly. */
+  readonly placementId?: string;
   /** Local transform relative to the owning assembly. */
   readonly transform: Mat4;
 }
@@ -14,6 +16,8 @@ export interface PartPlacement {
 export interface SubAssemblyPlacement {
   readonly kind: "assembly";
   readonly assemblyId: AssemblyId;
+  /** Optional stable identity within the owning assembly. */
+  readonly placementId?: string;
   /** Local transform relative to the owning assembly. */
   readonly transform: Mat4;
 }

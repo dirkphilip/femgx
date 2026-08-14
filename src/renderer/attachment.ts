@@ -6,8 +6,7 @@ import type { PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
 import { syncElementHighlights } from "./gpu-highlight-storage";
 import {
-  createDrawResources,
-  destroyDrawResources,
+  destroyInstanceResources,
   patchInstances,
   writeDrawOrder,
   type DrawCall,
@@ -40,6 +39,7 @@ import {
   type SelectionState,
 } from "./selection-state";
 import { rebuildEdgeOrders, rebuildTransparentOrders } from "./attachment-orders";
+import { reconcilePartResources } from "./part-resources";
 
 type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
 type HiddenInteractionTuple = readonly [
@@ -75,6 +75,12 @@ export class RendererAttachment {
   private interactionState = createInteractionState();
   private interactionBeforeLastInstanceUpdate: InteractionState | undefined;
   private appliedHiddenIds: HiddenInteractionTuple = [undefined, undefined, undefined];
+  private attachedParts: ReadonlyMap<PartId, Part> = new Map();
+
+  /** Retains geometry for unchanged part definitions and drops replaced ones. */
+  public prepareParts(parts: ReadonlyMap<PartId, Part>, bundle: GpuBundle): void {
+    this.attachedParts = reconcilePartResources(this.attachedParts, parts, bundle.draw);
+  }
 
   /**
    * Ensures the attachment matches `runtime`, rebuilding the attachment when
@@ -309,9 +315,7 @@ export class RendererAttachment {
   }
 
   private fullAttach(runtime: PackedSceneRuntime, layout: InstanceLayout, bundle: GpuBundle): void {
-    const cost = bundle.draw.cost;
-    destroyDrawResources(bundle.draw);
-    bundle.draw = createDrawResources(bundle.device, cost);
+    destroyInstanceResources(bundle.draw);
     const snapshot = buildInstanceSnapshot(runtime);
     this.instances = snapshot.instances;
     this.slotByInstanceId = snapshot.slotByInstanceId;

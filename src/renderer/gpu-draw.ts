@@ -1,6 +1,10 @@
 import type { Part } from "../geometry/part";
 import type { PartId } from "../geometry/part";
-import { destroyDeformationBuffers, type DeformationStorage } from "./gpu-deform";
+import {
+  destroyDeformationBuffer,
+  destroyDeformationBuffers,
+  type DeformationStorage,
+} from "./gpu-deform";
 import { packTopologyData } from "./gpu-geometry-buffers";
 import type { InstanceStorage } from "./gpu-instance-storage";
 import {
@@ -247,38 +251,25 @@ function writePointSpriteIndices(indices: Uint32Array, sprite: number): void {
   );
 }
 
-/** Releases every part, storage, and depth resource owned by the draw path. */
-export function destroyDrawResources(draw: DrawResources): void {
-  for (const resource of draw.parts.values()) {
-    resource.vertexBuffer.destroy();
-    resource.indexBuffer.destroy();
-    resource.elementPickIdsBuffer.destroy();
-    resource.facePickIdsBuffer.destroy();
-    resource.nodePickIdsBuffer.destroy();
-    resource.edge?.edgeNodePickIdsBuffer.destroy();
-    resource.edge?.edgeVertexBuffer.destroy();
-    resource.edge?.edgeIndexBuffer.destroy();
-    resource.edge?.edgeTopologyBuffer.destroy();
-    resource.subsetIndexBuffer?.destroy();
-    resource.subsetVertexBuffer?.destroy();
-    resource.subsetNodePickIdsBuffer?.destroy();
-    resource.subsetTopologyBuffer?.destroy();
-  }
-  for (const resource of draw.nodeParts.values()) {
-    resource.vertexBuffer.destroy();
-    resource.indexBuffer.destroy();
-    resource.elementPickIdsBuffer.destroy();
-    resource.facePickIdsBuffer.destroy();
-    resource.nodePickIdsBuffer.destroy();
-    resource.edge?.edgeNodePickIdsBuffer.destroy();
-    resource.edge?.edgeVertexBuffer.destroy();
-    resource.edge?.edgeIndexBuffer.destroy();
-    resource.edge?.edgeTopologyBuffer.destroy();
-    resource.subsetIndexBuffer?.destroy();
-    resource.subsetVertexBuffer?.destroy();
-    resource.subsetNodePickIdsBuffer?.destroy();
-    resource.subsetTopologyBuffer?.destroy();
-  }
+/** Releases one uploaded part geometry resource, including optional overlays. */
+export function destroyPartResource(resource: PartResource): void {
+  resource.vertexBuffer.destroy();
+  resource.indexBuffer.destroy();
+  resource.elementPickIdsBuffer.destroy();
+  resource.facePickIdsBuffer.destroy();
+  resource.nodePickIdsBuffer.destroy();
+  resource.edge?.edgeNodePickIdsBuffer.destroy();
+  resource.edge?.edgeVertexBuffer.destroy();
+  resource.edge?.edgeIndexBuffer.destroy();
+  resource.edge?.edgeTopologyBuffer.destroy();
+  resource.subsetIndexBuffer?.destroy();
+  resource.subsetVertexBuffer?.destroy();
+  resource.subsetNodePickIdsBuffer?.destroy();
+  resource.subsetTopologyBuffer?.destroy();
+}
+
+/** Releases all per-placement instance and highlight buffers while retaining geometry. */
+export function destroyInstanceResources(draw: DrawResources): void {
   for (const storage of draw.storages.values()) {
     storage.buffer.destroy();
     storage.orderBuffer.destroy();
@@ -289,6 +280,32 @@ export function destroyDrawResources(draw: DrawResources): void {
     storage.nodeOrderBuffer.destroy();
     storage.highlight.buffer.destroy();
   }
+  draw.storages.clear();
+}
+
+/** Releases every part, storage, deformation, and depth resource owned by the draw path. */
+export function destroyDrawResources(draw: DrawResources): void {
+  for (const resource of draw.parts.values()) destroyPartResource(resource);
+  for (const resource of draw.nodeParts.values()) destroyPartResource(resource);
+  draw.parts.clear();
+  draw.nodeParts.clear();
+  destroyInstanceResources(draw);
   destroyDeformationBuffers(draw.deformations);
+  draw.deformations.clear();
   destroyColorTargets(draw.targets);
+}
+
+/** Releases all cached resources derived from one changed part definition. */
+export function destroyPartResources(draw: DrawResources, partId: PartId): void {
+  const resource = draw.parts.get(partId);
+  if (resource !== undefined) {
+    destroyPartResource(resource);
+    draw.parts.delete(partId);
+  }
+  const nodeResource = draw.nodeParts.get(partId);
+  if (nodeResource !== undefined) {
+    destroyPartResource(nodeResource);
+    draw.nodeParts.delete(partId);
+  }
+  destroyDeformationBuffer(draw.deformations, partId);
 }

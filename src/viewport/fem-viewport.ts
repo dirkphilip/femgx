@@ -39,6 +39,7 @@ import type {
   ViewportBackground,
 } from "./types";
 import { normalizeSectionPlane, type SectionPlane } from "./section-plane";
+import { preserveRuntimeVisibility, reconcileInteractionState } from "./scene-reconciliation";
 export type { FemViewport, FemViewportOptions, ViewportBackground } from "./types";
 
 /** Creates a fitted, interactive FEM viewport backed only by WebGPU. */
@@ -195,8 +196,14 @@ class FemViewportCore implements FemViewport {
   setScene(scene: Scene): void {
     this.ensureAlive();
     const nextRuntime = createPackedSceneRuntime(scene);
+    preserveRuntimeVisibility(this.currentRuntime, nextRuntime);
     const nextOriginTriadNominalScale = sceneOriginTriadScale(scene, nextRuntime);
     const nextPublicRuntime = createPublicSceneRuntime(nextRuntime);
+    const nextInteraction = reconcileInteractionState(
+      this.baseInteraction,
+      nextRuntime,
+      scene.parts,
+    );
     this.renderer.resetScene();
     this.cameraFocus.cancel();
     this.currentScene = scene;
@@ -205,12 +212,11 @@ class FemViewportCore implements FemViewport {
     this.currentPublicRuntime = nextPublicRuntime;
     this.pendingVisibility.clear();
     this.currentResults = undefined;
-    this.effectiveInteraction = this.baseInteraction;
+    this.baseInteraction = nextInteraction;
+    this.effectiveInteraction = nextInteraction;
     this.appliedInteraction = createInteractionState();
-    this.autoFitOnResize = true;
     this.renderer.setDeformation(undefined);
     this.renderer.setResultColors(undefined);
-    this.cameraFocus.fitView(undefined, false);
     this.invalidate();
   }
 

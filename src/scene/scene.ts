@@ -128,13 +128,33 @@ function validateAssemblyRegistry(
     if (assembly.id !== key) {
       throw new Error(`Assembly registry key ${key} does not match assembly id ${assembly.id}`);
     }
+    const placementIds = new Set<string>();
     for (let index = 0; index < assembly.placements.length; index++) {
       const placement = assembly.placements[index];
       if (placement === undefined) {
         throw new TypeError(`Assembly ${assembly.id} placement ${index} is missing`);
       }
+      const placementIdValue = (placement as { readonly placementId?: unknown }).placementId;
+      const placementId = placementIdValue === undefined ? String(index) : placementIdValue;
+      validatePlacementId(placementId, assembly.id, index);
+      if (placementIds.has(placementId)) {
+        throw new Error(`Assembly ${assembly.id} contains duplicate placement id ${placementId}`);
+      }
+      placementIds.add(placementId);
       validatePlacement(placement, parts, assemblies, assembly.id, index);
     }
+  }
+}
+
+function validatePlacementId(
+  id: unknown,
+  ownerId: AssemblyId,
+  index: number,
+): asserts id is string {
+  if (typeof id !== "string" || id.length === 0 || id.includes("/")) {
+    throw new Error(
+      `Assembly ${ownerId} placement ${index} id must be a non-empty string without '/'`,
+    );
   }
 }
 
