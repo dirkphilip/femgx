@@ -43,6 +43,7 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | FE node annotations                                                                                                          | renderer + demo    | same       | **Core now** | Depth testing hides occluded node samples; translucent front circles default to 6 CSS px and are configurable independently from the 8 CSS-px point glyphs in the inclusive `[1,64]` range (DPR-scaled), preserving surfaces without overlap accumulation or zoom-dependent depth offsets.                                                |
 | Optional edge / face display overlays                                                                                        | renderer + demo    | same       | **Deferred** | Display polish beyond the renderer-owned edge overlay and core node annotations is not the minimum product.                                                                                                                                                                                                                               |
 | GPU picking (element + node strict; face Core) with host-mappable ids                                                        | viewport + picking | same       | **Core now** | `FemViewport.pick` returns a complete `PickHit`; hosts map it with `interactionTargetFromHit`. Node ids are strict; element ownership is present when the hit has an authored element and omitted for truthful node-only point geometry. Face is Core. Multi-hit `pickMany` is future (below), not Core-now.                              |
+| Stable authored FE-edge interaction                                                                                          | interaction + GPU  | same       | **Core now** | Occurrence-scoped authored edges support exact picking, hover, selection, highlight, and nearest-visible region selection. Edge-only GPU resources are lazy and absent outside edge granularity; ordinary picking retains its four attachments and inactive cost.                                                                        |
 | CPU raycast picking (`createPickScene` / `pick()`)                                                                           | —                  | —          | **Remove**   | Replaced by the GPU pick path; deleted with the flat-compile cleanup.                                                                                                                                                                                                                                                                     |
 | Adjacency inspection overlays / pick-list UI polish                                                                          | demo               | e2e        | **Deferred** | Host-mappable neighbor ids on `PickHit` stay; rich adjacency workbench polish is optional.                                                                                                                                                                                                                                                |
 | Authored scalar results at nodal or elemental locations, scalar color mapping, and authored nodal deformation                | ~0.8k              | ~0.9k      | **Core now** | The minimum static FE results path: exact authored values map to existing tessellation nodes or element ids; deformation remains a separate authored nodal vector path.                                                                                                                                                                   |
@@ -67,7 +68,8 @@ and direct or block-defined bodies, then compiled into reusable part geometry
 Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, and Hex20) placed by hierarchical assemblies, compiled once
 into a packed scene runtime, and drawn with instanced WebGPU draws batched by
 part. The renderer provides GPU picking with host-mappable part/instance/
-element/face/node ids (node and element strict; face Core), readable
+element/face/node ids (node and element strict; face Core), stable authored
+FE-edge interaction, readable
 depth-tested node annotations, selection/
 highlight/hover, visibility, camera control, authored nodal/elemental scalar
 results with scalar color mapping, authored nodal deformation, bounded authored
@@ -215,6 +217,35 @@ not add a GPU pass, buffer, attachment, readback, CPU rendering fallback,
 spatial index, or public geometry-query subsystem. Ordered multi-hit point
 picking, depth peeling, drag-direction containment rules, and live selection
 preview remain deferred.
+
+## Authored FE-edge interaction
+
+Stable authored FE-edge interaction is **Core now**. An edge is the canonical
+ordered authored node sequence from FE topology, including a quadratic
+mid-edge node where present. Repeated placements produce distinct
+occurrence-scoped targets; shared edges retain deterministic incidence without
+choosing an arbitrary owning element. Renderer overlay segments, line elements,
+and tessellation diagonals are not edge identities.
+
+The minimum behavior is exact edge picking, hover, selection, highlight, and
+nearest-visible `FemViewport.pickRegion(rect, "edge")` behavior through the
+existing interaction path. Exact emphasis remains available when the optional
+presentation edge overlay is disabled. Through/contained edge selection, CAD
+curve identity, inferred crease edges, edge editing, per-edge authored styling,
+and a generic subentity graph remain out of scope.
+
+Inactive edge interaction must preserve the ordinary renderer cost. The normal
+pick snapshot retains its existing four attachments and readback layout;
+edge-specific textures, pipelines, geometry, bind groups, draws, and readback
+buffers remain absent until edge granularity is explicitly requested. Models
+without authored interactive edges allocate no edge identity resources, and
+leaving edge granularity adds no per-frame work. The active path's allocations,
+pick cost, readback, recovery behavior, and retained-resource policy must be
+measured. Add a disabled-by-default viewport capability option only if this
+on-demand separation cannot be implemented cleanly.
+
+The delivery contract and evidence are tracked in
+[issue #661](https://github.com/dirkphilip/femgx/issues/661).
 
 ## Deletion tracking
 
