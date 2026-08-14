@@ -88,6 +88,16 @@ export interface WorkbenchSnapshotOwner {
 
 /** Commands exposed to a future presentation shell; each delegates to one existing owner. */
 export interface WorkbenchCommands {
+  setProjection(): void;
+  setBackground(value: string): void;
+  toggleEdges(): void;
+  toggleNodes(): void;
+  toggleContinuous(): void;
+  setSelectionGranularity(value: string): void;
+  fitView(): void;
+  hideSelected(): void;
+  showAll(): void;
+  reset(): void;
   selectModel(id: string): void;
   setResultField(id: string): void;
   setSectionAxis(axis: SectionAxis): void;

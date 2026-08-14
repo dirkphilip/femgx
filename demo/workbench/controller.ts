@@ -1,4 +1,5 @@
 import {
+  setProjection,
   setTargetsHighlighted,
   importGlb,
   type InteractionState,
@@ -21,7 +22,7 @@ import {
   type WorkbenchOptions,
 } from "./types";
 import type { ViewportSlotId } from "./view";
-import { type WorkbenchViewportSlots, type WorkbenchViewportSlot } from "./viewport-slots";
+import type { WorkbenchViewportSlots, WorkbenchViewportSlot } from "./viewport-slots";
 import { WorkbenchModelSession } from "./model-session";
 import { activateModelForOwner } from "./model-activation";
 import { applyDisplayState, applyResultState } from "./display-state";
@@ -152,8 +153,6 @@ export class WorkbenchController {
     this.applyResultMode(false);
     this.applyCurrentDisplayState();
     applySectionPlane(this, false);
-    this.presentation.reflectBackground(this.background);
-    this.presentation.reflectSelectionGranularity();
     this.presentation.populateModelSelect(this.models);
     this.visibilityPanel.rebuild();
   }
@@ -225,34 +224,49 @@ export class WorkbenchController {
     if (this.continuousEnabled === enabled) return;
     this.continuousEnabled = enabled;
     this.viewportSlots.setContinuous(enabled, performance.now());
-    this.presentation.reflectContinuous();
     this.syncViewportPresentation();
     this.publishSnapshot();
+  }
+
+  setProjection(): void {
+    const viewport = this.activeViewport();
+    viewport.setCamera(
+      setProjection(
+        viewport.camera,
+        viewport.camera.mode === "perspective" ? "orthographic" : "perspective",
+      ),
+    );
+    viewport.fitView();
+    this.render();
+  }
+
+  hideSelected(): void {
+    this.visibilityActions.hideSelected();
+  }
+
+  showAll(): void {
+    this.visibilityActions.showAll();
   }
 
   setSelectionGranularity(value: string): void {
     const granularity = parseSelectionGranularity(value);
     if (granularity === undefined) {
-      this.presentation.reflectSelectionGranularity();
       return;
     }
     if (this.selectionGranularity === granularity) return;
     this.selectionGranularity = granularity;
     for (const slot of this.viewportSlots.all()) slot.interaction.clearHover();
-    this.presentation.reflectSelectionGranularity();
     this.render();
   }
 
   setBackground(value: string): void {
     const background = parseViewportBackground(value);
     if (background === undefined) {
-      this.presentation.reflectBackground(this.background);
       return;
     }
     try {
       for (const viewport of this.viewports()) viewport.setBackground(background);
     } catch (error) {
-      this.presentation.reflectBackground(this.background);
       setModelFeedback(
         this.view,
         `Background could not be changed: ${errorMessage(error)}`,
@@ -261,7 +275,6 @@ export class WorkbenchController {
       return;
     }
     this.background = background;
-    this.presentation.reflectBackground(background);
     this.render();
   }
 
@@ -401,11 +414,7 @@ export class WorkbenchController {
   }
 
   private reflectDisplayControls(): void {
-    this.presentation.reflectEdges();
-    this.presentation.reflectNodes();
     this.presentation.reflectResults();
-    this.presentation.reflectContinuous();
-    this.presentation.reflectBackground(this.background);
   }
 
   setTreeHover(target: VisibilityRowTarget | undefined): void {
@@ -433,21 +442,17 @@ export class WorkbenchController {
     this.snapshotBridge.publish();
   }
 
-  activeSlot(): WorkbenchViewportSlot {
-    return this.viewportSlots.activeSlot();
-  }
+  activeSlot = (): WorkbenchViewportSlot => this.viewportSlots.activeSlot();
 
   activeViewport(): FemViewport {
     return this.viewportSlots.activeViewport();
   }
 
-  viewports(): readonly FemViewport[] {
-    return this.viewportSlots.viewports();
-  }
+  viewports = (): readonly FemViewport[] => this.viewportSlots.viewports();
 
-  setActiveSlot(slotId: ViewportSlotId): void {
+  setActiveSlot = (slotId: ViewportSlotId): void => {
     this.viewportSlots.setActiveSlot(slotId);
-  }
+  };
 
   async toggleSecondaryViewport(): Promise<void> {
     await this.viewportSlots.toggleSecondaryViewport();

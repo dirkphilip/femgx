@@ -206,10 +206,8 @@ describe("workbench hover suppression", () => {
       click: vi.fn(),
       contextMenu: vi.fn(),
     } as unknown as WorkbenchInteraction;
-    const backgroundSelect = new FakeElement();
     const view = {
       projectionToggle: new FakeElement(),
-      backgroundSelect,
       edgeOverlayToggle: new FakeElement(),
       continuousToggle: new FakeElement(),
       resultControls: new FakeElement(),
@@ -240,19 +238,12 @@ describe("workbench hover suppression", () => {
       modelSource: new FakeElement(),
     } as unknown as DemoView;
     let dragging = false;
-    const setBackground = vi.fn();
     installWorkbenchBindings({
       view,
       canvas: canvas as unknown as HTMLCanvasElement,
       signal: new AbortController().signal,
-      viewport: () => ({}) as FemViewport,
       interaction,
-      menu: { hide: vi.fn() } as unknown as WorkbenchMenu,
       dragging: () => dragging,
-      setBackground,
-      setEdges: () => undefined,
-      setNodes: () => undefined,
-      setContinuous: () => undefined,
       setResultField: () => undefined,
       setDeformationField: () => undefined,
       setDeformationScale: () => undefined,
@@ -262,18 +253,9 @@ describe("workbench hover suppression", () => {
       setVectorLengthScale: () => undefined,
       setSectionAxis: () => undefined,
       setSectionOffset: () => undefined,
-      setSelectionGranularity: () => undefined,
-      hideSelected: () => undefined,
-      showAll: () => undefined,
-      reset: () => undefined,
-      fitView: () => undefined,
       setModel: () => undefined,
       openModel: () => undefined,
     });
-
-    backgroundSelect.value = "dark";
-    backgroundSelect.dispatch("change");
-    expect(setBackground).toHaveBeenCalledWith("dark");
 
     const move = { clientX: 50, clientY: 50 } as PointerEvent;
     canvas.dispatch("pointermove", move);

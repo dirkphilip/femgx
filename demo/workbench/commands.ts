@@ -7,6 +7,16 @@ import type { WorkbenchVisibilityActions } from "./visibility-actions";
 interface WorkbenchCommandOwner {
   readonly runtime: SceneRuntime;
   readonly visibilityActions: WorkbenchVisibilityActions;
+  setProjection(): void;
+  setBackground(value: string): void;
+  setEdges(): void;
+  setNodes(): void;
+  setContinuous(): void;
+  setSelectionGranularity(value: string): void;
+  fitView(): void;
+  hideSelected(): void;
+  showAll(): void;
+  reset(): void;
   setModel(id: string): void;
   setResultField(id: string): void;
   setSectionAxis(axis: string): void;
@@ -15,6 +25,36 @@ interface WorkbenchCommandOwner {
 /** Adapts existing controller methods to the typed presentation command surface. */
 export function createWorkbenchCommands(owner: WorkbenchCommandOwner): WorkbenchCommands {
   return {
+    setProjection: () => {
+      owner.setProjection();
+    },
+    setBackground: (value) => {
+      owner.setBackground(value);
+    },
+    toggleEdges: () => {
+      owner.setEdges();
+    },
+    toggleNodes: () => {
+      owner.setNodes();
+    },
+    toggleContinuous: () => {
+      owner.setContinuous();
+    },
+    setSelectionGranularity: (value) => {
+      owner.setSelectionGranularity(value);
+    },
+    fitView: () => {
+      owner.fitView();
+    },
+    hideSelected: () => {
+      owner.hideSelected();
+    },
+    showAll: () => {
+      owner.showAll();
+    },
+    reset: () => {
+      owner.reset();
+    },
     selectModel: (id) => {
       owner.setModel(id);
     },
