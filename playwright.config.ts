@@ -58,10 +58,12 @@ export default defineConfig({
         launchOptions: {
           args: [
             "--disable-dev-shm-usage",
+            "--enable-features=Vulkan",
             "--enable-gpu",
             "--enable-unsafe-webgpu",
             "--use-gpu-in-tests",
             "--use-webgpu-adapter=swiftshader",
+            "--use-vulkan=swiftshader",
           ],
         },
       },
