@@ -104,7 +104,8 @@ the partitioned demo suites above (plus mobile coverage in `e2e/mobile.spec.ts` 
 
 - **picking** — "picks and selects a node", "picks and selects a face";
 - **selection state** — "selects an element by promoting a node pick with
-  shift-click", "keeps selection stable across repeated orbit interactions";
+  shift-click", "clears selection on empty scene clicks but preserves it
+  through repeated orbit";
 - **visibility changes** — "toggles part visibility and restores it", "context
   menu hides and restores a part";
 - **inspection** — "picks and selects a node, exposing adjacency and

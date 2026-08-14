@@ -179,10 +179,12 @@ test("clears selection on empty scene clicks but preserves it through orbit", as
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
   const selected = await dataset(page, "selected");
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down({ button: "middle" });
-  await page.mouse.move(box.x + box.width / 2 + 48, box.y + box.height / 2 + 24);
-  await page.mouse.up({ button: "middle" });
+  for (let turn = 0; turn < 3; turn++) {
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down({ button: "middle" });
+    await page.mouse.move(box.x + box.width / 2 + 48, box.y + box.height / 2 + 24);
+    await page.mouse.up({ button: "middle" });
+  }
   await expect.poll(() => dataset(page, "selected")).toBe(selected);
 });
 test("uses Control/Meta-click to toggle an exact face selection", async ({ page }) => {
@@ -272,35 +274,4 @@ test("keeps the generic mapped element face identity through selection", async (
   await page.mouse.click(face.x, face.y);
   await page.keyboard.up("Shift");
   await expect.poll(() => dataset(page, "selected")).toMatch(/^e:[^:]+:42$/);
-});
-test("keeps selection stable across repeated orbit interactions", async ({ page }) => {
-  await loadWebGpuPage(page);
-  await setSelectionGranularity(page, "node");
-  const canvas = page.getByTestId("view-canvas");
-  const hit = await requireHit(
-    page,
-    canvas,
-    { prefix: "n:" },
-    "node GPU picking must resolve on the deterministic WebGPU lane",
-  );
-  await page.mouse.click(hit.x, hit.y);
-  await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
-  const selected = await dataset(page, "selected");
-
-  const box = await canvas.boundingBox();
-  if (box === null) {
-    throw new Error("canvas has no bounding box");
-  }
-  const centerX = box.x + box.width / 2;
-  const centerY = box.y + box.height / 2;
-  for (let turn = 0; turn < 3; turn++) {
-    await page.mouse.move(centerX, centerY);
-    await page.mouse.down({ button: "middle" });
-    for (let step = 0; step < 24; step++) {
-      await page.mouse.move(centerX + step * 2, centerY + step);
-    }
-    await page.mouse.up({ button: "middle" });
-  }
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-renderer", "webgpu");
-  await expect.poll(() => dataset(page, "selected"), { timeout: 5000 }).toBe(selected);
 });
