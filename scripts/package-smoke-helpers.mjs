@@ -29,7 +29,7 @@ export function runCommand(command, args, cwd, env = process.env) {
 export function parsePackResult(stdout, stderr = "") {
   let parsed;
   try {
-    parsed = JSON.parse(stdout);
+    parsed = parsePackJson(stdout);
   } catch (error) {
     throw new Error(
       `npm pack did not produce valid JSON: ${errorMessage(error)}\nstdout:\n${stdout}\nstderr:\n${stderr}`,
@@ -58,6 +58,25 @@ export function parsePackResult(stdout, stderr = "") {
     );
   }
   return result;
+}
+
+function parsePackJson(stdout) {
+  const trimmed = stdout.trim();
+  for (
+    let start = trimmed.lastIndexOf("[");
+    start >= 0;
+    start = trimmed.lastIndexOf("[", start - 1)
+  ) {
+    try {
+      const parsed = JSON.parse(trimmed.slice(start));
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+      // Keep looking for the JSON array after npm lifecycle output.
+    }
+  }
+  throw new SyntaxError("no JSON array found in npm pack output");
 }
 
 function formatCommandFailure({ command, args, status, stdout, stderr, error }) {

@@ -21,6 +21,13 @@ describe("package smoke helpers", () => {
     expect(result.files).toHaveLength(1);
   });
 
+  it("accepts npm lifecycle output before the pack result", () => {
+    const result = parsePackResult(
+      '> femgx@0.1.0 prepare\n> husky\n[{"filename":"femgx-0.1.0.tgz","files":[]}]',
+    );
+    expect(result.filename).toBe("femgx-0.1.0.tgz");
+  });
+
   it("reports a failed child process with both output streams", () => {
     expect(() =>
       runCommand(
