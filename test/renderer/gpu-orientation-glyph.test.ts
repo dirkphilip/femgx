@@ -9,6 +9,7 @@ import {
   normalMatrix3,
   packOrientationRecords,
 } from "../../src/renderer/gpu-orientation-glyph-data";
+import { orientationGlyphVertexShader } from "../../src/renderer/gpu-orientation-glyph-shader";
 import {
   createWebGpuRenderer,
   readGpuCostSnapshot,
@@ -65,6 +66,16 @@ function orientationRecords() {
 }
 
 describe("orientation glyph data", () => {
+  it("keeps arrowhead minima in CSS pixels across device pixel ratios", () => {
+    expect(orientationGlyphVertexShader).toContain(
+      "max(width * 3.5, 6.0 * camera.devicePixelRatio)",
+    );
+    expect(orientationGlyphVertexShader).toContain(
+      "max(width * 2.5, 3.0 * camera.devicePixelRatio)",
+    );
+    expect(orientationGlyphVertexShader).toContain("max(width, 0.75 * camera.devicePixelRatio)");
+  });
+
   it("packs anchors, directions, deltas, and ownership into aligned records", () => {
     const records = {
       elementIds: new Uint32Array([7]),
