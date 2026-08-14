@@ -147,8 +147,8 @@ function createVisibilityFeatures(options: WorkbenchFeatureOptions): {
     onInstanceVisibility: (instanceId, visible) => {
       actions.setInstance(instanceId, visible);
     },
-    onAssemblyVisibility: (nodeId, visible) => {
-      actions.setAssemblyNode(nodeId, visible);
+    onAssemblyVisibility: (occurrenceId, visible) => {
+      actions.setAssemblyOccurrence(occurrenceId, visible);
     },
     onTreeHover: options.setTreeHover,
   });

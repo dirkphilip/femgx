@@ -1,7 +1,7 @@
 import type { Mat4 } from "../math/mat4";
 import { validateScene, type Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
-import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId, InstanceId } from "../scene/types";
 import { compileSceneState, type RuntimeState } from "./compile";
 import { findGroupRange } from "./group-index";
 import { invariantValue } from "./invariants";
@@ -31,9 +31,9 @@ interface RuntimeMethods {
   /** Resolves an authoring placement handle to its packed slot. */
   getInstanceSlot(instanceId: InstanceId): number | undefined;
   /** Resolves a packed node slot to its stable occurrence handle. */
-  getNodeId(nodeId: number): AssemblyNodeId | undefined;
+  getNodeId(nodeId: number): AssemblyOccurrenceId | undefined;
   /** Resolves an assembly occurrence handle to its packed node slot. */
-  getNodeSlot(nodeId: AssemblyNodeId): number | undefined;
+  getNodeSlot(nodeId: AssemblyOccurrenceId): number | undefined;
   /** Returns the world transform of an instance as a matrix view. */
   getTransform(instanceId: number): Mat4 | undefined;
   isInstanceVisible(instanceId: number): boolean;
@@ -60,7 +60,7 @@ function matrixView(transforms: Float32Array, count: number, index: number): Mat
 
 interface RuntimeMaps {
   readonly instanceSlots: ReadonlyMap<InstanceId, number>;
-  readonly nodeSlots: ReadonlyMap<AssemblyNodeId, number>;
+  readonly nodeSlots: ReadonlyMap<AssemblyOccurrenceId, number>;
 }
 
 function runtimeMaps(state: RuntimeState): RuntimeMaps {
@@ -69,7 +69,7 @@ function runtimeMaps(state: RuntimeState): RuntimeMaps {
     const instanceId = invariantValue(state.instanceInstanceIds[slot], `instance id at ${slot}`);
     instanceSlots.set(instanceId, slot);
   }
-  const nodeSlots = new Map<AssemblyNodeId, number>();
+  const nodeSlots = new Map<AssemblyOccurrenceId, number>();
   for (let node = 0; node < state.nodeNodeIds.length; node++) {
     const nodeId = invariantValue(state.nodeNodeIds[node], `node id at ${node}`);
     nodeSlots.set(nodeId, node);
@@ -112,10 +112,10 @@ function createRuntimeQueries(
     getInstanceSlot(instanceId: InstanceId): number | undefined {
       return maps.instanceSlots.get(instanceId);
     },
-    getNodeId(nodeId: number): AssemblyNodeId | undefined {
+    getNodeId(nodeId: number): AssemblyOccurrenceId | undefined {
       return state.nodeNodeIds[nodeId];
     },
-    getNodeSlot(nodeId: AssemblyNodeId): number | undefined {
+    getNodeSlot(nodeId: AssemblyOccurrenceId): number | undefined {
       return maps.nodeSlots.get(nodeId);
     },
     getPartInstanceSlots(partId: PartId): Uint32Array {

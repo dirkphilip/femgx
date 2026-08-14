@@ -11,8 +11,8 @@ boundary. Its renderer-owned packed counterpart is created internally by
 `createPackedSceneRuntime` and is not part of the package root API.
 
 The public runtime exposes stable instance and assembly-occurrence handles via
-`getInstances()`, `getNodes()`, `getInstance(instanceId)`, and
-`getNode(nodeId)`. It is query-only; live visibility mutations go through
+`getInstances()`, `getOccurrences()`, `getInstance(instanceId)`, and
+`getOccurrence(occurrenceId)`. It is query-only; live visibility mutations go through
 `FemViewport`, which keeps CPU runtime state, GPU buffers, invalidation, and
 picking synchronized. `getDrawList()` returns stable instance handles.
 

@@ -55,8 +55,8 @@ function rowFromTarget(target: EventTarget | null): HTMLElement | undefined {
 function targetFromRow(row: HTMLElement): VisibilityRowTarget {
   const kind = row.dataset["visibilityTargetKind"];
   if (kind === "assembly") {
-    const nodeId = row.dataset["visibilityTargetNodeId"];
-    if (nodeId !== undefined) return { kind, nodeId };
+    const occurrenceId = row.dataset["visibilityTargetOccurrenceId"];
+    if (occurrenceId !== undefined) return { kind, occurrenceId };
   }
   const instanceId = row.dataset["visibilityTargetInstanceId"];
   if (instanceId === undefined) throw new Error("Visibility row is missing an instance id");

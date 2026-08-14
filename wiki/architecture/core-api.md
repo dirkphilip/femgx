@@ -118,7 +118,7 @@ while renderer-owned edge helpers retain their separate line-list path.
 - `PartId` and `AssemblyId` identify registry definitions within a scene.
 - `InstanceId` identifies a placement occurrence and remains stable when
   visibility or draw-order compaction changes.
-- `AssemblyNodeId` identifies one expanded assembly occurrence, including
+- `AssemblyOccurrenceId` identifies one expanded assembly occurrence, including
   repeated placements of the same assembly definition.
 - `ElementId` is part-local. An oriented face is identified by its
   `(elementId, faceIndex)` pair; `FaceKey` remains the canonical adjacency
@@ -160,7 +160,7 @@ results path through `createResultFieldFromModelResult` before
 
 ### Visibility and interaction
 
-`setPartVisible`, `setAssemblyNodeVisible`, `setAssemblyVisible`, and
+`setPartVisible`, `setAssemblyOccurrenceVisible`, `setAssemblyVisible`, and
 `setInstanceVisible` update the viewport-owned derived runtime using stable part,
 assembly, and placement handles, then synchronize only affected instance records.
 Style,

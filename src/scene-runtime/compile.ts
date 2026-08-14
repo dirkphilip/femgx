@@ -1,5 +1,5 @@
 import type { Scene } from "../scene/scene";
-import type { AssemblyId, AssemblyNodeId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId } from "../scene/types";
 import { buildSceneDrafts, type InstanceDraft, type NodeDraft } from "./drafts";
 import { invariantValue } from "./invariants";
 import type { KeyedGroupIndex } from "./group-index";
@@ -13,7 +13,7 @@ import type { KeyedGroupIndex } from "./group-index";
 export interface RuntimeState {
   readonly rootAssemblyId: AssemblyId;
   readonly nodeCount: number;
-  readonly nodeNodeIds: readonly AssemblyNodeId[];
+  readonly nodeNodeIds: readonly AssemblyOccurrenceId[];
   readonly instanceCount: number;
   readonly nodeAssemblyIds: Uint32Array;
   readonly nodeParents: Int32Array;
@@ -67,7 +67,7 @@ type PackedInstances = Pick<
 
 function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
   const count = nodes.length;
-  const nodeNodeIds: AssemblyNodeId[] = [];
+  const nodeNodeIds: AssemblyOccurrenceId[] = [];
   const nodeAssemblyIds = new Uint32Array(count);
   const nodeParents = new Int32Array(count);
   const nodeFirstChild = new Int32Array(count);

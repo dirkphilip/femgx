@@ -20,7 +20,7 @@ export type InstanceId = string;
  * Stable identity of one expanded assembly occurrence in a scene runtime.
  * @category Scene and geometry
  */
-export type AssemblyNodeId = string;
+export type AssemblyOccurrenceId = string;
 
 /**
  * Stable identity of one element occurrence (an element placed in the scene).

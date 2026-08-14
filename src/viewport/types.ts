@@ -6,7 +6,7 @@ import type { DeviceLostInfo } from "../platform/device";
 import type { ViewportBackground } from "../renderer/gpu-renderer";
 import type { PartId } from "../geometry/part";
 import type { InteractionGranularity, PickHit } from "../picking/types";
-import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId, InstanceId } from "../scene/types";
 import type { Scene } from "../scene/scene";
 import type { SceneRuntime } from "../scene-runtime/public-runtime";
 import type { OrientationGizmoOptions } from "./orientation-gizmo";
@@ -123,7 +123,7 @@ export interface FemViewport {
   /** Changes visibility for every occurrence of one part definition. */
   setPartVisible(partId: PartId, visible: boolean): void;
   /** Changes visibility for one assembly occurrence. */
-  setAssemblyNodeVisible(nodeId: AssemblyNodeId, visible: boolean): void;
+  setAssemblyOccurrenceVisible(occurrenceId: AssemblyOccurrenceId, visible: boolean): void;
   /** Changes visibility for every occurrence of one assembly definition. */
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void;
   /** Changes visibility for one placed-part occurrence. */

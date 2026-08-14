@@ -2,12 +2,12 @@ import { identity, multiply, type Mat4 } from "../math/mat4";
 import type { Assembly, PartPlacement } from "../scene/assembly";
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
-import type { AssemblyId, AssemblyNodeId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId } from "../scene/types";
 import { invariantValue } from "./invariants";
 
 /** Mutable intermediate for a compiled assembly expansion. */
 export interface NodeDraft {
-  readonly nodeId: AssemblyNodeId;
+  readonly nodeId: AssemblyOccurrenceId;
   readonly assemblyId: AssemblyId;
   readonly parent: number;
   firstChild: number;
@@ -76,7 +76,7 @@ class DraftWriter {
     });
   }
 
-  private pushNode(assemblyId: AssemblyId, parent: number, nodeId: AssemblyNodeId): number {
+  private pushNode(assemblyId: AssemblyId, parent: number, nodeId: AssemblyOccurrenceId): number {
     const parentEffective: 0 | 1 =
       parent === -1 ? 1 : invariantValue(this.nodes[parent], `parent node at ${parent}`).effective;
     const visible: 0 | 1 = this.visibleAssemblyIds.has(assemblyId) ? 1 : 0;

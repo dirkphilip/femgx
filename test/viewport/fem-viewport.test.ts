@@ -582,7 +582,7 @@ describe("FemViewport", () => {
         current.setPartVisible(1, false);
       },
       (current) => {
-        current.setAssemblyNodeVisible("1", false);
+        current.setAssemblyOccurrenceVisible("1", false);
       },
       (current) => {
         current.setAssemblyVisible(1, false);
@@ -594,7 +594,7 @@ describe("FemViewport", () => {
     const before = {
       drawList: viewport.runtime.getDrawList(),
       instances: viewport.runtime.getInstances(),
-      nodes: viewport.runtime.getNodes(),
+      occurrences: viewport.runtime.getOccurrences(),
       submissions: gpu.submissionCount,
       writes: gpu.writes.length,
     };
@@ -608,7 +608,7 @@ describe("FemViewport", () => {
     }
     expect(viewport.runtime.getDrawList()).toEqual(before.drawList);
     expect(viewport.runtime.getInstances()).toEqual(before.instances);
-    expect(viewport.runtime.getNodes()).toEqual(before.nodes);
+    expect(viewport.runtime.getOccurrences()).toEqual(before.occurrences);
     expect(gpu.submissionCount).toBe(before.submissions);
     expect(gpu.writes).toHaveLength(before.writes);
     expect(() => {

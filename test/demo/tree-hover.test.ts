@@ -38,7 +38,10 @@ function runtime() {
 
 describe("visibility tree interaction mapping", () => {
   it("maps a repeated assembly occurrence to only its descendant instances", () => {
-    const targets = interactionTargetsForRow(runtime(), { kind: "assembly", nodeId: "1/0" });
+    const targets = interactionTargetsForRow(runtime(), {
+      kind: "assembly",
+      occurrenceId: "1/0",
+    });
     expect(targets).toEqual([{ kind: "instance", instanceId: "1/0/0" }]);
   });
 
@@ -61,6 +64,8 @@ describe("visibility tree interaction mapping", () => {
   });
 
   it("returns an empty list for an empty assembly occurrence", () => {
-    expect(interactionTargetsForRow(runtime(), { kind: "assembly", nodeId: "1/0/1" })).toEqual([]);
+    expect(
+      interactionTargetsForRow(runtime(), { kind: "assembly", occurrenceId: "1/0/1" }),
+    ).toEqual([]);
   });
 });

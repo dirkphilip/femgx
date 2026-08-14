@@ -185,7 +185,9 @@ function resetSlotVisibility(slots: readonly WorkbenchViewportSlot[], model: Wor
   for (const slot of slots) {
     const runtime = slot.viewport.runtime;
     slot.viewport.batch(() => {
-      for (const nodeId of runtime.getNodeIds()) slot.viewport.setAssemblyNodeVisible(nodeId, true);
+      for (const occurrenceId of runtime.getOccurrenceIds()) {
+        slot.viewport.setAssemblyOccurrenceVisible(occurrenceId, true);
+      }
       for (const partId of model.scene.parts.keys()) slot.viewport.setPartVisible(partId, true);
       for (const instanceId of runtime.getInstanceIds()) {
         slot.viewport.setInstanceVisible(instanceId, true);

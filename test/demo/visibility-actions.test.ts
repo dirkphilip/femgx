@@ -120,8 +120,8 @@ describe("WorkbenchVisibilityActions", () => {
       setAssemblyVisible(assemblyId: number, visible: boolean): void {
         calls.push(`assembly:${assemblyId}:${visible}`);
       },
-      setAssemblyNodeVisible(nodeId: string, visible: boolean): void {
-        calls.push(`node:${nodeId}:${visible}`);
+      setAssemblyOccurrenceVisible(occurrenceId: string, visible: boolean): void {
+        calls.push(`occurrence:${occurrenceId}:${visible}`);
       },
       setPartVisible(partId: number, visible: boolean): void {
         calls.push(`part:${partId}:${visible}`);
@@ -159,7 +159,7 @@ describe("WorkbenchVisibilityActions", () => {
     const expectedCalls = [
       "batch",
       ...[...scene.assemblies.keys()].map((id) => `assembly:${id}:true`),
-      ...runtime.getNodeIds().map((id) => `node:${id}:true`),
+      ...runtime.getOccurrenceIds().map((id) => `occurrence:${id}:true`),
       ...[...scene.parts.keys()].map((id) => `part:${id}:true`),
       ...runtime.getInstanceIds().map((id) => `instance:${id}:true`),
     ];

@@ -1,7 +1,7 @@
 import type { Mat4 } from "../math/mat4";
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
-import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId, InstanceId } from "../scene/types";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "./runtime";
 import { invariantValue } from "./invariants";
 
@@ -12,7 +12,7 @@ import { invariantValue } from "./invariants";
 export interface RuntimeInstance {
   readonly instanceId: InstanceId;
   readonly partId: PartId;
-  readonly nodeId: AssemblyNodeId;
+  readonly occurrenceId: AssemblyOccurrenceId;
   readonly visible: boolean;
   readonly partVisible: boolean;
   readonly overrideVisible: boolean;
@@ -23,11 +23,11 @@ export interface RuntimeInstance {
  * A stable, query-only description of one expanded assembly occurrence.
  * @category Advanced runtime and WebGPU platform
  */
-export interface RuntimeNode {
-  readonly nodeId: AssemblyNodeId;
+export interface RuntimeOccurrence {
+  readonly occurrenceId: AssemblyOccurrenceId;
   readonly assemblyId: AssemblyId;
-  readonly parentId: AssemblyNodeId | undefined;
-  readonly childIds: readonly AssemblyNodeId[];
+  readonly parentId: AssemblyOccurrenceId | undefined;
+  readonly childIds: readonly AssemblyOccurrenceId[];
   readonly instanceIds: readonly InstanceId[];
   readonly visible: boolean;
   readonly effectiveVisible: boolean;
@@ -39,21 +39,21 @@ export interface RuntimeNode {
  */
 export interface SceneRuntime {
   readonly rootAssemblyId: AssemblyId;
-  readonly nodeCount: number;
+  readonly occurrenceCount: number;
   readonly instanceCount: number;
   readonly visibleCount: number;
   /** Returns every stable placed-part id in runtime order. */
   getInstanceIds(): readonly InstanceId[];
   /** Returns every stable assembly-occurrence id in runtime order. */
-  getNodeIds(): readonly AssemblyNodeId[];
+  getOccurrenceIds(): readonly AssemblyOccurrenceId[];
   /** Materializes query records for all placed parts. */
   getInstances(): readonly RuntimeInstance[];
   /** Materializes query records for all expanded assembly occurrences. */
-  getNodes(): readonly RuntimeNode[];
+  getOccurrences(): readonly RuntimeOccurrence[];
   /** Returns one placed-part record, or `undefined` for an unknown id. */
   getInstance(instanceId: InstanceId): RuntimeInstance | undefined;
   /** Returns one assembly-occurrence record, or `undefined` for an unknown id. */
-  getNode(nodeId: AssemblyNodeId): RuntimeNode | undefined;
+  getOccurrence(occurrenceId: AssemblyOccurrenceId): RuntimeOccurrence | undefined;
   /** Resolves a placed-part id to its reusable part id. */
   getPartId(instanceId: InstanceId): PartId | undefined;
   /** Returns a placed part's world transform, or `undefined` for an unknown id. */
@@ -66,13 +66,13 @@ export interface SceneRuntime {
 
 class PublicSceneRuntime implements SceneRuntime {
   private readonly instanceIds: readonly InstanceId[];
-  private readonly nodeIds: readonly AssemblyNodeId[];
+  private readonly occurrenceIds: readonly AssemblyOccurrenceId[];
 
   constructor(private readonly packed: PackedSceneRuntime) {
     this.instanceIds = Array.from({ length: packed.instanceCount }, (_, slot) =>
       invariantValue(packed.getInstanceId(slot), `instance id at ${slot}`),
     );
-    this.nodeIds = Array.from({ length: packed.nodeCount }, (_, slot) =>
+    this.occurrenceIds = Array.from({ length: packed.nodeCount }, (_, slot) =>
       invariantValue(packed.getNodeId(slot), `node id at ${slot}`),
     );
   }
@@ -80,7 +80,7 @@ class PublicSceneRuntime implements SceneRuntime {
   get rootAssemblyId(): AssemblyId {
     return this.packed.rootAssemblyId;
   }
-  get nodeCount(): number {
+  get occurrenceCount(): number {
     return this.packed.nodeCount;
   }
   get instanceCount(): number {
@@ -92,16 +92,18 @@ class PublicSceneRuntime implements SceneRuntime {
   getInstanceIds(): readonly InstanceId[] {
     return this.instanceIds;
   }
-  getNodeIds(): readonly AssemblyNodeId[] {
-    return this.nodeIds;
+  getOccurrenceIds(): readonly AssemblyOccurrenceId[] {
+    return this.occurrenceIds;
   }
   getInstances(): readonly RuntimeInstance[] {
     return this.instanceIds.map((instanceId) =>
       invariantValue(this.getInstance(instanceId), `instance ${instanceId}`),
     );
   }
-  getNodes(): readonly RuntimeNode[] {
-    return this.nodeIds.map((nodeId) => invariantValue(this.getNode(nodeId), `node ${nodeId}`));
+  getOccurrences(): readonly RuntimeOccurrence[] {
+    return this.occurrenceIds.map((occurrenceId) =>
+      invariantValue(this.getOccurrence(occurrenceId), `occurrence ${occurrenceId}`),
+    );
   }
   getInstance(instanceId: InstanceId): RuntimeInstance | undefined {
     const slot = this.packed.getInstanceSlot(instanceId);
@@ -111,7 +113,10 @@ class PublicSceneRuntime implements SceneRuntime {
       this.packed.instanceOwningNode[slot],
       `owning node at instance ${slot}`,
     );
-    const nodeId = invariantValue(this.packed.getNodeId(owningNode), `node id at ${owningNode}`);
+    const occurrenceId = invariantValue(
+      this.packed.getNodeId(owningNode),
+      `occurrence id at ${owningNode}`,
+    );
     const transform = invariantValue(
       this.packed.getTransform(slot),
       `transform at instance ${slot}`,
@@ -119,22 +124,22 @@ class PublicSceneRuntime implements SceneRuntime {
     return {
       instanceId,
       partId,
-      nodeId,
+      occurrenceId,
       visible: this.packed.instanceVisible[slot] === 1,
       partVisible: this.packed.instancePartVisible[slot] === 1,
       overrideVisible: this.packed.instanceOverrideVisible[slot] === 1,
       transform,
     };
   }
-  getNode(nodeId: AssemblyNodeId): RuntimeNode | undefined {
-    const node = this.packed.getNodeSlot(nodeId);
+  getOccurrence(occurrenceId: AssemblyOccurrenceId): RuntimeOccurrence | undefined {
+    const node = this.packed.getNodeSlot(occurrenceId);
     if (node === undefined) return undefined;
     const assemblyId = invariantValue(
       this.packed.nodeAssemblyIds[node],
       `assembly id at node ${node}`,
     );
     const parent = invariantValue(this.packed.nodeParents[node], `parent at node ${node}`);
-    const childIds: AssemblyNodeId[] = [];
+    const childIds: AssemblyOccurrenceId[] = [];
     let child = invariantValue(this.packed.nodeFirstChild[node], `first child at node ${node}`);
     while (child !== -1) {
       childIds.push(invariantValue(this.packed.getNodeId(child), `node id at ${child}`));
@@ -150,7 +155,7 @@ class PublicSceneRuntime implements SceneRuntime {
       instanceIds.push(invariantValue(this.packed.getInstanceId(slot), `instance id at ${slot}`));
     }
     return {
-      nodeId,
+      occurrenceId,
       assemblyId,
       parentId:
         parent === -1
