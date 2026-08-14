@@ -33,7 +33,7 @@ const topologyCache = new WeakMap<Part, OrientationPartTopology>();
 export function getOrientationTopology(part: Part): OrientationPartTopology {
   const cached = topologyCache.get(part);
   if (cached !== undefined) return cached;
-  const elements = (part.geometry.elements ?? [])
+  const elements = (part.elements ?? [])
     .map((element) => createTopologyElement(part, element))
     .sort((left, right) => left.id - right.id);
   const topology = { elements, byId: new Map(elements.map((element) => [element.id, element])) };
@@ -53,7 +53,7 @@ export function resolveOrientationAnchor(
   readonly z: number;
   readonly referenceLength: number;
 } {
-  if (part.geometry.nodePickIds === undefined) {
+  if (!part.geometries.some((geometry) => geometry.nodePickIds !== undefined)) {
     throw new Error(
       `Elemental orientation field ${field.id} cannot anchor part ${part.id} element ${element.id}: geometry has no nodePickIds`,
     );
@@ -135,28 +135,33 @@ function createTopologyElement(
   part: Part,
   element: ElementTessellation,
 ): OrientationTopologyElement {
-  const nodePickIds = part.geometry.nodePickIds;
-  if (nodePickIds === undefined) {
+  const geometries = part.geometries.filter((geometry) => geometry.nodePickIds !== undefined);
+  if (geometries.length === 0) {
     return { id: element.id, bodyId: element.bodyId, nodeIds: [] };
   }
-  const indices = part.geometry.indices;
-  const stride = primitiveVertexCount(part.geometry.primitive);
   const nodes = new Set<number>();
-  for (
-    let primitive = element.primitiveStart;
-    primitive < element.primitiveStart + element.primitiveCount;
-    primitive += 1
-  ) {
-    const indexBase = primitive * stride;
-    for (let offset = 0; offset < stride; offset += 1) {
-      const vertexIndex = indices[indexBase + offset];
-      const nodePickId = vertexIndex === undefined ? undefined : nodePickIds[vertexIndex];
-      if (nodePickId === undefined) {
-        throw new Error(
-          `Element ${element.id} in part ${part.id} references a vertex without a nodePickId`,
-        );
+  for (const geometry of geometries) {
+    const localElement = geometry.elements?.find((candidate) => candidate.id === element.id);
+    if (localElement === undefined || geometry.nodePickIds === undefined) continue;
+    const indices = geometry.indices;
+    const stride = primitiveVertexCount(geometry.primitive);
+    for (
+      let primitive = localElement.primitiveStart;
+      primitive < localElement.primitiveStart + localElement.primitiveCount;
+      primitive += 1
+    ) {
+      const indexBase = primitive * stride;
+      for (let offset = 0; offset < stride; offset += 1) {
+        const vertexIndex = indices[indexBase + offset];
+        const nodePickId =
+          vertexIndex === undefined ? undefined : geometry.nodePickIds[vertexIndex];
+        if (nodePickId === undefined) {
+          throw new Error(
+            `Element ${element.id} in part ${part.id} references a vertex without a nodePickId`,
+          );
+        }
+        if (nodePickId > 0) nodes.add(nodePickId - 1);
       }
-      if (nodePickId > 0) nodes.add(nodePickId - 1);
     }
   }
   return {

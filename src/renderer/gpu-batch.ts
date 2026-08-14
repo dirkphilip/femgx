@@ -1,9 +1,9 @@
 import { orderBindGroup } from "./gpu-bind-groups";
 import { ensureDeformationBuffer } from "./gpu-deform";
-import type { Part } from "../geometry/part";
+import type { Geometry, Part } from "../geometry/part";
 import {
   uploadNodePart,
-  uploadPart,
+  uploadGeometryPart,
   ensureEdgeResources,
   ensureEdgePickResources,
   type DrawCall,
@@ -52,60 +52,77 @@ export function drawBatches(
   }
   let current: GPURenderPipeline | undefined;
   for (const call of calls) {
-    current = drawOneBatch(pass, draw, context, call, {
-      intent: options,
-      current,
-    });
+    const part = context.parts.get(call.partId);
+    if (part === undefined) continue;
+    const geometries = geometriesForIntent(part, options);
+    for (const geometry of geometries) {
+      current = drawOneBatch(pass, {
+        draw,
+        context,
+        call,
+        geometry,
+        intent: options,
+        current,
+      });
+    }
   }
 }
 
 /** Uploads and draws one part batch, retaining the previous pipeline when skipped. */
 function drawOneBatch(
   pass: GPURenderPassEncoder,
-  draw: DrawResources,
-  context: DrawCallContext,
-  call: DrawCall,
-  options: { readonly intent: DrawIntent; readonly current: GPURenderPipeline | undefined },
+  batch: {
+    readonly draw: DrawResources;
+    readonly context: DrawCallContext;
+    readonly call: DrawCall;
+    readonly geometry: Geometry | undefined;
+    readonly intent: DrawIntent;
+    readonly current: GPURenderPipeline | undefined;
+  },
 ): GPURenderPipeline | undefined {
-  const { intent, current } = options;
+  const { draw, context, call, geometry, intent, current } = batch;
   const { orderKind, overlay, edgePick, nodes } = drawIntentState(intent);
-  const part = context.parts.get(call.partId);
   const storage = draw.storages.get(call.partId);
+  const part = context.parts.get(call.partId);
   if (part === undefined || storage === undefined) return current;
+  if (nodes && part.geometries.every((candidate) => candidate.primitive === "points"))
+    return current;
+  const resource = uploadBatchGeometry(draw, context, part, geometry, nodes);
+  const subset = usesFaceSubset(intent, geometry, nodes);
   if (
-    intent.kind === "surface" &&
-    intent.primitive !== undefined &&
-    part.geometry.primitive !== intent.primitive
-  ) {
+    edgePick &&
+    geometry?.primitive === "triangles" &&
+    ensureEdgePickResources(draw, part, geometry, resource) === undefined
+  )
+    return current;
+  if (
+    overlay &&
+    !edgePick &&
+    geometry?.primitive === "triangles" &&
+    ensureEdgeResources(draw, part, geometry, resource) === undefined
+  )
+    return current;
+  if (edgePick && (resource.edgePick?.indexCount ?? 0) === 0) return current;
+  if (overlay && !edgePick && (resource.edge?.edgeIndexCount ?? 0) === 0) {
     return current;
   }
-  if (nodes && part.geometry.primitive === "points") return current;
-  const geometry = uploadBatchGeometry(draw, context, part, nodes);
-  const subset = usesFaceSubset(intent, part, nodes);
-  if (edgePick && ensureEdgePickResources(draw, part, geometry) === undefined) return current;
-  if (overlay && !edgePick && ensureEdgeResources(draw, part, geometry) === undefined)
-    return current;
-  if (edgePick && (geometry.edgePick?.indexCount ?? 0) === 0) return current;
-  if (overlay && !edgePick && (geometry.edge?.edgeIndexCount ?? 0) === 0) {
-    return current;
-  }
-  if (!overlay && subset && geometry.subsetIndexCount === 0) return current;
+  if (!overlay && subset && resource.subsetIndexCount === 0) return current;
   const pipeline =
     intent.kind === "surface"
-      ? pipelineFor(part.geometry.primitive, intent.pass, context.pipelines)
+      ? pipelineFor(geometry?.primitive ?? "triangles", intent.pass, context.pipelines)
       : intent.pipeline;
   if (current !== pipeline) pass.setPipeline(pipeline);
   const deformation = ensureDeformationBuffer(draw.device, draw.deformations, call.partId);
   const group = orderBindGroup(draw.device, context.instanceLayout, storage, orderKind, {
-    geometry,
+    geometry: resource,
     deformation,
     edge: overlay,
     surfaceSubset: !overlay && subset,
     edgePick,
-    cache: !edgePick,
+    cache: !edgePick && part.geometries.length === 1,
   });
   pass.setBindGroup(1, group);
-  const count = bindDrawGeometry(pass, geometry, overlay, subset, edgePick);
+  const count = bindDrawGeometry(pass, resource, overlay, subset, edgePick);
   if (count === undefined) return current;
   pass.drawIndexed(count, call.instanceCount);
   draw.cost.draw(drawCostCategory(intent), count, call.instanceCount);
@@ -164,12 +181,16 @@ function drawCostCategory(
   return intent.primitive === "points" ? "point-replay" : "opaque";
 }
 
-function usesFaceSubset(intent: DrawIntent, part: Part, nodes: boolean): boolean {
+function usesFaceSubset(
+  intent: DrawIntent,
+  geometry: Geometry | undefined,
+  nodes: boolean,
+): boolean {
   return (
     !nodes &&
     !(intent.kind === "surface" && intent.pass.startsWith("selection-")) &&
-    part.geometry.primitive === "triangles" &&
-    part.geometry.faceSubset !== undefined
+    geometry?.primitive === "triangles" &&
+    geometry.faceSubset !== undefined
   );
 }
 
@@ -177,10 +198,22 @@ function uploadBatchGeometry(
   draw: DrawResources,
   context: DrawCallContext,
   part: Part,
+  geometry: Geometry | undefined,
   nodes: boolean,
 ): PartResource {
   const colors = context.resultColors?.get(part.id);
-  return nodes ? uploadNodePart(draw, part, colors) : uploadPart(draw, part, colors);
+  return nodes
+    ? uploadNodePart(draw, part, colors)
+    : uploadGeometryPart(draw, part, geometry ?? part.geometry, colors);
+}
+
+function geometriesForIntent(part: Part, intent: DrawIntent): readonly (Geometry | undefined)[] {
+  if (intent.kind === "nodes") return [undefined];
+  if (intent.kind === "edge" || intent.kind === "edge-pick") {
+    return part.geometries.filter((geometry) => geometry.primitive === "triangles");
+  }
+  if (intent.primitive === undefined) return part.geometries;
+  return part.geometries.filter((geometry) => geometry.primitive === intent.primitive);
 }
 
 function bindDrawGeometry(

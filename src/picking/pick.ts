@@ -41,8 +41,8 @@ export function resolvePickHit(
   if (instance === undefined) {
     return undefined;
   }
-  const geometry = context.parts.get(instance.partId)?.geometry;
-  return deepestHit(instance, geometry, ids, worldPosition);
+  const part = context.parts.get(instance.partId);
+  return deepestHit(instance, part, ids, worldPosition);
 }
 
 /** Resolves one private edge id after the optional authored-edge pick pass. */
@@ -53,23 +53,19 @@ export function resolveEdgePickHit(
   worldPosition: Vec3,
 ): EdgePickHit | undefined {
   const instance = resolvePick(context.instances, instancePickId - 1);
-  const edge =
-    instance === undefined
-      ? undefined
-      : context.parts
-          .get(instance.partId)
-          ?.geometry.edges?.find((candidate) => candidate.key === edgeKey);
+  const part = instance === undefined ? undefined : context.parts.get(instance.partId);
+  const edge = part?.geometries
+    .flatMap((geometry) => geometry.edges ?? [])
+    .find((candidate) => candidate.key === edgeKey);
   if (instance === undefined || edge === undefined) return undefined;
   const first = edge.nodeIds[0];
   const last = edge.nodeIds[edge.nodeIds.length - 1];
   const firstPoint =
     first === undefined
       ? ([0, 0, 0] as const)
-      : transformNode(instance, context.parts.get(instance.partId)?.geometry.nodePositions, first);
+      : transformNode(instance, part?.nodePositions, first);
   const lastPoint =
-    last === undefined
-      ? ([1, 0, 0] as const)
-      : transformNode(instance, context.parts.get(instance.partId)?.geometry.nodePositions, last);
+    last === undefined ? ([1, 0, 0] as const) : transformNode(instance, part?.nodePositions, last);
   const delta: Vec3 = [
     lastPoint[0] - firstPoint[0],
     lastPoint[1] - firstPoint[1],
@@ -106,13 +102,14 @@ function transformNode(
 /** Returns the most specific physical hit a pixel supports. */
 function deepestHit(
   instance: Instance,
-  geometry: Geometry | undefined,
+  part: Part | undefined,
   ids: ResolvedPickIds,
   worldPosition: Vec3,
 ): PickHit {
-  if (geometry !== undefined && ids.nodePickId > 0) {
-    if (!validNodeId(geometry, ids.nodePickId - 1)) return instanceHit(instance, worldPosition);
-    return nodeHit(instance, geometry, ids, worldPosition);
+  const geometry = part === undefined ? undefined : geometryForHit(part, ids);
+  if (part !== undefined && ids.nodePickId > 0) {
+    if (!validNodeId(part, ids.nodePickId - 1)) return instanceHit(instance, worldPosition);
+    return nodeHit(instance, part, ids, worldPosition);
   }
   if (geometry?.primitive === "triangles" && ids.facePickId > 0) {
     return faceHit(instance, geometry, ids, worldPosition);
@@ -127,7 +124,7 @@ function deepestHit(
       partId: instance.partId,
       instanceId: instance.instanceId,
       elementId,
-      ...bodyFields(geometry, elementId),
+      ...bodyFields(part, elementId),
       worldPosition,
     };
   }
@@ -145,28 +142,28 @@ function instanceHit(instance: Instance, worldPosition: Vec3): PickHit {
   };
 }
 
-function validNodeId(geometry: Geometry, nodeId: number): boolean {
-  const nodeCount = (geometry.nodePositions?.length ?? 0) / 3;
+function validNodeId(part: Part, nodeId: number): boolean {
+  const nodeCount = (part.nodePositions?.length ?? 0) / 3;
   return Number.isInteger(nodeId) && nodeId >= 0 && nodeId < nodeCount;
 }
 
 function nodeHit(
   instance: Instance,
-  geometry: Geometry,
+  part: Part,
   ids: ResolvedPickIds,
   worldPosition: Vec3,
 ): NodePickHit {
   const nodeId = ids.nodePickId - 1;
-  const localPosition = nodePosition(geometry, nodeId);
-  const elementId = elementIdFromPick(geometry, ids.elementPickId);
-  const adjacency = geometryAdjacency(geometry, nodeId);
+  const localPosition = nodePosition(part.nodePositions, nodeId);
+  const elementId = elementIdFromPick(part, ids.elementPickId);
+  const adjacency = partAdjacency(part, nodeId);
   return {
     kind: "node",
     partId: instance.partId,
     instanceId: instance.instanceId,
     ...(elementId === undefined ? {} : { elementId }),
     nodeId,
-    ...(elementId === undefined ? {} : bodyFields(geometry, elementId)),
+    ...(elementId === undefined ? {} : bodyFields(part, elementId)),
     localPosition,
     worldPosition,
     neighborElementIds: adjacency.neighborElementIds,
@@ -174,10 +171,10 @@ function nodeHit(
   };
 }
 
-function elementIdFromPick(geometry: Geometry, elementPickId: number): number | undefined {
+function elementIdFromPick(part: Part, elementPickId: number): number | undefined {
   if (elementPickId <= 0) return undefined;
   const elementId = elementPickId - 1;
-  return geometry.elements?.some((element) => element.id === elementId) ? elementId : undefined;
+  return part.elements?.some((element) => element.id === elementId) ? elementId : undefined;
 }
 
 function faceHit(
@@ -192,7 +189,7 @@ function faceHit(
     throw new Error(`Part ${instance.partId} has no face descriptor ${faceId}`);
   }
   const worldPoints = face.nodeIds.map((nodeId) =>
-    transformPoint(instance.worldTransform, ...nodePosition(geometry, nodeId)),
+    transformPoint(instance.worldTransform, ...nodePosition(geometry.nodePositions, nodeId)),
   );
   return {
     kind: "face",
@@ -210,18 +207,30 @@ function faceHit(
 }
 
 function bodyFields(
-  geometry: Geometry | undefined,
+  source: Part | Geometry | undefined,
   elementId: number,
   explicitBodyId?: number,
   explicitBlockId?: number,
 ): { readonly bodyId?: number; readonly blockId?: number } {
-  const element = geometry?.elements?.find((candidate) => candidate.id === elementId);
+  const geometries =
+    source === undefined ? [] : "geometries" in source ? source.geometries : [source];
+  const element = geometries
+    .flatMap((geometry) => geometry.elements ?? [])
+    .find((candidate) => candidate.id === elementId);
   const bodyId =
-    explicitBodyId ?? (geometry === undefined ? undefined : bodyIdForElement(geometry, elementId));
+    explicitBodyId ??
+    (source === undefined
+      ? undefined
+      : "geometries" in source
+        ? (source.elements?.find((candidate) => candidate.id === elementId)?.bodyId ??
+          source.bodies?.find((body) => body.elementIds.includes(elementId))?.id)
+        : bodyIdForElement(source, elementId));
   const blockId =
     explicitBlockId ??
     element?.blockId ??
-    geometry?.blocks?.find((block) => block.elementIds.includes(elementId))?.id;
+    geometries
+      .flatMap((geometry) => geometry.blocks ?? [])
+      .find((block) => block.elementIds.includes(elementId))?.id;
   return {
     ...(bodyId === undefined ? {} : { bodyId }),
     ...(blockId === undefined ? {} : { blockId }),
@@ -254,10 +263,45 @@ export function geometryAdjacency(
   };
 }
 
+function geometryForHit(part: Part, ids: ResolvedPickIds): Geometry | undefined {
+  if (ids.nodePickId > 0) {
+    const nodeGeometry = part.geometries.find((geometry) =>
+      geometry.nodePickIds?.some((pickId) => pickId === ids.nodePickId),
+    );
+    if (nodeGeometry !== undefined) return nodeGeometry;
+  }
+  if (ids.facePickId > 0) {
+    const triangle = part.geometries.find((geometry) => geometry.primitive === "triangles");
+    if (triangle !== undefined) return triangle;
+  }
+  const elementId = ids.elementPickId - 1;
+  return part.geometries.find((geometry) =>
+    geometry.elements?.some((element) => element.id === elementId),
+  );
+}
+
+function partAdjacency(
+  part: Part,
+  nodeId: number,
+): { readonly neighborElementIds: readonly number[]; readonly neighborNodeIds: readonly number[] } {
+  const elementIds = new Set<number>();
+  const nodeIds = new Set<number>();
+  for (const geometry of part.geometries) {
+    if (geometry.primitive === "triangles") {
+      const adjacency = geometryAdjacency(geometry, nodeId);
+      for (const elementId of adjacency.neighborElementIds) elementIds.add(elementId);
+      for (const neighborNodeId of adjacency.neighborNodeIds) nodeIds.add(neighborNodeId);
+    }
+  }
+  return {
+    neighborElementIds: Array.from(elementIds).sort((a, b) => a - b),
+    neighborNodeIds: Array.from(nodeIds).sort((a, b) => a - b),
+  };
+}
+
 /** Returns the local position of a model node, or the origin when unknown. */
-function nodePosition(geometry: Geometry, nodeId: number): Vec3 {
+function nodePosition(positions: Float32Array | undefined, nodeId: number): Vec3 {
   const offset = nodeId * 3;
-  const positions = geometry.nodePositions;
   if (positions === undefined) {
     return [0, 0, 0];
   }

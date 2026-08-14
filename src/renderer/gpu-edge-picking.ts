@@ -11,6 +11,7 @@ import type { FrameOptions } from "./gpu-frame";
 import { pickWorldPosition, readEdgePickPixel, readPickPixel } from "./gpu-pick";
 import { pickEdgeTargetsFromRegion } from "./gpu-pick-region";
 import type { GpuValidationOptions } from "./gpu-validation";
+import { getPartResource } from "./gpu-draw";
 
 export interface EdgePickState {
   snapshotValid: boolean;
@@ -121,5 +122,7 @@ function edgeKeyForPickId(
   if (edgePickId <= 0) return undefined;
   const instance = context.instances[instancePickId - 1];
   if (instance === undefined) return undefined;
-  return context.frame().draw.parts.get(instance.partId)?.edgePick?.edgeKeys[edgePickId - 1];
+  return getPartResource(context.frame().draw, instance.partId, "triangles")?.edgePick?.edgeKeys[
+    edgePickId - 1
+  ];
 }

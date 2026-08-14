@@ -56,9 +56,11 @@ export interface Bounds {
  */
 export interface ElementTessellation {
   readonly id: ElementId;
-  /** First logical primitive of this element. */
+  /** Every topology-local primitive range owned by this semantic element. */
+  readonly primitiveRanges?: readonly ElementPrimitiveRange[];
+  /** Transitional single-range view while consumers migrate. */
   readonly primitiveStart: number;
-  /** Number of logical primitives owned by this element. */
+  /** Transitional single-range view while consumers migrate. */
   readonly primitiveCount: number;
   /** Original FE shape, when the source model retained typed shape metadata. */
   readonly shape?: ElementShape;
@@ -66,6 +68,16 @@ export interface ElementTessellation {
   readonly bodyId?: BodyId;
   /** Optional semantic element block owning this element. */
   readonly blockId?: ElementBlockId;
+}
+
+/**
+ * One topology-local primitive range owned by an element.
+ * @category Scene and geometry
+ */
+export interface ElementPrimitiveRange {
+  readonly primitive: Primitive;
+  readonly primitiveStart: number;
+  readonly primitiveCount: number;
 }
 
 /**
@@ -129,8 +141,10 @@ interface GeometryBase {
    */
   readonly positions: Float32Array;
   readonly indices: Uint32Array;
-  /** Optional element tessellations covering the logical primitives. */
+  /** Transitional metadata view while Part consumers migrate. */
   readonly elements?: readonly ElementTessellation[];
+  readonly bodies?: readonly GeometryBody[];
+  readonly blocks?: readonly GeometryElementBlock[];
   /** Optional stable authored FE edges; absent for generic display geometry. */
   readonly edges?: readonly GeometryEdge[];
   /**
@@ -145,11 +159,6 @@ interface GeometryBase {
    * node), used to resolve node picks to local/world positions on the CPU.
    */
   readonly nodePositions?: Float32Array;
-  /** Optional logical bodies in ascending `id` order. */
-  /** Derived bodies; block-defined source bodies are flattened to elements. */
-  readonly bodies?: readonly GeometryBody[];
-  /** Derived semantic blocks, omitted on the blockless path. */
-  readonly blocks?: readonly GeometryElementBlock[];
 }
 
 /**
@@ -181,10 +190,8 @@ export interface PointGeometry extends GeometryBase {
 }
 
 /** CPU-side non-triangle geometry descriptors. */
-export type LinearGeometry = LineGeometry | PointGeometry;
-
 /**
  * CPU-side geometry descriptor; the renderer uploads this once.
  * @category Scene and geometry
  */
-export type Geometry = TriangleGeometry | LinearGeometry;
+export type Geometry = TriangleGeometry | LineGeometry | PointGeometry;

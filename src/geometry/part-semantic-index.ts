@@ -47,31 +47,29 @@ export function getPartSemanticIndex(part: Part): PartSemanticIndex {
 }
 
 function buildPartSemanticIndex(part: Part): PartSemanticIndex {
-  const { geometry } = part;
-  const elements = new Map((geometry.elements ?? []).map((element) => [element.id, element]));
-  const elementOrdinalById = new Map(
-    (geometry.elements ?? []).map((element, index) => [element.id, index + 1]),
-  );
-  const bodies = new Map((geometry.bodies ?? []).map((body) => [body.id, body]));
-  const blocks = new Map((geometry.blocks ?? []).map((block) => [block.id, block]));
+  const { elements: partElements = [], bodies: partBodies = [], blocks: partBlocks = [] } = part;
+  const elements = new Map(partElements.map((element) => [element.id, element]));
+  const elementOrdinalById = new Map(partElements.map((element, index) => [element.id, index + 1]));
+  const bodies = new Map(partBodies.map((body) => [body.id, body]));
+  const blocks = new Map(partBlocks.map((block) => [block.id, block]));
   const bodyByElement = new Map<ElementId, BodyId>();
   const blockByElement = new Map<ElementId, ElementBlockId>();
-  for (const element of geometry.elements ?? []) {
+  for (const element of partElements) {
     if (element.bodyId !== undefined) bodyByElement.set(element.id, element.bodyId);
     if (element.blockId !== undefined) blockByElement.set(element.id, element.blockId);
   }
-  for (const body of geometry.bodies ?? []) {
+  for (const body of partBodies) {
     for (const elementId of body.elementIds) {
       if (!bodyByElement.has(elementId)) bodyByElement.set(elementId, body.id);
     }
   }
-  for (const block of geometry.blocks ?? []) {
+  for (const block of partBlocks) {
     for (const elementId of block.elementIds) {
       if (!blockByElement.has(elementId)) blockByElement.set(elementId, block.id);
     }
   }
   const bodyByBlock = new Map<ElementBlockId, BodyId>();
-  for (const element of geometry.elements ?? []) {
+  for (const element of partElements) {
     const blockId = blockByElement.get(element.id);
     const bodyId = bodyByElement.get(element.id);
     if (blockId !== undefined && bodyId !== undefined && !bodyByBlock.has(blockId)) {
@@ -79,14 +77,15 @@ function buildPartSemanticIndex(part: Part): PartSemanticIndex {
     }
   }
   const faces = new Map<string, FaceMetadata>();
-  if (geometry.primitive === "triangles") {
-    for (const [faceId, face] of (geometry.faces ?? []).entries()) {
+  const triangleGeometry = part.geometries.find((geometry) => geometry.primitive === "triangles");
+  if (triangleGeometry?.primitive === "triangles") {
+    for (const [faceId, face] of (triangleGeometry.faces ?? []).entries()) {
       faces.set(faceKey(face.elementId, face.faceIndex), { face, faceId });
     }
   }
   const edges = new Map<string, EdgeMetadata>();
-  const authoredEdges = [...(geometry.edges ?? [])].sort((left, right) =>
-    compareEdgeNodeIds(left.nodeIds, right.nodeIds),
+  const authoredEdges = [...part.geometries.flatMap((geometry) => geometry.edges ?? [])].sort(
+    (left, right) => compareEdgeNodeIds(left.nodeIds, right.nodeIds),
   );
   for (const [edgePickId, edge] of authoredEdges.entries()) {
     edges.set(edge.key, { edge, edgePickId: edgePickId + 1 });
@@ -101,7 +100,7 @@ function buildPartSemanticIndex(part: Part): PartSemanticIndex {
     bodyByBlock,
     faces,
     edges,
-    nodeCount: Math.floor((geometry.nodePositions?.length ?? 0) / 3),
+    nodeCount: Math.floor((part.nodePositions?.length ?? 0) / 3),
   };
 }
 

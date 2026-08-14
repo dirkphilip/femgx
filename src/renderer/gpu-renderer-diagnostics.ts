@@ -5,7 +5,9 @@ import type { DrawResources } from "./gpu-draw";
 /** Returns the part ids with materialized optional edge geometry. */
 export function materializedEdgePartIds(draw: DrawResources): ReadonlySet<PartId> {
   return new Set(
-    [...draw.parts].flatMap(([partId, resource]) => (resource.edge === undefined ? [] : [partId])),
+    [...draw.primitiveParts].flatMap(([partId, resources]) =>
+      resources.get("triangles")?.edge === undefined ? [] : [partId],
+    ),
   );
 }
 

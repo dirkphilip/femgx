@@ -8,6 +8,7 @@ export type {
 export {
   GeometryValidationError,
   type Bounds,
+  type ElementPrimitiveRange,
   type ElementTessellation,
   type FaceTessellation,
   type FaceSubset,
@@ -49,6 +50,7 @@ export {
   type MergeElementBlocksInput,
 } from "./elements/model-edit";
 export {
+  elementPart,
   heterogeneousElementParts,
   HeterogeneousElementError,
   type HeterogeneousElementErrorCode,

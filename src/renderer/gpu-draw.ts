@@ -1,5 +1,5 @@
-import type { Part } from "../geometry/part";
-import type { PartId } from "../geometry/part";
+import type { Part, PartId } from "../geometry/part";
+import type { Geometry, Primitive } from "../geometry/part";
 import {
   destroyDeformationBuffer,
   destroyDeformationBuffers,
@@ -62,6 +62,8 @@ export interface DrawResources {
   readonly device: GPUDevice;
   readonly cost: GpuCostAccumulator;
   readonly parts: Map<PartId, PartResource>;
+  /** Per-primitive resources for parts that contain more than one topology. */
+  readonly primitiveParts: Map<PartId, Map<Primitive, PartResource>>;
   readonly nodeParts: Map<PartId, PartResource>;
   readonly storages: Map<PartId, InstanceStorage>;
   readonly deformations: Map<PartId, DeformationStorage>;
@@ -88,6 +90,7 @@ export function createDrawResources(
     device,
     cost,
     parts: new Map(),
+    primitiveParts: new Map(),
     nodeParts: new Map(),
     storages: new Map(),
     deformations: new Map(),
@@ -104,9 +107,9 @@ export function uploadNodePart(
 ): PartResource {
   const existing = draw.nodeParts.get(part.id);
   if (existing !== undefined) return existing;
-  const nodes = part.geometry.nodePositions ?? new Float32Array(0);
-  const spritePickIds = buildNodeSpritePickIds(part.geometry);
-  const nodeBodyData = buildNodeBodyOwnerData(part.geometry, spritePickIds);
+  const nodes = part.nodePositions ?? part.geometry.nodePositions ?? new Float32Array(0);
+  const spritePickIds = buildNodeSpritePickIds(part);
+  const nodeBodyData = buildNodeBodyOwnerData(part, spritePickIds);
   const { positions, ids, indices } = buildNodeSpriteBuffers(nodes, spritePickIds);
   const resultTail = createResultColorTail(ids, resultColors);
   const vertexWithResults = appendResultColorTail(positions, resultTail);
@@ -130,7 +133,7 @@ export function uploadNodePart(
     facePickIdsBuffer: createBuffer(
       draw.device,
       packTopologyData(
-        buildNodeBodyPickData(part.geometry, spritePickIds),
+        buildNodeBodyPickData(part, spritePickIds),
         nodeBodyData.bodyRanges,
         nodeBodyData.bodyIds,
         nodeBodyData.elementIds,
@@ -175,12 +178,23 @@ export function uploadPart(
   part: Part,
   resultColors?: Float32Array,
 ): PartResource {
-  const existing = draw.parts.get(part.id);
+  return uploadGeometryPart(draw, part, part.geometry, resultColors);
+}
+
+/** Uploads and caches one homogeneous primitive leaf of a semantic part. */
+export function uploadGeometryPart(
+  draw: DrawResources,
+  part: Part,
+  geometry: Geometry,
+  resultColors?: Float32Array,
+): PartResource {
+  const resources = draw.primitiveParts.get(part.id) ?? new Map<Primitive, PartResource>();
+  const existing = resources.get(geometry.primitive);
   if (existing !== undefined) return existing;
   const vertexData: SurfaceVertexData | PointVertexData =
-    part.geometry.primitive === "points"
-      ? expandPointGeometry(part.geometry)
-      : expandSurfaceGeometry(part.geometry);
+    geometry.primitive === "points"
+      ? expandPointGeometry(geometry)
+      : expandSurfaceGeometry(geometry);
   const resultTail = createResultColorTail(vertexData.nodePickIds, resultColors);
   const vertexWithResults = appendResultColorTail(vertexData.positions, resultTail);
   const vertexBuffer = createBuffer(
@@ -189,7 +203,7 @@ export function uploadPart(
     GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
   );
   const indexBuffer = createBuffer(draw.device, vertexData.indices, GPUBufferUsage.INDEX);
-  const geometryData = buildPartGeometryData(draw.device, part, vertexData, resultTail);
+  const geometryData = buildPartGeometryData(draw.device, part, geometry, vertexData, resultTail);
   const resource: PartResource = {
     vertexBuffer,
     indexBuffer,
@@ -210,23 +224,41 @@ export function uploadPart(
     ...geometryData.subsetBuffers,
     subsetIndexCount: geometryData.subsetIndices?.length ?? 0,
   };
-  draw.parts.set(part.id, resource);
+  resources.set(geometry.primitive, resource);
+  draw.primitiveParts.set(part.id, resources);
+  if (!draw.parts.has(part.id)) draw.parts.set(part.id, resource);
   return resource;
+}
+
+/** Returns a cached resource for one primitive leaf, when it has been uploaded. */
+export function getPartResource(
+  draw: DrawResources,
+  partId: PartId,
+  primitive?: Primitive,
+): PartResource | undefined {
+  if (primitive !== undefined) return draw.primitiveParts.get(partId)?.get(primitive);
+  return draw.parts.get(partId);
 }
 
 /** Materializes and caches a part's optional edge resource on first use. */
 export function ensureEdgeResources(
   draw: DrawResources,
   part: Part,
-  resource: PartResource,
+  geometryOrResource: Extract<Geometry, { primitive: "triangles" }> | PartResource,
+  resourceMaybe?: PartResource,
 ): NonNullable<PartResource["edge"]> | undefined {
-  if (part.geometry.primitive !== "triangles") return undefined;
+  const geometry = (resourceMaybe === undefined ? part.geometry : geometryOrResource) as Extract<
+    Geometry,
+    { primitive: "triangles" }
+  >;
+  const resource = resourceMaybe ?? (geometryOrResource as PartResource);
+  if (resourceMaybe === undefined && part.geometry.primitive !== "triangles") return undefined;
   if (resource.edge !== undefined) return resource.edge;
   const resultTail = createResultColorTail(
     new Uint32Array([resource.resultColorNodeCount - 1]),
     resource.resultColorsSource,
   );
-  const edge = buildPartEdgeResources(draw.device, part, resultTail);
+  const edge = buildPartEdgeResources(draw.device, geometry, resultTail);
   if (edge === undefined) return undefined;
   resource.edge = edge;
   resource.resultColorBuffers = [...resource.resultColorBuffers, edge.resultColorBinding];
@@ -237,10 +269,17 @@ export function ensureEdgeResources(
 export function ensureEdgePickResources(
   draw: DrawResources,
   part: Part,
-  resource: PartResource,
+  geometryOrResource: Extract<Geometry, { primitive: "triangles" }> | PartResource,
+  resourceMaybe?: PartResource,
 ): NonNullable<PartResource["edgePick"]> | undefined {
+  const geometry = (resourceMaybe === undefined ? part.geometry : geometryOrResource) as Extract<
+    Geometry,
+    { primitive: "triangles" }
+  >;
+  const resource = resourceMaybe ?? (geometryOrResource as PartResource);
+  if (resourceMaybe === undefined && part.geometry.primitive !== "triangles") return undefined;
   if (resource.edgePick !== undefined) return resource.edgePick;
-  const edgePick = buildPartEdgePickResources(draw.device, part);
+  const edgePick = buildPartEdgePickResources(draw.device, geometry);
   if (edgePick === undefined) return undefined;
   resource.edgePick = edgePick;
   return edgePick;
@@ -327,7 +366,17 @@ export function destroyInstanceResources(draw: DrawResources): void {
 
 /** Releases every part, storage, deformation, and depth resource owned by the draw path. */
 export function destroyDrawResources(draw: DrawResources): void {
-  for (const resource of draw.parts.values()) destroyPartResource(resource);
+  const destroyed = new Set<PartResource>();
+  for (const resources of draw.primitiveParts.values()) {
+    for (const resource of resources.values()) {
+      destroyPartResource(resource);
+      destroyed.add(resource);
+    }
+  }
+  for (const resource of draw.parts.values()) {
+    if (!destroyed.has(resource)) destroyPartResource(resource);
+  }
+  draw.primitiveParts.clear();
   for (const resource of draw.nodeParts.values()) destroyPartResource(resource);
   draw.parts.clear();
   draw.nodeParts.clear();
@@ -340,11 +389,15 @@ export function destroyDrawResources(draw: DrawResources): void {
 
 /** Releases all cached resources derived from one changed part definition. */
 export function destroyPartResources(draw: DrawResources, partId: PartId): void {
-  const resource = draw.parts.get(partId);
-  if (resource !== undefined) {
-    destroyPartResource(resource);
-    draw.parts.delete(partId);
+  const resources = draw.primitiveParts.get(partId);
+  if (resources !== undefined) {
+    for (const resource of resources.values()) destroyPartResource(resource);
+    draw.primitiveParts.delete(partId);
+  } else {
+    const resource = draw.parts.get(partId);
+    if (resource !== undefined) destroyPartResource(resource);
   }
+  draw.parts.delete(partId);
   const nodeResource = draw.nodeParts.get(partId);
   if (nodeResource !== undefined) {
     destroyPartResource(nodeResource);

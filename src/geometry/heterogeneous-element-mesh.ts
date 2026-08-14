@@ -125,6 +125,57 @@ export function heterogeneousElementParts(
   };
 }
 
+/**
+ * Builds one semantic part from a heterogeneous element model. Geometry remains
+ * homogeneous inside each leaf, while element ownership is shared at part level.
+ * @category Scene and geometry
+ */
+export function elementPart(
+  partId: PartId,
+  model: ElementModel,
+  options: TessellationOptions = {},
+): Part {
+  const groups = classifyElements(model);
+  const membership = elementModelMembership(model);
+  const geometries: (TriangleGeometry | LineGeometry | PointGeometry)[] = [];
+  if (groups.triangle.length > 0) {
+    geometries.push(
+      volumeGeometry({
+        model,
+        elements: groups.triangle,
+        faceSubset: options.faceSubset,
+        assignedBodies: membership.bodyByElement,
+        assignedBlocks: membership.blockByElement,
+      }),
+    );
+  }
+  if (groups.line.length > 0) {
+    geometries.push(
+      lineGeometry(model, groups.line, membership.bodyByElement, membership.blockByElement),
+    );
+  }
+  if (groups.point.length > 0) {
+    geometries.push(
+      pointGeometry(model, groups.point, membership.bodyByElement, membership.blockByElement),
+    );
+  }
+  const part = createPart(partId, geometries);
+  return {
+    ...part,
+    nodePositions: new Float32Array(model.nodes),
+    bodies: (model.bodies ?? []).map((body) => ({
+      id: body.id,
+      ...(body.name === undefined ? {} : { name: body.name }),
+      elementIds:
+        "elementIds" in body
+          ? body.elementIds
+          : body.blockIds.flatMap(
+              (blockId) => model.blocks?.find((block) => block.id === blockId)?.elementIds ?? [],
+            ),
+    })),
+  };
+}
+
 function classifyElements(model: ElementModel): ElementGroups {
   const triangle: Element[] = [];
   const line: Element[] = [];

@@ -38,35 +38,53 @@ export function validateElements(geometry: {
         `Element block id ${element.blockId} must be a finite integer in [1, ${MAX_ONE_BASED_ID}]`,
       );
     }
-    const range = primitiveRangeForElement(element);
-    if (range.count <= 0)
-      throw new Error(`Element ${element.id} has no ${primitiveLabel(primitive)}`);
     if (seenIds.has(element.id)) {
       throw new Error(`Duplicate element id ${element.id}`);
     }
     seenIds.add(element.id);
-    const end = range.start + range.count;
-    if (range.start < 0 || end > primitiveCount) {
-      throw new Error(
-        primitive === "triangles"
-          ? `Element ${element.id} is outside the index buffer`
-          : `Element ${element.id} is outside the primitive buffer`,
-      );
-    }
-    for (let primitiveIndex = range.start; primitiveIndex < end; primitiveIndex++) {
-      if (coverage[primitiveIndex] === 1) {
-        throw new Error(
-          `${primitiveLabel(primitive)} ${primitiveIndex} belongs to more than one element`,
-        );
-      }
-      coverage[primitiveIndex] = 1;
-    }
+    validateElementRanges(element, primitive, primitiveCount, coverage);
   }
   for (let primitiveIndex = 0; primitiveIndex < primitiveCount; primitiveIndex++) {
     if (coverage[primitiveIndex] === 0) {
       throw new Error(
         `${capitalize(primitiveLabel(primitive))} ${primitiveIndex} is not covered by any element`,
       );
+    }
+  }
+}
+
+function validateElementRanges(
+  element: ElementTessellation,
+  primitive: "triangles" | "lines" | "points",
+  primitiveCount: number,
+  coverage: Uint8Array,
+): void {
+  const ranges = element.primitiveRanges?.filter(
+    (candidate) => candidate.primitive === primitive,
+  ) ?? [{ primitiveStart: element.primitiveStart, primitiveCount: element.primitiveCount }];
+  if (element.primitiveRanges?.some((candidate) => candidate.primitive !== primitive)) {
+    throw new Error(`Element ${element.id} declares a range for another primitive group`);
+  }
+  if (ranges.length === 0)
+    throw new Error(`Element ${element.id} has no ${primitiveLabel(primitive)}`);
+  for (const range of ranges) {
+    if (range.primitiveCount <= 0)
+      throw new Error(`Element ${element.id} has no ${primitiveLabel(primitive)}`);
+    const end = range.primitiveStart + range.primitiveCount;
+    if (range.primitiveStart < 0 || end > primitiveCount) {
+      throw new Error(
+        primitive === "triangles"
+          ? `Element ${element.id} is outside the index buffer`
+          : `Element ${element.id} is outside the primitive buffer`,
+      );
+    }
+    for (let primitiveIndex = range.primitiveStart; primitiveIndex < end; primitiveIndex++) {
+      if (coverage[primitiveIndex] === 1) {
+        throw new Error(
+          `${primitiveLabel(primitive)} ${primitiveIndex} belongs to more than one element`,
+        );
+      }
+      coverage[primitiveIndex] = 1;
     }
   }
 }
