@@ -5,7 +5,10 @@ import { viewProjectionMatrix, type Camera } from "./camera";
 /** A point in homogeneous clip space: x, y, z, w. */
 type ClipPoint = readonly [number, number, number, number];
 
-/** A projected screen point: pixel x, pixel y, and NDC depth in `[0, 1]`. */
+/**
+ * A projected screen point: pixel x, pixel y, and NDC depth in `[0, 1]`.
+ * @category Camera and math
+ */
 export type ScreenPoint = readonly [number, number, number];
 
 /**
@@ -27,6 +30,7 @@ const CLIP_PLANES: readonly (readonly [number, number, number, number])[] = [
  * WebGPU clip volume first so faces that straddle the camera plane still
  * render instead of being dropped whole. Returns an empty list when no part of
  * the polygon remains visible.
+ * @category Camera and math
  */
 export function projectPolygon(camera: Camera, points: readonly Vec3[]): readonly ScreenPoint[] {
   if (points.length === 0) return [];

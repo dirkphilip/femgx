@@ -5,7 +5,10 @@ import type { AssemblyId, AssemblyNodeId, InstanceId } from "../scene/types";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "./runtime";
 import { invariantValue } from "./invariants";
 
-/** A stable, query-only description of one placed part. */
+/**
+ * A stable, query-only description of one placed part.
+ * @category Advanced runtime and WebGPU platform
+ */
 export interface RuntimeInstance {
   readonly instanceId: InstanceId;
   readonly partId: PartId;
@@ -16,7 +19,10 @@ export interface RuntimeInstance {
   readonly transform: Mat4;
 }
 
-/** A stable, query-only description of one expanded assembly occurrence. */
+/**
+ * A stable, query-only description of one expanded assembly occurrence.
+ * @category Advanced runtime and WebGPU platform
+ */
 export interface RuntimeNode {
   readonly nodeId: AssemblyNodeId;
   readonly assemblyId: AssemblyId;
@@ -27,7 +33,10 @@ export interface RuntimeNode {
   readonly effectiveVisible: boolean;
 }
 
-/** Public scene-runtime queries expressed only in stable handles. */
+/**
+ * Public scene-runtime queries expressed only in stable handles.
+ * @category Advanced runtime and WebGPU platform
+ */
 export interface SceneRuntime {
   readonly rootAssemblyId: AssemblyId;
   readonly nodeCount: number;
@@ -171,7 +180,10 @@ export function createPublicSceneRuntime(packed: PackedSceneRuntime): SceneRunti
   return new PublicSceneRuntime(packed);
 }
 
-/** Compiles a scene into a stable-handle runtime for package consumers. */
+/**
+ * Compiles a scene into a stable-handle runtime for package consumers.
+ * @category Advanced runtime and WebGPU platform
+ */
 export function createSceneRuntime(scene: Scene): SceneRuntime {
   return createPublicSceneRuntime(createPackedSceneRuntime(scene));
 }

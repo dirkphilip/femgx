@@ -1,10 +1,16 @@
 import { multiply, transformPoint4, type Mat4 } from "../math/mat4";
 import { add, cross, dot, length, normalize, scale, subtract, type Vec3 } from "../math/vec3";
 
-/** Supported camera projection modes. */
+/**
+ * Supported camera projection modes.
+ * @category Camera and math
+ */
 export type ProjectionMode = "perspective" | "orthographic";
 
-/** Immutable orbit camera state. */
+/**
+ * Immutable orbit camera state.
+ * @category Camera and math
+ */
 export interface Camera {
   readonly mode: ProjectionMode;
   readonly position: Vec3;
@@ -61,7 +67,10 @@ export function assertValidCamera(camera: Camera): void {
   }
 }
 
-/** Creates an orthographic camera by default; pass `mode: "perspective"` to opt into perspective. */
+/**
+ * Creates an orthographic camera by default; pass `mode: "perspective"` to opt into perspective.
+ * @category Camera and math
+ */
 export function createCamera(options: Partial<Camera> = {}): Camera {
   const camera = {
     mode: options.mode ?? "orthographic",
@@ -79,14 +88,20 @@ export function createCamera(options: Partial<Camera> = {}): Camera {
   return camera;
 }
 
-/** Returns a copy resized to finite viewport dimensions; small sizes normalize to 1. */
+/**
+ * Returns a copy resized to finite viewport dimensions; small sizes normalize to 1.
+ * @category Camera and math
+ */
 export function resizeCamera(camera: Camera, width: number, height: number): Camera {
   assertFiniteNumber("width", width);
   assertFiniteNumber("height", height);
   return { ...camera, width: Math.max(1, width), height: Math.max(1, height) };
 }
 
-/** Changes projection mode while keeping the current vertical framing. */
+/**
+ * Changes projection mode while keeping the current vertical framing.
+ * @category Camera and math
+ */
 export function setProjection(camera: Camera, mode: ProjectionMode): Camera {
   assertProjectionMode(mode);
   if (camera.mode === mode) return camera;
@@ -111,6 +126,7 @@ export function setProjection(camera: Camera, mode: ProjectionMode): Camera {
  * Orbits in radians around the target, or around an explicit world-space
  * pivot. The complete camera frame rotates together, including `up`, so
  * pitch remains continuous through both poles and full revolutions.
+ * @category Camera and math
  */
 export function orbitCamera(
   camera: Camera,
@@ -125,7 +141,10 @@ export function orbitCamera(
   return orbitAroundPivot(camera, yawDelta, pitchDelta, pivot ?? camera.target);
 }
 
-/** Pans the camera in view-plane world units. */
+/**
+ * Pans the camera in view-plane world units.
+ * @category Camera and math
+ */
 export function panCamera(camera: Camera, horizontal: number, vertical: number): Camera {
   assertFiniteNumber("pan horizontal", horizontal);
   assertFiniteNumber("pan vertical", vertical);
@@ -136,7 +155,10 @@ export function panCamera(camera: Camera, horizontal: number, vertical: number):
   return { ...camera, position: add(camera.position, delta), target: add(camera.target, delta) };
 }
 
-/** Zooms toward the target while preserving the configured clip planes. */
+/**
+ * Zooms toward the target while preserving the configured clip planes.
+ * @category Camera and math
+ */
 export function zoomCamera(camera: Camera, amount: number): Camera {
   assertFiniteNumber("zoom amount", amount);
   if (camera.mode === "orthographic") {
@@ -153,7 +175,10 @@ export function zoomCamera(camera: Camera, amount: number): Camera {
   };
 }
 
-/** Zooms around a world-space point while keeping that point under the cursor. */
+/**
+ * Zooms around a world-space point while keeping that point under the cursor.
+ * @category Camera and math
+ */
 export function zoomCameraAtPoint(camera: Camera, amount: number, pivot: Vec3): Camera {
   assertFiniteNumber("zoom amount", amount);
   assertFiniteVector("zoom pivot", pivot);
@@ -178,7 +203,10 @@ export function zoomCameraAtPoint(camera: Camera, amount: number, pivot: Vec3): 
   };
 }
 
-/** Returns the column-major view matrix. */
+/**
+ * Returns the column-major view matrix.
+ * @category Camera and math
+ */
 export function viewMatrix(camera: Camera): Mat4 {
   const forward = normalize(subtract(camera.target, camera.position));
   const right = normalize(cross(forward, camera.up));
@@ -208,6 +236,7 @@ export function viewMatrix(camera: Camera): Mat4 {
  * Assumes a right-handed view space with a -Z forward axis. Depth maps to
  * `[0, 1]` to match the WebGPU clip-space convention: a point at the near
  * plane gets `clip.z = 0` and a point at the far plane gets `clip.z = w`.
+ * @category Camera and math
  */
 export function projectionMatrix(camera: Camera): Mat4 {
   const aspect = camera.width / camera.height;
@@ -254,7 +283,10 @@ export function projectionMatrix(camera: Camera): Mat4 {
   ]);
 }
 
-/** Returns the matrix that maps world coordinates to clip coordinates. */
+/**
+ * Returns the matrix that maps world coordinates to clip coordinates.
+ * @category Camera and math
+ */
 export function viewProjectionMatrix(camera: Camera): Mat4 {
   return multiply(projectionMatrix(camera), viewMatrix(camera));
 }
@@ -263,6 +295,7 @@ export function viewProjectionMatrix(camera: Camera): Mat4 {
  * Projects a world point into pixel coordinates, or returns undefined if the
  * point is at or behind the camera. The third component is the NDC depth, in
  * the `[0, 1]` convention used by the projection matrix.
+ * @category Camera and math
  */
 export function projectPoint(
   camera: Camera,
@@ -281,6 +314,7 @@ export function projectPoint(
  * Unprojects a camera-pixel position and WebGPU NDC depth into world space.
  * `point[0..1]` use the camera's top-left pixel coordinates and `point[2]`
  * uses WebGPU's `[0, 1]` depth convention.
+ * @category Camera and math
  */
 export function unprojectPoint(camera: Camera, point: Vec3): Vec3 {
   const ndcX = (point[0] / camera.width) * 2 - 1;

@@ -1,18 +1,25 @@
 import { topologyFor, type ElementShape } from "./shapes";
 
-/** A globally stable identifier for an element within a model. */
+/**
+ * A globally stable identifier for an element within a model.
+ * @category Elements and model editing
+ */
 export type ElementId = number;
 
 /** Largest element id that can be encoded as the one-based GPU pick id. */
 const MAX_ELEMENT_ID = 0xffff_fffe;
 
-/** A globally stable identifier for a node within a model. */
+/**
+ * A globally stable identifier for a node within a model.
+ * @category Elements and model editing
+ */
 export type NodeId = number;
 
 /**
  * A typed finite element: a stable id, an explicit shape, and the ids of the
  * nodes it connects. `nodeIds` follow the canonical ordering for `shape`
  * (see `topologyFor` in `./shapes`).
+ * @category Elements and model editing
  */
 export interface Element {
   readonly id: ElementId;
@@ -26,6 +33,7 @@ export interface Element {
  * Validates that the shape is supported, that the connectivity matches the
  * shape's node count, that node ids are non-negative integers, and that no node
  * is referenced twice. Returns a new element that owns a copy of `nodeIds`.
+ * @category Elements and model editing
  */
 export function createElement(
   id: ElementId,

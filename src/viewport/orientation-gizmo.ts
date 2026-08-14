@@ -5,7 +5,10 @@ import {
   updateOrientationGizmoElements,
 } from "./orientation-gizmo-svg";
 
-/** Host element that receives femgx's interactive view cube. */
+/**
+ * Host element that receives femgx's interactive view cube.
+ * @category Viewport lifecycle
+ */
 export interface OrientationGizmoOptions {
   readonly container: HTMLElement;
 }

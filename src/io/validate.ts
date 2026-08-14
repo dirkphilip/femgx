@@ -7,6 +7,7 @@ import type { FemModel, ModelElementShapeBlock, ModelSet, ModelResultField } fro
  * Validates an interchange model and returns typed diagnostics. Checks cover
  * node/element id uniqueness, connectivity against the node table, set
  * references, and result field shapes. Issues are reported, never thrown.
+ * @category Import and export
  */
 export function validateModel(model: FemModel): readonly Issue[] {
   const issues: Issue[] = [];

@@ -4,16 +4,28 @@ import type { Mat4 } from "../math/mat4";
 
 export type { ElementId } from "../elements/element";
 
-/** A globally stable identifier for an assembly within a scene. */
+/**
+ * A globally stable identifier for an assembly within a scene.
+ * @category Scene and geometry
+ */
 export type AssemblyId = number;
 
-/** Stable identity of a placement in an assembly tree. */
+/**
+ * Stable identity of a placement in an assembly tree.
+ * @category Scene and geometry
+ */
 export type InstanceId = string;
 
-/** Stable identity of one expanded assembly occurrence in a scene runtime. */
+/**
+ * Stable identity of one expanded assembly occurrence in a scene runtime.
+ * @category Scene and geometry
+ */
 export type AssemblyNodeId = string;
 
-/** Stable identity of one element occurrence (an element placed in the scene). */
+/**
+ * Stable identity of one element occurrence (an element placed in the scene).
+ * @category Scene and geometry
+ */
 export interface ElementRef {
   /** The placement whose geometry contains the element. */
   readonly instanceId: InstanceId;
@@ -24,6 +36,7 @@ export interface ElementRef {
 /**
  * A single placement of a part in the world, produced by flattening an
  * assembly tree. Instances are the unit of GPU instancing and picking.
+ * @category Scene and geometry
  */
 export interface Instance {
   /** Index into the current visible draw list; it may change after culling. */

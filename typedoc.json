@@ -1,6 +1,18 @@
 {
   "$schema": "https://typedoc.org/schema.json",
   "entryPoints": ["src/index.ts"],
+  "categorizeByGroup": false,
+  "categoryOrder": [
+    "Start here",
+    "Scene and geometry",
+    "Elements and model editing",
+    "Viewport lifecycle",
+    "Interaction and picking",
+    "Results",
+    "Import and export",
+    "Camera and math",
+    "Advanced runtime and WebGPU platform"
+  ],
   "excludeInternal": true,
   "excludePrivate": true,
   "includeVersion": true,
@@ -8,6 +20,12 @@
     "Demo": "../"
   },
   "name": "femgx API reference · experimental 0.x",
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": false,
+    "includeFolders": true,
+    "compactFolders": true
+  },
   "out": "dist-demo/api",
   "readme": "docs/api-reference.md"
 }

@@ -1,16 +1,25 @@
-/** A point measured from the canvas's CSS content-box origin. */
+/**
+ * A point measured from the canvas's CSS content-box origin.
+ * @category Camera and math
+ */
 export interface CanvasCssPoint {
   readonly x: number;
   readonly y: number;
 }
 
-/** An integer pixel in the canvas render target. */
+/**
+ * An integer pixel in the canvas render target.
+ * @category Camera and math
+ */
 export interface RenderPixel {
   readonly x: number;
   readonly y: number;
 }
 
-/** Converts browser client coordinates to canvas-local CSS coordinates. */
+/**
+ * Converts browser client coordinates to canvas-local CSS coordinates.
+ * @category Camera and math
+ */
 export function clientToCanvasCss(
   clientX: number,
   clientY: number,
@@ -23,6 +32,7 @@ export function clientToCanvasCss(
  * Maps a canvas-local CSS point to the corresponding clamped render-target
  * pixel. CSS size and backing-store size are explicit so scaled canvases and
  * non-integer device pixel ratios follow the same path as GPU picking.
+ * @category Camera and math
  */
 export function canvasCssToRenderPixel(
   point: CanvasCssPoint,

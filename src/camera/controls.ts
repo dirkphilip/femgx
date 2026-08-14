@@ -5,18 +5,27 @@ import { boundsCenter, orbitCameraWithOptionalBounds, zoomCameraWithinBounds } f
 import type { Bounds } from "../geometry/part";
 import { length, subtract, type Vec3 } from "../math/vec3";
 
-/** Mutable camera holder replaced by the immutable camera operations. */
+/**
+ * Mutable camera holder replaced by the immutable camera operations.
+ * @category Camera and math
+ */
 export interface CameraRef {
   camera: Camera;
 }
 
-/** Renderer capabilities required by the opinionated camera interaction. */
+/**
+ * Renderer capabilities required by the opinionated camera interaction.
+ * @category Camera and math
+ */
 export interface CameraNavigationTarget {
   pickPoint(camera: Camera, x: number, y: number): Promise<Vec3 | undefined>;
   setOrbitPivot(pivot: Vec3 | undefined): void;
 }
 
-/** Options for installing the library's pointer-driven camera behavior. */
+/**
+ * Options for installing the library's pointer-driven camera behavior.
+ * @category Camera and math
+ */
 export interface CameraControlOptions {
   readonly canvas: HTMLCanvasElement;
   readonly cameraRef: CameraRef;
@@ -42,6 +51,7 @@ const ZOOM_DRAG_SCALE = 300;
  * back to the model-bounds center only when the pick misses or fails. The pivot
  * stays fixed for the gesture. Ctrl/Meta+middle pans, Shift+middle zooms, and
  * touch provides orbit/pan/pinch gestures.
+ * @category Camera and math
  */
 export function installCameraControls(options: CameraControlOptions): () => void {
   const controls = new CameraControls(options);

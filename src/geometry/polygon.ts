@@ -20,7 +20,10 @@ import {
   type PolygonValidationCode,
 } from "./polygon-triangulation";
 
-/** One ordered polygon loop and the element identity that owns its face. */
+/**
+ * One ordered polygon loop and the element identity that owns its face.
+ * @category Scene and geometry
+ */
 export interface PolygonFaceInput {
   readonly nodeIds: readonly NodeId[];
   readonly elementId: ElementId;
@@ -32,7 +35,10 @@ export interface PolygonFaceInput {
   readonly neighborElementIds?: readonly ElementId[];
 }
 
-/** Geometry-owned input for deterministic polygon-to-triangle tessellation. */
+/**
+ * Geometry-owned input for deterministic polygon-to-triangle tessellation.
+ * @category Scene and geometry
+ */
 export interface PolygonGeometryInput {
   /** Flat xyz coordinates indexed by the node ids in `faces`. */
   readonly positions: ArrayLike<number>;
@@ -63,7 +69,10 @@ interface ElementGroup {
   readonly faces: PolygonRecord[];
 }
 
-/** Builds reusable indexed triangle geometry from authored polygon loops. */
+/**
+ * Builds reusable indexed triangle geometry from authored polygon loops.
+ * @category Scene and geometry
+ */
 export function polygonGeometry(input: PolygonGeometryInput): TriangleGeometry {
   const positions = copyPositions(input.positions);
   const nextFaceIndices = new Map<ElementId, number>();
@@ -119,7 +128,10 @@ export function polygonGeometry(input: PolygonGeometryInput): TriangleGeometry {
   return result;
 }
 
-/** Builds a reusable part from polygon input, including finite bounds. */
+/**
+ * Builds a reusable part from polygon input, including finite bounds.
+ * @category Scene and geometry
+ */
 export function polygonPart(partId: PartId, input: PolygonGeometryInput): Part {
   const geometry = polygonGeometry(input);
   return createPart(partId, geometry);

@@ -25,6 +25,7 @@ const KHR_DRACO_MESH_COMPRESSION = "KHR_draco_mesh_compression";
  * synthetic root assembly; each reachable node becomes a named assembly and
  * each supported mesh primitive becomes one reusable Part. glTF coordinates
  * are preserved numerically; no unit conversion is applied.
+ * @category Import and export
  */
 export async function importGlb(
   source: ArrayBuffer | Uint8Array,

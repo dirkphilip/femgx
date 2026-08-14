@@ -1,6 +1,9 @@
 import { clientToCanvasCss, type CanvasCssPoint } from "../camera/coordinates";
 
-/** A normalized screen-space rectangle in canvas-local CSS pixels. */
+/**
+ * A normalized screen-space rectangle in canvas-local CSS pixels.
+ * @category Interaction and picking
+ */
 export interface BoxSelectionRect {
   readonly left: number;
   readonly top: number;
@@ -10,7 +13,10 @@ export interface BoxSelectionRect {
   readonly height: number;
 }
 
-/** Modifier keys captured from the pointer that drives the gesture. */
+/**
+ * Modifier keys captured from the pointer that drives the gesture.
+ * @category Interaction and picking
+ */
 export interface BoxSelectionModifiers {
   readonly shift: boolean;
   readonly control: boolean;
@@ -18,11 +24,17 @@ export interface BoxSelectionModifiers {
   readonly meta: boolean;
 }
 
-/** Why an active box selection ended without completing. */
+/**
+ * Why an active box selection ended without completing.
+ * @category Interaction and picking
+ */
 export type BoxSelectionCancelReason =
   "pointer-cancel" | "lost-pointer-capture" | "escape" | "dispose";
 
-/** Lifecycle events emitted while one primary-pointer drag defines a box. */
+/**
+ * Lifecycle events emitted while one primary-pointer drag defines a box.
+ * @category Interaction and picking
+ */
 export type BoxSelectionEvent =
   | {
       readonly type: "start" | "change" | "complete";
@@ -37,7 +49,10 @@ export type BoxSelectionEvent =
       readonly reason: BoxSelectionCancelReason;
     };
 
-/** Options for installing the primary-pointer box-drag lifecycle. */
+/**
+ * Options for installing the primary-pointer box-drag lifecycle.
+ * @category Interaction and picking
+ */
 export interface BoxSelectionOptions {
   readonly canvas: HTMLCanvasElement;
   readonly onEvent: (event: BoxSelectionEvent) => void;
@@ -56,6 +71,7 @@ interface BoxDrag {
  * Installs the box-drag lifecycle and returns its disposer. A primary mouse or
  * pen drag arms on pointer-down, activates past 10 CSS pixels, and then emits
  * typed start/change/complete/cancel events in canvas-local CSS coordinates.
+ * @category Interaction and picking
  */
 export function installBoxSelection(options: BoxSelectionOptions): () => void {
   const boxSelection = new BoxSelection(options);

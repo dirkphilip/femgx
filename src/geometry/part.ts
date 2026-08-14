@@ -18,7 +18,10 @@ export type {
 } from "./types";
 export type { BodyId, ElementBlockId } from "../elements/model";
 
-/** A globally stable identifier for a reusable part within a scene. */
+/**
+ * A globally stable identifier for a reusable part within a scene.
+ * @category Scene and geometry
+ */
 export type PartId = number;
 
 export { MAX_PART_ID, validatePartId } from "./id-validation";
@@ -26,6 +29,7 @@ export { MAX_PART_ID, validatePartId } from "./id-validation";
 /**
  * Reusable, immutable drawable geometry. Parts never own world transforms;
  * they are shared and instanced many times by assemblies.
+ * @category Start here
  */
 export interface Part {
   readonly [partBrand]: true;
@@ -42,6 +46,7 @@ const partBrand: unique symbol = Symbol("Part");
  * them; callers must not mutate or reuse those arrays after this call. Bounds
  * are always derived from the supplied geometry, including the finite zero box
  * for an empty part, so callers cannot provide stale bounds.
+ * @category Start here
  */
 export function createPart<T extends Geometry>(
   id: PartId,

@@ -4,11 +4,17 @@ import type { BodyId, ElementBlockId, PartId } from "../geometry/part";
 import type { Vec3 } from "../math/vec3";
 import type { InstanceId } from "../scene/types";
 
-/** A selection granularity that a host may derive from a physical hit. */
+/**
+ * A selection granularity that a host may derive from a physical hit.
+ * @category Interaction and picking
+ */
 export type InteractionGranularity =
   "part" | "instance" | "body" | "block" | "element" | "face" | "node";
 
-/** The most-specific resolved face hit with renderer-independent data. */
+/**
+ * The most-specific resolved face hit with renderer-independent data.
+ * @category Interaction and picking
+ */
 export interface FacePickHit {
   readonly kind: "face";
   readonly partId: PartId;
@@ -31,7 +37,10 @@ export interface FacePickHit {
   readonly normal: Vec3;
 }
 
-/** The most-specific resolved node hit with renderer-independent data. */
+/**
+ * The most-specific resolved node hit with renderer-independent data.
+ * @category Interaction and picking
+ */
 export interface NodePickHit {
   readonly kind: "node";
   readonly partId: PartId;
@@ -51,7 +60,10 @@ export interface NodePickHit {
   readonly neighborNodeIds: readonly NodeId[];
 }
 
-/** A physical hit reported by the GPU picking pass. */
+/**
+ * A physical hit reported by the GPU picking pass.
+ * @category Interaction and picking
+ */
 export type PickHit =
   | {
       readonly kind: "instance";

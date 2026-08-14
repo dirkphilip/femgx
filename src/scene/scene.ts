@@ -11,6 +11,7 @@ import type { AssemblyId } from "./types";
 /**
  * The authoritative CPU-side scene: parts, assemblies, and their visibility.
  * Renderers sync deltas from this model; all updates are immutable.
+ * @category Start here
  */
 export interface Scene {
   readonly rootAssemblyId: AssemblyId;
@@ -20,6 +21,7 @@ export interface Scene {
   readonly visibleAssemblyIds: ReadonlySet<AssemblyId>;
 }
 
+/** @category Scene and geometry */
 export interface SceneBuilder {
   withRoot(rootAssemblyId: AssemblyId): SceneBuilder;
   addPart(part: Part): SceneBuilder;
@@ -286,7 +288,10 @@ function validateAcyclic(assemblies: ReadonlyMap<AssemblyId, Assembly>): void {
   }
 }
 
-/** Creates an empty scene builder. */
+/**
+ * Creates an empty scene builder.
+ * @category Start here
+ */
 export function createScene(): SceneBuilder {
   return createBuilder({
     parts: new Map(),

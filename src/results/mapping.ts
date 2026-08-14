@@ -1,6 +1,9 @@
 import type { Color } from "../interaction/interaction";
 
-/** A gradient anchor: a color at a normalized offset within a value range. */
+/**
+ * A gradient anchor: a color at a normalized offset within a value range.
+ * @category Results
+ */
 export interface ColorStop {
   /** Normalized position within `[0, 1]` of the map range. */
   readonly offset: number;
@@ -11,6 +14,7 @@ export interface ColorStop {
  * A scalar-to-color map over a fixed range. Values below `min` clamp to the
  * first stop color and values above `max` to the last (clipping); `NaN` maps
  * to `missingColor`; values between bands map through the continuous ramp.
+ * @category Results
  */
 export interface ScalarColorMap {
   readonly min: number;
@@ -23,7 +27,10 @@ export interface ScalarColorMap {
   readonly thresholds: readonly number[] | undefined;
 }
 
-/** Inputs for {@link createScalarColorMap}. */
+/**
+ * Inputs for {@link createScalarColorMap}.
+ * @category Results
+ */
 export interface ScalarColorMapOptions {
   readonly min: number;
   readonly max: number;
@@ -45,7 +52,10 @@ const DEFAULT_STOPS: readonly ColorStop[] = [
 
 const DEFAULT_MISSING: Color = { r: 0.55, g: 0.55, b: 0.55, a: 1 };
 
-/** Creates a scalar color map after validating the range and thresholds. */
+/**
+ * Creates a scalar color map after validating the range and thresholds.
+ * @category Results
+ */
 export function createScalarColorMap(options: ScalarColorMapOptions): ScalarColorMap {
   validateRange(options.min, options.max);
   const stops = sortStops(options.stops ?? DEFAULT_STOPS);
@@ -68,6 +78,7 @@ export function createScalarColorMap(options: ScalarColorMapOptions): ScalarColo
  * Maps a scalar value to a color: clips out-of-range values to the nearest
  * stop, interpolates between stops (or returns the band color when the map is
  * thresholded), and returns `missingColor` for `NaN`.
+ * @category Results
  */
 export function mapScalar(map: ScalarColorMap, value: number): Color {
   if (!Number.isFinite(value)) return map.missingColor;

@@ -5,7 +5,10 @@ import type { BodyId, PartId } from "../geometry/part";
 import type { InteractionTarget } from "./target-types";
 import type { FaceRef } from "./refs";
 
-/** RGBA color with normalized channels. */
+/**
+ * RGBA color with normalized channels.
+ * @category Interaction and picking
+ */
 export interface Color {
   readonly r: number;
   readonly g: number;
@@ -13,7 +16,10 @@ export interface Color {
   readonly a: number;
 }
 
-/** Partial per-instance style written into the GPU instance buffer. */
+/**
+ * Partial per-instance style written into the GPU instance buffer.
+ * @category Interaction and picking
+ */
 export interface StyleOverride {
   readonly color?: Color;
   /** Normalized emissive boost in the supported range `[0, 1]`. */
@@ -27,7 +33,10 @@ export interface StyleOverride {
   readonly nodes?: boolean;
 }
 
-/** Style fields supported by body, element, and interaction-theme layers. */
+/**
+ * Style fields supported by body, element, and interaction-theme layers.
+ * @category Interaction and picking
+ */
 export type PrimitiveStyleOverride = Omit<StyleOverride, "edge" | "nodes" | "lineWidthPixels">;
 
 /** Validates a public style override without normalizing caller-owned values. */
@@ -73,7 +82,10 @@ function validateLineWidth(value: number): void {
   }
 }
 
-/** Complete style consumed by a renderer. */
+/**
+ * Complete style consumed by a renderer.
+ * @category Interaction and picking
+ */
 export interface ResolvedStyle {
   readonly color: Color;
   readonly emissive: number;
@@ -86,7 +98,10 @@ export interface ResolvedStyle {
   readonly nodes: boolean;
 }
 
-/** Visual defaults for interaction states. */
+/**
+ * Visual defaults for interaction states.
+ * @category Interaction and picking
+ */
 export interface InteractionTheme {
   readonly highlighted: PrimitiveStyleOverride;
   readonly selected: PrimitiveStyleOverride;
@@ -99,6 +114,7 @@ export interface InteractionTheme {
 
 /** Opaque immutable interaction value exposed by the public API. */
 declare const interactionStateBrand: unique symbol;
+/** @category Interaction and picking */
 export interface InteractionState {
   readonly [interactionStateBrand]: "InteractionState";
 }
@@ -175,12 +191,18 @@ export function setHoveredTarget(
   return updateInteractionState(state, { hoveredTarget: target });
 }
 
-/** Tests whether the supplied target is currently hovered. */
+/**
+ * Tests whether the supplied target is currently hovered.
+ * @category Interaction and picking
+ */
 export function isHoveredTarget(state: InteractionState, target: InteractionTarget): boolean {
   return targetsEqual(readInteractionState(state).hoveredTarget, target);
 }
 
-/** Returns the current hovered target, if any. */
+/**
+ * Returns the current hovered target, if any.
+ * @category Interaction and picking
+ */
 export function hoveredTarget(state: InteractionState): InteractionTarget | undefined {
   return readInteractionState(state).hoveredTarget;
 }

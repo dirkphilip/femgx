@@ -26,6 +26,7 @@ interface PendingSet {
  * Chunked, incremental model accumulation. Parsers feed typed-array chunks of
  * nodes and elements into this builder so large models are never materialized
  * as arrays of JavaScript objects; `build()` returns a compact typed model.
+ * @category Import and export
  */
 export interface FemModelBuilder {
   /** Appends a chunk of nodes; `coordinates` must hold `3 * ids.length` values. */
@@ -162,7 +163,10 @@ class ModelBuilder implements FemModelBuilder {
   }
 }
 
-/** Creates an empty model builder for chunked accumulation. */
+/**
+ * Creates an empty model builder for chunked accumulation.
+ * @category Import and export
+ */
 export function createModelBuilder(): FemModelBuilder {
   return new ModelBuilder();
 }

@@ -29,6 +29,7 @@ interface WritePlan {
  * Writes an ASCII VTK legacy unstructured grid. VTK rows use implicit ids, so
  * authoritative model identities are remapped to deterministic point and cell
  * rows before any output is constructed.
+ * @category Import and export
  */
 export function writeVtk(model: FemModel): string {
   const plan = prepareWrite(model);

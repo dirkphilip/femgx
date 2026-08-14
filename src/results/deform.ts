@@ -5,6 +5,7 @@ import type { ResultField, VectorField } from "./fields";
 /**
  * CPU-side deformation data consumed by the viewport and renderer. Each
  * displacement array stores three floats per model node.
+ * @category Results
  */
 export interface DeformationState {
   /** Multiplier applied to the authored nodal displacement field. */
@@ -23,6 +24,7 @@ export interface DeformationState {
  * multiple output vertices, while node-less vertices remain fixed.
  * Vertices without a matching displacement, or whose displacement is missing
  * (`NaN`), keep their original position. `scale` multiplies the displacement only.
+ * @category Results
  */
 export function deformPositions(
   positions: Float32Array,
@@ -64,6 +66,7 @@ export function deformPositions(
  * per-vertex node map (`nodePickIds`) to resolve vertices back to their model
  * nodes, which `heterogeneousElementParts` provides for element-backed geometry. All other
  * geometry data (indices and any element tessellations) is preserved.
+ * @category Results
  */
 export function deformGeometry(
   geometry: Geometry,
@@ -91,6 +94,7 @@ export function deformGeometry(
  * count, or whose displacement is missing (`NaN`), keep a zero delta so the
  * vertex stays in place on the GPU. The returned array is what
  * `DeformationState.displacements` expects for one part.
+ * @category Results
  */
 export function nodalDisplacements(
   nodeCount: number,

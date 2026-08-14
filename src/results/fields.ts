@@ -1,10 +1,19 @@
-/** Where a result field stores its values: one per node or one per element. */
+/**
+ * Where a result field stores its values: one per node or one per element.
+ * @category Results
+ */
 export type FieldLocation = "nodal" | "elemental";
 
-/** The shape of a field's per-entity values. */
+/**
+ * The shape of a field's per-entity values.
+ * @category Results
+ */
 export type FieldShape = "scalar" | "vector";
 
-/** Number of scalar components each shape stores per entity. */
+/**
+ * Number of scalar components each shape stores per entity.
+ * @category Results
+ */
 export const FIELD_COMPONENT_COUNT: Readonly<Record<FieldShape, number>> = {
   scalar: 1,
   vector: 3,
@@ -26,6 +35,7 @@ export const FIELD_COMPONENT_COUNT: Readonly<Record<FieldShape, number>> = {
  *
  * `values` is referenced, not copied, so it stays cheap for large models.
  * Treat the returned field (and its array) as immutable after construction.
+ * @category Results
  */
 export interface ResultField<S extends FieldShape, L extends FieldLocation> {
   /** Stable, application-addressable identifier. */
@@ -42,16 +52,28 @@ export interface ResultField<S extends FieldShape, L extends FieldLocation> {
   readonly values: Float32Array;
 }
 
-/** A scalar field over nodes or elements. */
+/**
+ * A scalar field over nodes or elements.
+ * @category Results
+ */
 export type ScalarField<L extends FieldLocation> = ResultField<"scalar", L>;
 
-/** A three-component vector field over nodes or elements. */
+/**
+ * A three-component vector field over nodes or elements.
+ * @category Results
+ */
 export type VectorField<L extends FieldLocation> = ResultField<"vector", L>;
 
-/** Any scalar or vector field at either location. */
+/**
+ * Any scalar or vector field at either location.
+ * @category Results
+ */
 export type AnyResultField = ResultField<FieldShape, FieldLocation>;
 
-/** Inputs for {@link createResultField}. */
+/**
+ * Inputs for {@link createResultField}.
+ * @category Results
+ */
 export interface ResultFieldOptions<S extends FieldShape, L extends FieldLocation> {
   readonly id: string;
   readonly name: string;
@@ -65,6 +87,7 @@ export interface ResultFieldOptions<S extends FieldShape, L extends FieldLocatio
 /**
  * Creates a typed result field after validating the id, name, unit, entity
  * count, and value length. The value array is referenced, not copied.
+ * @category Results
  */
 export function createResultField<S extends FieldShape, L extends FieldLocation>(
   options: ResultFieldOptions<S, L>,
@@ -73,7 +96,10 @@ export function createResultField<S extends FieldShape, L extends FieldLocation>
   return { ...options };
 }
 
-/** Returns the scalar value of an entity, or `NaN` when it is missing. */
+/**
+ * Returns the scalar value of an entity, or `NaN` when it is missing.
+ * @category Results
+ */
 export function scalarAt<L extends FieldLocation>(
   field: ResultField<"scalar", L>,
   entity: number,
@@ -81,7 +107,10 @@ export function scalarAt<L extends FieldLocation>(
   return field.values[assertEntity(field, entity)] ?? NaN;
 }
 
-/** Returns the three vector components of an entity (may contain `NaN`). */
+/**
+ * Returns the three vector components of an entity (may contain `NaN`).
+ * @category Results
+ */
 export function vectorAt<L extends FieldLocation>(
   field: ResultField<"vector", L>,
   entity: number,

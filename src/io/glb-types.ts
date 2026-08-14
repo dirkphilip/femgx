@@ -3,13 +3,19 @@ import type { PartId } from "../geometry/part";
 import type { Scene } from "../scene/scene";
 import type { Issue } from "./diagnostics";
 
-/** Options controlling diagnostics while importing a GLB display scene. */
+/**
+ * Options controlling diagnostics while importing a GLB display scene.
+ * @category Import and export
+ */
 export interface GlbImportOptions {
   /** Reject the import when a recoverable warning would otherwise be returned. */
   readonly strict?: boolean;
 }
 
-/** A deterministic display-scene import result using the canonical femgx Scene. */
+/**
+ * A deterministic display-scene import result using the canonical femgx Scene.
+ * @category Import and export
+ */
 export interface GlbSceneImport {
   readonly scene: Scene;
   readonly partNames: ReadonlyMap<PartId, string>;
@@ -17,7 +23,10 @@ export interface GlbSceneImport {
   readonly issues: readonly Issue[];
 }
 
-/** Stable diagnostic codes emitted by the GLB adapter. */
+/**
+ * Stable diagnostic codes emitted by the GLB adapter.
+ * @category Import and export
+ */
 export type GlbIssueCode =
   | "glb-invalid-header"
   | "glb-invalid-version"

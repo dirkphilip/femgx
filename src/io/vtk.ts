@@ -18,6 +18,7 @@ import { VTK_KEYWORDS } from "./vtk-keywords";
 /**
  * Reads an ASCII VTK legacy dataset. Only `DATASET UNSTRUCTURED_GRID` is
  * supported; nodes are implicitly numbered 0..n-1 and cells by their position.
+ * @category Import and export
  */
 export function parseVtk(source: string, options: ParseOptions = {}): ParseResult {
   const session = createParseSession(options);

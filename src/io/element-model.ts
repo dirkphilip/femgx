@@ -10,6 +10,7 @@ import { validateModel } from "./validate";
  * by element tessellation. The interchange node table must already use ids in
  * coordinate order (`0..count - 1`); the conversion preserves element ids and
  * shape blocks while allocating the renderer's Float32 coordinate table once.
+ * @category Import and export
  */
 export function createElementModelFromFemModel(model: FemModel): ElementModel {
   const issues = [...validateModel(model), ...nonDenseNodeIssues(model)];

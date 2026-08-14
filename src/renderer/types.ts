@@ -12,7 +12,10 @@ import type { InteractionGranularity } from "../picking/types";
 import type { InteractionTarget } from "../interaction/target-types";
 import type { SectionPlane } from "../math/section-plane";
 
-/** Built-in WebGPU viewport background presentations. */
+/**
+ * Built-in WebGPU viewport background presentations.
+ * @category Viewport lifecycle
+ */
 export type ViewportBackground = "studio" | "white" | "dark";
 
 /** Options for creating a WebGPU renderer. */

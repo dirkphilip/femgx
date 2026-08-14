@@ -11,7 +11,10 @@ import {
 import { collectUniqueRefs, sortedNumbers, updateNestedMap, updateNestedSet } from "./mechanics";
 import type { ElementBlockRef } from "./refs";
 
-/** Sets or clears one element-block selection without mutating prior state. */
+/**
+ * Sets or clears one element-block selection without mutating prior state.
+ * @category Interaction and picking
+ */
 export function setElementBlockSelected(
   state: InteractionState,
   ref: ElementBlockRef,
@@ -20,7 +23,10 @@ export function setElementBlockSelected(
   return updateBlockSet(state, "selectedBlockIds", ref, selected);
 }
 
-/** Sets or clears one element-block highlight without mutating prior state. */
+/**
+ * Sets or clears one element-block highlight without mutating prior state.
+ * @category Interaction and picking
+ */
 export function setElementBlockHighlighted(
   state: InteractionState,
   ref: ElementBlockRef,
@@ -29,7 +35,10 @@ export function setElementBlockHighlighted(
   return updateBlockSet(state, "highlightedBlockIds", ref, highlighted);
 }
 
-/** Sets one element block's visibility for one repeated part occurrence. */
+/**
+ * Sets one element block's visibility for one repeated part occurrence.
+ * @category Interaction and picking
+ */
 export function setElementBlockVisible(
   state: InteractionState,
   ref: ElementBlockRef,
@@ -38,12 +47,18 @@ export function setElementBlockVisible(
   return updateBlockSet(state, "hiddenBlockIds", ref, !visible);
 }
 
-/** Returns whether an element block occurrence is visible. */
+/**
+ * Returns whether an element block occurrence is visible.
+ * @category Interaction and picking
+ */
 export function isElementBlockVisible(state: InteractionState, ref: ElementBlockRef): boolean {
   return readInteractionState(state).hiddenBlockIds.get(ref.instanceId)?.has(ref.blockId) !== true;
 }
 
-/** Adds or replaces an explicit element-block style override. */
+/**
+ * Adds or replaces an explicit element-block style override.
+ * @category Interaction and picking
+ */
 export function setElementBlockOverride(
   state: InteractionState,
   ref: ElementBlockRef,
@@ -61,7 +76,10 @@ export function setElementBlockOverride(
   return updateInteractionState(state, { blockOverrides });
 }
 
-/** Returns whether an element block occurrence carries any interaction state. */
+/**
+ * Returns whether an element block occurrence carries any interaction state.
+ * @category Interaction and picking
+ */
 export function isElementBlockEmphasized(state: InteractionState, ref: ElementBlockRef): boolean {
   const data = readInteractionState(state);
   return (
@@ -73,7 +91,10 @@ export function isElementBlockEmphasized(state: InteractionState, ref: ElementBl
   );
 }
 
-/** Collects emphasized block occurrences in stable instance/block order. */
+/**
+ * Collects emphasized block occurrences in stable instance/block order.
+ * @category Interaction and picking
+ */
 export function emphasizedElementBlockRefs(state: InteractionState): readonly ElementBlockRef[] {
   const data = readInteractionState(state);
   return collectUniqueRefs(

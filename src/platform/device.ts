@@ -1,7 +1,10 @@
 import { requestWebGpuAdapter, WebGpuUnsupportedError, unsupportedMessage } from "./capabilities";
 import type { WebGpuQueryOptions } from "./capabilities";
 
-/** A WebGPU adapter/device pair returned by `requestWebGpuDevice()`. */
+/**
+ * A WebGPU adapter/device pair returned by `requestWebGpuDevice()`.
+ * @category Advanced runtime and WebGPU platform
+ */
 export interface RequestedWebGpuDevice {
   readonly adapter: GPUAdapter;
   readonly device: GPUDevice;
@@ -10,6 +13,7 @@ export interface RequestedWebGpuDevice {
 /**
  * Requests an adapter and a device, throwing a typed `WebGpuUnsupportedError`
  * that explains *why* WebGPU is unavailable when creation fails.
+ * @category Advanced runtime and WebGPU platform
  */
 export async function requestWebGpuDevice(
   options?: WebGpuQueryOptions,
@@ -32,7 +36,10 @@ export async function requestWebGpuDevice(
   }
 }
 
-/** Typed summary of a GPU device loss. */
+/**
+ * Typed summary of a GPU device loss.
+ * @category Advanced runtime and WebGPU platform
+ */
 export interface DeviceLostInfo {
   /** `"destroyed"` when the device was destroyed, otherwise `"unknown"`. */
   readonly reason: GPUDeviceLostReason;
