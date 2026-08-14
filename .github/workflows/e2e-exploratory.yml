@@ -6,6 +6,9 @@ name: Exploratory e2e
 # for rendering conclusions; this lane is intentionally not a required check.
 on:
   workflow_dispatch:
+  # Temporary one-run trigger; removed after the hosted-runner experiment.
+  push:
+    branches: [codex/744-hardware-webgpu-failures]
 
 permissions:
   contents: read
@@ -32,8 +35,8 @@ jobs:
       - name: Report Chrome version
         run: google-chrome --version
 
-      - name: Run full e2e suite
-        run: npm run test:e2e -- --reporter=list,html
+      - name: Run full e2e suite through software WebGPU
+        run: npx playwright test --project=chrome-software --reporter=list,html
 
       - name: Upload Playwright results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
