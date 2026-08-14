@@ -207,7 +207,7 @@ selection identity separately with `interactionTargetFromHit`; unsupported reque
 return `undefined` and body identity is never guessed. There is no multi-hit pick-list
 API in the current contract.
 
-### Static results
+### Authored results and snapshot sequencing
 
 Result fields are typed by location (`"nodal"` or `"elemental"`). Viewport
 results accept authored scalar fields; authored nodal vector fields remain the
@@ -234,13 +234,16 @@ viewport.setResults({
 viewport.clearResults();
 ```
 
-`ViewportResultsConfig` supports authored scalar fields at nodal or elemental
-locations, explicit or observed ranges, scalar color maps, optional one-load-case
-nodal deformation, and an optional elemental orientation vector role. The
+`ViewportResultsConfig` represents one authored snapshot with scalar fields at
+nodal or elemental locations, explicit or observed ranges, scalar color maps,
+optional nodal deformation, and an optional elemental orientation vector role. The
 non-empty role set is resolved atomically: invalid combinations leave the
-previous result state and renderer state unchanged. Derived engineering
-quantities, tensor glyphs, playback, interpolation, and legends remain outside
-the core API. Element anchors, packed records, and GPU resources are internal.
+previous result state and renderer state unchanged. Hosts may sequence exact
+authored snapshots through repeated `setResults()` calls; snapshot collections,
+time metadata, scheduling, controls, and playback rate remain host-owned.
+Derived engineering quantities, tensor glyphs, temporal interpolation, and a
+public legend subsystem remain outside the core API. Element anchors, packed
+records, and GPU resources are internal.
 See [[data/vector-field-visualization|Authored elemental orientation visualization]].
 
 ## Additional supported APIs

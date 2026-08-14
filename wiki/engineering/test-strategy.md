@@ -35,10 +35,11 @@ does not gate correctness.
 - Removed a stale `results.spec.ts` reference from the smoke-suite comment;
   static results coverage is owned by `test/results`, viewport tests, and
   `e2e/demo-results.spec.ts`.
-- No test asserts the removed CPU renderer, playback API, non-VTK adapters, or
-  streaming subsystem. Mentions of those terms in policy tests and historical
-  wiki notes are intentional contract/deletion checks, not obsolete product
-  expectations.
+- No test asserts the removed CPU renderer, library-owned `CasePlayer`, non-VTK
+  adapters, or streaming subsystem. Mentions of those terms in policy tests and
+  historical wiki notes are intentional contract/deletion checks, not obsolete
+  product expectations. Host-driven authored snapshot sequencing continues to
+  use the tested repeated-`setResults()` boundary.
 - No coverage threshold was lowered and no retained test was deleted solely to
   improve runtime or reported coverage. New feature issues must add focused
   contract tests in the owning subsystem and update this inventory when they

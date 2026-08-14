@@ -180,7 +180,10 @@ const viewport = await createFemViewport({
 });
 viewport.setBackground("dark");
 viewport.setInteraction(interaction);
-viewport.setResults({ field: stress, deformation: { field: displacement, scale: 1.5 } });
+viewport.setResults({
+  scalar: { field: stress },
+  deformation: { field: displacement, scale: 1.5 },
+});
 viewport.setPartVisible(part.id, false);
 viewport.clearResults();
 viewport.destroy();
@@ -203,7 +206,7 @@ default, 90° with Shift, or 5° with Control/Command. It is removed when
 `viewport.destroy()` runs. The container must contain the canvas; the caller
 does not provide SVG markup.
 
-Static results use the same viewport and authoritative scene. Authored elemental scalar values
+Authored result snapshots use the same viewport and authoritative scene. Elemental scalar values
 are colored directly while a nodal displacement field drives the existing GPU deformation path:
 
 ```ts
@@ -226,9 +229,14 @@ const displacement = createResultField({
   values: displacementValues,
 });
 viewport.setResults({
-  field: stress,
+  scalar: { field: stress },
   deformation: { field: displacement, scale: 1.5 },
 });
 // Return to the base part styles and undeformed geometry.
 viewport.clearResults();
 ```
+
+Hosts may step or play an ordered collection of exact authored snapshots by calling
+`setResults()` repeatedly. femgx installs each snapshot atomically and retains only the current
+one; the host owns sequence metadata, timing, controls, and any shared scalar range. femgx does
+not derive engineering quantities or temporally interpolate between snapshots.

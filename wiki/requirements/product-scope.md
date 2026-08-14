@@ -12,8 +12,8 @@ Related: [[architecture/architecture-overview|Architecture overview]],
 
 The repository historically encoded many capabilities as simultaneously
 mandatory — CPU fallback rendering, capability probing, device-loss recovery,
-four interchange formats, quadratic elements, node/face interaction, advanced
-results playback, and large-model streaming. That encouraged scope expansion and
+four interchange formats, quadratic elements, node/face interaction,
+library-owned results playback, and large-model streaming. That encouraged scope expansion and
 made the minimum product impossible to distinguish from optional capability.
 From now on every requirements decision is classified below and every proposed
 addition must pass the [[#decision-gate|decision gate]].
@@ -46,9 +46,9 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | Stable authored FE-edge interaction                                                                                          | interaction + GPU  | same       | **Core now** | Occurrence-scoped authored edges support exact picking, hover, selection, highlight, and nearest-visible region selection. Edge-only GPU resources are lazy and absent outside edge granularity; ordinary picking retains its four attachments and inactive cost.                                                                         |
 | CPU raycast picking (`createPickScene` / `pick()`)                                                                           | —                  | —          | **Remove**   | Replaced by the GPU pick path; deleted with the flat-compile cleanup.                                                                                                                                                                                                                                                                     |
 | Adjacency inspection overlays / pick-list UI polish                                                                          | demo               | e2e        | **Deferred** | Host-mappable neighbor ids on `PickHit` stay; rich adjacency workbench polish is optional.                                                                                                                                                                                                                                                |
-| Authored scalar results at nodal or elemental locations, scalar color mapping, and authored nodal deformation                | ~0.8k              | ~0.9k      | **Core now** | The minimum static FE results path: exact authored values map to existing tessellation nodes or element ids; deformation remains a separate authored nodal vector path.                                                                                                                                                                   |
+| Authored result snapshots and host-driven sequencing                                                                        | results + viewport | same       | **Core now** | One atomic snapshot combines optional nodal/elemental scalar coloring, nodal deformation, and elemental orientation. Hosts may sequence snapshots through repeated `setResults()` calls on the same scene/runtime; femgx retains only the current snapshot.                                                                              |
 | Authored elemental orientation glyphs                                                                                        | renderer + results | viewport   | **Core now** | A bounded authored `VectorField<"elemental">` role with renderer-owned `arrow`/`axis` glyphs, `direction`/`normal` transforms, and positive element-relative scale. It adds no derived mechanics, glyph picking, or public renderer data.                                                                                                 |
-| Derived engineering quantities, other vector/tensor glyphs, magnitude plots, results playback, interpolation, and legends    | —                  | —          | **Deferred** | No femgx-derived values or generalized result-glyph subsystem is in the current product.                                                                                                                                                                                                                                                  |
+| Derived engineering quantities, other vector/tensor glyphs, magnitude plots, temporal field interpolation, femgx-owned cases/timelines/playback controls, and a public legend subsystem | —                  | —          | **Deferred** | The minimum product displays exact authored snapshots. It does not create intermediate result states, derive values, retain a sequence, schedule frames, or add generalized result-management or glyph systems.                                                                                                                          |
 | IO: VTK legacy read/write + shared validation and diagnostics                                                                | ~1.0k              | ~0.9k      | **Core now** | One interchange format is the minimum; VTK legacy is the smallest faithful FE format.                                                                                                                                                                                                                                                     |
 | IO: GLB 2.0 display-scene import                                                                                             | new                | new        | **Core now** | Explicit narrow CAD-display addition from #422: bytes-only import into existing `Part`/`Scene`/`FemViewport` concepts, with hierarchy, reusable tessellated triangles, names, basic color/alpha, and verified Onshape compression coverage. It does not add FE semantics or a second scene graph.                                         |
 | IO: VTU, Gmsh, Abaqus adapters, cancellation/progress                                                                        | —                  | —          | **Remove**   | Deleted; product keeps a single VTK legacy interchange path.                                                                                                                                                                                                                                                                              |
@@ -72,7 +72,8 @@ element/face/node ids (node and element strict; face Core), stable authored
 FE-edge interaction, readable
 depth-tested node annotations, selection/
 highlight/hover, visibility, camera control, authored nodal/elemental scalar
-results with scalar color mapping, authored nodal deformation, bounded authored
+results with scalar color mapping, authored nodal deformation, efficient
+host-driven sequencing of atomic authored result snapshots, bounded authored
 elemental orientation glyphs, visible-surface and element through-intersection
 box selection, and renderer-owned `studio`, `white`, and `dark`
 viewport backgrounds. Interchange is a single
@@ -156,6 +157,32 @@ Its durable semantics and explicit non-goals live in
 [[data/vector-field-visualization|Authored elemental orientation visualization]]
 and the delivery plan in [issue #665](https://github.com/dirkphilip/femgx/issues/665), completed
 through #670.
+
+## Core authored result snapshot sequencing
+
+One `ViewportResultsConfig` is one authored result snapshot. Its scalar,
+deformation, and orientation roles are resolved and installed atomically, so a
+host can show paired stress and displacement states without exposing a mixed
+step. Repeated `FemViewport.setResults()` calls on the same scene/runtime are
+the sequencing boundary. Same-layout updates reuse renderer storage where
+possible, and recovery retains only the latest installed snapshot.
+
+The host owns any snapshot collection, identity, order, time labels, active
+index, timer, playback rate, and controls. It may step or play exact authored
+snapshots without introducing a femgx `CasePlayer`, `ResultSeries`, or timeline
+API. One scalar field remains the viewport's color channel; deformation and the
+bounded elemental orientation role may be composed with it. For a comparable
+sequence, the host supplies a shared explicit scalar range instead of allowing
+each snapshot to select an unrelated automatic range.
+
+Spatial interpolation of authored nodal colors across existing element
+tessellation is part of scalar rendering. Temporal interpolation between
+snapshots is distinct and remains deferred: it creates values that were not
+authored and requires explicit compatibility, missing-value, endpoint, and
+coupled scalar/deformation semantics. Snapshot storage, prefetching, solver
+streaming, playback scheduling/UI, history plots, synchronized viewports, and
+movie export also remain host concerns. Derived engineering quantities and
+generalized result visualization remain outside the product.
 
 ## Decision gate
 
@@ -261,9 +288,11 @@ Removals are implemented by their owning issues, not speculatively here:
 - Element families beyond the supported Point, Line, Line3, Triangle, Tri6,
   Quad, Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, and Hex20 set remain outside the product and require an
   explicit decision before implementation.
-- Derived engineering results, result glyphs/playback/legends, IO breadth beyond
-  VTK, and large-model streaming → **deferred or removed** (explicit product
-  scope).
+- Derived engineering results, generalized result glyphs, temporal field
+  interpolation, femgx-owned cases/timelines/playback controls, a public legend
+  subsystem, IO breadth beyond VTK, and large-model streaming → **deferred or
+  removed** (explicit product scope). Exact host-driven snapshot sequencing uses
+  the retained `setResults()` boundary and is Core now.
 
 [#decision-gate|decision gate]: product-scope.md#decision-gate
 [architecture/architecture-overview|Architecture overview]: ../architecture/architecture-overview.md
