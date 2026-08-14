@@ -5,6 +5,7 @@ import { createGpuBundle } from "./gpu-recovery";
 import { readGpuValidationOptions } from "./gpu-validation";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
 import type { GpuCostSnapshot } from "./gpu-cost";
+import type { OrientationGlyphState } from "./gpu-orientation-glyph";
 
 export { originTriadNominalScale } from "./gpu-origin-triad";
 
@@ -25,6 +26,17 @@ export function readMaterializedEdgePartIds(renderer: WebGpuRenderer): ReadonlyS
     throw new Error("GPU edge-resource accounting is unavailable for this renderer implementation");
   }
   return renderer.materializedEdgePartIds();
+}
+
+/** Hands internal result composition to the concrete renderer without widening its public contract. */
+export function setRendererOrientationGlyphs(
+  renderer: WebGpuRenderer,
+  state: OrientationGlyphState | undefined,
+): void {
+  if (!(renderer instanceof GpuRenderer)) {
+    throw new Error("Elemental orientation glyphs require the built-in WebGPU renderer");
+  }
+  renderer.setOrientationGlyphs(state);
 }
 
 /** Creates a WebGPU renderer, or throws a typed error when unavailable. */

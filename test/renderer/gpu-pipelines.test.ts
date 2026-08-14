@@ -38,7 +38,7 @@ describe("GPU render resources", () => {
       const transparent = gpu.renderPipelineDescriptors.filter(
         (descriptor) => descriptor.fragment?.targets.length === 2,
       );
-      expect(transparent).toHaveLength(9);
+      expect(transparent).toHaveLength(10);
       expect(
         transparent.every((descriptor) => descriptor.depthStencil?.depthWriteEnabled === false),
       ).toBe(true);
@@ -72,6 +72,8 @@ describe("GPU render resources", () => {
         ),
       ).toBeDefined();
       expect(resources.nodeOverlayPipelines.visible).toBeDefined();
+      expect(resources.orientationGlyphs.visible).toBeDefined();
+      expect(resources.orientationGlyphs.hidden).toBeDefined();
       expect(
         gpu.renderPipelineDescriptors.find(
           (descriptor) => descriptor.label === "node selection visible",

@@ -20,6 +20,10 @@ import {
 } from "./gpu-origin-triad";
 import { createPipelineResources, type DrawPipelines } from "./gpu-pipeline-builders";
 import {
+  createOrientationGlyphPipelines,
+  type OrientationGlyphPipelines,
+} from "./gpu-orientation-glyph-pipelines";
+import {
   createCompositeBindGroup,
   createCompositeResources,
   type CompositeResources,
@@ -36,6 +40,7 @@ export interface RenderResources {
   readonly sectionPlaneBuffer: GPUBuffer;
   readonly frameBindGroup: GPUBindGroup;
   readonly pipelines: DrawPipelines;
+  readonly orientationGlyphs: OrientationGlyphPipelines;
   readonly composite: CompositeResources;
   readonly edgePipeline: GPURenderPipeline;
   readonly edgeAlwaysPipeline: GPURenderPipeline;
@@ -93,6 +98,13 @@ export async function createRenderResources(
     depthFormat,
     validation,
   );
+  const orientationGlyphs = await createOrientationGlyphPipelines({
+    device,
+    cameraLayout,
+    format,
+    depthFormat,
+    ...(validation === undefined ? {} : { validation }),
+  });
   const composite = await createCompositeResources(device, format, depthFormat, validation);
   const nodeOverlayPipelines = await createNodeOverlayPipelines({
     device,
@@ -172,6 +184,7 @@ export async function createRenderResources(
       frameBindGroup,
       instanceLayout,
       pipelines: pipelineResources.pipelines,
+      orientationGlyphs,
       composite,
       edgePipeline: pipelineResources.edgePipeline,
       edgeAlwaysPipeline: pipelineResources.edgeAlwaysPipeline,

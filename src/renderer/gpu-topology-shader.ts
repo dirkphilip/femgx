@@ -1,11 +1,62 @@
+/** WGSL visibility lookup for body, block, and element ownership. */
+export const ownerVisibilityBindings = /* wgsl */ `
+@group(1) @binding(3) var<storage, read> elementHighlights: ElementHighlights;
+
+fn bodyOwnerVisible(slot: u32, bodyPickId: u32) -> bool {
+  if (bodyPickId == 0u || elementHighlights.bucketCount == 0u) { return true; }
+  let bucket = highlightHash(slot, bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
+  let base = bucket * 4u;
+  for (var offset = 0u; offset < 4u; offset++) {
+    let highlight = elementHighlights.records[base + offset];
+    if (highlight.slot == slot && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu && highlight.blockPickId == 0u) {
+      return highlight.hidden == 0u;
+    }
+  }
+  return true;
+}
+
+fn blockOwnerVisible(slot: u32, blockPickId: u32) -> bool {
+  if (blockPickId == 0u || elementHighlights.bucketCount == 0u) { return true; }
+  let bucket = highlightHash(slot, blockPickId, 0xfffffffeu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
+  let base = bucket * 4u;
+  for (var offset = 0u; offset < 4u; offset++) {
+    let highlight = elementHighlights.records[base + offset];
+    if (highlight.slot == slot && highlight.elementPickId == blockPickId && highlight.facePickId == 0xfffffffeu && highlight.blockPickId == blockPickId) {
+      return highlight.hidden == 0u;
+    }
+  }
+  return true;
+}
+
+fn elementOwnerVisible(slot: u32, elementPickId: u32) -> bool {
+  if (elementPickId == 0u || elementHighlights.bucketCount == 0u) { return true; }
+  let bucket = highlightHash(slot, elementPickId, 0u, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
+  let base = bucket * 4u;
+  for (var offset = 0u; offset < 4u; offset++) {
+    let highlight = elementHighlights.records[base + offset];
+    if (highlight.slot == slot && highlight.elementPickId == elementPickId && highlight.facePickId == 0u && highlight.blockPickId == 0u) {
+      return highlight.hidden == 0u;
+    }
+  }
+  return true;
+}
+
+fn ownerVisible(slot: u32, bodyPickId: u32, blockPickId: u32, elementPickId: u32) -> bool {
+  return bodyOwnerVisible(slot, bodyPickId) &&
+    blockOwnerVisible(slot, blockPickId) &&
+    elementOwnerVisible(slot, elementPickId);
+}
+`;
+
 /** WGSL visibility lookup for per-primitive and per-topology ownership data. */
 export const pickDataBindings = /* wgsl */ `
 @group(1) @binding(2) var<storage, read> primitiveElementPickIds: array<u32>;
-@group(1) @binding(3) var<storage, read> elementHighlights: ElementHighlights;
 // Header: face-record count, topology range count, condition count. Block-aware
 // parts set the high bit of condition count and use seven-word face records and
 // six-word ownership conditions; blockless parts retain their five/four-word layout.
 @group(1) @binding(5) var<storage, read> topologyData: array<u32>;
+
+${ownerVisibilityBindings}
 
 fn topologyBlockAware() -> bool {
   return (topologyData[2] & 0x80000000u) != 0u;
@@ -87,51 +138,6 @@ fn topologyPrimitiveId(index: u32) -> u32 {
 fn topologyEdgeId(index: u32) -> u32 {
   let base = topologyConditionBase() + topologyConditionCount() * topologyConditionStride();
   return topologyData[base + 1u + topologyData[base] + index];
-}
-
-fn bodyOwnerVisible(slot: u32, bodyPickId: u32) -> bool {
-  if (bodyPickId == 0u || elementHighlights.bucketCount == 0u) { return true; }
-  let bucket = highlightHash(slot, bodyPickId, 0xffffffffu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
-  let base = bucket * 4u;
-  for (var offset = 0u; offset < 4u; offset++) {
-    let highlight = elementHighlights.records[base + offset];
-    if (highlight.slot == slot && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu && highlight.blockPickId == 0u) {
-      return highlight.hidden == 0u;
-    }
-  }
-  return true;
-}
-
-fn blockOwnerVisible(slot: u32, blockPickId: u32) -> bool {
-  if (blockPickId == 0u || elementHighlights.bucketCount == 0u) { return true; }
-  let bucket = highlightHash(slot, blockPickId, 0xfffffffeu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
-  let base = bucket * 4u;
-  for (var offset = 0u; offset < 4u; offset++) {
-    let highlight = elementHighlights.records[base + offset];
-    if (highlight.slot == slot && highlight.elementPickId == blockPickId && highlight.facePickId == 0xfffffffeu && highlight.blockPickId == blockPickId) {
-      return highlight.hidden == 0u;
-    }
-  }
-  return true;
-}
-
-fn elementOwnerVisible(slot: u32, elementPickId: u32) -> bool {
-  if (elementPickId == 0u || elementHighlights.bucketCount == 0u) { return true; }
-  let bucket = highlightHash(slot, elementPickId, 0u, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
-  let base = bucket * 4u;
-  for (var offset = 0u; offset < 4u; offset++) {
-    let highlight = elementHighlights.records[base + offset];
-    if (highlight.slot == slot && highlight.elementPickId == elementPickId && highlight.facePickId == 0u && highlight.blockPickId == 0u) {
-      return highlight.hidden == 0u;
-    }
-  }
-  return true;
-}
-
-fn ownerVisible(slot: u32, bodyPickId: u32, blockPickId: u32, elementPickId: u32) -> bool {
-  return bodyOwnerVisible(slot, bodyPickId) &&
-    blockOwnerVisible(slot, blockPickId) &&
-    elementOwnerVisible(slot, elementPickId);
 }
 
 fn primitiveVisible(slot: u32, primitiveIndex: u32) -> bool {
