@@ -24,6 +24,10 @@ export interface WorkbenchLifecycleOptions {
   readonly setResultField: (value: string) => void;
   readonly setDeformationField: (value: string) => void;
   readonly setDeformationScale: (value: string) => void;
+  readonly setVectorField: (value: string) => void;
+  readonly setVectorGlyph: (value: string) => void;
+  readonly setVectorTransform: (value: string) => void;
+  readonly setVectorLengthScale: (value: string) => void;
   readonly setSectionAxis: (value: string) => void;
   readonly setSectionOffset: (value: string) => void;
   readonly setSelectionGranularity: (value: string) => void;
@@ -89,6 +93,10 @@ export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): (
     setResultField: options.setResultField,
     setDeformationField: options.setDeformationField,
     setDeformationScale: options.setDeformationScale,
+    setVectorField: options.setVectorField,
+    setVectorGlyph: options.setVectorGlyph,
+    setVectorTransform: options.setVectorTransform,
+    setVectorLengthScale: options.setVectorLengthScale,
     setSectionAxis: options.setSectionAxis,
     setSectionOffset: options.setSectionOffset,
     setSelectionGranularity: options.setSelectionGranularity,

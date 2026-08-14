@@ -6,13 +6,18 @@ import {
   HEX8_SHAPE,
   heterogeneousElementParts,
   identity,
+  multiply,
+  scale,
+  translation,
   type PartId,
+  type VectorField,
 } from "../../src/index";
 import type { ModelPreset } from "./presets";
+import { fixtureBounds } from "./preset-bounds";
 
 const RESULTS_PART_ID: PartId = 20;
 
-/** Builds the demo's small authored-scalar/deformation results workflow. */
+/** Builds the demo's deterministic scalar, deformation, and orientation workflow. */
 export function createResultsPreset(): ModelPreset {
   const model = createResultsModel();
   const part = heterogeneousElementParts({ triangle: RESULTS_PART_ID }, model).triangle;
@@ -22,7 +27,14 @@ export function createResultsPreset(): ModelPreset {
     .addAssembly({
       id: 20,
       name: "results-block",
-      placements: [{ kind: "part", partId: RESULTS_PART_ID, transform: identity() }],
+      placements: [
+        { kind: "part", partId: RESULTS_PART_ID, transform: identity() },
+        {
+          kind: "part",
+          partId: RESULTS_PART_ID,
+          transform: multiply(translation(5.5, 0.25, 0.2), scale(-1.15, 0.8, 1.2)),
+        },
+      ],
     })
     .withRoot(20)
     .build();
@@ -44,18 +56,28 @@ export function createResultsPreset(): ModelPreset {
     unit: "mm",
     values: createDisplacementValues(model.nodes),
   });
+  const normals = createNormalsField(model.elements.length);
+  const fibers = createFibersField(model.elements.length);
+  const vectorFields = [normals, fibers] as const;
   return {
     id: "results",
-    name: "Static results · scalar + deformation",
+    name: "Static results · scalar + deformation + orientation",
     scene,
     elementModels: new Map([[RESULTS_PART_ID, model]]),
     partColors: new Map([[RESULTS_PART_ID, { r: 0.48, g: 0.55, b: 0.68, a: 1 }]]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map([[RESULTS_PART_ID, "Results block"]]),
-    bounds: part.bounds,
+    bounds: fixtureBounds(scene),
+    resultVectorFields: vectorFields,
     results: {
       scalar: { field: stress },
       deformation: { field: displacement, scale: 1 },
+      vectors: {
+        field: normals,
+        glyph: "arrow",
+        transform: "normal",
+        lengthScale: 1,
+      },
     },
   };
 }
@@ -112,4 +134,55 @@ function createDisplacementValues(nodes: Float32Array): Float32Array {
     values[offset + 2] = 0.35 * xFraction * xFraction + 0.12 * xFraction * yFraction;
   }
   return values;
+}
+
+function createNormalsField(elementCount: number): VectorField<"elemental"> {
+  return createResultField({
+    id: "demo-normals",
+    name: "Demo shell normals",
+    location: "elemental",
+    shape: "vector",
+    count: elementCount,
+    unit: "unitless",
+    values: new Float32Array([
+      0,
+      0,
+      1,
+      0,
+      0,
+      -1,
+      Number.NaN,
+      Number.NaN,
+      Number.NaN,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      -1,
+      0,
+      1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+    ]),
+  });
+}
+
+function createFibersField(elementCount: number): VectorField<"elemental"> {
+  return createResultField({
+    id: "demo-fibers",
+    name: "Demo fiber orientations",
+    location: "elemental",
+    shape: "vector",
+    count: elementCount,
+    unit: "unitless",
+    values: new Float32Array([
+      1, 0.25, 0, -1, -0.25, 0, 0, 1, 0, 0, -1, 0, 1, 1, 0, -1, -1, 0, 1, 0, 1, -1, 0, -1,
+    ]),
+  });
 }

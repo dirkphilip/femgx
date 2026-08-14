@@ -21,6 +21,10 @@ export interface WorkbenchBindingOptions {
   readonly setResultField: (value: string) => void;
   readonly setDeformationField: (value: string) => void;
   readonly setDeformationScale: (value: string) => void;
+  readonly setVectorField: (value: string) => void;
+  readonly setVectorGlyph: (value: string) => void;
+  readonly setVectorTransform: (value: string) => void;
+  readonly setVectorLengthScale: (value: string) => void;
   readonly setSectionAxis: (value: string) => void;
   readonly setSectionOffset: (value: string) => void;
   readonly setSelectionGranularity: (value: string) => void;
@@ -155,6 +159,7 @@ function installDisplayBindings(options: WorkbenchBindingOptions): void {
     },
     { signal },
   );
+  installVectorBindings(options);
   installSectionBindings(options);
   view.nodeOverlayToggle.addEventListener("click", options.setNodes, { signal });
   view.continuousToggle.addEventListener("click", options.setContinuous, { signal });
@@ -171,6 +176,38 @@ function installDisplayBindings(options: WorkbenchBindingOptions): void {
   view.fitView.addEventListener("click", options.fitView, { signal });
   if (options.toggleViewport !== undefined) {
     view.viewportToggle.addEventListener("click", options.toggleViewport, { signal });
+  }
+}
+
+function installVectorBindings(options: WorkbenchBindingOptions): void {
+  const { view, signal } = options;
+  for (const [control, handler] of [
+    [
+      view.vectorField,
+      () => {
+        options.setVectorField(view.vectorField.value);
+      },
+    ],
+    [
+      view.vectorGlyph,
+      () => {
+        options.setVectorGlyph(view.vectorGlyph.value);
+      },
+    ],
+    [
+      view.vectorTransform,
+      () => {
+        options.setVectorTransform(view.vectorTransform.value);
+      },
+    ],
+    [
+      view.vectorLengthScale,
+      () => {
+        options.setVectorLengthScale(view.vectorLengthScale.value);
+      },
+    ],
+  ] as const) {
+    control.addEventListener("change", handler, { signal });
   }
 }
 

@@ -58,6 +58,64 @@ test("cycles the canonical static results preset through base, colored, and defo
   await expect(scale).toHaveValue("2");
 });
 
+test("validates signed normals and sign-invariant fibers in one shared results panel", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/");
+  await waitForRenderer(page);
+  await page.getByTestId("model-select").selectOption("results");
+  const canvas = page.getByTestId("view-canvas");
+  const vectorField = page.getByTestId("vector-field");
+  await expect(page.getByTestId("result-controls")).toBeVisible();
+  await expect(vectorField).toHaveValue("demo-normals");
+  await expect(page.getByTestId("vector-help")).toHaveText(
+    "Normalized orientation; magnitude not displayed",
+  );
+  await expect(canvas).toHaveAttribute("data-vector-field", "demo-normals");
+
+  const normals = await pixelMetrics(canvas);
+  await vectorField.selectOption("demo-fibers");
+  await expect(canvas).toHaveAttribute("data-vector-field", "demo-fibers");
+  await expect.poll(() => canvas.getAttribute("data-frames")).not.toBe(null);
+  const fibers = await pixelMetrics(canvas);
+  expect(fibers.hash, "switching authored vector fields must change the rendered glyphs").not.toBe(
+    normals.hash,
+  );
+
+  await page.getByTestId("vector-glyph").selectOption("axis");
+  await page.getByTestId("vector-transform").selectOption("direction");
+  await page.getByTestId("vector-length-scale").fill("1.6");
+  await page.getByTestId("vector-length-scale").press("Enter");
+  await expect(canvas).toHaveAttribute("data-vector-glyph", "axis");
+  await expect(canvas).toHaveAttribute("data-vector-transform", "direction");
+  await expect(page.getByTestId("vector-length-scale")).toHaveValue("1.6");
+  await expect(page.getByTestId("result-legend")).toContainText("Normalized orientation");
+  await expect(page.getByTestId("result-legend")).toContainText("Magnitude not displayed");
+
+  const beforeBase = await canvas.getAttribute("data-frames");
+  await page.getByTestId("result-field").selectOption("__base__");
+  await expect(canvas).toHaveAttribute("data-results", "base");
+  await expect(canvas).toHaveAttribute("data-vector-field", "demo-fibers");
+  await expect.poll(() => canvas.getAttribute("data-frames")).not.toBe(beforeBase);
+
+  await setSelectionGranularity(page, "face");
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "f:", fresh: true },
+    "orientation fields must retain ordinary face picking",
+  );
+  await page.mouse.click(hit.x, hit.y);
+  await expect(page.getByTestId("inspection-panel")).toContainText("Demo fiber orientations");
+  await expect(page.getByTestId("inspection-panel")).toContainText("normalized orientation");
+
+  await page.screenshot({ path: testInfo.outputPath("orientation-results-desktop.png") });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByTestId("result-controls")).toBeVisible();
+  await expect(vectorField).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("orientation-results-mobile.png") });
+});
+
 test("applies one shared section plane over complete placed-volume bounds", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("model-select").selectOption("section-volume");

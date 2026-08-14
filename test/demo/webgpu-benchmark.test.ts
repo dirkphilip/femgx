@@ -28,6 +28,11 @@ describe("WebGPU benchmark models", () => {
       { id: "fe-quad-shell-visual", kind: "structured-fe", elementFamily: "quad" },
       { id: "fe-quad8-shell-visual", kind: "structured-fe", elementFamily: "quad8" },
       { id: "fe-hex8-solid-visual", kind: "structured-fe", elementFamily: "hex8" },
+      {
+        id: "fe-hex8-orientation-visual",
+        kind: "structured-fe",
+        elementFamily: "hex8",
+      },
       { id: "fe-hex20-solid-visual", kind: "structured-fe", elementFamily: "hex20" },
     ]);
     expect(benchmarkCaseSpecs(true).at(-1)?.id).toBe("unique-2m-local");
@@ -123,6 +128,19 @@ describe("WebGPU benchmark models", () => {
     expect(hex20Part.geometry.bodies).toEqual([
       { id: 1, name: "hex20 structured body", elementIds: [1, 2, 3, 4, 5, 6, 7, 8] },
     ]);
+  });
+
+  it("keeps the opt-in orientation workload aligned to structured element ids", () => {
+    const spec = benchmarkCaseSpecs(false).find(
+      (candidate) => candidate.id === "fe-hex8-orientation-visual",
+    );
+    if (spec === undefined) throw new Error("orientation benchmark case is missing");
+    const benchmarkCase = createBenchmarkCase(spec);
+    expect(benchmarkCase.orientationField?.count).toBe(513);
+    expect(benchmarkCase.orientationField?.values.length).toBe(513 * 3);
+    expect(benchmarkCase.orientationField?.values[0]).toBe(1);
+    expect(benchmarkCase.orientationField?.values[3]).toBe(-1);
+    expect(benchmarkCase.orientationField?.unit).toBe("unitless");
   });
 
   it("reports buffer and render-target memory as an explicit sum", () => {

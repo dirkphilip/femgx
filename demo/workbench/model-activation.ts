@@ -9,7 +9,11 @@ import {
 import type { DemoView } from "./view";
 import type { DisplayToggles, ResultDisplayMode } from "./types";
 import type { WorkbenchViewportSlot, WorkbenchViewportSlots } from "./viewport-slots";
-import { resultModeForModel } from "./result-controls";
+import {
+  resultModeForModel,
+  vectorDisplayForModel,
+  type VectorDisplayState,
+} from "./result-controls";
 
 export interface WorkbenchModelState {
   model: WorkbenchModel;
@@ -17,6 +21,7 @@ export interface WorkbenchModelState {
   toggles: DisplayToggles;
   resultMode: ResultDisplayMode;
   deformationScale: number;
+  vectorDisplay: VectorDisplayState;
   sectionAxis: "off" | "x" | "y" | "z";
   sectionOffset: number;
   interaction: InteractionState;
@@ -51,6 +56,7 @@ export function activateModelForOwner(
       owner.toggles = next.toggles;
       owner.resultMode = next.resultMode;
       owner.deformationScale = next.deformationScale;
+      owner.vectorDisplay = next.vectorDisplay;
       owner.sectionAxis = next.sectionAxis;
       owner.sectionOffset = next.sectionOffset;
       owner.interaction = next.interaction;
@@ -143,6 +149,8 @@ export function activateWorkbenchModel(options: ActivateWorkbenchModelOptions): 
   state.toggles = { edges: true, nodes: true, diagnostics: false };
   state.resultMode = resultModeForModel(model);
   state.deformationScale = model.results?.deformation?.scale ?? 1;
+  const vectorDisplay = vectorDisplayForModel(model);
+  state.vectorDisplay = vectorDisplay;
   state.sectionAxis = "off";
   state.sectionOffset = 0;
   state.interaction = createModelInteraction(model, true, true);

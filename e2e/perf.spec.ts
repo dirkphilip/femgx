@@ -6,6 +6,7 @@ import { benchmarkCaseSpecs } from "../demo/benchmark/model";
 
 const enabled = process.env["RUN_PERF"] === "1";
 const includeLarge = process.env["RUN_PERF_LARGE"] === "1";
+const baseURL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 const PHONE_FREE_VIEWPORT = { width: 1_000, height: 760 };
 const CASE_TIMEOUT_MS = includeLarge ? 5 * 60_000 : 2 * 60_000;
 let caseArtifactDirectory: string | undefined;
@@ -57,7 +58,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
     );
     await mkdir(caseArtifactDirectory, { recursive: true });
     const context = await browser.newContext({
-      baseURL: "http://127.0.0.1:5173",
+      baseURL,
       viewport: PHONE_FREE_VIEWPORT,
       deviceScaleFactor: 1,
     });
@@ -121,6 +122,20 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       }
       if (entry.elementFamily === "quad") {
         expect(entry.uniqueTriangles).toBe(entry.uniqueElementCount * 2);
+      }
+      if (spec.orientation === true) {
+        const vectorDraw = entry.gpuCost.draws["vector-glyph"];
+        const vectorWrite = entry.gpuCost.writes["vector-glyph"];
+        if (vectorDraw === undefined || vectorWrite === undefined) {
+          throw new Error("orientation benchmark report omitted vector-glyph counters");
+        }
+        expect(vectorDraw.calls).toBeGreaterThan(0);
+        expect(vectorDraw.instances).toBeGreaterThan(0);
+        expect(
+          vectorWrite.calls,
+          "orientation records must not be rewritten during steady-state frames",
+        ).toBe(0);
+        expect(vectorWrite.bytes).toBe(0);
       }
       if (entry.interactive !== undefined) {
         for (const sample of [entry.interactive.fixedCamera, entry.interactive.movingCamera]) {

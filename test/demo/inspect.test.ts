@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createResultField,
   createScalarColorMap,
+  type ViewportElementVectorState,
   type PickHit,
   type ViewportScalarState,
   type ViewportResultsState,
@@ -60,6 +61,25 @@ describe("demo result inspection", () => {
 
     expect(describePick(nodeHit(2), undefined, resultState(field))).not.toContain("Stress");
   });
+
+  it("shows raw authored vector values and explicit missing/zero presentation states", () => {
+    const field = createResultField({
+      id: "orientation",
+      name: "Orientation",
+      location: "elemental",
+      shape: "vector",
+      count: 3,
+      unit: "unitless",
+      values: new Float32Array([1, 0.25, 0, Number.NaN, Number.NaN, Number.NaN, 0, 0, 0]),
+    });
+    const results = vectorResultState(field);
+    expect(describePick(faceHit(0), undefined, results)).toContain(
+      "Orientation (elemental, unitless): [1, 0.25, 0]",
+    );
+    expect(describePick(faceHit(1), undefined, results)).toContain("missing (not drawn)");
+    expect(describePick(faceHit(2), undefined, results)).toContain("zero (not drawn)");
+    expect(describePick(nodeHit(0), undefined, results)).not.toContain("Orientation");
+  });
 });
 
 function resultState(field: ViewportScalarState["field"]): ViewportResultsState {
@@ -74,6 +94,22 @@ function resultState(field: ViewportScalarState["field"]): ViewportResultsState 
     scalar,
     deformation: undefined,
     vectors: undefined,
+  };
+}
+
+function vectorResultState(field: ViewportElementVectorState["field"]): ViewportResultsState {
+  const vectors: ViewportElementVectorState = {
+    config: { field, glyph: "arrow", transform: "normal" },
+    field,
+    glyph: "arrow",
+    transform: "normal",
+    lengthScale: 1,
+  };
+  return {
+    config: { vectors: vectors.config },
+    scalar: undefined,
+    deformation: undefined,
+    vectors,
   };
 }
 

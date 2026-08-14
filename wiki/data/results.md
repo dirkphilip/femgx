@@ -83,21 +83,27 @@ written into the existing GPU storage; device recovery retains and re-uploads
 only the latest active step. femgx does not store cases, own playback, or
 interpolate between fields.
 
-The `results` demo preset exercises the scalar/deformation workflow with a static 4-by-2 Hex8 stress
-strip. Its eight elements share the 30 nodes of one conforming block, use dense
-element ids aligned directly with eight authored scalar values, and apply a small
-curved/tapered nodal displacement. This makes the `results` demo visibly show
-multiple scalar bands while retaining the same static viewport path:
+The `results` demo preset exercises the scalar/deformation/orientation workflow
+with a static 4-by-2 Hex8 block placed once directly and once through a reflected,
+non-uniform occurrence. Its eight elements share the 30 nodes of one conforming
+block, use dense element ids aligned directly with eight authored scalar values,
+and apply a small curved/tapered nodal displacement. It also carries two
+elemental fields: signed shell-normal rows (including missing and zero rows) and
+sign-invariant fiber rows. This makes the demo visibly show multiple scalar bands
+and repeated orientation semantics while retaining the same static viewport path:
 the public API supports the undeformed/base state via `clearResults()`, the
 colored state via `setResults({ scalar: { field } })`, and the combined
 colored/deformed state by adding `deformation`. Vector-only and combined
 vector states use the same replacement boundary.
 
-The inspection workbench adds a demo-private legend and explicit field,
-deformation, and scale controls on top of this static API. It formats the
-resolved viewport range and color stops without adding a public legend
-subsystem; picked values are shown only when the hit identity matches the
-field's authored location.
+The inspection workbench adds one demo-private result panel with scalar,
+deformation, and vector field/glyph/transform/positive-length controls. It
+describes orientation as normalized and does not display magnitude. The legend
+formats the resolved viewport range and color stops without adding a public
+legend subsystem; picked scalar and vector values are shown only when the hit
+identity matches the field's authored location. The opt-in WebGPU benchmark
+matrix includes a structured Hex8 orientation case and reports its existing
+`vector-glyph` draw/write counters.
 
 ### Elemental orientation vectors
 

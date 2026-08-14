@@ -1,5 +1,6 @@
 import { createPart, type Part } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
+import { createResultField, type VectorField } from "../../src/results/fields";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { createStructuredFePart, type StructuredFeFamily } from "./structured-fe";
 import {
@@ -38,6 +39,8 @@ export interface WebGpuBenchmarkSpec {
   readonly structuredFamily?: StructuredFeFamily;
   /** Whether this case is safe for the ordinary interactive workbench. */
   readonly ordinaryDemo?: boolean;
+  /** Adds the representative orientation upload/draw workload to this opt-in case. */
+  readonly orientation?: boolean;
 }
 
 export interface WebGpuBenchmarkCase {
@@ -51,6 +54,7 @@ export interface WebGpuBenchmarkCase {
   readonly bodyCount: number;
   readonly elementFamily: WebGpuBenchmarkElementFamily;
   readonly structuredFamily?: StructuredFeFamily;
+  readonly orientationField?: VectorField<"elemental">;
 }
 
 /** Returns the fixed benchmark matrix, optionally including the larger local case. */
@@ -170,6 +174,19 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       ordinaryDemo: true,
     },
     {
+      id: "fe-hex8-orientation-visual",
+      name: "Performance Lab · FE Hex8 elemental orientation · 512 glyph elements",
+      kind: "structured-fe",
+      gridCells: 8,
+      partCount: 1,
+      instanceCount: 1,
+      bodyCount: 1,
+      elementFamily: "hex8",
+      structuredFamily: "hex8",
+      orientation: true,
+      ordinaryDemo: false,
+    },
+    {
       id: "fe-hex20-solid-visual",
       name: "Performance Lab · FE Hex20 solid · 216 unique/submitted elements · 1,296 triangles",
       kind: "structured-fe",
@@ -234,7 +251,34 @@ export function createBenchmarkCase(spec: WebGpuBenchmarkSpec): WebGpuBenchmarkC
     .addAssembly({ id: ROOT_ASSEMBLY_ID, name: spec.id, placements })
     .withRoot(ROOT_ASSEMBLY_ID)
     .build();
-  return { ...spec, scene };
+  return {
+    ...spec,
+    scene,
+    ...(spec.orientation === true ? { orientationField: createOrientationField(parts) } : {}),
+  };
+}
+
+function createOrientationField(parts: readonly Part[]): VectorField<"elemental"> {
+  const count =
+    Math.max(
+      0,
+      ...parts.flatMap((part) => part.geometry.elements?.map((element) => element.id) ?? []),
+    ) + 1;
+  const values = new Float32Array(count * 3);
+  for (let element = 0; element < count; element += 1) {
+    values[element * 3] = element % 2 === 0 ? 1 : -1;
+    values[element * 3 + 1] = element % 3 === 0 ? 0.25 : 0.5;
+    values[element * 3 + 2] = element % 5 === 0 ? 1 : 0;
+  }
+  return createResultField({
+    id: "benchmark-orientation",
+    name: "Benchmark elemental orientation",
+    location: "elemental",
+    shape: "vector",
+    count,
+    unit: "unitless",
+    values,
+  });
 }
 
 function structuredFamily(spec: WebGpuBenchmarkSpec): StructuredFeFamily {

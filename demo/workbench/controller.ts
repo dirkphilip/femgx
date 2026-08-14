@@ -31,11 +31,22 @@ import {
   type ObservedPaneSize,
 } from "./viewport-presentation";
 import {
-  parseDeformationScale,
-  resultModeForDeformationSelection,
   resultModeForModel,
-  resultModeForScalarSelection,
+  vectorConfigForDisplay,
+  vectorDisplayForModel,
+  type VectorDisplayState,
 } from "./result-controls";
+import {
+  setVectorField as applyVectorField,
+  setVectorGlyph as applyVectorGlyph,
+  setVectorLengthScale as applyVectorLength,
+  setVectorTransform as applyVectorTransform,
+} from "./vector-actions";
+import {
+  setDeformationField as applyDeformationField,
+  setDeformationScale as applyDeformationScale,
+  setResultField as applyResultField,
+} from "./result-actions";
 import { createControllerInfrastructure, installControllerLifecycle } from "./controller-wiring";
 import { parseSelectionGranularity, parseViewportBackground } from "./workbench-values";
 import { setTreeHover } from "./tree-hover-actions";
@@ -71,6 +82,7 @@ export class WorkbenchController {
   private disposed = false;
   continuousEnabled = false;
   deformationScale: number;
+  vectorDisplay: VectorDisplayState;
   sectionAxis: SectionAxis = "off";
   sectionOffset = 0;
   selectionGranularity: SelectionGranularity = "element";
@@ -90,6 +102,8 @@ export class WorkbenchController {
     this.toggles = createDefaultDisplayToggles();
     this.resultMode = resultModeForModel(this.model);
     this.deformationScale = this.model.results?.deformation?.scale ?? 1;
+    const vectorDisplay = vectorDisplayForModel(this.model);
+    this.vectorDisplay = vectorDisplay;
     this.interaction = createModelInteraction(this.model, true, true);
     this.initializeInfrastructure(options);
     this.modelSession = new WorkbenchModelSession({
@@ -321,38 +335,31 @@ export class WorkbenchController {
   }
 
   setResultField(value: string): void {
-    const mode = resultModeForScalarSelection(
-      value,
-      this.model.results,
-      this.view.deformationField.value,
-    );
-    if (mode === undefined) {
-      this.presentation.reflectResults();
-      return;
-    }
-    this.resultMode = mode;
-    this.applyResultMode(true);
+    applyResultField(this, value);
   }
 
   setDeformationField(value: string): void {
-    const mode = resultModeForDeformationSelection(value, this.model.results, this.resultMode);
-    if (mode === undefined) {
-      this.presentation.reflectResults();
-      return;
-    }
-    this.resultMode = mode;
-    this.applyResultMode(true);
+    applyDeformationField(this, value);
   }
 
   setDeformationScale(value: string): void {
-    const scale = parseDeformationScale(value);
-    if (scale === undefined) {
-      this.presentation.reflectResults();
-      return;
-    }
-    if (this.deformationScale === scale) return;
-    this.deformationScale = scale;
-    this.applyResultMode(this.resultMode === "deformed");
+    applyDeformationScale(this, value);
+  }
+
+  setVectorField(value: string): void {
+    applyVectorField(this, value);
+  }
+
+  setVectorGlyph(value: string): void {
+    applyVectorGlyph(this, value);
+  }
+
+  setVectorTransform(value: string): void {
+    applyVectorTransform(this, value);
+  }
+
+  setVectorLengthScale(value: string): void {
+    applyVectorLength(this, value);
   }
 
   setSectionAxis(value: string): void {
@@ -369,9 +376,8 @@ export class WorkbenchController {
       model: this.model,
       mode: this.resultMode,
       deformationScale: this.deformationScale,
-      reflect: () => {
-        this.presentation.reflectResults();
-      },
+      vector: vectorConfigForDisplay(this.model, this.vectorDisplay),
+      reflect: this.presentation.reflectResults.bind(this.presentation),
     });
     if (render) this.render();
   }

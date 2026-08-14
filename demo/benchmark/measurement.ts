@@ -9,9 +9,12 @@ import {
   createWebGpuRenderer,
   readMaterializedEdgePartIds,
   readGpuCostSnapshot,
+  setRendererOrientationGlyphs,
   type WebGpuRenderer,
 } from "../../src/renderer/gpu-renderer";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
+import { resolveElementalOrientationRecords } from "../../src/results/orientation-records";
+import type { OrientationGlyphState } from "../../src/renderer/gpu-orientation-glyph";
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
 import { hasInteractiveSample, measureInteractiveSamples } from "./interactive";
 import { estimateBenchmarkMemory, type WebGpuBenchmarkCase } from "./model";
@@ -61,6 +64,7 @@ export async function measureBenchmarkCase(
     pickPoint = benchmarkPickPoint(canvas, benchmarkCase, runtime, camera);
     renderer = await createWebGpuRenderer({ canvas, device });
     renderer.resize(WIDTH, HEIGHT);
+    installOrientationBenchmarkState(renderer, benchmarkCase);
     coldSample = await measureIteration({
       renderer,
       device,
@@ -132,6 +136,27 @@ export async function measureBenchmarkCase(
     ),
     gpuCost,
   };
+}
+
+function installOrientationBenchmarkState(
+  renderer: WebGpuRenderer,
+  benchmarkCase: WebGpuBenchmarkCase,
+): void {
+  const field = benchmarkCase.orientationField;
+  if (field === undefined) return;
+  const parts = new Map(
+    [...benchmarkCase.scene.parts].map(([partId, part]) => [
+      partId,
+      resolveElementalOrientationRecords(part, field),
+    ]),
+  );
+  const state: OrientationGlyphState = {
+    parts,
+    mode: "axis",
+    transform: "direction",
+    lengthScale: 1,
+  };
+  setRendererOrientationGlyphs(renderer, state);
 }
 
 function countUniqueVertices(benchmarkCase: WebGpuBenchmarkCase): number {

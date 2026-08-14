@@ -37,7 +37,7 @@ describe("createModelPresets", () => {
       "Element tessellation and mapping gallery",
       "Hex20 cylinder",
       "Section-plane volume",
-      "Static results · scalar + deformation",
+      "Static results · scalar + deformation + orientation",
       "Order-independent transparency",
       "Performance · 2.10M triangles",
     ]);
@@ -140,11 +140,17 @@ describe("createPresetInteraction", () => {
 });
 
 describe("results preset", () => {
-  it("connects an authored scalar field and nodal deformation to one FE part", () => {
+  it("connects authored scalar, deformation, and elemental orientation fields", () => {
     const preset = createResultsPreset();
     const model = preset.elementModels.get(20);
     expect(preset.results?.scalar?.field.shape).toBe("scalar");
     expect(preset.results?.deformation?.field.location).toBe("nodal");
+    expect(preset.results?.vectors?.field.id).toBe("demo-normals");
+    expect(preset.resultVectorFields?.map((field) => field.id)).toEqual([
+      "demo-normals",
+      "demo-fibers",
+    ]);
+    expect(preset.scene.assemblies.get(20)?.placements).toHaveLength(2);
     expect(model?.elements).toHaveLength(8);
     expect(model?.nodes).toHaveLength(90);
     expect(new Set(model?.elements.flatMap((element) => element.nodeIds)).size).toBe(30);
@@ -155,7 +161,12 @@ describe("results preset", () => {
       throw new Error("Results preset has no deformable part");
     }
     const deformedBounds = computeBounds(deformGeometry(part.geometry, displacement));
-    expect(preset.bounds).toEqual({ minX: 0, minY: 0, minZ: 0, maxX: 4, maxY: 2, maxZ: 1 });
+    expect(preset.bounds.minX).toBe(0);
+    expect(preset.bounds.minY).toBe(0);
+    expect(preset.bounds.minZ).toBe(0);
+    expect(preset.bounds.maxX).toBeCloseTo(5.5);
+    expect(preset.bounds.maxY).toBeCloseTo(2);
+    expect(preset.bounds.maxZ).toBeCloseTo(1.4);
     expect(deformedBounds.maxX).toBeCloseTo(4.08);
     expect(deformedBounds.maxY).toBeCloseTo(2.12);
     expect(deformedBounds.maxZ).toBeCloseTo(1.47);
@@ -176,5 +187,15 @@ describe("results preset", () => {
     expect(mapScalar(scalar.colorMap, 45)).toMatchObject({ r: 0.95, g: 0.85, a: 1 });
     expect(mapScalar(scalar.colorMap, 45).b).toBeCloseTo(0.2);
     expect(mapScalar(scalar.colorMap, 80)).toEqual(scalar.colorMap.stops.at(-1)?.color);
+  });
+
+  it("keeps missing and zero orientation rows authored without glyph-ready values", () => {
+    const preset = createResultsPreset();
+    const normals = preset.resultVectorFields?.find((field) => field.id === "demo-normals");
+    if (normals === undefined) throw new Error("Results preset has no normals field");
+    expect(Array.from(normals.values.slice(6, 12))).toEqual([NaN, NaN, NaN, 0, 0, 0]);
+    expect(preset.resultVectorFields?.[1]?.values.slice(0, 6)).toEqual(
+      new Float32Array([1, 0.25, 0, -1, -0.25, 0]),
+    );
   });
 });
