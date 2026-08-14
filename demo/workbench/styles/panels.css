@@ -38,6 +38,9 @@
   padding: 10px 12px;
 }
 .result-legend {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 8px;
   right: 358px;
   bottom: 14px;
   width: min(320px, calc(100% - 386px));
@@ -49,6 +52,15 @@
     Menlo,
     monospace;
   white-space: pre-wrap;
+}
+.result-legend-ramp {
+  align-self: stretch;
+  min-height: 44px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #ef4444 0%, #facc15 48%, #2563eb 100%);
+}
+.result-legend-text {
+  min-width: 0;
 }
 .inspection h2 {
   margin: 0 0 6px;

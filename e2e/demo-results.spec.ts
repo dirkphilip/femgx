@@ -96,6 +96,35 @@ test("switches Results and VTK between elemental and nodal scalar fields", async
   await expect(page.getByTestId("result-legend")).toContainText("Nodal · Unit C");
 });
 
+test("keeps dependent analysis controls contextual and the legend compact", async ({ page }) => {
+  await page.goto("/");
+  await waitForRenderer(page);
+  await page.getByTestId("model-select").selectOption("results");
+
+  const canvas = page.getByTestId("view-canvas");
+  const scale = page.getByTestId("deformation-scale");
+  const vectorField = page.getByTestId("vector-field");
+  const sectionAxis = page.getByTestId("section-axis");
+  await expect(scale).toBeVisible();
+  await expect(page.getByTestId("vector-glyph")).toBeVisible();
+  await expect(page.getByTestId("section-offset")).toBeHidden();
+  await expect(page.getByTestId("result-legend")).not.toContainText("Colors #");
+
+  await page.getByTestId("deformation-field").selectOption("__off__");
+  await expect(canvas).toHaveAttribute("data-results", "colored");
+  await expect(scale).toBeHidden();
+  await vectorField.selectOption("__vectors_off__");
+  await expect(page.getByTestId("vector-glyph")).toBeHidden();
+  await expect(page.getByTestId("vector-transform")).toBeHidden();
+  await expect(page.getByTestId("vector-length-scale")).toBeHidden();
+  await expect(page.getByTestId("vector-help")).toBeHidden();
+
+  await sectionAxis.selectOption("z");
+  await expect(page.getByTestId("section-offset")).toBeVisible();
+  await sectionAxis.selectOption("off");
+  await expect(page.getByTestId("section-offset")).toBeHidden();
+});
+
 test("validates signed normals and sign-invariant fibers in one shared results panel", async ({
   page,
 }, testInfo) => {
@@ -323,7 +352,13 @@ test("Fit model preserves workbench state while Reset all restores preset defaul
   await page.getByTestId("result-field").selectOption("__base__");
   await expect(page.getByTestId("result-field")).toHaveValue("__base__");
 
-  await page.mouse.click(hit.x, hit.y, { button: "right" });
+  const menuHit = await requireHit(
+    page,
+    canvas,
+    { fresh: true },
+    "GPU picking must resolve before opening the diagnostics context menu",
+  );
+  await page.mouse.click(menuHit.x, menuHit.y, { button: "right" });
   const menu = page.getByTestId("context-menu");
   await expect(menu.getByText("Show diagnostics")).toBeVisible();
   await menu.getByText("Show diagnostics").click();

@@ -174,14 +174,10 @@ function resultLegend(results: ViewportResultsState): string {
   const lines: string[] = [];
   if (scalar !== undefined) {
     const field = scalar.field;
-    const stops = scalar.colorMap.stops
-      .map((stop) => `${formatNumber(stop.offset * 100)}% ${formatColor(stop.color)}`)
-      .join(" → ");
     lines.push(
       field.name,
       `${fieldLocation(field.location)} · Unit ${field.unit}`,
       `Range ${formatNumber(scalar.range.min)} – ${formatNumber(scalar.range.max)}`,
-      `Colors ${stops}`,
     );
   }
   const vectors = results.vectors;
@@ -199,20 +195,6 @@ function resultLegend(results: ViewportResultsState): string {
 
 function fieldLocation(location: "nodal" | "elemental"): string {
   return location === "nodal" ? "Nodal" : "Elemental";
-}
-
-function formatColor(color: {
-  readonly r: number;
-  readonly g: number;
-  readonly b: number;
-}): string {
-  return `#${componentHex(color.r)}${componentHex(color.g)}${componentHex(color.b)}`;
-}
-
-function componentHex(component: number): string {
-  return Math.round(Math.min(1, Math.max(0, component)) * 255)
-    .toString(16)
-    .padStart(2, "0");
 }
 
 function formatNumber(value: number): string {

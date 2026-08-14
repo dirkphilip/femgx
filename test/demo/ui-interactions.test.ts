@@ -12,6 +12,7 @@ import {
 } from "../../demo/workbench/snapshot";
 import type { WorkbenchVisibilityRowSnapshot } from "../../demo/workbench/visibility-snapshot";
 import type { VisibilityRowTarget } from "../../demo/workbench/visibility-snapshot";
+import { DEFORMATION_OFF_VALUE } from "../../demo/workbench/result-controls";
 import BuildInfo from "../../demo/workbench/ui/BuildInfo.svelte";
 import ResultLegend from "../../demo/workbench/ui/ResultLegend.svelte";
 import StatusOverlays from "../../demo/workbench/ui/StatusOverlays.svelte";
@@ -109,6 +110,41 @@ describe("workbench Svelte controls", () => {
     expect(resultControls.hidden).toBe(true);
     expect((element(target, "#section-axis") as HTMLSelectElement).value).toBe("off");
     expect(element(target, "#model-feedback").hidden).toBe(true);
+
+    await unmount(component);
+    await tick();
+  });
+
+  it("keeps dependent analysis controls out of layout until their role is active", async () => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const base = createSnapshot(true);
+    const snapshot: WorkbenchSnapshot = {
+      ...base,
+      analysis: {
+        ...base.analysis,
+        resultMode: "colored",
+        deformationFieldId: DEFORMATION_OFF_VALUE,
+        deformationDisabled: true,
+        vectorControlsDisabled: true,
+        sectionAxis: "off",
+        sectionRange: undefined,
+      },
+    };
+    const component = mount(PrimaryToolbar, {
+      target,
+      props: { controller: undefined, snapshot },
+    });
+
+    expect(element(target, "#result-controls").hidden).toBe(false);
+    expect(element(target, "#deformation-field").closest("label")?.hidden).toBe(false);
+    expect(element(target, "#deformation-scale").closest("label")?.hidden).toBe(true);
+    expect(element(target, "#vector-field").closest("label")?.hidden).toBe(false);
+    expect(element(target, "#vector-glyph").closest("label")?.hidden).toBe(true);
+    expect(element(target, "#vector-transform").closest("label")?.hidden).toBe(true);
+    expect(element(target, "#vector-length-scale").closest("label")?.hidden).toBe(true);
+    expect(element(target, "#vector-help").hidden).toBe(true);
+    expect(element(target, "#section-offset").closest("label")?.hidden).toBe(true);
 
     await unmount(component);
     await tick();

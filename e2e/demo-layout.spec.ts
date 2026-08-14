@@ -63,6 +63,7 @@ async function assertWorkbenchLayout(
       scene: read("#primary-scene"),
       toolbar: read(".toolbar"),
       canvas: read('[data-testid="view-canvas"]'),
+      analysis: read("#analysis-surface"),
       legend: read("#result-legend"),
       results: read("#result-controls"),
       gizmo: read('[data-femgx-orientation-gizmo="true"]'),
@@ -98,9 +99,11 @@ async function assertWorkbenchLayout(
   }
 
   if (resultModel) {
+    expect(layout.analysis).toBeDefined();
     expect(layout.results?.hidden).toBe(false);
     expect(layout.results?.display).not.toBe("none");
     expect(layout.legend?.hidden).toBe(false);
+    if (phone) expect(layout.legend?.width).toBeLessThanOrEqual(220);
   } else {
     expect(layout.results?.hidden).toBe(true);
     expect(layout.results?.width).toBe(0);
