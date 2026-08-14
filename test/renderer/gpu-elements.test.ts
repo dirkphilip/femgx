@@ -642,6 +642,8 @@ describe("writeElementHighlights", () => {
       storage.transparentBindGroup = {} as GPUBindGroup;
       storage.selectionBindGroup = {} as GPUBindGroup;
       storage.nodeSelectionBindGroup = {} as GPUBindGroup;
+      storage.subsetBindGroup = {} as GPUBindGroup;
+      storage.subsetTransparentBindGroup = {} as GPUBindGroup;
       const updates = Array.from({ length: INITIAL_ELEMENT_HIGHLIGHTS + 10 }, (_, index) =>
         elementUpdate(index, index),
       );
@@ -651,6 +653,8 @@ describe("writeElementHighlights", () => {
       expect(storage.transparentBindGroup).toBeUndefined();
       expect(storage.selectionBindGroup).toBeUndefined();
       expect(storage.nodeSelectionBindGroup).toBeUndefined();
+      expect(storage.subsetBindGroup).toBeUndefined();
+      expect(storage.subsetTransparentBindGroup).toBeUndefined();
     } finally {
       restore();
     }

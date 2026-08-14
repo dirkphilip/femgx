@@ -199,7 +199,7 @@ describe("GPU draw path", () => {
     }
   });
 
-  it("draws a face subset through compact surface indices", () => {
+  it("draws and caches opaque and transparent face-subset bindings", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
@@ -227,8 +227,35 @@ describe("GPU draw path", () => {
         [{ partId: subsetPart.id, instanceCount: 1 }],
         { kind: "surface", pass: "color" },
       );
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) },
+        [{ partId: subsetPart.id, instanceCount: 1 }],
+        { kind: "surface", pass: "color" },
+      );
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) },
+        [{ partId: subsetPart.id, instanceCount: 1 }],
+        { kind: "surface", pass: "transparent" },
+      );
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) },
+        [{ partId: subsetPart.id, instanceCount: 1 }],
+        { kind: "surface", pass: "transparent" },
+      );
       pass.end();
-      expect(gpu.drawCalls).toEqual([{ indexCount: 3, instanceCount: 1 }]);
+      expect(gpu.drawCalls).toEqual([
+        { indexCount: 3, instanceCount: 1 },
+        { indexCount: 3, instanceCount: 1 },
+        { indexCount: 3, instanceCount: 1 },
+        { indexCount: 3, instanceCount: 1 },
+      ]);
+      expect(gpu.bindGroupCreations).toBe(2);
     } finally {
       restore();
     }
@@ -670,8 +697,18 @@ describe("GPU draw path", () => {
         [{ partId: nodePart.id, instanceCount: 2 }],
         { kind: "nodes", pipeline: {} as GPURenderPipeline },
       );
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[nodePart.id, nodePart]]) },
+        [{ partId: nodePart.id, instanceCount: 2 }],
+        { kind: "nodes", pipeline: {} as GPURenderPipeline },
+      );
       pass.end();
-      expect(gpu.drawCalls).toEqual([{ indexCount: 18, instanceCount: 2 }]);
+      expect(gpu.drawCalls).toEqual([
+        { indexCount: 18, instanceCount: 2 },
+        { indexCount: 18, instanceCount: 2 },
+      ]);
       expect(gpu.bindGroupCreations).toBe(1);
     } finally {
       restore();

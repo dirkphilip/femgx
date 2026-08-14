@@ -102,7 +102,7 @@ function drawOneBatch(
     edge: overlay,
     surfaceSubset: !overlay && subset,
     edgePick,
-    cache: !nodes && !subset && !edgePick,
+    cache: !edgePick,
   });
   pass.setBindGroup(1, group);
   const count = bindDrawGeometry(pass, geometry, overlay, subset, edgePick);

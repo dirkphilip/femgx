@@ -202,6 +202,8 @@ function ensureHighlightStorage(
   storage.transparentBindGroup = undefined;
   storage.selectionBindGroup = undefined;
   storage.nodeSelectionBindGroup = undefined;
+  storage.subsetBindGroup = undefined;
+  storage.subsetTransparentBindGroup = undefined;
 }
 
 function toTableEntry(update: EmphasisUpdate): HighlightTableEntry {
@@ -253,6 +255,8 @@ interface HighlightTarget {
   transparentBindGroup: GPUBindGroup | undefined;
   selectionBindGroup: GPUBindGroup | undefined;
   nodeSelectionBindGroup: GPUBindGroup | undefined;
+  subsetBindGroup?: GPUBindGroup | undefined;
+  subsetTransparentBindGroup?: GPUBindGroup | undefined;
 }
 
 /** Recomputes every part's emphasis table and writes only changed ranges. */
