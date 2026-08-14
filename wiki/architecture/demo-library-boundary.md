@@ -69,10 +69,15 @@ Ordinary demo code and retained product fixtures import library capabilities onl
 from `src/index.ts`. The repository lint gate checks this boundary so a new demo
 deep import cannot quietly couple presentation code to implementation details.
 
-Two benchmark-only files plus the performance fixture are explicit exemptions because they measure or inspect
-internal GPU/runtime representations rather than model normal host usage:
+Seven benchmark-only files plus the performance fixture are explicit exemptions
+because they measure or inspect internal GPU/runtime representations rather than
+model normal host usage:
 
-- `demo/benchmark/runner.ts`
+- `demo/benchmark/interactive.ts`
+- `demo/benchmark/measurement.ts`
+- `demo/benchmark/selection.ts`
+- `demo/benchmark/structured-fe.ts`
+- `demo/benchmark/memory.ts`
 - `demo/benchmark/model.ts`
 - `demo/fixture/performance-fixture.ts`
 

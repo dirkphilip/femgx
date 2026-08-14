@@ -1,11 +1,11 @@
 # GLB fixtures
 
-`onshape-cylinder-uncompressed.glb` is a 15 KiB binary GLB supplied for femgx
-issue #423. Its metadata identifies the exporter as `ONSHAPE BY PTC INC, 1.219`.
-It was exported as a GLB with mesh compression disabled and contains the simple
-cylinder Part Studio display tessellation used by the importer tests.
+The paired `onshape-cylinder-uncompressed.glb` and
+`onshape-cylinder-compressed.glb` fixtures are 15 KiB and 11 KiB binary GLBs
+supplied for femgx issue #423. Their metadata identifies the exporter as
+`ONSHAPE BY PTC INC, 1.219`; the compressed fixture uses
+`KHR_draco_mesh_compression`.
 
-The fixture is retained as a provenance sample for the uncompressed Onshape
-path. A current Onshape export with the **Compress** option enabled is still
-required before a compression decoder is selected and the importer issue is
-closed; Onshape's public documentation does not identify that extension.
+The importer tests use the uncompressed file as the provenance sample and the
+compressed file to verify the selected Draco decoder path. Both fixtures
+contain the simple cylinder Part Studio display tessellation.
