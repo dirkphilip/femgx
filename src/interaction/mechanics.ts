@@ -120,6 +120,46 @@ export function updateMapValue<Key, Value>(
   return next;
 }
 
+/** Visits members added to or removed from an immutable set. */
+export function diffSetMembers<T>(
+  previous: ReadonlySet<T>,
+  next: ReadonlySet<T>,
+  visit: (value: T) => void,
+): void {
+  for (const value of previous) if (!next.has(value)) visit(value);
+  for (const value of next) if (!previous.has(value)) visit(value);
+}
+
+/** Visits outer keys whose nested immutable set membership changed. */
+export function diffNestedSetMembers<OuterKey, InnerKey>(
+  previous: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
+  next: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
+  visit: (value: OuterKey) => void,
+): void {
+  for (const [outerKey, values] of previous) {
+    const nextValues = next.get(outerKey);
+    if (nextValues === undefined || [...values].some((value) => !nextValues.has(value))) {
+      visit(outerKey);
+    }
+  }
+  for (const [outerKey, values] of next) {
+    const previousValues = previous.get(outerKey);
+    if (previousValues === undefined || [...values].some((value) => !previousValues.has(value))) {
+      visit(outerKey);
+    }
+  }
+}
+
+/** Visits keys whose immutable map values changed by identity. */
+export function diffMapValues<Key, Value>(
+  previous: ReadonlyMap<Key, Value>,
+  next: ReadonlyMap<Key, Value>,
+  visit: (value: Key) => void,
+): void {
+  for (const [key, value] of previous) if (next.get(key) !== value) visit(key);
+  for (const [key, value] of next) if (previous.get(key) !== value) visit(key);
+}
+
 /** Collects references in caller-defined order without duplicate identities. */
 export function collectUniqueRefs<T>(
   hovered: T | undefined,

@@ -1,6 +1,7 @@
 import type { PartId } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
 import type { InteractionTarget } from "../interaction/target-types";
+import { diffMapValues, diffNestedSetMembers, diffSetMembers } from "../interaction/mechanics";
 import { readInteractionState } from "../interaction/state";
 import type { InstanceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
@@ -45,10 +46,10 @@ export function changedInstanceSlots(
   };
   diffSetMembers(previousData.highlightedPartIds, nextData.highlightedPartIds, addPart);
   diffSetMembers(previousData.selectedPartIds, nextData.selectedPartIds, addPart);
-  diffOverrideKeys(previousData.partOverrides, nextData.partOverrides, addPart);
+  diffMapValues(previousData.partOverrides, nextData.partOverrides, addPart);
   diffSetMembers(previousData.highlightedInstanceIds, nextData.highlightedInstanceIds, addInstance);
   diffSetMembers(previousData.selectedInstanceIds, nextData.selectedInstanceIds, addInstance);
-  diffOverrideKeys(previousData.instanceOverrides, nextData.instanceOverrides, addInstance);
+  diffMapValues(previousData.instanceOverrides, nextData.instanceOverrides, addInstance);
   diffNestedSetMembers(
     previousData.highlightedElementIds,
     nextData.highlightedElementIds,
@@ -64,57 +65,4 @@ export function changedInstanceSlots(
 
 function hoveredInstanceId(target: InteractionTarget | undefined): InstanceId | undefined {
   return target === undefined || target.kind === "part" ? undefined : target.instanceId;
-}
-
-function diffNestedSetMembers<OuterKey, InnerKey>(
-  previous: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
-  next: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
-  visit: (value: OuterKey) => void,
-): void {
-  for (const [outerKey, values] of previous) {
-    const nextValues = next.get(outerKey);
-    if (nextValues === undefined || [...values].some((value) => !nextValues.has(value))) {
-      visit(outerKey);
-    }
-  }
-  for (const [outerKey, values] of next) {
-    const previousValues = previous.get(outerKey);
-    if (previousValues === undefined || [...values].some((value) => !previousValues.has(value))) {
-      visit(outerKey);
-    }
-  }
-}
-
-function diffSetMembers<T>(
-  previous: ReadonlySet<T>,
-  next: ReadonlySet<T>,
-  visit: (value: T) => void,
-): void {
-  for (const value of previous) {
-    if (!next.has(value)) {
-      visit(value);
-    }
-  }
-  for (const value of next) {
-    if (!previous.has(value)) {
-      visit(value);
-    }
-  }
-}
-
-function diffOverrideKeys<K, V>(
-  previous: ReadonlyMap<K, V>,
-  next: ReadonlyMap<K, V>,
-  visit: (key: K) => void,
-): void {
-  for (const [key, value] of previous) {
-    if (next.get(key) !== value) {
-      visit(key);
-    }
-  }
-  for (const [key, value] of next) {
-    if (previous.get(key) !== value) {
-      visit(key);
-    }
-  }
 }

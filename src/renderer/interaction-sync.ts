@@ -1,5 +1,6 @@
 import type { Part, PartId } from "../geometry/part";
 import { resolveInstanceStyle, type InteractionState } from "../interaction/interaction";
+import { diffMapValues, diffNestedSetMembers, diffSetMembers } from "../interaction/mechanics";
 import { readInteractionState, type InteractionStateData } from "../interaction/state";
 import type { InteractionTarget } from "../interaction/target-types";
 import type { InstanceId } from "../scene/types";
@@ -86,13 +87,13 @@ export function interactionAffectedSlots(
   diffNestedSetMembers(previousData.hiddenElementIds, nextData.hiddenElementIds, addInstance);
   diffNestedSetMembers(previousData.selectedNodeIds, nextData.selectedNodeIds, addInstance);
   diffNestedSetMembers(previousData.highlightedNodeIds, nextData.highlightedNodeIds, addInstance);
-  diffNestedMapValues(previousData.bodyOverrides, nextData.bodyOverrides, addInstance);
-  diffNestedMapValues(previousData.blockOverrides, nextData.blockOverrides, addInstance);
-  diffNestedMapValues(previousData.elementOverrides, nextData.elementOverrides, addInstance);
-  diffNestedMapValues(previousData.selectedFaces, nextData.selectedFaces, addInstance);
-  diffNestedMapValues(previousData.highlightedFaces, nextData.highlightedFaces, addInstance);
-  diffNestedMapValues(previousData.selectedEdges, nextData.selectedEdges, addInstance);
-  diffNestedMapValues(previousData.highlightedEdges, nextData.highlightedEdges, addInstance);
+  diffMapValues(previousData.bodyOverrides, nextData.bodyOverrides, addInstance);
+  diffMapValues(previousData.blockOverrides, nextData.blockOverrides, addInstance);
+  diffMapValues(previousData.elementOverrides, nextData.elementOverrides, addInstance);
+  diffMapValues(previousData.selectedFaces, nextData.selectedFaces, addInstance);
+  diffMapValues(previousData.highlightedFaces, nextData.highlightedFaces, addInstance);
+  diffMapValues(previousData.selectedEdges, nextData.selectedEdges, addInstance);
+  diffMapValues(previousData.highlightedEdges, nextData.highlightedEdges, addInstance);
   addHoveredInstance(previousData.hoveredTarget, addInstance);
   addHoveredInstance(nextData.hoveredTarget, addInstance);
   if (!themesEqual(previousData.theme, nextData.theme)) {
@@ -150,7 +151,7 @@ export function interactionDirtyParts(
   diffNestedSetMembers(previousData.selectedBlockIds, nextData.selectedBlockIds, (instanceId) => {
     addInstance(instanceId, selectionParts);
   });
-  diffNestedMapValues(previousData.selectedFaces, nextData.selectedFaces, (instanceId) => {
+  diffMapValues(previousData.selectedFaces, nextData.selectedFaces, (instanceId) => {
     addInstance(instanceId, selectionParts);
   });
   diffNestedSetMembers(previousData.selectedNodeIds, nextData.selectedNodeIds, (instanceId) => {
@@ -264,52 +265,6 @@ export function partsForSlots(
 
 function isTransparent(alpha: number): boolean {
   return alpha < 1;
-}
-
-function diffSetMembers<T>(
-  previous: ReadonlySet<T>,
-  next: ReadonlySet<T>,
-  visit: (value: T) => void,
-): void {
-  for (const value of previous) if (!next.has(value)) visit(value);
-  for (const value of next) if (!previous.has(value)) visit(value);
-}
-
-function diffNestedSetMembers<OuterKey, InnerKey>(
-  previous: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
-  next: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
-  visit: (value: OuterKey) => void,
-): void {
-  for (const [outerKey, values] of previous) {
-    const nextValues = next.get(outerKey);
-    if (nextValues === undefined || [...values].some((value) => !nextValues.has(value))) {
-      visit(outerKey);
-    }
-  }
-  for (const [outerKey, values] of next) {
-    const previousValues = previous.get(outerKey);
-    if (previousValues === undefined || [...values].some((value) => !previousValues.has(value))) {
-      visit(outerKey);
-    }
-  }
-}
-
-function diffNestedMapValues<OuterKey, InnerValue>(
-  previous: ReadonlyMap<OuterKey, InnerValue>,
-  next: ReadonlyMap<OuterKey, InnerValue>,
-  visit: (value: OuterKey) => void,
-): void {
-  for (const [key, value] of previous) if (next.get(key) !== value) visit(key);
-  for (const [key, value] of next) if (previous.get(key) !== value) visit(key);
-}
-
-function diffMapValues<Key, Value>(
-  previous: ReadonlyMap<Key, Value>,
-  next: ReadonlyMap<Key, Value>,
-  visit: (value: Key) => void,
-): void {
-  for (const [key, value] of previous) if (next.get(key) !== value) visit(key);
-  for (const [key, value] of next) if (previous.get(key) !== value) visit(key);
 }
 
 function addHoveredInstance(
