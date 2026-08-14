@@ -3,41 +3,11 @@ import type { BodyId } from "../elements/model";
 import type { ElementTessellation, Geometry, GeometryBody, GeometryElementBlock } from "./types";
 import { MAX_ONE_BASED_ID, isValidOneBasedId, validateOneBasedId } from "./id-validation";
 import { validateFaceMetadata, validateFaceSubset } from "./face-validation";
+import { validateEdges } from "./edge-validation";
+import { GeometryValidationError } from "./validation-error";
 
 export { faceForPrimitive, validateFaceSubset } from "./face-validation";
-
-/**
- * Machine-readable geometry validation failure.
- * @category Scene and geometry
- */
-export type GeometryValidationCode =
-  | "invalid-block-id"
-  | "duplicate-block-id"
-  | "block-order"
-  | "empty-block"
-  | "unknown-block-element"
-  | "duplicate-block-membership"
-  | "invalid-body-id"
-  | "duplicate-body-id"
-  | "body-order"
-  | "duplicate-body-membership"
-  | "unknown-body-element"
-  | "unknown-element-body"
-  | "body-membership-mismatch";
-
-/**
- * Typed validation error raised for invalid body metadata.
- * @category Scene and geometry
- */
-export class GeometryValidationError extends Error {
-  readonly code: GeometryValidationCode;
-
-  constructor(code: GeometryValidationCode, message: string) {
-    super(message);
-    this.name = "GeometryValidationError";
-    this.code = code;
-  }
-}
+export { GeometryValidationError, type GeometryValidationCode } from "./validation-error";
 
 /**
  * Validates element descriptors against a primitive buffer. When elements are
@@ -309,12 +279,14 @@ export function validatePickIds(geometry: Geometry): void {
     );
   }
   validateNodePickIds(geometry);
+  validateEdges(geometry);
   validateFaceMetadata(geometry);
   validateFaceSubset(geometry);
   validateDerivedBlocks(geometry);
   validateBodies(geometry);
 }
 
+/** Validates stable authored-edge metadata against the part's element identities. */
 function validateDerivedBlocks(geometry: Geometry): void {
   const blocks = geometry.blocks;
   if (blocks === undefined || blocks.length === 0) return;

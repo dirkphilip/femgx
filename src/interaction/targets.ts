@@ -1,9 +1,9 @@
-import type { BodyRef, FaceRef } from "./refs";
+import type { EdgeRef, FaceRef } from "./refs";
 import { setElementBlockHighlighted, setElementBlockSelected } from "./blocks";
-import type { StyleOverride } from "./state";
 import { setBodyHighlighted, setBodySelected } from "./bodies";
 import { setFaceHighlighted, setFaceSelected } from "./faces";
 import { setNodeHighlighted, setNodeSelected } from "./nodes";
+import { setEdgeHighlighted, setEdgeSelected } from "./edges";
 import {
   readInteractionState,
   setHoveredTarget,
@@ -23,7 +23,8 @@ import { updateNestedMaps, updateNestedSets, updateSetValues } from "./mechanics
 export type { InteractionTarget } from "./target-types";
 import type { InteractionTarget } from "./target-types";
 import type { InteractionGranularity, PickHit } from "../picking/types";
-import { faceRefKey } from "./refs";
+import { edgeRefKey, faceRefKey } from "./refs";
+export { bodyOverride, clearSelection, selectedTargets } from "./selection-queries";
 
 /**
  * Converts a complete physical hit to a host-owned interaction identity.
@@ -39,15 +40,15 @@ export function interactionTargetFromHit(
     case "instance":
       return { kind: "instance", instanceId: hit.instanceId };
     case "body":
-      return hit.kind !== "instance" && hit.bodyId !== undefined
+      return hit.kind !== "instance" && hit.kind !== "edge" && hit.bodyId !== undefined
         ? { kind: "body", instanceId: hit.instanceId, bodyId: hit.bodyId }
         : undefined;
     case "block":
-      return hit.kind !== "instance" && hit.blockId !== undefined
+      return hit.kind !== "instance" && hit.kind !== "edge" && hit.blockId !== undefined
         ? { kind: "block", instanceId: hit.instanceId, blockId: hit.blockId }
         : undefined;
     case "element":
-      if (hit.kind === "instance") return undefined;
+      if (hit.kind === "instance" || hit.kind === "edge") return undefined;
       if (hit.kind === "node") {
         return hit.elementId === undefined
           ? undefined
@@ -66,6 +67,10 @@ export function interactionTargetFromHit(
     case "node":
       return hit.kind === "node"
         ? { kind: "node", instanceId: hit.instanceId, nodeId: hit.nodeId }
+        : undefined;
+    case "edge":
+      return hit.kind === "edge"
+        ? { kind: "edge", instanceId: hit.instanceId, key: hit.key }
         : undefined;
   }
 }
@@ -94,6 +99,8 @@ export function setTargetSelected(
       return setFaceSelected(state, target, selected);
     case "node":
       return setNodeSelected(state, target, selected);
+    case "edge":
+      return setEdgeSelected(state, target, selected);
   }
 }
 
@@ -121,6 +128,7 @@ export function setTargetsSelected(
   const selectedElementIds = updateNestedSets(data.selectedElementIds, groups.elementIds, selected);
   const selectedFaces = updateNestedMaps(data.selectedFaces, groups.faceRefs, selected);
   const selectedNodeIds = updateNestedSets(data.selectedNodeIds, groups.nodeIds, selected);
+  const selectedEdges = updateNestedMaps(data.selectedEdges, groups.edgeRefs, selected);
   if (
     selectedPartIds === data.selectedPartIds &&
     selectedInstanceIds === data.selectedInstanceIds &&
@@ -128,7 +136,8 @@ export function setTargetsSelected(
     selectedBlockIds === data.selectedBlockIds &&
     selectedElementIds === data.selectedElementIds &&
     selectedFaces === data.selectedFaces &&
-    selectedNodeIds === data.selectedNodeIds
+    selectedNodeIds === data.selectedNodeIds &&
+    selectedEdges === data.selectedEdges
   ) {
     return state;
   }
@@ -140,6 +149,7 @@ export function setTargetsSelected(
     selectedElementIds,
     selectedFaces,
     selectedNodeIds,
+    selectedEdges,
   });
 }
 
@@ -150,6 +160,7 @@ type BlockTarget = Extract<InteractionTarget, { readonly kind: "block" }>;
 type ElementTarget = Extract<InteractionTarget, { readonly kind: "element" }>;
 type FaceTarget = Extract<InteractionTarget, { readonly kind: "face" }>;
 type NodeTarget = Extract<InteractionTarget, { readonly kind: "node" }>;
+type EdgeTarget = Extract<InteractionTarget, { readonly kind: "edge" }>;
 
 interface SelectionTargetGroups {
   readonly partIds: Set<PartTarget["partId"]>;
@@ -159,6 +170,7 @@ interface SelectionTargetGroups {
   readonly elementIds: Map<ElementTarget["instanceId"], Set<ElementTarget["elementId"]>>;
   readonly faceRefs: Map<FaceTarget["instanceId"], Map<string, FaceRef>>;
   readonly nodeIds: Map<NodeTarget["instanceId"], Set<NodeTarget["nodeId"]>>;
+  readonly edgeRefs: Map<EdgeTarget["instanceId"], Map<string, EdgeRef>>;
 }
 
 function collectSelectionTargets(targets: readonly InteractionTarget[]): SelectionTargetGroups {
@@ -170,6 +182,7 @@ function collectSelectionTargets(targets: readonly InteractionTarget[]): Selecti
     elementIds: new Map(),
     faceRefs: new Map(),
     nodeIds: new Map(),
+    edgeRefs: new Map(),
   };
   const seen = new Set<string>();
   for (const target of targets) {
@@ -197,6 +210,9 @@ function collectSelectionTargets(targets: readonly InteractionTarget[]): Selecti
         break;
       case "node":
         addNestedValue(groups.nodeIds, target.instanceId, target.nodeId);
+        break;
+      case "edge":
+        addNestedValue(groups.edgeRefs, target.instanceId, edgeRefKey(target), target);
         break;
     }
   }
@@ -246,6 +262,8 @@ function selectionTargetKey(target: InteractionTarget): string {
       return `face:${target.instanceId}:${faceRefKey(target)}`;
     case "node":
       return `node:${target.instanceId}:${target.nodeId}`;
+    case "edge":
+      return `edge:${target.instanceId}:${target.key}`;
   }
 }
 
@@ -273,6 +291,8 @@ export function setTargetHighlighted(
       return setFaceHighlighted(state, target, highlighted);
     case "node":
       return setNodeHighlighted(state, target, highlighted);
+    case "edge":
+      return setEdgeHighlighted(state, target, highlighted);
   }
 }
 
@@ -324,6 +344,8 @@ export function isTargetSelected(state: InteractionState, target: InteractionTar
       return data.selectedFaces.get(target.instanceId)?.has(faceRefKey(target)) === true;
     case "node":
       return data.selectedNodeIds.get(target.instanceId)?.has(target.nodeId) === true;
+    case "edge":
+      return data.selectedEdges.get(target.instanceId)?.has(edgeRefKey(target)) === true;
   }
 }
 
@@ -348,101 +370,10 @@ export function isTargetHighlighted(state: InteractionState, target: Interaction
       return data.highlightedFaces.get(target.instanceId)?.has(faceRefKey(target)) === true;
     case "node":
       return data.highlightedNodeIds.get(target.instanceId)?.has(target.nodeId) === true;
+    case "edge":
+      return data.highlightedEdges.get(target.instanceId)?.has(edgeRefKey(target)) === true;
   }
 }
 
 /** Returns whether a target is the one currently hovered target. */
 export { hoveredTarget, isHoveredTarget };
-
-/**
- * Returns selected targets in stable kind and identity order.
- * @category Interaction and picking
- */
-export function selectedTargets(state: InteractionState): InteractionTarget[] {
-  const data = readInteractionState(state);
-  const targets: InteractionTarget[] = [];
-  for (const partId of [...data.selectedPartIds].sort((a, b) => a - b)) {
-    targets.push({ kind: "part", partId });
-  }
-  for (const instanceId of [...data.selectedInstanceIds].sort()) {
-    targets.push({ kind: "instance", instanceId });
-  }
-  for (const [instanceId, ids] of [...data.selectedBodyIds.entries()].sort(([a], [b]) =>
-    a.localeCompare(b),
-  )) {
-    for (const bodyId of [...ids].sort((a, b) => a - b))
-      targets.push({ kind: "body", instanceId, bodyId });
-  }
-  for (const [instanceId, ids] of [...data.selectedBlockIds.entries()].sort(([a], [b]) =>
-    a.localeCompare(b),
-  )) {
-    for (const blockId of [...ids].sort((a, b) => a - b))
-      targets.push({ kind: "block", instanceId, blockId });
-  }
-  for (const [instanceId, ids] of [...data.selectedElementIds.entries()].sort(([a], [b]) =>
-    a.localeCompare(b),
-  )) {
-    for (const elementId of [...ids].sort((a, b) => a - b))
-      targets.push({ kind: "element", instanceId, elementId });
-  }
-  for (const [, faces] of [...data.selectedFaces.entries()].sort(([a], [b]) =>
-    a.localeCompare(b),
-  )) {
-    for (const ref of [...faces.values()].sort(
-      (a, b) =>
-        a.instanceId.localeCompare(b.instanceId) ||
-        a.elementId - b.elementId ||
-        a.faceIndex - b.faceIndex,
-    )) {
-      targets.push({
-        kind: "face",
-        instanceId: ref.instanceId,
-        elementId: ref.elementId,
-        faceIndex: ref.faceIndex,
-      });
-    }
-  }
-  for (const [instanceId, ids] of [...data.selectedNodeIds.entries()].sort(([a], [b]) =>
-    a.localeCompare(b),
-  )) {
-    for (const nodeId of [...ids].sort((a, b) => a - b))
-      targets.push({ kind: "node", instanceId, nodeId });
-  }
-  return targets;
-}
-
-/**
- * Returns an explicit body style override, if one is present.
- * @category Interaction and picking
- */
-export function bodyOverride(state: InteractionState, ref: BodyRef): StyleOverride | undefined {
-  return readInteractionState(state).bodyOverrides.get(ref.instanceId)?.get(ref.bodyId);
-}
-
-/**
- * Clears all six selection collections while preserving every other state layer.
- * @category Interaction and picking
- */
-export function clearSelection(state: InteractionState): InteractionState {
-  const data = readInteractionState(state);
-  if (
-    data.selectedPartIds.size === 0 &&
-    data.selectedInstanceIds.size === 0 &&
-    data.selectedBodyIds.size === 0 &&
-    data.selectedBlockIds.size === 0 &&
-    data.selectedElementIds.size === 0 &&
-    data.selectedFaces.size === 0 &&
-    data.selectedNodeIds.size === 0
-  ) {
-    return state;
-  }
-  return updateInteractionState(state, {
-    selectedPartIds: new Set(),
-    selectedInstanceIds: new Set(),
-    selectedBodyIds: new Map(),
-    selectedBlockIds: new Map(),
-    selectedElementIds: new Map(),
-    selectedFaces: new Map(),
-    selectedNodeIds: new Map(),
-  });
-}

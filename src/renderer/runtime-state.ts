@@ -209,6 +209,7 @@ export function buildEdgeOrder(
   runtime: PackedSceneRuntime,
   partId: PartId,
   edgeFlags: readonly boolean[],
+  edgeEmphasisFlags: readonly boolean[] = [],
 ): Uint32Array {
   const slots = layout.partSlots.get(partId);
   if (slots === undefined) return new Uint32Array();
@@ -218,7 +219,7 @@ export function buildEdgeOrder(
     if (
       local !== undefined &&
       local >= 0 &&
-      edgeFlags[slot] === true &&
+      (edgeFlags[slot] === true || edgeEmphasisFlags[slot] === true) &&
       runtime.isInstanceVisible(slot)
     ) {
       overlay.push(local);

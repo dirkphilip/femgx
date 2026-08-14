@@ -9,6 +9,7 @@ export type {
   FaceTessellation,
   GeometryBody,
   GeometryElementBlock,
+  GeometryEdge,
   Geometry,
   LineGeometry,
   LinearGeometry,

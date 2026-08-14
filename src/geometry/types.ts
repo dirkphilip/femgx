@@ -1,6 +1,7 @@
 import type { BodyId, ElementBlockId } from "../elements/model";
 import type { ElementId, NodeId } from "../elements/element";
 import type { FaceIdRef, FaceKey } from "../elements/faces";
+import type { EdgeKey } from "../elements/edges";
 import type { ElementShape } from "../elements/shapes";
 
 /**
@@ -95,6 +96,26 @@ export interface FaceTessellation {
 }
 
 /**
+ * Stable authored-edge metadata retained alongside tessellated geometry.
+ *
+ * The node sequence is `[corner, corner]` for linear edges and
+ * `[corner, mid, corner]` for quadratic edges. Renderer-private tessellation
+ * segments may refer back to this one identity, so a shared authored edge is
+ * never confused with a tessellation diagonal.
+ * @category Scene and geometry
+ */
+export interface GeometryEdge {
+  /** Canonical identity independent of the element's orientation. */
+  readonly key: EdgeKey;
+  /** Canonical authored node sequence. */
+  readonly nodeIds: readonly NodeId[];
+  /** Elements incident to this edge, in ascending id order. */
+  readonly incidentElementIds: readonly ElementId[];
+  /** Oriented element faces that contain this edge. */
+  readonly faceRefs: readonly FaceIdRef[];
+}
+
+/**
  * How a part's indexed primitives are drawn on the GPU.
  * @category Scene and geometry
  */
@@ -110,6 +131,8 @@ interface GeometryBase {
   readonly indices: Uint32Array;
   /** Optional element tessellations covering the logical primitives. */
   readonly elements?: readonly ElementTessellation[];
+  /** Optional stable authored FE edges; absent for generic display geometry. */
+  readonly edges?: readonly GeometryEdge[];
   /**
    * Optional per-vertex node pick ids: `nodeId + 1` for vertices that come from
    * an authored model node. When present the part is node-pickable and the

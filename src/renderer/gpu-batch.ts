@@ -5,6 +5,7 @@ import {
   uploadNodePart,
   uploadPart,
   ensureEdgeResources,
+  ensureEdgePickResources,
   type DrawCall,
   type DrawCallContext,
   type DrawResources,
@@ -20,11 +21,19 @@ type DrawIntent =
       readonly primitive?: "triangles" | "lines" | "points";
     }
   | { readonly kind: "edge"; readonly pipeline: GPURenderPipeline }
+  | { readonly kind: "edge-pick"; readonly pipeline: GPURenderPipeline }
   | {
       readonly kind: "nodes";
       readonly pipeline: GPURenderPipeline;
       readonly selection?: "visible" | "hidden";
     };
+
+interface DrawIntentState {
+  readonly orderKind: "opaque" | "transparent" | "edge" | "node" | "selection" | "node-selection";
+  readonly overlay: boolean;
+  readonly edgePick: boolean;
+  readonly nodes: boolean;
+}
 
 /** Issues all instanced draws for the cached per-part calls. */
 export function drawBatches(
@@ -59,20 +68,7 @@ function drawOneBatch(
   options: { readonly intent: DrawIntent; readonly current: GPURenderPipeline | undefined },
 ): GPURenderPipeline | undefined {
   const { intent, current } = options;
-  const orderKind =
-    intent.kind === "nodes"
-      ? intent.selection !== undefined
-        ? "node-selection"
-        : "node"
-      : intent.kind === "edge"
-        ? "edge"
-        : intent.pass === "transparent"
-          ? "transparent"
-          : intent.pass.startsWith("selection-")
-            ? "selection"
-            : "opaque";
-  const overlay = orderKind === "edge";
-  const nodes = intent.kind === "nodes";
+  const { orderKind, overlay, edgePick, nodes } = drawIntentState(intent);
   const part = context.parts.get(call.partId);
   const storage = draw.storages.get(call.partId);
   if (part === undefined || storage === undefined) return current;
@@ -86,8 +82,11 @@ function drawOneBatch(
   if (nodes && part.geometry.primitive === "points") return current;
   const geometry = uploadBatchGeometry(draw, context, part, nodes);
   const subset = usesFaceSubset(intent, part, nodes);
-  if (overlay && ensureEdgeResources(draw, part, geometry) === undefined) return current;
-  if (overlay && (geometry.edge?.edgeIndexCount ?? 0) === 0) {
+  if (edgePick && ensureEdgePickResources(draw, part, geometry) === undefined) return current;
+  if (overlay && !edgePick && ensureEdgeResources(draw, part, geometry) === undefined)
+    return current;
+  if (edgePick && (geometry.edgePick?.indexCount ?? 0) === 0) return current;
+  if (overlay && !edgePick && (geometry.edge?.edgeIndexCount ?? 0) === 0) {
     return current;
   }
   if (!overlay && subset && geometry.subsetIndexCount === 0) return current;
@@ -102,14 +101,43 @@ function drawOneBatch(
     deformation,
     edge: overlay,
     surfaceSubset: !overlay && subset,
-    cache: !nodes && !subset,
+    edgePick,
+    cache: !nodes && !subset && !edgePick,
   });
   pass.setBindGroup(1, group);
-  const count = bindDrawGeometry(pass, geometry, overlay, subset);
+  const count = bindDrawGeometry(pass, geometry, overlay, subset, edgePick);
   if (count === undefined) return current;
   pass.drawIndexed(count, call.instanceCount);
   draw.cost.draw(drawCostCategory(intent), count, call.instanceCount);
   return pipeline;
+}
+
+function drawIntentState(intent: DrawIntent): DrawIntentState {
+  if (intent.kind === "nodes") {
+    return {
+      orderKind: intent.selection === undefined ? "node" : "node-selection",
+      overlay: false,
+      edgePick: false,
+      nodes: true,
+    };
+  }
+  if (intent.kind === "edge") {
+    return { orderKind: "edge", overlay: true, edgePick: false, nodes: false };
+  }
+  if (intent.kind === "edge-pick") {
+    return { orderKind: "opaque", overlay: true, edgePick: true, nodes: false };
+  }
+  return {
+    orderKind:
+      intent.pass === "transparent"
+        ? "transparent"
+        : intent.pass.startsWith("selection-")
+          ? "selection"
+          : "opaque",
+    overlay: false,
+    edgePick: false,
+    nodes: false,
+  };
 }
 
 function drawCostCategory(
@@ -123,7 +151,7 @@ function drawCostCategory(
   | "edges"
   | "nodes"
   | "pick" {
-  if (intent.kind === "edge") return "edges";
+  if (intent.kind === "edge" || intent.kind === "edge-pick") return "edges";
   if (intent.kind === "nodes") {
     if (intent.selection === "hidden") return "selection-hidden";
     if (intent.selection === "visible") return "selection-visible";
@@ -160,22 +188,29 @@ function bindDrawGeometry(
   geometry: PartResource,
   overlay: boolean,
   subset: boolean,
+  edgePick: boolean,
 ): number | undefined {
-  const vertexBuffer = overlay
-    ? geometry.edge?.edgeVertexBuffer
-    : subset
-      ? (geometry.subsetVertexBuffer ?? geometry.vertexBuffer)
-      : geometry.vertexBuffer;
-  const indexBuffer = overlay
-    ? geometry.edge?.edgeIndexBuffer
-    : subset
-      ? geometry.subsetIndexBuffer
-      : geometry.indexBuffer;
-  const count = overlay
-    ? geometry.edge?.edgeIndexCount
-    : subset
-      ? geometry.subsetIndexCount
-      : geometry.indexCount;
+  const vertexBuffer = edgePick
+    ? geometry.edgePick?.vertexBuffer
+    : overlay
+      ? geometry.edge?.edgeVertexBuffer
+      : subset
+        ? (geometry.subsetVertexBuffer ?? geometry.vertexBuffer)
+        : geometry.vertexBuffer;
+  const indexBuffer = edgePick
+    ? geometry.edgePick?.indexBuffer
+    : overlay
+      ? geometry.edge?.edgeIndexBuffer
+      : subset
+        ? geometry.subsetIndexBuffer
+        : geometry.indexBuffer;
+  const count = edgePick
+    ? geometry.edgePick?.indexCount
+    : overlay
+      ? geometry.edge?.edgeIndexCount
+      : subset
+        ? geometry.subsetIndexCount
+        : geometry.indexCount;
   if (indexBuffer === undefined || vertexBuffer === undefined || count === undefined)
     return undefined;
   pass.setVertexBuffer(0, vertexBuffer);

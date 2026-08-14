@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   clearSelection,
   createInteractionState,
+  interactionTargetFromHit,
   isTargetHighlighted,
   isTargetSelected,
   resolveElementStyle,
@@ -11,6 +12,7 @@ import {
   setTargetSelected,
   setTargetHovered,
   setTargetsSelected,
+  selectedTargets,
   type InteractionTarget,
   type PickHit,
 } from "../../src/index";
@@ -26,6 +28,7 @@ const targets = [
   { kind: "element", instanceId: "1/0", elementId: 3 },
   { kind: "face", instanceId: "1/0", elementId: 3, faceIndex: 0 },
   { kind: "node", instanceId: "1/0", nodeId: 4 },
+  { kind: "edge", instanceId: "1/0", key: "0,2" },
 ] as const satisfies readonly InteractionTarget[];
 
 describe("InteractionTarget helpers", () => {
@@ -133,10 +136,48 @@ describe("InteractionTarget helpers", () => {
         neighborElementIds: [],
         neighborNodeIds: [],
       },
+      {
+        kind: "edge",
+        partId: 1,
+        instanceId: "1/0",
+        key: "0,2",
+        nodeIds: [0, 2],
+        incidentElementIds: [3],
+        faceRefs: [{ elementId: 3, faceIndex: 0 }],
+        worldPosition: [0, 0, 0],
+        tangent: [1, 0, 0],
+      },
     ];
     for (const hit of hits) {
       expect(setTargetSelected(createInteractionState(), hit, true)).not.toBeUndefined();
     }
+  });
+
+  it("keeps authored-edge targets occurrence-scoped and ordered", () => {
+    const edge = { kind: "edge", instanceId: "1/0", key: "0,2" } as const;
+    const other = { kind: "edge", instanceId: "2/0", key: "0,2" } as const;
+    let state = setTargetSelected(createInteractionState(), other, true);
+    state = setTargetSelected(state, edge, true);
+    expect(isTargetSelected(state, edge)).toBe(true);
+    expect(isTargetSelected(state, other)).toBe(true);
+    expect(selectedTargets(state)).toEqual([edge, other]);
+    expect(
+      interactionTargetFromHit(
+        {
+          kind: "edge",
+          partId: 1,
+          instanceId: "1/0",
+          key: "0,2",
+          nodeIds: [0, 2],
+          incidentElementIds: [3],
+          faceRefs: [{ elementId: 3, faceIndex: 0 }],
+          worldPosition: [0, 0, 0],
+          tangent: [1, 0, 0],
+        },
+        "edge",
+      ),
+    ).toEqual(edge);
+    expect(isTargetSelected(clearSelection(state), edge)).toBe(false);
   });
 });
 

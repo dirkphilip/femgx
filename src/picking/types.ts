@@ -1,4 +1,6 @@
 import type { ElementId, NodeId } from "../elements/element";
+import type { EdgeKey } from "../elements/edges";
+import type { FaceIdRef } from "../elements/faces";
 import type { FaceKey } from "../elements/faces";
 import type { BodyId, ElementBlockId, PartId } from "../geometry/part";
 import type { Vec3 } from "../math/vec3";
@@ -9,7 +11,7 @@ import type { InstanceId } from "../scene/types";
  * @category Interaction and picking
  */
 export type InteractionGranularity =
-  "part" | "instance" | "body" | "block" | "element" | "face" | "node";
+  "part" | "instance" | "body" | "block" | "element" | "face" | "node" | "edge";
 
 /**
  * The most-specific resolved face hit with renderer-independent data.
@@ -60,6 +62,20 @@ export interface NodePickHit {
   readonly neighborNodeIds: readonly NodeId[];
 }
 
+/** The most-specific resolved authored-edge hit with stable topology data. */
+export interface EdgePickHit {
+  readonly kind: "edge";
+  readonly partId: PartId;
+  readonly instanceId: InstanceId;
+  readonly key: EdgeKey;
+  readonly nodeIds: readonly NodeId[];
+  readonly incidentElementIds: readonly ElementId[];
+  readonly faceRefs: readonly FaceIdRef[];
+  readonly worldPosition: Vec3;
+  /** Unit world-space tangent oriented by the canonical node sequence. */
+  readonly tangent: Vec3;
+}
+
 /**
  * A physical hit reported by the GPU picking pass.
  * @category Interaction and picking
@@ -84,4 +100,5 @@ export type PickHit =
       readonly worldPosition: Vec3;
     }
   | FacePickHit
-  | NodePickHit;
+  | NodePickHit
+  | EdgePickHit;

@@ -401,9 +401,9 @@ class FemViewportCore implements FemViewport {
     );
   }
 
-  pick(x: number, y: number): Promise<PickHit | undefined> {
+  pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined> {
     this.ensureAlive();
-    return this.renderer.pick(x, y);
+    return this.renderer.pick(x, y, granularity);
   }
   pickRegion(
     rect: BoxSelectionRect,

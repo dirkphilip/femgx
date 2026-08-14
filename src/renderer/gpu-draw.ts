@@ -16,7 +16,11 @@ import type { DrawPipelines } from "./gpu-pipelines";
 import { expandSurfaceGeometry, type SurfaceVertexData } from "./gpu-surface-geometry";
 import { createBuffer, type PartResource } from "./gpu-support";
 import { appendResultColorTail, createResultColorTail } from "./gpu-result-colors";
-import { buildPartEdgeResources, buildPartGeometryData } from "./gpu-geometry-upload";
+import {
+  buildPartEdgePickResources,
+  buildPartEdgeResources,
+  buildPartGeometryData,
+} from "./gpu-geometry-upload";
 import { createColorTargets, destroyColorTargets, type ColorTargets } from "./gpu-targets";
 import { GpuCostAccumulator } from "./gpu-cost";
 import {
@@ -32,6 +36,7 @@ export {
   INSTANCE_STRIDE,
   INSTANCE_SELECTED_FLAG,
   INSTANCE_EMPHASIS_FLAG,
+  INSTANCE_EDGE_EMPHASIS_FLAG,
   EMISSIVE_BYTE_OFFSET,
   LINE_WIDTH_BYTE_OFFSET,
   encodeInstanceRecord,
@@ -102,18 +107,7 @@ export function uploadNodePart(
   const nodes = part.geometry.nodePositions ?? new Float32Array(0);
   const spritePickIds = buildNodeSpritePickIds(part.geometry);
   const nodeBodyData = buildNodeBodyOwnerData(part.geometry, spritePickIds);
-  const positions = new Float32Array(spritePickIds.length * 12);
-  const ids = new Uint32Array(spritePickIds.length * 4);
-  const indices = new Uint32Array(spritePickIds.length * 6);
-  for (let sprite = 0; sprite < spritePickIds.length; sprite += 1) {
-    const pickId = spritePickIds[sprite] ?? 0;
-    const source = (pickId - 1) * 3;
-    for (let corner = 0; corner < 4; corner += 1) {
-      positions.set(nodes.subarray(source, source + 3), (sprite * 4 + corner) * 3);
-      ids[sprite * 4 + corner] = pickId;
-    }
-    writePointSpriteIndices(indices, sprite);
-  }
+  const { positions, ids, indices } = buildNodeSpriteBuffers(nodes, spritePickIds);
   const resultTail = createResultColorTail(ids, resultColors);
   const vertexWithResults = appendResultColorTail(positions, resultTail);
   const vertexBuffer = createBuffer(
@@ -146,11 +140,31 @@ export function uploadNodePart(
     ),
     nodePickIdsBuffer: createBuffer(draw.device, ids, GPUBufferUsage.STORAGE),
     edge: undefined,
+    edgePick: undefined,
     indexCount: indices.length,
     subsetIndexCount: 0,
   };
   draw.nodeParts.set(part.id, resource);
   return resource;
+}
+
+function buildNodeSpriteBuffers(
+  nodes: Float32Array,
+  spritePickIds: Uint32Array,
+): { readonly positions: Float32Array; readonly ids: Uint32Array; readonly indices: Uint32Array } {
+  const positions = new Float32Array(spritePickIds.length * 12);
+  const ids = new Uint32Array(spritePickIds.length * 4);
+  const indices = new Uint32Array(spritePickIds.length * 6);
+  for (let sprite = 0; sprite < spritePickIds.length; sprite += 1) {
+    const pickId = spritePickIds[sprite] ?? 0;
+    const source = (pickId - 1) * 3;
+    for (let corner = 0; corner < 4; corner += 1) {
+      positions.set(nodes.subarray(source, source + 3), (sprite * 4 + corner) * 3);
+      ids[sprite * 4 + corner] = pickId;
+    }
+    writePointSpriteIndices(indices, sprite);
+  }
+  return { positions, ids, indices };
 }
 
 /**
@@ -191,6 +205,7 @@ export function uploadPart(
     ...geometryData.picks,
     facePickIdsBuffer: geometryData.facePickIdsBuffer,
     edge: undefined,
+    edgePick: undefined,
     indexCount: vertexData.indices.length,
     ...geometryData.subsetBuffers,
     subsetIndexCount: geometryData.subsetIndices?.length ?? 0,
@@ -216,6 +231,19 @@ export function ensureEdgeResources(
   resource.edge = edge;
   resource.resultColorBuffers = [...resource.resultColorBuffers, edge.resultColorBinding];
   return edge;
+}
+
+/** Materializes authored-edge pick resources only when edge granularity is requested. */
+export function ensureEdgePickResources(
+  draw: DrawResources,
+  part: Part,
+  resource: PartResource,
+): NonNullable<PartResource["edgePick"]> | undefined {
+  if (resource.edgePick !== undefined) return resource.edgePick;
+  const edgePick = buildPartEdgePickResources(draw.device, part);
+  if (edgePick === undefined) return undefined;
+  resource.edgePick = edgePick;
+  return edgePick;
 }
 
 interface PointVertexData {
@@ -272,6 +300,10 @@ export function destroyPartResource(resource: PartResource): void {
   resource.edge?.edgeVertexBuffer.destroy();
   resource.edge?.edgeIndexBuffer.destroy();
   resource.edge?.edgeTopologyBuffer.destroy();
+  resource.edgePick?.vertexBuffer.destroy();
+  resource.edgePick?.indexBuffer.destroy();
+  resource.edgePick?.nodePickIdsBuffer.destroy();
+  resource.edgePick?.topologyBuffer.destroy();
   resource.subsetIndexBuffer?.destroy();
   resource.subsetVertexBuffer?.destroy();
   resource.subsetNodePickIdsBuffer?.destroy();

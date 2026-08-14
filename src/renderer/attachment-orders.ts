@@ -20,17 +20,24 @@ export function rebuildTransparentOrders(
 }
 
 /** Rebuilds edge instance orders for the affected reusable parts. */
-export function rebuildEdgeOrders(
-  runtime: PackedSceneRuntime,
-  layout: InstanceLayout,
-  parts: ReadonlySet<PartId>,
-  flags: readonly boolean[],
-  draw: DrawResources,
-): void {
-  for (const partId of parts) {
-    draw.cost.cpu("order-rebuild", 1);
-    const order = buildEdgeOrder(layout, runtime, partId, flags);
-    writeEdgeOrder(draw, partId, order);
-    layout.partEdgeCounts.set(partId, order.length);
+export function rebuildEdgeOrders(options: {
+  readonly runtime: PackedSceneRuntime;
+  readonly layout: InstanceLayout;
+  readonly parts: ReadonlySet<PartId>;
+  readonly flags: readonly boolean[];
+  readonly emphasisFlags: readonly boolean[];
+  readonly draw: DrawResources;
+}): void {
+  for (const partId of options.parts) {
+    options.draw.cost.cpu("order-rebuild", 1);
+    const order = buildEdgeOrder(
+      options.layout,
+      options.runtime,
+      partId,
+      options.flags,
+      options.emphasisFlags,
+    );
+    writeEdgeOrder(options.draw, partId, order);
+    options.layout.partEdgeCounts.set(partId, order.length);
   }
 }

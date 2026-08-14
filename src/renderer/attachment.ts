@@ -19,7 +19,6 @@ import {
 } from "./instance-updates";
 import {
   buildDrawOrder,
-  buildDrawCalls,
   buildInstanceLayout,
   buildInstanceSnapshot,
   type InstanceLayout,
@@ -40,6 +39,8 @@ import {
 import { rebuildEdgeOrders, rebuildTransparentOrders } from "./attachment-orders";
 import { reconcilePartResources } from "./part-resources";
 import { getPartInteractionMetadata } from "./part-interaction-metadata";
+import { syncEdgeEmphasisFlags } from "./edge-emphasis-sync";
+import { rebuildAttachmentCalls } from "./attachment-calls";
 
 type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
 type HiddenInteractionTuple = readonly [
@@ -69,6 +70,7 @@ export class RendererAttachment {
   public instances: Instance[] = [];
   public slotByInstanceId = new Map<InstanceId, number>();
   private edgeFlags: boolean[] = [];
+  private edgeEmphasisFlags: boolean[] = [];
   private nodeFlags: boolean[] = [];
   private transparentFlags: boolean[] = [];
   private readonly selection: SelectionState = { selectedNodeFlags: [], nodeFlags: this.nodeFlags };
@@ -222,7 +224,7 @@ export class RendererAttachment {
     const blockVisibilityChanged = previousBlockIds !== hiddenBlockIds;
     const elementVisibilityChanged = previousElementIds !== hiddenElementIds;
     this.appliedHiddenIds = [hiddenBodyIds, hiddenBlockIds, hiddenElementIds];
-    const { transparentChanged, selectionChanged } = this.syncInteractionBuffers({
+    const { transparentChanged, selectionChanged, edgeChanged } = this.syncInteractionBuffers({
       runtime,
       layout,
       interaction,
@@ -237,7 +239,9 @@ export class RendererAttachment {
     if (transparentChanged.size > 0) {
       this.rebuildTransparentOrders(runtime, layout, transparentChanged, bundle);
     }
-    if (transparentChanged.size > 0 || selectionChanged) this.rebuildCalls(bundle.draw.cost);
+    if (transparentChanged.size > 0 || selectionChanged || edgeChanged.size > 0) {
+      this.rebuildCalls(bundle.draw.cost);
+    }
     this.interactionState = interaction;
     this.interactionBeforeLastInstanceUpdate = undefined;
     return attached || bodyVisibilityChanged || blockVisibilityChanged || elementVisibilityChanged;
@@ -254,7 +258,11 @@ export class RendererAttachment {
     readonly selectionParts: ReadonlySet<PartId>;
     readonly nodeParts: ReadonlySet<PartId>;
     readonly fullSync: boolean;
-  }): { transparentChanged: ReadonlySet<PartId>; selectionChanged: boolean } {
+  }): {
+    transparentChanged: ReadonlySet<PartId>;
+    selectionChanged: boolean;
+    edgeChanged: ReadonlySet<PartId>;
+  } {
     const transparentChanged = syncInteractionEmphasis({
       runtime: options.runtime,
       layout: options.layout,
@@ -277,7 +285,16 @@ export class RendererAttachment {
       nodeParts: options.nodeParts,
       changedInstanceIds: options.fullSync ? undefined : options.changedSlots,
     });
-    return { transparentChanged, selectionChanged };
+    const edgeChanged = syncEdgeEmphasisFlags(
+      options.layout,
+      options.bundle,
+      options.affectedParts,
+      this.edgeEmphasisFlags,
+    );
+    if (edgeChanged.size > 0) {
+      this.rebuildEdgeOrders(options.runtime, options.layout, edgeChanged, options.bundle);
+    }
+    return { transparentChanged, selectionChanged, edgeChanged };
   }
 
   public updateVisibility(
@@ -298,6 +315,7 @@ export class RendererAttachment {
     this.calls = this.transparentCalls = this.edgeCalls = this.nodeCalls = [];
     this.selectionCalls = this.selectedNodeCalls = [];
     this.edgeFlags = [];
+    this.edgeEmphasisFlags = [];
     this.nodeFlags.length = 0;
     this.transparentFlags = [];
     this.selection.selectedNodeFlags.length = 0;
@@ -311,6 +329,7 @@ export class RendererAttachment {
     this.instances = snapshot.instances;
     this.slotByInstanceId = snapshot.slotByInstanceId;
     this.edgeFlags = new Array<boolean>(runtime.instanceCount).fill(false);
+    this.edgeEmphasisFlags = new Array<boolean>(runtime.instanceCount).fill(false);
     this.nodeFlags.length = runtime.instanceCount;
     this.nodeFlags.fill(false);
     this.transparentFlags = new Array<boolean>(runtime.instanceCount).fill(false);
@@ -393,26 +412,17 @@ export class RendererAttachment {
     parts: ReadonlySet<PartId>,
     bundle: GpuBundle,
   ): void {
-    rebuildEdgeOrders(runtime, layout, parts, this.edgeFlags, bundle.draw);
+    rebuildEdgeOrders({
+      runtime,
+      layout,
+      parts,
+      flags: this.edgeFlags,
+      emphasisFlags: this.edgeEmphasisFlags,
+      draw: bundle.draw,
+    });
   }
 
   private rebuildCalls(cost: GpuCostAccumulator): void {
-    const layout = this.layout;
-    if (layout === undefined) {
-      this.calls = [];
-      this.transparentCalls = [];
-      this.edgeCalls = [];
-      this.nodeCalls = [];
-      this.selectionCalls = [];
-      return;
-    }
-    cost.cpu("call-rebuild", 1);
-    const calls = buildDrawCalls(layout);
-    this.calls = calls.calls;
-    this.transparentCalls = calls.transparentCalls;
-    this.edgeCalls = calls.edgeCalls;
-    this.nodeCalls = calls.nodeCalls;
-    this.selectionCalls = calls.selectionCalls;
-    this.selectedNodeCalls = calls.selectedNodeCalls;
+    Object.assign(this, rebuildAttachmentCalls(this.layout, cost));
   }
 }

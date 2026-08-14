@@ -9,6 +9,7 @@ export const INSTANCE_STRIDE = 96;
 /** Bit flags packed into the instance record's selected word. */
 export const INSTANCE_SELECTED_FLAG = 1;
 export const INSTANCE_EMPHASIS_FLAG = 2;
+export const INSTANCE_EDGE_EMPHASIS_FLAG = 4;
 
 /**
  * Byte offset of the `emissive` scalar within an instance record. The record
@@ -57,6 +58,8 @@ export interface InstanceStorage {
   data: ArrayBuffer;
   /** Part-local slots with at least one primitive emphasis record. */
   emphasisSlots: Set<number>;
+  /** Part-local slots with at least one emphasized authored edge. */
+  edgeEmphasisSlots: Set<number>;
   /** CPU mirror of the draw-order buffer. */
   orderData: Uint32Array;
   /** Number of meaningful draw-order entries. */
@@ -146,7 +149,9 @@ export function patchInstances(
     const offset = slot * INSTANCE_STRIDE;
     const word = offset / 4 + 22;
     const dataFlags = new Uint32Array(data.buffer);
-    dataFlags[22] = (dataFlags[22] ?? 0) | ((currentFlags[word] ?? 0) & INSTANCE_EMPHASIS_FLAG);
+    dataFlags[22] =
+      (dataFlags[22] ?? 0) |
+      ((currentFlags[word] ?? 0) & (INSTANCE_EMPHASIS_FLAG | INSTANCE_EDGE_EMPHASIS_FLAG));
     if (!sameRecord(next, offset, data)) changedSlots.push(slot);
     next.set(data, offset);
   }
@@ -319,6 +324,7 @@ function createStorage(
     capacity: size,
     data: mirror.buffer,
     emphasisSlots: new Set(existing?.emphasisSlots),
+    edgeEmphasisSlots: new Set(existing?.edgeEmphasisSlots),
     orderData: new Uint32Array(size),
     orderLength,
     selectionOrderData: new Uint32Array(size),

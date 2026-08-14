@@ -1,9 +1,11 @@
-import type { Geometry } from "../geometry/part";
+import type { Geometry, GeometryEdge } from "../geometry/part";
 import {
   buildBodyPrimitivePickIds,
   buildElementPrimitivePickIds,
   buildFacePrimitivePickIds,
 } from "./gpu-pick-ids";
+import { compareEdgeNodeIds, elementEdgeKeys } from "./gpu-edge-authored";
+import { appendEdgeConditions } from "./gpu-edge-conditions";
 
 /** Expanded edge endpoints plus the body owners of each logical edge. */
 export interface MeshEdgeData {
@@ -23,11 +25,18 @@ export interface MeshEdgeData {
   readonly elementIds: Uint32Array;
   /** Optional 1-based owner/neighbor block pick-id pairs for block-aware parts. */
   readonly blockIds?: Uint32Array;
+  /** Stable authored identities, present only when geometry declares edges. */
+  readonly edgeKeys?: readonly string[];
+  /** Canonical authored node sequences parallel to `edgeKeys`. */
+  readonly edgeNodeIds?: readonly (readonly number[])[];
 }
 
 interface MeshEdge {
   readonly a: number;
   readonly b: number;
+  readonly key: string;
+  readonly nodeIds: readonly number[];
+  readonly segments: Array<readonly [number, number]>;
   readonly conditions: Set<string>;
 }
 
@@ -160,7 +169,7 @@ function finalizeUnownedEdges(geometry: Geometry, edges: readonly UnownedMeshEdg
 function collectEdges(
   geometry: Geometry,
   sourceIndices: Uint32Array,
-  elementEdges: Set<string> | undefined,
+  elementEdges: Set<string> | ReadonlyMap<string, GeometryEdge> | undefined,
   sourceBodyPairs: Array<readonly [number, number, number, number, number, number]>,
 ): MeshEdge[] {
   const triangleCount = Math.floor(sourceIndices.length / 3);
@@ -179,15 +188,32 @@ function collectEdges(
     for (let corner = 0; corner < 3; corner++) {
       const a = corners[corner] ?? 0;
       const b = corners[(corner + 1) % 3] ?? 0;
-      if (elementEdges !== undefined && !elementEdges.has(nodeEdgeKey(geometry, a, b))) {
+      const segmentKey = nodeEdgeKey(geometry, a, b);
+      if (elementEdges !== undefined && !elementEdges.has(segmentKey)) {
         continue;
       }
-      const key = edgeKey(geometry, a, b);
+      const descriptor =
+        elementEdges === undefined || elementEdges instanceof Set
+          ? undefined
+          : elementEdges.get(segmentKey);
+      const key = descriptor?.key ?? edgeKey(geometry, a, b);
       let edge = byKey.get(key);
       if (edge === undefined) {
-        edge = { a, b, conditions: new Set() };
+        edge = {
+          a,
+          b,
+          key,
+          nodeIds: descriptor?.nodeIds ?? [nodeIdAt(geometry, a), nodeIdAt(geometry, b)],
+          segments: [[a, b]],
+          conditions: new Set(),
+        };
         edges.push(edge);
         byKey.set(key, edge);
+      } else if (descriptor?.nodeIds.length === 3) {
+        const sameSegment = edge.segments.some(
+          ([first, second]) => (first === a && second === b) || (first === b && second === a),
+        );
+        if (!sameSegment) edge.segments.push([a, b]);
       }
       // Keep `0` as an explicit unowned owner/neighbor id. It makes topology
       // shared with an unowned element visible when every named body is hidden.
@@ -200,50 +226,43 @@ function collectEdges(
 }
 
 function finalizeEdges(geometry: Geometry, edges: readonly MeshEdge[]): MeshEdgeData {
+  const orderedEdges =
+    geometry.edges === undefined
+      ? [...edges]
+      : [...edges].sort((left, right) => compareEdgeNodeIds(left.nodeIds, right.nodeIds));
   const bodyIds: number[] = [];
   const elementIds: number[] = [];
   const blockIds: number[] = [];
   const blockAware = geometry.blocks !== undefined && geometry.blocks.length > 0;
-  const bodyRanges = new Uint32Array(edges.length * 2);
-  const indices = new Uint32Array(edges.length * 2);
-  const sourceVertexIndices = new Uint32Array(edges.length * 2);
-  const edgeIds = new Uint32Array(edges.length * 2);
-  const positions = new Float32Array(edges.length * 2 * 3);
-  for (let index = 0; index < edges.length; index++) {
-    const edge = edges[index];
+  const bodyRanges = new Uint32Array(orderedEdges.length * 2);
+  const segmentCount = orderedEdges.reduce((count, edge) => count + edge.segments.length, 0);
+  const indices = new Uint32Array(segmentCount * 2);
+  const sourceVertexIndices = new Uint32Array(segmentCount * 2);
+  const edgeIds = new Uint32Array(segmentCount * 2);
+  const positions = new Float32Array(segmentCount * 2 * 3);
+  for (let index = 0, endpoint = 0; index < orderedEdges.length; index++) {
+    const edge = orderedEdges[index];
     if (edge === undefined) continue;
-    const endpoint = index * 2;
-    indices[endpoint] = endpoint;
-    indices[endpoint + 1] = endpoint + 1;
-    sourceVertexIndices[endpoint] = edge.a;
-    sourceVertexIndices[endpoint + 1] = edge.b;
-    edgeIds[endpoint] = index;
-    edgeIds[endpoint + 1] = index;
-    copyPosition(geometry.positions, edge.a, positions, endpoint);
-    copyPosition(geometry.positions, edge.b, positions, endpoint + 1);
-    const conditions = [...edge.conditions]
-      .map(
-        (value) => value.split(",").map(Number) as [number, number, number, number, number, number],
-      )
-      .sort(
-        (
-          [ownerA, neighborA, elementA, neighborElementA, blockA, neighborBlockA],
-          [ownerB, neighborB, elementB, neighborElementB, blockB, neighborBlockB],
-        ) =>
-          ownerA - ownerB ||
-          neighborA - neighborB ||
-          elementA - elementB ||
-          neighborElementA - neighborElementB ||
-          blockA - blockB ||
-          neighborBlockA - neighborBlockB,
-      );
-    bodyRanges[index * 2] = bodyIds.length / 2;
-    bodyRanges[index * 2 + 1] = conditions.length;
-    for (const [owner, neighbor, element, neighborElement, block, neighborBlock] of conditions) {
-      bodyIds.push(owner, neighbor);
-      elementIds.push(element, neighborElement);
-      if (blockAware) blockIds.push(block, neighborBlock);
+    for (const [a, b] of edge.segments) {
+      indices[endpoint] = endpoint;
+      indices[endpoint + 1] = endpoint + 1;
+      sourceVertexIndices[endpoint] = a;
+      sourceVertexIndices[endpoint + 1] = b;
+      edgeIds[endpoint] = index;
+      edgeIds[endpoint + 1] = index;
+      copyPosition(geometry.positions, a, positions, endpoint);
+      copyPosition(geometry.positions, b, positions, endpoint + 1);
+      endpoint += 2;
     }
+    appendEdgeConditions({
+      encoded: edge.conditions,
+      edgeIndex: index,
+      blockAware,
+      bodyRanges,
+      bodyIds,
+      elementIds,
+      blockIds,
+    });
   }
   return {
     indices,
@@ -256,6 +275,8 @@ function finalizeEdges(geometry: Geometry, edges: readonly MeshEdge[]): MeshEdge
     ...(blockAware
       ? { blockIds: blockIds.length === 0 ? new Uint32Array([0]) : new Uint32Array(blockIds) }
       : {}),
+    edgeKeys: orderedEdges.map((edge) => edge.key),
+    edgeNodeIds: orderedEdges.map((edge) => edge.nodeIds),
   };
 }
 
@@ -380,23 +401,8 @@ function triangleKey(a: number, b: number, c: number): string {
   return `${a},${b},${c}`;
 }
 
-/** Returns declared FE edge keys, or undefined for generic triangle meshes. */
-function elementEdgeKeys(geometry: Geometry): Set<string> | undefined {
-  if (geometry.primitive !== "triangles") return undefined;
-  const faces = geometry.faces;
-  if (faces === undefined || geometry.nodePickIds === undefined) return undefined;
-  const edges = new Set<string>();
-  for (const face of faces) {
-    for (let index = 0; index < face.nodeIds.length; index++) {
-      const next = (index + 1) % face.nodeIds.length;
-      const a = face.nodeIds[index];
-      const b = face.nodeIds[next];
-      if (a !== undefined && b !== undefined) {
-        edges.add(`${Math.min(a + 1, b + 1)},${Math.max(a + 1, b + 1)}`);
-      }
-    }
-  }
-  return edges;
+function nodeIdAt(geometry: Geometry, vertex: number): number {
+  return geometry.nodePickIds?.[vertex] ?? vertex;
 }
 
 function edgeKey(geometry: Geometry, a: number, b: number): string {

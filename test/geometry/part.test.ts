@@ -4,6 +4,7 @@ import {
   boundsCorners,
   computeBounds,
   createPart,
+  GeometryValidationError,
   faceForPrimitive,
   isFiniteBounds,
   MAX_PART_ID,
@@ -317,6 +318,45 @@ describe("pick metadata", () => {
     nodeIds: [0, 1, 2],
     neighborElementIds: [],
   };
+
+  it("accepts stable authored edge metadata with occurrence owners", () => {
+    const created = createPart(1, {
+      positions: new Float32Array(9),
+      indices: new Uint32Array([0, 1, 2]),
+      primitive: "triangles" as const,
+      elements: [{ id: 4, primitiveStart: 0, primitiveCount: 1 }],
+      faces: [face],
+      edges: [
+        {
+          key: "0,1",
+          nodeIds: [0, 1],
+          incidentElementIds: [4],
+          faceRefs: [{ elementId: 4, faceIndex: 0 }],
+        },
+      ],
+    });
+    expect(created.geometry.edges[0]?.key).toBe("0,1");
+  });
+
+  it("rejects authored edge identities that disagree with their node sequence", () => {
+    expect(() =>
+      createPart(1, {
+        positions: new Float32Array(9),
+        indices: new Uint32Array([0, 1, 2]),
+        primitive: "triangles" as const,
+        elements: [{ id: 4, primitiveStart: 0, primitiveCount: 1 }],
+        faces: [face],
+        edges: [
+          {
+            key: "0,2",
+            nodeIds: [0, 1],
+            incidentElementIds: [4],
+            faceRefs: [{ elementId: 4, faceIndex: 0 }],
+          },
+        ],
+      }),
+    ).toThrow(GeometryValidationError);
+  });
 
   it("rejects a face range without a declared element", () => {
     expect(() => {

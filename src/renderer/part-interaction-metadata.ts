@@ -5,6 +5,8 @@ import type {
   GeometryElementBlock,
 } from "../geometry/types";
 import type { BodyId, Part } from "../geometry/part";
+import type { GeometryEdge } from "../geometry/part";
+import { compareEdgeNodeIds } from "./gpu-edge-authored";
 
 type ElementId = ElementTessellation["id"];
 type ElementBlockId = GeometryElementBlock["id"];
@@ -12,6 +14,11 @@ type ElementBlockId = GeometryElementBlock["id"];
 interface FaceMetadata {
   readonly face: FaceTessellation;
   readonly faceId: number;
+}
+
+interface EdgeMetadata {
+  readonly edge: GeometryEdge;
+  readonly edgePickId: number;
 }
 
 /** Immutable lookup tables for semantic metadata used by renderer interaction. */
@@ -25,6 +32,7 @@ export interface PartInteractionMetadata {
   readonly blockByElement: ReadonlyMap<ElementId, ElementBlockId>;
   readonly bodyByBlock: ReadonlyMap<ElementBlockId, BodyId>;
   readonly faces: ReadonlyMap<string, FaceMetadata>;
+  readonly edges: ReadonlyMap<string, EdgeMetadata>;
 }
 
 const metadataByPart = new WeakMap<Part, PartInteractionMetadata>();
@@ -76,6 +84,13 @@ function buildPartInteractionMetadata(part: Part): PartInteractionMetadata {
       faces.set(faceKey(face.elementId, face.faceIndex), { face, faceId });
     }
   }
+  const edges = new Map<string, EdgeMetadata>();
+  const authoredEdges = [...(geometry.edges ?? [])].sort((left, right) =>
+    compareEdgeNodeIds(left.nodeIds, right.nodeIds),
+  );
+  for (const [edgePickId, edge] of authoredEdges.entries()) {
+    edges.set(edge.key, { edge, edgePickId: edgePickId + 1 });
+  }
   return {
     elements,
     elementOrdinalById,
@@ -85,6 +100,7 @@ function buildPartInteractionMetadata(part: Part): PartInteractionMetadata {
     blockByElement,
     bodyByBlock,
     faces,
+    edges,
   };
 }
 

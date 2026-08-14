@@ -90,6 +90,8 @@ type ReconciledOccurrenceState = Pick<
   | "highlightedNodeIds"
   | "selectedFaces"
   | "highlightedFaces"
+  | "selectedEdges"
+  | "highlightedEdges"
 >;
 
 function reconcileOccurrenceState(
@@ -106,6 +108,7 @@ function reconcileOccurrenceState(
     key: string,
     ref: { readonly elementId: number; readonly faceIndex: number },
   ): boolean => owner.faceKeys.has(key) && faceRefKey(ref) === key;
+  const edge = (owner: SceneIdentity, key: string): boolean => owner.edgeKeys.has(key);
   return {
     highlightedInstanceIds: filterSet(data.highlightedInstanceIds, keepInstance),
     selectedInstanceIds: filterSet(data.selectedInstanceIds, keepInstance),
@@ -126,6 +129,8 @@ function reconcileOccurrenceState(
     highlightedNodeIds: filterNested(data.highlightedNodeIds, identityFor, node),
     selectedFaces: filterNestedMaps(data.selectedFaces, identityFor, face),
     highlightedFaces: filterNestedMaps(data.highlightedFaces, identityFor, face),
+    selectedEdges: filterNestedMaps(data.selectedEdges, identityFor, edge),
+    highlightedEdges: filterNestedMaps(data.highlightedEdges, identityFor, edge),
   };
 }
 
@@ -145,7 +150,8 @@ function targetInScene(
   if (target.kind === "node") {
     return target.nodeId >= 0 && target.nodeId < owner.nodeCount ? target : undefined;
   }
-  return owner.faceKeys.has(faceRefKey(target)) ? target : undefined;
+  if (target.kind === "face") return owner.faceKeys.has(faceRefKey(target)) ? target : undefined;
+  return owner.edgeKeys.has(target.key) ? target : undefined;
 }
 
 function filterSet<T>(current: ReadonlySet<T>, keep: (value: T) => boolean): ReadonlySet<T> {
@@ -174,6 +180,7 @@ interface SceneIdentity {
   readonly blockIds?: ReadonlySet<number>;
   readonly nodeCount: number;
   readonly faceKeys: ReadonlySet<string>;
+  readonly edgeKeys: ReadonlySet<string>;
 }
 
 function sceneIdentity(
@@ -201,12 +208,14 @@ function sceneIdentity(
   if (geometry.primitive === "triangles") {
     for (const face of geometry.faces ?? []) faceKeys.add(faceRefKey(face));
   }
+  const edgeKeys = new Set((geometry.edges ?? []).map((edge) => edge.key));
   return {
     elementIds,
     ...(bodyIds.size === 0 ? {} : { bodyIds }),
     ...(blockIds.size === 0 ? {} : { blockIds }),
     nodeCount: Math.floor((geometry.nodePositions?.length ?? 0) / 3),
     faceKeys,
+    edgeKeys,
   };
 }
 
@@ -282,6 +291,8 @@ function sameInteractionData(left: InteractionStateData, right: InteractionState
     left.highlightedNodeIds === right.highlightedNodeIds &&
     left.selectedFaces === right.selectedFaces &&
     left.highlightedFaces === right.highlightedFaces &&
+    left.selectedEdges === right.selectedEdges &&
+    left.highlightedEdges === right.highlightedEdges &&
     left.hoveredTarget === right.hoveredTarget
   );
 }

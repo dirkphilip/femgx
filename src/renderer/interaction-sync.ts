@@ -91,6 +91,8 @@ export function interactionAffectedSlots(
   diffNestedMapValues(previousData.elementOverrides, nextData.elementOverrides, addInstance);
   diffNestedMapValues(previousData.selectedFaces, nextData.selectedFaces, addInstance);
   diffNestedMapValues(previousData.highlightedFaces, nextData.highlightedFaces, addInstance);
+  diffNestedMapValues(previousData.selectedEdges, nextData.selectedEdges, addInstance);
+  diffNestedMapValues(previousData.highlightedEdges, nextData.highlightedEdges, addInstance);
   addHoveredInstance(previousData.hoveredTarget, addInstance);
   addHoveredInstance(nextData.hoveredTarget, addInstance);
   if (!themesEqual(previousData.theme, nextData.theme)) {

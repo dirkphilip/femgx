@@ -1,5 +1,10 @@
 import { emphasisHash } from "./gpu-highlight-shader";
-import { INSTANCE_EMPHASIS_FLAG, INSTANCE_SELECTED_FLAG } from "./gpu-instance-storage";
+import {
+  INSTANCE_EDGE_EMPHASIS_FLAG,
+  INSTANCE_EMPHASIS_FLAG,
+  INSTANCE_SELECTED_FLAG,
+} from "./gpu-instance-storage";
+import { EDGE_HIGHLIGHT_MARKER } from "./gpu-highlight-table";
 import { emphasisStructs } from "./gpu-emphasis-shader";
 export { emphasisStructs } from "./gpu-emphasis-shader";
 export {
@@ -72,6 +77,10 @@ fn instanceSelected(flags: u32) -> bool {
 
 fn instanceHasPrimitiveEmphasis(flags: u32) -> bool {
   return (flags & ${INSTANCE_EMPHASIS_FLAG}u) != 0u;
+}
+
+fn instanceHasEdgeEmphasis(flags: u32) -> bool {
+  return (flags & ${INSTANCE_EDGE_EMPHASIS_FLAG}u) != 0u;
 }
 `;
 
@@ -377,6 +386,26 @@ fn vertexMain(
   }
   output.color = vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a);
   output.emissive = 0.0;
+  var edgeColor = output.color;
+  var edgeEmissive = 0.0;
+  if (instanceHasEdgeEmphasis(instance.selected)) {
+    let edgePickId = topologyIndex + 1u;
+    let bucket = highlightHash(slot, edgePickId, ${EDGE_HIGHLIGHT_MARKER}u, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
+    let base = bucket * 4u;
+    var matched = false;
+    for (var offset = 0u; offset < 4u; offset++) {
+      let highlight = elementHighlightAt(base + offset);
+      if (highlight.slot == slot && highlight.elementPickId == edgePickId && highlight.facePickId == ${EDGE_HIGHLIGHT_MARKER}u) {
+        edgeColor = highlight.color;
+        edgeEmissive = highlight.emissive;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) { edgeColor.a = 0.0; }
+  }
+  output.color = edgeColor;
+  output.emissive = edgeEmissive;
   output.local = vec2<f32>(0.0);
   output.worldPosition = (instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0)).xyz;
   return output;

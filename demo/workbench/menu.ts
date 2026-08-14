@@ -159,5 +159,7 @@ function targetLabel(target: SelectTarget): string {
       return `Instance ${target.instanceId}`;
     case "part":
       return `Part ${target.partId}`;
+    case "edge":
+      return `Edge ${target.key}`;
   }
 }

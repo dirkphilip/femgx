@@ -13,6 +13,7 @@ import {
 import { identity, type Mat4 } from "../../src/math/mat4";
 import {
   geometryAdjacency,
+  resolveEdgePickHit,
   resolvePick,
   resolvePickHit,
   type PickContext,
@@ -246,6 +247,41 @@ describe("resolvePickHit", () => {
       worldPosition: [2, 3, 4],
       neighborElementIds: [],
       neighborNodeIds: [],
+    });
+  });
+});
+
+describe("resolveEdgePickHit", () => {
+  it("returns stable topology and a world-space canonical tangent", () => {
+    const edgePart = partWithGeometry({
+      positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+      primitive: "triangles",
+      nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+      elements: [{ id: 3, primitiveStart: 0, primitiveCount: 1 }],
+      edges: [
+        {
+          key: "0,1",
+          nodeIds: [0, 1],
+          incidentElementIds: [3],
+          faceRefs: [],
+        },
+      ],
+    });
+    const target = resolveEdgePickHit(
+      { instances: [instanceAt(0)], parts: new Map([[1, edgePart]]) },
+      1,
+      "0,1",
+      [0.25, 0, 0],
+    );
+    expect(target).toMatchObject({
+      kind: "edge",
+      key: "0,1",
+      nodeIds: [0, 1],
+      incidentElementIds: [3],
+      faceRefs: [],
+      worldPosition: [0.25, 0, 0],
+      tangent: [1, 0, 0],
     });
   });
 });
