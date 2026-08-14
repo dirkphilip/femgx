@@ -1,12 +1,7 @@
 import { setProjection, type InteractionState, type InteractionTarget } from "../../src/index";
 import { createModelInteraction } from "./preset";
-import {
-  clearModelFeedback,
-  clearModelInspection,
-  setModelLoading,
-  type WorkbenchModel,
-} from "./model";
-import type { DemoView } from "./view";
+import type { WorkbenchModel } from "./model";
+import type { WorkbenchPresentation } from "./presentation";
 import type { DisplayToggles, ResultDisplayMode } from "./types";
 import type { WorkbenchViewportSlot, WorkbenchViewportSlots } from "./viewport-slots";
 import {
@@ -30,10 +25,9 @@ export interface WorkbenchModelState {
 
 /** State owner used by the controller-facing activation adapter. */
 export interface WorkbenchModelActivationOwner extends WorkbenchModelState {
-  readonly view: DemoView;
   readonly examples: readonly WorkbenchModel[];
   readonly viewportSlots: WorkbenchViewportSlots;
-  readonly presentation: { populateModelSelect: (models: readonly WorkbenchModel[]) => void };
+  readonly presentation: WorkbenchPresentation;
   readonly visibilityPanel: { rebuild: () => void };
   applyResultMode: (render: boolean) => void;
   applyCurrentDisplayState: () => void;
@@ -46,10 +40,10 @@ export function activateModelForOwner(
   owner: WorkbenchModelActivationOwner,
 ): void {
   activateControllerModel(model, {
-    view: owner.view,
     examples: owner.examples,
     slots: owner.viewportSlots.all(),
     state: owner,
+    presentation: owner.presentation,
     setControllerState: (next) => {
       owner.model = next.model;
       owner.models = next.models;
@@ -81,10 +75,10 @@ export function activateModelForOwner(
 }
 
 export interface WorkbenchModelControllerContext {
-  readonly view: DemoView;
   readonly examples: readonly WorkbenchModel[];
   readonly slots: readonly WorkbenchViewportSlot[];
   readonly state: WorkbenchModelState;
+  readonly presentation: WorkbenchPresentation;
   readonly setControllerState: (state: WorkbenchModelState) => void;
   readonly applyResultMode: () => void;
   readonly applyDisplayState: () => void;
@@ -102,11 +96,11 @@ export function activateControllerModel(
     context.setControllerState(context.state);
   };
   activateWorkbenchModel({
-    view: context.view,
     examples: context.examples,
     slots: context.slots,
     state: context.state,
     model,
+    presentation: context.presentation,
     applyResultMode: () => {
       syncState();
       context.applyResultMode();
@@ -126,11 +120,11 @@ export function activateControllerModel(
 }
 
 interface ActivateWorkbenchModelOptions {
-  readonly view: DemoView;
   readonly examples: readonly WorkbenchModel[];
   readonly slots: readonly WorkbenchViewportSlot[];
   readonly state: WorkbenchModelState;
   readonly model: WorkbenchModel;
+  readonly presentation: WorkbenchPresentation;
   readonly applyResultMode: () => void;
   readonly applyDisplayState: () => void;
   readonly rebuildVisibility: () => void;
@@ -140,7 +134,7 @@ interface ActivateWorkbenchModelOptions {
 
 /** Applies one model to every viewport and restores the inspection defaults. */
 export function activateWorkbenchModel(options: ActivateWorkbenchModelOptions): void {
-  setModelLoading(options.view, false);
+  options.presentation.setLoading(false);
   const { state, model } = options;
   resetSlotRenderLoops(options.slots);
   state.model = model;
@@ -161,8 +155,8 @@ export function activateWorkbenchModel(options: ActivateWorkbenchModelOptions): 
   options.rebuildVisibility();
   options.populateModelSelect(state.models);
   for (const slot of options.slots) slot.pane.canvas.dataset["model"] = model.id;
-  clearModelFeedback(options.view);
-  clearModelInspection(options.view, model);
+  options.presentation.clearFeedback();
+  options.presentation.clearInspection(model);
   options.render();
 }
 

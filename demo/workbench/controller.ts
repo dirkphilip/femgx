@@ -10,7 +10,7 @@ import {
 } from "../../src/index";
 import type { DemoView } from "./view";
 import { createModelInteraction } from "./preset";
-import { errorMessage, setModelFeedback, type WorkbenchModel } from "./model";
+import { errorMessage, type WorkbenchModel } from "./model";
 import type { VisibilityRowTarget } from "./tree-hover";
 import type { WorkbenchFeatures } from "./features";
 import type { WorkbenchInteraction } from "./interaction";
@@ -121,7 +121,7 @@ export class WorkbenchController {
     this.commandSurface = createWorkbenchCommands(this);
     this.initializeInfrastructure(options);
     this.modelSession = new WorkbenchModelSession({
-      view: this.view,
+      presentation: this.presentation,
       examples: this.examples,
       importer: options.importGlb ?? importGlb,
       getModel: () => this.model,
@@ -267,8 +267,7 @@ export class WorkbenchController {
     try {
       for (const viewport of this.viewports()) viewport.setBackground(background);
     } catch (error) {
-      setModelFeedback(
-        this.view,
+      this.presentation.setFeedback(
         `Background could not be changed: ${errorMessage(error)}`,
         "error",
       );
@@ -300,7 +299,7 @@ export class WorkbenchController {
   }
 
   feedback(message: string): void {
-    setModelFeedback(this.view, message, "error");
+    this.presentation.setFeedback(message, "error");
   }
 
   onActiveSlotChanged(): void {
@@ -438,7 +437,7 @@ export class WorkbenchController {
     this.publishSnapshot();
   }
 
-  private publishSnapshot(): void {
+  publishSnapshot(): void {
     this.snapshotBridge.publish();
   }
 

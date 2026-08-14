@@ -42,6 +42,7 @@ export interface WorkbenchControllerWiringContext {
   readonly setInteraction: (value: InteractionState) => void;
   readonly applyDisplayedInteraction: () => void;
   readonly render: () => void;
+  readonly publishSnapshot: () => void;
   readonly setTreeHover: (target: VisibilityRowTarget | undefined) => void;
   readonly setEdges: () => void;
   readonly setDiagnostics: () => void;
@@ -97,6 +98,7 @@ export function createControllerInfrastructure(
     setInteraction: context.setInteraction.bind(context),
     applyDisplayedInteraction: context.applyDisplayedInteraction.bind(context),
     render: context.render.bind(context),
+    publishSnapshot: context.publishSnapshot.bind(context),
     setTreeHover: context.setTreeHover.bind(context),
     setEdges: () => {
       context.setEdges();
@@ -132,7 +134,6 @@ export function installControllerLifecycle(context: WorkbenchControllerWiringCon
     canvas: context.canvas,
     signal: context.listenerController.signal,
     interaction: context.interactionController,
-    menu: context.menu,
     visibilityPanel: context.visibilityPanel,
     boxPreview: context.boxPreview,
     dragging: () => context.isPointerGestureActive(),

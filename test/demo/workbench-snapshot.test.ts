@@ -42,6 +42,46 @@ describe("workbench presentation snapshot", () => {
 
     expect(snapshots).toEqual(["false", "true"]);
   });
+
+  it("projects loading, feedback, inspection, diagnostics, and menu state", () => {
+    const input: WorkbenchSnapshotInput = {
+      ...createSnapshotInput(),
+      presentation: {
+        loading: true,
+        modelSelectionDisabled: true,
+        modelOpenDisabled: true,
+        feedback: { message: "Building model…", kind: "info" },
+        rendererStatus: "Renderer webgpu",
+        rendererStatusVisible: true,
+        status: "Fixture · webgpu · 1 visible",
+        statusVisible: true,
+        inspection: { visible: true, text: "Element 4" },
+        diagnostics: { visible: true, text: "draw calls: 2" },
+        contextMenu: {
+          visible: true,
+          x: 24,
+          y: 48,
+          title: "Element 4",
+          entries: [{ kind: "button", label: "Highlight", action: "highlight" }],
+        },
+      },
+    };
+
+    const snapshot = createWorkbenchSnapshot(input);
+
+    expect(snapshot.model).toMatchObject({
+      loading: true,
+      selectionDisabled: true,
+      openDisabled: true,
+    });
+    expect(snapshot.overlays).toMatchObject({
+      feedback: { message: "Building model…", kind: "info" },
+      inspection: { visible: true, text: "Element 4" },
+      diagnostics: true,
+      diagnosticsText: "draw calls: 2",
+      contextMenu: { visible: true, title: "Element 4" },
+    });
+  });
 });
 
 function createSnapshotInput(): WorkbenchSnapshotInput {

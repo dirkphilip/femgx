@@ -1,5 +1,3 @@
-import type { Camera } from "../../src/index";
-
 export type ViewportSlotId = "primary" | "secondary";
 
 /** DOM ownership for one demo viewport pane. */
@@ -29,30 +27,15 @@ export interface DemoView {
   readonly scene: HTMLElement;
   readonly boxSelectionOverlay: HTMLElement;
   readonly rendererStatus: HTMLElement;
+  /** Initial unsupported-device reporting before the controller exists. */
+  readonly status: HTMLElement;
   readonly buildInfo: HTMLElement;
   readonly modelSelect: HTMLSelectElement;
   readonly modelSource: HTMLElement;
   readonly openModelButton: HTMLButtonElement;
   readonly modelFileInput: HTMLInputElement;
-  readonly modelFeedback: HTMLElement;
   readonly resultLegend: HTMLElement;
-  readonly status: HTMLElement;
   readonly visibilityPanel: HTMLElement;
-  readonly inspectionPanel: HTMLElement;
-  readonly statsPanel: HTMLElement;
-  readonly statsContent: HTMLElement;
-  readonly contextMenu: HTMLElement;
-}
-
-/** The model/renderer summary written into the status bar. */
-export interface StatusInfo {
-  readonly model: string;
-  readonly renderer: string;
-  /** Optional renderer-state note (e.g. "recovered"). */
-  readonly rendererState?: string;
-  readonly visibleInstances: number;
-  readonly parts: number;
-  readonly batches: number;
 }
 
 /** Locates the demo's DOM nodes, throwing when the page is misconfigured. */
@@ -67,19 +50,14 @@ export function queryDemoView(): DemoView {
     viewportWorkspace: requiredElement("#viewport-workspace"),
     viewportToggle: requiredButton("#viewport-toggle"),
     rendererStatus: requiredElement("#renderer-status"),
+    status: requiredElement("#status"),
     buildInfo: requiredElement("#build-info"),
     modelSelect: requiredSelect("#model-select"),
     modelSource: requiredElement("#model-source"),
     openModelButton: requiredButton("#open-model"),
     modelFileInput: requiredInput("#model-file"),
-    modelFeedback: requiredElement("#model-feedback"),
     resultLegend: requiredElement("#result-legend"),
-    status: requiredElement("#status"),
     visibilityPanel: requiredElement("#visibility-panel"),
-    inspectionPanel: requiredElement("#inspection-panel"),
-    statsPanel: requiredElement("#stats-panel"),
-    statsContent: requiredElement("#diagnostics-content"),
-    contextMenu: requiredElement("#context-menu"),
   };
   return createDemoView(elements);
 }
@@ -127,15 +105,4 @@ function required(selector: string): Element {
   const element = document.querySelector(selector);
   if (element === null) throw new Error("missing demo controls");
   return element;
-}
-
-/** Reflects the camera and model summary in the status bar. */
-export function updateStatus(view: DemoView, camera: Camera, info: StatusInfo): void {
-  const cameraMode = camera.mode === "perspective" ? "perspective" : "orthographic";
-  const hasRendererState = info.rendererState !== undefined && info.rendererState !== "";
-  const renderer = hasRendererState ? `${info.renderer} · ${info.rendererState}` : info.renderer;
-  view.rendererStatus.textContent = `Renderer ${renderer}`;
-  view.status.textContent =
-    `${info.model} · ${renderer} · ${info.visibleInstances} visible · ` +
-    `${info.parts} parts · ${info.batches} batches · ${cameraMode} camera`;
 }

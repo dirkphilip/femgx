@@ -84,7 +84,6 @@ export function installWorkbenchBindings(options: WorkbenchBindingOptions): void
   });
   installViewportBinding(options);
   installModelBindings(options);
-  installWindowBindings(options);
 }
 
 function installViewportBinding(options: WorkbenchBindingOptions): void {
@@ -116,26 +115,6 @@ function installModelBindings(options: WorkbenchBindingOptions): void {
     () => {
       const file = view.modelFileInput.files?.[0];
       if (file !== undefined) options.openModel(file);
-    },
-    { signal },
-  );
-}
-
-function installWindowBindings(options: WorkbenchBindingOptions): void {
-  const { view, signal } = options;
-  window.addEventListener(
-    "click",
-    (event) => {
-      if (view.contextMenu.hidden) return;
-      if (event.target instanceof Node && view.contextMenu.contains(event.target)) return;
-      options.interaction.clearContext();
-    },
-    { signal },
-  );
-  window.addEventListener(
-    "keydown",
-    (event) => {
-      if (event.key === "Escape") options.interaction.clearContext();
     },
     { signal },
   );

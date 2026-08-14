@@ -4,7 +4,7 @@ import type {
   InteractionTarget,
   ViewportBackground,
 } from "../../src/index";
-import { errorMessage, setModelFeedback, type WorkbenchModel } from "./model";
+import { errorMessage, type WorkbenchModel } from "./model";
 import type { DemoView, ViewportSlotId } from "./view";
 import type { WorkbenchPresentation } from "./presentation";
 import type { WorkbenchViewportSlot, WorkbenchViewportSlots } from "./viewport-slots";
@@ -51,8 +51,7 @@ export function setControllerViewport(owner: WorkbenchViewportOwner, viewport: F
   try {
     viewport.setBackground(owner.background);
   } catch (error) {
-    setModelFeedback(
-      owner.view,
+    owner.presentation.setFeedback(
       `Background could not be restored: ${errorMessage(error)}`,
       "error",
     );

@@ -9,7 +9,6 @@ import type { ResultDisplayMode, DisplayToggles } from "./types";
 import { VisibilityPanelController } from "./visibility-panel";
 import { WorkbenchVisibilityActions } from "./visibility-actions";
 import type { VisibilityRowTarget } from "./tree-hover";
-import { setModelFeedback } from "./model";
 import type { SelectionGranularity } from "./pick";
 import type { SectionAxis } from "./section-controls";
 import type { VectorGlyph, VectorTransform } from "./result-controls";
@@ -36,6 +35,7 @@ export interface WorkbenchFeatureOptions {
   readonly setInteraction: (interaction: InteractionState) => void;
   readonly applyDisplayedInteraction: () => void;
   readonly render: () => void;
+  readonly publishSnapshot: () => void;
   readonly setTreeHover: (target: VisibilityRowTarget | undefined) => void;
   readonly applyMenuAction: (action: string) => void;
 }
@@ -52,26 +52,11 @@ export interface WorkbenchFeatures {
 /** Composes the existing workbench feature owners around one controller context. */
 export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): WorkbenchFeatures {
   const menu = new WorkbenchMenu(
-    options.view.contextMenu,
     () => options.toggles().edges,
     () => options.toggles().diagnostics,
     options.applyMenuAction,
+    options.publishSnapshot,
   );
-  const visibility = createVisibilityFeatures(options);
-  const interactionController = new WorkbenchInteraction({
-    canvas: options.canvas,
-    view: options.view,
-    viewport: options.interactionViewport,
-    getInteraction: options.interaction,
-    setInteraction: options.setInteraction,
-    partName: (partId) => options.model().partNames.get(partId),
-    menu,
-    render: options.render,
-    selectionGranularity: options.selectionGranularity,
-    selectionFeedback: (message) => {
-      setModelFeedback(options.view, message);
-    },
-  });
   const presentation = new WorkbenchPresentation({
     view: options.view,
     canvas: options.canvas,
@@ -87,6 +72,21 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     getSectionOffset: options.sectionOffset,
     getInteraction: options.interaction,
     getRuntime: options.runtime,
+    menu,
+    publishSnapshot: options.publishSnapshot,
+  });
+  const visibility = createVisibilityFeatures(options, presentation);
+  const interactionController = new WorkbenchInteraction({
+    canvas: options.canvas,
+    viewport: options.interactionViewport,
+    getInteraction: options.interaction,
+    setInteraction: options.setInteraction,
+    partName: (partId) => options.model().partNames.get(partId),
+    menu,
+    render: options.render,
+    selectionGranularity: options.selectionGranularity,
+    setInspection: presentation.setInspection.bind(presentation),
+    selectionFeedback: presentation.setFeedback.bind(presentation),
   });
   return {
     menu,
@@ -98,7 +98,10 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
   };
 }
 
-function createVisibilityFeatures(options: WorkbenchFeatureOptions): {
+function createVisibilityFeatures(
+  options: WorkbenchFeatureOptions,
+  presentation: WorkbenchPresentation,
+): {
   readonly actions: WorkbenchVisibilityActions;
   readonly panel: VisibilityPanelController;
 } {
@@ -117,9 +120,7 @@ function createVisibilityFeatures(options: WorkbenchFeatureOptions): {
       panel.sync();
     },
     render: options.render,
-    feedback: (message) => {
-      setModelFeedback(options.view, message);
-    },
+    feedback: presentation.setFeedback.bind(presentation),
   });
   const panel = new VisibilityPanelController({
     panel: options.view.visibilityPanel,

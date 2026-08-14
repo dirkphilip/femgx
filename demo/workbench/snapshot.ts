@@ -14,6 +14,49 @@ import type { ResultDisplayMode } from "./types";
 import type { VectorDisplayState } from "./result-controls";
 import type { VisibilityRowTarget } from "./tree-hover";
 
+export type WorkbenchMenuAction =
+  | "highlight"
+  | "select"
+  | "select-element"
+  | "hide-element"
+  | "hide-instance"
+  | "hide-part"
+  | "edges"
+  | "diagnostics"
+  | "fit-view"
+  | "reset"
+  | "clear-selection"
+  | "show-all";
+
+export interface WorkbenchMenuEntry {
+  readonly kind: "section" | "button";
+  readonly label: string;
+  readonly action?: WorkbenchMenuAction;
+  readonly help?: string;
+}
+
+export interface WorkbenchContextMenuSnapshot {
+  readonly visible: boolean;
+  readonly x: number;
+  readonly y: number;
+  readonly title: string;
+  readonly entries: readonly WorkbenchMenuEntry[];
+}
+
+export interface WorkbenchPresentationSnapshot {
+  readonly loading: boolean;
+  readonly modelSelectionDisabled: boolean;
+  readonly modelOpenDisabled: boolean;
+  readonly feedback: { readonly message: string; readonly kind: "info" | "error" } | undefined;
+  readonly rendererStatus: string;
+  readonly rendererStatusVisible: boolean;
+  readonly status: string;
+  readonly statusVisible: boolean;
+  readonly inspection: { readonly visible: boolean; readonly text: string };
+  readonly diagnostics: { readonly visible: boolean; readonly text: string };
+  readonly contextMenu: WorkbenchContextMenuSnapshot;
+}
+
 export interface WorkbenchSnapshot {
   readonly model: {
     readonly active: {
@@ -27,6 +70,9 @@ export interface WorkbenchSnapshot {
       readonly source: "example" | "file";
     }[];
     readonly partCount: number;
+    readonly loading: boolean;
+    readonly selectionDisabled: boolean;
+    readonly openDisabled: boolean;
   };
   readonly toolbar: {
     readonly rendererName: string;
@@ -61,6 +107,14 @@ export interface WorkbenchSnapshot {
   };
   readonly overlays: {
     readonly diagnostics: boolean;
+    readonly rendererStatus: string;
+    readonly rendererStatusVisible: boolean;
+    readonly status: string;
+    readonly statusVisible: boolean;
+    readonly feedback: WorkbenchPresentationSnapshot["feedback"];
+    readonly inspection: WorkbenchPresentationSnapshot["inspection"];
+    readonly diagnosticsText: string;
+    readonly contextMenu: WorkbenchContextMenuSnapshot;
   };
 }
 
@@ -98,6 +152,7 @@ export interface WorkbenchSnapshotInput {
   readonly vectorDisplay: VectorDisplayState;
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
+  readonly presentation?: WorkbenchPresentationSnapshot;
 }
 
 export interface WorkbenchSnapshotOwner {
@@ -116,6 +171,7 @@ export interface WorkbenchSnapshotOwner {
   readonly vectorDisplay: VectorDisplayState;
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
+  readonly presentation: { snapshot(): WorkbenchPresentationSnapshot };
   activeViewport(): { readonly camera: Pick<Camera, "mode"> };
 }
 
@@ -142,6 +198,8 @@ export interface WorkbenchCommands {
   setSectionAxis(axis: SectionAxis): void;
   setSectionOffset(value: string): void;
   toggleVisibility(target: VisibilityRowTarget): void;
+  contextMenuAction(action: WorkbenchMenuAction): void;
+  clearContextMenu(): void;
 }
 
 export type WorkbenchSnapshotListener = (snapshot: WorkbenchSnapshot) => void;
@@ -190,11 +248,13 @@ export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): Workbench
     vectorDisplay: owner.vectorDisplay,
     sectionAxis: owner.sectionAxis,
     sectionOffset: owner.sectionOffset,
+    presentation: owner.presentation.snapshot(),
   };
 }
 
 /** Builds a bounded immutable presentation snapshot without exposing runtime or GPU storage. */
 export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapshot {
+  const presentation = input.presentation ?? defaultPresentationSnapshot(input.toggles.diagnostics);
   const active = Object.freeze({
     id: input.model.id,
     name: input.model.name,
@@ -207,7 +267,14 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
   );
   const analysis = createAnalysisSnapshot(input);
   return Object.freeze({
-    model: Object.freeze({ active, available, partCount: input.model.scene.parts.size }),
+    model: Object.freeze({
+      active,
+      available,
+      partCount: input.model.scene.parts.size,
+      loading: presentation.loading,
+      selectionDisabled: presentation.modelSelectionDisabled,
+      openDisabled: presentation.modelOpenDisabled,
+    }),
     toolbar: Object.freeze({
       rendererName: input.rendererName,
       rendererState: input.rendererState,
@@ -224,7 +291,17 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
       visibleInstances: input.runtime.visibleCount,
       selectedCount: selectedTargetCount(input.interaction),
     }),
-    overlays: Object.freeze({ diagnostics: input.toggles.diagnostics }),
+    overlays: Object.freeze({
+      diagnostics: presentation.diagnostics.visible,
+      rendererStatus: presentation.rendererStatus,
+      rendererStatusVisible: presentation.rendererStatusVisible,
+      status: presentation.status,
+      statusVisible: presentation.statusVisible,
+      feedback: presentation.feedback,
+      inspection: presentation.inspection,
+      diagnosticsText: presentation.diagnostics.text,
+      contextMenu: presentation.contextMenu,
+    }),
   });
 }
 
@@ -263,6 +340,25 @@ function createAnalysisSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapsho
     sectionOffset: input.sectionOffset,
     sectionRange: sectionRange(input.model.bounds, input.sectionAxis),
   });
+}
+
+function defaultPresentationSnapshot(diagnostics: boolean): WorkbenchPresentationSnapshot {
+  return {
+    loading: false,
+    modelSelectionDisabled: false,
+    modelOpenDisabled: false,
+    feedback: undefined,
+    rendererStatus: "",
+    rendererStatusVisible: false,
+    status: "",
+    statusVisible: false,
+    inspection: {
+      visible: false,
+      text: "Click or right-click a visible element, face, or node to inspect it.",
+    },
+    diagnostics: { visible: diagnostics, text: "" },
+    contextMenu: { visible: false, x: 0, y: 0, title: "", entries: [] },
+  };
 }
 
 function resultField(field: {

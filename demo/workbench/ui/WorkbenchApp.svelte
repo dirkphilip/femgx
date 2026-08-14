@@ -3,6 +3,8 @@
   import type { WorkbenchController } from "../controller";
   import type { WorkbenchSnapshot } from "../snapshot";
   import PrimaryToolbar from "./PrimaryToolbar.svelte";
+  import StatusOverlays from "./StatusOverlays.svelte";
+  import ContextMenu from "./ContextMenu.svelte";
 
   let controller: WorkbenchController | undefined = $state();
   let snapshot: WorkbenchSnapshot | undefined = $state();
@@ -57,10 +59,6 @@
         hidden
       ></div>
       <PrimaryToolbar {controller} {snapshot} />
-      <div class="hud inspection" hidden>
-        <h2>Inspection</h2>
-        <pre id="inspection-panel" data-testid="inspection-panel"></pre>
-      </div>
       <section
         id="result-legend"
         data-testid="result-legend"
@@ -68,18 +66,7 @@
         aria-label="Active result legend"
         hidden
       ></section>
-      <div id="renderer-status" data-testid="renderer-status" class="renderer-alert" hidden></div>
-      <div id="status" data-testid="status" class="status-alert" hidden></div>
-      <section
-        id="stats-panel"
-        data-testid="stats-panel"
-        class="hud diagnostics"
-        aria-labelledby="diagnostics-heading"
-        hidden
-      >
-        <h2 id="diagnostics-heading">Diagnostics</h2>
-        <pre id="diagnostics-content"></pre>
-      </section>
+      <StatusOverlays {snapshot} />
       <div class="scene-pane-label">Primary viewport</div>
     </section>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -108,5 +95,5 @@
       <div class="scene-pane-label">Secondary viewport</div>
     </section>
   </div>
-  <div id="context-menu" class="context-menu" data-testid="context-menu" hidden></div>
+  <ContextMenu {controller} {snapshot} />
 </main>

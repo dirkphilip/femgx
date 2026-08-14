@@ -35,6 +35,8 @@ interface WorkbenchViewportSlotsOptions {
   readonly applySharedState: () => void;
   readonly rebuildVisibility: () => void;
   readonly feedback: (message: string) => void;
+  readonly setInspection: (text: string, visible: boolean) => void;
+  readonly selectionFeedback: (message: string) => void;
   readonly onActiveSlotChanged: () => void;
 }
 
@@ -184,7 +186,6 @@ export class WorkbenchViewportSlots {
     );
     const interaction = new WorkbenchInteraction({
       canvas: view.secondaryPane.canvas,
-      view,
       viewport: () => viewport,
       selectionGranularity: this.options.selectionGranularity,
       getInteraction: this.options.getInteraction,
@@ -192,6 +193,8 @@ export class WorkbenchViewportSlots {
       partName: (partId) => this.options.getModel().partNames.get(partId),
       menu: this.options.menu,
       render: this.options.render,
+      setInspection: this.options.setInspection,
+      selectionFeedback: this.options.selectionFeedback,
     });
     return {
       id: "secondary",

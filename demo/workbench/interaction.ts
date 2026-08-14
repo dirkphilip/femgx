@@ -48,9 +48,6 @@ function isCompletedBoxSelectionEvent(
 /** View and state hooks used by the asynchronous picking interaction layer. */
 export interface WorkbenchInteractionOptions {
   readonly canvas: HTMLCanvasElement;
-  readonly view: {
-    readonly inspectionPanel: HTMLElement;
-  };
   readonly viewport: () => FemViewport;
   readonly getInteraction: () => InteractionState;
   readonly setInteraction: (interaction: InteractionState) => void;
@@ -58,6 +55,7 @@ export interface WorkbenchInteractionOptions {
   readonly menu: WorkbenchMenu;
   readonly render: () => void;
   readonly selectionGranularity: () => SelectionGranularity;
+  readonly setInspection: (text: string, visible: boolean) => void;
   readonly boxSelectionResolver?: BoxSelectionResolver;
   /** Optional concise feedback sink for completed box-selection results. */
   readonly selectionFeedback?: (message: string) => void;
@@ -337,14 +335,12 @@ export class WorkbenchInteraction {
   }
 
   private showPick(hit: Parameters<typeof describePick>[0]): void {
-    this.options.view.inspectionPanel.textContent = describePick(
+    const text = describePick(
       hit,
       (partId) => this.options.partName(partId),
       this.options.viewport().results,
     );
-    const surface = Reflect.get(this.options.view.inspectionPanel, "parentElement") as
-      HTMLElement | null | undefined;
-    if (surface !== null && surface !== undefined) surface.hidden = hit === undefined;
+    this.options.setInspection(text, hit !== undefined);
   }
 }
 
