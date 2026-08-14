@@ -43,9 +43,9 @@ runner exists (`npm run test:e2e:ci` covers the unsupported contract only).
 
 The only `test.skip` calls left are WebGPU-initialization or opt-in gates:
 
-- `e2e/perf.spec.ts` — file-level: "browser performance runs are opt-in via
-  RUN_PERF=1" (category 3; the fixed-resolution capacity benchmark runs only
-  through the local system-Chrome command; see
+- `e2e/perf.spec.ts` — benchmark cases and their browser-only dependency graph
+  are collected only with `RUN_PERF=1` (category 3; the fixed-resolution
+  capacity benchmark runs only through the local system-Chrome command; see
   [[engineering/benchmarks|Benchmarks]]).
 - `e2e/webgpu-lifecycle.spec.ts` and the partitioned demo suites — per-test:
   "WebGPU renderer unavailable in this browser environment" (category 2;

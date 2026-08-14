@@ -1,26 +1,35 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
-/** RGBA pixel data of the presented canvas, decoded in the browser. */
-async function pixelData(canvas: Locator): Promise<number[]> {
-  const shot = await canvas.screenshot();
-  const base64 = shot.toString("base64");
-  return canvas.page().evaluate((encoded) => {
-    const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
+/** One screenshot's deterministic hash and distinct-color count. */
+export async function pixelMetrics(
+  canvas: Locator,
+): Promise<{ readonly distinctColors: number; readonly hash: string }> {
+  const encoded = (await canvas.screenshot()).toString("base64");
+  return canvas.page().evaluate(async (base64) => {
+    const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
     const blob = new Blob([bytes], { type: "image/png" });
-    return createImageBitmap(blob).then((bitmap) => {
-      const snapshot = document.createElement("canvas");
-      snapshot.width = bitmap.width;
-      snapshot.height = bitmap.height;
-      const context = snapshot.getContext("2d");
-      if (context === null) {
-        throw new Error("no 2d snapshot context for pixel decode");
-      }
-      context.drawImage(bitmap, 0, 0);
-      const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
-      bitmap.close();
-      return Array.from(data);
-    });
-  }, base64);
+    const bitmap = await createImageBitmap(blob);
+    const snapshot = document.createElement("canvas");
+    snapshot.width = bitmap.width;
+    snapshot.height = bitmap.height;
+    const context = snapshot.getContext("2d");
+    if (context === null) throw new Error("no 2d snapshot context for pixel decode");
+    context.drawImage(bitmap, 0, 0);
+    const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+    bitmap.close();
+
+    let hash = 0;
+    const colors = new Set<number>();
+    for (let index = 0; index < data.length; index += 4) {
+      const red = data[index] ?? 0;
+      const green = data[index + 1] ?? 0;
+      const blue = data[index + 2] ?? 0;
+      const alpha = data[index + 3] ?? 0;
+      hash = ((hash * 31 + red) * 31 + green * 7 + blue * 3 + alpha) >>> 0;
+      colors.add((red << 16) | (green << 8) | blue);
+    }
+    return { distinctColors: colors.size, hash: hash.toString(16) };
+  }, encoded);
 }
 
 /** True when the canvas has actually drawn something (more than one color). */
@@ -31,25 +40,6 @@ export async function drawnPixels(canvas: Locator): Promise<boolean> {
 /** A deterministic fingerprint of the presented canvas pixels. */
 export async function pixelHash(canvas: Locator): Promise<string> {
   return (await pixelMetrics(canvas)).hash;
-}
-
-/** One screenshot's deterministic hash and distinct-color count. */
-export async function pixelMetrics(
-  canvas: Locator,
-): Promise<{ readonly distinctColors: number; readonly hash: string }> {
-  const data = await pixelData(canvas);
-  let hash = 0;
-  const colors = new Set<string>();
-  for (let index = 0; index < data.length; index += 4) {
-    hash =
-      ((hash * 31 + (data[index] ?? 0)) * 31 +
-        (data[index + 1] ?? 0) * 7 +
-        (data[index + 2] ?? 0) * 3 +
-        (data[index + 3] ?? 0)) >>>
-      0;
-    colors.add(`${data[index] ?? 0},${data[index + 1] ?? 0},${data[index + 2] ?? 0}`);
-  }
-  return { distinctColors: colors.size, hash: hash.toString(16) };
 }
 
 /** The number of distinct RGB colors in the presented canvas. */
@@ -378,6 +368,42 @@ async function sweepCells(
   return undefined;
 }
 
+async function probeCells(
+  page: Page,
+  box: Box,
+  cells: ReadonlyArray<readonly [number, number]>,
+  attribute: "pick" | "hovered",
+  prefix: string,
+): Promise<{ readonly available: boolean; readonly hit?: SweepHit }> {
+  // Locate a candidate through the existing devtools viewport seam without
+  // paying one pointer-event timeout per empty pixel. The caller still moves
+  // the real pointer to the result and verifies the published interaction key.
+  return page.evaluate(
+    async ({ attribute: keyName, boxX, boxY, cells: points, prefix: keyPrefix }) => {
+      const probe = (
+        window as typeof window & {
+          femgxDemo?: {
+            probePick?: (
+              x: number,
+              y: number,
+            ) => Promise<{ readonly pickKey: string; readonly hoveredKey: string }>;
+          };
+        }
+      ).femgxDemo?.probePick;
+      if (probe === undefined) return { available: false };
+      for (const [x, y] of points) {
+        const result = await probe(x - boxX, y - boxY);
+        const key = keyName === "pick" ? result.pickKey : result.hoveredKey;
+        if (key !== "" && (keyPrefix === "" || key.startsWith(keyPrefix))) {
+          return { available: true, hit: { x, y, key } };
+        }
+      }
+      return { available: true };
+    },
+    { attribute, boxX: box.x, boxY: box.y, cells, prefix },
+  );
+}
+
 /**
  * Sweeps the pointer across the canvas until the dataset key resolves a hit
  * matching `options.prefix`. Demo picking is asynchronous GPU readback, so
@@ -440,6 +466,14 @@ export async function sweepForHit(
         Math.hypot(a[0] - center[0], a[1] - center[1]) -
         Math.hypot(b[0] - center[0], b[1] - center[1]),
     );
+    const direct = await probeCells(page, box, [center, ...local], attribute, prefix);
+    if (direct.available) {
+      if (direct.hit === undefined) return undefined;
+      await clearKey();
+      await page.mouse.move(direct.hit.x, direct.hit.y);
+      const key = await waitForKey(keyOf, matches, settleMs, page);
+      return matches(key) ? { ...direct.hit, key } : undefined;
+    }
     return sweepCells(page, local, { clearKey, keyOf, matches, settleMs });
   }
 
@@ -450,6 +484,21 @@ export async function sweepForHit(
   const coarse = fresh
     ? [[Math.round(box.x + box.width / 2), Math.round(box.y + box.height / 2)] as const, ...grid]
     : grid;
+  const directCells = reverse
+    ? coarse
+    : [...coarse].sort(
+        (a, b) =>
+          Math.hypot(a[0] - center[0], a[1] - center[1]) -
+          Math.hypot(b[0] - center[0], b[1] - center[1]),
+      );
+  const direct = await probeCells(page, box, directCells, attribute, prefix);
+  if (direct.available) {
+    if (direct.hit === undefined) return undefined;
+    await clearKey();
+    await page.mouse.move(direct.hit.x, direct.hit.y);
+    const key = await waitForKey(keyOf, matches, settleMs, page);
+    return matches(key) ? { ...direct.hit, key } : undefined;
+  }
   const sweep = (cells: ReadonlyArray<readonly [number, number]>) =>
     sweepCells(page, cells, {
       ...(fresh ? { clearKey } : {}),
