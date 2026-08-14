@@ -214,7 +214,7 @@ export interface WorkbenchCommands {
   showAll(): void;
   reset(): void;
   selectModel(id: string): void;
-  openModel(file: File): void;
+  openModel(file: File): Promise<void>;
   setResultField(id: string): void;
   setSectionAxis(axis: SectionAxis): void;
   setSectionOffset(value: string): void;

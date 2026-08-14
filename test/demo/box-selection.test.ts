@@ -234,7 +234,6 @@ describe("workbench hover suppression", () => {
       showAllButton: new FakeElement(),
       modelSelect: new FakeElement(),
       openModelButton: new FakeElement(),
-      modelFileInput: new FakeElement(),
       modelSource: new FakeElement(),
     } as unknown as DemoView;
     let dragging = false;

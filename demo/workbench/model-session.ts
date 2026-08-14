@@ -61,7 +61,6 @@ export class WorkbenchModelSession {
       );
     } finally {
       if (generation === this.generation) {
-        this.options.presentation.clearModelFileInput();
         this.options.presentation.setLoading(false);
       }
     }
