@@ -4,7 +4,6 @@ import { readInteractionState } from "../interaction/state";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
-import { syncElementHighlights } from "./gpu-highlight-storage";
 import {
   destroyInstanceResources,
   patchInstances,
@@ -29,7 +28,7 @@ import {
   interactionAffectedSlots,
   interactionDirtyParts,
   partsForSlots,
-  refreshTransparencyFlags,
+  syncInteractionEmphasis,
   type InteractionElementSyncOptions,
 } from "./interaction-sync";
 import {
@@ -253,23 +252,12 @@ export class RendererAttachment {
     readonly nodeParts: ReadonlySet<PartId>;
     readonly fullSync: boolean;
   }): { transparentChanged: ReadonlySet<PartId>; selectionChanged: boolean } {
-    syncElementHighlights(
-      {
-        device: options.bundle.device,
-        draw: options.bundle.draw,
-        runtime: options.runtime,
-        layout: options.layout,
-        slotByInstanceId: this.slotByInstanceId,
-        parts: options.parts,
-      },
-      options.interaction,
-      options.affectedParts,
-    );
-    const transparentChanged = refreshTransparencyFlags({
+    const transparentChanged = syncInteractionEmphasis({
       runtime: options.runtime,
       layout: options.layout,
       interaction: options.interaction,
       parts: options.parts,
+      bundle: options.bundle,
       currentFlags: this.transparentFlags,
       slotByInstanceId: this.slotByInstanceId,
       changedSlots: options.changedSlots,

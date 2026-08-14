@@ -1,4 +1,4 @@
-import { bodyIdForElement, type Part } from "../geometry/part";
+import type { Part } from "../geometry/part";
 import {
   emphasizedElementRefs,
   resolveElementBlockStyle,
@@ -19,6 +19,7 @@ import type { PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
 import { BODY_HIGHLIGHT_MARKER } from "./gpu-highlight-table";
 import { defaultStyle } from "./gpu-support";
+import { getPartInteractionMetadata } from "./part-interaction-metadata";
 
 interface InstanceLayout {
   readonly slotPartLocal: Int32Array;
@@ -76,6 +77,9 @@ export interface EmphasisUpdate {
   readonly style: ResolvedStyle;
 }
 
+/** One immutable interaction snapshot shared by highlight and transparency sync. */
+export type EmphasisUpdates = ReadonlyMap<PartId, readonly EmphasisUpdate[]>;
+
 /**
  * Encodes one emphasis record. Only one of the three pick ids is non-zero, so
  * the vertex shader compares exactly one key against the per-triangle or
@@ -112,7 +116,7 @@ export function collectEmphasisUpdates(
   slotByInstanceId: ReadonlyMap<InstanceId, number>,
   parts: ReadonlyMap<PartId, Part>,
   interaction: InteractionState,
-): ReadonlyMap<PartId, EmphasisUpdate[]> {
+): EmphasisUpdates {
   const context = { runtime, layout, slotByInstanceId };
   const byPart = new Map<PartId, EmphasisUpdate[]>();
   const push = (partId: PartId, update: EmphasisUpdate): void => {
@@ -140,15 +144,10 @@ function collectBlockEmphasis(
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
-    const block = part?.geometry.blocks?.find((candidate) => candidate.id === ref.blockId);
+    const metadata = part === undefined ? undefined : getPartInteractionMetadata(part);
+    const block = metadata?.blocks.get(ref.blockId);
     if (block === undefined) continue;
-    const bodyElement = part?.geometry.elements?.find((element) =>
-      block.elementIds.includes(element.id),
-    );
-    const bodyId =
-      bodyElement === undefined || part === undefined
-        ? undefined
-        : bodyIdForElement(part.geometry, bodyElement.id);
+    const bodyId = metadata?.bodyByBlock.get(ref.blockId);
     push(occurrence.instance.partId, {
       slot: occurrence.local,
       elementPickId: 0,
@@ -180,7 +179,8 @@ function collectBodyEmphasis(
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
-    const body = part?.geometry.bodies?.find((candidate) => candidate.id === ref.bodyId);
+    const body =
+      part === undefined ? undefined : getPartInteractionMetadata(part).bodies.get(ref.bodyId);
     if (body === undefined) continue;
     push(occurrence.instance.partId, {
       slot: occurrence.local,
@@ -213,9 +213,10 @@ function collectElementEmphasis(
   for (const ref of emphasizedElementRefs(interaction)) {
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
-    const geometry = parts.get(occurrence.instance.partId)?.geometry;
-    const bodyId = geometry === undefined ? undefined : bodyIdForElement(geometry, ref.elementId);
-    const blockId = geometry?.elements?.find((element) => element.id === ref.elementId)?.blockId;
+    const part = parts.get(occurrence.instance.partId);
+    const metadata = part === undefined ? undefined : getPartInteractionMetadata(part);
+    const bodyId = metadata?.bodyByElement.get(ref.elementId);
+    const blockId = metadata?.blockByElement.get(ref.elementId);
     const style = resolveElementStyle(
       occurrence.instance,
       ref.elementId,
@@ -246,15 +247,13 @@ function collectFaceEmphasis(
   for (const ref of emphasizedFaceRefs(interaction)) {
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
-    const geometry = parts.get(occurrence.instance.partId)?.geometry;
-    if (geometry?.primitive !== "triangles") continue;
-    const face = geometry.faces?.find(
-      (candidate) => candidate.elementId === ref.elementId && candidate.faceIndex === ref.faceIndex,
-    );
-    const faceId = face === undefined ? -1 : (geometry.faces?.indexOf(face) ?? -1);
-    if (face === undefined || faceId < 0) continue;
+    const part = parts.get(occurrence.instance.partId);
+    const metadata = part === undefined ? undefined : getPartInteractionMetadata(part);
+    const faceMetadata = metadata?.faces.get(faceRefKey(ref));
+    if (faceMetadata === undefined) continue;
+    const { face, faceId } = faceMetadata;
     const style = resolveFaceStyle(occurrence.instance, ref, defaultStyle, interaction, {
-      bodyId: face.bodyId ?? bodyIdForElement(geometry, ref.elementId),
+      bodyId: face.bodyId ?? metadata?.bodyByElement.get(ref.elementId),
       blockId: face.blockId,
     });
     push(occurrence.instance.partId, {

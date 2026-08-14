@@ -17,6 +17,7 @@ import {
   HIGHLIGHT_HEADER,
   INITIAL_ELEMENT_HIGHLIGHTS,
   type EmphasisUpdate,
+  type EmphasisUpdates,
 } from "./gpu-elements";
 import type { GpuCostAccumulator } from "./gpu-cost";
 import { writeChangedRecordRanges } from "./gpu-writes";
@@ -181,14 +182,17 @@ export function syncElementHighlights(
   sync: ElementHighlightSync,
   interaction: InteractionState,
   affectedParts?: ReadonlySet<PartId>,
+  emphasisUpdates?: EmphasisUpdates,
 ): void {
-  const updates = collectEmphasisUpdates(
-    sync.runtime,
-    sync.layout,
-    sync.slotByInstanceId,
-    sync.parts,
-    interaction,
-  );
+  const updates =
+    emphasisUpdates ??
+    collectEmphasisUpdates(
+      sync.runtime,
+      sync.layout,
+      sync.slotByInstanceId,
+      sync.parts,
+      interaction,
+    );
   for (const [partId, storage] of sync.draw.storages) {
     if (affectedParts !== undefined && !affectedParts.has(partId)) continue;
     writeElementHighlights(sync.device, storage, updates.get(partId) ?? [], sync.draw.cost);

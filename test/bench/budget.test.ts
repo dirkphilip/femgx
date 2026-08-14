@@ -24,6 +24,8 @@ import {
 } from "../../src/renderer/gpu-pick-region-resolve";
 import { buildPrimitiveFaceBodyPickData } from "../../src/renderer/gpu-pick-ids";
 import { expandSurfaceGeometry } from "../../src/renderer/gpu-surface-geometry";
+import { collectEmphasisUpdates } from "../../src/renderer/gpu-elements";
+import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
 import {
@@ -94,6 +96,38 @@ const bodies = makeBodies(bodyModel.elements.length, BENCH_BODY_COUNT);
 const bodyModelWithBodies = createElementModel([...bodyModel.nodes], bodyModel.elements, {
   bodies,
 });
+const emphasisPart = createPart(907, bodyGeometry);
+const emphasisScene = {
+  rootAssemblyId: 1,
+  parts: new Map([[emphasisPart.id, emphasisPart]]),
+  assemblies: new Map([
+    [
+      1,
+      {
+        id: 1,
+        placements: [
+          { kind: "part" as const, partId: emphasisPart.id, transform: translation(0, 0, 0) },
+        ],
+      },
+    ],
+  ]),
+  visiblePartIds: new Set([emphasisPart.id]),
+  visibleAssemblyIds: new Set([1]),
+};
+const emphasisRuntime = createPackedSceneRuntime(emphasisScene);
+const emphasisLayout = buildInstanceLayout(emphasisRuntime);
+const emphasisInstanceId = emphasisRuntime.getInstanceId(0);
+if (emphasisInstanceId === undefined) throw new Error("Missing emphasis benchmark instance");
+const emphasisSlotByInstanceId = new Map([[emphasisInstanceId, 0]]);
+const emphasisInteraction = setTargetsSelected(
+  createInteractionState(),
+  Array.from({ length: BENCH_BODY_ELEMENT_COUNT }, (_, index) => ({
+    kind: "element" as const,
+    instanceId: emphasisInstanceId,
+    elementId: index + 1,
+  })),
+  true,
+);
 const LINE_BENCH_SEGMENTS = 10_000;
 const lineHeavyGeometry = {
   positions: Float32Array.from({ length: (LINE_BENCH_SEGMENTS + 1) * 3 }, (_, index) => index % 3),
@@ -362,6 +396,20 @@ const budgets: readonly BudgetCase[] = [
     budgetMs: 100,
     run: () => {
       setTargetsSelected(createInteractionState(), bulkSelectionTargets, true);
+    },
+  },
+  {
+    name: "collectEmphasisUpdates (16,384 elements)",
+    description: "one occurrence using cached part ownership metadata",
+    budgetMs: 1_500,
+    run: () => {
+      collectEmphasisUpdates(
+        emphasisRuntime,
+        emphasisLayout,
+        emphasisSlotByInstanceId,
+        emphasisScene.parts,
+        emphasisInteraction,
+      );
     },
   },
   ...regionCases.flatMap(({ part, ids }, index) => {
