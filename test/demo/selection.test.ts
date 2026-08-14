@@ -3,6 +3,8 @@ import { createInteractionState, isTargetSelected, setTargetSelected } from "../
 import { elementTarget, exactTarget, selectTarget } from "../../demo/workbench/pick";
 import {
   replaceSelection,
+  replaceTargets,
+  toggleTargets,
   toggleElementSelection,
   toggleSelection,
 } from "../../demo/workbench/selection";
@@ -177,6 +179,18 @@ describe("demo selection policy", () => {
     state = toggleElementSelection(state, node);
     expect(isTargetSelected(state, element)).toBe(false);
     expect(isTargetSelected(state, other)).toBe(true);
+  });
+
+  it("applies box replacement and toggle policies once per target identity", () => {
+    const targets = [part, element, element];
+    const replaced = replaceTargets(createInteractionState(), targets);
+    expect(isTargetSelected(replaced, part)).toBe(true);
+    expect(isTargetSelected(replaced, element)).toBe(true);
+
+    const toggled = toggleTargets(replaced, targets);
+    expect(isTargetSelected(toggled, part)).toBe(false);
+    expect(isTargetSelected(toggled, element)).toBe(false);
+    expect(toggleTargets(toggled, [])).toBe(toggled);
   });
 });
 

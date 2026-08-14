@@ -7,6 +7,28 @@ export function updateSet<T>(current: ReadonlySet<T>, value: T, enabled: boolean
   return next;
 }
 
+/** Updates a set for many values, cloning it at most once. */
+export function updateSetValues<T>(
+  current: ReadonlySet<T>,
+  values: ReadonlySet<T>,
+  enabled: boolean,
+): ReadonlySet<T> {
+  let changed = false;
+  for (const value of values) {
+    if (current.has(value) !== enabled) {
+      changed = true;
+      break;
+    }
+  }
+  if (!changed) return current;
+  const next = new Set(current);
+  for (const value of values) {
+    if (enabled) next.add(value);
+    else next.delete(value);
+  }
+  return next;
+}
+
 /** Updates one nested set entry, preserving map identity for no-ops. */
 export function updateNestedSet<OuterKey, InnerKey>(
   current: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
@@ -22,6 +44,24 @@ export function updateNestedSet<OuterKey, InnerKey>(
   if (nextValues.size === 0) next.delete(outerKey);
   else next.set(outerKey, nextValues);
   return next;
+}
+
+/** Updates nested sets for many values, cloning each touched set once. */
+export function updateNestedSets<OuterKey, InnerKey>(
+  current: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
+  values: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
+  enabled: boolean,
+): ReadonlyMap<OuterKey, ReadonlySet<InnerKey>> {
+  let next: Map<OuterKey, ReadonlySet<InnerKey>> | undefined;
+  for (const [outerKey, requested] of values) {
+    const existing = current.get(outerKey);
+    const nextValues = updateSetValues(existing ?? new Set<InnerKey>(), requested, enabled);
+    if (nextValues === existing || (existing === undefined && nextValues.size === 0)) continue;
+    next ??= new Map(current);
+    if (nextValues.size === 0) next.delete(outerKey);
+    else next.set(outerKey, nextValues);
+  }
+  return next ?? current;
 }
 
 /** Updates one nested map entry, preserving map identity for no-ops. */
@@ -40,6 +80,31 @@ export function updateNestedMap<OuterKey, InnerKey, Value>(
   if (nextValues.size === 0) next.delete(outerKey);
   else next.set(outerKey, nextValues);
   return next;
+}
+
+/** Updates nested maps for many values, cloning each touched map once. */
+export function updateNestedMaps<OuterKey, InnerKey, Value>(
+  current: ReadonlyMap<OuterKey, ReadonlyMap<InnerKey, Value>>,
+  values: ReadonlyMap<OuterKey, ReadonlyMap<InnerKey, Value>>,
+  enabled: boolean,
+): ReadonlyMap<OuterKey, ReadonlyMap<InnerKey, Value>> {
+  let next: Map<OuterKey, ReadonlyMap<InnerKey, Value>> | undefined;
+  for (const [outerKey, requested] of values) {
+    const existing = current.get(outerKey);
+    let nextValues: Map<InnerKey, Value> | undefined;
+    for (const [innerKey, value] of requested) {
+      const present = existing?.has(innerKey) === true;
+      if (present === enabled) continue;
+      nextValues ??= new Map(existing ?? []);
+      if (enabled) nextValues.set(innerKey, value);
+      else nextValues.delete(innerKey);
+    }
+    if (nextValues === undefined) continue;
+    next ??= new Map(current);
+    if (nextValues.size === 0) next.delete(outerKey);
+    else next.set(outerKey, nextValues);
+  }
+  return next ?? current;
 }
 
 /** Updates one flat map entry, preserving map identity for no-ops. */

@@ -10,6 +10,7 @@ import {
   setTargetsHighlighted,
   setTargetSelected,
   setTargetHovered,
+  setTargetsSelected,
   type InteractionTarget,
   type PickHit,
 } from "../../src/index";
@@ -55,6 +56,31 @@ describe("InteractionTarget helpers", () => {
     expect(isTargetHighlighted(state, first)).toBe(true);
     expect(isTargetHighlighted(state, second)).toBe(true);
     expect(setTargetsHighlighted(state, [first, second], true)).toBe(state);
+  });
+
+  it("applies duplicate-safe bulk selection across every target kind", () => {
+    const duplicateTargets = [...targets, targets[2], targets[4]];
+    const state = setTargetsSelected(createInteractionState(), duplicateTargets, true);
+    for (const target of targets) expect(isTargetSelected(state, target)).toBe(true);
+    expect(setTargetsSelected(state, duplicateTargets, true)).toBe(state);
+    const cleared = setTargetsSelected(state, [targets[1], targets[2], targets[2]], false);
+    expect(isTargetSelected(cleared, targets[1])).toBe(false);
+    expect(isTargetSelected(cleared, targets[2])).toBe(false);
+    expect(isTargetSelected(cleared, targets[0])).toBe(true);
+  });
+
+  it("clones each affected nested selection collection once and preserves prior state", () => {
+    const initial = createInteractionState();
+    const selected = setTargetsSelected(initial, [targets[2], targets[2], targets[4]], true);
+    const initialData = readInteractionState(initial);
+    const selectedData = readInteractionState(selected);
+    expect(selectedData.selectedBodyIds).not.toBe(initialData.selectedBodyIds);
+    expect(selectedData.selectedElementIds).not.toBe(initialData.selectedElementIds);
+    expect(selectedData.selectedBodyIds.get("1/0")).toEqual(new Set([2]));
+    expect(selectedData.selectedElementIds.get("1/0")).toEqual(new Set([3]));
+    expect(initialData.selectedBodyIds.size).toBe(0);
+    expect(initialData.selectedElementIds.size).toBe(0);
+    expect(setTargetsSelected(initial, [], true)).toBe(initial);
   });
 
   it("clears only selection state and preserves every other layer", () => {

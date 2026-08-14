@@ -5,6 +5,7 @@ import {
   selectedTargets,
   setTargetHighlighted,
   setTargetSelected,
+  setTargetsSelected,
   type InteractionState,
 } from "../../src/index";
 import { elementTarget, targetKey, type SelectTarget } from "./pick";
@@ -45,9 +46,7 @@ export function replaceTargets(
   interaction: InteractionState,
   targets: readonly SelectTarget[],
 ): InteractionState {
-  let next = clearSelection(interaction);
-  for (const target of uniqueTargets(targets)) next = setTargetSelected(next, target, true);
-  return next;
+  return setTargetsSelected(clearSelection(interaction), targets, true);
 }
 
 /** Toggles each distinct visible target returned by one box pick. */
@@ -55,11 +54,13 @@ export function toggleTargets(
   interaction: InteractionState,
   targets: readonly SelectTarget[],
 ): InteractionState {
-  let next = interaction;
+  const selected: SelectTarget[] = [];
+  const cleared: SelectTarget[] = [];
   for (const target of uniqueTargets(targets)) {
-    next = setTargetSelected(next, target, !isSelected(next, target));
+    if (isSelected(interaction, target)) cleared.push(target);
+    else selected.push(target);
   }
-  return next;
+  return setTargetsSelected(setTargetsSelected(interaction, cleared, false), selected, true);
 }
 
 /** Applies one highlight toggle without coupling it to the DOM or renderer. */
