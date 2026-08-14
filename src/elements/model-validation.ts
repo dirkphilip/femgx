@@ -1,7 +1,10 @@
 import type { Element, ElementId } from "./element";
 import type { Body, BodyId, ElementBlock, ElementBlockId } from "./model-types";
 
-/** Machine-readable failure from the authoritative element-model boundary. */
+/**
+ * Machine-readable failure from the authoritative element-model boundary.
+ * @category Elements and model editing
+ */
 export type ElementModelValidationCode =
   | "duplicate-element-id"
   | "invalid-block-id"
@@ -20,7 +23,10 @@ export type ElementModelValidationCode =
   | "duplicate-body-membership"
   | "block-body-mismatch";
 
-/** Typed validation error for an invalid authored element model. */
+/**
+ * Typed validation error for an invalid authored element model.
+ * @category Elements and model editing
+ */
 export class ElementModelValidationError extends Error {
   readonly code: ElementModelValidationCode;
 

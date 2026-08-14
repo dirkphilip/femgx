@@ -1,16 +1,28 @@
-/** Why a WebGPU-capable path is unavailable on the current environment. */
+/**
+ * Why a WebGPU-capable path is unavailable on the current environment.
+ * @category Advanced runtime and WebGPU platform
+ */
 export type WebGpuUnsupportedReason = "no-webgpu" | "adapter-unavailable" | "device-unavailable";
 
-/** The outcome of a WebGPU capability probe. */
+/**
+ * The outcome of a WebGPU capability probe.
+ * @category Advanced runtime and WebGPU platform
+ */
 export type WebGpuSupportStatus = "supported" | "unsupported";
 
-/** Options accepted by the capability and device probes. */
+/**
+ * Options accepted by the capability and device probes.
+ * @category Advanced runtime and WebGPU platform
+ */
 export interface WebGpuQueryOptions {
   /** GPU power preference; omit to let the browser pick. */
   readonly powerPreference?: GPUPowerPreference;
 }
 
-/** Snapshot of the supported adapter surface reported to applications. */
+/**
+ * Snapshot of the supported adapter surface reported to applications.
+ * @category Advanced runtime and WebGPU platform
+ */
 export interface WebGpuAdapterProfile {
   /** Adapter feature names, e.g. `"depth-clip-control"`. */
   readonly features: readonly string[];
@@ -24,7 +36,10 @@ export interface WebGpuAdapterProfile {
   readonly description: string;
 }
 
-/** Non-throwing result of `queryWebGpuSupport()`. */
+/**
+ * Non-throwing result of `queryWebGpuSupport()`.
+ * @category Advanced runtime and WebGPU platform
+ */
 export interface WebGpuSupportReport {
   readonly status: WebGpuSupportStatus;
   /** Present when `status` is `"unsupported"`. */
@@ -35,7 +50,10 @@ export interface WebGpuSupportReport {
   readonly adapter?: WebGpuAdapterProfile;
 }
 
-/** Thrown by WebGPU creation paths, carrying a typed reason for branching. */
+/**
+ * Thrown by WebGPU creation paths, carrying a typed reason for branching.
+ * @category Advanced runtime and WebGPU platform
+ */
 export class WebGpuUnsupportedError extends Error {
   readonly reason: WebGpuUnsupportedReason;
 
@@ -46,7 +64,10 @@ export class WebGpuUnsupportedError extends Error {
   }
 }
 
-/** Stable, actionable guidance text for each unsupported reason. */
+/**
+ * Stable, actionable guidance text for each unsupported reason.
+ * @category Advanced runtime and WebGPU platform
+ */
 export function unsupportedMessage(reason: WebGpuUnsupportedReason): string {
   switch (reason) {
     case "no-webgpu":
@@ -67,6 +88,7 @@ function gpu(): GPU | undefined {
 /**
  * Requests a WebGPU adapter, throwing a typed `WebGpuUnsupportedError` when
  * the browser has no WebGPU entry point or the adapter request fails.
+ * @category Advanced runtime and WebGPU platform
  */
 export async function requestWebGpuAdapter(
   options?: WebGpuQueryOptions,
@@ -114,6 +136,7 @@ function adapterProfile(adapter: GPUAdapter): WebGpuAdapterProfile {
 /**
  * Non-throwing capability probe. Applications call this before loading a model
  * to decide whether WebGPU rendering is available and what the adapter offers.
+ * @category Advanced runtime and WebGPU platform
  */
 export async function queryWebGpuSupport(
   options?: WebGpuQueryOptions,

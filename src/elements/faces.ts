@@ -15,10 +15,16 @@ import { topologyFor, type ElementFamily, type ElementTopology } from "./shapes"
 import { at } from "./indices";
 import { canonicalKey } from "./keys";
 
-/** Deterministic canonical identity of a face, independent of orientation. */
+/**
+ * Deterministic canonical identity of a face, independent of orientation.
+ * @category Elements and model editing
+ */
 export type FaceKey = string;
 
-/** An oriented face of an element as a polygon loop of node ids. */
+/**
+ * An oriented face of an element as a polygon loop of node ids.
+ * @category Elements and model editing
+ */
 export interface ElementFace {
   /** Canonical identity shared by coincident faces (sorted node ids). */
   readonly key: FaceKey;
@@ -26,17 +32,26 @@ export interface ElementFace {
   readonly nodeIds: readonly NodeId[];
 }
 
-/** Stable identity of one oriented face of an element. */
+/**
+ * Stable identity of one oriented face of an element.
+ * @category Elements and model editing
+ */
 export interface FaceIdRef {
   readonly elementId: ElementId;
   /** Index of the face within the element's canonical face list. */
   readonly faceIndex: number;
 }
 
-/** Machine-readable validation failure for an explicit element-face subset. */
+/**
+ * Machine-readable validation failure for an explicit element-face subset.
+ * @category Elements and model editing
+ */
 export type FaceSelectionErrorCode = "invalid-element-id" | "invalid-face-index" | "duplicate-face";
 
-/** Typed error raised when a face subset does not resolve to model topology. */
+/**
+ * Typed error raised when a face subset does not resolve to model topology.
+ * @category Elements and model editing
+ */
 export class FaceSelectionError extends Error {
   readonly code: FaceSelectionErrorCode;
 
@@ -47,12 +62,18 @@ export class FaceSelectionError extends Error {
   }
 }
 
-/** An element face together with its stable identity. */
+/**
+ * An element face together with its stable identity.
+ * @category Elements and model editing
+ */
 export interface ElementFaceRef extends FaceIdRef {
   readonly face: ElementFace;
 }
 
-/** Returns the element's faces paired with their stable `faceIndex`. */
+/**
+ * Returns the element's faces paired with their stable `faceIndex`.
+ * @category Elements and model editing
+ */
 export function facesOfElement(element: Element): readonly ElementFaceRef[] {
   return facesOf(element).map((face, faceIndex) => ({
     elementId: element.id,
@@ -61,7 +82,10 @@ export function facesOfElement(element: Element): readonly ElementFaceRef[] {
   }));
 }
 
-/** A face together with how it is shared across a mesh. */
+/**
+ * A face together with how it is shared across a mesh.
+ * @category Elements and model editing
+ */
 export interface ClassifiedFace {
   readonly elementId: ElementId;
   readonly key: FaceKey;
@@ -160,7 +184,10 @@ function expandLoop(
   return loop;
 }
 
-/** Returns the oriented faces of a single element, in canonical order. */
+/**
+ * Returns the oriented faces of a single element, in canonical order.
+ * @category Elements and model editing
+ */
 export function facesOf(element: Element): readonly ElementFace[] {
   const topology = topologyFor(element.shape);
   return faceCornerLoops(topology.family).map((corners) => {
@@ -172,6 +199,7 @@ export function facesOf(element: Element): readonly ElementFace[] {
 /**
  * Classifies every face of a mesh, deduplicating coincident faces by their
  * canonical key and flagging boundary faces (shared by exactly one element).
+ * @category Elements and model editing
  */
 export function classifyFaces(elements: readonly Element[]): readonly ClassifiedFace[] {
   const facesByElement = elements.map((element) => ({ element, faces: facesOf(element) }));
@@ -197,7 +225,10 @@ export function classifyFaces(elements: readonly Element[]): readonly Classified
   return classified;
 }
 
-/** Returns stable element-face identities for the exterior of a mesh. */
+/**
+ * Returns stable element-face identities for the exterior of a mesh.
+ * @category Elements and model editing
+ */
 export function boundaryFaceRefs(elements: readonly Element[]): readonly FaceIdRef[] {
   const classified = classifyFaces(elements);
   const refs: FaceIdRef[] = [];

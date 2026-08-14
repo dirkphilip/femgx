@@ -2,13 +2,19 @@ import { assertValidCamera, viewMatrix, type Camera } from "../camera/camera";
 import { dot, length, scale, subtract, type Vec3 } from "../math/vec3";
 import type { BoxSelectionRect } from "./box-selection";
 
-/** One normalized world-space plane using `dot(normal, point) + distance >= 0`. */
+/**
+ * One normalized world-space plane using `dot(normal, point) + distance >= 0`.
+ * @category Interaction and picking
+ */
 export interface FrustumPlane {
   readonly normal: Vec3;
   readonly distance: number;
 }
 
-/** Named planes of a camera-aligned box-selection frustum. */
+/**
+ * Named planes of a camera-aligned box-selection frustum.
+ * @category Interaction and picking
+ */
 export interface BoxSelectionFrustum {
   readonly left: FrustumPlane;
   readonly right: FrustumPlane;
@@ -22,6 +28,7 @@ export interface BoxSelectionFrustum {
  * Derives the normalized world-space frustum for a screen-space selection box.
  * The returned planes face inward: points inside or on every plane satisfy
  * `dot(plane.normal, point) + plane.distance >= 0`.
+ * @category Interaction and picking
  */
 export function boxSelectionFrustum(camera: Camera, rect: BoxSelectionRect): BoxSelectionFrustum {
   assertValidCamera(camera);

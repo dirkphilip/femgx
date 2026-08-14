@@ -6,7 +6,10 @@ type Vec2 = readonly [number, number];
 const EPSILON = 1e-9;
 const PLANAR_EPSILON = 1e-6;
 
-/** Machine-readable polygon authoring validation failure. */
+/**
+ * Machine-readable polygon authoring validation failure.
+ * @category Scene and geometry
+ */
 export type PolygonValidationCode =
   | "invalid-positions"
   | "too-few-nodes"
@@ -17,7 +20,10 @@ export type PolygonValidationCode =
   | "self-intersecting"
   | "invalid-face-metadata";
 
-/** Typed error raised before invalid polygon geometry can reach a renderer. */
+/**
+ * Typed error raised before invalid polygon geometry can reach a renderer.
+ * @category Scene and geometry
+ */
 export class PolygonGeometryError extends Error {
   readonly code: PolygonValidationCode;
 

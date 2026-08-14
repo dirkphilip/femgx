@@ -3,23 +3,35 @@ import type { ScalarField, VectorField } from "../results/fields";
 import type { ScalarColorMap } from "../results/mapping";
 import type { ValueRange } from "../results/range";
 
-/** An authored scalar field for viewport results. */
+/**
+ * An authored scalar field for viewport results.
+ * @category Results
+ */
 export type ViewportResultField = ScalarField<"nodal"> | ScalarField<"elemental">;
 
-/** Optional nodal deformation attached to a result view. */
+/**
+ * Optional nodal deformation attached to a result view.
+ * @category Results
+ */
 export interface ViewportDeformationConfig {
   readonly field: VectorField<"nodal">;
   readonly scale?: number;
 }
 
-/** Configuration for the optional authored scalar role. */
+/**
+ * Configuration for the optional authored scalar role.
+ * @category Results
+ */
 export interface ViewportScalarConfig {
   readonly field: ViewportResultField;
   readonly range?: ValueRange;
   readonly colorMap?: ScalarColorMap;
 }
 
-/** Configuration for the optional authored elemental vector role. */
+/**
+ * Configuration for the optional authored elemental vector role.
+ * @category Results
+ */
 export interface ViewportElementVectorConfig {
   readonly field: VectorField<"elemental">;
   readonly glyph: "arrow" | "axis";
@@ -27,14 +39,20 @@ export interface ViewportElementVectorConfig {
   readonly lengthScale?: number;
 }
 
-/** One atomic, non-empty combination of authored result roles. */
+/**
+ * One atomic, non-empty combination of authored result roles.
+ * @category Results
+ */
 export interface ViewportResultsConfig {
   readonly scalar?: ViewportScalarConfig;
   readonly deformation?: ViewportDeformationConfig;
   readonly vectors?: ViewportElementVectorConfig;
 }
 
-/** Resolved scalar role installed on a viewport. */
+/**
+ * Resolved scalar role installed on a viewport.
+ * @category Results
+ */
 export interface ViewportScalarState {
   readonly config: ViewportScalarConfig;
   readonly field: ViewportResultField;
@@ -42,7 +60,10 @@ export interface ViewportScalarState {
   readonly colorMap: ScalarColorMap;
 }
 
-/** Resolved elemental vector role installed on a viewport. */
+/**
+ * Resolved elemental vector role installed on a viewport.
+ * @category Results
+ */
 export interface ViewportElementVectorState {
   readonly config: ViewportElementVectorConfig;
   readonly field: VectorField<"elemental">;
@@ -51,7 +72,10 @@ export interface ViewportElementVectorState {
   readonly lengthScale: number;
 }
 
-/** Resolved authored result roles installed on a viewport. */
+/**
+ * Resolved authored result roles installed on a viewport.
+ * @category Results
+ */
 export interface ViewportResultsState {
   readonly config: ViewportResultsConfig;
   readonly scalar: ViewportScalarState | undefined;

@@ -54,7 +54,10 @@ export type {
   ViewportBackground,
 } from "./types";
 
-/** Creates a fitted, interactive FEM viewport backed only by WebGPU. */
+/**
+ * Creates a fitted, interactive FEM viewport backed only by WebGPU.
+ * @category Start here
+ */
 export async function createFemViewport(options: FemViewportOptions): Promise<FemViewport> {
   assertViewportBackground(options.background);
   assertOriginTriad(options.originTriad);

@@ -24,7 +24,10 @@ import type { InteractionTarget } from "./target-types";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import { faceRefKey } from "./refs";
 
-/** Converts a complete physical hit to a host-owned interaction identity. */
+/**
+ * Converts a complete physical hit to a host-owned interaction identity.
+ * @category Interaction and picking
+ */
 export function interactionTargetFromHit(
   hit: PickHit,
   granularity: InteractionGranularity,
@@ -66,7 +69,10 @@ export function interactionTargetFromHit(
   }
 }
 
-/** Sets or clears selection for any supported stable interaction target. */
+/**
+ * Sets or clears selection for any supported stable interaction target.
+ * @category Interaction and picking
+ */
 export function setTargetSelected(
   state: InteractionState,
   target: InteractionTarget,
@@ -90,7 +96,10 @@ export function setTargetSelected(
   }
 }
 
-/** Sets or clears highlight for any supported stable interaction target. */
+/**
+ * Sets or clears highlight for any supported stable interaction target.
+ * @category Interaction and picking
+ */
 export function setTargetHighlighted(
   state: InteractionState,
   target: InteractionTarget,
@@ -114,7 +123,10 @@ export function setTargetHighlighted(
   }
 }
 
-/** Applies one deterministic, duplicate-safe highlight operation to many targets. */
+/**
+ * Applies one deterministic, duplicate-safe highlight operation to many targets.
+ * @category Interaction and picking
+ */
 export function setTargetsHighlighted(
   state: InteractionState,
   targets: readonly InteractionTarget[],
@@ -127,7 +139,10 @@ export function setTargetsHighlighted(
   return next;
 }
 
-/** Sets the single hovered target, replacing any previous hover. */
+/**
+ * Sets the single hovered target, replacing any previous hover.
+ * @category Interaction and picking
+ */
 export function setTargetHovered(
   state: InteractionState,
   target: InteractionTarget | undefined,
@@ -135,7 +150,10 @@ export function setTargetHovered(
   return setHoveredTarget(state, target);
 }
 
-/** Returns whether a target is selected. */
+/**
+ * Returns whether a target is selected.
+ * @category Interaction and picking
+ */
 export function isTargetSelected(state: InteractionState, target: InteractionTarget): boolean {
   const data = readInteractionState(state);
   switch (target.kind) {
@@ -156,7 +174,10 @@ export function isTargetSelected(state: InteractionState, target: InteractionTar
   }
 }
 
-/** Returns whether a target is highlighted. */
+/**
+ * Returns whether a target is highlighted.
+ * @category Interaction and picking
+ */
 export function isTargetHighlighted(state: InteractionState, target: InteractionTarget): boolean {
   const data = readInteractionState(state);
   switch (target.kind) {
@@ -180,7 +201,10 @@ export function isTargetHighlighted(state: InteractionState, target: Interaction
 /** Returns whether a target is the one currently hovered target. */
 export { hoveredTarget, isHoveredTarget };
 
-/** Returns selected targets in stable kind and identity order. */
+/**
+ * Returns selected targets in stable kind and identity order.
+ * @category Interaction and picking
+ */
 export function selectedTargets(state: InteractionState): InteractionTarget[] {
   const data = readInteractionState(state);
   const targets: InteractionTarget[] = [];
@@ -234,12 +258,18 @@ export function selectedTargets(state: InteractionState): InteractionTarget[] {
   return targets;
 }
 
-/** Returns an explicit body style override, if one is present. */
+/**
+ * Returns an explicit body style override, if one is present.
+ * @category Interaction and picking
+ */
 export function bodyOverride(state: InteractionState, ref: BodyRef): StyleOverride | undefined {
   return readInteractionState(state).bodyOverrides.get(ref.instanceId)?.get(ref.bodyId);
 }
 
-/** Clears all six selection collections while preserving every other state layer. */
+/**
+ * Clears all six selection collections while preserving every other state layer.
+ * @category Interaction and picking
+ */
 export function clearSelection(state: InteractionState): InteractionState {
   const data = readInteractionState(state);
   if (

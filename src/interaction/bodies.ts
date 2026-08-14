@@ -29,7 +29,10 @@ export function setBodyHighlighted(
   return updateBodySet(state, "highlightedBodyIds", ref, highlighted);
 }
 
-/** Adds or replaces an explicit body style override. */
+/**
+ * Adds or replaces an explicit body style override.
+ * @category Interaction and picking
+ */
 export function setBodyOverride(
   state: InteractionState,
   ref: BodyRef,
@@ -42,7 +45,10 @@ export function setBodyOverride(
   return updateInteractionState(state, { bodyOverrides });
 }
 
-/** Sets one body's visibility for one repeated part occurrence. */
+/**
+ * Sets one body's visibility for one repeated part occurrence.
+ * @category Interaction and picking
+ */
 export function setBodyVisible(
   state: InteractionState,
   ref: BodyRef,
@@ -51,12 +57,18 @@ export function setBodyVisible(
   return updateBodySet(state, "hiddenBodyIds", ref, !visible);
 }
 
-/** Returns whether a body occurrence is hidden. */
+/**
+ * Returns whether a body occurrence is hidden.
+ * @category Interaction and picking
+ */
 export function isBodyVisible(state: InteractionState, ref: BodyRef): boolean {
   return readInteractionState(state).hiddenBodyIds.get(ref.instanceId)?.has(ref.bodyId) !== true;
 }
 
-/** Returns whether a body occurrence carries any visible interaction state. */
+/**
+ * Returns whether a body occurrence carries any visible interaction state.
+ * @category Interaction and picking
+ */
 export function isBodyEmphasized(state: InteractionState, ref: BodyRef): boolean {
   const data = readInteractionState(state);
   return (
@@ -68,7 +80,10 @@ export function isBodyEmphasized(state: InteractionState, ref: BodyRef): boolean
   );
 }
 
-/** Collects body occurrences in stable instance/body order without duplicates. */
+/**
+ * Collects body occurrences in stable instance/body order without duplicates.
+ * @category Interaction and picking
+ */
 export function emphasizedBodyRefs(state: InteractionState): readonly BodyRef[] {
   const data = readInteractionState(state);
   return collectUniqueRefs(

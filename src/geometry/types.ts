@@ -3,13 +3,19 @@ import type { ElementId, NodeId } from "../elements/element";
 import type { FaceIdRef, FaceKey } from "../elements/faces";
 import type { ElementShape } from "../elements/shapes";
 
-/** Stable set of part-local faces selected for solid/pick rendering. */
+/**
+ * Stable set of part-local faces selected for solid/pick rendering.
+ * @category Scene and geometry
+ */
 export interface FaceSubset {
   /** Oriented element-face identities to draw. An empty set draws nothing. */
   readonly faceIds: readonly FaceIdRef[];
 }
 
-/** Derived body metadata carried by a renderable part. */
+/**
+ * Derived body metadata carried by a renderable part.
+ * @category Scene and geometry
+ */
 export interface GeometryBody {
   readonly id: BodyId;
   readonly name?: string;
@@ -17,7 +23,10 @@ export interface GeometryBody {
   readonly elementIds: readonly ElementId[];
 }
 
-/** Derived semantic block metadata carried by a renderable part. */
+/**
+ * Derived semantic block metadata carried by a renderable part.
+ * @category Scene and geometry
+ */
 export interface GeometryElementBlock {
   readonly id: ElementBlockId;
   readonly name?: string;
@@ -25,7 +34,10 @@ export interface GeometryElementBlock {
   readonly elementIds: readonly ElementId[];
 }
 
-/** Axis-aligned bounding box in local part space. */
+/**
+ * Axis-aligned bounding box in local part space.
+ * @category Scene and geometry
+ */
 export interface Bounds {
   readonly minX: number;
   readonly minY: number;
@@ -39,6 +51,7 @@ export interface Bounds {
  * The tessellation of one finite element: a stable element id plus a
  * contiguous range of the part's logical primitives. Elements are the unit of
  * element-level picking, selection, and result mapping.
+ * @category Scene and geometry
  */
 export interface ElementTessellation {
   readonly id: ElementId;
@@ -58,6 +71,7 @@ export interface ElementTessellation {
  * The tessellation of one oriented element face. Its primitive range is the
  * only renderer-facing mapping needed to resolve triangles back to this
  * authored identity; dense GPU pick ids are derived privately by the renderer.
+ * @category Scene and geometry
  */
 export interface FaceTessellation {
   /** The element owning this oriented face. */
@@ -80,7 +94,10 @@ export interface FaceTessellation {
   readonly blockId?: ElementBlockId;
 }
 
-/** How a part's indexed primitives are drawn on the GPU. */
+/**
+ * How a part's indexed primitives are drawn on the GPU.
+ * @category Scene and geometry
+ */
 export type Primitive = "triangles" | "lines" | "points";
 
 interface GeometryBase {
@@ -112,7 +129,10 @@ interface GeometryBase {
   readonly blocks?: readonly GeometryElementBlock[];
 }
 
-/** CPU-side triangle geometry descriptor; the renderer uploads this once. */
+/**
+ * CPU-side triangle geometry descriptor; the renderer uploads this once.
+ * @category Scene and geometry
+ */
 export interface TriangleGeometry extends GeometryBase {
   readonly primitive: "triangles";
   /** Optional oriented face descriptors with exact triangle ranges. */
@@ -121,12 +141,18 @@ export interface TriangleGeometry extends GeometryBase {
   readonly faceSubset?: FaceSubset;
 }
 
-/** CPU-side line geometry descriptor. */
+/**
+ * CPU-side line geometry descriptor.
+ * @category Scene and geometry
+ */
 export interface LineGeometry extends GeometryBase {
   readonly primitive: "lines";
 }
 
-/** CPU-side logical-point geometry descriptor. */
+/**
+ * CPU-side logical-point geometry descriptor.
+ * @category Scene and geometry
+ */
 export interface PointGeometry extends GeometryBase {
   readonly primitive: "points";
 }
@@ -134,5 +160,8 @@ export interface PointGeometry extends GeometryBase {
 /** CPU-side non-triangle geometry descriptors. */
 export type LinearGeometry = LineGeometry | PointGeometry;
 
-/** CPU-side geometry descriptor; the renderer uploads this once. */
+/**
+ * CPU-side geometry descriptor; the renderer uploads this once.
+ * @category Scene and geometry
+ */
 export type Geometry = TriangleGeometry | LinearGeometry;

@@ -13,31 +13,46 @@ import {
 import type { PartId } from "./part";
 import { lineGeometry, pointGeometry, volumeGeometry } from "./element-mesh-builders";
 
-/** Tessellation options shared by the single mixed-model compiler. */
+/**
+ * Tessellation options shared by the single mixed-model compiler.
+ * @category Scene and geometry
+ */
 export interface TessellationOptions {
   /** Optional stable element-face identities to draw in the triangle group. */
   readonly faceSubset?: readonly FaceIdRef[];
 }
 
-/** Part ids assigned to the primitive groups emitted by a mixed model build. */
+/**
+ * Part ids assigned to the primitive groups emitted by a mixed model build.
+ * @category Scene and geometry
+ */
 export interface HeterogeneousElementPartIds {
   readonly triangle?: PartId;
   readonly line?: PartId;
   readonly point?: PartId;
 }
 
-/** Explicit primitive groups emitted from one heterogeneous source model. */
+/**
+ * Explicit primitive groups emitted from one heterogeneous source model.
+ * @category Scene and geometry
+ */
 export interface HeterogeneousElementPartSet {
   readonly triangle?: Part & { readonly geometry: TriangleGeometry };
   readonly line?: Part & { readonly geometry: LineGeometry };
   readonly point?: Part & { readonly geometry: PointGeometry };
 }
 
-/** Machine-readable failure from heterogeneous element classification/building. */
+/**
+ * Machine-readable failure from heterogeneous element classification/building.
+ * @category Scene and geometry
+ */
 export type HeterogeneousElementErrorCode =
   "duplicate-element-id" | "unsupported-shape" | "missing-part-id" | "duplicate-part-id";
 
-/** Typed validation error for a mixed element build. */
+/**
+ * Typed validation error for a mixed element build.
+ * @category Scene and geometry
+ */
 export class HeterogeneousElementError extends Error {
   readonly code: HeterogeneousElementErrorCode;
   readonly elementId: ElementId | undefined;
@@ -66,6 +81,7 @@ interface ElementGroups {
  * Builds all render-compatible primitive groups from one model scan. Surface
  * and volume elements share one triangle part; lines and points use explicit
  * primitive parts because WebGPU cannot mix their topologies in one draw.
+ * @category Scene and geometry
  */
 export function heterogeneousElementParts(
   partIds: HeterogeneousElementPartIds,

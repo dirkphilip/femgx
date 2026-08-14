@@ -44,7 +44,10 @@ const defaultTheme: InteractionTheme = {
   selectedNode: { color: { r: 1, g: 0.42, b: 0.12, a: 1 }, emissive: 0.7 },
 };
 
-/** Creates an empty interaction state. */
+/**
+ * Creates an empty interaction state.
+ * @category Interaction and picking
+ */
 export function createInteractionState(theme: InteractionTheme = defaultTheme): InteractionState {
   for (const style of Object.values(theme) as readonly PrimitiveStyleOverride[]) {
     validatePrimitiveStyleOverride(style);
@@ -166,7 +169,10 @@ export function setElementHighlighted(
   return updateInteractionState(state, { highlightedElementIds });
 }
 
-/** Adds or replaces an explicit element style override. */
+/**
+ * Adds or replaces an explicit element style override.
+ * @category Interaction and picking
+ */
 export function setElementOverride(
   state: InteractionState,
   ref: ElementRef,
@@ -184,7 +190,10 @@ export function setElementOverride(
   return updateInteractionState(state, { elementOverrides });
 }
 
-/** Adds or replaces an explicit part style override. */
+/**
+ * Adds or replaces an explicit part style override.
+ * @category Interaction and picking
+ */
 export function setPartOverride(
   state: InteractionState,
   partId: PartId,
@@ -194,7 +203,10 @@ export function setPartOverride(
   return updatePartOverride(state, partId, override);
 }
 
-/** Adds or replaces an explicit instance style override. */
+/**
+ * Adds or replaces an explicit instance style override.
+ * @category Interaction and picking
+ */
 export function setInstanceOverride(
   state: InteractionState,
   instanceId: InstanceId,
@@ -204,7 +216,10 @@ export function setInstanceOverride(
   return updateInstanceOverride(state, instanceId, override);
 }
 
-/** Resolves all active state into one renderer-ready style. */
+/**
+ * Resolves all active state into one renderer-ready style.
+ * @category Interaction and picking
+ */
 export function resolveInstanceStyle(
   instance: Instance,
   base: ResolvedStyle,
@@ -250,7 +265,10 @@ export function applySelectionStyle(
   };
 }
 
-/** Resolves one body occurrence after part and instance styles. */
+/**
+ * Resolves one body occurrence after part and instance styles.
+ * @category Interaction and picking
+ */
 export function resolveBodyStyle(
   instance: Instance,
   bodyId: BodyId,
@@ -275,7 +293,10 @@ export function resolveBodyStyle(
   ]);
 }
 
-/** Resolves one block occurrence after part, instance, and body styles. */
+/**
+ * Resolves one block occurrence after part, instance, and body styles.
+ * @category Interaction and picking
+ */
 export function resolveElementBlockStyle(
   instance: Instance,
   blockId: ElementBlockId,
@@ -310,6 +331,7 @@ export function resolveElementBlockStyle(
  * element selection, and explicit element overrides win over
  * `resolveInstanceStyle` results. Within the element level, selection beats
  * hover and explicit overrides win last.
+ * @category Interaction and picking
  */
 export function resolveElementStyle(
   instance: Instance,
@@ -352,6 +374,7 @@ export function resolveElementStyle(
  * Collects every element occurrence that currently carries element-level
  * emphasis (highlighted, hovered, selected, or explicitly overridden), in deterministic
  * order with no duplicates.
+ * @category Interaction and picking
  */
 export function emphasizedElementRefs(state: InteractionState): readonly ElementRef[] {
   const data = readInteractionState(state);

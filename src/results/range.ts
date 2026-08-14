@@ -1,7 +1,10 @@
 import type { FieldLocation } from "./fields";
 import type { ResultField } from "./fields";
 
-/** A closed value range `[min, max]` from observed finite data. */
+/**
+ * A closed value range `[min, max]` from observed finite data.
+ * @category Results
+ */
 export interface ValueRange {
   readonly min: number;
   readonly max: number;
@@ -12,6 +15,7 @@ export interface ValueRange {
  * are skipped (they mark missing or invalid data), so a range can be computed
  * even when the field contains missing values. Returns `undefined` when no
  * finite value exists.
+ * @category Results
  */
 export function finiteRange(values: ArrayLike<number>): ValueRange | undefined {
   let min = Infinity;
@@ -26,7 +30,10 @@ export function finiteRange(values: ArrayLike<number>): ValueRange | undefined {
   return Number.isFinite(min) ? { min, max } : undefined;
 }
 
-/** Returns the observed range of a scalar field, ignoring missing values. */
+/**
+ * Returns the observed range of a scalar field, ignoring missing values.
+ * @category Results
+ */
 export function scalarRange<L extends FieldLocation>(
   field: ResultField<"scalar", L>,
 ): ValueRange | undefined {

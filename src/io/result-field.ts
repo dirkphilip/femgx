@@ -3,7 +3,10 @@ import { IoError, type Issue } from "./diagnostics";
 import type { FemModel, ModelResultField } from "./model";
 import { validateModel } from "./validate";
 
-/** Options selecting the authored field shape for an interchange result. */
+/**
+ * Options selecting the authored field shape for an interchange result.
+ * @category Import and export
+ */
 export type ModelResultFieldConversionOptions =
   | {
       readonly id: string;
@@ -20,6 +23,7 @@ export type ModelResultFieldConversionOptions =
  * Converts one interchange scalar result into the dense field consumed by the
  * viewport. Node result ids map through the model's node table; element ids
  * remain direct indices so authored element identity stays pick-aligned.
+ * @category Import and export
  */
 export function createResultFieldFromModelResult(
   model: FemModel,

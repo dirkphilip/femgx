@@ -1,4 +1,7 @@
-/** A readonly three-component vector shared by the math and geometry layers. */
+/**
+ * A readonly three-component vector shared by the math and geometry layers.
+ * @category Camera and math
+ */
 export type Vec3 = readonly [number, number, number];
 
 /** Component-wise vector addition. */

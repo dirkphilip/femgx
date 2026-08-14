@@ -1,4 +1,7 @@
-/** A single world-space plane used to keep the positive half-space visible. */
+/**
+ * A single world-space plane used to keep the positive half-space visible.
+ * @category Viewport lifecycle
+ */
 export interface SectionPlane {
   /** Finite plane normal. It is normalized before the plane is stored. */
   readonly normal: readonly [number, number, number];

@@ -3,7 +3,10 @@ import type { ElementBlockId } from "../elements/model";
 import type { BodyId, PartId } from "../geometry/part";
 import type { InstanceId } from "../scene/types";
 
-/** One stable identity that can be selected, highlighted, or hovered. */
+/**
+ * One stable identity that can be selected, highlighted, or hovered.
+ * @category Interaction and picking
+ */
 export type InteractionTarget =
   | { readonly kind: "part"; readonly partId: PartId }
   | { readonly kind: "instance"; readonly instanceId: InstanceId }

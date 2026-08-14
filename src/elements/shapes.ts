@@ -17,44 +17,92 @@
  * time, so a topology cannot be missed or mis-keyed silently.
  */
 
-/** A family of finite elements with a shared geometric structure. */
+/**
+ * A family of finite elements with a shared geometric structure.
+ * @category Elements and model editing
+ */
 export type ElementFamily =
   "point" | "line" | "triangle" | "quad" | "tet" | "wedge" | "pyramid" | "hex";
 
-/** Interpolation order: 0 for points, 1 linear, 2 quadratic. */
+/**
+ * Interpolation order: 0 for points, 1 linear, 2 quadratic.
+ * @category Elements and model editing
+ */
 export type ElementOrder = 0 | 1 | 2;
 
-/** An element shape: a family plus an explicit interpolation order. */
+/**
+ * An element shape: a family plus an explicit interpolation order.
+ * @category Elements and model editing
+ */
 export interface ElementShape {
   readonly family: ElementFamily;
   readonly order: ElementOrder;
 }
 
-/** Point element: a single node. */
+/**
+ * Point element: a single node.
+ * @category Elements and model editing
+ */
 export const POINT_SHAPE: ElementShape = { family: "point", order: 0 };
-/** Linear line element: two corner nodes. */
+/**
+ * Linear line element: two corner nodes.
+ * @category Elements and model editing
+ */
 export const LINE_SHAPE: ElementShape = { family: "line", order: 1 };
-/** Quadratic line element: two corners plus one mid-edge node. */
+/**
+ * Quadratic line element: two corners plus one mid-edge node.
+ * @category Elements and model editing
+ */
 export const LINE3_SHAPE: ElementShape = { family: "line", order: 2 };
-/** Linear triangle surface element: three corner nodes. */
+/**
+ * Linear triangle surface element: three corner nodes.
+ * @category Elements and model editing
+ */
 export const TRIANGLE_SHAPE: ElementShape = { family: "triangle", order: 1 };
-/** Quadratic triangle (Tri6): three corners plus three mid-edge nodes. */
+/**
+ * Quadratic triangle (Tri6): three corners plus three mid-edge nodes.
+ * @category Elements and model editing
+ */
 export const TRI6_SHAPE: ElementShape = { family: "triangle", order: 2 };
-/** Linear quadrilateral surface element: four corner nodes. */
+/**
+ * Linear quadrilateral surface element: four corner nodes.
+ * @category Elements and model editing
+ */
 export const QUAD_SHAPE: ElementShape = { family: "quad", order: 1 };
-/** Quadratic quadrilateral (Quad8): four corners plus four mid-edge nodes. */
+/**
+ * Quadratic quadrilateral (Quad8): four corners plus four mid-edge nodes.
+ * @category Elements and model editing
+ */
 export const QUAD8_SHAPE: ElementShape = { family: "quad", order: 2 };
-/** Linear tetrahedron (Tet4): four corner nodes. */
+/**
+ * Linear tetrahedron (Tet4): four corner nodes.
+ * @category Elements and model editing
+ */
 export const TET4_SHAPE: ElementShape = { family: "tet", order: 1 };
-/** Quadratic tetrahedron (Tet10): four corners plus six mid-edge nodes. */
+/**
+ * Quadratic tetrahedron (Tet10): four corners plus six mid-edge nodes.
+ * @category Elements and model editing
+ */
 export const TET10_SHAPE: ElementShape = { family: "tet", order: 2 };
-/** Linear triangular prism (Wedge6): six corner nodes. */
+/**
+ * Linear triangular prism (Wedge6): six corner nodes.
+ * @category Elements and model editing
+ */
 export const WEDGE6_SHAPE: ElementShape = { family: "wedge", order: 1 };
-/** Linear square pyramid (Pyramid5): five corner nodes. */
+/**
+ * Linear square pyramid (Pyramid5): five corner nodes.
+ * @category Elements and model editing
+ */
 export const PYRAMID5_SHAPE: ElementShape = { family: "pyramid", order: 1 };
-/** Linear hexahedron (Hex8): eight corner nodes. */
+/**
+ * Linear hexahedron (Hex8): eight corner nodes.
+ * @category Elements and model editing
+ */
 export const HEX8_SHAPE: ElementShape = { family: "hex", order: 1 };
-/** Quadratic hexahedron (Hex20): eight corners plus twelve mid-edge nodes. */
+/**
+ * Quadratic hexahedron (Hex20): eight corners plus twelve mid-edge nodes.
+ * @category Elements and model editing
+ */
 export const HEX20_SHAPE: ElementShape = { family: "hex", order: 2 };
 
 /**
@@ -64,6 +112,7 @@ export const HEX20_SHAPE: ElementShape = { family: "hex", order: 2 };
  * position `corners[i]` is the i-th geometric corner and `edgeNodes[k]` is the
  * mid-edge node on `edges[k]`. For shapes without mid-edge nodes, `edgeNodes`
  * is empty; for point elements, `edges` is empty too.
+ * @category Elements and model editing
  */
 export interface ElementTopology {
   readonly family: ElementFamily;
@@ -293,7 +342,10 @@ const TOPOLOGY_REGISTRY = {
 /** Runtime lookup map so unsupported shapes still fail loudly in `topologyFor`. */
 const TOPOLOGIES: ReadonlyMap<string, ElementTopology> = new Map(Object.entries(TOPOLOGY_REGISTRY));
 
-/** Looks up the canonical topology for a shape, throwing if the shape is unsupported. */
+/**
+ * Looks up the canonical topology for a shape, throwing if the shape is unsupported.
+ * @category Elements and model editing
+ */
 export function topologyFor(shape: ElementShape): ElementTopology {
   const topology = TOPOLOGIES.get(`${shape.family}:${shape.order}`);
   if (topology === undefined) {

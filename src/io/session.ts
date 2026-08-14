@@ -4,7 +4,10 @@ import { createModelBuilder, type FemModelBuilder } from "./build";
 import type { FemModel } from "./model";
 import { validateModel } from "./validate";
 
-/** Shared import options. */
+/**
+ * Shared import options.
+ * @category Import and export
+ */
 export interface ParseOptions {
   /** When true, abort on the first issue by throwing an {@link IoError}. */
   readonly strict?: boolean;
@@ -13,6 +16,7 @@ export interface ParseOptions {
 /**
  * The result of an import: the best-effort model plus every issue found.
  * An import never throws for malformed content unless `strict` is set.
+ * @category Import and export
  */
 export interface ParseResult {
   readonly model: FemModel;

@@ -6,7 +6,10 @@ import { validateFaceMetadata, validateFaceSubset } from "./face-validation";
 
 export { faceForPrimitive, validateFaceSubset } from "./face-validation";
 
-/** Machine-readable geometry validation failure. */
+/**
+ * Machine-readable geometry validation failure.
+ * @category Scene and geometry
+ */
 export type GeometryValidationCode =
   | "invalid-block-id"
   | "duplicate-block-id"
@@ -22,7 +25,10 @@ export type GeometryValidationCode =
   | "unknown-element-body"
   | "body-membership-mismatch";
 
-/** Typed validation error raised for invalid body metadata. */
+/**
+ * Typed validation error raised for invalid body metadata.
+ * @category Scene and geometry
+ */
 export class GeometryValidationError extends Error {
   readonly code: GeometryValidationCode;
 

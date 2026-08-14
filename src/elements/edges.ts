@@ -13,17 +13,26 @@ import { topologyFor } from "./shapes";
 import { at } from "./indices";
 import { canonicalKey } from "./keys";
 
-/** Deterministic canonical identity of an edge, independent of direction. */
+/**
+ * Deterministic canonical identity of an edge, independent of direction.
+ * @category Elements and model editing
+ */
 export type EdgeKey = string;
 
-/** An element edge as an ordered node sequence. */
+/**
+ * An element edge as an ordered node sequence.
+ * @category Elements and model editing
+ */
 export interface ElementEdge {
   readonly key: EdgeKey;
   /** `[corner, mid?, corner]`; element-local in `edgesOf`, canonical in `uniqueEdges`. */
   readonly nodeIds: readonly NodeId[];
 }
 
-/** Returns the edges of a single element in canonical topology order. */
+/**
+ * Returns the edges of a single element in canonical topology order.
+ * @category Elements and model editing
+ */
 export function edgesOf(element: Element): readonly ElementEdge[] {
   const topology = topologyFor(element.shape);
   return topology.edges.map(([cornerA, cornerB], index) => {
@@ -39,6 +48,7 @@ export function edgesOf(element: Element): readonly ElementEdge[] {
  * Deduplicates edges across elements and returns them sorted in ascending
  * node order. Each edge is presented in ascending corner order with the
  * mid-edge node (if any) kept between the corners.
+ * @category Elements and model editing
  */
 export function uniqueEdges(elements: readonly Element[]): readonly ElementEdge[] {
   const seen = new Map<EdgeKey, ElementEdge>();

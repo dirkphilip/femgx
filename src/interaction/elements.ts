@@ -2,7 +2,10 @@ import type { ElementRef } from "../scene/types";
 import { readInteractionState, updateInteractionState, type InteractionState } from "./state";
 import { updateNestedSet } from "./mechanics";
 
-/** Sets one element occurrence's visibility without mutating prior state. */
+/**
+ * Sets one element occurrence's visibility without mutating prior state.
+ * @category Interaction and picking
+ */
 export function setElementVisible(
   state: InteractionState,
   ref: ElementRef,
@@ -19,7 +22,10 @@ export function setElementVisible(
   return updateInteractionState(state, { hiddenElementIds });
 }
 
-/** Returns whether one element occurrence is visible. */
+/**
+ * Returns whether one element occurrence is visible.
+ * @category Interaction and picking
+ */
 export function isElementVisible(state: InteractionState, ref: ElementRef): boolean {
   return (
     readInteractionState(state).hiddenElementIds.get(ref.instanceId)?.has(ref.elementId) !== true

@@ -14,7 +14,10 @@ import type { ViewportResultsConfig, ViewportResultsState } from "./results";
 import type { CameraContentInset } from "../camera/fit";
 import type { SectionPlane } from "./section-plane";
 
-/** Options for an interruptible viewport camera transition. */
+/**
+ * Options for an interruptible viewport camera transition.
+ * @category Viewport lifecycle
+ */
 export interface CameraTransitionOptions {
   /** Non-negative transition duration in milliseconds; zero applies immediately. */
   readonly durationMs?: number;
@@ -23,7 +26,10 @@ export interface CameraTransitionOptions {
 export type { ViewportBackground } from "../renderer/gpu-renderer";
 export type { SectionPlane } from "./section-plane";
 
-/** Outcome of reapplying the active authored results to an updated scene. */
+/**
+ * Outcome of reapplying the active authored results to an updated scene.
+ * @category Viewport lifecycle
+ */
 export interface SceneUpdateOutcome {
   /** Whether active authored result data remained valid after the update. */
   readonly results: "none" | "preserved" | "cleared";
@@ -31,7 +37,10 @@ export interface SceneUpdateOutcome {
   readonly reason?: string;
 }
 
-/** Inputs for the opinionated WebGPU FEM viewport. */
+/**
+ * Inputs for the opinionated WebGPU FEM viewport.
+ * @category Viewport lifecycle
+ */
 export interface FemViewportOptions {
   readonly canvas: HTMLCanvasElement;
   readonly scene: Scene;
@@ -59,7 +68,10 @@ export interface FemViewportOptions {
   readonly fitContentInset?: () => CameraContentInset;
 }
 
-/** Canonical scene, camera, interaction, rendering, and lifecycle owner. */
+/**
+ * Canonical scene, camera, interaction, rendering, and lifecycle owner.
+ * @category Start here
+ */
 export interface FemViewport {
   readonly scene: Scene;
   readonly runtime: SceneRuntime;

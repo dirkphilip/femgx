@@ -33,6 +33,7 @@ const EMPTY_BLOCK_MEMBERSHIP = new Map<ElementId, ElementBlockId>();
  * node ids must be dense (`0 .. nodeCount - 1`). Element connectivity references
  * node ids into this array. The model is pure data with no renderer dependency;
  * the renderer path tessellates it into reusable part geometry.
+ * @category Elements and model editing
  */
 export interface ElementModel {
   /** Flat xyz coordinates, three floats per node id. */
@@ -47,6 +48,7 @@ export interface ElementModel {
 /**
  * Creates an element model from node coordinates and elements, validating that
  * node ids are dense and that every element reference is in range.
+ * @category Elements and model editing
  */
 export function createElementModel(
   nodes: readonly number[],

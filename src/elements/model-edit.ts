@@ -37,6 +37,7 @@ export type {
 /**
  * Applies semantic element-block edits atomically and returns one immutable
  * model plus a stable identity reconciliation report.
+ * @category Elements and model editing
  */
 export function editElementModel(
   model: ElementModel,

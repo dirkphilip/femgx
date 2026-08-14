@@ -6,7 +6,10 @@ import { cameraDepthMargin } from "./navigation";
 /** Fraction of the viewport occupied by the fitted bounds on each axis. */
 export const FIT_FRAME_FRACTION = 0.9;
 
-/** CSS-pixel occlusion to leave outside a fitted scene frame. */
+/**
+ * CSS-pixel occlusion to leave outside a fitted scene frame.
+ * @category Camera and math
+ */
 export interface CameraContentInset {
   readonly top?: number;
   readonly right?: number;
@@ -18,7 +21,10 @@ export interface CameraContentInset {
 const FIT_POSITION_MARGIN = 0.01;
 const FIT_MIN_NEAR = 0.0001;
 
-/** Frames bounds around their center while preserving the camera orientation. */
+/**
+ * Frames bounds around their center while preserving the camera orientation.
+ * @category Camera and math
+ */
 export function fitCamera(
   camera: Camera,
   bounds: Bounds,
