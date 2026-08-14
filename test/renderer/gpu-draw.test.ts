@@ -6,6 +6,8 @@ import {
   destroyDrawResources,
   EMISSIVE_BYTE_OFFSET,
   encodeInstanceRecord,
+  INSTANCE_EMPHASIS_FLAG,
+  INSTANCE_SELECTED_FLAG,
   patchInstances,
   uploadPart,
   writeDrawOrder,
@@ -25,6 +27,7 @@ import {
 import { defaultStyle } from "../../src/renderer/gpu-support";
 import type { DrawPipelines } from "../../src/renderer/gpu-pipelines";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
+import { syncInstanceEmphasisAdmission } from "../../src/renderer/gpu-instance-emphasis";
 
 const HIGHLIGHT_BUFFER_SIZE = HIGHLIGHT_HEADER + INITIAL_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE;
 
@@ -280,6 +283,66 @@ describe("GPU draw path", () => {
       expect(gpu.writes.length).toBe(afterInitial);
       patchInstances(draw, part.id, [{ slot: 0, data: record(9) }]);
       expect(writeRanges(gpu, afterInitial)).toEqual([[0, 96]]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("admits only occurrences with primitive emphasis and clears stale admission", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, part.id, [
+        { slot: 0, data: record(0) },
+        { slot: 1, data: record(1) },
+      ]);
+      const update = (slot: number) => ({
+        slot,
+        elementPickId: 1,
+        facePickId: 0,
+        nodePickId: 0,
+        style: defaultStyle,
+      });
+      const emphasized = new Map([[part.id, [update(1)]]]);
+      syncInstanceEmphasisAdmission(draw, emphasized, new Set([part.id]));
+      const storage = draw.storages.get(part.id);
+      expect(storage).toBeDefined();
+      const flags = new Uint32Array(storage?.data ?? new ArrayBuffer(0));
+      expect(flags[22]).toBe(0);
+      expect(flags[46]).toBe(INSTANCE_EMPHASIS_FLAG);
+      const afterAdmission = gpu.writes.length;
+      syncInstanceEmphasisAdmission(draw, emphasized, new Set([part.id]));
+      expect(gpu.writes.length).toBe(afterAdmission);
+      syncInstanceEmphasisAdmission(draw, new Map(), new Set([part.id]));
+      expect(new Uint32Array(storage?.data ?? new ArrayBuffer(0))[46]).toBe(0);
+    } finally {
+      restore();
+    }
+  });
+
+  it("preserves admission when an instance style record is patched", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, part.id, [{ slot: 0, data: record(0) }]);
+      const update = {
+        slot: 0,
+        elementPickId: 1,
+        facePickId: 0,
+        nodePickId: 0,
+        style: defaultStyle,
+      };
+      syncInstanceEmphasisAdmission(draw, new Map([[part.id, [update]]]), new Set([part.id]));
+      patchInstances(draw, part.id, [
+        {
+          slot: 0,
+          data: encodeInstanceRecord(translation(2, 0, 0), defaultStyle, 1, true),
+        },
+      ]);
+      const flags = new Uint32Array(draw.storages.get(part.id)?.data ?? new ArrayBuffer(0));
+      expect(flags[22]).toBe(INSTANCE_SELECTED_FLAG | INSTANCE_EMPHASIS_FLAG);
     } finally {
       restore();
     }

@@ -7,6 +7,7 @@ import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { EmphasisUpdates } from "./gpu-elements";
 import { collectEmphasisUpdates } from "./gpu-elements";
 import { syncElementHighlights } from "./gpu-highlight-storage";
+import { syncInstanceEmphasisAdmission } from "./gpu-instance-emphasis";
 import { defaultStyle } from "./gpu-support";
 import type { GpuBundle } from "./gpu-recovery";
 import { instanceAt, type InstanceLayout } from "./runtime-state";
@@ -210,6 +211,15 @@ export function syncInteractionEmphasis(
     options.interaction,
     options.affectedParts,
     emphasisUpdates,
+  );
+  syncInstanceEmphasisAdmission(
+    {
+      device: options.bundle.device,
+      cost: options.bundle.draw.cost,
+      storages: options.bundle.draw.storages,
+    },
+    emphasisUpdates,
+    options.affectedParts,
   );
   return refreshTransparencyFlags({
     runtime: options.runtime,

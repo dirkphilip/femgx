@@ -6,6 +6,10 @@ import type { GpuCostAccumulator } from "./gpu-cost";
 /** Byte size of one instance record in the per-part storage buffer. */
 export const INSTANCE_STRIDE = 96;
 
+/** Bit flags packed into the instance record's selected word. */
+export const INSTANCE_SELECTED_FLAG = 1;
+export const INSTANCE_EMPHASIS_FLAG = 2;
+
 /**
  * Byte offset of the `emissive` scalar within an instance record. The record
  * layout is mirrored by the `Instance` struct in `gpu-shaders.ts`:
@@ -16,7 +20,7 @@ export const INSTANCE_STRIDE = 96;
  * | 64     | 16   | resolved color, opacity folded into alpha (`vec4<f32>`) |
  * | 80     | 4    | stable pick id (`u32`) |
  * | 84     | 4    | emissive (`f32`) |
- * | 88     | 4    | selected (`u32`) |
+ * | 88     | 4    | selected/emphasis flags (`u32`) |
  * | 92     | 4    | line width (`f32`) |
  */
 export const EMISSIVE_BYTE_OFFSET = 84;
@@ -51,6 +55,8 @@ export interface InstanceStorage {
   readonly capacity: number;
   /** CPU mirror of the record buffer, kept in sync by the patch functions. */
   data: ArrayBuffer;
+  /** Part-local slots with at least one primitive emphasis record. */
+  emphasisSlots: Set<number>;
   /** CPU mirror of the draw-order buffer. */
   orderData: Uint32Array;
   /** Number of meaningful draw-order entries. */
@@ -110,7 +116,7 @@ export function encodeInstanceRecord(
   floats.set(transform, 0);
   floats.set([style.color.r, style.color.g, style.color.b, style.color.a * style.opacity], 16);
   floats[EMISSIVE_BYTE_OFFSET / 4] = style.emissive;
-  new Uint32Array(data)[22] = selected ? 1 : 0;
+  new Uint32Array(data)[22] = selected ? INSTANCE_SELECTED_FLAG : 0;
   floats[LINE_WIDTH_BYTE_OFFSET / 4] = style.lineWidthPixels;
   return data;
 }
@@ -126,17 +132,21 @@ export function patchInstances(
 ): void {
   if (updates.length === 0) return;
   const bySlot = new Map<number, Uint8Array<ArrayBuffer>>();
-  for (const update of updates) bySlot.set(update.slot, new Uint8Array(update.data));
+  for (const update of updates) bySlot.set(update.slot, new Uint8Array(update.data.slice(0)));
   const slots = [...bySlot.keys()].sort((left, right) => left - right);
   const lastSlot = slots[slots.length - 1];
   if (lastSlot === undefined) return;
   const storage = ensureStorage(draw, partId, lastSlot + 1);
   const next = new Uint8Array(storage.data);
+  const currentFlags = new Uint32Array(storage.data);
   const changedSlots: number[] = [];
   for (const slot of slots) {
     const data = bySlot.get(slot);
     if (data === undefined) continue;
     const offset = slot * INSTANCE_STRIDE;
+    const word = offset / 4 + 22;
+    const dataFlags = new Uint32Array(data.buffer);
+    dataFlags[22] = (dataFlags[22] ?? 0) | ((currentFlags[word] ?? 0) & INSTANCE_EMPHASIS_FLAG);
     if (!sameRecord(next, offset, data)) changedSlots.push(slot);
     next.set(data, offset);
   }
@@ -308,6 +318,7 @@ function createStorage(
     highlight: existing?.highlight ?? createHighlightStorage(draw.device),
     capacity: size,
     data: mirror.buffer,
+    emphasisSlots: new Set(existing?.emphasisSlots),
     orderData: new Uint32Array(size),
     orderLength,
     selectionOrderData: new Uint32Array(size),
