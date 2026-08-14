@@ -71,7 +71,8 @@ function resultDescription(
   results: ViewportResultsState | undefined,
 ): string | undefined {
   if (results === undefined) return undefined;
-  const field = results.scalarField;
+  const field = results.scalar?.field;
+  if (field === undefined) return undefined;
   const entity =
     field.location === "nodal" ? (hit.kind === "node" ? hit.nodeId : undefined) : hit.elementId;
   if (entity === undefined || entity < 0 || entity >= field.count) return undefined;

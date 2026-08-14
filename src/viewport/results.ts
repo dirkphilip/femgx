@@ -1,5 +1,5 @@
 import { nodalDisplacements, type DeformationState } from "../results/deform";
-import { scalarAt, type ScalarField, type VectorField } from "../results/fields";
+import { scalarAt, type ScalarField } from "../results/fields";
 import { createScalarColorMap, mapScalar, type ScalarColorMap } from "../results/mapping";
 import { scalarRange, type ValueRange } from "../results/range";
 import type { InteractionState, StyleOverride } from "../interaction/interaction";
@@ -8,43 +8,46 @@ import type { Scene } from "../scene/scene";
 import type { InstanceId } from "../scene/types";
 import type { PartId } from "../geometry/part";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
+import {
+  renderedPartIds,
+  resolveVectors,
+  validateResultsConfig,
+  type OrientationRecordMap,
+} from "./results-roles";
+import type {
+  ViewportDeformationConfig,
+  ViewportResultField,
+  ViewportResultsConfig,
+  ViewportResultsState,
+  ViewportScalarConfig,
+  ViewportScalarState,
+} from "./results-types";
 
-/** An authored scalar field that can be displayed by the viewport results path. */
-export type ViewportResultField = ScalarField<"nodal"> | ScalarField<"elemental">;
-
-/** Optional one-load-case nodal deformation attached to a result view. */
-export interface ViewportDeformationConfig {
-  readonly field: VectorField<"nodal">;
-  readonly scale?: number;
-}
-
-/** Configuration for one static scalar/deformation visualization. */
-export interface ViewportResultsConfig {
-  /** Authored nodal or elemental scalar values to visualize. */
-  readonly field: ViewportResultField;
-  /** Explicit map range; otherwise the finite field range is used. */
-  readonly range?: ValueRange;
-  /** Existing color map; its range must agree with `range` when both are set. */
-  readonly colorMap?: ScalarColorMap;
-  /** Optional static nodal displacement field and scale. */
-  readonly deformation?: ViewportDeformationConfig;
-}
-
-/** Resolved result data currently installed on a {@link FemViewport}. */
-export interface ViewportResultsState {
-  readonly config: ViewportResultsConfig;
-  readonly scalarField: ViewportResultField;
-  readonly range: ValueRange;
-  readonly colorMap: ScalarColorMap;
-  readonly deformation: DeformationState | undefined;
-}
+export type {
+  ViewportDeformationConfig,
+  ViewportElementVectorConfig,
+  ViewportElementVectorState,
+  ViewportResultField,
+  ViewportResultsConfig,
+  ViewportResultsState,
+  ViewportScalarConfig,
+  ViewportScalarState,
+} from "./results-types";
 
 type ResultColorMap = ReadonlyMap<PartId, Float32Array>;
 const nodalResultColors = new WeakMap<ViewportResultsState, ResultColorMap | undefined>();
+const orientationRecords = new WeakMap<ViewportResultsState, OrientationRecordMap | undefined>();
 
 /** Returns the internal GPU color data for a resolved nodal scalar field. */
 export function viewportResultColors(state: ViewportResultsState): ResultColorMap | undefined {
   return nodalResultColors.get(state);
+}
+
+/** Returns internal resolved orientation records for the renderer handoff. */
+export function viewportOrientationRecords(
+  state: ViewportResultsState,
+): OrientationRecordMap | undefined {
+  return orientationRecords.get(state);
 }
 
 /** Resolves a viewport result configuration against one scene/runtime pair. */
@@ -54,28 +57,28 @@ export function resolveViewportResults(
   runtime: PackedSceneRuntime,
   previous?: ViewportResultsState,
 ): ViewportResultsState {
-  const scalarField = config.field;
-  const range = resolveRange(scalarField, config.range, config.colorMap);
-  const colorMap = resolveColorMap(config, scalarField, range, previous);
-  validateMapRange(range, colorMap);
-  validateResultCoverage(scalarField, scene, runtime);
+  validateResultsConfig(config);
+  const scalar = resolveScalar(config.scalar, scene, runtime, previous);
   const deformation = resolveDeformation(config.deformation, scene, runtime, previous);
-  const state = { config, scalarField, range, colorMap, deformation };
-  const reusableColors = reusableNodalResultColors(previous, scalarField, colorMap);
+  const resolvedVectors = resolveVectors(config.vectors, scene, runtime, deformation);
+  const vectors = resolvedVectors?.state;
+  const state = { config, scalar, deformation, vectors };
+  const reusableColors =
+    scalar === undefined ? undefined : reusableNodalResultColors(previous, scalar);
   nodalResultColors.set(
     state,
-    scalarField.location === "nodal"
-      ? (reusableColors ?? buildNodalResultColors(scalarField, colorMap, scene, runtime))
+    scalar?.field.location === "nodal"
+      ? (reusableColors ?? buildNodalResultColors(scalar.field, scalar.colorMap, scene, runtime))
       : undefined,
   );
+  orientationRecords.set(state, resolvedVectors?.records);
   return state;
 }
 
 /** Re-applies only the result colors while preserving an already-built deformation state. */
 export function applyViewportResultInteraction(
   baseInteraction: InteractionState,
-  scalarField: ScalarField<"elemental">,
-  colorMap: ScalarColorMap,
+  scalar: ViewportScalarState,
   scene: Scene,
   runtime: PackedSceneRuntime,
 ): InteractionState {
@@ -98,7 +101,7 @@ export function applyViewportResultInteraction(
     for (const element of elements) {
       const existing = overrides.get(element.id);
       overrides.set(element.id, {
-        color: mapScalar(colorMap, scalarAt(scalarField, element.id)),
+        color: mapScalar(scalar.colorMap, scalarAt(scalar.field, element.id)),
         ...existing,
       });
     }
@@ -106,7 +109,7 @@ export function applyViewportResultInteraction(
   }
   if (mappedParts === 0) {
     throw new Error(
-      `Viewport results field ${scalarField.id} has no element-bearing part in the scene`,
+      `Viewport results field ${scalar.field.id} has no element-bearing part in the scene`,
     );
   }
   return createInteractionStateValue({ ...baseData, elementOverrides });
@@ -121,15 +124,24 @@ export function resolveViewportInteraction(
 ): InteractionState {
   return results === undefined
     ? baseInteraction
-    : results.scalarField.location === "elemental"
-      ? applyViewportResultInteraction(
-          baseInteraction,
-          results.scalarField,
-          results.colorMap,
-          scene,
-          runtime,
-        )
+    : results.scalar?.field.location === "elemental"
+      ? applyViewportResultInteraction(baseInteraction, results.scalar, scene, runtime)
       : baseInteraction;
+}
+
+function resolveScalar(
+  config: ViewportScalarConfig | undefined,
+  scene: Scene,
+  runtime: PackedSceneRuntime,
+  previous: ViewportResultsState | undefined,
+): ViewportScalarState | undefined {
+  if (config === undefined) return undefined;
+  const field = config.field;
+  const range = resolveRange(field, config.range, config.colorMap);
+  const colorMap = resolveColorMap(config, field, range, previous);
+  validateMapRange(range, colorMap);
+  validateResultCoverage(field, scene, runtime);
+  return { config, field, range, colorMap };
 }
 
 function resolveRange(
@@ -149,7 +161,7 @@ function resolveRange(
 }
 
 function resolveColorMap(
-  config: ViewportResultsConfig,
+  config: ViewportScalarConfig,
   field: ViewportResultField,
   range: ValueRange,
   previous: ViewportResultsState | undefined,
@@ -157,27 +169,29 @@ function resolveColorMap(
   if (config.colorMap !== undefined) return config.colorMap;
   if (
     previous !== undefined &&
-    previous.config.colorMap === undefined &&
-    sameFieldSource(previous.scalarField, field) &&
-    previous.range.min === range.min &&
-    previous.range.max === range.max
+    previous.scalar !== undefined &&
+    previous.scalar.config.colorMap === undefined &&
+    sameFieldSource(previous.scalar.field, field) &&
+    previous.scalar.range.min === range.min &&
+    previous.scalar.range.max === range.max
   ) {
-    return previous.colorMap;
+    return previous.scalar.colorMap;
   }
   return createScalarColorMap(range);
 }
 
 function reusableNodalResultColors(
   previous: ViewportResultsState | undefined,
-  field: ViewportResultField,
-  colorMap: ScalarColorMap,
+  scalar: ViewportScalarState,
 ): ResultColorMap | undefined {
+  const field = scalar.field;
   if (
     previous === undefined ||
-    previous.scalarField.location !== "nodal" ||
+    previous.scalar === undefined ||
+    previous.scalar.field.location !== "nodal" ||
     field.location !== "nodal" ||
-    previous.colorMap !== colorMap ||
-    !sameFieldSource(previous.scalarField, field)
+    previous.scalar.colorMap !== scalar.colorMap ||
+    !sameFieldSource(previous.scalar.field, field)
   ) {
     return undefined;
   }
@@ -242,12 +256,7 @@ function validateNodalCoverage(
   scene: Scene,
   runtime: PackedSceneRuntime,
 ): void {
-  const renderedPartIds = new Set<PartId>();
-  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
-    const partId = runtime.getPartId(slot);
-    if (partId !== undefined) renderedPartIds.add(partId);
-  }
-  for (const partId of renderedPartIds) {
+  for (const partId of renderedPartIds(runtime)) {
     const part = scene.parts.get(partId);
     const nodePickIds = part?.geometry.nodePickIds;
     if (part === undefined || nodePickIds === undefined) {
@@ -272,12 +281,7 @@ function buildNodalResultColors(
   runtime: PackedSceneRuntime,
 ): ResultColorMap {
   const colors = new Map<PartId, Float32Array>();
-  const renderedPartIds = new Set<PartId>();
-  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
-    const partId = runtime.getPartId(slot);
-    if (partId !== undefined) renderedPartIds.add(partId);
-  }
-  for (const partId of renderedPartIds) {
+  for (const partId of renderedPartIds(runtime)) {
     const nodePickIds = scene.parts.get(partId)?.geometry.nodePickIds;
     if (nodePickIds === undefined) continue;
     const data = new Float32Array((maxNodePickId(nodePickIds) + 1) * 4);
@@ -314,12 +318,7 @@ function resolveDeformation(
   const reusable = reusableDeformation(previous, config);
   if (reusable !== undefined) return { scale, displacements: reusable };
   const displacements = new Map<PartId, Float32Array>();
-  const renderedPartIds = new Set<PartId>();
-  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
-    const partId = runtime.getPartId(slot);
-    if (partId !== undefined) renderedPartIds.add(partId);
-  }
-  for (const partId of renderedPartIds) {
+  for (const partId of renderedPartIds(runtime)) {
     const part = scene.parts.get(partId);
     if (part === undefined) continue;
     const nodePickIds = part.geometry.nodePickIds;

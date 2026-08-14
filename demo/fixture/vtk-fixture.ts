@@ -32,11 +32,13 @@ export function createVtkFixture(): VtkFixture {
     throw new Error("The sample VTK asset has no imported stress/displacement results");
   }
   const results: ViewportResultsConfig = {
-    field: createResultFieldFromModelResult(vtkModel, stress, {
-      id: "vtk-stress",
-      unit: "MPa",
-      shape: "scalar",
-    }),
+    scalar: {
+      field: createResultFieldFromModelResult(vtkModel, stress, {
+        id: "vtk-stress",
+        unit: "MPa",
+        shape: "scalar",
+      }),
+    },
     deformation: {
       field: createResultFieldFromModelResult(vtkModel, displacement, {
         id: "vtk-displacement",

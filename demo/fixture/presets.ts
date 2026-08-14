@@ -124,15 +124,17 @@ export function createHex20CylinderPreset(): ModelPreset {
     partNames: new Map<PartId, string>([[partId, "Hex20 cylinder · authored-node facets"]]),
     bounds: fixtureBounds(fixture.scene),
     results: {
-      field: createResultField({
-        id: "hex20-cylinder-stress",
-        name: "Hex20 cylinder stress",
-        location: "elemental",
-        shape: "scalar",
-        count: elementCount,
-        unit: "MPa",
-        values: stressValues,
-      }),
+      scalar: {
+        field: createResultField({
+          id: "hex20-cylinder-stress",
+          name: "Hex20 cylinder stress",
+          location: "elemental",
+          shape: "scalar",
+          count: elementCount,
+          unit: "MPa",
+          values: stressValues,
+        }),
+      },
       deformation: {
         field: createResultField({
           id: "hex20-cylinder-displacement",

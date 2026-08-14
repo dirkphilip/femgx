@@ -3,6 +3,7 @@ import {
   createResultField,
   createScalarColorMap,
   type PickHit,
+  type ViewportScalarState,
   type ViewportResultsState,
 } from "../../src/index";
 import { describePick } from "../../demo/workbench/inspect";
@@ -61,13 +62,18 @@ describe("demo result inspection", () => {
   });
 });
 
-function resultState(field: ViewportResultsState["scalarField"]): ViewportResultsState {
-  return {
+function resultState(field: ViewportScalarState["field"]): ViewportResultsState {
+  const scalar: ViewportScalarState = {
     config: { field },
-    scalarField: field,
+    field,
     range: { min: 0, max: 20 },
     colorMap: createScalarColorMap({ min: 0, max: 20 }),
+  };
+  return {
+    config: { scalar: { field } },
+    scalar,
     deformation: undefined,
+    vectors: undefined,
   };
 }
 

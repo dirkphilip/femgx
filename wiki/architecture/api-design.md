@@ -128,15 +128,24 @@ layouts, and storage capacities are renderer/runtime implementation details.
 They remain internal until a concrete host need justifies a separate product
 decision and stable public lifecycle contract.
 
-### Planned elemental orientation results
+### Elemental orientation results
 
-The current public results boundary supports authored scalar coloring and nodal
-deformation. Elemental vector fields remain authored data only. If the deferred
-orientation slice is implemented, `FemViewport` owns one orthogonal vector
-presentation role in the same atomic result replacement; `Part`, `Scene`, and
-`SceneRuntime` do not own glyph state. The planned role's public vocabulary is
-limited to authored field, `arrow`/`axis` presentation, `direction`/`normal`
-transform semantics, and a finite positive element-relative scale. Anchors,
+The public results boundary supports authored scalar coloring, nodal deformation,
+and one orthogonal elemental vector presentation role. `FemViewport` owns all
+roles in the same atomic result replacement; `Part`, `Scene`, and
+`SceneRuntime` do not own glyph state. The vector role's public vocabulary is
+limited to an authored field, `arrow`/`axis` presentation, `direction`/`normal`
+transform semantics, and a finite positive element-relative scale:
+
+```ts
+viewport.setResults({
+  scalar: { field: stress },
+  deformation: { field: displacement, scale: 1.5 },
+  vectors: { field: directions, glyph: "arrow", transform: "normal" },
+});
+```
+
+All present roles are validated before the previous state is replaced. Anchors,
 records, GPU resources, and fixed presentation policy stay internal; see
 [[data/vector-field-visualization|Authored elemental orientation visualization]].
 

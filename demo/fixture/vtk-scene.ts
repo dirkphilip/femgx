@@ -98,11 +98,13 @@ function importedResults(model: FemModel): ViewportResultsConfig | undefined {
     (result) => result.location === "node" && result.components === 3,
   );
   return {
-    field: createResultFieldFromModelResult(model, scalar, {
-      id: "vtk-imported-scalar",
-      unit: "source",
-      shape: "scalar",
-    }),
+    scalar: {
+      field: createResultFieldFromModelResult(model, scalar, {
+        id: "vtk-imported-scalar",
+        unit: "source",
+        shape: "scalar",
+      }),
+    },
     ...(vector === undefined
       ? {}
       : {

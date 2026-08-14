@@ -89,6 +89,7 @@ export function syncOrientationGlyphs(
   if (!Number.isFinite(state.lengthScale) || state.lengthScale <= 0) {
     throw new Error(`Elemental orientation glyph lengthScale must be finite and positive`);
   }
+  if (state.transform === "normal") validateNormalMatrices(state, runtime, layout);
   writeParams(resources, state);
   const active = new Set<PartId>();
   for (const [partId, records] of state.parts) {
@@ -278,6 +279,30 @@ function syncNormalMatrices(
   if (!changed) return;
   resources.device.queue.writeBuffer(resource.normalBuffer, 0, resource.normalData);
   resources.cost.write("vector-glyph", resource.normalData.byteLength);
+}
+
+function validateNormalMatrices(
+  state: OrientationGlyphState,
+  runtime: PackedSceneRuntime,
+  layout: OrientationInstanceLayout,
+): void {
+  for (const [partId, records] of state.parts) {
+    if (records.elementIds.length === 0) continue;
+    const slots = layout.partSlots.get(partId) ?? new Uint32Array();
+    for (let local = 0; local < slots.length; local += 1) {
+      const slot = slots[local];
+      if (slot === undefined) continue;
+      try {
+        normalMatrix3(runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16));
+      } catch (error) {
+        const occurrence = runtime.getInstanceId(slot) ?? String(slot);
+        throw new Error(
+          `Elemental orientation normal transform for occurrence ${occurrence} in part ${partId} is invalid: ${String(error)}`,
+          { cause: error },
+        );
+      }
+    }
+  }
 }
 
 function writeParams(resources: OrientationGlyphDrawResources, state: OrientationGlyphState): void {

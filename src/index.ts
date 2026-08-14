@@ -228,7 +228,11 @@ export type { CameraTransitionOptions } from "./viewport/types";
 export type { OrientationGizmoOptions } from "./viewport/orientation-gizmo";
 export type {
   ViewportDeformationConfig,
+  ViewportElementVectorConfig,
+  ViewportElementVectorState,
   ViewportResultField,
+  ViewportScalarConfig,
+  ViewportScalarState,
   ViewportResultsConfig,
   ViewportResultsState,
 } from "./viewport/results";

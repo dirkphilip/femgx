@@ -5,7 +5,11 @@ import { createInteractionState, type InteractionState } from "../interaction/in
 import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionTarget } from "../interaction/target-types";
 import type { DeviceLostInfo } from "../platform/device";
-import { createWebGpuRenderer, type WebGpuRenderer } from "../renderer/gpu-renderer";
+import {
+  createWebGpuRenderer,
+  setRendererOrientationGlyphs,
+  type WebGpuRenderer,
+} from "../renderer/gpu-renderer";
 import { changedInstanceSlots } from "./interaction-diff";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "../scene-runtime/runtime";
 import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/public-runtime";
@@ -310,6 +314,7 @@ class FemViewportCore implements FemViewport {
     this.ensureAlive();
     this.currentResults = undefined;
     this.effectiveInteraction = this.baseInteraction;
+    setRendererOrientationGlyphs(this.renderer, undefined);
     this.renderer.setDeformation(undefined);
     this.renderer.setResultColors(undefined);
     this.invalidate();

@@ -1,15 +1,15 @@
 # Authored elemental orientation visualization
 
-Status: **Deferred, planned**. This note defines the narrow future direction
-from [issue #665](https://github.com/dirkphilip/femgx/issues/665); it does not
-claim that the current viewport renders elemental vectors.
+Status: **Implemented**. This note defines the narrow direction from
+[issue #665](https://github.com/dirkphilip/femgx/issues/665), now composed into
+the viewport results API by issue #670.
 
 ## User value and ownership
 
 Finite-element users should be able to inspect authored per-element normals and
 fiber/material directions in the same instanced scene used for scalar coloring,
 nodal deformation, selection, and visibility. The existing
-`VectorField<"elemental">` is the data source. `FemViewport` owns the future
+`VectorField<"elemental">` is the data source. `FemViewport` owns the
 presentation role and its atomic result transition; `Part`, `Scene`, and
 `SceneRuntime` continue to own geometry, authoring, and compiled scene data,
 not glyph state.
@@ -17,8 +17,8 @@ not glyph state.
 The role is orthogonal to scalar and deformation roles. Scalar-only,
 deformation-only, vector-only, and valid combinations are distinct states; an
 empty configuration remains represented by `clearResults()`, not a dummy
-field. The current `setResults({ field, ... })` API remains unchanged until
-the implementation issues establish a replacement contract.
+field. The current `setResults({ scalar, deformation, vectors })` API
+composes these roles atomically; `clearResults()` is the empty transition.
 
 ## Authored data and presentation
 
@@ -48,7 +48,7 @@ provides a replacement authored field.
 
 ## Rendering and interaction
 
-The future renderer path reuses one normalized record per eligible element in
+The renderer path reuses one normalized record per eligible element in
 each reusable part and draws repeated occurrences through GPU instancing.
 Records are uploaded on field/scene changes, not rewritten every frame. Glyphs
 follow part, occurrence, body, and element visibility; face-only visibility
@@ -70,10 +70,9 @@ automatic sampling/decimation, glyph picking, glyph bounds, export, solver
 specific UI, a second scene graph, a result manager, or a generalized styling
 system.
 
-The implementation sequence is documented in #665 and is intentionally
-dependency ordered: #666 records this contract, #667 owns CPU records and
-anchors, #668 owns instanced WebGPU rendering, #670 composes result roles, and
-#672 owns demo controls and browser evidence.
+The implementation sequence was documented in #665 and was intentionally
+dependency ordered: #666 recorded this contract, #667 owns CPU records and
+anchors, #668 owns instanced WebGPU rendering, and #670 composes result roles.
 
 Related: [[data/results|Results, deformation, and scalar visualization]],
 [[architecture/api-design|API design north star]],

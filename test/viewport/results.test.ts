@@ -6,13 +6,15 @@ import { heterogeneousElementParts } from "../../src/geometry/heterogeneous-elem
 import { createPart } from "../../src/geometry/part";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
 import { readInteractionState } from "../../src/interaction/state";
-import { identity } from "../../src/math/mat4";
+import { identity, scale } from "../../src/math/mat4";
 import { createResultField } from "../../src/results/fields";
 import { createScene } from "../../src/scene/scene";
 import { createFemViewport } from "../../src/viewport/fem-viewport";
+import type { ViewportResultsConfig } from "../../src/viewport/results";
 import {
   applyViewportResultInteraction,
   resolveViewportResults,
+  viewportOrientationRecords,
   viewportResultColors,
 } from "../../src/viewport/results";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
@@ -33,12 +35,13 @@ function installNavigator(): void {
   });
 }
 
-function createTestScene() {
+function createTestScene(transform = identity()) {
   const geometry = {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
     primitive: "triangles" as const,
     elements: [{ id: 0, primitiveStart: 0, primitiveCount: 1 }],
+    nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     nodePickIds: new Uint32Array([1, 2, 3]),
   };
   return createScene()
@@ -46,7 +49,7 @@ function createTestScene() {
     .addAssembly({
       id: 1,
       name: "root",
-      placements: [{ kind: "part", partId: 1, transform: identity() }],
+      placements: [{ kind: "part", partId: 1, transform }],
     })
     .withRoot(1)
     .build();
@@ -108,6 +111,18 @@ function elementalScalar() {
   });
 }
 
+function elementalVector() {
+  return createResultField({
+    id: "authored-direction",
+    name: "Authored direction",
+    location: "elemental",
+    shape: "vector",
+    count: 1,
+    unit: "source",
+    values: new Float32Array([1, 0, 0]),
+  });
+}
+
 function nodalDisplacement() {
   return createResultField({
     id: "displacement",
@@ -142,22 +157,24 @@ describe("viewport results workflow", () => {
     } as never;
     const resolved = resolveViewportResults(
       {
-        field: elementalScalar(),
+        scalar: { field: elementalScalar() },
         deformation: { field: nodalDisplacement(), scale: 2 },
       },
       scene,
       runtime,
     );
 
-    expect(resolved.scalarField.name).toBe("Authored stress");
-    expect(resolved.scalarField.values[0]).toBeCloseTo(3);
-    expect(resolved.range.min).toBeLessThan(3);
-    expect(resolved.range.max).toBeGreaterThan(3);
-    if (resolved.scalarField.location !== "elemental") throw new Error("Expected elemental field");
+    const scalar = resolved.scalar;
+    if (scalar === undefined || scalar.field.location !== "elemental") {
+      throw new Error("Expected elemental scalar field");
+    }
+    expect(scalar.field.name).toBe("Authored stress");
+    expect(scalar.field.values[0]).toBeCloseTo(3);
+    expect(scalar.range.min).toBeLessThan(3);
+    expect(scalar.range.max).toBeGreaterThan(3);
     const effective = applyViewportResultInteraction(
       createInteractionState(),
-      resolved.scalarField,
-      resolved.colorMap,
+      scalar,
       scene,
       runtime,
     );
@@ -182,7 +199,7 @@ describe("viewport results workflow", () => {
       getInstanceId: () => "1/0",
     } as never;
     const resolved = resolveViewportResults(
-      { field: nodalScalar(), range: { min: 0, max: 10 } },
+      { scalar: { field: nodalScalar(), range: { min: 0, max: 10 } } },
       scene,
       runtime,
     );
@@ -204,15 +221,17 @@ describe("viewport results workflow", () => {
     const displacementValues = new Float32Array([0.1, 0, 0, 0, 0.2, 0, 0, 0, 0.3]);
     const first = resolveViewportResults(
       {
-        field: createResultField({
-          id: "temperature-a",
-          name: "Temperature A",
-          location: "nodal",
-          shape: "scalar",
-          count: 3,
-          unit: "C",
-          values: scalarValues,
-        }),
+        scalar: {
+          field: createResultField({
+            id: "temperature-a",
+            name: "Temperature A",
+            location: "nodal",
+            shape: "scalar",
+            count: 3,
+            unit: "C",
+            values: scalarValues,
+          }),
+        },
         deformation: {
           field: createResultField({
             id: "displacement-a",
@@ -230,15 +249,17 @@ describe("viewport results workflow", () => {
     );
     const second = resolveViewportResults(
       {
-        field: createResultField({
-          id: "temperature-b",
-          name: "Temperature B",
-          location: "nodal",
-          shape: "scalar",
-          count: 3,
-          unit: "C",
-          values: scalarValues,
-        }),
+        scalar: {
+          field: createResultField({
+            id: "temperature-b",
+            name: "Temperature B",
+            location: "nodal",
+            shape: "scalar",
+            count: 3,
+            unit: "C",
+            values: scalarValues,
+          }),
+        },
         deformation: {
           field: createResultField({
             id: "displacement-b",
@@ -260,6 +281,95 @@ describe("viewport results workflow", () => {
     expect(viewportResultColors(second)?.get(1)).toBe(viewportResultColors(first)?.get(1));
     expect(second.deformation?.displacements.get(1)).toBe(first.deformation?.displacements.get(1));
     expect(second.deformation?.scale).toBe(3);
+  });
+
+  it("accepts every non-empty combination of independent result roles", () => {
+    const scene = createTestScene();
+    const runtime = {
+      instanceCount: 1,
+      getPartId: () => 1,
+      getInstanceId: () => "1/0",
+    } as never;
+    const scalar = { field: elementalScalar() };
+    const deformation = { field: nodalDisplacement() };
+    const vectors = {
+      field: elementalVector(),
+      glyph: "arrow" as const,
+      transform: "direction" as const,
+    };
+    const combinations = [
+      { scalar },
+      { deformation },
+      { vectors },
+      { scalar, deformation },
+      { scalar, vectors },
+      { deformation, vectors },
+      { scalar, deformation, vectors },
+    ];
+
+    for (const config of combinations) {
+      const result = resolveViewportResults(config, scene, runtime);
+      expect(result.scalar !== undefined).toBe(config.scalar !== undefined);
+      expect(result.deformation !== undefined).toBe(config.deformation !== undefined);
+      expect(result.vectors !== undefined).toBe(config.vectors !== undefined);
+    }
+  });
+
+  it("keeps vector-only state independent and reuses records across presentation updates", () => {
+    const scene = createTestScene();
+    const runtime = {
+      instanceCount: 1,
+      getPartId: () => 1,
+      getInstanceId: () => "1/0",
+    } as never;
+    const field = elementalVector();
+    const first = resolveViewportResults(
+      { vectors: { field, glyph: "arrow", transform: "direction" } },
+      scene,
+      runtime,
+    );
+    const second = resolveViewportResults(
+      { vectors: { field, glyph: "axis", transform: "direction", lengthScale: 2 } },
+      scene,
+      runtime,
+      first,
+    );
+
+    expect(first.scalar).toBeUndefined();
+    expect(first.vectors?.field).toBe(field);
+    expect(second.vectors?.lengthScale).toBe(2);
+    expect(viewportOrientationRecords(second)?.get(1)?.directions).toBe(
+      viewportOrientationRecords(first)?.get(1)?.directions,
+    );
+  });
+
+  it("rejects empty roles and preserves the installed state after a failed replacement", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const scene = createTestScene(scale(1, 0, 1));
+    const vector = elementalVector();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene,
+      device: gpu.device,
+      results: { vectors: { field: vector, glyph: "arrow", transform: "direction" } },
+    });
+    const previous = viewport.results;
+
+    const emptyConfig = {} as ViewportResultsConfig;
+    expect(() => {
+      viewport.setResults(emptyConfig);
+    }).toThrow("must include");
+    expect(viewport.results).toBe(previous);
+    expect(() => {
+      viewport.setResults({ vectors: { field: vector, glyph: "axis", transform: "normal" } });
+    }).toThrow("normal transform");
+    expect(viewport.results).toBe(previous);
+
+    viewport.clearResults();
+    expect(viewport.results).toBeUndefined();
+    viewport.destroy();
   });
 
   it("validates deformation only for parts placed in the compiled runtime", () => {
@@ -296,7 +406,7 @@ describe("viewport results workflow", () => {
     expect(() =>
       resolveViewportResults(
         {
-          field: elementalScalar(),
+          scalar: { field: elementalScalar() },
           deformation: { field: nodalDisplacement() },
         },
         scene,
@@ -316,12 +426,12 @@ describe("viewport results workflow", () => {
       device: gpu.device,
       interaction: base,
       results: {
-        field: elementalScalar(),
+        scalar: { field: elementalScalar() },
         deformation: { field: nodalDisplacement(), scale: 2 },
       },
     });
 
-    expect(viewport.results?.scalarField.name).toBe("Authored stress");
+    expect(viewport.results?.scalar?.field.name).toBe("Authored stress");
     expect(viewport.interaction).toBe(base);
     expect(
       gpu.writes.some((write) => write.bytes.byteLength === nodalDisplacement().values.byteLength),
@@ -372,7 +482,7 @@ describe("viewport results workflow", () => {
       canvas: fakeCanvas(),
       scene,
       device: gpu.device,
-      results: { field: scalarA, deformation: { field: displacementA } },
+      results: { scalar: { field: scalarA }, deformation: { field: displacementA } },
     });
     const runtime = viewport.runtime;
     const displacementBuffer = gpu.buffers.find(
@@ -388,17 +498,20 @@ describe("viewport results workflow", () => {
     const beforeScale = displacementWrites();
     const beforeUniform = uniformWrites();
 
-    viewport.setResults({ field: scalarA, deformation: { field: displacementA, scale: 2 } });
+    viewport.setResults({
+      scalar: { field: scalarA },
+      deformation: { field: displacementA, scale: 2 },
+    });
 
     expect(displacementWrites()).toBe(beforeScale);
     expect(uniformWrites()).toBeGreaterThan(beforeUniform);
-    viewport.setResults({ field: elementalA, deformation: { field: displacementA } });
-    viewport.setResults({ field: elementalB, deformation: { field: displacementB } });
+    viewport.setResults({ scalar: { field: elementalA }, deformation: { field: displacementA } });
+    viewport.setResults({ scalar: { field: elementalB }, deformation: { field: displacementB } });
     const bufferCount = gpu.buffers.length;
     for (let step = 0; step < 100; step += 1) {
       const alternate = step % 2 === 1;
       viewport.setResults({
-        field: alternate ? scalarB : scalarA,
+        scalar: { field: alternate ? scalarB : scalarA },
         deformation: {
           field: alternate ? displacementB : displacementA,
           scale: 1 + (step % 3) * 0.5,
@@ -424,7 +537,7 @@ describe("viewport results workflow", () => {
       scene: createTestScene(),
       device: fakeGpuDevice().device,
       interaction: base,
-      results: { field: elementalScalar() },
+      results: { scalar: { field: elementalScalar() } },
     });
 
     expect(viewport.interaction).toBe(base);
@@ -466,7 +579,7 @@ describe("viewport results workflow", () => {
       canvas: fakeCanvas(),
       scene,
       device: gpu.device,
-      results: { field: stress, deformation: { field } },
+      results: { scalar: { field: stress }, deformation: { field } },
     });
 
     expect(part.geometry.indices.length).toBe(6 * 6 * 3);
@@ -496,7 +609,7 @@ describe("viewport results workflow", () => {
     });
 
     expect(() =>
-      resolveViewportResults({ field, range: { min: 0, max: 1 } }, scene, runtime),
+      resolveViewportResults({ scalar: { field, range: { min: 0, max: 1 } } }, scene, runtime),
     ).toThrow("has no value for element 0 in part 1");
   });
 });

@@ -162,15 +162,17 @@ function resultScene(nodeCount: 3 | 6): Scene {
 
 function nodalResult(nodeCount: 3 | 6) {
   return {
-    field: createResultField({
-      id: `scene-${nodeCount}-scalar`,
-      name: "scene scalar",
-      location: "nodal" as const,
-      shape: "scalar" as const,
-      count: nodeCount,
-      unit: "source",
-      values: new Float32Array(Array.from({ length: nodeCount }, (_, index) => index + 1)),
-    }),
+    scalar: {
+      field: createResultField({
+        id: `scene-${nodeCount}-scalar`,
+        name: "scene scalar",
+        location: "nodal" as const,
+        shape: "scalar" as const,
+        count: nodeCount,
+        unit: "source",
+        values: new Float32Array(Array.from({ length: nodeCount }, (_, index) => index + 1)),
+      }),
+    },
   };
 }
 

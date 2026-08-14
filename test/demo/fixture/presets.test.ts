@@ -79,7 +79,7 @@ describe("createVtkPreset", () => {
     expect(preset.name).toBe("Imported VTK sample");
     expect(preset.scene.parts.size).toBe(1);
     expect(preset.bounds).toEqual({ minX: 0, minY: 0, minZ: 0, maxX: 2, maxY: 2, maxZ: 1 });
-    expect(preset.results?.field.name).toBe("stress");
+    expect(preset.results?.scalar?.field.name).toBe("stress");
     expect(preset.results?.deformation?.field.name).toBe("displacement");
   });
 });
@@ -88,7 +88,7 @@ describe("createHex20CylinderPreset", () => {
   it("builds a small linearly tessellated Hex20 cylinder", () => {
     const preset = createHex20CylinderPreset();
     expect(preset.results?.deformation?.field.count).toBeGreaterThan(20);
-    expect(preset.results?.field.shape).toBe("scalar");
+    expect(preset.results?.scalar?.field.shape).toBe("scalar");
   });
 });
 
@@ -143,7 +143,7 @@ describe("results preset", () => {
   it("connects an authored scalar field and nodal deformation to one FE part", () => {
     const preset = createResultsPreset();
     const model = preset.elementModels.get(20);
-    expect(preset.results?.field.shape).toBe("scalar");
+    expect(preset.results?.scalar?.field.shape).toBe("scalar");
     expect(preset.results?.deformation?.field.location).toBe("nodal");
     expect(model?.elements).toHaveLength(8);
     expect(model?.nodes).toHaveLength(90);
@@ -168,11 +168,13 @@ describe("results preset", () => {
     const runtime = createPackedSceneRuntime(preset.scene);
     const resolved = resolveViewportResults(config, preset.scene, runtime);
 
-    expect(Array.from(resolved.scalarField.values)).toEqual([10, 20, 30, 40, 50, 60, 70, 80]);
-    expect(resolved.range).toEqual({ min: 10, max: 80 });
-    expect(mapScalar(resolved.colorMap, 10)).toEqual(resolved.colorMap.stops[0]?.color);
-    expect(mapScalar(resolved.colorMap, 45)).toMatchObject({ r: 0.95, g: 0.85, a: 1 });
-    expect(mapScalar(resolved.colorMap, 45).b).toBeCloseTo(0.2);
-    expect(mapScalar(resolved.colorMap, 80)).toEqual(resolved.colorMap.stops.at(-1)?.color);
+    const scalar = resolved.scalar;
+    if (scalar === undefined) throw new Error("Results preset has no scalar role");
+    expect(Array.from(scalar.field.values)).toEqual([10, 20, 30, 40, 50, 60, 70, 80]);
+    expect(scalar.range).toEqual({ min: 10, max: 80 });
+    expect(mapScalar(scalar.colorMap, 10)).toEqual(scalar.colorMap.stops[0]?.color);
+    expect(mapScalar(scalar.colorMap, 45)).toMatchObject({ r: 0.95, g: 0.85, a: 1 });
+    expect(mapScalar(scalar.colorMap, 45).b).toBeCloseTo(0.2);
+    expect(mapScalar(scalar.colorMap, 80)).toEqual(scalar.colorMap.stops.at(-1)?.color);
   });
 });

@@ -226,24 +226,22 @@ const stress = createResultField({
 });
 
 viewport.setResults({
-  field: stress,
+  scalar: { field: stress },
   deformation: { field: displacement, scale: 1.5 },
+  vectors: { field: directions, glyph: "arrow", transform: "normal" },
 });
 
 viewport.clearResults();
 ```
 
 `ViewportResultsConfig` supports authored scalar fields at nodal or elemental
-locations, explicit or observed ranges, scalar color maps, and optional
-one-load-case nodal deformation. Derived engineering quantities, result glyphs,
-playback, interpolation, and legends are outside the current core API.
-
-Authored elemental vector fields are retained data, not a current glyph API. A
-separate deferred contract proposes one viewport-owned vector role with
-independent `arrow`/`axis` and `direction`/`normal` semantics, without exposing
-element anchors, packed records, or GPU resources. See
-[[data/vector-field-visualization|Authored elemental orientation visualization]];
-do not advertise or implement those symbols until the planned child issues land.
+locations, explicit or observed ranges, scalar color maps, optional one-load-case
+nodal deformation, and an optional elemental orientation vector role. The
+non-empty role set is resolved atomically: invalid combinations leave the
+previous result state and renderer state unchanged. Derived engineering
+quantities, tensor glyphs, playback, interpolation, and legends remain outside
+the core API. Element anchors, packed records, and GPU resources are internal.
+See [[data/vector-field-visualization|Authored elemental orientation visualization]].
 
 ## Additional supported APIs
 

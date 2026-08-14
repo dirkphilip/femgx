@@ -248,7 +248,7 @@ function main() {
       "  runtime.getInstanceIds();",
       "  runtime.getNodes();",
       "  runtime.getDrawList();",
-      "  viewport.setResults({ field: stress, deformation: { field: displacement, scale: 1 } });",
+      "  viewport.setResults({ scalar: { field: stress }, deformation: { field: displacement, scale: 1 } });",
       "  viewport.clearResults();",
       "  await viewport.pick(0, 0);",
       "  const hit = await viewport.pick(0, 0);",
