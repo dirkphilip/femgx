@@ -19,6 +19,7 @@ import {
   zoomCameraAtPoint,
 } from "../../src/camera/camera";
 import { cross, dot, normalize, scale, subtract, type Vec3 } from "../../src/math/vec3";
+import { beginColorPass } from "../../src/renderer/gpu-passes";
 
 const originalDevicePixelRatio = globalThis.devicePixelRatio;
 
@@ -78,6 +79,24 @@ describe("weighted transparency contributors", () => {
 
   it("retains weighted targets for an active orbit pivot", () => {
     expect(needsWeightedTransparency(emptyFrame, true)).toBe(true);
+  });
+});
+
+describe("visible pass attachments", () => {
+  it("stores selected-pixel stencil coverage for the hidden selection pass", () => {
+    let descriptor: GPURenderPassDescriptor | undefined;
+    const pass = {} as GPURenderPassEncoder;
+    const encoder = {
+      beginRenderPass: (next: GPURenderPassDescriptor) => {
+        descriptor = next;
+        return pass;
+      },
+    } as GPUCommandEncoder;
+
+    expect(beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView, undefined)).toBe(
+      pass,
+    );
+    expect(descriptor?.depthStencilAttachment?.stencilStoreOp).toBe("store");
   });
 });
 

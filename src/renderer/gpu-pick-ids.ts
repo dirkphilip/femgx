@@ -27,13 +27,17 @@ export function buildElementPrimitivePickIds(geometry: Geometry): Uint32Array {
   return pickIds;
 }
 
-/** Builds the per-primitive private dense element ordinal map (`ordinal + 1`). */
-export function buildElementPrimitiveOrdinals(geometry: Geometry): Uint32Array {
+/** Builds the per-primitive private part-wide dense element ordinal map. */
+export function buildElementPrimitiveOrdinals(
+  geometry: Geometry,
+  elementOrdinalById: ReadonlyMap<number, number>,
+): Uint32Array {
   const primitiveCount = logicalPrimitiveCount(geometry);
   const ordinals = new Uint32Array(primitiveCount);
-  for (const [index, element] of (geometry.elements ?? []).entries()) {
+  for (const element of geometry.elements ?? []) {
     const range = primitiveRangeForElement(element);
-    const ordinal = index + 1;
+    const ordinal = elementOrdinalById.get(element.id);
+    if (ordinal === undefined) continue;
     for (
       let primitiveIndex = range.start;
       primitiveIndex < range.start + range.count;
@@ -268,6 +272,7 @@ export function buildNodeSpritePickIds(source: NodeMetadataSource): Uint32Array 
   const nodeCount = (sourceNodePositions(source)?.length ?? 0) / 3;
   const ids = new Set<number>();
   for (const geometry of sourceGeometries(source)) {
+    if (geometry.primitive === "points") continue;
     for (const pickId of geometry.nodePickIds ?? []) {
       if (pickId > 0 && pickId <= nodeCount) ids.add(pickId);
     }
