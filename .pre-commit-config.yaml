@@ -7,6 +7,7 @@ repos:
       - id: check-json
       - id: check-merge-conflict
       - id: check-yaml
+      - id: check-toml
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: trailing-whitespace
@@ -19,3 +20,11 @@ repos:
         language: system
         types: [yaml]
         files: ^\.github/workflows/.*\.(yml|yaml)$
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.3
+    hooks:
+      - id: codespell
+        types: [text]
+        # Vitest lifecycle and the FE/graphics acronym.
+        args: [--ignore-words-list=afterall]
+        exclude: ^(?:package-lock\.json|.*\.(?:glb|vtk))$

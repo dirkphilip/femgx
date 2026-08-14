@@ -15,6 +15,8 @@ framework does not install its own git hook; only Husky owns
   filesystems.
 - `check-json` / `check-yaml` — syntax validation (covers GitHub Actions
   workflow YAML too).
+- `check-toml` — syntax validation for the committed supervisor configuration
+  files.
 - `check-merge-conflict` — leftover conflict markers.
 - `detect-private-key` — prevent accidental private-key commits.
 - `end-of-file-fixer` — require final newline (matches `.editorconfig`).
@@ -23,11 +25,20 @@ framework does not install its own git hook; only Husky owns
   (matches `.editorconfig`, which disables trimming for `*.md`).
 - The local `actionlint` hook — validate GitHub Actions workflow semantics
   with the pinned release used by `scripts/actionlint.mjs`.
+- The pinned `codespell` hook — check repository-owned prose and source text
+  for common misspellings without rewriting files.
 
 `check-yaml` remains the general YAML syntax owner. `actionlint` validates
 workflow semantics, expressions, action inputs, job dependencies, and runner
 labels. `scripts/check-github-actions.mjs` remains the separate owner of the
 repository's stricter full-commit-SHA policy for external actions.
+
+Codespell scans tracked text files, including Markdown, TypeScript/JavaScript,
+configuration, and scripts. It deliberately excludes `package-lock.json`, VTK
+fixtures, and binary GLB fixtures. Its only allowlisted term is `afterall`, the
+camel-case Vitest lifecycle API `afterAll`; domain terms and public identifiers
+are fixed or excluded only when the baseline demonstrates that they are not
+ordinary prose.
 
 The hooks are deliberately check-only for code style: eslint/prettier already
 enforce formatting, so pre-commit stays a validation layer. The local
@@ -62,5 +73,8 @@ To run only semantic workflow validation, use `npm run lint:actionlint`.
 - To upgrade actionlint, update `version` and every supported platform
   checksum in `scripts/actionlint.mjs`, clear `.cache/actionlint/`, run
   `npm run lint:actionlint`, and record the release in this note.
+- To upgrade codespell, update its immutable `rev` in `.pre-commit-config.yaml`,
+  run `pre-commit autoupdate` only for the intended hook, review new baseline
+  findings, and keep any allowlist additions narrow and explained.
 - Keep `rev` tags current with `pre-commit autoupdate` (CI is green on the
   pinned versions).
