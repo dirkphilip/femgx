@@ -503,11 +503,15 @@ export async function sweepForHit(
     );
     const direct = await probeCells(canvas, canvasBox, [center, ...local], attribute, prefix);
     if (direct.available) {
-      if (direct.hit === undefined) return undefined;
-      await clearKey();
-      await page.mouse.move(direct.hit.x, direct.hit.y);
-      const key = await waitForKey(keyOf, matches, settleMs, page);
-      return matches(key) ? { ...direct.hit, key } : undefined;
+      if (direct.hit !== undefined) {
+        await clearKey();
+        await page.mouse.move(direct.hit.x, direct.hit.y);
+        const key = await waitForKey(keyOf, matches, settleMs, page);
+        if (matches(key)) return { ...direct.hit, key };
+      }
+      // Software adapters can expose a stale pick attachment to the direct
+      // probe. Give real pointer events a chance before reporting no hit.
+      return sweepCells(page, local, { clearKey, keyOf, matches, settleMs });
     }
     return sweepCells(page, local, { clearKey, keyOf, matches, settleMs });
   }
