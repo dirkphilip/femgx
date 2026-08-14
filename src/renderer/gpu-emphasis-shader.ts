@@ -16,6 +16,7 @@ struct ElementHighlight {
   hidden: u32,
   selected: u32,
   blockPickId: u32,
+  preservesDisplayedColor: bool,
 };
 
 // The fixed header is followed by a u32 payload. Sparse records occupy the
@@ -59,7 +60,8 @@ fn elementHighlightAt(index: u32) -> ElementHighlight {
     bitcast<f32>(elementHighlights.data[base + 8u]),
     elementHighlights.data[base + 9u],
     elementHighlights.data[base + 10u],
-    elementHighlights.data[base + 11u],
+    elementHighlights.data[base + 11u] & 0x7fffffffu,
+    (elementHighlights.data[base + 11u] & 0x80000000u) != 0u,
   );
 }
 

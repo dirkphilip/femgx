@@ -188,6 +188,13 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(instanceVertexShader).toMatch(/output\.emissive = emissive;/);
   });
 
+  it("keeps the displayed color for emissive-only primitive emphasis", () => {
+    expect(instanceVertexShader).toContain("highlight.preservesDisplayedColor");
+    expect(instanceVertexShader).toContain(
+      "if (!highlight.preservesDisplayedColor) { color = highlight.color; }",
+    );
+  });
+
   it("keeps the section-plane uniform out of shared vertex bindings", () => {
     expect(nodePickVertexShader).not.toMatch(/binding\(2\).*sectionPlane/);
     expect(triangleColorFragmentShader).toMatch(/binding\(2\).*sectionPlane/);

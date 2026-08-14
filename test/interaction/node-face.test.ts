@@ -148,7 +148,7 @@ describe("resolveNodeStyle", () => {
       true,
     );
     expect(resolveNodeStyle(item, nodeRef, base, state)).toMatchObject({
-      color: { r: 0.15, g: 0.8, b: 1, a: 1 },
+      color: { r: 0.95, g: 0.5, b: 0.1, a: 1 },
     });
   });
 
@@ -182,7 +182,7 @@ describe("resolveFaceStyle", () => {
       true,
     );
     expect(resolveFaceStyle(item, faceRef, base, state)).toMatchObject({
-      color: { r: 0.15, g: 0.8, b: 1, a: 1 },
+      color: { r: 0.95, g: 0.5, b: 0.1, a: 1 },
     });
   });
 

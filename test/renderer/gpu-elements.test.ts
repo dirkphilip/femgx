@@ -452,6 +452,19 @@ describe("encodeEmphasisRecord", () => {
     expect(blockIds[9]).toBe(1);
     expect(blockIds[10]).toBe(1);
     expect(blockIds[11]).toBe(11);
+
+    const preservedIds = new Uint32Array(
+      encodeEmphasisRecord({
+        slot: 2,
+        elementPickId: 0,
+        facePickId: 0,
+        nodePickId: 0,
+        blockPickId: 11,
+        preservesDisplayedColor: true,
+        style,
+      }),
+    );
+    expect(preservedIds[11]).toBe(0x8000000b);
   });
 });
 
