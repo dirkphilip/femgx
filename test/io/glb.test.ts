@@ -7,6 +7,9 @@ import { importGlb } from "../../src/io/glb";
 const ONShapeCylinder = readFileSync(
   new URL("./fixtures/glb/onshape-cylinder-uncompressed.glb", import.meta.url),
 );
+const compressedOnshapeCylinder = readFileSync(
+  new URL("./fixtures/glb/onshape-cylinder-compressed.glb", import.meta.url),
+);
 
 describe("importGlb", () => {
   it("imports the supplied uncompressed Onshape display scene", async () => {
@@ -26,6 +29,19 @@ describe("importGlb", () => {
     expect(result.partStyles.get(0)).toEqual({
       color: { r: 0.615686297416687, g: 0.8117647171020508, b: 0.929411768913269, a: 1 },
     });
+    expect(result.issues).toEqual([
+      expect.objectContaining({ code: "glb-ignored-extension", severity: "warning" }),
+    ]);
+  });
+
+  it("imports the supplied Draco-compressed Onshape display scene", async () => {
+    const result = await importGlb(compressedOnshapeCylinder);
+
+    expect(result.scene.parts).toHaveLength(4);
+    expect(result.scene.assemblies.get(1)?.placements).toHaveLength(4);
+    expect([...result.scene.parts.values()].map((part) => part.geometry.indices.length)).toEqual([
+      168, 174, 174, 168,
+    ]);
     expect(result.issues).toEqual([
       expect.objectContaining({ code: "glb-ignored-extension", severity: "warning" }),
     ]);
@@ -62,13 +78,13 @@ describe("importGlb", () => {
     });
   });
 
-  it("rejects required extensions before producing a partial scene", async () => {
+  it("rejects unsupported required extensions before producing a partial scene", async () => {
     const invalid = new Uint8Array(ONShapeCylinder);
     const jsonLength = new DataView(invalid.buffer).getUint32(12, true);
     const json = JSON.parse(new TextDecoder().decode(invalid.subarray(20, 20 + jsonLength))) as {
       extensionsRequired?: string[];
     };
-    json.extensionsRequired = ["KHR_draco_mesh_compression"];
+    json.extensionsRequired = ["EXT_unknown_required_extension"];
     const encoded = new TextEncoder().encode(JSON.stringify(json).padEnd(jsonLength, " "));
     invalid.set(encoded.subarray(0, jsonLength), 20);
 

@@ -1,5 +1,8 @@
 import { Logger, WebIO } from "@gltf-transform/core";
 import type { JSONDocument, Mesh, Node, Scene as GltfScene } from "@gltf-transform/core";
+import { KHRDracoMeshCompression } from "@gltf-transform/extensions";
+import draco3d, { type DracoDecoderOptions } from "draco3dgltf";
+import dracoDecoderWasmUrl from "../../node_modules/draco3dgltf/draco_decoder_gltf.wasm?url";
 import { createScene, type Scene } from "../scene/scene";
 import type { NamedAssembly, Placement } from "../scene/assembly";
 import { identity, type Mat4 } from "../math/mat4";
@@ -13,6 +16,7 @@ import type { GlbImportOptions, GlbSceneImport } from "./glb-types";
 const GLB_MAGIC = 0x46546c67;
 const GLB_VERSION = 2;
 const HEADER_BYTES = 12;
+const KHR_DRACO_MESH_COMPRESSION = "KHR_draco_mesh_compression";
 
 /**
  * Imports a browser-safe GLB 2.0 display scene into femgx's canonical Scene.
@@ -34,6 +38,11 @@ export async function importGlb(
     const jsonDocument = await io.binaryToJSON(bytes);
     validateEmbeddedResources(jsonDocument, diagnostics);
     reportExtensions(jsonDocument, diagnostics);
+    if (usesDracoCompression(jsonDocument)) {
+      io.registerExtensions([KHRDracoMeshCompression]).registerDependencies({
+        "draco3d.decoder": await draco3d.createDecoderModule(dracoDecoderOptions()),
+      });
+    }
     const document = await io.readJSON(jsonDocument);
     const root = document.getRoot();
     const assetVersion = root.getAsset().version;
@@ -207,16 +216,35 @@ function validateEmbeddedResources(jsonDocument: JSONDocument, diagnostics: GlbD
 
 function reportExtensions(jsonDocument: JSONDocument, diagnostics: GlbDiagnostics): void {
   for (const extension of jsonDocument.json.extensionsRequired ?? []) {
+    if (extension === KHR_DRACO_MESH_COMPRESSION) continue;
     diagnostics.fatal(
       "glb-unsupported-required-extension",
       `Required GLB extension ${extension} is not supported.`,
     );
   }
   for (const extension of jsonDocument.json.extensionsUsed ?? []) {
+    if (extension === KHR_DRACO_MESH_COMPRESSION) continue;
     diagnostics.warning(
       "glb-ignored-extension",
       `Ignored optional GLB extension ${extension}; only core display-scene data is imported.`,
       `extension:${extension}`,
     );
   }
+}
+
+function usesDracoCompression(jsonDocument: JSONDocument): boolean {
+  return (jsonDocument.json.extensionsUsed ?? []).includes(KHR_DRACO_MESH_COMPRESSION);
+}
+
+function dracoDecoderOptions(): DracoDecoderOptions {
+  if (dracoDecoderWasmUrl.startsWith("data:")) {
+    return { wasmBinary: decodeDataUrl(dracoDecoderWasmUrl) };
+  }
+  return typeof window === "undefined" ? {} : { locateFile: () => dracoDecoderWasmUrl };
+}
+
+function decodeDataUrl(dataUrl: string): Uint8Array {
+  const encoded = dataUrl.slice(dataUrl.indexOf(",") + 1);
+  const decoded = atob(encoded);
+  return Uint8Array.from(decoded, (character) => character.charCodeAt(0));
 }
