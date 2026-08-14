@@ -1,19 +1,20 @@
 import { createElement, type Element, type ElementId } from "./element";
 import {
   attachOwnership,
-  bodySnapshot,
   detachOwnership,
   resolveBlockBody,
-  type BodySnapshot,
   type BlockBodyResolution,
   type MutableModelParts,
 } from "./model-edit-ownership";
+import type { ElementBlockReplacement } from "./model-edit-types";
+import type { BodyId, ElementBlockId } from "./model-types";
 import {
-  ElementModelEditError,
-  type ElementBlockReplacement,
-  type ElementModelEditCode,
-} from "./model-edit-types";
-import type { BodyId, ElementBlock, ElementBlockId } from "./model-types";
+  fail,
+  requireBlock,
+  requireBlocks,
+  requireBodySnapshot,
+  sortedUnique,
+} from "./model-edit-guards";
 
 /** Applies one validated block replacement to a mutable edit draft. */
 export function replaceBlock(
@@ -173,42 +174,4 @@ function ownedBodyId(resolution: BlockBodyResolution, operation: string): BodyId
     fail("body-conflict", operation, "Block ownership is ambiguous; supply an explicit bodyId");
   }
   return resolution.kind === "owned" ? resolution.bodyId : undefined;
-}
-
-function requireBodySnapshot(
-  parts: MutableModelParts,
-  bodyId: BodyId,
-  operation: string,
-): BodySnapshot {
-  const snapshot = bodySnapshot(parts.bodies, bodyId);
-  if (snapshot === undefined) {
-    fail("invalid-body", operation, `Body ${bodyId} does not exist in the model`);
-  }
-  return snapshot;
-}
-
-function requireBlocks(parts: MutableModelParts, operation: string): ElementBlock[] {
-  if (parts.blocks === undefined || parts.blocks.length === 0) {
-    fail("no-blocks", operation, "Element-model edit requires authored semantic blocks");
-  }
-  return parts.blocks;
-}
-
-function requireBlock(
-  blocks: readonly ElementBlock[],
-  blockId: ElementBlockId,
-  operation: string,
-): ElementBlock {
-  const block = blocks.find((candidate) => candidate.id === blockId);
-  if (block === undefined)
-    fail("missing-block", operation, `Element block ${blockId} does not exist`);
-  return block;
-}
-
-function sortedUnique(values: readonly number[]): number[] {
-  return [...new Set(values)].sort((a, b) => a - b);
-}
-
-function fail(code: ElementModelEditCode, operation: string, message: string): never {
-  throw new ElementModelEditError(code, operation, message);
 }
