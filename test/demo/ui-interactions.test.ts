@@ -221,6 +221,29 @@ describe("workbench Svelte controls", () => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(calls).not.toContain("clearContextMenu");
   });
+
+  it("mounts only a bounded window for a large visibility hierarchy", async () => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const base = visibilitySnapshot();
+    const seed = base.rows[0];
+    if (seed === undefined) throw new Error("Visibility fixture has no rows");
+    const rows = Array.from({ length: 10_000 }, (_, index) => ({
+      ...seed,
+      key: `row:${index}`,
+      testId: `row-${index}`,
+      position: index + 1,
+      setSize: 10_000,
+    }));
+    const component = mount(VisibilityTree, {
+      target,
+      props: { controller: undefined, visibility: { ...base, rows } },
+    });
+    await tick();
+
+    expect(target.querySelectorAll('[role="treeitem"]').length).toBeLessThan(100);
+    await unmount(component);
+  });
 });
 
 async function change(target: HTMLElement, selector: string, value: string): Promise<void> {
