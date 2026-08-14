@@ -229,6 +229,13 @@ locations, explicit or observed ranges, scalar color maps, and optional
 one-load-case nodal deformation. Derived engineering quantities, result glyphs,
 playback, interpolation, and legends are outside the current core API.
 
+Authored elemental vector fields are retained data, not a current glyph API. A
+separate deferred contract proposes one viewport-owned vector role with
+independent `arrow`/`axis` and `direction`/`normal` semantics, without exposing
+element anchors, packed records, or GPU resources. See
+[[data/vector-field-visualization|Authored elemental orientation visualization]];
+do not advertise or implement those symbols until the planned child issues land.
+
 ## Additional supported APIs
 
 These exports are supported utilities around the canonical viewport path:
@@ -282,3 +289,4 @@ Related: [[architecture/api-design|API design north star]],
 [architecture/public-api-audit|public API audit]: public-api-audit.md
 [rendering/platform-support|WebGPU platform support]: ../rendering/platform-support.md
 [requirements/product-scope|Product scope]: ../requirements/product-scope.md
+[data/vector-field-visualization|Authored elemental orientation visualization]: ../data/vector-field-visualization.md
