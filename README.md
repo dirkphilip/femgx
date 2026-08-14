@@ -127,8 +127,8 @@ const { createScene, createFemViewport, createResultField, importGlb } = require
   camera, renderer, controls, resize, interaction synchronization, recovery, and teardown.
 - `createPart()` retains supplied typed arrays without copying and takes ownership of them; do
   not mutate or reuse those arrays after construction. For a mixed finite-element model, use
-  `heterogeneousElementParts()` to create one homogeneous reusable part per GPU topology, then
-  compose and place those parts in an `Assembly`.
+  `elementPart()` to compile one semantic reusable part with homogeneous primitive groups, then
+  place that part once in an `Assembly`; the renderer keeps topology-specific draws internal.
 - `createResultField()` builds typed nodal/elemental scalar and nodal vector fields; the
   results API maps authored scalar values, supports optional thresholds, and keeps
   authored nodal deformation on the existing GPU path with a configurable scale.
