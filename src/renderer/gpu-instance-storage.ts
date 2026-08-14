@@ -94,6 +94,10 @@ export interface InstanceStorage {
   selectionBindGroup: GPUBindGroup | undefined;
   /** Cached bind group addressing the selected-node order buffer. */
   nodeSelectionBindGroup: GPUBindGroup | undefined;
+  /** Cached bind group addressing the face-subset opaque/pick geometry. */
+  subsetBindGroup: GPUBindGroup | undefined;
+  /** Cached bind group addressing transparent face-subset geometry. */
+  subsetTransparentBindGroup: GPUBindGroup | undefined;
 }
 
 interface InstanceStorageOwner {
@@ -342,6 +346,8 @@ function createStorage(
     transparentBindGroup: undefined,
     selectionBindGroup: undefined,
     nodeSelectionBindGroup: undefined,
+    subsetBindGroup: undefined,
+    subsetTransparentBindGroup: undefined,
   };
 }
 

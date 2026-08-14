@@ -12,7 +12,7 @@ export interface PartDrawInputs {
   readonly edgePick?: boolean;
   /** Binds expanded face-subset surface data instead of the full part data. */
   readonly surfaceSubset?: boolean;
-  /** Node glyph geometry is transient relative to the cached surface bind group. */
+  /** Whether to retain the per-path bind group; edge-pick bindings stay transient. */
   readonly cache?: boolean;
 }
 
@@ -40,44 +40,36 @@ export function orderBindGroup(
             : orderKind === "transparent"
               ? storage.transparentOrderBuffer
               : storage.orderBuffer;
-  if (part.cache === false) return instanceBindGroup(device, layout, storage, orderBuffer, part);
+  const create = (): GPUBindGroup => instanceBindGroup(device, layout, storage, orderBuffer, part);
+  if (part.cache === false) return create();
+  return cachedOrderBindGroup(storage, orderKind, part.surfaceSubset === true, create);
+}
+
+function cachedOrderBindGroup(
+  storage: InstanceStorage,
+  orderKind: "opaque" | "transparent" | "edge" | "node" | "selection" | "node-selection",
+  surfaceSubset: boolean,
+  create: () => GPUBindGroup,
+): GPUBindGroup {
+  if (surfaceSubset && orderKind === "transparent") {
+    return (storage.subsetTransparentBindGroup ??= create());
+  }
+  if (surfaceSubset && orderKind === "opaque") {
+    return (storage.subsetBindGroup ??= create());
+  }
   if (orderKind === "edge") {
-    return (storage.edgeBindGroup ??= instanceBindGroup(
-      device,
-      layout,
-      storage,
-      orderBuffer,
-      part,
-    ));
+    return (storage.edgeBindGroup ??= create());
   }
   if (orderKind === "transparent") {
-    return (storage.transparentBindGroup ??= instanceBindGroup(
-      device,
-      layout,
-      storage,
-      orderBuffer,
-      part,
-    ));
+    return (storage.transparentBindGroup ??= create());
   }
   if (orderKind === "selection") {
-    return (storage.selectionBindGroup ??= instanceBindGroup(
-      device,
-      layout,
-      storage,
-      orderBuffer,
-      part,
-    ));
+    return (storage.selectionBindGroup ??= create());
   }
   if (orderKind === "node-selection") {
-    return (storage.nodeSelectionBindGroup ??= instanceBindGroup(
-      device,
-      layout,
-      storage,
-      orderBuffer,
-      part,
-    ));
+    return (storage.nodeSelectionBindGroup ??= create());
   }
-  return (storage.bindGroup ??= instanceBindGroup(device, layout, storage, orderBuffer, part));
+  return (storage.bindGroup ??= create());
 }
 
 /** Creates the per-part bind group addressing the given order buffer. */

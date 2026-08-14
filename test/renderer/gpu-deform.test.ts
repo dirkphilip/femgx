@@ -19,6 +19,8 @@ type StorageMap = Map<
     transparentBindGroup?: GPUBindGroup | undefined;
     selectionBindGroup?: GPUBindGroup | undefined;
     nodeSelectionBindGroup?: GPUBindGroup | undefined;
+    subsetBindGroup?: GPUBindGroup | undefined;
+    subsetTransparentBindGroup?: GPUBindGroup | undefined;
   }
 >;
 
@@ -122,6 +124,8 @@ describe("syncDeformations", () => {
         transparentBindGroup: {} as GPUBindGroup,
         selectionBindGroup: {} as GPUBindGroup,
         nodeSelectionBindGroup: {} as GPUBindGroup,
+        subsetBindGroup: {} as GPUBindGroup,
+        subsetTransparentBindGroup: {} as GPUBindGroup,
       });
       const before = gpu.buffers.length;
       const next = new Float32Array([4, 5, 6]);
@@ -154,6 +158,8 @@ describe("syncDeformations", () => {
         transparentBindGroup: {} as GPUBindGroup,
         selectionBindGroup: {} as GPUBindGroup,
         nodeSelectionBindGroup: {} as GPUBindGroup,
+        subsetBindGroup: {} as GPUBindGroup,
+        subsetTransparentBindGroup: {} as GPUBindGroup,
       });
       const old = gpu.buffers.at(-1);
       syncDeformations(sync, deformation(6));
@@ -165,6 +171,8 @@ describe("syncDeformations", () => {
       expect(storages.get(1)?.transparentBindGroup).toBeUndefined();
       expect(storages.get(1)?.selectionBindGroup).toBeUndefined();
       expect(storages.get(1)?.nodeSelectionBindGroup).toBeUndefined();
+      expect(storages.get(1)?.subsetBindGroup).toBeUndefined();
+      expect(storages.get(1)?.subsetTransparentBindGroup).toBeUndefined();
     } finally {
       restore();
     }
