@@ -34,7 +34,7 @@ import {
   writeDenseSelectionData,
   writeSelectionHeader,
 } from "./gpu-highlight-selection-storage";
-import { getPartInteractionMetadata } from "./part-interaction-metadata";
+import { getPartSemanticIndex } from "../geometry/part-semantic-index";
 import { readInteractionState } from "../interaction/state";
 import type { PrimitiveStyleOverride } from "../interaction/interaction";
 
@@ -318,7 +318,7 @@ function sparseUpdatesForPart(options: SparseUpdateOptions): readonly EmphasisUp
   if (options.selection === undefined) return options.updates;
   const part = options.parts.get(options.partId);
   if (part === undefined) return options.updates;
-  const metadata = getPartInteractionMetadata(part);
+  const metadata = getPartSemanticIndex(part);
   const data = readInteractionState(options.interaction);
   const globalSlots = options.layout.partSlots.get(options.partId);
   return options.updates.filter((update) => {

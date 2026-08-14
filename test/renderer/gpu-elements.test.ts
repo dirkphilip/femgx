@@ -25,7 +25,7 @@ import {
   INITIAL_ELEMENT_HIGHLIGHTS,
   type EmphasisUpdate,
 } from "../../src/renderer/gpu-elements";
-import { getPartInteractionMetadata } from "../../src/renderer/part-interaction-metadata";
+import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
 import {
   createHighlightStorage,
   syncElementHighlights,
@@ -869,8 +869,8 @@ describe("collectEmphasisUpdates", () => {
       ],
     };
     const part = createPart(99, geometry);
-    const metadata = getPartInteractionMetadata(part);
-    expect(getPartInteractionMetadata(part)).toBe(metadata);
+    const metadata = getPartSemanticIndex(part);
+    expect(getPartSemanticIndex(part)).toBe(metadata);
     expect(metadata.elements.get(100_000)).toBe(geometry.elements?.[0]);
     expect(metadata.bodies.get(7)).toBe(geometry.bodies?.[0]);
     expect(metadata.blocks.get(11)).toBe(geometry.blocks?.[0]);
@@ -884,7 +884,7 @@ describe("collectEmphasisUpdates", () => {
       positions: new Float32Array(geometry.positions),
       indices: new Uint32Array(geometry.indices),
     });
-    expect(getPartInteractionMetadata(replacement)).not.toBe(metadata);
+    expect(getPartSemanticIndex(replacement)).not.toBe(metadata);
   });
 
   it("maps authored fixture bodies to reusable part-local records", () => {

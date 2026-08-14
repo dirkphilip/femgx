@@ -4,7 +4,8 @@ import {
   buildElementPrimitivePickIds,
   buildFacePrimitivePickIds,
 } from "./gpu-pick-ids";
-import { compareEdgeNodeIds, elementEdgeKeys } from "./gpu-edge-authored";
+import { compareEdgeNodeIds } from "../geometry/part-semantic-index";
+import { elementEdgeKeys } from "./gpu-edge-authored";
 import { appendEdgeConditions } from "./gpu-edge-conditions";
 
 /** Expanded edge endpoints plus the body owners of each logical edge. */

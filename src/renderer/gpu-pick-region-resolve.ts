@@ -2,10 +2,7 @@ import type { InteractionGranularity } from "../picking/types";
 import { resolvePick, type PickContext, type ResolvedPickIds } from "../picking/pick";
 import type { Part } from "../geometry/part";
 import type { InteractionTarget } from "../interaction/target-types";
-import {
-  getPartInteractionMetadata,
-  type PartInteractionMetadata,
-} from "./part-interaction-metadata";
+import { getPartSemanticIndex, type PartSemanticIndex } from "../geometry/part-semantic-index";
 
 /** Creates a resolver that reuses immutable metadata for each reusable part. */
 export function createPickRegionTargetResolver(
@@ -21,7 +18,7 @@ export function createPickRegionTargetResolver(
     if (part === undefined) return undefined;
     const metadata =
       granularity === "body" || granularity === "block" || granularity === "element"
-        ? getPartInteractionMetadata(part)
+        ? getPartSemanticIndex(part)
         : undefined;
     return targetForGranularity(instance.instanceId, ids, granularity, part, metadata);
   };
@@ -32,7 +29,7 @@ function targetForGranularity(
   ids: ResolvedPickIds,
   granularity: Exclude<InteractionGranularity, "part" | "instance">,
   part: Part,
-  metadata: PartInteractionMetadata | undefined,
+  metadata: PartSemanticIndex | undefined,
 ): InteractionTarget | undefined {
   switch (granularity) {
     case "body": {

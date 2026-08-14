@@ -38,7 +38,7 @@ import {
 } from "./selection-state";
 import { rebuildEdgeOrders, rebuildTransparentOrders } from "./attachment-orders";
 import { reconcilePartResources } from "./part-resources";
-import { getPartInteractionMetadata } from "./part-interaction-metadata";
+import { getPartSemanticIndex } from "../geometry/part-semantic-index";
 import { syncEdgeEmphasisFlags } from "./edge-emphasis-sync";
 import { rebuildAttachmentCalls } from "./attachment-calls";
 
@@ -83,7 +83,7 @@ export class RendererAttachment {
   public prepareParts(parts: ReadonlyMap<PartId, Part>, bundle: GpuBundle): void {
     this.attachedParts = reconcilePartResources(this.attachedParts, parts, bundle.draw);
     // Region queries reuse this immutable index; prepare it outside their timed readback path.
-    for (const part of parts.values()) getPartInteractionMetadata(part);
+    for (const part of parts.values()) getPartSemanticIndex(part);
   }
 
   /**

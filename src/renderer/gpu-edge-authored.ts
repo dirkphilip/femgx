@@ -37,15 +37,6 @@ export function elementEdgeKeys(
   return edges;
 }
 
-/** Returns the deterministic authored-edge order used by GPU and CPU metadata. */
-export function compareEdgeNodeIds(left: readonly number[], right: readonly number[]): number {
-  for (let index = 0; index < Math.min(left.length, right.length); index += 1) {
-    const difference = (left[index] ?? 0) - (right[index] ?? 0);
-    if (difference !== 0) return difference;
-  }
-  return left.length - right.length;
-}
-
 function segmentKey(first: number, second: number): string {
   return `${Math.min(first + 1, second + 1)},${Math.max(first + 1, second + 1)}`;
 }

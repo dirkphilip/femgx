@@ -15,7 +15,7 @@ import type { Instance } from "../../src/scene/types";
 import type { BoxSelectionRect } from "../../src/interaction/box-selection";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 import { createPickDepthReadback } from "../../src/renderer/gpu-pick-depth";
-import { getPartInteractionMetadata } from "../../src/renderer/part-interaction-metadata";
+import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
 
 function rect(overrides: Partial<BoxSelectionRect> = {}): BoxSelectionRect {
   return {
@@ -162,7 +162,7 @@ describe("GPU pick regions", () => {
         { id: 100_000, primitiveStart: 1, primitiveCount: 1 },
       ],
     });
-    getPartInteractionMetadata(part);
+    getPartSemanticIndex(part);
     const originalGeometry = part.geometry;
     Object.defineProperty(part, "geometry", {
       configurable: true,

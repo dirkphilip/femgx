@@ -2,11 +2,10 @@ import type {
   ElementTessellation,
   FaceTessellation,
   GeometryBody,
+  GeometryEdge,
   GeometryElementBlock,
-} from "../geometry/types";
-import type { BodyId, Part } from "../geometry/part";
-import type { GeometryEdge } from "../geometry/part";
-import { compareEdgeNodeIds } from "./gpu-edge-authored";
+} from "./types";
+import type { BodyId, Part } from "./part";
 
 type ElementId = ElementTessellation["id"];
 type ElementBlockId = GeometryElementBlock["id"];
@@ -21,8 +20,8 @@ interface EdgeMetadata {
   readonly edgePickId: number;
 }
 
-/** Immutable lookup tables for semantic metadata used by renderer interaction. */
-export interface PartInteractionMetadata {
+/** Immutable semantic lookups shared by renderer interaction and viewport reconciliation. */
+export interface PartSemanticIndex {
   readonly elements: ReadonlyMap<ElementId, ElementTessellation>;
   /** Stable private ordinal (`1..n`) for each authored element id. */
   readonly elementOrdinalById: ReadonlyMap<ElementId, number>;
@@ -33,20 +32,21 @@ export interface PartInteractionMetadata {
   readonly bodyByBlock: ReadonlyMap<ElementBlockId, BodyId>;
   readonly faces: ReadonlyMap<string, FaceMetadata>;
   readonly edges: ReadonlyMap<string, EdgeMetadata>;
+  readonly nodeCount: number;
 }
 
-const metadataByPart = new WeakMap<Part, PartInteractionMetadata>();
+const indexByPart = new WeakMap<Part, PartSemanticIndex>();
 
-/** Returns cached immutable interaction metadata for one part identity. */
-export function getPartInteractionMetadata(part: Part): PartInteractionMetadata {
-  const cached = metadataByPart.get(part);
+/** Returns the cached immutable semantic index for one validated part identity. */
+export function getPartSemanticIndex(part: Part): PartSemanticIndex {
+  const cached = indexByPart.get(part);
   if (cached !== undefined) return cached;
-  const metadata = buildPartInteractionMetadata(part);
-  metadataByPart.set(part, metadata);
-  return metadata;
+  const index = buildPartSemanticIndex(part);
+  indexByPart.set(part, index);
+  return index;
 }
 
-function buildPartInteractionMetadata(part: Part): PartInteractionMetadata {
+function buildPartSemanticIndex(part: Part): PartSemanticIndex {
   const { geometry } = part;
   const elements = new Map((geometry.elements ?? []).map((element) => [element.id, element]));
   const elementOrdinalById = new Map(
@@ -101,7 +101,18 @@ function buildPartInteractionMetadata(part: Part): PartInteractionMetadata {
     bodyByBlock,
     faces,
     edges,
+    nodeCount: Math.floor((geometry.nodePositions?.length ?? 0) / 3),
   };
+}
+
+/** Returns the deterministic authored-edge order used by GPU and CPU metadata. */
+export function compareEdgeNodeIds(left: readonly number[], right: readonly number[]): number {
+  const length = Math.min(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const difference = (left[index] ?? 0) - (right[index] ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return left.length - right.length;
 }
 
 function faceKey(elementId: ElementId, faceIndex: number): string {
