@@ -137,9 +137,9 @@ while renderer-owned edge helpers retain their separate line-list path.
 For imported data, `createElementModelFromFemModel` is the validated conversion
 from the serializable VTK-backed `FemModel` into the dense `ElementModel`
 consumed by element tessellation. Hosts then call
-`elementPart` once and register its explicit homogeneous
-primitive parts in an `Assembly`, which is the logical mixed-model composition
-and placement boundary. A selected `ModelResultField` enters the authored
+`elementPart` once and register the returned semantic part in an `Assembly`;
+its homogeneous primitive groups remain internal draw partitions, not
+additional authoring identities. A selected `ModelResultField` enters the authored
 results path through `createResultFieldFromModelResult` before
 `FemViewport.setResults()`.
 
