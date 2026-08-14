@@ -4,7 +4,7 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["@webgpu/types", "node"],
+    "types": ["@webgpu/types", "node", "svelte"],
 
     "strict": true,
     "noUncheckedIndexedAccess": true,

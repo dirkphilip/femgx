@@ -50,7 +50,7 @@
     "pre-commit": "lint-staged",
     "test:package": "node scripts/package-smoke.mjs",
     "prepublishOnly": "npm run test:package",
-    "dev": "vite",
+    "dev": "vite --config vite.demo.config.ts",
     "build": "npm run typecheck && vite build",
     "build:demo": "npm run typecheck && vite build --config vite.demo.config.ts",
     "build:docs": "typedoc",
