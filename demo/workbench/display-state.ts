@@ -7,11 +7,13 @@ import {
 } from "../../src/index";
 import { partStyleOverride, type WorkbenchModel } from "./model";
 import type { DisplayToggles, ResultDisplayMode } from "./types";
+import type { WorkbenchScalarField } from "./result-controls";
 
 interface ResultStateOptions {
   readonly viewports: readonly FemViewport[];
   readonly model: WorkbenchModel;
   readonly mode: ResultDisplayMode;
+  readonly scalar: WorkbenchScalarField | undefined;
   readonly deformationScale: number;
   readonly vector: ViewportElementVectorConfig | undefined;
   readonly reflect: () => void;
@@ -21,7 +23,13 @@ interface ResultStateOptions {
 export function applyResultState(options: ResultStateOptions): void {
   const config = options.model.results;
   for (const viewport of options.viewports) {
-    const roles = resultRoles(config, options.mode, options.deformationScale, options.vector);
+    const roles = resultRoles(
+      config,
+      options.mode,
+      options.scalar,
+      options.deformationScale,
+      options.vector,
+    );
     if (roles === undefined) {
       viewport.clearResults();
     } else {
@@ -34,10 +42,16 @@ export function applyResultState(options: ResultStateOptions): void {
 function resultRoles(
   config: WorkbenchModel["results"],
   mode: ResultDisplayMode,
+  scalarField: WorkbenchScalarField | undefined,
   deformationScale: number,
   vector: ViewportElementVectorConfig | undefined,
 ): ViewportResultsConfig | undefined {
-  const scalar = mode === "base" ? undefined : config?.scalar;
+  const scalar =
+    mode === "base"
+      ? undefined
+      : scalarField === undefined
+        ? config?.scalar
+        : { field: scalarField };
   const deformation =
     mode !== "deformed" || config?.deformation === undefined
       ? undefined

@@ -2,7 +2,11 @@ import { applyDisplayState, applyResultState } from "./display-state";
 import type { FemViewport } from "../../src/index";
 import type { WorkbenchModel } from "./model";
 import type { DisplayToggles, ResultDisplayMode } from "./types";
-import { vectorConfigForDisplay, type VectorDisplayState } from "./result-controls";
+import {
+  scalarFieldForModel,
+  vectorConfigForDisplay,
+  type VectorDisplayState,
+} from "./result-controls";
 import type { WorkbenchPresentation } from "./presentation";
 import type { WorkbenchViewportOwner } from "./controller-viewport";
 import type { InteractionState } from "../../src/index";
@@ -25,6 +29,7 @@ export function applyControllerResultMode(owner: ControllerDisplayOwner, render:
     viewports: owner.viewports(),
     model: owner.model,
     mode: owner.resultMode,
+    scalar: scalarFieldForModel(owner.model, owner.scalarFieldId),
     deformationScale: owner.deformationScale,
     vector: vectorConfigForDisplay(owner.model, owner.vectorDisplay),
     reflect: owner.presentation.reflectResults.bind(owner.presentation),

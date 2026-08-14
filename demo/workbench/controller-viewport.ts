@@ -28,6 +28,7 @@ export interface WorkbenchViewportOwner {
   readonly selectionGranularity: SelectionGranularity;
   readonly boxSelectionStrategy: BoxSelectionStrategy;
   readonly resultMode: ResultDisplayMode;
+  readonly scalarFieldId: string;
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
   readonly observedPaneSizes: Map<ViewportSlotId, ObservedPaneSize>;

@@ -55,6 +55,15 @@ export function createResultsPreset(): ModelPreset {
     unit: "mm",
     values: createDisplacementValues(model.nodes),
   });
+  const temperature = createResultField({
+    id: "demo-temperature",
+    name: "Demo temperature",
+    location: "nodal",
+    shape: "scalar",
+    count: model.nodes.length / 3,
+    unit: "C",
+    values: createTemperatureValues(model.nodes),
+  });
   const normals = createNormalsField(model.elements.length);
   const fibers = createFibersField(model.elements.length);
   const vectorFields = [normals, fibers] as const;
@@ -78,6 +87,7 @@ export function createResultsPreset(): ModelPreset {
         lengthScale: 1,
       },
     },
+    resultScalarFields: [stress, temperature],
   };
 }
 
@@ -116,6 +126,15 @@ function createStressValues(elementCount: number): Float32Array {
   const values = new Float32Array(elementCount);
   for (let element = 0; element < elementCount; element += 1) {
     values[element] = 10 + element * 10;
+  }
+  return values;
+}
+
+function createTemperatureValues(nodes: ArrayLike<number>): Float32Array {
+  const values = new Float32Array(nodes.length / 3);
+  for (let node = 0; node < values.length; node += 1) {
+    const offset = node * 3;
+    values[node] = 20 + (nodes[offset] ?? 0) * 8 + (nodes[offset + 1] ?? 0) * 3;
   }
   return values;
 }

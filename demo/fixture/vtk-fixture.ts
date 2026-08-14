@@ -4,6 +4,7 @@ import {
   parseVtk,
   type FemModel,
   type PartId,
+  type ScalarField,
   type ViewportResultsConfig,
 } from "../../src/index";
 import { createVtkScene } from "./vtk-scene";
@@ -15,6 +16,7 @@ export interface VtkFixture {
   readonly elementModels: ReturnType<typeof createVtkScene>["elementModels"];
   readonly partIds: { readonly solid: PartId };
   readonly results: ViewportResultsConfig;
+  readonly resultScalarFields: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
 }
 
 const SOLID_PART_ID: PartId = 1;
@@ -27,17 +29,24 @@ export function createVtkFixture(): VtkFixture {
     throw new Error("The sample VTK asset must contain one part");
   }
   const stress = vtkModel.results.find((result) => result.name === "stress");
+  const temperature = vtkModel.results.find((result) => result.name === "temperature");
   const displacement = vtkModel.results.find((result) => result.name === "displacement");
-  if (stress === undefined || displacement === undefined) {
-    throw new Error("The sample VTK asset has no imported stress/displacement results");
+  if (stress === undefined || temperature === undefined || displacement === undefined) {
+    throw new Error("The sample VTK asset has no imported temperature/stress/displacement results");
   }
+  const stressField = createResultFieldFromModelResult(vtkModel, stress, {
+    id: "vtk-stress",
+    unit: "MPa",
+    shape: "scalar",
+  });
+  const temperatureField = createResultFieldFromModelResult(vtkModel, temperature, {
+    id: "vtk-temperature",
+    unit: "C",
+    shape: "scalar",
+  });
   const results: ViewportResultsConfig = {
     scalar: {
-      field: createResultFieldFromModelResult(vtkModel, stress, {
-        id: "vtk-stress",
-        unit: "MPa",
-        shape: "scalar",
-      }),
+      field: stressField,
     },
     deformation: {
       field: createResultFieldFromModelResult(vtkModel, displacement, {
@@ -54,5 +63,6 @@ export function createVtkFixture(): VtkFixture {
     elementModels: imported.elementModels,
     partIds: { solid: SOLID_PART_ID },
     results,
+    resultScalarFields: [stressField, temperatureField],
   };
 }

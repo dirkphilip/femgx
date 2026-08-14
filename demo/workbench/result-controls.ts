@@ -1,4 +1,5 @@
 import type {
+  ScalarField,
   VectorField,
   ViewportElementVectorConfig,
   ViewportResultsConfig,
@@ -12,6 +13,7 @@ export const VECTOR_OFF_VALUE = "__vectors_off__";
 
 export type VectorGlyph = ViewportElementVectorConfig["glyph"];
 export type VectorTransform = ViewportElementVectorConfig["transform"];
+export type WorkbenchScalarField = ScalarField<"nodal"> | ScalarField<"elemental">;
 
 export interface VectorDisplayState {
   readonly fieldId: string;
@@ -72,6 +74,33 @@ export function resultVectorFieldsForModel(
   const active = model.results?.vectors?.field;
   if (active !== undefined && !fields.some((field) => field.id === active.id)) fields.push(active);
   return fields;
+}
+
+/** Returns the demo-owned scalar choices, retaining the active field first. */
+export function resultScalarFieldsForModel(model: WorkbenchModel): readonly WorkbenchScalarField[] {
+  const fields = [...(model.resultScalarFields ?? [])];
+  const active = model.results?.scalar?.field;
+  if (active !== undefined && !fields.some((field) => field.id === active.id))
+    fields.unshift(active);
+  return fields;
+}
+
+/** Resolves one advertised scalar choice for the current model. */
+export function scalarFieldForModel(
+  model: WorkbenchModel,
+  fieldId: string,
+): WorkbenchScalarField | undefined {
+  return resultScalarFieldsForModel(model).find((field) => field.id === fieldId);
+}
+
+/** Returns the active scalar id, or the explicit base-display sentinel. */
+export function activeScalarFieldIdForModel(model: WorkbenchModel): string {
+  return model.results?.scalar?.field.id ?? BASE_RESULT_VALUE;
+}
+
+/** Normalizes a result-mode/id pair for the scalar selector snapshot. */
+export function displayedScalarFieldId(mode: ResultDisplayMode, fieldId: string): string {
+  return mode === "base" || fieldId === BASE_RESULT_VALUE ? BASE_RESULT_VALUE : fieldId;
 }
 
 /** Returns the initial orientation controls for one model. */

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createResultsPreset } from "../../demo/fixture/results-preset";
 import { createBoltedPlatePreset } from "../../demo/fixture/presets";
 import { createExampleModel } from "../../demo/workbench/model";
+import { setResultField } from "../../demo/workbench/result-actions";
 import { setVectorField } from "../../demo/workbench/vector-actions";
 import {
   BASE_RESULT_VALUE,
@@ -14,6 +15,7 @@ import {
   resultModeForDeformationSelection,
   resultModeForModel,
   resultModeForScalarSelection,
+  resultScalarFieldsForModel,
   vectorConfigForDisplay,
   vectorDisplayForField,
   vectorDisplayForModel,
@@ -160,5 +162,30 @@ describe("demo orientation result controls", () => {
       transform: "direction",
       lengthScale: 1,
     });
+  });
+
+  it("advertises nodal and elemental scalars and switches the active field", () => {
+    const model = createExampleModel(createResultsPreset());
+    expect(resultScalarFieldsForModel(model).map((field) => [field.id, field.location])).toEqual([
+      ["demo-stress", "elemental"],
+      ["demo-temperature", "nodal"],
+    ]);
+    const applied: boolean[] = [];
+    const owner = {
+      model,
+      resultMode: "deformed" as const,
+      scalarFieldId: "demo-stress",
+      deformationScale: 1,
+      presentation: { reflectResults: () => undefined },
+      applyResultMode: (render: boolean) => applied.push(render),
+    };
+    setResultField(owner, "demo-temperature");
+    expect(owner.scalarFieldId).toBe("demo-temperature");
+    expect(owner.resultMode).toBe("deformed");
+    expect(applied).toEqual([true]);
+    setResultField(owner, BASE_RESULT_VALUE);
+    expect(owner.scalarFieldId).toBe(BASE_RESULT_VALUE);
+    expect(owner.resultMode).toBe("base");
+    expect(applied).toEqual([true, true]);
   });
 });

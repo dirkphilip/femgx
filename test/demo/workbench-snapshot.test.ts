@@ -126,6 +126,7 @@ function createSnapshotInput(): WorkbenchSnapshotInput {
     boxSelectionStrategy: "visible-surface",
     secondaryOpen: false,
     secondaryBusy: false,
+    scalarFieldId: "__base__",
     resultMode: "base",
     deformationScale: 1,
     vectorDisplay: {

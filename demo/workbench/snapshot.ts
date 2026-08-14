@@ -5,9 +5,10 @@ import type { SelectionGranularity } from "./pick";
 import type { BoxSelectionStrategy } from "./box-selection-resolver";
 import { sectionAxisBounds, type SectionAxis } from "./section-controls";
 import {
-  BASE_RESULT_VALUE,
   DEFORMATION_OFF_VALUE,
+  displayedScalarFieldId,
   resultVectorFieldsForModel,
+  resultScalarFieldsForModel,
   VECTOR_OFF_VALUE,
 } from "./result-controls";
 import type { DisplayToggles } from "./types";
@@ -161,6 +162,7 @@ export interface WorkbenchSnapshotInput {
   readonly continuous: boolean;
   readonly selectionGranularity: SelectionGranularity;
   readonly boxSelectionStrategy: BoxSelectionStrategy;
+  readonly scalarFieldId: string;
   readonly secondaryOpen: boolean;
   readonly secondaryBusy: boolean;
   readonly resultMode: ResultDisplayMode;
@@ -184,6 +186,7 @@ export interface WorkbenchSnapshotOwner {
   readonly continuousEnabled: boolean;
   readonly selectionGranularity: SelectionGranularity;
   readonly boxSelectionStrategy: BoxSelectionStrategy;
+  readonly scalarFieldId: string;
   readonly resultMode: ResultDisplayMode;
   readonly deformationScale: number;
   readonly vectorDisplay: VectorDisplayState;
@@ -273,6 +276,7 @@ export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): Workbench
     continuous: owner.continuousEnabled,
     selectionGranularity: owner.selectionGranularity,
     boxSelectionStrategy: owner.boxSelectionStrategy,
+    scalarFieldId: owner.scalarFieldId,
     secondaryOpen: owner.viewportSlots.isSecondaryVisible(),
     secondaryBusy: owner.viewportSlots.isSecondaryOpening(),
     resultMode: owner.resultMode,
@@ -345,26 +349,22 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
 }
 
 function createAnalysisSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapshot["analysis"] {
-  const results = input.model.results;
-  const scalar = results?.scalar?.field;
-  const deformation = results?.deformation?.field;
-  const scalarFields = scalar === undefined ? [] : [resultField(scalar)];
+  const deformation = input.model.results?.deformation?.field;
+  const scalarFields = resultScalarFieldsForModel(input.model).map(resultField);
   const deformationFields = deformation === undefined ? [] : [resultField(deformation)];
   const vectorFields = resultVectorFieldsForModel(input.model).map((field) =>
     Object.freeze({ id: field.id, name: field.name }),
   );
   const resultControlsVisible =
-    scalar !== undefined || deformation !== undefined || vectorFields.length > 0;
+    scalarFields.length > 0 || deformation !== undefined || vectorFields.length > 0;
   const vectorFieldId = vectorFields.some((field) => field.id === input.vectorDisplay.fieldId)
     ? input.vectorDisplay.fieldId
     : VECTOR_OFF_VALUE;
-  const vectorControlsDisabled = vectorFieldId === VECTOR_OFF_VALUE;
   return Object.freeze({
     resultControlsVisible,
     resultMode: input.resultMode,
     scalarFields: Object.freeze(scalarFields),
-    scalarFieldId:
-      input.resultMode === "base" || scalar === undefined ? BASE_RESULT_VALUE : scalar.id,
+    scalarFieldId: displayedScalarFieldId(input.resultMode, input.scalarFieldId),
     deformationFields: Object.freeze(deformationFields),
     deformationFieldId:
       input.resultMode === "deformed" && deformation !== undefined
@@ -374,7 +374,7 @@ function createAnalysisSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapsho
     deformationScale: input.deformationScale,
     vector: Object.freeze({ ...input.vectorDisplay, fieldId: vectorFieldId }),
     vectorFields: Object.freeze(vectorFields),
-    vectorControlsDisabled,
+    vectorControlsDisabled: vectorFieldId === VECTOR_OFF_VALUE,
     sectionAxis: input.sectionAxis,
     sectionOffset: input.sectionOffset,
     sectionRange: sectionRange(input.model.bounds, input.sectionAxis),
