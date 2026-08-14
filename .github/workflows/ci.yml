@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # Keep these job ids stable: they are the required branch-protection contexts.
   check:
@@ -47,7 +51,9 @@ jobs:
         with:
           name: coverage
           path: coverage
-          retention-days: 14
+          # Coverage is useful for PR review while it is current; keep the
+          # longer-lived copy on main for historical investigation.
+          retention-days: ${{ github.event_name == 'pull_request' && 7 || 14 }}
 
   e2e:
     runs-on: ubuntu-latest
