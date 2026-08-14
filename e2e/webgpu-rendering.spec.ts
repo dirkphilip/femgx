@@ -660,6 +660,34 @@ function isFullSizePointSprite(bounds: {
   return width > 5 && width <= 10 && height > 5 && height <= 10;
 }
 
+interface CentralColor {
+  readonly red: number;
+  readonly green: number;
+  readonly blue: number;
+}
+
+function centralColor(rgba: Buffer, width: number, radius = 12): CentralColor {
+  const height = Math.floor(rgba.length / 4 / width);
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let count = 0;
+  for (let y = Math.floor(height / 2) - radius; y <= Math.floor(height / 2) + radius; y += 1) {
+    for (let x = Math.floor(width / 2) - radius; x <= Math.floor(width / 2) + radius; x += 1) {
+      const offset = (y * width + x) * 4;
+      red += rgba[offset] ?? 0;
+      green += rgba[offset + 1] ?? 0;
+      blue += rgba[offset + 2] ?? 0;
+      count += 1;
+    }
+  }
+  return { red: red / count, green: green / count, blue: blue / count };
+}
+
+function colorDifference(a: CentralColor, b: CentralColor): number {
+  return Math.max(Math.abs(a.red - b.red), Math.abs(a.green - b.green), Math.abs(a.blue - b.blue));
+}
+
 test("composes the transparency fixture and picks its nearest translucent face", async ({
   page,
 }) => {
@@ -699,6 +727,139 @@ test("composes the transparency fixture and picks its nearest translucent face",
     differingPixelCount(selectedRgba, selectedShellOnlyRgba),
     "selected translucent shells must preserve interior geometry behind the front face",
   ).toBeGreaterThan(500);
+});
+
+test("weights nearer equal-opacity layers without registration-order dependence", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const hasWebGpu = await page.evaluate(() => "gpu" in navigator);
+  if (!hasWebGpu) test.skip(true, "WebGPU is unavailable in this browser environment");
+
+  const canvas = page.locator("#depth-weight-test");
+  const assertDepthWeight = async (viewportSize: {
+    readonly width: number;
+    readonly height: number;
+  }) => {
+    await page.setViewportSize(viewportSize);
+    await page.evaluate(() => {
+      document.body.innerHTML =
+        '<canvas id="depth-weight-test" style="display:block;width:min(640px,100vw);height:420px"></canvas>';
+    });
+    await expect(canvas).toBeVisible();
+
+    const renderLayers = async (
+      reverseRegistration: boolean,
+      cameraZ: number,
+    ): Promise<CentralColor> => {
+      await page.evaluate(
+        async ({ reverseRegistration: reverse, cameraZ: z }) => {
+          const modulePath = "/src/index.ts";
+          const api = (await import(/* @vite-ignore */ modulePath)) as typeof Api;
+          const state = window as typeof window & {
+            __depthWeightViewport?: { destroy: () => void };
+          };
+          state.__depthWeightViewport?.destroy();
+          const createLayer = (id: number) =>
+            api.createPart(id, {
+              positions: new Float32Array([
+                -0.75, -0.6, 0, 0.75, -0.6, 0, 0.75, 0.6, 0, -0.75, 0.6, 0,
+              ]),
+              indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+              primitive: "triangles",
+            });
+          const red = createLayer(1);
+          const green = createLayer(2);
+          const orderedParts = reverse ? [green, red] : [red, green];
+          let builder = api.createScene();
+          for (const part of orderedParts) builder = builder.addPart(part);
+          const redPlacement = {
+            kind: "part" as const,
+            partId: 1,
+            transform: api.translation(0, 0, 0.45),
+          };
+          const greenPlacement = {
+            kind: "part" as const,
+            partId: 2,
+            transform: api.translation(0, 0, -0.45),
+          };
+          const placements = reverse
+            ? [greenPlacement, redPlacement]
+            : [redPlacement, greenPlacement];
+          const scene = builder
+            .addAssembly({ id: 1, name: "depth-weight-test", placements })
+            .withRoot(1)
+            .build();
+          let interaction = api.createInteractionState();
+          interaction = api.setPartOverride(interaction, 1, {
+            color: { r: 1, g: 0, b: 0, a: 1 },
+            opacity: 0.5,
+            edge: false,
+            nodes: false,
+          });
+          interaction = api.setPartOverride(interaction, 2, {
+            color: { r: 0, g: 1, b: 0, a: 1 },
+            opacity: 0.5,
+            edge: false,
+            nodes: false,
+          });
+          const canvas = document.getElementById("depth-weight-test");
+          if (!(canvas instanceof HTMLCanvasElement))
+            throw new Error("depth-weight canvas missing");
+          const viewport = await api.createFemViewport({
+            canvas,
+            scene,
+            interaction,
+            originTriad: false,
+            background: "white",
+            camera: api.createCamera({
+              position: [0, 0, z],
+              target: [0, 0, 0],
+              up: [0, 1, 0],
+              near: 0.1,
+              far: 4,
+              orthoHeight: 2,
+              width: 640,
+              height: 420,
+            }),
+          });
+          state.__depthWeightViewport = viewport;
+        },
+        { reverseRegistration, cameraZ },
+      );
+      await stableCanvasPixels(page, canvas);
+      const bounds = await canvas.boundingBox();
+      if (bounds === null) throw new Error("depth-weight canvas has no bounds");
+      return centralColor(await canvasRgba(page, canvas), Math.round(bounds.width));
+    };
+
+    const redNear = await renderLayers(false, 2);
+    const redNearReversed = await renderLayers(true, 2);
+    const greenNear = await renderLayers(false, -2);
+    await page.evaluate(() => {
+      const state = window as typeof window & {
+        __depthWeightViewport?: { destroy: () => void };
+      };
+      state.__depthWeightViewport?.destroy();
+    });
+
+    expect(redNear.red - redNear.green, "the nearer red layer must dominate").toBeGreaterThan(5);
+    expect(
+      greenNear.green - greenNear.red,
+      "reversing the camera must favor the nearer green layer",
+    ).toBeGreaterThan(5);
+    expect(
+      colorDifference(redNear, redNearReversed),
+      "registration order must not change the frame",
+    ).toBeLessThan(2);
+    expect(
+      Math.abs(redNear.blue - greenNear.blue),
+      "coverage must remain stable when depth roles swap",
+    ).toBeLessThan(2);
+  };
+
+  await assertDepthWeight({ width: 1280, height: 720 });
+  await assertDepthWeight({ width: 390, height: 844 });
 });
 
 test("removes zero-alpha shell overlays without removing their picks", async ({ page }) => {

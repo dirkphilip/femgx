@@ -40,12 +40,28 @@ struct TransparencyOutput {
   @location(1) revealage: vec4<f32>,
 };
 
-fn transparencyWeight(alpha: f32) -> f32 {
-  return max(0.01, alpha * 8.0);
+fn sceneTransparencyWeight(alpha: f32, depth: f32) -> f32 {
+  let safeAlpha = select(0.0, clamp(alpha, 0.0, 1.0), alpha == alpha);
+  let safeDepth = select(0.0, clamp(depth, 0.0, 1.0), depth == depth);
+  let alphaWeight = max(0.01, safeAlpha * 8.0);
+  let depthWeight = 1.0 - safeDepth * 0.75;
+  return clamp(alphaWeight * depthWeight, 0.01, 8.0);
 }
 
-fn weightedTransparency(color: vec3<f32>, alpha: f32) -> TransparencyOutput {
-  let weight = transparencyWeight(alpha);
+fn weightedSceneTransparency(
+  color: vec3<f32>,
+  alpha: f32,
+  depth: f32,
+) -> TransparencyOutput {
+  let weight = sceneTransparencyWeight(alpha, depth);
+  var output: TransparencyOutput;
+  output.accumulation = vec4<f32>(color * alpha * weight, alpha * weight);
+  output.revealage = vec4<f32>(alpha);
+  return output;
+}
+
+fn weightedPresentationTransparency(color: vec3<f32>, alpha: f32) -> TransparencyOutput {
+  let weight = max(0.01, alpha * 8.0);
   var output: TransparencyOutput;
   output.accumulation = vec4<f32>(color * alpha * weight, alpha * weight);
   output.revealage = vec4<f32>(alpha);
@@ -59,6 +75,7 @@ ${transparencyOutput}
 
 @fragment
 fn fragmentMain(
+  @builtin(position) fragmentPosition: vec4<f32>,
   @location(0) @interpolate(flat) color: vec4<f32>,
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
@@ -67,7 +84,11 @@ fn fragmentMain(
 ) -> TransparencyOutput {
   let displayedColor = select(color, resultColor, resultColorEnabled != 0u);
   if (dot(local, local) > 1.0 || displayedColor.a <= 0.0 || displayedColor.a >= 1.0) { discard; }
-  return weightedTransparency(displayedColor.rgb + vec3<f32>(emissive), displayedColor.a);
+  return weightedSceneTransparency(
+    displayedColor.rgb + vec3<f32>(emissive),
+    displayedColor.a,
+    fragmentPosition.z,
+  );
 }
 `;
 
@@ -81,6 +102,7 @@ ${transparencyOutput}
 
 @fragment
 fn fragmentMain(
+  @builtin(position) fragmentPosition: vec4<f32>,
   @location(0) @interpolate(flat) color: vec4<f32>,
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
@@ -96,7 +118,7 @@ fn fragmentMain(
     camera.keyLightDirection.xyz,
     camera.viewDirection.xyz,
   );
-  return weightedTransparency(litColor + vec3<f32>(emissive), displayedColor.a);
+  return weightedSceneTransparency(litColor + vec3<f32>(emissive), displayedColor.a, fragmentPosition.z);
 }
 `;
 

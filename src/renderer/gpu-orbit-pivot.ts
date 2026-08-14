@@ -319,5 +319,5 @@ fn centerDot(vertex: u32) -> vec2<f32> {
   return input.color;
 }
 @fragment fn hiddenFragmentMain(input: Output) -> TransparencyOutput {
-  return weightedTransparency(input.color.rgb, .25);
+  return weightedPresentationTransparency(input.color.rgb, .25);
 }`;
