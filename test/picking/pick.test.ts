@@ -221,6 +221,33 @@ describe("resolvePickHit", () => {
       localPosition: [1, 0, 0],
     });
   });
+
+  it("leaves element ownership absent for authored node-only point geometry", () => {
+    const standalone = partWithGeometry({
+      positions: new Float32Array([2, 3, 4]),
+      indices: new Uint32Array([0]),
+      primitive: "points",
+      nodePickIds: new Uint32Array([1]),
+      nodePositions: new Float32Array([2, 3, 4]),
+    });
+    const standaloneContext: PickContext = {
+      instances: [instanceAt(0, 4)],
+      parts: new Map([[4, standalone]]),
+    };
+
+    expect(
+      resolvePickHit(standaloneContext, ids({ instancePickId: 1, nodePickId: 1 }), [2, 3, 4]),
+    ).toEqual({
+      kind: "node",
+      partId: 4,
+      instanceId: "1/0",
+      nodeId: 0,
+      localPosition: [2, 3, 4],
+      worldPosition: [2, 3, 4],
+      neighborElementIds: [],
+      neighborNodeIds: [],
+    });
+  });
 });
 
 describe("geometryAdjacency", () => {
@@ -292,6 +319,21 @@ describe("interactionTargetFromHit", () => {
     });
     expect(interactionTargetFromHit(node, "face")).toBeUndefined();
     expect(interactionTargetFromHit(node, "body")).toBeUndefined();
+  });
+
+  it("does not promote a node-only hit to a fabricated element target", () => {
+    const node: PickHit = {
+      kind: "node",
+      partId: 4,
+      instanceId: "1/2",
+      nodeId: 2,
+      localPosition: [0, 0, 0],
+      worldPosition: [2, 3, 4],
+      neighborElementIds: [],
+      neighborNodeIds: [],
+    };
+
+    expect(interactionTargetFromHit(node, "element")).toBeUndefined();
   });
 });
 

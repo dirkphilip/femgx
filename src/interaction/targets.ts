@@ -43,9 +43,13 @@ export function interactionTargetFromHit(
         ? { kind: "block", instanceId: hit.instanceId, blockId: hit.blockId }
         : undefined;
     case "element":
-      return hit.kind !== "instance"
-        ? { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId }
-        : undefined;
+      if (hit.kind === "instance") return undefined;
+      if (hit.kind === "node") {
+        return hit.elementId === undefined
+          ? undefined
+          : { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId };
+      }
+      return { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId };
     case "face":
       return hit.kind === "face"
         ? {

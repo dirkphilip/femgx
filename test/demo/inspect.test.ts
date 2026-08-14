@@ -45,6 +45,20 @@ describe("demo result inspection", () => {
       "Stress (elemental, MPa): 15",
     );
   });
+
+  it("does not invent an elemental result for a standalone node hit", () => {
+    const field = createResultField({
+      id: "stress",
+      name: "Stress",
+      location: "elemental",
+      shape: "scalar",
+      count: 3,
+      unit: "MPa",
+      values: new Float32Array([5, 10, 15]),
+    });
+
+    expect(describePick(nodeHit(2), undefined, resultState(field))).not.toContain("Stress");
+  });
 });
 
 function resultState(field: ViewportResultsState["scalarField"]): ViewportResultsState {
@@ -57,12 +71,12 @@ function resultState(field: ViewportResultsState["scalarField"]): ViewportResult
   };
 }
 
-function nodeHit(nodeId: number, elementId = 0): PickHit {
+function nodeHit(nodeId: number, elementId?: number): PickHit {
   return {
     kind: "node",
     partId: 1,
     instanceId: "instance-1",
-    elementId,
+    ...(elementId === undefined ? {} : { elementId }),
     nodeId,
     localPosition: [0, 0, 0],
     worldPosition: [0, 0, 0],

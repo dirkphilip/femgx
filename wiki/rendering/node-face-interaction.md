@@ -12,7 +12,9 @@ oriented element faces are the finest-grained pickable units under
   tessellation records a `nodePickIds` array (one `u32` per mesh vertex,
   `nodeId + 1`) plus `nodePositions` (per `NodeId`, three floats) so picks
   resolve to local/world positions on the CPU. Supported element tessellation
-  emits authored nodes only; `0` remains reserved for node-less custom geometry.
+  emits authored nodes only. Standalone FE nodes use explicit authored `Point`
+  elements; generic point geometry may instead be node-only. `0` remains
+  reserved for node-less custom geometry.
 - **Faces**: `facesOfElement` pairs every `facesOf(element)` result with a
   stable `faceIndex` (canonical order). Each `FaceTessellation` carries the
   authored `(elementId, faceIndex)` identity, canonical `key`, node loop,
@@ -39,13 +41,16 @@ oriented element faces are the finest-grained pickable units under
   The corner positions are read from a tightly packed `array<f32>` (3 floats
   per vertex),
   not `array<vec3<f32>>` — a vec3 storage array strides at 16 bytes, which
-  would misalign the packed `positions` buffer. Lines and points report
-  element/face/node = 0.
+  would misalign the packed `positions` buffer. Authored Point and Line
+  elements retain their element id; generic point geometry may have no element
+  owner.
 - The private resolver returns the deepest physical level the hit supports
   (`node` > `face` > `element` > `instance`). `PickHit` carries exact displayed
   world position from the same depth readback; node hits carry local position and
   geometry-derived adjacency, while face hits carry the oriented node loop,
-  world-space normal, and neighbor elements. Hosts use
+  world-space normal, and neighbor elements. `NodePickHit.elementId` is present
+  only when the rasterized node has a truthful element owner; node-only point
+  geometry omits it and keeps adjacency empty. Hosts use
   `interactionTargetFromHit` for explicit granularity policy.
 
 ## Interaction state and emphasis

@@ -36,8 +36,8 @@ export interface NodePickHit {
   readonly kind: "node";
   readonly partId: PartId;
   readonly instanceId: InstanceId;
-  /** The element whose tessellation was hit (the node's owning element here). */
-  readonly elementId: ElementId;
+  /** The element whose tessellation was hit, when the node has one. */
+  readonly elementId?: ElementId;
   readonly nodeId: NodeId;
   /** Optional logical body owning the picked element. */
   readonly bodyId?: BodyId;
