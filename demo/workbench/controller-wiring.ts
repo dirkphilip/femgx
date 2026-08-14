@@ -58,7 +58,6 @@ export interface WorkbenchControllerWiringContext {
   readonly listenerController: AbortController;
   readonly isPointerGestureActive: () => boolean;
   readonly setActiveSlot: (slotId: ViewportSlotId) => void;
-  readonly toggleSecondaryViewport: () => void;
   readonly setBackground: (value: string) => void;
   readonly setNodes: () => void;
   readonly setContinuous: () => void;
@@ -133,9 +132,6 @@ export function installControllerLifecycle(context: WorkbenchControllerWiringCon
     dragging: () => context.isPointerGestureActive(),
     setActive: () => {
       context.setActiveSlot("primary");
-    },
-    toggleViewport: () => {
-      context.toggleSecondaryViewport();
     },
   });
 }

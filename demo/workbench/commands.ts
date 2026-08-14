@@ -17,6 +17,7 @@ interface WorkbenchCommandOwner {
   setNodes(): void;
   setContinuous(): void;
   setSelectionGranularity(value: string): void;
+  toggleSecondaryViewport(): Promise<void>;
   setDeformationField(value: string): void;
   setDeformationScale(value: string): void;
   setVectorField(value: string): void;
@@ -44,6 +45,9 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     toggleNodes: owner.setNodes.bind(owner),
     toggleContinuous: owner.setContinuous.bind(owner),
     setSelectionGranularity: owner.setSelectionGranularity.bind(owner),
+    toggleSecondaryViewport: () => {
+      void owner.toggleSecondaryViewport();
+    },
     setDeformationField: owner.setDeformationField.bind(owner),
     setDeformationScale: owner.setDeformationScale.bind(owner),
     setVectorField: owner.setVectorField.bind(owner),

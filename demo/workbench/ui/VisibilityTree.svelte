@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { WorkbenchController } from "../controller";
-  import type { WorkbenchVisibilityRowSnapshot, WorkbenchVisibilitySnapshot } from "../snapshot";
+  import type {
+    WorkbenchVisibilityRowSnapshot,
+    WorkbenchVisibilitySnapshot,
+  } from "../visibility-snapshot";
 
   let {
     controller,

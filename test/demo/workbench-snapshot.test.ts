@@ -20,6 +20,16 @@ describe("workbench presentation snapshot", () => {
     });
     expect(snapshot.model.partCount).toBe(input.model.scene.parts.size);
     expect(snapshot.hierarchy.occurrenceCount).toBe(input.runtime.occurrenceCount);
+    expect(snapshot.toolbar).toMatchObject({
+      secondaryOpen: false,
+      secondaryBusy: false,
+    });
+    expect(
+      createWorkbenchSnapshot({ ...input, secondaryOpen: true, secondaryBusy: true }).toolbar,
+    ).toMatchObject({
+      secondaryOpen: true,
+      secondaryBusy: true,
+    });
     expect(snapshot).not.toHaveProperty("runtime");
     expect(snapshot).not.toHaveProperty("interaction");
     expect(Object.isFrozen(snapshot)).toBe(true);
@@ -112,6 +122,8 @@ function createSnapshotInput(): WorkbenchSnapshotInput {
     toggles: { edges: true, nodes: true, diagnostics: false },
     continuous: false,
     selectionGranularity: "element",
+    secondaryOpen: false,
+    secondaryBusy: false,
     resultMode: "base",
     deformationScale: 1,
     vectorDisplay: {
