@@ -12,6 +12,7 @@ import {
 } from "../../demo/workbench/snapshot";
 import type { WorkbenchVisibilityRowSnapshot } from "../../demo/workbench/visibility-snapshot";
 import type { VisibilityRowTarget } from "../../demo/workbench/visibility-snapshot";
+import { DEFORMATION_OFF_VALUE } from "../../demo/workbench/result-controls";
 import BuildInfo from "../../demo/workbench/ui/BuildInfo.svelte";
 import ResultLegend from "../../demo/workbench/ui/ResultLegend.svelte";
 import StatusOverlays from "../../demo/workbench/ui/StatusOverlays.svelte";
@@ -123,6 +124,7 @@ describe("workbench Svelte controls", () => {
       analysis: {
         ...base.analysis,
         resultMode: "colored",
+        deformationFieldId: DEFORMATION_OFF_VALUE,
         deformationDisabled: true,
         vectorControlsDisabled: true,
         sectionAxis: "off",
