@@ -2,6 +2,7 @@
   import { onDestroy } from "svelte";
   import type { WorkbenchController } from "../controller";
   import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../snapshot";
+  import BuildInfo from "./BuildInfo.svelte";
   import PrimaryToolbar from "./PrimaryToolbar.svelte";
   import StatusOverlays from "./StatusOverlays.svelte";
   import ContextMenu from "./ContextMenu.svelte";
@@ -37,7 +38,7 @@
       <h1>FemGx</h1>
       <p class="subtitle">FE inspection</p>
       <a class="brand-link" href="./api/">API reference</a>
-      <div id="build-info" class="build-info" data-testid="build-info"></div>
+      <BuildInfo />
     </div>
     <h2 class="sidebar-heading">Visibility</h2>
     <VisibilityTree {controller} visibility={snapshot?.hierarchy.visibility} />

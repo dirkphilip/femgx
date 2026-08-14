@@ -24,7 +24,6 @@ export interface DemoView {
   readonly canvas: HTMLCanvasElement;
   readonly scene: HTMLElement;
   readonly boxSelectionOverlay: HTMLElement;
-  readonly buildInfo: HTMLElement;
   readonly modelFileInput: HTMLInputElement;
 }
 
@@ -37,7 +36,6 @@ export function queryDemoView(): DemoView {
     secondaryCanvas: requiredCanvas("#secondary-view"),
     secondaryScene: requiredElement("#secondary-scene"),
     secondaryBoxSelectionOverlay: requiredElement("#secondary-box-selection-overlay"),
-    buildInfo: requiredElement("#build-info"),
     modelFileInput: requiredInput("#model-file"),
   };
   return createDemoView(elements);

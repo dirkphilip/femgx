@@ -19,20 +19,9 @@ export function buildInfoPresentation(timestamp: string, revision: string): Buil
   };
 }
 
-/** Renders one accessible build marker without making a runtime metadata request. */
-export function renderBuildInfo(target: HTMLElement): void {
-  const presentation = buildInfoPresentation(buildTimestamp(), buildRevision());
-  target.replaceChildren();
-  target.append(`${presentation.timestamp} · `);
-  if (presentation.shortRevision === undefined || presentation.commitUrl === undefined) {
-    target.append("local build");
-    return;
-  }
-  const link = document.createElement("a");
-  link.href = presentation.commitUrl;
-  link.textContent = presentation.shortRevision;
-  link.setAttribute("aria-label", `Source commit ${presentation.shortRevision}`);
-  target.append(link);
+/** Returns the build marker for the current static demo bundle. */
+export function currentBuildInfoPresentation(): BuildInfoPresentation {
+  return buildInfoPresentation(buildTimestamp(), buildRevision());
 }
 
 function buildTimestamp(): string {
