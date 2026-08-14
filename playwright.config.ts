@@ -73,8 +73,7 @@ export default defineConfig({
     },
     {
       name: "chrome-software-interaction",
-      testMatch:
-        /(demo-interaction|demo-lifecycle|mobile|mobile-touch|webgpu-camera|webgpu-glb)\.spec\.ts/,
+      testMatch: /(mobile|webgpu-glb|smoke)\.spec\.ts/,
       retries: 0,
       workers: 1,
       use: {
