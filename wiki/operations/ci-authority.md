@@ -7,6 +7,20 @@ configured in `.github/workflows/ci.yml`.
 External workflow actions are pinned to immutable commit SHAs; `npm run lint:actions`
 guards that policy across every workflow file.
 
+## Workflow lifecycle
+
+The `CI` workflow uses a workflow-specific concurrency group for each pull
+request, so a newer pull-request commit cancels older pending or in-progress
+`check` and `e2e` runs. Pushes to `main` use a separate ref-based group and are
+never cancelled by pull-request runs. The group includes the workflow identity,
+so it cannot overlap with Pages or the manually triggered performance workflow.
+
+Coverage artifacts are retained for 7 days on pull requests and 14 days on
+`main`: pull-request coverage is primarily a current-review aid, while the
+longer-lived main artifact supports historical investigation. Failure-only
+Playwright reports remain available for 14 days so no-GPU e2e diagnostics are
+not lost when a run fails.
+
 ## Merge decision
 
 - **Pending or missing checks** keep a pull request unmergeable.
