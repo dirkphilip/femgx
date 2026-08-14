@@ -11,7 +11,6 @@ import type { WorkbenchModel } from "./model";
 import type { DisplayToggles, ResultDisplayMode } from "./types";
 import type { SelectionGranularity } from "./pick";
 import type { WorkbenchViewportSlot } from "./viewport-slots";
-import type { VisibilityRowTarget } from "./tree-hover";
 import type { SectionAxis } from "./section-controls";
 import type { VectorDisplayState } from "./result-controls";
 import {
@@ -43,7 +42,6 @@ export interface WorkbenchControllerWiringContext {
   readonly applyDisplayedInteraction: () => void;
   readonly render: () => void;
   readonly publishSnapshot: () => void;
-  readonly setTreeHover: (target: VisibilityRowTarget | undefined) => void;
   readonly setEdges: () => void;
   readonly setDiagnostics: () => void;
   readonly fitView: () => void;
@@ -99,7 +97,6 @@ export function createControllerInfrastructure(
     applyDisplayedInteraction: context.applyDisplayedInteraction.bind(context),
     render: context.render.bind(context),
     publishSnapshot: context.publishSnapshot.bind(context),
-    setTreeHover: context.setTreeHover.bind(context),
     setEdges: () => {
       context.setEdges();
     },
@@ -134,7 +131,6 @@ export function installControllerLifecycle(context: WorkbenchControllerWiringCon
     canvas: context.canvas,
     signal: context.listenerController.signal,
     interaction: context.interactionController,
-    visibilityPanel: context.visibilityPanel,
     boxPreview: context.boxPreview,
     dragging: () => context.isPointerGestureActive(),
     setActive: () => {

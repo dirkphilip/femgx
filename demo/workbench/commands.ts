@@ -8,6 +8,7 @@ import type { WorkbenchMenu } from "./menu";
 interface WorkbenchCommandOwner {
   readonly runtime: SceneRuntime;
   readonly visibilityActions: WorkbenchVisibilityActions;
+  readonly visibilityPanel: { toggleExpanded(occurrenceId: string): void };
   readonly menu: WorkbenchMenu;
   readonly interactionController: WorkbenchInteraction;
   setProjection(): void;
@@ -30,6 +31,7 @@ interface WorkbenchCommandOwner {
   setResultField(id: string): void;
   setSectionAxis(axis: string): void;
   setSectionOffset(value: string): void;
+  setTreeHover(target: VisibilityRowTarget | undefined): void;
 }
 
 /** Adapts existing controller methods to the typed presentation command surface. */
@@ -64,6 +66,13 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     toggleVisibility: (target) => {
       toggleVisibility(owner, target);
     },
+    toggleVisibilityTree: (occurrenceId) => {
+      owner.visibilityPanel.toggleExpanded(occurrenceId);
+    },
+    toggleBodyHighlight: (target) => {
+      owner.visibilityActions.bodyHighlight(target.instanceId, target.bodyId);
+    },
+    setTreeHover: owner.setTreeHover.bind(owner),
   };
 }
 

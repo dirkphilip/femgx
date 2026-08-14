@@ -5,6 +5,7 @@
   import PrimaryToolbar from "./PrimaryToolbar.svelte";
   import StatusOverlays from "./StatusOverlays.svelte";
   import ContextMenu from "./ContextMenu.svelte";
+  import VisibilityTree from "./VisibilityTree.svelte";
 
   let controller: WorkbenchController | undefined = $state();
   let snapshot: WorkbenchSnapshot | undefined = $state();
@@ -33,7 +34,7 @@
       <div id="build-info" class="build-info" data-testid="build-info"></div>
     </div>
     <h2 class="sidebar-heading">Visibility</h2>
-    <div id="visibility-panel" data-testid="visibility-panel"></div>
+    <VisibilityTree {controller} visibility={snapshot?.hierarchy.visibility} />
   </aside>
   <div id="viewport-workspace" data-secondary-open="false">
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->

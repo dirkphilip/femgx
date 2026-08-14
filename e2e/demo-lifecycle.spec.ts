@@ -370,8 +370,8 @@ test("lists the bolted assembly hierarchy in the visibility panel", async ({ pag
   ]) {
     await expect(visibility).toContainText(name);
   }
-  await expect(page.getByTestId("assembly-node-vis-3")).toHaveAttribute(
-    "data-assembly-node-id",
+  await expect(page.getByTestId("assembly-occurrence-vis-3")).toHaveAttribute(
+    "data-assembly-occurrence-id",
     "1/1/0",
   );
 });

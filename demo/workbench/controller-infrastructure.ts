@@ -7,7 +7,6 @@ import { WorkbenchViewportSlots } from "./viewport-slots";
 import type { WorkbenchViewportSlot } from "./viewport-slots";
 import type { DisplayToggles, ResultDisplayMode, WorkbenchOptions } from "./types";
 import type { SelectionGranularity } from "./pick";
-import type { VisibilityRowTarget } from "./tree-hover";
 import type { SectionAxis } from "./section-controls";
 import type { VectorGlyph, VectorTransform } from "./result-controls";
 
@@ -36,7 +35,6 @@ export interface WorkbenchInfrastructureOptions {
   readonly applyDisplayedInteraction: () => void;
   readonly render: () => void;
   readonly publishSnapshot: () => void;
-  readonly setTreeHover: (target: VisibilityRowTarget | undefined) => void;
   readonly setEdges: () => void;
   readonly setDiagnostics: () => void;
   readonly fitView: () => void;
@@ -80,7 +78,6 @@ export function createWorkbenchInfrastructure(
     applyDisplayedInteraction: options.applyDisplayedInteraction,
     render: options.render,
     publishSnapshot: options.publishSnapshot,
-    setTreeHover: options.setTreeHover,
     applyMenuAction: (action) => {
       applyControllerMenuAction(action, options, features.current);
     },
