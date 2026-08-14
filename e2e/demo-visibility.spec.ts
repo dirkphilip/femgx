@@ -14,7 +14,7 @@ test("toggles one fastener occurrence and restores it via the visibility panel",
   await waitForRenderer(page);
   expect(await dataset(page, "selected")).toBe("");
   expect(await status(page)).toContain("34 visible");
-  const fastenerCheckbox = page.getByTestId("assembly-node-vis-3");
+  const fastenerCheckbox = page.getByTestId("assembly-occurrence-vis-3");
   await expect(fastenerCheckbox).toBeChecked();
 
   await fastenerCheckbox.uncheck();
@@ -25,14 +25,14 @@ test("toggles one fastener occurrence and restores it via the visibility panel",
   await expect(fastenerCheckbox).toBeChecked();
   expect(await status(page)).toContain("34 visible");
 });
-test("uses stable runtime-node and instance controls", async ({ page }) => {
+test("uses stable runtime-occurrence and instance controls", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByTestId("assembly-node-vis-0")).toBeChecked();
+  await expect(page.getByTestId("assembly-occurrence-vis-0")).toBeChecked();
   await page.getByTestId("model-select").selectOption("vtk");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "vtk");
 
-  const rootCheckbox = page.getByTestId("assembly-node-vis-0");
-  await expect(rootCheckbox).toHaveAttribute("data-assembly-node-id", "1");
+  const rootCheckbox = page.getByTestId("assembly-occurrence-vis-0");
+  await expect(rootCheckbox).toHaveAttribute("data-assembly-occurrence-id", "1");
   await expect(rootCheckbox).toBeChecked();
   const partCheckbox = page.getByTestId("instance-vis-0");
   await expect(partCheckbox).toHaveAttribute("data-instance-id", "1/0");
@@ -59,17 +59,18 @@ test("uses stable runtime-node and instance controls", async ({ page }) => {
 });
 test("collapses and expands assembly rows in the visibility tree", async ({ page }) => {
   await page.goto("/");
+  await waitForRenderer(page);
   // The bolted tree starts fully expanded, so Fasteners shows each occurrence.
   const fasteners = page.getByTestId("assembly-expand-2");
   await expect(fasteners).toHaveAttribute("aria-expanded", "true");
-  const firstFastener = page.getByTestId("assembly-node-vis-3");
+  const firstFastener = page.getByTestId("assembly-occurrence-vis-3");
   await expect(firstFastener).toBeVisible();
 
   // Collapsing Fasteners hides its subtree but keeps the parent row reachable.
   await fasteners.click();
   await expect(fasteners).toHaveAttribute("aria-expanded", "false");
   await expect(firstFastener).toBeHidden();
-  await expect(page.getByTestId("assembly-node-vis-2")).toBeVisible();
+  await expect(page.getByTestId("assembly-occurrence-vis-2")).toBeVisible();
 
   // Expanding restores the subtree.
   await fasteners.click();
@@ -79,8 +80,8 @@ test("collapses and expands assembly rows in the visibility tree", async ({ page
 test("exposes assembly occurrence and direct-part identity in the tree", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("visibility-context")).toContainText("Bolted joint");
-  await expect(page.getByTestId("assembly-node-vis-0")).toHaveAttribute(
-    "data-assembly-node-id",
+  await expect(page.getByTestId("assembly-occurrence-vis-0")).toHaveAttribute(
+    "data-assembly-occurrence-id",
     "1",
   );
   await expect(page.getByTestId("instance-vis-0")).toHaveAttribute("data-instance-id", "1/0/0");
@@ -133,10 +134,10 @@ test("temporarily highlights exact tree occurrences without changing selection",
   const visibility = page.getByTestId("visibility-panel");
   await visibility.getByTestId("assembly-expand-3").click();
   const firstOccurrence = visibility
-    .getByTestId("assembly-node-vis-3")
+    .getByTestId("assembly-occurrence-vis-3")
     .locator("xpath=ancestor::div[contains(@class, 'visibility-row')]");
   const secondOccurrence = visibility
-    .getByTestId("assembly-node-vis-4")
+    .getByTestId("assembly-occurrence-vis-5")
     .locator("xpath=ancestor::div[contains(@class, 'visibility-row')]");
   await firstOccurrence.hover();
   await expect.poll(() => canvas.getAttribute("data-tree-hover")).not.toBe("");
@@ -158,7 +159,7 @@ test("hides the plate stack through the assembly tree", async ({ page }) => {
   await page.goto("/");
   await waitForRenderer(page);
   expect(await status(page)).toContain("34 visible");
-  const plateStack = page.getByTestId("assembly-node-vis-1");
+  const plateStack = page.getByTestId("assembly-occurrence-vis-1");
   await expect(plateStack).toBeChecked();
 
   await plateStack.uncheck();
@@ -171,17 +172,17 @@ test("hides the plate stack through the assembly tree", async ({ page }) => {
 });
 test("hides and restores all fasteners through the assembly tree", async ({ page }) => {
   await page.goto("/");
-  const fasteners = page.getByTestId("assembly-node-vis-2");
+  const fasteners = page.getByTestId("assembly-occurrence-vis-2");
   await expect(fasteners).toBeChecked();
 
   await fasteners.uncheck();
   await expect(fasteners).not.toBeChecked();
-  await expect(page.getByTestId("assembly-node-vis-3")).toBeDisabled();
+  await expect(page.getByTestId("assembly-occurrence-vis-3")).toBeDisabled();
   expect(await status(page)).toContain("2 visible");
 
   await fasteners.check();
   await expect(fasteners).toBeChecked();
-  await expect(page.getByTestId("assembly-node-vis-3")).toBeEnabled();
+  await expect(page.getByTestId("assembly-occurrence-vis-3")).toBeEnabled();
   expect(await status(page)).toContain("34 visible");
 });
 test("keeps body overlays rendered while hiding a named body", async ({ page }) => {
@@ -220,7 +221,7 @@ test("Show all restores bodies and other visibility layers without clearing sele
 
   const body = page.locator('input[data-testid^="body-vis-"]').first();
   const instance = page.locator("input[data-instance-id]").first();
-  const assembly = page.getByTestId("assembly-node-vis-1");
+  const assembly = page.getByTestId("assembly-occurrence-vis-1");
   await body.uncheck();
   await instance.uncheck();
   await assembly.uncheck();

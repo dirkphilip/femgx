@@ -8,302 +8,235 @@ import type {
 } from "../../src/index";
 import type { WorkbenchModel } from "./model";
 import { assemblyName } from "./visibility-tree";
-import type { VisibilityRowTarget } from "./tree-hover";
-import { installVisibilityTreeHover } from "./tree-hover-events";
-import { visibilityRowLabel } from "./visibility-row";
+import type { WorkbenchVisibilityRowSnapshot, WorkbenchVisibilitySnapshot } from "./snapshot";
 
 /** Callbacks that keep the runtime as the single source of visibility truth. */
 export interface VisibilityPanelOptions {
-  readonly panel: HTMLElement;
   readonly getModel: () => WorkbenchModel;
   readonly getRuntime: () => SceneRuntime;
   readonly partName: (partId: PartId) => string | undefined;
   readonly partVisible: (partId: PartId) => boolean;
   readonly bodyVisible: (instanceId: InstanceId, bodyId: BodyId) => boolean;
   readonly bodyHighlighted: (instanceId: InstanceId, bodyId: BodyId) => boolean;
-  readonly onPartVisibility: (partId: PartId, visible: boolean) => void;
-  readonly onBodyVisibility: (instanceId: InstanceId, bodyId: BodyId, visible: boolean) => void;
-  readonly onBodyHighlight: (instanceId: InstanceId, bodyId: BodyId) => void;
-  readonly onInstanceVisibility: (instanceId: InstanceId, visible: boolean) => void;
-  readonly onAssemblyVisibility: (occurrenceId: AssemblyOccurrenceId, visible: boolean) => void;
-  readonly onTreeHover?: (target: VisibilityRowTarget | undefined) => void;
+  readonly onChanged: () => void;
 }
 
-/** Builds and synchronizes the expanded assembly/part visibility tree. */
+/** Owns the visibility hierarchy projection while Svelte owns its markup. */
 export class VisibilityPanelController {
   private readonly options: VisibilityPanelOptions;
+  private expanded = new Set<AssemblyOccurrenceId>();
+  private current: WorkbenchVisibilitySnapshot = { context: "", rows: [] };
 
   constructor(options: VisibilityPanelOptions) {
     this.options = options;
   }
 
-  install(signal: AbortSignal): void {
-    this.options.panel.addEventListener(
-      "change",
-      (event) => {
-        this.onChange(event);
-      },
-      { signal },
-    );
-    this.options.panel.addEventListener(
-      "click",
-      (event) => {
-        this.onClick(event);
-      },
-      { signal },
-    );
-    if (this.options.onTreeHover !== undefined) {
-      installVisibilityTreeHover(this.options.panel, signal, this.options.onTreeHover);
-    }
+  snapshot(): WorkbenchVisibilitySnapshot {
+    return this.current;
   }
 
   rebuild(): void {
-    const { panel } = this.options;
-    this.options.onTreeHover?.(undefined);
-    const model = this.options.getModel();
-    panel.textContent = "";
-    const rootAssemblyId = model.scene.rootAssemblyId;
-    const context = document.createElement("div");
-    context.className = "visibility-context";
-    context.dataset["testid"] = "visibility-context";
-    context.textContent = `Assembly · ${assemblyName(model.scene.assemblies.get(rootAssemblyId)) ?? `Assembly ${rootAssemblyId}`}`;
-    panel.appendChild(context);
-    const rootOccurrenceId = this.options.getRuntime().getOccurrenceIds()[0];
-    if (rootOccurrenceId !== undefined) {
-      panel.appendChild(this.assemblyOccurrence(rootOccurrenceId));
-    }
+    const runtime = this.options.getRuntime();
+    const rootOccurrenceId = runtime.getOccurrenceIds()[0];
+    this.expanded = new Set(
+      rootOccurrenceId === undefined
+        ? []
+        : runtime.getOccurrenceIds().filter((occurrenceId) => {
+            const occurrence = runtime.getOccurrence(occurrenceId);
+            return occurrence?.parentId === undefined || occurrence.parentId === rootOccurrenceId;
+          }),
+    );
     this.sync();
   }
 
   sync(): void {
-    const runtime = this.options.getRuntime();
-    for (const input of this.options.panel.querySelectorAll<HTMLInputElement>("input")) {
-      const bodyId = input.dataset["bodyId"];
-      if (bodyId !== undefined) {
-        const instanceId = input.dataset["bodyInstanceId"];
-        input.checked =
-          instanceId !== undefined && this.options.bodyVisible(instanceId, Number(bodyId));
-        input.indeterminate = false;
-        input.disabled = !this.instanceVisible(runtime, instanceId);
-        continue;
-      }
-      const partId = input.dataset["partId"];
-      if (partId !== undefined) {
-        input.checked = this.options.partVisible(Number(partId));
-        input.indeterminate = false;
-        input.disabled = false;
-        continue;
-      }
-      const occurrenceId = input.dataset["assemblyOccurrenceId"];
-      if (occurrenceId !== undefined) {
-        const occurrence = runtime.getOccurrence(occurrenceId);
-        input.checked = occurrence?.effectiveVisible ?? false;
-        input.indeterminate = false;
-        const parent =
-          occurrence?.parentId === undefined
-            ? undefined
-            : runtime.getOccurrence(occurrence.parentId);
-        input.disabled = parent !== undefined && !parent.effectiveVisible;
-        continue;
-      }
-      const instanceId = input.dataset["instanceId"];
-      if (instanceId !== undefined) {
-        const instance = runtime.getInstance(instanceId);
-        input.checked = instance?.visible ?? false;
-        input.indeterminate = false;
-        const occurrence =
-          instance === undefined ? undefined : runtime.getOccurrence(instance.occurrenceId);
-        input.disabled =
-          occurrence === undefined ||
-          !occurrence.effectiveVisible ||
-          instance?.partVisible !== true;
-      }
-    }
-    for (const button of this.options.panel.querySelectorAll<HTMLButtonElement>(
-      "button[data-body-highlight]",
-    )) {
-      const instanceId = button.dataset["bodyInstanceId"];
-      const bodyId = button.dataset["bodyId"];
-      if (instanceId === undefined || bodyId === undefined) continue;
-      button.disabled = !this.instanceVisible(runtime, instanceId);
-      button.dataset["active"] = String(this.options.bodyHighlighted(instanceId, Number(bodyId)));
-      button.setAttribute(
-        "aria-pressed",
-        String(this.options.bodyHighlighted(instanceId, Number(bodyId))),
-      );
-    }
-  }
-
-  private onChange(event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement)) return;
-    const bodyId = target.dataset["bodyId"];
-    if (bodyId !== undefined) {
-      const instanceId = target.dataset["bodyInstanceId"];
-      if (instanceId !== undefined) {
-        this.options.onBodyVisibility(instanceId, Number(bodyId), target.checked);
-      }
-      return;
-    }
-    const partId = target.dataset["partId"];
-    const occurrenceId = target.dataset["assemblyOccurrenceId"];
-    if (partId !== undefined) this.options.onPartVisibility(Number(partId), target.checked);
-    else if (occurrenceId !== undefined) {
-      this.options.onAssemblyVisibility(occurrenceId, target.checked);
-    } else {
-      const instanceId = target.dataset["instanceId"];
-      if (instanceId !== undefined) this.options.onInstanceVisibility(instanceId, target.checked);
-    }
-  }
-
-  private onClick(event: Event): void {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const button = target.closest<HTMLButtonElement>("button[data-body-highlight]");
-    if (button !== null) {
-      const instanceId = button.dataset["bodyInstanceId"];
-      const bodyId = button.dataset["bodyId"];
-      if (instanceId !== undefined && bodyId !== undefined) {
-        this.options.onBodyHighlight(instanceId, Number(bodyId));
-      }
-      return;
-    }
-  }
-
-  private assemblyOccurrence(occurrenceId: AssemblyOccurrenceId): HTMLElement {
     const model = this.options.getModel();
     const runtime = this.options.getRuntime();
-    const occurrence = runtime.getOccurrence(occurrenceId);
-    if (occurrence === undefined) throw new Error(`Missing runtime occurrence ${occurrenceId}`);
-    const assemblyId = occurrence.assemblyId;
-    const name = assemblyName(model.scene.assemblies.get(assemblyId)) ?? `Assembly ${assemblyId}`;
-    const displayName = this.assemblyOccurrenceName(occurrenceId, name);
-    const branch = document.createElement("div");
-    branch.className = "visibility-branch";
-    const row = document.createElement("div");
-    row.className = "visibility-row visibility-assembly";
-    row.dataset["visibilityTargetKind"] = "assembly";
-    row.dataset["visibilityTargetOccurrenceId"] = occurrenceId;
-    const expander = document.createElement("button");
-    expander.type = "button";
-    expander.className = "visibility-expander";
-    expander.dataset["testid"] = `assembly-expand-${this.occurrenceDisplayId(occurrenceId)}`;
-    const expanded =
-      occurrence.parentId === undefined || occurrence.parentId === runtime.getOccurrenceIds()[0];
-    expander.setAttribute("aria-expanded", String(expanded));
-    expander.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} ${displayName}`);
-    expander.textContent = "▾";
-    const children = document.createElement("div");
-    children.className = "visibility-children";
-    children.hidden = !expanded;
-    const directInstances = this.directPartInstances(occurrenceId);
-    for (let index = 0; index < directInstances.length; index++) {
-      const instanceId = directInstances[index];
-      if (instanceId !== undefined)
-        children.appendChild(this.partNode(instanceId, index + 1, directInstances, displayName));
+    const rootAssembly = model.scene.assemblies.get(model.scene.rootAssemblyId);
+    const rootOccurrenceId = runtime.getOccurrenceIds()[0];
+    const rows: WorkbenchVisibilityRowSnapshot[] = [];
+    if (rootOccurrenceId !== undefined) {
+      this.appendOccurrence(
+        rootOccurrenceId,
+        { depth: 1, position: 1, setSize: 1, hidden: false },
+        rows,
+      );
     }
-    for (const childId of occurrence.childIds) {
-      children.appendChild(this.assemblyOccurrence(childId));
-    }
-    expander.textContent = expanded ? "▾" : "▸";
-    expander.addEventListener("click", () => {
-      this.toggleExpanded(expander, children, displayName);
+    this.current = Object.freeze({
+      context: `Assembly · ${assemblyName(rootAssembly) ?? `Assembly ${model.scene.rootAssemblyId}`}`,
+      rows: Object.freeze(rows),
     });
-    row.append(
-      expander,
-      visibilityRowLabel(
-        "assembly-occurrence",
-        occurrenceId,
-        displayName,
-        undefined,
-        this.occurrenceDisplayId(occurrenceId),
-      ),
-    );
-    branch.append(row, children);
-    return branch;
   }
 
-  private partNode(
+  toggleExpanded(occurrenceId: AssemblyOccurrenceId): void {
+    const occurrence = this.options.getRuntime().getOccurrence(occurrenceId);
+    if (occurrence === undefined || !this.isExpandable(occurrenceId)) return;
+    if (this.expanded.has(occurrenceId)) this.expanded.delete(occurrenceId);
+    else this.expanded.add(occurrenceId);
+    this.sync();
+    this.options.onChanged();
+  }
+
+  private appendOccurrence(
+    occurrenceId: AssemblyOccurrenceId,
+    layout: RowLayout,
+    rows: WorkbenchVisibilityRowSnapshot[],
+  ): void {
+    const runtime = this.options.getRuntime();
+    const occurrence = runtime.getOccurrence(occurrenceId);
+    if (occurrence === undefined) return;
+    const model = this.options.getModel();
+    const assembly = model.scene.assemblies.get(occurrence.assemblyId);
+    const name = assemblyName(assembly) ?? `Assembly ${occurrence.assemblyId}`;
+    const displayName = this.assemblyOccurrenceName(occurrenceId, name);
+    const directInstances = this.directPartInstances(occurrenceId);
+    const childCount = directInstances.length + occurrence.childIds.length;
+    const expanded = this.expanded.has(occurrenceId);
+    rows.push(
+      row({
+        key: `assembly:${occurrenceId}`,
+        target: { kind: "assembly", occurrenceId },
+        kind: "assembly",
+        depth: layout.depth,
+        label: displayName,
+        badge: "Assembly",
+        testId: `assembly-occurrence-vis-${this.occurrenceDisplayId(occurrenceId)}`,
+        checked: occurrence.effectiveVisible,
+        disabled: this.parentHidden(occurrence.parentId),
+        expanded,
+        expandable: childCount > 0,
+        highlighted: false,
+        hidden: layout.hidden,
+        position: layout.position,
+        setSize: layout.setSize,
+      }),
+    );
+    this.appendOccurrenceChildren({
+      childIds: occurrence.childIds,
+      directInstances,
+      displayName,
+      childCount,
+      layout: { ...layout, hidden: layout.hidden || !expanded },
+      rows,
+    });
+  }
+
+  private appendOccurrenceChildren(input: OccurrenceChildrenInput): void {
+    const { childIds, directInstances, displayName, childCount, layout, rows } = input;
+    for (let index = 0; index < directInstances.length; index += 1) {
+      const instanceId = directInstances[index];
+      if (instanceId !== undefined) {
+        this.appendInstance(
+          instanceId,
+          displayName,
+          {
+            depth: layout.depth + 1,
+            position: index + 1,
+            setSize: childCount,
+            hidden: layout.hidden,
+          },
+          rows,
+        );
+      }
+    }
+    for (let index = 0; index < childIds.length; index += 1) {
+      const childId = childIds[index];
+      if (childId !== undefined) {
+        this.appendOccurrence(
+          childId,
+          {
+            depth: layout.depth + 1,
+            position: directInstances.length + index + 1,
+            setSize: childCount,
+            hidden: layout.hidden,
+          },
+          rows,
+        );
+      }
+    }
+  }
+
+  private appendInstance(
     instanceId: InstanceId,
-    index: number,
-    siblings: readonly InstanceId[],
-    assemblyName: string,
-  ): HTMLElement {
+    assemblyNameValue: string,
+    layout: RowLayout,
+    rows: WorkbenchVisibilityRowSnapshot[],
+  ): void {
     const runtime = this.options.getRuntime();
     const instance = runtime.getInstance(instanceId);
-    const partId = instance?.partId;
-    const name = this.options.partName(partId ?? -1) ?? `Part ${partId}`;
-    const repeated = siblings.filter((item) => runtime.getPartId(item) === partId).length > 1;
-    const row = document.createElement("div");
-    row.className = "visibility-row visibility-part";
-    row.dataset["visibilityTargetKind"] = "instance";
-    row.dataset["visibilityTargetInstanceId"] = instanceId;
-    const spacer = document.createElement("span");
-    spacer.className = "visibility-spacer";
-    spacer.setAttribute("aria-hidden", "true");
-    const part = partId === undefined ? undefined : this.options.getModel().scene.parts.get(partId);
-    const bodies = part?.geometry.bodies ?? [];
-    const partDisplayName = repeated ? `${name} ${index}` : name;
-    row.append(
-      spacer,
-      visibilityRowLabel(
-        "instance",
-        instanceId,
-        partDisplayName,
-        "Part",
-        this.instanceDisplayId(instanceId),
-      ),
+    if (instance === undefined) return;
+    const partName = this.options.partName(instance.partId) ?? `Part ${instance.partId}`;
+    const siblings = this.directPartInstances(instance.occurrenceId);
+    const repeated =
+      siblings.filter((item) => runtime.getPartId(item) === instance.partId).length > 1;
+    const displayName = repeated ? `${partName} ${layout.position}` : partName;
+    const bodies = this.options.getModel().scene.parts.get(instance.partId)?.geometry.bodies ?? [];
+    rows.push(
+      row({
+        key: `instance:${instanceId}`,
+        target: { kind: "instance", instanceId },
+        kind: "instance",
+        depth: layout.depth,
+        label: displayName,
+        badge: "Part",
+        testId: `instance-vis-${this.instanceDisplayId(instanceId)}`,
+        checked: instance.visible,
+        disabled:
+          !this.occurrenceVisible(instance.occurrenceId) ||
+          !this.options.partVisible(instance.partId),
+        expanded: bodies.length > 0,
+        expandable: bodies.length > 0,
+        highlighted: false,
+        hidden: layout.hidden,
+        position: layout.position,
+        setSize: layout.setSize,
+      }),
     );
-    const branch = document.createElement("div");
-    branch.className = "visibility-body-branch";
-    branch.appendChild(row);
-    for (const body of bodies) {
-      branch.appendChild(this.bodyNode(instanceId, body, partDisplayName, assemblyName));
+    for (let index = 0; index < bodies.length; index += 1) {
+      const body = bodies[index];
+      if (body !== undefined) {
+        this.appendBody(
+          {
+            instanceId,
+            body,
+            partName: displayName,
+            assemblyName: assemblyNameValue,
+            layout: {
+              depth: layout.depth + 1,
+              position: index + 1,
+              setSize: bodies.length,
+              hidden: layout.hidden,
+            },
+          },
+          rows,
+        );
+      }
     }
-    return branch;
   }
 
-  private bodyNode(
-    instanceId: InstanceId,
-    body: Body,
-    partName: string,
-    assemblyName: string,
-  ): HTMLElement {
-    const displayId = this.instanceDisplayId(instanceId);
-    const row = document.createElement("div");
-    row.className = "visibility-row visibility-body";
-    row.dataset["visibilityTargetKind"] = "body";
-    row.dataset["visibilityTargetInstanceId"] = instanceId;
-    row.dataset["visibilityTargetBodyId"] = String(body.id);
-    const spacer = document.createElement("span");
-    spacer.className = "visibility-spacer visibility-body-spacer";
-    spacer.setAttribute("aria-hidden", "true");
-    const label = document.createElement("label");
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.dataset["bodyId"] = String(body.id);
-    input.dataset["bodyInstanceId"] = instanceId;
-    input.dataset["testid"] = `body-vis-${displayId}-${body.id}`;
+  private appendBody(input: BodyRowInput, rows: WorkbenchVisibilityRowSnapshot[]): void {
+    const { instanceId, body, partName, assemblyName, layout } = input;
     const bodyName = body.name ?? `Body ${body.id}`;
-    input.setAttribute("aria-label", `${bodyName} in ${partName} · ${assemblyName}`);
-    label.append(input);
-    const badge = document.createElement("span");
-    badge.className = "visibility-kind";
-    badge.textContent = "Body";
-    label.append(badge);
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "visibility-body-name";
-    button.dataset["bodyHighlight"] = "true";
-    button.dataset["bodyId"] = String(body.id);
-    button.dataset["bodyInstanceId"] = instanceId;
-    button.dataset["testid"] = `body-highlight-${displayId}-${body.id}`;
-    button.setAttribute("aria-label", `Highlight ${bodyName}`);
-    button.setAttribute("aria-pressed", "false");
-    button.textContent = bodyName;
-    button.title = bodyName;
-    row.append(spacer, label, button);
-    return row;
+    rows.push(
+      row({
+        key: `body:${instanceId}:${body.id}`,
+        target: { kind: "body", instanceId, bodyId: body.id },
+        kind: "body",
+        depth: layout.depth,
+        label: bodyName,
+        badge: "Body",
+        ariaLabel: `${bodyName} in ${partName} · ${assemblyName}`,
+        testId: `body-vis-${this.instanceDisplayId(instanceId)}-${body.id}`,
+        checked: this.options.bodyVisible(instanceId, body.id),
+        disabled: !this.instanceVisible(this.options.getRuntime(), instanceId),
+        expanded: false,
+        expandable: false,
+        highlighted: this.options.bodyHighlighted(instanceId, body.id),
+        hidden: layout.hidden,
+        position: layout.position,
+        setSize: layout.setSize,
+      }),
+    );
   }
 
   private directPartInstances(occurrenceId: AssemblyOccurrenceId): InstanceId[] {
@@ -333,8 +266,24 @@ export class VisibilityPanelController {
     return total > 1 ? `${name} ${occurrenceNumber}` : name;
   }
 
-  private instanceVisible(runtime: SceneRuntime, instanceId: InstanceId | undefined): boolean {
-    return instanceId !== undefined && runtime.isInstanceVisible(instanceId);
+  private occurrenceVisible(occurrenceId: AssemblyOccurrenceId): boolean {
+    return this.options.getRuntime().getOccurrence(occurrenceId)?.effectiveVisible ?? false;
+  }
+
+  private parentHidden(parentId: AssemblyOccurrenceId | undefined): boolean {
+    return parentId !== undefined && !this.occurrenceVisible(parentId);
+  }
+
+  private instanceVisible(runtime: SceneRuntime, instanceId: InstanceId): boolean {
+    return runtime.isInstanceVisible(instanceId);
+  }
+
+  private isExpandable(occurrenceId: AssemblyOccurrenceId): boolean {
+    const occurrence = this.options.getRuntime().getOccurrence(occurrenceId);
+    return (
+      occurrence !== undefined &&
+      (this.directPartInstances(occurrenceId).length > 0 || occurrence.childIds.length > 0)
+    );
   }
 
   private occurrenceDisplayId(occurrenceId: AssemblyOccurrenceId): number {
@@ -344,13 +293,36 @@ export class VisibilityPanelController {
   private instanceDisplayId(instanceId: InstanceId): number {
     return this.options.getRuntime().getInstanceIds().indexOf(instanceId);
   }
+}
 
-  private toggleExpanded(expander: HTMLButtonElement, children: HTMLElement, name: string): void {
-    const expanded = children.hidden;
-    if (!expanded) this.options.onTreeHover?.(undefined);
-    children.hidden = !expanded;
-    expander.setAttribute("aria-expanded", String(expanded));
-    expander.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} ${name}`);
-    expander.textContent = expanded ? "▾" : "▸";
-  }
+function row(
+  input: Omit<WorkbenchVisibilityRowSnapshot, "ariaLabel"> & {
+    readonly ariaLabel?: string;
+  },
+): WorkbenchVisibilityRowSnapshot {
+  return Object.freeze({ ...input, ariaLabel: input.ariaLabel });
+}
+
+interface RowLayout {
+  readonly depth: number;
+  readonly hidden: boolean;
+  readonly position: number;
+  readonly setSize: number;
+}
+
+interface OccurrenceChildrenInput {
+  readonly childIds: readonly AssemblyOccurrenceId[];
+  readonly directInstances: readonly InstanceId[];
+  readonly displayName: string;
+  readonly childCount: number;
+  readonly layout: RowLayout;
+  readonly rows: WorkbenchVisibilityRowSnapshot[];
+}
+
+interface BodyRowInput {
+  readonly instanceId: InstanceId;
+  readonly body: Body;
+  readonly partName: string;
+  readonly assemblyName: string;
+  readonly layout: RowLayout;
 }

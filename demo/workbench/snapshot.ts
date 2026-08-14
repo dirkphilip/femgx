@@ -57,6 +57,32 @@ export interface WorkbenchPresentationSnapshot {
   readonly contextMenu: WorkbenchContextMenuSnapshot;
 }
 
+export type WorkbenchVisibilityRowKind = "assembly" | "instance" | "body";
+
+export interface WorkbenchVisibilityRowSnapshot {
+  readonly key: string;
+  readonly target: VisibilityRowTarget;
+  readonly kind: WorkbenchVisibilityRowKind;
+  readonly depth: number;
+  readonly label: string;
+  readonly badge: "Assembly" | "Part" | "Body";
+  readonly ariaLabel: string | undefined;
+  readonly testId: string;
+  readonly checked: boolean;
+  readonly disabled: boolean;
+  readonly expanded: boolean;
+  readonly expandable: boolean;
+  readonly highlighted: boolean;
+  readonly hidden: boolean;
+  readonly position: number;
+  readonly setSize: number;
+}
+
+export interface WorkbenchVisibilitySnapshot {
+  readonly context: string;
+  readonly rows: readonly WorkbenchVisibilityRowSnapshot[];
+}
+
 export interface WorkbenchSnapshot {
   readonly model: {
     readonly active: {
@@ -104,6 +130,7 @@ export interface WorkbenchSnapshot {
     readonly occurrenceCount: number;
     readonly visibleInstances: number;
     readonly selectedCount: number;
+    readonly visibility: WorkbenchVisibilitySnapshot;
   };
   readonly overlays: {
     readonly diagnostics: boolean;
@@ -153,6 +180,7 @@ export interface WorkbenchSnapshotInput {
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
   readonly presentation?: WorkbenchPresentationSnapshot;
+  readonly visibility?: WorkbenchVisibilitySnapshot;
 }
 
 export interface WorkbenchSnapshotOwner {
@@ -172,6 +200,7 @@ export interface WorkbenchSnapshotOwner {
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
   readonly presentation: { snapshot(): WorkbenchPresentationSnapshot };
+  readonly visibilityPanel: { snapshot(): WorkbenchVisibilitySnapshot };
   activeViewport(): { readonly camera: Pick<Camera, "mode"> };
 }
 
@@ -198,6 +227,9 @@ export interface WorkbenchCommands {
   setSectionAxis(axis: SectionAxis): void;
   setSectionOffset(value: string): void;
   toggleVisibility(target: VisibilityRowTarget): void;
+  toggleVisibilityTree(occurrenceId: string): void;
+  toggleBodyHighlight(target: Extract<VisibilityRowTarget, { kind: "body" }>): void;
+  setTreeHover(target: VisibilityRowTarget | undefined): void;
   contextMenuAction(action: WorkbenchMenuAction): void;
   clearContextMenu(): void;
 }
@@ -249,12 +281,14 @@ export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): Workbench
     sectionAxis: owner.sectionAxis,
     sectionOffset: owner.sectionOffset,
     presentation: owner.presentation.snapshot(),
+    visibility: owner.visibilityPanel.snapshot(),
   };
 }
 
 /** Builds a bounded immutable presentation snapshot without exposing runtime or GPU storage. */
 export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapshot {
   const presentation = input.presentation ?? defaultPresentationSnapshot(input.toggles.diagnostics);
+  const visibility = input.visibility ?? defaultVisibilitySnapshot();
   const active = Object.freeze({
     id: input.model.id,
     name: input.model.name,
@@ -290,6 +324,7 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
       occurrenceCount: input.runtime.occurrenceCount,
       visibleInstances: input.runtime.visibleCount,
       selectedCount: selectedTargetCount(input.interaction),
+      visibility,
     }),
     overlays: Object.freeze({
       diagnostics: presentation.diagnostics.visible,
@@ -359,6 +394,10 @@ function defaultPresentationSnapshot(diagnostics: boolean): WorkbenchPresentatio
     diagnostics: { visible: diagnostics, text: "" },
     contextMenu: { visible: false, x: 0, y: 0, title: "", entries: [] },
   };
+}
+
+function defaultVisibilitySnapshot(): WorkbenchVisibilitySnapshot {
+  return { context: "", rows: [] };
 }
 
 function resultField(field: {

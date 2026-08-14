@@ -8,7 +8,6 @@ import { WorkbenchPresentation } from "./presentation";
 import type { ResultDisplayMode, DisplayToggles } from "./types";
 import { VisibilityPanelController } from "./visibility-panel";
 import { WorkbenchVisibilityActions } from "./visibility-actions";
-import type { VisibilityRowTarget } from "./tree-hover";
 import type { SelectionGranularity } from "./pick";
 import type { SectionAxis } from "./section-controls";
 import type { VectorGlyph, VectorTransform } from "./result-controls";
@@ -36,7 +35,6 @@ export interface WorkbenchFeatureOptions {
   readonly applyDisplayedInteraction: () => void;
   readonly render: () => void;
   readonly publishSnapshot: () => void;
-  readonly setTreeHover: (target: VisibilityRowTarget | undefined) => void;
   readonly applyMenuAction: (action: string) => void;
 }
 
@@ -123,29 +121,13 @@ function createVisibilityFeatures(
     feedback: presentation.setFeedback.bind(presentation),
   });
   const panel = new VisibilityPanelController({
-    panel: options.view.visibilityPanel,
     getModel: options.model,
     getRuntime: options.runtime,
     partName: (partId) => options.model().partNames.get(partId),
     partVisible: (partId) => actions.partVisible(partId),
     bodyVisible: (instanceId, bodyId) => actions.bodyVisible(instanceId, bodyId),
     bodyHighlighted: (instanceId, bodyId) => actions.bodyHighlighted(instanceId, bodyId),
-    onPartVisibility: (partId, visible) => {
-      actions.setPart(partId, visible);
-    },
-    onBodyVisibility: (instanceId, bodyId, visible) => {
-      actions.setBody(instanceId, bodyId, visible);
-    },
-    onBodyHighlight: (instanceId, bodyId) => {
-      actions.bodyHighlight(instanceId, bodyId);
-    },
-    onInstanceVisibility: (instanceId, visible) => {
-      actions.setInstance(instanceId, visible);
-    },
-    onAssemblyVisibility: (occurrenceId, visible) => {
-      actions.setAssemblyOccurrence(occurrenceId, visible);
-    },
-    onTreeHover: options.setTreeHover,
+    onChanged: options.publishSnapshot,
   });
   return { actions, panel };
 }
