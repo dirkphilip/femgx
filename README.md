@@ -50,7 +50,7 @@ Commands:
 - `npm run test:watch` — Vitest watch mode
 - `npm run test:coverage` — unit tests with enforced v8 thresholds
 - `npm run test:e2e` — Playwright demo tests
-- `npm run test:e2e:install` — install Playwright Chromium
+- `npm run test:e2e:install` — install Playwright Chrome for the local WebGPU lane
 - `npm run preview` — preview the built demo
 
 The demo is deployed automatically to GitHub Pages on pushes to `main` by the

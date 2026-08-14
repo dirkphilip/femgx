@@ -18,9 +18,10 @@ runner exists, CI only runs the no-GPU unsupported-contract smoke
     `npm run test:e2e` with one worker because parallel contexts compete for the
     physical GPU and can yield blank captures or stalled readbacks. The lane
     also asserts that Chrome did not select a fallback or SwiftShader adapter.
-  - **`chromium`** — Playwright Chromium for the CI no-GPU contract
-    (`npm run test:e2e:ci`).
-- One-time install: `npm run test:e2e:install` (Chrome + Chromium).
+  - **`chrome-unsupported`** — the runner's installed branded Google Chrome
+    for the CI no-GPU contract (`npm run test:e2e:ci`).
+- One-time install: `npm run test:e2e:install` (Playwright Chrome for the local
+  WebGPU lane; hosted CI uses its preinstalled Chrome).
 - Add Playwright's `--headed` option for an intentionally visible debugging run.
 - `e2e/webgpu-lifecycle.spec.ts` owns initialization, one instanced render,
   interaction/picking, clean teardown, re-initialization, and the WebGPU-only

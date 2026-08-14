@@ -21,8 +21,11 @@ WebGPU-only ([[requirements/product-scope|product scope]]).
    opt-in via `RUN_PERF=1`. Excluded from the default correctness gate by
    design, never run by default CI.
 4. **CI no-GPU smoke** — `npm run test:e2e:ci` runs only the unsupported-contract
-   test on Playwright Chromium. Full pick/pixel e2e is not asserted in merge CI
-   until a GPU runner exists; SwiftShader is not used as a faithful stand-in.
+   test on the runner's installed branded Google Chrome through the dedicated
+   `chrome-unsupported` project. The workflow verifies the executable and
+   version before starting Playwright, and does not download a Playwright
+   browser. Full pick/pixel e2e is not asserted in merge CI until a GPU runner
+   exists; SwiftShader is not used as a faithful stand-in.
 
 ## Why the Chrome lane must assert, not skip
 

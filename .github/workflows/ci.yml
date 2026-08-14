@@ -69,12 +69,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+      - name: Verify system Chrome
+        run: |
+          command -v google-chrome
+          google-chrome --version
 
       # Full WebGPU pick/pixel e2e needs hardware Chrome (`npm run test:e2e`
-      # locally). CI only asserts the no-GPU unsupported contract until a GPU
-      # runner exists; SwiftShader is not treated as a faithful WebGPU stand-in.
+      # locally). CI uses the runner's branded Chrome only for the no-GPU
+      # unsupported contract until a GPU runner exists; SwiftShader is not
+      # treated as a faithful WebGPU stand-in.
       - name: Run e2e (no-GPU contract)
         run: npm run test:e2e:ci
 

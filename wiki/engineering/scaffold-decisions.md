@@ -16,8 +16,8 @@ Recorded decisions from the initial toolchain setup.
 - Prettier (printWidth 100, trailingComma all), `.editorconfig`.
 - Vitest 4 with v8 coverage thresholds (lines/functions 80, branches 70),
   reporters `text`/`html`/`lcov` into `coverage/`.
-- Playwright 1.x e2e tests in `e2e/` (Chromium) against the local Vite dev
-  server (`npm run test:e2e`), with `test:e2e:install` for the browser.
+- Playwright 1.x e2e tests in `e2e/` against the local Vite dev server
+  (`npm run test:e2e`), with `test:e2e:install` for the local Chrome lane.
 - GitHub Actions CI (`.github/workflows/ci.yml`): format check, typecheck,
   lint, unit tests + coverage, build, and a separate Playwright e2e job.
 

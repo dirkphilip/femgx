@@ -21,6 +21,12 @@ longer-lived main artifact supports historical investigation. Failure-only
 Playwright reports remain available for 14 days so no-GPU e2e diagnostics are
 not lost when a run fails.
 
+The required `e2e` job runs only the WebGPU-unsupported smoke. It uses the
+Ubuntu runner's installed branded Google Chrome, verifies its executable and
+version before launching Playwright, and does not download a Playwright browser.
+The full hardware-WebGPU lane remains local until a GPU runner is available;
+the CI smoke must not enable SwiftShader or imply visual WebGPU coverage.
+
 ## Merge decision
 
 - **Pending or missing checks** keep a pull request unmergeable.
