@@ -18,7 +18,12 @@ import type { OrientationGlyphState } from "../../src/renderer/gpu-orientation-g
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
 import { hasInteractiveSample, measureInteractiveSamples } from "./interactive";
 import { estimateBenchmarkMemory, type WebGpuBenchmarkCase } from "./model";
-import type { BenchmarkTimings, WebGpuBenchmarkCaseResult } from "./types";
+import { measureSelectionBenchmark } from "./selection";
+import type {
+  BenchmarkTimings,
+  SelectionBenchmarkReport,
+  WebGpuBenchmarkCaseResult,
+} from "./types";
 
 const WIDTH = 800;
 const HEIGHT = 600;
@@ -50,6 +55,7 @@ export async function measureBenchmarkCase(
   let renderer: WebGpuRenderer | undefined;
   let coldSample: Record<keyof SampleSet, number>;
   let interactive: WebGpuBenchmarkCaseResult["interactive"];
+  let selection: SelectionBenchmarkReport | undefined;
   let gpuCost: WebGpuBenchmarkCaseResult["gpuCost"];
   let materializedEdgePartIds: ReadonlySet<number>;
   const samples = emptySamples();
@@ -98,6 +104,14 @@ export async function measureBenchmarkCase(
           camera,
         })
       : undefined;
+    phase = "element box-selection sample";
+    selection = await measureSelectionBenchmark({
+      renderer,
+      device,
+      benchmarkCase,
+      runtime,
+      camera,
+    });
   } catch (error) {
     throw withBenchmarkPhase(phase, error);
   } finally {
@@ -127,6 +141,7 @@ export async function measureBenchmarkCase(
     instanceCount: runtime.instanceCount,
     timings: summarize(coldSample, samples),
     ...(interactive === undefined ? {} : { interactive }),
+    ...(selection === undefined ? {} : { selection }),
     estimatedMemory: estimateBenchmarkMemory(
       benchmarkCase.scene,
       runtime.instanceCount,

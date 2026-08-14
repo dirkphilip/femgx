@@ -26,17 +26,37 @@ export interface BenchmarkGpuCostSnapshot {
 }
 
 export interface BenchmarkTimings {
-  readonly uploadAttachmentEstimateMs: Percentiles;
-  readonly uploadAndFirstFrameMs: Percentiles;
-  readonly visibleFrameMs: Percentiles;
-  readonly pickSnapshotEstimateMs: Percentiles;
-  readonly pickSnapshotAndReadbackMs: Percentiles;
-  readonly pickReadbackMs: Percentiles;
+  readonly uploadAttachmentEstimateMs: BenchmarkPercentiles;
+  readonly uploadAndFirstFrameMs: BenchmarkPercentiles;
+  readonly visibleFrameMs: BenchmarkPercentiles;
+  readonly pickSnapshotEstimateMs: BenchmarkPercentiles;
+  readonly pickSnapshotAndReadbackMs: BenchmarkPercentiles;
+  readonly pickReadbackMs: BenchmarkPercentiles;
 }
 
-interface Percentiles {
+export interface BenchmarkPercentiles {
   readonly p50: number;
   readonly p95: number;
+}
+
+export interface SelectionBenchmarkPhase {
+  readonly id: "narrow" | "one-shell" | "broad";
+  readonly returnedTargetCount: number;
+  readonly selectedOccurrenceCount: number;
+  readonly invalidSnapshotMs: number;
+  readonly cachedReadbackMs: number;
+  readonly interactionStateMs: number;
+  readonly interactionSyncMs: number;
+  readonly firstSelectedFrameMs: number;
+  readonly steadySelectedFrameMs: BenchmarkPercentiles;
+  readonly clearSelectionMs: number;
+  readonly interactionGpuCost: BenchmarkGpuCostSnapshot;
+  readonly selectedElementRecordBytes: number;
+}
+
+export interface SelectionBenchmarkReport {
+  readonly selectedTargetGranularity: "element";
+  readonly phases: readonly SelectionBenchmarkPhase[];
 }
 
 export interface WebGpuBenchmarkCaseResult {
@@ -61,13 +81,14 @@ export interface WebGpuBenchmarkCaseResult {
   readonly instanceCount: number;
   readonly timings: BenchmarkTimings;
   readonly interactive?: InteractiveSamples;
+  readonly selection?: SelectionBenchmarkReport;
   readonly estimatedMemory: BenchmarkMemoryEstimate;
   /** Structural pass/draw/write counters from the final timed iteration. */
   readonly gpuCost: BenchmarkGpuCostSnapshot;
 }
 
 export interface WebGpuBenchmarkReport {
-  readonly schemaVersion: 3;
+  readonly schemaVersion: 4;
   readonly generatedAt: string;
   readonly browser: string;
   readonly adapter: {

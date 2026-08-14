@@ -9,6 +9,8 @@ const benchmarkExemptions = new Set([
   "demo/benchmark/interactive.ts",
   "demo/benchmark/runner.ts",
   "demo/benchmark/measurement.ts",
+  "demo/benchmark/selection.ts",
+  "demo/benchmark/structured-fe.ts",
   "demo/benchmark/memory.ts",
   "demo/benchmark/model.ts",
   "demo/fixture/performance-fixture.ts",

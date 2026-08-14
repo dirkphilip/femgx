@@ -16,8 +16,8 @@ export async function runWebGpuBenchmark(
   canvas: HTMLCanvasElement,
   options: { readonly includeLarge: boolean; readonly caseId?: string },
 ): Promise<WebGpuBenchmarkReport> {
-  if (devicePixelRatio !== 1)
-    throw new Error(`WebGPU benchmark requires DPR 1, got ${devicePixelRatio}`);
+  if (devicePixelRatio !== 1 && devicePixelRatio !== 2)
+    throw new Error(`WebGPU benchmark requires DPR 1 or 2, got ${devicePixelRatio}`);
   const specs = benchmarkCaseSpecs(options.includeLarge);
   const selectedSpecs =
     options.caseId === undefined ? specs : specs.filter((spec) => spec.id === options.caseId);
@@ -62,7 +62,7 @@ export async function runWebGpuBenchmark(
   }
   const info = adapter.info;
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     generatedAt: new Date().toISOString(),
     browser: navigator.userAgent,
     adapter: {
