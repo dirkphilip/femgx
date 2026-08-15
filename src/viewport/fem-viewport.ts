@@ -13,7 +13,7 @@ import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { AssemblyId, AssemblyOccurrenceId, InstanceId } from "../scene/types";
-import { sceneWorldBounds, sceneWorldBoundsList } from "./scene-bounds";
+import { SceneNavigationBoundsCache } from "./scene-bounds";
 import {
   assertViewportBackground,
   cssSize,
@@ -116,6 +116,7 @@ class FemViewportCore implements FemViewport {
   private pointSizePixels: number;
   private nodeSizePixels: number;
   private originTriadNominalScale: number;
+  private readonly navigationBoundsCache = new SceneNavigationBoundsCache();
 
   constructor(
     private readonly options: FemViewportOptions,
@@ -132,6 +133,8 @@ class FemViewportCore implements FemViewport {
       options.interaction ?? createInteractionState();
     this.cameraRef = { camera: options.camera ?? createCamera() };
     const deformation = () => this.currentResults?.deformation;
+    const navigationBounds = () =>
+      this.navigationBoundsCache.get(this.currentScene, this.currentRuntime, deformation());
     this.cameraFocus = this.createCameraFocus(options, deformation);
     this.removeKeyboard = installViewportKeyboard(options.keyboardTarget, () => {
       this.fitSelection();
@@ -146,9 +149,8 @@ class FemViewportCore implements FemViewport {
       canvas: options.canvas,
       cameraRef: this.cameraRef,
       navigation: renderer,
-      bounds: () => sceneWorldBounds(this.currentScene, this.currentRuntime, deformation()),
-      protectedBounds: () =>
-        sceneWorldBoundsList(this.currentScene, this.currentRuntime, deformation()),
+      bounds: () => navigationBounds().bounds,
+      protectedBounds: () => navigationBounds().protectedBounds,
       onRender: this.invalidate.bind(this),
       onGestureChange: (active) => {
         if (active) {
@@ -476,6 +478,7 @@ class FemViewportCore implements FemViewport {
 
   private applyVisibility(changed: readonly number[]): void {
     if (changed.length === 0) return;
+    this.navigationBoundsCache.invalidate();
     if (this.batchDepth > 0) for (const slot of changed) this.pendingVisibility.add(slot);
     else this.renderer.updateVisibility(this.currentRuntime, changed);
     this.invalidate();

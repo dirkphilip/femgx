@@ -45,7 +45,7 @@ import { defaultStyle } from "../../src/renderer/resources/gpu-support";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createSceneRuntime } from "../../src/entries/runtime";
-import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
+import { SceneNavigationBoundsCache, sceneWorldBounds } from "../../src/viewport/scene-bounds";
 import { displayedPartBounds } from "../../src/viewport/geometry-bounds";
 import { buildFaceSubsetIndices } from "../../src/renderer/selection/gpu-face-subset";
 import {
@@ -126,6 +126,8 @@ const boundsScene = {
   visibleAssemblyIds: new Set([1]),
 };
 const boundsRuntime = createPackedSceneRuntime(boundsScene);
+const navigationBoundsCache = new SceneNavigationBoundsCache();
+navigationBoundsCache.get(boundsScene, boundsRuntime);
 const bodyModel = createStructuredFeModel("quad", BENCH_BODY_GRID_CELLS);
 const bodies = makeBodies(bodyModel.elements.length, BENCH_BODY_COUNT);
 const bodyModelWithBodies = createElementModel([...bodyModel.nodes], bodyModel.elements, {
@@ -587,6 +589,16 @@ const budgets: readonly BudgetCase[] = [
     budgetMs: 100,
     run: () => {
       sceneWorldBounds(boundsScene, boundsRuntime);
+    },
+  },
+  {
+    name: "cached navigation bounds",
+    description: "1,000 zoom-time reads of 32,768 triangles across 64 placements",
+    budgetMs: 2,
+    run: () => {
+      for (let index = 0; index < 1_000; index += 1) {
+        navigationBoundsCache.get(boundsScene, boundsRuntime);
+      }
     },
   },
   {

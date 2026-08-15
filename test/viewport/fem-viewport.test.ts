@@ -19,6 +19,7 @@ import { RendererAttachment } from "../../src/renderer/attachment";
 import { GpuRenderer } from "../../src/renderer/gpu-renderer-core";
 import type { FemViewport } from "../../src/viewport/types";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
+import * as geometryBounds from "../../src/viewport/geometry-bounds";
 
 let restoreGpuGlobals: (() => void) | undefined;
 const originalNavigator = globalThis.navigator;
@@ -41,6 +42,26 @@ function installNavigator(): void {
     configurable: true,
     value: { gpu: { getPreferredCanvasFormat: () => "bgra8unorm" } },
   });
+}
+
+function wheelCanvas(): {
+  readonly canvas: HTMLCanvasElement;
+  readonly wheel: (deltaY: number) => void;
+} {
+  const canvas = fakeCanvas();
+  let listener: ((event: WheelEvent) => void) | undefined;
+  canvas.addEventListener = ((type: string, candidate: EventListenerOrEventListenerObject) => {
+    if (type === "wheel") listener = candidate as (event: WheelEvent) => void;
+  }) as typeof canvas.addEventListener;
+  canvas.removeEventListener = ((type: string) => {
+    if (type === "wheel") listener = undefined;
+  }) as typeof canvas.removeEventListener;
+  return {
+    canvas,
+    wheel: (deltaY) => {
+      listener?.({ deltaY, preventDefault: vi.fn() } as unknown as WheelEvent);
+    },
+  };
 }
 
 function latestCameraUniform(gpu: ReturnType<typeof fakeGpuDevice>): Float32Array {
@@ -307,6 +328,31 @@ function identityScene(withSecondElement: boolean): Scene {
 }
 
 describe("FemViewport", () => {
+  it("reuses displayed scene bounds across wheel zoom frames", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const input = wheelCanvas();
+    const displayedBounds = vi.spyOn(geometryBounds, "displayedPartBounds");
+    const viewport = await createFemViewport({
+      canvas: input.canvas,
+      scene: scene(),
+      device: gpu.device,
+    });
+    displayedBounds.mockClear();
+
+    input.wheel(-100);
+    input.wheel(-100);
+    expect(displayedBounds).toHaveBeenCalledTimes(1);
+
+    viewport.setInstanceVisible("1/0", false);
+    viewport.setInstanceVisible("1/0", true);
+    input.wheel(100);
+    expect(displayedBounds).toHaveBeenCalledTimes(2);
+    viewport.destroy();
+    displayedBounds.mockRestore();
+  });
+
   it("does not resynchronize unchanged interaction state during camera-only frames", async () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
