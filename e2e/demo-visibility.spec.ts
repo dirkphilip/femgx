@@ -117,7 +117,7 @@ test("gives body visibility controls distinct occurrence names", async ({ page }
 test("uses one transient hierarchy hover without changing selection", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await waitForRenderer(page, canvas);
   const hit = await requireHit(
     page,
     canvas,
@@ -191,7 +191,7 @@ test("hides and restores all fasteners through the assembly tree", async ({ page
 test("keeps body overlays rendered while hiding a named body", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await waitForRenderer(page, canvas);
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
 
@@ -266,7 +266,7 @@ test("hides selected elements and restores them through synchronized toolbar act
 
   await page.getByTestId("viewport-toggle").click();
   const secondary = page.getByTestId("secondary-view-canvas");
-  await expect(secondary).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, secondary);
   await expect(secondary).toHaveAttribute("data-selected", selected);
 
   const hideSelected = page.getByTestId("hide-selected");
@@ -400,7 +400,7 @@ test("opens a view context menu on empty scene space", async ({ page }) => {
 test("does not advertise the CPU-only display overlays in the context menu", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await waitForRenderer(page, canvas);
   const hit = await requireHit(
     page,
     canvas,

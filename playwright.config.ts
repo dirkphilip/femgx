@@ -42,6 +42,7 @@ export default defineConfig({
   projects: [
     {
       name: "chrome",
+      testIgnore: /software-webgpu\.spec\.ts/,
       // Multiple WebGPU contexts compete for the same physical device and can
       // produce blank captures or stalled readbacks under load.
       workers: 1,

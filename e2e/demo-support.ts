@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { canvasInteractionBox } from "./helpers";
 export {
   cameraDistance,
@@ -21,11 +21,34 @@ export async function dataset(page: Page, key: string): Promise<string> {
   return (await page.getByTestId("view-canvas").getAttribute(`data-${key}`)) ?? "";
 }
 
+/** Reads the renderer lifecycle state from one canvas. */
+export async function rendererMode(
+  page: Page,
+  canvas = page.getByTestId("view-canvas"),
+): Promise<string> {
+  return (await canvas.getAttribute("data-renderer")) ?? "";
+}
+
 /** Waits for the supported WebGPU renderer before feature assertions. */
-export async function waitForRenderer(page: Page): Promise<void> {
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-renderer", "webgpu", {
-    timeout: 10_000,
-  });
+export async function waitForRenderer(
+  page: Page,
+  canvas = page.getByTestId("view-canvas"),
+): Promise<void> {
+  await expect.poll(() => rendererMode(page, canvas), { timeout: 10_000 }).toBe("webgpu");
+}
+
+/** Waits for WebGPU or skips with the canonical unsupported-environment reason. */
+export async function waitForRendererOrSkip(
+  page: Page,
+  canvas = page.getByTestId("view-canvas"),
+): Promise<void> {
+  await expect(canvas).toBeVisible();
+  await expect
+    .poll(() => rendererMode(page, canvas), { timeout: 10_000 })
+    .toMatch(/^(webgpu|unsupported)$/);
+  if ((await rendererMode(page, canvas)) !== "webgpu") {
+    test.skip(true, "WebGPU renderer unavailable in this browser environment");
+  }
 }
 
 /** Selects the demo-private click and box-selection granularity. */

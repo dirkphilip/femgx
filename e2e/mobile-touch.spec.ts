@@ -8,7 +8,7 @@ import {
   readNavigationState,
   requireHit,
 } from "./helpers";
-import { setSelectionGranularity } from "./demo-support";
+import { setSelectionGranularity, waitForRenderer } from "./demo-support";
 
 const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 
@@ -140,7 +140,7 @@ test("keeps repeated mobile pinch zoom inside the model bounds", async ({ browse
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
-  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await waitForRenderer(page, canvas);
   await page.getByTestId("fit-view").click();
 
   const box = await canvasInteractionBox(canvas);
@@ -182,7 +182,7 @@ test("keeps the panned model target stable during an off-center pinch", async ({
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
-  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await waitForRenderer(page, canvas);
   await page.getByTestId("fit-view").click();
 
   const box = await canvasInteractionBox(canvas);
@@ -225,7 +225,7 @@ test("one-finger taps select node and element targets", async ({ browser }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, canvas);
   await setSelectionGranularity(page, "node");
 
   // Dense step grid so a pointer lands on rasterized node/face pixels. A miss
@@ -267,7 +267,7 @@ test("a view-cube tap changes the camera without starting canvas dragging", asyn
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
-  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await waitForRenderer(page, canvas);
   const before = await canvas.getAttribute("data-camera");
 
   await page.locator('[data-view-face="front"]').tap();

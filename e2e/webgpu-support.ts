@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
+import { waitForRendererOrSkip } from "./demo-support";
 export {
   cameraDistance,
   expectBoundsClippedSafely,
@@ -9,7 +10,7 @@ export {
   sweepForHit,
   targetPlanePoint,
 } from "./helpers";
-export { setSelectionGranularity } from "./demo-support";
+export { rendererMode, setSelectionGranularity, waitForRendererOrSkip } from "./demo-support";
 
 /**
  * Required WebGPU browser coverage (category 1 in
@@ -19,20 +20,10 @@ export { setSelectionGranularity } from "./demo-support";
  * an explicit unsupported state and these tests skip with a reason instead of
  * failing.
  */
-export async function rendererMode(page: Page): Promise<string> {
-  return (await page.getByTestId("view-canvas").getAttribute("data-renderer")) ?? "";
-}
-
 /** Loads the demo and skips when the environment cannot run WebGPU. */
 export async function loadWebGpuPage(page: Page, path = "/"): Promise<void> {
   await page.goto(path);
-  await expect(page.getByTestId("view-canvas")).toBeVisible();
-  await expect
-    .poll(() => rendererMode(page), { timeout: 10_000 })
-    .toMatch(/^(webgpu|unsupported)$/);
-  if ((await rendererMode(page)) !== "webgpu") {
-    test.skip(true, "WebGPU renderer unavailable in this browser environment");
-  }
+  await waitForRendererOrSkip(page);
 }
 
 /**

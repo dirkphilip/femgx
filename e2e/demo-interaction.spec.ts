@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { dataset, requireHit, setSelectionGranularity } from "./demo-support";
+import { dataset, requireHit, setSelectionGranularity, waitForRenderer } from "./demo-support";
 import { loadWebGpuPage } from "./webgpu-support";
 test("toggles the edge overlay", async ({ page }) => {
   await loadWebGpuPage(page);
@@ -94,7 +94,7 @@ test("keeps repeated element, face, and node selection stable through orbit", as
     await page.mouse.up({ button: "middle" });
   }
   await expect.poll(() => dataset(page, "selected")).toBe(selected);
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu");
+  await waitForRenderer(page, canvas);
 });
 
 test("selects an element by promoting a node pick with shift-click", async ({ page }) => {
