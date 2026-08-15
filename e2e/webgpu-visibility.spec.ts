@@ -57,9 +57,7 @@ test("exposes independent body visibility and highlight controls", async ({ page
 });
 
 test("keeps shared node annotations while an incident owner remains visible", async ({ page }) => {
-  await page.goto("/");
-  const hasWebGpu = await page.evaluate(() => "gpu" in navigator);
-  if (!hasWebGpu) test.skip(true, "WebGPU is unavailable in this browser environment");
+  await loadWebGpuPage(page);
 
   const sharedNode = await page.evaluate(async () => {
     const modulePath = "/src/index.ts";

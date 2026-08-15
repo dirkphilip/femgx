@@ -102,9 +102,7 @@ test("keeps selection feedback visible in edge overlay mode", async ({ page }) =
 });
 
 test("renders and switches the built-in viewport backgrounds", async ({ page }) => {
-  await page.goto("/");
-  const hasWebGpu = await page.evaluate(() => "gpu" in navigator);
-  if (!hasWebGpu) test.skip(true, "WebGPU is unavailable in this browser environment");
+  await loadWebGpuPage(page);
 
   await page.evaluate(async () => {
     const modulePath = "/src/index.ts";
@@ -192,9 +190,7 @@ test("renders and switches the built-in viewport backgrounds", async ({ page }) 
 });
 
 test("preserves element identity for shared indexed surface corners", async ({ page }) => {
-  await page.goto("/");
-  const hasWebGpu = await page.evaluate(() => "gpu" in navigator);
-  if (!hasWebGpu) test.skip(true, "WebGPU is unavailable in this browser environment");
+  await loadWebGpuPage(page);
 
   const hits = await page.evaluate(async () => {
     const modulePath = "/src/index.ts";
@@ -252,9 +248,7 @@ test("preserves element identity for shared indexed surface corners", async ({ p
 });
 
 test("renders the persistent world-origin triad without scene identity", async ({ page }) => {
-  await page.goto("/");
-  const hasWebGpu = await page.evaluate(() => "gpu" in navigator);
-  if (!hasWebGpu) test.skip(true, "WebGPU is unavailable in this browser environment");
+  await loadWebGpuPage(page);
 
   await page.evaluate(async () => {
     const modulePath = "/src/index.ts";
@@ -869,9 +863,7 @@ test("composes the transparency fixture and picks its nearest translucent face",
 test("weights nearer equal-opacity layers without registration-order dependence", async ({
   page,
 }) => {
-  await page.goto("/");
-  const hasWebGpu = await page.evaluate(() => "gpu" in navigator);
-  if (!hasWebGpu) test.skip(true, "WebGPU is unavailable in this browser environment");
+  await loadWebGpuPage(page);
 
   const canvas = page.locator("#depth-weight-test");
   const assertDepthWeight = async (viewportSize: {
@@ -1274,9 +1266,7 @@ test("keeps selected volume faces lit, distinct, and reversible with overlays", 
 });
 
 test("reveals internal faces for an exactly selected adjacent Hex8 element", async ({ page }) => {
-  await page.goto("/");
-  const hasWebGpu = await page.evaluate(() => "gpu" in navigator);
-  if (!hasWebGpu) test.skip(true, "WebGPU is unavailable in this browser environment");
+  await loadWebGpuPage(page);
 
   await page.evaluate(async () => {
     const modulePath = "/src/index.ts";
@@ -1535,9 +1525,7 @@ test("preserves selected nodal result rendering across every display mode", asyn
 });
 
 test("preserves selected nodal colors when results are replaced after upload", async ({ page }) => {
-  await page.goto("/");
-  const hasWebGpu = await page.evaluate(() => "gpu" in navigator);
-  if (!hasWebGpu) test.skip(true, "WebGPU is unavailable in this browser environment");
+  await loadWebGpuPage(page);
 
   await page.evaluate(async () => {
     const modulePath = "/src/index.ts";

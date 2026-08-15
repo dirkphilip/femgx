@@ -2,6 +2,7 @@
 
 import { expect, test } from "@playwright/test";
 import { canvasInteractionBox, drawnPixels, sweepForHit } from "./helpers";
+import { waitForRenderer } from "./demo-support";
 
 test.describe.configure({ mode: "serial" });
 
@@ -12,7 +13,7 @@ test("starts a software WebGPU device and presents the model", async ({ page }) 
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 15_000 });
+  await waitForRenderer(page, canvas);
   await expect.poll(() => drawnPixels(canvas), { timeout: 15_000 }).toBe(true);
 
   const adapter = await page.evaluate(async () => {
@@ -29,7 +30,7 @@ test("starts a software WebGPU device and presents the model", async ({ page }) 
 test("resolves one pick through the software-WebGPU interaction path", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 15_000 });
+  await waitForRenderer(page, canvas);
   const box = await canvasInteractionBox(canvas);
   expect(box.width).toBeGreaterThan(0);
   expect(box.height).toBeGreaterThan(0);

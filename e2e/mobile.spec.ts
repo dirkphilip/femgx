@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { canvasInteractionBox, distinctColors, requireHit } from "./helpers";
-import { dataset, primaryBoxDrag } from "./demo-support";
+import { dataset, primaryBoxDrag, waitForRenderer } from "./demo-support";
 
 const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 
@@ -27,7 +27,7 @@ test("keeps CSS size, device-pixel size, and pick coordinates consistent on a hi
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
-  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await waitForRenderer(page, canvas);
 
   // The canvas backing store is sized in device pixels while the CSS size is
   // device pixels / deviceScaleFactor; pick coordinates must align with the
@@ -68,14 +68,12 @@ test("fits a phone-sized viewport without horizontal overflow", async ({ page })
 test("stacks the optional secondary viewport without mobile overflow", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto("/");
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-renderer", "webgpu", {
-    timeout: 10_000,
-  });
-  await page.getByTestId("viewport-toggle").click();
   const primary = page.getByTestId("view-canvas");
+  await waitForRenderer(page, primary);
+  await page.getByTestId("viewport-toggle").click();
   const secondary = page.getByTestId("secondary-view-canvas");
   await expect(secondary).toBeVisible();
-  await expect(secondary).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, secondary);
   const layout = await page.evaluate(() => ({
     width: window.innerWidth,
     scrollWidth: document.documentElement.scrollWidth,
@@ -117,7 +115,7 @@ test("stacks the optional secondary viewport without mobile overflow", async ({ 
   await expect(secondary).toBeHidden();
   await page.getByTestId("viewport-toggle").click();
   await expect(secondary).toBeVisible();
-  await expect(secondary).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, secondary);
   const reopenedPrimaryBox = await primary.boundingBox();
   const reopenedSecondaryBox = await secondary.boundingBox();
   const reopenedSidebarBox = await sidebar.boundingBox();
@@ -139,7 +137,7 @@ test("renders the bolted showcase with distinct part colors on a phone", async (
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
-  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await waitForRenderer(page, canvas);
 
   await expect
     .poll(async () => distinctColors(canvas), { timeout: 10_000 })
@@ -161,7 +159,7 @@ test("fits the element tessellation and mapping gallery into a phone-sized viewp
   await page.getByTestId("model-select").selectOption("gallery");
   await expect(canvas).toHaveAttribute("data-model", "gallery");
   await expect(page.getByTestId("status")).toContainText("15 visible");
-  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await waitForRenderer(page, canvas);
   await expect.poll(() => distinctColors(canvas), { timeout: 10_000 }).toBeGreaterThanOrEqual(6);
 
   const screenshot = await canvas.screenshot();
@@ -223,7 +221,7 @@ test("reports box-selected FE element granularity on a phone-sized viewport", as
   await page.setViewportSize(PHONE);
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, canvas);
   await primaryBoxDrag(page, canvas, { fx: 0.2, fy: 0.15 }, { fx: 0.8, fy: 0.85 });
   await page.mouse.up({ button: "left" });
 
@@ -294,7 +292,7 @@ test("keeps the empty-scene view menu inside a phone-sized viewport", async ({ p
   await page.setViewportSize(PHONE);
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, canvas);
   const box = await canvasInteractionBox(canvas);
 
   // Stay inside the canvas but above the mobile status strip, where the
@@ -336,7 +334,7 @@ test("restores hidden body and placement visibility through Show all on a phone"
   await page.setViewportSize(PHONE);
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, canvas);
 
   const body = page.locator('input[data-testid^="body-vis-"]').first();
   const instance = page.locator("input[data-instance-id]").first();

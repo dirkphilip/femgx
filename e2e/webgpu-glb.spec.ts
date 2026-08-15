@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { drawnPixels, waitForRenderer } from "./demo-support";
+import { drawnPixels, rendererMode, waitForRenderer } from "./demo-support";
 import { loadWebGpuPage } from "./webgpu-support";
 
 const fixture = "test/io/fixtures/glb/onshape-cylinder-compressed.glb";
@@ -38,7 +38,7 @@ test("selects an accessible background preset and preserves it across workbench 
   await page.evaluate(() => {
     (window as { femgxDemo?: { destroyRenderer: () => void } }).femgxDemo?.destroyRenderer();
   });
-  await expect(canvas).toHaveAttribute("data-renderer", "destroyed");
+  await expect.poll(() => rendererMode(page, canvas)).toBe("destroyed");
   await page.evaluate(() => {
     void (
       window as {
@@ -46,7 +46,7 @@ test("selects an accessible background preset and preserves it across workbench 
       }
     ).femgxDemo?.recreateRenderer();
   });
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu");
+  await waitForRenderer(page, canvas);
   await expect(background).toHaveValue("dark");
   await page.screenshot({ path: "test-results/background-selector-desktop.png", fullPage: true });
 });

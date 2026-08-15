@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import type { WebGpuBenchmarkReport } from "../demo/benchmark/runner";
+import { rendererMode } from "./demo-support";
 
 const enabled = process.env["RUN_PERF"] === "1";
 const includeLarge = process.env["RUN_PERF_LARGE"] === "1";
@@ -72,8 +73,8 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       await page.goto("/");
       const canvas = page.getByTestId("view-canvas");
       await expect(canvas).toBeVisible();
-      await expect.poll(() => canvas.getAttribute("data-renderer")).not.toBeNull();
-      const renderer = await canvas.getAttribute("data-renderer");
+      await expect.poll(() => rendererMode(page, canvas)).not.toBe("");
+      const renderer = await rendererMode(page, canvas);
       if (renderer !== "webgpu") {
         test.skip(true, "the opt-in benchmark requires a real WebGPU adapter");
         return;

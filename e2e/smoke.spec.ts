@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { rendererMode, waitForRenderer } from "./demo-support";
 import { drawnPixels, pixelHash, requireHit } from "./helpers";
 
 /**
@@ -40,8 +41,7 @@ test("loads, renders, and reacts to a user action without runtime errors", async
   // Load: WebGPU is the product's only renderer, so the demo commits to the
   // hardware WebGPU renderer on the default lane.
   const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toBeVisible();
-  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await waitForRenderer(page, canvas);
 
   // Render: the workbench reports the loaded model and the canvas has drawn
   // geometry, not just the page chrome.
@@ -84,7 +84,7 @@ test("surfaces a deterministic shader validation failure without a healthy rende
 
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
-  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("error");
+  await expect.poll(() => rendererMode(page, canvas), { timeout: 10_000 }).toBe("error");
   await expect(page.getByTestId("status")).toContainText("Injected shader failure");
   await expect(page.getByTestId("status")).toContainText("triangle color vertex");
   expect(await canvas.getAttribute("data-frames")).toBeNull();

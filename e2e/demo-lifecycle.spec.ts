@@ -9,6 +9,7 @@ import {
   requireHit,
   setSelectionGranularity,
   waitForRenderer,
+  waitForRendererOrSkip,
 } from "./demo-support";
 
 interface BoxSelectionStats {
@@ -34,7 +35,7 @@ test("draws a normalized box rectangle during a primary drag and clears it on re
 }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await waitForRenderer(page, canvas);
   const overlay = page.getByTestId("box-selection-overlay");
   await expect(overlay).toBeHidden();
   expect(await dataset(page, "selected")).toBe("");
@@ -56,7 +57,7 @@ test("selects visible elements with a primary drag and toggles them with Control
 }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await waitForRenderer(page, canvas);
   await expect(page.getByTestId("interaction-help")).toContainText("Element:");
 
   await primaryBoxDrag(page, canvas, { fx: 0.08, fy: 0.32 }, { fx: 0.92, fy: 0.92 });
@@ -74,7 +75,7 @@ test("selects visible elements with a primary drag and toggles them with Control
 test("cancels a box selection with Escape and never changes selection", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  await expect.poll(() => canvas.getAttribute("data-renderer"), { timeout: 10_000 }).toBe("webgpu");
+  await waitForRenderer(page, canvas);
   const overlay = page.getByTestId("box-selection-overlay");
 
   await primaryBoxDrag(page, canvas, { fx: 0.25, fy: 0.4 }, { fx: 0.7, fy: 0.65 });
@@ -108,7 +109,7 @@ test("preserves useful framing across projection and phone resize", async ({ pag
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, canvas);
   await page.getByTestId("model-select").selectOption("transparency");
   await expect(canvas).toHaveAttribute("data-model", "transparency");
 
@@ -149,11 +150,11 @@ test("opens two shared-state viewports with independent cameras and exact teardo
   await page.goto("/");
   const primary = page.getByTestId("view-canvas");
   const secondary = page.getByTestId("secondary-view-canvas");
-  await expect(primary).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, primary);
 
   await page.getByTestId("viewport-toggle").click();
   await expect(secondary).toBeVisible();
-  await expect(secondary).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, secondary);
   await expect(page.getByRole("region", { name: "Primary viewport" })).toHaveAttribute(
     "data-active",
     "false",
@@ -314,7 +315,7 @@ test("updates existing view-cube nodes after camera movement", async ({ page }) 
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   const front = page.locator('[data-femgx-orientation-gizmo="true"] [data-view-face="front"]');
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, canvas);
   const before = await front.locator("polygon").getAttribute("points");
   const box = await canvas.boundingBox();
   if (box === null) throw new Error("canvas has no bounding box");
@@ -378,12 +379,7 @@ test("lists the bolted assembly hierarchy in the visibility panel", async ({ pag
 test("renders the bolted showcase with distinct part colors and a screenshot", async ({ page }) => {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toBeVisible();
-  // The renderer is only known once WebGPU initializes; poll like the visual spec.
-  await expect.poll(() => canvas.getAttribute("data-renderer")).toMatch(/^(webgpu|unsupported)$/);
-  if ((await canvas.getAttribute("data-renderer")) !== "webgpu") {
-    test.skip(true, "WebGPU renderer unavailable in this browser environment");
-  }
+  await waitForRendererOrSkip(page, canvas);
 
   await expect
     .poll(async () => distinctColors(canvas), { timeout: 10_000 })
@@ -493,7 +489,7 @@ test("opens the performance model through the normal demo path", async ({ page }
   await page.goto("/?performanceLab=1");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, canvas);
 
   await select.selectOption("performance");
   await expect(canvas).toHaveAttribute("data-model", "performance");
@@ -519,7 +515,7 @@ test("bounds rapid performance box drags to one active readback", async ({ page 
   await page.goto("/?performanceLab=1");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, canvas);
 
   await select.selectOption("performance");
   await expect(canvas).toHaveAttribute("data-model", "performance");
@@ -559,7 +555,7 @@ test("bounds rapid performance box drags to one active readback", async ({ page 
   expect(stats).toMatchObject({ maxActive: 1 });
   expect(stats?.started).toBeGreaterThan(0);
   expect(stats?.started).toBeLessThanOrEqual(2);
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu");
+  await waitForRenderer(page, canvas);
 });
 test("survives repeated completed box selections on body-heavy and Quad shell models", async ({
   page,
@@ -568,7 +564,7 @@ test("survives repeated completed box selections on body-heavy and Quad shell mo
   await page.goto("/?performanceLab=1");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, canvas);
 
   for (const model of ["bodies-256", "fe-quad-shell-visual", "fe-quad8-shell-visual"]) {
     await select.selectOption(model);
@@ -599,7 +595,7 @@ test("survives repeated completed box selections on body-heavy and Quad shell mo
       }
     }
     await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
-    await expect(canvas).toHaveAttribute("data-renderer", "webgpu");
+    await waitForRenderer(page, canvas);
   }
 });
 test.describe("Retina box selection", () => {
@@ -611,7 +607,7 @@ test.describe("Retina box selection", () => {
       await page.goto("/?performanceLab=1");
       const select = page.getByTestId("model-select");
       const canvas = page.getByTestId("view-canvas");
-      await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+      await waitForRenderer(page, canvas);
       await select.selectOption(model);
       await expect(canvas).toHaveAttribute("data-model", model);
       await expect
@@ -649,7 +645,7 @@ test.describe("Retina box selection", () => {
           .toBeGreaterThan(frames);
         expect(await dataset(page, "selected")).toBe(selected);
       }
-      await expect(canvas).toHaveAttribute("data-renderer", "webgpu");
+      await waitForRenderer(page, canvas);
     });
   }
 });
@@ -657,7 +653,7 @@ test("runs one opt-in continuous render chain and returns to idle", async ({ pag
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   const continuous = page.getByTestId("continuous-rendering");
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, canvas);
   await expect.poll(() => canvas.getAttribute("data-frames")).not.toBeNull();
   const before = Number(await canvas.getAttribute("data-frames"));
 
@@ -684,7 +680,7 @@ test("keeps the deformed Hex20 cylinder connected and pickable", async ({ page }
   await page.goto("/");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toHaveAttribute("data-renderer", "webgpu", { timeout: 10_000 });
+  await waitForRenderer(page, canvas);
   await select.selectOption("hex20-cylinder");
   await expect(canvas).toHaveAttribute("data-results", "deformed");
   await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
