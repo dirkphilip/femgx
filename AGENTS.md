@@ -224,7 +224,9 @@ guidance lives in [[engineering/benchmarks|Benchmarks]].
 The plain-Markdown `wiki/` is durable memory for humans and future agents;
 GitHub issues and PRs remain the work tracker.
 
-- Keep one concise, current, kebab-case note per topic under its owning area.
+- Keep one concise, current, kebab-case note per topic under its owning area;
+  integrate new decisions and delete superseded guidance instead of appending
+  historical correction layers.
 - Use path-qualified Foam links and cross-link instead of duplicating content.
 - Add new notes to their area index and new areas to `wiki/index.md`.
 - Record durable decisions, rationale, gotchas, WebGPU pitfalls, and API notes

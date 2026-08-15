@@ -48,7 +48,7 @@ lifecycle behavior remains in the Playwright suites. The local
   `e2e/demo/demo-results.spec.ts`.
 - No test asserts the removed CPU renderer, library-owned `CasePlayer`, non-VTK
   adapters, or streaming subsystem. Mentions of those terms in policy tests and
-  historical wiki notes are intentional contract/deletion checks, not obsolete
+  authoritative scope notes are intentional contract/deletion checks, not obsolete
   product expectations. Host-driven authored snapshot sequencing continues to
   use the tested repeated-`setResults()` boundary.
 - No coverage threshold was lowered and no retained test was deleted solely to

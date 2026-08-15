@@ -2,8 +2,9 @@
 
 This is the compact review sheet for femgx's supported public API. It shows
 the canonical user path, ownership boundaries, and the small set of types that
-should be considered before adding a new public concept. It is intentionally
-smaller than the exhaustive [[architecture/public-api-audit|public API audit]].
+should be considered before adding a new public concept. The explicit facades
+under `src/entries/` and the public-entry inventory test are the exhaustive
+symbol authority.
 
 The current contract is the WebGPU-only product described in
 [[requirements/product-scope|Product scope]]. The authoritative CPU scene owns
@@ -277,8 +278,8 @@ separate proposals:
   [#234](https://github.com/dirkphilip/femgx/issues/234).
 
 These proposals must still pass the product decision gate before adding public
-surface. The existing exhaustive export inventory is maintained in
-[[architecture/public-api-audit|Public API audit]].
+surface. `test/public-api/entry-inventory.test.ts` maintains the exhaustive
+export inventory.
 
 ## Review checklist for API changes
 
@@ -294,13 +295,11 @@ Before adding a public symbol, confirm:
    note can all describe the same contract.
 
 Related: [[architecture/api-design|API design north star]],
-[[architecture/public-api-audit|Public API audit]],
 [[architecture/demo-library-boundary|Demo / library boundary]],
 [[rendering/platform-support|WebGPU platform support]].
 
 [architecture/api-design|API design north star]: api-design.md
 [architecture/demo-library-boundary|Demo / library boundary]: demo-library-boundary.md
-[architecture/public-api-audit|public API audit]: public-api-audit.md
 [rendering/platform-support|WebGPU platform support]: ../rendering/platform-support.md
 [requirements/product-scope|Product scope]: ../requirements/product-scope.md
 [data/vector-field-visualization|Authored elemental orientation visualization]: ../data/vector-field-visualization.md

@@ -2,8 +2,7 @@
 
 How finite elements become drawable geometry. Point, Line, Line3, Triangle, Tri6,
 Quad, Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, and Hex20 are Core now, including quadratic tessellation.
-Related: [[data/elements-topology|Element topology]] and
-[[architecture/instancing-strategy|Instancing strategy]].
+Related: [[data/elements-topology|Element topology]].
 
 ## Pipeline
 
@@ -56,9 +55,8 @@ emissive.
 
 Parts carry an `ElementTessellation` table, whose `primitiveRanges` qualify
 each owned range by primitive group, so every triangle maps to its element id.
-Mixed models use the same metadata contract for line and point variants (see
-[[rendering/heterogeneous-elements|Heterogeneous element parts]]). The renderer
-turns all ranges into per-primitive pick ids and
+Mixed models use the same metadata contract for line and point variants. The
+renderer turns all ranges into per-primitive pick ids and
 highlight records, making elements and nodes selectable through GPU picking
 (see [[rendering/element-interaction|Element interaction]]).
 
@@ -166,11 +164,9 @@ instanced draws reuse the tessellated part. Costs grow with the fixed
 linearization factor (a Tet10 is 4x its Tet4 triangle count per face), but these
 are CPU/upload costs only — the draw is still a single instanced call.
 
-[architecture/instancing-strategy|Instancing strategy]: ../architecture/instancing-strategy.md
 [architecture/packed-runtime|Packed scene runtime]: ../architecture/packed-runtime.md
 [data/elements-topology|Element topology]: ../data/elements-topology.md
 [rendering/element-interaction|Element interaction]: element-interaction.md
 [rendering/element-interaction|Element-level interaction]: element-interaction.md
 [rendering/face-subsets|Face subsets]: face-subsets.md
-[rendering/heterogeneous-elements|Heterogeneous element parts]: heterogeneous-elements.md
 [rendering/renderer-subrange-updates|Renderer subrange updates]: renderer-subrange-updates.md

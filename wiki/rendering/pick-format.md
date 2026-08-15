@@ -30,8 +30,7 @@ The natural format for an integer id readback is `r32uint`. In one headless
 SwiftShader environment that path returned corrupted values (float bit patterns
 such as `0x3F800000`) for some instances even though the GPU instance buffers
 were verified correct and a minimal `r32uint` pipeline rendered cleanly — a
-software-rasterizer quirk rather than a renderer bug (see
-[[engineering/performance-issues|Performance issues and risks]]).
+software-rasterizer quirk rather than a renderer bug.
 
 The pick id is therefore packed across the four 8-bit channels of an
 `rgba8unorm` texture instead. Every WebGPU implementation supports `rgba8unorm`
@@ -61,9 +60,7 @@ supported pick-id range without a backend-specific integer-texture quirk.
   skip (see [[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
 
 Related: [[rendering/interactive-state|Interactive state]],
-[[rendering/webgpu-e2e|WebGPU browser e2e lane]],
-[[engineering/performance-issues|Performance issues and risks]].
+[[rendering/webgpu-e2e|WebGPU browser e2e lane]].
 
-[engineering/performance-issues|Performance issues and risks]: ../engineering/performance-issues.md
 [rendering/interactive-state|Interactive state]: interactive-state.md
 [rendering/webgpu-e2e|WebGPU browser e2e lane]: webgpu-e2e.md

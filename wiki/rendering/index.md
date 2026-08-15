@@ -11,8 +11,6 @@
 - [[rendering/element-interaction|Element-level interaction]] — element
   picking, selection, occurrence-scoped visibility, highlighting, and edge
   overlays.
-- [[rendering/heterogeneous-elements|Heterogeneous element parts]] — one mixed
-  element model compiled into deterministic triangle, line, and point parts.
 - [[rendering/fe-inspection-workbench|FE inspection workbench]] — the demo's
   model presets, GPU picking, shared workbench controller, and e2e
   coverage.
@@ -63,7 +61,6 @@
 [rendering/element-rendering|Element rendering]: element-rendering.md
 [rendering/face-subsets|Face subsets]: face-subsets.md
 [rendering/fe-inspection-workbench|FE inspection workbench]: fe-inspection-workbench.md
-[rendering/heterogeneous-elements|Heterogeneous element parts]: heterogeneous-elements.md
 [rendering/interaction-selection-menu|Selection and view context menu]: interaction-selection-menu.md
 [rendering/interactive-state|Interactive state]: interactive-state.md
 [rendering/node-face-interaction|Node and face interaction]: node-face-interaction.md

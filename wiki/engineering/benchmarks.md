@@ -1,8 +1,7 @@
 # Benchmarks and performance budgets
 
 Deterministic performance validation for the CPU-side scene pipeline. See
-[[engineering/quality-gate|Quality gate]] for how budgets fit into CI and
-[[engineering/performance-issues|Performance issues]] for known renderer/GPU gaps.
+[[engineering/quality-gate|Quality gate]] for how budgets fit into CI.
 FE demo and benchmark topology follows [[requirements/demo-fixtures|the demo
 fixture requirements contract]].
 
@@ -378,5 +377,4 @@ now**. Re-run the matrix when a supported hardware regression or a new
 rendering cost is introduced; do not infer a universal capacity guarantee from
 this single adapter.
 
-[engineering/performance-issues|Performance issues]: performance-issues.md
 [engineering/quality-gate|Quality gate]: quality-gate.md

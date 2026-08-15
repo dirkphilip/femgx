@@ -51,6 +51,7 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | Derived engineering quantities, other vector/tensor glyphs, magnitude plots, temporal field interpolation, femgx-owned cases/timelines/playback controls, and a public legend subsystem | —                   | —          | **Deferred** | The minimum product displays exact authored snapshots. It does not create intermediate result states, derive values, retain a sequence, schedule frames, or add generalized result-management or glyph systems.                                                                                                                           |
 | IO: VTK legacy read/write + shared validation and diagnostics                                                                                                                           | ~1.0k               | ~0.9k      | **Core now** | One interchange format is the minimum; VTK legacy is the smallest faithful FE format.                                                                                                                                                                                                                                                     |
 | IO: GLB 2.0 display-scene import                                                                                                                                                        | new                 | new        | **Core now** | Explicit narrow CAD-display addition from #422: bytes-only import into existing `Part`/`Scene`/`FemViewport` concepts, with hierarchy, reusable tessellated triangles, names, basic color/alpha, and verified Onshape compression coverage. It does not add FE semantics or a second scene graph.                                         |
+| Host-supplied surface-derived mixed-part authoring                                                                                                                                      | geometry            | geometry   | **Core now** | The host supplies display-relevant facets, authored lines, and authored points for one reusable part without omitted solid connectivity. This compiles to existing primitive groups and is not library-owned progressive streaming; see [surface-derived part authoring].                                                                 |
 | IO: VTU, Gmsh, Abaqus adapters, cancellation/progress                                                                                                                                   | —                   | —          | **Remove**   | Deleted; product keeps a single VTK legacy interchange path.                                                                                                                                                                                                                                                                              |
 | Render coordinates and transforms use single-precision floats                                                                                                                           | elements + geometry | same       | **Core now** | `FemModel` may retain double-precision interchange coordinates, but conversion into `ElementModel`, reusable geometry, transforms, deformation, and GPU data is intentionally Float32. Hosts author suitable part-local coordinates; mixed-precision rendering and coordinate rebasing remain out of scope.                               |
 | Large-model streaming (spatial partitioning, level-of-detail, upload budgets, worker parsing, coordinate rebasing)                                                                      | —                   | —          | **Remove**   | Deleted; in-memory models are the product path.                                                                                                                                                                                                                                                                                           |
@@ -64,7 +65,8 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 
 femgx 0.x renders finite-element models in a **modern WebGPU browser**. A model
 is authored as an `ElementModel` with optional stable semantic element blocks
-and direct or block-defined bodies, then compiled into reusable part geometry
+and direct or block-defined bodies, or supplied as one host-reduced
+surface-derived mixed part, then compiled into reusable part geometry
 (Point, Line, Line3, Triangle, Tri6, Quad,
 Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, and Hex20) placed by hierarchical assemblies, compiled once
 into a packed scene runtime, and drawn with instanced WebGPU draws batched by
@@ -81,6 +83,11 @@ viewport backgrounds. Interchange is a single
 format (VTK legacy) with validation and diagnostics. Browsers without
 a working WebGPU device receive a typed
 unsupported result — never a second renderer.
+
+The surface-derived path accepts a complete in-memory host payload and does not
+restore the removed library-owned streaming subsystem. Its detailed compact
+connectivity, identity, memory, and negative-space contract is defined in
+[[requirements/surface-derived-part-authoring|surface-derived part authoring]].
 
 ## Core camera focus contract
 
@@ -298,3 +305,4 @@ Removals are implemented by their owning issues, not speculatively here:
 [#decision-gate|decision gate]: product-scope.md#decision-gate
 [architecture/architecture-overview|Architecture overview]: ../architecture/architecture-overview.md
 [requirements/index|Requirements index]: index.md
+[requirements/surface-derived-part-authoring|surface-derived part authoring]: surface-derived-part-authoring.md

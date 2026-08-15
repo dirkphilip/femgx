@@ -8,8 +8,8 @@ scene/assembly model is backend-independent, so model I/O and computation never
 require a GPU.
 
 Related: [[architecture/architecture-overview|Architecture overview]],
-[[rendering/webgpu-e2e|WebGPU browser e2e lane]], [[architecture/instancing-strategy|Instancing
-strategy]], [[architecture/source-organization|Source organization]].
+[[rendering/webgpu-e2e|WebGPU browser e2e lane]], and
+[[architecture/source-organization|Source organization]].
 
 ## Capability probing
 
