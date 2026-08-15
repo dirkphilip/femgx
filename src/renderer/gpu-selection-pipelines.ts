@@ -1,9 +1,4 @@
-import {
-  selectionFragmentShader,
-  selectionTransparencyFragmentShader,
-  triangleSelectionFragmentShader,
-  triangleSelectionTransparencyFragmentShader,
-} from "./gpu-selection";
+import { selectionFragmentShader, selectionTransparencyFragmentShader } from "./gpu-selection";
 import {
   TRANSPARENCY_ACCUMULATION_FORMAT,
   TRANSPARENCY_ACCUMULATION_BLEND_STATE,
@@ -62,8 +57,7 @@ type SelectionPipelineBase = Omit<GPURenderPipelineDescriptor, "fragment" | "dep
 export async function createSelectionPipelines(
   options: SelectionPipelineOptions,
 ): Promise<SelectionPipelines> {
-  const [lineSelection, triangleSelection, lineHidden, triangleHidden] =
-    await compileSelectionFragments(options);
+  const [selection, selectionTransparency] = await compileSelectionFragments(options);
   const variants = await Promise.all([
     createPrimitiveSelectionPipelines({
       ...options,
@@ -71,8 +65,8 @@ export async function createSelectionPipelines(
       vertexModule: options.selectionVertex,
       vertexEntry: "vertexMain",
       primitive: "triangle-list",
-      visibleFragment: triangleSelection,
-      hiddenFragment: triangleHidden,
+      visibleFragment: selection,
+      hiddenFragment: selectionTransparency,
     }),
     createPrimitiveSelectionPipelines({
       ...options,
@@ -80,8 +74,8 @@ export async function createSelectionPipelines(
       vertexModule: options.lineSelectionVertex,
       vertexEntry: "vertexMain",
       primitive: "triangle-list",
-      visibleFragment: lineSelection,
-      hiddenFragment: lineHidden,
+      visibleFragment: selection,
+      hiddenFragment: selectionTransparency,
     }),
     createPrimitiveSelectionPipelines({
       ...options,
@@ -89,8 +83,8 @@ export async function createSelectionPipelines(
       vertexModule: options.pointVertex,
       vertexEntry: "pointVertexMain",
       primitive: "triangle-list",
-      visibleFragment: lineSelection,
-      hiddenFragment: lineHidden,
+      visibleFragment: selection,
+      hiddenFragment: selectionTransparency,
     }),
     createPrimitiveSelectionPipelines({
       ...options,
@@ -98,8 +92,8 @@ export async function createSelectionPipelines(
       vertexModule: options.pointVertex,
       vertexEntry: "nodeOverlayVertexMain",
       primitive: "triangle-list",
-      visibleFragment: lineSelection,
-      hiddenFragment: lineHidden,
+      visibleFragment: selection,
+      hiddenFragment: selectionTransparency,
     }),
   ]);
   const [triangle, line, point, node] = variants;
@@ -117,17 +111,12 @@ export async function createSelectionPipelines(
 
 async function compileSelectionFragments(
   options: SelectionPipelineOptions,
-): Promise<readonly [GPUShaderModule, GPUShaderModule, GPUShaderModule, GPUShaderModule]> {
+): Promise<readonly [GPUShaderModule, GPUShaderModule]> {
   const compile = (label: string, code: string) =>
     createValidatedShaderModule(options.device, label, code, options.validation);
   return Promise.all([
     compile("selection fragment", selectionFragmentShader),
-    compile("triangle selection fragment", triangleSelectionFragmentShader),
     compile("selection transparency fragment", selectionTransparencyFragmentShader),
-    compile(
-      "triangle selection transparency fragment",
-      triangleSelectionTransparencyFragmentShader,
-    ),
   ]);
 }
 
