@@ -30,7 +30,7 @@
   <h2>Inspection</h2>
   <pre id="inspection-panel" data-testid="inspection-panel">
 {snapshot?.overlays.inspection.text ??
-      "Click or right-click a visible element, face, or node to inspect it."}</pre>
+      "Click or right-click a visible element, face, node, or authored edge to inspect it."}</pre>
 </div>
 <section
   id="stats-panel"

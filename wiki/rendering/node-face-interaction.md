@@ -110,10 +110,11 @@ oriented element faces are the finest-grained pickable units under
 ## Demo
 
 - The demo's workbench uses `viewport.pick(x, y)` followed by its host policy for interaction;
-  plain click selects the most specific hit (node), Shift promotes to the
-  element, Alt to the instance, Ctrl to the part. Hover/selection datasets are
+  Edge mode explicitly requests `viewport.pick(x, y, "edge")`. Plain click selects the most
+  specific ordinary hit (node), Shift promotes to the element, Alt to the instance, Ctrl to the
+  part, while an authored edge remains an edge when Shift is held. Hover/selection datasets are
   prefixed by granularity (`n:instance:node`, `f:instance:element:faceIndex`,
-  `e:instance:element`, `i:instance`, `p:part`). See
+  `e:instance:element`, `ed:instance:key`, `i:instance`, `p:part`). See
   [[rendering/fe-inspection-workbench|FE inspection workbench]].
 
 [architecture/demo-library-boundary|Demo / library boundary]: ../architecture/demo-library-boundary.md

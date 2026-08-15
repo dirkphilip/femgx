@@ -347,6 +347,18 @@ describe("workbench click selection", () => {
     neighborElementIds: [],
   };
 
+  const edgeHit: PickHit = {
+    kind: "edge",
+    partId: 1,
+    instanceId: "instance-a",
+    key: "1,2",
+    nodeIds: [1, 2],
+    incidentElementIds: [2],
+    faceRefs: [],
+    worldPosition: [0, 0, 0],
+    tangent: [1, 0, 0],
+  };
+
   const complete = (
     modifiers: Partial<BoxSelectionModifiers> = {},
   ): BoxSelectionEvent & { readonly type: "complete" } => ({
@@ -414,6 +426,22 @@ describe("workbench click selection", () => {
     await workbench.click({ clientX: 100, clientY: 100 } as MouseEvent);
 
     expect(selectedKeys(getInteraction())).toEqual(["n:instance-a:3"]);
+  });
+
+  it("requests authored edge picking and keeps the stable edge target", async () => {
+    const pick = vi.fn(() => Promise.resolve(edgeHit));
+    const { workbench, getInteraction, inspectionPanel } = harness(
+      pick,
+      undefined,
+      createInteractionState(),
+      "edge",
+    );
+
+    await workbench.click({ clientX: 100, clientY: 100 } as MouseEvent);
+
+    expect(pick).toHaveBeenCalledWith(100, 100, "edge");
+    expect(selectedKeys(getInteraction())).toEqual(["ed:instance-a:1,2"]);
+    expect(inspectionPanel.textContent).toContain("Incident elements 2");
   });
 
   it("selects the immediately hovered target without a second GPU readback", async () => {

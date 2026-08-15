@@ -255,6 +255,28 @@ test("picks and selects a face, exposing its normal and ownership", async ({ pag
   await expect(page.getByTestId("inspection-panel")).toContainText("Adjacent elements");
 });
 
+test("picks and selects an authored edge without requiring the wireframe overlay", async ({
+  page,
+}) => {
+  await loadWebGpuPage(page);
+  await setSelectionGranularity(page, "edge");
+  await page.getByTestId("edge-overlay").click();
+  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
+  const canvas = page.getByTestId("view-canvas");
+  const hit = await requireHit(
+    page,
+    canvas,
+    { prefix: "ed:" },
+    "authored edge GPU picking must remain available with the overlay disabled",
+  );
+
+  await page.mouse.click(hit.x, hit.y);
+  await expect.poll(() => dataset(page, "selected")).toBe(hit.key);
+  await expect(page.getByTestId("inspection-panel")).toContainText("Authored nodes");
+  await expect(page.getByTestId("inspection-panel")).toContainText("Incident elements");
+  await expect(page.getByTestId("interaction-help")).toContainText("Edge selects authored");
+});
+
 test("keeps the generic mapped element face identity through selection", async ({ page }) => {
   await loadWebGpuPage(page);
   await setSelectionGranularity(page, "face");

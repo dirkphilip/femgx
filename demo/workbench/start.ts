@@ -209,7 +209,11 @@ async function probePickKeys(
   x: number,
   y: number,
 ) {
-  const hit = await state.viewport?.pick(x, y);
+  const hit = await state.viewport?.pick(
+    x,
+    y,
+    controller.selectionGranularity === "edge" ? "edge" : undefined,
+  );
   const hovered =
     hit === undefined
       ? undefined

@@ -137,13 +137,14 @@
       data-testid="selection-granularity"
       aria-label="Selection granularity"
       aria-describedby="interaction-help"
-      title="Choose whether click and box selection targets elements, faces, or nodes."
+      title="Choose whether click and box selection targets elements, faces, nodes, or authored edges."
       value={snapshot?.toolbar.selectionGranularity ?? "element"}
       onchange={setSelectionGranularity}
     >
       <option value="element">Element</option>
       <option value="face">Face</option>
       <option value="node">Node</option>
+      <option value="edge">Edge</option>
     </select>
     <select
       id="box-selection-strategy"
@@ -164,11 +165,16 @@
       id="hide-selected"
       data-testid="hide-selected"
       type="button"
-      disabled={(snapshot?.hierarchy.selectedCount ?? 0) === 0}
-      aria-label={`Hide selected ${snapshot?.hierarchy.selectedCount === 1 ? "element" : "elements"}`}
-      title={snapshot?.hierarchy.selectedCount === 0
-        ? "Select one or more elements to hide."
-        : `Hide ${snapshot?.hierarchy.selectedCount} selected elements.`}
+      disabled={(snapshot?.hierarchy.selectedCount ?? 0) === 0 ||
+        snapshot?.toolbar.selectionGranularity === "edge"}
+      aria-label={snapshot?.toolbar.selectionGranularity === "edge"
+        ? "Hide selected elements unavailable for edge selection"
+        : `Hide selected ${snapshot?.hierarchy.selectedCount === 1 ? "element" : "elements"}`}
+      title={snapshot?.toolbar.selectionGranularity === "edge"
+        ? "Hide selected is available for element selection, not authored edge selection."
+        : snapshot?.hierarchy.selectedCount === 0
+          ? "Select one or more elements to hide."
+          : `Hide ${snapshot?.hierarchy.selectedCount} selected elements.`}
       onclick={() => controller?.commands.hideSelected()}
       >{snapshot?.hierarchy.selectedCount === 0
         ? "Hide selected"
@@ -266,8 +272,9 @@
     {snapshot?.overlays.feedback?.message ?? ""}
   </div>
   <p id="interaction-help" data-testid="interaction-help" class="interaction-help">
-    Element: click or drag to replace. Hold Ctrl or ⌘ to toggle. Shift keeps element selection. Alt
-    selects an instance. Press Z to frame the visible selection, or the complete model when none is
-    eligible.
+    Element/Face/Node: click or drag to replace. Hold Ctrl or ⌘ to toggle. Shift keeps element
+    selection. Alt selects an instance. Edge selects authored occurrence-scoped topology; shared
+    edges remain edges when Shift is held. Through is unavailable for Edge. Press Z to frame the
+    visible selection, or the complete model when none is eligible.
   </p>
 </div>

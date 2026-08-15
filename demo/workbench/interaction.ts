@@ -286,7 +286,13 @@ export class WorkbenchInteraction {
     const rect = this.options.canvas.getBoundingClientRect();
     const point = clientToCanvasCss(event.clientX, event.clientY, rect);
     try {
-      return await this.options.viewport().pick(point.x, point.y);
+      return await this.options
+        .viewport()
+        .pick(
+          point.x,
+          point.y,
+          this.options.selectionGranularity() === "edge" ? "edge" : undefined,
+        );
     } catch (error: unknown) {
       if (this.disposed || generation !== this.generation) return undefined;
       throw error;

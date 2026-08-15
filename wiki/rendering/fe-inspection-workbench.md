@@ -1,8 +1,8 @@
 # FE inspection workbench
 
 The demo is an FE model inspection workbench: deterministic model presets,
-GPU picking via `FemViewport.pick` (node → face → element), a shared
-workbench controller, and per-node/face/element selection and highlighting that
+GPU picking via `FemViewport.pick` (node → face → element, with explicit authored-edge
+granularity), a shared workbench controller, and per-node/face/element/edge selection and highlighting that
 never rebuilds geometry or clones materials. The WebGPU renderer drives the
 controller, so camera and interaction behavior is stable
 ([[rendering/element-interaction|Element-level interaction]],
@@ -40,7 +40,8 @@ controller, so camera and interaction behavior is stable
 - Interaction picking is asynchronous GPU readback: `RendererHooks.pick` →
   `FemViewport.pick(x, y)` returning a complete host-mappable `PickHit`; hosts
   use `interactionTargetFromHit` to choose part / instance / body / element /
-  face / node selection policy.
+  face / node selection policy. The workbench's Edge mode requests
+  `FemViewport.pick(x, y, "edge")` and retains occurrence-scoped authored keys.
 - Default granularity prefers the **most specific available target**
   (`node` > `face` > `element` > `instance`). Modifier keys promote/narrow the
   selection: shift → element, alt → instance, ctrl → part (see
@@ -50,6 +51,10 @@ controller, so camera and interaction behavior is stable
   action. Selecting an unselected element replaces the ordinary selection;
   deselecting it removes only that element. Instance, part, and empty-scene
   targets never fabricate an element action.
+- Edge mode exposes shared and quadratic authored topology as `ed:<instance>:<key>`
+  targets. Inspection reports canonical nodes, incident elements/faces, hit position,
+  and tangent; it never invents one owning element for a shared edge. Through remains
+  unavailable in Edge mode, while Visible region selection uses the same edge granularity.
 - A completed primary-button box drag calls `FemViewport.pickRegion` once at
   element granularity. Plain drags replace selection with the returned visible
   elements; Ctrl/Meta drags toggle them. Shift and Alt do not add select-through
