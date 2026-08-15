@@ -2,11 +2,11 @@
   import { onDestroy, onMount } from "svelte";
   import type { WorkbenchController } from "../controllers/controller";
   import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../results/snapshot";
-  import BuildInfo from "./BuildInfo";
-  import ElementDetail from "./ElementDetail";
-  import ModelSource from "./ModelSource";
-  import VisibilityTree from "./VisibilityTree";
-  import ViewportWorkspace from "./ViewportWorkspace";
+  import BuildInfo from "./BuildInfo.svelte";
+  import ElementDetail from "./ElementDetail.svelte";
+  import ModelSource from "./ModelSource.svelte";
+  import VisibilityTree from "./VisibilityTree.svelte";
+  import ViewportWorkspace from "./ViewportWorkspace.svelte";
 
   interface FocusableElement {
     readonly hidden: boolean;

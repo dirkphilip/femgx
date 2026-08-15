@@ -12,7 +12,13 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: [
-        "demo/workbench/{box-preview,box-selection-resolver,build-info,inspect,interaction,menu,model,pick,render-loop,result-controls,section-controls,selection,snapshot,visibility-tree,visibility-snapshot}.ts",
+        "demo/workbench/{build-info,section-controls}.ts",
+        "demo/workbench/interaction/{interaction,menu}.ts",
+        "demo/workbench/models/model.ts",
+        "demo/workbench/results/{result-controls,snapshot}.ts",
+        "demo/workbench/selection/{box-preview,box-selection-resolver,inspect,pick,selection}.ts",
+        "demo/workbench/state/{visibility-snapshot,visibility-tree}.ts",
+        "demo/workbench/viewport/render-loop.ts",
       ],
       reporter: ["text", "html", "lcov"],
       reportsDirectory: "coverage/demo-core",
