@@ -5,7 +5,7 @@ import type { WorkbenchInteraction } from "./interaction";
 import type { WorkbenchBoxPreview } from "./box-preview";
 import type { WorkbenchMenu } from "./menu";
 import type { VisibilityPanelController } from "./visibility-panel";
-import type { WorkbenchOptions } from "./types";
+import type { TouchInteractionMode, WorkbenchOptions } from "./types";
 import type { DemoView, ViewportSlotId } from "./view";
 import type { WorkbenchModel } from "./model";
 import type { DisplayToggles, ResultDisplayMode } from "./types";
@@ -31,7 +31,7 @@ export interface WorkbenchControllerWiringContext {
   readonly vectorDisplay: VectorDisplayState;
   readonly continuousEnabled: boolean;
   readonly selectionGranularity: SelectionGranularity;
-  readonly touchInteractionMode: "navigate" | "box-select";
+  readonly touchInteractionMode: TouchInteractionMode;
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
   readonly interaction: InteractionState;
@@ -91,7 +91,7 @@ export function createControllerInfrastructure(
     vectorTransform: () => context.vectorDisplay.transform,
     continuous: () => context.continuousEnabled,
     selectionGranularity: () => context.selectionGranularity,
-    touchBoxSelection: () => context.touchInteractionMode === "box-select",
+    touchInteractionMode: () => context.touchInteractionMode,
     sectionAxis: () => context.sectionAxis,
     sectionOffset: () => context.sectionOffset,
     interaction: () => context.interaction,
@@ -121,7 +121,7 @@ export function installControllerLifecycle(context: WorkbenchControllerWiringCon
     interaction: context.interactionController,
     boxPreview: context.boxPreview,
     dragging: () => context.isPointerGestureActive(),
-    touchBoxSelection: () => context.touchInteractionMode === "box-select",
+    touchInteractionMode: () => context.touchInteractionMode,
     setActive: context.setActiveSlot.bind(context, "primary"),
   });
 }

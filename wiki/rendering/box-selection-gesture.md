@@ -63,13 +63,15 @@ hover handling runs. Demo-only box activity is tracked separately from camera
 gesture activity; `isPointerGestureActive()` combines the two, and the hover
 listener suppresses asynchronous GPU picks while either is active. On
 phone layouts, a right-side touch tool rail switches explicitly between
-Navigate and Box select. The box-selection capture listener prevents an enabled
-touch from entering the viewport-owned camera gesture, while the default
-Navigate mode retains one-finger orbit and two-finger pan/pinch. The same rail
-can replace selection with every explicitly visible target at the active
-granularity without a GPU query. Touch-contact `pointerleave` teardown is not a
-mouse-hover exit and therefore does not invalidate the tap or box readback that
-the preceding `pointerup` started.
+Navigate, Highlight, and Box select. Highlight reserves one-finger touch from
+the camera and routes taps or drags through the existing transient hover state;
+leaving the mode clears that cue. Box select arms the rectangle lifecycle,
+while the default Navigate mode retains one-finger orbit and two-finger
+pan/pinch. The same rail can replace selection with every explicitly visible
+target at the active granularity without a GPU query. Touch-contact
+`pointerleave` teardown is not a mouse-hover exit and therefore does not
+invalidate the tap, hover, or box readback that the preceding `pointerup`
+started.
 
 On completion, `WorkbenchInteraction` sends one request containing the completed
 event and captured Element/Face/Node granularity to its workbench-private box

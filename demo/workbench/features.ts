@@ -5,7 +5,7 @@ import { WorkbenchBoxPreview } from "./box-preview";
 import { WorkbenchInteraction } from "./interaction";
 import { WorkbenchMenu } from "./menu";
 import { WorkbenchPresentation } from "./presentation";
-import type { ResultDisplayMode, DisplayToggles } from "./types";
+import type { ResultDisplayMode, DisplayToggles, TouchInteractionMode } from "./types";
 import { VisibilityPanelController } from "./visibility-panel";
 import { WorkbenchVisibilityActions } from "./visibility-actions";
 import type { SelectionGranularity } from "./pick";
@@ -30,6 +30,7 @@ export interface WorkbenchFeatureOptions {
   readonly vectorTransform: () => VectorTransform;
   readonly continuous: () => boolean;
   readonly selectionGranularity: () => SelectionGranularity;
+  readonly touchInteractionMode: () => TouchInteractionMode;
   readonly sectionAxis: () => SectionAxis;
   readonly sectionOffset: () => number;
   readonly interaction: () => InteractionState;
@@ -89,6 +90,7 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     menu,
     render: options.render,
     selectionGranularity: options.selectionGranularity,
+    touchMode: options.touchInteractionMode,
     setInspection: presentation.setInspection.bind(presentation),
     selectionFeedback: presentation.setFeedback.bind(presentation),
     hoverOwnership: {

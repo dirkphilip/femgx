@@ -1,5 +1,6 @@
 import type { WorkbenchPane } from "./view";
 import type { WorkbenchInteraction } from "./interaction";
+import type { TouchInteractionMode } from "./types";
 
 /** Pane-local pointer and asynchronous inspection bindings. */
 export interface WorkbenchPaneBindingOptions {
@@ -7,6 +8,7 @@ export interface WorkbenchPaneBindingOptions {
   readonly signal: AbortSignal;
   readonly interaction: WorkbenchInteraction;
   readonly dragging: () => boolean;
+  readonly touchInteractionMode: () => TouchInteractionMode;
   readonly setActive: () => void;
 }
 
@@ -19,6 +21,15 @@ export function installWorkbenchPaneBindings(options: WorkbenchPaneBindingOption
   };
   pane.scene.addEventListener("pointerenter", options.setActive, { signal });
   pane.scene.addEventListener("focusin", options.setActive, { signal });
+  pane.canvas.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (event.pointerType === "touch" && options.touchInteractionMode() !== "navigate") {
+        event.preventDefault();
+      }
+    },
+    { capture: true, signal },
+  );
   pane.canvas.addEventListener("pointerdown", activate, { signal });
   pane.canvas.addEventListener("pointerdown", interaction.pointerDown.bind(interaction), {
     signal,

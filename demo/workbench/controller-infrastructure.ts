@@ -5,7 +5,12 @@ import { applyMenuAction } from "./menu-actions";
 import { createWorkbenchFeatures, type WorkbenchFeatures } from "./features";
 import { WorkbenchViewportSlots } from "./viewport-slots";
 import type { WorkbenchViewportSlot } from "./viewport-slots";
-import type { DisplayToggles, ResultDisplayMode, WorkbenchOptions } from "./types";
+import type {
+  DisplayToggles,
+  ResultDisplayMode,
+  TouchInteractionMode,
+  WorkbenchOptions,
+} from "./types";
 import type { SelectionGranularity } from "./pick";
 import type { SectionAxis } from "./section-controls";
 import type { VectorGlyph, VectorTransform } from "./result-controls";
@@ -24,7 +29,7 @@ export interface WorkbenchInfrastructureOptions {
   readonly vectorTransform: () => VectorTransform;
   readonly continuous: () => boolean;
   readonly selectionGranularity: () => SelectionGranularity;
-  readonly touchBoxSelection: () => boolean;
+  readonly touchInteractionMode: () => TouchInteractionMode;
   readonly sectionAxis: () => SectionAxis;
   readonly sectionOffset: () => number;
   readonly interaction: () => InteractionState;
@@ -75,6 +80,7 @@ export function createWorkbenchInfrastructure(
     vectorTransform: options.vectorTransform,
     continuous: options.continuous,
     selectionGranularity: options.selectionGranularity,
+    touchInteractionMode: options.touchInteractionMode,
     sectionAxis: options.sectionAxis,
     sectionOffset: options.sectionOffset,
     interaction: options.interaction,
@@ -134,7 +140,7 @@ function createViewportSlots(
     markCanvasHover: options.markCanvasHover,
     clearCanvasHover: options.clearCanvasHover,
     selectionGranularity: options.selectionGranularity,
-    touchBoxSelection: options.touchBoxSelection,
+    touchInteractionMode: options.touchInteractionMode,
     menu: features.menu,
     render: options.render,
     applySharedState: options.applySharedState,

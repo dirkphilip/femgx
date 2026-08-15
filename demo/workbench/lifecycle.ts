@@ -3,6 +3,7 @@ import type { WorkbenchPane } from "./view";
 import type { WorkbenchBoxPreview } from "./box-preview";
 import type { WorkbenchInteraction } from "./interaction";
 import { installWorkbenchPaneBindings } from "./listeners";
+import type { TouchInteractionMode } from "./types";
 
 interface WorkbenchPaneLifecycleOptions {
   readonly pane: WorkbenchPane;
@@ -10,7 +11,7 @@ interface WorkbenchPaneLifecycleOptions {
   readonly interaction: WorkbenchInteraction;
   readonly boxPreview: WorkbenchBoxPreview;
   readonly dragging: () => boolean;
-  readonly touchBoxSelection: () => boolean;
+  readonly touchInteractionMode: () => TouchInteractionMode;
   readonly setActive: () => void;
 }
 
@@ -18,7 +19,7 @@ interface WorkbenchPaneLifecycleOptions {
 export function installWorkbenchPaneLifecycle(options: WorkbenchPaneLifecycleOptions): () => void {
   const boxSelectionDisposer = installBoxSelection({
     canvas: options.pane.canvas,
-    touchEnabled: options.touchBoxSelection,
+    touchEnabled: () => options.touchInteractionMode() === "box-select",
     onEvent: (event) => {
       options.boxPreview.handleEvent(event);
       if (event.type === "complete") void options.interaction.selectBox(event);
@@ -29,6 +30,7 @@ export function installWorkbenchPaneLifecycle(options: WorkbenchPaneLifecycleOpt
     signal: options.signal,
     interaction: options.interaction,
     dragging: options.dragging,
+    touchInteractionMode: options.touchInteractionMode,
     setActive: options.setActive,
   });
   return boxSelectionDisposer;

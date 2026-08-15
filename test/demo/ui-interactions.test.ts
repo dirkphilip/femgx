@@ -153,10 +153,16 @@ describe("workbench Svelte controls", () => {
     });
 
     button(target, '[data-testid="touch-tool-box-select"]').click();
+    button(target, '[data-testid="touch-tool-hover"]').click();
     button(target, '[data-testid="touch-tool-navigate"]').click();
     button(target, '[data-testid="touch-tool-select-all"]').click();
 
-    expect(calls).toEqual(["setTouchInteractionMode", "setTouchInteractionMode", "selectAll"]);
+    expect(calls).toEqual([
+      "setTouchInteractionMode",
+      "setTouchInteractionMode",
+      "setTouchInteractionMode",
+      "selectAll",
+    ]);
     await unmount(component);
   });
 

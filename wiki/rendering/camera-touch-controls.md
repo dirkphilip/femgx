@@ -67,8 +67,8 @@ that are meaningful at the workbench boundary.
 - `touch-action: none` remains scoped to the canvas elements only, so the rest
   of the page keeps native scrolling.
 - A host-routed touch may prevent the pointer-down before camera controls see
-  it. The workbench uses this bounded arbitration for its mobile Box select
-  tool; Navigate remains the default.
+  it. The workbench uses this bounded arbitration for its mobile Highlight and
+  Box select tools; Navigate remains the default.
 - Middle-button and one-finger orbit use the camera-navigation pick-point and
   cancellation contract described in [[rendering/camera-presentation|Camera
   presentation]]. Wheel and Shift+middle zoom do not issue a pick or change

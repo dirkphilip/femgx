@@ -28,6 +28,21 @@
   </button>
   <button
     type="button"
+    data-testid="touch-tool-hover"
+    aria-label="Highlight"
+    title="Highlight: tap or drag over the model without selecting"
+    aria-pressed={snapshot?.toolbar.touchInteractionMode === "hover"}
+    onclick={() => controller?.commands.setTouchInteractionMode("hover")}
+  >
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 4a8 8 0 0 1 7.5 5.2M12 20a8 8 0 0 1-7.5-5.2M4 12c1.8-3 4.5-4.5 8-4.5S18.2 9 20 12c-1.8 3-4.5 4.5-8 4.5S5.8 15 4 12Z"
+      />
+      <circle cx="12" cy="12" r="2.5" />
+    </svg>
+  </button>
+  <button
+    type="button"
     data-testid="touch-tool-box-select"
     aria-label="Box select"
     title="Box select: drag a rectangle over the model"

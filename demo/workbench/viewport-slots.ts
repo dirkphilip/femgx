@@ -1,7 +1,7 @@
 import type { FemViewport, InteractionState } from "../../src/index";
 import type { DemoView, WorkbenchPane, ViewportSlotId } from "./view";
 import { errorMessage, type WorkbenchModel } from "./model";
-import type { WorkbenchOptions } from "./types";
+import type { TouchInteractionMode, WorkbenchOptions } from "./types";
 import type { SelectionGranularity } from "./pick";
 import type { WorkbenchMenu } from "./menu";
 import { WorkbenchBoxPreview } from "./box-preview";
@@ -33,7 +33,7 @@ interface WorkbenchViewportSlotsOptions {
   readonly markCanvasHover: (slotId: ViewportSlotId) => void;
   readonly clearCanvasHover: (slotId: ViewportSlotId) => void;
   readonly selectionGranularity: () => SelectionGranularity;
-  readonly touchBoxSelection: () => boolean;
+  readonly touchInteractionMode: () => TouchInteractionMode;
   readonly menu: WorkbenchMenu;
   readonly render: () => void;
   readonly applySharedState: () => void;
@@ -203,6 +203,7 @@ export class WorkbenchViewportSlots {
       canvas: view.secondaryPane.canvas,
       viewport: () => viewport,
       selectionGranularity: this.options.selectionGranularity,
+      touchMode: this.options.touchInteractionMode,
       getInteraction: this.options.getInteraction,
       setInteraction: this.options.setInteraction,
       hoverOwnership: {
@@ -242,7 +243,7 @@ export class WorkbenchViewportSlots {
       interaction: slot.interaction,
       boxPreview: slot.boxPreview,
       dragging: () => slot.dragging || slot.boxPreview.isActive(),
-      touchBoxSelection: this.options.touchBoxSelection,
+      touchInteractionMode: this.options.touchInteractionMode,
       setActive: this.setActiveSlot.bind(this, "secondary"),
     });
     slot.removePaneBindings = () => {

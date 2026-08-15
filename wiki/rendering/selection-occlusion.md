@@ -19,10 +19,12 @@ ordinary passes. Hidden runtime instances and hidden body owners never reach a
 selection fragment; alpha-zero style overrides still retain a selection cue.
 
 The visible selection pass uses `less-equal`, alpha blending, no depth writes,
-and a dedicated stencil bit. Its color is a bounded tint over the authored
-result color when result mapping is active. Selected triangle surfaces retain
-the ordinary two-sided surface lighting, while line, point, and node cues stay
-unlit and screen-space legible. The visible alpha is `1` when the
+and a dedicated stencil bit. Its unlit color is a bounded tint over the authored
+result color when result mapping is active, keeping the selection cue uniform
+across one target's visible faces. Selected triangles reuse the ordinary
+surface position without pick-target expansion, so equal-depth classification
+cannot expose individual tessellation triangles.
+The visible alpha is `1` when the
 resolved base alpha is `1`; otherwise it remains the resolved fractional base
 alpha. The hidden pass uses `greater`, no depth or stencil writes, and the same
 weighted transparency blend as the ordinary transparent scene. Selection

@@ -40,7 +40,6 @@ import {
 import {
   selectionFragmentShader,
   selectionTransparencyFragmentShader,
-  triangleSelectionFragmentShader,
 } from "../../src/renderer/gpu-selection";
 
 function normalizedDerivativeNormal(
@@ -412,12 +411,9 @@ describe("selection emphasis shaders", () => {
     );
   });
 
-  it("lights selected triangle surfaces while keeping line and point cues unlit", () => {
-    for (const source of [selectionFragmentShader, triangleSelectionFragmentShader]) {
-      expect(source).toContain("color.a <= 0.0");
-      expect(source).toContain("visibleSelectionAlpha(color.a)");
-    }
-    expect(triangleSelectionFragmentShader).toContain("surfaceLighting(");
+  it("keeps the visible selection cue uniform across triangle faces", () => {
+    expect(selectionFragmentShader).toContain("color.a <= 0.0");
+    expect(selectionFragmentShader).toContain("visibleSelectionAlpha(color.a)");
     expect(selectionFragmentShader).not.toContain("surfaceLighting(");
   });
 
@@ -527,19 +523,22 @@ describe("GPU deformation shader contract", () => {
     );
   });
 
-  it("expands only subpixel triangles in pick and selected feedback passes", () => {
+  it("expands subpixel triangles only for picking", () => {
     expect(nodePickVertexShader).toContain("trianglePickPosition(");
     expect(nodePickVertexShader).toContain("camera.trianglePickSize");
-    expect(selectionVertexShader).toContain("trianglePickPosition(");
+    expect(selectionVertexShader).not.toContain("trianglePickPosition(");
     expect(instanceVertexShader).not.toContain("trianglePickPosition(");
   });
 
-  it("keeps expanded selected triangles in their occurrence transform", () => {
-    expect(selectionVertexShader).toMatch(
-      /let triangleCenterClip = camera\.viewProjection \* instance\.transform/,
+  it("matches visible selected triangle depth to the ordinary surface position", () => {
+    expect(selectionVertexShader).toContain(
+      "let displayedPosition = displaced(position, vertexIndex)",
     );
-    expect(selectionVertexShader).toMatch(
-      /trianglePickPosition\([\s\S]*triangleCenterClip,[\s\S]*vertexIndex % 3u/,
+    expect(selectionVertexShader).toContain(
+      "let worldPosition = (instance.transform * vec4<f32>(displayedPosition, 1.0)).xyz",
+    );
+    expect(selectionVertexShader).toContain(
+      "output.position = camera.viewProjection * vec4<f32>(worldPosition, 1.0)",
     );
   });
 
