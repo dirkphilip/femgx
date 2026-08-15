@@ -243,12 +243,7 @@ export class VisibilityPanelController {
   }
 
   private directPartInstances(occurrenceId: AssemblyOccurrenceId): InstanceId[] {
-    const runtime = this.options.getRuntime();
-    return (
-      runtime.getOccurrence(occurrenceId)?.instanceIds.filter((instanceId) => {
-        return runtime.getInstance(instanceId)?.occurrenceId === occurrenceId;
-      }) ?? []
-    );
+    return [...(this.options.getRuntime().getOccurrence(occurrenceId)?.instanceIds ?? [])];
   }
 
   private assemblyOccurrenceName(occurrenceId: AssemblyOccurrenceId, name: string): string {

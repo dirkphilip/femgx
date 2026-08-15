@@ -79,6 +79,10 @@ export interface FemViewportOptions {
  */
 export interface FemViewport {
   readonly scene: Scene;
+  /**
+   * The current live query facade. Read it again after `setScene` or `updateScene`;
+   * structural replacement installs a new runtime snapshot.
+   */
   readonly runtime: SceneRuntime;
   readonly camera: Camera;
   readonly interaction: InteractionState;

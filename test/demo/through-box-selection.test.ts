@@ -31,15 +31,15 @@ describe("through box selection", () => {
     );
 
     await expect(resolver(request("element"))).resolves.toEqual([
-      { kind: "element", instanceId: runtime.getDrawList()[0], elementId: 1 },
-      { kind: "element", instanceId: runtime.getDrawList()[0], elementId: 3 },
-      { kind: "element", instanceId: runtime.getDrawList()[0], elementId: 4 },
+      { kind: "element", instanceId: runtime.getVisibleInstanceIds()[0], elementId: 1 },
+      { kind: "element", instanceId: runtime.getVisibleInstanceIds()[0], elementId: 3 },
+      { kind: "element", instanceId: runtime.getVisibleInstanceIds()[0], elementId: 4 },
     ]);
   });
 
   it("applies hidden element state before testing authored primitive ranges", async () => {
     const { scene, runtime } = fixture();
-    const instanceId = runtime.getDrawList()[0];
+    const instanceId = runtime.getVisibleInstanceIds()[0];
     const interaction = setElementVisible(
       createInteractionState(),
       { instanceId: instanceId as string, elementId: 1 },
@@ -62,7 +62,7 @@ describe("through box selection", () => {
     );
 
     await expect(resolver(request("element"))).resolves.toEqual([
-      { kind: "element", instanceId: runtime.getDrawList()[0], elementId: 4 },
+      { kind: "element", instanceId: runtime.getVisibleInstanceIds()[0], elementId: 4 },
     ]);
   });
 

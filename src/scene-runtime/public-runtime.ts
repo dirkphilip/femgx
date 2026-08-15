@@ -28,6 +28,7 @@ export interface RuntimeOccurrence {
   readonly assemblyId: AssemblyId;
   readonly parentId: AssemblyOccurrenceId | undefined;
   readonly childIds: readonly AssemblyOccurrenceId[];
+  /** Stable placed-part ids directly contained by this occurrence. */
   readonly instanceIds: readonly InstanceId[];
   readonly visible: boolean;
   readonly effectiveVisible: boolean;
@@ -42,9 +43,9 @@ export interface SceneRuntime {
   readonly occurrenceCount: number;
   readonly instanceCount: number;
   readonly visibleCount: number;
-  /** Returns every stable placed-part id in runtime order. */
+  /** Returns a fresh snapshot of every stable placed-part id in runtime order. */
   getInstanceIds(): readonly InstanceId[];
-  /** Returns every stable assembly-occurrence id in runtime order. */
+  /** Returns a fresh snapshot of every stable assembly-occurrence id in runtime order. */
   getOccurrenceIds(): readonly AssemblyOccurrenceId[];
   /** Materializes query records for all placed parts. */
   getInstances(): readonly RuntimeInstance[];
@@ -56,12 +57,15 @@ export interface SceneRuntime {
   getOccurrence(occurrenceId: AssemblyOccurrenceId): RuntimeOccurrence | undefined;
   /** Resolves a placed-part id to its reusable part id. */
   getPartId(instanceId: InstanceId): PartId | undefined;
-  /** Returns a placed part's world transform, or `undefined` for an unknown id. */
+  /** Returns a defensive copy of a placed part's world transform, or `undefined` for an unknown id. */
   getTransform(instanceId: InstanceId): Mat4 | undefined;
   /** Reports effective visibility for one placed part. */
   isInstanceVisible(instanceId: InstanceId): boolean;
-  /** Returns the currently visible placed-part ids in draw order. */
-  getDrawList(): readonly InstanceId[];
+  /**
+   * Returns currently visible placed-part ids in deterministic depth-first runtime order.
+   * This is runtime order, not the renderer's private part-batched draw order.
+   */
+  getVisibleInstanceIds(): readonly InstanceId[];
 }
 
 class PublicSceneRuntime implements SceneRuntime {
@@ -90,10 +94,10 @@ class PublicSceneRuntime implements SceneRuntime {
     return this.packed.visibleCount;
   }
   getInstanceIds(): readonly InstanceId[] {
-    return this.instanceIds;
+    return [...this.instanceIds];
   }
   getOccurrenceIds(): readonly AssemblyOccurrenceId[] {
-    return this.occurrenceIds;
+    return [...this.occurrenceIds];
   }
   getInstances(): readonly RuntimeInstance[] {
     return this.instanceIds.map((instanceId) =>
@@ -118,7 +122,7 @@ class PublicSceneRuntime implements SceneRuntime {
       `occurrence id at ${owningNode}`,
     );
     const transform = invariantValue(
-      this.packed.getTransform(slot),
+      this.getTransform(instanceId),
       `transform at instance ${slot}`,
     );
     return {
@@ -152,6 +156,7 @@ class PublicSceneRuntime implements SceneRuntime {
     );
     const end = invariantValue(this.packed.nodeInstanceEnd[node], `instance end at node ${node}`);
     for (let slot = start; slot < end; slot++) {
+      if (this.packed.instanceOwningNode[slot] !== node) continue;
       instanceIds.push(invariantValue(this.packed.getInstanceId(slot), `instance id at ${slot}`));
     }
     return {
@@ -175,15 +180,18 @@ class PublicSceneRuntime implements SceneRuntime {
   }
   getTransform(instanceId: InstanceId): Mat4 | undefined {
     const slot = this.packed.getInstanceSlot(instanceId);
-    return slot === undefined
-      ? undefined
-      : invariantValue(this.packed.getTransform(slot), `transform at instance ${slot}`);
+    if (slot === undefined) return undefined;
+    const transform = invariantValue(
+      this.packed.getTransform(slot),
+      `transform at instance ${slot}`,
+    );
+    return new Float32Array(transform);
   }
   isInstanceVisible(instanceId: InstanceId): boolean {
     const slot = this.packed.getInstanceSlot(instanceId);
     return slot !== undefined && this.packed.isInstanceVisible(slot);
   }
-  getDrawList(): readonly InstanceId[] {
+  getVisibleInstanceIds(): readonly InstanceId[] {
     return Array.from(this.packed.getDrawList(), (slot) =>
       invariantValue(this.packed.getInstanceId(slot), `instance id at draw slot ${slot}`),
     );

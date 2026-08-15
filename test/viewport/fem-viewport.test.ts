@@ -591,6 +591,7 @@ describe("FemViewport", () => {
     });
 
     expect(viewport.runtime.instanceCount).toBe(1);
+    expect(viewport.runtime.getVisibleInstanceIds()).toEqual(["1/0"]);
     expect(viewport.camera.width).toBe(640);
     expect(viewport.stats()).toEqual({ visibleInstances: 1, drawBatches: 1 });
     expect(onRender).toHaveBeenCalledOnce();
@@ -605,9 +606,12 @@ describe("FemViewport", () => {
 
     viewport.setPartVisible(1, false);
     expect(viewport.stats().visibleInstances).toBe(0);
+    expect(viewport.runtime.getVisibleInstanceIds()).toEqual([]);
     viewport.setPartVisible(1, true);
+    expect(viewport.runtime.getVisibleInstanceIds()).toEqual(["1/0"]);
     viewport.setInstanceVisible("1/0", false);
     expect(viewport.stats().visibleInstances).toBe(0);
+    expect(viewport.runtime.getVisibleInstanceIds()).toEqual([]);
 
     Object.defineProperty(canvas, "clientWidth", { configurable: true, value: 320 });
     Object.defineProperty(canvas, "clientHeight", { configurable: true, value: 200 });
@@ -661,7 +665,7 @@ describe("FemViewport", () => {
       },
     ];
     const before = {
-      drawList: viewport.runtime.getDrawList(),
+      drawList: viewport.runtime.getVisibleInstanceIds(),
       instances: viewport.runtime.getInstances(),
       occurrences: viewport.runtime.getOccurrences(),
       submissions: gpu.submissionCount,
@@ -675,7 +679,7 @@ describe("FemViewport", () => {
         setVisible(viewport);
       }).toThrow("FemViewport has been destroyed");
     }
-    expect(viewport.runtime.getDrawList()).toEqual(before.drawList);
+    expect(viewport.runtime.getVisibleInstanceIds()).toEqual(before.drawList);
     expect(viewport.runtime.getInstances()).toEqual(before.instances);
     expect(viewport.runtime.getOccurrences()).toEqual(before.occurrences);
     expect(gpu.submissionCount).toBe(before.submissions);

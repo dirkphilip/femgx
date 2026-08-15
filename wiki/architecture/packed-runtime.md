@@ -12,9 +12,13 @@ boundary. Its renderer-owned packed counterpart is created internally by
 
 The public runtime exposes stable instance and assembly-occurrence handles via
 `getInstances()`, `getOccurrences()`, `getInstance(instanceId)`, and
-`getOccurrence(occurrenceId)`. It is query-only; live visibility mutations go through
+`getOccurrence(occurrenceId)`. It is query-only; every transform and collection
+result is a defensive snapshot, and live visibility mutations go through
 `FemViewport`, which keeps CPU runtime state, GPU buffers, invalidation, and
-picking synchronized. `getDrawList()` returns stable instance handles.
+picking synchronized. `getVisibleInstanceIds()` returns visible handles in
+deterministic depth-first runtime order, not the renderer's private part-batched
+draw order. `RuntimeOccurrence.instanceIds` contains only direct part placements;
+walk `childIds` when a subtree is required.
 
 The internal packed representation stores, in typed arrays indexed by private
 slots:
@@ -77,8 +81,11 @@ back to slots.
   times becomes multiple nodes with independent subtrees.
 - `Scene.build()` now validates references and cycles, so the runtime assumes
   valid input but still skips missing assemblies defensively.
-- The typed arrays are read-only views; mutating them desynchronizes
-  `visibleCount`.
+- The packed typed arrays are private implementation state; public queries never
+  return those views. `viewport.runtime` is the current live query facade, so hosts
+  should read it again after `setScene()` or `updateScene()`. Standalone
+  `createSceneRuntime(scene)` is a CPU-only immutable compiled snapshot for host
+  inspection and does not own a renderer or visibility mutations.
 
 Visibility deltas are now wired to GPU subrange updates in the
 [[rendering/renderer-subrange-updates|renderer]].

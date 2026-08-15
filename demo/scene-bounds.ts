@@ -7,7 +7,7 @@ export function sceneBounds(
 ): Bounds {
   const runtime = createSceneRuntime(scene);
   let result: Bounds | undefined;
-  for (const instanceId of runtime.getDrawList()) {
+  for (const instanceId of runtime.getVisibleInstanceIds()) {
     const partId = runtime.getPartId(instanceId);
     const transform = runtime.getTransform(instanceId);
     const part = partId === undefined ? undefined : scene.parts.get(partId);

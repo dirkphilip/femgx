@@ -1,4 +1,4 @@
-import type { ElementId, ElementRef, InstanceId, Instance } from "../scene/types";
+import type { ElementId, ElementRef, InstanceId } from "../scene/types";
 import type { ElementBlockId } from "../elements/model";
 import type { BodyId, PartId } from "../geometry/part";
 import type { InteractionTarget } from "./target-types";
@@ -219,7 +219,7 @@ export function setInstanceOverride(
  * @category Interaction and picking
  */
 export function resolveInstanceStyle(
-  instance: Instance,
+  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
   base: ResolvedStyle,
   state: InteractionState,
 ): ResolvedStyle {
@@ -244,7 +244,7 @@ export function resolveInstanceStyle(
 
 function hoveredInstanceId(
   target: InteractionTarget | undefined,
-  instance: Instance,
+  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
 ): InstanceId | undefined {
   return target?.kind === "instance" && target.instanceId === instance.instanceId
     ? instance.instanceId
@@ -270,7 +270,7 @@ export function applySelectionStyle(
  * @category Interaction and picking
  */
 export function resolveBodyStyle(
-  instance: Instance,
+  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
   bodyId: BodyId,
   base: ResolvedStyle,
   state: InteractionState,
@@ -298,7 +298,7 @@ export function resolveBodyStyle(
  * @category Interaction and picking
  */
 export function resolveElementBlockStyle(
-  instance: Instance,
+  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
   blockId: ElementBlockId,
   base: ResolvedStyle,
   state: InteractionState,
@@ -334,7 +334,7 @@ export function resolveElementBlockStyle(
  * @category Interaction and picking
  */
 export function resolveElementStyle(
-  instance: Instance,
+  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
   elementId: ElementId,
   base: ResolvedStyle,
   state: InteractionState,

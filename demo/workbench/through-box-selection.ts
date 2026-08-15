@@ -59,7 +59,7 @@ export function throughIntersectionBoxSelectionResolver(
     const deformation = view.results?.deformation;
     const targets: InteractionTarget[] = [];
 
-    for (const instanceId of view.runtime.getDrawList()) {
+    for (const instanceId of view.runtime.getVisibleInstanceIds()) {
       const instance = view.runtime.getInstance(instanceId);
       if (instance === undefined || !instance.visible || !instance.partVisible) continue;
       const occurrence = view.runtime.getOccurrence(instance.occurrenceId);
