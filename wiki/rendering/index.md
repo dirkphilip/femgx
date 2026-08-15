@@ -38,6 +38,9 @@
   updates for instance and element GPU state.
 - [[rendering/selection-occlusion|Selection through occlusion]] — renderer-owned
   visible and weighted-ghost selection presentation.
+- [[rendering/section-cut-investigation|Exact FE section-cut investigation]] —
+  measured ownership comparison and the defer recommendation for exact cut
+  surfaces.
 - [[data/vector-field-visualization|Authored elemental orientation visualization]]
   — bounded Core-now depth, instancing, and interaction semantics for authored glyphs.
 - [[rendering/shader-variants|Explicit shader variants]] — typed construction
@@ -69,6 +72,7 @@
 [rendering/platform-support|Platform support]: platform-support.md
 [rendering/renderer-subrange-updates|Renderer subrange updates]: renderer-subrange-updates.md
 [rendering/selection-occlusion|Selection through occlusion]: selection-occlusion.md
+[rendering/section-cut-investigation|Exact FE section-cut investigation]: section-cut-investigation.md
 [data/vector-field-visualization|Authored elemental orientation visualization]: ../data/vector-field-visualization.md
 [rendering/shader-variants|Explicit shader variants]: shader-variants.md
 [rendering/webgpu-e2e|WebGPU browser e2e lane]: webgpu-e2e.md
