@@ -53,6 +53,7 @@ export type {
 export {
   createInteractionState,
   setPartOverride,
+  setInstanceOverride,
   type Color,
   type InteractionState,
   type InteractionTheme,

@@ -40,6 +40,7 @@ import {
   createInteractionState,
   createScene,
   identity,
+  setInstanceOverride,
   setPartOverride,
   type Geometry,
 } from "femgx";
@@ -70,6 +71,9 @@ const viewport = await createFemViewport({
 let interaction = createInteractionState();
 interaction = setPartOverride(interaction, part.id, {
   color: { r: 0.2, g: 0.6, b: 0.95, a: 1 },
+});
+interaction = setInstanceOverride(interaction, "1/0", {
+  lineWidthPixels: 3,
 });
 viewport.setInteraction(interaction);
 viewport.setPartVisible(part.id, false);
@@ -104,7 +108,7 @@ while renderer-owned edge helpers retain their separate line-list path.
 | Assemblies  | `NamedAssembly`, `PartPlacement`, `SubAssemblyPlacement`                                                                                                                                                          | Reusable hierarchical placement definitions and local transforms.                                                                                                                                                                         |
 | Scene       | `createScene`, `SceneBuilder`, `Scene`                                                                                                                                                                            | Authoritative part/assembly registries, root identity, and authoring visibility state.                                                                                                                                                    |
 | Viewport    | `createFemViewport`, `FemViewport`, `FemViewportOptions`                                                                                                                                                          | Runtime compilation, camera, WebGPU renderer, screen-space point/node sizes, controls, resize, interaction sync, results, recovery, and teardown.                                                                                         |
-| Interaction | `createInteractionState`, `InteractionTarget`, `setTargetSelected`, `setTargetHighlighted`, `setTargetHovered`, `isTargetSelected`, `isTargetHighlighted`, `isHoveredTarget`, `clearSelection`, `setPartOverride` | Opaque immutable selection, highlight, and single-hover state. Body visibility and explicit style overrides remain separate target-scoped layers.                                                                                         |
+| Interaction | `createInteractionState`, `InteractionTarget`, `setTargetSelected`, `setTargetHighlighted`, `setTargetHovered`, `isTargetSelected`, `isTargetHighlighted`, `isHoveredTarget`, `clearSelection`, `setPartOverride`, `setInstanceOverride` | Opaque immutable selection, highlight, and single-hover state. Body visibility and explicit part/instance style overrides remain separate target-scoped layers; instance style is more specific than part style. |
 | Camera      | `femgx/camera`: `createCamera`, `setProjection`, `orbitCamera`, `panCamera`, `zoomCamera`, `fitCamera`                                                                                                            | Immutable camera values and projection/navigation math.                                                                                                                                                                                   |
 | Picking     | `FemViewport.pick`, `PickHit`, `interactionTargetFromHit`, `InteractionGranularity`                                                                                                                               | One complete side-effect-free GPU hit plus explicit host-owned interaction-target conversion.                                                                                                                                             |
 | Results     | `createResultField`, `ViewportResultsConfig`                                                                                                                                                                      | Authored nodal/elemental scalar values, ranges, maps, and optional nodal deformation configuration.                                                                                                                                       |
