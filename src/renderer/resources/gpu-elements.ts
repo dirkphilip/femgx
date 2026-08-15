@@ -15,7 +15,7 @@ import { emphasizedFaceRefs, resolveFaceStyle } from "../../interaction/faces";
 import { emphasizedNodeRefs, resolveNodeStyle } from "../../interaction/nodes";
 import { emphasizedEdgeRefs, resolveEdgeStyle } from "../../interaction/edges";
 import { readInteractionState } from "../../interaction/state";
-import { faceRefKey } from "../../interaction/refs";
+import { faceIdentity as faceKey } from "../../geometry/element-face-selection";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { PartId } from "../../geometry/part";
 import type { Instance, InstanceId } from "../../scene/types";
@@ -300,7 +300,7 @@ function collectFaceEmphasis(
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
     const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
-    const faceMetadata = metadata?.faces.get(faceRefKey(ref));
+    const faceMetadata = metadata?.faces.get(faceKey(ref.elementId, ref.faceIndex));
     if (faceMetadata === undefined) continue;
     const { face, faceId } = faceMetadata;
     const style = resolveFaceStyle(occurrence.instance, ref, defaultStyle, interaction, {
@@ -312,7 +312,8 @@ function collectFaceEmphasis(
       elementPickId: 0,
       facePickId: faceId + 1,
       nodePickId: 0,
-      selected: data.selectedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true,
+      selected:
+        data.selectedFaces.get(ref.instanceId)?.has(faceKey(ref.elementId, ref.faceIndex)) === true,
       preservesDisplayedColor: preservesDisplayedColor(occurrence.instance, style, interaction),
       style,
     });

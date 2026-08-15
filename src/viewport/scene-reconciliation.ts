@@ -7,7 +7,7 @@ import {
   type InteractionStateData,
 } from "../interaction/state";
 import type { InteractionTarget } from "../interaction/target-types";
-import { faceRefKey } from "../interaction/refs";
+import { faceIdentity as faceId } from "../geometry/element-face-selection";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { InstanceId } from "../scene/types";
 
@@ -109,7 +109,7 @@ function reconcileOccurrenceState(
     owner: SceneIdentity,
     key: string,
     ref: { readonly elementId: number; readonly faceIndex: number },
-  ): boolean => owner.semantic.faces.has(key) && faceRefKey(ref) === key;
+  ): boolean => owner.semantic.faces.has(key) && faceId(ref.elementId, ref.faceIndex) === key;
   const edge = (owner: SceneIdentity, key: string): boolean => owner.semantic.edges.has(key);
   return {
     highlightedInstanceIds: filterSet(data.highlightedInstanceIds, keepInstance),
@@ -156,7 +156,8 @@ function targetInScene(
     return target.nodeId >= 0 && target.nodeId < owner.semantic.nodeCount ? target : undefined;
   }
   if (target.kind === "face") {
-    return owner.semantic.faces.has(faceRefKey(target)) ? target : undefined;
+    const key = faceId(target.elementId, target.faceIndex);
+    return owner.semantic.faces.has(key) ? target : undefined;
   }
   return owner.semantic.edges.has(target.key) ? target : undefined;
 }
