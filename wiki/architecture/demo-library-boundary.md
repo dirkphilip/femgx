@@ -1,7 +1,7 @@
 # Demo / library boundary
 
 The demo (`demo/`) is a thin consumer and test bench for the femgx public API
-(`src/index.ts`). Reusable scene graphics, interaction rendering semantics, and
+(the package facades under `src/entries/`). Reusable scene graphics, interaction rendering semantics, and
 renderer synchronization live in `src/`; the demo owns application-specific
 presentation and interaction policy only.
 
@@ -75,9 +75,11 @@ or recovery. This keeps the public host path and the demo test bench identical.
 
 ## Import enforcement
 
-Ordinary demo code and retained product fixtures import library capabilities only
-from `src/index.ts`. The repository lint gate checks this boundary so a new demo
-deep import cannot quietly couple presentation code to implementation details.
+Ordinary demo code and retained product fixtures use the repository's internal
+`src/index.ts` source barrel, which mirrors the supported package ownership while
+the published package resolves through `src/entries/`. The repository lint gate
+checks this boundary so a new demo deep import cannot quietly couple presentation
+code to implementation details.
 
 Seven benchmark-only files plus the performance fixture are explicit exemptions
 because they measure or inspect internal GPU/runtime representations rather than

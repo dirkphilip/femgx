@@ -47,9 +47,9 @@ encode ownership and can create declaration-build cycles.
 `npm run build:docs` is the same TypeDoc validation command required by CI. It
 cleans the ignored API output, validates links and paths, requires documentation
 for selected public declaration kinds, and treats validation warnings as errors.
-Internal union helpers that are intentionally absent from `src/index.ts` are
-listed explicitly in `typedoc.json`; that exception does not weaken public API
-coverage.
+Internal union helpers that are intentionally absent from the package entry
+facades are listed explicitly in `typedoc.json`; that exception does not weaken
+public API coverage.
 
 `npm run review:diff` is a successful, advisory review step. It reports when a
 change adds or renames a production TypeScript module that takes a direct `src/`

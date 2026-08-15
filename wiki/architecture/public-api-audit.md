@@ -23,6 +23,8 @@ workflow. `femgx/model`, `femgx/io`, `femgx/io/glb`, `femgx/camera`,
 `femgx/runtime`, and `femgx/platform` are the only supported subpaths. There
 are no wildcard or source-tree exports. Primitive-specific geometry leaves are
 represented by the public `Geometry` union; GPU resource layouts remain internal.
+The concise [0.x migration map](../../docs/migration-0.x-entry-points.md) records
+the intentional moves and removals without adding compatibility aliases.
 
 The package smoke suite must consume the canonical viewport, scene, and results
 contracts rather than renderer records or derived runtime storage. The public

@@ -45,6 +45,9 @@ when the host needs them:
 | `femgx/runtime`  | Advanced CPU runtime inspection                                       |
 | `femgx/platform` | Supported-path WebGPU primitives                                      |
 
+See the [0.x entry-point migration map](migration-0.x-entry-points.md) when
+updating an existing root import.
+
 The generated navigation groups the entry points and their symbols by supported workflow:
 
 - Scene and geometry
@@ -55,6 +58,72 @@ The generated navigation groups the entry points and their symbols by supported 
 - Import and export
 - Camera and math
 - Advanced runtime and WebGPU platform
+
+## Supported journeys
+
+### FE authoring
+
+Use `femgx/model` to author typed elements and compile one reusable `Part`; use
+the root entry for placement and rendering:
+
+```ts
+import { createFemViewport, createScene, identity } from "femgx";
+import { createElement, createElementModel, elementPart, TRIANGLE_SHAPE } from "femgx/model";
+
+const model = createElementModel(nodes, [createElement(1, TRIANGLE_SHAPE, [0, 1, 2])]);
+const part = elementPart(1, model);
+const scene = createScene()
+  .addPart(part)
+  .addAssembly({
+    id: 1,
+    name: "model",
+    placements: [{ kind: "part", partId: 1, transform: identity() }],
+  })
+  .withRoot(1)
+  .build();
+const viewport = await createFemViewport({ canvas, scene });
+```
+
+### VTK and GLB interchange
+
+`femgx/io` owns validated FEM/VTK conversion. The optional GLB importer is a
+separate entry so hosts that do not import it avoid its dependency closure:
+
+```ts
+import { createFemViewport } from "femgx";
+import { createElementModelFromFemModel, parseVtk } from "femgx/io";
+import { importGlb } from "femgx/io/glb";
+
+const vtk = parseVtk(vtkText);
+const vtkModel = createElementModelFromFemModel(vtk.model);
+const imported = await importGlb(glbBytes);
+const viewport = await createFemViewport({ canvas, scene: imported.scene });
+void vtkModel;
+void viewport;
+```
+
+### Advanced CPU and camera ownership
+
+Use `femgx/runtime` only for an intentional standalone CPU snapshot; the
+ordinary viewport exposes its current live facade at `viewport.runtime`. Use
+`femgx/camera` when building a custom camera shell, and `femgx/platform` when
+the host explicitly owns adapter/device setup:
+
+```ts
+import { createScene } from "femgx";
+import { createCamera, installCameraControls } from "femgx/camera";
+import { createSceneRuntime } from "femgx/runtime";
+import { queryWebGpuSupport, requestWebGpuDevice } from "femgx/platform";
+
+const camera = createCamera();
+const runtime = createSceneRuntime(createScene().build());
+const support = await queryWebGpuSupport();
+void installCameraControls;
+void requestWebGpuDevice;
+void camera;
+void runtime;
+void support;
+```
 
 The full searchable index remains available in the generated navigation. The
 advanced entries document stable supporting utilities and platform-facing

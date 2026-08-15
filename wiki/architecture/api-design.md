@@ -13,6 +13,12 @@ the experimental API. It is the design reference for changes to the public
 surface; the concise [[architecture/core-api|Core API review]] is the reader
 oriented API map, and the root [[../index|wiki index]] is the navigation map.
 
+The published root import is `femgx`. FE authoring, interchange, optional GLB,
+custom camera, runtime inspection, and raw WebGPU ownership are intentionally
+published as `femgx/model`, `femgx/io`, `femgx/io/glb`, `femgx/camera`,
+`femgx/runtime`, and `femgx/platform`; see the
+[0.x migration map](../../docs/migration-0.x-entry-points.md).
+
 ## Canonical concepts
 
 | Concept             | Current representation | Responsibility                                                                       |

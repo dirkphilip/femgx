@@ -57,6 +57,7 @@ describe("public package entries", () => {
       "setElementBlockSelected",
       "setElementBlockVisible",
       "setElementVisible",
+      "setPartOverride",
       "setTargetHighlighted",
       "setTargetHovered",
       "setTargetSelected",
