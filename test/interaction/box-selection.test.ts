@@ -185,11 +185,13 @@ describe("installBoxSelection", () => {
   it("supports touch only when the host explicitly enables it", () => {
     const { canvas, events, disposer } = install(undefined, () => true);
     const down = pointer({ pointerType: "touch", clientX: 100, clientY: 50 });
+    const up = pointer({ pointerType: "touch", clientX: 120, clientY: 70 });
     canvas.dispatch("pointerdown", down);
     canvas.dispatch("pointermove", pointer({ pointerType: "touch", clientX: 120, clientY: 70 }));
-    canvas.dispatch("pointerup", pointer({ pointerType: "touch", clientX: 120, clientY: 70 }));
+    canvas.dispatch("pointerup", up);
 
     expect(down.preventDefault).toHaveBeenCalledOnce();
+    expect(up.preventDefault).toHaveBeenCalledOnce();
     expect(terminalTypes(events)).toEqual(["start", "complete"]);
     disposer();
   });

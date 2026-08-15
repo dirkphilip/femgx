@@ -1,4 +1,11 @@
-import { sectionPlaneBindings, sectionPlaneFunction } from "./gpu-shaders";
+import {
+  cameraStruct,
+  deformationStruct,
+  frameBindings,
+  sectionPlaneBindings,
+  sectionPlaneFunction,
+  surfaceLightingFunction,
+} from "./gpu-shaders";
 import { transparencyOutput } from "./gpu-transparency";
 
 const selectionColorFunction = /* wgsl */ `
@@ -15,8 +22,20 @@ fn visibleSelectionAlpha(baseAlpha: f32) -> f32 {
 }
 `;
 
-/** Opaque selection output used by the visible depth/stencil pass. */
-export const selectionFragmentShader = /* wgsl */ `
+function visibleSelectionFragment(lit: boolean): string {
+  const lighting = lit
+    ? /* wgsl */ `${cameraStruct}${deformationStruct}${frameBindings}${surfaceLightingFunction}`
+    : "";
+  const output = lit
+    ? /* wgsl */ `surfaceLighting(
+      worldPosition,
+      selectedColor,
+      camera.keyLightDirection.xyz,
+      camera.viewDirection.xyz,
+    )`
+    : "selectedColor";
+  return /* wgsl */ `
+${lighting}
 ${selectionColorFunction}
 ${sectionPlaneBindings}
 ${sectionPlaneFunction}
@@ -32,12 +51,20 @@ fn fragmentMain(
   @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> @location(0) vec4<f32> {
   if (selected == 0u || dot(local, local) > 1.0 || color.a <= 0.0 || !sectionPlaneVisible(worldPosition)) { discard; }
+  let selectedColor = selectionColor(color, emissive);
   return vec4<f32>(
-    selectionColor(color, emissive),
+    ${output},
     visibleSelectionAlpha(color.a),
   );
 }
 `;
+}
+
+/** Unlit line and point selection output used by the visible depth/stencil pass. */
+export const selectionFragmentShader = visibleSelectionFragment(false);
+
+/** Lit triangle selection output preserving the model's surface shape. */
+export const triangleSelectionFragmentShader = visibleSelectionFragment(true);
 
 /** Fixed-alpha hidden selection output for line and point primitives. */
 export const selectionTransparencyFragmentShader = /* wgsl */ `

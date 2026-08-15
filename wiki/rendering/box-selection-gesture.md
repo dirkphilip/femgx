@@ -67,7 +67,9 @@ Navigate and Box select. The box-selection capture listener prevents an enabled
 touch from entering the viewport-owned camera gesture, while the default
 Navigate mode retains one-finger orbit and two-finger pan/pinch. The same rail
 can replace selection with every explicitly visible target at the active
-granularity without a GPU query.
+granularity without a GPU query. Touch-contact `pointerleave` teardown is not a
+mouse-hover exit and therefore does not invalidate the tap or box readback that
+the preceding `pointerup` started.
 
 On completion, `WorkbenchInteraction` sends one request containing the completed
 event and captured Element/Face/Node granularity to its workbench-private box

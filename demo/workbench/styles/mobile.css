@@ -128,6 +128,11 @@
     padding: 9px;
     place-items: center;
   }
+  .touch-tool-rail button[aria-pressed="true"] {
+    border-color: var(--workbench-accent);
+    color: #fff;
+    background: var(--workbench-accent-strong);
+  }
   .touch-tool-rail svg {
     width: 24px;
     height: 24px;
