@@ -46,6 +46,60 @@ export function updateNestedSet<OuterKey, InnerKey>(
   return next;
 }
 
+interface NestedStateUpdate<State, OuterKey, InnerKey> {
+  readonly state: State;
+  readonly current: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>;
+  readonly outerKey: OuterKey;
+  readonly innerKey: InnerKey;
+  readonly enabled: boolean;
+  readonly replace: (next: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>) => State;
+}
+
+/** Updates one nested interaction set and applies the changed state once. */
+export function updateNestedState<State, OuterKey, InnerKey>(
+  options: NestedStateUpdate<State, OuterKey, InnerKey>,
+): State {
+  const next = updateNestedSet(
+    options.current,
+    options.outerKey,
+    options.innerKey,
+    options.enabled,
+  );
+  return next === options.current ? options.state : options.replace(next);
+}
+
+/** Returns whether one nested interaction value is visible. */
+export function isNestedValueVisible<OuterKey, InnerKey>(
+  hidden: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
+  outerKey: OuterKey,
+  innerKey: InnerKey,
+): boolean {
+  return hidden.get(outerKey)?.has(innerKey) !== true;
+}
+
+interface NestedEmphasis<OuterKey, InnerKey, Override> {
+  readonly hidden: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>;
+  readonly highlighted: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>;
+  readonly selected: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>;
+  readonly overrides: ReadonlyMap<OuterKey, ReadonlyMap<InnerKey, Override>>;
+  readonly hovered: boolean;
+  readonly outerKey: OuterKey;
+  readonly innerKey: InnerKey;
+}
+
+/** Returns whether one nested interaction value carries emphasis. */
+export function isNestedValueEmphasized<OuterKey, InnerKey, Override>(
+  options: NestedEmphasis<OuterKey, InnerKey, Override>,
+): boolean {
+  return (
+    options.hovered ||
+    options.hidden.get(options.outerKey)?.has(options.innerKey) === true ||
+    options.highlighted.get(options.outerKey)?.has(options.innerKey) === true ||
+    options.selected.get(options.outerKey)?.has(options.innerKey) === true ||
+    options.overrides.get(options.outerKey)?.has(options.innerKey) === true
+  );
+}
+
 /** Updates nested sets for many values, cloning each touched set once. */
 export function updateNestedSets<OuterKey, InnerKey>(
   current: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
@@ -179,8 +233,32 @@ export function collectUniqueRefs<T>(
   return refs;
 }
 
+type NestedValues<Key> = { readonly keys: () => Iterable<Key> };
+
+/** Appends nested references in deterministic outer-key and numeric-key order. */
+export function appendSortedNestedRefs<OuterKey extends string, InnerKey extends number>(
+  maps: readonly ReadonlyMap<OuterKey, NestedValues<InnerKey>>[],
+  push: (outerKey: OuterKey, innerKey: InnerKey) => void,
+): void {
+  for (const map of maps) {
+    for (const [outerKey, values] of sortedNestedEntries(map)) {
+      for (const innerKey of sortedNumbers(values.keys())) push(outerKey, innerKey);
+    }
+  }
+}
+
+function sortedNestedEntries<
+  OuterKey extends string,
+  InnerKey,
+  Values extends NestedValues<InnerKey>,
+>(map: ReadonlyMap<OuterKey, Values>): Array<readonly [OuterKey, Values]> {
+  return [...map.entries()].sort(([left], [right]) => left.localeCompare(right));
+}
+
 /** Returns numbers in deterministic ascending order. */
-export function sortedNumbers(values: Iterable<number>): number[] {
+export function sortedNumbers<NumberValue extends number>(
+  values: Iterable<NumberValue>,
+): NumberValue[] {
   return Array.from(values).sort((a, b) => a - b);
 }
 
