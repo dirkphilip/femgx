@@ -1,6 +1,6 @@
 import type { FemViewport, InteractionState } from "../../src/index";
 import type { DemoView, WorkbenchPane, ViewportSlotId } from "./view";
-import type { WorkbenchModel } from "./model";
+import { errorMessage, type WorkbenchModel } from "./model";
 import type { WorkbenchOptions } from "./types";
 import type { SelectionGranularity } from "./pick";
 import type { WorkbenchMenu } from "./menu";
@@ -177,7 +177,7 @@ export class WorkbenchViewportSlots {
   }
 
   handleSecondaryViewportError(error: unknown): void {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = errorMessage(error);
     this.closeSecondaryViewport();
     this.options.feedback(`Secondary viewport failed: ${detail}`);
   }
@@ -243,9 +243,7 @@ export class WorkbenchViewportSlots {
       boxPreview: slot.boxPreview,
       dragging: () => slot.dragging || slot.boxPreview.isActive(),
       touchBoxSelection: this.options.touchBoxSelection,
-      setActive: () => {
-        this.setActiveSlot("secondary");
-      },
+      setActive: this.setActiveSlot.bind(this, "secondary"),
     });
     slot.removePaneBindings = () => {
       paneController.abort();
@@ -282,8 +280,4 @@ export class WorkbenchViewportSlots {
     slot.boxPreview.dispose();
     slot.viewport.destroy();
   }
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

@@ -1,5 +1,5 @@
 import type { FemViewport, InteractionState, SceneRuntime } from "../../src/index";
-import { installWorkbenchLifecycle } from "./lifecycle";
+import { installWorkbenchPaneLifecycle } from "./lifecycle";
 import type { WorkbenchFeatures } from "./features";
 import type { WorkbenchInteraction } from "./interaction";
 import type { WorkbenchBoxPreview } from "./box-preview";
@@ -102,43 +102,26 @@ export function createControllerInfrastructure(
     applyDisplayedInteraction: context.applyDisplayedInteraction.bind(context),
     render: context.render.bind(context),
     publishSnapshot: context.publishSnapshot.bind(context),
-    setEdges: () => {
-      context.setEdges();
-    },
-    setDiagnostics: () => {
-      context.setDiagnostics();
-    },
+    setEdges: context.setEdges.bind(context),
+    setDiagnostics: context.setDiagnostics.bind(context),
     fitSelection: context.fitSelection.bind(context),
-    reset: () => {
-      context.reset();
-    },
-    applySharedState: () => {
-      context.applySharedState();
-    },
-    rebuildVisibility: () => {
-      context.rebuildVisibility();
-    },
-    feedback: (message) => {
-      context.feedback(message);
-    },
-    onActiveSlotChanged: () => {
-      context.onActiveSlotChanged();
-    },
+    reset: context.reset.bind(context),
+    applySharedState: context.applySharedState.bind(context),
+    rebuildVisibility: context.rebuildVisibility.bind(context),
+    feedback: context.feedback.bind(context),
+    onActiveSlotChanged: context.onActiveSlotChanged.bind(context),
   });
 }
 
 /** Installs all long-lived DOM bindings for the controller. */
 export function installControllerLifecycle(context: WorkbenchControllerWiringContext): () => void {
-  return installWorkbenchLifecycle({
-    view: context.view,
-    canvas: context.canvas,
+  return installWorkbenchPaneLifecycle({
+    pane: context.view.primaryPane,
     signal: context.listenerController.signal,
     interaction: context.interactionController,
     boxPreview: context.boxPreview,
     dragging: () => context.isPointerGestureActive(),
     touchBoxSelection: () => context.touchInteractionMode === "box-select",
-    setActive: () => {
-      context.setActiveSlot("primary");
-    },
+    setActive: context.setActiveSlot.bind(context, "primary"),
   });
 }

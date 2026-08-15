@@ -13,9 +13,8 @@ import {
   type InteractionTarget,
   type PickHit,
 } from "../../src/index";
-import type { DemoView } from "../../demo/workbench/view";
 import { WorkbenchBoxPreview } from "../../demo/workbench/box-preview";
-import { installWorkbenchBindings } from "../../demo/workbench/listeners";
+import { installWorkbenchPaneBindings } from "../../demo/workbench/listeners";
 import { WorkbenchInteraction } from "../../demo/workbench/interaction";
 import type { BoxSelectionResolver } from "../../demo/workbench/box-selection-resolver";
 import { selectedKeys } from "../../demo/workbench/selection";
@@ -204,51 +203,23 @@ describe("workbench hover suppression", () => {
       hover,
       pointerDown: vi.fn(),
       pointerCancel: vi.fn(),
+      pointerUp: vi.fn(),
+      clearHover: vi.fn(),
       click: vi.fn(),
       contextMenu: vi.fn(),
     } as unknown as WorkbenchInteraction;
-    const view = {
-      primaryPane: {
+    let dragging = false;
+    installWorkbenchPaneBindings({
+      pane: {
         id: "primary",
         scene: canvas as unknown as HTMLElement,
         canvas: canvas as unknown as HTMLCanvasElement,
         boxSelectionOverlay: new FakeElement() as unknown as HTMLElement,
       },
-      projectionToggle: new FakeElement(),
-      edgeOverlayToggle: new FakeElement(),
-      continuousToggle: new FakeElement(),
-      resultControls: new FakeElement(),
-      resultField: new FakeElement(),
-      deformationField: new FakeElement(),
-      deformationScale: new FakeElement(),
-      vectorField: new FakeElement(),
-      vectorGlyph: new FakeElement(),
-      vectorTransform: new FakeElement(),
-      vectorLengthScale: new FakeElement(),
-      vectorHelp: new FakeElement(),
-      resultLegend: new FakeElement(),
-      sectionControls: new FakeElement(),
-      sectionAxis: new FakeElement(),
-      sectionOffset: new FakeElement(),
-      sectionOffsetValue: new FakeElement(),
-      depthTestToggle: new FakeElement(),
-      nodeOverlayToggle: new FakeElement(),
-      resetButton: new FakeElement(),
-      fitView: new FakeElement(),
-      selectionGranularity: new FakeElement(),
-      interactionHelp: new FakeElement(),
-      hideSelectedButton: new FakeElement(),
-      showAllButton: new FakeElement(),
-      modelSelect: new FakeElement(),
-      openModelButton: new FakeElement(),
-      modelSource: new FakeElement(),
-    } as unknown as DemoView;
-    let dragging = false;
-    installWorkbenchBindings({
-      view,
       signal: new AbortController().signal,
       interaction,
       dragging: () => dragging,
+      setActive: vi.fn(),
     });
 
     const move = { clientX: 50, clientY: 50 } as PointerEvent;

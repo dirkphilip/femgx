@@ -314,7 +314,7 @@ describe("workbench Svelte controls", () => {
     expect(element(target, "#viewport-workspace").dataset["secondaryOpen"]).toBe("true");
     expect(element(target, ".toolbar").closest("#viewport-shell")).not.toBeNull();
     expect(element(target, ".toolbar").closest(".scene, .scene-pane")).toBeNull();
-    expect(element(target, "#viewport-workspace").parentElement?.id).toBe("viewport-stage");
+    expect(element(target, "#viewport-workspace").parentElement?.id).toBe("viewport-shell");
     await unmount(workspace);
 
     const legend = mount(ResultLegend, { target, props: { snapshot } });

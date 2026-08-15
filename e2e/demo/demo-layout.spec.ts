@@ -80,7 +80,7 @@ async function assertWorkbenchLayout(
         document.querySelector<HTMLElement>("#result-controls")?.contains(document.activeElement) ??
         false,
       shell: read("#viewport-shell"),
-      stage: read("#viewport-stage"),
+      workspace: read("#viewport-workspace"),
       scene: read("#primary-scene"),
       toolbar: read(".toolbar"),
       canvas: read('[data-testid="view-canvas"]'),
@@ -100,13 +100,13 @@ async function assertWorkbenchLayout(
   ).toBeLessThanOrEqual(layout.toolbarClientWidth);
   expect(layout.scene).toBeDefined();
   expect(layout.shell).toBeDefined();
-  expect(layout.stage).toBeDefined();
+  expect(layout.workspace).toBeDefined();
   expect(layout.toolbar).toBeDefined();
   expect(layout.canvas).toBeDefined();
   expect(layout.gizmo).toBeDefined();
   if (
     layout.shell === undefined ||
-    layout.stage === undefined ||
+    layout.workspace === undefined ||
     layout.scene === undefined ||
     layout.toolbar === undefined ||
     layout.canvas === undefined
@@ -116,9 +116,9 @@ async function assertWorkbenchLayout(
   expect(layout.toolbar.x).toBeGreaterThanOrEqual(layout.shell.x - 1);
   expect(layout.toolbar.right).toBeLessThanOrEqual(layout.shell.right + 1);
   expect(layout.toolbar.y).toBeGreaterThanOrEqual(layout.shell.y - 1);
-  expect(layout.toolbar.bottom).toBeLessThanOrEqual(layout.stage.y + 1);
-  expect(layout.scene.y).toBeGreaterThanOrEqual(layout.stage.y - 1);
-  expect(layout.scene.bottom).toBeLessThanOrEqual(layout.stage.bottom + 1);
+  expect(layout.toolbar.bottom).toBeLessThanOrEqual(layout.workspace.y + 1);
+  expect(layout.scene.y).toBeGreaterThanOrEqual(layout.workspace.y - 1);
+  expect(layout.scene.bottom).toBeLessThanOrEqual(layout.workspace.bottom + 1);
   expect(layout.canvas.width).toBeGreaterThan(0);
   expect(layout.canvas.height).toBeGreaterThan(phone ? 280 : 400);
   if (phone) {
