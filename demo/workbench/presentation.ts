@@ -186,7 +186,7 @@ function resultLegend(results: ViewportResultsState): string {
     lines.push(
       vectors.field.name,
       `${fieldLocation(vectors.field.location)} · Unit ${vectors.field.unit}`,
-      `Normalized orientation · ${capitalize(vectors.glyph)} / ${capitalize(vectors.transform)}`,
+      `Authored vectors normalized for display · ${capitalize(vectors.glyph)} / ${capitalize(vectors.transform)}`,
       "Magnitude not displayed",
     );
   }

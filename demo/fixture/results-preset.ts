@@ -3,10 +3,11 @@ import {
   createElementModel,
   createResultField,
   createScene,
-  HEX8_SHAPE,
+  QUAD_SHAPE,
   elementPart,
   identity,
   multiply,
+  rotationZ,
   scale,
   translation,
   type PartId,
@@ -31,7 +32,10 @@ export function createResultsPreset(): ModelPreset {
         {
           kind: "part",
           partId: RESULTS_PART_ID,
-          transform: multiply(translation(9, 2.75, 0.2), scale(-1.15, 0.8, 1.2)),
+          transform: multiply(
+            translation(9.5, 5, 0.2),
+            multiply(rotationZ(0.32), scale(-1.15, 0.8, 1.2)),
+          ),
         },
       ],
     })
@@ -64,7 +68,7 @@ export function createResultsPreset(): ModelPreset {
     unit: "C",
     values: createTemperatureValues(model.nodes),
   });
-  const normals = createNormalsField(model.elements.length);
+  const normals = createNormalsField(model);
   const fibers = createFibersField(model.elements.length);
   const vectorFields = [normals, fibers] as const;
   return {
@@ -91,32 +95,30 @@ export function createResultsPreset(): ModelPreset {
   };
 }
 
-/** Builds one conforming 4-by-2-by-1 Hex8 strip with dense shared node ids. */
+/** Builds one gently curved, consistently wound 4-by-2 Quad shell. */
 function createResultsModel() {
   const columns = 4;
   const rows = 2;
   const nodes: number[] = [];
-  const nodeId = (i: number, j: number, k: number): number =>
-    k * (rows + 1) * (columns + 1) + j * (columns + 1) + i;
+  const nodeId = (i: number, j: number): number => j * (columns + 1) + i;
 
-  for (let k = 0; k <= 1; k += 1) {
-    for (let j = 0; j <= rows; j += 1) {
-      for (let i = 0; i <= columns; i += 1) nodes.push(i, j, k);
+  for (let j = 0; j <= rows; j += 1) {
+    for (let i = 0; i <= columns; i += 1) {
+      const x = i;
+      const y = j;
+      const z = 0.04 * i * i + 0.04 * j;
+      nodes.push(x, y, z);
     }
   }
 
   const elements = [];
   for (let j = 0; j < rows; j += 1) {
     for (let i = 0; i < columns; i += 1) {
-      const c0 = nodeId(i, j, 0);
-      const c1 = nodeId(i + 1, j, 0);
-      const c2 = nodeId(i + 1, j + 1, 0);
-      const c3 = nodeId(i, j + 1, 0);
-      const c4 = nodeId(i, j, 1);
-      const c5 = nodeId(i + 1, j, 1);
-      const c6 = nodeId(i + 1, j + 1, 1);
-      const c7 = nodeId(i, j + 1, 1);
-      elements.push(createElement(j * columns + i, HEX8_SHAPE, [c0, c1, c2, c3, c4, c5, c6, c7]));
+      const c0 = nodeId(i, j);
+      const c1 = nodeId(i + 1, j);
+      const c2 = nodeId(i + 1, j + 1);
+      const c3 = nodeId(i, j + 1);
+      elements.push(createElement(j * columns + i, QUAD_SHAPE, [c0, c1, c2, c3]));
     }
   }
   return createElementModel(nodes, elements);
@@ -154,41 +156,50 @@ function createDisplacementValues(nodes: Float32Array): Float32Array {
   return values;
 }
 
-function createNormalsField(elementCount: number): VectorField<"elemental"> {
+function createNormalsField(
+  model: ReturnType<typeof createResultsModel>,
+): VectorField<"elemental"> {
+  const values = new Float32Array(model.elements.length * 3);
+  for (const [index, element] of model.elements.entries()) {
+    const first = pointAt(model.nodes, element.nodeIds[0]);
+    const second = pointAt(model.nodes, element.nodeIds[1]);
+    const third = pointAt(model.nodes, element.nodeIds[2]);
+    const normal = normalizedCross(subtract(second, first), subtract(third, first));
+    values.set(normal, index * 3);
+  }
   return createResultField({
     id: "demo-normals",
-    name: "Demo shell normals",
+    name: "Demo shell normals · authored outward",
     location: "elemental",
     shape: "vector",
-    count: elementCount,
+    count: model.elements.length,
     unit: "unitless",
-    values: new Float32Array([
-      0,
-      0,
-      1,
-      0,
-      0,
-      -1,
-      Number.NaN,
-      Number.NaN,
-      Number.NaN,
-      0,
-      0,
-      0,
-      0,
-      1,
-      0,
-      0,
-      -1,
-      0,
-      1,
-      0,
-      0,
-      -1,
-      0,
-      0,
-    ]),
+    values,
   });
+}
+
+function pointAt(nodes: ArrayLike<number>, nodeId: number | undefined): [number, number, number] {
+  if (nodeId === undefined) throw new Error("Shell element is missing a node");
+  const offset = nodeId * 3;
+  return [nodes[offset] ?? 0, nodes[offset + 1] ?? 0, nodes[offset + 2] ?? 0];
+}
+
+function subtract(a: readonly [number, number, number], b: readonly [number, number, number]) {
+  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]] as [number, number, number];
+}
+
+function normalizedCross(
+  a: readonly [number, number, number],
+  b: readonly [number, number, number],
+): [number, number, number] {
+  const cross: [number, number, number] = [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
+  ];
+  const length = Math.hypot(cross[0], cross[1], cross[2]);
+  if (!Number.isFinite(length) || length <= 1e-8) throw new Error("Shell face is degenerate");
+  return [cross[0] / length, cross[1] / length, cross[2] / length];
 }
 
 function createFibersField(elementCount: number): VectorField<"elemental"> {
