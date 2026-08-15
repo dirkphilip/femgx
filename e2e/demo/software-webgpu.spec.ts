@@ -1,7 +1,7 @@
 /** Bounded exploratory coverage for hosted software-WebGPU environments. */
 
 import { expect, test } from "@playwright/test";
-import { canvasInteractionBox, drawnPixels, sweepForHit } from "./helpers";
+import { canvasInteractionBox, drawnPixels, sweepForHit } from "../shared/helpers";
 import { waitForRenderer } from "./demo-support";
 
 test.describe.configure({ mode: "serial" });

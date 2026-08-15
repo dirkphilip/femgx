@@ -226,15 +226,15 @@ or benchmark contract.
 ## Demo e2e coverage
 
 The current workbench journeys are split by ownership across
-`e2e/demo-lifecycle.spec.ts`, `e2e/demo-visibility.spec.ts`, and
-`e2e/demo-interaction.spec.ts`.
-`e2e/mobile.spec.ts` asserts at a 390x844 viewport that the page has no
+`e2e/demo/demo-lifecycle.spec.ts`, `e2e/demo/demo-visibility.spec.ts`, and
+`e2e/demo/demo-interaction.spec.ts`.
+`e2e/demo/mobile.spec.ts` asserts at a 390x844 viewport that the page has no
 horizontal overflow, primary controls stay reachable with 44px hit areas, the
 optional viewport panes stack, and the context menu fits inside the viewport.
 The default Playwright lane runs the real WebGPU renderer through the same controller
 ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
 
-`e2e/demo-layout.spec.ts` is the focused layout gate. `npm run test:e2e:layout`
+`e2e/demo/demo-layout.spec.ts` is the focused layout gate. `npm run test:e2e:layout`
 walks every ordinary story at 1440x900 and 390x844, asserting that hidden
 result surfaces have no box or focus target, the toolbar stays inside its pane,
 the canvas retains a useful exposed region, the legend and orientation gizmo

@@ -77,14 +77,23 @@ a prompt to review semantic ownership, not a requirement to split a directory.
 
 - `e2e/` tests run against the local Vite dev server (see
   `playwright.config.ts`, `webServer`).
+- `npm run test:core` is the fast exclude-based library lane; it omits demo,
+  renderer, viewport, platform, script, and budget suites and starts no browser
+  or Svelte environment.
 - One-time browser install: `npm run test:e2e:install` (Playwright Chrome for the
   local WebGPU lane).
-- **Local / authoritative WebGPU lane:** `npm run test:e2e` (`--project=chrome`).
+- **Direct core browser lane:** `npm run test:e2e:core` runs the two foundation
+  journeys against the lean public-entry host.
+- **Workbench browser lane:** `npm run test:e2e:demo` runs the demo owner root.
+- **Combined serialized hardware lane:** `npm run test:e2e` (one Chrome worker).
 - **Local / authoritative layout lane:** `npm run test:e2e:layout` checks every
   ordinary story at 1440×900 and 390×844 for overflow, hidden-surface
   semantics, toolbar containment, exposed canvas height, legend placement, and
   nonblank WebGPU output.
-- **Merge CI:** `npm run test:e2e:ci` (unsupported-contract smoke only).
+- **Software exploration:** `npm run test:e2e:software` (SwiftShader only).
+- **Performance exploration:** `npm run test:e2e:performance` (opt-in).
+- **Merge CI:** `npm run test:e2e:no-gpu` (unsupported-contract smoke only;
+  `test:e2e:ci` remains an alias).
 - See [[rendering/webgpu-e2e|WebGPU browser e2e lane]] and
   [[engineering/e2e-policy|E2E test classification and skip policy]].
 

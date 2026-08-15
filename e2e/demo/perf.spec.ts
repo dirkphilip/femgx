@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import type { WebGpuBenchmarkReport } from "../demo/benchmark/runner";
+import type { WebGpuBenchmarkReport } from "../../demo/benchmark/runner";
 import { rendererMode } from "./demo-support";
 
 const enabled = process.env["RUN_PERF"] === "1";
@@ -14,7 +14,7 @@ let caseArtifactDirectory: string | undefined;
 
 // Keep browser-only benchmark dependencies out of ordinary e2e collection.
 const benchmarkCaseSpecs = enabled
-  ? (await import("../demo/benchmark/model")).benchmarkCaseSpecs
+  ? (await import("../../demo/benchmark/model")).benchmarkCaseSpecs
   : () => [];
 
 interface BenchmarkSeam {

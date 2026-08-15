@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { canvasInteractionBox } from "./helpers";
+import { canvasInteractionBox } from "../shared/helpers";
 export {
   cameraDistance,
   expectBoundsClippedSafely,
@@ -8,8 +8,8 @@ export {
   requireHit,
   sweepForHit,
   targetPlanePoint,
-} from "./helpers";
-export { distinctColors, drawnPixels, pixelHash, pixelMetrics } from "./helpers";
+} from "../shared/helpers";
+export { distinctColors, drawnPixels, pixelHash, pixelMetrics } from "../shared/helpers";
 
 /** Reads the stable workbench status summary. */
 export async function status(page: Page): Promise<string> {

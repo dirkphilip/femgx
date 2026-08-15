@@ -117,7 +117,7 @@ jobs:
       # unsupported contract until a GPU runner exists; SwiftShader is not
       # treated as a faithful WebGPU stand-in.
       - name: Run e2e (no-GPU contract)
-        run: npm run test:e2e:ci
+        run: npm run test:e2e:no-gpu
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: failure()

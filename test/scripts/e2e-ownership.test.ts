@@ -1,44 +1,84 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = join(import.meta.dirname, "../..");
+const e2e = join(root, "e2e");
+
+function filesUnder(directory: string, suffix: string): string[] {
+  return readdirSync(directory, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(suffix))
+    .map((entry) => join(entry.parentPath, entry.name));
+}
 
 describe("browser suite ownership", () => {
-  it("keeps workbench and WebGPU contracts in bounded feature suites", () => {
-    const suites = [
-      "demo-lifecycle.spec.ts",
-      "demo-results.spec.ts",
-      "demo-visibility.spec.ts",
-      "demo-interaction.spec.ts",
-      "webgpu-lifecycle.spec.ts",
-      "webgpu-rendering.spec.ts",
-      "webgpu-camera.spec.ts",
-      "webgpu-visibility.spec.ts",
-    ];
-    for (const suite of suites) expect(existsSync(join(root, "e2e", suite))).toBe(true);
-    expect(existsSync(join(root, "e2e", "demo.spec.ts"))).toBe(false);
-    expect(existsSync(join(root, "e2e", "webgpu.spec.ts"))).toBe(false);
+  it("keeps every browser spec in exactly one owner root", () => {
+    const specs = filesUnder(e2e, ".spec.ts");
+    expect(
+      specs.every(
+        (file) => file.startsWith(join(e2e, "core")) || file.startsWith(join(e2e, "demo")),
+      ),
+    ).toBe(true);
+    expect(filesUnder(join(e2e, "core"), ".spec.ts")).toEqual([
+      join(e2e, "core/core-foundation.spec.ts"),
+    ]);
+    expect(existsSync(join(e2e, "demo/demo-lifecycle.spec.ts"))).toBe(true);
+    expect(existsSync(join(e2e, "demo/webgpu-rendering.spec.ts"))).toBe(true);
+    expect(specs).not.toContain(join(e2e, "demo.spec.ts"));
   });
 
-  it("keeps CPU-only menu ownership out of WebGPU rendering suites", () => {
-    const webGpuSources = [
-      "webgpu-lifecycle.spec.ts",
-      "webgpu-rendering.spec.ts",
-      "webgpu-camera.spec.ts",
-      "webgpu-visibility.spec.ts",
-    ].map((suite) => readFileSync(join(root, "e2e", suite), "utf8"));
-    expect(webGpuSources.join("\n")).not.toContain("does not advertise CPU-only");
+  it("keeps core and shared sources independent from the workbench owner", () => {
+    const coreSources = filesUnder(join(e2e, "core"), ".ts").map((file) =>
+      readFileSync(file, "utf8"),
+    );
+    const sharedSources = filesUnder(join(e2e, "shared"), ".ts").map((file) =>
+      readFileSync(file, "utf8"),
+    );
+    expect(coreSources.join("\n")).not.toMatch(/demo\//);
+    expect(coreSources.join("\n")).not.toContain('data-testid="view-canvas"');
+    expect(sharedSources.join("\n")).not.toMatch(/(?:core|demo)\//);
+    expect(readFileSync(join(e2e, "core/core-host.ts"), "utf8")).toContain(
+      'from "../../src/index"',
+    );
   });
 
-  it("keeps the CI unsupported-contract command on the lifecycle owner", () => {
+  it("keeps the fast lane exclude-based and browser-free", () => {
     const packageJson = readFileSync(join(root, "package.json"), "utf8");
-    expect(packageJson).toContain("e2e/webgpu-lifecycle.spec.ts");
-    expect(packageJson).not.toContain("e2e/webgpu.spec.ts");
+    const fastLane = packageJson.match(/"test:core": "([^"]+)"/)?.[1] ?? "";
+    expect(fastLane).toContain("vitest run");
+    for (const excludedSuite of [
+      "test/demo/**",
+      "test/renderer/**",
+      "test/viewport/**",
+      "test/platform/**",
+    ]) {
+      expect(fastLane).toContain(excludedSuite);
+    }
+    expect(fastLane).not.toContain("playwright");
+  });
+
+  it("exposes separate core, demo, serialized hardware, software, performance, and no-GPU commands", () => {
+    const packageJson = readFileSync(join(root, "package.json"), "utf8");
+    for (const script of [
+      "test:e2e:core",
+      "test:e2e:demo",
+      "test:e2e:combined",
+      "test:e2e:layout",
+      "test:e2e:software",
+      "test:e2e:performance",
+      "test:e2e:no-gpu",
+    ]) {
+      expect(packageJson).toContain(`"${script}"`);
+    }
+    expect(packageJson).toContain("e2e/core/core-foundation.spec.ts");
+    expect(packageJson).toContain("e2e/demo/demo-layout.spec.ts");
+    expect(packageJson).not.toContain("e2e/webgpu-lifecycle.spec.ts");
   });
 
   it("never reuses a dev server from another worktree", () => {
     const config = readFileSync(join(root, "playwright.config.ts"), "utf8");
     expect(config).toContain("reuseExistingServer: false");
+    expect(config).toContain('name: "chrome-unsupported"');
+    expect(config).toContain("core-foundation\\.spec");
   });
 });

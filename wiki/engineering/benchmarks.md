@@ -145,7 +145,7 @@ is:
 
 ```sh
 RUN_PERF=1 E2E_BASE_URL=http://127.0.0.1:5173 \
-  npx playwright test e2e/perf.spec.ts --project=chrome \
+  npx playwright test e2e/demo/perf.spec.ts --project=chrome \
   --grep "instanced-2.10m"
 ```
 
@@ -160,7 +160,8 @@ materialized, so edge position, index, topology, node-id, and result-tail bytes
 are counted only after the first edge draw. This mirrors the retained per-part
 cache: toggling additional placements does not multiply those bytes.
 
-`npm run bench:webgpu` runs `e2e/perf.spec.ts` in system Chrome. It is skipped
+`npm run bench:webgpu` (alias `npm run test:e2e:performance`) runs
+`e2e/demo/perf.spec.ts` in system Chrome. It is skipped
 by the normal e2e gate and has no device-dependent pass/fail timing threshold.
 The benchmark fixes the canvas at 800×600 device pixels and DPR 1, requests a
 high-performance WebGPU adapter, records one cold sample, performs two untimed

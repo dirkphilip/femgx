@@ -75,7 +75,7 @@ is drawn even when the CSS size differs from the device-pixel backing size
 size and `devicePixelRatio` (`GpuRenderer.resize`). Focused tests
 (`test/renderer/gpu-pick.test.ts`) cover high-DPI mobile canvas/readback
 coordinates, and the e2e lane asserts the canvas backing size and GPU pick
-coordinates stay consistent on a high-DPI phone (`e2e/mobile.spec.ts`).
+coordinates stay consistent on a high-DPI phone (`e2e/demo/mobile.spec.ts`).
 
 ## Device loss and recovery
 
