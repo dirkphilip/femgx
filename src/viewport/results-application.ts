@@ -37,23 +37,32 @@ export function applyViewportResults(application: ViewportResultsApplication): {
     application.scene,
     application.runtime,
   );
-  const vectors = resolved.vectors;
+  applyResolvedViewportResults(application.renderer, resolved);
+  return {
+    results: resolved,
+    interaction,
+  };
+}
+
+/** Applies one resolved result state to all renderer-owned result roles. */
+export function applyResolvedViewportResults(
+  renderer: WebGpuRenderer,
+  results: ViewportResultsState | undefined,
+): void {
+  const vectors = results?.vectors;
   setRendererOrientationGlyphs(
-    application.renderer,
+    renderer,
     vectors === undefined
       ? undefined
       : {
-          parts: viewportOrientationRecords(resolved) ?? new Map(),
+          parts:
+            results === undefined ? new Map() : (viewportOrientationRecords(results) ?? new Map()),
           mode: vectors.glyph,
           transform: vectors.transform,
           lengthScale: vectors.lengthScale,
           widthPixels: vectors.widthPixels,
         },
   );
-  application.renderer.setDeformation(resolved.deformation);
-  application.renderer.setResultColors(viewportResultColors(resolved));
-  return {
-    results: resolved,
-    interaction,
-  };
+  renderer.setDeformation(results?.deformation);
+  renderer.setResultColors(results === undefined ? undefined : viewportResultColors(results));
 }

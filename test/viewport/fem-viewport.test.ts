@@ -9,6 +9,7 @@ import type { Placement } from "../../src/scene/assembly";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { createFemViewport } from "../../src/viewport/fem-viewport";
 import { RendererAttachment } from "../../src/renderer/attachment";
+import { GpuRenderer } from "../../src/renderer/gpu-renderer-core";
 import type { FemViewport } from "../../src/viewport/types";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
 
@@ -172,6 +173,24 @@ function nodalResult(nodeCount: 3 | 6) {
         unit: "source",
         values: new Float32Array(Array.from({ length: nodeCount }, (_, index) => index + 1)),
       }),
+    },
+  };
+}
+
+function orientationResult() {
+  return {
+    vectors: {
+      field: createResultField({
+        id: "scene-orientation",
+        name: "scene orientation",
+        location: "elemental" as const,
+        shape: "vector" as const,
+        count: 11,
+        unit: "unitless",
+        values: new Float32Array(33).fill(1),
+      }),
+      glyph: "arrow" as const,
+      transform: "direction" as const,
     },
   };
 }
@@ -390,6 +409,56 @@ describe("FemViewport", () => {
     expect(() => {
       viewport.render();
     }).not.toThrow();
+    viewport.destroy();
+  });
+
+  it("clears every renderer result role during full scene replacement", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const setOrientationGlyphs = vi.spyOn(GpuRenderer.prototype, "setOrientationGlyphs");
+    const setDeformation = vi.spyOn(GpuRenderer.prototype, "setDeformation");
+    const setResultColors = vi.spyOn(GpuRenderer.prototype, "setResultColors");
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: identityScene(false),
+      results: orientationResult(),
+      device: fakeGpuDevice().device,
+    });
+
+    setOrientationGlyphs.mockClear();
+    setDeformation.mockClear();
+    setResultColors.mockClear();
+    viewport.setScene(scene());
+
+    expect(setOrientationGlyphs).toHaveBeenLastCalledWith(undefined);
+    expect(setDeformation).toHaveBeenLastCalledWith(undefined);
+    expect(setResultColors).toHaveBeenLastCalledWith(undefined);
+    expect(viewport.results).toBeUndefined();
+    viewport.destroy();
+  });
+
+  it("resynchronizes compatible orientation results and clears incompatible ones", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const setOrientationGlyphs = vi.spyOn(GpuRenderer.prototype, "setOrientationGlyphs");
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: identityScene(false),
+      results: orientationResult(),
+      device: fakeGpuDevice().device,
+    });
+
+    setOrientationGlyphs.mockClear();
+    expect(viewport.updateScene(identityScene(false))).toEqual({ results: "preserved" });
+    expect(setOrientationGlyphs).toHaveBeenLastCalledWith(
+      expect.objectContaining({ mode: "arrow", transform: "direction" }),
+    );
+    expect(viewport.results?.vectors).toBeDefined();
+
+    setOrientationGlyphs.mockClear();
+    expect(viewport.updateScene(scene())).toMatchObject({ results: "cleared" });
+    expect(setOrientationGlyphs).toHaveBeenLastCalledWith(undefined);
+    expect(viewport.results).toBeUndefined();
     viewport.destroy();
   });
 
