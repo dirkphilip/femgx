@@ -32,21 +32,23 @@ function runCheck(root: string): { readonly status: number; readonly stderr: str
 }
 
 describe("check-folder-structure", () => {
-  it("accepts a clear folder name at the direct-file boundary", () => {
-    const root = makeRepo(
-      Array.from({ length: 25 }, (_, index) => `src/render-passes/file-${index}.ts`),
-    );
+  it("accepts a clear folder name at the combined direct-entry boundary", () => {
+    const root = makeRepo([
+      ...Array.from({ length: 24 }, (_, index) => `src/render-passes/file-${index}.ts`),
+      "src/render-passes/geometry/index.ts",
+    ]);
     expect(runCheck(root).status).toBe(0);
   });
 
   it("reports oversized folders with the structure policy", () => {
-    const root = makeRepo(
-      Array.from({ length: 26 }, (_, index) => `src/renderer/file-${index}.ts`),
-    );
+    const root = makeRepo([
+      ...Array.from({ length: 25 }, (_, index) => `src/renderer/file-${index}.ts`),
+      "src/renderer/geometry/index.ts",
+    ]);
     const result = runCheck(root);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
-      "src/renderer: 26 direct source files exceeds 25; split this folder by clear responsibility using specific lowercase kebab-case child folder names",
+      "src/renderer: 26 direct source entries exceeds 25; split this folder by clear responsibility using specific lowercase kebab-case child folder names",
     );
   });
 
@@ -60,29 +62,32 @@ describe("check-folder-structure", () => {
   });
 
   it("checks newly added top-level source folders and JavaScript variants", () => {
-    const root = makeRepo(
-      Array.from({ length: 26 }, (_, index) => `packages/new-renderer/file-${index}.cjs`),
-    );
+    const root = makeRepo([
+      ...Array.from({ length: 25 }, (_, index) => `packages/new-renderer/file-${index}.cjs`),
+      "packages/new-renderer/geometry/index.js",
+    ]);
     const result = runCheck(root);
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("packages/new-renderer: 26 direct source files exceeds 25");
+    expect(result.stderr).toContain("packages/new-renderer: 26 direct source entries exceeds 25");
   });
 
-  it("accepts the direct source-folder boundary", () => {
+  it("accepts folders with 25 direct source folders", () => {
     const root = makeRepo(
-      Array.from({ length: 20 }, (_, index) => `packages/features/feature-${index}/index.ts`),
+      Array.from({ length: 25 }, (_, index) => `packages/features/feature-${index}/index.ts`),
     );
     expect(runCheck(root).status).toBe(0);
   });
 
-  it("reports folders with too many direct source folders", () => {
-    const root = makeRepo(
-      Array.from({ length: 21 }, (_, index) => `packages/features/feature-${index}/index.ts`),
-    );
+  it("reports folders whose combined source entries exceed the limit", () => {
+    const root = makeRepo([
+      ...Array.from({ length: 24 }, (_, index) => `packages/features/feature-${index}/index.ts`),
+      "packages/features/readme.ts",
+      "packages/features/extra/index.ts",
+    ]);
     const result = runCheck(root);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
-      "packages/features: 21 direct source folders exceeds 20; group child folders under clear responsibilities using specific lowercase kebab-case names",
+      "packages/features: 26 direct source entries exceeds 25; split this folder by clear responsibility using specific lowercase kebab-case child folder names",
     );
   });
 

@@ -1,8 +1,7 @@
 import { readdirSync } from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
 
-const MAX_DIRECT_SOURCE_FILES = 25;
-const MAX_DIRECT_SOURCE_FOLDERS = 20;
+const MAX_DIRECT_SOURCE_ENTRIES = 25;
 const SOURCE_FILE = /\.(?:cjs|css|cts|js|jsx|mjs|mts|svelte|ts|tsx)$/u;
 const CLEAR_FOLDER_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 const VAGUE_FOLDER_NAMES = new Set(["common", "misc", "shared", "utils"]);
@@ -50,14 +49,10 @@ function inspectDirectory(repositoryRoot, directory, violations) {
       `${path}: folder names must be specific lowercase kebab-case domain names; avoid generic names such as common, misc, shared, or utils`,
     );
   }
-  if (sourceFileCount > MAX_DIRECT_SOURCE_FILES) {
+  const sourceEntryCount = sourceFileCount + sourceFolderCount;
+  if (sourceEntryCount > MAX_DIRECT_SOURCE_ENTRIES) {
     violations.push(
-      `${path}: ${sourceFileCount} direct source files exceeds ${MAX_DIRECT_SOURCE_FILES}; split this folder by clear responsibility using specific lowercase kebab-case child folder names`,
-    );
-  }
-  if (sourceFolderCount > MAX_DIRECT_SOURCE_FOLDERS) {
-    violations.push(
-      `${path}: ${sourceFolderCount} direct source folders exceeds ${MAX_DIRECT_SOURCE_FOLDERS}; group child folders under clear responsibilities using specific lowercase kebab-case names`,
+      `${path}: ${sourceEntryCount} direct source entries exceeds ${MAX_DIRECT_SOURCE_ENTRIES}; split this folder by clear responsibility using specific lowercase kebab-case child folder names`,
     );
   }
   return containsSource;
