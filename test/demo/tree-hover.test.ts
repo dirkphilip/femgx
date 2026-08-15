@@ -26,4 +26,15 @@ describe("visibility tree hover mapping", () => {
     );
     expect(visibilityRowTargetsEqual(body, { kind: "instance", instanceId: "1/0/0" })).toBe(false);
   });
+
+  it("distinguishes authored block occurrences", () => {
+    const block = { kind: "block" as const, instanceId: "1/0/0", blockId: 2 };
+    expect(visibilityRowTargetsEqual(block, { ...block })).toBe(true);
+    expect(
+      visibilityRowTargetsEqual(block, { kind: "block", instanceId: "1/0/1", blockId: 2 }),
+    ).toBe(false);
+    expect(
+      visibilityRowTargetsEqual(block, { kind: "block", instanceId: "1/0/0", blockId: 1 }),
+    ).toBe(false);
+  });
 });

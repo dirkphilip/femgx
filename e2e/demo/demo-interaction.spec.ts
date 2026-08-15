@@ -113,6 +113,56 @@ test("promotes face and element context targets to the exact element", async ({ 
   await menu.locator('button[data-action="select-element"]').click();
   await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
 });
+
+test("selects an authored block from an element context menu", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const menu = page.getByTestId("context-menu");
+  const candidates = [
+    { prefix: "f:", fresh: true },
+    { prefix: "f:", fresh: true, reverse: true },
+    { prefix: "f:", fresh: true, step: 24 },
+  ] as const;
+  let blockHit: { readonly x: number; readonly y: number } | undefined;
+  for (const options of candidates) {
+    const hit = await requireHit(
+      page,
+      canvas,
+      options,
+      "element GPU picking must resolve before selecting an authored block",
+    );
+    await page.mouse.click(hit.x, hit.y, { button: "right" });
+    await expect(menu).toBeVisible();
+    if ((await menu.locator('button[data-action="select-block"]').count()) > 0) {
+      blockHit = hit;
+      break;
+    }
+    await page.keyboard.press("Escape");
+  }
+  if (blockHit === undefined)
+    throw new Error("Could not resolve a plate element with authored block metadata");
+
+  await expect(menu.locator('button[data-action="select-block"]')).toHaveText("Select block");
+  await menu.locator('button[data-action="select-block"]').click();
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^b:/);
+  const [, instanceId, blockId] = (await dataset(page, "selected")).split(":");
+  if (instanceId === undefined || blockId === undefined)
+    throw new Error("block selection is malformed");
+
+  const visibilityPanel = page.getByTestId("visibility-panel");
+  await visibilityPanel.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event("scroll"));
+  });
+  const block = page.locator(
+    `input[data-block-instance-id="${instanceId}"][data-block-id="${blockId}"]`,
+  );
+  await expect(block).toBeVisible();
+  await block.uncheck();
+  await expect(block).not.toBeChecked();
+  await expect.poll(() => dataset(page, "selected")).toBe(`b:${instanceId}:${blockId}`);
+  void blockHit;
+});
 test("picks and selects a node, exposing adjacency and neighbors", async ({ page }) => {
   await loadWebGpuPage(page);
   await setSelectionGranularity(page, "node");

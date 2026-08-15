@@ -2,8 +2,10 @@ import { expect, test } from "@playwright/test";
 import {
   dataset,
   activateContextAction,
+  loadWebGpuPage,
   openCommandPanel,
   requireHit,
+  scrollVisibilityToEnd,
   status,
   waitForRenderer,
 } from "./demo-support";
@@ -43,6 +45,7 @@ test("collapses and expands assembly rows in the visibility tree", async ({ page
   await page.goto("/");
   await waitForRenderer(page);
   // The bolted tree starts fully expanded, so Fasteners shows each occurrence.
+  await scrollVisibilityToEnd(page);
   const fasteners = page.getByTestId("assembly-expand-2");
   await expect(fasteners).toHaveAttribute("aria-expanded", "true");
   // Collapsing Fasteners hides its subtree but keeps the parent row reachable.
@@ -87,6 +90,42 @@ test("gives body visibility controls distinct occurrence names", async ({ page }
   await expect(page.locator('input[data-testid^="body-vis-"]')).toHaveCount(names.length);
   await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toBeVisible();
 });
+
+test("exposes authored blocks per plate occurrence without synthetic fastener rows", async ({
+  page,
+}) => {
+  await loadWebGpuPage(page);
+  const blocks = page.locator('input[data-testid^="block-vis-"]');
+  await expect(blocks).toHaveCount(4);
+  await expect(blocks.first()).toHaveAttribute("data-block-instance-id", "1/0/0");
+  await expect(blocks.first()).toHaveAttribute("aria-label", /Plate row A in .*Plate stack/);
+
+  const block = blocks.first();
+  const parentBody = page.locator('input[data-body-instance-id="1/0/0"][data-body-id="1"]');
+  await parentBody.uncheck();
+  await expect(block).toBeDisabled();
+  await parentBody.check();
+  await expect(block).toBeEnabled();
+  await block.uncheck();
+  await expect(block).not.toBeChecked();
+
+  const highlight = page.locator('button[data-block-highlight="true"]').first();
+  await expect(highlight).toHaveAttribute("aria-label", "Highlight Plate row A");
+  await highlight.click();
+  await expect(highlight).toHaveAttribute("aria-pressed", "true");
+
+  await activateContextAction(page, "show-all");
+  await expect(block).toBeChecked();
+  await expect(highlight).toHaveAttribute("aria-pressed", "true");
+
+  const visibilityPanel = page.getByTestId("visibility-panel");
+  await visibilityPanel.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event("scroll"));
+  });
+  await expect(page.getByTestId("block-vis-1-1")).toBeVisible();
+  await expect(page.getByTestId("block-vis-1-2")).toBeVisible();
+});
 test("hides the plate stack through the assembly tree", async ({ page }) => {
   await page.goto("/");
   await waitForRenderer(page);
@@ -104,6 +143,7 @@ test("hides the plate stack through the assembly tree", async ({ page }) => {
 });
 test("hides and restores all fasteners through the assembly tree", async ({ page }) => {
   await page.goto("/");
+  await scrollVisibilityToEnd(page);
   const fasteners = page.getByTestId("assembly-occurrence-vis-2");
   await expect(fasteners).toBeChecked();
 

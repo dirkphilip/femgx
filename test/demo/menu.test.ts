@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { WorkbenchMenu } from "../../demo/workbench/menu";
+import { createInteractionState, setElementBlockVisible } from "../../src/index";
+import { contextMenuSelectionOptions, WorkbenchMenu } from "../../demo/workbench/menu";
 
 describe("workbench context-menu state", () => {
   it("publishes target actions and hides after activation", () => {
@@ -64,6 +65,31 @@ describe("workbench context-menu state", () => {
           action: "fit-selection",
           help: "Frame the complete model because no visible selection can be framed.",
         },
+      ]),
+    );
+  });
+
+  it("offers authored block selection and visibility actions", () => {
+    const target = { kind: "block" as const, instanceId: "1/0", blockId: 2 };
+    const interaction = setElementBlockVisible(createInteractionState(), target, false);
+    const options = contextMenuSelectionOptions(target, interaction);
+    expect(options).toMatchObject({
+      selectionLabel: "Select block",
+      blockVisibilityLabel: "Show block",
+    });
+
+    const menu = new WorkbenchMenu(
+      () => false,
+      () => false,
+      () => false,
+      vi.fn(),
+      vi.fn(),
+    );
+    menu.show(target, 0, 0, options);
+    expect(menu.snapshot.entries).toEqual(
+      expect.arrayContaining([
+        { kind: "button", label: "Select block", action: "select" },
+        { kind: "button", label: "Show block", action: "hide-element" },
       ]),
     );
   });

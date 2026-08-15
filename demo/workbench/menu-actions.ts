@@ -1,5 +1,5 @@
 import type { DisplayToggles } from "./types";
-import type { SelectTarget } from "./pick";
+import { elementBlockTarget, type SelectTarget } from "./pick";
 import type { WorkbenchInteraction } from "./interaction";
 import type { WorkbenchVisibilityActions } from "./visibility-actions";
 
@@ -28,6 +28,11 @@ export function applyMenuAction(action: string, context: WorkbenchMenuActionCont
     case "select-element":
       if (target !== undefined) context.interaction.selectElement(target);
       break;
+    case "select-block": {
+      const block = target === undefined ? undefined : elementBlockTarget(target);
+      if (block !== undefined) context.interaction.select(block);
+      break;
+    }
     case "hide-element":
       if (target !== undefined) context.visibilityActions.toggleElement(target);
       break;

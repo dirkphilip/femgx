@@ -5,6 +5,7 @@ import {
   primaryBoxDrag,
   requireHit,
   openCommandPanel,
+  scrollVisibilityToEnd,
   setSelectionGranularity,
   waitForRenderer,
 } from "./demo-support";
@@ -220,13 +221,14 @@ test("lists the bolted assembly hierarchy in the visibility panel", async ({ pag
   for (const name of [
     "Bolted joint",
     "Plate stack",
-    "Fasteners",
     "Steel plates",
     "Plate row A",
     "Plate row B",
   ]) {
     await expect(visibility).toContainText(name);
   }
+  await scrollVisibilityToEnd(page);
+  await expect(visibility).toContainText("Fasteners");
 });
 test("renders the helper and mapping examples in the gallery grid", async ({ page }) => {
   await page.goto("/");

@@ -1,5 +1,6 @@
 import {
   interactionTargetFromHit,
+  type ElementBlockId,
   type ElementId,
   type BodyId,
   type InteractionGranularity,
@@ -16,9 +17,13 @@ export type SelectionGranularity = Extract<
 /** A stable selection identity at any supported granularity. */
 export type SelectTarget = Exclude<InteractionTarget, { readonly kind: "body" }> & {
   readonly bodyId?: BodyId;
+  readonly blockId?: ElementBlockId;
   /** The exact element owning a node pick, retained for context actions. */
   readonly elementId?: ElementId;
 };
+
+/** A selection target resolved to an authored element block occurrence. */
+export type BlockSelectTarget = Extract<SelectTarget, { readonly kind: "block" }>;
 
 /**
  * Maps a GPU pick target to the active selection granularity. Shift promotes
@@ -68,6 +73,9 @@ function mapTarget(
     ...(target.kind === "element" || target.kind === "face" || target.kind === "node"
       ? optionalBodyId("bodyId" in hit ? hit.bodyId : undefined)
       : {}),
+    ...(target.kind === "element" || target.kind === "face" || target.kind === "node"
+      ? optionalBlockId("blockId" in hit ? hit.blockId : undefined)
+      : {}),
     ...(target.kind === "node"
       ? optionalElementId("elementId" in hit ? hit.elementId : undefined)
       : {}),
@@ -89,6 +97,12 @@ function optionalElementId(
   return elementId === undefined ? {} : { elementId };
 }
 
+function optionalBlockId(
+  blockId: ElementBlockId | undefined,
+): { readonly blockId: ElementBlockId } | Record<never, never> {
+  return blockId === undefined ? {} : { blockId };
+}
+
 /** Promotes an element-owned pick to its exact owning element identity. */
 export function elementTarget(target: SelectTarget): SelectTarget | undefined {
   switch (target.kind) {
@@ -106,6 +120,18 @@ export function elementTarget(target: SelectTarget): SelectTarget | undefined {
     case "edge":
       return undefined;
   }
+}
+
+/** Returns the authored block owning a physical target, when the pick carries one. */
+export function elementBlockTarget(target: SelectTarget): BlockSelectTarget | undefined {
+  if (target.kind === "block") return target;
+  if (
+    (target.kind === "element" || target.kind === "face" || target.kind === "node") &&
+    target.blockId !== undefined
+  ) {
+    return { kind: "block", instanceId: target.instanceId, blockId: target.blockId };
+  }
+  return undefined;
 }
 
 /** Stable dataset key for a resolved pick or selection target. */

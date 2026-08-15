@@ -5,7 +5,12 @@ import {
   setTargetSelected,
   type SceneRuntime,
 } from "../../src/index";
-import { elementTarget, exactTarget, selectTarget } from "../../demo/workbench/pick";
+import {
+  elementBlockTarget,
+  elementTarget,
+  exactTarget,
+  selectTarget,
+} from "../../demo/workbench/pick";
 import {
   replaceSelection,
   replaceTargets,
@@ -73,6 +78,34 @@ describe("demo selection policy", () => {
       kind: "element",
       instanceId: "1/0",
       elementId: 7,
+    });
+  });
+
+  it("retains authored block ownership for exact context targets", () => {
+    const hit: PickHit = {
+      kind: "node",
+      partId: 4,
+      instanceId: "1/0",
+      elementId: 7,
+      blockId: 2,
+      nodeId: 3,
+      localPosition: [0, 0, 0],
+      worldPosition: [0, 0, 0],
+      neighborElementIds: [7],
+      neighborNodeIds: [1, 2],
+    };
+    const target = exactTarget(hit, modifiersForTest());
+    expect(target).toMatchObject({ kind: "node", blockId: 2 });
+    expect(target === undefined ? undefined : elementBlockTarget(target)).toEqual({
+      kind: "block",
+      instanceId: "1/0",
+      blockId: 2,
+    });
+    expect(selectTarget(hit, "element", modifiersForTest())).toEqual({
+      kind: "element",
+      instanceId: "1/0",
+      elementId: 7,
+      blockId: 2,
     });
   });
 

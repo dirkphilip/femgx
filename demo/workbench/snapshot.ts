@@ -22,6 +22,7 @@ import { emptyResultLegend, type WorkbenchResultLegendSnapshot } from "./result-
 export type WorkbenchMenuAction =
   | "highlight"
   | "select"
+  | "select-block"
   | "select-element"
   | "hide-element"
   | "hide-instance"
@@ -232,6 +233,7 @@ export interface WorkbenchCommands {
   toggleVisibility(target: VisibilityRowTarget): void;
   toggleVisibilityTree(occurrenceId: string): void;
   toggleBodyHighlight(target: Extract<VisibilityRowTarget, { kind: "body" }>): void;
+  toggleBlockHighlight(target: Extract<VisibilityRowTarget, { kind: "block" }>): void;
   setHierarchyHover(target: VisibilityRowTarget): void;
   clearHierarchyHover(target: VisibilityRowTarget): void;
   contextMenuAction(action: WorkbenchMenuAction): void;

@@ -73,6 +73,8 @@ h1 {
   text-transform: uppercase;
 }
 #visibility-panel {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   padding: 0 14px 18px;
 }
@@ -147,6 +149,9 @@ h1 {
 .visibility-assembly .visibility-kind {
   color: #61b5ff;
 }
+.visibility-block .visibility-kind {
+  color: #b79cff;
+}
 .visibility-label {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -183,6 +188,22 @@ h1 {
 .visibility-body-name[data-active="true"] {
   color: #fff0d2;
   background: #70451b;
+}
+.visibility-block-name {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+  border: 0;
+  padding: 3px 4px;
+  color: #cbbcff;
+  background: transparent;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.visibility-block-name[data-active="true"] {
+  color: #f0e8ff;
+  background: #493b70;
 }
 .scene {
   position: relative;
