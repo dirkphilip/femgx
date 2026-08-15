@@ -1,5 +1,3 @@
-import type { ElementBlockId } from "../elements/model";
-import type { InstanceId } from "../scene/types";
 import {
   isHoveredTarget,
   readInteractionState,
@@ -8,7 +6,14 @@ import {
   type PrimitiveStyleOverride,
   validatePrimitiveStyleOverride,
 } from "./state";
-import { collectUniqueRefs, sortedNumbers, updateNestedMap, updateNestedSet } from "./mechanics";
+import {
+  appendSortedNestedRefs,
+  collectUniqueRefs,
+  isNestedValueEmphasized,
+  isNestedValueVisible,
+  updateNestedMap,
+  updateNestedState,
+} from "./mechanics";
 import type { ElementBlockRef } from "./refs";
 
 /**
@@ -20,7 +25,15 @@ export function setElementBlockSelected(
   ref: ElementBlockRef,
   selected: boolean,
 ): InteractionState {
-  return updateBlockSet(state, "selectedBlockIds", ref, selected);
+  const data = readInteractionState(state);
+  return updateNestedState({
+    state,
+    current: data.selectedBlockIds,
+    outerKey: ref.instanceId,
+    innerKey: ref.blockId,
+    enabled: selected,
+    replace: (next) => updateInteractionState(state, { selectedBlockIds: next }),
+  });
 }
 
 /**
@@ -32,7 +45,15 @@ export function setElementBlockHighlighted(
   ref: ElementBlockRef,
   highlighted: boolean,
 ): InteractionState {
-  return updateBlockSet(state, "highlightedBlockIds", ref, highlighted);
+  const data = readInteractionState(state);
+  return updateNestedState({
+    state,
+    current: data.highlightedBlockIds,
+    outerKey: ref.instanceId,
+    innerKey: ref.blockId,
+    enabled: highlighted,
+    replace: (next) => updateInteractionState(state, { highlightedBlockIds: next }),
+  });
 }
 
 /**
@@ -44,7 +65,15 @@ export function setElementBlockVisible(
   ref: ElementBlockRef,
   visible: boolean,
 ): InteractionState {
-  return updateBlockSet(state, "hiddenBlockIds", ref, !visible);
+  const data = readInteractionState(state);
+  return updateNestedState({
+    state,
+    current: data.hiddenBlockIds,
+    outerKey: ref.instanceId,
+    innerKey: ref.blockId,
+    enabled: !visible,
+    replace: (next) => updateInteractionState(state, { hiddenBlockIds: next }),
+  });
 }
 
 /**
@@ -52,7 +81,11 @@ export function setElementBlockVisible(
  * @category Interaction and picking
  */
 export function isElementBlockVisible(state: InteractionState, ref: ElementBlockRef): boolean {
-  return readInteractionState(state).hiddenBlockIds.get(ref.instanceId)?.has(ref.blockId) !== true;
+  return isNestedValueVisible(
+    readInteractionState(state).hiddenBlockIds,
+    ref.instanceId,
+    ref.blockId,
+  );
 }
 
 /**
@@ -82,13 +115,15 @@ export function setElementBlockOverride(
  */
 export function isElementBlockEmphasized(state: InteractionState, ref: ElementBlockRef): boolean {
   const data = readInteractionState(state);
-  return (
-    data.hiddenBlockIds.get(ref.instanceId)?.has(ref.blockId) === true ||
-    data.highlightedBlockIds.get(ref.instanceId)?.has(ref.blockId) === true ||
-    data.selectedBlockIds.get(ref.instanceId)?.has(ref.blockId) === true ||
-    data.blockOverrides.get(ref.instanceId)?.has(ref.blockId) === true ||
-    isHoveredTarget(state, { kind: "block", ...ref })
-  );
+  return isNestedValueEmphasized({
+    hidden: data.hiddenBlockIds,
+    highlighted: data.highlightedBlockIds,
+    selected: data.selectedBlockIds,
+    overrides: data.blockOverrides,
+    hovered: isHoveredTarget(state, { kind: "block", ...ref }),
+    outerKey: ref.instanceId,
+    innerKey: ref.blockId,
+  });
 }
 
 /**
@@ -103,39 +138,12 @@ export function emphasizedElementBlockRefs(state: InteractionState): readonly El
       : undefined,
     (ref) => `${ref.instanceId}/${ref.blockId}`,
     (push) => {
-      const maps: readonly ReadonlyMap<InstanceId, ReadonlySet<ElementBlockId>>[] = [
-        data.highlightedBlockIds,
-        data.selectedBlockIds,
-        data.hiddenBlockIds,
-      ];
-      for (const map of maps) {
-        for (const [instanceId, ids] of sortedMap(map)) {
-          for (const blockId of sortedNumbers(ids)) push({ instanceId, blockId });
-        }
-      }
-      for (const [instanceId, overrides] of sortedMap(data.blockOverrides)) {
-        for (const blockId of sortedNumbers(overrides.keys())) push({ instanceId, blockId });
-      }
+      appendSortedNestedRefs(
+        [data.highlightedBlockIds, data.selectedBlockIds, data.hiddenBlockIds, data.blockOverrides],
+        (instanceId, blockId) => {
+          push({ instanceId, blockId });
+        },
+      );
     },
   );
-}
-
-function updateBlockSet(
-  state: InteractionState,
-  key: "selectedBlockIds" | "highlightedBlockIds" | "hiddenBlockIds",
-  ref: ElementBlockRef,
-  enabled: boolean,
-): InteractionState {
-  const data = readInteractionState(state);
-  const next = updateNestedSet(data[key], ref.instanceId, ref.blockId, enabled);
-  if (next === data[key]) return state;
-  return updateInteractionState(state, { [key]: next });
-}
-
-type BlockValues = { readonly keys: () => Iterable<ElementBlockId> };
-
-function sortedMap<V extends BlockValues>(
-  map: ReadonlyMap<InstanceId, V>,
-): Array<readonly [InstanceId, V]> {
-  return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
 }
