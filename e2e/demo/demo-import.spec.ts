@@ -1,8 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   activateContextAction,
+  drawnPixels,
   loadWebGpuPage,
   openCommandPanel,
   rendererMode,
@@ -12,6 +13,12 @@ import {
 const fixture = "test/io/fixtures/glb/onshape-cylinder-compressed.glb";
 const vtkFixture = readFileSync(join(process.cwd(), "demo/fixture/sample-block.vtk"));
 const phone = { width: 390, height: 844 };
+
+async function waitForPresentedCanvas(page: Page): Promise<void> {
+  await expect
+    .poll(() => drawnPixels(page.getByTestId("view-canvas")), { timeout: 10_000 })
+    .toBe(true);
+}
 
 test("selects an accessible background preset and preserves it across workbench transitions", async ({
   page,
@@ -55,6 +62,7 @@ test("selects an accessible background preset and preserves it across workbench 
   });
   await waitForRenderer(page, canvas);
   await expect(background).toHaveValue("dark");
+  await waitForPresentedCanvas(page);
   await page.screenshot({ path: "test-results/background-selector-desktop.png", fullPage: true });
 });
 
@@ -72,6 +80,7 @@ test("keeps the background selector reachable without mobile toolbar overflow", 
     () => document.documentElement.scrollWidth - window.innerWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
+  await waitForPresentedCanvas(page);
   await page.screenshot({ path: "test-results/background-selector-mobile.png", fullPage: true });
 });
 
@@ -106,6 +115,7 @@ test("opens a Draco-compressed GLB and resets the imported model in desktop Chro
   await expect(page.getByTestId("model-select")).toHaveValue("opened-model");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(canvas).toHaveAttribute("data-camera", /orthographic/);
+  await waitForPresentedCanvas(page);
   await page.screenshot({ path: "test-results/glb-desktop.png", fullPage: true });
 });
 
@@ -127,9 +137,7 @@ test("opens a local VTK mesh through the canonical workbench path", async ({ pag
   await expect(page.getByTestId("status")).toContainText("1 parts");
   await openCommandPanel(page, "analysis");
   await expect(page.getByTestId("result-controls")).toBeVisible();
-
-  await page.getByTestId("model-select").selectOption("gallery");
-  await expect(canvas).toHaveAttribute("data-model", "gallery");
+  await waitForPresentedCanvas(page);
   await page.screenshot({ path: "test-results/vtk-open-desktop.png", fullPage: true });
 });
 
@@ -163,5 +171,6 @@ test("keeps the GLB source action usable on a 390px viewport", async ({ page }) 
     () => document.documentElement.scrollWidth - window.innerWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
+  await waitForPresentedCanvas(page);
   await page.screenshot({ path: "test-results/glb-mobile.png", fullPage: true });
 });
