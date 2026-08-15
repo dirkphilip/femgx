@@ -5,8 +5,6 @@ import {
   createPart,
   createScene,
   identity,
-  orbitCamera,
-  projectPoint,
   setInstanceOverride,
   setPartOverride,
   setTargetHighlighted,
@@ -14,7 +12,8 @@ import {
   translation,
   WebGpuUnsupportedError,
   type FemViewport,
-} from "../../src/index";
+} from "../../src/entries/root";
+import { orbitCamera, projectPoint } from "../../src/entries/camera";
 
 const canvasElement = document.querySelector<HTMLCanvasElement>("#core-canvas");
 const statusElement = document.querySelector<HTMLOutputElement>("#core-status");

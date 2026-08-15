@@ -189,7 +189,7 @@ function main() {
     writeFileSync(
       join(consumer, "smoke.mjs"),
       [
-        'import { boxSelectionFrustum, createScene, identity } from "femgx";',
+        'import { boxSelectionFrustum, createInteractionState, createScene, identity, setInstanceOverride, setPartOverride } from "femgx";',
         'import { createCamera } from "femgx/camera";',
         'import * as model from "femgx/model";',
         'import * as io from "femgx/io";',
@@ -203,6 +203,10 @@ function main() {
         'if (frustum.near.normal.length !== 3) throw new Error("frustum export failed");',
         "const m = identity();",
         'if (m.length !== 16) throw new Error("identity() is not a 4x4 matrix");',
+        'if (typeof setPartOverride !== "function" || typeof setInstanceOverride !== "function") throw new Error("instance override exports failed");',
+        "let interaction = createInteractionState();",
+        "interaction = setPartOverride(interaction, 1, { lineWidthPixels: 2 });",
+        'interaction = setInstanceOverride(interaction, "1/0", { lineWidthPixels: 3 });',
         'if (typeof model.createElementModel !== "function") throw new Error("model entry failed");',
         'if (typeof io.parseVtk !== "function") throw new Error("io entry failed");',
         'if (typeof glb.importGlb !== "function") throw new Error("GLB entry failed");',
@@ -217,7 +221,7 @@ function main() {
     writeFileSync(
       join(consumer, "smoke.cjs"),
       [
-        'const { createScene, identity } = require("femgx");',
+        'const { createInteractionState, createScene, identity, setInstanceOverride, setPartOverride } = require("femgx");',
         'const { createCamera } = require("femgx/camera");',
         'const model = require("femgx/model");',
         'const io = require("femgx/io");',
@@ -228,6 +232,10 @@ function main() {
         "const camera = createCamera();",
         'if (camera.mode !== "orthographic") throw new Error("orthographic default failed");',
         'if (identity().length !== 16) throw new Error("identity() is not a 4x4 matrix");',
+        'if (typeof setPartOverride !== "function" || typeof setInstanceOverride !== "function") throw new Error("instance override exports failed");',
+        "let interaction = createInteractionState();",
+        "interaction = setPartOverride(interaction, 1, { lineWidthPixels: 2 });",
+        'interaction = setInstanceOverride(interaction, "1/0", { lineWidthPixels: 3 });',
         'if (typeof model.createElementModel !== "function") throw new Error("model entry failed");',
         'if (typeof io.parseVtk !== "function") throw new Error("io entry failed");',
         'if (typeof glb.importGlb !== "function") throw new Error("GLB entry failed");',
@@ -241,7 +249,7 @@ function main() {
     // 8. Type-level consumption under each supported moduleResolution.
     const tsc = join(repoRoot, "node_modules", ".bin", "tsc");
     const smokeTs = [
-      'import { boxSelectionFrustum, createFemViewport, createInteractionState, createPart, createResultField, createScene, identity, setTargetHighlighted, setTargetSelected, translation, type FemViewport, type InteractionTarget } from "femgx";',
+      'import { boxSelectionFrustum, createFemViewport, createInteractionState, createPart, createResultField, createScene, identity, setInstanceOverride, setPartOverride, setTargetHighlighted, setTargetSelected, translation, type FemViewport, type InteractionTarget, type StyleOverride } from "femgx";',
       'import { createElement, createElementModel, elementPart, LINE_SHAPE, POINT_SHAPE, TRIANGLE_SHAPE } from "femgx/model";',
       'import { parseVtk, writeVtk } from "femgx/io";',
       'import { createCamera } from "femgx/camera";',
@@ -293,6 +301,9 @@ function main() {
       "const platformTypeCheck = undefined as unknown as RequestedWebGpuDevice;",
       'const bodyTarget: InteractionTarget = { kind: "body", instanceId: "1/0", bodyId: 0 };',
       "let interaction = createInteractionState();",
+      "const partStyle: StyleOverride = { lineWidthPixels: 2 };",
+      "interaction = setPartOverride(interaction, part.id, partStyle);",
+      'interaction = setInstanceOverride(interaction, "1/0", { lineWidthPixels: 3 });',
       "interaction = setTargetSelected(interaction, bodyTarget, true);",
       "interaction = setTargetHighlighted(interaction, bodyTarget, true);",
       'const stress = createResultField({ id: "stress", name: "Stress", location: "elemental", shape: "scalar", count: 1, unit: "MPa", values: new Float32Array([1]) });',

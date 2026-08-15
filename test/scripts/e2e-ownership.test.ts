@@ -39,9 +39,10 @@ describe("browser suite ownership", () => {
     expect(coreSources.join("\n")).not.toMatch(/demo\//);
     expect(coreSources.join("\n")).not.toContain('data-testid="view-canvas"');
     expect(browserSupportSources.join("\n")).not.toMatch(/(?:core|demo)\//);
-    expect(readFileSync(join(e2e, "core/core-host.ts"), "utf8")).toContain(
-      'from "../../src/index"',
-    );
+    const coreHost = readFileSync(join(e2e, "core/core-host.ts"), "utf8");
+    expect(coreHost).not.toContain('from "../../src/index"');
+    expect(coreHost).toContain('from "../../src/entries/camera"');
+    expect(coreHost).toContain('from "../../src/entries/root"');
   });
 
   it("keeps the fast lane exclude-based and browser-free", () => {
