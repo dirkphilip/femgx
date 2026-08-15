@@ -14,7 +14,7 @@ import {
   type VectorField,
 } from "../../src/index";
 import type { ModelPreset } from "./presets";
-import { fixtureBounds } from "./preset-bounds";
+import { sceneBounds } from "../scene-bounds";
 
 const RESULTS_PART_ID: PartId = 20;
 
@@ -79,7 +79,7 @@ export function createResultsPreset(): ModelPreset {
     partColors: new Map([[RESULTS_PART_ID, { r: 0.48, g: 0.55, b: 0.68, a: 1 }]]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map([[RESULTS_PART_ID, "Results block"]]),
-    bounds: fixtureBounds(scene),
+    bounds: sceneBounds(scene),
     resultVectorFields: vectorFields,
     results: {
       scalar: { field: stress },
