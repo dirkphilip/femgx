@@ -216,6 +216,7 @@ export interface WorkbenchCommands {
   setVectorGlyph(value: string): void;
   setVectorTransform(value: string): void;
   setVectorLengthScale(value: string): void;
+  setVectorWidthPixels(value: string): void;
   fitView(): void;
   hideSelected(): void;
   showAll(): void;

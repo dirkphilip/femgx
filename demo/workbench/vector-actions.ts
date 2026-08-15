@@ -1,6 +1,7 @@
 import {
   parseVectorGlyph,
   parseVectorLengthScale,
+  parseVectorWidthPixels,
   parseVectorTransform,
   resultVectorFieldsForModel,
   VECTOR_OFF_VALUE,
@@ -63,5 +64,17 @@ export function setVectorLengthScale(owner: VectorControlOwner, value: string): 
   }
   if (owner.vectorDisplay.lengthScale === scale) return;
   owner.vectorDisplay = { ...owner.vectorDisplay, lengthScale: scale };
+  owner.applyResultMode(owner.vectorDisplay.fieldId !== VECTOR_OFF_VALUE);
+}
+
+/** Applies a validated CSS-pixel shaft-width transition. */
+export function setVectorWidthPixels(owner: VectorControlOwner, value: string): void {
+  const widthPixels = parseVectorWidthPixels(value);
+  if (widthPixels === undefined) {
+    owner.presentation.reflectResults();
+    return;
+  }
+  if (owner.vectorDisplay.widthPixels === widthPixels) return;
+  owner.vectorDisplay = { ...owner.vectorDisplay, widthPixels };
   owner.applyResultMode(owner.vectorDisplay.fieldId !== VECTOR_OFF_VALUE);
 }

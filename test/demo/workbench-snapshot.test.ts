@@ -134,6 +134,7 @@ function createSnapshotInput(): WorkbenchSnapshotInput {
       glyph: "arrow",
       transform: "direction",
       lengthScale: 1,
+      widthPixels: 2,
     },
     sectionAxis: "off",
     sectionOffset: 0,

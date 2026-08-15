@@ -1,11 +1,18 @@
 import type { SceneRuntime } from "../../src/index";
 import type { WorkbenchCommands, WorkbenchMenuAction } from "./snapshot";
+import type { WorkbenchModel } from "./model";
+import { setVectorWidthPixels as applyVectorWidth } from "./vector-actions";
+import type { VectorDisplayState } from "./result-controls";
 import type { VisibilityRowTarget } from "./visibility-snapshot";
 import type { WorkbenchVisibilityActions } from "./visibility-actions";
 import type { WorkbenchInteraction } from "./interaction";
 import type { WorkbenchMenu } from "./menu";
 
 interface WorkbenchCommandOwner {
+  readonly model: WorkbenchModel;
+  vectorDisplay: VectorDisplayState;
+  readonly presentation: { reflectResults: () => void };
+  applyResultMode(render: boolean): void;
   readonly runtime: SceneRuntime;
   readonly visibilityActions: WorkbenchVisibilityActions;
   readonly visibilityPanel: { toggleExpanded(occurrenceId: string): void };
@@ -57,6 +64,9 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     setVectorGlyph: owner.setVectorGlyph.bind(owner),
     setVectorTransform: owner.setVectorTransform.bind(owner),
     setVectorLengthScale: owner.setVectorLengthScale.bind(owner),
+    setVectorWidthPixels: (value) => {
+      applyVectorWidth(owner, value);
+    },
     fitView: owner.fitView.bind(owner),
     hideSelected: owner.hideSelected.bind(owner),
     showAll: owner.showAll.bind(owner),

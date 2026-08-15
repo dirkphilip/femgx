@@ -55,6 +55,11 @@
     if (value !== undefined) controller?.commands.setVectorLengthScale(value);
   }
 
+  function setVectorWidthPixels(event: unknown): void {
+    const value = selectValue(event);
+    if (value !== undefined) controller?.commands.setVectorWidthPixels(value);
+  }
+
   function setSectionAxis(event: unknown): void {
     const value = selectValue(event);
     if (isSectionAxis(value)) controller?.commands.setSectionAxis(value);
@@ -218,6 +223,21 @@
         value={snapshot?.analysis.vector.lengthScale ?? 1}
         onchange={setVectorLengthScale}
         aria-label="Vector length scale"
+      />
+    </label>
+    <label for="vector-width-pixels" hidden={!hasActiveVector()}>
+      <span>Width (CSS px)</span>
+      <input
+        id="vector-width-pixels"
+        data-testid="vector-width-pixels"
+        type="number"
+        min="1"
+        max="8"
+        step="any"
+        inputmode="decimal"
+        value={snapshot?.analysis.vector.widthPixels ?? 2}
+        onchange={setVectorWidthPixels}
+        aria-label="Vector glyph width in CSS pixels"
       />
     </label>
     <span

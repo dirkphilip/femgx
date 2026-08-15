@@ -37,6 +37,8 @@ export interface ViewportElementVectorConfig {
   readonly glyph: "arrow" | "axis";
   readonly transform: "direction" | "normal";
   readonly lengthScale?: number;
+  /** Shaft width in CSS pixels; defaults to 2 and accepts 1 through 8. */
+  readonly widthPixels?: number;
 }
 
 /**
@@ -70,6 +72,7 @@ export interface ViewportElementVectorState {
   readonly glyph: "arrow" | "axis";
   readonly transform: "direction" | "normal";
   readonly lengthScale: number;
+  readonly widthPixels: number;
 }
 
 /**

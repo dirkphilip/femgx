@@ -65,8 +65,10 @@ An optional nodal vector field is converted into one GPU deformation buffer per
 scene part. The viewport validates that every rendered part has node pick ids and
 that every referenced element/node has a field value. `vectors` accepts an
 authored elemental vector field plus renderer-owned `arrow`/`axis`,
-`direction`/`normal`, and optional positive `lengthScale` semantics. It
-does not expose anchors, records, glyph meshes, or GPU resources. All configured
+`direction`/`normal`, optional positive `lengthScale`, and optional bounded
+`widthPixels` semantics. `widthPixels` is a finite CSS-pixel shaft width from
+1 through 8, defaults to 2, and may be fractional; device-pixel-ratio scaling
+is renderer-owned. The role does not expose anchors, records, glyph meshes, or GPU resources. All configured
 roles are resolved and validated before the renderer or public state changes; a
 failed replacement preserves the previous state. `clearResults()` restores the
 base interaction state, disables deformation and glyphs, and leaves the
@@ -102,7 +104,7 @@ colored/deformed state by adding `deformation`. Vector-only and combined
 vector states use the same replacement boundary.
 
 The inspection workbench adds one demo-private result panel with scalar,
-deformation, and vector field/glyph/transform/positive-length controls. It
+deformation, and vector field/glyph/transform/positive-length/CSS-pixel-width controls. It
 describes orientation as normalized and does not display magnitude. The legend
 formats the resolved viewport range and color stops without adding a public
 legend subsystem; picked scalar and vector values are shown only when the hit

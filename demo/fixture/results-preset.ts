@@ -89,6 +89,7 @@ export function createResultsPreset(): ModelPreset {
         glyph: "arrow",
         transform: "normal",
         lengthScale: 1,
+        widthPixels: 2,
       },
     },
     resultScalarFields: [stress, temperature],

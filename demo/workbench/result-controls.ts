@@ -11,6 +11,10 @@ export const BASE_RESULT_VALUE = "__base__";
 export const DEFORMATION_OFF_VALUE = "__off__";
 export const VECTOR_OFF_VALUE = "__vectors_off__";
 
+const DEFAULT_VECTOR_WIDTH_PIXELS = 2;
+const MIN_VECTOR_WIDTH_PIXELS = 1;
+const MAX_VECTOR_WIDTH_PIXELS = 8;
+
 export type VectorGlyph = ViewportElementVectorConfig["glyph"];
 export type VectorTransform = ViewportElementVectorConfig["transform"];
 export type WorkbenchScalarField = ScalarField<"nodal"> | ScalarField<"elemental">;
@@ -20,6 +24,7 @@ export interface VectorDisplayState {
   readonly glyph: VectorGlyph;
   readonly transform: VectorTransform;
   readonly lengthScale: number;
+  readonly widthPixels: number;
 }
 
 const CANONICAL_VECTOR_PRESENTATIONS: ReadonlyMap<
@@ -64,6 +69,16 @@ export function parseDeformationScale(value: string): number | undefined {
 export function parseVectorLengthScale(value: string): number | undefined {
   const scale = Number(value);
   return Number.isFinite(scale) && scale > 0 ? scale : undefined;
+}
+
+/** Parses the bounded CSS-pixel shaft width used by demo orientation glyphs. */
+export function parseVectorWidthPixels(value: string): number | undefined {
+  const width = Number(value);
+  return Number.isFinite(width) &&
+    width >= MIN_VECTOR_WIDTH_PIXELS &&
+    width <= MAX_VECTOR_WIDTH_PIXELS
+    ? width
+    : undefined;
 }
 
 /** Returns the demo-owned elemental vector choices, including an active imported role. */
@@ -112,6 +127,7 @@ export function vectorDisplayForModel(model: WorkbenchModel): VectorDisplayState
     glyph: active?.glyph ?? "arrow",
     transform: active?.transform ?? "direction",
     lengthScale: active?.lengthScale ?? 1,
+    widthPixels: active?.widthPixels ?? DEFAULT_VECTOR_WIDTH_PIXELS,
   };
 }
 
@@ -147,6 +163,7 @@ export function vectorConfigForDisplay(
         glyph: display.glyph,
         transform: display.transform,
         lengthScale: display.lengthScale,
+        widthPixels: display.widthPixels,
       };
 }
 
