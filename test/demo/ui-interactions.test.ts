@@ -5,7 +5,11 @@ import { createBoltedPlatePreset } from "../../demo/fixture/presets";
 import { createResultsPreset } from "../../demo/fixture/results-preset";
 import { createExampleModel } from "../../demo/workbench/model";
 import type { WorkbenchController } from "../../demo/workbench/controller";
-import type { WorkbenchCommands, WorkbenchSnapshot } from "../../demo/workbench/snapshot";
+import type {
+  WorkbenchCommands,
+  WorkbenchElementDetailSnapshot,
+  WorkbenchSnapshot,
+} from "../../demo/workbench/snapshot";
 import {
   createWorkbenchSnapshot,
   type WorkbenchSnapshotInput,
@@ -22,6 +26,7 @@ import PrimaryToolbar from "../../demo/workbench/ui/PrimaryToolbar.svelte";
 import ModelSource from "../../demo/workbench/ui/ModelSource.svelte";
 import ContextMenu from "../../demo/workbench/ui/ContextMenu.svelte";
 import VisibilityTree from "../../demo/workbench/ui/VisibilityTree.svelte";
+import ElementDetail from "../../demo/workbench/ui/ElementDetail.svelte";
 import WorkbenchApp from "../../demo/workbench/ui/WorkbenchApp.svelte";
 
 const VECTOR_OFF = "__vectors_off__";
@@ -326,6 +331,7 @@ describe("workbench Svelte controls", () => {
     (element(target, 'input[type="checkbox"]') as HTMLInputElement).click();
     const bodyName = element(target, '[data-body-highlight="true"]') as HTMLButtonElement;
     bodyName.click();
+    button(target, '[data-testid="body-elements-1-1"]').click();
     assemblyRow.dispatchEvent(new PointerEvent("pointerleave", { bubbles: true }));
     assemblyRow.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
     await tick();
@@ -337,6 +343,7 @@ describe("workbench Svelte controls", () => {
         "toggleVisibilityTree",
         "toggleVisibility",
         "toggleBodyHighlight",
+        "openElementDetail",
       ]),
     );
     await unmount(component);
@@ -350,6 +357,50 @@ describe("workbench Svelte controls", () => {
     await unmount(menu);
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(calls).not.toContain("clearContextMenu");
+  });
+
+  it("keeps body element detail bounded and routes its commands", async () => {
+    const calls: string[] = [];
+    const controller = {
+      commands: createCommands(calls),
+      elementDetailActions: {
+        elementIdsForDetail: () => Array.from({ length: 10_000 }, (_, index) => index + 1),
+        isElementSelected: (_instanceId: string, elementId: number) => elementId === 1,
+      },
+    } as unknown as WorkbenchController;
+    const detail: WorkbenchElementDetailSnapshot = {
+      instanceId: "1",
+      bodyId: 1,
+      label: "Body",
+      partName: "Part",
+      count: 10_000,
+    };
+    const target = document.createElement("div");
+    document.body.append(target);
+    const component = mount(ElementDetail, { target, props: { controller, detail } });
+    await tick();
+
+    expect(target.querySelectorAll('[role="option"]').length).toBeLessThan(100);
+    expect(target.querySelector('[role="option"]')?.getAttribute("aria-selected")).toBe("true");
+    target
+      .querySelector('[role="option"]')
+      ?.dispatchEvent(new PointerEvent("pointerenter", { bubbles: true }));
+    target
+      .querySelector('[role="option"]')
+      ?.dispatchEvent(new PointerEvent("pointerleave", { bubbles: true }));
+    (target.querySelector('[role="option"]') as HTMLButtonElement).click();
+    button(target, '[data-testid="element-detail-back"]').click();
+    await tick();
+
+    expect(calls).toEqual(
+      expect.arrayContaining([
+        "setElementDetailHover",
+        "clearElementDetailHover",
+        "selectElementDetail",
+        "closeElementDetail",
+      ]),
+    );
+    await unmount(component);
   });
 
   it("mounts only a bounded window for a large visibility hierarchy", async () => {
@@ -501,6 +552,7 @@ function visibilitySnapshot(): WorkbenchSnapshot["hierarchy"]["visibility"] {
     expanded: false,
     expandable: false,
     highlighted: false,
+    elementCount: 2,
     hidden: false,
     position: 1,
     setSize: 1,

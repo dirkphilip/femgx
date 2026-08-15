@@ -1,23 +1,25 @@
-import { selectedTargets } from "../../src/index";
-import type { Camera, InteractionState, SceneRuntime, ViewportBackground } from "../../src/index";
+import type {
+  BodyId,
+  Camera,
+  ElementId,
+  InstanceId,
+  InteractionState,
+  SceneRuntime,
+  ViewportBackground,
+} from "../../src/index";
 import type { WorkbenchModel } from "./model";
 import type { SelectionGranularity } from "./pick";
 import type { BoxSelectionStrategy } from "./box-selection-resolver";
-import { sectionRange, type SectionAxis } from "./section-controls";
-import {
-  DEFORMATION_OFF_VALUE,
-  displayedScalarFieldId,
-  resultVectorFieldsForModel,
-  resultScalarFieldsForModel,
-  VECTOR_OFF_VALUE,
-} from "./result-controls";
+import type { SectionAxis } from "./section-controls";
 import type { DisplayToggles } from "./types";
 import type { ResultDisplayMode } from "./types";
 import type { VectorDisplayState } from "./result-controls";
 import type { VisibilityRowTarget } from "./visibility-snapshot";
 import type { WorkbenchVisibilitySnapshot } from "./visibility-snapshot";
-import { hasVisibleSelection } from "./selection";
-import { emptyResultLegend, type WorkbenchResultLegendSnapshot } from "./result-legend";
+import type { WorkbenchResultLegendSnapshot } from "./result-legend";
+import { createWorkbenchSnapshot } from "./snapshot-builder";
+
+export { createWorkbenchSnapshot } from "./snapshot-builder";
 
 export type WorkbenchMenuAction =
   | "highlight"
@@ -120,6 +122,7 @@ export interface WorkbenchSnapshot {
     readonly occurrenceCount: number;
     readonly visibleInstances: number;
     readonly selectedCount: number;
+    readonly elementDetail: WorkbenchElementDetailSnapshot | undefined;
     readonly visibility: WorkbenchVisibilitySnapshot;
   };
   readonly overlays: {
@@ -134,6 +137,15 @@ export interface WorkbenchSnapshot {
     readonly resultLegend: WorkbenchPresentationSnapshot["resultLegend"];
     readonly contextMenu: WorkbenchContextMenuSnapshot;
   };
+}
+
+/** Bounded metadata for the body-scoped element detail view. */
+export interface WorkbenchElementDetailSnapshot {
+  readonly instanceId: InstanceId;
+  readonly bodyId: BodyId;
+  readonly label: string;
+  readonly partName: string;
+  readonly count: number;
 }
 
 export interface WorkbenchResultField {
@@ -174,6 +186,7 @@ export interface WorkbenchSnapshotInput {
   readonly vectorDisplay: VectorDisplayState;
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
+  readonly elementDetail?: WorkbenchElementDetailSnapshot;
   readonly presentation?: WorkbenchPresentationSnapshot;
   readonly visibility?: WorkbenchVisibilitySnapshot;
 }
@@ -196,6 +209,7 @@ export interface WorkbenchSnapshotOwner {
   readonly vectorDisplay: VectorDisplayState;
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
+  readonly elementDetail: WorkbenchElementDetailSnapshot | undefined;
   readonly presentation: { snapshot(): WorkbenchPresentationSnapshot };
   readonly visibilityPanel: { snapshot(): WorkbenchVisibilitySnapshot };
   readonly viewportSlots: {
@@ -234,6 +248,11 @@ export interface WorkbenchCommands {
   toggleVisibilityTree(occurrenceId: string): void;
   toggleBodyHighlight(target: Extract<VisibilityRowTarget, { kind: "body" }>): void;
   toggleBlockHighlight(target: Extract<VisibilityRowTarget, { kind: "block" }>): void;
+  openElementDetail(target: Extract<VisibilityRowTarget, { kind: "body" }>): void;
+  closeElementDetail(): void;
+  selectElementDetail(detail: WorkbenchElementDetailSnapshot, elementId: ElementId): void;
+  setElementDetailHover(detail: WorkbenchElementDetailSnapshot, elementId: ElementId): void;
+  clearElementDetailHover(detail: WorkbenchElementDetailSnapshot, elementId: ElementId): void;
   setHierarchyHover(target: VisibilityRowTarget): void;
   clearHierarchyHover(target: VisibilityRowTarget): void;
   contextMenuAction(action: WorkbenchMenuAction): void;
@@ -290,128 +309,8 @@ export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): Workbench
     vectorDisplay: owner.vectorDisplay,
     sectionAxis: owner.sectionAxis,
     sectionOffset: owner.sectionOffset,
+    ...(owner.elementDetail === undefined ? {} : { elementDetail: owner.elementDetail }),
     presentation: owner.presentation.snapshot(),
     visibility: owner.visibilityPanel.snapshot(),
   };
-}
-
-/** Builds a bounded immutable presentation snapshot without exposing runtime or GPU storage. */
-export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapshot {
-  const presentation = input.presentation ?? defaultPresentationSnapshot(input.toggles.diagnostics);
-  const visibility = input.visibility ?? { context: "", rows: [] };
-  const active = Object.freeze({
-    id: input.model.id,
-    name: input.model.name,
-    source: input.model.source,
-  });
-  const available = Object.freeze(
-    input.models.map((model) =>
-      Object.freeze({ id: model.id, name: model.name, source: model.source }),
-    ),
-  );
-  const analysis = createAnalysisSnapshot(input);
-  return Object.freeze({
-    model: Object.freeze({
-      active,
-      available,
-      partCount: input.model.scene.parts.size,
-      loading: presentation.loading,
-      selectionDisabled: presentation.modelSelectionDisabled,
-      openDisabled: presentation.modelOpenDisabled,
-    }),
-    toolbar: Object.freeze({
-      rendererName: input.rendererName,
-      rendererState: input.rendererState,
-      projection: input.cameraMode,
-      background: input.background,
-      edges: input.toggles.edges,
-      nodes: input.toggles.nodes,
-      continuous: input.continuous,
-      fitSelectionAvailable: hasVisibleSelection(input.interaction, input.runtime),
-      selectionGranularity: input.selectionGranularity,
-      boxSelectionStrategy: input.boxSelectionStrategy,
-      secondaryOpen: input.secondaryOpen,
-      secondaryBusy: input.secondaryBusy,
-    }),
-    analysis,
-    hierarchy: Object.freeze({
-      occurrenceCount: input.runtime.occurrenceCount,
-      visibleInstances: input.runtime.visibleCount,
-      selectedCount: selectedTargets(input.interaction).length,
-      visibility,
-    }),
-    overlays: Object.freeze({
-      diagnostics: presentation.diagnostics.visible,
-      rendererStatus: presentation.rendererStatus,
-      rendererStatusVisible: presentation.rendererStatusVisible,
-      status: presentation.status,
-      statusVisible: presentation.statusVisible,
-      feedback: presentation.feedback,
-      inspection: presentation.inspection,
-      diagnosticsText: presentation.diagnostics.text,
-      resultLegend: presentation.resultLegend,
-      contextMenu: presentation.contextMenu,
-    }),
-  });
-}
-
-function createAnalysisSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapshot["analysis"] {
-  const deformation = input.model.results?.deformation?.field;
-  const scalarFields = resultScalarFieldsForModel(input.model).map(resultField);
-  const deformationFields = deformation === undefined ? [] : [resultField(deformation)];
-  const vectorFields = resultVectorFieldsForModel(input.model).map((field) =>
-    Object.freeze({ id: field.id, name: field.name }),
-  );
-  const resultControlsVisible =
-    scalarFields.length > 0 || deformation !== undefined || vectorFields.length > 0;
-  const vectorFieldId = vectorFields.some((field) => field.id === input.vectorDisplay.fieldId)
-    ? input.vectorDisplay.fieldId
-    : VECTOR_OFF_VALUE;
-  return Object.freeze({
-    resultControlsVisible,
-    resultMode: input.resultMode,
-    scalarFields: Object.freeze(scalarFields),
-    scalarFieldId: displayedScalarFieldId(input.resultMode, input.scalarFieldId),
-    deformationFields: Object.freeze(deformationFields),
-    deformationFieldId:
-      input.resultMode === "deformed" && deformation !== undefined
-        ? deformation.id
-        : DEFORMATION_OFF_VALUE,
-    deformationDisabled: input.resultMode === "base" || deformation === undefined,
-    deformationScale: input.deformationScale,
-    vector: Object.freeze({ ...input.vectorDisplay, fieldId: vectorFieldId }),
-    vectorFields: Object.freeze(vectorFields),
-    vectorControlsDisabled: vectorFieldId === VECTOR_OFF_VALUE,
-    sectionAxis: input.sectionAxis,
-    sectionOffset: input.sectionOffset,
-    sectionRange: sectionRange(input.model.bounds, input.sectionAxis),
-  });
-}
-
-function defaultPresentationSnapshot(diagnostics: boolean): WorkbenchPresentationSnapshot {
-  return {
-    loading: false,
-    modelSelectionDisabled: false,
-    modelOpenDisabled: false,
-    feedback: undefined,
-    rendererStatus: "",
-    rendererStatusVisible: false,
-    status: "",
-    statusVisible: false,
-    inspection: {
-      visible: false,
-      text: "Click or right-click a visible element, face, node, or authored edge to inspect it.",
-    },
-    diagnostics: { visible: diagnostics, text: "" },
-    resultLegend: emptyResultLegend(),
-    contextMenu: { visible: false, x: 0, y: 0, title: "", entries: [] },
-  };
-}
-
-function resultField(field: {
-  readonly id: string;
-  readonly name: string;
-  readonly location: "nodal" | "elemental";
-}): WorkbenchResultField {
-  return Object.freeze({ id: field.id, name: field.name, location: field.location });
 }

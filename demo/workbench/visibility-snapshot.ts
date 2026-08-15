@@ -29,6 +29,8 @@ export interface WorkbenchVisibilityRowSnapshot {
   readonly expanded: boolean;
   readonly expandable: boolean;
   readonly highlighted: boolean;
+  /** Number of authored FE elements available in this body detail view. */
+  readonly elementCount?: number;
   readonly hidden: boolean;
   readonly position: number;
   readonly setSize: number;

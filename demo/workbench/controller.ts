@@ -9,7 +9,6 @@ import {
 import type { DemoView } from "./view";
 import { createModelInteraction } from "./preset";
 import { errorMessage, type WorkbenchModel } from "./model";
-import type { VisibilityRowTarget } from "./visibility-snapshot";
 import type { WorkbenchFeatures } from "./features";
 import type { WorkbenchInteraction } from "./interaction";
 import type { SelectionGranularity } from "./pick";
@@ -29,7 +28,10 @@ import type { ViewportSlotId } from "./view";
 import type { WorkbenchViewportSlots, WorkbenchViewportSlot } from "./viewport-slots";
 import { WorkbenchModelSession } from "./model-session";
 import { activateModelForOwner } from "./model-activation";
-import { applyControllerDisplayState, applyControllerResultMode } from "./controller-display";
+import {
+  applyControllerDisplayState as applyDisplayStateForOwner,
+  applyControllerResultMode as applyResultModeForOwner,
+} from "./controller-display";
 import type { ObservedPaneSize } from "./viewport-presentation";
 import {
   activeScalarFieldIdForModel,
@@ -49,14 +51,23 @@ import {
   setResultField as applyResultField,
 } from "./result-actions";
 import { createControllerInfrastructure, installControllerLifecycle } from "./controller-wiring";
+import {
+  createElementDetailActions,
+  type WorkbenchElementDetailActions,
+} from "./controller-element-detail";
 import { parseSelectionGranularity, parseViewportBackground } from "./workbench-values";
-import { applySectionPlane, setSectionAxis, setSectionOffset } from "./section-plane-actions";
+import {
+  applySectionPlane,
+  setSectionAxis as applySectionAxis,
+  setSectionOffset as applySectionOffset,
+} from "./section-plane-actions";
 import type { SectionAxis } from "./section-controls";
 import {
   WorkbenchSnapshotBridge,
   type WorkbenchCommands,
   type WorkbenchSnapshot,
   type WorkbenchSnapshotListener,
+  type WorkbenchElementDetailSnapshot,
   snapshotInputFromOwner,
 } from "./snapshot";
 import { createWorkbenchCommands } from "./commands";
@@ -66,14 +77,14 @@ import {
   syncControllerViewportPresentation,
 } from "./controller-viewport";
 import {
-  applyDisplayedInteraction,
-  canClearCanvasHover,
-  clearCanvasHover,
-  clearHierarchyHover,
+  applyDisplayedInteraction as applyDisplayedInteractionForOwner,
+  canClearCanvasHover as canClearCanvasHoverForOwner,
+  clearCanvasHover as clearCanvasHoverForOwner,
+  clearHierarchyHover as clearHierarchyHoverForOwner,
   clearTransientHover,
-  markCanvasHover,
-  resetHoverOwner,
-  setHierarchyHover,
+  markCanvasHover as markCanvasHoverForOwner,
+  resetHoverOwner as resetHoverOwnerForOwner,
+  setHierarchyHover as setHierarchyHoverForOwner,
   type WorkbenchHoverOwner,
 } from "./controller-hover";
 
@@ -111,11 +122,13 @@ export class WorkbenchController {
   sectionOffset = 0;
   selectionGranularity: SelectionGranularity = "element";
   boxSelectionStrategy: BoxSelectionStrategy = "visible-surface";
+  elementDetail: WorkbenchElementDetailSnapshot | undefined;
   scalarFieldId: string;
   background: ViewportBackground = "studio";
   readonly observedPaneSizes = new Map<ViewportSlotId, ObservedPaneSize>();
   private readonly snapshotBridge: WorkbenchSnapshotBridge;
   private readonly commandSurface: WorkbenchCommands;
+  readonly elementDetailActions: WorkbenchElementDetailActions;
 
   constructor(options: WorkbenchOptions) {
     this.view = options.view;
@@ -134,6 +147,7 @@ export class WorkbenchController {
     this.vectorDisplay = vectorDisplayForModel(this.model);
     this.interaction = createModelInteraction(this.model, true, true);
     this.snapshotBridge = new WorkbenchSnapshotBridge(() => snapshotInputFromOwner(this));
+    this.elementDetailActions = createElementDetailActions(this);
     this.commandSurface = createWorkbenchCommands(this);
     this.initializeInfrastructure(options);
     this.modelSession = new WorkbenchModelSession({
@@ -386,51 +400,30 @@ export class WorkbenchController {
     applyVectorLength(this, value);
   }
 
-  setSectionAxis(value: string): void {
-    setSectionAxis(this, value);
-  }
+  setSectionAxis = applySectionAxis.bind(null, this);
 
-  setSectionOffset(value: string): void {
-    setSectionOffset(this, value);
-  }
+  setSectionOffset = applySectionOffset.bind(null, this);
 
-  applyResultMode(render: boolean): void {
-    applyControllerResultMode(this, render);
-  }
+  applyResultMode: (render: boolean) => void = applyResultModeForOwner.bind(null, this);
 
-  applyCurrentDisplayState(): void {
-    applyControllerDisplayState(this);
-  }
+  applyCurrentDisplayState: () => void = applyDisplayStateForOwner.bind(null, this);
 
-  setHierarchyHover(target: VisibilityRowTarget): void {
-    setHierarchyHover(this, target);
-  }
+  setHierarchyHover = setHierarchyHoverForOwner.bind(null, this);
 
-  clearHierarchyHover(target: VisibilityRowTarget): void {
-    clearHierarchyHover(this, target);
-  }
+  clearHierarchyHover = clearHierarchyHoverForOwner.bind(null, this);
 
-  applyDisplayedInteraction(): void {
-    applyDisplayedInteraction(this);
-  }
+  applyDisplayedInteraction = applyDisplayedInteractionForOwner.bind(null, this);
 
-  canClearCanvasHover(slotId: ViewportSlotId): boolean {
-    return canClearCanvasHover(this, slotId);
-  }
+  canClearCanvasHover = canClearCanvasHoverForOwner.bind(null, this);
 
-  markCanvasHover(slotId: ViewportSlotId): void {
-    markCanvasHover(this, slotId);
-  }
+  markCanvasHover = markCanvasHoverForOwner.bind(null, this);
 
-  clearCanvasHover(slotId: ViewportSlotId): void {
-    clearCanvasHover(this, slotId);
-  }
+  clearCanvasHover = clearCanvasHoverForOwner.bind(null, this);
 
-  resetHoverOwner(): void {
-    resetHoverOwner(this);
-  }
+  resetHoverOwner = resetHoverOwnerForOwner.bind(null, this);
 
   private activateModel(model: WorkbenchModel): void {
+    this.elementDetail = undefined;
     this.resetHoverOwner();
     activateModelForOwner(model, this);
   }
