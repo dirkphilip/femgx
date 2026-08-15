@@ -97,15 +97,18 @@ node --cpu-prof --cpu-prof-dir=/tmp/femgx-profile \
 Vitest emits a runner profile and a worker profile; the worker profile contains
 the measured workload. Open the latter in Chrome DevTools' Performance panel.
 
-## Benchmark suite (opt-in, trend tracking)
+## Performance report (opt-in, trend tracking)
 
-`npm run bench` runs the Vitest `bench` suite in `test/bench/cpu.bench.ts` over
-the same models plus a few extra update cases, including the large FE/body
-validation, tessellation, topology-id, and edge-preparation stages. It reports
-ops/sec / time per case for human review and trend comparison and is **not**
-part of the default gate. The opt-in `.github/workflows/perf.yml`
-(`workflow_dispatch`) runs the CPU suite on GitHub-hosted infrastructure. It
-does not claim real-WebGPU measurements.
+`PERF_REPORT=1 npm run bench:budget` runs the calibrated budget workloads and
+prints their measured medians for human review and trend comparison. The
+opt-in `.github/workflows/perf.yml` (`workflow_dispatch`) runs this same report
+on GitHub-hosted infrastructure. The report does not claim real-WebGPU
+measurements and is separate from the required default-CI budget gate.
+
+`npm run bench` remains a local opt-in Vitest benchmark for the distinct body
+visibility batching comparison in `test/bench/body-batch.bench.ts`. It reports
+the relative cost of individual versus `FemViewport.batch` updates and is not
+part of the default gate.
 
 `test/bench/body-batch.bench.ts` compares 64 body visibility mutations issued
 individually with the same ordered mutations inside `FemViewport.batch`. The
