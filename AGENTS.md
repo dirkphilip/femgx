@@ -155,6 +155,8 @@ See [[architecture/api-design|API design north star]].
   invariant. Prefer extending an existing table or golden case; do not mirror
   implementation, duplicate assertions, or add tests only for coverage. Delete
   superseded tests when a stronger one subsumes them.
+- For core-library bugs, first add a focused regression test and verify it fails;
+  then fix the bug and verify the test passes.
 - Keep WebGPU behind thin interfaces where CPU behavior can be tested without a
   GPU. Use real browser evidence for rendering behavior.
 - ESLint enforces 400 implementation lines per file, 60 lines per function, and
