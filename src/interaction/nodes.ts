@@ -42,19 +42,6 @@ export function setNodeHighlighted(
 }
 
 /**
- * Returns whether a node occurrence carries emphasis (hover, highlight, selection).
- * @category Interaction and picking
- */
-export function isNodeEmphasized(state: InteractionState, ref: NodeRef): boolean {
-  const data = readInteractionState(state);
-  return (
-    isHoveredTarget(state, { kind: "node", ...ref }) ||
-    data.highlightedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true ||
-    data.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
-  );
-}
-
-/**
  * Resolves the style of one node occurrence. Node-level state is more specific
  * than part/instance state, so node highlight, hover, and selection win over
  * `resolveInstanceStyle`; selection beats hover, and hover beats highlight.

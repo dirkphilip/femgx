@@ -41,16 +41,6 @@ export function setEdgeHighlighted(
   return updateEdgeSet(state, "highlightedEdges", ref, highlighted);
 }
 
-/** Returns whether an authored edge carries hover, highlight, or selection. */
-export function isEdgeEmphasized(state: InteractionState, ref: EdgeRef): boolean {
-  const data = readInteractionState(state);
-  return (
-    isHoveredTarget(state, { kind: "edge", ...ref }) ||
-    data.highlightedEdges.get(ref.instanceId)?.has(ref.key) === true ||
-    data.selectedEdges.get(ref.instanceId)?.has(ref.key) === true
-  );
-}
-
 /** Resolves the renderer style of one authored edge occurrence. */
 export function resolveEdgeStyle(
   instance: { readonly instanceId: InstanceId; readonly partId: PartId },
