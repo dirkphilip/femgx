@@ -101,21 +101,13 @@ export function buildNodeOrder(options: {
   ) {
     return new Uint32Array();
   }
-  const slots = options.layout.partSlots.get(options.partId);
-  if (slots === undefined) return new Uint32Array();
-  const nodes: number[] = [];
-  for (const slot of slots) {
-    const local = options.layout.slotPartLocal[slot];
-    if (
-      local !== undefined &&
-      local >= 0 &&
+  return buildCompactedOrder(
+    options.layout,
+    options.partId,
+    (slot) =>
       (options.nodeFlags[slot] === true || options.selectedNodeFlags?.[slot] === true) &&
-      options.runtime.isInstanceVisible(slot)
-    ) {
-      nodes.push(local);
-    }
-  }
-  return new Uint32Array(nodes);
+      options.runtime.isInstanceVisible(slot),
+  );
 }
 
 /** Returns visible part-local slots with an explicitly selected node. */
@@ -128,21 +120,11 @@ export function buildNodeSelectionOrder(
 ): Uint32Array {
   if (parts.get(partId)?.geometries.every((geometry) => geometry.primitive === "points"))
     return new Uint32Array();
-  const slots = layout.partSlots.get(partId);
-  if (slots === undefined) return new Uint32Array();
-  const selected: number[] = [];
-  for (const slot of slots) {
-    const local = layout.slotPartLocal[slot];
-    if (
-      local !== undefined &&
-      local >= 0 &&
-      selectedNodeFlags[slot] === true &&
-      runtime.isInstanceVisible(slot)
-    ) {
-      selected.push(local);
-    }
-  }
-  return new Uint32Array(selected);
+  return buildCompactedOrder(
+    layout,
+    partId,
+    (slot) => selectedNodeFlags[slot] === true && runtime.isInstanceVisible(slot),
+  );
 }
 
 /** Returns visible part-local slots that carry any selected target. */
@@ -152,24 +134,15 @@ export function buildSelectionOrder(
   partId: PartId,
   interaction: InteractionState,
 ): Uint32Array {
-  const slots = layout.partSlots.get(partId);
-  if (slots === undefined) return new Uint32Array();
   const data = readInteractionState(interaction);
-  const selected: number[] = [];
-  for (const slot of slots) {
+  return buildCompactedOrder(layout, partId, (slot) => {
     const instanceId = runtime.getInstanceId(slot);
-    const local = layout.slotPartLocal[slot];
-    if (
+    return (
       instanceId !== undefined &&
-      local !== undefined &&
-      local >= 0 &&
       runtime.isInstanceVisible(slot) &&
       hasSelectedTarget(data, instanceId, partId)
-    ) {
-      selected.push(local);
-    }
-  }
-  return new Uint32Array(selected);
+    );
+  });
 }
 
 function hasSelectedTarget(
@@ -193,16 +166,7 @@ export function buildDrawOrder(
   runtime: PackedSceneRuntime,
   partId: PartId,
 ): Uint32Array {
-  const slots = layout.partSlots.get(partId);
-  if (slots === undefined) return new Uint32Array();
-  const visible: number[] = [];
-  for (const slot of slots) {
-    const local = layout.slotPartLocal[slot];
-    if (local !== undefined && local >= 0 && runtime.isInstanceVisible(slot)) {
-      visible.push(local);
-    }
-  }
-  return new Uint32Array(visible);
+  return buildCompactedOrder(layout, partId, (slot) => runtime.isInstanceVisible(slot));
 }
 
 /**
@@ -216,21 +180,13 @@ export function buildEdgeOrder(
   edgeFlags: readonly boolean[],
   edgeEmphasisFlags: readonly boolean[] = [],
 ): Uint32Array {
-  const slots = layout.partSlots.get(partId);
-  if (slots === undefined) return new Uint32Array();
-  const overlay: number[] = [];
-  for (const slot of slots) {
-    const local = layout.slotPartLocal[slot];
-    if (
-      local !== undefined &&
-      local >= 0 &&
+  return buildCompactedOrder(
+    layout,
+    partId,
+    (slot) =>
       (edgeFlags[slot] === true || edgeEmphasisFlags[slot] === true) &&
-      runtime.isInstanceVisible(slot)
-    ) {
-      overlay.push(local);
-    }
-  }
-  return new Uint32Array(overlay);
+      runtime.isInstanceVisible(slot),
+  );
 }
 
 /** Returns the visible part-local slots classified for weighted transparency. */
@@ -240,21 +196,26 @@ export function buildTransparentOrder(
   partId: PartId,
   transparentFlags: readonly boolean[],
 ): Uint32Array {
+  return buildCompactedOrder(
+    layout,
+    partId,
+    (slot) => transparentFlags[slot] === true && runtime.isInstanceVisible(slot),
+  );
+}
+
+function buildCompactedOrder(
+  layout: InstanceLayout,
+  partId: PartId,
+  include: (slot: number) => boolean,
+): Uint32Array {
   const slots = layout.partSlots.get(partId);
   if (slots === undefined) return new Uint32Array();
-  const transparent: number[] = [];
+  const order: number[] = [];
   for (const slot of slots) {
     const local = layout.slotPartLocal[slot];
-    if (
-      local !== undefined &&
-      local >= 0 &&
-      transparentFlags[slot] === true &&
-      runtime.isInstanceVisible(slot)
-    ) {
-      transparent.push(local);
-    }
+    if (local !== undefined && local >= 0 && include(slot)) order.push(local);
   }
-  return new Uint32Array(transparent);
+  return new Uint32Array(order);
 }
 
 /** Describes one placed part with a world-transform view into the runtime. */
