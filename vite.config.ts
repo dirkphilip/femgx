@@ -16,9 +16,18 @@ function esmSpecifiers(content: string): string {
 export default defineConfig({
   build: {
     lib: {
-      entry: resolve(import.meta.dirname, "src/index.ts"),
+      entry: {
+        femgx: resolve(import.meta.dirname, "src/entries/root.ts"),
+        model: resolve(import.meta.dirname, "src/model.ts"),
+        io: resolve(import.meta.dirname, "src/io.ts"),
+        "io/glb": resolve(import.meta.dirname, "src/entries/io-glb.ts"),
+        camera: resolve(import.meta.dirname, "src/camera.ts"),
+        runtime: resolve(import.meta.dirname, "src/runtime.ts"),
+        platform: resolve(import.meta.dirname, "src/platform.ts"),
+      },
       name: "femgx",
-      fileName: "femgx",
+      formats: ["es", "cjs"],
+      fileName: (format, entryName) => (format === "es" ? `${entryName}.js` : `${entryName}.cjs`),
     },
     sourcemap: true,
   },

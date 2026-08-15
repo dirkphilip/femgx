@@ -1,7 +1,7 @@
 # Results: fields, deformation, and visualization
 
 Engineering analysis results are first-class CPU-side data in `src/results/`
-(no WebGPU coupling), exported through `src/index.ts`. They describe authored
+(no WebGPU coupling), exported through the canonical `femgx` entry. They describe authored
 values per node or per element and map scalar values for visualization; retaining
 a vector field does not by itself enable a viewport glyph presentation.
 

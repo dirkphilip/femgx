@@ -13,6 +13,8 @@ import { GlbDiagnostics, parseFailure } from "./glb-diagnostics";
 import { importMeshParts, type GlbPartRecord } from "./glb-geometry";
 import type { GlbImportOptions, GlbSceneImport } from "./glb-types";
 
+export type { GlbImportOptions, GlbIssueCode, GlbSceneImport } from "./glb-types";
+
 const GLB_MAGIC = 0x46546c67;
 const GLB_VERSION = 2;
 const HEADER_BYTES = 12;

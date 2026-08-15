@@ -1,6 +1,8 @@
+import { Buffer } from "node:buffer";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
+import { gzipSync } from "node:zlib";
 import { parsePackResult, runCommand } from "./package-smoke-helpers.mjs";
 
 const repoRoot = resolve(import.meta.dirname, "..");
@@ -27,6 +29,7 @@ function main() {
     writeFileSync(userConfig, "\n");
     // 1. Build the library from source.
     runCommand("npm", ["run", "build"], repoRoot, env);
+    checkBundleBudgets(repoRoot);
 
     // 2. Pack the publishable tarball.
     console.log("Packing package...");
@@ -56,13 +59,22 @@ function main() {
     console.log(`Packed ${packResult.filename} (${tarballFiles.length} files)`);
 
     // 3. Sanity-check tarball contents: declarations, no source/demo leakage.
-    expect(tarballFiles.includes("dist/femgx.js"), "missing dist/femgx.js in tarball");
-    expect(tarballFiles.includes("dist/femgx.umd.cjs"), "missing dist/femgx.umd.cjs in tarball");
-    expect(tarballFiles.includes("dist/index.d.ts"), "missing dist/index.d.ts in tarball");
-    expect(
-      tarballFiles.includes("dist/cjs/index.d.cts"),
-      "missing dist/cjs/index.d.cts in tarball",
-    );
+    const publicEntries = ["model", "io", "io/glb", "camera", "runtime", "platform"];
+    const expectedArtifacts = [
+      "dist/femgx.js",
+      "dist/femgx.cjs",
+      "dist/entries/root.d.ts",
+      "dist/cjs/entries/root.d.cts",
+      ...publicEntries.flatMap((entry) => [
+        `dist/${entry}.js`,
+        `dist/${entry}.cjs`,
+        `dist/${entry === "io/glb" ? "io/glb" : entry}.d.ts`,
+        `dist/cjs/${entry === "io/glb" ? "io/glb" : entry}.d.cts`,
+      ]),
+    ];
+    for (const artifact of expectedArtifacts) {
+      expect(tarballFiles.includes(artifact), `missing ${artifact} in tarball`);
+    }
     expect(tarballFiles.includes("package.json"), "missing package.json in tarball");
     expect(tarballFiles.includes("README.md"), "missing README.md in tarball");
     expect(
@@ -88,7 +100,15 @@ function main() {
     const attw = join(repoRoot, "node_modules", ".bin", "attw");
     let attwOutput;
     try {
-      attwOutput = runCommand(attw, [tarball, "--no-color", "--no-emoji"], repoRoot, env).stdout;
+      // TypeScript's legacy node10 resolver cannot interpret package exports for
+      // subpaths. The explicit root-only node10 smoke below remains required;
+      // attw still checks every entry under node16 and bundler resolution.
+      attwOutput = runCommand(
+        attw,
+        [tarball, "--no-color", "--no-emoji", "--ignore-rules", "no-resolution"],
+        repoRoot,
+        env,
+      ).stdout;
     } catch (error) {
       throw new Error(`@arethetypeswrong/cli found type-resolution problems:\n${error.message}`, {
         cause: error,
@@ -133,14 +153,33 @@ function main() {
       !("preinstall" in installedPkg.scripts),
       "published package must not carry a preinstall script",
     );
+    const expectedExports = {
+      ".": ["dist/entries/root.d.ts", "dist/cjs/entries/root.d.cts"],
+      ...Object.fromEntries(
+        publicEntries.map((entry) => [
+          `./${entry}`,
+          [
+            `dist/${entry === "io/glb" ? "io/glb" : entry}.d.ts`,
+            `dist/cjs/${entry === "io/glb" ? "io/glb" : entry}.d.cts`,
+          ],
+        ]),
+      ),
+    };
     expect(
-      installedPkg.exports["."].import.types === "./dist/index.d.ts",
-      "import types condition is wrong",
+      Object.keys(installedPkg.exports).sort().join(",") ===
+        [...Object.keys(expectedExports), "./package.json"].sort().join(","),
+      "package exports contain an undeclared or missing entry",
     );
-    expect(
-      installedPkg.exports["."].require.types === "./dist/cjs/index.d.cts",
-      "require types condition is wrong",
-    );
+    for (const [entry, [importTypes, requireTypes]] of Object.entries(expectedExports)) {
+      expect(
+        installedPkg.exports[entry]?.import?.types === `./${importTypes}`,
+        `${entry} import types condition is wrong`,
+      );
+      expect(
+        installedPkg.exports[entry]?.require?.types === `./${requireTypes}`,
+        `${entry} require types condition is wrong`,
+      );
+    }
     expect(
       !existsSync(join(consumerNodeModules, "node_modules")),
       "published package pulled in unexpected dependencies",
@@ -150,7 +189,13 @@ function main() {
     writeFileSync(
       join(consumer, "smoke.mjs"),
       [
-        'import { boxSelectionFrustum, createCamera, createScene, identity, importGlb } from "femgx";',
+        'import { boxSelectionFrustum, createScene, identity } from "femgx";',
+        'import { createCamera } from "femgx/camera";',
+        'import * as model from "femgx/model";',
+        'import * as io from "femgx/io";',
+        'import * as glb from "femgx/io/glb";',
+        'import * as runtime from "femgx/runtime";',
+        'import * as platform from "femgx/platform";',
         "const scene = createScene();",
         "const camera = createCamera();",
         'if (camera.mode !== "orthographic") throw new Error("orthographic default failed");',
@@ -158,7 +203,11 @@ function main() {
         'if (frustum.near.normal.length !== 3) throw new Error("frustum export failed");',
         "const m = identity();",
         'if (m.length !== 16) throw new Error("identity() is not a 4x4 matrix");',
-        'if (typeof importGlb !== "function") throw new Error("GLB import export failed");',
+        'if (typeof model.createElementModel !== "function") throw new Error("model entry failed");',
+        'if (typeof io.parseVtk !== "function") throw new Error("io entry failed");',
+        'if (typeof glb.importGlb !== "function") throw new Error("GLB entry failed");',
+        'if (typeof runtime.createSceneRuntime !== "function") throw new Error("runtime entry failed");',
+        'if (typeof platform.queryWebGpuSupport !== "function") throw new Error("platform entry failed");',
         'console.log("ESM import OK");',
       ].join("\n"),
     );
@@ -168,12 +217,22 @@ function main() {
     writeFileSync(
       join(consumer, "smoke.cjs"),
       [
-        'const { createCamera, createScene, identity, importGlb } = require("femgx");',
+        'const { createScene, identity } = require("femgx");',
+        'const { createCamera } = require("femgx/camera");',
+        'const model = require("femgx/model");',
+        'const io = require("femgx/io");',
+        'const glb = require("femgx/io/glb");',
+        'const runtime = require("femgx/runtime");',
+        'const platform = require("femgx/platform");',
         "const scene = createScene();",
         "const camera = createCamera();",
         'if (camera.mode !== "orthographic") throw new Error("orthographic default failed");',
         'if (identity().length !== 16) throw new Error("identity() is not a 4x4 matrix");',
-        'if (typeof importGlb !== "function") throw new Error("GLB import export failed");',
+        'if (typeof model.createElementModel !== "function") throw new Error("model entry failed");',
+        'if (typeof io.parseVtk !== "function") throw new Error("io entry failed");',
+        'if (typeof glb.importGlb !== "function") throw new Error("GLB entry failed");',
+        'if (typeof runtime.createSceneRuntime !== "function") throw new Error("runtime entry failed");',
+        'if (typeof platform.queryWebGpuSupport !== "function") throw new Error("platform entry failed");',
         'console.log("CJS require OK");',
       ].join("\n"),
     );
@@ -182,7 +241,13 @@ function main() {
     // 8. Type-level consumption under each supported moduleResolution.
     const tsc = join(repoRoot, "node_modules", ".bin", "tsc");
     const smokeTs = [
-      'import { boxSelectionFrustum, createElement, createElementModel, createFemViewport, createInteractionState, createPart, createResultField, createScene, elementPart, identity, LINE_SHAPE, POINT_SHAPE, TRIANGLE_SHAPE, parseVtk, setTargetHighlighted, setTargetSelected, translation, writeVtk, type FemViewport, type InteractionTarget } from "femgx";',
+      'import { boxSelectionFrustum, createFemViewport, createInteractionState, createPart, createResultField, createScene, identity, setTargetHighlighted, setTargetSelected, translation, type FemViewport, type InteractionTarget } from "femgx";',
+      'import { createElement, createElementModel, elementPart, LINE_SHAPE, POINT_SHAPE, TRIANGLE_SHAPE } from "femgx/model";',
+      'import { parseVtk, writeVtk } from "femgx/io";',
+      'import { createCamera } from "femgx/camera";',
+      'import type { GlbSceneImport } from "femgx/io/glb";',
+      'import type { SceneRuntime } from "femgx/runtime";',
+      'import type { RequestedWebGpuDevice } from "femgx/platform";',
       "declare const canvas: HTMLCanvasElement;",
       "declare const viewportContainer: HTMLElement;",
       "const geometry = {",
@@ -220,6 +285,10 @@ function main() {
       "  })",
       "  .withRoot(1)",
       ".build();",
+      "const customCamera = createCamera();",
+      "const runtimeTypeCheck = undefined as unknown as SceneRuntime;",
+      "const glbTypeCheck = undefined as unknown as GlbSceneImport;",
+      "const platformTypeCheck = undefined as unknown as RequestedWebGpuDevice;",
       'const bodyTarget: InteractionTarget = { kind: "body", instanceId: "1/0", bodyId: 0 };',
       "let interaction = createInteractionState();",
       "interaction = setTargetSelected(interaction, bodyTarget, true);",
@@ -259,6 +328,14 @@ function main() {
       "if (written.length === 0) throw new Error();",
     ].join("\n");
     writeFileSync(join(consumer, "smoke.ts"), smokeTs);
+    const rootSmokeTs = [
+      'import { createScene, identity } from "femgx";',
+      "const scene = createScene().build();",
+      "const matrix = identity();",
+      "void scene;",
+      "void matrix;",
+    ].join("\n");
+    writeFileSync(join(consumer, "root-smoke.ts"), rootSmokeTs);
 
     const tsconfigBundler = {
       compilerOptions: {
@@ -288,7 +365,7 @@ function main() {
         noEmit: true,
         ignoreDeprecations: "6.0",
       },
-      files: ["smoke.ts"],
+      files: ["root-smoke.ts"],
     };
     writeFileSync(join(consumer, "tsconfig.node10.json"), JSON.stringify(tsconfigNode10, null, 2));
 
@@ -337,6 +414,28 @@ function isolatedNpmEnvironment(cache, userConfig) {
     npm_config_progress: "false",
     npm_config_update_notifier: "false",
   };
+}
+
+function checkBundleBudgets(root) {
+  const entries = ["femgx", "model", "io", "camera", "runtime", "platform", "io/glb"];
+  const forbiddenInCore = ["gltf-transform", "draco", "KHRDraco", "draco_decoder", ".wasm"];
+  for (const entry of entries) {
+    const file = join(root, "dist", `${entry}.js`);
+    const contents = readFileSync(file, "utf8");
+    const rawBytes = Buffer.byteLength(contents);
+    const gzipBytes = gzipSync(contents, { level: 9 }).byteLength;
+    console.log(`${entry}: ${rawBytes} bytes raw, ${gzipBytes} bytes gzip`);
+    if (entry !== "io/glb") {
+      expect(
+        !forbiddenInCore.some((marker) => contents.toLowerCase().includes(marker.toLowerCase())),
+        `${entry} bundle includes optional GLB/Draco code`,
+      );
+    }
+    if (entry === "femgx") {
+      expect(rawBytes <= 420_000, `root bundle exceeds raw budget: ${rawBytes}`);
+      expect(gzipBytes <= 110_000, `root bundle exceeds gzip budget: ${gzipBytes}`);
+    }
+  }
 }
 
 function removeSmokeRoot(root) {
