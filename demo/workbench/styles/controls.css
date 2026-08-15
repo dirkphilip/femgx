@@ -143,6 +143,24 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+.result-playback-controls {
+  grid-column: 1 / -1;
+}
+.result-playback-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 5px;
+}
+.result-playback-actions button {
+  min-width: 0;
+  flex: 1 1 0;
+}
+.result-playback-position {
+  grid-column: 1 / -1;
+  color: #d5dfeb;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
 .analysis-section label {
   display: flex;
   min-width: 0;

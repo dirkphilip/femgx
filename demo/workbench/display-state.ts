@@ -8,6 +8,7 @@ import {
 import { partStyleOverride, type WorkbenchModel } from "./model";
 import type { DisplayToggles, ResultDisplayMode } from "./types";
 import type { WorkbenchScalarField } from "./result-controls";
+import type { WorkbenchResultPlaybackStep } from "./result-playback";
 
 interface ResultStateOptions {
   readonly viewports: readonly FemViewport[];
@@ -16,6 +17,7 @@ interface ResultStateOptions {
   readonly scalar: WorkbenchScalarField | undefined;
   readonly deformationScale: number;
   readonly vector: ViewportElementVectorConfig | undefined;
+  readonly playback: WorkbenchResultPlaybackStep | undefined;
   readonly reflect: () => void;
 }
 
@@ -23,13 +25,14 @@ interface ResultStateOptions {
 export function applyResultState(options: ResultStateOptions): void {
   const config = options.model.results;
   for (const viewport of options.viewports) {
-    const roles = resultRoles(
+    const roles = resultRoles({
       config,
-      options.mode,
-      options.scalar,
-      options.deformationScale,
-      options.vector,
-    );
+      mode: options.mode,
+      scalarField: options.scalar,
+      deformationScale: options.deformationScale,
+      vector: options.vector,
+      playback: options.playback,
+    });
     if (roles === undefined) {
       viewport.clearResults();
     } else {
@@ -39,23 +42,36 @@ export function applyResultState(options: ResultStateOptions): void {
   options.reflect();
 }
 
-function resultRoles(
-  config: WorkbenchModel["results"],
-  mode: ResultDisplayMode,
-  scalarField: WorkbenchScalarField | undefined,
-  deformationScale: number,
-  vector: ViewportElementVectorConfig | undefined,
-): ViewportResultsConfig | undefined {
+interface ResultRolesOptions {
+  readonly config: WorkbenchModel["results"];
+  readonly mode: ResultDisplayMode;
+  readonly scalarField: WorkbenchScalarField | undefined;
+  readonly deformationScale: number;
+  readonly vector: ViewportElementVectorConfig | undefined;
+  readonly playback: WorkbenchResultPlaybackStep | undefined;
+}
+
+function resultRoles(options: ResultRolesOptions): ViewportResultsConfig | undefined {
+  const { config, mode, scalarField, deformationScale, vector, playback } = options;
+  const playbackScalar =
+    playback === undefined ? undefined : { field: playback.snapshot.scalar, range: playback.range };
+  const playbackDeformation =
+    playback === undefined
+      ? undefined
+      : { field: playback.snapshot.deformation, scale: deformationScale };
   const scalar =
     mode === "base"
       ? undefined
-      : scalarField === undefined
-        ? config?.scalar
-        : { field: scalarField };
+      : (playbackScalar ?? (scalarField === undefined ? config?.scalar : { field: scalarField }));
+  const deformationConfig = config?.deformation;
   const deformation =
-    mode !== "deformed" || config?.deformation === undefined
+    mode !== "deformed"
       ? undefined
-      : { ...config.deformation, scale: deformationScale };
+      : playbackDeformation !== undefined
+        ? playbackDeformation
+        : deformationConfig === undefined
+          ? undefined
+          : { field: deformationConfig.field, scale: deformationScale };
   if (scalar === undefined && deformation === undefined && vector === undefined) return undefined;
   return {
     ...(scalar === undefined ? {} : { scalar }),

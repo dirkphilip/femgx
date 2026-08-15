@@ -10,6 +10,7 @@ import {
 import type { WorkbenchPresentation } from "./presentation";
 import type { WorkbenchViewportOwner } from "./controller-viewport";
 import type { InteractionState } from "../../src/index";
+import type { WorkbenchResultPlaybackActions } from "./result-playback";
 
 interface ControllerDisplayOwner extends WorkbenchViewportOwner {
   readonly viewports: () => readonly FemViewport[];
@@ -21,6 +22,7 @@ interface ControllerDisplayOwner extends WorkbenchViewportOwner {
   readonly toggles: DisplayToggles;
   interaction: InteractionState;
   applyDisplayedInteraction(): void;
+  readonly resultPlaybackActions: Pick<WorkbenchResultPlaybackActions, "currentStep">;
 }
 
 /** Applies result presentation state to every active viewport. */
@@ -32,6 +34,7 @@ export function applyControllerResultMode(owner: ControllerDisplayOwner, render:
     scalar: scalarFieldForModel(owner.model, owner.scalarFieldId),
     deformationScale: owner.deformationScale,
     vector: vectorConfigForDisplay(owner.model, owner.vectorDisplay),
+    playback: owner.resultPlaybackActions.currentStep(),
     reflect: owner.presentation.reflectResults.bind(owner.presentation),
   });
   if (render) owner.render();

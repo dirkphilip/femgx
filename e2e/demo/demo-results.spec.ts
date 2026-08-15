@@ -29,7 +29,7 @@ test("cycles the canonical static results preset through base, colored, and defo
   await expect(canvas).toHaveAttribute("data-results", "deformed");
   await expect(page.getByTestId("result-legend")).toContainText("Demo stress");
   await expect(page.getByTestId("result-legend")).toContainText("Elemental · Unit MPa");
-  await expect(page.getByTestId("result-legend")).toContainText("Range 10 – 80");
+  await expect(page.getByTestId("result-legend")).toContainText("Range 10 – 100");
 
   const resultField = page.getByTestId("result-field");
   const deformationField = page.getByTestId("deformation-field");
@@ -45,6 +45,35 @@ test("cycles the canonical static results preset through base, colored, and defo
   await scale.fill("2");
   await scale.press("Enter");
   await expect(scale).toHaveValue("2");
+});
+
+test("steps and plays authored result snapshots from the Analysis inspector", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("model-select").selectOption("results");
+  await openCommandPanel(page, "analysis");
+
+  const position = page.getByTestId("result-playback-position");
+  const next = page.getByTestId("result-playback-next");
+  const previous = page.getByTestId("result-playback-previous");
+  const play = page.getByTestId("result-playback-play");
+  await expect(position).toContainText("Snapshot 1");
+  await expect(previous).toBeDisabled();
+  await expect(next).toBeEnabled();
+  await expect(page.getByTestId("result-playback-index")).toHaveAttribute("max", "3");
+
+  await next.click();
+  await expect(position).toContainText("Snapshot 2");
+  await page.getByTestId("result-playback-rate").selectOption("2");
+  await play.click();
+  await expect(play).toHaveText("Pause");
+  await expect.poll(() => position.textContent()).not.toContain("Snapshot 2");
+  await play.click();
+
+  await expect(page.getByTestId("result-legend")).toContainText("Range 10 – 100");
+  await page.setViewportSize({ width: 390, height: 844 });
+  const playBox = await play.boundingBox();
+  if (playBox === null) throw new Error("mobile playback control has no bounds");
+  expect(playBox.height).toBeGreaterThanOrEqual(44);
 });
 
 test("switches Results and VTK between elemental and nodal scalar fields", async ({ page }) => {

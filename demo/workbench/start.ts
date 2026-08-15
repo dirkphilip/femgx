@@ -11,6 +11,7 @@ import { installDemoHarness } from "../devtools/harness";
 import { WorkbenchController } from "./controller";
 import { createExampleModel, createLazyBenchmarkModel, type WorkbenchModel } from "./model";
 import { selectTarget, targetKey } from "./pick";
+import type { WorkbenchResultPlaybackActions } from "./result-playback";
 import type { DemoView, WorkbenchPane, ViewportSlotId } from "./view";
 import type { WorkbenchStartupStatus } from "./snapshot";
 
@@ -67,6 +68,14 @@ interface StartState {
   controller: WorkbenchController | undefined;
 }
 
+interface ResultPlaybackStopOwner {
+  readonly resultPlaybackActions?: Pick<WorkbenchResultPlaybackActions, "stop">;
+}
+
+function stopResultPlayback(owner: ResultPlaybackStopOwner | undefined): void {
+  owner?.resultPlaybackActions?.stop();
+}
+
 function createDemoModels(options: WebGpuDemoOptions): WorkbenchModel[] {
   const presets = createModelPresets(
     options.testAlphaZero === true ? { transparencyOpacity: 0 } : undefined,
@@ -113,9 +122,11 @@ function createViewportFactory(
         ? { fitContentInset: () => contentInset(pane.scene, pane.canvas) }
         : {}),
       onDeviceLost: () => {
+        stopResultPlayback(state.controller);
         pane.canvas.dataset["recovery"] = "recovering";
       },
       onRecovered: () => {
+        stopResultPlayback(state.controller);
         pane.canvas.dataset["recovery"] = "recovered";
         if (state.controller !== undefined) {
           state.controller.rendererState = "recovered";
@@ -123,6 +134,7 @@ function createViewportFactory(
         }
       },
       onError: (error) => {
+        stopResultPlayback(state.controller);
         if (slotId === "primary") {
           state.controller?.destroy();
           state.viewport = undefined;
@@ -157,6 +169,7 @@ function installWorkbenchHarness(
   const controller = state.controller;
   if (controller === undefined) throw new Error("Workbench controller was not created");
   const destroyCurrentViewport = (): void => {
+    stopResultPlayback(controller);
     controller.detachViewport();
     controller.invalidateInteraction();
     state.viewport?.destroy();

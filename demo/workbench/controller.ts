@@ -55,6 +55,11 @@ import {
   createElementDetailActions,
   type WorkbenchElementDetailActions,
 } from "./controller-element-detail";
+import {
+  createResultPlaybackActions,
+  installResultPlaybackVisibility,
+  type WorkbenchResultPlaybackActions,
+} from "./result-playback";
 import { parseSelectionGranularity, parseViewportBackground } from "./workbench-values";
 import {
   applySectionPlane,
@@ -129,6 +134,12 @@ export class WorkbenchController {
   private readonly snapshotBridge: WorkbenchSnapshotBridge;
   private readonly commandSurface: WorkbenchCommands;
   readonly elementDetailActions: WorkbenchElementDetailActions;
+  readonly resultPlaybackActions: WorkbenchResultPlaybackActions;
+  resultPlaybackIndex = 0;
+  resultPlaybackRate = 1;
+  resultPlaybackPlaying = false;
+  resultPlaybackActive = false;
+  resultPlaybackTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
 
   constructor(options: WorkbenchOptions) {
     this.view = options.view;
@@ -148,7 +159,9 @@ export class WorkbenchController {
     this.interaction = createModelInteraction(this.model, true, true);
     this.snapshotBridge = new WorkbenchSnapshotBridge(() => snapshotInputFromOwner(this));
     this.elementDetailActions = createElementDetailActions(this);
+    this.resultPlaybackActions = createResultPlaybackActions(this);
     this.commandSurface = createWorkbenchCommands(this);
+    installResultPlaybackVisibility(this.resultPlaybackActions, this.listenerController.signal);
     this.initializeInfrastructure(options);
     this.modelSession = new WorkbenchModelSession({
       presentation: this.presentation,
@@ -366,39 +379,26 @@ export class WorkbenchController {
 
   destroy(): void {
     if (this.disposed) return;
+    this.resultPlaybackActions.stop();
     this.disposed = true;
     this.boxSelectionDisposer?.();
     this.listenerController.abort();
     this.viewportSlots.destroy();
   }
 
-  setResultField(value: string): void {
-    applyResultField(this, value);
-  }
+  setResultField = applyResultField.bind(null, this);
 
-  setDeformationField(value: string): void {
-    applyDeformationField(this, value);
-  }
+  setDeformationField = applyDeformationField.bind(null, this);
 
-  setDeformationScale(value: string): void {
-    applyDeformationScale(this, value);
-  }
+  setDeformationScale = applyDeformationScale.bind(null, this);
 
-  setVectorField(value: string): void {
-    applyVectorField(this, value);
-  }
+  setVectorField = applyVectorField.bind(null, this);
 
-  setVectorGlyph(value: string): void {
-    applyVectorGlyph(this, value);
-  }
+  setVectorGlyph = applyVectorGlyph.bind(null, this);
 
-  setVectorTransform(value: string): void {
-    applyVectorTransform(this, value);
-  }
+  setVectorTransform = applyVectorTransform.bind(null, this);
 
-  setVectorLengthScale(value: string): void {
-    applyVectorLength(this, value);
-  }
+  setVectorLengthScale = applyVectorLength.bind(null, this);
 
   setSectionAxis = applySectionAxis.bind(null, this);
 
@@ -423,6 +423,7 @@ export class WorkbenchController {
   resetHoverOwner = resetHoverOwnerForOwner.bind(null, this);
 
   private activateModel(model: WorkbenchModel): void {
+    this.resultPlaybackActions.resetForModel(model);
     this.elementDetail = undefined;
     this.resetHoverOwner();
     activateModelForOwner(model, this);

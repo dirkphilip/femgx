@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createResultsPreset } from "../../demo/fixture/results-preset";
 import { createBoltedPlatePreset } from "../../demo/fixture/presets";
 import { createExampleModel } from "../../demo/workbench/model";
 import { setResultField } from "../../demo/workbench/result-actions";
+import { createResultPlaybackActions } from "../../demo/workbench/result-playback";
 import { setVectorField, setVectorWidthPixels } from "../../demo/workbench/vector-actions";
 import {
   BASE_RESULT_VALUE,
@@ -224,5 +225,84 @@ describe("demo orientation result controls", () => {
     expect(owner.scalarFieldId).toBe(BASE_RESULT_VALUE);
     expect(owner.resultMode).toBe("base");
     expect(applied).toEqual([true, true]);
+  });
+
+  it("steps exact authored snapshots through one stable range", () => {
+    const model = createExampleModel(createResultsPreset());
+    const applied: boolean[] = [];
+    const published: number[] = [];
+    const owner = {
+      model,
+      resultMode: "base" as const,
+      resultPlaybackIndex: 0,
+      resultPlaybackRate: 1,
+      resultPlaybackPlaying: false,
+      resultPlaybackActive: false,
+      resultPlaybackTimer: undefined,
+      disposed: false,
+      applyResultMode: (render: boolean) => applied.push(render),
+      publishSnapshot: () => published.push(owner.resultPlaybackIndex),
+    };
+    const actions = createResultPlaybackActions(owner);
+
+    actions.resetForModel(model);
+    expect(actions.snapshot()).toMatchObject({
+      active: true,
+      index: 0,
+      count: 4,
+      time: 0,
+      range: { min: 10, max: 100 },
+    });
+    actions.setIndex("2");
+    expect(actions.snapshot()).toMatchObject({ active: true, index: 2, time: 2 });
+    expect(owner.resultMode).toBe("deformed");
+    expect(actions.currentStep()?.snapshot.scalar.id).toBe("demo-stress-snapshot-2");
+    expect(applied).toEqual([true]);
+    actions.setIndex("99");
+    expect(actions.snapshot()?.index).toBe(2);
+    actions.disable();
+    expect(actions.currentStep()).toBeUndefined();
+    expect(actions.snapshot()?.active).toBe(false);
+    expect(published).toEqual([]);
+  });
+
+  it("pauses and resets playback without leaving a stale timer", () => {
+    vi.useFakeTimers();
+    try {
+      const model = createExampleModel(createResultsPreset());
+      const applied: boolean[] = [];
+      const owner = {
+        model,
+        resultMode: "base" as const,
+        resultPlaybackIndex: 0,
+        resultPlaybackRate: 1,
+        resultPlaybackPlaying: false,
+        resultPlaybackActive: false,
+        resultPlaybackTimer: undefined,
+        disposed: false,
+        applyResultMode: (render: boolean) => applied.push(render),
+        publishSnapshot: () => undefined,
+      };
+      const actions = createResultPlaybackActions(owner);
+
+      actions.togglePlaying();
+      expect(actions.snapshot()).toMatchObject({ playing: true, index: 0 });
+      vi.advanceTimersByTime(1000);
+      expect(actions.snapshot()).toMatchObject({ playing: true, index: 1 });
+      actions.stop();
+      const appliedWhilePaused = applied.length;
+      vi.advanceTimersByTime(3000);
+      expect(actions.snapshot()).toMatchObject({ playing: false, index: 1 });
+      expect(applied).toHaveLength(appliedWhilePaused);
+
+      actions.setIndex("2");
+      actions.togglePlaying();
+      actions.resetForModel(model);
+      expect(actions.snapshot()).toMatchObject({ playing: false, index: 0, active: true });
+      vi.advanceTimersByTime(3000);
+      expect(actions.snapshot()).toMatchObject({ playing: false, index: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

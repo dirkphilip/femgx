@@ -1,6 +1,7 @@
 import type { SceneRuntime } from "../../src/index";
 import type { WorkbenchCommands, WorkbenchMenuAction } from "./snapshot";
 import type { WorkbenchElementDetailActions } from "./controller-element-detail";
+import type { WorkbenchResultPlaybackActions } from "./result-playback";
 import type { WorkbenchModel } from "./model";
 import { setVectorWidthPixels as applyVectorWidth } from "./vector-actions";
 import type { VectorDisplayState } from "./result-controls";
@@ -45,6 +46,7 @@ interface WorkbenchCommandOwner {
   setHierarchyHover(target: VisibilityRowTarget): void;
   clearHierarchyHover(target: VisibilityRowTarget): void;
   readonly elementDetailActions: WorkbenchElementDetailActions;
+  readonly resultPlaybackActions: WorkbenchResultPlaybackActions;
 }
 
 /** Adapts existing controller methods to the typed presentation command surface. */
@@ -103,6 +105,26 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     selectElementDetail: owner.elementDetailActions.selectElementDetail,
     setElementDetailHover: owner.elementDetailActions.setElementDetailHover,
     clearElementDetailHover: owner.elementDetailActions.clearElementDetailHover,
+    ...resultPlaybackCommands(owner),
+  };
+}
+
+function resultPlaybackCommands(
+  owner: WorkbenchCommandOwner,
+): Pick<
+  WorkbenchCommands,
+  | "setResultPlaybackIndex"
+  | "previousResultPlayback"
+  | "nextResultPlayback"
+  | "toggleResultPlayback"
+  | "setResultPlaybackRate"
+> {
+  return {
+    setResultPlaybackIndex: owner.resultPlaybackActions.setIndex,
+    previousResultPlayback: owner.resultPlaybackActions.previous,
+    nextResultPlayback: owner.resultPlaybackActions.next,
+    toggleResultPlayback: owner.resultPlaybackActions.togglePlaying,
+    setResultPlaybackRate: owner.resultPlaybackActions.setRate,
   };
 }
 
