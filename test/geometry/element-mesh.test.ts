@@ -669,6 +669,9 @@ describe("elementPart metadata", () => {
     expect(line?.blocks).toEqual([{ id: 10, name: "surface and line", elementIds: [5] }]);
     expect(point?.blocks).toEqual([{ id: 11, elementIds: [6] }]);
     expect(triangle?.bodies).toEqual([{ id: 20, name: "assembly body", elementIds: [1, 2, 3, 4] }]);
+    expect(part.bodies).toEqual([
+      { id: 20, name: "assembly body", elementIds: [1, 2, 3, 4, 5, 6] },
+    ]);
     expect(triangle?.elements?.every((element) => element.bodyId === 20)).toBe(true);
     expect(line?.elements?.[0]?.bodyId).toBe(20);
     expect(point?.elements?.[0]?.bodyId).toBe(20);

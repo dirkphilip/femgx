@@ -1,3 +1,4 @@
+import { compareNodeIds } from "../elements/edges";
 import type {
   ElementTessellation,
   FaceTessellation,
@@ -6,6 +7,9 @@ import type {
   GeometryElementBlock,
 } from "./types";
 import type { BodyId, Part } from "./part";
+import { faceIdentity } from "./element-face-selection";
+
+export { compareNodeIds as compareEdgeNodeIds } from "../elements/edges";
 
 type ElementId = ElementTessellation["id"];
 type ElementBlockId = GeometryElementBlock["id"];
@@ -80,12 +84,12 @@ function buildPartSemanticIndex(part: Part): PartSemanticIndex {
   const triangleGeometry = part.geometries.find((geometry) => geometry.primitive === "triangles");
   if (triangleGeometry?.primitive === "triangles") {
     for (const [faceId, face] of (triangleGeometry.faces ?? []).entries()) {
-      faces.set(faceKey(face.elementId, face.faceIndex), { face, faceId });
+      faces.set(faceIdentity(face.elementId, face.faceIndex), { face, faceId });
     }
   }
   const edges = new Map<string, EdgeMetadata>();
   const authoredEdges = [...part.geometries.flatMap((geometry) => geometry.edges ?? [])].sort(
-    (left, right) => compareEdgeNodeIds(left.nodeIds, right.nodeIds),
+    (left, right) => compareNodeIds(left.nodeIds, right.nodeIds),
   );
   for (const [edgePickId, edge] of authoredEdges.entries()) {
     edges.set(edge.key, { edge, edgePickId: edgePickId + 1 });
@@ -102,18 +106,4 @@ function buildPartSemanticIndex(part: Part): PartSemanticIndex {
     edges,
     nodeCount: Math.floor((part.nodePositions?.length ?? 0) / 3),
   };
-}
-
-/** Returns the deterministic authored-edge order used by GPU and CPU metadata. */
-export function compareEdgeNodeIds(left: readonly number[], right: readonly number[]): number {
-  const length = Math.min(left.length, right.length);
-  for (let index = 0; index < length; index += 1) {
-    const difference = (left[index] ?? 0) - (right[index] ?? 0);
-    if (difference !== 0) return difference;
-  }
-  return left.length - right.length;
-}
-
-function faceKey(elementId: ElementId, faceIndex: number): string {
-  return `${elementId}/${faceIndex}`;
 }
