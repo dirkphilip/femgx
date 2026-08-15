@@ -83,9 +83,12 @@ function issueLines(context: WorkbenchSceneContext): string[] {
 /** Triangle count in the reusable part definitions, independent of placement count. */
 function uniqueTriangleCount(context: WorkbenchSceneContext): number {
   let triangles = 0;
-  for (const part of context.model.scene.parts.values()) {
-    triangles += Math.floor(part.geometry.indices.length / 3);
-  }
+  for (const part of context.model.scene.parts.values())
+    triangles += part.geometries.reduce(
+      (total, geometry) =>
+        total + (geometry.primitive === "triangles" ? Math.floor(geometry.indices.length / 3) : 0),
+      0,
+    );
   return triangles;
 }
 
@@ -102,7 +105,7 @@ function submittedTriangleCount(context: WorkbenchSceneContext): number {
 function uniqueElementCount(context: WorkbenchSceneContext): number {
   let elements = 0;
   for (const part of context.model.scene.parts.values()) {
-    elements += part.geometry.elements?.length ?? 0;
+    elements += part.elements?.length ?? 0;
   }
   return elements;
 }
@@ -110,14 +113,21 @@ function uniqueElementCount(context: WorkbenchSceneContext): number {
 function submittedElementOccurrences(context: WorkbenchSceneContext): number {
   let elements = 0;
   for (const instance of context.runtime.getInstances()) {
-    elements += context.model.scene.parts.get(instance.partId)?.geometry.elements?.length ?? 0;
+    elements += context.model.scene.parts.get(instance.partId)?.elements?.length ?? 0;
   }
   return elements;
 }
 
 function triangleCount(model: WorkbenchSceneContext["model"], partId: PartId | undefined): number {
   const part = partId === undefined ? undefined : model.scene.parts.get(partId);
-  return part === undefined ? 0 : Math.floor(part.geometry.indices.length / 3);
+  return part === undefined
+    ? 0
+    : part.geometries.reduce(
+        (total, geometry) =>
+          total +
+          (geometry.primitive === "triangles" ? Math.floor(geometry.indices.length / 3) : 0),
+        0,
+      );
 }
 
 function sortedNumbers(values: Iterable<number>): number[] {

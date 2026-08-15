@@ -7,14 +7,15 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 
 ## Stable element ids
 
-- `Geometry` optionally declares `ElementTessellation` descriptors: a stable
-  `id` plus the contiguous logical-primitive range that tessellates the element
-  in the part's index buffer. Every primitive kind uses the same
-  (`primitiveStart`, `primitiveCount`) contract
+- A `Part` optionally declares `ElementTessellation` descriptors: a stable
+  `id` plus one or more logical-primitive ranges that tessellate the element
+  across its homogeneous geometry groups. Every range qualifies the same
+  (`primitiveStart`, `primitiveCount`) contract with its primitive kind
   ([[data/elements-topology|Element topology]]).
-- `validateElements` enforces that, when declared, every logical primitive
-  belongs to exactly one element and ids are unique. Parts without descriptors
-  are not element-pickable and every primitive reports "no element".
+- `createPart` enforces that, when declared, every logical primitive in each
+  geometry group belongs to exactly one element range and ids are unique. Parts
+  without descriptors are not element-pickable and every primitive reports
+  "no element".
 - `GeometryElementBlock` groups stable element ids for presentation-only
   interaction. A block is local to its reusable part and is addressed in the
   scene by `(instanceId, blockId)`; repeated placements therefore keep

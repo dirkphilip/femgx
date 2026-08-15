@@ -54,10 +54,9 @@ remains readable from either side. Line, point, edge, node-overlay, and picking
 paths remain unlit; lighting does not alter alpha or the existing interaction
 emissive.
 
-Triangle geometry carries an
-`ElementTessellation` per element — the contiguous `primitiveStart`/
-`primitiveCount` range it owns — so every triangle maps to its element id. Mixed
-models use the same metadata contract for line and point variants (see
+Parts carry an `ElementTessellation` table, whose `primitiveRanges` qualify
+each owned range by primitive group, so every triangle maps to its element id.
+Mixed models use the same metadata contract for line and point variants (see
 [[rendering/heterogeneous-elements|Heterogeneous element parts]]). The renderer
 turns all ranges into per-primitive pick ids and
 highlight records, making elements and nodes selectable through GPU picking

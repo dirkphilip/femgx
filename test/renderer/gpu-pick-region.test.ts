@@ -38,32 +38,53 @@ function triangleGeometry(): Geometry {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
     primitive: "triangles",
-    elements: [{ id: 4, primitiveStart: 0, primitiveCount: 1 }],
   };
 }
 
-function richTriangleGeometry(): Geometry {
-  return {
-    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-    indices: new Uint32Array([0, 1, 2]),
-    primitive: "triangles",
-    nodePickIds: new Uint32Array([1, 2, 3]),
-    nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-    elements: [{ id: 4, primitiveStart: 0, primitiveCount: 1, bodyId: 7 }],
-    bodies: [{ id: 7, elementIds: [4] }],
-    faces: [
+function trianglePart(): ReturnType<typeof createPart> {
+  return createPart(1, {
+    geometries: [triangleGeometry()],
+    elements: [
       {
-        elementId: 4,
-        faceIndex: 2,
-        primitiveStart: 0,
-        primitiveCount: 1,
-        bodyId: 7,
-        key: "0:1:2",
-        nodeIds: [0, 1, 2],
-        neighborElementIds: [],
+        id: 4,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
       },
     ],
-  };
+  });
+}
+
+function richTrianglePart(): ReturnType<typeof createPart> {
+  return createPart(1, {
+    geometries: [
+      {
+        positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+        indices: new Uint32Array([0, 1, 2]),
+        primitive: "triangles",
+        nodePickIds: new Uint32Array([1, 2, 3]),
+        faces: [
+          {
+            elementId: 4,
+            faceIndex: 2,
+            primitiveStart: 0,
+            primitiveCount: 1,
+            bodyId: 7,
+            key: "0:1:2",
+            nodeIds: [0, 1, 2],
+            neighborElementIds: [],
+          },
+        ],
+      },
+    ],
+    elements: [
+      {
+        id: 4,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+        bodyId: 7,
+      },
+    ],
+    bodies: [{ id: 7, elementIds: [4] }],
+    nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+  });
 }
 
 function ids(overrides: Partial<ResolvedPickIds> = {}): ResolvedPickIds {
@@ -103,7 +124,7 @@ describe("GPU pick regions", () => {
     ],
     ["node", ids({ nodePickId: 2 }), { kind: "node", instanceId: "root/0", nodeId: 1 }],
   ] as const)("resolves %s targets from minimal metadata", (granularity, pickIds, expected) => {
-    const part = createPart(1, richTriangleGeometry());
+    const part = richTrianglePart();
     const context: PickContext = {
       instances: [instance(), { ...instance(), index: 1, instanceId: "root/1" }],
       parts: new Map([[1, part]]),
@@ -112,8 +133,8 @@ describe("GPU pick regions", () => {
   });
 
   it("keeps region target kinds strict and ignores invalid ownership ids", () => {
-    const part = createPart(1, richTriangleGeometry());
-    const unownedPart = createPart(2, triangleGeometry());
+    const part = richTrianglePart();
+    const unownedPart = createPart(2, { geometries: [triangleGeometry()] });
     const context: PickContext = {
       instances: [instance(), { ...instance(), index: 1, instanceId: "root/1", partId: 2 }],
       parts: new Map([
@@ -137,7 +158,7 @@ describe("GPU pick regions", () => {
   it("reuses one part index while preserving occurrence-scoped targets", () => {
     const context: PickContext = {
       instances: [instance(), { ...instance(), index: 1, instanceId: "root/1" }],
-      parts: new Map([[1, createPart(1, richTriangleGeometry())]]),
+      parts: new Map([[1, richTrianglePart()]]),
     };
     const resolve = createPickRegionTargetResolver(context, "element");
     expect(resolve(ids({ elementPickId: 5 }))).toEqual({
@@ -154,24 +175,30 @@ describe("GPU pick regions", () => {
 
   it("resolves sparse authored element ids through prepared metadata", () => {
     const part = createPart(3, {
-      positions: new Float32Array(6),
-      indices: new Uint32Array([0, 1]),
-      primitive: "points",
+      geometries: [
+        { positions: new Float32Array(6), indices: new Uint32Array([0, 1]), primitive: "points" },
+      ],
       elements: [
-        { id: 7, primitiveStart: 0, primitiveCount: 1 },
-        { id: 100_000, primitiveStart: 1, primitiveCount: 1 },
+        { id: 7, primitiveRanges: [{ primitive: "points", primitiveStart: 0, primitiveCount: 1 }] },
+        {
+          id: 100_000,
+          primitiveRanges: [{ primitive: "points", primitiveStart: 1, primitiveCount: 1 }],
+        },
       ],
     });
     getPartSemanticIndex(part);
-    const originalGeometry = part.geometry;
-    Object.defineProperty(part, "geometry", {
+    const originalGeometry = part.geometries[0];
+    if (originalGeometry === undefined) throw new Error("Expected point geometry");
+    Object.defineProperty(part, "geometries", {
       configurable: true,
-      value: new Proxy(originalGeometry, {
-        get(target, property, _receiver) {
-          if (property === "elements") throw new Error("region resolution scanned the part");
-          return (target as unknown as Record<PropertyKey, unknown>)[property];
-        },
-      }),
+      value: [
+        new Proxy(originalGeometry, {
+          get(target, property, _receiver) {
+            if (property === "elements") throw new Error("region resolution scanned the part");
+            return (target as unknown as Record<PropertyKey, unknown>)[property];
+          },
+        }),
+      ],
     });
     const resolve = createPickRegionTargetResolver(
       { instances: [instance(3)], parts: new Map([[3, part]]) },
@@ -202,15 +229,19 @@ describe("GPU pick regions", () => {
   it("does not derive rich face adjacency for node-region targets", async () => {
     const restore = installGpuGlobals();
     try {
-      const source = createPart(1, richTriangleGeometry());
+      const source = richTrianglePart();
+      const sourceGeometry = source.geometries[0];
+      if (sourceGeometry === undefined) throw new Error("rich triangle geometry is missing");
       const guardedPart = {
         ...source,
-        geometry: new Proxy(source.geometry, {
-          get(target, property, _receiver) {
-            if (property === "faces") throw new Error("node region must not read faces");
-            return (target as unknown as Record<PropertyKey, unknown>)[property];
-          },
-        }),
+        geometries: [
+          new Proxy(sourceGeometry, {
+            get(target, property, _receiver) {
+              if (property === "faces") throw new Error("node region must not read faces");
+              return (target as unknown as Record<PropertyKey, unknown>)[property];
+            },
+          }),
+        ],
       };
       const context: PickContext = {
         instances: [instance()],
@@ -248,7 +279,7 @@ describe("GPU pick regions", () => {
       const gpu = fakeGpuDevice({ pickValue: 1 });
       const context: PickContext = {
         instances: [instance()],
-        parts: new Map([[1, createPart(1, triangleGeometry())]]),
+        parts: new Map([[1, trianglePart()]]),
       };
       await expect(
         targets(gpu, context, "part", rect({ right: 250, bottom: 250 })),
@@ -269,7 +300,7 @@ describe("GPU pick regions", () => {
       });
       const context: PickContext = {
         instances: [instance()],
-        parts: new Map([[1, createPart(1, triangleGeometry())]]),
+        parts: new Map([[1, trianglePart()]]),
       };
       const result = await targets(gpu, context, "element");
       expect(result).toEqual([{ kind: "element", instanceId: "root/0", elementId: 4 }]);
@@ -287,7 +318,7 @@ describe("GPU pick regions", () => {
       const gpu = fakeGpuDevice({ pickValue: 1, elementPickValue: 5 });
       const context: PickContext = {
         instances: [instance()],
-        parts: new Map([[1, createPart(1, triangleGeometry())]]),
+        parts: new Map([[1, trianglePart()]]),
       };
       const pick = createPickTargets(await createPickDepthReadback(gpu.device));
       const selection = rect({
@@ -317,7 +348,7 @@ describe("GPU pick regions", () => {
       const gpu = fakeGpuDevice({ pickValue: 99 });
       const context: PickContext = {
         instances: [instance()],
-        parts: new Map([[1, createPart(1, triangleGeometry())]]),
+        parts: new Map([[1, trianglePart()]]),
       };
       await expect(
         targets(gpu, context, "element", rect({ left: 10, right: 10, width: 0 })),

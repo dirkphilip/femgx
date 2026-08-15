@@ -55,9 +55,7 @@ describe("createModelPresets", () => {
     )) {
       for (const partId of preset.scene.parts.keys()) {
         const part = preset.scene.parts.get(partId);
-        const hasTypedElements = part?.geometry.elements?.some(
-          (element) => element.shape !== undefined,
-        );
+        const hasTypedElements = part?.elements?.some((element) => element.shape !== undefined);
         if (hasTypedElements) {
           expect(preset.elementModels.get(partId), `${preset.id} part ${partId}`).toBeDefined();
         }
@@ -170,7 +168,9 @@ describe("results preset", () => {
     if (part === undefined || displacement === undefined) {
       throw new Error("Results preset has no deformable part");
     }
-    const deformedBounds = computeBounds(deformGeometry(part.geometry, displacement));
+    const geometry = part.geometries[0];
+    if (geometry === undefined) throw new Error("Results preset has no geometry");
+    const deformedBounds = computeBounds(deformGeometry(geometry, displacement));
     expect(preset.bounds.minX).toBe(0);
     expect(preset.bounds.minY).toBe(0);
     expect(preset.bounds.minZ).toBe(0);
@@ -189,7 +189,9 @@ describe("results preset", () => {
     if (part === undefined || displacement === undefined) {
       throw new Error("Results preset has no deformable part");
     }
-    const bounds = computeBounds(deformGeometry(part.geometry, displacement));
+    const geometry = part.geometries[0];
+    if (geometry === undefined) throw new Error("Results preset has no geometry");
+    const bounds = computeBounds(deformGeometry(geometry, displacement));
     const runtime = createPackedSceneRuntime(preset.scene);
     const instances = runtime.getDrawList();
     const placed = Array.from(instances, (instanceId) => {

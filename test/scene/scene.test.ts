@@ -8,7 +8,7 @@ function part(id: number): Part {
     indices: new Uint32Array(),
     primitive: "triangles" as const,
   };
-  return createPart(id, geometry);
+  return createPart(id, { geometries: [geometry] });
 }
 
 describe("createScene", () => {

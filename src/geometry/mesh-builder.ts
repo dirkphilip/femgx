@@ -1,9 +1,6 @@
 import type {
-  ElementTessellation,
   FaceTessellation,
   Geometry,
-  GeometryBody,
-  GeometryElementBlock,
   GeometryEdge,
   LineGeometry,
   Primitive,
@@ -22,12 +19,8 @@ export interface MeshVertex {
 
 /** Optional ownership and source metadata attached to assembled geometry. */
 export interface MeshMetadata {
-  readonly elements?: readonly ElementTessellation[];
   readonly edges?: readonly GeometryEdge[];
   readonly faces?: readonly FaceTessellation[];
-  readonly nodePositions?: ArrayLike<number>;
-  readonly bodies?: readonly GeometryBody[];
-  readonly blocks?: readonly GeometryElementBlock[];
 }
 
 /** Assembles oriented triangles into shared indexed geometry. */
@@ -75,25 +68,15 @@ export class TriangleMeshAssembler {
 
   build(primitive: "triangles", metadata?: MeshMetadata): TriangleGeometry;
   build(primitive: Primitive, metadata: MeshMetadata = {}): Geometry {
-    const { elements, edges, faces, nodePositions, bodies, blocks } = metadata;
+    const { edges, faces } = metadata;
     const hasNodeIds = this.nodePickIds.some((id) => id !== 0);
     return {
       positions: new Float32Array(this.positions),
       indices: new Uint32Array(this.indices),
       primitive,
-      ...(elements !== undefined && elements.length > 0 ? { elements } : {}),
       ...(edges !== undefined && edges.length > 0 ? { edges } : {}),
-      ...(hasNodeIds
-        ? {
-            nodePickIds: new Uint32Array(this.nodePickIds),
-            ...(nodePositions !== undefined
-              ? { nodePositions: new Float32Array(nodePositions) }
-              : {}),
-          }
-        : {}),
+      ...(hasNodeIds ? { nodePickIds: new Uint32Array(this.nodePickIds) } : {}),
       ...(faces !== undefined && faces.length > 0 ? { faces } : {}),
-      ...(bodies !== undefined && bodies.length > 0 ? { bodies } : {}),
-      ...(blocks !== undefined && blocks.length > 0 ? { blocks } : {}),
     };
   }
 }
@@ -117,24 +100,14 @@ export class LineMeshBuilder {
     }
   }
 
-  build(
-    primitive: "lines",
-    elements?: readonly ElementTessellation[],
-    nodePositions?: ArrayLike<number>,
-  ): LineGeometry;
-  build(
-    primitive: Primitive,
-    elements?: readonly ElementTessellation[],
-    nodePositions?: ArrayLike<number>,
-  ): Geometry {
+  build(primitive: "lines"): LineGeometry;
+  build(primitive: Primitive): Geometry {
     const hasNodeIds = this.nodePickIds.some((id) => id !== 0);
     return {
       positions: new Float32Array(this.positions),
       indices: new Uint32Array(this.indices),
       primitive,
-      ...(elements !== undefined && elements.length > 0 ? { elements } : {}),
       ...(hasNodeIds ? { nodePickIds: new Uint32Array(this.nodePickIds) } : {}),
-      ...(nodePositions !== undefined ? { nodePositions: new Float32Array(nodePositions) } : {}),
     };
   }
 }

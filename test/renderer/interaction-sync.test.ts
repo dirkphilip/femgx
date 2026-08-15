@@ -22,7 +22,7 @@ function sceneRuntime() {
     indices: new Uint32Array([0, 1, 2]),
     primitive: "triangles" as const,
   };
-  const part = createPart(1, geometry);
+  const part = createPart(1, { geometries: [geometry] });
   const scene = createScene()
     .addPart(part)
     .addAssembly({

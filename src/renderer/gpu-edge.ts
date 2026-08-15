@@ -1,12 +1,14 @@
-import type { Geometry, GeometryEdge } from "../geometry/part";
-import {
-  buildBodyPrimitivePickIds,
-  buildElementPrimitivePickIds,
-  buildFacePrimitivePickIds,
-} from "./gpu-pick-ids";
+import type {
+  ElementTessellation,
+  Geometry,
+  GeometryEdge,
+  GeometryElementBlock,
+} from "../geometry/part";
+import { buildBodyPrimitivePickIds, buildElementPrimitivePickIds } from "./gpu-pick-ids";
 import { compareEdgeNodeIds } from "../geometry/part-semantic-index";
 import { elementEdgeKeys } from "./gpu-edge-authored";
 import { appendEdgeConditions } from "./gpu-edge-conditions";
+import { triangleBodyPairs } from "./gpu-edge-owners";
 
 /** Expanded edge endpoints plus the body owners of each logical edge. */
 export interface MeshEdgeData {
@@ -56,26 +58,39 @@ interface UnownedEdgeState {
 export function buildMeshEdgeData(
   geometry: Geometry,
   sourceIndices = geometry.indices,
+  elements: readonly ElementTessellation[] = [],
+  blocks: readonly GeometryElementBlock[] = [],
 ): MeshEdgeData {
   if (
     geometry.primitive === "triangles" &&
     geometry.faces === undefined &&
-    geometry.bodies === undefined &&
-    (geometry.blocks === undefined || geometry.blocks.length === 0) &&
+    elements.length === 0 &&
+    blocks.length === 0 &&
     sourceIndices === geometry.indices
   ) {
-    return buildUnownedEdgeData(geometry, sourceIndices);
+    return buildUnownedEdgeData(geometry, sourceIndices, elements);
   }
   const elementEdges = elementEdgeKeys(geometry);
-  const bodyPickIds = buildBodyPrimitivePickIds(geometry);
-  const elementPickIds = buildElementPrimitivePickIds(geometry);
-  const sourceBodyPairs = triangleBodyPairs(geometry, sourceIndices, bodyPickIds, elementPickIds);
+  const bodyPickIds = buildBodyPrimitivePickIds(geometry, elements);
+  const elementPickIds = buildElementPrimitivePickIds(geometry, elements);
+  const sourceBodyPairs = triangleBodyPairs({
+    geometry,
+    sourceIndices,
+    bodyPickIds,
+    elementPickIds,
+    elements,
+    blocks,
+  });
   const edges = collectEdges(geometry, sourceIndices, elementEdges, sourceBodyPairs);
-  return finalizeEdges(geometry, edges);
+  return finalizeEdges(geometry, edges, blocks);
 }
 
-function buildUnownedEdgeData(geometry: Geometry, sourceIndices: Uint32Array): MeshEdgeData {
-  const elementPickIds = buildElementPrimitivePickIds(geometry);
+function buildUnownedEdgeData(
+  geometry: Geometry,
+  sourceIndices: Uint32Array,
+  elements: readonly ElementTessellation[],
+): MeshEdgeData {
+  const elementPickIds = buildElementPrimitivePickIds(geometry, elements);
   const state: UnownedEdgeState = {
     byFirst: new Map(),
     edges: [],
@@ -226,7 +241,11 @@ function collectEdges(
   return edges;
 }
 
-function finalizeEdges(geometry: Geometry, edges: readonly MeshEdge[]): MeshEdgeData {
+function finalizeEdges(
+  geometry: Geometry,
+  edges: readonly MeshEdge[],
+  blocks: readonly GeometryElementBlock[] = [],
+): MeshEdgeData {
   const orderedEdges =
     geometry.edges === undefined
       ? [...edges]
@@ -234,7 +253,7 @@ function finalizeEdges(geometry: Geometry, edges: readonly MeshEdge[]): MeshEdge
   const bodyIds: number[] = [];
   const elementIds: number[] = [];
   const blockIds: number[] = [];
-  const blockAware = geometry.blocks !== undefined && geometry.blocks.length > 0;
+  const blockAware = blocks.length > 0;
   const bodyRanges = new Uint32Array(orderedEdges.length * 2);
   const segmentCount = orderedEdges.reduce((count, edge) => count + edge.segments.length, 0);
   const indices = new Uint32Array(segmentCount * 2);
@@ -289,117 +308,6 @@ function copyPosition(
 ): void {
   const sourceOffset = sourceVertexIndex * 3;
   target.set(source.subarray(sourceOffset, sourceOffset + 3), endpointIndex * 3);
-}
-
-function triangleBodyPairs(
-  geometry: Geometry,
-  sourceIndices: Uint32Array,
-  bodyPickIds: Uint32Array,
-  elementPickIds: Uint32Array,
-): Array<readonly [number, number, number, number, number, number]> {
-  const facePickIds =
-    geometry.primitive === "triangles" ? buildFacePrimitivePickIds(geometry) : undefined;
-  const bodyByElement = new Map(
-    (geometry.elements ?? []).map((element) => [element.id, element.bodyId] as const),
-  );
-  const blockByElement = new Map(
-    (geometry.elements ?? []).map((element) => [element.id, element.blockId] as const),
-  );
-  for (const block of geometry.blocks ?? []) {
-    for (const elementId of block.elementIds) {
-      if (blockByElement.get(elementId) === undefined) blockByElement.set(elementId, block.id);
-    }
-  }
-  const pairFor = trianglePairResolver(geometry, {
-    facePickIds,
-    bodyByElement,
-    blockByElement,
-    bodyPickIds,
-    elementPickIds,
-  });
-  if (sourceIndices === geometry.indices) {
-    return Array.from({ length: Math.floor(sourceIndices.length / 3) }, (_, triangle) =>
-      pairFor(triangle),
-    );
-  }
-  return expandedTrianglePairs(geometry, sourceIndices, pairFor);
-}
-
-type TriangleOwnerPair = readonly [number, number, number, number, number, number];
-
-interface TriangleOwnership {
-  readonly facePickIds: Uint32Array | undefined;
-  readonly bodyByElement: ReadonlyMap<number, number | undefined>;
-  readonly blockByElement: ReadonlyMap<number, number | undefined>;
-  readonly bodyPickIds: Uint32Array;
-  readonly elementPickIds: Uint32Array;
-}
-
-function trianglePairResolver(
-  geometry: Geometry,
-  ownership: TriangleOwnership,
-): (triangle: number) => TriangleOwnerPair {
-  return (triangle) => {
-    const owner = ownership.bodyPickIds[triangle] ?? 0;
-    const element = ownership.elementPickIds[triangle] ?? 0;
-    const faceId = (ownership.facePickIds?.[triangle] ?? 0) - 1;
-    const neighborElementId =
-      geometry.primitive === "triangles"
-        ? geometry.faces?.[faceId]?.neighborElementIds[0]
-        : undefined;
-    const neighborBody =
-      neighborElementId === undefined ? undefined : ownership.bodyByElement.get(neighborElementId);
-    const neighborPickId = neighborBody === undefined ? 0 : neighborBody + 1;
-    const neighborElementPickId = neighborElementId === undefined ? 0 : neighborElementId + 1;
-    const block = ownership.blockByElement.get(element - 1);
-    const neighborBlock =
-      neighborElementId === undefined ? undefined : ownership.blockByElement.get(neighborElementId);
-    return [
-      owner,
-      neighborPickId === owner ? 0 : neighborPickId,
-      element,
-      neighborElementPickId,
-      block === undefined ? 0 : block + 1,
-      neighborBlock === undefined || neighborBlock === block ? 0 : neighborBlock + 1,
-    ];
-  };
-}
-
-function expandedTrianglePairs(
-  geometry: Geometry,
-  sourceIndices: Uint32Array,
-  pairFor: (triangle: number) => TriangleOwnerPair,
-): TriangleOwnerPair[] {
-  const byTriangle = new Map<string, TriangleOwnerPair>();
-  for (let triangle = 0; triangle < geometry.indices.length / 3; triangle++) {
-    const base = triangle * 3;
-    byTriangle.set(
-      triangleKey(
-        geometry.indices[base] ?? 0,
-        geometry.indices[base + 1] ?? 0,
-        geometry.indices[base + 2] ?? 0,
-      ),
-      pairFor(triangle),
-    );
-  }
-  const result: TriangleOwnerPair[] = [];
-  for (let triangle = 0; triangle < sourceIndices.length / 3; triangle++) {
-    const base = triangle * 3;
-    result.push(
-      byTriangle.get(
-        triangleKey(
-          sourceIndices[base] ?? 0,
-          sourceIndices[base + 1] ?? 0,
-          sourceIndices[base + 2] ?? 0,
-        ),
-      ) ?? [0, 0, 0, 0, 0, 0],
-    );
-  }
-  return result;
-}
-
-function triangleKey(a: number, b: number, c: number): string {
-  return `${a},${b},${c}`;
 }
 
 function nodeIdAt(geometry: Geometry, vertex: number): number {

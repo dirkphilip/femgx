@@ -157,7 +157,9 @@ export function partStyleOverride(
   return {
     ...authored,
     ...(edges ? { edge: true } : {}),
-    ...(nodes && part?.geometry.primitive !== "points" ? { nodes: true } : {}),
+    ...(nodes && part?.geometries.some((geometry) => geometry.primitive !== "points")
+      ? { nodes: true }
+      : {}),
   };
 }
 

@@ -40,12 +40,20 @@ function createTestScene(transform = identity()) {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
     primitive: "triangles" as const,
-    elements: [{ id: 0, primitiveStart: 0, primitiveCount: 1 }],
+    elements: [
+      {
+        id: 0,
+        primitiveRanges: [
+          { primitive: "triangles" as const, primitiveStart: 0, primitiveCount: 1 },
+        ],
+      },
+    ],
     nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     nodePickIds: new Uint32Array([1, 2, 3]),
   };
+  const { elements, nodePositions, ...localGeometry } = geometry;
   return createScene()
-    .addPart(createPart(1, geometry))
+    .addPart(createPart(1, { geometries: [localGeometry], elements, nodePositions }))
     .addAssembly({
       id: 1,
       name: "root",
@@ -421,18 +429,33 @@ describe("viewport results workflow", () => {
     const scene = createScene()
       .addPart(
         createPart(1, {
-          positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-          indices: new Uint32Array([0, 1, 2]),
-          primitive: "triangles",
-          elements: [{ id: 0, primitiveStart: 0, primitiveCount: 1 }],
-          nodePickIds: new Uint32Array([1, 2, 3]),
+          geometries: [
+            {
+              positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+              indices: new Uint32Array([0, 1, 2]),
+              primitive: "triangles" as const,
+              nodePickIds: new Uint32Array([1, 2, 3]),
+            },
+          ],
+          elements: [
+            {
+              id: 0,
+              primitiveRanges: [
+                { primitive: "triangles" as const, primitiveStart: 0, primitiveCount: 1 },
+              ],
+            },
+          ],
         }),
       )
       .addPart(
         createPart(2, {
-          positions: new Float32Array([5, 5, 5]),
-          indices: new Uint32Array([0]),
-          primitive: "points",
+          geometries: [
+            {
+              positions: new Float32Array([5, 5, 5]),
+              indices: new Uint32Array([0]),
+              primitive: "points",
+            },
+          ],
         }),
       )
       .addAssembly({
@@ -627,8 +650,8 @@ describe("viewport results workflow", () => {
       results: { scalar: { field: stress }, deformation: { field } },
     });
 
-    expect(part.geometry.indices.length).toBe(6 * 6 * 3);
-    expect(part.geometry.nodePickIds).not.toContain(0);
+    expect(part.geometries[0]?.indices.length).toBe(6 * 6 * 3);
+    expect(part.geometries[0]?.nodePickIds).not.toContain(0);
     expect(viewport.results?.deformation?.displacements.get(7)).toHaveLength(model.nodes.length);
     expect(gpu.writes.some((write) => write.bytes.byteLength === model.nodes.length * 4)).toBe(
       true,

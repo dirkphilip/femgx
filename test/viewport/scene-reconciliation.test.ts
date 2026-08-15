@@ -10,32 +10,43 @@ import { reconcileInteractionState } from "../../src/viewport/scene-reconciliati
 
 function reusableScene() {
   const part = createPart(1, {
-    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-    indices: new Uint32Array([0, 1, 2]),
-    primitive: "triangles" as const,
-    elements: [{ id: 10, primitiveStart: 0, primitiveCount: 1, bodyId: 7, blockId: 11 }],
-    faces: [
+    geometries: [
       {
-        elementId: 10,
-        faceIndex: 0,
-        primitiveStart: 0,
-        primitiveCount: 1,
-        key: "0/1/2",
-        nodeIds: [0, 1, 2],
-        neighborElementIds: [],
+        positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+        indices: new Uint32Array([0, 1, 2]),
+        primitive: "triangles" as const,
+        faces: [
+          {
+            elementId: 10,
+            faceIndex: 0,
+            primitiveStart: 0,
+            primitiveCount: 1,
+            key: "0/1/2",
+            nodeIds: [0, 1, 2],
+            neighborElementIds: [],
+            bodyId: 7,
+            blockId: 11,
+          },
+        ],
+        edges: [
+          {
+            key: "0,1",
+            nodeIds: [0, 1],
+            incidentElementIds: [10],
+            faceRefs: [{ elementId: 10, faceIndex: 0 }],
+          },
+        ],
+        nodePickIds: new Uint32Array([1, 2, 3]),
+      },
+    ],
+    elements: [
+      {
+        id: 10,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
         bodyId: 7,
         blockId: 11,
       },
     ],
-    edges: [
-      {
-        key: "0,1",
-        nodeIds: [0, 1],
-        incidentElementIds: [10],
-        faceRefs: [{ elementId: 10, faceIndex: 0 }],
-      },
-    ],
-    nodePickIds: new Uint32Array([1, 2, 3]),
     nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     bodies: [{ id: 7, elementIds: [10] }],
     blocks: [{ id: 11, elementIds: [10] }],

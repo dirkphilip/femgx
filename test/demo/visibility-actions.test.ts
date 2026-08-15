@@ -27,8 +27,8 @@ describe("WorkbenchVisibilityActions", () => {
     if (first === undefined || second === undefined) {
       throw new Error("Fixture must contain two instances");
     }
-    const firstElement = scene.parts.get(first.partId)?.geometry.elements?.[0];
-    const secondElement = scene.parts.get(second.partId)?.geometry.elements?.[0];
+    const firstElement = scene.parts.get(first.partId)?.elements?.[0];
+    const secondElement = scene.parts.get(second.partId)?.elements?.[0];
     if (firstElement === undefined || secondElement === undefined) {
       throw new Error("Fixture must contain two elements");
     }
@@ -68,7 +68,7 @@ describe("WorkbenchVisibilityActions", () => {
     const runtime = createSceneRuntime(scene);
     const instance = runtime.getInstances()[0];
     if (instance === undefined) throw new Error("Fixture must contain an instance");
-    const element = scene.parts.get(instance.partId)?.geometry.elements?.[0];
+    const element = scene.parts.get(instance.partId)?.elements?.[0];
     if (element === undefined) throw new Error("Fixture must contain an element");
     const target = {
       kind: "element" as const,
@@ -93,7 +93,7 @@ describe("WorkbenchVisibilityActions", () => {
     const runtime = createSceneRuntime(scene);
     const firstInstance = runtime.getInstances()[0];
     if (firstInstance === undefined) throw new Error("Fixture must contain an instance");
-    const firstBody = scene.parts.get(firstInstance.partId)?.geometry.bodies?.[0];
+    const firstBody = scene.parts.get(firstInstance.partId)?.bodies?.[0];
     if (firstBody === undefined) throw new Error("Fixture must contain a body");
 
     let interaction = setBodyVisible(
@@ -101,7 +101,7 @@ describe("WorkbenchVisibilityActions", () => {
       { instanceId: firstInstance.instanceId, bodyId: firstBody.id },
       false,
     );
-    const firstElement = scene.parts.get(firstInstance.partId)?.geometry.elements?.[0];
+    const firstElement = scene.parts.get(firstInstance.partId)?.elements?.[0];
     if (firstElement === undefined) throw new Error("Fixture must contain an element");
     interaction = setElementVisible(
       interaction,
@@ -166,13 +166,13 @@ describe("WorkbenchVisibilityActions", () => {
     expect(calls).toEqual(expectedCalls);
 
     for (const instance of runtime.getInstances()) {
-      const bodies = scene.parts.get(instance.partId)?.geometry.bodies ?? [];
+      const bodies = scene.parts.get(instance.partId)?.bodies ?? [];
       for (const body of bodies) {
         expect(
           isBodyVisible(interaction, { instanceId: instance.instanceId, bodyId: body.id }),
         ).toBe(true);
       }
-      for (const element of scene.parts.get(instance.partId)?.geometry.elements ?? []) {
+      for (const element of scene.parts.get(instance.partId)?.elements ?? []) {
         expect(
           isElementVisible(interaction, { instanceId: instance.instanceId, elementId: element.id }),
         ).toBe(true);

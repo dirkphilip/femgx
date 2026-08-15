@@ -9,23 +9,28 @@ import { GeometryValidationError } from "./validation-error";
 export { faceForPrimitive, validateFaceSubset } from "./face-validation";
 export { GeometryValidationError, type GeometryValidationCode } from "./validation-error";
 
+interface PartSemanticGeometry {
+  readonly elements?: readonly Pick<ElementTessellation, "id" | "bodyId">[];
+  readonly bodies?: readonly GeometryBody[];
+}
+
 /**
  * Validates element descriptors against a primitive buffer. When elements are
  * declared, every logical primitive must be covered by exactly one element and
  * ids must be unique. Geometry without element descriptors always validates.
  */
-export function validateElements(geometry: {
-  readonly positions?: Float32Array;
-  readonly indices: Uint32Array;
-  readonly primitive: "triangles" | "lines" | "points";
-  readonly elements?: readonly ElementTessellation[];
-}): void {
-  const elements = geometry.elements;
+export function validateElements(
+  geometry: {
+    readonly positions?: Float32Array;
+    readonly indices: Uint32Array;
+    readonly primitive: "triangles" | "lines" | "points";
+  },
+  elements: readonly ElementTessellation[] | undefined,
+): void {
   if (elements === undefined || elements.length === 0) return;
   const primitive = geometry.primitive;
   const primitiveCount = logicalPrimitiveCount(geometry);
   const coverage = new Uint8Array(primitiveCount);
-  const seenIds = new Set<ElementId>();
   for (const element of elements) {
     validateOneBasedId(element.id, "Element");
     if (element.bodyId !== undefined) validateBodyId(element.bodyId);
@@ -38,10 +43,7 @@ export function validateElements(geometry: {
         `Element block id ${element.blockId} must be a finite integer in [1, ${MAX_ONE_BASED_ID}]`,
       );
     }
-    if (seenIds.has(element.id)) {
-      throw new Error(`Duplicate element id ${element.id}`);
-    }
-    seenIds.add(element.id);
+    if (!element.primitiveRanges.some((range) => range.primitive === primitive)) continue;
     validateElementRanges(element, primitive, primitiveCount, coverage);
   }
   for (let primitiveIndex = 0; primitiveIndex < primitiveCount; primitiveIndex++) {
@@ -59,16 +61,16 @@ function validateElementRanges(
   primitiveCount: number,
   coverage: Uint8Array,
 ): void {
-  const ranges = element.primitiveRanges?.filter(
-    (candidate) => candidate.primitive === primitive,
-  ) ?? [{ primitiveStart: element.primitiveStart, primitiveCount: element.primitiveCount }];
-  if (element.primitiveRanges?.some((candidate) => candidate.primitive !== primitive)) {
-    throw new Error(`Element ${element.id} declares a range for another primitive group`);
-  }
+  const ranges = element.primitiveRanges.filter((candidate) => candidate.primitive === primitive);
   if (ranges.length === 0)
     throw new Error(`Element ${element.id} has no ${primitiveLabel(primitive)}`);
   for (const range of ranges) {
-    if (range.primitiveCount <= 0)
+    if (
+      !Number.isInteger(range.primitiveStart) ||
+      range.primitiveStart < 0 ||
+      !Number.isInteger(range.primitiveCount) ||
+      range.primitiveCount <= 0
+    )
       throw new Error(`Element ${element.id} has no ${primitiveLabel(primitive)}`);
     const end = range.primitiveStart + range.primitiveCount;
     if (range.primitiveStart < 0 || end > primitiveCount) {
@@ -105,12 +107,14 @@ export function logicalPrimitiveCount(geometry: {
   }
 }
 
-/** Resolves the single logical primitive range owned by an element. */
-export function primitiveRangeForElement(element: ElementTessellation): {
-  readonly start: number;
-  readonly count: number;
-} {
-  return { start: element.primitiveStart, count: element.primitiveCount };
+/** Resolves the logical primitive ranges owned by an element in one geometry. */
+export function primitiveRangesForElement(
+  element: ElementTessellation,
+  primitive: "triangles" | "lines" | "points",
+): readonly { readonly start: number; readonly count: number }[] {
+  return element.primitiveRanges
+    .filter((range) => range.primitive === primitive)
+    .map(({ primitiveStart: start, primitiveCount: count }) => ({ start, count }));
 }
 
 function primitiveLabel(primitive: "triangles" | "lines" | "points"): string {
@@ -145,6 +149,40 @@ export function validateBodies(geometry: {
   const elementIds = new Set((geometry.elements ?? []).map((element) => element.id));
   const membership = collectBodyMembership(bodies, elementIds);
   validateElementMembership(geometry.elements ?? [], membership.declaredBodies, membership.ids);
+}
+
+/** Validates semantic block metadata against one complete part element table. */
+export function validateBlocks(geometry: {
+  readonly elements?: readonly Pick<ElementTessellation, "id">[];
+  readonly blocks?: readonly GeometryElementBlock[];
+}): void {
+  const blocks = geometry.blocks;
+  if (blocks === undefined || blocks.length === 0) return;
+  const elementIds = new Set((geometry.elements ?? []).map((element) => element.id));
+  const seenBlocks = new Set<number>();
+  const seenElements = new Set<ElementId>();
+  let previousBlockId: number | undefined;
+  for (const block of blocks) {
+    validateDerivedBlockId(block);
+    if (seenBlocks.has(block.id)) {
+      throw new GeometryValidationError(
+        "duplicate-block-id",
+        `Duplicate element block id ${block.id}`,
+      );
+    }
+    if (previousBlockId !== undefined && block.id <= previousBlockId) {
+      throw new GeometryValidationError(
+        "block-order",
+        `Element block ids must be strictly ascending; ${block.id} follows ${previousBlockId}`,
+      );
+    }
+    if (block.elementIds.length === 0) {
+      throw new GeometryValidationError("empty-block", `Element block ${block.id} is empty`);
+    }
+    validateDerivedBlockElements(block, elementIds, seenElements);
+    seenBlocks.add(block.id);
+    previousBlockId = block.id;
+  }
 }
 
 /** Resolves body ownership once against a complete element list. */
@@ -280,7 +318,7 @@ function validateElementMembership(
 
 /** Returns the body id associated with an element, if any. */
 export function bodyIdForElement(
-  geometry: Pick<Geometry, "elements" | "bodies">,
+  geometry: PartSemanticGeometry,
   elementId: ElementId,
 ): BodyId | undefined {
   const element = geometry.elements?.find((candidate) => candidate.id === elementId);
@@ -292,50 +330,21 @@ export function bodyIdForElement(
  * Validates optional node/face pick-id arrays against vertex and triangle
  * counts and the declared face descriptors.
  */
-export function validatePickIds(geometry: Geometry): void {
+export function validatePickIds(
+  geometry: Geometry,
+  elements: readonly ElementTessellation[] | undefined,
+  nodePositions: Float32Array | undefined,
+): void {
   const vertexCount = geometry.positions.length / 3;
   if (geometry.nodePickIds !== undefined && geometry.nodePickIds.length !== vertexCount) {
     throw new Error(
       `nodePickIds must have one entry per vertex (${vertexCount}), got ${geometry.nodePickIds.length}`,
     );
   }
-  validateNodePickIds(geometry);
-  validateEdges(geometry);
-  validateFaceMetadata(geometry);
+  validateNodePickIds(geometry, nodePositions);
+  validateEdges(geometry, elements);
+  validateFaceMetadata(geometry, elements, nodePositions);
   validateFaceSubset(geometry);
-  validateDerivedBlocks(geometry);
-  validateBodies(geometry);
-}
-
-/** Validates stable authored-edge metadata against the part's element identities. */
-function validateDerivedBlocks(geometry: Geometry): void {
-  const blocks = geometry.blocks;
-  if (blocks === undefined || blocks.length === 0) return;
-  const elementIds = new Set((geometry.elements ?? []).map((element) => element.id));
-  const seenBlocks = new Set<number>();
-  const seenElements = new Set<ElementId>();
-  let previousBlockId: number | undefined;
-  for (const block of blocks) {
-    validateDerivedBlockId(block);
-    if (seenBlocks.has(block.id)) {
-      throw new GeometryValidationError(
-        "duplicate-block-id",
-        `Duplicate element block id ${block.id}`,
-      );
-    }
-    if (previousBlockId !== undefined && block.id <= previousBlockId) {
-      throw new GeometryValidationError(
-        "block-order",
-        `Element block ids must be strictly ascending; ${block.id} follows ${previousBlockId}`,
-      );
-    }
-    if (block.elementIds.length === 0) {
-      throw new GeometryValidationError("empty-block", `Element block ${block.id} is empty`);
-    }
-    validateDerivedBlockElements(block, elementIds, seenElements);
-    seenBlocks.add(block.id);
-    previousBlockId = block.id;
-  }
 }
 
 function validateDerivedBlockId(block: GeometryElementBlock): void {
@@ -377,9 +386,8 @@ function validateDerivedBlockElements(
   }
 }
 
-function validateNodePickIds(geometry: Geometry): void {
-  const nodeCount =
-    geometry.nodePositions === undefined ? undefined : geometry.nodePositions.length / 3;
+function validateNodePickIds(geometry: Geometry, nodePositions: Float32Array | undefined): void {
+  const nodeCount = nodePositions === undefined ? undefined : nodePositions.length / 3;
   if (nodeCount !== undefined && !Number.isInteger(nodeCount)) {
     throw new Error("nodePositions length must be a multiple of 3");
   }

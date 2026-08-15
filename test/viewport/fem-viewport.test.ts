@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createPart, type Part } from "../../src/geometry/part";
+import {
+  createPart,
+  type ElementTessellation,
+  type Geometry,
+  type GeometryBody,
+  type GeometryElementBlock,
+  type Part,
+} from "../../src/geometry/part";
 import { createResultField } from "../../src/results/fields";
 import { setBodyOverride, setBodyVisible } from "../../src/interaction/bodies";
 import { setPartOverride } from "../../src/interaction/interaction";
@@ -15,6 +22,13 @@ import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-g
 
 let restoreGpuGlobals: (() => void) | undefined;
 const originalNavigator = globalThis.navigator;
+
+type SemanticGeometry = Geometry & {
+  readonly elements?: readonly ElementTessellation[];
+  readonly nodePositions?: Float32Array;
+  readonly bodies?: readonly GeometryBody[];
+  readonly blocks?: readonly GeometryElementBlock[];
+};
 
 afterEach(() => {
   restoreGpuGlobals?.();
@@ -107,7 +121,7 @@ function scene(offset = 0) {
     primitive: "triangles" as const,
   };
   return createScene()
-    .addPart(createPart(1, geometry))
+    .addPart(createPart(1, { geometries: [geometry] }))
     .addAssembly({
       id: 1,
       name: "root",
@@ -146,10 +160,16 @@ function resultScene(nodeCount: 3 | 6): Scene {
   return createScene()
     .addPart(
       createPart(1, {
-        positions,
-        indices,
-        primitive: "triangles",
-        nodePickIds: new Uint32Array(Array.from({ length: nodeCount }, (_, index) => index + 1)),
+        geometries: [
+          {
+            positions,
+            indices,
+            primitive: "triangles",
+            nodePickIds: new Uint32Array(
+              Array.from({ length: nodeCount }, (_, index) => index + 1),
+            ),
+          },
+        ],
       }),
     )
     .addAssembly({
@@ -197,13 +217,23 @@ function orientationResult() {
 
 function identityScene(withSecondElement: boolean): Scene {
   const geometry = withSecondElement
-    ? {
+    ? ({
         positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0, 1, 1, 0]),
         indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
         primitive: "triangles" as const,
         elements: [
-          { id: 10, primitiveStart: 0, primitiveCount: 1, bodyId: 1, blockId: 1 },
-          { id: 11, primitiveStart: 1, primitiveCount: 1, bodyId: 1, blockId: 2 },
+          {
+            id: 10,
+            primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+            bodyId: 1,
+            blockId: 1,
+          },
+          {
+            id: 11,
+            primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+            bodyId: 1,
+            blockId: 2,
+          },
         ],
         faces: [
           {
@@ -236,12 +266,17 @@ function identityScene(withSecondElement: boolean): Scene {
           { id: 1, elementIds: [10] },
           { id: 2, elementIds: [11] },
         ],
-      }
-    : {
+      } satisfies SemanticGeometry)
+    : ({
         positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
         indices: new Uint32Array([0, 1, 2]),
         primitive: "triangles" as const,
-        elements: [{ id: 10, primitiveStart: 0, primitiveCount: 1 }],
+        elements: [
+          {
+            id: 10,
+            primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+          },
+        ],
         faces: [
           {
             elementId: 10,
@@ -255,9 +290,18 @@ function identityScene(withSecondElement: boolean): Scene {
         ],
         nodePickIds: new Uint32Array([1, 2, 3]),
         nodePositions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
-      };
+      } satisfies SemanticGeometry);
+  const { elements, nodePositions, bodies, blocks, ...localGeometry } = geometry;
   return explicitScene(
-    [createPart(1, geometry)],
+    [
+      createPart(1, {
+        geometries: [localGeometry],
+        elements,
+        nodePositions,
+        ...(bodies === undefined ? {} : { bodies }),
+        ...(blocks === undefined ? {} : { blocks }),
+      }),
+    ],
     [{ kind: "part", placementId: "keep", partId: 1, transform: translation(0, 0, 0) }],
   );
 }
@@ -711,9 +755,9 @@ describe("FemViewport", () => {
       indices: new Uint32Array([0, 1, 2]),
       primitive: "triangles" as const,
     };
-    const keep = createPart(1, geometry);
-    const remove = createPart(2, geometry);
-    const added = createPart(3, geometry);
+    const keep = createPart(1, { geometries: [geometry] });
+    const remove = createPart(2, { geometries: [geometry] });
+    const added = createPart(3, { geometries: [geometry] });
     const initial = explicitScene(
       [remove, keep],
       [

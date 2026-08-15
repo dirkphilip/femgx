@@ -26,7 +26,7 @@ function part(id: PartId): Part {
     indices: new Uint32Array(),
     primitive: "triangles" as const,
   };
-  return createPart(id, geometry);
+  return createPart(id, { geometries: [geometry] });
 }
 
 function stressScene(): Scene {

@@ -1,14 +1,17 @@
 import type { ElementId } from "../elements/element";
 import { canonicalKey } from "../elements/keys";
 import { faceIdentity } from "./element-face-selection";
-import type { Geometry, GeometryEdge } from "./types";
+import type { ElementTessellation, Geometry, GeometryEdge } from "./types";
 import { GeometryValidationError } from "./validation-error";
 
 /** Validates stable authored-edge metadata against the part's element identities. */
-export function validateEdges(geometry: Geometry): void {
+export function validateEdges(
+  geometry: Geometry,
+  elements: readonly ElementTessellation[] | undefined,
+): void {
   const edges = geometry.edges;
   if (edges === undefined) return;
-  const elementIds = new Set((geometry.elements ?? []).map((element) => element.id));
+  const elementIds = new Set((elements ?? []).map((element) => element.id));
   const faceIds = new Set(
     (geometry.primitive === "triangles" ? (geometry.faces ?? []) : []).map((face) =>
       faceIdentity(face.elementId, face.faceIndex),

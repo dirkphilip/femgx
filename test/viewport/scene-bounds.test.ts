@@ -17,24 +17,34 @@ import {
 
 function sceneWithRepeatedPart(placementCount = 2) {
   const part = createPart(1, {
-    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-    indices: new Uint32Array([0, 1, 2]),
-    primitive: "triangles",
-    elements: [{ id: 8, primitiveStart: 0, primitiveCount: 1, bodyId: 4 }],
-    nodePickIds: new Uint32Array([1, 2, 3]),
-    nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-    faces: [
+    geometries: [
       {
-        elementId: 8,
-        faceIndex: 0,
-        primitiveStart: 0,
-        primitiveCount: 1,
-        key: "0/1/2",
-        nodeIds: [0, 1, 2],
-        neighborElementIds: [],
+        positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+        indices: new Uint32Array([0, 1, 2]),
+        primitive: "triangles",
+        nodePickIds: new Uint32Array([1, 2, 3]),
+        faces: [
+          {
+            elementId: 8,
+            faceIndex: 0,
+            primitiveStart: 0,
+            primitiveCount: 1,
+            key: "0/1/2",
+            nodeIds: [0, 1, 2],
+            neighborElementIds: [],
+            bodyId: 4,
+          },
+        ],
+      },
+    ],
+    elements: [
+      {
+        id: 8,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
         bodyId: 4,
       },
     ],
+    nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     bodies: [{ id: 4, elementIds: [8] }],
   });
   return createScene()

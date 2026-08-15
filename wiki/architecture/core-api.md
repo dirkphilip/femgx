@@ -46,9 +46,8 @@ import {
 const geometry: Geometry = {
   positions,
   indices,
-  elements,
 };
-const part = createPart(1, geometry);
+const part = createPart(1, { geometries: [geometry], elements });
 
 const scene = createScene()
   .addPart(part)
@@ -79,8 +78,10 @@ viewport.destroy();
 
 `createPart` retains the supplied typed arrays without defensive copies and
 takes ownership of them; callers must not mutate or reuse them afterward.
-`elements` is optional; when present, each triangle belongs to exactly one
-stable element range and can participate in element picking and interaction.
+`input.elements` is optional; when present, each primitive belongs to exactly
+one range qualified by its primitive group and can participate in element
+picking and interaction. Semantic node, body, and block tables are likewise
+part-level inputs rather than geometry fields.
 `pointSizePixels` and `nodeSizePixels` are independent screen-space diameters
 in CSS pixels. They default to 8 and 6, accept values in `[1,64]`, and can be
 changed later with `viewport.setPointSizePixels` and

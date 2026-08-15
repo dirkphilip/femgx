@@ -34,116 +34,142 @@ import type { DenseElementSelections } from "../../src/renderer/gpu-element-sele
 const HIGHLIGHT_BUFFER_SIZE = HIGHLIGHT_HEADER + INITIAL_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE;
 
 const part: Part = createPart(1, {
-  positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-  indices: new Uint32Array([0, 1, 2]),
-  primitive: "triangles" as const,
+  geometries: [
+    {
+      positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+      primitive: "triangles" as const,
+    },
+  ],
 });
 
 const authoredEdgePart: Part = createPart(5, {
-  positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-  indices: new Uint32Array([0, 1, 2]),
-  primitive: "triangles" as const,
-  nodePickIds: new Uint32Array([1, 2, 3]),
-  elements: [{ id: 4, primitiveStart: 0, primitiveCount: 1 }],
-  faces: [
+  geometries: [
     {
-      elementId: 4,
-      faceIndex: 0,
-      primitiveStart: 0,
-      primitiveCount: 1,
-      key: "face",
-      nodeIds: [0, 1, 2],
-      neighborElementIds: [],
+      positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+      primitive: "triangles" as const,
+      nodePickIds: new Uint32Array([1, 2, 3]),
+      faces: [
+        {
+          elementId: 4,
+          faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 1,
+          key: "face",
+          nodeIds: [0, 1, 2],
+          neighborElementIds: [],
+        },
+      ],
+      edges: [
+        {
+          key: "0,1",
+          nodeIds: [0, 1],
+          incidentElementIds: [4],
+          faceRefs: [{ elementId: 4, faceIndex: 0 }],
+        },
+        {
+          key: "0,2",
+          nodeIds: [0, 2],
+          incidentElementIds: [4],
+          faceRefs: [{ elementId: 4, faceIndex: 0 }],
+        },
+        {
+          key: "1,2",
+          nodeIds: [1, 2],
+          incidentElementIds: [4],
+          faceRefs: [{ elementId: 4, faceIndex: 0 }],
+        },
+      ],
     },
   ],
-  edges: [
-    {
-      key: "0,1",
-      nodeIds: [0, 1],
-      incidentElementIds: [4],
-      faceRefs: [{ elementId: 4, faceIndex: 0 }],
-    },
-    {
-      key: "0,2",
-      nodeIds: [0, 2],
-      incidentElementIds: [4],
-      faceRefs: [{ elementId: 4, faceIndex: 0 }],
-    },
-    {
-      key: "1,2",
-      nodeIds: [1, 2],
-      incidentElementIds: [4],
-      faceRefs: [{ elementId: 4, faceIndex: 0 }],
-    },
+  elements: [
+    { id: 4, primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }] },
   ],
 });
 
 const subsetPart: Part = createPart(2, {
-  positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1]),
-  indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
-  primitive: "triangles" as const,
-  faces: [
+  geometries: [
     {
-      elementId: 1,
-      faceIndex: 0,
-      primitiveStart: 0,
-      primitiveCount: 1,
-      key: "0,1,2",
-      nodeIds: [0, 1, 2],
-      neighborElementIds: [],
-    },
-    {
-      elementId: 1,
-      faceIndex: 1,
-      primitiveStart: 1,
-      primitiveCount: 1,
-      key: "3,4,5",
-      nodeIds: [3, 4, 5],
-      neighborElementIds: [],
+      positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1]),
+      indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+      primitive: "triangles" as const,
+      faces: [
+        {
+          elementId: 1,
+          faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 1,
+          key: "0,1,2",
+          nodeIds: [0, 1, 2],
+          neighborElementIds: [],
+        },
+        {
+          elementId: 1,
+          faceIndex: 1,
+          primitiveStart: 1,
+          primitiveCount: 1,
+          key: "3,4,5",
+          nodeIds: [3, 4, 5],
+          neighborElementIds: [],
+        },
+      ],
+      faceSubset: { faceIds: [{ elementId: 1, faceIndex: 1 }] },
     },
   ],
-  faceSubset: { faceIds: [{ elementId: 1, faceIndex: 1 }] },
 });
 
 const logicalPointPart: Part = createPart(3, {
-  positions: new Float32Array([0, 0, 0, 1, 1, 1]),
-  indices: new Uint32Array([0, 1]),
-  primitive: "points",
-  elements: [
-    { id: 10, primitiveStart: 0, primitiveCount: 1 },
-    { id: 11, primitiveStart: 1, primitiveCount: 1 },
+  geometries: [
+    {
+      positions: new Float32Array([0, 0, 0, 1, 1, 1]),
+      indices: new Uint32Array([0, 1]),
+      primitive: "points",
+      nodePickIds: new Uint32Array([1, 2]),
+    },
   ],
-  nodePickIds: new Uint32Array([1, 2]),
+  elements: [
+    { id: 10, primitiveRanges: [{ primitive: "points", primitiveStart: 0, primitiveCount: 1 }] },
+    { id: 11, primitiveRanges: [{ primitive: "points", primitiveStart: 1, primitiveCount: 1 }] },
+  ],
 });
 
 const nodePart: Part = createPart(4, {
-  positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-  indices: new Uint32Array([0, 1, 2]),
-  primitive: "triangles",
+  geometries: [
+    {
+      positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+      primitive: "triangles",
+      nodePickIds: new Uint32Array([1, 2, 3]),
+    },
+  ],
   nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-  nodePickIds: new Uint32Array([1, 2, 3]),
 });
 
-const mixedPart: Part = createPart(6, [
-  {
-    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-    indices: new Uint32Array([0, 1, 2]),
-    primitive: "triangles" as const,
-    elements: [{ id: 1, primitiveStart: 0, primitiveCount: 1 }],
-  },
-  {
-    positions: new Float32Array([0, 0, 0, 1, 1, 1]),
-    indices: new Uint32Array([0, 1]),
-    primitive: "lines" as const,
-    elements: [{ id: 2, primitiveStart: 0, primitiveCount: 1 }],
-  },
-  {
-    positions: new Float32Array([0.5, 0.5, 0.5]),
-    indices: new Uint32Array([0]),
-    primitive: "points" as const,
-    elements: [{ id: 3, primitiveStart: 0, primitiveCount: 1 }],
-  },
-]);
+const mixedPart: Part = createPart(6, {
+  geometries: [
+    {
+      positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+      primitive: "triangles",
+    },
+    {
+      positions: new Float32Array([0, 0, 0, 1, 1, 1]),
+      indices: new Uint32Array([0, 1]),
+      primitive: "lines",
+    },
+    {
+      positions: new Float32Array([0.5, 0.5, 0.5]),
+      indices: new Uint32Array([0]),
+      primitive: "points",
+    },
+  ],
+  elements: [
+    { id: 1, primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }] },
+    { id: 2, primitiveRanges: [{ primitive: "lines", primitiveStart: 0, primitiveCount: 1 }] },
+    { id: 3, primitiveRanges: [{ primitive: "points", primitiveStart: 0, primitiveCount: 1 }] },
+  ],
+});
 
 function record(x: number): ArrayBuffer {
   return encodeInstanceRecord(translation(x, 0, 0), defaultStyle, 1);
@@ -802,9 +828,13 @@ describe("GPU draw path", () => {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
       const linePart = createPart(4, {
-        positions: new Float32Array([0, 0, 0, 1, 0, 0]),
-        indices: new Uint32Array([0, 1]),
-        primitive: "lines",
+        geometries: [
+          {
+            positions: new Float32Array([0, 0, 0, 1, 0, 0]),
+            indices: new Uint32Array([0, 1]),
+            primitive: "lines",
+          },
+        ],
       });
       patchInstances(draw, linePart.id, [{ slot: 0, data: record(0) }]);
       writeEdgeOrder(draw, linePart.id, new Uint32Array([0]));
@@ -863,14 +893,22 @@ describe("GPU draw path", () => {
       const draw = createDrawResources(gpu.device);
       const trianglePart = part;
       const linePart = createPart(2, {
-        positions: new Float32Array([0, 0, 0, 1, 0, 0]),
-        indices: new Uint32Array([0, 1]),
-        primitive: "lines",
+        geometries: [
+          {
+            positions: new Float32Array([0, 0, 0, 1, 0, 0]),
+            indices: new Uint32Array([0, 1]),
+            primitive: "lines",
+          },
+        ],
       });
       const pointPart = createPart(3, {
-        positions: new Float32Array([0, 0, 0, 1, 0, 0]),
-        indices: new Uint32Array([0, 1]),
-        primitive: "points",
+        geometries: [
+          {
+            positions: new Float32Array([0, 0, 0, 1, 0, 0]),
+            indices: new Uint32Array([0, 1]),
+            primitive: "points",
+          },
+        ],
       });
       const pipelines = {
         trianglesColor: { name: "triangles-color" },

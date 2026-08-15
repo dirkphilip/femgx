@@ -6,16 +6,17 @@ describe("createPerformancePreset", () => {
     const preset = createPerformancePreset();
     const part = preset.scene.parts.get(1);
     if (part === undefined) throw new Error("performance fixture part is missing");
+    const geometry = part.geometries[0];
+    if (geometry?.primitive !== "triangles")
+      throw new Error("performance fixture is not triangles");
 
     expect(preset.id).toBe("performance");
-    expect(part.geometry.indices.length).toBe(128 * 128 * 6);
-    expect(part.geometry.nodePositions).toBe(part.geometry.positions);
-    expect(part.geometry.nodePickIds).toHaveLength(129 * 129);
-    expect(part.geometry.elements).toHaveLength(128 * 128);
-    if (part.geometry.primitive !== "triangles")
-      throw new Error("performance fixture is not triangles");
-    expect(part.geometry.faces).toHaveLength(128 * 128);
+    expect(geometry.indices.length).toBe(128 * 128 * 6);
+    expect(part.nodePositions).toBe(geometry.positions);
+    expect(geometry.nodePickIds).toHaveLength(129 * 129);
+    expect(part.elements).toHaveLength(128 * 128);
+    expect(geometry.faces).toHaveLength(128 * 128);
     expect(preset.scene.assemblies.get(preset.scene.rootAssemblyId)?.placements).toHaveLength(64);
-    expect((part.geometry.indices.length / 3) * 64).toBe(2_097_152);
+    expect((geometry.indices.length / 3) * 64).toBe(2_097_152);
   });
 });

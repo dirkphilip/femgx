@@ -17,11 +17,15 @@ const ROWS = 8;
  * the standard two-sided FE surface renderer, not a benchmark-only path.
  */
 export function createPerformancePreset(): ModelPreset {
-  const geometry = createPlanarGridGeometry(CELLS_PER_SIDE, {
+  const build = createPlanarGridGeometry(CELLS_PER_SIDE, {
     elementFamily: "quad",
     withFaces: true,
   });
-  const part: Part = createPart(PART_ID, geometry);
+  const part: Part = createPart(PART_ID, {
+    geometries: [build.geometry],
+    elements: build.elements,
+    nodePositions: build.nodePositions,
+  });
   let builder = createScene().addPart(part);
   builder = builder.addAssembly({
     id: ROOT_ASSEMBLY_ID,

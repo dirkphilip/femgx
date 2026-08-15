@@ -22,8 +22,9 @@ canonical `key`, neighbor element ids, and exact triangle
 `primitiveStart`/`primitiveCount` range are retained in the resulting
 `FaceTessellation`; face-array order is not identity. Triangle ranges are
 grouped by element so element picking and results can use the existing
-`ElementTessellation` contract. Node pick ids and source node positions are
-also preserved for node picking and nodal deformation.
+`ElementTessellation` contract on the returned `Part`. Node pick ids remain on
+the triangle geometry while source node positions and element descriptors are
+owned by that part for node picking and nodal deformation.
 
 Polygon triangles use the same internal shared-index assembler as typed finite
 elements. Repeated authored node ids reuse one output vertex, while coincident

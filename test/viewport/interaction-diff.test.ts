@@ -35,8 +35,8 @@ function runtime(): SceneRuntime {
     transform: translation(x, 0, 0),
   });
   const scene = createScene()
-    .addPart(createPart(1, geometry))
-    .addPart(createPart(2, geometry))
+    .addPart(createPart(1, { geometries: [geometry] }))
+    .addPart(createPart(2, { geometries: [geometry] }))
     .addAssembly({
       id: 1,
       name: "root",

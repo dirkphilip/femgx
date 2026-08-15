@@ -59,10 +59,10 @@ describe("demo workbench model boundary", () => {
 
     const gallery = createExampleModel(createGalleryPreset());
     const pointPart = [...gallery.scene.parts.values()].find(
-      (part) => part.geometry.primitive === "points",
+      (part) => part.geometries[0]?.primitive === "points",
     );
     const surfacePart = [...gallery.scene.parts.values()].find(
-      (part) => part.geometry.primitive !== "points",
+      (part) => part.geometries[0]?.primitive !== "points",
     );
     if (pointPart === undefined || surfacePart === undefined) throw new Error("gallery incomplete");
     expect(partStyleOverride(gallery, pointPart.id, true, true)).not.toHaveProperty("nodes");

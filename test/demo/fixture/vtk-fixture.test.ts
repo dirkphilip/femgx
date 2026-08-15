@@ -46,7 +46,7 @@ describe("createVtkFixture", () => {
       ["temperature", "nodal"],
     ]);
     expect(fixture.scene.parts.size).toBe(1);
-    const solid = fixture.scene.parts.get(fixture.partIds.solid)?.geometry;
+    const solid = fixture.scene.parts.get(fixture.partIds.solid)?.geometries[0];
     if (solid?.primitive !== "triangles") throw new Error("VTK solid fixture is not triangles");
     expect(solid.faceSubset?.faceIds.length).toBeGreaterThan(0);
     expect(solid.faceSubset?.faceIds.length).toBeLessThan(solid.faces?.length ?? 0);

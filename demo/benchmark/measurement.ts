@@ -178,20 +178,20 @@ function installOrientationBenchmarkState(
 function countUniqueVertices(benchmarkCase: WebGpuBenchmarkCase): number {
   let count = 0;
   for (const part of benchmarkCase.scene.parts.values())
-    count += part.geometry.positions.length / 3;
+    for (const geometry of part.geometries) count += geometry.positions.length / 3;
   return count;
 }
 
 function countUniqueTriangles(benchmarkCase: WebGpuBenchmarkCase): number {
   let count = 0;
-  for (const part of benchmarkCase.scene.parts.values()) count += part.geometry.indices.length / 3;
+  for (const part of benchmarkCase.scene.parts.values())
+    for (const geometry of part.geometries) count += geometry.indices.length / 3;
   return count;
 }
 
 function countUniqueElements(benchmarkCase: WebGpuBenchmarkCase): number {
   let count = 0;
-  for (const part of benchmarkCase.scene.parts.values())
-    count += part.geometry.elements?.length ?? 0;
+  for (const part of benchmarkCase.scene.parts.values()) count += part.elements?.length ?? 0;
   return count;
 }
 
@@ -202,21 +202,23 @@ function countSubmittedElementOccurrences(
   let count = 0;
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
     const partId = runtime.instancePartIds[slot];
-    count += benchmarkCase.scene.parts.get(partId ?? 0)?.geometry.elements?.length ?? 0;
+    count += benchmarkCase.scene.parts.get(partId ?? 0)?.elements?.length ?? 0;
   }
   return count;
 }
 
 function countBodies(benchmarkCase: WebGpuBenchmarkCase): number {
   let count = 0;
-  for (const part of benchmarkCase.scene.parts.values()) count += part.geometry.bodies?.length ?? 0;
+  for (const part of benchmarkCase.scene.parts.values()) count += part.bodies?.length ?? 0;
   return count;
 }
 
 function countNodes(benchmarkCase: WebGpuBenchmarkCase): number {
   let count = 0;
   for (const part of benchmarkCase.scene.parts.values()) {
-    count += (part.geometry.nodePositions?.length ?? part.geometry.positions.length) / 3;
+    count +=
+      (part.nodePositions?.length ??
+        part.geometries.reduce((total, geometry) => total + geometry.positions.length, 0)) / 3;
   }
   return count;
 }
@@ -224,7 +226,11 @@ function countNodes(benchmarkCase: WebGpuBenchmarkCase): number {
 function countFaces(benchmarkCase: WebGpuBenchmarkCase): number {
   let count = 0;
   for (const part of benchmarkCase.scene.parts.values()) {
-    if (part.geometry.primitive === "triangles") count += part.geometry.faces?.length ?? 0;
+    count += part.geometries.reduce(
+      (total, geometry) =>
+        total + (geometry.primitive === "triangles" ? (geometry.faces?.length ?? 0) : 0),
+      0,
+    );
   }
   return count;
 }
@@ -271,7 +277,8 @@ function submittedTriangleCount(
     if (visibleOnly && !runtime.isInstanceVisible(slot)) continue;
     const partId = runtime.instancePartIds[slot];
     const part = partId === undefined ? undefined : benchmarkCase.scene.parts.get(partId);
-    if (part !== undefined) count += part.geometry.indices.length / 3;
+    if (part !== undefined)
+      count += part.geometries.reduce((total, geometry) => total + geometry.indices.length / 3, 0);
   }
   return count;
 }

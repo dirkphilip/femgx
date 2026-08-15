@@ -27,21 +27,22 @@ export function validateFaceSubset(geometry: Geometry): void {
 }
 
 /** Validates oriented face ranges, metadata, and their triangle coverage. */
-export function validateFaceMetadata(geometry: Geometry): void {
+export function validateFaceMetadata(
+  geometry: Geometry,
+  elements: readonly ElementTessellation[] | undefined,
+  nodePositions: Float32Array | undefined,
+): void {
   if (geometry.primitive !== "triangles" || geometry.faces === undefined) return;
   const elementIds =
-    geometry.elements === undefined
-      ? undefined
-      : new Set(geometry.elements.map((element) => element.id));
-  const elements = new Map((geometry.elements ?? []).map((element) => [element.id, element]));
+    elements === undefined ? undefined : new Set(elements.map((element) => element.id));
+  const elementMap = new Map((elements ?? []).map((element) => [element.id, element]));
   const coverage = new Uint8Array(geometry.indices.length / 3);
   const identities = new Set<string>();
-  const nodeCount =
-    geometry.nodePositions === undefined ? undefined : geometry.nodePositions.length / 3;
+  const nodeCount = nodePositions === undefined ? undefined : nodePositions.length / 3;
   for (const face of geometry.faces) {
     validateOneBasedId(face.elementId, "Face element owner");
     if (face.bodyId !== undefined) validateOneBasedId(face.bodyId, "Body");
-    const element = elements.get(face.elementId);
+    const element = elementMap.get(face.elementId);
     if (elementIds !== undefined && element === undefined) {
       throw new Error(`Face references undeclared element ${face.elementId}`);
     }
@@ -102,8 +103,13 @@ function validateFaceRange(
     throw new Error(`Face ${face.elementId}/${face.faceIndex} is outside the triangle buffer`);
   }
   if (element !== undefined) {
-    const elementEnd = element.primitiveStart + element.primitiveCount;
-    if (face.primitiveStart < element.primitiveStart || end > elementEnd) {
+    const ownsFace = element.primitiveRanges.some(
+      (range) =>
+        range.primitive === "triangles" &&
+        face.primitiveStart >= range.primitiveStart &&
+        end <= range.primitiveStart + range.primitiveCount,
+    );
+    if (!ownsFace) {
       throw new Error(`Face ${face.elementId}/${face.faceIndex} is outside its element range`);
     }
   }

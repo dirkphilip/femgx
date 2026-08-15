@@ -61,10 +61,11 @@ of truth for scene data.
 typed finite-element data. It owns optional semantic element blocks and bodies,
 validates their stable identities and exclusive membership, and keeps omitted
 blocks on the zero-block fast path. A body uses direct element membership or
-aggregates blocks; it cannot use both. `createPart(id, geometry)` remains the
-construction boundary for reusable parts: it validates primitive arrays and
-derived element/pick/body/block metadata, derives bounds from positions, and
-uses a finite zero box for an empty part. `PartId` is a direct unsigned 32-bit
+aggregates blocks; it cannot use both. `createPart(id, input)` remains the
+construction boundary for reusable parts. Local buffers live in the plural
+`input.geometries` collection; complete element, node-position, body, and block
+tables live beside it at part level. The boundary validates those inputs and
+derives bounds from local positions. `PartId` is a direct unsigned 32-bit
 identity; element, block, and body ids reserve the top raw value because `0` is
 the no-hit sentinel. Derived descriptors never become a second authoring
 source.
@@ -72,7 +73,7 @@ source.
 Raw geometry follows this boundary directly:
 
 ```ts
-const part = createPart(10, { positions, indices, primitive: "triangles" });
+const part = createPart(10, { geometries: [{ positions, indices, primitive: "triangles" }] });
 ```
 
 Typed FE data uses the same reusable-part path. A mixed `ElementModel` is

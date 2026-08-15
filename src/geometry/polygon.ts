@@ -108,24 +108,17 @@ export function polygonGeometry(input: PolygonGeometryInput): TriangleGeometry {
     const bodyId = bodyIds.get(group.elementId);
     const tessellation: ElementTessellation = {
       id: group.elementId,
-      primitiveStart,
-      primitiveCount,
+      primitiveRanges: [{ primitive: "triangles", primitiveStart, primitiveCount }],
     };
     elements.push(bodyId === undefined ? tessellation : { ...tessellation, bodyId });
   }
   const faces = records.map((record) =>
     faceTessellation(record, bodyIds.get(record.input.elementId), ranges),
   );
-  const geometry = mesh.build("triangles", {
-    elements,
-    faces,
-    nodePositions: positions,
-    ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
-  });
-  const result: TriangleGeometry = { ...geometry, nodePositions: positions };
-  validateElements(result);
-  validatePickIds(result);
-  return result;
+  const geometry = mesh.build("triangles", { faces });
+  validateElements(geometry, elements);
+  validatePickIds(geometry, elements, positions);
+  return geometry;
 }
 
 /**
@@ -134,7 +127,59 @@ export function polygonGeometry(input: PolygonGeometryInput): TriangleGeometry {
  */
 export function polygonPart(partId: PartId, input: PolygonGeometryInput): Part {
   const geometry = polygonGeometry(input);
-  return createPart(partId, geometry);
+  const elements = polygonElements(geometry.faces ?? [], input.bodies);
+  return createPart(partId, {
+    geometries: [geometry],
+    elements,
+    nodePositions: copyPositions(input.positions),
+    ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
+  });
+}
+
+function polygonElements(
+  faces: readonly FaceTessellation[],
+  bodies: readonly GeometryBody[] | undefined,
+): readonly ElementTessellation[] {
+  const bodyByElement = new Map(
+    (bodies ?? []).flatMap((body) =>
+      body.elementIds.map((elementId) => [elementId, body.id] as const),
+    ),
+  );
+  const byElement = new Map<number, ElementTessellation>();
+  for (const face of faces) {
+    const range = {
+      primitive: "triangles" as const,
+      primitiveStart: face.primitiveStart,
+      primitiveCount: face.primitiveCount,
+    };
+    const previous = byElement.get(face.elementId);
+    const bodyId = bodyByElement.get(face.elementId);
+    if (previous === undefined) {
+      byElement.set(face.elementId, {
+        id: face.elementId,
+        primitiveRanges: [range],
+        ...(bodyId === undefined ? {} : { bodyId }),
+      });
+    } else {
+      const lastRange = previous.primitiveRanges.at(-1);
+      const mergedRange =
+        lastRange !== undefined &&
+        lastRange.primitiveStart + lastRange.primitiveCount === range.primitiveStart
+          ? {
+              ...lastRange,
+              primitiveCount: lastRange.primitiveCount + range.primitiveCount,
+            }
+          : undefined;
+      byElement.set(face.elementId, {
+        ...previous,
+        primitiveRanges:
+          mergedRange === undefined
+            ? [...previous.primitiveRanges, range]
+            : [...previous.primitiveRanges.slice(0, -1), mergedRange],
+      });
+    }
+  }
+  return [...byElement.values()].sort((left, right) => left.id - right.id);
 }
 
 function copyPositions(input: ArrayLike<number>): Float32Array {

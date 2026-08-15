@@ -204,7 +204,11 @@ function uploadBatchGeometry(
   const colors = context.resultColors?.get(part.id);
   return nodes
     ? uploadNodePart(draw, part, colors)
-    : uploadGeometryPart(draw, part, geometry ?? part.geometry, colors);
+    : geometry === undefined
+      ? (() => {
+          throw new Error("Surface draw requires an explicit geometry group");
+        })()
+      : uploadGeometryPart(draw, part, geometry, colors);
 }
 
 function geometriesForIntent(part: Part, intent: DrawIntent): readonly (Geometry | undefined)[] {

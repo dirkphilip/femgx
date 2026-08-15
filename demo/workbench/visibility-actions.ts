@@ -154,14 +154,14 @@ export class WorkbenchVisibilityActions {
     let interaction = this.options.interaction();
     for (const instance of runtime.getInstances()) {
       const part = scene.parts.get(instance.partId);
-      for (const body of part?.geometry.bodies ?? []) {
+      for (const body of part?.bodies ?? []) {
         interaction = setBodyVisible(
           interaction,
           { instanceId: instance.instanceId, bodyId: body.id },
           true,
         );
       }
-      for (const element of part?.geometry.elements ?? []) {
+      for (const element of part?.elements ?? []) {
         interaction = setElementVisible(
           interaction,
           { instanceId: instance.instanceId, elementId: element.id },

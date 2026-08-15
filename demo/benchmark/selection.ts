@@ -132,7 +132,7 @@ function denseSelectionBytes(
   }
   let bytes = 0;
   for (const [partId, elementsBySlot] of elementsByPart) {
-    const elementCount = parts.get(partId)?.geometry.elements?.length ?? 0;
+    const elementCount = parts.get(partId)?.elements?.length ?? 0;
     const denseBytes = 4 + Math.ceil(elementCount / 32) * 4;
     for (const elements of elementsBySlot.values()) {
       if (denseBytes < elements.size * ELEMENT_RECORD_STRIDE) bytes += denseBytes;

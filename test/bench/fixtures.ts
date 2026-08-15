@@ -1,5 +1,5 @@
 import { createPart, type Part } from "../../src/geometry/part";
-import type { GeometryBody, TriangleGeometry } from "../../src/geometry/part";
+import type { GeometryBody } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import type { Assembly, Placement } from "../../src/scene/assembly";
 import type { Scene } from "../../src/scene/scene";
@@ -34,7 +34,7 @@ function part(id: PartId): Part {
     indices: new Uint32Array([0, 1, 2]),
     primitive: "triangles" as const,
   };
-  return createPart(id, geometry);
+  return createPart(id, { geometries: [geometry] });
 }
 
 function partMap(count: number): ReadonlyMap<PartId, Part> {
@@ -142,7 +142,7 @@ export function makeHierarchyScene(options: {
 }
 
 /** Body-heavy indexed mesh shared by metadata and renderer-preparation benchmarks. */
-export function makeBodyGeometry(): TriangleGeometry {
+export function makeBodyGeometry() {
   return createPlanarGridGeometry(BENCH_BODY_GRID_CELLS, {
     elementFamily: "quad",
     bodyCount: BENCH_BODY_COUNT,

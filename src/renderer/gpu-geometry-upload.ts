@@ -42,11 +42,15 @@ export function buildPartGeometryData(
   const subsetIndices = getSubsetIndices(triangleGeometry);
   const emptyEdgeData = emptyMeshEdgeData();
   const picks = uploadPickBuffers(device, part, geometry, vertexData.nodePickIds);
-  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry);
+  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(
+    geometry,
+    part.elements ?? [],
+    part.blocks ?? [],
+  );
   const facePickIdsBuffer = createTopologyBuffer(device, faceBodyPickIds, emptyEdgeData, {
     primitiveIds: vertexData.primitiveIds,
     edgeIds: emptyEdgeData.edgeIds,
-    blockIds: blockAwareIds(geometry),
+    blockIds: blockAwareIds(part),
   });
   const subsetVertexData =
     triangleGeometry === undefined || subsetIndices === undefined
@@ -57,7 +61,7 @@ export function buildPartGeometryData(
     subsetVertexData,
     faceBodyPickIds,
     resultTail,
-    blockAwareIds(geometry),
+    blockAwareIds(part),
   );
   return {
     picks,
@@ -71,11 +75,17 @@ export function buildPartGeometryData(
 /** Builds the optional retained edge resource for a triangle part. */
 export function buildPartEdgeResources(
   device: GPUDevice,
+  part: Part,
   geometry: Extract<Geometry, { primitive: "triangles" }>,
   resultTail: ResultColorTail,
 ): NonNullable<PartResource["edge"]> | undefined {
   const subsetIndices = getSubsetIndices(geometry);
-  const edgeData = buildMeshEdgeData(geometry, subsetIndices ?? geometry.indices);
+  const edgeData = buildMeshEdgeData(
+    geometry,
+    subsetIndices ?? geometry.indices,
+    part.elements ?? [],
+    part.blocks ?? [],
+  );
   const edgeWithResults = appendResultColorTail(edgeData.positions, resultTail);
   const edgeVertexBuffer = createBuffer(
     device,
@@ -92,7 +102,7 @@ export function buildPartEdgeResources(
     ),
     edgeTopologyBuffer: createTopologyBuffer(
       device,
-      buildPrimitiveFaceBodyPickData(geometry),
+      buildPrimitiveFaceBodyPickData(geometry, part.elements ?? [], part.blocks ?? []),
       edgeData,
       { primitiveIds: [], edgeIds: edgeData.edgeIds, blockIds: edgeData.blockIds },
     ),
@@ -106,10 +116,16 @@ export function buildPartEdgeResources(
 /** Builds the wider authored-edge pick geometry on first edge-granularity use. */
 export function buildPartEdgePickResources(
   device: GPUDevice,
+  part: Part,
   geometry: Extract<Geometry, { primitive: "triangles" }>,
 ): PartEdgePickResource | undefined {
   const subsetIndices = getSubsetIndices(geometry);
-  const edgeData = buildMeshEdgeData(geometry, subsetIndices ?? geometry.indices);
+  const edgeData = buildMeshEdgeData(
+    geometry,
+    subsetIndices ?? geometry.indices,
+    part.elements ?? [],
+    part.blocks ?? [],
+  );
   if (edgeData.edgeKeys === undefined || edgeData.edgeKeys.length === 0) return undefined;
   const segments = Math.floor(edgeData.indices.length / 2);
   const positions = new Float32Array(segments * 4 * 3);
@@ -143,7 +159,7 @@ export function buildPartEdgePickResources(
     nodePickIdsBuffer: createBuffer(device, nodePickIds, GPUBufferUsage.STORAGE),
     topologyBuffer: createTopologyBuffer(
       device,
-      buildPrimitiveFaceBodyPickData(geometry),
+      buildPrimitiveFaceBodyPickData(geometry, part.elements ?? [], part.blocks ?? []),
       topology,
       { primitiveIds: [], edgeIds, blockIds: edgeData.blockIds },
     ),
@@ -161,7 +177,11 @@ function uploadPickBuffers(
   return {
     elementOrdinalsBuffer: createBuffer(
       device,
-      buildElementPrimitiveOrdinals(geometry, getPartSemanticIndex(part).elementOrdinalById),
+      buildElementPrimitiveOrdinals(
+        geometry,
+        part.elements ?? [],
+        getPartSemanticIndex(part).elementOrdinalById,
+      ),
       GPUBufferUsage.STORAGE,
     ),
     nodePickIdsBuffer: createBuffer(device, nodePickIds, GPUBufferUsage.STORAGE),
@@ -169,7 +189,7 @@ function uploadPickBuffers(
 }
 
 function getSubsetIndices(
-  geometry: Extract<Part["geometry"], { primitive: "triangles" }> | undefined,
+  geometry: Extract<Geometry, { primitive: "triangles" }> | undefined,
 ): Uint32Array | undefined {
   return geometry?.faceSubset === undefined ? undefined : buildFaceSubsetIndices(geometry);
 }
@@ -233,10 +253,8 @@ function createSubsetBuffers(
   };
 }
 
-function blockAwareIds(geometry: Geometry): Uint32Array | undefined {
-  return geometry.blocks !== undefined && geometry.blocks.length > 0
-    ? new Uint32Array()
-    : undefined;
+function blockAwareIds(part: Part): Uint32Array | undefined {
+  return part.blocks !== undefined && part.blocks.length > 0 ? new Uint32Array() : undefined;
 }
 
 function createIndexBuffer(device: GPUDevice, indices: Uint32Array): GPUBuffer {

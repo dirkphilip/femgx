@@ -107,7 +107,7 @@ export function uploadNodePart(
 ): PartResource {
   const existing = draw.nodeParts.get(part.id);
   if (existing !== undefined) return existing;
-  const nodes = part.nodePositions ?? part.geometry.nodePositions ?? new Float32Array(0);
+  const nodes = part.nodePositions ?? new Float32Array(0);
   const spritePickIds = buildNodeSpritePickIds(part);
   const nodeBodyData = buildNodeBodyOwnerData(part, spritePickIds);
   const { positions, ids, indices } = buildNodeSpriteBuffers(nodes, spritePickIds);
@@ -170,15 +170,18 @@ function buildNodeSpriteBuffers(
   return { positions, ids, indices };
 }
 
-/**
- * Returns the cached mandatory geometry buffers for a part, uploading them once.
- */
+/** Uploads and caches one homogeneous primitive leaf of a semantic part. */
 export function uploadPart(
   draw: DrawResources,
   part: Part,
   resultColors?: Float32Array,
 ): PartResource {
-  return uploadGeometryPart(draw, part, part.geometry, resultColors);
+  if (part.geometries.length !== 1) {
+    throw new Error("uploadPart requires one explicit geometry group");
+  }
+  const geometry = part.geometries[0];
+  if (geometry === undefined) throw new Error("Part has no geometry groups");
+  return uploadGeometryPart(draw, part, geometry, resultColors);
 }
 
 /** Uploads and caches one homogeneous primitive leaf of a semantic part. */
@@ -247,18 +250,18 @@ export function ensureEdgeResources(
   geometryOrResource: Extract<Geometry, { primitive: "triangles" }> | PartResource,
   resourceMaybe?: PartResource,
 ): NonNullable<PartResource["edge"]> | undefined {
-  const geometry = (resourceMaybe === undefined ? part.geometry : geometryOrResource) as Extract<
-    Geometry,
-    { primitive: "triangles" }
-  >;
+  const geometry =
+    resourceMaybe === undefined && !("primitive" in geometryOrResource)
+      ? part.geometries.find((candidate) => candidate.primitive === "triangles")
+      : (geometryOrResource as Extract<Geometry, { primitive: "triangles" }>);
   const resource = resourceMaybe ?? (geometryOrResource as PartResource);
-  if (resourceMaybe === undefined && part.geometry.primitive !== "triangles") return undefined;
+  if (geometry?.primitive !== "triangles") return undefined;
   if (resource.edge !== undefined) return resource.edge;
   const resultTail = createResultColorTail(
     new Uint32Array([resource.resultColorNodeCount - 1]),
     resource.resultColorsSource,
   );
-  const edge = buildPartEdgeResources(draw.device, geometry, resultTail);
+  const edge = buildPartEdgeResources(draw.device, part, geometry, resultTail);
   if (edge === undefined) return undefined;
   resource.edge = edge;
   resource.resultColorBuffers = [...resource.resultColorBuffers, edge.resultColorBinding];
@@ -272,14 +275,14 @@ export function ensureEdgePickResources(
   geometryOrResource: Extract<Geometry, { primitive: "triangles" }> | PartResource,
   resourceMaybe?: PartResource,
 ): NonNullable<PartResource["edgePick"]> | undefined {
-  const geometry = (resourceMaybe === undefined ? part.geometry : geometryOrResource) as Extract<
-    Geometry,
-    { primitive: "triangles" }
-  >;
+  const geometry =
+    resourceMaybe === undefined && !("primitive" in geometryOrResource)
+      ? part.geometries.find((candidate) => candidate.primitive === "triangles")
+      : (geometryOrResource as Extract<Geometry, { primitive: "triangles" }>);
   const resource = resourceMaybe ?? (geometryOrResource as PartResource);
-  if (resourceMaybe === undefined && part.geometry.primitive !== "triangles") return undefined;
+  if (geometry?.primitive !== "triangles") return undefined;
   if (resource.edgePick !== undefined) return resource.edgePick;
-  const edgePick = buildPartEdgePickResources(draw.device, geometry);
+  const edgePick = buildPartEdgePickResources(draw.device, part, geometry);
   if (edgePick === undefined) return undefined;
   resource.edgePick = edgePick;
   return edgePick;
@@ -294,7 +297,7 @@ interface PointVertexData {
 
 /** Expands logical point centers into the camera-facing sprite vertices. */
 function expandPointGeometry(
-  geometry: Extract<Part["geometry"], { primitive: "points" }>,
+  geometry: Extract<Geometry, { primitive: "points" }>,
 ): PointVertexData {
   const pointCount = geometry.indices.length;
   const positions = new Float32Array(pointCount * 12);
