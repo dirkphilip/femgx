@@ -100,6 +100,15 @@ authoring boundary defined by
 It compiles retained facets, lines, and points into the same reusable `Part`
 without reconstructing omitted solid connectivity.
 
+```ts
+const part = surfacePart(10, {
+  positions,
+  facets: { connectivity: facets, elementIds, faceIndices },
+  lines: { connectivity: lines, elementIds: lineElementIds },
+  points: { nodeIds: pointNodeIds, elementIds: pointElementIds },
+});
+```
+
 ## Registry and identity rules
 
 - `Scene.parts` is the part-definition registry, keyed by `PartId`.

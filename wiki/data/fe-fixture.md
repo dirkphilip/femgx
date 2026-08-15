@@ -11,8 +11,8 @@ Pyramid5, Hex8, and Hex20. These names describe FEMGX's typed tessellation helpe
 exhaustive solver-element catalog.
 
 The gallery also includes a **Generic solver-mapped element**: temporary
-solver-style node and face records are converted through the generic
-`polygonPart` input into one indexed-triangle `Part` with element `42`, five
+solver-style node and face records are converted through the compact
+`surfacePart` input into one indexed-triangle `Part` with element `42`, five
 oriented face identities, one non-triangular face, and body ownership. The source
 records are discarded after conversion; the scene retains only the renderer-ready
 part and the presentation metadata needed by the workbench. Face and element

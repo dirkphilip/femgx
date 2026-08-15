@@ -25,13 +25,11 @@ export {
 } from "../elements/model-edit";
 export { elementPart, type TessellationOptions } from "../geometry/heterogeneous-element-mesh";
 export {
-  polygonGeometry,
-  polygonPart,
-  PolygonGeometryError,
-  type PolygonFaceInput,
-  type PolygonGeometryInput,
-  type PolygonValidationCode,
-} from "../geometry/polygon";
+  surfacePart,
+  SurfacePartError,
+  type SurfacePartInput,
+  type SurfacePartValidationCode,
+} from "../geometry/surface-part";
 export {
   HEX20_SHAPE,
   HEX8_SHAPE,
