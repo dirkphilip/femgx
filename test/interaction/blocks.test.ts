@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createInteractionState,
+  emphasizedElementBlockRefs,
   isElementBlockEmphasized,
   isElementBlockVisible,
   isTargetHighlighted,
@@ -73,6 +74,16 @@ describe("element-block interaction", () => {
     expect(selectedTargets(cleared)).toEqual([
       { kind: "block", instanceId: "a", blockId: 9 },
       { kind: "block", instanceId: "z", blockId: 2 },
+    ]);
+  });
+
+  it("keeps hidden blocks ahead of block overrides", () => {
+    let state = createInteractionState();
+    state = setElementBlockVisible(state, { instanceId: "y", blockId: 2 }, false);
+    state = setElementBlockOverride(state, { instanceId: "b", blockId: 3 }, { opacity: 0.5 });
+    expect(emphasizedElementBlockRefs(state)).toEqual([
+      { instanceId: "y", blockId: 2 },
+      { instanceId: "b", blockId: 3 },
     ]);
   });
 });

@@ -65,7 +65,14 @@ describe("body interaction state", () => {
     state = setBodySelected(state, { instanceId: "2/0", bodyId: 9 }, true);
     state = setBodyHighlighted(state, ref, true);
     state = setBodyVisible(state, ref, false);
-    expect(emphasizedBodyRefs(state)).toEqual([ref, { instanceId: "2/0", bodyId: 9 }]);
+    state = setBodyOverride(state, { instanceId: "0/0", bodyId: 1 }, { opacity: 0.5 });
+    state = setBodyVisible(state, { instanceId: "3/0", bodyId: 2 }, false);
+    expect(emphasizedBodyRefs(state)).toEqual([
+      ref,
+      { instanceId: "2/0", bodyId: 9 },
+      { instanceId: "0/0", bodyId: 1 },
+      { instanceId: "3/0", bodyId: 2 },
+    ]);
     const cleared = setBodyVisible(state, ref, true);
     expect(readInteractionState(cleared).hiddenBodyIds.get("1/0")).toBeUndefined();
   });
