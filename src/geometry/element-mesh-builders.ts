@@ -58,7 +58,7 @@ export function volumeGeometry(input: VolumeGeometryInput): TriangleGeometry {
   return buildVolumeGeometry({
     ...tessellation,
     edges: authoredEdgesForElements(elements),
-    bodies: bodiesForElements(model, elements),
+    bodies: bodiesForElements(model, elements, assignedBodies),
     blocks: blocksForElements(model, elements),
     faceSubset: subset,
   });
@@ -175,7 +175,7 @@ export function lineGeometry(
     const bodyId = bodyIds.get(element.id);
     descriptors.push(withOwnership(descriptor, bodyId, blockIds.get(element.id)));
   }
-  const renderedBodies = bodiesForElements(model, elements);
+  const renderedBodies = bodiesForElements(model, elements, bodyIds);
   const renderedBlocks = blocksForElements(model, elements);
   const geometry = {
     ...mesh.build("lines", descriptors, model.nodes),
@@ -215,7 +215,7 @@ export function pointGeometry(
     const bodyId = bodyIds.get(element.id);
     descriptors.push(withOwnership(descriptor, bodyId, blockIds.get(element.id)));
   }
-  const renderedBodies = bodiesForElements(model, elements);
+  const renderedBodies = bodiesForElements(model, elements, bodyIds);
   const renderedBlocks = blocksForElements(model, elements);
   const geometry: PointGeometry = {
     positions: new Float32Array(positions),
@@ -244,23 +244,24 @@ function withOwnership<T extends { readonly bodyId?: BodyId; readonly blockId?: 
       };
 }
 
-function bodiesForElements(
+/** Projects authoritative body assignments onto one rendered element group. */
+export function bodiesForElements(
   model: ElementModel,
   elements: readonly Element[],
+  bodyIds: ReadonlyMap<ElementId, BodyId>,
 ): readonly GeometryBody[] | undefined {
   const bodies = model.bodies;
   if (bodies === undefined) return undefined;
-  const ids = new Set(elements.map((element) => element.id));
-  const blocks =
-    model.blocks === undefined
-      ? undefined
-      : new Map(model.blocks.map((block) => [block.id, block] as const));
+  const elementsByBody = new Map<BodyId, ElementId[]>();
+  for (const element of elements) {
+    const bodyId = bodyIds.get(element.id);
+    if (bodyId === undefined) continue;
+    const assigned = elementsByBody.get(bodyId);
+    if (assigned === undefined) elementsByBody.set(bodyId, [element.id]);
+    else assigned.push(element.id);
+  }
   return bodies.flatMap((body) => {
-    const authoredIds =
-      "elementIds" in body
-        ? body.elementIds
-        : body.blockIds.flatMap((blockId) => blocks?.get(blockId)?.elementIds ?? []);
-    const elementIds = authoredIds.filter((id) => ids.has(id));
+    const elementIds = elementsByBody.get(body.id)?.sort((left, right) => left - right) ?? [];
     return elementIds.length === 0
       ? []
       : [{ id: body.id, ...(body.name === undefined ? {} : { name: body.name }), elementIds }];

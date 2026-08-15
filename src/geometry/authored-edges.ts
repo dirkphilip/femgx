@@ -1,7 +1,8 @@
-import { edgesOf, type ElementEdge } from "../elements/edges";
+import { canonicalEdge, compareNodeIds, edgesOf, type ElementEdge } from "../elements/edges";
 import type { Element, ElementId, NodeId } from "../elements/element";
 import { facesOfElement, type FaceIdRef } from "../elements/faces";
 import { topologyFor } from "../elements/shapes";
+import { faceIdentity } from "./element-face-selection";
 import type { GeometryEdge } from "./types";
 
 /** Builds validated authored-edge descriptors for element-generated geometry. */
@@ -43,7 +44,7 @@ export function authoredEdgesForElements(elements: readonly Element[]): readonly
         );
         if (localEdge === undefined) continue;
         const entry = byKey.get(localEdge.key);
-        entry?.faces.set(`${elementId}/${faceIndex}`, { elementId, faceIndex });
+        entry?.faces.set(faceIdentity(elementId, faceIndex), { elementId, faceIndex });
       }
     }
   }
@@ -57,16 +58,6 @@ export function authoredEdgesForElements(elements: readonly Element[]): readonly
       ),
     }))
     .sort((a, b) => compareNodeIds(a.nodeIds, b.nodeIds));
-}
-
-function canonicalEdge(edge: ElementEdge): ElementEdge {
-  const first = edge.nodeIds[0];
-  const last = edge.nodeIds[edge.nodeIds.length - 1];
-  if (first === undefined || last === undefined || first <= last) return edge;
-  return {
-    key: edge.key,
-    nodeIds: edge.nodeIds.length === 2 ? [last, first] : [last, edge.nodeIds[1] as NodeId, first],
-  };
 }
 
 function sameEdgeNodes(left: readonly NodeId[], right: readonly (NodeId | undefined)[]): boolean {
@@ -87,13 +78,4 @@ function sameEdgeNodes(left: readonly NodeId[], right: readonly (NodeId | undefi
   const reverseDirection = leftFirst === rightLast && leftLast === rightFirst;
   if (!sameDirection && !reverseDirection) return false;
   return left.length === 2 || left[1] === right[1];
-}
-
-function compareNodeIds(left: readonly NodeId[], right: readonly NodeId[]): number {
-  for (let index = 0; index < Math.min(left.length, right.length); index += 1) {
-    const leftId = left[index] ?? 0;
-    const rightId = right[index] ?? 0;
-    if (leftId !== rightId) return leftId - rightId;
-  }
-  return left.length - right.length;
 }

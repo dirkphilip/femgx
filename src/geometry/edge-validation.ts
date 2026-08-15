@@ -1,5 +1,6 @@
 import type { ElementId } from "../elements/element";
 import { canonicalKey } from "../elements/keys";
+import { faceIdentity } from "./element-face-selection";
 import type { Geometry, GeometryEdge } from "./types";
 import { GeometryValidationError } from "./validation-error";
 
@@ -9,8 +10,8 @@ export function validateEdges(geometry: Geometry): void {
   if (edges === undefined) return;
   const elementIds = new Set((geometry.elements ?? []).map((element) => element.id));
   const faceIds = new Set(
-    (geometry.primitive === "triangles" ? (geometry.faces ?? []) : []).map(
-      (face) => `${face.elementId}/${face.faceIndex}`,
+    (geometry.primitive === "triangles" ? (geometry.faces ?? []) : []).map((face) =>
+      faceIdentity(face.elementId, face.faceIndex),
     ),
   );
   const keys = new Set<string>();
@@ -31,10 +32,11 @@ export function validateEdges(geometry: Geometry): void {
     keys.add(edge.key);
     validateEdgeElements(edge, elementIds);
     for (const face of edge.faceRefs) {
-      if (!faceIds.has(`${face.elementId}/${face.faceIndex}`)) {
+      const identity = faceIdentity(face.elementId, face.faceIndex);
+      if (!faceIds.has(identity)) {
         throw new GeometryValidationError(
           "unknown-edge-face",
-          `Authored edge ${edge.key} references unknown face ${face.elementId}/${face.faceIndex}`,
+          `Authored edge ${edge.key} references unknown face ${identity}`,
         );
       }
     }

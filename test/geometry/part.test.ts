@@ -269,13 +269,19 @@ describe("body metadata", () => {
     }).toThrow(expect.objectContaining({ code: "unknown-body-element" }));
   });
 
-  it("rejects a body id that would wrap its one-based pick id", () => {
+  it.each([0, 0xffff_ffff])("rejects body id %d outside the pick-id range", (bodyId) => {
     expect(() => {
-      validateBodies({
+      validateBodies({ ...geometry, bodies: [{ id: bodyId, elementIds: [2] }] });
+    }).toThrow(expect.objectContaining({ code: "invalid-body-id" }));
+  });
+
+  it("rejects zero body metadata on an element", () => {
+    expect(() => {
+      validateElements({
         ...geometry,
-        bodies: [{ id: 0xffff_ffff, elementIds: [2] }],
+        elements: [{ id: 2, primitiveStart: 0, primitiveCount: 2, bodyId: 0 }],
       });
-    }).toThrow(/Body id .*finite integer/);
+    }).toThrow(expect.objectContaining({ code: "invalid-body-id" }));
   });
 
   it("rejects duplicate memberships, mismatches, and non-deterministic order", () => {

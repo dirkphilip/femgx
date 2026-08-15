@@ -10,7 +10,12 @@ import {
   type TriangleGeometry,
 } from "./part";
 import type { PartId } from "./part";
-import { lineGeometry, pointGeometry, volumeGeometry } from "./element-mesh-builders";
+import {
+  bodiesForElements,
+  lineGeometry,
+  pointGeometry,
+  volumeGeometry,
+} from "./element-mesh-builders";
 
 /**
  * Tessellation options shared by the single mixed-model compiler.
@@ -65,16 +70,7 @@ export function elementPart(
   return {
     ...part,
     nodePositions: new Float32Array(model.nodes),
-    bodies: (model.bodies ?? []).map((body) => ({
-      id: body.id,
-      ...(body.name === undefined ? {} : { name: body.name }),
-      elementIds:
-        "elementIds" in body
-          ? body.elementIds
-          : body.blockIds.flatMap(
-              (blockId) => model.blocks?.find((block) => block.id === blockId)?.elementIds ?? [],
-            ),
-    })),
+    bodies: bodiesForElements(model, model.elements, membership.bodyByElement) ?? [],
   };
 }
 
