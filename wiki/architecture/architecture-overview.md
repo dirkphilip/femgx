@@ -1,6 +1,6 @@
 # Architecture overview
 
-The library separates a CPU-side scene model from a future GPU renderer. The
+The library separates a CPU-side scene model from the WebGPU renderer. The
 scene is authoritative; the renderer syncs deltas from it.
 
 ## Layers
@@ -17,7 +17,7 @@ scene is authoritative; the renderer syncs deltas from it.
   immutable centralized target selection, highlight, single-hover, and style
   override state with explicit precedence.
 - `src/camera/camera.ts` — immutable orbit camera math for perspective and
-  orthographic projection, shared by the demo and future renderers.
+  orthographic projection, shared by the demo and WebGPU viewport.
 - `src/renderer/gpu-renderer.ts` — WebGPU lifecycle, one-time part uploads,
   slot-stable instance attributes, GPU subrange updates for packed deltas
   (see [[rendering/renderer-subrange-updates|Renderer subrange updates]]), depth-tested
@@ -29,8 +29,9 @@ scene is authoritative; the renderer syncs deltas from it.
   (see [[data/elements-topology|Element topology]]).
 - `src/math/mat4.ts` — column-major 4x4 math
   (identity/translation/scale/rotation/multiply).
-- `src/picking/pick.ts` — CPU-side pick-id resolution (`resolvePick`,
-  `instanceToTarget`) used after the renderer's GPU readback.
+- `src/picking/pick.ts` — CPU-side pick-id resolution (`resolvePick`) used
+  after the renderer's GPU readback; hosts map complete hits with
+  `interactionTargetFromHit`.
 
 ## Renderer
 
