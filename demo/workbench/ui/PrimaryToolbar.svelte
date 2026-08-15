@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import type { WorkbenchController } from "../controller";
-  import type { WorkbenchCommands, WorkbenchSnapshot } from "../snapshot";
+  import type { WorkbenchSnapshot } from "../snapshot";
   import AnalysisControls from "./AnalysisControls.svelte";
 
   let {
@@ -11,9 +12,47 @@
     snapshot: WorkbenchSnapshot | undefined;
   } = $props();
 
-  type ModelFile = Parameters<WorkbenchCommands["openModel"]>[0];
+  type Panel = "selection" | "view" | "display" | "analysis";
+  interface BrowserWindow {
+    addEventListener(type: string, listener: (event: unknown) => void): void;
+    removeEventListener(type: string, listener: (event: unknown) => void): void;
+  }
 
-  let modelFileInput: { click(): void; value: string } | undefined;
+  let toolbarElement: unknown = $state();
+  let openPanel: Panel | undefined = $state();
+
+  onMount(() => {
+    const browser = Reflect.get(globalThis, "window") as BrowserWindow | undefined;
+    if (browser === undefined) return;
+    const closeOutside = (event: unknown): void => {
+      const target = eventTarget(event);
+      if (target !== undefined && !containsTarget(target)) openPanel = undefined;
+    };
+    const closeWithEscape = (event: unknown): void => {
+      if (eventKey(event) !== "Escape" || openPanel === undefined) return;
+      const panel = openPanel;
+      openPanel = undefined;
+      focusTrigger(panel);
+    };
+    browser.addEventListener("pointerdown", closeOutside);
+    browser.addEventListener("keydown", closeWithEscape);
+    return () => {
+      browser.removeEventListener("pointerdown", closeOutside);
+      browser.removeEventListener("keydown", closeWithEscape);
+    };
+  });
+
+  function togglePanel(panel: Panel): void {
+    openPanel = openPanel === panel ? undefined : panel;
+  }
+
+  function isOpen(panel: Panel): boolean {
+    return openPanel === panel;
+  }
+
+  function panelId(panel: Panel): string {
+    return `${panel}-controls`;
+  }
 
   function selectValue(event: unknown): string | undefined {
     if (typeof event !== "object" || event === null) return undefined;
@@ -38,100 +77,87 @@
     if (value !== undefined) controller?.commands.setBoxSelectionStrategy(value);
   }
 
-  function selectModel(event: unknown): void {
-    const value = selectValue(event);
-    if (value !== undefined) controller?.commands.selectModel(value);
-  }
-
-  function openModel(): void {
-    modelFileInput?.click();
-  }
-
-  function openSelectedModel(event: unknown): void {
-    const currentTarget = eventTarget(event);
-    if (currentTarget === undefined) return;
-    const files = Reflect.get(currentTarget, "files");
-    if (files === null || typeof files !== "object") return;
-    const file = Reflect.get(files, "0");
-    if (!isModelFile(file)) return;
-    const command = controller?.commands.openModel(file);
-    if (command !== undefined) void command.then(resetModelFileInput, resetModelFileInput);
-  }
-
-  function resetModelFileInput(): void {
-    if (modelFileInput !== undefined && "value" in modelFileInput) modelFileInput.value = "";
-  }
-
   function eventTarget(event: unknown): object | undefined {
     if (typeof event !== "object" || event === null) return undefined;
-    const target = Reflect.get(event, "currentTarget");
+    const target = Reflect.get(event, "target");
     return typeof target === "object" && target !== null ? target : undefined;
   }
 
-  function isModelFile(value: unknown): value is ModelFile {
+  function eventKey(event: unknown): string | undefined {
+    if (typeof event !== "object" || event === null) return undefined;
+    const key = Reflect.get(event, "key");
+    return typeof key === "string" ? key : undefined;
+  }
+
+  function containsTarget(target: object): boolean {
+    if (toolbarElement === null || typeof toolbarElement !== "object") return false;
+    const contains = Reflect.get(toolbarElement, "contains");
     return (
-      typeof value === "object" &&
-      value !== null &&
-      "name" in value &&
-      "size" in value &&
-      "type" in value
+      typeof contains === "function" && Reflect.apply(contains, toolbarElement, [target]) === true
     );
+  }
+
+  function focusTrigger(panel: Panel): void {
+    if (toolbarElement === null || typeof toolbarElement !== "object") return;
+    const querySelector = Reflect.get(toolbarElement, "querySelector");
+    if (typeof querySelector !== "function") return;
+    const element = Reflect.apply(querySelector, toolbarElement, [
+      `[aria-controls="${panelId(panel)}"]`,
+    ]);
+    if (element === null || typeof element !== "object") return;
+    const focus = Reflect.get(element, "focus");
+    if (typeof focus === "function") Reflect.apply(focus, element, []);
   }
 </script>
 
-<div class="toolbar">
-  <div class="toolbar-row toolbar-row-primary">
-    <div
-      id="model-source"
-      class="model-source"
-      role="group"
-      aria-label="Model source"
-      aria-busy={snapshot?.model.loading ?? false}
-    >
-      <select
-        id="model-select"
-        data-testid="model-select"
-        aria-label="Example model"
-        value={snapshot?.model.active.id ?? ""}
-        disabled={snapshot?.model.selectionDisabled ?? false}
-        onchange={selectModel}
-      >
-        {#each snapshot?.model.available ?? [] as model (model.id)}
-          <option value={model.id}
-            >{model.source === "file" ? `Opened · ${model.name}` : model.name}</option
-          >
-        {/each}
-      </select>
-      <button
-        id="open-model"
-        data-testid="open-model"
-        type="button"
-        disabled={snapshot?.model.openDisabled ?? false}
-        onclick={openModel}>Open model…</button
-      >
-      <input
-        id="model-file"
-        data-testid="model-file"
-        class="visually-hidden"
-        type="file"
-        accept=".vtk,.glb,text/plain,model/gltf-binary"
-        tabindex="-1"
-        bind:this={modelFileInput}
-        onchange={openSelectedModel}
-      />
-    </div>
+<div bind:this={toolbarElement} class="toolbar" role="toolbar" aria-label="Viewport commands">
+  <div class="command-bar">
     <button
-      id="fit-view"
-      data-testid="fit-view"
+      id="command-selection"
       type="button"
-      aria-label={snapshot?.toolbar.fitSelectionAvailable ? "Fit selection" : "Fit model"}
-      aria-keyshortcuts="Z"
-      title={snapshot?.toolbar.fitSelectionAvailable
-        ? "Frame the visible selected geometry. Press Z to use the same action."
-        : "Frame the complete model because no visible selection can be framed. Press Z to use the same action."}
-      onclick={() => controller?.commands.fitSelection()}
-      >{snapshot?.toolbar.fitSelectionAvailable ? "Fit selection" : "Fit model"}</button
+      class="command-target"
+      data-testid="command-selection"
+      aria-expanded={isOpen("selection")}
+      aria-controls={panelId("selection")}
+      onclick={() => togglePanel("selection")}>Selection</button
     >
+    <button
+      id="command-view"
+      type="button"
+      class="command-target"
+      data-testid="command-view"
+      aria-expanded={isOpen("view")}
+      aria-controls={panelId("view")}
+      onclick={() => togglePanel("view")}>View</button
+    >
+    <button
+      id="command-display"
+      type="button"
+      class="command-target"
+      data-testid="command-display"
+      aria-expanded={isOpen("display")}
+      aria-controls={panelId("display")}
+      onclick={() => togglePanel("display")}>Display</button
+    >
+    <button
+      id="command-analysis"
+      type="button"
+      class="command-target"
+      data-testid="command-analysis"
+      aria-expanded={isOpen("analysis")}
+      aria-controls={panelId("analysis")}
+      onclick={() => togglePanel("analysis")}>Analysis</button
+    >
+  </div>
+
+  <section
+    id="selection-controls"
+    class="command-panel"
+    role="group"
+    aria-labelledby="command-selection"
+    hidden={!isOpen("selection")}
+  >
+    <div class="command-panel-heading">Selection</div>
     <select
       id="selection-granularity"
       data-testid="selection-granularity"
@@ -175,19 +201,52 @@
         : snapshot?.hierarchy.selectedCount === 0
           ? "Select one or more elements to hide."
           : `Hide ${snapshot?.hierarchy.selectedCount} selected elements.`}
-      onclick={() => controller?.commands.hideSelected()}
-      >{snapshot?.hierarchy.selectedCount === 0
-        ? "Hide selected"
-        : `Hide selected (${snapshot?.hierarchy.selectedCount})`}</button
+      onclick={() => controller?.commands.hideSelected()}>Hide selected</button
+    >
+  </section>
+
+  <section
+    id="view-controls"
+    class="command-panel"
+    role="group"
+    aria-labelledby="command-view"
+    hidden={!isOpen("view")}
+  >
+    <div class="command-panel-heading">View</div>
+    <button
+      id="fit-view"
+      data-testid="fit-view"
+      type="button"
+      aria-label={snapshot?.toolbar.fitSelectionAvailable ? "Fit selection" : "Fit model"}
+      aria-keyshortcuts="Z"
+      title={snapshot?.toolbar.fitSelectionAvailable
+        ? "Frame the visible selected geometry. Press Z to use the same action."
+        : "Frame the complete model because no visible selection can be framed. Press Z to use the same action."}
+      onclick={() => controller?.commands.fitSelection()}
+      >{snapshot?.toolbar.fitSelectionAvailable ? "Fit selection" : "Fit model"}</button
     >
     <button
-      id="show-all"
-      data-testid="show-all"
+      id="projection-toggle"
+      data-testid="projection-toggle"
       type="button"
-      aria-label="Show all"
-      title="Restore all model visibility without changing selection or display settings."
-      onclick={() => controller?.commands.showAll()}>Show all</button
+      aria-label={`Projection: ${snapshot?.toolbar.projection ?? "perspective"}`}
+      onclick={() => controller?.commands.setProjection()}
+      >{snapshot?.toolbar.projection === "orthographic" ? "Orthographic" : "Perspective"}</button
     >
+    <label class="toolbar-background" for="background-select">
+      <span class="toolbar-background-name">Background</span>
+      <select
+        id="background-select"
+        data-testid="background-select"
+        aria-label="Background"
+        value={snapshot?.toolbar.background ?? "studio"}
+        onchange={setBackground}
+      >
+        <option value="studio">Studio</option>
+        <option value="white">White</option>
+        <option value="dark">Dark</option>
+      </select>
+    </label>
     <button
       id="viewport-toggle"
       data-testid="viewport-toggle"
@@ -204,30 +263,16 @@
           ? "Close viewport"
           : "Add viewport"}</button
     >
-    <button
-      id="projection-toggle"
-      data-testid="projection-toggle"
-      type="button"
-      aria-label={`Projection: ${snapshot?.toolbar.projection ?? "perspective"}`}
-      onclick={() => controller?.commands.setProjection()}
-      >{snapshot?.toolbar.projection === "orthographic" ? "Orthographic" : "Perspective"}</button
-    >
-  </div>
-  <div class="toolbar-row toolbar-row-secondary">
-    <label class="toolbar-background" for="background-select">
-      <span class="toolbar-background-name">Background</span>
-      <select
-        id="background-select"
-        data-testid="background-select"
-        aria-label="Background"
-        value={snapshot?.toolbar.background ?? "studio"}
-        onchange={setBackground}
-      >
-        <option value="studio">Studio</option>
-        <option value="white">White</option>
-        <option value="dark">Dark</option>
-      </select>
-    </label>
+  </section>
+
+  <section
+    id="display-controls"
+    class="command-panel"
+    role="group"
+    aria-labelledby="command-display"
+    hidden={!isOpen("display")}
+  >
+    <div class="command-panel-heading">Display</div>
     <button
       id="edge-overlay"
       data-testid="edge-overlay"
@@ -250,17 +295,18 @@
       title="Start a recurring render-loop sample for manual inspection."
       onclick={() => controller?.commands.toggleContinuous()}>Continuous</button
     >
+  </section>
+
+  <section
+    id="analysis-controls"
+    class="command-panel command-panel-analysis"
+    role="group"
+    aria-labelledby="command-analysis"
+    hidden={!isOpen("analysis")}
+  >
     <AnalysisControls {controller} {snapshot} />
-    <button
-      id="reset"
-      data-testid="reset"
-      class="secondary"
-      type="button"
-      aria-label="Reset all"
-      title="Restore this model's initial visibility, selection, display, results, projection, and camera."
-      onclick={() => controller?.commands.reset()}>Reset all</button
-    >
-  </div>
+  </section>
+
   <div
     id="model-feedback"
     data-testid="model-feedback"
@@ -272,9 +318,9 @@
     {snapshot?.overlays.feedback?.message ?? ""}
   </div>
   <p id="interaction-help" data-testid="interaction-help" class="interaction-help">
-    Element/Face/Node: click or drag to replace. Hold Ctrl or ⌘ to toggle. Shift keeps element
-    selection. Alt selects an instance. Edge selects authored occurrence-scoped topology; shared
-    edges remain edges when Shift is held. Through is unavailable for Edge. Press Z to frame the
-    visible selection, or the complete model when none is eligible.
+    Element: click or drag to replace. Face/Node use the same gesture. Hold Ctrl or ⌘ to toggle.
+    Shift keeps element selection. Alt selects an instance. Edge selects authored occurrence-scoped
+    topology; shared edges remain edges when Shift is held. Through is unavailable for Edge. Press Z
+    to frame the visible selection, or the complete model when none is eligible.
   </p>
 </div>

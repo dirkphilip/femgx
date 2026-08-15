@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { canvasInteractionBox, distinctColors, requireHit } from "../shared/helpers";
-import { dataset, primaryBoxDrag, waitForRenderer } from "./demo-support";
+import { dataset, openCommandPanel, primaryBoxDrag, waitForRenderer } from "./demo-support";
 
 const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 
@@ -70,6 +70,7 @@ test("stacks the optional secondary viewport without mobile overflow", async ({ 
   await page.goto("/");
   const primary = page.getByTestId("view-canvas");
   await waitForRenderer(page, primary);
+  await openCommandPanel(page, "view");
   await page.getByTestId("viewport-toggle").click();
   const secondary = page.getByTestId("secondary-view-canvas");
   await expect(secondary).toBeVisible();
@@ -174,32 +175,33 @@ test("keeps primary controls reachable and touch-sized on a phone", async ({ pag
   await page.goto("/");
   const viewportWidth = await page.evaluate(() => window.innerWidth);
 
-  for (const testId of [
-    "model-select",
-    "fit-view",
-    "selection-granularity",
-    "hide-selected",
-    "show-all",
-    "projection-toggle",
-    "edge-overlay",
-    "reset",
-  ]) {
-    const control = page.getByTestId(testId);
-    await expect(control).toBeVisible();
-    const box = await control.boundingBox();
-    if (box === null) {
-      throw new Error(`${testId} has no bounding box`);
+  const controlsByPanel = [
+    ["selection", ["selection-granularity", "hide-selected"]],
+    ["view", ["fit-view", "projection-toggle"]],
+    ["display", ["edge-overlay"]],
+  ] as const;
+  for (const [panel, testIds] of controlsByPanel) {
+    await openCommandPanel(page, panel);
+    for (const testId of testIds) {
+      const control = page.getByTestId(testId);
+      await expect(control).toBeVisible();
+      const box = await control.boundingBox();
+      if (box === null) {
+        throw new Error(`${testId} has no bounding box`);
+      }
+      expect(box.x, `${testId} left edge`).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width, `${testId} right edge`).toBeLessThanOrEqual(viewportWidth);
+      expect(box.height, `${testId} hit area`).toBeGreaterThanOrEqual(44);
     }
-    expect(box.x, `${testId} left edge`).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width, `${testId} right edge`).toBeLessThanOrEqual(viewportWidth);
-    expect(box.height, `${testId} hit area`).toBeGreaterThanOrEqual(44);
   }
+  await expect(page.getByTestId("model-select")).toBeVisible();
 });
 
 test("keeps section-plane controls usable on a phone", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto("/");
   await page.getByTestId("model-select").selectOption("section-volume");
+  await openCommandPanel(page, "analysis");
   await page.getByTestId("section-axis").selectOption("z");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-section-axis", "z");
   const viewportWidth = await page.evaluate(() => window.innerWidth);

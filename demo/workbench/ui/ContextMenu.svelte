@@ -80,6 +80,7 @@
         type="button"
         role="menuitem"
         data-action={entry.action}
+        data-testid={entry.action === undefined ? undefined : `context-action-${entry.action}`}
         title={entry.help}
         aria-label={entry.label}
         onclick={() => activate(entry)}>{entry.label}</button

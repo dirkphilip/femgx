@@ -35,21 +35,13 @@
     top: 8px;
     left: 8px;
     right: 8px;
-    display: flex;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    align-items: stretch;
-    gap: 4px;
     padding: 4px;
-    max-height: 240px;
-    overflow-x: hidden;
   }
-  .toolbar-row {
+  .command-bar {
     display: grid;
     width: 100%;
-    flex: 0 0 100%;
     min-width: 0;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     align-items: stretch;
     gap: 4px;
   }
@@ -59,41 +51,39 @@
   .toolbar button {
     min-height: 44px;
   }
-  #model-select {
+  .command-target {
     min-width: 0;
-    width: auto;
-    flex: 1 1 0;
+    padding-right: 4px;
+    padding-left: 4px;
+    font-size: 12px;
   }
-  .toolbar-row-primary > * {
-    min-width: 0;
+  .command-panel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 4px;
   }
-  .toolbar-row-primary {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+  .command-panel-heading {
+    grid-column: 1 / -1;
+  }
+  .command-panel-analysis {
+    display: block;
   }
   .model-source {
-    grid-column: span 3;
-    width: 100%;
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+  .model-source select {
+    min-width: 0;
+    flex: 1 1 0;
   }
   .model-source button {
     flex: 0 1 104px;
   }
-  .toolbar-row-primary #projection-toggle {
-    flex: 1 1 0;
-    padding-right: 8px;
-    padding-left: 8px;
-  }
-  .toolbar-row-secondary > * {
-    flex: 1 1 0;
+  .toolbar-background select {
     min-width: 0;
   }
-  .toolbar-row-secondary {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .toolbar-row-secondary > .analysis-surface {
-    grid-column: 1 / -1;
-    width: 100%;
-  }
-  .toolbar-row-secondary > button,
+  .command-panel > button,
   .toolbar-background select {
     padding-right: 4px;
     padding-left: 4px;

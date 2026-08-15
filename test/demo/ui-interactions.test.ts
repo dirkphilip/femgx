@@ -19,6 +19,7 @@ import StatusOverlays from "../../demo/workbench/ui/StatusOverlays.svelte";
 import ViewportPane from "../../demo/workbench/ui/ViewportPane.svelte";
 import ViewportWorkspace from "../../demo/workbench/ui/ViewportWorkspace.svelte";
 import PrimaryToolbar from "../../demo/workbench/ui/PrimaryToolbar.svelte";
+import ModelSource from "../../demo/workbench/ui/ModelSource.svelte";
 import ContextMenu from "../../demo/workbench/ui/ContextMenu.svelte";
 import VisibilityTree from "../../demo/workbench/ui/VisibilityTree.svelte";
 import WorkbenchApp from "../../demo/workbench/ui/WorkbenchApp.svelte";
@@ -39,12 +40,19 @@ describe("workbench Svelte controls", () => {
       target,
       props: { controller, snapshot: createSnapshot(true) },
     });
+    const modelSource = mount(ModelSource, {
+      target,
+      props: { controller, snapshot: createSnapshot(true) },
+    });
 
+    button(target, "#command-view").click();
     await change(target, "#background-select", "dark");
+    button(target, "#command-selection").click();
     await change(target, "#box-selection-strategy", "through-intersection");
     await change(target, "#selection-granularity", "face");
     await change(target, "#selection-granularity", "edge");
     await change(target, "#model-select", "results");
+    button(target, "#command-analysis").click();
     await change(target, "#result-field", "demo-stress");
     await change(target, "#deformation-field", "demo-displacement");
     await change(target, "#vector-field", "demo-fibers");
@@ -55,18 +63,16 @@ describe("workbench Svelte controls", () => {
     await input(target, "#vector-length-scale", "1.5");
     await input(target, "#vector-width-pixels", "1.5");
     await input(target, "#section-offset", "0.5");
-    for (const selector of [
-      "#open-model",
-      "#fit-view",
-      "#hide-selected",
-      "#show-all",
-      "#viewport-toggle",
-      "#projection-toggle",
-      "#edge-overlay",
-      "#node-overlay",
-      "#continuous-rendering",
-      "#reset",
-    ]) {
+    button(target, "#command-selection").click();
+    button(target, "#hide-selected").click();
+    await tick();
+    button(target, "#command-view").click();
+    for (const selector of ["#fit-view", "#viewport-toggle", "#projection-toggle"]) {
+      button(target, selector).click();
+      await tick();
+    }
+    button(target, "#command-display").click();
+    for (const selector of ["#edge-overlay", "#node-overlay", "#continuous-rendering"]) {
       button(target, selector).click();
       await tick();
     }
@@ -88,15 +94,42 @@ describe("workbench Svelte controls", () => {
         "setVectorWidthPixels",
         "setSectionOffset",
         "fitSelection",
-        "showAll",
         "toggleSecondaryViewport",
         "setProjection",
         "toggleEdges",
         "toggleNodes",
         "toggleContinuous",
-        "reset",
       ]),
     );
+
+    await unmount(modelSource);
+    await unmount(component);
+  });
+
+  it("keeps the command bar compact and closes disclosures predictably", async () => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const component = mount(PrimaryToolbar, {
+      target,
+      props: { controller: undefined, snapshot: createSnapshot(false) },
+    });
+
+    expect(target.querySelectorAll(".command-target")).toHaveLength(4);
+    expect(element(target, "#selection-controls").hidden).toBe(true);
+    button(target, "#command-selection").click();
+    await tick();
+    expect(element(target, "#selection-controls").hidden).toBe(false);
+    expect(button(target, "#command-selection").getAttribute("aria-expanded")).toBe("true");
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await tick();
+    expect(element(target, "#selection-controls").hidden).toBe(true);
+    expect(document.activeElement).toBe(button(target, "#command-selection"));
+
+    button(target, "#command-view").click();
+    window.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    await tick();
+    expect(element(target, "#view-controls").hidden).toBe(true);
 
     await unmount(component);
   });

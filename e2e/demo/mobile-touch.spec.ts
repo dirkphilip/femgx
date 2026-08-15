@@ -8,7 +8,7 @@ import {
   readNavigationState,
   requireHit,
 } from "../shared/helpers";
-import { setSelectionGranularity, waitForRenderer } from "./demo-support";
+import { openCommandPanel, setSelectionGranularity, waitForRenderer } from "./demo-support";
 
 const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 
@@ -141,6 +141,7 @@ test("keeps repeated mobile pinch zoom inside the model bounds", async ({ browse
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
   await waitForRenderer(page, canvas);
+  await openCommandPanel(page, "view");
   await page.getByTestId("fit-view").click();
 
   const box = await canvasInteractionBox(canvas);
@@ -183,6 +184,7 @@ test("keeps the panned model target stable during an off-center pinch", async ({
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toBeVisible();
   await waitForRenderer(page, canvas);
+  await openCommandPanel(page, "view");
   await page.getByTestId("fit-view").click();
 
   const box = await canvasInteractionBox(canvas);

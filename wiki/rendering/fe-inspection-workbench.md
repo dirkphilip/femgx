@@ -142,11 +142,16 @@ controller, so camera and interaction behavior is stable
   primary pane by default and an optional secondary pane with equal desktop
   columns. Both panes use independent cameras and renderers while sharing the
   authoritative scene, selection, visibility, results, and model transitions.
-  The toolbar is one calm
-  surface with model, context-sensitive **Fit model**/**Fit selection** framing,
-  projection, a labeled **Background** select
-  (`Studio`, `White`, or `Dark`), edges, nodes, explicit scalar/deformation result
-  controls, and **Reset all** controls. When a result is active, a compact
+  The canvas command bar is one calm, non-scrolling surface with four labeled
+  disclosure targets: **Selection**, **View**, **Display**, and **Analysis**.
+  Model selection and local-file loading live in the navigation rail, so the
+  model source is not duplicated over either canvas. Selection owns granularity,
+  Visible/Through box strategy, authored Edge selection, and selected-element
+  visibility actions. View owns context-sensitive **Fit model**/**Fit selection**
+  framing, projection, the labeled **Background** select (`Studio`, `White`, or
+  `Dark`), and the optional secondary viewport. Display owns authored edges and
+  nodes; Analysis owns the existing contextual result controls until the
+  analysis-inspector surface replaces them. When a result is active, a compact
   demo-owned legend shows its field, location, unit, finite range, and color stops;
   picked node/element/face inspection adds the exact authored scalar when its
   location permits an unambiguous value.
@@ -159,12 +164,16 @@ controller, so camera and interaction behavior is stable
   advertise the `Z` shortcut. Reset all restores the active preset's complete
   deterministic workbench state without changing the selected background. Both
   actions expose help text describing that scope.
-  Healthy renderer/status telemetry and inspection details stay hidden until
-  explicitly needed; renderer failures remain prominent. Diagnostics stay within
+  Reset, diagnostics, help, continuous rendering, and complete visibility
+  restoration remain on their existing semantic surfaces: the context menu,
+  status/diagnostics overlays, interaction help, or visibility rail. They are not
+  persistent command-bar targets. Healthy renderer/status telemetry and inspection
+  details stay hidden until explicitly needed; renderer failures remain prominent. Diagnostics stay within
   the scene, scroll internally when needed, and remain visible in the compact
   mobile scene. On mobile the optional panes stack vertically before the
   hierarchy follows them, while
-  the toolbar uses exactly two rows. The results panel also offers demo-private
+  the command bar stays a single non-wrapping row, with disclosure panels sized
+  for the available viewport. The results panel also offers demo-private
   elemental vector selection, `Arrow`/`Axis` glyphs, `Direction`/`Normal`
   occurrence transforms, and a positive length scale; it states that vectors
   are normalized for orientation and that magnitude is not displayed. The
@@ -173,7 +182,7 @@ controller, so camera and interaction behavior is stable
 - The controller exposes a `rendererState` note (e.g. `recovered`) for status
   presentation. `FemViewport` performs recovery and reports success/failure to
   the demo callbacks ([[rendering/platform-support|Platform support]]).
-- The toolbar **Reset all** action restores the active preset's complete initial
+- The context-menu **Reset all** action restores the active preset's complete initial
   state: all runtime hierarchy/part/instance visibility, palette
   interaction state, orthographic camera fitted to the scene, edge/node toggles,
   diagnostics, selection/hover/pick datasets, and the inspection
@@ -183,9 +192,9 @@ controller, so camera and interaction behavior is stable
 
 The demo layout is responsive at phone widths (`index.html`): the scene keeps
 the top portion of the viewport while the visibility rail moves below it;
-secondary toolbar controls and the inspection overlay are hidden, and the
-remaining primary controls get 44px touch targets. The right-click context
-menu clamps its position inside the viewport (see
+the inspection overlay is hidden, the command-bar disclosures remain available,
+and their targets get 44px touch sizes. The right-click context menu clamps its
+position inside the viewport (see
 `WorkbenchMenu` in `demo/workbench/menu.ts`) so it never
 opens past the right or bottom edge.
 

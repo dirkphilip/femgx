@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
+  activateContextAction,
   dataset,
   distinctColors,
   drawnPixels,
@@ -7,6 +8,7 @@ import {
   primaryBoxDrag,
   readNavigationState,
   requireHit,
+  openCommandPanel,
   setSelectionGranularity,
   waitForRenderer,
   waitForRendererOrSkip,
@@ -112,6 +114,7 @@ test("preserves useful framing across projection and phone resize", async ({ pag
   await waitForRenderer(page, canvas);
   await page.getByTestId("model-select").selectOption("transparency");
   await expect(canvas).toHaveAttribute("data-model", "transparency");
+  await openCommandPanel(page, "view");
 
   await expect
     .poll(async () => (await readNavigationState(canvas)).camera.mode)
@@ -152,6 +155,7 @@ test("opens two shared-state viewports with independent cameras and exact teardo
   const secondary = page.getByTestId("secondary-view-canvas");
   await waitForRenderer(page, primary);
 
+  await openCommandPanel(page, "view");
   await page.getByTestId("viewport-toggle").click();
   await expect(secondary).toBeVisible();
   await waitForRenderer(page, secondary);
@@ -219,10 +223,13 @@ test("opens two shared-state viewports with independent cameras and exact teardo
   const selected = await primary.getAttribute("data-selected");
   if (selected === null) throw new Error("primary selection was not published");
   await expect(secondary).toHaveAttribute("data-selected", selected);
+  await openCommandPanel(page, "analysis");
   await page.getByTestId("result-field").selectOption("__base__");
   await expect(primary).toHaveAttribute("data-results", "base");
   await expect(secondary).toHaveAttribute("data-results", "base");
+  await page.getByTestId("command-analysis").click();
 
+  await openCommandPanel(page, "view");
   await page.getByTestId("viewport-toggle").click();
   await expect(secondary).toBeHidden();
   await expect(page.getByTestId("viewport-toggle")).toHaveText("Add viewport");
@@ -284,7 +291,7 @@ test("shows diagnostics from target and empty-scene context menus", async ({ pag
   await menu.getByText("Hide diagnostics").click();
   await expect(diagnostics).toBeHidden();
 
-  await page.getByTestId("reset").click();
+  await activateContextAction(page, "reset");
   await page.mouse.click(
     Math.round(canvasBox.x + canvasBox.width - 12),
     Math.round(canvasBox.y + canvasBox.height - 12),
@@ -358,17 +365,18 @@ test("lists the bolted assembly hierarchy in the visibility panel", async ({ pag
     "Bolted joint",
     "Plate stack",
     "Fasteners",
-    "Fastener 1",
-    "Fastener 8",
     "Steel plates",
-    "Bolts",
-    "Washers",
-    "Nuts",
     "Plate row A",
     "Plate row B",
-    "Shaft",
-    "Head",
   ]) {
+    await expect(visibility).toContainText(name);
+  }
+  await visibility.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event("scroll", { bubbles: true }));
+  });
+  await expect.poll(() => visibility.textContent()).toEqual(expect.stringContaining("Fastener 1"));
+  for (const name of ["Fastener 8", "Bolts", "Washers", "Nuts", "Shaft", "Head"]) {
     await expect(visibility).toContainText(name);
   }
   await expect(page.getByTestId("assembly-occurrence-vis-3")).toHaveAttribute(
@@ -404,6 +412,7 @@ test("switches between deterministic model presets", async ({ page }) => {
   await page.goto("/");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
+  await openCommandPanel(page, "display");
   await expect(select).toHaveValue("bolted");
   await expect(canvas).toHaveAttribute("data-model", "bolted");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
@@ -654,6 +663,7 @@ test("runs one opt-in continuous render chain and returns to idle", async ({ pag
   const canvas = page.getByTestId("view-canvas");
   const continuous = page.getByTestId("continuous-rendering");
   await waitForRenderer(page, canvas);
+  await openCommandPanel(page, "display");
   await expect.poll(() => canvas.getAttribute("data-frames")).not.toBeNull();
   const before = Number(await canvas.getAttribute("data-frames"));
 

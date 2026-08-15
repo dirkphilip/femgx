@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 import {
+  activateContextAction,
   dataset,
   drawnPixels,
+  openCommandPanel,
   pixelMetrics,
   requireHit,
   setSelectionGranularity,
@@ -14,6 +16,7 @@ test("refits cleanly after switching from a larger gallery to the bolted model",
   await page.goto("/");
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
+  await openCommandPanel(page, "view");
   await select.selectOption("gallery");
   await page.getByTestId("fit-view").click();
   await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
@@ -35,6 +38,7 @@ test("cycles the canonical static results preset through base, colored, and defo
 }) => {
   await page.goto("/");
   await page.getByTestId("model-select").selectOption("results");
+  await openCommandPanel(page, "analysis");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toHaveAttribute("data-model", "results");
   await expect(canvas).toHaveAttribute("data-results", "deformed");
@@ -65,6 +69,7 @@ test("switches Results and VTK between elemental and nodal scalar fields", async
   const resultField = page.getByTestId("result-field");
 
   await page.getByTestId("model-select").selectOption("results");
+  await openCommandPanel(page, "analysis");
   await expect(resultField.locator("option")).toHaveText([
     "Base",
     "Demo stress · Elemental",
@@ -100,6 +105,7 @@ test("keeps dependent analysis controls contextual and the legend compact", asyn
   await page.goto("/");
   await waitForRenderer(page);
   await page.getByTestId("model-select").selectOption("results");
+  await openCommandPanel(page, "analysis");
 
   const canvas = page.getByTestId("view-canvas");
   const scale = page.getByTestId("deformation-scale");
@@ -131,6 +137,7 @@ test("validates signed normals and sign-invariant fibers in one shared results p
   await page.goto("/");
   await waitForRenderer(page);
   await page.getByTestId("model-select").selectOption("results");
+  await openCommandPanel(page, "analysis");
   const canvas = page.getByTestId("view-canvas");
   const vectorField = page.getByTestId("vector-field");
   await expect(page.getByTestId("result-controls")).toBeVisible();
@@ -200,6 +207,7 @@ test("validates signed normals and sign-invariant fibers in one shared results p
 test("applies one shared section plane over complete placed-volume bounds", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("model-select").selectOption("section-volume");
+  await openCommandPanel(page, "analysis");
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toHaveAttribute("data-model", "section-volume");
   await expect(page.getByTestId("section-axis")).toHaveValue("off");
@@ -231,6 +239,7 @@ test("shows distinct scalar contours and deformation in every results state", as
   await page.goto("/");
   await waitForRenderer(page);
   await page.getByTestId("model-select").selectOption("results");
+  await openCommandPanel(page, "analysis");
   const canvas = page.getByTestId("view-canvas");
   const resultField = page.getByTestId("result-field");
   const deformationField = page.getByTestId("deformation-field");
@@ -304,8 +313,10 @@ test("reset restores the complete workbench display state", async ({ page }) => 
   await page.goto("/");
   const firstPart = page.locator("#visibility-panel input[data-instance-id]").first();
   await firstPart.uncheck();
+  await openCommandPanel(page, "display");
   await page.getByTestId("edge-overlay").click();
   await page.getByTestId("node-overlay").click();
+  await openCommandPanel(page, "view");
   await page.getByTestId("projection-toggle").click();
 
   await expect(firstPart).not.toBeChecked();
@@ -313,7 +324,9 @@ test("reset restores the complete workbench display state", async ({ page }) => 
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
 
-  await page.getByTestId("reset").click();
+  await activateContextAction(page, "reset");
+  await openCommandPanel(page, "display");
+  await openCommandPanel(page, "view");
   await expect(firstPart).toBeChecked();
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
@@ -323,15 +336,13 @@ test("reset restores the complete workbench display state", async ({ page }) => 
 test("switches projection, fits to view, and resets camera controls", async ({ page }) => {
   await page.goto("/");
   await waitForRenderer(page);
+  await openCommandPanel(page, "view");
   const button = page.getByTestId("projection-toggle");
   const fit = page.getByTestId("fit-view");
-  const reset = page.getByTestId("reset");
   await expect(fit).toHaveText("Fit model");
   await expect(fit).toHaveAttribute("aria-label", "Fit model");
   await expect(fit).toHaveAttribute("aria-keyshortcuts", "Z");
   await expect(page.getByTestId("interaction-help")).toContainText("Press Z");
-  await expect(reset).toHaveText("Reset all");
-  await expect(reset).toHaveAttribute("aria-label", "Reset all");
   await expect(button).toHaveText("Orthographic");
   await page.getByTestId("projection-toggle").click();
   await expect(button).toHaveText("Perspective");
@@ -339,7 +350,7 @@ test("switches projection, fits to view, and resets camera controls", async ({ p
   await fit.click();
   await expect(button).toHaveText("Perspective");
 
-  await reset.click();
+  await activateContextAction(page, "reset");
   await expect(button).toHaveText("Orthographic");
 });
 
@@ -349,6 +360,7 @@ test("Fit model preserves workbench state while Reset all restores preset defaul
   await page.goto("/");
   await page.getByTestId("model-select").selectOption("results");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "results");
+  await openCommandPanel(page, "view");
 
   const canvas = page.getByTestId("view-canvas");
   const instance = page.getByTestId("visibility-panel").locator("input[data-instance-id]").first();
@@ -363,9 +375,12 @@ test("Fit model preserves workbench state while Reset all restores preset defaul
   await expect(page.getByTestId("fit-view")).toHaveText("Fit selection");
 
   await instance.uncheck();
+  await openCommandPanel(page, "display");
   await page.getByTestId("edge-overlay").click();
   await page.getByTestId("node-overlay").click();
+  await openCommandPanel(page, "view");
   await page.getByTestId("projection-toggle").click();
+  await openCommandPanel(page, "analysis");
   await page.getByTestId("result-field").selectOption("__base__");
   await expect(page.getByTestId("result-field")).toHaveValue("__base__");
 
@@ -391,6 +406,7 @@ test("Fit model preserves workbench state while Reset all restores preset defaul
   await expect.poll(() => canvas.getAttribute("data-camera")).not.toBe(beforeFitCamera);
   const zoomedCamera = await canvas.getAttribute("data-camera");
 
+  await openCommandPanel(page, "view");
   await page.getByTestId("fit-view").click();
   await expect.poll(() => canvas.getAttribute("data-camera")).not.toBe(zoomedCamera);
   await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
@@ -401,10 +417,13 @@ test("Fit model preserves workbench state while Reset all restores preset defaul
   await expect(diagnostics).toBeVisible();
   await expect.poll(() => dataset(page, "selected")).toBe(beforeFitSelection);
 
-  await page.getByTestId("reset").click();
+  await activateContextAction(page, "reset");
+  await openCommandPanel(page, "view");
   await expect(page.getByTestId("projection-toggle")).toHaveText("Orthographic");
+  await openCommandPanel(page, "display");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
+  await openCommandPanel(page, "analysis");
   await expect(page.getByTestId("result-field")).toHaveValue("demo-stress");
   await expect(page.getByTestId("deformation-field")).toHaveValue("demo-displacement");
   await expect(instance).toBeChecked();
