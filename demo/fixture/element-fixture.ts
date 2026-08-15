@@ -6,8 +6,8 @@ import {
   LINE_SHAPE,
   multiply,
   POINT_SHAPE,
-  polygonPart,
   scale,
+  surfacePart,
   translation,
   TRIANGLE_SHAPE,
   type AssemblyId,
@@ -361,16 +361,13 @@ function elementsOf(model: ElementModel, family: "point" | "line", order?: numbe
 /** Maps temporary solver-style polyhedron records into one retained Part. */
 function createGenericSolverMappedPart(): Part {
   const solverNodes = [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0, 0.35, 0.2, 1.5];
-  const solverFaces = [
-    { nodeIds: [0, 3, 2, 1], faceIndex: 0, key: "solver-pyramid-base" },
-    { nodeIds: [0, 1, 4], faceIndex: 1, key: "solver-pyramid-front" },
-    { nodeIds: [1, 2, 4], faceIndex: 2, key: "solver-pyramid-right" },
-    { nodeIds: [2, 3, 4], faceIndex: 3, key: "solver-pyramid-back" },
-    { nodeIds: [3, 0, 4], faceIndex: 4, key: "solver-pyramid-left" },
-  ] as const;
-  return polygonPart(GENERIC_PART_ID, {
+  return surfacePart(GENERIC_PART_ID, {
     positions: solverNodes,
-    faces: solverFaces.map((face) => ({ ...face, elementId: 42, neighborElementIds: [] })),
+    facets: {
+      connectivity: [4, 0, 3, 2, 1, 3, 0, 1, 4, 3, 1, 2, 4, 3, 2, 3, 4, 3, 3, 0, 4],
+      elementIds: [42, 42, 42, 42, 42],
+      faceIndices: [0, 1, 2, 3, 4],
+    },
     bodies: [{ id: 1, name: "Mapped solver body", elementIds: [42] }],
   });
 }

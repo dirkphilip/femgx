@@ -1,9 +1,8 @@
 # Surface-derived part authoring
 
-This note defines a **Core-now use case** that the current public authoring API
-does not yet completely satisfy. The intended host transfers only the
-display-relevant geometry of a finite-element part; femgx must not require the
-omitted solid topology merely to reconstruct the same surface.
+This note defines the **Core-now** `surfacePart()` authoring contract. The host
+transfers only the display-relevant geometry of a finite-element part; femgx
+does not require omitted solid topology to reconstruct the same surface.
 
 Related: [[requirements/product-scope|Product scope]],
 [[rendering/element-rendering|Element rendering]], and
@@ -57,12 +56,21 @@ coordinates. An adapter may normalize the established host ordering into the
 existing quadratic tessellator. The sign is decoded once at the authoring
 boundary rather than leaking into geometry or renderer code.
 
-Each facet record also carries an owning `ElementId`, a stable element-local
-`faceIndex` or equivalent source identity, and optional neighbor identity. Line
-and point records likewise carry their owning elements. The final public
-TypeScript shape is intentionally left to the implementation, but it must
-accept compact typed-array data without requiring one temporary JavaScript
-object per face.
+`SurfacePartInput.facets` carries parallel `elementIds` and `faceIndices`
+arrays with one entry per decoded facet. Its optional `neighbors` stream uses
+aligned `0` records for boundaries and `1, neighborElementId` records for an
+interface. `lines.connectivity` accepts `2, a, b` and `3, a, mid, b`; points
+use a flat `nodeIds` array. Lines and points have aligned `elementIds`. Every
+field accepts typed arrays without requiring one JavaScript object per face.
+
+```ts
+const part = surfacePart(10, {
+  positions,
+  facets: { connectivity: facets, elementIds, faceIndices },
+  lines: { connectivity: lines, elementIds: lineElementIds },
+  points: { nodeIds: pointNodeIds, elementIds: pointElementIds },
+});
+```
 
 ## Node and primitive identity
 
@@ -90,20 +98,17 @@ part and reused by every assembly placement.
 
 ## Replacement and negative space
 
-The mixed explicit-topology boundary replaces public `polygonPart()`,
-`polygonGeometry()`, `PolygonGeometryInput`, and `PolygonFaceInput` after it
-subsumes their useful contracts: deterministic convex and concave polygon
-tessellation, validation, face/element/body ownership, node picking and
-deformation, and empty no-draw input. Migrate those regression cases and the
-generic demo fixture, delete the superseded exports and documentation, and
-retain only shared triangulation and validation machinery. Do not keep a
-compatibility alias or second polygon-only public path.
+`surfacePart()` replaced the former polygon-only builders and subsumes their
+useful contracts: deterministic convex and concave tessellation, validation,
+face/element/body ownership, node picking and deformation, and empty no-draw
+input. The implementation retains shared triangulation and edge-incidence
+machinery without a compatibility alias or second polygon-only public path.
 
 The host may transfer the compact payload over its own protocol, but femgx
 receives one complete in-memory part payload. This does not restore the removed
 library-owned streaming subsystem: progressive chunks, spatial partitioning,
-levels of detail, residency, upload budgets, worker parsing, and incremental GPU upload
-remain out of scope. Shape inference, omitted-volume reconstruction, curved
+levels of detail, residency, upload budgets, worker parsing, and incremental
+GPU upload remain out of scope. Shape inference, omitted-volume reconstruction, curved
 interpolation, and derived engineering quantities also remain out of scope.
 
 ## Decision gate

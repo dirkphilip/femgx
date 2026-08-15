@@ -29,7 +29,7 @@ Related: [[data/elements-topology|Element topology]].
 
 Typed finite-element faces and authored polygon faces converge on one internal
 triangle assembler. It keys each output vertex by explicit source identity
-(authored `NodeId` for FE and polygon inputs, or an explicit generated-vertex
+(authored `NodeId` for typed and surface-derived inputs, or an explicit generated-vertex
 identity for node-less geometry), preserves first-seen triangle order, and emits
 one compact indexed surface. Coincident positions with different source
 identities remain distinct; coordinates are never welded. The assembler copies

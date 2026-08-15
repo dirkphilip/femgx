@@ -1,37 +1,19 @@
-import { canonicalEdge, compareNodeIds, edgesOf, type ElementEdge } from "../elements/edges";
+import { canonicalEdge, compareNodeIds, edgesOf } from "../elements/edges";
 import type { Element, ElementId, NodeId } from "../elements/element";
 import { facesOfElement, type FaceIdRef } from "../elements/faces";
+import { canonicalKey } from "../elements/keys";
 import { topologyFor } from "../elements/shapes";
 import { faceIdentity } from "./element-face-selection";
 import type { GeometryEdge } from "./types";
 
 /** Builds validated authored-edge descriptors for element-generated geometry. */
 export function authoredEdgesForElements(elements: readonly Element[]): readonly GeometryEdge[] {
-  const byKey = new Map<
-    string,
-    {
-      readonly edge: ElementEdge;
-      readonly elements: Set<ElementId>;
-      readonly faces: Map<string, FaceIdRef>;
-    }
-  >();
+  const occurrences: AuthoredEdgeOccurrence[] = [];
   for (const element of elements) {
     const localEdges = edgesOf(element);
-    for (const edge of localEdges) {
-      const entry = byKey.get(edge.key);
-      if (entry === undefined) {
-        byKey.set(edge.key, {
-          edge: canonicalEdge(edge),
-          elements: new Set([element.id]),
-          faces: new Map(),
-        });
-      } else {
-        entry.elements.add(element.id);
-      }
-    }
+    const facesByEdge = new Map<string, FaceIdRef[]>();
     for (const { elementId, faceIndex, face } of facesOfElement(element)) {
       const quadratic = topologyFor(element.shape).order >= 2;
-      const localEdgeByKey = new Map(localEdges.map((edge) => [edge.key, edge]));
       for (let index = 0; index < face.nodeIds.length; index += quadratic ? 2 : 1) {
         const nextCorner = quadratic
           ? (index + 2) % face.nodeIds.length
@@ -39,20 +21,60 @@ export function authoredEdgesForElements(elements: readonly Element[]): readonly
         const nodeIds = quadratic
           ? [face.nodeIds[index], face.nodeIds[index + 1], face.nodeIds[nextCorner]]
           : [face.nodeIds[index], face.nodeIds[nextCorner]];
-        const localEdge = [...localEdgeByKey.values()].find((edge) =>
-          sameEdgeNodes(edge.nodeIds, nodeIds),
-        );
+        const localEdge = localEdges.find((edge) => sameEdgeNodes(edge.nodeIds, nodeIds));
         if (localEdge === undefined) continue;
-        const entry = byKey.get(localEdge.key);
-        entry?.faces.set(faceIdentity(elementId, faceIndex), { elementId, faceIndex });
+        const refs = facesByEdge.get(localEdge.key) ?? [];
+        refs.push({ elementId, faceIndex });
+        facesByEdge.set(localEdge.key, refs);
       }
     }
+    for (const edge of localEdges) {
+      occurrences.push({
+        nodeIds: edge.nodeIds,
+        elementId: element.id,
+        faceRefs: facesByEdge.get(edge.key) ?? [],
+      });
+    }
+  }
+  return mergeAuthoredEdges(occurrences);
+}
+
+/** One authored edge incidence before shared topology is deduplicated. */
+export interface AuthoredEdgeOccurrence {
+  readonly nodeIds: readonly NodeId[];
+  readonly elementId: ElementId;
+  readonly faceRefs?: readonly FaceIdRef[];
+}
+
+/** Merges edge incidences into deterministic part geometry metadata. */
+export function mergeAuthoredEdges(
+  occurrences: readonly AuthoredEdgeOccurrence[],
+): readonly GeometryEdge[] {
+  const byKey = new Map<
+    string,
+    { edge: GeometryEdge; elements: Set<ElementId>; faces: Map<string, FaceIdRef> }
+  >();
+  for (const occurrence of occurrences) {
+    const edge = canonicalEdge({
+      key: canonicalKey(occurrence.nodeIds),
+      nodeIds: occurrence.nodeIds,
+    });
+    const entry = byKey.get(edge.key) ?? {
+      edge: { key: edge.key, nodeIds: edge.nodeIds, incidentElementIds: [], faceRefs: [] },
+      elements: new Set<ElementId>(),
+      faces: new Map<string, FaceIdRef>(),
+    };
+    entry.elements.add(occurrence.elementId);
+    for (const face of occurrence.faceRefs ?? []) {
+      entry.faces.set(faceIdentity(face.elementId, face.faceIndex), face);
+    }
+    byKey.set(edge.key, entry);
   }
   return [...byKey.values()]
-    .map(({ edge, elements: incidentElementIds, faces }) => ({
+    .map(({ edge, elements, faces }) => ({
       key: edge.key,
       nodeIds: edge.nodeIds,
-      incidentElementIds: [...incidentElementIds].sort((a, b) => a - b),
+      incidentElementIds: [...elements].sort((a, b) => a - b),
       faceRefs: [...faces.values()].sort(
         (a, b) => a.elementId - b.elementId || a.faceIndex - b.faceIndex,
       ),
