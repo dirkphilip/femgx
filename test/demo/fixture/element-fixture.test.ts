@@ -5,7 +5,7 @@ import {
   createHex20CylinderFixture,
   type ElementFixture,
 } from "../../../demo/fixture/element-fixture";
-import { buildMeshEdgeData } from "../../../src/renderer/gpu-edge";
+import { buildMeshEdgeData } from "../../../src/renderer/edges/gpu-edge";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import { transformPoint, type Bounds } from "../../../src/index";
 import type { Part } from "../../../src/index";

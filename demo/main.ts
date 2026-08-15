@@ -1,10 +1,10 @@
 import { mount } from "svelte";
 import WorkbenchApp from "./workbench/ui/WorkbenchApp.svelte";
-import { queryDemoView } from "./workbench/view";
+import { queryDemoView } from "./workbench/viewport/view";
 import { startWebGpuDemo } from "./workbench/start";
 import { readDemoHarnessOptions } from "./devtools/harness";
-import type { WorkbenchController } from "./workbench/controller";
-import type { WorkbenchStartupStatus } from "./workbench/snapshot";
+import type { WorkbenchController } from "./workbench/controllers/controller";
+import type { WorkbenchStartupStatus } from "./workbench/results/snapshot";
 
 interface WorkbenchAppHandle {
   connectWorkbench(controller: WorkbenchController): void;

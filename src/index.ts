@@ -19,4 +19,4 @@ export {
 export { emphasizedFaceRefs, isFaceEmphasized, resolveFaceStyle } from "./interaction/faces";
 export { emphasizedEdgeRefs, isEdgeEmphasized, resolveEdgeStyle } from "./interaction/edges";
 export { emphasizedNodeRefs, isNodeEmphasized, resolveNodeStyle } from "./interaction/nodes";
-export { WebGpuPickReadbackError } from "./renderer/gpu-pick";
+export { WebGpuPickReadbackError } from "./renderer/picking/gpu-pick";

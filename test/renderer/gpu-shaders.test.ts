@@ -4,10 +4,10 @@ import {
   EMISSIVE_BYTE_OFFSET,
   INSTANCE_STRIDE,
   LINE_WIDTH_BYTE_OFFSET,
-} from "../../src/renderer/gpu-draw";
-import { ELEMENT_RECORD_STRIDE, HIGHLIGHT_HEADER } from "../../src/renderer/gpu-elements";
-import { CAMERA_UNIFORM_SIZE } from "../../src/renderer/gpu-pipelines";
-import { DEFORMATION_UNIFORM_SIZE } from "../../src/renderer/gpu-deform";
+} from "../../src/renderer/resources/gpu-draw";
+import { ELEMENT_RECORD_STRIDE, HIGHLIGHT_HEADER } from "../../src/renderer/resources/gpu-elements";
+import { CAMERA_UNIFORM_SIZE } from "../../src/renderer/core/gpu-pipelines";
+import { DEFORMATION_UNIFORM_SIZE } from "../../src/renderer/core/gpu-deform";
 import {
   colorFragmentShader,
   edgeFragmentShader,
@@ -15,32 +15,35 @@ import {
   surfaceLightingFunction,
   triangleColorFragmentShader,
   vertexOutput,
-} from "../../src/renderer/gpu-shaders";
+} from "../../src/renderer/shaders/gpu-shaders";
 import {
   instanceVertexShader,
   lineSelectionVertexShader,
   lineVertexShader,
   pointVertexShader,
   selectionVertexShader,
-} from "../../src/renderer/gpu-instanced-shaders";
-import { ownerVisibilityBindings } from "../../src/renderer/gpu-topology-shader";
-import { BLOCK_HIGHLIGHT_MARKER } from "../../src/renderer/gpu-highlight-table";
+} from "../../src/renderer/shaders/gpu-instanced-shaders";
+import { ownerVisibilityBindings } from "../../src/renderer/shaders/gpu-topology-shader";
+import { BLOCK_HIGHLIGHT_MARKER } from "../../src/renderer/selection/gpu-highlight-table";
 import {
   lineNodePickVertexShader,
   nodePickFragmentShader,
   nodePickVertexShader,
   pointNodePickVertexShader,
 } from "../../src/renderer/gpu-node-pick";
-import { nodeOverlayFragmentShader } from "../../src/renderer/gpu-node-overlay";
-import { edgePickFragmentShader, edgePickVertexShader } from "../../src/renderer/gpu-edge-pick";
+import { nodeOverlayFragmentShader } from "../../src/renderer/shaders/gpu-node-overlay";
+import {
+  edgePickFragmentShader,
+  edgePickVertexShader,
+} from "../../src/renderer/edges/gpu-edge-pick";
 import {
   transparencyFragmentShader,
   triangleTransparencyFragmentShader,
-} from "../../src/renderer/gpu-transparency";
+} from "../../src/renderer/core/gpu-transparency";
 import {
   selectionFragmentShader,
   selectionTransparencyFragmentShader,
-} from "../../src/renderer/gpu-selection";
+} from "../../src/renderer/selection/gpu-selection";
 
 function normalizedDerivativeNormal(
   first: readonly [number, number, number],

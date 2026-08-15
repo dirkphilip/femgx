@@ -19,7 +19,7 @@ performance budget is measured separately without coverage instrumentation.
 | Viewport and public API     | `test/viewport`, `test/public-api`                 | Canonical facade workflow and deliberate root exports                                                 |
 | Demo fixtures and workbench | `test/demo`, `test/demo/ui-interactions.test.ts`   | Fixture construction, plain-core transitions, Svelte bindings, lifecycle cleanup, and preset behavior |
 | Engineering safeguards      | `test/scripts`, `test/bench`                       | Repository policy and deterministic CPU budgets                                                       |
-| Browser product contract    | `e2e/core`, `e2e/demo`, `e2e/shared`               | Direct public-library rendering, workbench behavior, responsive interaction, and unsupported state    |
+| Browser product contract    | `e2e/core`, `e2e/demo`, `e2e/browser-support`      | Direct public-library rendering, workbench behavior, responsive interaction, and unsupported state    |
 
 The exclude-based `npm run test:core` lane covers the fast library tests while
 excluding demo, renderer, viewport, platform, script, and budget suites; it

@@ -13,13 +13,13 @@ import {
   type InteractionTarget,
   type PickHit,
 } from "../../src/index";
-import { WorkbenchBoxPreview } from "../../demo/workbench/box-preview";
-import { installWorkbenchPaneBindings } from "../../demo/workbench/listeners";
-import { WorkbenchInteraction } from "../../demo/workbench/interaction";
-import type { BoxSelectionResolver } from "../../demo/workbench/box-selection-resolver";
-import { selectedKeys } from "../../demo/workbench/selection";
-import type { SelectionGranularity } from "../../demo/workbench/pick";
-import type { WorkbenchMenu } from "../../demo/workbench/menu";
+import { WorkbenchBoxPreview } from "../../demo/workbench/selection/box-preview";
+import { installWorkbenchPaneBindings } from "../../demo/workbench/interaction/listeners";
+import { WorkbenchInteraction } from "../../demo/workbench/interaction/interaction";
+import type { BoxSelectionResolver } from "../../demo/workbench/selection/box-selection-resolver";
+import { selectedKeys } from "../../demo/workbench/selection/selection";
+import type { SelectionGranularity } from "../../demo/workbench/selection/pick";
+import type { WorkbenchMenu } from "../../demo/workbench/interaction/menu";
 import type { TouchInteractionMode } from "../../demo/workbench/types";
 import type { BoxSelectionRect } from "../../src/index";
 

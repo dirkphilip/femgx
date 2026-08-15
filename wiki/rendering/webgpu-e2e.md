@@ -67,7 +67,7 @@ interaction journeys live in `e2e/demo/demo-lifecycle.spec.ts`,
 `e2e/demo/demo-interaction.spec.ts`, `e2e/demo/demo-import.spec.ts`,
 `e2e/demo/mobile.spec.ts`, and `e2e/demo/demo-layout.spec.ts`. Core browser
 journeys own low-level GPU lifecycle, camera, picking, and raster contracts;
-owner-neutral mechanics live in `e2e/shared/helpers.ts`. Performance remains
+owner-neutral mechanics live in `e2e/browser-support/helpers.ts`. Performance remains
 opt-in.
 
 - `data-renderer="webgpu" | "unsupported" | "destroyed"` on the `#view` canvas.

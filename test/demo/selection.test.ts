@@ -10,7 +10,7 @@ import {
   elementTarget,
   exactTarget,
   selectTarget,
-} from "../../demo/workbench/pick";
+} from "../../demo/workbench/selection/pick";
 import {
   replaceSelection,
   replaceTargets,
@@ -18,8 +18,8 @@ import {
   toggleElementSelection,
   toggleSelection,
   hasVisibleSelection,
-} from "../../demo/workbench/selection";
-import type { SelectTarget } from "../../demo/workbench/pick";
+} from "../../demo/workbench/selection/selection";
+import type { SelectTarget } from "../../demo/workbench/selection/pick";
 import type { PickHit } from "../../src/index";
 
 const part: SelectTarget = { kind: "part", partId: 4 };

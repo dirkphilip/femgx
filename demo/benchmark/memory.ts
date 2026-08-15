@@ -1,6 +1,6 @@
 import { logicalPrimitiveCount, type Part } from "../../src/geometry/part";
-import { DEFORMATION_UNIFORM_SIZE } from "../../src/renderer/gpu-deform";
-import { CAMERA_UNIFORM_SIZE } from "../../src/renderer/gpu-pipelines";
+import { DEFORMATION_UNIFORM_SIZE } from "../../src/renderer/core/gpu-deform";
+import { CAMERA_UNIFORM_SIZE } from "../../src/renderer/core/gpu-pipelines";
 import type { Scene } from "../../src/scene/scene";
 
 export interface BenchmarkMemoryEstimate {

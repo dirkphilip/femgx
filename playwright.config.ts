@@ -31,7 +31,7 @@ export default defineConfig({
   // `list` marks skipped tests with `-`; the custom reporter groups the skip
   // reasons at the end so capability-gated skips stay visible and reviewable
   // (see `wiki/engineering/e2e-policy.md`).
-  reporter: [["list"], ["./e2e/shared/skip-summary-reporter.ts"]],
+  reporter: [["list"], ["./e2e/browser-support/skip-summary-reporter.ts"]],
   use: {
     baseURL,
     trace: "on-first-retry",

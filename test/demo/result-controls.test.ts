@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { createResultsPreset } from "../../demo/fixture/results-preset";
 import { createBoltedPlatePreset } from "../../demo/fixture/presets";
-import { createExampleModel } from "../../demo/workbench/model";
-import { setResultField } from "../../demo/workbench/result-actions";
-import { createResultPlaybackActions } from "../../demo/workbench/result-playback";
-import { setVectorField, setVectorWidthPixels } from "../../demo/workbench/vector-actions";
+import { createExampleModel } from "../../demo/workbench/models/model";
+import { setResultField } from "../../demo/workbench/results/result-actions";
+import { createResultPlaybackActions } from "../../demo/workbench/results/result-playback";
+import { setVectorField, setVectorWidthPixels } from "../../demo/workbench/results/vector-actions";
 import {
   BASE_RESULT_VALUE,
   DEFORMATION_OFF_VALUE,
@@ -22,7 +22,7 @@ import {
   vectorDisplayForField,
   vectorDisplayForModel,
   VECTOR_OFF_VALUE,
-} from "../../demo/workbench/result-controls";
+} from "../../demo/workbench/results/result-controls";
 
 describe("demo orientation result controls", () => {
   it("starts from the authored field and preserves both available choices", () => {

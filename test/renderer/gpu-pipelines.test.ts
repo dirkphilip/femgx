@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createRenderResources, destroyRenderResources } from "../../src/renderer/gpu-pipelines";
-import { SECTION_PLANE_UNIFORM_SIZE } from "../../src/renderer/gpu-section-plane";
-import { COLOR_SAMPLE_COUNT } from "../../src/renderer/gpu-support";
+import {
+  createRenderResources,
+  destroyRenderResources,
+} from "../../src/renderer/core/gpu-pipelines";
+import { SECTION_PLANE_UNIFORM_SIZE } from "../../src/renderer/helpers/gpu-section-plane";
+import { COLOR_SAMPLE_COUNT } from "../../src/renderer/resources/gpu-support";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
 describe("GPU render resources", () => {

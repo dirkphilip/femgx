@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { WorkbenchController } from "../controller";
-  import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../snapshot";
+  import type { WorkbenchController } from "../controllers/controller";
+  import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../results/snapshot";
   import ContextMenu from "./ContextMenu.svelte";
   import PrimaryToolbar from "./PrimaryToolbar.svelte";
   import ResultLegend from "./ResultLegend.svelte";

@@ -6,7 +6,7 @@ import {
   writeNodeSelectionOrder,
   writeSelectionOrder,
   type DrawResources,
-} from "./gpu-draw";
+} from "./resources/gpu-draw";
 import {
   buildNodeOrder,
   buildNodeSelectionOrder,

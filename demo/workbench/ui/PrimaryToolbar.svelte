@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { WorkbenchController } from "../controller";
-  import type { WorkbenchSnapshot } from "../snapshot";
+  import type { WorkbenchController } from "../controllers/controller";
+  import type { WorkbenchSnapshot } from "../results/snapshot";
   import AnalysisControls from "./AnalysisControls.svelte";
 
   let {

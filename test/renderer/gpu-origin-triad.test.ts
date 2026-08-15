@@ -12,7 +12,7 @@ import {
   originTriadDimensions,
   originTriadNominalScale,
   originTriadScale,
-} from "../../src/renderer/gpu-origin-triad";
+} from "../../src/renderer/helpers/gpu-origin-triad";
 
 describe("world-origin triad", () => {
   it("derives finite dimensions from one camera scale", () => {

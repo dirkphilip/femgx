@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { createPart, type Geometry } from "../../src/geometry/part";
 import { identity } from "../../src/math/mat4";
-import { pickTargetsFromRegion, renderPixelRect } from "../../src/renderer/gpu-pick-region";
-import { createPickRegionTargetResolver } from "../../src/renderer/gpu-pick-region-resolve";
-import { createPickRegionTargetCollector } from "../../src/renderer/gpu-pick-region-targets";
+import { pickTargetsFromRegion, renderPixelRect } from "../../src/renderer/picking/gpu-pick-region";
+import { createPickRegionTargetResolver } from "../../src/renderer/picking/gpu-pick-region-resolve";
+import { createPickRegionTargetCollector } from "../../src/renderer/picking/gpu-pick-region-targets";
 import {
   createPickTargets,
   ensurePickTargets,
   type PickTargets,
-} from "../../src/renderer/gpu-pick";
+} from "../../src/renderer/picking/gpu-pick";
 import type { InteractionGranularity } from "../../src/picking/types";
 import type { PickContext, ResolvedPickIds } from "../../src/picking/pick";
 import type { Instance } from "../../src/scene/types";
 import type { BoxSelectionRect } from "../../src/interaction/box-selection";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
-import { createPickDepthReadback } from "../../src/renderer/gpu-pick-depth";
+import { createPickDepthReadback } from "../../src/renderer/picking/gpu-pick-depth";
 import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
 
 function rect(overrides: Partial<BoxSelectionRect> = {}): BoxSelectionRect {

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { WorkbenchSnapshot } from "../snapshot";
-  import type { WorkbenchResultLegendSnapshot } from "../result-legend";
+  import type { WorkbenchSnapshot } from "../results/snapshot";
+  import type { WorkbenchResultLegendSnapshot } from "../results/result-legend";
 
   let { snapshot }: { snapshot: WorkbenchSnapshot | undefined } = $props();
 

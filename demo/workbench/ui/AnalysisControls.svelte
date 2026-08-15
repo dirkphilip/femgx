@@ -1,7 +1,11 @@
 <script lang="ts">
-  import { BASE_RESULT_VALUE, DEFORMATION_OFF_VALUE, VECTOR_OFF_VALUE } from "../result-controls";
-  import type { WorkbenchController } from "../controller";
-  import type { WorkbenchResultField, WorkbenchSnapshot } from "../snapshot";
+  import {
+    BASE_RESULT_VALUE,
+    DEFORMATION_OFF_VALUE,
+    VECTOR_OFF_VALUE,
+  } from "../results/result-controls";
+  import type { WorkbenchController } from "../controllers/controller";
+  import type { WorkbenchResultField, WorkbenchSnapshot } from "../results/snapshot";
   import type { SectionAxis } from "../section-controls";
 
   let {

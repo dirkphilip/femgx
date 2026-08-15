@@ -28,23 +28,26 @@ import {
   type TriangleGeometry,
 } from "../../src/entries/root";
 import { resolvePick, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
-import { buildMeshEdgeData } from "../../src/renderer/gpu-edge";
-import { createPickRegionTargetResolver } from "../../src/renderer/gpu-pick-region-resolve";
-import { buildPrimitiveFaceBodyPickData } from "../../src/renderer/gpu-pick-ids";
-import { expandSurfaceGeometry } from "../../src/renderer/gpu-surface-geometry";
-import { collectEmphasisUpdates, encodeEmphasisRecord } from "../../src/renderer/gpu-elements";
+import { buildMeshEdgeData } from "../../src/renderer/edges/gpu-edge";
+import { createPickRegionTargetResolver } from "../../src/renderer/picking/gpu-pick-region-resolve";
+import { buildPrimitiveFaceBodyPickData } from "../../src/renderer/picking/gpu-pick-ids";
+import { expandSurfaceGeometry } from "../../src/renderer/resources/gpu-surface-geometry";
+import {
+  collectEmphasisUpdates,
+  encodeEmphasisRecord,
+} from "../../src/renderer/resources/gpu-elements";
 import {
   buildHighlightTable,
   type HighlightTableEntry,
-} from "../../src/renderer/gpu-highlight-table";
+} from "../../src/renderer/selection/gpu-highlight-table";
 import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
-import { defaultStyle } from "../../src/renderer/gpu-support";
+import { defaultStyle } from "../../src/renderer/resources/gpu-support";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createSceneRuntime } from "../../src/entries/runtime";
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
 import { displayedPartBounds } from "../../src/viewport/geometry-bounds";
-import { buildFaceSubsetIndices } from "../../src/renderer/gpu-face-subset";
+import { buildFaceSubsetIndices } from "../../src/renderer/selection/gpu-face-subset";
 import {
   BENCH_BODY_COUNT,
   BENCH_BODY_ELEMENT_COUNT,

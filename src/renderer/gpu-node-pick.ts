@@ -14,8 +14,8 @@ import {
   sectionPlaneFunction,
   sectionPlaneBindings,
   trianglePickExpansionFn,
-} from "./gpu-shaders";
-import { emphasisHash } from "./gpu-highlight-shader";
+} from "./shaders/gpu-shaders";
+import { emphasisHash } from "./shaders/gpu-highlight-shader";
 
 /**
  * Element/node pick pass shaders. In addition to the instance, element, and

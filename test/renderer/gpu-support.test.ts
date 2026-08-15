@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createBuffer } from "../../src/renderer/gpu-support";
+import { createBuffer } from "../../src/renderer/resources/gpu-support";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 import { readInteractionState } from "../../src/interaction/state";

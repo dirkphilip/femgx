@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
-  import type { WorkbenchController } from "../controller";
-  import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../snapshot";
+  import type { WorkbenchController } from "../controllers/controller";
+  import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../results/snapshot";
   import BuildInfo from "./BuildInfo.svelte";
   import ElementDetail from "./ElementDetail.svelte";
   import ModelSource from "./ModelSource.svelte";

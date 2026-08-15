@@ -1,5 +1,5 @@
 import type { Part, PartId } from "../geometry/part";
-import { destroyPartResources, type DrawResources } from "./gpu-draw";
+import { destroyPartResources, type DrawResources } from "./resources/gpu-draw";
 
 /** Reconciles cached per-part GPU resources against the next scene registry. */
 export function reconcilePartResources(

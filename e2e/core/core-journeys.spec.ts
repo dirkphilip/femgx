@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { drawnPixels, pixelHash } from "../shared/helpers";
+import { drawnPixels, pixelHash } from "../browser-support/helpers";
 
 const HOST = "/e2e/core/core-host.html";
 

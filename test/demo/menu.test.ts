@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createInteractionState, setElementBlockVisible } from "../../src/index";
-import { contextMenuSelectionOptions, WorkbenchMenu } from "../../demo/workbench/menu";
+import { contextMenuSelectionOptions, WorkbenchMenu } from "../../demo/workbench/interaction/menu";
 
 describe("workbench context-menu state", () => {
   it("publishes target actions and hides after activation", () => {

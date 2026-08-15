@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { canvasInteractionBox, requireHit } from "../shared/helpers";
+import { canvasInteractionBox, requireHit } from "../browser-support/helpers";
 import { closeNavigation, openCommandPanel, openNavigation, waitForRenderer } from "./demo-support";
 
 /**

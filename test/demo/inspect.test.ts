@@ -7,7 +7,7 @@ import {
   type ViewportScalarState,
   type ViewportResultsState,
 } from "../../src/index";
-import { describePick } from "../../demo/workbench/inspect";
+import { describePick } from "../../demo/workbench/selection/inspect";
 
 describe("demo result inspection", () => {
   it("shows the exact nodal value only for a node hit", () => {

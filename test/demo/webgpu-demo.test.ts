@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FemViewport } from "../../src/viewport/fem-viewport";
 import { WebGpuUnsupportedError } from "../../src/platform/capabilities";
-import type { DemoView } from "../../demo/workbench/view";
-import type { WorkbenchOptions } from "../../demo/workbench/controller";
+import type { DemoView } from "../../demo/workbench/viewport/view";
+import type { WorkbenchOptions } from "../../demo/workbench/controllers/controller";
 import { startWebGpuDemo } from "../../demo/workbench/start";
 
 const mocks = vi.hoisted(() => {
@@ -48,7 +48,7 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../demo/workbench/controller", () => ({
+vi.mock("../../demo/workbench/controllers/controller", () => ({
   WorkbenchController: mocks.FakeWorkbenchController,
 }));
 vi.mock("../../src/index", async (importOriginal) => ({

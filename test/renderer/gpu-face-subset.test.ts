@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildFaceSubsetIndices } from "../../src/renderer/gpu-face-subset";
+import { buildFaceSubsetIndices } from "../../src/renderer/selection/gpu-face-subset";
 
 describe("GPU face subsets", () => {
   it("preserves declared face order while emitting selected triangle indices", () => {

@@ -14,7 +14,7 @@ import {
 } from "../../src/renderer/gpu-renderer";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { resolveElementalOrientationRecords } from "../../src/results/orientation-records";
-import type { OrientationGlyphState } from "../../src/renderer/gpu-orientation-glyph";
+import type { OrientationGlyphState } from "../../src/renderer/orientation/gpu-orientation-glyph";
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
 import { hasInteractiveSample, measureInteractiveSamples } from "./interactive";
 import { estimateBenchmarkMemory, type WebGpuBenchmarkCase } from "./model";

@@ -5,8 +5,8 @@ import {
   GpuDeviceLifecycle,
   rebuildGpuBundle,
 } from "../../src/renderer/gpu-recovery";
-import { ensureColorTargets } from "../../src/renderer/gpu-pipelines";
-import type { GpuValidationOptions } from "../../src/renderer/gpu-validation";
+import { ensureColorTargets } from "../../src/renderer/core/gpu-pipelines";
+import type { GpuValidationOptions } from "../../src/renderer/core/gpu-validation";
 import {
   fakeGpuDevice,
   installFreshDeviceNavigator,
