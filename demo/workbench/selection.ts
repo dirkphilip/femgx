@@ -8,6 +8,7 @@ import {
   setTargetsSelected,
   type InteractionState,
 } from "../../src/index";
+import type { SceneRuntime } from "../../src/index";
 import { elementTarget, targetKey, type SelectTarget } from "./pick";
 
 /** Applies one selection toggle without coupling it to the DOM or renderer. */
@@ -76,6 +77,21 @@ export function selectedKeys(interaction: InteractionState): string[] {
   return selectedTargets(interaction)
     .filter((target): target is SelectTarget => target.kind !== "body")
     .map(targetKey);
+}
+
+/** Returns whether the current selection contains geometry in a visible occurrence. */
+export function hasVisibleSelection(interaction: InteractionState, runtime: SceneRuntime): boolean {
+  const visiblePartIds = new Set(
+    runtime
+      .getInstances()
+      .filter((instance) => instance.visible)
+      .map((instance) => instance.partId),
+  );
+  return selectedTargets(interaction).some((target) =>
+    target.kind === "part"
+      ? visiblePartIds.has(target.partId)
+      : runtime.isInstanceVisible(target.instanceId),
+  );
 }
 
 function isSelected(interaction: InteractionState, target: SelectTarget): boolean {

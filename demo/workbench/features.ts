@@ -12,6 +12,7 @@ import type { SelectionGranularity } from "./pick";
 import type { SectionAxis } from "./section-controls";
 import type { VectorGlyph, VectorTransform } from "./result-controls";
 import type { ViewportSlotId } from "./view";
+import { hasVisibleSelection } from "./selection";
 
 export interface WorkbenchFeatureOptions {
   readonly view: DemoView;
@@ -57,6 +58,7 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
   const menu = new WorkbenchMenu(
     () => options.toggles().edges,
     () => options.toggles().diagnostics,
+    () => hasVisibleSelection(options.interaction(), options.runtime()),
     options.applyMenuAction,
     options.publishSnapshot,
   );

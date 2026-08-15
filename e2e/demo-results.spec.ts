@@ -328,6 +328,8 @@ test("switches projection, fits to view, and resets camera controls", async ({ p
   const reset = page.getByTestId("reset");
   await expect(fit).toHaveText("Fit model");
   await expect(fit).toHaveAttribute("aria-label", "Fit model");
+  await expect(fit).toHaveAttribute("aria-keyshortcuts", "Z");
+  await expect(page.getByTestId("interaction-help")).toContainText("Press Z");
   await expect(reset).toHaveText("Reset all");
   await expect(reset).toHaveAttribute("aria-label", "Reset all");
   await expect(button).toHaveText("Orthographic");
@@ -358,6 +360,7 @@ test("Fit model preserves workbench state while Reset all restores preset defaul
   );
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => dataset(page, "selected")).not.toBe("");
+  await expect(page.getByTestId("fit-view")).toHaveText("Fit selection");
 
   await instance.uncheck();
   await page.getByTestId("edge-overlay").click();

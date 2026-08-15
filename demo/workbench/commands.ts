@@ -32,7 +32,7 @@ interface WorkbenchCommandOwner {
   setVectorGlyph(value: string): void;
   setVectorTransform(value: string): void;
   setVectorLengthScale(value: string): void;
-  fitView(): void;
+  fitSelection(): void;
   hideSelected(): void;
   showAll(): void;
   reset(): void;
@@ -67,7 +67,7 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     setVectorWidthPixels: (value) => {
       applyVectorWidth(owner, value);
     },
-    fitView: owner.fitView.bind(owner),
+    fitSelection: owner.fitSelection.bind(owner),
     hideSelected: owner.hideSelected.bind(owner),
     showAll: owner.showAll.bind(owner),
     reset: owner.reset.bind(owner),

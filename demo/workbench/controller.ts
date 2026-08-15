@@ -341,8 +341,8 @@ export class WorkbenchController {
     this.render();
   }
 
-  fitView(): void {
-    this.activeViewport().fitView();
+  fitSelection(): void {
+    this.activeViewport().fitSelection();
     this.render();
   }
 

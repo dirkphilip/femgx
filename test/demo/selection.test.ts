@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createInteractionState, isTargetSelected, setTargetSelected } from "../../src/index";
+import {
+  createInteractionState,
+  isTargetSelected,
+  setTargetSelected,
+  type SceneRuntime,
+} from "../../src/index";
 import { elementTarget, exactTarget, selectTarget } from "../../demo/workbench/pick";
 import {
   replaceSelection,
@@ -7,6 +12,7 @@ import {
   toggleTargets,
   toggleElementSelection,
   toggleSelection,
+  hasVisibleSelection,
 } from "../../demo/workbench/selection";
 import type { SelectTarget } from "../../demo/workbench/pick";
 import type { PickHit } from "../../src/index";
@@ -191,6 +197,35 @@ describe("demo selection policy", () => {
     expect(isTargetSelected(toggled, part)).toBe(false);
     expect(isTargetSelected(toggled, element)).toBe(false);
     expect(toggleTargets(toggled, [])).toBe(toggled);
+  });
+
+  it("only advertises framing for selected geometry in visible occurrences", () => {
+    const runtime = {
+      getInstances: () => [
+        { partId: 4, visible: true },
+        { partId: 9, visible: false },
+      ],
+      isInstanceVisible: (instanceId: string) => instanceId === "visible",
+    } as unknown as SceneRuntime;
+    const visibleInstance: SelectTarget = { kind: "instance", instanceId: "visible" };
+    const hiddenInstance: SelectTarget = { kind: "instance", instanceId: "hidden" };
+
+    expect(hasVisibleSelection(createInteractionState(), runtime)).toBe(false);
+    expect(hasVisibleSelection(toggleSelection(createInteractionState(), part), runtime)).toBe(
+      true,
+    );
+    expect(
+      hasVisibleSelection(toggleSelection(createInteractionState(), visibleInstance), runtime),
+    ).toBe(true);
+    expect(
+      hasVisibleSelection(toggleSelection(createInteractionState(), hiddenInstance), runtime),
+    ).toBe(false);
+    expect(
+      hasVisibleSelection(
+        toggleSelection(createInteractionState(), { kind: "part", partId: 9 }),
+        runtime,
+      ),
+    ).toBe(false);
   });
 });
 

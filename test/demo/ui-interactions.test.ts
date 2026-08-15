@@ -86,7 +86,7 @@ describe("workbench Svelte controls", () => {
         "setVectorLengthScale",
         "setVectorWidthPixels",
         "setSectionOffset",
-        "fitView",
+        "fitSelection",
         "showAll",
         "toggleSecondaryViewport",
         "setProjection",
