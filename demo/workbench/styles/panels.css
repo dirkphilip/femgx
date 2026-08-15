@@ -53,6 +53,9 @@
     monospace;
   white-space: pre-wrap;
 }
+.result-legend:not(.result-legend-with-ramp) {
+  grid-template-columns: minmax(0, 1fr);
+}
 .result-legend-ramp {
   align-self: stretch;
   min-height: 44px;
