@@ -1,6 +1,14 @@
 {
   "$schema": "https://typedoc.org/schema.json",
-  "entryPoints": ["src/index.ts"],
+  "entryPoints": [
+    "src/entries/root.ts",
+    "src/entries/model.ts",
+    "src/entries/io.ts",
+    "src/entries/io-glb.ts",
+    "src/entries/camera.ts",
+    "src/entries/runtime.ts",
+    "src/entries/platform.ts"
+  ],
   "categorizeByGroup": false,
   "categoryOrder": [
     "Start here",

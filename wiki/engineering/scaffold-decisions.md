@@ -43,9 +43,9 @@ Recorded decisions from the initial toolchain setup.
 - Source and tests are organized by subsystem directories under `src/` and
   `test/` (math, geometry, scene, runtime, camera, interaction, picking,
   renderer); see [[architecture/source-organization|Source organization]].
-- `src/index.ts` is the single public entry point; the demo app in `demo/` is a
-  thin WebGPU consumer that reports an explicit unsupported state on browsers
-  without WebGPU.
+- `src/entries/` contains the package's explicit root and domain facades; the
+  demo app in `demo/` is a thin WebGPU consumer that reports an explicit
+  unsupported state on browsers without WebGPU.
 - `test/` holds CPU-side and mocked-WebGPU unit tests that mirror `src/`.
 
 ## Intentionally deferred

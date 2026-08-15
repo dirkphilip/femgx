@@ -1,9 +1,9 @@
 # Public API audit
 
-The exhaustive public surface is owned by `src/index.ts` and checked by the
-generated [API reference][docs/api-reference]. This note records ownership and
-scope without duplicating a symbol inventory that would drift from the source
-barrel.
+The public surface is owned by the explicit facades under `src/entries/` and
+checked by `test/public-api/entry-inventory.test.ts` plus package smoke. This
+note records ownership and scope without duplicating a symbol inventory that
+would drift from the source facades.
 
 ## Ownership map
 
@@ -16,12 +16,13 @@ barrel.
 | `results/`                    | Authored scalar/vector fields, ranges, color maps, nodal deformation, and the bounded elemental orientation role. Derived engineering quantities and generalized glyph systems remain out of scope. |
 | `io/`                         | Validated model diagnostics, VTK interchange, and the narrow supported GLB display-scene importer.                                                                                                  |
 | `camera/`, `math/`            | Supported camera navigation and authoring math used directly by applications.                                                                                                                       |
-| `scene-runtime/`, `platform/` | Deliberately advanced runtime queries and WebGPU capability/device contracts. Packed storage and renderer lifecycle remain internal.                                                                |
+| `scene-runtime/`, `platform/` | Deliberately advanced runtime queries and WebGPU capability/device contracts, published as `femgx/runtime` and `femgx/platform`. Packed storage and renderer lifecycle remain internal.             |
 
-Categories in TypeDoc organize the complete root surface for readers; they do
-not create subpath imports or add stability guarantees. The root barrel remains
-the only public entry point. Primitive-specific geometry leaves are represented
-by the public `Geometry` union; GPU resource layouts remain internal.
+The root `femgx` entry is intentionally limited to the canonical application
+workflow. `femgx/model`, `femgx/io`, `femgx/io/glb`, `femgx/camera`,
+`femgx/runtime`, and `femgx/platform` are the only supported subpaths. There
+are no wildcard or source-tree exports. Primitive-specific geometry leaves are
+represented by the public `Geometry` union; GPU resource layouts remain internal.
 
 The package smoke suite must consume the canonical viewport, scene, and results
 contracts rather than renderer records or derived runtime storage. The public

@@ -31,9 +31,21 @@ const scene = createScene()
 const viewport = await createFemViewport({ canvas, scene });
 ```
 
-Start with {@link createPart}, {@link createScene}, and {@link createFemViewport}.
-The generated
-navigation groups the complete root API by supported workflow:
+Start with `createPart`, `createScene`, and `createFemViewport`.
+The package has explicit entry points; import advanced or optional domains only
+when the host needs them:
+
+| Entry            | Owns                                                                  |
+| ---------------- | --------------------------------------------------------------------- |
+| `femgx`          | Canonical scene, viewport, interaction, and authored results workflow |
+| `femgx/model`    | FE authoring and topology                                             |
+| `femgx/io`       | FEM interchange and VTK                                               |
+| `femgx/io/glb`   | Optional GLB display-scene import                                     |
+| `femgx/camera`   | Camera shells and navigation                                          |
+| `femgx/runtime`  | Advanced CPU runtime inspection                                       |
+| `femgx/platform` | Supported-path WebGPU primitives                                      |
+
+The generated navigation groups the entry points and their symbols by supported workflow:
 
 - Scene and geometry
 - Elements and model editing
@@ -45,8 +57,8 @@ navigation groups the complete root API by supported workflow:
 - Advanced runtime and WebGPU platform
 
 The full searchable index remains available in the generated navigation. The
-advanced category documents stable supporting utilities and platform-facing
-contracts; it is not a second renderer lifecycle.
+advanced entries document stable supporting utilities and platform-facing
+contracts; they are not a second renderer lifecycle.
 
 `createSceneRuntime(scene)` is a CPU-only immutable compiled snapshot for
 intentional host inspection. The canonical viewport owns the current live

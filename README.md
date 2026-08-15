@@ -68,19 +68,33 @@ Use Node 24 or newer; `.nvmrc` matches the CI runtime.
 npm install femgx
 ```
 
-The package ships ESM and CommonJS builds plus TypeScript declarations for both.
-The package includes the small glTF Transform runtime dependency used by the
-bytes-only GLB display-scene importer. Consumers do **not** need
-`@webgpu/types` (WebGPU types come from the TypeScript 6 DOM lib).
+The package ships ESM and CommonJS builds plus TypeScript declarations for each
+documented entry point. The optional GLB entry is isolated from the canonical
+root download. Consumers do **not** need `@webgpu/types` (WebGPU types come from
+the TypeScript 6 DOM lib).
+
+Choose the narrowest supported entry point:
+
+| Import           | Use                                                                              |
+| ---------------- | -------------------------------------------------------------------------------- |
+| `femgx`          | Parts, assemblies, scenes, viewport lifecycle, interaction, and authored results |
+| `femgx/model`    | FE elements, shapes, topology, model editing, and semantic part compilation      |
+| `femgx/io`       | FEM model validation, VTK interchange, and authored result conversion            |
+| `femgx/io/glb`   | Optional bytes-only GLB display-scene import                                     |
+| `femgx/camera`   | Custom camera shells and navigation helpers                                      |
+| `femgx/runtime`  | Advanced CPU scene-runtime inspection                                            |
+| `femgx/platform` | Supported-path WebGPU adapter/device ownership                                   |
 
 ```js
 // ESM
-import { createScene, createFemViewport, createResultField, importGlb } from "femgx";
+import { createScene, createFemViewport, createResultField } from "femgx";
+import { importGlb } from "femgx/io/glb";
 ```
 
 ```js
 // CommonJS
-const { createScene, createFemViewport, createResultField, importGlb } = require("femgx");
+const { createScene, createFemViewport, createResultField } = require("femgx");
+const { importGlb } = require("femgx/io/glb");
 ```
 
 ## Supported environments
@@ -114,7 +128,7 @@ const { createScene, createFemViewport, createResultField, importGlb } = require
 ## Public API highlights
 
 - `createScene()` validates duplicate IDs, missing references, invalid roots, and cycles.
-- `createSceneRuntime()` is an advanced CPU-only, immutable compiled snapshot for
+- `createSceneRuntime()` from `femgx/runtime` is an advanced CPU-only, immutable compiled snapshot for
   stable-handle host queries; most hosts should let `createFemViewport()` own the
   current live runtime facade. Re-read `viewport.runtime` after `setScene()` or
   `updateScene()` because structural replacement installs a new query snapshot.
@@ -122,15 +136,15 @@ const { createScene, createFemViewport, createResultField, importGlb } = require
 - `InteractionTarget`, `setTargetSelected()`, and `setTargetHighlighted()` provide
   immutable dispatch for any part, instance, body, element, face, node, or authored-edge identity;
   `clearSelection()` preserves non-selection state.
-- `createCamera()` defaults to orthographic projection and supports perspective as an explicit
+- `createCamera()` from `femgx/camera` defaults to orthographic projection and supports perspective as an explicit
   mode, plus orbit, pan, zoom, and resize.
-- `installCameraControls()` adds the library's SpaceClaim-style mouse/touch behavior and
+- `installCameraControls()` from `femgx/camera` adds the library's SpaceClaim-style mouse/touch behavior and
   renderer-owned rotation-origin axis widget without requiring the demo's tree, toolbar, or info panels.
 - `createFemViewport()` is the canonical application path: it owns the packed runtime, fitted
   camera, renderer, controls, resize, interaction synchronization, recovery, and teardown.
 - `createPart()` retains supplied typed arrays without copying and takes ownership of them; do
   not mutate or reuse those arrays after construction. For a mixed finite-element model, use
-  `elementPart()` to compile one semantic reusable part with homogeneous primitive groups, then
+  `elementPart()` from `femgx/model` to compile one semantic reusable part with homogeneous primitive groups, then
   place that part once in an `Assembly`; the renderer keeps topology-specific draws internal.
 - `createResultField()` builds typed nodal/elemental scalar and nodal vector fields; the
   results API maps authored scalar values, supports optional thresholds, and keeps

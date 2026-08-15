@@ -59,11 +59,12 @@ and `test/scripts`.
   reports only additions or renames that increase an affected directory past
   the threshold; it remains silent for existing outliers, edits, and deletions.
   A nested directory is justified by coherent ownership, not by hiding a count.
-- The single public entry point is `src/index.ts`; anything it does not
-  re-export is internal. Do not widen the public API by exporting internals from
-  a new location.
-- Prefer intra-subsystem imports. External consumers use `src/index.ts` through
-  the package; production modules under `src/` never import `src/index.ts`.
+- Public package entry facades live under `src/entries/`; the supported root and
+  subpaths are explicit and anything not re-exported by those facades is
+  internal. `src/index.ts` remains the broad internal source barrel used by the
+  repository's demo and focused tests; it is not a package export.
+- Prefer intra-subsystem imports. External consumers use the package facades;
+  production modules under `src/` never import a package facade or `src/index.ts`.
   Cross-subsystem imports use a deliberate owner module such as
   `geometry/part.ts`, `renderer/gpu-renderer.ts`, or `results/deform.ts`, not
   another subsystem's implementation internals. A boundary module may
