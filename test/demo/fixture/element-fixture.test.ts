@@ -148,7 +148,16 @@ describe("createElementFixture", () => {
       "lines",
       "points",
     ]);
-    expect(mixed?.elements?.map(({ id }) => id)).toEqual([1, 2, 3]);
+    expect(mixed?.elements).toEqual([
+      {
+        id: 1,
+        primitiveRanges: [
+          { primitive: "triangles", primitiveStart: 0, primitiveCount: 1 },
+          { primitive: "lines", primitiveStart: 0, primitiveCount: 1 },
+          { primitive: "points", primitiveStart: 0, primitiveCount: 1 },
+        ],
+      },
+    ]);
     const nodeIds = mixed?.geometries.map((geometry) =>
       [...new Set(geometry.nodePickIds ?? [])].filter((id) => id !== 0),
     );

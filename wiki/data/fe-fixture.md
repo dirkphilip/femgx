@@ -24,9 +24,9 @@ Point, Line, and Line3 occupy the first row; Triangle/Tri6, Quad/Quad8, and the
 generic and mixed mapping examples occupy the second; Tet4/Tet10, Wedge6,
 Pyramid5, and Hex8/Hex20 occupy the third. Every entry is centered from its
 authored bounds inside a fixed cell, with Wedge6 and Pyramid5 scaled to the same
-2-unit baseline as the other volume examples. The mixed primitive entry remains a
-single semantic Part with point, line, and triangle leaves; it is an additional
-composition example alongside the fourteen typed shape/mapping entries.
+2-unit baseline as the other volume examples. The mixed primitive entry maps one
+element identity across separate point, line, and triangle leaves; it is an
+additional composition example alongside the fourteen typed shape/mapping entries.
 
 The hardware-WebGPU rendering suite isolates Tri6 and Quad8, checks their exact
 face, element, and authored mid-edge node identities, and repeats the checks at

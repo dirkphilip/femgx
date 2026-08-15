@@ -68,7 +68,7 @@ describe("createGalleryPreset", () => {
   it("includes the helper set and generic mapped element", () => {
     const preset = createGalleryPreset();
     expect(preset.partNames.get(10)).toBe("Generic solver-mapped element");
-    expect(preset.partNames.get(15)).toBe("Mixed point, line, and triangle elements");
+    expect(preset.partNames.get(15)).toBe("Mixed point, line, and triangle element");
     expect(preset.partColors.get(15)).toEqual({ r: 0.28, g: 0.68, b: 0.64, a: 1 });
   });
 });
