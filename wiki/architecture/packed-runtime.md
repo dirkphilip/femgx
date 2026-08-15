@@ -89,8 +89,4 @@ back to slots.
 
 Visibility deltas are now wired to GPU subrange updates in the
 [[rendering/renderer-subrange-updates|renderer]].
-
-Related: [[engineering/performance-issues|Performance issues and risks]].
-
-[engineering/performance-issues|Performance issues and risks]: ../engineering/performance-issues.md
 [rendering/renderer-subrange-updates|renderer]: ../rendering/renderer-subrange-updates.md

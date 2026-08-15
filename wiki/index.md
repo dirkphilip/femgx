@@ -18,7 +18,7 @@ Markdown.
 - [[rendering/index|Rendering and interaction]] — camera, WebGPU, picking,
   interaction state, and renderer resource behavior.
 - [[engineering/index|Engineering and quality]] — benchmarks, quality gates,
-  packaging, performance risks, test strategy, and durable decisions.
+  packaging, test strategy, and durable decisions.
 - [[operations/index|Operations and workflow]] — CI and repository workflow
   notes.
 
@@ -28,7 +28,8 @@ Markdown.
 - Name notes with `kebab-case` and link them with path-qualified wiki links.
 - Add every new note to its area index and add new areas to this root index.
 - Cross-link related notes instead of copying the same design rationale.
-- Record resolved issues as resolved rather than deleting their history.
+- Keep current contracts in the wiki; issue and commit history own superseded
+  implementation history.
 
 ## Workflow
 

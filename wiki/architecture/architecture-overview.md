@@ -47,9 +47,6 @@ behind a small interface and tested with a mocked device; see
 - Assemblies own placement/hierarchy.
 - The renderer owns device/swapchain/pipelines.
 
-Related: [[architecture/instancing-strategy|Instancing strategy]].
-
-[architecture/instancing-strategy|Instancing strategy]: instancing-strategy.md
 [architecture/packed-runtime|Packed scene runtime]: packed-runtime.md
 [data/elements-topology|Element topology]: ../data/elements-topology.md
 [rendering/interactive-state|Interactive state]: ../rendering/interactive-state.md

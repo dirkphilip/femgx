@@ -116,11 +116,10 @@ position/metadata split is the measured baseline for subsequent lazy-edge work.
   `test/renderer/gpu-shaders.test.ts`. A `vec3` member or any other alignment
   trap now fails unit tests instead of silently desyncing CPU/GPU records.
 
-Related: [[architecture/instancing-strategy|Instancing strategy]], [[rendering/interactive-state|Interactive state]].
+Related: [[architecture/packed-runtime|packed runtime]],
+[[rendering/interactive-state|Interactive state]].
 
 [architecture/demo-library-boundary|Demo / library boundary]: ../architecture/demo-library-boundary.md
-[architecture/instancing-strategy|Instancing strategy]: ../architecture/instancing-strategy.md
 [architecture/packed-runtime|packed runtime]: ../architecture/packed-runtime.md
-[engineering/performance-issues|performance risks]: ../engineering/performance-issues.md
 [rendering/element-interaction|Element-level interaction]: element-interaction.md
 [rendering/interactive-state|Interactive state]: interactive-state.md

@@ -43,13 +43,14 @@ while the implementation uses the shorter current names.
 ## Canonical data flow
 
 ```text
-ElementModel → derived Parts + assembly placements
-              ↓
-           Scene
-              ↓
-       createFemViewport
-              ↓
-      viewport.runtime
+Typed ElementModel ─────────┐
+Surface-derived topology ───┴─→ Part + assembly placements
+                                ↓
+                              Scene
+                                ↓
+                       createFemViewport
+                                ↓
+                        viewport.runtime
 ```
 
 Reusable geometry is defined once. Instances refer to that definition by a
@@ -92,6 +93,12 @@ const scene = createScene()
   .withRoot(1)
   .build();
 ```
+
+Hosts that already own a reduced display surface use the explicit-topology
+authoring boundary defined by
+[[requirements/surface-derived-part-authoring|surface-derived part authoring]].
+It compiles retained facets, lines, and points into the same reusable `Part`
+without reconstructing omitted solid connectivity.
 
 ## Registry and identity rules
 
@@ -169,12 +176,11 @@ an end-to-end example. Otherwise record it as an internal design note or an
 issue until the boundary is clear.
 
 Related: [[architecture/architecture-overview|Architecture overview]],
-[[architecture/instancing-strategy|Instancing strategy]], and
 [[architecture/packed-runtime|Packed scene runtime]].
 
 [../index|wiki index]: ../index.md
 [architecture/architecture-overview|Architecture overview]: architecture-overview.md
 [architecture/core-api|Core API review]: core-api.md
-[architecture/instancing-strategy|Instancing strategy]: instancing-strategy.md
 [architecture/packed-runtime|Packed scene runtime]: packed-runtime.md
 [data/vector-field-visualization|Authored elemental orientation visualization]: ../data/vector-field-visualization.md
+[requirements/surface-derived-part-authoring|surface-derived part authoring]: ../requirements/surface-derived-part-authoring.md

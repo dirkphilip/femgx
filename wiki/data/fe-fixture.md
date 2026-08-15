@@ -64,13 +64,6 @@ The deterministic defaults span X `-15..21`, Y `-4..4.35`, and Z `-7..7`, with
 34 visible part instances in the default view. The preset is the landing view, so
 changes to these defaults require matching e2e updates.
 
-## Removed demo fixtures
-
-The broken portal-frame and stiffened-deck-panel presets were removed from the
-demo, along with their fixture modules and tests. They did not represent a
-supported user workflow and left dead code behind after the demo shifted toward
-the VTK import and element-topology examples.
-
 Related: [[data/elements-topology|Element topology]],
 [[data/io-import-export|IO import/export]],
 [[rendering/element-rendering|Element rendering]].

@@ -120,12 +120,11 @@ base first, then re-run the full gate before starting new work.
 ESLint caps source files at 400 implementation lines. Around 300 lines is a
 design-review threshold, not an automatic split requirement. Per-function
 length remains 60 lines and `max-depth` remains 4. Split modules when that
-improves cohesion and ownership. Rules are scoped to `src/`; tests and demo are exempt. See the
-[[engineering/scaffold-decisions|scaffold decisions]] gotchas for why.
+improves cohesion and ownership. Rules are scoped to `src/`; tests and demo are
+exempt.
 
 [engineering/benchmarks|Benchmarks]: benchmarks.md
 [engineering/e2e-policy|E2E test classification and skip policy]: e2e-policy.md
 [engineering/pre-commit-hooks|Pre-commit hooks]: pre-commit-hooks.md
-[engineering/scaffold-decisions|scaffold decisions]: scaffold-decisions.md
 [operations/ci-authority|CI authority]: ../operations/ci-authority.md
 [rendering/webgpu-e2e|WebGPU browser e2e lane]: ../rendering/webgpu-e2e.md

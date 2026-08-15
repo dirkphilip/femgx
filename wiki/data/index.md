@@ -2,8 +2,8 @@
 
 - [[data/elements-topology|Element topology]] — typed finite-element shapes,
   canonical node ordering, and face/edge extraction.
-- [[data/polygon-input|Polygon input]] — validated polygon loops, deterministic
-  triangulation, and face/element ownership metadata.
+- [[requirements/surface-derived-part-authoring|Surface-derived part authoring]]
+  — compact mixed facet, line, and point input without omitted solid topology.
 - [[data/fe-fixture|FE fixture]] — deterministic procedural FE datasets used by
   the demo and tests.
 - [[data/io-import-export|IO import/export]] — versioned interchange model and
@@ -18,6 +18,6 @@
 [data/elements-topology|Element topology]: elements-topology.md
 [data/fe-fixture|FE fixture]: fe-fixture.md
 [data/io-import-export|IO import/export]: io-import-export.md
-[data/polygon-input|Polygon input]: polygon-input.md
+[requirements/surface-derived-part-authoring|Surface-derived part authoring]: ../requirements/surface-derived-part-authoring.md
 [data/results|Results, deformation, and scalar visualization]: results.md
 [data/vector-field-visualization|Authored elemental orientation visualization]: vector-field-visualization.md

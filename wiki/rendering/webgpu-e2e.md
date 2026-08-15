@@ -70,11 +70,6 @@ journeys own low-level GPU lifecycle, camera, picking, and raster contracts;
 owner-neutral mechanics live in `e2e/shared/helpers.ts`. Performance remains
 opt-in.
 
-The former monolithic `demo.spec.ts` and `webgpu.spec.ts` suites were removed so
-failure names identify the owning product contract. DOM-only CPU-overlay menu
-coverage belongs to the demo interaction suite and is not duplicated in the
-WebGPU rendering suite.
-
 - `data-renderer="webgpu" | "unsupported" | "destroyed"` on the `#view` canvas.
 - `data-frames` — successful render count.
 - `data-recovery="recovered" | "error"` — outcome reported by the viewport after device loss.

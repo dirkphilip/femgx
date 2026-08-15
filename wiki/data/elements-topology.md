@@ -20,7 +20,7 @@ An `ElementModel` may contain any supported families in one ordered element
 list. `elementPart` is the render boundary that groups supported
 surface and volume geometry into one triangle part and emits explicit
 line/point parts without dropping source ids (see
-[[rendering/heterogeneous-elements|Heterogeneous element parts]]). A
+[[rendering/element-rendering|Element rendering]]). A
 serializable `FemModel` can be converted once with
 `createElementModelFromFemModel`; its node ids must already be dense because
 the render model indexes coordinates directly.
@@ -206,9 +206,9 @@ WebGPU.
 surface finite elements. They preserve element ids, node ids, face ownership, deformation,
 results, and GPU picking through `elementPart`. Polygon loops
 that are not already typed elements belong to the separate geometry-owned
-authoring path in [[data/polygon-input|Polygon input]].
+authoring path in
+[[requirements/surface-derived-part-authoring|surface-derived part authoring]].
 
 [data/io-import-export|IO: VTK legacy import/export]: io-import-export.md
-[data/polygon-input|Polygon input]: polygon-input.md
+[requirements/surface-derived-part-authoring|surface-derived part authoring]: ../requirements/surface-derived-part-authoring.md
 [rendering/face-subsets|face subset]: ../rendering/face-subsets.md
-[rendering/heterogeneous-elements|Heterogeneous element parts]: ../rendering/heterogeneous-elements.md

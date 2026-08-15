@@ -27,9 +27,9 @@ There is no second vertex mesh and no alternate renderer path.
 Face subsets apply only to solid/surface triangle modes. They do not add face
 labels, overlays, boolean surface editing, or multi-hit picking.
 
-The triangle output of [[rendering/heterogeneous-elements|heterogeneous element
-parts]] uses the same validated subset contract; line and point variants have
-no faces and therefore do not accept `faceSubset`.
+The triangle output of mixed `elementPart` builds uses the same validated subset
+contract; line and point variants have no faces and therefore do not accept
+`faceSubset`.
 
 Related: [[data/elements-topology|Element topology]],
 [[rendering/element-rendering|Element rendering]], and

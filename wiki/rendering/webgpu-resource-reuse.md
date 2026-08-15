@@ -2,8 +2,7 @@
 
 This note documents which GPU resources are cached across frames and the
 synchronization constraints the renderer relies on. See
-[[architecture/architecture-overview|Architecture overview]] and
-[[architecture/instancing-strategy|Instancing strategy]] for the surrounding design.
+[[architecture/architecture-overview|Architecture overview]] for the surrounding design.
 
 ## What is cached
 
@@ -69,8 +68,7 @@ designed around:
   buffers. This must not race an in-flight pick: `renderer.destroy()` should be
   called only when no `pick()` promise is pending. `resize` calls
   `resetPickTargets` instead, which keeps the pool intact, so a pick in flight
-  during a resize completes normally and its buffer is reused. See
-  [[engineering/performance-issues|Performance issues and risks]] for the remaining risks.
+  during a resize completes normally and its buffer is reused.
 
 ## Still not cached
 
@@ -81,5 +79,3 @@ designed around:
 - The camera uniform buffer and its bind group are created once per renderer.
 
 [architecture/architecture-overview|Architecture overview]: ../architecture/architecture-overview.md
-[architecture/instancing-strategy|Instancing strategy]: ../architecture/instancing-strategy.md
-[engineering/performance-issues|Performance issues and risks]: ../engineering/performance-issues.md

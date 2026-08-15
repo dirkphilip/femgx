@@ -1,9 +1,10 @@
 # Packaging
 
 How femgx is built and shipped as an npm library, and the guarantees the
-published package makes to consumers. See also
-[[engineering/typescript-toolchain-compatibility|TypeScript toolchain compatibility]] and
-[[engineering/scaffold-decisions|Scaffold decisions]].
+published package makes to consumers. `package.json` and `package-lock.json`
+are authoritative for toolchain versions and compatibility constraints.
+The current TypeScript 6 pin also respects `typescript-eslint`'s `<6.1` peer
+range; revisit it when the lint toolchain supports a newer compiler.
 
 ## Build output
 
@@ -116,6 +117,3 @@ clean consumer never see it.
 - [ ] `npm run test:package`
 - [ ] `npm publish` (tags via `npm version`, semver; experimental product, so
       breaking changes are fine — see AGENTS.md)
-
-[engineering/scaffold-decisions|Scaffold decisions]: scaffold-decisions.md
-[engineering/typescript-toolchain-compatibility|TypeScript toolchain compatibility]: typescript-toolchain-compatibility.md
