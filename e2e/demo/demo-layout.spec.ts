@@ -87,6 +87,8 @@ async function assertWorkbenchLayout(
       analysis: read("#analysis-surface"),
       legend: read("#result-legend"),
       results: read("#result-controls"),
+      section: read("#section-controls"),
+      sectionAxis: read("#section-axis"),
       gizmo: read('[data-femgx-orientation-gizmo="true"]'),
     };
   });
@@ -138,6 +140,12 @@ async function assertWorkbenchLayout(
     expect(layout.results?.hidden).toBe(false);
     expect(layout.results?.display).not.toBe("none");
     expect(layout.legend?.hidden).toBe(false);
+    expect(layout.section).toBeDefined();
+    expect(layout.sectionAxis).toBeDefined();
+    if (!phone && layout.section !== undefined && layout.sectionAxis !== undefined) {
+      expect(layout.sectionAxis.y).toBeGreaterThanOrEqual(layout.section.y - 1);
+      expect(layout.sectionAxis.bottom).toBeLessThanOrEqual(layout.analysis!.bottom + 1);
+    }
     if (phone) expect(layout.legend?.width).toBeLessThanOrEqual(220);
   } else {
     expect(layout.results?.hidden).toBe(true);

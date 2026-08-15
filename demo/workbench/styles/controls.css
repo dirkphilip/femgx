@@ -191,6 +191,7 @@
   font-size: 11px;
 }
 .section-controls {
+  align-self: start;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .section-controls output {
