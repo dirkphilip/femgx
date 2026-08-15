@@ -11,8 +11,9 @@ import {
   validateElements,
   validatePickIds,
 } from "../../src/geometry/part";
+import { faceSubsetIdentityIndex } from "../../src/geometry/face-validation";
 
-function triangle(): Geometry {
+function triangle(): Extract<Geometry, { primitive: "triangles" }> {
   return {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
@@ -46,6 +47,30 @@ function range(
 }
 
 describe("part geometry", () => {
+  it("reuses one face-subset identity index for validated consumers", () => {
+    const geometry: Extract<Geometry, { primitive: "triangles" }> = {
+      ...triangle(),
+      faces: [
+        {
+          elementId: 1,
+          faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 1,
+          key: "0/1/2",
+          nodeIds: [0, 1, 2],
+          neighborElementIds: [],
+        },
+      ],
+      faceSubset: { faceIds: [{ elementId: 1, faceIndex: 0 }] },
+    };
+    const part = createPart(1, { geometries: [geometry] });
+    const index = faceSubsetIdentityIndex(geometry);
+
+    expect(index).toBeDefined();
+    expect(faceSubsetIdentityIndex(part.geometries[0] as typeof geometry)).toBe(index);
+    expect(index?.identityByPrimitive).toEqual(["1/0"]);
+  });
+
   it("requires and retains a non-empty plural geometry collection", () => {
     const geometry = triangle();
     const part = createPart(1, { geometries: [geometry] });
