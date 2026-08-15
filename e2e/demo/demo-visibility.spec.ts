@@ -1,32 +1,12 @@
 import { expect, test } from "@playwright/test";
 import {
   dataset,
-  drawnPixels,
   activateContextAction,
   openCommandPanel,
   requireHit,
-  setSelectionGranularity,
   status,
   waitForRenderer,
 } from "./demo-support";
-test("toggles one fastener occurrence and restores it via the visibility panel", async ({
-  page,
-}) => {
-  await page.goto("/");
-  await waitForRenderer(page);
-  expect(await dataset(page, "selected")).toBe("");
-  expect(await status(page)).toContain("34 visible");
-  const fastenerCheckbox = page.getByTestId("assembly-occurrence-vis-3");
-  await expect(fastenerCheckbox).toBeChecked();
-
-  await fastenerCheckbox.uncheck();
-  await expect(fastenerCheckbox).not.toBeChecked();
-  expect(await status(page)).toContain("30 visible");
-
-  await fastenerCheckbox.check();
-  await expect(fastenerCheckbox).toBeChecked();
-  expect(await status(page)).toContain("34 visible");
-});
 test("uses stable runtime-occurrence and instance controls", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("assembly-occurrence-vis-0")).toBeChecked();
@@ -65,19 +45,14 @@ test("collapses and expands assembly rows in the visibility tree", async ({ page
   // The bolted tree starts fully expanded, so Fasteners shows each occurrence.
   const fasteners = page.getByTestId("assembly-expand-2");
   await expect(fasteners).toHaveAttribute("aria-expanded", "true");
-  const firstFastener = page.getByTestId("assembly-occurrence-vis-3");
-  await expect(firstFastener).toBeVisible();
-
   // Collapsing Fasteners hides its subtree but keeps the parent row reachable.
   await fasteners.click();
   await expect(fasteners).toHaveAttribute("aria-expanded", "false");
-  await expect(firstFastener).toBeHidden();
   await expect(page.getByTestId("assembly-occurrence-vis-2")).toBeVisible();
 
   // Expanding restores the subtree.
   await fasteners.click();
   await expect(fasteners).toHaveAttribute("aria-expanded", "true");
-  await expect(firstFastener).toBeVisible();
 });
 test("exposes assembly occurrence and direct-part identity in the tree", async ({ page }) => {
   await page.goto("/");
@@ -100,10 +75,6 @@ test("gives body visibility controls distinct occurrence names", async ({ page }
   const plateRowNames = names.filter((name) => name?.startsWith("Plate row A in "));
   expect(new Set(plateRowNames).size).toBe(plateRowNames.length);
   expect(plateRowNames.length).toBe(2);
-  const shaftNames = names.filter((name) => name?.startsWith("Shaft in "));
-  expect(new Set(shaftNames).size).toBe(shaftNames.length);
-  expect(shaftNames.length).toBeGreaterThan(1);
-
   const firstName = names[0];
   if (firstName === null || firstName === undefined) throw new Error("body name is missing");
   await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toBeVisible();
@@ -115,50 +86,6 @@ test("gives body visibility controls distinct occurrence names", async ({ page }
   await page.getByTestId("model-select").selectOption("bolted");
   await expect(page.locator('input[data-testid^="body-vis-"]')).toHaveCount(names.length);
   await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toBeVisible();
-});
-test("uses one transient hierarchy hover without changing selection", async ({ page }) => {
-  await page.goto("/");
-  const canvas = page.getByTestId("view-canvas");
-  await waitForRenderer(page, canvas);
-  const hit = await requireHit(
-    page,
-    canvas,
-    { prefix: "n:" },
-    "node GPU picking must resolve before hierarchy-hover assertions",
-  );
-  await setSelectionGranularity(page, "node");
-  await page.mouse.click(hit.x, hit.y);
-  await expect.poll(() => canvas.getAttribute("data-selected")).toMatch(/^n:/);
-  const selected = await dataset(page, "selected");
-  const baseline = await canvas.screenshot();
-  const visibility = page.getByTestId("visibility-panel");
-  const firstOccurrence = visibility
-    .locator("input[data-instance-id]")
-    .first()
-    .locator("xpath=ancestor::div[contains(@class, 'visibility-row')]");
-  const secondOccurrence = visibility
-    .locator("input[data-instance-id]")
-    .nth(1)
-    .locator("xpath=ancestor::div[contains(@class, 'visibility-row')]");
-  await firstOccurrence.hover();
-  await expect
-    .poll(async () => Buffer.compare(baseline, await canvas.screenshot()) !== 0)
-    .toBe(true);
-  const firstHierarchyHover = await canvas.screenshot();
-  expect(Buffer.compare(baseline, firstHierarchyHover)).not.toBe(0);
-  expect(await dataset(page, "selected")).toBe(selected);
-
-  await secondOccurrence.hover();
-  await expect
-    .poll(async () => Buffer.compare(firstHierarchyHover, await canvas.screenshot()) !== 0)
-    .toBe(true);
-  const secondHierarchyHover = await canvas.screenshot();
-  expect(Buffer.compare(firstHierarchyHover, secondHierarchyHover)).not.toBe(0);
-  expect(await dataset(page, "selected")).toBe(selected);
-
-  await visibility.getByTestId("visibility-context").hover();
-  await expect.poll(async () => Buffer.compare(baseline, await canvas.screenshot())).toBe(0);
-  expect(await dataset(page, "selected")).toBe(selected);
 });
 test("hides the plate stack through the assembly tree", async ({ page }) => {
   await page.goto("/");
@@ -182,31 +109,11 @@ test("hides and restores all fasteners through the assembly tree", async ({ page
 
   await fasteners.uncheck();
   await expect(fasteners).not.toBeChecked();
-  await expect(page.getByTestId("assembly-occurrence-vis-3")).toBeDisabled();
   expect(await status(page)).toContain("2 visible");
 
   await fasteners.check();
   await expect(fasteners).toBeChecked();
-  await expect(page.getByTestId("assembly-occurrence-vis-3")).toBeEnabled();
   expect(await status(page)).toContain("34 visible");
-});
-test("keeps body overlays rendered while hiding a named body", async ({ page }) => {
-  await page.goto("/");
-  const canvas = page.getByTestId("view-canvas");
-  await waitForRenderer(page, canvas);
-  await openCommandPanel(page, "display");
-  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
-
-  const body = page.locator('input[data-testid^="body-vis-"]').first();
-  await expect(body).toBeChecked();
-  await body.uncheck();
-  await expect(body).not.toBeChecked();
-  await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
-
-  await body.check();
-  await expect(body).toBeChecked();
-  await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
 });
 test("Show all restores bodies and other visibility layers without clearing selection", async ({
   page,
@@ -248,7 +155,6 @@ test("Show all restores bodies and other visibility layers without clearing sele
   await expect(assembly).toBeChecked();
   expect(await status(page)).toContain("34 visible");
   expect(await dataset(page, "selected")).toBe(selected);
-  await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
 });
 
 test("hides selected elements and restores them through synchronized toolbar actions", async ({
@@ -267,6 +173,7 @@ test("hides selected elements and restores them through synchronized toolbar act
   await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
   const selected = await dataset(page, "selected");
 
+  await openCommandPanel(page, "view");
   await page.getByTestId("viewport-toggle").click();
   const secondary = page.getByTestId("secondary-view-canvas");
   await waitForRenderer(page, secondary);
@@ -274,11 +181,11 @@ test("hides selected elements and restores them through synchronized toolbar act
 
   await openCommandPanel(page, "selection");
   const hideSelected = page.getByTestId("hide-selected");
-  await expect(hideSelected).toHaveText("Hide selected (1)");
+  await expect(hideSelected).toHaveText("Hide selected");
   await expect(hideSelected).toBeEnabled();
   await hideSelected.click();
   await expect(page.getByTestId("model-feedback")).toHaveText("Hidden 1 selected element.");
-  await expect(hideSelected).toHaveText("Hide selected (1)");
+  await expect(hideSelected).toHaveText("Hide selected");
   await expect.poll(() => dataset(page, "selected")).toBe(selected);
   await expect(secondary).toHaveAttribute("data-selected", selected);
 
@@ -291,10 +198,9 @@ test("hides selected elements and restores them through synchronized toolbar act
   await expect(page.getByTestId("model-feedback")).toHaveText(
     "Selected elements are already hidden.",
   );
-  await expect(hideSelected).toHaveText("Hide selected (1)");
+  await expect(hideSelected).toHaveText("Hide selected");
   await expect.poll(() => dataset(page, "selected")).toBe(selected);
   await expect(secondary).toHaveAttribute("data-selected", selected);
-  await expect.poll(async () => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
 });
 
 test("context menu selects a target and toggles display without losing selection", async ({

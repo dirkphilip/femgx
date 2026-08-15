@@ -110,6 +110,12 @@ export async function waitForRendererOrSkip(
   }
 }
 
+/** Loads the demo and gates feature assertions on the supported WebGPU path. */
+export async function loadWebGpuPage(page: Page, path = "/"): Promise<void> {
+  await page.goto(path);
+  await waitForRendererOrSkip(page);
+}
+
 /** Selects the demo-private click and box-selection granularity. */
 export async function setSelectionGranularity(
   page: Page,
