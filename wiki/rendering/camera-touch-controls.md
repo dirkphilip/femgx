@@ -56,11 +56,10 @@ A gesture is cleared (and the controller's `dragging` flag reset) by any of:
   uncaptured `pointerout` is the safety net when capture never took.
 
 The controller reflects the live gesture state in `data-dragging` on the canvas
-and the camera pose in `data-camera`; `e2e/demo/mobile-touch.spec.ts` uses these to assert
-one-finger orbit, pinch zoom, two-finger pan, tap selection, and — crucially —
-that an interrupted touch (`touchCancel`) never leaves dragging stuck. The e2e
-lane injects raw multi-touch via CDP (`Input.dispatchTouchEvent`) because
-Playwright's `touchscreen` API is single-touch only.
+and the camera pose in `data-camera`. Focused camera tests own gesture state
+invariants and interruption handling; `e2e/demo/mobile.spec.ts` and
+`e2e/demo/demo-lifecycle.spec.ts` retain the responsive and view-cube routes
+that are meaningful at the workbench boundary.
 
 ## Design notes and limitations
 

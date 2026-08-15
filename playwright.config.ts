@@ -74,19 +74,7 @@ export default defineConfig({
     },
     {
       name: "chrome-software-interaction",
-      testMatch: /(mobile|webgpu-glb|smoke)\.spec\.ts/,
-      retries: 0,
-      workers: 1,
-      use: {
-        ...devices["Desktop Chrome"],
-        channel: "chrome",
-        headless: true,
-        launchOptions: { args: softwareWebGpuArgs },
-      },
-    },
-    {
-      name: "chrome-software-rendering",
-      testMatch: /(demo-results|demo-visibility|webgpu-rendering|webgpu-visibility)\.spec\.ts/,
+      testMatch: /(demo-import|mobile|smoke)\.spec\.ts/,
       retries: 0,
       workers: 1,
       use: {

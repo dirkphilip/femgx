@@ -40,8 +40,8 @@ lifecycle behavior remains in the Playwright suites. The local
 ## Audit decisions
 
 - Removed `e2e/visual.spec.ts`. Its three settled-pixel assertions duplicated
-  the required WebGPU rendering suite, so they now live in
-  `e2e/demo/webgpu-rendering.spec.ts` beside the renderer contract and share one
+  the required core browser journey, so they now live in
+  `e2e/core/core-journeys.spec.ts` beside the renderer contract and share one
   capability gate.
 - Removed a stale `results.spec.ts` reference from the smoke-suite comment;
   static results coverage is owned by `test/results`, viewport tests, and

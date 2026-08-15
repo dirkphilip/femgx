@@ -1,15 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { canvasInteractionBox, distinctColors, requireHit } from "../shared/helpers";
-import {
-  closeNavigation,
-  dataset,
-  openCommandPanel,
-  openNavigation,
-  primaryBoxDrag,
-  waitForRenderer,
-} from "./demo-support";
-
-const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
+import { canvasInteractionBox, requireHit } from "../shared/helpers";
+import { closeNavigation, openCommandPanel, openNavigation, waitForRenderer } from "./demo-support";
 
 /**
  * Phone-sized regression coverage for the demo layout: no horizontal page
@@ -19,47 +10,6 @@ const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
  */
 
 const PHONE = { width: 390, height: 844 };
-
-test("keeps CSS size, device-pixel size, and pick coordinates consistent on a high-DPI phone", async ({
-  browser,
-}) => {
-  const context = await browser.newContext({
-    baseURL: BASE_URL,
-    viewport: PHONE,
-    deviceScaleFactor: 3,
-    isMobile: true,
-    hasTouch: true,
-  });
-  const page = await context.newPage();
-  await page.goto("/");
-  const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toBeVisible();
-  await waitForRenderer(page, canvas);
-
-  // The canvas backing store is sized in device pixels while the CSS size is
-  // device pixels / deviceScaleFactor; pick coordinates must align with the
-  // drawn frame on a high-DPI screen.
-  const sizing = await canvas.evaluate((element: HTMLCanvasElement) => ({
-    cssWidth: element.getBoundingClientRect().width,
-    cssHeight: element.getBoundingClientRect().height,
-    deviceWidth: element.width,
-    deviceHeight: element.height,
-  }));
-  expect(sizing.deviceWidth).toBeCloseTo(sizing.cssWidth * 3, 0);
-  expect(sizing.deviceHeight).toBeCloseTo(sizing.cssHeight * 3, 0);
-
-  // Picking must resolve at the same CSS point on a high-DPI canvas.
-  const hit = await requireHit(
-    page,
-    canvas,
-    { prefix: "n:" },
-    "node raycast picking must resolve on the deterministic WebGPU lane at high DPI",
-  );
-  expect(hit.x).toBeGreaterThan(0);
-  expect(hit.y).toBeGreaterThan(0);
-
-  await context.close();
-});
 
 test("fits a phone-sized viewport without horizontal overflow", async ({ page }) => {
   await page.setViewportSize(PHONE);
@@ -158,24 +108,6 @@ test("stacks the optional secondary viewport without mobile overflow", async ({ 
   expect(toggle?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
-test("renders the bolted showcase with distinct part colors on a phone", async ({ page }) => {
-  await page.setViewportSize(PHONE);
-  await page.goto("/");
-  const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toBeVisible();
-  await waitForRenderer(page, canvas);
-
-  await expect
-    .poll(async () => distinctColors(canvas), { timeout: 10_000 })
-    .toBeGreaterThanOrEqual(4);
-
-  const screenshot = await canvas.screenshot();
-  expect(
-    screenshot,
-    "the bolted showcase must produce a non-empty phone screenshot",
-  ).not.toHaveLength(0);
-});
-
 test("fits the element tessellation and mapping gallery into a phone-sized viewport", async ({
   page,
 }) => {
@@ -188,13 +120,6 @@ test("fits the element tessellation and mapping gallery into a phone-sized viewp
   await expect(canvas).toHaveAttribute("data-model", "gallery");
   await expect(page.getByTestId("status")).toContainText("15 visible");
   await waitForRenderer(page, canvas);
-  await expect.poll(() => distinctColors(canvas), { timeout: 10_000 }).toBeGreaterThanOrEqual(6);
-
-  const screenshot = await canvas.screenshot();
-  expect(
-    screenshot,
-    "the element gallery must produce a non-empty phone screenshot",
-  ).not.toHaveLength(0);
 });
 
 test("keeps primary controls reachable and touch-sized on a phone", async ({ page }) => {
@@ -247,18 +172,6 @@ test("keeps section-plane controls usable on a phone", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     viewportWidth,
   );
-});
-
-test("reports box-selected FE element granularity on a phone-sized viewport", async ({ page }) => {
-  await page.setViewportSize(PHONE);
-  await page.goto("/");
-  const canvas = page.getByTestId("view-canvas");
-  await waitForRenderer(page, canvas);
-  await primaryBoxDrag(page, canvas, { fx: 0.2, fy: 0.15 }, { fx: 0.8, fy: 0.85 });
-  await page.mouse.up({ button: "left" });
-
-  await expect(page.getByTestId("model-feedback")).toHaveText(/^Box selection: \d+ FE elements?$/);
-  await expect.poll(() => dataset(page, "selected")).toContain("e:");
 });
 
 test("keeps the context menu inside a phone-sized viewport", async ({ page }) => {

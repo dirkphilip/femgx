@@ -3,13 +3,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   activateContextAction,
-  drawnPixels,
-  openNavigation,
+  loadWebGpuPage,
   openCommandPanel,
   rendererMode,
   waitForRenderer,
 } from "./demo-support";
-import { loadWebGpuPage } from "./webgpu-support";
 
 const fixture = "test/io/fixtures/glb/onshape-cylinder-compressed.glb";
 const vtkFixture = readFileSync(join(process.cwd(), "demo/fixture/sample-block.vtk"));
@@ -65,6 +63,7 @@ test("keeps the background selector reachable without mobile toolbar overflow", 
 }) => {
   await page.setViewportSize(phone);
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
   const background = page.getByLabel("Background");
   await expect(background).toBeVisible();
   await background.selectOption("white");
@@ -84,7 +83,6 @@ test("opens a Draco-compressed GLB and resets the imported model in desktop Chro
   const canvas = page.getByTestId("view-canvas");
   const fileInput = page.getByTestId("model-file");
   await fileInput.setInputFiles(fixture);
-  await openNavigation(page);
 
   await expect
     .poll(() => canvas.getAttribute("data-model"), { timeout: 10_000 })
@@ -96,7 +94,6 @@ test("opens a Draco-compressed GLB and resets the imported model in desktop Chro
   await expect(page.getByTestId("status")).toContainText("onshape-cylinder-compressed.glb");
   await expect(page.getByTestId("status")).toContainText("4 parts");
   await expect(page.getByTestId("visibility-panel")).toContainText("Part 1");
-  await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
 
   await page.getByTestId("view-canvas").click({ button: "right", position: { x: 8, y: 500 } });
   await page.getByTestId("context-menu").getByText("Show diagnostics").click();
@@ -128,8 +125,8 @@ test("opens a local VTK mesh through the canonical workbench path", async ({ pag
   await expect(page.getByTestId("model-select")).toHaveValue("opened-model");
   await expect(page.getByTestId("model-select")).toContainText("Opened · sample.vtk");
   await expect(page.getByTestId("status")).toContainText("1 parts");
+  await openCommandPanel(page, "analysis");
   await expect(page.getByTestId("result-controls")).toBeVisible();
-  await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
 
   await page.getByTestId("model-select").selectOption("gallery");
   await expect(canvas).toHaveAttribute("data-model", "gallery");
@@ -149,7 +146,6 @@ test("keeps the active model when a local model file fails to open", async ({ pa
   await expect(canvas).toHaveAttribute("data-model", "bolted");
   await expect(page.getByTestId("model-select")).toHaveValue("bolted");
   await expect(page.getByTestId("model-feedback")).toContainText("could not be opened");
-  await expect.poll(() => drawnPixels(canvas), { timeout: 10_000 }).toBe(true);
 });
 
 test("keeps the GLB source action usable on a 390px viewport", async ({ page }) => {

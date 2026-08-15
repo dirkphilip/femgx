@@ -68,7 +68,7 @@ The only `test.skip` calls left are WebGPU-initialization or opt-in gates:
   are collected only with `RUN_PERF=1` (category 3; the fixed-resolution
   capacity benchmark runs only through the local system-Chrome command; see
   [[engineering/benchmarks|Benchmarks]]).
-- `e2e/demo/webgpu-lifecycle.spec.ts` and the partitioned demo suites — per-test:
+- the supported WebGPU demo suites — per-test:
   "WebGPU renderer unavailable in this browser environment" (category 2;
   genuine environment capability gates when the demo reports its unsupported
   state).
@@ -89,20 +89,22 @@ never be mistaken for a clean required-journey run.
 The large browser surfaces are partitioned by ownership rather than by runner:
 
 - `e2e/demo/demo-lifecycle.spec.ts` — startup, model selection, layout, diagnostics,
-  camera-control labels, and box-selection DOM behavior.
-- `e2e/demo/demo-results.spec.ts` — results states, deformed picking, and fit/reset state
-  preservation.
+  view-cube semantics, and box-selection DOM behavior.
+- `e2e/demo/demo-results.spec.ts` — result controls, legend presentation, and fit/reset
+  command state.
 - `e2e/demo/demo-visibility.spec.ts` — hierarchy, body/part/instance visibility, and
   target/view context-menu semantics.
 - `e2e/demo/demo-interaction.spec.ts` — selection, inspection, edge controls, and
-  selection persistence through gestures.
-- `e2e/demo/webgpu-lifecycle.spec.ts` — renderer startup, GPU interaction seams,
-  teardown/recreation, and unsupported WebGPU behavior.
-- `e2e/demo/webgpu-rendering.spec.ts` — rendered pixels, overlays, node/face behavior,
-  transparency, and selection appearance.
-- `e2e/demo/webgpu-camera.spec.ts` — camera fitting, orbit/pan/zoom, orientation gizmo,
-  and clip/depth invariants.
-- `e2e/demo/webgpu-visibility.spec.ts` — body visibility and visible-interface picking.
+  the smallest context-menu selection routes.
+- `e2e/demo/demo-import.spec.ts` — GLB/VTK file input, import errors, reset, and
+  responsive source controls.
+- `e2e/demo/mobile.spec.ts` — phone drawer, reachable controls, stacked viewport routing,
+  overflow, context menus, and exposed-canvas layout.
+- `e2e/demo/demo-layout.spec.ts` — ordinary-story nonblank smoke and desktop/compact/phone
+  geometry budgets.
+- `e2e/demo/smoke.spec.ts` — one representative load/render/action/runtime-error journey.
+- `e2e/demo/software-webgpu.spec.ts` and `e2e/demo/perf.spec.ts` — opt-in exploratory
+  software and performance owners; neither is authoritative merge coverage.
 
 - `e2e/core/core-foundation.spec.ts` and `e2e/core/core-journeys.spec.ts` — eight
   direct public-entry journeys covering foundation lifecycle/unsupported state,
@@ -114,18 +116,47 @@ Shared support modules contain only reusable browser mechanics; they do not own
 additional product journeys. A DOM semantic contract is not repeated in a GPU
 suite merely because both use system Chrome.
 
-At least one required journey covers each interactive concern, all in
-the partitioned demo suites above (plus mobile coverage in
-`e2e/demo/mobile.spec.ts` and `e2e/demo/mobile-touch.spec.ts`):
+At least one required journey covers each retained interactive concern in the
+partitioned demo suites above (plus the mobile coverage in
+`e2e/demo/mobile.spec.ts`):
 
-- **picking** — "picks and selects a node", "picks and selects a face";
-- **selection state** — "selects an element by promoting a node pick with
-  shift-click", "clears selection on empty scene clicks but preserves it
-  through repeated orbit";
-- **visibility changes** — "toggles part visibility and restores it", "context
-  menu hides and restores a part";
-- **inspection** — "picks and selects a node, exposing adjacency and
-  neighbors" (inspection panel), "picks and selects a face".
+- **picking and inspection routes** — node, face, and authored-edge context
+  menus remain in `demo-interaction`, with adjacency and ownership assertions;
+- **selection state** — granularity and through-intersection controls remain in
+  `demo-interaction`, while raster selection transitions belong to `e2e/core`;
+- **visibility changes** — occurrence, body, hierarchy, Show all, and context
+  menu policy remain in `demo-visibility`;
+- **responsive behavior** — reachable controls, stacked viewports, menus, and
+  exposed-canvas geometry remain in `mobile` and `demo-layout`.
+
+## #869 ownership audit
+
+The demo browser owner was pruned after the direct public-entry matrix landed
+in #867. The default demo collection went from 140 tests in 13 files to 59
+tests in 8 files. It still exercises desktop and 390×844 phone viewports;
+unsupported WebGPU skips are reasoned by the shared demo gate, and the software
+project retains only its bounded smoke, mobile, and import paths. Cold/warm
+runtimes are recorded in the #869 pull request. The removed low-level journeys have
+named owners:
+
+- public lifecycle, instancing, raster point/region/edge picking, visibility,
+  presentation, results, section clipping, camera transitions, and transparency
+  are owned by `e2e/core/core-foundation.spec.ts` and
+  `e2e/core/core-journeys.spec.ts`;
+- camera math, gesture invariants, DPR sizing, and pick encoding remain in the
+  fast camera/interaction/renderer suites, with the demo retaining only
+  view-cube semantics and responsive routing;
+- rendered-pixel, overlay, node, transparency, and resource assertions are
+  renderer/core contracts, not duplicate workbench journeys;
+- benchmark models, repeated box stress, continuous rendering, and timed
+  readbacks belong to `e2e/demo/perf.spec.ts` or the software exploratory lane;
+- demo-specific behavior retained in `e2e/demo` is semantic DOM/state: model
+  choice, hierarchy and visibility policy, menus, diagnostics, import/error
+  presentation, focus, responsive geometry, and the representative smoke path.
+
+The ordinary `chrome` project no longer carries a second software rendering
+shard. Software exploration runs the bounded smoke, mobile, and import paths;
+the opt-in performance project remains separate and non-authoritative.
 
 ## Browser-only routing table
 

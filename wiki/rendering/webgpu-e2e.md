@@ -27,14 +27,15 @@ runner exists, CI only runs the no-GPU unsupported-contract smoke
 - `e2e/core/core-foundation.spec.ts` owns one direct public-entry viewport
   create/render/destroy journey and one typed unsupported journey. Its host
   imports only `src/index.ts` and owns one canvas/viewport lifecycle.
-- `e2e/demo/webgpu-lifecycle.spec.ts` owns initialization, one instanced render,
-  interaction/picking, clean teardown, and re-initialization. The direct-core
-  foundation suite owns the typed unsupported contract with `navigator.gpu`
-  hidden before page load; the public viewport must reject startup with
-  `WebGpuUnsupportedError` and never start a 2D CPU renderer.
-- `e2e/demo/webgpu-rendering.spec.ts` owns rendered pixels, display toggles,
-  transparency, overlays, selection, and reload determinism. Captures use
-  settled `canvas.screenshot()` comparisons.
+- `e2e/core/core-journeys.spec.ts` owns hardware lifecycle, camera commands,
+  picking, region selection, and representative nonblank rendering. The
+  direct-core foundation suite owns the typed unsupported contract with
+  `navigator.gpu` hidden before page load; the public viewport must reject
+  startup with `WebGpuUnsupportedError` and never start a 2D CPU renderer.
+- The demo suites own semantic workbench journeys: `demo-lifecycle`,
+  `demo-results`, `demo-visibility`, `demo-interaction`, `demo-import`,
+  `mobile`, `demo-layout`, and `smoke`. Pixel-heavy exploration and sustained
+  performance remain opt-in.
 
 ## Capability gating (non-flakiness)
 
@@ -62,14 +63,12 @@ the authoritative WebGPU interaction/pixel gate.
 
 The browser contracts have one semantic owner per feature. Workbench DOM and
 interaction journeys live in `e2e/demo/demo-lifecycle.spec.ts`,
-`e2e/demo/demo-results.spec.ts`, `e2e/demo/demo-visibility.spec.ts`, and
-`e2e/demo/demo-interaction.spec.ts`. Real GPU behavior is partitioned into
-`e2e/demo/webgpu-lifecycle.spec.ts`, `e2e/demo/webgpu-rendering.spec.ts`,
-`e2e/demo/webgpu-camera.spec.ts`, and `e2e/demo/webgpu-visibility.spec.ts`;
-their shared settled-pixel and navigation helpers live in
-`e2e/demo/webgpu-support.ts`, while owner-neutral mechanics live in
-`e2e/shared/helpers.ts`. Mobile layout and touch contracts keep their deliberate
-independent suites, while performance remains opt-in.
+`e2e/demo/demo-results.spec.ts`, `e2e/demo/demo-visibility.spec.ts`,
+`e2e/demo/demo-interaction.spec.ts`, `e2e/demo/demo-import.spec.ts`,
+`e2e/demo/mobile.spec.ts`, and `e2e/demo/demo-layout.spec.ts`. Core browser
+journeys own low-level GPU lifecycle, camera, picking, and raster contracts;
+owner-neutral mechanics live in `e2e/shared/helpers.ts`. Performance remains
+opt-in.
 
 The former monolithic `demo.spec.ts` and `webgpu.spec.ts` suites were removed so
 failure names identify the owning product contract. DOM-only CPU-overlay menu
