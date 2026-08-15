@@ -8,8 +8,8 @@ import { createScene } from "../../src/scene/scene";
 import {
   normalMatrix3,
   packOrientationRecords,
-} from "../../src/renderer/gpu-orientation-glyph-data";
-import { orientationGlyphVertexShader } from "../../src/renderer/gpu-orientation-glyph-shader";
+} from "../../src/renderer/orientation/gpu-orientation-glyph-data";
+import { orientationGlyphVertexShader } from "../../src/renderer/orientation/gpu-orientation-glyph-shader";
 import {
   createWebGpuRenderer,
   readGpuCostSnapshot,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   interactionTargetForRow,
   visibilityRowTargetsEqual,
-} from "../../demo/workbench/visibility-snapshot";
+} from "../../demo/workbench/state/visibility-snapshot";
 
 describe("visibility tree hover mapping", () => {
   it("keeps assembly rows UI-only while mapping instance and body identity", () => {

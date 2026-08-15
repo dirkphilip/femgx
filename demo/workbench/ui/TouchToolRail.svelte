@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { WorkbenchController } from "../controller";
-  import type { WorkbenchSnapshot } from "../snapshot";
+  import type { WorkbenchController } from "../controllers/controller";
+  import type { WorkbenchSnapshot } from "../results/snapshot";
 
   let {
     controller,

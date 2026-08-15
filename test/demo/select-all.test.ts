@@ -5,7 +5,7 @@ import {
   type FemViewport,
   type Part,
 } from "../../src/index";
-import { selectAllTargets } from "../../demo/workbench/select-all";
+import { selectAllTargets } from "../../demo/workbench/selection/select-all";
 
 const instanceId = "root/part";
 

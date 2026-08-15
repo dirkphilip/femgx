@@ -5,12 +5,12 @@ import { readInteractionState, type InteractionStateData } from "../interaction/
 import type { InteractionTarget } from "../interaction/target-types";
 import type { InstanceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { EmphasisUpdates } from "./gpu-elements";
-import { collectEmphasisUpdates } from "./gpu-elements";
-import { syncElementHighlights } from "./gpu-highlight-storage";
-import { syncInstanceEmphasisAdmission } from "./gpu-instance-emphasis";
-import { collectDenseElementSelections } from "./gpu-element-selection";
-import { defaultStyle } from "./gpu-support";
+import type { EmphasisUpdates } from "./resources/gpu-elements";
+import { collectEmphasisUpdates } from "./resources/gpu-elements";
+import { syncElementHighlights } from "./selection/gpu-highlight-storage";
+import { syncInstanceEmphasisAdmission } from "./selection/gpu-instance-emphasis";
+import { collectDenseElementSelections } from "./selection/gpu-element-selection";
+import { defaultStyle } from "./resources/gpu-support";
 import type { GpuBundle } from "./gpu-recovery";
 import { instanceAt, type InstanceLayout } from "./runtime-state";
 

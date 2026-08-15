@@ -9,9 +9,9 @@ import {
   patchInstances,
   writeDrawOrder,
   type DrawCall,
-} from "./gpu-draw";
+} from "./resources/gpu-draw";
 import type { GpuBundle } from "./gpu-recovery";
-import type { GpuCostAccumulator } from "./gpu-cost";
+import type { GpuCostAccumulator } from "./core/gpu-cost";
 import {
   collectInstanceUpdates,
   instanceRecordsChanged,

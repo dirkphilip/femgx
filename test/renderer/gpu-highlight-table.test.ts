@@ -4,7 +4,7 @@ import {
   HIGHLIGHT_BUCKET_SIZE,
   highlightHash,
   type HighlightTableEntry,
-} from "../../src/renderer/gpu-highlight-table";
+} from "../../src/renderer/selection/gpu-highlight-table";
 
 function entry(slot: number, elementPickId: number): HighlightTableEntry {
   return {

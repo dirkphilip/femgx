@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { canvasInteractionBox } from "../shared/helpers";
+import { canvasInteractionBox } from "../browser-support/helpers";
 export {
   cameraDistance,
   expectBoundsClippedSafely,
@@ -8,8 +8,8 @@ export {
   requireHit,
   sweepForHit,
   targetPlanePoint,
-} from "../shared/helpers";
-export { distinctColors, drawnPixels, pixelHash, pixelMetrics } from "../shared/helpers";
+} from "../browser-support/helpers";
+export { distinctColors, drawnPixels, pixelHash, pixelMetrics } from "../browser-support/helpers";
 
 /** Opens the responsive phone navigation drawer and waits for its controls. */
 export async function openNavigation(page: Page): Promise<void> {

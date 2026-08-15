@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createBoltedPlateFixture } from "../../demo/fixture/bolted-plate";
-import { assemblyName } from "../../demo/workbench/visibility-tree";
+import { assemblyName } from "../../demo/workbench/state/visibility-tree";
 
 describe("assemblyName", () => {
   it("reads the optional display name from a registered assembly", () => {

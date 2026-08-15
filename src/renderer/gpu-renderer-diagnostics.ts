@@ -1,6 +1,6 @@
 import type { PartId } from "../geometry/part";
-import type { GpuCostAccumulator } from "./gpu-cost";
-import type { DrawResources } from "./gpu-draw";
+import type { GpuCostAccumulator } from "./core/gpu-cost";
+import type { DrawResources } from "./resources/gpu-draw";
 
 /** Returns the part ids with materialized optional edge geometry. */
 export function materializedEdgePartIds(draw: DrawResources): ReadonlySet<PartId> {

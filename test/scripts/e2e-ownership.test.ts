@@ -29,16 +29,16 @@ describe("browser suite ownership", () => {
     expect(specs).not.toContain(join(e2e, "demo.spec.ts"));
   });
 
-  it("keeps core and shared sources independent from the workbench owner", () => {
+  it("keeps core and browser-support sources independent from the workbench owner", () => {
     const coreSources = filesUnder(join(e2e, "core"), ".ts").map((file) =>
       readFileSync(file, "utf8"),
     );
-    const sharedSources = filesUnder(join(e2e, "shared"), ".ts").map((file) =>
+    const browserSupportSources = filesUnder(join(e2e, "browser-support"), ".ts").map((file) =>
       readFileSync(file, "utf8"),
     );
     expect(coreSources.join("\n")).not.toMatch(/demo\//);
     expect(coreSources.join("\n")).not.toContain('data-testid="view-canvas"');
-    expect(sharedSources.join("\n")).not.toMatch(/(?:core|demo)\//);
+    expect(browserSupportSources.join("\n")).not.toMatch(/(?:core|demo)\//);
     expect(readFileSync(join(e2e, "core/core-host.ts"), "utf8")).toContain(
       'from "../../src/index"',
     );

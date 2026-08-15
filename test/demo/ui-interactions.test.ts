@@ -3,20 +3,20 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createInteractionState, createSceneRuntime } from "../../src/index";
 import { createBoltedPlatePreset } from "../../demo/fixture/presets";
 import { createResultsPreset } from "../../demo/fixture/results-preset";
-import { createExampleModel } from "../../demo/workbench/model";
-import type { WorkbenchController } from "../../demo/workbench/controller";
+import { createExampleModel } from "../../demo/workbench/models/model";
+import type { WorkbenchController } from "../../demo/workbench/controllers/controller";
 import type {
   WorkbenchCommands,
   WorkbenchElementDetailSnapshot,
   WorkbenchSnapshot,
-} from "../../demo/workbench/snapshot";
+} from "../../demo/workbench/results/snapshot";
 import {
   createWorkbenchSnapshot,
   type WorkbenchSnapshotInput,
-} from "../../demo/workbench/snapshot";
-import type { WorkbenchVisibilityRowSnapshot } from "../../demo/workbench/visibility-snapshot";
-import type { VisibilityRowTarget } from "../../demo/workbench/visibility-snapshot";
-import { DEFORMATION_OFF_VALUE } from "../../demo/workbench/result-controls";
+} from "../../demo/workbench/results/snapshot";
+import type { WorkbenchVisibilityRowSnapshot } from "../../demo/workbench/state/visibility-snapshot";
+import type { VisibilityRowTarget } from "../../demo/workbench/state/visibility-snapshot";
+import { DEFORMATION_OFF_VALUE } from "../../demo/workbench/results/result-controls";
 import BuildInfo from "../../demo/workbench/ui/BuildInfo.svelte";
 import ResultLegend from "../../demo/workbench/ui/ResultLegend.svelte";
 import StatusOverlays from "../../demo/workbench/ui/StatusOverlays.svelte";

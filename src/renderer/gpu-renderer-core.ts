@@ -1,29 +1,30 @@
 import type { Camera } from "../camera/camera";
 import type { Vec3 } from "../math/vec3";
-import type { Part } from "../geometry/part";
+import type { Part, PartId } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
 import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionTarget } from "../interaction/target-types";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { DeformationState } from "../results/deform";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { PartId } from "../geometry/part";
 import { RendererAttachment } from "./attachment";
-import { destroyInstanceResources } from "./gpu-draw";
-import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
-import { syncDeformations, validateDeformation } from "./gpu-deform";
-import { syncResultColors } from "./gpu-result-colors";
-import { encodePickSnapshot, encodeVisibleFrame } from "./gpu-frame";
-import { pickHitFromPixel, resetPickTargets } from "./gpu-pick";
-import { pickTargetsFromRegion } from "./gpu-pick-region";
-import { displayedPointFromPixel } from "./gpu-pick-point";
+import { destroyInstanceResources } from "./resources/gpu-draw";
+import type { ViewportBackground, WebGpuRenderer, WebGpuRendererOptions } from "./types";
+import { syncDeformations, validateDeformation } from "./core/gpu-deform";
+import { syncResultColors } from "./resources/gpu-result-colors";
+import { encodePickSnapshot, encodeVisibleFrame } from "./core/gpu-frame";
+import { pickHitFromPixel, resetPickTargets } from "./picking/gpu-pick";
+import { pickTargetsFromRegion } from "./picking/gpu-pick-region";
+import { displayedPointFromPixel } from "./picking/gpu-pick-point";
 import { GpuDeviceLifecycle, type GpuBundle } from "./gpu-recovery";
-import { writeBackgroundColors } from "./gpu-background";
-import type { ViewportBackground } from "./types";
-import type { GpuValidationOptions } from "./gpu-validation";
-import type { GpuCostSnapshot } from "./gpu-cost";
+import { writeBackgroundColors } from "./core/gpu-background";
+import type { GpuValidationOptions } from "./core/gpu-validation";
+import type { GpuCostSnapshot } from "./core/gpu-cost";
 import type { SectionPlane } from "../math/section-plane";
-import { syncOrientationGlyphs, type OrientationGlyphState } from "./gpu-orientation-glyph";
+import {
+  syncOrientationGlyphs,
+  type OrientationGlyphState,
+} from "./orientation/gpu-orientation-glyph";
 import {
   createEdgePickContext,
   createEdgePickState,
@@ -31,8 +32,8 @@ import {
   pickEdgePixel,
   pickEdgeRegion,
   type EdgePickState,
-} from "./gpu-edge-picking";
-import { buildFrameOptions } from "./gpu-frame-options";
+} from "./edges/gpu-edge-picking";
+import { buildFrameOptions } from "./core/gpu-frame-options";
 import { drawCostSnapshot, materializedEdgePartIds } from "./gpu-renderer-diagnostics";
 
 export interface GpuRendererConstruction {

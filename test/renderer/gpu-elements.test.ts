@@ -31,14 +31,14 @@ import {
   HIGHLIGHT_HEADER,
   INITIAL_ELEMENT_HIGHLIGHTS,
   type EmphasisUpdate,
-} from "../../src/renderer/gpu-elements";
+} from "../../src/renderer/resources/gpu-elements";
 import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
 import {
   createHighlightStorage,
   syncElementHighlights,
   writeElementHighlights,
-} from "../../src/renderer/gpu-highlight-storage";
-import { collectDenseElementSelections } from "../../src/renderer/gpu-element-selection";
+} from "../../src/renderer/selection/gpu-highlight-storage";
+import { collectDenseElementSelections } from "../../src/renderer/selection/gpu-element-selection";
 import {
   buildBodyPrimitivePickIds,
   buildElementPrimitiveOrdinals,
@@ -48,19 +48,19 @@ import {
   buildNodeBodyOwnerData,
   buildNodeSpritePickIds,
   buildPrimitiveFaceBodyPickData,
-} from "../../src/renderer/gpu-pick-ids";
+} from "../../src/renderer/picking/gpu-pick-ids";
 import {
   BLOCK_HIGHLIGHT_MARKER,
   HIGHLIGHT_BUCKET_SIZE,
   highlightHash,
-} from "../../src/renderer/gpu-highlight-table";
+} from "../../src/renderer/selection/gpu-highlight-table";
 import {
   createDrawResources,
   encodeInstanceRecord,
   patchInstances,
-} from "../../src/renderer/gpu-draw";
-import { defaultStyle } from "../../src/renderer/gpu-support";
-import type { InstanceStorage } from "../../src/renderer/gpu-draw";
+} from "../../src/renderer/resources/gpu-draw";
+import { defaultStyle } from "../../src/renderer/resources/gpu-support";
+import type { InstanceStorage } from "../../src/renderer/resources/gpu-draw";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 import { createBoltedPlateFixture } from "../../demo/fixture/bolted-plate";

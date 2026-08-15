@@ -1,8 +1,8 @@
 import { installBoxSelection } from "../../src/index";
-import type { WorkbenchPane } from "./view";
-import type { WorkbenchBoxPreview } from "./box-preview";
-import type { WorkbenchInteraction } from "./interaction";
-import { installWorkbenchPaneBindings } from "./listeners";
+import type { WorkbenchPane } from "./viewport/view";
+import type { WorkbenchBoxPreview } from "./selection/box-preview";
+import type { WorkbenchInteraction } from "./interaction/interaction";
+import { installWorkbenchPaneBindings } from "./interaction/listeners";
 import type { TouchInteractionMode } from "./types";
 
 interface WorkbenchPaneLifecycleOptions {

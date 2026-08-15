@@ -3,7 +3,7 @@ import {
   calculateRenderLoopStats,
   IDLE_RENDER_LOOP_STATS,
   WorkbenchRenderLoop,
-} from "../../demo/workbench/render-loop";
+} from "../../demo/workbench/viewport/render-loop";
 
 describe("WorkbenchRenderLoop", () => {
   it("stays idle by default and starts one invalidation chain", () => {

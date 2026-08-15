@@ -10,7 +10,7 @@ import {
   createStructuredFeModel,
   createStructuredFePart,
 } from "../../demo/benchmark/structured-fe";
-import { createLazyBenchmarkModel } from "../../demo/workbench/model";
+import { createLazyBenchmarkModel } from "../../demo/workbench/models/model";
 import { createCamera } from "../../src/index";
 
 describe("WebGPU benchmark models", () => {

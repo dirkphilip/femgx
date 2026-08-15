@@ -15,7 +15,7 @@ import { computeBounds } from "../../../src/geometry/part";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import { mapScalar } from "../../../src/results/mapping";
 import { resolveViewportResults, viewportOrientationRecords } from "../../../src/viewport/results";
-import { createPresetInteraction } from "../../../demo/workbench/preset";
+import { createPresetInteraction } from "../../../demo/workbench/state/preset";
 import { readInteractionState } from "../../../src/interaction/state";
 import { transformPoint } from "../../../src/math/mat4";
 import { cross, dot, normalize } from "../../../src/math/vec3";

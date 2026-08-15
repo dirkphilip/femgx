@@ -7,7 +7,7 @@ WebGPU-only ([[requirements/product-scope|product scope]]).
 
 Browser ownership is explicit: `e2e/core/` contains direct public-library
 browser contracts, `e2e/demo/` contains workbench UI and host-policy contracts,
-and `e2e/shared/` contains owner-neutral mechanics only. No browser spec lives
+and `e2e/browser-support/` contains owner-neutral mechanics only. No browser spec lives
 directly under `e2e/`. The fast CPU lane is the exclude-based `npm run
 test:core`; it does not start a browser, demo host, Svelte environment, or
 WebGPU test surface.
@@ -78,7 +78,7 @@ WebGPU is available.
 
 ## Making skips visible
 
-`e2e/shared/skip-summary-reporter.ts` (wired in `playwright.config.ts`) prints a
+`e2e/browser-support/skip-summary-reporter.ts` (wired in `playwright.config.ts`) prints a
 per-reason skip count at the end of every run, so CI output surfaces how many
 tests were skipped and why. The built-in `list` reporter already marks each
 skipped test with `-`; the summary groups the reasons so a silent pass can

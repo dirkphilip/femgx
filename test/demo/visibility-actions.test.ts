@@ -17,7 +17,7 @@ import {
   type SceneRuntime,
 } from "../../src/index";
 import { createBoltedPlatePreset } from "../../demo/fixture/presets";
-import { WorkbenchVisibilityActions } from "../../demo/workbench/visibility-actions";
+import { WorkbenchVisibilityActions } from "../../demo/workbench/state/visibility-actions";
 
 describe("WorkbenchVisibilityActions", () => {
   it("hides selected elements in one update while preserving their selection", () => {

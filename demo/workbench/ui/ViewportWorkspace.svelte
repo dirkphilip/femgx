@@ -1,12 +1,12 @@
 <script lang="ts">
-  import type { WorkbenchController } from "../controller";
-  import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../snapshot";
-  import ContextMenu from "./ContextMenu.svelte";
-  import PrimaryToolbar from "./PrimaryToolbar.svelte";
-  import ResultLegend from "./ResultLegend.svelte";
-  import StatusOverlays from "./StatusOverlays.svelte";
-  import TouchToolRail from "./TouchToolRail.svelte";
-  import ViewportPane from "./ViewportPane.svelte";
+  import type { WorkbenchController } from "../controllers/controller";
+  import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../results/snapshot";
+  import ContextMenu from "./ContextMenu";
+  import PrimaryToolbar from "./PrimaryToolbar";
+  import ResultLegend from "./ResultLegend";
+  import StatusOverlays from "./StatusOverlays";
+  import TouchToolRail from "./TouchToolRail";
+  import ViewportPane from "./ViewportPane";
 
   let {
     controller,

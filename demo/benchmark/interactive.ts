@@ -2,7 +2,7 @@ import { orbitCamera } from "../../src/index";
 import type { Camera } from "../../src/index";
 import type { WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import type { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import { calculateRenderLoopStats } from "../workbench/render-loop";
+import { calculateRenderLoopStats } from "../workbench/viewport/render-loop";
 import type { WebGpuBenchmarkCase } from "./model";
 
 const WARMUP_MS = 500;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMeshEdgeData } from "../../src/renderer/gpu-edge";
+import { buildMeshEdgeData } from "../../src/renderer/edges/gpu-edge";
 import type { ElementTessellation, Geometry, GeometryElementBlock } from "../../src/geometry/part";
 
 type SemanticGeometry = Geometry & {

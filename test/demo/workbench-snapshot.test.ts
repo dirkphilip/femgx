@@ -5,9 +5,9 @@ import {
   createWorkbenchSnapshot,
   WorkbenchSnapshotBridge,
   type WorkbenchSnapshotInput,
-} from "../../demo/workbench/snapshot";
-import type { WorkbenchModel } from "../../demo/workbench/model";
-import type { WorkbenchResultLegendSnapshot } from "../../demo/workbench/result-legend";
+} from "../../demo/workbench/results/snapshot";
+import type { WorkbenchModel } from "../../demo/workbench/models/model";
+import type { WorkbenchResultLegendSnapshot } from "../../demo/workbench/results/result-legend";
 
 describe("workbench presentation snapshot", () => {
   it("contains presentation-sized values without runtime storage references", () => {

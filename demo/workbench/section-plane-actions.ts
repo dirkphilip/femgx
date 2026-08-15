@@ -1,5 +1,5 @@
 import type { FemViewport } from "../../src/index";
-import type { WorkbenchModel } from "./model";
+import type { WorkbenchModel } from "./models/model";
 import {
   clampSectionOffset,
   parseSectionAxis,

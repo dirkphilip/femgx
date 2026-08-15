@@ -3,8 +3,8 @@ import { createInteractionState, createSceneRuntime } from "../../src/index";
 import { createBoltedPlatePreset } from "../../demo/fixture/presets";
 import { createPerformancePreset } from "../../demo/fixture/performance-fixture";
 import { statsText } from "../../demo/devtools/diagnostics";
-import { createExampleModel } from "../../demo/workbench/model";
-import { IDLE_RENDER_LOOP_STATS } from "../../demo/workbench/render-loop";
+import { createExampleModel } from "../../demo/workbench/models/model";
+import { IDLE_RENDER_LOOP_STATS } from "../../demo/workbench/viewport/render-loop";
 
 describe("demo diagnostics", () => {
   it("does not build per-part detail while the diagnostics HUD is closed", () => {

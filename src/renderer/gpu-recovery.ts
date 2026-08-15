@@ -1,16 +1,23 @@
 import type { WebGpuQueryOptions } from "../platform/capabilities";
 import { WebGpuUnsupportedError } from "../platform/capabilities";
 import { requestWebGpuDevice, watchDeviceLoss, type DeviceLostInfo } from "../platform/device";
-import { createDrawResources, destroyDrawResources, type DrawResources } from "./gpu-draw";
-import { createPickTargets, destroyPickTargets, type PickTargets } from "./gpu-pick";
-import { createPickDepthReadback } from "./gpu-pick-depth";
+import {
+  createDrawResources,
+  destroyDrawResources,
+  type DrawResources,
+} from "./resources/gpu-draw";
+import { createPickTargets, destroyPickTargets, type PickTargets } from "./picking/gpu-pick";
+import { createPickDepthReadback } from "./picking/gpu-pick-depth";
 import {
   createRenderResources,
   destroyRenderResources,
   type RenderResources,
-} from "./gpu-pipelines";
-import type { GpuValidationOptions } from "./gpu-validation";
-import { GpuCostAccumulator, type GpuCostAccumulator as GpuCostAccumulatorType } from "./gpu-cost";
+} from "./core/gpu-pipelines";
+import type { GpuValidationOptions } from "./core/gpu-validation";
+import {
+  GpuCostAccumulator,
+  type GpuCostAccumulator as GpuCostAccumulatorType,
+} from "./core/gpu-cost";
 
 /** Actionable message when a renderer cannot recreate an external device. */
 export const EXTERNAL_DEVICE_RECOVERY_MESSAGE =

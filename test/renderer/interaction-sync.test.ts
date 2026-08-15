@@ -12,8 +12,8 @@ import {
   interactionDirtyParts,
   refreshTransparencyFlags,
 } from "../../src/renderer/interaction-sync";
-import type { EmphasisUpdate } from "../../src/renderer/gpu-elements";
-import { defaultStyle } from "../../src/renderer/gpu-support";
+import type { EmphasisUpdate } from "../../src/renderer/resources/gpu-elements";
+import { defaultStyle } from "../../src/renderer/resources/gpu-support";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 
 function sceneRuntime() {

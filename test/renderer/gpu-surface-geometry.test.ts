@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expandSurfaceGeometry } from "../../src/renderer/gpu-surface-geometry";
+import { expandSurfaceGeometry } from "../../src/renderer/resources/gpu-surface-geometry";
 
 describe("expanded surface geometry", () => {
   it("retains the logical primitive for every shared indexed corner", () => {

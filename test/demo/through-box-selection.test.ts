@@ -11,8 +11,8 @@ import {
   type InteractionState,
   type Scene,
 } from "../../src/index";
-import type { BoxSelectionRequest } from "../../demo/workbench/box-selection-resolver";
-import { throughIntersectionBoxSelectionResolver } from "../../demo/workbench/through-box-selection";
+import type { BoxSelectionRequest } from "../../demo/workbench/selection/box-selection-resolver";
+import { throughIntersectionBoxSelectionResolver } from "../../demo/workbench/selection/through-box-selection";
 import { describe, expect, it } from "vitest";
 
 const selectionRect = {

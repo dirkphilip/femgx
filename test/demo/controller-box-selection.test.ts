@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   normalizeBoxSelectionStrategyForGranularity,
   setBoxSelectionStrategy,
-} from "../../demo/workbench/controller-box-selection";
+} from "../../demo/workbench/controllers/controller-box-selection";
 
 describe("workbench box-selection strategy", () => {
   it("installs the shared resolver and invalidates both strategy changes and slot additions", () => {

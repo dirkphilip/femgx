@@ -16,20 +16,20 @@ import {
   writeNodeOrder,
   writeSelectionOrder,
   type DrawCallContext,
-} from "../../src/renderer/gpu-draw";
-import { drawBatches } from "../../src/renderer/gpu-batch";
-import { ensureColorTargets } from "../../src/renderer/gpu-pipelines";
+} from "../../src/renderer/resources/gpu-draw";
+import { drawBatches } from "../../src/renderer/core/gpu-batch";
+import { ensureColorTargets } from "../../src/renderer/core/gpu-pipelines";
 import { beginColorPass } from "../../src/renderer/gpu-passes";
 import {
   ELEMENT_RECORD_STRIDE,
   HIGHLIGHT_HEADER,
   INITIAL_ELEMENT_HIGHLIGHTS,
-} from "../../src/renderer/gpu-elements";
-import { defaultStyle } from "../../src/renderer/gpu-support";
-import type { DrawPipelines } from "../../src/renderer/gpu-pipelines";
+} from "../../src/renderer/resources/gpu-elements";
+import { defaultStyle } from "../../src/renderer/resources/gpu-support";
+import type { DrawPipelines } from "../../src/renderer/core/gpu-pipelines";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
-import { syncInstanceEmphasisAdmission } from "../../src/renderer/gpu-instance-emphasis";
-import type { DenseElementSelections } from "../../src/renderer/gpu-element-selection";
+import { syncInstanceEmphasisAdmission } from "../../src/renderer/selection/gpu-instance-emphasis";
+import type { DenseElementSelections } from "../../src/renderer/selection/gpu-element-selection";
 
 const HIGHLIGHT_BUFFER_SIZE = HIGHLIGHT_HEADER + INITIAL_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE;
 

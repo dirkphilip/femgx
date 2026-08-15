@@ -4,7 +4,7 @@ import {
   transparencyOutput,
   triangleTransparencyFragmentShader,
   TRANSPARENCY_REVEALAGE_FORMAT,
-} from "../../src/renderer/gpu-transparency";
+} from "../../src/renderer/core/gpu-transparency";
 
 const MIN_WEIGHT = 0.01;
 const MAX_WEIGHT = 8;

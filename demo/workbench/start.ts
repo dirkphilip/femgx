@@ -8,13 +8,13 @@ import {
 import { createModelPresets } from "../fixture/presets";
 import { workbenchBenchmarkSpecs } from "../benchmark/model";
 import { installDemoHarness } from "../devtools/harness";
-import { WorkbenchController } from "./controller";
-import { createExampleModel, createLazyBenchmarkModel, type WorkbenchModel } from "./model";
-import { errorMessage } from "./model";
-import { selectTarget, targetKey } from "./pick";
-import type { WorkbenchResultPlaybackActions } from "./result-playback";
-import type { DemoView, WorkbenchPane, ViewportSlotId } from "./view";
-import type { WorkbenchStartupStatus } from "./snapshot";
+import { WorkbenchController } from "./controllers/controller";
+import { createExampleModel, createLazyBenchmarkModel, type WorkbenchModel } from "./models/model";
+import { errorMessage } from "./models/model";
+import { selectTarget, targetKey } from "./selection/pick";
+import type { WorkbenchResultPlaybackActions } from "./results/result-playback";
+import type { DemoView, WorkbenchPane, ViewportSlotId } from "./viewport/view";
+import type { WorkbenchStartupStatus } from "./results/snapshot";
 
 /** Inputs for the WebGPU demo path. */
 export interface WebGpuDemoOptions {

@@ -10,7 +10,7 @@ import {
   zoomCamera,
   type Vec3,
 } from "../../src";
-import { cameraKeyLightDirection } from "../../src/renderer/gpu-frame";
+import { cameraKeyLightDirection } from "../../src/renderer/core/gpu-frame";
 
 interface PointerInput {
   readonly pointerId: number;

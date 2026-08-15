@@ -7,7 +7,7 @@ import {
   errorMessage,
   importFeedback,
   partStyleOverride,
-} from "../../demo/workbench/model";
+} from "../../demo/workbench/models/model";
 
 describe("demo workbench model boundary", () => {
   it("sanitizes browser file names and keeps a safe fallback", () => {

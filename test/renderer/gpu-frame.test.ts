@@ -6,8 +6,11 @@ import {
   needsWeightedTransparency,
   nodeSizeDevicePixels,
   pointSizeDevicePixels,
-} from "../../src/renderer/gpu-frame";
-import { orbitPivotAxisProjection, orbitPivotMetrics } from "../../src/renderer/gpu-orbit-pivot";
+} from "../../src/renderer/core/gpu-frame";
+import {
+  orbitPivotAxisProjection,
+  orbitPivotMetrics,
+} from "../../src/renderer/helpers/gpu-orbit-pivot";
 import {
   createCamera,
   orbitCamera,

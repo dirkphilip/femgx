@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { WorkbenchController } from "../controller";
+  import type { WorkbenchController } from "../controllers/controller";
   import type {
     WorkbenchVisibilityRowSnapshot,
     WorkbenchVisibilitySnapshot,
-  } from "../visibility-snapshot";
+  } from "../state/visibility-snapshot";
 
   let {
     controller,
