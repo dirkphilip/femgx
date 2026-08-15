@@ -33,6 +33,7 @@ interface WorkbenchViewportSlotsOptions {
   readonly markCanvasHover: (slotId: ViewportSlotId) => void;
   readonly clearCanvasHover: (slotId: ViewportSlotId) => void;
   readonly selectionGranularity: () => SelectionGranularity;
+  readonly touchBoxSelection: () => boolean;
   readonly menu: WorkbenchMenu;
   readonly render: () => void;
   readonly applySharedState: () => void;
@@ -241,6 +242,7 @@ export class WorkbenchViewportSlots {
       interaction: slot.interaction,
       boxPreview: slot.boxPreview,
       dragging: () => slot.dragging || slot.boxPreview.isActive(),
+      touchBoxSelection: this.options.touchBoxSelection,
       setActive: () => {
         this.setActiveSlot("secondary");
       },

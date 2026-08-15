@@ -10,10 +10,11 @@ the gesture as one lightweight screen-space rectangle overlay.
 complete primary-pointer gesture state machine and never touches the model,
 `InteractionState`, picking, or the renderer.
 
-- **Arming.** Only a primary-button (`button === 0`) mouse or pen
-  `pointerdown` arms the gesture. Touch and non-primary or concurrent pointers
-  are ignored. The pointer is captured and a clamped anchor is recorded; no
-  event is emitted yet, so an ordinary click stays an ordinary click.
+- **Arming.** A primary-button (`button === 0`) mouse or pen `pointerdown` arms
+  the gesture. Touch remains ignored by default; a host may provide
+  `touchEnabled` only when it has routed that touch away from camera navigation.
+  The pointer is captured and a clamped anchor is recorded; no event is emitted
+  yet, so an ordinary click or tap stays an ordinary click or tap.
 - **Activation.** The gesture activates only after moving more than the shared
   10 CSS-pixel threshold, then emits exactly one `start` with the clamped
   current point and the normalized rectangle. The same shared threshold keeps
@@ -61,7 +62,14 @@ listeners so the threshold-crossing move marks box interaction active before
 hover handling runs. Demo-only box activity is tracked separately from camera
 gesture activity; `isPointerGestureActive()` combines the two, and the hover
 listener suppresses asynchronous GPU picks while either is active. On
-completion, `WorkbenchInteraction` sends one request containing the completed
+phone layouts, a right-side touch tool rail switches explicitly between
+Navigate and Box select. The box-selection capture listener prevents an enabled
+touch from entering the viewport-owned camera gesture, while the default
+Navigate mode retains one-finger orbit and two-finger pan/pinch. The same rail
+can replace selection with every explicitly visible target at the active
+granularity without a GPU query.
+
+On completion, `WorkbenchInteraction` sends one request containing the completed
 event and captured Element/Face/Node granularity to its workbench-private box
 selection resolver. The default visible-surface resolver makes one
 `pickRegion(event.rect, granularity)` call; a workbench-owned resolver may

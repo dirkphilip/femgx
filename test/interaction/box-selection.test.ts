@@ -101,16 +101,20 @@ interface Harness {
   readonly disposer: () => void;
 }
 
-function install(rect?: {
-  readonly left: number;
-  readonly top: number;
-  readonly width: number;
-  readonly height: number;
-}): Harness {
+function install(
+  rect?: {
+    readonly left: number;
+    readonly top: number;
+    readonly width: number;
+    readonly height: number;
+  },
+  touchEnabled?: () => boolean,
+): Harness {
   const canvas = new FakeCanvas(rect);
   const events: BoxSelectionEvent[] = [];
   const disposer = installBoxSelection({
     canvas: canvas as unknown as HTMLCanvasElement,
+    ...(touchEnabled === undefined ? {} : { touchEnabled }),
     onEvent: (event) => {
       events.push(event);
     },
@@ -174,6 +178,18 @@ describe("installBoxSelection", () => {
     canvas.dispatch("pointermove", pointer({ pointerType: "pen", clientX: 120, clientY: 70 }));
     canvas.dispatch("pointerup", pointer({ pointerType: "pen", clientX: 120, clientY: 70 }));
 
+    expect(terminalTypes(events)).toEqual(["start", "complete"]);
+    disposer();
+  });
+
+  it("supports touch only when the host explicitly enables it", () => {
+    const { canvas, events, disposer } = install(undefined, () => true);
+    const down = pointer({ pointerType: "touch", clientX: 100, clientY: 50 });
+    canvas.dispatch("pointerdown", down);
+    canvas.dispatch("pointermove", pointer({ pointerType: "touch", clientX: 120, clientY: 70 }));
+    canvas.dispatch("pointerup", pointer({ pointerType: "touch", clientX: 120, clientY: 70 }));
+
+    expect(down.preventDefault).toHaveBeenCalledOnce();
     expect(terminalTypes(events)).toEqual(["start", "complete"]);
     disposer();
   });

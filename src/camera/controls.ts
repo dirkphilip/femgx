@@ -47,15 +47,21 @@ interface OrbitGesture {
   pivot: Vec3 | undefined;
 }
 
+interface TouchDrag {
+  readonly anchor: { readonly x: number; readonly y: number };
+  active: boolean;
+}
+
 const ORBIT_SCALE = 180;
 const ZOOM_DRAG_SCALE = 300;
+const TOUCH_DRAG_THRESHOLD = 10;
 
 /**
  * Installs SpaceClaim-style mouse/touch navigation and returns its disposer.
  * Middle drag spins around the nearest visible point after it resolves, falling
  * back to the model-bounds center only when the pick misses or fails. The pivot
  * stays fixed for the gesture. Ctrl/Meta+middle pans, Shift+middle zooms, and
- * touch provides orbit/pan/pinch gestures.
+ * touch provides tap-safe thresholded orbit plus pan/pinch gestures.
  * @category Camera and math
  */
 export function installCameraControls(options: CameraControlOptions): () => void {
@@ -84,6 +90,7 @@ class CameraControls {
   private readonly tracker = new CameraGestureTracker();
   private readonly trackedPointerIds = new Set<number>();
   private readonly orbitGestures = new Map<number, OrbitGesture>();
+  private readonly touchDrags = new Map<number, TouchDrag>();
 
   constructor(
     private readonly options: CameraControlOptions,
@@ -111,21 +118,30 @@ class CameraControls {
     }
     this.trackedPointerIds.clear();
     this.orbitGestures.clear();
+    this.touchDrags.clear();
     this.tracker.clear();
   }
 
   private readonly pointerDown = (event: PointerEvent): void => {
+    if (event.defaultPrevented) return;
     if (event.pointerType !== "touch" && event.button !== 1) return;
     this.trackedPointerIds.add(event.pointerId);
+    if (event.pointerType === "touch") {
+      this.touchDrags.set(event.pointerId, {
+        anchor: { x: event.clientX, y: event.clientY },
+        active: false,
+      });
+    }
     const point = eventPoint(event, this.options.canvas.getBoundingClientRect());
     const step = this.tracker.begin(event.pointerId, point);
     if (event.pointerType !== "touch" && !event.shiftKey && !isPanModifier(event)) {
-      this.beginOrbit(event);
-    } else if (event.pointerType === "touch" && step.pointerCount === 1) {
-      this.beginOrbit(event);
+      this.beginOrbit(event.pointerId, event.clientX, event.clientY);
     } else if (event.pointerType === "touch") {
-      this.orbitGestures.clear();
-      this.options.navigation.setOrbitPivot(undefined);
+      if (step.pointerCount >= 2) {
+        for (const drag of this.touchDrags.values()) drag.active = true;
+        this.orbitGestures.clear();
+        this.options.navigation.setOrbitPivot(undefined);
+      }
     }
     if (step.pointerCount === 1) this.options.onGestureChange?.(true);
     if (!this.options.canvas.hasPointerCapture(event.pointerId)) {
@@ -176,6 +192,7 @@ class CameraControls {
 
   private endPointer(event: PointerEvent, releaseCapture: boolean): void {
     if (!this.trackedPointerIds.delete(event.pointerId)) return;
+    this.touchDrags.delete(event.pointerId);
     this.releaseOrbit(event.pointerId);
     const step = this.tracker.end(event.pointerId);
     if (releaseCapture && this.options.canvas.hasPointerCapture(event.pointerId)) {
@@ -198,8 +215,24 @@ class CameraControls {
       cameraRef.camera = this.zoom(step.deltaY / ZOOM_DRAG_SCALE);
       return cameraRef.camera !== before;
     } else {
+      if (event.pointerType === "touch" && !this.activateTouchDrag(event)) return false;
       return this.applyOrbit(event.pointerId, step);
     }
+  }
+
+  private activateTouchDrag(event: PointerEvent): boolean {
+    const drag = this.touchDrags.get(event.pointerId);
+    if (drag?.active === true) return true;
+    if (
+      drag === undefined ||
+      Math.hypot(event.clientX - drag.anchor.x, event.clientY - drag.anchor.y) <=
+        TOUCH_DRAG_THRESHOLD
+    ) {
+      return false;
+    }
+    drag.active = true;
+    this.beginOrbit(event.pointerId, drag.anchor.x, drag.anchor.y);
+    return true;
   }
 
   private applyTouchGesture(step: GestureStep): boolean {
@@ -235,29 +268,29 @@ class CameraControls {
     return cameraRef.camera !== before;
   }
 
-  private beginOrbit(event: PointerEvent): void {
+  private beginOrbit(pointerId: number, clientX: number, clientY: number): void {
     const gesture: OrbitGesture = {
       fallbackPivot: this.fallbackTarget(this.options.cameraRef.camera),
       active: true,
       resolved: false,
       pivot: undefined,
     };
-    this.orbitGestures.set(event.pointerId, gesture);
+    this.orbitGestures.set(pointerId, gesture);
     const rect = this.options.canvas.getBoundingClientRect();
-    const point = clientToCanvasCss(event.clientX, event.clientY, rect);
+    const point = clientToCanvasCss(clientX, clientY, rect);
     let pivot: Promise<Vec3 | undefined>;
     try {
       pivot = this.options.navigation.pickPoint(this.options.cameraRef.camera, point.x, point.y);
     } catch {
-      this.resolveOrbit(event.pointerId, gesture, undefined);
+      this.resolveOrbit(pointerId, gesture, undefined);
       return;
     }
     void pivot.then(
       (result) => {
-        this.resolveOrbit(event.pointerId, gesture, result);
+        this.resolveOrbit(pointerId, gesture, result);
       },
       () => {
-        this.resolveOrbit(event.pointerId, gesture, undefined);
+        this.resolveOrbit(pointerId, gesture, undefined);
       },
     );
   }

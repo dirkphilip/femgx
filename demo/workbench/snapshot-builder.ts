@@ -65,6 +65,7 @@ function createToolbarSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapshot
     fitSelectionAvailable: hasVisibleSelection(input.interaction, input.runtime),
     selectionGranularity: input.selectionGranularity,
     boxSelectionStrategy: input.boxSelectionStrategy,
+    touchInteractionMode: input.touchInteractionMode,
     secondaryOpen: input.secondaryOpen,
     secondaryBusy: input.secondaryBusy,
   });

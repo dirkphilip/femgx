@@ -11,6 +11,7 @@ export interface WorkbenchLifecycleOptions {
   readonly interaction: WorkbenchInteraction;
   readonly boxPreview: WorkbenchBoxPreview;
   readonly dragging: () => boolean;
+  readonly touchBoxSelection: () => boolean;
   readonly setActive: () => void;
 }
 
@@ -21,10 +22,12 @@ export function installWorkbenchPaneLifecycle(options: {
   readonly interaction: WorkbenchInteraction;
   readonly boxPreview: WorkbenchBoxPreview;
   readonly dragging: () => boolean;
+  readonly touchBoxSelection: () => boolean;
   readonly setActive: () => void;
 }): () => void {
   const boxSelectionDisposer = installBoxSelection({
     canvas: options.pane.canvas,
+    touchEnabled: options.touchBoxSelection,
     onEvent: (event) => {
       options.boxPreview.handleEvent(event);
       if (event.type === "complete") void options.interaction.selectBox(event);
@@ -44,6 +47,7 @@ export function installWorkbenchPaneLifecycle(options: {
 export function installWorkbenchLifecycle(options: WorkbenchLifecycleOptions): () => void {
   const boxSelectionDisposer = installBoxSelection({
     canvas: options.canvas,
+    touchEnabled: options.touchBoxSelection,
     onEvent: (event) => {
       options.boxPreview.handleEvent(event);
       if (event.type === "complete") void options.interaction.selectBox(event);

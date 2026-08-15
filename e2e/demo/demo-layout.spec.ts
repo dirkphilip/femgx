@@ -79,6 +79,8 @@ async function assertWorkbenchLayout(
       activeElementInsideHiddenResults:
         document.querySelector<HTMLElement>("#result-controls")?.contains(document.activeElement) ??
         false,
+      shell: read("#viewport-shell"),
+      stage: read("#viewport-stage"),
       scene: read("#primary-scene"),
       toolbar: read(".toolbar"),
       canvas: read('[data-testid="view-canvas"]'),
@@ -97,16 +99,26 @@ async function assertWorkbenchLayout(
     "the toolbar must not overflow horizontally",
   ).toBeLessThanOrEqual(layout.toolbarClientWidth);
   expect(layout.scene).toBeDefined();
+  expect(layout.shell).toBeDefined();
+  expect(layout.stage).toBeDefined();
   expect(layout.toolbar).toBeDefined();
   expect(layout.canvas).toBeDefined();
   expect(layout.gizmo).toBeDefined();
-  if (layout.scene === undefined || layout.toolbar === undefined || layout.canvas === undefined) {
+  if (
+    layout.shell === undefined ||
+    layout.stage === undefined ||
+    layout.scene === undefined ||
+    layout.toolbar === undefined ||
+    layout.canvas === undefined
+  ) {
     throw new Error("primary workbench layout is missing a required surface");
   }
-  expect(layout.toolbar.x).toBeGreaterThanOrEqual(layout.scene.x - 1);
-  expect(layout.toolbar.right).toBeLessThanOrEqual(layout.scene.right + 1);
-  expect(layout.toolbar.y).toBeGreaterThanOrEqual(layout.scene.y - 1);
-  expect(layout.toolbar.bottom).toBeLessThanOrEqual(layout.scene.bottom + 1);
+  expect(layout.toolbar.x).toBeGreaterThanOrEqual(layout.shell.x - 1);
+  expect(layout.toolbar.right).toBeLessThanOrEqual(layout.shell.right + 1);
+  expect(layout.toolbar.y).toBeGreaterThanOrEqual(layout.shell.y - 1);
+  expect(layout.toolbar.bottom).toBeLessThanOrEqual(layout.stage.y + 1);
+  expect(layout.scene.y).toBeGreaterThanOrEqual(layout.stage.y - 1);
+  expect(layout.scene.bottom).toBeLessThanOrEqual(layout.stage.bottom + 1);
   expect(layout.canvas.width).toBeGreaterThan(0);
   expect(layout.canvas.height).toBeGreaterThan(phone ? 280 : 400);
   if (phone) {

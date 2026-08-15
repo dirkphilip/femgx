@@ -125,6 +125,7 @@ function createSnapshotInput(): WorkbenchSnapshotInput {
     continuous: false,
     selectionGranularity: "element",
     boxSelectionStrategy: "visible-surface",
+    touchInteractionMode: "navigate",
     secondaryOpen: false,
     secondaryBusy: false,
     scalarFieldId: "__base__",

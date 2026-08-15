@@ -31,6 +31,7 @@ export interface WorkbenchControllerWiringContext {
   readonly vectorDisplay: VectorDisplayState;
   readonly continuousEnabled: boolean;
   readonly selectionGranularity: SelectionGranularity;
+  readonly touchInteractionMode: "navigate" | "box-select";
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
   readonly interaction: InteractionState;
@@ -90,6 +91,7 @@ export function createControllerInfrastructure(
     vectorTransform: () => context.vectorDisplay.transform,
     continuous: () => context.continuousEnabled,
     selectionGranularity: () => context.selectionGranularity,
+    touchBoxSelection: () => context.touchInteractionMode === "box-select",
     sectionAxis: () => context.sectionAxis,
     sectionOffset: () => context.sectionOffset,
     interaction: () => context.interaction,
@@ -134,6 +136,7 @@ export function installControllerLifecycle(context: WorkbenchControllerWiringCon
     interaction: context.interactionController,
     boxPreview: context.boxPreview,
     dragging: () => context.isPointerGestureActive(),
+    touchBoxSelection: () => context.touchInteractionMode === "box-select",
     setActive: () => {
       context.setActiveSlot("primary");
     },

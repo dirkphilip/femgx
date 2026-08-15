@@ -23,6 +23,9 @@ export function createDefaultDisplayToggles(): DisplayToggles {
 /** Static result display states exercised by the results demo preset. */
 export type ResultDisplayMode = "base" | "colored" | "deformed";
 
+/** Mobile touch routing between camera navigation and box selection. */
+export type TouchInteractionMode = "navigate" | "box-select";
+
 /** Options for the shared inspection workbench controller. */
 export interface WorkbenchOptions {
   readonly view: DemoView;

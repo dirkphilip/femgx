@@ -27,6 +27,7 @@ interface WorkbenchCommandOwner {
   setContinuous(): void;
   setSelectionGranularity(value: string): void;
   setBoxSelectionStrategy(value: string): void;
+  setTouchInteractionMode(value: string): void;
   toggleSecondaryViewport(): Promise<void>;
   setDeformationField(value: string): void;
   setDeformationScale(value: string): void;
@@ -35,6 +36,7 @@ interface WorkbenchCommandOwner {
   setVectorTransform(value: string): void;
   setVectorLengthScale(value: string): void;
   fitSelection(): void;
+  selectAll(): void;
   hideSelected(): void;
   showAll(): void;
   reset(): void;
@@ -59,6 +61,7 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     toggleContinuous: owner.setContinuous.bind(owner),
     setSelectionGranularity: owner.setSelectionGranularity.bind(owner),
     setBoxSelectionStrategy: owner.setBoxSelectionStrategy.bind(owner),
+    setTouchInteractionMode: owner.setTouchInteractionMode.bind(owner),
     toggleSecondaryViewport: () => {
       void owner.toggleSecondaryViewport();
     },
@@ -72,6 +75,7 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
       applyVectorWidth(owner, value);
     },
     fitSelection: owner.fitSelection.bind(owner),
+    selectAll: owner.selectAll.bind(owner),
     hideSelected: owner.hideSelected.bind(owner),
     showAll: owner.showAll.bind(owner),
     reset: owner.reset.bind(owner),

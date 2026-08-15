@@ -5,6 +5,7 @@
   import PrimaryToolbar from "./PrimaryToolbar.svelte";
   import ResultLegend from "./ResultLegend.svelte";
   import StatusOverlays from "./StatusOverlays.svelte";
+  import TouchToolRail from "./TouchToolRail.svelte";
   import ViewportPane from "./ViewportPane.svelte";
 
   let {
@@ -20,17 +21,18 @@
   } = $props();
 </script>
 
-<div
-  id="viewport-workspace"
-  data-secondary-open={snapshot?.toolbar.secondaryOpen ?? false}
-  aria-hidden={navigationOpen}
->
-  <ViewportPane>
-    <PrimaryToolbar {controller} {snapshot} {navigationOpen} />
-    <ResultLegend {snapshot} />
-    <StatusOverlays {snapshot} {startup} />
-  </ViewportPane>
-  <ViewportPane secondary hidden={!(snapshot?.toolbar.secondaryOpen ?? false)} />
+<div id="viewport-shell" aria-hidden={navigationOpen}>
+  <PrimaryToolbar {controller} {snapshot} {navigationOpen} />
+  <div id="viewport-stage">
+    <div id="viewport-workspace" data-secondary-open={snapshot?.toolbar.secondaryOpen ?? false}>
+      <ViewportPane>
+        <ResultLegend {snapshot} />
+        <StatusOverlays {snapshot} {startup} />
+      </ViewportPane>
+      <ViewportPane secondary hidden={!(snapshot?.toolbar.secondaryOpen ?? false)} />
+    </div>
+    <TouchToolRail {controller} {snapshot} />
+  </div>
 </div>
 
 <ContextMenu {controller} {snapshot} />
