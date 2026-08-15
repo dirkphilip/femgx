@@ -133,6 +133,13 @@
   function hasPlayback(): boolean {
     return snapshot?.analysis.playback !== undefined;
   }
+
+  function activePlaybackSnapshot(): NonNullable<WorkbenchSnapshot["analysis"]["playback"]> {
+    // The playback section is rendered only after hasPlayback establishes this invariant.
+    return (snapshot as WorkbenchSnapshot).analysis.playback as NonNullable<
+      WorkbenchSnapshot["analysis"]["playback"]
+    >;
+  }
 </script>
 
 <div
@@ -150,30 +157,30 @@
       role="group"
       aria-labelledby="result-playback-heading"
     >
-      <h3 id="result-playback-heading">{snapshot?.analysis.playback?.label}</h3>
+      <h3 id="result-playback-heading">{activePlaybackSnapshot().label}</h3>
       <div class="result-playback-actions">
         <button
           type="button"
           data-testid="result-playback-previous"
           aria-label="Previous result snapshot"
-          disabled={!snapshot?.analysis.playback?.hasPrevious}
+          disabled={!activePlaybackSnapshot().hasPrevious}
           onclick={() => controller?.commands.previousResultPlayback()}>Previous</button
         >
         <button
           type="button"
           data-testid="result-playback-play"
-          aria-label={snapshot?.analysis.playback?.playing
+          aria-label={activePlaybackSnapshot().playing
             ? "Pause result playback"
             : "Play result playback"}
-          aria-pressed={snapshot?.analysis.playback?.playing ?? false}
+          aria-pressed={activePlaybackSnapshot().playing}
           onclick={() => controller?.commands.toggleResultPlayback()}
-          >{snapshot?.analysis.playback?.playing ? "Pause" : "Play"}</button
+          >{activePlaybackSnapshot().playing ? "Pause" : "Play"}</button
         >
         <button
           type="button"
           data-testid="result-playback-next"
           aria-label="Next result snapshot"
-          disabled={!snapshot?.analysis.playback?.hasNext}
+          disabled={!activePlaybackSnapshot().hasNext}
           onclick={() => controller?.commands.nextResultPlayback()}>Next</button
         >
       </div>
@@ -184,9 +191,9 @@
           data-testid="result-playback-index"
           type="range"
           min="0"
-          max={(snapshot?.analysis.playback?.count ?? 1) - 1}
+          max={activePlaybackSnapshot().count - 1}
           step="1"
-          value={snapshot?.analysis.playback?.index ?? 0}
+          value={activePlaybackSnapshot().index}
           oninput={setPlaybackIndex}
           aria-label="Result snapshot"
         />
@@ -196,10 +203,8 @@
         data-testid="result-playback-position"
         aria-live="polite"
       >
-        {snapshot?.analysis.playback?.stepLabel} · t={formatOffset(
-          snapshot?.analysis.playback?.time ?? 0,
-        )} ·
-        {(snapshot?.analysis.playback?.index ?? 0) + 1}/{snapshot?.analysis.playback?.count ?? 0}
+        {activePlaybackSnapshot().stepLabel} · t={formatOffset(activePlaybackSnapshot().time)} ·
+        {activePlaybackSnapshot().index + 1}/{activePlaybackSnapshot().count}
       </div>
       <label for="result-playback-rate">
         <span>Rate</span>
@@ -207,7 +212,7 @@
           id="result-playback-rate"
           data-testid="result-playback-rate"
           aria-label="Result playback rate"
-          value={String(snapshot?.analysis.playback?.rate ?? 1)}
+          value={String(activePlaybackSnapshot().rate)}
           onchange={setPlaybackRate}
         >
           <option value="0.5">0.5×</option>
