@@ -1,7 +1,5 @@
 import {
-  createSceneRuntime,
   createScene,
-  transformPoint,
   type Bounds,
   type Color,
   type ElementModel,
@@ -13,6 +11,7 @@ import {
   type VectorField,
 } from "../../src/index";
 import type { ModelPreset } from "../fixture/presets";
+import { sceneBounds } from "../scene-bounds";
 import {
   createBenchmarkCase,
   type WebGpuBenchmarkElementFamily,
@@ -132,7 +131,9 @@ export function createImportedModel(fileName: string, imported: ImportedModelDat
     elementModels: imported.elementModels,
     partNames: imported.partNames,
     partStyles: imported.partStyles,
-    bounds: imported.bounds ?? sceneBounds(imported.scene),
+    bounds:
+      imported.bounds ??
+      sceneBounds(imported.scene, "Imported GLB scene must contain drawable geometry"),
     results: imported.results,
     ...(imported.resultScalarFields === undefined
       ? {}
@@ -203,57 +204,4 @@ function createSceneRuntimePlaceholder(): Scene {
     .addAssembly({ id: 1, name: "lazy-benchmark-placeholder", placements: [] })
     .withRoot(1)
     .build();
-}
-
-function sceneBounds(scene: Scene): Bounds {
-  const runtime = createSceneRuntime(scene);
-  let result: Bounds | undefined;
-  for (const instanceId of runtime.getDrawList()) {
-    const partId = runtime.getPartId(instanceId);
-    const transform = runtime.getTransform(instanceId);
-    const part = partId === undefined ? undefined : scene.parts.get(partId);
-    if (part === undefined || transform === undefined) continue;
-    result = mergeBounds(result, transformBounds(part.bounds, transform));
-  }
-  if (result === undefined) throw new Error("Imported GLB scene must contain drawable geometry");
-  return result;
-}
-
-function transformBounds(bounds: Bounds, transform: Float32Array): Bounds {
-  let result: Bounds = {
-    minX: Infinity,
-    minY: Infinity,
-    minZ: Infinity,
-    maxX: -Infinity,
-    maxY: -Infinity,
-    maxZ: -Infinity,
-  };
-  for (const x of [bounds.minX, bounds.maxX]) {
-    for (const y of [bounds.minY, bounds.maxY]) {
-      for (const z of [bounds.minZ, bounds.maxZ]) {
-        const [px, py, pz] = transformPoint(transform, x, y, z);
-        result = {
-          minX: Math.min(result.minX, px),
-          minY: Math.min(result.minY, py),
-          minZ: Math.min(result.minZ, pz),
-          maxX: Math.max(result.maxX, px),
-          maxY: Math.max(result.maxY, py),
-          maxZ: Math.max(result.maxZ, pz),
-        };
-      }
-    }
-  }
-  return result;
-}
-
-function mergeBounds(first: Bounds | undefined, second: Bounds): Bounds {
-  if (first === undefined) return second;
-  return {
-    minX: Math.min(first.minX, second.minX),
-    minY: Math.min(first.minY, second.minY),
-    minZ: Math.min(first.minZ, second.minZ),
-    maxX: Math.max(first.maxX, second.maxX),
-    maxY: Math.max(first.maxY, second.maxY),
-    maxZ: Math.max(first.maxZ, second.maxZ),
-  };
 }

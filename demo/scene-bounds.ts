@@ -1,7 +1,10 @@
-import { createSceneRuntime, transformPoint, type Bounds, type Scene } from "../../src/index";
+import { createSceneRuntime, transformPoint, type Bounds, type Scene } from "../src/index";
 
-/** Returns the union of all placed part bounds for a demo preset. */
-export function fixtureBounds(scene: Scene): Bounds {
+/** Returns the union of all placed part bounds in a demo scene. */
+export function sceneBounds(
+  scene: Scene,
+  emptyMessage = "Preset scene must contain at least one part",
+): Bounds {
   const runtime = createSceneRuntime(scene);
   let result: Bounds | undefined;
   for (const instanceId of runtime.getDrawList()) {
@@ -11,7 +14,7 @@ export function fixtureBounds(scene: Scene): Bounds {
     if (part === undefined || transform === undefined) continue;
     result = mergeBounds(result, transformBounds(part.bounds, transform));
   }
-  if (result === undefined) throw new Error("Preset scene must contain at least one part");
+  if (result === undefined) throw new Error(emptyMessage);
   return result;
 }
 

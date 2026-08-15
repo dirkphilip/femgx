@@ -11,7 +11,7 @@ import {
 } from "../../src/index";
 import { createBoltedPlateFixture } from "./bolted-plate";
 import { createElementFixture, createHex20CylinderFixture } from "./element-fixture";
-import { fixtureBounds } from "./preset-bounds";
+import { sceneBounds } from "../scene-bounds";
 import { createResultsPreset } from "./results-preset";
 import { createTransparencyFixture } from "./transparency-fixture";
 import { createVtkFixture } from "./vtk-fixture";
@@ -77,7 +77,7 @@ export function createGalleryPreset(): ModelPreset {
       [partIds.pyramid5, "Built-in helper · Pyramid5"],
       [partIds.mixed, "Mixed point, line, and triangle elements"],
     ]),
-    bounds: fixtureBounds(fixture.scene),
+    bounds: sceneBounds(fixture.scene),
   };
 }
 
@@ -93,7 +93,7 @@ export function createVtkPreset(): ModelPreset {
     partColors: new Map<PartId, Color>([[solid, { r: 0.23, g: 0.57, b: 0.84, a: 1 }]]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map<PartId, string>([[solid, "VTK Hex8 exterior"]]),
-    bounds: fixtureBounds(fixture.scene),
+    bounds: sceneBounds(fixture.scene),
     results: fixture.results,
     resultScalarFields: fixture.resultScalarFields,
   };
@@ -128,7 +128,7 @@ export function createHex20CylinderPreset(): ModelPreset {
     partColors: new Map<PartId, Color>([[partId, { r: 0.76, g: 0.34, b: 0.84, a: 1 }]]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map<PartId, string>([[partId, "Hex20 cylinder · authored-node facets"]]),
-    bounds: fixtureBounds(fixture.scene),
+    bounds: sceneBounds(fixture.scene),
     results: {
       scalar: {
         field: createResultField({
@@ -191,7 +191,7 @@ export function createBoltedPlatePreset(): ModelPreset {
     partColors: colors,
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: names,
-    bounds: fixtureBounds(fixture.scene),
+    bounds: sceneBounds(fixture.scene),
   };
 }
 
@@ -221,7 +221,7 @@ export function createTransparencyPreset(options: { readonly opacity?: number } 
       [interior, "Solid interior"],
       [overlap, "Overlapping translucent placements"],
     ]),
-    bounds: fixtureBounds(fixture.scene),
+    bounds: sceneBounds(fixture.scene),
   };
 }
 

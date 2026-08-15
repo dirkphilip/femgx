@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  createBoltedPlateFixture,
-  type BoltedPlateFixture,
-} from "../../../demo/fixture/bolted-plate";
+import { createBoltedPlateFixture } from "../../../demo/fixture/bolted-plate";
 import { createBoltedPlatePreset } from "../../../demo/fixture/presets";
-import { transformPoint } from "../../../src/math/mat4";
+import { sceneBounds } from "../../../demo/scene-bounds";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import type { Assembly, SubAssemblyPlacement } from "../../../src/scene/assembly";
 import type { Scene } from "../../../src/scene/scene";
@@ -29,39 +26,6 @@ function runtimeInstances(scene: Scene): readonly Instance[] {
 /** The display name of a registered assembly, when it carries one. */
 function assemblyName(assembly: Assembly | undefined): string | undefined {
   return (assembly as { readonly name?: string }).name;
-}
-
-/** Merges the world bounds of every placed part into one box. */
-function worldBounds(fixture: BoltedPlateFixture) {
-  const { scene } = fixture;
-  let result = {
-    minX: Infinity,
-    minY: Infinity,
-    minZ: Infinity,
-    maxX: -Infinity,
-    maxY: -Infinity,
-    maxZ: -Infinity,
-  };
-  for (const instance of runtimeInstances(fixture.scene)) {
-    const part = scene.parts.get(instance.partId);
-    if (part === undefined) continue;
-    for (const x of [part.bounds.minX, part.bounds.maxX]) {
-      for (const y of [part.bounds.minY, part.bounds.maxY]) {
-        for (const z of [part.bounds.minZ, part.bounds.maxZ]) {
-          const [px, py, pz] = transformPoint(instance.worldTransform, x, y, z);
-          result = {
-            minX: Math.min(result.minX, px),
-            minY: Math.min(result.minY, py),
-            minZ: Math.min(result.minZ, pz),
-            maxX: Math.max(result.maxX, px),
-            maxY: Math.max(result.maxY, py),
-            maxZ: Math.max(result.maxZ, pz),
-          };
-        }
-      }
-    }
-  }
-  return result;
 }
 
 describe("createBoltedPlateFixture", () => {
@@ -204,7 +168,7 @@ describe("createBoltedPlateFixture", () => {
   });
 
   it("reports the model bounds including protruding fasteners", () => {
-    expect(worldBounds(createBoltedPlateFixture())).toEqual({
+    expect(sceneBounds(createBoltedPlateFixture().scene)).toEqual({
       minX: -15,
       minY: -4,
       minZ: -7,
@@ -267,7 +231,7 @@ describe("createBoltedPlateFixture", () => {
     expect(fixture.dimensions.plateThickness).toBe(1);
     expect(fixture.instanceCount).toBe(34);
     expect(fixture.visibleInstanceCount).toBe(34);
-    expect(worldBounds(fixture)).toEqual({
+    expect(sceneBounds(fixture.scene)).toEqual({
       minX: -10,
       minY: -4,
       minZ: -7,
