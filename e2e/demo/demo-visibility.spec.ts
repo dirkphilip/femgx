@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 import {
   dataset,
   drawnPixels,
+  activateContextAction,
+  openCommandPanel,
   requireHit,
   setSelectionGranularity,
   status,
@@ -192,6 +194,7 @@ test("keeps body overlays rendered while hiding a named body", async ({ page }) 
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await waitForRenderer(page, canvas);
+  await openCommandPanel(page, "display");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
 
@@ -269,6 +272,7 @@ test("hides selected elements and restores them through synchronized toolbar act
   await waitForRenderer(page, secondary);
   await expect(secondary).toHaveAttribute("data-selected", selected);
 
+  await openCommandPanel(page, "selection");
   const hideSelected = page.getByTestId("hide-selected");
   await expect(hideSelected).toHaveText("Hide selected (1)");
   await expect(hideSelected).toBeEnabled();
@@ -283,7 +287,7 @@ test("hides selected elements and restores them through synchronized toolbar act
     "Selected elements are already hidden.",
   );
 
-  await page.getByTestId("show-all").click();
+  await activateContextAction(page, "show-all");
   await expect(page.getByTestId("model-feedback")).toHaveText(
     "Selected elements are already hidden.",
   );
@@ -385,6 +389,7 @@ test("opens a view context menu on empty scene space", async ({ page }) => {
   await menu.getByText("Show all").click();
   await expect(partCheckbox).toBeChecked();
 
+  await openCommandPanel(page, "view");
   await page.getByTestId("projection-toggle").click();
   await expect(page.getByTestId("projection-toggle")).toHaveText("Perspective");
   await page.mouse.click(empty.x, empty.y, { button: "right" });
@@ -448,7 +453,7 @@ test("context menu synchronizes instance visibility with the tree", async ({ pag
   await expect(checkbox).not.toBeChecked();
   await expect(page.getByTestId("status")).toContainText("visible");
 
-  await page.getByTestId("show-all").click();
+  await activateContextAction(page, "show-all");
   await expect(checkbox).toBeChecked();
   await expect.poll(async () => (await status(page)).includes("visible")).toBe(true);
 });

@@ -10,7 +10,13 @@ export {
   sweepForHit,
   targetPlanePoint,
 } from "../shared/helpers";
-export { rendererMode, setSelectionGranularity, waitForRendererOrSkip } from "./demo-support";
+export {
+  activateContextAction,
+  openCommandPanel,
+  rendererMode,
+  setSelectionGranularity,
+  waitForRendererOrSkip,
+} from "./demo-support";
 
 /**
  * Required WebGPU browser coverage (category 1 in

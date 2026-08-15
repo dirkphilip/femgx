@@ -4,38 +4,84 @@
   top: 14px;
   left: 14px;
   right: 14px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;
+  display: block;
   padding: 6px;
   border: 1px solid var(--workbench-control-border);
   border-radius: 10px;
   background: var(--workbench-panel-background);
   backdrop-filter: blur(8px);
   pointer-events: none;
-  max-height: min(280px, calc(100% - 28px));
-  overflow-y: auto;
+  min-width: 0;
 }
-.toolbar-row {
-  display: contents;
+.command-bar {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
 }
 .toolbar > * {
   pointer-events: auto;
+}
+.command-target {
+  min-width: 92px;
+  width: 100%;
+  min-height: 36px;
+  flex: 1 1 0;
+  font-weight: 650;
+}
+.command-target[aria-expanded="true"] {
+  border-color: var(--workbench-accent);
+  color: #fff;
+  background: var(--workbench-accent-strong);
+}
+.command-panel {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  border-top: 1px solid #2c405a;
+  padding-top: 6px;
+}
+.command-panel[hidden] {
+  display: none !important;
+}
+.command-panel-heading {
+  margin-right: 2px;
+  color: #91a6c1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.command-panel-analysis {
+  display: block;
 }
 .toolbar select,
 .toolbar button {
   min-height: 36px;
 }
 #model-select {
-  min-width: 170px;
-  flex: 1 1 280px;
+  min-width: 0;
 }
 .model-source {
   display: flex;
+  width: 100%;
   min-width: 0;
-  flex: 1 1 420px;
+  flex-wrap: wrap;
   gap: 6px;
+  padding: 12px 14px 14px;
+  border-bottom: 1px solid #223149;
+}
+.model-source-label {
+  flex: 0 0 100%;
+  color: #91a6c1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .model-source select {
   min-width: 0;
@@ -174,6 +220,7 @@
   padding: 2px 6px;
   color: #b9c7d8;
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 .toolbar button[aria-pressed="true"] {
   border-color: var(--workbench-accent);

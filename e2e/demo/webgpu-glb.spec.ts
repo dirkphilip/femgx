@@ -1,7 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { drawnPixels, rendererMode, waitForRenderer } from "./demo-support";
+import {
+  activateContextAction,
+  drawnPixels,
+  openCommandPanel,
+  rendererMode,
+  waitForRenderer,
+} from "./demo-support";
 import { loadWebGpuPage } from "./webgpu-support";
 
 const fixture = "test/io/fixtures/glb/onshape-cylinder-compressed.glb";
@@ -13,6 +19,7 @@ test("selects an accessible background preset and preserves it across workbench 
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
   const canvas = page.getByTestId("view-canvas");
   const background = page.getByLabel("Background");
 
@@ -28,7 +35,8 @@ test("selects an accessible background preset and preserves it across workbench 
   await expect(canvas).toHaveAttribute("data-model", "gallery");
   await expect(background).toHaveValue("dark");
 
-  await page.getByTestId("reset").click();
+  await activateContextAction(page, "reset");
+  await openCommandPanel(page, "view");
   await expect(background).toHaveValue("dark");
 
   await page.getByTestId("model-file").setInputFiles(fixture);
@@ -92,8 +100,10 @@ test("opens a Draco-compressed GLB and resets the imported model in desktop Chro
   await page.getByTestId("context-menu").getByText("Show diagnostics").click();
   await expect(page.getByTestId("stats-panel")).toContainText("PTC_onshape_metadata");
 
+  await openCommandPanel(page, "display");
   await page.getByTestId("edge-overlay").click();
-  await page.getByTestId("reset").click();
+  await activateContextAction(page, "reset");
+  await openCommandPanel(page, "display");
   await expect(page.getByTestId("model-select")).toHaveValue("opened-model");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(canvas).toHaveAttribute("data-camera", /orthographic/);

@@ -2,6 +2,7 @@
 
 import { expect, test } from "@playwright/test";
 import {
+  activateContextAction,
   cameraDistance,
   expectBoundsClippedSafely,
   expectDisplayedPointClippedSafely,
@@ -14,10 +15,12 @@ import {
   visiblePixelCount,
   dragCamera,
   loadWebGpuPage,
+  openCommandPanel,
 } from "./webgpu-support";
 
 test("keeps every gallery occurrence inside clip planes while orbiting", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
   await page
     .getByTestId("model-select")
     .selectOption({ label: "Element tessellation and mapping gallery" });
@@ -44,6 +47,7 @@ test("keeps every gallery occurrence inside clip planes while orbiting", async (
 
 test("uses SpaceClaim middle-button spin, pan, and zoom gestures", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
 
   const canvas = page.getByTestId("view-canvas");
   const cameraKey = async (): Promise<string | null> => canvas.getAttribute("data-camera");
@@ -52,12 +56,12 @@ test("uses SpaceClaim middle-button spin, pan, and zoom gestures", async ({ page
   await dragCamera(page, canvas, { x: 90, y: 35 });
   await expect.poll(cameraKey).not.toBe(beforeSpin);
 
-  await page.getByTestId("reset").click();
+  await activateContextAction(page, "reset");
   const beforePan = await cameraKey();
   await dragCamera(page, canvas, { x: 90, y: 35 }, "Control");
   await expect.poll(cameraKey).not.toBe(beforePan);
 
-  await page.getByTestId("reset").click();
+  await activateContextAction(page, "reset");
   const beforeZoom = await cameraKey();
   await dragCamera(page, canvas, { x: 0, y: -90 }, "Shift");
   await expect.poll(cameraKey).not.toBe(beforeZoom);
@@ -65,6 +69,7 @@ test("uses SpaceClaim middle-button spin, pan, and zoom gestures", async ({ page
 
 test("keeps target-plane panning at the CSS-pixel pace in both projections", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
   const canvas = page.getByTestId("view-canvas");
   await page.getByTestId("fit-view").click();
   const box = await canvas.boundingBox();
@@ -91,6 +96,7 @@ test("keeps target-plane panning at the CSS-pixel pace in both projections", asy
 
 test("crosses both orbit poles through repeated full rotations", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
   const canvas = page.getByTestId("view-canvas");
   await page.getByTestId("fit-view").click();
 
@@ -107,6 +113,7 @@ test("crosses both orbit poles through repeated full rotations", async ({ page }
 
 test("snaps every named face and signed corner through the view cube", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
   const canvas = page.getByTestId("view-canvas");
   await page.getByTestId("fit-view").click();
 
@@ -153,6 +160,7 @@ test("rotates the current view cube by default, Shift, and Control/Meta steps", 
   page,
 }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
   const canvas = page.getByTestId("view-canvas");
   const modifier = process.platform === "darwin" ? "Meta" : "Control";
   const cases = [
@@ -186,6 +194,7 @@ test("rotates the current view cube by default, Shift, and Control/Meta steps", 
 
 test("rotates visible content in the named vertical direction", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
   const canvas = page.getByTestId("view-canvas");
   await page.getByTestId("fit-view").click();
   await page.locator('[data-view-face="front"]').click();
@@ -235,6 +244,7 @@ test("rotates visible content in the named vertical direction", async ({ page })
 
 test("rolls the current view in-plane without changing its line of sight", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
   const canvas = page.getByTestId("view-canvas");
   await page.getByTestId("fit-view").click();
   await page.locator('[data-view-face="front"]').click();
@@ -290,6 +300,7 @@ test("rolls the current view in-plane without changing its line of sight", async
 
 test("shows a camera-oriented rotation-origin widget only during orbit", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
@@ -319,6 +330,7 @@ test("shows a camera-oriented rotation-origin widget only during orbit", async (
 
 test("keeps depth ordering and picking after deep zoom in and out", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
   const canvas = page.getByTestId("view-canvas");
   const box = await canvas.boundingBox();
   if (box === null) throw new Error("canvas has no bounding box");
@@ -407,6 +419,7 @@ test("keeps depth ordering and picking after deep zoom in and out", async ({ pag
 
 test("keeps an instance selection framed and visible after fitting", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
   await page
     .getByTestId("model-select")
     .selectOption({ label: "Element tessellation and mapping gallery" });
@@ -512,6 +525,7 @@ function navigationScale(
 
 test("keeps empty-canvas wheel zoom anchored at the current camera target", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
   const canvas = page.getByTestId("view-canvas");
   const projection = page.getByTestId("projection-toggle");
   await projection.click();

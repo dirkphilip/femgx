@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { drawnPixels, waitForRenderer } from "./demo-support";
+import { drawnPixels, openCommandPanel, waitForRenderer } from "./demo-support";
 
 const PHONE = { width: 390, height: 844 } as const;
 const DESKTOP = { width: 1440, height: 900 } as const;
@@ -35,6 +35,7 @@ async function assertWorkbenchLayout(
   phone: boolean,
   resultModel: boolean,
 ): Promise<void> {
+  if (resultModel) await openCommandPanel(page, "analysis");
   const layout = await page.evaluate(() => {
     const read = (selector: string) => {
       const element = document.querySelector<HTMLElement>(selector);

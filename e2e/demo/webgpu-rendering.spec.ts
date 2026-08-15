@@ -3,6 +3,7 @@
 import { expect, test } from "@playwright/test";
 import type * as Api from "../../src/index";
 import {
+  openCommandPanel,
   sweepForHit,
   stableCanvasPixels,
   canvasRgba,
@@ -69,6 +70,7 @@ function differingPixelsAround(
 
 test("keeps selection feedback visible in edge overlay mode", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "display");
 
   const canvas = page.getByTestId("view-canvas");
   const box = await canvas.boundingBox();
@@ -103,6 +105,7 @@ test("keeps selection feedback visible in edge overlay mode", async ({ page }) =
 
 test("renders and switches the built-in viewport backgrounds", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "view");
 
   await page.evaluate(async () => {
     const modulePath = "/src/index.ts";
@@ -472,6 +475,7 @@ test("element emphasis changes the rendered pixels and toggles off again", async
 
 test("renders element nodes as a separate visible annotation pass", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "display");
   await page.getByTestId("model-select").selectOption("gallery");
 
   const canvas = page.getByTestId("view-canvas");
@@ -497,6 +501,7 @@ test("renders element nodes as a separate visible annotation pass", async ({ pag
 
 test("keeps Hex20 node annotations neutral over elemental results", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "display");
   await page.getByTestId("model-select").selectOption("hex20-cylinder");
   const canvas = page.getByTestId("view-canvas");
   const nodeToggle = page.getByTestId("node-overlay");
@@ -520,6 +525,7 @@ test("renders complete point sprites with authored node picks", async ({ page })
   await loadWebGpuPage(page);
   await page.getByTestId("model-select").selectOption("gallery");
   await setSelectionGranularity(page, "node");
+  await openCommandPanel(page, "display");
   await page.getByTestId("node-overlay").click();
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "false");
   await page
@@ -536,7 +542,9 @@ test("renders complete point sprites with authored node picks", async ({ page })
   for (const input of await pointVisibility.all()) {
     if ((await input.getAttribute("data-instance-id")) !== pointInstanceId) await input.uncheck();
   }
+  await openCommandPanel(page, "view");
   await page.getByTestId("fit-view").click();
+  await openCommandPanel(page, "display");
   // The toolbar overlays the canvas and covers the three highest fitted points;
   // hide it after fitting so this pixel contract measures authored sprites, not
   // DOM occlusion.
@@ -612,6 +620,7 @@ for (const viewport of [
     await loadWebGpuPage(page);
     await page.getByTestId("model-select").selectOption("gallery");
     await setSelectionGranularity(page, "element");
+    await openCommandPanel(page, "display");
     const canvas = page.getByTestId("view-canvas");
     await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
     const box = await canvas.boundingBox();
@@ -714,6 +723,7 @@ test("renders and picks authored Tri6 and Quad8 mid-edge nodes on desktop and mo
     }
 
     await input.check();
+    await openCommandPanel(page, "view");
     await page.getByTestId("fit-view").click();
     await stableCanvasPixels(page, canvas);
     expect(visiblePixelCount(await canvasRgba(page, canvas))).toBeGreaterThan(100);
@@ -1037,6 +1047,7 @@ test("removes zero-alpha shell overlays without removing their picks", async ({ 
 
 test("keeps element edges and nodes visible after orbiting", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "display");
 
   const canvas = page.getByTestId("view-canvas");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
@@ -1057,6 +1068,7 @@ test("keeps element edges and nodes visible after orbiting", async ({ page }) =>
 
 test("keeps depth-tested node annotations stable across fine zoom steps", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "display");
   await page
     .getByTestId("model-select")
     .selectOption({ label: "Element tessellation and mapping gallery" });
@@ -1064,7 +1076,9 @@ test("keeps depth-tested node annotations stable across fine zoom steps", async 
   // only the depth-tested node annotation pass.
   await page.getByTestId("instance-vis-0").uncheck();
   await page.getByTestId("instance-vis-1").uncheck();
+  await openCommandPanel(page, "view");
   await page.getByTestId("fit-view").click();
+  await openCommandPanel(page, "display");
 
   const canvas = page.getByTestId("view-canvas");
   const box = await canvas.boundingBox();
@@ -1100,10 +1114,12 @@ test("keeps depth-tested node annotations stable across fine zoom steps", async 
 
 test("keeps a picked face's flat lighting stable through close zoom", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "display");
   const canvas = page.getByTestId("view-canvas");
   const edgeToggle = page.getByTestId("edge-overlay");
   const nodeToggle = page.getByTestId("node-overlay");
   await setSelectionGranularity(page, "face");
+  await openCommandPanel(page, "display");
   if ((await edgeToggle.getAttribute("aria-pressed")) === "true") await edgeToggle.click();
   if ((await nodeToggle.getAttribute("aria-pressed")) === "true") await nodeToggle.click();
 
@@ -1112,6 +1128,7 @@ test("keeps a picked face's flat lighting stable through close zoom", async ({ p
   const width = Math.round(box.width);
 
   for (const projection of ["Perspective", "Orthographic"] as const) {
+    await openCommandPanel(page, "view");
     if ((await page.getByTestId("projection-toggle").textContent()) !== projection) {
       await page.getByTestId("projection-toggle").click();
       await expect(page.getByTestId("projection-toggle")).toHaveText(projection);
@@ -1183,6 +1200,7 @@ test("keeps a picked face's flat lighting stable through close zoom", async ({ p
 
 test("keeps depth-tested edges behind the single edges control", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "display");
 
   await expect(page.getByTestId("renderer-status")).toContainText("Renderer webgpu");
   await expect(page.getByTestId("depth-test")).toHaveCount(0);
@@ -1203,6 +1221,7 @@ test("keeps the solid frame deterministic across page loads", async ({ page }) =
 
 test("renders a distinct edge-overlay frame", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "display");
   const canvas = page.getByTestId("view-canvas");
   const solid = await stableCanvasPixels(page, canvas);
 
@@ -1216,6 +1235,7 @@ test("keeps selected volume faces lit, distinct, and reversible with overlays", 
   page,
 }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "analysis");
   const canvas = page.getByTestId("view-canvas");
   await page.getByTestId("model-select").selectOption("results");
   await expect(canvas).toHaveAttribute("data-model", "results");
@@ -1445,6 +1465,7 @@ test("renders imported VTK scalar and nodal displacement results on desktop and 
   page,
 }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "analysis");
   const canvas = page.getByTestId("view-canvas");
   await page.getByTestId("model-select").selectOption("vtk");
   await expect(canvas).toHaveAttribute("data-results", "deformed");
@@ -1484,6 +1505,7 @@ test("keeps result contours readable through face selection", async ({ page }) =
   await loadWebGpuPage(page);
   await page.getByTestId("model-select").selectOption("results");
   await setSelectionGranularity(page, "face");
+  await openCommandPanel(page, "analysis");
   const canvas = page.getByTestId("view-canvas");
   await page.getByTestId("result-field").selectOption("demo-stress");
   await page.getByTestId("deformation-field").selectOption("__off__");
@@ -1518,6 +1540,7 @@ test("preserves selected nodal result rendering across every display mode", asyn
   await loadWebGpuPage(page);
   await page.getByTestId("model-select").selectOption("results");
   await setSelectionGranularity(page, "face");
+  await openCommandPanel(page, "analysis");
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,

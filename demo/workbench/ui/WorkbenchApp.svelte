@@ -3,6 +3,7 @@
   import type { WorkbenchController } from "../controller";
   import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../snapshot";
   import BuildInfo from "./BuildInfo.svelte";
+  import ModelSource from "./ModelSource.svelte";
   import VisibilityTree from "./VisibilityTree.svelte";
   import ViewportWorkspace from "./ViewportWorkspace.svelte";
 
@@ -37,6 +38,7 @@
       <a class="brand-link" href="./api/">API reference</a>
       <BuildInfo />
     </div>
+    <ModelSource {controller} {snapshot} />
     <h2 class="sidebar-heading">Visibility</h2>
     <VisibilityTree {controller} visibility={snapshot?.hierarchy.visibility} />
   </aside>

@@ -11,6 +11,50 @@ export {
 } from "../shared/helpers";
 export { distinctColors, drawnPixels, pixelHash, pixelMetrics } from "../shared/helpers";
 
+/** Opens one command-bar disclosure and waits for its controls to be reachable. */
+export async function openCommandPanel(
+  page: Page,
+  panel: "selection" | "view" | "display" | "analysis",
+): Promise<void> {
+  const trigger = page.getByTestId(`command-${panel}`);
+  if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+}
+
+/** Uses the existing canvas context menu for commands that are not persistent controls. */
+export async function activateContextAction(page: Page, action: string): Promise<void> {
+  const canvas = page.getByTestId("view-canvas");
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounds for the context action");
+  await page.mouse.click(Math.round(box.x + box.width - 12), Math.round(box.y + box.height - 12), {
+    button: "right",
+  });
+  const menu = page.getByTestId("context-menu");
+  await expect(menu).toBeVisible();
+  await menu.getByTestId(`context-action-${action}`).click();
+}
+
+/** Finds a canvas point that the active GPU picker reports as empty. */
+export async function emptyCanvasPoint(
+  page: Page,
+  canvas: Locator,
+): Promise<{ readonly x: number; readonly y: number }> {
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("canvas has no bounds for empty-space selection");
+  for (const [fx, fy] of [
+    [0.05, 0.95],
+    [0.95, 0.05],
+    [0.05, 0.05],
+    [0.95, 0.95],
+  ] as const) {
+    const point = { x: Math.round(box.x + fx * box.width), y: Math.round(box.y + fy * box.height) };
+    await page.mouse.move(point.x, point.y);
+    await page.waitForTimeout(120);
+    if ((await canvas.getAttribute("data-hovered")) === "") return point;
+  }
+  throw new Error("could not find an empty canvas point");
+}
+
 /** Reads the stable workbench status summary. */
 export async function status(page: Page): Promise<string> {
   return (await page.getByTestId("status").textContent()) ?? "";
@@ -56,6 +100,7 @@ export async function setSelectionGranularity(
   page: Page,
   granularity: "element" | "face" | "node" | "edge",
 ): Promise<void> {
+  await openCommandPanel(page, "selection");
   const select = page.getByTestId("selection-granularity");
   await select.selectOption(granularity);
   await expect(select).toHaveValue(granularity);

@@ -1,8 +1,16 @@
 import { expect, test } from "@playwright/test";
-import { dataset, requireHit, setSelectionGranularity, waitForRenderer } from "./demo-support";
+import {
+  dataset,
+  emptyCanvasPoint,
+  openCommandPanel,
+  requireHit,
+  setSelectionGranularity,
+  waitForRenderer,
+} from "./demo-support";
 import { loadWebGpuPage } from "./webgpu-support";
 test("toggles the edge overlay", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "display");
   const overlay = page.getByTestId("edge-overlay");
   await expect(overlay).toHaveAttribute("aria-pressed", "true");
   await page.getByTestId("edge-overlay").click();
@@ -51,6 +59,7 @@ test("defaults to element selection and can switch to exact node picks", async (
 
 test("keeps the Through box strategy truthful across selection granularities", async ({ page }) => {
   await loadWebGpuPage(page);
+  await openCommandPanel(page, "selection");
   const canvas = page.getByTestId("view-canvas");
   const strategy = page.getByTestId("box-selection-strategy");
   await expect(strategy).toHaveValue("visible-surface");
@@ -177,6 +186,7 @@ test("promotes face and element context targets to the exact element", async ({ 
 test("clears selection on empty scene clicks but preserves it through orbit", async ({ page }) => {
   await loadWebGpuPage(page);
   await setSelectionGranularity(page, "node");
+  await page.getByTestId("command-selection").click();
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
     page,
@@ -189,7 +199,7 @@ test("clears selection on empty scene clicks but preserves it through orbit", as
 
   const box = await canvas.boundingBox();
   if (box === null) throw new Error("canvas has no bounding box");
-  const empty = { x: Math.round(box.x + box.width - 12), y: Math.round(box.y + box.height - 12) };
+  const empty = await emptyCanvasPoint(page, canvas);
   await page.mouse.click(empty.x, empty.y);
   await expect.poll(() => dataset(page, "selected")).toBe("");
 
@@ -207,6 +217,7 @@ test("clears selection on empty scene clicks but preserves it through orbit", as
 test("uses Control/Meta-click to toggle an exact face selection", async ({ page }) => {
   await loadWebGpuPage(page);
   await setSelectionGranularity(page, "face");
+  await page.getByTestId("command-selection").click();
   const canvas = page.getByTestId("view-canvas");
   const faceHit = await requireHit(
     page,
@@ -260,6 +271,7 @@ test("picks and selects an authored edge without requiring the wireframe overlay
 }) => {
   await loadWebGpuPage(page);
   await setSelectionGranularity(page, "edge");
+  await openCommandPanel(page, "display");
   await page.getByTestId("edge-overlay").click();
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
   const canvas = page.getByTestId("view-canvas");
@@ -281,6 +293,7 @@ test("keeps the generic mapped element face identity through selection", async (
   await loadWebGpuPage(page);
   await setSelectionGranularity(page, "face");
   await page.getByTestId("model-select").selectOption("gallery");
+  await openCommandPanel(page, "view");
   const canvas = page.getByTestId("view-canvas");
   const genericRow = page
     .locator(".visibility-row.visibility-part")
@@ -295,6 +308,7 @@ test("keeps the generic mapped element face identity through selection", async (
       await input.uncheck();
     }
   }
+  await openCommandPanel(page, "view");
   await page.getByTestId("fit-view").click();
 
   const face = await requireHit(
