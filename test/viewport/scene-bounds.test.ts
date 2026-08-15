@@ -8,6 +8,7 @@ import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createScene } from "../../src/scene/scene";
 import { padDegenerateBounds } from "../../src/viewport/geometry-bounds";
 import {
+  SceneNavigationBoundsCache,
   scenePlacedBounds,
   sceneWorldBounds,
   sceneWorldBoundsList,
@@ -63,6 +64,23 @@ function sceneWithRepeatedPart(placementCount = 2) {
 }
 
 describe("viewport scene bounds", () => {
+  it("reuses navigation bounds until their authoritative inputs change", () => {
+    const scene = sceneWithRepeatedPart(64);
+    const runtime = createPackedSceneRuntime(scene);
+    const displayedBounds = vi.spyOn(geometryBounds, "displayedPartBounds");
+    const cache = new SceneNavigationBoundsCache();
+
+    const first = cache.get(scene, runtime);
+    expect(cache.get(scene, runtime)).toBe(first);
+    expect(displayedBounds).toHaveBeenCalledTimes(1);
+
+    runtime.setInstanceVisible(1, false);
+    cache.invalidate();
+    expect(cache.get(scene, runtime).protectedBounds).toHaveLength(63);
+    expect(displayedBounds).toHaveBeenCalledTimes(2);
+    displayedBounds.mockRestore();
+  });
+
   it("evaluates reusable part bounds once per bounds query", () => {
     const scene = sceneWithRepeatedPart(64);
     const runtime = createPackedSceneRuntime(scene);

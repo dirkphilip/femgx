@@ -16,6 +16,55 @@ import {
   type MutableBounds,
 } from "./geometry-bounds";
 
+/** Complete and per-occurrence bounds consumed by camera navigation. */
+export interface SceneNavigationBounds {
+  readonly bounds: Bounds;
+  readonly protectedBounds: readonly Bounds[];
+}
+
+interface SceneNavigationBoundsSnapshot extends SceneNavigationBounds {
+  readonly scene: Scene;
+  readonly runtime: PackedSceneRuntime;
+  readonly deformation: DeformationState | undefined;
+}
+
+/** Caches geometry-derived navigation bounds between authoritative scene changes. */
+export class SceneNavigationBoundsCache {
+  private snapshot: SceneNavigationBoundsSnapshot | undefined;
+
+  /** Returns one shared bounds calculation for zoom and close-camera protection. */
+  get(
+    scene: Scene,
+    runtime: PackedSceneRuntime,
+    deformation?: DeformationState,
+  ): SceneNavigationBounds {
+    const current = this.snapshot;
+    if (
+      current !== undefined &&
+      current.scene === scene &&
+      current.runtime === runtime &&
+      current.deformation === deformation
+    ) {
+      return current;
+    }
+    const protectedBounds = sceneWorldBoundsList(scene, runtime, deformation);
+    const snapshot: SceneNavigationBoundsSnapshot = {
+      scene,
+      runtime,
+      deformation,
+      protectedBounds,
+      bounds: sceneBoundsFromList(protectedBounds),
+    };
+    this.snapshot = snapshot;
+    return snapshot;
+  }
+
+  /** Invalidates bounds after mutable runtime visibility changes. */
+  invalidate(): void {
+    this.snapshot = undefined;
+  }
+}
+
 /** Keeps an externally positioned camera in front of every placed part bound. */
 export function protectSceneCamera(
   camera: Camera,
