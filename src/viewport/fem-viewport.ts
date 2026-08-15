@@ -5,11 +5,7 @@ import { createInteractionState, type InteractionState } from "../interaction/in
 import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionTarget } from "../interaction/target-types";
 import type { DeviceLostInfo } from "../platform/device";
-import {
-  createWebGpuRenderer,
-  setRendererOrientationGlyphs,
-  type WebGpuRenderer,
-} from "../renderer/gpu-renderer";
+import { createWebGpuRenderer, type WebGpuRenderer } from "../renderer/gpu-renderer";
 import { changedInstanceSlots } from "./interaction-diff";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "../scene-runtime/runtime";
 import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/public-runtime";
@@ -34,11 +30,10 @@ import { createOrientationGizmo, type OrientationGizmoHandle } from "./orientati
 import {
   resolveViewportInteraction,
   resolveViewportResults,
-  viewportResultColors,
   type ViewportResultsConfig,
   type ViewportResultsState,
 } from "./results";
-import { applyViewportResults } from "./results-application";
+import { applyResolvedViewportResults, applyViewportResults } from "./results-application";
 import type {
   CameraTransitionOptions,
   FemViewport,
@@ -53,6 +48,16 @@ export type {
   SceneUpdateOutcome,
   ViewportBackground,
 } from "./types";
+
+interface PreparedSceneReplacement {
+  readonly scene: Scene;
+  readonly runtime: PackedSceneRuntime;
+  readonly publicRuntime: SceneRuntime;
+  readonly originTriadNominalScale: number;
+  readonly interaction: InteractionState;
+  readonly results: ViewportResultsState | undefined;
+  readonly outcome: SceneUpdateOutcome;
+}
 
 /**
  * Creates a fitted, interactive FEM viewport backed only by WebGPU.
@@ -210,60 +215,15 @@ class FemViewportCore implements FemViewport {
 
   setScene(scene: Scene): void {
     this.ensureAlive();
-    const nextRuntime = createPackedSceneRuntime(scene);
-    preserveRuntimeVisibility(this.currentRuntime, nextRuntime);
-    const nextOriginTriadNominalScale = sceneOriginTriadScale(scene, nextRuntime);
-    const nextPublicRuntime = createPublicSceneRuntime(nextRuntime);
-    const nextInteraction = reconcileInteractionState(
-      this.baseInteraction,
-      nextRuntime,
-      scene.parts,
-    );
-    this.renderer.resetScene(scene.parts);
-    this.cameraFocus.cancel();
-    this.currentScene = scene;
-    this.currentRuntime = nextRuntime;
-    this.originTriadNominalScale = nextOriginTriadNominalScale;
-    this.currentPublicRuntime = nextPublicRuntime;
-    this.pendingVisibility.clear();
-    this.currentResults = undefined;
-    this.baseInteraction = nextInteraction;
-    this.effectiveInteraction = nextInteraction;
-    this.appliedInteraction = createInteractionState();
-    this.renderer.setDeformation(undefined);
-    this.renderer.setResultColors(undefined);
-    this.invalidate();
+    const replacement = this.prepareSceneReplacement(scene, false);
+    this.installSceneReplacement(replacement, true);
   }
 
   updateScene(scene: Scene): SceneUpdateOutcome {
     this.ensureAlive();
-    const nextRuntime = createPackedSceneRuntime(scene);
-    preserveRuntimeVisibility(this.currentRuntime, nextRuntime);
-    const nextOriginTriadNominalScale = sceneOriginTriadScale(scene, nextRuntime);
-    const nextPublicRuntime = createPublicSceneRuntime(nextRuntime);
-    const nextInteraction = reconcileInteractionState(
-      this.baseInteraction,
-      nextRuntime,
-      scene.parts,
-    );
-    const resultUpdate = this.prepareSceneResults(scene, nextRuntime, nextInteraction);
-
-    this.cameraFocus.cancel();
-    this.currentScene = scene;
-    this.currentRuntime = nextRuntime;
-    this.originTriadNominalScale = nextOriginTriadNominalScale;
-    this.currentPublicRuntime = nextPublicRuntime;
-    this.pendingVisibility.clear();
-    this.baseInteraction = nextInteraction;
-    this.currentResults = resultUpdate.results;
-    this.effectiveInteraction = resultUpdate.interaction;
-    this.appliedInteraction = createInteractionState();
-    this.renderer.setDeformation(resultUpdate.results?.deformation);
-    this.renderer.setResultColors(
-      resultUpdate.results === undefined ? undefined : viewportResultColors(resultUpdate.results),
-    );
-    this.invalidate();
-    return resultUpdate.outcome;
+    const replacement = this.prepareSceneReplacement(scene, true);
+    this.installSceneReplacement(replacement, false);
+    return replacement.outcome;
   }
 
   setCamera(camera: Camera, transitionOptions?: CameraTransitionOptions): void {
@@ -317,9 +277,7 @@ class FemViewportCore implements FemViewport {
     this.ensureAlive();
     this.currentResults = undefined;
     this.effectiveInteraction = this.baseInteraction;
-    setRendererOrientationGlyphs(this.renderer, undefined);
-    this.renderer.setDeformation(undefined);
-    this.renderer.setResultColors(undefined);
+    applyResolvedViewportResults(this.renderer, undefined);
     this.invalidate();
   }
 
@@ -545,6 +503,52 @@ class FemViewportCore implements FemViewport {
     });
     this.currentResults = applied.results;
     this.effectiveInteraction = applied.interaction;
+  }
+
+  private prepareSceneReplacement(
+    scene: Scene,
+    preserveResults: boolean,
+  ): PreparedSceneReplacement {
+    const nextRuntime = createPackedSceneRuntime(scene);
+    preserveRuntimeVisibility(this.currentRuntime, nextRuntime);
+    const nextOriginTriadNominalScale = sceneOriginTriadScale(scene, nextRuntime);
+    const nextPublicRuntime = createPublicSceneRuntime(nextRuntime);
+    const nextInteraction = reconcileInteractionState(
+      this.baseInteraction,
+      nextRuntime,
+      scene.parts,
+    );
+    const resultUpdate = preserveResults
+      ? this.prepareSceneResults(scene, nextRuntime, nextInteraction)
+      : { results: undefined, interaction: nextInteraction, outcome: { results: "none" as const } };
+    return {
+      scene,
+      runtime: nextRuntime,
+      publicRuntime: nextPublicRuntime,
+      originTriadNominalScale: nextOriginTriadNominalScale,
+      interaction: resultUpdate.interaction,
+      results: resultUpdate.results,
+      outcome: resultUpdate.outcome,
+    };
+  }
+
+  private installSceneReplacement(
+    replacement: PreparedSceneReplacement,
+    resetRenderer: boolean,
+  ): void {
+    if (resetRenderer) this.renderer.resetScene(replacement.scene.parts);
+    this.cameraFocus.cancel();
+    this.currentScene = replacement.scene;
+    this.currentRuntime = replacement.runtime;
+    this.originTriadNominalScale = replacement.originTriadNominalScale;
+    this.currentPublicRuntime = replacement.publicRuntime;
+    this.pendingVisibility.clear();
+    this.currentResults = replacement.results;
+    this.baseInteraction = replacement.interaction;
+    this.effectiveInteraction = replacement.interaction;
+    this.appliedInteraction = createInteractionState();
+    applyResolvedViewportResults(this.renderer, replacement.results);
+    this.invalidate();
   }
 
   private prepareSceneResults(
