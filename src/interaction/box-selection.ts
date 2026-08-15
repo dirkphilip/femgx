@@ -173,6 +173,7 @@ class BoxSelection {
       this.phase = "active";
     }
     if (this.phase === "active") {
+      event.preventDefault();
       const current = this.clampedPoint(event);
       const rect = normalizedRect(drag.anchor, current);
       this.reset();

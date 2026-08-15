@@ -40,6 +40,7 @@ import {
 import {
   selectionFragmentShader,
   selectionTransparencyFragmentShader,
+  triangleSelectionFragmentShader,
 } from "../../src/renderer/gpu-selection";
 
 function normalizedDerivativeNormal(
@@ -411,11 +412,12 @@ describe("selection emphasis shaders", () => {
     );
   });
 
-  it("classifies visible selection alpha from the base surface", () => {
-    expect(selectionFragmentShader).toContain("color.a <= 0.0");
-    expect(selectionFragmentShader).toContain("visibleSelectionAlpha(color.a)");
-    expect(selectionFragmentShader).toContain("select(baseAlpha, 1.0, baseAlpha >= 1.0)");
-    expect(selectionFragmentShader).not.toContain("mix(resultColor.rgb");
+  it("lights selected triangle surfaces while keeping line and point cues unlit", () => {
+    for (const source of [selectionFragmentShader, triangleSelectionFragmentShader]) {
+      expect(source).toContain("color.a <= 0.0");
+      expect(source).toContain("visibleSelectionAlpha(color.a)");
+    }
+    expect(triangleSelectionFragmentShader).toContain("surfaceLighting(");
     expect(selectionFragmentShader).not.toContain("surfaceLighting(");
   });
 

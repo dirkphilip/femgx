@@ -185,30 +185,25 @@ describe("workbench hover suppression", () => {
   const originalWindow = (globalThis as { readonly window?: unknown }).window;
   let windowElement: FakeElement;
 
-  beforeEach(() => {
-    windowElement = new FakeElement();
-    (globalThis as { window?: unknown }).window = windowElement;
-  });
-
-  afterEach(() => {
-    if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
-    else (globalThis as { window?: unknown }).window = originalWindow;
-    vi.clearAllMocks();
-  });
-
-  it("skips asynchronous hover while a pointer gesture is active", () => {
+  function bindingHarness(): {
+    readonly canvas: FakeElement;
+    readonly hover: ReturnType<typeof vi.fn>;
+    readonly clearHover: ReturnType<typeof vi.fn>;
+    readonly setDragging: (value: boolean) => void;
+  } {
     const canvas = new FakeElement();
     const hover = vi.fn(() => Promise.resolve());
+    const clearHover = vi.fn();
+    let dragging = false;
     const interaction = {
       hover,
       pointerDown: vi.fn(),
       pointerCancel: vi.fn(),
       pointerUp: vi.fn(),
-      clearHover: vi.fn(),
+      clearHover,
       click: vi.fn(),
       contextMenu: vi.fn(),
     } as unknown as WorkbenchInteraction;
-    let dragging = false;
     installWorkbenchPaneBindings({
       pane: {
         id: "primary",
@@ -221,18 +216,51 @@ describe("workbench hover suppression", () => {
       dragging: () => dragging,
       setActive: vi.fn(),
     });
+    return {
+      canvas,
+      hover,
+      clearHover,
+      setDragging: (value) => {
+        dragging = value;
+      },
+    };
+  }
+
+  beforeEach(() => {
+    windowElement = new FakeElement();
+    (globalThis as { window?: unknown }).window = windowElement;
+  });
+
+  afterEach(() => {
+    if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
+    else (globalThis as { window?: unknown }).window = originalWindow;
+    vi.clearAllMocks();
+  });
+
+  it("skips asynchronous hover while a pointer gesture is active", () => {
+    const { canvas, hover, setDragging } = bindingHarness();
 
     const move = { clientX: 50, clientY: 50 } as PointerEvent;
     canvas.dispatch("pointermove", move);
     expect(hover).toHaveBeenCalledTimes(1);
 
-    dragging = true;
+    setDragging(true);
     canvas.dispatch("pointermove", move);
     expect(hover).toHaveBeenCalledTimes(1);
 
-    dragging = false;
+    setDragging(false);
     canvas.dispatch("pointermove", move);
     expect(hover).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not invalidate pending selection when touch contact leaves", () => {
+    const { canvas, clearHover } = bindingHarness();
+
+    canvas.dispatch("pointerleave", { pointerType: "touch" });
+    expect(clearHover).not.toHaveBeenCalled();
+
+    canvas.dispatch("pointerleave", { pointerType: "mouse" });
+    expect(clearHover).toHaveBeenCalledOnce();
   });
 });
 

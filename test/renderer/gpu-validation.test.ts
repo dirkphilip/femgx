@@ -78,6 +78,7 @@ describe("GPU validation", () => {
         "triangle node picking vertex",
         "node picking fragment",
         "selection fragment",
+        "triangle selection fragment",
         "selection transparency fragment",
         "edge overlay vertex",
         "edge overlay fragment",

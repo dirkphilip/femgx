@@ -26,9 +26,13 @@ export function installWorkbenchPaneBindings(options: WorkbenchPaneBindingOption
   pane.canvas.addEventListener("pointercancel", interaction.pointerCancel.bind(interaction), {
     signal,
   });
-  pane.canvas.addEventListener("pointerleave", interaction.clearHover.bind(interaction, true), {
-    signal,
-  });
+  pane.canvas.addEventListener(
+    "pointerleave",
+    (event) => {
+      if (event.pointerType !== "touch") interaction.clearHover(true);
+    },
+    { signal },
+  );
   pane.canvas.addEventListener("pointerup", interaction.pointerUp.bind(interaction), { signal });
   pane.canvas.addEventListener(
     "pointermove",

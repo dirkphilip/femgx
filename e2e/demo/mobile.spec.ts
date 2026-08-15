@@ -11,6 +11,18 @@ import { closeNavigation, openCommandPanel, openNavigation, waitForRenderer } fr
 
 const PHONE = { width: 390, height: 844 };
 
+interface CameraPose {
+  readonly mode: string;
+  readonly position: readonly number[];
+  readonly target: readonly number[];
+  readonly up: readonly number[];
+}
+
+function cameraPose(serialized: string | null): CameraPose {
+  const camera = JSON.parse(serialized ?? "null") as CameraPose;
+  return { mode: camera.mode, position: camera.position, target: camera.target, up: camera.up };
+}
+
 test("fits a phone-sized viewport without horizontal overflow", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto("/");
@@ -285,8 +297,7 @@ test("routes mobile box selection through the right-side touch tool rail", async
       expect(box.height).toBeGreaterThanOrEqual(44);
     }
 
-    await page.getByTestId("touch-tool-select-all").click();
-    await expect.poll(() => canvas.getAttribute("data-selected")).not.toBe("");
+    await expect(canvas).toHaveAttribute("data-selected", "");
     await page.getByTestId("touch-tool-box-select").click();
     await expect(page.getByTestId("touch-tool-box-select")).toHaveAttribute("aria-pressed", "true");
 
@@ -297,7 +308,7 @@ test("routes mobile box selection through the right-side touch tool rail", async
       x: canvasBox.x + canvasBox.width - 20,
       y: canvasBox.y + canvasBox.height - 80,
     };
-    const cameraBefore = await canvas.getAttribute("data-camera");
+    const cameraBefore = cameraPose(await canvas.getAttribute("data-camera"));
     const chrome = await context.newCDPSession(page);
     await chrome.send("Input.dispatchTouchEvent", {
       type: "touchStart",
@@ -311,8 +322,10 @@ test("routes mobile box selection through the right-side touch tool rail", async
     await chrome.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
 
     await expect(page.getByTestId("box-selection-overlay")).toBeHidden();
+    await expect(page.getByTestId("model-feedback")).toContainText("Box selection:");
+    await expect(page.getByTestId("model-feedback")).not.toContainText("Box selection: 0 elements");
     await expect.poll(() => canvas.getAttribute("data-selected")).not.toBe("");
-    expect(await canvas.getAttribute("data-camera")).toBe(cameraBefore);
+    expect(cameraPose(await canvas.getAttribute("data-camera"))).toEqual(cameraBefore);
   } finally {
     await context.close();
   }
