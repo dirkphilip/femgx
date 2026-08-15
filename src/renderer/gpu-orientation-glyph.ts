@@ -93,7 +93,8 @@ export function syncOrientationGlyphs(
   if (!Number.isFinite(state.widthPixels) || state.widthPixels < 1 || state.widthPixels > 8) {
     throw new Error(`Elemental orientation glyph widthPixels must be finite and between 1 and 8`);
   }
-  if (state.transform === "normal") validateNormalMatrices(state, runtime, layout);
+  const normalMatrices =
+    state.transform === "normal" ? syncNormalMatrices(state, runtime, layout) : undefined;
   writeParams(resources, state);
   const active = new Set<PartId>();
   for (const [partId, records] of state.parts) {
@@ -101,9 +102,8 @@ export function syncOrientationGlyphs(
     const resource = ensurePartResource(resources, partId, records);
     active.add(partId);
     syncRecords(resources, resource, records);
-    if (state.transform === "normal") {
-      syncNormalMatrices(resources, resource, runtime, layout, partId);
-    }
+    if (normalMatrices !== undefined)
+      writeNormalMatrices(resources, resource, normalMatrices, partId);
   }
   for (const [partId, resource] of resources.parts) {
     if (active.has(partId)) continue;
@@ -237,16 +237,52 @@ function syncRecords(
 }
 
 function syncNormalMatrices(
-  resources: OrientationGlyphDrawResources,
-  resource: OrientationGlyphPartResource,
+  state: OrientationGlyphState,
   runtime: PackedSceneRuntime,
   layout: OrientationInstanceLayout,
+): ReadonlyMap<PartId, Float32Array> {
+  const matrices = new Map<PartId, Float32Array>();
+  for (const [partId, records] of state.parts) {
+    if (records.elementIds.length === 0) continue;
+    const slots = layout.partSlots.get(partId) ?? new Uint32Array();
+    const data = new Float32Array(slots.length * ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS);
+    for (let local = 0; local < slots.length; local += 1) {
+      const slot = slots[local];
+      if (slot === undefined) continue;
+      let matrix: Float32Array;
+      try {
+        matrix = normalMatrix3(runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16));
+      } catch (error) {
+        const occurrence = runtime.getInstanceId(slot) ?? String(slot);
+        throw new Error(
+          `Elemental orientation normal transform for occurrence ${occurrence} in part ${partId} is invalid: ${String(error)}`,
+          { cause: error },
+        );
+      }
+      const target = local * ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS;
+      for (let component = 0; component < 9; component += 1) {
+        const column = Math.floor(component / 3);
+        const row = component % 3;
+        data[target + column * 4 + row] = matrix[component] ?? 0;
+      }
+    }
+    matrices.set(partId, data);
+  }
+  return matrices;
+}
+
+function writeNormalMatrices(
+  resources: OrientationGlyphDrawResources,
+  resource: OrientationGlyphPartResource,
+  matrices: ReadonlyMap<PartId, Float32Array>,
   partId: PartId,
 ): void {
-  const slots = layout.partSlots.get(partId) ?? new Uint32Array();
-  if (slots.length > resource.normalCapacity) {
+  const nextData = matrices.get(partId);
+  if (nextData === undefined) return;
+  const slotCount = nextData.length / ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS;
+  if (slotCount > resource.normalCapacity) {
     resource.normalBuffer.destroy();
-    resource.normalCapacity = Math.max(slots.length, resource.normalCapacity * 2, 1);
+    resource.normalCapacity = Math.max(slotCount, resource.normalCapacity * 2, 1);
     resource.normalData = new Float32Array(
       resource.normalCapacity * ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS,
     );
@@ -257,56 +293,14 @@ function syncNormalMatrices(
     resource.bindGroup = undefined;
   }
   let changed = false;
-  for (let local = 0; local < slots.length; local += 1) {
-    const slot = slots[local];
-    if (slot === undefined) continue;
-    let matrix: Float32Array;
-    try {
-      matrix = normalMatrix3(runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16));
-    } catch (error) {
-      const occurrence = runtime.getInstanceId(slot) ?? String(slot);
-      throw new Error(
-        `Elemental orientation normal transform for occurrence ${occurrence} in part ${partId} is invalid: ${String(error)}`,
-        { cause: error },
-      );
-    }
-    const target = local * ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS;
-    for (let component = 0; component < 9; component += 1) {
-      const next = matrix[component] ?? 0;
-      const column = Math.floor(component / 3);
-      const row = component % 3;
-      const destination = target + column * 4 + row;
-      if (resource.normalData[destination] !== next) changed = true;
-      resource.normalData[destination] = next;
-    }
+  for (let index = 0; index < nextData.length; index += 1) {
+    const next = nextData[index] ?? 0;
+    if (resource.normalData[index] !== next) changed = true;
+    resource.normalData[index] = next;
   }
   if (!changed) return;
   resources.device.queue.writeBuffer(resource.normalBuffer, 0, resource.normalData);
   resources.cost.write("vector-glyph", resource.normalData.byteLength);
-}
-
-function validateNormalMatrices(
-  state: OrientationGlyphState,
-  runtime: PackedSceneRuntime,
-  layout: OrientationInstanceLayout,
-): void {
-  for (const [partId, records] of state.parts) {
-    if (records.elementIds.length === 0) continue;
-    const slots = layout.partSlots.get(partId) ?? new Uint32Array();
-    for (let local = 0; local < slots.length; local += 1) {
-      const slot = slots[local];
-      if (slot === undefined) continue;
-      try {
-        normalMatrix3(runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16));
-      } catch (error) {
-        const occurrence = runtime.getInstanceId(slot) ?? String(slot);
-        throw new Error(
-          `Elemental orientation normal transform for occurrence ${occurrence} in part ${partId} is invalid: ${String(error)}`,
-          { cause: error },
-        );
-      }
-    }
-  }
 }
 
 function writeParams(resources: OrientationGlyphDrawResources, state: OrientationGlyphState): void {
