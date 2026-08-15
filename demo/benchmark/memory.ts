@@ -57,39 +57,40 @@ export function estimateBenchmarkMemory(
   let subsetBytes = 0;
   let cpuSceneTypedArrayBytes = 0;
   for (const part of scene.parts.values()) {
-    const { geometry } = part;
-    const primitiveCount = logicalPrimitiveCount(geometry);
-    const expandedVertexCount = expandedVertexCountFor(geometry);
-    const edgeMaterialized = options.materializedEdgePartIds?.has(part.id) ?? false;
-    const canonicalEdge =
-      edgeMaterialized && geometry.primitive === "triangles" && geometry.faceSubset === undefined
-        ? edgeEndpointUpperBoundFor(geometry, primitiveCount)
-        : 0;
-    const resultColorTailBytes = resultColorTailBytesFor(geometry);
-    const mainPositionBytes = expandedVertexCount * 3 * Float32Array.BYTES_PER_ELEMENT;
-    const mainIndexBytes = expandedIndexCountFor(geometry) * Uint32Array.BYTES_PER_ELEMENT;
-    geometryBytes +=
-      gpuBufferBytes(mainPositionBytes) +
-      gpuBufferBytes(mainIndexBytes) +
-      (canonicalEdge === 0
-        ? 0
-        : gpuBufferBytes(canonicalEdge * 3 * Float32Array.BYTES_PER_ELEMENT));
-    resultColorBytes += resultColorTailBytes * (canonicalEdge === 0 ? 1 : 2);
-    const topologyUpperBound = topologyBytesUpperBound(
-      primitiveCount,
-      expandedVertexCount,
-      canonicalEdge,
-    );
-    pickMetadataBytes +=
-      gpuBufferBytes(primitiveCount * Uint32Array.BYTES_PER_ELEMENT) +
-      gpuBufferBytes(expandedVertexCount * Uint32Array.BYTES_PER_ELEMENT) +
-      (canonicalEdge === 0 ? 0 : gpuBufferBytes(canonicalEdge * Uint32Array.BYTES_PER_ELEMENT)) +
-      topologyUpperBound;
-    edgeIndexBytes +=
-      canonicalEdge === 0 ? 0 : gpuBufferBytes(canonicalEdge * Uint32Array.BYTES_PER_ELEMENT);
-    const subset = subsetEstimate(geometry, resultColorTailBytes, edgeMaterialized);
-    subsetBytes += subset.bufferBytes;
-    resultColorBytes += subset.resultColorBytes;
+    for (const geometry of part.geometries) {
+      const primitiveCount = logicalPrimitiveCount(geometry);
+      const expandedVertexCount = expandedVertexCountFor(geometry);
+      const edgeMaterialized = options.materializedEdgePartIds?.has(part.id) ?? false;
+      const canonicalEdge =
+        edgeMaterialized && geometry.primitive === "triangles" && geometry.faceSubset === undefined
+          ? edgeEndpointUpperBoundFor(geometry, primitiveCount)
+          : 0;
+      const resultColorTailBytes = resultColorTailBytesFor(geometry);
+      const mainPositionBytes = expandedVertexCount * 3 * Float32Array.BYTES_PER_ELEMENT;
+      const mainIndexBytes = expandedIndexCountFor(geometry) * Uint32Array.BYTES_PER_ELEMENT;
+      geometryBytes +=
+        gpuBufferBytes(mainPositionBytes) +
+        gpuBufferBytes(mainIndexBytes) +
+        (canonicalEdge === 0
+          ? 0
+          : gpuBufferBytes(canonicalEdge * 3 * Float32Array.BYTES_PER_ELEMENT));
+      resultColorBytes += resultColorTailBytes * (canonicalEdge === 0 ? 1 : 2);
+      const topologyUpperBound = topologyBytesUpperBound(
+        primitiveCount,
+        expandedVertexCount,
+        canonicalEdge,
+      );
+      pickMetadataBytes +=
+        gpuBufferBytes(primitiveCount * Uint32Array.BYTES_PER_ELEMENT) +
+        gpuBufferBytes(expandedVertexCount * Uint32Array.BYTES_PER_ELEMENT) +
+        (canonicalEdge === 0 ? 0 : gpuBufferBytes(canonicalEdge * Uint32Array.BYTES_PER_ELEMENT)) +
+        topologyUpperBound;
+      edgeIndexBytes +=
+        canonicalEdge === 0 ? 0 : gpuBufferBytes(canonicalEdge * Uint32Array.BYTES_PER_ELEMENT);
+      const subset = subsetEstimate(geometry, resultColorTailBytes, edgeMaterialized);
+      subsetBytes += subset.bufferBytes;
+      resultColorBytes += subset.resultColorBytes;
+    }
     cpuSceneTypedArrayBytes += scenePartTypedArrayBytes(part);
   }
   for (const assembly of scene.assemblies.values()) {
@@ -149,23 +150,26 @@ function gpuBufferBytes(bytes: number): number {
   return Math.max(4, bytes);
 }
 
-function expandedVertexCountFor(geometry: Part["geometry"]): number {
+function expandedVertexCountFor(geometry: Part["geometries"][number]): number {
   if (geometry.primitive === "points") return geometry.indices.length * 4;
   if (geometry.primitive === "lines") return Math.floor(geometry.indices.length / 2) * 4;
   return geometry.indices.length;
 }
 
-function expandedIndexCountFor(geometry: Part["geometry"]): number {
+function expandedIndexCountFor(geometry: Part["geometries"][number]): number {
   if (geometry.primitive === "points") return geometry.indices.length * 6;
   if (geometry.primitive === "lines") return Math.floor(geometry.indices.length / 2) * 6;
   return geometry.indices.length;
 }
 
-function edgeEndpointUpperBoundFor(geometry: Part["geometry"], primitiveCount: number): number {
+function edgeEndpointUpperBoundFor(
+  geometry: Part["geometries"][number],
+  primitiveCount: number,
+): number {
   return geometry.primitive === "triangles" ? primitiveCount * 6 : 1;
 }
 
-function resultColorTailBytesFor(geometry: Part["geometry"]): number {
+function resultColorTailBytesFor(geometry: Part["geometries"][number]): number {
   let maxNodePickId = 0;
   for (const pickId of geometry.nodePickIds ?? []) maxNodePickId = Math.max(maxNodePickId, pickId);
   return (maxNodePickId + 2) * 4 * Float32Array.BYTES_PER_ELEMENT;
@@ -188,7 +192,7 @@ function topologyBytesUpperBound(
 }
 
 function subsetEstimate(
-  geometry: Part["geometry"],
+  geometry: Part["geometries"][number],
   resultColorTailBytes: number,
   edgeMaterialized: boolean,
 ): { readonly bufferBytes: number; readonly resultColorBytes: number } {
@@ -224,11 +228,12 @@ function subsetEstimate(
 }
 
 function scenePartTypedArrayBytes(part: Part): number {
-  const { geometry } = part;
-  return (
-    geometry.positions.byteLength +
-    geometry.indices.byteLength +
-    (geometry.nodePickIds?.byteLength ?? 0) +
-    (geometry.nodePositions?.byteLength ?? 0)
+  return part.geometries.reduce(
+    (total, geometry) =>
+      total +
+      geometry.positions.byteLength +
+      geometry.indices.byteLength +
+      (geometry.nodePickIds?.byteLength ?? 0),
+    part.nodePositions?.byteLength ?? 0,
   );
 }

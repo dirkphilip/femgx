@@ -23,9 +23,10 @@ topologies. Its `primitiveRanges` retain one semantic element identity across
 those leaves, so one placement carries the complete model without duplicated
 part identities.
 
-Each generated descriptor preserves the source `ElementId` and `ElementShape`.
-Triangle descriptors use `primitiveStart`/`primitiveCount`; line and point
-descriptors use `primitiveStart`/`primitiveCount`. These ranges drive element
+Each generated descriptor preserves the source `ElementId` and `ElementShape`
+in the part-level element table. Every `primitiveRanges` entry qualifies its
+`primitiveStart`/`primitiveCount` with `triangles`, `lines`, or `points`. These
+ranges drive element
 pick ids, body ids, result colors, visibility/highlight state, node picks, and
 nodal deformation. Triangle faces retain one deterministic face table and are
 compatible with validated `{ elementId, faceIndex }` subsets. The same local

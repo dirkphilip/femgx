@@ -9,8 +9,9 @@ oriented element faces are the finest-grained pickable units under
 ## Stable identities
 
 - **Nodes**: `NodeId` already indexes `ElementModel.nodes` densely. The
-  tessellation records a `nodePickIds` array (one `u32` per mesh vertex,
-  `nodeId + 1`) plus `nodePositions` (per `NodeId`, three floats) so picks
+  each geometry records a `nodePickIds` array (one `u32` per mesh vertex,
+  `nodeId + 1`), while the owning part carries `nodePositions` (per `NodeId`,
+  three floats) so picks
   resolve to local/world positions on the CPU. Supported element tessellation
   emits authored nodes only. Standalone FE nodes use explicit authored `Point`
   elements; generic point geometry may instead be node-only. `0` remains
@@ -21,8 +22,9 @@ oriented element faces are the finest-grained pickable units under
   `neighborElementIds`, and an exact `primitiveStart`/`primitiveCount` range.
   Face ranges are unique, non-empty, non-overlapping, and cover the declared
   triangle geometry; face-array order is not identity.
-- `Geometry` carries `nodePickIds`, `nodePositions`, and `faces`; no public
-  per-triangle face-id array is required. The renderer derives dense face ids
+- Each triangle `Geometry` carries `nodePickIds` and `faces`; the owning part
+  carries `nodePositions`. No public per-triangle face-id array is required.
+  The renderer derives dense face ids
   privately from the validated ranges for GPU storage and resolves readback
   to the authored oriented face identity.
 

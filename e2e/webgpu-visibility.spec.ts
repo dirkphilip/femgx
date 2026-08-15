@@ -67,16 +67,30 @@ test("keeps shared node annotations while an incident owner remains visible", as
     const canvas = document.getElementById("node-owner-visibility");
     if (!(canvas instanceof HTMLCanvasElement)) throw new Error("node visibility canvas missing");
     const part = api.createPart(1, {
-      positions: new Float32Array([-1, -0.5, 0, 0, -0.5, 0, -0.5, 0.5, 0, 1, -0.5, 0, 0.5, 0.5, 0]),
-      indices: new Uint32Array([0, 1, 2, 1, 3, 4]),
-      primitive: "triangles",
-      nodePickIds: new Uint32Array([1, 2, 3, 4, 5]),
+      geometries: [
+        {
+          positions: new Float32Array([
+            -1, -0.5, 0, 0, -0.5, 0, -0.5, 0.5, 0, 1, -0.5, 0, 0.5, 0.5, 0,
+          ]),
+          indices: new Uint32Array([0, 1, 2, 1, 3, 4]),
+          primitive: "triangles",
+          nodePickIds: new Uint32Array([1, 2, 3, 4, 5]),
+        },
+      ],
       nodePositions: new Float32Array([
         -1, -0.5, 0, 0, -0.5, 0, -0.5, 0.5, 0, 1, -0.5, 0, 0.5, 0.5, 0,
       ]),
       elements: [
-        { id: 1, primitiveStart: 0, primitiveCount: 1, bodyId: 1 },
-        { id: 2, primitiveStart: 1, primitiveCount: 1, bodyId: 2 },
+        {
+          id: 1,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+          bodyId: 1,
+        },
+        {
+          id: 2,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+          bodyId: 2,
+        },
       ],
       bodies: [
         { id: 1, elementIds: [1] },

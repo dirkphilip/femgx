@@ -5,7 +5,6 @@ import {
   PolygonGeometryError,
   type PolygonGeometryInput,
 } from "../../src/geometry/polygon";
-import { createPart } from "../../src/geometry/part";
 import { resolvePickHit, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
 import { identity } from "../../src/math/mat4";
 import { deformGeometry } from "../../src/results/deform";
@@ -53,6 +52,12 @@ function triangleAreaSum(geometry: ReturnType<typeof polygonGeometry>): number {
   return area;
 }
 
+function triangleGeometry(part: ReturnType<typeof polygonPart>) {
+  const geometry = part.geometries[0];
+  if (geometry?.primitive !== "triangles") throw new Error("Expected triangle geometry");
+  return geometry;
+}
+
 function expectCode(operation: () => unknown, code: PolygonGeometryError["code"]): void {
   try {
     operation();
@@ -65,13 +70,19 @@ function expectCode(operation: () => unknown, code: PolygonGeometryError["code"]
 
 describe("polygonGeometry", () => {
   it("triangulates a convex face with stable source-node picks", () => {
-    const geometry = polygonGeometry({
+    const part = polygonPart(1, {
       positions: [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0],
       faces: [{ nodeIds: [0, 1, 2, 3], elementId: 2 }],
     });
+    const geometry = triangleGeometry(part);
     expect(geometry.indices.length).toBe(6);
     expect(triangleAreaSum(geometry)).toBeCloseTo(1);
-    expect(geometry.elements).toEqual([{ id: 2, primitiveStart: 0, primitiveCount: 2 }]);
+    expect(part.elements).toEqual([
+      {
+        id: 2,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }],
+      },
+    ]);
     expect(geometry.faces?.[0]).toMatchObject({
       elementId: 2,
       faceIndex: 0,
@@ -82,13 +93,20 @@ describe("polygonGeometry", () => {
   });
 
   it("triangulates a concave face deterministically and preserves ownership", () => {
-    const first = polygonGeometry(concaveInput());
-    const second = polygonGeometry(concaveInput());
+    const firstPart = polygonPart(1, concaveInput());
+    const secondPart = polygonPart(1, concaveInput());
+    const first = triangleGeometry(firstPart);
+    const second = triangleGeometry(secondPart);
     expect(first.indices.length).toBe(9);
     expect(triangleAreaSum(first)).toBeCloseTo(3);
     expect(first.positions).toEqual(second.positions);
     expect(first.indices).toEqual(second.indices);
-    expect(first.elements).toEqual([{ id: 7, primitiveStart: 0, primitiveCount: 3 }]);
+    expect(firstPart.elements).toEqual([
+      {
+        id: 7,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 3 }],
+      },
+    ]);
     expect(first.faces).toEqual([
       {
         elementId: 7,
@@ -104,7 +122,7 @@ describe("polygonGeometry", () => {
   });
 
   it("groups multiple faces into one contiguous element range", () => {
-    const geometry = polygonGeometry({
+    const part = polygonPart(1, {
       positions: [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0],
       faces: [
         { nodeIds: [0, 1, 2], elementId: 4 },
@@ -112,17 +130,24 @@ describe("polygonGeometry", () => {
       ],
       bodies: [{ id: 2, name: "shell", elementIds: [4] }],
     });
-    expect(geometry.elements).toEqual([{ id: 4, primitiveStart: 0, primitiveCount: 2, bodyId: 2 }]);
+    const geometry = triangleGeometry(part);
+    expect(part.elements).toEqual([
+      {
+        id: 4,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }],
+        bodyId: 2,
+      },
+    ]);
     expect(geometry.positions.length / 3).toBe(4);
     expect(Array.from(geometry.indices)).toEqual([0, 1, 2, 0, 2, 3]);
     expect(geometry.faces?.map((face) => face.faceIndex)).toEqual([0, 1]);
     expect(geometry.faces?.every((face) => face.bodyId === 2)).toBe(true);
-    expect(geometry.bodies).toEqual([{ id: 2, name: "shell", elementIds: [4] }]);
+    expect(part.bodies).toEqual([{ id: 2, name: "shell", elementIds: [4] }]);
   });
 
   it("keeps node identity through picking and deformation", () => {
-    const geometry = polygonGeometry(concaveInput());
-    const part = createPart(1, geometry);
+    const part = polygonPart(1, concaveInput());
+    const geometry = triangleGeometry(part);
     const context: PickContext = { instances: [instance()], parts: new Map([[1, part]]) };
     expect(
       resolvePickHit(context, ids({ elementPickId: 8, facePickId: 1 }), [0, 0, 0]),
@@ -150,7 +175,7 @@ describe("polygonGeometry", () => {
     const geometry = polygonGeometry({ positions: [], faces: [] });
     const part = polygonPart(3, { positions: [], faces: [] });
     expect(geometry.indices.length).toBe(0);
-    expect(geometry.nodePositions).toEqual(new Float32Array());
+    expect(part.nodePositions).toEqual(new Float32Array());
     expect(part.bounds).toEqual({ minX: 0, minY: 0, minZ: 0, maxX: 0, maxY: 0, maxZ: 0 });
   });
 

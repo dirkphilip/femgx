@@ -141,28 +141,7 @@ function createTopologyElement(
   }
   const nodes = new Set<number>();
   for (const geometry of geometries) {
-    const localElement = geometry.elements?.find((candidate) => candidate.id === element.id);
-    if (localElement === undefined || geometry.nodePickIds === undefined) continue;
-    const indices = geometry.indices;
-    const stride = primitiveVertexCount(geometry.primitive);
-    for (
-      let primitive = localElement.primitiveStart;
-      primitive < localElement.primitiveStart + localElement.primitiveCount;
-      primitive += 1
-    ) {
-      const indexBase = primitive * stride;
-      for (let offset = 0; offset < stride; offset += 1) {
-        const vertexIndex = indices[indexBase + offset];
-        const nodePickId =
-          vertexIndex === undefined ? undefined : geometry.nodePickIds[vertexIndex];
-        if (nodePickId === undefined) {
-          throw new Error(
-            `Element ${element.id} in part ${part.id} references a vertex without a nodePickId`,
-          );
-        }
-        if (nodePickId > 0) nodes.add(nodePickId - 1);
-      }
-    }
+    addGeometryElementNodes(part, element, geometry, nodes);
   }
   return {
     id: element.id,
@@ -171,7 +150,52 @@ function createTopologyElement(
   };
 }
 
-function primitiveVertexCount(primitive: Part["geometry"]["primitive"]): number {
+function addGeometryElementNodes(
+  part: Part,
+  element: ElementTessellation,
+  geometry: Part["geometries"][number],
+  nodes: Set<number>,
+): void {
+  const nodePickIds = geometry.nodePickIds;
+  if (nodePickIds === undefined) return;
+  const stride = primitiveVertexCount(geometry.primitive);
+  for (const range of element.primitiveRanges.filter(
+    (candidate) => candidate.primitive === geometry.primitive,
+  )) {
+    addRangeNodes({ part, element, geometry, nodePickIds, range, stride, nodes });
+  }
+}
+
+function addRangeNodes(input: {
+  readonly part: Part;
+  readonly element: ElementTessellation;
+  readonly geometry: Part["geometries"][number];
+  readonly nodePickIds: Uint32Array;
+  readonly range: { readonly primitiveStart: number; readonly primitiveCount: number };
+  readonly stride: number;
+  readonly nodes: Set<number>;
+}): void {
+  const { part, element, geometry, nodePickIds, range, stride, nodes } = input;
+  for (
+    let primitive = range.primitiveStart;
+    primitive < range.primitiveStart + range.primitiveCount;
+    primitive += 1
+  ) {
+    const indexBase = primitive * stride;
+    for (let offset = 0; offset < stride; offset += 1) {
+      const vertexIndex = geometry.indices[indexBase + offset];
+      const nodePickId = vertexIndex === undefined ? undefined : nodePickIds[vertexIndex];
+      if (nodePickId === undefined) {
+        throw new Error(
+          `Element ${element.id} in part ${part.id} references a vertex without a nodePickId`,
+        );
+      }
+      if (nodePickId > 0) nodes.add(nodePickId - 1);
+    }
+  }
+}
+
+function primitiveVertexCount(primitive: Part["geometries"][number]["primitive"]): number {
   switch (primitive) {
     case "triangles":
       return 3;

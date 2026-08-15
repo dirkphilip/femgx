@@ -173,7 +173,7 @@ export class VisibilityPanelController {
     const repeated =
       siblings.filter((item) => runtime.getPartId(item) === instance.partId).length > 1;
     const displayName = repeated ? `${partName} ${layout.position}` : partName;
-    const bodies = this.options.getModel().scene.parts.get(instance.partId)?.geometry.bodies ?? [];
+    const bodies = this.options.getModel().scene.parts.get(instance.partId)?.bodies ?? [];
     rows.push(
       row({
         key: `instance:${instanceId}`,

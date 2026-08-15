@@ -13,11 +13,18 @@ export interface PlanarGridOptions {
   readonly elementFamily: PlanarGridElementFamily;
 }
 
+export interface PlanarGridBuild {
+  readonly geometry: TriangleGeometry;
+  readonly elements: readonly ElementTessellation[];
+  readonly nodePositions: Float32Array;
+  readonly bodies?: readonly GeometryBody[];
+}
+
 /** Builds one deterministic indexed planar grid for demo and benchmark owners. */
 export function createPlanarGridGeometry(
   cells: number,
   options: PlanarGridOptions,
-): TriangleGeometry {
+): PlanarGridBuild {
   validateGridOptions(cells, options.bodyCount, options.elementFamily);
   const side = cells + 1;
   const positions = new Float32Array(side * side * 3);
@@ -49,15 +56,19 @@ export function createPlanarGridGeometry(
   }
   const nodePickIds = new Uint32Array(positions.length / 3);
   for (let node = 0; node < nodePickIds.length; node += 1) nodePickIds[node] = node + 1;
-  return {
+  const geometry: TriangleGeometry = {
     positions,
     indices,
     primitive: "triangles",
     nodePickIds,
-    nodePositions: positions,
-    elements,
     ...(faces === undefined ? {} : { faces }),
-    ...(bodyElements === undefined ? {} : { bodies: bodyElements.map(toBody) }),
+  };
+  const bodies = bodyElements === undefined ? undefined : bodyElements.map(toBody);
+  return {
+    geometry,
+    elements,
+    nodePositions: positions,
+    ...(bodies === undefined ? {} : { bodies }),
   };
 }
 
@@ -87,8 +98,7 @@ function appendCell(options: CellOptions): void {
     const bodyId = bodyIdForElement(elementId, bodyElements);
     elements.push({
       id: elementId,
-      primitiveStart: cell * 2,
-      primitiveCount: 2,
+      primitiveRanges: [{ primitive: "triangles", primitiveStart: cell * 2, primitiveCount: 2 }],
       ...(bodyId === undefined ? {} : { bodyId }),
     });
     appendFace({
@@ -135,8 +145,7 @@ function appendTriangleElement(options: TriangleElementOptions): void {
   const bodyId = bodyIdForElement(elementId, bodyElements);
   elements.push({
     id: elementId,
-    primitiveStart,
-    primitiveCount: 1,
+    primitiveRanges: [{ primitive: "triangles", primitiveStart, primitiveCount: 1 }],
     ...(bodyId === undefined ? {} : { bodyId }),
   });
   appendFace({

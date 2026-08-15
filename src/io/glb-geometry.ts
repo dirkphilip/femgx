@@ -70,9 +70,7 @@ function importPrimitive(input: PrimitiveImport): GlbPartRecord | undefined {
   const indices = readIndices(primitive, positions.length / 3, primitiveIndex, diagnostics);
   const material = primitive.getMaterial();
   const part = createPart(partId, {
-    primitive: "triangles",
-    positions,
-    indices,
+    geometries: [{ primitive: "triangles", positions, indices }],
   });
   return {
     part,

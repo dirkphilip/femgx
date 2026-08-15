@@ -3,7 +3,7 @@ import { createElementModel, type Body, type ElementModel } from "../../src/elem
 import { facesOfElement, type FaceIdRef } from "../../src/elements/faces";
 import { HEX20_SHAPE, HEX8_SHAPE, QUAD8_SHAPE, QUAD_SHAPE } from "../../src/elements/shapes";
 import { elementPart } from "../../src/geometry/heterogeneous-element-mesh";
-import type { Part, TriangleGeometry } from "../../src/geometry/part";
+import type { Part } from "../../src/geometry/part";
 
 export type StructuredFeFamily = "quad" | "quad8" | "hex8" | "hex20";
 
@@ -12,7 +12,7 @@ export function createStructuredFePart(
   partId: number,
   family: StructuredFeFamily,
   gridSize: number,
-): Part & { readonly geometry: TriangleGeometry } {
+): Part {
   const model = createStructuredFeModel(family, gridSize);
   const body: Body = {
     id: 1,
@@ -22,9 +22,7 @@ export function createStructuredFePart(
   const faceSubset = family === "quad" || family === "quad8" ? allSurfaceFaces(model) : undefined;
   const authoredModel = createElementModel([...model.nodes], model.elements, { bodies: [body] });
   const options = faceSubset === undefined ? {} : { faceSubset };
-  return elementPart(partId, authoredModel, options) as Part & {
-    readonly geometry: TriangleGeometry;
-  };
+  return elementPart(partId, authoredModel, options);
 }
 
 /** Builds a deterministic shared-node structured model for one supported FE family. */

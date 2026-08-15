@@ -189,9 +189,9 @@ describe("createBoltedPlateFixture", () => {
   it("exposes CPU geometry per mode with computed bounds", () => {
     const { scene, partIds } = createBoltedPlateFixture();
     const plateSolid = scene.parts.get(partIds.plate.partId);
-    expect(plateSolid?.geometry.primitive).toBe("triangles");
-    expect(plateSolid?.geometry.indices).toHaveLength(216);
-    const plateGeometry = plateSolid?.geometry;
+    expect(plateSolid?.geometries[0]?.primitive).toBe("triangles");
+    expect(plateSolid?.geometries[0]?.indices).toHaveLength(216);
+    const plateGeometry = plateSolid?.geometries[0];
     if (plateGeometry?.primitive !== "triangles") throw new Error("expected plate triangles");
     const interfaceFaces = (plateGeometry.faces ?? []).filter(
       (face) => face.neighborElementIds.length > 0,

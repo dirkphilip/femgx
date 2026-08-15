@@ -5,6 +5,7 @@ import { topologyFor } from "../elements/shapes";
 import {
   createPart,
   type LineGeometry,
+  type ElementTessellation,
   type Part,
   type PointGeometry,
   type TriangleGeometry,
@@ -12,6 +13,7 @@ import {
 import type { PartId } from "./part";
 import {
   bodiesForElements,
+  blocksForElements,
   lineGeometry,
   pointGeometry,
   volumeGeometry,
@@ -44,9 +46,12 @@ export function elementPart(
 ): Part {
   const groups = classifyElements(model);
   const membership = elementModelMembership(model);
-  const geometries: (TriangleGeometry | LineGeometry | PointGeometry)[] = [];
+  const builds: {
+    readonly geometry: TriangleGeometry | LineGeometry | PointGeometry;
+    readonly elements: readonly ElementTessellation[];
+  }[] = [];
   if (groups.triangle.length > 0) {
-    geometries.push(
+    builds.push(
       volumeGeometry({
         model,
         elements: groups.triangle,
@@ -57,21 +62,47 @@ export function elementPart(
     );
   }
   if (groups.line.length > 0) {
-    geometries.push(
+    builds.push(
       lineGeometry(model, groups.line, membership.bodyByElement, membership.blockByElement),
     );
   }
   if (groups.point.length > 0) {
-    geometries.push(
+    builds.push(
       pointGeometry(model, groups.point, membership.bodyByElement, membership.blockByElement),
     );
   }
-  const part = createPart(partId, geometries);
-  return {
-    ...part,
+  const blocks = blocksForElements(model, model.elements);
+  return createPart(partId, {
+    geometries: builds.map(({ geometry }) => geometry),
+    elements: mergeElements(builds.flatMap(({ elements }) => elements)),
     nodePositions: new Float32Array(model.nodes),
     bodies: bodiesForElements(model, model.elements, membership.bodyByElement) ?? [],
-  };
+    ...(blocks === undefined ? {} : { blocks }),
+  });
+}
+
+function mergeElements(elements: readonly ElementTessellation[]): readonly ElementTessellation[] {
+  const merged = new Map<number, ElementTessellation>();
+  for (const element of elements) {
+    const previous = merged.get(element.id);
+    if (previous === undefined) {
+      merged.set(element.id, element);
+      continue;
+    }
+    if (
+      previous.shape?.family !== element.shape?.family ||
+      previous.shape?.order !== element.shape?.order ||
+      previous.bodyId !== element.bodyId ||
+      previous.blockId !== element.blockId
+    ) {
+      throw new Error(`Element ${element.id} has inconsistent semantic metadata across groups`);
+    }
+    merged.set(element.id, {
+      ...previous,
+      primitiveRanges: [...previous.primitiveRanges, ...element.primitiveRanges],
+    });
+  }
+  return [...merged.values()].sort((left, right) => left.id - right.id);
 }
 
 function classifyElements(model: ElementModel): ElementGroups {

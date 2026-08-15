@@ -50,13 +50,25 @@ describe("WebGPU benchmark models", () => {
       elementFamily: "quad",
     });
     const part = benchmarkCase.scene.parts.get(1);
-    expect(part?.geometry.positions).toHaveLength(27);
-    expect(part?.geometry.indices).toHaveLength(24);
-    expect(part?.geometry.elements).toEqual([
-      { id: 1, primitiveStart: 0, primitiveCount: 2 },
-      { id: 2, primitiveStart: 2, primitiveCount: 2 },
-      { id: 3, primitiveStart: 4, primitiveCount: 2 },
-      { id: 4, primitiveStart: 6, primitiveCount: 2 },
+    expect(part?.geometries[0]?.positions).toHaveLength(27);
+    expect(part?.geometries[0]?.indices).toHaveLength(24);
+    expect(part?.elements).toEqual([
+      {
+        id: 1,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }],
+      },
+      {
+        id: 2,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 2, primitiveCount: 2 }],
+      },
+      {
+        id: 3,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 4, primitiveCount: 2 }],
+      },
+      {
+        id: 4,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 6, primitiveCount: 2 }],
+      },
     ]);
   });
 
@@ -83,12 +95,10 @@ describe("WebGPU benchmark models", () => {
     });
     expect(manyParts.scene.parts.size).toBe(3);
     expect(manyParts.scene.parts.get(1)).not.toBe(manyParts.scene.parts.get(2));
-    expect(bodyHeavy.scene.parts.get(1)?.geometry.bodies).toHaveLength(4);
-    expect(bodyHeavy.scene.parts.get(1)?.geometry.elements).toHaveLength(16);
+    expect(bodyHeavy.scene.parts.get(1)?.bodies).toHaveLength(4);
+    expect(bodyHeavy.scene.parts.get(1)?.elements).toHaveLength(16);
     expect(
-      bodyHeavy.scene.parts
-        .get(1)
-        ?.geometry.elements?.every((element) => element.bodyId !== undefined),
+      bodyHeavy.scene.parts.get(1)?.elements?.every((element) => element.bodyId !== undefined),
     ).toBe(true);
   });
 
@@ -116,16 +126,27 @@ describe("WebGPU benchmark models", () => {
     const quad8Part = createStructuredFePart(2, "quad8", 2);
     const hex8Part = createStructuredFePart(3, "hex8", 2);
     const hex20Part = createStructuredFePart(4, "hex20", 2);
-    expect(quadPart.geometry.elements).toHaveLength(4);
-    expect(quadPart.geometry.faces).toHaveLength(4);
-    expect(quadPart.geometry.indices).toHaveLength(4 * 2 * 3);
-    expect(quad8Part.geometry.faces).toHaveLength(4);
-    expect(quad8Part.geometry.indices).toHaveLength(4 * 6 * 3);
-    expect(hex8Part.geometry.faces).toHaveLength(48);
-    expect(hex8Part.geometry.indices).toHaveLength(48 * 2 * 3);
-    expect(hex20Part.geometry.faces).toHaveLength(48);
-    expect(hex20Part.geometry.indices).toHaveLength(48 * 6 * 3);
-    expect(hex20Part.geometry.bodies).toEqual([
+    const quadGeometry = quadPart.geometries[0];
+    const quad8Geometry = quad8Part.geometries[0];
+    const hex8Geometry = hex8Part.geometries[0];
+    const hex20Geometry = hex20Part.geometries[0];
+    if (
+      quadGeometry?.primitive !== "triangles" ||
+      quad8Geometry?.primitive !== "triangles" ||
+      hex8Geometry?.primitive !== "triangles" ||
+      hex20Geometry?.primitive !== "triangles"
+    )
+      throw new Error("Structured fixtures must contain triangle geometry");
+    expect(quadPart.elements).toHaveLength(4);
+    expect(quadGeometry.faces).toHaveLength(4);
+    expect(quadGeometry.indices).toHaveLength(4 * 2 * 3);
+    expect(quad8Geometry.faces).toHaveLength(4);
+    expect(quad8Geometry.indices).toHaveLength(4 * 6 * 3);
+    expect(hex8Geometry.faces).toHaveLength(48);
+    expect(hex8Geometry.indices).toHaveLength(48 * 2 * 3);
+    expect(hex20Geometry.faces).toHaveLength(48);
+    expect(hex20Geometry.indices).toHaveLength(48 * 6 * 3);
+    expect(hex20Part.bodies).toEqual([
       { id: 1, name: "hex20 structured body", elementIds: [1, 2, 3, 4, 5, 6, 7, 8] },
     ]);
   });
@@ -248,6 +269,6 @@ describe("WebGPU benchmark models", () => {
     expect(lazy.scene.parts.size).toBe(0);
     const loaded = await lazy.deferredLoad?.();
     expect(loaded?.scene.parts.size).toBe(1);
-    expect(loaded?.scene.parts.get(1)?.geometry.bodies).toHaveLength(256);
+    expect(loaded?.scene.parts.get(1)?.bodies).toHaveLength(256);
   });
 });

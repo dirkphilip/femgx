@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createPart, type Geometry, type Part } from "../../src/geometry/part";
+import {
+  createPart,
+  type ElementTessellation,
+  type Geometry,
+  type GeometryBody,
+  type GeometryElementBlock,
+  type Part,
+} from "../../src/geometry/part";
 import {
   createInteractionState,
   setElementHighlighted,
@@ -58,6 +65,24 @@ import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 import { createBoltedPlateFixture } from "../../demo/fixture/bolted-plate";
 
+type SemanticTestGeometry = Geometry & {
+  readonly elements?: readonly ElementTessellation[];
+  readonly bodies?: readonly GeometryBody[];
+  readonly blocks?: readonly GeometryElementBlock[];
+  readonly nodePositions?: Float32Array;
+};
+
+function partFor(geometry: SemanticTestGeometry): Part {
+  const { elements, bodies, blocks, nodePositions, ...localGeometry } = geometry;
+  return createPart(1, {
+    geometries: [localGeometry],
+    ...(elements === undefined ? {} : { elements }),
+    ...(bodies === undefined ? {} : { bodies }),
+    ...(blocks === undefined ? {} : { blocks }),
+    ...(nodePositions === undefined ? {} : { nodePositions }),
+  });
+}
+
 const style = {
   color: { r: 0.23, g: 0.51, b: 0.96, a: 1 },
   emissive: 0.5,
@@ -84,16 +109,24 @@ function bodyUpdate(slot: number, bodyId: number): EmphasisUpdate {
 
 describe("buildElementPrimitivePickIds", () => {
   it("maps each triangle to its element pick id (element id + 1)", () => {
-    const geometry: Geometry = {
+    const geometry: SemanticTestGeometry = {
       positions: new Float32Array(9),
       indices: new Uint32Array(9),
       primitive: "triangles" as const,
       elements: [
-        { id: 0, primitiveStart: 0, primitiveCount: 2 },
-        { id: 3, primitiveStart: 2, primitiveCount: 1 },
+        {
+          id: 0,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }],
+        },
+        {
+          id: 3,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 2, primitiveCount: 1 }],
+        },
       ],
     };
-    expect(Array.from(buildElementPrimitivePickIds(geometry))).toEqual([1, 1, 4]);
+    expect(Array.from(buildElementPrimitivePickIds(geometry, geometry.elements))).toEqual([
+      1, 1, 4,
+    ]);
   });
 
   it("produces all-zero ids when the geometry has no elements", () => {
@@ -111,22 +144,36 @@ describe("buildElementPrimitivePickIds", () => {
   it("maps authored line segments and point sprites to their element ids", () => {
     expect(
       Array.from(
-        buildElementPrimitivePickIds({
-          positions: new Float32Array(6),
-          indices: new Uint32Array([0, 1]),
-          primitive: "lines",
-          elements: [{ id: 4, primitiveStart: 0, primitiveCount: 1 }],
-        }),
+        buildElementPrimitivePickIds(
+          {
+            positions: new Float32Array(6),
+            indices: new Uint32Array([0, 1]),
+            primitive: "lines",
+          },
+          [
+            {
+              id: 4,
+              primitiveRanges: [{ primitive: "lines", primitiveStart: 0, primitiveCount: 1 }],
+            },
+          ],
+        ),
       ),
     ).toEqual([5]);
     expect(
       Array.from(
-        buildElementPrimitivePickIds({
-          positions: new Float32Array(6),
-          indices: new Uint32Array([0]),
-          primitive: "points",
-          elements: [{ id: 8, primitiveStart: 0, primitiveCount: 1 }],
-        }),
+        buildElementPrimitivePickIds(
+          {
+            positions: new Float32Array(6),
+            indices: new Uint32Array([0]),
+            primitive: "points",
+          },
+          [
+            {
+              id: 8,
+              primitiveRanges: [{ primitive: "points", primitiveStart: 0, primitiveCount: 1 }],
+            },
+          ],
+        ),
       ),
     ).toEqual([9]);
   });
@@ -134,19 +181,26 @@ describe("buildElementPrimitivePickIds", () => {
 
 describe("buildElementPrimitiveOrdinals", () => {
   it("maps each primitive to its stable part-wide element ordinal", () => {
-    const geometry: Geometry = {
+    const geometry: SemanticTestGeometry = {
       positions: new Float32Array(9),
       indices: new Uint32Array(9),
       primitive: "triangles" as const,
       elements: [
-        { id: 40, primitiveStart: 0, primitiveCount: 2 },
-        { id: 2, primitiveStart: 2, primitiveCount: 1 },
+        {
+          id: 40,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }],
+        },
+        {
+          id: 2,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 2, primitiveCount: 1 }],
+        },
       ],
     };
     expect(
       Array.from(
         buildElementPrimitiveOrdinals(
           geometry,
+          geometry.elements ?? [],
           new Map([
             [40, 4],
             [2, 2],
@@ -159,20 +213,26 @@ describe("buildElementPrimitiveOrdinals", () => {
 
 describe("buildBodyPrimitivePickIds", () => {
   it("maps triangles to their reusable body pick ids", () => {
-    const geometry: Geometry = {
+    const geometry: SemanticTestGeometry = {
       positions: new Float32Array(18),
       indices: new Uint32Array(6),
       primitive: "triangles" as const,
-      elements: [{ id: 4, primitiveStart: 0, primitiveCount: 2, bodyId: 7 }],
+      elements: [
+        {
+          id: 4,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }],
+          bodyId: 7,
+        },
+      ],
       bodies: [{ id: 7, elementIds: [4] }],
     };
-    expect(Array.from(buildBodyPrimitivePickIds(geometry))).toEqual([8, 8]);
+    expect(Array.from(buildBodyPrimitivePickIds(geometry, geometry.elements))).toEqual([8, 8]);
   });
 });
 
 describe("buildFacePrimitivePickIds", () => {
   it("derives dense ids from exact face ranges", () => {
-    const geometry: Geometry = {
+    const geometry: SemanticTestGeometry = {
       positions: new Float32Array(9),
       indices: new Uint32Array(9),
       primitive: "triangles" as const,
@@ -201,7 +261,7 @@ describe("buildFacePrimitivePickIds", () => {
   });
 
   it("produces all-zero ids when the geometry has no faces", () => {
-    const geometry: Geometry = {
+    const geometry: SemanticTestGeometry = {
       positions: new Float32Array(9),
       indices: new Uint32Array(3),
       primitive: "triangles" as const,
@@ -212,11 +272,17 @@ describe("buildFacePrimitivePickIds", () => {
 
 describe("buildPrimitiveFaceBodyPickData", () => {
   it("packs face and body ids into the shared triangle buffer", () => {
-    const geometry: Geometry = {
+    const geometry: SemanticTestGeometry = {
       positions: new Float32Array(18),
       indices: new Uint32Array(6),
       primitive: "triangles" as const,
-      elements: [{ id: 4, primitiveStart: 0, primitiveCount: 2, bodyId: 7 }],
+      elements: [
+        {
+          id: 4,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }],
+          bodyId: 7,
+        },
+      ],
       bodies: [{ id: 7, elementIds: [4] }],
       faces: [
         {
@@ -230,9 +296,9 @@ describe("buildPrimitiveFaceBodyPickData", () => {
         },
       ],
     };
-    expect(Array.from(buildPrimitiveFaceBodyPickData(geometry))).toEqual([
-      1, 8, 0, 5, 0, 1, 8, 0, 5, 0,
-    ]);
+    expect(
+      Array.from(buildPrimitiveFaceBodyPickData(geometry, geometry.elements, geometry.blocks)),
+    ).toEqual([1, 8, 0, 5, 0, 1, 8, 0, 5, 0]);
   });
 });
 
@@ -250,71 +316,99 @@ describe("buildNodeBodyPickData", () => {
   });
 
   it("assigns a body to nodes that belong to exactly one body", () => {
-    const geometry: Geometry = {
-      positions: new Float32Array(18),
-      indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
-      primitive: "triangles" as const,
-      nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
-      nodePositions: new Float32Array(9),
-      elements: [{ id: 4, primitiveStart: 0, primitiveCount: 2, bodyId: 7 }],
-      bodies: [{ id: 7, elementIds: [4] }],
-    };
-    expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([
-      0, 8, 0, 5, 0, 0, 8, 0, 5, 0, 0, 8, 0, 5, 0,
-    ]);
-  });
-
-  it("maps filtered sprite ids to their original body slots", () => {
-    const geometry: Geometry = {
-      positions: new Float32Array(18),
-      indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
-      primitive: "triangles" as const,
-      nodePickIds: new Uint32Array([2, 2, 4, 4, 0, 0]),
-      nodePositions: new Float32Array(12),
-      elements: [{ id: 4, primitiveStart: 0, primitiveCount: 2, bodyId: 7 }],
-      bodies: [{ id: 7, elementIds: [4] }],
-    };
-    expect(Array.from(buildNodeBodyPickData(geometry, new Uint32Array([2, 4])))).toEqual([
-      0, 8, 0, 5, 0, 0, 8, 0, 5, 0,
-    ]);
-  });
-
-  it("keeps every owner for shared nodes so all-hidden topology can disappear", () => {
-    const geometry: Geometry = {
+    const geometry: SemanticTestGeometry = {
       positions: new Float32Array(18),
       indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
       primitive: "triangles" as const,
       nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
       nodePositions: new Float32Array(9),
       elements: [
-        { id: 4, primitiveStart: 0, primitiveCount: 1, bodyId: 7 },
-        { id: 5, primitiveStart: 1, primitiveCount: 1, bodyId: 8 },
+        {
+          id: 4,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }],
+          bodyId: 7,
+        },
+      ],
+      bodies: [{ id: 7, elementIds: [4] }],
+    };
+    expect(Array.from(buildNodeBodyPickData(partFor(geometry)))).toEqual([
+      0, 8, 0, 5, 0, 0, 8, 0, 5, 0, 0, 8, 0, 5, 0,
+    ]);
+  });
+
+  it("maps filtered sprite ids to their original body slots", () => {
+    const geometry: SemanticTestGeometry = {
+      positions: new Float32Array(18),
+      indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+      primitive: "triangles" as const,
+      nodePickIds: new Uint32Array([2, 2, 4, 4, 0, 0]),
+      nodePositions: new Float32Array(12),
+      elements: [
+        {
+          id: 4,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }],
+          bodyId: 7,
+        },
+      ],
+      bodies: [{ id: 7, elementIds: [4] }],
+    };
+    expect(Array.from(buildNodeBodyPickData(partFor(geometry), new Uint32Array([2, 4])))).toEqual([
+      0, 8, 0, 5, 0, 0, 8, 0, 5, 0,
+    ]);
+  });
+
+  it("keeps every owner for shared nodes so all-hidden topology can disappear", () => {
+    const geometry: SemanticTestGeometry = {
+      positions: new Float32Array(18),
+      indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+      primitive: "triangles" as const,
+      nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
+      nodePositions: new Float32Array(9),
+      elements: [
+        {
+          id: 4,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+          bodyId: 7,
+        },
+        {
+          id: 5,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+          bodyId: 8,
+        },
       ],
       bodies: [
         { id: 7, elementIds: [4] },
         { id: 8, elementIds: [5] },
       ],
     };
-    expect(buildNodeBodyOwnerData(geometry, new Uint32Array([1, 2, 3]))).toEqual({
+    expect(buildNodeBodyOwnerData(partFor(geometry), new Uint32Array([1, 2, 3]))).toEqual({
       bodyRanges: new Uint32Array([0, 2, 2, 2, 4, 2]),
       bodyIds: new Uint32Array([8, 0, 9, 0, 8, 0, 9, 0, 8, 0, 9, 0]),
       elementIds: new Uint32Array([5, 0, 6, 0, 5, 0, 6, 0, 5, 0, 6, 0]),
     });
-    expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([
+    expect(Array.from(buildNodeBodyPickData(partFor(geometry)))).toEqual([
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     ]);
   });
 
   it("follows indexed primitive vertices when assigning shared node owners", () => {
-    const geometry: Geometry = {
+    const geometry: SemanticTestGeometry = {
       positions: new Float32Array(12),
       indices: new Uint32Array([0, 1, 2, 1, 3, 2]),
       primitive: "triangles",
       nodePickIds: new Uint32Array([1, 2, 3, 4]),
       nodePositions: new Float32Array(12),
       elements: [
-        { id: 4, primitiveStart: 0, primitiveCount: 1, bodyId: 7 },
-        { id: 5, primitiveStart: 1, primitiveCount: 1, bodyId: 8 },
+        {
+          id: 4,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+          bodyId: 7,
+        },
+        {
+          id: 5,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+          bodyId: 8,
+        },
       ],
       bodies: [
         { id: 7, elementIds: [4] },
@@ -322,7 +416,7 @@ describe("buildNodeBodyPickData", () => {
       ],
     };
 
-    expect(buildNodeBodyOwnerData(geometry, new Uint32Array([1, 2, 3, 4]))).toEqual({
+    expect(buildNodeBodyOwnerData(partFor(geometry), new Uint32Array([1, 2, 3, 4]))).toEqual({
       bodyRanges: new Uint32Array([0, 1, 1, 2, 3, 2, 5, 1]),
       bodyIds: new Uint32Array([8, 0, 8, 0, 9, 0, 8, 0, 9, 0, 9, 0]),
       elementIds: new Uint32Array([5, 0, 5, 0, 6, 0, 5, 0, 6, 0, 6, 0]),
@@ -330,25 +424,32 @@ describe("buildNodeBodyPickData", () => {
   });
 
   it("keeps unowned contributors for shared node visibility", () => {
-    const geometry: Geometry = {
+    const geometry: SemanticTestGeometry = {
       positions: new Float32Array(12),
       indices: new Uint32Array([0, 1, 2, 0, 1, 3]),
       primitive: "triangles",
       nodePickIds: new Uint32Array([1, 2, 3, 4]),
       nodePositions: new Float32Array(12),
       elements: [
-        { id: 4, primitiveStart: 0, primitiveCount: 1, bodyId: 7 },
-        { id: 5, primitiveStart: 1, primitiveCount: 1 },
+        {
+          id: 4,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+          bodyId: 7,
+        },
+        {
+          id: 5,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+        },
       ],
       bodies: [{ id: 7, elementIds: [4] }],
     };
 
-    expect(buildNodeBodyOwnerData(geometry, new Uint32Array([1, 2, 3, 4]))).toEqual({
+    expect(buildNodeBodyOwnerData(partFor(geometry), new Uint32Array([1, 2, 3, 4]))).toEqual({
       bodyRanges: new Uint32Array([0, 2, 2, 2, 4, 1, 5, 1]),
       bodyIds: new Uint32Array([0, 0, 8, 0, 0, 0, 8, 0, 8, 0, 0, 0]),
       elementIds: new Uint32Array([6, 0, 5, 0, 6, 0, 5, 0, 5, 0, 6, 0]),
     });
-    expect(Array.from(buildNodeBodyPickData(geometry))).toEqual([
+    expect(Array.from(buildNodeBodyPickData(partFor(geometry)))).toEqual([
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 5, 0, 0, 0, 0, 6, 0,
     ]);
   });
@@ -356,32 +457,35 @@ describe("buildNodeBodyPickData", () => {
 
 describe("buildNodeSpritePickIds", () => {
   it("returns unique ascending original ids and skips interpolated vertices", () => {
-    const geometry: Geometry = {
+    const geometry: SemanticTestGeometry = {
       positions: new Float32Array(18),
       indices: new Uint32Array(6),
       primitive: "triangles" as const,
       nodePickIds: new Uint32Array([4, 2, 4, 0, 2, 0]),
       nodePositions: new Float32Array(12),
     };
-    expect(Array.from(buildNodeSpritePickIds(geometry))).toEqual([2, 4]);
+    expect(Array.from(buildNodeSpritePickIds(partFor(geometry)))).toEqual([2, 4]);
   });
 
   it("does not cover authored point elements with node-overlay sprites", () => {
-    const surface: Geometry = {
+    const surface: SemanticTestGeometry = {
       positions: new Float32Array(9),
       indices: new Uint32Array([0, 1, 2]),
       primitive: "triangles",
       nodePickIds: new Uint32Array([1, 2, 3]),
       nodePositions: new Float32Array(12),
     };
-    const point: Geometry = {
+    const point: SemanticTestGeometry = {
       positions: new Float32Array([0, 0, 0]),
       indices: new Uint32Array([0]),
       primitive: "points",
       nodePickIds: new Uint32Array([4]),
       nodePositions: new Float32Array(12),
     };
-    const part = createPart(1, [surface, point]);
+    const part = createPart(1, {
+      geometries: [surface, point],
+      nodePositions: new Float32Array(12),
+    });
 
     expect(Array.from(buildNodeSpritePickIds(part))).toEqual([1, 2, 3]);
   });
@@ -835,11 +939,17 @@ describe("writeElementHighlights", () => {
 });
 
 function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime } {
-  const geometry: Geometry = {
+  const geometry: SemanticTestGeometry = {
     positions: new Float32Array(18),
     indices: new Uint32Array(18),
     primitive: "triangles" as const,
-    elements: [{ id: 0, primitiveStart: 0, primitiveCount: 6, bodyId: 3 }],
+    elements: [
+      {
+        id: 0,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 6 }],
+        bodyId: 3,
+      },
+    ],
     bodies: [{ id: 3, name: "body", elementIds: [0] }],
     nodePickIds: new Uint32Array([1, 2, 3, 1, 2, 3]),
     nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]),
@@ -876,7 +986,7 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
       },
     ],
   };
-  const part: Part = createPart(1, geometry);
+  const part: Part = partFor(geometry);
   const scene = createScene()
     .addPart(part)
     .addAssembly({
@@ -898,15 +1008,18 @@ function partsMap(scene: Scene): Map<number, Part> {
 
 describe("collectEmphasisUpdates", () => {
   it("chooses dense membership only when it beats sparse selected records", () => {
-    const elements = Array.from({ length: 1_000 }, (_, index) => ({
+    const elements: ElementTessellation[] = Array.from({ length: 1_000 }, (_, index) => ({
       id: 20_000 + index,
-      primitiveStart: index,
-      primitiveCount: 1,
+      primitiveRanges: [{ primitive: "triangles", primitiveStart: index, primitiveCount: 1 }],
     }));
     const part = createPart(99, {
-      positions: new Float32Array(3_000),
-      indices: Uint32Array.from({ length: 3_000 }, (_, index) => index % 1_000),
-      primitive: "triangles",
+      geometries: [
+        {
+          positions: new Float32Array(3_000),
+          indices: Uint32Array.from({ length: 3_000 }, (_, index) => index % 1_000),
+          primitive: "triangles",
+        },
+      ],
       elements,
     });
     const scene = createScene()
@@ -945,11 +1058,18 @@ describe("collectEmphasisUpdates", () => {
   });
 
   it("caches sparse element, body, block, and face ownership by part identity", () => {
-    const geometry: Geometry = {
+    const geometry: SemanticTestGeometry = {
       positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
       indices: new Uint32Array([0, 1, 2]),
       primitive: "triangles",
-      elements: [{ id: 100_000, primitiveStart: 0, primitiveCount: 1, bodyId: 7, blockId: 11 }],
+      elements: [
+        {
+          id: 100_000,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+          bodyId: 7,
+          blockId: 11,
+        },
+      ],
       bodies: [{ id: 7, elementIds: [100_000] }],
       blocks: [{ id: 11, elementIds: [100_000] }],
       faces: [
@@ -966,7 +1086,7 @@ describe("collectEmphasisUpdates", () => {
         },
       ],
     };
-    const part = createPart(99, geometry);
+    const part = partFor(geometry);
     const metadata = getPartSemanticIndex(part);
     expect(getPartSemanticIndex(part)).toBe(metadata);
     expect(metadata.elements.get(100_000)).toBe(geometry.elements?.[0]);
@@ -977,7 +1097,7 @@ describe("collectEmphasisUpdates", () => {
     expect(metadata.bodyByBlock.get(11)).toBe(7);
     expect(metadata.faces.get("100000/0")?.faceId).toBe(0);
 
-    const replacement = createPart(99, {
+    const replacement = partFor({
       ...geometry,
       positions: new Float32Array(geometry.positions),
       indices: new Uint32Array(geometry.indices),
@@ -1066,10 +1186,14 @@ describe("collectEmphasisUpdates", () => {
 
   it("maps a selected point node without element ownership", () => {
     const point = createPart(2, {
-      positions: new Float32Array([0, 0, 0]),
-      indices: new Uint32Array([0]),
-      primitive: "points",
-      nodePickIds: new Uint32Array([1]),
+      geometries: [
+        {
+          positions: new Float32Array([0, 0, 0]),
+          indices: new Uint32Array([0]),
+          primitive: "points",
+          nodePickIds: new Uint32Array([1]),
+        },
+      ],
       nodePositions: new Float32Array([0, 0, 0]),
     });
     const scene = createScene()
@@ -1236,41 +1360,55 @@ describe("syncElementHighlights", () => {
 });
 function blockScene(): { readonly scene: Scene; readonly runtime: SceneRuntime } {
   const part = createPart(3, {
-    positions: new Float32Array(18),
-    indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
-    primitive: "triangles" as const,
+    geometries: [
+      {
+        positions: new Float32Array(18),
+        indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+        primitive: "triangles" as const,
+        faces: [
+          {
+            elementId: 4,
+            faceIndex: 0,
+            primitiveStart: 0,
+            primitiveCount: 1,
+            key: "a",
+            nodeIds: [],
+            neighborElementIds: [],
+            bodyId: 7,
+            blockId: 10,
+          },
+          {
+            elementId: 5,
+            faceIndex: 0,
+            primitiveStart: 1,
+            primitiveCount: 1,
+            key: "b",
+            nodeIds: [],
+            neighborElementIds: [],
+            bodyId: 7,
+            blockId: 11,
+          },
+        ],
+      },
+    ],
     elements: [
-      { id: 4, primitiveStart: 0, primitiveCount: 1, bodyId: 7, blockId: 10 },
-      { id: 5, primitiveStart: 1, primitiveCount: 1, bodyId: 7, blockId: 11 },
+      {
+        id: 4,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+        bodyId: 7,
+        blockId: 10,
+      },
+      {
+        id: 5,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+        bodyId: 7,
+        blockId: 11,
+      },
     ],
     bodies: [{ id: 7, elementIds: [4, 5] }],
     blocks: [
       { id: 10, elementIds: [4] },
       { id: 11, elementIds: [5] },
-    ],
-    faces: [
-      {
-        elementId: 4,
-        faceIndex: 0,
-        primitiveStart: 0,
-        primitiveCount: 1,
-        key: "a",
-        nodeIds: [],
-        neighborElementIds: [],
-        bodyId: 7,
-        blockId: 10,
-      },
-      {
-        elementId: 5,
-        faceIndex: 0,
-        primitiveStart: 1,
-        primitiveCount: 1,
-        key: "b",
-        nodeIds: [],
-        neighborElementIds: [],
-        bodyId: 7,
-        blockId: 11,
-      },
     ],
   });
   const scene = createScene()

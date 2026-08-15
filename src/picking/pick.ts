@@ -111,12 +111,12 @@ function deepestHit(
     if (!validNodeId(part, ids.nodePickId - 1)) return instanceHit(instance, worldPosition);
     return nodeHit(instance, part, ids, worldPosition);
   }
-  if (geometry?.primitive === "triangles" && ids.facePickId > 0) {
-    return faceHit(instance, geometry, ids, worldPosition);
+  if (part !== undefined && geometry?.primitive === "triangles" && ids.facePickId > 0) {
+    return faceHit(instance, part, geometry, ids, worldPosition);
   }
   if (ids.elementPickId > 0) {
     const elementId = ids.elementPickId - 1;
-    if (!geometry?.elements?.some((element) => element.id === elementId)) {
+    if (!part?.elements?.some((element) => element.id === elementId)) {
       return instanceHit(instance, worldPosition);
     }
     return {
@@ -179,6 +179,7 @@ function elementIdFromPick(part: Part, elementPickId: number): number | undefine
 
 function faceHit(
   instance: Instance,
+  part: Part,
   geometry: Extract<Geometry, { primitive: "triangles" }>,
   ids: ResolvedPickIds,
   worldPosition: Vec3,
@@ -189,14 +190,14 @@ function faceHit(
     throw new Error(`Part ${instance.partId} has no face descriptor ${faceId}`);
   }
   const worldPoints = face.nodeIds.map((nodeId) =>
-    transformPoint(instance.worldTransform, ...nodePosition(geometry.nodePositions, nodeId)),
+    transformPoint(instance.worldTransform, ...nodePosition(part.nodePositions, nodeId)),
   );
   return {
     kind: "face",
     partId: instance.partId,
     instanceId: instance.instanceId,
     elementId: face.elementId,
-    ...bodyFields(geometry, face.elementId, face.bodyId, face.blockId),
+    ...bodyFields(part, face.elementId, face.bodyId, face.blockId),
     faceIndex: face.faceIndex,
     key: face.key,
     nodeIds: face.nodeIds,
@@ -207,30 +208,18 @@ function faceHit(
 }
 
 function bodyFields(
-  source: Part | Geometry | undefined,
+  source: Part | undefined,
   elementId: number,
   explicitBodyId?: number,
   explicitBlockId?: number,
 ): { readonly bodyId?: number; readonly blockId?: number } {
-  const geometries =
-    source === undefined ? [] : "geometries" in source ? source.geometries : [source];
-  const element = geometries
-    .flatMap((geometry) => geometry.elements ?? [])
-    .find((candidate) => candidate.id === elementId);
+  const element = source?.elements?.find((candidate) => candidate.id === elementId);
   const bodyId =
-    explicitBodyId ??
-    (source === undefined
-      ? undefined
-      : "geometries" in source
-        ? (source.elements?.find((candidate) => candidate.id === elementId)?.bodyId ??
-          source.bodies?.find((body) => body.elementIds.includes(elementId))?.id)
-        : bodyIdForElement(source, elementId));
+    explicitBodyId ?? (source === undefined ? undefined : bodyIdForElement(source, elementId));
   const blockId =
     explicitBlockId ??
     element?.blockId ??
-    geometries
-      .flatMap((geometry) => geometry.blocks ?? [])
-      .find((block) => block.elementIds.includes(elementId))?.id;
+    source?.blocks?.find((block) => block.elementIds.includes(elementId))?.id;
   return {
     ...(bodyId === undefined ? {} : { bodyId }),
     ...(blockId === undefined ? {} : { blockId }),
@@ -275,9 +264,15 @@ function geometryForHit(part: Part, ids: ResolvedPickIds): Geometry | undefined 
     if (triangle !== undefined) return triangle;
   }
   const elementId = ids.elementPickId - 1;
-  return part.geometries.find((geometry) =>
-    geometry.elements?.some((element) => element.id === elementId),
-  );
+  return part.elements?.some((element) => element.id === elementId)
+    ? part.geometries.find((geometry) =>
+        part.elements?.some(
+          (element) =>
+            element.id === elementId &&
+            element.primitiveRanges.some((range) => range.primitive === geometry.primitive),
+        ),
+      )
+    : undefined;
 }
 
 function partAdjacency(

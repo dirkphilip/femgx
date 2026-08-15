@@ -14,9 +14,18 @@ body records. Derived descriptors never become a second authoring owner.
 const geometry: Geometry = {
   positions,
   indices,
-  elements: [{ id: 10, primitiveStart: 0, primitiveCount: 2, bodyId: 3 }],
-  bodies: [{ id: 3, name: "Housing", elementIds: [10] }],
 };
+const part = createPart(1, {
+  geometries: [geometry],
+  elements: [
+    {
+      id: 10,
+      primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }],
+      bodyId: 3,
+    },
+  ],
+  bodies: [{ id: 3, name: "Housing", elementIds: [10] }],
+});
 ```
 
 `createPart` validates derived body/block metadata before a part enters the

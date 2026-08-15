@@ -109,7 +109,9 @@ describe("heterogeneous viewport results", () => {
     const { scene } = heterogeneousScene();
     const part = scene.parts.get(30);
     if (part === undefined) throw new Error("mixed part missing");
+    const geometry = part.geometries[0];
+    if (geometry === undefined) throw new Error("mixed part geometry missing");
     expect(part.bounds).toBeDefined();
-    expect(part.bounds).not.toEqual(computeBounds(part.geometry));
+    expect(part.bounds).not.toEqual(computeBounds(geometry));
   });
 });

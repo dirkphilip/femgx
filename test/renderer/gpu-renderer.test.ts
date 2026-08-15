@@ -65,7 +65,7 @@ function buildScene(): Scene {
     primitive: "triangles" as const,
   };
   return createScene()
-    .addPart(createPart(1, geometry))
+    .addPart(createPart(1, { geometries: [geometry] }))
     .addAssembly({
       id: 1,
       name: "root",
@@ -86,7 +86,7 @@ function buildPointScene(): Scene {
     primitive: "points" as const,
   };
   return createScene()
-    .addPart(createPart(1, geometry))
+    .addPart(createPart(1, { geometries: [geometry] }))
     .addAssembly({
       id: 1,
       name: "root",
@@ -114,9 +114,18 @@ function buildFaceScene(): Scene {
         neighborElementIds: [],
       },
     ],
+    elements: [
+      {
+        id: 0,
+        primitiveRanges: [
+          { primitive: "triangles" as const, primitiveStart: 0, primitiveCount: 1 },
+        ],
+      },
+    ],
   };
+  const { elements, nodePositions, ...localGeometry } = geometry;
   return createScene()
-    .addPart(createPart(1, geometry))
+    .addPart(createPart(1, { geometries: [localGeometry], elements, nodePositions }))
     .addAssembly({
       id: 1,
       name: "root",
@@ -131,11 +140,20 @@ function buildBodyScene(): Scene {
     positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
     primitive: "triangles" as const,
-    elements: [{ id: 0, primitiveStart: 0, primitiveCount: 1, bodyId: 3 }],
+    elements: [
+      {
+        id: 0,
+        primitiveRanges: [
+          { primitive: "triangles" as const, primitiveStart: 0, primitiveCount: 1 },
+        ],
+        bodyId: 3,
+      },
+    ],
     bodies: [{ id: 3, name: "body", elementIds: [0] }],
   };
+  const { elements, bodies, ...localGeometry } = geometry;
   return createScene()
-    .addPart(createPart(1, geometry))
+    .addPart(createPart(1, { geometries: [localGeometry], elements, bodies }))
     .addAssembly({
       id: 1,
       name: "root",
@@ -900,7 +918,7 @@ describe("WebGPU renderer", () => {
       indices: new Uint32Array([0, 1, 2]),
       primitive: "triangles" as const,
     };
-    const part1 = createPart(1, geometry);
+    const part1 = createPart(1, { geometries: [geometry] });
 
     const wrapped = createScene()
       .addPart(part1)

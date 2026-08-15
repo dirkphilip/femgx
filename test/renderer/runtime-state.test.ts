@@ -24,7 +24,7 @@ function part(id: number): Part {
     indices: new Uint32Array(),
     primitive: "triangles" as const,
   };
-  return createPart(id, geometry);
+  return createPart(id, { geometries: [geometry] });
 }
 
 describe("renderer runtime state", () => {
@@ -147,10 +147,14 @@ describe("renderer runtime state", () => {
   it("builds node orders from visible node-styled instances and skips points", () => {
     const triangle = part(1);
     const point = createPart(2, {
-      positions: new Float32Array([0, 0, 0]),
-      indices: new Uint32Array([0]),
-      primitive: "points",
-      nodePickIds: new Uint32Array([1]),
+      geometries: [
+        {
+          positions: new Float32Array([0, 0, 0]),
+          indices: new Uint32Array([0]),
+          primitive: "points",
+          nodePickIds: new Uint32Array([1]),
+        },
+      ],
       nodePositions: new Float32Array([0, 0, 0]),
     });
     const scene = createScene()

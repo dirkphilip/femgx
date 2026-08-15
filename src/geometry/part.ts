@@ -1,4 +1,9 @@
-import { validateElements, validatePickIds } from "./part-validation";
+import {
+  validateBodies,
+  validateBlocks,
+  validateElements,
+  validatePickIds,
+} from "./part-validation";
 import { validatePartId } from "./id-validation";
 import type {
   Bounds,
@@ -42,8 +47,6 @@ export interface Part {
   readonly [partBrand]: true;
   readonly id: PartId;
   readonly geometries: readonly Geometry[];
-  /** Transitional first-group view for consumers not yet migrated. */
-  readonly geometry: Geometry;
   readonly elements?: readonly ElementTessellation[];
   readonly nodePositions?: Float32Array;
   readonly bodies?: readonly GeometryBody[];
@@ -61,18 +64,20 @@ const partBrand: unique symbol = Symbol("Part");
  * for an empty part, so callers cannot provide stale bounds.
  * @category Start here
  */
-export function createPart<T extends Geometry>(
+export function createPart(
   id: PartId,
-  geometries: readonly T[] | T,
-): Part & { readonly geometry: T; readonly geometries: readonly T[] } {
+  input: {
+    readonly geometries: readonly Geometry[];
+    readonly elements?: readonly ElementTessellation[];
+    readonly nodePositions?: Float32Array;
+    readonly bodies?: readonly GeometryBody[];
+    readonly blocks?: readonly GeometryElementBlock[];
+  },
+): Part {
   validatePartId(id);
-  const groups: readonly T[] = Array.isArray(geometries) ? geometries : [geometries];
+  const groups = input.geometries;
   if (groups.length === 0) throw new Error("Part must contain at least one geometry group");
-  for (const geometry of groups) {
-    validateGeometryArrays(geometry);
-    validateElements(geometry);
-    validatePickIds(geometry);
-  }
+  validateNodePositions(input.nodePositions);
   const primitives = new Set<Geometry["primitive"]>();
   for (const geometry of groups) {
     if (primitives.has(geometry.primitive)) {
@@ -80,56 +85,59 @@ export function createPart<T extends Geometry>(
     }
     primitives.add(geometry.primitive);
   }
-  const nodePositions = groups.find(
-    (geometry) => geometry.nodePositions !== undefined,
-  )?.nodePositions;
-  const bodies = groups.find((geometry) => geometry.bodies !== undefined)?.bodies;
-  const blocks = groups.find((geometry) => geometry.blocks !== undefined)?.blocks;
+  validateSemanticIds(input.elements ?? [], primitives);
+  for (const geometry of groups) {
+    validateGeometryArrays(geometry);
+    validateElements(geometry, input.elements);
+    validatePickIds(geometry, input.elements, input.nodePositions);
+  }
+  validateBodies({
+    ...(input.elements === undefined ? {} : { elements: input.elements }),
+    ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
+  });
+  validateBlocks({
+    ...(input.elements === undefined ? {} : { elements: input.elements }),
+    ...(input.blocks === undefined ? {} : { blocks: input.blocks }),
+  });
   return {
     [partBrand]: true,
     id,
     geometries: groups,
-    geometry: groups[0] as T,
-    elements: mergeElements(groups),
-    ...(nodePositions === undefined ? {} : { nodePositions }),
-    ...(bodies === undefined ? {} : { bodies }),
-    ...(blocks === undefined ? {} : { blocks }),
+    ...(input.elements === undefined ? {} : { elements: input.elements }),
+    ...(input.nodePositions === undefined ? {} : { nodePositions: input.nodePositions }),
+    ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
+    ...(input.blocks === undefined ? {} : { blocks: input.blocks }),
     bounds: finitePartBounds(groups),
   };
 }
 
-function mergeElements(geometries: readonly Geometry[]): readonly ElementTessellation[] {
-  if (geometries.length === 1) return geometries[0]?.elements ?? [];
-  const merged = new Map<number, ElementTessellation>();
-  for (const geometry of geometries) {
-    for (const element of geometry.elements ?? []) {
-      const ranges = element.primitiveRanges ?? [
-        {
-          primitive: geometry.primitive,
-          primitiveStart: element.primitiveStart,
-          primitiveCount: element.primitiveCount,
-        },
-      ];
-      const previous = merged.get(element.id);
-      if (previous === undefined) {
-        merged.set(element.id, { ...element, primitiveRanges: ranges });
-        continue;
+function validateSemanticIds(
+  elements: readonly ElementTessellation[],
+  primitives: ReadonlySet<Geometry["primitive"]>,
+): void {
+  const seen = new Set<number>();
+  for (const element of elements) {
+    if (seen.has(element.id)) throw new Error(`Duplicate element id ${element.id}`);
+    seen.add(element.id);
+    if (element.primitiveRanges.length === 0) {
+      throw new Error(`Element ${element.id} must declare at least one primitive range`);
+    }
+    for (const range of element.primitiveRanges) {
+      if (!primitives.has(range.primitive)) {
+        throw new Error(
+          `Element ${element.id} references missing ${range.primitive} geometry group`,
+        );
       }
-      if (
-        previous.shape?.family !== element.shape?.family ||
-        previous.shape?.order !== element.shape?.order ||
-        previous.bodyId !== element.bodyId ||
-        previous.blockId !== element.blockId
-      ) {
-        throw new Error(`Element ${element.id} has inconsistent semantic metadata across groups`);
-      }
-      merged.set(previous.id, {
-        ...previous,
-        primitiveRanges: [...(previous.primitiveRanges ?? []), ...ranges],
-      });
     }
   }
-  return [...merged.values()].sort((left, right) => left.id - right.id);
+}
+
+function validateNodePositions(positions: Float32Array | undefined): void {
+  if (positions === undefined) return;
+  if (positions.length % 3 !== 0) throw new Error("nodePositions length must be a multiple of 3");
+  for (const position of positions) {
+    if (!Number.isFinite(position)) throw new Error("nodePositions must be finite");
+  }
 }
 
 /** Computes the bounding box of a geometry's positions. */
@@ -174,14 +182,6 @@ function validateGeometryArrays(geometry: Geometry): void {
   const vertexCount = geometry.positions.length / 3;
   for (const position of geometry.positions) {
     if (!Number.isFinite(position)) throw new Error("Geometry positions must be finite");
-  }
-  if (geometry.nodePositions !== undefined) {
-    if (geometry.nodePositions.length % 3 !== 0) {
-      throw new Error("Geometry nodePositions length must be a multiple of 3");
-    }
-    for (const position of geometry.nodePositions) {
-      if (!Number.isFinite(position)) throw new Error("Geometry nodePositions must be finite");
-    }
   }
   const indicesPerPrimitive =
     geometry.primitive === "triangles" ? 3 : geometry.primitive === "lines" ? 2 : 1;
@@ -231,7 +231,7 @@ export {
   bodyIdForElement,
   GeometryValidationError,
   logicalPrimitiveCount,
-  primitiveRangeForElement,
+  primitiveRangesForElement,
   validateBodies,
   validateElements,
   validateFaceSubset,

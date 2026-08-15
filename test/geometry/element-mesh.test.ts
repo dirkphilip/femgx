@@ -26,6 +26,7 @@ import {
   validateElements,
   validatePickIds,
   type LineGeometry,
+  type Part,
   type PointGeometry,
   type TriangleGeometry,
 } from "../../src/geometry/part";
@@ -263,14 +264,22 @@ function geometryFor(
   model: ElementModel,
   group: "triangle",
   options?: GeometryOptions,
-): TriangleGeometry;
-function geometryFor(model: ElementModel, group: "line", options?: GeometryOptions): LineGeometry;
-function geometryFor(model: ElementModel, group: "point", options?: GeometryOptions): PointGeometry;
+): TestGeometry<TriangleGeometry>;
+function geometryFor(
+  model: ElementModel,
+  group: "line",
+  options?: GeometryOptions,
+): TestGeometry<LineGeometry>;
+function geometryFor(
+  model: ElementModel,
+  group: "point",
+  options?: GeometryOptions,
+): TestGeometry<PointGeometry>;
 function geometryFor(
   model: ElementModel,
   group: "triangle" | "line" | "point",
   options: GeometryOptions = {},
-): TriangleGeometry | LineGeometry | PointGeometry {
+): TestGeometry<TriangleGeometry | LineGeometry | PointGeometry> {
   const authoredModel =
     options.bodies === undefined
       ? model
@@ -286,12 +295,16 @@ function geometryFor(
       : candidate.primitive === `${group}s`,
   );
   if (geometry === undefined) throw new Error(`Expected ${group} geometry`);
-  return geometry;
+  return Object.assign(geometry, { part });
 }
 
 interface GeometryOptions extends TessellationOptions {
   readonly bodies?: readonly Body[];
 }
+
+type TestGeometry<T extends TriangleGeometry | LineGeometry | PointGeometry> = T & {
+  readonly part: Part;
+};
 
 function familyModel(model: ElementModel, family: ElementFamily): ElementModel {
   return createElementModel(
@@ -358,25 +371,33 @@ describe("elementPart geometry", () => {
     const quad = geometryFor(familyModel(model, "quad"), "triangle");
     expect(triangle.indices.length).toBe(3);
     expect(quad.indices.length).toBe(6);
-    expect(triangle.elements).toEqual([
-      { id: 1, primitiveStart: 0, primitiveCount: 1, shape: TRIANGLE_SHAPE },
+    expect(triangle.part.elements).toEqual([
+      {
+        id: 1,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+        shape: TRIANGLE_SHAPE,
+      },
     ]);
-    expect(quad.elements).toEqual([
-      { id: 2, primitiveStart: 0, primitiveCount: 2, shape: QUAD_SHAPE },
+    expect(quad.part.elements).toEqual([
+      {
+        id: 2,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }],
+        shape: QUAD_SHAPE,
+      },
     ]);
     expect(triangle.faces?.[0]).toMatchObject({ elementId: 1, faceIndex: 0 });
     expect(quad.faces?.[0]).toMatchObject({ elementId: 2, faceIndex: 0 });
     expect(() => {
-      validateElements(triangle);
+      validateElements(triangle, triangle.part.elements);
     }).not.toThrow();
     expect(() => {
-      validateElements(quad);
+      validateElements(quad, quad.part.elements);
     }).not.toThrow();
     expect(() => {
-      validatePickIds(triangle);
+      validatePickIds(triangle, triangle.part.elements, triangle.part.nodePositions);
     }).not.toThrow();
     expect(() => {
-      validatePickIds(quad);
+      validatePickIds(quad, quad.part.elements, quad.part.nodePositions);
     }).not.toThrow();
   });
 
@@ -390,8 +411,14 @@ describe("elementPart geometry", () => {
       );
       const geometry = geometryFor(createElementModel(nodes, [element]), "triangle");
       expect(geometry.indices).toHaveLength(triangleCount * 3);
-      expect(geometry.elements).toEqual([
-        { id: 1, primitiveStart: 0, primitiveCount: triangleCount, shape },
+      expect(geometry.part.elements).toEqual([
+        {
+          id: 1,
+          primitiveRanges: [
+            { primitive: "triangles", primitiveStart: 0, primitiveCount: triangleCount },
+          ],
+          shape,
+        },
       ]);
       expect(new Set(geometry.nodePickIds)).toEqual(
         new Set(Array.from({ length: nodes.length / 3 }, (_, id) => id + 1)),
@@ -470,23 +497,35 @@ describe("elementPart geometry", () => {
 
   it("records element tessellations so every triangle is element-pickable", () => {
     const hex = geometryFor(hex8Model(), "triangle");
-    expect(hex.elements).toEqual([
-      { id: 1, primitiveStart: 0, primitiveCount: 12, shape: HEX8_SHAPE },
+    expect(hex.part.elements).toEqual([
+      {
+        id: 1,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 12 }],
+        shape: HEX8_SHAPE,
+      },
     ]);
     expect(() => {
-      validateElements(hex);
+      validateElements(hex, hex.part.elements);
     }).not.toThrow();
 
     const solid = geometryFor(sharedTetPairModel(), "triangle");
-    expect(solid.elements).toEqual([
-      { id: 1, primitiveStart: 0, primitiveCount: 4, shape: TET4_SHAPE },
-      { id: 2, primitiveStart: 4, primitiveCount: 4, shape: TET4_SHAPE },
+    expect(solid.part.elements).toEqual([
+      {
+        id: 1,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 4 }],
+        shape: TET4_SHAPE,
+      },
+      {
+        id: 2,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 4, primitiveCount: 4 }],
+        shape: TET4_SHAPE,
+      },
     ]);
   });
 
   it("records per-vertex node pick ids and node positions", () => {
     const geometry = geometryFor(tet4Model(), "triangle");
-    expect(geometry.nodePositions).toEqual(new Float32Array(TET_NODES));
+    expect(geometry.part.nodePositions).toEqual(new Float32Array(TET_NODES));
     expect(geometry.nodePickIds?.length).toBe(geometry.positions.length / 3);
     const pickIds = geometry.nodePickIds;
     if (pickIds === undefined) throw new Error("expected node pick ids");
@@ -558,7 +597,7 @@ describe("elementPart geometry", () => {
       expect(face.key).toBeDefined();
     });
     expect(() => {
-      validatePickIds(solid);
+      validatePickIds(solid, solid.part.elements, solid.part.nodePositions);
     }).not.toThrow();
   });
 
@@ -644,8 +683,8 @@ describe("elementPart metadata", () => {
     const geometry = geometryFor(tet4Model(), "triangle", {
       bodies: [{ id: 3, name: "housing", elementIds: [1] }],
     });
-    expect(geometry.bodies).toEqual([{ id: 3, name: "housing", elementIds: [1] }]);
-    expect(geometry.elements?.[0]).toMatchObject({ id: 1, bodyId: 3 });
+    expect(geometry.part.bodies).toEqual([{ id: 3, name: "housing", elementIds: [1] }]);
+    expect(geometry.part.elements?.[0]).toMatchObject({ id: 1, bodyId: 3 });
     expect(geometry.faces?.every((face) => face.bodyId === 3)).toBe(true);
   });
 
@@ -659,22 +698,20 @@ describe("elementPart metadata", () => {
       bodies: [{ id: 20, name: "assembly body", blockIds: [10, 11] }],
     });
     const part = elementPart(20, model);
-    const triangle = part.geometries.find((geometry) => geometry.primitive === "triangles");
-    const line = part.geometries.find((geometry) => geometry.primitive === "lines");
-    const point = part.geometries.find((geometry) => geometry.primitive === "points");
-    expect(triangle?.blocks).toEqual([
-      { id: 10, name: "surface and line", elementIds: [1] },
-      { id: 11, elementIds: [2, 3, 4] },
+    expect(part.blocks).toEqual([
+      { id: 10, name: "surface and line", elementIds: [1, 5] },
+      { id: 11, elementIds: [2, 3, 4, 6] },
     ]);
-    expect(line?.blocks).toEqual([{ id: 10, name: "surface and line", elementIds: [5] }]);
-    expect(point?.blocks).toEqual([{ id: 11, elementIds: [6] }]);
-    expect(triangle?.bodies).toEqual([{ id: 20, name: "assembly body", elementIds: [1, 2, 3, 4] }]);
     expect(part.bodies).toEqual([
       { id: 20, name: "assembly body", elementIds: [1, 2, 3, 4, 5, 6] },
     ]);
-    expect(triangle?.elements?.every((element) => element.bodyId === 20)).toBe(true);
-    expect(line?.elements?.[0]?.bodyId).toBe(20);
-    expect(point?.elements?.[0]?.bodyId).toBe(20);
+    expect(
+      part.elements
+        ?.filter((element) => [1, 2, 3, 4].includes(element.id))
+        .every((element) => element.bodyId === 20),
+    ).toBe(true);
+    expect(part.elements?.find((element) => element.id === 5)?.bodyId).toBe(20);
+    expect(part.elements?.find((element) => element.id === 6)?.bodyId).toBe(20);
   });
 });
 
@@ -686,8 +723,10 @@ describe("elementPart", () => {
       "lines",
       "points",
     ]);
-    expect(part.elements?.map((element) => element.id)).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(part.elements?.map((element) => element.primitiveRanges?.[0]?.primitive)).toEqual([
+    const elements = part.elements;
+    if (elements === undefined) throw new Error("elementPart did not publish elements");
+    expect(elements.map((element) => element.id)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(elements.map((element) => element.primitiveRanges[0]?.primitive)).toEqual([
       "triangles",
       "triangles",
       "triangles",
@@ -700,29 +739,28 @@ describe("elementPart", () => {
   it("groups linear surface, volume, line, and point elements without dropping ids", () => {
     const part = elementPart(20, heterogeneousModel());
     const triangle = part.geometries.find((geometry) => geometry.primitive === "triangles");
-    const line = part.geometries.find((geometry) => geometry.primitive === "lines");
-    const point = part.geometries.find((geometry) => geometry.primitive === "points");
     expect(triangle?.primitive).toBe("triangles");
-    expect(triangle?.elements?.map((element) => element.id)).toEqual([1, 2, 3, 4]);
-    expect(triangle?.elements?.map((element) => element.shape?.family)).toEqual([
-      "triangle",
-      "quad",
-      "tet",
-      "hex",
-    ]);
-    expect(line?.elements).toEqual([
+    expect(
+      part.elements
+        ?.filter((element) => [1, 2, 3, 4].includes(element.id))
+        .map((element) => element.id),
+    ).toEqual([1, 2, 3, 4]);
+    expect(
+      part.elements
+        ?.filter((element) => [1, 2, 3, 4].includes(element.id))
+        .map((element) => element.shape?.family),
+    ).toEqual(["triangle", "quad", "tet", "hex"]);
+    expect(part.elements?.filter((element) => element.id === 5)).toEqual([
       {
         id: 5,
-        primitiveStart: 0,
-        primitiveCount: 1,
+        primitiveRanges: [{ primitive: "lines", primitiveStart: 0, primitiveCount: 1 }],
         shape: LINE_SHAPE,
       },
     ]);
-    expect(point?.elements).toEqual([
+    expect(part.elements?.filter((element) => element.id === 6)).toEqual([
       {
         id: 6,
-        primitiveStart: 0,
-        primitiveCount: 1,
+        primitiveRanges: [{ primitive: "points", primitiveStart: 0, primitiveCount: 1 }],
         shape: POINT_SHAPE,
       },
     ]);
@@ -743,7 +781,7 @@ describe("elementPart", () => {
 
   it("supports quadratic element shapes in the triangle leaf", () => {
     const quadratic = elementPart(20, tet10Model());
-    expect(quadratic.geometry.primitive).toBe("triangles");
+    expect(quadratic.geometries[0]?.primitive).toBe("triangles");
   });
 
   it("keeps repeated builds deterministic and carries body membership to each group", () => {

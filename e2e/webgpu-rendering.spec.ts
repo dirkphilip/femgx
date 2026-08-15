@@ -112,9 +112,13 @@ test("renders and switches the built-in viewport backgrounds", async ({ page }) 
     const canvas = document.getElementById("background-test");
     if (!(canvas instanceof HTMLCanvasElement)) throw new Error("background canvas missing");
     const part = api.createPart(1, {
-      positions: new Float32Array([-0.8, -0.6, 0, 0.8, -0.6, 0, 0, 0.7, 0]),
-      indices: new Uint32Array([0, 1, 2]),
-      primitive: "triangles",
+      geometries: [
+        {
+          positions: new Float32Array([-0.8, -0.6, 0, 0.8, -0.6, 0, 0, 0.7, 0]),
+          indices: new Uint32Array([0, 1, 2]),
+          primitive: "triangles",
+        },
+      ],
     });
     const scene = api
       .createScene()
@@ -200,12 +204,22 @@ test("preserves element identity for shared indexed surface corners", async ({ p
     const canvas = document.getElementById("shared-index-test");
     if (!(canvas instanceof HTMLCanvasElement)) throw new Error("shared-index canvas missing");
     const part = api.createPart(1, {
-      positions: new Float32Array([-0.9, -0.8, 0, 0, -0.8, 0, 0, 0.8, 0, 0.9, 0.8, 0]),
-      indices: new Uint32Array([0, 1, 2, 1, 3, 2]),
-      primitive: "triangles",
+      geometries: [
+        {
+          positions: new Float32Array([-0.9, -0.8, 0, 0, -0.8, 0, 0, 0.8, 0, 0.9, 0.8, 0]),
+          indices: new Uint32Array([0, 1, 2, 1, 3, 2]),
+          primitive: "triangles",
+        },
+      ],
       elements: [
-        { id: 10, primitiveStart: 0, primitiveCount: 1 },
-        { id: 20, primitiveStart: 1, primitiveCount: 1 },
+        {
+          id: 10,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+        },
+        {
+          id: 20,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+        },
       ],
     });
     const scene = api
@@ -891,11 +905,15 @@ test("weights nearer equal-opacity layers without registration-order dependence"
           state.__depthWeightViewport?.destroy();
           const createLayer = (id: number) =>
             api.createPart(id, {
-              positions: new Float32Array([
-                -0.75, -0.6, 0, 0.75, -0.6, 0, 0.75, 0.6, 0, -0.75, 0.6, 0,
-              ]),
-              indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
-              primitive: "triangles",
+              geometries: [
+                {
+                  positions: new Float32Array([
+                    -0.75, -0.6, 0, 0.75, -0.6, 0, 0.75, 0.6, 0, -0.75, 0.6, 0,
+                  ]),
+                  indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+                  primitive: "triangles",
+                },
+              ],
             });
           const red = createLayer(1);
           const green = createLayer(2);
@@ -1535,21 +1553,30 @@ test("preserves selected nodal colors when results are replaced after upload", a
     const canvas = document.getElementById("nodal-results-test");
     if (!(canvas instanceof HTMLCanvasElement)) throw new Error("nodal-results canvas missing");
     const part = api.createPart(1, {
-      positions: new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]),
-      indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
-      primitive: "triangles",
-      nodePickIds: new Uint32Array([1, 2, 3, 4]),
-      nodePositions: new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]),
-      elements: [{ id: 10, primitiveStart: 0, primitiveCount: 2 }],
-      faces: [
+      geometries: [
         {
-          elementId: 10,
-          faceIndex: 0,
-          primitiveStart: 0,
-          primitiveCount: 2,
-          key: "0,1,2,3",
-          nodeIds: [0, 1, 2, 3],
-          neighborElementIds: [],
+          positions: new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]),
+          indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+          primitive: "triangles",
+          nodePickIds: new Uint32Array([1, 2, 3, 4]),
+          faces: [
+            {
+              elementId: 10,
+              faceIndex: 0,
+              primitiveStart: 0,
+              primitiveCount: 2,
+              key: "0,1,2,3",
+              nodeIds: [0, 1, 2, 3],
+              neighborElementIds: [],
+            },
+          ],
+        },
+      ],
+      nodePositions: new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]),
+      elements: [
+        {
+          id: 10,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }],
         },
       ],
     });

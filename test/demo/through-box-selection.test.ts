@@ -6,6 +6,7 @@ import {
   identity,
   setElementVisible,
   type FemViewport,
+  type ElementTessellation,
   type Geometry,
   type InteractionState,
   type Scene,
@@ -128,7 +129,30 @@ function fixture(): {
   readonly runtime: ReturnType<typeof createSceneRuntime>;
   readonly interaction: InteractionState;
 } {
-  const part = createPart(1, [triangleGeometry(), lineGeometry(), pointGeometry()]);
+  const triangle = triangleGeometry();
+  const line = lineGeometry();
+  const point = pointGeometry();
+  const elements = [...triangle.elements, ...line.elements, ...point.elements].reduce(
+    (merged, element) => {
+      const previous = merged.get(element.id);
+      merged.set(
+        element.id,
+        previous === undefined
+          ? element
+          : {
+              ...previous,
+              primitiveRanges: [...previous.primitiveRanges, ...element.primitiveRanges],
+            },
+      );
+      return merged;
+    },
+    new Map<number, ElementTessellation>(),
+  );
+  const part = createPart(1, {
+    geometries: [triangle.geometry, line.geometry, point.geometry],
+    elements: [...elements.values()],
+    nodePositions: point.nodePositions,
+  });
   const scene: Scene = {
     rootAssemblyId: 0,
     parts: new Map([[part.id, part]]),
@@ -150,37 +174,56 @@ function fixture(): {
   return { scene, runtime: createSceneRuntime(scene), interaction: createInteractionState() };
 }
 
-function triangleGeometry(): Geometry {
+function triangleGeometry(): GeometryBuild<Geometry> {
   return {
-    primitive: "triangles",
-    positions: new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]),
-    indices: new Uint32Array([0, 1, 2]),
-    elements: [{ id: 1, primitiveStart: 0, primitiveCount: 1 }],
-  };
-}
-
-function lineGeometry(): Geometry {
-  return {
-    primitive: "lines",
-    positions: new Float32Array([-2, 0, 0, 2, 0, 0, 3, 0, 0, 4, 0, 0]),
-    indices: new Uint32Array([0, 1, 2, 3]),
+    geometry: {
+      primitive: "triangles",
+      positions: new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+    },
     elements: [
-      { id: 4, primitiveStart: 0, primitiveCount: 1 },
-      { id: 2, primitiveStart: 1, primitiveCount: 1 },
+      {
+        id: 1,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+      },
     ],
+    nodePositions: new Float32Array(),
   };
 }
 
-function pointGeometry(): Geometry {
+function lineGeometry(): GeometryBuild<Geometry> {
   return {
-    primitive: "points",
-    positions: new Float32Array([0.25, 0.25, 0, 2, 2, 0]),
-    indices: new Uint32Array([0, 1]),
-    nodePickIds: new Uint32Array([2, 1]),
+    geometry: {
+      primitive: "lines",
+      positions: new Float32Array([-2, 0, 0, 2, 0, 0, 3, 0, 0, 4, 0, 0]),
+      indices: new Uint32Array([0, 1, 2, 3]),
+    },
+    elements: [
+      { id: 4, primitiveRanges: [{ primitive: "lines", primitiveStart: 0, primitiveCount: 1 }] },
+      { id: 2, primitiveRanges: [{ primitive: "lines", primitiveStart: 1, primitiveCount: 1 }] },
+    ],
+    nodePositions: new Float32Array(),
+  };
+}
+
+interface GeometryBuild<T extends Geometry> {
+  readonly geometry: T;
+  readonly elements: readonly ElementTessellation[];
+  readonly nodePositions: Float32Array;
+}
+
+function pointGeometry(): GeometryBuild<Geometry> {
+  return {
+    geometry: {
+      primitive: "points",
+      positions: new Float32Array([0.25, 0.25, 0, 2, 2, 0]),
+      indices: new Uint32Array([0, 1]),
+      nodePickIds: new Uint32Array([2, 1]),
+    },
+    elements: [
+      { id: 1, primitiveRanges: [{ primitive: "points", primitiveStart: 0, primitiveCount: 1 }] },
+      { id: 3, primitiveRanges: [{ primitive: "points", primitiveStart: 1, primitiveCount: 1 }] },
+    ],
     nodePositions: new Float32Array([0, 0, 0, 2, 2, 0]),
-    elements: [
-      { id: 1, primitiveStart: 0, primitiveCount: 1 },
-      { id: 3, primitiveStart: 1, primitiveCount: 1 },
-    ],
   };
 }

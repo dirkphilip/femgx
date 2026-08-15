@@ -57,11 +57,7 @@ export interface Bounds {
 export interface ElementTessellation {
   readonly id: ElementId;
   /** Every topology-local primitive range owned by this semantic element. */
-  readonly primitiveRanges?: readonly ElementPrimitiveRange[];
-  /** Transitional single-range view while consumers migrate. */
-  readonly primitiveStart: number;
-  /** Transitional single-range view while consumers migrate. */
-  readonly primitiveCount: number;
+  readonly primitiveRanges: readonly ElementPrimitiveRange[];
   /** Original FE shape, when the source model retained typed shape metadata. */
   readonly shape?: ElementShape;
   /** Optional logical body owning this element. */
@@ -141,10 +137,6 @@ interface GeometryBase {
    */
   readonly positions: Float32Array;
   readonly indices: Uint32Array;
-  /** Transitional metadata view while Part consumers migrate. */
-  readonly elements?: readonly ElementTessellation[];
-  readonly bodies?: readonly GeometryBody[];
-  readonly blocks?: readonly GeometryElementBlock[];
   /** Optional stable authored FE edges; absent for generic display geometry. */
   readonly edges?: readonly GeometryEdge[];
   /**
@@ -154,11 +146,6 @@ interface GeometryBase {
    * its node's displacement, so tessellated geometry deforms correctly.
    */
   readonly nodePickIds?: Uint32Array;
-  /**
-   * Optional node positions indexed directly by `NodeId` (three floats per
-   * node), used to resolve node picks to local/world positions on the CPU.
-   */
-  readonly nodePositions?: Float32Array;
 }
 
 /**

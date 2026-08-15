@@ -39,9 +39,9 @@ describe("importGlb", () => {
 
     expect(result.scene.parts).toHaveLength(4);
     expect(result.scene.assemblies.get(1)?.placements).toHaveLength(4);
-    expect([...result.scene.parts.values()].map((part) => part.geometry.indices.length)).toEqual([
-      168, 174, 174, 168,
-    ]);
+    expect(
+      [...result.scene.parts.values()].map((part) => part.geometries[0]?.indices.length),
+    ).toEqual([168, 174, 174, 168]);
     expect(result.issues).toEqual([
       expect.objectContaining({ code: "glb-ignored-extension", severity: "warning" }),
     ]);
@@ -98,10 +98,14 @@ describe("importGlb", () => {
     "promotes %s indices and supports non-indexed triangles",
     async (indexKind) => {
       const indexed = await importGlb(makeTriangleGlb(indexKind));
-      expect(indexed.scene.parts.get(0)?.geometry.indices).toEqual(new Uint32Array([0, 1, 2]));
+      expect(indexed.scene.parts.get(0)?.geometries[0]?.indices).toEqual(
+        new Uint32Array([0, 1, 2]),
+      );
 
       const nonIndexed = await importGlb(makeTriangleGlb("none"));
-      expect(nonIndexed.scene.parts.get(0)?.geometry.indices).toEqual(new Uint32Array([0, 1, 2]));
+      expect(nonIndexed.scene.parts.get(0)?.geometries[0]?.indices).toEqual(
+        new Uint32Array([0, 1, 2]),
+      );
     },
   );
 

@@ -8,6 +8,7 @@ import {
 import { buildMeshEdgeData } from "../../../src/renderer/gpu-edge";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import { transformPoint, type Bounds } from "../../../src/index";
+import type { Part } from "../../../src/index";
 import type { Instance } from "../../../src/scene/types";
 
 function runtimeInstances(fixture: Pick<ElementFixture, "scene">): readonly Instance[] {
@@ -26,10 +27,10 @@ function runtimeInstances(fixture: Pick<ElementFixture, "scene">): readonly Inst
   return instances;
 }
 
-function nonZeroNodeIds(part: {
-  readonly geometry: { readonly nodePickIds?: Uint32Array };
-}): number[] {
-  return [...new Set(Array.from(part.geometry.nodePickIds ?? []).filter((id) => id !== 0))].sort(
+function nonZeroNodeIds(part: Part): number[] {
+  const geometry = part.geometries[0];
+  if (geometry === undefined) return [];
+  return [...new Set(Array.from(geometry.nodePickIds ?? []).filter((id) => id !== 0))].sort(
     (a, b) => a - b,
   );
 }
@@ -147,9 +148,7 @@ describe("createElementFixture", () => {
       "lines",
       "points",
     ]);
-    expect(
-      mixed?.geometries.flatMap((geometry) => geometry.elements ?? []).map(({ id }) => id),
-    ).toEqual([3, 2, 1]);
+    expect(mixed?.elements?.map(({ id }) => id)).toEqual([1, 2, 3]);
     const nodeIds = mixed?.geometries.map((geometry) =>
       [...new Set(geometry.nodePickIds ?? [])].filter((id) => id !== 0),
     );
@@ -168,28 +167,29 @@ describe("createElementFixture", () => {
 
   it("produces geometry for points, lines, surfaces, and linear/quadratic volumes", () => {
     const { scene, partIds } = createElementFixture();
-    expect(scene.parts.get(partIds.point)?.geometry.primitive).toBe("points");
-    expect(scene.parts.get(partIds.line)?.geometry.primitive).toBe("lines");
-    expect(scene.parts.get(partIds.line3)?.geometry.primitive).toBe("lines");
-    expect(scene.parts.get(partIds.triangle)?.geometry.primitive).toBe("triangles");
-    expect(scene.parts.get(partIds.tri6)?.geometry.primitive).toBe("triangles");
-    expect(scene.parts.get(partIds.quad)?.geometry.primitive).toBe("triangles");
-    expect(scene.parts.get(partIds.quad8)?.geometry.primitive).toBe("triangles");
-    expect(scene.parts.get(partIds.generic)?.geometry.primitive).toBe("triangles");
-    expect(scene.parts.get(partIds.tet4)?.geometry.primitive).toBe("triangles");
-    expect(scene.parts.get(partIds.hex20)?.geometry.primitive).toBe("triangles");
-    expect(scene.parts.get(partIds.wedge6)?.geometry.primitive).toBe("triangles");
-    expect(scene.parts.get(partIds.pyramid5)?.geometry.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.point)?.geometries[0]?.primitive).toBe("points");
+    expect(scene.parts.get(partIds.line)?.geometries[0]?.primitive).toBe("lines");
+    expect(scene.parts.get(partIds.line3)?.geometries[0]?.primitive).toBe("lines");
+    expect(scene.parts.get(partIds.triangle)?.geometries[0]?.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.tri6)?.geometries[0]?.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.quad)?.geometries[0]?.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.quad8)?.geometries[0]?.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.generic)?.geometries[0]?.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.tet4)?.geometries[0]?.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.hex20)?.geometries[0]?.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.wedge6)?.geometries[0]?.primitive).toBe("triangles");
+    expect(scene.parts.get(partIds.pyramid5)?.geometries[0]?.primitive).toBe("triangles");
   });
 
   it("retains one indexed multi-face generic element without a typed shape", () => {
     const { scene, partIds } = createElementFixture();
     const part = scene.parts.get(partIds.generic);
-    if (part === undefined || part.geometry.primitive !== "triangles") {
+    const genericGeometry = part?.geometries[0];
+    if (part === undefined || genericGeometry?.primitive !== "triangles") {
       throw new Error("generic mapping part is missing");
     }
-    const elements = part.geometry.elements ?? [];
-    const faces = part.geometry.faces ?? [];
+    const elements = part.elements ?? [];
+    const faces = genericGeometry.faces ?? [];
     expect(elements).toHaveLength(1);
     expect(elements[0]?.id).toBe(42);
     expect(elements[0]?.shape).toBeUndefined();
@@ -197,7 +197,9 @@ describe("createElementFixture", () => {
     expect(faces.map((face) => face.faceIndex)).toEqual([0, 1, 2, 3, 4]);
     expect(faces.every((face) => face.elementId === 42)).toBe(true);
     expect(faces[0]?.primitiveCount).toBe(2);
-    expect(new Set(Array.from(part.geometry.nodePickIds ?? []))).toEqual(new Set([1, 2, 3, 4, 5]));
+    expect(new Set(Array.from(part.geometries[0]?.nodePickIds ?? []))).toEqual(
+      new Set([1, 2, 3, 4, 5]),
+    );
     expect(part.bounds).toEqual({ minX: -1, minY: -1, minZ: 0, maxX: 1, maxY: 1, maxZ: 1.5 });
   });
 
@@ -211,25 +213,17 @@ describe("createElementFixture", () => {
       throw new Error("surface parts are missing");
     }
     if (
-      triangle.geometry.primitive !== "triangles" ||
-      tri6.geometry.primitive !== "triangles" ||
-      quad.geometry.primitive !== "triangles" ||
-      quad8.geometry.primitive !== "triangles"
+      triangle.geometries[0]?.primitive !== "triangles" ||
+      tri6.geometries[0]?.primitive !== "triangles" ||
+      quad.geometries[0]?.primitive !== "triangles" ||
+      quad8.geometries[0]?.primitive !== "triangles"
     ) {
       throw new Error("surface parts are not triangle geometry");
     }
-    const triangleElements = triangle.geometry.elements;
-    const tri6Elements = tri6.geometry.elements;
-    const quadElements = quad.geometry.elements;
-    const quad8Elements = quad8.geometry.elements;
-    if (
-      triangleElements === undefined ||
-      tri6Elements === undefined ||
-      quadElements === undefined ||
-      quad8Elements === undefined
-    ) {
-      throw new Error("surface element descriptors are missing");
-    }
+    const triangleElements = triangle.elements ?? [];
+    const tri6Elements = tri6.elements ?? [];
+    const quadElements = quad.elements ?? [];
+    const quad8Elements = quad8.elements ?? [];
     const triangleElement = triangleElements[0];
     const tri6Element = tri6Elements[0];
     const quadElement = quadElements[0];
@@ -247,8 +241,10 @@ describe("createElementFixture", () => {
       throw new Error("surface element descriptors are empty");
     }
 
-    expect(triangle.geometry.faceSubset).toBeUndefined();
-    expect(quad.geometry.faceSubset).toBeUndefined();
+    const triangleGeometry = triangle.geometries[0];
+    const quadGeometry = quad.geometries[0];
+    expect(triangleGeometry.faceSubset).toBeUndefined();
+    expect(quadGeometry.faceSubset).toBeUndefined();
     expect(triangleElements).toHaveLength(1);
     expect(tri6Elements).toHaveLength(1);
     expect(quadElements).toHaveLength(1);
@@ -262,10 +258,34 @@ describe("createElementFixture", () => {
     expect(nonZeroNodeIds(quad)).toEqual([2, 3, 4, 5]);
     expect(nonZeroNodeIds(quad8)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
 
-    expect(buildMeshEdgeData(triangle.geometry).indices).toHaveLength(6);
-    expect(buildMeshEdgeData(tri6.geometry).indices).toHaveLength(12);
-    expect(buildMeshEdgeData(quad.geometry).indices).toHaveLength(8);
-    expect(buildMeshEdgeData(quad8.geometry).indices).toHaveLength(16);
+    expect(
+      buildMeshEdgeData(
+        triangleGeometry,
+        triangleGeometry.indices,
+        triangle.elements ?? [],
+        triangle.blocks ?? [],
+      ).indices,
+    ).toHaveLength(6);
+    expect(
+      buildMeshEdgeData(
+        tri6.geometries[0],
+        tri6.geometries[0].indices,
+        tri6.elements ?? [],
+        tri6.blocks ?? [],
+      ).indices,
+    ).toHaveLength(12);
+    expect(
+      buildMeshEdgeData(quadGeometry, quadGeometry.indices, quad.elements ?? [], quad.blocks ?? [])
+        .indices,
+    ).toHaveLength(8);
+    expect(
+      buildMeshEdgeData(
+        quad8.geometries[0],
+        quad8.geometries[0].indices,
+        quad8.elements ?? [],
+        quad8.blocks ?? [],
+      ).indices,
+    ).toHaveLength(16);
   });
 
   it("builds a linearly tessellated Hex20 cylinder with a bounded height", () => {

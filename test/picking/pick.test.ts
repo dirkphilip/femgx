@@ -30,7 +30,34 @@ function tetModel(): ElementModel {
 }
 
 function partWithGeometry(geometry: Geometry): Part {
-  return createPart(1, geometry);
+  const elementId =
+    (geometry.primitive === "triangles" ? geometry.faces?.[0]?.elementId : undefined) ??
+    geometry.edges?.[0]?.incidentElementIds[0];
+  return createPart(1, {
+    geometries: [geometry],
+    ...(elementId === undefined
+      ? {}
+      : {
+          elements: [
+            {
+              id: elementId,
+              primitiveRanges: [
+                {
+                  primitive: geometry.primitive,
+                  primitiveStart: 0,
+                  primitiveCount:
+                    geometry.primitive === "triangles"
+                      ? geometry.indices.length / 3
+                      : geometry.primitive === "lines"
+                        ? geometry.indices.length / 2
+                        : geometry.indices.length,
+                },
+              ],
+            },
+          ],
+          nodePositions: new Float32Array(TET_NODES),
+        }),
+  });
 }
 
 function instanceAt(index: number, partId = 1, transform: Mat4 = identity()): Instance {
@@ -43,8 +70,8 @@ function ids(partial: Partial<ResolvedPickIds>): ResolvedPickIds {
 
 function triangleGeometry(model: ElementModel): TriangleGeometry {
   const part = elementPart(1, model);
-  if (part.geometry.primitive !== "triangles") throw new Error("expected triangle geometry");
-  return part.geometry;
+  if (part.geometries[0]?.primitive !== "triangles") throw new Error("expected triangle geometry");
+  return part.geometries[0];
 }
 
 describe("resolvePick", () => {
@@ -85,15 +112,19 @@ describe("resolvePickHit", () => {
   });
 
   it("preserves body identity on element, face, and node targets", () => {
-    const bodyGeometry: Geometry = {
+    const bodyGeometry: TriangleGeometry = {
       ...geometry,
-      elements: (geometry.elements ?? []).map((element) => ({ ...element, bodyId: 6 })),
-      bodies: [{ id: 6, elementIds: [1] }],
       faces: (geometry.faces ?? []).map((face) => ({ ...face, bodyId: 6 })),
     };
+    const bodyPart = createPart(1, {
+      geometries: [bodyGeometry],
+      elements: (part.elements ?? []).map((element) => ({ ...element, bodyId: 6 })),
+      bodies: [{ id: 6, elementIds: [1] }],
+      nodePositions: new Float32Array(TET_NODES),
+    });
     const bodyContext: PickContext = {
       instances: [instanceAt(0)],
-      parts: new Map([[1, partWithGeometry(bodyGeometry)]]),
+      parts: new Map([[1, bodyPart]]),
     };
     expect(
       resolvePickHit(bodyContext, ids({ instancePickId: 1, elementPickId: 2 }), [0, 0, 0]),
@@ -229,11 +260,15 @@ describe("resolvePickHit", () => {
   });
 
   it("leaves element ownership absent for authored node-only point geometry", () => {
-    const standalone = partWithGeometry({
-      positions: new Float32Array([2, 3, 4]),
-      indices: new Uint32Array([0]),
-      primitive: "points",
-      nodePickIds: new Uint32Array([1]),
+    const standalone = createPart(4, {
+      geometries: [
+        {
+          positions: new Float32Array([2, 3, 4]),
+          indices: new Uint32Array([0]),
+          primitive: "points",
+          nodePickIds: new Uint32Array([1]),
+        },
+      ],
       nodePositions: new Float32Array([2, 3, 4]),
     });
     const standaloneContext: PickContext = {
@@ -258,20 +293,29 @@ describe("resolvePickHit", () => {
 
 describe("resolveEdgePickHit", () => {
   it("returns stable topology and a world-space canonical tangent", () => {
-    const edgePart = partWithGeometry({
-      positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-      indices: new Uint32Array([0, 1, 2]),
-      primitive: "triangles",
-      nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
-      elements: [{ id: 3, primitiveStart: 0, primitiveCount: 1 }],
-      edges: [
+    const edgePart = createPart(1, {
+      geometries: [
         {
-          key: "0,1",
-          nodeIds: [0, 1],
-          incidentElementIds: [3],
-          faceRefs: [],
+          positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+          indices: new Uint32Array([0, 1, 2]),
+          primitive: "triangles",
+          edges: [
+            {
+              key: "0,1",
+              nodeIds: [0, 1],
+              incidentElementIds: [3],
+              faceRefs: [],
+            },
+          ],
         },
       ],
+      elements: [
+        {
+          id: 3,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+        },
+      ],
+      nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     });
     const target = resolveEdgePickHit(
       { instances: [instanceAt(0)], parts: new Map([[1, edgePart]]) },
@@ -398,39 +442,47 @@ describe("validatePickIds", () => {
       ],
     };
     expect(() => {
-      validatePickIds(geometry);
+      validatePickIds(geometry, undefined, undefined);
     }).not.toThrow();
   });
 
   it("rejects node pick ids that do not match the vertex count", () => {
     expect(() => {
-      validatePickIds({
-        positions: new Float32Array(9),
-        indices: new Uint32Array(9),
-        primitive: "triangles" as const,
-        nodePickIds: new Uint32Array([1, 2]),
-      });
+      validatePickIds(
+        {
+          positions: new Float32Array(9),
+          indices: new Uint32Array(9),
+          primitive: "triangles" as const,
+          nodePickIds: new Uint32Array([1, 2]),
+        },
+        undefined,
+        undefined,
+      );
     }).toThrow("nodePickIds must have one entry per vertex");
   });
 
   it("rejects face ranges that do not match the triangle count", () => {
     expect(() => {
-      validatePickIds({
-        positions: new Float32Array(9),
-        indices: new Uint32Array(9),
-        primitive: "triangles" as const,
-        faces: [
-          {
-            elementId: 0,
-            faceIndex: 0,
-            primitiveStart: 0,
-            primitiveCount: 4,
-            key: "0,1,2",
-            nodeIds: [0, 1, 2],
-            neighborElementIds: [],
-          },
-        ],
-      });
+      validatePickIds(
+        {
+          positions: new Float32Array(9),
+          indices: new Uint32Array(9),
+          primitive: "triangles" as const,
+          faces: [
+            {
+              elementId: 0,
+              faceIndex: 0,
+              primitiveStart: 0,
+              primitiveCount: 4,
+              key: "0,1,2",
+              nodeIds: [0, 1, 2],
+              neighborElementIds: [],
+            },
+          ],
+        },
+        undefined,
+        undefined,
+      );
     }).toThrow("outside the triangle buffer");
   });
 });

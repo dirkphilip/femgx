@@ -74,7 +74,12 @@ const runtimeInstances = Array.from(runtime.getDrawList(), (slot, index) => ({
 
 const heterogeneousModel = makeHeterogeneousModel(100);
 const bodyGeometry = makeBodyGeometry();
-const boundsPart = createPart(906, bodyGeometry);
+const boundsPart = createPart(906, {
+  geometries: [bodyGeometry.geometry],
+  elements: bodyGeometry.elements,
+  nodePositions: bodyGeometry.nodePositions,
+  ...(bodyGeometry.bodies === undefined ? {} : { bodies: bodyGeometry.bodies }),
+});
 const boundsScene = {
   rootAssemblyId: 1,
   parts: new Map([[boundsPart.id, boundsPart]]),
@@ -100,7 +105,12 @@ const bodies = makeBodies(bodyModel.elements.length, BENCH_BODY_COUNT);
 const bodyModelWithBodies = createElementModel([...bodyModel.nodes], bodyModel.elements, {
   bodies,
 });
-const emphasisPart = createPart(907, bodyGeometry);
+const emphasisPart = createPart(907, {
+  geometries: [bodyGeometry.geometry],
+  elements: bodyGeometry.elements,
+  nodePositions: bodyGeometry.nodePositions,
+  ...(bodyGeometry.bodies === undefined ? {} : { bodies: bodyGeometry.bodies }),
+});
 getPartSemanticIndex(emphasisPart);
 const emphasisScene = {
   rootAssemblyId: 1,
@@ -205,13 +215,12 @@ function makeRegionCase(elementCount: number) {
     positions: new Float32Array(elementCount * 3),
     indices: Uint32Array.from({ length: elementCount }, (_, index) => index),
     primitive: "points",
-    elements: Array.from({ length: elementCount }, (_, index) => ({
-      id: index + 1,
-      primitiveStart: index,
-      primitiveCount: 1,
-    })),
   };
-  const part = createPart(5000 + elementCount, geometry);
+  const elements = Array.from({ length: elementCount }, (_, index) => ({
+    id: index + 1,
+    primitiveRanges: [{ primitive: "points" as const, primitiveStart: index, primitiveCount: 1 }],
+  }));
+  const part = createPart(5000 + elementCount, { geometries: [geometry], elements });
   const context: PickContext = {
     instances: [
       {
@@ -579,7 +588,12 @@ const budgets: readonly BudgetCase[] = [
     description: `${BENCH_BODY_ELEMENT_COUNT} elements across ${BENCH_BODY_COUNT} bodies`,
     budgetMs: 100,
     run: () => {
-      createPart(904, bodyGeometry);
+      createPart(904, {
+        geometries: [bodyGeometry.geometry],
+        elements: bodyGeometry.elements,
+        nodePositions: bodyGeometry.nodePositions,
+        ...(bodyGeometry.bodies === undefined ? {} : { bodies: bodyGeometry.bodies }),
+      });
     },
   },
   {
@@ -587,7 +601,11 @@ const budgets: readonly BudgetCase[] = [
     description: `${BENCH_BODY_ELEMENT_COUNT} elements across ${BENCH_BODY_COUNT} bodies`,
     budgetMs: 25,
     run: () => {
-      buildPrimitiveFaceBodyPickData(bodyGeometry);
+      buildPrimitiveFaceBodyPickData(
+        bodyGeometry.geometry,
+        bodyGeometry.elements,
+        bodyGeometry.bodies ?? [],
+      );
     },
   },
   {
@@ -595,7 +613,12 @@ const budgets: readonly BudgetCase[] = [
     description: `${BENCH_BODY_ELEMENT_COUNT} elements across ${BENCH_BODY_COUNT} bodies`,
     budgetMs: 600,
     run: () => {
-      buildMeshEdgeData(bodyGeometry);
+      buildMeshEdgeData(
+        bodyGeometry.geometry,
+        bodyGeometry.geometry.indices,
+        bodyGeometry.elements,
+        bodyGeometry.bodies ?? [],
+      );
     },
   },
   {

@@ -41,12 +41,22 @@ function installNavigator(device: GPUDevice): void {
 function orientationPart() {
   const positions = new Float32Array([-1, 0, 0, 1, 0, 0, 0, 2, 0]);
   return createPart(1, {
-    positions,
-    indices: new Uint32Array([0, 1, 2]),
-    primitive: "triangles",
+    geometries: [
+      {
+        positions,
+        indices: new Uint32Array([0, 1, 2]),
+        primitive: "triangles",
+        nodePickIds: new Uint32Array([1, 2, 3]),
+      },
+    ],
     nodePositions: positions,
-    nodePickIds: new Uint32Array([1, 2, 3]),
-    elements: [{ id: 0, primitiveStart: 0, primitiveCount: 1, bodyId: 4 }],
+    elements: [
+      {
+        id: 0,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+        bodyId: 4,
+      },
+    ],
     bodies: [{ id: 4, name: "body", elementIds: [0] }],
   });
 }

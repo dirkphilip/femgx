@@ -145,16 +145,7 @@ function rangesForGeometry(
   element: ElementTessellation,
   geometry: Geometry,
 ): readonly ElementPrimitiveRange[] {
-  const ranges = element.primitiveRanges?.filter((range) => range.primitive === geometry.primitive);
-  return (
-    ranges ?? [
-      {
-        primitive: geometry.primitive,
-        primitiveStart: element.primitiveStart,
-        primitiveCount: element.primitiveCount,
-      },
-    ]
-  );
+  return element.primitiveRanges.filter((range) => range.primitive === geometry.primitive);
 }
 
 interface PrimitiveQuery {

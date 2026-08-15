@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createPart } from "../../src/geometry/part";
 import { deformGeometry, deformPositions, nodalDisplacements } from "../../src/results/deform";
 import { createResultField } from "../../src/results/fields";
 import type { VectorField } from "../../src/results/fields";
@@ -92,20 +93,32 @@ describe("deformGeometry", () => {
     expect(Array.from(geometry.positions)).toEqual([0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0]);
   });
 
-  it("preserves element tessellations on the deformed geometry", () => {
+  it("keeps part-level element tessellations beside the deformed geometry", () => {
     const field = displacements([1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0]);
     const geometry = {
       positions: new Float32Array([0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0]),
       indices: new Uint32Array([0, 1, 2, 2, 3, 0]),
       primitive: "triangles" as const,
       nodePickIds: nodeAligned(4),
-      elements: [
-        { id: 1, primitiveStart: 0, primitiveCount: 1 },
-        { id: 2, primitiveStart: 1, primitiveCount: 1 },
-      ],
     };
-    const deformed = deformGeometry(geometry, field, 1);
-    expect(deformed.elements).toBe(geometry.elements);
+    const part = createPart(1, {
+      geometries: [geometry],
+      elements: [
+        {
+          id: 1,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+        },
+        {
+          id: 2,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+        },
+      ],
+    });
+    const sourceGeometry = part.geometries[0];
+    if (sourceGeometry === undefined) throw new Error("deformation part geometry is missing");
+    const deformed = deformGeometry(sourceGeometry, field, 1);
+    expect(part.elements).toHaveLength(2);
+    expect(deformed.indices).toBe(geometry.indices);
   });
 
   it("rejects geometry without a per-vertex node map", () => {

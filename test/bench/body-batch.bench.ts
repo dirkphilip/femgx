@@ -23,12 +23,16 @@ function bodyScene() {
     const x = bodyId * 2;
     positions.set([x, 0, 0, x + 1, 0, 0, x, 1, 0], vertex * 3);
     indices.set([vertex, vertex + 1, vertex + 2], bodyId * 3);
-    elements.push({ id: bodyId, primitiveStart: bodyId, primitiveCount: 1, bodyId });
+    elements.push({
+      id: bodyId,
+      primitiveRanges: [{ primitive: "triangles", primitiveStart: bodyId, primitiveCount: 1 }],
+      bodyId,
+    });
     bodies.push({ id: bodyId, elementIds: [bodyId] });
   }
-  const geometry = { primitive: "triangles" as const, positions, indices, elements, bodies };
+  const geometry = { primitive: "triangles" as const, positions, indices };
   return createScene()
-    .addPart(createPart(1, geometry))
+    .addPart(createPart(1, { geometries: [geometry], elements, bodies }))
     .addAssembly({
       id: 1,
       name: "body-benchmark",

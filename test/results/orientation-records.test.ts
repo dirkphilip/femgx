@@ -49,8 +49,7 @@ function makePart(
     const primitiveCount = element.nodePickIds.length / verticesPerPrimitive;
     descriptors.push({
       id: element.id,
-      primitiveStart,
-      primitiveCount,
+      primitiveRanges: [{ primitive, primitiveStart, primitiveCount }],
       shape: element.shape ?? TRIANGLE_SHAPE,
       ...(element.bodyId === undefined ? {} : { bodyId: element.bodyId }),
     });
@@ -72,11 +71,15 @@ function makePart(
     primitiveStart += primitiveCount;
   }
   return createPart(elements.length === 0 ? 1 : 7, {
-    positions: new Float32Array(positions),
-    indices: new Uint32Array(indices),
-    primitive,
+    geometries: [
+      {
+        positions: new Float32Array(positions),
+        indices: new Uint32Array(indices),
+        primitive,
+        nodePickIds: new Uint32Array(nodePickIds),
+      },
+    ],
     elements: descriptors,
-    nodePickIds: new Uint32Array(nodePickIds),
     ...(bodyElements.size === 0
       ? {}
       : {
@@ -234,10 +237,14 @@ describe("elemental orientation records", () => {
 
     const noNodeMap = makePart([{ id: 0, nodePickIds: [1, 2, 3] }]);
     const noNodeMapGeometry = createPart(7, {
-      positions: noNodeMap.geometry.positions,
-      indices: noNodeMap.geometry.indices,
-      primitive: "triangles",
-      elements: noNodeMap.geometry.elements ?? [],
+      geometries: [
+        {
+          positions: noNodeMap.geometries[0]?.positions ?? new Float32Array(),
+          indices: noNodeMap.geometries[0]?.indices ?? new Uint32Array(),
+          primitive: "triangles",
+        },
+      ],
+      elements: noNodeMap.elements ?? [],
       nodePositions: NODE_POSITIONS,
     });
     expect(() =>
