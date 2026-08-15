@@ -169,10 +169,23 @@ const EMPTY_PART_BOUNDS: Bounds = {
 };
 
 function finitePartBounds(geometries: readonly Geometry[]): Bounds {
-  const positions = geometries.flatMap((geometry) => Array.from(geometry.positions));
-  return positions.length === 0
-    ? EMPTY_PART_BOUNDS
-    : computePositionsBounds(new Float32Array(positions));
+  let bounds: Bounds | undefined;
+  for (const geometry of geometries) {
+    if (geometry.positions.length === 0) continue;
+    const next = computePositionsBounds(geometry.positions);
+    bounds =
+      bounds === undefined
+        ? next
+        : {
+            minX: Math.min(bounds.minX, next.minX),
+            minY: Math.min(bounds.minY, next.minY),
+            minZ: Math.min(bounds.minZ, next.minZ),
+            maxX: Math.max(bounds.maxX, next.maxX),
+            maxY: Math.max(bounds.maxY, next.maxY),
+            maxZ: Math.max(bounds.maxZ, next.maxZ),
+          };
+  }
+  return bounds ?? EMPTY_PART_BOUNDS;
 }
 
 function validateGeometryArrays(geometry: Geometry): void {

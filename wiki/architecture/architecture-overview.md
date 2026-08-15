@@ -6,8 +6,9 @@ scene is authoritative; the renderer syncs deltas from it.
 ## Layers
 
 - `src/scene/scene.ts` — authoritative CPU model: parts, assemblies, and
-  visibility. Immutable builder API (`createScene`); every update returns a new
-  builder so state changes are deltas, not scattered mutations.
+  visibility. `createScene` returns one private mutable authoring transaction;
+  fluent updates accumulate in place and `build()` validates and copies them
+  once into an isolated immutable scene snapshot.
 - `src/scene-runtime/` — the single scene compiler and runtime boundary:
   `createSceneRuntime(scene)` exposes stable handles while the internal packed
   compiler performs the iterative, deterministic depth-first compile into

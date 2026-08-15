@@ -61,6 +61,20 @@ describe("InteractionTarget helpers", () => {
     expect(setTargetsHighlighted(state, [first, second], true)).toBe(state);
   });
 
+  it("clones each affected nested highlight collection once and preserves prior state", () => {
+    const initial = createInteractionState();
+    const highlighted = setTargetsHighlighted(initial, [targets[2], targets[2], targets[4]], true);
+    const initialData = readInteractionState(initial);
+    const highlightedData = readInteractionState(highlighted);
+    expect(highlightedData.highlightedBodyIds).not.toBe(initialData.highlightedBodyIds);
+    expect(highlightedData.highlightedElementIds).not.toBe(initialData.highlightedElementIds);
+    expect(highlightedData.highlightedBodyIds.get("1/0")).toEqual(new Set([2]));
+    expect(highlightedData.highlightedElementIds.get("1/0")).toEqual(new Set([3]));
+    expect(initialData.highlightedBodyIds.size).toBe(0);
+    expect(initialData.highlightedElementIds.size).toBe(0);
+    expect(setTargetsHighlighted(initial, [], true)).toBe(initial);
+  });
+
   it("applies duplicate-safe bulk selection across every target kind", () => {
     const duplicateTargets = [...targets, targets[2], targets[4]];
     const state = setTargetsSelected(createInteractionState(), duplicateTargets, true);

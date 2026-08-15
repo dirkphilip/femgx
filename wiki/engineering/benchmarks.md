@@ -30,7 +30,9 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `getDrawList`                     | 200 000 visible                  | rebuild draw list                                  |
 | `sceneWorldBounds`                | 32 768 triangles × 64 placements | reusable-part bounds and world transforms          |
 | `resolvePick`                     | 50 000 lookups on 200 000        | O(1) index resolution                              |
+| `SceneBuilder`                    | 4 096 reusable parts             | fluent accumulation and final scene snapshot       |
 | `setTargetsSelected`              | 16 384 element targets           | one duplicate-safe immutable bulk transition       |
+| `setTargetsHighlighted`           | 8 192 element targets            | one duplicate-safe immutable bulk transition       |
 | `setTargetsSelected` duplicate    | 16 384 + 1 024 repeated targets  | duplicate-safe bulk transition                     |
 | `setTargetsSelected` phases       | 1 / 1 024 / 4 096 / 16 384       | replacement and toggle across two occurrences      |
 | `selectedTargets` feedback        | 1 / 1 024 / 4 096 / 16 384       | selected-count feedback without DOM timing         |
@@ -48,8 +50,9 @@ several multiples, so budgets are only meaningful on clean timing runs.
 ### Stable model sizes and warmup rules
 
 - Models are generated deterministically in `test/bench/fixtures.ts` with the
-  sizes above; the scenes are constructed directly (not via `SceneBuilder`,
-  whose immutable copies are intentionally quadratic for authoring convenience).
+  sizes above. The large runtime fixtures remain constructed directly so their
+  budgets isolate compilation, while a separate `SceneBuilder` case protects
+  linear authoring and the final immutable snapshot.
 - `test/bench/measure.ts` defines the timing rules: **2 untimed warmup runs**,
   **7 timed samples**, **median** reported in milliseconds per iteration.
 - Mutating workloads (visibility updates) are written as toggles that

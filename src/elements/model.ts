@@ -51,7 +51,7 @@ export interface ElementModel {
  * @category Elements and model editing
  */
 export function createElementModel(
-  nodes: readonly number[],
+  nodes: ArrayLike<number>,
   elements: readonly Element[],
   options: ElementModelOptions = {},
 ): ElementModel {

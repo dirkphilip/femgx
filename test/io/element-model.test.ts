@@ -29,6 +29,16 @@ describe("createElementModelFromFemModel", () => {
     expect([...result.nodes]).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0]);
   });
 
+  it("converts interchange coordinates to the render model's single precision", () => {
+    const builder = createModelBuilder();
+    builder.appendNodes([0, 1], [1_000_000_000, 0, 0, 1_000_000_001, 0, 0]);
+
+    const result = createElementModelFromFemModel(builder.build());
+
+    expect(result.nodes).toBeInstanceOf(Float32Array);
+    expect(result.nodes[0]).toBe(result.nodes[3]);
+  });
+
   it("reports non-dense interchange node ids as conversion diagnostics", () => {
     const builder = createModelBuilder();
     builder.appendNodes([10, 20, 30], [0, 0, 0, 1, 0, 0, 0, 1, 0]);

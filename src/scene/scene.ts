@@ -21,7 +21,10 @@ export interface Scene {
   readonly visibleAssemblyIds: ReadonlySet<AssemblyId>;
 }
 
-/** @category Scene and geometry */
+/**
+ * Mutable authoring transaction that snapshots one immutable {@link Scene}.
+ * @category Scene and geometry
+ */
 export interface SceneBuilder {
   /** Selects the registered root assembly for the scene. */
   withRoot(rootAssemblyId: AssemblyId): SceneBuilder;
@@ -37,74 +40,73 @@ export interface SceneBuilder {
   hideAssembly(assemblyId: AssemblyId): SceneBuilder;
   /** Shows a registered assembly and its occurrences. */
   showAssembly(assemblyId: AssemblyId): SceneBuilder;
-  /** Validates and materializes the immutable scene. */
+  /** Validates and snapshots the accumulated state into an immutable scene. */
   build(): Scene;
 }
 
 interface SceneState {
-  readonly rootAssemblyId?: AssemblyId;
-  readonly parts: ReadonlyMap<PartId, Part>;
-  readonly assemblies: ReadonlyMap<AssemblyId, Assembly>;
-  readonly visiblePartIds: ReadonlySet<PartId>;
-  readonly visibleAssemblyIds: ReadonlySet<AssemblyId>;
+  rootAssemblyId?: AssemblyId;
+  readonly parts: Map<PartId, Part>;
+  readonly assemblies: Map<AssemblyId, Assembly>;
+  readonly visiblePartIds: Set<PartId>;
+  readonly visibleAssemblyIds: Set<AssemblyId>;
 }
 
 function createBuilder(state: SceneState): SceneBuilder {
-  const update = (next: Partial<SceneState>): SceneBuilder => createBuilder({ ...state, ...next });
-  return {
+  const builder: SceneBuilder = {
     withRoot(rootAssemblyId: AssemblyId): SceneBuilder {
-      return update({ rootAssemblyId });
+      state.rootAssemblyId = rootAssemblyId;
+      return builder;
     },
     addPart(part: Part): SceneBuilder {
       if (state.parts.has(part.id)) {
         throw new Error(`Part ${part.id} is already registered`);
       }
-      const parts = new Map(state.parts);
-      parts.set(part.id, part);
-      const visiblePartIds = new Set(state.visiblePartIds);
-      visiblePartIds.add(part.id);
-      return update({ parts, visiblePartIds });
+      state.parts.set(part.id, part);
+      state.visiblePartIds.add(part.id);
+      return builder;
     },
     addAssembly(assembly: NamedAssembly): SceneBuilder {
       if (state.assemblies.has(assembly.id)) {
         throw new Error(`Assembly ${assembly.id} is already registered`);
       }
-      const assemblies = new Map(state.assemblies);
-      assemblies.set(assembly.id, assembly);
-      const visibleAssemblyIds = new Set(state.visibleAssemblyIds);
-      visibleAssemblyIds.add(assembly.id);
-      return update({ assemblies, visibleAssemblyIds });
+      state.assemblies.set(assembly.id, assembly);
+      state.visibleAssemblyIds.add(assembly.id);
+      return builder;
     },
     hidePart(partId: PartId): SceneBuilder {
-      const visiblePartIds = new Set(state.visiblePartIds);
-      visiblePartIds.delete(partId);
-      return update({ visiblePartIds });
+      state.visiblePartIds.delete(partId);
+      return builder;
     },
     showPart(partId: PartId): SceneBuilder {
-      const visiblePartIds = new Set(state.visiblePartIds);
-      visiblePartIds.add(partId);
-      return update({ visiblePartIds });
+      state.visiblePartIds.add(partId);
+      return builder;
     },
     hideAssembly(assemblyId: AssemblyId): SceneBuilder {
-      const visibleAssemblyIds = new Set(state.visibleAssemblyIds);
-      visibleAssemblyIds.delete(assemblyId);
-      return update({ visibleAssemblyIds });
+      state.visibleAssemblyIds.delete(assemblyId);
+      return builder;
     },
     showAssembly(assemblyId: AssemblyId): SceneBuilder {
-      const visibleAssemblyIds = new Set(state.visibleAssemblyIds);
-      visibleAssemblyIds.add(assemblyId);
-      return update({ visibleAssemblyIds });
+      state.visibleAssemblyIds.add(assemblyId);
+      return builder;
     },
     build(): Scene {
-      const { rootAssemblyId, parts, assemblies, visiblePartIds, visibleAssemblyIds } = state;
+      const { rootAssemblyId } = state;
       if (rootAssemblyId === undefined) {
         throw new Error("Scene root assembly is not set");
       }
-      const scene = { rootAssemblyId, parts, assemblies, visiblePartIds, visibleAssemblyIds };
+      const scene = {
+        rootAssemblyId,
+        parts: new Map(state.parts),
+        assemblies: new Map(state.assemblies),
+        visiblePartIds: new Set(state.visiblePartIds),
+        visibleAssemblyIds: new Set(state.visibleAssemblyIds),
+      };
       validateScene(scene);
       return scene;
     },
   };
+  return builder;
 }
 
 /** Validates a complete scene before it enters runtime ownership. */
@@ -297,7 +299,8 @@ function validateAcyclic(assemblies: ReadonlyMap<AssemblyId, Assembly>): void {
 }
 
 /**
- * Creates an empty scene builder.
+ * Creates an empty mutable authoring transaction. `build()` returns an isolated
+ * immutable scene snapshot; later builder updates cannot change prior scenes.
  * @category Start here
  */
 export function createScene(): SceneBuilder {
