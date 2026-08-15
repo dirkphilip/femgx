@@ -6,6 +6,7 @@ import {
   minimumCameraDepth,
   orbitCameraWithinBounds,
   protectCameraWithinBounds,
+  updateCameraClipPlanes,
   zoomCameraWithinBounds,
 } from "../../src/camera/navigation";
 import type { Bounds } from "../../src/geometry/part";
@@ -156,6 +157,19 @@ describe("bounds-aware camera navigation", () => {
     const zoomed = zoomCameraWithinBounds(camera, 4, bounds);
     expect(zoomed.orthoHeight).toBeGreaterThan(zoomed.far);
     expect(safelyFramesBounds(zoomed, bounds)).toBe(true);
+  });
+
+  it("updates clipping for many protected occurrences without argument-list overflow", () => {
+    const camera = fitCamera(createCamera({ mode: "perspective" }), bounds, 1152, 900);
+    const updated = updateCameraClipPlanes(
+      camera,
+      bounds,
+      cameraDepthMargin(bounds),
+      Array.from({ length: 20_000 }, () => bounds),
+    );
+
+    expect(updated.near).toBeGreaterThan(0);
+    expect(updated.far).toBeGreaterThan(updated.near);
   });
 
   it("uses the real bolted bounds for both desktop and mobile fit transitions", () => {

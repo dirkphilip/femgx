@@ -8,6 +8,6 @@ import { defineConfig } from "vitest/config";
  */
 export default defineConfig({
   test: {
-    include: ["test/bench/budget.test.ts"],
+    include: ["test/bench/budget.test.ts", "test/bench/scene-update-scaling.test.ts"],
   },
 });

@@ -19,10 +19,8 @@ import { LineMeshBuilder, TriangleMeshAssembler, type MeshVertex } from "./mesh-
 import { elementNodePosition } from "./node-position";
 import { authoredEdgesForElements } from "./authored-edges";
 import {
-  allFacesForElements,
+  analyzeElementFaces,
   faceIdentity,
-  faceNeighbors,
-  validateManifoldFaceNeighbors,
   validateFaceSelectionForElements,
   type ElementRenderFace,
 } from "./element-face-selection";
@@ -43,9 +41,7 @@ export function volumeGeometry(input: VolumeGeometryInput): GeometryBuild<Triang
     faceSubset === undefined
       ? undefined
       : validateFaceSelectionForElements(elements, faceSubset, "heterogeneous");
-  const neighbors = faceNeighbors(elements);
-  validateManifoldFaceNeighbors(neighbors);
-  const faces = allFacesForElements(elements);
+  const { faces, neighbors } = analyzeElementFaces(elements);
   const tessellation = tessellateVolumeFaces({
     model,
     faces,

@@ -1,42 +1,75 @@
 import { canonicalEdge, compareNodeIds, edgesOf } from "../elements/edges";
 import type { Element, ElementId, NodeId } from "../elements/element";
 import { facesOfElement, type FaceIdRef } from "../elements/faces";
+import { at } from "../elements/indices";
 import { canonicalKey } from "../elements/keys";
-import { topologyFor } from "../elements/shapes";
+import { topologyFor, type ElementTopology } from "../elements/shapes";
 import { faceIdentity } from "./element-face-selection";
 import type { GeometryEdge } from "./types";
 
 /** Builds validated authored-edge descriptors for element-generated geometry. */
 export function authoredEdgesForElements(elements: readonly Element[]): readonly GeometryEdge[] {
-  const occurrences: AuthoredEdgeOccurrence[] = [];
+  const byKey = new Map<string, MutableEdge>();
   for (const element of elements) {
-    const localEdges = edgesOf(element);
-    const facesByEdge = new Map<string, FaceIdRef[]>();
-    for (const { elementId, faceIndex, face } of facesOfElement(element)) {
-      const quadratic = topologyFor(element.shape).order >= 2;
-      for (let index = 0; index < face.nodeIds.length; index += quadratic ? 2 : 1) {
-        const nextCorner = quadratic
-          ? (index + 2) % face.nodeIds.length
-          : (index + 1) % face.nodeIds.length;
-        const nodeIds = quadratic
-          ? [face.nodeIds[index], face.nodeIds[index + 1], face.nodeIds[nextCorner]]
-          : [face.nodeIds[index], face.nodeIds[nextCorner]];
-        const localEdge = localEdges.find((edge) => sameEdgeNodes(edge.nodeIds, nodeIds));
-        if (localEdge === undefined) continue;
-        const refs = facesByEdge.get(localEdge.key) ?? [];
-        refs.push({ elementId, faceIndex });
-        facesByEdge.set(localEdge.key, refs);
+    const topology = topologyFor(element.shape);
+    const faceIndices = edgeFaceIndices(element, topology);
+    for (let edgeIndex = 0; edgeIndex < topology.edges.length; edgeIndex += 1) {
+      const [firstIndex, lastIndex] = at(topology.edges, edgeIndex);
+      const first = at(element.nodeIds, firstIndex);
+      const last = at(element.nodeIds, lastIndex);
+      const middleIndex = topology.edgeNodes[edgeIndex];
+      const middle = middleIndex === undefined ? undefined : at(element.nodeIds, middleIndex);
+      const key = edgeKey(first, last, middle);
+      let entry = byKey.get(key);
+      if (entry === undefined) {
+        const nodeIds = canonicalEdge({
+          key,
+          nodeIds: middle === undefined ? [first, last] : [first, middle, last],
+        }).nodeIds;
+        entry = { key, nodeIds, incidentElementIds: [], faceRefs: [] };
+        byKey.set(key, entry);
+      }
+      entry.incidentElementIds.push(element.id);
+      for (const faceIndex of faceIndices[edgeIndex] ?? []) {
+        entry.faceRefs.push({ elementId: element.id, faceIndex });
       }
     }
-    for (const edge of localEdges) {
-      occurrences.push({
-        nodeIds: edge.nodeIds,
-        elementId: element.id,
-        faceRefs: facesByEdge.get(edge.key) ?? [],
-      });
-    }
   }
-  return mergeAuthoredEdges(occurrences);
+  for (const edge of byKey.values()) {
+    edge.incidentElementIds.sort((a, b) => a - b);
+    edge.faceRefs.sort((a, b) => a.elementId - b.elementId || a.faceIndex - b.faceIndex);
+  }
+  return [...byKey.values()].sort((a, b) => compareNodeIds(a.nodeIds, b.nodeIds));
+}
+
+interface MutableEdge {
+  readonly key: string;
+  readonly nodeIds: readonly NodeId[];
+  readonly incidentElementIds: ElementId[];
+  readonly faceRefs: FaceIdRef[];
+}
+
+const edgeFacesByTopology = new WeakMap<ElementTopology, readonly (readonly number[])[]>();
+
+function edgeFaceIndices(
+  element: Element,
+  topology: ElementTopology,
+): readonly (readonly number[])[] {
+  const cached = edgeFacesByTopology.get(topology);
+  if (cached !== undefined) return cached;
+  const faces = facesOfElement(element);
+  const faceIndices = edgesOf(element).map((edge) =>
+    faces.flatMap(({ face, faceIndex }) =>
+      edge.nodeIds.every((nodeId) => face.nodeIds.includes(nodeId)) ? [faceIndex] : [],
+    ),
+  );
+  edgeFacesByTopology.set(topology, faceIndices);
+  return faceIndices;
+}
+
+function edgeKey(first: NodeId, last: NodeId, middle: NodeId | undefined): string {
+  if (middle === undefined) return first < last ? `${first},${last}` : `${last},${first}`;
+  return [first, middle, last].sort((a, b) => a - b).join(",");
 }
 
 /** One authored edge incidence before shared topology is deduplicated. */
@@ -80,24 +113,4 @@ export function mergeAuthoredEdges(
       ),
     }))
     .sort((a, b) => compareNodeIds(a.nodeIds, b.nodeIds));
-}
-
-function sameEdgeNodes(left: readonly NodeId[], right: readonly (NodeId | undefined)[]): boolean {
-  if (left.length !== right.length) return false;
-  const leftFirst = left[0];
-  const leftLast = left[left.length - 1];
-  const rightFirst = right[0];
-  const rightLast = right[right.length - 1];
-  if (
-    leftFirst === undefined ||
-    leftLast === undefined ||
-    rightFirst === undefined ||
-    rightLast === undefined
-  ) {
-    return false;
-  }
-  const sameDirection = leftFirst === rightFirst && leftLast === rightLast;
-  const reverseDirection = leftFirst === rightLast && leftLast === rightFirst;
-  if (!sameDirection && !reverseDirection) return false;
-  return left.length === 2 || left[1] === right[1];
 }

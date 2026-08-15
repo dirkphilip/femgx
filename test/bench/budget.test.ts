@@ -13,22 +13,21 @@ import {
   TRIANGLE_SHAPE,
   TET4_SHAPE,
 } from "../../src/elements/shapes";
-import { elementPart } from "../../src/geometry/heterogeneous-element-mesh";
+import { elementPart } from "../../src/entries/model";
 import {
+  createInteractionState,
   createPart,
-  type Geometry,
-  type Part,
-  type TriangleGeometry,
-} from "../../src/geometry/part";
-import { translation } from "../../src/math/mat4";
-import { resolvePick, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
-import { createInteractionState } from "../../src/interaction/interaction";
-import { selectedTargets } from "../../src/interaction/targets";
-import {
+  createScene,
+  selectedTargets,
   setTargetsHighlighted,
   setTargetsSelected,
+  translation,
+  type Geometry,
   type InteractionTarget,
-} from "../../src/interaction/targets";
+  type Part,
+  type TriangleGeometry,
+} from "../../src/entries/root";
+import { resolvePick, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
 import { buildMeshEdgeData } from "../../src/renderer/gpu-edge";
 import { createPickRegionTargetResolver } from "../../src/renderer/gpu-pick-region-resolve";
 import { buildPrimitiveFaceBodyPickData } from "../../src/renderer/gpu-pick-ids";
@@ -42,7 +41,7 @@ import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
 import { defaultStyle } from "../../src/renderer/gpu-support";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import { createScene } from "../../src/scene/scene";
+import { createSceneRuntime } from "../../src/entries/runtime";
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
 import { displayedPartBounds } from "../../src/viewport/geometry-bounds";
 import { buildFaceSubsetIndices } from "../../src/renderer/gpu-face-subset";
@@ -63,13 +62,18 @@ import {
   makeBodies,
   makeScene,
 } from "./fixtures";
-import { measureMs } from "./measure";
+import { measureMs, measureScaling, type ScalingPoint } from "./measure";
 
-const shallowScene = makeScene({
-  subcaseCount: BENCH_SUBCASE_COUNT,
-  placementsPerSubcase: BENCH_PLACEMENTS_PER_SUBCASE,
-  partCount: BENCH_PART_COUNT,
-});
+const RUNTIME_SCALING_PLACEMENTS = [50_000, 100_000, BENCH_INSTANCE_COUNT] as const;
+const runtimeScalingScenes = RUNTIME_SCALING_PLACEMENTS.map((placementCount) =>
+  makeScene({
+    subcaseCount: BENCH_SUBCASE_COUNT,
+    placementsPerSubcase: placementCount / BENCH_SUBCASE_COUNT,
+    partCount: BENCH_PART_COUNT,
+  }),
+);
+const shallowScene = runtimeScalingScenes.at(-1);
+if (shallowScene === undefined) throw new Error("Runtime scaling scenes are missing");
 
 const deepScene = makeHierarchyScene({
   depth: BENCH_HIERARCHY_DEPTH,
@@ -234,6 +238,11 @@ const emphasisTableEntries: HighlightTableEntry[] = Array.from(
       data: encodeEmphasisRecord(update),
     };
   },
+);
+
+const SOLID_SCALING_GRID_SIZES = [8, 12, 16] as const;
+const solidScalingModels = SOLID_SCALING_GRID_SIZES.map((gridSize) =>
+  createStructuredFeModel("hex8", gridSize),
 );
 
 function makeSelectionTargets(count: number, occurrenceCount: number): InteractionTarget[] {
@@ -431,6 +440,15 @@ interface BudgetCase {
   readonly run: () => void;
 }
 
+interface ScalingCase {
+  readonly name: string;
+  readonly description: string;
+  readonly points: readonly ScalingPoint[];
+  /** Maximum tolerated spread between the cheapest and costliest normalized points. */
+  readonly maxNormalizedSpread: number;
+  readonly iterations?: number;
+}
+
 /**
  * Wall-clock ceilings for representative CPU workloads. Budgets are roughly
  * 10x the measured medians on a developer laptop (see `wiki/engineering/benchmarks.md`),
@@ -440,14 +458,6 @@ interface BudgetCase {
  * `PERF_REPORT=1 npx vitest run test/bench/budget.test.ts`.
  */
 const budgets: readonly BudgetCase[] = [
-  {
-    name: "createPackedSceneRuntime",
-    description: `packed compile, ${BENCH_INSTANCE_COUNT} instances`,
-    budgetMs: 700,
-    run: () => {
-      createPackedSceneRuntime(shallowScene);
-    },
-  },
   {
     name: "createPackedSceneRuntime (deep hierarchy)",
     description: `nested transforms, ${BENCH_HIERARCHY_INSTANCE_COUNT} instances`,
@@ -587,16 +597,6 @@ const budgets: readonly BudgetCase[] = [
     },
   },
   {
-    name: "SceneBuilder build (4,096 parts)",
-    description: "fluent scene authoring with one final immutable snapshot",
-    budgetMs: 100,
-    run: () => {
-      let builder = createScene();
-      for (const part of sceneBuilderParts) builder = builder.addPart(part);
-      builder.addAssembly({ id: 1, name: "root", placements: [] }).withRoot(1).build();
-    },
-  },
-  {
     name: "setTargetsSelected (16,384 elements)",
     description: "one immutable bulk transition in one occurrence",
     budgetMs: 100,
@@ -620,38 +620,6 @@ const budgets: readonly BudgetCase[] = [
       setTargetsHighlighted(createInteractionState(), bulkHighlightTargets, true);
     },
   },
-  ...PHASE_SELECTION_COUNTS.flatMap((count) => {
-    const targets = phaseSelectionTargets.get(count);
-    const selected = phaseSelectionStates.get(count);
-    if (targets === undefined || selected === undefined)
-      throw new Error(`Missing ${count} targets`);
-    return [
-      {
-        name: `setTargetsSelected replace (${count} targets)`,
-        description: "duplicate-safe replacement across two occurrences",
-        budgetMs: count <= 1_024 ? 20 : 100,
-        run: () => {
-          setTargetsSelected(createInteractionState(), targets, true);
-        },
-      },
-      {
-        name: `setTargetsSelected toggle (${count} targets)`,
-        description: "duplicate-safe clear across two occurrences",
-        budgetMs: count <= 1_024 ? 20 : 100,
-        run: () => {
-          setTargetsSelected(selected, targets, false);
-        },
-      },
-      {
-        name: `selectedTargets feedback (${count} targets)`,
-        description: "count selected targets without DOM timing",
-        budgetMs: count <= 1_024 ? 20 : 100,
-        run: () => {
-          expect(selectedTargets(selected)).toHaveLength(count);
-        },
-      },
-    ];
-  }),
   {
     name: "buildHighlightTable (16,384 records)",
     description: "bounded four-entry buckets for repeated placements",
@@ -699,29 +667,6 @@ const budgets: readonly BudgetCase[] = [
       );
     },
   },
-  ...regionCases.flatMap(({ part, ids }, index) => {
-    const count = index === 0 ? 16_384 : 100_000;
-    const resolver = regionResolvers[index];
-    if (resolver === undefined) throw new Error(`Missing region resolver for ${count} elements`);
-    return [
-      {
-        name: `pickRegion cached metadata lookup (${count})`,
-        description: `${count} immutable element identity lookups`,
-        budgetMs: index === 0 ? 100 : 500,
-        run: () => {
-          getPartSemanticIndex(part);
-        },
-      },
-      {
-        name: `pickRegion target resolve (${count})`,
-        description: `${count} indexed element identities`,
-        budgetMs: index === 0 ? 100 : 700,
-        run: () => {
-          for (const pickIds of ids) resolver(pickIds);
-        },
-      },
-    ];
-  }),
   {
     name: "elementPart",
     description: "600 mixed linear elements compiled into one semantic part",
@@ -786,11 +731,107 @@ const budgets: readonly BudgetCase[] = [
   },
 ];
 
+const scalingCases: readonly ScalingCase[] = [
+  {
+    name: "public scene runtime rebuild",
+    description: "compile 50k–200k placements through createSceneRuntime",
+    points: runtimeScalingScenes.map((scene, index) => ({
+      size: RUNTIME_SCALING_PLACEMENTS[index] ?? 0,
+      run: () => {
+        createSceneRuntime(scene);
+      },
+    })),
+    maxNormalizedSpread: 3,
+  },
+  {
+    name: "structured Hex8 part compilation",
+    description: "tessellate 512–4,096 authored solid elements",
+    points: solidScalingModels.map((model, index) => ({
+      size: model.elements.length,
+      run: () => {
+        elementPart(10_000 + index, model);
+      },
+    })),
+    maxNormalizedSpread: 3,
+  },
+  {
+    name: "many-part scene build",
+    description: "register, place, snapshot, and compile 1,024–4,096 reusable parts",
+    points: [1_024, 2_048, SCENE_BUILDER_PART_COUNT].map((size) => ({
+      size,
+      run: () => {
+        const parts = sceneBuilderParts.slice(0, size);
+        let builder = createScene();
+        for (const part of parts) builder = builder.addPart(part);
+        const scene = builder
+          .addAssembly({
+            id: 1,
+            name: "root",
+            placements: parts.map((part) => ({
+              kind: "part" as const,
+              partId: part.id,
+              transform: translation(part.id, 0, 0),
+            })),
+          })
+          .withRoot(1)
+          .build();
+        createSceneRuntime(scene);
+      },
+    })),
+    maxNormalizedSpread: 3,
+  },
+  {
+    name: "element interaction updates",
+    description: "select, enumerate, and clear 1,024–16,384 targets",
+    points: PHASE_SELECTION_COUNTS.slice(1).map((count) => {
+      const targets = phaseSelectionTargets.get(count);
+      const selected = phaseSelectionStates.get(count);
+      if (targets === undefined || selected === undefined)
+        throw new Error(`Missing ${count} targets`);
+      return {
+        size: count,
+        run: () => {
+          setTargetsSelected(createInteractionState(), targets, true);
+          selectedTargets(selected);
+          setTargetsSelected(selected, targets, false);
+        },
+      };
+    }),
+    maxNormalizedSpread: 3,
+    iterations: 2,
+  },
+  {
+    name: "pick-region target resolution",
+    description: "resolve 16,384–100,000 element identities",
+    points: regionCases.map(({ ids }, index) => {
+      const resolver = regionResolvers[index];
+      if (resolver === undefined) throw new Error("Region scaling resolver is missing");
+      return {
+        size: ids.length,
+        run: () => {
+          for (const pickIds of ids) resolver(pickIds);
+        },
+      };
+    }),
+    maxNormalizedSpread: 3,
+    iterations: 4,
+  },
+];
+
 function report(name: string, description: string, measuredMs: number): void {
   if (process.env["PERF_REPORT"] === undefined) {
     return;
   }
   console.log(`${name.padEnd(38)} ${description.padEnd(46)} ${measuredMs.toFixed(3)} ms`);
+}
+
+function reportScaling(name: string, measurements: ReturnType<typeof measureScaling>): void {
+  if (process.env["PERF_REPORT"] === undefined) return;
+  console.log(
+    `${name}: ${measurements
+      .map(({ size, measuredMs }) => `${size}=${measuredMs.toFixed(3)} ms`)
+      .join(", ")}`,
+  );
 }
 
 describe("performance budgets", () => {
@@ -802,6 +843,24 @@ describe("performance budgets", () => {
       `${budget.name} (${budget.description}) took ${measured.toFixed(2)} ms, above its ` +
         `${budget.budgetMs} ms budget; see wiki/engineering/benchmarks.md`,
     ).toBeLessThanOrEqual(budget.budgetMs);
+  });
+
+  it.each(scalingCases)("$name remains approximately linear", (scaling) => {
+    const measurements = measureScaling(scaling.points, {
+      warmup: 1,
+      samples: 3,
+      ...(scaling.iterations === undefined ? {} : { iterations: scaling.iterations }),
+    });
+    reportScaling(scaling.name, measurements);
+    const normalized = measurements.map(({ millisecondsPerUnit }) => millisecondsPerUnit);
+    const spread = Math.max(...normalized) / Math.min(...normalized);
+    expect(
+      spread,
+      `${scaling.name} (${scaling.description}) normalized cost spread was ` +
+        `${spread.toFixed(2)}x across ` +
+        `${measurements.map(({ size }) => size).join(" → ")}; expected at most ` +
+        `${scaling.maxNormalizedSpread}x, see wiki/engineering/benchmarks.md`,
+    ).toBeLessThanOrEqual(scaling.maxNormalizedSpread);
   });
 
   it("toggles visibility on a part with a known instance count", () => {

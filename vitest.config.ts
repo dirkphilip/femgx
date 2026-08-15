@@ -7,6 +7,8 @@ export default defineConfig({
     // so wall-clock budgets are not distorted by coverage instrumentation.
     exclude: [
       "test/bench/budget.test.ts",
+      "test/bench/large-scaling.test.ts",
+      "test/bench/scene-update-scaling.test.ts",
       // Svelte component tests run with the plugin in the demo component gate.
       "test/demo/ui*.test.ts",
     ],
