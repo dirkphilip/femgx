@@ -44,10 +44,22 @@ export function createElement(
   return { id, shape, nodeIds: [...nodeIds] };
 }
 
+/**
+ * Creates an element around connectivity already owned by a validated internal
+ * conversion. The caller must not expose or mutate `nodeIds` after this handoff.
+ * @internal
+ */
+export function createOwnedElement(
+  id: ElementId,
+  shape: ElementShape,
+  nodeIds: readonly NodeId[],
+): Element {
+  validateOwnedElement(id, nodeIds);
+  return { id, shape, nodeIds };
+}
+
 function validateElement(id: ElementId, shape: ElementShape, nodeIds: readonly NodeId[]): void {
-  if (!Number.isSafeInteger(id) || id < 0 || id > MAX_ELEMENT_ID) {
-    throw new Error(`Element id must be a safe integer in [0, ${MAX_ELEMENT_ID}], got ${id}`);
-  }
+  validateElementId(id);
   const topology = topologyFor(shape);
   if (nodeIds.length !== topology.nodeCount) {
     throw new Error(
@@ -61,9 +73,25 @@ function validateElement(id: ElementId, shape: ElementShape, nodeIds: readonly N
         `Element ${id} has invalid node id ${nodeId}; node ids must be non-negative integers`,
       );
     }
-    if (seen.has(nodeId)) {
-      throw new Error(`Element ${id} references node ${nodeId} more than once`);
-    }
-    seen.add(nodeId);
+    assertUniqueNodeId(id, nodeId, seen);
   }
+}
+
+function validateOwnedElement(id: ElementId, nodeIds: readonly NodeId[]): void {
+  validateElementId(id);
+  const seen = new Set<NodeId>();
+  for (const nodeId of nodeIds) assertUniqueNodeId(id, nodeId, seen);
+}
+
+function validateElementId(id: ElementId): void {
+  if (!Number.isSafeInteger(id) || id < 0 || id > MAX_ELEMENT_ID) {
+    throw new Error(`Element id must be a safe integer in [0, ${MAX_ELEMENT_ID}], got ${id}`);
+  }
+}
+
+function assertUniqueNodeId(id: ElementId, nodeId: NodeId, seen: Set<NodeId>): void {
+  if (seen.has(nodeId)) {
+    throw new Error(`Element ${id} references node ${nodeId} more than once`);
+  }
+  seen.add(nodeId);
 }

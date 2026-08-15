@@ -59,14 +59,7 @@ export function createElementModel(
     throw new Error("Node coordinate array length must be a multiple of 3");
   }
   const nodeCount = nodes.length / 3;
-  for (let nodeId = 0; nodeId < nodeCount; nodeId += 1) {
-    const x = nodes[nodeId * 3] ?? 0;
-    const y = nodes[nodeId * 3 + 1] ?? 0;
-    const z = nodes[nodeId * 3 + 2] ?? 0;
-    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
-      throw new Error(`Node ${nodeId} has non-finite coordinates`);
-    }
-  }
+  validateNodeCoordinates(nodes, nodeCount);
   for (const element of elements) {
     for (const nodeId of element.nodeIds) {
       if (!Number.isInteger(nodeId) || nodeId < 0 || nodeId >= nodeCount) {
@@ -83,6 +76,23 @@ export function createElementModel(
     ...(copiedBlocks === undefined ? {} : { blocks: copiedBlocks }),
     ...(copiedBodies === undefined ? {} : { bodies: copiedBodies }),
   };
+}
+
+/**
+ * Reifies a model from elements whose ids, shapes, connectivity, and ownership
+ * have already been validated by an internal importer. This keeps the importer
+ * handoff from copying each owned connectivity collection a second time.
+ * @internal
+ */
+export function createElementModelFromOwnedElements(
+  nodes: ArrayLike<number>,
+  elements: readonly Element[],
+): ElementModel {
+  if (nodes.length % 3 !== 0) {
+    throw new Error("Node coordinate array length must be a multiple of 3");
+  }
+  validateNodeCoordinates(nodes, nodes.length / 3);
+  return { nodes: new Float32Array(nodes), elements };
 }
 
 /** Resolves authored block and body ownership without allocating block state for empty models. */
@@ -118,6 +128,17 @@ function copyBlocks(
     ...block,
     elementIds: [...block.elementIds],
   }));
+}
+
+function validateNodeCoordinates(nodes: ArrayLike<number>, nodeCount: number): void {
+  for (let nodeId = 0; nodeId < nodeCount; nodeId += 1) {
+    const x = nodes[nodeId * 3] ?? 0;
+    const y = nodes[nodeId * 3 + 1] ?? 0;
+    const z = nodes[nodeId * 3 + 2] ?? 0;
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
+      throw new Error(`Node ${nodeId} has non-finite coordinates`);
+    }
+  }
 }
 
 function copyBodies(bodies: readonly Body[] | undefined): readonly Body[] | undefined {

@@ -1,5 +1,5 @@
-import { createElement } from "../elements/element";
-import { createElementModel, type ElementModel } from "../elements/model";
+import { createOwnedElement, type Element, type NodeId } from "../elements/element";
+import { createElementModelFromOwnedElements, type ElementModel } from "../elements/model";
 import { topologyFor } from "../elements/shapes";
 import { IoError, type Issue } from "./diagnostics";
 import type { FemModel } from "./model";
@@ -18,18 +18,19 @@ export function createElementModelFromFemModel(model: FemModel): ElementModel {
   if (errors.length > 0) {
     throw new IoError("Cannot convert FemModel to ElementModel", errors);
   }
-  const elements = model.elementShapeBlocks.flatMap((block) => {
+  const elements: Element[] = [];
+  for (const block of model.elementShapeBlocks) {
     const nodeCount = topologyFor(block.shape).nodeCount;
-    return Array.from({ length: block.count }, (_, index) => {
+    for (let index = 0; index < block.count; index += 1) {
       const start = index * nodeCount;
-      return createElement(
-        block.ids[index] ?? index,
-        block.shape,
-        Array.from(block.connectivity.slice(start, start + nodeCount)),
-      );
-    });
-  });
-  return createElementModel(model.nodes.coordinates, elements);
+      const nodeIds = new Array<NodeId>(nodeCount);
+      for (let node = 0; node < nodeCount; node += 1) {
+        nodeIds[node] = block.connectivity[start + node] ?? 0;
+      }
+      elements.push(createOwnedElement(block.ids[index] ?? index, block.shape, nodeIds));
+    }
+  }
+  return createElementModelFromOwnedElements(model.nodes.coordinates, elements);
 }
 
 function nonDenseNodeIssues(model: FemModel): readonly Issue[] {

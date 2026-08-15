@@ -24,6 +24,7 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `editElementModel` remove         | 128 semantic blocks              | remove one block and its elements                  |
 | `editElementModel` replace        | 128 semantic blocks              | retain/append topology and three nodes             |
 | `editElementModel` transaction    | 128 semantic blocks              | merge, remove, and replace in one private draft    |
+| `createElementModelFromFemModel`  | 250 000 Triangle3 elements       | typed connectivity conversion                      |
 | `setPartVisible` toggle           | part with 1 000 instances        | hide then show                                     |
 | `setAssemblyVisible` toggle       | subcase with 2 000 instances     | hide then show                                     |
 | `setInstanceVisible` toggle       | single instance                  | override, hide then show                           |
