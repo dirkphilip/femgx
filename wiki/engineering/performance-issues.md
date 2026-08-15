@@ -16,11 +16,11 @@ _Resolved for visibility by the [[architecture/packed-runtime|packed scene runti
 runtime flips packed visibility bits in place and reports deltas, so hide/show
 cost is proportional to the changed placements instead of the whole model.
 
-`SceneBuilder` copies maps and visibility sets for each builder operation. This
-is convenient for small scenes, but repeated additions or visibility changes
-copy O(n) state and can become quadratic while authoring large in-memory
-assemblies. The packed runtime and its delta-oriented update path keep the
-current product path practical.
+_Resolved for scene authoring_: `SceneBuilder` is a private mutable transaction.
+Fluent operations update its maps and visibility sets in place, while `build()`
+validates and copies them once into an isolated immutable `Scene`. Construction
+is linear rather than copying O(n) state for every addition; the default budget
+protects a 4,096-part build.
 
 ## Packed compile cost
 
@@ -99,14 +99,13 @@ per-part batch resource across frames and passes, `render` keeps a single depth
 texture that is only resized when the canvas size changes, and pick readback
 reuses a pool of map buffers (see
 [[rendering/webgpu-resource-reuse|WebGPU resource reuse]]). Per-part instance buffers only
-grow; a grown-out buffer is replaced without being destroyed immediately, so it
-is only released when the renderer is destroyed — deferred buffer destruction
-for growth is still future work. Pick targets are reused across frames and
-resized on demand; their geometry snapshot is rendered lazily on the first pick
-after pick-relevant state changes rather than during every visible frame. That
-snapshot now rasterizes geometry once: a one-invocation compute pass reads the
-winning depth texel from the ID pass depth attachment, replacing the former
-second geometry traversal and `r32float` color target.
+grow; growth copies the CPU mirror into a replacement and destroys the retired
+GPU buffers immediately after the queued write. Pick targets are reused across
+frames and resized on demand; their geometry snapshot is rendered lazily on the
+first pick after pick-relevant state changes rather than during every visible
+frame. That snapshot now rasterizes geometry once: a one-invocation compute pass
+reads the winning depth texel from the ID pass depth attachment, replacing the
+former second geometry traversal and `r32float` color target.
 
 ## Toolchain reproducibility
 

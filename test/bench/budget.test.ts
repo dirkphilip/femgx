@@ -12,12 +12,16 @@ import {
   TET4_SHAPE,
 } from "../../src/elements/shapes";
 import { elementPart } from "../../src/geometry/heterogeneous-element-mesh";
-import { createPart, type Geometry } from "../../src/geometry/part";
+import { createPart, type Geometry, type Part } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { resolvePick, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { selectedTargets } from "../../src/interaction/targets";
-import { setTargetsSelected, type InteractionTarget } from "../../src/interaction/targets";
+import {
+  setTargetsHighlighted,
+  setTargetsSelected,
+  type InteractionTarget,
+} from "../../src/interaction/targets";
 import { buildMeshEdgeData } from "../../src/renderer/gpu-edge";
 import { createPickRegionTargetResolver } from "../../src/renderer/gpu-pick-region-resolve";
 import { buildPrimitiveFaceBodyPickData } from "../../src/renderer/gpu-pick-ids";
@@ -31,6 +35,7 @@ import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
 import { defaultStyle } from "../../src/renderer/gpu-support";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
+import { createScene } from "../../src/scene/scene";
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
 import {
   BENCH_BODY_COUNT,
@@ -172,6 +177,7 @@ const duplicateBulkSelectionTargets = [
   ...bulkSelectionTargets,
   ...bulkSelectionTargets.slice(0, 1_024),
 ];
+const bulkHighlightTargets = bulkSelectionTargets.slice(0, 8_192);
 const PHASE_SELECTION_COUNTS = [1, 1_024, 4_096, 16_384] as const;
 const phaseSelectionTargets = new Map(
   PHASE_SELECTION_COUNTS.map((count) => [count, makeSelectionTargets(count, 2)]),
@@ -181,6 +187,20 @@ const phaseSelectionStates = new Map(
     const targets = phaseSelectionTargets.get(count) ?? [];
     return [count, setTargetsSelected(createInteractionState(), targets, true)] as const;
   }),
+);
+const SCENE_BUILDER_PART_COUNT = 4_096;
+const sceneBuilderParts: readonly Part[] = Array.from(
+  { length: SCENE_BUILDER_PART_COUNT },
+  (_, index) =>
+    createPart(index + 1, {
+      geometries: [
+        {
+          positions: new Float32Array([0, 0, 0]),
+          indices: new Uint32Array(),
+          primitive: "points",
+        },
+      ],
+    }),
 );
 const emphasisTableEntries: HighlightTableEntry[] = Array.from(
   { length: BULK_SELECTION_COUNT },
@@ -450,6 +470,16 @@ const budgets: readonly BudgetCase[] = [
     },
   },
   {
+    name: "SceneBuilder build (4,096 parts)",
+    description: "fluent scene authoring with one final immutable snapshot",
+    budgetMs: 100,
+    run: () => {
+      let builder = createScene();
+      for (const part of sceneBuilderParts) builder = builder.addPart(part);
+      builder.addAssembly({ id: 1, name: "root", placements: [] }).withRoot(1).build();
+    },
+  },
+  {
     name: "setTargetsSelected (16,384 elements)",
     description: "one immutable bulk transition in one occurrence",
     budgetMs: 100,
@@ -463,6 +493,14 @@ const budgets: readonly BudgetCase[] = [
     budgetMs: 100,
     run: () => {
       setTargetsSelected(createInteractionState(), duplicateBulkSelectionTargets, true);
+    },
+  },
+  {
+    name: "setTargetsHighlighted (8,192 elements)",
+    description: "one duplicate-safe immutable bulk transition in one occurrence",
+    budgetMs: 100,
+    run: () => {
+      setTargetsHighlighted(createInteractionState(), bulkHighlightTargets, true);
     },
   },
   ...PHASE_SELECTION_COUNTS.flatMap((count) => {

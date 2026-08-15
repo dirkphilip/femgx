@@ -24,10 +24,11 @@ material clones.
 - Body selection, highlight, hover, and explicit style overrides use the same
   immutable interaction state pattern, keyed by `(instanceId, bodyId)`.
 - `InteractionTarget` is the identity-only union for part, instance, body,
-  element, face, and node targets. `setTargetSelected` and
+  block, element, face, node, and authored-edge targets. `setTargetSelected` and
   `setTargetHighlighted` dispatch to the owning granular state without a
-  mutable manager; `setTargetsHighlighted` is the deterministic bulk form.
-- `clearSelection` clears all six selection collections while preserving hover,
+  mutable manager. Bulk selection and highlighting group duplicate targets and
+  clone each touched immutable collection at most once.
+- `clearSelection` clears all eight selection collections while preserving hover,
   highlights, visibility, results overrides, and explicit styles.
 - The private `interaction/mechanics.ts` module centralizes immutable nested
   collection updates, reference equality, deterministic ordering, deduplication,

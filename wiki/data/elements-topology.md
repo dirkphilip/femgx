@@ -25,6 +25,17 @@ serializable `FemModel` can be converted once with
 `createElementModelFromFemModel`; its node ids must already be dense because
 the render model indexes coordinates directly.
 
+### Coordinate precision
+
+`ElementModel`, derived part geometry, placement transforms, deformation, and
+GPU data intentionally use single-precision `Float32Array` storage. The IO model
+retains parsed coordinates as `Float64Array` for interchange and round trips,
+then `createElementModelFromFemModel` quantizes them once at the render-model
+boundary. Consequently, Float32 resolution is relative to coordinate magnitude:
+large global offsets can collapse nearby nodes. Hosts should author suitable
+part-local coordinates. Mixed-precision rendering, automatic rebasing, and a
+second coordinate path are out of scope for now.
+
 ## Authored blocks and bodies
 
 `createElementModel(nodes, elements, options)` is the authoritative in-memory

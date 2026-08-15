@@ -29,7 +29,7 @@ export function createElementModelFromFemModel(model: FemModel): ElementModel {
       );
     });
   });
-  return createElementModel([...model.nodes.coordinates], elements);
+  return createElementModel(model.nodes.coordinates, elements);
 }
 
 function nonDenseNodeIssues(model: FemModel): readonly Issue[] {

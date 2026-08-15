@@ -18,6 +18,11 @@ Because every array is a typed array and every value is a plain object, a
 `FemModel` is fully serializable. Bump `FEMGX_FORMAT_VERSION` when a writer
 changes field semantics.
 
+The double-precision coordinate table belongs only to interchange. Conversion
+through `createElementModelFromFemModel` produces the product's single-precision
+render model directly, without an intermediate JavaScript array; see
+[[data/elements-topology|Element topology]].
+
 ## Model builder (`io/build.ts`)
 
 `createModelBuilder()` accumulates typed-array chunks (`appendNodes`,
@@ -104,4 +109,5 @@ were removed to match [[requirements/product-scope|product scope]]. Do not
 re-add them without an explicit scope decision.
 
 [architecture/source-organization|Source organization]: ../architecture/source-organization.md
+[data/elements-topology|Element topology]: elements-topology.md
 [requirements/product-scope|product scope]: ../requirements/product-scope.md

@@ -9,6 +9,7 @@ import {
   setHoveredTarget,
   updateInteractionState,
   type InteractionState,
+  type InteractionStateData,
 } from "./state";
 import {
   setElementHighlighted,
@@ -115,41 +116,19 @@ export function setTargetsSelected(
   targets: readonly InteractionTarget[],
   selected: boolean,
 ): InteractionState {
-  const groups = collectSelectionTargets(targets);
   const data = readInteractionState(state);
-  const selectedPartIds = updateSetValues(data.selectedPartIds, groups.partIds, selected);
-  const selectedInstanceIds = updateSetValues(
-    data.selectedInstanceIds,
-    groups.instanceIds,
-    selected,
-  );
-  const selectedBodyIds = updateNestedSets(data.selectedBodyIds, groups.bodyIds, selected);
-  const selectedBlockIds = updateNestedSets(data.selectedBlockIds, groups.blockIds, selected);
-  const selectedElementIds = updateNestedSets(data.selectedElementIds, groups.elementIds, selected);
-  const selectedFaces = updateNestedMaps(data.selectedFaces, groups.faceRefs, selected);
-  const selectedNodeIds = updateNestedSets(data.selectedNodeIds, groups.nodeIds, selected);
-  const selectedEdges = updateNestedMaps(data.selectedEdges, groups.edgeRefs, selected);
-  if (
-    selectedPartIds === data.selectedPartIds &&
-    selectedInstanceIds === data.selectedInstanceIds &&
-    selectedBodyIds === data.selectedBodyIds &&
-    selectedBlockIds === data.selectedBlockIds &&
-    selectedElementIds === data.selectedElementIds &&
-    selectedFaces === data.selectedFaces &&
-    selectedNodeIds === data.selectedNodeIds &&
-    selectedEdges === data.selectedEdges
-  ) {
-    return state;
-  }
+  const current = selectedCollections(data);
+  const next = updateTargetCollections(current, collectTargetGroups(targets), selected);
+  if (targetCollectionsEqual(current, next)) return state;
   return updateInteractionState(state, {
-    selectedPartIds,
-    selectedInstanceIds,
-    selectedBodyIds,
-    selectedBlockIds,
-    selectedElementIds,
-    selectedFaces,
-    selectedNodeIds,
-    selectedEdges,
+    selectedPartIds: next.partIds,
+    selectedInstanceIds: next.instanceIds,
+    selectedBodyIds: next.bodyIds,
+    selectedBlockIds: next.blockIds,
+    selectedElementIds: next.elementIds,
+    selectedFaces: next.faceRefs,
+    selectedNodeIds: next.nodeIds,
+    selectedEdges: next.edgeRefs,
   });
 }
 
@@ -162,7 +141,7 @@ type FaceTarget = Extract<InteractionTarget, { readonly kind: "face" }>;
 type NodeTarget = Extract<InteractionTarget, { readonly kind: "node" }>;
 type EdgeTarget = Extract<InteractionTarget, { readonly kind: "edge" }>;
 
-interface SelectionTargetGroups {
+interface TargetGroups {
   readonly partIds: Set<PartTarget["partId"]>;
   readonly instanceIds: Set<InstanceTarget["instanceId"]>;
   readonly bodyIds: Map<BodyTarget["instanceId"], Set<BodyTarget["bodyId"]>>;
@@ -173,8 +152,22 @@ interface SelectionTargetGroups {
   readonly edgeRefs: Map<EdgeTarget["instanceId"], Map<string, EdgeRef>>;
 }
 
-function collectSelectionTargets(targets: readonly InteractionTarget[]): SelectionTargetGroups {
-  const groups: SelectionTargetGroups = {
+interface TargetCollections {
+  readonly partIds: ReadonlySet<PartTarget["partId"]>;
+  readonly instanceIds: ReadonlySet<InstanceTarget["instanceId"]>;
+  readonly bodyIds: ReadonlyMap<BodyTarget["instanceId"], ReadonlySet<BodyTarget["bodyId"]>>;
+  readonly blockIds: ReadonlyMap<BlockTarget["instanceId"], ReadonlySet<BlockTarget["blockId"]>>;
+  readonly elementIds: ReadonlyMap<
+    ElementTarget["instanceId"],
+    ReadonlySet<ElementTarget["elementId"]>
+  >;
+  readonly faceRefs: ReadonlyMap<FaceTarget["instanceId"], ReadonlyMap<string, FaceRef>>;
+  readonly nodeIds: ReadonlyMap<NodeTarget["instanceId"], ReadonlySet<NodeTarget["nodeId"]>>;
+  readonly edgeRefs: ReadonlyMap<EdgeTarget["instanceId"], ReadonlyMap<string, EdgeRef>>;
+}
+
+function collectTargetGroups(targets: readonly InteractionTarget[]): TargetGroups {
+  const groups: TargetGroups = {
     partIds: new Set(),
     instanceIds: new Set(),
     bodyIds: new Map(),
@@ -186,7 +179,7 @@ function collectSelectionTargets(targets: readonly InteractionTarget[]): Selecti
   };
   const seen = new Set<string>();
   for (const target of targets) {
-    const key = selectionTargetKey(target);
+    const key = targetKey(target);
     if (seen.has(key)) continue;
     seen.add(key);
     switch (target.kind) {
@@ -219,6 +212,62 @@ function collectSelectionTargets(targets: readonly InteractionTarget[]): Selecti
   return groups;
 }
 
+function selectedCollections(data: InteractionStateData): TargetCollections {
+  return {
+    partIds: data.selectedPartIds,
+    instanceIds: data.selectedInstanceIds,
+    bodyIds: data.selectedBodyIds,
+    blockIds: data.selectedBlockIds,
+    elementIds: data.selectedElementIds,
+    faceRefs: data.selectedFaces,
+    nodeIds: data.selectedNodeIds,
+    edgeRefs: data.selectedEdges,
+  };
+}
+
+function highlightedCollections(data: InteractionStateData): TargetCollections {
+  return {
+    partIds: data.highlightedPartIds,
+    instanceIds: data.highlightedInstanceIds,
+    bodyIds: data.highlightedBodyIds,
+    blockIds: data.highlightedBlockIds,
+    elementIds: data.highlightedElementIds,
+    faceRefs: data.highlightedFaces,
+    nodeIds: data.highlightedNodeIds,
+    edgeRefs: data.highlightedEdges,
+  };
+}
+
+function updateTargetCollections(
+  current: TargetCollections,
+  groups: TargetGroups,
+  enabled: boolean,
+): TargetCollections {
+  return {
+    partIds: updateSetValues(current.partIds, groups.partIds, enabled),
+    instanceIds: updateSetValues(current.instanceIds, groups.instanceIds, enabled),
+    bodyIds: updateNestedSets(current.bodyIds, groups.bodyIds, enabled),
+    blockIds: updateNestedSets(current.blockIds, groups.blockIds, enabled),
+    elementIds: updateNestedSets(current.elementIds, groups.elementIds, enabled),
+    faceRefs: updateNestedMaps(current.faceRefs, groups.faceRefs, enabled),
+    nodeIds: updateNestedSets(current.nodeIds, groups.nodeIds, enabled),
+    edgeRefs: updateNestedMaps(current.edgeRefs, groups.edgeRefs, enabled),
+  };
+}
+
+function targetCollectionsEqual(left: TargetCollections, right: TargetCollections): boolean {
+  return (
+    left.partIds === right.partIds &&
+    left.instanceIds === right.instanceIds &&
+    left.bodyIds === right.bodyIds &&
+    left.blockIds === right.blockIds &&
+    left.elementIds === right.elementIds &&
+    left.faceRefs === right.faceRefs &&
+    left.nodeIds === right.nodeIds &&
+    left.edgeRefs === right.edgeRefs
+  );
+}
+
 function addNestedValue<OuterKey, InnerKey>(
   groups: Map<OuterKey, Set<InnerKey>>,
   outerKey: OuterKey,
@@ -246,7 +295,7 @@ function addNestedValue<OuterKey, InnerKey, Value>(
   }
 }
 
-function selectionTargetKey(target: InteractionTarget): string {
+function targetKey(target: InteractionTarget): string {
   switch (target.kind) {
     case "part":
       return `part:${target.partId}`;
@@ -305,11 +354,20 @@ export function setTargetsHighlighted(
   targets: readonly InteractionTarget[],
   highlighted: boolean,
 ): InteractionState {
-  let next = state;
-  for (const target of targets) {
-    next = setTargetHighlighted(next, target, highlighted);
-  }
-  return next;
+  const data = readInteractionState(state);
+  const current = highlightedCollections(data);
+  const next = updateTargetCollections(current, collectTargetGroups(targets), highlighted);
+  if (targetCollectionsEqual(current, next)) return state;
+  return updateInteractionState(state, {
+    highlightedPartIds: next.partIds,
+    highlightedInstanceIds: next.instanceIds,
+    highlightedBodyIds: next.bodyIds,
+    highlightedBlockIds: next.blockIds,
+    highlightedElementIds: next.elementIds,
+    highlightedFaces: next.faceRefs,
+    highlightedNodeIds: next.nodeIds,
+    highlightedEdges: next.edgeRefs,
+  });
 }
 
 /**

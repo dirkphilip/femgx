@@ -29,7 +29,22 @@ describe("createScene", () => {
     expect(scene.visibleAssemblyIds.has(1)).toBe(true);
   });
 
-  it("hides and shows parts and assemblies immutably", () => {
+  it("keeps built scene snapshots isolated from later builder updates", () => {
+    const builder = createScene()
+      .addPart(part(1))
+      .addAssembly({ id: 1, name: "root", placements: [] })
+      .withRoot(1);
+    const first = builder.build();
+    builder.addPart(part(2)).hidePart(1);
+    const second = builder.build();
+
+    expect(first.parts.has(2)).toBe(false);
+    expect(first.visiblePartIds.has(1)).toBe(true);
+    expect(second.parts.has(2)).toBe(true);
+    expect(second.visiblePartIds.has(1)).toBe(false);
+  });
+
+  it("records part and assembly visibility in built scenes", () => {
     const scene = createScene()
       .addPart(part(1))
       .addAssembly({ id: 1, name: "root", placements: [] })
