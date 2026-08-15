@@ -108,6 +108,36 @@ interface InstanceStorageOwner {
   readonly storages: Map<number, InstanceStorage>;
 }
 
+type OrderKind = "draw" | "transparent" | "selection" | "nodeSelection" | "edge" | "node";
+
+const orderFields = {
+  draw: { buffer: "orderBuffer", data: "orderData", length: "orderLength" },
+  transparent: {
+    buffer: "transparentOrderBuffer",
+    data: "transparentOrderData",
+    length: "transparentOrderLength",
+  },
+  selection: {
+    buffer: "selectionOrderBuffer",
+    data: "selectionOrderData",
+    length: "selectionOrderLength",
+  },
+  nodeSelection: {
+    buffer: "nodeSelectionOrderBuffer",
+    data: "nodeSelectionOrderData",
+    length: "nodeSelectionOrderLength",
+  },
+  edge: { buffer: "edgeOrderBuffer", data: "edgeOrderData", length: "edgeOrderLength" },
+  node: { buffer: "nodeOrderBuffer", data: "nodeOrderData", length: "nodeOrderLength" },
+} as const satisfies Record<
+  OrderKind,
+  {
+    readonly buffer: keyof InstanceStorage;
+    readonly data: keyof InstanceStorage;
+    readonly length: keyof InstanceStorage;
+  }
+>;
+
 /**
  * Encodes one instance record: column-major world transform, resolved color
  * (with opacity folded into alpha), a stable pick id derived from the
@@ -193,14 +223,7 @@ export function writeDrawOrder(
   partId: number,
   order: Uint32Array,
 ): void {
-  const storage = ensureStorage(draw, partId, Math.max(1, order.length));
-  storage.orderLength = writeOrderBuffer(
-    draw.device,
-    storage.orderBuffer,
-    storage.orderData,
-    order,
-    { previousLength: storage.orderLength, cost: draw.cost },
-  );
+  writeOrder(draw, partId, order, "draw");
 }
 
 /** Replaces the compacted transparent draw-order list of a part. */
@@ -209,14 +232,7 @@ export function writeTransparentOrder(
   partId: number,
   order: Uint32Array,
 ): void {
-  const storage = ensureStorage(draw, partId, Math.max(1, order.length));
-  storage.transparentOrderLength = writeOrderBuffer(
-    draw.device,
-    storage.transparentOrderBuffer,
-    storage.transparentOrderData,
-    order,
-    { previousLength: storage.transparentOrderLength, cost: draw.cost },
-  );
+  writeOrder(draw, partId, order, "transparent");
 }
 
 /** Replaces the compacted selected-instance draw-order list of a part. */
@@ -225,14 +241,7 @@ export function writeSelectionOrder(
   partId: number,
   order: Uint32Array,
 ): void {
-  const storage = ensureStorage(draw, partId, Math.max(1, order.length));
-  storage.selectionOrderLength = writeOrderBuffer(
-    draw.device,
-    storage.selectionOrderBuffer,
-    storage.selectionOrderData,
-    order,
-    { previousLength: storage.selectionOrderLength, cost: draw.cost },
-  );
+  writeOrder(draw, partId, order, "selection");
 }
 
 /** Replaces the compacted selected-node-instance draw-order list of a part. */
@@ -241,14 +250,7 @@ export function writeNodeSelectionOrder(
   partId: number,
   order: Uint32Array,
 ): void {
-  const storage = ensureStorage(draw, partId, Math.max(1, order.length));
-  storage.nodeSelectionOrderLength = writeOrderBuffer(
-    draw.device,
-    storage.nodeSelectionOrderBuffer,
-    storage.nodeSelectionOrderData,
-    order,
-    { previousLength: storage.nodeSelectionOrderLength, cost: draw.cost },
-  );
+  writeOrder(draw, partId, order, "nodeSelection");
 }
 
 /**
@@ -261,14 +263,7 @@ export function writeEdgeOrder(
   partId: number,
   order: Uint32Array,
 ): void {
-  const storage = ensureStorage(draw, partId, Math.max(1, order.length));
-  storage.edgeOrderLength = writeOrderBuffer(
-    draw.device,
-    storage.edgeOrderBuffer,
-    storage.edgeOrderData,
-    order,
-    { previousLength: storage.edgeOrderLength, cost: draw.cost },
-  );
+  writeOrder(draw, partId, order, "edge");
 }
 
 /** Replaces the compacted node-annotation order list of a part. */
@@ -277,13 +272,23 @@ export function writeNodeOrder(
   partId: number,
   order: Uint32Array,
 ): void {
+  writeOrder(draw, partId, order, "node");
+}
+
+function writeOrder(
+  draw: InstanceStorageOwner,
+  partId: number,
+  order: Uint32Array,
+  kind: OrderKind,
+): void {
   const storage = ensureStorage(draw, partId, Math.max(1, order.length));
-  storage.nodeOrderLength = writeOrderBuffer(
+  const fields = orderFields[kind];
+  storage[fields.length] = writeOrderBuffer(
     draw.device,
-    storage.nodeOrderBuffer,
-    storage.nodeOrderData,
+    storage[fields.buffer],
+    storage[fields.data],
     order,
-    { previousLength: storage.nodeOrderLength, cost: draw.cost },
+    { previousLength: storage[fields.length], cost: draw.cost },
   );
 }
 
