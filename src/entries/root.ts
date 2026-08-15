@@ -52,6 +52,7 @@ export type {
 } from "../viewport/results";
 export {
   createInteractionState,
+  setPartOverride,
   type Color,
   type InteractionState,
   type InteractionTheme,

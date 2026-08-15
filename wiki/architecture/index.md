@@ -7,8 +7,8 @@
 - [[architecture/core-api|Core API review]] — the concise review sheet for the
   canonical scene, viewport, interaction, picking, results, IO, and platform
   APIs.
-- [[architecture/public-api-audit|Public API audit]] — exhaustive root export
-  inventory and the intentional pruning decisions from issue #196.
+- [[architecture/public-api-audit|Public API audit]] — explicit package-entry
+  ownership and intentional pruning decisions from issue #840.
 - [[architecture/architecture-overview|Architecture overview]] — scene model,
   renderer split, and ownership boundaries.
 - [[architecture/demo-library-boundary|Demo / library boundary]] — what the

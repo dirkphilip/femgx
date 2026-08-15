@@ -85,6 +85,8 @@ Choose the narrowest supported entry point:
 | `femgx/runtime`  | Advanced CPU scene-runtime inspection                                            |
 | `femgx/platform` | Supported-path WebGPU adapter/device ownership                                   |
 
+For direct 0.x import changes, see the [entry-point migration map](docs/migration-0.x-entry-points.md).
+
 ```js
 // ESM
 import { createScene, createFemViewport, createResultField } from "femgx";
