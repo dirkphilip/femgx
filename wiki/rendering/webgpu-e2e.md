@@ -7,7 +7,7 @@ hardware WebGPU** via `npm run test:e2e`. That is the developer lane today.
 
 CI does **not** use SwiftShader as a stand-in for real WebGPU. Until a GPU
 runner exists, CI only runs the no-GPU unsupported-contract smoke
-(`npm run test:e2e:ci`).
+(`npm run test:e2e:no-gpu`).
 
 ## How it runs
 
@@ -19,17 +19,20 @@ runner exists, CI only runs the no-GPU unsupported-contract smoke
     physical GPU and can yield blank captures or stalled readbacks. The lane
     also asserts that Chrome did not select a fallback or SwiftShader adapter.
   - **`chrome-unsupported`** — the runner's installed branded Google Chrome
-    for the CI no-GPU contract (`npm run test:e2e:ci`).
+    for the CI no-GPU contract (`npm run test:e2e:no-gpu`), which runs the
+    direct-core typed unsupported journey only.
 - One-time install: `npm run test:e2e:install` (Playwright Chrome for the local
   WebGPU lane; hosted CI uses its preinstalled Chrome).
 - Add Playwright's `--headed` option for an intentionally visible debugging run.
-- `e2e/webgpu-lifecycle.spec.ts` owns initialization, one instanced render,
-  interaction/picking, clean teardown, re-initialization, and the WebGPU-only
-  unsupported contract. CI runs only its unsupported-contract test with
-  `navigator.gpu` hidden before page load; the demo must report
-  `data-renderer="unsupported"`, state that femgx requires a usable WebGPU
-  renderer, include the probe diagnostic, and never start a 2D CPU renderer.
-- `e2e/webgpu-rendering.spec.ts` owns rendered pixels, display toggles,
+- `e2e/core/core-foundation.spec.ts` owns one direct public-entry viewport
+  create/render/destroy journey and one typed unsupported journey. Its host
+  imports only `src/index.ts` and owns one canvas/viewport lifecycle.
+- `e2e/demo/webgpu-lifecycle.spec.ts` owns initialization, one instanced render,
+  interaction/picking, clean teardown, and re-initialization. The direct-core
+  foundation suite owns the typed unsupported contract with `navigator.gpu`
+  hidden before page load; the public viewport must reject startup with
+  `WebGpuUnsupportedError` and never start a 2D CPU renderer.
+- `e2e/demo/webgpu-rendering.spec.ts` owns rendered pixels, display toggles,
   transparency, overlays, selection, and reload determinism. Captures use
   settled `canvas.screenshot()` comparisons.
 
@@ -58,14 +61,15 @@ the authoritative WebGPU interaction/pixel gate.
 ## Demo test surface
 
 The browser contracts have one semantic owner per feature. Workbench DOM and
-interaction journeys live in `e2e/demo-lifecycle.spec.ts`,
-`e2e/demo-results.spec.ts`, `e2e/demo-visibility.spec.ts`, and
-`e2e/demo-interaction.spec.ts`. Real GPU
-behavior is partitioned into `e2e/webgpu-lifecycle.spec.ts`,
-`e2e/webgpu-rendering.spec.ts`, `e2e/webgpu-camera.spec.ts`, and
-`e2e/webgpu-visibility.spec.ts`; their shared settled-pixel and navigation
-helpers live in `e2e/webgpu-support.ts`. Mobile layout and touch contracts keep
-their deliberate independent suites, while performance remains opt-in.
+interaction journeys live in `e2e/demo/demo-lifecycle.spec.ts`,
+`e2e/demo/demo-results.spec.ts`, `e2e/demo/demo-visibility.spec.ts`, and
+`e2e/demo/demo-interaction.spec.ts`. Real GPU behavior is partitioned into
+`e2e/demo/webgpu-lifecycle.spec.ts`, `e2e/demo/webgpu-rendering.spec.ts`,
+`e2e/demo/webgpu-camera.spec.ts`, and `e2e/demo/webgpu-visibility.spec.ts`;
+their shared settled-pixel and navigation helpers live in
+`e2e/demo/webgpu-support.ts`, while owner-neutral mechanics live in
+`e2e/shared/helpers.ts`. Mobile layout and touch contracts keep their deliberate
+independent suites, while performance remains opt-in.
 
 The former monolithic `demo.spec.ts` and `webgpu.spec.ts` suites were removed so
 failure names identify the owning product contract. DOM-only CPU-overlay menu

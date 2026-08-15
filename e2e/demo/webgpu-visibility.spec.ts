@@ -1,7 +1,7 @@
 /** visibility ownership: GPU visibility and body-interface contracts. */
 
 import { expect, test } from "@playwright/test";
-import type * as Api from "../src/index";
+import type * as Api from "../../src/index";
 import {
   canvasRgba,
   differingPixelCount,

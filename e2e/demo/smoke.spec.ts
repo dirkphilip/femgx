@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { rendererMode, waitForRenderer } from "./demo-support";
-import { drawnPixels, pixelHash, requireHit } from "./helpers";
+import { drawnPixels, pixelHash, requireHit } from "../shared/helpers";
 
 /**
  * Required browser smoke contract (category 1 in `wiki/engineering/e2e-policy.md`).

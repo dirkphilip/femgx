@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FemGx core browser host</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        min-width: 640px;
+        background: #151a21;
+        color: #e8edf2;
+      }
+      main {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+      }
+      #core-canvas {
+        display: block;
+        width: 640px;
+        height: 480px;
+        background: #252d38;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <output id="core-status" data-result="loading">Core host loading</output>
+      <canvas id="core-canvas" width="640" height="480"></canvas>
+    </main>
+    <script type="module" src="./core-host.ts"></script>
+  </body>
+</html>

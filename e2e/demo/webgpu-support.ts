@@ -9,7 +9,7 @@ export {
   requireHit,
   sweepForHit,
   targetPlanePoint,
-} from "./helpers";
+} from "../shared/helpers";
 export { rendererMode, setSelectionGranularity, waitForRendererOrSkip } from "./demo-support";
 
 /**

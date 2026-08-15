@@ -4,7 +4,7 @@ import {
   regionTargetKey,
   subdivideRegion,
   type RegionRect,
-} from "../../e2e/helpers";
+} from "../../e2e/shared/helpers";
 
 describe("region-localized e2e pick discovery", () => {
   it.each([

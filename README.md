@@ -49,9 +49,16 @@ Commands:
 - `npm run format` — Prettier write
 - `npm run format:check` — Prettier check
 - `npm test` — Vitest unit tests
+- `npm run test:core` — fast exclude-based library tests without demo/WebGPU suites
 - `npm run test:watch` — Vitest watch mode
 - `npm run test:coverage` — unit tests with enforced v8 thresholds
-- `npm run test:e2e` — Playwright demo tests
+- `npm run test:e2e:core` — direct public-entry browser foundation journeys
+- `npm run test:e2e:demo` — workbench browser journeys
+- `npm run test:e2e` — combined serialized hardware-WebGPU browser lane
+- `npm run test:e2e:layout` — focused desktop/phone layout gate
+- `npm run test:e2e:software` — opt-in SwiftShader exploration
+- `npm run test:e2e:performance` — opt-in WebGPU performance browser lane
+- `npm run test:e2e:no-gpu` — typed unsupported WebGPU contract
 - `npm run test:e2e:install` — install Playwright Chrome for the local WebGPU lane
 - `npm run preview` — preview the built demo
 

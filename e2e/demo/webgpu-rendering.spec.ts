@@ -1,7 +1,7 @@
 /** rendering ownership: GPU pixels, overlays, and visual contracts. */
 
 import { expect, test } from "@playwright/test";
-import type * as Api from "../src/index";
+import type * as Api from "../../src/index";
 import {
   sweepForHit,
   stableCanvasPixels,

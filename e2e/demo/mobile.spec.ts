@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { canvasInteractionBox, distinctColors, requireHit } from "./helpers";
+import { canvasInteractionBox, distinctColors, requireHit } from "../shared/helpers";
 import { dataset, primaryBoxDrag, waitForRenderer } from "./demo-support";
 
 const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
