@@ -80,6 +80,16 @@ describe("demo result inspection", () => {
     expect(describePick(faceHit(2), undefined, results)).toContain("zero (not drawn)");
     expect(describePick(nodeHit(0), undefined, results)).not.toContain("Orientation");
   });
+
+  it("reports authored edge topology without inventing an owning element", () => {
+    const description = describePick(edgeHit(), undefined);
+
+    expect(description).toContain("Edge 0,1,2");
+    expect(description).toContain("Authored nodes 0, 1, 2");
+    expect(description).toContain("Incident elements 7, 8");
+    expect(description).toContain("Incident faces 7/0, 8/1");
+    expect(description).toContain("Tangent (1, 0, 0)");
+  });
 });
 
 function resultState(field: ViewportScalarState["field"]): ViewportResultsState {
@@ -140,5 +150,22 @@ function faceHit(elementId: number): PickHit {
     neighborElementIds: [elementId],
     worldPosition: [0, 0, 0],
     normal: [0, 0, 1],
+  };
+}
+
+function edgeHit(): PickHit {
+  return {
+    kind: "edge",
+    partId: 1,
+    instanceId: "instance-1",
+    key: "0,1,2",
+    nodeIds: [0, 1, 2],
+    incidentElementIds: [7, 8],
+    faceRefs: [
+      { elementId: 7, faceIndex: 0 },
+      { elementId: 8, faceIndex: 1 },
+    ],
+    worldPosition: [0.25, 0, 0],
+    tangent: [1, 0, 0],
   };
 }

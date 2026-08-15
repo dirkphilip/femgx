@@ -125,6 +125,31 @@ describe("demo selection policy", () => {
     expect(selectTarget(face, "node", modifiersForTest())).toBeUndefined();
   });
 
+  it("keeps authored edges occurrence-scoped when Shift cannot choose one owner", () => {
+    const edge: PickHit = {
+      kind: "edge",
+      partId: 4,
+      instanceId: "1/0",
+      key: "0,1",
+      nodeIds: [0, 1],
+      incidentElementIds: [7, 8],
+      faceRefs: [],
+      worldPosition: [0, 0, 0],
+      tangent: [1, 0, 0],
+    };
+
+    expect(selectTarget(edge, "edge", modifiersForTest())).toEqual({
+      kind: "edge",
+      instanceId: "1/0",
+      key: "0,1",
+    });
+    expect(selectTarget(edge, "edge", { ...modifiersForTest(), shiftKey: true })).toEqual({
+      kind: "edge",
+      instanceId: "1/0",
+      key: "0,1",
+    });
+  });
+
   it("maps element-owned targets to one exact element without fabricating instance or part targets", () => {
     const node: SelectTarget = {
       kind: "node",

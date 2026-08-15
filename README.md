@@ -108,7 +108,8 @@ const { createScene, createFemViewport, createResultField, importGlb } = require
   `pickRegion`) requires a working WebGPU device.
 - Interaction picking goes through `FemViewport`: asynchronous GPU readback via
   `viewport.pick(x, y)` returns a `Promise<PickHit | undefined>` with
-  host-mappable part/instance/element/face/node ids.
+  host-mappable part/instance/element/face/node ids, plus occurrence-scoped authored edge
+  identities when requested with the `"edge"` granularity.
 
 ## Public API highlights
 
@@ -117,7 +118,7 @@ const { createScene, createFemViewport, createResultField, importGlb } = require
   should let `createFemViewport()` own the derived runtime.
 - `createInteractionState()` manages selection, highlight, hover, and style overrides.
 - `InteractionTarget`, `setTargetSelected()`, and `setTargetHighlighted()` provide
-  immutable dispatch for any part, instance, body, element, face, or node identity;
+  immutable dispatch for any part, instance, body, element, face, node, or authored-edge identity;
   `clearSelection()` preserves non-selection state.
 - `createCamera()` defaults to orthographic projection and supports perspective as an explicit
   mode, plus orbit, pan, zoom, and resize.

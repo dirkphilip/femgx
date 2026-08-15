@@ -20,7 +20,7 @@ export function describePick(
   results?: ViewportResultsState,
 ): string {
   if (hit === undefined) {
-    return "Click or right-click a visible element, face, or node to inspect it.";
+    return "Click or right-click a visible element, face, node, or authored edge to inspect it.";
   }
   const context = partContext(hit.partId, partName);
   if (hit.kind === "node") {
@@ -60,7 +60,27 @@ export function describePick(
       results,
     );
   }
+  if (hit.kind === "edge") {
+    return describeEdgePick(hit, context);
+  }
   return `Instance ${hit.instanceId}\n${context}`;
+}
+
+function describeEdgePick(
+  hit: Extract<PickHit, { readonly kind: "edge" }>,
+  context: string,
+): string {
+  const incidentElements = hit.incidentElementIds.join(", ") || "none";
+  const incidentFaces = hit.faceRefs.map((ref) => `${ref.elementId}/${ref.faceIndex}`).join(", ");
+  return (
+    `Edge ${hit.key}\n` +
+    `${context} · Instance ${hit.instanceId}\n` +
+    `Authored nodes ${hit.nodeIds.join(", ")}\n` +
+    `Incident elements ${incidentElements}\n` +
+    `Incident faces ${incidentFaces || "none"}\n` +
+    `Hit ${formatVec(hit.worldPosition)}\n` +
+    `Tangent ${formatVec(hit.tangent)}`
+  );
 }
 
 function withResult(

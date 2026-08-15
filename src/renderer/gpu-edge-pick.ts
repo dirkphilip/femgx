@@ -2,6 +2,7 @@ import {
   cameraStruct,
   deformationStruct,
   displacementFn,
+  emphasisStructs,
   frameBindings,
   geometryPositionBindings,
   instanceBindings,
@@ -12,12 +13,15 @@ import {
   sectionPlaneBindings,
   sectionPlaneFunction,
 } from "./gpu-shaders";
+import { emphasisHash } from "./gpu-highlight-shader";
 
 /** Vertex stage for the lazy, screen-space-width authored-edge pick pass. */
 export const edgePickVertexShader = /* wgsl */ `
 ${cameraStruct}
 ${deformationStruct}
 ${instanceStruct}
+${emphasisStructs}
+${emphasisHash}
 ${frameBindings}
 ${instanceBindings}
 ${pickDataBindings}

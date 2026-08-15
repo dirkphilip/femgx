@@ -570,6 +570,8 @@ describe("GPU deformation shader contract", () => {
   });
 
   it("keeps authored-edge picking exact, section-aware, and visibility-aware", () => {
+    expect(edgePickVertexShader).toContain("struct ElementHighlights");
+    expect(edgePickVertexShader).toContain("fn highlightHash(");
     expect(edgePickVertexShader).toContain("camera.linePickSize * camera.devicePixelRatio");
     expect(edgePickVertexShader).toContain("topologyAnyOwnerVisible");
     expect(edgePickVertexShader).toContain("output.edgePickId = edgeId(vertexIndex) + 1u");

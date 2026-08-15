@@ -54,7 +54,7 @@ export async function waitForRendererOrSkip(
 /** Selects the demo-private click and box-selection granularity. */
 export async function setSelectionGranularity(
   page: Page,
-  granularity: "element" | "face" | "node",
+  granularity: "element" | "face" | "node" | "edge",
 ): Promise<void> {
   const select = page.getByTestId("selection-granularity");
   await select.selectOption(granularity);

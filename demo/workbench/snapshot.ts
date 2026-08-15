@@ -397,7 +397,7 @@ function defaultPresentationSnapshot(diagnostics: boolean): WorkbenchPresentatio
     statusVisible: false,
     inspection: {
       visible: false,
-      text: "Click or right-click a visible element, face, or node to inspect it.",
+      text: "Click or right-click a visible element, face, node, or authored edge to inspect it.",
     },
     diagnostics: { visible: diagnostics, text: "" },
     resultLegend: { visible: false, text: "" },

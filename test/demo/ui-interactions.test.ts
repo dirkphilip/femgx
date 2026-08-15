@@ -43,6 +43,7 @@ describe("workbench Svelte controls", () => {
     await change(target, "#background-select", "dark");
     await change(target, "#box-selection-strategy", "through-intersection");
     await change(target, "#selection-granularity", "face");
+    await change(target, "#selection-granularity", "edge");
     await change(target, "#model-select", "results");
     await change(target, "#result-field", "demo-stress");
     await change(target, "#deformation-field", "demo-displacement");

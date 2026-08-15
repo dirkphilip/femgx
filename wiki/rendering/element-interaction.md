@@ -39,11 +39,13 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   report `kind: "block"` at block granularity while retaining the deeper
   element/face/node hit when the requested granularity allows it.
 - The demo and library share one pick path: the renderer's asynchronous
-  `pick(x, y)` GPU readback (see
+  `pick(x, y)` GPU readback, or `pick(x, y, "edge")` for authored-edge
+  granularity (see
   [[rendering/fe-inspection-workbench|FE inspection workbench]] and
   [[rendering/node-face-interaction|node and face interaction]]). Hover/
   selection keys are prefixed by granularity (`n:instance:node`,
-  `f:instance:element:faceIndex`, `e:instance:element`, `i:instance`, `p:part`).
+  `f:instance:element:faceIndex`, `e:instance:element`, `ed:instance:key`,
+  `i:instance`, `p:part`).
 
 ## Interaction state and precedence
 
