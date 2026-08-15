@@ -1,5 +1,6 @@
 import type { SceneRuntime } from "../../src/index";
 import type { WorkbenchCommands, WorkbenchMenuAction } from "./snapshot";
+import type { WorkbenchElementDetailActions } from "./controller-element-detail";
 import type { WorkbenchModel } from "./model";
 import { setVectorWidthPixels as applyVectorWidth } from "./vector-actions";
 import type { VectorDisplayState } from "./result-controls";
@@ -43,6 +44,7 @@ interface WorkbenchCommandOwner {
   setSectionOffset(value: string): void;
   setHierarchyHover(target: VisibilityRowTarget): void;
   clearHierarchyHover(target: VisibilityRowTarget): void;
+  readonly elementDetailActions: WorkbenchElementDetailActions;
 }
 
 /** Adapts existing controller methods to the typed presentation command surface. */
@@ -96,6 +98,11 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     },
     setHierarchyHover: owner.setHierarchyHover.bind(owner),
     clearHierarchyHover: owner.clearHierarchyHover.bind(owner),
+    openElementDetail: owner.elementDetailActions.openElementDetail,
+    closeElementDetail: owner.elementDetailActions.closeElementDetail,
+    selectElementDetail: owner.elementDetailActions.selectElementDetail,
+    setElementDetailHover: owner.elementDetailActions.setElementDetailHover,
+    clearElementDetailHover: owner.elementDetailActions.clearElementDetailHover,
   };
 }
 

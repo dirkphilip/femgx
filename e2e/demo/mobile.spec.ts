@@ -233,6 +233,66 @@ test("selects the owning element from a node context menu on a phone", async ({ 
   await expect.poll(() => canvas.getAttribute("data-selected")).toMatch(/^e:/);
 });
 
+test("selects the intended element from a real touch tap", async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: PHONE,
+    screen: PHONE,
+    hasTouch: true,
+    isMobile: true,
+  });
+  try {
+    const page = await context.newPage();
+    await page.goto("/");
+    const canvas = page.getByTestId("view-canvas");
+    await waitForRenderer(page, canvas);
+    const hit = await requireHit(
+      page,
+      canvas,
+      { prefix: "n:", fresh: true },
+      "touch target discovery must resolve a node on the deterministic WebGPU lane",
+    );
+
+    await page.touchscreen.tap(hit.x, hit.y);
+    await expect.poll(() => canvas.getAttribute("data-selected")).toMatch(/^e:/);
+  } finally {
+    await context.close();
+  }
+});
+
+test("opens a bounded body element detail route and restores focus on a phone", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await page.goto("/");
+  await openNavigation(page);
+  const canvas = page.getByTestId("view-canvas");
+  await waitForRenderer(page, canvas);
+
+  const trigger = page.locator('button[data-testid^="body-elements-"]').first();
+  await expect(trigger).toBeVisible();
+  const triggerBox = await trigger.boundingBox();
+  if (triggerBox === null) throw new Error("body element detail trigger has no bounds");
+  expect(triggerBox.height).toBeGreaterThanOrEqual(44);
+  await trigger.focus();
+  const triggerTestId = await trigger.getAttribute("data-testid");
+  await trigger.click();
+
+  const detail = page.getByTestId("element-detail");
+  await expect(detail).toBeVisible();
+  const options = detail.locator('[role="option"]');
+  expect(await options.count()).toBeLessThan(100);
+  const first = options.first();
+  await first.focus();
+  await page.keyboard.press("Enter");
+  await expect.poll(() => canvas.getAttribute("data-selected")).toMatch(/^e:/);
+  await expect(first).toHaveAttribute("aria-selected", "true");
+
+  await page.getByTestId("element-detail-back").click();
+  await expect(detail).toBeHidden();
+  if (triggerTestId === null) throw new Error("detail trigger has no stable test id");
+  await expect(page.getByTestId(triggerTestId)).toBeFocused();
+});
+
 test("keeps the empty-scene view menu inside a phone-sized viewport", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto("/");

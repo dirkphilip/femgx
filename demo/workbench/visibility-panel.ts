@@ -240,6 +240,7 @@ export class VisibilityPanelController {
         expanded: false,
         expandable: false,
         highlighted: this.options.bodyHighlighted(instanceId, body.id),
+        elementCount: this.elementCount(instanceId, body.id),
         hidden: layout.hidden,
         position: layout.position,
         setSize: layout.setSize,
@@ -299,6 +300,14 @@ export class VisibilityPanelController {
     return blocks.filter((block) =>
       block.elementIds.every((elementId) => body.elementIds.includes(elementId)),
     );
+  }
+
+  private elementCount(instanceId: InstanceId, bodyId: BodyId): number {
+    const instance = this.options.getRuntime().getInstance(instanceId);
+    const part =
+      instance === undefined ? undefined : this.options.getModel().scene.parts.get(instance.partId);
+    if (part?.elements === undefined) return 0;
+    return part.bodies?.find((body) => body.id === bodyId)?.elementIds.length ?? 0;
   }
 
   private directPartInstances(occurrenceId: AssemblyOccurrenceId): InstanceId[] {

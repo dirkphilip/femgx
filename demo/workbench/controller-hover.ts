@@ -1,4 +1,10 @@
-import { setTargetHovered, type InteractionState, type FemViewport } from "../../src/index";
+import {
+  setTargetHovered,
+  type ElementId,
+  type InstanceId,
+  type InteractionState,
+  type FemViewport,
+} from "../../src/index";
 import {
   interactionTargetForRow,
   visibilityRowTargetsEqual,
@@ -8,7 +14,14 @@ import type { ViewportSlotId } from "./view";
 
 export type WorkbenchHoverOwner =
   | { readonly kind: "canvas"; readonly slotId: ViewportSlotId }
-  | { readonly kind: "hierarchy"; readonly row: VisibilityRowTarget };
+  | { readonly kind: "hierarchy"; readonly row: VisibilityRowTarget }
+  | { readonly kind: "element-detail"; readonly target: ElementDetailHoverTarget };
+
+/** Stable element identity used while the body-scoped detail list owns hover. */
+export interface ElementDetailHoverTarget {
+  readonly instanceId: InstanceId;
+  readonly elementId: ElementId;
+}
 
 export interface WorkbenchHoverController {
   disposed: boolean;
@@ -54,6 +67,50 @@ export function clearHierarchyHover(
   if (next === owner.interaction) return;
   owner.interaction = next;
   owner.render();
+}
+
+/** Commits one detail-list element as the shared transient hover source. */
+export function setElementDetailHover(
+  owner: WorkbenchHoverController,
+  target: ElementDetailHoverTarget,
+): void {
+  if (owner.disposed) return;
+  if (
+    owner.hoverOwner?.kind === "element-detail" &&
+    elementDetailTargetsEqual(owner.hoverOwner.target, target)
+  ) {
+    return;
+  }
+  owner.viewportSlots.clearHover();
+  owner.interaction = setTargetHovered(owner.interaction, { kind: "element", ...target });
+  owner.hoverOwner = { kind: "element-detail", target };
+  owner.render();
+}
+
+/** Clears detail-list hover only while the same element still owns it. */
+export function clearElementDetailHover(
+  owner: WorkbenchHoverController,
+  target: ElementDetailHoverTarget,
+): void {
+  if (
+    owner.disposed ||
+    owner.hoverOwner?.kind !== "element-detail" ||
+    !elementDetailTargetsEqual(owner.hoverOwner.target, target)
+  ) {
+    return;
+  }
+  owner.hoverOwner = undefined;
+  const next = setTargetHovered(owner.interaction, undefined);
+  if (next === owner.interaction) return;
+  owner.interaction = next;
+  owner.render();
+}
+
+function elementDetailTargetsEqual(
+  left: ElementDetailHoverTarget,
+  right: ElementDetailHoverTarget,
+): boolean {
+  return left.instanceId === right.instanceId && left.elementId === right.elementId;
 }
 
 /** Sends the shared interaction snapshot to each viewport. */

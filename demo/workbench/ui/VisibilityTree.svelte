@@ -61,6 +61,10 @@
     if (row.target.kind === "body") controller?.commands.toggleBodyHighlight(row.target);
   }
 
+  function openElementDetail(row: WorkbenchVisibilityRowSnapshot): void {
+    if (row.target.kind === "body") controller?.commands.openElementDetail(row.target);
+  }
+
   function toggleBlockHighlight(row: WorkbenchVisibilityRowSnapshot): void {
     if (row.target.kind === "block") controller?.commands.toggleBlockHighlight(row.target);
   }
@@ -183,6 +187,20 @@
           {/if}
         </label>
         {#if row.kind === "body"}
+          {#if row.elementCount !== undefined && row.elementCount > 0}
+            <button
+              type="button"
+              class="visibility-body-elements"
+              data-testid={`body-elements-${row.testId.replace("body-vis-", "")}`}
+              data-body-elements="true"
+              data-body-instance-id={bodyInstanceId(row)}
+              data-body-id={bodyId(row)}
+              aria-label={`Inspect ${row.elementCount} elements in ${row.label}`}
+              disabled={row.disabled}
+              title={`Inspect ${row.elementCount} elements`}
+              onclick={() => openElementDetail(row)}>{row.elementCount} elements</button
+            >
+          {/if}
           <button
             type="button"
             class="visibility-body-name"

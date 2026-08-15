@@ -3,6 +3,7 @@
   import type { WorkbenchController } from "../controller";
   import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../snapshot";
   import BuildInfo from "./BuildInfo.svelte";
+  import ElementDetail from "./ElementDetail.svelte";
   import ModelSource from "./ModelSource.svelte";
   import VisibilityTree from "./VisibilityTree.svelte";
   import ViewportWorkspace from "./ViewportWorkspace.svelte";
@@ -192,7 +193,11 @@
     </div>
     <ModelSource {controller} {snapshot} />
     <h2 class="sidebar-heading">Visibility</h2>
-    <VisibilityTree {controller} visibility={snapshot?.hierarchy.visibility} />
+    {#if snapshot?.hierarchy.elementDetail === undefined}
+      <VisibilityTree {controller} visibility={snapshot?.hierarchy.visibility} />
+    {:else}
+      <ElementDetail {controller} detail={snapshot.hierarchy.elementDetail} />
+    {/if}
   </aside>
   <ViewportWorkspace {controller} {snapshot} {startup} {navigationOpen} />
 </main>

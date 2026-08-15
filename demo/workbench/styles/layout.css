@@ -185,6 +185,20 @@ h1 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.visibility-body-elements {
+  min-width: max-content;
+  border: 0;
+  padding: 3px 4px;
+  color: #8fb4dd;
+  background: transparent;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.visibility-body-elements:hover,
+.visibility-body-elements:focus-visible {
+  color: #d8ebff;
+  background: #1c3858;
+}
 .visibility-body-name[data-active="true"] {
   color: #fff0d2;
   background: #70451b;
@@ -204,6 +218,71 @@ h1 {
 .visibility-block-name[data-active="true"] {
   color: #f0e8ff;
   background: #493b70;
+}
+#element-detail {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  padding: 0 14px 18px;
+}
+.element-detail-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0 4px 12px;
+}
+.element-detail-header h3 {
+  overflow: hidden;
+  margin: 2px 0 4px;
+  color: #d5dfeb;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.element-detail-header p {
+  margin: 0;
+  color: #7890ad;
+  font-size: 11px;
+}
+.element-detail-back {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid #38506f;
+  padding: 4px 8px;
+  color: #bcd5f0;
+  background: #142943;
+}
+#element-detail-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border-top: 1px solid #263a55;
+}
+.element-detail-spacer {
+  width: 1px;
+  pointer-events: none;
+}
+.element-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-bottom: 1px solid #1d2d43;
+  padding: 0 8px;
+  color: #c8d6e6;
+  background: transparent;
+  text-align: left;
+}
+.element-detail-row:hover,
+.element-detail-row:focus-visible {
+  background: #1c3858;
+}
+.element-detail-row[aria-selected="true"] {
+  color: #fff;
+  background: #294a70;
 }
 .scene {
   position: relative;
