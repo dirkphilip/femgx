@@ -276,6 +276,38 @@ test("selects the intended element from a real touch tap", async ({ browser }) =
   }
 });
 
+test("highlights the intended element in mobile Highlight mode", async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: PHONE,
+    screen: PHONE,
+    hasTouch: true,
+    isMobile: true,
+  });
+  try {
+    const page = await context.newPage();
+    await page.goto("/");
+    const canvas = page.getByTestId("view-canvas");
+    await waitForRenderer(page, canvas);
+    const hit = await requireHit(
+      page,
+      canvas,
+      { prefix: "n:", fresh: true },
+      "touch target discovery must resolve a node on the deterministic WebGPU lane",
+    );
+    const cameraBefore = cameraPose(await canvas.getAttribute("data-camera"));
+
+    await page.getByTestId("touch-tool-hover").click();
+    await expect(page.getByTestId("touch-tool-hover")).toHaveAttribute("aria-pressed", "true");
+    await page.touchscreen.tap(hit.x, hit.y);
+
+    await expect.poll(() => canvas.getAttribute("data-hovered")).toMatch(/^e:/);
+    await expect(canvas).toHaveAttribute("data-selected", "");
+    expect(cameraPose(await canvas.getAttribute("data-camera"))).toEqual(cameraBefore);
+  } finally {
+    await context.close();
+  }
+});
+
 test("routes mobile box selection through the right-side touch tool rail", async ({ browser }) => {
   const context = await browser.newContext({ viewport: PHONE, screen: PHONE, hasTouch: true });
   try {
@@ -288,6 +320,7 @@ test("routes mobile box selection through the right-side touch tool rail", async
     await expect(rail).toBeVisible();
     for (const testId of [
       "touch-tool-navigate",
+      "touch-tool-hover",
       "touch-tool-box-select",
       "touch-tool-select-all",
     ]) {

@@ -1,8 +1,4 @@
-import {
-  selectionFragmentShader,
-  selectionTransparencyFragmentShader,
-  triangleSelectionFragmentShader,
-} from "./gpu-selection";
+import { selectionFragmentShader, selectionTransparencyFragmentShader } from "./gpu-selection";
 import {
   TRANSPARENCY_ACCUMULATION_FORMAT,
   TRANSPARENCY_ACCUMULATION_BLEND_STATE,
@@ -61,8 +57,7 @@ type SelectionPipelineBase = Omit<GPURenderPipelineDescriptor, "fragment" | "dep
 export async function createSelectionPipelines(
   options: SelectionPipelineOptions,
 ): Promise<SelectionPipelines> {
-  const [selection, triangleSelection, selectionTransparency] =
-    await compileSelectionFragments(options);
+  const [selection, selectionTransparency] = await compileSelectionFragments(options);
   const variants = await Promise.all([
     createPrimitiveSelectionPipelines({
       ...options,
@@ -70,7 +65,7 @@ export async function createSelectionPipelines(
       vertexModule: options.selectionVertex,
       vertexEntry: "vertexMain",
       primitive: "triangle-list",
-      visibleFragment: triangleSelection,
+      visibleFragment: selection,
       hiddenFragment: selectionTransparency,
     }),
     createPrimitiveSelectionPipelines({
@@ -116,12 +111,11 @@ export async function createSelectionPipelines(
 
 async function compileSelectionFragments(
   options: SelectionPipelineOptions,
-): Promise<readonly [GPUShaderModule, GPUShaderModule, GPUShaderModule]> {
+): Promise<readonly [GPUShaderModule, GPUShaderModule]> {
   const compile = (label: string, code: string) =>
     createValidatedShaderModule(options.device, label, code, options.validation);
   return Promise.all([
     compile("selection fragment", selectionFragmentShader),
-    compile("triangle selection fragment", triangleSelectionFragmentShader),
     compile("selection transparency fragment", selectionTransparencyFragmentShader),
   ]);
 }

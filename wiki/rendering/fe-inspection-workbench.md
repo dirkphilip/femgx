@@ -209,8 +209,8 @@ safe-area insets and visual-viewport height changes, so it exposes at least a
 320x360 CSS-pixel canvas without nested page scroll. The command bar remains a
 single non-wrapping row above the shared viewport container, including when two
 viewports are open. A compact phone-only right tool rail provides 44px icon
-targets for Navigate, Box select, and Select all; desktop keeps direct mouse/pen
-box drag without the mode switch. The right-click
+targets for Navigate, transient Highlight, Box select, and Select all; desktop
+keeps direct pointer hover and mouse/pen box drag without the mode switch. The right-click
 context menu measures and clamps itself inside the current viewport so it never
 opens past the right or bottom edge.
 

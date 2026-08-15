@@ -20,6 +20,7 @@ import type { BoxSelectionResolver } from "../../demo/workbench/box-selection-re
 import { selectedKeys } from "../../demo/workbench/selection";
 import type { SelectionGranularity } from "../../demo/workbench/pick";
 import type { WorkbenchMenu } from "../../demo/workbench/menu";
+import type { TouchInteractionMode } from "../../demo/workbench/types";
 import type { BoxSelectionRect } from "../../src/index";
 
 class FakeStyle {
@@ -214,6 +215,7 @@ describe("workbench hover suppression", () => {
       signal: new AbortController().signal,
       interaction,
       dragging: () => dragging,
+      touchInteractionMode: () => "navigate",
       setActive: vi.fn(),
     });
     return {
@@ -277,6 +279,7 @@ describe("workbench click selection", () => {
         readonly mark: () => void;
         readonly clear: () => void;
       };
+      readonly touchInteractionMode?: () => TouchInteractionMode;
     } = {},
   ) {
     const canvas = new FakeElement();
@@ -298,6 +301,9 @@ describe("workbench click selection", () => {
       menu: { hide: vi.fn() } as unknown as WorkbenchMenu,
       render,
       selectionGranularity: () => selectionGranularity,
+      ...(options.touchInteractionMode === undefined
+        ? {}
+        : { touchMode: options.touchInteractionMode }),
       ...(options.boxSelectionResolver === undefined
         ? {}
         : { boxSelectionResolver: options.boxSelectionResolver }),
@@ -372,6 +378,27 @@ describe("workbench click selection", () => {
       meta: false,
       ...modifiers,
     },
+  });
+
+  it("uses a touch tap as transient hover in mobile Highlight mode", async () => {
+    const pick = vi.fn(() => Promise.resolve(nodeHit));
+    const { workbench, getInteraction } = harness(pick, undefined, undefined, "element", {
+      touchInteractionMode: () => "hover",
+    });
+    const touch = { pointerType: "touch", clientX: 100, clientY: 100 } as PointerEvent;
+
+    workbench.pointerDown(touch);
+    workbench.pointerUp(touch);
+    await vi.waitFor(() => {
+      expect(hoveredTarget(getInteraction())).toEqual({
+        kind: "element",
+        instanceId: "instance-a",
+        elementId: 2,
+      });
+    });
+    await workbench.click(touch);
+
+    expect(selectedKeys(getInteraction())).toEqual([]);
   });
 
   it("does not select or mutate inspection for a drag beyond the threshold", async () => {

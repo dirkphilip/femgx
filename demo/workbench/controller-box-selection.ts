@@ -46,9 +46,9 @@ interface TouchSelectionOwner extends WorkbenchHoverController {
   touchInteractionMode: TouchInteractionMode;
 }
 
-/** Routes one-finger touch between camera navigation and box selection. */
+/** Routes one-finger touch between camera navigation, hover inspection, and box selection. */
 export function setTouchInteractionMode(owner: TouchSelectionOwner, value: string): void {
-  if (value !== "navigate" && value !== "box-select") return;
+  if (value !== "navigate" && value !== "hover" && value !== "box-select") return;
   if (owner.touchInteractionMode === value) return;
   owner.touchInteractionMode = value;
   clearTransientHover(owner);

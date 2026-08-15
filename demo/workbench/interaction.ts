@@ -58,11 +58,10 @@ export interface WorkbenchInteractionOptions {
   readonly menu: WorkbenchMenu;
   readonly render: () => void;
   readonly selectionGranularity: () => SelectionGranularity;
+  readonly touchMode?: () => "navigate" | "hover" | "box-select";
   readonly setInspection: (text: string, visible: boolean) => void;
   readonly boxSelectionResolver?: BoxSelectionResolver;
-  /** Optional concise feedback sink for completed box-selection results. */
   readonly selectionFeedback?: (message: string) => void;
-  /** Coordinates transient canvas hover ownership with hierarchy hover. */
   readonly hoverOwnership?: {
     readonly canClear: () => boolean;
     readonly mark: () => void;
@@ -112,10 +111,9 @@ export class WorkbenchInteraction {
     this.clearHover(true);
   }
 
-  /** Completes a touch tap without relying on a browser-synthesized click. */
   pointerUp(event: PointerEvent): void {
     if (event.pointerType !== "touch") return;
-    void this.click(event);
+    void (this.options.touchMode?.() === "hover" ? this.hover(event) : this.click(event));
     this.skipNextClick = true;
   }
 
