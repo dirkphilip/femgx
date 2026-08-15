@@ -66,13 +66,10 @@ Playwright's `touchscreen` API is single-touch only.
 
 - `touch-action: none` remains scoped to the canvas elements only, so the rest
   of the page keeps native scrolling.
-- Middle-button and one-finger orbit ask the renderer's camera-navigation pick-point seam for the exact visible
-  surface point. Drag deltas are consumed while the asynchronous GPU readback is
-  pending; once it resolves, subsequent deltas apply around the picked point, so
-  the camera never starts around a stale target or switches targets mid-gesture.
-  A model-bounds center is used only for a definitive miss or failure while the
-  gesture remains active, and late results after cancellation are ignored. Wheel
-  and Shift+middle zoom do not issue a pick or change the target.
+- Middle-button and one-finger orbit use the camera-navigation pick-point and
+  cancellation contract described in [[rendering/camera-presentation|Camera
+  presentation]]. Wheel and Shift+middle zoom do not issue a pick or change
+  the target.
 - Pinch applies midpoint pan first, using the current target-plane CSS scale,
   and changes zoom without moving that panned target. Every orbit and zoom
   protects each placed-part bound, moves the eye outward instead of blocking a

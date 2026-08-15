@@ -34,6 +34,9 @@ Recorded decisions from the initial toolchain setup.
   tests and the demo can be longer.
 - `process.env` access in config files needs `process.env["KEY"]` form because
   of `noPropertyAccessFromIndexSignature`.
+- `@webgpu/types` is a devDependency only: the source needs its value
+  namespaces, but TS 6's DOM lib covers the WebGPU globals in emitted
+  declarations (see [[engineering/packaging|Packaging]]).
 
 ## Library structure
 
@@ -47,11 +50,9 @@ Recorded decisions from the initial toolchain setup.
 
 ## Intentionally deferred
 
-- Packed authoring storage, dirty-subtree propagation, benchmark budgets, and
-  WebGPU-capable browser coverage.
-- `@webgpu/types` is a devDependency only: the source needs its value
-  namespaces, but TS 6's DOM lib covers the WebGPU globals in emitted
-  declarations (see [[engineering/packaging|Packaging]]).
+- Packed authoring storage and dirty-subtree propagation remain future
+  authoring optimizations; the shipped packed scene runtime and benchmark
+  budgets are current engineering paths.
 
 [architecture/source-organization|Source organization]: ../architecture/source-organization.md
 [engineering/packaging|Packaging]: packaging.md

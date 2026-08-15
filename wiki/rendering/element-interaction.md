@@ -135,10 +135,10 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   depth, picking, deformation, transparency, edges, and node glyphs, without
   cloning geometry or materials. Blockless parts retain the compact legacy
   topology layout.
-- The demo drives the overlay by applying an `{ edge: true }` part override to
-  every part (`Edge overlay` toggle) and flips the overlay depth compare with
-  the `Depth test` toggle (see
-  [[rendering/fe-inspection-workbench|FE inspection workbench]]).
+- The workbench drives the overlay by applying an `{ edge: true }` part
+  override to every part. Hosts control occlusion through the public
+  `FemViewport.setEdgeDepthTest` method; the workbench keeps the shipped
+  depth-tested edge policy.
 - The edge pass renders instance-level style only; per-element emphasis is not
   drawn on edges because edges shared between adjacent elements have no
   unambiguous element owner.
