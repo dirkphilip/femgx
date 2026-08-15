@@ -1,15 +1,11 @@
 import {
-  createElement,
   createElementModel,
   createScene,
   elementPart,
-  LINE_SHAPE,
   multiply,
-  POINT_SHAPE,
   scale,
   surfacePart,
   translation,
-  TRIANGLE_SHAPE,
   type AssemblyId,
   type Bounds,
   type ElementModel,
@@ -246,7 +242,6 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   const tri6Model = buildTri6Model();
   const quadModel = buildQuadModel();
   const quad8Model = buildQuad8Model();
-  const mixedModel = createMixedPrimitiveModel();
   const models = new Map<PartId, ElementModel>([
     [POINT_PART_ID, pointLineModel],
     [LINE_PART_ID, lineModel],
@@ -261,7 +256,6 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     [TRI6_PART_ID, tri6Model],
     [QUAD_PART_ID, quadModel],
     [QUAD8_PART_ID, quad8Model],
-    [MIXED_PART_ID, mixedModel],
   ]);
   const genericPart = createGenericSolverMappedPart();
   const parts: readonly Part[] = [
@@ -279,7 +273,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     elementPart(TRI6_PART_ID, tri6Model),
     elementPart(QUAD8_PART_ID, quad8Model),
     genericPart,
-    elementPart(MIXED_PART_ID, mixedModel),
+    createMixedPrimitivePart(),
   ];
   const scene = galleryScene(parts, blockSize, ELEMENT_GALLERY_ENTRIES);
   return {
@@ -306,16 +300,18 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   };
 }
 
-/** One semantic FE part rendered through point, line, and triangle leaves. */
-function createMixedPrimitiveModel(): ElementModel {
-  return createElementModel(
-    [0, 0, 0, 0.35, 0, 0, 1.25, 0, 0, 0.35, 0.35, 0, 1.25, 0.35, 0, 0.8, 1.2, 0],
-    [
-      createElement(1, POINT_SHAPE, [0]),
-      createElement(2, LINE_SHAPE, [1, 2]),
-      createElement(3, TRIANGLE_SHAPE, [3, 4, 5]),
-    ],
-  );
+/** One semantic element rendered through point, line, and triangle leaves. */
+function createMixedPrimitivePart(): Part {
+  return surfacePart(MIXED_PART_ID, {
+    positions: [0, 0, 0, 0.35, 0, 0, 1.25, 0, 0, 0.35, 0.35, 0, 1.25, 0.35, 0, 0.8, 1.2, 0],
+    facets: {
+      connectivity: [3, 3, 4, 5],
+      elementIds: [1],
+      faceIndices: [0],
+    },
+    lines: { connectivity: [2, 1, 2], elementIds: [1] },
+    points: { nodeIds: [0], elementIds: [1] },
+  });
 }
 
 /** Fixture shape for the linearly tessellated Hex20 cylinder example. */

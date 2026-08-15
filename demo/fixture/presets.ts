@@ -92,7 +92,7 @@ export function createGalleryPreset(): ModelPreset {
       [partIds.hex20, "Built-in helper · Hex20"],
       [partIds.wedge6, "Built-in helper · Wedge6"],
       [partIds.pyramid5, "Built-in helper · Pyramid5"],
-      [partIds.mixed, "Mixed point, line, and triangle elements"],
+      [partIds.mixed, "Mixed point, line, and triangle element"],
     ]),
     bounds: sceneBounds(fixture.scene),
   };
