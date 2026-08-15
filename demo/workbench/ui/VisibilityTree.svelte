@@ -61,6 +61,10 @@
     if (row.target.kind === "body") controller?.commands.toggleBodyHighlight(row.target);
   }
 
+  function toggleBlockHighlight(row: WorkbenchVisibilityRowSnapshot): void {
+    if (row.target.kind === "block") controller?.commands.toggleBlockHighlight(row.target);
+  }
+
   function toggleExpanded(row: WorkbenchVisibilityRowSnapshot): void {
     if (row.target.kind === "assembly") {
       controller?.commands.toggleVisibilityTree(row.target.occurrenceId);
@@ -81,6 +85,14 @@
 
   function bodyInstanceId(row: WorkbenchVisibilityRowSnapshot): string | undefined {
     return row.target.kind === "body" ? row.target.instanceId : undefined;
+  }
+
+  function blockId(row: WorkbenchVisibilityRowSnapshot): number | undefined {
+    return row.target.kind === "block" ? row.target.blockId : undefined;
+  }
+
+  function blockInstanceId(row: WorkbenchVisibilityRowSnapshot): string | undefined {
+    return row.target.kind === "block" ? row.target.instanceId : undefined;
   }
 
   function rowClass(row: WorkbenchVisibilityRowSnapshot): string {
@@ -117,6 +129,7 @@
           ? row.target.occurrenceId
           : undefined}
         data-visibility-target-body-id={row.target.kind === "body" ? row.target.bodyId : undefined}
+        data-visibility-target-block-id={blockId(row)}
         aria-level={row.depth}
         aria-posinset={row.position}
         aria-setsize={row.setSize}
@@ -159,11 +172,13 @@
             data-instance-id={row.target.kind === "instance" ? row.target.instanceId : undefined}
             data-body-id={bodyId(row)}
             data-body-instance-id={bodyInstanceId(row)}
+            data-block-id={blockId(row)}
+            data-block-instance-id={blockInstanceId(row)}
             aria-label={row.ariaLabel}
             onchange={() => toggleVisibility(row)}
           />
           <span class="visibility-kind">{row.badge}</span>
-          {#if row.kind !== "body"}
+          {#if row.kind !== "body" && row.kind !== "block"}
             <span class="visibility-label" title={row.label}>{row.label}</span>
           {/if}
         </label>
@@ -181,6 +196,22 @@
             disabled={row.disabled}
             title={row.label}
             onclick={() => toggleBodyHighlight(row)}>{row.label}</button
+          >
+        {/if}
+        {#if row.kind === "block"}
+          <button
+            type="button"
+            class="visibility-block-name"
+            data-block-highlight="true"
+            data-block-id={blockId(row)}
+            data-block-instance-id={blockInstanceId(row)}
+            data-testid={`block-highlight-${row.testId.replace("block-vis-", "")}`}
+            aria-label={`Highlight ${row.label}`}
+            aria-pressed={row.highlighted}
+            data-active={row.highlighted}
+            disabled={row.disabled}
+            title={row.label}
+            onclick={() => toggleBlockHighlight(row)}>{row.label}</button
           >
         {/if}
       </div>

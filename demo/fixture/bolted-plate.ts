@@ -206,8 +206,11 @@ function componentParts(
     model: ElementModel,
     bodyNames: readonly string[],
   ): readonly Part[] => {
-    const bodies = bodyGroups(model, bodyNames);
-    const authoredModel = createElementModel([...model.nodes], model.elements, { bodies });
+    const authoredModel = authoredComponentModel(
+      model,
+      bodyNames,
+      component.partId === PLATE_PART_ID,
+    );
     return [elementPart(component.partId, authoredModel)];
   };
   return [
@@ -219,6 +222,19 @@ function componentParts(
 }
 
 function bodyGroups(model: ElementModel, names: readonly string[]): readonly Body[] {
+  return elementGroups(model, names);
+}
+
+interface AuthoredElementGroup {
+  readonly id: number;
+  readonly name: string;
+  readonly elementIds: readonly number[];
+}
+
+function elementGroups(
+  model: ElementModel,
+  names: readonly string[],
+): readonly AuthoredElementGroup[] {
   if (names.length === 0 || names.length > model.elements.length) {
     throw new Error("A bolted fixture body group must contain at least one element per name");
   }
@@ -238,11 +254,44 @@ function componentModels(
   models: { readonly [K in keyof BoltedPlateParts]: ElementModel },
 ): ReadonlyMap<PartId, ElementModel> {
   return new Map<PartId, ElementModel>([
-    [parts.plate.partId, models.plate],
-    [parts.bolt.partId, models.bolt],
-    [parts.washer.partId, models.washer],
-    [parts.nut.partId, models.nut],
+    [parts.plate.partId, authoredComponentModel(models.plate, COMPONENT_BODY_NAMES.plate, true)],
+    [parts.bolt.partId, authoredComponentModel(models.bolt, COMPONENT_BODY_NAMES.bolt, false)],
+    [
+      parts.washer.partId,
+      authoredComponentModel(models.washer, COMPONENT_BODY_NAMES.washer, false),
+    ],
+    [parts.nut.partId, authoredComponentModel(models.nut, COMPONENT_BODY_NAMES.nut, false)],
   ]);
+}
+
+function authoredComponentModel(
+  model: ElementModel,
+  bodyNames: readonly string[],
+  useBlocks: boolean,
+): ElementModel {
+  return createElementModel(
+    [...model.nodes],
+    model.elements,
+    useBlocks ? blockOwnership(model, bodyNames) : { bodies: bodyGroups(model, bodyNames) },
+  );
+}
+
+function blockOwnership(
+  model: ElementModel,
+  names: readonly string[],
+): {
+  readonly blocks: readonly AuthoredElementGroup[];
+  readonly bodies: readonly {
+    readonly id: number;
+    readonly name: string;
+    readonly blockIds: readonly number[];
+  }[];
+} {
+  const blocks = elementGroups(model, names);
+  return {
+    blocks,
+    bodies: blocks.map((block) => ({ id: block.id, name: block.name, blockIds: [block.id] })),
+  };
 }
 
 /** Places one canonical component part at a transform. */

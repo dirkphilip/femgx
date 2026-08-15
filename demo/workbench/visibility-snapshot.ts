@@ -1,12 +1,19 @@
-import type { AssemblyOccurrenceId, BodyId, InstanceId, InteractionTarget } from "../../src/index";
+import type {
+  AssemblyOccurrenceId,
+  BodyId,
+  ElementBlockId,
+  InstanceId,
+  InteractionTarget,
+} from "../../src/index";
 
 /** Semantic identity carried by one visibility-tree row. */
 export type VisibilityRowTarget =
   | { readonly kind: "assembly"; readonly occurrenceId: AssemblyOccurrenceId }
   | { readonly kind: "instance"; readonly instanceId: InstanceId }
-  | { readonly kind: "body"; readonly instanceId: InstanceId; readonly bodyId: BodyId };
+  | { readonly kind: "body"; readonly instanceId: InstanceId; readonly bodyId: BodyId }
+  | { readonly kind: "block"; readonly instanceId: InstanceId; readonly blockId: ElementBlockId };
 
-export type WorkbenchVisibilityRowKind = "assembly" | "instance" | "body";
+export type WorkbenchVisibilityRowKind = "assembly" | "instance" | "body" | "block";
 
 export interface WorkbenchVisibilityRowSnapshot {
   readonly key: string;
@@ -14,7 +21,7 @@ export interface WorkbenchVisibilityRowSnapshot {
   readonly kind: WorkbenchVisibilityRowKind;
   readonly depth: number;
   readonly label: string;
-  readonly badge: "Assembly" | "Part" | "Body";
+  readonly badge: "Assembly" | "Part" | "Body" | "Block";
   readonly ariaLabel: string | undefined;
   readonly testId: string;
   readonly checked: boolean;
@@ -54,5 +61,11 @@ export function visibilityRowTargetsEqual(
         left.bodyId === right.bodyId
       );
     }
+    case "block":
+      return (
+        right.kind === "block" &&
+        left.instanceId === right.instanceId &&
+        left.blockId === right.blockId
+      );
   }
 }

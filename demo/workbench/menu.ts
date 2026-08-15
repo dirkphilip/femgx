@@ -1,5 +1,10 @@
-import { isElementVisible, isTargetSelected, type InteractionState } from "../../src/index";
-import { elementTarget, type SelectTarget } from "./pick";
+import {
+  isElementBlockVisible,
+  isElementVisible,
+  isTargetSelected,
+  type InteractionState,
+} from "../../src/index";
+import { elementBlockTarget, elementTarget, type SelectTarget } from "./pick";
 import type {
   WorkbenchContextMenuSnapshot,
   WorkbenchMenuAction,
@@ -9,7 +14,9 @@ import type {
 /** Labels for target-specific selection actions rendered by the context menu. */
 export interface WorkbenchMenuSelectionOptions {
   readonly selectionLabel?: string | undefined;
+  readonly blockSelectionLabel?: string | undefined;
   readonly elementSelectionLabel?: string | undefined;
+  readonly blockVisibilityLabel?: string | undefined;
   readonly elementVisibilityLabel?: string | undefined;
 }
 
@@ -19,15 +26,28 @@ export function contextMenuSelectionOptions(
   interaction: InteractionState,
 ): WorkbenchMenuSelectionOptions {
   const element = elementTarget(target);
+  const block = elementBlockTarget(target);
   return {
     selectionLabel:
       target.kind === "element" ? undefined : targetSelectionLabel(target, interaction),
+    blockSelectionLabel:
+      block === undefined || target.kind === "block"
+        ? undefined
+        : isTargetSelected(interaction, block)
+          ? "Deselect block"
+          : "Select block",
     elementSelectionLabel:
       element?.kind !== "element"
         ? undefined
         : isTargetSelected(interaction, element)
           ? "Deselect element"
           : "Select element",
+    blockVisibilityLabel:
+      block === undefined
+        ? undefined
+        : isElementBlockVisible(interaction, block)
+          ? "Hide block"
+          : "Show block",
     elementVisibilityLabel:
       element?.kind !== "element"
         ? undefined
@@ -38,6 +58,9 @@ export function contextMenuSelectionOptions(
 }
 
 function targetSelectionLabel(target: SelectTarget, interaction: InteractionState): string {
+  if (target.kind === "block") {
+    return `${isTargetSelected(interaction, target) ? "Deselect" : "Select"} block`;
+  }
   if (target.kind !== "node" && target.kind !== "face") return "Select / Deselect";
   return `${isTargetSelected(interaction, target) ? "Deselect" : "Select"} ${target.kind}`;
 }
@@ -143,12 +166,18 @@ function hiddenMenu(): WorkbenchContextMenuSnapshot {
 function optionalButtons(options: WorkbenchMenuSelectionOptions): WorkbenchMenuEntry[] {
   return [
     options.selectionLabel === undefined ? undefined : button(options.selectionLabel, "select"),
+    options.blockSelectionLabel === undefined
+      ? undefined
+      : button(options.blockSelectionLabel, "select-block"),
     options.elementSelectionLabel === undefined
       ? undefined
       : button(options.elementSelectionLabel, "select-element"),
     options.elementVisibilityLabel === undefined
       ? undefined
       : button(options.elementVisibilityLabel, "hide-element"),
+    options.blockVisibilityLabel === undefined
+      ? undefined
+      : button(options.blockVisibilityLabel, "hide-element"),
   ].filter((entry): entry is WorkbenchMenuEntry => entry !== undefined);
 }
 

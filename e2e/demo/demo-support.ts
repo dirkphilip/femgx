@@ -26,6 +26,15 @@ export async function closeNavigation(page: Page): Promise<void> {
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
 }
 
+/** Scrolls the virtualized visibility tree far enough to expose its tail rows. */
+export async function scrollVisibilityToEnd(page: Page): Promise<void> {
+  const panel = page.getByTestId("visibility-panel");
+  await panel.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event("scroll"));
+  });
+}
+
 /** Opens one command-bar disclosure and waits for its controls to be reachable. */
 export async function openCommandPanel(
   page: Page,

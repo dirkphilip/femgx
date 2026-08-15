@@ -91,6 +91,9 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     toggleBodyHighlight: (target) => {
       owner.visibilityActions.bodyHighlight(target.instanceId, target.bodyId);
     },
+    toggleBlockHighlight: (target) => {
+      owner.visibilityActions.blockHighlight(target.instanceId, target.blockId);
+    },
     setHierarchyHover: owner.setHierarchyHover.bind(owner),
     clearHierarchyHover: owner.clearHierarchyHover.bind(owner),
   };
@@ -117,6 +120,13 @@ function toggleVisibility(owner: WorkbenchCommandOwner, target: VisibilityRowTar
         target.instanceId,
         target.bodyId,
         !owner.visibilityActions.bodyVisible(target.instanceId, target.bodyId),
+      );
+      break;
+    case "block":
+      owner.visibilityActions.setBlock(
+        target.instanceId,
+        target.blockId,
+        !owner.visibilityActions.blockVisible(target.instanceId, target.blockId),
       );
       break;
   }

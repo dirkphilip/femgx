@@ -1,11 +1,14 @@
 import {
   isBodyVisible,
+  isElementBlockVisible,
   isElementVisible,
   isTargetHighlighted,
   selectedTargets,
   setElementVisible,
   setTargetHighlighted,
   setBodyVisible,
+  setElementBlockHighlighted,
+  setElementBlockVisible,
   type BodyId,
   type FemViewport,
   type InteractionTarget,
@@ -16,7 +19,7 @@ import {
   type SceneRuntime,
 } from "../../src/index";
 import type { SelectTarget } from "./pick";
-import { elementTarget } from "./pick";
+import { elementBlockTarget, elementTarget } from "./pick";
 
 /** Runtime hooks used by menu and visibility-panel visibility actions. */
 export interface VisibilityActionOptions {
@@ -81,6 +84,12 @@ export class WorkbenchVisibilityActions {
     this.finish();
   }
 
+  setBlock(instanceId: InstanceId, blockId: number, visible: boolean): void {
+    const ref = { instanceId, blockId };
+    this.options.setInteraction(setElementBlockVisible(this.options.interaction(), ref, visible));
+    this.finish();
+  }
+
   setElement(instanceId: InstanceId, elementId: number, visible: boolean): void {
     const ref = { instanceId, elementId };
     this.options.setInteraction(setElementVisible(this.options.interaction(), ref, visible));
@@ -88,6 +97,15 @@ export class WorkbenchVisibilityActions {
   }
 
   toggleElement(target: SelectTarget): void {
+    const block = elementBlockTarget(target);
+    if (block !== undefined) {
+      this.setBlock(
+        block.instanceId,
+        block.blockId,
+        !isElementBlockVisible(this.options.interaction(), block),
+      );
+      return;
+    }
     const element = elementTarget(target);
     if (element?.kind !== "element") return;
     this.setElement(
@@ -134,6 +152,14 @@ export class WorkbenchVisibilityActions {
     this.finish();
   }
 
+  blockHighlight(instanceId: InstanceId, blockId: number): void {
+    const ref = { instanceId, blockId };
+    const state = this.options.interaction();
+    const highlighted = isTargetHighlighted(state, { kind: "block", ...ref });
+    this.options.setInteraction(setElementBlockHighlighted(state, ref, !highlighted));
+    this.finish();
+  }
+
   toggleInstance(target: SelectTarget): void {
     if (target.kind === "part") return;
     const runtime = this.options.runtime();
@@ -158,6 +184,13 @@ export class WorkbenchVisibilityActions {
         interaction = setBodyVisible(
           interaction,
           { instanceId: instance.instanceId, bodyId: body.id },
+          true,
+        );
+      }
+      for (const block of part?.blocks ?? []) {
+        interaction = setElementBlockVisible(
+          interaction,
+          { instanceId: instance.instanceId, blockId: block.id },
           true,
         );
       }
@@ -203,6 +236,14 @@ export class WorkbenchVisibilityActions {
 
   bodyHighlighted(instanceId: InstanceId, bodyId: BodyId): boolean {
     return isTargetHighlighted(this.options.interaction(), { kind: "body", instanceId, bodyId });
+  }
+
+  blockVisible(instanceId: InstanceId, blockId: number): boolean {
+    return isElementBlockVisible(this.options.interaction(), { instanceId, blockId });
+  }
+
+  blockHighlighted(instanceId: InstanceId, blockId: number): boolean {
+    return isTargetHighlighted(this.options.interaction(), { kind: "block", instanceId, blockId });
   }
 
   private partForTarget(target: SelectTarget): PartId | undefined {

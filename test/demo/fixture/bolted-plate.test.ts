@@ -210,6 +210,27 @@ describe("createBoltedPlateFixture", () => {
     });
   });
 
+  it("keeps authored plate blocks distinct from direct-body fastener models", () => {
+    const { scene, elementModels, partIds } = createBoltedPlateFixture();
+    const plate = elementModels.get(partIds.plate.partId);
+    const bolt = elementModels.get(partIds.bolt.partId);
+    expect(plate?.blocks?.map(({ name, elementIds }) => ({ name, elementIds }))).toEqual([
+      { name: "Plate row A", elementIds: [1, 2, 3] },
+      { name: "Plate row B", elementIds: [4, 5, 6] },
+    ]);
+    expect(plate?.bodies).toEqual([
+      { id: 1, name: "Plate row A", blockIds: [1] },
+      { id: 2, name: "Plate row B", blockIds: [2] },
+    ]);
+    expect(bolt?.blocks).toBeUndefined();
+    expect(bolt?.bodies?.every((body) => "elementIds" in body)).toBe(true);
+    expect(scene.parts.get(partIds.plate.partId)?.blocks?.map((block) => block.name)).toEqual([
+      "Plate row A",
+      "Plate row B",
+    ]);
+    expect(scene.parts.get(partIds.bolt.partId)?.blocks).toBeUndefined();
+  });
+
   it("produces identical output on repeated calls", () => {
     const first = runtimeInstances(createBoltedPlateFixture().scene);
     const second = runtimeInstances(createBoltedPlateFixture().scene);
