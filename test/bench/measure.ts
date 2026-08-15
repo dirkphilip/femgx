@@ -23,6 +23,19 @@ export interface MeasureOptions {
   readonly iterations?: number;
 }
 
+/** One fixed-size workload in a scaling series. */
+export interface ScalingPoint {
+  readonly size: number;
+  readonly run: () => void;
+}
+
+/** One measured point normalized by its declared workload size. */
+export interface ScalingMeasurement {
+  readonly size: number;
+  readonly measuredMs: number;
+  readonly millisecondsPerUnit: number;
+}
+
 /**
  * Measures `work` after `warmup` untimed runs, then returns the median
  * milliseconds per iteration over `samples` timed samples. Callers must make
@@ -45,4 +58,16 @@ export function measureMs(work: () => void, options: MeasureOptions = {}): numbe
     timings.push((performance.now() - start) / iterations);
   }
   return median(timings);
+}
+
+/** Measures fixed-size points with the lighter sampling appropriate for scaling ratios. */
+export function measureScaling(
+  points: readonly ScalingPoint[],
+  options: MeasureOptions = { warmup: 1, samples: 3 },
+): readonly ScalingMeasurement[] {
+  return points.map(({ size, run }) => {
+    if (!Number.isFinite(size) || size <= 0) throw new Error("Scaling size must be positive");
+    const measuredMs = measureMs(run, options);
+    return { size, measuredMs, millisecondsPerUnit: measuredMs / size };
+  });
 }

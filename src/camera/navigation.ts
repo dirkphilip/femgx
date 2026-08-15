@@ -75,15 +75,16 @@ export function updateCameraClipPlanes(
   margin = cameraDepthMargin(bounds),
   protectedBounds?: readonly Bounds[],
 ): Camera {
-  const allDepths = [
-    ...boundsDepths(camera, bounds),
-    ...usableProtectedBounds(bounds, protectedBounds).flatMap((candidate) =>
-      boundsDepths(camera, candidate),
-    ),
-  ];
-  const positiveDepths = allDepths.filter((depth) => depth > 0);
-  const nearest = Math.min(...(positiveDepths.length > 0 ? positiveDepths : [margin]));
-  const farthest = Math.max(...(positiveDepths.length > 0 ? positiveDepths : [margin]));
+  let nearest = Infinity,
+    farthest = -Infinity;
+  for (const candidate of [bounds, ...usableProtectedBounds(bounds, protectedBounds)]) {
+    for (const depth of boundsDepths(camera, candidate)) {
+      if (depth <= 0) continue;
+      nearest = Math.min(nearest, depth);
+      farthest = Math.max(farthest, depth);
+    }
+  }
+  if (!Number.isFinite(nearest)) nearest = farthest = margin;
   const targetDistance = length(subtract(camera.position, camera.target));
   const near = Math.max(Number.MIN_VALUE, Math.min(nearest * 0.25, targetDistance * 0.001));
   const far = Math.max(farthest + margin, near + margin);

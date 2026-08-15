@@ -12,11 +12,12 @@ export function validateEdges(
   const edges = geometry.edges;
   if (edges === undefined) return;
   const elementIds = new Set((elements ?? []).map((element) => element.id));
-  const faceIds = new Set(
-    (geometry.primitive === "triangles" ? (geometry.faces ?? []) : []).map((face) =>
-      faceIdentity(face.elementId, face.faceIndex),
-    ),
-  );
+  const faceIndicesByElement = new Map<ElementId, Set<number>>();
+  for (const face of geometry.primitive === "triangles" ? (geometry.faces ?? []) : []) {
+    const indices = faceIndicesByElement.get(face.elementId);
+    if (indices === undefined) faceIndicesByElement.set(face.elementId, new Set([face.faceIndex]));
+    else indices.add(face.faceIndex);
+  }
   const keys = new Set<string>();
   for (const edge of edges) {
     validateEdgeShape(edge);
@@ -35,8 +36,8 @@ export function validateEdges(
     keys.add(edge.key);
     validateEdgeElements(edge, elementIds);
     for (const face of edge.faceRefs) {
-      const identity = faceIdentity(face.elementId, face.faceIndex);
-      if (!faceIds.has(identity)) {
+      if (!faceIndicesByElement.get(face.elementId)?.has(face.faceIndex)) {
+        const identity = faceIdentity(face.elementId, face.faceIndex);
         throw new GeometryValidationError(
           "unknown-edge-face",
           `Authored edge ${edge.key} references unknown face ${identity}`,

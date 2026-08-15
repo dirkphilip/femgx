@@ -1,73 +1,50 @@
 # FemGx
 
-A TypeScript graphics library for rendering finite element (FE) models at
-interactive frame rates using **WebGPU** and **GPU instancing**.
+An experimental TypeScript library for rendering finite-element (FE) models
+with **WebGPU** and **GPU instancing**.
 
-## Goals
+FemGx defines reusable parts, places them through hierarchical assemblies,
+compiles the authoritative CPU scene into one packed runtime, and renders it
+through a single viewport lifecycle. WebGPU is the only rendering backend;
+unsupported environments receive a typed result or clear error, never a CPU
+renderer or compatibility fallback.
 
-- Draw geometry once as a **Part** and reuse it across hierarchical **Assembly** placements.
-- Batch repeated geometry by part and keep per-instance work proportional to state changes.
-- Provide highlight, selection, hide/show, and GPU-based picking without material clones.
+## Current state
 
-## Status
+Version 0.1.0 is intentionally unstable but implements the complete canonical
+path:
 
-This experimental product has a working CPU scene foundation and a WebGPU renderer:
-validated hierarchies, column-major transforms, stable placement handles, deterministic
-batching, centralized interaction styles, camera controls,
-asynchronous GPU picking, and a runnable demo. WebGPU is the product's only rendering
-backend; environments without a working WebGPU path get a clear error instead of a
-fallback rendering path.
+- validated parts, assemblies, stable placements, structural scene updates,
+  packed runtime queries, and instanced WebGPU drawing;
+- typed FE authoring through `elementPart()` and compact host-reduced facets,
+  lines, and points through `surfacePart()`;
+- visibility, hover, highlight, selection, box-region picking, section planes,
+  and stable part/instance/body/block/element/face/node/authored-edge identities;
+- fitted orthographic or perspective cameras, standard mouse/touch controls,
+  an optional view cube, and a renderer-owned world-origin X/Y/Z triad;
+- authored nodal or elemental scalar fields, nodal-vector deformation, and
+  bounded elemental orientation glyphs; and
+- ASCII legacy VTK FE interchange plus self-contained GLB 2.0 display-scene
+  import.
+
+FemGx does not derive engineering quantities, own result timelines, import GLB
+materials/textures/animation, or provide a non-WebGPU renderer. The authoritative
+[product scope](wiki/requirements/product-scope.md) records the supported and
+deferred boundaries.
 
 ## Architecture
 
-- **Parts** own immutable drawable geometry and bounds; they never own world transforms.
-- **Assemblies** place parts and nested assemblies with hierarchical transforms.
-- **Instances** carry transforms, styles, and stable placement handles into GPU batches.
-- The renderer uploads part geometry once, draws instances grouped by part, and keeps picking
-  in a separate integer render pass.
+- A **Part** owns immutable local geometry and FE metadata, never a world transform.
+- An **Assembly** places parts and nested assemblies without copying geometry.
+- A **Scene** owns the part and assembly registries plus the root hierarchy.
+- A **SceneRuntime** is the derived packed CPU snapshot with stable host identities.
+- **FemViewport** owns the current runtime, camera, WebGPU renderer, interaction,
+  results, recovery, resize, and teardown.
 
-Design decisions, gotchas, and open issues live in [`wiki/`](wiki/index.md).
-Repository contracts and the quality gate are documented in
-[`AGENTS.md`](AGENTS.md) and [`wiki/engineering/quality-gate.md`](wiki/engineering/quality-gate.md).
-The wiki uses Foam `[[wikilinks]]`; committed link-reference definitions keep
-those links navigable in GitHub-rendered Markdown.
-
-## Development
-
-Commands:
-
-- `npm run dev` — dev server with demo app
-- `npm run build` — type-check and bundle the library with declarations
-- `npm run build:demo` — type-check and build the demo as a static site
-- `npm run build:docs` — generate and validate the experimental API reference under `dist-demo/api/`
-- `npm run test:package` — package smoke test against a clean consumer install
-- `npm run typecheck` — strict TypeScript check
-- `npm run lint` — ESLint with zero warnings
-- `npm run review:diff` — summarize changes and advisory source-directory review prompts
-- `npm run lint:actionlint` — semantic GitHub Actions workflow validation
-- `npm run lint:fix` — ESLint autofix
-- `npm run format` — Prettier write
-- `npm run format:check` — Prettier check
-- `npm test` — Vitest unit tests
-- `npm run test:core` — fast exclude-based library tests without demo/WebGPU suites
-- `npm run test:watch` — Vitest watch mode
-- `npm run test:coverage` — unit tests with enforced v8 thresholds
-- `npm run test:e2e:core` — direct public-entry browser foundation journeys
-- `npm run test:e2e:demo` — workbench browser journeys
-- `npm run test:e2e` — combined serialized hardware-WebGPU browser lane
-- `npm run test:e2e:layout` — focused desktop/phone layout gate
-- `npm run test:e2e:software` — opt-in SwiftShader exploration
-- `npm run test:e2e:performance` — opt-in WebGPU performance browser lane
-- `npm run test:e2e:no-gpu` — typed unsupported WebGPU contract
-- `npm run test:e2e:install` — install Playwright Chrome for the local WebGPU lane
-- `npm run preview` — preview the built demo
-
-The demo is deployed automatically to GitHub Pages on pushes to `main` by the
-`Deploy demo to GitHub Pages` workflow. For a repository named `femgx` under the
-`dirkphilip` account, its URL is <https://dirkphilip.github.io/femgx/>.
-The generated API reference is at <https://dirkphilip.github.io/femgx/api/>.
-
-Use Node 24 or newer; `.nvmrc` matches the CI runtime.
+Geometry is uploaded once per part and drawn for each placement. Runtime slots,
+GPU layouts, and renderer construction remain internal. See the
+[API design](wiki/architecture/api-design.md), [wiki](wiki/index.md), and
+[repository contract](AGENTS.md) for deeper design guidance.
 
 ## Installation
 
@@ -75,194 +52,124 @@ Use Node 24 or newer; `.nvmrc` matches the CI runtime.
 npm install femgx
 ```
 
-The package ships ESM and CommonJS builds plus TypeScript declarations for each
-documented entry point. The optional GLB entry is isolated from the canonical
-root download. Consumers do **not** need `@webgpu/types` (WebGPU types come from
-the TypeScript 6 DOM lib).
+The package ships ESM and CommonJS builds with TypeScript declarations. WebGPU
+types come from the TypeScript 6 DOM library; consumers do not need
+`@webgpu/types`.
 
-Choose the narrowest supported entry point:
+Choose the narrowest entry point:
 
-| Import           | Use                                                                              |
-| ---------------- | -------------------------------------------------------------------------------- |
-| `femgx`          | Parts, assemblies, scenes, viewport lifecycle, interaction, and authored results |
-| `femgx/model`    | FE elements, shapes, topology, model editing, and semantic part compilation      |
-| `femgx/io`       | FEM model validation, VTK interchange, and authored result conversion            |
-| `femgx/io/glb`   | Optional bytes-only GLB display-scene import                                     |
-| `femgx/camera`   | Custom camera shells and navigation helpers                                      |
-| `femgx/runtime`  | Advanced CPU scene-runtime inspection                                            |
-| `femgx/platform` | Supported-path WebGPU adapter/device ownership                                   |
+| Import           | Use                                                                           |
+| ---------------- | ----------------------------------------------------------------------------- |
+| `femgx`          | Parts, scenes, viewport lifecycle, interaction, picking, and authored results |
+| `femgx/model`    | FE shapes/elements, model editing, `elementPart`, and compact `surfacePart`   |
+| `femgx/io`       | FEM validation, VTK interchange, and authored-result conversion               |
+| `femgx/io/glb`   | Optional bytes-only GLB display-scene import                                  |
+| `femgx/camera`   | Custom camera shells and navigation helpers                                   |
+| `femgx/runtime`  | Advanced CPU scene-runtime inspection                                         |
+| `femgx/platform` | Supported-path WebGPU adapter and device ownership                            |
 
-For direct 0.x import changes, see the [entry-point migration map](docs/migration-0.x-entry-points.md).
+For direct 0.x import changes, see the
+[entry-point migration map](docs/migration-0.x-entry-points.md).
 
-```js
-// ESM
-import { createScene, createFemViewport, createResultField } from "femgx";
-import { importGlb } from "femgx/io/glb";
-```
+## Canonical workflow
 
-```js
-// CommonJS
-const { createScene, createFemViewport, createResultField } = require("femgx");
-const { importGlb } = require("femgx/io/glb");
-```
-
-## Supported environments
-
-- **Browsers**: a modern browser with a working WebGPU implementation. Rendering
-  requires WebGPU; the CPU scene, camera, packed runtime, and pick-id resolution
-  APIs are WebGPU-independent, while renderer picking requires WebGPU. Unsupported
-  environments receive an explicit unsupported/error result from the renderer.
-- **TypeScript**: 6.0 or newer for consumers (declarations rely on DOM-lib WebGPU
-  types). `moduleResolution: bundler`, `node16`, `nodenext`, and legacy `node10`
-  resolution are all supported.
-- **Node**: 24+ for tooling; the library is browser-first and has no Node-only
-  runtime entry points.
-
-### WebGPU capability behavior
-
-- `createFemViewport(options)` is `async`: it checks `navigator.gpu`, requests an
-  adapter and device, and throws a descriptive error when WebGPU is unavailable or
-  the adapter/device request fails.
-- `queryWebGpuSupport()` is a non-throwing probe that returns a typed
-  "supported"/"unsupported" report for applications that want to branch up front.
-- The CPU scene, camera, stable-handle runtime (`createSceneRuntime`), and
-  interaction-target mapping (`interactionTargetFromHit`) are WebGPU-independent
-  and work in any JavaScript environment. Public viewport picking (`pick` and
-  `pickRegion`) requires a working WebGPU device.
-- Interaction picking goes through `FemViewport`: asynchronous GPU readback via
-  `viewport.pick(x, y)` returns a `Promise<PickHit | undefined>` with
-  host-mappable part/instance/element/face/node ids, plus occurrence-scoped authored edge
-  identities when requested with the `"edge"` granularity.
-
-## Public API highlights
-
-- `createScene()` validates duplicate IDs, missing references, invalid roots, and cycles.
-- `createSceneRuntime()` from `femgx/runtime` is an advanced CPU-only, immutable compiled snapshot for
-  stable-handle host queries; most hosts should let `createFemViewport()` own the
-  current live runtime facade. Re-read `viewport.runtime` after `setScene()` or
-  `updateScene()` because structural replacement installs a new query snapshot.
-- `createInteractionState()` manages selection, highlight, hover, and style overrides.
-- `InteractionTarget`, `setTargetSelected()`, and `setTargetHighlighted()` provide
-  immutable dispatch for any part, instance, body, element, face, node, or authored-edge identity;
-  `clearSelection()` preserves non-selection state.
-- `createCamera()` from `femgx/camera` defaults to orthographic projection and supports perspective as an explicit
-  mode, plus orbit, pan, zoom, and resize.
-- `installCameraControls()` from `femgx/camera` adds the library's SpaceClaim-style mouse/touch behavior and
-  renderer-owned rotation-origin axis widget without requiring the demo's tree, toolbar, or info panels.
-- `createFemViewport()` is the canonical application path: it owns the packed runtime, fitted
-  camera, renderer, controls, resize, interaction synchronization, recovery, and teardown.
-- `createPart()` retains supplied typed arrays without copying and takes ownership of them; do
-  not mutate or reuse those arrays after construction. For a mixed finite-element model, use
-  `elementPart()` from `femgx/model` to compile one semantic reusable part with homogeneous primitive groups, then
-  place that part once in an `Assembly`; the renderer keeps topology-specific draws internal.
-- `createResultField()` builds typed nodal/elemental scalar and nodal vector fields; the
-  results API maps authored scalar values, supports optional thresholds, and keeps
-  authored nodal deformation on the existing GPU path with a configurable scale.
-
-GLB is the narrow CAD display-scene import path. It accepts self-contained GLB 2.0 bytes,
-preserves numeric glTF coordinates (glTF's meter convention is not converted), and returns the
-canonical scene plus presentation metadata. Apply the returned part styles through the existing
-interaction state before creating the viewport:
+Create or import a reusable part, place it in an assembly, build one scene, and
+give that scene to `FemViewport`:
 
 ```ts
-const imported = await importGlb(await file.arrayBuffer());
-let interaction = createInteractionState();
-for (const [partId, style] of imported.partStyles) {
-  interaction = setPartOverride(interaction, partId, style);
-}
-const viewport = await createFemViewport({
-  canvas,
-  scene: imported.scene,
-  interaction,
-});
-```
+import { createFemViewport, createScene, identity } from "femgx";
+import { elementPart } from "femgx/model";
 
-The library intentionally ignores textures, UVs, normals, PBR extras, animation, lights, and
-FE semantics. Unsupported required extensions fail with `IoError`; optional ignored features are
-reported in `imported.issues`. Mesh compression support is added only after a representative
-compressed Onshape export identifies the extension and decoder.
-
-The inspection demo's **Open model…** action accepts local ASCII legacy `.vtk` FE meshes and
-self-contained `.glb` display scenes. VTK files use the canonical FE parser, mixed primitive
-groups, and authored scalar/deformation result path; GLB files remain display-only.
-
-```ts
+const part = elementPart(10, model);
 const scene = createScene()
   .addPart(part)
   .addAssembly({
     id: 1,
-    name: "root",
+    name: "model",
     placements: [{ kind: "part", partId: part.id, transform: identity() }],
   })
   .withRoot(1)
   .build();
-const viewportContainer = document.querySelector<HTMLElement>("#viewport");
-if (viewportContainer === null) throw new Error("Missing viewport container");
-const viewport = await createFemViewport({
-  canvas,
-  scene,
-  orientationGizmo: { container: viewportContainer },
-  background: "studio",
-});
-viewport.setBackground("dark");
+
+const viewport = await createFemViewport({ canvas, scene });
 viewport.setInteraction(interaction);
 viewport.setResults({
   scalar: { field: stress },
   deformation: { field: displacement, scale: 1.5 },
 });
-viewport.setPartVisible(part.id, false);
-viewport.clearResults();
+viewport.setSectionPlane({ normal: [1, 0, 0], distance: 0 });
+viewport.updateScene(nextScene);
 viewport.destroy();
 ```
 
-`background` selects the renderer-owned WebGPU presentation (`"studio"`, `"white"`,
-or `"dark"`); it defaults to `"studio"`. `setBackground()` changes that preset without
-rebuilding the viewport or affecting depth, picking, interaction, or result rendering.
+`createFemViewport()` is asynchronous because it requests a WebGPU adapter and
+device. Use `queryWebGpuSupport()` when a host wants a non-throwing capability
+probe. CPU scene construction, camera math, standalone `createSceneRuntime()`,
+and identity resolution do not require a GPU.
 
-The renderer-owned world-origin X/Y/Z triad is enabled by default. Set
-`originTriad: false` when creating a viewport to suppress it; the enabled triad
-uses complete placed-scene bounds for its nominal size and caps projected axes at
-56 CSS pixels.
+`viewport.setScene()` replaces scene state and fits the new scene;
+`viewport.updateScene()` is the transactional structural-update path that
+preserves compatible camera, interaction, visibility, and result state. Re-read
+`viewport.runtime` after either operation because it installs a new snapshot.
 
-`orientationGizmo` is optional. When enabled, femgx creates the accessible,
-interactive view-cube SVG inside the supplied container. Its six named faces,
-eight signed corners, four pitch/yaw arrows, and two clockwise/counterclockwise
-roll arrows stay aligned with the viewport camera; all arrows step by 15° by
-default, 90° with Shift, or 5° with Control/Command. It is removed when
-`viewport.destroy()` runs. The container must contain the canvas; the caller
-does not provide SVG markup.
+Picking is viewport-owned. `pick()` resolves the nearest physical hit, while
+`pickRegion()` returns deterministic visible-region interaction targets. Edge
+granularity uses occurrence-scoped authored topology; tessellation diagonals are
+never interaction targets.
 
-Authored result snapshots use the same viewport and authoritative scene. Elemental scalar values
-are colored directly while a nodal displacement field drives the existing GPU deformation path:
+Results are exact authored snapshots. Repeated `setResults()` calls can present
+a host-owned sequence, but FemGx retains only the current snapshot and does not
+interpolate time steps or derive stress, magnitude, or other engineering values.
 
-```ts
-const stress = createResultField({
-  id: "stress",
-  name: "Stress",
-  location: "elemental",
-  shape: "scalar",
-  count: elementCount,
-  unit: "MPa",
-  values: authoredScalarValues,
-});
-const displacement = createResultField({
-  id: "displacement",
-  name: "Displacement",
-  location: "nodal",
-  shape: "vector",
-  count: nodeCount,
-  unit: "mm",
-  values: displacementValues,
-});
-viewport.setResults({
-  scalar: { field: stress },
-  deformation: { field: displacement, scale: 1.5 },
-});
-// Return to the base part styles and undeformed geometry.
-viewport.clearResults();
-```
+## Import paths
 
-Hosts may step or play an ordered collection of exact authored snapshots by calling
-`setResults()` repeatedly. femgx installs each snapshot atomically and retains only the current
-one; the host owns sequence metadata, timing, controls, and any shared scalar range. femgx does
-not derive engineering quantities or temporally interpolate between snapshots.
+`femgx/io` reads and writes the supported ASCII legacy VTK FE subset. The
+inspection demo's **Open model…** action accepts local `.vtk` models and
+self-contained `.glb` display scenes.
+
+`femgx/io/glb` accepts GLB bytes, preserves numeric glTF coordinates, and returns
+a canonical scene plus presentation metadata. GLB remains display-only: textures,
+UVs, normals, animation, lights, FE identities, external resources, unit
+conversion, and mesh compression are outside this importer.
+
+## Supported environments
+
+- **Browser:** a modern browser with a working WebGPU implementation.
+- **TypeScript:** 6.0+ with `bundler`, `node16`, `nodenext`, or legacy `node10`
+  module resolution.
+- **Tooling:** Node 24+; `.nvmrc` matches CI. The library is browser-first.
+
+## Development
+
+Install dependencies with `npm ci`. The main local commands are:
+
+| Command                       | Purpose                                                   |
+| ----------------------------- | --------------------------------------------------------- |
+| `npm run dev`                 | Run the inspection demo                                   |
+| `npm run build`               | Type-check and build the package with declarations        |
+| `npm run build:demo`          | Build the static demo                                     |
+| `npm run build:docs`          | Generate the experimental API reference                   |
+| `npm run typecheck`           | Run strict TypeScript checks                              |
+| `npm run lint`                | Run repository, ESLint, public-doc, and dependency checks |
+| `npm run format:check`        | Check Prettier formatting                                 |
+| `npm run review:diff`         | Review the change for growth and weakened tests           |
+| `npm test`                    | Run the normal Vitest suite                               |
+| `npm run test:core`           | Run core tests without demo/WebGPU/benchmark suites       |
+| `npm run test:coverage`       | Run unit coverage with enforced thresholds                |
+| `npm run test:package`        | Smoke-test a clean consumer installation                  |
+| `npm run bench:budget`        | Run fast CI performance budgets and scaling checks        |
+| `npm run bench:scaling:large` | Opt-in 13k/43k/104k Hex8 core-API scaling proof           |
+| `npm run test:e2e`            | Run serialized system-Chrome hardware-WebGPU journeys     |
+| `npm run test:e2e:no-gpu`     | Verify the typed unsupported-WebGPU contract              |
+| `npm run test:e2e:layout`     | Run focused desktop and phone layout checks               |
+| `npm run bench:webgpu`        | Run the opt-in real-WebGPU browser performance report     |
+| `npm run test:e2e:install`    | Install Playwright's branded Chrome                       |
+
+The normal test and budget lanes remain short. The 100k-element scaling proof
+generates its mesh outside the timed region and is intentionally excluded from
+`npm test`, coverage, and CI. Performance methodology and covered workloads are
+documented in [Benchmarks](wiki/engineering/benchmarks.md).
+
+The demo and API reference are published from `main` at
+<https://dirkphilip.github.io/femgx/> and
+<https://dirkphilip.github.io/femgx/api/>.

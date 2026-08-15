@@ -1,6 +1,5 @@
 import {
   facesOf,
-  facesOfElement,
   FaceSelectionError,
   type ElementFace,
   type FaceIdRef,
@@ -15,35 +14,25 @@ export interface ElementRenderFace {
   readonly faceIndex: number;
 }
 
-/** Maps each canonical face key to every element incident to it. */
-export function faceNeighbors(elements: readonly Element[]): Map<FaceKey, ElementId[]> {
+/** Builds render faces and validates shared-face incidence in one traversal. */
+export function analyzeElementFaces(elements: readonly Element[]): {
+  readonly faces: readonly ElementRenderFace[];
+  readonly neighbors: ReadonlyMap<FaceKey, readonly ElementId[]>;
+} {
+  const faces: ElementRenderFace[] = [];
   const neighbors = new Map<FaceKey, ElementId[]>();
   for (const element of elements) {
-    for (const face of facesOf(element)) {
-      const list = neighbors.get(face.key);
-      if (list === undefined) neighbors.set(face.key, [element.id]);
-      else list.push(element.id);
+    const elementFaces = facesOf(element);
+    for (const [faceIndex, face] of elementFaces.entries()) {
+      faces.push({ element, face, faceIndex });
+      const incident = neighbors.get(face.key);
+      if (incident === undefined) neighbors.set(face.key, [element.id]);
+      else if (incident.push(element.id) > 2) {
+        throw new Error(`Non-manifold face ${face.key} has ${incident.length} incident elements`);
+      }
     }
   }
-  return neighbors;
-}
-
-/** Returns every face in deterministic element/topology order. */
-export function allFacesForElements(elements: readonly Element[]): readonly ElementRenderFace[] {
-  return elements.flatMap((element) =>
-    facesOfElement(element).map(({ face, faceIndex }) => ({ element, face, faceIndex })),
-  );
-}
-
-/** Rejects ambiguous incidence in an already-built face-neighbor index. */
-export function validateManifoldFaceNeighbors(
-  neighbors: ReadonlyMap<FaceKey, readonly ElementId[]>,
-): void {
-  for (const [key, incident] of neighbors) {
-    if (incident.length > 2) {
-      throw new Error(`Non-manifold face ${key} has ${incident.length} incident elements`);
-    }
-  }
+  return { faces, neighbors };
 }
 
 /** Validates face identities against one pre-partitioned element list. */
