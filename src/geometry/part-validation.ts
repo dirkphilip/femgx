@@ -28,7 +28,7 @@ export function validateElements(geometry: {
   const seenIds = new Set<ElementId>();
   for (const element of elements) {
     validateOneBasedId(element.id, "Element");
-    if (element.bodyId !== undefined) validateOneBasedId(element.bodyId, "Body");
+    if (element.bodyId !== undefined) validateBodyId(element.bodyId);
     if (
       element.blockId !== undefined &&
       (!isValidOneBasedId(element.blockId) || element.blockId === 0)
@@ -203,12 +203,7 @@ function validateBodyOrder(
   previousBodyId: BodyId | undefined,
   declaredBodies: ReadonlySet<BodyId>,
 ): void {
-  if (!isValidOneBasedId(body.id)) {
-    throw new GeometryValidationError(
-      "invalid-body-id",
-      `Body id ${body.id} must be a finite integer in [0, ${MAX_ONE_BASED_ID}]`,
-    );
-  }
+  validateBodyId(body.id);
   if (declaredBodies.has(body.id)) {
     throw new GeometryValidationError("duplicate-body-id", `Duplicate body id ${body.id}`);
   }
@@ -218,6 +213,14 @@ function validateBodyOrder(
       `Body ids must be strictly ascending; ${body.id} follows ${previousBodyId}`,
     );
   }
+}
+
+function validateBodyId(bodyId: BodyId): void {
+  if (isValidOneBasedId(bodyId) && bodyId !== 0) return;
+  throw new GeometryValidationError(
+    "invalid-body-id",
+    `Body id ${bodyId} must be a finite integer in [1, ${MAX_ONE_BASED_ID}]`,
+  );
 }
 
 function collectBodyElements(

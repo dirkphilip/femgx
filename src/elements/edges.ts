@@ -55,35 +55,33 @@ export function uniqueEdges(elements: readonly Element[]): readonly ElementEdge[
   for (const element of elements) {
     for (const edge of edgesOf(element)) {
       if (!seen.has(edge.key)) {
-        seen.set(edge.key, canonicalEdge(edge.nodeIds));
+        seen.set(edge.key, canonicalEdge(edge));
       }
     }
   }
-  return [...seen.values()].sort(compareEdges);
+  return [...seen.values()].sort((left, right) => compareNodeIds(left.nodeIds, right.nodeIds));
 }
 
-function compareEdges(x: ElementEdge, y: ElementEdge): number {
-  const shared = Math.min(x.nodeIds.length, y.nodeIds.length);
+/** Returns the deterministic authored-edge order used by CPU and GPU metadata. */
+export function compareNodeIds(left: readonly NodeId[], right: readonly NodeId[]): number {
+  const shared = Math.min(left.length, right.length);
   for (let index = 0; index < shared; index += 1) {
-    const a = at(x.nodeIds, index);
-    const b = at(y.nodeIds, index);
+    const a = at(left, index);
+    const b = at(right, index);
     if (a !== b) {
       return a < b ? -1 : 1;
     }
   }
-  return x.nodeIds.length - y.nodeIds.length;
+  return left.length - right.length;
 }
 
-function canonicalEdge(nodeIds: readonly NodeId[]): ElementEdge {
-  if (nodeIds.length === 2) {
-    const a = at(nodeIds, 0);
-    const b = at(nodeIds, 1);
-    const ordered = a <= b ? nodeIds : [b, a];
-    return { key: canonicalKey(ordered), nodeIds: ordered };
-  }
-  const a = at(nodeIds, 0);
-  const mid = at(nodeIds, 1);
-  const b = at(nodeIds, 2);
-  const ordered: readonly NodeId[] = [Math.min(a, b), mid, Math.max(a, b)];
-  return { key: canonicalKey(ordered), nodeIds: ordered };
+/** Returns an edge with ascending corner orientation while preserving its identity. */
+export function canonicalEdge(edge: ElementEdge): ElementEdge {
+  const first = at(edge.nodeIds, 0);
+  const last = at(edge.nodeIds, edge.nodeIds.length - 1);
+  if (first <= last) return edge;
+  return {
+    key: edge.key,
+    nodeIds: edge.nodeIds.length === 2 ? [last, first] : [last, at(edge.nodeIds, 1), first],
+  };
 }
