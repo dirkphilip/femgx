@@ -114,8 +114,10 @@ const { createScene, createFemViewport, createResultField, importGlb } = require
 ## Public API highlights
 
 - `createScene()` validates duplicate IDs, missing references, invalid roots, and cycles.
-- `createSceneRuntime()` is an advanced stable-handle runtime boundary; most hosts
-  should let `createFemViewport()` own the derived runtime.
+- `createSceneRuntime()` is an advanced CPU-only, immutable compiled snapshot for
+  stable-handle host queries; most hosts should let `createFemViewport()` own the
+  current live runtime facade. Re-read `viewport.runtime` after `setScene()` or
+  `updateScene()` because structural replacement installs a new query snapshot.
 - `createInteractionState()` manages selection, highlight, hover, and style overrides.
 - `InteractionTarget`, `setTargetSelected()`, and `setTargetHighlighted()` provide
   immutable dispatch for any part, instance, body, element, face, node, or authored-edge identity;

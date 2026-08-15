@@ -1,4 +1,4 @@
-import type { BodyId } from "../geometry/part";
+import type { BodyId, PartId } from "../geometry/part";
 import {
   isHoveredTarget,
   readInteractionState,
@@ -14,7 +14,7 @@ import {
 } from "./interaction";
 import type { ElementBlockId } from "../elements/model";
 import { faceRefKey, type FaceRef } from "./refs";
-import type { Instance } from "../scene/types";
+import type { InstanceId } from "../scene/types";
 import { applyStyleLayers, collectUniqueRefs, sortedStrings, updateNestedMap } from "./mechanics";
 
 function updateFaceSet(
@@ -77,7 +77,7 @@ export function isFaceEmphasized(state: InteractionState, ref: FaceRef): boolean
  * @category Interaction and picking
  */
 export function resolveFaceStyle(
-  instance: Instance,
+  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
   ref: FaceRef,
   base: ResolvedStyle,
   state: InteractionState,

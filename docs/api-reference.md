@@ -48,4 +48,12 @@ The full searchable index remains available in the generated navigation. The
 advanced category documents stable supporting utilities and platform-facing
 contracts; it is not a second renderer lifecycle.
 
+`createSceneRuntime(scene)` is a CPU-only immutable compiled snapshot for
+intentional host inspection. The canonical viewport owns the current live
+`SceneRuntime` facade at `viewport.runtime`; reacquire that property after
+`setScene()` or `updateScene()`. Runtime queries return defensive snapshots,
+and visible placed-part iteration uses `getVisibleInstanceIds()` in deterministic
+runtime order. The renderer-shaped `Instance` record and packed slots are
+internal.
+
 Use the `Demo` link in the documentation header to return to the live demo.

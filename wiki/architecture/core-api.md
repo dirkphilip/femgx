@@ -129,10 +129,13 @@ while renderer-owned edge helpers retain their separate line-list path.
   for the existing renderer, while body interaction state remains scoped by the
   placement `InstanceId`.
 - `Scene` is the authoring source of truth. `SceneRuntime`, typed arrays, draw
-  orders, GPU buffers, and batch records are derived representations.
-- `FemViewport` is the public owner of `SceneRuntime` and the internal WebGPU
-  renderer; hosts do not manually synchronize packed runtime and renderer
-  state.
+  orders, GPU buffers, and batch records are derived representations. Public
+  runtime transforms and collections are defensive snapshots; visible handles
+  are named `getVisibleInstanceIds()` and use deterministic runtime order.
+- `FemViewport` is the public owner of the current live `SceneRuntime` facade
+  and the internal WebGPU renderer; hosts should reacquire `viewport.runtime`
+  after `setScene` or `updateScene` and never manually synchronize packed
+  runtime state.
 
 For imported data, `createElementModelFromFemModel` is the validated conversion
 from the serializable VTK-backed `FemModel` into the dense `ElementModel`

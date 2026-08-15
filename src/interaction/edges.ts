@@ -1,4 +1,3 @@
-import type { Instance } from "../scene/types";
 import {
   isHoveredTarget,
   readInteractionState,
@@ -6,6 +5,8 @@ import {
   type InteractionState,
   type ResolvedStyle,
 } from "./state";
+import type { InstanceId } from "../scene/types";
+import type { PartId } from "../geometry/part";
 import { applySelectionStyle, resolveInstanceStyle } from "./interaction";
 import type { EdgeRef } from "./refs";
 import { applyStyleLayers, collectUniqueRefs, sortedStrings, updateNestedMap } from "./mechanics";
@@ -52,7 +53,7 @@ export function isEdgeEmphasized(state: InteractionState, ref: EdgeRef): boolean
 
 /** Resolves the renderer style of one authored edge occurrence. */
 export function resolveEdgeStyle(
-  instance: Instance,
+  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
   ref: EdgeRef,
   base: ResolvedStyle,
   state: InteractionState,

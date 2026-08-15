@@ -243,13 +243,7 @@ export {
   translation,
   type Mat4,
 } from "./math/mat4";
-export type {
-  AssemblyId,
-  AssemblyOccurrenceId,
-  ElementRef,
-  Instance,
-  InstanceId,
-} from "./scene/types";
+export type { AssemblyId, AssemblyOccurrenceId, ElementRef, InstanceId } from "./scene/types";
 export type {
   EdgePickHit,
   FacePickHit,

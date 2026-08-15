@@ -239,7 +239,7 @@ function main() {
       "  const runtime = viewport.runtime;",
       "  runtime.getInstanceIds();",
       "  runtime.getOccurrences();",
-      "  runtime.getDrawList();",
+      "  runtime.getVisibleInstanceIds();",
       "  viewport.setResults({ scalar: { field: stress }, deformation: { field: displacement, scale: 1 } });",
       "  viewport.clearResults();",
       "  await viewport.pick(0, 0);",

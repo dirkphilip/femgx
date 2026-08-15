@@ -24,6 +24,12 @@ oriented API map, and the root [[../index|wiki index]] is the navigation map.
 | Scene runtime       | `SceneRuntime`         | Stable placement/assembly-occurrence queries; live mutations belong to `FemViewport` |
 | Viewport            | `FemViewport`          | Public scene lifecycle, GPU rendering, interaction attributes, and picking           |
 
+`SceneRuntime` is the defensive query boundary: its public transforms and
+collections are snapshots, and `RuntimeOccurrence.instanceIds` contains only
+direct part placements. The canonical viewport owns the current live facade at
+`viewport.runtime`; standalone `createSceneRuntime(scene)` is a CPU-only
+immutable compiled snapshot for intentional host inspection.
+
 The API may eventually introduce explicit `PartDefinition` and
 `PartInstance` names, but it must preserve this semantic distinction even
 while the implementation uses the shorter current names.
@@ -35,9 +41,9 @@ ElementModel → derived Parts + assembly placements
               ↓
            Scene
               ↓
-       createSceneRuntime
+       createFemViewport
               ↓
-      FemViewport
+      viewport.runtime
 ```
 
 Reusable geometry is defined once. Instances refer to that definition by a
@@ -96,9 +102,12 @@ const scene = createScene()
   leak into the authoring API.
 - The authoritative CPU representation owns the model data; typed arrays in
   the private packed runtime and GPU buffers are compiled representations. The
-  public `SceneRuntime` exposes stable handles and query objects, not slots or
-  mutation deltas. Live visibility changes and transactional structural scene
-  updates go through `FemViewport`.
+  public `SceneRuntime` exposes stable handles and defensive query objects, not
+  slots or mutation deltas. `FemViewport.runtime` is the current live facade;
+  hosts should reacquire it after `setScene` or `updateScene`. Standalone
+  `createSceneRuntime(scene)` is a CPU-only immutable compiled snapshot for
+  intentional host inspection. Live visibility changes and transactional
+  structural scene updates go through `FemViewport`.
 
 ## Public API boundary
 

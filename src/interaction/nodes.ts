@@ -1,5 +1,5 @@
-import type { Instance } from "../scene/types";
-import type { BodyId } from "../geometry/part";
+import type { BodyId, PartId } from "../geometry/part";
+import type { InstanceId } from "../scene/types";
 import {
   isHoveredTarget,
   readInteractionState,
@@ -61,7 +61,7 @@ export function isNodeEmphasized(state: InteractionState, ref: NodeRef): boolean
  * @category Interaction and picking
  */
 export function resolveNodeStyle(
-  instance: Instance,
+  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
   ref: NodeRef,
   base: ResolvedStyle,
   state: InteractionState,

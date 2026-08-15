@@ -24,7 +24,9 @@ the only public entry point. Primitive-specific geometry leaves are represented
 by the public `Geometry` union; GPU resource layouts remain internal.
 
 The package smoke suite must consume the canonical viewport, scene, and results
-contracts rather than renderer records or derived runtime storage. No
+contracts rather than renderer records or derived runtime storage. The public
+runtime exposes `RuntimeInstance` as its sole materialized placed-part record;
+the renderer-shaped `Instance` record and packed slots remain internal. No
 compatibility aliases are maintained for this experimental 0.x product. See
 the [[architecture/api-design|API design north star]] for the canonical
 workflow and [[data/results|Results]] for the authored-results boundary.
