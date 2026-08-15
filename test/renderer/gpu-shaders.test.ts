@@ -40,8 +40,6 @@ import {
 import {
   selectionFragmentShader,
   selectionTransparencyFragmentShader,
-  triangleSelectionFragmentShader,
-  triangleSelectionTransparencyFragmentShader,
 } from "../../src/renderer/gpu-selection";
 
 function normalizedDerivativeNormal(
@@ -306,9 +304,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
       transparencyFragmentShader,
       triangleTransparencyFragmentShader,
       selectionFragmentShader,
-      triangleSelectionFragmentShader,
       selectionTransparencyFragmentShader,
-      triangleSelectionTransparencyFragmentShader,
       nodeOverlayFragmentShader,
     ]) {
       expect(shader).toContain("sectionPlaneVisible(worldPosition)");
@@ -417,21 +413,14 @@ describe("selection emphasis shaders", () => {
 
   it("classifies visible selection alpha from the base surface", () => {
     expect(selectionFragmentShader).toContain("color.a <= 0.0");
-    expect(triangleSelectionFragmentShader).toContain("color.a <= 0.0");
     expect(selectionFragmentShader).toContain("visibleSelectionAlpha(color.a)");
-    expect(triangleSelectionFragmentShader).toContain("visibleSelectionAlpha(color.a)");
     expect(selectionFragmentShader).toContain("select(baseAlpha, 1.0, baseAlpha >= 1.0)");
-    expect(triangleSelectionFragmentShader).not.toContain("mix(resultColor.rgb");
-    expect(triangleSelectionFragmentShader).not.toContain("surfaceLighting(");
+    expect(selectionFragmentShader).not.toContain("mix(resultColor.rgb");
+    expect(selectionFragmentShader).not.toContain("surfaceLighting(");
   });
 
   it("keeps result colors available in visible and hidden selection passes", () => {
-    for (const source of [
-      selectionFragmentShader,
-      triangleSelectionFragmentShader,
-      selectionTransparencyFragmentShader,
-      triangleSelectionTransparencyFragmentShader,
-    ]) {
+    for (const source of [selectionFragmentShader, selectionTransparencyFragmentShader]) {
       expect(source).toContain("@location(10) resultColor: vec4<f32>");
       expect(source).toContain("resultColorEnabled: u32");
       expect(source).toContain("selectionColor(");
