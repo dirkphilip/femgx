@@ -1,4 +1,5 @@
 import type { EdgeRef, FaceRef } from "./refs";
+import { faceIdentity as faceId } from "../geometry/element-face-selection";
 import { setElementBlockHighlighted, setElementBlockSelected } from "./blocks";
 import { setBodyHighlighted, setBodySelected } from "./bodies";
 import { setFaceHighlighted, setFaceSelected } from "./faces";
@@ -24,7 +25,6 @@ import { updateNestedMaps, updateNestedSets, updateSetValues } from "./mechanics
 export type { InteractionTarget } from "./target-types";
 import type { InteractionTarget } from "./target-types";
 import type { InteractionGranularity, PickHit } from "../picking/types";
-import { edgeRefKey, faceRefKey } from "./refs";
 export { bodyOverride, clearSelection, selectedTargets } from "./selection-queries";
 
 /**
@@ -198,14 +198,16 @@ function collectTargetGroups(targets: readonly InteractionTarget[]): TargetGroup
       case "element":
         addNestedValue(groups.elementIds, target.instanceId, target.elementId);
         break;
-      case "face":
-        addNestedValue(groups.faceRefs, target.instanceId, faceRefKey(target), target);
+      case "face": {
+        const key = faceId(target.elementId, target.faceIndex);
+        addNestedValue(groups.faceRefs, target.instanceId, key, target);
         break;
+      }
       case "node":
         addNestedValue(groups.nodeIds, target.instanceId, target.nodeId);
         break;
       case "edge":
-        addNestedValue(groups.edgeRefs, target.instanceId, edgeRefKey(target), target);
+        addNestedValue(groups.edgeRefs, target.instanceId, target.key, target);
         break;
     }
   }
@@ -308,7 +310,7 @@ function targetKey(target: InteractionTarget): string {
     case "element":
       return `element:${target.instanceId}:${target.elementId}`;
     case "face":
-      return `face:${target.instanceId}:${faceRefKey(target)}`;
+      return `face:${target.instanceId}:${faceId(target.elementId, target.faceIndex)}`;
     case "node":
       return `node:${target.instanceId}:${target.nodeId}`;
     case "edge":
@@ -398,12 +400,14 @@ export function isTargetSelected(state: InteractionState, target: InteractionTar
       return data.selectedBlockIds.get(target.instanceId)?.has(target.blockId) === true;
     case "element":
       return data.selectedElementIds.get(target.instanceId)?.has(target.elementId) === true;
-    case "face":
-      return data.selectedFaces.get(target.instanceId)?.has(faceRefKey(target)) === true;
+    case "face": {
+      const key = faceId(target.elementId, target.faceIndex);
+      return data.selectedFaces.get(target.instanceId)?.has(key) === true;
+    }
     case "node":
       return data.selectedNodeIds.get(target.instanceId)?.has(target.nodeId) === true;
     case "edge":
-      return data.selectedEdges.get(target.instanceId)?.has(edgeRefKey(target)) === true;
+      return data.selectedEdges.get(target.instanceId)?.has(target.key) === true;
   }
 }
 
@@ -424,12 +428,14 @@ export function isTargetHighlighted(state: InteractionState, target: Interaction
       return data.highlightedBlockIds.get(target.instanceId)?.has(target.blockId) === true;
     case "element":
       return data.highlightedElementIds.get(target.instanceId)?.has(target.elementId) === true;
-    case "face":
-      return data.highlightedFaces.get(target.instanceId)?.has(faceRefKey(target)) === true;
+    case "face": {
+      const key = faceId(target.elementId, target.faceIndex);
+      return data.highlightedFaces.get(target.instanceId)?.has(key) === true;
+    }
     case "node":
       return data.highlightedNodeIds.get(target.instanceId)?.has(target.nodeId) === true;
     case "edge":
-      return data.highlightedEdges.get(target.instanceId)?.has(edgeRefKey(target)) === true;
+      return data.highlightedEdges.get(target.instanceId)?.has(target.key) === true;
   }
 }
 

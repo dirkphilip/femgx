@@ -46,13 +46,3 @@ export interface EdgeRef {
   readonly instanceId: InstanceId;
   readonly key: EdgeKey;
 }
-
-/** Stable map key for one oriented face occurrence. */
-export function faceRefKey(ref: Pick<FaceRef, "elementId" | "faceIndex">): string {
-  return `${ref.elementId}/${ref.faceIndex}`;
-}
-
-/** Stable map key for one authored edge occurrence. */
-export function edgeRefKey(ref: Pick<EdgeRef, "key">): EdgeKey {
-  return ref.key;
-}

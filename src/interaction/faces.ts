@@ -1,4 +1,5 @@
 import type { BodyId, PartId } from "../geometry/part";
+import { faceIdentity as faceId } from "../geometry/element-face-selection";
 import {
   isHoveredTarget,
   readInteractionState,
@@ -13,7 +14,7 @@ import {
   resolveInstanceStyle,
 } from "./interaction";
 import type { ElementBlockId } from "../elements/model";
-import { faceRefKey, type FaceRef } from "./refs";
+import type { FaceRef } from "./refs";
 import type { InstanceId } from "../scene/types";
 import { applyStyleLayers, collectUniqueRefs, sortedStrings, updateNestedMap } from "./mechanics";
 
@@ -27,7 +28,7 @@ function updateFaceSet(
   const map = updateNestedMap(
     data[key],
     ref.instanceId,
-    faceRefKey(ref),
+    faceId(ref.elementId, ref.faceIndex),
     enabled ? ref : undefined,
   );
   if (map === data[key]) return state;
@@ -65,8 +66,8 @@ export function isFaceEmphasized(state: InteractionState, ref: FaceRef): boolean
       elementId: ref.elementId,
       faceIndex: ref.faceIndex,
     }) ||
-    data.highlightedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true ||
-    data.selectedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true
+    data.highlightedFaces.get(ref.instanceId)?.has(faceId(ref.elementId, ref.faceIndex)) === true ||
+    data.selectedFaces.get(ref.instanceId)?.has(faceId(ref.elementId, ref.faceIndex)) === true
   );
 }
 
@@ -98,10 +99,10 @@ export function resolveFaceStyle(
         : resolveBodyStyle(instance, bodyId, base, state)
       : resolveElementBlockStyle(instance, blockId, base, state, bodyId);
   return applyStyleLayers(style, [
-    data.selectedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true
+    data.selectedFaces.get(ref.instanceId)?.has(faceId(ref.elementId, ref.faceIndex)) === true
       ? applySelectionStyle(style, data.theme.selected)
       : undefined,
-    data.highlightedFaces.get(ref.instanceId)?.has(faceRefKey(ref)) === true
+    data.highlightedFaces.get(ref.instanceId)?.has(faceId(ref.elementId, ref.faceIndex)) === true
       ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
     isHoveredTarget(state, {
@@ -131,7 +132,7 @@ export function emphasizedFaceRefs(state: InteractionState): readonly FaceRef[] 
           faceIndex: data.hoveredTarget.faceIndex,
         }
       : undefined,
-    (ref) => `${ref.instanceId}/${faceRefKey(ref)}`,
+    (ref) => `${ref.instanceId}/${faceId(ref.elementId, ref.faceIndex)}`,
     (push) => {
       for (const [, faces] of data.highlightedFaces) {
         for (const key of sortedStrings(faces.keys())) {
