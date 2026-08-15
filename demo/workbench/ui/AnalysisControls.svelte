@@ -226,7 +226,7 @@
       class="result-orientation-help"
       hidden={!hasActiveVector()}
     >
-      Normalized orientation; magnitude not displayed
+      Authored vectors are normalized for display; magnitude is not displayed
     </span>
   </div>
   <div

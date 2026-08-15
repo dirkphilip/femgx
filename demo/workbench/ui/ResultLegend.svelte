@@ -11,7 +11,7 @@
 <section
   id="result-legend"
   data-testid="result-legend"
-  class="hud result-legend"
+  class={`hud result-legend ${hasScalarLegend() ? "result-legend-with-ramp" : ""}`}
   aria-label="Active result legend"
   hidden={!(snapshot?.overlays.resultLegend.visible ?? false)}
 >

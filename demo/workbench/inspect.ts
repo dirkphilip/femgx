@@ -125,7 +125,7 @@ function formatVec(vector: readonly [number, number, number]): string {
 function vectorValue(vector: readonly [number, number, number]): string {
   if (!vector.every(Number.isFinite)) return "missing (not drawn)";
   if (vector.every((component) => component === 0)) return "zero (not drawn)";
-  return `[${format(vector[0])}, ${format(vector[1])}, ${format(vector[2])}] · normalized orientation · magnitude not displayed`;
+  return `[${format(vector[0])}, ${format(vector[1])}, ${format(vector[2])}] · authored vector normalized for display · magnitude not displayed`;
 }
 
 function format(value: number): string {

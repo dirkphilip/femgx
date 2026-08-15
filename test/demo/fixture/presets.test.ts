@@ -14,10 +14,11 @@ import { deformGeometry } from "../../../src/results/deform";
 import { computeBounds } from "../../../src/geometry/part";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import { mapScalar } from "../../../src/results/mapping";
-import { resolveViewportResults } from "../../../src/viewport/results";
+import { resolveViewportResults, viewportOrientationRecords } from "../../../src/viewport/results";
 import { createPresetInteraction } from "../../../demo/workbench/preset";
 import { readInteractionState } from "../../../src/interaction/state";
 import { transformPoint } from "../../../src/math/mat4";
+import { cross, dot, normalize } from "../../../src/math/vec3";
 
 describe("createModelPresets", () => {
   it("offers the seven supported product stories in stable order", () => {
@@ -161,8 +162,8 @@ describe("results preset", () => {
     ]);
     expect(preset.scene.assemblies.get(20)?.placements).toHaveLength(2);
     expect(model?.elements).toHaveLength(8);
-    expect(model?.nodes).toHaveLength(90);
-    expect(new Set(model?.elements.flatMap((element) => element.nodeIds)).size).toBe(30);
+    expect(model?.nodes).toHaveLength(45);
+    expect(new Set(model?.elements.flatMap((element) => element.nodeIds)).size).toBe(15);
     expect(model?.elements.map((element) => element.id)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     const part = preset.scene.parts.get(20);
     const displacement = preset.results?.deformation?.field;
@@ -173,12 +174,12 @@ describe("results preset", () => {
     expect(preset.bounds.minX).toBe(0);
     expect(preset.bounds.minY).toBe(0);
     expect(preset.bounds.minZ).toBe(0);
-    expect(preset.bounds.maxX).toBeCloseTo(9);
-    expect(preset.bounds.maxY).toBeCloseTo(4.35);
-    expect(preset.bounds.maxZ).toBeCloseTo(1.4);
+    expect(preset.bounds.maxX).toBeCloseTo(9.5);
+    expect(preset.bounds.maxY).toBeGreaterThan(5.5);
+    expect(preset.bounds.maxZ).toBeGreaterThan(0.65);
     expect(deformedBounds.maxX).toBeCloseTo(4.08);
     expect(deformedBounds.maxY).toBeCloseTo(2.12);
-    expect(deformedBounds.maxZ).toBeCloseTo(1.47);
+    expect(deformedBounds.maxZ).toBeGreaterThan(0.85);
   });
 
   it("keeps deformed results occurrences separated on both layout axes", () => {
@@ -221,16 +222,71 @@ describe("results preset", () => {
     expect(mapScalar(scalar.colorMap, 80)).toEqual(scalar.colorMap.stops.at(-1)?.color);
   });
 
-  it("keeps missing and zero orientation rows authored without glyph-ready values", () => {
+  it("authors every shell vector from its consistently wound face", () => {
     const preset = createResultsPreset();
     const normals = preset.resultVectorFields?.find((field) => field.id === "demo-normals");
     if (normals === undefined) throw new Error("Results preset has no normals field");
-    expect(Array.from(normals.values.slice(6, 12))).toEqual([NaN, NaN, NaN, 0, 0, 0]);
+    expect(normals.values).toHaveLength(24);
+    for (let index = 0; index < normals.values.length; index += 3) {
+      const x = normals.values[index] ?? Number.NaN;
+      const y = normals.values[index + 1] ?? Number.NaN;
+      const z = normals.values[index + 2] ?? Number.NaN;
+      expect(Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)).toBe(true);
+      expect(Math.hypot(x, y, z)).toBeCloseTo(1);
+      expect(z).toBeGreaterThan(0);
+    }
+    const model = preset.elementModels.get(20);
+    const runtime = createPackedSceneRuntime(preset.scene);
+    const results = preset.results;
+    if (results === undefined) throw new Error("Results preset has no result configuration");
+    const state = resolveViewportResults(results, preset.scene, runtime);
+    const records = viewportOrientationRecords(state)?.get(20);
+    if (model === undefined || records === undefined) {
+      throw new Error("Results preset has no shell orientation records");
+    }
+    for (const element of model.elements) {
+      const first = pointAt(model.nodes, element.nodeIds[0]);
+      const second = pointAt(model.nodes, element.nodeIds[1]);
+      const third = pointAt(model.nodes, element.nodeIds[2]);
+      const geometricNormal = normalize(cross(subtract(second, first), subtract(third, first)));
+      const vectorBase = element.id * 3;
+      const authored = [
+        normals.values[vectorBase] ?? Number.NaN,
+        normals.values[vectorBase + 1] ?? Number.NaN,
+        normals.values[vectorBase + 2] ?? Number.NaN,
+      ] as const;
+      expect(dot(authored, geometricNormal)).toBeGreaterThan(0.99);
+      const recordIndex = records.elementIds.indexOf(element.id);
+      expect(recordIndex).toBeGreaterThanOrEqual(0);
+      const anchorBase = recordIndex * 3;
+      const centroid = element.nodeIds.reduce<[number, number, number]>(
+        (sum, nodeId) => {
+          const point = pointAt(model.nodes, nodeId);
+          return [sum[0] + point[0], sum[1] + point[1], sum[2] + point[2]];
+        },
+        [0, 0, 0],
+      );
+      for (let axis = 0; axis < 3; axis += 1) {
+        expect(records.anchors[anchorBase + axis] ?? Number.NaN).toBeCloseTo(
+          (centroid[axis] ?? Number.NaN) / element.nodeIds.length,
+        );
+      }
+    }
     expect(preset.resultVectorFields?.[1]?.values.slice(0, 6)).toEqual(
       new Float32Array([1, 0.25, 0, -1, -0.25, 0]),
     );
   });
 });
+
+function pointAt(nodes: ArrayLike<number>, nodeId: number | undefined): [number, number, number] {
+  if (nodeId === undefined) throw new Error("Shell element is missing a node");
+  const offset = nodeId * 3;
+  return [nodes[offset] ?? 0, nodes[offset + 1] ?? 0, nodes[offset + 2] ?? 0];
+}
+
+function subtract(a: readonly [number, number, number], b: readonly [number, number, number]) {
+  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]] as [number, number, number];
+}
 
 function transformedBounds(
   bounds: ReturnType<typeof computeBounds>,

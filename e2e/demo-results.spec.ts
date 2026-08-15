@@ -136,7 +136,7 @@ test("validates signed normals and sign-invariant fibers in one shared results p
   await expect(page.getByTestId("result-controls")).toBeVisible();
   await expect(vectorField).toHaveValue("demo-normals");
   await expect(page.getByTestId("vector-help")).toHaveText(
-    "Normalized orientation; magnitude not displayed",
+    "Authored vectors are normalized for display; magnitude is not displayed",
   );
   await expect(canvas).toHaveAttribute("data-vector-field", "demo-normals");
 
@@ -156,7 +156,9 @@ test("validates signed normals and sign-invariant fibers in one shared results p
   await expect(canvas).toHaveAttribute("data-vector-glyph", "axis");
   await expect(canvas).toHaveAttribute("data-vector-transform", "direction");
   await expect(page.getByTestId("vector-length-scale")).toHaveValue("1.6");
-  await expect(page.getByTestId("result-legend")).toContainText("Normalized orientation");
+  await expect(page.getByTestId("result-legend")).toContainText(
+    "Authored vectors normalized for display",
+  );
   await expect(page.getByTestId("result-legend")).toContainText("Magnitude not displayed");
 
   const beforeBase = await canvas.getAttribute("data-frames");
@@ -174,7 +176,9 @@ test("validates signed normals and sign-invariant fibers in one shared results p
   );
   await page.mouse.click(hit.x, hit.y);
   await expect(page.getByTestId("inspection-panel")).toContainText("Demo fiber orientations");
-  await expect(page.getByTestId("inspection-panel")).toContainText("normalized orientation");
+  await expect(page.getByTestId("inspection-panel")).toContainText(
+    "authored vector normalized for display",
+  );
 
   await page.screenshot({ path: testInfo.outputPath("orientation-results-desktop.png") });
   await page.setViewportSize({ width: 390, height: 844 });
