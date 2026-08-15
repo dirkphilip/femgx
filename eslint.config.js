@@ -5,8 +5,19 @@ import jsdoc from "eslint-plugin-jsdoc";
 
 export default tseslint.config(
   {
-    // Repository metadata and hidden tool directories are not product code.
-    ignores: ["dist", "dist-demo", "coverage", "node_modules", "**/.*"],
+    // Ignore generated, dependency, cache, and local-state paths explicitly so
+    // repository-owned hidden modules still receive the JavaScript rules below.
+    ignores: [
+      "dist",
+      "dist-demo",
+      "coverage",
+      "node_modules",
+      ".cache",
+      ".vite",
+      "playwright-report",
+      "test-results",
+      ".supervisor/run",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
