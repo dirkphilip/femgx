@@ -54,24 +54,6 @@ export function setFaceHighlighted(
 }
 
 /**
- * Returns whether a face occurrence carries emphasis (hover, highlight, selection).
- * @category Interaction and picking
- */
-export function isFaceEmphasized(state: InteractionState, ref: FaceRef): boolean {
-  const data = readInteractionState(state);
-  return (
-    isHoveredTarget(state, {
-      kind: "face",
-      instanceId: ref.instanceId,
-      elementId: ref.elementId,
-      faceIndex: ref.faceIndex,
-    }) ||
-    data.highlightedFaces.get(ref.instanceId)?.has(faceId(ref.elementId, ref.faceIndex)) === true ||
-    data.selectedFaces.get(ref.instanceId)?.has(faceId(ref.elementId, ref.faceIndex)) === true
-  );
-}
-
-/**
  * Resolves the style of one face occurrence. Face-level state is more specific
  * than part/instance state, so face highlight, hover, and selection win over
  * `resolveInstanceStyle`; selection beats hover, and hover beats highlight.

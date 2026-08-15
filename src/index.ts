@@ -16,7 +16,7 @@ export {
   setElementOverride,
   setInstanceOverride,
 } from "./interaction/interaction";
-export { emphasizedFaceRefs, isFaceEmphasized, resolveFaceStyle } from "./interaction/faces";
-export { emphasizedEdgeRefs, isEdgeEmphasized, resolveEdgeStyle } from "./interaction/edges";
-export { emphasizedNodeRefs, isNodeEmphasized, resolveNodeStyle } from "./interaction/nodes";
+export { emphasizedFaceRefs, resolveFaceStyle } from "./interaction/faces";
+export { emphasizedEdgeRefs, resolveEdgeStyle } from "./interaction/edges";
+export { emphasizedNodeRefs, resolveNodeStyle } from "./interaction/nodes";
 export { WebGpuPickReadbackError } from "./renderer/picking/gpu-pick";
