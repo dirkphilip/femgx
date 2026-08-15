@@ -1,40 +1,81 @@
 @media (max-width: 720px) {
   body {
-    overflow: auto;
+    overflow: hidden;
   }
   .app {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
-    height: auto;
-    min-height: 100vh;
+    display: block;
+    height: var(--workbench-viewport-height, 100dvh);
+    min-height: 360px;
+    overflow: hidden;
   }
   #viewport-workspace {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(480px, 72vh);
+    grid-template-rows: minmax(360px, 1fr);
+    height: 100%;
+    min-height: 360px;
   }
   #viewport-workspace[data-secondary-open="true"] {
     grid-template-columns: 1fr;
-    grid-template-rows: repeat(2, minmax(480px, 72vh));
+    grid-template-rows: repeat(2, minmax(360px, 1fr));
   }
   .scene,
   .scene-pane {
-    min-height: 480px;
+    min-height: 360px;
   }
   .sidebar {
-    grid-row: 2;
-    border-top: 1px solid #223149;
-    border-right: 0;
+    position: fixed;
+    z-index: 30;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(320px, calc(100vw - 48px));
+    height: var(--workbench-viewport-height, 100dvh);
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    border-right: 1px solid #38506f;
+    box-shadow: 18px 0 44px rgb(0 0 0 / 0.32);
+    transform: translateX(-105%);
+    transition: transform 160ms ease-out;
+  }
+  .sidebar.drawer-open {
+    transform: translateX(0);
+  }
+  .navigation-toggle {
+    position: fixed;
+    z-index: 40;
+    top: calc(174px + env(safe-area-inset-top));
+    left: calc(8px + env(safe-area-inset-left));
+    display: block;
+    min-width: 64px;
+    min-height: 44px;
+    border-color: #38506f;
+    box-shadow: 0 8px 22px rgb(6 16 30 / 0.34);
+  }
+  .navigation-scrim {
+    position: fixed;
+    z-index: 25;
+    inset: 0;
+    display: block;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: rgb(4 11 22 / 0.58);
+    cursor: default;
+  }
+  .navigation-scrim[hidden] {
+    display: none;
+  }
+  #visibility-panel {
+    flex: 1 1 auto;
+    max-height: none;
   }
   .brand {
     padding: 13px 16px;
   }
-  #visibility-panel {
-    max-height: 300px;
-  }
   .toolbar {
-    top: 8px;
-    left: 8px;
-    right: 8px;
+    top: calc(8px + env(safe-area-inset-top));
+    left: calc(8px + env(safe-area-inset-left));
+    right: calc(8px + env(safe-area-inset-right));
     padding: 4px;
   }
   .command-bar {
@@ -114,6 +155,9 @@
     min-width: 0;
     padding: 0;
   }
+  .interaction-help {
+    display: none;
+  }
   .toolbar-background-name {
     position: absolute;
     width: 1px;
@@ -128,8 +172,8 @@
   }
   .result-legend {
     z-index: 4;
-    right: 8px;
-    bottom: 8px;
+    right: calc(8px + env(safe-area-inset-right));
+    bottom: calc(8px + env(safe-area-inset-bottom));
     width: min(220px, calc(100% - 16px));
     padding: 7px 8px;
     font-size: 10px;

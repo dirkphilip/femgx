@@ -1,7 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
-import { drawnPixels, openCommandPanel, waitForRenderer } from "./demo-support";
+import {
+  closeNavigation,
+  drawnPixels,
+  openCommandPanel,
+  openNavigation,
+  waitForRenderer,
+} from "./demo-support";
 
 const PHONE = { width: 390, height: 844 } as const;
+const COMPACT = { width: 721, height: 600 } as const;
 const DESKTOP = { width: 1440, height: 900 } as const;
 const ORDINARY_MODELS = [
   "bolted",
@@ -22,12 +29,23 @@ test("keeps every ordinary story inside desktop and phone layout budgets", async
     const canvas = page.getByTestId("view-canvas");
 
     for (const model of ORDINARY_MODELS) {
+      if (viewport === PHONE) await openNavigation(page);
       await page.getByTestId("model-select").selectOption(model);
+      if (viewport === PHONE) await closeNavigation(page);
       await expect(canvas).toHaveAttribute("data-model", model);
       await expect.poll(() => drawnPixels(canvas), { timeout: 15_000 }).toBe(true);
       await assertWorkbenchLayout(page, viewport === PHONE, RESULT_MODELS.has(model));
     }
   }
+});
+
+test("keeps the compact rail and command row inside a narrow desktop viewport", async ({
+  page,
+}) => {
+  await page.setViewportSize(COMPACT);
+  await page.goto("/");
+  await waitForRenderer(page);
+  await assertWorkbenchLayout(page, false, false);
 });
 
 async function assertWorkbenchLayout(
@@ -91,6 +109,10 @@ async function assertWorkbenchLayout(
   expect(layout.toolbar.bottom).toBeLessThanOrEqual(layout.scene.bottom + 1);
   expect(layout.canvas.width).toBeGreaterThan(0);
   expect(layout.canvas.height).toBeGreaterThan(phone ? 280 : 400);
+  if (phone) {
+    expect(layout.canvas.width).toBeGreaterThanOrEqual(320);
+    expect(layout.canvas.height).toBeGreaterThanOrEqual(360);
+  }
 
   if (layout.gizmo !== undefined) {
     expect(layout.gizmo.x).toBeGreaterThanOrEqual(layout.scene.x - 1);

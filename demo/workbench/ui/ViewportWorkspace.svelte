@@ -11,16 +11,22 @@
     controller,
     snapshot,
     startup,
+    navigationOpen = false,
   }: {
     controller: WorkbenchController | undefined;
     snapshot: WorkbenchSnapshot | undefined;
     startup: WorkbenchStartupStatus | undefined;
+    navigationOpen?: boolean;
   } = $props();
 </script>
 
-<div id="viewport-workspace" data-secondary-open={snapshot?.toolbar.secondaryOpen ?? false}>
+<div
+  id="viewport-workspace"
+  data-secondary-open={snapshot?.toolbar.secondaryOpen ?? false}
+  aria-hidden={navigationOpen}
+>
   <ViewportPane>
-    <PrimaryToolbar {controller} {snapshot} />
+    <PrimaryToolbar {controller} {snapshot} {navigationOpen} />
     <ResultLegend {snapshot} />
     <StatusOverlays {snapshot} {startup} />
   </ViewportPane>

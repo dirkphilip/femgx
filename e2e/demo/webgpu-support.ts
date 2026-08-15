@@ -12,7 +12,9 @@ export {
 } from "../shared/helpers";
 export {
   activateContextAction,
+  closeNavigation,
   openCommandPanel,
+  openNavigation,
   rendererMode,
   setSelectionGranularity,
   waitForRendererOrSkip,

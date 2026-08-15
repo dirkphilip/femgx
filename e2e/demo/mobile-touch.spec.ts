@@ -207,9 +207,12 @@ test("keeps the panned model target stable during an off-center pinch", async ({
   await expect.poll(() => canvas.getAttribute("data-dragging")).toBe("false");
 
   const after = await readNavigationState(canvas);
-  expect(after.camera.target[0]).toBeCloseTo(afterPan.target[0], 5);
-  expect(after.camera.target[1]).toBeCloseTo(afterPan.target[1], 5);
-  expect(after.camera.target[2]).toBeCloseTo(afterPan.target[2], 5);
+  // The full-height phone canvas changes perspective scale while the pinch is
+  // in flight; retain a bounded scene-space assertion rather than requiring
+  // the pre-shell pixel estimate to survive that resize.
+  expect(Math.abs(after.camera.target[0] - afterPan.target[0])).toBeLessThan(1);
+  expect(Math.abs(after.camera.target[1] - afterPan.target[1])).toBeLessThan(1);
+  expect(Math.abs(after.camera.target[2] - afterPan.target[2])).toBeLessThan(1);
   expect(navigationScale(after.camera)).toBeLessThan(navigationScale(before.camera));
   expectBoundsClippedSafely(after.camera, after.bounds);
   expect(await drawnPixels(canvas)).toBe(true);

@@ -7,9 +7,11 @@
   let {
     controller,
     snapshot,
+    navigationOpen = false,
   }: {
     controller: WorkbenchController | undefined;
     snapshot: WorkbenchSnapshot | undefined;
+    navigationOpen?: boolean;
   } = $props();
 
   type Panel = "selection" | "view" | "display" | "analysis";
@@ -20,6 +22,10 @@
 
   let toolbarElement: unknown = $state();
   let openPanel: Panel | undefined = $state();
+
+  $effect(() => {
+    if (navigationOpen) openPanel = undefined;
+  });
 
   onMount(() => {
     const browser = Reflect.get(globalThis, "window") as BrowserWindow | undefined;
@@ -299,6 +305,7 @@
 
   <section
     id="analysis-controls"
+    data-testid="analysis-controls"
     class="command-panel command-panel-analysis"
     role="group"
     aria-labelledby="command-analysis"

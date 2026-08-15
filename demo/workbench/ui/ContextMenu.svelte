@@ -12,7 +12,14 @@
   } = $props();
   let menuElement: unknown = $state();
 
+  interface MenuElement {
+    getBoundingClientRect(): { readonly width: number; readonly height: number };
+    style: { left: string; top: string };
+  }
+
   interface BrowserWindow {
+    innerHeight: number;
+    innerWidth: number;
     addEventListener(type: string, listener: (event: unknown) => void): void;
     removeEventListener(type: string, listener: (event: unknown) => void): void;
   }
@@ -37,13 +44,42 @@
       const eventObject = typeof event === "object" && event !== null ? event : {};
       if (Reflect.get(eventObject, "key") === "Escape") controller?.commands.clearContextMenu();
     };
+    const repositionMenu = (): void => positionMenu();
     browser.addEventListener("click", closeOutside);
     browser.addEventListener("keydown", closeWithEscape);
+    browser.addEventListener("resize", repositionMenu);
     return () => {
       browser.removeEventListener("click", closeOutside);
       browser.removeEventListener("keydown", closeWithEscape);
+      browser.removeEventListener("resize", repositionMenu);
     };
   });
+
+  $effect(() => {
+    if (snapshot?.overlays.contextMenu.visible) {
+      void Promise.resolve().then(positionMenu);
+    }
+  });
+
+  function positionMenu(): void {
+    const menu = snapshot?.overlays.contextMenu;
+    const browser = globalThis.window;
+    if (!menu?.visible || browser === undefined || !isMenuElement(menuElement)) return;
+    const bounds = menuElement.getBoundingClientRect();
+    const x = Math.max(8, Math.min(menu.x, browser.innerWidth - bounds.width - 8));
+    const y = Math.max(8, Math.min(menu.y, browser.innerHeight - bounds.height - 8));
+    menuElement.style.left = `${x}px`;
+    menuElement.style.top = `${y}px`;
+  }
+
+  function isMenuElement(value: unknown): value is MenuElement {
+    return (
+      typeof value === "object" &&
+      value !== null &&
+      typeof Reflect.get(value, "getBoundingClientRect") === "function" &&
+      typeof Reflect.get(value, "style") === "object"
+    );
+  }
 
   function activate(entry: WorkbenchMenuEntry): void {
     if (entry.kind === "button" && entry.action !== undefined) {
