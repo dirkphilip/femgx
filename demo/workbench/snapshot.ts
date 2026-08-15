@@ -12,7 +12,7 @@ import type { SelectionGranularity } from "./pick";
 import type { BoxSelectionStrategy } from "./box-selection-resolver";
 import type { SectionAxis } from "./section-controls";
 import type { DisplayToggles } from "./types";
-import type { ResultDisplayMode } from "./types";
+import type { ResultDisplayMode, TouchInteractionMode } from "./types";
 import type { VectorDisplayState } from "./result-controls";
 import type { VisibilityRowTarget } from "./visibility-snapshot";
 import type { WorkbenchVisibilitySnapshot } from "./visibility-snapshot";
@@ -103,6 +103,7 @@ export interface WorkbenchSnapshot {
     readonly fitSelectionAvailable: boolean;
     readonly selectionGranularity: SelectionGranularity;
     readonly boxSelectionStrategy: BoxSelectionStrategy;
+    readonly touchInteractionMode: TouchInteractionMode;
     readonly secondaryOpen: boolean;
     readonly secondaryBusy: boolean;
   };
@@ -183,6 +184,7 @@ export interface WorkbenchSnapshotInput {
   readonly continuous: boolean;
   readonly selectionGranularity: SelectionGranularity;
   readonly boxSelectionStrategy: BoxSelectionStrategy;
+  readonly touchInteractionMode: TouchInteractionMode;
   readonly scalarFieldId: string;
   readonly secondaryOpen: boolean;
   readonly secondaryBusy: boolean;
@@ -209,6 +211,7 @@ export interface WorkbenchSnapshotOwner {
   readonly continuousEnabled: boolean;
   readonly selectionGranularity: SelectionGranularity;
   readonly boxSelectionStrategy: BoxSelectionStrategy;
+  readonly touchInteractionMode: TouchInteractionMode;
   readonly scalarFieldId: string;
   readonly resultMode: ResultDisplayMode;
   readonly deformationScale: number;
@@ -234,6 +237,7 @@ export interface WorkbenchCommands {
   toggleContinuous(): void;
   setSelectionGranularity(value: string): void;
   setBoxSelectionStrategy(value: string): void;
+  setTouchInteractionMode(value: string): void;
   toggleSecondaryViewport(): void;
   setDeformationField(id: string): void;
   setDeformationScale(value: string): void;
@@ -243,6 +247,7 @@ export interface WorkbenchCommands {
   setVectorLengthScale(value: string): void;
   setVectorWidthPixels(value: string): void;
   fitSelection(): void;
+  selectAll(): void;
   hideSelected(): void;
   showAll(): void;
   reset(): void;
@@ -314,6 +319,7 @@ export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): Workbench
     continuous: owner.continuousEnabled,
     selectionGranularity: owner.selectionGranularity,
     boxSelectionStrategy: owner.boxSelectionStrategy,
+    touchInteractionMode: owner.touchInteractionMode,
     scalarFieldId: owner.scalarFieldId,
     secondaryOpen: owner.viewportSlots.isSecondaryVisible(),
     secondaryBusy: owner.viewportSlots.isSecondaryOpening(),

@@ -5,6 +5,8 @@ import {
 import { throughIntersectionBoxSelectionResolver } from "./through-box-selection";
 import type { SelectionGranularity } from "./pick";
 import type { WorkbenchViewportSlots } from "./viewport-slots";
+import { clearTransientHover, type WorkbenchHoverController } from "./controller-hover";
+import type { TouchInteractionMode } from "./types";
 
 interface BoxSelectionOwner {
   boxSelectionStrategy: BoxSelectionStrategy;
@@ -37,6 +39,19 @@ export function setBoxSelectionStrategy(owner: BoxSelectionOwner, value: string)
   owner.boxSelectionStrategy = strategy;
   normalizeBoxSelectionStrategyForGranularity(owner);
   applyBoxSelectionResolvers(owner);
+  owner.render();
+}
+
+interface TouchSelectionOwner extends WorkbenchHoverController {
+  touchInteractionMode: TouchInteractionMode;
+}
+
+/** Routes one-finger touch between camera navigation and box selection. */
+export function setTouchInteractionMode(owner: TouchSelectionOwner, value: string): void {
+  if (value !== "navigate" && value !== "box-select") return;
+  if (owner.touchInteractionMode === value) return;
+  owner.touchInteractionMode = value;
+  clearTransientHover(owner);
   owner.render();
 }
 

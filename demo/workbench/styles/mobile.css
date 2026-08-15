@@ -8,6 +8,9 @@
     min-height: 360px;
     overflow: hidden;
   }
+  #viewport-shell {
+    height: 100%;
+  }
   #viewport-workspace {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(360px, 1fr);
@@ -73,10 +76,8 @@
     padding: 13px 16px;
   }
   .toolbar {
-    top: calc(8px + env(safe-area-inset-top));
-    left: calc(8px + env(safe-area-inset-left));
-    right: calc(8px + env(safe-area-inset-right));
-    padding: 4px;
+    padding: calc(4px + env(safe-area-inset-top)) calc(4px + env(safe-area-inset-right)) 4px
+      calc(4px + env(safe-area-inset-left));
   }
   .command-bar {
     display: grid;
@@ -103,6 +104,41 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
     gap: 4px;
+  }
+  .touch-tool-rail {
+    position: absolute;
+    z-index: 6;
+    top: 10px;
+    right: calc(8px + env(safe-area-inset-right));
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 4px;
+    border: 1px solid var(--workbench-control-border);
+    border-radius: 10px;
+    background: var(--workbench-panel-background);
+    box-shadow: 0 8px 22px rgb(6 16 30 / 0.28);
+    backdrop-filter: blur(8px);
+  }
+  .touch-tool-rail button {
+    display: grid;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 9px;
+    place-items: center;
+  }
+  .touch-tool-rail svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentcolor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+  }
+  .scene-pane-label {
+    display: none;
   }
   .command-panel-heading {
     grid-column: 1 / -1;

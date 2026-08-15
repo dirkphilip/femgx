@@ -17,11 +17,13 @@ import {
   applyBoxSelectionResolvers,
   normalizeBoxSelectionStrategyForGranularity,
   setBoxSelectionStrategy as changeBoxSelectionStrategy,
+  setTouchInteractionMode as changeTouchInteractionMode,
 } from "./controller-box-selection";
 import {
   createDefaultDisplayToggles,
   type DisplayToggles,
   type ResultDisplayMode,
+  type TouchInteractionMode,
   type WorkbenchOptions,
 } from "./types";
 import type { ViewportSlotId } from "./view";
@@ -67,6 +69,7 @@ import {
   setSectionOffset as applySectionOffset,
 } from "./section-plane-actions";
 import type { SectionAxis } from "./section-controls";
+import { selectAll as applySelectAll } from "./select-all";
 import {
   WorkbenchSnapshotBridge,
   type WorkbenchCommands,
@@ -127,6 +130,7 @@ export class WorkbenchController {
   sectionOffset = 0;
   selectionGranularity: SelectionGranularity = "element";
   boxSelectionStrategy: BoxSelectionStrategy = "visible-surface";
+  touchInteractionMode: TouchInteractionMode = "navigate";
   elementDetail: WorkbenchElementDetailSnapshot | undefined;
   scalarFieldId: string;
   background: ViewportBackground = "studio";
@@ -174,7 +178,7 @@ export class WorkbenchController {
       },
     });
     this.initializePresentation();
-    this.installLifecycle();
+    this.boxSelectionDisposer = installControllerLifecycle(this);
     this.canvas.dataset["model"] = this.model.id;
     this.canvas.dataset["dragging"] = "false";
     this.render();
@@ -197,10 +201,6 @@ export class WorkbenchController {
     this.applyCurrentDisplayState();
     applySectionPlane(this, false);
     this.visibilityPanel.rebuild();
-  }
-
-  private installLifecycle(): void {
-    this.boxSelectionDisposer = installControllerLifecycle(this);
   }
 
   get runtime(): SceneRuntime {
@@ -282,6 +282,8 @@ export class WorkbenchController {
     this.visibilityActions.hideSelected();
   }
 
+  selectAll = applySelectAll.bind(null, this);
+
   showAll(): void {
     this.visibilityActions.showAll();
   }
@@ -297,6 +299,8 @@ export class WorkbenchController {
   }
 
   setBoxSelectionStrategy = changeBoxSelectionStrategy.bind(null, this);
+
+  setTouchInteractionMode = changeTouchInteractionMode.bind(null, this);
 
   setBackground(value: string): void {
     const background = parseViewportBackground(value);
@@ -374,6 +378,7 @@ export class WorkbenchController {
   }
 
   reset(): void {
+    this.touchInteractionMode = "navigate";
     this.activateModel(this.model);
   }
 

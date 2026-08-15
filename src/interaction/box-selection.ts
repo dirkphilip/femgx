@@ -55,6 +55,8 @@ export type BoxSelectionEvent =
  */
 export interface BoxSelectionOptions {
   readonly canvas: HTMLCanvasElement;
+  /** Enables touch drags when the host has routed touch away from camera navigation. */
+  readonly touchEnabled?: () => boolean;
   /** Receives start, change, complete, and cancellation events. */
   readonly onEvent: (event: BoxSelectionEvent) => void;
 }
@@ -70,8 +72,9 @@ interface BoxDrag {
 
 /**
  * Installs the box-drag lifecycle and returns its disposer. A primary mouse or
- * pen drag arms on pointer-down, activates past 10 CSS pixels, and then emits
- * typed start/change/complete/cancel events in canvas-local CSS coordinates.
+ * pen drag—or a touch drag explicitly enabled by the host—arms on pointer-down,
+ * activates past 10 CSS pixels, and then emits typed
+ * start/change/complete/cancel events in canvas-local CSS coordinates.
  * @category Interaction and picking
  */
 export function installBoxSelection(options: BoxSelectionOptions): () => void {
@@ -85,6 +88,7 @@ class BoxSelection {
   private readonly abortController = new AbortController();
   private readonly canvas: HTMLCanvasElement;
   private readonly onEvent: (event: BoxSelectionEvent) => void;
+  private readonly touchEnabled: () => boolean;
   private phase: "idle" | "armed" | "active" = "idle";
   private drag: BoxDrag | undefined;
   private disposed = false;
@@ -92,13 +96,14 @@ class BoxSelection {
   constructor(options: BoxSelectionOptions) {
     this.canvas = options.canvas;
     this.onEvent = options.onEvent;
-    const signal = { signal: this.abortController.signal };
-    this.canvas.addEventListener("pointerdown", this.pointerDown, signal);
-    this.canvas.addEventListener("pointermove", this.pointerMove, signal);
-    this.canvas.addEventListener("pointerup", this.pointerUp, signal);
-    this.canvas.addEventListener("pointercancel", this.pointerCancel, signal);
-    this.canvas.addEventListener("lostpointercapture", this.lostPointerCapture, signal);
-    window.addEventListener("keydown", this.keyDown, signal);
+    this.touchEnabled = options.touchEnabled ?? (() => false);
+    const pointerListener = { capture: true, signal: this.abortController.signal };
+    this.canvas.addEventListener("pointerdown", this.pointerDown, pointerListener);
+    this.canvas.addEventListener("pointermove", this.pointerMove, pointerListener);
+    this.canvas.addEventListener("pointerup", this.pointerUp, pointerListener);
+    this.canvas.addEventListener("pointercancel", this.pointerCancel, pointerListener);
+    this.canvas.addEventListener("lostpointercapture", this.lostPointerCapture, pointerListener);
+    window.addEventListener("keydown", this.keyDown, { signal: this.abortController.signal });
   }
 
   dispose(): void {
@@ -109,9 +114,11 @@ class BoxSelection {
   }
 
   private readonly pointerDown = (event: PointerEvent): void => {
+    const touchEnabled = event.pointerType === "touch" && this.touchEnabled();
+    if (touchEnabled) event.preventDefault();
     if (this.drag !== undefined) return;
     if (event.button !== 0) return;
-    if (event.pointerType !== "mouse" && event.pointerType !== "pen") return;
+    if (event.pointerType !== "mouse" && event.pointerType !== "pen" && !touchEnabled) return;
     const anchor = this.clampedPoint(event);
     this.drag = {
       pointerId: event.pointerId,

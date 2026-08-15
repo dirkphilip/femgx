@@ -72,7 +72,6 @@ export interface WorkbenchInteractionOptions {
 
 /** Owns async pick ordering, hover state, click selection, and context targets. */
 export class WorkbenchInteraction {
-  private readonly options: WorkbenchInteractionOptions;
   private generation = 0;
   private boxGeneration = 0;
   private disposed = false;
@@ -90,8 +89,7 @@ export class WorkbenchInteraction {
   private boxSelectionQueriesInFlight = 0;
   private boxSelectionMaxInFlight = 0;
 
-  constructor(options: WorkbenchInteractionOptions) {
-    this.options = options;
+  constructor(private readonly options: WorkbenchInteractionOptions) {
     this.boxSelectionResolver =
       options.boxSelectionResolver ?? visibleSurfaceBoxSelectionResolver(options.viewport);
   }
@@ -209,6 +207,12 @@ export class WorkbenchInteraction {
   replace(target: SelectTarget): void {
     this.invalidatePendingQuery();
     this.options.setInteraction(replaceSelection(this.options.getInteraction(), target));
+    this.options.render();
+  }
+
+  replaceAll(targets: readonly SelectTarget[]): void {
+    this.invalidatePendingQuery();
+    this.options.setInteraction(replaceTargets(this.options.getInteraction(), targets));
     this.options.render();
   }
 

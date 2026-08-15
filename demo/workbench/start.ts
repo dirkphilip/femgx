@@ -10,6 +10,7 @@ import { workbenchBenchmarkSpecs } from "../benchmark/model";
 import { installDemoHarness } from "../devtools/harness";
 import { WorkbenchController } from "./controller";
 import { createExampleModel, createLazyBenchmarkModel, type WorkbenchModel } from "./model";
+import { errorMessage } from "./model";
 import { selectTarget, targetKey } from "./pick";
 import type { WorkbenchResultPlaybackActions } from "./result-playback";
 import type { DemoView, WorkbenchPane, ViewportSlotId } from "./view";
@@ -24,9 +25,7 @@ export interface WebGpuDemoOptions {
   readonly testAlphaZero?: boolean;
 }
 
-/**
- *
- */
+/** Starts the WebGPU workbench and returns its controller when initialization succeeds. */
 export async function startWebGpuDemo(
   options: WebGpuDemoOptions,
 ): Promise<WorkbenchController | undefined> {
@@ -34,7 +33,7 @@ export async function startWebGpuDemo(
   const models = createDemoModels(options);
   const initialModel = models[0];
   if (initialModel === undefined) throw new Error("The demo requires at least one model preset");
-  const primaryPane = primaryWorkbenchPane(view);
+  const primaryPane = view.primaryPane;
   const state: StartState = { viewport: undefined, controller: undefined };
   const reportFailure = (error: unknown): void => {
     reportRendererFailure(options.reportStartupFailure, canvas, error);
@@ -86,16 +85,12 @@ function createDemoModels(options: WebGpuDemoOptions): WorkbenchModel[] {
   ];
 }
 
-function primaryWorkbenchPane(view: DemoView): WorkbenchPane {
-  return view.primaryPane;
-}
-
 function reportRendererFailure(
   reportStartupFailure: (status: WorkbenchStartupStatus) => void,
   canvas: HTMLCanvasElement,
   error: unknown,
 ): void {
-  const detail = error instanceof Error ? error.message : String(error);
+  const detail = errorMessage(error);
   const unsupported = error instanceof WebGpuUnsupportedError;
   canvas.dataset["renderer"] = unsupported ? "unsupported" : "error";
   reportStartupFailure({

@@ -1,5 +1,5 @@
 import type { FemViewport, InteractionState, SceneRuntime } from "../../src/index";
-import { installWorkbenchLifecycle } from "./lifecycle";
+import { installWorkbenchPaneLifecycle } from "./lifecycle";
 import type { WorkbenchFeatures } from "./features";
 import type { WorkbenchInteraction } from "./interaction";
 import type { WorkbenchBoxPreview } from "./box-preview";
@@ -31,6 +31,7 @@ export interface WorkbenchControllerWiringContext {
   readonly vectorDisplay: VectorDisplayState;
   readonly continuousEnabled: boolean;
   readonly selectionGranularity: SelectionGranularity;
+  readonly touchInteractionMode: "navigate" | "box-select";
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
   readonly interaction: InteractionState;
@@ -90,6 +91,7 @@ export function createControllerInfrastructure(
     vectorTransform: () => context.vectorDisplay.transform,
     continuous: () => context.continuousEnabled,
     selectionGranularity: () => context.selectionGranularity,
+    touchBoxSelection: () => context.touchInteractionMode === "box-select",
     sectionAxis: () => context.sectionAxis,
     sectionOffset: () => context.sectionOffset,
     interaction: () => context.interaction,
@@ -100,42 +102,26 @@ export function createControllerInfrastructure(
     applyDisplayedInteraction: context.applyDisplayedInteraction.bind(context),
     render: context.render.bind(context),
     publishSnapshot: context.publishSnapshot.bind(context),
-    setEdges: () => {
-      context.setEdges();
-    },
-    setDiagnostics: () => {
-      context.setDiagnostics();
-    },
+    setEdges: context.setEdges.bind(context),
+    setDiagnostics: context.setDiagnostics.bind(context),
     fitSelection: context.fitSelection.bind(context),
-    reset: () => {
-      context.reset();
-    },
-    applySharedState: () => {
-      context.applySharedState();
-    },
-    rebuildVisibility: () => {
-      context.rebuildVisibility();
-    },
-    feedback: (message) => {
-      context.feedback(message);
-    },
-    onActiveSlotChanged: () => {
-      context.onActiveSlotChanged();
-    },
+    reset: context.reset.bind(context),
+    applySharedState: context.applySharedState.bind(context),
+    rebuildVisibility: context.rebuildVisibility.bind(context),
+    feedback: context.feedback.bind(context),
+    onActiveSlotChanged: context.onActiveSlotChanged.bind(context),
   });
 }
 
 /** Installs all long-lived DOM bindings for the controller. */
 export function installControllerLifecycle(context: WorkbenchControllerWiringContext): () => void {
-  return installWorkbenchLifecycle({
-    view: context.view,
-    canvas: context.canvas,
+  return installWorkbenchPaneLifecycle({
+    pane: context.view.primaryPane,
     signal: context.listenerController.signal,
     interaction: context.interactionController,
     boxPreview: context.boxPreview,
     dragging: () => context.isPointerGestureActive(),
-    setActive: () => {
-      context.setActiveSlot("primary");
-    },
+    touchBoxSelection: () => context.touchInteractionMode === "box-select",
+    setActive: context.setActiveSlot.bind(context, "primary"),
   });
 }

@@ -24,6 +24,7 @@ export interface WorkbenchInfrastructureOptions {
   readonly vectorTransform: () => VectorTransform;
   readonly continuous: () => boolean;
   readonly selectionGranularity: () => SelectionGranularity;
+  readonly touchBoxSelection: () => boolean;
   readonly sectionAxis: () => SectionAxis;
   readonly sectionOffset: () => number;
   readonly interaction: () => InteractionState;
@@ -133,6 +134,7 @@ function createViewportSlots(
     markCanvasHover: options.markCanvasHover,
     clearCanvasHover: options.clearCanvasHover,
     selectionGranularity: options.selectionGranularity,
+    touchBoxSelection: options.touchBoxSelection,
     menu: features.menu,
     render: options.render,
     applySharedState: options.applySharedState,

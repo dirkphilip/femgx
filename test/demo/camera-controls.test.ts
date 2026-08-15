@@ -21,6 +21,7 @@ interface PointerInput {
   readonly metaKey: boolean;
   readonly clientX: number;
   readonly clientY: number;
+  readonly defaultPrevented?: boolean;
 }
 
 interface WheelInput {
@@ -77,7 +78,58 @@ const touch = (pointerId: number, clientX: number, clientY: number): PointerInpu
   button: 0,
 });
 
+function touchControlHarness() {
+  const canvas = new FakeCanvas();
+  const initial = resizeCamera(
+    createCamera({ mode: "perspective", position: [0, 0, 5], target: [0, 0, 0] }),
+    200,
+    100,
+  );
+  const cameraRef = { camera: initial };
+  const pickPoint = vi.fn(() => Promise.resolve([1, 0, 0] as Vec3));
+  const marker = vi.fn<(pivot: Vec3 | undefined) => void>();
+  const render = vi.fn();
+  installCameraControls({
+    canvas: canvas as unknown as HTMLCanvasElement,
+    cameraRef,
+    navigation: { pickPoint, setOrbitPivot: marker },
+    onRender: render,
+  });
+  return { canvas, initial, cameraRef, pickPoint, marker, render };
+}
+
 describe("camera controls", () => {
+  it("leaves a host-routed touch available for another interaction mode", () => {
+    const { canvas, initial, cameraRef, pickPoint, marker, render } = touchControlHarness();
+
+    canvas.dispatch("pointerdown", { ...touch(1, 100, 50), defaultPrevented: true });
+    canvas.dispatch("pointermove", touch(1, 130, 50));
+
+    expect(cameraRef.camera).toBe(initial);
+    expect(pickPoint).not.toHaveBeenCalled();
+    expect(marker).not.toHaveBeenCalled();
+    expect(render).not.toHaveBeenCalled();
+  });
+
+  it("keeps incidental one-finger touch movement tap-safe until the drag threshold", async () => {
+    const { canvas, initial, cameraRef, pickPoint, marker, render } = touchControlHarness();
+
+    canvas.dispatch("pointerdown", touch(1, 100, 50));
+    canvas.dispatch("pointermove", touch(1, 106, 58));
+    await Promise.resolve();
+
+    expect(cameraRef.camera).toBe(initial);
+    expect(pickPoint).not.toHaveBeenCalled();
+    expect(marker).not.toHaveBeenCalled();
+    expect(render).not.toHaveBeenCalled();
+
+    canvas.dispatch("pointermove", touch(1, 111, 50));
+    await Promise.resolve();
+
+    expect(pickPoint).toHaveBeenCalledOnce();
+    expect(marker).toHaveBeenLastCalledWith([1, 0, 0]);
+  });
+
   it.each(["mouse", "touch"] as const)(
     "waits for the picked point before moving a late-resolving %s orbit",
     async (pointerType) => {

@@ -66,7 +66,12 @@ test("stacks the optional secondary viewport without mobile overflow", async ({ 
   expect(layout.scrollWidth).toBeLessThanOrEqual(layout.width);
   const primaryBox = await primary.boundingBox();
   const secondaryBox = await secondary.boundingBox();
-  if (primaryBox === null || secondaryBox === null) throw new Error("viewport has no bounds");
+  const toolbarBox = await page.locator(".toolbar").boundingBox();
+  if (primaryBox === null || secondaryBox === null || toolbarBox === null) {
+    throw new Error("viewport shell has no bounds");
+  }
+  expect(primaryBox.y).toBeGreaterThanOrEqual(toolbarBox.y + toolbarBox.height - 1);
+  expect(secondaryBox.y).toBeGreaterThanOrEqual(toolbarBox.y + toolbarBox.height - 1);
   expect(secondaryBox.y).toBeGreaterThan(primaryBox.y + primaryBox.height - 1);
   await openNavigation(page);
   const visibilityPanel = page.getByTestId("visibility-panel");
@@ -254,6 +259,60 @@ test("selects the intended element from a real touch tap", async ({ browser }) =
 
     await page.touchscreen.tap(hit.x, hit.y);
     await expect.poll(() => canvas.getAttribute("data-selected")).toMatch(/^e:/);
+  } finally {
+    await context.close();
+  }
+});
+
+test("routes mobile box selection through the right-side touch tool rail", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: PHONE, screen: PHONE, hasTouch: true });
+  try {
+    const page = await context.newPage();
+    await page.goto("/");
+    const canvas = page.getByTestId("view-canvas");
+    await waitForRenderer(page, canvas);
+
+    const rail = page.getByTestId("touch-tool-rail");
+    await expect(rail).toBeVisible();
+    for (const testId of [
+      "touch-tool-navigate",
+      "touch-tool-box-select",
+      "touch-tool-select-all",
+    ]) {
+      const box = await page.getByTestId(testId).boundingBox();
+      if (box === null) throw new Error(`${testId} has no bounds`);
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+
+    await page.getByTestId("touch-tool-select-all").click();
+    await expect.poll(() => canvas.getAttribute("data-selected")).not.toBe("");
+    await page.getByTestId("touch-tool-box-select").click();
+    await expect(page.getByTestId("touch-tool-box-select")).toHaveAttribute("aria-pressed", "true");
+
+    const canvasBox = await canvas.boundingBox();
+    if (canvasBox === null) throw new Error("mobile canvas has no bounds");
+    const start = { x: canvasBox.x + 20, y: canvasBox.y + 20 };
+    const end = {
+      x: canvasBox.x + canvasBox.width - 20,
+      y: canvasBox.y + canvasBox.height - 80,
+    };
+    const cameraBefore = await canvas.getAttribute("data-camera");
+    const chrome = await context.newCDPSession(page);
+    await chrome.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ ...start, id: 31 }],
+    });
+    await chrome.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ ...end, id: 31 }],
+    });
+    await expect(page.getByTestId("box-selection-overlay")).toBeVisible();
+    await chrome.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+
+    await expect(page.getByTestId("box-selection-overlay")).toBeHidden();
+    await expect.poll(() => canvas.getAttribute("data-selected")).not.toBe("");
+    expect(await canvas.getAttribute("data-camera")).toBe(cameraBefore);
   } finally {
     await context.close();
   }

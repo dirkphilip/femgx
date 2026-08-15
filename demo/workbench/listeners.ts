@@ -1,16 +1,5 @@
-import type { DemoView } from "./view";
 import type { WorkbenchPane } from "./view";
 import type { WorkbenchInteraction } from "./interaction";
-
-/** High-level bindings that keep controller policy out of DOM event plumbing. */
-export interface WorkbenchBindingOptions {
-  readonly view: DemoView;
-  readonly signal: AbortSignal;
-  readonly interaction: WorkbenchInteraction;
-  /** True while a camera or box pointer gesture suppresses asynchronous hover. */
-  readonly dragging: () => boolean;
-  readonly setActive?: () => void;
-}
 
 /** Pane-local pointer and asynchronous inspection bindings. */
 export interface WorkbenchPaneBindingOptions {
@@ -23,7 +12,7 @@ export interface WorkbenchPaneBindingOptions {
 
 /** Installs the bindings that belong to one viewport pane. */
 export function installWorkbenchPaneBindings(options: WorkbenchPaneBindingOptions): void {
-  const { pane, signal } = options;
+  const { pane, signal, interaction } = options;
   const activate = (): void => {
     options.setActive();
     if (typeof pane.scene.focus === "function") pane.scene.focus({ preventScroll: true });
@@ -31,59 +20,27 @@ export function installWorkbenchPaneBindings(options: WorkbenchPaneBindingOption
   pane.scene.addEventListener("pointerenter", options.setActive, { signal });
   pane.scene.addEventListener("focusin", options.setActive, { signal });
   pane.canvas.addEventListener("pointerdown", activate, { signal });
-  pane.canvas.addEventListener(
-    "pointerdown",
-    (event) => {
-      options.interaction.pointerDown(event);
-    },
-    { signal },
-  );
-  pane.canvas.addEventListener(
-    "pointercancel",
-    () => {
-      options.interaction.pointerCancel();
-    },
-    { signal },
-  );
-  pane.canvas.addEventListener(
-    "pointerleave",
-    () => {
-      options.interaction.clearHover(true);
-    },
-    { signal },
-  );
-  pane.canvas.addEventListener(
-    "pointerup",
-    (event) => {
-      options.interaction.pointerUp(event);
-    },
-    { signal },
-  );
+  pane.canvas.addEventListener("pointerdown", interaction.pointerDown.bind(interaction), {
+    signal,
+  });
+  pane.canvas.addEventListener("pointercancel", interaction.pointerCancel.bind(interaction), {
+    signal,
+  });
+  pane.canvas.addEventListener("pointerleave", interaction.clearHover.bind(interaction, true), {
+    signal,
+  });
+  pane.canvas.addEventListener("pointerup", interaction.pointerUp.bind(interaction), { signal });
   pane.canvas.addEventListener(
     "pointermove",
     (event) => {
-      if (!options.dragging()) void options.interaction.hover(event);
+      if (!options.dragging()) void interaction.hover(event);
     },
     { signal },
   );
-  pane.canvas.addEventListener("click", (event) => void options.interaction.click(event), {
+  pane.canvas.addEventListener("click", (event) => void interaction.click(event), {
     signal,
   });
-  pane.canvas.addEventListener(
-    "contextmenu",
-    (event) => void options.interaction.contextMenu(event),
-    { signal },
-  );
-}
-
-/** Installs the complete controller lifetime of toolbar/canvas/window listeners. */
-export function installWorkbenchBindings(options: WorkbenchBindingOptions): void {
-  const { view, signal } = options;
-  installWorkbenchPaneBindings({
-    pane: view.primaryPane,
+  pane.canvas.addEventListener("contextmenu", (event) => void interaction.contextMenu(event), {
     signal,
-    interaction: options.interaction,
-    dragging: options.dragging,
-    setActive: options.setActive ?? (() => {}),
   });
 }

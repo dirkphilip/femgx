@@ -29,6 +29,7 @@ import VisibilityTree from "../../demo/workbench/ui/VisibilityTree.svelte";
 import ElementDetail from "../../demo/workbench/ui/ElementDetail.svelte";
 import WorkbenchApp from "../../demo/workbench/ui/WorkbenchApp.svelte";
 import AnalysisControls from "../../demo/workbench/ui/AnalysisControls.svelte";
+import TouchToolRail from "../../demo/workbench/ui/TouchToolRail.svelte";
 
 const VECTOR_OFF = "__vectors_off__";
 
@@ -70,6 +71,7 @@ describe("workbench Svelte controls", () => {
     await input(target, "#vector-width-pixels", "1.5");
     await input(target, "#section-offset", "0.5");
     button(target, "#command-selection").click();
+    button(target, "#select-all").click();
     button(target, "#hide-selected").click();
     await tick();
     button(target, "#command-view").click();
@@ -88,6 +90,7 @@ describe("workbench Svelte controls", () => {
         "setBackground",
         "setSelectionGranularity",
         "setBoxSelectionStrategy",
+        "selectAll",
         "selectModel",
         "setResultField",
         "setDeformationField",
@@ -137,6 +140,23 @@ describe("workbench Svelte controls", () => {
     await tick();
     expect(element(target, "#view-controls").hidden).toBe(true);
 
+    await unmount(component);
+  });
+
+  it("routes the compact touch rail through typed tool commands", async () => {
+    const calls: string[] = [];
+    const target = document.createElement("div");
+    document.body.append(target);
+    const component = mount(TouchToolRail, {
+      target,
+      props: { controller: fakeController(calls), snapshot: createSnapshot(false) },
+    });
+
+    button(target, '[data-testid="touch-tool-box-select"]').click();
+    button(target, '[data-testid="touch-tool-navigate"]').click();
+    button(target, '[data-testid="touch-tool-select-all"]').click();
+
+    expect(calls).toEqual(["setTouchInteractionMode", "setTouchInteractionMode", "selectAll"]);
     await unmount(component);
   });
 
@@ -292,6 +312,9 @@ describe("workbench Svelte controls", () => {
       props: { controller, snapshot, startup: undefined },
     });
     expect(element(target, "#viewport-workspace").dataset["secondaryOpen"]).toBe("true");
+    expect(element(target, ".toolbar").closest("#viewport-shell")).not.toBeNull();
+    expect(element(target, ".toolbar").closest(".scene, .scene-pane")).toBeNull();
+    expect(element(target, "#viewport-workspace").parentElement?.id).toBe("viewport-shell");
     await unmount(workspace);
 
     const legend = mount(ResultLegend, { target, props: { snapshot } });
@@ -584,6 +607,7 @@ function createSnapshot(
     continuous: false,
     selectionGranularity: "element",
     boxSelectionStrategy: "visible-surface",
+    touchInteractionMode: "navigate",
     secondaryOpen: false,
     secondaryBusy: false,
     scalarFieldId: withResults ? "demo-stress" : "__base__",

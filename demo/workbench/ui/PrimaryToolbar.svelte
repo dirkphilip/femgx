@@ -194,6 +194,13 @@
       >
     </select>
     <button
+      id="select-all"
+      data-testid="select-all"
+      type="button"
+      title="Select every explicitly visible target at the active granularity."
+      onclick={() => controller?.commands.selectAll()}>Select all</button
+    >
+    <button
       id="hide-selected"
       data-testid="hide-selected"
       type="button"

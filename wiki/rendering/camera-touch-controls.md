@@ -16,7 +16,8 @@ toolbars, or inspection panels.
   and a downward motion zooms out.
 - **Left mouse drag** is not a camera gesture, preserving click and
   shift-click inspection selection.
-- **One finger** resolves the visible model point under the touch and orbits it.
+- **One finger** remains tap-safe through 10 CSS pixels of incidental movement,
+  then resolves the visible model point under the initial touch and orbits it.
 - **Spin** rotates the complete view frame, including its orthonormal `up`
   direction, so it has no pole clamp and can turn through repeated full circles.
 - **Two fingers** pinch-zoom and pan together around the current panned target:
@@ -25,7 +26,7 @@ toolbars, or inspection panels.
   zooms in) and the midpoint movement maps to a two-finger pan.
 - **One-finger tap** still performs pick/selection; a camera drag is never
   treated as a click (the controller discards clicks whose distance from the
-  pointer-down position exceeds 5px).
+  pointer-down position exceeds 10 CSS pixels).
 
 ## Gesture state machine
 
@@ -65,6 +66,9 @@ that are meaningful at the workbench boundary.
 
 - `touch-action: none` remains scoped to the canvas elements only, so the rest
   of the page keeps native scrolling.
+- A host-routed touch may prevent the pointer-down before camera controls see
+  it. The workbench uses this bounded arbitration for its mobile Box select
+  tool; Navigate remains the default.
 - Middle-button and one-finger orbit use the camera-navigation pick-point and
   cancellation contract described in [[rendering/camera-presentation|Camera
   presentation]]. Wheel and Shift+middle zoom do not issue a pick or change
