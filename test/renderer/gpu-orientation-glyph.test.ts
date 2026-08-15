@@ -105,6 +105,67 @@ describe("orientation glyph data", () => {
     expect(() => normalMatrix3(scale(1, 0, 1))).toThrow("singular");
   });
 
+  it("rejects singular normal transforms before uploading glyph state", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const { part, records } = orientationRecords();
+    const scene = createScene()
+      .addPart(part)
+      .addAssembly({
+        id: 1,
+        name: "singular-root",
+        placements: [{ kind: "part", partId: 1, transform: scale(1, 0, 1) }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    setRendererOrientationGlyphs(renderer, {
+      parts: new Map([[1, records]]),
+      mode: "arrow",
+      transform: "normal",
+      lengthScale: 1,
+      widthPixels: 2,
+    });
+
+    expect(() => {
+      renderer.render(runtime, camera, scene.parts);
+    }).toThrow(/occurrence/);
+    expect(readGpuCostSnapshot(renderer).writes["vector-glyph"]).toEqual({ calls: 0, bytes: 0 });
+    renderer.destroy();
+  });
+
+  it("uploads valid normal matrices with the existing glyph records", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const { part, records } = orientationRecords();
+    const scene = createScene()
+      .addPart(part)
+      .addAssembly({
+        id: 1,
+        name: "normal-root",
+        placements: [{ kind: "part", partId: 1, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    setRendererOrientationGlyphs(renderer, {
+      parts: new Map([[1, records]]),
+      mode: "arrow",
+      transform: "normal",
+      lengthScale: 1,
+      widthPixels: 2,
+    });
+
+    renderer.render(runtime, camera, scene.parts);
+
+    expect(readGpuCostSnapshot(renderer).writes["vector-glyph"].bytes).toBe(64 + 16 + 48);
+    renderer.destroy();
+  });
+
   it("draws one reusable record array across repeated part occurrences", async () => {
     restoreGpuGlobals = installGpuGlobals();
     const gpu = fakeGpuDevice();
