@@ -170,6 +170,7 @@ function installOrientationBenchmarkState(
     mode: "axis",
     transform: "direction",
     lengthScale: 1,
+    widthPixels: 2,
   };
   setRendererOrientationGlyphs(renderer, state);
 }

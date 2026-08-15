@@ -104,6 +104,7 @@ function vectorResultState(field: ViewportElementVectorState["field"]): Viewport
     glyph: "arrow",
     transform: "normal",
     lengthScale: 1,
+    widthPixels: 2,
   };
   return {
     config: { vectors: vectors.config },

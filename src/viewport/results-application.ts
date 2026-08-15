@@ -47,6 +47,7 @@ export function applyViewportResults(application: ViewportResultsApplication): {
           mode: vectors.glyph,
           transform: vectors.transform,
           lengthScale: vectors.lengthScale,
+          widthPixels: vectors.widthPixels,
         },
   );
   application.renderer.setDeformation(resolved.deformation);

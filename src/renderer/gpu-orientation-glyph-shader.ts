@@ -29,7 +29,7 @@ struct GlyphParams {
   lengthScale: f32,
   mode: u32,
   transformMode: u32,
-  _padding: u32,
+  widthPixels: f32,
 };
 
 @group(2) @binding(0) var<storage, read> glyphRecords: array<GlyphRecord>;
@@ -161,7 +161,7 @@ fn glyphVertex(
   }
   let clipStart = camera.viewProjection * vec4<f32>(start, 1.0);
   let clipEnd = camera.viewProjection * vec4<f32>(end, 1.0);
-  let width = max(1.0, camera.devicePixelRatio * 1.5);
+  let width = glyphParams.widthPixels * camera.devicePixelRatio;
   var position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   if (directionLength > 0.0 && glyphVisible(slot, record)) {
     if (vertexIndex < 6u) {

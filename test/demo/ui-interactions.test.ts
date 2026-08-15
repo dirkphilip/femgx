@@ -52,6 +52,7 @@ describe("workbench Svelte controls", () => {
     await change(target, "#section-axis", "z");
     await input(target, "#deformation-scale", "2");
     await input(target, "#vector-length-scale", "1.5");
+    await input(target, "#vector-width-pixels", "1.5");
     await input(target, "#section-offset", "0.5");
     for (const selector of [
       "#open-model",
@@ -83,6 +84,7 @@ describe("workbench Svelte controls", () => {
         "setSectionAxis",
         "setDeformationScale",
         "setVectorLengthScale",
+        "setVectorWidthPixels",
         "setSectionOffset",
         "fitView",
         "showAll",
@@ -143,6 +145,7 @@ describe("workbench Svelte controls", () => {
     expect(element(target, "#vector-glyph").closest("label")?.hidden).toBe(true);
     expect(element(target, "#vector-transform").closest("label")?.hidden).toBe(true);
     expect(element(target, "#vector-length-scale").closest("label")?.hidden).toBe(true);
+    expect(element(target, "#vector-width-pixels").closest("label")?.hidden).toBe(true);
     expect(element(target, "#vector-help").hidden).toBe(true);
     expect(element(target, "#section-offset").closest("label")?.hidden).toBe(true);
 
@@ -364,6 +367,7 @@ function createSnapshot(withResults: boolean): WorkbenchSnapshot {
       glyph: "arrow",
       transform: "direction",
       lengthScale: 1,
+      widthPixels: 2,
     },
     sectionAxis: "off",
     sectionOffset: 0,

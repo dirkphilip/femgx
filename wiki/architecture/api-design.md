@@ -137,7 +137,7 @@ transform semantics, and a finite positive element-relative scale:
 viewport.setResults({
   scalar: { field: stress },
   deformation: { field: displacement, scale: 1.5 },
-  vectors: { field: directions, glyph: "arrow", transform: "normal" },
+  vectors: { field: directions, glyph: "arrow", transform: "normal", widthPixels: 2 },
 });
 ```
 

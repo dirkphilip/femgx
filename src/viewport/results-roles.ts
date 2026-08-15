@@ -14,6 +14,10 @@ import type {
   ViewportResultsConfig,
 } from "./results-types";
 
+const DEFAULT_VECTOR_WIDTH_PIXELS = 2;
+const MIN_VECTOR_WIDTH_PIXELS = 1;
+const MAX_VECTOR_WIDTH_PIXELS = 8;
+
 export type OrientationRecordMap = ReadonlyMap<PartId, ElementalOrientationRecords>;
 
 export interface ResolvedVectors {
@@ -65,6 +69,7 @@ export function resolveVectors(
       glyph: config.glyph,
       transform: config.transform,
       lengthScale: config.lengthScale ?? 1,
+      widthPixels: config.widthPixels ?? DEFAULT_VECTOR_WIDTH_PIXELS,
     },
     records,
   };
@@ -110,6 +115,17 @@ function validateVectorConfig(value: unknown): void {
       value["lengthScale"] <= 0)
   ) {
     throw new Error("Viewport vector lengthScale must be finite and positive");
+  }
+  if (
+    value["widthPixels"] !== undefined &&
+    (typeof value["widthPixels"] !== "number" ||
+      !Number.isFinite(value["widthPixels"]) ||
+      value["widthPixels"] < MIN_VECTOR_WIDTH_PIXELS ||
+      value["widthPixels"] > MAX_VECTOR_WIDTH_PIXELS)
+  ) {
+    throw new Error(
+      `Viewport vector widthPixels must be finite and between ${MIN_VECTOR_WIDTH_PIXELS} and ${MAX_VECTOR_WIDTH_PIXELS}`,
+    );
   }
 }
 

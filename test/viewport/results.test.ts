@@ -336,10 +336,56 @@ describe("viewport results workflow", () => {
 
     expect(first.scalar).toBeUndefined();
     expect(first.vectors?.field).toBe(field);
+    expect(first.vectors?.widthPixels).toBe(2);
     expect(second.vectors?.lengthScale).toBe(2);
     expect(viewportOrientationRecords(second)?.get(1)?.directions).toBe(
       viewportOrientationRecords(first)?.get(1)?.directions,
     );
+  });
+
+  it("accepts bounded fractional vector widths and rejects invalid replacements atomically", async () => {
+    const scene = createTestScene();
+    const runtime = {
+      instanceCount: 1,
+      getPartId: () => 1,
+      getInstanceId: () => "1/0",
+    } as never;
+    const field = elementalVector();
+    for (const widthPixels of [1, 1.5, 2, 8]) {
+      const result = resolveViewportResults(
+        { vectors: { field, glyph: "arrow", transform: "direction", widthPixels } },
+        scene,
+        runtime,
+      );
+      expect(result.vectors?.widthPixels).toBe(widthPixels);
+    }
+    for (const widthPixels of [Number.NaN, Number.POSITIVE_INFINITY, 0, -1, 8.1]) {
+      expect(() =>
+        resolveViewportResults(
+          { vectors: { field, glyph: "arrow", transform: "direction", widthPixels } },
+          scene,
+          runtime,
+        ),
+      ).toThrow("widthPixels");
+    }
+
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene,
+      device: gpu.device,
+      results: { vectors: { field, glyph: "arrow", transform: "direction", widthPixels: 2 } },
+    });
+    const previous = viewport.results;
+    expect(() => {
+      viewport.setResults({
+        vectors: { field, glyph: "axis", transform: "direction", widthPixels: 9 },
+      });
+    }).toThrow("widthPixels");
+    expect(viewport.results).toBe(previous);
+    viewport.destroy();
   });
 
   it("rejects empty roles and preserves the installed state after a failed replacement", async () => {

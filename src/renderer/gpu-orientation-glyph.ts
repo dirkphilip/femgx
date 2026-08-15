@@ -26,6 +26,7 @@ export interface OrientationGlyphState {
   readonly mode: OrientationGlyphMode;
   readonly transform: OrientationGlyphTransform;
   readonly lengthScale: number;
+  readonly widthPixels: number;
 }
 
 /** GPU resources retained for one active per-part glyph record array. */
@@ -88,6 +89,9 @@ export function syncOrientationGlyphs(
   }
   if (!Number.isFinite(state.lengthScale) || state.lengthScale <= 0) {
     throw new Error(`Elemental orientation glyph lengthScale must be finite and positive`);
+  }
+  if (!Number.isFinite(state.widthPixels) || state.widthPixels < 1 || state.widthPixels > 8) {
+    throw new Error(`Elemental orientation glyph widthPixels must be finite and between 1 and 8`);
   }
   if (state.transform === "normal") validateNormalMatrices(state, runtime, layout);
   writeParams(resources, state);
@@ -310,10 +314,17 @@ function writeParams(resources: OrientationGlyphDrawResources, state: Orientatio
   const ids = new Uint32Array(resources.paramsData);
   const mode = state.mode === "axis" ? 1 : 0;
   const transform = state.transform === "normal" ? 1 : 0;
-  if (floats[0] === state.lengthScale && ids[1] === mode && ids[2] === transform) return;
+  if (
+    floats[0] === state.lengthScale &&
+    ids[1] === mode &&
+    ids[2] === transform &&
+    floats[3] === state.widthPixels
+  )
+    return;
   floats[0] = state.lengthScale;
   ids[1] = mode;
   ids[2] = transform;
+  floats[3] = state.widthPixels;
   resources.paramsBuffer ??= resources.device.createBuffer({
     size: PARAMS_SIZE,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,

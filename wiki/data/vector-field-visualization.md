@@ -29,8 +29,11 @@ composes these roles atomically; `clearResults()` is the empty transition.
   magnitude is not displayed or used as glyph length.
 - `arrow` is anchored at the element anchor and preserves vector sign.
   `axis` is centered on the anchor and is invariant under `v` ↔ `-v`.
-- Glyph length is element-relative with one finite positive scale. Shaft width,
-  head shape, hidden alpha, and arbitrary glyph meshes remain renderer-owned.
+- Glyph length is element-relative with one finite positive scale. The optional
+  `widthPixels` config selects a finite 1–8 CSS-pixel shaft width (default 2;
+  fractional values are allowed); the renderer applies device-pixel-ratio
+  scaling exactly once. Head shape, hidden alpha, and arbitrary glyph meshes
+  remain renderer-owned.
 
 ## Placement, anchors, and deformation
 

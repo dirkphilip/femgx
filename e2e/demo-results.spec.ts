@@ -153,9 +153,14 @@ test("validates signed normals and sign-invariant fibers in one shared results p
   await page.getByTestId("vector-transform").selectOption("direction");
   await page.getByTestId("vector-length-scale").fill("1.6");
   await page.getByTestId("vector-length-scale").press("Enter");
+  const vectorWidth = page.getByTestId("vector-width-pixels");
+  await expect(vectorWidth).toHaveAttribute("aria-label", "Vector glyph width in CSS pixels");
+  await vectorWidth.fill("1");
+  await vectorWidth.press("Enter");
   await expect(canvas).toHaveAttribute("data-vector-glyph", "axis");
   await expect(canvas).toHaveAttribute("data-vector-transform", "direction");
   await expect(page.getByTestId("vector-length-scale")).toHaveValue("1.6");
+  await expect(vectorWidth).toHaveValue("1");
   await expect(page.getByTestId("result-legend")).toContainText(
     "Authored vectors normalized for display",
   );
@@ -184,6 +189,11 @@ test("validates signed normals and sign-invariant fibers in one shared results p
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByTestId("result-controls")).toBeVisible();
   await expect(vectorField).toBeVisible();
+  await vectorWidth.scrollIntoViewIfNeeded();
+  await vectorWidth.fill("2");
+  await vectorWidth.press("Enter");
+  await expect(vectorWidth).toHaveValue("2");
+  await expect(vectorWidth).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("orientation-results-mobile.png") });
 });
 

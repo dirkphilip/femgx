@@ -67,6 +67,10 @@ function orientationRecords() {
 
 describe("orientation glyph data", () => {
   it("keeps arrowhead minima in CSS pixels across device pixel ratios", () => {
+    expect(orientationGlyphVertexShader).toContain("widthPixels: f32");
+    expect(orientationGlyphVertexShader).toContain(
+      "glyphParams.widthPixels * camera.devicePixelRatio",
+    );
     expect(orientationGlyphVertexShader).toContain(
       "max(width * 3.5, 6.0 * camera.devicePixelRatio)",
     );
@@ -125,17 +129,45 @@ describe("orientation glyph data", () => {
       mode: "arrow",
       transform: "direction",
       lengthScale: 1,
+      widthPixels: 2,
     });
 
     renderer.render(runtime, { ...camera, width: 800, height: 600 }, scene.parts);
     const first = readGpuCostSnapshot(renderer);
     expect(first.draws["vector-glyph"]).toEqual({ calls: 2, indices: 18, instances: 4 });
     expect(first.writes["vector-glyph"].bytes).toBe(64 + 16);
+    expect(
+      gpu.buffers.some(
+        (buffer) => buffer.size === 16 && (buffer.usage & GPUBufferUsage.UNIFORM) !== 0,
+      ),
+    ).toBe(true);
 
     renderer.render(runtime, { ...camera, width: 800, height: 600 }, scene.parts);
     const second = readGpuCostSnapshot(renderer);
     expect(second.draws["vector-glyph"]).toEqual(first.draws["vector-glyph"]);
     expect(second.writes["vector-glyph"]).toEqual({ calls: 0, bytes: 0 });
+
+    const afterStableFrame = gpu.writes.length;
+    setRendererOrientationGlyphs(renderer, {
+      parts: new Map([[1, records]]),
+      mode: "arrow",
+      transform: "direction",
+      lengthScale: 1,
+      widthPixels: 1.5,
+    });
+    const widthWrites = gpu.writes.slice(afterStableFrame);
+    expect(widthWrites).toHaveLength(1);
+    expect(widthWrites[0]?.bytes.byteLength).toBe(16);
+
+    const afterWidth = gpu.writes.length;
+    setRendererOrientationGlyphs(renderer, {
+      parts: new Map([[1, records]]),
+      mode: "arrow",
+      transform: "direction",
+      lengthScale: 1,
+      widthPixels: 1.5,
+    });
+    expect(gpu.writes.length).toBe(afterWidth);
     renderer.destroy();
   });
 });
