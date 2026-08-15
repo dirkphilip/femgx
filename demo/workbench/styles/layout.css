@@ -1,4 +1,5 @@
 .app {
+  position: relative;
   display: grid;
   grid-template-columns: clamp(340px, 26vw, 380px) minmax(0, 1fr);
   height: 100vh;
@@ -21,6 +22,10 @@
   flex-direction: column;
   border-right: 1px solid #223149;
   background: #0d1828;
+}
+.navigation-toggle,
+.navigation-scrim {
+  display: none;
 }
 .brand {
   padding: 18px 18px 14px;
@@ -204,6 +209,28 @@ h1 {
 .scene-pane:focus-visible {
   outline: 2px solid var(--workbench-accent);
   outline-offset: -2px;
+}
+
+@media (min-width: 721px) and (max-width: 1023px) {
+  .app {
+    grid-template-columns: minmax(260px, 30vw) minmax(0, 1fr);
+  }
+  .toolbar .command-target {
+    min-width: 0;
+    padding-right: 4px;
+    padding-left: 4px;
+    font-size: 12px;
+  }
+  .toolbar .command-bar {
+    gap: 4px;
+  }
+  .model-source {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+  .visibility-row label {
+    font-size: 12px;
+  }
 }
 .scene-pane-label {
   position: absolute;

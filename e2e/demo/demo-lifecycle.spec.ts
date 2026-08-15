@@ -9,6 +9,7 @@ import {
   readNavigationState,
   requireHit,
   openCommandPanel,
+  openNavigation,
   setSelectionGranularity,
   waitForRenderer,
   waitForRendererOrSkip,
@@ -522,6 +523,7 @@ test("bounds rapid performance box drags to one active readback", async ({ page 
   test.setTimeout(30_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/?performanceLab=1");
+  await openNavigation(page);
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
   await waitForRenderer(page, canvas);

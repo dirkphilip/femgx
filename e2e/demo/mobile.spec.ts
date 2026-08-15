@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { canvasInteractionBox, distinctColors, requireHit } from "../shared/helpers";
-import { dataset, openCommandPanel, primaryBoxDrag, waitForRenderer } from "./demo-support";
+import {
+  closeNavigation,
+  dataset,
+  openCommandPanel,
+  openNavigation,
+  primaryBoxDrag,
+  waitForRenderer,
+} from "./demo-support";
 
 const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 
@@ -65,6 +72,33 @@ test("fits a phone-sized viewport without horizontal overflow", async ({ page })
   expect(overflow, "the page must not scroll horizontally on a phone").toBeLessThanOrEqual(0);
 });
 
+test("uses one accessible phone drawer and keeps it exclusive of Analysis", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.goto("/");
+  const trigger = page.getByTestId("navigation-toggle");
+  const drawer = page.getByTestId("navigation-drawer");
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(drawer).toHaveAttribute("aria-hidden", "true");
+
+  await openCommandPanel(page, "analysis");
+  await expect(page.getByTestId("analysis-controls")).toBeVisible();
+  await openNavigation(page);
+  await expect(drawer).toHaveAttribute("aria-hidden", "false");
+  await expect(page.getByTestId("analysis-controls")).toBeHidden();
+  expect(
+    await page.evaluate(() =>
+      document.querySelector("#navigation-drawer")?.contains(document.activeElement),
+    ),
+  ).toBe(true);
+
+  await page.getByTestId("model-select").press("Escape");
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  expect(await page.evaluate(() => document.activeElement?.getAttribute("data-testid"))).toBe(
+    "navigation-toggle",
+  );
+  await expect(drawer).toHaveAttribute("aria-hidden", "true");
+});
+
 test("stacks the optional secondary viewport without mobile overflow", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto("/");
@@ -84,14 +118,7 @@ test("stacks the optional secondary viewport without mobile overflow", async ({ 
   const secondaryBox = await secondary.boundingBox();
   if (primaryBox === null || secondaryBox === null) throw new Error("viewport has no bounds");
   expect(secondaryBox.y).toBeGreaterThan(primaryBox.y + primaryBox.height - 1);
-  const sidebar = page.locator(".sidebar");
-  const sidebarBox = await sidebar.boundingBox();
-  if (sidebarBox === null) throw new Error("visibility sidebar has no bounds");
-  expect(sidebarBox.y).toBeGreaterThanOrEqual(secondaryBox.y + secondaryBox.height - 1);
-
-  await page.evaluate(() => {
-    window.scrollTo(0, document.documentElement.scrollHeight);
-  });
+  await openNavigation(page);
   const visibilityPanel = page.getByTestId("visibility-panel");
   await expect(visibilityPanel).toBeVisible();
   const checkbox = visibilityPanel.locator('input[type="checkbox"]').first();
@@ -107,11 +134,13 @@ test("stacks the optional secondary viewport without mobile overflow", async ({ 
     .poll(async () => Number((await secondary.getAttribute("data-frames")) ?? "0"))
     .toBeGreaterThan(secondaryFrames);
   const scrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-  expect(scrollHeight).toBeGreaterThan(secondaryBox.y + secondaryBox.height);
+  expect(scrollHeight).toBeLessThanOrEqual(PHONE.height);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     PHONE.width,
   );
 
+  await closeNavigation(page);
+  await openCommandPanel(page, "view");
   await page.getByTestId("viewport-toggle").click();
   await expect(secondary).toBeHidden();
   await page.getByTestId("viewport-toggle").click();
@@ -119,15 +148,11 @@ test("stacks the optional secondary viewport without mobile overflow", async ({ 
   await waitForRenderer(page, secondary);
   const reopenedPrimaryBox = await primary.boundingBox();
   const reopenedSecondaryBox = await secondary.boundingBox();
-  const reopenedSidebarBox = await sidebar.boundingBox();
-  if (reopenedPrimaryBox === null || reopenedSecondaryBox === null || reopenedSidebarBox === null) {
+  if (reopenedPrimaryBox === null || reopenedSecondaryBox === null) {
     throw new Error("reopened mobile layout has no bounds");
   }
   expect(reopenedSecondaryBox.y).toBeGreaterThan(
     reopenedPrimaryBox.y + reopenedPrimaryBox.height - 1,
-  );
-  expect(reopenedSidebarBox.y).toBeGreaterThanOrEqual(
-    reopenedSecondaryBox.y + reopenedSecondaryBox.height - 1,
   );
   const toggle = await page.getByTestId("viewport-toggle").boundingBox();
   expect(toggle?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -157,7 +182,9 @@ test("fits the element tessellation and mapping gallery into a phone-sized viewp
   await page.setViewportSize(PHONE);
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
+  await openNavigation(page);
   await page.getByTestId("model-select").selectOption("gallery");
+  await closeNavigation(page);
   await expect(canvas).toHaveAttribute("data-model", "gallery");
   await expect(page.getByTestId("status")).toContainText("15 visible");
   await waitForRenderer(page, canvas);
@@ -194,13 +221,16 @@ test("keeps primary controls reachable and touch-sized on a phone", async ({ pag
       expect(box.height, `${testId} hit area`).toBeGreaterThanOrEqual(44);
     }
   }
+  await openNavigation(page);
   await expect(page.getByTestId("model-select")).toBeVisible();
 });
 
 test("keeps section-plane controls usable on a phone", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto("/");
+  await openNavigation(page);
   await page.getByTestId("model-select").selectOption("section-volume");
+  await closeNavigation(page);
   await openCommandPanel(page, "analysis");
   await page.getByTestId("section-axis").selectOption("z");
   await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-section-axis", "z");
@@ -335,6 +365,7 @@ test("restores hidden body and placement visibility through Show all on a phone"
 }) => {
   await page.setViewportSize(PHONE);
   await page.goto("/");
+  await openNavigation(page);
   const canvas = page.getByTestId("view-canvas");
   await waitForRenderer(page, canvas);
 
@@ -345,6 +376,7 @@ test("restores hidden body and placement visibility through Show all on a phone"
   await expect(body).not.toBeChecked();
   await expect(instance).not.toBeChecked();
 
+  await closeNavigation(page);
   const box = await canvasInteractionBox(canvas);
   await page.mouse.click(box.x + box.width - 20, box.y + box.height - 100, { button: "right" });
   const menu = page.getByTestId("context-menu");

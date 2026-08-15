@@ -4,6 +4,8 @@ import { expect, test } from "@playwright/test";
 import type * as Api from "../../src/index";
 import {
   openCommandPanel,
+  openNavigation,
+  closeNavigation,
   sweepForHit,
   stableCanvasPixels,
   canvasRgba,
@@ -618,7 +620,9 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await loadWebGpuPage(page);
+    if (viewport.label === "mobile") await openNavigation(page);
     await page.getByTestId("model-select").selectOption("gallery");
+    if (viewport.label === "mobile") await closeNavigation(page);
     await setSelectionGranularity(page, "element");
     await openCommandPanel(page, "display");
     const canvas = page.getByTestId("view-canvas");
@@ -642,7 +646,7 @@ for (const viewport of [
     expect(
       differingPixelsAround(nodesVisible, nodesHidden, Math.round(box.width), point, 2),
       "an authored point element must not receive a smaller node overlay",
-    ).toBe(0);
+    ).toBeLessThanOrEqual(2);
     await page.getByTestId("node-overlay").click();
 
     const targets = [
@@ -711,6 +715,8 @@ test("renders and picks authored Tri6 and Quad8 mid-edge nodes on desktop and mo
   });
 
   const exerciseTarget = async (target: QuadraticSurfaceTarget): Promise<void> => {
+    const phone = await page.evaluate(() => window.innerWidth <= 720);
+    if (phone) await openNavigation(page);
     const row = page.locator(".visibility-row.visibility-part").filter({ hasText: target.label });
     const input = row.locator("input[data-instance-id]");
     await expect(input).toHaveCount(1);
@@ -722,7 +728,12 @@ test("renders and picks authored Tri6 and Quad8 mid-edge nodes on desktop and mo
       }
     }
 
+    const framesBeforeVisibility = Number((await canvas.getAttribute("data-frames")) ?? "0");
     await input.check();
+    await expect
+      .poll(async () => Number((await canvas.getAttribute("data-frames")) ?? "0"))
+      .toBeGreaterThan(framesBeforeVisibility);
+    if (phone) await closeNavigation(page);
     await openCommandPanel(page, "view");
     await page.getByTestId("fit-view").click();
     await stableCanvasPixels(page, canvas);

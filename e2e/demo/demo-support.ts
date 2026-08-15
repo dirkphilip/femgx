@@ -11,6 +11,21 @@ export {
 } from "../shared/helpers";
 export { distinctColors, drawnPixels, pixelHash, pixelMetrics } from "../shared/helpers";
 
+/** Opens the responsive phone navigation drawer and waits for its controls. */
+export async function openNavigation(page: Page): Promise<void> {
+  const trigger = page.getByTestId("navigation-toggle");
+  if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByTestId("navigation-drawer")).toBeVisible();
+}
+
+/** Closes the responsive phone navigation drawer when it is open. */
+export async function closeNavigation(page: Page): Promise<void> {
+  const trigger = page.getByTestId("navigation-toggle");
+  if ((await trigger.getAttribute("aria-expanded")) === "true") await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+}
+
 /** Opens one command-bar disclosure and waits for its controls to be reachable. */
 export async function openCommandPanel(
   page: Page,

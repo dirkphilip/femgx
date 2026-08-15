@@ -4,6 +4,7 @@ import { join } from "node:path";
 import {
   activateContextAction,
   drawnPixels,
+  openNavigation,
   openCommandPanel,
   rendererMode,
   waitForRenderer,
@@ -83,6 +84,7 @@ test("opens a Draco-compressed GLB and resets the imported model in desktop Chro
   const canvas = page.getByTestId("view-canvas");
   const fileInput = page.getByTestId("model-file");
   await fileInput.setInputFiles(fixture);
+  await openNavigation(page);
 
   await expect
     .poll(() => canvas.getAttribute("data-model"), { timeout: 10_000 })

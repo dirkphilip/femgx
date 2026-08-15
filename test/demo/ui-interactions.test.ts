@@ -235,6 +235,58 @@ describe("workbench Svelte controls", () => {
     expect(calls).toContain("unsubscribe");
   });
 
+  it("keeps the phone navigation drawer focusable and exclusive of Analysis", async () => {
+    const previousWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    const target = document.createElement("div");
+    document.body.append(target);
+    const app = mount(WorkbenchApp, { target });
+    const api = app as unknown as {
+      connectWorkbench(next: WorkbenchController): void;
+    };
+    api.connectWorkbench(
+      connectableController(createSnapshot(true), [], {
+        clearContextMenu: () => undefined,
+      } as unknown as WorkbenchCommands),
+    );
+    await tick();
+
+    const navigation = button(target, '[data-testid="navigation-toggle"]');
+    expect(navigation.getAttribute("aria-expanded")).toBe("false");
+    button(target, "#command-analysis").click();
+    await tick();
+    expect(element(target, "#analysis-controls").hidden).toBe(false);
+
+    navigation.click();
+    await tick();
+    await Promise.resolve();
+    expect(navigation.getAttribute("aria-expanded")).toBe("true");
+    expect(element(target, "#analysis-controls").hidden).toBe(true);
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, key: "Tab", shiftKey: true }),
+    );
+    await tick();
+    button(target, ".navigation-scrim").click();
+    await tick();
+    expect(navigation.getAttribute("aria-expanded")).toBe("false");
+
+    navigation.click();
+    await tick();
+    window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    await tick();
+    expect(navigation.getAttribute("aria-expanded")).toBe("false");
+
+    navigation.click();
+    await tick();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
+    window.dispatchEvent(new Event("resize"));
+    await tick();
+    expect(navigation.getAttribute("aria-expanded")).toBe("false");
+
+    await unmount(app);
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: previousWidth });
+  });
+
   it("dispatches context-menu actions and closes on outside or Escape events", async () => {
     const calls: string[] = [];
     const target = document.createElement("div");
@@ -357,9 +409,13 @@ function controllerWithCommands(calls: string[]): WorkbenchController {
   return { commands: createCommands(calls) } as unknown as WorkbenchController;
 }
 
-function connectableController(snapshot: WorkbenchSnapshot, calls: string[]): WorkbenchController {
+function connectableController(
+  snapshot: WorkbenchSnapshot,
+  calls: string[],
+  commands: WorkbenchCommands = createCommands(calls),
+): WorkbenchController {
   return {
-    commands: createCommands(calls),
+    commands,
     subscribe: (listener: (current: WorkbenchSnapshot) => void) => {
       listener(snapshot);
       return () => calls.push("unsubscribe");

@@ -173,9 +173,7 @@ controller, so camera and interaction behavior is stable
   persistent command-bar targets. Healthy renderer/status telemetry and inspection
   details stay hidden until explicitly needed; renderer failures remain prominent. Diagnostics stay within
   the scene, scroll internally when needed, and remain visible in the compact
-  mobile scene. On mobile the optional panes stack vertically before the
-  hierarchy follows them, while
-  the command bar stays a single non-wrapping row, with disclosure panels sized
+  mobile scene. The command bar stays a single non-wrapping row, with disclosure panels sized
   for the available viewport. The bounded Analysis inspector scrolls only when
   the complete active role set cannot fit in the available phone height. The
   results panel also offers demo-private
@@ -195,12 +193,16 @@ controller, so camera and interaction behavior is stable
 
 ## Mobile / responsive layout
 
-The demo layout is responsive at phone widths (`index.html`): the scene keeps
-the top portion of the viewport while the visibility rail moves below it;
-the inspection overlay is hidden, the command-bar disclosures remain available,
-and their targets get 44px touch sizes. The right-click context menu clamps its
-position inside the viewport (see
-`WorkbenchMenu` in `demo/workbench/menu.ts`) so it never
+The demo layout has three shell regimes: a desktop navigation rail at widths
+at least 1024px, a compact rail from 721px through 1023px, and one phone
+navigation drawer at 720px and below. The phone drawer reuses the desktop
+navigation DOM, traps focus while open, restores focus to its trigger on close,
+and closes the contextual Analysis disclosure before showing its scrim. The
+primary scene fills the visual viewport in the closed phone state, including
+safe-area insets and visual-viewport height changes, so it exposes at least a
+320x360 CSS-pixel canvas without nested page scroll. The command bar remains a
+single non-wrapping row and its controls have 44px touch targets. The right-click
+context menu measures and clamps itself inside the current viewport so it never
 opens past the right or bottom edge.
 
 ## Orientation gizmo and viewport boundary
@@ -243,13 +245,16 @@ The current workbench journeys are split by ownership across
 `e2e/demo/demo-lifecycle.spec.ts`, `e2e/demo/demo-visibility.spec.ts`, and
 `e2e/demo/demo-interaction.spec.ts`.
 `e2e/demo/mobile.spec.ts` asserts at a 390x844 viewport that the page has no
-horizontal overflow, primary controls stay reachable with 44px hit areas, the
-optional viewport panes stack, and the context menu fits inside the viewport.
+horizontal overflow, the phone drawer and Analysis disclosure are mutually
+exclusive, primary controls stay reachable with 44px hit areas, the optional
+viewport panes stack, and the context menu fits inside the viewport. The
+focused layout gate also covers the 721px compact rail.
 The default Playwright lane runs the real WebGPU renderer through the same controller
 ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
 
 `e2e/demo/demo-layout.spec.ts` is the focused layout gate. `npm run test:e2e:layout`
-walks every ordinary story at 1440x900 and 390x844, asserting that hidden
+walks every ordinary story at 1440x900 and 390x844 and checks the 721x600
+compact rail, asserting that hidden
 result surfaces have no box or focus target, the toolbar stays inside its pane,
 the canvas retains a useful exposed region, the legend and orientation gizmo
 remain in scene bounds, and every story presents nonblank WebGPU pixels.
