@@ -108,6 +108,7 @@ test("keeps dependent analysis controls contextual and the legend compact", asyn
   await openCommandPanel(page, "analysis");
 
   const canvas = page.getByTestId("view-canvas");
+  const resultField = page.getByTestId("result-field");
   const scale = page.getByTestId("deformation-scale");
   const vectorField = page.getByTestId("vector-field");
   const sectionAxis = page.getByTestId("section-axis");
@@ -129,6 +130,10 @@ test("keeps dependent analysis controls contextual and the legend compact", asyn
   await expect(page.getByTestId("section-offset")).toBeVisible();
   await sectionAxis.selectOption("off");
   await expect(page.getByTestId("section-offset")).toBeHidden();
+  await resultField.selectOption("__base__");
+  await expect(page.getByTestId("deformation-section")).toBeHidden();
+  await resultField.selectOption("demo-stress");
+  await expect(page.getByTestId("deformation-section")).toBeVisible();
 });
 
 test("validates signed normals and sign-invariant fibers in one shared results panel", async ({
@@ -172,6 +177,8 @@ test("validates signed normals and sign-invariant fibers in one shared results p
     "Authored vectors normalized for display",
   );
   await expect(page.getByTestId("result-legend")).toContainText("Magnitude not displayed");
+  await expect(page.getByTestId("result-legend-orientation")).toContainText("Axis / Direction");
+  await expect(page.getByTestId("result-legend-deformation")).toContainText("Scale 1");
 
   const beforeBase = await canvas.getAttribute("data-frames");
   await page.getByTestId("result-field").selectOption("__base__");
@@ -194,6 +201,7 @@ test("validates signed normals and sign-invariant fibers in one shared results p
 
   await page.screenshot({ path: testInfo.outputPath("orientation-results-desktop.png") });
   await page.setViewportSize({ width: 390, height: 844 });
+  await openCommandPanel(page, "analysis");
   await expect(page.getByTestId("result-controls")).toBeVisible();
   await expect(vectorField).toBeVisible();
   await vectorWidth.scrollIntoViewIfNeeded();
@@ -215,6 +223,7 @@ test("applies one shared section plane over complete placed-volume bounds", asyn
   const baseline = await pixelMetrics(canvas);
   await page.getByTestId("section-axis").selectOption("x");
   await expect(canvas).toHaveAttribute("data-section-axis", "x");
+  await expect(page.getByTestId("result-legend-section")).toContainText("Keep +X");
   await expect(page.getByTestId("section-offset")).toBeEnabled();
   await expect(page.getByTestId("section-offset")).toHaveAttribute("max", /.+/);
   await page.getByTestId("section-offset").evaluate((element) => {
@@ -231,6 +240,7 @@ test("applies one shared section plane over complete placed-volume bounds", asyn
     baseline.hash,
   );
 
+  await openCommandPanel(page, "view");
   await page.getByTestId("viewport-toggle").click();
   await expect(page.getByTestId("secondary-view-canvas")).toHaveAttribute("data-section-axis", "x");
 });
@@ -383,6 +393,7 @@ test("Fit model preserves workbench state while Reset all restores preset defaul
   await openCommandPanel(page, "analysis");
   await page.getByTestId("result-field").selectOption("__base__");
   await expect(page.getByTestId("result-field")).toHaveValue("__base__");
+  await openCommandPanel(page, "view");
 
   const menuHit = await requireHit(
     page,

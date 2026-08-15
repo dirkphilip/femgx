@@ -3,7 +3,7 @@ import type { Camera, InteractionState, SceneRuntime, ViewportBackground } from 
 import type { WorkbenchModel } from "./model";
 import type { SelectionGranularity } from "./pick";
 import type { BoxSelectionStrategy } from "./box-selection-resolver";
-import { sectionAxisBounds, type SectionAxis } from "./section-controls";
+import { sectionRange, type SectionAxis } from "./section-controls";
 import {
   DEFORMATION_OFF_VALUE,
   displayedScalarFieldId,
@@ -17,6 +17,7 @@ import type { VectorDisplayState } from "./result-controls";
 import type { VisibilityRowTarget } from "./visibility-snapshot";
 import type { WorkbenchVisibilitySnapshot } from "./visibility-snapshot";
 import { hasVisibleSelection } from "./selection";
+import { emptyResultLegend, type WorkbenchResultLegendSnapshot } from "./result-legend";
 
 export type WorkbenchMenuAction =
   | "highlight"
@@ -58,7 +59,7 @@ export interface WorkbenchPresentationSnapshot {
   readonly statusVisible: boolean;
   readonly inspection: { readonly visible: boolean; readonly text: string };
   readonly diagnostics: { readonly visible: boolean; readonly text: string };
-  readonly resultLegend: { readonly visible: boolean; readonly text: string };
+  readonly resultLegend: WorkbenchResultLegendSnapshot;
   readonly contextMenu: WorkbenchContextMenuSnapshot;
 }
 
@@ -400,7 +401,7 @@ function defaultPresentationSnapshot(diagnostics: boolean): WorkbenchPresentatio
       text: "Click or right-click a visible element, face, node, or authored edge to inspect it.",
     },
     diagnostics: { visible: diagnostics, text: "" },
-    resultLegend: { visible: false, text: "" },
+    resultLegend: emptyResultLegend(),
     contextMenu: { visible: false, x: 0, y: 0, title: "", entries: [] },
   };
 }
@@ -411,17 +412,4 @@ function resultField(field: {
   readonly location: "nodal" | "elemental";
 }): WorkbenchResultField {
   return Object.freeze({ id: field.id, name: field.name, location: field.location });
-}
-
-function sectionRange(
-  bounds: WorkbenchModel["bounds"],
-  axis: SectionAxis,
-): Readonly<SectionRange> | undefined {
-  if (axis === "off") return undefined;
-  const range = sectionAxisBounds(bounds, axis);
-  return Object.freeze({
-    min: range.min,
-    max: range.max,
-    step: Math.max((range.max - range.min) / 200, 1e-6),
-  });
 }

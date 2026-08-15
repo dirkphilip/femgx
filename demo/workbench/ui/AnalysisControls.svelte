@@ -86,13 +86,25 @@
     return (snapshot?.analysis.scalarFields.length ?? 0) > 0;
   }
 
+  function hasActiveScalar(): boolean {
+    return (
+      hasScalarFields() &&
+      snapshot?.analysis.scalarFieldId !== BASE_RESULT_VALUE &&
+      snapshot?.analysis.resultMode !== "base"
+    );
+  }
+
   function hasDeformationFields(): boolean {
     return (snapshot?.analysis.deformationFields.length ?? 0) > 0;
   }
 
+  function showDeformationSection(): boolean {
+    return hasActiveScalar() && hasDeformationFields();
+  }
+
   function hasActiveDeformation(): boolean {
     return (
-      hasDeformationFields() && snapshot?.analysis.deformationFieldId !== DEFORMATION_OFF_VALUE
+      showDeformationSection() && snapshot?.analysis.deformationFieldId !== DEFORMATION_OFF_VALUE
     );
   }
 
@@ -104,30 +116,30 @@
     return hasVectorFields() && !(snapshot?.analysis.vectorControlsDisabled ?? true);
   }
 
-  function hasActiveSection(): boolean {
-    return (
-      snapshot?.analysis.sectionAxis !== "off" && snapshot?.analysis.sectionRange !== undefined
-    );
+  function hasResultFields(): boolean {
+    return hasScalarFields() || hasDeformationFields() || hasVectorFields();
   }
 </script>
 
 <div
   id="analysis-surface"
   data-testid="analysis-surface"
-  class="analysis-surface"
+  class="analysis-inspector"
   role="group"
-  aria-label="Analysis"
+  aria-label="Analysis inspector"
 >
-  <div
+  <section
     id="result-controls"
     data-testid="result-controls"
-    class="result-controls"
+    data-analysis-section="scalar"
+    class="analysis-section result-controls"
     role="group"
-    aria-label="Result display"
-    hidden={!hasScalarFields() && !hasDeformationFields() && !hasVectorFields()}
+    aria-labelledby="scalar-heading"
+    hidden={!hasScalarFields()}
   >
-    <label for="result-field" hidden={!hasScalarFields()}>
-      <span>Scalar</span>
+    <h3 id="scalar-heading">Scalar</h3>
+    <label for="result-field">
+      <span>Field</span>
       <select
         id="result-field"
         data-testid="result-field"
@@ -141,8 +153,19 @@
         {/each}
       </select>
     </label>
-    <label for="deformation-field" hidden={!hasDeformationFields()}>
-      <span>Deformation</span>
+  </section>
+
+  <section
+    id="deformation-controls"
+    data-testid="deformation-section"
+    class="analysis-section"
+    role="group"
+    aria-labelledby="deformation-heading"
+    hidden={!showDeformationSection()}
+  >
+    <h3 id="deformation-heading">Deformation</h3>
+    <label for="deformation-field">
+      <span>Field</span>
       <select
         id="deformation-field"
         data-testid="deformation-field"
@@ -170,8 +193,19 @@
         aria-label="Deformation scale"
       />
     </label>
-    <label for="vector-field" hidden={!hasVectorFields()}>
-      <span>Vector</span>
+  </section>
+
+  <section
+    id="orientation-controls"
+    data-testid="orientation-section"
+    class="analysis-section"
+    role="group"
+    aria-labelledby="orientation-heading"
+    hidden={!hasVectorFields()}
+  >
+    <h3 id="orientation-heading">Orientation</h3>
+    <label for="vector-field">
+      <span>Field</span>
       <select
         id="vector-field"
         data-testid="vector-field"
@@ -248,16 +282,18 @@
     >
       Authored vectors are normalized for display; magnitude is not displayed
     </span>
-  </div>
-  <div
+  </section>
+
+  <section
     id="section-controls"
-    data-testid="section-controls"
-    class="section-controls"
+    data-testid="section-section"
+    class="analysis-section section-controls"
     role="group"
-    aria-label="Section plane"
+    aria-labelledby="section-heading"
   >
+    <h3 id="section-heading">Section</h3>
     <label for="section-axis">
-      <span>Section</span>
+      <span>Keep side</span>
       <select
         id="section-axis"
         data-testid="section-axis"
@@ -271,7 +307,7 @@
         <option value="z">Keep +Z</option>
       </select>
     </label>
-    <label for="section-offset" hidden={!hasActiveSection()}>
+    <label for="section-offset" hidden={snapshot?.analysis.sectionAxis === "off"}>
       <span>Offset</span>
       <input
         id="section-offset"
@@ -288,5 +324,9 @@
         {formatOffset(snapshot?.analysis.sectionOffset ?? 0)}
       </output>
     </label>
-  </div>
+  </section>
+
+  <p class="analysis-empty" hidden={hasResultFields()}>
+    This model has no authored result fields. Sectioning remains available.
+  </p>
 </div>
