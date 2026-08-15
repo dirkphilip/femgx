@@ -3,6 +3,8 @@ import { createStructuredFeModel } from "../../demo/benchmark/structured-fe";
 import { createElement, type Element } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
 import { editElementModel } from "../../src/elements/model-edit";
+import { createElementModelFromFemModel } from "../../src/io/element-model";
+import { FEMGX_FORMAT_VERSION, type FemModel } from "../../src/io/model";
 import {
   HEX8_SHAPE,
   LINE_SHAPE,
@@ -68,6 +70,9 @@ const deepScene = makeHierarchyScene({
   partsPerLeaf: BENCH_HIERARCHY_PARTS_PER_LEAF,
   partCount: BENCH_PART_COUNT,
 });
+
+const CONVERSION_BENCH_ELEMENT_COUNT = 250_000;
+const conversionBenchmarkModel = makeConversionBenchmarkModel();
 
 const runtime = createPackedSceneRuntime(shallowScene);
 const runtimeInstances = Array.from(runtime.getDrawList(), (slot, index) => ({
@@ -339,6 +344,37 @@ const editReplacementForBlockFour = {
   nodes: editReplacement.nodes,
 };
 
+function makeConversionBenchmarkModel(): FemModel {
+  const ids = new Uint32Array(CONVERSION_BENCH_ELEMENT_COUNT);
+  const connectivity = new Uint32Array(CONVERSION_BENCH_ELEMENT_COUNT * 3);
+  for (let index = 0; index < CONVERSION_BENCH_ELEMENT_COUNT; index += 1) {
+    ids[index] = index + 1;
+    const start = index * 3;
+    connectivity[start] = 0;
+    connectivity[start + 1] = 1;
+    connectivity[start + 2] = 2;
+  }
+  return {
+    formatVersion: FEMGX_FORMAT_VERSION,
+    nodes: {
+      count: 3,
+      ids: new Uint32Array([0, 1, 2]),
+      coordinates: new Float64Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    },
+    elementShapeBlocks: [
+      {
+        shape: TRIANGLE_SHAPE,
+        count: CONVERSION_BENCH_ELEMENT_COUNT,
+        ids,
+        connectivity,
+      },
+    ],
+    sets: [],
+    metadata: {},
+    results: [],
+  };
+}
+
 interface BudgetCase {
   readonly name: string;
   readonly description: string;
@@ -414,6 +450,14 @@ const budgets: readonly BudgetCase[] = [
         edit.removeBlock(3);
         edit.replaceBlock(4, editReplacementForBlockFour);
       });
+    },
+  },
+  {
+    name: "createElementModelFromFemModel",
+    description: `${CONVERSION_BENCH_ELEMENT_COUNT} Triangle3 elements from typed connectivity`,
+    budgetMs: 100,
+    run: () => {
+      createElementModelFromFemModel(conversionBenchmarkModel);
     },
   },
   {
