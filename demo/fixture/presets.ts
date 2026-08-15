@@ -6,6 +6,7 @@ import {
   type PartId,
   type Scene,
   type ScalarField,
+  type ValueRange,
   type ViewportResultsConfig,
   type VectorField,
 } from "../../src/index";
@@ -28,9 +29,25 @@ export interface ModelPreset {
   readonly partNames: ReadonlyMap<PartId, string>;
   readonly bounds: Bounds;
   readonly results?: ViewportResultsConfig;
+  readonly resultSequence?: AuthoredResultSequence;
   /** Authored scalar choices exposed by the workbench; the active result remains in `results`. */
   readonly resultScalarFields?: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
   readonly resultVectorFields?: readonly VectorField<"elemental">[];
+}
+
+/** One exact authored scalar/deformation snapshot in the demo sequence. */
+export interface AuthoredResultSnapshot {
+  readonly label: string;
+  readonly time: number;
+  readonly scalar: ScalarField<"elemental">;
+  readonly deformation: VectorField<"nodal">;
+}
+
+/** Demo-owned sequence metadata with one shared scalar range. */
+export interface AuthoredResultSequence {
+  readonly label: string;
+  readonly range: ValueRange;
+  readonly steps: readonly AuthoredResultSnapshot[];
 }
 
 /** Builds the gallery of built-in topology helpers and a generic solver mapping. */

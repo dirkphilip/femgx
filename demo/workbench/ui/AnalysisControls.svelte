@@ -70,6 +70,16 @@
     if (value !== undefined) controller?.commands.setSectionOffset(value);
   }
 
+  function setPlaybackIndex(event: unknown): void {
+    const value = selectValue(event);
+    if (value !== undefined) controller?.commands.setResultPlaybackIndex(value);
+  }
+
+  function setPlaybackRate(event: unknown): void {
+    const value = selectValue(event);
+    if (value !== undefined) controller?.commands.setResultPlaybackRate(value);
+  }
+
   function fieldLabel(field: WorkbenchResultField): string {
     return `${field.name} · ${field.location === "nodal" ? "Nodal" : "Elemental"}`;
   }
@@ -119,6 +129,17 @@
   function hasResultFields(): boolean {
     return hasScalarFields() || hasDeformationFields() || hasVectorFields();
   }
+
+  function hasPlayback(): boolean {
+    return snapshot?.analysis.playback !== undefined;
+  }
+
+  function activePlaybackSnapshot(): NonNullable<WorkbenchSnapshot["analysis"]["playback"]> {
+    // The playback section is rendered only after hasPlayback establishes this invariant.
+    return (snapshot as WorkbenchSnapshot).analysis.playback as NonNullable<
+      WorkbenchSnapshot["analysis"]["playback"]
+    >;
+  }
 </script>
 
 <div
@@ -128,6 +149,79 @@
   role="group"
   aria-label="Analysis inspector"
 >
+  {#if hasPlayback()}
+    <section
+      id="result-playback-controls"
+      data-testid="result-playback-controls"
+      class="analysis-section result-playback-controls"
+      role="group"
+      aria-labelledby="result-playback-heading"
+    >
+      <h3 id="result-playback-heading">{activePlaybackSnapshot().label}</h3>
+      <div class="result-playback-actions">
+        <button
+          type="button"
+          data-testid="result-playback-previous"
+          aria-label="Previous result snapshot"
+          disabled={!activePlaybackSnapshot().hasPrevious}
+          onclick={() => controller?.commands.previousResultPlayback()}>Previous</button
+        >
+        <button
+          type="button"
+          data-testid="result-playback-play"
+          aria-label={activePlaybackSnapshot().playing
+            ? "Pause result playback"
+            : "Play result playback"}
+          aria-pressed={activePlaybackSnapshot().playing}
+          onclick={() => controller?.commands.toggleResultPlayback()}
+          >{activePlaybackSnapshot().playing ? "Pause" : "Play"}</button
+        >
+        <button
+          type="button"
+          data-testid="result-playback-next"
+          aria-label="Next result snapshot"
+          disabled={!activePlaybackSnapshot().hasNext}
+          onclick={() => controller?.commands.nextResultPlayback()}>Next</button
+        >
+      </div>
+      <label for="result-playback-index">
+        <span>Snapshot</span>
+        <input
+          id="result-playback-index"
+          data-testid="result-playback-index"
+          type="range"
+          min="0"
+          max={activePlaybackSnapshot().count - 1}
+          step="1"
+          value={activePlaybackSnapshot().index}
+          oninput={setPlaybackIndex}
+          aria-label="Result snapshot"
+        />
+      </label>
+      <div
+        class="result-playback-position"
+        data-testid="result-playback-position"
+        aria-live="polite"
+      >
+        {activePlaybackSnapshot().stepLabel} · t={formatOffset(activePlaybackSnapshot().time)} ·
+        {activePlaybackSnapshot().index + 1}/{activePlaybackSnapshot().count}
+      </div>
+      <label for="result-playback-rate">
+        <span>Rate</span>
+        <select
+          id="result-playback-rate"
+          data-testid="result-playback-rate"
+          aria-label="Result playback rate"
+          value={String(activePlaybackSnapshot().rate)}
+          onchange={setPlaybackRate}
+        >
+          <option value="0.5">0.5×</option>
+          <option value="1">1×</option>
+          <option value="2">2×</option>
+        </select>
+      </label>
+    </section>
+  {/if}
   <section
     id="result-controls"
     data-testid="result-controls"

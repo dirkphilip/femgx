@@ -100,6 +100,7 @@ function createAnalysisSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapsho
     sectionAxis: input.sectionAxis,
     sectionOffset: input.sectionOffset,
     sectionRange: sectionRange(input.model.bounds, input.sectionAxis),
+    playback: input.resultPlayback,
   });
 }
 

@@ -7,6 +7,7 @@ import {
 } from "./result-controls";
 import type { ResultDisplayMode } from "./types";
 import type { WorkbenchModel } from "./model";
+import type { WorkbenchResultPlaybackActions } from "./result-playback";
 
 interface ResultControlOwner {
   readonly model: WorkbenchModel;
@@ -15,6 +16,7 @@ interface ResultControlOwner {
   scalarFieldId: string;
   deformationScale: number;
   readonly applyResultMode: (render: boolean) => void;
+  readonly resultPlaybackActions?: Pick<WorkbenchResultPlaybackActions, "disable">;
 }
 
 /** Applies a validated scalar-field selection to the shared result state. */
@@ -25,6 +27,7 @@ export function setResultField(owner: ResultControlOwner, value: string): void {
       ? deformation.field.id
       : DEFORMATION_OFF_VALUE;
   if (value === BASE_RESULT_VALUE) {
+    owner.resultPlaybackActions?.disable();
     owner.scalarFieldId = BASE_RESULT_VALUE;
     owner.resultMode = "base";
     owner.applyResultMode(true);
@@ -36,6 +39,7 @@ export function setResultField(owner: ResultControlOwner, value: string): void {
     return;
   }
   owner.scalarFieldId = field.id;
+  owner.resultPlaybackActions?.disable();
   owner.resultMode = deformationValue === DEFORMATION_OFF_VALUE ? "colored" : "deformed";
   owner.applyResultMode(true);
 }
@@ -48,6 +52,7 @@ export function setDeformationField(owner: ResultControlOwner, value: string): v
     return;
   }
   owner.resultMode = mode;
+  owner.resultPlaybackActions?.disable();
   owner.applyResultMode(true);
 }
 
@@ -60,5 +65,6 @@ export function setDeformationScale(owner: ResultControlOwner, value: string): v
   }
   if (owner.deformationScale === scale) return;
   owner.deformationScale = scale;
+  owner.resultPlaybackActions?.disable();
   owner.applyResultMode(owner.resultMode === "deformed");
 }

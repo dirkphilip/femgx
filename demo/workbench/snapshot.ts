@@ -17,6 +17,10 @@ import type { VectorDisplayState } from "./result-controls";
 import type { VisibilityRowTarget } from "./visibility-snapshot";
 import type { WorkbenchVisibilitySnapshot } from "./visibility-snapshot";
 import type { WorkbenchResultLegendSnapshot } from "./result-legend";
+import type {
+  WorkbenchResultPlaybackActions,
+  WorkbenchResultPlaybackSnapshot,
+} from "./result-playback";
 import { createWorkbenchSnapshot } from "./snapshot-builder";
 
 export { createWorkbenchSnapshot } from "./snapshot-builder";
@@ -117,6 +121,7 @@ export interface WorkbenchSnapshot {
     readonly sectionAxis: SectionAxis;
     readonly sectionOffset: number;
     readonly sectionRange: Readonly<SectionRange> | undefined;
+    readonly playback: WorkbenchResultPlaybackSnapshot | undefined;
   };
   readonly hierarchy: {
     readonly occurrenceCount: number;
@@ -187,6 +192,7 @@ export interface WorkbenchSnapshotInput {
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
   readonly elementDetail?: WorkbenchElementDetailSnapshot;
+  readonly resultPlayback?: WorkbenchResultPlaybackSnapshot;
   readonly presentation?: WorkbenchPresentationSnapshot;
   readonly visibility?: WorkbenchVisibilitySnapshot;
 }
@@ -210,6 +216,7 @@ export interface WorkbenchSnapshotOwner {
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
   readonly elementDetail: WorkbenchElementDetailSnapshot | undefined;
+  readonly resultPlaybackActions: Pick<WorkbenchResultPlaybackActions, "snapshot">;
   readonly presentation: { snapshot(): WorkbenchPresentationSnapshot };
   readonly visibilityPanel: { snapshot(): WorkbenchVisibilitySnapshot };
   readonly viewportSlots: {
@@ -253,6 +260,11 @@ export interface WorkbenchCommands {
   selectElementDetail(detail: WorkbenchElementDetailSnapshot, elementId: ElementId): void;
   setElementDetailHover(detail: WorkbenchElementDetailSnapshot, elementId: ElementId): void;
   clearElementDetailHover(detail: WorkbenchElementDetailSnapshot, elementId: ElementId): void;
+  setResultPlaybackIndex(value: string): void;
+  previousResultPlayback(): void;
+  nextResultPlayback(): void;
+  toggleResultPlayback(): void;
+  setResultPlaybackRate(value: string): void;
   setHierarchyHover(target: VisibilityRowTarget): void;
   clearHierarchyHover(target: VisibilityRowTarget): void;
   contextMenuAction(action: WorkbenchMenuAction): void;
@@ -288,6 +300,7 @@ export class WorkbenchSnapshotBridge {
 
 /** Adapts the controller's existing state owner to the bounded snapshot input. */
 export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): WorkbenchSnapshotInput {
+  const resultPlayback = owner.resultPlaybackActions.snapshot();
   return {
     model: owner.model,
     models: owner.models,
@@ -310,6 +323,7 @@ export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): Workbench
     sectionAxis: owner.sectionAxis,
     sectionOffset: owner.sectionOffset,
     ...(owner.elementDetail === undefined ? {} : { elementDetail: owner.elementDetail }),
+    ...(resultPlayback === undefined ? {} : { resultPlayback }),
     presentation: owner.presentation.snapshot(),
     visibility: owner.visibilityPanel.snapshot(),
   };

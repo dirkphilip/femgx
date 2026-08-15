@@ -29,6 +29,7 @@ export interface WorkbenchModel {
   readonly partStyles: ReadonlyMap<PartId, StyleOverride>;
   readonly bounds: Bounds;
   readonly results: ModelPreset["results"];
+  readonly resultSequence?: ModelPreset["resultSequence"];
   readonly resultScalarFields?: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
   readonly resultVectorFields?: readonly VectorField<"elemental">[];
   readonly issues: readonly Issue[];
@@ -70,6 +71,7 @@ export function createExampleModel(preset: ModelPreset): WorkbenchModel {
     partStyles,
     bounds: preset.bounds,
     results: preset.results,
+    ...(preset.resultSequence === undefined ? {} : { resultSequence: preset.resultSequence }),
     ...(preset.resultScalarFields === undefined
       ? {}
       : { resultScalarFields: preset.resultScalarFields }),

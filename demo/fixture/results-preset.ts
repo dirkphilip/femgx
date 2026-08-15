@@ -13,7 +13,7 @@ import {
   type PartId,
   type VectorField,
 } from "../../src/index";
-import type { ModelPreset } from "./presets";
+import type { AuthoredResultSequence, ModelPreset } from "./presets";
 import { sceneBounds } from "../scene-bounds";
 
 const RESULTS_PART_ID: PartId = 20;
@@ -71,6 +71,7 @@ export function createResultsPreset(): ModelPreset {
   const normals = createNormalsField(model);
   const fibers = createFibersField(model.elements.length);
   const vectorFields = [normals, fibers] as const;
+  const resultSequence = createResultSequence(model);
   return {
     id: "results",
     name: "Static results · scalar + deformation + orientation",
@@ -92,8 +93,52 @@ export function createResultsPreset(): ModelPreset {
         widthPixels: 2,
       },
     },
+    resultSequence,
     resultScalarFields: [stress, temperature],
   };
+}
+
+function createResultSequence(
+  model: ReturnType<typeof createResultsModel>,
+): AuthoredResultSequence {
+  const steps = Array.from({ length: 4 }, (_, index) => {
+    const scalar = createResultField({
+      id: `demo-stress-snapshot-${index}`,
+      name: "Demo stress snapshot",
+      location: "elemental",
+      shape: "scalar",
+      count: model.elements.length,
+      unit: "MPa",
+      values: createSnapshotStressValues(model.elements.length, index),
+    });
+    const deformation = createResultField({
+      id: `demo-displacement-snapshot-${index}`,
+      name: "Demo displacement snapshot",
+      location: "nodal",
+      shape: "vector",
+      count: model.nodes.length / 3,
+      unit: "mm",
+      values: createScaledDisplacementValues(model.nodes, 1 + index * 0.3),
+    });
+    return { label: `Snapshot ${index + 1}`, time: index, scalar, deformation };
+  });
+  return { label: "Authored load snapshots", range: { min: 10, max: 100 }, steps };
+}
+
+function createSnapshotStressValues(elementCount: number, step: number): Float32Array {
+  const values = createStressValues(elementCount);
+  for (let element = 0; element < values.length; element += 1) {
+    values[element] = (values[element] ?? 0) + step * 5;
+  }
+  return values;
+}
+
+function createScaledDisplacementValues(nodes: Float32Array, scaleValue: number): Float32Array {
+  const values = createDisplacementValues(nodes);
+  for (let index = 0; index < values.length; index += 1) {
+    values[index] = (values[index] ?? 0) * scaleValue;
+  }
+  return values;
 }
 
 /** Builds one gently curved, consistently wound 4-by-2 Quad shell. */

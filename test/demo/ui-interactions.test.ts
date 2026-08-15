@@ -28,6 +28,7 @@ import ContextMenu from "../../demo/workbench/ui/ContextMenu.svelte";
 import VisibilityTree from "../../demo/workbench/ui/VisibilityTree.svelte";
 import ElementDetail from "../../demo/workbench/ui/ElementDetail.svelte";
 import WorkbenchApp from "../../demo/workbench/ui/WorkbenchApp.svelte";
+import AnalysisControls from "../../demo/workbench/ui/AnalysisControls.svelte";
 
 const VECTOR_OFF = "__vectors_off__";
 
@@ -190,6 +191,86 @@ describe("workbench Svelte controls", () => {
 
     await unmount(component);
     await tick();
+  });
+
+  it("routes authored result playback controls and reflects its edge states", async () => {
+    const calls: string[] = [];
+    const target = document.createElement("div");
+    document.body.append(target);
+    const playback = {
+      label: "Authored load snapshots",
+      range: { min: 10, max: 100 },
+      index: 0,
+      count: 4,
+      time: 0,
+      stepLabel: "Snapshot 1",
+      active: true,
+      playing: false,
+      rate: 1,
+      hasPrevious: false,
+      hasNext: true,
+    } as const;
+    const component = mount(PrimaryToolbar, {
+      target,
+      props: { controller: fakeController(calls), snapshot: createSnapshot(true, playback) },
+    });
+    button(target, "#command-analysis").click();
+    await tick();
+
+    expect(element(target, "#result-playback-controls")).not.toBeNull();
+    expect(button(target, '[data-testid="result-playback-previous"]').disabled).toBe(true);
+    expect(button(target, '[data-testid="result-playback-next"]').disabled).toBe(false);
+    await input(target, "#result-playback-index", "1");
+    await change(target, "#result-playback-rate", "2");
+    button(target, '[data-testid="result-playback-previous"]').click();
+    button(target, '[data-testid="result-playback-play"]').click();
+    button(target, '[data-testid="result-playback-next"]').click();
+    await tick();
+    expect(calls).toEqual(
+      expect.arrayContaining([
+        "setResultPlaybackIndex",
+        "setResultPlaybackRate",
+        "toggleResultPlayback",
+        "nextResultPlayback",
+      ]),
+    );
+    await unmount(component);
+
+    const playingSnapshot = {
+      ...playback,
+      index: 2,
+      time: 2,
+      stepLabel: "Snapshot 3",
+      playing: true,
+      rate: 2,
+      hasPrevious: true,
+      hasNext: false,
+    };
+    const playingComponent = mount(PrimaryToolbar, {
+      target,
+      props: {
+        controller: fakeController(calls),
+        snapshot: createSnapshot(true, playingSnapshot),
+      },
+    });
+    button(target, "#command-analysis").click();
+    await tick();
+    expect(button(target, '[data-testid="result-playback-previous"]').disabled).toBe(false);
+    expect(button(target, '[data-testid="result-playback-next"]').disabled).toBe(true);
+    expect(button(target, '[data-testid="result-playback-play"]').textContent).toContain("Pause");
+    expect(
+      button(target, '[data-testid="result-playback-play"]').getAttribute("aria-pressed"),
+    ).toBe("true");
+    button(target, '[data-testid="result-playback-previous"]').click();
+    await unmount(playingComponent);
+    expect(calls).toContain("previousResultPlayback");
+
+    const emptyComponent = mount(AnalysisControls, {
+      target,
+      props: { controller: undefined, snapshot: undefined },
+    });
+    expect(element(target, "#result-controls").hidden).toBe(true);
+    await unmount(emptyComponent);
   });
 
   it("renders conditional overlays, panes, and the root subscription lifecycle", async () => {
@@ -484,7 +565,10 @@ function createCommands(calls: string[]): WorkbenchCommands {
   });
 }
 
-function createSnapshot(withResults: boolean): WorkbenchSnapshot {
+function createSnapshot(
+  withResults: boolean,
+  playback?: WorkbenchSnapshot["analysis"]["playback"],
+): WorkbenchSnapshot {
   const preset = withResults ? createResultsPreset() : createBoltedPlatePreset();
   const model = createExampleModel(preset);
   const input: WorkbenchSnapshotInput = {
@@ -514,6 +598,7 @@ function createSnapshot(withResults: boolean): WorkbenchSnapshot {
     },
     sectionAxis: "off",
     sectionOffset: 0,
+    ...(playback === undefined ? {} : { resultPlayback: playback }),
   };
   return createWorkbenchSnapshot(input);
 }
