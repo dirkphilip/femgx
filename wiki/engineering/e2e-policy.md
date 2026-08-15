@@ -104,9 +104,11 @@ The large browser surfaces are partitioned by ownership rather than by runner:
   and clip/depth invariants.
 - `e2e/demo/webgpu-visibility.spec.ts` — body visibility and visible-interface picking.
 
-- `e2e/core/core-foundation.spec.ts` — one direct public-entry create/render/destroy
-  journey and one typed unsupported journey. Its HTML host imports only
-  `src/index.ts`; it does not mount the workbench or use demo selectors.
+- `e2e/core/core-foundation.spec.ts` and `e2e/core/core-journeys.spec.ts` — eight
+  direct public-entry journeys covering foundation lifecycle/unsupported state,
+  instancing, raster picking, overlays, results, camera, and transparency. Their
+  HTML host imports only `src/index.ts`; it does not mount the workbench or use
+  demo selectors.
 
 Shared support modules contain only reusable browser mechanics; they do not own
 additional product journeys. A DOM semantic contract is not repeated in a GPU
@@ -124,6 +126,21 @@ the partitioned demo suites above (plus mobile coverage in
   menu hides and restores a part";
 - **inspection** — "picks and selects a node, exposing adjacency and
   neighbors" (inspection panel), "picks and selects a face".
+
+## Browser-only routing table
+
+The direct-core matrix is intentionally small. Existing root-level browser
+titles route as follows; #869 uses this table when pruning duplicated demo
+assertions.
+
+| Existing contract                                                                                                                                                           | Owner and reason                                                                             |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Hardware adapter, instanced presentation, direct viewport teardown, public camera transitions                                                                               | `e2e/core`: public `FemViewport` lifecycle and GPU submission seams                          |
+| Point/region/edge picking, visibility mutation, interaction emphasis, background/overlay resources, resize/DPR, transparency, scalar results, deformation, section clipping | `e2e/core`: raster or public-API evidence unavailable to fast tests                          |
+| Workbench model choice, hierarchy/tree policy, menus, diagnostics, file import/error presentation, focus and exposed-canvas layout                                          | `e2e/demo`: Svelte/workbench host behavior                                                   |
+| Mobile overflow, reachable controls, context menus, view-cube semantics, and the representative nonblank smoke path                                                         | `e2e/demo`: responsive UI and host policy; touch/pick correctness belongs to the core matrix |
+| SwiftShader startup/pick and timed GPU/resource cases                                                                                                                       | `e2e/demo` software or performance projects: exploratory lanes, never hardware authority     |
+| Pure camera math, result mapping, validation, layout arithmetic, cost/resource accounting, and state transitions                                                            | Fast Vitest suites: no browser journey unless a raster/DOM seam is uniquely covered          |
 
 ## Runtime-error smoke contract
 
