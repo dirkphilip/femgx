@@ -15,6 +15,7 @@ import type { SectionAxis } from "./section-controls";
 import { describePick } from "./inspect";
 import type { WorkbenchMenu } from "./menu";
 import type { WorkbenchPresentationSnapshot } from "./snapshot";
+import type { WorkbenchResultLegendField, WorkbenchResultLegendSnapshot } from "./result-legend";
 
 /** Presentation-only DOM policy for the workbench shell. */
 export interface WorkbenchPresentationOptions {
@@ -51,7 +52,7 @@ export class WorkbenchPresentation {
     visible: false,
     text: "Click or right-click a visible element, face, node, or authored edge to inspect it.",
   };
-  private resultLegend = { visible: false, text: "" };
+  private resultLegend = resultLegendSnapshot(undefined, "off", 0);
 
   constructor(options: WorkbenchPresentationOptions) {
     this.options = options;
@@ -72,7 +73,7 @@ export class WorkbenchPresentation {
         visible: this.options.getToggles().diagnostics,
         text: this.diagnosticsText,
       }),
-      resultLegend: Object.freeze({ ...this.resultLegend }),
+      resultLegend: this.resultLegend,
       contextMenu: this.options.menu.snapshot,
     });
   }
@@ -152,10 +153,11 @@ export class WorkbenchPresentation {
       ? this.options.getVectorFieldId()
       : VECTOR_OFF_VALUE;
     const results = this.options.getViewport().results;
-    this.resultLegend = {
-      visible: results !== undefined,
-      text: results === undefined ? "" : resultLegend(results),
-    };
+    this.resultLegend = resultLegendSnapshot(
+      results,
+      this.options.getSectionAxis(),
+      this.options.getSectionOffset(),
+    );
     this.options.canvas.dataset["results"] = this.options.getResultMode();
     this.options.canvas.dataset["vectorField"] = vectorFieldId;
     this.options.canvas.dataset["vectorGlyph"] = this.options.getVectorGlyph();
@@ -166,43 +168,80 @@ export class WorkbenchPresentation {
   reflectSectionPlane(): void {
     this.options.canvas.dataset["sectionAxis"] = this.options.getSectionAxis();
     this.options.canvas.dataset["sectionOffset"] = String(this.options.getSectionOffset());
+    this.resultLegend = Object.freeze({
+      ...this.resultLegend,
+      section: Object.freeze({
+        axis: this.options.getSectionAxis(),
+        offset: this.options.getSectionOffset(),
+      }),
+      visible: this.resultLegend.visible || this.options.getSectionAxis() !== "off",
+    });
   }
 }
 
-function resultLegend(results: ViewportResultsState): string {
-  const scalar = results.scalar;
-  const lines: string[] = [];
-  if (scalar !== undefined) {
-    const field = scalar.field;
-    lines.push(
-      field.name,
-      `${fieldLocation(field.location)} · Unit ${field.unit}`,
-      `Range ${formatNumber(scalar.range.min)} – ${formatNumber(scalar.range.max)}`,
-    );
-  }
-  const vectors = results.vectors;
-  if (vectors !== undefined) {
-    if (lines.length > 0) lines.push("");
-    lines.push(
-      vectors.field.name,
-      `${fieldLocation(vectors.field.location)} · Unit ${vectors.field.unit}`,
-      `Authored vectors normalized for display · ${capitalize(vectors.glyph)} / ${capitalize(vectors.transform)}`,
-      "Magnitude not displayed",
-    );
-  }
-  return lines.join("\n");
+function resultLegendSnapshot(
+  results: ViewportResultsState | undefined,
+  sectionAxis: SectionAxis,
+  sectionOffset: number,
+): WorkbenchResultLegendSnapshot {
+  const scalar = results?.scalar;
+  const deformation = results?.config.deformation?.field;
+  const orientation = results?.vectors;
+  return Object.freeze({
+    visible: results !== undefined || sectionAxis !== "off",
+    scalar:
+      scalar === undefined
+        ? undefined
+        : Object.freeze({
+            field: legendField(scalar.field),
+            range: Object.freeze({ min: scalar.range.min, max: scalar.range.max }),
+            palette: Object.freeze(
+              scalar.colorMap.stops.map((stop) =>
+                Object.freeze({
+                  offset: stop.offset,
+                  color: Object.freeze({ ...stop.color }),
+                }),
+              ),
+            ),
+            missingColor: Object.freeze({ ...scalar.colorMap.missingColor }),
+            thresholds:
+              scalar.colorMap.thresholds === undefined
+                ? undefined
+                : Object.freeze([...scalar.colorMap.thresholds]),
+          }),
+    deformation:
+      deformation === undefined
+        ? undefined
+        : Object.freeze({
+            field: legendField(deformation),
+            scale: results?.deformation?.scale ?? 1,
+          }),
+    orientation:
+      orientation === undefined
+        ? undefined
+        : Object.freeze({
+            field: legendField(orientation.field),
+            glyph: orientation.glyph,
+            transform: orientation.transform,
+            lengthScale: orientation.lengthScale,
+            widthPixels: orientation.widthPixels,
+          }),
+    section: Object.freeze({ axis: sectionAxis, offset: sectionOffset }),
+  });
 }
 
-function fieldLocation(location: "nodal" | "elemental"): string {
-  return location === "nodal" ? "Nodal" : "Elemental";
-}
-
-function formatNumber(value: number): string {
-  return String(Math.abs(value) < 1e-9 ? 0 : Number(value.toPrecision(5)));
-}
-
-function capitalize(value: string): string {
-  return `${value[0]?.toUpperCase() ?? ""}${value.slice(1)}`;
+function legendField(field: {
+  readonly id: string;
+  readonly name: string;
+  readonly location: "nodal" | "elemental";
+  readonly unit: string;
+}): WorkbenchResultLegendField {
+  return Object.freeze({
+    id: field.id,
+    name: field.name,
+    location: field.location,
+    unit: field.unit,
+  });
 }
 
 /** Serializes the camera state used by demo diagnostics and browser tests. */

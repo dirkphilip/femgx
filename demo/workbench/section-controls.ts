@@ -12,6 +12,20 @@ export function sectionAxisBounds(
   return { min: bounds.minZ, max: bounds.maxZ };
 }
 
+/** Returns the bounded slider range for the selected section axis. */
+export function sectionRange(
+  bounds: Bounds,
+  axis: SectionAxis,
+): { readonly min: number; readonly max: number; readonly step: number } | undefined {
+  if (axis === "off") return undefined;
+  const range = sectionAxisBounds(bounds, axis);
+  return Object.freeze({
+    min: range.min,
+    max: range.max,
+    step: Math.max((range.max - range.min) / 200, 1e-6),
+  });
+}
+
 /** Maps the demo's axis/offset controls to the viewport plane convention. */
 export function sectionPlaneFor(axis: SectionAxis, offset: number): SectionPlane | undefined {
   if (axis === "off") return undefined;

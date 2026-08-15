@@ -150,9 +150,12 @@ controller, so camera and interaction behavior is stable
   visibility actions. View owns context-sensitive **Fit model**/**Fit selection**
   framing, projection, the labeled **Background** select (`Studio`, `White`, or
   `Dark`), and the optional secondary viewport. Display owns authored edges and
-  nodes; Analysis owns the existing contextual result controls until the
-  analysis-inspector surface replaces them. When a result is active, a compact
-  demo-owned legend shows its field, location, unit, finite range, and color stops;
+  nodes; Analysis owns one bounded contextual inspector with independent
+  **Scalar**, **Deformation**, **Orientation**, and **Section** sections. Dependent
+  controls disappear when their role cannot affect the current view, while the
+  existing typed commands remain the only state boundary. When a result is active,
+  a compact demo-owned legend renders structured field, location, unit, finite
+  range, palette, deformation-scale, orientation, and section state;
   picked node/element/face inspection adds the exact authored scalar when its
   location permits an unambiguous value.
   The selector is demo-owned presentation state and calls the public viewport
@@ -173,7 +176,9 @@ controller, so camera and interaction behavior is stable
   mobile scene. On mobile the optional panes stack vertically before the
   hierarchy follows them, while
   the command bar stays a single non-wrapping row, with disclosure panels sized
-  for the available viewport. The results panel also offers demo-private
+  for the available viewport. The bounded Analysis inspector scrolls only when
+  the complete active role set cannot fit in the available phone height. The
+  results panel also offers demo-private
   elemental vector selection, `Arrow`/`Axis` glyphs, `Direction`/`Normal`
   occurrence transforms, and a positive length scale; it states that vectors
   are normalized for orientation and that magnitude is not displayed. The

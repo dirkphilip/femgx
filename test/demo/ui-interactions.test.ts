@@ -210,6 +210,8 @@ describe("workbench Svelte controls", () => {
 
     const legend = mount(ResultLegend, { target, props: { snapshot } });
     expect(element(target, "#result-legend").hidden).toBe(false);
+    expect(element(target, "#result-legend-scalar").textContent).toContain("Demo stress");
+    expect(element(target, '[aria-label="Scalar color palette"]')).toBeDefined();
     await unmount(legend);
 
     const overlays = mount(StatusOverlays, { target, props: { snapshot, startup: undefined } });
@@ -461,7 +463,22 @@ function withOverlayState(snapshot: WorkbenchSnapshot): WorkbenchSnapshot {
       inspection: { visible: true, text: "Element 1" },
       diagnostics: true,
       diagnosticsText: "draw calls: 1",
-      resultLegend: { visible: true, text: "Demo stress\nRange 10 – 80" },
+      resultLegend: {
+        visible: true,
+        scalar: {
+          field: { id: "demo-stress", name: "Demo stress", location: "elemental", unit: "MPa" },
+          range: { min: 10, max: 80 },
+          palette: [
+            { offset: 0, color: { r: 0.1, g: 0.2, b: 0.9, a: 1 } },
+            { offset: 1, color: { r: 0.9, g: 0.1, b: 0.1, a: 1 } },
+          ],
+          missingColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
+          thresholds: undefined,
+        },
+        deformation: undefined,
+        orientation: undefined,
+        section: { axis: "off", offset: 0 },
+      },
       contextMenu: {
         visible: true,
         x: 10,

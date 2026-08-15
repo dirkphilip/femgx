@@ -7,6 +7,7 @@ import {
   type WorkbenchSnapshotInput,
 } from "../../demo/workbench/snapshot";
 import type { WorkbenchModel } from "../../demo/workbench/model";
+import type { WorkbenchResultLegendSnapshot } from "../../demo/workbench/result-legend";
 
 describe("workbench presentation snapshot", () => {
   it("contains presentation-sized values without runtime storage references", () => {
@@ -68,7 +69,7 @@ describe("workbench presentation snapshot", () => {
         statusVisible: true,
         inspection: { visible: true, text: "Element 4" },
         diagnostics: { visible: true, text: "draw calls: 2" },
-        resultLegend: { visible: true, text: "Demo stress\nRange 10 – 80" },
+        resultLegend: emptyResultLegend(true),
         contextMenu: {
           visible: true,
           x: 24,
@@ -91,7 +92,7 @@ describe("workbench presentation snapshot", () => {
       inspection: { visible: true, text: "Element 4" },
       diagnostics: true,
       diagnosticsText: "draw calls: 2",
-      resultLegend: { visible: true, text: "Demo stress\nRange 10 – 80" },
+      resultLegend: emptyResultLegend(true),
       contextMenu: { visible: true, title: "Element 4" },
     });
   });
@@ -138,5 +139,15 @@ function createSnapshotInput(): WorkbenchSnapshotInput {
     },
     sectionAxis: "off",
     sectionOffset: 0,
+  };
+}
+
+function emptyResultLegend(visible: boolean): WorkbenchResultLegendSnapshot {
+  return {
+    visible,
+    scalar: undefined,
+    deformation: undefined,
+    orientation: undefined,
+    section: { axis: "off", offset: 0 },
   };
 }
