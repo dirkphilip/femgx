@@ -11,7 +11,7 @@ export interface WorkbenchMenuActionContext {
   readonly toggles: DisplayToggles;
   readonly setEdges: () => void;
   readonly setDiagnostics: () => void;
-  readonly fitView: () => void;
+  readonly fitSelection: () => void;
   readonly reset: () => void;
 }
 
@@ -49,8 +49,8 @@ export function applyMenuAction(action: string, context: WorkbenchMenuActionCont
     case "diagnostics":
       context.setDiagnostics();
       break;
-    case "fit-view":
-      context.fitView();
+    case "fit-selection":
+      context.fitSelection();
       break;
     case "reset":
       context.reset();

@@ -364,22 +364,24 @@ test("opens a view context menu on empty scene space", async ({ page }) => {
   await expect(partCheckbox).not.toBeChecked();
 
   await page.mouse.click(empty.x, empty.y, { button: "right" });
+  await page.getByTestId("context-menu").getByText("Clear selection").click();
+  await expect.poll(() => dataset(page, "selected")).toBe("");
+
+  await page.mouse.click(empty.x, empty.y, { button: "right" });
   const menu = page.getByTestId("context-menu");
   await expect(menu).toBeVisible();
   await expect(menu.locator(".menu-title").first()).toHaveText("View");
   await expect(menu.locator('button[data-action="select-element"]')).toHaveCount(0);
-  for (const action of ["fit-view", "clear-selection", "show-all", "reset"]) {
+  for (const action of ["fit-selection", "clear-selection", "show-all", "reset"]) {
     await expect(menu.locator(`button[data-action="${action}"]`)).toBeVisible();
   }
-  await expect(menu.getByText("Fit model")).toHaveAttribute("title", /Frame the complete model/);
+  await expect(menu.getByText("Fit model (Z)")).toHaveAttribute(
+    "title",
+    /Frame the complete model/,
+  );
   await expect(menu.getByText("Reset all")).toHaveAttribute("title", /Restore this model/);
   await expect(menu.locator('button[data-action="select"]')).toHaveCount(0);
 
-  await menu.getByText("Clear selection").click();
-  await expect.poll(() => dataset(page, "selected")).toBe("");
-  await expect(menu).toBeHidden();
-
-  await page.mouse.click(empty.x, empty.y, { button: "right" });
   await menu.getByText("Show all").click();
   await expect(partCheckbox).toBeChecked();
 

@@ -8,6 +8,7 @@ describe("workbench context-menu state", () => {
     const menu = new WorkbenchMenu(
       () => true,
       () => false,
+      () => true,
       action,
       changed,
     );
@@ -25,6 +26,12 @@ describe("workbench context-menu state", () => {
         { kind: "button", label: "Highlight / Clear", action: "highlight" },
         { kind: "button", label: "Hide / Show instance", action: "hide-instance" },
         { kind: "button", label: "Hide / Show part", action: "hide-part" },
+        {
+          kind: "button",
+          label: "Fit selection (Z)",
+          action: "fit-selection",
+          help: "Frame the visible selected geometry with the same interruptible camera action as Z.",
+        },
       ]),
     );
 
@@ -39,6 +46,7 @@ describe("workbench context-menu state", () => {
     const menu = new WorkbenchMenu(
       () => false,
       () => true,
+      () => false,
       vi.fn(),
       vi.fn(),
     );
@@ -50,6 +58,12 @@ describe("workbench context-menu state", () => {
       expect.arrayContaining([
         { kind: "button", label: "Hide diagnostics", action: "diagnostics" },
         { kind: "button", label: "Clear selection", action: "clear-selection" },
+        {
+          kind: "button",
+          label: "Fit model (Z)",
+          action: "fit-selection",
+          help: "Frame the complete model because no visible selection can be framed.",
+        },
       ]),
     );
   });

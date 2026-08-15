@@ -47,7 +47,7 @@ export interface WorkbenchControllerWiringContext {
   readonly publishSnapshot: () => void;
   readonly setEdges: () => void;
   readonly setDiagnostics: () => void;
-  readonly fitView: () => void;
+  readonly fitSelection: () => void;
   readonly reset: () => void;
   readonly applySharedState: () => void;
   readonly rebuildVisibility: () => void;
@@ -106,9 +106,7 @@ export function createControllerInfrastructure(
     setDiagnostics: () => {
       context.setDiagnostics();
     },
-    fitView: () => {
-      context.fitView();
-    },
+    fitSelection: context.fitSelection.bind(context),
     reset: () => {
       context.reset();
     },

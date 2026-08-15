@@ -40,7 +40,7 @@ export interface WorkbenchInfrastructureOptions {
   readonly publishSnapshot: () => void;
   readonly setEdges: () => void;
   readonly setDiagnostics: () => void;
-  readonly fitView: () => void;
+  readonly fitSelection: () => void;
   readonly reset: () => void;
   readonly applySharedState: () => void;
   readonly rebuildVisibility: () => void;
@@ -110,7 +110,7 @@ function applyControllerMenuAction(
     toggles: options.toggles(),
     setEdges: options.setEdges,
     setDiagnostics: options.setDiagnostics,
-    fitView: options.fitView,
+    fitSelection: options.fitSelection,
     reset: options.reset,
   });
   slot.interaction.clearContext();

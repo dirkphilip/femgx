@@ -16,6 +16,7 @@ import type { ResultDisplayMode } from "./types";
 import type { VectorDisplayState } from "./result-controls";
 import type { VisibilityRowTarget } from "./visibility-snapshot";
 import type { WorkbenchVisibilitySnapshot } from "./visibility-snapshot";
+import { hasVisibleSelection } from "./selection";
 
 export type WorkbenchMenuAction =
   | "highlight"
@@ -26,7 +27,7 @@ export type WorkbenchMenuAction =
   | "hide-part"
   | "edges"
   | "diagnostics"
-  | "fit-view"
+  | "fit-selection"
   | "reset"
   | "clear-selection"
   | "show-all";
@@ -91,6 +92,7 @@ export interface WorkbenchSnapshot {
     readonly edges: boolean;
     readonly nodes: boolean;
     readonly continuous: boolean;
+    readonly fitSelectionAvailable: boolean;
     readonly selectionGranularity: SelectionGranularity;
     readonly boxSelectionStrategy: BoxSelectionStrategy;
     readonly secondaryOpen: boolean;
@@ -217,7 +219,7 @@ export interface WorkbenchCommands {
   setVectorTransform(value: string): void;
   setVectorLengthScale(value: string): void;
   setVectorWidthPixels(value: string): void;
-  fitView(): void;
+  fitSelection(): void;
   hideSelected(): void;
   showAll(): void;
   reset(): void;
@@ -293,7 +295,7 @@ export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): Workbench
 /** Builds a bounded immutable presentation snapshot without exposing runtime or GPU storage. */
 export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapshot {
   const presentation = input.presentation ?? defaultPresentationSnapshot(input.toggles.diagnostics);
-  const visibility = input.visibility ?? defaultVisibilitySnapshot();
+  const visibility = input.visibility ?? { context: "", rows: [] };
   const active = Object.freeze({
     id: input.model.id,
     name: input.model.name,
@@ -322,6 +324,7 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
       edges: input.toggles.edges,
       nodes: input.toggles.nodes,
       continuous: input.continuous,
+      fitSelectionAvailable: hasVisibleSelection(input.interaction, input.runtime),
       selectionGranularity: input.selectionGranularity,
       boxSelectionStrategy: input.boxSelectionStrategy,
       secondaryOpen: input.secondaryOpen,
@@ -400,10 +403,6 @@ function defaultPresentationSnapshot(diagnostics: boolean): WorkbenchPresentatio
     resultLegend: { visible: false, text: "" },
     contextMenu: { visible: false, x: 0, y: 0, title: "", entries: [] },
   };
-}
-
-function defaultVisibilitySnapshot(): WorkbenchVisibilitySnapshot {
-  return { context: "", rows: [] };
 }
 
 function resultField(field: {

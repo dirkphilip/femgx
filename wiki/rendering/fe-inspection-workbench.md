@@ -138,7 +138,8 @@ controller, so camera and interaction behavior is stable
   columns. Both panes use independent cameras and renderers while sharing the
   authoritative scene, selection, visibility, results, and model transitions.
   The toolbar is one calm
-  surface with model, **Fit model**, projection, a labeled **Background** select
+  surface with model, context-sensitive **Fit model**/**Fit selection** framing,
+  projection, a labeled **Background** select
   (`Studio`, `White`, or `Dark`), edges, nodes, explicit scalar/deformation result
   controls, and **Reset all** controls. When a result is active, a compact
   demo-owned legend shows its field, location, unit, finite range, and color stops;
@@ -147,10 +148,12 @@ controller, so camera and interaction behavior is stable
   The selector is demo-owned presentation state and calls the public viewport
   background setter; it survives model, local-file, reset, resize, recovery, and viewport
   replacement transitions, while a failed setter restores the last successful value
-  through the existing model-feedback status region. Fit model changes only camera
-  framing; Reset all restores the active preset's complete deterministic workbench
-  state without changing the selected background. Both actions expose help text
-  describing that scope.
+  through the existing model-feedback status region. The framing action labels
+  itself **Fit selection** when visible geometry is selected and **Fit model**
+  otherwise; both paths use the existing interruptible `fitSelection` contract and
+  advertise the `Z` shortcut. Reset all restores the active preset's complete
+  deterministic workbench state without changing the selected background. Both
+  actions expose help text describing that scope.
   Healthy renderer/status telemetry and inspection details stay hidden until
   explicitly needed; renderer failures remain prominent. Diagnostics stay within
   the scene, scroll internally when needed, and remain visible in the compact

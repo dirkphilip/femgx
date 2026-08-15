@@ -49,6 +49,7 @@ export class WorkbenchMenu {
   constructor(
     private readonly edgesEnabled: () => boolean,
     private readonly diagnosticsEnabled: () => boolean,
+    private readonly fitSelectionAvailable: () => boolean,
     private readonly onAction: (action: WorkbenchMenuAction) => void,
     private readonly onChanged: () => void,
   ) {}
@@ -72,11 +73,7 @@ export class WorkbenchMenu {
       button(this.edgesEnabled() ? "Hide edges" : "Overlay edges", "edges"),
       button(this.diagnosticsEnabled() ? "Hide diagnostics" : "Show diagnostics", "diagnostics"),
       section("View"),
-      button(
-        "Fit model",
-        "fit-view",
-        "Frame the complete model without changing visibility, selection, display, results, or projection.",
-      ),
+      this.fitButton(),
       button(
         "Reset all",
         "reset",
@@ -94,11 +91,7 @@ export class WorkbenchMenu {
       title: "View",
       entries: [
         section("View"),
-        button(
-          "Fit model",
-          "fit-view",
-          "Frame the complete model without changing visibility, selection, display, results, or projection.",
-        ),
+        this.fitButton(),
         button("Clear selection", "clear-selection"),
         button("Show all", "show-all"),
         button(
@@ -126,6 +119,20 @@ export class WorkbenchMenu {
   private setState(next: WorkbenchContextMenuSnapshot): void {
     this.state = Object.freeze({ ...next, entries: Object.freeze([...next.entries]) });
     this.onChanged();
+  }
+
+  private fitButton(): WorkbenchMenuEntry {
+    return this.fitSelectionAvailable()
+      ? button(
+          "Fit selection (Z)",
+          "fit-selection",
+          "Frame the visible selected geometry with the same interruptible camera action as Z.",
+        )
+      : button(
+          "Fit model (Z)",
+          "fit-selection",
+          "Frame the complete model because no visible selection can be framed.",
+        );
   }
 }
 

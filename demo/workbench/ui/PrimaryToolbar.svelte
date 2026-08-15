@@ -124,9 +124,13 @@
       id="fit-view"
       data-testid="fit-view"
       type="button"
-      aria-label="Fit model"
-      title="Frame the complete model without changing visibility, selection, display, results, or projection."
-      onclick={() => controller?.commands.fitView()}>Fit model</button
+      aria-label={snapshot?.toolbar.fitSelectionAvailable ? "Fit selection" : "Fit model"}
+      aria-keyshortcuts="Z"
+      title={snapshot?.toolbar.fitSelectionAvailable
+        ? "Frame the visible selected geometry. Press Z to use the same action."
+        : "Frame the complete model because no visible selection can be framed. Press Z to use the same action."}
+      onclick={() => controller?.commands.fitSelection()}
+      >{snapshot?.toolbar.fitSelectionAvailable ? "Fit selection" : "Fit model"}</button
     >
     <select
       id="selection-granularity"
@@ -263,6 +267,7 @@
   </div>
   <p id="interaction-help" data-testid="interaction-help" class="interaction-help">
     Element: click or drag to replace. Hold Ctrl or ⌘ to toggle. Shift keeps element selection. Alt
-    selects an instance.
+    selects an instance. Press Z to frame the visible selection, or the complete model when none is
+    eligible.
   </p>
 </div>
