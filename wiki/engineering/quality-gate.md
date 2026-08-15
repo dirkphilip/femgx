@@ -44,6 +44,11 @@ checks cycles, root-barrel imports, renderer and geometry boundaries, and the
 explicit subsystem DAG. Type-only imports are included because they still
 encode ownership and can create declaration-build cycles.
 
+The folder-structure lint limits each non-root source directory to 25 direct
+source entries combined: source files and child directories containing source
+count together. Generated, dependency, and other excluded directories remain
+outside this policy.
+
 `npm run build:docs` is the same TypeDoc validation command required by CI. It
 cleans the ignored API output, validates links and paths, requires documentation
 for selected public declaration kinds, and treats validation warnings as errors.
