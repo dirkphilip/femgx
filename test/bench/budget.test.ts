@@ -14,7 +14,12 @@ import {
   TET4_SHAPE,
 } from "../../src/elements/shapes";
 import { elementPart } from "../../src/geometry/heterogeneous-element-mesh";
-import { createPart, type Geometry, type Part } from "../../src/geometry/part";
+import {
+  createPart,
+  type Geometry,
+  type Part,
+  type TriangleGeometry,
+} from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { resolvePick, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
 import { createInteractionState } from "../../src/interaction/interaction";
@@ -39,6 +44,8 @@ import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createScene } from "../../src/scene/scene";
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
+import { displayedPartBounds } from "../../src/viewport/geometry-bounds";
+import { buildFaceSubsetIndices } from "../../src/renderer/gpu-face-subset";
 import {
   BENCH_BODY_COUNT,
   BENCH_BODY_ELEMENT_COUNT,
@@ -73,6 +80,8 @@ const deepScene = makeHierarchyScene({
 
 const CONVERSION_BENCH_ELEMENT_COUNT = 250_000;
 const conversionBenchmarkModel = makeConversionBenchmarkModel();
+const faceSubsetBenchmarkGeometry = makeFaceSubsetBenchmarkGeometry();
+const faceSubsetBenchmarkPart = makeFaceSubsetBenchmarkPart(faceSubsetBenchmarkGeometry);
 
 const runtime = createPackedSceneRuntime(shallowScene);
 const runtimeInstances = Array.from(runtime.getDrawList(), (slot, index) => ({
@@ -375,6 +384,46 @@ function makeConversionBenchmarkModel(): FemModel {
   };
 }
 
+function makeFaceSubsetBenchmarkGeometry(): TriangleGeometry {
+  const faceCount = 20_000;
+  const faces = Array.from({ length: faceCount }, (_, index) => ({
+    elementId: index + 1,
+    faceIndex: 0,
+    primitiveStart: index,
+    primitiveCount: 1,
+    key: String(index),
+    nodeIds: [0, 1, 2],
+    neighborElementIds: [],
+  }));
+  const faceIds = faces.map(({ elementId, faceIndex }) => ({ elementId, faceIndex }));
+  return {
+    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    indices: Uint32Array.from({ length: faceCount * 3 }, (_, index) => index % 3),
+    primitive: "triangles",
+    faces,
+    faceSubset: { faceIds },
+  };
+}
+
+function makeFaceSubsetBenchmarkPart(geometry: TriangleGeometry): Part {
+  const { faceSubset: _faceSubset, ...geometryWithoutSubset } = geometry;
+  const validated = createPart(908, { geometries: [geometryWithoutSubset] });
+  return { ...validated, geometries: [geometry] };
+}
+
+function makeValidatedFaceSubsetPart(): Part {
+  const subset = faceSubsetBenchmarkGeometry.faceSubset;
+  if (subset === undefined) throw new Error("Expected a face subset benchmark fixture");
+  return createPart(909, {
+    geometries: [
+      {
+        ...faceSubsetBenchmarkGeometry,
+        faceSubset: { faceIds: [...subset.faceIds] },
+      },
+    ],
+  });
+}
+
 interface BudgetCase {
   readonly name: string;
   readonly description: string;
@@ -458,6 +507,30 @@ const budgets: readonly BudgetCase[] = [
     budgetMs: 100,
     run: () => {
       createElementModelFromFemModel(conversionBenchmarkModel);
+    },
+  },
+  {
+    name: "buildFaceSubsetIndices",
+    description: "20,000 declared and selected triangle faces",
+    budgetMs: 100,
+    run: () => {
+      buildFaceSubsetIndices(faceSubsetBenchmarkGeometry);
+    },
+  },
+  {
+    name: "displayedPartBounds (face subset)",
+    description: "20,000 selected faces across 20,000 logical triangles",
+    budgetMs: 100,
+    run: () => {
+      displayedPartBounds(faceSubsetBenchmarkPart, undefined);
+    },
+  },
+  {
+    name: "createPart (face subset)",
+    description: "20,000 declared and selected triangle faces",
+    budgetMs: 100,
+    run: () => {
+      makeValidatedFaceSubsetPart();
     },
   },
   {

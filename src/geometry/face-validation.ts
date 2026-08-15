@@ -1,7 +1,42 @@
-import type { FaceIdRef } from "../elements/faces";
 import { validateOneBasedId } from "./id-validation";
 import { faceIdentity } from "./element-face-selection";
 import type { ElementTessellation, FaceTessellation, Geometry, TriangleGeometry } from "./types";
+
+interface FaceSubsetIndex {
+  readonly identities: ReadonlySet<string>;
+  readonly identityByPrimitive: readonly (string | undefined)[];
+}
+
+const faceSubsetIndices = new WeakMap<TriangleGeometry, FaceSubsetIndex>();
+
+/** Returns the cached identity index for a geometry's validated face subset. */
+export function faceSubsetIdentityIndex(geometry: TriangleGeometry): FaceSubsetIndex | undefined {
+  const subset = geometry.faceSubset;
+  if (subset === undefined) return undefined;
+  const cached = faceSubsetIndices.get(geometry);
+  if (cached !== undefined) return cached;
+  const identities = new Set<string>();
+  for (const ref of subset.faceIds) {
+    const identity = faceIdentity(ref.elementId, ref.faceIndex);
+    if (identities.has(identity)) {
+      throw new Error(`faceSubset repeats element ${ref.elementId} face ${ref.faceIndex}`);
+    }
+    identities.add(identity);
+  }
+  const identityByPrimitive = new Array<string | undefined>(
+    Math.floor(geometry.indices.length / 3),
+  );
+  for (const face of geometry.faces ?? []) {
+    const identity = faceIdentity(face.elementId, face.faceIndex);
+    const end = face.primitiveStart + face.primitiveCount;
+    for (let primitive = face.primitiveStart; primitive < end; primitive += 1) {
+      identityByPrimitive[primitive] = identity;
+    }
+  }
+  const index = { identities, identityByPrimitive };
+  faceSubsetIndices.set(geometry, index);
+  return index;
+}
 
 /** Validates that a render-time face subset resolves to declared face ranges. */
 export function validateFaceSubset(geometry: Geometry): void {
@@ -10,19 +45,19 @@ export function validateFaceSubset(geometry: Geometry): void {
   if (subset === undefined || subset.faceIds.length === 0) return;
   const faces = geometry.faces;
   if (faces === undefined) throw new Error("faceSubset requires declared faces");
-  const seen = new Set<string>();
+  const facesByIdentity = new Map(
+    faces.map((face) => [faceIdentity(face.elementId, face.faceIndex), face] as const),
+  );
+  const index = faceSubsetIdentityIndex(geometry);
+  if (index === undefined) return;
   for (const ref of subset.faceIds) {
     const identity = faceIdentity(ref.elementId, ref.faceIndex);
-    if (seen.has(identity)) {
-      throw new Error(`faceSubset repeats element ${ref.elementId} face ${ref.faceIndex}`);
-    }
-    const face = faces.find((candidate) => sameFace(candidate, ref));
+    const face = facesByIdentity.get(identity);
     if (face === undefined || face.primitiveCount <= 0) {
       throw new Error(
         `faceSubset references undeclared element ${ref.elementId} face ${ref.faceIndex}`,
       );
     }
-    seen.add(identity);
   }
 }
 
@@ -139,8 +174,4 @@ export function faceForPrimitive(
     (face) =>
       primitive >= face.primitiveStart && primitive < face.primitiveStart + face.primitiveCount,
   );
-}
-
-function sameFace(face: FaceTessellation, ref: FaceIdRef): boolean {
-  return face.elementId === ref.elementId && face.faceIndex === ref.faceIndex;
 }
