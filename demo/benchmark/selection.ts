@@ -18,7 +18,13 @@ import type {
 const WIDTH = 800;
 const HEIGHT = 600;
 const STEADY_SAMPLES = 7;
-const SUPPORTED_CASES = new Set(["instanced-2.10m", "unique-250k", "unique-1m", "unique-2m-local"]);
+const SUPPORTED_CASES = new Set([
+  "instanced-2.10m",
+  "unique-250k",
+  "unique-1m",
+  "unique-2m-local",
+  "fe-tet4-solid-132k",
+]);
 
 interface SelectionMeasureOptions {
   readonly renderer: WebGpuRenderer;

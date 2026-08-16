@@ -109,7 +109,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       if (entry === undefined) throw new Error("Benchmark report case is missing");
       expect(entry.elementFamily).toBeDefined();
       expect(entry.uniqueElementCount).toBeGreaterThan(1);
-      expect(entry.submittedElementOccurrences).toBeGreaterThanOrEqual(entry.uniqueElementCount);
+      expect(entry.submittedElementOccurrences).toBeGreaterThan(0);
       expect(entry.uniqueTriangles).toBeGreaterThan(0);
       expect(entry.submittedTriangles).toBeGreaterThan(0);
       if (entry.submittedTriangles < entry.uniqueTriangles) {
@@ -125,7 +125,15 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
         expect(timing.p50).toBeGreaterThanOrEqual(0);
         expect(timing.p95).toBeGreaterThanOrEqual(timing.p50);
       }
-      if (["instanced-2.10m", "unique-250k", "unique-1m", "unique-2m-local"].includes(entry.id)) {
+      if (
+        [
+          "instanced-2.10m",
+          "unique-250k",
+          "unique-1m",
+          "unique-2m-local",
+          "fe-tet4-solid-132k",
+        ].includes(entry.id)
+      ) {
         const phases = entry.selection?.phases;
         expect(phases).toHaveLength(3);
         if (phases === undefined) throw new Error("selection benchmark phases are missing");
@@ -158,8 +166,17 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       }
       if (entry.kind === "structured-fe") {
         expect(entry.structuredFamily).toBeDefined();
-        expect(entry.nodeCount).toBeGreaterThan(entry.uniqueElementCount);
+        expect(entry.nodeCount).toBeGreaterThan(0);
         expect(entry.faceCount).toBeGreaterThan(0);
+      }
+      if (entry.id === "fe-tet4-solid-132k") {
+        expect(entry.uniqueElementCount).toBe(131_712);
+        expect(entry.submittedElementOccurrences).toBe(9_240);
+        expect(entry.nodeCount).toBe(24_389);
+        expect(entry.faceCount).toBe(526_848);
+        expect(entry.uniqueTriangles).toBe(526_848);
+        expect(entry.submittedTriangles).toBe(9_408);
+        expect(entry.interactive).toBeDefined();
       }
       if (entry.elementFamily === "triangle") {
         expect(entry.uniqueElementCount).toBe(entry.uniqueTriangles);

@@ -208,7 +208,25 @@ function countSubmittedElementOccurrences(
   let count = 0;
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
     const partId = runtime.instancePartIds[slot];
-    count += benchmarkCase.scene.parts.get(partId ?? 0)?.elements?.length ?? 0;
+    const part = partId === undefined ? undefined : benchmarkCase.scene.parts.get(partId);
+    if (part === undefined) continue;
+    const submittedElementIds = new Set<number>();
+    for (const geometry of part.geometries) {
+      if (geometry.primitive === "triangles" && geometry.faceSubset !== undefined) {
+        for (const face of geometry.faceSubset.faceIds) submittedElementIds.add(face.elementId);
+        continue;
+      }
+      for (const element of part.elements ?? []) {
+        if (
+          element.primitiveRanges.some(
+            (range) => range.primitive === geometry.primitive && range.primitiveCount > 0,
+          )
+        ) {
+          submittedElementIds.add(element.id);
+        }
+      }
+    }
+    count += submittedElementIds.size;
   }
   return count;
 }

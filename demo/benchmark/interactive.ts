@@ -11,7 +11,12 @@ const PITCH_RADIANS = 0.08;
 const LONG_FRAME_MS = 16.7;
 const VERY_LONG_FRAME_MS = 33.3;
 
-const INTERACTIVE_CASE_IDS = new Set(["instanced-2.10m", "unique-1m", "many-parts-100"]);
+const INTERACTIVE_CASE_IDS = new Set([
+  "instanced-2.10m",
+  "unique-1m",
+  "many-parts-100",
+  "fe-tet4-solid-132k",
+]);
 
 export interface InteractiveCameraSnapshot {
   readonly position: readonly number[];
