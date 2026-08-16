@@ -13,6 +13,7 @@ import {
   buildSelectionOrder,
   type InstanceLayout,
 } from "./runtime-state";
+import { buildSelectionDrawCalls } from "./selection-draw-ranges";
 import type { GpuBundle } from "./gpu-recovery";
 
 /** Mutable selection-only mirrors owned by the renderer attachment. */
@@ -56,13 +57,14 @@ export function syncSelectionState(options: {
   }
   const selectionChanged =
     options.selectionParts.size > 0 &&
-    syncSelectedInstanceOrders(
-      options.runtime,
-      options.layout,
-      options.interaction,
-      options.bundle.draw,
-      options.selectionParts,
-    );
+    syncSelectedInstanceOrders({
+      runtime: options.runtime,
+      layout: options.layout,
+      interaction: options.interaction,
+      draw: options.bundle.draw,
+      parts: options.selectionParts,
+      partDefinitions: options.parts,
+    });
   const nodeChanged =
     options.nodeParts.size > 0 && writeNodeOrders({ ...options, affectedParts: options.nodeParts });
   return nodeChanged || selectionChanged;
@@ -120,30 +122,31 @@ export function writeNodeOrders(options: {
   return changed;
 }
 
-function syncSelectedInstanceOrders(
-  runtime: PackedSceneRuntime,
-  layout: InstanceLayout,
-  interaction: InteractionState,
-  draw: DrawResources,
-  parts: ReadonlySet<PartId> = new Set(layout.partOrder),
-): boolean {
-  let changed = false;
+function syncSelectedInstanceOrders(options: {
+  readonly runtime: PackedSceneRuntime;
+  readonly layout: InstanceLayout;
+  readonly interaction: InteractionState;
+  readonly draw: DrawResources;
+  readonly parts: ReadonlySet<PartId>;
+  readonly partDefinitions: ReadonlyMap<PartId, Part>;
+}): boolean {
+  const { runtime, layout, interaction, draw, parts, partDefinitions } = options;
   for (const partId of parts) {
     const order = buildSelectionOrder(layout, runtime, partId, interaction);
-    const storage = draw.storages.get(partId);
-    if (storage === undefined || storage.selectionOrderLength !== order.length) changed = true;
-    else {
-      for (let index = 0; index < order.length; index += 1) {
-        if (storage.selectionOrderData[index] !== order[index]) {
-          changed = true;
-          break;
-        }
-      }
-    }
     writeSelectionOrder(draw, partId, order);
     layout.partSelectionCounts.set(partId, order.length);
+    const part = partDefinitions.get(partId);
+    const rangedCalls =
+      part === undefined
+        ? undefined
+        : buildSelectionDrawCalls({ layout, runtime, partId, interaction, part, order });
+    if (rangedCalls === undefined) {
+      layout.partSelectionDrawCalls.delete(partId);
+    } else {
+      layout.partSelectionDrawCalls.set(partId, rangedCalls);
+    }
   }
-  return changed;
+  return parts.size > 0;
 }
 
 /** Rebuilds selected-instance orders for only the parts whose visibility changed. */
@@ -152,7 +155,17 @@ export function syncVisibleSelectionOrders(
   layout: InstanceLayout,
   interaction: InteractionState,
   bundle: GpuBundle,
-  parts: ReadonlySet<PartId>,
+  options: {
+    readonly parts: ReadonlySet<PartId>;
+    readonly partDefinitions: ReadonlyMap<PartId, Part>;
+  },
 ): void {
-  syncSelectedInstanceOrders(runtime, layout, interaction, bundle.draw, parts);
+  syncSelectedInstanceOrders({
+    runtime,
+    layout,
+    interaction,
+    draw: bundle.draw,
+    parts: options.parts,
+    partDefinitions: options.partDefinitions,
+  });
 }

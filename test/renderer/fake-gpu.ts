@@ -18,6 +18,8 @@ export interface FakeBuffer {
 export interface DrawCall {
   readonly indexCount: number;
   readonly instanceCount: number;
+  readonly firstIndex?: number;
+  readonly firstInstance?: number;
 }
 
 /** A draw recorded together with the pipeline tag that issued it. */
@@ -292,9 +294,21 @@ export function fakeGpuDevice(
             setStencilReference: () => undefined,
             setVertexBuffer: () => undefined,
             setIndexBuffer: () => undefined,
-            drawIndexed: (indexCount: number, instanceCount: number) => {
-              drawCalls.push({ indexCount, instanceCount });
-              pipelineDraws.push({ pipeline: currentPipeline, indexCount, instanceCount });
+            drawIndexed: (
+              indexCount: number,
+              instanceCount: number,
+              firstIndex = 0,
+              _baseVertex = 0,
+              firstInstance = 0,
+            ) => {
+              const call: DrawCall = {
+                indexCount,
+                instanceCount,
+                ...(firstIndex === 0 ? {} : { firstIndex }),
+                ...(firstInstance === 0 ? {} : { firstInstance }),
+              };
+              drawCalls.push(call);
+              pipelineDraws.push({ pipeline: currentPipeline, ...call });
             },
             draw: () => undefined,
             end: () => undefined,

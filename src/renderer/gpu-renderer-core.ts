@@ -119,8 +119,8 @@ export class GpuRenderer implements WebGpuRenderer {
     if (partsChanged) {
       this.sourceParts = parts;
       this.parts = new Map(parts);
+      this.attachment.prepareParts(this.parts, this.lifecycle.bundle);
     }
-    this.attachment.prepareParts(this.parts, this.lifecycle.bundle);
     const attachmentChanged = this.attachment.attach(runtime, this.lifecycle.bundle);
     if (attachmentChanged || partsChanged || this.nodeOrdersDirty) {
       this.attachment.updateNodeOrders(this.parts, this.lifecycle.bundle);

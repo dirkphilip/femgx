@@ -29,6 +29,8 @@ export interface InstanceLayout {
   readonly partSelectionCounts: Map<PartId, number>;
   /** Visible selected-node-instance count per part. */
   readonly partSelectedNodeCounts: Map<PartId, number>;
+  /** Ranged selected calls, when all selected targets map to authored ranges. */
+  readonly partSelectionDrawCalls: Map<PartId, readonly DrawCall[]>;
   /** Total visible instance count, kept in sync with the runtime. */
   visibleCount: number;
 }
@@ -53,6 +55,7 @@ export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout
   const partTransparentCounts = new Map<PartId, number>();
   const partSelectionCounts = new Map<PartId, number>();
   const partSelectedNodeCounts = new Map<PartId, number>();
+  const partSelectionDrawCalls = new Map<PartId, readonly DrawCall[]>();
   const drawList = runtime.getDrawList();
   for (const slot of drawList) {
     const partId = runtime.instancePartIds[slot];
@@ -77,6 +80,7 @@ export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout
     partTransparentCounts,
     partSelectionCounts,
     partSelectedNodeCounts,
+    partSelectionDrawCalls,
     visibleCount: drawList.length,
   };
 }
@@ -285,7 +289,12 @@ export function buildDrawCalls(layout: InstanceLayout): DrawCallLists {
     }
     const selectionCount = layout.partSelectionCounts.get(partId);
     if (selectionCount !== undefined && selectionCount > 0) {
-      selectionCalls.push({ partId, instanceCount: selectionCount });
+      const rangedCalls = layout.partSelectionDrawCalls.get(partId);
+      if (rangedCalls === undefined) {
+        selectionCalls.push({ partId, instanceCount: selectionCount });
+      } else {
+        selectionCalls.push(...rangedCalls);
+      }
     }
     const selectedNodeCount = layout.partSelectedNodeCounts.get(partId);
     if (selectedNodeCount !== undefined && selectedNodeCount > 0) {
