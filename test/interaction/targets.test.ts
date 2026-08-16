@@ -236,7 +236,7 @@ describe("element highlight state", () => {
     state = setTargetHovered(state, { kind: "element", ...ref });
     expect(resolveElementStyle(instance, ref.elementId, base, state)).toMatchObject({
       color: { r: 0.95, g: 0.5, b: 0.1, a: 1 },
-      emissive: 0.2,
+      emissive: 0.35,
     });
     state = setElementOverride(state, ref, { emissive: 0.8 });
     expect(resolveElementStyle(instance, ref.elementId, base, state)).toMatchObject({

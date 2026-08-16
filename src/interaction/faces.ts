@@ -93,7 +93,7 @@ export function resolveFaceStyle(
       elementId: ref.elementId,
       faceIndex: ref.faceIndex,
     })
-      ? applySelectionStyle(style, data.theme.hoveredFace)
+      ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
   ]);
 }

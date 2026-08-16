@@ -4,6 +4,7 @@ import {
   activateContextAction,
   loadWebGpuPage,
   openCommandPanel,
+  pixelHash,
   requireHit,
   scrollVisibilityToEnd,
   status,
@@ -65,6 +66,17 @@ test("exposes assembly occurrence and direct-part identity in the tree", async (
     "1",
   );
   await expect(page.getByTestId("instance-vis-0")).toHaveAttribute("data-instance-id", "1/0/0");
+});
+test("hierarchy hover emphasizes the exact assembly occurrence", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const before = await pixelHash(canvas);
+  await scrollVisibilityToEnd(page);
+  const fasteners = page.locator(
+    'div.visibility-row:has(input[data-testid="assembly-occurrence-vis-2"])',
+  );
+  await fasteners.hover();
+  await expect.poll(() => pixelHash(canvas)).not.toBe(before);
 });
 test("gives body visibility controls distinct occurrence names", async ({ page }) => {
   await page.goto("/");

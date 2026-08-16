@@ -58,7 +58,7 @@ export function resolveEdgeStyle(
       ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
     isHoveredTarget(state, { kind: "edge", ...ref })
-      ? applySelectionStyle(style, data.theme.hovered)
+      ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
   ]);
 }

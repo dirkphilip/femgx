@@ -58,11 +58,12 @@ oriented element faces are the finest-grained pickable units under
 ## Interaction state and emphasis
 
 - `InteractionState` adds `selectedNodeIds`, `highlightedNodeIds`,
-  `hoveredNode`, `selectedFaces` and `highlightedFaces` keyed by the oriented
+  the shared `hoveredTarget`, `selectedFaces` and `highlightedFaces` keyed by the oriented
   `(elementId, faceIndex)` occurrence (see
   `interaction/nodes.ts`, `interaction/faces.ts`, and `interaction/refs.ts`).
-- `resolveNodeStyle`/`resolveFaceStyle` apply the same precedence as element
-  state (highlight < hover < selection, all above part/instance).
+- `resolveNodeStyle`/`resolveFaceStyle` use the same non-selection
+  `highlighted` appearance for hover and persistent highlight, with selection
+  remaining distinct and taking precedence.
 - GPU emphasis reuses the generalized per-part emphasis buffer: a record now
   carries exactly one of `elementPickId`, `facePickId`, or `nodePickId`. The
   surface shader matches element records against the per-triangle element id
