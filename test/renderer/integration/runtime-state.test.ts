@@ -17,6 +17,7 @@ import {
   setInstanceSelected,
   setPartSelected,
 } from "../../../src/interaction/interaction";
+import { setElementBlockSelected } from "../../../src/interaction/blocks";
 import { setFaceSelected } from "../../../src/interaction/faces";
 import { setNodeSelected } from "../../../src/interaction/nodes";
 import { setTargetsSelected } from "../../../src/interaction/targets";
@@ -292,6 +293,39 @@ describe("renderer runtime state", () => {
         order: instanceOrder,
       }),
     ).toBeUndefined();
+
+    const block = { instanceId: "1/0", blockId: 7 };
+    const selectedBlock = setElementBlockSelected(createInteractionState(), block, true);
+    const blockOrder = buildSelectionOrder(layout, runtime, rangedSelectionPart.id, selectedBlock);
+    expect(blockOrder).toEqual(new Uint32Array([0]));
+    expect(
+      buildSelectionDrawCalls({
+        layout,
+        runtime,
+        partId: rangedSelectionPart.id,
+        interaction: selectedBlock,
+        part: rangedSelectionPart,
+        order: blockOrder,
+      }),
+    ).toBeUndefined();
+
+    const clearedBlock = setElementBlockSelected(selectedBlock, block, false);
+    expect(buildSelectionOrder(layout, runtime, rangedSelectionPart.id, clearedBlock)).toEqual(
+      new Uint32Array(),
+    );
+    runtime.setInstanceVisible(0, false);
+    expect(buildSelectionOrder(layout, runtime, rangedSelectionPart.id, selectedBlock)).toEqual(
+      new Uint32Array(),
+    );
+    runtime.setInstanceVisible(0, true);
+    const staleBlock = setElementBlockSelected(
+      createInteractionState(),
+      { instanceId: "1/9", blockId: 7 },
+      true,
+    );
+    expect(buildSelectionOrder(layout, runtime, rangedSelectionPart.id, staleBlock)).toEqual(
+      new Uint32Array(),
+    );
   });
 
   it("falls back when one grouped instance would issue too many range draws", () => {
