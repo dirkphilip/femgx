@@ -2,6 +2,8 @@
 
 Deterministic performance validation for the CPU-side scene pipeline. See
 [[engineering/quality-gate|Quality gate]] for how budgets fit into CI.
+GPU timing, mode, and memory rules live in
+[[engineering/gpu-performance|GPU rendering performance]].
 FE demo and benchmark topology follows [[requirements/demo-fixtures|the demo
 fixture requirements contract]].
 
@@ -386,7 +388,7 @@ statistics, not queue-drained GPU timings. Disabling the control returns the
 demo to true render-on-demand idle behavior; `npm run bench:webgpu` remains the
 owner of queue-drained capacity measurements.
 
-## Interactive quality policy decision (2026-08-14)
+## Interactive quality policy
 
 Issue [#628](https://github.com/dirkphilip/femgx/issues/628) asked whether the
 measured performance envelope justified a new interactive quality mode. The
@@ -409,6 +411,14 @@ depth weighting, picking, the origin triad, and the 390×844 mobile viewport.
 The results show an upload-cost envelope worth documenting, but no repeatable
 steady-state interactive miss on the measured device.
 
+The original matrix did not justify a public quality control. Later dense
+overlay evidence changed the implementation priority without changing that API
+decision: native one-device-pixel presentation edges recovered the edge-only
+case from approximately 12 FPS to approximately 120 FPS, while the combined
+edge/node path remains approximately 51–65 FPS. The durable targets and
+diagnostic process are defined in
+[[engineering/gpu-performance|GPU rendering performance]].
+
 The decision gate is therefore:
 
 1. The concrete value of a new control would be recovering interaction on
@@ -417,16 +427,20 @@ The decision gate is therefore:
 2. The minimum useful behavior is the existing optimized default, lazy OIT
    allocation, and explicit `originTriad: false` for callers that do not want
    the renderer-owned triad.
-3. No performance mode, DPR cap, render-scale control, hardware tier, or demo
-   switch is needed; removing one would not simplify the current design.
+3. Internal minimal/topology/feature pipeline admission and empty/sparse/dense
+   storage are required implementation strategies, not user-visible quality
+   modes. No DPR cap, render-scale control, hardware tier, or demo switch is
+   approved.
 4. Cross-device universal thresholds, automatic semantic degradation, and
    fallback rendering remain out of scope.
 5. No new public API or abstraction is necessary. A future regression should
    open a focused issue with comparable real-adapter evidence.
 
-The interactive quality policy is consequently **no new quality control for
-now**. Re-run the matrix when a supported hardware regression or a new
-rendering cost is introduced; do not infer a universal capacity guarantee from
-this single adapter.
+The interactive quality policy remains **no public quality control for now**.
+Optimize the truthful admitted presentation first. If dense nodes cannot meet
+the reference budget without changing semantics, open an explicit product
+decision rather than silently reducing them. Do not infer a universal capacity
+guarantee from one adapter.
 
 [engineering/quality-gate|Quality gate]: quality-gate.md
+[engineering/gpu-performance|GPU rendering performance]: gpu-performance.md

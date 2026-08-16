@@ -3,7 +3,8 @@
 This note separates host-owned model residency, femgx scene updates, and
 renderer-owned GPU resources. Related: [[requirements/product-scope|Product
 scope]], [[requirements/surface-derived-part-authoring|Surface-derived part
-authoring]], and [[rendering/face-subsets|Face subsets]].
+authoring]], [[rendering/face-subsets|Face subsets]], and
+[[engineering/gpu-performance|GPU rendering performance]].
 
 ## Product contracts
 
@@ -134,5 +135,6 @@ target.
    contract; any later interaction-detail profile requires its own API decision.
 
 [rendering/face-subsets|Face subsets]: face-subsets.md
+[engineering/gpu-performance|GPU rendering performance]: ../engineering/gpu-performance.md
 [requirements/product-scope|Product scope]: ../requirements/product-scope.md
 [requirements/surface-derived-part-authoring|Surface-derived part authoring]: ../requirements/surface-derived-part-authoring.md
