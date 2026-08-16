@@ -3,6 +3,8 @@
     overflow: hidden;
   }
   .app {
+    --mobile-navigation-header-height: 60px;
+    --mobile-navigation-rail-width: 76px;
     display: block;
     height: var(--workbench-viewport-height, 100dvh);
     min-height: 360px;
@@ -33,7 +35,7 @@
     left: 0;
     width: min(320px, calc(100vw - 48px));
     height: var(--workbench-viewport-height, 100dvh);
-    padding-top: env(safe-area-inset-top);
+    padding-top: calc(var(--mobile-navigation-header-height) + env(safe-area-inset-top));
     padding-bottom: env(safe-area-inset-bottom);
     border-right: 1px solid #38506f;
     box-shadow: 18px 0 44px rgb(0 0 0 / 0.32);
@@ -46,7 +48,7 @@
   .navigation-toggle {
     position: fixed;
     z-index: 40;
-    top: calc(174px + env(safe-area-inset-top));
+    top: calc((var(--mobile-navigation-header-height) - 44px) / 2 + env(safe-area-inset-top));
     left: calc(8px + env(safe-area-inset-left));
     display: block;
     min-width: 64px;
@@ -77,7 +79,7 @@
   }
   .toolbar {
     padding: calc(4px + env(safe-area-inset-top)) calc(4px + env(safe-area-inset-right)) 4px
-      calc(4px + env(safe-area-inset-left));
+      calc(var(--mobile-navigation-rail-width) + env(safe-area-inset-left));
   }
   .command-bar {
     display: grid;

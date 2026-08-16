@@ -41,12 +41,42 @@ test("uses one accessible phone drawer and keeps it exclusive of Analysis", asyn
   const drawer = page.getByTestId("navigation-drawer");
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
   await expect(drawer).toHaveAttribute("aria-hidden", "true");
+  const closedGeometry = await page.evaluate(() => {
+    const read = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (element === null) return undefined;
+      const box = element.getBoundingClientRect();
+      return { x: box.x, right: box.right, y: box.y, bottom: box.bottom };
+    };
+    return { trigger: read('[data-testid="navigation-toggle"]'), commandBar: read(".command-bar") };
+  });
+  if (closedGeometry.trigger === undefined || closedGeometry.commandBar === undefined) {
+    throw new Error("mobile navigation geometry is missing");
+  }
+  expect(closedGeometry.trigger.right).toBeLessThanOrEqual(closedGeometry.commandBar.x);
+  expect(closedGeometry.trigger.y).toBeLessThan(closedGeometry.commandBar.bottom);
 
   await openCommandPanel(page, "analysis");
   await expect(page.getByTestId("analysis-controls")).toBeVisible();
   await openNavigation(page);
   await expect(drawer).toHaveAttribute("aria-hidden", "false");
   await expect(page.getByTestId("analysis-controls")).toBeHidden();
+  const openGeometry = await page.evaluate(() => {
+    const read = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (element === null) return undefined;
+      const box = element.getBoundingClientRect();
+      return { y: box.y, bottom: box.bottom };
+    };
+    return {
+      trigger: read('[data-testid="navigation-toggle"]'),
+      visibility: read("#visibility-panel"),
+    };
+  });
+  if (openGeometry.trigger === undefined || openGeometry.visibility === undefined) {
+    throw new Error("open mobile navigation geometry is missing");
+  }
+  expect(openGeometry.trigger.bottom).toBeLessThanOrEqual(openGeometry.visibility.y);
   expect(
     await page.evaluate(() =>
       document.querySelector("#navigation-drawer")?.contains(document.activeElement),
