@@ -27,9 +27,22 @@ that face. Source shape metadata may remain host-owned. A face omitted from the
 payload cannot later be revealed by client-side visibility, so hosts that need
 body or material interfaces must include them or replace the scene.
 
+This is the client/server transfer-minimizing contract: a server may retain the
+omitted volume while sending one complete display payload to the client. femgx
+does not know whether omitted topology exists, and it must not infer, request,
+cache, render, or expose identities that were not supplied. Hiding a retained
+facet or element may therefore leave a hole rather than reveal an interior
+face. A later server response is a host-owned replacement payload, not an
+incremental femgx geometry stream.
+
 `elementPart(..., { faceSubset })` does not satisfy the memory contract: it
 retains complete tessellated geometry and filters only draw indices. This path
 must avoid constructing omitted geometry.
+
+Likewise, a presentation choice such as disabling edge and node overlays says
+nothing about topology residency. The host chooses `surfacePart()` when the
+client must not own the interior; a renderer display toggle cannot convert a
+fully authored part into that data contract.
 
 ## Compact facet connectivity
 

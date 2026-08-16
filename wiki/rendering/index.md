@@ -43,6 +43,9 @@
   — bounded Core-now depth, instancing, and interaction semantics for authored glyphs.
 - [[rendering/shader-variants|Explicit shader variants]] — typed construction
   of triangle, line, and node-pick WGSL sources from shared fragments.
+- [[rendering/topology-residency|Topology ownership and GPU residency]] —
+  authoritative reduced surfaces, complete client models, and bounded adaptive
+  skin residency.
 - [[rendering/webgpu-e2e|WebGPU browser e2e lane]] — real-WebGPU browser
   coverage on the default e2e lane.
 - [[rendering/webgpu-resource-reuse|WebGPU resource reuse]] — cached frame,
@@ -72,6 +75,7 @@
 [rendering/section-cut-investigation|Exact FE section-cut investigation]: section-cut-investigation.md
 [data/vector-field-visualization|Authored elemental orientation visualization]: ../data/vector-field-visualization.md
 [rendering/shader-variants|Explicit shader variants]: shader-variants.md
+[rendering/topology-residency|Topology ownership and GPU residency]: topology-residency.md
 [rendering/webgpu-e2e|WebGPU browser e2e lane]: webgpu-e2e.md
 [rendering/webgpu-resource-reuse|WebGPU resource reuse]: webgpu-resource-reuse.md
 [rendering/wgsl-reserved-keywords|WGSL reserved keywords vs wgsl_reflect]: wgsl-reserved-keywords.md
