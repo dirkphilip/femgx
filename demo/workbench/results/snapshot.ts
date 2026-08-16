@@ -8,6 +8,7 @@ import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";
 import type { SectionAxis } from "../section-controls";
 import type { DisplayToggles } from "../types";
 import type { ResultDisplayMode, TouchInteractionMode } from "../types";
+import type { WorkbenchCatalogMode } from "../models/model-catalog";
 import type { VectorDisplayState } from "./result-controls";
 import type { VisibilityRowTarget } from "../state/visibility-snapshot";
 import type { WorkbenchVisibilitySnapshot } from "../state/visibility-snapshot";
@@ -72,6 +73,8 @@ export interface WorkbenchStartupStatus {
 
 export interface WorkbenchSnapshot {
   readonly model: {
+    readonly mode: WorkbenchCatalogMode;
+    readonly selectedId: string;
     readonly active: {
       readonly id: string;
       readonly name: string;
@@ -170,6 +173,8 @@ export interface SectionRange {
 export interface WorkbenchSnapshotInput {
   readonly model: WorkbenchModel;
   readonly models: readonly WorkbenchModel[];
+  readonly catalogMode: WorkbenchCatalogMode;
+  readonly catalogSelectionId: string;
   readonly runtime: SceneRuntime;
   readonly interaction: InteractionState;
   readonly rendererName: string;
@@ -198,6 +203,8 @@ export interface WorkbenchSnapshotInput {
 export interface WorkbenchSnapshotOwner {
   readonly model: WorkbenchModel;
   readonly models: readonly WorkbenchModel[];
+  readonly catalogMode: WorkbenchCatalogMode;
+  readonly catalogSelectionId: string;
   readonly runtime: SceneRuntime;
   readonly interaction: InteractionState;
   readonly rendererName: string;
@@ -227,6 +234,7 @@ export interface WorkbenchSnapshotOwner {
 
 export interface WorkbenchCommands {
   setProjection(): void;
+  setCatalogMode(mode: WorkbenchCatalogMode): void;
   setBackground(value: string): void;
   toggleEdges(): void;
   toggleNodes(): void;
@@ -306,6 +314,8 @@ export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): Workbench
   return {
     model: owner.model,
     models: owner.models,
+    catalogMode: owner.catalogMode,
+    catalogSelectionId: owner.catalogSelectionId,
     runtime: owner.runtime,
     interaction: owner.interaction,
     rendererName: owner.rendererName,

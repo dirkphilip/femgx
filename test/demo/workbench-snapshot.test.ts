@@ -20,6 +20,7 @@ describe("workbench presentation snapshot", () => {
       name: input.model.name,
       source: "example",
     });
+    expect(snapshot.model).toMatchObject({ mode: "ordinary", selectedId: input.model.id });
     expect(snapshot.model.partCount).toBe(input.model.scene.parts.size);
     expect(snapshot.hierarchy.occurrenceCount).toBe(input.runtime.occurrenceCount);
     expect(snapshot.hierarchy.hideSelectedElementCount).toBe(0);
@@ -117,6 +118,8 @@ function createSnapshotInput(): WorkbenchSnapshotInput {
   return {
     model,
     models: [model],
+    catalogMode: "ordinary",
+    catalogSelectionId: model.id,
     runtime: createSceneRuntime(model.scene),
     interaction: createInteractionState(),
     rendererName: "webgpu",

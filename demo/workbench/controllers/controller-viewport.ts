@@ -9,12 +9,15 @@ import {
   type ObservedPaneSize,
 } from "../viewport/viewport-presentation";
 import type { DisplayToggles, ResultDisplayMode } from "../types";
+import type { WorkbenchInteraction } from "../interaction/interaction";
 import type { SelectionGranularity } from "../selection/pick";
 import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";
 import type { SectionAxis } from "../section-controls";
+import { applyBoxSelectionResolvers } from "./controller-box-selection";
 import { applySectionPlane } from "../section-plane-actions";
 
 export interface WorkbenchViewportOwner {
+  readonly disposed: boolean;
   readonly view: DemoView;
   readonly background: ViewportBackground;
   readonly presentation: WorkbenchPresentation;
@@ -41,6 +44,83 @@ export interface WorkbenchViewportOwner {
   viewports(): readonly FemViewport[];
 }
 
+/** Returns the currently active viewport for controller-owned slot state. */
+export function activeViewportForOwner(
+  owner: Pick<WorkbenchViewportOwner, "viewportSlots">,
+): FemViewport {
+  return owner.viewportSlots.activeViewport();
+}
+
+/** Changes the active viewport slot through the controller-owned slot graph. */
+export function setActiveSlotForOwner(
+  owner: Pick<WorkbenchViewportOwner, "viewportSlots">,
+  slotId: ViewportSlotId,
+): void {
+  owner.viewportSlots.setActiveSlot(slotId);
+}
+
+/** Invalidates pointer interaction across the viewport slot graph. */
+export function invalidateInteractionForOwner(
+  owner: Pick<WorkbenchViewportOwner, "viewportSlots">,
+): void {
+  owner.viewportSlots.invalidateInteraction();
+}
+
+/** Detaches the primary viewport from the slot graph. */
+export function detachViewportForOwner(owner: Pick<WorkbenchViewportOwner, "viewportSlots">): void {
+  owner.viewportSlots.detachPrimary();
+}
+
+/** Reports whether a viewport slot currently owns a pointer gesture. */
+export function isPointerGestureActiveForOwner(
+  owner: Pick<WorkbenchViewportOwner, "viewportSlots">,
+): boolean {
+  return owner.viewportSlots.isPointerGestureActive();
+}
+
+/** Returns interaction statistics from the controller-owned interaction adapter. */
+export function boxSelectionStatsForOwner(owner: {
+  readonly interactionController: WorkbenchInteraction;
+}): ReturnType<WorkbenchInteraction["getBoxSelectionStats"]> {
+  return owner.interactionController.getBoxSelectionStats();
+}
+
+/** Toggles the secondary viewport and refreshes its selection resolvers. */
+export async function toggleSecondaryViewportForOwner(
+  owner: WorkbenchViewportOwner,
+): Promise<void> {
+  await owner.viewportSlots.toggleSecondaryViewport();
+  applyBoxSelectionResolvers(owner);
+}
+
+interface WorkbenchPresentationOwner {
+  readonly disposed: boolean;
+  applyDisplayedInteraction(): void;
+  syncViewportPresentation(): void;
+  publishSnapshot(): void;
+}
+
+/** Renders the current controller state through the presentation adapters. */
+export function renderForOwner(owner: WorkbenchPresentationOwner): void {
+  if (owner.disposed) return;
+  owner.applyDisplayedInteraction();
+  owner.syncViewportPresentation();
+  owner.publishSnapshot();
+}
+
+/** Publishes the current controller snapshot. */
+export function publishSnapshotForOwner(owner: {
+  readonly snapshotBridge: { publish(): void };
+}): void {
+  owner.snapshotBridge.publish();
+}
+
+/** Publishes state after the active viewport slot changes. */
+export function activeSlotChangedForOwner(owner: WorkbenchPresentationOwner): void {
+  owner.syncViewportPresentation();
+  owner.publishSnapshot();
+}
+
 /** Restores shared controller state after replacing its primary viewport. */
 export function setControllerViewport(owner: WorkbenchViewportOwner, viewport: FemViewport): void {
   owner.viewportSlots.invalidateInteraction();
@@ -64,6 +144,7 @@ export function setControllerViewport(owner: WorkbenchViewportOwner, viewport: F
 
 /** Synchronizes the plain TypeScript presentation adapter from the active slot. */
 export function syncControllerViewportPresentation(owner: WorkbenchViewportOwner): void {
+  if (owner.disposed) return;
   syncViewportPresentation({
     activeSlot: owner.viewportSlots.activeSlot(),
     slots: owner.viewportSlots.all(),

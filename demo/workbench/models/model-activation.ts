@@ -27,7 +27,6 @@ export interface WorkbenchModelState {
 
 /** State owner used by the controller-facing activation adapter. */
 export interface WorkbenchModelActivationOwner extends WorkbenchModelState {
-  readonly examples: readonly WorkbenchModel[];
   readonly viewportSlots: WorkbenchViewportSlots;
   readonly presentation: WorkbenchPresentation;
   readonly visibilityPanel: { rebuild: () => void };
@@ -42,7 +41,7 @@ export function activateModelForOwner(
   owner: WorkbenchModelActivationOwner,
 ): void {
   activateControllerModel(model, {
-    examples: owner.examples,
+    catalogModels: owner.models,
     slots: owner.viewportSlots.all(),
     state: owner,
     presentation: owner.presentation,
@@ -74,7 +73,7 @@ export function activateModelForOwner(
 }
 
 export interface WorkbenchModelControllerContext {
-  readonly examples: readonly WorkbenchModel[];
+  readonly catalogModels: readonly WorkbenchModel[];
   readonly slots: readonly WorkbenchViewportSlot[];
   readonly state: WorkbenchModelState;
   readonly presentation: WorkbenchPresentation;
@@ -94,7 +93,7 @@ export function activateControllerModel(
     context.setControllerState(context.state);
   };
   activateWorkbenchModel({
-    examples: context.examples,
+    catalogModels: context.catalogModels,
     slots: context.slots,
     state: context.state,
     model,
@@ -117,7 +116,7 @@ export function activateControllerModel(
 }
 
 interface ActivateWorkbenchModelOptions {
-  readonly examples: readonly WorkbenchModel[];
+  readonly catalogModels: readonly WorkbenchModel[];
   readonly slots: readonly WorkbenchViewportSlot[];
   readonly state: WorkbenchModelState;
   readonly model: WorkbenchModel;
@@ -134,7 +133,10 @@ export function activateWorkbenchModel(options: ActivateWorkbenchModelOptions): 
   const { state, model } = options;
   resetSlotRenderLoops(options.slots);
   state.model = model;
-  state.models = model.source === "file" ? [...options.examples, model] : options.examples;
+  const catalogModels = options.catalogModels.some((candidate) => candidate.id === model.id)
+    ? options.catalogModels
+    : [...options.catalogModels, model];
+  state.models = model.source === "file" ? catalogModels : options.catalogModels;
   state.toggles = { edges: true, nodes: true, diagnostics: false };
   state.resultMode = resultModeForModel(model);
   state.scalarFieldId = activeScalarFieldIdForModel(model);

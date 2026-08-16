@@ -9,8 +9,14 @@ import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { DemoView } from "../viewport/view";
 import { createModelInteraction } from "../state/preset";
 import { errorMessage, type WorkbenchModel } from "../models/model";
+import type { WorkbenchModelCatalog, WorkbenchCatalogMode } from "../models/model-catalog";
+import {
+  createWorkbenchModelCatalog,
+  rememberCatalogModel,
+  setCatalogModeForOwner,
+  setModelForOwner,
+} from "./controller-catalog";
 import type { WorkbenchFeatures } from "../state/features";
-import type { WorkbenchInteraction } from "../interaction/interaction";
 import type { SelectionGranularity } from "../selection/pick";
 import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";
 import {
@@ -80,9 +86,19 @@ import {
 } from "../results/snapshot";
 import { createWorkbenchCommands } from "../interaction/commands";
 import {
+  activeSlotChangedForOwner,
+  activeViewportForOwner,
+  boxSelectionStatsForOwner,
+  detachViewportForOwner,
+  invalidateInteractionForOwner,
+  isPointerGestureActiveForOwner,
+  publishSnapshotForOwner,
+  renderForOwner,
   resetViewportRenderLoop,
   setControllerViewport,
+  setActiveSlotForOwner,
   syncControllerViewportPresentation,
+  toggleSecondaryViewportForOwner,
 } from "./controller-viewport";
 import {
   applyDisplayedInteraction as applyDisplayedInteractionForOwner,
@@ -110,8 +126,9 @@ export class WorkbenchController {
   rendererState = "";
   viewport: FemViewport;
   viewportSlots!: WorkbenchViewportSlots;
-  private readonly modelSession: WorkbenchModelSession;
+  readonly modelSession: WorkbenchModelSession;
   readonly examples: readonly WorkbenchModel[];
+  readonly catalog: WorkbenchModelCatalog;
   models: readonly WorkbenchModel[];
   readonly listenerController = new AbortController();
   menu!: WorkbenchFeatures["menu"];
@@ -135,7 +152,7 @@ export class WorkbenchController {
   scalarFieldId: string;
   background: ViewportBackground = "studio";
   readonly observedPaneSizes = new Map<ViewportSlotId, ObservedPaneSize>();
-  private readonly snapshotBridge: WorkbenchSnapshotBridge;
+  readonly snapshotBridge: WorkbenchSnapshotBridge;
   private readonly commandSurface: WorkbenchCommands;
   readonly elementDetailActions: WorkbenchElementDetailActions;
   readonly resultPlaybackActions: WorkbenchResultPlaybackActions;
@@ -153,7 +170,8 @@ export class WorkbenchController {
     this.examples = options.presets;
     const initialModel = this.examples[0];
     if (initialModel === undefined) throw new Error("Workbench requires at least one preset");
-    this.models = this.examples;
+    this.catalog = createWorkbenchModelCatalog(this.examples);
+    this.models = this.catalog.models;
     this.model = initialModel;
     this.toggles = createDefaultDisplayToggles();
     this.resultMode = resultModeForModel(this.model);
@@ -169,7 +187,7 @@ export class WorkbenchController {
     this.initializeInfrastructure(options);
     this.modelSession = new WorkbenchModelSession({
       presentation: this.presentation,
-      examples: this.examples,
+      getModels: () => this.catalog.models,
       importer: options.importGlb ?? importGlb,
       getModel: () => this.model,
       isDisposed: () => this.disposed,
@@ -215,38 +233,35 @@ export class WorkbenchController {
     return this.commandSurface;
   }
 
+  get catalogMode(): WorkbenchCatalogMode {
+    return this.catalog.mode;
+  }
+
+  get catalogSelectionId(): string {
+    return this.catalog.selectedId;
+  }
+
   subscribe(listener: WorkbenchSnapshotListener): () => void {
     return this.snapshotBridge.subscribe(listener);
   }
 
-  getBoxSelectionStats(): ReturnType<WorkbenchInteraction["getBoxSelectionStats"]> {
-    return this.interactionController.getBoxSelectionStats();
-  }
+  getBoxSelectionStats = boxSelectionStatsForOwner.bind(null, this);
 
-  setViewport(viewport: FemViewport): void {
+  setViewport = (viewport: FemViewport): void => {
     setControllerViewport(this, viewport);
-  }
+  };
 
-  invalidateInteraction(): void {
-    this.viewportSlots.invalidateInteraction();
-  }
+  invalidateInteraction = invalidateInteractionForOwner.bind(null, this);
 
-  detachViewport(): void {
-    this.viewportSlots.detachPrimary();
-  }
+  detachViewport = detachViewportForOwner.bind(null, this);
 
   setCameraGestureActive(slotId: ViewportSlotId, active: boolean): void {
     this.viewportSlots.setCameraGestureActive(slotId, active);
   }
 
-  isPointerGestureActive(): boolean {
-    return this.viewportSlots.isPointerGestureActive();
-  }
+  isPointerGestureActive = isPointerGestureActiveForOwner.bind(null, this);
 
-  syncViewportPresentation(): void {
-    if (this.disposed) return;
-    syncControllerViewportPresentation(this);
-  }
+  syncViewportPresentation: () => void = syncControllerViewportPresentation.bind(null, this);
 
   onViewportRender(slotId: ViewportSlotId, timestamp: number): void {
     const slot = this.viewportSlots.get(slotId);
@@ -346,15 +361,15 @@ export class WorkbenchController {
   }
 
   onActiveSlotChanged(): void {
-    this.syncViewportPresentation();
-    this.publishSnapshot();
+    activeSlotChangedForOwner(this);
   }
 
-  setModel(id: string): void {
-    this.modelSession.setModel(id);
-  }
+  setModel = setModelForOwner.bind(null, this);
+
+  setCatalogMode = setCatalogModeForOwner.bind(null, this);
 
   async openModel(file: File): Promise<void> {
+    if (this.catalog.mode !== "ordinary") this.setCatalogMode("ordinary");
     await this.modelSession.openModel(file);
   }
 
@@ -431,34 +446,21 @@ export class WorkbenchController {
     this.resultPlaybackActions.resetForModel(model);
     this.elementDetail = undefined;
     this.resetHoverOwner();
+    rememberCatalogModel(this, model);
     activateModelForOwner(model, this);
   }
 
-  render(): void {
-    if (this.disposed) return;
-    this.applyDisplayedInteraction();
-    this.syncViewportPresentation();
-    this.publishSnapshot();
-  }
+  render: () => void = renderForOwner.bind(null, this);
 
-  publishSnapshot(): void {
-    this.snapshotBridge.publish();
-  }
+  publishSnapshot: () => void = publishSnapshotForOwner.bind(null, this);
 
   activeSlot = (): WorkbenchViewportSlot => this.viewportSlots.activeSlot();
 
-  activeViewport(): FemViewport {
-    return this.viewportSlots.activeViewport();
-  }
+  activeViewport: () => FemViewport = activeViewportForOwner.bind(null, this);
 
   viewports = (): readonly FemViewport[] => this.viewportSlots.viewports();
 
-  setActiveSlot = (slotId: ViewportSlotId): void => {
-    this.viewportSlots.setActiveSlot(slotId);
-  };
+  setActiveSlot: (slotId: ViewportSlotId) => void = setActiveSlotForOwner.bind(null, this);
 
-  async toggleSecondaryViewport(): Promise<void> {
-    await this.viewportSlots.toggleSecondaryViewport();
-    applyBoxSelectionResolvers(this);
-  }
+  toggleSecondaryViewport: () => Promise<void> = toggleSecondaryViewportForOwner.bind(null, this);
 }

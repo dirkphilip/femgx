@@ -26,6 +26,12 @@
     if (value !== undefined) controller?.commands.selectModel(value);
   }
 
+  function toggleCatalogMode(): void {
+    controller?.commands.setCatalogMode(
+      snapshot?.model.mode === "performance" ? "ordinary" : "performance",
+    );
+  }
+
   function openModel(): void {
     modelFileInput?.click();
   }
@@ -81,12 +87,25 @@
     disabled={snapshot?.model.selectionDisabled ?? false}
     onchange={selectModel}
   >
+    {#if snapshot?.model.mode === "performance"}
+      <option value="">Choose a benchmark case…</option>
+    {/if}
     {#each snapshot?.model.available ?? [] as model (model.id)}
       <option value={model.id}
         >{model.source === "file" ? `Opened · ${model.name}` : model.name}</option
       >
     {/each}
   </select>
+  <button
+    id="performance-lab"
+    data-testid="performance-lab"
+    type="button"
+    aria-pressed={snapshot?.model.mode === "performance"}
+    aria-label={snapshot?.model.mode === "performance"
+      ? "Leave Performance Lab"
+      : "Enter Performance Lab"}
+    onclick={toggleCatalogMode}>Performance Lab</button
+  >
   <button
     id="open-model"
     data-testid="open-model"

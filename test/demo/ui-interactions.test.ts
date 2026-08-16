@@ -88,6 +88,7 @@ describe("workbench Svelte controls", () => {
       button(target, selector).click();
       await tick();
     }
+    button(target, "#performance-lab").click();
 
     expect(calls).toEqual(
       expect.arrayContaining([
@@ -110,6 +111,7 @@ describe("workbench Svelte controls", () => {
         "fitSelection",
         "toggleSecondaryViewport",
         "setProjection",
+        "setCatalogMode",
         "toggleEdges",
         "toggleNodes",
         "toggleContinuous",
@@ -711,6 +713,8 @@ function createSnapshot(
   const input: WorkbenchSnapshotInput = {
     model,
     models: [model],
+    catalogMode: "ordinary",
+    catalogSelectionId: model.id,
     runtime: createSceneRuntime(model.scene),
     interaction: createInteractionState(),
     rendererName: "webgpu",

@@ -33,6 +33,8 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
   );
   return Object.freeze({
     model: Object.freeze({
+      mode: input.catalogMode,
+      selectedId: input.catalogSelectionId,
       active,
       available,
       partCount: input.model.scene.parts.size,

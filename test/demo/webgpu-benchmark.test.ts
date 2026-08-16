@@ -5,7 +5,6 @@ import {
   benchmarkCaseSpecs,
   createBenchmarkCase,
   estimateBenchmarkMemory,
-  workbenchBenchmarkSpecs,
 } from "../../demo/benchmark/model";
 import { summarizeInteractiveSample } from "../../demo/benchmark/interactive";
 import {
@@ -328,13 +327,6 @@ describe("WebGPU benchmark models", () => {
       structuredFamily: "tet4",
       ordinaryDemo: false,
     });
-  });
-
-  it("keeps optional benchmark cases out of the ordinary workbench selector", () => {
-    expect(workbenchBenchmarkSpecs(false)).toEqual([]);
-    expect(workbenchBenchmarkSpecs(false).some((spec) => spec.id === "unique-250k")).toBe(false);
-    expect(workbenchBenchmarkSpecs(true).some((spec) => spec.id === "unique-250k")).toBe(true);
-    expect(workbenchBenchmarkSpecs(true).some((spec) => spec.id === "unique-2m-local")).toBe(true);
   });
 
   it("summarizes interactive frame intervals and thresholds", () => {

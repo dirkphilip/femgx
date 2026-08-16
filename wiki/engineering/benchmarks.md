@@ -369,14 +369,13 @@ those costs are part of the performance question rather than overhead to hide.
 ## Interactive WebGPU inspection case
 
 The full-screen demo exposes seven user-facing FE/product stories through the
-normal model selector. `demo/benchmark/model.ts` and the shared
-`demo/fixtures/planar-grid.ts` generator define deterministic capacity cases for
-the explicit local `?performanceLab=1` opt-in only. Ordinary startup creates no
-benchmark geometry or capacity work; opting in appends the full matrix, including
-local-only cases, through the normal `Scene` → runtime → `FemViewport` path. The
-opt-in benchmark owns reproducible cost breakdowns, while diagnostics may still
-consume the retained `Performance · 2.10M triangles` fixture directly. The
-selector and benchmark are subject to [[requirements/demo-fixtures|the same
+ordinary model catalog and a discoverable **Performance Lab** switch. The switch
+reveals the deterministic capacity cases from `demo/benchmark/model.ts` and the
+shared `demo/fixtures/planar-grid.ts` generator as lazy entries; ordinary startup
+creates no benchmark geometry or capacity work, and a case builds only after it
+is selected. The benchmark owns reproducible cost breakdowns, while diagnostics
+may still consume the retained `Performance · 2.10M triangles` fixture directly.
+The catalogs and benchmark are subject to [[requirements/demo-fixtures|the same
 fixture contract]]; issue #526 remains the work tracker until the migration is
 complete, after which the linked requirement is the durable source of truth.
 
