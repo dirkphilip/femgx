@@ -291,6 +291,7 @@
       data-testid="node-overlay"
       type="button"
       aria-pressed={snapshot?.toolbar.nodes ?? true}
+      title="Toggle node annotations. Point elements use their primary glyph as the node marker."
       onclick={() => controller?.commands.toggleNodes()}>Nodes</button
     >
     <button
@@ -328,7 +329,8 @@
     Body/Block/Element/Face/Node use the same gesture. Hold Ctrl or ⌘ to toggle. Shift promotes
     Face/Node to the owning element. Alt selects an instance. Edge selects authored
     occurrence-scoped topology; shared edges remain edges when Shift is held. Through is available
-    only for Element. Press Z to frame the visible selection, or the complete model when none is
+    only for Element. Point elements use their primary glyph as the node marker, whether Nodes is
+    enabled or hidden. Press Z to frame the visible selection, or the complete model when none is
     eligible.
   </p>
 </div>
