@@ -9,11 +9,11 @@ import type { BodyId, ElementBlockId, ElementId } from "../../../src/entries/mod
 /** The user-selectable workbench interaction granularities. */
 export type SelectionGranularity = Extract<
   InteractionGranularity,
-  "element" | "face" | "node" | "edge"
+  "body" | "block" | "element" | "face" | "node" | "edge"
 >;
 
 /** A stable selection identity at any supported granularity. */
-export type SelectTarget = Exclude<InteractionTarget, { readonly kind: "body" }> & {
+export type SelectTarget = InteractionTarget & {
   readonly bodyId?: BodyId;
   readonly blockId?: ElementBlockId;
   /** The exact element owning a node pick, retained for context actions. */
@@ -25,9 +25,9 @@ export type BlockSelectTarget = Extract<SelectTarget, { readonly kind: "block" }
 
 /**
  * Maps a GPU pick target to the active selection granularity. Shift promotes
- * to the owning element and Alt to the instance; Control/Meta remain additive
- * selection modifiers and do not change the target granularity. Shift keeps an
- * authored edge target because a shared edge has no single owning element.
+ * face and node targets to their owning element and Alt to the instance;
+ * Control/Meta remain additive selection modifiers. Body and block modes stay
+ * coarse when Shift is held, while authored edges have no single owner.
  */
 export function selectTarget(
   hit: PickHit,
@@ -43,7 +43,10 @@ export function selectTarget(
     hit,
     modifiers.altKey
       ? "instance"
-      : modifiers.shiftKey && granularity !== "edge"
+      : modifiers.shiftKey &&
+          granularity !== "edge" &&
+          granularity !== "body" &&
+          granularity !== "block"
         ? "element"
         : granularity,
     modifiers,
@@ -65,7 +68,7 @@ function mapTarget(
   modifiers: Parameters<typeof selectTarget>[2],
 ): SelectTarget | undefined {
   const target = interactionTargetFromHit(hit, granularity);
-  if (target === undefined || target.kind === "body") return undefined;
+  if (target === undefined) return undefined;
   const selectedTarget: SelectTarget = {
     ...target,
     ...(target.kind === "element" || target.kind === "face" || target.kind === "node"
@@ -78,7 +81,11 @@ function mapTarget(
       ? optionalElementId("elementId" in hit ? hit.elementId : undefined)
       : {}),
   };
-  return modifiers.shiftKey && !modifiers.altKey && selectedTarget.kind !== "edge"
+  return modifiers.shiftKey &&
+    !modifiers.altKey &&
+    selectedTarget.kind !== "edge" &&
+    selectedTarget.kind !== "body" &&
+    selectedTarget.kind !== "block"
     ? elementTarget(selectedTarget)
     : selectedTarget;
 }
@@ -113,6 +120,7 @@ export function elementTarget(target: SelectTarget): SelectTarget | undefined {
       return { kind: "element", instanceId: target.instanceId, elementId: target.elementId };
     case "block":
       return target;
+    case "body":
     case "instance":
     case "part":
     case "edge":
@@ -136,6 +144,8 @@ export function elementBlockTarget(target: SelectTarget): BlockSelectTarget | un
 export function targetKey(target: PickHit | SelectTarget | undefined): string {
   if (target === undefined) return "";
   switch (target.kind) {
+    case "body":
+      return `body:${target.instanceId}:${target.bodyId}`;
     case "node":
       return `n:${target.instanceId}:${target.nodeId}`;
     case "face":

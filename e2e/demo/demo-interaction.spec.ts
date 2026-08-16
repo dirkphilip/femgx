@@ -3,6 +3,7 @@ import {
   dataset,
   loadWebGpuPage,
   openCommandPanel,
+  primaryBoxDrag,
   requireHit,
   setSelectionGranularity,
 } from "./demo-support";
@@ -32,6 +33,44 @@ test("defaults to element selection and can switch to exact node picks", async (
     "data-selection-granularity",
     "node",
   );
+});
+
+test("selects authored bodies and blocks through the selection granularity", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const selection = page.getByTestId("selection-granularity");
+  await openCommandPanel(page, "selection");
+
+  await selection.selectOption("body");
+  await expect(selection).toHaveValue("body");
+  await expect(page.getByTestId("box-selection-strategy")).toHaveValue("visible-surface");
+  const bodyHit = await requireHit(
+    page,
+    canvas,
+    { prefix: "f:" },
+    "body GPU picking must resolve from authored element metadata",
+  );
+  await page.mouse.click(bodyHit.x, bodyHit.y);
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^body:/);
+
+  await openCommandPanel(page, "selection");
+  await page.getByTestId("clear-selection").click();
+  await primaryBoxDrag(page, canvas, { fx: 0.15, fy: 0.25 }, { fx: 0.85, fy: 0.8 });
+  await page.mouse.up({ button: "left" });
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^body:/);
+
+  await openCommandPanel(page, "selection");
+  await selection.selectOption("block");
+  await expect(selection).toHaveValue("block");
+  await page.getByTestId("clear-selection").click();
+  const blockHit = await requireHit(
+    page,
+    canvas,
+    { prefix: "f:", fresh: true, step: 24 },
+    "block GPU picking must resolve from authored element metadata",
+  );
+  await page.mouse.click(blockHit.x, blockHit.y);
+  await expect.poll(() => dataset(page, "selected")).toMatch(/^b:/);
 });
 
 test("keeps the Through box strategy truthful across selection granularities", async ({ page }) => {

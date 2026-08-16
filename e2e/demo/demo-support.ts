@@ -128,7 +128,7 @@ export async function loadWebGpuPage(page: Page, path = "/"): Promise<void> {
 /** Selects the demo-private click and box-selection granularity. */
 export async function setSelectionGranularity(
   page: Page,
-  granularity: "element" | "face" | "node" | "edge",
+  granularity: "body" | "block" | "element" | "face" | "node" | "edge",
 ): Promise<void> {
   await openCommandPanel(page, "selection");
   const select = page.getByTestId("selection-granularity");

@@ -58,6 +58,9 @@ export function contextMenuSelectionOptions(
 }
 
 function targetSelectionLabel(target: SelectTarget, interaction: InteractionState): string {
+  if (target.kind === "body") {
+    return `${isTargetSelected(interaction, target) ? "Deselect" : "Select"} body`;
+  }
   if (target.kind === "block") {
     return `${isTargetSelected(interaction, target) ? "Deselect" : "Select"} block`;
   }
@@ -191,6 +194,8 @@ function section(label: string): WorkbenchMenuEntry {
 
 function targetLabel(target: SelectTarget): string {
   switch (target.kind) {
+    case "body":
+      return `Body ${target.bodyId}`;
     case "node":
       return `Node ${target.nodeId}`;
     case "face":
