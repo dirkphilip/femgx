@@ -1,4 +1,5 @@
-import type { FemViewport, InteractionState, SceneRuntime } from "../../../src/index";
+import type { FemViewport, InteractionState } from "../../../src/entries/root";
+import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { DemoView, ViewportSlotId } from "../viewport/view";
 import type { WorkbenchModel } from "../models/model";
 import { applyMenuAction } from "../interaction/menu-actions";

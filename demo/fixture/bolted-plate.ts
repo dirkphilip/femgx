@@ -1,19 +1,21 @@
 import {
-  createElementModel,
   createScene,
-  elementPart,
   identity,
   translation,
   type AssemblyId,
-  type Body,
-  type ElementModel,
   type Mat4,
   type NamedAssembly,
   type Part,
   type PartId,
   type Placement,
   type Scene,
-} from "../../src/index";
+} from "../../src/entries/root";
+import {
+  createElementModel,
+  elementPart,
+  type Body,
+  type ElementModel,
+} from "../../src/entries/model";
 import {
   createBoltModel,
   createNutModel,

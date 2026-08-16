@@ -1,11 +1,11 @@
 import {
-  setProjection,
-  importGlb,
   type InteractionState,
   type FemViewport,
-  type SceneRuntime,
   type ViewportBackground,
-} from "../../../src/index";
+} from "../../../src/entries/root";
+import { setProjection } from "../../../src/entries/camera";
+import { importGlb } from "../../../src/entries/io-glb";
+import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { DemoView } from "../viewport/view";
 import { createModelInteraction } from "../state/preset";
 import { errorMessage, type WorkbenchModel } from "../models/model";

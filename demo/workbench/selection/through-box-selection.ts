@@ -15,7 +15,7 @@ import {
   type Primitive,
   type SectionPlane,
   type Vec3,
-} from "../../../src/index";
+} from "../../../src/entries/root";
 import {
   BoxSelectionResolverContractError,
   type BoxSelectionResolver,

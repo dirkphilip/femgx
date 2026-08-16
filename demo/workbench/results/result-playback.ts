@@ -1,5 +1,5 @@
 import type { AuthoredResultSequence, AuthoredResultSnapshot } from "../../fixture/presets";
-import type { ValueRange } from "../../../src/index";
+import type { ValueRange } from "../../../src/entries/root";
 import type { WorkbenchModel } from "../models/model";
 import type { ResultDisplayMode } from "../types";
 

@@ -1,14 +1,13 @@
 import {
   createScene,
-  elementPart,
   identity,
   translation,
   type AssemblyId,
-  type ElementModel,
   type Part,
   type PartId,
   type Scene,
-} from "../../src/index";
+} from "../../src/entries/root";
+import { elementPart, type ElementModel } from "../../src/entries/model";
 import { buildHexModel } from "./element-models";
 
 /** Stable geometry identities for the order-independent transparency fixture. */

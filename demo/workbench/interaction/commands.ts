@@ -1,4 +1,4 @@
-import type { SceneRuntime } from "../../../src/index";
+import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { WorkbenchCommands, WorkbenchMenuAction } from "../results/snapshot";
 import type { WorkbenchElementDetailActions } from "../controllers/controller-element-detail";
 import type { WorkbenchResultPlaybackActions } from "../results/result-playback";

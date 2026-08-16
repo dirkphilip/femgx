@@ -1,10 +1,9 @@
 import type {
   AssemblyOccurrenceId,
-  BodyId,
-  ElementBlockId,
   InstanceId,
   InteractionTarget,
-} from "../../../src/index";
+} from "../../../src/entries/root";
+import type { BodyId, ElementBlockId } from "../../../src/entries/model";
 
 /** Semantic identity carried by one visibility-tree row. */
 export type VisibilityRowTarget =

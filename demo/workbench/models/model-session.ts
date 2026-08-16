@@ -1,4 +1,4 @@
-import type { importGlb } from "../../../src/index";
+import type { importGlb } from "../../../src/entries/io-glb";
 import {
   createImportedModel,
   displayFileName,

@@ -4,7 +4,7 @@ import {
   type PartId,
   type PickHit,
   type ViewportResultsState,
-} from "../../../src/index";
+} from "../../../src/entries/root";
 
 /**
  * Optional resolver for a part's display name, so the inspection panel can

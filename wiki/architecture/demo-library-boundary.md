@@ -75,11 +75,15 @@ or recovery. This keeps the public host path and the demo test bench identical.
 
 ## Import enforcement
 
-Ordinary demo code and retained product fixtures use the repository's internal
-`src/index.ts` source barrel, which mirrors the supported package ownership while
-the published package resolves through `src/entries/`. The repository lint gate
-checks this boundary so a new demo deep import cannot quietly couple presentation
-code to implementation details.
+Ordinary demo code imports the explicit package facades under `src/entries/`,
+which makes the workbench and retained product fixtures exercise the same
+ownership boundaries as package consumers.
+The repository lint gate checks this boundary so a new demo deep import cannot
+quietly couple presentation code to implementation details. The three workbench
+selection-summary call sites retain the narrowly scoped
+`src/interaction/selection-queries` exception: those derived queries are
+intentionally internal and absent from the public facades, but the workbench
+needs them for selection feedback and snapshot counts.
 
 Seven benchmark-only files plus the performance fixture are explicit exemptions
 because they measure or inspect internal GPU/runtime representations rather than

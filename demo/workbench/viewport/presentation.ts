@@ -1,10 +1,10 @@
 import {
-  type Camera,
   type FemViewport,
   type InteractionState,
-  type SceneRuntime,
   type ViewportResultsState,
-} from "../../../src/index";
+} from "../../../src/entries/root";
+import type { Camera } from "../../../src/entries/camera";
+import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { WorkbenchModel } from "../models/model";
 import { selectedKeys } from "../selection/selection";
 import { statsText } from "../../devtools/diagnostics";

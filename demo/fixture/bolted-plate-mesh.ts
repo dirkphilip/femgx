@@ -5,7 +5,7 @@ import {
   type Element,
   type ElementModel,
   type NodeId,
-} from "../../src/index";
+} from "../../src/entries/model";
 
 /**
  * Deterministic hex-mesh builders for the bolted-plate fixture. Each builder

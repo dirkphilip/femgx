@@ -4,7 +4,7 @@ import {
   type BoxSelectionRect,
   type FemViewport,
   type InteractionGranularity,
-} from "../../src/index";
+} from "../../src/entries/root";
 import { createModelPresets } from "../fixture/presets";
 import { workbenchBenchmarkSpecs } from "../benchmark/model";
 import { installDemoHarness } from "../devtools/harness";

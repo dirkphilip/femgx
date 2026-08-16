@@ -2,14 +2,14 @@ import {
   createScene,
   type Bounds,
   type Color,
-  type ElementModel,
-  type Issue,
   type PartId,
   type Scene,
   type ScalarField,
   type StyleOverride,
   type VectorField,
-} from "../../../src/index";
+} from "../../../src/entries/root";
+import type { ElementModel } from "../../../src/entries/model";
+import type { Issue } from "../../../src/entries/io";
 import type { ModelPreset } from "../../fixture/presets";
 import { sceneBounds } from "../../scene-bounds";
 import {

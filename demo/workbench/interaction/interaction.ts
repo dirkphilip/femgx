@@ -1,13 +1,13 @@
 import {
-  clientToCanvasCss,
-  selectedTargetCount,
   setTargetHovered,
   type FemViewport,
   type InteractionState,
   type PartId,
   type PickHit,
-} from "../../../src/index";
-import type { BoxSelectionEvent, InteractionTarget } from "../../../src/index";
+} from "../../../src/entries/root";
+import { clientToCanvasCss } from "../../../src/entries/camera";
+import { selectedTargetCount } from "../../../src/interaction/selection-queries";
+import type { BoxSelectionEvent, InteractionTarget } from "../../../src/entries/root";
 import { describePick } from "../selection/inspect";
 import {
   validateBoxSelectionTargets,

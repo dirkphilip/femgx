@@ -9,15 +9,15 @@ import {
   setBodyVisible,
   setElementBlockHighlighted,
   setElementBlockVisible,
-  type BodyId,
   type FemViewport,
   type InteractionTarget,
   type InstanceId,
   type InteractionState,
   type PartId,
   type Scene,
-  type SceneRuntime,
-} from "../../../src/index";
+} from "../../../src/entries/root";
+import type { BodyId } from "../../../src/entries/model";
+import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { SelectTarget } from "../selection/pick";
 import { elementBlockTarget, elementTarget } from "../selection/pick";
 

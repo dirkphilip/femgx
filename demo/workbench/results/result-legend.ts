@@ -1,4 +1,4 @@
-import type { Color } from "../../../src/index";
+import type { Color } from "../../../src/entries/root";
 import type { SectionAxis } from "../section-controls";
 
 export interface WorkbenchResultLegendField {

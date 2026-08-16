@@ -1,4 +1,4 @@
-import type { FemViewport } from "../../src/index";
+import type { FemViewport } from "../../src/entries/root";
 import type { WorkbenchModel } from "./models/model";
 import {
   clampSectionOffset,

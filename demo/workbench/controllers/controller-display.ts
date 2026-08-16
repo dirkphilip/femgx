@@ -1,5 +1,5 @@
 import { applyDisplayState, applyResultState } from "../state/display-state";
-import type { FemViewport } from "../../../src/index";
+import type { FemViewport } from "../../../src/entries/root";
 import type { WorkbenchModel } from "../models/model";
 import type { DisplayToggles, ResultDisplayMode } from "../types";
 import {
@@ -9,7 +9,7 @@ import {
 } from "../results/result-controls";
 import type { WorkbenchPresentation } from "../viewport/presentation";
 import type { WorkbenchViewportOwner } from "./controller-viewport";
-import type { InteractionState } from "../../../src/index";
+import type { InteractionState } from "../../../src/entries/root";
 import type { WorkbenchResultPlaybackActions } from "../results/result-playback";
 
 interface ControllerDisplayOwner extends WorkbenchViewportOwner {

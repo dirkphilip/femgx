@@ -1,4 +1,5 @@
-import { parseVtk, type GlbSceneImport, type Issue, type importGlb } from "../../../src/index";
+import { parseVtk, type Issue } from "../../../src/entries/io";
+import type { GlbSceneImport, importGlb } from "../../../src/entries/io-glb";
 import { createVtkScene } from "../../fixture/vtk-scene";
 import type { ImportedModelData } from "./model";
 

@@ -2,14 +2,14 @@ import {
   createResultField,
   type Bounds,
   type Color,
-  type ElementModel,
   type PartId,
   type Scene,
   type ScalarField,
   type ValueRange,
   type ViewportResultsConfig,
   type VectorField,
-} from "../../src/index";
+} from "../../src/entries/root";
+import type { ElementModel } from "../../src/entries/model";
 import { createBoltedPlateFixture } from "./bolted-plate";
 import { createElementFixture, createHex20CylinderFixture } from "./element-fixture";
 import { sceneBounds } from "../scene-bounds";
