@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
 import { HEX20_SHAPE } from "../../src/elements/shapes";
@@ -7,6 +7,7 @@ import { createPart } from "../../src/geometry/part";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
 import { readInteractionState } from "../../src/interaction/state";
 import { identity, scale } from "../../src/math/mat4";
+import { GpuRenderer } from "../../src/renderer/renderer-core";
 import { createResultField } from "../../src/results/fields";
 import { createScene } from "../../src/scene/scene";
 import { createFemViewport } from "../../src/viewport/fem-viewport";
@@ -617,6 +618,62 @@ describe("viewport results workflow", () => {
 
     viewport.clearResults();
     expect(viewport.interaction).toBe(next);
+    viewport.destroy();
+  });
+
+  it("keeps preserved elemental result colors out of host interaction", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const updateElements = vi.spyOn(GpuRenderer.prototype, "updateElements");
+    const fieldA = createResultField({
+      id: "stress-a",
+      name: "Stress A",
+      location: "elemental",
+      shape: "scalar",
+      count: 1,
+      unit: "MPa",
+      values: new Float32Array([2]),
+    });
+    const fieldB = createResultField({
+      id: "stress-b",
+      name: "Stress B",
+      location: "elemental",
+      shape: "scalar",
+      count: 1,
+      unit: "MPa",
+      values: new Float32Array([8]),
+    });
+    const config = (field: typeof fieldA) => ({
+      scalar: { field, range: { min: 0, max: 10 } },
+    });
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: createTestScene(),
+      device: fakeGpuDevice().device,
+      results: config(fieldA),
+    });
+    const hostInteraction = viewport.interaction;
+    const rendererInteraction = (): ReturnType<typeof readInteractionState> => {
+      const call = updateElements.mock.calls.at(-1);
+      if (call === undefined) throw new Error("renderer interaction was not updated");
+      return readInteractionState(call[1]);
+    };
+    const resultColor = (interaction: ReturnType<typeof readInteractionState>) =>
+      interaction.elementOverrides.get("1/0")?.get(0)?.color;
+    const colorA = resultColor(rendererInteraction());
+
+    expect(viewport.updateScene(createTestScene())).toEqual({ results: "preserved" });
+    expect(viewport.interaction).toBe(hostInteraction);
+    expect(readInteractionState(viewport.interaction).elementOverrides.size).toBe(0);
+
+    viewport.setResults(config(fieldB));
+    expect(viewport.interaction).toBe(hostInteraction);
+    const colorB = resultColor(rendererInteraction());
+    expect(colorB).not.toEqual(colorA);
+
+    viewport.clearResults();
+    expect(viewport.interaction).toBe(hostInteraction);
+    expect(resultColor(rendererInteraction())).toBeUndefined();
     viewport.destroy();
   });
 

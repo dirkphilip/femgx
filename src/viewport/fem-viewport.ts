@@ -54,7 +54,8 @@ interface PreparedSceneReplacement {
   readonly runtime: PackedSceneRuntime;
   readonly publicRuntime: SceneRuntime;
   readonly originTriadNominalScale: number;
-  readonly interaction: InteractionState;
+  readonly baseInteraction: InteractionState;
+  readonly effectiveInteraction: InteractionState;
   readonly results: ViewportResultsState | undefined;
   readonly outcome: SceneUpdateOutcome;
 }
@@ -563,7 +564,8 @@ class FemViewportCore implements FemViewport {
       runtime: nextRuntime,
       publicRuntime: nextPublicRuntime,
       originTriadNominalScale: nextOriginTriadNominalScale,
-      interaction: resultUpdate.interaction,
+      baseInteraction: nextInteraction,
+      effectiveInteraction: resultUpdate.interaction,
       results: resultUpdate.results,
       outcome: resultUpdate.outcome,
     };
@@ -581,8 +583,8 @@ class FemViewportCore implements FemViewport {
     this.currentPublicRuntime = replacement.publicRuntime;
     this.pendingVisibility.clear();
     this.currentResults = replacement.results;
-    this.baseInteraction = replacement.interaction;
-    this.effectiveInteraction = replacement.interaction;
+    this.baseInteraction = replacement.baseInteraction;
+    this.effectiveInteraction = replacement.effectiveInteraction;
     this.appliedInteraction = createInteractionState();
     applyResolvedViewportResults(this.renderer, replacement.results);
     this.invalidate();
