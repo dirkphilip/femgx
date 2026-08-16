@@ -30,7 +30,6 @@ const targets = [
   { kind: "part", partId: 1 },
   { kind: "instance", instanceId: "1/0" },
   { kind: "body", instanceId: "1/0", bodyId: 2 },
-  { kind: "block", instanceId: "1/0", blockId: 5 },
   { kind: "element", instanceId: "1/0", elementId: 3 },
   { kind: "face", instanceId: "1/0", elementId: 3, faceIndex: 0 },
   { kind: "node", instanceId: "1/0", nodeId: 4 },
@@ -60,7 +59,7 @@ describe("InteractionTarget helpers", () => {
 
   it("applies bulk highlights in input order and tolerates duplicates", () => {
     const first = targets[1];
-    const second = targets[3];
+    const second = targets[2];
     const state = setTargetsHighlighted(createInteractionState(), [second, first, second], true);
     expect(isTargetHighlighted(state, first)).toBe(true);
     expect(isTargetHighlighted(state, second)).toBe(true);
@@ -69,7 +68,7 @@ describe("InteractionTarget helpers", () => {
 
   it("clones each affected nested highlight collection once and preserves prior state", () => {
     const initial = createInteractionState();
-    const highlighted = setTargetsHighlighted(initial, [targets[2], targets[2], targets[4]], true);
+    const highlighted = setTargetsHighlighted(initial, [targets[2], targets[2], targets[3]], true);
     const initialData = readInteractionState(initial);
     const highlightedData = readInteractionState(highlighted);
     expect(highlightedData.highlightedBodyIds).not.toBe(initialData.highlightedBodyIds);
@@ -82,7 +81,7 @@ describe("InteractionTarget helpers", () => {
   });
 
   it("applies duplicate-safe bulk selection across every target kind", () => {
-    const duplicateTargets = [...targets, targets[2], targets[4]];
+    const duplicateTargets = [...targets, targets[2], targets[3]];
     const state = setTargetsSelected(createInteractionState(), duplicateTargets, true);
     for (const target of targets) expect(isTargetSelected(state, target)).toBe(true);
     expect(selectedTargetSummary(state)).toEqual({
@@ -100,7 +99,7 @@ describe("InteractionTarget helpers", () => {
 
   it("clones each affected nested selection collection once and preserves prior state", () => {
     const initial = createInteractionState();
-    const selected = setTargetsSelected(initial, [targets[2], targets[2], targets[4]], true);
+    const selected = setTargetsSelected(initial, [targets[2], targets[2], targets[3]], true);
     const initialData = readInteractionState(initial);
     const selectedData = readInteractionState(selected);
     expect(selectedData.selectedBodyIds).not.toBe(initialData.selectedBodyIds);

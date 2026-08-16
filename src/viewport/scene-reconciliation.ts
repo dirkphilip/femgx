@@ -78,10 +78,6 @@ type ReconciledOccurrenceState = Pick<
   | "highlightedBodyIds"
   | "bodyOverrides"
   | "hiddenBodyIds"
-  | "selectedBlockIds"
-  | "highlightedBlockIds"
-  | "hiddenBlockIds"
-  | "blockOverrides"
   | "selectedElementIds"
   | "highlightedElementIds"
   | "hiddenElementIds"
@@ -101,7 +97,6 @@ function reconcileOccurrenceState(
   keepInstance: (instanceId: InstanceId) => boolean,
 ): ReconciledOccurrenceState {
   const body = (owner: SceneIdentity, id: number): boolean => owner.semantic.bodies.has(id);
-  const block = (owner: SceneIdentity, id: number): boolean => owner.semantic.blocks.has(id);
   const element = (owner: SceneIdentity, id: number): boolean => owner.semantic.elements.has(id);
   const node = (owner: SceneIdentity, id: number): boolean =>
     id >= 0 && id < owner.semantic.nodeCount;
@@ -118,10 +113,6 @@ function reconcileOccurrenceState(
     highlightedBodyIds: filterNested(data.highlightedBodyIds, identityFor, body),
     bodyOverrides: filterNestedMaps(data.bodyOverrides, identityFor, body),
     hiddenBodyIds: filterNested(data.hiddenBodyIds, identityFor, body),
-    selectedBlockIds: filterNested(data.selectedBlockIds, identityFor, block),
-    highlightedBlockIds: filterNested(data.highlightedBlockIds, identityFor, block),
-    hiddenBlockIds: filterNested(data.hiddenBlockIds, identityFor, block),
-    blockOverrides: filterNestedMaps(data.blockOverrides, identityFor, block),
     selectedElementIds: filterNested(data.selectedElementIds, identityFor, element),
     highlightedElementIds: filterNested(data.highlightedElementIds, identityFor, element),
     hiddenElementIds: filterNested(data.hiddenElementIds, identityFor, element),
@@ -147,8 +138,6 @@ function targetInScene(
   if (owner === undefined) return undefined;
   if (target.kind === "instance") return target;
   if (target.kind === "body") return owner.semantic.bodies.has(target.bodyId) ? target : undefined;
-  if (target.kind === "block")
-    return owner.semantic.blocks.has(target.blockId) ? target : undefined;
   if (target.kind === "element") {
     return owner.semantic.elements.has(target.elementId) ? target : undefined;
   }
@@ -256,10 +245,6 @@ function sameInteractionData(left: InteractionStateData, right: InteractionState
     left.highlightedBodyIds === right.highlightedBodyIds &&
     left.bodyOverrides === right.bodyOverrides &&
     left.hiddenBodyIds === right.hiddenBodyIds &&
-    left.selectedBlockIds === right.selectedBlockIds &&
-    left.highlightedBlockIds === right.highlightedBlockIds &&
-    left.hiddenBlockIds === right.hiddenBlockIds &&
-    left.blockOverrides === right.blockOverrides &&
     left.selectedElementIds === right.selectedElementIds &&
     left.highlightedElementIds === right.highlightedElementIds &&
     left.hiddenElementIds === right.hiddenElementIds &&

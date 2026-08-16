@@ -4,7 +4,6 @@ import {
   type ElementTessellation,
   type Geometry,
   type GeometryBody,
-  type GeometryElementBlock,
   type Part,
 } from "../../../src/geometry/part";
 import {
@@ -14,7 +13,6 @@ import {
   setElementSelected,
 } from "../../../src/interaction/interaction";
 import { setBodyOverride, setBodyVisible } from "../../../src/interaction/bodies";
-import { setElementBlockSelected, setElementBlockVisible } from "../../../src/interaction/blocks";
 import { setFaceSelected } from "../../../src/interaction/faces";
 import { setEdgeSelected } from "../../../src/interaction/edges";
 import { setNodeSelected } from "../../../src/interaction/nodes";
@@ -50,11 +48,7 @@ import {
   buildNodeSpritePickIds,
   buildPrimitiveFaceBodyPickData,
 } from "../../../src/renderer/picking/ids";
-import {
-  BLOCK_HIGHLIGHT_MARKER,
-  HIGHLIGHT_BUCKET_SIZE,
-  highlightHash,
-} from "../../../src/renderer/selection/highlight-table";
+import { HIGHLIGHT_BUCKET_SIZE } from "../../../src/renderer/selection/highlight-table";
 import {
   createDrawResources,
   encodeInstanceRecord,
@@ -69,17 +63,15 @@ import { createBoltedPlateFixture } from "../../../demo/fixtures/bolted-plate";
 type SemanticTestGeometry = Geometry & {
   readonly elements?: readonly ElementTessellation[];
   readonly bodies?: readonly GeometryBody[];
-  readonly blocks?: readonly GeometryElementBlock[];
   readonly nodePositions?: Float32Array;
 };
 
 function partFor(geometry: SemanticTestGeometry): Part {
-  const { elements, bodies, blocks, nodePositions, ...localGeometry } = geometry;
+  const { elements, bodies, nodePositions, ...localGeometry } = geometry;
   return createPart(1, {
     geometries: [localGeometry],
     ...(elements === undefined ? {} : { elements }),
     ...(bodies === undefined ? {} : { bodies }),
-    ...(blocks === undefined ? {} : { blocks }),
     ...(nodePositions === undefined ? {} : { nodePositions }),
   });
 }
@@ -294,9 +286,9 @@ describe("buildPrimitiveFaceBodyPickData", () => {
         },
       ],
     };
-    expect(
-      Array.from(buildPrimitiveFaceBodyPickData(geometry, geometry.elements, geometry.blocks)),
-    ).toEqual([1, 8, 0, 5, 0, 1, 8, 0, 5, 0]);
+    expect(Array.from(buildPrimitiveFaceBodyPickData(geometry, geometry.elements))).toEqual([
+      1, 8, 0, 5, 0, 1, 8, 0, 5, 0,
+    ]);
   });
 });
 
@@ -568,35 +560,17 @@ describe("encodeEmphasisRecord", () => {
     expect(bodyIds[9]).toBe(1);
     expect(bodyIds[10]).toBe(1);
 
-    const blockIds = new Uint32Array(
-      encodeEmphasisRecord({
-        slot: 2,
-        elementPickId: 0,
-        facePickId: 0,
-        nodePickId: 0,
-        blockPickId: 11,
-        hidden: true,
-        selected: true,
-        style,
-      }),
-    );
-    expect(Array.from(blockIds.slice(0, 4))).toEqual([2, 11, BLOCK_HIGHLIGHT_MARKER, 0]);
-    expect(blockIds[9]).toBe(1);
-    expect(blockIds[10]).toBe(1);
-    expect(blockIds[11]).toBe(11);
-
     const preservedIds = new Uint32Array(
       encodeEmphasisRecord({
         slot: 2,
-        elementPickId: 0,
+        elementPickId: 11,
         facePickId: 0,
         nodePickId: 0,
-        blockPickId: 11,
         preservesDisplayedColor: true,
         style,
       }),
     );
-    expect(preservedIds[11]).toBe(0x8000000b);
+    expect(preservedIds[11]).toBe(1);
   });
 });
 
@@ -699,38 +673,6 @@ describe("writeElementHighlights", () => {
       expect(
         gpu.writes.slice(afterFirst).map((write) => [write.offset, write.bytes.byteLength]),
       ).toEqual([[HIGHLIGHT_HEADER, ELEMENT_RECORD_STRIDE]]);
-    } finally {
-      restore();
-    }
-  });
-
-  it("places block records under the key consumed by WGSL", () => {
-    const restore = installGpuGlobals();
-    try {
-      const gpu = fakeGpuDevice();
-      const storage = makeStorage(gpu);
-      writeElementHighlights(gpu.device, storage, [
-        {
-          slot: 1,
-          elementPickId: 0,
-          facePickId: 0,
-          nodePickId: 0,
-          blockPickId: 11,
-          style,
-        },
-      ]);
-      const table = new Uint32Array(storage.highlight.data.buffer);
-      const bucketCount = table[1] ?? 0;
-      const seed = table[2] ?? 0;
-      const bucket = highlightHash(1, 11, BLOCK_HIGHLIGHT_MARKER, 0, seed) & (bucketCount - 1);
-      const record = HIGHLIGHT_HEADER / 4 + bucket * HIGHLIGHT_BUCKET_SIZE * 12;
-      expect(Array.from(table.slice(record, record + 4))).toEqual([
-        1,
-        11,
-        BLOCK_HIGHLIGHT_MARKER,
-        0,
-      ]);
-      expect(table[record + 11]).toBe(11);
     } finally {
       restore();
     }
@@ -1104,7 +1046,7 @@ describe("collectEmphasisUpdates", () => {
     expect(collectDenseElementSelections(runtime, layout, parts, hovered)).toBe(denseSelections);
   });
 
-  it("caches sparse element, body, block, and face ownership by part identity", () => {
+  it("caches sparse element, body, and face ownership by part identity", () => {
     const geometry: SemanticTestGeometry = {
       positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
       indices: new Uint32Array([0, 1, 2]),
@@ -1114,11 +1056,9 @@ describe("collectEmphasisUpdates", () => {
           id: 100_000,
           primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
           bodyId: 7,
-          blockId: 11,
         },
       ],
       bodies: [{ id: 7, elementIds: [100_000] }],
-      blocks: [{ id: 11, elementIds: [100_000] }],
       faces: [
         {
           elementId: 100_000,
@@ -1128,7 +1068,6 @@ describe("collectEmphasisUpdates", () => {
           key: "sparse",
           nodeIds: [],
           bodyId: 7,
-          blockId: 11,
         },
       ],
     };
@@ -1137,10 +1076,7 @@ describe("collectEmphasisUpdates", () => {
     expect(getPartSemanticIndex(part)).toBe(metadata);
     expect(metadata.elements.get(100_000)).toBe(geometry.elements?.[0]);
     expect(metadata.bodies.get(7)).toBe(geometry.bodies?.[0]);
-    expect(metadata.blocks.get(11)).toBe(geometry.blocks?.[0]);
     expect(metadata.bodyByElement.get(100_000)).toBe(7);
-    expect(metadata.blockByElement.get(100_000)).toBe(11);
-    expect(metadata.bodyByBlock.get(11)).toBe(7);
     expect(metadata.faces.get("100000/0")?.faceId).toBe(0);
 
     const replacement = partFor({
@@ -1395,93 +1331,5 @@ describe("syncElementHighlights", () => {
     } finally {
       restore();
     }
-  });
-});
-
-function blockScene(): { readonly scene: Scene; readonly runtime: SceneRuntime } {
-  const part = createPart(3, {
-    geometries: [
-      {
-        positions: new Float32Array(18),
-        indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
-        primitive: "triangles" as const,
-        faces: [
-          {
-            elementId: 4,
-            faceIndex: 0,
-            primitiveStart: 0,
-            primitiveCount: 1,
-            key: "a",
-            nodeIds: [],
-            bodyId: 7,
-            blockId: 10,
-          },
-          {
-            elementId: 5,
-            faceIndex: 0,
-            primitiveStart: 1,
-            primitiveCount: 1,
-            key: "b",
-            nodeIds: [],
-            bodyId: 7,
-            blockId: 11,
-          },
-        ],
-      },
-    ],
-    elements: [
-      {
-        id: 4,
-        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
-        bodyId: 7,
-        blockId: 10,
-      },
-      {
-        id: 5,
-        primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
-        bodyId: 7,
-        blockId: 11,
-      },
-    ],
-    bodies: [{ id: 7, elementIds: [4, 5] }],
-    blocks: [
-      { id: 10, elementIds: [4] },
-      { id: 11, elementIds: [5] },
-    ],
-  });
-  const scene = createScene()
-    .addPart(part)
-    .addAssembly({
-      id: 1,
-      name: "blocks",
-      placements: [{ kind: "part", partId: 3, transform: translation(0, 0, 0) }],
-    })
-    .withRoot(1)
-    .build();
-  return { scene, runtime: createPackedSceneRuntime(scene) };
-}
-
-describe("element block emphasis", () => {
-  it("maps block visibility and selection to one bounded occurrence record", () => {
-    const { scene, runtime } = blockScene();
-    const layout = buildInstanceLayout(runtime);
-    const instanceId = runtime.getInstanceId(0);
-    if (instanceId === undefined) throw new Error("expected a block instance");
-    let interaction = setElementBlockVisible(
-      createInteractionState(),
-      {
-        instanceId,
-        blockId: 10,
-      },
-      false,
-    );
-    interaction = setElementBlockSelected(interaction, { instanceId, blockId: 10 }, true);
-    const updates = collectEmphasisUpdates(runtime, layout, new Map([[instanceId, 0]]), {
-      parts: partsMap(scene),
-      interaction,
-    });
-    expect(updates.get(3)).toMatchObject([
-      { slot: 0, blockPickId: 11, hidden: true, selected: true },
-    ]);
   });
 });

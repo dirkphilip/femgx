@@ -1,7 +1,6 @@
 import {
   boxSelectionFrustum,
   isBodyVisible,
-  isElementBlockVisible,
   isElementVisible,
   transformPoint,
   type BoxSelectionFrustum,
@@ -39,7 +38,6 @@ const FRUSTUM_PLANES: readonly (keyof BoxSelectionFrustum)[] = [
 interface PartQueryData {
   readonly elements: readonly ElementTessellation[];
   readonly geometryByPrimitive: ReadonlyMap<Primitive, Geometry>;
-  readonly blockByElement: ReadonlyMap<number, number>;
 }
 
 const queryDataByPart = new WeakMap<Part, PartQueryData>();
@@ -76,13 +74,6 @@ export function throughIntersectionBoxSelectionResolver(
       const partQuery = queryData(part);
       for (const element of partQuery.elements) {
         if (!isElementVisible(view.interaction, { instanceId, elementId: element.id })) continue;
-        const blockId = element.blockId ?? partQuery.blockByElement.get(element.id);
-        if (
-          blockId !== undefined &&
-          !isElementBlockVisible(view.interaction, { instanceId, blockId })
-        ) {
-          continue;
-        }
         if (
           element.bodyId !== undefined &&
           !isBodyVisible(view.interaction, { instanceId, bodyId: element.bodyId })
@@ -115,9 +106,6 @@ function queryData(part: Part): PartQueryData {
   const data = {
     elements: [...(part.elements ?? [])].sort((left, right) => left.id - right.id),
     geometryByPrimitive: new Map(part.geometries.map((geometry) => [geometry.primitive, geometry])),
-    blockByElement: new Map(
-      part.blocks?.flatMap((block) => block.elementIds.map((id) => [id, block.id] as const)),
-    ),
   };
   queryDataByPart.set(part, data);
   return data;

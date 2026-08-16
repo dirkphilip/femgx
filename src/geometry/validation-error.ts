@@ -1,11 +1,5 @@
 /** Machine-readable geometry validation failure. */
 export type GeometryValidationCode =
-  | "invalid-block-id"
-  | "duplicate-block-id"
-  | "block-order"
-  | "empty-block"
-  | "unknown-block-element"
-  | "duplicate-block-membership"
   | "invalid-body-id"
   | "duplicate-body-id"
   | "body-order"

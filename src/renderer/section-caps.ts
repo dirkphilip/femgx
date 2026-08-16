@@ -2,7 +2,6 @@ import type { DeformationState } from "../results/deform";
 import type { InteractionState } from "../interaction/interaction";
 import { resolveElementStyle } from "../interaction/interaction";
 import { isBodyVisible } from "../interaction/bodies";
-import { isElementBlockVisible } from "../interaction/blocks";
 import { isElementVisible } from "../interaction/elements";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import { instanceAt } from "./runtime-state";
@@ -81,10 +80,13 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
         if (cap === undefined) continue;
         const capId = nextCapId(usedIds, ordinal);
         ordinal += 1;
-        const style = resolveElementStyle(instance, element.id, defaultStyle, options.interaction, {
-          bodyId: metadata.bodyByElement.get(element.id),
-          blockId: metadata.blockByElement.get(element.id),
-        });
+        const style = resolveElementStyle(
+          instance,
+          element.id,
+          defaultStyle,
+          options.interaction,
+          metadata.bodyByElement.get(element.id),
+        );
         const capPart = makeCapPart(capId, cap, element, sourcePositions.length / 3);
         capParts.set(capId, capPart);
         const call = { partId: capId, instanceCount: 1 } satisfies DrawCall;
@@ -124,8 +126,7 @@ function capElementVisible(
   if (!isElementVisible(interaction, { instanceId, elementId: element.id })) return false;
   const bodyId = metadata.bodyByElement.get(element.id);
   if (bodyId !== undefined && !isBodyVisible(interaction, { instanceId, bodyId })) return false;
-  const blockId = metadata.blockByElement.get(element.id);
-  return blockId === undefined || isElementBlockVisible(interaction, { instanceId, blockId });
+  return true;
 }
 
 function makeCapPart(

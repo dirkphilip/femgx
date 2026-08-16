@@ -54,24 +54,6 @@ const bodyAndElementHighlighting = /* wgsl */ `
       }
     }
   }
-  if (blockPickId != 0u && elementHighlights.bucketCount != 0u) {
-    let bucket = highlightHash(drawOrder[instanceIndex], blockPickId, 0xfffffffeu, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
-    let base = bucket * 4u;
-    for (var offset = 0u; offset < 4u; offset++) {
-      let highlight = elementHighlightAt(base + offset);
-      if (highlight.slot == drawOrder[instanceIndex] && highlight.blockPickId == blockPickId && highlight.elementPickId == blockPickId && highlight.facePickId == 0xfffffffeu) {
-        if (!highlight.preservesDisplayedColor) { color = highlight.color; }
-        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u || highlight.preservesDisplayedColor;
-        if (highlight.selected == 0u && !highlight.preservesDisplayedColor) { resultColorEnabled = false; }
-        emissive = highlight.emissive;
-        hidden = hidden || highlight.hidden != 0u;
-        matched = true;
-        selected = selected || highlight.selected != 0u;
-        exactSelection = exactSelection || highlight.selected != 0u;
-        break;
-      }
-    }
-  }
   if (elementOrdinal != 0u && denseElementSelected(drawOrder[instanceIndex], elementOrdinal)) {
     color = applyDenseSelectionColor(color);
     emissive = applyDenseSelectionEmissive(emissive);
@@ -102,7 +84,6 @@ const bodyAndElementHighlighting = /* wgsl */ `
 const instanceHighlighting = /* wgsl */ `
   let facePickId = faceBodyPickIds.x;
   let bodyPickId = faceBodyPickIds.y;
-  let blockPickId = primitiveFaceBlockPickIds(primitiveDrawId(vertexIndex)).x;
   let nodePickId = vertexNodePickIds[vertexIndex];
   let baseResultColor = resultColorForNode(nodePickId, instance.color);
   var color = baseResultColor;
@@ -292,7 +273,6 @@ fn pointVertex(
   let elementPickId = primitiveElementId(vertexIndex / 4u);
   let elementOrdinal = primitiveElementOrdinal(vertexIndex / 4u);
   let bodyPickId = primitiveFaceBodyPickIds(vertexIndex / 4u).y;
-  let blockPickId = primitiveFaceBlockPickIds(vertexIndex / 4u).x;
   let nodePickId = vertexNodePickIds[vertexIndex];
   var output: VertexOutput;
   output.position = vec4<f32>(

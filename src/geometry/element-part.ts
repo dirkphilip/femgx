@@ -13,7 +13,6 @@ import {
 import type { PartId } from "./part";
 import {
   bodiesForElements,
-  blocksForElements,
   lineGeometry,
   pointGeometry,
   volumeGeometry,
@@ -38,7 +37,7 @@ interface ElementGroups {
  * Builds one semantic part from a heterogeneous element model.
  *
  * Geometry remains homogeneous inside each renderer leaf, while one shared
- * element table retains authored ids, shapes, bodies, blocks, and node-pick
+ * element table retains authored ids, shapes, bodies, and node-pick
  * mappings at part level. This is the bridge between FE authoring and the
  * canonical {@link root.Scene} workflow: compile once, then place the resulting
  * definition through assemblies without copying geometry per occurrence.
@@ -84,27 +83,20 @@ export function elementPart(
         elements: groups.triangle,
         faceSubset: options.faceSubset,
         assignedBodies: membership.bodyByElement,
-        assignedBlocks: membership.blockByElement,
       }),
     );
   }
   if (groups.line.length > 0) {
-    builds.push(
-      lineGeometry(model, groups.line, membership.bodyByElement, membership.blockByElement),
-    );
+    builds.push(lineGeometry(model, groups.line, membership.bodyByElement));
   }
   if (groups.point.length > 0) {
-    builds.push(
-      pointGeometry(model, groups.point, membership.bodyByElement, membership.blockByElement),
-    );
+    builds.push(pointGeometry(model, groups.point, membership.bodyByElement));
   }
-  const blocks = blocksForElements(model, model.elements);
   return createPart(partId, {
     geometries: builds.map(({ geometry }) => geometry),
     elements: mergeElements(builds.flatMap(({ elements }) => elements)),
     nodePositions: new Float32Array(model.nodes),
     bodies: bodiesForElements(model, model.elements, membership.bodyByElement) ?? [],
-    ...(blocks === undefined ? {} : { blocks }),
   });
 }
 
@@ -119,8 +111,7 @@ function mergeElements(elements: readonly ElementTessellation[]): readonly Eleme
     if (
       previous.shape?.family !== element.shape?.family ||
       previous.shape?.order !== element.shape?.order ||
-      previous.bodyId !== element.bodyId ||
-      previous.blockId !== element.blockId
+      previous.bodyId !== element.bodyId
     ) {
       throw new Error(`Element ${element.id} has inconsistent semantic metadata across groups`);
     }

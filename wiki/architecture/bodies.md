@@ -38,11 +38,10 @@ model-scaled membership map, body interaction storage, GPU ownership field,
 draw, shader read, or per-frame body work. A fixed empty sentinel used to keep a
 shared binding layout valid is acceptable.
 
-Semantic element blocks are removed from the product. They are not a body
-storage format, a streamed-surface unit, or a compatibility concept. The
-implementation follow-up deletes block authoring, editing, validation,
-interaction targets, hierarchy rows, pick identities, topology fields, and GPU
-state rather than retaining deprecated aliases. Bodies own elements directly.
+Semantic element blocks are absent from the product. They are not a body
+storage format, a streamed-surface unit, or a compatibility concept. Bodies own
+elements directly; transfer and upload chunks remain private implementation
+details rather than semantic identities.
 
 Body visibility and styling build on the derived metadata in
 [[rendering/interactive-state|Interactive state]]. Face subsets and polygon

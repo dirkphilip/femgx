@@ -24,7 +24,6 @@ function reusableScene() {
             key: "0/1/2",
             nodeIds: [0, 1, 2],
             bodyId: 7,
-            blockId: 11,
           },
         ],
         edges: [
@@ -43,12 +42,10 @@ function reusableScene() {
         id: 10,
         primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
         bodyId: 7,
-        blockId: 11,
       },
     ],
     nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     bodies: [{ id: 7, elementIds: [10] }],
-    blocks: [{ id: 11, elementIds: [10] }],
   });
   const scene = createScene()
     .addPart(part)
@@ -75,10 +72,6 @@ describe("reconcileInteractionState", () => {
       selectedBodyIds: new Map([
         [first, new Set([7])],
         [second, new Set([7])],
-      ]),
-      selectedBlockIds: new Map([
-        [first, new Set([11])],
-        [second, new Set([11])],
       ]),
       selectedElementIds: new Map([
         [first, new Set([10])],

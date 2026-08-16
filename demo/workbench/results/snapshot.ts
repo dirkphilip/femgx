@@ -24,7 +24,6 @@ export { createWorkbenchSnapshot } from "./snapshot-builder";
 export type WorkbenchMenuAction =
   | "highlight"
   | "select"
-  | "select-block"
   | "select-element"
   | "hide-element"
   | "hide-instance"
@@ -264,7 +263,6 @@ export interface WorkbenchCommands {
   toggleVisibility(target: VisibilityRowTarget): void;
   toggleVisibilityTree(occurrenceId: string): void;
   toggleBodyHighlight(target: Extract<VisibilityRowTarget, { kind: "body" }>): void;
-  toggleBlockHighlight(target: Extract<VisibilityRowTarget, { kind: "block" }>): void;
   openElementDetail(target: Extract<VisibilityRowTarget, { kind: "body" }>): void;
   closeElementDetail(): void;
   selectElementDetail(detail: WorkbenchElementDetailSnapshot, elementId: ElementId): void;

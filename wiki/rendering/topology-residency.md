@@ -40,7 +40,7 @@ Instances of one part definition always share identical resident geometry:
   variant or to distinct variants.
 
 Different surfaces necessarily require distinct logical geometry definitions.
-Semantic element blocks do not avoid that cost and are removed. A server or
+Semantic element blocks do not exist and cannot avoid that cost. A server or
 renderer may transfer and retain content-addressed immutable chunks so variants
 share unchanged bytes, but chunks are private storage: they have no scene,
 selection, visibility, style, result, or picking identity.
@@ -62,7 +62,7 @@ A future internal compact-skin strategy may group occurrences of the same part
 by immutable body/element visibility signature and share one draw order per
 signature. It must remain observationally equivalent to full residency and use
 the same stable identities for color, transparency, selection, picking, nodes,
-and edges. It is not a public block hierarchy or renderer mode.
+and edges. It is not a public hierarchy or renderer mode.
 
 ## Optional bodies and interaction resources
 
@@ -113,7 +113,7 @@ target.
 - femgx consumes host updates; it does not initiate server visibility requests.
 - One part definition has identical geometry for all of its occurrences.
 - Geometry variants share by content where possible and remain budgeted.
-- Private chunks never become public semantic blocks.
+- Private chunks never become public semantic identities.
 - Omitted bodies and inactive fine interaction add no model-scaled memory or
   steady-frame work.
 - Fast and feature paths preserve exact visible, picking, and interaction
@@ -125,8 +125,8 @@ target.
    high-performance presentation path without conflating them.
 2. **Minimum:** three host residency contracts, host-driven replacement, direct
    body membership, and renderer-owned lazy resource admission.
-3. **Deletion/simplification:** remove semantic blocks and duplicate request
-   logic; keep transfer chunks private.
+3. **Deletion/simplification:** keep transfer chunks private and avoid
+   duplicate request logic or a second semantic grouping layer.
 4. **Out of scope:** femgx-owned transport, server requests, topology inference,
    progressive refinement, public cache controls, and arbitrary capability
    flag combinations.

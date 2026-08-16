@@ -62,8 +62,6 @@ function recordIdentity(
       return recordNumber(seen.instanceIds, instancePickId);
     case "body":
       return recordNestedNumber(seen.ownerIds, instancePickId, target.bodyId);
-    case "block":
-      return recordNestedNumber(seen.ownerIds, instancePickId, target.blockId);
     case "element":
       return recordNestedNumber(seen.ownerIds, instancePickId, target.elementId);
     case "node":
@@ -126,8 +124,6 @@ function targetOrder(
       return [instancePickId, 0, 0];
     case "body":
       return [instancePickId, target.bodyId, 0];
-    case "block":
-      return [instancePickId, target.blockId, 0];
     case "element":
       return [instancePickId, target.elementId, 0];
     case "node":

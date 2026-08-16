@@ -17,7 +17,6 @@ import {
   setInstanceSelected,
   setPartSelected,
 } from "../../../src/interaction/interaction";
-import { setElementBlockSelected } from "../../../src/interaction/blocks";
 import { setFaceSelected } from "../../../src/interaction/faces";
 import { setNodeSelected } from "../../../src/interaction/nodes";
 import { setTargetsSelected } from "../../../src/interaction/targets";
@@ -294,36 +293,17 @@ describe("renderer runtime state", () => {
       }),
     ).toBeUndefined();
 
-    const block = { instanceId: "1/0", blockId: 7 };
-    const selectedBlock = setElementBlockSelected(createInteractionState(), block, true);
-    const blockOrder = buildSelectionOrder(layout, runtime, rangedSelectionPart.id, selectedBlock);
-    expect(blockOrder).toEqual(new Uint32Array([0]));
-    expect(
-      buildSelectionDrawCalls({
-        layout,
-        runtime,
-        partId: rangedSelectionPart.id,
-        interaction: selectedBlock,
-        part: rangedSelectionPart,
-        order: blockOrder,
-      }),
-    ).toBeUndefined();
-
-    const clearedBlock = setElementBlockSelected(selectedBlock, block, false);
-    expect(buildSelectionOrder(layout, runtime, rangedSelectionPart.id, clearedBlock)).toEqual(
-      new Uint32Array(),
-    );
     runtime.setInstanceVisible(0, false);
-    expect(buildSelectionOrder(layout, runtime, rangedSelectionPart.id, selectedBlock)).toEqual(
+    expect(buildSelectionOrder(layout, runtime, rangedSelectionPart.id, selectedInstance)).toEqual(
       new Uint32Array(),
     );
     runtime.setInstanceVisible(0, true);
-    const staleBlock = setElementBlockSelected(
+    const staleElement = setElementSelected(
       createInteractionState(),
-      { instanceId: "1/9", blockId: 7 },
+      { instanceId: "1/9", elementId: 7 },
       true,
     );
-    expect(buildSelectionOrder(layout, runtime, rangedSelectionPart.id, staleBlock)).toEqual(
+    expect(buildSelectionOrder(layout, runtime, rangedSelectionPart.id, staleElement)).toEqual(
       new Uint32Array(),
     );
   });

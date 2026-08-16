@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createInteractionState, setElementBlockVisible } from "../../src/entries/root";
+import { createInteractionState } from "../../src/entries/root";
 import { contextMenuSelectionOptions, WorkbenchMenu } from "../../demo/workbench/interaction/menu";
 
 describe("workbench context-menu state", () => {
@@ -69,13 +69,13 @@ describe("workbench context-menu state", () => {
     );
   });
 
-  it("offers authored block selection and visibility actions", () => {
-    const target = { kind: "block" as const, instanceId: "1/0", blockId: 2 };
-    const interaction = setElementBlockVisible(createInteractionState(), target, false);
+  it("offers exact element selection and visibility actions", () => {
+    const target = { kind: "element" as const, instanceId: "1/0", elementId: 2 };
+    const interaction = createInteractionState();
     const options = contextMenuSelectionOptions(target, interaction);
     expect(options).toMatchObject({
-      selectionLabel: "Select block",
-      blockVisibilityLabel: "Show block",
+      elementSelectionLabel: "Select element",
+      elementVisibilityLabel: "Hide element",
     });
 
     const menu = new WorkbenchMenu(
@@ -88,8 +88,8 @@ describe("workbench context-menu state", () => {
     menu.show(target, 0, 0, options);
     expect(menu.snapshot.entries).toEqual(
       expect.arrayContaining([
-        { kind: "button", label: "Select block", action: "select" },
-        { kind: "button", label: "Show block", action: "hide-element" },
+        { kind: "button", label: "Select element", action: "select-element" },
+        { kind: "button", label: "Hide element", action: "hide-element" },
       ]),
     );
   });

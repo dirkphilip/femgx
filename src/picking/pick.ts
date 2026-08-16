@@ -210,7 +210,7 @@ function faceHit(
     partId: instance.partId,
     instanceId: instance.instanceId,
     elementId: face.elementId,
-    ...bodyFields(part, face.elementId, face.bodyId, face.blockId),
+    ...bodyFields(part, face.elementId, face.bodyId),
     faceIndex: face.faceIndex,
     key: face.key,
     nodeIds: face.nodeIds,
@@ -224,19 +224,10 @@ function bodyFields(
   source: Part | undefined,
   elementId: number,
   explicitBodyId?: number,
-  explicitBlockId?: number,
-): { readonly bodyId?: number; readonly blockId?: number } {
-  const element = source?.elements?.find((candidate) => candidate.id === elementId);
+): { readonly bodyId?: number } {
   const bodyId =
     explicitBodyId ?? (source === undefined ? undefined : bodyIdForElement(source, elementId));
-  const blockId =
-    explicitBlockId ??
-    element?.blockId ??
-    source?.blocks?.find((block) => block.elementIds.includes(elementId))?.id;
-  return {
-    ...(bodyId === undefined ? {} : { bodyId }),
-    ...(blockId === undefined ? {} : { blockId }),
-  };
+  return bodyId === undefined ? {} : { bodyId };
 }
 
 /**

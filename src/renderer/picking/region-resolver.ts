@@ -17,9 +17,7 @@ export function createPickRegionTargetResolver(
     const part = context.parts.get(instance.partId);
     if (part === undefined) return undefined;
     const metadata =
-      granularity === "body" || granularity === "block" || granularity === "element"
-        ? getPartSemanticIndex(part)
-        : undefined;
+      granularity === "body" || granularity === "element" ? getPartSemanticIndex(part) : undefined;
     return targetForGranularity(instance.instanceId, ids, granularity, part, metadata);
   };
 }
@@ -36,11 +34,6 @@ function targetForGranularity(
       const elementId = zeroBasedPickId(ids.elementPickId);
       const bodyId = elementId === undefined ? undefined : metadata?.bodyByElement.get(elementId);
       return bodyId === undefined ? undefined : { kind: "body", instanceId, bodyId };
-    }
-    case "block": {
-      const elementId = zeroBasedPickId(ids.elementPickId);
-      const blockId = elementId === undefined ? undefined : metadata?.blockByElement.get(elementId);
-      return blockId === undefined ? undefined : { kind: "block", instanceId, blockId };
     }
     case "element": {
       const elementId = zeroBasedPickId(ids.elementPickId);

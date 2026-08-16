@@ -2,7 +2,6 @@ import {
   createInteractionState,
   createPart,
   identity,
-  setElementBlockVisible,
   setElementVisible,
   type FemViewport,
   type ElementTessellation,
@@ -54,24 +53,6 @@ describe("through box selection", () => {
 
     await expect(resolver(request("element"))).resolves.toEqual([
       { kind: "element", instanceId, elementId: 3 },
-      { kind: "element", instanceId, elementId: 4 },
-    ]);
-  });
-
-  it("respects block membership declared outside element records", async () => {
-    const { scene, runtime } = fixture(true);
-    const instanceId = runtime.getVisibleInstanceIds()[0] as string;
-    const interaction = setElementBlockVisible(
-      createInteractionState(),
-      { instanceId, blockId: 1 },
-      false,
-    );
-    const resolver = throughIntersectionBoxSelectionResolver(() =>
-      viewport(scene, runtime, interaction),
-    );
-
-    await expect(resolver(request("element"))).resolves.toEqual([
-      { kind: "element", instanceId, elementId: 1 },
       { kind: "element", instanceId, elementId: 4 },
     ]);
   });
@@ -177,7 +158,7 @@ function viewport(
   } as unknown as FemViewport;
 }
 
-function fixture(derivedVisibility = false): {
+function fixture(): {
   readonly scene: Scene;
   readonly runtime: ReturnType<typeof createSceneRuntime>;
   readonly interaction: InteractionState;
@@ -205,7 +186,6 @@ function fixture(derivedVisibility = false): {
     geometries: [triangle.geometry, line.geometry, point.geometry],
     elements: [...elements.values()],
     nodePositions: point.nodePositions,
-    ...(derivedVisibility ? { blocks: [{ id: 1, elementIds: [3] }] } : {}),
   });
   const scene = sceneFor(part);
   return { scene, runtime: createSceneRuntime(scene), interaction: createInteractionState() };

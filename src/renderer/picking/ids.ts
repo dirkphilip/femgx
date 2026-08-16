@@ -3,7 +3,6 @@ import {
   primitiveRangesForElement,
   type ElementTessellation,
   type Geometry,
-  type GeometryElementBlock,
   type Part,
 } from "../../geometry/part";
 
@@ -79,19 +78,17 @@ export function buildFacePrimitivePickIds(geometry: Geometry): Uint32Array {
   return pickIds;
 }
 
-export type TriangleOwnerPair = readonly [number, number, number, number, number, number];
+export type TriangleOwnerPair = readonly [number, number, number, number];
 
-/** Builds body, element, and block owner/neighbor ids for each source triangle. */
+/** Builds body and element owner/neighbor ids for each source triangle. */
 export function buildTriangleOwnerPairs(
   geometry: Geometry,
   elements: readonly ElementTessellation[] = [],
-  blocks: readonly GeometryElementBlock[] = [],
   facePickIds = buildFacePrimitivePickIds(geometry),
 ): TriangleOwnerPair[] {
   const bodyPickIds = buildBodyPrimitivePickIds(geometry, elements);
   const elementPickIds = buildElementPrimitivePickIds(geometry, elements);
   const bodyByElement = new Map(elements.map((element) => [element.id, element.bodyId] as const));
-  const blockByElement = blockIdsByElement({ elements, blocks });
   return Array.from(facePickIds, (facePickId, triangle): TriangleOwnerPair => {
     const owner = bodyPickIds[triangle] ?? 0;
     const element = elementPickIds[triangle] ?? 0;
@@ -101,17 +98,7 @@ export function buildTriangleOwnerPairs(
       neighborElementId === undefined ? undefined : bodyByElement.get(neighborElementId);
     const neighborPickId = neighborBody === undefined ? 0 : neighborBody + 1;
     const neighborElementPickId = neighborElementId === undefined ? 0 : neighborElementId + 1;
-    const block = blockByElement.get(element - 1);
-    const neighborBlock =
-      neighborElementId === undefined ? undefined : blockByElement.get(neighborElementId);
-    return [
-      owner,
-      neighborPickId === owner ? 0 : neighborPickId,
-      element,
-      neighborElementPickId,
-      block === undefined ? 0 : block + 1,
-      neighborBlock === undefined || neighborBlock === block ? 0 : neighborBlock + 1,
-    ];
+    return [owner, neighborPickId === owner ? 0 : neighborPickId, element, neighborElementPickId];
   });
 }
 
@@ -119,28 +106,20 @@ export function buildTriangleOwnerPairs(
 export function buildPrimitiveFaceBodyPickData(
   geometry: Geometry,
   elements: readonly ElementTessellation[] = [],
-  blocks: readonly GeometryElementBlock[] = [],
 ): Uint32Array {
   const facePickIds = buildFacePrimitivePickIds(geometry);
-  const ownerPairs = buildTriangleOwnerPairs(geometry, elements, blocks, facePickIds);
-  const blockAware = blocks.length > 0;
-  const stride = blockAware ? 7 : 5;
+  const ownerPairs = buildTriangleOwnerPairs(geometry, elements, facePickIds);
+  const stride = 5;
   const data = new Uint32Array(ownerPairs.length * stride);
   for (let triangle = 0; triangle < ownerPairs.length; triangle += 1) {
     const facePickId = facePickIds[triangle] ?? 0;
-    const [owner, neighbor, element, neighborElement, block, neighborBlock] = ownerPairs[
-      triangle
-    ] ?? [0, 0, 0, 0, 0, 0];
+    const [owner, neighbor, element, neighborElement] = ownerPairs[triangle] ?? [0, 0, 0, 0];
     const base = triangle * stride;
     data[base] = facePickId;
     data[base + 1] = owner;
     data[base + 2] = neighbor;
     data[base + 3] = element;
     data[base + 4] = neighborElement;
-    if (blockAware) {
-      data[base + 5] = block;
-      data[base + 6] = neighborBlock;
-    }
   }
   return data;
 }
@@ -152,34 +131,22 @@ export function buildNodeBodyPickData(
 ): Uint32Array {
   const nodeCount = (sourceNodePositions(source)?.length ?? 0) / 3;
   const elementOwners = nodeElementOwners(source);
-  const blockByElement = blockIdsByElement({
-    elements: sourceElements(source),
-    blocks: sourceBlocks(source),
-  });
   // The shared binding is array<vec3<u32>>, whose minimum valid storage
   // is one complete 12-byte record even when this part has no nodes. Node
   // topology ownership remains an array of owner/neighbor pairs below.
   const sprites =
     spritePickIds ?? Uint32Array.from({ length: nodeCount }, (_, nodeId) => nodeId + 1);
-  const blockAware = sourceBlocks(source).length > 0;
-  const stride = blockAware ? 7 : 5;
+  const stride = 5;
   const data = new Uint32Array(Math.max(stride, sprites.length * stride));
   for (let sprite = 0; sprite < sprites.length; sprite += 1) {
     const pickId = sprites[sprite] ?? 0;
     const elements = elementOwners.get(pickId - 1);
     const bodyIds = new Set((elements ?? []).map((owner) => owner.bodyId));
-    const blockIds = new Set(
-      (elements ?? [])
-        .map((owner) => blockByElement.get(owner.elementId))
-        .filter((blockId): blockId is number => blockId !== undefined),
-    );
     const base = sprite * stride;
     const bodyId = bodyIds.size === 1 ? [...bodyIds][0] : undefined;
     const elementId = elements?.length === 1 ? elements[0]?.elementId : undefined;
     if (bodyId !== undefined) data[base + 1] = bodyId + 1;
     if (elementId !== undefined) data[base + 3] = elementId + 1;
-    const blockId = blockIds.size === 1 ? [...blockIds][0] : undefined;
-    if (blockAware && blockId !== undefined) data[base + 5] = blockId + 1;
   }
   return data;
 }
@@ -192,17 +159,10 @@ export function buildNodeBodyOwnerData(
   readonly bodyRanges: Uint32Array;
   readonly bodyIds: Uint32Array;
   readonly elementIds: Uint32Array;
-  readonly blockIds?: Uint32Array;
 } {
   const elementOwners = nodeElementOwners(source);
-  const blockByElement = blockIdsByElement({
-    elements: sourceElements(source),
-    blocks: sourceBlocks(source),
-  });
   const bodyIds: number[] = [];
   const elementIds: number[] = [];
-  const blockIds: number[] = [];
-  const blockAware = sourceBlocks(source).length > 0;
   const bodyRanges = new Uint32Array(spritePickIds.length * 2);
   for (let sprite = 0; sprite < spritePickIds.length; sprite += 1) {
     const pickId = spritePickIds[sprite] ?? 0;
@@ -214,41 +174,18 @@ export function buildNodeBodyOwnerData(
     for (const { bodyId, elementId } of ownerIds) {
       bodyIds.push(bodyId === undefined ? 0 : bodyId + 1, 0);
       elementIds.push(elementId + 1, 0);
-      if (blockAware) {
-        const blockId = blockByElement.get(elementId);
-        blockIds.push(blockId === undefined ? 0 : blockId + 1, 0);
-      }
     }
   }
   return {
     bodyRanges: bodyRanges.length === 0 ? new Uint32Array([0, 0]) : bodyRanges,
     bodyIds: bodyIds.length === 0 ? new Uint32Array([0, 0]) : new Uint32Array(bodyIds),
     elementIds: elementIds.length === 0 ? new Uint32Array([0, 0]) : new Uint32Array(elementIds),
-    ...(blockAware
-      ? { blockIds: blockIds.length === 0 ? new Uint32Array([0, 0]) : new Uint32Array(blockIds) }
-      : {}),
   };
 }
 
 interface NodeElementOwner {
   readonly bodyId: number | undefined;
   readonly elementId: number;
-}
-
-function blockIdsByElement(source: {
-  readonly elements?: readonly ElementTessellation[];
-  readonly blocks?: readonly { readonly id: number; readonly elementIds: readonly number[] }[];
-}): ReadonlyMap<number, number> {
-  const blockIds = new Map<number, number>();
-  for (const element of source.elements ?? []) {
-    if (element.blockId !== undefined) blockIds.set(element.id, element.blockId);
-  }
-  for (const block of source.blocks ?? []) {
-    for (const elementId of block.elementIds) {
-      if (!blockIds.has(elementId)) blockIds.set(elementId, block.id);
-    }
-  }
-  return blockIds;
 }
 
 function nodeElementOwners(source: NodeMetadataSource): Map<number, NodeElementOwner[]> {
@@ -318,10 +255,4 @@ function sourceNodePositions(source: NodeMetadataSource): Float32Array | undefin
 
 function sourceElements(source: NodeMetadataSource): readonly ElementTessellation[] {
   return "geometries" in source ? (source.elements ?? []) : [];
-}
-
-function sourceBlocks(
-  source: NodeMetadataSource,
-): readonly { readonly id: number; readonly elementIds: readonly number[] }[] {
-  return "geometries" in source ? (source.blocks ?? []) : [];
 }

@@ -75,8 +75,7 @@ function rangesForInstance(
   if (
     data.selectedPartIds.has(part.id) ||
     data.selectedInstanceIds.has(instanceId) ||
-    (data.selectedBodyIds.get(instanceId)?.size ?? 0) > 0 ||
-    (data.selectedBlockIds.get(instanceId)?.size ?? 0) > 0
+    (data.selectedBodyIds.get(instanceId)?.size ?? 0) > 0
   ) {
     return undefined;
   }

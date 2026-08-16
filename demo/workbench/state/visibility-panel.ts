@@ -1,6 +1,5 @@
 import type {
   AssemblyOccurrenceId,
-  GeometryElementBlock,
   GeometryBody,
   InstanceId,
   PartId,
@@ -22,8 +21,6 @@ export interface VisibilityPanelOptions {
   readonly partVisible: (partId: PartId) => boolean;
   readonly bodyVisible: (instanceId: InstanceId, bodyId: BodyId) => boolean;
   readonly bodyHighlighted: (instanceId: InstanceId, bodyId: BodyId) => boolean;
-  readonly blockVisible: (instanceId: InstanceId, blockId: number) => boolean;
-  readonly blockHighlighted: (instanceId: InstanceId, blockId: number) => boolean;
   readonly onChanged: () => void;
 }
 
@@ -214,7 +211,6 @@ export class VisibilityPanelController {
               setSize: bodies.length,
               hidden: layout.hidden,
             },
-            blocks: this.blocksForBody(part?.blocks ?? [], body),
           },
           rows,
         );
@@ -245,60 +241,6 @@ export class VisibilityPanelController {
         position: layout.position,
         setSize: layout.setSize,
       }),
-    );
-    for (const [index, block] of input.blocks.entries()) {
-      this.appendBlock(
-        {
-          instanceId,
-          body,
-          block,
-          partName,
-          assemblyName,
-          layout: {
-            depth: layout.depth + 1,
-            position: index + 1,
-            setSize: input.blocks.length,
-            hidden: layout.hidden,
-          },
-        },
-        rows,
-      );
-    }
-  }
-
-  private appendBlock(input: BlockRowInput, rows: WorkbenchVisibilityRowSnapshot[]): void {
-    const { instanceId, body, block, partName, assemblyName, layout } = input;
-    const blockName = block.name ?? `Block ${block.id}`;
-    const bodyName = body.name ?? `Body ${body.id}`;
-    const bodyVisible = this.options.bodyVisible(instanceId, body.id);
-    rows.push(
-      row({
-        key: `block:${instanceId}:${block.id}`,
-        target: { kind: "block", instanceId, blockId: block.id },
-        kind: "block",
-        depth: layout.depth,
-        label: blockName,
-        badge: "Block",
-        ariaLabel: `${blockName} in ${bodyName} · ${partName} · ${assemblyName}`,
-        testId: `block-vis-${this.instanceDisplayId(instanceId)}-${block.id}`,
-        checked: this.options.blockVisible(instanceId, block.id),
-        disabled: !this.instanceVisible(this.options.getRuntime(), instanceId) || !bodyVisible,
-        expanded: false,
-        expandable: false,
-        highlighted: this.options.blockHighlighted(instanceId, block.id),
-        hidden: layout.hidden,
-        position: layout.position,
-        setSize: layout.setSize,
-      }),
-    );
-  }
-
-  private blocksForBody(
-    blocks: readonly GeometryElementBlock[],
-    body: GeometryBody,
-  ): readonly GeometryElementBlock[] {
-    return blocks.filter((block) =>
-      block.elementIds.every((elementId) => body.elementIds.includes(elementId)),
     );
   }
 
@@ -388,16 +330,6 @@ interface OccurrenceChildrenInput {
 interface BodyRowInput {
   readonly instanceId: InstanceId;
   readonly body: GeometryBody;
-  readonly partName: string;
-  readonly assemblyName: string;
-  readonly layout: RowLayout;
-  readonly blocks: readonly GeometryElementBlock[];
-}
-
-interface BlockRowInput {
-  readonly instanceId: InstanceId;
-  readonly body: GeometryBody;
-  readonly block: GeometryElementBlock;
   readonly partName: string;
   readonly assemblyName: string;
   readonly layout: RowLayout;

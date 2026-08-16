@@ -210,41 +210,19 @@ describe("createBoltedPlateFixture", () => {
     });
   });
 
-  it("keeps authored plate blocks distinct from direct-body fastener models", () => {
-    const { scene, elementModels, partIds } = createBoltedPlateFixture();
+  it("keeps authored bodies distinct from direct-body fastener models", () => {
+    const { elementModels, partIds } = createBoltedPlateFixture();
     const plate = elementModels.get(partIds.plate.partId);
     const bolt = elementModels.get(partIds.bolt.partId);
     expect(plate?.elements).toHaveLength(8);
-    expect(plate?.blocks?.map(({ name, elementIds }) => ({ name, elementIds }))).toEqual([
-      { name: "A left", elementIds: [1, 2] },
-      { name: "A right", elementIds: [3, 4] },
-      { name: "B left", elementIds: [5, 6] },
-      { name: "B right", elementIds: [7, 8] },
-    ]);
     expect(plate?.bodies).toEqual([
-      { id: 1, name: "Plate row A", blockIds: [1, 2] },
-      { id: 2, name: "Plate row B", blockIds: [3, 4] },
+      { id: 1, name: "Plate row A", elementIds: [1, 2, 3, 4] },
+      { id: 2, name: "Plate row B", elementIds: [5, 6, 7, 8] },
     ]);
-    const blocksById = new Map(plate?.blocks?.map((block) => [block.id, block]));
     for (const body of plate?.bodies ?? []) {
-      if (body.blockIds === undefined)
-        throw new Error("Plate bodies must aggregate authored blocks");
-      const bodyElementIds = body.blockIds.flatMap(
-        (blockId) => blocksById.get(blockId)?.elementIds ?? [],
-      );
-      expect(new Set(bodyElementIds).size).toBe(bodyElementIds.length);
-      expect(bodyElementIds).toEqual(body.id === 1 ? [1, 2, 3, 4] : [5, 6, 7, 8]);
+      expect(new Set(body.elementIds).size).toBe(body.elementIds.length);
     }
-    expect(plate?.blocks?.flatMap((block) => block.elementIds)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
-    expect(bolt?.blocks).toBeUndefined();
     expect(bolt?.bodies?.every((body) => "elementIds" in body)).toBe(true);
-    expect(scene.parts.get(partIds.plate.partId)?.blocks?.map((block) => block.name)).toEqual([
-      "A left",
-      "A right",
-      "B left",
-      "B right",
-    ]);
-    expect(scene.parts.get(partIds.bolt.partId)?.blocks).toBeUndefined();
   });
 
   it("produces identical output on repeated calls", () => {

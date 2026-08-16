@@ -6,12 +6,7 @@ import {
   type PickHit,
 } from "../../src/entries/root";
 import type { SceneRuntime } from "../../src/entries/runtime";
-import {
-  elementBlockTarget,
-  elementTarget,
-  exactTarget,
-  selectTarget,
-} from "../../demo/workbench/selection/pick";
+import { elementTarget, exactTarget, selectTarget } from "../../demo/workbench/selection/pick";
 import {
   replaceSelection,
   replaceTargets,
@@ -28,9 +23,8 @@ const instance: SelectTarget = { kind: "instance", instanceId: "1/0" };
 const element: SelectTarget = { kind: "element", instanceId: "1/0", elementId: 7 };
 
 describe("demo selection policy", () => {
-  it("accepts body and block as selectable toolbar granularities", () => {
+  it("accepts body as a selectable toolbar granularity", () => {
     expect(parseSelectionGranularity("body")).toBe("body");
-    expect(parseSelectionGranularity("block")).toBe("block");
     expect(parseSelectionGranularity("unknown")).toBeUndefined();
   });
 
@@ -88,42 +82,13 @@ describe("demo selection policy", () => {
     });
   });
 
-  it("retains authored block ownership for exact context targets", () => {
-    const hit: PickHit = {
-      kind: "node",
-      partId: 4,
-      instanceId: "1/0",
-      elementId: 7,
-      blockId: 2,
-      nodeId: 3,
-      localPosition: [0, 0, 0],
-      worldPosition: [0, 0, 0],
-      neighborElementIds: [7],
-      neighborNodeIds: [1, 2],
-    };
-    const target = exactTarget(hit, modifiersForTest());
-    expect(target).toMatchObject({ kind: "node", blockId: 2 });
-    expect(target === undefined ? undefined : elementBlockTarget(target)).toEqual({
-      kind: "block",
-      instanceId: "1/0",
-      blockId: 2,
-    });
-    expect(selectTarget(hit, "element", modifiersForTest())).toEqual({
-      kind: "element",
-      instanceId: "1/0",
-      elementId: 7,
-      blockId: 2,
-    });
-  });
-
-  it("maps authored body and block picks to occurrence-scoped targets", () => {
+  it("maps authored body picks to occurrence-scoped targets", () => {
     const hit: PickHit = {
       kind: "face",
       partId: 4,
       instanceId: "1/0",
       elementId: 7,
       bodyId: 2,
-      blockId: 5,
       faceIndex: 1,
       key: "face-key",
       nodeIds: [1, 2, 3],
@@ -136,11 +101,6 @@ describe("demo selection policy", () => {
       kind: "body",
       instanceId: "1/0",
       bodyId: 2,
-    });
-    expect(selectTarget(hit, "block", modifiersForTest())).toEqual({
-      kind: "block",
-      instanceId: "1/0",
-      blockId: 5,
     });
     expect(selectTarget(hit, "body", { ...modifiersForTest(), shiftKey: true })).toMatchObject({
       kind: "body",

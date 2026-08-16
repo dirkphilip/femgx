@@ -1,7 +1,6 @@
 import type { Part } from "../../geometry/part";
 import {
   emphasizedElementRefs,
-  resolveElementBlockStyle,
   resolveBodyStyle,
   resolveElementStyle,
   resolveInstanceStyle,
@@ -9,7 +8,6 @@ import {
   type ResolvedStyle,
 } from "../../interaction/interaction";
 import { emphasizedBodyRefs, isBodyVisible } from "../../interaction/bodies";
-import { emphasizedElementBlockRefs, isElementBlockVisible } from "../../interaction/blocks";
 import { isElementVisible } from "../../interaction/elements";
 import { emphasizedFaceRefs, resolveFaceStyle } from "../../interaction/faces";
 import { emphasizedNodeRefs, resolveNodeStyle } from "../../interaction/nodes";
@@ -19,11 +17,7 @@ import { faceIdentity as faceKey } from "../../geometry/element-face-selection";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { PartId } from "../../geometry/part";
 import type { Instance, InstanceId } from "../../scene/types";
-import {
-  BLOCK_HIGHLIGHT_MARKER,
-  BODY_HIGHLIGHT_MARKER,
-  EDGE_HIGHLIGHT_MARKER,
-} from "../selection/highlight-table";
+import { BODY_HIGHLIGHT_MARKER, EDGE_HIGHLIGHT_MARKER } from "../selection/highlight-table";
 import { defaultStyle } from "./foundation";
 import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
 import {
@@ -55,8 +49,6 @@ export interface EmphasisUpdate {
   readonly edgePickId?: number;
   /** 1-based body pick id, `0` for element/face/node records. */
   readonly bodyPickId?: number;
-  /** 1-based semantic element-block pick id, `0` for other records. */
-  readonly blockPickId?: number;
   /** Hides the matching body triangles in both color and pick passes. */
   readonly hidden?: boolean;
   /** Marks the matching primitive for the renderer-owned x-ray selection pass. */
@@ -85,16 +77,13 @@ export function encodeEmphasisRecord(update: EmphasisUpdate): ArrayBuffer {
   const data = new ArrayBuffer(ELEMENT_RECORD_STRIDE);
   const ids = new Uint32Array(data);
   const floats = new Float32Array(data);
-  const keyPickId =
-    update.edgePickId ?? update.bodyPickId ?? update.blockPickId ?? update.elementPickId;
+  const keyPickId = update.edgePickId ?? update.bodyPickId ?? update.elementPickId;
   const keyMarker =
     update.edgePickId !== undefined
       ? EDGE_HIGHLIGHT_MARKER
       : update.bodyPickId !== undefined
         ? BODY_HIGHLIGHT_MARKER
-        : update.blockPickId !== undefined
-          ? BLOCK_HIGHLIGHT_MARKER
-          : update.facePickId;
+        : update.facePickId;
   ids[0] = update.slot;
   ids[1] = keyPickId;
   ids[2] = keyMarker;
@@ -106,7 +95,7 @@ export function encodeEmphasisRecord(update: EmphasisUpdate): ArrayBuffer {
   floats[8] = update.style.emissive;
   ids[9] = update.hidden === true ? 1 : 0;
   ids[10] = update.selected === true ? 1 : 0;
-  ids[11] = (update.blockPickId ?? 0) | (update.preservesDisplayedColor === true ? 0x80000000 : 0);
+  ids[11] = update.preservesDisplayedColor === true ? 1 : 0;
   return data;
 }
 
@@ -131,7 +120,6 @@ export function collectEmphasisUpdates(
     else list.push(update);
   };
   collectBodyEmphasis(context, parts, interaction, push);
-  collectBlockEmphasis(context, parts, interaction, push);
   collectElementEmphasis(context, parts, interaction, push, denseSelections);
   collectFaceEmphasis(context, parts, interaction, push);
   collectNodeEmphasis(context, interaction, push);
@@ -160,43 +148,6 @@ function collectEdgeEmphasis(
       selected:
         readInteractionState(interaction).selectedEdges.get(ref.instanceId)?.has(ref.key) === true,
       style: resolveEdgeStyle(occurrence.instance, ref, defaultStyle, interaction),
-    });
-  }
-}
-
-/** Collects semantic block style and visibility records. */
-function collectBlockEmphasis(
-  context: EmphasisContext,
-  parts: ReadonlyMap<PartId, Part>,
-  interaction: InteractionState,
-  push: (partId: PartId, update: EmphasisUpdate) => void,
-): void {
-  const data = readInteractionState(interaction);
-  for (const ref of emphasizedElementBlockRefs(interaction)) {
-    const occurrence = occurrenceAt(context, ref.instanceId);
-    if (occurrence === undefined) continue;
-    const part = parts.get(occurrence.instance.partId);
-    const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
-    const block = metadata?.blocks.get(ref.blockId);
-    if (block === undefined) continue;
-    const bodyId = metadata?.bodyByBlock.get(ref.blockId);
-    const style = resolveElementBlockStyle(
-      occurrence.instance,
-      ref.blockId,
-      defaultStyle,
-      interaction,
-      bodyId,
-    );
-    push(occurrence.instance.partId, {
-      slot: occurrence.local,
-      elementPickId: 0,
-      facePickId: 0,
-      nodePickId: 0,
-      blockPickId: ref.blockId + 1,
-      hidden: !isElementBlockVisible(interaction, ref),
-      selected: data.selectedBlockIds.get(ref.instanceId)?.has(ref.blockId) === true,
-      preservesDisplayedColor: preservesDisplayedColor(occurrence.instance, style, interaction),
-      style,
     });
   }
 }
@@ -256,13 +207,12 @@ function collectElementEmphasis(
     const part = parts.get(occurrence.instance.partId);
     const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
     const bodyId = metadata?.bodyByElement.get(ref.elementId);
-    const blockId = metadata?.blockByElement.get(ref.elementId);
     const style = resolveElementStyle(
       occurrence.instance,
       ref.elementId,
       defaultStyle,
       interaction,
-      { bodyId, blockId },
+      bodyId,
     );
     push(occurrence.instance.partId, {
       slot: occurrence.local,
@@ -293,10 +243,13 @@ function collectFaceEmphasis(
     const faceMetadata = metadata?.faces.get(faceKey(ref.elementId, ref.faceIndex));
     if (faceMetadata === undefined) continue;
     const { face, faceId } = faceMetadata;
-    const style = resolveFaceStyle(occurrence.instance, ref, defaultStyle, interaction, {
-      bodyId: face.bodyId ?? metadata?.bodyByElement.get(ref.elementId),
-      blockId: face.blockId,
-    });
+    const style = resolveFaceStyle(
+      occurrence.instance,
+      ref,
+      defaultStyle,
+      interaction,
+      face.bodyId ?? metadata?.bodyByElement.get(ref.elementId),
+    );
     push(occurrence.instance.partId, {
       slot: occurrence.local,
       elementPickId: 0,

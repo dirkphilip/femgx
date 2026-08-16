@@ -156,7 +156,7 @@ function regionTargetsChangedError(): WebGpuPickReadbackError {
 }
 
 function assertGranularity(value: InteractionGranularity): void {
-  if (!["part", "instance", "body", "block", "element", "face", "node", "edge"].includes(value)) {
+  if (!["part", "instance", "body", "element", "face", "node", "edge"].includes(value)) {
     throw new TypeError(`Unsupported pick-region granularity: ${value}`);
   }
 }
@@ -217,7 +217,6 @@ function attachmentsFor(granularity: InteractionGranularity): readonly RegionAtt
     case "instance":
       return ["instance"];
     case "body":
-    case "block":
     case "element":
       return ["instance", "element"];
     case "face":

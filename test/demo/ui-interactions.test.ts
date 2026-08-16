@@ -58,7 +58,6 @@ describe("workbench Svelte controls", () => {
     button(target, "#command-selection").click();
     await change(target, "#box-selection-strategy", "through-intersection");
     await change(target, "#selection-granularity", "body");
-    await change(target, "#selection-granularity", "block");
     await change(target, "#selection-granularity", "face");
     await change(target, "#selection-granularity", "edge");
     await change(target, "#model-select", "results");

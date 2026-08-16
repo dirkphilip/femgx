@@ -80,9 +80,6 @@ export function interactionAffectedSlots(
   diffNestedSetMembers(previousData.selectedBodyIds, nextData.selectedBodyIds, addInstance);
   diffNestedSetMembers(previousData.highlightedBodyIds, nextData.highlightedBodyIds, addInstance);
   diffNestedSetMembers(previousData.hiddenBodyIds, nextData.hiddenBodyIds, addInstance);
-  diffNestedSetMembers(previousData.selectedBlockIds, nextData.selectedBlockIds, addInstance);
-  diffNestedSetMembers(previousData.highlightedBlockIds, nextData.highlightedBlockIds, addInstance);
-  diffNestedSetMembers(previousData.hiddenBlockIds, nextData.hiddenBlockIds, addInstance);
   diffNestedSetMembers(previousData.selectedElementIds, nextData.selectedElementIds, addInstance);
   diffNestedSetMembers(
     previousData.highlightedElementIds,
@@ -93,7 +90,6 @@ export function interactionAffectedSlots(
   diffNestedSetMembers(previousData.selectedNodeIds, nextData.selectedNodeIds, addInstance);
   diffNestedSetMembers(previousData.highlightedNodeIds, nextData.highlightedNodeIds, addInstance);
   diffMapValues(previousData.bodyOverrides, nextData.bodyOverrides, addInstance);
-  diffMapValues(previousData.blockOverrides, nextData.blockOverrides, addInstance);
   diffMapValues(previousData.elementOverrides, nextData.elementOverrides, addInstance);
   diffMapValues(previousData.selectedFaces, nextData.selectedFaces, addInstance);
   diffMapValues(previousData.highlightedFaces, nextData.highlightedFaces, addInstance);
@@ -153,9 +149,6 @@ export function interactionDirtyParts(
       addInstance(instanceId, selectionParts);
     },
   );
-  diffNestedSetMembers(previousData.selectedBlockIds, nextData.selectedBlockIds, (instanceId) => {
-    addInstance(instanceId, selectionParts);
-  });
   diffMapValues(previousData.selectedFaces, nextData.selectedFaces, (instanceId) => {
     addInstance(instanceId, selectionParts);
   });
@@ -265,7 +258,7 @@ function renderedEdgeKeys(draw: GpuBundle["draw"]): ReadonlyMap<PartId, readonly
   return keys;
 }
 
-/** Returns whether any body, block, or element visibility set has members. */
+/** Returns whether any body or element visibility set has members. */
 export function hasHiddenInteractionIds(
   hidden: readonly (ReadonlyMap<string, ReadonlySet<number>> | undefined)[],
 ): boolean {

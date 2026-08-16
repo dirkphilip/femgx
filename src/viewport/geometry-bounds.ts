@@ -12,7 +12,7 @@ import type { DeformationState } from "../results/deform";
 
 type EntityTarget = Extract<
   InteractionTarget,
-  { kind: "body" | "block" | "element" | "face" | "node" | "edge" }
+  { kind: "body" | "element" | "face" | "node" | "edge" }
 >;
 
 /** Mutable bounds accumulator shared by viewport bounds calculations. */
@@ -46,8 +46,6 @@ export function selectedGeometryBounds(
   switch (target.kind) {
     case "body":
       return bodyBounds(part, target.bodyId, deformation);
-    case "block":
-      return blockBounds(part, target.blockId, deformation);
     case "element":
       return elementBounds(part, target.elementId, deformation);
     case "face":
@@ -103,30 +101,6 @@ function elementBounds(
       const element = part.elements?.find((candidate) => candidate.id === elementId);
       if (element === undefined) return undefined;
       const ranges = primitiveRangesForElement(element, geometry.primitive);
-      return primitiveBounds(
-        part,
-        geometry,
-        (primitive) =>
-          ranges.some((range) => primitive >= range.start && primitive < range.start + range.count),
-        deformation,
-      );
-    }),
-  );
-}
-
-function blockBounds(
-  part: Part,
-  blockId: number,
-  deformation: DeformationState | undefined,
-): Bounds | undefined {
-  return combineBounds(
-    part.geometries.map((geometry) => {
-      const block = part.blocks?.find((candidate) => candidate.id === blockId);
-      if (block === undefined) return undefined;
-      const ranges = block.elementIds
-        .map((elementId) => part.elements?.find((element) => element.id === elementId))
-        .filter((element): element is NonNullable<typeof element> => element !== undefined)
-        .flatMap((element) => primitiveRangesForElement(element, geometry.primitive));
       return primitiveBounds(
         part,
         geometry,

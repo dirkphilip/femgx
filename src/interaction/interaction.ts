@@ -1,5 +1,4 @@
 import type { ElementId, ElementRef, InstanceId } from "../scene/types";
-import type { ElementBlockId } from "../elements/model";
 import type { BodyId, PartId } from "../geometry/part";
 import type { InteractionTarget } from "./target-types";
 import {
@@ -56,10 +55,6 @@ export function createInteractionState(theme: InteractionTheme = defaultTheme): 
     highlightedBodyIds: new Map(),
     bodyOverrides: new Map(),
     hiddenBodyIds: new Map(),
-    selectedBlockIds: new Map(),
-    highlightedBlockIds: new Map(),
-    hiddenBlockIds: new Map(),
-    blockOverrides: new Map(),
     selectedElementIds: new Map(),
     highlightedElementIds: new Map(),
     hiddenElementIds: new Map(),
@@ -288,38 +283,6 @@ export function resolveBodyStyle(
 }
 
 /**
- * Resolves one block occurrence after part, instance, and body styles.
- * @category Interaction and picking
- */
-export function resolveElementBlockStyle(
-  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
-  blockId: ElementBlockId,
-  base: ResolvedStyle,
-  state: InteractionState,
-  bodyId?: BodyId,
-): ResolvedStyle {
-  const data = readInteractionState(state);
-  const style =
-    bodyId === undefined
-      ? resolveInstanceStyle(instance, base, state)
-      : resolveBodyStyle(instance, bodyId, base, state);
-  return applyStyleLayers(style, [
-    data.selectedBlockIds.get(instance.instanceId)?.has(blockId) === true
-      ? applySelectionStyle(style, data.theme.selected)
-      : undefined,
-    data.highlightedBlockIds.get(instance.instanceId)?.has(blockId) === true
-      ? applySelectionStyle(style, data.theme.highlighted)
-      : undefined,
-    data.hoveredTarget?.kind === "block" &&
-    data.hoveredTarget.instanceId === instance.instanceId &&
-    data.hoveredTarget.blockId === blockId
-      ? applySelectionStyle(style, data.theme.highlighted)
-      : undefined,
-    data.blockOverrides.get(instance.instanceId)?.get(blockId),
-  ]);
-}
-
-/**
  * Resolves the style of one element occurrence. Element-level state is more
  * specific than part/instance state, so element highlight, element hover,
  * element selection, and explicit element overrides win over
@@ -332,22 +295,13 @@ export function resolveElementStyle(
   elementId: ElementId,
   base: ResolvedStyle,
   state: InteractionState,
-  ownership?:
-    | BodyId
-    | {
-        readonly bodyId?: BodyId | undefined;
-        readonly blockId?: ElementBlockId | undefined;
-      },
+  bodyId?: BodyId,
 ): ResolvedStyle {
   const data = readInteractionState(state);
-  const bodyId = typeof ownership === "number" ? ownership : ownership?.bodyId;
-  const blockId = typeof ownership === "number" ? undefined : ownership?.blockId;
   const style =
-    blockId === undefined
-      ? bodyId === undefined
-        ? resolveInstanceStyle(instance, base, state)
-        : resolveBodyStyle(instance, bodyId, base, state)
-      : resolveElementBlockStyle(instance, blockId, base, state, bodyId);
+    bodyId === undefined
+      ? resolveInstanceStyle(instance, base, state)
+      : resolveBodyStyle(instance, bodyId, base, state);
   return applyStyleLayers(style, [
     data.selectedElementIds.get(instance.instanceId)?.has(elementId) === true
       ? applySelectionStyle(style, data.theme.selected)

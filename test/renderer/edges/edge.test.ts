@@ -4,24 +4,14 @@ import {
   expandMeshEdgeData,
   meshEdgeEndpointData,
 } from "../../../src/renderer/edges/edge-expansion";
-import type {
-  ElementTessellation,
-  Geometry,
-  GeometryElementBlock,
-} from "../../../src/geometry/part";
+import type { ElementTessellation, Geometry } from "../../../src/geometry/part";
 
 type SemanticGeometry = Geometry & {
   readonly elements?: readonly ElementTessellation[];
-  readonly blocks?: readonly GeometryElementBlock[];
 };
 
 function buildSemanticEdgeData(geometry: SemanticGeometry) {
-  return buildMeshEdgeData(
-    geometry,
-    geometry.indices,
-    geometry.elements ?? [],
-    geometry.blocks ?? [],
-  );
+  return buildMeshEdgeData(geometry, geometry.indices, geometry.elements ?? []);
 }
 
 describe("buildMeshEdgeData", () => {
@@ -227,35 +217,5 @@ describe("buildMeshEdgeData", () => {
         0, 0, 0, 0, 0, 40, 0, 0,
       ]),
     );
-  });
-
-  it("retains block ownership on edges for block-aware parts", () => {
-    const geometry = {
-      positions: new Float32Array(12),
-      indices: new Uint32Array([0, 1, 2, 0, 1, 3]),
-      primitive: "triangles" as const,
-      elements: [
-        {
-          id: 4,
-          primitiveRanges: [
-            { primitive: "triangles" as const, primitiveStart: 0, primitiveCount: 1 },
-          ],
-          blockId: 10,
-        },
-        {
-          id: 5,
-          primitiveRanges: [
-            { primitive: "triangles" as const, primitiveStart: 1, primitiveCount: 1 },
-          ],
-          blockId: 11,
-        },
-      ],
-      blocks: [
-        { id: 10, elementIds: [4] },
-        { id: 11, elementIds: [5] },
-      ],
-    };
-    const data = buildSemanticEdgeData(geometry);
-    expect(data.blockIds?.slice(0, 4)).toEqual(new Uint32Array([11, 0, 12, 0]));
   });
 });

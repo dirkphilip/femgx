@@ -8,7 +8,6 @@ import {
   type FaceSubset,
   type FaceTessellation,
   type GeometryBody,
-  type GeometryElementBlock,
   type GeometryEdge,
   type LineGeometry,
   type PointGeometry,
@@ -31,12 +30,11 @@ interface VolumeGeometryInput {
   readonly elements: readonly Element[];
   readonly faceSubset: readonly FaceIdRef[] | undefined;
   readonly assignedBodies: ReadonlyMap<ElementId, BodyId>;
-  readonly assignedBlocks: ReadonlyMap<ElementId, number>;
 }
 
 /** Builds triangle geometry for one or more compatible element shapes. */
 export function volumeGeometry(input: VolumeGeometryInput): GeometryBuild<TriangleGeometry> {
-  const { model, elements, faceSubset, assignedBodies, assignedBlocks } = input;
+  const { model, elements, faceSubset, assignedBodies } = input;
   const selected =
     faceSubset === undefined
       ? undefined
@@ -47,7 +45,6 @@ export function volumeGeometry(input: VolumeGeometryInput): GeometryBuild<Triang
     faces,
     neighbors,
     bodyIds: assignedBodies,
-    blockIds: assignedBlocks,
     selected,
   });
   const subset = selected === undefined ? undefined : { faceIds: tessellation.selectedFaceIds };
@@ -84,12 +81,11 @@ interface VolumeFaceInput {
   readonly faces: readonly ElementRenderFace[];
   readonly neighbors: ReadonlyMap<string, readonly ElementId[]>;
   readonly bodyIds: ReadonlyMap<ElementId, BodyId>;
-  readonly blockIds: ReadonlyMap<ElementId, number>;
   readonly selected: ReadonlySet<string> | undefined;
 }
 
 function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
-  const { model, faces, neighbors, bodyIds, blockIds, selected } = input;
+  const { model, faces, neighbors, bodyIds, selected } = input;
   const mesh = new TriangleMeshAssembler();
   const elements: ElementTessellation[] = [];
   const faceTessellations: FaceTessellation[] = [];
@@ -109,8 +105,7 @@ function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
       shape: current.element.shape,
     };
     const bodyId = bodyIds.get(current.element.id);
-    const blockId = blockIds.get(current.element.id);
-    elements.push(withOwnership(tessellation, bodyId, blockId));
+    elements.push(withBody(tessellation, bodyId));
   };
   for (const { element, face, faceIndex } of faces) {
     if (current === undefined || current.element.id !== element.id) {
@@ -130,8 +125,7 @@ function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
       ...(neighborElementId === undefined ? {} : { neighborElementId }),
     };
     const bodyId = bodyIds.get(element.id);
-    const blockId = blockIds.get(element.id);
-    faceTessellations.push(withOwnership(tessellation, bodyId, blockId));
+    faceTessellations.push(withBody(tessellation, bodyId));
     if (selected?.has(faceIdentity(element.id, faceIndex))) {
       selectedFaceIds.push({ elementId: element.id, faceIndex });
     }
@@ -163,7 +157,6 @@ export function lineGeometry(
   model: ElementModel,
   elements: readonly Element[],
   bodyIds: ReadonlyMap<ElementId, BodyId>,
-  blockIds: ReadonlyMap<ElementId, number>,
 ): GeometryBuild<LineGeometry> {
   const mesh = new LineMeshBuilder();
   const descriptors: ElementTessellation[] = [];
@@ -182,7 +175,7 @@ export function lineGeometry(
       shape: element.shape,
     };
     const bodyId = bodyIds.get(element.id);
-    descriptors.push(withOwnership(descriptor, bodyId, blockIds.get(element.id)));
+    descriptors.push(withBody(descriptor, bodyId));
   }
   const geometry: LineGeometry = {
     ...mesh.build("lines"),
@@ -196,7 +189,6 @@ export function pointGeometry(
   model: ElementModel,
   elements: readonly Element[],
   bodyIds: ReadonlyMap<ElementId, BodyId>,
-  blockIds: ReadonlyMap<ElementId, number>,
 ): GeometryBuild<PointGeometry> {
   const positions: number[] = [];
   const indices: number[] = [];
@@ -217,7 +209,7 @@ export function pointGeometry(
       shape: element.shape,
     };
     const bodyId = bodyIds.get(element.id);
-    descriptors.push(withOwnership(descriptor, bodyId, blockIds.get(element.id)));
+    descriptors.push(withBody(descriptor, bodyId));
   }
   const geometry: PointGeometry = {
     positions: new Float32Array(positions),
@@ -228,17 +220,12 @@ export function pointGeometry(
   return { geometry, elements: descriptors };
 }
 
-function withOwnership<T extends { readonly bodyId?: BodyId; readonly blockId?: number }>(
-  value: T,
-  bodyId: BodyId | undefined,
-  blockId: number | undefined,
-): T {
-  return bodyId === undefined && blockId === undefined
+function withBody<T extends { readonly bodyId?: BodyId }>(value: T, bodyId: BodyId | undefined): T {
+  return bodyId === undefined
     ? value
     : {
         ...value,
-        ...(bodyId === undefined ? {} : { bodyId }),
-        ...(blockId === undefined ? {} : { blockId }),
+        bodyId,
       };
 }
 
@@ -263,19 +250,6 @@ export function bodiesForElements(
     return elementIds.length === 0
       ? []
       : [{ id: body.id, ...(body.name === undefined ? {} : { name: body.name }), elementIds }];
-  });
-}
-
-/** Derives part-level block descriptors for the selected model elements. */
-export function blocksForElements(
-  model: ElementModel,
-  elements: readonly Element[],
-): readonly GeometryElementBlock[] | undefined {
-  if (model.blocks === undefined) return undefined;
-  const ids = new Set(elements.map((element) => element.id));
-  return model.blocks.flatMap((block) => {
-    const elementIds = block.elementIds.filter((id) => ids.has(id));
-    return elementIds.length === 0 ? [] : [{ ...block, elementIds }];
   });
 }
 

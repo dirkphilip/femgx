@@ -1,4 +1,4 @@
-import type { BodyId, ElementBlockId } from "../elements/model";
+import type { BodyId } from "../elements/model";
 import type { ElementId, NodeId } from "../elements/element";
 import type { FaceIdRef, FaceKey } from "../elements/faces";
 import type { EdgeKey } from "../elements/edges";
@@ -21,17 +21,6 @@ export interface GeometryBody {
   readonly id: BodyId;
   readonly name?: string;
   /** Element ids belonging to this body, in ascending order. */
-  readonly elementIds: readonly ElementId[];
-}
-
-/**
- * Derived semantic block metadata carried by a renderable part.
- * @category Scene and geometry
- */
-export interface GeometryElementBlock {
-  readonly id: ElementBlockId;
-  readonly name?: string;
-  /** Elements from the source block present in this primitive group. */
   readonly elementIds: readonly ElementId[];
 }
 
@@ -62,8 +51,6 @@ export interface ElementTessellation {
   readonly shape?: ElementShape;
   /** Optional logical body owning this element. */
   readonly bodyId?: BodyId;
-  /** Optional semantic element block owning this element. */
-  readonly blockId?: ElementBlockId;
 }
 
 /**
@@ -99,8 +86,6 @@ export interface FaceTessellation {
   readonly neighborElementId?: ElementId;
   /** Optional logical body owning the face's element. */
   readonly bodyId?: BodyId;
-  /** Optional semantic element block owning this face's element. */
-  readonly blockId?: ElementBlockId;
 }
 
 /**
