@@ -7,6 +7,15 @@ GPU timing, mode, and memory rules live in
 FE demo and benchmark topology follows [[requirements/demo-fixtures|the demo
 fixture requirements contract]].
 
+The Performance Lab keeps its visible benchmark catalog lazy and may retain at
+most one authoritative CPU model. Retention is bounded by a demo-private 256
+MiB hard cap based on deterministic typed-array and 208-byte planar or
+3,072-byte structured-FE element-record estimates; the estimate excludes
+renderer-owned GPU resources. A successful under-cap case is reused after an
+ordinary-catalog round trip, selecting another case evicts the prior reference,
+and over-cap cases rebuild when explicitly selected again. The current outcome
+is available only in the development diagnostics HUD.
+
 ## Budget gate (runs in default CI)
 
 `npm run bench:budget` runs `test/bench/budget.test.ts` and fails if any

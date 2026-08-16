@@ -14,9 +14,12 @@ import type { ModelPreset } from "../../fixtures/presets";
 import { sceneBounds } from "../../scene-bounds";
 import {
   createBenchmarkCase,
+  estimateBenchmarkMemory,
   type WebGpuBenchmarkElementFamily,
   type WebGpuBenchmarkSpec,
 } from "../../benchmark/model";
+
+export type WorkbenchPerformanceRetentionReason = "reused" | "evicted-over-budget" | "rebuild";
 
 /** One demo-owned descriptor for built-in and locally opened display models. */
 export interface WorkbenchModel {
@@ -34,6 +37,10 @@ export interface WorkbenchModel {
   readonly resultVectorFields?: readonly VectorField<"elemental">[];
   readonly issues: readonly Issue[];
   readonly benchmarkElementFamily?: WebGpuBenchmarkElementFamily;
+  /** Deterministic CPU-byte estimate used by the demo-private Performance Lab retention policy. */
+  readonly estimatedCpuBytes?: number;
+  /** Last Performance Lab retention outcome, shown only in development diagnostics. */
+  readonly performanceRetentionReason?: WorkbenchPerformanceRetentionReason;
   /** Builds an opt-in large model only after the user selects it. */
   readonly deferredLoad?: () => Promise<WorkbenchModel>;
 }
@@ -120,7 +127,19 @@ function createBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchModel {
     results: undefined,
     issues: [],
     benchmarkElementFamily: benchmarkCase.elementFamily,
+    estimatedCpuBytes: estimateBenchmarkRetentionBytes(benchmarkCase.scene, spec.kind),
   };
+}
+
+function estimateBenchmarkRetentionBytes(scene: Scene, kind: WebGpuBenchmarkSpec["kind"]): number {
+  const typedArrayBytes = estimateBenchmarkMemory(scene, 0, 1, 1).cpuSceneTypedArrayBytes;
+  const authoredElementCount = [...scene.parts.values()].reduce(
+    (total, part) => total + (part.elements?.length ?? 0),
+    0,
+  );
+  // Account for retained JS topology records that typed-array accounting cannot see.
+  const elementRecordBytes = kind === "structured-fe" ? 3_072 : 208;
+  return typedArrayBytes + authoredElementCount * elementRecordBytes;
 }
 
 /** Creates the active workbench descriptor for one imported local model file. */

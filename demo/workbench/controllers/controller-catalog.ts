@@ -30,9 +30,13 @@ export function setModelForOwner(owner: CatalogModeOwner, id: string): void {
 }
 
 /** Remembers a successfully activated model in its catalog. */
-export function rememberCatalogModel(owner: CatalogModelOwner, model: WorkbenchModel): void {
-  owner.catalog.rememberModel(model);
+export function rememberCatalogModel(
+  owner: CatalogModelOwner,
+  model: WorkbenchModel,
+): WorkbenchModel {
+  const retainedModel = owner.catalog.rememberModel(model);
   owner.models = owner.catalog.models;
+  return retainedModel;
 }
 
 /** Changes catalogs, cancels stale builds, and restores a remembered selection. */

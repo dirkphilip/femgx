@@ -67,4 +67,26 @@ describe("demo diagnostics", () => {
     expect(text).toContain("Unique elements 16,384");
     expect(text).toContain("Submitted element occurrences 1,048,576");
   });
+
+  it("reports Performance Lab retention outcomes in the diagnostics HUD", () => {
+    const preset = createPerformancePreset();
+    const context = {
+      model: {
+        ...createExampleModel(preset),
+        benchmarkElementFamily: "quad" as const,
+        performanceRetentionReason: "reused" as const,
+      },
+      runtime: createSceneRuntime(preset.scene),
+      interaction: createInteractionState(),
+    };
+    const text = statsText(context, {
+      rendererName: "webgpu",
+      toggles: { edges: false, nodes: false, diagnostics: true },
+      stats: { visibleInstances: 64, batches: 1 },
+      renderLoop: IDLE_RENDER_LOOP_STATS,
+      selectedCount: 0,
+    });
+
+    expect(text).toContain("Performance model retention reused");
+  });
 });

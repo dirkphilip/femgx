@@ -187,7 +187,7 @@ export class WorkbenchController {
     this.initializeInfrastructure(options);
     this.modelSession = new WorkbenchModelSession({
       presentation: this.presentation,
-      getModels: () => this.catalog.models,
+      resolveModel: (id) => this.catalog.resolveModel(id),
       importer: options.importGlb ?? importGlb,
       getModel: () => this.model,
       isDisposed: () => this.disposed,
@@ -403,6 +403,7 @@ export class WorkbenchController {
     this.disposed = true;
     this.boxSelectionDisposer?.();
     this.listenerController.abort();
+    this.catalog.clearRetainedModel();
     this.viewportSlots.destroy();
   }
 
@@ -446,8 +447,8 @@ export class WorkbenchController {
     this.resultPlaybackActions.resetForModel(model);
     this.elementDetail = undefined;
     this.resetHoverOwner();
-    rememberCatalogModel(this, model);
-    activateModelForOwner(model, this);
+    const activeModel = rememberCatalogModel(this, model);
+    activateModelForOwner(activeModel, this);
   }
 
   render: () => void = renderForOwner.bind(null, this);
