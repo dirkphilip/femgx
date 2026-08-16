@@ -917,7 +917,38 @@ describe("writeElementHighlights", () => {
     }
   });
 
-  it("clears dense membership without retaining stale offsets or bits", () => {
+  it("does not repack unchanged dense membership for a sparse emphasis update", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const storage = makeStorage(gpu);
+      let iterations = 0;
+      const ordinals = [1, 33];
+      const iterate = ordinals[Symbol.iterator].bind(ordinals);
+      Object.defineProperty(ordinals, Symbol.iterator, {
+        value: () => {
+          iterations += 1;
+          return iterate();
+        },
+      });
+      const selection = {
+        elementCount: 65,
+        occurrences: [{ slot: 2, ordinals }],
+      };
+
+      writeElementHighlights(gpu.device, storage, [], { selection, slotCapacity: 4 });
+      writeElementHighlights(gpu.device, storage, [elementUpdate(2, 9)], {
+        selection,
+        slotCapacity: 4,
+      });
+
+      expect(iterations).toBe(1);
+    } finally {
+      restore();
+    }
+  });
+
+  it("releases dense membership storage when selection clears", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
@@ -926,12 +957,17 @@ describe("writeElementHighlights", () => {
         selection: { elementCount: 2, occurrences: [{ slot: 1, ordinals: [2] }] },
         slotCapacity: 4,
       });
+      const denseBuffer = storage.highlight.buffer;
       writeElementHighlights(gpu.device, storage, []);
       const table = new Uint32Array(storage.highlight.data.buffer);
-      const payload = HIGHLIGHT_HEADER / 4;
       expect(table[6]).toBe(0);
-      expect(table[payload + (table[4] ?? 0) + 1]).toBe(0xffffffff);
-      expect(table[payload + (table[5] ?? 0)]).toBe(0);
+      expect(storage.highlight.data.byteLength).toBe(
+        HIGHLIGHT_HEADER + INITIAL_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE,
+      );
+      expect(storage.highlight.selectionSlotCapacity).toBe(0);
+      expect(storage.highlight.selectionRecordCapacity).toBe(0);
+      expect(storage.highlight.selectionWordCapacity).toBe(0);
+      expect(gpu.buffers.find((buffer) => buffer.resource === denseBuffer)?.destroyed).toBe(true);
     } finally {
       restore();
     }

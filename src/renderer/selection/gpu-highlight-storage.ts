@@ -46,6 +46,7 @@ export interface HighlightStorage {
   selectionSlotCapacity: number;
   selectionRecordCapacity: number;
   selectionWordCapacity: number;
+  denseSelection: DenseElementSelection | undefined;
 }
 
 /** Creates a highlight buffer sized for `capacity` emphasis records. */
@@ -73,6 +74,7 @@ export function createHighlightStorage(
     selectionSlotCapacity,
     selectionRecordCapacity,
     selectionWordCapacity,
+    denseSelection: undefined,
   };
 }
 
@@ -95,24 +97,29 @@ export function writeElementHighlights(
   const selection = options.selection;
   ensureHighlightStorage(device, storage, {
     minimumRecords: table.entries.length,
-    selectionSlotCapacity: options.slotCapacity ?? 0,
+    selectionSlotCapacity: selection === undefined ? 0 : (options.slotCapacity ?? 0),
     selectionRecordCapacity: selection?.occurrences.length ?? 0,
     selectionWordCapacity: selection === undefined ? 0 : Math.ceil(selection.elementCount / 32),
   });
-  const next = new Uint8Array(storage.highlight.data.length);
+  const highlight = storage.highlight;
+  const selectionChanged = highlight.denseSelection !== selection;
+  const next = highlight.data.slice();
+  next.fill(0, 0, HIGHLIGHT_HEADER + highlight.sparseCapacity * ELEMENT_RECORD_STRIDE);
   const view = new Uint32Array(next.buffer);
   view[0] = entries.length;
   view[1] = table.bucketCount;
   view[2] = table.seed;
-  writeSelectionHeader(view, storage.highlight, selection, options.selectedTheme);
+  writeSelectionHeader(view, highlight, selection, options.selectedTheme);
   for (let index = 0; index < table.entries.length; index += 1) {
     const entry = table.entries[index];
     if (entry === undefined) continue;
     next.set(new Uint8Array(entry.data), HIGHLIGHT_HEADER + index * ELEMENT_RECORD_STRIDE);
   }
-  writeDenseSelectionData(next, storage.highlight, selection);
+  if (selectionChanged) writeDenseSelectionData(next, highlight, selection);
   writeChangedRanges(device, storage, next, table.bucketCount, options.cost);
-  storage.highlight.data.set(next);
+  if (selectionChanged) writeChangedSelectionRanges(device, highlight, next, options.cost);
+  highlight.data.set(next);
+  highlight.denseSelection = selection;
 }
 
 function writeChangedRanges(
@@ -146,7 +153,6 @@ function writeChangedRanges(
     cost,
     category: "highlight",
   });
-  writeChangedSelectionRanges(device, storage.highlight, next, cost);
 }
 
 function recordChanged(next: Uint8Array, previous: Uint8Array, index: number): boolean {
@@ -170,16 +176,23 @@ function ensureHighlightStorage(
   options: HighlightCapacityOptions,
 ): void {
   const highlight = storage.highlight;
+  const releasesSelection =
+    options.selectionSlotCapacity === 0 &&
+    options.selectionRecordCapacity === 0 &&
+    options.selectionWordCapacity === 0;
   const nextSparseCapacity =
     options.minimumRecords <= highlight.sparseCapacity
       ? highlight.sparseCapacity
       : Math.max(options.minimumRecords, highlight.sparseCapacity * 2);
-  const nextSlotCapacity = Math.max(highlight.selectionSlotCapacity, options.selectionSlotCapacity);
-  const nextRecordCapacity = Math.max(
-    highlight.selectionRecordCapacity,
-    options.selectionRecordCapacity,
-  );
-  const nextWordCapacity = Math.max(highlight.selectionWordCapacity, options.selectionWordCapacity);
+  const nextSlotCapacity = releasesSelection
+    ? 0
+    : Math.max(highlight.selectionSlotCapacity, options.selectionSlotCapacity);
+  const nextRecordCapacity = releasesSelection
+    ? 0
+    : Math.max(highlight.selectionRecordCapacity, options.selectionRecordCapacity);
+  const nextWordCapacity = releasesSelection
+    ? 0
+    : Math.max(highlight.selectionWordCapacity, options.selectionWordCapacity);
   if (
     nextSparseCapacity === highlight.sparseCapacity &&
     nextSlotCapacity === highlight.selectionSlotCapacity &&
