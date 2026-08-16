@@ -74,10 +74,7 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     setVectorWidthPixels: (value) => {
       applyVectorWidth(owner, value);
     },
-    fitSelection: owner.fitSelection.bind(owner),
-    selectAll: owner.selectAll.bind(owner),
-    hideSelected: owner.hideSelected.bind(owner),
-    showAll: owner.showAll.bind(owner),
+    ...selectionCommands(owner),
     reset: owner.reset.bind(owner),
     selectModel: owner.setModel.bind(owner),
     openModel: owner.openModel.bind(owner),
@@ -110,6 +107,23 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     setElementDetailHover: owner.elementDetailActions.setElementDetailHover,
     clearElementDetailHover: owner.elementDetailActions.clearElementDetailHover,
     ...resultPlaybackCommands(owner),
+  };
+}
+
+function selectionCommands(
+  owner: WorkbenchCommandOwner,
+): Pick<
+  WorkbenchCommands,
+  "fitSelection" | "selectAll" | "hideSelected" | "clearSelection" | "showAll"
+> {
+  return {
+    fitSelection: owner.fitSelection.bind(owner),
+    selectAll: owner.selectAll.bind(owner),
+    hideSelected: owner.hideSelected.bind(owner),
+    clearSelection: () => {
+      owner.interactionController.clearSelection();
+    },
+    showAll: owner.showAll.bind(owner),
   };
 }
 
