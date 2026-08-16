@@ -13,10 +13,14 @@ import {
 } from "../../src/renderer/runtime-state";
 import {
   createInteractionState,
+  setElementSelected,
   setInstanceSelected,
   setPartSelected,
 } from "../../src/interaction/interaction";
+import { setFaceSelected } from "../../src/interaction/faces";
 import { setNodeSelected } from "../../src/interaction/nodes";
+import { setTargetsSelected } from "../../src/interaction/targets";
+import { buildSelectionDrawCalls } from "../../src/renderer/selection-draw-ranges";
 
 function part(id: number): Part {
   const geometry = {
@@ -26,6 +30,78 @@ function part(id: number): Part {
   };
   return createPart(id, { geometries: [geometry] });
 }
+
+const rangedSelectionPart = createPart(3, {
+  geometries: [
+    {
+      positions: new Float32Array([
+        0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 2, 1, 0, 2, 0, 1, 2,
+      ]),
+      indices: new Uint32Array([0, 1, 2, 3, 4, 5, 6, 7, 8]),
+      primitive: "triangles" as const,
+      faces: [
+        {
+          elementId: 101,
+          faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 1,
+          key: "0,1,2",
+          nodeIds: [0, 1, 2],
+          neighborElementIds: [],
+        },
+        {
+          elementId: 102,
+          faceIndex: 0,
+          primitiveStart: 1,
+          primitiveCount: 1,
+          key: "3,4,5",
+          nodeIds: [3, 4, 5],
+          neighborElementIds: [],
+        },
+        {
+          elementId: 103,
+          faceIndex: 0,
+          primitiveStart: 2,
+          primitiveCount: 1,
+          key: "6,7,8",
+          nodeIds: [6, 7, 8],
+          neighborElementIds: [],
+        },
+      ],
+      faceSubset: { faceIds: [{ elementId: 101, faceIndex: 0 }] },
+    },
+  ],
+  elements: [
+    {
+      id: 101,
+      primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+    },
+    {
+      id: 102,
+      primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+    },
+    {
+      id: 103,
+      primitiveRanges: [{ primitive: "triangles", primitiveStart: 2, primitiveCount: 1 }],
+    },
+  ],
+});
+
+const fragmentedSelectionPart = createPart(4, {
+  geometries: [
+    {
+      positions: new Float32Array(2049 * 9),
+      indices: Uint32Array.from({ length: 2049 * 3 }, (_, index) => index),
+      primitive: "triangles" as const,
+    },
+  ],
+  elements: Array.from({ length: 2049 }, (_, index) => ({
+    id: index + 1,
+    primitiveRanges: [
+      { primitive: "triangles" as const, primitiveStart: index, primitiveCount: 1 },
+    ],
+  })),
+});
 
 describe("renderer runtime state", () => {
   it("keeps the largest part id addressable through GPU draw derivation", () => {
@@ -142,6 +218,188 @@ describe("renderer runtime state", () => {
     expect(
       Array.from(buildNodeSelectionOrder(layout, runtime, 1, [false, true, false], parts)),
     ).toEqual([1]);
+  });
+
+  it("builds ranged selection calls for omitted face-subset elements and keeps broad selection fallback", () => {
+    const scene = createScene()
+      .addPart(rangedSelectionPart)
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [{ kind: "part", partId: rangedSelectionPart.id, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    const selectedElement = setElementSelected(
+      createInteractionState(),
+      { instanceId: "1/0", elementId: 102 },
+      true,
+    );
+    const order = buildSelectionOrder(layout, runtime, rangedSelectionPart.id, selectedElement);
+    expect(
+      buildSelectionDrawCalls({
+        layout,
+        runtime,
+        partId: rangedSelectionPart.id,
+        interaction: selectedElement,
+        part: rangedSelectionPart,
+        order,
+      }),
+    ).toEqual([
+      {
+        partId: rangedSelectionPart.id,
+        instanceCount: 1,
+        firstInstance: 0,
+        selectionRanges: [{ primitive: "triangles", firstIndex: 3, indexCount: 3 }],
+      },
+    ]);
+    const selectedFace = setFaceSelected(
+      createInteractionState(),
+      { instanceId: "1/0", elementId: 103, faceIndex: 0 },
+      true,
+    );
+    const faceOrder = buildSelectionOrder(layout, runtime, rangedSelectionPart.id, selectedFace);
+    expect(
+      buildSelectionDrawCalls({
+        layout,
+        runtime,
+        partId: rangedSelectionPart.id,
+        interaction: selectedFace,
+        part: rangedSelectionPart,
+        order: faceOrder,
+      }),
+    ).toEqual([
+      {
+        partId: rangedSelectionPart.id,
+        instanceCount: 1,
+        firstInstance: 0,
+        selectionRanges: [{ primitive: "triangles", firstIndex: 6, indexCount: 3 }],
+      },
+    ]);
+    const selectedInstance = setInstanceSelected(createInteractionState(), "1/0", true);
+    const instanceOrder = buildSelectionOrder(
+      layout,
+      runtime,
+      rangedSelectionPart.id,
+      selectedInstance,
+    );
+    expect(
+      buildSelectionDrawCalls({
+        layout,
+        runtime,
+        partId: rangedSelectionPart.id,
+        interaction: selectedInstance,
+        part: rangedSelectionPart,
+        order: instanceOrder,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("falls back when one grouped instance would issue too many range draws", () => {
+    const scene = createScene()
+      .addPart(fragmentedSelectionPart)
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [{ kind: "part", partId: fragmentedSelectionPart.id, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    const targets = Array.from({ length: 1025 }, (_, index) => ({
+      kind: "element" as const,
+      instanceId: "1/0",
+      elementId: index * 2 + 1,
+    }));
+    const interaction = setTargetsSelected(createInteractionState(), targets, true);
+    const order = buildSelectionOrder(layout, runtime, fragmentedSelectionPart.id, interaction);
+
+    expect(
+      buildSelectionDrawCalls({
+        layout,
+        runtime,
+        partId: fragmentedSelectionPart.id,
+        interaction,
+        part: fragmentedSelectionPart,
+        order,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("falls back when ranges retain at least half of the full index work", () => {
+    const scene = createScene()
+      .addPart(rangedSelectionPart)
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [{ kind: "part", partId: rangedSelectionPart.id, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    const interaction = setTargetsSelected(
+      createInteractionState(),
+      [
+        { kind: "element", instanceId: "1/0", elementId: 101 },
+        { kind: "element", instanceId: "1/0", elementId: 103 },
+      ],
+      true,
+    );
+    const order = buildSelectionOrder(layout, runtime, rangedSelectionPart.id, interaction);
+
+    expect(
+      buildSelectionDrawCalls({
+        layout,
+        runtime,
+        partId: rangedSelectionPart.id,
+        interaction,
+        part: rangedSelectionPart,
+        order,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("merges a large out-of-order contiguous selection into one bounded range", () => {
+    const scene = createScene()
+      .addPart(fragmentedSelectionPart)
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [{ kind: "part", partId: fragmentedSelectionPart.id, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    const targets = Array.from({ length: 1000 }, (_, index) => ({
+      kind: "element" as const,
+      instanceId: "1/0",
+      elementId: index + 1,
+    })).reverse();
+    const interaction = setTargetsSelected(createInteractionState(), targets, true);
+    const order = buildSelectionOrder(layout, runtime, fragmentedSelectionPart.id, interaction);
+
+    expect(
+      buildSelectionDrawCalls({
+        layout,
+        runtime,
+        partId: fragmentedSelectionPart.id,
+        interaction,
+        part: fragmentedSelectionPart,
+        order,
+      }),
+    ).toEqual([
+      {
+        partId: fragmentedSelectionPart.id,
+        instanceCount: 1,
+        firstInstance: 0,
+        selectionRanges: [{ primitive: "triangles", firstIndex: 0, indexCount: 1000 * 3 }],
+      },
+    ]);
   });
 
   it("builds node orders from visible node-styled instances and skips points", () => {

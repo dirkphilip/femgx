@@ -9,6 +9,7 @@ import {
   type DrawCall,
   type DrawCallContext,
   type DrawResources,
+  type SelectionDrawRange,
 } from "../resources/gpu-draw";
 import type { PartResource } from "../resources/gpu-support";
 
@@ -55,6 +56,22 @@ export function drawBatches(
     const part = context.parts.get(call.partId);
     if (part === undefined) continue;
     const geometries = geometriesForIntent(part, options);
+    const ranges = selectionRangesForIntent(call, options);
+    if (ranges !== undefined) {
+      for (const range of ranges) {
+        const geometry = geometryForPrimitive(geometries, range.primitive);
+        current = drawOneBatch(pass, {
+          draw,
+          context,
+          call,
+          geometry,
+          intent: options,
+          current,
+          range,
+        });
+      }
+      continue;
+    }
     for (const geometry of geometries) {
       current = drawOneBatch(pass, {
         draw,
@@ -78,10 +95,12 @@ function drawOneBatch(
     readonly geometry: Geometry | undefined;
     readonly intent: DrawIntent;
     readonly current: GPURenderPipeline | undefined;
+    readonly range?: SelectionDrawRange;
   },
 ): GPURenderPipeline | undefined {
-  const { draw, context, call, geometry, intent, current } = batch;
+  const { draw, context, call, geometry, intent, current, range } = batch;
   const { orderKind, overlay, edgePick, nodes } = drawIntentState(intent);
+  if (range !== undefined && range.primitive !== geometry?.primitive) return current;
   const storage = draw.storages.get(call.partId);
   const part = context.parts.get(call.partId);
   if (part === undefined || storage === undefined) return current;
@@ -89,24 +108,8 @@ function drawOneBatch(
     return current;
   const resource = uploadBatchGeometry(draw, context, part, geometry, nodes);
   const subset = usesFaceSubset(intent, geometry, nodes);
-  if (
-    edgePick &&
-    geometry?.primitive === "triangles" &&
-    ensureEdgePickResources(draw, part, geometry, resource) === undefined
-  )
+  if (!hasBatchResources({ draw, part, geometry, resource, overlay, edgePick, subset }))
     return current;
-  if (
-    overlay &&
-    !edgePick &&
-    geometry?.primitive === "triangles" &&
-    ensureEdgeResources(draw, part, geometry, resource) === undefined
-  )
-    return current;
-  if (edgePick && (resource.edgePick?.indexCount ?? 0) === 0) return current;
-  if (overlay && !edgePick && (resource.edge?.edgeIndexCount ?? 0) === 0) {
-    return current;
-  }
-  if (!overlay && subset && resource.subsetIndexCount === 0) return current;
   const pipeline =
     intent.kind === "surface"
       ? pipelineFor(geometry?.primitive ?? "triangles", intent.pass, context.pipelines)
@@ -122,11 +125,58 @@ function drawOneBatch(
     cache: !edgePick && part.geometries.length === 1,
   });
   pass.setBindGroup(1, group);
-  const count = bindDrawGeometry(pass, resource, overlay, subset, edgePick);
-  if (count === undefined) return current;
-  pass.drawIndexed(count, call.instanceCount);
+  const geometryCount = bindDrawGeometry(pass, resource, overlay, subset, edgePick);
+  if (geometryCount === undefined) return current;
+  const count = range?.indexCount ?? geometryCount;
+  pass.drawIndexed(count, call.instanceCount, range?.firstIndex ?? 0, 0, call.firstInstance ?? 0);
   draw.cost.draw(drawCostCategory(intent), count, call.instanceCount);
   return pipeline;
+}
+
+function hasBatchResources(options: {
+  readonly draw: DrawResources;
+  readonly part: Part;
+  readonly geometry: Geometry | undefined;
+  readonly resource: PartResource;
+  readonly overlay: boolean;
+  readonly edgePick: boolean;
+  readonly subset: boolean;
+}): boolean {
+  const { draw, part, geometry, resource, overlay, edgePick, subset } = options;
+  if (
+    edgePick &&
+    geometry?.primitive === "triangles" &&
+    ensureEdgePickResources(draw, part, geometry, resource) === undefined
+  )
+    return false;
+  if (
+    overlay &&
+    !edgePick &&
+    geometry?.primitive === "triangles" &&
+    ensureEdgeResources(draw, part, geometry, resource) === undefined
+  )
+    return false;
+  if (edgePick && (resource.edgePick?.indexCount ?? 0) === 0) return false;
+  if (overlay && !edgePick && (resource.edge?.edgeIndexCount ?? 0) === 0) return false;
+  return !(!overlay && subset && resource.subsetIndexCount === 0);
+}
+
+function selectionRangesForIntent(
+  call: DrawCall,
+  intent: DrawIntent,
+): readonly SelectionDrawRange[] | undefined {
+  if (intent.kind !== "surface" || !intent.pass.startsWith("selection-")) return undefined;
+  return call.selectionRanges;
+}
+
+function geometryForPrimitive(
+  geometries: readonly (Geometry | undefined)[],
+  primitive: SelectionDrawRange["primitive"],
+): Geometry | undefined {
+  for (const geometry of geometries) {
+    if (geometry?.primitive === primitive) return geometry;
+  }
+  return undefined;
 }
 
 function drawIntentState(intent: DrawIntent): DrawIntentState {

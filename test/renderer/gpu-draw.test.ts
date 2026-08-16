@@ -368,6 +368,87 @@ describe("GPU draw path", () => {
     }
   });
 
+  it("draws selected primitive ranges with the selection-order offset", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      uploadPart(draw, subsetPart);
+      patchInstances(draw, subsetPart.id, [
+        { slot: 0, data: record(0) },
+        { slot: 1, data: record(1) },
+      ]);
+      writeSelectionOrder(draw, subsetPart.id, new Uint32Array([0, 1]));
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) },
+        [
+          {
+            partId: subsetPart.id,
+            instanceCount: 1,
+            firstInstance: 1,
+            selectionRanges: [{ primitive: "triangles", firstIndex: 3, indexCount: 3 }],
+          },
+        ],
+        { kind: "surface", pass: "selection-visible" },
+      );
+      pass.end();
+      expect(gpu.drawCalls).toEqual([
+        { indexCount: 3, instanceCount: 1, firstIndex: 3, firstInstance: 1 },
+      ]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("routes retained selection ranges only to matching primitive leaves", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, mixedPart.id, [{ slot: 0, data: record(0) }]);
+      writeSelectionOrder(draw, mixedPart.id, new Uint32Array([0]));
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[mixedPart.id, mixedPart]]) },
+        [
+          {
+            partId: mixedPart.id,
+            instanceCount: 1,
+            selectionRanges: [
+              { primitive: "triangles", firstIndex: 0, indexCount: 3 },
+              { primitive: "points", firstIndex: 0, indexCount: 6 },
+            ],
+          },
+        ],
+        { kind: "surface", pass: "selection-visible" },
+      );
+      pass.end();
+      expect(gpu.drawCalls).toEqual([
+        { indexCount: 3, instanceCount: 1 },
+        { indexCount: 6, instanceCount: 1 },
+      ]);
+    } finally {
+      restore();
+    }
+  });
+
   it("expands logical point centers only at GPU upload", () => {
     const restore = installGpuGlobals();
     try {

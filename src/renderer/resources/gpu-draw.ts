@@ -55,6 +55,17 @@ export {
 export interface DrawCall {
   readonly partId: PartId;
   readonly instanceCount: number;
+  /** First entry in the bound order buffer, used by ranged selection draws. */
+  readonly firstInstance?: number;
+  /** Optional selected primitive ranges reused from the main index buffer. */
+  readonly selectionRanges?: readonly SelectionDrawRange[];
+}
+
+/** One index-buffer range for a selected primitive group. */
+export interface SelectionDrawRange {
+  readonly primitive: Primitive;
+  readonly firstIndex: number;
+  readonly indexCount: number;
 }
 
 /** Per-part geometry and instance storage buffers owned by the draw path. */

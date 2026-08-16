@@ -163,6 +163,28 @@ function buildBodyScene(): Scene {
     .build();
 }
 
+function buildSelectablePart(
+  elementRanges: readonly (readonly [number, number])[],
+): ReturnType<typeof createPart> {
+  const primitiveCount = elementRanges.reduce(
+    (end, [primitiveStart, primitiveCount]) => Math.max(end, primitiveStart + primitiveCount),
+    0,
+  );
+  return createPart(1, {
+    geometries: [
+      {
+        positions: new Float32Array(primitiveCount * 9),
+        indices: Uint32Array.from({ length: primitiveCount * 3 }, (_, index) => index),
+        primitive: "triangles",
+      },
+    ],
+    elements: elementRanges.map(([primitiveStart, primitiveCount], index) => ({
+      id: 101 + index,
+      primitiveRanges: [{ primitive: "triangles", primitiveStart, primitiveCount }],
+    })),
+  });
+}
+
 const camera: Camera = {
   mode: "perspective",
   position: [3, 3, 5],
@@ -956,6 +978,47 @@ describe("WebGPU renderer", () => {
 
     expect(gpu.buffers.some((buffer) => buffer.destroyed)).toBe(true);
     expect(geometryBuffers.every((buffer) => !buffer.destroyed)).toBe(true);
+    renderer.destroy();
+  });
+
+  it("clears stale selected primitive ranges when parts change for the same runtime", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const initialPart = buildSelectablePart([
+      [0, 1],
+      [1, 1],
+      [2, 1],
+    ]);
+    const scene = createScene()
+      .addPart(initialPart)
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [{ kind: "part", partId: initialPart.id, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    renderer.render(runtime, camera, scene.parts);
+
+    const selected = setElementSelected(
+      createInteractionState(),
+      { instanceId: "1/0", elementId: 101 },
+      true,
+    );
+    renderer.updateElements(runtime, selected);
+    renderer.render(runtime, camera, scene.parts);
+    expect(readGpuCostSnapshot(renderer).draws["selection-visible"].indices).toBe(3);
+
+    const replacementPart = buildSelectablePart([
+      [1, 2],
+      [0, 1],
+    ]);
+    renderer.render(runtime, camera, new Map([[replacementPart.id, replacementPart]]));
+
+    expect(readGpuCostSnapshot(renderer).draws["selection-visible"].indices).toBe(9);
     renderer.destroy();
   });
 });

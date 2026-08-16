@@ -37,7 +37,7 @@ import {
   type SelectionState,
 } from "./selection-state";
 import { rebuildEdgeOrders, rebuildTransparentOrders } from "./attachment-orders";
-import { reconcilePartResources } from "./part-resources";
+import { changedPartDefinitions, reconcilePartResources } from "./part-resources";
 import { getPartSemanticIndex } from "../geometry/part-semantic-index";
 import { syncEdgeEmphasisFlags } from "./edge-emphasis-sync";
 import { rebuildAttachmentCalls } from "./attachment-calls";
@@ -81,6 +81,8 @@ export class RendererAttachment {
 
   /** Retains geometry for unchanged part definitions and drops replaced ones. */
   public prepareParts(parts: ReadonlyMap<PartId, Part>, bundle: GpuBundle): void {
+    const changedPartIds = changedPartDefinitions(this.attachedParts, parts);
+    changedPartIds?.forEach((partId) => this.layout?.partSelectionDrawCalls.delete(partId));
     this.attachedParts = reconcilePartResources(this.attachedParts, parts, bundle.draw);
     // Region queries reuse this immutable index; prepare it outside their timed readback path.
     for (const part of parts.values()) getPartSemanticIndex(part);
@@ -384,7 +386,8 @@ export class RendererAttachment {
     }
     this.rebuildEdgeOrders(runtime, layout, rebuild, bundle);
     this.rebuildTransparentOrders(runtime, layout, rebuild, bundle);
-    syncVisibleSelectionOrders(runtime, layout, this.interactionState, bundle, rebuild);
+    const selection = { parts: rebuild, partDefinitions: this.attachedParts };
+    syncVisibleSelectionOrders(runtime, layout, this.interactionState, bundle, selection);
     layout.visibleCount = runtime.visibleCount;
     this.rebuildCalls(bundle.draw.cost);
   }
