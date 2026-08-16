@@ -1,12 +1,13 @@
 import {
   setTargetHovered,
+  setTargetsHighlighted,
   type InstanceId,
   type InteractionState,
   type FemViewport,
 } from "../../../src/entries/root";
 import type { ElementId } from "../../../src/entries/model";
 import {
-  interactionTargetForRow,
+  interactionTargetsForRow,
   visibilityRowTargetsEqual,
   type VisibilityRowTarget,
 } from "../state/visibility-snapshot";
@@ -45,7 +46,10 @@ export function setHierarchyHover(
     return;
   }
   owner.viewportSlots.clearHover();
-  owner.interaction = setTargetHovered(owner.interaction, interactionTargetForRow(target));
+  owner.interaction = setTargetHovered(
+    owner.interaction,
+    target.kind === "assembly" ? undefined : target,
+  );
   owner.hoverOwner = { kind: "hierarchy", row: target };
   owner.render();
 }
@@ -64,7 +68,10 @@ export function clearHierarchyHover(
   }
   owner.hoverOwner = undefined;
   const next = setTargetHovered(owner.interaction, undefined);
-  if (next === owner.interaction) return;
+  if (next === owner.interaction) {
+    owner.render();
+    return;
+  }
   owner.interaction = next;
   owner.render();
 }
@@ -115,7 +122,22 @@ function elementDetailTargetsEqual(
 
 /** Sends the shared interaction snapshot to each viewport. */
 export function applyDisplayedInteraction(owner: WorkbenchHoverController): void {
-  for (const viewport of owner.viewports()) viewport.setInteraction(owner.interaction);
+  const displayed = displayedInteraction(owner);
+  for (const viewport of owner.viewports()) viewport.setInteraction(displayed);
+}
+
+function displayedInteraction(owner: WorkbenchHoverController): InteractionState {
+  const hoverOwner = owner.hoverOwner;
+  if (hoverOwner?.kind !== "hierarchy" || hoverOwner.row.kind !== "assembly") {
+    return owner.interaction;
+  }
+  const viewport = owner.viewports()[0];
+  if (viewport === undefined) return owner.interaction;
+  return setTargetsHighlighted(
+    owner.interaction,
+    interactionTargetsForRow(viewport.runtime, hoverOwner.row),
+    true,
+  );
 }
 
 /** Reports whether a viewport slot still owns transient canvas hover. */

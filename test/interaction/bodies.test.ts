@@ -95,10 +95,10 @@ describe("resolveBodyStyle", () => {
     });
   });
 
-  it("uses body highlight and hover themes in deterministic order", () => {
+  it("uses the shared body emphasis in deterministic order", () => {
     let state = createInteractionState();
     state = setBodyHighlighted(state, ref, true);
     state = setTargetHovered(state, { kind: "body", ...ref });
-    expect(resolveBodyStyle(item, 3, base, state)).toMatchObject({ emissive: 0.2 });
+    expect(resolveBodyStyle(item, 3, base, state)).toMatchObject({ emissive: 0.35 });
   });
 });

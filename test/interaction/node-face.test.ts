@@ -137,7 +137,7 @@ describe("face emphasis collection", () => {
 describe("resolveNodeStyle", () => {
   it("applies node hover over the base instance style", () => {
     const state = setTargetHovered(createInteractionState(), { kind: "node", ...nodeRef });
-    expect(resolveNodeStyle(item, nodeRef, base, state)).toMatchObject({ emissive: 0.45 });
+    expect(resolveNodeStyle(item, nodeRef, base, state)).toMatchObject({ emissive: 0.35 });
     expect(resolveNodeStyle(item, otherNodeRef, base, state)).toBe(base);
   });
 
@@ -166,7 +166,7 @@ describe("resolveFaceStyle", () => {
       elementId: faceRef.elementId,
       faceIndex: faceRef.faceIndex,
     });
-    expect(resolveFaceStyle(item, faceRef, base, state)).toMatchObject({ emissive: 0.3 });
+    expect(resolveFaceStyle(item, faceRef, base, state)).toMatchObject({ emissive: 0.35 });
     expect(resolveFaceStyle(item, otherFaceRef, base, state)).toBe(base);
   });
 

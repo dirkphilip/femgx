@@ -4,6 +4,7 @@ import type {
   InteractionTarget,
 } from "../../../src/entries/root";
 import type { BodyId, ElementBlockId } from "../../../src/entries/model";
+import type { SceneRuntime } from "../../../src/entries/runtime";
 
 /** Semantic identity carried by one visibility-tree row. */
 export type VisibilityRowTarget =
@@ -40,9 +41,26 @@ export interface WorkbenchVisibilitySnapshot {
   readonly rows: readonly WorkbenchVisibilityRowSnapshot[];
 }
 
-/** Returns the scene target represented by a row, if the row has scene identity. */
-export function interactionTargetForRow(row: VisibilityRowTarget): InteractionTarget | undefined {
-  return row.kind === "assembly" ? undefined : row;
+/**
+ * Projects a visibility row onto the visible ordinary targets it emphasizes.
+ * Assembly rows stay demo-private and expand through their exact occurrence subtree.
+ */
+export function interactionTargetsForRow(
+  runtime: SceneRuntime,
+  row: VisibilityRowTarget,
+): readonly InteractionTarget[] {
+  if (row.kind !== "assembly") return [row];
+  const targets: InteractionTarget[] = [];
+  const visit = (occurrenceId: AssemblyOccurrenceId): void => {
+    const occurrence = runtime.getOccurrence(occurrenceId);
+    if (occurrence === undefined || !occurrence.effectiveVisible) return;
+    for (const instanceId of occurrence.instanceIds) {
+      if (runtime.isInstanceVisible(instanceId)) targets.push({ kind: "instance", instanceId });
+    }
+    for (const childId of occurrence.childIds) visit(childId);
+  };
+  visit(row.occurrenceId);
+  return targets;
 }
 
 /** Compares row identity without depending on object identity from snapshots. */

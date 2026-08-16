@@ -17,9 +17,6 @@ import { instanceAt, type InstanceLayout } from "./runtime-state";
 const THEME_KEYS = [
   "highlighted",
   "selected",
-  "hovered",
-  "hoveredFace",
-  "hoveredNode",
 ] as const satisfies readonly (keyof InteractionStateData["theme"])[];
 
 export interface TransparencySyncOptions {

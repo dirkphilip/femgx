@@ -67,7 +67,7 @@ export function resolveNodeStyle(
       ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
     isHoveredTarget(state, { kind: "node", ...ref })
-      ? applySelectionStyle(style, data.theme.hoveredNode)
+      ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
   ]);
 }
