@@ -94,7 +94,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       });
       console.log(`WEBGPU_BENCHMARK_JSON ${JSON.stringify(report)}`);
 
-      expect(report.schemaVersion).toBe(6);
+      expect(report.schemaVersion).toBe(7);
       expect(report.cases).toHaveLength(1);
       const [entry] = report.cases;
       expect(entry?.id).toBe(spec.id);
@@ -118,6 +118,14 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       expect(entry.visibleTriangles).toBe(entry.submittedTriangles);
       expect(entry.modelBuildMs).toBeGreaterThanOrEqual(0);
       expect(entry.runtimeCompileMs).toBeGreaterThanOrEqual(0);
+      expect(entry.timings.uploadAndFirstFrameCpuMs.p50).toBeGreaterThanOrEqual(0);
+      expect(entry.timings.uploadAndFirstFrameCpuMs.p95).toBeGreaterThanOrEqual(
+        entry.timings.uploadAndFirstFrameCpuMs.p50,
+      );
+      expect(entry.timings.visibleFrameCpuMs.p50).toBeGreaterThanOrEqual(0);
+      expect(entry.timings.visibleFrameCpuMs.p95).toBeGreaterThanOrEqual(
+        entry.timings.visibleFrameCpuMs.p50,
+      );
       for (const timing of Object.values(entry.timings) as Array<{
         readonly p50: number;
         readonly p95: number;
