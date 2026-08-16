@@ -178,10 +178,10 @@ function addInstanceSelections(context: DenseSelectionContext): void {
     return;
   }
   const metadata = getPartSemanticIndex(part);
+  let ordinals = byPart.get(partId)?.get(localSlot);
   for (const elementId of elementIds) {
     const ordinal = metadata.elementOrdinalById.get(elementId);
     if (ordinal === undefined) continue;
-    let ordinals = byPart.get(partId)?.get(localSlot);
     if (ordinals === undefined) {
       ordinals = new Set();
       let bySlot = byPart.get(partId);

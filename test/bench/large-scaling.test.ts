@@ -1,11 +1,40 @@
 import { describe, expect, it } from "vitest";
+import { createInteractionState } from "../../src/interaction/interaction";
+import { setTargetsSelected } from "../../src/interaction/targets";
 import { createStructuredFeModel } from "../../demo/benchmark/structured-fe";
 import { elementPart } from "../../src/entries/model";
-import { measureScaling, type ScalingMeasurement, type ScalingPoint } from "./measure";
+import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
+import { buildInstanceLayout } from "../../src/renderer/runtime-state";
+import { collectDenseElementSelections } from "../../src/renderer/selection/element-selection";
+import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
+import { benchmarkCaseSpecs, createBenchmarkCase } from "../../demo/benchmark/model";
+import { measureMs, measureScaling, type ScalingMeasurement, type ScalingPoint } from "./measure";
 
 const GRID_SIZES = [24, 35, 47] as const;
 const ELEMENT_COUNTS = GRID_SIZES.map((size) => size ** 3);
 const models = GRID_SIZES.map((size) => createStructuredFeModel("hex8", size));
+const TET4_ELEMENT_COUNT = 6 * 28 ** 3;
+const tet4Spec = benchmarkCaseSpecs(false).find((spec) => spec.id === "fe-tet4-solid-132k");
+if (tet4Spec === undefined) throw new Error("Tet4 benchmark case is missing");
+const tet4Case = createBenchmarkCase(tet4Spec);
+const tet4Part = [...tet4Case.scene.parts.values()][0];
+if (tet4Part === undefined) throw new Error("Tet4 benchmark part is missing");
+const tet4PartId = tet4Part.id;
+const tet4Runtime = createPackedSceneRuntime(tet4Case.scene);
+const tet4Layout = buildInstanceLayout(tet4Runtime);
+const tet4InstanceId = tet4Runtime.getInstanceId(0);
+if (tet4InstanceId === undefined) throw new Error("Tet4 benchmark instance is missing");
+const tet4Elements = tet4Part.elements ?? [];
+const tet4Targets = tet4Elements.map((element) => ({
+  kind: "element" as const,
+  instanceId: tet4InstanceId,
+  elementId: element.id,
+}));
+getPartSemanticIndex(tet4Part);
+const tet4Interactions = Array.from({ length: 3 }, () =>
+  setTargetsSelected(createInteractionState(), tet4Targets, true),
+);
+let tet4InteractionIndex = 0;
 
 interface LargeScalingCase {
   readonly name: string;
@@ -24,10 +53,39 @@ const cases: readonly LargeScalingCase[] = [
   },
 ];
 
+function runTet4DenseSelection(): void {
+  const interaction = tet4Interactions[tet4InteractionIndex];
+  tet4InteractionIndex = (tet4InteractionIndex + 1) % tet4Interactions.length;
+  if (interaction === undefined) throw new Error("Tet4 interaction is missing");
+  const dense = collectDenseElementSelections(
+    tet4Runtime,
+    tet4Layout,
+    tet4Case.scene.parts,
+    interaction,
+  );
+  const occurrence = dense.get(tet4PartId)?.occurrences[0];
+  if (occurrence?.ordinals.length !== TET4_ELEMENT_COUNT) {
+    throw new Error("Tet4 dense selection lost authored elements");
+  }
+}
+
 describe("large-model scaling", () => {
   it("uses the intended authored solid element counts", () => {
     expect(ELEMENT_COUNTS).toEqual([13_824, 42_875, 103_823]);
     expect(models.map((model) => model.elements.length)).toEqual(ELEMENT_COUNTS);
+    expect(tet4Elements).toHaveLength(TET4_ELEMENT_COUNT);
+  });
+
+  it("keeps full Tet4 dense selection materialization bounded", () => {
+    const measured = measureMs(runTet4DenseSelection, { warmup: 0, samples: 3 });
+    report("131,712-element Tet4 dense selection materialization", [
+      {
+        size: TET4_ELEMENT_COUNT,
+        measuredMs: measured,
+        millisecondsPerUnit: measured / TET4_ELEMENT_COUNT,
+      },
+    ]);
+    expect(measured).toBeLessThanOrEqual(100);
   });
 
   it.each(cases)("$name remains approximately linear", ({ name, points }) => {
