@@ -6,13 +6,15 @@ changed placements instead of rebuilding instance data.
 
 ## Per-part storage
 
-Each part owns three storage buffers (`src/renderer/resources/draw-resources.ts`):
+Each attached part currently owns one instance-record buffer, six compact order
+buffers, and one emphasis/selection buffer
+(`src/renderer/resources/instance-storage.ts`):
 
 - **Record buffer** (`binding 0`): one 96-byte record per slot — column-major
   world transform (16 floats), resolved color with opacity folded into alpha
   (4 floats), a stable pick id, and an emissive scalar that drives the
   hover/highlight glow in the fragment shader. Field offsets are documented on
-  `EMISSIVE_BYTE_OFFSET` in `src/renderer/resources/draw-resources.ts` and mirrored by the
+  `EMISSIVE_BYTE_OFFSET` in `src/renderer/resources/instance-storage.ts` and mirrored by the
   `Instance` struct in `src/renderer/shaders/scene.ts`. The buffer is indexed by
   the **part-local slot** (`runtime-state.ts` maps global instance slots to
   part-local slots once at attach), so slot `N` always lives at byte `N * 96`
@@ -21,11 +23,15 @@ Each part owns three storage buffers (`src/renderer/resources/draw-resources.ts`
   part-local slots in ascending draw order. The vertex shader reads
   `instances[drawOrder[instanceIndex]]`, so hidden slots are never drawn and the
   draw is `drawIndexed(geometry, visibleCountOfPart)`.
-- **Edge-order buffer**: a second compacted list holding the visible slots whose
-  resolved style requests the line overlay (see
-  [[rendering/element-interaction|Element-level interaction]]). The overlay pass addresses
-  it through a second cached bind group per part, so only edge-styled instances
-  are drawn as lines while their surface pass keeps drawing everything visible.
+- **Optional-path order buffers**: separate compacted lists for transparency,
+  visible/hidden selection, selected nodes, edge presentation, and node
+  presentation. The current implementation allocates all six orders at part
+  capacity. This is an implementation gap against the zero-inactive-cost
+  contract: #1008 moves non-ordinary orders and emphasis storage into lazy
+  sidecars backed by fixed shared empty resources.
+- **Emphasis/selection buffer**: sparse fixed-stride records plus optional dense
+  ordinal bitsets. Small exception sets remain sparse; dense membership is used
+  only when its byte representation is smaller.
 
 Pick ids are `global slot + 1`, so they are **stable across visibility changes**;
 `pick()` resolves a readback id through the runtime's `getInstanceId(slot)`.
@@ -58,19 +64,15 @@ compact primitive and edge ids, and binding 7 addresses the selected position
 buffer.
 This avoids copying every expanded position into a second packed storage buffer.
 
-The compact metadata is appended to the existing topology buffer as
-`[primitiveIdCount, primitiveIds..., edgeIds...]`. Primitive ids preserve
-face-subset remapping, while edge ids are the only per-endpoint topology values
-needed by the edge shader. Face/body ownership and neighbor conditions remain in
-that same topology buffer, where face ranges can share one retained record
-across all of a face's triangles. Subset surface positions and edge endpoints
-use the same bindings with their cached subset buffers; placements never
-receive geometry or topology copies.
+Primitive ids preserve face-subset remapping. Face/body ownership and neighbor
+conditions remain in compact topology storage, where face ranges can share one
+retained record across all of a face's triangles. Subset surface positions use
+cached subset buffers; placements never receive geometry or topology copies.
 
-Edge endpoint positions remain optional to the edge draw path, but their
-expanded resource is currently created with the part attachment so the existing
-edge activation and recovery lifecycle stays deterministic. The surface
-position/metadata split is the measured baseline for subsequent lazy-edge work.
+Presentation edge endpoints and topology are materialized only on first edge
+display. Exact wider edge-pick geometry is a separate lazy resource created only
+when edge granularity is requested. Repeated placements share both resources by
+part, and leaving presentation enabled never implies exact edge-pick residency.
 
 ## Design notes
 
@@ -104,11 +106,12 @@ position/metadata split is the measured baseline for subsequent lazy-edge work.
   into a single `updateInstances` call can skip the draw-order rebuild and leave
   a hidden slot drawn; follow the one-`updateInstances`-per-delta flow until
   per-part visibility tracking replaces the global-count heuristic.
-- Ordinary, transparent, edge, selection, node-selection, and face-subset bind
-  groups are cached per part/storage variant and invalidated when their
+- Ordinary, transparent, edge, node, selection, node-selection, and face-subset
+  bind groups are cached per part/storage variant and invalidated when their
   referenced buffers are replaced or grown. The edge-pick path intentionally
-  creates its request-specific bind group for each batch; only the record and
-  order buffers are persistent beyond that cache.
+  creates its request-specific bind group for each batch. #1008 makes inactive
+  optional orders fixed-empty instead of capacity-sized; #1009 then admits
+  minimal/topology/feature shader layouts without duplicating geometry.
 - The WGSL record structs (`Instance`, `ElementHighlight`, `ElementHighlights`,
   `Camera`) are verified against the CPU encoder constants (`INSTANCE_STRIDE`,
   `ELEMENT_RECORD_STRIDE`, `HIGHLIGHT_HEADER`, `CAMERA_UNIFORM_SIZE`) by
