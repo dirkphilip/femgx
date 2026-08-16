@@ -11,7 +11,7 @@ import {
   validateElements,
   validatePickIds,
 } from "../../src/geometry/part";
-import { faceSubsetIdentityIndex } from "../../src/geometry/face-validation";
+import { faceSubsetPrimitiveMask } from "../../src/geometry/face-validation";
 
 function triangle(): Extract<Geometry, { primitive: "triangles" }> {
   return {
@@ -47,7 +47,7 @@ function range(
 }
 
 describe("part geometry", () => {
-  it("reuses one face-subset identity index for validated consumers", () => {
+  it("reuses one face-subset primitive mask for validated consumers", () => {
     const geometry: Extract<Geometry, { primitive: "triangles" }> = {
       ...triangle(),
       faces: [
@@ -64,11 +64,38 @@ describe("part geometry", () => {
       faceSubset: { faceIds: [{ elementId: 1, faceIndex: 0 }] },
     };
     const part = createPart(1, { geometries: [geometry] });
-    const index = faceSubsetIdentityIndex(geometry);
+    const mask = faceSubsetPrimitiveMask(geometry);
 
-    expect(index).toBeDefined();
-    expect(faceSubsetIdentityIndex(part.geometries[0] as typeof geometry)).toBe(index);
-    expect(index?.identityByPrimitive).toEqual(["1/0"]);
+    expect(mask).toBeDefined();
+    expect(faceSubsetPrimitiveMask(part.geometries[0] as typeof geometry)).toBe(mask);
+    expect(mask).toEqual(new Uint8Array([1]));
+  });
+
+  it("rejects duplicate face-subset identities during part validation", () => {
+    const geometry: Extract<Geometry, { primitive: "triangles" }> = {
+      ...triangle(),
+      faces: [
+        {
+          elementId: 1,
+          faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 1,
+          key: "0/1/2",
+          nodeIds: [0, 1, 2],
+          neighborElementIds: [],
+        },
+      ],
+      faceSubset: {
+        faceIds: [
+          { elementId: 1, faceIndex: 0 },
+          { elementId: 1, faceIndex: 0 },
+        ],
+      },
+    };
+
+    expect(() => createPart(1, { geometries: [geometry] })).toThrow(
+      "faceSubset repeats element 1 face 0",
+    );
   });
 
   it("requires and retains a non-empty plural geometry collection", () => {

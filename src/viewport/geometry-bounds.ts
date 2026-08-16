@@ -6,7 +6,7 @@ import {
   type Bounds,
   type Part,
 } from "../geometry/part";
-import { faceSubsetIdentityIndex } from "../geometry/face-validation";
+import { faceSubsetPrimitiveMask } from "../geometry/face-validation";
 import type { InteractionTarget } from "../interaction/target-types";
 import type { DeformationState } from "../results/deform";
 
@@ -231,12 +231,9 @@ function primitiveBounds(
 function displayedPrimitive(geometry: Part["geometries"][number]): (primitive: number) => boolean {
   if (geometry.primitive !== "triangles" || geometry.faceSubset === undefined) return () => true;
   if (geometry.faceSubset.faceIds.length === 0) return () => false;
-  const index = faceSubsetIdentityIndex(geometry);
-  if (index === undefined) return () => false;
-  return (primitive) => {
-    const identity = index.identityByPrimitive[primitive];
-    return identity !== undefined && index.identities.has(identity);
-  };
+  const displayedByPrimitive = faceSubsetPrimitiveMask(geometry);
+  if (displayedByPrimitive === undefined) return () => false;
+  return (primitive) => displayedByPrimitive[primitive] === 1;
 }
 
 function primitiveNodePickIds(
