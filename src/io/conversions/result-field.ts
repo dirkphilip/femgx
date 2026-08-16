@@ -20,9 +20,27 @@ export type ModelResultFieldConversionOptions =
     };
 
 /**
- * Converts one interchange scalar result into the dense field consumed by the
- * viewport. Node result ids map through the model's node table; element ids
- * remain direct indices so authored element identity stays pick-aligned.
+ * Converts one interchange result into the dense field consumed by the
+ * viewport.
+ *
+ * Node result ids map through the model's node table; element ids remain direct
+ * indices so authored element identity stays pick-aligned. Missing source rows
+ * become `NaN`, while duplicate or unknown identities throw an {@link IoError}.
+ * A scalar result can be nodal or elemental. A vector result is deliberately
+ * limited to three-component nodal data so it can drive viewport deformation.
+ * @example Convert a parsed nodal result.
+ * ```ts
+ * import { createResultFieldFromModelResult } from "femgx/io";
+ *
+ * const source = model.results[0];
+ * if (source === undefined) throw new Error("Missing result");
+ * const field = createResultFieldFromModelResult(model, source, {
+ *   id: "temperature",
+ *   unit: "degC",
+ *   shape: "scalar",
+ * });
+ * viewport.setResults({ scalar: { field } });
+ * ```
  * @category Import and export
  */
 export function createResultFieldFromModelResult(

@@ -52,6 +52,11 @@ export interface WebGpuSupportReport {
 
 /**
  * Thrown by WebGPU creation paths, carrying a typed reason for branching.
+ *
+ * This error describes an unsupported rendering environment; it is not an
+ * invitation to select a CPU backend. Hosts can use `reason` for actionable UI
+ * and `message` for user-facing guidance, then offer a WebGPU-capable browser
+ * or device.
  * @category Advanced runtime and WebGPU platform
  */
 export class WebGpuUnsupportedError extends Error {
@@ -88,6 +93,11 @@ function gpu(): GPU | undefined {
 /**
  * Requests a WebGPU adapter, throwing a typed `WebGpuUnsupportedError` when
  * the browser has no WebGPU entry point or the adapter request fails.
+ *
+ * This is an advanced platform-owned primitive. Most applications should use
+ * {@link queryWebGpuSupport} to probe without throwing, or let
+ * {@link root.createFemViewport} own adapter and device creation. A `null` adapter
+ * means the browser exposed WebGPU but could not provide an adapter.
  * @category Advanced runtime and WebGPU platform
  */
 export async function requestWebGpuAdapter(
@@ -134,8 +144,23 @@ function adapterProfile(adapter: GPUAdapter): WebGpuAdapterProfile {
 }
 
 /**
- * Non-throwing capability probe. Applications call this before loading a model
- * to decide whether WebGPU rendering is available and what the adapter offers.
+ * Non-throwing capability probe.
+ *
+ * Call this before loading a model when the host wants to gate UI or report a
+ * typed unsupported reason. A supported report includes an adapter profile; an
+ * unsupported report includes `reason` and actionable `message`. This probe
+ * reports WebGPU capability only—it never selects a fallback renderer.
+ * @example Gate the model-loading UI without throwing.
+ * ```ts
+ * import { queryWebGpuSupport } from "femgx";
+ *
+ * const support = await queryWebGpuSupport();
+ * if (support.status === "unsupported") {
+ *   console.warn(support.reason, support.message);
+ * } else {
+ *   console.log(support.adapter?.vendor);
+ * }
+ * ```
  * @category Advanced runtime and WebGPU platform
  */
 export async function queryWebGpuSupport(

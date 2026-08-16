@@ -21,8 +21,22 @@ import {
 import { VTK_KEYWORDS } from "./keywords";
 
 /**
- * Reads an ASCII VTK legacy dataset. Only `DATASET UNSTRUCTURED_GRID` is
- * supported; nodes are implicitly numbered 0..n-1 and cells by their position.
+ * Reads an ASCII VTK legacy dataset.
+ *
+ * Only `DATASET UNSTRUCTURED_GRID` is supported; nodes are implicitly numbered
+ * `0..n-1` and cells by their position. Non-strict parsing returns the best
+ * effort {@link ParseResult} plus diagnostics. Use `{ strict: true }` when an
+ * import must fail immediately on malformed or unsupported content, then pass
+ * `result.model` through {@link io.createElementModelFromFemModel} and
+ * {@link model.elementPart} for rendering.
+ * @example Parse, validate, and prepare an FE part.
+ * ```ts
+ * import { createElementModelFromFemModel, parseVtk } from "femgx/io";
+ * import { elementPart } from "femgx/model";
+ *
+ * const result = parseVtk(vtkText, { strict: true });
+ * const part = elementPart(10, createElementModelFromFemModel(result.model));
+ * ```
  * @category Import and export
  */
 export function parseVtk(source: string, options: ParseOptions = {}): ParseResult {

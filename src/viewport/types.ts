@@ -28,6 +28,10 @@ export type { SectionPlane } from "../math/section-plane";
 
 /**
  * Outcome of reapplying the active authored results to an updated scene.
+ *
+ * `updateScene` preserves a result snapshot only when its fields still cover
+ * the candidate scene. A cleared result is reported instead of leaving a
+ * partially applied scalar, deformation, or orientation state installed.
  * @category Viewport lifecycle
  */
 export interface SceneUpdateOutcome {
@@ -39,6 +43,13 @@ export interface SceneUpdateOutcome {
 
 /**
  * Inputs for the opinionated WebGPU FEM viewport.
+ *
+ * `canvas` and `scene` are the only required inputs. The viewport owns the
+ * current camera, compiled runtime, WebGPU renderer, resize synchronization,
+ * standard controls, and teardown. Hosts own DOM event wiring and may supply
+ * an existing camera, interaction snapshot, authored result snapshot, or
+ * supported-path device. A missing or unusable WebGPU device is reported as a
+ * typed unsupported failure; this option set does not enable a CPU fallback.
  * @category Viewport lifecycle
  */
 export interface FemViewportOptions {
@@ -75,13 +86,27 @@ export interface FemViewportOptions {
 
 /**
  * Canonical scene, camera, interaction, rendering, and lifecycle owner.
+ *
+ * `FemViewport` is the sole public rendering lifecycle. It consumes one
+ * immutable {@link Scene}, owns its derived live {@link SceneRuntime}, and
+ * exposes host-facing mutations for visibility, interaction, results, camera,
+ * and structural scene updates. Runtime slots, GPU buffers, and renderer
+ * construction are intentionally not public API.
+ *
+ * Picking returns physical hits; use {@link interactionTargetFromHit} to map a
+ * hit to the stable target identity that the host wants to select or hover.
+ * Call {@link destroy} when the host removes the viewport. `destroy` releases
+ * viewport-owned listeners and resources; listeners installed by the host must
+ * be removed by the host.
  * @category Start here
  */
 export interface FemViewport {
   readonly scene: Scene;
   /**
-   * The current live query facade. Read it again after `setScene` or `updateScene`;
-   * structural replacement installs a new runtime snapshot.
+   * The current live query facade. Read it again after `setScene` or
+   * `updateScene`; structural replacement installs a new runtime snapshot.
+   * The facade exposes stable handles and defensive query objects, not packed
+   * slots or renderer draw order.
    */
   readonly runtime: SceneRuntime;
   readonly camera: Camera;
@@ -96,11 +121,12 @@ export interface FemViewport {
    * Applies a structural scene update while preserving the camera and valid
    * placement-scoped state; invalid interaction references are pruned.
    *
-   * Unlike {@link setScene}, this revalidates the active results configuration
-   * and reports whether it was preserved or cleared.
+   * The candidate is compiled before it is committed. Unlike {@link setScene},
+   * this revalidates the active results configuration and reports whether it
+   * was preserved or cleared. Re-read {@link runtime} after this call.
    */
   updateScene(scene: Scene): SceneUpdateOutcome;
-  /** Replaces the scene and resets placement-scoped state. */
+  /** Replaces the scene and resets placement-scoped state; re-read {@link runtime}. */
   setScene(scene: Scene): void;
   /** Applies a camera change, optionally over a finite transition. */
   setCamera(camera: Camera, options?: CameraTransitionOptions): void;
@@ -108,11 +134,11 @@ export interface FemViewport {
   fitView(options?: CameraTransitionOptions): void;
   /** Fits the currently selected targets, or the scene when none are selected. */
   fitSelection(options?: CameraTransitionOptions): void;
-  /** Replaces interaction state and synchronizes the renderer. */
+  /** Replaces the immutable host interaction snapshot and synchronizes the renderer. */
   setInteraction(interaction: InteractionState): void;
   /** Groups synchronous mutations into one deferred invalidation and render. */
   batch<T>(operation: () => T): T;
-  /** Replaces the active authored results configuration. */
+  /** Atomically replaces the active authored scalar/deformation/vector result snapshot. */
   setResults(results: ViewportResultsConfig): void;
   /** Clears every active authored result role. */
   clearResults(): void;
@@ -132,9 +158,21 @@ export interface FemViewport {
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void;
   /** Changes visibility for one placed-part occurrence. */
   setInstanceVisible(instanceId: InstanceId, visible: boolean): void;
-  /** Reads the topmost rendered target at canvas CSS coordinates. */
+  /**
+   * Reads the topmost rendered target at canvas CSS coordinates.
+   *
+   * The optional `"edge"` granularity requests authored FE-edge identity;
+   * tessellation diagonals are never returned as edges. The promise resolves
+   * to `undefined` when no visible rendered target is under the coordinate.
+   */
   pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined>;
-  /** Resolves every target intersecting a canvas-space selection rectangle. */
+  /**
+   * Resolves unique visible targets intersecting a canvas-space rectangle.
+   *
+   * This is nearest-visible GPU region discovery and does not mutate selection.
+   * A host that needs element Through selection should combine
+   * `boxSelectionFrustum` with authoritative placed FE geometry instead.
+   */
   pickRegion(
     rect: BoxSelectionRect,
     granularity: InteractionGranularity,
@@ -145,9 +183,9 @@ export interface FemViewport {
   invalidate(): void;
   /** Submits the current frame immediately. */
   render(): void;
-  /** Attempts supported-path WebGPU device recovery. */
+  /** Attempts supported-path WebGPU device recovery while retaining scene and latest results. */
   recover(): Promise<void>;
-  /** Releases renderer, runtime, controls, and host listeners. */
+  /** Releases viewport-owned renderer/runtime resources and library-installed listeners. */
   destroy(): void;
   /** Returns lightweight visible-instance and draw-batch counts. */
   stats(): { readonly visibleInstances: number; readonly drawBatches: number };

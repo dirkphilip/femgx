@@ -21,12 +21,30 @@ const HEADER_BYTES = 12;
 const KHR_DRACO_MESH_COMPRESSION = "KHR_draco_mesh_compression";
 
 /**
- * Imports a browser-safe GLB 2.0 display scene into femgx's canonical Scene.
+ * Imports a browser-safe GLB 2.0 display scene into femgx's canonical
+ * {@link root.Scene}.
  *
  * The input is self-contained GLB bytes. The selected glTF scene becomes a
  * synthetic root assembly; each reachable node becomes a named assembly and
- * each supported mesh primitive becomes one reusable Part. glTF coordinates
- * are preserved numerically; no unit conversion is applied.
+ * each supported mesh primitive becomes one reusable {@link root.Part}. Repeated
+ * mesh use remains instanced geometry, while node transforms become placement
+ * transforms. glTF coordinates are preserved numerically; no unit conversion
+ * is applied.
+ *
+ * This is a display-scene importer, not FE interchange: it does not invent
+ * nodes/elements/results and intentionally excludes external resources,
+ * textures, PBR extras, animation, lights, and units. In strict mode a
+ * recoverable warning is also rejected; otherwise inspect `issues` before
+ * handing `scene` to {@link root.createFemViewport}.
+ * @example Import self-contained bytes and render the returned scene.
+ * ```ts
+ * import { createFemViewport } from "femgx";
+ * import { importGlb } from "femgx/io/glb";
+ *
+ * const bytes = new Uint8Array(await fetch("/model.glb").then((response) => response.arrayBuffer()));
+ * const imported = await importGlb(bytes, { strict: true });
+ * const viewport = await createFemViewport({ canvas, scene: imported.scene });
+ * ```
  * @category Import and export
  */
 export async function importGlb(

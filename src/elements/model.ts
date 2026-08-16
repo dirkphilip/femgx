@@ -32,7 +32,9 @@ const EMPTY_BLOCK_MEMBERSHIP = new Map<ElementId, ElementBlockId>();
  * `nodes` holds one xyz triple per node and is indexed directly by `NodeId`, so
  * node ids must be dense (`0 .. nodeCount - 1`). Element connectivity references
  * node ids into this array. The model is pure data with no renderer dependency;
- * the renderer path tessellates it into reusable part geometry.
+ * {@link model.elementPart} tessellates it into reusable part geometry while
+ * retaining the authored element ids. Optional blocks and bodies are semantic
+ * ownership metadata, not a second scene graph.
  * @category Elements and model editing
  */
 export interface ElementModel {
@@ -46,8 +48,23 @@ export interface ElementModel {
 }
 
 /**
- * Creates an element model from node coordinates and elements, validating that
- * node ids are dense and that every element reference is in range.
+ * Creates an element model from node coordinates and elements.
+ *
+ * This is the FE authoring boundary before geometry compilation. It validates
+ * dense node numbering, finite coordinates, element references, and optional
+ * block/body ownership. Coordinates and connectivity are copied into the
+ * returned model, so the model owns its CPU-side input and can be passed to
+ * {@link model.elementPart} without a renderer or WebGPU device.
+ * @example Build one renderable typed model.
+ * ```ts
+ * import { createElementModel, createElement, elementPart, TRIANGLE_SHAPE } from "femgx/model";
+ *
+ * const model = createElementModel(
+ *   new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+ *   [createElement(100, TRIANGLE_SHAPE, [0, 1, 2])],
+ * );
+ * const part = elementPart(10, model);
+ * ```
  * @category Elements and model editing
  */
 export function createElementModel(
