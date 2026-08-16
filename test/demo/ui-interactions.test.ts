@@ -394,6 +394,8 @@ describe("workbench Svelte controls", () => {
 
     const navigation = button(target, '[data-testid="navigation-toggle"]');
     expect(navigation.getAttribute("aria-expanded")).toBe("false");
+    expect(navigation.getAttribute("aria-label")).toBe("Open navigation");
+    expect(navigation.textContent.trim()).toBe("");
     button(target, "#command-analysis").click();
     await tick();
     expect(element(target, "#analysis-controls").hidden).toBe(false);
@@ -402,6 +404,8 @@ describe("workbench Svelte controls", () => {
     await tick();
     await Promise.resolve();
     expect(navigation.getAttribute("aria-expanded")).toBe("true");
+    expect(navigation.getAttribute("aria-label")).toBe("Close navigation");
+    expect(navigation.textContent.trim()).toBe("");
     expect(element(target, "#analysis-controls").hidden).toBe(true);
     window.dispatchEvent(
       new KeyboardEvent("keydown", { bubbles: true, key: "Tab", shiftKey: true }),
@@ -410,6 +414,7 @@ describe("workbench Svelte controls", () => {
     button(target, ".navigation-scrim").click();
     await tick();
     expect(navigation.getAttribute("aria-expanded")).toBe("false");
+    expect(navigation.getAttribute("aria-label")).toBe("Open navigation");
 
     navigation.click();
     await tick();
