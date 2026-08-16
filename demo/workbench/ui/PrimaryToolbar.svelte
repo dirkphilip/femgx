@@ -193,6 +193,23 @@
           : `Hide ${snapshot?.hierarchy.selectedCount} selected elements.`}
       onclick={() => controller?.commands.hideSelected()}>Hide selected</button
     >
+    <button
+      id="clear-selection"
+      data-testid="clear-selection"
+      type="button"
+      disabled={(snapshot?.hierarchy.selectedCount ?? 0) === 0}
+      title={(snapshot?.hierarchy.selectedCount ?? 0) === 0
+        ? "No selection to clear."
+        : "Clear selection without changing visibility, results, or camera."}
+      onclick={() => controller?.commands.clearSelection()}>Clear selection</button
+    >
+    <button
+      id="show-all"
+      data-testid="show-all"
+      type="button"
+      title="Restore all model visibility without clearing selection or changing the camera."
+      onclick={() => controller?.commands.showAll()}>Show all</button
+    >
   </section>
 
   <section

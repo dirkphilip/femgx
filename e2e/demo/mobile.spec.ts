@@ -188,7 +188,7 @@ test("keeps primary controls reachable and touch-sized on a phone", async ({ pag
   const viewportWidth = await page.evaluate(() => window.innerWidth);
 
   const controlsByPanel = [
-    ["selection", ["selection-granularity", "hide-selected"]],
+    ["selection", ["selection-granularity", "hide-selected", "clear-selection", "show-all"]],
     ["view", ["fit-view", "projection-toggle"]],
     ["display", ["edge-overlay"]],
   ] as const;
