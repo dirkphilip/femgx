@@ -328,6 +328,9 @@ describe("GPU pick targets", () => {
         nodePickId: 0,
         ndcDepth: 1,
       });
+      expect(pick.readback.free).toHaveLength(1);
+      expect(pick.readback.capacities.size).toBe(1);
+      expect(gpu.buffers.filter((buffer) => buffer.destroyed)).toHaveLength(1);
     } finally {
       restore();
     }
