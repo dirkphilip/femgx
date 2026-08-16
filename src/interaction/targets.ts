@@ -177,11 +177,8 @@ function collectTargetGroups(targets: readonly InteractionTarget[]): TargetGroup
     nodeIds: new Map(),
     edgeRefs: new Map(),
   };
-  const seen = new Set<string>();
+  // Each target-kind collection is keyed by its complete identity and deduplicates itself.
   for (const target of targets) {
-    const key = targetKey(target);
-    if (seen.has(key)) continue;
-    seen.add(key);
     switch (target.kind) {
       case "part":
         groups.partIds.add(target.partId);
@@ -294,27 +291,6 @@ function addNestedValue<OuterKey, InnerKey, Value>(
     existing.add(innerKey);
   } else if (value !== undefined) {
     existing.set(innerKey, value);
-  }
-}
-
-function targetKey(target: InteractionTarget): string {
-  switch (target.kind) {
-    case "part":
-      return `part:${target.partId}`;
-    case "instance":
-      return `instance:${target.instanceId}`;
-    case "body":
-      return `body:${target.instanceId}:${target.bodyId}`;
-    case "block":
-      return `block:${target.instanceId}:${target.blockId}`;
-    case "element":
-      return `element:${target.instanceId}:${target.elementId}`;
-    case "face":
-      return `face:${target.instanceId}:${faceId(target.elementId, target.faceIndex)}`;
-    case "node":
-      return `node:${target.instanceId}:${target.nodeId}`;
-    case "edge":
-      return `edge:${target.instanceId}:${target.key}`;
   }
 }
 

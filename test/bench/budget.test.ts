@@ -203,6 +203,8 @@ const bulkSelectionTargets: InteractionTarget[] = Array.from(
   { length: BULK_SELECTION_COUNT },
   (_, index) => ({ kind: "element", instanceId: "bench/0", elementId: index + 1 }),
 );
+const TET4_SELECTION_COUNT = 131_712;
+const tet4SelectionTargets = makeSelectionTargets(TET4_SELECTION_COUNT, 1);
 const duplicateBulkSelectionTargets = [
   ...bulkSelectionTargets,
   ...bulkSelectionTargets.slice(0, 1_024),
@@ -638,6 +640,14 @@ const budgets: readonly BudgetCase[] = [
     budgetMs: 100,
     run: () => {
       setTargetsSelected(createInteractionState(), duplicateBulkSelectionTargets, true);
+    },
+  },
+  {
+    name: "setTargetsSelected (131,712 Tet4 elements)",
+    description: "one immutable bulk transition for the bounded Tet4 selection result",
+    budgetMs: 35,
+    run: () => {
+      setTargetsSelected(createInteractionState(), tet4SelectionTargets, true);
     },
   },
   {
