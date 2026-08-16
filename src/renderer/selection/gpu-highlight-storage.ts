@@ -268,18 +268,16 @@ export function syncElementHighlights(
   affectedParts?: ReadonlySet<PartId>,
   emphasisUpdates?: EmphasisUpdates,
 ): void {
-  const updates =
-    emphasisUpdates ??
-    collectEmphasisUpdates(
-      sync.runtime,
-      sync.layout,
-      sync.slotByInstanceId,
-      sync.parts,
-      interaction,
-    );
   const denseSelections =
     sync.denseSelections ??
     collectDenseElementSelections(sync.runtime, sync.layout, sync.parts, interaction);
+  const updates =
+    emphasisUpdates ??
+    collectEmphasisUpdates(sync.runtime, sync.layout, sync.slotByInstanceId, {
+      parts: sync.parts,
+      interaction,
+      denseSelections,
+    });
   const selectedTheme = readInteractionState(interaction).theme.selected;
   for (const [partId, storage] of sync.draw.storages) {
     if (affectedParts !== undefined && !affectedParts.has(partId)) continue;

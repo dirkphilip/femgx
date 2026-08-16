@@ -1,4 +1,4 @@
-import { selectedTargets } from "../../../src/index";
+import { selectedTargetSummary } from "../../../src/index";
 import {
   DEFORMATION_OFF_VALUE,
   displayedScalarFieldId,
@@ -44,7 +44,7 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
     hierarchy: Object.freeze({
       occurrenceCount: input.runtime.occurrenceCount,
       visibleInstances: input.runtime.visibleCount,
-      selectedCount: selectedTargets(input.interaction).length,
+      selectedCount: selectedTargetSummary(input.interaction).count,
       elementDetail:
         input.elementDetail === undefined ? undefined : Object.freeze({ ...input.elementDetail }),
       visibility,

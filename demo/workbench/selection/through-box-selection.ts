@@ -6,7 +6,6 @@ import {
   transformPoint,
   type BoxSelectionFrustum,
   type DeformationState,
-  type ElementPrimitiveRange,
   type ElementTessellation,
   type FemViewport,
   type Geometry,
@@ -37,6 +36,14 @@ const FRUSTUM_PLANES: readonly (keyof BoxSelectionFrustum)[] = [
   "far",
 ];
 
+interface PartQueryData {
+  readonly elements: readonly ElementTessellation[];
+  readonly geometryByPrimitive: ReadonlyMap<Primitive, Geometry>;
+  readonly blockByElement: ReadonlyMap<number, number>;
+}
+
+const queryDataByPart = new WeakMap<Part, PartQueryData>();
+
 /**
  * Creates the Core through-intersection resolver for element box selection.
  *
@@ -66,11 +73,13 @@ export function throughIntersectionBoxSelectionResolver(
       if (occurrence === undefined || !occurrence.effectiveVisible) continue;
       const part = view.scene.parts.get(instance.partId);
       if (part === undefined) continue;
-      for (const element of sortedElements(part)) {
+      const partQuery = queryData(part);
+      for (const element of partQuery.elements) {
         if (!isElementVisible(view.interaction, { instanceId, elementId: element.id })) continue;
+        const blockId = element.blockId ?? partQuery.blockByElement.get(element.id);
         if (
-          element.blockId !== undefined &&
-          !isElementBlockVisible(view.interaction, { instanceId, blockId: element.blockId })
+          blockId !== undefined &&
+          !isElementBlockVisible(view.interaction, { instanceId, blockId })
         ) {
           continue;
         }
@@ -84,6 +93,7 @@ export function throughIntersectionBoxSelectionResolver(
           elementIntersectsBox({
             part,
             element,
+            geometryByPrimitive: partQuery.geometryByPrimitive,
             transform: instance.transform,
             frustum,
             sectionPlane: view.sectionPlane,
@@ -99,13 +109,24 @@ export function throughIntersectionBoxSelectionResolver(
   };
 }
 
-function sortedElements(part: Part): readonly ElementTessellation[] {
-  return [...(part.elements ?? [])].sort((left, right) => left.id - right.id);
+function queryData(part: Part): PartQueryData {
+  const cached = queryDataByPart.get(part);
+  if (cached !== undefined) return cached;
+  const data = {
+    elements: [...(part.elements ?? [])].sort((left, right) => left.id - right.id),
+    geometryByPrimitive: new Map(part.geometries.map((geometry) => [geometry.primitive, geometry])),
+    blockByElement: new Map(
+      part.blocks?.flatMap((block) => block.elementIds.map((id) => [id, block.id] as const)),
+    ),
+  };
+  queryDataByPart.set(part, data);
+  return data;
 }
 
 interface ElementQuery {
   readonly part: Part;
   readonly element: ElementTessellation;
+  readonly geometryByPrimitive: ReadonlyMap<Primitive, Geometry>;
   readonly transform: Mat4;
   readonly frustum: BoxSelectionFrustum;
   readonly sectionPlane: SectionPlane | undefined;
@@ -114,38 +135,30 @@ interface ElementQuery {
 }
 
 function elementIntersectsBox(query: ElementQuery): boolean {
-  for (const geometry of query.part.geometries) {
-    const ranges = rangesForGeometry(query.element, geometry);
-    for (const range of ranges) {
-      const arity = PRIMITIVE_ARITY[range.primitive];
-      const start = range.primitiveStart * arity;
-      const end = start + range.primitiveCount * arity;
-      for (let offset = start; offset < end; offset += arity) {
-        const points = primitivePoints({
-          geometry,
-          offset,
-          arity,
-          transform: query.transform,
-          part: query.part,
-          deformation: query.deformation,
-        });
-        if (
-          points !== undefined &&
-          primitiveIntersectsFrustum(points, query.frustum, query.sectionPlane, query.tolerance)
-        ) {
-          return true;
-        }
+  for (const range of query.element.primitiveRanges) {
+    const geometry = query.geometryByPrimitive.get(range.primitive);
+    if (geometry === undefined) continue;
+    const arity = PRIMITIVE_ARITY[range.primitive];
+    const start = range.primitiveStart * arity;
+    const end = start + range.primitiveCount * arity;
+    for (let offset = start; offset < end; offset += arity) {
+      const points = primitivePoints({
+        geometry,
+        offset,
+        arity,
+        transform: query.transform,
+        part: query.part,
+        deformation: query.deformation,
+      });
+      if (
+        points !== undefined &&
+        primitiveIntersectsFrustum(points, query.frustum, query.sectionPlane, query.tolerance)
+      ) {
+        return true;
       }
     }
   }
   return false;
-}
-
-function rangesForGeometry(
-  element: ElementTessellation,
-  geometry: Geometry,
-): readonly ElementPrimitiveRange[] {
-  return element.primitiveRanges.filter((range) => range.primitive === geometry.primitive);
 }
 
 interface PrimitiveQuery {
@@ -212,6 +225,19 @@ function primitiveIntersectsFrustum(
     const point = points[0];
     return point === undefined ? false : insideFrustum(point, frustum, sectionPlane, tolerance);
   }
+  let clipped = false;
+  for (const name of FRUSTUM_PLANES) {
+    const plane = frustum[name];
+    const inside = insideCount(points, plane.normal, plane.distance, tolerance);
+    if (inside === 0) return false;
+    clipped ||= inside < points.length;
+  }
+  if (sectionPlane !== undefined) {
+    const inside = insideCount(points, sectionPlane.normal, sectionPlane.distance, tolerance);
+    if (inside === 0) return false;
+    clipped ||= inside < points.length;
+  }
+  if (!clipped) return true;
   let polygon = [...points];
   for (const name of FRUSTUM_PLANES) {
     polygon = clipPolygon(polygon, frustum[name].normal, frustum[name].distance, tolerance);
@@ -221,6 +247,19 @@ function primitiveIntersectsFrustum(
     polygon = clipPolygon(polygon, sectionPlane.normal, sectionPlane.distance, tolerance);
   }
   return polygon.length > 0;
+}
+
+function insideCount(
+  points: readonly Vec3[],
+  normal: Vec3,
+  distance: number,
+  tolerance: number,
+): number {
+  let count = 0;
+  for (const point of points) {
+    if (signedDistance(normal, distance, point) >= -tolerance) count += 1;
+  }
+  return count;
 }
 
 function insideFrustum(

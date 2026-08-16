@@ -1051,10 +1051,24 @@ describe("collectEmphasisUpdates", () => {
         true,
       );
     }
-    const dense = collectDenseElementSelections(runtime, layout, parts, denseInteraction).get(99);
+    const denseSelections = collectDenseElementSelections(runtime, layout, parts, denseInteraction);
+    const dense = denseSelections.get(99);
     expect(dense?.occurrences[0]?.slot).toBe(0);
     expect(dense?.occurrences[0]?.ordinals.slice(0, 3)).toEqual([1, 2, 3]);
     expect(dense?.occurrences[0]?.ordinals).toHaveLength(50);
+
+    const updates = collectEmphasisUpdates(runtime, layout, new Map([["1/0", 0]]), {
+      parts,
+      interaction: denseInteraction,
+      denseSelections,
+    });
+    expect(updates.get(99)).toBeUndefined();
+    const hovered = setTargetHovered(denseInteraction, {
+      kind: "element",
+      instanceId: "1/0",
+      elementId: 20_000,
+    });
+    expect(collectDenseElementSelections(runtime, layout, parts, hovered)).toBe(denseSelections);
   });
 
   it("caches sparse element, body, block, and face ownership by part identity", () => {
@@ -1113,13 +1127,10 @@ describe("collectEmphasisUpdates", () => {
     if (instanceId === undefined) throw new Error("expected the first fixture instance");
     let interaction = createInteractionState();
     interaction = setBodyVisible(interaction, { instanceId, bodyId: 2 }, false);
-    const updates = collectEmphasisUpdates(
-      runtime,
-      layout,
-      new Map([[instanceId, 0]]),
-      new Map(fixture.scene.parts),
+    const updates = collectEmphasisUpdates(runtime, layout, new Map([[instanceId, 0]]), {
+      parts: new Map(fixture.scene.parts),
       interaction,
-    );
+    });
     expect(updates.get(fixture.partIds.plate.partId)).toMatchObject([
       { slot: 0, bodyPickId: 3, hidden: true },
     ]);
@@ -1132,13 +1143,10 @@ describe("collectEmphasisUpdates", () => {
     let interaction = createInteractionState();
     interaction = setBodyOverride(interaction, { instanceId: "1/0", bodyId: 3 }, { emissive: 0.8 });
     interaction = setBodyVisible(interaction, { instanceId: "1/0", bodyId: 3 }, false);
-    const updates = collectEmphasisUpdates(
-      runtime,
-      layout,
-      slotByInstanceId,
-      partsMap(scene),
+    const updates = collectEmphasisUpdates(runtime, layout, slotByInstanceId, {
+      parts: partsMap(scene),
       interaction,
-    );
+    });
     expect(updates.get(1)).toMatchObject([
       { slot: 0, bodyPickId: 4, hidden: true, style: { emissive: 0.8 } },
     ]);
@@ -1153,13 +1161,10 @@ describe("collectEmphasisUpdates", () => {
     ]);
     let interaction = createInteractionState();
     interaction = setElementSelected(interaction, { instanceId: "1/1", elementId: 0 }, true);
-    const updates = collectEmphasisUpdates(
-      runtime,
-      layout,
-      slotByInstanceId,
-      partsMap(scene),
+    const updates = collectEmphasisUpdates(runtime, layout, slotByInstanceId, {
+      parts: partsMap(scene),
       interaction,
-    );
+    });
     expect(Array.from(updates.keys())).toEqual([1]);
     const list = updates.get(1) ?? [];
     expect(list).toHaveLength(1);
@@ -1174,13 +1179,10 @@ describe("collectEmphasisUpdates", () => {
       { instanceId: "1/0", elementId: 0 },
       true,
     );
-    const updates = collectEmphasisUpdates(
-      runtime,
-      layout,
-      new Map([["1/0", 0]]),
-      partsMap(scene),
+    const updates = collectEmphasisUpdates(runtime, layout, new Map([["1/0", 0]]), {
+      parts: partsMap(scene),
       interaction,
-    );
+    });
     expect(updates.get(1)).toMatchObject([{ slot: 0, elementPickId: 1 }]);
   });
 
@@ -1214,13 +1216,10 @@ describe("collectEmphasisUpdates", () => {
     );
 
     expect(
-      collectEmphasisUpdates(
-        runtime,
-        layout,
-        new Map([["1/0", 0]]),
-        new Map([[point.id, point]]),
+      collectEmphasisUpdates(runtime, layout, new Map([["1/0", 0]]), {
+        parts: new Map([[point.id, point]]),
         interaction,
-      ).get(point.id),
+      }).get(point.id),
     ).toMatchObject([{ slot: 0, elementPickId: 0, nodePickId: 1, selected: true }]);
   });
 
@@ -1238,13 +1237,10 @@ describe("collectEmphasisUpdates", () => {
       true,
     );
     interaction = setNodeSelected(interaction, { instanceId: "1/1", nodeId: 2 }, true);
-    const updates = collectEmphasisUpdates(
-      runtime,
-      layout,
-      slotByInstanceId,
-      partsMap(scene),
+    const updates = collectEmphasisUpdates(runtime, layout, slotByInstanceId, {
+      parts: partsMap(scene),
       interaction,
-    );
+    });
     const list = updates.get(1) ?? [];
     expect(list).toHaveLength(2);
     expect(list[0]).toMatchObject({ slot: 0, facePickId: 2, selected: true });
@@ -1261,13 +1257,10 @@ describe("collectEmphasisUpdates", () => {
       { instanceId: "1/0", elementId: 0, faceIndex: 9 },
       true,
     );
-    const updates = collectEmphasisUpdates(
-      runtime,
-      layout,
-      slotByInstanceId,
-      partsMap(scene),
+    const updates = collectEmphasisUpdates(runtime, layout, slotByInstanceId, {
+      parts: partsMap(scene),
       interaction,
-    );
+    });
     expect(updates.get(1) ?? []).toEqual([]);
   });
 
@@ -1292,13 +1285,10 @@ describe("collectEmphasisUpdates", () => {
       instanceId: "1/0",
       elementId: 0,
     });
-    const updates = collectEmphasisUpdates(
-      runtime,
-      layout,
-      slotByInstanceId,
-      partsMap(scene),
+    const updates = collectEmphasisUpdates(runtime, layout, slotByInstanceId, {
+      parts: partsMap(scene),
       interaction,
-    );
+    });
     expect((updates.get(1) ?? []).map((update) => update.slot)).toEqual([0, 1]);
   });
 
@@ -1309,13 +1299,10 @@ describe("collectEmphasisUpdates", () => {
     let interaction = createInteractionState();
     interaction = setElementSelected(interaction, { instanceId: "1/0", elementId: 0 }, true);
     interaction = setElementSelected(interaction, { instanceId: "stale", elementId: 0 }, true);
-    const updates = collectEmphasisUpdates(
-      runtime,
-      layout,
-      slotByInstanceId,
-      partsMap(scene),
+    const updates = collectEmphasisUpdates(runtime, layout, slotByInstanceId, {
+      parts: partsMap(scene),
       interaction,
-    );
+    });
     expect((updates.get(1) ?? []).map((update) => update.slot)).toEqual([0]);
   });
 });
@@ -1438,13 +1425,10 @@ describe("element block emphasis", () => {
       false,
     );
     interaction = setElementBlockSelected(interaction, { instanceId, blockId: 10 }, true);
-    const updates = collectEmphasisUpdates(
-      runtime,
-      layout,
-      new Map([[instanceId, 0]]),
-      partsMap(scene),
+    const updates = collectEmphasisUpdates(runtime, layout, new Map([[instanceId, 0]]), {
+      parts: partsMap(scene),
       interaction,
-    );
+    });
     expect(updates.get(3)).toMatchObject([
       { slot: 0, blockPickId: 11, hidden: true, selected: true },
     ]);

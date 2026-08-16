@@ -2,6 +2,7 @@ import {
   clearSelection,
   isTargetHighlighted,
   isTargetSelected,
+  selectedTargetSummary,
   selectedTargets,
   setTargetHighlighted,
   setTargetSelected,
@@ -87,11 +88,12 @@ export function hasVisibleSelection(interaction: InteractionState, runtime: Scen
       .filter((instance) => instance.visible)
       .map((instance) => instance.partId),
   );
-  return selectedTargets(interaction).some((target) =>
-    target.kind === "part"
-      ? visiblePartIds.has(target.partId)
-      : runtime.isInstanceVisible(target.instanceId),
-  );
+  const selection = selectedTargetSummary(interaction);
+  for (const partId of selection.partIds) if (visiblePartIds.has(partId)) return true;
+  for (const instanceId of selection.instanceIds) {
+    if (runtime.isInstanceVisible(instanceId)) return true;
+  }
+  return false;
 }
 
 function isSelected(interaction: InteractionState, target: SelectTarget): boolean {

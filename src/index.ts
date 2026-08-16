@@ -20,3 +20,8 @@ export { emphasizedFaceRefs, resolveFaceStyle } from "./interaction/faces";
 export { emphasizedEdgeRefs, resolveEdgeStyle } from "./interaction/edges";
 export { emphasizedNodeRefs, resolveNodeStyle } from "./interaction/nodes";
 export { WebGpuPickReadbackError } from "./renderer/picking/gpu-pick";
+export {
+  selectedTargetCount,
+  selectedTargetSummary,
+  type SelectedTargetSummary,
+} from "./interaction/selection-queries";
