@@ -27,8 +27,8 @@ test("cycles the canonical static results preset through base, colored, and defo
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toHaveAttribute("data-model", "results");
   await expect(canvas).toHaveAttribute("data-results", "deformed");
-  await expect(page.getByTestId("result-legend")).toContainText("Demo stress");
-  await expect(page.getByTestId("result-legend")).toContainText("Elemental · Unit MPa");
+  await expect(page.getByTestId("result-legend")).toContainText("Demo temperature · Snapshot 1");
+  await expect(page.getByTestId("result-legend")).toContainText("Nodal · Unit C");
   await expect(page.getByTestId("result-legend")).toContainText("Range 10 – 100");
 
   const resultField = page.getByTestId("result-field");
@@ -63,11 +63,16 @@ test("steps and plays authored result snapshots from the Analysis inspector", as
 
   await next.click();
   await expect(position).toContainText("Snapshot 2");
+  await expect(page.getByTestId("result-legend")).toContainText("Nodal · Unit C");
   await page.getByTestId("result-playback-rate").selectOption("2");
   await play.click();
   await expect(play).toHaveText("Pause");
   await expect.poll(() => position.textContent()).not.toContain("Snapshot 2");
   await play.click();
+
+  await page.getByTestId("result-playback-index").fill("3");
+  await expect(position).toContainText("Snapshot 4");
+  await expect(page.getByTestId("result-legend")).toContainText("Demo temperature · Snapshot 4");
 
   await expect(page.getByTestId("result-legend")).toContainText("Range 10 – 100");
   await page.setViewportSize({ width: 390, height: 844 });

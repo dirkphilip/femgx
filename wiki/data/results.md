@@ -80,8 +80,11 @@ only updates the effective interaction colors and deformation state.
 Repeated `setResults()` calls are the host-owned snapshot-sequencing boundary:
 the host may step or play an ordered collection of exact authored states while
 reusing the same scene/runtime. Scalar, deformation, and vector roles change
-atomically, so paired stress and displacement never expose a mixed step. For a
-visually comparable sequence, the host supplies one explicit scalar range for
+atomically, so paired scalar and displacement snapshots never expose a mixed
+step. The demo's host-owned playback uses four exact authored nodal temperature
+snapshots with one shared range, while the static elemental stress field remains
+available as a separate choice. For a visually comparable sequence, the host
+supplies one explicit scalar range for
 every snapshot rather than allowing per-snapshot automatic ranges. Derived
 nodal color tables and per-part displacement arrays are reused when their
 authored typed-array references are unchanged, while a scale-only deformation

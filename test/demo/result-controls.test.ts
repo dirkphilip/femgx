@@ -253,10 +253,12 @@ describe("demo orientation result controls", () => {
       time: 0,
       range: { min: 10, max: 100 },
     });
+    expect(actions.currentStep()?.snapshot.scalar.location).toBe("nodal");
+    expect(actions.currentStep()?.snapshot.scalar.name).toBe("Demo temperature · Snapshot 1");
     actions.setIndex("2");
     expect(actions.snapshot()).toMatchObject({ active: true, index: 2, time: 2 });
     expect(owner.resultMode).toBe("deformed");
-    expect(actions.currentStep()?.snapshot.scalar.id).toBe("demo-stress-snapshot-2");
+    expect(actions.currentStep()?.snapshot.scalar.id).toBe("demo-temperature-snapshot-2");
     expect(applied).toEqual([true]);
     actions.setIndex("99");
     expect(actions.snapshot()?.index).toBe(2);
