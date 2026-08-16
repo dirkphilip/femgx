@@ -93,7 +93,7 @@ The large browser surfaces are partitioned by ownership rather than by runner:
   view-cube semantics, and box-selection DOM behavior.
 - `e2e/demo/demo-results.spec.ts` — result controls, legend presentation, and fit/reset
   command state.
-- `e2e/demo/demo-visibility.spec.ts` — hierarchy, body/block/part/instance visibility,
+- `e2e/demo/demo-visibility.spec.ts` — hierarchy, body/part/instance visibility,
   and target/view context-menu semantics.
 - `e2e/demo/demo-interaction.spec.ts` — selection, inspection, edge controls, and
   the smallest context-menu selection routes.
@@ -125,7 +125,7 @@ partitioned demo suites above (plus the mobile coverage in
   menus remain in `demo-interaction`, with adjacency and ownership assertions;
 - **selection state** — granularity and through-intersection controls remain in
   `demo-interaction`, while raster selection transitions belong to `e2e/core`;
-- **visibility changes** — occurrence, body, authored block, hierarchy, Show all,
+- **visibility changes** — occurrence, body, hierarchy, Show all,
   and context-menu policy remain in `demo-visibility`;
 - **responsive behavior** — reachable controls, stacked viewports, menus, and
   exposed-canvas geometry remain in `mobile` and `demo-layout`.

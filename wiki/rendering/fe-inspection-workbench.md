@@ -134,12 +134,6 @@ controller, so camera and interaction behavior is stable
   highlighting cannot interfere. Part rows with multiple placements expose a collapsed `Instance` list. Each
   instance checkbox updates that one runtime slot, preserving the ability to
   hide or restore individual placements without expanding the assembly model.
-  When a reusable part declares authored semantic blocks, each occurrence also
-  exposes its block rows beneath the owning body. Block rows carry the same
-  occurrence-scoped visibility, hover, highlight, and context-selection
-  semantics as the library interaction state; parts with direct body
-  membership do not receive synthetic block rows. The context-menu **Show all**
-  action restores block visibility along with every other visibility layer.
   The context-menu **Show all** action restores assembly definitions and
   occurrences, parts, placements, and every body occurrence in one batched
   visibility update. It preserves selection, highlights, hover state, explicit

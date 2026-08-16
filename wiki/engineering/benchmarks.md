@@ -21,10 +21,6 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | public scene replacement scaling  | 1 024 / 4 096 / 16 384 placements | exported `FemViewport.setScene`                    |
 | `createSceneRuntime` (deep)       | balanced tree, 204 800 instances  | nested transform composition                       |
 | structured Hex8 part scaling      | 512 / 1 728 / 4 096 elements      | exported `elementPart`                             |
-| `editElementModel` merge          | 128 semantic blocks               | metadata-only merge of 64 blocks                   |
-| `editElementModel` remove         | 128 semantic blocks               | remove one block and its elements                  |
-| `editElementModel` replace        | 128 semantic blocks               | retain/append topology and three nodes             |
-| `editElementModel` transaction    | 128 semantic blocks               | merge, remove, and replace in one private draft    |
 | `createElementModelFromFemModel`  | 250 000 Triangle3 elements        | typed connectivity conversion                      |
 | `createPart` (face subset)        | 20 000 declared/selected faces    | linear face identity validation                    |
 | `buildFaceSubsetIndices`          | 20 000 declared/selected faces    | declared-order compact index construction          |
@@ -75,12 +71,6 @@ several multiples, so budgets are only meaningful on clean timing runs.
   body membership metadata. It guards the cold renderer-preparation path that
   previously performed repeated element/face scans and became quadratic as the
   element count grew.
-- The edit-model fixture uses 128 one-element semantic blocks in one
-  block-defined body. Its four cases cover the issue's required metadata-only
-  merge, small-block removal, retained-plus-appended replacement, and one
-  multi-operation transaction. Each case starts from the same immutable source
-  model, so timing includes draft construction and final validation without
-  measuring a mutated no-op.
 
 ### Interpreting budgets
 

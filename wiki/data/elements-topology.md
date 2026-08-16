@@ -36,45 +36,28 @@ large global offsets can collapse nearby nodes. Hosts should author suitable
 part-local coordinates. Mixed-precision rendering, automatic rebasing, and a
 second coordinate path are out of scope for now.
 
-## Authored blocks and bodies
+## Authored bodies
 
 `createElementModel(nodes, elements, options)` is the authoritative in-memory
-model boundary. `options.blocks` contains optional stable `ElementBlock`s, each
-with a strictly ascending one-based id and a non-overlapping ascending list of
-element ids. `options.bodies` contains stable bodies that use exactly one of:
+model boundary. `options.bodies` contains optional stable bodies with direct,
+non-overlapping element membership. The constructor rejects duplicate or
+unsorted ids, empty groups, unknown references, and overlapping membership, and
+copies the authored arrays. `elementPart` derives filtered body descriptors per
+emitted primitive family while the source model remains the only authoring
+owner.
 
-- `elementIds` for the direct blockless path;
-- `blockIds` to aggregate semantic blocks.
+Omitting bodies must derive no model-scaled membership map or renderer resource.
+When bodies exist, compilation may normalize their membership into an optional
+compact element-to-body-id map so lookup does not require repeated body-list
+searches. That derived map is absent, not merely filled with zeros, for a
+bodyless model.
 
-The constructor rejects duplicate or unsorted ids, empty groups, unknown
-references, overlapping membership, and block/body ownership mismatches. It
-copies the authored arrays. Omitting `blocks` does not create synthetic
-metadata or indexes. `elementPart` derives filtered block
-descriptors and flattened body descriptors per emitted primitive family, while
-the source model remains the only authoring owner.
-
-`editElementModel(model, configure)` is the immutable structural-edit boundary
-for models that actually author blocks. One callback can merge blocks, remove a
-block and its elements, dissolve only its grouping, or replace its topology.
-The callback edits a private draft; validation runs once at commit, so a failed
-operation cannot publish a partial model. `removeBlock` retains nodes even when
-they become unused. `dissolveBlock` requires an explicit `bodyPolicy` when a
-block-defined body is affected: `"direct"` keeps all of that body's elements,
-while `"unassigned"` leaves the dissolved elements outside that body.
-
-Replacement elements may reference existing dense nodes or append xyz triples
-whose ids start at the prior node count. Existing element and block ids remain
-stable; new element ids must not collide. The result contains the next
-`ElementModel` and one `ElementModelEditReport` with added, removed, retained,
-and newly-unused semantic ids. No result values are fabricated, and the editor
-does not own viewport or GPU state.
-
-```ts
-const outcome = editElementModel(model, (edit) => {
-  edit.mergeBlocks({ sourceIds: [12], targetId: 10 });
-  edit.replaceBlock(10, { elements: replacementElements, nodes: appendedNodes });
-});
-```
+Semantic element blocks and block-based model editing are removed. Follow-up
+implementation deletes `ElementBlock`, block-defined bodies, block edit
+operations and reports, block validation, and their public exports without a
+compatibility layer. Structural edits that remain useful should address
+explicit element ids; a persistent named element-set abstraction is out of
+scope until a concrete workflow requires it.
 
 ## Shapes
 
