@@ -1,4 +1,4 @@
-import type { InteractiveSamples } from "./interactive";
+import type { InteractiveSamples, OverlayInteractiveSamples } from "./interactive";
 import type {
   WebGpuBenchmarkCase,
   WebGpuBenchmarkElementFamily,
@@ -84,6 +84,7 @@ export interface WebGpuBenchmarkCaseResult {
   readonly instanceCount: number;
   readonly timings: BenchmarkTimings;
   readonly interactive?: InteractiveSamples;
+  readonly overlayInteractive?: OverlayInteractiveSamples;
   readonly selection?: SelectionBenchmarkReport;
   readonly estimatedMemory: BenchmarkMemoryEstimate;
   /** Structural pass/draw/write counters from the final timed iteration. */
@@ -91,7 +92,7 @@ export interface WebGpuBenchmarkCaseResult {
 }
 
 export interface WebGpuBenchmarkReport {
-  readonly schemaVersion: 5;
+  readonly schemaVersion: 6;
   readonly generatedAt: string;
   readonly browser: string;
   readonly adapter: {

@@ -1,4 +1,5 @@
 import { orbitCamera, type Camera } from "../../src/camera/camera";
+import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
 import type { WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import type { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { calculateRenderLoopStats } from "../workbench/viewport/render-loop";
@@ -17,6 +18,8 @@ const INTERACTIVE_CASE_IDS = new Set([
   "many-parts-100",
   "fe-tet4-solid-132k",
 ]);
+
+const OVERLAY_CASE_IDS = new Set(["instanced-2.10m"]);
 
 export interface InteractiveCameraSnapshot {
   readonly position: readonly number[];
@@ -42,6 +45,14 @@ export interface InteractiveSamples {
   readonly movingCamera: InteractiveSample;
 }
 
+/** Moving-camera samples that isolate optional dense presentation overlays. */
+export interface OverlayInteractiveSamples {
+  readonly surface: InteractiveSample;
+  readonly nodes: InteractiveSample;
+  readonly edges: InteractiveSample;
+  readonly edgesAndNodes: InteractiveSample;
+}
+
 interface InteractiveMeasureOptions {
   readonly renderer: WebGpuRenderer;
   readonly benchmarkCase: WebGpuBenchmarkCase;
@@ -54,6 +65,11 @@ export function hasInteractiveSample(benchmarkCase: WebGpuBenchmarkCase): boolea
   return INTERACTIVE_CASE_IDS.has(benchmarkCase.id);
 }
 
+/** Returns true for the bounded case that receives the full overlay matrix. */
+export function hasOverlayInteractiveSample(benchmarkCase: WebGpuBenchmarkCase): boolean {
+  return OVERLAY_CASE_IDS.has(benchmarkCase.id);
+}
+
 /** Measures fixed and deterministic-orbit RAF behavior without queue synchronization. */
 export async function measureInteractiveSamples(
   options: InteractiveMeasureOptions,
@@ -62,6 +78,34 @@ export async function measureInteractiveSamples(
   const fixedCamera = await measureSample(renderer, benchmarkCase, runtime, camera, false);
   const movingCamera = await measureSample(renderer, benchmarkCase, runtime, camera, true);
   return { fixedCamera, movingCamera };
+}
+
+/** Measures moving-camera FPS for surface, node, edge, and combined presentation. */
+export async function measureOverlayInteractiveSamples(
+  options: InteractiveMeasureOptions,
+): Promise<OverlayInteractiveSamples> {
+  const { renderer, benchmarkCase, runtime, camera } = options;
+  const slots = Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
+  const measure = async (edges: boolean, nodes: boolean): Promise<InteractiveSample> => {
+    let interaction = createInteractionState();
+    for (const partId of benchmarkCase.scene.parts.keys()) {
+      interaction = setPartOverride(interaction, partId, { edge: edges, nodes });
+    }
+    renderer.updateInstances(runtime, interaction, slots);
+    renderer.updateElements(runtime, interaction, slots);
+    return measureSample(renderer, benchmarkCase, runtime, camera, true);
+  };
+  try {
+    const surface = await measure(false, false);
+    const nodes = await measure(false, true);
+    const edges = await measure(true, false);
+    const edgesAndNodes = await measure(true, true);
+    return { surface, nodes, edges, edgesAndNodes };
+  } finally {
+    const interaction = createInteractionState();
+    renderer.updateInstances(runtime, interaction, slots);
+    renderer.updateElements(runtime, interaction, slots);
+  }
 }
 
 async function measureSample(

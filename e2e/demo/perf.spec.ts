@@ -94,7 +94,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       });
       console.log(`WEBGPU_BENCHMARK_JSON ${JSON.stringify(report)}`);
 
-      expect(report.schemaVersion).toBe(5);
+      expect(report.schemaVersion).toBe(6);
       expect(report.cases).toHaveLength(1);
       const [entry] = report.cases;
       expect(entry?.id).toBe(spec.id);
@@ -253,6 +253,25 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
             entry.interactive.movingCamera.finalCamera,
           ),
         ).toBeGreaterThan(0);
+      }
+      if (entry.id === "instanced-2.10m") {
+        expect(entry.overlayInteractive).toBeDefined();
+        if (entry.overlayInteractive === undefined) {
+          throw new Error("instanced overlay samples are missing");
+        }
+        const overlaySamples = [
+          entry.overlayInteractive.surface,
+          entry.overlayInteractive.nodes,
+          entry.overlayInteractive.edges,
+          entry.overlayInteractive.edgesAndNodes,
+        ];
+        for (const sample of overlaySamples) {
+          expect(sample.durationMs).toBeGreaterThan(0);
+          expect(sample.frameCount).toBeGreaterThan(0);
+          expect(sample.fps).toBeGreaterThan(0);
+          expect(sample.p95FrameIntervalMs).toBeGreaterThanOrEqual(sample.p50FrameIntervalMs);
+        }
+        expect(entry.estimatedMemory.edgeIndexBytes).toBeGreaterThan(0);
       }
     } finally {
       await context.close();
