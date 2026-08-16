@@ -39,7 +39,7 @@ export interface ModelPreset {
 export interface AuthoredResultSnapshot {
   readonly label: string;
   readonly time: number;
-  readonly scalar: ScalarField<"elemental">;
+  readonly scalar: ScalarField<"nodal"> | ScalarField<"elemental">;
   readonly deformation: VectorField<"nodal">;
 }
 

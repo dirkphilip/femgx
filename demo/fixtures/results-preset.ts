@@ -105,13 +105,13 @@ function createResultSequence(
 ): AuthoredResultSequence {
   const steps = Array.from({ length: 4 }, (_, index) => {
     const scalar = createResultField({
-      id: `demo-stress-snapshot-${index}`,
-      name: "Demo stress snapshot",
-      location: "elemental",
+      id: `demo-temperature-snapshot-${index}`,
+      name: `Demo temperature · Snapshot ${index + 1}`,
+      location: "nodal",
       shape: "scalar",
-      count: model.elements.length,
-      unit: "MPa",
-      values: createSnapshotStressValues(model.elements.length, index),
+      count: model.nodes.length / 3,
+      unit: "C",
+      values: createSnapshotTemperatureValues(model.nodes, index),
     });
     const deformation = createResultField({
       id: `demo-displacement-snapshot-${index}`,
@@ -124,13 +124,16 @@ function createResultSequence(
     });
     return { label: `Snapshot ${index + 1}`, time: index, scalar, deformation };
   });
-  return { label: "Authored load snapshots", range: { min: 10, max: 100 }, steps };
+  return { label: "Authored nodal temperature snapshots", range: { min: 10, max: 100 }, steps };
 }
 
-function createSnapshotStressValues(elementCount: number, step: number): Float32Array {
-  const values = createStressValues(elementCount);
-  for (let element = 0; element < values.length; element += 1) {
-    values[element] = (values[element] ?? 0) + step * 5;
+function createSnapshotTemperatureValues(nodes: Float32Array, step: number): Float32Array {
+  const values = createTemperatureValues(nodes);
+  for (let node = 0; node < values.length; node += 1) {
+    const offset = node * 3;
+    const x = nodes[offset] ?? 0;
+    const y = nodes[offset + 1] ?? 0;
+    values[node] = (values[node] ?? 0) + step * (4 + x * 2 - y);
   }
   return values;
 }

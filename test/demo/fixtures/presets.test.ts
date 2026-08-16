@@ -224,6 +224,31 @@ describe("results preset", () => {
     expect(mapScalar(scalar.colorMap, 80)).toEqual(scalar.colorMap.stops.at(-1)?.color);
   });
 
+  it("authors finite nodal temperature snapshots with one shared range", () => {
+    const preset = createResultsPreset();
+    const sequence = preset.resultSequence;
+    const model = preset.elementModels.get(20);
+    if (sequence === undefined || model === undefined) {
+      throw new Error("Results preset has no authored playback sequence");
+    }
+    expect(sequence.label).toBe("Authored nodal temperature snapshots");
+    expect(sequence.range).toEqual({ min: 10, max: 100 });
+    expect(sequence.steps).toHaveLength(4);
+    for (const step of sequence.steps) {
+      expect(step.scalar.location).toBe("nodal");
+      expect(step.scalar.count).toBe(model.nodes.length / 3);
+      expect(step.scalar.unit).toBe("C");
+      expect(Array.from(step.scalar.values).every(Number.isFinite)).toBe(true);
+    }
+    expect(sequence.steps[0]?.scalar.values).not.toEqual(sequence.steps.at(-1)?.scalar.values);
+    expect(sequence.steps.map((step) => [step.label, step.time])).toEqual([
+      ["Snapshot 1", 0],
+      ["Snapshot 2", 1],
+      ["Snapshot 3", 2],
+      ["Snapshot 4", 3],
+    ]);
+  });
+
   it("authors every shell vector from its consistently wound face", () => {
     const preset = createResultsPreset();
     const normals = preset.resultVectorFields?.find((field) => field.id === "demo-normals");
