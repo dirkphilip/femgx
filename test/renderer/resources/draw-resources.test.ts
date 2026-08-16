@@ -197,6 +197,7 @@ function drawContext(): DrawCallContext {
     parts: new Map([[part.id, part]]),
     pipelines: {} as DrawPipelines,
     resultColors: undefined,
+    usesExteriorFaceSubsets: true,
   };
 }
 
@@ -1033,6 +1034,7 @@ describe("GPU draw path", () => {
         ]),
         pipelines,
         resultColors: undefined,
+        usesExteriorFaceSubsets: true,
       };
       const encoder = gpu.device.createCommandEncoder();
       const pass = beginColorPass(

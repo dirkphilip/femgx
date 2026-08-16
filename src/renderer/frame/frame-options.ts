@@ -15,6 +15,7 @@ interface FrameOptionSources {
     readonly nodeCalls: FrameOptions["nodeCalls"];
     readonly selectionCalls: FrameOptions["selectionCalls"];
     readonly selectedNodeCalls: FrameOptions["selectedNodeCalls"];
+    readonly usesExteriorFaceSubsets: boolean;
   };
   readonly colorFormat: GPUTextureFormat;
   readonly depthFormat: GPUTextureFormat;
@@ -43,6 +44,7 @@ export function buildFrameOptions(options: FrameOptionSources): FrameOptions {
     nodeCalls: options.attachment.nodeCalls,
     selectionCalls: options.attachment.selectionCalls,
     selectedNodeCalls: options.attachment.selectedNodeCalls,
+    usesExteriorFaceSubsets: options.attachment.usesExteriorFaceSubsets,
     pickTargets: options.bundle.pickTargets,
     colorFormat: options.colorFormat,
     depthFormat: options.depthFormat,

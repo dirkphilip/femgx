@@ -265,6 +265,13 @@ function renderedEdgeKeys(draw: GpuBundle["draw"]): ReadonlyMap<PartId, readonly
   return keys;
 }
 
+/** Returns whether any body, block, or element visibility set has members. */
+export function hasHiddenInteractionIds(
+  hidden: readonly (ReadonlyMap<string, ReadonlySet<number>> | undefined)[],
+): boolean {
+  return hidden.some((byInstance) => [...(byInstance?.values() ?? [])].some((ids) => ids.size > 0));
+}
+
 /** Returns the reusable parts touched by a set of global runtime slots. */
 export function partsForSlots(
   runtime: PackedSceneRuntime,

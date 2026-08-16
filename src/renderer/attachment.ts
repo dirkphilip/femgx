@@ -26,6 +26,7 @@ import {
 import {
   interactionAffectedSlots,
   interactionDirtyParts,
+  hasHiddenInteractionIds,
   partsForSlots,
   syncInteractionEmphasis,
   type InteractionElementSyncOptions,
@@ -43,11 +44,7 @@ import { syncEdgeEmphasisFlags } from "./edges/emphasis-sync";
 import { rebuildAttachmentCalls } from "./attachment-calls";
 
 type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
-type HiddenInteractionTuple = readonly [
-  HiddenInteractionIds,
-  HiddenInteractionIds,
-  HiddenInteractionIds,
-];
+type HiddenInteractionTuple = readonly HiddenInteractionIds[];
 
 /**
  * The renderer's CPU-side attachment to a packed scene runtime: the instance
@@ -78,6 +75,8 @@ export class RendererAttachment {
   private interactionBeforeLastInstanceUpdate: InteractionState | undefined;
   private appliedHiddenIds: HiddenInteractionTuple = [undefined, undefined, undefined];
   private attachedParts: ReadonlyMap<PartId, Part> = new Map();
+
+  public usesExteriorFaceSubsets = true;
 
   /** Retains geometry for unchanged part definitions and drops replaced ones. */
   public prepareParts(parts: ReadonlyMap<PartId, Part>, bundle: GpuBundle): void {
@@ -225,6 +224,7 @@ export class RendererAttachment {
     const blockVisibilityChanged = previousBlockIds !== hiddenBlockIds;
     const elementVisibilityChanged = previousElementIds !== hiddenElementIds;
     this.appliedHiddenIds = [hiddenBodyIds, hiddenBlockIds, hiddenElementIds];
+    this.usesExteriorFaceSubsets = !hasHiddenInteractionIds(this.appliedHiddenIds);
     const { transparentChanged, selectionChanged, edgeChanged } = this.syncInteractionBuffers({
       runtime,
       layout,
