@@ -4,7 +4,7 @@
   }
   .app {
     --mobile-navigation-header-height: 60px;
-    --mobile-navigation-rail-width: 76px;
+    --mobile-navigation-rail-width: 56px;
     display: block;
     height: var(--workbench-viewport-height, 100dvh);
     min-height: 360px;
@@ -51,10 +51,27 @@
     top: calc((var(--mobile-navigation-header-height) - 44px) / 2 + env(safe-area-inset-top));
     left: calc(8px + env(safe-area-inset-left));
     display: block;
-    min-width: 64px;
+    width: 44px;
+    min-width: 44px;
     min-height: 44px;
+    padding: 0;
     border-color: #38506f;
     box-shadow: 0 8px 22px rgb(6 16 30 / 0.34);
+  }
+  .navigation-toggle-icon {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    place-items: center;
+  }
+  .navigation-toggle-icon svg {
+    display: block;
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-width: 2;
   }
   .navigation-scrim {
     position: fixed;

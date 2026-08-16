@@ -46,7 +46,15 @@ test("uses one accessible phone drawer and keeps it exclusive of Analysis", asyn
       const element = document.querySelector<HTMLElement>(selector);
       if (element === null) return undefined;
       const box = element.getBoundingClientRect();
-      return { x: box.x, right: box.right, y: box.y, bottom: box.bottom };
+      return {
+        x: box.x,
+        right: box.right,
+        y: box.y,
+        bottom: box.bottom,
+        width: box.width,
+        height: box.height,
+        text: element.textContent,
+      };
     };
     return { trigger: read('[data-testid="navigation-toggle"]'), commandBar: read(".command-bar") };
   });
@@ -55,10 +63,15 @@ test("uses one accessible phone drawer and keeps it exclusive of Analysis", asyn
   }
   expect(closedGeometry.trigger.right).toBeLessThanOrEqual(closedGeometry.commandBar.x);
   expect(closedGeometry.trigger.y).toBeLessThan(closedGeometry.commandBar.bottom);
+  expect(closedGeometry.trigger.width).toBe(44);
+  expect(closedGeometry.trigger.height).toBe(44);
+  expect(closedGeometry.trigger.text.trim()).toBe("");
+  await expect(trigger).toHaveAttribute("aria-label", "Open navigation");
 
   await openCommandPanel(page, "analysis");
   await expect(page.getByTestId("analysis-controls")).toBeVisible();
   await openNavigation(page);
+  await expect(trigger).toHaveAttribute("aria-label", "Close navigation");
   await expect(drawer).toHaveAttribute("aria-hidden", "false");
   await expect(page.getByTestId("analysis-controls")).toBeHidden();
   const openGeometry = await page.evaluate(() => {

@@ -161,8 +161,20 @@
     aria-controls="navigation-drawer"
     aria-expanded={navigationOpen}
     aria-label={navigationOpen ? "Close navigation" : "Open navigation"}
-    onclick={toggleNavigation}>{navigationOpen ? "Close" : "Menu"}</button
+    onclick={toggleNavigation}
   >
+    <span class="navigation-toggle-icon" aria-hidden="true">
+      {#if navigationOpen}
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      {:else}
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      {/if}
+    </span>
+  </button>
   <button
     class="navigation-scrim"
     data-testid="navigation-scrim"
