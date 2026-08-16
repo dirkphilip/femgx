@@ -73,6 +73,7 @@ interface EmphasisCollectionOptions {
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly interaction: InteractionState;
   readonly denseSelections?: DenseElementSelections;
+  readonly edgeKeysByPart?: ReadonlyMap<PartId, readonly string[]>;
 }
 
 /**
@@ -122,7 +123,7 @@ export function collectEmphasisUpdates(
   options: EmphasisCollectionOptions,
 ): EmphasisUpdates {
   const context = { runtime, layout, slotByInstanceId };
-  const { parts, interaction, denseSelections } = options;
+  const { parts, interaction, denseSelections, edgeKeysByPart } = options;
   const byPart = new Map<PartId, EmphasisUpdate[]>();
   const push = (partId: PartId, update: EmphasisUpdate): void => {
     const list = byPart.get(partId);
@@ -134,29 +135,28 @@ export function collectEmphasisUpdates(
   collectElementEmphasis(context, parts, interaction, push, denseSelections);
   collectFaceEmphasis(context, parts, interaction, push);
   collectNodeEmphasis(context, interaction, push);
-  collectEdgeEmphasis(context, parts, interaction, push);
+  collectEdgeEmphasis(context, interaction, edgeKeysByPart, push);
   return byPart;
 }
 
-/** Collects authored-edge emphasis records using stable geometry metadata. */
+/** Collects authored-edge emphasis records using rendered resource keys. */
 function collectEdgeEmphasis(
   context: EmphasisContext,
-  parts: ReadonlyMap<PartId, Part>,
   interaction: InteractionState,
+  edgeKeysByPart: ReadonlyMap<PartId, readonly string[]> | undefined,
   push: (partId: PartId, update: EmphasisUpdate) => void,
 ): void {
   for (const ref of emphasizedEdgeRefs(interaction)) {
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
-    const part = parts.get(occurrence.instance.partId);
-    const edge = part === undefined ? undefined : getPartSemanticIndex(part).edges.get(ref.key);
-    if (edge === undefined) continue;
+    const edgePickId = edgeKeysByPart?.get(occurrence.instance.partId)?.indexOf(ref.key);
+    if (edgePickId === undefined || edgePickId < 0) continue;
     push(occurrence.instance.partId, {
       slot: occurrence.local,
       elementPickId: 0,
       facePickId: 0,
       nodePickId: 0,
-      edgePickId: edge.edgePickId,
+      edgePickId: edgePickId + 1,
       selected:
         readInteractionState(interaction).selectedEdges.get(ref.instanceId)?.has(ref.key) === true,
       style: resolveEdgeStyle(occurrence.instance, ref, defaultStyle, interaction),

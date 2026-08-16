@@ -16,6 +16,7 @@ import {
 import { setBodyOverride, setBodyVisible } from "../../../src/interaction/bodies";
 import { setElementBlockSelected, setElementBlockVisible } from "../../../src/interaction/blocks";
 import { setFaceSelected } from "../../../src/interaction/faces";
+import { setEdgeSelected } from "../../../src/interaction/edges";
 import { setNodeSelected } from "../../../src/interaction/nodes";
 import { setTargetHovered } from "../../../src/interaction/targets";
 import { translation } from "../../../src/math/mat4";
@@ -1222,6 +1223,26 @@ describe("collectEmphasisUpdates", () => {
     expect(updates.get(1)).toMatchObject([{ slot: 0, elementPickId: 1 }]);
   });
 
+  it("maps selected edges through the rendered resource keys", () => {
+    const { scene, runtime } = elementScene();
+    const interaction = setEdgeSelected(
+      createInteractionState(),
+      { instanceId: "1/0", key: "0,2" },
+      true,
+    );
+    const updates = collectEmphasisUpdates(
+      runtime,
+      buildInstanceLayout(runtime),
+      new Map([["1/0", 0]]),
+      {
+        parts: partsMap(scene),
+        interaction,
+        edgeKeysByPart: new Map([[1, ["0,2"]]]),
+      },
+    );
+    expect(updates.get(1)).toMatchObject([{ edgePickId: 1, selected: true }]);
+  });
+
   it("maps a selected point node without element ownership", () => {
     const point = createPart(2, {
       geometries: [
@@ -1381,6 +1402,7 @@ describe("syncElementHighlights", () => {
     }
   });
 });
+
 function blockScene(): { readonly scene: Scene; readonly runtime: SceneRuntime } {
   const part = createPart(3, {
     geometries: [
