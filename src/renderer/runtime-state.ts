@@ -158,6 +158,7 @@ function hasSelectedTarget(
     data.selectedPartIds.has(partId) ||
     data.selectedInstanceIds.has(instanceId) ||
     (data.selectedBodyIds.get(instanceId)?.size ?? 0) > 0 ||
+    (data.selectedBlockIds.get(instanceId)?.size ?? 0) > 0 ||
     (data.selectedElementIds.get(instanceId)?.size ?? 0) > 0 ||
     (data.selectedFaces.get(instanceId)?.size ?? 0) > 0 ||
     (data.selectedNodeIds.get(instanceId)?.size ?? 0) > 0
