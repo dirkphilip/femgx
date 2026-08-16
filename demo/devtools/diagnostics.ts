@@ -37,13 +37,19 @@ export function statsText(context: WorkbenchSceneContext, options: StatusTextOpt
 
 function benchmarkLines(context: WorkbenchSceneContext): string[] {
   const family = context.model.benchmarkElementFamily;
-  return family === undefined
-    ? []
-    : [
-        `Element family ${family}`,
-        `Unique elements ${formatCount(uniqueElementCount(context))}`,
-        `Submitted element occurrences ${formatCount(submittedElementOccurrences(context))}`,
-      ];
+  const lines =
+    family === undefined
+      ? []
+      : [
+          `Element family ${family}`,
+          `Unique elements ${formatCount(uniqueElementCount(context))}`,
+          `Submitted element occurrences ${formatCount(submittedElementOccurrences(context))}`,
+        ];
+  const retentionReason = context.model.performanceRetentionReason;
+  if (retentionReason !== undefined) {
+    lines.push(`Performance model retention ${retentionReason}`);
+  }
+  return lines;
 }
 
 function renderLoopLines(stats: RenderLoopStats): string {

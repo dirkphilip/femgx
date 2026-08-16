@@ -33,8 +33,8 @@ test("enters the Performance Lab without eager geometry or rebuilding a prior ca
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
 
   await labSwitch.click();
-  await expect(modelSelect).toHaveValue("");
-  await expect(canvas).toHaveAttribute("data-model", "bolted");
+  await expect(modelSelect).toHaveValue("unique-250k");
+  await expect(canvas).toHaveAttribute("data-model", "unique-250k");
 });
 
 test("keeps the Performance Lab switch reachable in the phone drawer", async ({ page }) => {

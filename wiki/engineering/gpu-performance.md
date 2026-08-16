@@ -116,9 +116,12 @@ does not establish the bottleneck.
   explicit byte budgets; a different surface is still a different logical part
   revision or variant.
 - The Performance Lab retains empty catalog placeholders and at most one loaded
-  capacity case. Switching catalogs may keep that active case for fast return,
-  but selecting another case evicts it. The demo never accumulates all capacity
-  models.
+  capacity case. A deterministic CPU estimate combines the existing typed-array
+  accounting with 208-byte planar or 3,072-byte structured-FE element-record
+  allowances and uses a hard 256 MiB cap. Switching catalogs may keep an
+  under-cap active case for fast return; selecting another case evicts it, and
+  an over-cap case is rebuilt on explicit return. The demo never accumulates
+  all capacity models or renderer resources.
 - Device recovery recreates only resources required by current authoritative
   state and does not materialize inactive capabilities.
 

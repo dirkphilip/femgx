@@ -29,7 +29,7 @@ describe("workbench model session", () => {
         setFeedback: vi.fn(),
         clearFeedback: vi.fn(),
       } as unknown as WorkbenchPresentation,
-      getModels: () => [ordinary, deferred],
+      resolveModel: (id) => [ordinary, deferred].find((model) => model.id === id),
       importer: vi.fn(),
       getModel: () => current,
       isDisposed: () => false,
@@ -46,5 +46,38 @@ describe("workbench model session", () => {
     expect(activate).not.toHaveBeenCalled();
     expect(current).toBe(ordinary);
     vi.unstubAllGlobals();
+  });
+
+  it("activates a retained model without invoking its deferred builder", () => {
+    const ordinary = createExampleModel(createBoltedPlatePreset());
+    const builder = vi.fn(() => Promise.resolve(ordinary));
+    const retained = {
+      ...ordinary,
+      id: "retained",
+      name: "Retained benchmark",
+    };
+    const placeholder = { ...retained, deferredLoad: builder };
+    let current = ordinary;
+    const activate = vi.fn((model: WorkbenchModel) => {
+      current = model;
+    });
+    const session = new WorkbenchModelSession({
+      presentation: {
+        setLoading: vi.fn(),
+        setFeedback: vi.fn(),
+        clearFeedback: vi.fn(),
+      } as unknown as WorkbenchPresentation,
+      resolveModel: (id) => (id === retained.id ? retained : placeholder),
+      importer: vi.fn(),
+      getModel: () => current,
+      isDisposed: () => false,
+      activate,
+    });
+
+    session.setModel(retained.id);
+
+    expect(activate).toHaveBeenCalledWith(retained);
+    expect(builder).not.toHaveBeenCalled();
+    expect(current).toBe(retained);
   });
 });

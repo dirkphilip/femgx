@@ -11,7 +11,7 @@ import type { WorkbenchPresentation } from "../viewport/presentation";
 
 interface WorkbenchModelSessionOptions {
   readonly presentation: WorkbenchPresentation;
-  readonly getModels: () => readonly WorkbenchModel[];
+  readonly resolveModel: (id: string) => WorkbenchModel | undefined;
   readonly importer: typeof importGlb;
   readonly getModel: () => WorkbenchModel;
   readonly isDisposed: () => boolean;
@@ -28,7 +28,7 @@ export class WorkbenchModelSession {
   }
 
   setModel(id: string): void {
-    const model = this.options.getModels().find((candidate) => candidate.id === id);
+    const model = this.options.resolveModel(id);
     if (model === undefined) return;
     const generation = ++this.generation;
     if (model.id === this.options.getModel().id) {
