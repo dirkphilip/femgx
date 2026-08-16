@@ -1,6 +1,7 @@
 import { createCamera, projectPoint, type Camera } from "../../src/camera/camera";
 import { fitCamera } from "../../src/camera/fit";
 import { transformPoint } from "../../src/math/mat4";
+import type { Geometry } from "../../src/geometry/part";
 import {
   createWebGpuRenderer,
   readMaterializedEdgePartIds,
@@ -272,7 +273,8 @@ function benchmarkPickPoint(
   return [(projected[0] * rect.width) / camera.width, (projected[1] * rect.height) / camera.height];
 }
 
-function submittedTriangleCount(
+/** Counts the triangle occurrences represented by the visible surface draw order. */
+export function submittedTriangleCount(
   benchmarkCase: WebGpuBenchmarkCase,
   runtime: ReturnType<typeof createPackedSceneRuntime>,
   visibleOnly: boolean,
@@ -282,10 +284,28 @@ function submittedTriangleCount(
     if (visibleOnly && !runtime.isInstanceVisible(slot)) continue;
     const partId = runtime.instancePartIds[slot];
     const part = partId === undefined ? undefined : benchmarkCase.scene.parts.get(partId);
-    if (part !== undefined)
-      count += part.geometries.reduce((total, geometry) => total + geometry.indices.length / 3, 0);
+    if (part !== undefined) {
+      count += part.geometries.reduce(
+        (total, geometry) => total + submittedTrianglesForGeometry(geometry),
+        0,
+      );
+    }
   }
   return count;
+}
+
+function submittedTrianglesForGeometry(geometry: Geometry): number {
+  if (geometry.primitive !== "triangles") return 0;
+  if (geometry.faceSubset === undefined) return geometry.indices.length / 3;
+  const primitiveCountByFace = new Map(
+    (geometry.faces ?? []).map(
+      (face) => [`${face.elementId}:${face.faceIndex}`, face.primitiveCount] as const,
+    ),
+  );
+  return geometry.faceSubset.faceIds.reduce(
+    (total, face) => total + (primitiveCountByFace.get(`${face.elementId}:${face.faceIndex}`) ?? 0),
+    0,
+  );
 }
 
 interface IterationOptions {

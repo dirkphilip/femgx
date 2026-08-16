@@ -111,7 +111,10 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       expect(entry.uniqueElementCount).toBeGreaterThan(1);
       expect(entry.submittedElementOccurrences).toBeGreaterThanOrEqual(entry.uniqueElementCount);
       expect(entry.uniqueTriangles).toBeGreaterThan(0);
-      expect(entry.submittedTriangles).toBeGreaterThanOrEqual(entry.uniqueTriangles);
+      expect(entry.submittedTriangles).toBeGreaterThan(0);
+      if (entry.submittedTriangles < entry.uniqueTriangles) {
+        expect(entry.estimatedMemory.subsetBytes).toBeGreaterThan(0);
+      }
       expect(entry.visibleTriangles).toBe(entry.submittedTriangles);
       expect(entry.modelBuildMs).toBeGreaterThanOrEqual(0);
       expect(entry.runtimeCompileMs).toBeGreaterThanOrEqual(0);

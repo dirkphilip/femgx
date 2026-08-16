@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { submittedTriangleCount } from "../../demo/benchmark/measurement";
 import {
   benchmarkCaseSpecs,
   createBenchmarkCase,
@@ -12,6 +13,8 @@ import {
 } from "../../demo/benchmark/structured-fe";
 import { createLazyBenchmarkModel } from "../../demo/workbench/models/model";
 import { createCamera } from "../../src/entries/camera";
+import { buildFaceSubsetIndices } from "../../src/renderer/selection/face-subset";
+import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 
 describe("WebGPU benchmark models", () => {
   it("keeps instanced and bounded unique-geometry cases distinct", () => {
@@ -149,6 +152,42 @@ describe("WebGPU benchmark models", () => {
     expect(hex20Part.bodies).toEqual([
       { id: 1, name: "hex20 structured body", elementIds: [1, 2, 3, 4, 5, 6, 7, 8] },
     ]);
+  });
+
+  it("keeps structured solid geometry complete while submitting only exterior triangles", () => {
+    const hex8Part = createStructuredFePart(1, "hex8", 8);
+    const hex20Part = createStructuredFePart(2, "hex20", 6);
+    const hex8Geometry = hex8Part.geometries[0];
+    const hex20Geometry = hex20Part.geometries[0];
+    if (hex8Geometry?.primitive !== "triangles" || hex20Geometry?.primitive !== "triangles") {
+      throw new Error("Structured fixtures must contain triangle geometry");
+    }
+    expect(hex8Geometry.faces).toHaveLength(6 * 8 ** 3);
+    expect(hex8Geometry.indices).toHaveLength(6 * 8 ** 3 * 2 * 3);
+    expect(hex8Geometry.faceSubset?.faceIds).toHaveLength(6 * 8 ** 2);
+    expect(buildFaceSubsetIndices(hex8Geometry)).toHaveLength(768 * 3);
+    expect(hex20Geometry.faces).toHaveLength(6 * 6 ** 3);
+    expect(hex20Geometry.indices).toHaveLength(6 * 6 ** 3 * 6 * 3);
+    expect(hex20Geometry.faceSubset?.faceIds).toHaveLength(6 * 6 ** 2);
+    expect(buildFaceSubsetIndices(hex20Geometry)).toHaveLength(1_296 * 3);
+
+    const hex8Spec = benchmarkCaseSpecs(false).find(
+      (candidate) => candidate.id === "fe-hex8-solid-visual",
+    );
+    const hex20Spec = benchmarkCaseSpecs(false).find(
+      (candidate) => candidate.id === "fe-hex20-solid-visual",
+    );
+    if (hex8Spec === undefined || hex20Spec === undefined) {
+      throw new Error("Structured solid benchmark specs are missing");
+    }
+    const hex8Case = createBenchmarkCase(hex8Spec);
+    const hex20Case = createBenchmarkCase(hex20Spec);
+    const hex8Runtime = createPackedSceneRuntime(hex8Case.scene);
+    const hex20Runtime = createPackedSceneRuntime(hex20Case.scene);
+    expect(submittedTriangleCount(hex8Case, hex8Runtime, false)).toBe(768);
+    expect(submittedTriangleCount(hex20Case, hex20Runtime, false)).toBe(1_296);
+    expect(submittedTriangleCount(hex8Case, hex8Runtime, true)).toBe(768);
+    expect(submittedTriangleCount(hex20Case, hex20Runtime, true)).toBe(1_296);
   });
 
   it("keeps the opt-in orientation workload aligned to structured element ids", () => {

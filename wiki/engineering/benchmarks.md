@@ -216,8 +216,8 @@ kept out of normal runs:
 | `bodies-256`            | body interaction             | Quad      |           1,024 | 1,024                         |         1 |            2,048 |               2,048 |
 | `fe-quad-shell-visual`  | structured surface shell     | Quad      |             576 | 576                           |         1 |            1,152 |               1,152 |
 | `fe-quad8-shell-visual` | structured surface shell     | Quad8     |             256 | 256                           |         1 |            1,536 |               1,536 |
-| `fe-hex8-solid-visual`  | structured volume solid      | Hex8      |             512 | 512                           |         1 |              768 |                 768 |
-| `fe-hex20-solid-visual` | structured volume solid      | Hex20     |             216 | 216                           |         1 |            1,296 |               1,296 |
+| `fe-hex8-solid-visual`  | structured volume solid      | Hex8      |             512 | 512                           |         1 |            6,144 |                 768 |
+| `fe-hex20-solid-visual` | structured volume solid      | Hex20     |             216 | 216                           |         1 |            7,776 |               1,296 |
 | `unique-2m-local`       | unique geometry (local-only) | Triangle  |       2,000,000 | 2,000,000                     |         1 |        2,000,000 |           2,000,000 |
 
 The planar-grid generator is shared by the visual performance fixture and the
@@ -238,9 +238,13 @@ report adds `structuredFamily`, `uniqueElementCount`,
 `submittedElementOccurrences`, `nodeCount`, and `faceCount`, alongside
 `modelBuildMs` and `runtimeCompileMs`, so FE construction/tessellation and
 runtime compilation remain separate from first-upload and steady visible-frame
-GPU timings. Quad and Quad8 shells retain every surface face; Hex8 and Hex20
-solids cull interior faces before tessellation. The 12×12×12 Hex20 capacity
-tier is local-only under `RUN_PERF_LARGE=1`.
+GPU timings. Quad and Quad8 shells retain every surface face; the one-body Hex8
+and Hex20 benchmark fixtures retain complete authored face metadata for
+selection and picking but use a validated boundary-face subset for their
+submitted exterior draw order. Consequently their unique-triangle count
+includes retained interior tessellation while submitted-triangle count reflects
+the compact exterior order. The 12×12×12 Hex20 capacity tier is local-only
+under `RUN_PERF_LARGE=1`.
 In this matrix, **unique elements** means authored logical element records,
 while **submitted element occurrences** means the number of element occurrences
 represented by the submitted visible topology; it must not be replaced with
