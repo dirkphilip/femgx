@@ -71,7 +71,7 @@ journeys own low-level GPU lifecycle, camera, picking, and raster contracts;
 owner-neutral mechanics live in `e2e/browser-support/helpers.ts`. Performance remains
 opt-in.
 
-- `data-renderer="webgpu" | "unsupported" | "destroyed"` on the `#view` canvas.
+- `data-renderer="webgpu" | "unsupported" | "error" | "destroyed"` on the `#view` canvas.
 - `data-frames` — successful render count.
 - `data-recovery="recovered" | "error"` — outcome reported by the viewport after device loss.
 - `data-hovered` / `data-selected` — current hovered/selected instance id
