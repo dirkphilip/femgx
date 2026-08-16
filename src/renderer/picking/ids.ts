@@ -20,20 +20,7 @@ export function buildElementPrimitivePickIds(
   geometry: Geometry,
   elements: readonly ElementTessellation[] = [],
 ): Uint32Array {
-  const primitiveCount = logicalPrimitiveCount(geometry);
-  const pickIds = new Uint32Array(primitiveCount);
-  for (const element of elements) {
-    for (const range of primitiveRangesForElement(element, geometry.primitive)) {
-      for (
-        let primitiveIndex = range.start;
-        primitiveIndex < range.start + range.count;
-        primitiveIndex++
-      ) {
-        pickIds[primitiveIndex] = element.id + 1;
-      }
-    }
-  }
-  return pickIds;
+  return buildElementPrimitiveMetadata(geometry, elements, (element) => element.id + 1);
 }
 
 /** Builds the per-primitive private part-wide dense element ordinal map. */
@@ -42,22 +29,9 @@ export function buildElementPrimitiveOrdinals(
   elements: readonly ElementTessellation[],
   elementOrdinalById: ReadonlyMap<number, number>,
 ): Uint32Array {
-  const primitiveCount = logicalPrimitiveCount(geometry);
-  const ordinals = new Uint32Array(primitiveCount);
-  for (const element of elements) {
-    const ordinal = elementOrdinalById.get(element.id);
-    if (ordinal === undefined) continue;
-    for (const range of primitiveRangesForElement(element, geometry.primitive)) {
-      for (
-        let primitiveIndex = range.start;
-        primitiveIndex < range.start + range.count;
-        primitiveIndex++
-      ) {
-        ordinals[primitiveIndex] = ordinal;
-      }
-    }
-  }
-  return ordinals;
+  return buildElementPrimitiveMetadata(geometry, elements, (element) =>
+    elementOrdinalById.get(element.id),
+  );
 }
 
 /** Builds the per-primitive body pick id map (`bodyId + 1`, 0 = ungrouped). */
@@ -65,22 +39,28 @@ export function buildBodyPrimitivePickIds(
   geometry: Geometry,
   elements: readonly ElementTessellation[] = [],
 ): Uint32Array {
-  const primitiveCount = logicalPrimitiveCount(geometry);
-  const pickIds = new Uint32Array(primitiveCount);
+  return buildElementPrimitiveMetadata(geometry, elements, (element) =>
+    element.bodyId === undefined ? undefined : element.bodyId + 1,
+  );
+}
+
+function buildElementPrimitiveMetadata(
+  geometry: Geometry,
+  elements: readonly ElementTessellation[],
+  resolveValue: (element: ElementTessellation) => number | undefined,
+): Uint32Array {
+  const metadata = new Uint32Array(logicalPrimitiveCount(geometry));
   for (const element of elements) {
-    const bodyId = element.bodyId;
-    if (bodyId === undefined) continue;
+    const value = resolveValue(element);
+    if (value === undefined) continue;
     for (const range of primitiveRangesForElement(element, geometry.primitive)) {
-      for (
-        let primitiveIndex = range.start;
-        primitiveIndex < range.start + range.count;
-        primitiveIndex++
-      ) {
-        pickIds[primitiveIndex] = bodyId + 1;
+      const end = range.start + range.count;
+      for (let primitiveIndex = range.start; primitiveIndex < end; primitiveIndex++) {
+        metadata[primitiveIndex] = value;
       }
     }
   }
-  return pickIds;
+  return metadata;
 }
 
 /** Builds the per-triangle face pick id map (`faceId + 1`, 0 = none). */
