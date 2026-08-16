@@ -19,6 +19,7 @@ type StorageMap = Map<
     edgeBindGroup: GPUBindGroup | undefined;
     transparentBindGroup?: GPUBindGroup | undefined;
     selectionBindGroup?: GPUBindGroup | undefined;
+    subsetSelectionBindGroup?: GPUBindGroup | undefined;
     nodeSelectionBindGroup?: GPUBindGroup | undefined;
     subsetBindGroup?: GPUBindGroup | undefined;
     subsetTransparentBindGroup?: GPUBindGroup | undefined;
@@ -125,6 +126,7 @@ describe("syncDeformations", () => {
         edgeBindGroup: {} as GPUBindGroup,
         transparentBindGroup: {} as GPUBindGroup,
         selectionBindGroup: {} as GPUBindGroup,
+        subsetSelectionBindGroup: {} as GPUBindGroup,
         nodeSelectionBindGroup: {} as GPUBindGroup,
         subsetBindGroup: {} as GPUBindGroup,
         subsetTransparentBindGroup: {} as GPUBindGroup,
@@ -160,6 +162,7 @@ describe("syncDeformations", () => {
         edgeBindGroup: {} as GPUBindGroup,
         transparentBindGroup: {} as GPUBindGroup,
         selectionBindGroup: {} as GPUBindGroup,
+        subsetSelectionBindGroup: {} as GPUBindGroup,
         nodeSelectionBindGroup: {} as GPUBindGroup,
         subsetBindGroup: {} as GPUBindGroup,
         subsetTransparentBindGroup: {} as GPUBindGroup,
@@ -174,6 +177,7 @@ describe("syncDeformations", () => {
       expect(storages.get(1)?.edgeBindGroup).toBeUndefined();
       expect(storages.get(1)?.transparentBindGroup).toBeUndefined();
       expect(storages.get(1)?.selectionBindGroup).toBeUndefined();
+      expect(storages.get(1)?.subsetSelectionBindGroup).toBeUndefined();
       expect(storages.get(1)?.nodeSelectionBindGroup).toBeUndefined();
       expect(storages.get(1)?.subsetBindGroup).toBeUndefined();
       expect(storages.get(1)?.subsetTransparentBindGroup).toBeUndefined();

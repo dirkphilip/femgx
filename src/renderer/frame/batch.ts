@@ -20,6 +20,8 @@ type DrawIntent =
       readonly kind: "surface";
       readonly pass: PipelinePass;
       readonly primitive?: "triangles" | "lines" | "points";
+      /** Allows the exterior face subset for the depth-aware visible selection pass. */
+      readonly surfaceSubset?: boolean;
     }
   | { readonly kind: "edge"; readonly pipeline: GPURenderPipeline }
   | { readonly kind: "edge-pick"; readonly pipeline: GPURenderPipeline }
@@ -107,7 +109,7 @@ function drawOneBatch(
   if (nodes && part.geometries.every((candidate) => candidate.primitive === "points"))
     return current;
   const resource = uploadBatchGeometry(draw, context, part, geometry, nodes);
-  const subset = usesFaceSubset(intent, geometry, nodes);
+  const subset = usesFaceSubset(intent, geometry, nodes, range);
   if (!hasBatchResources({ draw, part, geometry, resource, overlay, edgePick, subset }))
     return current;
   const pipeline =
@@ -235,10 +237,17 @@ function usesFaceSubset(
   intent: DrawIntent,
   geometry: Geometry | undefined,
   nodes: boolean,
+  range: SelectionDrawRange | undefined,
 ): boolean {
+  const selectedVisibleSubset =
+    intent.kind === "surface" &&
+    intent.pass === "selection-visible" &&
+    intent.surfaceSubset === true;
   return (
     !nodes &&
-    !(intent.kind === "surface" && intent.pass.startsWith("selection-")) &&
+    range === undefined &&
+    (selectedVisibleSubset ||
+      !(intent.kind === "surface" && intent.pass.startsWith("selection-"))) &&
     geometry?.primitive === "triangles" &&
     geometry.faceSubset !== undefined
   );

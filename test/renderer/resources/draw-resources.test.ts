@@ -337,7 +337,7 @@ describe("GPU draw path", () => {
     }
   });
 
-  it("draws complete geometry for selection when ordinary rendering uses a face subset", () => {
+  it("uses the face subset only for visible selection, retaining full hidden geometry", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
@@ -359,16 +359,26 @@ describe("GPU draw path", () => {
         draw,
         { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) },
         [{ partId: subsetPart.id, instanceCount: 1 }],
-        { kind: "surface", pass: "selection-visible" },
+        { kind: "surface", pass: "selection-visible", surfaceSubset: true },
+      );
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) },
+        [{ partId: subsetPart.id, instanceCount: 1 }],
+        { kind: "surface", pass: "selection-hidden", surfaceSubset: true },
       );
       pass.end();
-      expect(gpu.drawCalls).toEqual([{ indexCount: 6, instanceCount: 1 }]);
+      expect(gpu.drawCalls).toEqual([
+        { indexCount: 3, instanceCount: 1 },
+        { indexCount: 6, instanceCount: 1 },
+      ]);
     } finally {
       restore();
     }
   });
 
-  it("draws selected primitive ranges with the selection-order offset", () => {
+  it("keeps ranged selection on full geometry before using the face subset", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
@@ -398,12 +408,21 @@ describe("GPU draw path", () => {
             selectionRanges: [{ primitive: "triangles", firstIndex: 3, indexCount: 3 }],
           },
         ],
-        { kind: "surface", pass: "selection-visible" },
+        { kind: "surface", pass: "selection-visible", surfaceSubset: true },
+      );
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) },
+        [{ partId: subsetPart.id, instanceCount: 1 }],
+        { kind: "surface", pass: "selection-visible", surfaceSubset: true },
       );
       pass.end();
       expect(gpu.drawCalls).toEqual([
         { indexCount: 3, instanceCount: 1, firstIndex: 3, firstInstance: 1 },
+        { indexCount: 3, instanceCount: 1 },
       ]);
+      expect(gpu.bindGroupCreations).toBe(2);
     } finally {
       restore();
     }

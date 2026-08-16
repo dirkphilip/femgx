@@ -94,7 +94,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       });
       console.log(`WEBGPU_BENCHMARK_JSON ${JSON.stringify(report)}`);
 
-      expect(report.schemaVersion).toBe(4);
+      expect(report.schemaVersion).toBe(5);
       expect(report.cases).toHaveLength(1);
       const [entry] = report.cases;
       expect(entry?.id).toBe(spec.id);
@@ -135,22 +135,40 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
         ].includes(entry.id)
       ) {
         const phases = entry.selection?.phases;
-        expect(phases).toHaveLength(3);
+        expect(phases).toHaveLength(entry.id === "fe-tet4-solid-132k" ? 4 : 3);
         if (phases === undefined) throw new Error("selection benchmark phases are missing");
         expect(entry.estimatedMemory.highlightBytes).toBeGreaterThan(0);
         expect(entry.estimatedMemory.pickReadbackBytes).toBeGreaterThan(0);
         for (const phase of phases) {
           expect(phase.returnedTargetCount).toBeGreaterThan(0);
           expect(phase.selectedOccurrenceCount).toBeGreaterThan(0);
-          expect(phase.invalidSnapshotMs).toBeGreaterThan(0);
-          expect(phase.cachedReadbackMs).toBeGreaterThan(0);
-          expect(phase.interactionStateMs).toBeGreaterThan(0);
-          expect(phase.interactionSyncMs).toBeGreaterThan(0);
-          expect(phase.firstSelectedFrameMs).toBeGreaterThan(0);
+          if (phase.id === "all-authored") {
+            expect(phase.invalidSnapshotMs).toBe(0);
+            expect(phase.cachedReadbackMs).toBe(0);
+          } else {
+            expect(phase.invalidSnapshotMs).toBeGreaterThan(0);
+            expect(phase.cachedReadbackMs).toBeGreaterThan(0);
+          }
+          if (phase.id === "all-authored" || phase.id === "one-shell") {
+            expect(phase.interactionStateMs).toBeGreaterThanOrEqual(0);
+          } else {
+            expect(phase.interactionStateMs).toBeGreaterThan(0);
+          }
+          if (phase.id === "all-authored") {
+            expect(phase.interactionSyncMs).toBeGreaterThanOrEqual(0);
+            expect(phase.firstSelectedFrameMs).toBeGreaterThanOrEqual(0);
+          } else {
+            expect(phase.interactionSyncMs).toBeGreaterThan(0);
+            expect(phase.firstSelectedFrameMs).toBeGreaterThan(0);
+          }
           expect(phase.steadySelectedFrameMs.p95).toBeGreaterThanOrEqual(
             phase.steadySelectedFrameMs.p50,
           );
-          expect(phase.clearSelectionMs).toBeGreaterThan(0);
+          if (phase.id === "all-authored") {
+            expect(phase.clearSelectionMs).toBeGreaterThanOrEqual(0);
+          } else {
+            expect(phase.clearSelectionMs).toBeGreaterThan(0);
+          }
           expect(phase.interactionGpuCost.writes["highlight"]?.bytes ?? 0).toBeGreaterThanOrEqual(
             0,
           );
@@ -177,6 +195,25 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
         expect(entry.uniqueTriangles).toBe(526_848);
         expect(entry.submittedTriangles).toBe(9_408);
         expect(entry.interactive).toBeDefined();
+        const broad = entry.selection?.phases.find((phase) => phase.id === "broad");
+        expect(broad?.returnedTargetCount).toBe(4_704);
+        const allAuthored = entry.selection?.phases.find((phase) => phase.id === "all-authored");
+        if (allAuthored === undefined) throw new Error("Tet4 all-authored phase is missing");
+        expect(allAuthored.returnedTargetCount).toBe(131_712);
+        expect(allAuthored.selectedOccurrenceCount).toBe(1);
+        expect(allAuthored.denseSelectionBytes).toBe(16_468);
+        expect(allAuthored.selectedElementRecordBytes).toBe(6_322_176);
+        expect(allAuthored.interactionGpuCost.passes["transparency"]).toBeGreaterThan(0);
+        expect(allAuthored.interactionGpuCost.draws["selection-visible"]).toEqual({
+          calls: 1,
+          indices: 28_224,
+          instances: 1,
+        });
+        expect(allAuthored.interactionGpuCost.draws["selection-hidden"]).toEqual({
+          calls: 1,
+          indices: 1_580_544,
+          instances: 1,
+        });
       }
       if (entry.elementFamily === "triangle") {
         expect(entry.uniqueElementCount).toBe(entry.uniqueTriangles);

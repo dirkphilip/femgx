@@ -57,6 +57,9 @@ function cachedOrderBindGroup(
   if (surfaceSubset && orderKind === "opaque") {
     return (storage.subsetBindGroup ??= create());
   }
+  if (surfaceSubset && orderKind === "selection") {
+    return (storage.subsetSelectionBindGroup ??= create());
+  }
   if (orderKind === "edge") {
     return (storage.edgeBindGroup ??= create());
   }

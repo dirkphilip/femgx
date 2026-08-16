@@ -35,6 +35,7 @@ export interface DeformationSync {
       edgeBindGroup: GPUBindGroup | undefined;
       transparentBindGroup?: GPUBindGroup | undefined;
       selectionBindGroup?: GPUBindGroup | undefined;
+      subsetSelectionBindGroup?: GPUBindGroup | undefined;
       nodeSelectionBindGroup?: GPUBindGroup | undefined;
       subsetBindGroup?: GPUBindGroup | undefined;
       subsetTransparentBindGroup?: GPUBindGroup | undefined;
@@ -165,6 +166,7 @@ function invalidateBindGroups(sync: DeformationSync, partId: PartId): void {
   storage.transparentBindGroup = undefined;
   storage.edgeBindGroup = undefined;
   storage.selectionBindGroup = undefined;
+  storage.subsetSelectionBindGroup = undefined;
   storage.nodeSelectionBindGroup = undefined;
   storage.subsetBindGroup = undefined;
   storage.subsetTransparentBindGroup = undefined;
