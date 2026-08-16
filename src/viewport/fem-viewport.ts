@@ -176,10 +176,6 @@ class FemViewportCore implements FemViewport {
     });
     assertValidCamera(this.cameraRef.camera);
     this.resize(false);
-    if (options.camera === undefined) {
-      this.autoFitOnResize = true;
-      this.cameraFocus.fitView(undefined, false);
-    }
     this.removeControls = installCameraControlsWithProtectedBounds({
       canvas: options.canvas,
       cameraRef: this.cameraRef,
@@ -206,6 +202,10 @@ class FemViewportCore implements FemViewport {
           });
     try {
       if (options.results !== undefined) this.applyResults(options.results);
+      if (options.camera === undefined) {
+        this.autoFitOnResize = true;
+        this.cameraFocus.fitView(undefined, false);
+      }
       this.render();
     } catch (error) {
       this.destroy();

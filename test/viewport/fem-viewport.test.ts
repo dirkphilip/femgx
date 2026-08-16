@@ -725,6 +725,29 @@ describe("FemViewport", () => {
     }).toThrow("destroyed");
   });
 
+  it("fits the initial camera to construction-time nodal deformation", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    installNavigator();
+    const displacement = createResultField({
+      id: "initial-fit-displacement",
+      name: "initial fit displacement",
+      location: "nodal" as const,
+      shape: "vector" as const,
+      count: 3,
+      unit: "unitless",
+      values: new Float32Array([0, 0, 0, 10, 0, 0, 0, 0, 0]),
+    });
+    const viewport = await createFemViewport({
+      canvas: fakeCanvas(),
+      scene: resultScene(3),
+      device: fakeGpuDevice().device,
+      results: { deformation: { field: displacement } },
+    });
+
+    expect(viewport.camera.target[0]).toBeCloseTo(5);
+    viewport.destroy();
+  });
+
   it("rejects every visibility mutation after destruction without changing state", async () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
