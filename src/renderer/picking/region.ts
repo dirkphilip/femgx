@@ -79,7 +79,15 @@ export async function pickEdgeTargetsFromRegion(
     if (options.pick.texture !== instanceTexture || options.pick.edgeTexture !== edgeTexture) {
       throw regionTargetsChangedError();
     }
-    await readEdgeRegionTile(options, instanceTexture, edgeTexture, tile, found);
+    await readRegionTile(
+      options,
+      [instanceTexture, edgeTexture],
+      tile,
+      (bytes, width, height, bytesPerRow) => {
+        decodeEdgeRegion(bytes, width, height, bytesPerRow, found);
+      },
+      "WebGPU authored-edge region readback failed",
+    );
   }
   const targets = createPickRegionTargetCollector();
   for (const [instancePickId, edgeIds] of found) {
@@ -115,7 +123,15 @@ export async function pickTargetsFromRegion(
   const identities: RawIdentities = new Map();
   for (const tile of regionTiles(bounds, attachments.length)) {
     assertRegionTexturesCurrent(options.pick, textures);
-    await readRegionTile(options, textures, tile, attachments, identities);
+    await readRegionTile(
+      options,
+      attachments.map((attachment) => textures[attachment]),
+      tile,
+      (bytes, width, height, bytesPerRow) => {
+        decodeRegion(bytes, width, height, bytesPerRow, { attachments, identities });
+      },
+      "WebGPU pick readback failed: rendering works, but the pick region could not be read back",
+    );
   }
   return resolveTargets(identityValues(identities), options);
 }
@@ -243,92 +259,40 @@ function alignedRowBytes(width: number): number {
   return Math.ceil((width * 4) / READBACK_BYTE_STRIDE) * READBACK_BYTE_STRIDE;
 }
 
-async function readRegionTile(
-  options: PickRegionOptions,
-  textures: RegionTextures,
-  tile: RenderPixelRect,
-  attachments: readonly RegionAttachment[],
-  identities: RawIdentities,
-): Promise<void> {
-  const width = tile.right - tile.left;
-  const height = tile.bottom - tile.top;
-  const bytesPerRow = alignedRowBytes(width);
-  const bufferSize = bytesPerRow * height * attachments.length;
-  const buffer = acquirePickReadback(options.device, options.readback, bufferSize);
-  let mapped = false;
-  try {
-    const encoder = options.device.createCommandEncoder();
-    for (const [index, attachment] of attachments.entries()) {
-      encoder.copyTextureToBuffer(
-        { texture: textures[attachment], origin: { x: tile.left, y: tile.top } },
-        { buffer, offset: bytesPerRow * height * index, bytesPerRow },
-        { width, height },
-      );
-    }
-    options.device.queue.submit([encoder.finish()]);
-    await buffer.mapAsync(GPUMapMode.READ);
-    mapped = true;
-    decodeRegion(new Uint8Array(buffer.getMappedRange()), width, height, bytesPerRow, {
-      attachments,
-      identities,
-    });
-  } catch (error) {
-    throw new WebGpuPickReadbackError(
-      "WebGPU pick readback failed: rendering works, but the pick region could not be read back",
-      { cause: error },
-    );
-  } finally {
-    if (mapped) buffer.unmap();
-    releasePickReadback(options.readback, buffer, bufferSize);
-  }
-}
+type RegionTileDecoder = (...args: [Uint8Array, number, number, number]) => void;
 
-async function readEdgeRegionTile(
-  options: EdgePickRegionOptions,
-  instanceTexture: GPUTexture,
-  edgeTexture: GPUTexture,
+async function readRegionTile(
+  options: Pick<PickRegionOptions, "device" | "readback">,
+  textures: readonly GPUTexture[],
   tile: RenderPixelRect,
-  found: Map<number, Set<number>>,
+  decode: RegionTileDecoder,
+  failureMessage: string,
 ): Promise<void> {
+  const { device, readback } = options;
   const width = tile.right - tile.left;
   const height = tile.bottom - tile.top;
   const bytesPerRow = alignedRowBytes(width);
-  const bufferSize = bytesPerRow * height * 2;
-  const buffer = acquirePickReadback(options.device, options.readback, bufferSize);
+  const bufferSize = bytesPerRow * height * textures.length;
+  const buffer = acquirePickReadback(device, readback, bufferSize);
   let mapped = false;
   try {
-    const encoder = options.device.createCommandEncoder();
-    for (const [index, texture] of [instanceTexture, edgeTexture].entries()) {
+    const encoder = device.createCommandEncoder();
+    for (const [index, texture] of textures.entries()) {
       encoder.copyTextureToBuffer(
         { texture, origin: { x: tile.left, y: tile.top } },
         { buffer, offset: bytesPerRow * height * index, bytesPerRow },
         { width, height },
       );
     }
-    options.device.queue.submit([encoder.finish()]);
+    device.queue.submit([encoder.finish()]);
     await buffer.mapAsync(GPUMapMode.READ);
     mapped = true;
-    const bytes = new Uint8Array(buffer.getMappedRange());
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const offset = bytesPerRow * y + x * 4;
-        const instancePickId = decodePickId(bytes, offset);
-        const edgePickId = decodePickId(bytes, bytesPerRow * height + offset);
-        if (instancePickId === 0 || edgePickId === 0) continue;
-        const ids = found.get(instancePickId);
-        if (ids === undefined) found.set(instancePickId, new Set([edgePickId]));
-        else ids.add(edgePickId);
-      }
-    }
-    buffer.unmap();
-    mapped = false;
+    decode(new Uint8Array(buffer.getMappedRange()), width, height, bytesPerRow);
   } catch (error) {
-    throw new WebGpuPickReadbackError("WebGPU authored-edge region readback failed", {
-      cause: error,
-    });
+    throw new WebGpuPickReadbackError(failureMessage, { cause: error });
   } finally {
     if (mapped) buffer.unmap();
-    releasePickReadback(options.readback, buffer, bufferSize);
+    releasePickReadback(readback, buffer, bufferSize);
   }
 }
 
@@ -354,6 +318,26 @@ function decodeRegion(
         secondaryAttachment === undefined ? 0 : decodePickId(bytes, secondaryOffset + offset);
       if (secondaryAttachment !== undefined && secondaryPickId === 0) continue;
       recordIdentity(identities, instancePickId, secondaryAttachment, secondaryPickId);
+    }
+  }
+}
+
+function decodeEdgeRegion(
+  bytes: Uint8Array,
+  width: number,
+  height: number,
+  bytesPerRow: number,
+  found: Map<number, Set<number>>,
+): void {
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = bytesPerRow * y + x * 4;
+      const instancePickId = decodePickId(bytes, offset);
+      const edgePickId = decodePickId(bytes, bytesPerRow * height + offset);
+      if (instancePickId === 0 || edgePickId === 0) continue;
+      const ids = found.get(instancePickId);
+      if (ids === undefined) found.set(instancePickId, new Set([edgePickId]));
+      else ids.add(edgePickId);
     }
   }
 }
