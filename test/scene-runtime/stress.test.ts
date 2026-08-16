@@ -101,7 +101,6 @@ describe("large-model stress", () => {
     const instances = runtimeInstances(createPackedSceneRuntime(scene));
     for (const pickId of [0, 1, STRESS_INSTANCE_COUNT / 2, STRESS_INSTANCE_COUNT - 1]) {
       const resolved = resolvePick(instances, pickId);
-      expect(resolved?.index).toBe(pickId);
       expect(resolved?.instanceId).toBe(instances[pickId]?.instanceId);
     }
     expect(resolvePick(instances, STRESS_INSTANCE_COUNT)).toBeUndefined();
@@ -129,7 +128,7 @@ function runtimeInstances(
     const partId = runtime.getPartId(slot);
     const worldTransform = runtime.getTransform(slot);
     if (instanceId === undefined || partId === undefined || worldTransform === undefined) continue;
-    instances.push({ index, instanceId, partId, worldTransform });
+    instances.push({ instanceId, partId, worldTransform });
   }
   return instances;
 }

@@ -21,7 +21,6 @@ import { selectedTargets } from "../../src/interaction/selection-queries";
 import { identity } from "../../src/math/mat4";
 
 const instance = {
-  index: 0,
   instanceId: "assembly/0",
   partId: 4,
   worldTransform: identity(),

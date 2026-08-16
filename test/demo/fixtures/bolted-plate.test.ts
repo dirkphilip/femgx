@@ -18,7 +18,7 @@ function runtimeInstances(scene: Scene): readonly Instance[] {
     const partId = runtime.getPartId(slot);
     const worldTransform = runtime.getTransform(slot);
     if (instanceId === undefined || partId === undefined || worldTransform === undefined) continue;
-    instances.push({ index, instanceId, partId, worldTransform });
+    instances.push({ instanceId, partId, worldTransform });
   }
   return instances;
 }

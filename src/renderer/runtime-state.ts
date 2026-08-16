@@ -225,7 +225,6 @@ function buildCompactedOrder(
 /** Describes one placed part with a world-transform view into the runtime. */
 export function instanceAt(runtime: PackedSceneRuntime, slot: number, partId: PartId): Instance {
   return {
-    index: slot,
     instanceId: runtime.getInstanceId(slot) ?? String(slot),
     partId,
     worldTransform: runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),

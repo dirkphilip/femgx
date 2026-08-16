@@ -61,7 +61,7 @@ function partWithGeometry(geometry: Geometry): Part {
 }
 
 function instanceAt(index: number, partId = 1, transform: Mat4 = identity()): Instance {
-  return { index, instanceId: `1/${index}`, partId, worldTransform: transform };
+  return { instanceId: `1/${index}`, partId, worldTransform: transform };
 }
 
 function ids(partial: Partial<ResolvedPickIds>): ResolvedPickIds {
