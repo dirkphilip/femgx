@@ -15,8 +15,7 @@ framework does not install its own git hook; only Husky owns
   filesystems.
 - `check-json` / `check-yaml` — syntax validation (covers GitHub Actions
   workflow YAML too).
-- `check-toml` — syntax validation for the committed supervisor configuration
-  files.
+- `check-toml` — syntax validation for committed TOML configuration files.
 - `check-merge-conflict` — leftover conflict markers.
 - `detect-private-key` — prevent accidental private-key commits.
 - `end-of-file-fixer` — require final newline (matches `.editorconfig`).
