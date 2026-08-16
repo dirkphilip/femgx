@@ -2,7 +2,7 @@ import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Part, PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
 import { readInteractionState, type InteractionState } from "../interaction/state";
-import type { DrawCall } from "./resources/gpu-draw";
+import type { DrawCall } from "./resources/draw-resources";
 
 /**
  * CPU-side bridge between the packed scene runtime and per-part GPU storage.

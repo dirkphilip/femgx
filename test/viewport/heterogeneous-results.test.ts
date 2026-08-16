@@ -9,7 +9,7 @@ import {
   TRIANGLE_SHAPE,
   TET4_SHAPE,
 } from "../../src/elements/shapes";
-import { elementPart } from "../../src/geometry/heterogeneous-element-mesh";
+import { elementPart } from "../../src/geometry/element-part";
 import { computeBounds } from "../../src/geometry/part";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { readInteractionState } from "../../src/interaction/state";

@@ -81,7 +81,7 @@ a prompt to review semantic ownership, not a requirement to split a directory.
   85% functions. Browser-owned bootstrap and GPU lifecycle modules remain
   outside the unit scope and are covered by the Playwright lanes below.
 - Missing coverage is a dead-code audit lead, not a reason to pad tests.
-- `test/renderer/gpu-renderer.test.ts` uses a mocked WebGPU device to exercise adapter
+- `test/renderer/integration/gpu-renderer.test.ts` uses a mocked WebGPU device to exercise adapter
   failure, resource upload/reuse, render passes, pick readback, resize, and teardown.
 
 ## Playwright e2e

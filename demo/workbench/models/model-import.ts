@@ -1,6 +1,6 @@
 import { parseVtk, type Issue } from "../../../src/entries/io";
-import type { GlbSceneImport, importGlb } from "../../../src/entries/io-glb";
-import { createVtkScene } from "../../fixture/vtk-scene";
+import type { GlbSceneImport, importGlb } from "../../../src/entries/io/glb";
+import { createVtkScene } from "../../fixtures/vtk-scene";
 import type { ImportedModelData } from "./model";
 
 /** Imports one supported local workbench file without mutating active state. */

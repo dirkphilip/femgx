@@ -128,7 +128,7 @@ facade is internal. Do not expose runtime slots, GPU record layouts, storage
 capacities, or other derived implementation details by default.
 
 Tests under `test/` mirror subsystem ownership, with deliberate repository-level
-suites under `test/demo`, `test/public-api`, `test/runtime`, and `test/scripts`.
+suites under `test/bench`, `test/demo`, `test/public-api`, and `test/scripts`.
 The demo is split between user-facing `demo/workbench/`, diagnostics and browser
 harness code in `demo/devtools/`, and the opt-in `demo/benchmark/`.
 

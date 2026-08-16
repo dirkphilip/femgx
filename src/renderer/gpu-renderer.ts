@@ -1,16 +1,16 @@
 import { requestWebGpuDevice } from "../platform/device";
 import type { PartId } from "../geometry/part";
-import { GpuRenderer } from "./gpu-renderer-core";
-import { createGpuBundle } from "./gpu-recovery";
-import { readGpuValidationOptions } from "./core/gpu-validation";
+import { GpuRenderer } from "./renderer-core";
+import { createGpuBundle } from "./recovery";
+import { readGpuValidationOptions } from "./diagnostics/validation";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
-import type { GpuCostSnapshot } from "./core/gpu-cost";
-import type { OrientationGlyphState } from "./orientation/gpu-orientation-glyph";
+import type { GpuCostSnapshot } from "./diagnostics/cost";
+import type { OrientationGlyphState } from "./orientation-glyphs/orientation-glyph";
 
-export { originTriadNominalScale } from "./helpers/gpu-origin-triad";
+export { originTriadNominalScale } from "./overlays/origin-triad";
 
 export type { ViewportBackground, WebGpuRenderer, WebGpuRendererOptions } from "./types";
-export type { GpuCostSnapshot } from "./core/gpu-cost";
+export type { GpuCostSnapshot } from "./diagnostics/cost";
 
 /** Reads internal renderer accounting without expanding the public renderer API. */
 export function readGpuCostSnapshot(renderer: WebGpuRenderer): GpuCostSnapshot {

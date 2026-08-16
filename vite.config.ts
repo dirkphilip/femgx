@@ -18,12 +18,12 @@ export default defineConfig({
     lib: {
       entry: {
         femgx: resolve(import.meta.dirname, "src/entries/root.ts"),
-        model: resolve(import.meta.dirname, "src/model.ts"),
-        io: resolve(import.meta.dirname, "src/io.ts"),
-        "io/glb": resolve(import.meta.dirname, "src/entries/io-glb.ts"),
-        camera: resolve(import.meta.dirname, "src/camera.ts"),
-        runtime: resolve(import.meta.dirname, "src/runtime.ts"),
-        platform: resolve(import.meta.dirname, "src/platform.ts"),
+        model: resolve(import.meta.dirname, "src/entries/model.ts"),
+        io: resolve(import.meta.dirname, "src/entries/io.ts"),
+        "io/glb": resolve(import.meta.dirname, "src/entries/io/glb.ts"),
+        camera: resolve(import.meta.dirname, "src/entries/camera.ts"),
+        runtime: resolve(import.meta.dirname, "src/entries/runtime.ts"),
+        platform: resolve(import.meta.dirname, "src/entries/platform.ts"),
       },
       name: "femgx",
       formats: ["es", "cjs"],

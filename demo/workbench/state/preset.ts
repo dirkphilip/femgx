@@ -3,7 +3,7 @@ import {
   setPartOverride,
   type InteractionState,
 } from "../../../src/entries/root";
-import type { ModelPreset } from "../../fixture/presets";
+import type { ModelPreset } from "../../fixtures/presets";
 import { createExampleModel, partStyleOverride, type WorkbenchModel } from "../models/model";
 
 /** Creates the deterministic palette state for one demo model preset. */

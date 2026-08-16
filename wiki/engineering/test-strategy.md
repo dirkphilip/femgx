@@ -7,19 +7,19 @@ performance budget is measured separately without coverage instrumentation.
 
 ## Retained contract coverage
 
-| Area                        | Primary tests                                      | Classification                                                                                        |
-| --------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Math, camera, controls      | `test/math`, `test/camera`, `test/demo/camera-*`   | Contract and regression protection                                                                    |
-| Elements and topology       | `test/elements`                                    | Canonical ordering, validation, faces, edges, and golden fixtures                                     |
-| Geometry and results        | `test/geometry`, `test/results`                    | Tessellation, metadata, authored scalar mapping, and nodal deformation                                |
-| Scene and runtime           | `test/scene`, `test/scene-runtime`, `test/runtime` | Hierarchy validation, packed state, culling, batching, and stress budgets                             |
-| Interaction and picking     | `test/interaction`, `test/picking`                 | Immutable state, precedence, adjacency, and GPU-id resolution                                         |
-| Renderer and platform       | `test/renderer`, `test/platform`                   | Fake-device lifecycle, buffer writes, shaders, picking, and unsupported paths                         |
-| IO                          | `test/io`                                          | VTK round trips, diagnostics, validation, and malformed input                                         |
-| Viewport and public API     | `test/viewport`, `test/public-api`                 | Canonical facade workflow and deliberate root exports                                                 |
-| Demo fixtures and workbench | `test/demo`, `test/demo/ui-interactions.test.ts`   | Fixture construction, plain-core transitions, Svelte bindings, lifecycle cleanup, and preset behavior |
-| Engineering safeguards      | `test/scripts`, `test/bench`                       | Repository policy and deterministic CPU budgets                                                       |
-| Browser product contract    | `e2e/core`, `e2e/demo`, `e2e/browser-support`      | Direct public-library rendering, workbench behavior, responsive interaction, and unsupported state    |
+| Area                        | Primary tests                                    | Classification                                                                                        |
+| --------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Math, camera, controls      | `test/math`, `test/camera`, `test/demo/camera-*` | Contract and regression protection                                                                    |
+| Elements and topology       | `test/elements`                                  | Canonical ordering, validation, faces, edges, and golden fixtures                                     |
+| Geometry and results        | `test/geometry`, `test/results`                  | Tessellation, metadata, authored scalar mapping, and nodal deformation                                |
+| Scene and runtime           | `test/scene`, `test/scene-runtime`               | Hierarchy validation, packed state, culling, batching, and stress budgets                             |
+| Interaction and picking     | `test/interaction`, `test/picking`               | Immutable state, precedence, adjacency, and GPU-id resolution                                         |
+| Renderer and platform       | `test/renderer`, `test/platform`                 | Fake-device lifecycle, buffer writes, shaders, picking, and unsupported paths                         |
+| IO                          | `test/io`                                        | VTK round trips, diagnostics, validation, and malformed input                                         |
+| Viewport and public API     | `test/viewport`, `test/public-api`               | Canonical facade workflow and deliberate root exports                                                 |
+| Demo fixtures and workbench | `test/demo`, `test/demo/ui-interactions.test.ts` | Fixture construction, plain-core transitions, Svelte bindings, lifecycle cleanup, and preset behavior |
+| Engineering safeguards      | `test/scripts`, `test/bench`                     | Repository policy and deterministic CPU budgets                                                       |
+| Browser product contract    | `e2e/core`, `e2e/demo`, `e2e/browser-support`    | Direct public-library rendering, workbench behavior, responsive interaction, and unsupported state    |
 
 The exclude-based `npm run test:core` lane covers the fast library tests while
 excluding demo, renderer, viewport, platform, script, and budget suites; it

@@ -1,5 +1,5 @@
 import { encodePickId } from "../../src/renderer/picking/pick-format";
-import { READBACK_BYTE_STRIDE } from "../../src/renderer/picking/gpu-pick";
+import { READBACK_BYTE_STRIDE } from "../../src/renderer/picking/pick";
 
 export interface RecordedWrite {
   readonly buffer: GPUBuffer;

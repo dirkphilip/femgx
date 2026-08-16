@@ -11,7 +11,7 @@ import {
 } from "./demo-support";
 
 const fixture = "test/io/fixtures/glb/onshape-cylinder-compressed.glb";
-const vtkFixture = readFileSync(join(process.cwd(), "demo/fixture/sample-block.vtk"));
+const vtkFixture = readFileSync(join(process.cwd(), "demo/fixtures/sample-block.vtk"));
 const phone = { width: 390, height: 844 };
 
 async function waitForPresentedCanvas(page: Page): Promise<void> {

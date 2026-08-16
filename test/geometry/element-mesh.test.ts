@@ -18,10 +18,7 @@ import {
   WEDGE6_SHAPE,
   type ElementFamily,
 } from "../../src/elements/shapes";
-import {
-  type TessellationOptions,
-  elementPart,
-} from "../../src/geometry/heterogeneous-element-mesh";
+import { type TessellationOptions, elementPart } from "../../src/geometry/element-part";
 import {
   validateElements,
   validatePickIds,

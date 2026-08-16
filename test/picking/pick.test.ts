@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { createElementModel, type ElementModel } from "../../src/elements/model";
 import { LINE_SHAPE, POINT_SHAPE, TET4_SHAPE } from "../../src/elements/shapes";
-import { elementPart } from "../../src/geometry/heterogeneous-element-mesh";
+import { elementPart } from "../../src/geometry/element-part";
 import {
   createPart,
   validatePickIds,

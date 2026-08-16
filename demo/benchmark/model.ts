@@ -7,8 +7,8 @@ import {
   createPlanarGridGeometry,
   type PlanarGridElementFamily,
   type PlanarGridOptions,
-} from "../fixture/planar-grid";
-import { createPerformancePreset } from "../fixture/performance-fixture";
+} from "../fixtures/planar-grid";
+import { createPerformancePreset } from "../fixtures/performance-fixture";
 export {
   estimateBenchmarkMemory,
   type BenchmarkMemoryEstimate,

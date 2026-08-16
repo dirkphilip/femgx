@@ -12,7 +12,7 @@ import {
 import type { Bounds } from "../../src/geometry/part";
 import type { Vec3 } from "../../src/math/vec3";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import { createBoltedPlateFixture } from "../../demo/fixture/bolted-plate";
+import { createBoltedPlateFixture } from "../../demo/fixtures/bolted-plate";
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
 
 const bounds: Bounds = {

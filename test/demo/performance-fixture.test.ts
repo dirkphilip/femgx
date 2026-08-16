@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPerformancePreset } from "../../demo/fixture/performance-fixture";
+import { createPerformancePreset } from "../../demo/fixtures/performance-fixture";
 
 describe("createPerformancePreset", () => {
   it("creates a reusable 2,097,152-triangle shell instancing case", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInteractionState, createSceneRuntime } from "../../src/index";
-import { createBoltedPlatePreset } from "../../demo/fixture/presets";
-import { createPerformancePreset } from "../../demo/fixture/performance-fixture";
+import { createBoltedPlatePreset } from "../../demo/fixtures/presets";
+import { createPerformancePreset } from "../../demo/fixtures/performance-fixture";
 import { statsText } from "../../demo/devtools/diagnostics";
 import { createExampleModel } from "../../demo/workbench/models/model";
 import { IDLE_RENDER_LOOP_STATS } from "../../demo/workbench/viewport/render-loop";

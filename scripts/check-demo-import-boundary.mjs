@@ -12,7 +12,7 @@ const benchmarkExemptions = new Set([
   "demo/benchmark/structured-fe.ts",
   "demo/benchmark/memory.ts",
   "demo/benchmark/model.ts",
-  "demo/fixture/performance-fixture.ts",
+  "demo/fixtures/performance-fixture.ts",
 ]);
 const importPattern = /(?:from|import\()\s*["']([^"']+)["']/gu;
 
@@ -28,7 +28,7 @@ function filesUnder(directory) {
 
 function isAllowedSourceImport(specifier) {
   return (
-    /(?:^|\/)src\/entries\/(?:root|model|io|io-glb|camera|runtime|platform)$/u.test(specifier) ||
+    /(?:^|\/)src\/entries\/(?:root|model|io|io\/glb|camera|runtime|platform)$/u.test(specifier) ||
     /(?:^|\/)src\/interaction\/selection-queries$/u.test(specifier)
   );
 }

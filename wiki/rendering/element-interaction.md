@@ -92,7 +92,7 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   forces a 64-byte `ElementHighlight` stride and pushes the header padding of
   `ElementHighlights` to 16 bytes (records to 32). Keep the CPU/GPU record
   layout in sync: the element structs must not use `vec3` members. The layout
-  tests in `test/renderer/gpu-shaders.test.ts` parse the shader with
+  tests in `test/renderer/shaders/scene.test.ts` parse the shader with
   `wgsl_reflect` and assert every record struct's member offsets and stride
   against the CPU encoder constants, so a `vec3`-style desync fails in CI
   instead of silently misrendering.
@@ -123,7 +123,7 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   `FemViewport.setEdgeDepthTest`: on (default) uses `less` so edges
   occluded by nearer geometry are culled; off uses `always` so every edge shows
   through the model. Two line-list pipelines are pre-created in
-  `gpu-pipelines.ts`.
+  `renderer/frame/pipelines.ts`.
 - Element edges use translucent neutral black rather than inheriting each
   part's fill color, so topology stays readable without obscuring the model.
 - Edge overlays inherit the resolved instance alpha, so their neutral black is

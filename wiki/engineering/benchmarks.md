@@ -147,7 +147,7 @@ encoding.
 
 ## Large-model correctness stress test
 
-`test/runtime/stress.test.ts` complements the timing budgets with a pure
+`test/scene-runtime/stress.test.ts` complements the timing budgets with a pure
 correctness check at scale: 80 subcases x 2 000 placements (160 000 instances).
 It verifies deterministic packed placement order, unique stable instance ids, the
 part distribution implied by the placement cycle, compiled scene consistency,
@@ -338,7 +338,7 @@ those costs are part of the performance question rather than overhead to hide.
 
 The full-screen demo exposes seven user-facing FE/product stories through the
 normal model selector. `demo/benchmark/model.ts` and the shared
-`demo/fixture/planar-grid.ts` generator define deterministic capacity cases for
+`demo/fixtures/planar-grid.ts` generator define deterministic capacity cases for
 the explicit local `?performanceLab=1` opt-in only. Ordinary startup creates no
 benchmark geometry or capacity work; opting in appends the full matrix, including
 local-only cases, through the normal `Scene` → runtime → `FemViewport` path. The

@@ -1,6 +1,6 @@
 # FE fixture
 
-The demo fixtures under `demo/fixture/` are deterministic, CPU-only model
+The demo fixtures under `demo/fixtures/` are deterministic, CPU-only model
 builders used to exercise the WebGPU path and unit tests.
 
 ## Element tessellation and mapping gallery
@@ -36,7 +36,7 @@ overlay.
 
 ## VTK sample
 
-`demo/fixture/sample-block.vtk` is a checked-in ASCII legacy VTK unstructured
+`demo/fixtures/sample-block.vtk` is a checked-in ASCII legacy VTK unstructured
 grid containing four Hex8 cells, nodal temperature data, elemental stress data,
 and a nodal displacement vector. `createVtkFixture` parses it through the
 public `parseVtk` path, converts the imported stress and displacement through

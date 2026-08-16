@@ -16,7 +16,7 @@ import type { Placement } from "../../src/scene/assembly";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { createFemViewport } from "../../src/viewport/fem-viewport";
 import { RendererAttachment } from "../../src/renderer/attachment";
-import { GpuRenderer } from "../../src/renderer/gpu-renderer-core";
+import { GpuRenderer } from "../../src/renderer/renderer-core";
 import type { FemViewport } from "../../src/viewport/types";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
 import * as geometryBounds from "../../src/viewport/geometry-bounds";

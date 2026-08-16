@@ -12,7 +12,7 @@ export const MAX_PICK_ID = 0xffff_ffff;
 
 /**
  * Encodes a pick id into the four RGBA bytes written to the pick texture,
- * mirroring the `packPickId` WGSL function in `gpu-shaders.ts`. Channel order
+ * mirroring the `packPickId` WGSL function in `shaders/scene.ts`. Channel order
  * is little-endian (R = least significant byte); keep both in sync.
  */
 export function encodePickId(pickId: number): Uint8Array {

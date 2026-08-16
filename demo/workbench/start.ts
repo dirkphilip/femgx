@@ -5,7 +5,7 @@ import {
   type FemViewport,
   type InteractionGranularity,
 } from "../../src/entries/root";
-import { createModelPresets } from "../fixture/presets";
+import { createModelPresets } from "../fixtures/presets";
 import { workbenchBenchmarkSpecs } from "../benchmark/model";
 import { installDemoHarness } from "../devtools/harness";
 import { WorkbenchController } from "./controllers/controller";

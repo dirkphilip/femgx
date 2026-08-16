@@ -93,14 +93,15 @@ connectivity position when comparing a written model with its parsed result.
 
 ## Module split
 
-- `vtk.ts` — top-level keyword dispatch and header handling.
-- `vtk-cells.ts` — POINTS / CELLS / CELL_TYPES assembly.
-- `vtk-data.ts` — POINT_DATA / CELL_DATA arrays.
-- `vtk-write.ts` — deterministic ASCII export.
-- `vtk-write-results.ts` — result identity remapping and component-shape output.
-- `session.ts` — shared parse session + `finishParse` validation.
-- `validate.ts` / `diagnostics.ts` / `numbers.ts` / `growable.ts` — shared
-  helpers.
+- `vtk/parser.ts` — top-level keyword dispatch and header handling.
+- `vtk/cells.ts` — POINTS / CELLS / CELL_TYPES assembly.
+- `vtk/data.ts` — POINT_DATA / CELL_DATA arrays.
+- `vtk/writer.ts` — deterministic ASCII export.
+- `vtk/result-writer.ts` — result identity remapping and component-shape output.
+- `vtk/parser-session.ts` — parse state and final validation.
+- `vtk/tokens.ts` — VTK line tokenization and numeric parsing.
+- `model-validation.ts`, `diagnostics.ts`, and `typed-buffers.ts` — shared IO
+  contracts and storage.
 
 ## Out of scope
 

@@ -139,7 +139,7 @@ model's node count (the largest node id used by the part's vertices plus one). `
 are zeroed so the node stays put. Feed it into
 the renderer's `setDeformation` state for one part.
 
-## GPU deformed shapes (`gpu-deform.ts`)
+## GPU deformed shapes (`renderer/frame/deformation.ts`)
 
 The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
 
@@ -150,7 +150,7 @@ The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
 - `displacements` is a `ReadonlyMap<PartId, Float32Array>`; each buffer holds
   `nodeCount * 3` floats indexed by `NodeId` (build them with
   `nodalDisplacements`). An absent state disables deformation.
-- The WGSL vertex shaders (`gpu-shaders.ts`) resolve each vertex to its FE node through the
+- The WGSL vertex shaders (`renderer/shaders/scene.ts`) resolve each vertex to its FE node through the
   part's per-vertex node pick ids and add `displacement * scale` to the model-space vertex in
   the triangle, point-sprite, and edge-overlay passes, so the wireframe and picking stay
   aligned with the deformed solid. Supported Line3, Tri6, Quad8, Tet10, and Hex20 tessellation

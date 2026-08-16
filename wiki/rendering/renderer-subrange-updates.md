@@ -6,14 +6,14 @@ changed placements instead of rebuilding instance data.
 
 ## Per-part storage
 
-Each part owns three storage buffers (`src/renderer/gpu-draw.ts`):
+Each part owns three storage buffers (`src/renderer/resources/draw-resources.ts`):
 
 - **Record buffer** (`binding 0`): one 96-byte record per slot — column-major
   world transform (16 floats), resolved color with opacity folded into alpha
   (4 floats), a stable pick id, and an emissive scalar that drives the
   hover/highlight glow in the fragment shader. Field offsets are documented on
-  `EMISSIVE_BYTE_OFFSET` in `src/renderer/gpu-draw.ts` and mirrored by the
-  `Instance` struct in `src/renderer/gpu-shaders.ts`. The buffer is indexed by
+  `EMISSIVE_BYTE_OFFSET` in `src/renderer/resources/draw-resources.ts` and mirrored by the
+  `Instance` struct in `src/renderer/shaders/scene.ts`. The buffer is indexed by
   the **part-local slot** (`runtime-state.ts` maps global instance slots to
   part-local slots once at attach), so slot `N` always lives at byte `N * 96`
   and never moves.
@@ -113,7 +113,7 @@ position/metadata split is the measured baseline for subsequent lazy-edge work.
   `Camera`) are verified against the CPU encoder constants (`INSTANCE_STRIDE`,
   `ELEMENT_RECORD_STRIDE`, `HIGHLIGHT_HEADER`, `CAMERA_UNIFORM_SIZE`) by
   parsing the exported shader sources with `wgsl_reflect` in
-  `test/renderer/gpu-shaders.test.ts`. A `vec3` member or any other alignment
+  `test/renderer/shaders/scene.test.ts`. A `vec3` member or any other alignment
   trap now fails unit tests instead of silently desyncing CPU/GPU records.
 
 Related: [[architecture/packed-runtime|packed runtime]],

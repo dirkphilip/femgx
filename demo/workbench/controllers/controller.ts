@@ -4,7 +4,7 @@ import {
   type ViewportBackground,
 } from "../../../src/entries/root";
 import { setProjection } from "../../../src/entries/camera";
-import { importGlb } from "../../../src/entries/io-glb";
+import { importGlb } from "../../../src/entries/io/glb";
 import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { DemoView } from "../viewport/view";
 import { createModelInteraction } from "../state/preset";

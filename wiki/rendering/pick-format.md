@@ -45,7 +45,7 @@ supported pick-id range without a backend-specific integer-texture quirk.
 - **Supported range**: pick ids occupy the full 32-bit range `[1, 2^32 - 1]`;
   id `0` (the texture clear value) means "no hit". `MAX_PICK_ID` documents the
   upper bound, far beyond any practical instance count.
-- **Sync**: the WGSL packing in `gpu-shaders.ts` and `encodePickId`/`decodePickId`
+- **Sync**: the WGSL packing in `renderer/shaders/scene.ts` and `encodePickId`/`decodePickId`
   in `pick-format.ts` must stay byte-for-byte in sync (R = least significant
   byte, little-endian channel order).
 - **Unorm conversion**: writing `byte / 255.0` to an 8-bit unorm attachment
@@ -53,7 +53,7 @@ supported pick-id range without a backend-specific integer-texture quirk.
 
 ## Tests
 
-- `test/renderer/pick-format.test.ts` covers encode/decode boundaries (id 0/1,
+- `test/renderer/picking/pick-format.test.ts` covers encode/decode boundaries (id 0/1,
   per-byte boundaries, `MAX_PICK_ID`) and the little-endian channel order.
 - The e2e lane renders and picks through the real WebGPU renderer. A failed pick
   sweep fails the required hardware lane; it is not treated as a capability
