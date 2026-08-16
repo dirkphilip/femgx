@@ -2,8 +2,9 @@ import type { SectionPlane } from "../../math/section-plane";
 import type { DeformationState } from "../../results/deform";
 import type { PartId } from "../../geometry/part";
 import type { GpuBundle } from "../recovery";
-import type { FrameOptions } from "./frame";
+import type { FrameOptions } from "./frame-types";
 import type { DrawCall } from "../resources/draw-resources";
+import type { GpuTimestampRecorder } from "../diagnostics/timestamps";
 
 const EMPTY_CALLS: readonly DrawCall[] = [];
 
@@ -34,6 +35,7 @@ interface FrameOptionSources {
   readonly orbitPivot: readonly [number, number, number] | undefined;
   readonly originTriadEnabled: boolean;
   readonly originTriadNominalScale: number;
+  readonly timestampRecorder?: GpuTimestampRecorder;
 }
 
 /** Builds the immutable frame input record from current renderer state. */
@@ -66,6 +68,9 @@ export function buildFrameOptions(options: FrameOptionSources): FrameOptions {
     orbitPivot: options.orbitPivot,
     originTriadEnabled: options.originTriadEnabled,
     originTriadNominalScale: options.originTriadNominalScale,
+    ...(options.timestampRecorder === undefined
+      ? {}
+      : { timestampRecorder: options.timestampRecorder }),
     devicePixelRatio,
   };
 }

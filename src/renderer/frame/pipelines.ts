@@ -153,14 +153,17 @@ export async function createRenderResources(
       validation,
     );
     cameraBuffer = device.createBuffer({
+      label: "femgx camera uniforms",
       size: CAMERA_UNIFORM_SIZE,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     deformationBuffer = device.createBuffer({
+      label: "femgx deformation uniforms",
       size: DEFORMATION_UNIFORM_SIZE,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     sectionPlaneBuffer = device.createBuffer({
+      label: "femgx section plane uniforms",
       size: SECTION_PLANE_UNIFORM_SIZE,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
@@ -171,6 +174,7 @@ export async function createRenderResources(
       deformationBuffer,
     });
     const frameBindGroup = device.createBindGroup({
+      label: "femgx frame bind group",
       layout: cameraLayout,
       entries: [
         { binding: 0, resource: { buffer: cameraBuffer } },
@@ -258,9 +262,9 @@ export function ensureCompositeBindGroup(
   draw.targets.compositeBindGroup = createCompositeBindGroup(
     draw.device,
     resources.composite.layout,
-    draw.targets.opaqueColorTexture.createView(),
-    draw.targets.accumulationTexture.createView(),
-    draw.targets.revealageTexture.createView(),
+    draw.targets.opaqueColorTexture.createView({ label: "femgx composite opaque view" }),
+    draw.targets.accumulationTexture.createView({ label: "femgx composite accumulation view" }),
+    draw.targets.revealageTexture.createView({ label: "femgx composite revealage view" }),
   );
   return draw.targets.compositeBindGroup;
 }

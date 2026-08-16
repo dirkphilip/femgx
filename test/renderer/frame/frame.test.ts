@@ -101,6 +101,27 @@ describe("visible pass attachments", () => {
       pass,
     );
     expect(descriptor?.depthStencilAttachment?.stencilStoreOp).toBe("store");
+    expect(descriptor?.label).toBe("femgx opaque");
+  });
+
+  it("threads optional pass timestamps without changing ordinary attachments", () => {
+    let descriptor: GPURenderPassDescriptor | undefined;
+    const timestampWrites = {
+      querySet: {} as GPUQuerySet,
+      beginningOfPassWriteIndex: 2,
+      endOfPassWriteIndex: 3,
+    } satisfies GPURenderPassTimestampWrites;
+    const encoder = {
+      beginRenderPass: (next: GPURenderPassDescriptor) => {
+        descriptor = next;
+        return {} as GPURenderPassEncoder;
+      },
+    } as GPUCommandEncoder;
+
+    beginColorPass(encoder, {} as GPUTextureView, {} as GPUTextureView, undefined, timestampWrites);
+
+    expect(descriptor?.timestampWrites).toBe(timestampWrites);
+    expect(descriptor?.colorAttachments).toHaveLength(1);
   });
 
   it("loads resolved color without a multisampled depth attachment for presentation overlays", () => {

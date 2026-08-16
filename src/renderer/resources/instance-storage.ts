@@ -326,15 +326,16 @@ function createStorage(
   const nodeOrderLength = existing?.nodeOrderLength ?? 0;
   return {
     buffer: draw.device.createBuffer({
+      label: "femgx instance storage",
       size: size * INSTANCE_STRIDE,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     }),
-    orderBuffer: createOrderBuffer(draw.device, size),
-    selectionOrderBuffer: createOrderBuffer(draw.device, size),
-    nodeSelectionOrderBuffer: createOrderBuffer(draw.device, size),
-    transparentOrderBuffer: createOrderBuffer(draw.device, size),
-    edgeOrderBuffer: createOrderBuffer(draw.device, size),
-    nodeOrderBuffer: createOrderBuffer(draw.device, size),
+    orderBuffer: createOrderBuffer(draw.device, size, "femgx instance order"),
+    selectionOrderBuffer: createOrderBuffer(draw.device, size, "femgx selection order"),
+    nodeSelectionOrderBuffer: createOrderBuffer(draw.device, size, "femgx node selection order"),
+    transparentOrderBuffer: createOrderBuffer(draw.device, size, "femgx transparent order"),
+    edgeOrderBuffer: createOrderBuffer(draw.device, size, "femgx edge order"),
+    nodeOrderBuffer: createOrderBuffer(draw.device, size, "femgx node order"),
     highlight: existing?.highlight ?? createHighlightStorage(draw.device),
     capacity: size,
     data: mirror.buffer,
@@ -441,8 +442,9 @@ function destroyStorageBuffers(storage: InstanceStorage): void {
 }
 
 /** Creates a u32 storage buffer sized to the part's slot capacity. */
-function createOrderBuffer(device: GPUDevice, size: number): GPUBuffer {
+function createOrderBuffer(device: GPUDevice, size: number, label: string): GPUBuffer {
   return device.createBuffer({
+    label,
     size: size * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });

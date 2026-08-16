@@ -9,14 +9,13 @@ import type { DeformationState } from "../results/deform";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import { RendererAttachment } from "./attachment";
 import { destroyInstanceResources } from "./resources/draw-resources";
-import { SectionCapController } from "./section-cap-controller";
+import { SectionCapController, sameSectionPlane } from "./section-cap-controller";
 import type { ViewportBackground, WebGpuRenderer, WebGpuRendererOptions } from "./types";
 import { syncDeformations, validateDeformation } from "./frame/deformation";
 import { syncResultColors } from "./resources/result-colors";
 import { encodeVisibleFrame } from "./frame/frame";
-import { GpuDeviceLifecycle, type GpuBundle } from "./recovery";
+import { GpuDeviceLifecycle } from "./recovery";
 import { writeBackgroundColors } from "./frame/background";
-import type { GpuValidationOptions } from "./diagnostics/validation";
 import type { GpuCostSnapshot } from "./diagnostics/cost";
 import type { SectionPlane } from "../math/section-plane";
 import {
@@ -27,14 +26,13 @@ import { createEdgePickState, type EdgePickState } from "./edges/edge-picking";
 import { buildFrameOptions } from "./frame/frame-options";
 import { drawCostSnapshot, materializedEdgePartIds } from "./diagnostics/renderer-diagnostics";
 import { RendererPicking } from "./renderer-picking";
-
-export interface GpuRendererConstruction {
-  readonly bundle: GpuBundle;
-  readonly context: GPUCanvasContext;
-  readonly format: GPUTextureFormat;
-  readonly depthFormat: GPUTextureFormat;
-  readonly validation: GpuValidationOptions | undefined;
-}
+import {
+  createGpuTimestampRecorder,
+  unavailableGpuTimestampSnapshot,
+  type GpuTimestampRecorder,
+  type GpuTimestampSnapshot,
+} from "./diagnostics/timestamps";
+import type { GpuRendererConstruction } from "./renderer-construction";
 
 /** The WebGPU renderer implementation; see `gpu-renderer.ts` for the API. */
 export class GpuRenderer implements WebGpuRenderer {
@@ -59,6 +57,8 @@ export class GpuRenderer implements WebGpuRenderer {
   private sectionPlane: SectionPlane | undefined;
   private interaction = createInteractionState();
   private readonly sectionCaps = new SectionCapController();
+  private timestampRecorder: GpuTimestampRecorder | undefined;
+  private readonly timestampQueriesRequested: boolean;
   private orientationGlyphs: OrientationGlyphState | undefined;
   private originTriadNominalScale = 1;
   private destroyed = false;
@@ -71,6 +71,8 @@ export class GpuRenderer implements WebGpuRenderer {
     this.context = construction.context;
     this.format = construction.format;
     this.depthFormat = construction.depthFormat;
+    this.timestampQueriesRequested = construction.timestampQueriesRequested ?? false;
+    this.timestampRecorder = construction.timestampRecorder;
     this.pointSize = options.pointSizePixels ?? 8;
     this.nodeSize = options.nodeSizePixels ?? 6;
     this.originTriadEnabled = options.originTriad ?? true;
@@ -341,9 +343,21 @@ export class GpuRenderer implements WebGpuRenderer {
     return materializedEdgePartIds(this.lifecycle.bundle.draw);
   }
 
+  public timestampSnapshot(): GpuTimestampSnapshot {
+    this.ensureAlive();
+    return this.timestampRecorder?.snapshot() ?? unavailableGpuTimestampSnapshot();
+  }
+
+  public async drainTimestampSamples(): Promise<void> {
+    this.ensureAlive();
+    await this.timestampRecorder?.drain();
+  }
+
   public destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.timestampRecorder?.destroy();
+    this.timestampRecorder = undefined;
     this.lifecycle.destroy();
   }
 
@@ -358,6 +372,11 @@ export class GpuRenderer implements WebGpuRenderer {
   public async recover(): Promise<void> {
     if (this.destroyed) throw new Error("WebGPU renderer has been destroyed");
     if (await this.lifecycle.recover()) {
+      this.timestampRecorder?.destroy();
+      this.timestampRecorder = createGpuTimestampRecorder(
+        this.lifecycle.bundle.device,
+        this.timestampQueriesRequested,
+      );
       this.attachment.clear();
       this.sectionCaps.recover(this.parts, this.resultColors);
       this.picking.resetAfterRecovery();
@@ -395,6 +414,9 @@ export class GpuRenderer implements WebGpuRenderer {
       orbitPivot: this.orbitPivot,
       originTriadEnabled: this.originTriadEnabled,
       originTriadNominalScale: this.originTriadNominalScale,
+      ...(this.timestampRecorder === undefined
+        ? {}
+        : { timestampRecorder: this.timestampRecorder }),
     });
   }
 
@@ -409,19 +431,4 @@ export class GpuRenderer implements WebGpuRenderer {
       draw: this.lifecycle.bundle.draw,
     });
   }
-}
-
-function sameSectionPlane(
-  left: SectionPlane | undefined,
-  right: SectionPlane | undefined,
-): boolean {
-  return (
-    left === right ||
-    (left !== undefined &&
-      right !== undefined &&
-      left.distance === right.distance &&
-      left.normal[0] === right.normal[0] &&
-      left.normal[1] === right.normal[1] &&
-      left.normal[2] === right.normal[2])
-  );
 }

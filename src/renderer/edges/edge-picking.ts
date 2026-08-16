@@ -7,7 +7,7 @@ import type { Instance } from "../../scene/types";
 import { resolveEdgePickHit } from "../../picking/pick";
 import { encodeEdgePickSnapshot } from "./edge-pick-frame";
 import { createEdgePickPipeline } from "./edge-pick-pipeline";
-import type { FrameOptions } from "../frame/frame";
+import type { FrameOptions } from "../frame/frame-types";
 import { pickWorldPosition, readEdgePickPixel, readPickPixel } from "../picking/pick";
 import { pickEdgeTargetsFromRegion } from "../picking/region";
 import type { GpuValidationOptions } from "../diagnostics/validation";

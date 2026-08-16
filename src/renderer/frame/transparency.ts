@@ -212,6 +212,7 @@ export function createCompositeBindGroup(
   revealage: GPUTextureView,
 ): GPUBindGroup {
   return device.createBindGroup({
+    label: "femgx composite bind group",
     layout,
     entries: [
       { binding: 0, resource: opaque },

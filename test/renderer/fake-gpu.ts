@@ -55,6 +55,9 @@ export interface FakeGpu {
   readonly pipelineCalls: readonly unknown[];
   readonly bufferCopies: readonly BufferCopy[];
   readonly computeDispatchCount: number;
+  readonly querySetCreations: number;
+  readonly queryResolveCount: number;
+  readonly mapAsyncCount: number;
   /** Render-pipeline descriptors in creation order. */
   readonly renderPipelineDescriptors: readonly GPURenderPipelineDescriptor[];
   /** Shader-module descriptors in creation order. */
@@ -81,6 +84,7 @@ export function installGpuGlobals(): () => void {
     STORAGE: 16,
     MAP_READ: 32,
     COPY_SRC: 64,
+    QUERY_RESOLVE: 128,
   });
   define("GPUTextureUsage", { RENDER_ATTACHMENT: 1, COPY_SRC: 2, TEXTURE_BINDING: 4 });
   define("GPUMapMode", { READ: 1 });
@@ -133,6 +137,9 @@ export function fakeGpuDevice(
     readonly renderPipelineError?: string;
     readonly computePipelineError?: string;
     readonly textureCreationErrorAt?: number;
+    readonly features?: readonly GPUFeatureName[];
+    readonly timestampValues?: readonly bigint[];
+    readonly timestampPeriod?: number;
   } = {},
 ): FakeGpu {
   const writes: RecordedWrite[] = [];
@@ -155,6 +162,9 @@ export function fakeGpuDevice(
   >();
   let bindGroupCreations = 0;
   let computeDispatchCount = 0;
+  let querySetCreations = 0;
+  let queryResolveCount = 0;
+  let mapAsyncCount = 0;
   let submissionCount = 0;
   let pipelineCounter = 0;
   let currentPipeline = "none";
@@ -190,7 +200,10 @@ export function fakeGpuDevice(
       submit: () => {
         submissionCount += 1;
       },
+      onSubmittedWorkDone: () => Promise.resolve(),
     },
+    features: new Set(options.features ?? []),
+    limits: { timestampPeriod: options.timestampPeriod ?? 1 },
     createBuffer: (descriptor: GPUBufferDescriptor) => {
       const record: FakeBuffer = {
         size: descriptor.size,
@@ -204,9 +217,19 @@ export function fakeGpuDevice(
         destroy: () => {
           record.destroyed = true;
         },
-        mapAsync: options.mapAsync ?? (() => Promise.resolve()),
+        mapAsync: () => {
+          mapAsyncCount += 1;
+          return options.mapAsync?.() ?? Promise.resolve();
+        },
         getMappedRange: () => {
           const bytes = new Uint8Array(descriptor.size);
+          if (
+            options.timestampValues !== undefined &&
+            descriptor.size === options.timestampValues.length * BigUint64Array.BYTES_PER_ELEMENT
+          ) {
+            new BigUint64Array(bytes.buffer).set(options.timestampValues);
+            return bytes.buffer;
+          }
           const copies = textureCopies.get(buffer) ?? [];
           const values = [pickValue, elementPickValue, facePickValue, nodePickValue];
           for (const [index, copy] of copies.entries()) {
@@ -237,6 +260,10 @@ export function fakeGpuDevice(
       return {};
     },
     createPipelineLayout: () => ({}),
+    createQuerySet: () => {
+      querySetCreations += 1;
+      return { destroy: () => undefined };
+    },
     createSampler: () => ({}),
     createShaderModule: (descriptor: GPUShaderModuleDescriptor) => {
       shaderModuleDescriptors.push(descriptor);
@@ -328,6 +355,9 @@ export function fakeGpuDevice(
             end: () => undefined,
           }) as unknown as GPUComputePassEncoder,
         finish: () => ({}),
+        resolveQuerySet: () => {
+          queryResolveCount += 1;
+        },
         copyTextureToBuffer: (
           source: GPUTexelCopyTextureInfo,
           destination: GPUTexelCopyBufferInfo,
@@ -388,6 +418,15 @@ export function fakeGpuDevice(
     },
     get computeDispatchCount() {
       return computeDispatchCount;
+    },
+    get querySetCreations() {
+      return querySetCreations;
+    },
+    get queryResolveCount() {
+      return queryResolveCount;
+    },
+    get mapAsyncCount() {
+      return mapAsyncCount;
     },
   };
 }

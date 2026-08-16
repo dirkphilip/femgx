@@ -107,10 +107,12 @@ export async function createBackgroundResources(
     multisample: { count: COLOR_SAMPLE_COUNT },
   });
   const buffer = device.createBuffer({
+    label: "femgx background colors",
     size: 32,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const bindGroup = device.createBindGroup({
+    label: "femgx background bind group",
     layout,
     entries: [{ binding: 0, resource: { buffer } }],
   });

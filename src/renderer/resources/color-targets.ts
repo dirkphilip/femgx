@@ -146,6 +146,7 @@ function allocateOverlayDepthTarget(
   depthFormat: GPUTextureFormat,
 ): GPUTexture {
   return device.createTexture({
+    label: "femgx overlay depth texture",
     size: [width, height],
     format: depthFormat,
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
@@ -173,12 +174,14 @@ function hasTransparencyTargets(targets: ColorTargets): boolean {
 
 function allocateBaseTargets(targets: ColorTargets, options: BaseTargetOptions): void {
   targets.msaaColorTexture = options.device.createTexture({
+    label: "femgx msaa color texture",
     size: [options.width, options.height],
     sampleCount: COLOR_SAMPLE_COUNT,
     format: options.colorFormat,
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
   targets.depthTexture = options.device.createTexture({
+    label: "femgx msaa depth texture",
     size: [options.width, options.height],
     sampleCount: COLOR_SAMPLE_COUNT,
     format: options.depthFormat,
@@ -193,42 +196,34 @@ function allocateTransparencyTargets(
   colorFormat: GPUTextureFormat,
 ): AllocatedTransparencyTargets {
   const created: GPUTexture[] = [];
-  const create = (
-    format: GPUTextureFormat,
-    usage: GPUTextureUsageFlags,
-    multisampled: boolean,
-  ): GPUTexture => {
-    const texture = draw.device.createTexture({
-      size: [width, height],
-      ...(multisampled ? { sampleCount: COLOR_SAMPLE_COUNT } : {}),
-      format,
-      usage,
-    });
-    created.push(texture);
-    return texture;
-  };
+  const create = transparencyTextureCreator(draw, width, height, created);
   try {
     const opaqueColorTexture = create(
+      "femgx opaque color texture",
       colorFormat,
       GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
       false,
     );
     const msaaAccumulationTexture = create(
+      "femgx msaa transparency accumulation texture",
       TRANSPARENCY_ACCUMULATION_FORMAT,
       GPUTextureUsage.RENDER_ATTACHMENT,
       true,
     );
     const accumulationTexture = create(
+      "femgx transparency accumulation texture",
       TRANSPARENCY_ACCUMULATION_FORMAT,
       GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
       false,
     );
     const msaaRevealageTexture = create(
+      "femgx msaa transparency revealage texture",
       TRANSPARENCY_REVEALAGE_FORMAT,
       GPUTextureUsage.RENDER_ATTACHMENT,
       true,
     );
     const revealageTexture = create(
+      "femgx transparency revealage texture",
       TRANSPARENCY_REVEALAGE_FORMAT,
       GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
       false,
@@ -244,6 +239,30 @@ function allocateTransparencyTargets(
     for (const texture of created) texture.destroy();
     throw error;
   }
+}
+
+function transparencyTextureCreator(
+  draw: ColorTargetOwner,
+  width: number,
+  height: number,
+  created: GPUTexture[],
+): (
+  label: string,
+  format: GPUTextureFormat,
+  usage: GPUTextureUsageFlags,
+  multisampled: boolean,
+) => GPUTexture {
+  return (label, format, usage, multisampled) => {
+    const texture = draw.device.createTexture({
+      label,
+      size: [width, height],
+      ...(multisampled ? { sampleCount: COLOR_SAMPLE_COUNT } : {}),
+      format,
+      usage,
+    });
+    created.push(texture);
+    return texture;
+  };
 }
 
 function publishBaseTargets(

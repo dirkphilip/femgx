@@ -123,6 +123,7 @@ export function orientationGlyphBindGroup(
     throw new Error("Orientation glyph parameters are not initialized");
   }
   return (resource.bindGroup ??= resources.device.createBindGroup({
+    label: "femgx orientation glyph bind group",
     layout: pipelines.layout,
     entries: [
       { binding: 0, resource: { buffer: resource.recordBuffer } },
@@ -150,6 +151,7 @@ export function orientationGlyphInstanceBindGroup(
   }
   resource.instanceBindGroupSources = sources;
   return (resource.instanceBindGroup = device.createBindGroup({
+    label: "femgx orientation glyph instance bind group",
     layout: pipelines.instanceLayout,
     entries: [
       { binding: 0, resource: { buffer: sources[0] } },
@@ -190,6 +192,7 @@ function ensurePartResource(
   const resource: OrientationGlyphPartResource = {
     partId,
     recordBuffer: resources.device.createBuffer({
+      label: "femgx orientation glyph records",
       size: recordBytes,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     }),
@@ -198,6 +201,7 @@ function ensurePartResource(
     recordCount: 0,
     source: undefined,
     normalBuffer: resources.device.createBuffer({
+      label: "femgx orientation glyph normals",
       size: normalBytes,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     }),
@@ -221,6 +225,7 @@ function syncRecords(
   if (packed.byteLength > resource.recordBuffer.size) {
     resource.recordBuffer.destroy();
     resource.recordBuffer = resources.device.createBuffer({
+      label: "femgx orientation glyph records",
       size: packed.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
@@ -287,6 +292,7 @@ function writeNormalMatrices(
       resource.normalCapacity * ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS,
     );
     resource.normalBuffer = resources.device.createBuffer({
+      label: "femgx orientation glyph normals",
       size: resource.normalData.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
@@ -320,6 +326,7 @@ function writeParams(resources: OrientationGlyphDrawResources, state: Orientatio
   ids[2] = transform;
   floats[3] = state.widthPixels;
   resources.paramsBuffer ??= resources.device.createBuffer({
+    label: "femgx orientation glyph parameters",
     size: PARAMS_SIZE,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });

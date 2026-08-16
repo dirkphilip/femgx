@@ -94,11 +94,15 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       });
       console.log(`WEBGPU_BENCHMARK_JSON ${JSON.stringify(report)}`);
 
-      expect(report.schemaVersion).toBe(7);
+      expect(report.schemaVersion).toBe(8);
       expect(report.cases).toHaveLength(1);
       const [entry] = report.cases;
       expect(entry?.id).toBe(spec.id);
       expect(report.memoryEstimateScope).toContain("renderer-owned");
+      expect(report.timestampQueries).toMatchObject({
+        available: expect.any(Boolean),
+        enabled: expect.any(Boolean),
+      });
       expect(report.resolution).toEqual({
         width: 800,
         height: 600,
@@ -118,6 +122,23 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       expect(entry.visibleTriangles).toBe(entry.submittedTriangles);
       expect(entry.modelBuildMs).toBeGreaterThanOrEqual(0);
       expect(entry.runtimeCompileMs).toBeGreaterThanOrEqual(0);
+      expect(entry.presentation).toMatchObject({
+        nodeSizeCssPixels: 6,
+        devicePixelRatio: report.resolution.dpr,
+        projectionProxy: "camera-space point-size",
+        cpuProxy: "node draw calls and instances",
+      });
+      expect(entry.gpuTimestamps.available).toBe(report.timestampQueries.enabled);
+      if (entry.gpuTimestamps.available) {
+        expect(entry.gpuTimestamps.sampleCount).toBeGreaterThan(0);
+        const opaqueTimestamps = entry.gpuTimestamps.passes["opaque"];
+        if (opaqueTimestamps === undefined) throw new Error("opaque timestamp stats are missing");
+        expect(opaqueTimestamps.sampleCount).toBeGreaterThan(0);
+        expect(opaqueTimestamps.p50).not.toBeNull();
+      } else {
+        expect(entry.gpuTimestamps.sampleCount).toBe(0);
+        expect(entry.gpuTimestamps.unit).toBe("none");
+      }
       expect(entry.timings.uploadAndFirstFrameCpuMs.p50).toBeGreaterThanOrEqual(0);
       expect(entry.timings.uploadAndFirstFrameCpuMs.p95).toBeGreaterThanOrEqual(
         entry.timings.uploadAndFirstFrameCpuMs.p50,

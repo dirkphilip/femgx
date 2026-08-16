@@ -26,7 +26,11 @@ export async function runWebGpuBenchmark(
   }
   const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
   if (adapter === null) throw new Error("No WebGPU adapter is available for the benchmark");
-  const device = await adapter.requestDevice();
+  const timestampQueriesAvailable = adapter.features.has("timestamp-query");
+  const device = timestampQueriesAvailable
+    ? await adapter.requestDevice({ requiredFeatures: ["timestamp-query"] })
+    : await adapter.requestDevice();
+  const timestampQueriesEnabled = device.features.has("timestamp-query");
   const enabledFeatures = [...device.features].sort();
   canvas.style.width = `${WIDTH}px`;
   canvas.style.height = `${HEIGHT}px`;
@@ -44,6 +48,7 @@ export async function runWebGpuBenchmark(
             device,
             benchmarkCase,
             performance.now() - modelBuildStart,
+            { timestampQueriesRequested: timestampQueriesEnabled },
           ),
         );
       } catch (error) {
@@ -62,7 +67,7 @@ export async function runWebGpuBenchmark(
   }
   const info = adapter.info;
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     generatedAt: new Date().toISOString(),
     browser: navigator.userAgent,
     adapter: {
@@ -73,6 +78,12 @@ export async function runWebGpuBenchmark(
       isFallbackAdapter: info.isFallbackAdapter,
     },
     enabledFeatures,
+    timestampQueries: {
+      available: timestampQueriesAvailable,
+      enabled: timestampQueriesEnabled,
+      unit: results[0]?.gpuTimestamps.unit ?? "none",
+      periodNs: results[0]?.gpuTimestamps.periodNs ?? null,
+    },
     resolution: { width: WIDTH, height: HEIGHT, dpr: devicePixelRatio },
     memoryEstimateScope: MEMORY_ESTIMATE_SCOPE,
     warmupSamples: WARMUP_SAMPLES,

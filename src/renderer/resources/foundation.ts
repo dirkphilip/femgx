@@ -70,8 +70,10 @@ export function createBuffer(
   device: GPUDevice,
   data: ArrayBufferView,
   usage: GPUBufferUsageFlags,
+  label = "femgx uploaded buffer",
 ): GPUBuffer {
   const buffer = device.createBuffer({
+    label,
     size: Math.max(4, data.byteLength),
     usage: usage | GPUBufferUsage.COPY_DST,
   });

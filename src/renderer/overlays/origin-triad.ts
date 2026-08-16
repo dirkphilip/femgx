@@ -175,6 +175,7 @@ export function createOriginTriadResources(
   options: OriginTriadResourceOptions,
 ): OriginTriadResources {
   const buffer = options.device.createBuffer({
+    label: "femgx origin triad uniforms",
     size: 48,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
@@ -183,6 +184,7 @@ export function createOriginTriadResources(
       buffer,
       frameBindGroup: options.frameBindGroup,
       bindGroup: options.device.createBindGroup({
+        label: "femgx origin triad bind group",
         layout: options.pipeline.originLayout,
         entries: [{ binding: 0, resource: { buffer } }],
       }),

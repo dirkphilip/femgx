@@ -4,6 +4,7 @@ export function beginColorPass(
   colorView: GPUTextureView,
   depthView: GPUTextureView,
   resolveTarget: GPUTextureView | undefined,
+  timestampWrites?: GPURenderPassTimestampWrites,
 ): GPURenderPassEncoder {
   const colorAttachment: GPURenderPassColorAttachment = {
     view: colorView,
@@ -13,6 +14,7 @@ export function beginColorPass(
   };
   if (resolveTarget !== undefined) colorAttachment.resolveTarget = resolveTarget;
   return encoder.beginRenderPass({
+    label: "femgx opaque",
     colorAttachments: [colorAttachment],
     depthStencilAttachment: {
       view: depthView,
@@ -23,6 +25,7 @@ export function beginColorPass(
       stencilLoadOp: "clear",
       stencilStoreOp: "store",
     },
+    ...(timestampWrites === undefined ? {} : { timestampWrites }),
   });
 }
 
@@ -39,8 +42,10 @@ export function beginTransparencyPass(
   encoder: GPUCommandEncoder,
   targets: TransparencyPassTargets,
   depthView: GPUTextureView,
+  timestampWrites?: GPURenderPassTimestampWrites,
 ): GPURenderPassEncoder {
   return encoder.beginRenderPass({
+    label: "femgx transparency",
     colorAttachments: [
       {
         view: targets.accumulationView,
@@ -64,6 +69,7 @@ export function beginTransparencyPass(
       stencilLoadOp: "load",
       stencilStoreOp: "discard",
     },
+    ...(timestampWrites === undefined ? {} : { timestampWrites }),
   });
 }
 
@@ -73,8 +79,10 @@ export function beginCompositePass(
   colorView: GPUTextureView,
   resolveTarget: GPUTextureView,
   depthView: GPUTextureView,
+  timestampWrites?: GPURenderPassTimestampWrites,
 ): GPURenderPassEncoder {
   return encoder.beginRenderPass({
+    label: "femgx composite",
     colorAttachments: [
       {
         view: colorView,
@@ -91,6 +99,7 @@ export function beginCompositePass(
       stencilLoadOp: "load",
       stencilStoreOp: "discard",
     },
+    ...(timestampWrites === undefined ? {} : { timestampWrites }),
   });
 }
 
@@ -99,8 +108,10 @@ export function beginOverlayPass(
   encoder: GPUCommandEncoder,
   colorView: GPUTextureView,
   depthView: GPUTextureView,
+  timestampWrites?: GPURenderPassTimestampWrites,
 ): GPURenderPassEncoder {
   return encoder.beginRenderPass({
+    label: "femgx overlay",
     colorAttachments: [
       {
         view: colorView,
@@ -115,6 +126,7 @@ export function beginOverlayPass(
       stencilLoadOp: "load",
       stencilStoreOp: "discard",
     },
+    ...(timestampWrites === undefined ? {} : { timestampWrites }),
   });
 }
 
@@ -122,8 +134,10 @@ export function beginOverlayPass(
 export function beginOverlayDepthPass(
   encoder: GPUCommandEncoder,
   depthView: GPUTextureView,
+  timestampWrites?: GPURenderPassTimestampWrites,
 ): GPURenderPassEncoder {
   return encoder.beginRenderPass({
+    label: "femgx overlay depth",
     colorAttachments: [],
     depthStencilAttachment: {
       view: depthView,
@@ -134,5 +148,6 @@ export function beginOverlayDepthPass(
       stencilLoadOp: "clear",
       stencilStoreOp: "store",
     },
+    ...(timestampWrites === undefined ? {} : { timestampWrites }),
   });
 }

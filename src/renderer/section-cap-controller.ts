@@ -97,3 +97,19 @@ export class SectionCapController {
     this.frame = undefined;
   }
 }
+
+/** Compares section-plane values without requiring a new object identity. */
+export function sameSectionPlane(
+  left: SectionPlane | undefined,
+  right: SectionPlane | undefined,
+): boolean {
+  return (
+    left === right ||
+    (left !== undefined &&
+      right !== undefined &&
+      left.distance === right.distance &&
+      left.normal[0] === right.normal[0] &&
+      left.normal[1] === right.normal[1] &&
+      left.normal[2] === right.normal[2])
+  );
+}

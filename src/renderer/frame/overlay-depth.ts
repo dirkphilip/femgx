@@ -72,11 +72,15 @@ export function createOverlayDepthBindGroup(
   depthTexture: GPUTexture,
 ): GPUBindGroup {
   return device.createBindGroup({
+    label: "femgx overlay depth bind group",
     layout,
     entries: [
       {
         binding: 0,
-        resource: depthTexture.createView({ aspect: "depth-only" }),
+        resource: depthTexture.createView({
+          label: "femgx overlay depth source view",
+          aspect: "depth-only",
+        }),
       },
     ],
   });

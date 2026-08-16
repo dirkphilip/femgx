@@ -92,6 +92,7 @@ export function ensureDeformationBuffer(
   const existing = deformations.get(partId);
   if (existing !== undefined) return existing.buffer;
   const buffer = device.createBuffer({
+    label: "femgx empty deformation storage",
     size: 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
@@ -145,6 +146,7 @@ function uploadDeformation(sync: DeformationSync, partId: PartId, values: Float3
     return;
   }
   const buffer = sync.device.createBuffer({
+    label: "femgx deformation storage",
     size,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
