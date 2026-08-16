@@ -20,7 +20,6 @@ export default tseslint.config(
     ],
   },
   js.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
   ...tseslint.configs.strictTypeChecked,
   ...svelte.configs["flat/recommended"],
   jsdoc.configs["flat/recommended-typescript-flavor"],
@@ -43,6 +42,7 @@ export default tseslint.config(
       ],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-confusing-void-expression": "error",
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
       "@typescript-eslint/restrict-template-expressions": [
         "error",
         { allowNumber: true, allowBoolean: true, allowNullish: true },
@@ -74,20 +74,38 @@ export default tseslint.config(
     },
   },
   {
-    ...tseslint.configs.disableTypeChecked,
     files: ["**/*.svelte"],
     languageOptions: {
       parserOptions: {
         parser: tseslint.parser,
-        project: false,
-        projectService: false,
         extraFileExtensions: [".svelte"],
       },
     },
     rules: {
-      ...tseslint.configs.disableTypeChecked.rules,
-      "@typescript-eslint/consistent-type-imports": "off",
+      // Svelte event attributes intentionally consume void-returning handlers;
+      // the shorthand restriction adds markup noise without a type-safety gain.
+      "@typescript-eslint/no-confusing-void-expression": "off",
       "jsdoc/require-jsdoc": "off",
+      "svelte/button-has-type": "error",
+      "svelte/no-conflicting-module-names": "error",
+      "svelte/no-ignored-unsubscribe": "error",
+      "svelte/no-target-blank": "error",
+      "svelte/valid-compile": "error",
+      "svelte/valid-style-parse": "error",
+    },
+  },
+  {
+    files: ["src/**/*.ts", "demo/**/*.{ts,svelte}"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": [
+        "error",
+        {
+          assertionStyle: "as",
+          objectLiteralTypeAssertions: "never",
+          arrayLiteralTypeAssertions: "never",
+        },
+      ],
+      "@typescript-eslint/no-unsafe-type-assertion": "error",
     },
   },
   {

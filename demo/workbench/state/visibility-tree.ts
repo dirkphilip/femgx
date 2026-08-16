@@ -5,5 +5,5 @@ export function assemblyName(assembly: Assembly | undefined): string | undefined
   if (assembly === undefined) {
     return undefined;
   }
-  return (assembly as { readonly name?: string }).name;
+  return "name" in assembly && typeof assembly.name === "string" ? assembly.name : undefined;
 }

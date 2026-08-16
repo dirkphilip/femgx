@@ -58,11 +58,15 @@ function createDemoView(elements: DemoViewElements): DemoView {
 }
 
 function requiredElement(selector: string): HTMLElement {
-  return required(selector) as HTMLElement;
+  const element = required(selector);
+  if (!(element instanceof HTMLElement)) throw new TypeError(`${selector} is not an HTML element`);
+  return element;
 }
 
 function requiredCanvas(selector: string): HTMLCanvasElement {
-  return required(selector) as HTMLCanvasElement;
+  const element = required(selector);
+  if (!(element instanceof HTMLCanvasElement)) throw new TypeError(`${selector} is not a canvas`);
+  return element;
 }
 
 function required(selector: string): Element {

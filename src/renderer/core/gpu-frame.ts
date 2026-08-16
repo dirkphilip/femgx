@@ -328,16 +328,18 @@ type WeightedColorTargets = ReadyColorTargets &
   >;
 
 function requireWeightedTargets(targets: ReadyColorTargets): WeightedColorTargets {
+  const { color, depth, opaqueColor, accumulation, revealage, msaaAccumulation, msaaRevealage } =
+    targets;
   if (
-    targets.opaqueColor === undefined ||
-    targets.accumulation === undefined ||
-    targets.revealage === undefined ||
-    targets.msaaAccumulation === undefined ||
-    targets.msaaRevealage === undefined
+    opaqueColor === undefined ||
+    accumulation === undefined ||
+    revealage === undefined ||
+    msaaAccumulation === undefined ||
+    msaaRevealage === undefined
   ) {
     throw new Error("Weighted transparency targets are unavailable");
   }
-  return targets as WeightedColorTargets;
+  return { color, depth, opaqueColor, accumulation, revealage, msaaAccumulation, msaaRevealage };
 }
 
 /** Encodes and submits one current pick snapshot for subsequent readbacks. */

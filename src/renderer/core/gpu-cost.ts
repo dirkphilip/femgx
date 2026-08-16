@@ -80,17 +80,10 @@ interface MutableWriteCost {
 
 /** Mutable owner of one frame's internal rendering cost counters. */
 export class GpuCostAccumulator {
-  private readonly passCounts = emptyCounts(GPU_COST_PASSES);
-  private readonly drawCounts = emptyRecord<GpuCostDraw, MutableDrawCost>(GPU_COST_DRAWS, () => ({
-    calls: 0,
-    indices: 0,
-    instances: 0,
-  }));
-  private readonly writeCounts = emptyRecord<GpuCostWrite, MutableWriteCost>(
-    GPU_COST_WRITES,
-    () => ({ calls: 0, bytes: 0 }),
-  );
-  private readonly cpuCounts = emptyCounts(GPU_COST_CPU);
+  private readonly passCounts = emptyPassCounts();
+  private readonly drawCounts = emptyDrawCounts();
+  private readonly writeCounts = emptyWriteCounts();
+  private readonly cpuCounts = emptyCpuCounts();
   private targetCost: GpuTargetCost | undefined;
 
   /** Clears all counters before encoding a new visible frame. */
@@ -148,26 +141,94 @@ export class GpuCostAccumulator {
   public snapshot(): GpuCostSnapshot {
     return {
       passes: { ...this.passCounts },
-      draws: cloneRecord(this.drawCounts),
-      writes: cloneRecord(this.writeCounts),
+      draws: cloneDrawCounts(this.drawCounts),
+      writes: cloneWriteCounts(this.writeCounts),
       cpu: { ...this.cpuCounts },
       targets: this.targetCost === undefined ? undefined : { ...this.targetCost },
     };
   }
 }
 
-function emptyCounts<const Keys extends readonly string[]>(
-  keys: Keys,
-): Record<Keys[number], number> {
-  return Object.fromEntries(keys.map((key) => [key, 0])) as Record<Keys[number], number>;
+function emptyPassCounts(): Record<GpuCostPass, number> {
+  return { opaque: 0, transparency: 0, composite: 0, pick: 0 };
 }
 
-function emptyRecord<K extends string, V>(keys: readonly K[], create: () => V): Record<K, V> {
-  return Object.fromEntries(keys.map((key) => [key, create()])) as Record<K, V>;
+function emptyCpuCounts(): Record<GpuCostCpu, number> {
+  return { "instance-scan": 0, "order-rebuild": 0, "call-rebuild": 0 };
 }
 
-function cloneRecord<K extends string, V extends object>(record: Record<K, V>): Record<K, V> {
-  return Object.fromEntries(
-    (Object.entries(record) as [K, V][]).map(([key, value]) => [key, { ...value }]),
-  ) as Record<K, V>;
+function drawCost(): MutableDrawCost {
+  return { calls: 0, indices: 0, instances: 0 };
+}
+
+function emptyDrawCounts(): Record<GpuCostDraw, MutableDrawCost> {
+  return {
+    background: drawCost(),
+    opaque: drawCost(),
+    "point-replay": drawCost(),
+    "selection-visible": drawCost(),
+    "selection-hidden": drawCost(),
+    transparency: drawCost(),
+    composite: drawCost(),
+    edges: drawCost(),
+    nodes: drawCost(),
+    "vector-glyph": drawCost(),
+    "origin-triad": drawCost(),
+    pivot: drawCost(),
+    pick: drawCost(),
+  };
+}
+
+function writeCost(): MutableWriteCost {
+  return { calls: 0, bytes: 0 };
+}
+
+function emptyWriteCounts(): Record<GpuCostWrite, MutableWriteCost> {
+  return {
+    instance: writeCost(),
+    highlight: writeCost(),
+    order: writeCost(),
+    deformation: writeCost(),
+    result: writeCost(),
+    "vector-glyph": writeCost(),
+    uniform: writeCost(),
+    geometry: writeCost(),
+    other: writeCost(),
+  };
+}
+
+function cloneDrawCounts(
+  counts: Readonly<Record<GpuCostDraw, MutableDrawCost>>,
+): Record<GpuCostDraw, GpuDrawCost> {
+  return {
+    background: { ...counts.background },
+    opaque: { ...counts.opaque },
+    "point-replay": { ...counts["point-replay"] },
+    "selection-visible": { ...counts["selection-visible"] },
+    "selection-hidden": { ...counts["selection-hidden"] },
+    transparency: { ...counts.transparency },
+    composite: { ...counts.composite },
+    edges: { ...counts.edges },
+    nodes: { ...counts.nodes },
+    "vector-glyph": { ...counts["vector-glyph"] },
+    "origin-triad": { ...counts["origin-triad"] },
+    pivot: { ...counts.pivot },
+    pick: { ...counts.pick },
+  };
+}
+
+function cloneWriteCounts(
+  counts: Readonly<Record<GpuCostWrite, MutableWriteCost>>,
+): Record<GpuCostWrite, GpuWriteCost> {
+  return {
+    instance: { ...counts.instance },
+    highlight: { ...counts.highlight },
+    order: { ...counts.order },
+    deformation: { ...counts.deformation },
+    result: { ...counts.result },
+    "vector-glyph": { ...counts["vector-glyph"] },
+    uniform: { ...counts.uniform },
+    geometry: { ...counts.geometry },
+    other: { ...counts.other },
+  };
 }

@@ -1,13 +1,11 @@
 import type { Element, NodeId } from "../elements/element";
 import type { ElementFace } from "../elements/faces";
+import { at } from "../elements/indices";
 import type { ElementModel } from "../elements/model";
 import { topologyFor } from "../elements/shapes";
 import { type MeshVertex } from "./mesh-builder";
 import { average, cross, dot, length, subtract, type Vec3 } from "../math/vec3";
 import { elementNodePosition } from "./node-position";
-
-type Tri6Nodes<T> = readonly [T, T, T, T, T, T];
-type Quad8Nodes<T> = readonly [T, T, T, T, T, T, T, T];
 
 /**
  * Subdivides an oriented element face into triangles, each wound to face
@@ -41,7 +39,12 @@ function faceNodeIds(
 /** Returns the canonical Tri6 or Quad8 subdivision for interleaved nodes. */
 export function quadraticSubdivision<T>(nodes: readonly T[]): ReadonlyArray<readonly [T, T, T]> {
   if (nodes.length === 6) {
-    const [a, ab, b, bc, c, ca] = nodes as Tri6Nodes<T>;
+    const a = at(nodes, 0);
+    const ab = at(nodes, 1);
+    const b = at(nodes, 2);
+    const bc = at(nodes, 3);
+    const c = at(nodes, 4);
+    const ca = at(nodes, 5);
     return [
       [a, ab, ca],
       [b, bc, ab],
@@ -50,7 +53,14 @@ export function quadraticSubdivision<T>(nodes: readonly T[]): ReadonlyArray<read
     ];
   }
   if (nodes.length === 8) {
-    const [a, ab, b, bc, c, cd, d, da] = nodes as Quad8Nodes<T>;
+    const a = at(nodes, 0);
+    const ab = at(nodes, 1);
+    const b = at(nodes, 2);
+    const bc = at(nodes, 3);
+    const c = at(nodes, 4);
+    const cd = at(nodes, 5);
+    const d = at(nodes, 6);
+    const da = at(nodes, 7);
     return [
       [a, ab, da],
       [b, bc, ab],
@@ -82,14 +92,7 @@ export function tessellateFace(
   if (midNodeIds.length === 0) {
     const triangles: Array<readonly [MeshVertex, MeshVertex, MeshVertex]> = [];
     for (let i = 1; i < corners.length - 1; i += 1) {
-      triangles.push(
-        orient(
-          outward,
-          corners[0] as MeshVertex,
-          corners[i] as MeshVertex,
-          corners[i + 1] as MeshVertex,
-        ),
-      );
+      triangles.push(orient(outward, at(corners, 0), at(corners, i), at(corners, i + 1)));
     }
     return triangles;
   }
@@ -98,12 +101,22 @@ export function tessellateFace(
     nodeId: id,
   }));
   if (corners.length === 3) {
-    const [a, b, c] = corners as readonly [MeshVertex, MeshVertex, MeshVertex];
-    const [mab, mbc, mca] = mids as readonly [MeshVertex, MeshVertex, MeshVertex];
+    const a = at(corners, 0);
+    const b = at(corners, 1);
+    const c = at(corners, 2);
+    const mab = at(mids, 0);
+    const mbc = at(mids, 1);
+    const mca = at(mids, 2);
     return orientedQuadratic([a, mab, b, mbc, c, mca], outward);
   }
-  const [a, b, c, d] = corners as readonly [MeshVertex, MeshVertex, MeshVertex, MeshVertex];
-  const [mab, mbc, mcd, mda] = mids as readonly [MeshVertex, MeshVertex, MeshVertex, MeshVertex];
+  const a = at(corners, 0);
+  const b = at(corners, 1);
+  const c = at(corners, 2);
+  const d = at(corners, 3);
+  const mab = at(mids, 0);
+  const mbc = at(mids, 1);
+  const mcd = at(mids, 2);
+  const mda = at(mids, 3);
   return orientedQuadratic([a, mab, b, mbc, c, mcd, d, mda], outward);
 }
 
@@ -138,6 +151,8 @@ function orient(
 }
 
 function faceNormal(corners: readonly Vec3[]): Vec3 {
-  const [a, b, c] = corners as readonly [Vec3, Vec3, Vec3];
+  const a = at(corners, 0);
+  const b = at(corners, 1);
+  const c = at(corners, 2);
   return cross(subtract(b, a), subtract(c, a));
 }

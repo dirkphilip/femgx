@@ -17,10 +17,18 @@
   } = $props();
 
   function selectValue(event: unknown): string | undefined {
-    if (typeof event !== "object" || event === null) return undefined;
-    const currentTarget = Reflect.get(event, "currentTarget");
-    if (typeof currentTarget !== "object" || currentTarget === null) return undefined;
-    const value = Reflect.get(currentTarget, "value");
+    if (typeof event !== "object" || event === null || !("currentTarget" in event)) {
+      return undefined;
+    }
+    const currentTarget = event.currentTarget;
+    if (
+      typeof currentTarget !== "object" ||
+      currentTarget === null ||
+      !("value" in currentTarget)
+    ) {
+      return undefined;
+    }
+    const value = currentTarget.value;
     return typeof value === "string" ? value : undefined;
   }
 
@@ -139,10 +147,9 @@
   }
 
   function activePlaybackSnapshot(): NonNullable<WorkbenchSnapshot["analysis"]["playback"]> {
-    // The playback section is rendered only after hasPlayback establishes this invariant.
-    return (snapshot as WorkbenchSnapshot).analysis.playback as NonNullable<
-      WorkbenchSnapshot["analysis"]["playback"]
-    >;
+    const playback = snapshot?.analysis.playback;
+    if (playback === undefined) throw new Error("Result playback is not active");
+    return playback;
   }
 </script>
 

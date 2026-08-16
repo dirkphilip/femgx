@@ -1,4 +1,5 @@
 import type { ElementId, NodeId } from "../elements/element";
+import { at } from "../elements/indices";
 import { canonicalKey } from "../elements/keys";
 import { mergeAuthoredEdges, type AuthoredEdgeOccurrence } from "./authored-edges";
 import { bodyAssignments } from "./part-validation";
@@ -106,8 +107,8 @@ function buildLineGeometry(
   for (const record of records) {
     const primitiveStart = indexOffset / 2;
     for (let index = 0; index < record.nodeIds.length - 1; index += 1) {
-      nodeIndices[indexOffset++] = record.nodeIds[index] as number;
-      nodeIndices[indexOffset++] = record.nodeIds[index + 1] as number;
+      nodeIndices[indexOffset++] = at(record.nodeIds, index);
+      nodeIndices[indexOffset++] = at(record.nodeIds, index + 1);
     }
     addElementRange(
       elements,
@@ -125,7 +126,7 @@ function buildPointGeometry(
   positions: Float32Array,
   elements: Map<ElementId, MutableElement>,
 ): PointGeometry {
-  const nodeIndices = Uint32Array.from(records, (record) => record.nodeIds[0] as number);
+  const nodeIndices = Uint32Array.from(records, (record) => at(record.nodeIds, 0));
   records.forEach((record, index) => {
     addElementRange(elements, record.elementId, "points", index, 1);
   });
@@ -162,7 +163,11 @@ function compactGeometry(
     positions.set(nodePositions.subarray(nodeId * 3, nodeId * 3 + 3), vertex * 3);
     nodePickIds[vertex] = nodeId + 1;
   }
-  const indices = Uint32Array.from(nodeIndices, (nodeId) => vertexByNode.get(nodeId) as number);
+  const indices = Uint32Array.from(nodeIndices, (nodeId) => {
+    const vertex = vertexByNode.get(nodeId);
+    if (vertex === undefined) throw new Error(`Surface node ${nodeId} has no compact vertex`);
+    return vertex;
+  });
   if (primitive === "triangles") return { primitive, positions, indices, nodePickIds };
   if (primitive === "lines") return { primitive, positions, indices, nodePickIds };
   return { primitive, positions, indices, nodePickIds };
@@ -209,12 +214,8 @@ function edgesForFacets(records: readonly SurfaceFacetRecord[]): readonly Geomet
     for (let index = 0; index < record.nodeIds.length; index += step) {
       const next = (index + step) % record.nodeIds.length;
       const nodeIds = record.quadratic
-        ? [
-            record.nodeIds[index] as number,
-            record.nodeIds[index + 1] as number,
-            record.nodeIds[next] as number,
-          ]
-        : [record.nodeIds[index] as number, record.nodeIds[next] as number];
+        ? [at(record.nodeIds, index), at(record.nodeIds, index + 1), at(record.nodeIds, next)]
+        : [at(record.nodeIds, index), at(record.nodeIds, next)];
       edges.push({
         nodeIds,
         elementId: record.elementId,

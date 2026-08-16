@@ -74,7 +74,8 @@ export function editElementModel(
   if (operationCount === 0) {
     return { model, report: emptyReport() };
   }
-  const next = fromMutableParts(parts as MutableModelParts);
+  if (parts === undefined) throw new Error("An element-model edit did not create a draft");
+  const next = fromMutableParts(parts);
   return { model: next, report: createReport(model, next) };
 }
 

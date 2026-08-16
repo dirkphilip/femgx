@@ -15,10 +15,9 @@
   let modelFileInput: { click(): void; value: string } | undefined;
 
   function selectValue(event: unknown): string | undefined {
-    if (typeof event !== "object" || event === null) return undefined;
-    const currentTarget = Reflect.get(event, "currentTarget");
-    if (typeof currentTarget !== "object" || currentTarget === null) return undefined;
-    const value = Reflect.get(currentTarget, "value");
+    const currentTarget = eventTarget(event);
+    if (currentTarget === undefined || !("value" in currentTarget)) return undefined;
+    const value = currentTarget.value;
     return typeof value === "string" ? value : undefined;
   }
 
@@ -34,9 +33,10 @@
   function openSelectedModel(event: unknown): void {
     const currentTarget = eventTarget(event);
     if (currentTarget === undefined) return;
-    const files = Reflect.get(currentTarget, "files");
-    if (files === null || typeof files !== "object") return;
-    const file = Reflect.get(files, "0");
+    if (!("files" in currentTarget)) return;
+    const files = currentTarget.files;
+    if (files === null || typeof files !== "object" || !("0" in files)) return;
+    const file = files[0];
     if (!isModelFile(file)) return;
     const command = controller?.commands.openModel(file);
     if (command !== undefined) void command.then(resetModelFileInput, resetModelFileInput);
@@ -47,8 +47,10 @@
   }
 
   function eventTarget(event: unknown): object | undefined {
-    if (typeof event !== "object" || event === null) return undefined;
-    const target = Reflect.get(event, "currentTarget");
+    if (typeof event !== "object" || event === null || !("currentTarget" in event)) {
+      return undefined;
+    }
+    const target = event.currentTarget;
     return typeof target === "object" && target !== null ? target : undefined;
   }
 

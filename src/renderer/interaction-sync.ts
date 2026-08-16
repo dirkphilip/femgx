@@ -14,6 +14,14 @@ import { defaultStyle } from "./resources/gpu-support";
 import type { GpuBundle } from "./gpu-recovery";
 import { instanceAt, type InstanceLayout } from "./runtime-state";
 
+const THEME_KEYS = [
+  "highlighted",
+  "selected",
+  "hovered",
+  "hoveredFace",
+  "hoveredNode",
+] as const satisfies readonly (keyof InteractionStateData["theme"])[];
+
 export interface TransparencySyncOptions {
   readonly runtime: PackedSceneRuntime;
   readonly layout: InstanceLayout;
@@ -277,9 +285,7 @@ function themesEqual(
   previous: InteractionStateData["theme"],
   next: InteractionStateData["theme"],
 ): boolean {
-  return (Object.keys(previous) as (keyof InteractionStateData["theme"])[]).every((key) =>
-    primitiveStylesEqual(previous[key], next[key]),
-  );
+  return THEME_KEYS.every((key) => primitiveStylesEqual(previous[key], next[key]));
 }
 
 function primitiveStylesEqual(

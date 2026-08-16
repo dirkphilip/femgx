@@ -230,8 +230,11 @@ function pointAt(nodes: ArrayLike<number>, nodeId: number | undefined): [number,
   return [nodes[offset] ?? 0, nodes[offset + 1] ?? 0, nodes[offset + 2] ?? 0];
 }
 
-function subtract(a: readonly [number, number, number], b: readonly [number, number, number]) {
-  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]] as [number, number, number];
+function subtract(
+  a: readonly [number, number, number],
+  b: readonly [number, number, number],
+): [number, number, number] {
+  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 }
 
 function normalizedCross(

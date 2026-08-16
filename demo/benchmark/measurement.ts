@@ -39,6 +39,15 @@ interface SampleSet {
   readonly pickReadback: number[];
 }
 
+const SAMPLE_KEYS = [
+  "upload",
+  "firstFrame",
+  "visible",
+  "pickSnapshot",
+  "pickCombined",
+  "pickReadback",
+] as const satisfies readonly (keyof SampleSet)[];
+
 /** Measures one benchmark case on the supplied WebGPU device. */
 export async function measureBenchmarkCase(
   canvas: HTMLCanvasElement,
@@ -388,7 +397,7 @@ function emptySamples(): SampleSet {
 }
 
 function pushSample(target: SampleSet, sample: Record<keyof SampleSet, number>): void {
-  for (const key of Object.keys(target) as (keyof SampleSet)[]) target[key].push(sample[key]);
+  for (const key of SAMPLE_KEYS) target[key].push(sample[key]);
 }
 
 function summarize(

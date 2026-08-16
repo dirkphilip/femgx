@@ -13,7 +13,9 @@ interface WorkbenchAppHandle {
 
 const app = document.querySelector("#app");
 if (!(app instanceof HTMLElement)) throw new Error("The workbench app root is missing");
-const workbenchApp = mount(WorkbenchApp, { target: app }) as unknown as WorkbenchAppHandle;
+const mountedApp: unknown = mount(WorkbenchApp, { target: app });
+if (!isWorkbenchAppHandle(mountedApp)) throw new Error("The workbench component API is missing");
+const workbenchApp = mountedApp;
 
 const view = queryDemoView();
 const controller = await startWebGpuDemo({
@@ -23,3 +25,14 @@ const controller = await startWebGpuDemo({
   ...readDemoHarnessOptions(),
 });
 if (controller !== undefined) workbenchApp.connectWorkbench(controller);
+
+function isWorkbenchAppHandle(value: unknown): value is WorkbenchAppHandle {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "connectWorkbench" in value &&
+    typeof value.connectWorkbench === "function" &&
+    "reportStartupFailure" in value &&
+    typeof value.reportStartupFailure === "function"
+  );
+}

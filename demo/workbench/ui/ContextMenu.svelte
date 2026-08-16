@@ -17,19 +17,11 @@
     style: { left: string; top: string };
   }
 
-  interface BrowserWindow {
-    innerHeight: number;
-    innerWidth: number;
-    addEventListener(type: string, listener: (event: unknown) => void): void;
-    removeEventListener(type: string, listener: (event: unknown) => void): void;
-  }
-
   onMount(() => {
-    const browser = Reflect.get(globalThis, "window") as BrowserWindow | undefined;
-    if (browser === undefined) return;
+    const browser = globalThis.window;
     const closeOutside = (event: unknown): void => {
-      const eventObject = typeof event === "object" && event !== null ? event : {};
-      const target = Reflect.get(eventObject, "target");
+      const target =
+        typeof event === "object" && event !== null && "target" in event ? event.target : undefined;
       if (
         typeof target === "object" &&
         target !== null &&
@@ -41,8 +33,9 @@
       }
     };
     const closeWithEscape = (event: unknown): void => {
-      const eventObject = typeof event === "object" && event !== null ? event : {};
-      if (Reflect.get(eventObject, "key") === "Escape") controller?.commands.clearContextMenu();
+      if (typeof event === "object" && event !== null && "key" in event && event.key === "Escape") {
+        controller?.commands.clearContextMenu();
+      }
     };
     const repositionMenu = (): void => positionMenu();
     browser.addEventListener("click", closeOutside);
@@ -64,7 +57,7 @@
   function positionMenu(): void {
     const menu = snapshot?.overlays.contextMenu;
     const browser = globalThis.window;
-    if (!menu?.visible || browser === undefined || !isMenuElement(menuElement)) return;
+    if (!menu?.visible || !isMenuElement(menuElement)) return;
     const bounds = menuElement.getBoundingClientRect();
     const x = Math.max(8, Math.min(menu.x, browser.innerWidth - bounds.width - 8));
     const y = Math.max(8, Math.min(menu.y, browser.innerHeight - bounds.height - 8));
@@ -76,8 +69,11 @@
     return (
       typeof value === "object" &&
       value !== null &&
-      typeof Reflect.get(value, "getBoundingClientRect") === "function" &&
-      typeof Reflect.get(value, "style") === "object"
+      "getBoundingClientRect" in value &&
+      typeof value.getBoundingClientRect === "function" &&
+      "style" in value &&
+      typeof value.style === "object" &&
+      value.style !== null
     );
   }
 
@@ -88,11 +84,11 @@
   }
 
   function menuContains(target: object): boolean {
-    if (menuElement === null || typeof menuElement !== "object") return false;
-    const contains = Reflect.get(menuElement, "contains");
-    return (
-      typeof contains === "function" && Reflect.apply(contains, menuElement, [target]) === true
-    );
+    if (menuElement === null || typeof menuElement !== "object" || !("contains" in menuElement)) {
+      return false;
+    }
+    const contains = menuElement.contains;
+    return typeof contains === "function" && contains.call(menuElement, target) === true;
   }
 </script>
 

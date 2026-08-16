@@ -1,5 +1,8 @@
 type GrowableArray = Uint32Array | Float64Array;
-type GrowableArrayConstructor<T extends GrowableArray> = new (length: number) => T;
+interface GrowableArrayConstructor<T extends GrowableArray> {
+  new (length: number): T;
+  from(values: ArrayLike<number>): T;
+}
 
 /** Shared growable typed-array storage for the narrow VTK accumulation buffers. */
 class GrowableBuffer<T extends GrowableArray> {
@@ -27,7 +30,9 @@ class GrowableBuffer<T extends GrowableArray> {
 
   /** Copies the closed range `[start, end)` of accumulated values. */
   slice(start: number, end: number): T {
-    return this.values.slice(Math.max(0, start), Math.min(this.length, end)) as T;
+    return this.createArray.from(
+      this.values.subarray(Math.max(0, start), Math.min(this.length, end)),
+    );
   }
 
   get size(): number {
@@ -40,7 +45,7 @@ class GrowableBuffer<T extends GrowableArray> {
   }
 
   toArray(): T {
-    return this.values.slice(0, this.length) as T;
+    return this.createArray.from(this.values.subarray(0, this.length));
   }
 
   protected valueAt(index: number): number | undefined {

@@ -41,18 +41,22 @@ export function installViewportKeyboard(
 ): () => void {
   if (target === undefined) return () => {};
   const keyDown = (event: Event): void => {
-    const keyboard = event as KeyboardEvent;
+    if (!("key" in event) || typeof event.key !== "string") return;
+    const repeat = "repeat" in event && event.repeat === true;
+    const ctrlKey = "ctrlKey" in event && event.ctrlKey === true;
+    const metaKey = "metaKey" in event && event.metaKey === true;
+    const altKey = "altKey" in event && event.altKey === true;
     if (
-      keyboard.key.toLowerCase() !== "z" ||
-      keyboard.repeat ||
-      keyboard.ctrlKey ||
-      keyboard.metaKey ||
-      keyboard.altKey ||
-      isEditableTarget(keyboard.target)
+      event.key.toLowerCase() !== "z" ||
+      repeat ||
+      ctrlKey ||
+      metaKey ||
+      altKey ||
+      isEditableTarget(event.target)
     ) {
       return;
     }
-    keyboard.preventDefault();
+    event.preventDefault();
     fitSelection();
   };
   target.addEventListener("keydown", keyDown);

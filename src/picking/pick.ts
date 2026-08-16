@@ -310,8 +310,9 @@ function polygonNormal(points: readonly Vec3[]): Vec3 {
   let y = 0;
   let z = 0;
   for (let index = 0; index < points.length; index++) {
-    const current = points[index] as Vec3;
-    const next = points[(index + 1) % points.length] as Vec3;
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    if (current === undefined || next === undefined) continue;
     x += (current[1] - next[1]) * (current[2] + next[2]);
     y += (current[2] - next[2]) * (current[0] + next[0]);
     z += (current[0] - next[0]) * (current[1] + next[1]);

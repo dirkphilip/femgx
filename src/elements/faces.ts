@@ -143,7 +143,8 @@ function faceCornerLoops(family: ElementFamily): ReadonlyArray<readonly number[]
       return PYRAMID_FACES;
     case "hex":
       return HEX_FACES;
-    default:
+    case "line":
+    case "point":
       return [];
   }
 }

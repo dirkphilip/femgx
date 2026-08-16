@@ -1,4 +1,5 @@
 import type { Element, ElementId } from "./element";
+import { at } from "./indices";
 import type { Body, BodyId, ElementBlock, ElementBlockId } from "./model-types";
 
 /**
@@ -134,20 +135,14 @@ function validateBodies(
         `Body ids must be strictly ascending; ${body.id} follows ${previousId}`,
       );
     }
-    const hasElementIds = "elementIds" in body;
-    const hasBlockIds = "blockIds" in body;
-    if (hasElementIds === hasBlockIds) {
+    if ("elementIds" in body === "blockIds" in body) {
       throw new ElementModelValidationError(
         "body-membership-form",
         `Body ${body.id} must declare exactly one of elementIds or blockIds`,
       );
     }
-    if (hasElementIds) {
-      validateDirectBody(
-        body as Extract<Body, { readonly elementIds: readonly ElementId[] }>,
-        elementIds,
-        elementBodies,
-      );
+    if (hasDirectMembership(body)) {
+      validateDirectBody(body, elementIds, elementBodies);
     } else {
       validateBlockBody(body, blockIds, blockBodies, blocks);
     }
@@ -155,6 +150,12 @@ function validateBodies(
     previousId = body.id;
   }
   validateBlockBodyConsistency(blocks, blockBodies, elementBodies);
+}
+
+function hasDirectMembership(
+  body: Body,
+): body is Extract<Body, { readonly elementIds: readonly ElementId[] }> {
+  return body.elementIds !== undefined;
 }
 
 function validateDirectBody(
@@ -256,8 +257,8 @@ function validateAscending(
   code: "block-order" | "body-order",
 ): void {
   for (let index = 1; index < ids.length; index += 1) {
-    const previous = ids[index - 1] as number;
-    const current = ids[index] as number;
+    const previous = at(ids, index - 1);
+    const current = at(ids, index);
     if (current <= previous) {
       throw new ElementModelValidationError(code, `${label} must be strictly ascending`);
     }

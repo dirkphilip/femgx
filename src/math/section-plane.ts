@@ -13,23 +13,31 @@ export interface SectionPlane {
 export function normalizeSectionPlane(plane: SectionPlane): SectionPlane {
   const candidate: unknown = plane;
   const normal =
-    typeof candidate === "object" && candidate !== null
-      ? (candidate as { readonly normal?: unknown }).normal
+    typeof candidate === "object" && candidate !== null && "normal" in candidate
+      ? candidate.normal
       : undefined;
   const distance =
-    typeof candidate === "object" && candidate !== null
-      ? (candidate as { readonly distance?: unknown }).distance
+    typeof candidate === "object" && candidate !== null && "distance" in candidate
+      ? candidate.distance
       : undefined;
   if (!Array.isArray(normal) || normal.length !== 3) {
     throw new RangeError("Section plane normal must contain exactly three components");
   }
-  const [x, y, z] = normal as unknown as readonly [number, number, number];
+  const x: unknown = normal[0];
+  const y: unknown = normal[1];
+  const z: unknown = normal[2];
+  if (typeof x !== "number" || typeof y !== "number" || typeof z !== "number") {
+    throw new RangeError("Section plane normal components must be numbers");
+  }
+  if (typeof distance !== "number") {
+    throw new RangeError("Section plane distance must be a number");
+  }
   const length = Math.hypot(x, y, z);
   if (![x, y, z, distance].every(Number.isFinite) || length <= Number.EPSILON) {
     throw new RangeError("Section plane normal must be finite and non-zero, with finite distance");
   }
   return {
     normal: [x / length, y / length, z / length],
-    distance: (distance as number) / length,
+    distance: distance / length,
   };
 }

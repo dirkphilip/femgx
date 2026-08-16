@@ -289,8 +289,9 @@ function clipPolygon(
 ): Vec3[] {
   const clipped: Vec3[] = [];
   for (let index = 0; index < polygon.length; index++) {
-    const current = polygon[index] as Vec3;
-    const previous = polygon[(index + polygon.length - 1) % polygon.length] as Vec3;
+    const current = polygon[index];
+    const previous = polygon[(index + polygon.length - 1) % polygon.length];
+    if (current === undefined || previous === undefined) continue;
     const currentDistance = signedDistance(normal, distance, current);
     const previousDistance = signedDistance(normal, distance, previous);
     const currentInside = currentDistance >= -tolerance;

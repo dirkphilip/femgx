@@ -149,7 +149,7 @@ function readPoints(
   if (input === undefined) return [];
   validateAlignedCount("point elementIds", input.elementIds.length, input.nodeIds.length);
   return Array.from({ length: input.nodeIds.length }, (_, index) => {
-    const nodeId = input.nodeIds[index] as number;
+    const nodeId = input.nodeIds[index] ?? Number.NaN;
     validateNodeIds([nodeId], nodeCount, "Point");
     return {
       nodeIds: [nodeId],
@@ -181,7 +181,7 @@ function readConnectivity(
     }
     records.push({
       count,
-      nodeIds: Array.from({ length: size }, (_, index) => input[offset + index + 1] as number),
+      nodeIds: Array.from({ length: size }, (_, index) => input[offset + index + 1] ?? Number.NaN),
     });
     offset += size + 1;
   }
@@ -238,24 +238,24 @@ function facetTriangles(
 
 function requiredElementId(input: ArrayLike<number>, index: number, label: string): ElementId {
   const id = input[index];
-  if (!Number.isSafeInteger(id) || (id as number) < 0 || (id as number) > MAX_ONE_BASED_ID) {
+  if (id === undefined || !Number.isSafeInteger(id) || id < 0 || id > MAX_ONE_BASED_ID) {
     throw new SurfacePartError(
       "invalid-element-id",
       `${label} element id must be an integer in [0, ${MAX_ONE_BASED_ID}], got ${String(id)}`,
     );
   }
-  return id as ElementId;
+  return id;
 }
 
 function requiredFaceIndex(input: ArrayLike<number>, index: number, elementId: ElementId): number {
   const faceIndex = input[index];
-  if (!Number.isSafeInteger(faceIndex) || (faceIndex as number) < 0) {
+  if (faceIndex === undefined || !Number.isSafeInteger(faceIndex) || faceIndex < 0) {
     throw new SurfacePartError(
       "invalid-face-index",
       `Element ${elementId} has invalid face index ${String(faceIndex)}`,
     );
   }
-  return faceIndex as number;
+  return faceIndex;
 }
 
 function validateAlignedCount(label: string, actual: number, expected: number): void {

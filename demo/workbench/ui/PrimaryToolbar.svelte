@@ -15,12 +15,7 @@
   } = $props();
 
   type Panel = "selection" | "view" | "display" | "analysis";
-  interface BrowserWindow {
-    addEventListener(type: string, listener: (event: unknown) => void): void;
-    removeEventListener(type: string, listener: (event: unknown) => void): void;
-  }
-
-  let toolbarElement: unknown = $state();
+  let toolbarElement: HTMLDivElement | undefined = $state();
   let openPanel: Panel | undefined = $state();
 
   $effect(() => {
@@ -28,14 +23,12 @@
   });
 
   onMount(() => {
-    const browser = Reflect.get(globalThis, "window") as BrowserWindow | undefined;
-    if (browser === undefined) return;
-    const closeOutside = (event: unknown): void => {
-      const target = eventTarget(event);
-      if (target !== undefined && !containsTarget(target)) openPanel = undefined;
+    const browser = globalThis.window;
+    const closeOutside = (event: PointerEvent): void => {
+      if (!(event.target instanceof Node) || !containsTarget(event.target)) openPanel = undefined;
     };
-    const closeWithEscape = (event: unknown): void => {
-      if (eventKey(event) !== "Escape" || openPanel === undefined) return;
+    const closeWithEscape = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape" || openPanel === undefined) return;
       const panel = openPanel;
       openPanel = undefined;
       focusTrigger(panel);
@@ -61,10 +54,18 @@
   }
 
   function selectValue(event: unknown): string | undefined {
-    if (typeof event !== "object" || event === null) return undefined;
-    const currentTarget = Reflect.get(event, "currentTarget");
-    if (typeof currentTarget !== "object" || currentTarget === null) return undefined;
-    const value = Reflect.get(currentTarget, "value");
+    if (typeof event !== "object" || event === null || !("currentTarget" in event)) {
+      return undefined;
+    }
+    const currentTarget = event.currentTarget;
+    if (
+      typeof currentTarget !== "object" ||
+      currentTarget === null ||
+      !("value" in currentTarget)
+    ) {
+      return undefined;
+    }
+    const value = currentTarget.value;
     return typeof value === "string" ? value : undefined;
   }
 
@@ -83,36 +84,12 @@
     if (value !== undefined) controller?.commands.setBoxSelectionStrategy(value);
   }
 
-  function eventTarget(event: unknown): object | undefined {
-    if (typeof event !== "object" || event === null) return undefined;
-    const target = Reflect.get(event, "target");
-    return typeof target === "object" && target !== null ? target : undefined;
-  }
-
-  function eventKey(event: unknown): string | undefined {
-    if (typeof event !== "object" || event === null) return undefined;
-    const key = Reflect.get(event, "key");
-    return typeof key === "string" ? key : undefined;
-  }
-
-  function containsTarget(target: object): boolean {
-    if (toolbarElement === null || typeof toolbarElement !== "object") return false;
-    const contains = Reflect.get(toolbarElement, "contains");
-    return (
-      typeof contains === "function" && Reflect.apply(contains, toolbarElement, [target]) === true
-    );
+  function containsTarget(target: Node): boolean {
+    return toolbarElement?.contains(target) ?? false;
   }
 
   function focusTrigger(panel: Panel): void {
-    if (toolbarElement === null || typeof toolbarElement !== "object") return;
-    const querySelector = Reflect.get(toolbarElement, "querySelector");
-    if (typeof querySelector !== "function") return;
-    const element = Reflect.apply(querySelector, toolbarElement, [
-      `[aria-controls="${panelId(panel)}"]`,
-    ]);
-    if (element === null || typeof element !== "object") return;
-    const focus = Reflect.get(element, "focus");
-    if (typeof focus === "function") Reflect.apply(focus, element, []);
+    toolbarElement?.querySelector<HTMLElement>(`[aria-controls="${panelId(panel)}"]`)?.focus();
   }
 </script>
 
