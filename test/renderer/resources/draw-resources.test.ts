@@ -822,7 +822,7 @@ describe("GPU draw path", () => {
       pass.end();
       expect(gpu.drawCalls).toEqual([
         { indexCount: 3, instanceCount: 3 },
-        { indexCount: 6, instanceCount: 2 },
+        { indexCount: 18, instanceCount: 2 },
       ]);
       expect(gpu.bindGroupCreations).toBe(2);
       expect(resource.edge).toBeDefined();

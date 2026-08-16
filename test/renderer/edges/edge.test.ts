@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildMeshEdgeData } from "../../../src/renderer/edges/mesh-edge";
+import { buildMeshEdgeData, type MeshEdgeData } from "../../../src/renderer/edges/mesh-edge";
+import { expandMeshEdgeData } from "../../../src/renderer/edges/edge-expansion";
 import type {
   ElementTessellation,
   Geometry,
@@ -21,6 +22,25 @@ function buildSemanticEdgeData(geometry: SemanticGeometry) {
 }
 
 describe("buildMeshEdgeData", () => {
+  it("expands each authored segment into one indexed quad", () => {
+    const data = {
+      indices: new Uint32Array([0, 1]),
+      sourceVertexIndices: new Uint32Array([0, 1]),
+      edgeIds: new Uint32Array([3, 3]),
+      positions: new Float32Array([0, 0, 0, 1, 0, 0]),
+      bodyRanges: new Uint32Array([0, 0]),
+      bodyIds: new Uint32Array([0]),
+      elementIds: new Uint32Array([0]),
+    } satisfies MeshEdgeData;
+    const expanded = expandMeshEdgeData(data, new Uint32Array([7, 8]));
+
+    expect(expanded.indices).toEqual(new Uint32Array([0, 1, 2, 0, 2, 3]));
+    expect(expanded.sourceVertexIndices).toEqual(new Uint32Array([0, 1, 1, 0]));
+    expect(expanded.edgeIds).toEqual(new Uint32Array([3, 3, 3, 3]));
+    expect(expanded.nodePickIds).toEqual(new Uint32Array([7, 8, 8, 7]));
+    expect(expanded.positions).toEqual(new Float32Array([0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0]));
+  });
+
   it("uses element boundary edges instead of triangulation diagonals", () => {
     const geometry = {
       positions: new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0]),

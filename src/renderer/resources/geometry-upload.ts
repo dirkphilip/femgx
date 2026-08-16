@@ -1,13 +1,10 @@
 import type { Geometry, Part } from "../../geometry/part";
 import { buildMeshEdgeData, type MeshEdgeData } from "../edges/mesh-edge";
+import { expandMeshEdgeData } from "../edges/edge-expansion";
 import { buildFaceSubsetIndices } from "../selection/face-subset";
 import { emptyMeshEdgeData, packTopologyData } from "./geometry-buffers";
 import { buildElementPrimitiveOrdinals, buildPrimitiveFaceBodyPickData } from "../picking/ids";
-import {
-  buildEdgeNodePickIds,
-  expandSurfaceGeometry,
-  type SurfaceVertexData,
-} from "../resources/surface-geometry";
+import { expandSurfaceGeometry, type SurfaceVertexData } from "../resources/surface-geometry";
 import {
   createBuffer,
   type PartEdgePickResource,
@@ -90,7 +87,8 @@ export function buildPartEdgeResources(
     part.elements ?? [],
     part.blocks ?? [],
   );
-  const edgeWithResults = appendResultColorTail(edgeData.positions, resultTail);
+  const expanded = expandMeshEdgeData(edgeData, geometry.nodePickIds);
+  const edgeWithResults = appendResultColorTail(expanded.positions, resultTail);
   const edgeVertexBuffer = createBuffer(
     device,
     edgeWithResults.data,
@@ -98,19 +96,15 @@ export function buildPartEdgeResources(
   );
   return {
     edgeVertexBuffer,
-    edgeIndexBuffer: createIndexBuffer(device, edgeData.indices),
-    edgeNodePickIdsBuffer: createBuffer(
-      device,
-      buildEdgeNodePickIds(edgeData.sourceVertexIndices, geometry.nodePickIds),
-      GPUBufferUsage.STORAGE,
-    ),
+    edgeIndexBuffer: createIndexBuffer(device, expanded.indices),
+    edgeNodePickIdsBuffer: createBuffer(device, expanded.nodePickIds, GPUBufferUsage.STORAGE),
     edgeTopologyBuffer: createTopologyBuffer(
       device,
       buildPrimitiveFaceBodyPickData(geometry, part.elements ?? [], part.blocks ?? []),
-      edgeData,
-      { primitiveIds: [], edgeIds: edgeData.edgeIds, blockIds: edgeData.blockIds },
+      { ...edgeData, ...expanded },
+      { primitiveIds: [], edgeIds: expanded.edgeIds, blockIds: edgeData.blockIds },
     ),
-    edgeIndexCount: edgeData.indices.length,
+    edgeIndexCount: expanded.indices.length,
     edgeKeys: edgeData.edgeKeys,
     edgeNodeIds: edgeData.edgeNodeIds,
     resultColorBinding: { buffer: edgeVertexBuffer, offset: edgeWithResults.offset },
@@ -131,43 +125,23 @@ export function buildPartEdgePickResources(
     part.blocks ?? [],
   );
   if (edgeData.edgeKeys === undefined || edgeData.edgeKeys.length === 0) return undefined;
-  const segments = Math.floor(edgeData.indices.length / 2);
-  const positions = new Float32Array(segments * 4 * 3);
-  const nodePickIds = new Uint32Array(segments * 4);
-  const indices = new Uint32Array(segments * 6);
-  const edgeIds = new Uint32Array(segments * 4);
-  for (let segment = 0; segment < segments; segment += 1) {
-    const source = segment * 2;
-    const vertex = segment * 4;
-    positions.set(edgeData.positions.subarray(source * 3, source * 3 + 3), vertex * 3);
-    positions.set(
-      edgeData.positions.subarray((source + 1) * 3, (source + 2) * 3),
-      (vertex + 1) * 3,
-    );
-    positions.set(
-      edgeData.positions.subarray((source + 1) * 3, (source + 2) * 3),
-      (vertex + 2) * 3,
-    );
-    positions.set(edgeData.positions.subarray(source * 3, source * 3 + 3), (vertex + 3) * 3);
-    const nodeA = geometry.nodePickIds?.[edgeData.sourceVertexIndices[source] ?? 0] ?? 0;
-    const nodeB = geometry.nodePickIds?.[edgeData.sourceVertexIndices[source + 1] ?? 0] ?? 0;
-    nodePickIds.set([nodeA, nodeB, nodeB, nodeA], vertex);
-    const edgeId = edgeData.edgeIds[source] ?? 0;
-    edgeIds.fill(edgeId, vertex, vertex + 4);
-    indices.set([vertex, vertex + 1, vertex + 2, vertex, vertex + 2, vertex + 3], segment * 6);
-  }
-  const topology = { ...edgeData, edgeIds };
+  const expanded = expandMeshEdgeData(edgeData, geometry.nodePickIds);
+  const topology = { ...edgeData, ...expanded };
   return {
-    vertexBuffer: createBuffer(device, positions, GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE),
-    indexBuffer: createBuffer(device, indices, GPUBufferUsage.INDEX),
-    nodePickIdsBuffer: createBuffer(device, nodePickIds, GPUBufferUsage.STORAGE),
+    vertexBuffer: createBuffer(
+      device,
+      expanded.positions,
+      GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
+    ),
+    indexBuffer: createBuffer(device, expanded.indices, GPUBufferUsage.INDEX),
+    nodePickIdsBuffer: createBuffer(device, expanded.nodePickIds, GPUBufferUsage.STORAGE),
     topologyBuffer: createTopologyBuffer(
       device,
       buildPrimitiveFaceBodyPickData(geometry, part.elements ?? [], part.blocks ?? []),
       topology,
-      { primitiveIds: [], edgeIds, blockIds: edgeData.blockIds },
+      { primitiveIds: [], edgeIds: expanded.edgeIds, blockIds: edgeData.blockIds },
     ),
-    indexCount: indices.length,
+    indexCount: expanded.indices.length,
     edgeKeys: edgeData.edgeKeys,
   };
 }

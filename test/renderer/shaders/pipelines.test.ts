@@ -58,6 +58,11 @@ describe("GPU render resources", () => {
           ?.depthStencil?.depthCompare,
       ).toBe("less-equal");
       expect(
+        gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === "edge overlay depth-tested",
+        )?.primitive?.topology,
+      ).toBe("triangle-list");
+      expect(
         gpu.renderPipelineDescriptors.find((descriptor) => descriptor.label === "line picking")
           ?.depthStencil?.depthCompare,
       ).toBe("less-equal");
