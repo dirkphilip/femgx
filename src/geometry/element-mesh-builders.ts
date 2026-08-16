@@ -75,7 +75,6 @@ interface VolumeTessellation {
   readonly mesh: TriangleMeshAssembler;
   readonly elements: readonly ElementTessellation[];
   readonly faces: readonly FaceTessellation[];
-  readonly nodePositions: readonly number[];
   readonly selectedFaceIds: readonly FaceIdRef[];
 }
 
@@ -94,7 +93,6 @@ function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
   const mesh = new TriangleMeshAssembler();
   const elements: ElementTessellation[] = [];
   const faceTessellations: FaceTessellation[] = [];
-  const nodePositions: number[] = [...model.nodes];
   const selectedFaceIds: FaceIdRef[] = [];
   let current: { readonly element: Element; readonly start: number } | undefined;
   const flush = (): void => {
@@ -138,7 +136,7 @@ function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
     }
   }
   flush();
-  return { mesh, elements, faces: faceTessellations, nodePositions, selectedFaceIds };
+  return { mesh, elements, faces: faceTessellations, selectedFaceIds };
 }
 
 function buildVolumeGeometry(options: VolumeGeometryOptions): GeometryBuild<TriangleGeometry> {
