@@ -65,8 +65,7 @@ export function syncSelectionState(options: {
       parts: options.selectionParts,
       partDefinitions: options.parts,
     });
-  const nodeChanged =
-    options.nodeParts.size > 0 && writeNodeOrders({ ...options, affectedParts: options.nodeParts });
+  const nodeChanged = options.nodeParts.size > 0 && writeNodeOrders(options, options.nodeParts);
   return nodeChanged || selectionChanged;
 }
 
@@ -83,15 +82,17 @@ function updateSelectedNodeFlag(
 }
 
 /** Rewrites node orders after the current part map or runtime visibility changes. */
-export function writeNodeOrders(options: {
-  readonly runtime: PackedSceneRuntime;
-  readonly layout: InstanceLayout;
-  readonly parts: ReadonlyMap<PartId, Part>;
-  readonly selection: SelectionState;
-  readonly bundle: GpuBundle;
-  readonly affectedParts?: ReadonlySet<PartId>;
-}): boolean {
-  const parts = options.affectedParts ?? new Set(options.layout.partOrder);
+export function writeNodeOrders(
+  options: {
+    readonly runtime: PackedSceneRuntime;
+    readonly layout: InstanceLayout;
+    readonly parts: ReadonlyMap<PartId, Part>;
+    readonly selection: SelectionState;
+    readonly bundle: GpuBundle;
+  },
+  affectedParts?: ReadonlySet<PartId>,
+): boolean {
+  const parts = affectedParts ?? new Set(options.layout.partOrder);
   let changed = false;
   for (const partId of parts) {
     options.bundle.draw.cost.cpu("order-rebuild", 1);

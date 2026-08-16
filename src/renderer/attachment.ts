@@ -118,7 +118,7 @@ export class RendererAttachment {
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
     if (layout === undefined) return attached;
-    const { updates, edgeChanged, nodeChanged, transparentChanged } = collectInstanceUpdates(
+    const { updates, edgeChanged, transparentChanged } = collectInstanceUpdates(
       runtime,
       layout,
       interaction,
@@ -139,7 +139,7 @@ export class RendererAttachment {
     const visibilityChanged = runtime.visibleCount !== layout.visibleCount;
     if (visibilityChanged) {
       this.rebuildVisibleOrders(runtime, layout, changedInstanceIds, bundle);
-    } else if (edgeChanged.size > 0 || nodeChanged.size > 0 || transparentChanged.size > 0) {
+    } else if (edgeChanged.size > 0 || transparentChanged.size > 0) {
       this.rebuildCalls(bundle.draw.cost);
     }
     return (
@@ -147,7 +147,6 @@ export class RendererAttachment {
       transformChanged ||
       visibilityChanged ||
       edgeChanged.size > 0 ||
-      nodeChanged.size > 0 ||
       transparentChanged.size > 0
     );
   }
@@ -386,7 +385,9 @@ export class RendererAttachment {
     }
     this.rebuildEdgeOrders(runtime, layout, rebuild, bundle);
     this.rebuildTransparentOrders(runtime, layout, rebuild, bundle);
-    const selection = { parts: rebuild, partDefinitions: this.attachedParts };
+    const parts = this.attachedParts;
+    writeNodeOrders({ runtime, layout, parts, selection: this.selection, bundle }, rebuild);
+    const selection = { parts: rebuild, partDefinitions: parts };
     syncVisibleSelectionOrders(runtime, layout, this.interactionState, bundle, selection);
     layout.visibleCount = runtime.visibleCount;
     this.rebuildCalls(bundle.draw.cost);

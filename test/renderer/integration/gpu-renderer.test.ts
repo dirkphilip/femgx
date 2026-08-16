@@ -63,9 +63,10 @@ function buildScene(): Scene {
     positions: new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]),
     indices: new Uint32Array([0, 1, 2]),
     primitive: "triangles" as const,
+    nodePickIds: new Uint32Array([1, 2, 3]),
   };
   return createScene()
-    .addPart(createPart(1, { geometries: [geometry] }))
+    .addPart(createPart(1, { geometries: [geometry], nodePositions: geometry.positions }))
     .addAssembly({
       id: 1,
       name: "root",
@@ -400,8 +401,8 @@ describe("WebGPU renderer", () => {
     await renderer.pick(100, 100);
 
     for (const colors of [
-      new Map([[1, new Float32Array([1, 0, 0, 1])]]),
-      new Map([[1, new Float32Array([0, 1, 0, 1])]]),
+      new Map([[1, new Float32Array(16).fill(1)]]),
+      new Map([[1, new Float32Array(16).fill(2)]]),
       undefined,
     ]) {
       renderer.setResultColors(colors);
@@ -668,17 +669,23 @@ describe("WebGPU renderer", () => {
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
+    const nodes = setPartOverride(createInteractionState(), 1, { nodes: true });
+    renderer.updateInstances(runtime, nodes, [0, 1, 2]);
+    renderer.updateElements(runtime, nodes, [0, 1, 2]);
 
     const hidden = runtime.setPartVisible(1, false);
     renderer.updateVisibility(runtime, hidden.changedInstanceIds);
+    const hovered = setTargetHovered(nodes, { kind: "instance", instanceId: "1/0" });
+    renderer.updateElements(runtime, hovered, [0]);
     const callsBefore = gpu.drawCalls.length;
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.drawCalls.length).toBe(callsBefore);
+    expect(readGpuCostSnapshot(renderer).draws.nodes.instances).toBe(0);
 
     const shown = runtime.setPartVisible(1, true);
     renderer.updateVisibility(runtime, shown.changedInstanceIds);
     renderer.render(runtime, camera, scene.parts);
-    expect(gpu.drawCalls.at(-1)).toEqual({ indexCount: 3, instanceCount: 3 });
+    expect(gpu.drawCalls).toContainEqual({ indexCount: 3, instanceCount: 3 });
   });
 
   it("reports device loss, blocks rendering, and recovers on a fresh device", async () => {
