@@ -59,15 +59,16 @@ visibility, and interaction style. The renderer must never become the source
 of truth for scene data.
 
 `createElementModel(nodes, elements, options)` is the authoring boundary for
-typed finite-element data. It owns optional semantic element blocks and bodies,
-validates their stable identities and exclusive membership, and keeps omitted
-blocks on the zero-block fast path. A body uses direct element membership or
-aggregates blocks; it cannot use both. `createPart(id, input)` remains the
+typed finite-element data. It owns optional bodies with stable identities and
+direct element membership. Omitting bodies is a real zero-cost path: it derives
+no model-scaled body index or renderer resource. Semantic element blocks are
+removed; bodies and elements are the complete grouping hierarchy.
+`createPart(id, input)` remains the
 construction boundary for reusable parts. Local buffers live in the plural
-`input.geometries` collection; complete element, node-position, body, and block
+`input.geometries` collection; complete element, node-position, and optional body
 tables live beside it at part level. The boundary validates those inputs and
 derives bounds from local positions. `PartId` is a direct unsigned 32-bit
-identity; element, block, and body ids reserve the top raw value because `0` is
+identity; element and body ids reserve the top raw value because `0` is
 the no-hit sentinel. Derived descriptors never become a second authoring
 source.
 

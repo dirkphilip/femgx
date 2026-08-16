@@ -89,7 +89,7 @@ cancellation and below-threshold gestures never query.
 The workbench's **Visible** strategy is the default. Its **Through** strategy is
 available only at Element granularity and uses the public frustum helper to test
 the current, deformed authored FE tessellation on the host. It ignores raster
-occlusion but still requires effective scene/runtime, body, block, element, and
+occlusion but still requires effective scene/runtime, body, element, and
 section-plane visibility; it returns one stable occurrence-scoped element target
 per intersecting element. Through does not add GPU work, readback, geometry copies,
 or a general geometry-query subsystem. Changing strategy or granularity invalidates

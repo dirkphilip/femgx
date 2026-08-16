@@ -16,10 +16,6 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   geometry group belongs to exactly one element range and ids are unique. Parts
   without descriptors are not element-pickable and every primitive reports
   "no element".
-- `GeometryElementBlock` groups stable element ids for presentation-only
-  interaction. A block is local to its reusable part and is addressed in the
-  scene by `(instanceId, blockId)`; repeated placements therefore keep
-  independent block state without copying geometry.
 - The GPU pick map stores `elementId + 1` per logical primitive (`0` = none), so the
   id `0` collision with "no element" is avoided; `buildElementPrimitivePickIds`
   mirrors the CPU descriptor exactly.
@@ -35,10 +31,9 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   target the ids support (`node` > `face` > `element` > `instance`). Hosts can
   promote any `PickHit` to a part target through `interactionTargetFromHit`;
   a physical hit itself is never reported as `kind: "part"`.
-- Block-aware geometry carries block owner ids alongside body and element ids in
-  primitive, face, edge, and node ownership records. The public pick path can
-  report `kind: "block"` at block granularity while retaining the deeper
-  element/face/node hit when the requested granularity allows it.
+- Optional body-aware geometry carries body owner ids alongside element ids in
+  primitive, face, edge, and node ownership records. Bodyless geometry omits
+  model-scaled body ownership data.
 - The demo and library share one pick path: the renderer's asynchronous
   `pick(x, y)` GPU readback, or `pick(x, y, "edge")` for authored-edge
   granularity (see
@@ -50,18 +45,10 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 
 ## Interaction state and precedence
 
-- `InteractionState` adds per-instance block state alongside element state:
-  `setElementBlockVisible`, `setElementBlockSelected`,
-  `setElementBlockHighlighted`, and `setElementBlockOverride` address one
-  `(instanceId, blockId)` occurrence. `isElementBlockVisible` and
-  `emphasizedElementBlockRefs` provide matching queries. These immutable
-  transitions preserve state identity for no-ops and stale references remain
-  harmless until a matching part occurrence is present.
-- `resolveElementStyle` resolves instance, body, block, and element styles in
-  that order, then applies highlight, hover, selection, and an explicit
-  override at the most specific layer. Element state beats block/body/instance/
-  part state; selection beats hover; explicit overrides win last. Direct-body
-  geometry keeps the same path without synthetic blocks.
+- `resolveElementStyle` resolves instance, body, and element styles in that
+  order, then applies highlight, hover, selection, and an explicit override at
+  the most specific layer. Element state beats body/instance/part state;
+  selection beats hover; explicit overrides win last.
 - `emphasizedElementRefs` collects every emphasized occurrence (highlighted,
   hovered, selected, overridden, or hidden) in deterministic order with no
   duplicates. Hidden elements remain selected/highlighted in host state, but
@@ -130,8 +117,8 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   also transparent when a part or instance has fractional opacity. Alpha-zero
   edges contribute no color while remaining available to the normal GPU pick
   path.
-- Edge and node topology records carry paired owner/neighbor body, block, and
-  element conditions. Volume geometry retains all oriented faces and their
+- Edge and node topology records carry paired owner/neighbor body and element
+  conditions when bodies are authored. Volume geometry retains all oriented faces and their
   neighbor element ids; the GPU predicate suppresses a coincident interior
   face when both owners are visible and exposes the surviving oriented face
   when the other owner is hidden. The same predicate drives filled faces,
@@ -159,6 +146,9 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   concern, not a correctness one (resolved in
   [femgx#68](https://github.com/dirkphilip/femgx/issues/68); the linear scan is
   tracked in [femgx#95](https://github.com/dirkphilip/femgx/issues/95)).
+- Semantic element blocks and block-granularity interaction are removed. The
+  implementation follow-up deletes their public targets and GPU fields rather
+  than preserving compatibility aliases.
 - The edge overlay draws instance-level emphasis, not per-element edges, because
   edges shared between adjacent elements have no unambiguous element owner.
 

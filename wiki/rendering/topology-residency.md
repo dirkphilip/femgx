@@ -1,153 +1,137 @@
-# Topology ownership and GPU residency
+# Topology ownership and residency
 
-This note separates the host-visible model contract from renderer-owned GPU
-residency. Related: [[requirements/product-scope|Product scope]],
-[[requirements/surface-derived-part-authoring|Surface-derived part authoring]],
-and [[rendering/face-subsets|Face subsets]].
+This note separates host-owned model residency, femgx scene updates, and
+renderer-owned GPU resources. Related: [[requirements/product-scope|Product
+scope]], [[requirements/surface-derived-part-authoring|Surface-derived part
+authoring]], and [[rendering/face-subsets|Face subsets]].
 
-## Decision
+## Product contracts
 
-The public semantic choice is whether the client owns a complete FE model or an
-authoritative reduced surface. GPU residency is an implementation strategy and
-must not become a public mode unless a host later demonstrates a need for a
-deterministic memory/latency policy.
+The product supports three host data contracts. They are expressed by the data
+and update lifecycle, not by a renderer quality enum.
 
-| Host contract                 | Authoring boundary | Available local behavior                                                                            |
-| ----------------------------- | ------------------ | --------------------------------------------------------------------------------------------------- |
-| Authoritative reduced surface | `surfacePart()`    | Render and interact with supplied identities only. Omitted interiors remain server-owned or absent. |
-| Complete client model         | `elementPart()`    | Reveal, render, and interact with retained interior topology after visibility changes.              |
+| Contract             | Client state                                                           | Interior behavior                                                      |
+| -------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Surface snapshot     | One authoritative `surfacePart()` payload                              | Omitted geometry is unavailable. Local hiding may leave a hole.        |
+| Host-updated surface | The latest authoritative `surfacePart()` revision supplied by the host | Newly exposed geometry appears only when the host publishes new state. |
+| Fully resident model | Complete `ElementModel` topology and reusable geometry                 | Body/element visibility can reveal retained interiors locally.         |
 
-A complete client model may use a compact current skin or complete GPU geometry.
-Those strategies must be observationally equivalent: picking, selection,
-visibility, results, deformation, bounds, and authored identities cannot depend
-on which strategy the renderer chooses.
+In both surface contracts, the supplied payload is complete from femgx's point
+of view. femgx never infers an omitted neighbor, creates an interior identity,
+or reconstructs a skin.
 
-## Reduced-surface behavior
+## Host-driven surface updates
 
-The `surfacePart()` payload is complete and authoritative from femgx's point of
-view. Hiding a retained element may leave a hole. The renderer never infers an
-omitted neighbor, creates an interior identity, or contacts a server.
+Host-updated surface residency is deliberately not a femgx request protocol.
+When a client/server host applies a visibility operation to a server-owned
+surface shell, the host already knows the authoritative shell must change. It
+updates its server state and supplies the resulting part revision or occurrence
+binding to femgx. The viewport must not intercept the hide, send a duplicate
+request, wait on transport, or keep a shadow copy of server state.
 
-A client/server host may keep the volume on its server and replace the part or
-scene after a later request. Stable source-to-client identity mapping and the
-request lifecycle remain host responsibilities. This is scene replacement, not
-library-owned streaming, caching, or progressive geometry.
+Instances of one part definition always share identical resident geometry:
 
-## Complete-model residency strategies
+- If an update changes only transform, style, or state over already-resident
+  identities, patch that occurrence.
+- If exposed geometry changes identically for all occurrences, publish one new
+  shared part revision.
+- If only some occurrences differ, bind them to a shared content-identical
+  variant or to distinct variants.
 
-The current fully resident strategy uploads complete reusable geometry and uses
-an exterior `faceSubset` for ordinary submission. Once any body, block, or
-element is hidden, it submits the complete face order and filters faces in the
-shader. This is correct, but one visibility change can multiply steady-frame
-work by the ratio of retained to exterior faces.
+Different surfaces necessarily require distinct logical geometry definitions.
+Semantic element blocks do not avoid that cost and are removed. A server or
+renderer may transfer and retain content-addressed immutable chunks so variants
+share unchanged bytes, but chunks are private storage: they have no scene,
+selection, visibility, style, result, or picking identity.
 
-The deferred compact-skin strategy should preserve the same semantics with the
-following internal design:
+Variant residency uses byte budgets. Identical variants are deduplicated,
+current variants are pinned, and inactive revisions may be evicted
+least-recently-used. If many simultaneous variants approach the cost of a full
+model, the host may explicitly upgrade to a fully resident part; femgx does not
+silently expand a surface contract.
 
-1. Derive an immutable visibility signature for each occurrence from its hidden
-   body, block, and element sets.
-2. Group occurrences of the same reusable part by signature. Occurrences in a
-   group share one draw order and remain GPU-instanced.
-3. Compile one compact skin per active `(part definition, visibility signature)`
-   pair. The skin contains only currently exposed triangle order, topology
-   mapping, and authored surface-edge order; it refers to shared part positions,
-   nodal results, and deformation data rather than copying them per occurrence.
-4. Use that same skin for color, transparency, visible selection, picking,
-   nodes, and depth-tested edge presentation so no pass observes a different
-   exposed surface.
-5. Publish a new skin atomically after compilation and upload. A frame must use
-   either the old complete state or the new complete state, never a partially
-   updated mix.
+## Fully resident visibility
 
-The all-visible exterior skin is pinned and shared. Visibility signatures are
-content values rather than occurrence identities, so repeated placements with
-the same hidden sets do not duplicate resources.
+The current fully resident strategy uploads complete reusable geometry and may
+use an exterior `faceSubset` for ordinary submission. Hiding a body or element
+switches affected draws to retained complete topology and filters faces in the
+shader. This is a correctness path for the full contract, not surface streaming.
 
-## Bounded memory and adaptive fallback
+A future internal compact-skin strategy may group occurrences of the same part
+by immutable body/element visibility signature and share one draw order per
+signature. It must remain observationally equivalent to full residency and use
+the same stable identities for color, transparency, selection, picking, nodes,
+and edges. It is not a public block hierarchy or renderer mode.
 
-Skin residency needs a byte budget, not an entry-count guess. The renderer
-tracks shared base geometry, each skin's retained bytes, active references, and
-peak upload bytes. Inactive skins may be evicted least-recently-used; skins used
-by the current frame cannot be evicted.
+## Optional bodies and interaction resources
 
-Many simultaneously active, distinct visibility signatures can make compact
-skins cost more than one complete resource. Before crossing the budget, the
-renderer should switch that part to one fully resident resource with shader
-visibility filtering. Hysteresis prevents repeated skin/full transitions. This
-fallback is bounded by one complete reusable part resource and preserves
-correctness without per-instance geometry copies.
+Bodies own elements directly. A bodyless model has no model-scaled body map,
+ownership topology, interaction allocation, or shader work. A fixed empty
+sentinel is acceptable when required by a shared bind-group layout.
 
-Initial implementation and benchmarks should use explicit internal budgets.
-Do not add a public capacity, residency enum, or renderer mode until measured
-host requirements show that the adaptive policy is insufficient.
+Display and interaction residency are independent. Showing authored edges or
+nodes does not require exact edge/node pick resources. Fine-grained resources
+are materialized only when their granularity or active state requires them:
 
-## Interaction and edge implications
+- Empty selection and visibility use fixed empty buffers.
+- Small exception sets use sparse records.
+- Broad sets may use compact ordinal bitsets.
+- Exact edge-pick geometry remains separate and lazy.
+- Fast and feature-rich pipelines share one canonical geometry representation.
 
-Only submitted skin faces are visible-surface pick targets. A complete client
-model may still perform the existing host-side Through element query over its
-authoritative CPU topology; a reduced surface cannot select omitted elements.
+## Renderer admission and dense overlays
 
-Skin derivation also prevents a hidden element from activating every retained
-interior edge. Dense exterior presentation uses a separate measured path:
+The renderer selects the cheapest correct pipeline per occurrence group.
+Ordinary occurrences can use minimal presentation shaders; occurrences with
+body/element visibility, section clipping, or fine-grained emphasis use feature
+paths. Admission changes only when authoritative state changes and must not scan
+the full scene each frame. Pipeline objects are cached per device, not rebuilt
+per model or Performance Lab case.
+
+Dense exterior presentation uses the measured overlay path:
 
 - Surfaces and weighted transparency retain 4× MSAA.
 - Active edge presentation resolves opaque depth once, then draws into the
   resolved color target at 1×. Nodes join that pass when edges are active;
-  nodes-only presentation retains its existing 4× MSAA path. The single-sample
-  depth target is allocated only while edges are active (four bytes per physical
-  pixel).
-- Presentation edges reuse compact authored endpoints as one-device-pixel native
-  lines. Exact edge picking retains its separate lazy screen-space-width quads,
-  so the visual fast path does not reduce interaction identity or hit width.
-- Node circles retain their authored membership and use analytic edge coverage
-  with ordinary alpha blending in the same 1× pass.
+  nodes-only presentation retains 4× MSAA.
+- Presentation edges use compact authored endpoints as one-device-pixel native
+  lines. Exact edge picking keeps separate lazy screen-space-width quads.
+- Node display and node interaction data remain separable so a high-performance
+  presentation does not imply FE-scale selection storage.
 
-On the `instanced-2.10m` 800×600 DPR1 hardware case, an isolated system-Chrome
-run measured about 120 FPS for surface-only and edge presentation, 69 FPS for
-nodes, and 51 FPS for the combined view. The previous expanded-edge path
-measured about 12 FPS for edges and 9 FPS for the combined view. The inactive
-surface and nodes-only paths add no pass or target. Wider presentation edges,
-screen-space inferred boundaries, adaptive thinning, and a public quality mode
-remain out of scope; none is needed for the measured value.
+The `instanced-2.10m` 800×600 DPR1 system-Chrome case measured approximately
+120 FPS for surface-only and edge presentation and approximately 65 FPS for the
+combined edge/node view after the native-edge fast path. CPU encoding remains
+about 0.1 ms p50; node fragment coverage and overdraw are the next measured GPU
+target.
 
 ## Invariants
 
-- CPU scene and part data remain authoritative; renderer resources are derived.
-- Reduced-surface parts never acquire identities or geometry absent from their
-  payload.
-- Complete-model behavior is independent of compact-skin versus full residency.
-- Geometry is shared by part definition and visibility signature, never copied
-  merely because a part has multiple placements.
-- Every rendered and picked face or edge maps to a stable supplied identity.
-- Resource retention and transition peaks remain within measured byte budgets.
-- Ordinary all-visible rendering keeps the compact exterior path.
-
-## Dense-overlay decision gate
-
-1. **Value:** keep authored edge/node inspection interactive on million-element
-   submissions without weakening exact picking.
-2. **Minimum:** one opt-in resolved-depth/presentation pass and compact native
-   edge endpoints; retain existing exact pick quads.
-3. **Deletion/simplification:** presentation no longer duplicates every endpoint
-   into two rasterized triangles; quad expansion has one owner, edge picking.
-4. **Out of scope:** presentation line-width styling, inferred silhouettes,
-   density omission, level-of-detail controls, and new renderer modes.
-5. **Public API:** no new symbol is necessary; this is renderer-owned residency
-   and raster policy.
+- CPU scene and host-supplied part data remain authoritative.
+- A reduced surface never acquires absent identities or geometry.
+- femgx consumes host updates; it does not initiate server visibility requests.
+- One part definition has identical geometry for all of its occurrences.
+- Geometry variants share by content where possible and remain budgeted.
+- Private chunks never become public semantic blocks.
+- Omitted bodies and inactive fine interaction add no model-scaled memory or
+  steady-frame work.
+- Fast and feature paths preserve exact visible, picking, and interaction
+  semantics for the capabilities admitted to that path.
 
 ## Decision gate
 
-1. **Value:** support server-reduced transfer and complete local inspection
-   without forcing the worst CPU, GPU-memory, and steady-frame cost on both.
-2. **Minimum:** retain the two existing authoring contracts and add only an
-   internal, bounded compact-skin strategy for complete models.
-3. **Deletion/simplification:** replace the global “any hidden means full draw”
-   switch when compact skins are proven; do not add a parallel scene graph.
-4. **Out of scope:** femgx-owned server requests, streaming, progressive
-   refinement, topology reconstruction, spatial partitioning, and public cache
-   controls.
-5. **Public API:** no new symbol is currently necessary. `surfacePart()` versus
-   `elementPart()` already expresses the semantic choice.
+1. **Value:** support thin client/server shells, full local inspection, and a
+   high-performance presentation path without conflating them.
+2. **Minimum:** three host residency contracts, host-driven replacement, direct
+   body membership, and renderer-owned lazy resource admission.
+3. **Deletion/simplification:** remove semantic blocks and duplicate request
+   logic; keep transfer chunks private.
+4. **Out of scope:** femgx-owned transport, server requests, topology inference,
+   progressive refinement, public cache controls, and arbitrary capability
+   flag combinations.
+5. **Public API:** no renderer residency enum is required. Existing
+   `surfacePart()`/`elementPart()` data plus host scene updates express the
+   contract; any later interaction-detail profile requires its own API decision.
 
 [rendering/face-subsets|Face subsets]: face-subsets.md
 [requirements/product-scope|Product scope]: ../requirements/product-scope.md
