@@ -1,9 +1,5 @@
-import {
-  colorFragmentShader,
-  edgeFragmentShader,
-  edgeVertexShader,
-  triangleColorFragmentShader,
-} from "./scene";
+import { colorFragmentShader, edgeFragmentShader, triangleColorFragmentShader } from "./scene";
+import { edgeVertexShader } from "./edge";
 import {
   instanceVertexShader,
   lineSelectionVertexShader,

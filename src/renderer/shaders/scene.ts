@@ -1,11 +1,8 @@
-import { emphasisHash } from "./highlight";
 import {
   INSTANCE_EDGE_EMPHASIS_FLAG,
   INSTANCE_EMPHASIS_FLAG,
   INSTANCE_SELECTED_FLAG,
 } from "../resources/instance-storage";
-import { EDGE_HIGHLIGHT_MARKER } from "../selection/highlight-table";
-import { emphasisStructs } from "./emphasis";
 export { emphasisStructs } from "./emphasis";
 export {
   colorFragmentShader,
@@ -16,7 +13,6 @@ export {
 } from "./fragment";
 import { sectionPlaneBindings, sectionPlaneFunction } from "./fragment";
 export { pickDataBindings } from "./topology";
-import { pickDataBindings } from "./topology";
 
 /**
  * Shared WGSL for the instanced render passes. All vertex shaders read the
@@ -393,95 +389,5 @@ fn fragmentMain(
     camera.viewDirection.xyz,
   );
   return vec4<f32>(litColor + vec3<f32>(emissive), displayedColor.a);
-}
-`;
-
-/**
- * Vertex stage for the wireframe/edge display pass. It draws the deduplicated
- * mesh edges as neutral black screen-space triangle quads above the solid surface.
- */
-export const edgeVertexShader = /* wgsl */ `
-${cameraStruct}
-
-${deformationStruct}
-
-${instanceStruct}
-
-${emphasisStructs}
-${emphasisHash}
-
-${frameBindings}
-${instanceBindings}
-${pickDataBindings}
-${geometryPositionBindings}
-
-${displacementFn}
-${lineExpansionFn}
-
-struct EdgeOutput {
-  @builtin(position) position: vec4<f32>,
-  @location(0) color: vec4<f32>,
-  @location(2) @interpolate(flat) emissive: f32,
-  @location(5) local: vec2<f32>,
-  @location(8) worldPosition: vec3<f32>,
-};
-
-@vertex
-fn vertexMain(
-  @location(0) position: vec3<f32>,
-  @builtin(instance_index) instanceIndex: u32,
-  @builtin(vertex_index) vertexIndex: u32,
-) -> EdgeOutput {
-  let slot = drawOrder[instanceIndex];
-  let instance = instances[slot];
-  let topologyIndex = edgeId(vertexIndex);
-  let lineBase = vertexIndex - (vertexIndex % 4u);
-  let lineA = vec3<f32>(
-    geometryPosition(lineBase * 3u),
-    geometryPosition(lineBase * 3u + 1u),
-    geometryPosition(lineBase * 3u + 2u),
-  );
-  let lineB = vec3<f32>(
-    geometryPosition((lineBase + 1u) * 3u),
-    geometryPosition((lineBase + 1u) * 3u + 1u),
-    geometryPosition((lineBase + 1u) * 3u + 2u),
-  );
-  let lineClipA = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineA, lineBase), 1.0);
-  let lineClipB = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineB, lineBase + 1u), 1.0);
-  var output: EdgeOutput;
-  output.position = lineExpandedPosition(
-    lineClipA,
-    lineClipB,
-    vertexIndex % 4u,
-    instance.lineWidth * camera.devicePixelRatio,
-  );
-  if (!topologyOwnersVisible(slot, topologyIndex)) {
-    output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
-  }
-  output.color = vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a);
-  output.emissive = 0.0;
-  var edgeColor = output.color;
-  var edgeEmissive = 0.0;
-  if (instanceHasEdgeEmphasis(instance.selected)) {
-    let edgePickId = topologyIndex + 1u;
-    let bucket = highlightHash(slot, edgePickId, ${EDGE_HIGHLIGHT_MARKER}u, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
-    let base = bucket * 4u;
-    var matched = false;
-    for (var offset = 0u; offset < 4u; offset++) {
-      let highlight = elementHighlightAt(base + offset);
-      if (highlight.slot == slot && highlight.elementPickId == edgePickId && highlight.facePickId == ${EDGE_HIGHLIGHT_MARKER}u) {
-        edgeColor = highlight.color;
-        edgeEmissive = highlight.emissive;
-        matched = true;
-        break;
-      }
-    }
-    if (!matched) { edgeColor.a = 0.0; }
-  }
-  output.color = edgeColor;
-  output.emissive = edgeEmissive;
-  output.local = vec2<f32>(0.0);
-  output.worldPosition = (instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0)).xyz;
-  return output;
 }
 `;

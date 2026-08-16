@@ -14,11 +14,11 @@ import { DEFORMATION_UNIFORM_SIZE } from "../../../src/renderer/frame/deformatio
 import {
   colorFragmentShader,
   edgeFragmentShader,
-  edgeVertexShader,
   surfaceLightingFunction,
   triangleColorFragmentShader,
   vertexOutput,
 } from "../../../src/renderer/shaders/scene";
+import { edgeVertexShader } from "../../../src/renderer/shaders/edge";
 import {
   instanceVertexShader,
   lineSelectionVertexShader,
