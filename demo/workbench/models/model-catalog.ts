@@ -3,7 +3,7 @@ import type { WorkbenchModel } from "./model";
 /** The discoverable model catalog shown by the workbench source controls. */
 export type WorkbenchCatalogMode = "ordinary" | "performance";
 
-/** Owns the two demo-private model catalogs and their remembered selections. */
+/** Owns the two demo-private model catalogs and the ordinary model selection. */
 export class WorkbenchModelCatalog {
   private ordinaryModels: readonly WorkbenchModel[];
   private readonly performanceModels: readonly WorkbenchModel[];
@@ -34,9 +34,10 @@ export class WorkbenchModelCatalog {
     return this.currentMode === "ordinary" ? this.ordinarySelectionId : this.performanceSelectionId;
   }
 
-  /** Changes the visible catalog and returns its remembered model selection, if any. */
+  /** Changes the visible catalog and returns the ordinary model to restore, if any. */
   setMode(mode: WorkbenchCatalogMode): string {
     this.currentMode = mode;
+    if (mode === "performance") this.performanceSelectionId = "";
     return this.selectedId;
   }
 

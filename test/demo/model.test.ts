@@ -8,8 +8,22 @@ import {
   importFeedback,
   partStyleOverride,
 } from "../../demo/workbench/models/model";
+import { createDefaultDisplayToggles } from "../../demo/workbench/types";
 
 describe("demo workbench model boundary", () => {
+  it("starts benchmark models surface-only without changing ordinary inspection defaults", () => {
+    expect(createDefaultDisplayToggles()).toEqual({
+      edges: true,
+      nodes: true,
+      diagnostics: false,
+    });
+    expect(createDefaultDisplayToggles({ benchmarkElementFamily: "triangle" })).toEqual({
+      edges: false,
+      nodes: false,
+      diagnostics: false,
+    });
+  });
+
   it("sanitizes browser file names and keeps a safe fallback", () => {
     expect(displayFileName(" /tmp\\model\n.glb ")).toBe("tmpmodel.glb");
     expect(displayFileName("/\\\u0000\u007f")).toBe("opened.model");

@@ -26,7 +26,7 @@ describe("workbench model catalog", () => {
     expect(catalog.selectedId).toBe(performance.id);
 
     expect(catalog.setMode("ordinary")).toBe(ordinary.id);
-    expect(catalog.setMode("performance")).toBe(performance.id);
+    expect(catalog.setMode("performance")).toBe("");
   });
 
   it("retains an opened local model only in the ordinary catalog", () => {

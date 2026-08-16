@@ -17,9 +17,12 @@ export interface DisplayToggles {
   diagnostics: boolean;
 }
 
-/** Returns the inspection-first model defaults used by startup, reset, and switches. */
-export function createDefaultDisplayToggles(): DisplayToggles {
-  return { edges: true, nodes: true, diagnostics: false };
+/** Returns inspection defaults without forcing dense benchmark overlays to materialize. */
+export function createDefaultDisplayToggles(
+  model?: Pick<WorkbenchModel, "benchmarkElementFamily">,
+): DisplayToggles {
+  const overlays = model?.benchmarkElementFamily === undefined;
+  return { edges: overlays, nodes: overlays, diagnostics: false };
 }
 
 /** Static result display states exercised by the results demo preset. */
