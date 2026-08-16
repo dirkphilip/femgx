@@ -13,7 +13,12 @@ import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { resolveElementalOrientationRecords } from "../../src/results/orientation-records";
 import type { OrientationGlyphState } from "../../src/renderer/orientation-glyphs/orientation-glyph";
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
-import { hasInteractiveSample, measureInteractiveSamples } from "./interactive";
+import {
+  hasInteractiveSample,
+  hasOverlayInteractiveSample,
+  measureInteractiveSamples,
+  measureOverlayInteractiveSamples,
+} from "./interactive";
 import { estimateBenchmarkMemory, type WebGpuBenchmarkCase } from "./model";
 import { measureSelectionBenchmark } from "./selection";
 import type {
@@ -61,6 +66,7 @@ export async function measureBenchmarkCase(
   let renderer: WebGpuRenderer | undefined;
   let coldSample: Record<keyof SampleSet, number>;
   let interactive: WebGpuBenchmarkCaseResult["interactive"];
+  let overlayInteractive: WebGpuBenchmarkCaseResult["overlayInteractive"];
   let selection: SelectionBenchmarkReport | undefined;
   let gpuCost: WebGpuBenchmarkCaseResult["gpuCost"];
   let materializedEdgePartIds: ReadonlySet<number>;
@@ -100,7 +106,6 @@ export async function measureBenchmarkCase(
       if (index >= WARMUP_SAMPLES) pushSample(samples, sample);
     }
     gpuCost = readGpuCostSnapshot(renderer);
-    materializedEdgePartIds = readMaterializedEdgePartIds(renderer);
     phase = "interactive sample";
     interactive = hasInteractiveSample(benchmarkCase)
       ? await measureInteractiveSamples({
@@ -110,6 +115,16 @@ export async function measureBenchmarkCase(
           camera,
         })
       : undefined;
+    phase = "overlay interactive sample";
+    overlayInteractive = hasOverlayInteractiveSample(benchmarkCase)
+      ? await measureOverlayInteractiveSamples({
+          renderer,
+          benchmarkCase,
+          runtime,
+          camera,
+        })
+      : undefined;
+    materializedEdgePartIds = readMaterializedEdgePartIds(renderer);
     phase = "element box-selection sample";
     selection = await measureSelectionBenchmark({
       renderer,
@@ -147,6 +162,7 @@ export async function measureBenchmarkCase(
     instanceCount: runtime.instanceCount,
     timings: summarize(coldSample, samples),
     ...(interactive === undefined ? {} : { interactive }),
+    ...(overlayInteractive === undefined ? {} : { overlayInteractive }),
     ...(selection === undefined ? {} : { selection }),
     estimatedMemory: estimateBenchmarkMemory(
       benchmarkCase.scene,
