@@ -235,7 +235,10 @@ async function probePickKeys(
 }
 
 function isPerformanceLabOptIn(): boolean {
-  const environment = globalThis as unknown as { readonly location?: unknown };
+  const environment: unknown = globalThis;
+  if (typeof environment !== "object" || environment === null || !("location" in environment)) {
+    return false;
+  }
   const location = environment.location;
   if (typeof location !== "object" || location === null || !("search" in location)) return false;
   const search = location.search;

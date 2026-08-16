@@ -1,10 +1,4 @@
-import type {
-  Assembly,
-  NamedAssembly,
-  PartPlacement,
-  Placement,
-  SubAssemblyPlacement,
-} from "./assembly";
+import type { Assembly, NamedAssembly, Placement } from "./assembly";
 import { MAX_PART_ID, validatePartId, type Part, type PartId } from "../geometry/part";
 import type { AssemblyId } from "./types";
 
@@ -177,28 +171,30 @@ function validatePlacement(
   ownerId: AssemblyId,
   index: number,
 ): void {
-  const kind = (placement as { readonly kind?: unknown }).kind;
-  switch (kind) {
+  const candidate: unknown = placement;
+  const kind =
+    typeof candidate === "object" && candidate !== null && "kind" in candidate
+      ? candidate.kind
+      : undefined;
+  switch (placement.kind) {
     case "part": {
-      const partPlacement = placement as PartPlacement;
-      validatePartId(partPlacement.partId);
-      if (!parts.has(partPlacement.partId)) {
+      validatePartId(placement.partId);
+      if (!parts.has(placement.partId)) {
         throw new Error(
-          `Assembly ${ownerId} placement ${index} references missing part ${partPlacement.partId}`,
+          `Assembly ${ownerId} placement ${index} references missing part ${placement.partId}`,
         );
       }
-      validateTransform(partPlacement.transform, ownerId, index);
+      validateTransform(placement.transform, ownerId, index);
       return;
     }
     case "assembly": {
-      const assemblyPlacement = placement as SubAssemblyPlacement;
-      validateAssemblyId(assemblyPlacement.assemblyId, `Assembly ${ownerId} placement ${index}`);
-      if (!assemblies.has(assemblyPlacement.assemblyId)) {
+      validateAssemblyId(placement.assemblyId, `Assembly ${ownerId} placement ${index}`);
+      if (!assemblies.has(placement.assemblyId)) {
         throw new Error(
-          `Assembly ${ownerId} placement ${index} references missing assembly ${assemblyPlacement.assemblyId}`,
+          `Assembly ${ownerId} placement ${index} references missing assembly ${placement.assemblyId}`,
         );
       }
-      validateTransform(assemblyPlacement.transform, ownerId, index);
+      validateTransform(placement.transform, ownerId, index);
       return;
     }
     default:
@@ -237,22 +233,18 @@ function validateAssemblyId(id: AssemblyId, label: string): void {
 }
 
 function validateTransform(transform: unknown, ownerId: AssemblyId, index: number): void {
-  if (typeof transform !== "object" || transform === null) {
+  if (!(transform instanceof Float32Array)) {
     throw new TypeError(
       `Assembly ${ownerId} placement ${index} transform must contain 16 components`,
     );
   }
-  const candidate = transform as {
-    readonly length?: unknown;
-    readonly [component: number]: unknown;
-  };
-  if (candidate.length !== 16) {
+  if (transform.length !== 16) {
     throw new RangeError(
       `Assembly ${ownerId} placement ${index} transform must contain exactly 16 components`,
     );
   }
   for (let component = 0; component < 16; component++) {
-    const value = candidate[component];
+    const value = transform[component];
     if (typeof value !== "number" || !Number.isFinite(value)) {
       throw new RangeError(
         `Assembly ${ownerId} placement ${index} transform component ${component} must be finite`,

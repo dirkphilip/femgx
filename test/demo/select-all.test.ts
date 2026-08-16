@@ -91,7 +91,9 @@ function targetLabel(target: ReturnType<typeof selectAllTargets>[number]): strin
       return `node:${target.nodeId}`;
     case "edge":
       return `edge:${target.key}`;
-    default:
+    case "part":
+    case "instance":
+    case "block":
       return target.kind;
   }
 }

@@ -66,7 +66,8 @@ export function resolveBlockBody(
       bodies?.some((body) => "elementIds" in body && body.elementIds.includes(elementId)),
     )
   ) {
-    return { kind: "owned", bodyId: [...directOwners][0] as BodyId };
+    const [bodyId] = directOwners;
+    if (bodyId !== undefined) return { kind: "owned", bodyId };
   }
   return { kind: "ambiguous" };
 }

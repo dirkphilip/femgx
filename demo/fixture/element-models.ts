@@ -193,11 +193,16 @@ function buildCellTets(
   const elements: Element[] = [];
   let id = startId;
   for (const template of TET_TEMPLATES) {
+    const node = (index: number): NodeId => {
+      const nodeId = cell[index];
+      if (nodeId === undefined) throw new Error(`Hex cell is missing corner ${index}`);
+      return nodeId;
+    };
     const tetCorners: [NodeId, NodeId, NodeId, NodeId] = [
-      cell[template[0]] as NodeId,
-      cell[template[1]] as NodeId,
-      cell[template[2]] as NodeId,
-      cell[template[3]] as NodeId,
+      node(template[0]),
+      node(template[1]),
+      node(template[2]),
+      node(template[3]),
     ];
     if (!quadratic) {
       elements.push(createElement(id, TET4_SHAPE, tetCorners));
@@ -238,7 +243,9 @@ export function buildPointLineModel(
   }
   const at = (i: number, j: number, k: number): NodeId => {
     const index = (i * count + j) * count + k;
-    return cornerIds[index] as NodeId;
+    const nodeId = cornerIds[index];
+    if (nodeId === undefined) throw new Error(`Grid is missing node ${i},${j},${k}`);
+    return nodeId;
   };
 
   const elements: Element[] = [];

@@ -128,11 +128,27 @@ base first, then re-run the full gate before starting new work.
 
 ## Linting (small modules)
 
+`npm run lint` treats warnings as failures. ESLint applies the strict typed
+TypeScript baseline to repository TypeScript and Svelte scripts, with Svelte's
+recommended template rules layered on top. Exhaustive union switches and
+redundant or non-null assertions are rejected throughout typed code. Production
+and demo code additionally reject unsafe narrowing assertions and object/array
+literal assertions; use narrowing, an explicit annotation, or `satisfies`
+instead. Test fixtures remain outside that last assertion-style policy because
+their deliberate partial platform doubles would otherwise obscure the
+production signal.
+
+The broad stylistic typed preset is intentionally not enabled: it overlaps the
+strict correctness preset and includes preferences that conflict with the
+no-non-null-assertion policy. Add individual rules only when they enforce a
+stable, low-noise repository contract.
+
 ESLint caps source files at 400 implementation lines. Around 300 lines is a
 design-review threshold, not an automatic split requirement. Per-function
 length remains 60 lines and `max-depth` remains 4. Split modules when that
-improves cohesion and ownership. Rules are scoped to `src/`; tests and demo are
-exempt.
+improves cohesion and ownership. The size rules apply to `src/` and the
+workbench TypeScript owner modules; tests and other demo paths are exempt from
+size limits, not from the general correctness rules.
 
 [engineering/benchmarks|Benchmarks]: benchmarks.md
 [engineering/e2e-policy|E2E test classification and skip policy]: e2e-policy.md

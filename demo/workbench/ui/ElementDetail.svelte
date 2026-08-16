@@ -73,12 +73,12 @@
     if (currentDetail === undefined) return;
     globalThis.setTimeout(() => {
       const trigger = Array.from(
-        globalThis.document?.querySelectorAll("[data-body-elements]") ?? [],
+        globalThis.document.querySelectorAll<HTMLElement>("[data-body-elements]"),
       ).find(
         (candidate) =>
           candidate.getAttribute("data-body-instance-id") === currentDetail.instanceId &&
           candidate.getAttribute("data-body-id") === String(currentDetail.bodyId),
-      ) as { focus(): void } | undefined;
+      );
       trigger?.focus();
     }, 0);
   }

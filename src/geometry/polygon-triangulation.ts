@@ -1,4 +1,5 @@
 import type { NodeId } from "../elements/element";
+import { at } from "../elements/indices";
 import { cross, dot, length, subtract, type Vec3 } from "../math/vec3";
 
 /** Machine-readable failures for compact surface-part authoring. */
@@ -163,10 +164,10 @@ function rejectIntersections(points: readonly Vec2[], scale: number): void {
       if (adjacentEdges(first, second, points.length)) continue;
       if (
         segmentsIntersect(
-          points[first] as Vec2,
-          points[firstNext] as Vec2,
-          points[second] as Vec2,
-          points[secondNext] as Vec2,
+          at(points, first),
+          at(points, firstNext),
+          at(points, second),
+          at(points, secondNext),
           EPSILON * scale * scale,
         )
       ) {
@@ -231,18 +232,16 @@ function earClip(
         "Polygon could not be triangulated; check for collinear or overlapping corners",
       );
     }
-    const previous = remaining[(ear - 1 + remaining.length) % remaining.length] as number;
-    const current = remaining[ear] as number;
-    const next = remaining[(ear + 1) % remaining.length] as number;
-    triangles.push([
-      nodeIds[previous] as NodeId,
-      nodeIds[current] as NodeId,
-      nodeIds[next] as NodeId,
-    ]);
+    const previous = at(remaining, (ear - 1 + remaining.length) % remaining.length);
+    const current = at(remaining, ear);
+    const next = at(remaining, (ear + 1) % remaining.length);
+    triangles.push([at(nodeIds, previous), at(nodeIds, current), at(nodeIds, next)]);
     remaining.splice(ear, 1);
   }
-  const [first, second, third] = remaining as [number, number, number];
-  triangles.push([nodeIds[first] as NodeId, nodeIds[second] as NodeId, nodeIds[third] as NodeId]);
+  const first = at(remaining, 0);
+  const second = at(remaining, 1);
+  const third = at(remaining, 2);
+  triangles.push([at(nodeIds, first), at(nodeIds, second), at(nodeIds, third)]);
   return triangles;
 }
 
@@ -253,10 +252,10 @@ function findEar(
   scale: number,
 ): number | undefined {
   for (let position = 0; position < remaining.length; position += 1) {
-    const previous = remaining[(position - 1 + remaining.length) % remaining.length] as number;
-    const current = remaining[position] as number;
-    const next = remaining[(position + 1) % remaining.length] as number;
-    const turn = cross2(points[previous] as Vec2, points[current] as Vec2, points[next] as Vec2);
+    const previous = at(remaining, (position - 1 + remaining.length) % remaining.length);
+    const current = at(remaining, position);
+    const next = at(remaining, (position + 1) % remaining.length);
+    const turn = cross2(at(points, previous), at(points, current), at(points, next));
     if (turn * winding <= EPSILON * scale * scale) continue;
     if (containsRemainingPoint(remaining, points, [previous, current, next], scale)) continue;
     return position;
@@ -275,10 +274,10 @@ function containsRemainingPoint(
     if (candidate === previous || candidate === current || candidate === next) continue;
     if (
       pointInTriangle(
-        points[candidate] as Vec2,
-        points[previous] as Vec2,
-        points[current] as Vec2,
-        points[next] as Vec2,
+        at(points, candidate),
+        at(points, previous),
+        at(points, current),
+        at(points, next),
         EPSILON * scale * scale,
       )
     ) {

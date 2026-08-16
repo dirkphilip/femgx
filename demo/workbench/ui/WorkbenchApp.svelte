@@ -81,7 +81,6 @@
 
   onMount(() => {
     const browser = globalThis.window;
-    if (browser === undefined) return;
     const syncViewport = (): void => {
       phoneNavigation = browser.innerWidth <= PHONE_BREAKPOINT;
       const visualViewport = browser.visualViewport;
@@ -127,27 +126,25 @@
   });
 
   function eventKey(event: unknown): string | undefined {
-    if (typeof event !== "object" || event === null) return undefined;
-    const value = Reflect.get(event, "key");
+    if (typeof event !== "object" || event === null || !("key" in event)) return undefined;
+    const value = event.key;
     return typeof value === "string" ? value : undefined;
   }
 
   function eventShiftKey(event: unknown): boolean {
-    if (typeof event !== "object" || event === null) return false;
-    return Reflect.get(event, "shiftKey") === true;
+    return (
+      typeof event === "object" && event !== null && "shiftKey" in event && event.shiftKey === true
+    );
   }
 
   function preventDefault(event: unknown): void {
-    if (typeof event !== "object" || event === null) return;
-    const method = Reflect.get(event, "preventDefault");
-    if (typeof method === "function") Reflect.apply(method, event, []);
+    if (typeof event !== "object" || event === null || !("preventDefault" in event)) return;
+    const method = event.preventDefault;
+    if (typeof method === "function") method.call(event);
   }
 
   function activeElement(): unknown {
-    const document = Reflect.get(globalThis, "document");
-    return typeof document === "object" && document !== null
-      ? Reflect.get(document, "activeElement")
-      : undefined;
+    return globalThis.document.activeElement;
   }
 
   onDestroy(() => {

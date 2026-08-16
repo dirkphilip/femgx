@@ -261,5 +261,7 @@ export function createModelPresets(
 
 /** The demo's default showcase preset (the bolted plate assembly). */
 export function createDefaultPreset(): ModelPreset {
-  return createModelPresets()[0] as ModelPreset;
+  const preset = createModelPresets()[0];
+  if (preset === undefined) throw new Error("The demo has no default model preset");
+  return preset;
 }

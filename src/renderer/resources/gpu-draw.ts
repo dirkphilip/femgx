@@ -251,10 +251,11 @@ export function ensureEdgeResources(
   resourceMaybe?: PartResource,
 ): NonNullable<PartResource["edge"]> | undefined {
   const geometry =
-    resourceMaybe === undefined && !("primitive" in geometryOrResource)
-      ? part.geometries.find((candidate) => candidate.primitive === "triangles")
-      : (geometryOrResource as Extract<Geometry, { primitive: "triangles" }>);
-  const resource = resourceMaybe ?? (geometryOrResource as PartResource);
+    "primitive" in geometryOrResource
+      ? geometryOrResource
+      : part.geometries.find((candidate) => candidate.primitive === "triangles");
+  const resource = "primitive" in geometryOrResource ? resourceMaybe : geometryOrResource;
+  if (resource === undefined) throw new Error("Edge geometry requires its uploaded resource");
   if (geometry?.primitive !== "triangles") return undefined;
   if (resource.edge !== undefined) return resource.edge;
   const resultTail = createResultColorTail(
@@ -276,10 +277,11 @@ export function ensureEdgePickResources(
   resourceMaybe?: PartResource,
 ): NonNullable<PartResource["edgePick"]> | undefined {
   const geometry =
-    resourceMaybe === undefined && !("primitive" in geometryOrResource)
-      ? part.geometries.find((candidate) => candidate.primitive === "triangles")
-      : (geometryOrResource as Extract<Geometry, { primitive: "triangles" }>);
-  const resource = resourceMaybe ?? (geometryOrResource as PartResource);
+    "primitive" in geometryOrResource
+      ? geometryOrResource
+      : part.geometries.find((candidate) => candidate.primitive === "triangles");
+  const resource = "primitive" in geometryOrResource ? resourceMaybe : geometryOrResource;
+  if (resource === undefined) throw new Error("Edge-pick geometry requires its uploaded resource");
   if (geometry?.primitive !== "triangles") return undefined;
   if (resource.edgePick !== undefined) return resource.edgePick;
   const edgePick = buildPartEdgePickResources(draw.device, part, geometry);

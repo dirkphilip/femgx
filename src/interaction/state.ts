@@ -112,7 +112,7 @@ export interface InteractionTheme {
 }
 
 /** Opaque immutable interaction value exposed by the public API. */
-declare const interactionStateBrand: unique symbol;
+const interactionStateBrand: unique symbol = Symbol("InteractionState");
 /** @category Interaction and picking */
 export interface InteractionState {
   readonly [interactionStateBrand]: "InteractionState";
@@ -158,7 +158,9 @@ const dataByState = new WeakMap<InteractionState, InteractionStateData>();
 
 /** Creates the frozen public token for private interaction data. */
 export function createInteractionStateValue(data: InteractionStateData): InteractionState {
-  const state = Object.freeze(Object.create(null)) as InteractionState;
+  const state: InteractionState = Object.freeze({
+    [interactionStateBrand]: "InteractionState" as const,
+  });
   dataByState.set(state, data);
   return state;
 }

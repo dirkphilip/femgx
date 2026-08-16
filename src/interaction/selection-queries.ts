@@ -69,9 +69,9 @@ export function selectedTargets(state: InteractionState): InteractionTarget[] {
   for (const instanceId of [...data.selectedInstanceIds].sort()) {
     targets.push({ kind: "instance", instanceId });
   }
-  appendNumericTargets(targets, data.selectedBodyIds, "body", "bodyId");
-  appendNumericTargets(targets, data.selectedBlockIds, "block", "blockId");
-  appendNumericTargets(targets, data.selectedElementIds, "element", "elementId");
+  appendNumericTargets(targets, data.selectedBodyIds, "body");
+  appendNumericTargets(targets, data.selectedBlockIds, "block");
+  appendNumericTargets(targets, data.selectedElementIds, "element");
   for (const [, faces] of [...data.selectedFaces.entries()].sort(([a], [b]) =>
     a.localeCompare(b),
   )) {
@@ -89,7 +89,7 @@ export function selectedTargets(state: InteractionState): InteractionTarget[] {
       });
     }
   }
-  appendNumericTargets(targets, data.selectedNodeIds, "node", "nodeId");
+  appendNumericTargets(targets, data.selectedNodeIds, "node");
   for (const [instanceId, edges] of [...data.selectedEdges.entries()].sort(([a], [b]) =>
     a.localeCompare(b),
   )) {
@@ -102,11 +102,23 @@ function appendNumericTargets(
   targets: InteractionTarget[],
   groups: ReadonlyMap<string, ReadonlySet<number>>,
   kind: "body" | "block" | "element" | "node",
-  property: "bodyId" | "blockId" | "elementId" | "nodeId",
 ): void {
   for (const [instanceId, ids] of [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     for (const id of [...ids].sort((a, b) => a - b)) {
-      targets.push({ kind, instanceId, [property]: id } as InteractionTarget);
+      switch (kind) {
+        case "body":
+          targets.push({ kind, instanceId, bodyId: id });
+          break;
+        case "block":
+          targets.push({ kind, instanceId, blockId: id });
+          break;
+        case "element":
+          targets.push({ kind, instanceId, elementId: id });
+          break;
+        case "node":
+          targets.push({ kind, instanceId, nodeId: id });
+          break;
+      }
     }
   }
 }
