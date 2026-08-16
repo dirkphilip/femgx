@@ -114,6 +114,26 @@ function buildFaceScene(): Scene {
         nodeIds: [0, 1, 2],
       },
     ],
+    edges: [
+      {
+        key: "0,1",
+        nodeIds: [0, 1],
+        incidentElementIds: [0],
+        faceRefs: [{ elementId: 0, faceIndex: 0 }],
+      },
+      {
+        key: "0,2",
+        nodeIds: [0, 2],
+        incidentElementIds: [0],
+        faceRefs: [{ elementId: 0, faceIndex: 0 }],
+      },
+      {
+        key: "1,2",
+        nodeIds: [1, 2],
+        incidentElementIds: [0],
+        faceRefs: [{ elementId: 0, faceIndex: 0 }],
+      },
+    ],
     elements: [
       {
         id: 0,
@@ -259,7 +279,14 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     renderer.render(runtime, camera, scene.parts);
     const cost = readGpuCostSnapshot(renderer);
-    expect(cost.passes).toEqual({ opaque: 1, transparency: 1, composite: 1, pick: 0 });
+    expect(cost.passes).toEqual({
+      opaque: 1,
+      transparency: 1,
+      composite: 1,
+      "overlay-depth": 0,
+      overlay: 0,
+      pick: 0,
+    });
     expect(cost.draws.background).toEqual({ calls: 1, indices: 3, instances: 1 });
     expect(cost.draws.opaque).toEqual({ calls: 1, indices: 3, instances: 3 });
     expect(cost.writes.instance).toEqual({ calls: 0, bytes: 0 });
@@ -562,6 +589,19 @@ describe("WebGPU renderer", () => {
     renderer.destroy();
   });
 
+  it("materializes exact edge-pick geometry without enabling the presentation overlay", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildFaceScene();
+    renderer.render(createPackedSceneRuntime(scene), camera, scene.parts);
+
+    await renderer.pick(400, 300, "edge");
+    expect(gpu.submissionCount).toBeGreaterThan(1);
+    renderer.destroy();
+  });
+
   it("follows displayed GPU depth instead of the undeformed CPU face plane", async () => {
     restoreGpuGlobals = installGpuGlobals();
     const faceCamera = { ...camera, position: [0, 0, 5] as const, target: [0, 0, 0] as const };
@@ -843,14 +883,14 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.slice(-2)).toEqual([
       { pipeline: "pipeline-0", indexCount: 3, instanceCount: 3 },
-      { pipeline: "pipeline-17", indexCount: 18, instanceCount: 3 },
+      { pipeline: "pipeline-17", indexCount: 6, instanceCount: 3 },
     ]);
 
     renderer.setEdgeDepthTest(false);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-18",
-      indexCount: 18,
+      indexCount: 6,
       instanceCount: 3,
     });
 
@@ -858,7 +898,7 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-17",
-      indexCount: 18,
+      indexCount: 6,
       instanceCount: 3,
     });
 
@@ -962,7 +1002,7 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-17",
-      indexCount: 18,
+      indexCount: 6,
       instanceCount: 2,
     });
 
@@ -971,7 +1011,7 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-17",
-      indexCount: 18,
+      indexCount: 6,
       instanceCount: 3,
     });
 

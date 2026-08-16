@@ -88,12 +88,27 @@ model may still perform the existing host-side Through element query over its
 authoritative CPU topology; a reduced surface cannot select omitted elements.
 
 Skin derivation also prevents a hidden element from activating every retained
-interior edge. It does not solve the separate cost of drawing millions of edges
-on a genuinely dense exterior surface. That path needs its own measured design.
-A promising prototype is an integrated depth-tested authored-edge mask in the
-surface pass, with exact edge picking remaining lazy and separate; it is not a
-requirement until visual parity, interaction identity, transparency, wide-line
-behavior, and GPU/memory gains are demonstrated.
+interior edge. Dense exterior presentation uses a separate measured path:
+
+- Surfaces and weighted transparency retain 4× MSAA.
+- Active edge presentation resolves opaque depth once, then draws into the
+  resolved color target at 1×. Nodes join that pass when edges are active;
+  nodes-only presentation retains its existing 4× MSAA path. The single-sample
+  depth target is allocated only while edges are active (four bytes per physical
+  pixel).
+- Presentation edges reuse compact authored endpoints as one-device-pixel native
+  lines. Exact edge picking retains its separate lazy screen-space-width quads,
+  so the visual fast path does not reduce interaction identity or hit width.
+- Node circles retain their authored membership and use analytic edge coverage
+  with ordinary alpha blending in the same 1× pass.
+
+On the `instanced-2.10m` 800×600 DPR1 hardware case, an isolated system-Chrome
+run measured about 120 FPS for surface-only and edge presentation, 69 FPS for
+nodes, and 51 FPS for the combined view. The previous expanded-edge path
+measured about 12 FPS for edges and 9 FPS for the combined view. The inactive
+surface and nodes-only paths add no pass or target. Wider presentation edges,
+screen-space inferred boundaries, adaptive thinning, and a public quality mode
+remain out of scope; none is needed for the measured value.
 
 ## Invariants
 
@@ -106,6 +121,19 @@ behavior, and GPU/memory gains are demonstrated.
 - Every rendered and picked face or edge maps to a stable supplied identity.
 - Resource retention and transition peaks remain within measured byte budgets.
 - Ordinary all-visible rendering keeps the compact exterior path.
+
+## Dense-overlay decision gate
+
+1. **Value:** keep authored edge/node inspection interactive on million-element
+   submissions without weakening exact picking.
+2. **Minimum:** one opt-in resolved-depth/presentation pass and compact native
+   edge endpoints; retain existing exact pick quads.
+3. **Deletion/simplification:** presentation no longer duplicates every endpoint
+   into two rasterized triangles; quad expansion has one owner, edge picking.
+4. **Out of scope:** presentation line-width styling, inferred silhouettes,
+   density omission, level-of-detail controls, and new renderer modes.
+5. **Public API:** no new symbol is necessary; this is renderer-owned residency
+   and raster policy.
 
 ## Decision gate
 

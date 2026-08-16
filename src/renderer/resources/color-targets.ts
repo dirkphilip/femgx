@@ -13,9 +13,11 @@ export interface ColorTargets {
   msaaRevealageTexture: GPUTexture | undefined;
   revealageTexture: GPUTexture | undefined;
   depthTexture: GPUTexture | undefined;
+  overlayDepthTexture: GPUTexture | undefined;
   depthWidth: number;
   depthHeight: number;
   compositeBindGroup: GPUBindGroup | undefined;
+  overlayDepthBindGroup: GPUBindGroup | undefined;
 }
 
 /** An owner with the device and mutable visible-frame target state. */
@@ -28,6 +30,7 @@ export interface ColorTargetOwner {
 export interface ReadyColorTargets {
   readonly color: GPUTexture;
   readonly depth: GPUTexture;
+  readonly overlayDepth?: GPUTexture;
   readonly opaqueColor?: GPUTexture;
   readonly accumulation?: GPUTexture;
   readonly revealage?: GPUTexture;
@@ -49,6 +52,7 @@ interface ColorTargetOptions {
   readonly colorFormat: GPUTextureFormat;
   readonly depthFormat: GPUTextureFormat;
   readonly requiresTransparency?: boolean;
+  readonly requiresOverlays?: boolean;
 }
 
 interface BaseTargetOptions {
@@ -64,8 +68,16 @@ export function ensureColorTargets(
   draw: ColorTargetOwner,
   options: ColorTargetOptions,
 ): ReadyColorTargets {
-  const { width, height, colorFormat, depthFormat, requiresTransparency = true } = options;
+  const {
+    width,
+    height,
+    colorFormat,
+    depthFormat,
+    requiresTransparency = true,
+    requiresOverlays = false,
+  } = options;
   if (hasBaseTargets(draw.targets, width, height)) {
+    syncOverlayDepthTarget(draw, width, height, depthFormat, requiresOverlays);
     if (!requiresTransparency) {
       destroyTransparencyTargets(draw.targets);
       return readyColorTargets(draw.targets);
@@ -86,6 +98,14 @@ export function ensureColorTargets(
       colorFormat,
       depthFormat,
     });
+    if (requiresOverlays) {
+      next.overlayDepthTexture = allocateOverlayDepthTarget(
+        draw.device,
+        width,
+        height,
+        depthFormat,
+      );
+    }
     if (requiresTransparency) {
       const transparency = allocateTransparencyTargets(draw, width, height, colorFormat);
       publishTransparencyTargets(next, transparency);
@@ -96,6 +116,40 @@ export function ensureColorTargets(
     destroyColorTargets(next);
     throw error;
   }
+}
+
+function syncOverlayDepthTarget(
+  draw: ColorTargetOwner,
+  width: number,
+  height: number,
+  depthFormat: GPUTextureFormat,
+  required: boolean,
+): void {
+  if (!required) {
+    draw.targets.overlayDepthTexture?.destroy();
+    draw.targets.overlayDepthTexture = undefined;
+    draw.targets.overlayDepthBindGroup = undefined;
+    return;
+  }
+  draw.targets.overlayDepthTexture ??= allocateOverlayDepthTarget(
+    draw.device,
+    width,
+    height,
+    depthFormat,
+  );
+}
+
+function allocateOverlayDepthTarget(
+  device: GPUDevice,
+  width: number,
+  height: number,
+  depthFormat: GPUTextureFormat,
+): GPUTexture {
+  return device.createTexture({
+    size: [width, height],
+    format: depthFormat,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  });
 }
 
 function hasBaseTargets(targets: ColorTargets, width: number, height: number): boolean {
@@ -202,6 +256,8 @@ function publishBaseTargets(
   targets.depthTexture = next.depthTexture;
   targets.depthWidth = width;
   targets.depthHeight = height;
+  targets.overlayDepthTexture = next.overlayDepthTexture;
+  targets.overlayDepthBindGroup = undefined;
   publishTransparencyTargets(targets, next);
 }
 
@@ -245,6 +301,9 @@ function readyColorTargets(targets: ColorTargets): ReadyColorTargets {
   return {
     color: targets.msaaColorTexture,
     depth: targets.depthTexture,
+    ...(targets.overlayDepthTexture === undefined
+      ? {}
+      : { overlayDepth: targets.overlayDepthTexture }),
     ...(targets.opaqueColorTexture === undefined
       ? {}
       : { opaqueColor: targets.opaqueColorTexture }),
@@ -271,9 +330,11 @@ export function createColorTargets(): ColorTargets {
     msaaRevealageTexture: undefined,
     revealageTexture: undefined,
     depthTexture: undefined,
+    overlayDepthTexture: undefined,
     depthWidth: 0,
     depthHeight: 0,
     compositeBindGroup: undefined,
+    overlayDepthBindGroup: undefined,
   };
 }
 
@@ -282,9 +343,12 @@ export function destroyColorTargets(targets: ColorTargets): void {
   targets.msaaColorTexture?.destroy();
   destroyTransparencyTargets(targets);
   targets.depthTexture?.destroy();
+  targets.overlayDepthTexture?.destroy();
   targets.msaaColorTexture = undefined;
   targets.depthTexture = undefined;
+  targets.overlayDepthTexture = undefined;
   targets.depthWidth = 0;
   targets.depthHeight = 0;
   targets.compositeBindGroup = undefined;
+  targets.overlayDepthBindGroup = undefined;
 }

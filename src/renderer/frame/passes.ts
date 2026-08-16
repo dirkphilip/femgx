@@ -93,3 +93,46 @@ export function beginCompositePass(
     },
   });
 }
+
+/** Begins the single-sample presentation pass over the resolved visible color. */
+export function beginOverlayPass(
+  encoder: GPUCommandEncoder,
+  colorView: GPUTextureView,
+  depthView: GPUTextureView,
+): GPURenderPassEncoder {
+  return encoder.beginRenderPass({
+    colorAttachments: [
+      {
+        view: colorView,
+        loadOp: "load",
+        storeOp: "store",
+      },
+    ],
+    depthStencilAttachment: {
+      view: depthView,
+      depthLoadOp: "load",
+      depthStoreOp: "discard",
+      stencilLoadOp: "load",
+      stencilStoreOp: "discard",
+    },
+  });
+}
+
+/** Begins the fullscreen conversion from multisampled to resolved overlay depth. */
+export function beginOverlayDepthPass(
+  encoder: GPUCommandEncoder,
+  depthView: GPUTextureView,
+): GPURenderPassEncoder {
+  return encoder.beginRenderPass({
+    colorAttachments: [],
+    depthStencilAttachment: {
+      view: depthView,
+      depthClearValue: 1,
+      depthLoadOp: "clear",
+      depthStoreOp: "store",
+      stencilClearValue: 0,
+      stencilLoadOp: "clear",
+      stencilStoreOp: "store",
+    },
+  });
+}

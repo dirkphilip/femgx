@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { buildMeshEdgeData, type MeshEdgeData } from "../../../src/renderer/edges/mesh-edge";
-import { expandMeshEdgeData } from "../../../src/renderer/edges/edge-expansion";
+import {
+  expandMeshEdgeData,
+  meshEdgeEndpointData,
+} from "../../../src/renderer/edges/edge-expansion";
 import type {
   ElementTessellation,
   Geometry,
@@ -22,6 +25,25 @@ function buildSemanticEdgeData(geometry: SemanticGeometry) {
 }
 
 describe("buildMeshEdgeData", () => {
+  it("reuses endpoint geometry for the native presentation line list", () => {
+    const data = {
+      indices: new Uint32Array([0, 1]),
+      sourceVertexIndices: new Uint32Array([2, 0]),
+      edgeIds: new Uint32Array([3, 3]),
+      positions: new Float32Array([0, 0, 0, 1, 0, 0]),
+      bodyRanges: new Uint32Array([0, 0]),
+      bodyIds: new Uint32Array([0]),
+      elementIds: new Uint32Array([0]),
+    } satisfies MeshEdgeData;
+
+    const compact = meshEdgeEndpointData(data, new Uint32Array([7, 8, 9]));
+
+    expect(compact.indices).toBe(data.indices);
+    expect(compact.positions).toBe(data.positions);
+    expect(compact.edgeIds).toBe(data.edgeIds);
+    expect(compact.nodePickIds).toEqual(new Uint32Array([9, 7]));
+  });
+
   it("expands each authored segment into one indexed quad", () => {
     const data = {
       indices: new Uint32Array([0, 1]),

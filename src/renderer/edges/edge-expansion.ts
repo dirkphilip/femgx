@@ -1,12 +1,27 @@
 import type { MeshEdgeData } from "./mesh-edge";
 
-/** Expanded four-corner draw data for one screen-space authored-edge quad. */
-export interface ExpandedMeshEdgeData {
+/** Vertex-aligned authored-edge data shared by display and widened pick resources. */
+export interface MeshEdgeDrawData {
   readonly indices: Uint32Array;
   readonly sourceVertexIndices: Uint32Array;
   readonly edgeIds: Uint32Array;
   readonly positions: Float32Array;
   readonly nodePickIds: Uint32Array;
+}
+
+/** Expanded four-corner draw data for one screen-space authored-edge quad. */
+export type ExpandedMeshEdgeData = MeshEdgeDrawData;
+
+/** Reuses the endpoint line list for the one-device-pixel presentation pass. */
+export function meshEdgeEndpointData(
+  edgeData: MeshEdgeData,
+  sourceNodePickIds: ArrayLike<number> | undefined,
+): MeshEdgeDrawData {
+  const nodePickIds = new Uint32Array(edgeData.sourceVertexIndices.length);
+  for (let endpoint = 0; endpoint < nodePickIds.length; endpoint += 1) {
+    nodePickIds[endpoint] = sourceNodePickIds?.[edgeData.sourceVertexIndices[endpoint] ?? 0] ?? 0;
+  }
+  return { ...edgeData, nodePickIds };
 }
 
 /** Expands each logical edge segment into a displacement-aware indexed quad. */

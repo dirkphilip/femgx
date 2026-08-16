@@ -19,6 +19,7 @@ import type { ReadyColorTargets } from "../resources/color-targets";
 import { drawOriginTriad, originTriadScale, writeOriginTriad } from "../overlays/origin-triad";
 import { drawOrbitPivot, writeOrbitPivot } from "../overlays/orbit-pivot";
 import { nodeSizeDevicePixels, pointSizeDevicePixels } from "./sizes";
+import { drawPresentationOverlayPass, needsResolvedOverlay } from "./presentation-overlay";
 
 export { nodeSizeDevicePixels, pointSizeDevicePixels } from "./sizes";
 
@@ -150,6 +151,7 @@ function prepareVisibleFrame(
     colorFormat: frame.colorFormat,
     depthFormat: frame.depthFormat,
     requiresTransparency: needsTransparency,
+    requiresOverlays: needsResolvedOverlay(frame),
   });
   frame.draw.cost.targets(
     frame.canvas.width,
@@ -201,12 +203,17 @@ export function encodeVisibleFrame(
   drawOrientationGlyphs(opaquePass, frame, context, frame.calls, "visible");
   if (orbitPivotActive) drawOrbitPivot(opaquePass, frame.resources.orbitPivot, "visible");
   if (orbitPivotActive) frame.draw.cost.draw("pivot", 60);
-  if (!needsTransparency) drawPresentationOverlays(opaquePass, frame, context);
+  if (!needsTransparency && !needsResolvedOverlay(frame)) {
+    drawNodeOverlay(opaquePass, frame, context);
+  }
   opaquePass.end();
   if (needsTransparency) {
     const weightedTargets = requireWeightedTargets(targets);
     drawTransparencyPass(colorEncoder, frame, context, weightedTargets, orbitPivotActive);
-    drawCompositePass(colorEncoder, frame, context, weightedTargets);
+    drawCompositePass(colorEncoder, frame, context, weightedTargets, swapChainView);
+  }
+  if (needsResolvedOverlay(frame)) {
+    drawPresentationOverlayPass(colorEncoder, frame, context, targets, swapChainView);
   }
   frame.device.queue.submit([colorEncoder.finish()]);
 }
@@ -282,11 +289,12 @@ function drawCompositePass(
   frame: FrameOptions,
   context: DrawCallContext,
   targets: WeightedColorTargets,
+  swapChainView: GPUTextureView,
 ): void {
   const pass = beginCompositePass(
     encoder,
     targets.color.createView(),
-    frame.context.getCurrentTexture().createView(),
+    swapChainView,
     targets.depth.createView(),
   );
   frame.draw.cost.pass("composite");
@@ -294,26 +302,20 @@ function drawCompositePass(
   pass.setBindGroup(0, ensureCompositeBindGroup(frame.draw, frame.resources));
   pass.draw(3);
   frame.draw.cost.draw("composite", 3);
-  drawPresentationOverlays(pass, frame, context);
+  if (!needsResolvedOverlay(frame)) drawNodeOverlay(pass, frame, context);
   pass.end();
 }
 
-function drawPresentationOverlays(
+function drawNodeOverlay(
   pass: GPURenderPassEncoder,
   frame: FrameOptions,
   context: DrawCallContext,
 ): void {
-  if (frame.edgeCalls.length > 0) {
-    drawBatches(pass, frame.draw, context, frame.edgeCalls, {
-      kind: "edge",
-      pipeline: frame.edgeDepthTest
-        ? frame.resources.edgePipeline
-        : frame.resources.edgeAlwaysPipeline,
-    });
-  }
-  if (frame.nodeCalls.length > 0) {
-    drawNodeOverlay(pass, frame, context);
-  }
+  if (frame.nodeCalls.length === 0) return;
+  drawBatches(pass, frame.draw, context, frame.nodeCalls, {
+    kind: "nodes",
+    pipeline: frame.resources.nodeOverlayPipelines.visible,
+  });
 }
 
 type WeightedColorTargets = ReadyColorTargets &
@@ -422,15 +424,4 @@ export function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
     frame.sectionPlane,
     frame.draw.cost,
   );
-}
-
-function drawNodeOverlay(
-  pass: GPURenderPassEncoder,
-  frame: FrameOptions,
-  context: DrawCallContext,
-): void {
-  drawBatches(pass, frame.draw, context, frame.nodeCalls, {
-    kind: "nodes",
-    pipeline: frame.resources.nodeOverlayPipelines.visible,
-  });
 }

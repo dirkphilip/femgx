@@ -9,13 +9,12 @@ import {
   geometryPositionBindings,
   instanceBindings,
   instanceStruct,
-  lineExpansionFn,
 } from "./scene";
 import { pickDataBindings } from "./topology";
 
 /**
- * Vertex stage for the wireframe/edge display pass. It draws the deduplicated
- * mesh edges as neutral black screen-space triangle quads above the solid surface.
+ * Vertex stage for the wireframe/edge display pass. It draws deduplicated mesh
+ * edges as neutral black one-device-pixel native lines above the solid surface.
  */
 export const edgeVertexShader = /* wgsl */ `
 ${cameraStruct}
@@ -33,7 +32,6 @@ ${pickDataBindings}
 ${geometryPositionBindings}
 
 ${displacementFn}
-${lineExpansionFn}
 
 struct EdgeOutput {
   @builtin(position) position: vec4<f32>,
@@ -52,26 +50,13 @@ fn vertexMain(
   let slot = drawOrder[instanceIndex];
   let instance = instances[slot];
   let topologyIndex = edgeId(vertexIndex);
-  let lineBase = vertexIndex - (vertexIndex % 4u);
-  let lineA = vec3<f32>(
-    geometryPosition(lineBase * 3u),
-    geometryPosition(lineBase * 3u + 1u),
-    geometryPosition(lineBase * 3u + 2u),
+  let linePosition = vec3<f32>(
+    geometryPosition(vertexIndex * 3u),
+    geometryPosition(vertexIndex * 3u + 1u),
+    geometryPosition(vertexIndex * 3u + 2u),
   );
-  let lineB = vec3<f32>(
-    geometryPosition((lineBase + 1u) * 3u),
-    geometryPosition((lineBase + 1u) * 3u + 1u),
-    geometryPosition((lineBase + 1u) * 3u + 2u),
-  );
-  let lineClipA = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineA, lineBase), 1.0);
-  let lineClipB = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineB, lineBase + 1u), 1.0);
   var output: EdgeOutput;
-  output.position = lineExpandedPosition(
-    lineClipA,
-    lineClipB,
-    vertexIndex % 4u,
-    instance.lineWidth * camera.devicePixelRatio,
-  );
+  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(linePosition, vertexIndex), 1.0);
   if (!topologyOwnersVisible(slot, topologyIndex)) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }

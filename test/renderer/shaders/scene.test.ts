@@ -508,7 +508,7 @@ describe("GPU deformation shader contract", () => {
 
   it("draws circular node glyphs at model depth", () => {
     expect(pointVertexShader).toMatch(/output\.nodeDepth = clip\.z \/ clip\.w/);
-    expect(nodeOverlayFragmentShader).toMatch(/dot\(local, local\) > 1\.0/);
+    expect(nodeOverlayFragmentShader).toMatch(/radiusSquared > 1\.0/);
     expect(nodeOverlayFragmentShader).toMatch(/selected != 0u \|\| emissive > 0\.0/);
     expect(nodeOverlayFragmentShader).toMatch(/select\(vec3<f32>\(0\.0\), color\.rgb/);
   });
@@ -570,11 +570,10 @@ describe("GPU deformation shader contract", () => {
     expect(edgeVertexShader).toMatch(/output\.emissive = 0\.0/);
   });
 
-  it("expands visible authored edges in screen space", () => {
+  it("draws visible authored-edge endpoints through the native line path", () => {
     expect(edgeVertexShader).toMatch(/let topologyIndex = edgeId\(vertexIndex\)/);
-    expect(edgeVertexShader).toContain("lineExpandedPosition(");
-    expect(edgeVertexShader).toContain("instance.lineWidth * camera.devicePixelRatio");
-    expect(edgeVertexShader).toContain("vertexIndex % 4u");
+    expect(edgeVertexShader).toContain("geometryPosition(vertexIndex * 3u)");
+    expect(edgeVertexShader).not.toContain("lineExpandedPosition(");
     expect(edgeVertexShader).toMatch(/topologyOwnersVisible\(slot, topologyIndex\)/);
   });
 
@@ -601,9 +600,8 @@ describe("GPU deformation shader contract", () => {
   it("keeps overlay vertices at their model depth", () => {
     expect(edgeVertexShader).not.toMatch(/clip\.z\s*-/);
     expect(edgeVertexShader).toContain(
-      "let lineClipA = camera.viewProjection * instance.transform",
+      "output.position = camera.viewProjection * instance.transform",
     );
-    expect(edgeVertexShader).toContain("return vec4<f32>(clip.xy + ndcOffset * clip.w");
   });
 
   it("reserves the widened edge footprint in sloped surface depth", () => {
