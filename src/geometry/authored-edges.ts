@@ -1,7 +1,6 @@
 import { canonicalEdge, compareNodeIds, edgesOf } from "../elements/edges";
 import type { Element, ElementId, NodeId } from "../elements/element";
 import { facesOfElement, type FaceIdRef } from "../elements/faces";
-import { at } from "../elements/indices";
 import { canonicalKey } from "../elements/keys";
 import { topologyFor, type ElementTopology } from "../elements/shapes";
 import { faceIdentity } from "./element-face-selection";
@@ -11,23 +10,18 @@ import type { GeometryEdge } from "./types";
 export function authoredEdgesForElements(elements: readonly Element[]): readonly GeometryEdge[] {
   const byKey = new Map<string, MutableEdge>();
   for (const element of elements) {
-    const topology = topologyFor(element.shape);
-    const faceIndices = edgeFaceIndices(element, topology);
-    for (let edgeIndex = 0; edgeIndex < topology.edges.length; edgeIndex += 1) {
-      const [firstIndex, lastIndex] = at(topology.edges, edgeIndex);
-      const first = at(element.nodeIds, firstIndex);
-      const last = at(element.nodeIds, lastIndex);
-      const middleIndex = topology.edgeNodes[edgeIndex];
-      const middle = middleIndex === undefined ? undefined : at(element.nodeIds, middleIndex);
-      const key = edgeKey(first, last, middle);
-      let entry = byKey.get(key);
+    const edges = edgesOf(element);
+    const faceIndices = edgeFaceIndices(element, topologyFor(element.shape));
+    for (const [edgeIndex, edge] of edges.entries()) {
+      let entry = byKey.get(edge.key);
       if (entry === undefined) {
-        const nodeIds = canonicalEdge({
-          key,
-          nodeIds: middle === undefined ? [first, last] : [first, middle, last],
-        }).nodeIds;
-        entry = { key, nodeIds, incidentElementIds: [], faceRefs: [] };
-        byKey.set(key, entry);
+        entry = {
+          key: edge.key,
+          nodeIds: canonicalEdge(edge).nodeIds,
+          incidentElementIds: [],
+          faceRefs: [],
+        };
+        byKey.set(edge.key, entry);
       }
       entry.incidentElementIds.push(element.id);
       for (const faceIndex of faceIndices[edgeIndex] ?? []) {
@@ -65,11 +59,6 @@ function edgeFaceIndices(
   );
   edgeFacesByTopology.set(topology, faceIndices);
   return faceIndices;
-}
-
-function edgeKey(first: NodeId, last: NodeId, middle: NodeId | undefined): string {
-  if (middle === undefined) return first < last ? `${first},${last}` : `${last},${first}`;
-  return [first, middle, last].sort((a, b) => a - b).join(",");
 }
 
 /** One authored edge incidence before shared topology is deduplicated. */
