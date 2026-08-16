@@ -3,8 +3,14 @@ import { MAX_PART_ID, validatePartId, type Part, type PartId } from "../geometry
 import type { AssemblyId } from "./types";
 
 /**
- * The authoritative CPU-side scene: parts, assemblies, and their visibility.
- * Renderers sync deltas from this model; all updates are immutable.
+ * The authoritative CPU-side scene: part and assembly registries plus
+ * visibility state.
+ *
+ * A scene is the handoff from host-owned model authoring to
+ * {@link createFemViewport}. Its maps contain reusable definitions; transforms
+ * and occurrence identities live in {@link Placement} entries under the root
+ * assembly. The renderer compiles this immutable snapshot into a derived
+ * runtime, but never mutates or replaces the scene as the source of truth.
  * @category Start here
  */
 export interface Scene {
@@ -17,24 +23,29 @@ export interface Scene {
 
 /**
  * Mutable authoring transaction that snapshots one immutable {@link Scene}.
+ *
+ * Builder methods are intentionally chainable. `build()` copies the registries
+ * and visibility sets, validates references and acyclicity, and returns a
+ * snapshot safe to pass to {@link createFemViewport}; later builder calls do
+ * not change an already-built scene.
  * @category Scene and geometry
  */
 export interface SceneBuilder {
-  /** Selects the registered root assembly for the scene. */
+  /** Selects the registered root assembly that expands into the scene. */
   withRoot(rootAssemblyId: AssemblyId): SceneBuilder;
-  /** Registers one reusable part definition. */
+  /** Registers one reusable {@link Part} definition by its stable id. */
   addPart(part: Part): SceneBuilder;
-  /** Registers one named assembly definition. */
+  /** Registers one named assembly definition and validates its placements at build time. */
   addAssembly(assembly: NamedAssembly): SceneBuilder;
-  /** Hides a registered part from the scene. */
+  /** Hides every occurrence of a registered part definition. */
   hidePart(partId: PartId): SceneBuilder;
-  /** Shows a registered part in the scene. */
+  /** Shows every occurrence of a registered part definition. */
   showPart(partId: PartId): SceneBuilder;
-  /** Hides a registered assembly and its occurrences. */
+  /** Hides a registered assembly definition and all of its expanded occurrences. */
   hideAssembly(assemblyId: AssemblyId): SceneBuilder;
-  /** Shows a registered assembly and its occurrences. */
+  /** Shows a registered assembly definition and its expanded occurrences. */
   showAssembly(assemblyId: AssemblyId): SceneBuilder;
-  /** Validates and snapshots the accumulated state into an immutable scene. */
+  /** Validates references and snapshots the accumulated state into an immutable scene. */
   build(): Scene;
 }
 
@@ -291,8 +302,34 @@ function validateAcyclic(assemblies: ReadonlyMap<AssemblyId, Assembly>): void {
 }
 
 /**
- * Creates an empty mutable authoring transaction. `build()` returns an isolated
- * immutable scene snapshot; later builder updates cannot change prior scenes.
+ * Creates an empty mutable authoring transaction.
+ *
+ * The normal path is `addPart → addAssembly → withRoot → build`. A scene must
+ * have a registered root; all placement references must resolve to registered
+ * definitions and the assembly graph must be acyclic. `build()` returns an
+ * isolated immutable snapshot, so it is also the boundary used to prepare a
+ * candidate for {@link FemViewport.updateScene}.
+ * @example Register one reusable part and its root assembly.
+ * ```ts
+ * import { createPart, createScene, identity } from "femgx";
+ *
+ * const part = createPart(1, {
+ *   geometries: [{
+ *     primitive: "points",
+ *     positions: new Float32Array([0, 0, 0]),
+ *     indices: new Uint32Array([0]),
+ *   }],
+ * });
+ * const scene = createScene()
+ *   .addPart(part)
+ *   .addAssembly({
+ *     id: 2,
+ *     name: "root",
+ *     placements: [{ kind: "part", partId: 1, transform: identity() }],
+ *   })
+ *   .withRoot(2)
+ *   .build();
+ * ```
  * @category Start here
  */
 export function createScene(): SceneBuilder {

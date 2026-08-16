@@ -10,7 +10,10 @@ import type { ValueRange } from "../results/range";
 export type ViewportResultField = ScalarField<"nodal"> | ScalarField<"elemental">;
 
 /**
- * Optional nodal deformation attached to a result view.
+ * Optional authored nodal deformation attached to a result view.
+ *
+ * The field must contain three components per node. `scale` is a finite host
+ * presentation scale; femgx does not derive displacements or convert units.
  * @category Results
  */
 export interface ViewportDeformationConfig {
@@ -20,6 +23,12 @@ export interface ViewportDeformationConfig {
 
 /**
  * Configuration for the optional authored scalar role.
+ *
+ * Nodal scalars are interpolated across existing tessellation; elemental
+ * scalars are applied by authored element id. `range` and `colorMap` are
+ * presentation choices, not solver metadata. Omit the range for an automatic
+ * finite range, or provide one shared range when comparing host-owned
+ * snapshots.
  * @category Results
  */
 export interface ViewportScalarConfig {
@@ -30,6 +39,10 @@ export interface ViewportScalarConfig {
 
 /**
  * Configuration for the optional authored elemental vector role.
+ *
+ * This bounded role accepts one authored three-component vector per element and
+ * renders an `arrow` or `axis` using either `direction` or `normal` semantics.
+ * It does not derive engineering quantities, magnitudes, or tensor glyphs.
  * @category Results
  */
 export interface ViewportElementVectorConfig {
@@ -43,6 +56,18 @@ export interface ViewportElementVectorConfig {
 
 /**
  * One atomic, non-empty combination of authored result roles.
+ *
+ * Pass this object to {@link FemViewport.setResults}. Scalar coloring,
+ * deformation, and elemental orientation are validated together and installed
+ * as one snapshot, so hosts do not expose a mixed state while sequencing their
+ * own result cases. FemGx retains only the current snapshot.
+ * @example Combine an authored scalar snapshot with nodal deformation.
+ * ```ts
+ * viewport.setResults({
+ *   scalar: { field: temperature },
+ *   deformation: { field: displacement, scale: 1.5 },
+ * });
+ * ```
  * @category Results
  */
 export interface ViewportResultsConfig {

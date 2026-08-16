@@ -35,6 +35,9 @@ export const FIELD_COMPONENT_COUNT: Readonly<Record<FieldShape, number>> = {
  *
  * `values` is referenced, not copied, so it stays cheap for large models.
  * Treat the returned field (and its array) as immutable after construction.
+ * The `count`/length contract provides structural coverage; it does not require
+ * every authored value to be finite. `NaN` remains an explicit missing value,
+ * including for an entity that is rendered.
  * @category Results
  */
 export interface ResultField<S extends FieldShape, L extends FieldLocation> {
@@ -72,6 +75,11 @@ export type AnyResultField = ResultField<FieldShape, FieldLocation>;
 
 /**
  * Inputs for {@link createResultField}.
+ *
+ * `count` is the number of addressable model entities, not the number of finite
+ * values. For elemental fields it must exceed the highest element id that the
+ * scene references; individual entries may still be `NaN` when the source
+ * result is missing.
  * @category Results
  */
 export interface ResultFieldOptions<S extends FieldShape, L extends FieldLocation> {
@@ -86,7 +94,24 @@ export interface ResultFieldOptions<S extends FieldShape, L extends FieldLocatio
 
 /**
  * Creates a typed result field after validating the id, name, unit, entity
- * count, and value length. The value array is referenced, not copied.
+ * count, and value length. The value array is referenced, not copied; prepare
+ * and fill it before calling this function, then treat both the field and its
+ * array as immutable. Missing values should be encoded as `NaN`, not zero.
+ * @example Author a nodal scalar snapshot for a four-node model.
+ * ```ts
+ * import { createResultField, scalarRange } from "femgx";
+ *
+ * const temperature = createResultField({
+ *   id: "temperature-step-1",
+ *   name: "Temperature",
+ *   location: "nodal",
+ *   shape: "scalar",
+ *   count: 4,
+ *   unit: "degC",
+ *   values: new Float32Array([20, 40, Number.NaN, 30]),
+ * });
+ * const range = scalarRange(temperature); // finite values only
+ * ```
  * @category Results
  */
 export function createResultField<S extends FieldShape, L extends FieldLocation>(

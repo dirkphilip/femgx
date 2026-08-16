@@ -61,6 +61,40 @@ interface PreparedSceneReplacement {
 
 /**
  * Creates a fitted, interactive FEM viewport backed only by WebGPU.
+ *
+ * This asynchronous factory requests the supported-path adapter/device,
+ * compiles the supplied {@link root.Scene}, creates a fitted camera, installs
+ * standard canvas controls and resize synchronization, and returns the sole
+ * public lifecycle owner. It rejects with {@link root.WebGpuUnsupportedError} when
+ * the browser cannot provide a working WebGPU device; there is no CPU renderer
+ * fallback. A device loss can be reported through `onDeviceLost` and recovered
+ * with {@link root.FemViewport.recover}.
+ * @example Create and destroy a viewport.
+ * ```ts
+ * import { createFemViewport, createPart, createScene, identity } from "femgx";
+ *
+ * const canvas = document.querySelector<HTMLCanvasElement>("#viewport");
+ * if (canvas === null) throw new Error("Missing #viewport canvas");
+ * const part = createPart(1, {
+ *   geometries: [{
+ *     primitive: "points",
+ *     positions: new Float32Array([0, 0, 0]),
+ *     indices: new Uint32Array([0]),
+ *   }],
+ * });
+ * const scene = createScene()
+ *   .addPart(part)
+ *   .addAssembly({
+ *     id: 2,
+ *     name: "root",
+ *     placements: [{ kind: "part", partId: 1, transform: identity() }],
+ *   })
+ *   .withRoot(2)
+ *   .build();
+ * const viewport = await createFemViewport({ canvas, scene });
+ * // The host removes its own event listeners before destroying the viewport.
+ * viewport.destroy();
+ * ```
  * @category Start here
  */
 export async function createFemViewport(options: FemViewportOptions): Promise<FemViewport> {

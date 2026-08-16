@@ -7,6 +7,12 @@ import { invariantValue } from "./invariants";
 
 /**
  * A stable, query-only description of one placed part.
+ *
+ * `instanceId` identifies an expanded placement; `partId` identifies the
+ * reusable definition it references. The transform is a defensive world-space
+ * snapshot. Visibility fields describe effective runtime state and are not
+ * mutation handles; use {@link root.FemViewport.setInstanceVisible} for live
+ * changes.
  * @category Advanced runtime and WebGPU platform
  */
 export interface RuntimeInstance {
@@ -21,6 +27,11 @@ export interface RuntimeInstance {
 
 /**
  * A stable, query-only description of one expanded assembly occurrence.
+ *
+ * An occurrence is distinct from an assembly definition: placing the same
+ * `assemblyId` twice produces two occurrence ids with different parents and
+ * transforms. `instanceIds` contains only the direct placed parts in this
+ * occurrence; child occurrences are listed in `childIds`.
  * @category Advanced runtime and WebGPU platform
  */
 export interface RuntimeOccurrence {
@@ -36,6 +47,13 @@ export interface RuntimeOccurrence {
 
 /**
  * Public scene-runtime queries expressed only in stable handles.
+ *
+ * This is a defensive inspection facade over a compiled scene, not a renderer
+ * control surface. Collections and transforms are snapshots, runtime slots and
+ * GPU records are hidden, and live mutations belong to {@link root.FemViewport}.
+ * `viewport.runtime` is the current facade; reacquire it after scene
+ * replacement. Use {@link createSceneRuntime} only when a standalone CPU
+ * snapshot is the intended workflow.
  * @category Advanced runtime and WebGPU platform
  */
 export interface SceneRuntime {
@@ -205,6 +223,20 @@ export function createPublicSceneRuntime(packed: PackedSceneRuntime): SceneRunti
 
 /**
  * Compiles a scene into a stable-handle runtime for package consumers.
+ *
+ * The result is immutable CPU-side inspection state and does not request
+ * WebGPU. The canonical viewport creates and owns its live runtime internally;
+ * call this function for pre-render inspection or host-side queries that need
+ * no canvas.
+ * @example Inspect placed parts before creating a viewport.
+ * ```ts
+ * import { createSceneRuntime } from "femgx/runtime";
+ *
+ * const runtime = createSceneRuntime(scene);
+ * for (const instance of runtime.getInstances()) {
+ *   console.log(instance.instanceId, instance.partId, instance.transform);
+ * }
+ * ```
  * @category Advanced runtime and WebGPU platform
  */
 export function createSceneRuntime(scene: Scene): SceneRuntime {

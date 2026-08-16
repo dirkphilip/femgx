@@ -18,7 +18,9 @@ export type NodeId = number;
 /**
  * A typed finite element: a stable id, an explicit shape, and the ids of the
  * nodes it connects. `nodeIds` follow the canonical ordering for `shape`
- * (see `topologyFor` in `./shapes`).
+ * (see `topologyFor` in `./shapes`). The id is preserved into the compiled
+ * {@link root.Part} and is the identity used by element picking and elemental
+ * result fields; it is not a generated triangle index.
  * @category Elements and model editing
  */
 export interface Element {
@@ -32,7 +34,15 @@ export interface Element {
  *
  * Validates that the shape is supported, that the connectivity matches the
  * shape's node count, that node ids are non-negative integers, and that no node
- * is referenced twice. Returns a new element that owns a copy of `nodeIds`.
+ * is referenced twice. Returns a new element that owns a copy of `nodeIds`;
+ * the source connectivity may therefore be reused for another authoring
+ * operation.
+ * @example Author one triangle.
+ * ```ts
+ * import { TRIANGLE_SHAPE, createElement } from "femgx/model";
+ *
+ * const element = createElement(100, TRIANGLE_SHAPE, [0, 1, 2]);
+ * ```
  * @category Elements and model editing
  */
 export function createElement(

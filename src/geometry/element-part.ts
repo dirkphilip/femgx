@@ -35,8 +35,35 @@ interface ElementGroups {
 }
 
 /**
- * Builds one semantic part from a heterogeneous element model. Geometry remains
- * homogeneous inside each leaf, while element ownership is shared at part level.
+ * Builds one semantic part from a heterogeneous element model.
+ *
+ * Geometry remains homogeneous inside each renderer leaf, while one shared
+ * element table retains authored ids, shapes, bodies, blocks, and node-pick
+ * mappings at part level. This is the bridge between FE authoring and the
+ * canonical {@link root.Scene} workflow: compile once, then place the resulting
+ * definition through assemblies without copying geometry per occurrence.
+ *
+ * The compiler supports the product's linear and quadratic element families;
+ * quadratic elements are tessellated into deterministic straight primitives.
+ * `faceSubset` can restrict the emitted solid faces while preserving their
+ * authored face identities. Unsupported element shapes fail at this boundary
+ * rather than silently producing incomplete geometry.
+ * @example Compile a model and place its reusable part.
+ * ```ts
+ * import { createScene, identity } from "femgx";
+ * import { elementPart } from "femgx/model";
+ *
+ * const part = elementPart(10, model);
+ * const scene = createScene()
+ *   .addPart(part)
+ *   .addAssembly({
+ *     id: 20,
+ *     name: "root",
+ *     placements: [{ kind: "part", partId: part.id, transform: identity() }],
+ *   })
+ *   .withRoot(20)
+ *   .build();
+ * ```
  * @category Scene and geometry
  */
 export function elementPart(

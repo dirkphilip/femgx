@@ -135,10 +135,12 @@ viewport.fitView();
 ```
 
 A raw part has no implicit FE element or node semantics. Consequently, it is
-appropriate for generic display geometry, but it cannot provide authored
-element/node results or FE-topology edge identity unless those optional
-metadata tables are supplied in the `createPart` input. For typed FE data, use
-the next workflow.
+appropriate for generic display geometry. The optional metadata capabilities
+are separate: part-level `elements` provide elemental identity and elemental
+result mapping; node picking, nodal results, and deformation require
+part-level `nodePositions` plus per-geometry `nodePickIds`; authored FE-edge
+interaction requires per-geometry `edges`. For typed FE data, use the next
+workflow so `elementPart` supplies these mappings consistently.
 
 ## Workflow 2: author typed FE data and render it
 

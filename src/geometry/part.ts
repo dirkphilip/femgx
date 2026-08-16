@@ -39,8 +39,20 @@ export type PartId = number;
 export { MAX_PART_ID, validatePartId } from "./id-validation";
 
 /**
- * Reusable, immutable drawable geometry. Parts never own world transforms;
- * they are shared and instanced many times by assemblies.
+ * Reusable, immutable drawable geometry.
+ *
+ * A part is a local definition, not a placed object: it owns geometry and
+ * optional FE identity tables, while {@link root.PartPlacement} owns the transform
+ * that places it. Register one part in a {@link root.Scene} and reference it from
+ * multiple placements to preserve instancing. The renderer compiles the
+ * definition into shared GPU geometry; it never becomes the source of truth.
+ *
+ * A raw part with only `geometries` is valid display geometry. The metadata
+ * capabilities are deliberately separate: part-level `elements` provide
+ * elemental identity and elemental result mapping; node picking, nodal results,
+ * and deformation require part-level `nodePositions` plus per-geometry
+ * `nodePickIds`; authored edge interaction requires per-geometry `edges`.
+ * {@link model.elementPart} supplies these FE mappings consistently.
  * @category Start here
  */
 export interface Part {
@@ -57,11 +69,40 @@ export interface Part {
 const partBrand: unique symbol = Symbol("Part");
 
 /**
- * Validates and constructs one immutable part boundary. `createPart` retains
- * the supplied typed arrays without defensive copies and takes ownership of
- * them; callers must not mutate or reuse those arrays after this call. Bounds
- * are always derived from the supplied geometry, including the finite zero box
- * for an empty part, so callers cannot provide stale bounds.
+ * Validates and constructs one immutable part boundary.
+ *
+ * `input.geometries` is the required plural collection: each primitive kind
+ * (`triangles`, `lines`, or `points`) may occur at most once. Optional semantic
+ * tables describe the same local geometry and are validated together, so an
+ * element cannot point at a missing primitive group. Bounds are derived from
+ * geometry and cannot be supplied separately or become stale.
+ *
+ * The function retains the supplied typed arrays without defensive copies and
+ * takes ownership of them. Do not mutate or reuse those arrays after this call.
+ * For typed FE authoring, prefer `elementPart(partId, model)`, which supplies
+ * element tessellation, node positions, node-pick ids, and authored topology
+ * consistently.
+ * @example Create a display part, then place the definition in a scene.
+ * ```ts
+ * import { createPart, createScene, identity } from "femgx";
+ *
+ * const part = createPart(10, {
+ *   geometries: [{
+ *     primitive: "triangles",
+ *     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+ *     indices: new Uint32Array([0, 1, 2]),
+ *   }],
+ * });
+ * const scene = createScene()
+ *   .addPart(part)
+ *   .addAssembly({
+ *     id: 20,
+ *     name: "root",
+ *     placements: [{ kind: "part", partId: part.id, transform: identity() }],
+ *   })
+ *   .withRoot(20)
+ *   .build();
+ * ```
  * @category Start here
  */
 export function createPart(

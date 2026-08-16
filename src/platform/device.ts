@@ -13,6 +13,11 @@ export interface RequestedWebGpuDevice {
 /**
  * Requests an adapter and a device, throwing a typed `WebGpuUnsupportedError`
  * that explains *why* WebGPU is unavailable when creation fails.
+ *
+ * This is the explicit platform-ownership path for hosts that need the raw
+ * `GPUDevice`. The canonical application path is {@link root.createFemViewport},
+ * which owns the device lifecycle and recovery. A failed device request is a
+ * typed unsupported result, never permission to construct a CPU renderer.
  * @category Advanced runtime and WebGPU platform
  */
 export async function requestWebGpuDevice(
