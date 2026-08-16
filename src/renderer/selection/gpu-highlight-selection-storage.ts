@@ -79,6 +79,11 @@ export function writeDenseSelectionData(
   const bitsWord = view[5] ?? 0;
   const dataBase = HIGHLIGHT_HEADER / 4;
   view.fill(0xffffffff, dataBase + offsetWord, dataBase + bitsWord);
+  view.fill(
+    0,
+    dataBase + bitsWord,
+    dataBase + bitsWord + storage.selectionRecordCapacity * storage.selectionWordCapacity,
+  );
   if (selection === undefined) return;
   for (const [record, occurrence] of selection.occurrences.entries()) {
     view[dataBase + offsetWord + occurrence.slot] = record;
