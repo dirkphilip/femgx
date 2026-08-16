@@ -120,8 +120,9 @@ controller, so camera and interaction behavior is stable
   Point parts keep their primary glyphs without a duplicate annotation pass. The
   `edges` overlay is a real WebGPU pass with depth testing kept as an implementation
   invariant rather than exposed as a persistent user control. Coplanar overlay
-  edges are offset in clip space in their vertex shader, rather than using a
-  second surface or a backend-dependent pipeline depth bias. Shell triangles
+  edges use a line-width-bounded surface-depth reserve plus a format-native
+  one-unit pipeline bias, rather than a second surface or a pre-rasterization
+  clip-space offset. Shell triangles
   are two-sided by default, so a genuine 2D FE surface remains visible from
   either side. Every ordinary product story starts with edges and finite-element
   node annotations enabled; startup, preset switches, and Reset use the same

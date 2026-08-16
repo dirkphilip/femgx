@@ -43,27 +43,18 @@ fn fragmentMain(
 }
 `;
 
-/** Edge color pass with the minimum depth24 offset needed for coplanar lines. */
+/** Edge color pass; the depth-tested pipeline applies a format-native bias. */
 export const edgeFragmentShader = /* wgsl */ `
 ${sectionPlaneBindings}
 ${sectionPlaneFunction}
 
-struct EdgeFragmentOutput {
-  @location(0) color: vec4<f32>,
-  @builtin(frag_depth) depth: f32,
-};
-
 @fragment
 fn fragmentMain(
-  @builtin(position) fragmentPosition: vec4<f32>,
   @location(0) color: vec4<f32>,
   @location(2) @interpolate(flat) emissive: f32,
   @location(8) worldPosition: vec3<f32>,
-) -> EdgeFragmentOutput {
+) -> @location(0) vec4<f32> {
   if (color.a <= 0.0 || !sectionPlaneVisible(worldPosition)) { discard; }
-  var output: EdgeFragmentOutput;
-  output.color = vec4<f32>(color.rgb + vec3<f32>(emissive), color.a);
-  output.depth = max(fragmentPosition.z - 1.0 / 16777215.0, 0.0);
-  return output;
+  return vec4<f32>(color.rgb + vec3<f32>(emissive), color.a);
 }
 `;

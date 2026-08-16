@@ -6,10 +6,11 @@ import type { GpuCostAccumulator } from "../diagnostics/cost";
 /** Byte size of one instance record in the per-part storage buffer. */
 export const INSTANCE_STRIDE = 96;
 
-/** Bit flags packed into the instance record's selected word. */
+/** Selection and overlay-membership flags packed into one instance word. */
 export const INSTANCE_SELECTED_FLAG = 1;
 export const INSTANCE_EMPHASIS_FLAG = 2;
 export const INSTANCE_EDGE_EMPHASIS_FLAG = 4;
+export const INSTANCE_EDGE_OVERLAY_FLAG = 8;
 
 /**
  * Byte offset of the `emissive` scalar within an instance record. The record
@@ -157,7 +158,8 @@ export function encodeInstanceRecord(
   floats.set(transform, 0);
   floats.set([style.color.r, style.color.g, style.color.b, style.color.a * style.opacity], 16);
   floats[EMISSIVE_BYTE_OFFSET / 4] = style.emissive;
-  new Uint32Array(data)[22] = selected ? INSTANCE_SELECTED_FLAG : 0;
+  new Uint32Array(data)[22] =
+    (selected ? INSTANCE_SELECTED_FLAG : 0) | (style.edge ? INSTANCE_EDGE_OVERLAY_FLAG : 0);
   floats[LINE_WIDTH_BYTE_OFFSET / 4] = style.lineWidthPixels;
   return data;
 }
