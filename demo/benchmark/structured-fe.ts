@@ -1,6 +1,6 @@
 import { createElement, type Element, type NodeId } from "../../src/elements/element";
 import { createElementModel, type Body, type ElementModel } from "../../src/elements/model";
-import { facesOfElement, type FaceIdRef } from "../../src/elements/faces";
+import { boundaryFaceRefs, facesOfElement, type FaceIdRef } from "../../src/elements/faces";
 import { HEX20_SHAPE, HEX8_SHAPE, QUAD8_SHAPE, QUAD_SHAPE } from "../../src/elements/shapes";
 import { elementPart } from "../../src/geometry/element-part";
 import type { Part } from "../../src/geometry/part";
@@ -19,10 +19,15 @@ export function createStructuredFePart(
     name: `${family} structured body`,
     elementIds: model.elements.map((element) => element.id),
   };
-  const faceSubset = family === "quad" || family === "quad8" ? allSurfaceFaces(model) : undefined;
+  // This fixture has one body, so the static boundary skin cannot hide a
+  // cross-body interface. Multi-body parts must retain all faces for dynamic
+  // owner/neighbor visibility when a body is hidden.
+  const faceSubset =
+    family === "quad" || family === "quad8"
+      ? allSurfaceFaces(model)
+      : boundaryFaceRefs(model.elements);
   const authoredModel = createElementModel([...model.nodes], model.elements, { bodies: [body] });
-  const options = faceSubset === undefined ? {} : { faceSubset };
-  return elementPart(partId, authoredModel, options);
+  return elementPart(partId, authoredModel, { faceSubset });
 }
 
 /** Builds a deterministic shared-node structured model for one supported FE family. */
