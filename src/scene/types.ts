@@ -39,8 +39,6 @@ export interface ElementRef {
  * @category Scene and geometry
  */
 export interface Instance {
-  /** Index into the current visible draw list; it may change after culling. */
-  readonly index: number;
   /** Stable identity of the source placement, independent of visibility. */
   readonly instanceId: InstanceId;
   /** The part this instance draws. */
@@ -48,5 +46,3 @@ export interface Instance {
   /** World transform (column-major 4x4 matrix). */
   readonly worldTransform: Mat4;
 }
-
-export type { Mat4 } from "../math/mat4";

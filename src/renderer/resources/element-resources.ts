@@ -354,7 +354,6 @@ function occurrenceAt(
   if (partId === undefined || local === undefined || local < 0) return undefined;
   return {
     instance: {
-      index: slot,
       instanceId,
       partId,
       worldTransform: context.runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),

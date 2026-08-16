@@ -37,7 +37,7 @@ function rect(overrides: Partial<BoxSelectionRect> = {}): BoxSelectionRect {
 }
 
 function instance(partId = 1): Instance {
-  return { index: 0, instanceId: "root/0", partId, worldTransform: identity() };
+  return { instanceId: "root/0", partId, worldTransform: identity() };
 }
 
 function triangleGeometry(): Geometry {
@@ -133,7 +133,7 @@ describe("GPU pick regions", () => {
   ] as const)("resolves %s targets from minimal metadata", (granularity, pickIds, expected) => {
     const part = richTrianglePart();
     const context: PickContext = {
-      instances: [instance(), { ...instance(), index: 1, instanceId: "root/1" }],
+      instances: [instance(), { ...instance(), instanceId: "root/1" }],
       parts: new Map([[1, part]]),
     };
     expect(createPickRegionTargetResolver(context, granularity)(pickIds)).toEqual(expected);
@@ -143,7 +143,7 @@ describe("GPU pick regions", () => {
     const part = richTrianglePart();
     const unownedPart = createPart(2, { geometries: [triangleGeometry()] });
     const context: PickContext = {
-      instances: [instance(), { ...instance(), index: 1, instanceId: "root/1", partId: 2 }],
+      instances: [instance(), { ...instance(), instanceId: "root/1", partId: 2 }],
       parts: new Map([
         [1, part],
         [2, unownedPart],
@@ -164,7 +164,7 @@ describe("GPU pick regions", () => {
 
   it("reuses one part index while preserving occurrence-scoped targets", () => {
     const context: PickContext = {
-      instances: [instance(), { ...instance(), index: 1, instanceId: "root/1" }],
+      instances: [instance(), { ...instance(), instanceId: "root/1" }],
       parts: new Map([[1, richTrianglePart()]]),
     };
     const resolve = createPickRegionTargetResolver(context, "element");

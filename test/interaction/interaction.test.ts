@@ -31,8 +31,8 @@ const base: ResolvedStyle = {
   edge: false,
   nodes: false,
 };
-const item: Instance = { index: 0, instanceId: "1/0", partId: 1, worldTransform: identity() };
-const other: Instance = { index: 1, instanceId: "2/0", partId: 2, worldTransform: identity() };
+const item: Instance = { instanceId: "1/0", partId: 1, worldTransform: identity() };
+const other: Instance = { instanceId: "2/0", partId: 2, worldTransform: identity() };
 
 function filledState(): InteractionState {
   let state = createInteractionState();

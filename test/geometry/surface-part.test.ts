@@ -26,7 +26,7 @@ function ids(partial: Partial<ResolvedPickIds>): ResolvedPickIds {
 }
 
 function instance(): Instance {
-  return { index: 0, instanceId: "1/0", partId: 1, worldTransform: identity() };
+  return { instanceId: "1/0", partId: 1, worldTransform: identity() };
 }
 
 function triangleGeometry(part: ReturnType<typeof surfacePart>): TriangleGeometry {

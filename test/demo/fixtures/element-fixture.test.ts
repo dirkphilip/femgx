@@ -21,7 +21,7 @@ function runtimeInstances(fixture: Pick<ElementFixture, "scene">): readonly Inst
     const partId = runtime.getPartId(slot);
     const worldTransform = runtime.getTransform(slot);
     if (instanceId === undefined || partId === undefined || worldTransform === undefined) continue;
-    instances.push({ index, instanceId, partId, worldTransform });
+    instances.push({ instanceId, partId, worldTransform });
   }
   return instances;
 }

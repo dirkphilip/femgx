@@ -28,7 +28,7 @@ const base: ResolvedStyle = {
   edge: false,
   nodes: false,
 };
-const item: Instance = { index: 0, instanceId: "1/0", partId: 1, worldTransform: identity() };
+const item: Instance = { instanceId: "1/0", partId: 1, worldTransform: identity() };
 const ref = { instanceId: "1/0", bodyId: 3 } as const;
 
 describe("body interaction state", () => {
