@@ -1,10 +1,10 @@
 import {
   isTargetSelected,
-  type ElementId,
   type InstanceId,
   type InteractionState,
-  type SceneRuntime,
-} from "../../../src/index";
+} from "../../../src/entries/root";
+import type { ElementId } from "../../../src/entries/model";
+import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { WorkbenchInteraction } from "../interaction/interaction";
 import type { WorkbenchModel } from "../models/model";
 import type { WorkbenchElementDetailSnapshot } from "../results/snapshot";

@@ -1,4 +1,4 @@
-import type { PickHit } from "../../../src/index";
+import type { PickHit } from "../../../src/entries/root";
 
 export interface HoverPick {
   readonly clientX: number;

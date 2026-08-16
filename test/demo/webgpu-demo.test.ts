@@ -51,7 +51,7 @@ const mocks = vi.hoisted(() => {
 vi.mock("../../demo/workbench/controllers/controller", () => ({
   WorkbenchController: mocks.FakeWorkbenchController,
 }));
-vi.mock("../../src/index", async (importOriginal) => ({
+vi.mock("../../src/entries/root", async (importOriginal) => ({
   ...(await importOriginal()),
   createFemViewport: mocks.createFemViewport,
 }));

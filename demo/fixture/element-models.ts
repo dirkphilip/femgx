@@ -17,7 +17,7 @@ import {
   type Element,
   type ElementModel,
   type NodeId,
-} from "../../src/index";
+} from "../../src/entries/model";
 
 /**
  * Deterministic element-model builders for the fixture: shared-node hex and tet

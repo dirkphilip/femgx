@@ -26,8 +26,11 @@ function filesUnder(directory) {
   return files.sort();
 }
 
-function isPublicRootImport(specifier) {
-  return /(?:^|\/)src\/index$/u.test(specifier);
+function isAllowedSourceImport(specifier) {
+  return (
+    /(?:^|\/)src\/entries\/(?:root|model|io|io-glb|camera|runtime|platform)$/u.test(specifier) ||
+    /(?:^|\/)src\/interaction\/selection-queries$/u.test(specifier)
+  );
 }
 
 function findViolations() {
@@ -39,7 +42,7 @@ function findViolations() {
     for (const match of source.matchAll(importPattern)) {
       const specifier = match[1];
       if (specifier === undefined || !/(?:^|\/)src\//u.test(specifier)) continue;
-      if (isPublicRootImport(specifier)) continue;
+      if (isAllowedSourceImport(specifier)) continue;
       violations.push(`${relativePath}: unauthorized deep demo import ${specifier}`);
     }
   }

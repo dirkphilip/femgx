@@ -1,4 +1,8 @@
-import { createInteractionState, setPartOverride, type InteractionState } from "../../../src/index";
+import {
+  createInteractionState,
+  setPartOverride,
+  type InteractionState,
+} from "../../../src/entries/root";
 import type { ModelPreset } from "../../fixture/presets";
 import { createExampleModel, partStyleOverride, type WorkbenchModel } from "../models/model";
 

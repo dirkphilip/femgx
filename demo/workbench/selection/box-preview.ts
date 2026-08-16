@@ -1,4 +1,4 @@
-import type { BoxSelectionEvent, BoxSelectionRect } from "../../../src/index";
+import type { BoxSelectionEvent, BoxSelectionRect } from "../../../src/entries/root";
 
 /**
  * Renders the library's box-selection lifecycle onto one demo overlay element

@@ -1,12 +1,7 @@
 import sampleBlockVtk from "./sample-block.vtk?raw";
-import {
-  createResultFieldFromModelResult,
-  parseVtk,
-  type FemModel,
-  type PartId,
-  type ScalarField,
-  type ViewportResultsConfig,
-} from "../../src/index";
+import { createResultFieldFromModelResult, parseVtk } from "../../src/entries/io";
+import type { FemModel } from "../../src/entries/io";
+import type { PartId, ScalarField, ViewportResultsConfig } from "../../src/entries/root";
 import { createVtkScene } from "./vtk-scene";
 
 /** The imported VTK asset and its canonical triangle part. */

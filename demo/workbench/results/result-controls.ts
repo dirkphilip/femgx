@@ -3,7 +3,7 @@ import type {
   VectorField,
   ViewportElementVectorConfig,
   ViewportResultsConfig,
-} from "../../../src/index";
+} from "../../../src/entries/root";
 import type { WorkbenchModel } from "../models/model";
 import type { ResultDisplayMode } from "../types";
 

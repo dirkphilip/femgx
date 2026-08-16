@@ -1,4 +1,5 @@
-import { createSceneRuntime, transformPoint, type Bounds, type Scene } from "../src/index";
+import { transformPoint, type Bounds, type Scene } from "../src/entries/root";
+import { createSceneRuntime } from "../src/entries/runtime";
 
 /** Returns the union of all placed part bounds in a demo scene. */
 export function sceneBounds(

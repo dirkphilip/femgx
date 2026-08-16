@@ -1,4 +1,4 @@
-import type { FemViewport, InteractionState } from "../../../src/index";
+import type { FemViewport, InteractionState } from "../../../src/entries/root";
 import type { DemoView, WorkbenchPane, ViewportSlotId } from "./view";
 import { errorMessage, type WorkbenchModel } from "../models/model";
 import type { TouchInteractionMode, WorkbenchOptions } from "../types";

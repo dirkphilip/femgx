@@ -1,10 +1,10 @@
 import {
   setTargetHovered,
-  type ElementId,
   type InstanceId,
   type InteractionState,
   type FemViewport,
-} from "../../../src/index";
+} from "../../../src/entries/root";
+import type { ElementId } from "../../../src/entries/model";
 import {
   interactionTargetForRow,
   visibilityRowTargetsEqual,

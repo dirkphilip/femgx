@@ -1,19 +1,20 @@
 import {
-  boundaryFaceRefs,
-  createElementModelFromFemModel,
-  createResultFieldFromModelResult,
   createScene,
-  elementPart,
   identity,
   type Bounds,
   type Color,
-  type ElementModel,
-  type FemModel,
   type PartId,
   type Scene,
   type StyleOverride,
   type ViewportResultsConfig,
-} from "../../src/index";
+} from "../../src/entries/root";
+import {
+  createElementModelFromFemModel,
+  createResultFieldFromModelResult,
+} from "../../src/entries/io";
+import { boundaryFaceRefs, elementPart } from "../../src/entries/model";
+import type { ElementModel } from "../../src/entries/model";
+import type { FemModel } from "../../src/entries/io";
 
 /** The canonical scene data derived from one parsed VTK finite-element model. */
 export interface VtkScene {

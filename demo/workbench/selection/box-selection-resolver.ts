@@ -1,4 +1,4 @@
-import type { BoxSelectionEvent, FemViewport, InteractionTarget } from "../../../src/index";
+import type { BoxSelectionEvent, FemViewport, InteractionTarget } from "../../../src/entries/root";
 import type { SelectionGranularity } from "./pick";
 
 /** Candidate discovery strategy shared by every workbench viewport. */

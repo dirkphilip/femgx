@@ -1,10 +1,6 @@
 import {
-  createElement,
-  createElementModel,
   createResultField,
   createScene,
-  QUAD_SHAPE,
-  elementPart,
   identity,
   multiply,
   rotationZ,
@@ -12,7 +8,13 @@ import {
   translation,
   type PartId,
   type VectorField,
-} from "../../src/index";
+} from "../../src/entries/root";
+import {
+  createElement,
+  createElementModel,
+  elementPart,
+  QUAD_SHAPE,
+} from "../../src/entries/model";
 import type { AuthoredResultSequence, ModelPreset } from "./presets";
 import { sceneBounds } from "../scene-bounds";
 

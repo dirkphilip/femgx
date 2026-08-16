@@ -1,12 +1,7 @@
-import type {
-  BodyId,
-  Camera,
-  ElementId,
-  InstanceId,
-  InteractionState,
-  SceneRuntime,
-  ViewportBackground,
-} from "../../../src/index";
+import type { InstanceId, InteractionState, ViewportBackground } from "../../../src/entries/root";
+import type { BodyId, ElementId } from "../../../src/entries/model";
+import type { Camera } from "../../../src/entries/camera";
+import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { WorkbenchModel } from "../models/model";
 import type { SelectionGranularity } from "../selection/pick";
 import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";

@@ -1,4 +1,4 @@
-import type { ViewportBackground } from "../../../src/index";
+import type { ViewportBackground } from "../../../src/entries/root";
 import type { SelectionGranularity } from "../selection/pick";
 
 /** Parses the supported background choices from DOM input. */

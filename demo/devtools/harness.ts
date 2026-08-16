@@ -1,4 +1,4 @@
-import type { BoxSelectionRect, InteractionGranularity } from "../../src/index";
+import type { BoxSelectionRect, InteractionGranularity } from "../../src/entries/root";
 
 export interface DemoHarnessOptions {
   readonly testAlphaZero: boolean;

@@ -1,12 +1,10 @@
 import {
   interactionTargetFromHit,
-  type ElementBlockId,
-  type ElementId,
-  type BodyId,
   type InteractionGranularity,
   type InteractionTarget,
   type PickHit,
-} from "../../../src/index";
+} from "../../../src/entries/root";
+import type { BodyId, ElementBlockId, ElementId } from "../../../src/entries/model";
 
 /** The user-selectable workbench interaction granularities. */
 export type SelectionGranularity = Extract<

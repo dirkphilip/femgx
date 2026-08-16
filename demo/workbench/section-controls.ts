@@ -1,4 +1,4 @@
-import type { Bounds, SectionPlane } from "../../src/index";
+import type { Bounds, SectionPlane } from "../../src/entries/root";
 
 export type SectionAxis = "off" | "x" | "y" | "z";
 

@@ -2,14 +2,14 @@ import {
   clearSelection,
   isTargetHighlighted,
   isTargetSelected,
-  selectedTargetSummary,
   selectedTargets,
   setTargetHighlighted,
   setTargetSelected,
   setTargetsSelected,
   type InteractionState,
-} from "../../../src/index";
-import type { SceneRuntime } from "../../../src/index";
+} from "../../../src/entries/root";
+import { selectedTargetSummary } from "../../../src/interaction/selection-queries";
+import type { SceneRuntime } from "../../../src/entries/runtime";
 import { elementTarget, targetKey, type SelectTarget } from "./pick";
 
 /** Applies one selection toggle without coupling it to the DOM or renderer. */

@@ -1,18 +1,20 @@
 import {
-  createElementModel,
   createScene,
-  elementPart,
   multiply,
   scale,
-  surfacePart,
   translation,
   type AssemblyId,
   type Bounds,
-  type ElementModel,
   type Part,
   type PartId,
   type Scene,
-} from "../../src/index";
+} from "../../src/entries/root";
+import {
+  createElementModel,
+  elementPart,
+  surfacePart,
+  type ElementModel,
+} from "../../src/entries/model";
 import {
   buildHex20CylinderModel,
   buildHexModel,

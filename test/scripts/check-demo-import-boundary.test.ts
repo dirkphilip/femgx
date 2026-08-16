@@ -36,8 +36,25 @@ function runCheck(root: string): { readonly status: number; readonly stderr: str
 }
 
 describe("check-demo-import-boundary", () => {
-  it("accepts public root imports", () => {
+  it("accepts explicit package entry imports", () => {
+    const root = makeDemo({
+      "ordinary.ts": 'import { createScene } from "../src/entries/root";\n',
+    });
+    expect(runCheck(root).status).toBe(0);
+  });
+
+  it("rejects broad internal root imports", () => {
     const root = makeDemo({ "ordinary.ts": 'import { createScene } from "../src/index";\n' });
+    const result = runCheck(root);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("unauthorized deep demo import ../src/index");
+  });
+
+  it("retains only the narrow internal selection-query exception", () => {
+    const root = makeDemo({
+      "ordinary.ts":
+        'import { selectedTargetCount } from "../src/interaction/selection-queries";\n',
+    });
     expect(runCheck(root).status).toBe(0);
   });
 

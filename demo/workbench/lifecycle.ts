@@ -1,4 +1,4 @@
-import { installBoxSelection } from "../../src/index";
+import { installBoxSelection } from "../../src/entries/root";
 import type { WorkbenchPane } from "./viewport/view";
 import type { WorkbenchBoxPreview } from "./selection/box-preview";
 import type { WorkbenchInteraction } from "./interaction/interaction";

@@ -1,12 +1,12 @@
 import type {
   AssemblyOccurrenceId,
-  BodyId,
   GeometryElementBlock,
   GeometryBody,
   InstanceId,
   PartId,
-  SceneRuntime,
-} from "../../../src/index";
+} from "../../../src/entries/root";
+import type { BodyId } from "../../../src/entries/model";
+import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { WorkbenchModel } from "../models/model";
 import { assemblyName } from "./visibility-tree";
 import type {

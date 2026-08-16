@@ -5,7 +5,7 @@ import {
   type ElementTessellation,
   type FemViewport,
   type Part,
-} from "../../../src/index";
+} from "../../../src/entries/root";
 import type { WorkbenchInteraction } from "../interaction/interaction";
 import type { SelectionGranularity, SelectTarget } from "./pick";
 
