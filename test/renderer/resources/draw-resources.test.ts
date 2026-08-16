@@ -6,6 +6,7 @@ import {
   destroyDrawResources,
   EMISSIVE_BYTE_OFFSET,
   encodeInstanceRecord,
+  INSTANCE_EDGE_OVERLAY_FLAG,
   INSTANCE_EMPHASIS_FLAG,
   INSTANCE_SELECTED_FLAG,
   patchInstances,
@@ -526,6 +527,12 @@ describe("GPU draw path", () => {
     expect(ids[20]).toBe(7);
     expect(new Float32Array(data, EMISSIVE_BYTE_OFFSET, 1)[0]).toBeCloseTo(0.4);
     expect(floats[23]).toBeCloseTo(7);
+  });
+
+  it("encodes whether the occurrence requests its edge overlay", () => {
+    const style = { ...defaultStyle, edge: true };
+    const flags = new Uint32Array(encodeInstanceRecord(translation(0, 0, 0), style, 1));
+    expect(flags[22]).toBe(INSTANCE_EDGE_OVERLAY_FLAG);
   });
 
   it("preserves the maximum direct-u32 part identity in instance storage", () => {

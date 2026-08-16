@@ -187,6 +187,11 @@ ${linePass ? lineExpandedPosition() : "  output.position = camera.viewProjection
   output.selected = select(0u, 1u, selected);
   output.resultColor = baseResultColor;
   output.resultColorEnabled = select(0u, 1u, resultColorEnabled);
+  output.edgeDepthRadius = select(
+    0.0,
+    instance.lineWidth * camera.devicePixelRatio * 0.70710678,
+    instanceHasEdgeOverlay(instance.selected),
+  );
   if (!${visibility}) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
@@ -359,6 +364,7 @@ ${bodyAndElementHighlighting}
   output.selected = select(0u, 1u, selected);
   output.resultColor = baseResultColor;
   output.resultColorEnabled = select(0u, 1u, resultColorEnabled);
+  output.edgeDepthRadius = 0.0;
   return output;
 }
 

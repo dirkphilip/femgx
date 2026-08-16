@@ -606,9 +606,20 @@ describe("GPU deformation shader contract", () => {
     expect(edgeVertexShader).toContain("return vec4<f32>(clip.xy + ndcOffset * clip.w");
   });
 
-  it("resolves coplanar line depth by one depth24 unit after rasterization", () => {
-    expect(edgeFragmentShader).toMatch(/@builtin\(position\) fragmentPosition/);
-    expect(edgeFragmentShader).toMatch(/@builtin\(frag_depth\) depth/);
-    expect(edgeFragmentShader).toContain("fragmentPosition.z - 1.0 / 16777215.0");
+  it("reserves the widened edge footprint in sloped surface depth", () => {
+    expect(instanceVertexShader).toContain("instanceHasEdgeOverlay(instance.selected)");
+    expect(instanceVertexShader).toContain("camera.devicePixelRatio");
+    expect(instanceVertexShader).toMatch(/output\.edgeDepthRadius\s*=/);
+    expect(triangleColorFragmentShader).toMatch(/@builtin\(position\) fragmentPosition/);
+    expect(triangleColorFragmentShader).toMatch(/@location\(12\).*edgeDepthRadius/);
+    expect(triangleColorFragmentShader).toMatch(/dpdx\(fragmentPosition\.z\)/);
+    expect(triangleColorFragmentShader).toMatch(/dpdy\(fragmentPosition\.z\)/);
+    expect(triangleColorFragmentShader).toContain("depthSlope == depthSlope");
+    expect(triangleColorFragmentShader).toMatch(/@builtin\(frag_depth\) depth/);
+  });
+
+  it("leaves coplanar line depth bias to the edge pipeline", () => {
+    expect(edgeFragmentShader).not.toMatch(/@builtin\(frag_depth\)/);
+    expect(edgeFragmentShader).not.toContain("16777215");
   });
 });

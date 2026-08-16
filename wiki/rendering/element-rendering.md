@@ -123,12 +123,14 @@ for filled surfaces, GPU picking, deformation, edges, and node annotations.
 Triangle pipelines do not cull back faces by default: 2D FE shells are valid
 geometry and must remain inspectable from either side. The edge shader applies
 the same transform as the surface shader, and the depth-tested edge pipeline
-uses `less-equal`: coplanar edges pass at their exact surface depth while edges
-behind nearer geometry remain occluded. Because line and triangle rasterization
-can quantize the same geometric depth differently, the edge fragment shader
-pulls the final line depth forward by one 24-bit depth-buffer unit. Do not pull
-overlay vertices toward the camera in clip space: the larger pre-rasterization
-offset can move a genuinely occluded edge in front of a nearby surface.
+uses `less-equal`. For an occurrence with edges enabled, the opaque surface
+depth is moved away by the screen-space depth gradient across the expanded
+edge's half-diagonal. That bounded reserve covers both the side and square-cap
+pixels of a sloped edge quad; occurrences without edges keep their exact depth.
+The edge pipeline additionally applies a format-native `depthBias: -1` for the
+remaining rasterization quantization. Do not pull overlay vertices toward the
+camera in clip space: that unbounded pre-rasterization offset can move a
+genuinely occluded edge in front of a nearby surface.
 
 Edge visibility is keyed by an explicit expanded-endpoint record. Each line
 endpoint retains its original source-vertex index while upload builds an

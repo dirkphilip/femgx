@@ -396,7 +396,17 @@ async function createEdgePipelines(
         ],
       },
       primitive: { topology: "triangle-list", cullMode: "none" },
-      depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare },
+      depthStencil: {
+        format: depthFormat,
+        depthWriteEnabled: false,
+        depthCompare,
+        ...(depthCompare === "less-equal"
+          ? {
+              // Ordinary 0-near/1-far depth needs one native unit toward the camera.
+              depthBias: -1,
+            }
+          : {}),
+      },
       multisample: { count: COLOR_SAMPLE_COUNT },
     });
   const [edgePipeline, edgeAlwaysPipeline] = await Promise.all([
