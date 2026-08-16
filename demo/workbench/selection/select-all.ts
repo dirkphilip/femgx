@@ -44,6 +44,10 @@ export function selectAllTargets(
     );
     if (granularity === "element") {
       for (const elementId of elementIds) targets.push({ kind: "element", instanceId, elementId });
+    } else if (granularity === "body") {
+      appendBodies(targets, part, instanceId, elementIds);
+    } else if (granularity === "block") {
+      appendBlocks(targets, part, instanceId, elementIds);
     } else if (granularity === "face") {
       appendFaces(targets, part, instanceId, elementIds);
     } else if (granularity === "node") {
@@ -53,6 +57,32 @@ export function selectAllTargets(
     }
   }
   return targets;
+}
+
+function appendBodies(
+  targets: SelectTarget[],
+  part: Part,
+  instanceId: string,
+  elementIds: ReadonlySet<number>,
+): void {
+  for (const body of part.bodies ?? []) {
+    if (body.elementIds.some((elementId) => elementIds.has(elementId))) {
+      targets.push({ kind: "body", instanceId, bodyId: body.id });
+    }
+  }
+}
+
+function appendBlocks(
+  targets: SelectTarget[],
+  part: Part,
+  instanceId: string,
+  elementIds: ReadonlySet<number>,
+): void {
+  for (const block of part.blocks ?? []) {
+    if (block.elementIds.some((elementId) => elementIds.has(elementId))) {
+      targets.push({ kind: "block", instanceId, blockId: block.id });
+    }
+  }
 }
 
 function visibleElements(

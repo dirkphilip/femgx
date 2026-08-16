@@ -25,13 +25,15 @@ describe("workbench box-selection strategy", () => {
   });
 
   it("falls back to Visible when Through is requested outside Element granularity", () => {
-    const owner = {
-      boxSelectionStrategy: "through-intersection" as const,
-      selectionGranularity: "face" as const,
-    } as unknown as Parameters<typeof normalizeBoxSelectionStrategyForGranularity>[0];
+    for (const selectionGranularity of ["body", "block", "face"] as const) {
+      const owner = {
+        boxSelectionStrategy: "through-intersection" as const,
+        selectionGranularity,
+      } as unknown as Parameters<typeof normalizeBoxSelectionStrategyForGranularity>[0];
 
-    normalizeBoxSelectionStrategyForGranularity(owner);
+      normalizeBoxSelectionStrategyForGranularity(owner);
 
-    expect(owner.boxSelectionStrategy).toBe("visible-surface");
+      expect(owner.boxSelectionStrategy).toBe("visible-surface");
+    }
   });
 });

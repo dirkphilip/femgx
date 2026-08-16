@@ -21,12 +21,19 @@ import {
   hasVisibleSelection,
 } from "../../demo/workbench/selection/selection";
 import type { SelectTarget } from "../../demo/workbench/selection/pick";
+import { parseSelectionGranularity } from "../../demo/workbench/state/workbench-values";
 
 const part: SelectTarget = { kind: "part", partId: 4 };
 const instance: SelectTarget = { kind: "instance", instanceId: "1/0" };
 const element: SelectTarget = { kind: "element", instanceId: "1/0", elementId: 7 };
 
 describe("demo selection policy", () => {
+  it("accepts body and block as selectable toolbar granularities", () => {
+    expect(parseSelectionGranularity("body")).toBe("body");
+    expect(parseSelectionGranularity("block")).toBe("block");
+    expect(parseSelectionGranularity("unknown")).toBeUndefined();
+  });
+
   it("replaces plain-click selection while modifier toggles support additive selection", () => {
     const first = toggleSelection(createInteractionState(), part);
     const replaced = replaceSelection(first, element);
@@ -106,6 +113,37 @@ describe("demo selection policy", () => {
       instanceId: "1/0",
       elementId: 7,
       blockId: 2,
+    });
+  });
+
+  it("maps authored body and block picks to occurrence-scoped targets", () => {
+    const hit: PickHit = {
+      kind: "face",
+      partId: 4,
+      instanceId: "1/0",
+      elementId: 7,
+      bodyId: 2,
+      blockId: 5,
+      faceIndex: 1,
+      key: "face-key",
+      nodeIds: [1, 2, 3],
+      neighborElementIds: [],
+      worldPosition: [0, 0, 0],
+      normal: [0, 0, 1],
+    };
+
+    expect(selectTarget(hit, "body", modifiersForTest())).toEqual({
+      kind: "body",
+      instanceId: "1/0",
+      bodyId: 2,
+    });
+    expect(selectTarget(hit, "block", modifiersForTest())).toEqual({
+      kind: "block",
+      instanceId: "1/0",
+      blockId: 5,
+    });
+    expect(selectTarget(hit, "body", { ...modifiersForTest(), shiftKey: true })).toMatchObject({
+      kind: "body",
     });
   });
 

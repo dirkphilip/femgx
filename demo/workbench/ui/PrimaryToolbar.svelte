@@ -146,10 +146,12 @@
       data-testid="selection-granularity"
       aria-label="Selection granularity"
       aria-describedby="interaction-help"
-      title="Choose whether click and box selection targets elements, faces, nodes, or authored edges."
+      title="Choose whether click and box selection targets bodies, blocks, elements, faces, nodes, or authored edges."
       value={snapshot?.toolbar.selectionGranularity ?? "element"}
       onchange={setSelectionGranularity}
     >
+      <option value="body">Body</option>
+      <option value="block">Block</option>
       <option value="element">Element</option>
       <option value="face">Face</option>
       <option value="node">Node</option>
@@ -323,9 +325,10 @@
     {snapshot?.overlays.feedback?.message ?? ""}
   </div>
   <p id="interaction-help" data-testid="interaction-help" class="interaction-help">
-    Element: click or drag to replace. Face/Node use the same gesture. Hold Ctrl or ⌘ to toggle.
-    Shift keeps element selection. Alt selects an instance. Edge selects authored occurrence-scoped
-    topology; shared edges remain edges when Shift is held. Through is unavailable for Edge. Press Z
-    to frame the visible selection, or the complete model when none is eligible.
+    Body/Block/Element/Face/Node use the same gesture. Hold Ctrl or ⌘ to toggle. Shift promotes
+    Face/Node to the owning element. Alt selects an instance. Edge selects authored
+    occurrence-scoped topology; shared edges remain edges when Shift is held. Through is available
+    only for Element. Press Z to frame the visible selection, or the complete model when none is
+    eligible.
   </p>
 </div>

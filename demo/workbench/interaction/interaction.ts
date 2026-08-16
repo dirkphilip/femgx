@@ -427,7 +427,7 @@ export class WorkbenchInteraction {
 }
 
 function selectableTargets(targets: readonly InteractionTarget[]): SelectTarget[] {
-  return targets.filter((target): target is SelectTarget => target.kind !== "body");
+  return [...targets];
 }
 
 function selectionNoun(granularity: SelectionGranularity, count: number): string {

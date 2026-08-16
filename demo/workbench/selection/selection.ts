@@ -75,9 +75,7 @@ export function toggleHighlight(
 
 /** Stable selection keys used by demo diagnostics and e2e assertions. */
 export function selectedKeys(interaction: InteractionState): string[] {
-  return selectedTargets(interaction)
-    .filter((target): target is SelectTarget => target.kind !== "body")
-    .map(targetKey);
+  return selectedTargets(interaction).map(targetKey);
 }
 
 /** Returns whether the current selection contains geometry in a visible occurrence. */

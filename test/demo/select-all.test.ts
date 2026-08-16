@@ -11,6 +11,8 @@ const instanceId = "root/part";
 
 describe("workbench select all", () => {
   it.each([
+    ["body", ["body:10"]],
+    ["block", ["block:30"]],
     ["element", ["element:1"]],
     ["face", ["face:1:0"]],
     ["node", ["node:0", "node:1", "node:2"]],
@@ -62,6 +64,14 @@ function mixedPart(): Part {
         edges: [edge("0:1", [0, 1], [1]), edge("1:2", [1, 2], [1, 2]), edge("2:3", [2, 3], [2])],
       },
     ],
+    bodies: [
+      { id: 10, elementIds: [1] },
+      { id: 20, elementIds: [2] },
+    ],
+    blocks: [
+      { id: 30, elementIds: [1] },
+      { id: 40, elementIds: [2] },
+    ],
   } as unknown as Part;
 }
 
@@ -83,6 +93,10 @@ function edge(key: string, nodeIds: number[], incidentElementIds: number[]) {
 
 function targetLabel(target: ReturnType<typeof selectAllTargets>[number]): string {
   switch (target.kind) {
+    case "body":
+      return `body:${target.bodyId}`;
+    case "block":
+      return `block:${target.blockId}`;
     case "element":
       return `element:${target.elementId}`;
     case "face":
@@ -93,7 +107,6 @@ function targetLabel(target: ReturnType<typeof selectAllTargets>[number]): strin
       return `edge:${target.key}`;
     case "part":
     case "instance":
-    case "block":
       return target.kind;
   }
 }
