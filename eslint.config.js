@@ -16,7 +16,6 @@ export default tseslint.config(
       ".vite",
       "playwright-report",
       "test-results",
-      ".supervisor/run",
     ],
   },
   js.configs.recommended,
