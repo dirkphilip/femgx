@@ -1,4 +1,3 @@
-import { compareNodeIds } from "../elements/edges";
 import type {
   ElementTessellation,
   FaceTessellation,
@@ -19,11 +18,6 @@ interface FaceMetadata {
   readonly faceId: number;
 }
 
-interface EdgeMetadata {
-  readonly edge: GeometryEdge;
-  readonly edgePickId: number;
-}
-
 /** Immutable semantic lookups shared by renderer interaction and viewport reconciliation. */
 export interface PartSemanticIndex {
   readonly elements: ReadonlyMap<ElementId, ElementTessellation>;
@@ -35,7 +29,7 @@ export interface PartSemanticIndex {
   readonly blockByElement: ReadonlyMap<ElementId, ElementBlockId>;
   readonly bodyByBlock: ReadonlyMap<ElementBlockId, BodyId>;
   readonly faces: ReadonlyMap<string, FaceMetadata>;
-  readonly edges: ReadonlyMap<string, EdgeMetadata>;
+  readonly edges: ReadonlyMap<string, GeometryEdge>;
   readonly nodeCount: number;
 }
 
@@ -87,13 +81,11 @@ function buildPartSemanticIndex(part: Part): PartSemanticIndex {
       faces.set(faceIdentity(face.elementId, face.faceIndex), { face, faceId });
     }
   }
-  const edges = new Map<string, EdgeMetadata>();
-  const authoredEdges = [...part.geometries.flatMap((geometry) => geometry.edges ?? [])].sort(
-    (left, right) => compareNodeIds(left.nodeIds, right.nodeIds),
+  const edges = new Map(
+    part.geometries.flatMap((geometry) =>
+      (geometry.edges ?? []).map((edge) => [edge.key, edge] as const),
+    ),
   );
-  for (const [edgePickId, edge] of authoredEdges.entries()) {
-    edges.set(edge.key, { edge, edgePickId: edgePickId + 1 });
-  }
   return {
     elements,
     elementOrdinalById,

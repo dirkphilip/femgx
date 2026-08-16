@@ -236,7 +236,7 @@ function collectEdges(
     for (let corner = 0; corner < 3; corner++) {
       const a = corners[corner] ?? 0;
       const b = corners[(corner + 1) % 3] ?? 0;
-      const segmentKey = nodeEdgeKey(geometry, a, b);
+      const segmentKey = edgeKey(geometry, a, b);
       if (elementEdges !== undefined && !elementEdges.has(segmentKey)) {
         continue;
       }
@@ -358,12 +358,4 @@ function edgeKey(geometry: Geometry, a: number, b: number): string {
 
 function triangleKey(a: number, b: number, c: number): string {
   return `${a},${b},${c}`;
-}
-
-/** Maps two tessellated vertex indices to their FE node edge key. */
-function nodeEdgeKey(geometry: Geometry, a: number, b: number): string {
-  const nodeIds = geometry.nodePickIds;
-  const nodeA = nodeIds?.[a] ?? 0;
-  const nodeB = nodeIds?.[b] ?? 0;
-  return `${Math.min(nodeA, nodeB)},${Math.max(nodeA, nodeB)}`;
 }

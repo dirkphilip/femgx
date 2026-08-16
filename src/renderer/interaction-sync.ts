@@ -214,7 +214,12 @@ export function syncInteractionEmphasis(
     options.runtime,
     options.layout,
     options.slotByInstanceId,
-    { parts: options.parts, interaction: options.interaction, denseSelections },
+    {
+      parts: options.parts,
+      interaction: options.interaction,
+      denseSelections,
+      edgeKeysByPart: renderedEdgeKeys(options.bundle.draw),
+    },
   );
   syncElementHighlights(
     {
@@ -251,6 +256,16 @@ export function syncInteractionEmphasis(
     affectedParts: options.affectedParts,
     emphasisUpdates,
   });
+}
+
+function renderedEdgeKeys(draw: GpuBundle["draw"]): ReadonlyMap<PartId, readonly string[]> {
+  const keys = new Map<PartId, readonly string[]>();
+  for (const [partId, resources] of draw.primitiveParts) {
+    const triangles = resources.get("triangles");
+    const edgeKeys = triangles?.edgePick?.edgeKeys ?? triangles?.edge?.edgeKeys;
+    if (edgeKeys !== undefined) keys.set(partId, edgeKeys);
+  }
+  return keys;
 }
 
 /** Returns the reusable parts touched by a set of global runtime slots. */
