@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { submittedTriangleCount } from "../../demo/benchmark/measurement";
+import { authoredElementTargets } from "../../demo/benchmark/selection";
 import {
   benchmarkCaseSpecs,
   createBenchmarkCase,
@@ -217,6 +218,19 @@ describe("WebGPU benchmark models", () => {
     expect(submittedTriangleCount(hex20Case, hex20Runtime, false)).toBe(1_296);
     expect(submittedTriangleCount(hex8Case, hex8Runtime, true)).toBe(768);
     expect(submittedTriangleCount(hex20Case, hex20Runtime, true)).toBe(1_296);
+  });
+
+  it("builds the all-authored selection guardrail from retained Tet4 identities", () => {
+    const spec = benchmarkCaseSpecs(false).find(
+      (candidate) => candidate.id === "fe-tet4-solid-132k",
+    );
+    if (spec === undefined) throw new Error("Tet4 benchmark spec is missing");
+    const benchmarkCase = createBenchmarkCase({ ...spec, gridCells: 2 });
+    const runtime = createPackedSceneRuntime(benchmarkCase.scene);
+    const targets = authoredElementTargets(benchmarkCase, runtime);
+    expect(targets).toHaveLength(48);
+    expect(targets[0]).toEqual({ kind: "element", instanceId: "1/0", elementId: 1 });
+    expect(targets.at(-1)).toEqual({ kind: "element", instanceId: "1/0", elementId: 48 });
   });
 
   it("keeps the opt-in orientation workload aligned to structured element ids", () => {

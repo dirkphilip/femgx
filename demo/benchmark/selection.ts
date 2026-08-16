@@ -44,6 +44,9 @@ export async function measureSelectionBenchmark(
   for (const scenario of selectionScenarios(center)) {
     phases.push(await measureScenario(options, scenario.id, scenario.rect));
   }
+  if (options.benchmarkCase.id === "fe-tet4-solid-132k") {
+    phases.push(await measureAllAuthoredScenario(options));
+  }
   return { selectedTargetGranularity: "element", phases };
 }
 
@@ -74,7 +77,53 @@ async function measureScenario(
   if (cachedTargets.length !== invalidTargets.length) {
     throw new Error(`${benchmarkCase.id} ${id} cached box result changed target count`);
   }
-  const targets = cachedTargets;
+  return measureSelectedTargets(options, id, cachedTargets, {
+    invalidSnapshotMs,
+    cachedReadbackMs,
+  });
+}
+
+async function measureAllAuthoredScenario(
+  options: SelectionMeasureOptions,
+): Promise<SelectionBenchmarkPhase> {
+  const { renderer, device, benchmarkCase, runtime, camera } = options;
+  renderer.render(runtime, camera, benchmarkCase.scene.parts);
+  await device.queue.onSubmittedWorkDone();
+  return measureSelectedTargets(
+    options,
+    "all-authored",
+    authoredElementTargets(benchmarkCase, runtime),
+    { invalidSnapshotMs: 0, cachedReadbackMs: 0 },
+  );
+}
+
+/** Builds the complete occurrence-scoped authored-element selection for the Tet4 guardrail. */
+export function authoredElementTargets(
+  benchmarkCase: WebGpuBenchmarkCase,
+  runtime: PackedSceneRuntime,
+): readonly InteractionTarget[] {
+  const slot = runtime.getDrawList()[0];
+  const partId = slot === undefined ? undefined : runtime.getPartId(slot);
+  const instanceId = slot === undefined ? undefined : runtime.getInstanceId(slot);
+  const part = partId === undefined ? undefined : benchmarkCase.scene.parts.get(partId);
+  if (part === undefined || instanceId === undefined) {
+    throw new Error(`${benchmarkCase.id} has no drawable authored-element occurrence`);
+  }
+  return (part.elements ?? []).map((element) => ({
+    kind: "element",
+    instanceId,
+    elementId: element.id,
+  }));
+}
+
+async function measureSelectedTargets(
+  options: SelectionMeasureOptions,
+  id: SelectionBenchmarkPhase["id"],
+  targets: readonly InteractionTarget[],
+  readback: Pick<SelectionBenchmarkPhase, "invalidSnapshotMs" | "cachedReadbackMs">,
+): Promise<SelectionBenchmarkPhase> {
+  const { renderer, device, benchmarkCase, runtime, camera } = options;
+  const parts = benchmarkCase.scene.parts;
   const stateStart = performance.now();
   const selected = setTargetsSelected(createInteractionState(), targets, true);
   const interactionStateMs = performance.now() - stateStart;
@@ -84,8 +133,8 @@ async function measureScenario(
   const syncStart = performance.now();
   renderer.updateElements(runtime, selected, changedSlots);
   const interactionSyncMs = performance.now() - syncStart;
-  const interactionGpuCost = readGpuCostSnapshot(renderer);
   const firstSelectedFrameMs = await renderFrame(renderer, runtime, camera, parts, device);
+  const interactionGpuCost = readGpuCostSnapshot(renderer);
   const steadyFrames: number[] = [];
   for (let index = 0; index < STEADY_SAMPLES; index += 1) {
     steadyFrames.push(await renderFrame(renderer, runtime, camera, parts, device));
@@ -98,8 +147,8 @@ async function measureScenario(
     id,
     returnedTargetCount: targets.length,
     selectedOccurrenceCount: changedSlots.length,
-    invalidSnapshotMs,
-    cachedReadbackMs,
+    invalidSnapshotMs: readback.invalidSnapshotMs,
+    cachedReadbackMs: readback.cachedReadbackMs,
     interactionStateMs,
     interactionSyncMs,
     firstSelectedFrameMs,

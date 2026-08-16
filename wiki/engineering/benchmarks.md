@@ -160,14 +160,24 @@ default unit suite without coverage-distorted timing.
 
 ### Element box-selection phases
 
-The opt-in `webgpu-benchmark` report (schema version 4) adds `selection.phases`
+The opt-in `webgpu-benchmark` report (schema version 5) adds `selection.phases`
 for the reusable 64-placement case and the 250k/1m unique-geometry cases. The
 explicit large run also includes the optional 2m-unique local case. Each
 `narrow`, `one-shell`, and `broad` phase validates a non-empty element result
 and records invalid-snapshot timing, cached readback, interaction-state mutation,
 interaction synchronization, first selected frame, steady selected-frame p50/p95,
 clearing, selected occurrence count, renderer cost counters, and selected
-element-record byte count. The case-level `estimatedMemory.highlightBytes` and
+element-record byte count. The `fe-tet4-solid-132k` case adds an `all-authored`
+phase that selects all 131,712 retained element identities directly; its raster
+readback fields are zero because no box query is involved. Its target count,
+dense-selection bytes, interaction timings, clearing, and first selected-frame
+cost snapshot guard the full authored-selection path separately from the
+4,704-target raster-visible broad-box result. The selected-frame snapshot is captured after the
+first selected render, so `selection-visible` and `selection-hidden` draw/index
+counts expose x-ray amplification. Schema 5 captures `interactionGpuCost` after
+the first selected render, rather than on the pre-selection synchronization
+frame. The case-level
+`estimatedMemory.highlightBytes` and
 `estimatedMemory.pickReadbackBytes` retain the resident highlight table and
 readback-pool estimates. The browser/adapter metadata and submitted/unique
 triangle counts remain at the case/report level. A focused local reproduction

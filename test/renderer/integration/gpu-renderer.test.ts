@@ -186,6 +186,49 @@ function buildSelectablePart(
   });
 }
 
+function buildSubsetPart(): ReturnType<typeof createPart> {
+  return createPart(1, {
+    geometries: [
+      {
+        positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1]),
+        indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+        primitive: "triangles" as const,
+        faces: [
+          {
+            elementId: 101,
+            faceIndex: 0,
+            primitiveStart: 0,
+            primitiveCount: 1,
+            key: "0,1,2",
+            nodeIds: [0, 1, 2],
+            neighborElementIds: [],
+          },
+          {
+            elementId: 102,
+            faceIndex: 0,
+            primitiveStart: 1,
+            primitiveCount: 1,
+            key: "3,4,5",
+            nodeIds: [3, 4, 5],
+            neighborElementIds: [],
+          },
+        ],
+        faceSubset: { faceIds: [{ elementId: 101, faceIndex: 0 }] },
+      },
+    ],
+    elements: [
+      {
+        id: 101,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+      },
+      {
+        id: 102,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+      },
+    ],
+  });
+}
+
 const camera: Camera = {
   mode: "perspective",
   position: [3, 3, 5],
@@ -1026,6 +1069,44 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, new Map([[replacementPart.id, replacementPart]]));
 
     expect(readGpuCostSnapshot(renderer).draws["selection-visible"].indices).toBe(9);
+    renderer.destroy();
+  });
+
+  it("uses exterior selection geometry only for opaque unsectioned scenes", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const part = buildSubsetPart();
+    const scene = createScene()
+      .addPart(part)
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [{ kind: "part", partId: part.id, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    renderer.render(runtime, camera, scene.parts);
+    renderer.updateElements(
+      runtime,
+      setElementSelected(createInteractionState(), { instanceId: "1/0", elementId: 101 }, true),
+    );
+    renderer.render(runtime, camera, scene.parts);
+    expect(readGpuCostSnapshot(renderer).draws["selection-visible"].indices).toBe(3);
+
+    renderer.setSectionPlane({ normal: [0, 0, 1], distance: 0 });
+    renderer.render(runtime, camera, scene.parts);
+    expect(readGpuCostSnapshot(renderer).draws["selection-visible"].indices).toBe(6);
+    expect(gpu.drawCalls.some((call) => call.indexCount === 6)).toBe(true);
+
+    renderer.setSectionPlane(undefined);
+    const fractional = setInstanceOverride(createInteractionState(), "1/0", { opacity: 0.5 });
+    const selected = setElementSelected(fractional, { instanceId: "1/0", elementId: 101 }, true);
+    renderer.updateElements(runtime, selected);
+    renderer.render(runtime, camera, scene.parts);
+    expect(readGpuCostSnapshot(renderer).draws["selection-visible"].indices).toBe(6);
     renderer.destroy();
   });
 });

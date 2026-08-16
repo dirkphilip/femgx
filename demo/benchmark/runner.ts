@@ -62,7 +62,7 @@ export async function runWebGpuBenchmark(
   }
   const info = adapter.info;
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     generatedAt: new Date().toISOString(),
     browser: navigator.userAgent,
     adapter: {

@@ -23,6 +23,11 @@ import { drawOrbitPivot, writeOrbitPivot } from "../overlays/orbit-pivot";
 export const AUTHORED_PRIMITIVE_PRECEDENCE = ["triangles", "lines", "points"] as const;
 type PrimitivePass = "color" | "pick" | "selection-visible";
 
+interface PrimitiveGroupOptions {
+  readonly pass: PrimitivePass;
+  readonly surfaceSubset?: boolean;
+}
+
 /** Everything the per-frame command encoding needs from the renderer. */
 export interface FrameOptions {
   readonly canvas: HTMLCanvasElement;
@@ -193,7 +198,7 @@ export function encodeVisibleFrame(
   opaquePass.setBindGroup(1, frame.resources.background.bindGroup);
   opaquePass.draw(3);
   frame.draw.cost.draw("background", 3);
-  drawAuthoredPrimitiveGroups(opaquePass, frame.draw, context, frame.calls, "color");
+  drawAuthoredPrimitiveGroups(opaquePass, frame.draw, context, frame.calls, { pass: "color" });
   if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
     drawOriginTriad(opaquePass, frame.resources.originTriad, "visible");
     frame.draw.cost.draw("origin-triad", 45);
@@ -260,7 +265,10 @@ function drawSelectionPass(
 ): void {
   if (frame.selectionCalls.length > 0) {
     if (variant === "selection-visible") {
-      drawAuthoredPrimitiveGroups(pass, frame.draw, context, frame.selectionCalls, variant);
+      drawAuthoredPrimitiveGroups(pass, frame.draw, context, frame.selectionCalls, {
+        pass: variant,
+        surfaceSubset: frame.sectionPlane === undefined && frame.transparentCalls.length === 0,
+      });
     } else {
       drawBatches(pass, frame.draw, context, frame.selectionCalls, {
         kind: "surface",
@@ -360,7 +368,7 @@ export function encodePickSnapshot(
   const pickEncoder = frame.device.createCommandEncoder();
   const pickPass = beginPickPass(pickEncoder, frame.pickTargets);
   frame.draw.cost.pass("pick");
-  drawAuthoredPrimitiveGroups(pickPass, frame.draw, context, frame.calls, "pick");
+  drawAuthoredPrimitiveGroups(pickPass, frame.draw, context, frame.calls, { pass: "pick" });
   pickPass.end();
   frame.device.queue.submit([pickEncoder.finish()]);
 }
@@ -371,13 +379,14 @@ function drawAuthoredPrimitiveGroups(
   draw: DrawResources,
   context: DrawCallContext,
   calls: readonly DrawCall[],
-  primitivePass: PrimitivePass,
+  options: PrimitiveGroupOptions,
 ): void {
   for (const primitive of AUTHORED_PRIMITIVE_PRECEDENCE) {
     drawBatches(pass, draw, context, calls, {
       kind: "surface",
-      pass: primitivePass,
+      pass: options.pass,
       primitive,
+      surfaceSubset: options.surfaceSubset ?? false,
     });
   }
 }

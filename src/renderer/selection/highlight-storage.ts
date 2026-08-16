@@ -215,6 +215,7 @@ function ensureHighlightStorage(
   storage.edgeBindGroup = undefined;
   storage.transparentBindGroup = undefined;
   storage.selectionBindGroup = undefined;
+  storage.subsetSelectionBindGroup = undefined;
   storage.nodeSelectionBindGroup = undefined;
   storage.subsetBindGroup = undefined;
   storage.subsetTransparentBindGroup = undefined;
@@ -269,6 +270,7 @@ interface HighlightTarget {
   edgeBindGroup: GPUBindGroup | undefined;
   transparentBindGroup: GPUBindGroup | undefined;
   selectionBindGroup: GPUBindGroup | undefined;
+  subsetSelectionBindGroup: GPUBindGroup | undefined;
   nodeSelectionBindGroup: GPUBindGroup | undefined;
   subsetBindGroup?: GPUBindGroup | undefined;
   subsetTransparentBindGroup?: GPUBindGroup | undefined;

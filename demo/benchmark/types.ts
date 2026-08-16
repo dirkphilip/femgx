@@ -40,7 +40,7 @@ export interface BenchmarkPercentiles {
 }
 
 export interface SelectionBenchmarkPhase {
-  readonly id: "narrow" | "one-shell" | "broad";
+  readonly id: "narrow" | "one-shell" | "broad" | "all-authored";
   readonly returnedTargetCount: number;
   readonly selectedOccurrenceCount: number;
   readonly invalidSnapshotMs: number;
@@ -91,7 +91,7 @@ export interface WebGpuBenchmarkCaseResult {
 }
 
 export interface WebGpuBenchmarkReport {
-  readonly schemaVersion: 4;
+  readonly schemaVersion: 5;
   readonly generatedAt: string;
   readonly browser: string;
   readonly adapter: {
