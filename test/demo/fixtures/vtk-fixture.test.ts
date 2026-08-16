@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createVtkFixture } from "../../../demo/fixtures/vtk-fixture";
 import { createVtkScene } from "../../../demo/fixtures/vtk-scene";
-import { parseVtk } from "../../../src/index";
+import { parseVtk } from "../../../src/entries/io";
 
 const MIXED_VTK = [
   "# vtk DataFile Version 5.0",

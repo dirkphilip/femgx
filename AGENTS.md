@@ -121,11 +121,12 @@ Production ownership under `src/`:
 
 Place new domain code in its owning subsystem and prefer intra-subsystem
 imports. Production modules use the owning subsystem's exported surface and
-must not import the root barrel. Public package facades live under
-`src/entries/` and are declared explicitly in `package.json`; `src/index.ts` is
-the broad internal repository barrel. Anything absent from the relevant package
-facade is internal. Do not expose runtime slots, GPU record layouts, storage
-capacities, or other derived implementation details by default.
+must not import a package facade. Public package facades live under
+`src/entries/` and are declared explicitly in `package.json`; there is no
+aggregate source-root barrel. Anything absent from the relevant package facade
+is internal, so internal consumers import the owning module directly. Do not
+expose runtime slots, GPU record layouts, storage capacities, or other derived
+implementation details by default.
 
 Tests under `test/` mirror subsystem ownership, with deliberate repository-level
 suites under `test/bench`, `test/demo`, `test/public-api`, and `test/scripts`.

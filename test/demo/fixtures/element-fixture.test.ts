@@ -7,8 +7,7 @@ import {
 } from "../../../demo/fixtures/element-fixture";
 import { buildMeshEdgeData } from "../../../src/renderer/edges/mesh-edge";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { transformPoint, type Bounds } from "../../../src/index";
-import type { Part } from "../../../src/index";
+import { transformPoint, type Bounds, type Part } from "../../../src/entries/root";
 import type { Instance } from "../../../src/scene/types";
 
 function runtimeInstances(fixture: Pick<ElementFixture, "scene">): readonly Instance[] {

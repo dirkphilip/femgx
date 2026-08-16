@@ -6,7 +6,7 @@ import {
   type PickHit,
   type ViewportScalarState,
   type ViewportResultsState,
-} from "../../src/index";
+} from "../../src/entries/root";
 import { describePick } from "../../demo/workbench/selection/inspect";
 
 describe("demo result inspection", () => {

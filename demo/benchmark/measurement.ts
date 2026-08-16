@@ -1,10 +1,6 @@
-import {
-  createCamera,
-  fitCamera,
-  projectPoint,
-  transformPoint,
-  type Camera,
-} from "../../src/index";
+import { createCamera, projectPoint, type Camera } from "../../src/camera/camera";
+import { fitCamera } from "../../src/camera/fit";
+import { transformPoint } from "../../src/math/mat4";
 import {
   createWebGpuRenderer,
   readMaterializedEdgePartIds,

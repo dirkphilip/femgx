@@ -11,7 +11,7 @@ import {
   createStructuredFePart,
 } from "../../demo/benchmark/structured-fe";
 import { createLazyBenchmarkModel } from "../../demo/workbench/models/model";
-import { createCamera } from "../../src/index";
+import { createCamera } from "../../src/entries/camera";
 
 describe("WebGPU benchmark models", () => {
   it("keeps instanced and bounded unique-geometry cases distinct", () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createInteractionState, createSceneRuntime } from "../../src/index";
+import { createInteractionState } from "../../src/entries/root";
+import { createSceneRuntime } from "../../src/entries/runtime";
 import { createBoltedPlatePreset } from "../../demo/fixtures/presets";
 import { createPerformancePreset } from "../../demo/fixtures/performance-fixture";
 import { statsText } from "../../demo/devtools/diagnostics";

@@ -9,7 +9,7 @@ import {
   setProjection,
   zoomCamera,
   type Vec3,
-} from "../../src";
+} from "../../src/entries/camera";
 import { cameraKeyLightDirection } from "../../src/renderer/frame/frame";
 
 interface PointerInput {

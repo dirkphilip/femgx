@@ -12,7 +12,7 @@ import {
   type FemViewport,
   type InteractionTarget,
   type PickHit,
-} from "../../src/index";
+} from "../../src/entries/root";
 import { WorkbenchBoxPreview } from "../../demo/workbench/selection/box-preview";
 import { installWorkbenchPaneBindings } from "../../demo/workbench/interaction/listeners";
 import { WorkbenchInteraction } from "../../demo/workbench/interaction/interaction";
@@ -21,7 +21,7 @@ import { selectedKeys } from "../../demo/workbench/selection/selection";
 import type { SelectionGranularity } from "../../demo/workbench/selection/pick";
 import type { WorkbenchMenu } from "../../demo/workbench/interaction/menu";
 import type { TouchInteractionMode } from "../../demo/workbench/types";
-import type { BoxSelectionRect } from "../../src/index";
+import type { BoxSelectionRect } from "../../src/entries/root";
 
 class FakeStyle {
   left = "";

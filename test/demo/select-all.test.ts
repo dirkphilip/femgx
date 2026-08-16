@@ -4,7 +4,7 @@ import {
   setElementVisible,
   type FemViewport,
   type Part,
-} from "../../src/index";
+} from "../../src/entries/root";
 import { selectAllTargets } from "../../demo/workbench/selection/select-all";
 
 const instanceId = "root/part";

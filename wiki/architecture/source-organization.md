@@ -65,10 +65,11 @@ suites under `test/demo`, `test/public-api`, `test/scene-runtime`, and
   A nested directory is justified by coherent ownership, not by hiding a count.
 - Public package entry facades live under `src/entries/`; the supported root and
   subpaths are explicit and anything not re-exported by those facades is
-  internal. `src/index.ts` remains the broad internal source barrel used by the
-  repository's demo and focused tests; it is not a package export.
-- Prefer intra-subsystem imports. External consumers use the package facades;
-  production modules under `src/` never import a package facade or `src/index.ts`.
+  internal. There is no aggregate source-root barrel.
+- Prefer intra-subsystem imports. External consumers and public-style demo code
+  use the package facades; production modules under `src/` never import a
+  package facade. Internal tests and benchmark helpers import owning modules
+  directly when they need non-public symbols.
   Cross-subsystem imports use a deliberate owner module such as
   `geometry/part.ts`, `renderer/gpu-renderer.ts`, or `results/deform.ts`, not
   another subsystem's implementation internals. A boundary module may

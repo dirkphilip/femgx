@@ -26,7 +26,8 @@ runner exists, CI only runs the no-GPU unsupported-contract smoke
 - Add Playwright's `--headed` option for an intentionally visible debugging run.
 - `e2e/core/core-foundation.spec.ts` owns one direct public-entry viewport
   create/render/destroy journey and one typed unsupported journey. Its host
-  imports only `src/index.ts` and owns one canvas/viewport lifecycle.
+  imports only the explicit `src/entries/*` facades and owns one
+  canvas/viewport lifecycle.
 - `e2e/core/core-journeys.spec.ts` owns hardware lifecycle, camera commands,
   picking, region selection, and representative nonblank rendering. The
   direct-core foundation suite owns the typed unsupported contract with
