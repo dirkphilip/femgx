@@ -64,6 +64,7 @@ export function createHighlightStorage(
     selectionWordCapacity,
   );
   const buffer = device.createBuffer({
+    label: "femgx element highlight storage",
     size,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });

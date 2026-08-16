@@ -114,6 +114,7 @@ function instanceBindGroup(
           ? (geometry.subsetVertexBuffer ?? geometry.vertexBuffer)
           : geometry.vertexBuffer;
   return device.createBindGroup({
+    label: "femgx part draw bind group",
     layout,
     entries: [
       { binding: 0, resource: { buffer: storage.buffer } },

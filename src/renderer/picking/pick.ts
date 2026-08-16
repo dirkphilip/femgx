@@ -94,6 +94,7 @@ export function ensureEdgePickTarget(
     throw new Error("Authored-edge picking requires ordinary pick depth resources");
   }
   pick.edgeTexture = device.createTexture({
+    label: "femgx authored edge pick texture",
     size: [width, height],
     format: PICK_TEXTURE_FORMAT,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
@@ -124,26 +125,31 @@ export function ensurePickTargets(
     throw new Error("WebGPU picking depth resources were not validated during setup");
   }
   pick.texture = device.createTexture({
+    label: "femgx instance pick texture",
     size: [width, height],
     format: PICK_TEXTURE_FORMAT,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
   });
   pick.elementTexture = device.createTexture({
+    label: "femgx element pick texture",
     size: [width, height],
     format: PICK_TEXTURE_FORMAT,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
   });
   pick.faceTexture = device.createTexture({
+    label: "femgx face pick texture",
     size: [width, height],
     format: PICK_TEXTURE_FORMAT,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
   });
   pick.nodeTexture = device.createTexture({
+    label: "femgx node pick texture",
     size: [width, height],
     format: PICK_TEXTURE_FORMAT,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
   });
   pick.depthTexture = device.createTexture({
+    label: "femgx pick depth texture",
     size: [width, height],
     format: depthFormat,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
@@ -237,7 +243,7 @@ export async function readEdgePickPixel(
   const buffer = acquirePickReadback(device, pick.readback, READBACK_BYTE_STRIDE);
   let mapped = false;
   try {
-    const encoder = device.createCommandEncoder();
+    const encoder = device.createCommandEncoder({ label: "femgx pick pixel copy" });
     copyPickPixel(encoder, buffer, pixel, { texture, offset: 0 });
     device.queue.submit([encoder.finish()]);
     await buffer.mapAsync(GPUMapMode.READ);
@@ -291,7 +297,7 @@ function submitPickCopies(
   buffer: GPUBuffer,
   pixel: { readonly x: number; readonly y: number },
 ): void {
-  const encoder = device.createCommandEncoder();
+  const encoder = device.createCommandEncoder({ label: "femgx pick region copy" });
   const ordered = [textures.instance, textures.element, textures.face, textures.node];
   ordered.forEach((texture, index) => {
     copyPickPixel(encoder, buffer, pixel, { texture, offset: READBACK_BYTE_STRIDE * index });
@@ -449,6 +455,7 @@ function retainFreeReadback(pool: PickReadbackPool, entry: PickReadbackBuffer): 
 
 function createReadback(device: GPUDevice, size: number): GPUBuffer {
   return device.createBuffer({
+    label: "femgx pick readback",
     size,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   });

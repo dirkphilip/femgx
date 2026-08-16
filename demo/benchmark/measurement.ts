@@ -3,9 +3,11 @@ import { fitCamera } from "../../src/camera/fit";
 import { transformPoint } from "../../src/math/mat4";
 import type { Geometry } from "../../src/geometry/part";
 import {
-  createWebGpuRenderer,
+  createWebGpuRendererInternal,
+  drainGpuTimestampSamples,
   readMaterializedEdgePartIds,
   readGpuCostSnapshot,
+  readGpuTimestampSnapshot,
   setRendererOrientationGlyphs,
   type WebGpuRenderer,
 } from "../../src/renderer/gpu-renderer";
@@ -60,6 +62,7 @@ export async function measureBenchmarkCase(
   device: GPUDevice,
   benchmarkCase: WebGpuBenchmarkCase,
   modelBuildMs: number,
+  options: { readonly timestampQueriesRequested?: boolean } = {},
 ): Promise<WebGpuBenchmarkCaseResult> {
   const runtimeCompileStart = performance.now();
   let runtimeCompileMs: number;
@@ -73,6 +76,7 @@ export async function measureBenchmarkCase(
   let overlayInteractive: WebGpuBenchmarkCaseResult["overlayInteractive"];
   let selection: SelectionBenchmarkReport | undefined;
   let gpuCost: WebGpuBenchmarkCaseResult["gpuCost"];
+  let gpuTimestamps: WebGpuBenchmarkCaseResult["gpuTimestamps"];
   let materializedEdgePartIds: ReadonlySet<number>;
   const samples = emptySamples();
   const uniqueTriangles = countUniqueTriangles(benchmarkCase);
@@ -84,7 +88,10 @@ export async function measureBenchmarkCase(
     camera = fitCamera(createCamera(), bounds, WIDTH, HEIGHT);
     phase = "first upload";
     pickPoint = benchmarkPickPoint(canvas, benchmarkCase, runtime, camera);
-    renderer = await createWebGpuRenderer({ canvas, device });
+    renderer = await createWebGpuRendererInternal(
+      { canvas, device },
+      options.timestampQueriesRequested ?? false,
+    );
     renderer.resize(WIDTH, HEIGHT);
     installOrientationBenchmarkState(renderer, benchmarkCase);
     coldSample = await measureIteration({
@@ -137,6 +144,9 @@ export async function measureBenchmarkCase(
       runtime,
       camera,
     });
+    phase = "timestamp readback";
+    await drainGpuTimestampSamples(renderer);
+    gpuTimestamps = readGpuTimestampSnapshot(renderer);
   } catch (error) {
     throw withBenchmarkPhase(phase, error);
   } finally {
@@ -176,6 +186,15 @@ export async function measureBenchmarkCase(
       { materializedEdgePartIds },
     ),
     gpuCost,
+    gpuTimestamps,
+    presentation: {
+      nodeSizeCssPixels: 6,
+      nodeSizeDevicePixels: 6 * devicePixelRatio,
+      devicePixelRatio,
+      resolvedMsaaSampleCount: gpuCost.targets?.sampleCount ?? 4,
+      projectionProxy: "camera-space point-size",
+      cpuProxy: "node draw calls and instances",
+    },
   };
 }
 

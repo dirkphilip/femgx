@@ -92,6 +92,7 @@ export async function createOrbitPivotPipeline(
 export function createOrbitPivotResources(options: OrbitPivotResourceOptions): OrbitPivotResources {
   const { device, pipeline, cameraBuffer, deformationBuffer } = options;
   const buffer = device.createBuffer({
+    label: "femgx orbit pivot uniforms",
     // Pivot data is 56 bytes; uniform structures are rounded to a 16-byte
     // boundary for the implementations used by the supported browsers.
     size: 64,
@@ -103,6 +104,7 @@ export function createOrbitPivotResources(options: OrbitPivotResourceOptions): O
       visiblePipeline: pipeline.visiblePipeline,
       hiddenPipeline: pipeline.hiddenPipeline,
       bindGroup: device.createBindGroup({
+        label: "femgx orbit pivot frame bind group",
         layout: pipeline.frameLayout,
         entries: [
           { binding: 0, resource: { buffer: cameraBuffer } },
@@ -110,6 +112,7 @@ export function createOrbitPivotResources(options: OrbitPivotResourceOptions): O
         ],
       }),
       pivotBindGroup: device.createBindGroup({
+        label: "femgx orbit pivot bind group",
         layout: pipeline.pivotLayout,
         entries: [{ binding: 0, resource: { buffer } }],
       }),

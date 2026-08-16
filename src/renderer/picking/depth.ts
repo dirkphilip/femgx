@@ -57,6 +57,7 @@ export async function createPickDepthReadback(
     compute: { module, entryPoint: "computeMain" },
   });
   const requestBuffer = device.createBuffer({
+    label: "femgx pick depth request",
     size: 16,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
@@ -94,9 +95,16 @@ export function bindPickDepth(
   texture: GPUTexture,
 ): void {
   readback.bindGroup = device.createBindGroup({
+    label: "femgx pick depth bind group",
     layout: readback.bindGroupLayout,
     entries: [
-      { binding: 0, resource: texture.createView({ aspect: "depth-only" }) },
+      {
+        binding: 0,
+        resource: texture.createView({
+          label: "femgx pick depth readback view",
+          aspect: "depth-only",
+        }),
+      },
       { binding: 1, resource: { buffer: readback.requestBuffer } },
     ],
   });

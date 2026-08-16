@@ -276,7 +276,7 @@ async function readRegionTile(
   const buffer = acquirePickReadback(device, readback, bufferSize);
   let mapped = false;
   try {
-    const encoder = device.createCommandEncoder();
+    const encoder = device.createCommandEncoder({ label: "femgx pick region copy" });
     for (const [index, texture] of textures.entries()) {
       encoder.copyTextureToBuffer(
         { texture, origin: { x: tile.left, y: tile.top } },

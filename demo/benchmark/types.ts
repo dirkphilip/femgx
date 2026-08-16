@@ -6,6 +6,26 @@ import type {
 } from "./model";
 import type { BenchmarkMemoryEstimate } from "./memory";
 
+export interface BenchmarkGpuTimestampPass {
+  readonly sampleCount: number;
+  readonly p50: number | null;
+  readonly p95: number | null;
+  readonly p99: number | null;
+  readonly invalidSampleCount: number;
+  readonly disjointSampleCount: number;
+}
+
+export interface BenchmarkGpuTimestampSnapshot {
+  readonly available: boolean;
+  readonly enabled: boolean;
+  readonly unit: "nanoseconds" | "timestamp-ticks" | "none";
+  readonly periodNs: number | null;
+  readonly sampleCount: number;
+  readonly invalidSampleCount: number;
+  readonly disjointSampleCount: number;
+  readonly passes: Readonly<Record<string, BenchmarkGpuTimestampPass>>;
+}
+
 export interface BenchmarkGpuCostSnapshot {
   readonly passes: Readonly<Record<string, number>>;
   readonly draws: Readonly<
@@ -94,10 +114,20 @@ export interface WebGpuBenchmarkCaseResult {
   readonly estimatedMemory: BenchmarkMemoryEstimate;
   /** Structural pass/draw/write counters from the final timed iteration. */
   readonly gpuCost: BenchmarkGpuCostSnapshot;
+  /** Optional pass timestamps resolved from delayed benchmark readbacks. */
+  readonly gpuTimestamps: BenchmarkGpuTimestampSnapshot;
+  readonly presentation: {
+    readonly nodeSizeCssPixels: number;
+    readonly nodeSizeDevicePixels: number;
+    readonly devicePixelRatio: number;
+    readonly resolvedMsaaSampleCount: number;
+    readonly projectionProxy: "camera-space point-size";
+    readonly cpuProxy: "node draw calls and instances";
+  };
 }
 
 export interface WebGpuBenchmarkReport {
-  readonly schemaVersion: 7;
+  readonly schemaVersion: 8;
   readonly generatedAt: string;
   readonly browser: string;
   readonly adapter: {
@@ -108,6 +138,12 @@ export interface WebGpuBenchmarkReport {
     readonly isFallbackAdapter: boolean;
   };
   readonly enabledFeatures: readonly string[];
+  readonly timestampQueries: {
+    readonly available: boolean;
+    readonly enabled: boolean;
+    readonly unit: BenchmarkGpuTimestampSnapshot["unit"];
+    readonly periodNs: number | null;
+  };
   readonly resolution: { readonly width: number; readonly height: number; readonly dpr: number };
   readonly memoryEstimateScope: string;
   readonly warmupSamples: number;

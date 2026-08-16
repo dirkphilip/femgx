@@ -7,7 +7,7 @@ import type { Vec3 } from "../math/vec3";
 import type { PickHit } from "../picking/types";
 import type { DeformationState } from "../results/deform";
 import type { RendererAttachment } from "./attachment";
-import type { FrameOptions } from "./frame/frame";
+import type { FrameOptions } from "./frame/frame-types";
 import { encodePickSnapshot } from "./frame/frame";
 import type { GpuDeviceLifecycle } from "./recovery";
 import {

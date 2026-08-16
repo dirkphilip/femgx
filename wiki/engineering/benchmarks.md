@@ -161,7 +161,7 @@ default unit suite without coverage-distorted timing.
 
 ### Element box-selection phases
 
-The opt-in `webgpu-benchmark` report (schema version 5) adds `selection.phases`
+The opt-in `webgpu-benchmark` report (schema version 8) adds `selection.phases`
 for the reusable 64-placement case and the 250k/1m unique-geometry cases. The
 explicit large run also includes the optional 2m-unique local case. Each
 `narrow`, `one-shell`, and `broad` phase validates a non-empty element result
@@ -242,8 +242,13 @@ estimate is the cold first-frame and visible-frame difference. After priming
 reusable pick targets and applying a camera-reference invalidation, it measures
 the combined lazy pick snapshot plus readback and then a cached-snapshot
 readback; the pick-snapshot estimate is their difference. The report retains
-both directly measured totals alongside the estimates. Portable WebGPU
-timestamp queries are not required.
+both directly measured totals alongside the estimates. When the adapter exposes
+`timestamp-query`, the benchmark requests that feature only for this run and
+adds delayed, rotating-readback pass timings to `gpuTimestamps`. These timings
+are reported separately from synchronous CPU encoding and queue-drained wall
+time, with unit/period, p50/p95/p99, sample count, and invalid/disjoint
+accounting for each logical pass. Unsupported adapters report an explicit
+unavailable shape and allocate no query resources.
 
 The structured FE cases use the validated `createElement` and
 `elementPart` path with shared corner and mid-edge node ids. The
@@ -293,8 +298,12 @@ JavaScript command encoding and GPU completion and is not a GPU-only duration.
 `timings.uploadAndFirstFrameCpuMs` and `timings.visibleFrameCpuMs` record only
 the synchronous `renderer.render()` call and command encoding with
 `performance.now()`. Keep these measurements separate when diagnosing zoom or
-overlay interaction; timestamp-query profiling is a separate opt-in diagnostic
-when the adapter exposes it and is not required by the benchmark contract.
+overlay interaction. `gpuTimestamps` is a separate opt-in diagnostic when the
+adapter exposes it; it never maps a readback in the same encoded frame. The
+case-level `presentation` metadata records node sprite CSS/device size, DPR,
+resolved MSAA sample count, the camera-space point-size projection proxy, and
+the CPU draw/instance proxy label so node measurements cannot be mistaken for
+a fragment-only duration.
 
 The JSON report identifies the browser user agent, adapter identity and fallback
 status, enabled features, resolution, DPR, FE family, unique/submitted element
