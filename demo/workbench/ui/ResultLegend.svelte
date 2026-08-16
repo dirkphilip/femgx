@@ -84,7 +84,7 @@
       <span>Authored vectors normalized for display · Magnitude not displayed</span>
     </div>
   {/if}
-  {#if hasActiveSection()}
+  {#if snapshot && hasActiveSection()}
     <div id="result-legend-section" data-testid="result-legend-section" class="legend-role">
       <strong>Section</strong>
       <span>Keep +{snapshot.overlays.resultLegend.section.axis.toUpperCase()}</span>

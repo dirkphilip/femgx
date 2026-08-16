@@ -350,6 +350,31 @@ describe("workbench Svelte controls", () => {
     expect(calls).toContain("unsubscribe");
   });
 
+  it("renders the section summary only for an active section snapshot", async () => {
+    const target = document.createElement("div");
+    document.body.append(target);
+
+    const absent = mount(ResultLegend, { target, props: { snapshot: undefined } });
+    expect(target.querySelector("#result-legend-section")).toBeNull();
+    await unmount(absent);
+
+    const snapshot = withOverlayState(createSnapshot(true));
+    const activeSnapshot: WorkbenchSnapshot = {
+      ...snapshot,
+      overlays: {
+        ...snapshot.overlays,
+        resultLegend: {
+          ...snapshot.overlays.resultLegend,
+          section: { axis: "x", offset: 12.5 },
+        },
+      },
+    };
+    const active = mount(ResultLegend, { target, props: { snapshot: activeSnapshot } });
+    expect(element(target, "#result-legend-section").textContent).toContain("Keep +X");
+    expect(element(target, "#result-legend-section").textContent).toContain("Offset 12.5");
+    await unmount(active);
+  });
+
   it("keeps the phone navigation drawer focusable and exclusive of Analysis", async () => {
     const previousWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
