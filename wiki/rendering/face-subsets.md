@@ -24,6 +24,12 @@ is requested). Selected index values still point into the original triangle
 vertices, so private GPU ids resolve the authored face and element identities.
 There is no second vertex mesh and no alternate renderer path.
 
+Consequently, `faceSubset` is a submission optimization, not a client-transfer
+or GPU-residency boundary. Use `surfacePart()` when omitted solid topology must
+remain outside the client. Keeping complete topology on the client while only
+the current skin resides on the GPU is a separate deferred residency contract
+defined by the product scope.
+
 Face subsets apply only to solid/surface triangle modes. They do not add face
 labels, overlays, boolean surface editing, or multi-hit picking.
 
