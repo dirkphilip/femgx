@@ -96,21 +96,29 @@ test("exposes authored blocks per plate occurrence without synthetic fastener ro
 }) => {
   await loadWebGpuPage(page);
   const blocks = page.locator('input[data-testid^="block-vis-"]');
-  await expect(blocks).toHaveCount(4);
+  await expect(blocks).toHaveCount(8);
   await expect(blocks.first()).toHaveAttribute("data-block-instance-id", "1/0/0");
-  await expect(blocks.first()).toHaveAttribute("aria-label", /Plate row A in .*Plate stack/);
+  await expect(blocks.first()).toHaveAttribute("aria-label", /A left in Plate row A .*Plate stack/);
+
+  const blockHighlights = page.locator('button[data-block-highlight="true"]');
+  await expect(blockHighlights.nth(0)).toHaveText("A left");
+  await expect(blockHighlights.nth(1)).toHaveText("A right");
 
   const block = blocks.first();
+  const siblingBlock = blocks.nth(1);
   const parentBody = page.locator('input[data-body-instance-id="1/0/0"][data-body-id="1"]');
   await parentBody.uncheck();
   await expect(block).toBeDisabled();
+  await expect(siblingBlock).toBeDisabled();
   await parentBody.check();
   await expect(block).toBeEnabled();
+  await expect(siblingBlock).toBeEnabled();
   await block.uncheck();
   await expect(block).not.toBeChecked();
+  await expect(siblingBlock).toBeChecked();
 
-  const highlight = page.locator('button[data-block-highlight="true"]').first();
-  await expect(highlight).toHaveAttribute("aria-label", "Highlight Plate row A");
+  const highlight = blockHighlights.first();
+  await expect(highlight).toHaveAttribute("aria-label", "Highlight A left");
   await highlight.click();
   await expect(highlight).toHaveAttribute("aria-pressed", "true");
 
@@ -123,8 +131,13 @@ test("exposes authored blocks per plate occurrence without synthetic fastener ro
     element.scrollTop = element.scrollHeight;
     element.dispatchEvent(new Event("scroll"));
   });
-  await expect(page.getByTestId("block-vis-1-1")).toBeVisible();
-  await expect(page.getByTestId("block-vis-1-2")).toBeVisible();
+  for (const blockId of [1, 2, 3, 4]) {
+    await expect(page.getByTestId(`block-vis-1-${blockId}`)).toBeVisible();
+  }
+  await expect(page.getByTestId("block-vis-1-1")).toHaveAttribute(
+    "data-block-instance-id",
+    "1/0/1",
+  );
 });
 test("hides the plate stack through the assembly tree", async ({ page }) => {
   await page.goto("/");

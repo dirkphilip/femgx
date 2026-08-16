@@ -289,10 +289,29 @@ function blockOwnership(
     readonly blockIds: readonly number[];
   }[];
 } {
-  const blocks = elementGroups(model, names);
+  const [firstBody, secondBody] = names;
+  const elementIds = model.elements.map((element) => element.id);
+  if (
+    firstBody === undefined ||
+    secondBody === undefined ||
+    names.length !== 2 ||
+    elementIds.length !== 8 ||
+    elementIds.some((id, index) => id !== index + 1)
+  ) {
+    throw new Error("The plate fixture requires eight elements with stable ids from 1 to 8");
+  }
+  const blocks = [
+    { id: 1, name: "A left", elementIds: [1, 2] },
+    { id: 2, name: "A right", elementIds: [3, 4] },
+    { id: 3, name: "B left", elementIds: [5, 6] },
+    { id: 4, name: "B right", elementIds: [7, 8] },
+  ] as const;
   return {
     blocks,
-    bodies: blocks.map((block) => ({ id: block.id, name: block.name, blockIds: [block.id] })),
+    bodies: [
+      { id: 1, name: firstBody, blockIds: [1, 2] },
+      { id: 2, name: secondBody, blockIds: [3, 4] },
+    ],
   };
 }
 
