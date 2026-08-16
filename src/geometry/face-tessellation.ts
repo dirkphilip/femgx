@@ -6,6 +6,9 @@ import { type MeshVertex } from "./mesh-builder";
 import { average, cross, dot, length, subtract, type Vec3 } from "../math/vec3";
 import { elementNodePosition } from "./node-position";
 
+type Tri6Nodes<T> = readonly [T, T, T, T, T, T];
+type Quad8Nodes<T> = readonly [T, T, T, T, T, T, T, T];
+
 /**
  * Subdivides an oriented element face into triangles, each wound to face
  * outward. Linear faces fan from the first corner; quadratic faces are
@@ -35,6 +38,31 @@ function faceNodeIds(
   return { cornerNodeIds, midNodeIds };
 }
 
+/** Returns the canonical Tri6 or Quad8 subdivision for interleaved nodes. */
+export function quadraticSubdivision<T>(nodes: readonly T[]): ReadonlyArray<readonly [T, T, T]> {
+  if (nodes.length === 6) {
+    const [a, ab, b, bc, c, ca] = nodes as Tri6Nodes<T>;
+    return [
+      [a, ab, ca],
+      [b, bc, ab],
+      [c, ca, bc],
+      [ab, bc, ca],
+    ];
+  }
+  if (nodes.length === 8) {
+    const [a, ab, b, bc, c, cd, d, da] = nodes as Quad8Nodes<T>;
+    return [
+      [a, ab, da],
+      [b, bc, ab],
+      [c, cd, bc],
+      [d, da, cd],
+      [ab, bc, cd],
+      [ab, cd, da],
+    ];
+  }
+  throw new Error(`Quadratic subdivision requires six or eight nodes, got ${nodes.length}`);
+}
+
 /** Subdivides a face into triangles, each wound to face outward. */
 export function tessellateFace(
   model: ElementModel,
@@ -42,7 +70,7 @@ export function tessellateFace(
   face: ElementFace,
 ): ReadonlyArray<readonly [MeshVertex, MeshVertex, MeshVertex]> {
   const { cornerNodeIds, midNodeIds } = faceNodeIds(element, face);
-  const corners = cornerNodeIds.map((id) => ({
+  const corners: readonly MeshVertex[] = cornerNodeIds.map((id) => ({
     point: elementNodePosition(model, id),
     nodeId: id,
   }));
@@ -65,43 +93,25 @@ export function tessellateFace(
     }
     return triangles;
   }
-  const mids = midNodeIds.map((id) => ({ point: elementNodePosition(model, id), nodeId: id }));
+  const mids: readonly MeshVertex[] = midNodeIds.map((id) => ({
+    point: elementNodePosition(model, id),
+    nodeId: id,
+  }));
   if (corners.length === 3) {
-    return quadraticTriangle(corners, mids, outward);
+    const [a, b, c] = corners as readonly [MeshVertex, MeshVertex, MeshVertex];
+    const [mab, mbc, mca] = mids as readonly [MeshVertex, MeshVertex, MeshVertex];
+    return orientedQuadratic([a, mab, b, mbc, c, mca], outward);
   }
-  return quadraticQuad(corners, mids, outward);
-}
-
-function quadraticTriangle(
-  corners: readonly MeshVertex[],
-  mids: readonly MeshVertex[],
-  outward: Vec3,
-): ReadonlyArray<readonly [MeshVertex, MeshVertex, MeshVertex]> {
-  const [a, b, c] = corners as readonly [MeshVertex, MeshVertex, MeshVertex];
-  const [mab, mbc, mca] = mids as readonly [MeshVertex, MeshVertex, MeshVertex];
-  return [
-    orient(outward, a, mab, mca),
-    orient(outward, b, mbc, mab),
-    orient(outward, c, mca, mbc),
-    orient(outward, mab, mbc, mca),
-  ];
-}
-
-function quadraticQuad(
-  corners: readonly MeshVertex[],
-  mids: readonly MeshVertex[],
-  outward: Vec3,
-): ReadonlyArray<readonly [MeshVertex, MeshVertex, MeshVertex]> {
   const [a, b, c, d] = corners as readonly [MeshVertex, MeshVertex, MeshVertex, MeshVertex];
   const [mab, mbc, mcd, mda] = mids as readonly [MeshVertex, MeshVertex, MeshVertex, MeshVertex];
-  return [
-    orient(outward, a, mab, mda),
-    orient(outward, b, mbc, mab),
-    orient(outward, c, mcd, mbc),
-    orient(outward, d, mda, mcd),
-    orient(outward, mab, mbc, mcd),
-    orient(outward, mab, mcd, mda),
-  ];
+  return orientedQuadratic([a, mab, b, mbc, c, mcd, d, mda], outward);
+}
+
+function orientedQuadratic(
+  nodes: readonly MeshVertex[],
+  outward: Vec3,
+): ReadonlyArray<readonly [MeshVertex, MeshVertex, MeshVertex]> {
+  return quadraticSubdivision(nodes).map(([a, b, c]) => orient(outward, a, b, c));
 }
 
 /** Direction from the element interior toward the face (for outward winding). */

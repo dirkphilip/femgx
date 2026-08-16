@@ -2,6 +2,7 @@ import type { ElementId, NodeId } from "../elements/element";
 import type { GeometryBody } from "./part";
 import { MAX_ONE_BASED_ID } from "./id-validation";
 import { SurfacePartError, triangulatePolygon } from "./polygon-triangulation";
+import { quadraticSubdivision } from "./face-tessellation";
 
 /** Host-reduced mixed topology for one reusable finite-element part. */
 export interface SurfacePartInput {
@@ -232,38 +233,7 @@ function facetTriangles(
   validateNodeIds(nodeIds, positions.length / 3, "Quadratic facet");
   const corners = nodeIds.filter((_, index) => index % 2 === 0);
   triangulatePolygon(corners, positions);
-  return count === -6 ? quadraticTriangle(nodeIds) : quadraticQuad(nodeIds);
-}
-
-function quadraticTriangle(ids: readonly NodeId[]): readonly (readonly [NodeId, NodeId, NodeId])[] {
-  const [a, ab, b, bc, c, ca] = ids as [number, number, number, number, number, number];
-  return [
-    [a, ab, ca],
-    [b, bc, ab],
-    [c, ca, bc],
-    [ab, bc, ca],
-  ];
-}
-
-function quadraticQuad(ids: readonly NodeId[]): readonly (readonly [NodeId, NodeId, NodeId])[] {
-  const [a, ab, b, bc, c, cd, d, da] = ids as [
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-  ];
-  return [
-    [a, ab, da],
-    [b, bc, ab],
-    [c, cd, bc],
-    [d, da, cd],
-    [ab, bc, cd],
-    [ab, cd, da],
-  ];
+  return quadraticSubdivision(nodeIds);
 }
 
 function requiredElementId(input: ArrayLike<number>, index: number, label: string): ElementId {
