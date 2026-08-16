@@ -4,30 +4,26 @@ import {
   type InteractionTarget,
   type PickHit,
 } from "../../../src/entries/root";
-import type { BodyId, ElementBlockId, ElementId } from "../../../src/entries/model";
+import type { BodyId, ElementId } from "../../../src/entries/model";
 
 /** The user-selectable workbench interaction granularities. */
 export type SelectionGranularity = Extract<
   InteractionGranularity,
-  "body" | "block" | "element" | "face" | "node" | "edge"
+  "body" | "element" | "face" | "node" | "edge"
 >;
 
 /** A stable selection identity at any supported granularity. */
 export type SelectTarget = InteractionTarget & {
   readonly bodyId?: BodyId;
-  readonly blockId?: ElementBlockId;
   /** The exact element owning a node pick, retained for context actions. */
   readonly elementId?: ElementId;
 };
 
-/** A selection target resolved to an authored element block occurrence. */
-export type BlockSelectTarget = Extract<SelectTarget, { readonly kind: "block" }>;
-
 /**
  * Maps a GPU pick target to the active selection granularity. Shift promotes
  * face and node targets to their owning element and Alt to the instance;
- * Control/Meta remain additive selection modifiers. Body and block modes stay
- * coarse when Shift is held, while authored edges have no single owner.
+ * Control/Meta remain additive selection modifiers. Body mode stays coarse when
+ * Shift is held, while authored edges have no single owner.
  */
 export function selectTarget(
   hit: PickHit,
@@ -43,10 +39,7 @@ export function selectTarget(
     hit,
     modifiers.altKey
       ? "instance"
-      : modifiers.shiftKey &&
-          granularity !== "edge" &&
-          granularity !== "body" &&
-          granularity !== "block"
+      : modifiers.shiftKey && granularity !== "edge" && granularity !== "body"
         ? "element"
         : granularity,
     modifiers,
@@ -74,9 +67,6 @@ function mapTarget(
     ...(target.kind === "element" || target.kind === "face" || target.kind === "node"
       ? optionalBodyId("bodyId" in hit ? hit.bodyId : undefined)
       : {}),
-    ...(target.kind === "element" || target.kind === "face" || target.kind === "node"
-      ? optionalBlockId("blockId" in hit ? hit.blockId : undefined)
-      : {}),
     ...(target.kind === "node"
       ? optionalElementId("elementId" in hit ? hit.elementId : undefined)
       : {}),
@@ -84,8 +74,7 @@ function mapTarget(
   return modifiers.shiftKey &&
     !modifiers.altKey &&
     selectedTarget.kind !== "edge" &&
-    selectedTarget.kind !== "body" &&
-    selectedTarget.kind !== "block"
+    selectedTarget.kind !== "body"
     ? elementTarget(selectedTarget)
     : selectedTarget;
 }
@@ -102,12 +91,6 @@ function optionalElementId(
   return elementId === undefined ? {} : { elementId };
 }
 
-function optionalBlockId(
-  blockId: ElementBlockId | undefined,
-): { readonly blockId: ElementBlockId } | Record<never, never> {
-  return blockId === undefined ? {} : { blockId };
-}
-
 /** Promotes an element-owned pick to its exact owning element identity. */
 export function elementTarget(target: SelectTarget): SelectTarget | undefined {
   switch (target.kind) {
@@ -118,26 +101,12 @@ export function elementTarget(target: SelectTarget): SelectTarget | undefined {
     case "face":
     case "element":
       return { kind: "element", instanceId: target.instanceId, elementId: target.elementId };
-    case "block":
-      return target;
     case "body":
     case "instance":
     case "part":
     case "edge":
       return undefined;
   }
-}
-
-/** Returns the authored block owning a physical target, when the pick carries one. */
-export function elementBlockTarget(target: SelectTarget): BlockSelectTarget | undefined {
-  if (target.kind === "block") return target;
-  if (
-    (target.kind === "element" || target.kind === "face" || target.kind === "node") &&
-    target.blockId !== undefined
-  ) {
-    return { kind: "block", instanceId: target.instanceId, blockId: target.blockId };
-  }
-  return undefined;
 }
 
 /** Stable dataset key for a resolved pick or selection target. */
@@ -152,8 +121,6 @@ export function targetKey(target: PickHit | SelectTarget | undefined): string {
       return `f:${target.instanceId}:${target.elementId}:${target.faceIndex}`;
     case "element":
       return `e:${target.instanceId}:${target.elementId}`;
-    case "block":
-      return `b:${target.instanceId}:${target.blockId}`;
     case "instance":
       return `i:${target.instanceId}`;
     case "part":

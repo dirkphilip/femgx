@@ -52,12 +52,12 @@ compact element-to-body-id map so lookup does not require repeated body-list
 searches. That derived map is absent, not merely filled with zeros, for a
 bodyless model.
 
-Semantic element blocks and block-based model editing are removed. Follow-up
-implementation deletes `ElementBlock`, block-defined bodies, block edit
-operations and reports, block validation, and their public exports without a
-compatibility layer. Structural edits that remain useful should address
-explicit element ids; a persistent named element-set abstraction is out of
-scope until a concrete workflow requires it.
+Semantic element blocks and block-based model editing are removed. Bodies own
+elements directly, and the public model, geometry, interaction, picking, and
+renderer surfaces contain no block identity or compatibility layer. Structural
+edits that remain useful should address explicit element ids; a persistent
+named element-set abstraction is out of scope until a concrete workflow
+requires it.
 
 ## Shapes
 

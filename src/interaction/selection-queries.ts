@@ -20,7 +20,6 @@ export function selectedTargetSummary(state: InteractionState): SelectedTargetSu
   const instanceIds = new Set(data.selectedInstanceIds);
   for (const groups of [
     data.selectedBodyIds,
-    data.selectedBlockIds,
     data.selectedElementIds,
     data.selectedFaces,
     data.selectedNodeIds,
@@ -41,7 +40,6 @@ export function selectedTargetCount(
   if (kind === "instance") return data.selectedInstanceIds.size;
   const nested = {
     body: data.selectedBodyIds,
-    block: data.selectedBlockIds,
     element: data.selectedElementIds,
     face: data.selectedFaces,
     node: data.selectedNodeIds,
@@ -70,7 +68,6 @@ export function selectedTargets(state: InteractionState): InteractionTarget[] {
     targets.push({ kind: "instance", instanceId });
   }
   appendNumericTargets(targets, data.selectedBodyIds, "body");
-  appendNumericTargets(targets, data.selectedBlockIds, "block");
   appendNumericTargets(targets, data.selectedElementIds, "element");
   for (const [, faces] of [...data.selectedFaces.entries()].sort(([a], [b]) =>
     a.localeCompare(b),
@@ -101,16 +98,13 @@ export function selectedTargets(state: InteractionState): InteractionTarget[] {
 function appendNumericTargets(
   targets: InteractionTarget[],
   groups: ReadonlyMap<string, ReadonlySet<number>>,
-  kind: "body" | "block" | "element" | "node",
+  kind: "body" | "element" | "node",
 ): void {
   for (const [instanceId, ids] of [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     for (const id of [...ids].sort((a, b) => a - b)) {
       switch (kind) {
         case "body":
           targets.push({ kind, instanceId, bodyId: id });
-          break;
-        case "block":
-          targets.push({ kind, instanceId, blockId: id });
           break;
         case "element":
           targets.push({ kind, instanceId, elementId: id });
@@ -135,7 +129,6 @@ export function clearSelection(state: InteractionState): InteractionState {
     data.selectedPartIds.size === 0 &&
     data.selectedInstanceIds.size === 0 &&
     data.selectedBodyIds.size === 0 &&
-    data.selectedBlockIds.size === 0 &&
     data.selectedElementIds.size === 0 &&
     data.selectedFaces.size === 0 &&
     data.selectedNodeIds.size === 0 &&
@@ -147,7 +140,6 @@ export function clearSelection(state: InteractionState): InteractionState {
     selectedPartIds: new Set(),
     selectedInstanceIds: new Set(),
     selectedBodyIds: new Map(),
-    selectedBlockIds: new Map(),
     selectedElementIds: new Map(),
     selectedFaces: new Map(),
     selectedNodeIds: new Map(),

@@ -1,17 +1,10 @@
-import type {
-  ElementTessellation,
-  FaceTessellation,
-  GeometryBody,
-  GeometryEdge,
-  GeometryElementBlock,
-} from "./types";
+import type { ElementTessellation, FaceTessellation, GeometryBody, GeometryEdge } from "./types";
 import type { BodyId, Part } from "./part";
 import { faceIdentity } from "./element-face-selection";
 
 export { compareNodeIds as compareEdgeNodeIds } from "../elements/edges";
 
 type ElementId = ElementTessellation["id"];
-type ElementBlockId = GeometryElementBlock["id"];
 
 interface FaceMetadata {
   readonly face: FaceTessellation;
@@ -24,10 +17,7 @@ export interface PartSemanticIndex {
   /** Stable private ordinal (`1..n`) for each authored element id. */
   readonly elementOrdinalById: ReadonlyMap<ElementId, number>;
   readonly bodies: ReadonlyMap<BodyId, GeometryBody>;
-  readonly blocks: ReadonlyMap<ElementBlockId, GeometryElementBlock>;
   readonly bodyByElement: ReadonlyMap<ElementId, BodyId>;
-  readonly blockByElement: ReadonlyMap<ElementId, ElementBlockId>;
-  readonly bodyByBlock: ReadonlyMap<ElementBlockId, BodyId>;
   readonly faces: ReadonlyMap<string, FaceMetadata>;
   readonly edges: ReadonlyMap<string, GeometryEdge>;
   readonly nodeCount: number;
@@ -45,33 +35,17 @@ export function getPartSemanticIndex(part: Part): PartSemanticIndex {
 }
 
 function buildPartSemanticIndex(part: Part): PartSemanticIndex {
-  const { elements: partElements = [], bodies: partBodies = [], blocks: partBlocks = [] } = part;
+  const { elements: partElements = [], bodies: partBodies = [] } = part;
   const elements = new Map(partElements.map((element) => [element.id, element]));
   const elementOrdinalById = new Map(partElements.map((element, index) => [element.id, index + 1]));
   const bodies = new Map(partBodies.map((body) => [body.id, body]));
-  const blocks = new Map(partBlocks.map((block) => [block.id, block]));
   const bodyByElement = new Map<ElementId, BodyId>();
-  const blockByElement = new Map<ElementId, ElementBlockId>();
   for (const element of partElements) {
     if (element.bodyId !== undefined) bodyByElement.set(element.id, element.bodyId);
-    if (element.blockId !== undefined) blockByElement.set(element.id, element.blockId);
   }
   for (const body of partBodies) {
     for (const elementId of body.elementIds) {
       if (!bodyByElement.has(elementId)) bodyByElement.set(elementId, body.id);
-    }
-  }
-  for (const block of partBlocks) {
-    for (const elementId of block.elementIds) {
-      if (!blockByElement.has(elementId)) blockByElement.set(elementId, block.id);
-    }
-  }
-  const bodyByBlock = new Map<ElementBlockId, BodyId>();
-  for (const element of partElements) {
-    const blockId = blockByElement.get(element.id);
-    const bodyId = bodyByElement.get(element.id);
-    if (blockId !== undefined && bodyId !== undefined && !bodyByBlock.has(blockId)) {
-      bodyByBlock.set(blockId, bodyId);
     }
   }
   const faces = new Map<string, FaceMetadata>();
@@ -90,10 +64,7 @@ function buildPartSemanticIndex(part: Part): PartSemanticIndex {
     elements,
     elementOrdinalById,
     bodies,
-    blocks,
     bodyByElement,
-    blockByElement,
-    bodyByBlock,
     faces,
     edges,
     nodeCount: Math.floor((part.nodePositions?.length ?? 0) / 3),

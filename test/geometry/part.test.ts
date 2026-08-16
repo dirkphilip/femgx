@@ -115,7 +115,6 @@ describe("part geometry", () => {
           { primitive: "points", primitiveStart: 0, primitiveCount: 1 },
         ],
         bodyId: 2,
-        blockId: 3,
       },
     ];
     const part = createPart(1, {
@@ -123,11 +122,9 @@ describe("part geometry", () => {
       elements,
       nodePositions: new Float32Array(9),
       bodies: [{ id: 2, elementIds: [7] }],
-      blocks: [{ id: 3, elementIds: [7] }],
     });
     expect(part.elements).toEqual(elements);
     expect(part.bodies?.[0]?.elementIds).toEqual([7]);
-    expect(part.blocks?.[0]?.elementIds).toEqual([7]);
   });
 
   it("does not make semantic ownership depend on geometry order", () => {

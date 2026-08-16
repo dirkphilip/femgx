@@ -4,7 +4,6 @@ import {
   type ElementTessellation,
   type Geometry,
   type GeometryBody,
-  type GeometryElementBlock,
   type Part,
 } from "../../src/geometry/part";
 import { createResultField } from "../../src/results/fields";
@@ -28,7 +27,6 @@ type SemanticGeometry = Geometry & {
   readonly elements?: readonly ElementTessellation[];
   readonly nodePositions?: Float32Array;
   readonly bodies?: readonly GeometryBody[];
-  readonly blocks?: readonly GeometryElementBlock[];
 };
 
 afterEach(() => {
@@ -247,13 +245,11 @@ function identityScene(withSecondElement: boolean): Scene {
             id: 10,
             primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
             bodyId: 1,
-            blockId: 1,
           },
           {
             id: 11,
             primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
             bodyId: 1,
-            blockId: 2,
           },
         ],
         faces: [
@@ -265,7 +261,6 @@ function identityScene(withSecondElement: boolean): Scene {
             key: "0/1/2",
             nodeIds: [0, 1, 2],
             bodyId: 1,
-            blockId: 1,
           },
           {
             elementId: 11,
@@ -275,16 +270,11 @@ function identityScene(withSecondElement: boolean): Scene {
             key: "0/2/3",
             nodeIds: [0, 2, 3],
             bodyId: 1,
-            blockId: 2,
           },
         ],
         nodePickIds: new Uint32Array([1, 2, 3, 4]),
         nodePositions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0, 1, 1, 0]),
         bodies: [{ id: 1, elementIds: [10, 11] }],
-        blocks: [
-          { id: 1, elementIds: [10] },
-          { id: 2, elementIds: [11] },
-        ],
       } satisfies SemanticGeometry)
     : ({
         positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
@@ -309,7 +299,7 @@ function identityScene(withSecondElement: boolean): Scene {
         nodePickIds: new Uint32Array([1, 2, 3]),
         nodePositions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
       } satisfies SemanticGeometry);
-  const { elements, nodePositions, bodies, blocks, ...localGeometry } = geometry;
+  const { elements, nodePositions, bodies, ...localGeometry } = geometry;
   return explicitScene(
     [
       createPart(1, {
@@ -317,7 +307,6 @@ function identityScene(withSecondElement: boolean): Scene {
         elements,
         nodePositions,
         ...(bodies === undefined ? {} : { bodies }),
-        ...(blocks === undefined ? {} : { blocks }),
       }),
     ],
     [{ kind: "part", placementId: "keep", partId: 1, transform: translation(0, 0, 0) }],
@@ -591,7 +580,6 @@ describe("FemViewport", () => {
     const instanceId = "1/keep" as const;
     let interaction = viewport.interaction;
     interaction = setTargetSelected(interaction, { kind: "body", instanceId, bodyId: 1 }, true);
-    interaction = setTargetSelected(interaction, { kind: "block", instanceId, blockId: 2 }, true);
     interaction = setTargetSelected(
       interaction,
       { kind: "element", instanceId, elementId: 11 },
@@ -608,9 +596,6 @@ describe("FemViewport", () => {
     viewport.updateScene(identityScene(false));
 
     expect(isTargetSelected(viewport.interaction, { kind: "body", instanceId, bodyId: 1 })).toBe(
-      false,
-    );
-    expect(isTargetSelected(viewport.interaction, { kind: "block", instanceId, blockId: 2 })).toBe(
       false,
     );
     expect(

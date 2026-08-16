@@ -4,25 +4,11 @@ export {
   createElementModel,
   type Body,
   type BodyId,
-  type ElementBlock,
-  type ElementBlockId,
   type ElementModel,
   type ElementModelOptions,
   ElementModelValidationError,
   type ElementModelValidationCode,
 } from "../elements/model";
-export {
-  editElementModel,
-  ElementModelEditError,
-  type DissolveBlockBodyPolicy,
-  type DissolveElementBlockOptions,
-  type ElementBlockReplacement,
-  type ElementModelEditCode,
-  type ElementModelEditReport,
-  type ElementModelEditResult,
-  type ElementModelEditor,
-  type MergeElementBlocksInput,
-} from "../elements/model-edit";
 export { elementPart, type TessellationOptions } from "../geometry/element-part";
 export {
   surfacePart,

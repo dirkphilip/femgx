@@ -2,7 +2,7 @@ import type { ElementId, NodeId } from "../elements/element";
 import type { EdgeKey } from "../elements/edges";
 import type { FaceIdRef } from "../elements/faces";
 import type { FaceKey } from "../elements/faces";
-import type { BodyId, ElementBlockId, PartId } from "../geometry/part";
+import type { BodyId, PartId } from "../geometry/part";
 import type { Vec3 } from "../math/vec3";
 import type { InstanceId } from "../scene/types";
 
@@ -11,7 +11,7 @@ import type { InstanceId } from "../scene/types";
  * @category Interaction and picking
  */
 export type InteractionGranularity =
-  "part" | "instance" | "body" | "block" | "element" | "face" | "node" | "edge";
+  "part" | "instance" | "body" | "element" | "face" | "node" | "edge";
 
 /**
  * The most-specific resolved face hit with renderer-independent data.
@@ -24,8 +24,6 @@ export interface FacePickHit {
   readonly elementId: ElementId;
   /** Optional logical body owning the face's element. */
   readonly bodyId?: BodyId;
-  /** Optional semantic element block owning the face's element. */
-  readonly blockId?: ElementBlockId;
   readonly faceIndex: number;
   /** Canonical identity shared by coincident faces. */
   readonly key: FaceKey;
@@ -52,8 +50,6 @@ export interface NodePickHit {
   readonly nodeId: NodeId;
   /** Optional logical body owning the picked element. */
   readonly bodyId?: BodyId;
-  /** Optional semantic element block owning the node's element. */
-  readonly blockId?: ElementBlockId;
   readonly localPosition: Vec3;
   readonly worldPosition: Vec3;
   /** Elements whose faces reference this node. */
@@ -94,8 +90,6 @@ export type PickHit =
       readonly elementId: ElementId;
       /** Optional logical body owning the element. */
       readonly bodyId?: BodyId;
-      /** Optional semantic element block owning the element. */
-      readonly blockId?: ElementBlockId;
       /** Exact displayed world-space position under the pointer. */
       readonly worldPosition: Vec3;
     }

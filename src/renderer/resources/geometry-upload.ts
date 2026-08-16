@@ -47,15 +47,10 @@ export function buildPartGeometryData(
   const subsetIndices = getSubsetIndices(triangleGeometry);
   const emptyEdgeData = emptyMeshEdgeData();
   const picks = uploadPickBuffers(device, part, geometry, vertexData.nodePickIds);
-  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(
-    geometry,
-    part.elements ?? [],
-    part.blocks ?? [],
-  );
+  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []);
   const facePickIdsBuffer = createTopologyBuffer(device, faceBodyPickIds, emptyEdgeData, {
     primitiveIds: vertexData.primitiveIds,
     edgeIds: emptyEdgeData.edgeIds,
-    blockIds: blockAwareIds(part),
   });
   const subsetVertexData =
     triangleGeometry === undefined || subsetIndices === undefined
@@ -66,7 +61,6 @@ export function buildPartGeometryData(
     subsetVertexData,
     faceBodyPickIds,
     resultTail,
-    blockAwareIds(part),
   );
   return {
     picks,
@@ -122,7 +116,6 @@ function buildPartMeshEdgeData(
     geometry,
     getSubsetIndices(geometry) ?? geometry.indices,
     part.elements ?? [],
-    part.blocks ?? [],
   );
 }
 
@@ -152,9 +145,9 @@ function uploadEdgeResourceData(
     edgeNodePickIdsBuffer: createBuffer(device, drawData.nodePickIds, GPUBufferUsage.STORAGE),
     edgeTopologyBuffer: createTopologyBuffer(
       device,
-      buildPrimitiveFaceBodyPickData(geometry, part.elements ?? [], part.blocks ?? []),
+      buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []),
       { ...edgeData, ...drawData },
-      { primitiveIds: [], edgeIds: drawData.edgeIds, blockIds: edgeData.blockIds },
+      { primitiveIds: [], edgeIds: drawData.edgeIds },
     ),
     edgeIndexCount: drawData.indices.length,
     edgeKeys: edgeData.edgeKeys,
@@ -196,7 +189,6 @@ function createTopologyBuffer(
   metadata: {
     readonly primitiveIds: ArrayLike<number>;
     readonly edgeIds: ArrayLike<number>;
-    readonly blockIds?: Uint32Array | undefined;
   },
 ): GPUBuffer {
   return createBuffer(
@@ -217,7 +209,6 @@ function createSubsetBuffers(
   vertexData: SurfaceVertexData | undefined,
   faceBodyPickIds: Uint32Array,
   resultTail: ResultColorTail,
-  blockIds?: Uint32Array,
 ): {
   readonly subsetIndexBuffer?: GPUBuffer;
   readonly subsetVertexBuffer?: GPUBuffer;
@@ -239,17 +230,12 @@ function createSubsetBuffers(
     subsetTopologyBuffer: createTopologyBuffer(device, faceBodyPickIds, emptyMeshEdgeData(), {
       primitiveIds: vertexData.primitiveIds,
       edgeIds: [],
-      blockIds,
     }),
     subsetResultColorBinding: {
       buffer: subsetVertexBuffer,
       offset: subsetVertexWithResults.offset,
     },
   };
-}
-
-function blockAwareIds(part: Part): Uint32Array | undefined {
-  return part.blocks !== undefined && part.blocks.length > 0 ? new Uint32Array() : undefined;
 }
 
 function createIndexBuffer(device: GPUDevice, indices: Uint32Array): GPUBuffer {

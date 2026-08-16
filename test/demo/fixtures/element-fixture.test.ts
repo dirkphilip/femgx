@@ -267,32 +267,19 @@ describe("createElementFixture", () => {
     expect(nonZeroNodeIds(quad8)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
 
     expect(
-      buildMeshEdgeData(
-        triangleGeometry,
-        triangleGeometry.indices,
-        triangle.elements ?? [],
-        triangle.blocks ?? [],
-      ).indices,
+      buildMeshEdgeData(triangleGeometry, triangleGeometry.indices, triangle.elements ?? [])
+        .indices,
     ).toHaveLength(6);
     expect(
-      buildMeshEdgeData(
-        tri6.geometries[0],
-        tri6.geometries[0].indices,
-        tri6.elements ?? [],
-        tri6.blocks ?? [],
-      ).indices,
+      buildMeshEdgeData(tri6.geometries[0], tri6.geometries[0].indices, tri6.elements ?? [])
+        .indices,
     ).toHaveLength(12);
     expect(
-      buildMeshEdgeData(quadGeometry, quadGeometry.indices, quad.elements ?? [], quad.blocks ?? [])
-        .indices,
+      buildMeshEdgeData(quadGeometry, quadGeometry.indices, quad.elements ?? []).indices,
     ).toHaveLength(8);
     expect(
-      buildMeshEdgeData(
-        quad8.geometries[0],
-        quad8.geometries[0].indices,
-        quad8.elements ?? [],
-        quad8.blocks ?? [],
-      ).indices,
+      buildMeshEdgeData(quad8.geometries[0], quad8.geometries[0].indices, quad8.elements ?? [])
+        .indices,
     ).toHaveLength(16);
   });
 

@@ -1,17 +1,6 @@
-import {
-  validateBodies,
-  validateBlocks,
-  validateElements,
-  validatePickIds,
-} from "./part-validation";
+import { validateBodies, validateElements, validatePickIds } from "./part-validation";
 import { validatePartId } from "./id-validation";
-import type {
-  Bounds,
-  ElementTessellation,
-  Geometry,
-  GeometryBody,
-  GeometryElementBlock,
-} from "./types";
+import type { Bounds, ElementTessellation, Geometry, GeometryBody } from "./types";
 
 export type {
   Bounds,
@@ -20,7 +9,6 @@ export type {
   FaceSubset,
   FaceTessellation,
   GeometryBody,
-  GeometryElementBlock,
   GeometryEdge,
   Geometry,
   LineGeometry,
@@ -28,7 +16,7 @@ export type {
   Primitive,
   TriangleGeometry,
 } from "./types";
-export type { BodyId, ElementBlockId } from "../elements/model";
+export type { BodyId } from "../elements/model";
 
 /**
  * A globally stable identifier for a reusable part within a scene.
@@ -62,7 +50,6 @@ export interface Part {
   readonly elements?: readonly ElementTessellation[];
   readonly nodePositions?: Float32Array;
   readonly bodies?: readonly GeometryBody[];
-  readonly blocks?: readonly GeometryElementBlock[];
   readonly bounds: Bounds;
 }
 
@@ -112,7 +99,6 @@ export function createPart(
     readonly elements?: readonly ElementTessellation[];
     readonly nodePositions?: Float32Array;
     readonly bodies?: readonly GeometryBody[];
-    readonly blocks?: readonly GeometryElementBlock[];
   },
 ): Part {
   validatePartId(id);
@@ -136,10 +122,6 @@ export function createPart(
     ...(input.elements === undefined ? {} : { elements: input.elements }),
     ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
   });
-  validateBlocks({
-    ...(input.elements === undefined ? {} : { elements: input.elements }),
-    ...(input.blocks === undefined ? {} : { blocks: input.blocks }),
-  });
   return {
     [partBrand]: true,
     id,
@@ -147,7 +129,6 @@ export function createPart(
     ...(input.elements === undefined ? {} : { elements: input.elements }),
     ...(input.nodePositions === undefined ? {} : { nodePositions: input.nodePositions }),
     ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
-    ...(input.blocks === undefined ? {} : { blocks: input.blocks }),
     bounds: finitePartBounds(groups),
   };
 }

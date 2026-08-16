@@ -10,7 +10,6 @@ export function parseViewportBackground(value: string): ViewportBackground | und
 /** Parses the supported selection granularities from DOM input. */
 export function parseSelectionGranularity(value: string): SelectionGranularity | undefined {
   return value === "body" ||
-    value === "block" ||
     value === "element" ||
     value === "face" ||
     value === "node" ||

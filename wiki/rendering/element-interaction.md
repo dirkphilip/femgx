@@ -123,7 +123,7 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   face when both owners are visible and exposes the surviving oriented face
   when the other owner is hidden. The same predicate drives filled faces,
   depth, picking, deformation, transparency, edges, and node glyphs, without
-  cloning geometry or materials. Blockless parts retain the compact legacy
+  cloning geometry or materials. Parts retain the compact direct body/element
   topology layout.
 - The workbench drives the overlay by applying an `{ edge: true }` part
   override to every part. Hosts control occlusion through the public
@@ -146,9 +146,8 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   concern, not a correctness one (resolved in
   [femgx#68](https://github.com/dirkphilip/femgx/issues/68); the linear scan is
   tracked in [femgx#95](https://github.com/dirkphilip/femgx/issues/95)).
-- Semantic element blocks and block-granularity interaction are removed. The
-  implementation follow-up deletes their public targets and GPU fields rather
-  than preserving compatibility aliases.
+- Semantic element blocks and block-granularity interaction are removed. Their
+  public targets and GPU fields do not exist, including compatibility aliases.
 - The edge overlay draws instance-level emphasis, not per-element edges, because
   edges shared between adjacent elements have no unambiguous element owner.
 

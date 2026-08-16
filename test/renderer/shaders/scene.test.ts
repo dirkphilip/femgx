@@ -26,8 +26,6 @@ import {
   pointVertexShader,
   selectionVertexShader,
 } from "../../../src/renderer/shaders/instanced";
-import { ownerVisibilityBindings } from "../../../src/renderer/shaders/topology";
-import { BLOCK_HIGHLIGHT_MARKER } from "../../../src/renderer/selection/highlight-table";
 import {
   lineNodePickVertexShader,
   nodePickFragmentShader,
@@ -402,12 +400,6 @@ describe("GPU record struct layout vs CPU record encoders", () => {
 });
 
 describe("selection emphasis shaders", () => {
-  it("keeps the semantic block marker synchronized with both WGSL lookup sites", () => {
-    const marker = `0x${BLOCK_HIGHLIGHT_MARKER.toString(16)}u`;
-    expect(instanceVertexShader).toContain(marker);
-    expect(ownerVisibilityBindings).toContain(marker);
-  });
-
   it("bypasses neighbor suppression only for exact element and face selection", () => {
     expect(instanceVertexShader).toContain("primitiveVisible(drawOrder[instanceIndex]");
     expect(instanceVertexShader).not.toContain("if (!primitiveSelectionVisible");

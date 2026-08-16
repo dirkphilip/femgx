@@ -156,15 +156,14 @@ feature-capable paths must not duplicate full node or edge buffers.
 
 ### Block removal contract
 
-The **Remove** classification for semantic element blocks is an implementation
-instruction, not deprecation guidance. Follow-up work deletes `ElementBlock`
-authoring and edit operations, block-defined bodies, block ids and descriptors,
-block interaction targets and state, block hierarchy UI, pick resolution,
-topology owner fields, shader conditions, fixtures, tests, documentation, and
-public exports. Do not retain aliases, adapters, serialized compatibility, or
-dead block fields. Import-format grouping may be consumed transiently by an
-adapter but must map to bodies/elements or disappear before the authoritative
-model boundary.
+The **Remove** classification for semantic element blocks is implemented. The
+product has no `ElementBlock` authoring or edit operations, block-defined
+bodies, block ids or descriptors, block interaction targets or state, block
+hierarchy UI, pick resolution, topology owner fields, shader conditions, or
+public block exports. Do not retain aliases, adapters, serialized
+compatibility, or dead block fields. Import-format grouping may be consumed
+transiently by an adapter but must map to bodies/elements or disappear before
+the authoritative model boundary.
 
 ## Core camera focus contract
 
@@ -240,7 +239,7 @@ identity; GPU picks resolve them to the owning occurrence-scoped element.
 
 Elemental scalar results color a cap from its owning element. Nodal scalar
 results interpolate the mapped endpoint colors at each edge-plane crossing.
-Resolved base material, opacity, selection, highlight, hover, body/block/element
+Resolved base material, opacity, selection, highlight, hover, body/element
 visibility, depth, and weighted transparency follow the owning displayed
 element. Repeated placements build independent occurrence caps while ordinary
 part geometry remains instanced.

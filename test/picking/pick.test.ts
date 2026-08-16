@@ -381,7 +381,6 @@ describe("interactionTargetFromHit", () => {
     instanceId: "1/2",
     elementId: 7,
     bodyId: 9,
-    blockId: 11,
     faceIndex: 1,
     key: "0,1,2",
     nodeIds: [0, 1, 2],
@@ -394,7 +393,6 @@ describe("interactionTargetFromHit", () => {
     ["part", { kind: "part", partId: 4 }],
     ["instance", { kind: "instance", instanceId: "1/2" }],
     ["body", { kind: "body", instanceId: "1/2", bodyId: 9 }],
-    ["block", { kind: "block", instanceId: "1/2", blockId: 11 }],
     ["element", { kind: "element", instanceId: "1/2", elementId: 7 }],
     ["face", { kind: "face", instanceId: "1/2", elementId: 7, faceIndex: 1 }],
   ] as const)("maps a face hit to %s", (granularity, expected) => {

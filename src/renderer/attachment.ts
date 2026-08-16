@@ -44,7 +44,7 @@ import { syncEdgeEmphasisFlags } from "./edges/emphasis-sync";
 import { rebuildAttachmentCalls } from "./attachment-calls";
 
 type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
-type HiddenInteractionTuple = readonly HiddenInteractionIds[];
+type HiddenInteractionTuple = readonly [HiddenInteractionIds, HiddenInteractionIds];
 
 /**
  * The renderer's CPU-side attachment to a packed scene runtime: the instance
@@ -73,7 +73,7 @@ export class RendererAttachment {
   private readonly selection: SelectionState = { selectedNodeFlags: [], nodeFlags: this.nodeFlags };
   private interactionState = createInteractionState();
   private interactionBeforeLastInstanceUpdate: InteractionState | undefined;
-  private appliedHiddenIds: HiddenInteractionTuple = [undefined, undefined, undefined];
+  private appliedHiddenIds: HiddenInteractionTuple = [undefined, undefined];
   private attachedParts: ReadonlyMap<PartId, Part> = new Map();
 
   public usesExteriorFaceSubsets = true;
@@ -217,13 +217,11 @@ export class RendererAttachment {
       fullSync,
     );
     const hiddenBodyIds = interactionData.hiddenBodyIds;
-    const hiddenBlockIds = interactionData.hiddenBlockIds;
     const hiddenElementIds = interactionData.hiddenElementIds;
-    const [previousBodyIds, previousBlockIds, previousElementIds] = this.appliedHiddenIds;
+    const [previousBodyIds, previousElementIds] = this.appliedHiddenIds;
     const bodyVisibilityChanged = previousBodyIds !== hiddenBodyIds;
-    const blockVisibilityChanged = previousBlockIds !== hiddenBlockIds;
     const elementVisibilityChanged = previousElementIds !== hiddenElementIds;
-    this.appliedHiddenIds = [hiddenBodyIds, hiddenBlockIds, hiddenElementIds];
+    this.appliedHiddenIds = [hiddenBodyIds, hiddenElementIds];
     this.usesExteriorFaceSubsets = !hasHiddenInteractionIds(this.appliedHiddenIds);
     const { transparentChanged, selectionChanged, edgeChanged } = this.syncInteractionBuffers({
       runtime,
@@ -245,7 +243,7 @@ export class RendererAttachment {
     }
     this.interactionState = interaction;
     this.interactionBeforeLastInstanceUpdate = undefined;
-    return attached || bodyVisibilityChanged || blockVisibilityChanged || elementVisibilityChanged;
+    return attached || bodyVisibilityChanged || elementVisibilityChanged;
   }
 
   private syncInteractionBuffers(options: {
@@ -336,7 +334,7 @@ export class RendererAttachment {
     this.transparentFlags = new Array<boolean>(runtime.instanceCount).fill(false);
     this.selection.selectedNodeFlags.length = runtime.instanceCount;
     this.selection.selectedNodeFlags.fill(false);
-    this.appliedHiddenIds = [undefined, undefined, undefined];
+    this.appliedHiddenIds = [undefined, undefined];
     const allSlots = Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
     bundle.draw.cost.cpu("instance-scan", allSlots.length);
     const { updates } = collectInstanceUpdates(

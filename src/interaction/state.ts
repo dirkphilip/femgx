@@ -1,5 +1,4 @@
 import type { ElementId, InstanceId } from "../scene/types";
-import type { ElementBlockId } from "../elements/model";
 import type { NodeId } from "../elements/element";
 import type { EdgeKey } from "../elements/edges";
 import type { BodyId, PartId } from "../geometry/part";
@@ -125,13 +124,6 @@ export interface InteractionStateData {
   readonly highlightedBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
   readonly bodyOverrides: ReadonlyMap<InstanceId, ReadonlyMap<BodyId, PrimitiveStyleOverride>>;
   readonly hiddenBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
-  readonly selectedBlockIds: ReadonlyMap<InstanceId, ReadonlySet<ElementBlockId>>;
-  readonly highlightedBlockIds: ReadonlyMap<InstanceId, ReadonlySet<ElementBlockId>>;
-  readonly hiddenBlockIds: ReadonlyMap<InstanceId, ReadonlySet<ElementBlockId>>;
-  readonly blockOverrides: ReadonlyMap<
-    InstanceId,
-    ReadonlyMap<ElementBlockId, PrimitiveStyleOverride>
-  >;
   readonly selectedElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
   readonly highlightedElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
   readonly hiddenElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
@@ -224,12 +216,6 @@ function targetsEqual(
         right.kind === "body" &&
         left.instanceId === right.instanceId &&
         left.bodyId === right.bodyId
-      );
-    case "block":
-      return (
-        right.kind === "block" &&
-        left.instanceId === right.instanceId &&
-        left.blockId === right.blockId
       );
     case "element":
       return (

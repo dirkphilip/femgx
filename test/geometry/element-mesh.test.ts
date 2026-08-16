@@ -692,20 +692,12 @@ describe("elementPart metadata", () => {
     expect(geometry.faces?.every((face) => face.bodyId === 3)).toBe(true);
   });
 
-  it("derives block and flattened body metadata for every primitive group", () => {
+  it("derives direct body metadata for every primitive group", () => {
     const source = heterogeneousModel();
     const model = createElementModel([...source.nodes], source.elements, {
-      blocks: [
-        { id: 10, name: "surface and line", elementIds: [1, 5] },
-        { id: 11, elementIds: [2, 3, 4, 6] },
-      ],
-      bodies: [{ id: 20, name: "assembly body", blockIds: [10, 11] }],
+      bodies: [{ id: 20, name: "assembly body", elementIds: [1, 2, 3, 4, 5, 6] }],
     });
     const part = elementPart(20, model);
-    expect(part.blocks).toEqual([
-      { id: 10, name: "surface and line", elementIds: [1, 5] },
-      { id: 11, elementIds: [2, 3, 4, 6] },
-    ]);
     expect(part.bodies).toEqual([
       { id: 20, name: "assembly body", elementIds: [1, 2, 3, 4, 5, 6] },
     ]);

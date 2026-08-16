@@ -19,7 +19,6 @@ export {
   type Geometry,
   type GeometryValidationCode,
   type GeometryBody,
-  type GeometryElementBlock,
   type GeometryEdge,
   type LineGeometry,
   type Part,
@@ -84,17 +83,8 @@ export {
   setBodyOverride,
   setBodyVisible,
 } from "../interaction/bodies";
-export {
-  emphasizedElementBlockRefs,
-  isElementBlockEmphasized,
-  isElementBlockVisible,
-  setElementBlockHighlighted,
-  setElementBlockOverride,
-  setElementBlockSelected,
-  setElementBlockVisible,
-} from "../interaction/blocks";
 export { isElementVisible, setElementVisible } from "../interaction/elements";
-export type { BodyRef, EdgeRef, ElementBlockRef, FaceRef, NodeRef } from "../interaction/refs";
+export type { BodyRef, EdgeRef, FaceRef, NodeRef } from "../interaction/refs";
 export {
   installBoxSelection,
   type BoxSelectionCancelReason,

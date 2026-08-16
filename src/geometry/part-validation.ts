@@ -1,6 +1,6 @@
 import type { ElementId } from "../elements/element";
 import type { BodyId } from "../elements/model";
-import type { ElementTessellation, Geometry, GeometryBody, GeometryElementBlock } from "./types";
+import type { ElementTessellation, Geometry, GeometryBody } from "./types";
 import { MAX_ONE_BASED_ID, isValidOneBasedId, validateOneBasedId } from "./id-validation";
 import { validateFaceMetadata, validateFaceSubset } from "./face-validation";
 import { validateEdges } from "./edge-validation";
@@ -34,15 +34,6 @@ export function validateElements(
   for (const element of elements) {
     validateOneBasedId(element.id, "Element");
     if (element.bodyId !== undefined) validateBodyId(element.bodyId);
-    if (
-      element.blockId !== undefined &&
-      (!isValidOneBasedId(element.blockId) || element.blockId === 0)
-    ) {
-      throw new GeometryValidationError(
-        "invalid-block-id",
-        `Element block id ${element.blockId} must be a finite integer in [1, ${MAX_ONE_BASED_ID}]`,
-      );
-    }
     if (!element.primitiveRanges.some((range) => range.primitive === primitive)) continue;
     validateElementRanges(element, primitive, primitiveCount, coverage);
   }
@@ -149,40 +140,6 @@ export function validateBodies(geometry: {
   const elementIds = new Set((geometry.elements ?? []).map((element) => element.id));
   const membership = collectBodyMembership(bodies, elementIds);
   validateElementMembership(geometry.elements ?? [], membership.declaredBodies, membership.ids);
-}
-
-/** Validates semantic block metadata against one complete part element table. */
-export function validateBlocks(geometry: {
-  readonly elements?: readonly Pick<ElementTessellation, "id">[];
-  readonly blocks?: readonly GeometryElementBlock[];
-}): void {
-  const blocks = geometry.blocks;
-  if (blocks === undefined || blocks.length === 0) return;
-  const elementIds = new Set((geometry.elements ?? []).map((element) => element.id));
-  const seenBlocks = new Set<number>();
-  const seenElements = new Set<ElementId>();
-  let previousBlockId: number | undefined;
-  for (const block of blocks) {
-    validateDerivedBlockId(block);
-    if (seenBlocks.has(block.id)) {
-      throw new GeometryValidationError(
-        "duplicate-block-id",
-        `Duplicate element block id ${block.id}`,
-      );
-    }
-    if (previousBlockId !== undefined && block.id <= previousBlockId) {
-      throw new GeometryValidationError(
-        "block-order",
-        `Element block ids must be strictly ascending; ${block.id} follows ${previousBlockId}`,
-      );
-    }
-    if (block.elementIds.length === 0) {
-      throw new GeometryValidationError("empty-block", `Element block ${block.id} is empty`);
-    }
-    validateDerivedBlockElements(block, elementIds, seenElements);
-    seenBlocks.add(block.id);
-    previousBlockId = block.id;
-  }
 }
 
 /** Resolves body ownership once against a complete element list. */
@@ -345,45 +302,6 @@ export function validatePickIds(
   validateEdges(geometry, elements);
   validateFaceMetadata(geometry, elements, nodePositions);
   validateFaceSubset(geometry);
-}
-
-function validateDerivedBlockId(block: GeometryElementBlock): void {
-  if (!isValidOneBasedId(block.id) || block.id === 0) {
-    throw new GeometryValidationError(
-      "invalid-block-id",
-      `Element block id ${block.id} must be a finite integer in [1, ${MAX_ONE_BASED_ID}]`,
-    );
-  }
-}
-
-function validateDerivedBlockElements(
-  block: GeometryElementBlock,
-  elementIds: ReadonlySet<ElementId>,
-  seenElements: Set<ElementId>,
-): void {
-  let previousElementId: ElementId | undefined;
-  for (const elementId of block.elementIds) {
-    if (previousElementId !== undefined && elementId <= previousElementId) {
-      throw new GeometryValidationError(
-        "block-order",
-        `Element block ${block.id} element ids must be strictly ascending`,
-      );
-    }
-    if (!elementIds.has(elementId)) {
-      throw new GeometryValidationError(
-        "unknown-block-element",
-        `Element block ${block.id} references unknown element ${elementId}`,
-      );
-    }
-    if (seenElements.has(elementId)) {
-      throw new GeometryValidationError(
-        "duplicate-block-membership",
-        `Element ${elementId} belongs to more than one element block`,
-      );
-    }
-    seenElements.add(elementId);
-    previousElementId = elementId;
-  }
 }
 
 function validateNodePickIds(geometry: Geometry, nodePositions: Float32Array | undefined): void {

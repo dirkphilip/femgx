@@ -1,9 +1,4 @@
-import type {
-  ElementTessellation,
-  Geometry,
-  GeometryEdge,
-  GeometryElementBlock,
-} from "../../geometry/part";
+import type { ElementTessellation, Geometry, GeometryEdge } from "../../geometry/part";
 import {
   buildElementPrimitivePickIds,
   buildTriangleOwnerPairs,
@@ -29,8 +24,6 @@ export interface MeshEdgeData {
   readonly bodyIds: Uint32Array;
   /** 1-based owner/neighbor element pick-id pairs referenced by `bodyRanges`. */
   readonly elementIds: Uint32Array;
-  /** Optional 1-based owner/neighbor block pick-id pairs for block-aware parts. */
-  readonly blockIds?: Uint32Array;
   /** Stable authored identities, present only when geometry declares edges. */
   readonly edgeKeys?: readonly string[];
   /** Canonical authored node sequences parallel to `edgeKeys`. */
@@ -62,13 +55,11 @@ export function buildMeshEdgeData(
   geometry: Geometry,
   sourceIndices = geometry.indices,
   elements: readonly ElementTessellation[] = [],
-  blocks: readonly GeometryElementBlock[] = [],
 ): MeshEdgeData {
   if (
     geometry.primitive === "triangles" &&
     geometry.faces === undefined &&
     elements.length === 0 &&
-    blocks.length === 0 &&
     sourceIndices === geometry.indices
   ) {
     return buildUnownedEdgeData(geometry, sourceIndices, elements);
@@ -77,10 +68,10 @@ export function buildMeshEdgeData(
   const sourceBodyPairs = remapTriangleOwnerPairs(
     geometry,
     sourceIndices,
-    buildTriangleOwnerPairs(geometry, elements, blocks),
+    buildTriangleOwnerPairs(geometry, elements),
   );
   const edges = collectEdges(geometry, sourceIndices, elementEdges, sourceBodyPairs);
-  return finalizeEdges(geometry, edges, blocks);
+  return finalizeEdges(geometry, edges);
 }
 
 function remapTriangleOwnerPairs(
@@ -98,7 +89,7 @@ function remapTriangleOwnerPairs(
         geometry.indices[base + 1] ?? 0,
         geometry.indices[base + 2] ?? 0,
       ),
-      ownerPairs[triangle] ?? [0, 0, 0, 0, 0, 0],
+      ownerPairs[triangle] ?? [0, 0, 0, 0],
     );
   }
   const result: TriangleOwnerPair[] = [];
@@ -111,7 +102,7 @@ function remapTriangleOwnerPairs(
           sourceIndices[base + 1] ?? 0,
           sourceIndices[base + 2] ?? 0,
         ),
-      ) ?? [0, 0, 0, 0, 0, 0],
+      ) ?? [0, 0, 0, 0],
     );
   }
   return result;
@@ -230,9 +221,7 @@ function collectEdges(
       sourceIndices[base + 1] ?? 0,
       sourceIndices[base + 2] ?? 0,
     ];
-    const [owner, neighbor, element, neighborElement, block, neighborBlock] = sourceBodyPairs[
-      triangle
-    ] ?? [0, 0, 0, 0, 0, 0];
+    const [owner, neighbor, element, neighborElement] = sourceBodyPairs[triangle] ?? [0, 0, 0, 0];
     for (let corner = 0; corner < 3; corner++) {
       const a = corners[corner] ?? 0;
       const b = corners[(corner + 1) % 3] ?? 0;
@@ -265,27 +254,19 @@ function collectEdges(
       }
       // Keep `0` as an explicit unowned owner/neighbor id. It makes topology
       // shared with an unowned element visible when every named body is hidden.
-      edge.conditions.add(
-        `${owner},${neighbor},${element},${neighborElement},${block},${neighborBlock}`,
-      );
+      edge.conditions.add(`${owner},${neighbor},${element},${neighborElement}`);
     }
   }
   return edges;
 }
 
-function finalizeEdges(
-  geometry: Geometry,
-  edges: readonly MeshEdge[],
-  blocks: readonly GeometryElementBlock[] = [],
-): MeshEdgeData {
+function finalizeEdges(geometry: Geometry, edges: readonly MeshEdge[]): MeshEdgeData {
   const orderedEdges =
     geometry.edges === undefined
       ? [...edges]
       : [...edges].sort((left, right) => compareEdgeNodeIds(left.nodeIds, right.nodeIds));
   const bodyIds: number[] = [];
   const elementIds: number[] = [];
-  const blockIds: number[] = [];
-  const blockAware = blocks.length > 0;
   const bodyRanges = new Uint32Array(orderedEdges.length * 2);
   const segmentCount = orderedEdges.reduce((count, edge) => count + edge.segments.length, 0);
   const indices = new Uint32Array(segmentCount * 2);
@@ -309,11 +290,9 @@ function finalizeEdges(
     appendEdgeConditions({
       encoded: edge.conditions,
       edgeIndex: index,
-      blockAware,
       bodyRanges,
       bodyIds,
       elementIds,
-      blockIds,
     });
   }
   return {
@@ -324,9 +303,6 @@ function finalizeEdges(
     bodyRanges: bodyRanges.length === 0 ? new Uint32Array([0, 0]) : bodyRanges,
     bodyIds: bodyIds.length === 0 ? new Uint32Array([0]) : new Uint32Array(bodyIds),
     elementIds: elementIds.length === 0 ? new Uint32Array([0]) : new Uint32Array(elementIds),
-    ...(blockAware
-      ? { blockIds: blockIds.length === 0 ? new Uint32Array([0]) : new Uint32Array(blockIds) }
-      : {}),
     edgeKeys: orderedEdges.map((edge) => edge.key),
     edgeNodeIds: orderedEdges.map((edge) => edge.nodeIds),
   };

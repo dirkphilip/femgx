@@ -1,6 +1,5 @@
 import {
   isBodyVisible,
-  isElementBlockVisible,
   isElementVisible,
   type ElementTessellation,
   type FemViewport,
@@ -46,8 +45,6 @@ export function selectAllTargets(
       for (const elementId of elementIds) targets.push({ kind: "element", instanceId, elementId });
     } else if (granularity === "body") {
       appendBodies(targets, part, instanceId, elementIds);
-    } else if (granularity === "block") {
-      appendBlocks(targets, part, instanceId, elementIds);
     } else if (granularity === "face") {
       appendFaces(targets, part, instanceId, elementIds);
     } else if (granularity === "node") {
@@ -72,19 +69,6 @@ function appendBodies(
   }
 }
 
-function appendBlocks(
-  targets: SelectTarget[],
-  part: Part,
-  instanceId: string,
-  elementIds: ReadonlySet<number>,
-): void {
-  for (const block of part.blocks ?? []) {
-    if (block.elementIds.some((elementId) => elementIds.has(elementId))) {
-      targets.push({ kind: "block", instanceId, blockId: block.id });
-    }
-  }
-}
-
 function visibleElements(
   viewport: FemViewport,
   part: Part,
@@ -93,9 +77,6 @@ function visibleElements(
   const bodyByElement = new Map(
     part.bodies?.flatMap((body) => body.elementIds.map((id) => [id, body.id] as const)),
   );
-  const blockByElement = new Map(
-    part.blocks?.flatMap((block) => block.elementIds.map((id) => [id, block.id] as const)),
-  );
   return (part.elements ?? []).filter((element) => {
     if (!isElementVisible(viewport.interaction, { instanceId, elementId: element.id }))
       return false;
@@ -103,10 +84,7 @@ function visibleElements(
     if (bodyId !== undefined && !isBodyVisible(viewport.interaction, { instanceId, bodyId })) {
       return false;
     }
-    const blockId = element.blockId ?? blockByElement.get(element.id);
-    return (
-      blockId === undefined || isElementBlockVisible(viewport.interaction, { instanceId, blockId })
-    );
+    return true;
   });
 }
 

@@ -147,8 +147,6 @@ function createVisibilityFeatures(
     partVisible: (partId) => actions.partVisible(partId),
     bodyVisible: (instanceId, bodyId) => actions.bodyVisible(instanceId, bodyId),
     bodyHighlighted: (instanceId, bodyId) => actions.bodyHighlighted(instanceId, bodyId),
-    blockVisible: (instanceId, blockId) => actions.blockVisible(instanceId, blockId),
-    blockHighlighted: (instanceId, blockId) => actions.blockHighlighted(instanceId, blockId),
     onChanged: options.publishSnapshot,
   });
   return { actions, panel };

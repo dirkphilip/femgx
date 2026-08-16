@@ -1,6 +1,5 @@
 import type { EdgeRef, FaceRef } from "./refs";
 import { faceIdentity as faceId } from "../geometry/element-face-selection";
-import { setElementBlockHighlighted, setElementBlockSelected } from "./blocks";
 import { setBodyHighlighted, setBodySelected } from "./bodies";
 import { setFaceHighlighted, setFaceSelected } from "./faces";
 import { setNodeHighlighted, setNodeSelected } from "./nodes";
@@ -43,10 +42,6 @@ export function interactionTargetFromHit(
     case "body":
       return hit.kind !== "instance" && hit.kind !== "edge" && hit.bodyId !== undefined
         ? { kind: "body", instanceId: hit.instanceId, bodyId: hit.bodyId }
-        : undefined;
-    case "block":
-      return hit.kind !== "instance" && hit.kind !== "edge" && hit.blockId !== undefined
-        ? { kind: "block", instanceId: hit.instanceId, blockId: hit.blockId }
         : undefined;
     case "element":
       if (hit.kind === "instance" || hit.kind === "edge") return undefined;
@@ -92,8 +87,6 @@ export function setTargetSelected(
       return setInstanceSelected(state, target.instanceId, selected);
     case "body":
       return setBodySelected(state, target, selected);
-    case "block":
-      return setElementBlockSelected(state, target, selected);
     case "element":
       return setElementSelected(state, target, selected);
     case "face":
@@ -124,7 +117,6 @@ export function setTargetsSelected(
     selectedPartIds: next.partIds,
     selectedInstanceIds: next.instanceIds,
     selectedBodyIds: next.bodyIds,
-    selectedBlockIds: next.blockIds,
     selectedElementIds: next.elementIds,
     selectedFaces: next.faceRefs,
     selectedNodeIds: next.nodeIds,
@@ -135,7 +127,6 @@ export function setTargetsSelected(
 type PartTarget = Extract<InteractionTarget, { readonly kind: "part" }>;
 type InstanceTarget = Extract<InteractionTarget, { readonly kind: "instance" }>;
 type BodyTarget = Extract<InteractionTarget, { readonly kind: "body" }>;
-type BlockTarget = Extract<InteractionTarget, { readonly kind: "block" }>;
 type ElementTarget = Extract<InteractionTarget, { readonly kind: "element" }>;
 type FaceTarget = Extract<InteractionTarget, { readonly kind: "face" }>;
 type NodeTarget = Extract<InteractionTarget, { readonly kind: "node" }>;
@@ -145,7 +136,6 @@ interface TargetGroups {
   readonly partIds: Set<PartTarget["partId"]>;
   readonly instanceIds: Set<InstanceTarget["instanceId"]>;
   readonly bodyIds: Map<BodyTarget["instanceId"], Set<BodyTarget["bodyId"]>>;
-  readonly blockIds: Map<BlockTarget["instanceId"], Set<BlockTarget["blockId"]>>;
   readonly elementIds: Map<ElementTarget["instanceId"], Set<ElementTarget["elementId"]>>;
   readonly faceRefs: Map<FaceTarget["instanceId"], Map<string, FaceRef>>;
   readonly nodeIds: Map<NodeTarget["instanceId"], Set<NodeTarget["nodeId"]>>;
@@ -156,7 +146,6 @@ interface TargetCollections {
   readonly partIds: ReadonlySet<PartTarget["partId"]>;
   readonly instanceIds: ReadonlySet<InstanceTarget["instanceId"]>;
   readonly bodyIds: ReadonlyMap<BodyTarget["instanceId"], ReadonlySet<BodyTarget["bodyId"]>>;
-  readonly blockIds: ReadonlyMap<BlockTarget["instanceId"], ReadonlySet<BlockTarget["blockId"]>>;
   readonly elementIds: ReadonlyMap<
     ElementTarget["instanceId"],
     ReadonlySet<ElementTarget["elementId"]>
@@ -171,7 +160,6 @@ function collectTargetGroups(targets: readonly InteractionTarget[]): TargetGroup
     partIds: new Set(),
     instanceIds: new Set(),
     bodyIds: new Map(),
-    blockIds: new Map(),
     elementIds: new Map(),
     faceRefs: new Map(),
     nodeIds: new Map(),
@@ -188,9 +176,6 @@ function collectTargetGroups(targets: readonly InteractionTarget[]): TargetGroup
         break;
       case "body":
         addNestedValue(groups.bodyIds, target.instanceId, target.bodyId);
-        break;
-      case "block":
-        addNestedValue(groups.blockIds, target.instanceId, target.blockId);
         break;
       case "element":
         addNestedValue(groups.elementIds, target.instanceId, target.elementId);
@@ -216,7 +201,6 @@ function selectedCollections(data: InteractionStateData): TargetCollections {
     partIds: data.selectedPartIds,
     instanceIds: data.selectedInstanceIds,
     bodyIds: data.selectedBodyIds,
-    blockIds: data.selectedBlockIds,
     elementIds: data.selectedElementIds,
     faceRefs: data.selectedFaces,
     nodeIds: data.selectedNodeIds,
@@ -229,7 +213,6 @@ function highlightedCollections(data: InteractionStateData): TargetCollections {
     partIds: data.highlightedPartIds,
     instanceIds: data.highlightedInstanceIds,
     bodyIds: data.highlightedBodyIds,
-    blockIds: data.highlightedBlockIds,
     elementIds: data.highlightedElementIds,
     faceRefs: data.highlightedFaces,
     nodeIds: data.highlightedNodeIds,
@@ -246,7 +229,6 @@ function updateTargetCollections(
     partIds: updateSetValues(current.partIds, groups.partIds, enabled),
     instanceIds: updateSetValues(current.instanceIds, groups.instanceIds, enabled),
     bodyIds: updateNestedSets(current.bodyIds, groups.bodyIds, enabled),
-    blockIds: updateNestedSets(current.blockIds, groups.blockIds, enabled),
     elementIds: updateNestedSets(current.elementIds, groups.elementIds, enabled),
     faceRefs: updateNestedMaps(current.faceRefs, groups.faceRefs, enabled),
     nodeIds: updateNestedSets(current.nodeIds, groups.nodeIds, enabled),
@@ -259,7 +241,6 @@ function targetCollectionsEqual(left: TargetCollections, right: TargetCollection
     left.partIds === right.partIds &&
     left.instanceIds === right.instanceIds &&
     left.bodyIds === right.bodyIds &&
-    left.blockIds === right.blockIds &&
     left.elementIds === right.elementIds &&
     left.faceRefs === right.faceRefs &&
     left.nodeIds === right.nodeIds &&
@@ -310,8 +291,6 @@ export function setTargetHighlighted(
       return setInstanceHighlighted(state, target.instanceId, highlighted);
     case "body":
       return setBodyHighlighted(state, target, highlighted);
-    case "block":
-      return setElementBlockHighlighted(state, target, highlighted);
     case "element":
       return setElementHighlighted(state, target, highlighted);
     case "face":
@@ -340,7 +319,6 @@ export function setTargetsHighlighted(
     highlightedPartIds: next.partIds,
     highlightedInstanceIds: next.instanceIds,
     highlightedBodyIds: next.bodyIds,
-    highlightedBlockIds: next.blockIds,
     highlightedElementIds: next.elementIds,
     highlightedFaces: next.faceRefs,
     highlightedNodeIds: next.nodeIds,
@@ -372,8 +350,6 @@ export function isTargetSelected(state: InteractionState, target: InteractionTar
       return data.selectedInstanceIds.has(target.instanceId);
     case "body":
       return data.selectedBodyIds.get(target.instanceId)?.has(target.bodyId) === true;
-    case "block":
-      return data.selectedBlockIds.get(target.instanceId)?.has(target.blockId) === true;
     case "element":
       return data.selectedElementIds.get(target.instanceId)?.has(target.elementId) === true;
     case "face": {
@@ -400,8 +376,6 @@ export function isTargetHighlighted(state: InteractionState, target: Interaction
       return data.highlightedInstanceIds.has(target.instanceId);
     case "body":
       return data.highlightedBodyIds.get(target.instanceId)?.has(target.bodyId) === true;
-    case "block":
-      return data.highlightedBlockIds.get(target.instanceId)?.has(target.blockId) === true;
     case "element":
       return data.highlightedElementIds.get(target.instanceId)?.has(target.elementId) === true;
     case "face": {

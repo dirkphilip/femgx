@@ -1,30 +1,17 @@
 import type { Element, ElementId } from "./element";
 import { validateElementModel } from "./model-validation";
-import type {
-  Body,
-  BodyId,
-  ElementBlock,
-  ElementBlockId,
-  ElementModelOptions,
-} from "./model-types";
+import type { Body, BodyId, ElementModelOptions } from "./model-types";
 
 export { ElementModelValidationError } from "./model-validation";
 export type { ElementModelValidationCode } from "./model-validation";
-export type {
-  Body,
-  BodyId,
-  ElementBlock,
-  ElementBlockId,
-  ElementModelOptions,
-} from "./model-types";
+export type { Body, BodyId, ElementModelOptions } from "./model-types";
 
 /** Resolved authored ownership used while deriving primitive-group geometry. */
 export interface ElementModelMembership {
   readonly bodyByElement: ReadonlyMap<ElementId, BodyId>;
-  readonly blockByElement: ReadonlyMap<ElementId, ElementBlockId>;
 }
 
-const EMPTY_BLOCK_MEMBERSHIP = new Map<ElementId, ElementBlockId>();
+const EMPTY_BODY_MEMBERSHIP = new Map<ElementId, BodyId>();
 
 /**
  * A CPU-side finite-element model: node coordinates plus typed elements.
@@ -33,17 +20,15 @@ const EMPTY_BLOCK_MEMBERSHIP = new Map<ElementId, ElementBlockId>();
  * node ids must be dense (`0 .. nodeCount - 1`). Element connectivity references
  * node ids into this array. The model is pure data with no renderer dependency;
  * {@link model.elementPart} tessellates it into reusable part geometry while
- * retaining the authored element ids. Optional blocks and bodies are semantic
- * ownership metadata, not a second scene graph.
+ * retaining the authored element ids. Optional bodies are direct ownership
+ * metadata, not a second scene graph.
  * @category Elements and model editing
  */
 export interface ElementModel {
   /** Flat xyz coordinates, three floats per node id. */
   readonly nodes: Float32Array;
   readonly elements: readonly Element[];
-  /** Optional semantic blocks; omitted models take the blockless fast path. */
-  readonly blocks?: readonly ElementBlock[];
-  /** Optional bodies using either direct element or block membership. */
+  /** Optional bodies with direct element membership. */
   readonly bodies?: readonly Body[];
 }
 
@@ -52,7 +37,7 @@ export interface ElementModel {
  *
  * This is the FE authoring boundary before geometry compilation. It validates
  * dense node numbering, finite coordinates, element references, and optional
- * block/body ownership. Coordinates and connectivity are copied into the
+ * body ownership. Coordinates and connectivity are copied into the
  * returned model, so the model owns its CPU-side input and can be passed to
  * {@link model.elementPart} without a renderer or WebGPU device.
  * @example Build one renderable typed model.
@@ -84,13 +69,11 @@ export function createElementModel(
       }
     }
   }
-  validateElementModel(elements, options.blocks, options.bodies);
-  const copiedBlocks = copyBlocks(options.blocks);
+  validateElementModel(elements, options.bodies);
   const copiedBodies = copyBodies(options.bodies);
   return {
     nodes: new Float32Array(nodes),
     elements: elements.map((element) => ({ ...element, nodeIds: [...element.nodeIds] })),
-    ...(copiedBlocks === undefined ? {} : { blocks: copiedBlocks }),
     ...(copiedBodies === undefined ? {} : { bodies: copiedBodies }),
   };
 }
@@ -112,39 +95,14 @@ export function createElementModelFromOwnedElements(
   return { nodes: new Float32Array(nodes), elements };
 }
 
-/** Resolves authored block and body ownership without allocating block state for empty models. */
+/** Resolves authored body ownership without allocating state for bodyless models. */
 export function elementModelMembership(model: ElementModel): ElementModelMembership {
-  const blockByElement =
-    model.blocks === undefined ? EMPTY_BLOCK_MEMBERSHIP : new Map<ElementId, ElementBlockId>();
-  for (const block of model.blocks ?? []) {
-    for (const elementId of block.elementIds) blockByElement.set(elementId, block.id);
-  }
+  if (model.bodies === undefined) return { bodyByElement: EMPTY_BODY_MEMBERSHIP };
   const bodyByElement = new Map<ElementId, BodyId>();
-  const blocks =
-    model.blocks === undefined
-      ? undefined
-      : new Map(model.blocks.map((block) => [block.id, block] as const));
-  for (const body of model.bodies ?? []) {
-    if ("elementIds" in body) {
-      for (const elementId of body.elementIds) bodyByElement.set(elementId, body.id);
-      continue;
-    }
-    for (const blockId of body.blockIds) {
-      for (const elementId of blocks?.get(blockId)?.elementIds ?? []) {
-        bodyByElement.set(elementId, body.id);
-      }
-    }
+  for (const body of model.bodies) {
+    for (const elementId of body.elementIds) bodyByElement.set(elementId, body.id);
   }
-  return { bodyByElement, blockByElement };
-}
-
-function copyBlocks(
-  blocks: readonly ElementBlock[] | undefined,
-): readonly ElementBlock[] | undefined {
-  return blocks?.map((block) => ({
-    ...block,
-    elementIds: [...block.elementIds],
-  }));
+  return { bodyByElement };
 }
 
 function validateNodeCoordinates(nodes: ArrayLike<number>, nodeCount: number): void {
@@ -161,8 +119,6 @@ function validateNodeCoordinates(nodes: ArrayLike<number>, nodeCount: number): v
 function copyBodies(bodies: readonly Body[] | undefined): readonly Body[] | undefined {
   return bodies?.map((body): Body => {
     const name = body.name === undefined ? {} : { name: body.name };
-    return "elementIds" in body
-      ? { id: body.id, ...name, elementIds: [...body.elementIds] }
-      : { id: body.id, ...name, blockIds: [...body.blockIds] };
+    return { id: body.id, ...name, elementIds: [...body.elementIds] };
   });
 }

@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createInteractionState,
   isBodyVisible,
-  isElementBlockVisible,
   isElementVisible,
-  isTargetHighlighted,
   isTargetSelected,
   selectedTargets,
   setElementVisible,
@@ -82,7 +80,6 @@ describe("WorkbenchVisibilityActions", () => {
     let interaction = createInteractionState();
     for (const target of [
       { kind: "body" as const, instanceId: instance.instanceId, bodyId: 1 },
-      { kind: "block" as const, instanceId: instance.instanceId, blockId: 1 },
       {
         kind: "face" as const,
         instanceId: instance.instanceId,
@@ -125,38 +122,6 @@ describe("WorkbenchVisibilityActions", () => {
     expect(harness.renderCount).toBe(0);
     expect(harness.feedback).toEqual(["Selected elements are already hidden."]);
     expect(isTargetSelected(harness.interaction, target)).toBe(true);
-  });
-
-  it("toggles authored block visibility and highlight through interaction state", () => {
-    const scene = createBoltedPlatePreset().scene;
-    const runtime = createSceneRuntime(scene);
-    const instance = runtime.getInstances()[0];
-    const block =
-      instance === undefined ? undefined : scene.parts.get(instance.partId)?.blocks?.[0];
-    if (instance === undefined || block === undefined) {
-      throw new Error("Fixture must contain an authored block instance");
-    }
-    const harness = createActionHarness(scene, runtime, createInteractionState());
-
-    harness.actions.setBlock(instance.instanceId, block.id, false);
-    expect(
-      isElementBlockVisible(harness.interaction, {
-        instanceId: instance.instanceId,
-        blockId: block.id,
-      }),
-    ).toBe(false);
-    expect(harness.panelSyncCount).toBe(1);
-    expect(harness.renderCount).toBe(1);
-
-    harness.actions.blockHighlight(instance.instanceId, block.id);
-    expect(
-      isTargetHighlighted(harness.interaction, {
-        kind: "block",
-        instanceId: instance.instanceId,
-        blockId: block.id,
-      }),
-    ).toBe(true);
-    expect(harness.renderCount).toBe(2);
   });
 
   it("restores every visibility layer while preserving one interaction update", () => {
@@ -246,14 +211,6 @@ describe("WorkbenchVisibilityActions", () => {
       for (const element of scene.parts.get(instance.partId)?.elements ?? []) {
         expect(
           isElementVisible(interaction, { instanceId: instance.instanceId, elementId: element.id }),
-        ).toBe(true);
-      }
-      for (const block of scene.parts.get(instance.partId)?.blocks ?? []) {
-        expect(
-          isElementBlockVisible(interaction, {
-            instanceId: instance.instanceId,
-            blockId: block.id,
-          }),
         ).toBe(true);
       }
     }

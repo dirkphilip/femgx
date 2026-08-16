@@ -7,13 +7,7 @@ import {
   type InteractionState,
   type ResolvedStyle,
 } from "./state";
-import {
-  applySelectionStyle,
-  resolveBodyStyle,
-  resolveElementBlockStyle,
-  resolveInstanceStyle,
-} from "./interaction";
-import type { ElementBlockId } from "../elements/model";
+import { applySelectionStyle, resolveBodyStyle, resolveInstanceStyle } from "./interaction";
 import type { FaceRef } from "./refs";
 import type { InstanceId } from "../scene/types";
 import { applyStyleLayers, collectUniqueRefs, sortedStrings, updateNestedMap } from "./mechanics";
@@ -64,22 +58,13 @@ export function resolveFaceStyle(
   ref: FaceRef,
   base: ResolvedStyle,
   state: InteractionState,
-  ownership?:
-    | BodyId
-    | {
-        readonly bodyId?: BodyId | undefined;
-        readonly blockId?: ElementBlockId | undefined;
-      },
+  bodyId?: BodyId,
 ): ResolvedStyle {
   const data = readInteractionState(state);
-  const bodyId = typeof ownership === "number" ? ownership : ownership?.bodyId;
-  const blockId = typeof ownership === "number" ? undefined : ownership?.blockId;
   const style =
-    blockId === undefined
-      ? bodyId === undefined
-        ? resolveInstanceStyle(instance, base, state)
-        : resolveBodyStyle(instance, bodyId, base, state)
-      : resolveElementBlockStyle(instance, blockId, base, state, bodyId);
+    bodyId === undefined
+      ? resolveInstanceStyle(instance, base, state)
+      : resolveBodyStyle(instance, bodyId, base, state);
   return applyStyleLayers(style, [
     data.selectedFaces.get(ref.instanceId)?.has(faceId(ref.elementId, ref.faceIndex)) === true
       ? applySelectionStyle(style, data.theme.selected)

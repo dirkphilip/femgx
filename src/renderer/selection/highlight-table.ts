@@ -3,8 +3,6 @@ export const HIGHLIGHT_BUCKET_SIZE = 4;
 
 /** Distinguishes body records from element records in the shared table key. */
 export const BODY_HIGHLIGHT_MARKER = 0xffffffff;
-/** Distinguishes semantic block records from element records. */
-export const BLOCK_HIGHLIGHT_MARKER = 0xfffffffe;
 /** Distinguishes authored-edge records from element and face records. */
 export const EDGE_HIGHLIGHT_MARKER = 0xfffffffd;
 
