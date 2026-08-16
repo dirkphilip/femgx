@@ -116,7 +116,7 @@ export function createDrawResources(
   };
 }
 
-/** Uploads the transient node-sprite geometry and its body-owner metadata. */
+/** Uploads compact node centers and their body-owner metadata for sprite draws. */
 export function uploadNodePart(
   draw: DrawResources,
   part: Part,
@@ -162,6 +162,7 @@ export function uploadNodePart(
     edge: undefined,
     edgePick: undefined,
     indexCount: indices.length,
+    nodeCount: spritePickIds.length,
     subsetIndexCount: 0,
   };
   draw.nodeParts.set(part.id, resource);
@@ -172,17 +173,14 @@ function buildNodeSpriteBuffers(
   nodes: Float32Array,
   spritePickIds: Uint32Array,
 ): { readonly positions: Float32Array; readonly ids: Uint32Array; readonly indices: Uint32Array } {
-  const positions = new Float32Array(spritePickIds.length * 12);
-  const ids = new Uint32Array(spritePickIds.length * 4);
-  const indices = new Uint32Array(spritePickIds.length * 6);
+  const positions = new Float32Array(spritePickIds.length * 3);
+  const ids = new Uint32Array(spritePickIds.length);
+  const indices = Uint32Array.from(POINT_SPRITE_INDICES);
   for (let sprite = 0; sprite < spritePickIds.length; sprite += 1) {
     const pickId = spritePickIds[sprite] ?? 0;
     const source = (pickId - 1) * 3;
-    for (let corner = 0; corner < 4; corner += 1) {
-      positions.set(nodes.subarray(source, source + 3), (sprite * 4 + corner) * 3);
-      ids[sprite * 4 + corner] = pickId;
-    }
-    writePointSpriteIndices(indices, sprite);
+    positions.set(nodes.subarray(source, source + 3), sprite * 3);
+    ids[sprite] = pickId;
   }
   return { positions, ids, indices };
 }
@@ -241,6 +239,7 @@ export function uploadGeometryPart(
     edge: undefined,
     edgePick: undefined,
     indexCount: vertexData.indices.length,
+    nodeCount: 0,
     ...geometryData.subsetBuffers,
     subsetIndexCount: geometryData.subsetIndices?.length ?? 0,
   };

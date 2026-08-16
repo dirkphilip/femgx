@@ -36,6 +36,7 @@ interface SelectionPipelineOptions {
   readonly lineSelectionVertex: GPUShaderModule;
   readonly selectionVertex: GPUShaderModule;
   readonly pointVertex: GPUShaderModule;
+  readonly nodeVertex: GPUShaderModule;
 }
 
 interface PrimitiveSelectionOptions {
@@ -92,7 +93,7 @@ export async function createSelectionPipelines(
     createPrimitiveSelectionPipelines({
       ...options,
       label: "node",
-      vertexModule: options.pointVertex,
+      vertexModule: options.nodeVertex,
       vertexEntry: "nodeOverlayVertexMain",
       primitive: "triangle-list",
       visibleFragment: selection,

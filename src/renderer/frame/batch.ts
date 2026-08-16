@@ -130,8 +130,13 @@ function drawOneBatch(
   const geometryCount = bindDrawGeometry(pass, resource, overlay, subset, edgePick);
   if (geometryCount === undefined) return current;
   const count = range?.indexCount ?? geometryCount;
-  pass.drawIndexed(count, call.instanceCount, range?.firstIndex ?? 0, 0, call.firstInstance ?? 0);
-  draw.cost.draw(drawCostCategory(intent), count, call.instanceCount);
+  const instanceCount = nodes ? call.instanceCount * resource.nodeCount : call.instanceCount;
+  if (instanceCount === 0) return current;
+  const firstInstance = nodes
+    ? (call.firstInstance ?? 0) * resource.nodeCount
+    : (call.firstInstance ?? 0);
+  pass.drawIndexed(count, instanceCount, range?.firstIndex ?? 0, 0, firstInstance);
+  draw.cost.draw(drawCostCategory(intent), count, instanceCount);
   return pipeline;
 }
 

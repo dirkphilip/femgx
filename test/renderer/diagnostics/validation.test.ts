@@ -69,6 +69,7 @@ describe("GPU validation", () => {
         "line selection vertex",
         "point color vertex",
         "triangle selection vertex",
+        "node overlay vertex",
         "line node picking vertex",
         "point node picking vertex",
         "line and point color fragment",

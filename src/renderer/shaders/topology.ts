@@ -193,6 +193,7 @@ fn topologyOwnersVisible(slot: u32, topologyIndex: u32) -> bool {
 // Shared authored edges and nodes remain visible while at least one incident
 // owner is visible, including when hiding an element exposes interior topology.
 fn topologyAnyOwnerVisible(slot: u32, topologyIndex: u32) -> bool {
+  if (elementHighlights.bucketCount == 0u) { return true; }
   let range = topologyBodyRange(topologyIndex);
   if (range.y == 0u) { return true; }
   for (var condition = 0u; condition < range.y; condition++) {

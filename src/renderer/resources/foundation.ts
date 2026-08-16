@@ -39,6 +39,8 @@ export interface PartResource {
   edge: PartEdgeResource | undefined;
   edgePick: PartEdgePickResource | undefined;
   readonly indexCount: number;
+  /** Number of compact node centers represented by this node resource. */
+  readonly nodeCount: number;
   /** Optional compact index orders for a validated face subset. */
   readonly subsetIndexBuffer?: GPUBuffer;
   readonly subsetVertexBuffer?: GPUBuffer;

@@ -120,7 +120,7 @@ export async function createRenderResources(
     instanceLayout,
     format,
     depthFormat,
-    pointVertexModule: pipelineResources.pointVertexModule,
+    nodeVertexModule: pipelineResources.nodeVertexModule,
     validation,
   });
   const orbitPivotPipeline = await createOrbitPivotPipeline({

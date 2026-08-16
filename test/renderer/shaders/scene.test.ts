@@ -35,6 +35,7 @@ import {
   pointNodePickVertexShader,
 } from "../../../src/renderer/picking/node-pick";
 import { nodeOverlayFragmentShader } from "../../../src/renderer/shaders/node-overlay";
+import { nodeOverlayVertexShader } from "../../../src/renderer/shaders/node-overlay-vertex";
 import {
   edgePickFragmentShader,
   edgePickVertexShader,
@@ -130,6 +131,7 @@ const vertexShaders = [
   ["instanceVertexShader", instanceVertexShader],
   ["lineVertexShader", lineVertexShader],
   ["pointVertexShader", pointVertexShader],
+  ["nodeOverlayVertexShader", nodeOverlayVertexShader],
   ["edgeVertexShader", edgeVertexShader],
 ] as const;
 
@@ -216,13 +218,13 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(instanceVertexShader).toMatch(/denseElementSelected\(/);
     expect(instanceVertexShader).not.toMatch(/index < elementHighlights\.count/);
     expect(instanceVertexShader).not.toMatch(/highlight\.nodePickId/);
-    expect(pointVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
+    expect(nodeOverlayVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
     expect(instanceVertexShader).toMatch(/@location\(3\) @interpolate\(flat\) elementPickId: u32/);
     expect(instanceVertexShader).toMatch(/@location\(4\) @interpolate\(flat\) facePickId: u32/);
     expect(edgeVertexShader).toMatch(/topologyBodyRange\(topologyIndex\)/);
     expect(edgeVertexShader).toMatch(/highlight\.hidden == 0u/);
     expect(edgeVertexShader).toMatch(/topologyOwnersVisible\(/);
-    expect(pointVertexShader).toMatch(/topologyAnyOwnerVisible\(/);
+    expect(nodeOverlayVertexShader).toMatch(/topologyAnyOwnerVisible\(/);
     expect(nodePickVertexShader).toMatch(/primitiveVisible\(/);
     expect(lineNodePickVertexShader).toMatch(/primitiveVisible\(/);
     expect(pointNodePickVertexShader).toMatch(/topologyAnyOwnerVisible\(/);
@@ -488,39 +490,46 @@ describe("GPU deformation shader contract", () => {
 
   it("displaces point sprites by the vertex index, which carries the point's node", () => {
     expect(pointVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
+    expect(nodeOverlayVertexShader).toMatch(/displacedForNode\(center, nodePickId\)/);
+    expect(nodeOverlayVertexShader).toMatch(/nodeIndex = instanceIndex % nodeCount/);
   });
 
   it("keeps node emphasis on the node glyph instead of recoloring surface triangles", () => {
     expect(instanceVertexShader).not.toMatch(/highlight\.nodePickId/);
-    expect(pointVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
-    expect(pointVertexShader).toMatch(/if \(!nodeOverlay\) \{\s+if \(bodyPickId != 0u/);
+    expect(nodeOverlayVertexShader).toMatch(/highlight\.nodePickId == nodePickId/);
+    const nodeVertexBody = nodeOverlayVertexShader.slice(
+      nodeOverlayVertexShader.indexOf("fn nodePointVertex"),
+    );
+    expect(nodeVertexBody).not.toMatch(/bodyPickId|primitiveFaceBodyPickIds/);
   });
 
   it("keeps regular points at model depth and gives node annotations an independent size", () => {
-    expect(pointVertexShader).toMatch(/pointVertex\(position, instanceIndex, vertexIndex, false\)/);
-    expect(pointVertexShader).toMatch(
-      /nodeOverlayVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, true\)/,
+    expect(pointVertexShader).toMatch(/pointVertex\(position, instanceIndex, vertexIndex\)/);
+    expect(nodeOverlayVertexShader).toMatch(
+      /nodeOverlayVertexMain[\s\S]*nodePointVertex\(instanceIndex, vertexIndex\)/,
     );
-    expect(pointVertexShader).toMatch(/select\(camera\.pointSize, camera\.nodeSize, nodeOverlay\)/);
-    expect(pointVertexShader).toMatch(/clip\.z,/);
+    expect(pointVertexShader).toMatch(/corner \* camera\.pointSize/);
+    expect(nodeOverlayVertexShader).toMatch(/corner \* camera\.nodeSize/);
+    expect(nodeOverlayVertexShader).toMatch(/clip\.z,/);
     expect(colorFragmentShader).toMatch(/dot\(local, local\) > 1\.0/);
   });
 
   it("draws circular node glyphs at model depth", () => {
-    expect(pointVertexShader).toMatch(/output\.nodeDepth = clip\.z \/ clip\.w/);
+    expect(nodeOverlayVertexShader).toMatch(/output\.nodeDepth = clip\.z \/ clip\.w/);
     expect(nodeOverlayFragmentShader).toMatch(/radiusSquared > 1\.0/);
     expect(nodeOverlayFragmentShader).toMatch(/selected != 0u \|\| emissive > 0\.0/);
     expect(nodeOverlayFragmentShader).toMatch(/select\(vec3<f32>\(0\.0\), color\.rgb/);
   });
 
   it("keeps a shared node visible when hiding one incident element exposes it", () => {
-    expect(pointVertexShader).toMatch(
-      /nodeOverlay && !topologyAnyOwnerVisible\(drawOrder\[instanceIndex\], vertexIndex \/ 4u\)/,
-    );
-    expect(pointVertexShader).toMatch(
+    expect(nodeOverlayVertexShader).toMatch(/!topologyAnyOwnerVisible\(slot, nodeIndex\)/);
+    expect(nodeOverlayVertexShader).toMatch(
       /fn topologyAnyOwnerVisible[\s\S]*if \(ownerVisible[\s\S]*return true;/,
     );
-    expect(pointVertexShader).not.toContain("topologyOwnersAllVisible");
+    expect(nodeOverlayVertexShader).toMatch(
+      /fn topologyAnyOwnerVisible\(slot: u32, topologyIndex: u32\) -> bool \{\s+if \(elementHighlights\.bucketCount == 0u\) \{ return true; \}/,
+    );
+    expect(nodeOverlayVertexShader).not.toContain("topologyOwnersAllVisible");
   });
 
   it("uses the minimum point-pick diameter independently of visible point size", () => {
@@ -558,11 +567,11 @@ describe("GPU deformation shader contract", () => {
   });
 
   it("uses resolved instance opacity for neutral node and edge overlays", () => {
-    expect(pointVertexShader).toContain("var color = select(");
-    expect(pointVertexShader).toContain("vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a)");
-    expect(pointVertexShader).toContain("nodeOverlay,");
+    expect(nodeOverlayVertexShader).toContain(
+      "var color = vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a)",
+    );
     expect(pointVertexShader).toMatch(
-      /pointVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, false\)/,
+      /pointVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex\)/,
     );
     expect(edgeVertexShader).toMatch(
       /output\.color = vec4<f32>\(0\.0, 0\.0, 0\.0, 0\.45 \* instance\.color\.a\)/,

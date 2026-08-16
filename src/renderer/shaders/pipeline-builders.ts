@@ -7,6 +7,7 @@ import {
   pointVertexShader,
   selectionVertexShader,
 } from "./instanced";
+import { nodeOverlayVertexShader } from "./node-overlay-vertex";
 import {
   lineNodePickVertexShader,
   nodePickFragmentShader,
@@ -51,7 +52,7 @@ export interface PipelineResources {
   readonly pipelines: DrawPipelines;
   readonly edgePipeline: GPURenderPipeline;
   readonly edgeAlwaysPipeline: GPURenderPipeline;
-  readonly pointVertexModule: GPUShaderModule;
+  readonly nodeVertexModule: GPUShaderModule;
 }
 
 interface PipelineSpec {
@@ -74,6 +75,7 @@ interface PipelineShaders {
   readonly lineSelectionVertex: GPUShaderModule;
   readonly selectionVertex: GPUShaderModule;
   readonly pointVertex: GPUShaderModule;
+  readonly nodeVertex: GPUShaderModule;
   readonly lineNodeVertex: GPUShaderModule;
   readonly pointNodeVertex: GPUShaderModule;
   readonly colorFragment: GPUShaderModule;
@@ -148,10 +150,11 @@ export async function createPipelineResources(
     lineSelectionVertex: shaders.lineSelectionVertex,
     selectionVertex: shaders.selectionVertex,
     pointVertex: shaders.pointVertex,
+    nodeVertex: shaders.nodeVertex,
   });
   const pipelines: DrawPipelines = { ...basePipelines, ...selectionPipelines };
   const edges = await createEdgePipelines(device, layout, format, depthFormat, validation);
-  return { pipelines, ...edges, pointVertexModule: shaders.pointVertex };
+  return { pipelines, ...edges, nodeVertexModule: shaders.nodeVertex };
 }
 
 async function createPipelineShaders(
@@ -168,6 +171,7 @@ async function createPipelineShaders(
       compile("point color vertex", pointVertexShader),
       compile("triangle selection vertex", selectionVertexShader),
     ]);
+  const nodeVertex = await compile("node overlay vertex", nodeOverlayVertexShader);
   const [lineNodeVertex, pointNodeVertex] = await Promise.all([
     compile("line node picking vertex", lineNodePickVertexShader),
     compile("point node picking vertex", pointNodePickVertexShader),
@@ -189,6 +193,7 @@ async function createPipelineShaders(
     lineSelectionVertex,
     selectionVertex,
     pointVertex,
+    nodeVertex,
     lineNodeVertex,
     pointNodeVertex,
     colorFragment,

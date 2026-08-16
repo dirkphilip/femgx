@@ -66,6 +66,20 @@ combined edges and nodes reach approximately 51–65 FPS, while synchronous CPU
 encoding remains about 0.1 ms p50. Dense node coverage/overdraw is therefore the
 next measured GPU target.
 
+The dense-node implementation measured for issue #1004 keeps one compact
+center and node id per authored node, expands occurrence instancing in the
+existing batch draw, and admits a dedicated node vertex module. When a
+presentation overlay is active, nodes use the existing resolved 1× path so
+analytic circle coverage remains intact. On the recorded Apple/Metal System
+Chrome 151 run at 800×600 DPR 1, the final warmed `instanced-2.10m` sample
+measured node-only p50/p95/max of 11.1/12.6/13.4 ms and edges+nodes
+16.3/18.4/19.0 ms; surface and edge-only remained about 8.3 ms p50 with no
+intervals above 16.7 ms. The combined p50 meets the target, but its p95
+remains hardware-sensitive and above 16.7 ms on this adapter. DPR 2 with the
+same CSS presentation is materially slower because the authored 6 CSS-pixel
+diameter becomes 12 device pixels; the renderer preserves that required
+physical size rather than thinning nodes during navigation.
+
 For this reference case, performance work targets:
 
 - surface and edge-only moving-camera p50 at or below 8.33 ms and p95 at or

@@ -256,7 +256,10 @@ fn trianglePickPosition(
  * outside the buffer, or under a disabled deformation uniform stay in place.
  */
 export const displacementFn = /* wgsl */ `
-fn displaced(position: vec3<f32>, vertexIndex: u32) -> vec3<f32> {
+fn displacedForNode(position: vec3<f32>, nodePickId: u32) -> vec3<f32> {
+  if (deformation.scale == 0.0) {
+    return position;
+  }
   let displacementCount = arrayLength(&displacements);
   if (displacementCount == 0u) {
     return position;
@@ -265,13 +268,16 @@ fn displaced(position: vec3<f32>, vertexIndex: u32) -> vec3<f32> {
   if (nodeCount == 0u) {
     return position;
   }
-  let nodePickId = vertexNodePickIds[vertexIndex];
   if (nodePickId == 0u || nodePickId > nodeCount) {
     return position;
   }
   let base = (nodePickId - 1u) * 3u;
   let delta = vec3<f32>(displacements[base], displacements[base + 1u], displacements[base + 2u]);
   return position + delta * deformation.scale;
+}
+
+fn displaced(position: vec3<f32>, vertexIndex: u32) -> vec3<f32> {
+  return displacedForNode(position, vertexNodePickIds[vertexIndex]);
 }
 `;
 

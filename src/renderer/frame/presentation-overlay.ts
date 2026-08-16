@@ -23,9 +23,9 @@ interface PresentationOverlayOptions {
   readonly timestampFrame: GpuTimestampFrame | undefined;
 }
 
-/** Returns whether native edges require the opt-in resolved presentation path. */
+/** Returns whether presentation edges or nodes require the resolved path. */
 export function needsResolvedOverlay(frame: PresentationFrame): boolean {
-  return frame.edgeCalls.length > 0;
+  return frame.edgeCalls.length > 0 || frame.nodeCalls.length > 0;
 }
 
 /** Resolves opaque depth once, then draws exact-topology presentation at 1x. */

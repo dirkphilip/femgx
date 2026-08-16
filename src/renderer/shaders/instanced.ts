@@ -279,21 +279,21 @@ fn pointVertex(
   position: vec3<f32>,
   instanceIndex: u32,
   vertexIndex: u32,
-  nodeOverlay: bool,
 ) -> VertexOutput {
-  let instance = instances[drawOrder[instanceIndex]];
+  let slot = drawOrder[instanceIndex];
+  let instance = instances[slot];
+  let nodePickId = vertexNodePickIds[vertexIndex];
   let corner = spriteCorner(vertexIndex % 4u);
   let displayedPosition = displaced(position, vertexIndex);
   let worldPosition = (instance.transform * vec4<f32>(displayedPosition, 1.0)).xyz;
   let clip = camera.viewProjection * vec4<f32>(worldPosition, 1.0);
-  let diameter = select(camera.pointSize, camera.nodeSize, nodeOverlay);
-  let offset = (corner * diameter) / camera.viewport;
+  let offset = (corner * camera.pointSize) / camera.viewport;
   let ndc = clip.xy / clip.w;
-  let elementPickId = primitiveElementId(vertexIndex / 4u);
-  let elementOrdinal = primitiveElementOrdinal(vertexIndex / 4u);
-  let bodyPickId = primitiveFaceBodyPickIds(vertexIndex / 4u).y;
-  let blockPickId = primitiveFaceBlockPickIds(vertexIndex / 4u).x;
-  let nodePickId = vertexNodePickIds[vertexIndex];
+  let primitiveIndex = vertexIndex / 4u;
+  let elementPickId = primitiveElementId(primitiveIndex);
+  let elementOrdinal = primitiveElementOrdinal(primitiveIndex);
+  let bodyPickId = primitiveFaceBodyPickIds(primitiveIndex).y;
+  let blockPickId = primitiveFaceBlockPickIds(primitiveIndex).x;
   var output: VertexOutput;
   output.position = vec4<f32>(
     clip.x + offset.x * clip.w,
@@ -302,48 +302,21 @@ fn pointVertex(
     clip.w,
   );
   let baseResultColor = resultColorForNode(nodePickId, instance.color);
-  var color = select(
-    baseResultColor,
-    vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a),
-    nodeOverlay,
-  );
-  var resultColorEnabled = !nodeOverlay && resultColorActive(nodePickId);
+  var color = baseResultColor;
+  var resultColorEnabled = resultColorActive(nodePickId);
   var selectionKeepsResult = false;
-  if (nodeOverlay && instanceSelected(instance.selected)) {
-    color = instance.color;
-  }
   var emissive = 0.0;
   var hidden = false;
   var matched = false;
   var selected = instanceSelected(instance.selected);
   var exactSelection = false;
   if (instanceHasPrimitiveEmphasis(instance.selected)) {
-  if (!nodeOverlay) {
 ${bodyAndElementHighlighting}
   }
-  if (nodePickId != 0u && elementHighlights.bucketCount != 0u) {
-    let bucket = highlightHash(drawOrder[instanceIndex], 0u, 0u, nodePickId, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
-    let base = bucket * 4u;
-    for (var offset = 0u; offset < 4u; offset++) {
-      let highlight = elementHighlightAt(base + offset);
-      if (highlight.slot == drawOrder[instanceIndex] && highlight.nodePickId == nodePickId) {
-        if (!highlight.preservesDisplayedColor) { color = highlight.color; }
-        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u || highlight.preservesDisplayedColor;
-        if (highlight.selected == 0u && !highlight.preservesDisplayedColor) { resultColorEnabled = false; }
-        emissive = highlight.emissive;
-        selected = selected || highlight.selected != 0u;
-        break;
-      }
-    }
-  }
-  }
-  if (nodeOverlay && !topologyAnyOwnerVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
-    hidden = true;
-  }
   if (selectionKeepsResult) {
-    resultColorEnabled = !nodeOverlay && resultColorActive(nodePickId);
+    resultColorEnabled = resultColorActive(nodePickId);
   }
-  if (!nodeOverlay && !primitiveVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
+  if (!primitiveVisible(slot, primitiveIndex)) {
     hidden = true;
   }
   if (hidden) {
@@ -370,11 +343,6 @@ ${bodyAndElementHighlighting}
 
 @vertex
 fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-  return pointVertex(position, instanceIndex, vertexIndex, false);
-}
-
-@vertex
-fn nodeOverlayVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-  return pointVertex(position, instanceIndex, vertexIndex, true);
+  return pointVertex(position, instanceIndex, vertexIndex);
 }
 `;

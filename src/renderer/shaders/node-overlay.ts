@@ -17,7 +17,7 @@ interface NodeOverlayOptions {
   readonly instanceLayout: GPUBindGroupLayout;
   readonly format: GPUTextureFormat;
   readonly depthFormat: GPUTextureFormat;
-  readonly pointVertexModule: GPUShaderModule;
+  readonly nodeVertexModule: GPUShaderModule;
   readonly validation: GpuValidationOptions | undefined;
 }
 
@@ -51,7 +51,7 @@ async function createNodePipelines(options: NodePipelineOptions): Promise<NodeOv
     createValidatedRenderPipeline(options.device, label, {
       layout: options.layout,
       vertex: {
-        module: options.pointVertexModule,
+        module: options.nodeVertexModule,
         entryPoint: "nodeOverlayVertexMain",
         buffers: [vertexLayout],
       },
