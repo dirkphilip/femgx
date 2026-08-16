@@ -16,7 +16,6 @@ import { instanceAt, type InstanceLayout } from "./runtime-state";
 export interface CollectedInstanceUpdates {
   readonly updates: ReadonlyMap<PartId, readonly InstanceUpdate[]>;
   readonly edgeChanged: ReadonlySet<PartId>;
-  readonly nodeChanged: ReadonlySet<PartId>;
   readonly transparentChanged: ReadonlySet<PartId>;
 }
 
@@ -64,7 +63,6 @@ export function collectInstanceUpdates(
 ): CollectedInstanceUpdates {
   const updates = new Map<PartId, InstanceUpdate[]>();
   const edgeChanged = new Set<PartId>();
-  const nodeChanged = new Set<PartId>();
   const transparentChanged = new Set<PartId>();
   const interactionData = readInteractionState(interaction);
   for (const slot of changedInstanceIds) {
@@ -78,10 +76,7 @@ export function collectInstanceUpdates(
       flags.edgeFlags[slot] = style.edge;
       edgeChanged.add(partId);
     }
-    if (flags.nodeFlags[slot] !== style.nodes) {
-      flags.nodeFlags[slot] = style.nodes;
-      nodeChanged.add(partId);
-    }
+    flags.nodeFlags[slot] = style.nodes;
     const transparent = style.color.a * style.opacity < 1;
     if (flags.transparentFlags[slot] !== transparent) {
       flags.transparentFlags[slot] = transparent;
@@ -104,5 +99,5 @@ export function collectInstanceUpdates(
       list.push(update);
     }
   }
-  return { updates, edgeChanged, nodeChanged, transparentChanged };
+  return { updates, edgeChanged, transparentChanged };
 }

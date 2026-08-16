@@ -67,7 +67,6 @@ export class GpuRenderer implements WebGpuRenderer {
   private sectionPlane: SectionPlane | undefined;
   private orientationGlyphs: OrientationGlyphState | undefined;
   private originTriadNominalScale = 1;
-  private nodeOrdersDirty = true;
   private destroyed = false;
 
   public constructor(
@@ -122,9 +121,8 @@ export class GpuRenderer implements WebGpuRenderer {
       this.attachment.prepareParts(this.parts, this.lifecycle.bundle);
     }
     const attachmentChanged = this.attachment.attach(runtime, this.lifecycle.bundle);
-    if (attachmentChanged || partsChanged || this.nodeOrdersDirty) {
+    if (attachmentChanged || partsChanged) {
       this.attachment.updateNodeOrders(this.parts, this.lifecycle.bundle);
-      this.nodeOrdersDirty = false;
     }
     syncDeformations(this.lifecycle.bundle.draw, this.deformation);
     syncResultColors(this.lifecycle.bundle.draw, this.resultColors);
@@ -151,7 +149,6 @@ export class GpuRenderer implements WebGpuRenderer {
     this.deformation = undefined;
     this.resultColors = undefined;
     this.orientationGlyphs = undefined;
-    this.nodeOrdersDirty = true;
     this.pickSnapshotValid = false;
     invalidateEdgePickState(this.edgePick);
   }
@@ -196,7 +193,6 @@ export class GpuRenderer implements WebGpuRenderer {
     changedInstanceIds: readonly number[],
   ): void {
     this.ensureAlive();
-    if (changedInstanceIds.length > 0) this.nodeOrdersDirty = true;
     if (
       this.attachment.updateInstances(
         runtime,
@@ -226,7 +222,6 @@ export class GpuRenderer implements WebGpuRenderer {
     ) {
       this.pickSnapshotValid = false;
     }
-    this.nodeOrdersDirty = false;
   }
 
   public setEdgeDepthTest(enabled: boolean): void {
@@ -266,7 +261,6 @@ export class GpuRenderer implements WebGpuRenderer {
     changedInstanceIds: readonly number[],
   ): void {
     this.ensureAlive();
-    if (changedInstanceIds.length > 0) this.nodeOrdersDirty = true;
     if (this.attachment.updateVisibility(runtime, changedInstanceIds, this.lifecycle.bundle)) {
       this.pickSnapshotValid = false;
     }
