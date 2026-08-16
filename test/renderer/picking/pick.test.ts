@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  acquirePickReadback,
   createPickTargets,
   destroyPickTargets,
   ensurePickTargets,
   pickPixelCoordinates,
   READBACK_BYTE_STRIDE,
   readPickPixel,
+  releasePickReadback,
   resetPickTargets,
   WebGpuPickReadbackError,
 } from "../../../src/renderer/picking/pick";
@@ -214,6 +216,25 @@ describe("GPU pick targets", () => {
     }
   });
 
+  it("retains only the largest idle readback buffer", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const pick = createPickTargets();
+      const small = acquirePickReadback(gpu.device, pick.readback, READBACK_BYTE_STRIDE);
+      const large = acquirePickReadback(gpu.device, pick.readback, READBACK_SIZE);
+
+      releasePickReadback(pick.readback, small, READBACK_BYTE_STRIDE);
+      releasePickReadback(pick.readback, large, READBACK_SIZE);
+
+      expect(pick.readback.free).toEqual([{ buffer: large, size: READBACK_SIZE }]);
+      expect(pick.readback.capacities.size).toBe(1);
+      expect(gpu.buffers.find((buffer) => buffer.resource === small)?.destroyed).toBe(true);
+    } finally {
+      restore();
+    }
+  });
+
   it("keeps the readback pool while resetting the render targets on resize", async () => {
     const restore = installGpuGlobals();
     try {
@@ -279,7 +300,70 @@ describe("GPU pick targets", () => {
     }
   });
 
-  it("serializes depth requests while keeping pooled buffers reusable", async () => {
+  it("uses resized textures when a queued depth read waits across reset", async () => {
+    const restore = installGpuGlobals();
+    try {
+      const deferred: Array<() => void> = [];
+      const oldInstanceTexture = { current: undefined as GPUTexture | undefined };
+      const copiedOrigins: Array<{ readonly x: number; readonly y: number }> = [];
+      const gpu = fakeGpuDevice({
+        pickValue: 1,
+        mapAsync: () =>
+          new Promise<void>((resolve) => {
+            deferred.push(resolve);
+          }),
+        onCopyTextureToBuffer: (source) => {
+          const origin = source.origin as { readonly x?: number; readonly y?: number } | undefined;
+          copiedOrigins.push({ x: origin?.x ?? 0, y: origin?.y ?? 0 });
+          if (
+            source.texture === oldInstanceTexture.current &&
+            pick.texture !== oldInstanceTexture.current
+          ) {
+            throw new Error("copy used a destroyed pick texture");
+          }
+        },
+      });
+      const pick = await createTestPickTargets(gpu.device);
+      ensurePickTargets(gpu.device, pick, 800, 600, "depth24plus");
+      oldInstanceTexture.current = pick.texture;
+      const canvas = fakeCanvas();
+      const first = readPickPixel(gpu.device, canvas, pick, 1, 1);
+      const second = readPickPixel(gpu.device, canvas, pick, 200, 200);
+      await vi.waitFor(() => {
+        expect(gpu.submissionCount).toBe(1);
+      });
+      canvas.width = 400;
+      canvas.height = 300;
+      resetPickTargets(pick);
+      ensurePickTargets(gpu.device, pick, 400, 300, "depth24plus");
+      deferred[0]?.();
+      await expect(first).resolves.toEqual({
+        instancePickId: 1,
+        elementPickId: 0,
+        facePickId: 0,
+        nodePickId: 0,
+        ndcDepth: 1,
+      });
+      deferred[1]?.();
+      await expect(second).resolves.toEqual({
+        instancePickId: 1,
+        elementPickId: 0,
+        facePickId: 0,
+        nodePickId: 0,
+        ndcDepth: 1,
+      });
+      expect(copiedOrigins.slice(-4)).toEqual([
+        { x: 100, y: 100 },
+        { x: 100, y: 100 },
+        { x: 100, y: 100 },
+        { x: 100, y: 100 },
+      ]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("serializes depth requests while reusing one pooled buffer", async () => {
     const restore = installGpuGlobals();
     try {
       const deferred: Array<() => void> = [];
@@ -295,7 +379,7 @@ describe("GPU pick targets", () => {
       const canvas = fakeCanvas();
       const first = readPickPixel(gpu.device, canvas, pick, 1, 1);
       const second = readPickPixel(gpu.device, canvas, pick, 2, 2);
-      expect(gpu.buffers.filter((buffer) => buffer.size === READBACK_SIZE)).toHaveLength(2);
+      expect(gpu.buffers.filter((buffer) => buffer.size === READBACK_SIZE)).toHaveLength(1);
       await vi.waitFor(() => {
         expect(gpu.submissionCount).toBe(1);
       });
@@ -319,7 +403,7 @@ describe("GPU pick targets", () => {
         ndcDepth: 1,
       });
       const third = readPickPixel(gpu.device, canvas, pick, 3, 3);
-      expect(gpu.buffers.filter((buffer) => buffer.size === READBACK_SIZE)).toHaveLength(2);
+      expect(gpu.buffers.filter((buffer) => buffer.size === READBACK_SIZE)).toHaveLength(1);
       deferred[2]?.();
       await expect(third).resolves.toEqual({
         instancePickId: 1,
@@ -330,7 +414,7 @@ describe("GPU pick targets", () => {
       });
       expect(pick.readback.free).toHaveLength(1);
       expect(pick.readback.capacities.size).toBe(1);
-      expect(gpu.buffers.filter((buffer) => buffer.destroyed)).toHaveLength(1);
+      expect(gpu.buffers.filter((buffer) => buffer.destroyed)).toHaveLength(0);
     } finally {
       restore();
     }

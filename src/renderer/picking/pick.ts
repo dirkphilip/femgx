@@ -159,8 +159,8 @@ export async function readPickPixel(
   x: number,
   y: number,
 ): Promise<PickPixelResult> {
-  const textures = readableTextures(pick);
-  if (textures === undefined) {
+  const initialTextures = readableTextures(pick);
+  if (initialTextures === undefined) {
     return {
       instancePickId: 0,
       elementPickId: 0,
@@ -169,27 +169,36 @@ export async function readPickPixel(
       ndcDepth: 1,
     };
   }
-  const pixel = pickPixelCoordinates(
-    x,
-    y,
-    canvas.getBoundingClientRect(),
-    canvas.width,
-    canvas.height,
-  );
-  const buffer = acquirePickReadback(device, pick.readback, READBACK_SIZE);
+  const depthReadback = initialTextures.readback;
   let releaseDepth: (() => void) | undefined;
+  let buffer: GPUBuffer | undefined;
   let mapped = false;
   try {
-    const acquiredDepth = acquirePickDepthReadback(textures.readback);
+    const acquiredDepth = acquirePickDepthReadback(depthReadback);
     releaseDepth = acquiredDepth instanceof Promise ? await acquiredDepth : acquiredDepth;
     if (releaseDepth === undefined) {
       throw new Error("WebGPU picking depth resources were destroyed");
     }
-    submitPickCopies(device, textures, buffer, pixel);
-    await buffer.mapAsync(GPUMapMode.READ);
+    // The depth lock may suspend across a resize; refresh the snapshot before
+    // encoding so a queued pick never submits copies from destroyed targets.
+    const textures = readableTextures(pick);
+    if (textures === undefined || textures.readback !== depthReadback) {
+      throw new Error("WebGPU picking targets were resized while waiting for depth resources");
+    }
+    const pixel = pickPixelCoordinates(
+      x,
+      y,
+      canvas.getBoundingClientRect(),
+      canvas.width,
+      canvas.height,
+    );
+    const readback = acquirePickReadback(device, pick.readback, READBACK_SIZE);
+    buffer = readback;
+    submitPickCopies(device, textures, readback, pixel);
+    await readback.mapAsync(GPUMapMode.READ);
     mapped = true;
-    const result = decodePickPixel(new Uint8Array(buffer.getMappedRange()));
-    buffer.unmap();
+    const result = decodePickPixel(new Uint8Array(readback.getMappedRange()));
+    readback.unmap();
     mapped = false;
     return result;
   } catch (error) {
@@ -202,9 +211,9 @@ export async function readPickPixel(
       { cause: error },
     );
   } finally {
-    if (mapped) buffer.unmap();
+    if (mapped) buffer?.unmap();
     releaseDepth?.();
-    releasePickReadback(pick.readback, buffer, READBACK_SIZE);
+    if (buffer !== undefined) releasePickReadback(pick.readback, buffer, READBACK_SIZE);
   }
 }
 

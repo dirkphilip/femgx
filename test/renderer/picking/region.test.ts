@@ -1,14 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createPart, type Geometry } from "../../../src/geometry/part";
 import { identity } from "../../../src/math/mat4";
-import { pickTargetsFromRegion, renderPixelRect } from "../../../src/renderer/picking/region";
+import {
+  pickEdgeTargetsFromRegion,
+  pickTargetsFromRegion,
+  renderPixelRect,
+} from "../../../src/renderer/picking/region";
 import { createPickRegionTargetResolver } from "../../../src/renderer/picking/region-resolver";
 import { createPickRegionTargetCollector } from "../../../src/renderer/picking/region-targets";
 import {
   createPickTargets,
+  ensureEdgePickTarget,
   ensurePickTargets,
+  resetPickTargets,
   type PickTargets,
 } from "../../../src/renderer/picking/pick";
+import type { DrawResources } from "../../../src/renderer/resources/draw-resources";
 import type { InteractionGranularity } from "../../../src/picking/types";
 import type { PickContext, ResolvedPickIds } from "../../../src/picking/pick";
 import type { Instance } from "../../../src/scene/types";
@@ -337,6 +344,120 @@ describe("GPU pick regions", () => {
       }
 
       expect(gpu.submissionCount).toBe(3);
+    } finally {
+      restore();
+    }
+  });
+
+  it("rejects a region when resize changes textures between tiles", async () => {
+    const restore = installGpuGlobals();
+    try {
+      const deferred: Array<() => void> = [];
+      let mapCalls = 0;
+      const staleCopies: GPUTexture[] = [];
+      const oldInstanceTexture = { current: undefined as GPUTexture | undefined };
+      const gpu = fakeGpuDevice({
+        pickValue: 1,
+        elementPickValue: 5,
+        mapAsync: () => {
+          mapCalls += 1;
+          if (mapCalls === 1) {
+            return new Promise<void>((resolve) => deferred.push(resolve));
+          }
+          return Promise.resolve();
+        },
+        onCopyTextureToBuffer: (source) => {
+          if (
+            source.texture === oldInstanceTexture.current &&
+            pick.texture !== oldInstanceTexture.current
+          ) {
+            staleCopies.push(source.texture);
+          }
+        },
+      });
+      const pick = createPickTargets(await createPickDepthReadback(gpu.device));
+      ensurePickTargets(gpu.device, pick, 4_000, 140, "depth24plus");
+      oldInstanceTexture.current = pick.texture;
+      const context: PickContext = {
+        instances: [instance()],
+        parts: new Map([[1, trianglePart()]]),
+      };
+      const pending = pickTargetsFromRegion({
+        device: gpu.device,
+        canvas: fakeCanvas(4_000, 140),
+        pick,
+        readback: pick.readback,
+        context,
+        rect: rect({ left: 0, top: 0, right: 4_000, bottom: 140 }),
+        granularity: "element",
+      });
+      await vi.waitFor(() => {
+        expect(gpu.submissionCount).toBe(1);
+      });
+      resetPickTargets(pick);
+      ensurePickTargets(gpu.device, pick, 4_000, 140, "depth24plus");
+      deferred[0]?.();
+      await expect(pending).rejects.toThrow(
+        "pick targets changed during region readback; retry the selection",
+      );
+      expect(staleCopies).toHaveLength(0);
+    } finally {
+      restore();
+    }
+  });
+
+  it("rejects an authored-edge region when resize changes textures between tiles", async () => {
+    const restore = installGpuGlobals();
+    try {
+      const deferred: Array<() => void> = [];
+      let mapCalls = 0;
+      const staleCopies: GPUTexture[] = [];
+      const oldTextures = {
+        instance: undefined as GPUTexture | undefined,
+        edge: undefined as GPUTexture | undefined,
+      };
+      const gpu = fakeGpuDevice({
+        pickValue: 1,
+        mapAsync: () => {
+          mapCalls += 1;
+          if (mapCalls === 1) {
+            return new Promise<void>((resolve) => deferred.push(resolve));
+          }
+          return Promise.resolve();
+        },
+        onCopyTextureToBuffer: (source) => {
+          const oldTexture =
+            source.texture === oldTextures.instance || source.texture === oldTextures.edge;
+          const resized =
+            pick.texture !== oldTextures.instance || pick.edgeTexture !== oldTextures.edge;
+          if (oldTexture && resized) staleCopies.push(source.texture);
+        },
+      });
+      const pick = createPickTargets(await createPickDepthReadback(gpu.device));
+      ensurePickTargets(gpu.device, pick, 4_000, 140, "depth24plus");
+      ensureEdgePickTarget(gpu.device, pick, 4_000, 140);
+      oldTextures.instance = pick.texture;
+      oldTextures.edge = pick.edgeTexture;
+      const pending = pickEdgeTargetsFromRegion({
+        device: gpu.device,
+        canvas: fakeCanvas(4_000, 140),
+        pick,
+        readback: pick.readback,
+        context: { instances: [instance()], parts: new Map([[1, trianglePart()]]) },
+        draw: {} as DrawResources,
+        rect: rect({ left: 0, top: 0, right: 4_000, bottom: 140 }),
+      });
+      await vi.waitFor(() => {
+        expect(gpu.submissionCount).toBe(1);
+      });
+      resetPickTargets(pick);
+      ensurePickTargets(gpu.device, pick, 4_000, 140, "depth24plus");
+      ensureEdgePickTarget(gpu.device, pick, 4_000, 140);
+      deferred[0]?.();
+      await expect(pending).rejects.toThrow(
+        "pick targets changed during region readback; retry the selection",
+      );
+      expect(staleCopies).toHaveLength(0);
     } finally {
       restore();
     }
