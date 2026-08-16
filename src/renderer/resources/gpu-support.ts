@@ -75,8 +75,8 @@ export function createBuffer(
     size: Math.max(4, data.byteLength),
     usage: usage | GPUBufferUsage.COPY_DST,
   });
-  const bytes = new Uint8Array(data.byteLength);
-  bytes.set(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
-  device.queue.writeBuffer(buffer, 0, bytes);
+  // queue.writeBuffer copies the source before returning; an intermediate
+  // Uint8Array copy needlessly doubles JavaScript staging for large geometry.
+  device.queue.writeBuffer(buffer, 0, data);
   return buffer;
 }

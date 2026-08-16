@@ -5,6 +5,7 @@ export interface RecordedWrite {
   readonly buffer: GPUBuffer;
   readonly offset: number;
   readonly bytes: Uint8Array;
+  readonly source: ArrayBufferView | ArrayBuffer;
 }
 
 export interface FakeBuffer {
@@ -173,16 +174,18 @@ export function fakeGpuDevice(
     lost,
     queue: {
       writeBuffer: (buffer: GPUBuffer, offset: number, data: ArrayBufferView | ArrayBuffer) => {
-        const bytes =
+        const source =
           data instanceof ArrayBuffer
             ? new Uint8Array(data)
             : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+        const bytes = new Uint8Array(source.byteLength);
+        bytes.set(source);
         if (offset % 4 !== 0 || bytes.byteLength % 4 !== 0) {
           throw new Error(
             `writeBuffer requires 4-byte-aligned offset and byte length (offset ${offset}, length ${bytes.byteLength})`,
           );
         }
-        writes.push({ buffer, offset, bytes });
+        writes.push({ buffer, offset, bytes, source: data });
       },
       submit: () => {
         submissionCount += 1;

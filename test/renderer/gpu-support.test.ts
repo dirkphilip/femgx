@@ -16,15 +16,17 @@ describe("GPU support helpers", () => {
     expect(data.instanceOverrides.size).toBe(0);
   });
 
-  it("creates and uploads a GPU buffer with copy usage", () => {
+  it("uploads the source view without an intermediate staging copy", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
-      const buffer = createBuffer(gpu.device, new Float32Array([1, 2, 3]), GPUBufferUsage.VERTEX);
+      const data = new Float32Array([1, 2, 3]);
+      const buffer = createBuffer(gpu.device, data, GPUBufferUsage.VERTEX);
       expect(buffer).toBeDefined();
       expect(gpu.buffers).toHaveLength(1);
       expect(gpu.buffers[0]?.size).toBe(12);
       expect(gpu.writes[0]?.bytes.byteLength).toBe(12);
+      expect(gpu.writes[0]?.source).toBe(data);
     } finally {
       restore();
     }
