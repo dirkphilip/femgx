@@ -15,7 +15,6 @@ import { syncResultColors } from "./resources/result-colors";
 import { encodePickSnapshot, encodeVisibleFrame } from "./frame/frame";
 import { pickHitFromPixel, resetPickTargets } from "./picking/pick";
 import { pickTargetsFromRegion } from "./picking/region";
-import { displayedPointFromPixel } from "./picking/point";
 import { GpuDeviceLifecycle, type GpuBundle } from "./recovery";
 import { writeBackgroundColors } from "./frame/background";
 import type { GpuValidationOptions } from "./diagnostics/validation";
@@ -312,14 +311,16 @@ export class GpuRenderer implements WebGpuRenderer {
     this.ensureAlive();
     if (this.attachment.runtime === undefined) return undefined;
     if (!this.ensurePickSnapshot(camera)) return undefined;
-    return displayedPointFromPixel({
+    const hit = await pickHitFromPixel({
       device: this.lifecycle.bundle.device,
       canvas: this.canvas,
       pick: this.lifecycle.bundle.pickTargets,
+      context: { instances: this.attachment.instances, parts: this.parts },
       camera,
       x,
       y,
     });
+    return hit?.worldPosition;
   }
 
   public resize(width = this.canvas.clientWidth, height = this.canvas.clientHeight): void {
