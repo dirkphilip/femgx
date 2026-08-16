@@ -95,6 +95,7 @@ export interface DrawCallContext {
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly pipelines: DrawPipelines;
   readonly resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
+  readonly usesExteriorFaceSubsets: boolean;
 }
 
 /** Creates the draw-path resource owner. */

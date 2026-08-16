@@ -1106,6 +1106,37 @@ describe("WebGPU renderer", () => {
     expect(readGpuCostSnapshot(renderer).draws["selection-visible"].indices).toBe(6);
     renderer.destroy();
   });
+
+  it("submits complete solid topology after element visibility exposes an interior", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const part = buildSubsetPart();
+    const scene = createScene()
+      .addPart(part)
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [{ kind: "part", partId: part.id, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    renderer.render(runtime, camera, scene.parts);
+    expect(readGpuCostSnapshot(renderer).draws.opaque.indices).toBe(3);
+
+    renderer.updateElements(
+      runtime,
+      setElementVisible(createInteractionState(), { instanceId: "1/0", elementId: 101 }, false),
+    );
+    renderer.render(runtime, camera, scene.parts);
+
+    expect(readGpuCostSnapshot(renderer).draws.opaque.indices).toBe(6);
+    await renderer.pick(400, 300);
+    expect(readGpuCostSnapshot(renderer).draws.pick.indices).toBe(6);
+    renderer.destroy();
+  });
 });
 
 describe("WebGPU renderer deformation", () => {

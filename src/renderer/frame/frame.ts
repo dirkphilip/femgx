@@ -18,6 +18,9 @@ import { ensureColorTargets, ensureCompositeBindGroup } from "./pipelines";
 import type { ReadyColorTargets } from "../resources/color-targets";
 import { drawOriginTriad, originTriadScale, writeOriginTriad } from "../overlays/origin-triad";
 import { drawOrbitPivot, writeOrbitPivot } from "../overlays/orbit-pivot";
+import { nodeSizeDevicePixels, pointSizeDevicePixels } from "./sizes";
+
+export { nodeSizeDevicePixels, pointSizeDevicePixels } from "./sizes";
 
 /** Internal exact-depth precedence for authored opaque primitive groups. */
 export const AUTHORED_PRIMITIVE_PRECEDENCE = ["triangles", "lines", "points"] as const;
@@ -25,7 +28,7 @@ type PrimitivePass = "color" | "pick" | "selection-visible";
 
 interface PrimitiveGroupOptions {
   readonly pass: PrimitivePass;
-  readonly surfaceSubset?: boolean;
+  readonly surfaceSubset?: boolean | undefined;
 }
 
 /** Everything the per-frame command encoding needs from the renderer. */
@@ -37,18 +40,14 @@ export interface FrameOptions {
   readonly resources: RenderResources;
   /** Swap-chain / MSAA color format matching the configured canvas context. */
   readonly colorFormat: GPUTextureFormat;
-  /** Per-part surface draw calls over the visible instances. */
   readonly calls: readonly DrawCall[];
-  /** Per-part calls containing instances with at least one transparent fragment. */
   readonly transparentCalls: readonly DrawCall[];
-  /** Per-part edge-overlay draw calls over the edge-styled visible instances. */
   readonly edgeCalls: readonly DrawCall[];
-  /** Per-part node-annotation draw calls over the node-styled visible instances. */
   readonly nodeCalls: readonly DrawCall[];
-  /** Per-part selected-instance calls for the depth-aware x-ray selection pass. */
   readonly selectionCalls: readonly DrawCall[];
-  /** Per-part selected-node-instance calls for the exact node glyph pass. */
   readonly selectedNodeCalls: readonly DrawCall[];
+  /** Whether static exterior face orders remain valid for ordinary and pick draws. */
+  readonly usesExteriorFaceSubsets: boolean;
   readonly pickTargets: PickTargets;
   readonly depthFormat: GPUTextureFormat;
   /** Whether the edge overlay culls edges occluded by depth (`less`). */
@@ -71,16 +70,6 @@ export interface FrameOptions {
   readonly originTriadNominalScale: number;
   /** Current display density used by fixed-size presentation helpers. */
   readonly devicePixelRatio: number;
-}
-
-/** Converts a CSS-pixel point diameter into device pixels for the GPU uniform. */
-export function pointSizeDevicePixels(cssPixels: number, dpr = devicePixelRatio): number {
-  return Math.max(1, cssPixels * dpr);
-}
-
-/** Converts a CSS-pixel node diameter into device pixels for the GPU uniform. */
-export function nodeSizeDevicePixels(cssPixels: number, dpr = devicePixelRatio): number {
-  return Math.max(1, cssPixels * dpr);
 }
 
 /** Returns the world-space key direction for a fixed upper-left camera-space light. */
@@ -386,7 +375,7 @@ function drawAuthoredPrimitiveGroups(
       kind: "surface",
       pass: options.pass,
       primitive,
-      surfaceSubset: options.surfaceSubset ?? false,
+      surfaceSubset: options.surfaceSubset,
     });
   }
 }
@@ -402,6 +391,7 @@ export function drawContext(
     parts,
     pipelines: frame.resources.pipelines,
     resultColors: frame.resultColors,
+    usesExteriorFaceSubsets: frame.usesExteriorFaceSubsets,
   };
 }
 
