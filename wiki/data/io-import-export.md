@@ -4,7 +4,7 @@ The `src/io/` subsystem provides the versioned typed interchange model and the
 single supported format adapter: VTK legacy ASCII. See also
 [[architecture/source-organization|Source organization]].
 
-## Interchange model (`io/model.ts`)
+## Interchange model (`src/io/fem-model.ts`)
 
 `FemModel` is the versioned, fully serializable interchange format:
 
@@ -23,7 +23,7 @@ through `createElementModelFromFemModel` produces the product's single-precision
 render model directly, without an intermediate JavaScript array; see
 [[data/elements-topology|Element topology]].
 
-## Model builder (`io/build.ts`)
+## Model builder (`src/io/model-builder.ts`)
 
 `createModelBuilder()` accumulates typed-array chunks (`appendNodes`,
 `openElementShapeBlock`, `appendElements`, `addSet`, `setMetadata`, `addResult`)

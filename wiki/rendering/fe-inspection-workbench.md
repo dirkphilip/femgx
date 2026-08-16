@@ -45,7 +45,7 @@ controller, so camera and interaction behavior is stable
 - Default granularity prefers the **most specific available target**
   (`node` > `face` > `element` > `instance`). Modifier keys promote/narrow the
   selection: shift → element, alt → instance, ctrl → part (see
-  `demo/workbench/pick.ts`).
+  `demo/workbench/selection/pick.ts`).
 - A node or face context menu keeps its exact owning element and exposes
   **Select element** / **Deselect element** alongside an unambiguous target
   action. Selecting an unselected element replaces the ordinary selection;
@@ -81,7 +81,7 @@ controller, so camera and interaction behavior is stable
 
 ## Workbench controller
 
-- `demo/workbench/controller.ts` (`WorkbenchController`) owns active-preset and
+- `demo/workbench/controllers/controller.ts` (`WorkbenchController`) owns active-preset and
   DOM presentation policy while `FemViewport` owns each packed runtime,
   camera, controls, interaction synchronization, visibility, picking, and
   renderer lifecycle. The controller keeps a small map of at most two
@@ -102,7 +102,7 @@ controller, so camera and interaction behavior is stable
   no geometry is rebuilt and no material is cloned. Part and assembly controls
   keep separate namespaces (`data-part-id` vs `data-assembly-id`) and never
   infer identity from a shared numeric id. Pure tree helpers live in
-  `demo/workbench/visibility-tree.ts` and are unit-tested
+  `demo/workbench/state/visibility-tree.ts` and are unit-tested
   (`test/demo/visibility-tree.test.ts`).
 - Node/face/element selection is stored in `InteractionState`. Node and face
   emphasis are rendered through the library emphasis APIs
