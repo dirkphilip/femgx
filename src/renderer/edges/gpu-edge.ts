@@ -4,11 +4,14 @@ import type {
   GeometryEdge,
   GeometryElementBlock,
 } from "../../geometry/part";
-import { buildBodyPrimitivePickIds, buildElementPrimitivePickIds } from "../picking/gpu-pick-ids";
+import {
+  buildElementPrimitivePickIds,
+  buildTriangleOwnerPairs,
+  type TriangleOwnerPair,
+} from "../picking/gpu-pick-ids";
 import { compareEdgeNodeIds } from "../../geometry/part-semantic-index";
 import { elementEdgeKeys } from "./gpu-edge-authored";
 import { appendEdgeConditions } from "./gpu-edge-conditions";
-import { triangleBodyPairs } from "./gpu-edge-owners";
 
 /** Expanded edge endpoints plus the body owners of each logical edge. */
 export interface MeshEdgeData {
@@ -71,18 +74,47 @@ export function buildMeshEdgeData(
     return buildUnownedEdgeData(geometry, sourceIndices, elements);
   }
   const elementEdges = elementEdgeKeys(geometry);
-  const bodyPickIds = buildBodyPrimitivePickIds(geometry, elements);
-  const elementPickIds = buildElementPrimitivePickIds(geometry, elements);
-  const sourceBodyPairs = triangleBodyPairs({
+  const sourceBodyPairs = remapTriangleOwnerPairs(
     geometry,
     sourceIndices,
-    bodyPickIds,
-    elementPickIds,
-    elements,
-    blocks,
-  });
+    buildTriangleOwnerPairs(geometry, elements, blocks),
+  );
   const edges = collectEdges(geometry, sourceIndices, elementEdges, sourceBodyPairs);
   return finalizeEdges(geometry, edges, blocks);
+}
+
+function remapTriangleOwnerPairs(
+  geometry: Geometry,
+  sourceIndices: Uint32Array,
+  ownerPairs: readonly TriangleOwnerPair[],
+): readonly TriangleOwnerPair[] {
+  if (sourceIndices === geometry.indices) return ownerPairs;
+  const byTriangle = new Map<string, TriangleOwnerPair>();
+  for (let triangle = 0; triangle < geometry.indices.length / 3; triangle++) {
+    const base = triangle * 3;
+    byTriangle.set(
+      triangleKey(
+        geometry.indices[base] ?? 0,
+        geometry.indices[base + 1] ?? 0,
+        geometry.indices[base + 2] ?? 0,
+      ),
+      ownerPairs[triangle] ?? [0, 0, 0, 0, 0, 0],
+    );
+  }
+  const result: TriangleOwnerPair[] = [];
+  for (let triangle = 0; triangle < sourceIndices.length / 3; triangle++) {
+    const base = triangle * 3;
+    result.push(
+      byTriangle.get(
+        triangleKey(
+          sourceIndices[base] ?? 0,
+          sourceIndices[base + 1] ?? 0,
+          sourceIndices[base + 2] ?? 0,
+        ),
+      ) ?? [0, 0, 0, 0, 0, 0],
+    );
+  }
+  return result;
 }
 
 function buildUnownedEdgeData(
@@ -186,7 +218,7 @@ function collectEdges(
   geometry: Geometry,
   sourceIndices: Uint32Array,
   elementEdges: Set<string> | ReadonlyMap<string, GeometryEdge> | undefined,
-  sourceBodyPairs: Array<readonly [number, number, number, number, number, number]>,
+  sourceBodyPairs: readonly TriangleOwnerPair[],
 ): MeshEdge[] {
   const triangleCount = Math.floor(sourceIndices.length / 3);
   const edges: MeshEdge[] = [];
@@ -322,6 +354,10 @@ function edgeKey(geometry: Geometry, a: number, b: number): string {
     return `${Math.min(nodeA, nodeB)},${Math.max(nodeA, nodeB)}`;
   }
   return `${Math.min(a, b)},${Math.max(a, b)}`;
+}
+
+function triangleKey(a: number, b: number, c: number): string {
+  return `${a},${b},${c}`;
 }
 
 /** Maps two tessellated vertex indices to their FE node edge key. */
