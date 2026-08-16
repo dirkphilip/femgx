@@ -217,8 +217,9 @@ kept out of normal runs:
 | `bodies-256`            | body interaction             | Quad      |           1,024 | 1,024                         |         1 |            2,048 |               2,048 |
 | `fe-quad-shell-visual`  | structured surface shell     | Quad      |             576 | 576                           |         1 |            1,152 |               1,152 |
 | `fe-quad8-shell-visual` | structured surface shell     | Quad8     |             256 | 256                           |         1 |            1,536 |               1,536 |
-| `fe-hex8-solid-visual`  | structured volume solid      | Hex8      |             512 | 512                           |         1 |            6,144 |                 768 |
-| `fe-hex20-solid-visual` | structured volume solid      | Hex20     |             216 | 216                           |         1 |            7,776 |               1,296 |
+| `fe-hex8-solid-visual`  | structured volume solid      | Hex8      |             512 | 296                           |         1 |            6,144 |                 768 |
+| `fe-tet4-solid-132k`    | structured volume solid      | Tet4      |         131,712 | 9,240                         |         1 |          526,848 |               9,408 |
+| `fe-hex20-solid-visual` | structured volume solid      | Hex20     |             216 | 152                           |         1 |            7,776 |               1,296 |
 | `unique-2m-local`       | unique geometry (local-only) | Triangle  |       2,000,000 | 2,000,000                     |         1 |        2,000,000 |           2,000,000 |
 
 The planar-grid generator is shared by the visual performance fixture and the
@@ -244,8 +245,23 @@ and Hex20 benchmark fixtures retain complete authored face metadata for
 selection and picking but use a validated boundary-face subset for their
 submitted exterior draw order. Consequently their unique-triangle count
 includes retained interior tessellation while submitted-triangle count reflects
-the compact exterior order. The 12×12×12 Hex20 capacity tier is local-only
-under `RUN_PERF_LARGE=1`.
+the compact exterior order. The Tet4 case uses a conforming 28×28×28 lattice
+with six Tet4 elements per cell: it retains 131,712 authored elements, 24,389
+shared nodes, and 526,848 complete faces for picking and through-intersection
+selection, while submitting only 9,408 exterior triangles. On the local CPU
+measurement lane, this case built in 2.50 s, estimated 62.6 MiB of retained
+renderer buffers, and 125.2 MiB at the upload peak. A 35×35×35 candidate
+(257,250 Tet4 elements) took 6.28 s and estimated 116.3 MiB retained/232.6 MiB
+peak, so it is not in the bounded browser matrix; a million-element tier is
+likewise not claimed under the current full-topology retention contract. The
+system-Chrome WebGPU lane measured a 1.90 s model build, 0.75 s attachment and
+first frame, 0.9 ms visible-frame p95, and 8.61 ms moving-camera interval p95
+with no interval over 16.7 ms. GPU visible-region selection readback remained
+under 7.2 ms in the three measured rectangles. A separate warmed host-side
+Through query returned 11,372 elements from an 80×80 rectangle in 116 ms and
+all 131,712 elements from the full viewport in 45 ms; Through remains a
+completed-gesture query rather than per-frame work. The
+12×12×12 Hex20 capacity tier is local-only under `RUN_PERF_LARGE=1`.
 In this matrix, **unique elements** means authored logical element records,
 while **submitted element occurrences** means the number of element occurrences
 represented by the submitted visible topology; it must not be replaced with
@@ -253,10 +269,11 @@ one aggregate record for a grid or body. The matrix deliberately keeps unique
 triangles and submitted triangles as separate columns because instancing
 changes the latter only.
 
-Triangle/Tri6 and Tet4/Tet10 belong to the same contract even when they are not
-in the bounded default matrix: Triangle families represent authored surface
-elements, and Tet families represent authored volume elements whose intended
-faces are exposed. Quadratic variants retain their authored mid-edge node ids.
+Triangle/Tri6 and Tet4/Tet10 belong to the same contract: Triangle families
+represent authored surface elements, and Tet families represent authored volume
+elements whose intended faces are exposed. The bounded matrix includes Tet4;
+Tet10 remains outside this benchmark fixture. Quadratic variants retain their
+authored mid-edge node ids.
 The fixture must report the family and logical-element count whenever those
 values are relevant; a generic triangle count alone is insufficient evidence.
 

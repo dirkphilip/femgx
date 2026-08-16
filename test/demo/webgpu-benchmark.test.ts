@@ -31,6 +31,7 @@ describe("WebGPU benchmark models", () => {
       { id: "fe-quad-shell-visual", kind: "structured-fe", elementFamily: "quad" },
       { id: "fe-quad8-shell-visual", kind: "structured-fe", elementFamily: "quad8" },
       { id: "fe-hex8-solid-visual", kind: "structured-fe", elementFamily: "hex8" },
+      { id: "fe-tet4-solid-132k", kind: "structured-fe", elementFamily: "tet4" },
       {
         id: "fe-hex8-orientation-visual",
         kind: "structured-fe",
@@ -108,12 +109,15 @@ describe("WebGPU benchmark models", () => {
   it("builds shared-node shell and solid FE families with truthful metadata", () => {
     const quad = createStructuredFeModel("quad", 2);
     const quad8 = createStructuredFeModel("quad8", 2);
+    const tet4 = createStructuredFeModel("tet4", 2);
     const hex8 = createStructuredFeModel("hex8", 2);
     const hex20 = createStructuredFeModel("hex20", 2);
     expect(quad.nodes).toHaveLength(27);
     expect(quad.elements).toHaveLength(4);
     expect(quad8.nodes).toHaveLength(63);
     expect(quad8.elements).toHaveLength(4);
+    expect(tet4.nodes).toHaveLength(81);
+    expect(tet4.elements).toHaveLength(48);
     expect(
       new Set(quad8.elements[0]?.nodeIds.filter((id) => quad8.elements[1]?.nodeIds.includes(id))),
     ).toHaveLength(3);
@@ -127,15 +131,18 @@ describe("WebGPU benchmark models", () => {
 
     const quadPart = createStructuredFePart(1, "quad", 2);
     const quad8Part = createStructuredFePart(2, "quad8", 2);
-    const hex8Part = createStructuredFePart(3, "hex8", 2);
-    const hex20Part = createStructuredFePart(4, "hex20", 2);
+    const tet4Part = createStructuredFePart(3, "tet4", 2);
+    const hex8Part = createStructuredFePart(4, "hex8", 2);
+    const hex20Part = createStructuredFePart(5, "hex20", 2);
     const quadGeometry = quadPart.geometries[0];
     const quad8Geometry = quad8Part.geometries[0];
+    const tet4Geometry = tet4Part.geometries[0];
     const hex8Geometry = hex8Part.geometries[0];
     const hex20Geometry = hex20Part.geometries[0];
     if (
       quadGeometry?.primitive !== "triangles" ||
       quad8Geometry?.primitive !== "triangles" ||
+      tet4Geometry?.primitive !== "triangles" ||
       hex8Geometry?.primitive !== "triangles" ||
       hex20Geometry?.primitive !== "triangles"
     )
@@ -145,6 +152,10 @@ describe("WebGPU benchmark models", () => {
     expect(quadGeometry.indices).toHaveLength(4 * 2 * 3);
     expect(quad8Geometry.faces).toHaveLength(4);
     expect(quad8Geometry.indices).toHaveLength(4 * 6 * 3);
+    expect(tet4Part.elements).toHaveLength(48);
+    expect(tet4Geometry.faces).toHaveLength(48 * 4);
+    expect(tet4Geometry.indices).toHaveLength(48 * 4 * 3);
+    expect(tet4Geometry.faceSubset?.faceIds).toHaveLength(12 * 2 ** 2);
     expect(hex8Geometry.faces).toHaveLength(48);
     expect(hex8Geometry.indices).toHaveLength(48 * 2 * 3);
     expect(hex20Geometry.faces).toHaveLength(48);
@@ -152,16 +163,27 @@ describe("WebGPU benchmark models", () => {
     expect(hex20Part.bodies).toEqual([
       { id: 1, name: "hex20 structured body", elementIds: [1, 2, 3, 4, 5, 6, 7, 8] },
     ]);
+    expect(tet4Part.bodies?.[0]?.elementIds).toHaveLength(48);
   });
 
   it("keeps structured solid geometry complete while submitting only exterior triangles", () => {
+    const tet4Part = createStructuredFePart(1, "tet4", 2);
     const hex8Part = createStructuredFePart(1, "hex8", 8);
     const hex20Part = createStructuredFePart(2, "hex20", 6);
+    const tet4Geometry = tet4Part.geometries[0];
     const hex8Geometry = hex8Part.geometries[0];
     const hex20Geometry = hex20Part.geometries[0];
-    if (hex8Geometry?.primitive !== "triangles" || hex20Geometry?.primitive !== "triangles") {
+    if (
+      tet4Geometry?.primitive !== "triangles" ||
+      hex8Geometry?.primitive !== "triangles" ||
+      hex20Geometry?.primitive !== "triangles"
+    ) {
       throw new Error("Structured fixtures must contain triangle geometry");
     }
+    expect(tet4Geometry.faces).toHaveLength(48 * 4);
+    expect(tet4Geometry.indices).toHaveLength(48 * 4 * 3);
+    expect(tet4Geometry.faceSubset?.faceIds).toHaveLength(48);
+    expect(buildFaceSubsetIndices(tet4Geometry)).toHaveLength(48 * 3);
     expect(hex8Geometry.faces).toHaveLength(6 * 8 ** 3);
     expect(hex8Geometry.indices).toHaveLength(6 * 8 ** 3 * 2 * 3);
     expect(hex8Geometry.faceSubset?.faceIds).toHaveLength(6 * 8 ** 2);
@@ -177,13 +199,20 @@ describe("WebGPU benchmark models", () => {
     const hex20Spec = benchmarkCaseSpecs(false).find(
       (candidate) => candidate.id === "fe-hex20-solid-visual",
     );
-    if (hex8Spec === undefined || hex20Spec === undefined) {
+    const tet4Spec = benchmarkCaseSpecs(false).find(
+      (candidate) => candidate.id === "fe-tet4-solid-132k",
+    );
+    if (hex8Spec === undefined || hex20Spec === undefined || tet4Spec === undefined) {
       throw new Error("Structured solid benchmark specs are missing");
     }
     const hex8Case = createBenchmarkCase(hex8Spec);
     const hex20Case = createBenchmarkCase(hex20Spec);
+    const tet4Case = createBenchmarkCase({ ...tet4Spec, gridCells: 2 });
     const hex8Runtime = createPackedSceneRuntime(hex8Case.scene);
     const hex20Runtime = createPackedSceneRuntime(hex20Case.scene);
+    const tet4Runtime = createPackedSceneRuntime(tet4Case.scene);
+    expect(submittedTriangleCount(tet4Case, tet4Runtime, false)).toBe(48);
+    expect(submittedTriangleCount(tet4Case, tet4Runtime, true)).toBe(48);
     expect(submittedTriangleCount(hex8Case, hex8Runtime, false)).toBe(768);
     expect(submittedTriangleCount(hex20Case, hex20Runtime, false)).toBe(1_296);
     expect(submittedTriangleCount(hex8Case, hex8Runtime, true)).toBe(768);
@@ -275,6 +304,15 @@ describe("WebGPU benchmark models", () => {
       partCount: 1,
       bodyCount: 256,
       elementFamily: "quad",
+    });
+    expect(specs.find((spec) => spec.id === "fe-tet4-solid-132k")).toMatchObject({
+      gridCells: 28,
+      partCount: 1,
+      instanceCount: 1,
+      bodyCount: 1,
+      elementFamily: "tet4",
+      structuredFamily: "tet4",
+      ordinaryDemo: false,
     });
   });
 

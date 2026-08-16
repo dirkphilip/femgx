@@ -174,6 +174,18 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
       ordinaryDemo: true,
     },
     {
+      id: "fe-tet4-solid-132k",
+      name: "Performance Lab · FE Tet4 solid · 131,712 authored elements · 9,408 submitted exterior triangles",
+      kind: "structured-fe",
+      gridCells: 28,
+      partCount: 1,
+      instanceCount: 1,
+      bodyCount: 1,
+      elementFamily: "tet4",
+      structuredFamily: "tet4",
+      ordinaryDemo: false,
+    },
+    {
       id: "fe-hex8-orientation-visual",
       name: "Performance Lab · FE Hex8 elemental orientation · 512 glyph elements",
       kind: "structured-fe",

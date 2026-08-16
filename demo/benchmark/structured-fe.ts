@@ -1,11 +1,17 @@
 import { createElement, type Element, type NodeId } from "../../src/elements/element";
 import { createElementModel, type Body, type ElementModel } from "../../src/elements/model";
 import { boundaryFaceRefs, facesOfElement, type FaceIdRef } from "../../src/elements/faces";
-import { HEX20_SHAPE, HEX8_SHAPE, QUAD8_SHAPE, QUAD_SHAPE } from "../../src/elements/shapes";
+import {
+  HEX20_SHAPE,
+  HEX8_SHAPE,
+  QUAD8_SHAPE,
+  QUAD_SHAPE,
+  TET4_SHAPE,
+} from "../../src/elements/shapes";
 import { elementPart } from "../../src/geometry/element-part";
 import type { Part } from "../../src/geometry/part";
 
-export type StructuredFeFamily = "quad" | "quad8" | "hex8" | "hex20";
+export type StructuredFeFamily = "quad" | "quad8" | "tet4" | "hex8" | "hex20";
 
 /** Builds one structured FE part through the canonical element tessellation path. */
 export function createStructuredFePart(
@@ -26,7 +32,7 @@ export function createStructuredFePart(
     family === "quad" || family === "quad8"
       ? allSurfaceFaces(model)
       : boundaryFaceRefs(model.elements);
-  const authoredModel = createElementModel([...model.nodes], model.elements, { bodies: [body] });
+  const authoredModel = createElementModel(model.nodes, model.elements, { bodies: [body] });
   return elementPart(partId, authoredModel, { faceSubset });
 }
 
@@ -51,6 +57,8 @@ export function createStructuredFeModel(
         id += 1;
       }
     }
+  } else if (family === "tet4") {
+    return createStructuredTet4Model(gridSize);
   } else {
     for (let z = 0; z < gridSize; z += 1) {
       for (let y = 0; y < gridSize; y += 1) {
@@ -65,6 +73,61 @@ export function createStructuredFeModel(
     }
   }
   return createElementModel(builder.positions, elements);
+}
+
+function createStructuredTet4Model(gridSize: number): ElementModel {
+  const side = gridSize + 1;
+  const layer = side * side;
+  const nodes = new Float32Array(layer * side * 3);
+  for (let z = 0; z <= gridSize; z += 1) {
+    for (let y = 0; y <= gridSize; y += 1) {
+      for (let x = 0; x <= gridSize; x += 1) {
+        const node = z * layer + y * side + x;
+        const offset = node * 3;
+        nodes[offset] = x;
+        nodes[offset + 1] = y;
+        nodes[offset + 2] = z;
+      }
+    }
+  }
+
+  const elements = new Array<Element>(gridSize ** 3 * 6);
+  let elementIndex = 0;
+  let elementId = 1;
+  for (let z = 0; z < gridSize; z += 1) {
+    for (let y = 0; y < gridSize; y += 1) {
+      for (let x = 0; x < gridSize; x += 1) {
+        const base = z * layer + y * side + x;
+        const n000 = base;
+        const n100 = base + 1;
+        const n010 = base + side;
+        const n110 = n010 + 1;
+        const n001 = base + layer;
+        const n101 = n001 + 1;
+        const n011 = n001 + side;
+        const n111 = n011 + 1;
+        elements[elementIndex] = createElement(elementId, TET4_SHAPE, [n000, n100, n110, n111]);
+        elementIndex += 1;
+        elementId += 1;
+        elements[elementIndex] = createElement(elementId, TET4_SHAPE, [n000, n110, n010, n111]);
+        elementIndex += 1;
+        elementId += 1;
+        elements[elementIndex] = createElement(elementId, TET4_SHAPE, [n000, n010, n011, n111]);
+        elementIndex += 1;
+        elementId += 1;
+        elements[elementIndex] = createElement(elementId, TET4_SHAPE, [n000, n011, n001, n111]);
+        elementIndex += 1;
+        elementId += 1;
+        elements[elementIndex] = createElement(elementId, TET4_SHAPE, [n000, n001, n101, n111]);
+        elementIndex += 1;
+        elementId += 1;
+        elements[elementIndex] = createElement(elementId, TET4_SHAPE, [n000, n101, n100, n111]);
+        elementIndex += 1;
+        elementId += 1;
+      }
+    }
+  }
+  return createElementModel(nodes, elements);
 }
 
 class StructuredNodeBuilder {
