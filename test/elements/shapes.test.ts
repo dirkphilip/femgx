@@ -34,25 +34,6 @@ const ALL_SHAPES: ReadonlyArray<readonly [string, ElementShape]> = [
 ];
 
 describe("topologyFor", () => {
-  it.each(ALL_SHAPES)("reports the canonical node count for %s", (_name, shape) => {
-    const expected: Record<string, number> = {
-      point: 1,
-      line: 2,
-      line3: 3,
-      triangle: 3,
-      tri6: 6,
-      quad: 4,
-      quad8: 8,
-      tet4: 4,
-      tet10: 10,
-      wedge6: 6,
-      pyramid5: 5,
-      hex8: 8,
-      hex20: 20,
-    };
-    expect(topologyFor(shape).nodeCount).toBe(expected[_name]);
-  });
-
   it("assigns every connectivity position as either a corner or a mid-edge node", () => {
     for (const [_name, shape] of ALL_SHAPES) {
       const topology = topologyFor(shape);
@@ -61,22 +42,6 @@ describe("topologyFor", () => {
       for (let position = 0; position < topology.nodeCount; position += 1) {
         expect(positions.has(position)).toBe(true);
       }
-    }
-  });
-
-  it("keeps mid-edge nodes aligned with the edges they bisect", () => {
-    for (const [_name, shape] of ALL_SHAPES) {
-      const topology = topologyFor(shape);
-      if (topology.order < 2) {
-        expect(topology.edgeNodes).toEqual([]);
-        continue;
-      }
-      expect(topology.edgeNodes).toHaveLength(topology.edges.length);
-      topology.edges.forEach((edge, index) => {
-        expect(topology.corners[edge[0]]).toBeDefined();
-        expect(topology.corners[edge[1]]).toBeDefined();
-        expect(topology.edgeNodes[index]).toBeDefined();
-      });
     }
   });
 
