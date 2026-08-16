@@ -1,6 +1,10 @@
 import type { Geometry, Part } from "../../geometry/part";
 import { buildMeshEdgeData, type MeshEdgeData } from "../edges/mesh-edge";
-import { expandMeshEdgeData } from "../edges/edge-expansion";
+import {
+  expandMeshEdgeData,
+  meshEdgeEndpointData,
+  type MeshEdgeDrawData,
+} from "../edges/edge-expansion";
 import { buildFaceSubsetIndices } from "../selection/face-subset";
 import { emptyMeshEdgeData, packTopologyData } from "./geometry-buffers";
 import { buildElementPrimitiveOrdinals, buildPrimitiveFaceBodyPickData } from "../picking/ids";
@@ -80,9 +84,12 @@ export function buildPartEdgeResources(
   geometry: Extract<Geometry, { primitive: "triangles" }>,
   resultTail: ResultColorTail,
 ): NonNullable<PartResource["edge"]> | undefined {
-  const upload = buildEdgeResourceData(device, part, geometry, resultTail);
-  if (upload === undefined) return undefined;
-  return upload;
+  const edgeData = buildPartMeshEdgeData(part, geometry);
+  return uploadEdgeResourceData(device, part, geometry, {
+    edgeData,
+    drawData: meshEdgeEndpointData(edgeData, geometry.nodePickIds),
+    resultTail,
+  });
 }
 
 /** Builds the wider authored-edge pick geometry on first edge-granularity use. */
@@ -91,8 +98,12 @@ export function buildPartEdgePickResources(
   part: Part,
   geometry: Extract<Geometry, { primitive: "triangles" }>,
 ): PartEdgePickResource | undefined {
-  const upload = buildEdgeResourceData(device, part, geometry);
-  if (upload === undefined) return undefined;
+  const edgeData = buildPartMeshEdgeData(part, geometry);
+  if ((edgeData.edgeKeys?.length ?? 0) === 0) return undefined;
+  const upload = uploadEdgeResourceData(device, part, geometry, {
+    edgeData,
+    drawData: expandMeshEdgeData(edgeData, geometry.nodePickIds),
+  });
   return {
     vertexBuffer: upload.edgeVertexBuffer,
     indexBuffer: upload.edgeIndexBuffer,
@@ -103,38 +114,49 @@ export function buildPartEdgePickResources(
   };
 }
 
-function buildEdgeResourceData(
-  device: GPUDevice,
+function buildPartMeshEdgeData(
   part: Part,
   geometry: Extract<Geometry, { primitive: "triangles" }>,
-  resultTail?: ResultColorTail,
-) {
-  const edgeData = buildMeshEdgeData(
+): MeshEdgeData {
+  return buildMeshEdgeData(
     geometry,
     getSubsetIndices(geometry) ?? geometry.indices,
     part.elements ?? [],
     part.blocks ?? [],
   );
-  if (resultTail === undefined && (edgeData.edgeKeys?.length ?? 0) === 0) return undefined;
-  const expanded = expandMeshEdgeData(edgeData, geometry.nodePickIds);
+}
+
+interface EdgeUploadOptions {
+  readonly edgeData: MeshEdgeData;
+  readonly drawData: MeshEdgeDrawData;
+  readonly resultTail?: ResultColorTail;
+}
+
+function uploadEdgeResourceData(
+  device: GPUDevice,
+  part: Part,
+  geometry: Extract<Geometry, { primitive: "triangles" }>,
+  options: EdgeUploadOptions,
+) {
+  const { edgeData, drawData, resultTail } = options;
   const edgeWithResults =
-    resultTail === undefined ? undefined : appendResultColorTail(expanded.positions, resultTail);
+    resultTail === undefined ? undefined : appendResultColorTail(drawData.positions, resultTail);
   const vertexBuffer = createBuffer(
     device,
-    edgeWithResults?.data ?? expanded.positions,
+    edgeWithResults?.data ?? drawData.positions,
     GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
   );
   return {
     edgeVertexBuffer: vertexBuffer,
-    edgeIndexBuffer: createIndexBuffer(device, expanded.indices),
-    edgeNodePickIdsBuffer: createBuffer(device, expanded.nodePickIds, GPUBufferUsage.STORAGE),
+    edgeIndexBuffer: createIndexBuffer(device, drawData.indices),
+    edgeNodePickIdsBuffer: createBuffer(device, drawData.nodePickIds, GPUBufferUsage.STORAGE),
     edgeTopologyBuffer: createTopologyBuffer(
       device,
       buildPrimitiveFaceBodyPickData(geometry, part.elements ?? [], part.blocks ?? []),
-      { ...edgeData, ...expanded },
-      { primitiveIds: [], edgeIds: expanded.edgeIds, blockIds: edgeData.blockIds },
+      { ...edgeData, ...drawData },
+      { primitiveIds: [], edgeIds: drawData.edgeIds, blockIds: edgeData.blockIds },
     ),
-    edgeIndexCount: expanded.indices.length,
+    edgeIndexCount: drawData.indices.length,
     edgeKeys: edgeData.edgeKeys,
     edgeNodeIds: edgeData.edgeNodeIds,
     resultColorBinding: { buffer: vertexBuffer, offset: edgeWithResults?.offset ?? 0 },

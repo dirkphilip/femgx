@@ -60,12 +60,28 @@ describe("GPU render resources", () => {
       const edgeDepthTested = gpu.renderPipelineDescriptors.find(
         (descriptor) => descriptor.label === "edge overlay depth-tested",
       );
-      expect(edgeDepthTested?.primitive?.topology).toBe("triangle-list");
+      expect(edgeDepthTested?.primitive?.topology).toBe("line-list");
       expect(edgeDepthTested?.depthStencil).toMatchObject({
         depthCompare: "less-equal",
         depthWriteEnabled: false,
-        depthBias: -1,
       });
+      expect(edgeDepthTested?.depthStencil?.depthBias).toBeUndefined();
+      expect(edgeDepthTested?.multisample?.count).toBe(1);
+      expect(
+        gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === "edge overlay always-visible",
+        )?.depthStencil?.depthCompare,
+      ).toBe("always");
+      expect(
+        gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === "node annotation overlay",
+        )?.multisample?.count,
+      ).toBe(COLOR_SAMPLE_COUNT);
+      expect(
+        gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === "resolved node annotation overlay",
+        )?.multisample?.count,
+      ).toBe(1);
       expect(
         gpu.renderPipelineDescriptors.find((descriptor) => descriptor.label === "line picking")
           ?.depthStencil?.depthCompare,
@@ -78,12 +94,8 @@ describe("GPU render resources", () => {
           (descriptor) => descriptor.depthStencil?.depthCompare === "less-equal",
         ),
       ).toBeDefined();
-      expect(
-        gpu.renderPipelineDescriptors.find(
-          (descriptor) => descriptor.depthStencil?.depthCompare === "always",
-        ),
-      ).toBeDefined();
       expect(resources.nodeOverlayPipelines.visible).toBeDefined();
+      expect(resources.nodeOverlayPipelines.resolved).toBeDefined();
       expect(resources.orientationGlyphs.visible).toBeDefined();
       expect(resources.orientationGlyphs.hidden).toBeDefined();
       expect(
@@ -177,6 +189,15 @@ describe("GPU render resources", () => {
       expect(nodePipeline?.multisample?.count).toBe(COLOR_SAMPLE_COUNT);
       expect(nodePipeline?.multisample?.alphaToCoverageEnabled).toBe(true);
       expect(nodePipeline?.fragment?.targets[0]?.blend).toBeUndefined();
+      const resolvedNodePipeline = gpu.renderPipelineDescriptors.find(
+        (descriptor) => descriptor.label === "resolved node annotation overlay",
+      );
+      expect(resolvedNodePipeline?.multisample?.count).toBe(1);
+      expect(resolvedNodePipeline?.multisample?.alphaToCoverageEnabled).toBeUndefined();
+      expect(resolvedNodePipeline?.fragment?.targets[0]?.blend?.color).toEqual({
+        srcFactor: "src-alpha",
+        dstFactor: "one-minus-src-alpha",
+      });
       expect(gpu.renderPipelineDescriptors[0]?.multisample?.count).toBe(COLOR_SAMPLE_COUNT);
       expect(gpu.renderPipelineDescriptors[2]?.multisample?.count ?? 1).toBe(1);
       expect(resources.instanceLayout).toBeDefined();

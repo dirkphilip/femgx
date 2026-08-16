@@ -26,7 +26,14 @@ describe("GPU cost accounting", () => {
 
     cost.reset();
     const cleared = cost.snapshot();
-    expect(cleared.passes).toEqual({ opaque: 0, transparency: 0, composite: 0, pick: 0 });
+    expect(cleared.passes).toEqual({
+      opaque: 0,
+      transparency: 0,
+      composite: 0,
+      "overlay-depth": 0,
+      overlay: 0,
+      pick: 0,
+    });
     expect(cleared.draws.opaque).toEqual({ calls: 0, indices: 0, instances: 0 });
     expect(cleared.writes.instance).toEqual({ calls: 0, bytes: 0 });
     expect(cleared.cpu).toEqual({ "instance-scan": 0, "order-rebuild": 0, "call-rebuild": 0 });

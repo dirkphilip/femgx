@@ -62,7 +62,7 @@ export const vertexLayout: GPUVertexBufferLayout = {
   attributes: [{ shaderLocation: 0, format: "float32x3", offset: 0 }],
 };
 
-/** Multisample count for the visible color path (edges, solids, overlays). */
+/** Multisample count for the visible surface and weighted-transparency path. */
 export const COLOR_SAMPLE_COUNT = 4;
 
 /** Creates and uploads a GPU buffer from typed-array data. */

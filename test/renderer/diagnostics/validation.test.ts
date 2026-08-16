@@ -81,6 +81,7 @@ describe("GPU validation", () => {
         "selection transparency fragment",
         "edge overlay vertex",
         "edge overlay fragment",
+        "presentation depth resolve",
         "orientation glyph vertex",
         "orientation glyph visible fragment",
         "orientation glyph hidden fragment",

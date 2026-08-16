@@ -87,7 +87,7 @@ function instanceBindGroup(
   part: PartDrawInputs,
 ): GPUBindGroup {
   const geometry = part.geometry;
-  const edgeResource = part.edge ? requireEdgeResource(geometry) : undefined;
+  const edgeResource = part.edge && !part.edgePick ? requireEdgeResource(geometry) : undefined;
   const edgePickResource = part.edgePick ? requireEdgePickResource(geometry) : undefined;
   const nodePickIdsBuffer =
     edgePickResource !== undefined
