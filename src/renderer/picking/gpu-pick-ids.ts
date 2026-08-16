@@ -3,6 +3,7 @@ import {
   primitiveRangesForElement,
   type ElementTessellation,
   type Geometry,
+  type GeometryElementBlock,
   type Part,
 } from "../../geometry/part";
 
@@ -98,68 +99,70 @@ export function buildFacePrimitivePickIds(geometry: Geometry): Uint32Array {
   return pickIds;
 }
 
+export type TriangleOwnerPair = readonly [number, number, number, number, number, number];
+
+/** Builds body, element, and block owner/neighbor ids for each source triangle. */
+export function buildTriangleOwnerPairs(
+  geometry: Geometry,
+  elements: readonly ElementTessellation[] = [],
+  blocks: readonly GeometryElementBlock[] = [],
+  facePickIds = buildFacePrimitivePickIds(geometry),
+): TriangleOwnerPair[] {
+  const bodyPickIds = buildBodyPrimitivePickIds(geometry, elements);
+  const elementPickIds = buildElementPrimitivePickIds(geometry, elements);
+  const bodyByElement = new Map(elements.map((element) => [element.id, element.bodyId] as const));
+  const blockByElement = blockIdsByElement({ elements, blocks });
+  return Array.from(facePickIds, (facePickId, triangle): TriangleOwnerPair => {
+    const owner = bodyPickIds[triangle] ?? 0;
+    const element = elementPickIds[triangle] ?? 0;
+    const face = geometry.primitive === "triangles" ? geometry.faces?.[facePickId - 1] : undefined;
+    const neighborElementId = face?.neighborElementIds[0];
+    const neighborBody =
+      neighborElementId === undefined ? undefined : bodyByElement.get(neighborElementId);
+    const neighborPickId = neighborBody === undefined ? 0 : neighborBody + 1;
+    const neighborElementPickId = neighborElementId === undefined ? 0 : neighborElementId + 1;
+    const block = blockByElement.get(element - 1);
+    const neighborBlock =
+      neighborElementId === undefined ? undefined : blockByElement.get(neighborElementId);
+    return [
+      owner,
+      neighborPickId === owner ? 0 : neighborPickId,
+      element,
+      neighborElementPickId,
+      block === undefined ? 0 : block + 1,
+      neighborBlock === undefined || neighborBlock === block ? 0 : neighborBlock + 1,
+    ];
+  });
+}
+
 /** Builds interleaved per-triangle face/owner/neighbor ids for one storage binding. */
 export function buildPrimitiveFaceBodyPickData(
   geometry: Geometry,
   elements: readonly ElementTessellation[] = [],
-  blocks: readonly { readonly id: number; readonly elementIds: readonly number[] }[] = [],
+  blocks: readonly GeometryElementBlock[] = [],
 ): Uint32Array {
   const facePickIds = buildFacePrimitivePickIds(geometry);
-  const bodyPickIds = buildBodyPrimitivePickIds(geometry, elements);
-  const elementPickIds = buildElementPrimitivePickIds(geometry, elements);
+  const ownerPairs = buildTriangleOwnerPairs(geometry, elements, blocks, facePickIds);
   const blockAware = blocks.length > 0;
-  const bodyByElement = new Map(elements.map((element) => [element.id, element.bodyId] as const));
-  const blockByElement = blockIdsByElement({ elements, blocks });
-  const blockPickIds = buildBlockPrimitivePickIds(geometry, elements, blockByElement);
   const stride = blockAware ? 7 : 5;
-  const data = new Uint32Array(facePickIds.length * stride);
-  for (let triangle = 0; triangle < facePickIds.length; triangle += 1) {
+  const data = new Uint32Array(ownerPairs.length * stride);
+  for (let triangle = 0; triangle < ownerPairs.length; triangle += 1) {
     const facePickId = facePickIds[triangle] ?? 0;
-    const face = geometry.primitive === "triangles" ? geometry.faces?.[facePickId - 1] : undefined;
+    const [owner, neighbor, element, neighborElement, block, neighborBlock] = ownerPairs[
+      triangle
+    ] ?? [0, 0, 0, 0, 0, 0];
     const base = triangle * stride;
     data[base] = facePickId;
-    data[base + 1] = bodyPickIds[triangle] ?? 0;
-    const neighborElementId = face?.neighborElementIds[0];
-    const neighborBody =
-      neighborElementId === undefined ? undefined : bodyByElement.get(neighborElementId);
-    data[base + 2] =
-      neighborBody === undefined || neighborBody + 1 === data[base + 1] ? 0 : neighborBody + 1;
-    data[base + 3] = elementPickIds[triangle] ?? 0;
-    data[base + 4] = neighborElementId === undefined ? 0 : neighborElementId + 1;
+    data[base + 1] = owner;
+    data[base + 2] = neighbor;
+    data[base + 3] = element;
+    data[base + 4] = neighborElement;
     if (blockAware) {
-      const blockId = blockPickIds[triangle] ?? 0;
-      const neighborBlockId =
-        neighborElementId === undefined ? undefined : blockByElement.get(neighborElementId);
-      data[base + 5] = blockId;
-      data[base + 6] =
-        neighborBlockId === undefined || neighborBlockId + 1 === blockId ? 0 : neighborBlockId + 1;
+      data[base + 5] = block;
+      data[base + 6] = neighborBlock;
     }
   }
   return data;
-}
-
-/** Builds the per-primitive semantic block pick ids (`blockId + 1`). */
-function buildBlockPrimitivePickIds(
-  geometry: Geometry,
-  elements: readonly ElementTessellation[],
-  blockByElement: ReadonlyMap<number, number>,
-): Uint32Array {
-  const primitiveCount = logicalPrimitiveCount(geometry);
-  const pickIds = new Uint32Array(primitiveCount);
-  for (const element of elements) {
-    const blockId = blockByElement.get(element.id);
-    if (blockId === undefined) continue;
-    for (const range of primitiveRangesForElement(element, geometry.primitive)) {
-      for (
-        let primitiveIndex = range.start;
-        primitiveIndex < range.start + range.count;
-        primitiveIndex++
-      ) {
-        pickIds[primitiveIndex] = blockId + 1;
-      }
-    }
-  }
-  return pickIds;
 }
 
 /** Builds one face/owner/neighbor record per authored node sprite. */
