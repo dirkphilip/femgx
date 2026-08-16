@@ -4,6 +4,7 @@ import { createModelInteraction } from "../state/preset";
 import type { WorkbenchModel } from "./model";
 import type { WorkbenchPresentation } from "../viewport/presentation";
 import type { DisplayToggles, ResultDisplayMode } from "../types";
+import { createDefaultDisplayToggles } from "../types";
 import type { WorkbenchViewportSlot, WorkbenchViewportSlots } from "../viewport/viewport-slots";
 import {
   activeScalarFieldIdForModel,
@@ -137,7 +138,7 @@ export function activateWorkbenchModel(options: ActivateWorkbenchModelOptions): 
     ? options.catalogModels
     : [...options.catalogModels, model];
   state.models = model.source === "file" ? catalogModels : options.catalogModels;
-  state.toggles = { edges: true, nodes: true, diagnostics: false };
+  state.toggles = createDefaultDisplayToggles(model);
   state.resultMode = resultModeForModel(model);
   state.scalarFieldId = activeScalarFieldIdForModel(model);
   state.deformationScale = model.results?.deformation?.scale ?? 1;
