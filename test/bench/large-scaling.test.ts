@@ -16,8 +16,10 @@ const ELEMENT_COUNTS = GRID_SIZES.map((size) => size ** 3);
 const models = GRID_SIZES.map((size) => createStructuredFeModel("hex8", size));
 const TET4_ELEMENT_COUNT = 6 * 28 ** 3;
 const TET4_BOUNDARY_GRID_SIZE = 35;
+const TET4_BOUNDARY_ELEMENT_COUNT = 6 * TET4_BOUNDARY_GRID_SIZE ** 3;
 const TET4_BOUNDARY_FACE_COUNT = 12 * TET4_BOUNDARY_GRID_SIZE ** 2;
 const tet4BoundaryModel = createStructuredFeModel("tet4", TET4_BOUNDARY_GRID_SIZE);
+const tet4BoundaryFaces = boundaryFaceRefs(tet4BoundaryModel.elements);
 const tet4Spec = benchmarkCaseSpecs(false).find((spec) => spec.id === "fe-tet4-solid-132k");
 if (tet4Spec === undefined) throw new Error("Tet4 benchmark case is missing");
 const tet4Case = createBenchmarkCase(tet4Spec);
@@ -110,6 +112,33 @@ describe("large-model scaling", () => {
       },
     ]);
     expect(measured).toBeLessThanOrEqual(1_000);
+  });
+
+  it("reports canonical 257,250-element Tet4 part compilation", () => {
+    const measured = measureMs(
+      () => {
+        const part = elementPart(30_000, tet4BoundaryModel, {
+          faceSubset: tet4BoundaryFaces,
+        });
+        const triangles = part.geometries.find((geometry) => geometry.primitive === "triangles");
+        if (part.elements?.length !== TET4_BOUNDARY_ELEMENT_COUNT) {
+          throw new Error("Tet4 part lost authored elements");
+        }
+        if (triangles?.primitive !== "triangles") throw new Error("Tet4 triangles are missing");
+        if (triangles.faceSubset?.faceIds.length !== TET4_BOUNDARY_FACE_COUNT) {
+          throw new Error("Tet4 part lost its exterior face subset");
+        }
+      },
+      { warmup: 0, samples: 1 },
+    );
+    report("257,250-element Tet4 canonical part compilation", [
+      {
+        size: TET4_BOUNDARY_ELEMENT_COUNT,
+        measuredMs: measured,
+        millisecondsPerUnit: measured / TET4_BOUNDARY_ELEMENT_COUNT,
+      },
+    ]);
+    expect(measured).toBeLessThanOrEqual(7_500);
   });
 
   it.each(cases)("$name remains approximately linear", ({ name, points }) => {

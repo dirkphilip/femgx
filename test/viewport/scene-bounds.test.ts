@@ -7,7 +7,7 @@ import { setTargetSelected } from "../../src/interaction/targets";
 import { translation } from "../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createScene } from "../../src/scene/scene";
-import { padDegenerateBounds } from "../../src/viewport/geometry-bounds";
+import { displayedPartBounds, padDegenerateBounds } from "../../src/viewport/geometry-bounds";
 import {
   SceneNavigationBoundsCache,
   scenePlacedBounds,
@@ -65,6 +65,48 @@ function sceneWithRepeatedPart(placementCount = 2) {
 }
 
 describe("viewport scene bounds", () => {
+  it("uses the primitive mask for displayed face-subset bounds", () => {
+    const part = createPart(2, {
+      geometries: [
+        {
+          positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 10, 10, 0, 20, 10, 0, 10, 20, 0]),
+          indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+          primitive: "triangles",
+          faces: [
+            {
+              elementId: 1,
+              faceIndex: 0,
+              primitiveStart: 0,
+              primitiveCount: 1,
+              key: "0/1/2",
+              nodeIds: [0, 1, 2],
+              neighborElementIds: [],
+            },
+            {
+              elementId: 2,
+              faceIndex: 0,
+              primitiveStart: 1,
+              primitiveCount: 1,
+              key: "3/4/5",
+              nodeIds: [3, 4, 5],
+              neighborElementIds: [],
+            },
+          ],
+          faceSubset: { faceIds: [{ elementId: 1, faceIndex: 0 }] },
+        },
+      ],
+    });
+
+    expect(displayedPartBounds(part, undefined)).toMatchObject({
+      minX: 0,
+      maxX: 1,
+      minY: 0,
+      maxY: 1,
+      minZ: 0,
+      maxZ: 0,
+    });
+  });
+
   it("reuses navigation bounds until their authoritative inputs change", () => {
     const scene = sceneWithRepeatedPart(64);
     const runtime = createPackedSceneRuntime(scene);
