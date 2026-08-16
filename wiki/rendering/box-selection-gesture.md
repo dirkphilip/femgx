@@ -50,13 +50,15 @@ the operations.
 
 ## Demo ownership
 
-`demo/workbench/box-preview.ts` (`WorkbenchBoxPreview`) renders lifecycle events
-onto the `#box-selection-overlay` element in `index.html`: absolute-positioned,
+`demo/workbench/selection/box-preview.ts` (`WorkbenchBoxPreview`) renders lifecycle events
+onto the `#box-selection-overlay` element owned by
+`demo/workbench/ui/ViewportPane.svelte`: absolute-positioned,
 `pointer-events: none`, a blue 1px border and subtle translucent fill, z-indexed
 above the canvas but below the menus/axis gizmo, hidden by default. `start` and
 `change` position/show it directly from `event.rect`; `complete`, `cancel`, and
 teardown hide it and clear its inline geometry.
 
+`demo/workbench/viewport/view.ts` resolves the overlay for the viewport pane.
 `WorkbenchController` installs `installBoxSelection` before the workbench hover
 listeners so the threshold-crossing move marks box interaction active before
 hover handling runs. Demo-only box activity is tracked separately from camera

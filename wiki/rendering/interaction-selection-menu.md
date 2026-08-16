@@ -1,6 +1,6 @@
 # Selection and view context menu
 
-The demo workbench keeps selection policy in `demo/workbench/selection.ts` and
+The demo workbench keeps selection policy in `demo/workbench/selection/selection.ts` and
 applies it after asynchronous GPU picks in `WorkbenchInteraction`.
 
 - A plain primary click replaces the current selection with the picked node,

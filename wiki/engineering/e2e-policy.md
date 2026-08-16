@@ -37,12 +37,13 @@ WebGPU test surface.
    CI until a GPU runner exists; SwiftShader is not used as a faithful
    stand-in.
 5. **Manual software-WebGPU exploration** — the opt-in
-   `e2e-exploratory.yml` workflow runs the bounded smoke plus parallel,
-   one-worker SwiftShader suites. The interaction suite covers mobile, GLB/VTK,
-   and runtime-error journeys; the rendering suite is split into three isolated
-   shards covering results, visibility, and rendered-pixel contracts. No retries
-   are used, so runtime and flake signals stay visible. It is exploratory
-   evidence, not a merge gate or a substitute for the supported hardware lane.
+   `e2e-exploratory.yml` workflow runs
+   `npx playwright test --project=chrome-software --project=chrome-software-interaction --reporter=list,html`
+   through one-worker SwiftShader projects. `chrome-software` covers the
+   software-WebGPU spec; `chrome-software-interaction` covers demo import,
+   mobile, and smoke journeys. No retries are used, so runtime and flake
+   signals stay visible. It is exploratory evidence, not a merge gate or a
+   substitute for the supported hardware lane.
 
 ## Why the Chrome lane must assert, not skip
 
@@ -153,10 +154,6 @@ named owners:
 - demo-specific behavior retained in `e2e/demo` is semantic DOM/state: model
   choice, hierarchy and visibility policy, menus, diagnostics, import/error
   presentation, focus, responsive geometry, and the representative smoke path.
-
-The ordinary `chrome` project no longer carries a second software rendering
-shard. Software exploration runs the bounded smoke, mobile, and import paths;
-the opt-in performance project remains separate and non-authoritative.
 
 ## Browser-only routing table
 
