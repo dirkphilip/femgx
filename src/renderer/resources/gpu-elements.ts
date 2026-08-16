@@ -26,41 +26,20 @@ import {
 } from "../selection/gpu-highlight-table";
 import { defaultStyle } from "./gpu-support";
 import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
+import {
+  sparseElementEmphasisRefs,
+  type DenseElementSelections,
+} from "../selection/gpu-element-selection";
+export {
+  ELEMENT_RECORD_STRIDE,
+  HIGHLIGHT_HEADER,
+  INITIAL_ELEMENT_HIGHLIGHTS,
+} from "../selection/gpu-highlight-layout";
+import { ELEMENT_RECORD_STRIDE } from "../selection/gpu-highlight-layout";
 
 interface InstanceLayout {
   readonly slotPartLocal: Int32Array;
 }
-
-/**
- * Byte stride of one emphasis record. The layout mirrors the `ElementHighlight`
- * struct in `gpu-shaders.ts`:
- *
- * | offset | size | field |
- * | ------ | ---- | ----- |
- * | 0      | 4    | part-local instance slot (`u32`) |
- * | 4      | 4    | element pick id, `elementId + 1` (`u32`) |
- * | 8      | 4    | face pick id, `faceId + 1` (`u32`) |
- * | 12     | 4    | node pick id, `nodeId + 1` (`u32`) |
- * | 16     | 16   | resolved color with opacity folded into alpha (`vec4<f32>`) |
- * | 32     | 4    | emissive (`f32`) |
- * | 36     | 4    | hidden (`u32`) |
- * | 40     | 4    | selected (`u32`) |
- * | 44     | 4    | block pick id; high bit preserves displayed color |
- */
-export const ELEMENT_RECORD_STRIDE = 48;
-
-/**
- * Byte offset of the packed payload inside the highlight buffer. The fixed
- * header contains sparse-table metadata, dense-selection ranges, and the
- * selected theme; the payload contains sparse records followed by bitsets.
- */
-export const HIGHLIGHT_HEADER = 64;
-
-/**
- * Initial emphasis record slots allocated per part. Records are placed in
- * four-entry buckets so the vertex shader performs a bounded lookup.
- */
-export const INITIAL_ELEMENT_HIGHLIGHTS = 128;
 
 /** One emphasis record destined for a part's highlight buffer. */
 export interface EmphasisUpdate {
@@ -89,6 +68,12 @@ export interface EmphasisUpdate {
 
 /** One immutable interaction snapshot shared by highlight and transparency sync. */
 export type EmphasisUpdates = ReadonlyMap<PartId, readonly EmphasisUpdate[]>;
+
+interface EmphasisCollectionOptions {
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly interaction: InteractionState;
+  readonly denseSelections?: DenseElementSelections;
+}
 
 /**
  * Encodes one emphasis record. Only one of the three pick ids is non-zero, so
@@ -134,10 +119,10 @@ export function collectEmphasisUpdates(
   runtime: PackedSceneRuntime,
   layout: InstanceLayout,
   slotByInstanceId: ReadonlyMap<InstanceId, number>,
-  parts: ReadonlyMap<PartId, Part>,
-  interaction: InteractionState,
+  options: EmphasisCollectionOptions,
 ): EmphasisUpdates {
   const context = { runtime, layout, slotByInstanceId };
+  const { parts, interaction, denseSelections } = options;
   const byPart = new Map<PartId, EmphasisUpdate[]>();
   const push = (partId: PartId, update: EmphasisUpdate): void => {
     const list = byPart.get(partId);
@@ -146,7 +131,7 @@ export function collectEmphasisUpdates(
   };
   collectBodyEmphasis(context, parts, interaction, push);
   collectBlockEmphasis(context, parts, interaction, push);
-  collectElementEmphasis(context, parts, interaction, push);
+  collectElementEmphasis(context, parts, interaction, push, denseSelections);
   collectFaceEmphasis(context, parts, interaction, push);
   collectNodeEmphasis(context, interaction, push);
   collectEdgeEmphasis(context, parts, interaction, push);
@@ -258,9 +243,14 @@ function collectElementEmphasis(
   parts: ReadonlyMap<PartId, Part>,
   interaction: InteractionState,
   push: (partId: PartId, update: EmphasisUpdate) => void,
+  denseSelections?: DenseElementSelections,
 ): void {
   const data = readInteractionState(interaction);
-  for (const ref of emphasizedElementRefs(interaction)) {
+  const refs =
+    denseSelections === undefined
+      ? emphasizedElementRefs(interaction)
+      : sparseElementEmphasisRefs(context.runtime, context.layout, interaction, denseSelections);
+  for (const ref of refs) {
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);

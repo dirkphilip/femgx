@@ -4,6 +4,7 @@ import {
   createPart,
   createSceneRuntime,
   identity,
+  setElementBlockVisible,
   setElementVisible,
   type FemViewport,
   type ElementTessellation,
@@ -13,6 +14,7 @@ import {
 } from "../../src/index";
 import type { BoxSelectionRequest } from "../../demo/workbench/selection/box-selection-resolver";
 import { throughIntersectionBoxSelectionResolver } from "../../demo/workbench/selection/through-box-selection";
+import { createPlanarGridGeometry } from "../../demo/fixture/planar-grid";
 import { describe, expect, it } from "vitest";
 
 const selectionRect = {
@@ -56,6 +58,24 @@ describe("through box selection", () => {
     ]);
   });
 
+  it("respects block membership declared outside element records", async () => {
+    const { scene, runtime } = fixture(true);
+    const instanceId = runtime.getVisibleInstanceIds()[0] as string;
+    const interaction = setElementBlockVisible(
+      createInteractionState(),
+      { instanceId, blockId: 1 },
+      false,
+    );
+    const resolver = throughIntersectionBoxSelectionResolver(() =>
+      viewport(scene, runtime, interaction),
+    );
+
+    await expect(resolver(request("element"))).resolves.toEqual([
+      { kind: "element", instanceId, elementId: 1 },
+      { kind: "element", instanceId, elementId: 4 },
+    ]);
+  });
+
   it("uses displayed positive section-plane geometry while retaining crossing segments", async () => {
     const { scene, runtime, interaction } = fixture();
     const resolver = throughIntersectionBoxSelectionResolver(() =>
@@ -64,6 +84,23 @@ describe("through box selection", () => {
 
     await expect(resolver(request("element"))).resolves.toEqual([
       { kind: "element", instanceId: runtime.getVisibleInstanceIds()[0], elementId: 4 },
+    ]);
+  });
+
+  it("selects an element intersected only by a triangle omitted from ordinary rendering", async () => {
+    const part = omittedTrianglePart();
+    const scene = sceneFor(part);
+    const runtime = createSceneRuntime(scene);
+    const resolver = throughIntersectionBoxSelectionResolver(() =>
+      viewport(scene, runtime, createInteractionState()),
+    );
+
+    await expect(resolver(request("element"))).resolves.toEqual([
+      {
+        kind: "element",
+        instanceId: runtime.getVisibleInstanceIds()[0],
+        elementId: 2,
+      },
     ]);
   });
 
@@ -76,6 +113,22 @@ describe("through box selection", () => {
     expect(() => resolver(request("face"))).toThrow(
       "Through box selection requires element granularity",
     );
+  });
+
+  it("returns every intersecting element in the 250k triangle example", async () => {
+    const grid = createPlanarGridGeometry(354, { elementFamily: "triangle" });
+    const part = createPart(1, {
+      geometries: [grid.geometry],
+      elements: grid.elements,
+      nodePositions: grid.nodePositions,
+    });
+    const scene = sceneFor(part);
+    const runtime = createSceneRuntime(scene);
+    const resolver = throughIntersectionBoxSelectionResolver(() =>
+      viewport(scene, runtime, createInteractionState()),
+    );
+
+    await expect(resolver(request("element"))).resolves.toHaveLength(250_632);
   });
 });
 
@@ -124,7 +177,7 @@ function viewport(
   } as unknown as FemViewport;
 }
 
-function fixture(): {
+function fixture(derivedVisibility = false): {
   readonly scene: Scene;
   readonly runtime: ReturnType<typeof createSceneRuntime>;
   readonly interaction: InteractionState;
@@ -152,7 +205,13 @@ function fixture(): {
     geometries: [triangle.geometry, line.geometry, point.geometry],
     elements: [...elements.values()],
     nodePositions: point.nodePositions,
+    ...(derivedVisibility ? { blocks: [{ id: 1, elementIds: [3] }] } : {}),
   });
+  const scene = sceneFor(part);
+  return { scene, runtime: createSceneRuntime(scene), interaction: createInteractionState() };
+}
+
+function sceneFor(part: ReturnType<typeof createPart>): Scene {
   const scene: Scene = {
     rootAssemblyId: 0,
     parts: new Map([[part.id, part]]),
@@ -171,7 +230,7 @@ function fixture(): {
     visiblePartIds: new Set([part.id]),
     visibleAssemblyIds: new Set([0]),
   };
-  return { scene, runtime: createSceneRuntime(scene), interaction: createInteractionState() };
+  return scene;
 }
 
 function triangleGeometry(): GeometryBuild<Geometry> {
@@ -189,6 +248,49 @@ function triangleGeometry(): GeometryBuild<Geometry> {
     ],
     nodePositions: new Float32Array(),
   };
+}
+
+function omittedTrianglePart(): ReturnType<typeof createPart> {
+  return createPart(1, {
+    geometries: [
+      {
+        primitive: "triangles",
+        positions: new Float32Array([3, 0, 0, 4, 0, 0, 3, 1, 0, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0]),
+        indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+        faces: [
+          {
+            elementId: 1,
+            faceIndex: 0,
+            primitiveStart: 0,
+            primitiveCount: 1,
+            key: "0:1:2",
+            nodeIds: [0, 1, 2],
+            neighborElementIds: [],
+          },
+          {
+            elementId: 2,
+            faceIndex: 0,
+            primitiveStart: 1,
+            primitiveCount: 1,
+            key: "3:4:5",
+            nodeIds: [3, 4, 5],
+            neighborElementIds: [],
+          },
+        ],
+        faceSubset: { faceIds: [{ elementId: 1, faceIndex: 0 }] },
+      },
+    ],
+    elements: [
+      {
+        id: 1,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+      },
+      {
+        id: 2,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+      },
+    ],
+  });
 }
 
 function lineGeometry(): GeometryBuild<Geometry> {

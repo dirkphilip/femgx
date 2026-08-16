@@ -40,6 +40,7 @@ import {
   buildHighlightTable,
   type HighlightTableEntry,
 } from "../../src/renderer/selection/gpu-highlight-table";
+import { collectDenseElementSelections } from "../../src/renderer/selection/gpu-element-selection";
 import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
 import { defaultStyle } from "../../src/renderer/resources/gpu-support";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
@@ -174,6 +175,12 @@ const emphasisInteraction = setTargetsSelected(
     elementId,
   })),
   true,
+);
+const emphasisDenseSelections = collectDenseElementSelections(
+  emphasisRuntime,
+  emphasisLayout,
+  emphasisScene.parts,
+  emphasisInteraction,
 );
 const LINE_BENCH_SEGMENTS = 10_000;
 const lineHeavyGeometry = {
@@ -670,16 +677,14 @@ const budgets: readonly BudgetCase[] = [
   },
   {
     name: "collectEmphasisUpdates (16,384 elements)",
-    description: "one occurrence using cached part ownership metadata",
-    budgetMs: 1_500,
+    description: "dense selection avoids per-element sparse records",
+    budgetMs: 25,
     run: () => {
-      collectEmphasisUpdates(
-        emphasisRuntime,
-        emphasisLayout,
-        emphasisSlotByInstanceId,
-        emphasisScene.parts,
-        emphasisInteraction,
-      );
+      collectEmphasisUpdates(emphasisRuntime, emphasisLayout, emphasisSlotByInstanceId, {
+        parts: emphasisScene.parts,
+        interaction: emphasisInteraction,
+        denseSelections: emphasisDenseSelections,
+      });
     },
   },
   {

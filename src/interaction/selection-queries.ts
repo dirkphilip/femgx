@@ -7,6 +7,58 @@ import {
 } from "./state";
 import type { InteractionTarget } from "./target-types";
 
+/** Bounded aggregate selection metadata for presentation-level queries. */
+export interface SelectedTargetSummary {
+  readonly count: number;
+  readonly partIds: ReadonlySet<number>;
+  readonly instanceIds: ReadonlySet<string>;
+}
+
+/** Counts selected identities and occurrences without materializing or sorting them. */
+export function selectedTargetSummary(state: InteractionState): SelectedTargetSummary {
+  const data = readInteractionState(state);
+  const instanceIds = new Set(data.selectedInstanceIds);
+  for (const groups of [
+    data.selectedBodyIds,
+    data.selectedBlockIds,
+    data.selectedElementIds,
+    data.selectedFaces,
+    data.selectedNodeIds,
+    data.selectedEdges,
+  ]) {
+    for (const instanceId of groups.keys()) instanceIds.add(instanceId);
+  }
+  return { count: selectedTargetCount(state), partIds: data.selectedPartIds, instanceIds };
+}
+
+/** Counts all selected targets, or only targets of one interaction kind. */
+export function selectedTargetCount(
+  state: InteractionState,
+  kind?: InteractionTarget["kind"],
+): number {
+  const data = readInteractionState(state);
+  if (kind === "part") return data.selectedPartIds.size;
+  if (kind === "instance") return data.selectedInstanceIds.size;
+  const nested = {
+    body: data.selectedBodyIds,
+    block: data.selectedBlockIds,
+    element: data.selectedElementIds,
+    face: data.selectedFaces,
+    node: data.selectedNodeIds,
+    edge: data.selectedEdges,
+  };
+  if (kind !== undefined) return nestedValueCount(nested[kind]);
+  let count = data.selectedPartIds.size + data.selectedInstanceIds.size;
+  for (const groups of Object.values(nested)) count += nestedValueCount(groups);
+  return count;
+}
+
+function nestedValueCount(groups: ReadonlyMap<string, { readonly size: number }>): number {
+  let count = 0;
+  for (const values of groups.values()) count += values.size;
+  return count;
+}
+
 /** Returns selected targets in stable kind and identity order. */
 export function selectedTargets(state: InteractionState): InteractionTarget[] {
   const data = readInteractionState(state);

@@ -1,6 +1,6 @@
 import {
   clientToCanvasCss,
-  selectedTargets,
+  selectedTargetCount,
   setTargetHovered,
   type FemViewport,
   type InteractionState,
@@ -403,11 +403,9 @@ export class WorkbenchInteraction {
       request.event.modifiers.control || request.event.modifiers.meta
         ? toggleTargets(current, selectable)
         : replaceTargets(current, selectable);
-    const selectedTargetCount = selectedTargets(next).filter(
-      (target) => target.kind === granularity,
-    ).length;
+    const selectedCount = selectedTargetCount(next, granularity);
     this.options.selectionFeedback?.(
-      `Box selection: ${selectedTargetCount} ${selectionNoun(granularity, selectedTargetCount)}`,
+      `Box selection: ${selectedCount} ${selectionNoun(granularity, selectedCount)}`,
     );
     if (next === current) return;
     this.options.setInteraction(next);

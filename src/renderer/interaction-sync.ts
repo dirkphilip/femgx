@@ -196,18 +196,17 @@ export function refreshTransparencyFlags(options: TransparencySyncOptions): Read
 export function syncInteractionEmphasis(
   options: InteractionEmphasisSyncOptions,
 ): ReadonlySet<PartId> {
-  const emphasisUpdates = collectEmphasisUpdates(
-    options.runtime,
-    options.layout,
-    options.slotByInstanceId,
-    options.parts,
-    options.interaction,
-  );
   const denseSelections = collectDenseElementSelections(
     options.runtime,
     options.layout,
     options.parts,
     options.interaction,
+  );
+  const emphasisUpdates = collectEmphasisUpdates(
+    options.runtime,
+    options.layout,
+    options.slotByInstanceId,
+    { parts: options.parts, interaction: options.interaction, denseSelections },
   );
   syncElementHighlights(
     {

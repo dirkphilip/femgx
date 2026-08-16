@@ -12,6 +12,8 @@ import {
   setTargetSelected,
   setTargetHovered,
   setTargetsSelected,
+  selectedTargetCount,
+  selectedTargetSummary,
   selectedTargets,
   type InteractionTarget,
   type PickHit,
@@ -79,6 +81,12 @@ describe("InteractionTarget helpers", () => {
     const duplicateTargets = [...targets, targets[2], targets[4]];
     const state = setTargetsSelected(createInteractionState(), duplicateTargets, true);
     for (const target of targets) expect(isTargetSelected(state, target)).toBe(true);
+    expect(selectedTargetSummary(state)).toEqual({
+      count: targets.length,
+      partIds: new Set([1]),
+      instanceIds: new Set(["1/0"]),
+    });
+    expect(selectedTargetCount(state, "element")).toBe(1);
     expect(setTargetsSelected(state, duplicateTargets, true)).toBe(state);
     const cleared = setTargetsSelected(state, [targets[1], targets[2], targets[2]], false);
     expect(isTargetSelected(cleared, targets[1])).toBe(false);
