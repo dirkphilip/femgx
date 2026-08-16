@@ -27,6 +27,12 @@ npm run test:e2e          # system Chrome / hardware WebGPU (local)
 npm run test:e2e:layout   # ordinary-story desktop/mobile layout contract
 ```
 
+`npm run typecheck` is the authoritative static gate: it runs the TypeScript
+compiler and the whole-project `svelte-check` command with warnings treated as
+failures. The focused `npm run check:svelte` command remains available for
+targeted diagnosis, while aggregate builds rely on `typecheck` rather than
+invoking a second Svelte check.
+
 `npm run bench:budget` runs the performance budget gate standalone (see
 [[engineering/benchmarks|Benchmarks]]) because v8 coverage instrumentation distorts wall
 clock timing; CI runs it as its own step. `PERF_REPORT=1 npm run bench:budget`
