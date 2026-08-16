@@ -74,6 +74,7 @@ describe("workbench Svelte controls", () => {
     button(target, "#command-selection").click();
     button(target, "#select-all").click();
     button(target, "#hide-selected").click();
+    button(target, "#show-all").click();
     await tick();
     button(target, "#command-view").click();
     for (const selector of ["#fit-view", "#viewport-toggle", "#projection-toggle"]) {
@@ -92,6 +93,7 @@ describe("workbench Svelte controls", () => {
         "setSelectionGranularity",
         "setBoxSelectionStrategy",
         "selectAll",
+        "showAll",
         "selectModel",
         "setResultField",
         "setDeformationField",
@@ -130,6 +132,8 @@ describe("workbench Svelte controls", () => {
     await tick();
     expect(element(target, "#selection-controls").hidden).toBe(false);
     expect(button(target, "#command-selection").getAttribute("aria-expanded")).toBe("true");
+    expect(button(target, "#clear-selection").disabled).toBe(true);
+    expect(button(target, "#show-all").disabled).toBe(false);
 
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     await tick();
@@ -142,6 +146,36 @@ describe("workbench Svelte controls", () => {
     expect(element(target, "#view-controls").hidden).toBe(true);
 
     await unmount(component);
+  });
+
+  it("routes clear selection and keeps it disabled without selected targets", async () => {
+    const calls: string[] = [];
+    const target = document.createElement("div");
+    document.body.append(target);
+    const emptyComponent = mount(PrimaryToolbar, {
+      target,
+      props: { controller: fakeController(calls), snapshot: createSnapshot(false) },
+    });
+    button(target, "#command-selection").click();
+    await tick();
+    expect(button(target, "#clear-selection").disabled).toBe(true);
+    await unmount(emptyComponent);
+
+    const base = createSnapshot(false);
+    const selectedSnapshot: WorkbenchSnapshot = {
+      ...base,
+      hierarchy: { ...base.hierarchy, selectedCount: 1 },
+    };
+    const selectedComponent = mount(PrimaryToolbar, {
+      target,
+      props: { controller: fakeController(calls), snapshot: selectedSnapshot },
+    });
+    button(target, "#command-selection").click();
+    await tick();
+    expect(button(target, "#clear-selection").disabled).toBe(false);
+    button(target, "#clear-selection").click();
+    expect(calls).toContain("clearSelection");
+    await unmount(selectedComponent);
   });
 
   it("routes the compact touch rail through typed tool commands", async () => {

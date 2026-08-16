@@ -229,18 +229,33 @@ test("hides selected elements and restores them through synchronized toolbar act
   await expect.poll(() => dataset(page, "selected")).toBe(selected);
   await expect(secondary).toHaveAttribute("data-selected", selected);
 
+  const assembly = page.getByTestId("assembly-occurrence-vis-1");
+  await assembly.uncheck();
+  await expect(assembly).not.toBeChecked();
+  await openCommandPanel(page, "selection");
+
   await hideSelected.click();
   await expect(page.getByTestId("model-feedback")).toHaveText(
     "Selected elements are already hidden.",
   );
 
-  await activateContextAction(page, "show-all");
+  const showAll = page.getByTestId("show-all");
+  await expect(showAll).toHaveText("Show all");
+  await showAll.click();
+  await expect(assembly).toBeChecked();
   await expect(page.getByTestId("model-feedback")).toHaveText(
     "Selected elements are already hidden.",
   );
   await expect(hideSelected).toHaveText("Hide selected");
   await expect.poll(() => dataset(page, "selected")).toBe(selected);
   await expect(secondary).toHaveAttribute("data-selected", selected);
+
+  const clearSelection = page.getByTestId("clear-selection");
+  await expect(clearSelection).toBeEnabled();
+  await clearSelection.click();
+  await expect.poll(() => dataset(page, "selected")).toBe("");
+  await expect(clearSelection).toBeDisabled();
+  await expect(secondary).toHaveAttribute("data-selected", "");
 });
 
 test("context menu selects a target and toggles display without losing selection", async ({

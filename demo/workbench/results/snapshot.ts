@@ -244,6 +244,7 @@ export interface WorkbenchCommands {
   fitSelection(): void;
   selectAll(): void;
   hideSelected(): void;
+  clearSelection(): void;
   showAll(): void;
   reset(): void;
   selectModel(id: string): void;
