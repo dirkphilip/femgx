@@ -94,7 +94,7 @@ export function createPlateModel(
       maxX: halfLength,
       maxY: halfThickness,
       maxZ: halfWidth,
-      cellsX: 3,
+      cellsX: 4,
       cellsY: 1,
       cellsZ: 2,
     },

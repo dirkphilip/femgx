@@ -190,14 +190,14 @@ describe("createBoltedPlateFixture", () => {
     const { scene, partIds } = createBoltedPlateFixture();
     const plateSolid = scene.parts.get(partIds.plate.partId);
     expect(plateSolid?.geometries[0]?.primitive).toBe("triangles");
-    expect(plateSolid?.geometries[0]?.indices).toHaveLength(216);
+    expect(plateSolid?.geometries[0]?.indices).toHaveLength(288);
     const plateGeometry = plateSolid?.geometries[0];
     if (plateGeometry?.primitive !== "triangles") throw new Error("expected plate triangles");
     const interfaceFaces = (plateGeometry.faces ?? []).filter(
       (face) => face.neighborElementIds.length > 0,
     );
-    expect(interfaceFaces).toHaveLength(14);
-    expect(new Set(interfaceFaces.map((face) => face.key)).size).toBe(7);
+    expect(interfaceFaces).toHaveLength(20);
+    expect(new Set(interfaceFaces.map((face) => face.key)).size).toBe(10);
     const boltModel = createBoltedPlateFixture().elementModels.get(partIds.bolt.partId);
     expect(boltModel?.elements).toHaveLength(2);
     expect(scene.parts.get(partIds.bolt.partId)?.bounds).toEqual({
@@ -214,19 +214,35 @@ describe("createBoltedPlateFixture", () => {
     const { scene, elementModels, partIds } = createBoltedPlateFixture();
     const plate = elementModels.get(partIds.plate.partId);
     const bolt = elementModels.get(partIds.bolt.partId);
+    expect(plate?.elements).toHaveLength(8);
     expect(plate?.blocks?.map(({ name, elementIds }) => ({ name, elementIds }))).toEqual([
-      { name: "Plate row A", elementIds: [1, 2, 3] },
-      { name: "Plate row B", elementIds: [4, 5, 6] },
+      { name: "A left", elementIds: [1, 2] },
+      { name: "A right", elementIds: [3, 4] },
+      { name: "B left", elementIds: [5, 6] },
+      { name: "B right", elementIds: [7, 8] },
     ]);
     expect(plate?.bodies).toEqual([
-      { id: 1, name: "Plate row A", blockIds: [1] },
-      { id: 2, name: "Plate row B", blockIds: [2] },
+      { id: 1, name: "Plate row A", blockIds: [1, 2] },
+      { id: 2, name: "Plate row B", blockIds: [3, 4] },
     ]);
+    const blocksById = new Map(plate?.blocks?.map((block) => [block.id, block]));
+    for (const body of plate?.bodies ?? []) {
+      if (body.blockIds === undefined)
+        throw new Error("Plate bodies must aggregate authored blocks");
+      const bodyElementIds = body.blockIds.flatMap(
+        (blockId) => blocksById.get(blockId)?.elementIds ?? [],
+      );
+      expect(new Set(bodyElementIds).size).toBe(bodyElementIds.length);
+      expect(bodyElementIds).toEqual(body.id === 1 ? [1, 2, 3, 4] : [5, 6, 7, 8]);
+    }
+    expect(plate?.blocks?.flatMap((block) => block.elementIds)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(bolt?.blocks).toBeUndefined();
     expect(bolt?.bodies?.every((body) => "elementIds" in body)).toBe(true);
     expect(scene.parts.get(partIds.plate.partId)?.blocks?.map((block) => block.name)).toEqual([
-      "Plate row A",
-      "Plate row B",
+      "A left",
+      "A right",
+      "B left",
+      "B right",
     ]);
     expect(scene.parts.get(partIds.bolt.partId)?.blocks).toBeUndefined();
   });
