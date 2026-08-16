@@ -176,6 +176,12 @@ test("picks and selects a node, exposing adjacency and neighbors", async ({ page
 
   await page.mouse.click(hit.x, hit.y);
   await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
+  const hideSelected = page.getByTestId("hide-selected");
+  await expect(hideSelected).toBeDisabled();
+  await expect(hideSelected).toHaveAttribute(
+    "title",
+    "Select one or more visible elements to hide.",
+  );
   await expect(page.getByTestId("inspection-panel")).toContainText("Adjacent elements");
   await expect(page.getByTestId("inspection-panel")).toContainText("Neighbors");
 });

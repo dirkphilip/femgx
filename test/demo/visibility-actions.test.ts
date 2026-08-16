@@ -16,7 +16,10 @@ import {
 } from "../../src/entries/root";
 import { createSceneRuntime, type SceneRuntime } from "../../src/entries/runtime";
 import { createBoltedPlatePreset } from "../../demo/fixtures/presets";
-import { WorkbenchVisibilityActions } from "../../demo/workbench/state/visibility-actions";
+import {
+  visibleSelectedElementTargets,
+  WorkbenchVisibilityActions,
+} from "../../demo/workbench/state/visibility-actions";
 
 describe("WorkbenchVisibilityActions", () => {
   it("hides selected elements in one update while preserving their selection", () => {
@@ -62,6 +65,41 @@ describe("WorkbenchVisibilityActions", () => {
     expect(isTargetSelected(harness.interaction, secondTarget)).toBe(true);
     expect(isTargetSelected(harness.interaction, nodeTarget)).toBe(true);
     expect(selectedTargets(harness.interaction)).toHaveLength(3);
+  });
+
+  it("reports only visible selected elements as hide eligibility", () => {
+    const scene = createBoltedPlatePreset().scene;
+    const runtime = createSceneRuntime(scene);
+    const instance = runtime.getInstances()[0];
+    if (instance === undefined) throw new Error("Fixture must contain an instance");
+    const element = scene.parts.get(instance.partId)?.elements?.[0];
+    if (element === undefined) throw new Error("Fixture must contain an element");
+    const elementTarget = {
+      kind: "element" as const,
+      instanceId: instance.instanceId,
+      elementId: element.id,
+    };
+    let interaction = createInteractionState();
+    for (const target of [
+      { kind: "body" as const, instanceId: instance.instanceId, bodyId: 1 },
+      { kind: "block" as const, instanceId: instance.instanceId, blockId: 1 },
+      {
+        kind: "face" as const,
+        instanceId: instance.instanceId,
+        elementId: element.id,
+        faceIndex: 0,
+      },
+      { kind: "node" as const, instanceId: instance.instanceId, nodeId: 0 },
+      { kind: "edge" as const, instanceId: instance.instanceId, key: "0:1" },
+      elementTarget,
+    ]) {
+      interaction = setTargetSelected(interaction, target, true);
+    }
+
+    expect(visibleSelectedElementTargets(interaction)).toEqual([elementTarget]);
+
+    interaction = setElementVisible(interaction, elementTarget, false);
+    expect(visibleSelectedElementTargets(interaction)).toEqual([]);
   });
 
   it("reports no-op feedback without rendering when selected elements are already hidden", () => {

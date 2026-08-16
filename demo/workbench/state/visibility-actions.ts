@@ -53,6 +53,15 @@ export function selectedElementTargets(
   return elements;
 }
 
+/** Returns selected, currently visible element occurrences without promoting other target kinds. */
+export function visibleSelectedElementTargets(
+  interaction: InteractionState,
+): readonly SelectedElementTarget[] {
+  return selectedElementTargets(interaction).filter((target) =>
+    isElementVisible(interaction, target),
+  );
+}
+
 /** Keeps all demo visibility mutations on the viewport/runtime path. */
 export class WorkbenchVisibilityActions {
   private readonly options: VisibilityActionOptions;
@@ -119,7 +128,7 @@ export class WorkbenchVisibilityActions {
   hideSelected(): void {
     const interaction = this.options.interaction();
     const selected = selectedElementTargets(interaction);
-    const visible = selected.filter((target) => isElementVisible(interaction, target));
+    const visible = visibleSelectedElementTargets(interaction);
     if (visible.length === 0) {
       this.options.feedback?.(
         selected.length === 0

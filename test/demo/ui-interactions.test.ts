@@ -178,6 +178,47 @@ describe("workbench Svelte controls", () => {
     await unmount(selectedComponent);
   });
 
+  it("only enables Hide selected when visible elements are selected", async () => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const base = createSnapshot(false);
+    const nonElementComponent = mount(PrimaryToolbar, {
+      target,
+      props: {
+        controller: undefined,
+        snapshot: {
+          ...base,
+          hierarchy: { ...base.hierarchy, selectedCount: 1, hideSelectedElementCount: 0 },
+        },
+      },
+    });
+    button(target, "#command-selection").click();
+    await tick();
+    const hideSelected = button(target, "#hide-selected");
+    expect(hideSelected.disabled).toBe(true);
+    expect(hideSelected.getAttribute("aria-label")).toBe("Hide selected elements unavailable");
+    expect(hideSelected.title).toBe("Select one or more visible elements to hide.");
+    await unmount(nonElementComponent);
+
+    const elementComponent = mount(PrimaryToolbar, {
+      target,
+      props: {
+        controller: undefined,
+        snapshot: {
+          ...base,
+          hierarchy: { ...base.hierarchy, selectedCount: 1, hideSelectedElementCount: 1 },
+        },
+      },
+    });
+    button(target, "#command-selection").click();
+    await tick();
+    const enabledHideSelected = button(target, "#hide-selected");
+    expect(enabledHideSelected.disabled).toBe(false);
+    expect(enabledHideSelected.getAttribute("aria-label")).toBe("Hide selected element");
+    expect(enabledHideSelected.title).toBe("Hide 1 selected visible element.");
+    await unmount(elementComponent);
+  });
+
   it("routes the compact touch rail through typed tool commands", async () => {
     const calls: string[] = [];
     const target = document.createElement("div");

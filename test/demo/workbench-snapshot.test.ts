@@ -22,6 +22,7 @@ describe("workbench presentation snapshot", () => {
     });
     expect(snapshot.model.partCount).toBe(input.model.scene.parts.size);
     expect(snapshot.hierarchy.occurrenceCount).toBe(input.runtime.occurrenceCount);
+    expect(snapshot.hierarchy.hideSelectedElementCount).toBe(0);
     expect(snapshot.toolbar).toMatchObject({
       secondaryOpen: false,
       secondaryBusy: false,

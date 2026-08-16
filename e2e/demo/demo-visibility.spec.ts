@@ -246,19 +246,19 @@ test("hides selected elements and restores them through synchronized toolbar act
   await assembly.uncheck();
   await expect(assembly).not.toBeChecked();
   await openCommandPanel(page, "selection");
-
-  await hideSelected.click();
-  await expect(page.getByTestId("model-feedback")).toHaveText(
-    "Selected elements are already hidden.",
+  await expect(hideSelected).toBeDisabled();
+  await expect(hideSelected).toHaveAttribute(
+    "title",
+    "Select one or more visible elements to hide.",
   );
 
   const showAll = page.getByTestId("show-all");
   await expect(showAll).toHaveText("Show all");
   await showAll.click();
   await expect(assembly).toBeChecked();
-  await expect(page.getByTestId("model-feedback")).toHaveText(
-    "Selected elements are already hidden.",
-  );
+  await expect(hideSelected).toBeEnabled();
+  await hideSelected.click();
+  await expect(page.getByTestId("model-feedback")).toHaveText("Hidden 1 selected element.");
   await expect(hideSelected).toHaveText("Hide selected");
   await expect.poll(() => dataset(page, "selected")).toBe(selected);
   await expect(secondary).toHaveAttribute("data-selected", selected);
