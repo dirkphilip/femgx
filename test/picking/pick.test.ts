@@ -183,6 +183,22 @@ describe("resolvePickHit", () => {
     expect(target.worldPosition).toEqual([0, 0, 0]);
   });
 
+  it("falls back to the owning element for renderer-private cap node ids", () => {
+    expect(
+      resolvePickHit(
+        context,
+        ids({ instancePickId: 1, elementPickId: 2, nodePickId: 99 }),
+        [0, 0, 0],
+      ),
+    ).toEqual({
+      kind: "element",
+      partId: 1,
+      instanceId: "1/0",
+      elementId: 1,
+      worldPosition: [0, 0, 0],
+    });
+  });
+
   it("transforms node positions by the instance transform", () => {
     const transformed: PickContext = {
       instances: [

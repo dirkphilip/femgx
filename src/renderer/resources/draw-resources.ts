@@ -373,17 +373,22 @@ export function destroyPartResource(resource: PartResource): void {
 
 /** Releases all per-placement instance and highlight buffers while retaining geometry. */
 export function destroyInstanceResources(draw: DrawResources): void {
-  for (const storage of draw.storages.values()) {
-    storage.buffer.destroy();
-    storage.orderBuffer.destroy();
-    storage.selectionOrderBuffer.destroy();
-    storage.nodeSelectionOrderBuffer.destroy();
-    storage.transparentOrderBuffer.destroy();
-    storage.edgeOrderBuffer.destroy();
-    storage.nodeOrderBuffer.destroy();
-    storage.highlight.buffer.destroy();
-  }
-  draw.storages.clear();
+  for (const partId of [...draw.storages.keys()]) destroyInstancePartResources(draw, partId);
+}
+
+/** Releases one part's placement and highlight buffers while retaining geometry. */
+export function destroyInstancePartResources(draw: DrawResources, partId: PartId): void {
+  const storage = draw.storages.get(partId);
+  if (storage === undefined) return;
+  storage.buffer.destroy();
+  storage.orderBuffer.destroy();
+  storage.selectionOrderBuffer.destroy();
+  storage.nodeSelectionOrderBuffer.destroy();
+  storage.transparentOrderBuffer.destroy();
+  storage.edgeOrderBuffer.destroy();
+  storage.nodeOrderBuffer.destroy();
+  storage.highlight.buffer.destroy();
+  draw.storages.delete(partId);
 }
 
 /** Releases every part, storage, deformation, and depth resource owned by the draw path. */

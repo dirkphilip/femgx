@@ -1,10 +1,7 @@
-import { viewProjectionMatrix, type Camera } from "../../camera/camera";
+import type { Camera } from "../../camera/camera";
 import type { Part } from "../../geometry/part";
 import type { PartId } from "../../geometry/part";
-import { add, cross, normalize, scale, subtract, type Vec3 } from "../../math/vec3";
 import type { DeformationState } from "../../results/deform";
-import { writeDeformationUniform } from "./deformation";
-import { writeSectionPlaneUniform } from "../frame/section-plane";
 import type { SectionPlane } from "../../math/section-plane";
 import type { DrawCall, DrawCallContext, DrawResources } from "../resources/draw-resources";
 import { drawBatches } from "./batch";
@@ -18,9 +15,11 @@ import { ensureColorTargets, ensureCompositeBindGroup } from "./pipelines";
 import type { ReadyColorTargets } from "../resources/color-targets";
 import { drawOriginTriad, originTriadScale, writeOriginTriad } from "../overlays/origin-triad";
 import { drawOrbitPivot, writeOrbitPivot } from "../overlays/orbit-pivot";
-import { nodeSizeDevicePixels, pointSizeDevicePixels } from "./sizes";
 import { drawPresentationOverlayPass, needsResolvedOverlay } from "./presentation-overlay";
+import { drawSectionCaps } from "./section-cap-draw";
+import { writeFrameUniforms } from "./frame-uniforms";
 
+export { cameraKeyLightDirection, cameraViewDirection, writeFrameUniforms } from "./frame-uniforms";
 export { nodeSizeDevicePixels, pointSizeDevicePixels } from "./sizes";
 
 /** Internal exact-depth precedence for authored opaque primitive groups. */
@@ -49,6 +48,9 @@ export interface FrameOptions {
   readonly selectedNodeCalls: readonly DrawCall[];
   /** Whether static exterior face orders remain valid for ordinary and pick draws. */
   readonly usesExteriorFaceSubsets: boolean;
+  readonly capCalls?: readonly DrawCall[];
+  readonly transparentCapCalls?: readonly DrawCall[];
+  readonly allCapCalls?: readonly DrawCall[];
   readonly pickTargets: PickTargets;
   readonly depthFormat: GPUTextureFormat;
   /** Whether the edge overlay culls edges occluded by depth (`less`). */
@@ -73,23 +75,11 @@ export interface FrameOptions {
   readonly devicePixelRatio: number;
 }
 
-/** Returns the world-space key direction for a fixed upper-left camera-space light. */
-export function cameraKeyLightDirection(camera: Camera): Vec3 {
-  const forward = normalize(subtract(camera.target, camera.position));
-  const right = normalize(cross(forward, camera.up));
-  const up = cross(right, forward);
-  return normalize(add(add(scale(right, -0.5), scale(up, 1)), scale(forward, -0.4)));
-}
-
-/** Returns the normalized world-space direction from the camera toward the scene. */
-export function cameraViewDirection(camera: Camera): Vec3 {
-  return normalize(subtract(camera.position, camera.target));
-}
-
 /** Returns whether this frame has any producer that requires weighted targets. */
 export function needsWeightedTransparency(
   frame: {
     readonly transparentCalls: readonly unknown[];
+    readonly transparentCapCalls?: readonly unknown[];
     readonly selectionCalls: readonly unknown[];
     readonly selectedNodeCalls: readonly unknown[];
     readonly originTriadEnabled: boolean;
@@ -99,6 +89,7 @@ export function needsWeightedTransparency(
 ): boolean {
   return (
     frame.transparentCalls.length > 0 ||
+    (frame.transparentCapCalls?.length ?? 0) > 0 ||
     frame.selectionCalls.length > 0 ||
     frame.selectedNodeCalls.length > 0 ||
     (frame.originTriadEnabled && frame.originTriadAvailable) ||
@@ -138,6 +129,9 @@ function prepareVisibleFrame(
   const needsTransparency = needsWeightedTransparency(
     {
       transparentCalls: frame.transparentCalls,
+      ...(frame.transparentCapCalls === undefined
+        ? {}
+        : { transparentCapCalls: frame.transparentCapCalls }),
       selectionCalls: frame.selectionCalls,
       selectedNodeCalls: frame.selectedNodeCalls,
       originTriadEnabled: frame.originTriadEnabled,
@@ -190,6 +184,7 @@ export function encodeVisibleFrame(
   opaquePass.draw(3);
   frame.draw.cost.draw("background", 3);
   drawAuthoredPrimitiveGroups(opaquePass, frame.draw, context, frame.calls, { pass: "color" });
+  drawSectionCaps(opaquePass, frame.draw, context, frame.capCalls, "color");
   if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
     drawOriginTriad(opaquePass, frame.resources.originTriad, "visible");
     frame.draw.cost.draw("origin-triad", 45);
@@ -242,6 +237,7 @@ function drawTransparencyPass(
       pass: "transparent",
     });
   }
+  drawSectionCaps(pass, frame.draw, context, frame.transparentCapCalls, "transparent");
   drawSelectionPass(pass, frame, context, "selection-hidden");
   drawOrientationGlyphs(pass, frame, context, frame.calls, "hidden");
   if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
@@ -360,6 +356,7 @@ export function encodePickSnapshot(
   const pickPass = beginPickPass(pickEncoder, frame.pickTargets);
   frame.draw.cost.pass("pick");
   drawAuthoredPrimitiveGroups(pickPass, frame.draw, context, frame.calls, { pass: "pick" });
+  drawSectionCaps(pickPass, frame.draw, context, frame.allCapCalls, "pick");
   pickPass.end();
   frame.device.queue.submit([pickEncoder.finish()]);
 }
@@ -395,33 +392,4 @@ export function drawContext(
     resultColors: frame.resultColors,
     usesExteriorFaceSubsets: frame.usesExteriorFaceSubsets,
   };
-}
-
-/** Writes camera, deformation, and section-plane uniforms for one pass. */
-export function writeFrameUniforms(camera: Camera, frame: FrameOptions): void {
-  const uniform = new Float32Array(32);
-  uniform.set(viewProjectionMatrix(camera), 0);
-  uniform[16] = frame.canvas.width;
-  uniform[17] = frame.canvas.height;
-  uniform[18] = pointSizeDevicePixels(frame.pointSize, frame.devicePixelRatio);
-  uniform[19] = nodeSizeDevicePixels(frame.nodeSize, frame.devicePixelRatio);
-  uniform[20] = frame.devicePixelRatio;
-  uniform[21] = 8;
-  uniform[22] = 8 * frame.devicePixelRatio;
-  uniform.set(cameraKeyLightDirection(camera), 24);
-  uniform.set(cameraViewDirection(camera), 28);
-  frame.device.queue.writeBuffer(frame.resources.cameraBuffer, 0, uniform);
-  frame.draw.cost.write("uniform", uniform.byteLength);
-  writeDeformationUniform(
-    frame.device,
-    frame.resources.deformationBuffer,
-    frame.deformation,
-    frame.draw.cost,
-  );
-  writeSectionPlaneUniform(
-    frame.device,
-    frame.resources.sectionPlaneBuffer,
-    frame.sectionPlane,
-    frame.draw.cost,
-  );
 }

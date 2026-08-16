@@ -1,0 +1,191 @@
+import type { DeformationState } from "../results/deform";
+import type { InteractionState } from "../interaction/interaction";
+import { resolveElementStyle } from "../interaction/interaction";
+import { isBodyVisible } from "../interaction/bodies";
+import { isElementBlockVisible } from "../interaction/blocks";
+import { isElementVisible } from "../interaction/elements";
+import type { PackedSceneRuntime } from "../scene-runtime/runtime";
+import { instanceAt } from "./runtime-state";
+import {
+  createPart,
+  MAX_PART_ID,
+  type ElementTessellation,
+  type Part,
+  type PartId,
+} from "../geometry/part";
+import { buildElementSectionCap, type SectionCap } from "../geometry/section-cap";
+import { getPartSemanticIndex } from "../geometry/part-semantic-index";
+import type { SectionPlane } from "../math/section-plane";
+import { identity } from "../math/mat4";
+import { defaultStyle } from "./resources/foundation";
+import {
+  destroyInstancePartResources,
+  destroyPartResources,
+  encodeInstanceRecord,
+  patchInstances,
+  writeDrawOrder,
+  type DrawCall,
+  type DrawResources,
+} from "./resources/draw-resources";
+
+interface CapBuildOptions {
+  readonly runtime: PackedSceneRuntime;
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly plane: SectionPlane;
+  readonly interaction: InteractionState;
+  readonly deformation: DeformationState | undefined;
+  readonly resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
+  readonly draw: DrawResources;
+}
+
+export interface SectionCapFrame {
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly calls: readonly DrawCall[];
+  readonly transparentCalls: readonly DrawCall[];
+  readonly allCalls: readonly DrawCall[];
+  readonly resultColors: ReadonlyMap<PartId, Float32Array>;
+}
+
+const CAP_TRANSFORM = identity();
+
+/** Builds active occurrence caps into renderer-private reusable draw records. */
+export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame {
+  const capParts = new Map<PartId, Part>();
+  const calls: DrawCall[] = [];
+  const transparentCalls: DrawCall[] = [];
+  const allCalls: DrawCall[] = [];
+  const resultColors = new Map<PartId, Float32Array>();
+  const usedIds = new Set(options.parts.keys());
+  let ordinal = 0;
+  for (const sourcePart of options.parts.values()) {
+    const elements = sourcePart.elements;
+    const sourcePositions = sourcePart.nodePositions;
+    if (elements === undefined || sourcePositions === undefined) continue;
+    const metadata = getPartSemanticIndex(sourcePart);
+    for (const slot of options.runtime.getPartInstanceSlots(sourcePart.id)) {
+      if (!options.runtime.isInstanceVisible(slot)) continue;
+      const instanceId = options.runtime.getInstanceId(slot);
+      if (instanceId === undefined) continue;
+      const instance = instanceAt(options.runtime, slot, sourcePart.id);
+      const displacements = options.deformation?.displacements.get(sourcePart.id);
+      for (const element of elements) {
+        if (!capElementVisible(options.interaction, instanceId, element, metadata)) continue;
+        const cap = buildElementSectionCap({
+          part: sourcePart,
+          element,
+          plane: options.plane,
+          transform: instance.worldTransform,
+          ...(displacements === undefined ? {} : { displacements }),
+          deformationScale: options.deformation?.scale ?? 1,
+        });
+        if (cap === undefined) continue;
+        const capId = nextCapId(usedIds, ordinal);
+        ordinal += 1;
+        const style = resolveElementStyle(instance, element.id, defaultStyle, options.interaction, {
+          bodyId: metadata.bodyByElement.get(element.id),
+          blockId: metadata.blockByElement.get(element.id),
+        });
+        const capPart = makeCapPart(capId, cap, element, sourcePositions.length / 3);
+        capParts.set(capId, capPart);
+        const call = { partId: capId, instanceCount: 1 } satisfies DrawCall;
+        allCalls.push(call);
+        if (style.color.a * style.opacity < 1) transparentCalls.push(call);
+        else calls.push(call);
+        patchInstances(options.draw, capId, [
+          { slot: 0, data: encodeInstanceRecord(CAP_TRANSFORM, style, slot + 1) },
+        ]);
+        writeDrawOrder(options.draw, capId, new Uint32Array([0]));
+        const colors = capColors(
+          options.resultColors?.get(sourcePart.id),
+          cap,
+          sourcePositions.length / 3,
+        );
+        if (colors !== undefined) resultColors.set(capId, colors);
+      }
+    }
+  }
+  return { parts: capParts, calls, transparentCalls, allCalls, resultColors };
+}
+
+/** Releases only renderer-private cap geometry and instance buffers. */
+export function destroySectionCapFrame(frame: SectionCapFrame, draw: DrawResources): void {
+  for (const partId of frame.parts.keys()) {
+    destroyPartResources(draw, partId);
+    destroyInstancePartResources(draw, partId);
+  }
+}
+
+function capElementVisible(
+  interaction: InteractionState,
+  instanceId: string,
+  element: ElementTessellation,
+  metadata: ReturnType<typeof getPartSemanticIndex>,
+): boolean {
+  if (!isElementVisible(interaction, { instanceId, elementId: element.id })) return false;
+  const bodyId = metadata.bodyByElement.get(element.id);
+  if (bodyId !== undefined && !isBodyVisible(interaction, { instanceId, bodyId })) return false;
+  const blockId = metadata.blockByElement.get(element.id);
+  return blockId === undefined || isElementBlockVisible(interaction, { instanceId, blockId });
+}
+
+function makeCapPart(
+  id: PartId,
+  cap: SectionCap,
+  element: ElementTessellation,
+  sourceNodeCount: number,
+): Part {
+  const positions = new Float32Array(cap.vertices.length * 3);
+  const nodePickIds = new Uint32Array(cap.vertices.length);
+  for (const [index, vertex] of cap.vertices.entries()) {
+    positions.set(vertex.position, index * 3);
+    nodePickIds[index] = sourceNodeCount + index + 1;
+  }
+  const nodePositions = new Float32Array((sourceNodeCount + cap.vertices.length) * 3);
+  for (const [index, vertex] of cap.vertices.entries()) {
+    nodePositions.set(vertex.position, (sourceNodeCount + index) * 3);
+  }
+  return createPart(id, {
+    geometries: [{ primitive: "triangles", positions, indices: cap.indices, nodePickIds }],
+    nodePositions,
+    elements: [
+      {
+        id: element.id,
+        ...(element.shape === undefined ? {} : { shape: element.shape }),
+        primitiveRanges: [
+          { primitive: "triangles", primitiveStart: 0, primitiveCount: cap.indices.length / 3 },
+        ],
+      },
+    ],
+  });
+}
+
+function capColors(
+  source: Float32Array | undefined,
+  cap: SectionCap,
+  sourceNodeCount: number,
+): Float32Array | undefined {
+  if (source === undefined) return undefined;
+  const result = new Float32Array((sourceNodeCount + cap.vertices.length + 1) * 4);
+  result.set(source.subarray(0, Math.min(source.length, (sourceNodeCount + 1) * 4)));
+  for (const [index, vertex] of cap.vertices.entries()) {
+    const target = (sourceNodeCount + index + 1) * 4;
+    const a = (vertex.nodeA + 1) * 4;
+    const b = (vertex.nodeB + 1) * 4;
+    const weight = vertex.weightB;
+    for (let channel = 0; channel < 4; channel += 1) {
+      result[target + channel] =
+        (source[a + channel] ?? 0) * (1 - weight) + (source[b + channel] ?? 0) * weight;
+    }
+  }
+  return result;
+}
+
+function nextCapId(used: Set<PartId>, ordinal: number): PartId {
+  let id = MAX_PART_ID - ordinal;
+  while (used.has(id)) {
+    id -= 1;
+    if (id < 0) throw new Error("Section-cap part identity capacity exhausted");
+  }
+  used.add(id);
+  return id;
+}

@@ -62,6 +62,7 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | Compatibility reporting (capability tiers/matrix)                                                                                                                                       | wiki                 | —          | **Deferred** | Collapses to "modern WebGPU browser or typed unsupported"; no tier ladder.                                                                                                                                                                                                                                                                                                                                             |
 | Screen-space box-selection gesture/event shell + world-space frustum query (primary mouse/pen and explicitly routed touch drag lifecycle + typed events)                                | interaction/camera   | same       | **Core now** | `installBoxSelection` remains a rectangle-only renderer-independent drag lifecycle. Touch is host-enabled only after routing it away from camera navigation. `boxSelectionFrustum(camera, rect)` exposes six named normalized inward planes for host-owned volume queries, while `FemViewport.pickRegion` retains nearest-visible GPU target discovery; both are required and selection policy remains host-owned.     |
 | Element through-intersection box selection                                                                                                                                              | demo                 | same       | **Core now** | The canonical workbench offers an element-only Through strategy that returns every display-eligible FE element occurrence whose authored tessellation intersects the box frustum, regardless of raster occlusion. It is a host-side query over existing scene data and adds no GPU pass, buffer, attachment, or readback.                                                                                              |
+| Exact capped FE section cuts                                                                                                                                                            | geometry + renderer  | same       | **Core now** | One active world-space plane keeps the existing positive-half-space clip and adds bounded, occurrence-scoped cap polygons for intersected Tet4/Tet10/Wedge6/Pyramid5/Hex8/Hex20 solids. Caps reuse canonical authored topology, deformation, scalar results, interaction style, depth, and element picking; surfaces, helpers, GLB geometry, multiple planes, and generalized CSG remain out of scope.                 |
 
 ## Recommended smallest supported product
 
@@ -80,7 +81,8 @@ highlight/hover, visibility, camera control, authored nodal/elemental scalar
 results with scalar color mapping, authored nodal deformation, efficient
 host-driven sequencing of atomic authored result snapshots, bounded authored
 elemental orientation glyphs, visible-surface and element through-intersection
-box selection, and renderer-owned `studio`, `white`, and `dark`
+box selection, exact capped section views for one active plane through supported
+solid FE elements, and renderer-owned `studio`, `white`, and `dark`
 viewport backgrounds. Interchange is a single
 format (VTK legacy) with validation and diagnostics. Browsers without
 a working WebGPU device receive a typed
@@ -224,6 +226,32 @@ temporary orbit pivot remain separate helpers.
 
 Everything outside the "Core now" rows is **not** a requirement of the minimum
 product.
+
+## Exact capped FE section cuts
+
+`FemViewport.setSectionPlane({ normal, distance })` retains the validated
+positive-half-space visibility rule and, while active, renders one deterministic
+planar cap for every intersected display-eligible Tet4, Tet10, Wedge6, Pyramid5,
+Hex8, or Hex20 element occurrence. The internal builder uses authored solid
+topology rather than display tessellation diagonals, evaluates the plane after
+nodal deformation and occurrence transform in world space, and drops tangent or
+zero-area contacts. Generated triangles stay outside authored face/node/edge
+identity; GPU picks resolve them to the owning occurrence-scoped element.
+
+Elemental scalar results color a cap from its owning element. Nodal scalar
+results interpolate the mapped endpoint colors at each edge-plane crossing.
+Resolved base material, opacity, selection, highlight, hover, body/block/element
+visibility, depth, and weighted transparency follow the owning displayed
+element. Repeated placements build independent occurrence caps while ordinary
+part geometry remains instanced.
+
+Clearing the plane removes all cap scans, allocations, uploads, draws, and cap
+pick work. Active caps use reusable bounded records and rebuild only after the
+plane, runtime/transform/visibility, interaction, results, deformation, scene,
+or device generation changes; unchanged render-on-demand frames do not rebuild
+or re-upload them. This is one active plane only: multiple planes, CSG, hatching,
+slice export, CAD/GLB capping, fabricated identities, and a public geometry-query
+service remain out of scope.
 
 The GLB row is a deliberate exception to the single-FE-format rule. VTK remains
 the only interchange format for nodes, elements, sets, metadata, and results;

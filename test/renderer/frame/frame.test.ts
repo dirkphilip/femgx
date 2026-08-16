@@ -73,6 +73,7 @@ describe("weighted transparency contributors", () => {
 
   it.each([
     ["transparent scene calls", { transparentCalls: [{}] }],
+    ["transparent generated caps", { transparentCapCalls: [{}] }],
     ["selected instances", { selectionCalls: [{}] }],
     ["selected nodes", { selectedNodeCalls: [{}] }],
     ["the origin triad", { originTriadEnabled: true, originTriadAvailable: true }],

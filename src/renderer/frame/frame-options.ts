@@ -3,6 +3,9 @@ import type { DeformationState } from "../../results/deform";
 import type { PartId } from "../../geometry/part";
 import type { GpuBundle } from "../recovery";
 import type { FrameOptions } from "./frame";
+import type { DrawCall } from "../resources/draw-resources";
+
+const EMPTY_CALLS: readonly DrawCall[] = [];
 
 interface FrameOptionSources {
   readonly canvas: HTMLCanvasElement;
@@ -17,6 +20,9 @@ interface FrameOptionSources {
     readonly selectedNodeCalls: FrameOptions["selectedNodeCalls"];
     readonly usesExteriorFaceSubsets: boolean;
   };
+  readonly capCalls?: FrameOptions["capCalls"];
+  readonly transparentCapCalls?: FrameOptions["transparentCapCalls"];
+  readonly allCapCalls?: FrameOptions["allCapCalls"];
   readonly colorFormat: GPUTextureFormat;
   readonly depthFormat: GPUTextureFormat;
   readonly edgeDepthTest: boolean;
@@ -44,6 +50,9 @@ export function buildFrameOptions(options: FrameOptionSources): FrameOptions {
     nodeCalls: options.attachment.nodeCalls,
     selectionCalls: options.attachment.selectionCalls,
     selectedNodeCalls: options.attachment.selectedNodeCalls,
+    capCalls: options.capCalls ?? EMPTY_CALLS,
+    transparentCapCalls: options.transparentCapCalls ?? EMPTY_CALLS,
+    allCapCalls: options.allCapCalls ?? EMPTY_CALLS,
     usesExteriorFaceSubsets: options.attachment.usesExteriorFaceSubsets,
     pickTargets: options.bundle.pickTargets,
     colorFormat: options.colorFormat,
