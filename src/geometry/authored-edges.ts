@@ -8,39 +8,19 @@ import type { GeometryEdge } from "./types";
 
 /** Builds validated authored-edge descriptors for element-generated geometry. */
 export function authoredEdgesForElements(elements: readonly Element[]): readonly GeometryEdge[] {
-  const byKey = new Map<string, MutableEdge>();
-  for (const element of elements) {
-    const edges = edgesOf(element);
-    const faceIndices = edgeFaceIndices(element, topologyFor(element.shape));
-    for (const [edgeIndex, edge] of edges.entries()) {
-      let entry = byKey.get(edge.key);
-      if (entry === undefined) {
-        entry = {
-          key: edge.key,
-          nodeIds: canonicalEdge(edge).nodeIds,
-          incidentElementIds: [],
-          faceRefs: [],
-        };
-        byKey.set(edge.key, entry);
-      }
-      entry.incidentElementIds.push(element.id);
-      for (const faceIndex of faceIndices[edgeIndex] ?? []) {
-        entry.faceRefs.push({ elementId: element.id, faceIndex });
-      }
-    }
-  }
-  for (const edge of byKey.values()) {
-    edge.incidentElementIds.sort((a, b) => a - b);
-    edge.faceRefs.sort((a, b) => a.elementId - b.elementId || a.faceIndex - b.faceIndex);
-  }
-  return [...byKey.values()].sort((a, b) => compareNodeIds(a.nodeIds, b.nodeIds));
-}
-
-interface MutableEdge {
-  readonly key: string;
-  readonly nodeIds: readonly NodeId[];
-  readonly incidentElementIds: ElementId[];
-  readonly faceRefs: FaceIdRef[];
+  return mergeAuthoredEdges(
+    elements.flatMap((element) => {
+      const faceIndices = edgeFaceIndices(element, topologyFor(element.shape));
+      return edgesOf(element).map((edge, edgeIndex) => ({
+        nodeIds: edge.nodeIds,
+        elementId: element.id,
+        faceRefs: (faceIndices[edgeIndex] ?? []).map((faceIndex) => ({
+          elementId: element.id,
+          faceIndex,
+        })),
+      }));
+    }),
+  );
 }
 
 const edgeFacesByTopology = new WeakMap<ElementTopology, readonly (readonly number[])[]>();
