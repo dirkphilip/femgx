@@ -35,7 +35,6 @@ describe("buildMeshEdgeData", () => {
           primitiveCount: 2,
           key: "0/1/2/3",
           nodeIds: [0, 1, 2, 3],
-          neighborElementIds: [],
         },
       ],
     };
@@ -75,7 +74,6 @@ describe("buildMeshEdgeData", () => {
           primitiveCount: 1,
           key: "0/1/2",
           nodeIds: [0, 1, 2],
-          neighborElementIds: [],
         },
         {
           elementId: 5,
@@ -84,7 +82,6 @@ describe("buildMeshEdgeData", () => {
           primitiveCount: 1,
           key: "0/1/3",
           nodeIds: [0, 1, 3],
-          neighborElementIds: [],
         },
       ],
     };
@@ -125,7 +122,6 @@ describe("buildMeshEdgeData", () => {
           primitiveCount: 1,
           key: "0/1/2",
           nodeIds: [0, 1, 2],
-          neighborElementIds: [],
         },
         {
           elementId: 5,
@@ -134,7 +130,6 @@ describe("buildMeshEdgeData", () => {
           primitiveCount: 1,
           key: "0/1/3",
           nodeIds: [0, 1, 3],
-          neighborElementIds: [],
         },
       ],
     };

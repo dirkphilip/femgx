@@ -177,7 +177,6 @@ function appendFace(options: FaceOptions): void {
     primitiveCount,
     key: canonicalNodeKey(nodeIds),
     nodeIds,
-    neighborElementIds: [],
     ...(bodyId === undefined ? {} : { bodyId }),
   });
 }

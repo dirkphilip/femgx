@@ -119,6 +119,7 @@ function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
     }
     const primitiveStart = mesh.triangleCount;
     for (const triangle of tessellateFace(model, element, face)) mesh.append(triangle);
+    const neighborElementId = otherIncidentElement(neighbors.get(face.key), element.id);
     const tessellation: FaceTessellation = {
       elementId: element.id,
       faceIndex,
@@ -126,7 +127,7 @@ function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
       primitiveCount: mesh.triangleCount - primitiveStart,
       key: face.key,
       nodeIds: face.nodeIds,
-      neighborElementIds: (neighbors.get(face.key) ?? []).filter((id) => id !== element.id),
+      ...(neighborElementId === undefined ? {} : { neighborElementId }),
     };
     const bodyId = bodyIds.get(element.id);
     const blockId = blockIds.get(element.id);
@@ -137,6 +138,14 @@ function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
   }
   flush();
   return { mesh, elements, faces: faceTessellations, selectedFaceIds };
+}
+
+function otherIncidentElement(
+  incident: readonly ElementId[] | undefined,
+  elementId: ElementId,
+): ElementId | undefined {
+  const first = incident?.[0];
+  return first === elementId ? incident?.[1] : first;
 }
 
 function buildVolumeGeometry(options: VolumeGeometryOptions): GeometryBuild<TriangleGeometry> {

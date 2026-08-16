@@ -102,8 +102,8 @@ describe("surfacePart", () => {
     ]);
     const triangle = triangleGeometry(part);
     expect(triangle.faces).toMatchObject([
-      { elementId: 7, faceIndex: 3, primitiveCount: 3, neighborElementIds: [99], bodyId: 2 },
-      { elementId: 8, faceIndex: 4, primitiveCount: 6, neighborElementIds: [], bodyId: 2 },
+      { elementId: 7, faceIndex: 3, primitiveCount: 3, neighborElementId: 99, bodyId: 2 },
+      { elementId: 8, faceIndex: 4, primitiveCount: 6, bodyId: 2 },
     ]);
     expect(triangle.edges?.find((edge) => edge.key === "5,6,7")?.nodeIds).toEqual([5, 6, 7]);
     expect(part.nodePositions).toHaveLength(39);

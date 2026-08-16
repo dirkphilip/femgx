@@ -112,7 +112,6 @@ function buildFaceScene(): Scene {
         primitiveCount: 1,
         key: "0:1:2",
         nodeIds: [0, 1, 2],
-        neighborElementIds: [],
       },
     ],
     elements: [
@@ -201,7 +200,6 @@ function buildSubsetPart(): ReturnType<typeof createPart> {
             primitiveCount: 1,
             key: "0,1,2",
             nodeIds: [0, 1, 2],
-            neighborElementIds: [],
           },
           {
             elementId: 102,
@@ -210,7 +208,6 @@ function buildSubsetPart(): ReturnType<typeof createPart> {
             primitiveCount: 1,
             key: "3,4,5",
             nodeIds: [3, 4, 5],
-            neighborElementIds: [],
           },
         ],
         faceSubset: { faceIds: [{ elementId: 101, faceIndex: 0 }] },

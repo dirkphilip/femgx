@@ -58,7 +58,6 @@ const authoredEdgePart: Part = createPart(5, {
           primitiveCount: 1,
           key: "face",
           nodeIds: [0, 1, 2],
-          neighborElementIds: [],
         },
       ],
       edges: [
@@ -102,7 +101,6 @@ const subsetPart: Part = createPart(2, {
           primitiveCount: 1,
           key: "0,1,2",
           nodeIds: [0, 1, 2],
-          neighborElementIds: [],
         },
         {
           elementId: 1,
@@ -111,7 +109,6 @@ const subsetPart: Part = createPart(2, {
           primitiveCount: 1,
           key: "3,4,5",
           nodeIds: [3, 4, 5],
-          neighborElementIds: [],
         },
       ],
       faceSubset: { faceIds: [{ elementId: 1, faceIndex: 1 }] },

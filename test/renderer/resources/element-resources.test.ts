@@ -245,7 +245,6 @@ describe("buildFacePrimitivePickIds", () => {
           primitiveCount: 1,
           key: "a",
           nodeIds: [],
-          neighborElementIds: [],
         },
         {
           elementId: 0,
@@ -254,7 +253,6 @@ describe("buildFacePrimitivePickIds", () => {
           primitiveCount: 1,
           key: "b",
           nodeIds: [],
-          neighborElementIds: [],
         },
       ],
     };
@@ -293,7 +291,6 @@ describe("buildPrimitiveFaceBodyPickData", () => {
           primitiveCount: 2,
           key: "a",
           nodeIds: [],
-          neighborElementIds: [],
         },
       ],
     };
@@ -1000,7 +997,6 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
         primitiveCount: 2,
         key: "0,1,2",
         nodeIds: [0, 1, 2],
-        neighborElementIds: [],
         bodyId: 3,
       },
       {
@@ -1010,7 +1006,6 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
         primitiveCount: 2,
         key: "0,1,3",
         nodeIds: [0, 1, 3],
-        neighborElementIds: [],
         bodyId: 3,
       },
       {
@@ -1020,7 +1015,6 @@ function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime
         primitiveCount: 2,
         key: "0,2,3",
         nodeIds: [0, 2, 3],
-        neighborElementIds: [],
         bodyId: 3,
       },
     ],
@@ -1133,7 +1127,6 @@ describe("collectEmphasisUpdates", () => {
           primitiveCount: 1,
           key: "sparse",
           nodeIds: [],
-          neighborElementIds: [],
           bodyId: 7,
           blockId: 11,
         },
@@ -1420,7 +1413,6 @@ function blockScene(): { readonly scene: Scene; readonly runtime: SceneRuntime }
             primitiveCount: 1,
             key: "a",
             nodeIds: [],
-            neighborElementIds: [],
             bodyId: 7,
             blockId: 10,
           },
@@ -1431,7 +1423,6 @@ function blockScene(): { readonly scene: Scene; readonly runtime: SceneRuntime }
             primitiveCount: 1,
             key: "b",
             nodeIds: [],
-            neighborElementIds: [],
             bodyId: 7,
             blockId: 11,
           },

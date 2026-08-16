@@ -96,7 +96,7 @@ export function buildTriangleOwnerPairs(
     const owner = bodyPickIds[triangle] ?? 0;
     const element = elementPickIds[triangle] ?? 0;
     const face = geometry.primitive === "triangles" ? geometry.faces?.[facePickId - 1] : undefined;
-    const neighborElementId = face?.neighborElementIds[0];
+    const neighborElementId = face?.neighborElementId;
     const neighborBody =
       neighborElementId === undefined ? undefined : bodyByElement.get(neighborElementId);
     const neighborPickId = neighborBody === undefined ? 0 : neighborBody + 1;

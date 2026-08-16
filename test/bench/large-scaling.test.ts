@@ -17,7 +17,9 @@ const models = GRID_SIZES.map((size) => createStructuredFeModel("hex8", size));
 const TET4_ELEMENT_COUNT = 6 * 28 ** 3;
 const TET4_BOUNDARY_GRID_SIZE = 35;
 const TET4_BOUNDARY_ELEMENT_COUNT = 6 * TET4_BOUNDARY_GRID_SIZE ** 3;
+const TET4_BOUNDARY_TOTAL_FACE_COUNT = 4 * TET4_BOUNDARY_ELEMENT_COUNT;
 const TET4_BOUNDARY_FACE_COUNT = 12 * TET4_BOUNDARY_GRID_SIZE ** 2;
+const TET4_INTERIOR_FACE_COUNT = TET4_BOUNDARY_TOTAL_FACE_COUNT - TET4_BOUNDARY_FACE_COUNT;
 const tet4BoundaryModel = createStructuredFeModel("tet4", TET4_BOUNDARY_GRID_SIZE);
 const tet4BoundaryFaces = boundaryFaceRefs(tet4BoundaryModel.elements);
 const tet4Spec = benchmarkCaseSpecs(false).find((spec) => spec.id === "fe-tet4-solid-132k");
@@ -125,6 +127,17 @@ describe("large-model scaling", () => {
           throw new Error("Tet4 part lost authored elements");
         }
         if (triangles?.primitive !== "triangles") throw new Error("Tet4 triangles are missing");
+        const faces = triangles.faces ?? [];
+        if (faces.length !== TET4_BOUNDARY_TOTAL_FACE_COUNT) {
+          throw new Error("Tet4 part lost face topology");
+        }
+        let interiorFaceCount = 0;
+        for (const face of faces) {
+          if (face.neighborElementId !== undefined) interiorFaceCount += 1;
+        }
+        if (interiorFaceCount !== TET4_INTERIOR_FACE_COUNT) {
+          throw new Error("Tet4 part lost interior face ownership");
+        }
         if (triangles.faceSubset?.faceIds.length !== TET4_BOUNDARY_FACE_COUNT) {
           throw new Error("Tet4 part lost its exterior face subset");
         }

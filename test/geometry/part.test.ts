@@ -58,7 +58,6 @@ describe("part geometry", () => {
           primitiveCount: 1,
           key: "0/1/2",
           nodeIds: [0, 1, 2],
-          neighborElementIds: [],
         },
       ],
       faceSubset: { faceIds: [{ elementId: 1, faceIndex: 0 }] },
@@ -82,7 +81,6 @@ describe("part geometry", () => {
           primitiveCount: 1,
           key: "0/1/2",
           nodeIds: [0, 1, 2],
-          neighborElementIds: [],
         },
       ],
       faceSubset: {

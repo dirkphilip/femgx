@@ -83,7 +83,7 @@ function buildFacetGeometry(
       primitiveCount,
       key: canonicalKey(record.nodeIds),
       nodeIds: record.nodeIds,
-      neighborElementIds: record.neighbors,
+      ...(record.neighbors[0] === undefined ? {} : { neighborElementId: record.neighbors[0] }),
     };
     const bodyId = bodyByElement.get(record.elementId);
     faces.push(bodyId === undefined ? face : { ...face, bodyId });

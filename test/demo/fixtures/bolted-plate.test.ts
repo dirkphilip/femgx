@@ -194,7 +194,7 @@ describe("createBoltedPlateFixture", () => {
     const plateGeometry = plateSolid?.geometries[0];
     if (plateGeometry?.primitive !== "triangles") throw new Error("expected plate triangles");
     const interfaceFaces = (plateGeometry.faces ?? []).filter(
-      (face) => face.neighborElementIds.length > 0,
+      (face) => face.neighborElementId !== undefined,
     );
     expect(interfaceFaces).toHaveLength(20);
     expect(new Set(interfaceFaces.map((face) => face.key)).size).toBe(10);
