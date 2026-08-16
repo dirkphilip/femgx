@@ -287,6 +287,14 @@ authored mid-edge node ids.
 The fixture must report the family and logical-element count whenever those
 values are relevant; a generic triangle count alone is insufficient evidence.
 
+`timings.visibleFrameMs` is a queue-drained wall-time diagnostic: it includes
+JavaScript command encoding and GPU completion and is not a GPU-only duration.
+`timings.uploadAndFirstFrameCpuMs` and `timings.visibleFrameCpuMs` record only
+the synchronous `renderer.render()` call and command encoding with
+`performance.now()`. Keep these measurements separate when diagnosing zoom or
+overlay interaction; timestamp-query profiling is a separate opt-in diagnostic
+when the adapter exposes it and is not required by the benchmark contract.
+
 The JSON report identifies the browser user agent, adapter identity and fallback
 status, enabled features, resolution, DPR, FE family, unique/submitted element
 counts, triangle counts, timings, and an estimated renderer-owned

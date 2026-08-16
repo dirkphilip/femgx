@@ -35,7 +35,9 @@ const TIMED_SAMPLES = 7;
 interface SampleSet {
   readonly upload: number[];
   readonly firstFrame: number[];
+  readonly firstFrameCpu: number[];
   readonly visible: number[];
+  readonly visibleCpu: number[];
   readonly pickSnapshot: number[];
   readonly pickCombined: number[];
   readonly pickReadback: number[];
@@ -44,7 +46,9 @@ interface SampleSet {
 const SAMPLE_KEYS = [
   "upload",
   "firstFrame",
+  "firstFrameCpu",
   "visible",
+  "visibleCpu",
   "pickSnapshot",
   "pickCombined",
   "pickReadback",
@@ -356,17 +360,17 @@ async function measureIteration(
   options: IterationOptions,
 ): Promise<Record<keyof SampleSet, number>> {
   const { renderer, device, benchmarkCase, runtime, camera, pickPoint, phase } = options;
-  let firstFrame: number;
+  let firstFrame: FrameTiming;
   try {
-    firstFrame = await timeGpu(device, () => {
+    firstFrame = await timeQueueDrained(device, () => {
       renderer.render(runtime, camera, benchmarkCase.scene.parts);
     });
   } catch (error) {
     throw withBenchmarkPhase(phase, error);
   }
-  let visible: number;
+  let visible: FrameTiming;
   try {
-    visible = await timeGpu(device, () => {
+    visible = await timeQueueDrained(device, () => {
       renderer.render(runtime, camera, benchmarkCase.scene.parts);
     });
   } catch (error) {
@@ -397,9 +401,11 @@ async function measureIteration(
     throw withBenchmarkPhase("pick readback", error);
   }
   return {
-    upload: Math.max(0, firstFrame - visible),
-    firstFrame,
-    visible,
+    upload: Math.max(0, firstFrame.queueMs - visible.queueMs),
+    firstFrame: firstFrame.queueMs,
+    firstFrameCpu: firstFrame.cpuMs,
+    visible: visible.queueMs,
+    visibleCpu: visible.cpuMs,
     pickSnapshot: Math.max(0, pickCombined - pickReadback),
     pickCombined,
     pickReadback,
@@ -411,11 +417,18 @@ function withBenchmarkPhase(phase: string, error: unknown): Error {
   return Object.assign(new Error(detail, { cause: error }), { benchmarkPhase: phase });
 }
 
-async function timeGpu(device: GPUDevice, submit: () => void): Promise<number> {
+interface FrameTiming {
+  readonly queueMs: number;
+  readonly cpuMs: number;
+}
+
+/** Measures submission-to-completion wall time and CPU encode time separately. */
+async function timeQueueDrained(device: GPUDevice, submit: () => void): Promise<FrameTiming> {
   const start = performance.now();
   submit();
+  const cpuMs = performance.now() - start;
   await device.queue.onSubmittedWorkDone();
-  return performance.now() - start;
+  return { queueMs: performance.now() - start, cpuMs };
 }
 
 async function timePick(renderer: WebGpuRenderer, x: number, y: number): Promise<number> {
@@ -439,7 +452,9 @@ function emptySamples(): SampleSet {
   return {
     upload: [],
     firstFrame: [],
+    firstFrameCpu: [],
     visible: [],
+    visibleCpu: [],
     pickSnapshot: [],
     pickCombined: [],
     pickReadback: [],
@@ -457,7 +472,9 @@ function summarize(
   return {
     uploadAttachmentEstimateMs: percentiles([coldSample.upload]),
     uploadAndFirstFrameMs: percentiles([coldSample.firstFrame]),
+    uploadAndFirstFrameCpuMs: percentiles([coldSample.firstFrameCpu]),
     visibleFrameMs: percentiles(samples.visible),
+    visibleFrameCpuMs: percentiles(samples.visibleCpu),
     pickSnapshotEstimateMs: percentiles(samples.pickSnapshot),
     pickSnapshotAndReadbackMs: percentiles(samples.pickCombined),
     pickReadbackMs: percentiles(samples.pickReadback),

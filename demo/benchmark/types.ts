@@ -28,7 +28,12 @@ export interface BenchmarkGpuCostSnapshot {
 export interface BenchmarkTimings {
   readonly uploadAttachmentEstimateMs: BenchmarkPercentiles;
   readonly uploadAndFirstFrameMs: BenchmarkPercentiles;
+  /** CPU-only first render, including resource creation and command encoding. */
+  readonly uploadAndFirstFrameCpuMs: BenchmarkPercentiles;
+  /** Queue-drained wall time; includes CPU encoding and GPU completion. */
   readonly visibleFrameMs: BenchmarkPercentiles;
+  /** CPU-only `renderer.render()` and command encoding wall time. */
+  readonly visibleFrameCpuMs: BenchmarkPercentiles;
   readonly pickSnapshotEstimateMs: BenchmarkPercentiles;
   readonly pickSnapshotAndReadbackMs: BenchmarkPercentiles;
   readonly pickReadbackMs: BenchmarkPercentiles;
@@ -92,7 +97,7 @@ export interface WebGpuBenchmarkCaseResult {
 }
 
 export interface WebGpuBenchmarkReport {
-  readonly schemaVersion: 6;
+  readonly schemaVersion: 7;
   readonly generatedAt: string;
   readonly browser: string;
   readonly adapter: {
