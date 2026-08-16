@@ -3,8 +3,9 @@ import {
   createInteractionState,
   isTargetSelected,
   setTargetSelected,
-  type SceneRuntime,
-} from "../../src/index";
+  type PickHit,
+} from "../../src/entries/root";
+import type { SceneRuntime } from "../../src/entries/runtime";
 import {
   elementBlockTarget,
   elementTarget,
@@ -20,7 +21,6 @@ import {
   hasVisibleSelection,
 } from "../../demo/workbench/selection/selection";
 import type { SelectTarget } from "../../demo/workbench/selection/pick";
-import type { PickHit } from "../../src/index";
 
 const part: SelectTarget = { kind: "part", partId: 4 };
 const instance: SelectTarget = { kind: "instance", instanceId: "1/0" };

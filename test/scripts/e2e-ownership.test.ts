@@ -40,7 +40,7 @@ describe("browser suite ownership", () => {
     expect(coreSources.join("\n")).not.toContain('data-testid="view-canvas"');
     expect(browserSupportSources.join("\n")).not.toMatch(/(?:core|demo)\//);
     const coreHost = readFileSync(join(e2e, "core/core-host.ts"), "utf8");
-    expect(coreHost).not.toContain('from "../../src/index"');
+    expect(coreHost).not.toMatch(/from ["'][^"']*\/src(?:\/index)?["']/u);
     expect(coreHost).toContain('from "../../src/entries/camera"');
     expect(coreHost).toContain('from "../../src/entries/root"');
   });

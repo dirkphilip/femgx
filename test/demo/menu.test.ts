@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createInteractionState, setElementBlockVisible } from "../../src/index";
+import { createInteractionState, setElementBlockVisible } from "../../src/entries/root";
 import { contextMenuSelectionOptions, WorkbenchMenu } from "../../demo/workbench/interaction/menu";
 
 describe("workbench context-menu state", () => {

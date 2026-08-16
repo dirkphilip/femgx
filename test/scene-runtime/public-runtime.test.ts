@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createBoltedPlateFixture } from "../../demo/fixtures/bolted-plate";
 import { identity } from "../../src/math/mat4";
-import { createSceneRuntime } from "../../src/index";
+import { createSceneRuntime } from "../../src/entries/runtime";
 
 describe("public scene runtime", () => {
   it("exposes stable placement and occurrence queries", () => {

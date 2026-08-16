@@ -44,11 +44,13 @@ describe("check-demo-import-boundary", () => {
     expect(runCheck(root).status).toBe(0);
   });
 
-  it("rejects broad internal root imports", () => {
-    const root = makeDemo({ "ordinary.ts": 'import { createScene } from "../src/index";\n' });
+  it("rejects deep internal imports outside benchmark exemptions", () => {
+    const root = makeDemo({
+      "ordinary.ts": 'import { createInteractionState } from "../src/interaction/interaction";\n',
+    });
     const result = runCheck(root);
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("unauthorized deep demo import ../src/index");
+    expect(result.stderr).toContain("unauthorized deep demo import ../src/interaction/interaction");
   });
 
   it("retains only the narrow internal selection-query exception", () => {
@@ -94,7 +96,7 @@ describe("check-demo-import-boundary", () => {
     expect(script).not.toContain('"demo/benchmark/runner.ts"');
 
     const root = makeDemo({
-      "benchmark/interactive.ts": 'import { orbitCamera } from "../src/index";\n',
+      "benchmark/interactive.ts": 'import { orbitCamera } from "../src/interaction/interaction";\n',
       "benchmark/measurement.ts":
         'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "benchmark/selection.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',

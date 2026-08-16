@@ -2,7 +2,7 @@ import type { ModelPreset } from "./presets";
 import { createPart, type Part } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { createScene } from "../../src/scene/scene";
-import type { PartId } from "../../src/index";
+import type { PartId } from "../../src/geometry/part";
 import { createPlanarGridGeometry } from "./planar-grid";
 
 const PART_ID: PartId = 1;

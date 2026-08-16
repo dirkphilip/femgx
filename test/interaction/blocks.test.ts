@@ -1,19 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
   createInteractionState,
+  resolveElementBlockStyle,
+} from "../../src/interaction/interaction";
+import {
   emphasizedElementBlockRefs,
   isElementBlockEmphasized,
   isElementBlockVisible,
-  isTargetHighlighted,
-  isTargetSelected,
-  resolveElementBlockStyle,
-  selectedTargets,
   setElementBlockHighlighted,
   setElementBlockOverride,
   setElementBlockSelected,
   setElementBlockVisible,
+} from "../../src/interaction/blocks";
+import {
+  isTargetHighlighted,
+  isTargetSelected,
   setTargetHovered,
-} from "../../src/index";
+} from "../../src/interaction/targets";
+import { selectedTargets } from "../../src/interaction/selection-queries";
 import { identity } from "../../src/math/mat4";
 
 const instance = {

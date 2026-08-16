@@ -109,8 +109,8 @@ The large browser surfaces are partitioned by ownership rather than by runner:
 - `e2e/core/core-foundation.spec.ts` and `e2e/core/core-journeys.spec.ts` — eight
   direct public-entry journeys covering foundation lifecycle/unsupported state,
   instancing, raster picking, overlays, results, camera, and transparency. Their
-  HTML host imports only `src/index.ts`; it does not mount the workbench or use
-  demo selectors.
+  HTML host imports only the explicit `src/entries/*` facades; it does not mount
+  the workbench or use demo selectors.
 
 Shared support modules contain only reusable browser mechanics; they do not own
 additional product journeys. A DOM semantic contract is not repeated in a GPU

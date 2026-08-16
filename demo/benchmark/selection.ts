@@ -1,11 +1,9 @@
-import {
-  projectPoint,
-  transformPoint,
-  type BoxSelectionRect,
-  type Camera,
-  type InteractionTarget,
-} from "../../src/index";
-import { createInteractionState, setTargetsSelected } from "../../src/index";
+import { projectPoint, type Camera } from "../../src/camera/camera";
+import { transformPoint } from "../../src/math/mat4";
+import { createInteractionState } from "../../src/interaction/interaction";
+import { setTargetsSelected } from "../../src/interaction/targets";
+import type { BoxSelectionRect } from "../../src/interaction/box-selection";
+import type { InteractionTarget } from "../../src/interaction/target-types";
 import type { Part, PartId } from "../../src/geometry/part";
 import { ELEMENT_RECORD_STRIDE } from "../../src/renderer/resources/element-resources";
 import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";

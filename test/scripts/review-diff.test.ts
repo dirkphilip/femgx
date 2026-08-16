@@ -138,10 +138,10 @@ describe("review-diff", () => {
     expect(runReview(root)).not.toContain("Advisory source-directory module budget");
   });
 
-  it("does not count the public entry point at the source root", () => {
+  it("does not count root-level source modules", () => {
     const root = createRepository();
     mkdirSync(join(root, "src"), { recursive: true });
-    writeFileSync(join(root, "src/index.ts"), "export const entryPoint = true;\n");
+    writeFileSync(join(root, "src/root-module.ts"), "export const rootModule = true;\n");
     commit(root);
     writeFileSync(join(root, "src/another.ts"), "export const another = true;\n");
 

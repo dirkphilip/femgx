@@ -1,23 +1,27 @@
 import { describe, expect, it } from "vitest";
 import {
-  clearSelection,
   createInteractionState,
+  resolveElementStyle,
+  setElementOverride,
+} from "../../src/interaction/interaction";
+import {
   interactionTargetFromHit,
   isTargetHighlighted,
   isTargetSelected,
-  resolveElementStyle,
-  setElementOverride,
   setTargetHighlighted,
   setTargetsHighlighted,
   setTargetSelected,
   setTargetHovered,
   setTargetsSelected,
+  type InteractionTarget,
+} from "../../src/interaction/targets";
+import {
+  clearSelection,
   selectedTargetCount,
   selectedTargetSummary,
   selectedTargets,
-  type InteractionTarget,
-  type PickHit,
-} from "../../src/index";
+} from "../../src/interaction/selection-queries";
+import type { PickHit } from "../../src/picking/types";
 import { identity } from "../../src/math/mat4";
 import type { Instance } from "../../src/scene/types";
 import { readInteractionState } from "../../src/interaction/state";

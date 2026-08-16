@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createInteractionState, createSceneRuntime } from "../../src/index";
+import { createInteractionState } from "../../src/entries/root";
+import { createSceneRuntime } from "../../src/entries/runtime";
 import { createBoltedPlateFixture } from "../../demo/fixtures/bolted-plate";
 import {
   createWorkbenchSnapshot,

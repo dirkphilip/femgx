@@ -3,10 +3,8 @@ import {
   createElementModelFromFemModel,
   createModelBuilder,
   IoError,
-  LINE_SHAPE,
-  TET4_SHAPE,
-  TRIANGLE_SHAPE,
-} from "../../../src/index";
+} from "../../../src/entries/io";
+import { LINE_SHAPE, TET4_SHAPE, TRIANGLE_SHAPE } from "../../../src/entries/model";
 
 describe("createElementModelFromFemModel", () => {
   it("converts an empty interchange model", () => {

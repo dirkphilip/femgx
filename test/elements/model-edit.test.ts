@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement, type Element } from "../../src/elements/element";
-import {
-  createElementModel,
-  editElementModel,
-  ElementModelEditError,
-  type ElementModel,
-} from "../../src/index";
+import { createElementModel, type ElementModel } from "../../src/elements/model";
+import { editElementModel, ElementModelEditError } from "../../src/elements/model-edit";
 import { TRIANGLE_SHAPE } from "../../src/elements/shapes";
 
 const nodes = [0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 2, 0, 0, 2, 1, 0];

@@ -1,5 +1,4 @@
-import { orbitCamera } from "../../src/index";
-import type { Camera } from "../../src/index";
+import { orbitCamera, type Camera } from "../../src/camera/camera";
 import type { WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import type { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { calculateRenderLoopStats } from "../workbench/viewport/render-loop";

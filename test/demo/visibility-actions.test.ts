@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   createInteractionState,
-  createSceneRuntime,
   isBodyVisible,
   isElementBlockVisible,
   isElementVisible,
@@ -14,8 +13,8 @@ import {
   type FemViewport,
   type InteractionState,
   type Scene,
-  type SceneRuntime,
-} from "../../src/index";
+} from "../../src/entries/root";
+import { createSceneRuntime, type SceneRuntime } from "../../src/entries/runtime";
 import { createBoltedPlatePreset } from "../../demo/fixtures/presets";
 import { WorkbenchVisibilityActions } from "../../demo/workbench/state/visibility-actions";
 

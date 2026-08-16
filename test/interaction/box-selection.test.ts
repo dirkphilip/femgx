@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { installBoxSelection, type BoxSelectionEvent } from "../../src/index";
+import { installBoxSelection, type BoxSelectionEvent } from "../../src/interaction/box-selection";
 
 interface PointerInput {
   readonly pointerId: number;

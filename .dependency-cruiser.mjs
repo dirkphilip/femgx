@@ -60,11 +60,11 @@ export default {
       to: { circular: true },
     },
     {
-      name: "no-production-root-barrel-imports",
+      name: "no-production-package-facade-imports",
       severity: "error",
-      comment: "Production modules must use an owning subsystem boundary, never src/index.ts.",
-      from: { path: "^src/(?!index\\.ts$)" },
-      to: { path: "^src/index\\.ts$" },
+      comment: "Production modules must use owning subsystem boundaries, never package facades.",
+      from: { path: "^src/(?!entries/)" },
+      to: { path: "^src/entries/" },
     },
     {
       name: "no-production-demo-or-test-imports",

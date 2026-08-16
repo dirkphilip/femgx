@@ -1,8 +1,6 @@
 import {
-  createCamera,
   createInteractionState,
   createPart,
-  createSceneRuntime,
   identity,
   setElementBlockVisible,
   setElementVisible,
@@ -11,7 +9,9 @@ import {
   type Geometry,
   type InteractionState,
   type Scene,
-} from "../../src/index";
+} from "../../src/entries/root";
+import { createCamera } from "../../src/entries/camera";
+import { createSceneRuntime } from "../../src/entries/runtime";
 import type { BoxSelectionRequest } from "../../demo/workbench/selection/box-selection-resolver";
 import { throughIntersectionBoxSelectionResolver } from "../../demo/workbench/selection/through-box-selection";
 import { createPlanarGridGeometry } from "../../demo/fixtures/planar-grid";
