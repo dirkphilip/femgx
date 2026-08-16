@@ -201,7 +201,7 @@ function faceHit(
     faceIndex: face.faceIndex,
     key: face.key,
     nodeIds: face.nodeIds,
-    neighborElementIds: face.neighborElementIds,
+    neighborElementIds: face.neighborElementId === undefined ? [] : [face.neighborElementId],
     worldPosition,
     normal: polygonNormal(worldPoints),
   };

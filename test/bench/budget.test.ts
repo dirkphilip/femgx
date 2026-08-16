@@ -421,7 +421,6 @@ function makeFaceSubsetBenchmarkGeometry(): TriangleGeometry {
     primitiveCount: 1,
     key: String(index),
     nodeIds: [0, 1, 2],
-    neighborElementIds: [],
   }));
   const faceIds = faces.map(({ elementId, faceIndex }) => ({ elementId, faceIndex }));
   return {

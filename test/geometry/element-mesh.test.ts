@@ -468,11 +468,13 @@ describe("elementPart geometry", () => {
         { id: 2, elementIds: [2] },
       ],
     });
-    const interfaces = (geometry.faces ?? []).filter((face) => face.neighborElementIds.length > 0);
+    const interfaces = (geometry.faces ?? []).filter(
+      (face) => face.neighborElementId !== undefined,
+    );
     expect(interfaces).toHaveLength(2);
-    expect(interfaces.map((face) => [face.bodyId, face.neighborElementIds])).toEqual([
-      [1, [2]],
-      [2, [1]],
+    expect(interfaces.map((face) => [face.bodyId, face.neighborElementId])).toEqual([
+      [1, 2],
+      [2, 1],
     ]);
     expect(geometry.indices.length).toBe(8 * 3);
   });
@@ -483,13 +485,13 @@ describe("elementPart geometry", () => {
       bodies: [{ id: 1, elementIds: [1, 2] }],
     });
     expect(sameBody.indices.length).toBe(8 * 3);
-    expect(sameBody.faces?.some((face) => face.neighborElementIds.length > 0)).toBe(true);
+    expect(sameBody.faces?.some((face) => face.neighborElementId !== undefined)).toBe(true);
 
     const namedAndUnowned = geometryFor(model, "triangle", {
       bodies: [{ id: 1, elementIds: [1] }],
     });
     expect(namedAndUnowned.indices.length).toBe(8 * 3);
-    expect(namedAndUnowned.faces?.some((face) => face.neighborElementIds.length > 0)).toBe(true);
+    expect(namedAndUnowned.faces?.some((face) => face.neighborElementId !== undefined)).toBe(true);
   });
 
   it("records element tessellations so every triangle is element-pickable", () => {
@@ -600,7 +602,7 @@ describe("elementPart geometry", () => {
 
   it("retains interior face metadata in solid geometry", () => {
     const solid = geometryFor(sharedTetPairModel(), "triangle");
-    expect(solid.faces?.some((face) => face.neighborElementIds.length > 0)).toBe(true);
+    expect(solid.faces?.some((face) => face.neighborElementId !== undefined)).toBe(true);
   });
 
   it("keeps full geometry while drawing an explicit stable face subset", () => {
@@ -613,7 +615,7 @@ describe("elementPart geometry", () => {
     expect(geometry.faces?.[3]).toMatchObject({
       elementId: 1,
       faceIndex: 3,
-      neighborElementIds: [2],
+      neighborElementId: 2,
     });
   });
 

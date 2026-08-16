@@ -265,7 +265,6 @@ function omittedTrianglePart(): ReturnType<typeof createPart> {
             primitiveCount: 1,
             key: "0:1:2",
             nodeIds: [0, 1, 2],
-            neighborElementIds: [],
           },
           {
             elementId: 2,
@@ -274,7 +273,6 @@ function omittedTrianglePart(): ReturnType<typeof createPart> {
             primitiveCount: 1,
             key: "3:4:5",
             nodeIds: [3, 4, 5],
-            neighborElementIds: [],
           },
         ],
         faceSubset: { faceIds: [{ elementId: 1, faceIndex: 0 }] },

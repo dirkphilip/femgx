@@ -95,14 +95,9 @@ export function validateFaceMetadata(
       );
     }
     validateFaceNodes(identity, face.nodeIds, nodeCount);
-    if (face.neighborElementIds.length > 1) {
-      throw new Error(
-        `Face ${identity} has ${face.neighborElementIds.length} neighbors; non-manifold faces are unsupported`,
-      );
-    }
-    for (const neighbor of face.neighborElementIds) {
-      validateOneBasedId(neighbor, "Face neighbor element");
-      if (neighbor === face.elementId) {
+    if (face.neighborElementId !== undefined) {
+      validateOneBasedId(face.neighborElementId, "Face neighbor element");
+      if (face.neighborElementId === face.elementId) {
         throw new Error(`Face ${identity} cannot neighbor its owner element`);
       }
     }

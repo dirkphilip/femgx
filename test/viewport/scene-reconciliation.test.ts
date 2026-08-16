@@ -23,7 +23,6 @@ function reusableScene() {
             primitiveCount: 1,
             key: "0/1/2",
             nodeIds: [0, 1, 2],
-            neighborElementIds: [],
             bodyId: 7,
             blockId: 11,
           },

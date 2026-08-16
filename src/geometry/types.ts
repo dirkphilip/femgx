@@ -95,8 +95,8 @@ export interface FaceTessellation {
   readonly key: FaceKey;
   /** Outward-oriented node loop; interleaves mid-edge nodes when quadratic. */
   readonly nodeIds: readonly NodeId[];
-  /** Other elements incident to the same canonical face (empty on boundaries). */
-  readonly neighborElementIds: readonly ElementId[];
+  /** The other element incident to this face, when it is an interior face. */
+  readonly neighborElementId?: ElementId;
   /** Optional logical body owning the face's element. */
   readonly bodyId?: BodyId;
   /** Optional semantic element block owning this face's element. */

@@ -437,7 +437,6 @@ describe("validatePickIds", () => {
           primitiveCount: 3,
           key: "0,1,2",
           nodeIds: [0, 1, 2],
-          neighborElementIds: [],
         },
       ],
     };
@@ -476,7 +475,6 @@ describe("validatePickIds", () => {
               primitiveCount: 4,
               key: "0,1,2",
               nodeIds: [0, 1, 2],
-              neighborElementIds: [],
             },
           ],
         },

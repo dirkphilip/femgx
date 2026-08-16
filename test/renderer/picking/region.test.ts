@@ -77,7 +77,6 @@ function richTrianglePart(): ReturnType<typeof createPart> {
             bodyId: 7,
             key: "0:1:2",
             nodeIds: [0, 1, 2],
-            neighborElementIds: [],
           },
         ],
       },

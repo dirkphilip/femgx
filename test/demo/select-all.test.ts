@@ -83,7 +83,6 @@ function face(elementId: number, faceIndex: number, primitiveStart: number, node
     primitiveCount: 1,
     key: nodeIds.join(":"),
     nodeIds,
-    neighborElementIds: [],
   };
 }
 

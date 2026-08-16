@@ -58,7 +58,6 @@ function coreScene(placementCount = 1, separated = false) {
             primitiveCount: 1,
             key: "0,1,2",
             nodeIds: [0, 1, 2],
-            neighborElementIds: [],
           },
         ],
       },
