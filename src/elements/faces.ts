@@ -231,17 +231,15 @@ export function classifyFaces(elements: readonly Element[]): readonly Classified
  * @category Elements and model editing
  */
 export function boundaryFaceRefs(elements: readonly Element[]): readonly FaceIdRef[] {
-  const classified = classifyFaces(elements);
-  const refs: FaceIdRef[] = [];
-  let index = 0;
+  const candidates = new Map<FaceKey, FaceIdRef | undefined>();
   for (const element of elements) {
     for (const [faceIndex, face] of facesOf(element).entries()) {
-      const result = classified[index];
-      if (result?.boundary && result.key === face.key) {
-        refs.push({ elementId: element.id, faceIndex });
+      if (candidates.has(face.key)) {
+        candidates.set(face.key, undefined);
+      } else {
+        candidates.set(face.key, { elementId: element.id, faceIndex });
       }
-      index += 1;
     }
   }
-  return refs;
+  return [...candidates.values()].filter((ref): ref is FaceIdRef => ref !== undefined);
 }

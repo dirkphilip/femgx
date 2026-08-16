@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { setTargetsSelected } from "../../src/interaction/targets";
 import { createStructuredFeModel } from "../../demo/benchmark/structured-fe";
+import { boundaryFaceRefs } from "../../src/elements/faces";
 import { elementPart } from "../../src/entries/model";
 import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
@@ -14,6 +15,9 @@ const GRID_SIZES = [24, 35, 47] as const;
 const ELEMENT_COUNTS = GRID_SIZES.map((size) => size ** 3);
 const models = GRID_SIZES.map((size) => createStructuredFeModel("hex8", size));
 const TET4_ELEMENT_COUNT = 6 * 28 ** 3;
+const TET4_BOUNDARY_GRID_SIZE = 35;
+const TET4_BOUNDARY_FACE_COUNT = 12 * TET4_BOUNDARY_GRID_SIZE ** 2;
+const tet4BoundaryModel = createStructuredFeModel("tet4", TET4_BOUNDARY_GRID_SIZE);
 const tet4Spec = benchmarkCaseSpecs(false).find((spec) => spec.id === "fe-tet4-solid-132k");
 if (tet4Spec === undefined) throw new Error("Tet4 benchmark case is missing");
 const tet4Case = createBenchmarkCase(tet4Spec);
@@ -86,6 +90,26 @@ describe("large-model scaling", () => {
       },
     ]);
     expect(measured).toBeLessThanOrEqual(100);
+  });
+
+  it("keeps 257,250-element Tet4 boundary extraction bounded", () => {
+    const measured = measureMs(
+      () => {
+        const refs = boundaryFaceRefs(tet4BoundaryModel.elements);
+        if (refs.length !== TET4_BOUNDARY_FACE_COUNT) {
+          throw new Error("Tet4 boundary extraction lost exterior faces");
+        }
+      },
+      { warmup: 0, samples: 1 },
+    );
+    report("257,250-element Tet4 boundary-face extraction", [
+      {
+        size: TET4_BOUNDARY_FACE_COUNT,
+        measuredMs: measured,
+        millisecondsPerUnit: measured / TET4_BOUNDARY_FACE_COUNT,
+      },
+    ]);
+    expect(measured).toBeLessThanOrEqual(1_000);
   });
 
   it.each(cases)("$name remains approximately linear", ({ name, points }) => {

@@ -643,9 +643,14 @@ describe("elementPart geometry", () => {
   it("derives stable exterior identities from face classification", () => {
     const elements = sharedTetPairModel().elements;
     const refs = boundaryFaceRefs(elements);
-    expect(refs).toHaveLength(6);
-    expect(refs).not.toContainEqual({ elementId: 1, faceIndex: 3 });
-    expect(refs).not.toContainEqual({ elementId: 2, faceIndex: 3 });
+    expect(refs).toEqual([
+      { elementId: 1, faceIndex: 0 },
+      { elementId: 1, faceIndex: 1 },
+      { elementId: 1, faceIndex: 2 },
+      { elementId: 2, faceIndex: 0 },
+      { elementId: 2, faceIndex: 1 },
+      { elementId: 2, faceIndex: 2 },
+    ]);
   });
 
   it("generates point sprites for point elements", () => {
