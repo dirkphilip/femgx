@@ -256,6 +256,12 @@ const SOLID_SCALING_GRID_SIZES = [8, 12, 16] as const;
 const solidScalingModels = SOLID_SCALING_GRID_SIZES.map((gridSize) =>
   createStructuredFeModel("hex8", gridSize),
 );
+const NODE_COPY_BENCH_NODE_COUNT = 500_000;
+const nodeCopyBenchmarkNodes = new Float32Array(NODE_COPY_BENCH_NODE_COUNT * 3);
+nodeCopyBenchmarkNodes.set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
+const nodeCopyBenchmarkModel = createElementModel(nodeCopyBenchmarkNodes, [
+  createElement(1, TET4_SHAPE, [0, 1, 2, 3]),
+]);
 
 function makeSelectionTargets(count: number, occurrenceCount: number): InteractionTarget[] {
   return Array.from({ length: count }, (_, index) => ({
@@ -747,6 +753,14 @@ const budgets: readonly BudgetCase[] = [
     budgetMs: 600,
     run: () => {
       elementPart(905, bodyModelWithBodies);
+    },
+  },
+  {
+    name: "elementPart (large node pool)",
+    description: `${NODE_COPY_BENCH_NODE_COUNT} nodes with one Tet4 element`,
+    budgetMs: 20,
+    run: () => {
+      elementPart(906, nodeCopyBenchmarkModel);
     },
   },
 ];

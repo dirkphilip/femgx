@@ -46,6 +46,7 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `buildHighlightTable`             | 16 384 emphasis records           | bounded four-entry hash buckets                    |
 | `encodeEmphasisRecord` mirror     | 16 384 emphasis records           | CPU highlight-buffer preparation                   |
 | `elementPart`                     | 600 mixed linear elements         | grouped triangle/line/point tessellation           |
+| `elementPart` (large node pool)   | 500 000 nodes / one Tet4          | volume tessellation without a transient node copy  |
 | `expand line geometry`            | 10,000 authored line segments     | one reusable four-corner triangle quad per segment |
 | `createPart`                      | 16 384 quads / 256 bodies         | element/body/face validation                       |
 | `elementPart`                     | 16 384 FE quads / 256 bodies      | body-aware canonical tessellation                  |
