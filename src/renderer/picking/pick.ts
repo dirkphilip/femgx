@@ -419,7 +419,23 @@ export function releasePickReadback(pool: PickReadbackPool, buffer: GPUBuffer, s
     buffer.destroy();
     return;
   }
-  pool.free.push({ buffer, size: Math.max(size, pool.capacities.get(buffer) ?? size) });
+  retainFreeReadback(pool, {
+    buffer,
+    size: Math.max(size, pool.capacities.get(buffer) ?? size),
+  });
+}
+
+function retainFreeReadback(pool: PickReadbackPool, entry: PickReadbackBuffer): void {
+  const retained = pool.free[0];
+  if (retained === undefined) {
+    // Region tiles are read sequentially, so one largest idle buffer covers reuse.
+    pool.free.push(entry);
+    return;
+  }
+  const discarded = entry.size > retained.size ? retained : entry;
+  if (discarded === retained) pool.free[0] = entry;
+  discarded.buffer.destroy();
+  pool.capacities.delete(discarded.buffer);
 }
 
 function createReadback(device: GPUDevice, size: number): GPUBuffer {
